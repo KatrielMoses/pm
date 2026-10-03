@@ -6,8 +6,11 @@ import {
   assertApplicationIdentity,
   createPool,
   latestMigrationVersion,
+  PlatformDatabase,
   PlatformHealth,
 } from '@pm/db';
+import { createIdentityService } from '@pm/identity';
+import { PUBLIC_CONFIG } from '@pm/config/public';
 import { createLogger, errorFields, initTelemetry, LogErrorReporter } from '@pm/observability';
 import { buildApp } from './app.ts';
 import { checkReadiness } from './readiness.ts';
@@ -38,6 +41,17 @@ async function main(): Promise<void> {
   await assertApplicationIdentity(pool, config.env);
 
   const health = new PlatformHealth(pool);
+  const identity = createIdentityService({
+    db: new PlatformDatabase(pool, {
+      logger,
+      metrics: telemetry.metrics,
+      tracer: telemetry.tracer,
+    }),
+    config: config.identity,
+    appName: PUBLIC_CONFIG.appName,
+    logger,
+    metrics: telemetry.metrics,
+  });
   let draining = false;
   const defaultWeb = fileURLToPath(new URL('../../web/dist', import.meta.url));
   const app = await buildApp({
@@ -47,6 +61,7 @@ async function main(): Promise<void> {
     tracer: telemetry.tracer,
     errors,
     webDistDir: config.http.webDistDir ?? (existsSync(defaultWeb) ? defaultWeb : undefined),
+    auth: { identity: identity.service, localOAuth: identity.localOAuth },
     readiness: () =>
       checkReadiness({
         health,

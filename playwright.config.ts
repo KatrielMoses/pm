@@ -8,11 +8,21 @@ export default defineConfig({
   testDir: 'e2e',
   globalSetup: './e2e/global-setup.ts',
   fullyParallel: false,
+  workers: 2,
+  timeout: 60_000,
   forbidOnly: Boolean(process.env.CI),
   retries: 0,
-  reporter: process.env.CI
-    ? [['list'], ['html', { open: 'never', outputFolder: 'playwright-report' }]]
-    : 'list',
-  use: { baseURL: `http://127.0.0.1:${port}`, trace: 'retain-on-failure' },
-  projects: [{ name: 'chromium', use: { ...devices['Desktop Chrome'] } }],
+  // No HTML report in CI: failure attachments (page snapshots) can contain synthetic credentials.
+  reporter: 'list',
+  // Traces capture request bodies and DOM (passwords, one-time tokens, recovery codes). CI uploads
+  // the report, so traces stay local-only there; failures report via the list output.
+  use: {
+    baseURL: `http://127.0.0.1:${port}`,
+    trace: process.env.CI ? 'off' : 'retain-on-failure',
+    screenshot: 'off',
+  },
+  projects: [
+    { name: 'desktop', use: { ...devices['Desktop Chrome'] } },
+    { name: 'mobile', use: { ...devices['Pixel 7'] } },
+  ],
 });

@@ -155,3 +155,9 @@ All decisions are **proposed (Phase 0C)**, pending solutions-architect acceptanc
 - **Decision:** As in the DQ-08 resolution.
 - **Alternatives:** Permission as of deletion (would require storing historical ACLs, and resurrects access after revocation).
 - **Consequences:** Someone who lost access cannot restore what they deleted. An administrator with authority can.
+
+<a id="az-17"></a>
+### AZ-17: Own-account security actions are personal, human-only, and step-up protected (Phase 1B amendment)
+- **Decision:** Three personal actions cover the account's own second factor: `account.mfa_enroll` (R3), `account.mfa_disable` (R4), and `account.recovery_codes_regenerate` (R3). All require step-up. They act on the authenticated account outside any workspace, so the matrix shows `own` for every role, and holding one is never a tenant capability. They are human-only: step-up is unavailable to non-human principals, and no scope may list them. Enrollment accepts a password step-up when no factor exists yet, so a first factor never requires MFA. Threat T-35 and tests AT-081…086 cover them. SEC-006, plus SEC-005 for recovery codes.
+- **Alternatives:** Reusing the workspace `security.configure` action (would tie personal security to tenant administration). Marking them non-delegable in the matrix sense (owner-only would deny every other member their own MFA).
+- **Consequences:** The 0C action count becomes 101 and the step-up count 27. Runtime code takes the step-up subset from the generated registry, and the integration validator checks it.

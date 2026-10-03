@@ -7,6 +7,7 @@
     { "path": "../../packages/config" },
     { "path": "../../packages/observability" },
     { "path": "../../packages/db" },
-    { "path": "../../packages/platform" }
+    { "path": "../../packages/platform" },
+    { "path": "../../packages/identity" }
   ]
 }

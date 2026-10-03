@@ -20,10 +20,10 @@ export class PlatformDiscovery {
     limit: number;
     workspaceCap: number;
     leaseMs: number;
-  }): Promise<Array<{ jobId: string; workspaceId: string; leaseToken: string }>> {
+  }): Promise<Array<{ jobId: string; workspaceId: string | null; leaseToken: string }>> {
     const { rows } = await this.#pool.query<{
       job_id: string;
-      workspace_id: string;
+      workspace_id: string | null;
       lease_token: string;
     }>(
       'SELECT job_id, workspace_id, lease_token FROM exec_dispatch.claim_jobs($1, $2, $3, $4, $5)',
@@ -38,8 +38,8 @@ export class PlatformDiscovery {
 
   async discoverExpiredLeases(
     limit: number,
-  ): Promise<Array<{ jobId: string; workspaceId: string }>> {
-    const { rows } = await this.#pool.query<{ job_id: string; workspace_id: string }>(
+  ): Promise<Array<{ jobId: string; workspaceId: string | null }>> {
+    const { rows } = await this.#pool.query<{ job_id: string; workspace_id: string | null }>(
       'SELECT job_id, workspace_id FROM exec_dispatch.discover_expired_leases($1)',
       [limit],
     );

@@ -42,6 +42,7 @@ Narrative: [../14-threat-model.md](../14-threat-model.md).
 | T-32 | rls_leak | Worker or maintenance role bypasses RLS broadly. | I-02, I-03 | AT-075 |
 | T-33 | inference | Not-found versus forbidden difference reveals that a readable record exists but an action is forbidden — acceptable only for readable records. | I-07 | AT-076 |
 | T-34 | cross_brand_traversal | Client supplies a brand, role, plan, actor, or approval field to bypass checks. | I-09, I-13 | AT-003, AT-077 |
+| T-35 | spoofing | Account takeover through account security: a stolen or unattended session, or a delegated credential, enrolls or disables a second factor or regenerates recovery codes. | I-01, I-09, I-14, I-17 | AT-081, AT-082, AT-083, AT-084, AT-085, AT-086 |
 
 ## Test matrix
 
@@ -127,6 +128,12 @@ Narrative: [../14-threat-model.md](../14-threat-model.md).
 | AT-078 | T-09, T-12 | member | Page sizes full and totals consistent: filtering in SQL before LIMIT — pagination over restricted mix | `record.read` | ui_list | **allow** | ok_filtered | count_facet |
 | AT-079 | T-03, T-20 | guest | Share survives move; new brand marker shown; nothing else — share of record whose project is then moved to another brand | `record.read` | ui_record | **allow** | ok_filtered | breadcrumb |
 | AT-080 | T-24 | member | Auto policy: off when ≥2 approval-capable humans — self-approval with two approval-capable humans | `review.self_approve` | api | **deny** | forbidden | — |
+| AT-081 | T-35 | account | Signed-in session, no fresh step-up token — own account | `account.mfa_disable` | api | **deny** | step_up_required | — |
+| AT-082 | T-35 | account | Step-up token verified in another session of the same account — own account | `account.recovery_codes_regenerate` | api | **deny** | step_up_required | — |
+| AT-083 | T-35 | account | Challenge stored as locked after STEP_UP_MAX_ATTEMPTS failures, then the correct proof — own account | `account.mfa_disable` | api | **deny** | step_up_required | — |
+| AT-084 | T-35 | api_token_personal | Personal API token calls an account-security endpoint — own account | `account.mfa_disable` | api | **deny** | unauthenticated | — |
+| AT-085 | T-35 | agent_run | Agent run attempts recovery-code regeneration for the run owner — run owner account | `account.recovery_codes_regenerate` | api | **deny** | unauthenticated | — |
+| AT-086 | T-35 | account | No factor enrolled; fresh password step-up — own account | `account.mfa_enroll` | api | **allow** | ok | — |
 
 ## Response shapes
 
@@ -145,3 +152,4 @@ Narrative: [../14-threat-model.md](../14-threat-model.md).
 | `validation_generic` | Generic validation error naming only the caller's own input |
 | `empty` | Zero rows |
 | `error_generic` | Generic error without tenant data |
+| `step_up_required` | Fresh step-up proof required; nothing executed and no resource information beyond the challenge |

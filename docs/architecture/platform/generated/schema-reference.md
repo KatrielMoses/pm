@@ -1192,7 +1192,7 @@ Step up challenge · visibility **public** · max class **C2**
 | `target` | `common#record_ref` |  |  |
 | `methods` | array of string enum: `password`, `totp`, `webauthn`, `recovery_code` | yes |  |
 | `expires_at` | `common#timestamp` | yes |  |
-| `state` | string enum: `pending`, `verified`, `consumed`, `expired`, `cancelled` | yes |  |
+| `state` | string enum: `pending`, `verified`, `consumed`, `expired`, `cancelled`, `locked` | yes |  |
 | `verify` | string |  |  |
 | `cancel` | string |  |  |
 

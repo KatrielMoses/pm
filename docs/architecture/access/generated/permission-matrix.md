@@ -113,13 +113,16 @@ Rules and algorithm: [../04-effective-permissions.md](../04-effective-permission
 | `support_access.grant` | workspace | — | R4 | SU | **all** | **all** | — | — | — | — |
 | `emergency_stop.trigger` | workspace | — | R1 |  | **all** | **all** | — | — | — | — |
 
-## Personal (4)
+## Personal (7)
 
 | Action | Scopes | Level | Risk | Flags | owner | administrator | member | limited_member | read_only | guest |
 |---|---|---|---|---|---|---|---|---|---|---|
 | `timesheet.submit_own` | personal | — | R0 |  | own | own | own | own | own | — |
 | `personal.manage_own` | personal | — | R0 |  | own | own | own | own | own | own |
 | `sessions.manage_own` | personal | — | R1 |  | own | own | own | own | own | own |
+| `account.mfa_enroll` | personal | — | R3 | SU | own | own | own | own | own | own |
+| `account.mfa_disable` | personal | — | R4 | SU | own | own | own | own | own | own |
+| `account.recovery_codes_regenerate` | personal | — | R3 | SU | own | own | own | own | own | own |
 | `api_tokens.personal` | personal | — | R3 | SU | own | own | own | if limited_members_tokens | own | — |
 
 ## Agent tool classes
@@ -185,6 +188,9 @@ Rules and algorithm: [../04-effective-permissions.md](../04-effective-permission
 | `tests.execute` | Start or rerun test runs. | none | TEST-015 |  |
 | `personal.manage_own` | Inbox, Today, notifications, personal views, favorites, reminders, availability, profile. | none | CAP-011, PLAN-008, NTF-007 |  |
 | `sessions.manage_own` | List and revoke own sessions. | none | SEC-008 |  |
+| `account.mfa_enroll` | Enroll an authenticator (TOTP) factor on own account. | none | SEC-006 | Account-level (platform scope, no workspace or membership): 'own' means the authenticated account's own factors only; it is never a tenant capability. Human-only and not delegable to tokens, agents, automations, integrations, or support: step-up is human-only (0D §11.2) and no 0D scope may list this action. Step-up accepts the password when no factor exists yet, so enrollment never requires MFA before the first MFA. |
+| `account.mfa_disable` | Turn off own two-step verification and remove its factor and recovery codes. | none | SEC-006 | Account-level (platform scope, no workspace or membership): 'own' means the authenticated account's own factors only; it is never a tenant capability. Human-only and not delegable to tokens, agents, automations, integrations, or support: step-up is human-only (0D §11.2) and no 0D scope may list this action. |
+| `account.recovery_codes_regenerate` | Replace own recovery codes; the previous set stops working immediately. | none | SEC-006, SEC-005 | Account-level (platform scope, no workspace or membership): 'own' means the authenticated account's own factors only; it is never a tenant capability. Human-only and not delegable to tokens, agents, automations, integrations, or support: step-up is human-only (0D §11.2) and no 0D scope may list this action. |
 | `api_tokens.personal` | Create, rotate, revoke own personal API tokens (write scopes need step-up). | none | INT-017, INT-018 | Read-only role may only create read scopes. |
 | `workspace.view_settings` | View workspace name, locale, timezone, currency, week start. | none | WSB-002 |  |
 | `workspace.configure` | Edit workspace profile and defaults. | none | WSB-002, ADM-001 |  |

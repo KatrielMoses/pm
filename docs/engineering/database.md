@@ -6,13 +6,14 @@ extensions are needed in 1A: UUIDv7 keys are application-generated, and `gen_ran
 
 ## Schemas
 
-| Schema | Owner module | 1A contents |
+| Schema | Owner module | Contents |
 |---|---|---|
 | `exec` | execution (0B model `schema: exec`) | operation, attempt, job, outbox_event, inbox_receipt, idempotency_key, external_effect; enums; `current_workspace_id()` |
 | `exec_dispatch` | execution | Payload-free `SECURITY DEFINER` scheduling functions |
 | `tenancy` | tenancy | `workspace` anchor (1C extends it additively) |
 | `access` | access | empty (1D) |
-| `ops` | operational | `schema_migration`, `environment_binding`, `worker_heartbeat` (no tenant data) |
+| `ops` | operational | `schema_migration`, `environment_binding`, `worker_heartbeat`, `rate_limit_bucket`, `dev_secret_vault` (no tenant data) |
+| `identity` | identity (1B) | account, credential, mfa_factor, recovery_code, session, oauth_identity, verification_token, step_up_challenge, mail_delivery, security_event_buffer (0011); stored `locked` step-up state (0012). Platform scope, no tenant RLS; see [identity.md](identity.md) |
 
 ## Roles (0C §12.3)
 
@@ -106,3 +107,14 @@ Attempts are append-only; their guard permits `DELETE` only when the transaction
    policy, explicit column-scoped grants. Indexes lead with `workspace_id`.
 3. Update `packages/db/src/schema.ts` (`Database` types and `TABLE_COLUMNS`; the drift test fails otherwise).
 4. `pnpm lint` (SQL safety) and `pnpm test:integration` (catalog RLS checks, reversibility).
+
+## Platform scope (migration 0010)
+
+Some execution rows belong to no workspace: identity mail delivery, identity cleanup, and
+account-level idempotency keys. `PlatformDatabase.withPlatform()` opens a transaction with
+`app.platform_scope='platform'` and **no** workspace context, and `exec.in_platform_scope()`
+gates RLS policies that admit only rows with `workspace_id IS NULL`. `exec.job.workspace_id` and
+`exec.idempotency_key.workspace_id` are nullable; operations, attempts, effects, and outbox events
+stay tenant-only (`CHECK (workspace_id IS NOT NULL OR operation_id IS NULL)`). The tenant and
+platform scopes are mutually exclusive: a platform transaction cannot see tenant rows, and a tenant
+transaction cannot see platform rows.

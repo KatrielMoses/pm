@@ -9,6 +9,7 @@ import type {
   JobErrorClass,
   JobState,
   RiskClass,
+  StepUpChallengeState,
   TerminalReason,
   WaitingReason,
 } from '@pm/contracts';
@@ -110,7 +111,8 @@ export interface AttemptTable {
 
 export interface JobTable extends ContextColumns {
   id: string;
-  workspace_id: string;
+  /** NULL for platform-scoped jobs (migration 0010). */
+  workspace_id: string | null;
   queue: string;
   kind: string;
   operation_id: string | null;
@@ -173,7 +175,8 @@ export interface InboxReceiptTable {
 
 export interface IdempotencyKeyTable {
   id: string;
-  workspace_id: string;
+  /** NULL for account-level (platform-scoped) keys (migration 0010). */
+  workspace_id: string | null;
   principal_type: string;
   principal_id: string;
   key: string;
@@ -228,6 +231,212 @@ export interface WorkerHeartbeatTable {
   stopping: Defaulted<boolean>;
 }
 
+type Ts = Timestamp;
+type DTs = DefaultTimestamp;
+type Bytes = ColumnType<Buffer, Buffer, Buffer>;
+
+export interface AccountTable {
+  id: string;
+  public_id: string;
+  primary_email: string;
+  email_key: string;
+  display_name: string;
+  timezone: string;
+  locale: string;
+  day_start_offset: Defaulted<string>;
+  email_verified_at: Ts | null;
+  terms_version: string;
+  privacy_version: string;
+  legal_acknowledged_at: Ts;
+  pseudonym: string | null;
+  deleted_at: Ts | null;
+  created_at: DTs;
+  updated_at: DTs;
+  version: Defaulted<number>;
+}
+
+export interface CredentialTable {
+  account_id: string;
+  password_hash: Bytes;
+  password_salt: Bytes;
+  algorithm: 'argon2id';
+  params: Json<{ v: number; m: number; t: number; p: number; len: number }>;
+  password_changed_at: DTs;
+  failed_attempts: Defaulted<number>;
+  last_failed_at: Ts | null;
+  created_at: DTs;
+  updated_at: DTs;
+  version: Defaulted<number>;
+}
+
+export interface MfaFactorTable {
+  id: string;
+  public_id: string;
+  account_id: string;
+  factor_type: 'totp' | 'webauthn';
+  state: Defaulted<'pending' | 'active' | 'revoked'>;
+  label: string | null;
+  secret_ref: string | null;
+  webauthn_credential_id: Bytes | null;
+  webauthn_public_key: Bytes | null;
+  webauthn_sign_count: number | null;
+  last_used_step: number | null;
+  created_at: DTs;
+  verified_at: Ts | null;
+  last_used_at: Ts | null;
+  revoked_at: Ts | null;
+  updated_at: DTs;
+  version: Defaulted<number>;
+}
+
+export interface RecoveryCodeTable {
+  id: string;
+  account_id: string;
+  generation: number;
+  code_hash: Bytes;
+  created_at: DTs;
+  used_at: Ts | null;
+  revoked_at: Ts | null;
+}
+
+export type AuthMethod = 'password' | 'totp' | 'recovery_code' | 'oauth' | 'webauthn';
+
+export interface SessionTable {
+  id: string;
+  public_id: string;
+  account_id: string;
+  token_hash: Bytes;
+  created_at: DTs;
+  last_seen_at: DTs;
+  idle_expires_at: Ts;
+  absolute_expires_at: Ts;
+  revoked_at: Ts | null;
+  revoke_reason: string | null;
+  auth_methods: AuthMethod[];
+  assurance: 'single_factor' | 'multi_factor';
+  mfa_verified_at: Ts | null;
+  rotated_from_session_id: string | null;
+  device_label: string | null;
+  network_prefix: string | null;
+  version: Defaulted<number>;
+}
+
+export interface OauthIdentityTable {
+  id: string;
+  public_id: string;
+  account_id: string;
+  provider: string;
+  subject: string;
+  provider_email: string | null;
+  provider_display_name: string | null;
+  state: Defaulted<'linked' | 'unlinked'>;
+  linked_at: DTs;
+  unlinked_at: Ts | null;
+  last_sign_in_at: Ts | null;
+  version: Defaulted<number>;
+}
+
+export type TokenPurpose =
+  'email_verification' | 'password_reset' | 'sign_in_continuation' | 'oauth_state';
+
+export interface VerificationTokenTable {
+  id: string;
+  purpose: TokenPurpose;
+  account_id: string | null;
+  token_hash: Bytes;
+  created_at: DTs;
+  expires_at: Ts;
+  consumed_at: Ts | null;
+  revoked_at: Ts | null;
+  attempts: Defaulted<number>;
+  supersedes_token_id: string | null;
+  context: ColumnType<Record<string, unknown>, string | undefined, string>;
+  sealed_ref: string | null;
+}
+
+export type StepUpMethod = 'password' | 'totp' | 'webauthn' | 'recovery_code';
+
+export interface StepUpChallengeTable {
+  id: string;
+  public_id: string;
+  account_id: string;
+  session_id: string;
+  membership_id: string | null;
+  workspace_id: string | null;
+  action_key: string;
+  target_type: string | null;
+  target_hash: Bytes | null;
+  methods: StepUpMethod[];
+  state: Defaulted<StepUpChallengeState>;
+  challenge_nonce_hash: Bytes;
+  token_hash: Bytes | null;
+  idempotency_key_hash: Bytes | null;
+  expires_at: Ts;
+  verified_at: Ts | null;
+  verified_method: string | null;
+  token_expires_at: Ts | null;
+  consumed_at: Ts | null;
+  cancelled_at: Ts | null;
+  failed_attempts: Defaulted<number>;
+  locked_at: Ts | null;
+  created_at: DTs;
+  version: Defaulted<number>;
+}
+
+export interface MailDeliveryTable {
+  id: string;
+  template: string;
+  recipient: string | null;
+  locale: string;
+  account_id: string | null;
+  sealed_ref: string | null;
+  state: Defaulted<'pending' | 'sent' | 'failed'>;
+  attempts: Defaulted<number>;
+  provider_message_id: string | null;
+  request_id: string | null;
+  correlation_id: string;
+  traceparent: string | null;
+  created_at: DTs;
+  sent_at: Ts | null;
+}
+
+export interface SecurityEventBufferTable {
+  id: string;
+  occurred_at: DTs;
+  category: string;
+  action: string;
+  outcome: 'success' | 'failure' | 'denied';
+  actor_type: ActorType;
+  actor_id: string | null;
+  subject_type: string | null;
+  subject_id: string | null;
+  workspace_id: string | null;
+  network_prefix: string | null;
+  user_agent_family: string | null;
+  correlation_id: string;
+  retention_class: Defaulted<'R-AUDIT'>;
+}
+
+export interface RateLimitBucketTable {
+  policy: string;
+  key_hash: Bytes;
+  window_start: Ts;
+  hits: number;
+  strikes: Defaulted<number>;
+  blocked_until: Ts | null;
+  updated_at: DTs;
+}
+
+export interface DevSecretVaultTable {
+  ref: string;
+  purpose: string;
+  nonce: Bytes;
+  ciphertext: Bytes;
+  auth_tag: Bytes;
+  created_at: DTs;
+  expires_at: Ts | null;
+}
+
 export interface Database {
   'tenancy.workspace': WorkspaceTable;
   'exec.operation': OperationTable;
@@ -239,6 +448,18 @@ export interface Database {
   'exec.external_effect': ExternalEffectTable;
   'ops.schema_migration': SchemaMigrationTable;
   'ops.worker_heartbeat': WorkerHeartbeatTable;
+  'ops.rate_limit_bucket': RateLimitBucketTable;
+  'ops.dev_secret_vault': DevSecretVaultTable;
+  'identity.account': AccountTable;
+  'identity.credential': CredentialTable;
+  'identity.mfa_factor': MfaFactorTable;
+  'identity.recovery_code': RecoveryCodeTable;
+  'identity.session': SessionTable;
+  'identity.oauth_identity': OauthIdentityTable;
+  'identity.verification_token': VerificationTokenTable;
+  'identity.step_up_challenge': StepUpChallengeTable;
+  'identity.mail_delivery': MailDeliveryTable;
+  'identity.security_event_buffer': SecurityEventBufferTable;
 }
 
 /** Column inventory per table, compared with the migrated catalog by the schema-drift test. */
@@ -453,5 +674,188 @@ export const TABLE_COLUMNS: Readonly<Record<keyof Database, readonly string[]>> 
     'started_at',
     'last_seen_at',
     'stopping',
+  ],
+  'ops.rate_limit_bucket': [
+    'policy',
+    'key_hash',
+    'window_start',
+    'hits',
+    'strikes',
+    'blocked_until',
+    'updated_at',
+  ],
+  'ops.dev_secret_vault': [
+    'ref',
+    'purpose',
+    'nonce',
+    'ciphertext',
+    'auth_tag',
+    'created_at',
+    'expires_at',
+  ],
+  'identity.account': [
+    'id',
+    'public_id',
+    'primary_email',
+    'email_key',
+    'display_name',
+    'timezone',
+    'locale',
+    'day_start_offset',
+    'email_verified_at',
+    'terms_version',
+    'privacy_version',
+    'legal_acknowledged_at',
+    'pseudonym',
+    'deleted_at',
+    'created_at',
+    'updated_at',
+    'version',
+  ],
+  'identity.credential': [
+    'account_id',
+    'password_hash',
+    'password_salt',
+    'algorithm',
+    'params',
+    'password_changed_at',
+    'failed_attempts',
+    'last_failed_at',
+    'created_at',
+    'updated_at',
+    'version',
+  ],
+  'identity.mfa_factor': [
+    'id',
+    'public_id',
+    'account_id',
+    'factor_type',
+    'state',
+    'label',
+    'secret_ref',
+    'webauthn_credential_id',
+    'webauthn_public_key',
+    'webauthn_sign_count',
+    'last_used_step',
+    'created_at',
+    'verified_at',
+    'last_used_at',
+    'revoked_at',
+    'updated_at',
+    'version',
+  ],
+  'identity.recovery_code': [
+    'id',
+    'account_id',
+    'generation',
+    'code_hash',
+    'created_at',
+    'used_at',
+    'revoked_at',
+  ],
+  'identity.session': [
+    'id',
+    'public_id',
+    'account_id',
+    'token_hash',
+    'created_at',
+    'last_seen_at',
+    'idle_expires_at',
+    'absolute_expires_at',
+    'revoked_at',
+    'revoke_reason',
+    'auth_methods',
+    'assurance',
+    'mfa_verified_at',
+    'rotated_from_session_id',
+    'device_label',
+    'network_prefix',
+    'version',
+  ],
+  'identity.oauth_identity': [
+    'id',
+    'public_id',
+    'account_id',
+    'provider',
+    'subject',
+    'provider_email',
+    'provider_display_name',
+    'state',
+    'linked_at',
+    'unlinked_at',
+    'last_sign_in_at',
+    'version',
+  ],
+  'identity.verification_token': [
+    'id',
+    'purpose',
+    'account_id',
+    'token_hash',
+    'created_at',
+    'expires_at',
+    'consumed_at',
+    'revoked_at',
+    'attempts',
+    'supersedes_token_id',
+    'context',
+    'sealed_ref',
+  ],
+  'identity.step_up_challenge': [
+    'id',
+    'public_id',
+    'account_id',
+    'session_id',
+    'membership_id',
+    'workspace_id',
+    'action_key',
+    'target_type',
+    'target_hash',
+    'methods',
+    'state',
+    'challenge_nonce_hash',
+    'token_hash',
+    'idempotency_key_hash',
+    'expires_at',
+    'verified_at',
+    'verified_method',
+    'token_expires_at',
+    'consumed_at',
+    'cancelled_at',
+    'failed_attempts',
+    'locked_at',
+    'created_at',
+    'version',
+  ],
+  'identity.mail_delivery': [
+    'id',
+    'template',
+    'recipient',
+    'locale',
+    'account_id',
+    'sealed_ref',
+    'state',
+    'attempts',
+    'provider_message_id',
+    'request_id',
+    'correlation_id',
+    'traceparent',
+    'created_at',
+    'sent_at',
+  ],
+  'identity.security_event_buffer': [
+    'id',
+    'occurred_at',
+    'category',
+    'action',
+    'outcome',
+    'actor_type',
+    'actor_id',
+    'subject_type',
+    'subject_id',
+    'workspace_id',
+    'network_prefix',
+    'user_agent_family',
+    'correlation_id',
+    'retention_class',
   ],
 };

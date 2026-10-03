@@ -169,3 +169,9 @@ All decisions are **proposed (Phase 0D)**, pending solutions-architect acceptanc
 ### PL-16: Content-free logs and bounded metric labels
 - **Alternatives:** Rich logs with payloads (privacy and secret leakage). Per-tenant metric labels (cardinality explosion).
 - **Consequences:** Tenant diagnostics use traces and restricted logs.
+
+<a id="pl-17"></a>
+### PL-17: Identity resource prefixes, stored `locked` challenges, and the step-up response shape (Phase 1B amendment)
+- **Decision:** Register `ses_` (`identity.session`), `mfa_` (`identity.mfa_factor`), and `oid_` (`identity.oauth_identity`), so sessions, factors, and linked identities are addressable for listing, revocation, and unlinking. `locked` joins the step-up challenge states as a stored terminal state, set by the failed verification that reaches `STEP_UP_MAX_ATTEMPTS` (a new 1B parameter). The 0C/0D authorization response shapes gain `step_up_required`.
+- **Alternatives:** Implementation-only prefixes (two registries). Locking as a derived condition (it changes when the parameter changes, and nothing records the transition).
+- **Consequences:** 64 ID prefixes and 31 named parameters. A locked challenge can never verify or yield a token.

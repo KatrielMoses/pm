@@ -12,6 +12,7 @@ const ENTRIES: Record<string, string> = {
   '@pm/observability': 'packages/observability/src/index.ts',
   '@pm/db': 'packages/db/src/index.ts',
   '@pm/platform': 'packages/platform/src/index.ts',
+  '@pm/identity': 'packages/identity/src/index.ts',
   '@pm/test-support/vitest': 'packages/test-support/src/test-database.ts',
   '@pm/test-support/global-setup': 'packages/test-support/src/vitest-global-setup.ts',
   '@pm/test-support': 'packages/test-support/src/index.ts',

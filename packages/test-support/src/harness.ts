@@ -1,6 +1,8 @@
+import { randomBytes } from 'node:crypto';
 import { loadServerConfig, type ServerConfig } from '@pm/config';
 import {
   createPool,
+  PlatformDatabase,
   PlatformDiscovery,
   PlatformHealth,
   TenantDatabase,
@@ -14,6 +16,12 @@ import {
   type Telemetry,
 } from '@pm/observability';
 import type { DatabaseUrls } from './provision.ts';
+
+/** Random per process: no fixed test key exists in the repository. */
+export const TEST_KEYS = {
+  signing: randomBytes(32).toString('base64url'),
+  vault: randomBytes(32).toString('base64url'),
+};
 
 /** Environment for loadServerConfig in tests: real config validation, test identities. */
 export function testEnv(
@@ -33,6 +41,18 @@ export function testEnv(
     JOB_BACKOFF_BASE_MS: '10',
     JOB_BACKOFF_CAP_MS: '50',
     WORKER_POLL_INTERVAL_MS: '50',
+    // Identity (1B): per-run random keys, development adapters (refused outside local/test).
+    AUTH_SIGNING_KEY: TEST_KEYS.signing,
+    DEV_VAULT_KEY: TEST_KEYS.vault,
+    SECRET_VAULT: 'dev-database',
+    MAIL_TRANSPORT: 'capture',
+    COOKIE_SECURE: 'false',
+    OAUTH_PROVIDERS: 'local',
+    BOT_PROTECTION: 'test',
+    AUTH_RESPONSE_FLOOR_MS: '0',
+    // Minimum Argon2id cost keeps the suite fast; production defaults are covered by unit tests.
+    ARGON2_MEMORY_KIB: '19456',
+    ARGON2_PASSES: '2',
     ...overrides,
   };
 }
@@ -45,6 +65,9 @@ export interface Harness {
   pools: { app: InstrumentedPool; worker: InstrumentedPool; dispatcher: InstrumentedPool };
   app: TenantDatabase;
   worker: TenantDatabase;
+  /** Platform-scope access (identity, platform jobs) as app_rw and app_worker. */
+  platform: PlatformDatabase;
+  platformWorker: PlatformDatabase;
   discovery: PlatformDiscovery;
   health: PlatformHealth;
   close(): Promise<void>;
@@ -87,6 +110,8 @@ export function createHarness(urls: DatabaseUrls, overrides: Record<string, stri
     pools,
     app: new TenantDatabase(pools.app, deps),
     worker: new TenantDatabase(pools.worker, deps),
+    platform: new PlatformDatabase(pools.app, deps),
+    platformWorker: new PlatformDatabase(pools.worker, deps),
     discovery: new PlatformDiscovery(pools.dispatcher),
     health: new PlatformHealth(pools.app),
     async close() {

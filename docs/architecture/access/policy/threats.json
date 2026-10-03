@@ -54,7 +54,8 @@
     "conflict_filtered": "Conflict response without unreadable current values",
     "validation_generic": "Generic validation error naming only the caller's own input",
     "empty": "Zero rows",
-    "error_generic": "Generic error without tenant data"
+    "error_generic": "Generic error without tenant data",
+    "step_up_required": "Fresh step-up proof required; nothing executed and no resource information beyond the challenge"
   },
   "threats": [
     {
@@ -357,6 +358,17 @@
       "mitigated_by": [
         "I-09",
         "I-13"
+      ]
+    },
+    {
+      "id": "T-35",
+      "category": "spoofing",
+      "description": "Account takeover through account security: a stolen or unattended session, or a delegated credential, enrolls or disables a second factor or regenerates recovery codes.",
+      "mitigated_by": [
+        "I-01",
+        "I-09",
+        "I-14",
+        "I-17"
       ]
     }
   ],
@@ -2058,6 +2070,90 @@
       "surface": "api",
       "expected": "deny",
       "response_shape": "forbidden",
+      "silent_surfaces": []
+    },
+    {
+      "id": "AT-081",
+      "threats": [
+        "T-35"
+      ],
+      "principal": "account",
+      "setup": "Signed-in session, no fresh step-up token",
+      "scope": "own account",
+      "action": "account.mfa_disable",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "step_up_required",
+      "silent_surfaces": []
+    },
+    {
+      "id": "AT-082",
+      "threats": [
+        "T-35"
+      ],
+      "principal": "account",
+      "setup": "Step-up token verified in another session of the same account",
+      "scope": "own account",
+      "action": "account.recovery_codes_regenerate",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "step_up_required",
+      "silent_surfaces": []
+    },
+    {
+      "id": "AT-083",
+      "threats": [
+        "T-35"
+      ],
+      "principal": "account",
+      "setup": "Challenge stored as locked after STEP_UP_MAX_ATTEMPTS failures, then the correct proof",
+      "scope": "own account",
+      "action": "account.mfa_disable",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "step_up_required",
+      "silent_surfaces": []
+    },
+    {
+      "id": "AT-084",
+      "threats": [
+        "T-35"
+      ],
+      "principal": "api_token_personal",
+      "setup": "Personal API token calls an account-security endpoint",
+      "scope": "own account",
+      "action": "account.mfa_disable",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "unauthenticated",
+      "silent_surfaces": []
+    },
+    {
+      "id": "AT-085",
+      "threats": [
+        "T-35"
+      ],
+      "principal": "agent_run",
+      "setup": "Agent run attempts recovery-code regeneration for the run owner",
+      "scope": "run owner account",
+      "action": "account.recovery_codes_regenerate",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "unauthenticated",
+      "silent_surfaces": []
+    },
+    {
+      "id": "AT-086",
+      "threats": [
+        "T-35"
+      ],
+      "principal": "account",
+      "setup": "No factor enrolled; fresh password step-up",
+      "scope": "own account",
+      "action": "account.mfa_enroll",
+      "surface": "api",
+      "expected": "allow",
+      "response_shape": "ok",
       "silent_surfaces": []
     }
   ]

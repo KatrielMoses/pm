@@ -28,13 +28,14 @@ Only declared signals with declared labels are accepted (`Metrics` facade). Forb
 `user_agent`) and identifier-looking values (UUIDs, public IDs, emails, IPs, URLs, long hex) are
 rejected: thrown in local/test, dropped and counted (`telemetry.label_rejected`) elsewhere.
 
-| Area | Signals emitted in 1A |
+| Area | Signals |
 |---|---|
 | HTTP | `http.server.request.duration` (route, method, status_class, principal_class), `http.server.requests` |
 | Database | `db.transaction.duration` (module, kind), `db.rls_context_assertion_failures`, `db.pool.connections` (identity, state: total/idle/waiting) |
 | Jobs | `job.attempts` (queue, outcome), `job.attempt.duration`, `job.retries` (queue, error_class), `job.dead`, `job.lease_expired`, `job.queue.lag`, `job.states` (queue, state) |
 | Outbox | `outbox.dispatch.lag`, `outbox.backlog`, `outbox.dispatched` (outcome), `inbox.duplicates_skipped` (consumer) |
 | Worker / health | `worker.up`, `worker.active_jobs`, `readiness.checks` (check, outcome) |
+| Identity (1B) | `identity.flow.outcomes` (flow, outcome), `identity.flow.duration`, `identity.rate_limited` (policy), `identity.sessions` (state), `identity.cleanup.deleted` (kind), `mail.enqueued` (template), `mail.deliveries` (template, outcome) |
 
 ## Health and readiness (0D §17.4)
 
@@ -51,3 +52,10 @@ Failure reasons go to `readiness.check_failed` logs. `/readyz` fails immediately
 `ErrorReporter` (`capture`, `flush`) is the vendor boundary. The default `LogErrorReporter`
 emits `error.captured` with allow-listed context and error class/code. A future vendor adapter must
 accept only these fields.
+
+## Identity redaction (1B)
+
+Logs carry `flow`, `template`, `policy`, and `auth_method` fields, never tokens, codes, passwords,
+seeds, cookies, emails, or full IPs. Identity C4 values never become metric labels or span
+attributes. An integration test collects the logs from a full identity run and asserts that no
+token, code, or password from that run appears in them.

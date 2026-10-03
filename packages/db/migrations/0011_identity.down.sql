@@ -1,0 +1,13 @@
+DROP TABLE ops.dev_secret_vault;
+DROP TABLE ops.rate_limit_bucket;
+DROP TABLE identity.security_event_buffer;
+DROP TABLE identity.mail_delivery;
+DROP TABLE identity.step_up_challenge;
+DROP TABLE identity.verification_token;
+DROP TABLE identity.oauth_identity;
+DROP TABLE identity.session;
+DROP TABLE identity.recovery_code;
+DROP TABLE identity.mfa_factor;
+DROP TABLE identity.credential;
+DROP TABLE identity.account;
+DROP SCHEMA identity;

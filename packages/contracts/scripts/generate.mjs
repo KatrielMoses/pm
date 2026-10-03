@@ -1,5 +1,5 @@
 // Generates TypeScript constants from the accepted Phase 0 machine-readable contracts.
-// Sources (never edited here): 0D registry.json and 0C policy.json.
+// Sources (never edited here): 0D registry.json, 0D step-up-challenge schema, and 0C policy.json.
 // Usage: node generate.mjs          -> writes src/generated/registry.ts
 //        node generate.mjs --check  -> exits 1 when the committed file is stale
 import { readFileSync, writeFileSync } from 'node:fs';
@@ -13,6 +13,12 @@ const registry = JSON.parse(
 );
 const policy = JSON.parse(
   readFileSync(resolve(root, 'docs/architecture/access/policy/policy.json'), 'utf8'),
+);
+const stepUpSchema = JSON.parse(
+  readFileSync(
+    resolve(root, 'docs/architecture/platform/contracts/schemas/step-up-challenge.schema.json'),
+    'utf8',
+  ),
 );
 const out = resolve(here, '../src/generated/registry.ts');
 
@@ -38,6 +44,7 @@ const events = registry.events.map((e) => ({
 }));
 const prefixes = registry.id_prefixes.map((p) => ({
   prefix: p.prefix,
+  resource: p.resource,
   entity: p.entity,
   ownerModule: p.owner_module,
   platformOnly: p.platform_only,
@@ -51,10 +58,18 @@ const principals = policy.principals.map((p) => ({
   id: p.id,
   platformOnly: Boolean(p.platform_only),
 }));
+const actions = policy.actions.map((a) => ({
+  key: a.key,
+  kind: a.kind,
+  scopes: a.scopes,
+  stepUp: Boolean(a.step_up),
+  riskClass: a.risk_class,
+}));
 
 const body = `// GENERATED FILE - do not edit by hand.
 // Source: docs/architecture/platform/contracts/registry.json (schema_version ${registry.schema_version})
 //         docs/architecture/access/policy/policy.json (schema_version ${policy.schema_version})
+//         docs/architecture/platform/contracts/schemas/step-up-challenge.schema.json
 // Regenerate: pnpm contracts:generate
 
 ${constArray('ACTOR_TYPES', registry.actor_types, 'ActorType')}
@@ -88,7 +103,13 @@ ${constArray(
 )}
 export const PRINCIPALS = ${lit(principals)} as const;
 export type PrincipalType = (typeof PRINCIPALS)[number]['id'];
-`;
+
+/** 0C actions: workspace-scoped kinds plus personal (own-account) actions. */
+export const ACTIONS = ${lit(actions)} as const;
+export type ActionKey = (typeof ACTIONS)[number]['key'];
+
+/** 0D §11.2 step-up challenge states (\`locked\` is stored and terminal). */
+${constArray('STEP_UP_CHALLENGE_STATES', stepUpSchema.properties.state.enum, 'StepUpChallengeState')}`;
 
 if (process.argv.includes('--check')) {
   let current = '';

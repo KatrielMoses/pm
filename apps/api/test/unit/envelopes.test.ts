@@ -4,8 +4,8 @@ import { describe, expect, it } from 'vitest';
 
 const ROOT = resolve(import.meta.dirname, '../../../..');
 
-describe('platform-singleton envelope stays confined (ADR-0007 D6)', () => {
-  it('is used only by the /v1/status route', () => {
+describe('non-resource envelope stays confined (ADR-0007 D6, ADR-0008 B3)', () => {
+  it('is used only by the /v1/status route and authentication responses', () => {
     const walk = (dir: string): string[] =>
       readdirSync(dir, { withFileTypes: true }).flatMap((e) =>
         e.isDirectory()
@@ -21,10 +21,14 @@ describe('platform-singleton envelope stays confined (ADR-0007 D6)', () => {
         ),
       )
       .flatMap((f) =>
-        (readFileSync(f, 'utf8').match(/platformSingletonEnvelope\(/g) ?? []).map(() =>
+        (readFileSync(f, 'utf8').match(/nonResourceEnvelope\(/g) ?? []).map(() =>
           f.replace(`${ROOT}/`, ''),
         ),
       );
-    expect(uses.filter((f) => !f.endsWith('envelopes.ts'))).toEqual(['apps/api/src/app.ts']);
+    // /v1/status and the 1B authentication results (closed non-resource list, ADR-0008 B3).
+    expect([...new Set(uses.filter((f) => !f.endsWith('envelopes.ts')))].sort()).toEqual([
+      'apps/api/src/app.ts',
+      'apps/api/src/auth/routes.ts',
+    ]);
   });
 });

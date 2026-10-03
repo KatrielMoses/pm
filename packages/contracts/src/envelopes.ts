@@ -1,4 +1,4 @@
-import { ERROR_CODES, type ErrorCode } from './generated/registry.ts';
+import { ERROR_CODES, ID_PREFIXES, type ErrorCode } from './generated/registry.ts';
 import { isPublicId } from './ids.ts';
 
 export const API_VERSION = 'v1';
@@ -31,6 +31,7 @@ export interface ErrorBody {
   issues?: ErrorIssue[];
   retry_after_seconds?: number;
   operation_id?: string;
+  step_up?: Record<string, unknown>;
 }
 
 /** 0D error-envelope. */
@@ -58,7 +59,12 @@ export function meta(requestId: string, correlationId: string): ResponseMeta {
 export function errorEnvelope(
   code: ErrorCode,
   ids: { requestId: string; correlationId: string },
-  extra: { issues?: ErrorIssue[]; retryAfterSeconds?: number; operationId?: string } = {},
+  extra: {
+    issues?: ErrorIssue[];
+    retryAfterSeconds?: number;
+    operationId?: string;
+    stepUp?: Record<string, unknown>;
+  } = {},
 ): ErrorEnvelope {
   const entry = errorCodeEntry(code);
   if (typeof entry.httpStatus !== 'number') {
@@ -75,6 +81,7 @@ export function errorEnvelope(
   if (extra.issues?.length) body.issues = extra.issues;
   if (extra.retryAfterSeconds !== undefined) body.retry_after_seconds = extra.retryAfterSeconds;
   if (extra.operationId !== undefined) body.operation_id = extra.operationId;
+  if (extra.stepUp !== undefined) body.step_up = extra.stepUp;
   return { error: body };
 }
 
@@ -99,26 +106,37 @@ export function successEnvelope<T extends { id: string; type: string }>(
 }
 
 /**
- * Accepted platform-envelope specialization (1A review 01, D6): non-record platform singletons
- * (health/status) use the success-envelope shape without `data.id`. The allow-list is closed;
- * ordinary resources must use `successEnvelope`, which requires a public ID.
+ * Closed set of **non-resource** response types (ADR-0007 D6, ADR-0008 B3): platform status and
+ * authentication results/acknowledgements are not records and have no public ID, so they use the
+ * success-envelope shape without `data.id`. They are not "platform singletons" and not resources.
+ * Every ordinary resource must use `successEnvelope`, which requires a registered public ID; no
+ * type here may equal a registered 0D resource type (checked below and by unit tests).
  */
-export const PLATFORM_SINGLETON_TYPES = ['platform_status'] as const;
-export type PlatformSingletonType = (typeof PLATFORM_SINGLETON_TYPES)[number];
+export const NON_RESOURCE_TYPES = [
+  'platform_status',
+  'acknowledgement',
+  'sign_in_result',
+  'step_up_token',
+  'recovery_code_set',
+  'oauth_authorization',
+] as const;
+export type NonResourceType = (typeof NON_RESOURCE_TYPES)[number];
 
-export interface PlatformSingletonEnvelope<T extends Record<string, unknown>> {
-  data: { type: PlatformSingletonType } & T;
+const RESOURCE_TYPES: ReadonlySet<string> = new Set(ID_PREFIXES.map((p) => p.resource));
+
+export interface NonResourceEnvelope<T extends Record<string, unknown>> {
+  data: { type: NonResourceType } & T;
   meta: ResponseMeta;
 }
 
-export function platformSingletonEnvelope<T extends Record<string, unknown>>(
-  type: PlatformSingletonType,
+export function nonResourceEnvelope<T extends Record<string, unknown>>(
+  type: NonResourceType,
   data: T,
   responseMeta: ResponseMeta,
-): PlatformSingletonEnvelope<T> {
-  if (!(PLATFORM_SINGLETON_TYPES as readonly string[]).includes(type))
-    throw new EnvelopeError('not a platform singleton type');
+): NonResourceEnvelope<T> {
+  if (!(NON_RESOURCE_TYPES as readonly string[]).includes(type) || RESOURCE_TYPES.has(type))
+    throw new EnvelopeError('not a non-resource response type');
   if ('id' in data || 'type' in data)
-    throw new EnvelopeError('platform singletons carry no id and a fixed type');
+    throw new EnvelopeError('non-resource responses carry no id and a fixed type');
   return { data: { type, ...data }, meta: responseMeta };
 }

@@ -12,7 +12,8 @@
     "@pm/config": "workspace:*",
     "@pm/observability": "workspace:*",
     "@pm/db": "workspace:*",
-    "@pm/platform": "workspace:*"
+    "@pm/platform": "workspace:*",
+    "@pm/identity": "workspace:*"
   },
   "devDependencies": {
     "@pm/test-support": "workspace:*",

@@ -10,7 +10,7 @@ import Fastify, {
 import {
   errorEnvelope,
   meta,
-  platformSingletonEnvelope,
+  nonResourceEnvelope,
   newRequestId,
   parseTraceparent,
   type ErrorCode,
@@ -31,6 +31,7 @@ import {
   type Tracer,
 } from '@pm/observability';
 import type { Readiness } from './readiness.ts';
+import { registerAuth, type AuthRouteDeps } from './auth/routes.ts';
 
 declare module 'fastify' {
   interface FastifyRequest {
@@ -49,6 +50,8 @@ export interface AppDeps {
   webDistDir?: string | undefined;
   /** Public status is cached briefly so the unauthenticated endpoint cannot hammer the database. */
   statusCacheMs?: number;
+  /** Identity routes and request authentication (1B). */
+  auth?: Omit<AuthRouteDeps, 'logger'> | undefined;
 }
 
 const STATUS_CLASS = (status: number) => `${Math.floor(status / 100)}xx`;
@@ -214,6 +217,8 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
     );
   }
 
+  if (deps.auth) registerAuth(app, { ...deps.auth, logger: deps.logger });
+
   // Liveness: the process responds. Nothing else (0D §17.4).
   app.get('/healthz', () => ({ status: 'ok' }));
 
@@ -234,8 +239,8 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
     if (!cached || performance.now() - cached.at > statusCacheMs) {
       cached = { at: performance.now(), available: (await deps.readiness()).ready };
     }
-    // Accepted specialization (ADR-0007 D6): a non-record singleton without `data.id`.
-    return platformSingletonEnvelope(
+    // Non-resource response (ADR-0007 D6, ADR-0008 B3): no `data.id`.
+    return nonResourceEnvelope(
       'platform_status',
       {
         status: cached.available ? 'available' : 'degraded',

@@ -14,6 +14,7 @@ export const ALLOWED_RUNTIME = {
   '@pm/observability': ['@pm/contracts'],
   '@pm/db': ['@pm/contracts', '@pm/config', '@pm/observability'],
   '@pm/platform': ['@pm/contracts', '@pm/config', '@pm/observability', '@pm/db'],
+  '@pm/identity': ['@pm/contracts', '@pm/config', '@pm/observability', '@pm/db', '@pm/platform'],
   '@pm/test-infra': [],
   '@pm/test-support': [
     '@pm/test-infra',
@@ -22,8 +23,22 @@ export const ALLOWED_RUNTIME = {
     '@pm/observability',
     '@pm/db',
   ],
-  '@pm/api': ['@pm/contracts', '@pm/config', '@pm/observability', '@pm/db', '@pm/platform'],
-  '@pm/worker': ['@pm/contracts', '@pm/config', '@pm/observability', '@pm/db', '@pm/platform'],
+  '@pm/api': [
+    '@pm/contracts',
+    '@pm/config',
+    '@pm/observability',
+    '@pm/db',
+    '@pm/platform',
+    '@pm/identity',
+  ],
+  '@pm/worker': [
+    '@pm/contracts',
+    '@pm/config',
+    '@pm/observability',
+    '@pm/db',
+    '@pm/platform',
+    '@pm/identity',
+  ],
   '@pm/web': ['@pm/config'],
 };
 

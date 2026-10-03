@@ -5,13 +5,18 @@ import { ConfigError, describeConfig, loadServerConfig, Secret } from '@pm/confi
 const url = (role: string, db = 'pm_dev', extra = '') =>
   `postgres://${role}:pw_${role}@db.local:5432/${db}${extra}`;
 const strong = (role: string, env: string) =>
-  `postgres://${role}:Zq8vN3kL0pW2xR7t_${role}@db.internal:5432/pm_${env}?sslmode=verify-full`;
+  `postgres://${role}:Zq8vN3kL0pW2xR7t_${role}@db.internal:5432/pm_${env}?sslmode=verify-full`; // gitleaks:allow (synthetic)
 
+const devKey = Buffer.alloc(32, 3).toString('base64url');
 const local = {
   APP_ENV: 'local',
   DATABASE_APP_URL: url('app_rw'),
   DATABASE_WORKER_URL: url('app_worker'),
   DATABASE_DISPATCHER_URL: url('dispatcher'),
+  AUTH_SIGNING_KEY: devKey,
+  SECRET_VAULT: 'dev-database',
+  DEV_VAULT_KEY: devKey,
+  MAIL_TRANSPORT: 'capture',
 };
 const deployed = (env: string, overrides: Record<string, string> = {}) => ({
   APP_ENV: env,
@@ -70,9 +75,21 @@ describe('server configuration', () => {
     ).toContain('DATABASE_WORKER_URL: must authenticate as role app_worker');
   });
 
-  it('accepts a complete production configuration', () => {
-    const c = loadServerConfig({ service: 'worker', env: deployed('production') });
-    expect(c.env).toBe('production');
+  it('a complete production configuration fails only on the identity vendors not yet approved', () => {
+    // No production secret store/KMS or mail provider is approved (DQ-28, roadmap): production
+    // must refuse to start rather than fall back to development adapters.
+    expect(
+      issues(() => loadServerConfig({ service: 'worker', env: deployed('production') })),
+    ).toEqual([
+      'SECRET_VAULT: a secret store is required for the worker process (identity secrets)',
+      'MAIL_TRANSPORT: a mail transport is required for the worker process',
+    ]);
+    expect(
+      loadServerConfig({
+        service: 'migrate',
+        env: { ...deployed('production'), DATABASE_MIGRATOR_URL: strong('migrator', 'production') },
+      }).env,
+    ).toBe('production');
   });
 
   it('rejects unsafe production defaults', () => {
@@ -185,10 +202,100 @@ describe('server configuration', () => {
     try {
       loadServerConfig({
         service: 'api',
-        env: { ...local, DATABASE_APP_URL: 'postgres://migrator:SuperSecret@h/db' },
+        env: { ...local, DATABASE_APP_URL: 'postgres://migrator:SuperSecret@h/db' }, // gitleaks:allow (synthetic)
       });
     } catch (e) {
       expect(String(e)).not.toContain('SuperSecret');
     }
+  });
+});
+
+describe('identity configuration (1B)', () => {
+  const key = Buffer.alloc(32, 9).toString('base64url');
+  const idLocal = {
+    ...local,
+    AUTH_SIGNING_KEY: key,
+    SECRET_VAULT: 'dev-database',
+    DEV_VAULT_KEY: key,
+    MAIL_TRANSPORT: 'capture',
+  };
+
+  it('requires a signing key and a secret store for identity processes', () => {
+    const { AUTH_SIGNING_KEY: _k, SECRET_VAULT: _v, ...bare } = local;
+    expect(issues(() => loadServerConfig({ service: 'api', env: bare }))).toEqual(
+      expect.arrayContaining([
+        'AUTH_SIGNING_KEY: required for the api process',
+        'SECRET_VAULT: a secret store is required for the api process (identity secrets)',
+      ]),
+    );
+    expect(loadServerConfig({ service: 'api', env: idLocal }).identity.cookieSecure).toBe(true);
+    expect(
+      issues(() =>
+        loadServerConfig({ service: 'api', env: { ...idLocal, AUTH_SIGNING_KEY: 'short' } }),
+      )[0],
+    ).toMatch(/AUTH_SIGNING_KEY: must be base64url/);
+  });
+
+  it('refuses development adapters and insecure cookies in deployed environments', () => {
+    const found = issues(() =>
+      loadServerConfig({
+        service: 'api',
+        env: deployed('production', {
+          AUTH_SIGNING_KEY: key,
+          SECRET_VAULT: 'dev-database',
+          DEV_VAULT_KEY: key,
+          MAIL_TRANSPORT: 'capture',
+          OAUTH_PROVIDERS: 'local',
+          BOT_PROTECTION: 'test',
+          COOKIE_SECURE: 'false',
+        }),
+      }),
+    );
+    expect(found).toEqual(
+      expect.arrayContaining([
+        'COOKIE_SECURE: insecure cookies are allowed only in local and test',
+        'OAUTH_PROVIDERS: the local test provider is not allowed in deployed environments',
+        'MAIL_TRANSPORT: capture is a development transport; no production mail provider is approved',
+        'SECRET_VAULT: dev-database is a development store; no secret store/KMS is approved (DQ-28)',
+        'BOT_PROTECTION: the test adapter is not allowed in deployed environments',
+      ]),
+    );
+  });
+
+  it('validates session timing and rate-limit overrides', () => {
+    expect(
+      issues(() =>
+        loadServerConfig({
+          service: 'api',
+          env: {
+            ...idLocal,
+            SESSION_IDLE_TIMEOUT_MS: '7200000',
+            SESSION_ABSOLUTE_TIMEOUT_MS: '3600000',
+          },
+        }),
+      ),
+    ).toEqual(
+      expect.arrayContaining([
+        'SESSION_IDLE_TIMEOUT_MS: must not exceed SESSION_ABSOLUTE_TIMEOUT_MS',
+      ]),
+    );
+    expect(
+      issues(() =>
+        loadServerConfig({ service: 'api', env: { ...idLocal, RATE_LIMIT_POLICIES: '{"x": 1}' } }),
+      )[0],
+    ).toMatch(/RATE_LIMIT_POLICIES/);
+    const ok = loadServerConfig({
+      service: 'api',
+      env: { ...idLocal, RATE_LIMIT_POLICIES: '{"sign_in.email":{"limit":3,"windowMs":60000}}' },
+    });
+    expect(ok.identity.rateLimitOverrides).toEqual({
+      'sign_in.email': { limit: 3, windowMs: 60000 },
+    });
+    expect(ok.identity.argon2).toEqual({
+      memoryKiB: 65536,
+      passes: 3,
+      parallelism: 1,
+      maxConcurrency: 4,
+    });
   });
 });

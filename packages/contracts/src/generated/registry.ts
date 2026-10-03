@@ -1,6 +1,7 @@
 // GENERATED FILE - do not edit by hand.
 // Source: docs/architecture/platform/contracts/registry.json (schema_version 1)
 //         docs/architecture/access/policy/policy.json (schema_version 1)
+//         docs/architecture/platform/contracts/schemas/step-up-challenge.schema.json
 // Regenerate: pnpm contracts:generate
 
 export const ACTOR_TYPES = [
@@ -707,366 +708,448 @@ export type OperationKind = (typeof OPERATION_KINDS)[number]['kind'];
 export const ID_PREFIXES = [
   {
     "prefix": "br",
+    "resource": "brand",
     "entity": "tenancy.brand",
     "ownerModule": "tenancy",
     "platformOnly": false
   },
   {
     "prefix": "team",
+    "resource": "team",
     "entity": "tenancy.team",
     "ownerModule": "tenancy",
     "platformOnly": false
   },
   {
     "prefix": "wf",
+    "resource": "workflow",
     "entity": "workflow.workflow",
     "ownerModule": "workflow",
     "platformOnly": false
   },
   {
     "prefix": "file",
+    "resource": "file",
     "entity": "files.file",
     "ownerModule": "files",
     "platformOnly": false
   },
   {
     "prefix": "dlv",
+    "resource": "deliverable",
     "entity": "files.deliverable",
     "ownerModule": "files",
     "platformOnly": false
   },
   {
     "prefix": "prj",
+    "resource": "project",
     "entity": "work.project",
     "ownerModule": "work",
     "platformOnly": false
   },
   {
     "prefix": "ms",
+    "resource": "milestone",
     "entity": "work.milestone",
     "ownerModule": "work",
     "platformOnly": false
   },
   {
     "prefix": "tsk",
+    "resource": "task",
     "entity": "work.task",
     "ownerModule": "work",
     "platformOnly": false
   },
   {
     "prefix": "dec",
+    "resource": "decision_record",
     "entity": "work.decision_record",
     "ownerModule": "work",
     "platformOnly": false
   },
   {
     "prefix": "inb",
+    "resource": "inbox_item",
     "entity": "capture.inbox_item",
     "ownerModule": "capture",
     "platformOnly": false
   },
   {
     "prefix": "note",
+    "resource": "note",
     "entity": "capture.note",
     "ownerModule": "capture",
     "platformOnly": false
   },
   {
     "prefix": "form",
+    "resource": "intake_form",
     "entity": "capture.intake_form",
     "ownerModule": "capture",
     "platformOnly": false
   },
   {
     "prefix": "blk",
+    "resource": "work_block",
     "entity": "planning.work_block",
     "ownerModule": "planning",
     "platformOnly": false
   },
   {
     "prefix": "doc",
+    "resource": "document",
     "entity": "knowledge.document",
     "ownerModule": "knowledge",
     "platformOnly": false
   },
   {
     "prefix": "goal",
+    "resource": "goal",
     "entity": "goals.goal",
     "ownerModule": "goals",
     "platformOnly": false
   },
   {
     "prefix": "kr",
+    "resource": "key_result",
     "entity": "goals.key_result",
     "ownerModule": "goals",
     "platformOnly": false
   },
   {
     "prefix": "pf",
+    "resource": "portfolio",
     "entity": "goals.portfolio",
     "ownerModule": "goals",
     "platformOnly": false
   },
   {
     "prefix": "view",
+    "resource": "saved_view",
     "entity": "views.saved_view",
     "ownerModule": "views",
     "platformOnly": false
   },
   {
     "prefix": "dash",
+    "resource": "dashboard",
     "entity": "insights.dashboard",
     "ownerModule": "insights",
     "platformOnly": false
   },
   {
     "prefix": "rpt",
+    "resource": "report_definition",
     "entity": "insights.report_definition",
     "ownerModule": "insights",
     "platformOnly": false
   },
   {
     "prefix": "conn",
+    "resource": "connection",
     "entity": "integrations.connection",
     "ownerModule": "integrations",
     "platformOnly": false
   },
   {
     "prefix": "whk",
+    "resource": "webhook_subscription",
     "entity": "integrations.webhook_subscription",
     "ownerModule": "integrations",
     "platformOnly": false
   },
   {
     "prefix": "tc",
+    "resource": "test_case",
     "entity": "quality.test_case",
     "ownerModule": "quality",
     "platformOnly": false
   },
   {
     "prefix": "ts",
+    "resource": "test_suite",
     "entity": "quality.test_suite",
     "ownerModule": "quality",
     "platformOnly": false
   },
   {
     "prefix": "tr",
+    "resource": "test_run",
     "entity": "quality.test_run",
     "ownerModule": "quality",
     "platformOnly": false
   },
   {
     "prefix": "env",
+    "resource": "environment",
     "entity": "delivery.environment",
     "ownerModule": "delivery",
     "platformOnly": false
   },
   {
     "prefix": "rel",
+    "resource": "release",
     "entity": "delivery.release",
     "ownerModule": "delivery",
     "platformOnly": false
   },
   {
     "prefix": "tpl",
+    "resource": "template",
     "entity": "templates.template",
     "ownerModule": "templates",
     "platformOnly": false
   },
   {
     "prefix": "auto",
+    "resource": "automation",
     "entity": "automation.automation",
     "ownerModule": "automation",
     "platformOnly": false
   },
   {
     "prefix": "agt",
+    "resource": "agent_profile",
     "entity": "agents.agent_profile",
     "ownerModule": "agents",
     "platformOnly": false
   },
   {
     "prefix": "ws",
+    "resource": "workspace",
     "entity": "tenancy.workspace",
     "ownerModule": "tenancy",
     "platformOnly": false
   },
   {
     "prefix": "mem",
+    "resource": "membership",
     "entity": "tenancy.membership",
     "ownerModule": "tenancy",
     "platformOnly": false
   },
   {
     "prefix": "acct",
+    "resource": "account",
     "entity": "identity.account",
     "ownerModule": "identity",
     "platformOnly": false
   },
   {
     "prefix": "grt",
+    "resource": "record_grant",
     "entity": "access.record_grant",
     "ownerModule": "access",
     "platformOnly": false
   },
   {
     "prefix": "cmt",
+    "resource": "comment",
     "entity": "collab.comment",
     "ownerModule": "collab",
     "platformOnly": false
   },
   {
     "prefix": "rvw",
+    "resource": "review_request",
     "entity": "collab.review_request",
     "ownerModule": "collab",
     "platformOnly": false
   },
   {
     "prefix": "te",
+    "resource": "time_entry",
     "entity": "time.time_entry",
     "ownerModule": "time",
     "platformOnly": false
   },
   {
     "prefix": "tsh",
+    "resource": "timesheet",
     "entity": "time.timesheet",
     "ownerModule": "time",
     "platformOnly": false
   },
   {
     "prefix": "res",
+    "resource": "test_result",
     "entity": "quality.test_result",
     "ownerModule": "quality",
     "platformOnly": false
   },
   {
     "prefix": "op",
+    "resource": "operation",
     "entity": "execution.operation",
     "ownerModule": "execution",
     "platformOnly": false
   },
   {
     "prefix": "att",
+    "resource": "attempt",
     "entity": "execution.attempt",
     "ownerModule": "execution",
     "platformOnly": false
   },
   {
     "prefix": "evt",
+    "resource": "event",
     "entity": null,
     "ownerModule": "execution",
     "platformOnly": true
   },
   {
     "prefix": "whd",
+    "resource": "webhook_delivery",
     "entity": "integrations.webhook_delivery",
     "ownerModule": "integrations",
     "platformOnly": false
   },
   {
     "prefix": "ntf",
+    "resource": "notification",
     "entity": "notify.notification",
     "ownerModule": "notify",
     "platformOnly": false
   },
   {
     "prefix": "upl",
+    "resource": "upload_session",
     "entity": "files.upload_session",
     "ownerModule": "files",
     "platformOnly": false
   },
   {
     "prefix": "fv",
+    "resource": "file_version",
     "entity": "files.file_version",
     "ownerModule": "files",
     "platformOnly": false
   },
   {
     "prefix": "dv",
+    "resource": "deliverable_version",
     "entity": "files.deliverable_version",
     "ownerModule": "files",
     "platformOnly": false
   },
   {
     "prefix": "dcv",
+    "resource": "document_version",
     "entity": "knowledge.document_version",
     "ownerModule": "knowledge",
     "platformOnly": false
   },
   {
     "prefix": "tok",
+    "resource": "api_token",
     "entity": "integrations.api_token",
     "ownerModule": "integrations",
     "platformOnly": false
   },
   {
     "prefix": "oac",
+    "resource": "oauth_client",
     "entity": "integrations.oauth_client",
     "ownerModule": "integrations",
     "platformOnly": false
   },
   {
     "prefix": "svc",
+    "resource": "service_principal",
     "entity": "access.service_principal",
     "ownerModule": "access",
     "platformOnly": false
   },
   {
     "prefix": "shr",
+    "resource": "share_group",
     "entity": "access.share_group",
     "ownerModule": "access",
     "platformOnly": false
   },
   {
     "prefix": "apr",
+    "resource": "action_approval",
     "entity": "agents.action_approval",
     "ownerModule": "agents",
     "platformOnly": false
   },
   {
     "prefix": "stp",
+    "resource": "step_up_challenge",
     "entity": "identity.step_up_challenge",
     "ownerModule": "identity",
     "platformOnly": false
   },
   {
+    "prefix": "ses",
+    "resource": "session",
+    "entity": "identity.session",
+    "ownerModule": "identity",
+    "platformOnly": false
+  },
+  {
+    "prefix": "mfa",
+    "resource": "mfa_factor",
+    "entity": "identity.mfa_factor",
+    "ownerModule": "identity",
+    "platformOnly": false
+  },
+  {
+    "prefix": "oid",
+    "resource": "oauth_identity",
+    "entity": "identity.oauth_identity",
+    "ownerModule": "identity",
+    "platformOnly": false
+  },
+  {
     "prefix": "exf",
+    "resource": "export_file",
     "entity": "transfer.export_file",
     "ownerModule": "transfer",
     "platformOnly": false
   },
   {
     "prefix": "req",
+    "resource": "request",
     "entity": null,
     "ownerModule": "execution",
     "platformOnly": true
   },
   {
     "prefix": "ext",
+    "resource": "external_identity",
     "entity": "integrations.external_identity",
     "ownerModule": "integrations",
     "platformOnly": false
   },
   {
     "prefix": "cev",
+    "resource": "calendar_event",
     "entity": "integrations.calendar_event",
     "ownerModule": "integrations",
     "platformOnly": false
   },
   {
     "prefix": "rd",
+    "resource": "release_decision",
     "entity": "delivery.release_decision",
     "ownerModule": "delivery",
     "platformOnly": false
   },
   {
     "prefix": "sag",
+    "resource": "support_access_grant",
     "entity": "access.support_access_grant",
     "ownerModule": "access",
     "platformOnly": false
   },
   {
     "prefix": "fpol",
+    "resource": "field_policy",
     "entity": "access.field_policy",
     "ownerModule": "access",
     "platformOnly": false
@@ -1573,6 +1656,7 @@ export const PARAMETER_NAMES = [
   "UPLOAD_SESSION_LIFETIME",
   "STEP_UP_WINDOW",
   "STEP_UP_CHALLENGE_LIFETIME",
+  "STEP_UP_MAX_ATTEMPTS",
   "PAGE_LIMIT_DEFAULT",
   "PAGE_LIMIT_MAX",
   "TOTAL_COUNT_CAP",
@@ -1658,3 +1742,1004 @@ export const PRINCIPALS = [
   }
 ] as const;
 export type PrincipalType = (typeof PRINCIPALS)[number]['id'];
+
+/** 0C actions: workspace-scoped kinds plus personal (own-account) actions. */
+export const ACTIONS = [
+  {
+    "key": "record.read",
+    "kind": "record",
+    "scopes": [
+      "brand",
+      "project",
+      "record",
+      "workspace"
+    ],
+    "stepUp": false,
+    "riskClass": "R0"
+  },
+  {
+    "key": "record.create",
+    "kind": "record",
+    "scopes": [
+      "workspace",
+      "brand",
+      "project",
+      "record"
+    ],
+    "stepUp": false,
+    "riskClass": "R1"
+  },
+  {
+    "key": "record.update",
+    "kind": "record",
+    "scopes": [
+      "brand",
+      "project",
+      "record",
+      "workspace"
+    ],
+    "stepUp": false,
+    "riskClass": "R1"
+  },
+  {
+    "key": "record.archive",
+    "kind": "record",
+    "scopes": [
+      "brand",
+      "project",
+      "record",
+      "workspace"
+    ],
+    "stepUp": false,
+    "riskClass": "R1"
+  },
+  {
+    "key": "record.restore",
+    "kind": "record",
+    "scopes": [
+      "brand",
+      "project",
+      "record",
+      "workspace"
+    ],
+    "stepUp": false,
+    "riskClass": "R1"
+  },
+  {
+    "key": "record.trash",
+    "kind": "record",
+    "scopes": [
+      "brand",
+      "project",
+      "record",
+      "workspace"
+    ],
+    "stepUp": false,
+    "riskClass": "R1"
+  },
+  {
+    "key": "record.purge",
+    "kind": "admin",
+    "scopes": [
+      "workspace",
+      "brand"
+    ],
+    "stepUp": true,
+    "riskClass": "R4"
+  },
+  {
+    "key": "record.comment",
+    "kind": "record",
+    "scopes": [
+      "brand",
+      "project",
+      "record",
+      "workspace"
+    ],
+    "stepUp": false,
+    "riskClass": "R0"
+  },
+  {
+    "key": "comment.edit_own",
+    "kind": "record",
+    "scopes": [
+      "record"
+    ],
+    "stepUp": false,
+    "riskClass": "R0"
+  },
+  {
+    "key": "comment.moderate",
+    "kind": "record",
+    "scopes": [
+      "brand",
+      "project",
+      "record"
+    ],
+    "stepUp": false,
+    "riskClass": "R2"
+  },
+  {
+    "key": "record.follow",
+    "kind": "record",
+    "scopes": [
+      "brand",
+      "project",
+      "record",
+      "workspace"
+    ],
+    "stepUp": false,
+    "riskClass": "R0"
+  },
+  {
+    "key": "record.assign",
+    "kind": "record",
+    "scopes": [
+      "project",
+      "record"
+    ],
+    "stepUp": false,
+    "riskClass": "R1"
+  },
+  {
+    "key": "record.delegate",
+    "kind": "record",
+    "scopes": [
+      "record"
+    ],
+    "stepUp": false,
+    "riskClass": "R1"
+  },
+  {
+    "key": "record.relate",
+    "kind": "record",
+    "scopes": [
+      "record"
+    ],
+    "stepUp": false,
+    "riskClass": "R1"
+  },
+  {
+    "key": "record.upload",
+    "kind": "record",
+    "scopes": [
+      "brand",
+      "project",
+      "record",
+      "workspace"
+    ],
+    "stepUp": false,
+    "riskClass": "R1"
+  },
+  {
+    "key": "record.download",
+    "kind": "record",
+    "scopes": [
+      "brand",
+      "project",
+      "record",
+      "workspace"
+    ],
+    "stepUp": false,
+    "riskClass": "R0"
+  },
+  {
+    "key": "record.move",
+    "kind": "record",
+    "scopes": [
+      "brand",
+      "project",
+      "record"
+    ],
+    "stepUp": false,
+    "riskClass": "R1"
+  },
+  {
+    "key": "record.move_brand",
+    "kind": "record",
+    "scopes": [
+      "brand"
+    ],
+    "stepUp": false,
+    "riskClass": "R3"
+  },
+  {
+    "key": "record.share",
+    "kind": "record",
+    "scopes": [
+      "record"
+    ],
+    "stepUp": false,
+    "riskClass": "R3"
+  },
+  {
+    "key": "record.share_revoke",
+    "kind": "record",
+    "scopes": [
+      "record"
+    ],
+    "stepUp": false,
+    "riskClass": "R2"
+  },
+  {
+    "key": "record.export",
+    "kind": "record",
+    "scopes": [
+      "brand",
+      "project",
+      "record",
+      "workspace"
+    ],
+    "stepUp": false,
+    "riskClass": "R2"
+  },
+  {
+    "key": "task.complete",
+    "kind": "record",
+    "scopes": [
+      "record"
+    ],
+    "stepUp": false,
+    "riskClass": "R1"
+  },
+  {
+    "key": "project.complete",
+    "kind": "record",
+    "scopes": [
+      "record"
+    ],
+    "stepUp": false,
+    "riskClass": "R2"
+  },
+  {
+    "key": "deliverable.submit",
+    "kind": "record",
+    "scopes": [
+      "record"
+    ],
+    "stepUp": false,
+    "riskClass": "R1"
+  },
+  {
+    "key": "review.request",
+    "kind": "record",
+    "scopes": [
+      "record"
+    ],
+    "stepUp": false,
+    "riskClass": "R1"
+  },
+  {
+    "key": "review.decide",
+    "kind": "record",
+    "scopes": [
+      "record"
+    ],
+    "stepUp": false,
+    "riskClass": "R2"
+  },
+  {
+    "key": "review.self_approve",
+    "kind": "record",
+    "scopes": [
+      "record"
+    ],
+    "stepUp": false,
+    "riskClass": "R2"
+  },
+  {
+    "key": "defect.verify",
+    "kind": "record",
+    "scopes": [
+      "record"
+    ],
+    "stepUp": false,
+    "riskClass": "R2"
+  },
+  {
+    "key": "time.log_own",
+    "kind": "record",
+    "scopes": [
+      "record"
+    ],
+    "stepUp": false,
+    "riskClass": "R0"
+  },
+  {
+    "key": "timesheet.submit_own",
+    "kind": "personal",
+    "scopes": [
+      "personal"
+    ],
+    "stepUp": false,
+    "riskClass": "R0"
+  },
+  {
+    "key": "timesheet.approve",
+    "kind": "record",
+    "scopes": [
+      "brand"
+    ],
+    "stepUp": false,
+    "riskClass": "R2"
+  },
+  {
+    "key": "timesheet.unlock",
+    "kind": "admin",
+    "scopes": [
+      "brand"
+    ],
+    "stepUp": true,
+    "riskClass": "R3"
+  },
+  {
+    "key": "view.share",
+    "kind": "record",
+    "scopes": [
+      "brand",
+      "project",
+      "workspace"
+    ],
+    "stepUp": false,
+    "riskClass": "R1"
+  },
+  {
+    "key": "report.schedule",
+    "kind": "record",
+    "scopes": [
+      "brand",
+      "project",
+      "workspace"
+    ],
+    "stepUp": false,
+    "riskClass": "R2"
+  },
+  {
+    "key": "release.decide",
+    "kind": "record",
+    "scopes": [
+      "record"
+    ],
+    "stepUp": true,
+    "riskClass": "R4"
+  },
+  {
+    "key": "release.production_action",
+    "kind": "execution",
+    "scopes": [
+      "record"
+    ],
+    "stepUp": true,
+    "riskClass": "R4"
+  },
+  {
+    "key": "environment.configure",
+    "kind": "record",
+    "scopes": [
+      "brand"
+    ],
+    "stepUp": false,
+    "riskClass": "R2"
+  },
+  {
+    "key": "tests.execute",
+    "kind": "execution",
+    "scopes": [
+      "brand",
+      "project",
+      "record"
+    ],
+    "stepUp": false,
+    "riskClass": "R1"
+  },
+  {
+    "key": "personal.manage_own",
+    "kind": "personal",
+    "scopes": [
+      "personal"
+    ],
+    "stepUp": false,
+    "riskClass": "R0"
+  },
+  {
+    "key": "sessions.manage_own",
+    "kind": "personal",
+    "scopes": [
+      "personal"
+    ],
+    "stepUp": false,
+    "riskClass": "R1"
+  },
+  {
+    "key": "account.mfa_enroll",
+    "kind": "personal",
+    "scopes": [
+      "personal"
+    ],
+    "stepUp": true,
+    "riskClass": "R3"
+  },
+  {
+    "key": "account.mfa_disable",
+    "kind": "personal",
+    "scopes": [
+      "personal"
+    ],
+    "stepUp": true,
+    "riskClass": "R4"
+  },
+  {
+    "key": "account.recovery_codes_regenerate",
+    "kind": "personal",
+    "scopes": [
+      "personal"
+    ],
+    "stepUp": true,
+    "riskClass": "R3"
+  },
+  {
+    "key": "api_tokens.personal",
+    "kind": "personal",
+    "scopes": [
+      "personal"
+    ],
+    "stepUp": true,
+    "riskClass": "R3"
+  },
+  {
+    "key": "workspace.view_settings",
+    "kind": "admin",
+    "scopes": [
+      "workspace"
+    ],
+    "stepUp": false,
+    "riskClass": "R0"
+  },
+  {
+    "key": "workspace.configure",
+    "kind": "admin",
+    "scopes": [
+      "workspace"
+    ],
+    "stepUp": false,
+    "riskClass": "R2"
+  },
+  {
+    "key": "workspace.delete",
+    "kind": "admin",
+    "scopes": [
+      "workspace"
+    ],
+    "stepUp": true,
+    "riskClass": "R4"
+  },
+  {
+    "key": "ownership.transfer",
+    "kind": "admin",
+    "scopes": [
+      "workspace"
+    ],
+    "stepUp": true,
+    "riskClass": "R4"
+  },
+  {
+    "key": "brand.create",
+    "kind": "admin",
+    "scopes": [
+      "workspace"
+    ],
+    "stepUp": false,
+    "riskClass": "R2"
+  },
+  {
+    "key": "brand.configure",
+    "kind": "admin",
+    "scopes": [
+      "brand"
+    ],
+    "stepUp": false,
+    "riskClass": "R2"
+  },
+  {
+    "key": "brand.archive",
+    "kind": "admin",
+    "scopes": [
+      "brand"
+    ],
+    "stepUp": false,
+    "riskClass": "R3"
+  },
+  {
+    "key": "brand.delete",
+    "kind": "admin",
+    "scopes": [
+      "brand"
+    ],
+    "stepUp": true,
+    "riskClass": "R4"
+  },
+  {
+    "key": "brand.mark_sensitive",
+    "kind": "admin",
+    "scopes": [
+      "brand"
+    ],
+    "stepUp": true,
+    "riskClass": "R3"
+  },
+  {
+    "key": "membership.invite_member",
+    "kind": "admin",
+    "scopes": [
+      "workspace"
+    ],
+    "stepUp": false,
+    "riskClass": "R2"
+  },
+  {
+    "key": "membership.invite_guest",
+    "kind": "admin",
+    "scopes": [
+      "record"
+    ],
+    "stepUp": false,
+    "riskClass": "R3"
+  },
+  {
+    "key": "membership.manage",
+    "kind": "admin",
+    "scopes": [
+      "workspace"
+    ],
+    "stepUp": true,
+    "riskClass": "R3"
+  },
+  {
+    "key": "team.manage",
+    "kind": "admin",
+    "scopes": [
+      "workspace"
+    ],
+    "stepUp": false,
+    "riskClass": "R2"
+  },
+  {
+    "key": "access.grant_scope",
+    "kind": "admin",
+    "scopes": [
+      "workspace",
+      "brand",
+      "project"
+    ],
+    "stepUp": false,
+    "riskClass": "R3"
+  },
+  {
+    "key": "access.restrict_scope",
+    "kind": "admin",
+    "scopes": [
+      "brand",
+      "project",
+      "record",
+      "field"
+    ],
+    "stepUp": false,
+    "riskClass": "R3"
+  },
+  {
+    "key": "access.preview",
+    "kind": "admin",
+    "scopes": [
+      "workspace",
+      "brand",
+      "project"
+    ],
+    "stepUp": false,
+    "riskClass": "R0"
+  },
+  {
+    "key": "access.elevate_sensitive",
+    "kind": "admin",
+    "scopes": [
+      "brand",
+      "project"
+    ],
+    "stepUp": true,
+    "riskClass": "R4"
+  },
+  {
+    "key": "sharing.policy.configure",
+    "kind": "admin",
+    "scopes": [
+      "workspace"
+    ],
+    "stepUp": true,
+    "riskClass": "R3"
+  },
+  {
+    "key": "feature_availability.configure",
+    "kind": "admin",
+    "scopes": [
+      "workspace"
+    ],
+    "stepUp": false,
+    "riskClass": "R2"
+  },
+  {
+    "key": "custom_roles.manage",
+    "kind": "admin",
+    "scopes": [
+      "workspace"
+    ],
+    "stepUp": true,
+    "riskClass": "R3"
+  },
+  {
+    "key": "workflow.configure",
+    "kind": "admin",
+    "scopes": [
+      "workspace",
+      "brand",
+      "project"
+    ],
+    "stepUp": false,
+    "riskClass": "R2"
+  },
+  {
+    "key": "fields.configure",
+    "kind": "admin",
+    "scopes": [
+      "workspace",
+      "brand",
+      "project"
+    ],
+    "stepUp": false,
+    "riskClass": "R2"
+  },
+  {
+    "key": "views.configure",
+    "kind": "admin",
+    "scopes": [
+      "workspace",
+      "brand",
+      "project"
+    ],
+    "stepUp": false,
+    "riskClass": "R1"
+  },
+  {
+    "key": "templates.manage",
+    "kind": "admin",
+    "scopes": [
+      "workspace",
+      "brand"
+    ],
+    "stepUp": false,
+    "riskClass": "R2"
+  },
+  {
+    "key": "notifications.configure_scope",
+    "kind": "admin",
+    "scopes": [
+      "brand",
+      "project"
+    ],
+    "stepUp": false,
+    "riskClass": "R2"
+  },
+  {
+    "key": "ai.configure_brand",
+    "kind": "admin",
+    "scopes": [
+      "brand"
+    ],
+    "stepUp": false,
+    "riskClass": "R2"
+  },
+  {
+    "key": "ai.providers.manage",
+    "kind": "admin",
+    "scopes": [
+      "workspace"
+    ],
+    "stepUp": true,
+    "riskClass": "R3"
+  },
+  {
+    "key": "ai.limits.configure",
+    "kind": "admin",
+    "scopes": [
+      "workspace",
+      "brand"
+    ],
+    "stepUp": true,
+    "riskClass": "R3"
+  },
+  {
+    "key": "agents.configure",
+    "kind": "admin",
+    "scopes": [
+      "workspace"
+    ],
+    "stepUp": false,
+    "riskClass": "R3"
+  },
+  {
+    "key": "automations.configure",
+    "kind": "admin",
+    "scopes": [
+      "workspace",
+      "brand"
+    ],
+    "stepUp": false,
+    "riskClass": "R2"
+  },
+  {
+    "key": "integrations.configure",
+    "kind": "admin",
+    "scopes": [
+      "workspace",
+      "brand"
+    ],
+    "stepUp": false,
+    "riskClass": "R3"
+  },
+  {
+    "key": "api_tokens.service.manage",
+    "kind": "admin",
+    "scopes": [
+      "workspace"
+    ],
+    "stepUp": true,
+    "riskClass": "R3"
+  },
+  {
+    "key": "webhooks.manage",
+    "kind": "admin",
+    "scopes": [
+      "workspace",
+      "brand"
+    ],
+    "stepUp": false,
+    "riskClass": "R3"
+  },
+  {
+    "key": "security.configure",
+    "kind": "admin",
+    "scopes": [
+      "workspace"
+    ],
+    "stepUp": true,
+    "riskClass": "R4"
+  },
+  {
+    "key": "sessions.manage_others",
+    "kind": "admin",
+    "scopes": [
+      "workspace"
+    ],
+    "stepUp": true,
+    "riskClass": "R3"
+  },
+  {
+    "key": "retention.configure",
+    "kind": "admin",
+    "scopes": [
+      "workspace"
+    ],
+    "stepUp": true,
+    "riskClass": "R4"
+  },
+  {
+    "key": "legal_hold.manage",
+    "kind": "admin",
+    "scopes": [
+      "workspace",
+      "brand"
+    ],
+    "stepUp": true,
+    "riskClass": "R4"
+  },
+  {
+    "key": "trash.manage",
+    "kind": "admin",
+    "scopes": [
+      "workspace",
+      "brand"
+    ],
+    "stepUp": false,
+    "riskClass": "R2"
+  },
+  {
+    "key": "audit.view",
+    "kind": "admin",
+    "scopes": [
+      "workspace"
+    ],
+    "stepUp": false,
+    "riskClass": "R0"
+  },
+  {
+    "key": "audit.export",
+    "kind": "admin",
+    "scopes": [
+      "workspace"
+    ],
+    "stepUp": true,
+    "riskClass": "R3"
+  },
+  {
+    "key": "workspace.export",
+    "kind": "admin",
+    "scopes": [
+      "workspace"
+    ],
+    "stepUp": true,
+    "riskClass": "R3"
+  },
+  {
+    "key": "usage.view",
+    "kind": "admin",
+    "scopes": [
+      "workspace",
+      "brand"
+    ],
+    "stepUp": false,
+    "riskClass": "R0"
+  },
+  {
+    "key": "billing.view",
+    "kind": "admin",
+    "scopes": [
+      "workspace"
+    ],
+    "stepUp": false,
+    "riskClass": "R0"
+  },
+  {
+    "key": "billing.manage",
+    "kind": "admin",
+    "scopes": [
+      "workspace"
+    ],
+    "stepUp": true,
+    "riskClass": "R3"
+  },
+  {
+    "key": "secrets_metadata.view",
+    "kind": "admin",
+    "scopes": [
+      "workspace",
+      "connection"
+    ],
+    "stepUp": false,
+    "riskClass": "R0"
+  },
+  {
+    "key": "health.view",
+    "kind": "admin",
+    "scopes": [
+      "workspace",
+      "brand"
+    ],
+    "stepUp": false,
+    "riskClass": "R0"
+  },
+  {
+    "key": "support_access.grant",
+    "kind": "admin",
+    "scopes": [
+      "workspace"
+    ],
+    "stepUp": true,
+    "riskClass": "R4"
+  },
+  {
+    "key": "emergency_stop.trigger",
+    "kind": "admin",
+    "scopes": [
+      "workspace"
+    ],
+    "stepUp": false,
+    "riskClass": "R1"
+  },
+  {
+    "key": "ai.execute",
+    "kind": "execution",
+    "scopes": [
+      "workspace",
+      "brand",
+      "project",
+      "record"
+    ],
+    "stepUp": false,
+    "riskClass": "R1"
+  },
+  {
+    "key": "ai.apply_proposal",
+    "kind": "execution",
+    "scopes": [
+      "record"
+    ],
+    "stepUp": false,
+    "riskClass": "R1"
+  },
+  {
+    "key": "agent.assign",
+    "kind": "execution",
+    "scopes": [
+      "record"
+    ],
+    "stepUp": false,
+    "riskClass": "R2"
+  },
+  {
+    "key": "agent.run_control",
+    "kind": "execution",
+    "scopes": [
+      "record"
+    ],
+    "stepUp": false,
+    "riskClass": "R1"
+  },
+  {
+    "key": "agent.action_approve",
+    "kind": "execution",
+    "scopes": [
+      "record"
+    ],
+    "stepUp": false,
+    "riskClass": "R3"
+  },
+  {
+    "key": "automation.run_manual",
+    "kind": "execution",
+    "scopes": [
+      "brand",
+      "workspace"
+    ],
+    "stepUp": false,
+    "riskClass": "R2"
+  },
+  {
+    "key": "integration.sync_now",
+    "kind": "execution",
+    "scopes": [
+      "connection"
+    ],
+    "stepUp": false,
+    "riskClass": "R1"
+  },
+  {
+    "key": "import.execute",
+    "kind": "execution",
+    "scopes": [
+      "workspace",
+      "brand"
+    ],
+    "stepUp": false,
+    "riskClass": "R2"
+  },
+  {
+    "key": "webhook.test_send",
+    "kind": "execution",
+    "scopes": [
+      "workspace",
+      "brand"
+    ],
+    "stepUp": false,
+    "riskClass": "R2"
+  }
+] as const;
+export type ActionKey = (typeof ACTIONS)[number]['key'];
+
+/** 0D §11.2 step-up challenge states (`locked` is stored and terminal). */
+export const STEP_UP_CHALLENGE_STATES = [
+  "pending",
+  "verified",
+  "consumed",
+  "expired",
+  "cancelled",
+  "locked"
+] as const;
+export type StepUpChallengeState = (typeof STEP_UP_CHALLENGE_STATES)[number];

@@ -47,6 +47,10 @@ const STRING_FIELDS = [
   'effect_state',
   'destination_class',
   'operation_kind',
+  'flow',
+  'template',
+  'policy',
+  'auth_method',
 ] as const;
 const NUMBER_FIELDS = [
   'status',
