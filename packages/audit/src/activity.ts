@@ -1,4 +1,4 @@
-import { newUuidV7, type InternalEventType } from '@pm/contracts';
+import { newUuidV7, UUID_ANY_PATTERN, type InternalEventType } from '@pm/contracts';
 import type { StoredChange, WorkspaceTransaction } from '@pm/db';
 import type { InternalEvent, OutboxConsumer } from '@pm/platform';
 
@@ -7,7 +7,7 @@ import type { InternalEvent, OutboxConsumer } from '@pm/platform';
  * events, written by an outbox consumer after the fact. Audit truth is already committed with the
  * mutation; the projection may lag and can be rebuilt from `audit.audit_event` at any time.
  *
- * Display safety: only `plain` values that are short scalars are projected. `personal`, `content`,
+ * Display safety: only `plain` values that are short scalars (and not internal UUIDs) are projected. `personal`, `content`,
  * `secret`, `credential_ref`, and redacted entries never appear. Field-level read policy is still
  * applied when items are read (1D); this is not the final Activity product view.
  */
@@ -25,7 +25,9 @@ export function displayValues(
     const key = c.field.replace(/\./g, '_');
     if (!KEY.test(key)) continue;
     if (v === null || typeof v === 'boolean' || typeof v === 'number') out[key] = v as never;
-    else if (typeof v === 'string' && v.length <= MAX_DISPLAY) out[key] = v;
+    // Internal identifiers are structural facts for audit, never display values.
+    else if (typeof v === 'string' && v.length <= MAX_DISPLAY && !UUID_ANY_PATTERN.test(v))
+      out[key] = v;
   }
   return out;
 }

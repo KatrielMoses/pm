@@ -1,8 +1,11 @@
 import { change, CommandContext, removeActivity } from '@pm/audit';
+import { newUuidV7 } from '@pm/contracts';
 import type { ExecutionContext } from '@pm/contracts';
 import {
   sql,
+  type DeletionBatchTable,
   type DeletionBlockResult,
+  type Selectable,
   type PlatformDiscovery,
   type TenantDatabase,
   type WorkspaceTransaction,
@@ -16,7 +19,13 @@ import {
   type PurgeLedger,
   type PurgeLedgerEntry,
 } from './ledger.ts';
-import { LifecycleError } from './registry.ts';
+import { LifecycleError, type RecordRef } from './registry.ts';
+
+interface ResidualGroup {
+  root: string;
+  members: string[];
+  container: RecordRef | null;
+}
 
 /**
  * Durable purge (0B §8.8). A `purge` operation drives checkpointed steps, each idempotent:
@@ -110,10 +119,11 @@ export class PurgeExecutor {
     tx: WorkspaceTransaction,
     operationId: string,
     batchId: string,
+    cmd: CommandContext,
   ): Promise<BeginResult> {
     const batch = await tx.db
       .selectFrom('core.deletion_batch')
-      .select(['id', 'state', 'operation_id', 'version', 'root_record_id'])
+      .selectAll()
       .where('id', '=', batchId)
       .forUpdate()
       .executeTakeFirst();
@@ -121,7 +131,7 @@ export class PurgeExecutor {
     if (batch.state === 'purged') return { status: 'done' };
     if (batch.state === 'purging')
       return batch.operation_id === operationId
-        ? { status: 'proceed', excluded: 0 }
+        ? { status: 'proceed', excluded: batch.evidence_locked_count }
         : { status: 'blocked', reason: 'not_purgeable' };
     if (batch.state !== 'trashed') return { status: 'blocked', reason: 'not_purgeable' };
     // Every check happens before anything destructive.
@@ -143,15 +153,13 @@ export class PurgeExecutor {
       byType.set(m.record_type, [...(byType.get(m.record_type) ?? []), m.record_id]);
     for (const [type, ids] of byType)
       for (const id of (await registry.get(type)?.evidenceLocked?.(tx, ids)) ?? []) locked.add(id);
-    if (locked.size && locked.size >= members.length)
-      return this.#block(tx, batch, 'evidence_lock_all');
-    for (const id of locked)
-      await tx.db
-        .updateTable('core.deletion_batch_member')
-        .set({ outcome: 'excluded_evidence_lock' })
-        .where('batch_id', '=', batchId)
-        .where('record_id', '=', id)
-        .execute();
+    let excluded = 0;
+    if (locked.size) {
+      const plan = await this.#residualPlan(tx, members, locked, batch.root_record_id);
+      // Nothing would be left to purge (or the root itself is held back): the whole batch waits.
+      if (!plan) return this.#block(tx, batch, 'evidence_lock_all');
+      excluded = await this.#split(tx, batch, plan, operationId, cmd);
+    }
     const moved = await tx.db
       .updateTable('core.deletion_batch')
       .set({
@@ -159,8 +167,8 @@ export class PurgeExecutor {
         operation_id: operationId,
         purge_started_at: new Date(),
         hold: false,
-        evidence_locked_count: locked.size,
-        block_result: locked.size ? 'evidence_lock_partial' : null,
+        evidence_locked_count: excluded,
+        block_result: excluded ? 'evidence_lock_partial' : null,
         version: String(Number(batch.version) + 1),
       })
       .where('id', '=', batchId)
@@ -171,7 +179,179 @@ export class PurgeExecutor {
       transition: 'purge_start',
       outcome: 'ok',
     });
-    return { status: 'proceed', excluded: locked.size };
+    return { status: 'proceed', excluded };
+  }
+
+  /**
+   * Residual grouping. It is deterministic: it depends only on batch membership, containment, and
+   * the current locks, so every retry computes the same groups.
+   *   1. A member is excluded if it is evidence-locked or contained (within this batch) in an
+   *      excluded member: a held record keeps its in-batch subtree, so restore stays coherent.
+   *   2. Each excluded member whose in-batch container is not excluded is a residual root; every
+   *      other excluded member joins the group of its nearest excluded ancestor.
+   *   3. Groups are ordered by (root depth, root id); members by (depth, id).
+   * Returns null when nothing would remain to purge or the original root itself is held back: the
+   * original batch's root is never handed to a residual batch, and the whole batch waits instead.
+   */
+  async #residualPlan(
+    tx: WorkspaceTransaction,
+    members: Array<{ record_id: string; record_type: string; depth: number }>,
+    locked: ReadonlySet<string>,
+    rootRecordId: string,
+  ): Promise<ResidualGroup[] | null> {
+    const inBatch = new Set(members.map((m) => m.record_id));
+    const container = new Map<string, RecordRef | null>();
+    for (const m of members)
+      container.set(
+        m.record_id,
+        (await this.#svc.deps.registry.get(m.record_type)?.containerOf?.(tx, m.record_id)) ?? null,
+      );
+    const parent = (id: string): string | null => {
+      const c = container.get(id);
+      return c && inBatch.has(c.id) ? c.id : null;
+    };
+    const order = [...members].sort(
+      (a, b) => a.depth - b.depth || (a.record_id < b.record_id ? -1 : 1),
+    );
+    const excluded = new Set<string>();
+    for (const m of order) {
+      const p = parent(m.record_id);
+      if (locked.has(m.record_id) || (p !== null && excluded.has(p))) excluded.add(m.record_id);
+    }
+    if (excluded.size >= members.length || excluded.has(rootRecordId)) return null;
+    const rootOf = (id: string): string => {
+      let cur = id;
+      for (let p = parent(cur); p !== null && excluded.has(p); p = parent(cur)) cur = p;
+      return cur;
+    };
+    const groups = new Map<string, string[]>();
+    for (const m of order.filter((x) => excluded.has(x.record_id))) {
+      const root = rootOf(m.record_id);
+      groups.set(root, [...(groups.get(root) ?? []), m.record_id]);
+    }
+    return [...groups].map(([root, ids]) => ({
+      root,
+      members: ids,
+      container: container.get(root) ?? null,
+    }));
+  }
+
+  /**
+   * Moves each residual group into a successor `trashed` batch inside the begin transaction,
+   * before anything destructive: lineage on the successor, `moved_to_successor` history on the
+   * original, fresh pending memberships, re-pointed envelopes, and audit events. Returns the
+   * number of moved records.
+   */
+  async #split(
+    tx: WorkspaceTransaction,
+    batch: Selectable<DeletionBatchTable>,
+    plan: ResidualGroup[],
+    operationId: string,
+    cmd: CommandContext,
+  ): Promise<number> {
+    const original = await tx.db
+      .selectFrom('core.deletion_batch_member as m')
+      .innerJoin('core.record as r', 'r.id', 'm.record_id')
+      .select([
+        'm.record_id',
+        'm.record_type',
+        'm.prior_lifecycle_state',
+        'm.depth',
+        'r.public_id',
+        'r.version',
+      ])
+      .where('m.batch_id', '=', batch.id)
+      .where('m.outcome', '=', 'pending')
+      .execute();
+    const byId = new Map(original.map((m) => [m.record_id, m]));
+    const successors: string[] = [];
+    let moved = 0;
+    for (const group of plan) {
+      const successor = newUuidV7();
+      successors.push(successor);
+      await tx.db
+        .insertInto('core.deletion_batch')
+        .values({
+          id: successor,
+          workspace_id: tx.workspaceId,
+          brand_id: batch.brand_id,
+          root_record_id: group.root,
+          trashed_at: batch.trashed_at,
+          trashed_by_type: batch.trashed_by_type,
+          trashed_by_id: batch.trashed_by_id,
+          restore_location: JSON.stringify(
+            group.container
+              ? {
+                  container_record_id: group.container.id,
+                  container_type: group.container.recordType,
+                }
+              : {},
+          ),
+          member_count: group.members.length,
+          correlation_id: cmd.correlationId,
+          split_from_batch_id: batch.id,
+          split_operation_id: operationId,
+        })
+        .execute();
+      // History first (frees the active-membership slot), then the successor's membership.
+      const updated = await tx.db
+        .updateTable('core.deletion_batch_member')
+        .set({ outcome: 'moved_to_successor', successor_batch_id: successor })
+        .where('batch_id', '=', batch.id)
+        .where('record_id', 'in', group.members)
+        .where('outcome', '=', 'pending')
+        .executeTakeFirst();
+      if (Number(updated.numUpdatedRows) !== group.members.length)
+        throw new LifecycleError('concurrent_change');
+      for (const id of group.members) {
+        const m = byId.get(id)!;
+        await tx.db
+          .insertInto('core.deletion_batch_member')
+          .values({
+            workspace_id: tx.workspaceId,
+            batch_id: successor,
+            record_id: id,
+            record_type: m.record_type,
+            prior_lifecycle_state: m.prior_lifecycle_state,
+            depth: m.depth,
+          })
+          .execute();
+        const res = await tx.db
+          .updateTable('core.record')
+          .set({ deletion_batch_id: successor, version: String(Number(m.version) + 1) })
+          .where('id', '=', id)
+          .where('lifecycle_state', '=', 'trashed')
+          .where('deletion_batch_id', '=', batch.id)
+          .executeTakeFirst();
+        if (Number(res.numUpdatedRows) !== 1) throw new LifecycleError('concurrent_change');
+      }
+      // Batch-level facts target the batch (not a record), so purging a record never redacts them.
+      await this.#svc.deps.writer.write(tx, cmd, {
+        action: 'record.residual_batch_created',
+        target: { recordId: successor, type: 'deletion_batch', publicId: null },
+        changes: [
+          change.plain('root_record_id', null, group.root),
+          change.plain('original_batch_id', null, batch.id),
+          change.plain('successor_batch_id', null, successor),
+          change.plain('excluded_count', null, group.members.length),
+        ],
+      });
+      moved += group.members.length;
+    }
+    await this.#svc.deps.writer.write(tx, cmd, {
+      action: 'record.partial_purge_split',
+      target: { recordId: batch.id, type: 'deletion_batch', publicId: null },
+      changes: [
+        change.plain('original_batch_id', null, batch.id),
+        change.plain('successor_batch_ids', null, successors),
+        change.plain('excluded_count', null, moved),
+      ],
+    });
+    this.#svc.deps.metrics.count('lifecycle.transitions', plan.length, {
+      transition: 'purge_split',
+      outcome: 'ok',
+    });
+    return moved;
   }
 
   /** Bottom-up typed content, then associations, per record type (module hooks). */
@@ -416,7 +596,7 @@ export function purgeJobHandler(executor: PurgeExecutor): JobHandler {
       }).withOperation(operationId, ctx.job.attemptId ?? null);
       const tx = (t: unknown) => t as WorkspaceTransaction;
       const begin = await ctx.step('begin', async (t) => ({
-        result: await executor.begin(tx(t), operationId, batchId),
+        result: await executor.begin(tx(t), operationId, batchId, cmd),
       }));
       if (begin.result.status === 'done') return { state: 'succeeded' };
       if (begin.result.status === 'blocked')

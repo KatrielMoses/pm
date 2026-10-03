@@ -68,6 +68,8 @@ export interface FixtureControls {
   /** Hooks fail this many times before succeeding (interruption/resume tests). */
   failContent: number;
   failProjections: number;
+  /** The evidence-lock check fails this many times (crash before the split). */
+  failEvidence: number;
   contentCalls: number;
   projectionCalls: number;
   withPurgeHooks: boolean;
@@ -92,6 +94,10 @@ export function fixtureAdapter(c: FixtureControls): RecordTypeAdapter {
       return p ? { id: p, recordType: 'foundation_fixture' } : null;
     },
     async evidenceLocked(tx, ids) {
+      if (c.failEvidence > 0) {
+        c.failEvidence -= 1;
+        throw new Error('evidence check interrupted');
+      }
       const r = await sql<{
         id: string;
       }>`SELECT id FROM fixture.item WHERE id = ANY(${ids}::uuid[]) AND evidence_locked`.execute(
@@ -167,6 +173,7 @@ export function lifecycleEnv(
   const controls: FixtureControls = {
     failContent: 0,
     failProjections: 0,
+    failEvidence: 0,
     contentCalls: 0,
     projectionCalls: 0,
     withPurgeHooks: options.withPurgeHooks ?? true,

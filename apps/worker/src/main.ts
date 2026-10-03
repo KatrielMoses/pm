@@ -75,7 +75,12 @@ async function main(): Promise<void> {
   // the registry is empty and purge of any batch blocks safely (missing_purge_hook).
   const lifecycle = new LifecycleService({
     registry: new LifecycleRegistry(),
-    writer: new AuditWriter({ module: 'lifecycle', logger, metrics: telemetry.metrics }),
+    writer: new AuditWriter({
+      module: 'lifecycle',
+      logger,
+      metrics: telemetry.metrics,
+      lockWaitWarnMs: config.audit.chainLockWaitWarnMs,
+    }),
     retention: new RetentionPolicy(config.lifecycle),
     metrics: telemetry.metrics,
     logger,

@@ -108,6 +108,54 @@ link. A `BEFORE INSERT` trigger re-checks continuity, and `UNIQUE (workspace_id,
 forbids forks. As a consequence, audited writes in one workspace serialize from their audit insert
 to commit. Writers must use read committed isolation, which is the default.
 
+### Chain-lock contention (accepted tradeoff, measured)
+
+One chain per workspace (ADR-0009 G2) means audited writes in a workspace serialize: each holds
+the chain lock from its audit insert until its transaction commits. The cost is made visible:
+
+| Signal | Meaning |
+|---|---|
+| `audit.chain.lock_wait` (histogram, `module`) | Time spent waiting to acquire the chain lock, measured separately from… |
+| `audit.write.duration` (histogram, `module`, `outcome`) | …the whole audit write |
+| `audit.chain.lock_wait_exceeded` (counter, `module`) | Writes whose wait exceeded `AUDIT_CHAIN_LOCK_WAIT_WARN_MS` (default 250 ms; configuration, not a product promise) |
+| Log `audit.chain_lock_wait_high` (warn) | `workspace_id` and `duration_ms` only: it tells operators *which* workspace without putting IDs in metrics |
+
+No metric carries a workspace, actor, or target label.
+
+**Operational threshold** (alert, not a promise). Either condition sustained is excessive:
+
+- p95 of `audit.chain.lock_wait` above the threshold for 15 minutes;
+- `audit.chain.lock_wait_exceeded` above 1% of `audit.writes` over one hour.
+
+**Writing rules for domain modules:**
+
+- Write the audit event near the **end** of a short mutation transaction, after validation and
+  domain writes.
+- Never hold the transaction open across a network call, an external effect, a sleep, or
+  unrelated long work after the audit write: the chain lock is held until commit.
+- Long or bulk work runs as operations (one transaction per checkpointed step).
+
+**Phase 11D re-evaluation trigger.** If measured contention exceeds the threshold above in
+production or in 11D load tests, 11D must move to deterministic chain lanes or time partitions
+while keeping verifiability. Examples:
+
+- N lanes per workspace keyed by a stable hash, each with its own sequence and periodic
+  cross-lane anchors;
+- one chain per (workspace, month) partition, anchored to the previous partition's head.
+
+Continuity checks must not be weakened, and audit must not move outside the material-change
+transaction.
+
+The contention test holds the lock for 400 ms in one transaction while five writers wait. It
+proves:
+
+- every waiter is held back;
+- all of them complete promptly after the commit;
+- the chain stays continuous (1–6) and verifies;
+- the wait histogram, total-duration histogram, and exceeded counter are emitted with only the
+  `module` label;
+- the warnings carry no content.
+
 `verifyAuditChain` (job `audit.chain_verify`, fanned out hourly per workspace by
 `audit.chain_verify_fanout`) recomputes every link and digest. On a clean result it appends a
 checkpoint.

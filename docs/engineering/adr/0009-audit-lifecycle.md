@@ -1,8 +1,8 @@
 # ADR-0009: Audit, deletion, and recovery primitives (Phase 1F) — decisions and deviations
 
-Status: **proposed** (awaiting product-owner review). Items under "Needs approval" extend or
-interpret an accepted Phase 0 text; everything else implements the brief and 0B §7–§8 / 0D §12 as
-written. Engineering detail: [audit.md](../audit.md), [lifecycle.md](../lifecycle.md).
+Status: **accepted and implemented** (Phase 1F review 01). G1–G5, G7, and G8 are accepted. G6
+was rejected and replaced by residual batches. No item awaits approval. Engineering detail:
+[audit.md](../audit.md), [lifecycle.md](../lifecycle.md).
 
 ## Decisions inside the brief
 
@@ -25,18 +25,34 @@ written. Engineering detail: [audit.md](../audit.md), [lifecycle.md](../lifecycl
 | F15 | Account security activity | `GET /v1/auth/security-activity`: own account-level events only; masked network; no internal IDs; account-bound encrypted cursor | Brief: the only user-facing 1F route |
 | F16 | Activity projection | Outbox consumer on `core.record.*`; plain short values only; rebuildable; removed on purge. Not the final Activity product | 0B §7.2 |
 
-## Needs approval
+## Review dispositions (G1–G8)
 
-| # | Topic | Accepted text | Implementation | Why | Cost to change |
-|---|---|---|---|---|---|
-| G1 | Change-entry digest and redaction reason | 0D `audit-event` `changes[]` had no `digest` or `reason` | **Amended at source** (PL-18): `digest` (`sha256:` of the canonical entry) and `reason` added to the 0D schema; stored events are validated against it in tests | Lets the chain cover values while explicit redaction stays verifiable | Low |
-| G2 | Chain boundary | 0B §7.6: `prev_hash` "per partition" | One chain per **workspace** (no physical partitions exist). Audited writes in one workspace serialize from their audit insert to commit (advisory lock) | Strongest continuity check now; partitions are deferred (0B §10.9) | Medium: re-anchor per partition if partitioning is introduced |
-| G3 | Record types as a table | 0B §2.3: `record_type` "fixed enum of the 30 addressable types" | `core.record_type` table seeded with exactly those 30 (and their 0D prefixes), validated against the 0B model by the Phase 0 validator; test databases register a `test_only` fixture type | The brief requires a test-only type without adding a customer-visible type to the canonical registry; an enum cannot hold one only in tests | Low (convert to enum + check later) |
-| G4 | Non-resource set | ADR-0008 B3 closed set | Adds `security_activity` | Security events have no public IDs (0D internal schema), so the account view is not a resource collection | Low |
-| G5 | Retention policy source | 0B: `source (platform_default \| plan \| workspace)` | Platform defaults live in configuration (`RETENTION_PERIODS`); table rows are `plan` or `workspace` | Platform defaults are deployment configuration, not tenant rows | Low |
-| G6 | Evidence-locked members | 0B §8.8: excluded and kept, remainder proceeds | Excluded members stay `trashed` in the now-terminal batch | No evidence locks exist before TEST-024/025; their later purge belongs there | Medium |
-| G7 | Workspace deletion and audit | 0B §8.9: audit for a deleted workspace is deleted with it | Not possible yet: audit DELETE is refused for every role. Workspace deletion (SEC-021) must add a guarded, audited `audit_maintainer` path in its phase | Brief: no workspace deletion in 1F; append-only must not have a backdoor | — |
-| G8 | Security-event redaction | 0B: personal values redacted on account deletion | Only `audit_event` has a redaction path (purge). Security events (prefix + UA family, C3) are immutable until account deletion (OD-39) adds one | No account deletion in 1F | — |
+| # | Topic | Disposition | Final decision |
+|---|---|---|---|
+| G1 | Change-entry digest and redaction reason | **Accepted; at source** | `digest` (`sha256:` of the canonical entry) and `reason` are part of the 0D `audit-event` schema (PL-18). Stored events are validated against it in tests |
+| G2 | Chain boundary | **Accepted, with guardrails** | One chain per workspace for the current unpartitioned architecture. The serialization cost is measured: `audit.chain.lock_wait` separately from `audit.write.duration`, `audit.chain.lock_wait_exceeded`, and a content-free warning above `AUDIT_CHAIN_LOCK_WAIT_WARN_MS`. A delayed-holder contention test covers it. Writing rules and the Phase 11D trigger are in [audit.md](../audit.md#chain-lock-contention-accepted-tradeoff-measured) |
+| G3 | Record-type registry | **Accepted** | `core.record_type`, seeded and validated exactly from the 0B catalog by the Phase 0 validator. Production roles have no write grant on it, so test-only types can be registered only by test fixtures |
+| G4 | Non-resource set | **Accepted** | `security_activity` joins the closed non-resource response types |
+| G5 | Platform retention defaults | **Accepted** | Nullable platform defaults come from validated configuration (`RETENTION_PERIODS`). Plan and workspace overrides are policy rows |
+| G6 | Evidence-locked members | **Rejected → replaced** | Partial exclusions move into successor `trashed` batches, with lineage, inside the purge's `begin` transaction. The original batch keeps immutable history and becomes terminal only after every exclusion is owned by a retryable successor. Database invariants: one active membership per record, and no terminal batch owning trashed records (migration 0016). See [lifecycle.md](../lifecycle.md#residual-batches-partial-evidence-lock-exclusions) |
+| G7 | Workspace deletion and audit | **Accepted (deferred)** | Audit stays undeletable for every role until the workspace-deletion phase adds a narrowly guarded `audit_maintainer` removal procedure |
+| G8 | Security-event redaction | **Accepted (deferred)** | Security events stay immutable until account deletion adds personal-data redaction |
+
+## Future-phase owners
+
+- **Workspace deletion (SEC-021):** must add and test the guarded audit-removal path (an
+  `audit_maintainer` procedure scoped to the deleted workspace and its deletion operation) before
+  SEC-021 can pass.
+- **Account deletion (OD-39):** must add security-event personal-data redaction (network prefix,
+  user-agent family, and personal audit values of the person) before account deletion can pass.
+- **Phase 11D:** owns the measured chain-contention re-evaluation. Contention beyond the
+  documented threshold requires deterministic chain lanes or time partitions that keep
+  verifiability.
+- **1C / 1D / 2B / TEST-024/025:**
+  - 1C: brand and membership foreign keys and the real BrandPort;
+  - 1D: the policy-decision issuer and per-record trash visibility;
+  - 2B: restoring a task as projectless (residual batches whose container was purged);
+  - TEST-024/025: real evidence-lock adapters.
 
 ## Product-owner decisions still open (not blockers for 1F)
 

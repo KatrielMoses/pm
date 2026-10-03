@@ -14,7 +14,7 @@ extensions are needed in 1A: UUIDv7 keys are application-generated, and `gen_ran
 | `access` | access | empty (1D) |
 | `ops` | operational | `schema_migration`, `environment_binding`, `worker_heartbeat`, `rate_limit_bucket`, `dev_secret_vault`, `recovery_gate` (no tenant data) |
 | `audit` | audit (1F) | audit_event, audit_redaction, security_event, chain_checkpoint, activity_item, buffer_verification (0013, 0015); `redact_purged_values` (0014). Append-only by grants **and** triggers; see [audit.md](audit.md) |
-| `core` | core (1F) | record_type, record, archive_batch(+member), deletion_batch(+member) (0014); see [lifecycle.md](lifecycle.md) |
+| `core` | core (1F) | record_type, record, archive_batch(+member), deletion_batch(+member) (0014); residual-batch lineage and membership invariants (0016); see [lifecycle.md](lifecycle.md) |
 | `governance` | governance (1F) | retention_policy (0015): nullable values only |
 | `identity` | identity (1B) | account, credential, mfa_factor, recovery_code, session, oauth_identity, verification_token, step_up_challenge, mail_delivery, security_event_buffer (0011); stored `locked` step-up state (0012). Platform scope, no tenant RLS; see [identity.md](identity.md) |
 

@@ -317,6 +317,86 @@ describe('audit events: same-transaction truth, append-only storage, tamper evid
     ).rejects.toThrow(/chain continuity|audit_event_chain/);
   });
 
+  it('measures chain-lock contention: a delayed holder blocks writers, which recover in order once it commits', async () => {
+    const ws = await createWorkspace(h.app, 'Contention');
+    const slow = new AuditWriter({
+      module: 'contention',
+      logger: h.logger,
+      metrics: h.telemetry.metrics,
+      lockWaitWarnMs: 100,
+    });
+    let acquired!: () => void;
+    const holding = new Promise<void>((r) => (acquired = r));
+    const HOLD_MS = 400;
+    const holder = h.app.withWorkspace(ws.id, { module: 'test' }, async (tx) => {
+      await slow.write(tx, cmdFor(ws.id), {
+        action: 'record.updated',
+        target: { recordId: null, type: 'task', publicId: null },
+        changes: [change.plain('title', 'secret holder title', 'x')],
+      });
+      acquired();
+      await new Promise((r) => setTimeout(r, HOLD_MS)); // a (bad) long transaction holding the chain lock
+    });
+    await holding;
+    const started = Date.now();
+    const finished: number[] = [];
+    await Promise.all(
+      Array.from({ length: 5 }, (_, i) =>
+        h.app
+          .withWorkspace(ws.id, { module: 'test' }, (tx) =>
+            slow.write(tx, cmdFor(ws.id), {
+              action: 'record.updated',
+              target: { recordId: null, type: 'task', publicId: null },
+              changes: [change.plain('title', `${i}`, `${i + 1}`)],
+            }),
+          )
+          .then(() => finished.push(Date.now() - started)),
+      ),
+    );
+    await holder;
+    // Every waiter was held back by the holder, and all recovered promptly after its commit.
+    expect(Math.min(...finished)).toBeGreaterThanOrEqual(HOLD_MS - 100);
+    expect(Math.max(...finished)).toBeLessThan(HOLD_MS + 3_000);
+    const seqs = await db.admin(
+      `SELECT chain_seq::int AS s FROM audit.audit_event WHERE workspace_id = $1 ORDER BY 1`,
+      [ws.id],
+    );
+    expect(seqs.rows.map((r) => r.s)).toEqual([1, 2, 3, 4, 5, 6]);
+    expect(
+      (
+        await h.worker.withWorkspace(ws.id, { module: 'test' }, (tx) =>
+          verifyAuditChain(tx as WorkspaceTransaction),
+        )
+      ).problems,
+    ).toEqual([]);
+    // Lock wait is measured separately from total write time, with bounded labels only.
+    const { resourceMetrics } = await h.telemetry.metricReader!.collect();
+    const metrics = resourceMetrics.scopeMetrics.flatMap((sm) => sm.metrics);
+    const points = (name: string) =>
+      metrics
+        .filter((m) => m.descriptor.name === name)
+        .flatMap(
+          (m) => m.dataPoints as Array<{ attributes: Record<string, unknown>; value: unknown }>,
+        )
+        .filter((p) => p.attributes.module === 'contention');
+    const wait = points('audit.chain.lock_wait')[0]!.value as { count: number; max: number };
+    expect(wait.count).toBe(6);
+    expect(wait.max).toBeGreaterThanOrEqual(HOLD_MS - 100);
+    const total = points('audit.write.duration').find((p) => p.attributes.outcome === 'ok')!
+      .value as { count: number };
+    expect(total.count).toBe(6);
+    expect(points('audit.chain.lock_wait_exceeded')[0]!.value).toBe(5);
+    for (const p of [
+      ...points('audit.chain.lock_wait'),
+      ...points('audit.chain.lock_wait_exceeded'),
+    ])
+      expect(Object.keys(p.attributes)).toEqual(['module']);
+    // The warning is content-free.
+    const warnings = h.sink.lines.filter((l) => l.includes('"audit.chain_lock_wait_high"'));
+    expect(warnings).toHaveLength(5);
+    expect(warnings.join('\n').includes('secret holder title')).toBe(false);
+  });
+
   it('isolates tenants (RLS) and keeps account and workspace security events in separate contexts', async () => {
     await write(alpha.id);
     const seen = await h.worker.withWorkspace(beta.id, { module: 'test', readOnly: true }, (tx) =>

@@ -662,6 +662,9 @@ export interface DeletionBatchTable {
   ledger_acknowledged_at: Ts | null;
   terminal_outcome: 'restored' | 'purged' | 'purged_with_exclusions' | null;
   correlation_id: string;
+  /** Residual batch lineage: the batch this one was split from, and the purge that split it. */
+  split_from_batch_id: string | null;
+  split_operation_id: string | null;
   version: ColumnType<string, string | number | undefined, string | number>;
 }
 
@@ -672,7 +675,9 @@ export interface DeletionBatchMemberTable {
   record_type: string;
   prior_lifecycle_state: LifecycleState;
   depth: number;
-  outcome: Defaulted<'pending' | 'restored' | 'purged' | 'excluded_evidence_lock'>;
+  outcome: Defaulted<'pending' | 'restored' | 'purged' | 'moved_to_successor'>;
+  /** Set when a residual (evidence-locked) member moved to a successor batch. */
+  successor_batch_id: string | null;
 }
 
 export type RetentionClass =
@@ -1294,6 +1299,8 @@ export const TABLE_COLUMNS: Readonly<Record<keyof Database, readonly string[]>> 
     'terminal_outcome',
     'correlation_id',
     'version',
+    'split_from_batch_id',
+    'split_operation_id',
   ],
   'core.deletion_batch_member': [
     'workspace_id',
@@ -1303,6 +1310,7 @@ export const TABLE_COLUMNS: Readonly<Record<keyof Database, readonly string[]>> 
     'prior_lifecycle_state',
     'depth',
     'outcome',
+    'successor_batch_id',
   ],
   'governance.retention_policy': [
     'id',

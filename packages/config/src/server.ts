@@ -89,6 +89,13 @@ export interface ServerConfig {
   secrets: { provider: 'env' };
   identity: IdentityConfig;
   lifecycle: LifecycleConfig;
+  audit: {
+    /**
+     * Operational warning threshold for waiting on a workspace audit-chain lock
+     * (AUDIT_CHAIN_LOCK_WAIT_WARN_MS). Not a product promise; see docs/engineering/audit.md.
+     */
+    chainLockWaitWarnMs: number;
+  };
   features: {
     /** Local/test-only component harness route for reusable UI states (refused when deployed). */
     componentHarness: boolean;
@@ -230,6 +237,7 @@ const DEFAULTS = {
   SECRET_VAULT: 'none',
   PURGE_LEDGER: 'none',
   COMPONENT_HARNESS: 'false',
+  AUDIT_CHAIN_LOCK_WAIT_WARN_MS: '250',
 } as const;
 
 const schema = z.object({
@@ -306,6 +314,7 @@ const schema = z.object({
   PURGE_LEDGER: z.enum(['local', 'none']),
   PURGE_LEDGER_DIR: z.string().min(1).optional(),
   COMPONENT_HARNESS: bool,
+  AUDIT_CHAIN_LOCK_WAIT_WARN_MS: int(1, 600_000),
 });
 
 /** Variables a deployed environment must set explicitly (no silent local defaults). */
@@ -661,6 +670,7 @@ export function loadServerConfig(options: LoadOptions): ServerConfig {
       purgeLedgerDir: c.PURGE_LEDGER_DIR,
     },
     features: { componentHarness: c.COMPONENT_HARNESS },
+    audit: { chainLockWaitWarnMs: c.AUDIT_CHAIN_LOCK_WAIT_WARN_MS },
     identity: {
       publicOrigin,
       allowedOrigins,

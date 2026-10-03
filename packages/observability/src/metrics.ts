@@ -36,6 +36,9 @@ export const FOUNDATION_SIGNALS = [
   // Audit and lifecycle (1F): bounded module/kind/outcome vocabularies only. Never tenant, actor,
   // record, target, email, IP, action, or content values.
   { name: 'audit.writes', type: 'counter', labels: ['module'] },
+  { name: 'audit.write.duration', type: 'histogram', labels: ['module', 'outcome'] },
+  { name: 'audit.chain.lock_wait', type: 'histogram', labels: ['module'] },
+  { name: 'audit.chain.lock_wait_exceeded', type: 'counter', labels: ['module'] },
   { name: 'audit.chain.verifications', type: 'counter', labels: ['outcome'] },
   { name: 'audit.chain.problems', type: 'counter', labels: ['kind'] },
   { name: 'audit.redactions', type: 'counter', labels: ['reason'] },

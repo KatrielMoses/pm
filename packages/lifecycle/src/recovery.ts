@@ -163,12 +163,22 @@ export async function replayEntry(
           })
           .where('id', '=', r.id)
           .execute();
-      else
+      else {
+        // Trashed in another (restored-database) batch: that membership moves to this one.
+        if (r.deletion_batch_id)
+          await tx.db
+            .updateTable('core.deletion_batch_member')
+            .set({ outcome: 'moved_to_successor', successor_batch_id: entry.batchId })
+            .where('batch_id', '=', r.deletion_batch_id)
+            .where('record_id', '=', r.id)
+            .where('outcome', '=', 'pending')
+            .execute();
         await tx.db
           .updateTable('core.record')
           .set({ deletion_batch_id: entry.batchId, version: String(Number(r.version) + 1) })
           .where('id', '=', r.id)
           .execute();
+      }
       await tx.db
         .insertInto('core.deletion_batch_member')
         .values({

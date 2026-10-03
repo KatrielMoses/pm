@@ -63,6 +63,7 @@ worker process is a startup error. All identities of one process must target the
 | `RETENTION_PERIODS` | optional | optional | JSON `{"<retention class>": <ms>}`; **unset by default** = every period undecided, so no scheduled purge runs (1F) |
 | `PURGE_LEDGER`, `PURGE_LEDGER_DIR` | — | optional | `none` (default: purge blocks before deleting) or `local` (development adapter, refused when deployed) |
 | `COMPONENT_HARNESS` | optional | — | `false` by default; `true` only in local/test (renders `/_harness/lifecycle`) |
+| `AUDIT_CHAIN_LOCK_WAIT_WARN_MS` | optional | optional | default 250; operational warning threshold for audit-chain lock waits (not a promise; see audit.md) |
 
 Values are configuration, not customer promises (PQ-05). The 0D parameter values above are
 implementation defaults owned by 1A (`WORKSPACE_CONCURRENCY_CAP` is owned by 11C).

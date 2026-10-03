@@ -36,7 +36,7 @@ rejected: thrown in local/test, dropped and counted (`telemetry.label_rejected`)
 | Outbox | `outbox.dispatch.lag`, `outbox.backlog`, `outbox.dispatched` (outcome), `inbox.duplicates_skipped` (consumer) |
 | Worker / health | `worker.up`, `worker.active_jobs`, `readiness.checks` (check, outcome) |
 | Identity (1B) | `identity.flow.outcomes` (flow, outcome), `identity.flow.duration`, `identity.rate_limited` (policy), `identity.sessions` (state), `identity.cleanup.deleted` (kind), `mail.enqueued` (template), `mail.deliveries` (template, outcome) |
-| Audit and lifecycle (1F) | `audit.writes`/`audit.write_failures` (module), `audit.chain.verifications` (outcome), `audit.chain.problems` (kind), `audit.redactions` (reason), `security_events.written` (category, scope), `security_events.write_failures` (scope), `security_events.buffer_drained`, `security_events.buffer_remaining`, `security_events.buffer_verifications` (outcome), `lifecycle.transitions` (transition, outcome), `purge.backlog` (state), `purge.blocked` (reason), `purge.hook.duration` (hook, outcome), `purge.hook.failures` (hook), `purge.ledger.acknowledgements` (outcome), `retention.scheduler.runs` (policy, outcome) |
+| Audit and lifecycle (1F) | `audit.writes`/`audit.write_failures` (module), `audit.write.duration` (module, outcome), `audit.chain.lock_wait` (module), `audit.chain.lock_wait_exceeded` (module), `audit.chain.verifications` (outcome), `audit.chain.problems` (kind), `audit.redactions` (reason), `security_events.written` (category, scope), `security_events.write_failures` (scope), `security_events.buffer_drained`, `security_events.buffer_remaining`, `security_events.buffer_verifications` (outcome), `lifecycle.transitions` (transition, outcome), `purge.backlog` (state), `purge.blocked` (reason), `purge.hook.duration` (hook, outcome), `purge.hook.failures` (hook), `purge.ledger.acknowledgements` (outcome), `retention.scheduler.runs` (policy, outcome) |
 
 ## Health and readiness (0D §17.4)
 
@@ -65,6 +65,7 @@ token, code, or password from that run appears in them.
 
 Audit change content never reaches logs, traces, or metrics. `audit.write_failed` (error, with
 `workspace_id`, `operation_id`, and `error_class` only) accompanies every rolled-back mutation and
-should page. `audit.chain_problems` logs chain positions and problem kinds only. Purge logs carry
+should page. `audit.chain_problems` logs chain positions and problem kinds only. `audit.chain_lock_wait_high`
+(warn) logs `workspace_id` and `duration_ms` only. Purge logs carry
 `batch_id`, `reason`, and IDs. Readiness adds `recovery_gate`, which fails while a restored
 environment awaits purge-ledger replay.

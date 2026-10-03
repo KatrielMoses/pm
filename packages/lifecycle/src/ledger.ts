@@ -10,7 +10,7 @@ import { isUuidV7 } from '@pm/contracts';
  * purged data cannot reappear. Entries carry identifiers, record types, scopes, and times only —
  * never titles, values, or other customer content.
  *
- * Provider-neutral: the deployed adapter (write-once object storage or similar) needs approval.
+ * Provider-neutral: the deployed adapter (write-once object storage or similar) is a later deployment decision.
  * `LocalFilePurgeLedger` is a development/test adapter and is refused in deployed modes by
  * configuration. With no ledger, purge refuses to start (`ledger_unavailable`).
  */

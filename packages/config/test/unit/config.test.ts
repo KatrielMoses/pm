@@ -309,6 +309,21 @@ describe('lifecycle configuration (1F)', () => {
       purgeLedgerDir: undefined,
     });
     expect(cfg.features.componentHarness).toBe(false);
+    expect(cfg.audit.chainLockWaitWarnMs).toBe(250);
+    expect(
+      loadServerConfig({
+        service: 'worker',
+        env: { ...local, AUDIT_CHAIN_LOCK_WAIT_WARN_MS: '50' },
+      }).audit.chainLockWaitWarnMs,
+    ).toBe(50);
+    expect(
+      issues(() =>
+        loadServerConfig({
+          service: 'worker',
+          env: { ...local, AUDIT_CHAIN_LOCK_WAIT_WARN_MS: '0' },
+        }),
+      )[0],
+    ).toMatch(/AUDIT_CHAIN_LOCK_WAIT_WARN_MS/);
     const set = loadServerConfig({
       service: 'worker',
       env: { ...local, RETENTION_PERIODS: '{"R-LIVE": 3600000}' },

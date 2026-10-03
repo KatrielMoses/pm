@@ -123,7 +123,7 @@ is idempotent:
 
 | Step | What happens |
 |---|---|
-| `begin` | Checks, in order: ledger available, every member type has purge hooks, no hold (HoldPort), evidence locks (adapter). A block is recorded on the batch (`block_result`: `ledger_unavailable`, `missing_purge_hook`, `hold`, `evidence_lock_all`) and nothing is deleted. Otherwise it sets `trashed → purging` and marks evidence-locked members `excluded_evidence_lock` (`evidence_lock_partial`) |
+| `begin` | Checks, in order: ledger available, every member type has purge hooks, no hold (HoldPort), evidence locks (adapter). A block is recorded on the batch (`block_result`: `ledger_unavailable`, `missing_purge_hook`, `hold`, `evidence_lock_all`) and nothing is deleted. With some members locked, it first moves them into **residual batches** (below), then sets `trashed → purging` (`evidence_lock_partial`). All of this is one transaction |
 | `content` | Module hooks delete typed rows and hosted children bottom-up by depth, then association rows |
 | `effects` | Object deletions are **recorded** as `exec.external_effect` (`object:<key>`, `naturally_idempotent`) for the owning module's effect worker. Nothing is deleted inline. Keys must be effect-key safe |
 | `projections` | Module projection hooks, then the activity projection for the members |
@@ -138,8 +138,77 @@ is idempotent:
 1F**, so any purge blocks with `missing_purge_hook` until the owning phase registers its hooks.
 Nothing pretends later modules were purged.
 
-Evidence-locked members stay `trashed` in their terminal batch until the lock is released. Their
-later purge is owned by the phase that introduces evidence locks (TEST-024/025).
+### Residual batches (partial evidence-lock exclusions)
+
+When some members of a batch are evidence-locked, the unlocked members are purged by the original
+operation. The locked ones move into successor `trashed` batches **before** the original batch can
+become terminal, all inside the `begin` transaction. If anything fails, the whole transition
+rolls back and nothing destructive has happened. This replaces ADR-0009 G6.
+
+**Grouping.** The grouping is deterministic: it depends only on membership, containment
+(`containerOf`), and the current locks, so every retry computes the same groups.
+
+1. A member is excluded if it is locked, or if its in-batch container is excluded. A held record
+   keeps its in-batch subtree, so restore stays coherent.
+2. Each excluded member whose in-batch container is not excluded is a residual root. Every other
+   excluded member joins the group of its nearest excluded ancestor.
+3. Groups are ordered by (root depth, root id), and members by (depth, id).
+4. If every member would be excluded, or the original root itself is excluded, nothing is moved.
+   The whole batch is blocked `evidence_lock_all` (`trashed`, retryable as before). The original
+   root is therefore never handed to a residual batch, and no residual root is a record the
+   original operation purges.
+
+**Each successor batch:**
+
+- is `trashed`;
+- keeps the original workspace and brand scope, trash actor, and trash time;
+- has its own root and `member_count`;
+- has a `restore_location` set to the root's container;
+- carries the lineage columns `split_from_batch_id` and `split_operation_id`.
+
+Its members are fresh `pending` rows with the original prior state and depth. The envelopes'
+`deletion_batch_id` points at it.
+
+**The original batch** keeps its full history. Moved members are marked
+`moved_to_successor` and record the `successor_batch_id`. Its `member_count` is never rewritten,
+and it ends `purged_with_exclusions` with `evidence_locked_count` set to the number moved.
+
+**Audit.** Two events are written in the same transaction, before any destructive step. Both
+target the deletion batches, so a later purge of a record never redacts them. Neither carries
+locked content:
+
+- `record.residual_batch_created` (per successor): root record, original batch, successor batch,
+  count;
+- `record.partial_purge_split` (on the original): original batch, successor batches, total
+  excluded.
+
+**Everything downstream follows the original batch's `pending` members only.** Content hooks,
+object effects, projections, redaction, the ledger entry, tombstones, counts, and terminal outcome
+all exclude moved members. Each successor later gets its own ledger entry, and only when it is
+purged.
+
+**Database invariants** (migration 0016):
+
+- one active (`pending`) membership per record (unique partial index);
+- a batch cannot become `purged` or `restored` while it still owns a pending member or a trashed
+  record;
+- a trashed record can only be re-pointed at a `trashed` batch;
+- settled membership rows are immutable.
+
+**Afterwards**, successors are ordinary trashed batches:
+
+- `listTrash` lists them, and not the terminal original;
+- `restore(original)` is `not_restorable`;
+- `restore(successor)` applies the usual checks. Its container was usually purged by the original
+  operation, so the typed answer is `container_missing` until 2B adds restoring a task as
+  projectless;
+- retention discovery and manual purge select a successor like any other batch, with no repair
+  step. While its root is still locked it blocks `evidence_lock_all`, and once released it purges
+  normally.
+
+Retries and concurrency: the batch row lock serializes `begin`. A second worker, or a retry after
+the split committed, finds the batch `purging` under the same operation and resumes. The
+per-batch dedupe key allows only one purge operation in flight.
 
 ## Retention (no durations)
 
