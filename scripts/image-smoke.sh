@@ -64,7 +64,11 @@ done
 docker exec pm-smoke-web node /app/entrypoint.mjs healthcheck || fail "web healthcheck command failed"
 docker exec pm-smoke-worker node /app/entrypoint.mjs healthcheck || fail "worker healthcheck command failed"
 curl -fsS http://127.0.0.1:3999/readyz | tee /dev/stderr | grep -q '"status":"ready"' || fail "web not ready"
-curl -fsS http://127.0.0.1:3999/ | grep -q '<div id="root">' || fail "browser shell not served"
+shell=$(curl -fsS http://127.0.0.1:3999/) || fail "browser shell not served"
+echo "$shell" | grep -q '<div id="root">' || fail "browser shell not served"
+asset=$(echo "$shell" | grep -oE '/assets/[A-Za-z0-9_-]+\.js' | head -1)
+[ -n "$asset" ] && curl -fsS -o /dev/null "http://127.0.0.1:3999$asset" || fail "browser assets not served"
+echo "browser shell and assets served ($asset)"
 docker stop -t 30 pm-smoke-web pm-smoke-worker >/dev/null
 for c in pm-smoke-web pm-smoke-worker; do
   [ "$(docker inspect -f '{{.State.ExitCode}}' $c)" = 0 ] || { docker logs $c; fail "$c did not stop gracefully"; }

@@ -28,7 +28,7 @@ RUN pnpm run contracts:generate:check && pnpm exec tsc -b && pnpm --filter @pm/w
 # limited to their `files`), so build tooling, test packages, and sources never reach the image.
 RUN pnpm --filter @pm/api deploy --prod --legacy /out/api \
  && pnpm --filter @pm/worker deploy --prod --legacy /out/worker \
- && cp -R apps/web/dist /out/web \
+ && mkdir -p /out/web && cp -R apps/web/dist /out/web/dist \
  && cp scripts/container-entrypoint.mjs /out/entrypoint.mjs \
  && find /out -name '*.tsbuildinfo' -delete \
  && find /out -path '*/dist/*' -name '*.map' -delete
