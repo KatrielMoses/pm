@@ -511,10 +511,10 @@ A business or product line inside a workspace, with identity, settings, and time
 | Volume / export / search-AI | `low` / `filtered` / `yes` |
 | Secrets / personal data | `no` / `incidental` |
 | Uniqueness | `(workspace_id, lower(name)) among non-purged` |
-| Key typed columns | `name`; `short_name`; `color`; `icon`; `description`; `status brand_status`; `timezone text`; `is_sensitive boolean`; `notification_content_mode (standard\|minimal)` |
+| Key typed columns | `name`; `short_name`; `color`; `icon`; `description`; `operational_status brand_operational_status (operating\|paused\|planned)`; `timezone text`; `is_sensitive boolean`; `notification_content_mode (standard\|minimal)` |
 | Sensitive fields | — |
 | Requirements | WSB-003, WSB-004, WSB-005, WSB-010 |
-| Notes | For the brand row, brand_id = id. |
+| Notes | For the brand row, brand_id = id. operational_status is business metadata only (ADR-19): archive, trash, and purge are core.record.lifecycle_state and are never represented by operational_status. |
 
 <a id="entity-membership"></a>
 ### `membership`
@@ -635,6 +635,27 @@ Typed brand settings: working calendar reference, goals/priorities text, notific
 | Key typed columns | standard columns only |
 | Sensitive fields | — |
 | Requirements | WSB-010, WSB-011, WSB-014 |
+
+<a id="entity-scope-preference"></a>
+### `scope_preference`
+
+Per person per workspace: the last selected brand or all-brands context. Revalidated against current authorization on every use; never grants access.
+
+| Property | Value |
+|---|---|
+| Scope | `personal` |
+| Contained by | — |
+| Extends (1:1) | — |
+| Associations | [`membership`](logical-model.md#entity-membership), [`brand`](logical-model.md#entity-brand) |
+| Lifecycle / concurrency | `mutable` / `locked` |
+| Retention / confidentiality | `R-PERSONAL` / `C1` |
+| Volume / export / search-AI | `medium` / `self` / `no` |
+| Secrets / personal data | `no` / `incidental` |
+| Uniqueness | `(workspace_id, owner_membership_id)` |
+| Key typed columns | `owner_membership_id`; `scope_kind (brand\|all)`; `brand_id` |
+| Sensitive fields | — |
+| Requirements | WSB-006, WSB-009 |
+| Notes | Phase 1C. Upserted on its primary key (row lock); the latest selection wins. A stale or unauthorized brand falls back to the first authorized active brand; it never broadens to all brands. |
 
 ## Grants and policy storage (`access`, schema `access`)
 

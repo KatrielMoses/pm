@@ -370,6 +370,19 @@
         "I-14",
         "I-17"
       ]
+    },
+    {
+      "id": "T-36",
+      "category": "spoofing",
+      "description": "Tenant-creation abuse: a delegated or non-human principal, an unverified or deleted account, a flood of requests, or a replayed request creates workspaces or gains tenant authority through creation, or a body claim names an existing workspace, role, or membership.",
+      "mitigated_by": [
+        "I-01",
+        "I-02",
+        "I-09",
+        "I-11",
+        "I-14",
+        "I-17"
+      ]
     }
   ],
   "tests": [
@@ -2154,6 +2167,118 @@
       "surface": "api",
       "expected": "allow",
       "response_shape": "ok",
+      "silent_surfaces": []
+    },
+    {
+      "id": "AT-087",
+      "threats": [
+        "T-36"
+      ],
+      "principal": "account",
+      "setup": "Verified, active human account with a session; Idempotency-Key",
+      "scope": "no workspace yet",
+      "action": "workspace.create",
+      "surface": "api",
+      "expected": "allow",
+      "response_shape": "ok",
+      "silent_surfaces": []
+    },
+    {
+      "id": "AT-088",
+      "threats": [
+        "T-36"
+      ],
+      "principal": "account",
+      "setup": "Account whose email is not verified",
+      "scope": "no workspace yet",
+      "action": "workspace.create",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "forbidden",
+      "silent_surfaces": []
+    },
+    {
+      "id": "AT-089",
+      "threats": [
+        "T-36"
+      ],
+      "principal": "api_token_personal",
+      "setup": "Personal API token calls workspace creation",
+      "scope": "token owner account",
+      "action": "workspace.create",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "unauthenticated",
+      "silent_surfaces": []
+    },
+    {
+      "id": "AT-090",
+      "threats": [
+        "T-36"
+      ],
+      "principal": "agent_run",
+      "setup": "Agent run attempts to create a workspace for its owner",
+      "scope": "run owner account",
+      "action": "workspace.create",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "unauthenticated",
+      "silent_surfaces": []
+    },
+    {
+      "id": "AT-091",
+      "threats": [
+        "T-36"
+      ],
+      "principal": "automation",
+      "setup": "Automation attempts to create a workspace",
+      "scope": "automation owner account",
+      "action": "workspace.create",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "unauthenticated",
+      "silent_surfaces": []
+    },
+    {
+      "id": "AT-092",
+      "threats": [
+        "T-36"
+      ],
+      "principal": "account",
+      "setup": "Same Idempotency-Key replayed concurrently; then reused with a different body",
+      "scope": "own account",
+      "action": "workspace.create",
+      "surface": "api",
+      "expected": "allow",
+      "response_shape": "ok",
+      "silent_surfaces": []
+    },
+    {
+      "id": "AT-093",
+      "threats": [
+        "T-36"
+      ],
+      "principal": "account",
+      "setup": "Body names an existing workspace, role, or membership",
+      "scope": "own account",
+      "action": "workspace.create",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "validation_generic",
+      "silent_surfaces": []
+    },
+    {
+      "id": "AT-094",
+      "threats": [
+        "T-36"
+      ],
+      "principal": "account",
+      "setup": "Requests beyond the per-account workspace-creation limit",
+      "scope": "own account",
+      "action": "workspace.create",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "error_generic",
       "silent_surfaces": []
     }
   ]

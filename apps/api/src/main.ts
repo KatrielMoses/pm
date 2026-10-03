@@ -8,8 +8,10 @@ import {
   latestMigrationVersion,
   PlatformDatabase,
   PlatformHealth,
+  TenantDatabase,
 } from '@pm/db';
 import { createIdentityService } from '@pm/identity';
+import { createTenancyService } from '@pm/tenancy';
 import { PUBLIC_CONFIG } from '@pm/config/public';
 import { createLogger, errorFields, initTelemetry, LogErrorReporter } from '@pm/observability';
 import { buildApp } from './app.ts';
@@ -41,14 +43,20 @@ async function main(): Promise<void> {
   await assertApplicationIdentity(pool, config.env);
 
   const health = new PlatformHealth(pool);
+  const dbDeps = { logger, metrics: telemetry.metrics, tracer: telemetry.tracer };
+  const platformDb = new PlatformDatabase(pool, dbDeps);
   const identity = createIdentityService({
-    db: new PlatformDatabase(pool, {
-      logger,
-      metrics: telemetry.metrics,
-      tracer: telemetry.tracer,
-    }),
+    db: platformDb,
     config: config.identity,
     appName: PUBLIC_CONFIG.appName,
+    logger,
+    metrics: telemetry.metrics,
+  });
+  const tenancy = createTenancyService({
+    tenant: new TenantDatabase(pool, dbDeps),
+    platform: platformDb,
+    stepUp: identity.service,
+    config,
     logger,
     metrics: telemetry.metrics,
   });
@@ -66,6 +74,7 @@ async function main(): Promise<void> {
       localOAuth: identity.localOAuth,
       componentHarness: config.features.componentHarness,
     },
+    tenancy: { tenancy },
     readiness: () =>
       checkReadiness({
         health,

@@ -2709,6 +2709,48 @@
         "outcome"
       ],
       "area": "auth"
+    },
+    {
+      "name": "tenancy.commands",
+      "type": "counter",
+      "labels": [
+        "command",
+        "outcome"
+      ],
+      "area": "tenancy"
+    },
+    {
+      "name": "tenancy.authz_decisions",
+      "type": "counter",
+      "labels": [
+        "action_key",
+        "outcome"
+      ],
+      "area": "tenancy"
+    },
+    {
+      "name": "tenancy.context_failures",
+      "type": "counter",
+      "labels": [
+        "reason"
+      ],
+      "area": "tenancy"
+    },
+    {
+      "name": "tenancy.context_fallbacks",
+      "type": "counter",
+      "labels": [
+        "reason"
+      ],
+      "area": "tenancy"
+    },
+    {
+      "name": "tenancy.rls_denials",
+      "type": "counter",
+      "labels": [
+        "module"
+      ],
+      "area": "tenancy"
     }
   ],
   "forbidden_metric_labels": [
@@ -2721,7 +2763,15 @@
     "name",
     "query",
     "ip",
-    "user_agent"
+    "user_agent",
+    "workspace",
+    "brand",
+    "membership",
+    "membership_id",
+    "account",
+    "account_id",
+    "timezone",
+    "content"
   ],
   "authz_response_shapes": {
     "ok": "success:200",

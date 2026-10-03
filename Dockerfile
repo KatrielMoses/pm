@@ -20,6 +20,7 @@ COPY packages/identity/package.json packages/identity/
 COPY packages/lifecycle/package.json packages/lifecycle/
 COPY packages/observability/package.json packages/observability/
 COPY packages/platform/package.json packages/platform/
+COPY packages/tenancy/package.json packages/tenancy/
 COPY packages/test-infra/package.json packages/test-infra/
 COPY packages/test-support/package.json packages/test-support/
 RUN --mount=type=cache,id=pnpm-store,target=/pnpm/store pnpm install --frozen-lockfile --ignore-scripts

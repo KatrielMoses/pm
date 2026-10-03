@@ -199,3 +199,123 @@ export function SubmitButton({
     </button>
   );
 }
+
+function described(id: string, hint: unknown, error: string | undefined): string | undefined {
+  return (
+    [hint ? `${id}-hint` : null, error ? `${id}-error` : null].filter(Boolean).join(' ') ||
+    undefined
+  );
+}
+
+function FieldFrame({
+  id,
+  label,
+  hint,
+  error,
+  required,
+  children,
+}: {
+  id: string;
+  label: string;
+  hint?: ReactNode;
+  error?: string | undefined;
+  required?: boolean | undefined;
+  children: ReactNode;
+}) {
+  return (
+    <div className={error ? 'field field-invalid' : 'field'}>
+      <label htmlFor={id}>
+        {label}
+        {required ? <span className="required"> (required)</span> : null}
+      </label>
+      {hint ? (
+        <p className="hint" id={`${id}-hint`}>
+          {hint}
+        </p>
+      ) : null}
+      {error ? (
+        <p className="field-error" id={`${id}-error`}>
+          <span aria-hidden="true">! </span>
+          {error}
+        </p>
+      ) : null}
+      {children}
+    </div>
+  );
+}
+
+/** Labelled native select (keyboard and screen-reader behaviour come from the platform). */
+export function SelectField({
+  id,
+  label,
+  hint,
+  error,
+  required,
+  value,
+  onChange,
+  options,
+  disabled,
+}: {
+  id: string;
+  label: string;
+  hint?: ReactNode;
+  error?: string | undefined;
+  required?: boolean;
+  value: string;
+  onChange: (value: string) => void;
+  options: Array<{ value: string; label: string }>;
+  disabled?: boolean;
+}) {
+  return (
+    <FieldFrame id={id} label={label} hint={hint} error={error} required={required}>
+      <select
+        id={id}
+        name={id}
+        value={value}
+        disabled={disabled}
+        aria-invalid={error ? true : undefined}
+        aria-describedby={described(id, hint, error)}
+        onChange={(e) => onChange(e.target.value)}
+      >
+        {options.map((o) => (
+          <option key={o.value} value={o.value}>
+            {o.label}
+          </option>
+        ))}
+      </select>
+    </FieldFrame>
+  );
+}
+
+export function TextAreaField({
+  id,
+  label,
+  hint,
+  error,
+  value,
+  onChange,
+  maxLength,
+}: {
+  id: string;
+  label: string;
+  hint?: ReactNode;
+  error?: string | undefined;
+  value: string;
+  onChange: (value: string) => void;
+  maxLength?: number;
+}) {
+  return (
+    <FieldFrame id={id} label={label} hint={hint} error={error}>
+      <textarea
+        id={id}
+        name={id}
+        rows={4}
+        value={value}
+        maxLength={maxLength}
+        aria-invalid={error ? true : undefined}
+        aria-describedby={described(id, hint, error)}
+        onChange={(e) => onChange(e.target.value)}
+      />
+    </FieldFrame>
+  );
+}

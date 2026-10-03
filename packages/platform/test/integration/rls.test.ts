@@ -37,6 +37,15 @@ const PHASE_1F_TENANT_TABLES = [
   'core.deletion_batch_member',
   'governance.retention_policy',
 ] as const;
+const PHASE_1C_TENANT_TABLES = [
+  'tenancy.membership',
+  'access.role',
+  'access.role_assignment',
+  'access.permission_epoch',
+  'tenancy.brand',
+  'tenancy.brand_setting',
+  'tenancy.scope_preference',
+] as const;
 
 /** Seeds one row in every tenant execution table for a workspace. */
 async function seedExecutionRows(
@@ -134,7 +143,13 @@ describe('tenant RLS foundation (0C §12.7)', () => {
     // carry no tenant RLS by design. The list is exact: any new table must be classified here.
     const PLATFORM_SCOPED = ['identity.security_event_buffer', 'identity.step_up_challenge'];
     expect(res.rows.map((r) => r.t).sort()).toEqual(
-      [...TENANT_TABLES, ...PHASE_1F_TENANT_TABLES, 'tenancy.workspace', ...PLATFORM_SCOPED].sort(),
+      [
+        ...TENANT_TABLES,
+        ...PHASE_1F_TENANT_TABLES,
+        ...PHASE_1C_TENANT_TABLES,
+        'tenancy.workspace',
+        ...PLATFORM_SCOPED,
+      ].sort(),
     );
     res.rows = res.rows.filter((r) => !PLATFORM_SCOPED.includes(r.t));
     for (const row of res.rows) {

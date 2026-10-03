@@ -11,7 +11,7 @@ interface SignalDefinition {
 
 /**
  * Foundation signals added in 1A for health and saturation. They follow the same label rules as
- * the 29 registered 0D signals.
+ * the registered 0D signals.
  */
 export const FOUNDATION_SIGNALS = [
   { name: 'db.pool.connections', type: 'gauge', labels: ['identity', 'state'] },

@@ -127,6 +127,35 @@ def validate(policy, threats, quiet=False):
         if a["entitlement"] is not None and not re.match(r"^[a-z_]+$", a["entitlement"]):
             errors.append("%s: malformed entitlement key" % k)
 
+    # account-level commands (AZ-18): performed by a human account before any tenant context exists
+    commands = policy.get("account_commands", [])
+    command_actions = set()
+    for c in commands:
+        k = c["action"]
+        command_actions.add(k)
+        a = actions.get(k)
+        if a is None:
+            errors.append("account command %s is not a 0C action" % k)
+            continue
+        if a["kind"] != "personal" or a["scopes"] != ["personal"]:
+            errors.append("%s: account commands are personal-kind and scoped to personal only" % k)
+        if set(a["roles"].values()) != {"deny"}:
+            errors.append("%s: no workspace role cell may grant an account command (no membership exists yet)" % k)
+        if c["principals"] != ["account"]:
+            errors.append("%s: account commands are exercisable only by the human account principal" % k)
+        if a["non_delegable"] or a["second_approval"] or a["entitlement"]:
+            errors.append("%s: account commands carry no delegation, approval, or entitlement semantics" % k)
+        for gate in ("email_verified", "account_active", "rate_limit", "idempotency_key"):
+            if gate not in c["gates"]:
+                errors.append("%s: account command lacks mandatory gate %s" % (k, gate))
+        if sorted(c["requirements"]) != sorted(a["requirements"]):
+            errors.append("%s: account command requirements differ from the action row" % k)
+        if not any(x["action"] == k and x["expected"] == "deny" and x["principal"] != "account" for x in threats["tests"]):
+            errors.append("%s: account command needs denial tests for non-human principals" % k)
+    for a in actions.values():
+        if a["kind"] == "personal" and set(a["roles"].values()) == {"deny"} and a["key"] not in command_actions:
+            errors.append("%s: an all-deny personal action must be a registered account command" % a["key"])
+
     # required action vocabulary coverage
     blob = " ".join(actions)
     for w in REQUIRED_ACTION_WORDS:

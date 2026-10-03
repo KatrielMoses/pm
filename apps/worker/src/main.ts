@@ -22,6 +22,7 @@ import {
   RetentionPolicy,
 } from '@pm/lifecycle';
 import { SYSTEM_PRINCIPAL, WorkerRuntime } from '@pm/platform';
+import { registerTenancyLifecycle, tenancyBrandPort } from '@pm/tenancy';
 import { HEALTH_FILE } from './health-file.ts';
 import { registeredConsumers, registeredHandlers, registeredSchedules } from './registry.ts';
 
@@ -71,10 +72,11 @@ async function main(): Promise<void> {
   };
   const tenantDb = new TenantDatabase(workerPool, deps);
   const discovery = new PlatformDiscovery(dispatcherPool);
-  // Record types register their containment and purge hooks in their owning phases; until then
-  // the registry is empty and purge of any batch blocks safely (missing_purge_hook).
+  // Record types register their containment and purge hooks in their owning phases. Brands (1C)
+  // register containment only, so purging a brand batch blocks safely (missing_purge_hook).
   const lifecycle = new LifecycleService({
-    registry: new LifecycleRegistry(),
+    registry: registerTenancyLifecycle(new LifecycleRegistry()),
+    brands: tenancyBrandPort,
     writer: new AuditWriter({
       module: 'lifecycle',
       logger,

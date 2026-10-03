@@ -49,7 +49,7 @@ was rejected and replaced by residual batches. No item awaits approval. Engineer
   documented threshold requires deterministic chain lanes or time partitions that keep
   verifiability.
 - **1C / 1D / 2B / TEST-024/025:**
-  - 1C: brand and membership foreign keys and the real BrandPort;
+  - 1C: brand and membership foreign keys and the real BrandPort (done, ADR-0010 C11/C18);
   - 1D: the policy-decision issuer and per-record trash visibility;
   - 2B: restoring a task as projectless (residual batches whose container was purged);
   - TEST-024/025: real evidence-lock adapters.

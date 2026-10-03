@@ -13,6 +13,7 @@ import {
   type LocalOAuthProvider,
   type MailMessage,
 } from '@pm/identity';
+import { createTenancyService } from '@pm/tenancy';
 import { createHarness, type Harness } from '@pm/test-support';
 import { createTestDatabase, type TestDatabase } from '@pm/test-support/vitest';
 import { buildApp } from '../../src/app.ts';
@@ -112,9 +113,20 @@ export async function identityEnv(overrides: Record<string, string> = {}): Promi
         dispatcher: 'ok',
         object_storage: 'not_configured',
         recovery_gate: 'ok',
+        tenant_isolation: 'ok',
       },
     }),
     auth: { identity: service, localOAuth },
+    tenancy: {
+      tenancy: createTenancyService({
+        tenant: h.app,
+        platform: h.platform,
+        stepUp: service,
+        config: h.config,
+        logger: h.logger,
+        metrics: h.telemetry.metrics,
+      }),
+    },
   });
   await app.ready();
   return {
@@ -178,7 +190,7 @@ export class Browser {
   }
 
   async request(
-    method: 'GET' | 'POST',
+    method: 'GET' | 'POST' | 'PATCH' | 'PUT',
     url: string,
     opts: {
       body?: unknown;
@@ -194,7 +206,7 @@ export class Browser {
     };
     if (this.cookies.size)
       headers.cookie = [...this.cookies].map(([k, v]) => `${k}=${v}`).join('; ');
-    if (method === 'POST') {
+    if (method !== 'GET') {
       const origin = opts.origin === undefined ? this.origin : opts.origin;
       if (origin) headers.origin = origin;
       const csrf = opts.csrf === undefined ? this.csrf : opts.csrf;
@@ -204,7 +216,7 @@ export class Browser {
       method,
       url,
       headers,
-      ...(method === 'POST' ? { payload: (opts.body ?? {}) as object } : {}),
+      ...(method !== 'GET' ? { payload: (opts.body ?? {}) as object } : {}),
     });
     const setCookie = res.headers['set-cookie'];
     for (const c of Array.isArray(setCookie) ? setCookie : setCookie ? [setCookie] : []) {
@@ -231,6 +243,14 @@ export class Browser {
     opts: { headers?: Record<string, string>; origin?: string | null; csrf?: string | null } = {},
   ) {
     return this.request('POST', url, { ...opts, body });
+  }
+
+  patch(url: string, body?: unknown, opts: { headers?: Record<string, string> } = {}) {
+    return this.request('PATCH', url, { ...opts, body });
+  }
+
+  put(url: string, body?: unknown, opts: { headers?: Record<string, string> } = {}) {
+    return this.request('PUT', url, { ...opts, body });
   }
 
   get session(): string | undefined {

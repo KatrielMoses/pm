@@ -5,12 +5,13 @@ import { ISSUE } from './decision-internal.ts';
  * Authorization decisions for tenant lifecycle and audit services (0C). Every service entry point
  * requires one; it can be constructed only through an issuer holding the module-private token:
  *
- *   - the 1D policy layer (future) evaluates membership + effective permission and issues it;
+ *   - the tenancy policy compiler (1C, extended by 1D) evaluates canonical membership and effective
+ *     permission and issues it through the restricted `@pm/lifecycle/policy-issuer` subpath;
  *   - `systemDecision` covers scheduled system work (retention purge) with actor `system`;
  *   - `@pm/lifecycle/testing` issues decisions for tests only (never imported by apps).
  *
- * Nothing builds a decision from request data, so until 1D no public tenant route can call these
- * services. Identity proves who someone is; it never yields one of these.
+ * Nothing builds a decision from request data. Identity proves who someone is; it never yields one
+ * of these.
  */
 
 export type LifecycleAction = Extract<
@@ -21,6 +22,7 @@ export type LifecycleAction = Extract<
   | 'record.purge'
   | 'trash.manage'
   | 'audit.view'
+  | 'brand.archive'
 >;
 
 export class PolicyDecision<A extends LifecycleAction = LifecycleAction> {

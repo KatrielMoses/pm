@@ -12,7 +12,7 @@ Class definitions and rules: [../11-data-classification.md](../11-data-classific
 | Audit and activity | 4 | C3 | R-AUDIT, R-DERIVED | admin, filtered | metadata, no | no | incidental, yes | very-high |
 | Record envelope and lifecycle | 4 | C2 | R-AUDIT, R-LIVE | filtered, full | metadata, no | no | incidental | very-high |
 | Identity and accounts | 7 | C4 | R-EPHEMERAL, R-PERSONAL | never, self | no | hash-only, secret-ref | incidental, yes | high |
-| Workspaces and brands | 8 | C3 | R-AUDIT, R-EPHEMERAL, R-LIVE | admin, filtered, full | metadata, no, yes | no | incidental, yes | medium |
+| Workspaces and brands | 9 | C3 | R-AUDIT, R-EPHEMERAL, R-LIVE, R-PERSONAL | admin, filtered, full, self | metadata, no, yes | no | incidental, yes | medium |
 | Grants and policy storage | 9 | C2 | R-AUDIT, R-EPHEMERAL, R-LIVE | admin, filtered, never | no | no | incidental | medium |
 | Retention and governance | 3 | C3 | R-AUDIT, R-LIVE | filtered | no | no | incidental, yes | low |
 | Usage metering and limits | 4 | C2 | R-BILLING, R-EXEC, R-LIVE | admin, filtered | no | no | incidental | very-high |
@@ -75,6 +75,7 @@ Class definitions and rules: [../11-data-classification.md](../11-data-classific
 | [`invitation`](logical-model.md#entity-invitation) | tenancy | workspace | C3 | high | all changes + access | R-EPHEMERAL | admin | low | no | no | yes |
 | [`ownership_transfer`](logical-model.md#entity-ownership-transfer) | tenancy | workspace | C2 | standard (per-record) | material changes | R-AUDIT | filtered | low | no | no | incidental |
 | [`brand_setting`](logical-model.md#entity-brand-setting) | tenancy | brand | C2 | standard (per-record) | material changes | R-LIVE | filtered | low | yes | no | incidental |
+| [`scope_preference`](logical-model.md#entity-scope-preference) | tenancy | personal | C1 | low | configuration changes | R-PERSONAL | self | medium | no | no | incidental |
 | [`role`](logical-model.md#entity-role) | access | workspace | C1 | low | configuration changes | R-LIVE | filtered | low | no | no | incidental |
 | [`role_assignment`](logical-model.md#entity-role-assignment) | access | workspace_or_brand | C2 | high | material changes | R-LIVE | admin | medium | no | no | incidental |
 | [`share_group`](logical-model.md#entity-share-group) | access | workspace | C2 | standard (per-record) | material changes | R-AUDIT | admin | medium | no | no | incidental |

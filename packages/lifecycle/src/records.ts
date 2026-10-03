@@ -66,7 +66,7 @@ function toEnvelope(r: EnvelopeRow): RecordEnvelope {
 
 export interface CreateRecordInput {
   recordType: string;
-  /** Server-resolved brand (plain same-workspace reference until 1C adds tenancy.brand). */
+  /** Server-resolved, authorized brand of the same workspace (ignored for brands themselves). */
   brandId?: string | null;
   ownerMembershipId?: string | null;
   templateInstallationId?: string | null;
@@ -89,6 +89,9 @@ export async function createRecord(
     if (ref !== undefined && ref !== null && !isUuidV7(ref)) throw new LifecycleError('not_found');
   const id = newUuidV7();
   const publicId = newPublicId(type.public_id_prefix as IdPrefix);
+  // A brand envelope is its own brand (brand_id = id); every other record names an existing brand.
+  const isBrand = type.record_type === 'brand';
+  if (isBrand && input.brandId) throw new LifecycleError('not_found');
   const row = await tx.db
     .insertInto('core.record')
     .values({
@@ -96,7 +99,7 @@ export async function createRecord(
       public_id: publicId,
       record_type: type.record_type,
       workspace_id: tx.workspaceId,
-      brand_id: input.brandId ?? null,
+      brand_id: isBrand ? id : (input.brandId ?? null),
       owner_membership_id: input.ownerMembershipId ?? null,
       source_kind: cmd.source.kind,
       source_ref: cmd.source.ref ?? null,

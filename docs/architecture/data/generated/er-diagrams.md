@@ -43,6 +43,8 @@ erDiagram
   team_member }o..o{ membership : "references"
   workspace ||--o{ invitation : "contains"
   brand ||--o{ brand_setting : "contains"
+  scope_preference }o..o{ membership : "references"
+  scope_preference }o..o{ brand : "references"
 ```
 
 ## Grants and policy storage

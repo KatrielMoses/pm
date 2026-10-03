@@ -9,7 +9,7 @@ import {
   type AuditMetadata,
   type AuditSink,
 } from '@pm/platform';
-import { requireDecision, type PolicyDecision } from './decision.ts';
+import { PolicyDecisionError, requireDecision, type PolicyDecision } from './decision.ts';
 import { lockSubtree, type LockedNode } from './records.ts';
 import {
   BRANDS_UNTIL_1C,
@@ -38,6 +38,15 @@ export interface CommandInput {
 }
 
 export const PURGE_JOB_KIND = 'lifecycle.purge';
+
+/**
+ * Brand archive and restore are authorized by `brand.archive` (0C, R3), never by the generic record
+ * actions; any other root needs the record action.
+ */
+function requireRootKind(action: string, recordType: string): void {
+  if ((recordType === 'brand') !== (action === 'brand.archive'))
+    throw new PolicyDecisionError('wrong action');
+}
 export const PURGE_QUEUE = 'lifecycle';
 
 /**
@@ -129,9 +138,11 @@ export class LifecycleService {
     input: CommandInput,
     recordId: string,
   ): Promise<{ batchId: string; members: number; alreadyArchived: boolean }> {
-    requireDecision(decision, 'record.archive', tx.workspaceId, recordId);
+    const action = decision?.action === 'brand.archive' ? 'brand.archive' : 'record.archive';
+    requireDecision(decision, action, tx.workspaceId, recordId);
     const nodes = await lockSubtree(tx, this.#d.registry, recordId, (s) => s === 'active');
     const root = nodes[0]!;
+    requireRootKind(action, root.recordType);
     if (root.state === 'archived')
       return { batchId: root.archiveBatchId!, members: 0, alreadyArchived: true };
     if (root.state === 'trashed') throw new LifecycleError('in_trash');
@@ -198,9 +209,11 @@ export class LifecycleService {
     input: CommandInput,
     recordId: string,
   ): Promise<{ batchId: string | null; members: number; alreadyActive: boolean }> {
-    requireDecision(decision, 'record.restore', tx.workspaceId, recordId);
+    const action = decision?.action === 'brand.archive' ? 'brand.archive' : 'record.restore';
+    requireDecision(decision, action, tx.workspaceId, recordId);
     const nodes = await lockSubtree(tx, this.#d.registry, recordId, (s) => s === 'archived');
     const root = nodes[0]!;
+    requireRootKind(action, root.recordType);
     if (root.state === 'active') return { batchId: null, members: 0, alreadyActive: true };
     if (root.state !== 'archived') throw new LifecycleError('in_trash');
     if (root.archiveCause === 'cascade') throw new LifecycleError('archived_by_container');

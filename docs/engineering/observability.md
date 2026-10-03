@@ -37,13 +37,14 @@ rejected: thrown in local/test, dropped and counted (`telemetry.label_rejected`)
 | Worker / health | `worker.up`, `worker.active_jobs`, `readiness.checks` (check, outcome) |
 | Identity (1B) | `identity.flow.outcomes` (flow, outcome), `identity.flow.duration`, `identity.rate_limited` (policy), `identity.sessions` (state), `identity.cleanup.deleted` (kind), `mail.enqueued` (template), `mail.deliveries` (template, outcome) |
 | Audit and lifecycle (1F) | `audit.writes`/`audit.write_failures` (module), `audit.write.duration` (module, outcome), `audit.chain.lock_wait` (module), `audit.chain.lock_wait_exceeded` (module), `audit.chain.verifications` (outcome), `audit.chain.problems` (kind), `audit.redactions` (reason), `security_events.written` (category, scope), `security_events.write_failures` (scope), `security_events.buffer_drained`, `security_events.buffer_remaining`, `security_events.buffer_verifications` (outcome), `lifecycle.transitions` (transition, outcome), `purge.backlog` (state), `purge.blocked` (reason), `purge.hook.duration` (hook, outcome), `purge.hook.failures` (hook), `purge.ledger.acknowledgements` (outcome), `retention.scheduler.runs` (policy, outcome) |
+| Tenancy (1C) | `tenancy.commands` (command, outcome), `tenancy.authz_decisions` (action_key, outcome), `tenancy.context_failures` (reason), `tenancy.context_fallbacks` (reason), `tenancy.rls_denials` (module) |
 
 ## Health and readiness (0D §17.4)
 
 | Endpoint | Returns | Never returns |
 |---|---|---|
 | `GET /healthz` | `{"status":"ok"}` | anything else |
-| `GET /readyz` | `200/503 {"status","checks":{database,migrations,dispatcher,object_storage},"build"}` | hosts, ports, database names, versions beyond the build ID, errors |
+| `GET /readyz` | `200/503 {"status","checks":{database,migrations,dispatcher,object_storage,recovery_gate,tenant_isolation},"build"}` | hosts, ports, database names, versions beyond the build ID, errors |
 | `GET /v1/status` (public, cached 5 s) | `{"data":{"type":"platform_status","status":"available"|"degraded","build":{version,build}},"meta":{…}}` | check names or reasons |
 
 Failure reasons go to `readiness.check_failed` logs. `/readyz` fails immediately when shutdown starts.

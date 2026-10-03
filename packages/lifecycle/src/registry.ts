@@ -59,6 +59,12 @@ export interface RecordTypeAdapter {
   readonly recordType: string;
   /** Direct containment children of these parents (any type), never associations. */
   children?(tx: WorkspaceTransaction, parentIds: readonly string[]): Promise<RecordRef[]>;
+  /**
+   * Top-level records of this type that a brand contains directly (projects, documents, …). The
+   * brand adapter (1C) unions these as the brand's containment children; modules register them
+   * in their owning phases.
+   */
+  rootsInBrand?(tx: WorkspaceTransaction, brandIds: readonly string[]): Promise<RecordRef[]>;
   /** The record's container, recorded as the restore location. */
   containerOf?(tx: WorkspaceTransaction, recordId: string): Promise<RecordRef | null>;
   /** Members that are evidence-locked (excluded from purge while the lock exists). */
@@ -101,8 +107,8 @@ export interface HoldPort {
 export const NO_HOLDS: HoldPort = { isHeld: () => Promise.resolve(false) };
 
 /**
- * Brand state (1C). Until tenancy.brand exists every brand reference is treated as active; 1C
- * supplies the real port (restore into an archived brand is blocked, 0A §2).
+ * Brand state. `@pm/tenancy` supplies the real port (restore into an archived brand is blocked,
+ * 0A §2); the permissive default remains only for lower-layer tests without brands.
  */
 export interface BrandPort {
   isActive(tx: WorkspaceTransaction, brandId: string): Promise<boolean>;

@@ -1700,6 +1700,33 @@
       "notes": "Read-only role may only create read scopes."
     },
     {
+      "key": "workspace.create",
+      "kind": "personal",
+      "scopes": [
+        "personal"
+      ],
+      "description": "Create a workspace and become its bootstrap owner (verified human account, before any tenant context exists).",
+      "required_level": null,
+      "risk_class": "R2",
+      "approval_class": "none",
+      "step_up": false,
+      "second_approval": false,
+      "non_delegable": false,
+      "entitlement": null,
+      "roles": {
+        "owner": "deny",
+        "administrator": "deny",
+        "member": "deny",
+        "limited_member": "deny",
+        "read_only": "deny",
+        "guest": "deny"
+      },
+      "requirements": [
+        "WSB-001"
+      ],
+      "notes": "Account-level platform command (AZ-18), listed in account_commands. No workspace role cell grants it: no membership exists before the workspace, so every cell is deny and holding any role never confers it. Only the authenticated human account principal may exercise it; tokens, service principals, OAuth clients, integrations, automations, AI, agents, support, and system jobs cannot, and no 0D scope may list it. Gates: verified email, active (not deleted) account, per-account rate limit, Idempotency-Key. It creates authority only by atomically creating the canonical workspace, the active owner membership, and the bootstrap owner assignment."
+    },
+    {
       "key": "workspace.view_settings",
       "kind": "admin",
       "scopes": [
@@ -3297,6 +3324,29 @@
         "INT-011"
       ],
       "notes": ""
+    }
+  ],
+  "account_commands": [
+    {
+      "action": "workspace.create",
+      "principals": [
+        "account"
+      ],
+      "gates": [
+        "email_verified",
+        "account_active",
+        "rate_limit",
+        "idempotency_key"
+      ],
+      "creates": [
+        "tenancy.workspace",
+        "tenancy.membership",
+        "access.role_assignment"
+      ],
+      "grants": "bootstrap owner (workspace role owner) to the creating account's new membership only",
+      "requirements": [
+        "WSB-001"
+      ]
     }
   ]
 }
