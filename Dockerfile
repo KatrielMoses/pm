@@ -14,8 +14,10 @@ COPY apps/worker/package.json apps/worker/
 COPY apps/web/package.json apps/web/
 COPY packages/config/package.json packages/config/
 COPY packages/contracts/package.json packages/contracts/
+COPY packages/audit/package.json packages/audit/
 COPY packages/db/package.json packages/db/
 COPY packages/identity/package.json packages/identity/
+COPY packages/lifecycle/package.json packages/lifecycle/
 COPY packages/observability/package.json packages/observability/
 COPY packages/platform/package.json packages/platform/
 COPY packages/test-infra/package.json packages/test-infra/

@@ -299,3 +299,56 @@ describe('identity configuration (1B)', () => {
     });
   });
 });
+
+describe('lifecycle configuration (1F)', () => {
+  it('leaves every retention period undecided by default and validates explicit values', () => {
+    const cfg = loadServerConfig({ service: 'worker', env: local });
+    expect(cfg.lifecycle).toEqual({
+      retentionPeriodsMs: {},
+      purgeLedger: 'none',
+      purgeLedgerDir: undefined,
+    });
+    expect(cfg.features.componentHarness).toBe(false);
+    const set = loadServerConfig({
+      service: 'worker',
+      env: { ...local, RETENTION_PERIODS: '{"R-LIVE": 3600000}' },
+    });
+    expect(set.lifecycle.retentionPeriodsMs).toEqual({ 'R-LIVE': 3600000 });
+    for (const bad of [
+      '{"R-UNKNOWN": 3600000}',
+      '{"R-LIVE": 5}',
+      '{"R-LIVE": "30 days"}',
+      'not json',
+    ])
+      expect(
+        issues(() =>
+          loadServerConfig({ service: 'worker', env: { ...local, RETENTION_PERIODS: bad } }),
+        )[0],
+        bad,
+      ).toMatch(/RETENTION_PERIODS/);
+  });
+
+  it('refuses the local purge ledger and the component harness in deployed environments', () => {
+    const found = issues(() =>
+      loadServerConfig({
+        service: 'worker',
+        env: deployed('staging', {
+          PURGE_LEDGER: 'local',
+          PURGE_LEDGER_DIR: '/tmp/l',
+          COMPONENT_HARNESS: 'true',
+        }),
+      }),
+    );
+    expect(found).toEqual(
+      expect.arrayContaining([
+        'PURGE_LEDGER: the local ledger is a development adapter; no ledger store is approved',
+        'COMPONENT_HARNESS: the component harness is allowed only in local and test',
+      ]),
+    );
+    expect(
+      issues(() =>
+        loadServerConfig({ service: 'worker', env: { ...local, PURGE_LEDGER: 'local' } }),
+      ),
+    ).toContain('PURGE_LEDGER_DIR: required with the local purge ledger');
+  });
+});

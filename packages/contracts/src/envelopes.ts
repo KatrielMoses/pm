@@ -119,6 +119,9 @@ export const NON_RESOURCE_TYPES = [
   'step_up_token',
   'recovery_code_set',
   'oauth_authorization',
+  // 1F: the account's own security activity. Security events are internal records without public
+  // IDs (0D security-event schema), so the display projection is not a resource collection.
+  'security_activity',
 ] as const;
 export type NonResourceType = (typeof NON_RESOURCE_TYPES)[number];
 

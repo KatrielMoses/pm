@@ -5,7 +5,10 @@ import { errorFields, type Logger, type Metrics } from '@pm/observability';
 export type CheckResult = 'ok' | 'fail' | 'not_configured';
 export interface Readiness {
   ready: boolean;
-  checks: Record<'database' | 'migrations' | 'dispatcher' | 'object_storage', CheckResult>;
+  checks: Record<
+    'database' | 'migrations' | 'dispatcher' | 'object_storage' | 'recovery_gate',
+    CheckResult
+  >;
 }
 
 export interface ReadinessDeps {
@@ -28,7 +31,7 @@ const withTimeout = <T>(p: Promise<T>, ms: number): Promise<T> =>
 /**
  * Readiness (0D §17.4): database reachable, migrations at (or beyond, during expand/contract
  * rollouts) the version bundled in this artifact, dispatcher alive, object storage reachable
- * (not part of 1A). Reasons are logged internally; responses carry only check names and states.
+ * (not part of 1A), and the post-restore recovery gate open (1F). Reasons are logged internally; responses carry only check names and states.
  */
 export async function checkReadiness(deps: ReadinessDeps): Promise<Readiness> {
   const checks: Readiness['checks'] = {
@@ -36,6 +39,7 @@ export async function checkReadiness(deps: ReadinessDeps): Promise<Readiness> {
     migrations: 'fail',
     dispatcher: 'fail',
     object_storage: 'not_configured',
+    recovery_gate: 'fail',
   };
   const fail = (check: string, reason: string, err?: unknown) =>
     deps.logger.warn('readiness.check_failed', { check, reason, ...(err ? errorFields(err) : {}) });
@@ -57,6 +61,13 @@ export async function checkReadiness(deps: ReadinessDeps): Promise<Readiness> {
         );
     } catch (err) {
       fail('migrations', 'unreadable', err);
+    }
+    // A restored environment stays closed until purge-ledger replay completes (0B §8.11).
+    try {
+      if (await withTimeout(deps.health.recoveryGateOpen(), 2_000)) checks.recovery_gate = 'ok';
+      else fail('recovery_gate', 'purge-ledger replay required');
+    } catch (err) {
+      fail('recovery_gate', 'unreadable', err);
     }
     if (!deps.config.requireDispatcher) {
       checks.dispatcher = 'not_configured';

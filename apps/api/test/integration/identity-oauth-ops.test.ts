@@ -440,9 +440,7 @@ describe('identity: abuse controls, timing, jobs, and redaction', () => {
     expect(labels).toContain('"flow":"sign_in"');
     secrets.forEach((s, i) => expect(labels.includes(s), `metric leak #${i}`).toBe(false));
     // Security events: minimized network context, no secrets.
-    const events = JSON.stringify(
-      (await env.db.admin(`SELECT * FROM identity.security_event_buffer`)).rows,
-    );
+    const events = JSON.stringify((await env.db.admin(`SELECT * FROM audit.security_event`)).rows);
     expect(events).toContain('203.0.113.0/24');
     secrets.forEach((s, i) => expect(events.includes(s), `event leak #${i}`).toBe(false));
   });

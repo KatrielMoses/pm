@@ -33,6 +33,24 @@ export const FOUNDATION_SIGNALS = [
   { name: 'identity.cleanup.deleted', type: 'counter', labels: ['kind'] },
   { name: 'mail.enqueued', type: 'counter', labels: ['template'] },
   { name: 'mail.deliveries', type: 'counter', labels: ['template', 'outcome'] },
+  // Audit and lifecycle (1F): bounded module/kind/outcome vocabularies only. Never tenant, actor,
+  // record, target, email, IP, action, or content values.
+  { name: 'audit.writes', type: 'counter', labels: ['module'] },
+  { name: 'audit.chain.verifications', type: 'counter', labels: ['outcome'] },
+  { name: 'audit.chain.problems', type: 'counter', labels: ['kind'] },
+  { name: 'audit.redactions', type: 'counter', labels: ['reason'] },
+  { name: 'security_events.written', type: 'counter', labels: ['category', 'scope'] },
+  { name: 'security_events.write_failures', type: 'counter', labels: ['scope'] },
+  { name: 'security_events.buffer_drained', type: 'counter', labels: [] },
+  { name: 'security_events.buffer_remaining', type: 'gauge', labels: [] },
+  { name: 'security_events.buffer_verifications', type: 'counter', labels: ['outcome'] },
+  { name: 'lifecycle.transitions', type: 'counter', labels: ['transition', 'outcome'] },
+  { name: 'purge.backlog', type: 'gauge', labels: ['state'] },
+  { name: 'purge.blocked', type: 'counter', labels: ['reason'] },
+  { name: 'purge.hook.duration', type: 'histogram', labels: ['hook', 'outcome'] },
+  { name: 'purge.hook.failures', type: 'counter', labels: ['hook'] },
+  { name: 'purge.ledger.acknowledgements', type: 'counter', labels: ['outcome'] },
+  { name: 'retention.scheduler.runs', type: 'counter', labels: ['policy', 'outcome'] },
 ] as const satisfies readonly SignalDefinition[];
 
 export const ALL_SIGNALS: readonly SignalDefinition[] = [

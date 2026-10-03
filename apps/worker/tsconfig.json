@@ -8,6 +8,8 @@
     { "path": "../../packages/observability" },
     { "path": "../../packages/db" },
     { "path": "../../packages/platform" },
+    { "path": "../../packages/audit" },
+    { "path": "../../packages/lifecycle" },
     { "path": "../../packages/identity" }
   ]
 }

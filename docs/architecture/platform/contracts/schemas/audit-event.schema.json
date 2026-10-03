@@ -123,8 +123,21 @@
           "redacted": {
             "type": "boolean"
           },
+          "reason": {
+            "type": "string",
+            "enum": [
+              "purge",
+              "account_deletion",
+              "privacy_request",
+              "legal_request"
+            ]
+          },
           "changed": {
             "type": "boolean"
+          },
+          "digest": {
+            "type": "string",
+            "pattern": "^sha256:[0-9a-f]{64}$"
           }
         },
         "allOf": [

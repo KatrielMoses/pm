@@ -25,6 +25,8 @@ export interface WorkspaceTxOptions {
   /** Bounded label for `db.transaction.duration` (module name). */
   module: string;
   readOnly?: boolean;
+  /** Consistent multi-statement snapshots (verification jobs). Default: read committed. */
+  isolation?: 'read committed' | 'repeatable read' | 'serializable';
   /**
    * Only for creating the tenant root itself (1C) and synthetic fixtures: skips the check that
    * the workspace row exists. The RLS context is still set and asserted.
@@ -71,6 +73,7 @@ export class TenantDatabase {
     const started = performance.now();
     let builder = this.#kysely.transaction();
     if (options.readOnly) builder = builder.setAccessMode('read only');
+    if (options.isolation) builder = builder.setIsolationLevel(options.isolation);
     try {
       return await builder.execute(async (trx) => {
         await sql`SELECT set_config('app.workspace_id', ${workspaceId}, true)`.execute(trx);

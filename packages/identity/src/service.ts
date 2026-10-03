@@ -32,6 +32,7 @@ import {
 } from './primitives.ts';
 import type { RateLimiter, RateLimitPolicy } from './rate-limit.ts';
 import { hashRecoveryCode, newRecoveryCodes, normalizeRecoveryCode } from './recovery-codes.ts';
+import { listOwnSecurityActivity, type SecurityActivityPage } from './security-activity.ts';
 import type { SecurityEvent, SecurityEventPort } from './security-events.ts';
 import { newTotpSecret, otpauthUri, verifyTotp } from './totp.ts';
 import {
@@ -1106,6 +1107,14 @@ export class IdentityService {
     if (scope.except) q = q.where('id', '!=', scope.except);
     const res = await q.executeTakeFirst();
     return Number(res.numUpdatedRows);
+  }
+
+  /** Own-account security activity (1F): only this account's account-level events. */
+  async listSecurityActivity(
+    ctx: AuthContext,
+    options: { limit?: number; cursor?: string | undefined } = {},
+  ): Promise<SecurityActivityPage> {
+    return listOwnSecurityActivity(this.#d.db, this.#d.signingKey, ctx, options);
   }
 
   async listSessions(ctx: AuthContext): Promise<

@@ -121,7 +121,23 @@ describe('database-enforced workspace existence (1A review 01, correction 2)', (
       FROM pg_constraint c
       WHERE c.contype = 'f' AND c.confrelid = 'tenancy.workspace'::regclass
       ORDER BY 1`);
-    expect(res.rows.map((r) => r.tbl).sort()).toEqual(TENANT_TABLES.map((t) => `exec.${t}`).sort());
+    // Phase 1F tenant tables (audit, core, governance) carry the same database-enforced root key.
+    const phase1f = [
+      'audit.activity_item',
+      'audit.audit_event',
+      'audit.audit_redaction',
+      'audit.chain_checkpoint',
+      'audit.security_event',
+      'core.archive_batch',
+      'core.archive_batch_member',
+      'core.deletion_batch',
+      'core.deletion_batch_member',
+      'core.record',
+      'governance.retention_policy',
+    ];
+    expect(res.rows.map((r) => r.tbl).sort()).toEqual(
+      [...TENANT_TABLES.map((t) => `exec.${t}`), ...phase1f].sort(),
+    );
     for (const r of res.rows) {
       expect(r, r.tbl).toMatchObject({
         confdeltype: 'r',

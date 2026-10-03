@@ -53,6 +53,7 @@ export function AccountSecurityPage() {
       <TwoStepSection />
       <SessionsSection />
       <SignInMethodsSection />
+      <SecurityActivitySection />
     </Page>
   );
 }
@@ -621,6 +622,140 @@ function SignInMethodsSection() {
           </div>
         </Dialog>
       ) : null}
+    </section>
+  );
+}
+
+interface ActivityItem {
+  occurred_at: string;
+  category: string;
+  action: string;
+  outcome: 'success' | 'failure' | 'denied';
+  this_session: boolean;
+  device: string | null;
+  network: string | null;
+  client: string | null;
+}
+
+/** Generic, user-facing names for account security events; unknown actions stay generic. */
+const ACTIVITY_LABELS: Record<string, string> = {
+  'account.registered': 'Account created',
+  'account.register_existing': 'Someone tried to register with your email',
+  'email.verified': 'Email address verified',
+  'sign_in.password': 'Sign-in with password',
+  'sign_in.oauth': 'Sign-in with a linked account',
+  'session.created': 'Signed in',
+  'session.signed_out': 'Signed out',
+  'session.revoked': 'Session signed out remotely',
+  'session.revoked_by_administrator': 'Session signed out by an administrator',
+  'password.changed': 'Password changed',
+  'password.reset': 'Password reset',
+  'password_reset.requested': 'Password reset requested',
+  'mfa.enabled': 'Two-step verification turned on',
+  'mfa.disabled': 'Two-step verification turned off',
+  'recovery_codes.regenerated': 'New recovery codes created',
+  'oauth.linked': 'Sign-in method linked',
+  'oauth.unlinked': 'Sign-in method removed',
+  'oauth.link_collision': 'Sign-in method already linked elsewhere',
+  'step_up.issued': 'Identity check requested',
+  'step_up.verified': 'Identity check passed',
+  'step_up.failed': 'Identity check failed',
+  'step_up.locked': 'Identity check locked after too many attempts',
+  'step_up.cancelled': 'Identity check cancelled',
+  'step_up.consumed': 'Protected action confirmed',
+};
+
+const OUTCOME: Record<ActivityItem['outcome'], { label: string; tone: string }> = {
+  success: { label: 'Succeeded', tone: 'badge-success' },
+  failure: { label: 'Failed', tone: 'badge-warning' },
+  denied: { label: 'Blocked', tone: 'badge-danger' },
+};
+
+/**
+ * Own-account security activity (Phase 1F): only this account's events; device and network
+ * details are shown masked, never as full addresses.
+ */
+function SecurityActivitySection() {
+  const [items, setItems] = useState<ActivityItem[] | null>(null);
+  const [next, setNext] = useState<string | null>(null);
+  const [error, setError] = useState<unknown>(null);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const fetchPage = (cursor?: string) =>
+    api<{ data: { items: ActivityItem[]; next_cursor: string | null } }>(
+      'GET',
+      `/v1/auth/security-activity?limit=20${cursor ? `&cursor=${encodeURIComponent(cursor)}` : ''}`,
+    ).then((r) => r.body.data);
+  useEffect(() => {
+    fetchPage()
+      .then((d) => {
+        setItems(d.items);
+        setNext(d.next_cursor);
+      })
+      .catch(setError);
+  }, []);
+  /** First page again (retry) or the next page (show older). */
+  const load = async (cursor?: string) => {
+    setError(null);
+    setLoadingMore(Boolean(cursor));
+    try {
+      const d = await fetchPage(cursor);
+      setItems((prev) => (cursor && prev ? [...prev, ...d.items] : d.items));
+      setNext(d.next_cursor);
+    } catch (e) {
+      setError(e);
+    } finally {
+      setLoadingMore(false);
+    }
+  };
+  return (
+    <section
+      className="card"
+      aria-labelledby="activity-heading"
+      aria-busy={items === null && !error}
+    >
+      <h2 id="activity-heading">Security activity</h2>
+      <p className="hint">
+        Recent sign-ins and security changes on your account. Only you can see this.
+      </p>
+      {error ? <ProblemBanner error={error} onRetry={() => void load(next ?? undefined)} /> : null}
+      {items === null && !error ? <p role="status">Loading security activity…</p> : null}
+      {items && items.length === 0 ? <p>No security activity yet.</p> : null}
+      {items && items.length > 0 ? (
+        <ul className="activity" aria-label="Security events, newest first">
+          {items.map((e, i) => (
+            <li key={`${e.occurred_at}-${i}`} className="activity-item">
+              <p>
+                <span className="activity-what">
+                  {ACTIVITY_LABELS[e.action] ?? 'Security event'}
+                </span>{' '}
+                <span className={`badge ${OUTCOME[e.outcome].tone}`}>
+                  {OUTCOME[e.outcome].label}
+                </span>
+                {e.this_session ? <span className="badge badge-info">This device</span> : null}
+              </p>
+              <p className="hint">
+                <time dateTime={e.occurred_at}>{when(e.occurred_at)}</time>
+                {e.device ? ` · ${e.device}` : ''}
+                {e.client && !e.device ? ` · ${e.client}` : ''}
+                {e.network ? ` · Network ${e.network}` : ''}
+              </p>
+            </li>
+          ))}
+        </ul>
+      ) : null}
+      {next ? (
+        <div className="actions">
+          <button
+            type="button"
+            className="button button-secondary"
+            disabled={loadingMore}
+            onClick={() => void load(next)}
+          >
+            {loadingMore ? 'Loading…' : 'Show older activity'}
+          </button>
+        </div>
+      ) : null}
+      {loadingMore ? <Announce>Loading older activity…</Announce> : null}
     </section>
   );
 }

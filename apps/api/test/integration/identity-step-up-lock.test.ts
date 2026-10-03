@@ -58,7 +58,7 @@ describe('identity: stored locked step-up challenges', () => {
   async function events(sessionId: string) {
     return (
       await env.db.admin(
-        `SELECT action, outcome FROM identity.security_event_buffer
+        `SELECT action, outcome FROM audit.security_event
          WHERE subject_id = $1 AND category = 'step_up' ORDER BY occurred_at, id`,
         [sessionId],
       )
@@ -95,7 +95,7 @@ describe('identity: stored locked step-up challenges', () => {
     // The transition event carries no proof material.
     const stored = JSON.stringify(
       (
-        await env.db.admin(`SELECT * FROM identity.security_event_buffer WHERE subject_id = $1`, [
+        await env.db.admin(`SELECT * FROM audit.security_event WHERE subject_id = $1`, [
           locked.session_id,
         ])
       ).rows,

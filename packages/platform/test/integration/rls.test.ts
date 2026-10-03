@@ -23,6 +23,21 @@ const TENANT_TABLES = [
   'exec.external_effect',
 ] as const;
 
+/** Phase 1F tenant tables (audit, core, governance); behavior covered in their own suites. */
+const PHASE_1F_TENANT_TABLES = [
+  'audit.audit_event',
+  'audit.audit_redaction',
+  'audit.security_event',
+  'audit.chain_checkpoint',
+  'audit.activity_item',
+  'core.record',
+  'core.archive_batch',
+  'core.archive_batch_member',
+  'core.deletion_batch',
+  'core.deletion_batch_member',
+  'governance.retention_policy',
+] as const;
+
 /** Seeds one row in every tenant execution table for a workspace. */
 async function seedExecutionRows(
   h: Harness,
@@ -119,7 +134,7 @@ describe('tenant RLS foundation (0C §12.7)', () => {
     // carry no tenant RLS by design. The list is exact: any new table must be classified here.
     const PLATFORM_SCOPED = ['identity.security_event_buffer', 'identity.step_up_challenge'];
     expect(res.rows.map((r) => r.t).sort()).toEqual(
-      [...TENANT_TABLES, 'tenancy.workspace', ...PLATFORM_SCOPED].sort(),
+      [...TENANT_TABLES, ...PHASE_1F_TENANT_TABLES, 'tenancy.workspace', ...PLATFORM_SCOPED].sort(),
     );
     res.rows = res.rows.filter((r) => !PLATFORM_SCOPED.includes(r.t));
     for (const row of res.rows) {
@@ -318,7 +333,7 @@ describe('tenant RLS foundation (0C §12.7)', () => {
              has_function_privilege('app_rw', p.oid, 'EXECUTE') AS app_exec,
              has_function_privilege('app_worker', p.oid, 'EXECUTE') AS worker_exec
       FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace WHERE n.nspname = 'exec_dispatch' ORDER BY 1`);
-    expect(fns.rows.length).toBe(6);
+    expect(fns.rows.length).toBe(9);
     const allowed = new Set([
       'job_id',
       'workspace_id',
@@ -330,6 +345,8 @@ describe('tenant RLS foundation (0C §12.7)', () => {
       'event_id',
       'pending',
       'oldest_age_ms',
+      'batch_id',
+      'batches',
     ]);
     for (const fn of fns.rows) {
       expect(fn, fn.proname).toMatchObject({

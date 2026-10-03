@@ -79,6 +79,7 @@ describe('web/API process', () => {
         migrations: 'ok',
         dispatcher: 'fail',
         object_storage: 'not_configured',
+        recovery_gate: 'ok',
       },
       build: 'abc1234',
     });

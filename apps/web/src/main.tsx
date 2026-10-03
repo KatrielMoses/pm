@@ -13,6 +13,7 @@ import {
   VerifyConfirmPage,
   VerifyEmailPage,
 } from './pages/auth-pages.tsx';
+import { LifecycleHarnessPage } from './pages/harness.tsx';
 import { Link, Router, useRouter } from './router.tsx';
 import { StepUpProvider } from './stepup.tsx';
 import { Page } from './ui/layout.tsx';
@@ -29,6 +30,8 @@ const ROUTES: Record<string, () => React.JSX.Element> = {
   '/onboarding': OnboardingPage,
   '/account/security': AccountSecurityPage,
   '/status': () => <App />,
+  // Local/test component harness (the page itself renders "not found" unless enabled).
+  '/_harness/lifecycle': LifecycleHarnessPage,
 };
 
 function Home() {

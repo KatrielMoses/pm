@@ -89,6 +89,38 @@ export class PlatformDiscovery {
     return rows.map((r) => r.workspace_id);
   }
 
+  /**
+   * Trashed deletion batches whose recovery period (R-LIVE) has passed (1F). `platformPeriodMs`
+   * is the platform default; NULL there and no workspace value means nothing is ever due.
+   */
+  async discoverPurgeDue(
+    platformPeriodMs: number | null,
+    limit: number,
+  ): Promise<Array<{ workspaceId: string; batchId: string }>> {
+    const { rows } = await this.#pool.query<{ workspace_id: string; batch_id: string }>(
+      `SELECT workspace_id, batch_id FROM exec_dispatch.discover_purge_due(
+         CASE WHEN $1::bigint IS NULL THEN NULL ELSE make_interval(secs => $1::bigint / 1000.0) END, $2)`,
+      [platformPeriodMs, limit],
+    );
+    return rows.map((r) => ({ workspaceId: r.workspace_id, batchId: r.batch_id }));
+  }
+
+  async purgeBacklog(): Promise<Array<{ state: string; batches: number }>> {
+    const { rows } = await this.#pool.query<{ state: string; batches: string }>(
+      'SELECT state, batches FROM exec_dispatch.purge_backlog()',
+    );
+    return rows.map((r) => ({ state: r.state, batches: Number(r.batches) }));
+  }
+
+  /** Workspaces with audit history after `after` (keyset), for chain verification fan-out. */
+  async discoverAuditWorkspaces(after: string | null, limit: number): Promise<string[]> {
+    const { rows } = await this.#pool.query<{ workspace_id: string }>(
+      'SELECT workspace_id FROM exec_dispatch.discover_audit_workspaces($1, $2)',
+      [after, limit],
+    );
+    return rows.map((r) => r.workspace_id);
+  }
+
   /** Worker liveness (platform table, no tenant data). */
   async heartbeat(workerId: string, buildId: string, stopping = false): Promise<void> {
     await this.#pool.query(

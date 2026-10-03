@@ -16,6 +16,9 @@
 --   app_worker        LOGIN. Worker process tenant work. NOBYPASSRLS, owns nothing.
 --   dispatcher        LOGIN. Worker process scheduling discovery: EXECUTE on payload-free functions only.
 --   pm_scheduler      NOLOGIN. Owns the payload-free SECURITY DEFINER scheduling functions. Column-limited.
+--   audit_maintainer  NOLOGIN (1F, 0C §12.3). Owns only the guarded audit redaction procedure; the
+--                     sole identity the audit append-only triggers let change value fields. No login
+--                     role is granted membership, so API/worker connections can never SET ROLE to it.
 -- No role created here has BYPASSRLS, SUPERUSER, CREATEDB, CREATEROLE, or REPLICATION.
 
 DO $bootstrap$
@@ -31,7 +34,7 @@ BEGIN
   END IF;
 
   -- Group roles without login.
-  FOR r IN SELECT * FROM (VALUES ('pm_owner'), ('pm_scheduler')) AS t(name) LOOP
+  FOR r IN SELECT * FROM (VALUES ('pm_owner'), ('pm_scheduler'), ('audit_maintainer')) AS t(name) LOOP
     IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = r.name) THEN
       EXECUTE format('CREATE ROLE %I NOLOGIN', r.name);
     END IF;
@@ -56,6 +59,8 @@ BEGIN
   EXECUTE 'GRANT pm_owner TO restore_operator WITH INHERIT FALSE, SET TRUE';
   -- The owner may transfer function ownership to pm_scheduler without inheriting its policies.
   EXECUTE 'GRANT pm_scheduler TO pm_owner WITH INHERIT FALSE, SET TRUE';
+  -- Likewise for the guarded audit redaction procedure (owned by audit_maintainer).
+  EXECUTE 'GRANT audit_maintainer TO pm_owner WITH INHERIT FALSE, SET TRUE';
 
   -- Schemas are created by migrations as pm_owner.
   EXECUTE format('GRANT CREATE ON DATABASE %I TO pm_owner', db);

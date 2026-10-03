@@ -26,7 +26,7 @@ Machine-readable report with every installed package: `reports/dependency-licens
 | `@testcontainers/postgresql` | 12.2.0 | MIT | runtime | @pm/test-infra |
 | `@testing-library/react` | 16.3.3 | MIT | dev | (root tooling) |
 | `@types/node` | 24.19.1 | MIT | dev | (root tooling) |
-| `@types/pg` | 8.23.1 | MIT | dev | @pm/api, @pm/worker, @pm/db, @pm/platform, @pm/test-infra, @pm/test-support |
+| `@types/pg` | 8.23.1 | MIT | dev | @pm/api, @pm/worker, @pm/audit, @pm/db, @pm/identity, @pm/lifecycle, @pm/platform, @pm/test-infra, @pm/test-support |
 | `@types/react` | 19.3.0 | MIT | dev | @pm/web |
 | `@types/react-dom` | 19.3.0 | MIT | dev | @pm/web |
 | `@vitejs/plugin-react` | 6.1.1 | MIT | dev | @pm/web |
@@ -38,7 +38,7 @@ Machine-readable report with every installed package: `reports/dependency-licens
 | `globals` | 17.13.0 | MIT | dev | (root tooling) |
 | `jsdom` | 30.1.1 | MIT | dev | (root tooling) |
 | `kysely` | 0.29.6 | MIT | runtime | @pm/db, @pm/platform, @pm/test-support |
-| `pg` | 8.23.1 | MIT | dev, runtime | @pm/api, @pm/worker, @pm/db, @pm/platform, @pm/test-infra, @pm/test-support |
+| `pg` | 8.23.1 | MIT | dev, runtime | @pm/api, @pm/worker, @pm/audit, @pm/db, @pm/identity, @pm/lifecycle, @pm/platform, @pm/test-infra, @pm/test-support |
 | `prettier` | 3.9.9 | MIT | dev | (root tooling) |
 | `react` | 19.3.0 | MIT | runtime | @pm/web |
 | `react-dom` | 19.3.0 | MIT | runtime | @pm/web |

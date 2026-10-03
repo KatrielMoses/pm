@@ -51,6 +51,11 @@ const STRING_FIELDS = [
   'template',
   'policy',
   'auth_method',
+  'batch_id',
+  'record_type',
+  'hook',
+  'transition',
+  'problem',
 ] as const;
 const NUMBER_FIELDS = [
   'status',
@@ -61,6 +66,8 @@ const NUMBER_FIELDS = [
   'migration_version',
   'port',
   'lag_ms',
+  'chain_seq',
+  'remaining',
 ] as const;
 const BOOLEAN_FIELDS = ['retryable', 'worker_lost', 'ready'] as const;
 

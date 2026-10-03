@@ -220,6 +220,9 @@ importers:
       '@opentelemetry/api':
         specifier: 1.9.1
         version: 1.9.1
+      '@pm/audit':
+        specifier: workspace:*
+        version: link:../../packages/audit
       '@pm/config':
         specifier: workspace:*
         version: link:../../packages/config
@@ -232,6 +235,9 @@ importers:
       '@pm/identity':
         specifier: workspace:*
         version: link:../../packages/identity
+      '@pm/lifecycle':
+        specifier: workspace:*
+        version: link:../../packages/lifecycle
       '@pm/observability':
         specifier: workspace:*
         version: link:../../packages/observability
@@ -282,6 +288,9 @@ importers:
 
   apps/worker:
     dependencies:
+      '@pm/audit':
+        specifier: workspace:*
+        version: link:../../packages/audit
       '@pm/config':
         specifier: workspace:*
         version: link:../../packages/config
@@ -294,6 +303,9 @@ importers:
       '@pm/identity':
         specifier: workspace:*
         version: link:../../packages/identity
+      '@pm/lifecycle':
+        specifier: workspace:*
+        version: link:../../packages/lifecycle
       '@pm/observability':
         specifier: workspace:*
         version: link:../../packages/observability
@@ -304,6 +316,37 @@ importers:
       '@pm/test-support':
         specifier: workspace:*
         version: link:../../packages/test-support
+      '@types/pg':
+        specifier: 8.23.1
+        version: 8.23.1
+      pg:
+        specifier: 8.23.1
+        version: 8.23.1
+
+  packages/audit:
+    dependencies:
+      '@pm/config':
+        specifier: workspace:*
+        version: link:../config
+      '@pm/contracts':
+        specifier: workspace:*
+        version: link:../contracts
+      '@pm/db':
+        specifier: workspace:*
+        version: link:../db
+      '@pm/observability':
+        specifier: workspace:*
+        version: link:../observability
+      '@pm/platform':
+        specifier: workspace:*
+        version: link:../platform
+    devDependencies:
+      '@pm/test-infra':
+        specifier: workspace:*
+        version: link:../test-infra
+      '@pm/test-support':
+        specifier: workspace:*
+        version: link:../test-support
       '@types/pg':
         specifier: 8.23.1
         version: 8.23.1
@@ -353,6 +396,9 @@ importers:
 
   packages/identity:
     dependencies:
+      '@pm/audit':
+        specifier: workspace:*
+        version: link:../audit
       '@pm/config':
         specifier: workspace:*
         version: link:../config
@@ -375,6 +421,46 @@ importers:
       '@pm/test-support':
         specifier: workspace:*
         version: link:../test-support
+      '@types/pg':
+        specifier: 8.23.1
+        version: 8.23.1
+      pg:
+        specifier: 8.23.1
+        version: 8.23.1
+
+  packages/lifecycle:
+    dependencies:
+      '@pm/audit':
+        specifier: workspace:*
+        version: link:../audit
+      '@pm/config':
+        specifier: workspace:*
+        version: link:../config
+      '@pm/contracts':
+        specifier: workspace:*
+        version: link:../contracts
+      '@pm/db':
+        specifier: workspace:*
+        version: link:../db
+      '@pm/observability':
+        specifier: workspace:*
+        version: link:../observability
+      '@pm/platform':
+        specifier: workspace:*
+        version: link:../platform
+    devDependencies:
+      '@pm/test-infra':
+        specifier: workspace:*
+        version: link:../test-infra
+      '@pm/test-support':
+        specifier: workspace:*
+        version: link:../test-support
+      '@types/pg':
+        specifier: 8.23.1
+        version: 8.23.1
+      pg:
+        specifier: 8.23.1
+        version: 8.23.1
 
   packages/observability:
     dependencies:
