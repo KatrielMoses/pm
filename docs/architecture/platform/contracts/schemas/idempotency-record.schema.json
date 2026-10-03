@@ -1,0 +1,87 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:pm:schema:idempotency-record",
+  "title": "Idempotency record",
+  "x-visibility": "internal",
+  "x-max-class": "C2",
+  "type": "object",
+  "required": [
+    "workspace_id",
+    "principal",
+    "key",
+    "fingerprint",
+    "state",
+    "created_at",
+    "expires_at"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "workspace_id": {
+      "$ref": "urn:pm:schema:common#/$defs/internal_uuid"
+    },
+    "principal": {
+      "type": "object",
+      "required": [
+        "type",
+        "id"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "type": {
+          "type": "string"
+        },
+        "id": {
+          "$ref": "urn:pm:schema:common#/$defs/internal_uuid"
+        }
+      }
+    },
+    "key": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9_.:-]{16,128}$"
+    },
+    "fingerprint": {
+      "type": "string",
+      "pattern": "^sha256:[0-9a-f]{64}$"
+    },
+    "state": {
+      "type": "string",
+      "enum": [
+        "in_progress",
+        "completed",
+        "failed_deterministic"
+      ]
+    },
+    "operation_id": {
+      "$ref": "urn:pm:schema:common#/$defs/internal_uuid"
+    },
+    "response": {
+      "type": "object",
+      "required": [
+        "status"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "status": {
+          "type": "integer",
+          "minimum": 100,
+          "maximum": 599
+        },
+        "resource_refs": {
+          "type": "array",
+          "items": {
+            "$ref": "urn:pm:schema:common#/$defs/record_ref"
+          }
+        },
+        "error_code": {
+          "type": "string"
+        }
+      }
+    },
+    "created_at": {
+      "$ref": "urn:pm:schema:common#/$defs/timestamp"
+    },
+    "expires_at": {
+      "$ref": "urn:pm:schema:common#/$defs/timestamp"
+    }
+  }
+}

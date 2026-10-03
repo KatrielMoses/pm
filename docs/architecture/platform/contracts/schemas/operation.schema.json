@@ -1,0 +1,231 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:pm:schema:operation",
+  "title": "Operation",
+  "x-visibility": "public",
+  "x-max-class": "C2",
+  "type": "object",
+  "required": [
+    "id",
+    "type",
+    "kind",
+    "state",
+    "attempt_count",
+    "initiated_by",
+    "created_at",
+    "updated_at",
+    "links"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "id": {
+      "$ref": "urn:pm:schema:common#/$defs/public_id"
+    },
+    "type": {
+      "const": "operation"
+    },
+    "kind": {
+      "type": "string",
+      "pattern": "^[a-z_]+$"
+    },
+    "state": {
+      "$ref": "urn:pm:schema:common#/$defs/exec_state"
+    },
+    "terminal_reason": {
+      "$ref": "urn:pm:schema:common#/$defs/terminal_reason"
+    },
+    "waiting_reason": {
+      "$ref": "urn:pm:schema:common#/$defs/waiting_reason"
+    },
+    "cancel_requested_at": {
+      "$ref": "urn:pm:schema:common#/$defs/timestamp"
+    },
+    "progress": {
+      "type": "object",
+      "required": [
+        "completed",
+        "unit"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "phase": {
+          "type": "string",
+          "pattern": "^[a-z_]+$"
+        },
+        "completed": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "total": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "unit": {
+          "type": "string",
+          "pattern": "^[a-z_]+$"
+        },
+        "estimated": {
+          "type": "boolean"
+        }
+      }
+    },
+    "attempt_count": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "current_attempt": {
+      "$ref": "urn:pm:schema:attempt"
+    },
+    "result": {
+      "$ref": "urn:pm:schema:partial-result"
+    },
+    "artifacts": {
+      "type": "array",
+      "items": {
+        "$ref": "urn:pm:schema:common#/$defs/record_ref"
+      }
+    },
+    "approval": {
+      "$ref": "urn:pm:schema:common#/$defs/approval_ref"
+    },
+    "usage": {
+      "type": "object",
+      "required": [],
+      "additionalProperties": false,
+      "properties": {
+        "estimated": {
+          "$ref": "urn:pm:schema:usage-estimate"
+        },
+        "reserved": {
+          "$ref": "urn:pm:schema:common#/$defs/money"
+        },
+        "measured": {
+          "$ref": "urn:pm:schema:common#/$defs/money"
+        },
+        "reported": {
+          "$ref": "urn:pm:schema:common#/$defs/money"
+        }
+      }
+    },
+    "rerun_of": {
+      "$ref": "urn:pm:schema:common#/$defs/public_id"
+    },
+    "initiated_by": {
+      "$ref": "urn:pm:schema:common#/$defs/actor"
+    },
+    "brand_ids": {
+      "type": "array",
+      "items": {
+        "$ref": "urn:pm:schema:common#/$defs/public_id"
+      }
+    },
+    "created_at": {
+      "$ref": "urn:pm:schema:common#/$defs/timestamp"
+    },
+    "started_at": {
+      "$ref": "urn:pm:schema:common#/$defs/timestamp"
+    },
+    "ended_at": {
+      "$ref": "urn:pm:schema:common#/$defs/timestamp"
+    },
+    "updated_at": {
+      "$ref": "urn:pm:schema:common#/$defs/timestamp"
+    },
+    "links": {
+      "type": "object",
+      "required": [
+        "self"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "self": {
+          "type": "string"
+        },
+        "events": {
+          "type": "string"
+        },
+        "cancel": {
+          "type": "string"
+        },
+        "pause": {
+          "type": "string"
+        },
+        "resume": {
+          "type": "string"
+        },
+        "retry": {
+          "type": "string"
+        },
+        "rerun": {
+          "type": "string"
+        },
+        "commentary": {
+          "type": "string"
+        }
+      }
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "type": "object",
+        "required": [
+          "state"
+        ],
+        "additionalProperties": true,
+        "properties": {
+          "state": {
+            "enum": [
+              "failed",
+              "cancelled",
+              "skipped"
+            ]
+          }
+        }
+      },
+      "then": {
+        "required": [
+          "terminal_reason"
+        ]
+      }
+    },
+    {
+      "if": {
+        "type": "object",
+        "required": [
+          "state"
+        ],
+        "additionalProperties": true,
+        "properties": {
+          "state": {
+            "const": "waiting"
+          }
+        }
+      },
+      "then": {
+        "required": [
+          "waiting_reason"
+        ]
+      }
+    },
+    {
+      "if": {
+        "type": "object",
+        "required": [
+          "state"
+        ],
+        "additionalProperties": true,
+        "properties": {
+          "state": {
+            "const": "partial"
+          }
+        }
+      },
+      "then": {
+        "required": [
+          "result"
+        ]
+      }
+    }
+  ]
+}

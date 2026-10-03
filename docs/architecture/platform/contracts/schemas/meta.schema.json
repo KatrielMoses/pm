@@ -1,0 +1,25 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:pm:schema:meta",
+  "title": "Response metadata",
+  "x-visibility": "public",
+  "x-max-class": "C2",
+  "type": "object",
+  "required": [
+    "request_id",
+    "correlation_id"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "request_id": {
+      "$ref": "urn:pm:schema:common#/$defs/request_id"
+    },
+    "correlation_id": {
+      "$ref": "urn:pm:schema:common#/$defs/trace_id"
+    },
+    "api_version": {
+      "type": "string",
+      "pattern": "^v[0-9]+$"
+    }
+  }
+}

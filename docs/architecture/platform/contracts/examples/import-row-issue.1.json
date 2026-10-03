@@ -1,0 +1,11 @@
+{
+  "$schema_ref": "urn:pm:schema:import-row-issue",
+  "example": {
+    "row_number": 14,
+    "source_row_key": "ASANA-5521",
+    "column": "Due",
+    "code": "invalid_date",
+    "severity": "error",
+    "message": "Expected YYYY-MM-DD."
+  }
+}

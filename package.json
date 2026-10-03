@@ -1,0 +1,49 @@
+{
+  "name": "pm",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@12.8.1",
+  "engines": {
+    "node": "24.21.0",
+    "pnpm": "12.8.1"
+  },
+  "scripts": {
+    "bootstrap": "pnpm install --frozen-lockfile",
+    "dev": "node scripts/dev.mjs",
+    "db:local": "node --conditions=@pm/source scripts/local-db.ts",
+    "build": "pnpm run contracts:generate:check && tsc -b && pnpm --filter @pm/web build",
+    "clean": "node scripts/clean.mjs",
+    "typecheck": "tsc -b && tsc -p tsconfig.test.json && pnpm --filter @pm/web typecheck",
+    "lint": "eslint . --max-warnings=0 && node scripts/check-sql-safety.mjs && node scripts/check-workspace-graph.mjs",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "test:unit": "vitest run --project unit --project web",
+    "test:integration": "vitest run --project integration",
+    "test:e2e": "playwright test",
+    "test": "pnpm test:unit && pnpm test:integration",
+    "validate:phase0": "python3 docs/architecture/tools/phase0.py",
+    "contracts:generate": "node packages/contracts/scripts/generate.mjs",
+    "contracts:generate:check": "node packages/contracts/scripts/generate.mjs --check",
+    "migrate": "node packages/db/dist/cli/migrate.js",
+    "deps:licenses": "node scripts/dependency-report.mjs",
+    "scan:deps": "node scripts/scan-deps.mjs",
+    "scan:secrets": "node scripts/scan-secrets.mjs",
+    "verify": "bash scripts/verify.sh"
+  },
+  "devDependencies": {
+    "@eslint/js": "10.0.1",
+    "@playwright/test": "1.63.0",
+    "@testing-library/react": "16.3.3",
+    "@types/node": "24.19.1",
+    "ajv": "8.20.0",
+    "eslint": "10.11.0",
+    "eslint-plugin-react-hooks": "7.1.1",
+    "globals": "17.13.0",
+    "jsdom": "30.1.1",
+    "prettier": "3.9.9",
+    "typescript": "6.0.3",
+    "typescript-eslint": "8.71.0",
+    "vitest": "5.0.3",
+    "@pm/test-support": "workspace:*"
+  }
+}

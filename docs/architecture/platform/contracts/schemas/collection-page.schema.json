@@ -1,0 +1,85 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:pm:schema:collection-page",
+  "title": "Collection page",
+  "x-visibility": "public",
+  "x-max-class": "C2",
+  "type": "object",
+  "required": [
+    "data",
+    "page",
+    "meta"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "data": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "type"
+        ],
+        "additionalProperties": true,
+        "properties": {
+          "id": {
+            "$ref": "urn:pm:schema:common#/$defs/public_id"
+          },
+          "type": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "page": {
+      "type": "object",
+      "required": [
+        "limit",
+        "has_more"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "limit": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 200
+        },
+        "has_more": {
+          "type": "boolean"
+        },
+        "next_cursor": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]{16,2048}$"
+        },
+        "prev_cursor": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]{16,2048}$"
+        },
+        "total": {
+          "type": "object",
+          "required": [
+            "value",
+            "estimated",
+            "capped"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "value": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "estimated": {
+              "type": "boolean"
+            },
+            "capped": {
+              "type": "boolean"
+            }
+          }
+        }
+      }
+    },
+    "meta": {
+      "$ref": "urn:pm:schema:meta"
+    }
+  }
+}

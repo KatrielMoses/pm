@@ -1,0 +1,71 @@
+# Local container environment: PostgreSQL + the production image's commands.
+#   cp compose.env.example compose.env        (replace every value; compose.env is gitignored)
+#   docker compose --env-file compose.env up --build
+# Each service receives only the credentials of its own identity (0C §12.3). Synthetic data only.
+# Not a deployment template: preview/staging/production inject configuration per
+# docs/engineering/environments.md.
+name: pm
+
+x-app: &app
+  build:
+    context: .
+    args: { BUILD_VERSION: 0.1.0-local, BUILD_ID: local }
+  image: pm-app:local
+
+services:
+  db:
+    image: postgres:18.6-bookworm@sha256:3725f4e2499eef5134592b3b4ab79a543ed7f8e533b05b5b637af926630f6650
+    environment:
+      POSTGRES_USER: pm_admin
+      POSTGRES_DB: pm_local
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set in compose.env}
+    ports: ['127.0.0.1:54330:5432']
+    volumes: [pgdata:/var/lib/postgresql]
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U pm_admin -d pm_local']
+      interval: 2s
+      retries: 30
+
+  bootstrap: # provider-level role setup (admin identity), one-shot
+    <<: *app
+    command: ['bootstrap']
+    environment:
+      BOOTSTRAP_ADMIN_URL: postgres://pm_admin:${POSTGRES_PASSWORD}@db:5432/pm_local
+      BOOTSTRAP_DATABASE: pm_local
+      PM_ROLE_PASSWORD_MIGRATOR: ${PM_ROLE_PASSWORD_MIGRATOR:?}
+      PM_ROLE_PASSWORD_RESTORE_OPERATOR: ${PM_ROLE_PASSWORD_RESTORE_OPERATOR:?}
+      PM_ROLE_PASSWORD_APP_RW: ${PM_ROLE_PASSWORD_APP_RW:?}
+      PM_ROLE_PASSWORD_APP_WORKER: ${PM_ROLE_PASSWORD_APP_WORKER:?}
+      PM_ROLE_PASSWORD_DISPATCHER: ${PM_ROLE_PASSWORD_DISPATCHER:?}
+    depends_on: { db: { condition: service_healthy } }
+    restart: 'no'
+
+  migrate: # migrator identity only, one-shot
+    <<: *app
+    command: ['migrate', 'up']
+    environment:
+      APP_ENV: local
+      DATABASE_MIGRATOR_URL: postgres://migrator:${PM_ROLE_PASSWORD_MIGRATOR}@db:5432/pm_local
+    depends_on: { bootstrap: { condition: service_completed_successfully } }
+    restart: 'no'
+
+  web: # app_rw only
+    <<: *app
+    command: ['web']
+    environment:
+      APP_ENV: local
+      DATABASE_APP_URL: postgres://app_rw:${PM_ROLE_PASSWORD_APP_RW}@db:5432/pm_local
+    ports: ['127.0.0.1:3000:3000']
+    depends_on: { migrate: { condition: service_completed_successfully } }
+
+  worker: # app_worker + dispatcher only; no ingress
+    <<: *app
+    command: ['worker']
+    environment:
+      APP_ENV: local
+      DATABASE_WORKER_URL: postgres://app_worker:${PM_ROLE_PASSWORD_APP_WORKER}@db:5432/pm_local
+      DATABASE_DISPATCHER_URL: postgres://dispatcher:${PM_ROLE_PASSWORD_DISPATCHER}@db:5432/pm_local
+    depends_on: { migrate: { condition: service_completed_successfully } }
+
+volumes:
+  pgdata: {}

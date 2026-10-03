@@ -1,0 +1,39 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:pm:schema:success-envelope",
+  "title": "Success envelope",
+  "x-visibility": "public",
+  "x-max-class": "C2",
+  "type": "object",
+  "required": [
+    "data",
+    "meta"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "data": {
+      "type": "object",
+      "required": [
+        "id",
+        "type"
+      ],
+      "additionalProperties": true,
+      "properties": {
+        "id": {
+          "$ref": "urn:pm:schema:common#/$defs/public_id"
+        },
+        "type": {
+          "type": "string",
+          "pattern": "^[a-z_]+$"
+        },
+        "version": {
+          "type": "integer",
+          "minimum": 0
+        }
+      }
+    },
+    "meta": {
+      "$ref": "urn:pm:schema:meta"
+    }
+  }
+}

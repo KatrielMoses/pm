@@ -1,0 +1,10 @@
+{
+  "$schema_ref": "urn:pm:schema:sse-notice",
+  "example": {
+    "id": "1728896400-18",
+    "event": "stream.reset",
+    "data": {
+      "reason": "authorization_changed"
+    }
+  }
+}

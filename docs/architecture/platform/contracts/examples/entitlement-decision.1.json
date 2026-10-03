@@ -1,0 +1,9 @@
+{
+  "$schema_ref": "urn:pm:schema:entitlement-decision",
+  "example": {
+    "key": "audit_export",
+    "available": false,
+    "source": "not_in_plan",
+    "plan_version": "founder-2026-10"
+  }
+}

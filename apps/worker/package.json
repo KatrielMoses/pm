@@ -1,0 +1,22 @@
+{
+  "name": "@pm/worker",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "license": "UNLICENSED",
+  "files": [
+    "dist"
+  ],
+  "dependencies": {
+    "@pm/contracts": "workspace:*",
+    "@pm/config": "workspace:*",
+    "@pm/observability": "workspace:*",
+    "@pm/db": "workspace:*",
+    "@pm/platform": "workspace:*"
+  },
+  "devDependencies": {
+    "@pm/test-support": "workspace:*",
+    "pg": "8.23.1",
+    "@types/pg": "8.23.1"
+  }
+}

@@ -1,0 +1,43 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:pm:schema:usage-estimate",
+  "title": "Usage estimate",
+  "x-visibility": "public",
+  "x-max-class": "C2",
+  "type": "object",
+  "required": [
+    "meter",
+    "low",
+    "high",
+    "basis",
+    "would_exceed_hard_limit",
+    "requires_confirmation"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "meter": {
+      "type": "string"
+    },
+    "low": {
+      "$ref": "urn:pm:schema:common#/$defs/money"
+    },
+    "high": {
+      "$ref": "urn:pm:schema:common#/$defs/money"
+    },
+    "basis": {
+      "$ref": "urn:pm:schema:common#/$defs/cost_basis"
+    },
+    "remaining_allowance": {
+      "$ref": "urn:pm:schema:common#/$defs/money"
+    },
+    "hard_limit": {
+      "$ref": "urn:pm:schema:common#/$defs/money"
+    },
+    "would_exceed_hard_limit": {
+      "type": "boolean"
+    },
+    "requires_confirmation": {
+      "type": "boolean"
+    }
+  }
+}

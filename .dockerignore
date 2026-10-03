@@ -1,0 +1,15 @@
+**/node_modules
+**/dist
+**/*.tsbuildinfo
+.git
+.github
+.local
+.env
+.env.*
+!.env.example
+compose.env
+reports
+coverage
+test-results
+playwright-report
+**/.DS_Store

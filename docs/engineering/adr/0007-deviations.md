@@ -1,0 +1,19 @@
+# ADR-0007: Recorded deviations and interpretations
+
+Status: reviewed (1A review 01). Accepted: D1, D3–D12. **Rejected: D2 — corrected** by migration
+0009 (see below). Each item lists the evidence and the cost to change.
+
+| # | Topic | Brief / Phase 0 text | Implementation | Why | Cost to change |
+|---|---|---|---|---|---|
+| D1 | Execution schema name | Brief: schema `execution` | Schema **`exec`** | 0B model (`modules[execution].schema = "exec"`) and 0B §10.1 are authoritative for structure | Low now (rename schema + references in one migration); grows with every module |
+| D2 | `workspace_id` foreign keys | 0B §2.4: workspace-scoped rows reference `tenancy.workspace` | **Corrected (review 01).** Migration 0009 adds `<table>_workspace_fkey` on all seven `exec` tenant tables → `tenancy.workspace(id)` `ON DELETE RESTRICT`, validated, with supporting indexes; composite same-workspace keys retained | Review rejected the layering argument: referential integrity is enforced in the database. There is no initialization cycle (enums 0001 → workspace 0003 → keys 0009), so shared vocabularies stay in `exec` | — |
+| D3 | FKs into partition candidates | 0B §10.9: no FKs into append-heavy tables (`operation`, `attempt`) | attempts, jobs, outbox events, idempotency keys, and effects reference `exec.operation` | Integrity now; partitioning is not triggered (DQ-20) | Medium: replace FKs with checks when partitioning |
+| D4 | Job dedupe scope | 0B: unique `(queue, dedupe_key)` while active | `(workspace_id, queue, dedupe_key)` while `queued`/`leased`/`retry_scheduled` | A global key would let one tenant block, or detect, another tenant's job | Low |
+| D5 | Platform jobs | 0B: `job.workspace_id` nullable for platform jobs | `NOT NULL` in 1A | No platform jobs yet; relaxing is an additive change | Low |
+| D6 | `/v1/status` envelope | 0D success-envelope requires `data.id` (public ID) | **Accepted specialization:** `platformSingletonEnvelope` allows the id-less shape only for the closed list `PLATFORM_SINGLETON_TYPES = [platform_status]`; ordinary resources must use `successEnvelope`, which rejects missing or non-public IDs. A unit test confines the singleton builder to the `/v1/status` route | Non-record singleton health/status response | Low |
+| D7 | Additional job/outbox columns | 0B lists key columns "not exhaustively" | Added `lease_token`, `lease_owner`, `completed_steps`, `checkpoint`, `cancel_requested_at`, `finished_at` (job); `attempt_id`, `traceparent`, `delegation_depth`, dispatch lease (outbox); `public_id`, `job_id`, `worker_lost` (attempt) | Lease fencing, step checkpoints (0D §7.6), trace propagation, 0D `att_` and `worker_lost` | — |
+| D8 | Worker-lost attempt | 0D §7.3: "a new attempt is recorded with `worker_lost: true`" | The **lost** attempt is closed with `worker_lost: true`; the next claim records a new attempt | Marks the attempt that actually lost its worker; the next attempt is ordinary | Low |
+| D9 | Error sampling | 0D §17.2: always sample errors | Head-based ratio sampling only | Needs tail sampling in a collector (vendor decision) | Configuration only |
+| D10 | Test database | Brief: "isolated disposable database through containers" | Testcontainers (`PM_TEST_PG=container`) is the acceptance and CI path; `scripts/verify.sh` refuses to run without a container runtime. Embedded PostgreSQL binaries remain a developer-only fallback (`PM_DEV_ALLOW_EMBEDDED_PG=1`, exit 3, refused in CI) | Accepted with the container path required | None |
+| D11 | Role set | 0C §12.3 also lists `app_ro`, `audit_maintainer`, `platform_support` | Not created in 1A | No consumers yet (replicas, 1F, support tooling) | Low (bootstrap additions) |
+| D12 | TypeScript version | Brief: current stable releases | TypeScript 6.0.3 (not 7.0.2) | Lint toolchain support, see ADR-0001 | Low |

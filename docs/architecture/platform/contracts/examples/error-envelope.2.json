@@ -1,0 +1,32 @@
+{
+  "$schema_ref": "urn:pm:schema:error-envelope",
+  "example": {
+    "error": {
+      "code": "conflict",
+      "status": 409,
+      "message": "This item was changed by someone else.",
+      "retryable": false,
+      "request_id": "req_01J9ZK3Q5B8V2N4M6P7R9S0T1W",
+      "correlation_id": "4bf92f3577b34da6a3ce929d0e0e4736",
+      "conflict": {
+        "current_version": 43,
+        "would_merge": [
+          "priority"
+        ],
+        "fields": [
+          {
+            "field": "due_date",
+            "yours": "2026-10-16",
+            "theirs": "2026-10-15",
+            "theirs_readable": true,
+            "changed_by": {
+              "type": "human",
+              "id": "mem_01J9ZK3Q5B8V2N4M6P7R9S0T1B"
+            },
+            "changed_at": "2026-10-14T09:00:00.000Z"
+          }
+        ]
+      }
+    }
+  }
+}

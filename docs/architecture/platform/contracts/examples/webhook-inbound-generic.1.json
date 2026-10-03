@@ -1,0 +1,16 @@
+{
+  "$schema_ref": "urn:pm:schema:webhook-inbound-generic",
+  "example": {
+    "event_id": "optestra-run-88123-result-17",
+    "type": "test_result.recorded",
+    "occurred_at": "2026-10-14T09:00:00.000Z",
+    "data": {
+      "run": "88123",
+      "case_key": "login.happy_path",
+      "outcome": "failed",
+      "evidence_urls": [
+        "https://runner.example/artifacts/88123/17"
+      ]
+    }
+  }
+}

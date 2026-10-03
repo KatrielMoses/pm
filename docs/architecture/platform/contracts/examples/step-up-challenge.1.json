@@ -1,0 +1,15 @@
+{
+  "$schema_ref": "urn:pm:schema:step-up-challenge",
+  "example": {
+    "id": "stp_01J9ZK3Q5B8V2N4M6P7R9S0T1C",
+    "type": "step_up_challenge",
+    "action_key": "ownership.transfer",
+    "methods": [
+      "password",
+      "webauthn"
+    ],
+    "expires_at": "2026-10-14T09:00:00.000Z",
+    "state": "pending",
+    "verify": "/v1/auth/step-up/stp_01J9ZK3Q5B8V2N4M6P7R9S0T1C:verify"
+  }
+}

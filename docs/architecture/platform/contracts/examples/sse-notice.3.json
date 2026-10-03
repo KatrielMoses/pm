@@ -1,0 +1,7 @@
+{
+  "$schema_ref": "urn:pm:schema:sse-notice",
+  "example": {
+    "id": "1728896400-19",
+    "event": "heartbeat"
+  }
+}

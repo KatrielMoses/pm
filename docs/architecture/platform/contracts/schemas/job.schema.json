@@ -1,0 +1,103 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:pm:schema:job",
+  "title": "Job",
+  "x-visibility": "internal",
+  "x-max-class": "C2",
+  "type": "object",
+  "required": [
+    "id",
+    "queue",
+    "kind",
+    "workspace_id",
+    "state",
+    "attempt_number",
+    "max_attempts",
+    "run_at",
+    "context"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "id": {
+      "$ref": "urn:pm:schema:common#/$defs/internal_uuid"
+    },
+    "queue": {
+      "type": "string",
+      "pattern": "^[a-z_]+$"
+    },
+    "kind": {
+      "type": "string",
+      "pattern": "^[a-z_.]+$"
+    },
+    "workspace_id": {
+      "$ref": "urn:pm:schema:common#/$defs/internal_uuid"
+    },
+    "state": {
+      "type": "string",
+      "enum": [
+        "queued",
+        "leased",
+        "succeeded",
+        "retry_scheduled",
+        "dead",
+        "cancelled"
+      ]
+    },
+    "operation_id": {
+      "$ref": "urn:pm:schema:common#/$defs/internal_uuid"
+    },
+    "attempt_number": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "max_attempts": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "run_at": {
+      "$ref": "urn:pm:schema:common#/$defs/timestamp"
+    },
+    "lease_until": {
+      "$ref": "urn:pm:schema:common#/$defs/timestamp"
+    },
+    "heartbeat_at": {
+      "$ref": "urn:pm:schema:common#/$defs/timestamp"
+    },
+    "timeout_seconds": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "dedupe_key": {
+      "type": "string"
+    },
+    "context": {
+      "$ref": "urn:pm:schema:execution-context"
+    },
+    "payload_ref": {
+      "type": "string"
+    },
+    "last_error": {
+      "type": "object",
+      "required": [
+        "class"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "class": {
+          "type": "string",
+          "enum": [
+            "transient",
+            "deterministic",
+            "authorization",
+            "policy",
+            "worker_lost",
+            "timeout"
+          ]
+        },
+        "code": {
+          "type": "string"
+        }
+      }
+    }
+  }
+}

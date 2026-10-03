@@ -1,0 +1,130 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:pm:schema:partial-result",
+  "title": "Partial result",
+  "x-visibility": "public",
+  "x-max-class": "C2",
+  "type": "object",
+  "required": [
+    "outcome",
+    "counts"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "outcome": {
+      "type": "string",
+      "enum": [
+        "succeeded",
+        "partial",
+        "failed"
+      ]
+    },
+    "counts": {
+      "type": "object",
+      "required": [
+        "applied",
+        "conflict",
+        "failed",
+        "skipped",
+        "not_found"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "applied": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "conflict": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "failed": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "skipped": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "not_found": {
+          "type": "integer",
+          "minimum": 0
+        }
+      }
+    },
+    "items": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "ref",
+          "status"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "ref": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "applied",
+              "conflict",
+              "failed",
+              "skipped",
+              "not_found"
+            ]
+          },
+          "error": {
+            "type": "object",
+            "required": [
+              "code"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "code": {
+                "type": "string"
+              },
+              "message": {
+                "type": "string"
+              }
+            }
+          },
+          "conflict": {
+            "$ref": "urn:pm:schema:conflict"
+          }
+        }
+      }
+    },
+    "side_effects": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "effect_key",
+          "state"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "effect_key": {
+            "type": "string"
+          },
+          "state": {
+            "type": "string",
+            "enum": [
+              "pending",
+              "sent",
+              "unknown",
+              "confirmed",
+              "failed",
+              "cancelled"
+            ]
+          },
+          "description": {
+            "type": "string"
+          }
+        }
+      }
+    }
+  }
+}

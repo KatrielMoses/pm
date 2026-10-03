@@ -1,0 +1,58 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:pm:schema:webhook-delivery",
+  "title": "Webhook delivery",
+  "x-visibility": "public",
+  "x-max-class": "C2",
+  "type": "object",
+  "required": [
+    "id",
+    "event_id",
+    "subscription",
+    "attempt",
+    "state",
+    "created_at"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "id": {
+      "$ref": "urn:pm:schema:common#/$defs/public_id"
+    },
+    "event_id": {
+      "$ref": "urn:pm:schema:common#/$defs/public_id"
+    },
+    "subscription": {
+      "$ref": "urn:pm:schema:common#/$defs/public_id"
+    },
+    "attempt": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "state": {
+      "type": "string",
+      "enum": [
+        "pending",
+        "delivered",
+        "retry_scheduled",
+        "failed",
+        "unknown",
+        "disabled_endpoint"
+      ]
+    },
+    "response_status": {
+      "type": "integer",
+      "minimum": 100,
+      "maximum": 599
+    },
+    "duration_ms": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "next_attempt_at": {
+      "$ref": "urn:pm:schema:common#/$defs/timestamp"
+    },
+    "created_at": {
+      "$ref": "urn:pm:schema:common#/$defs/timestamp"
+    }
+  }
+}

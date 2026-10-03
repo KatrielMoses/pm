@@ -1,0 +1,14 @@
+packages:
+  - apps/*
+  - packages/*
+
+# Exact versions only; the lockfile is authoritative.
+saveExact: true
+engineStrict: true
+allowBuilds:
+  '@embedded-postgres/darwin-arm64': true
+  '@embedded-postgres/linux-arm64': true
+  '@embedded-postgres/linux-x64': true
+  cpu-features: false
+  protobufjs: false
+  ssh2: false

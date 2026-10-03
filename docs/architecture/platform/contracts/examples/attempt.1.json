@@ -1,0 +1,15 @@
+{
+  "$schema_ref": "urn:pm:schema:attempt",
+  "example": {
+    "id": "att_01J9ZK3Q5B8V2N4M6P7R9S0T1E",
+    "number": 2,
+    "state": "failed",
+    "terminal_reason": "timed_out",
+    "error": {
+      "code": "dependency_unavailable",
+      "retryable": true
+    },
+    "started_at": "2026-10-14T09:00:00.000Z",
+    "ended_at": "2026-10-14T09:00:00.000Z"
+  }
+}

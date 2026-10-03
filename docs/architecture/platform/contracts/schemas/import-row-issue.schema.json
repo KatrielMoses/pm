@@ -1,0 +1,41 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:pm:schema:import-row-issue",
+  "title": "Import row issue",
+  "x-visibility": "public",
+  "x-max-class": "C2",
+  "type": "object",
+  "required": [
+    "row_number",
+    "code",
+    "severity",
+    "message"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "row_number": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "source_row_key": {
+      "type": "string"
+    },
+    "column": {
+      "type": "string"
+    },
+    "code": {
+      "type": "string",
+      "pattern": "^[a-z_]+$"
+    },
+    "severity": {
+      "type": "string",
+      "enum": [
+        "error",
+        "warning"
+      ]
+    },
+    "message": {
+      "type": "string"
+    }
+  }
+}

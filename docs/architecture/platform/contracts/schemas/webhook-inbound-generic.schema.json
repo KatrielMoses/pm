@@ -1,0 +1,33 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:pm:schema:webhook-inbound-generic",
+  "title": "Webhook inbound generic",
+  "x-visibility": "public",
+  "x-max-class": "C2",
+  "type": "object",
+  "required": [
+    "event_id",
+    "type",
+    "occurred_at",
+    "data"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "event_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 200
+    },
+    "type": {
+      "type": "string",
+      "pattern": "^[a-z_]+\\.[a-z_]+$"
+    },
+    "occurred_at": {
+      "$ref": "urn:pm:schema:common#/$defs/timestamp"
+    },
+    "data": {
+      "type": "object",
+      "x-class": "C2"
+    }
+  }
+}

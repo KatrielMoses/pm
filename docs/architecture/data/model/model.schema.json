@@ -1,0 +1,70 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$comment": "Structure of model.json. Checked by tools/datamodel.py (type/required/enum/properties/items/additionalProperties subset). Vocabulary membership and cross-references are checked by the tool, not this schema.",
+  "type": "object",
+  "required": ["schema_version", "status", "vocabulary", "modules", "entities"],
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": {"type": "integer"},
+    "status": {"type": "string"},
+    "vocabulary": {
+      "type": "object",
+      "required": ["scopes", "lifecycles", "concurrency", "retention_classes", "confidentiality", "export", "search_ai", "secrets", "volume"],
+      "additionalProperties": {"type": "object", "additionalProperties": {"type": "string"}}
+    },
+    "modules": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "name", "layer", "schema", "responsibilities", "depends_on", "publishes", "feature_sections"],
+        "additionalProperties": false,
+        "properties": {
+          "id": {"type": "string"},
+          "name": {"type": "string"},
+          "layer": {"type": "integer"},
+          "schema": {"type": "string"},
+          "responsibilities": {"type": "string"},
+          "depends_on": {"type": "array", "items": {"type": "string"}},
+          "publishes": {"type": "array", "items": {"type": "string"}},
+          "feature_sections": {"type": "array", "items": {"type": "string"}}
+        }
+      }
+    },
+    "entities": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["name", "module", "purpose", "scope", "addressable", "public_id_prefix", "extends", "containment_parents",
+                     "associations", "lifecycle", "concurrency", "retention_class", "confidentiality", "volume", "export",
+                     "search_ai", "may_contain_secrets", "personal_data", "uniqueness", "sensitive_fields", "key_columns",
+                     "requirements", "notes"],
+        "additionalProperties": false,
+        "properties": {
+          "name": {"type": "string"},
+          "module": {"type": "string"},
+          "purpose": {"type": "string"},
+          "scope": {"type": "string"},
+          "addressable": {"type": "boolean"},
+          "public_id_prefix": {"type": ["string", "null"]},
+          "extends": {"type": ["string", "null"]},
+          "containment_parents": {"type": "array", "items": {"type": "string"}},
+          "associations": {"type": "array", "items": {"type": "string"}},
+          "lifecycle": {"type": "string"},
+          "concurrency": {"type": "string"},
+          "retention_class": {"type": "string"},
+          "confidentiality": {"type": "string"},
+          "volume": {"type": "string"},
+          "export": {"type": "string"},
+          "search_ai": {"type": "string"},
+          "may_contain_secrets": {"type": "string"},
+          "personal_data": {"type": "string", "enum": ["no", "incidental", "yes"]},
+          "uniqueness": {"type": "array", "items": {"type": "string"}},
+          "sensitive_fields": {"type": "array", "items": {"type": "string"}},
+          "key_columns": {"type": "array", "items": {"type": "string"}},
+          "requirements": {"type": "array", "items": {"type": "string"}},
+          "notes": {"type": "string"}
+        }
+      }
+    }
+  }
+}

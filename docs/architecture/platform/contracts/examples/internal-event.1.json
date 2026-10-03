@@ -1,0 +1,33 @@
+{
+  "$schema_ref": "urn:pm:schema:internal-event",
+  "example": {
+    "event_id": "0192a3b4-c5d6-7e8f-9a0b-1c2d3e4f5a6b",
+    "type": "work.task.completed",
+    "schema_version": 1,
+    "occurred_at": "2026-10-14T09:00:00.000Z",
+    "recorded_at": "2026-10-14T09:00:00.000Z",
+    "workspace_id": "0192a3b4-c5d6-7e8f-9a0b-1c2d3e4f5a6b",
+    "brand_id": "0192a3b4-c5d6-7e8f-9a0b-1c2d3e4f5a6b",
+    "aggregate": {
+      "type": "task",
+      "id": "0192a3b4-c5d6-7e8f-9a0b-1c2d3e4f5a6b",
+      "sequence": 43
+    },
+    "actor": {
+      "type": "human",
+      "id": "0192a3b4-c5d6-7e8f-9a0b-1c2d3e4f5a6b"
+    },
+    "auth": {
+      "workspace_epoch": 1812,
+      "delegation_depth": 1
+    },
+    "correlation_id": "4bf92f3577b34da6a3ce929d0e0e4736",
+    "operation_id": "0192a3b4-c5d6-7e8f-9a0b-1c2d3e4f5a6b",
+    "data": {
+      "status_category": "done",
+      "completed_at": "2026-10-14T09:00:00.000Z",
+      "project_id": "0192a3b4-c5d6-7e8f-9a0b-1c2d3e4f5a6b"
+    },
+    "max_class": "C1"
+  }
+}

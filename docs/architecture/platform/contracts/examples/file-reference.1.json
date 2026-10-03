@@ -1,0 +1,18 @@
+{
+  "$schema_ref": "urn:pm:schema:file-reference",
+  "example": {
+    "id": "fv_01J9ZK3Q5B8V2N4M6P7R9S0T1Y",
+    "type": "file_version",
+    "file": "file_01J9ZK3Q5B8V2N4M6P7R9S0T1W",
+    "version_number": 1,
+    "source": "upload",
+    "name": "trace.zip",
+    "content_type": "application/zip",
+    "byte_size": 1048576,
+    "sha256": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+    "scan_state": "clean",
+    "preview_state": "unsupported",
+    "evidence_locked": true,
+    "download": "/v1/workspaces/ws_01J9ZK3Q5B8V2N4M6P7R9S0T1K/file-versions/fv_01J9ZK3Q5B8V2N4M6P7R9S0T1Y:download"
+  }
+}

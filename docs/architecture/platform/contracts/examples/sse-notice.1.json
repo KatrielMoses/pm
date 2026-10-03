@@ -1,0 +1,13 @@
+{
+  "$schema_ref": "urn:pm:schema:sse-notice",
+  "example": {
+    "id": "1728896400-17",
+    "event": "record.changed",
+    "data": {
+      "record": {
+        "id": "tsk_01J9ZK3Q5B8V2N4M6P7R9S0T1V",
+        "version": 43
+      }
+    }
+  }
+}

@@ -1,0 +1,3220 @@
+{
+  "schema_version": 1,
+  "status": "proposed (Phase 0C)",
+  "invariants": [
+    {
+      "id": "I-01",
+      "text": "Deny by default: an action is allowed only when a rule in this model allows it; missing data, missing context, or evaluation errors deny."
+    },
+    {
+      "id": "I-02",
+      "text": "Every request is evaluated inside exactly one workspace tenant context, except explicitly privileged platform operations that run under a separate identity and iterate workspaces explicitly."
+    },
+    {
+      "id": "I-03",
+      "text": "Tenant isolation is evaluated first and cannot be granted, shared, elevated, or overridden by any role, grant, or support process."
+    },
+    {
+      "id": "I-04",
+      "text": "Access is never inferred from IDs, URLs, relationships, mentions, notifications, search indexes, cached projections, or ownership labels."
+    },
+    {
+      "id": "I-05",
+      "text": "Relationships and associations never grant access; containment inherits only scope grants (brand/project) and never share grants."
+    },
+    {
+      "id": "I-06",
+      "text": "The all-brands view aggregates authorized records and owns no data."
+    },
+    {
+      "id": "I-07",
+      "text": "Inaccessible records, brands, relationships, counts, types, snippets, derived conditions, and related metadata are omitted; not-found and not-authorized are indistinguishable."
+    },
+    {
+      "id": "I-08",
+      "text": "Authorization is applied before data contributes to counts, sorting, pagination, calculations, recommendations, AI context, exports, notifications, or webhooks."
+    },
+    {
+      "id": "I-09",
+      "text": "Client-side permission checks are presentation only; the server re-evaluates every request and never trusts client-supplied workspace, brand, role, plan, approval, or actor fields."
+    },
+    {
+      "id": "I-10",
+      "text": "Ownership (record owner, connection owner) is a responsibility field, not an access grant."
+    },
+    {
+      "id": "I-11",
+      "text": "No principal can grant, share, delegate, or configure authority beyond its own grantable authority."
+    },
+    {
+      "id": "I-12",
+      "text": "Revocation takes effect on the next authorization check everywhere: sessions, caches, live streams, jobs, agent tool calls, tokens, and external access paths. In-flight external effects are cancelled when safely possible; already-sent content cannot be recalled and is recorded as such."
+    },
+    {
+      "id": "I-13",
+      "text": "Plan entitlements can only remove capabilities; they never grant data access."
+    },
+    {
+      "id": "I-14",
+      "text": "Execution layers (AI, agents, automations, integrations, tokens, jobs) never have a broader read or write path than the delegating principal and their explicit scope; access can only shrink during execution."
+    },
+    {
+      "id": "I-15",
+      "text": "Agents, automations, integrations, and AI can never approve, accept, verify, or decide; only authorized humans can."
+    },
+    {
+      "id": "I-16",
+      "text": "Secrets are never readable after storage and never appear in records, permission data, logs, errors, exports, prompts, search, or audit display."
+    },
+    {
+      "id": "I-17",
+      "text": "Every material permission change, elevation, support access, and denied high-risk attempt produces an immutable audit or security event."
+    },
+    {
+      "id": "I-18",
+      "text": "Field-level restrictions propagate to every derived output: filters, sorts, formulas, conflicts, history, activity, notifications, search, exports, AI."
+    }
+  ],
+  "principals": [
+    {
+      "id": "account",
+      "class": "human",
+      "description": "Authenticated person (identity). Holds no tenant rights by itself; selects one membership per request.",
+      "entity": "identity.account",
+      "platform_only": false
+    },
+    {
+      "id": "member",
+      "class": "human",
+      "description": "Active non-guest workspace membership (owner, administrator, member, limited member, read-only roles).",
+      "entity": "tenancy.membership",
+      "platform_only": false
+    },
+    {
+      "id": "guest",
+      "class": "human",
+      "description": "Guest membership: access only to records explicitly shared with it.",
+      "entity": "tenancy.membership",
+      "platform_only": false
+    },
+    {
+      "id": "team",
+      "class": "grant_holder",
+      "description": "Group of memberships; holds grants, never acts.",
+      "entity": "tenancy.team",
+      "platform_only": false
+    },
+    {
+      "id": "support_operator",
+      "class": "platform",
+      "description": "Platform staff identity from a separate identity provider; no tenant access without a customer-granted, time-boxed support access grant or audited break-glass.",
+      "entity": null,
+      "platform_only": true
+    },
+    {
+      "id": "api_token_personal",
+      "class": "delegated",
+      "description": "Token acting as its creator: creator's current access ∩ token scopes.",
+      "entity": "integrations.api_token",
+      "platform_only": false
+    },
+    {
+      "id": "service_principal",
+      "class": "service",
+      "description": "Workspace service identity with explicit grants and an accountable owner; used by service API tokens.",
+      "entity": "access.service_principal",
+      "platform_only": false
+    },
+    {
+      "id": "oauth_client",
+      "class": "delegated",
+      "description": "External assistant or MCP client acting for a consenting user: user's current access ∩ consented scopes ∩ client registration scopes.",
+      "entity": "integrations.oauth_client",
+      "platform_only": false
+    },
+    {
+      "id": "integration_connection",
+      "class": "service",
+      "description": "Connection identity for sync: mapped brand/project scopes ∩ provider scopes ∩ connection owner's current authority for outbound disclosure.",
+      "entity": "integrations.connection",
+      "platform_only": false
+    },
+    {
+      "id": "inbound_webhook",
+      "class": "service",
+      "description": "Signature-authenticated endpoint limited to one configured intake action into one configured scope; no read access.",
+      "entity": "integrations.inbound_endpoint",
+      "platform_only": false
+    },
+    {
+      "id": "automation",
+      "class": "service",
+      "description": "Automation definition's service principal: declared scope and action set ∩ accountable owner's current authority ∩ trigger record scope.",
+      "entity": "automation.automation",
+      "platform_only": false
+    },
+    {
+      "id": "ai_action",
+      "class": "delegated",
+      "description": "AI action on behalf of a human: initiating human's current access ∩ explicitly selected context; no grants of its own.",
+      "entity": "ai.ai_action",
+      "platform_only": false
+    },
+    {
+      "id": "agent_profile",
+      "class": "service",
+      "description": "Agent identity with explicit scope grants and tool-class grants.",
+      "entity": "agents.agent_profile",
+      "platform_only": false
+    },
+    {
+      "id": "agent_run",
+      "class": "delegated",
+      "description": "Run scope = profile grants ∩ assigner access ∩ assignment scope at start, re-evaluated on every tool call (can only shrink).",
+      "entity": "agents.agent_run",
+      "platform_only": false
+    },
+    {
+      "id": "tool_invocation",
+      "class": "delegated",
+      "description": "One tool call: run scope ∩ tool class grant ∩ approval state of its action class.",
+      "entity": "agents.agent_tool_call",
+      "platform_only": false
+    },
+    {
+      "id": "system_job",
+      "class": "platform",
+      "description": "Background job with a durable workspace and effective-principal context; system jobs hold only their job kind's allow-listed capabilities.",
+      "entity": "execution.job",
+      "platform_only": false
+    },
+    {
+      "id": "anonymous_public",
+      "class": "disabled",
+      "description": "Public unauthenticated link visitor. Disabled by default; future capability requiring a separate threat model and OD-27 approval.",
+      "entity": null,
+      "platform_only": true
+    }
+  ],
+  "access_levels": [
+    {
+      "id": "view",
+      "includes": [
+        "read",
+        "follow",
+        "download"
+      ]
+    },
+    {
+      "id": "comment",
+      "includes": [
+        "comment",
+        "react",
+        "mention",
+        "review decision when designated"
+      ]
+    },
+    {
+      "id": "edit",
+      "includes": [
+        "create in scope",
+        "update",
+        "assign",
+        "relate",
+        "upload",
+        "archive",
+        "trash",
+        "restore",
+        "complete"
+      ]
+    },
+    {
+      "id": "manage",
+      "includes": [
+        "share",
+        "grant scope roles ≤ own",
+        "restrict",
+        "configure scope",
+        "approve brand lines"
+      ]
+    }
+  ],
+  "roles": [
+    {
+      "id": "owner",
+      "membership_kind": "member",
+      "description": "Implicit manage on all non-sensitive brands and workspace scope; all administrative capabilities; only role for non-delegable actions. Sensitive brands/restricted projects need explicit grants or audited elevation.",
+      "level_cap": null,
+      "can_assign_roles": [
+        "owner",
+        "administrator",
+        "member",
+        "limited_member",
+        "read_only",
+        "guest"
+      ]
+    },
+    {
+      "id": "administrator",
+      "membership_kind": "member",
+      "description": "Implicit manage on non-sensitive brands; workspace administration except billing ownership, deletion, ownership transfer, retention, legal hold.",
+      "level_cap": null,
+      "can_assign_roles": [
+        "administrator",
+        "member",
+        "limited_member",
+        "read_only",
+        "guest"
+      ]
+    },
+    {
+      "id": "member",
+      "membership_kind": "member",
+      "description": "No implicit brand access; brand/project access via scope grants; workspace-scoped records at the workspace default level (view).",
+      "level_cap": null,
+      "can_assign_roles": [
+        "guest"
+      ]
+    },
+    {
+      "id": "limited_member",
+      "membership_kind": "member",
+      "description": "Internal user with no implicit workspace or brand access; only explicit brand/project/record grants; reduced administrative abilities.",
+      "level_cap": null,
+      "can_assign_roles": []
+    },
+    {
+      "id": "read_only",
+      "membership_kind": "member",
+      "description": "All access capped at view; no comments, edits, or execution beyond policy-enabled read-only AI.",
+      "level_cap": "view",
+      "can_assign_roles": []
+    },
+    {
+      "id": "guest",
+      "membership_kind": "guest",
+      "description": "External user; only explicitly shared records at the share level (≤ edit); no scope grants, directory, aggregation, trash, or onward sharing.",
+      "level_cap": "edit",
+      "can_assign_roles": []
+    }
+  ],
+  "risk_classes": [
+    {
+      "id": "R0",
+      "meaning": "Informational or trivially reversible internal action",
+      "default_controls": "none"
+    },
+    {
+      "id": "R1",
+      "meaning": "Reversible internal change",
+      "default_controls": "none (undo available)"
+    },
+    {
+      "id": "R2",
+      "meaning": "Significant internal change or configuration",
+      "default_controls": "confirmation; agents need review"
+    },
+    {
+      "id": "R3",
+      "meaning": "External disclosure, financial, access-changing, or integration effect",
+      "default_controls": "confirmation + step-up where flagged; agents/automations need human approval or a pre-approved standing grant"
+    },
+    {
+      "id": "R4",
+      "meaning": "Irreversible, production, security, ownership, or legal effect",
+      "default_controls": "step-up; independent approver when policy enabled and available; never automatable"
+    }
+  ],
+  "approval_classes": [
+    {
+      "id": "none",
+      "meaning": "No approval beyond authorization."
+    },
+    {
+      "id": "confirmation",
+      "meaning": "Explicit user confirmation (0E confirmation tiers)."
+    },
+    {
+      "id": "designated_human",
+      "meaning": "A designated human reviewer/approver decides."
+    },
+    {
+      "id": "independent_if_available",
+      "meaning": "An approver other than the requester when another approval-capable human exists; otherwise labelled self-approval if policy allows."
+    },
+    {
+      "id": "two_person",
+      "meaning": "Independent approver plus step-up authentication."
+    },
+    {
+      "id": "human_approval",
+      "meaning": "For agent tool classes: a human approval per action instance."
+    },
+    {
+      "id": "review_required",
+      "meaning": "For agent tool classes: changes held for human review before taking effect."
+    },
+    {
+      "id": "low_impact_policy",
+      "meaning": "For agent tool classes: allowed without per-action review when workspace low-impact policy enables it (OD-23)."
+    }
+  ],
+  "agent_tool_classes": [
+    {
+      "id": "read_records",
+      "risk_class": "R0",
+      "approval_class": "none",
+      "description": "Read authorized records within run scope."
+    },
+    {
+      "id": "draft_content",
+      "risk_class": "R0",
+      "approval_class": "low_impact_policy",
+      "description": "Draft comments/documents in draft state."
+    },
+    {
+      "id": "create_subtasks",
+      "risk_class": "R1",
+      "approval_class": "low_impact_policy",
+      "description": "Create subtasks under the run's own task."
+    },
+    {
+      "id": "attach_artifacts",
+      "risk_class": "R0",
+      "approval_class": "low_impact_policy",
+      "description": "Attach artifacts/deliverable versions to the run's task."
+    },
+    {
+      "id": "update_records",
+      "risk_class": "R1",
+      "approval_class": "review_required",
+      "description": "Update fields of records in scope."
+    },
+    {
+      "id": "run_tests",
+      "risk_class": "R1",
+      "approval_class": "low_impact_policy",
+      "description": "Trigger test runs in non-production environments."
+    },
+    {
+      "id": "code_change",
+      "risk_class": "R2",
+      "approval_class": "review_required",
+      "description": "Push branches or open pull requests in mapped repositories."
+    },
+    {
+      "id": "external_message",
+      "risk_class": "R3",
+      "approval_class": "human_approval",
+      "description": "Send messages outside the product (email, chat, issue comments)."
+    },
+    {
+      "id": "publish",
+      "risk_class": "R3",
+      "approval_class": "human_approval",
+      "description": "Publish content externally."
+    },
+    {
+      "id": "spend",
+      "risk_class": "R3",
+      "approval_class": "human_approval",
+      "description": "Incur cost beyond the run's reserved budget or purchase."
+    },
+    {
+      "id": "access_change",
+      "risk_class": "R4",
+      "approval_class": "human_approval",
+      "description": "Change permissions, shares, tokens, or memberships."
+    },
+    {
+      "id": "destructive",
+      "risk_class": "R4",
+      "approval_class": "human_approval",
+      "description": "Trash, purge, overwrite, or delete data."
+    },
+    {
+      "id": "production_change",
+      "risk_class": "R4",
+      "approval_class": "human_approval",
+      "description": "Deploy, migrate, or change production systems."
+    },
+    {
+      "id": "scope_expansion",
+      "risk_class": "R3",
+      "approval_class": "human_approval",
+      "description": "Read or act outside the snapshot scope (always requires a new approved assignment)."
+    }
+  ],
+  "actions": [
+    {
+      "key": "record.read",
+      "kind": "record",
+      "scopes": [
+        "brand",
+        "project",
+        "record",
+        "workspace"
+      ],
+      "description": "Read a record and its own comments/attachments.",
+      "required_level": "view",
+      "risk_class": "R0",
+      "approval_class": "none",
+      "step_up": false,
+      "second_approval": false,
+      "non_delegable": false,
+      "entitlement": null,
+      "roles": {
+        "owner": "implicit",
+        "administrator": "implicit",
+        "member": "grant:view",
+        "limited_member": "grant:view",
+        "read_only": "grant:view",
+        "guest": "grant:view"
+      },
+      "requirements": [
+        "PERM-004",
+        "LA-016"
+      ],
+      "notes": ""
+    },
+    {
+      "key": "record.create",
+      "kind": "record",
+      "scopes": [
+        "workspace",
+        "brand",
+        "project",
+        "record"
+      ],
+      "description": "Create a record in a container.",
+      "required_level": "edit",
+      "risk_class": "R1",
+      "approval_class": "none",
+      "step_up": false,
+      "second_approval": false,
+      "non_delegable": false,
+      "entitlement": null,
+      "roles": {
+        "owner": "implicit",
+        "administrator": "implicit",
+        "member": "grant:edit",
+        "limited_member": "grant:edit",
+        "read_only": "deny",
+        "guest": "grant:edit"
+      },
+      "requirements": [
+        "PRJ-001",
+        "TSK-001"
+      ],
+      "notes": ""
+    },
+    {
+      "key": "record.update",
+      "kind": "record",
+      "scopes": [
+        "brand",
+        "project",
+        "record",
+        "workspace"
+      ],
+      "description": "Edit fields of a record.",
+      "required_level": "edit",
+      "risk_class": "R1",
+      "approval_class": "none",
+      "step_up": false,
+      "second_approval": false,
+      "non_delegable": false,
+      "entitlement": null,
+      "roles": {
+        "owner": "implicit",
+        "administrator": "implicit",
+        "member": "grant:edit",
+        "limited_member": "grant:edit",
+        "read_only": "deny",
+        "guest": "grant:edit"
+      },
+      "requirements": [
+        "PERM-004"
+      ],
+      "notes": ""
+    },
+    {
+      "key": "record.archive",
+      "kind": "record",
+      "scopes": [
+        "brand",
+        "project",
+        "record",
+        "workspace"
+      ],
+      "description": "Archive a record and its contained subtree.",
+      "required_level": "edit",
+      "risk_class": "R1",
+      "approval_class": "none",
+      "step_up": false,
+      "second_approval": false,
+      "non_delegable": false,
+      "entitlement": null,
+      "roles": {
+        "owner": "implicit",
+        "administrator": "implicit",
+        "member": "grant:edit",
+        "limited_member": "grant:edit",
+        "read_only": "deny",
+        "guest": "deny"
+      },
+      "requirements": [
+        "PRJ-001"
+      ],
+      "notes": ""
+    },
+    {
+      "key": "record.restore",
+      "kind": "record",
+      "scopes": [
+        "brand",
+        "project",
+        "record",
+        "workspace"
+      ],
+      "description": "Restore from archive or trash using current effective permission.",
+      "required_level": "edit",
+      "risk_class": "R1",
+      "approval_class": "none",
+      "step_up": false,
+      "second_approval": false,
+      "non_delegable": false,
+      "entitlement": null,
+      "roles": {
+        "owner": "implicit",
+        "administrator": "implicit",
+        "member": "grant:edit",
+        "limited_member": "grant:edit",
+        "read_only": "deny",
+        "guest": "deny"
+      },
+      "requirements": [
+        "LA-018"
+      ],
+      "notes": ""
+    },
+    {
+      "key": "record.trash",
+      "kind": "record",
+      "scopes": [
+        "brand",
+        "project",
+        "record",
+        "workspace"
+      ],
+      "description": "Move a record (and batch) to trash.",
+      "required_level": "edit",
+      "risk_class": "R1",
+      "approval_class": "none",
+      "step_up": false,
+      "second_approval": false,
+      "non_delegable": false,
+      "entitlement": null,
+      "roles": {
+        "owner": "implicit",
+        "administrator": "implicit",
+        "member": "grant:edit",
+        "limited_member": "grant:edit",
+        "read_only": "deny",
+        "guest": "deny"
+      },
+      "requirements": [
+        "PERM-004"
+      ],
+      "notes": ""
+    },
+    {
+      "key": "record.purge",
+      "kind": "admin",
+      "scopes": [
+        "workspace",
+        "brand"
+      ],
+      "description": "Irreversibly delete a trash batch before its scheduled purge.",
+      "required_level": null,
+      "risk_class": "R4",
+      "approval_class": "none",
+      "step_up": true,
+      "second_approval": true,
+      "non_delegable": false,
+      "entitlement": null,
+      "roles": {
+        "owner": "implicit",
+        "administrator": "implicit",
+        "member": "deny",
+        "limited_member": "deny",
+        "read_only": "deny",
+        "guest": "deny"
+      },
+      "requirements": [
+        "SEC-020"
+      ],
+      "notes": "Requires trash.manage authority over the scope; independent approver when policy enabled."
+    },
+    {
+      "key": "record.comment",
+      "kind": "record",
+      "scopes": [
+        "brand",
+        "project",
+        "record",
+        "workspace"
+      ],
+      "description": "Comment, reply, react, mention in comments.",
+      "required_level": "comment",
+      "risk_class": "R0",
+      "approval_class": "none",
+      "step_up": false,
+      "second_approval": false,
+      "non_delegable": false,
+      "entitlement": null,
+      "roles": {
+        "owner": "implicit",
+        "administrator": "implicit",
+        "member": "grant:comment",
+        "limited_member": "grant:comment",
+        "read_only": "deny",
+        "guest": "grant:comment"
+      },
+      "requirements": [
+        "COL-005",
+        "COL-008"
+      ],
+      "notes": ""
+    },
+    {
+      "key": "comment.edit_own",
+      "kind": "record",
+      "scopes": [
+        "record"
+      ],
+      "description": "Edit or delete own comment (revision retained per OD-38).",
+      "required_level": "comment",
+      "risk_class": "R0",
+      "approval_class": "none",
+      "step_up": false,
+      "second_approval": false,
+      "non_delegable": false,
+      "entitlement": null,
+      "roles": {
+        "owner": "own",
+        "administrator": "own",
+        "member": "own",
+        "limited_member": "own",
+        "read_only": "own",
+        "guest": "own"
+      },
+      "requirements": [
+        "COL-009"
+      ],
+      "notes": ""
+    },
+    {
+      "key": "comment.moderate",
+      "kind": "record",
+      "scopes": [
+        "brand",
+        "project",
+        "record"
+      ],
+      "description": "Delete another person's comment.",
+      "required_level": "manage",
+      "risk_class": "R2",
+      "approval_class": "none",
+      "step_up": false,
+      "second_approval": false,
+      "non_delegable": false,
+      "entitlement": null,
+      "roles": {
+        "owner": "implicit",
+        "administrator": "implicit",
+        "member": "grant:manage",
+        "limited_member": "grant:manage",
+        "read_only": "deny",
+        "guest": "deny"
+      },
+      "requirements": [
+        "COL-009"
+      ],
+      "notes": ""
+    },
+    {
+      "key": "record.follow",
+      "kind": "record",
+      "scopes": [
+        "brand",
+        "project",
+        "record",
+        "workspace"
+      ],
+      "description": "Follow or unfollow a readable record.",
+      "required_level": "view",
+      "risk_class": "R0",
+      "approval_class": "none",
+      "step_up": false,
+      "second_approval": false,
+      "non_delegable": false,
+      "entitlement": null,
+      "roles": {
+        "owner": "implicit",
+        "administrator": "implicit",
+        "member": "grant:view",
+        "limited_member": "grant:view",
+        "read_only": "grant:view",
+        "guest": "grant:view"
+      },
+      "requirements": [
+        "COL-010"
+      ],
+      "notes": ""
+    },
+    {
+      "key": "record.assign",
+      "kind": "record",
+      "scopes": [
+        "project",
+        "record"
+      ],
+      "description": "Assign or reassign people (only people who can read the record).",
+      "required_level": "edit",
+      "risk_class": "R1",
+      "approval_class": "none",
+      "step_up": false,
+      "second_approval": false,
+      "non_delegable": false,
+      "entitlement": null,
+      "roles": {
+        "owner": "implicit",
+        "administrator": "implicit",
+        "member": "grant:edit",
+        "limited_member": "grant:edit",
+        "read_only": "deny",
+        "guest": "grant:edit"
+      },
+      "requirements": [
+        "TSK-007",
+        "COL-015"
+      ],
+      "notes": ""
+    },
+    {
+      "key": "record.delegate",
+      "kind": "record",
+      "scopes": [
+        "record"
+      ],
+      "description": "Delegate own assigned work to another eligible person.",
+      "required_level": "edit",
+      "risk_class": "R1",
+      "approval_class": "none",
+      "step_up": false,
+      "second_approval": false,
+      "non_delegable": false,
+      "entitlement": null,
+      "roles": {
+        "owner": "implicit",
+        "administrator": "implicit",
+        "member": "grant:edit",
+        "limited_member": "grant:edit",
+        "read_only": "deny",
+        "guest": "grant:edit"
+      },
+      "requirements": [
+        "COL-014"
+      ],
+      "notes": ""
+    },
+    {
+      "key": "record.relate",
+      "kind": "record",
+      "scopes": [
+        "record"
+      ],
+      "description": "Create a dependency/related link; requires edit on source and view on target.",
+      "required_level": "edit",
+      "risk_class": "R1",
+      "approval_class": "none",
+      "step_up": false,
+      "second_approval": false,
+      "non_delegable": false,
+      "entitlement": null,
+      "roles": {
+        "owner": "implicit",
+        "administrator": "implicit",
+        "member": "grant:edit",
+        "limited_member": "grant:edit",
+        "read_only": "deny",
+        "guest": "grant:edit"
+      },
+      "requirements": [
+        "TSK-012",
+        "TSK-014"
+      ],
+      "notes": ""
+    },
+    {
+      "key": "record.upload",
+      "kind": "record",
+      "scopes": [
+        "brand",
+        "project",
+        "record",
+        "workspace"
+      ],
+      "description": "Attach files or links to a record.",
+      "required_level": "edit",
+      "risk_class": "R1",
+      "approval_class": "none",
+      "step_up": false,
+      "second_approval": false,
+      "non_delegable": false,
+      "entitlement": null,
+      "roles": {
+        "owner": "implicit",
+        "administrator": "implicit",
+        "member": "grant:edit",
+        "limited_member": "grant:edit",
+        "read_only": "deny",
+        "guest": "grant:edit"
+      },
+      "requirements": [
+        "FILE-001"
+      ],
+      "notes": ""
+    },
+    {
+      "key": "record.download",
+      "kind": "record",
+      "scopes": [
+        "brand",
+        "project",
+        "record",
+        "workspace"
+      ],
+      "description": "Download a file version (clean scan state only).",
+      "required_level": "view",
+      "risk_class": "R0",
+      "approval_class": "none",
+      "step_up": false,
+      "second_approval": false,
+      "non_delegable": false,
+      "entitlement": null,
+      "roles": {
+        "owner": "implicit",
+        "administrator": "implicit",
+        "member": "grant:view",
+        "limited_member": "grant:view",
+        "read_only": "grant:view",
+        "guest": "grant:view"
+      },
+      "requirements": [
+        "FILE-012"
+      ],
+      "notes": ""
+    },
+    {
+      "key": "record.move",
+      "kind": "record",
+      "scopes": [
+        "brand",
+        "project",
+        "record"
+      ],
+      "description": "Move within a brand (change container); needs edit on source and destination.",
+      "required_level": "edit",
+      "risk_class": "R1",
+      "approval_class": "none",
+      "step_up": false,
+      "second_approval": false,
+      "non_delegable": false,
+      "entitlement": null,
+      "roles": {
+        "owner": "implicit",
+        "administrator": "implicit",
+        "member": "grant:edit",
+        "limited_member": "grant:edit",
+        "read_only": "deny",
+        "guest": "deny"
+      },
+      "requirements": [
+        "TSK-001"
+      ],
+      "notes": ""
+    },
+    {
+      "key": "record.move_brand",
+      "kind": "record",
+      "scopes": [
+        "brand"
+      ],
+      "description": "Move a subtree to another brand (ownership change).",
+      "required_level": "manage",
+      "risk_class": "R3",
+      "approval_class": "none",
+      "step_up": false,
+      "second_approval": false,
+      "non_delegable": false,
+      "entitlement": null,
+      "roles": {
+        "owner": "implicit",
+        "administrator": "implicit",
+        "member": "grant:manage",
+        "limited_member": "deny",
+        "read_only": "deny",
+        "guest": "deny"
+      },
+      "requirements": [
+        "WSB-009"
+      ],
+      "notes": "Manage on source and create (edit) on target brand."
+    },
+    {
+      "key": "record.share",
+      "kind": "record",
+      "scopes": [
+        "record"
+      ],
+      "description": "Create or change an explicit record grant (share) to a brand, member, team, or guest.",
+      "required_level": "manage",
+      "risk_class": "R3",
+      "approval_class": "none",
+      "step_up": false,
+      "second_approval": false,
+      "non_delegable": false,
+      "entitlement": null,
+      "roles": {
+        "owner": "implicit",
+        "administrator": "implicit",
+        "member": "grant:manage",
+        "limited_member": "deny",
+        "read_only": "deny",
+        "guest": "deny"
+      },
+      "requirements": [
+        "WSB-008",
+        "PERM-005",
+        "PERM-012"
+      ],
+      "notes": "Share level ≤ sharer's level; never onward-sharable; restricted projects disallow record shares unless the project allows them."
+    },
+    {
+      "key": "record.share_revoke",
+      "kind": "record",
+      "scopes": [
+        "record"
+      ],
+      "description": "Revoke a share (the original sharer or a manager).",
+      "required_level": "manage",
+      "risk_class": "R2",
+      "approval_class": "none",
+      "step_up": false,
+      "second_approval": false,
+      "non_delegable": false,
+      "entitlement": null,
+      "roles": {
+        "owner": "implicit",
+        "administrator": "implicit",
+        "member": "grant:manage",
+        "limited_member": "deny",
+        "read_only": "deny",
+        "guest": "deny"
+      },
+      "requirements": [
+        "WSB-008"
+      ],
+      "notes": ""
+    },
+    {
+      "key": "record.export",
+      "kind": "record",
+      "scopes": [
+        "brand",
+        "project",
+        "record",
+        "workspace"
+      ],
+      "description": "Export records or the current filtered view (permission-filtered).",
+      "required_level": "view",
+      "risk_class": "R2",
+      "approval_class": "none",
+      "step_up": false,
+      "second_approval": false,
+      "non_delegable": false,
+      "entitlement": null,
+      "roles": {
+        "owner": "implicit",
+        "administrator": "implicit",
+        "member": "grant:view",
+        "limited_member": "policy:limited_members_can_export",
+        "read_only": "deny",
+        "guest": "deny"
+      },
+      "requirements": [
+        "VIEW-022",
+        "PERM-010",
+        "RPT-022"
+      ],
+      "notes": ""
+    },
+    {
+      "key": "task.complete",
+      "kind": "record",
+      "scopes": [
+        "record"
+      ],
+      "description": "Move a task to a done-category status; completion gates apply.",
+      "required_level": "edit",
+      "risk_class": "R1",
+      "approval_class": "none",
+      "step_up": false,
+      "second_approval": false,
+      "non_delegable": false,
+      "entitlement": null,
+      "roles": {
+        "owner": "implicit",
+        "administrator": "implicit",
+        "member": "grant:edit",
+        "limited_member": "grant:edit",
+        "read_only": "deny",
+        "guest": "grant:edit"
+      },
+      "requirements": [
+        "TSK-031",
+        "AGT-022"
+      ],
+      "notes": ""
+    },
+    {
+      "key": "project.complete",
+      "kind": "record",
+      "scopes": [
+        "record"
+      ],
+      "description": "Complete a project (human decision).",
+      "required_level": "manage",
+      "risk_class": "R2",
+      "approval_class": "none",
+      "step_up": false,
+      "second_approval": false,
+      "non_delegable": false,
+      "entitlement": null,
+      "roles": {
+        "owner": "implicit",
+        "administrator": "implicit",
+        "member": "grant:manage",
+        "limited_member": "grant:manage",
+        "read_only": "deny",
+        "guest": "deny"
+      },
+      "requirements": [
+        "PRJ-005"
+      ],
+      "notes": ""
+    },
+    {
+      "key": "deliverable.submit",
+      "kind": "record",
+      "scopes": [
+        "record"
+      ],
+      "description": "Submit a deliverable version for review.",
+      "required_level": "edit",
+      "risk_class": "R1",
+      "approval_class": "none",
+      "step_up": false,
+      "second_approval": false,
+      "non_delegable": false,
+      "entitlement": null,
+      "roles": {
+        "owner": "implicit",
+        "administrator": "implicit",
+        "member": "grant:edit",
+        "limited_member": "grant:edit",
+        "read_only": "deny",
+        "guest": "grant:edit"
+      },
+      "requirements": [
+        "FILE-007"
+      ],
+      "notes": ""
+    },
+    {
+      "key": "review.request",
+      "kind": "record",
+      "scopes": [
+        "record"
+      ],
+      "description": "Request a review or approval.",
+      "required_level": "edit",
+      "risk_class": "R1",
+      "approval_class": "none",
+      "step_up": false,
+      "second_approval": false,
+      "non_delegable": false,
+      "entitlement": null,
+      "roles": {
+        "owner": "implicit",
+        "administrator": "implicit",
+        "member": "grant:edit",
+        "limited_member": "grant:edit",
+        "read_only": "deny",
+        "guest": "grant:edit"
+      },
+      "requirements": [
+        "COL-013"
+      ],
+      "notes": ""
+    },
+    {
+      "key": "review.decide",
+      "kind": "record",
+      "scopes": [
+        "record"
+      ],
+      "description": "Approve/accept, request changes, or reject as an eligible reviewer; evaluated at decision time.",
+      "required_level": "comment",
+      "risk_class": "R2",
+      "approval_class": "none",
+      "step_up": false,
+      "second_approval": false,
+      "non_delegable": false,
+      "entitlement": null,
+      "roles": {
+        "owner": "implicit",
+        "administrator": "implicit",
+        "member": "grant:comment",
+        "limited_member": "grant:comment",
+        "read_only": "deny",
+        "guest": "grant:comment"
+      },
+      "requirements": [
+        "TSK-029",
+        "AGT-020",
+        "FILE-009"
+      ],
+      "notes": "Reviewer must be designated by the reviewer rule, be human, and be able to read the whole subject scope (UXD-11)."
+    },
+    {
+      "key": "review.self_approve",
+      "kind": "record",
+      "scopes": [
+        "record"
+      ],
+      "description": "Decide a review on one's own submission.",
+      "required_level": "comment",
+      "risk_class": "R2",
+      "approval_class": "none",
+      "step_up": false,
+      "second_approval": false,
+      "non_delegable": false,
+      "entitlement": null,
+      "roles": {
+        "owner": "policy:self_approval",
+        "administrator": "policy:self_approval",
+        "member": "policy:self_approval",
+        "limited_member": "policy:self_approval",
+        "read_only": "deny",
+        "guest": "deny"
+      },
+      "requirements": [
+        "AGT-018"
+      ],
+      "notes": "Default on only while exactly one approval-capable human exists; always labelled and audited (OD-20)."
+    },
+    {
+      "key": "defect.verify",
+      "kind": "record",
+      "scopes": [
+        "record"
+      ],
+      "description": "Record a manual verification of a defect fix.",
+      "required_level": "edit",
+      "risk_class": "R2",
+      "approval_class": "none",
+      "step_up": false,
+      "second_approval": false,
+      "non_delegable": false,
+      "entitlement": null,
+      "roles": {
+        "owner": "implicit",
+        "administrator": "implicit",
+        "member": "grant:edit",
+        "limited_member": "grant:edit",
+        "read_only": "deny",
+        "guest": "deny"
+      },
+      "requirements": [
+        "TEST-017"
+      ],
+      "notes": "Verifier must not be the fixer when policy requires independence."
+    },
+    {
+      "key": "time.log_own",
+      "kind": "record",
+      "scopes": [
+        "record"
+      ],
+      "description": "Create/edit own time entries and timers on readable work.",
+      "required_level": "comment",
+      "risk_class": "R0",
+      "approval_class": "none",
+      "step_up": false,
+      "second_approval": false,
+      "non_delegable": false,
+      "entitlement": null,
+      "roles": {
+        "owner": "implicit",
+        "administrator": "implicit",
+        "member": "grant:comment",
+        "limited_member": "grant:comment",
+        "read_only": "deny",
+        "guest": "grant:comment"
+      },
+      "requirements": [
+        "TSK-024",
+        "TSK-025"
+      ],
+      "notes": ""
+    },
+    {
+      "key": "timesheet.submit_own",
+      "kind": "personal",
+      "scopes": [
+        "personal"
+      ],
+      "description": "Submit own timesheet.",
+      "required_level": null,
+      "risk_class": "R0",
+      "approval_class": "none",
+      "step_up": false,
+      "second_approval": false,
+      "non_delegable": false,
+      "entitlement": null,
+      "roles": {
+        "owner": "own",
+        "administrator": "own",
+        "member": "own",
+        "limited_member": "own",
+        "read_only": "own",
+        "guest": "deny"
+      },
+      "requirements": [
+        "TIME-012"
+      ],
+      "notes": ""
+    },
+    {
+      "key": "timesheet.approve",
+      "kind": "record",
+      "scopes": [
+        "brand"
+      ],
+      "description": "Approve a timesheet's brand line.",
+      "required_level": "manage",
+      "risk_class": "R2",
+      "approval_class": "none",
+      "step_up": false,
+      "second_approval": false,
+      "non_delegable": false,
+      "entitlement": null,
+      "roles": {
+        "owner": "implicit",
+        "administrator": "implicit",
+        "member": "grant:manage",
+        "limited_member": "deny",
+        "read_only": "deny",
+        "guest": "deny"
+      },
+      "requirements": [
+        "TIME-012"
+      ],
+      "notes": ""
+    },
+    {
+      "key": "timesheet.unlock",
+      "kind": "admin",
+      "scopes": [
+        "brand"
+      ],
+      "description": "Unlock an approved period with reason.",
+      "required_level": null,
+      "risk_class": "R3",
+      "approval_class": "none",
+      "step_up": true,
+      "second_approval": false,
+      "non_delegable": false,
+      "entitlement": null,
+      "roles": {
+        "owner": "implicit",
+        "administrator": "implicit",
+        "member": "deny",
+        "limited_member": "deny",
+        "read_only": "deny",
+        "guest": "deny"
+      },
+      "requirements": [
+        "TIME-013"
+      ],
+      "notes": ""
+    },
+    {
+      "key": "view.share",
+      "kind": "record",
+      "scopes": [
+        "brand",
+        "project",
+        "workspace"
+      ],
+      "description": "Share a saved view, dashboard, or report to a scope (never grants record access).",
+      "required_level": "edit",
+      "risk_class": "R1",
+      "approval_class": "none",
+      "step_up": false,
+      "second_approval": false,
+      "non_delegable": false,
+      "entitlement": null,
+      "roles": {
+        "owner": "implicit",
+        "administrator": "implicit",
+        "member": "grant:edit",
+        "limited_member": "deny",
+        "read_only": "deny",
+        "guest": "deny"
+      },
+      "requirements": [
+        "VIEW-017",
+        "RPT-020"
+      ],
+      "notes": ""
+    },
+    {
+      "key": "report.schedule",
+      "kind": "record",
+      "scopes": [
+        "brand",
+        "project",
+        "workspace"
+      ],
+      "description": "Schedule report delivery to recipients (rendered per recipient).",
+      "required_level": "edit",
+      "risk_class": "R2",
+      "approval_class": "none",
+      "step_up": false,
+      "second_approval": false,
+      "non_delegable": false,
+      "entitlement": null,
+      "roles": {
+        "owner": "implicit",
+        "administrator": "implicit",
+        "member": "grant:edit",
+        "limited_member": "deny",
+        "read_only": "deny",
+        "guest": "deny"
+      },
+      "requirements": [
+        "RPT-021"
+      ],
+      "notes": ""
+    },
+    {
+      "key": "release.decide",
+      "kind": "record",
+      "scopes": [
+        "record"
+      ],
+      "description": "Record a go/no-go decision as an eligible approver.",
+      "required_level": "manage",
+      "risk_class": "R4",
+      "approval_class": "independent_if_available",
+      "step_up": true,
+      "second_approval": true,
+      "non_delegable": false,
+      "entitlement": null,
+      "roles": {
+        "owner": "implicit",
+        "administrator": "implicit",
+        "member": "grant:manage",
+        "limited_member": "deny",
+        "read_only": "deny",
+        "guest": "deny"
+      },
+      "requirements": [
+        "TEST-024",
+        "TEST-025"
+      ],
+      "notes": ""
+    },
+    {
+      "key": "release.production_action",
+      "kind": "execution",
+      "scopes": [
+        "record"
+      ],
+      "description": "Trigger or record a production deployment or rollback.",
+      "required_level": "manage",
+      "risk_class": "R4",
+      "approval_class": "independent_if_available",
+      "step_up": true,
+      "second_approval": false,
+      "non_delegable": false,
+      "entitlement": null,
+      "roles": {
+        "owner": "implicit",
+        "administrator": "implicit",
+        "member": "grant:manage",
+        "limited_member": "deny",
+        "read_only": "deny",
+        "guest": "deny"
+      },
+      "requirements": [
+        "DEV-009",
+        "AGT-016"
+      ],
+      "notes": ""
+    },
+    {
+      "key": "environment.configure",
+      "kind": "record",
+      "scopes": [
+        "brand"
+      ],
+      "description": "Configure environments and their URLs/evidence.",
+      "required_level": "manage",
+      "risk_class": "R2",
+      "approval_class": "none",
+      "step_up": false,
+      "second_approval": false,
+      "non_delegable": false,
+      "entitlement": null,
+      "roles": {
+        "owner": "implicit",
+        "administrator": "implicit",
+        "member": "grant:manage",
+        "limited_member": "deny",
+        "read_only": "deny",
+        "guest": "deny"
+      },
+      "requirements": [
+        "DEV-015"
+      ],
+      "notes": ""
+    },
+    {
+      "key": "tests.execute",
+      "kind": "execution",
+      "scopes": [
+        "brand",
+        "project",
+        "record"
+      ],
+      "description": "Start or rerun test runs.",
+      "required_level": "edit",
+      "risk_class": "R1",
+      "approval_class": "none",
+      "step_up": false,
+      "second_approval": false,
+      "non_delegable": false,
+      "entitlement": null,
+      "roles": {
+        "owner": "implicit",
+        "administrator": "implicit",
+        "member": "grant:edit",
+        "limited_member": "grant:edit",
+        "read_only": "deny",
+        "guest": "deny"
+      },
+      "requirements": [
+        "TEST-015"
+      ],
+      "notes": ""
+    },
+    {
+      "key": "personal.manage_own",
+      "kind": "personal",
+      "scopes": [
+        "personal"
+      ],
+      "description": "Inbox, Today, notifications, personal views, favorites, reminders, availability, profile.",
+      "required_level": null,
+      "risk_class": "R0",
+      "approval_class": "none",
+      "step_up": false,
+      "second_approval": false,
+      "non_delegable": false,
+      "entitlement": null,
+      "roles": {
+        "owner": "own",
+        "administrator": "own",
+        "member": "own",
+        "limited_member": "own",
+        "read_only": "own",
+        "guest": "own"
+      },
+      "requirements": [
+        "CAP-011",
+        "PLAN-008",
+        "NTF-007"
+      ],
+      "notes": ""
+    },
+    {
+      "key": "sessions.manage_own",
+      "kind": "personal",
+      "scopes": [
+        "personal"
+      ],
+      "description": "List and revoke own sessions.",
+      "required_level": null,
+      "risk_class": "R1",
+      "approval_class": "none",
+      "step_up": false,
+      "second_approval": false,
+      "non_delegable": false,
+      "entitlement": null,
+      "roles": {
+        "owner": "own",
+        "administrator": "own",
+        "member": "own",
+        "limited_member": "own",
+        "read_only": "own",
+        "guest": "own"
+      },
+      "requirements": [
+        "SEC-008"
+      ],
+      "notes": ""
+    },
+    {
+      "key": "api_tokens.personal",
+      "kind": "personal",
+      "scopes": [
+        "personal"
+      ],
+      "description": "Create, rotate, revoke own personal API tokens (write scopes need step-up).",
+      "required_level": null,
+      "risk_class": "R3",
+      "approval_class": "none",
+      "step_up": true,
+      "second_approval": false,
+      "non_delegable": false,
+      "entitlement": null,
+      "roles": {
+        "owner": "own",
+        "administrator": "own",
+        "member": "own",
+        "limited_member": "policy:limited_members_tokens",
+        "read_only": "own",
+        "guest": "deny"
+      },
+      "requirements": [
+        "INT-017",
+        "INT-018"
+      ],
+      "notes": "Read-only role may only create read scopes."
+    },
+    {
+      "key": "workspace.view_settings",
+      "kind": "admin",
+      "scopes": [
+        "workspace"
+      ],
+      "description": "View workspace name, locale, timezone, currency, week start.",
+      "required_level": null,
+      "risk_class": "R0",
+      "approval_class": "none",
+      "step_up": false,
+      "second_approval": false,
+      "non_delegable": false,
+      "entitlement": null,
+      "roles": {
+        "owner": "implicit",
+        "administrator": "implicit",
+        "member": "implicit",
+        "limited_member": "implicit",
+        "read_only": "implicit",
+        "guest": "deny"
+      },
+      "requirements": [
+        "WSB-002"
+      ],
+      "notes": ""
+    },
+    {
+      "key": "workspace.configure",
+      "kind": "admin",
+      "scopes": [
+        "workspace"
+      ],
+      "description": "Edit workspace profile and defaults.",
+      "required_level": null,
+      "risk_class": "R2",
+      "approval_class": "none",
+      "step_up": false,
+      "second_approval": false,
+      "non_delegable": false,
+      "entitlement": null,
+      "roles": {
+        "owner": "implicit",
+        "administrator": "implicit",
+        "member": "deny",
+        "limited_member": "deny",
+        "read_only": "deny",
+        "guest": "deny"
+      },
+      "requirements": [
+        "WSB-002",
+        "ADM-001"
+      ],
+      "notes": ""
+    },
+    {
+      "key": "workspace.delete",
+      "kind": "admin",
+      "scopes": [
+        "workspace"
+      ],
+      "description": "Request workspace deletion.",
+      "required_level": null,
+      "risk_class": "R4",
+      "approval_class": "none",
+      "step_up": true,
+      "second_approval": true,
+      "non_delegable": true,
+      "entitlement": null,
+      "roles": {
+        "owner": "implicit",
+        "administrator": "deny",
+        "member": "deny",
+        "limited_member": "deny",
+        "read_only": "deny",
+        "guest": "deny"
+      },
+      "requirements": [
+        "SEC-021"
+      ],
+      "notes": ""
+    },
+    {
+      "key": "ownership.transfer",
+      "kind": "admin",
+      "scopes": [
+        "workspace"
+      ],
+      "description": "Transfer workspace ownership (last-owner protection).",
+      "required_level": null,
+      "risk_class": "R4",
+      "approval_class": "none",
+      "step_up": true,
+      "second_approval": false,
+      "non_delegable": true,
+      "entitlement": null,
+      "roles": {
+        "owner": "implicit",
+        "administrator": "deny",
+        "member": "deny",
+        "limited_member": "deny",
+        "read_only": "deny",
+        "guest": "deny"
+      },
+      "requirements": [
+        "ADM-013"
+      ],
+      "notes": ""
+    },
+    {
+      "key": "brand.create",
+      "kind": "admin",
+      "scopes": [
+        "workspace"
+      ],
+      "description": "Create a brand.",
+      "required_level": null,
+      "risk_class": "R2",
+      "approval_class": "none",
+      "step_up": false,
+      "second_approval": false,
+      "non_delegable": false,
+      "entitlement": null,
+      "roles": {
+        "owner": "implicit",
+        "administrator": "implicit",
+        "member": "deny",
+        "limited_member": "deny",
+        "read_only": "deny",
+        "guest": "deny"
+      },
+      "requirements": [
+        "WSB-003"
+      ],
+      "notes": ""
+    },
+    {
+      "key": "brand.configure",
+      "kind": "admin",
+      "scopes": [
+        "brand"
+      ],
+      "description": "Edit brand identity, settings, calendars, goals, notification rules, AI profile.",
+      "required_level": null,
+      "risk_class": "R2",
+      "approval_class": "none",
+      "step_up": false,
+      "second_approval": false,
+      "non_delegable": false,
+      "entitlement": null,
+      "roles": {
+        "owner": "implicit",
+        "administrator": "implicit",
+        "member": "grant:manage",
+        "limited_member": "grant:manage",
+        "read_only": "deny",
+        "guest": "deny"
+      },
+      "requirements": [
+        "WSB-004",
+        "WSB-010",
+        "WSB-012"
+      ],
+      "notes": ""
+    },
+    {
+      "key": "brand.archive",
+      "kind": "admin",
+      "scopes": [
+        "brand"
+      ],
+      "description": "Archive or restore a brand.",
+      "required_level": null,
+      "risk_class": "R3",
+      "approval_class": "none",
+      "step_up": false,
+      "second_approval": false,
+      "non_delegable": false,
+      "entitlement": null,
+      "roles": {
+        "owner": "implicit",
+        "administrator": "implicit",
+        "member": "deny",
+        "limited_member": "deny",
+        "read_only": "deny",
+        "guest": "deny"
+      },
+      "requirements": [
+        "WSB-005"
+      ],
+      "notes": ""
+    },
+    {
+      "key": "brand.delete",
+      "kind": "admin",
+      "scopes": [
+        "brand"
+      ],
+      "description": "Trash a brand.",
+      "required_level": null,
+      "risk_class": "R4",
+      "approval_class": "none",
+      "step_up": true,
+      "second_approval": false,
+      "non_delegable": false,
+      "entitlement": null,
+      "roles": {
+        "owner": "implicit",
+        "administrator": "implicit",
+        "member": "deny",
+        "limited_member": "deny",
+        "read_only": "deny",
+        "guest": "deny"
+      },
+      "requirements": [
+        "WSB-005"
+      ],
+      "notes": ""
+    },
+    {
+      "key": "brand.mark_sensitive",
+      "kind": "admin",
+      "scopes": [
+        "brand"
+      ],
+      "description": "Mark or unmark a brand sensitive (removes implicit role access).",
+      "required_level": null,
+      "risk_class": "R3",
+      "approval_class": "none",
+      "step_up": true,
+      "second_approval": false,
+      "non_delegable": false,
+      "entitlement": null,
+      "roles": {
+        "owner": "implicit",
+        "administrator": "implicit",
+        "member": "deny",
+        "limited_member": "deny",
+        "read_only": "deny",
+        "guest": "deny"
+      },
+      "requirements": [
+        "PERM-006"
+      ],
+      "notes": ""
+    },
+    {
+      "key": "membership.invite_member",
+      "kind": "admin",
+      "scopes": [
+        "workspace"
+      ],
+      "description": "Invite members (role ≤ inviter's grantable roles).",
+      "required_level": null,
+      "risk_class": "R2",
+      "approval_class": "none",
+      "step_up": false,
+      "second_approval": false,
+      "non_delegable": false,
+      "entitlement": null,
+      "roles": {
+        "owner": "implicit",
+        "administrator": "implicit",
+        "member": "deny",
+        "limited_member": "deny",
+        "read_only": "deny",
+        "guest": "deny"
+      },
+      "requirements": [
+        "COL-001"
+      ],
+      "notes": ""
+    },
+    {
+      "key": "membership.invite_guest",
+      "kind": "admin",
+      "scopes": [
+        "record"
+      ],
+      "description": "Invite a guest by sharing a record with an email.",
+      "required_level": null,
+      "risk_class": "R3",
+      "approval_class": "none",
+      "step_up": false,
+      "second_approval": false,
+      "non_delegable": false,
+      "entitlement": null,
+      "roles": {
+        "owner": "implicit",
+        "administrator": "implicit",
+        "member": "policy:members_invite_guests",
+        "limited_member": "deny",
+        "read_only": "deny",
+        "guest": "deny"
+      },
+      "requirements": [
+        "COL-002",
+        "PERM-005"
+      ],
+      "notes": "Also requires record.share on each record shared."
+    },
+    {
+      "key": "membership.manage",
+      "kind": "admin",
+      "scopes": [
+        "workspace"
+      ],
+      "description": "Change workspace roles, suspend, or remove memberships (owners managed only by owners).",
+      "required_level": null,
+      "risk_class": "R3",
+      "approval_class": "none",
+      "step_up": true,
+      "second_approval": false,
+      "non_delegable": false,
+      "entitlement": null,
+      "roles": {
+        "owner": "implicit",
+        "administrator": "implicit",
+        "member": "deny",
+        "limited_member": "deny",
+        "read_only": "deny",
+        "guest": "deny"
+      },
+      "requirements": [
+        "ADM-003",
+        "PERM-014"
+      ],
+      "notes": ""
+    },
+    {
+      "key": "team.manage",
+      "kind": "admin",
+      "scopes": [
+        "workspace"
+      ],
+      "description": "Create teams and change team membership (actor needs authority over every scope the team holds grants in).",
+      "required_level": null,
+      "risk_class": "R2",
+      "approval_class": "none",
+      "step_up": false,
+      "second_approval": false,
+      "non_delegable": false,
+      "entitlement": null,
+      "roles": {
+        "owner": "implicit",
+        "administrator": "implicit",
+        "member": "deny",
+        "limited_member": "deny",
+        "read_only": "deny",
+        "guest": "deny"
+      },
+      "requirements": [
+        "COL-003"
+      ],
+      "notes": ""
+    },
+    {
+      "key": "access.grant_scope",
+      "kind": "admin",
+      "scopes": [
+        "workspace",
+        "brand",
+        "project"
+      ],
+      "description": "Assign scope roles (access levels) at workspace, brand, or project.",
+      "required_level": null,
+      "risk_class": "R3",
+      "approval_class": "none",
+      "step_up": false,
+      "second_approval": false,
+      "non_delegable": false,
+      "entitlement": null,
+      "roles": {
+        "owner": "implicit",
+        "administrator": "implicit",
+        "member": "grant:manage",
+        "limited_member": "grant:manage",
+        "read_only": "deny",
+        "guest": "deny"
+      },
+      "requirements": [
+        "COL-004",
+        "PERM-003"
+      ],
+      "notes": ""
+    },
+    {
+      "key": "access.restrict_scope",
+      "kind": "admin",
+      "scopes": [
+        "brand",
+        "project",
+        "record",
+        "field"
+      ],
+      "description": "Mark a project/document restricted or set field visibility.",
+      "required_level": null,
+      "risk_class": "R3",
+      "approval_class": "none",
+      "step_up": false,
+      "second_approval": false,
+      "non_delegable": false,
+      "entitlement": null,
+      "roles": {
+        "owner": "implicit",
+        "administrator": "implicit",
+        "member": "grant:manage",
+        "limited_member": "grant:manage",
+        "read_only": "deny",
+        "guest": "deny"
+      },
+      "requirements": [
+        "PERM-006",
+        "PERM-003"
+      ],
+      "notes": ""
+    },
+    {
+      "key": "access.preview",
+      "kind": "admin",
+      "scopes": [
+        "workspace",
+        "brand",
+        "project"
+      ],
+      "description": "Preview a principal's effective permissions within scopes the previewer manages.",
+      "required_level": null,
+      "risk_class": "R0",
+      "approval_class": "none",
+      "step_up": false,
+      "second_approval": false,
+      "non_delegable": false,
+      "entitlement": null,
+      "roles": {
+        "owner": "implicit",
+        "administrator": "implicit",
+        "member": "grant:manage",
+        "limited_member": "grant:manage",
+        "read_only": "deny",
+        "guest": "deny"
+      },
+      "requirements": [
+        "PERM-011"
+      ],
+      "notes": ""
+    },
+    {
+      "key": "access.elevate_sensitive",
+      "kind": "admin",
+      "scopes": [
+        "brand",
+        "project"
+      ],
+      "description": "Break-glass: owner grants themselves access to a sensitive brand or restricted project with reason; notifies scope managers.",
+      "required_level": null,
+      "risk_class": "R4",
+      "approval_class": "none",
+      "step_up": true,
+      "second_approval": false,
+      "non_delegable": true,
+      "entitlement": null,
+      "roles": {
+        "owner": "implicit",
+        "administrator": "deny",
+        "member": "deny",
+        "limited_member": "deny",
+        "read_only": "deny",
+        "guest": "deny"
+      },
+      "requirements": [
+        "PERM-006"
+      ],
+      "notes": ""
+    },
+    {
+      "key": "sharing.policy.configure",
+      "kind": "admin",
+      "scopes": [
+        "workspace"
+      ],
+      "description": "Configure sharing, guest, export, self-approval, and public-link policy.",
+      "required_level": null,
+      "risk_class": "R3",
+      "approval_class": "none",
+      "step_up": true,
+      "second_approval": false,
+      "non_delegable": false,
+      "entitlement": null,
+      "roles": {
+        "owner": "implicit",
+        "administrator": "implicit",
+        "member": "deny",
+        "limited_member": "deny",
+        "read_only": "deny",
+        "guest": "deny"
+      },
+      "requirements": [
+        "ADM-014"
+      ],
+      "notes": ""
+    },
+    {
+      "key": "feature_availability.configure",
+      "kind": "admin",
+      "scopes": [
+        "workspace"
+      ],
+      "description": "Configure feature availability by role.",
+      "required_level": null,
+      "risk_class": "R2",
+      "approval_class": "none",
+      "step_up": false,
+      "second_approval": false,
+      "non_delegable": false,
+      "entitlement": null,
+      "roles": {
+        "owner": "implicit",
+        "administrator": "implicit",
+        "member": "deny",
+        "limited_member": "deny",
+        "read_only": "deny",
+        "guest": "deny"
+      },
+      "requirements": [
+        "ADM-015"
+      ],
+      "notes": ""
+    },
+    {
+      "key": "custom_roles.manage",
+      "kind": "admin",
+      "scopes": [
+        "workspace"
+      ],
+      "description": "Create custom roles from allowed capabilities.",
+      "required_level": null,
+      "risk_class": "R3",
+      "approval_class": "none",
+      "step_up": true,
+      "second_approval": false,
+      "non_delegable": false,
+      "entitlement": "custom_roles",
+      "roles": {
+        "owner": "implicit",
+        "administrator": "implicit",
+        "member": "deny",
+        "limited_member": "deny",
+        "read_only": "deny",
+        "guest": "deny"
+      },
+      "requirements": [
+        "PERM-002"
+      ],
+      "notes": ""
+    },
+    {
+      "key": "workflow.configure",
+      "kind": "admin",
+      "scopes": [
+        "workspace",
+        "brand",
+        "project"
+      ],
+      "description": "Configure statuses, transitions, rules.",
+      "required_level": null,
+      "risk_class": "R2",
+      "approval_class": "none",
+      "step_up": false,
+      "second_approval": false,
+      "non_delegable": false,
+      "entitlement": null,
+      "roles": {
+        "owner": "implicit",
+        "administrator": "implicit",
+        "member": "grant:manage",
+        "limited_member": "grant:manage",
+        "read_only": "deny",
+        "guest": "deny"
+      },
+      "requirements": [
+        "WFL-002",
+        "WFL-005"
+      ],
+      "notes": ""
+    },
+    {
+      "key": "fields.configure",
+      "kind": "admin",
+      "scopes": [
+        "workspace",
+        "brand",
+        "project"
+      ],
+      "description": "Configure custom fields and field sets.",
+      "required_level": null,
+      "risk_class": "R2",
+      "approval_class": "none",
+      "step_up": false,
+      "second_approval": false,
+      "non_delegable": false,
+      "entitlement": null,
+      "roles": {
+        "owner": "implicit",
+        "administrator": "implicit",
+        "member": "grant:manage",
+        "limited_member": "grant:manage",
+        "read_only": "deny",
+        "guest": "deny"
+      },
+      "requirements": [
+        "WFL-008"
+      ],
+      "notes": ""
+    },
+    {
+      "key": "views.configure",
+      "kind": "admin",
+      "scopes": [
+        "workspace",
+        "brand",
+        "project"
+      ],
+      "description": "Set default views per brand/project and pin shared views to navigation.",
+      "required_level": null,
+      "risk_class": "R1",
+      "approval_class": "none",
+      "step_up": false,
+      "second_approval": false,
+      "non_delegable": false,
+      "entitlement": null,
+      "roles": {
+        "owner": "implicit",
+        "administrator": "implicit",
+        "member": "grant:manage",
+        "limited_member": "grant:manage",
+        "read_only": "deny",
+        "guest": "deny"
+      },
+      "requirements": [
+        "VIEW-018",
+        "VIEW-019"
+      ],
+      "notes": ""
+    },
+    {
+      "key": "templates.manage",
+      "kind": "admin",
+      "scopes": [
+        "workspace",
+        "brand"
+      ],
+      "description": "Create and manage templates.",
+      "required_level": null,
+      "risk_class": "R2",
+      "approval_class": "none",
+      "step_up": false,
+      "second_approval": false,
+      "non_delegable": false,
+      "entitlement": null,
+      "roles": {
+        "owner": "implicit",
+        "administrator": "implicit",
+        "member": "grant:manage",
+        "limited_member": "grant:manage",
+        "read_only": "deny",
+        "guest": "deny"
+      },
+      "requirements": [
+        "ONB-013"
+      ],
+      "notes": ""
+    },
+    {
+      "key": "notifications.configure_scope",
+      "kind": "admin",
+      "scopes": [
+        "brand",
+        "project"
+      ],
+      "description": "Configure brand/project notification rules and minimal-content mode.",
+      "required_level": null,
+      "risk_class": "R2",
+      "approval_class": "none",
+      "step_up": false,
+      "second_approval": false,
+      "non_delegable": false,
+      "entitlement": null,
+      "roles": {
+        "owner": "implicit",
+        "administrator": "implicit",
+        "member": "grant:manage",
+        "limited_member": "grant:manage",
+        "read_only": "deny",
+        "guest": "deny"
+      },
+      "requirements": [
+        "WSB-014"
+      ],
+      "notes": ""
+    },
+    {
+      "key": "ai.configure_brand",
+      "kind": "admin",
+      "scopes": [
+        "brand"
+      ],
+      "description": "Configure brand AI profile and approved-source policy.",
+      "required_level": null,
+      "risk_class": "R2",
+      "approval_class": "none",
+      "step_up": false,
+      "second_approval": false,
+      "non_delegable": false,
+      "entitlement": null,
+      "roles": {
+        "owner": "implicit",
+        "administrator": "implicit",
+        "member": "grant:manage",
+        "limited_member": "grant:manage",
+        "read_only": "deny",
+        "guest": "deny"
+      },
+      "requirements": [
+        "WSB-012"
+      ],
+      "notes": ""
+    },
+    {
+      "key": "ai.providers.manage",
+      "kind": "admin",
+      "scopes": [
+        "workspace"
+      ],
+      "description": "Configure AI providers, models, workspace keys, data settings.",
+      "required_level": null,
+      "risk_class": "R3",
+      "approval_class": "none",
+      "step_up": true,
+      "second_approval": false,
+      "non_delegable": false,
+      "entitlement": null,
+      "roles": {
+        "owner": "implicit",
+        "administrator": "implicit",
+        "member": "deny",
+        "limited_member": "deny",
+        "read_only": "deny",
+        "guest": "deny"
+      },
+      "requirements": [
+        "AI-031",
+        "AI-032",
+        "ADM-005"
+      ],
+      "notes": ""
+    },
+    {
+      "key": "ai.limits.configure",
+      "kind": "admin",
+      "scopes": [
+        "workspace",
+        "brand"
+      ],
+      "description": "Configure AI/agent/automation allowances and hard caps.",
+      "required_level": null,
+      "risk_class": "R3",
+      "approval_class": "none",
+      "step_up": true,
+      "second_approval": false,
+      "non_delegable": false,
+      "entitlement": null,
+      "roles": {
+        "owner": "implicit",
+        "administrator": "implicit",
+        "member": "deny",
+        "limited_member": "deny",
+        "read_only": "deny",
+        "guest": "deny"
+      },
+      "requirements": [
+        "AI-033",
+        "BILL-009"
+      ],
+      "notes": ""
+    },
+    {
+      "key": "agents.configure",
+      "kind": "admin",
+      "scopes": [
+        "workspace"
+      ],
+      "description": "Create agent profiles; grant scopes and tool classes (within grantor authority).",
+      "required_level": null,
+      "risk_class": "R3",
+      "approval_class": "none",
+      "step_up": false,
+      "second_approval": false,
+      "non_delegable": false,
+      "entitlement": null,
+      "roles": {
+        "owner": "implicit",
+        "administrator": "implicit",
+        "member": "policy:members_configure_agents",
+        "limited_member": "deny",
+        "read_only": "deny",
+        "guest": "deny"
+      },
+      "requirements": [
+        "AGT-001",
+        "AGT-002"
+      ],
+      "notes": ""
+    },
+    {
+      "key": "automations.configure",
+      "kind": "admin",
+      "scopes": [
+        "workspace",
+        "brand"
+      ],
+      "description": "Create/enable automations within the configurer's authority.",
+      "required_level": null,
+      "risk_class": "R2",
+      "approval_class": "none",
+      "step_up": false,
+      "second_approval": false,
+      "non_delegable": false,
+      "entitlement": null,
+      "roles": {
+        "owner": "implicit",
+        "administrator": "implicit",
+        "member": "grant:manage",
+        "limited_member": "grant:manage",
+        "read_only": "deny",
+        "guest": "deny"
+      },
+      "requirements": [
+        "AUTO-001",
+        "AUTO-013"
+      ],
+      "notes": ""
+    },
+    {
+      "key": "integrations.configure",
+      "kind": "admin",
+      "scopes": [
+        "workspace",
+        "brand"
+      ],
+      "description": "Connect, map, reauthorize, disconnect integrations.",
+      "required_level": null,
+      "risk_class": "R3",
+      "approval_class": "none",
+      "step_up": false,
+      "second_approval": false,
+      "non_delegable": false,
+      "entitlement": null,
+      "roles": {
+        "owner": "implicit",
+        "administrator": "implicit",
+        "member": "grant:manage",
+        "limited_member": "deny",
+        "read_only": "deny",
+        "guest": "deny"
+      },
+      "requirements": [
+        "INT-001",
+        "INT-008",
+        "PERM-009"
+      ],
+      "notes": ""
+    },
+    {
+      "key": "api_tokens.service.manage",
+      "kind": "admin",
+      "scopes": [
+        "workspace"
+      ],
+      "description": "Create and manage service principals and their tokens.",
+      "required_level": null,
+      "risk_class": "R3",
+      "approval_class": "none",
+      "step_up": true,
+      "second_approval": false,
+      "non_delegable": false,
+      "entitlement": null,
+      "roles": {
+        "owner": "implicit",
+        "administrator": "implicit",
+        "member": "deny",
+        "limited_member": "deny",
+        "read_only": "deny",
+        "guest": "deny"
+      },
+      "requirements": [
+        "INT-017",
+        "ADM-007"
+      ],
+      "notes": ""
+    },
+    {
+      "key": "webhooks.manage",
+      "kind": "admin",
+      "scopes": [
+        "workspace",
+        "brand"
+      ],
+      "description": "Manage outbound webhooks and inbound endpoints.",
+      "required_level": null,
+      "risk_class": "R3",
+      "approval_class": "none",
+      "step_up": false,
+      "second_approval": false,
+      "non_delegable": false,
+      "entitlement": null,
+      "roles": {
+        "owner": "implicit",
+        "administrator": "implicit",
+        "member": "grant:manage",
+        "limited_member": "deny",
+        "read_only": "deny",
+        "guest": "deny"
+      },
+      "requirements": [
+        "INT-010",
+        "INT-011",
+        "ADM-007"
+      ],
+      "notes": ""
+    },
+    {
+      "key": "security.configure",
+      "kind": "admin",
+      "scopes": [
+        "workspace"
+      ],
+      "description": "MFA requirements, session policy, allowed sign-in methods.",
+      "required_level": null,
+      "risk_class": "R4",
+      "approval_class": "none",
+      "step_up": true,
+      "second_approval": false,
+      "non_delegable": false,
+      "entitlement": null,
+      "roles": {
+        "owner": "implicit",
+        "administrator": "implicit",
+        "member": "deny",
+        "limited_member": "deny",
+        "read_only": "deny",
+        "guest": "deny"
+      },
+      "requirements": [
+        "SEC-006",
+        "ADM-006"
+      ],
+      "notes": ""
+    },
+    {
+      "key": "sessions.manage_others",
+      "kind": "admin",
+      "scopes": [
+        "workspace"
+      ],
+      "description": "Revoke other members' sessions and tokens.",
+      "required_level": null,
+      "risk_class": "R3",
+      "approval_class": "none",
+      "step_up": true,
+      "second_approval": false,
+      "non_delegable": false,
+      "entitlement": null,
+      "roles": {
+        "owner": "implicit",
+        "administrator": "implicit",
+        "member": "deny",
+        "limited_member": "deny",
+        "read_only": "deny",
+        "guest": "deny"
+      },
+      "requirements": [
+        "PERM-013"
+      ],
+      "notes": ""
+    },
+    {
+      "key": "retention.configure",
+      "kind": "admin",
+      "scopes": [
+        "workspace"
+      ],
+      "description": "Configure retention parameters (values pending OD-34/36).",
+      "required_level": null,
+      "risk_class": "R4",
+      "approval_class": "none",
+      "step_up": true,
+      "second_approval": false,
+      "non_delegable": true,
+      "entitlement": null,
+      "roles": {
+        "owner": "implicit",
+        "administrator": "deny",
+        "member": "deny",
+        "limited_member": "deny",
+        "read_only": "deny",
+        "guest": "deny"
+      },
+      "requirements": [
+        "SEC-020"
+      ],
+      "notes": ""
+    },
+    {
+      "key": "legal_hold.manage",
+      "kind": "admin",
+      "scopes": [
+        "workspace",
+        "brand"
+      ],
+      "description": "Place or release legal holds (extension point, OD-37).",
+      "required_level": null,
+      "risk_class": "R4",
+      "approval_class": "none",
+      "step_up": true,
+      "second_approval": false,
+      "non_delegable": true,
+      "entitlement": "legal_hold",
+      "roles": {
+        "owner": "implicit",
+        "administrator": "deny",
+        "member": "deny",
+        "limited_member": "deny",
+        "read_only": "deny",
+        "guest": "deny"
+      },
+      "requirements": [
+        "SEC-020"
+      ],
+      "notes": ""
+    },
+    {
+      "key": "trash.manage",
+      "kind": "admin",
+      "scopes": [
+        "workspace",
+        "brand"
+      ],
+      "description": "Inspect and restore any trash batch within authorized scope.",
+      "required_level": null,
+      "risk_class": "R2",
+      "approval_class": "none",
+      "step_up": false,
+      "second_approval": false,
+      "non_delegable": false,
+      "entitlement": null,
+      "roles": {
+        "owner": "implicit",
+        "administrator": "implicit",
+        "member": "deny",
+        "limited_member": "deny",
+        "read_only": "deny",
+        "guest": "deny"
+      },
+      "requirements": [
+        "LA-018"
+      ],
+      "notes": ""
+    },
+    {
+      "key": "audit.view",
+      "kind": "admin",
+      "scopes": [
+        "workspace"
+      ],
+      "description": "View audit history (field values redacted per viewer).",
+      "required_level": null,
+      "risk_class": "R0",
+      "approval_class": "none",
+      "step_up": false,
+      "second_approval": false,
+      "non_delegable": false,
+      "entitlement": null,
+      "roles": {
+        "owner": "implicit",
+        "administrator": "implicit",
+        "member": "deny",
+        "limited_member": "deny",
+        "read_only": "deny",
+        "guest": "deny"
+      },
+      "requirements": [
+        "ADM-011"
+      ],
+      "notes": ""
+    },
+    {
+      "key": "audit.export",
+      "kind": "admin",
+      "scopes": [
+        "workspace"
+      ],
+      "description": "Export audit history.",
+      "required_level": null,
+      "risk_class": "R3",
+      "approval_class": "none",
+      "step_up": true,
+      "second_approval": false,
+      "non_delegable": false,
+      "entitlement": "audit_export",
+      "roles": {
+        "owner": "implicit",
+        "administrator": "implicit",
+        "member": "deny",
+        "limited_member": "deny",
+        "read_only": "deny",
+        "guest": "deny"
+      },
+      "requirements": [
+        "AUD-009"
+      ],
+      "notes": ""
+    },
+    {
+      "key": "workspace.export",
+      "kind": "admin",
+      "scopes": [
+        "workspace"
+      ],
+      "description": "Full workspace export.",
+      "required_level": null,
+      "risk_class": "R3",
+      "approval_class": "none",
+      "step_up": true,
+      "second_approval": false,
+      "non_delegable": false,
+      "entitlement": null,
+      "roles": {
+        "owner": "implicit",
+        "administrator": "implicit",
+        "member": "deny",
+        "limited_member": "deny",
+        "read_only": "deny",
+        "guest": "deny"
+      },
+      "requirements": [
+        "DATA-011",
+        "DATA-015"
+      ],
+      "notes": ""
+    },
+    {
+      "key": "usage.view",
+      "kind": "admin",
+      "scopes": [
+        "workspace",
+        "brand"
+      ],
+      "description": "View usage and cost (brand-level for brand managers).",
+      "required_level": null,
+      "risk_class": "R0",
+      "approval_class": "none",
+      "step_up": false,
+      "second_approval": false,
+      "non_delegable": false,
+      "entitlement": null,
+      "roles": {
+        "owner": "implicit",
+        "administrator": "implicit",
+        "member": "grant:manage",
+        "limited_member": "grant:manage",
+        "read_only": "deny",
+        "guest": "deny"
+      },
+      "requirements": [
+        "AI-034",
+        "RPT-012"
+      ],
+      "notes": ""
+    },
+    {
+      "key": "billing.view",
+      "kind": "admin",
+      "scopes": [
+        "workspace"
+      ],
+      "description": "View plan, entitlements, invoices.",
+      "required_level": null,
+      "risk_class": "R0",
+      "approval_class": "none",
+      "step_up": false,
+      "second_approval": false,
+      "non_delegable": false,
+      "entitlement": null,
+      "roles": {
+        "owner": "implicit",
+        "administrator": "implicit",
+        "member": "deny",
+        "limited_member": "deny",
+        "read_only": "deny",
+        "guest": "deny"
+      },
+      "requirements": [
+        "ADM-012"
+      ],
+      "notes": ""
+    },
+    {
+      "key": "billing.manage",
+      "kind": "admin",
+      "scopes": [
+        "workspace"
+      ],
+      "description": "Change plan, seats, payment method; approve extra usage purchases.",
+      "required_level": null,
+      "risk_class": "R3",
+      "approval_class": "none",
+      "step_up": true,
+      "second_approval": false,
+      "non_delegable": false,
+      "entitlement": null,
+      "roles": {
+        "owner": "implicit",
+        "administrator": "policy:admins_manage_billing",
+        "member": "deny",
+        "limited_member": "deny",
+        "read_only": "deny",
+        "guest": "deny"
+      },
+      "requirements": [
+        "BILL-010",
+        "BILL-014"
+      ],
+      "notes": ""
+    },
+    {
+      "key": "secrets_metadata.view",
+      "kind": "admin",
+      "scopes": [
+        "workspace",
+        "connection"
+      ],
+      "description": "See that credentials exist, scopes, last rotation (never values).",
+      "required_level": null,
+      "risk_class": "R0",
+      "approval_class": "none",
+      "step_up": false,
+      "second_approval": false,
+      "non_delegable": false,
+      "entitlement": null,
+      "roles": {
+        "owner": "implicit",
+        "administrator": "implicit",
+        "member": "deny",
+        "limited_member": "deny",
+        "read_only": "deny",
+        "guest": "deny"
+      },
+      "requirements": [
+        "SEC-013"
+      ],
+      "notes": ""
+    },
+    {
+      "key": "health.view",
+      "kind": "admin",
+      "scopes": [
+        "workspace",
+        "brand"
+      ],
+      "description": "View integration, automation, and agent health.",
+      "required_level": null,
+      "risk_class": "R0",
+      "approval_class": "none",
+      "step_up": false,
+      "second_approval": false,
+      "non_delegable": false,
+      "entitlement": null,
+      "roles": {
+        "owner": "implicit",
+        "administrator": "implicit",
+        "member": "grant:manage",
+        "limited_member": "deny",
+        "read_only": "deny",
+        "guest": "deny"
+      },
+      "requirements": [
+        "ADM-009",
+        "ADM-010"
+      ],
+      "notes": ""
+    },
+    {
+      "key": "support_access.grant",
+      "kind": "admin",
+      "scopes": [
+        "workspace"
+      ],
+      "description": "Grant platform support time-boxed, scoped access.",
+      "required_level": null,
+      "risk_class": "R4",
+      "approval_class": "none",
+      "step_up": true,
+      "second_approval": false,
+      "non_delegable": false,
+      "entitlement": null,
+      "roles": {
+        "owner": "implicit",
+        "administrator": "implicit",
+        "member": "deny",
+        "limited_member": "deny",
+        "read_only": "deny",
+        "guest": "deny"
+      },
+      "requirements": [
+        "SUP-008"
+      ],
+      "notes": ""
+    },
+    {
+      "key": "emergency_stop.trigger",
+      "kind": "admin",
+      "scopes": [
+        "workspace"
+      ],
+      "description": "Stop all agent execution in the workspace.",
+      "required_level": null,
+      "risk_class": "R1",
+      "approval_class": "none",
+      "step_up": false,
+      "second_approval": false,
+      "non_delegable": false,
+      "entitlement": null,
+      "roles": {
+        "owner": "implicit",
+        "administrator": "implicit",
+        "member": "deny",
+        "limited_member": "deny",
+        "read_only": "deny",
+        "guest": "deny"
+      },
+      "requirements": [
+        "AGT-025"
+      ],
+      "notes": "Never blocked by approval; resuming requires owner/admin."
+    },
+    {
+      "key": "ai.execute",
+      "kind": "execution",
+      "scopes": [
+        "workspace",
+        "brand",
+        "project",
+        "record"
+      ],
+      "description": "Run an AI action over a selected readable context.",
+      "required_level": "view",
+      "risk_class": "R1",
+      "approval_class": "none",
+      "step_up": false,
+      "second_approval": false,
+      "non_delegable": false,
+      "entitlement": null,
+      "roles": {
+        "owner": "implicit",
+        "administrator": "implicit",
+        "member": "grant:view",
+        "limited_member": "policy:limited_members_ai",
+        "read_only": "policy:read_only_ai",
+        "guest": "deny"
+      },
+      "requirements": [
+        "AI-005",
+        "AI-006"
+      ],
+      "notes": ""
+    },
+    {
+      "key": "ai.apply_proposal",
+      "kind": "execution",
+      "scopes": [
+        "record"
+      ],
+      "description": "Apply selected AI-proposed changes (each change authorized as the applying human).",
+      "required_level": "edit",
+      "risk_class": "R1",
+      "approval_class": "none",
+      "step_up": false,
+      "second_approval": false,
+      "non_delegable": false,
+      "entitlement": null,
+      "roles": {
+        "owner": "implicit",
+        "administrator": "implicit",
+        "member": "grant:edit",
+        "limited_member": "grant:edit",
+        "read_only": "deny",
+        "guest": "deny"
+      },
+      "requirements": [
+        "AI-024",
+        "AI-025"
+      ],
+      "notes": ""
+    },
+    {
+      "key": "agent.assign",
+      "kind": "execution",
+      "scopes": [
+        "record"
+      ],
+      "description": "Assign a task to an agent and start runs.",
+      "required_level": "edit",
+      "risk_class": "R2",
+      "approval_class": "none",
+      "step_up": false,
+      "second_approval": false,
+      "non_delegable": false,
+      "entitlement": null,
+      "roles": {
+        "owner": "implicit",
+        "administrator": "implicit",
+        "member": "grant:edit",
+        "limited_member": "policy:limited_members_agents",
+        "read_only": "deny",
+        "guest": "deny"
+      },
+      "requirements": [
+        "AGT-003",
+        "LA-008"
+      ],
+      "notes": ""
+    },
+    {
+      "key": "agent.run_control",
+      "kind": "execution",
+      "scopes": [
+        "record"
+      ],
+      "description": "Pause, resume, cancel, or retry a run (assigner or task manager).",
+      "required_level": "edit",
+      "risk_class": "R1",
+      "approval_class": "none",
+      "step_up": false,
+      "second_approval": false,
+      "non_delegable": false,
+      "entitlement": null,
+      "roles": {
+        "owner": "implicit",
+        "administrator": "implicit",
+        "member": "grant:edit",
+        "limited_member": "grant:edit",
+        "read_only": "deny",
+        "guest": "deny"
+      },
+      "requirements": [
+        "AGT-009"
+      ],
+      "notes": ""
+    },
+    {
+      "key": "agent.action_approve",
+      "kind": "execution",
+      "scopes": [
+        "record"
+      ],
+      "description": "Approve a gated agent action class (external message, publish, spend, access, destructive, production, scope expansion).",
+      "required_level": "manage",
+      "risk_class": "R3",
+      "approval_class": "designated_human",
+      "step_up": false,
+      "second_approval": false,
+      "non_delegable": false,
+      "entitlement": null,
+      "roles": {
+        "owner": "implicit",
+        "administrator": "implicit",
+        "member": "grant:manage",
+        "limited_member": "deny",
+        "read_only": "deny",
+        "guest": "deny"
+      },
+      "requirements": [
+        "AGT-016",
+        "AGT-017"
+      ],
+      "notes": ""
+    },
+    {
+      "key": "automation.run_manual",
+      "kind": "execution",
+      "scopes": [
+        "brand",
+        "workspace"
+      ],
+      "description": "Run or test an automation manually.",
+      "required_level": "manage",
+      "risk_class": "R2",
+      "approval_class": "none",
+      "step_up": false,
+      "second_approval": false,
+      "non_delegable": false,
+      "entitlement": null,
+      "roles": {
+        "owner": "implicit",
+        "administrator": "implicit",
+        "member": "grant:manage",
+        "limited_member": "grant:manage",
+        "read_only": "deny",
+        "guest": "deny"
+      },
+      "requirements": [
+        "AUTO-012"
+      ],
+      "notes": ""
+    },
+    {
+      "key": "integration.sync_now",
+      "kind": "execution",
+      "scopes": [
+        "connection"
+      ],
+      "description": "Trigger a sync on a connection.",
+      "required_level": null,
+      "risk_class": "R1",
+      "approval_class": "none",
+      "step_up": false,
+      "second_approval": false,
+      "non_delegable": false,
+      "entitlement": null,
+      "roles": {
+        "owner": "implicit",
+        "administrator": "implicit",
+        "member": "grant:manage",
+        "limited_member": "deny",
+        "read_only": "deny",
+        "guest": "deny"
+      },
+      "requirements": [
+        "INT-006"
+      ],
+      "notes": ""
+    },
+    {
+      "key": "import.execute",
+      "kind": "execution",
+      "scopes": [
+        "workspace",
+        "brand"
+      ],
+      "description": "Run an import into a scope.",
+      "required_level": null,
+      "risk_class": "R2",
+      "approval_class": "none",
+      "step_up": false,
+      "second_approval": false,
+      "non_delegable": false,
+      "entitlement": null,
+      "roles": {
+        "owner": "implicit",
+        "administrator": "implicit",
+        "member": "grant:edit",
+        "limited_member": "deny",
+        "read_only": "deny",
+        "guest": "deny"
+      },
+      "requirements": [
+        "DATA-001",
+        "LA-005"
+      ],
+      "notes": ""
+    },
+    {
+      "key": "webhook.test_send",
+      "kind": "execution",
+      "scopes": [
+        "workspace",
+        "brand"
+      ],
+      "description": "Send a test delivery to an outbound webhook.",
+      "required_level": null,
+      "risk_class": "R2",
+      "approval_class": "none",
+      "step_up": false,
+      "second_approval": false,
+      "non_delegable": false,
+      "entitlement": null,
+      "roles": {
+        "owner": "implicit",
+        "administrator": "implicit",
+        "member": "grant:manage",
+        "limited_member": "deny",
+        "read_only": "deny",
+        "guest": "deny"
+      },
+      "requirements": [
+        "INT-011"
+      ],
+      "notes": ""
+    }
+  ]
+}

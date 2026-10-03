@@ -1,0 +1,120 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:pm:schema:error-envelope",
+  "title": "Error envelope",
+  "x-visibility": "public",
+  "x-max-class": "C1",
+  "type": "object",
+  "required": [
+    "error"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "error": {
+      "type": "object",
+      "required": [
+        "code",
+        "status",
+        "message",
+        "retryable",
+        "request_id",
+        "correlation_id"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "code": {
+          "type": "string",
+          "pattern": "^[a-z_]+$"
+        },
+        "status": {
+          "type": "integer",
+          "minimum": 400,
+          "maximum": 599
+        },
+        "message": {
+          "type": "string"
+        },
+        "retryable": {
+          "type": "boolean"
+        },
+        "request_id": {
+          "$ref": "urn:pm:schema:common#/$defs/request_id"
+        },
+        "correlation_id": {
+          "$ref": "urn:pm:schema:common#/$defs/trace_id"
+        },
+        "issues": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "code",
+              "message"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "pointer": {
+                "type": "string",
+                "pattern": "^(/[^/]*)*$"
+              },
+              "code": {
+                "type": "string",
+                "pattern": "^[a-z_]+$"
+              },
+              "message": {
+                "type": "string"
+              }
+            }
+          }
+        },
+        "retry_after_seconds": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "operation_id": {
+          "$ref": "urn:pm:schema:common#/$defs/public_id"
+        },
+        "approval": {
+          "$ref": "urn:pm:schema:common#/$defs/approval_ref"
+        },
+        "step_up": {
+          "$ref": "urn:pm:schema:step-up-challenge"
+        },
+        "conflict": {
+          "$ref": "urn:pm:schema:conflict"
+        },
+        "entitlement": {
+          "type": "object",
+          "required": [
+            "key"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "key": {
+              "type": "string",
+              "pattern": "^[a-z_]+$"
+            }
+          }
+        },
+        "usage": {
+          "type": "object",
+          "required": [
+            "meter"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "meter": {
+              "type": "string"
+            },
+            "limit": {
+              "$ref": "urn:pm:schema:common#/$defs/decimal"
+            },
+            "period_end": {
+              "$ref": "urn:pm:schema:common#/$defs/timestamp"
+            }
+          }
+        }
+      }
+    }
+  }
+}

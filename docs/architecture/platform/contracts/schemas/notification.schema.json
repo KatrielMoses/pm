@@ -1,0 +1,134 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:pm:schema:notification",
+  "title": "Notification",
+  "x-visibility": "public",
+  "x-max-class": "C2",
+  "type": "object",
+  "required": [
+    "id",
+    "type",
+    "notification_type",
+    "state",
+    "available",
+    "created_at"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "id": {
+      "$ref": "urn:pm:schema:common#/$defs/public_id"
+    },
+    "type": {
+      "const": "notification"
+    },
+    "notification_type": {
+      "type": "string",
+      "pattern": "^[a-z_]+$"
+    },
+    "state": {
+      "type": "string",
+      "enum": [
+        "unread",
+        "read",
+        "saved",
+        "dismissed"
+      ]
+    },
+    "record": {
+      "$ref": "urn:pm:schema:common#/$defs/record_ref"
+    },
+    "brand": {
+      "$ref": "urn:pm:schema:common#/$defs/public_id"
+    },
+    "summary": {
+      "type": "string",
+      "maxLength": 500,
+      "x-class": "C2"
+    },
+    "available": {
+      "type": "boolean"
+    },
+    "group_key": {
+      "type": "string"
+    },
+    "created_at": {
+      "$ref": "urn:pm:schema:common#/$defs/timestamp"
+    },
+    "channels": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "channel",
+          "state"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "channel": {
+            "type": "string",
+            "enum": [
+              "in_app",
+              "email",
+              "browser",
+              "digest"
+            ]
+          },
+          "state": {
+            "type": "string",
+            "enum": [
+              "pending",
+              "delivered",
+              "suppressed",
+              "failed",
+              "deferred_quiet_hours"
+            ]
+          },
+          "content_mode": {
+            "type": "string",
+            "enum": [
+              "standard",
+              "minimal"
+            ]
+          }
+        }
+      }
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "type": "object",
+        "required": [
+          "available"
+        ],
+        "additionalProperties": true,
+        "properties": {
+          "available": {
+            "const": false
+          }
+        }
+      },
+      "then": {
+        "not": {
+          "anyOf": [
+            {
+              "required": [
+                "summary"
+              ]
+            },
+            {
+              "required": [
+                "record"
+              ]
+            },
+            {
+              "required": [
+                "brand"
+              ]
+            }
+          ]
+        }
+      }
+    }
+  ]
+}

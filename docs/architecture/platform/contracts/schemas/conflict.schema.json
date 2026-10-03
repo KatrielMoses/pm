@@ -1,0 +1,55 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:pm:schema:conflict",
+  "title": "Conflict",
+  "x-visibility": "public",
+  "x-max-class": "C2",
+  "type": "object",
+  "required": [
+    "current_version",
+    "fields"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "current_version": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "would_merge": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "fields": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "field",
+          "theirs_readable"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "field": {
+            "type": "string"
+          },
+          "yours": {},
+          "theirs": {},
+          "theirs_readable": {
+            "type": "boolean"
+          },
+          "changed_by": {
+            "$ref": "urn:pm:schema:common#/$defs/actor"
+          },
+          "changed_at": {
+            "$ref": "urn:pm:schema:common#/$defs/timestamp"
+          }
+        }
+      }
+    },
+    "saved_as_version_id": {
+      "$ref": "urn:pm:schema:common#/$defs/public_id"
+    }
+  }
+}

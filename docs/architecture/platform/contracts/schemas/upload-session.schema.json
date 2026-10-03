@@ -1,0 +1,112 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:pm:schema:upload-session",
+  "title": "Upload session",
+  "x-visibility": "public",
+  "x-max-class": "C2",
+  "type": "object",
+  "required": [
+    "id",
+    "type",
+    "state",
+    "content_type",
+    "byte_size",
+    "sha256",
+    "host"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "id": {
+      "$ref": "urn:pm:schema:common#/$defs/public_id"
+    },
+    "type": {
+      "const": "upload_session"
+    },
+    "state": {
+      "type": "string",
+      "enum": [
+        "initiated",
+        "uploaded",
+        "verifying",
+        "completed",
+        "rejected",
+        "expired"
+      ]
+    },
+    "file_name": {
+      "type": "string",
+      "maxLength": 255,
+      "x-class": "C2"
+    },
+    "content_type": {
+      "type": "string",
+      "pattern": "^[a-z]+/[a-z0-9.+-]+$"
+    },
+    "byte_size": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "host": {
+      "$ref": "urn:pm:schema:common#/$defs/record_ref"
+    },
+    "upload": {
+      "type": "object",
+      "required": [
+        "method",
+        "expires_at"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "method": {
+          "enum": [
+            "PUT"
+          ]
+        },
+        "url": {
+          "type": "string",
+          "pattern": "^https://"
+        },
+        "headers": {
+          "type": "object"
+        },
+        "expires_at": {
+          "$ref": "urn:pm:schema:common#/$defs/timestamp"
+        },
+        "parts": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "number",
+              "url"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "number": {
+                "type": "integer",
+                "minimum": 1
+              },
+              "url": {
+                "type": "string",
+                "pattern": "^https://"
+              },
+              "byte_range": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      }
+    },
+    "file_version": {
+      "$ref": "urn:pm:schema:common#/$defs/public_id"
+    },
+    "rejection_code": {
+      "type": "string"
+    }
+  }
+}

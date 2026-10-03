@@ -1,0 +1,24 @@
+{
+  "$schema_ref": "urn:pm:schema:notification",
+  "example": {
+    "id": "ntf_01J9ZK3Q5B8V2N4M6P7R9S0T1R",
+    "type": "notification",
+    "notification_type": "mention",
+    "state": "unread",
+    "record": {
+      "id": "tsk_01J9ZK3Q5B8V2N4M6P7R9S0T1V",
+      "type": "task"
+    },
+    "brand": "br_01J9ZK3Q5B8V2N4M6P7R9S0T1A",
+    "summary": "Ana mentioned you on Ship v2.3 changelog",
+    "available": true,
+    "created_at": "2026-10-14T09:00:00.000Z",
+    "channels": [
+      {
+        "channel": "email",
+        "state": "delivered",
+        "content_mode": "minimal"
+      }
+    ]
+  }
+}

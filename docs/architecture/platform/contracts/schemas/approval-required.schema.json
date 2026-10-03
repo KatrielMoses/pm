@@ -1,0 +1,27 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:pm:schema:approval-required",
+  "title": "Approval required",
+  "x-visibility": "public",
+  "x-max-class": "C2",
+  "type": "object",
+  "required": [
+    "approval",
+    "approvers_available"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "approval": {
+      "$ref": "urn:pm:schema:common#/$defs/approval_ref"
+    },
+    "operation": {
+      "$ref": "urn:pm:schema:common#/$defs/public_id"
+    },
+    "approvers_available": {
+      "type": "boolean"
+    },
+    "message": {
+      "type": "string"
+    }
+  }
+}

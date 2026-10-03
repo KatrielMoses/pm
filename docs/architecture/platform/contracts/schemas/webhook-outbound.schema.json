@@ -1,0 +1,62 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:pm:schema:webhook-outbound",
+  "title": "Webhook outbound",
+  "x-visibility": "public",
+  "x-max-class": "C2",
+  "type": "object",
+  "required": [
+    "id",
+    "type",
+    "api_version",
+    "created_at",
+    "workspace",
+    "data"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "id": {
+      "$ref": "urn:pm:schema:common#/$defs/public_id"
+    },
+    "type": {
+      "type": "string",
+      "pattern": "^[a-z_]+\\.[a-z_]+$"
+    },
+    "api_version": {
+      "type": "string",
+      "pattern": "^v[0-9]+$"
+    },
+    "created_at": {
+      "$ref": "urn:pm:schema:common#/$defs/timestamp"
+    },
+    "workspace": {
+      "$ref": "urn:pm:schema:common#/$defs/public_id"
+    },
+    "brand": {
+      "$ref": "urn:pm:schema:common#/$defs/public_id"
+    },
+    "data": {
+      "type": "object",
+      "required": [
+        "object"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "object": {
+          "$ref": "urn:pm:schema:common#/$defs/record_ref"
+        },
+        "fields": {
+          "type": "object",
+          "x-class": "C2"
+        },
+        "changes": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "x-class": "C2"
+    }
+  }
+}

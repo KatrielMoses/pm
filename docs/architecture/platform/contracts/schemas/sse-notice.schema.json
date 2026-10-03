@@ -1,0 +1,63 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:pm:schema:sse-notice",
+  "title": "Sse notice",
+  "x-visibility": "public",
+  "x-max-class": "C1",
+  "type": "object",
+  "required": [
+    "id",
+    "event"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "id": {
+      "type": "string",
+      "pattern": "^[0-9]+-[0-9]+$",
+      "description": "Monotonic per-stream event ID for Last-Event-ID."
+    },
+    "event": {
+      "type": "string",
+      "enum": [
+        "record.changed",
+        "stream.reset",
+        "heartbeat"
+      ]
+    },
+    "data": {
+      "type": "object",
+      "required": [],
+      "additionalProperties": false,
+      "properties": {
+        "record": {
+          "type": "object",
+          "required": [
+            "id",
+            "version"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "id": {
+              "$ref": "urn:pm:schema:common#/$defs/public_id"
+            },
+            "version": {
+              "type": "integer",
+              "minimum": 0
+            }
+          },
+          "x-class": "C1"
+        },
+        "reason": {
+          "type": "string",
+          "enum": [
+            "buffer_overflow",
+            "authorization_changed",
+            "server_restart",
+            "session_ended"
+          ]
+        }
+      },
+      "x-class": "C1"
+    }
+  }
+}

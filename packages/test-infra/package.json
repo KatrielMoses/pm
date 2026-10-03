@@ -1,0 +1,24 @@
+{
+  "name": "@pm/test-infra",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "license": "UNLICENSED",
+  "exports": {
+    ".": {
+      "@pm/source": "./src/index.ts",
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "dependencies": {
+    "@testcontainers/postgresql": "12.2.0",
+    "ajv": "8.20.0",
+    "embedded-postgres": "18.4.0-beta.17",
+    "pg": "8.23.1",
+    "vitest": "5.0.3"
+  },
+  "devDependencies": {
+    "@types/pg": "8.23.1"
+  }
+}

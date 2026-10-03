@@ -1,0 +1,110 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:pm:schema:security-event",
+  "title": "Security event",
+  "x-visibility": "internal",
+  "x-max-class": "C3",
+  "type": "object",
+  "required": [
+    "id",
+    "occurred_at",
+    "category",
+    "action",
+    "outcome",
+    "actor",
+    "correlation_id",
+    "retention_class"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "id": {
+      "$ref": "urn:pm:schema:common#/$defs/internal_uuid"
+    },
+    "occurred_at": {
+      "$ref": "urn:pm:schema:common#/$defs/timestamp"
+    },
+    "workspace_id": {
+      "$ref": "urn:pm:schema:common#/$defs/internal_uuid"
+    },
+    "category": {
+      "type": "string",
+      "enum": [
+        "authentication",
+        "session",
+        "step_up",
+        "token",
+        "permission",
+        "sharing",
+        "export",
+        "support_access",
+        "elevation",
+        "denial",
+        "secret",
+        "rls_assertion"
+      ]
+    },
+    "action": {
+      "type": "string",
+      "pattern": "^[a-z_]+\\.[a-z_]+$"
+    },
+    "outcome": {
+      "type": "string",
+      "enum": [
+        "success",
+        "failure",
+        "denied"
+      ]
+    },
+    "actor": {
+      "type": "object",
+      "required": [
+        "type"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "type": {
+          "$ref": "urn:pm:schema:common#/$defs/actor_type"
+        },
+        "id": {
+          "$ref": "urn:pm:schema:common#/$defs/internal_uuid"
+        }
+      }
+    },
+    "subject_principal": {
+      "type": "object",
+      "required": [
+        "type",
+        "id"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "type": {
+          "type": "string"
+        },
+        "id": {
+          "$ref": "urn:pm:schema:common#/$defs/internal_uuid"
+        }
+      }
+    },
+    "network": {
+      "type": "object",
+      "required": [],
+      "additionalProperties": false,
+      "properties": {
+        "ip": {
+          "type": "string"
+        },
+        "user_agent_family": {
+          "type": "string"
+        }
+      },
+      "x-class": "C3"
+    },
+    "correlation_id": {
+      "$ref": "urn:pm:schema:common#/$defs/trace_id"
+    },
+    "retention_class": {
+      "const": "R-AUDIT"
+    }
+  }
+}

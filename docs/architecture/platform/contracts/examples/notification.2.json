@@ -1,0 +1,11 @@
+{
+  "$schema_ref": "urn:pm:schema:notification",
+  "example": {
+    "id": "ntf_01J9ZK3Q5B8V2N4M6P7R9S0T1S",
+    "type": "notification",
+    "notification_type": "mention",
+    "state": "read",
+    "available": false,
+    "created_at": "2026-10-14T09:00:00.000Z"
+  }
+}

@@ -1,0 +1,129 @@
+/* Semantic tokens from 0E docs/ux/05-design-system.md (light and dark). Polished visuals are 1E. */
+:root {
+  color-scheme: light dark;
+  --color-bg-canvas: #f6f7f9;
+  --color-bg-surface: #ffffff;
+  --color-text-primary: #1a1d23;
+  --color-text-secondary: #474d59;
+  --color-border-subtle: #dcdfe4;
+  --color-border-focus: #1d5bd6;
+  --color-action-primary: #1d5bd6;
+  --color-text-on-primary: #ffffff;
+  --color-status-success-fg: #1b7339;
+  --color-status-success-bg: #e4f4e9;
+  --color-status-warning-fg: #8a5300;
+  --color-status-warning-bg: #fdf1d8;
+  --color-status-danger-fg: #c0261c;
+  --color-status-danger-bg: #fce8e6;
+  --color-status-info-fg: #1d5bd6;
+  --color-status-info-bg: #e6eefc;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --color-bg-canvas: #101216;
+    --color-bg-surface: #181b21;
+    --color-text-primary: #eceef2;
+    --color-text-secondary: #b6bbc5;
+    --color-border-subtle: #2c3038;
+    --color-border-focus: #7ea8ff;
+    --color-action-primary: #7ea8ff;
+    --color-text-on-primary: #0b1530;
+    --color-status-success-fg: #5bc882;
+    --color-status-success-bg: #132e1f;
+    --color-status-warning-fg: #f2b54a;
+    --color-status-warning-bg: #33260c;
+    --color-status-danger-fg: #ff8077;
+    --color-status-danger-bg: #3a1715;
+    --color-status-info-fg: #7ea8ff;
+    --color-status-info-bg: #17264a;
+  }
+}
+body {
+  margin: 0;
+  background: var(--color-bg-canvas);
+  color: var(--color-text-primary);
+  font:
+    16px/1.5 system-ui,
+    -apple-system,
+    'Segoe UI',
+    sans-serif;
+}
+.shell {
+  max-width: 40rem;
+  margin: 4rem auto;
+  padding: 0 1rem;
+}
+h1 {
+  margin: 0;
+  font-size: 1.75rem;
+}
+.subtitle {
+  margin: 0 0 2rem;
+  color: var(--color-text-secondary);
+}
+.status {
+  border: 1px solid var(--color-border-subtle);
+  border-radius: 8px;
+  padding: 1rem 1.25rem;
+  background: var(--color-bg-surface);
+}
+.status h2 {
+  margin: 0 0 0.25rem;
+  font-size: 1.125rem;
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+.status p {
+  margin: 0;
+  color: var(--color-text-secondary);
+}
+.status-available {
+  border-color: var(--color-status-success-fg);
+  background: var(--color-status-success-bg);
+}
+.status-available h2 {
+  color: var(--color-status-success-fg);
+}
+.status-degraded {
+  border-color: var(--color-status-warning-fg);
+  background: var(--color-status-warning-bg);
+}
+.status-degraded h2 {
+  color: var(--color-status-warning-fg);
+}
+.status-unavailable {
+  border-color: var(--color-status-danger-fg);
+  background: var(--color-status-danger-bg);
+}
+.status-unavailable h2 {
+  color: var(--color-status-danger-fg);
+}
+.status-checking h2 {
+  color: var(--color-status-info-fg);
+}
+button {
+  margin-top: 0.75rem;
+  font: inherit;
+  padding: 0.375rem 0.875rem;
+  border-radius: 6px;
+  border: 0;
+  background: var(--color-action-primary);
+  color: var(--color-text-on-primary);
+  cursor: pointer;
+}
+button:focus-visible {
+  outline: 2px solid var(--color-border-focus);
+  outline-offset: 2px;
+}
+footer {
+  margin-top: 2rem;
+  color: var(--color-text-secondary);
+  font-size: 0.875rem;
+}
+@media (prefers-reduced-motion: reduce) {
+  * {
+    transition: none !important;
+    animation: none !important;
+  }
+}

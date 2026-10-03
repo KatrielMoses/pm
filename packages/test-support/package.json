@@ -1,0 +1,37 @@
+{
+  "name": "@pm/test-support",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "license": "UNLICENSED",
+  "exports": {
+    ".": {
+      "@pm/source": "./src/index.ts",
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./vitest": {
+      "@pm/source": "./src/test-database.ts",
+      "types": "./dist/test-database.d.ts",
+      "default": "./dist/test-database.js"
+    },
+    "./global-setup": {
+      "@pm/source": "./src/vitest-global-setup.ts",
+      "types": "./dist/vitest-global-setup.d.ts",
+      "default": "./dist/vitest-global-setup.js"
+    }
+  },
+  "dependencies": {
+    "@pm/contracts": "workspace:*",
+    "@pm/config": "workspace:*",
+    "@pm/db": "workspace:*",
+    "pg": "8.23.1",
+    "kysely": "0.29.6",
+    "@pm/observability": "workspace:*",
+    "vitest": "5.0.3",
+    "@pm/test-infra": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/pg": "8.23.1"
+  }
+}

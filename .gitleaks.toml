@@ -1,0 +1,22 @@
+# Secret scanning configuration (gitleaks >= 8.25). Default rules plus a narrow allowlist.
+title = "pm secret scan"
+
+[extend]
+useDefault = true
+
+[[allowlists]]
+description = "Accepted Phase 0 contract examples, generated references, and validators use synthetic identifiers"
+paths = [
+  '''^docs/architecture/platform/contracts/examples/''',
+  '''^docs/architecture/platform/generated/''',
+  '''^docs/architecture/(access|platform)/tools/''',
+  '''^pnpm-lock\.yaml$''',
+]
+
+[[allowlists]]
+description = "Gitignored local secret stores (scripts/scan-secrets.mjs separately fails if any is tracked)"
+paths = [
+  '''^\.local/''',
+  '''^\.env$''',
+  '''^compose\.env$''',
+]

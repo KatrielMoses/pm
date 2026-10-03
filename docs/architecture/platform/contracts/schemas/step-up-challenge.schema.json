@@ -1,0 +1,63 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:pm:schema:step-up-challenge",
+  "title": "Step up challenge",
+  "x-visibility": "public",
+  "x-max-class": "C2",
+  "type": "object",
+  "required": [
+    "id",
+    "type",
+    "action_key",
+    "methods",
+    "expires_at",
+    "state"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "id": {
+      "$ref": "urn:pm:schema:common#/$defs/public_id"
+    },
+    "type": {
+      "const": "step_up_challenge"
+    },
+    "action_key": {
+      "type": "string"
+    },
+    "target": {
+      "$ref": "urn:pm:schema:common#/$defs/record_ref"
+    },
+    "methods": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "enum": [
+          "password",
+          "totp",
+          "webauthn",
+          "recovery_code"
+        ]
+      },
+      "minItems": 1
+    },
+    "expires_at": {
+      "$ref": "urn:pm:schema:common#/$defs/timestamp"
+    },
+    "state": {
+      "type": "string",
+      "enum": [
+        "pending",
+        "verified",
+        "consumed",
+        "expired",
+        "cancelled"
+      ]
+    },
+    "verify": {
+      "type": "string"
+    },
+    "cancel": {
+      "type": "string"
+    }
+  }
+}

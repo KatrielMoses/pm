@@ -1,0 +1,187 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:pm:schema:execution-context",
+  "title": "Execution context",
+  "x-visibility": "internal",
+  "x-max-class": "C2",
+  "type": "object",
+  "required": [
+    "workspace_id",
+    "correlation_id",
+    "authenticated_principal",
+    "effective_principal",
+    "delegation_chain",
+    "epochs",
+    "data_class_limit"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "workspace_id": {
+      "$ref": "urn:pm:schema:common#/$defs/internal_uuid"
+    },
+    "request_id": {
+      "$ref": "urn:pm:schema:common#/$defs/request_id"
+    },
+    "correlation_id": {
+      "$ref": "urn:pm:schema:common#/$defs/trace_id"
+    },
+    "causation_id": {
+      "$ref": "urn:pm:schema:common#/$defs/internal_uuid"
+    },
+    "traceparent": {
+      "type": "string",
+      "pattern": "^00-[0-9a-f]{32}-[0-9a-f]{16}-[0-9a-f]{2}$"
+    },
+    "authenticated_principal": {
+      "type": "object",
+      "required": [
+        "type",
+        "id"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "type": {
+          "type": "string"
+        },
+        "id": {
+          "$ref": "urn:pm:schema:common#/$defs/internal_uuid"
+        }
+      }
+    },
+    "effective_principal": {
+      "type": "object",
+      "required": [
+        "type",
+        "id"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "type": {
+          "type": "string"
+        },
+        "id": {
+          "$ref": "urn:pm:schema:common#/$defs/internal_uuid"
+        }
+      }
+    },
+    "initiating_membership_id": {
+      "$ref": "urn:pm:schema:common#/$defs/internal_uuid"
+    },
+    "delegation_chain": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "type",
+          "id"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "type": {
+            "type": "string"
+          },
+          "id": {
+            "$ref": "urn:pm:schema:common#/$defs/internal_uuid"
+          },
+          "scope_ref": {
+            "type": "string"
+          }
+        }
+      },
+      "minItems": 1
+    },
+    "selected_scope": {
+      "type": "object",
+      "required": [],
+      "additionalProperties": false,
+      "properties": {
+        "brand_ids": {
+          "type": "array",
+          "items": {
+            "$ref": "urn:pm:schema:common#/$defs/internal_uuid"
+          }
+        },
+        "project_ids": {
+          "type": "array",
+          "items": {
+            "$ref": "urn:pm:schema:common#/$defs/internal_uuid"
+          }
+        },
+        "record_ids": {
+          "type": "array",
+          "items": {
+            "$ref": "urn:pm:schema:common#/$defs/internal_uuid"
+          }
+        },
+        "exclude_record_ids": {
+          "type": "array",
+          "items": {
+            "$ref": "urn:pm:schema:common#/$defs/internal_uuid"
+          }
+        }
+      }
+    },
+    "epochs": {
+      "type": "object",
+      "required": [
+        "workspace",
+        "principal"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "workspace": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "principal": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "agent_class": {
+          "type": "integer",
+          "minimum": 0
+        }
+      }
+    },
+    "risk": {
+      "type": "object",
+      "required": [
+        "action_key",
+        "risk_class"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "action_key": {
+          "type": "string"
+        },
+        "risk_class": {
+          "$ref": "urn:pm:schema:common#/$defs/risk_class"
+        },
+        "approval_class": {
+          "type": "string"
+        },
+        "approval_id": {
+          "$ref": "urn:pm:schema:common#/$defs/internal_uuid"
+        },
+        "step_up_id": {
+          "$ref": "urn:pm:schema:common#/$defs/internal_uuid"
+        }
+      }
+    },
+    "data_class_limit": {
+      "$ref": "urn:pm:schema:common#/$defs/data_class"
+    },
+    "locale": {
+      "$ref": "urn:pm:schema:common#/$defs/locale"
+    },
+    "timezone": {
+      "$ref": "urn:pm:schema:common#/$defs/tz"
+    },
+    "operation_id": {
+      "$ref": "urn:pm:schema:common#/$defs/internal_uuid"
+    },
+    "attempt_id": {
+      "$ref": "urn:pm:schema:common#/$defs/internal_uuid"
+    }
+  }
+}

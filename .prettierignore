@@ -1,0 +1,12 @@
+pnpm-lock.yaml
+dist/
+coverage/
+reports/
+test-results/
+playwright-report/
+.local/
+# Accepted Phase 0 documentation and planning sources are formatted by their own owners.
+docs/
+briefs/
+*.md
+packages/contracts/src/generated/

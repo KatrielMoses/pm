@@ -1,0 +1,25 @@
+{
+  "$schema_ref": "urn:pm:schema:webhook-outbound",
+  "example": {
+    "id": "evt_01J9ZK3Q5B8V2N4M6P7R9S0T1N",
+    "type": "task.completed",
+    "api_version": "v1",
+    "created_at": "2026-10-14T09:00:00.000Z",
+    "workspace": "ws_01J9ZK3Q5B8V2N4M6P7R9S0T1K",
+    "brand": "br_01J9ZK3Q5B8V2N4M6P7R9S0T1A",
+    "data": {
+      "object": {
+        "id": "tsk_01J9ZK3Q5B8V2N4M6P7R9S0T1V",
+        "type": "task",
+        "version": 43
+      },
+      "fields": {
+        "status_category": "done",
+        "completed_at": "2026-10-14T09:00:00.000Z"
+      },
+      "changes": [
+        "status_category"
+      ]
+    }
+  }
+}

@@ -1,0 +1,122 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:pm:schema:internal-event",
+  "title": "Internal event",
+  "x-visibility": "internal",
+  "x-max-class": "C2",
+  "type": "object",
+  "required": [
+    "event_id",
+    "type",
+    "schema_version",
+    "occurred_at",
+    "recorded_at",
+    "workspace_id",
+    "aggregate",
+    "actor",
+    "correlation_id",
+    "data",
+    "max_class"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "event_id": {
+      "$ref": "urn:pm:schema:common#/$defs/internal_uuid"
+    },
+    "type": {
+      "type": "string",
+      "pattern": "^[a-z]+\\.[a-z_]+\\.[a-z_]+$"
+    },
+    "schema_version": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "occurred_at": {
+      "$ref": "urn:pm:schema:common#/$defs/timestamp"
+    },
+    "recorded_at": {
+      "$ref": "urn:pm:schema:common#/$defs/timestamp"
+    },
+    "workspace_id": {
+      "$ref": "urn:pm:schema:common#/$defs/internal_uuid"
+    },
+    "brand_id": {
+      "$ref": "urn:pm:schema:common#/$defs/internal_uuid"
+    },
+    "aggregate": {
+      "type": "object",
+      "required": [
+        "type",
+        "id",
+        "sequence"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "type": {
+          "type": "string"
+        },
+        "id": {
+          "$ref": "urn:pm:schema:common#/$defs/internal_uuid"
+        },
+        "sequence": {
+          "type": "integer",
+          "minimum": 0
+        }
+      }
+    },
+    "actor": {
+      "type": "object",
+      "required": [
+        "type"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "type": {
+          "$ref": "urn:pm:schema:common#/$defs/actor_type"
+        },
+        "id": {
+          "$ref": "urn:pm:schema:common#/$defs/internal_uuid"
+        },
+        "on_behalf_of": {
+          "$ref": "urn:pm:schema:common#/$defs/internal_uuid"
+        }
+      }
+    },
+    "auth": {
+      "type": "object",
+      "required": [
+        "workspace_epoch"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "workspace_epoch": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "delegation_depth": {
+          "type": "integer",
+          "minimum": 0
+        }
+      }
+    },
+    "correlation_id": {
+      "$ref": "urn:pm:schema:common#/$defs/trace_id"
+    },
+    "causation_id": {
+      "$ref": "urn:pm:schema:common#/$defs/internal_uuid"
+    },
+    "operation_id": {
+      "$ref": "urn:pm:schema:common#/$defs/internal_uuid"
+    },
+    "attempt_id": {
+      "$ref": "urn:pm:schema:common#/$defs/internal_uuid"
+    },
+    "data": {
+      "type": "object",
+      "x-class": "C2"
+    },
+    "max_class": {
+      "$ref": "urn:pm:schema:common#/$defs/data_class"
+    }
+  }
+}

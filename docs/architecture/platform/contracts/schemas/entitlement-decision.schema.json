@@ -1,0 +1,42 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:pm:schema:entitlement-decision",
+  "title": "Entitlement decision",
+  "x-visibility": "public",
+  "x-max-class": "C2",
+  "type": "object",
+  "required": [
+    "key",
+    "available",
+    "source"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "key": {
+      "type": "string",
+      "pattern": "^[a-z_]+$"
+    },
+    "available": {
+      "type": "boolean"
+    },
+    "limit": {
+      "$ref": "urn:pm:schema:common#/$defs/decimal"
+    },
+    "used": {
+      "$ref": "urn:pm:schema:common#/$defs/decimal"
+    },
+    "source": {
+      "type": "string",
+      "enum": [
+        "plan",
+        "add_on",
+        "override",
+        "not_in_plan",
+        "trial"
+      ]
+    },
+    "plan_version": {
+      "type": "string"
+    }
+  }
+}

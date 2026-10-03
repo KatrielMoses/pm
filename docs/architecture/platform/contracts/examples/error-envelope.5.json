@@ -1,0 +1,18 @@
+{
+  "$schema_ref": "urn:pm:schema:error-envelope",
+  "example": {
+    "error": {
+      "code": "usage_limit_reached",
+      "status": 403,
+      "message": "This would exceed the workspace AI limit.",
+      "retryable": false,
+      "request_id": "req_01J9ZK3Q5B8V2N4M6P7R9S0T1W",
+      "correlation_id": "4bf92f3577b34da6a3ce929d0e0e4736",
+      "usage": {
+        "meter": "ai.cost",
+        "limit": "50.00",
+        "period_end": "2026-11-01T00:00:00.000Z"
+      }
+    }
+  }
+}

@@ -1,0 +1,30 @@
+{
+  "name": "@pm/platform",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "license": "UNLICENSED",
+  "files": [
+    "dist"
+  ],
+  "exports": {
+    ".": {
+      "@pm/source": "./src/index.ts",
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "dependencies": {
+    "@pm/contracts": "workspace:*",
+    "@pm/config": "workspace:*",
+    "@pm/observability": "workspace:*",
+    "@pm/db": "workspace:*",
+    "@opentelemetry/api": "1.9.1",
+    "kysely": "0.29.6"
+  },
+  "devDependencies": {
+    "@pm/test-support": "workspace:*",
+    "pg": "8.23.1",
+    "@types/pg": "8.23.1"
+  }
+}

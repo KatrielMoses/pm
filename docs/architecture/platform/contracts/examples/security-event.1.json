@@ -1,0 +1,21 @@
+{
+  "$schema_ref": "urn:pm:schema:security-event",
+  "example": {
+    "id": "0192a3b4-c5d6-7e8f-9a0b-1c2d3e4f5a6b",
+    "occurred_at": "2026-10-14T09:00:00.000Z",
+    "workspace_id": "0192a3b4-c5d6-7e8f-9a0b-1c2d3e4f5a6b",
+    "category": "step_up",
+    "action": "step_up.verified",
+    "outcome": "success",
+    "actor": {
+      "type": "human",
+      "id": "0192a3b4-c5d6-7e8f-9a0b-1c2d3e4f5a6b"
+    },
+    "network": {
+      "ip": "203.0.113.0/24",
+      "user_agent_family": "Firefox"
+    },
+    "correlation_id": "4bf92f3577b34da6a3ce929d0e0e4736",
+    "retention_class": "R-AUDIT"
+  }
+}

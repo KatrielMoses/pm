@@ -1,0 +1,2920 @@
+{
+  "schema_version": 1,
+  "actor_types": [
+    "human",
+    "ai",
+    "automation",
+    "integration",
+    "agent",
+    "system"
+  ],
+  "exec_states": [
+    "queued",
+    "running",
+    "waiting",
+    "paused",
+    "succeeded",
+    "partial",
+    "failed",
+    "cancelled",
+    "skipped"
+  ],
+  "terminal_reasons": [
+    "error",
+    "timed_out",
+    "limit_exceeded",
+    "policy_rejected",
+    "user_cancelled",
+    "emergency_stop",
+    "superseded",
+    "deduplicated"
+  ],
+  "waiting_reasons": [
+    "approval",
+    "input",
+    "rate_limit",
+    "delay",
+    "external_confirmation",
+    "reconciliation_required",
+    "authorization_changed",
+    "dependency_unavailable"
+  ],
+  "job_states": {
+    "queued": "queued",
+    "leased": "running",
+    "retry_scheduled": "running",
+    "succeeded": "succeeded",
+    "dead": "failed",
+    "cancelled": "cancelled"
+  },
+  "id_prefixes": [
+    {
+      "prefix": "br",
+      "resource": "brand",
+      "entity": "tenancy.brand",
+      "owner_module": "tenancy",
+      "platform_only": false,
+      "note": ""
+    },
+    {
+      "prefix": "team",
+      "resource": "team",
+      "entity": "tenancy.team",
+      "owner_module": "tenancy",
+      "platform_only": false,
+      "note": ""
+    },
+    {
+      "prefix": "wf",
+      "resource": "workflow",
+      "entity": "workflow.workflow",
+      "owner_module": "workflow",
+      "platform_only": false,
+      "note": ""
+    },
+    {
+      "prefix": "file",
+      "resource": "file",
+      "entity": "files.file",
+      "owner_module": "files",
+      "platform_only": false,
+      "note": ""
+    },
+    {
+      "prefix": "dlv",
+      "resource": "deliverable",
+      "entity": "files.deliverable",
+      "owner_module": "files",
+      "platform_only": false,
+      "note": ""
+    },
+    {
+      "prefix": "prj",
+      "resource": "project",
+      "entity": "work.project",
+      "owner_module": "work",
+      "platform_only": false,
+      "note": ""
+    },
+    {
+      "prefix": "ms",
+      "resource": "milestone",
+      "entity": "work.milestone",
+      "owner_module": "work",
+      "platform_only": false,
+      "note": ""
+    },
+    {
+      "prefix": "tsk",
+      "resource": "task",
+      "entity": "work.task",
+      "owner_module": "work",
+      "platform_only": false,
+      "note": ""
+    },
+    {
+      "prefix": "dec",
+      "resource": "decision_record",
+      "entity": "work.decision_record",
+      "owner_module": "work",
+      "platform_only": false,
+      "note": ""
+    },
+    {
+      "prefix": "inb",
+      "resource": "inbox_item",
+      "entity": "capture.inbox_item",
+      "owner_module": "capture",
+      "platform_only": false,
+      "note": ""
+    },
+    {
+      "prefix": "note",
+      "resource": "note",
+      "entity": "capture.note",
+      "owner_module": "capture",
+      "platform_only": false,
+      "note": ""
+    },
+    {
+      "prefix": "form",
+      "resource": "intake_form",
+      "entity": "capture.intake_form",
+      "owner_module": "capture",
+      "platform_only": false,
+      "note": ""
+    },
+    {
+      "prefix": "blk",
+      "resource": "work_block",
+      "entity": "planning.work_block",
+      "owner_module": "planning",
+      "platform_only": false,
+      "note": ""
+    },
+    {
+      "prefix": "doc",
+      "resource": "document",
+      "entity": "knowledge.document",
+      "owner_module": "knowledge",
+      "platform_only": false,
+      "note": ""
+    },
+    {
+      "prefix": "goal",
+      "resource": "goal",
+      "entity": "goals.goal",
+      "owner_module": "goals",
+      "platform_only": false,
+      "note": ""
+    },
+    {
+      "prefix": "kr",
+      "resource": "key_result",
+      "entity": "goals.key_result",
+      "owner_module": "goals",
+      "platform_only": false,
+      "note": ""
+    },
+    {
+      "prefix": "pf",
+      "resource": "portfolio",
+      "entity": "goals.portfolio",
+      "owner_module": "goals",
+      "platform_only": false,
+      "note": ""
+    },
+    {
+      "prefix": "view",
+      "resource": "saved_view",
+      "entity": "views.saved_view",
+      "owner_module": "views",
+      "platform_only": false,
+      "note": ""
+    },
+    {
+      "prefix": "dash",
+      "resource": "dashboard",
+      "entity": "insights.dashboard",
+      "owner_module": "insights",
+      "platform_only": false,
+      "note": ""
+    },
+    {
+      "prefix": "rpt",
+      "resource": "report_definition",
+      "entity": "insights.report_definition",
+      "owner_module": "insights",
+      "platform_only": false,
+      "note": ""
+    },
+    {
+      "prefix": "conn",
+      "resource": "connection",
+      "entity": "integrations.connection",
+      "owner_module": "integrations",
+      "platform_only": false,
+      "note": ""
+    },
+    {
+      "prefix": "whk",
+      "resource": "webhook_subscription",
+      "entity": "integrations.webhook_subscription",
+      "owner_module": "integrations",
+      "platform_only": false,
+      "note": ""
+    },
+    {
+      "prefix": "tc",
+      "resource": "test_case",
+      "entity": "quality.test_case",
+      "owner_module": "quality",
+      "platform_only": false,
+      "note": ""
+    },
+    {
+      "prefix": "ts",
+      "resource": "test_suite",
+      "entity": "quality.test_suite",
+      "owner_module": "quality",
+      "platform_only": false,
+      "note": ""
+    },
+    {
+      "prefix": "tr",
+      "resource": "test_run",
+      "entity": "quality.test_run",
+      "owner_module": "quality",
+      "platform_only": false,
+      "note": ""
+    },
+    {
+      "prefix": "env",
+      "resource": "environment",
+      "entity": "delivery.environment",
+      "owner_module": "delivery",
+      "platform_only": false,
+      "note": ""
+    },
+    {
+      "prefix": "rel",
+      "resource": "release",
+      "entity": "delivery.release",
+      "owner_module": "delivery",
+      "platform_only": false,
+      "note": ""
+    },
+    {
+      "prefix": "tpl",
+      "resource": "template",
+      "entity": "templates.template",
+      "owner_module": "templates",
+      "platform_only": false,
+      "note": ""
+    },
+    {
+      "prefix": "auto",
+      "resource": "automation",
+      "entity": "automation.automation",
+      "owner_module": "automation",
+      "platform_only": false,
+      "note": ""
+    },
+    {
+      "prefix": "agt",
+      "resource": "agent_profile",
+      "entity": "agents.agent_profile",
+      "owner_module": "agents",
+      "platform_only": false,
+      "note": ""
+    },
+    {
+      "prefix": "ws",
+      "resource": "workspace",
+      "entity": "tenancy.workspace",
+      "owner_module": "tenancy",
+      "platform_only": false,
+      "note": ""
+    },
+    {
+      "prefix": "mem",
+      "resource": "membership",
+      "entity": "tenancy.membership",
+      "owner_module": "tenancy",
+      "platform_only": false,
+      "note": ""
+    },
+    {
+      "prefix": "acct",
+      "resource": "account",
+      "entity": "identity.account",
+      "owner_module": "identity",
+      "platform_only": false,
+      "note": ""
+    },
+    {
+      "prefix": "grt",
+      "resource": "record_grant",
+      "entity": "access.record_grant",
+      "owner_module": "access",
+      "platform_only": false,
+      "note": ""
+    },
+    {
+      "prefix": "cmt",
+      "resource": "comment",
+      "entity": "collab.comment",
+      "owner_module": "collab",
+      "platform_only": false,
+      "note": ""
+    },
+    {
+      "prefix": "rvw",
+      "resource": "review_request",
+      "entity": "collab.review_request",
+      "owner_module": "collab",
+      "platform_only": false,
+      "note": ""
+    },
+    {
+      "prefix": "te",
+      "resource": "time_entry",
+      "entity": "time.time_entry",
+      "owner_module": "time",
+      "platform_only": false,
+      "note": ""
+    },
+    {
+      "prefix": "tsh",
+      "resource": "timesheet",
+      "entity": "time.timesheet",
+      "owner_module": "time",
+      "platform_only": false,
+      "note": ""
+    },
+    {
+      "prefix": "res",
+      "resource": "test_result",
+      "entity": "quality.test_result",
+      "owner_module": "quality",
+      "platform_only": false,
+      "note": ""
+    },
+    {
+      "prefix": "op",
+      "resource": "operation",
+      "entity": "execution.operation",
+      "owner_module": "execution",
+      "platform_only": false,
+      "note": ""
+    },
+    {
+      "prefix": "att",
+      "resource": "attempt",
+      "entity": "execution.attempt",
+      "owner_module": "execution",
+      "platform_only": false,
+      "note": ""
+    },
+    {
+      "prefix": "evt",
+      "resource": "event",
+      "entity": null,
+      "owner_module": "execution",
+      "platform_only": true,
+      "note": "Public form of an internal event ID (execution.outbox_event is transient; durable references live in integrations.webhook_delivery.event_public_id)."
+    },
+    {
+      "prefix": "whd",
+      "resource": "webhook_delivery",
+      "entity": "integrations.webhook_delivery",
+      "owner_module": "integrations",
+      "platform_only": false,
+      "note": ""
+    },
+    {
+      "prefix": "ntf",
+      "resource": "notification",
+      "entity": "notify.notification",
+      "owner_module": "notify",
+      "platform_only": false,
+      "note": ""
+    },
+    {
+      "prefix": "upl",
+      "resource": "upload_session",
+      "entity": "files.upload_session",
+      "owner_module": "files",
+      "platform_only": false,
+      "note": ""
+    },
+    {
+      "prefix": "fv",
+      "resource": "file_version",
+      "entity": "files.file_version",
+      "owner_module": "files",
+      "platform_only": false,
+      "note": ""
+    },
+    {
+      "prefix": "dv",
+      "resource": "deliverable_version",
+      "entity": "files.deliverable_version",
+      "owner_module": "files",
+      "platform_only": false,
+      "note": ""
+    },
+    {
+      "prefix": "dcv",
+      "resource": "document_version",
+      "entity": "knowledge.document_version",
+      "owner_module": "knowledge",
+      "platform_only": false,
+      "note": ""
+    },
+    {
+      "prefix": "tok",
+      "resource": "api_token",
+      "entity": "integrations.api_token",
+      "owner_module": "integrations",
+      "platform_only": false,
+      "note": ""
+    },
+    {
+      "prefix": "oac",
+      "resource": "oauth_client",
+      "entity": "integrations.oauth_client",
+      "owner_module": "integrations",
+      "platform_only": false,
+      "note": ""
+    },
+    {
+      "prefix": "svc",
+      "resource": "service_principal",
+      "entity": "access.service_principal",
+      "owner_module": "access",
+      "platform_only": false,
+      "note": ""
+    },
+    {
+      "prefix": "shr",
+      "resource": "share_group",
+      "entity": "access.share_group",
+      "owner_module": "access",
+      "platform_only": false,
+      "note": ""
+    },
+    {
+      "prefix": "apr",
+      "resource": "action_approval",
+      "entity": "agents.action_approval",
+      "owner_module": "agents",
+      "platform_only": false,
+      "note": ""
+    },
+    {
+      "prefix": "stp",
+      "resource": "step_up_challenge",
+      "entity": "identity.step_up_challenge",
+      "owner_module": "identity",
+      "platform_only": false,
+      "note": ""
+    },
+    {
+      "prefix": "exf",
+      "resource": "export_file",
+      "entity": "transfer.export_file",
+      "owner_module": "transfer",
+      "platform_only": false,
+      "note": ""
+    },
+    {
+      "prefix": "req",
+      "resource": "request",
+      "entity": null,
+      "owner_module": "execution",
+      "platform_only": true,
+      "note": "Per-request identifier; exists only in responses, logs, and traces (no persistence)."
+    },
+    {
+      "prefix": "ext",
+      "resource": "external_identity",
+      "entity": "integrations.external_identity",
+      "owner_module": "integrations",
+      "platform_only": false,
+      "note": ""
+    },
+    {
+      "prefix": "cev",
+      "resource": "calendar_event",
+      "entity": "integrations.calendar_event",
+      "owner_module": "integrations",
+      "platform_only": false,
+      "note": ""
+    },
+    {
+      "prefix": "rd",
+      "resource": "release_decision",
+      "entity": "delivery.release_decision",
+      "owner_module": "delivery",
+      "platform_only": false,
+      "note": ""
+    },
+    {
+      "prefix": "sag",
+      "resource": "support_access_grant",
+      "entity": "access.support_access_grant",
+      "owner_module": "access",
+      "platform_only": false,
+      "note": ""
+    },
+    {
+      "prefix": "fpol",
+      "resource": "field_policy",
+      "entity": "access.field_policy",
+      "owner_module": "access",
+      "platform_only": false,
+      "note": ""
+    }
+  ],
+  "error_codes": [
+    {
+      "code": "malformed_request",
+      "http_status": 400,
+      "category": "client",
+      "retryable": false,
+      "safe_message": "The request could not be read.",
+      "usage": "http",
+      "disclosure_rule": ""
+    },
+    {
+      "code": "cursor_invalid",
+      "http_status": 400,
+      "category": "client",
+      "retryable": false,
+      "safe_message": "This page link is no longer valid. Start again from the first page.",
+      "usage": "http",
+      "disclosure_rule": "Same for tampered, foreign, or expired cursors."
+    },
+    {
+      "code": "unauthenticated",
+      "http_status": 401,
+      "category": "auth",
+      "retryable": false,
+      "safe_message": "Sign in again to continue.",
+      "usage": "http",
+      "disclosure_rule": "Identical for missing, invalid, expired, and revoked credentials, and for unknown inbound endpoints."
+    },
+    {
+      "code": "forbidden",
+      "http_status": 403,
+      "category": "authz",
+      "retryable": false,
+      "safe_message": "You don't have permission to do that.",
+      "usage": "http",
+      "disclosure_rule": "Only for targets the caller can read (ST-42)."
+    },
+    {
+      "code": "step_up_required",
+      "http_status": 403,
+      "category": "auth",
+      "retryable": false,
+      "safe_message": "Confirm it's you to continue.",
+      "usage": "http",
+      "disclosure_rule": "Only for readable targets; carries a step_up challenge."
+    },
+    {
+      "code": "step_up_unavailable",
+      "http_status": 403,
+      "category": "auth",
+      "retryable": false,
+      "safe_message": "This action needs a person to confirm it.",
+      "usage": "http",
+      "disclosure_rule": "Service principals, tokens, agents, automations."
+    },
+    {
+      "code": "approval_required",
+      "http_status": 403,
+      "category": "authz",
+      "retryable": false,
+      "safe_message": "This action needs approval first.",
+      "usage": "http",
+      "disclosure_rule": "Carries approval reference; the target must be readable."
+    },
+    {
+      "code": "principal_suspended",
+      "http_status": 403,
+      "category": "authz",
+      "retryable": false,
+      "safe_message": "This automation or integration is paused until it has an owner with access.",
+      "usage": "http",
+      "disclosure_rule": ""
+    },
+    {
+      "code": "entitlement_required",
+      "http_status": 403,
+      "category": "commercial",
+      "retryable": false,
+      "safe_message": "Your plan doesn't include this feature.",
+      "usage": "http",
+      "disclosure_rule": "Never for unreadable targets; never implies data access."
+    },
+    {
+      "code": "usage_limit_reached",
+      "http_status": 403,
+      "category": "commercial",
+      "retryable": false,
+      "safe_message": "This would exceed a usage limit.",
+      "usage": "http",
+      "disclosure_rule": ""
+    },
+    {
+      "code": "workspace_read_only",
+      "http_status": 403,
+      "category": "commercial",
+      "retryable": false,
+      "safe_message": "This workspace is read-only.",
+      "usage": "http",
+      "disclosure_rule": ""
+    },
+    {
+      "code": "not_found",
+      "http_status": 404,
+      "category": "authz",
+      "retryable": false,
+      "safe_message": "The requested resource was not found.",
+      "usage": "http",
+      "disclosure_rule": "Uniform for nonexistent and unauthorized targets: same status, body, headers, cache directives, and timing envelope."
+    },
+    {
+      "code": "method_not_allowed",
+      "http_status": 405,
+      "category": "client",
+      "retryable": false,
+      "safe_message": "That operation isn't supported here.",
+      "usage": "http",
+      "disclosure_rule": ""
+    },
+    {
+      "code": "conflict",
+      "http_status": 409,
+      "category": "concurrency",
+      "retryable": false,
+      "safe_message": "This item was changed by someone else.",
+      "usage": "http",
+      "disclosure_rule": "Conflict payload filtered by field policy."
+    },
+    {
+      "code": "evidence_locked",
+      "http_status": 409,
+      "category": "concurrency",
+      "retryable": false,
+      "safe_message": "This version is locked as evidence and can't be changed.",
+      "usage": "http",
+      "disclosure_rule": ""
+    },
+    {
+      "code": "file_not_ready",
+      "http_status": 409,
+      "category": "files",
+      "retryable": true,
+      "safe_message": "This file is still being checked.",
+      "usage": "http",
+      "disclosure_rule": ""
+    },
+    {
+      "code": "file_blocked",
+      "http_status": 403,
+      "category": "files",
+      "retryable": false,
+      "safe_message": "This file can't be downloaded.",
+      "usage": "http",
+      "disclosure_rule": ""
+    },
+    {
+      "code": "idempotency_key_reuse",
+      "http_status": 409,
+      "category": "idempotency",
+      "retryable": false,
+      "safe_message": "This request key was already used for a different request.",
+      "usage": "http",
+      "disclosure_rule": ""
+    },
+    {
+      "code": "idempotency_in_progress",
+      "http_status": 409,
+      "category": "idempotency",
+      "retryable": true,
+      "safe_message": "This request is still being processed.",
+      "usage": "http",
+      "disclosure_rule": ""
+    },
+    {
+      "code": "payload_too_large",
+      "http_status": 413,
+      "category": "client",
+      "retryable": false,
+      "safe_message": "The request is too large.",
+      "usage": "http",
+      "disclosure_rule": ""
+    },
+    {
+      "code": "unsupported_media_type",
+      "http_status": 415,
+      "category": "client",
+      "retryable": false,
+      "safe_message": "That content type isn't supported.",
+      "usage": "http",
+      "disclosure_rule": ""
+    },
+    {
+      "code": "validation_failed",
+      "http_status": 422,
+      "category": "client",
+      "retryable": false,
+      "safe_message": "Some fields need attention.",
+      "usage": "http",
+      "disclosure_rule": "Issue codes never distinguish hidden from nonexistent fields or records (unsupported_field, invalid_reference)."
+    },
+    {
+      "code": "checksum_mismatch",
+      "http_status": 422,
+      "category": "files",
+      "retryable": false,
+      "safe_message": "The uploaded file didn't match its checksum.",
+      "usage": "http",
+      "disclosure_rule": ""
+    },
+    {
+      "code": "precondition_required",
+      "http_status": 428,
+      "category": "concurrency",
+      "retryable": false,
+      "safe_message": "Include the version you are changing.",
+      "usage": "http",
+      "disclosure_rule": ""
+    },
+    {
+      "code": "rate_limited",
+      "http_status": 429,
+      "category": "throttle",
+      "retryable": true,
+      "safe_message": "Too many requests. Try again shortly.",
+      "usage": "http",
+      "disclosure_rule": ""
+    },
+    {
+      "code": "internal_error",
+      "http_status": 500,
+      "category": "server",
+      "retryable": true,
+      "safe_message": "Something went wrong on our side.",
+      "usage": "http",
+      "disclosure_rule": "No stack traces, SQL, or tenant data."
+    },
+    {
+      "code": "dependency_unavailable",
+      "http_status": 503,
+      "category": "server",
+      "retryable": true,
+      "safe_message": "A connected service is unavailable. Core features still work.",
+      "usage": "http",
+      "disclosure_rule": "Names the dependency class only (ai_provider, integration, storage)."
+    },
+    {
+      "code": "service_unavailable",
+      "http_status": 503,
+      "category": "server",
+      "retryable": true,
+      "safe_message": "The service is temporarily unavailable.",
+      "usage": "http",
+      "disclosure_rule": ""
+    },
+    {
+      "code": "partial_failure",
+      "http_status": null,
+      "category": "outcome",
+      "retryable": false,
+      "safe_message": "Some items couldn't be completed.",
+      "usage": "operation_or_bulk_outcome",
+      "disclosure_rule": ""
+    },
+    {
+      "code": "timed_out",
+      "http_status": null,
+      "category": "outcome",
+      "retryable": true,
+      "safe_message": "This took too long and was stopped.",
+      "usage": "terminal_reason",
+      "disclosure_rule": ""
+    },
+    {
+      "code": "limit_exceeded",
+      "http_status": null,
+      "category": "outcome",
+      "retryable": false,
+      "safe_message": "This stopped at a configured limit.",
+      "usage": "terminal_reason",
+      "disclosure_rule": ""
+    },
+    {
+      "code": "policy_rejected",
+      "http_status": null,
+      "category": "outcome",
+      "retryable": false,
+      "safe_message": "This was stopped because access or policy changed.",
+      "usage": "terminal_reason",
+      "disclosure_rule": ""
+    }
+  ],
+  "operation_kinds": [
+    {
+      "kind": "ai_action",
+      "detail_entity": "ai.ai_action",
+      "supports": [
+        "cancel",
+        "retry",
+        "rerun"
+      ],
+      "risk_class": "R1"
+    },
+    {
+      "kind": "agent_run",
+      "detail_entity": "agents.agent_run",
+      "supports": [
+        "cancel",
+        "pause",
+        "resume",
+        "retry",
+        "rerun"
+      ],
+      "risk_class": "R2"
+    },
+    {
+      "kind": "automation_run",
+      "detail_entity": "automation.automation_run",
+      "supports": [
+        "cancel",
+        "retry"
+      ],
+      "risk_class": "R2"
+    },
+    {
+      "kind": "sync",
+      "detail_entity": "integrations.sync_run",
+      "supports": [
+        "cancel",
+        "retry"
+      ],
+      "risk_class": "R1"
+    },
+    {
+      "kind": "import_preview",
+      "detail_entity": "transfer.import_job",
+      "supports": [
+        "cancel",
+        "rerun"
+      ],
+      "risk_class": "R0"
+    },
+    {
+      "kind": "import_apply",
+      "detail_entity": "transfer.import_job",
+      "supports": [
+        "cancel",
+        "retry"
+      ],
+      "risk_class": "R2"
+    },
+    {
+      "kind": "import_rollback",
+      "detail_entity": "transfer.import_job",
+      "supports": [
+        "retry"
+      ],
+      "risk_class": "R2"
+    },
+    {
+      "kind": "export",
+      "detail_entity": "transfer.export_job",
+      "supports": [
+        "cancel",
+        "retry",
+        "rerun"
+      ],
+      "risk_class": "R2"
+    },
+    {
+      "kind": "bulk_edit",
+      "detail_entity": null,
+      "supports": [
+        "cancel"
+      ],
+      "risk_class": "R1"
+    },
+    {
+      "kind": "undo",
+      "detail_entity": null,
+      "supports": [],
+      "risk_class": "R1"
+    },
+    {
+      "kind": "report_run",
+      "detail_entity": "insights.report_run",
+      "supports": [
+        "retry",
+        "rerun"
+      ],
+      "risk_class": "R0"
+    },
+    {
+      "kind": "briefing",
+      "detail_entity": "ai.briefing",
+      "supports": [
+        "retry",
+        "rerun"
+      ],
+      "risk_class": "R0"
+    },
+    {
+      "kind": "brand_move",
+      "detail_entity": "core.brand_move",
+      "supports": [],
+      "risk_class": "R3"
+    },
+    {
+      "kind": "purge",
+      "detail_entity": null,
+      "supports": [
+        "retry"
+      ],
+      "risk_class": "R4"
+    },
+    {
+      "kind": "template_installation",
+      "detail_entity": "templates.template_installation",
+      "supports": [
+        "retry"
+      ],
+      "risk_class": "R2"
+    },
+    {
+      "kind": "test_ingest",
+      "detail_entity": "quality.test_run",
+      "supports": [
+        "retry"
+      ],
+      "risk_class": "R1"
+    },
+    {
+      "kind": "webhook_delivery",
+      "detail_entity": "integrations.webhook_delivery",
+      "supports": [
+        "retry"
+      ],
+      "risk_class": "R3"
+    },
+    {
+      "kind": "proposal_apply",
+      "detail_entity": "ai.change_proposal",
+      "supports": [],
+      "risk_class": "R1"
+    },
+    {
+      "kind": "workspace_deletion",
+      "detail_entity": "governance.deletion_request",
+      "supports": [
+        "cancel"
+      ],
+      "risk_class": "R4"
+    }
+  ],
+  "events": [
+    {
+      "type": "core.record.archived",
+      "schema_version": 1,
+      "aggregate_entity": "core.record",
+      "fields": [
+        "record_type",
+        "archive_cause",
+        "batch_id"
+      ],
+      "max_class": "C1",
+      "consumers": {
+        "activity": true,
+        "notification": false,
+        "metrics": false,
+        "automation_trigger": true,
+        "search_index": true
+      },
+      "public_webhook": "record.archived",
+      "requirements": [],
+      "allow_list_version": 1,
+      "delivery_authorization": "subscription_owner_at_delivery"
+    },
+    {
+      "type": "core.record.trashed",
+      "schema_version": 1,
+      "aggregate_entity": "core.record",
+      "fields": [
+        "record_type",
+        "deletion_batch_id"
+      ],
+      "max_class": "C1",
+      "consumers": {
+        "activity": true,
+        "notification": false,
+        "metrics": false,
+        "automation_trigger": true,
+        "search_index": true
+      },
+      "public_webhook": "record.trashed",
+      "requirements": [],
+      "allow_list_version": 1,
+      "delivery_authorization": "subscription_owner_at_delivery"
+    },
+    {
+      "type": "core.record.restored",
+      "schema_version": 1,
+      "aggregate_entity": "core.record",
+      "fields": [
+        "record_type",
+        "batch_id"
+      ],
+      "max_class": "C1",
+      "consumers": {
+        "activity": true,
+        "notification": false,
+        "metrics": false,
+        "automation_trigger": true,
+        "search_index": true
+      },
+      "public_webhook": "record.restored",
+      "requirements": [
+        "LA-018"
+      ],
+      "allow_list_version": 1,
+      "delivery_authorization": "subscription_owner_at_delivery"
+    },
+    {
+      "type": "core.record.purged",
+      "schema_version": 1,
+      "aggregate_entity": "core.record",
+      "fields": [
+        "record_type"
+      ],
+      "max_class": "C1",
+      "consumers": {
+        "activity": false,
+        "notification": false,
+        "metrics": false,
+        "automation_trigger": false,
+        "search_index": true
+      },
+      "public_webhook": null,
+      "requirements": [],
+      "allow_list_version": null,
+      "delivery_authorization": null
+    },
+    {
+      "type": "core.record.moved_brand",
+      "schema_version": 1,
+      "aggregate_entity": "core.record",
+      "fields": [
+        "from_brand_id",
+        "to_brand_id"
+      ],
+      "max_class": "C1",
+      "consumers": {
+        "activity": true,
+        "notification": true,
+        "metrics": false,
+        "automation_trigger": true,
+        "search_index": true
+      },
+      "public_webhook": null,
+      "requirements": [
+        "WSB-009"
+      ],
+      "allow_list_version": null,
+      "delivery_authorization": null
+    },
+    {
+      "type": "work.task.created",
+      "schema_version": 1,
+      "aggregate_entity": "work.task",
+      "fields": [
+        "project_id",
+        "parent_task_id",
+        "status_id",
+        "source_kind"
+      ],
+      "max_class": "C1",
+      "consumers": {
+        "activity": true,
+        "notification": false,
+        "metrics": true,
+        "automation_trigger": true,
+        "search_index": true
+      },
+      "public_webhook": "task.created",
+      "requirements": [
+        "TSK-001"
+      ],
+      "allow_list_version": 1,
+      "delivery_authorization": "subscription_owner_at_delivery"
+    },
+    {
+      "type": "work.task.updated",
+      "schema_version": 1,
+      "aggregate_entity": "work.task",
+      "fields": [
+        "changed_fields"
+      ],
+      "max_class": "C1",
+      "consumers": {
+        "activity": true,
+        "notification": false,
+        "metrics": false,
+        "automation_trigger": true,
+        "search_index": true
+      },
+      "public_webhook": "task.updated",
+      "requirements": [],
+      "allow_list_version": 1,
+      "delivery_authorization": "subscription_owner_at_delivery"
+    },
+    {
+      "type": "work.task.status_changed",
+      "schema_version": 1,
+      "aggregate_entity": "work.task",
+      "fields": [
+        "from_status_id",
+        "to_status_id",
+        "to_category"
+      ],
+      "max_class": "C1",
+      "consumers": {
+        "activity": true,
+        "notification": true,
+        "metrics": true,
+        "automation_trigger": true,
+        "search_index": false
+      },
+      "public_webhook": "task.status_changed",
+      "requirements": [],
+      "allow_list_version": 1,
+      "delivery_authorization": "subscription_owner_at_delivery"
+    },
+    {
+      "type": "work.task.completed",
+      "schema_version": 1,
+      "aggregate_entity": "work.task",
+      "fields": [
+        "completed_at",
+        "status_category",
+        "project_id"
+      ],
+      "max_class": "C1",
+      "consumers": {
+        "activity": true,
+        "notification": true,
+        "metrics": true,
+        "automation_trigger": true,
+        "search_index": false
+      },
+      "public_webhook": "task.completed",
+      "requirements": [
+        "TSK-031"
+      ],
+      "allow_list_version": 1,
+      "delivery_authorization": "subscription_owner_at_delivery"
+    },
+    {
+      "type": "work.task.assigned",
+      "schema_version": 1,
+      "aggregate_entity": "work.task",
+      "fields": [
+        "assignee_membership_ids"
+      ],
+      "max_class": "C1",
+      "consumers": {
+        "activity": true,
+        "notification": true,
+        "metrics": false,
+        "automation_trigger": true,
+        "search_index": false
+      },
+      "public_webhook": "task.assigned",
+      "requirements": [
+        "NTF-005"
+      ],
+      "allow_list_version": 1,
+      "delivery_authorization": "subscription_owner_at_delivery"
+    },
+    {
+      "type": "work.project.created",
+      "schema_version": 1,
+      "aggregate_entity": "work.project",
+      "fields": [
+        "parent_project_id",
+        "status_id"
+      ],
+      "max_class": "C1",
+      "consumers": {
+        "activity": true,
+        "notification": false,
+        "metrics": true,
+        "automation_trigger": true,
+        "search_index": true
+      },
+      "public_webhook": "project.created",
+      "requirements": [],
+      "allow_list_version": 1,
+      "delivery_authorization": "subscription_owner_at_delivery"
+    },
+    {
+      "type": "work.project.status_changed",
+      "schema_version": 1,
+      "aggregate_entity": "work.project",
+      "fields": [
+        "to_category",
+        "health"
+      ],
+      "max_class": "C1",
+      "consumers": {
+        "activity": true,
+        "notification": true,
+        "metrics": true,
+        "automation_trigger": true,
+        "search_index": false
+      },
+      "public_webhook": "project.status_changed",
+      "requirements": [],
+      "allow_list_version": 1,
+      "delivery_authorization": "subscription_owner_at_delivery"
+    },
+    {
+      "type": "collab.comment.created",
+      "schema_version": 1,
+      "aggregate_entity": "collab.comment",
+      "fields": [
+        "host_record_id",
+        "root_comment_id",
+        "mention_ids"
+      ],
+      "max_class": "C1",
+      "consumers": {
+        "activity": true,
+        "notification": true,
+        "metrics": false,
+        "automation_trigger": true,
+        "search_index": true
+      },
+      "public_webhook": "comment.created",
+      "requirements": [
+        "COL-005"
+      ],
+      "allow_list_version": 1,
+      "delivery_authorization": "subscription_owner_at_delivery"
+    },
+    {
+      "type": "collab.review.requested",
+      "schema_version": 1,
+      "aggregate_entity": "collab.review_request",
+      "fields": [
+        "subject_kind",
+        "subject_ref",
+        "reviewer_rule"
+      ],
+      "max_class": "C1",
+      "consumers": {
+        "activity": true,
+        "notification": true,
+        "metrics": false,
+        "automation_trigger": true,
+        "search_index": false
+      },
+      "public_webhook": "review.requested",
+      "requirements": [
+        "COL-013"
+      ],
+      "allow_list_version": 1,
+      "delivery_authorization": "subscription_owner_at_delivery"
+    },
+    {
+      "type": "collab.review.decided",
+      "schema_version": 1,
+      "aggregate_entity": "collab.review_decision",
+      "fields": [
+        "decision",
+        "self_approval",
+        "subject_ref"
+      ],
+      "max_class": "C1",
+      "consumers": {
+        "activity": true,
+        "notification": true,
+        "metrics": true,
+        "automation_trigger": true,
+        "search_index": false
+      },
+      "public_webhook": "review.decided",
+      "requirements": [
+        "FILE-009"
+      ],
+      "allow_list_version": 1,
+      "delivery_authorization": "subscription_owner_at_delivery"
+    },
+    {
+      "type": "relations.relationship.created",
+      "schema_version": 1,
+      "aggregate_entity": "relations.record_relationship",
+      "fields": [
+        "kind",
+        "from_record_id",
+        "to_record_id"
+      ],
+      "max_class": "C1",
+      "consumers": {
+        "activity": true,
+        "notification": true,
+        "metrics": false,
+        "automation_trigger": true,
+        "search_index": false
+      },
+      "public_webhook": null,
+      "requirements": [],
+      "allow_list_version": null,
+      "delivery_authorization": null
+    },
+    {
+      "type": "relations.mention.created",
+      "schema_version": 1,
+      "aggregate_entity": "relations.mention",
+      "fields": [
+        "source_kind",
+        "target_kind",
+        "target_id"
+      ],
+      "max_class": "C1",
+      "consumers": {
+        "activity": true,
+        "notification": true,
+        "metrics": false,
+        "automation_trigger": false,
+        "search_index": false
+      },
+      "public_webhook": null,
+      "requirements": [],
+      "allow_list_version": null,
+      "delivery_authorization": null
+    },
+    {
+      "type": "files.file.scanned",
+      "schema_version": 1,
+      "aggregate_entity": "files.file_version",
+      "fields": [
+        "scan_state"
+      ],
+      "max_class": "C1",
+      "consumers": {
+        "activity": false,
+        "notification": false,
+        "metrics": false,
+        "automation_trigger": false,
+        "search_index": false
+      },
+      "public_webhook": null,
+      "requirements": [],
+      "allow_list_version": null,
+      "delivery_authorization": null
+    },
+    {
+      "type": "files.deliverable.version_submitted",
+      "schema_version": 1,
+      "aggregate_entity": "files.deliverable_version",
+      "fields": [
+        "deliverable_id",
+        "version_number"
+      ],
+      "max_class": "C1",
+      "consumers": {
+        "activity": true,
+        "notification": true,
+        "metrics": false,
+        "automation_trigger": true,
+        "search_index": false
+      },
+      "public_webhook": "deliverable.submitted",
+      "requirements": [
+        "FILE-007"
+      ],
+      "allow_list_version": 1,
+      "delivery_authorization": "subscription_owner_at_delivery"
+    },
+    {
+      "type": "capture.inbox.captured",
+      "schema_version": 1,
+      "aggregate_entity": "capture.inbox_item",
+      "fields": [
+        "source_kind"
+      ],
+      "max_class": "C1",
+      "consumers": {
+        "activity": false,
+        "notification": false,
+        "metrics": false,
+        "automation_trigger": false,
+        "search_index": false
+      },
+      "public_webhook": null,
+      "requirements": [
+        "CAP-016"
+      ],
+      "allow_list_version": null,
+      "delivery_authorization": null
+    },
+    {
+      "type": "capture.inbox.triaged",
+      "schema_version": 1,
+      "aggregate_entity": "capture.inbox_item",
+      "fields": [
+        "outcome",
+        "converted_record_id"
+      ],
+      "max_class": "C1",
+      "consumers": {
+        "activity": false,
+        "notification": false,
+        "metrics": false,
+        "automation_trigger": false,
+        "search_index": false
+      },
+      "public_webhook": null,
+      "requirements": [],
+      "allow_list_version": null,
+      "delivery_authorization": null
+    },
+    {
+      "type": "planning.work_block.moved",
+      "schema_version": 1,
+      "aggregate_entity": "planning.work_block",
+      "fields": [
+        "starts_at",
+        "ends_at",
+        "source"
+      ],
+      "max_class": "C1",
+      "consumers": {
+        "activity": false,
+        "notification": false,
+        "metrics": true,
+        "automation_trigger": true,
+        "search_index": false
+      },
+      "public_webhook": null,
+      "requirements": [
+        "CAL-013"
+      ],
+      "allow_list_version": null,
+      "delivery_authorization": null
+    },
+    {
+      "type": "planning.occurrence.generated",
+      "schema_version": 1,
+      "aggregate_entity": "planning.recurrence_series",
+      "fields": [
+        "occurrence_key",
+        "record_id"
+      ],
+      "max_class": "C1",
+      "consumers": {
+        "activity": false,
+        "notification": false,
+        "metrics": false,
+        "automation_trigger": true,
+        "search_index": false
+      },
+      "public_webhook": null,
+      "requirements": [],
+      "allow_list_version": null,
+      "delivery_authorization": null
+    },
+    {
+      "type": "time.time_entry.recorded",
+      "schema_version": 1,
+      "aggregate_entity": "time.time_entry",
+      "fields": [
+        "duration_seconds",
+        "billable"
+      ],
+      "max_class": "C1",
+      "consumers": {
+        "activity": true,
+        "notification": false,
+        "metrics": true,
+        "automation_trigger": false,
+        "search_index": false
+      },
+      "public_webhook": null,
+      "requirements": [],
+      "allow_list_version": null,
+      "delivery_authorization": null
+    },
+    {
+      "type": "time.timesheet.approved",
+      "schema_version": 1,
+      "aggregate_entity": "time.timesheet_approval",
+      "fields": [
+        "period_start",
+        "brand_id"
+      ],
+      "max_class": "C1",
+      "consumers": {
+        "activity": true,
+        "notification": true,
+        "metrics": true,
+        "automation_trigger": true,
+        "search_index": false
+      },
+      "public_webhook": null,
+      "requirements": [],
+      "allow_list_version": null,
+      "delivery_authorization": null
+    },
+    {
+      "type": "knowledge.document.source_approved",
+      "schema_version": 1,
+      "aggregate_entity": "knowledge.source_approval",
+      "fields": [
+        "document_version_id"
+      ],
+      "max_class": "C1",
+      "consumers": {
+        "activity": true,
+        "notification": false,
+        "metrics": false,
+        "automation_trigger": true,
+        "search_index": true
+      },
+      "public_webhook": null,
+      "requirements": [
+        "DOC-017"
+      ],
+      "allow_list_version": null,
+      "delivery_authorization": null
+    },
+    {
+      "type": "access.grant.created",
+      "schema_version": 1,
+      "aggregate_entity": "access.record_grant",
+      "fields": [
+        "record_id",
+        "grantee_type",
+        "level",
+        "expires_at"
+      ],
+      "max_class": "C1",
+      "consumers": {
+        "activity": true,
+        "notification": true,
+        "metrics": false,
+        "automation_trigger": false,
+        "search_index": false
+      },
+      "public_webhook": null,
+      "requirements": [
+        "NTF-007"
+      ],
+      "allow_list_version": null,
+      "delivery_authorization": null
+    },
+    {
+      "type": "access.grant.revoked",
+      "schema_version": 1,
+      "aggregate_entity": "access.record_grant",
+      "fields": [
+        "record_id",
+        "grantee_type"
+      ],
+      "max_class": "C1",
+      "consumers": {
+        "activity": true,
+        "notification": true,
+        "metrics": false,
+        "automation_trigger": false,
+        "search_index": false
+      },
+      "public_webhook": null,
+      "requirements": [],
+      "allow_list_version": null,
+      "delivery_authorization": null
+    },
+    {
+      "type": "access.role.assigned",
+      "schema_version": 1,
+      "aggregate_entity": "access.role_assignment",
+      "fields": [
+        "scope_type",
+        "role_id"
+      ],
+      "max_class": "C1",
+      "consumers": {
+        "activity": true,
+        "notification": true,
+        "metrics": false,
+        "automation_trigger": false,
+        "search_index": false
+      },
+      "public_webhook": null,
+      "requirements": [
+        "NTF-007"
+      ],
+      "allow_list_version": null,
+      "delivery_authorization": null
+    },
+    {
+      "type": "tenancy.membership.removed",
+      "schema_version": 1,
+      "aggregate_entity": "tenancy.membership",
+      "fields": [
+        "reason"
+      ],
+      "max_class": "C1",
+      "consumers": {
+        "activity": true,
+        "notification": false,
+        "metrics": false,
+        "automation_trigger": false,
+        "search_index": false
+      },
+      "public_webhook": null,
+      "requirements": [],
+      "allow_list_version": null,
+      "delivery_authorization": null
+    },
+    {
+      "type": "execution.operation.state_changed",
+      "schema_version": 1,
+      "aggregate_entity": "execution.operation",
+      "fields": [
+        "kind",
+        "state",
+        "terminal_reason",
+        "waiting_reason"
+      ],
+      "max_class": "C1",
+      "consumers": {
+        "activity": false,
+        "notification": true,
+        "metrics": true,
+        "automation_trigger": true,
+        "search_index": false
+      },
+      "public_webhook": "operation.finished",
+      "requirements": [
+        "LA-017",
+        "REL-006"
+      ],
+      "allow_list_version": 1,
+      "delivery_authorization": "subscription_owner_at_delivery"
+    },
+    {
+      "type": "agents.agent_run.output_returned",
+      "schema_version": 1,
+      "aggregate_entity": "agents.agent_run",
+      "fields": [
+        "deliverable_version_id"
+      ],
+      "max_class": "C1",
+      "consumers": {
+        "activity": true,
+        "notification": true,
+        "metrics": false,
+        "automation_trigger": true,
+        "search_index": false
+      },
+      "public_webhook": "agent_run.output_returned",
+      "requirements": [
+        "AGT-013"
+      ],
+      "allow_list_version": 1,
+      "delivery_authorization": "subscription_owner_at_delivery"
+    },
+    {
+      "type": "agents.action_approval.requested",
+      "schema_version": 1,
+      "aggregate_entity": "agents.action_approval",
+      "fields": [
+        "action_class",
+        "risk_class"
+      ],
+      "max_class": "C1",
+      "consumers": {
+        "activity": true,
+        "notification": true,
+        "metrics": false,
+        "automation_trigger": false,
+        "search_index": false
+      },
+      "public_webhook": null,
+      "requirements": [
+        "AGT-016"
+      ],
+      "allow_list_version": null,
+      "delivery_authorization": null
+    },
+    {
+      "type": "automation.automation_run.failed",
+      "schema_version": 1,
+      "aggregate_entity": "automation.automation_run",
+      "fields": [
+        "automation_id",
+        "terminal_reason"
+      ],
+      "max_class": "C1",
+      "consumers": {
+        "activity": true,
+        "notification": true,
+        "metrics": true,
+        "automation_trigger": false,
+        "search_index": false
+      },
+      "public_webhook": null,
+      "requirements": [
+        "AUTO-016"
+      ],
+      "allow_list_version": null,
+      "delivery_authorization": null
+    },
+    {
+      "type": "integrations.sync.failed",
+      "schema_version": 1,
+      "aggregate_entity": "integrations.sync_run",
+      "fields": [
+        "connection_id",
+        "terminal_reason"
+      ],
+      "max_class": "C1",
+      "consumers": {
+        "activity": true,
+        "notification": true,
+        "metrics": true,
+        "automation_trigger": false,
+        "search_index": false
+      },
+      "public_webhook": null,
+      "requirements": [
+        "NTF-005"
+      ],
+      "allow_list_version": null,
+      "delivery_authorization": null
+    },
+    {
+      "type": "integrations.connection.health_changed",
+      "schema_version": 1,
+      "aggregate_entity": "integrations.connection",
+      "fields": [
+        "health"
+      ],
+      "max_class": "C1",
+      "consumers": {
+        "activity": true,
+        "notification": true,
+        "metrics": false,
+        "automation_trigger": false,
+        "search_index": false
+      },
+      "public_webhook": null,
+      "requirements": [],
+      "allow_list_version": null,
+      "delivery_authorization": null
+    },
+    {
+      "type": "integrations.webhook.delivery_failed",
+      "schema_version": 1,
+      "aggregate_entity": "integrations.webhook_delivery",
+      "fields": [
+        "subscription_id",
+        "attempt"
+      ],
+      "max_class": "C1",
+      "consumers": {
+        "activity": false,
+        "notification": true,
+        "metrics": true,
+        "automation_trigger": false,
+        "search_index": false
+      },
+      "public_webhook": null,
+      "requirements": [],
+      "allow_list_version": null,
+      "delivery_authorization": null
+    },
+    {
+      "type": "quality.test_result.recorded",
+      "schema_version": 1,
+      "aggregate_entity": "quality.test_result",
+      "fields": [
+        "test_run_id",
+        "outcome"
+      ],
+      "max_class": "C1",
+      "consumers": {
+        "activity": true,
+        "notification": false,
+        "metrics": true,
+        "automation_trigger": true,
+        "search_index": false
+      },
+      "public_webhook": "test_result.recorded",
+      "requirements": [
+        "TEST-008"
+      ],
+      "allow_list_version": 1,
+      "delivery_authorization": "subscription_owner_at_delivery"
+    },
+    {
+      "type": "quality.defect.verified",
+      "schema_version": 1,
+      "aggregate_entity": "quality.verification_record",
+      "fields": [
+        "defect_task_id",
+        "method"
+      ],
+      "max_class": "C1",
+      "consumers": {
+        "activity": true,
+        "notification": true,
+        "metrics": true,
+        "automation_trigger": true,
+        "search_index": false
+      },
+      "public_webhook": "defect.verified",
+      "requirements": [
+        "TEST-017"
+      ],
+      "allow_list_version": 1,
+      "delivery_authorization": "subscription_owner_at_delivery"
+    },
+    {
+      "type": "delivery.release.decided",
+      "schema_version": 1,
+      "aggregate_entity": "delivery.release_decision",
+      "fields": [
+        "release_id",
+        "decision",
+        "sequence"
+      ],
+      "max_class": "C1",
+      "consumers": {
+        "activity": true,
+        "notification": true,
+        "metrics": true,
+        "automation_trigger": true,
+        "search_index": false
+      },
+      "public_webhook": "release.decided",
+      "requirements": [
+        "TEST-025"
+      ],
+      "allow_list_version": 1,
+      "delivery_authorization": "subscription_owner_at_delivery"
+    },
+    {
+      "type": "delivery.deployment.recorded",
+      "schema_version": 1,
+      "aggregate_entity": "delivery.deployment",
+      "fields": [
+        "environment_id",
+        "version_label"
+      ],
+      "max_class": "C1",
+      "consumers": {
+        "activity": true,
+        "notification": false,
+        "metrics": true,
+        "automation_trigger": true,
+        "search_index": false
+      },
+      "public_webhook": "deployment.recorded",
+      "requirements": [],
+      "allow_list_version": 1,
+      "delivery_authorization": "subscription_owner_at_delivery"
+    },
+    {
+      "type": "metering.usage.threshold_reached",
+      "schema_version": 1,
+      "aggregate_entity": "metering.usage_balance",
+      "fields": [
+        "meter",
+        "threshold_bp"
+      ],
+      "max_class": "C1",
+      "consumers": {
+        "activity": false,
+        "notification": true,
+        "metrics": false,
+        "automation_trigger": false,
+        "search_index": false
+      },
+      "public_webhook": null,
+      "requirements": [
+        "NTF-006"
+      ],
+      "allow_list_version": null,
+      "delivery_authorization": null
+    },
+    {
+      "type": "metering.usage.limit_reached",
+      "schema_version": 1,
+      "aggregate_entity": "metering.usage_balance",
+      "fields": [
+        "meter"
+      ],
+      "max_class": "C1",
+      "consumers": {
+        "activity": false,
+        "notification": true,
+        "metrics": false,
+        "automation_trigger": false,
+        "search_index": false
+      },
+      "public_webhook": null,
+      "requirements": [
+        "AI-035"
+      ],
+      "allow_list_version": null,
+      "delivery_authorization": null
+    },
+    {
+      "type": "ai.proposal.applied",
+      "schema_version": 1,
+      "aggregate_entity": "ai.change_proposal",
+      "fields": [
+        "applied_count",
+        "failed_count"
+      ],
+      "max_class": "C1",
+      "consumers": {
+        "activity": true,
+        "notification": false,
+        "metrics": false,
+        "automation_trigger": true,
+        "search_index": false
+      },
+      "public_webhook": null,
+      "requirements": [
+        "AI-025"
+      ],
+      "allow_list_version": null,
+      "delivery_authorization": null
+    },
+    {
+      "type": "ai.briefing.generated",
+      "schema_version": 1,
+      "aggregate_entity": "ai.briefing",
+      "fields": [
+        "kind",
+        "period_key"
+      ],
+      "max_class": "C1",
+      "consumers": {
+        "activity": false,
+        "notification": true,
+        "metrics": false,
+        "automation_trigger": false,
+        "search_index": false
+      },
+      "public_webhook": null,
+      "requirements": [
+        "BRF-018"
+      ],
+      "allow_list_version": null,
+      "delivery_authorization": null
+    },
+    {
+      "type": "transfer.export.ready",
+      "schema_version": 1,
+      "aggregate_entity": "transfer.export_job",
+      "fields": [
+        "format"
+      ],
+      "max_class": "C1",
+      "consumers": {
+        "activity": false,
+        "notification": true,
+        "metrics": false,
+        "automation_trigger": false,
+        "search_index": false
+      },
+      "public_webhook": null,
+      "requirements": [
+        "DATA-011"
+      ],
+      "allow_list_version": null,
+      "delivery_authorization": null
+    },
+    {
+      "type": "templates.template.installed",
+      "schema_version": 1,
+      "aggregate_entity": "templates.template_installation",
+      "fields": [
+        "template_version_id",
+        "sample"
+      ],
+      "max_class": "C1",
+      "consumers": {
+        "activity": true,
+        "notification": false,
+        "metrics": false,
+        "automation_trigger": false,
+        "search_index": false
+      },
+      "public_webhook": null,
+      "requirements": [],
+      "allow_list_version": null,
+      "delivery_authorization": null
+    }
+  ],
+  "scopes": [
+    {
+      "scope": "records:read",
+      "description": "Read records the principal can read.",
+      "actions": [
+        "record.read",
+        "record.follow",
+        "record.download"
+      ],
+      "principals": [
+        "api_token_personal",
+        "service_principal",
+        "oauth_client",
+        "agent_run"
+      ]
+    },
+    {
+      "scope": "records:write",
+      "description": "Create, update, assign, relate, upload, complete records.",
+      "actions": [
+        "record.create",
+        "record.update",
+        "record.assign",
+        "record.relate",
+        "record.upload",
+        "task.complete",
+        "deliverable.submit",
+        "review.request"
+      ],
+      "principals": [
+        "api_token_personal",
+        "service_principal",
+        "oauth_client",
+        "agent_run"
+      ]
+    },
+    {
+      "scope": "records:archive",
+      "description": "Archive, trash, restore records.",
+      "actions": [
+        "record.archive",
+        "record.trash",
+        "record.restore"
+      ],
+      "principals": [
+        "api_token_personal",
+        "service_principal",
+        "oauth_client"
+      ]
+    },
+    {
+      "scope": "comments:write",
+      "description": "Comment, react, mention.",
+      "actions": [
+        "record.comment",
+        "comment.edit_own"
+      ],
+      "principals": [
+        "api_token_personal",
+        "service_principal",
+        "oauth_client",
+        "agent_run"
+      ]
+    },
+    {
+      "scope": "shares:manage",
+      "description": "Create and revoke shares.",
+      "actions": [
+        "record.share",
+        "record.share_revoke"
+      ],
+      "principals": [
+        "api_token_personal",
+        "oauth_client"
+      ]
+    },
+    {
+      "scope": "time:write",
+      "description": "Log own time.",
+      "actions": [
+        "time.log_own",
+        "timesheet.submit_own"
+      ],
+      "principals": [
+        "api_token_personal",
+        "oauth_client"
+      ]
+    },
+    {
+      "scope": "views:read",
+      "description": "Read saved views and reports.",
+      "actions": [
+        "record.read"
+      ],
+      "principals": [
+        "api_token_personal",
+        "service_principal",
+        "oauth_client"
+      ]
+    },
+    {
+      "scope": "exports:create",
+      "description": "Create exports.",
+      "actions": [
+        "record.export"
+      ],
+      "principals": [
+        "api_token_personal",
+        "service_principal"
+      ]
+    },
+    {
+      "scope": "imports:create",
+      "description": "Run imports.",
+      "actions": [
+        "import.execute"
+      ],
+      "principals": [
+        "api_token_personal",
+        "service_principal"
+      ]
+    },
+    {
+      "scope": "tests:ingest",
+      "description": "Submit test runs and results.",
+      "actions": [
+        "tests.execute",
+        "record.create"
+      ],
+      "principals": [
+        "api_token_personal",
+        "service_principal",
+        "inbound_webhook",
+        "agent_run"
+      ]
+    },
+    {
+      "scope": "ai:execute",
+      "description": "Run AI actions.",
+      "actions": [
+        "ai.execute"
+      ],
+      "principals": [
+        "api_token_personal",
+        "oauth_client"
+      ]
+    },
+    {
+      "scope": "agents:execute",
+      "description": "Assign tasks to agents and control runs.",
+      "actions": [
+        "agent.assign",
+        "agent.run_control"
+      ],
+      "principals": [
+        "api_token_personal",
+        "oauth_client"
+      ]
+    },
+    {
+      "scope": "automations:execute",
+      "description": "Run automations manually.",
+      "actions": [
+        "automation.run_manual"
+      ],
+      "principals": [
+        "api_token_personal",
+        "service_principal"
+      ]
+    },
+    {
+      "scope": "integrations:sync",
+      "description": "Trigger syncs.",
+      "actions": [
+        "integration.sync_now"
+      ],
+      "principals": [
+        "api_token_personal",
+        "service_principal"
+      ]
+    },
+    {
+      "scope": "webhooks:manage",
+      "description": "Manage webhooks and send tests.",
+      "actions": [
+        "webhooks.manage",
+        "webhook.test_send"
+      ],
+      "principals": [
+        "api_token_personal",
+        "service_principal"
+      ]
+    },
+    {
+      "scope": "capture:write",
+      "description": "Create Inbox items for the principal's owner.",
+      "actions": [
+        "personal.manage_own"
+      ],
+      "principals": [
+        "api_token_personal",
+        "oauth_client",
+        "inbound_webhook"
+      ]
+    },
+    {
+      "scope": "audit:read",
+      "description": "Read audit history.",
+      "actions": [
+        "audit.view"
+      ],
+      "principals": [
+        "api_token_personal",
+        "service_principal"
+      ]
+    },
+    {
+      "scope": "usage:read",
+      "description": "Read usage and cost.",
+      "actions": [
+        "usage.view"
+      ],
+      "principals": [
+        "api_token_personal",
+        "service_principal"
+      ]
+    },
+    {
+      "scope": "admin:read",
+      "description": "Read workspace settings and health.",
+      "actions": [
+        "workspace.view_settings",
+        "health.view",
+        "billing.view"
+      ],
+      "principals": [
+        "api_token_personal",
+        "service_principal"
+      ]
+    }
+  ],
+  "step_up_methods": [
+    "password",
+    "totp",
+    "webauthn",
+    "recovery_code"
+  ],
+  "meters": [
+    {
+      "meter": "ai.input_tokens",
+      "unit": "token",
+      "kind": "counter",
+      "billing_relevant": true
+    },
+    {
+      "meter": "ai.output_tokens",
+      "unit": "token",
+      "kind": "counter",
+      "billing_relevant": true
+    },
+    {
+      "meter": "ai.cost",
+      "unit": "usd_micros",
+      "kind": "cost",
+      "billing_relevant": true
+    },
+    {
+      "meter": "agent.runs",
+      "unit": "run",
+      "kind": "counter",
+      "billing_relevant": true
+    },
+    {
+      "meter": "agent.runtime_seconds",
+      "unit": "second",
+      "kind": "counter",
+      "billing_relevant": true
+    },
+    {
+      "meter": "agent.cost",
+      "unit": "usd_micros",
+      "kind": "cost",
+      "billing_relevant": true
+    },
+    {
+      "meter": "automation.runs",
+      "unit": "run",
+      "kind": "counter",
+      "billing_relevant": true
+    },
+    {
+      "meter": "automation.steps",
+      "unit": "step",
+      "kind": "counter",
+      "billing_relevant": false
+    },
+    {
+      "meter": "storage.bytes",
+      "unit": "byte",
+      "kind": "gauge",
+      "billing_relevant": true
+    },
+    {
+      "meter": "api.requests",
+      "unit": "request",
+      "kind": "counter",
+      "billing_relevant": false
+    },
+    {
+      "meter": "webhook.deliveries",
+      "unit": "delivery",
+      "kind": "counter",
+      "billing_relevant": false
+    },
+    {
+      "meter": "integration.sync_items",
+      "unit": "item",
+      "kind": "counter",
+      "billing_relevant": false
+    },
+    {
+      "meter": "export.bytes",
+      "unit": "byte",
+      "kind": "counter",
+      "billing_relevant": false
+    },
+    {
+      "meter": "seats.active",
+      "unit": "seat",
+      "kind": "gauge",
+      "billing_relevant": true
+    }
+  ],
+  "notification_types": [
+    {
+      "type": "assignment",
+      "requirement": "NTF-005"
+    },
+    {
+      "type": "mention",
+      "requirement": "NTF-005"
+    },
+    {
+      "type": "comment",
+      "requirement": "NTF-005"
+    },
+    {
+      "type": "review_requested",
+      "requirement": "NTF-005"
+    },
+    {
+      "type": "approval_decided",
+      "requirement": "NTF-005"
+    },
+    {
+      "type": "blocker",
+      "requirement": "NTF-005"
+    },
+    {
+      "type": "due_soon",
+      "requirement": "NTF-005"
+    },
+    {
+      "type": "overdue",
+      "requirement": "NTF-005"
+    },
+    {
+      "type": "integration_failure",
+      "requirement": "NTF-005"
+    },
+    {
+      "type": "automation_failure",
+      "requirement": "NTF-005"
+    },
+    {
+      "type": "agent_failure",
+      "requirement": "NTF-005"
+    },
+    {
+      "type": "agent_output_ready",
+      "requirement": "AGT-013"
+    },
+    {
+      "type": "spend_threshold",
+      "requirement": "NTF-006"
+    },
+    {
+      "type": "permission_changed",
+      "requirement": "NTF-007"
+    },
+    {
+      "type": "share_changed",
+      "requirement": "NTF-007"
+    },
+    {
+      "type": "briefing_ready",
+      "requirement": "BRF-018"
+    },
+    {
+      "type": "export_ready",
+      "requirement": "DATA-011"
+    },
+    {
+      "type": "hidden_dependency_affects_assignee",
+      "requirement": "TSK-013"
+    }
+  ],
+  "telemetry": [
+    {
+      "name": "http.server.request.duration",
+      "type": "histogram",
+      "labels": [
+        "route",
+        "method",
+        "status_class",
+        "principal_class"
+      ],
+      "area": "api"
+    },
+    {
+      "name": "http.server.requests",
+      "type": "counter",
+      "labels": [
+        "route",
+        "method",
+        "status_class"
+      ],
+      "area": "api"
+    },
+    {
+      "name": "authz.denials",
+      "type": "counter",
+      "labels": [
+        "route",
+        "action_key",
+        "response_shape",
+        "principal_class"
+      ],
+      "area": "authz"
+    },
+    {
+      "name": "authz.context_build.duration",
+      "type": "histogram",
+      "labels": [
+        "cache_hit"
+      ],
+      "area": "authz"
+    },
+    {
+      "name": "db.transaction.duration",
+      "type": "histogram",
+      "labels": [
+        "module",
+        "kind"
+      ],
+      "area": "db"
+    },
+    {
+      "name": "db.rls_context_assertion_failures",
+      "type": "counter",
+      "labels": [
+        "module"
+      ],
+      "area": "db"
+    },
+    {
+      "name": "job.queue.lag",
+      "type": "gauge",
+      "labels": [
+        "queue"
+      ],
+      "area": "jobs"
+    },
+    {
+      "name": "job.attempts",
+      "type": "counter",
+      "labels": [
+        "queue",
+        "outcome"
+      ],
+      "area": "jobs"
+    },
+    {
+      "name": "job.dead",
+      "type": "counter",
+      "labels": [
+        "queue"
+      ],
+      "area": "jobs"
+    },
+    {
+      "name": "job.lease_expired",
+      "type": "counter",
+      "labels": [
+        "queue"
+      ],
+      "area": "jobs"
+    },
+    {
+      "name": "outbox.dispatch.lag",
+      "type": "gauge",
+      "labels": [],
+      "area": "events"
+    },
+    {
+      "name": "inbox.duplicates_skipped",
+      "type": "counter",
+      "labels": [
+        "consumer"
+      ],
+      "area": "events"
+    },
+    {
+      "name": "webhook.delivery.duration",
+      "type": "histogram",
+      "labels": [
+        "outcome"
+      ],
+      "area": "webhooks"
+    },
+    {
+      "name": "webhook.deliveries",
+      "type": "counter",
+      "labels": [
+        "outcome",
+        "status_class"
+      ],
+      "area": "webhooks"
+    },
+    {
+      "name": "webhook.endpoints_disabled",
+      "type": "counter",
+      "labels": [],
+      "area": "webhooks"
+    },
+    {
+      "name": "webhook.inbound.rejected",
+      "type": "counter",
+      "labels": [
+        "reason"
+      ],
+      "area": "webhooks"
+    },
+    {
+      "name": "sse.connections",
+      "type": "gauge",
+      "labels": [],
+      "area": "sse"
+    },
+    {
+      "name": "sse.resets",
+      "type": "counter",
+      "labels": [
+        "reason"
+      ],
+      "area": "sse"
+    },
+    {
+      "name": "upload.completed",
+      "type": "counter",
+      "labels": [
+        "outcome"
+      ],
+      "area": "files"
+    },
+    {
+      "name": "file.scan.duration",
+      "type": "histogram",
+      "labels": [
+        "outcome"
+      ],
+      "area": "files"
+    },
+    {
+      "name": "integration.sync.duration",
+      "type": "histogram",
+      "labels": [
+        "provider",
+        "outcome"
+      ],
+      "area": "integrations"
+    },
+    {
+      "name": "ai.request.duration",
+      "type": "histogram",
+      "labels": [
+        "provider_class",
+        "outcome"
+      ],
+      "area": "ai"
+    },
+    {
+      "name": "agent.tool_calls",
+      "type": "counter",
+      "labels": [
+        "tool_class",
+        "outcome"
+      ],
+      "area": "agents"
+    },
+    {
+      "name": "automation.runs",
+      "type": "counter",
+      "labels": [
+        "outcome"
+      ],
+      "area": "automations"
+    },
+    {
+      "name": "usage.reservations_denied",
+      "type": "counter",
+      "labels": [
+        "meter"
+      ],
+      "area": "usage"
+    },
+    {
+      "name": "usage.cap_stops",
+      "type": "counter",
+      "labels": [
+        "meter"
+      ],
+      "area": "usage"
+    },
+    {
+      "name": "audit.write_failures",
+      "type": "counter",
+      "labels": [
+        "module"
+      ],
+      "area": "audit"
+    },
+    {
+      "name": "step_up.challenges",
+      "type": "counter",
+      "labels": [
+        "outcome"
+      ],
+      "area": "auth"
+    },
+    {
+      "name": "security.support_access_actions",
+      "type": "counter",
+      "labels": [
+        "outcome"
+      ],
+      "area": "auth"
+    }
+  ],
+  "forbidden_metric_labels": [
+    "workspace_id",
+    "brand_id",
+    "record_id",
+    "public_id",
+    "email",
+    "title",
+    "name",
+    "query",
+    "ip",
+    "user_agent"
+  ],
+  "authz_response_shapes": {
+    "ok": "success:200",
+    "ok_filtered": "success:200 (hidden fields and relationships absent)",
+    "omitted": "success:200 (item absent from collection/payload)",
+    "not_found": "error:not_found",
+    "forbidden": "error:forbidden",
+    "unauthenticated": "error:unauthenticated",
+    "approval_required": "error:approval_required | success:202 operation waiting(approval)",
+    "suspended": "error:principal_suspended",
+    "redacted": "success:200 (value replaced by {\"redacted\": true})",
+    "conflict_filtered": "error:conflict",
+    "validation_generic": "error:validation_failed",
+    "empty": "success:200 (empty page)",
+    "error_generic": "error:internal_error"
+  },
+  "parameters": [
+    {
+      "name": "IDEMPOTENCY_RETENTION",
+      "meaning": "Minimum retention of idempotency records; must cover the offline replay window.",
+      "owner": "1A/2D"
+    },
+    {
+      "name": "OUTBOX_REPLAY_WINDOW",
+      "meaning": "How long dispatched outbox rows remain for replay.",
+      "owner": "1A"
+    },
+    {
+      "name": "JOB_LEASE_DURATION",
+      "meaning": "Lease length per queue.",
+      "owner": "1A"
+    },
+    {
+      "name": "JOB_HEARTBEAT_INTERVAL",
+      "meaning": "Heartbeat interval; < lease duration / 3.",
+      "owner": "1A"
+    },
+    {
+      "name": "JOB_BACKOFF_BASE",
+      "meaning": "Backoff base delay per queue.",
+      "owner": "1A"
+    },
+    {
+      "name": "JOB_BACKOFF_CAP",
+      "meaning": "Maximum backoff delay per queue.",
+      "owner": "1A"
+    },
+    {
+      "name": "JOB_MAX_ATTEMPTS",
+      "meaning": "Retry cap per job kind.",
+      "owner": "1A"
+    },
+    {
+      "name": "JOB_TIMEOUT",
+      "meaning": "Execution timeout per job kind.",
+      "owner": "1A"
+    },
+    {
+      "name": "WORKSPACE_CONCURRENCY_CAP",
+      "meaning": "Per-workspace concurrent job cap per queue (fairness).",
+      "owner": "11C"
+    },
+    {
+      "name": "WEBHOOK_TIMESTAMP_TOLERANCE",
+      "meaning": "Accepted clock skew for signed webhooks.",
+      "owner": "6B"
+    },
+    {
+      "name": "WEBHOOK_DISABLE_THRESHOLD",
+      "meaning": "Consecutive-failure policy that disables an endpoint.",
+      "owner": "6B"
+    },
+    {
+      "name": "WEBHOOK_RESPONSE_TIMEOUT",
+      "meaning": "Outbound delivery response timeout.",
+      "owner": "6B"
+    },
+    {
+      "name": "SSE_HEARTBEAT_INTERVAL",
+      "meaning": "Heartbeat comment interval.",
+      "owner": "1E"
+    },
+    {
+      "name": "SSE_BUFFER_LIMIT",
+      "meaning": "Notices buffered per stream for Last-Event-ID resume.",
+      "owner": "1E"
+    },
+    {
+      "name": "SSE_MAX_STREAMS_PER_PRINCIPAL",
+      "meaning": "Concurrent streams per principal.",
+      "owner": "1E"
+    },
+    {
+      "name": "SIGNED_URL_LIFETIME",
+      "meaning": "Lifetime of signed upload/download URLs.",
+      "owner": "4E"
+    },
+    {
+      "name": "UPLOAD_SESSION_LIFETIME",
+      "meaning": "Lifetime of an upload session.",
+      "owner": "4E"
+    },
+    {
+      "name": "STEP_UP_WINDOW",
+      "meaning": "Validity of a verified step-up token.",
+      "owner": "1B"
+    },
+    {
+      "name": "STEP_UP_CHALLENGE_LIFETIME",
+      "meaning": "Validity of an unverified challenge.",
+      "owner": "1B"
+    },
+    {
+      "name": "PAGE_LIMIT_DEFAULT",
+      "meaning": "Default page size.",
+      "owner": "3A"
+    },
+    {
+      "name": "PAGE_LIMIT_MAX",
+      "meaning": "Maximum page size (schema cap 200).",
+      "owner": "3A"
+    },
+    {
+      "name": "TOTAL_COUNT_CAP",
+      "meaning": "Above this, totals are capped/estimated.",
+      "owner": "3A"
+    },
+    {
+      "name": "BULK_SYNC_LIMIT",
+      "meaning": "Max items processed synchronously before a bulk request becomes a background operation.",
+      "owner": "2D"
+    },
+    {
+      "name": "ATOMIC_BULK_LIMIT",
+      "meaning": "Max items in an atomic bulk request.",
+      "owner": "2D"
+    },
+    {
+      "name": "RATE_LIMIT_POLICIES",
+      "meaning": "Request quotas per principal class.",
+      "owner": "6B/11C"
+    },
+    {
+      "name": "DEPRECATION_NOTICE_PERIOD",
+      "meaning": "Minimum notice before removing a deprecated public contract (product-owner decision).",
+      "owner": "PO"
+    },
+    {
+      "name": "EXPORT_LINK_LIFETIME",
+      "meaning": "Export file download lifetime (0A parameter, OD-36).",
+      "owner": "PO"
+    },
+    {
+      "name": "IMPORT_ROLLBACK_PERIOD",
+      "meaning": "Import rollback window (0A parameter, OD-40).",
+      "owner": "PO"
+    },
+    {
+      "name": "USAGE_WARNING_THRESHOLDS",
+      "meaning": "Default warning thresholds as basis points of allowance.",
+      "owner": "7A"
+    },
+    {
+      "name": "UNDO_RETENTION",
+      "meaning": "How long an operation remains undoable server-side.",
+      "owner": "2D"
+    }
+  ],
+  "sse_topics": [
+    {
+      "topic": "record:<public_id>",
+      "authorization": "single_record_predicate",
+      "0c_context": [
+        ":ws",
+        ":brand_view",
+        ":restricted_projects",
+        ":proj_view",
+        ":subjects"
+      ]
+    },
+    {
+      "topic": "op_<id>",
+      "authorization": "operation_readable (initiator or readable scope)",
+      "0c_context": [
+        ":ws",
+        ":brand_view",
+        ":proj_view",
+        ":me"
+      ]
+    },
+    {
+      "topic": "scope:brand:<br_id>",
+      "authorization": "brand_in_brand_view_then_per_record_predicate",
+      "0c_context": [
+        ":ws",
+        ":brand_view",
+        ":restricted_projects",
+        ":subjects"
+      ]
+    },
+    {
+      "topic": "scope:project:<prj_id>",
+      "authorization": "project_readable_then_per_record_predicate",
+      "0c_context": [
+        ":ws",
+        ":brand_view",
+        ":restricted_projects",
+        ":proj_view"
+      ]
+    },
+    {
+      "topic": "me",
+      "authorization": "personal_owner_predicate",
+      "0c_context": [
+        ":ws",
+        ":me"
+      ]
+    }
+  ]
+}

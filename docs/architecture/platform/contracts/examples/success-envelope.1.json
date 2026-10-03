@@ -1,0 +1,26 @@
+{
+  "$schema_ref": "urn:pm:schema:success-envelope",
+  "example": {
+    "data": {
+      "id": "tsk_01J9ZK3Q5B8V2N4M6P7R9S0T1V",
+      "type": "task",
+      "version": 42,
+      "title": "Ship v2.3 changelog",
+      "status_category": "active",
+      "due_date": "2026-10-14",
+      "deadline": {
+        "local": "2026-10-15T17:00",
+        "tz": "America/New_York"
+      },
+      "brand": {
+        "id": "br_01J9ZK3Q5B8V2N4M6P7R9S0T1A",
+        "type": "brand"
+      }
+    },
+    "meta": {
+      "request_id": "req_01J9ZK3Q5B8V2N4M6P7R9S0T1W",
+      "correlation_id": "4bf92f3577b34da6a3ce929d0e0e4736",
+      "api_version": "v1"
+    }
+  }
+}

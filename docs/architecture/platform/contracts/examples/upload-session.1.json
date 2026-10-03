@@ -1,0 +1,25 @@
+{
+  "$schema_ref": "urn:pm:schema:upload-session",
+  "example": {
+    "id": "upl_01J9ZK3Q5B8V2N4M6P7R9S0T1T",
+    "type": "upload_session",
+    "state": "initiated",
+    "file_name": "trace.zip",
+    "content_type": "application/zip",
+    "byte_size": 1048576,
+    "sha256": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+    "host": {
+      "id": "tsk_01J9ZK3Q5B8V2N4M6P7R9S0T1V",
+      "type": "task"
+    },
+    "upload": {
+      "method": "PUT",
+      "url": "https://objects.example/quarantine/ws/7f3c/9b1e?sig=redacted",
+      "headers": {
+        "Content-Type": "application/zip",
+        "Content-Length": "1048576"
+      },
+      "expires_at": "2026-10-14T09:00:00.000Z"
+    }
+  }
+}

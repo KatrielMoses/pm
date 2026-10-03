@@ -1,0 +1,50 @@
+{
+  "$schema_ref": "urn:pm:schema:audit-event",
+  "example": {
+    "id": "0192a3b4-c5d6-7e8f-9a0b-1c2d3e4f5a6b",
+    "occurred_at": "2026-10-14T09:00:00.000Z",
+    "workspace_id": "0192a3b4-c5d6-7e8f-9a0b-1c2d3e4f5a6b",
+    "brand_id": "0192a3b4-c5d6-7e8f-9a0b-1c2d3e4f5a6b",
+    "action": "task.status_changed",
+    "actor": {
+      "type": "agent",
+      "id": "0192a3b4-c5d6-7e8f-9a0b-1c2d3e4f5a6b",
+      "on_behalf_of": "0192a3b4-c5d6-7e8f-9a0b-1c2d3e4f5a6b",
+      "delegation_chain": [
+        {
+          "type": "member",
+          "id": "0192a3b4-c5d6-7e8f-9a0b-1c2d3e4f5a6b"
+        },
+        {
+          "type": "agent_run",
+          "id": "0192a3b4-c5d6-7e8f-9a0b-1c2d3e4f5a6b"
+        }
+      ]
+    },
+    "target": {
+      "record_id": "0192a3b4-c5d6-7e8f-9a0b-1c2d3e4f5a6b",
+      "type": "task",
+      "public_id": "tsk_01J9ZK3Q5B8V2N4M6P7R9S0T1V"
+    },
+    "changes": [
+      {
+        "field": "status_id",
+        "class": "plain",
+        "old": "In progress",
+        "new": "In review"
+      },
+      {
+        "field": "webhook_secret_ref",
+        "class": "secret",
+        "changed": true
+      }
+    ],
+    "operation_id": "0192a3b4-c5d6-7e8f-9a0b-1c2d3e4f5a6b",
+    "correlation_id": "4bf92f3577b34da6a3ce929d0e0e4736",
+    "source": {
+      "kind": "agent",
+      "ref": "tool:update_records"
+    },
+    "retention_class": "R-AUDIT"
+  }
+}

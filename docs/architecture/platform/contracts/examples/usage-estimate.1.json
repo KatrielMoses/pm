@@ -1,0 +1,17 @@
+{
+  "$schema_ref": "urn:pm:schema:usage-estimate",
+  "example": {
+    "meter": "ai.cost",
+    "low": {
+      "amount_micros": "400000",
+      "currency": "USD"
+    },
+    "high": {
+      "amount_micros": "900000",
+      "currency": "USD"
+    },
+    "basis": "estimated",
+    "would_exceed_hard_limit": false,
+    "requires_confirmation": true
+  }
+}

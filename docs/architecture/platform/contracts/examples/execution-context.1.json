@@ -1,0 +1,53 @@
+{
+  "$schema_ref": "urn:pm:schema:execution-context",
+  "example": {
+    "workspace_id": "0192a3b4-c5d6-7e8f-9a0b-1c2d3e4f5a6b",
+    "request_id": "req_01J9ZK3Q5B8V2N4M6P7R9S0T1W",
+    "correlation_id": "4bf92f3577b34da6a3ce929d0e0e4736",
+    "traceparent": "00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01",
+    "authenticated_principal": {
+      "type": "agent_run",
+      "id": "0192a3b4-c5d6-7e8f-9a0b-1c2d3e4f5a6b"
+    },
+    "effective_principal": {
+      "type": "agent_run",
+      "id": "0192a3b4-c5d6-7e8f-9a0b-1c2d3e4f5a6b"
+    },
+    "initiating_membership_id": "0192a3b4-c5d6-7e8f-9a0b-1c2d3e4f5a6b",
+    "delegation_chain": [
+      {
+        "type": "member",
+        "id": "0192a3b4-c5d6-7e8f-9a0b-1c2d3e4f5a6b"
+      },
+      {
+        "type": "agent_profile",
+        "id": "0192a3b4-c5d6-7e8f-9a0b-1c2d3e4f5a6b"
+      },
+      {
+        "type": "agent_run",
+        "id": "0192a3b4-c5d6-7e8f-9a0b-1c2d3e4f5a6b",
+        "scope_ref": "run_scope_snapshot"
+      }
+    ],
+    "selected_scope": {
+      "brand_ids": [
+        "0192a3b4-c5d6-7e8f-9a0b-1c2d3e4f5a6b"
+      ]
+    },
+    "epochs": {
+      "workspace": 1812,
+      "principal": 77,
+      "agent_class": 3
+    },
+    "risk": {
+      "action_key": "record.update",
+      "risk_class": "R1",
+      "approval_class": "review_required"
+    },
+    "data_class_limit": "C2",
+    "locale": "en-GB",
+    "timezone": "Europe/Lisbon",
+    "operation_id": "0192a3b4-c5d6-7e8f-9a0b-1c2d3e4f5a6b",
+    "attempt_id": "0192a3b4-c5d6-7e8f-9a0b-1c2d3e4f5a6b"
+  }
+}

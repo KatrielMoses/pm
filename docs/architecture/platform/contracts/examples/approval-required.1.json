@@ -1,0 +1,15 @@
+{
+  "$schema_ref": "urn:pm:schema:approval-required",
+  "example": {
+    "approval": {
+      "id": "apr_01J9ZK3Q5B8V2N4M6P7R9S0T1J",
+      "state": "requested",
+      "action_key": "release.production_action",
+      "risk_class": "R4",
+      "approval_class": "independent_if_available",
+      "self_approval_allowed": false
+    },
+    "operation": "op_01J9ZK3Q5B8V2N4M6P7R9S0T1H",
+    "approvers_available": true
+  }
+}

@@ -1,0 +1,88 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:pm:schema:file-reference",
+  "title": "File reference",
+  "x-visibility": "public",
+  "x-max-class": "C2",
+  "type": "object",
+  "required": [
+    "id",
+    "type",
+    "file",
+    "version_number",
+    "source",
+    "scan_state",
+    "evidence_locked"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "id": {
+      "$ref": "urn:pm:schema:common#/$defs/public_id"
+    },
+    "type": {
+      "const": "file_version"
+    },
+    "file": {
+      "$ref": "urn:pm:schema:common#/$defs/public_id"
+    },
+    "version_number": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "source": {
+      "type": "string",
+      "enum": [
+        "upload",
+        "external_url",
+        "artifact"
+      ]
+    },
+    "name": {
+      "type": "string",
+      "maxLength": 255,
+      "x-class": "C2"
+    },
+    "content_type": {
+      "type": "string"
+    },
+    "byte_size": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "scan_state": {
+      "type": "string",
+      "enum": [
+        "pending",
+        "clean",
+        "infected",
+        "error",
+        "not_applicable"
+      ]
+    },
+    "preview_state": {
+      "type": "string",
+      "enum": [
+        "pending",
+        "ready",
+        "unsupported",
+        "failed"
+      ]
+    },
+    "evidence_locked": {
+      "type": "boolean"
+    },
+    "external_url": {
+      "type": "string",
+      "pattern": "^https://",
+      "x-class": "C2"
+    },
+    "download": {
+      "type": "string",
+      "description": "Relative API link; dereferencing re-authorizes and issues a short-lived signed URL."
+    }
+  }
+}

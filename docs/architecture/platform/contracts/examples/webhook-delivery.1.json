@@ -1,0 +1,14 @@
+{
+  "$schema_ref": "urn:pm:schema:webhook-delivery",
+  "example": {
+    "id": "whd_01J9ZK3Q5B8V2N4M6P7R9S0T1P",
+    "event_id": "evt_01J9ZK3Q5B8V2N4M6P7R9S0T1N",
+    "subscription": "whk_01J9ZK3Q5B8V2N4M6P7R9S0T1Q",
+    "attempt": 3,
+    "state": "retry_scheduled",
+    "response_status": 503,
+    "duration_ms": 1200,
+    "next_attempt_at": "2026-10-14T09:04:00.000Z",
+    "created_at": "2026-10-14T09:00:00.000Z"
+  }
+}

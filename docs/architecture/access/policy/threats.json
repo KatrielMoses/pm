@@ -1,0 +1,2064 @@
+{
+  "schema_version": 1,
+  "categories": [
+    "cross_workspace",
+    "cross_brand_traversal",
+    "inference",
+    "restricted_project",
+    "revocation",
+    "team_change",
+    "field_leak",
+    "staleness",
+    "guest_escalation",
+    "agent_scope",
+    "spoofing",
+    "support_misuse",
+    "departure",
+    "rls_leak"
+  ],
+  "surfaces": [
+    "ui_list",
+    "ui_record",
+    "api",
+    "search",
+    "search_snippet",
+    "ai_context",
+    "ai_answer",
+    "export",
+    "report",
+    "notification_inapp",
+    "notification_email",
+    "digest",
+    "activity",
+    "audit_display",
+    "count_facet",
+    "capacity",
+    "sse_notice",
+    "webhook_payload",
+    "error_message",
+    "timing",
+    "breadcrumb",
+    "picker",
+    "trash"
+  ],
+  "response_shapes": {
+    "ok": "Full authorized response",
+    "ok_filtered": "Authorized response with hidden elements omitted",
+    "omitted": "Item absent; no placeholder, count, or hint",
+    "not_found": "Indistinguishable not-found (same status, body shape, headers, and timing envelope as nonexistent)",
+    "forbidden": "Known-limited permission on a readable resource (ST-42)",
+    "unauthenticated": "Credential invalid; no resource information",
+    "approval_required": "Action held pending approval",
+    "suspended": "Principal suspended; nothing executed",
+    "redacted": "Value replaced by redaction marker",
+    "conflict_filtered": "Conflict response without unreadable current values",
+    "validation_generic": "Generic validation error naming only the caller's own input",
+    "empty": "Zero rows",
+    "error_generic": "Generic error without tenant data"
+  },
+  "threats": [
+    {
+      "id": "T-01",
+      "category": "cross_workspace",
+      "description": "ID substitution: a request names a record, brand, or project ID from another workspace.",
+      "mitigated_by": [
+        "I-02",
+        "I-03",
+        "I-07"
+      ]
+    },
+    {
+      "id": "T-02",
+      "category": "cross_workspace",
+      "description": "Background job or webhook processed under the wrong workspace context.",
+      "mitigated_by": [
+        "I-02",
+        "I-03"
+      ]
+    },
+    {
+      "id": "T-03",
+      "category": "cross_brand_traversal",
+      "description": "Read a hidden record through its parent, child, or breadcrumb.",
+      "mitigated_by": [
+        "I-05",
+        "I-07"
+      ]
+    },
+    {
+      "id": "T-04",
+      "category": "cross_brand_traversal",
+      "description": "Discover a hidden record through a dependency, related link, or derived Blocked condition.",
+      "mitigated_by": [
+        "I-05",
+        "I-07"
+      ]
+    },
+    {
+      "id": "T-05",
+      "category": "cross_brand_traversal",
+      "description": "Read hidden content through mentions, activity, or notifications.",
+      "mitigated_by": [
+        "I-04",
+        "I-07",
+        "I-08"
+      ]
+    },
+    {
+      "id": "T-06",
+      "category": "cross_brand_traversal",
+      "description": "Fetch hidden files through attachment URLs, signed URLs, or file version IDs.",
+      "mitigated_by": [
+        "I-04",
+        "I-07"
+      ]
+    },
+    {
+      "id": "T-07",
+      "category": "cross_brand_traversal",
+      "description": "Obtain hidden records through export, report delivery, or webhooks.",
+      "mitigated_by": [
+        "I-08",
+        "I-14"
+      ]
+    },
+    {
+      "id": "T-08",
+      "category": "cross_brand_traversal",
+      "description": "Retrieve hidden records through search, AI answers, citations, or recommendations.",
+      "mitigated_by": [
+        "I-07",
+        "I-08",
+        "I-14"
+      ]
+    },
+    {
+      "id": "T-09",
+      "category": "inference",
+      "description": "Infer hidden records from counts, facets, pagination totals, capacity, or metric totals.",
+      "mitigated_by": [
+        "I-07",
+        "I-08"
+      ]
+    },
+    {
+      "id": "T-10",
+      "category": "inference",
+      "description": "Distinguish nonexistent from unauthorized by status code, error text, timing, or uniqueness errors.",
+      "mitigated_by": [
+        "I-07"
+      ]
+    },
+    {
+      "id": "T-11",
+      "category": "inference",
+      "description": "Use filters or sorts on hidden fields or hidden relationships as an oracle.",
+      "mitigated_by": [
+        "I-07",
+        "I-18"
+      ]
+    },
+    {
+      "id": "T-12",
+      "category": "restricted_project",
+      "description": "Brand member reads a restricted project's tasks through brand-level grants or brand-wide views.",
+      "mitigated_by": [
+        "I-05",
+        "I-07"
+      ]
+    },
+    {
+      "id": "T-13",
+      "category": "restricted_project",
+      "description": "Owner/admin silently reads a sensitive brand without elevation.",
+      "mitigated_by": [
+        "I-17",
+        "I-10"
+      ]
+    },
+    {
+      "id": "T-14",
+      "category": "revocation",
+      "description": "Continue access after share expiry or revocation (cached pages, SSE, notifications, search).",
+      "mitigated_by": [
+        "I-12"
+      ]
+    },
+    {
+      "id": "T-15",
+      "category": "revocation",
+      "description": "Use a revoked or expired token, session, or OAuth consent.",
+      "mitigated_by": [
+        "I-12"
+      ]
+    },
+    {
+      "id": "T-16",
+      "category": "team_change",
+      "description": "Gain access by being added to a team that holds grants the adder cannot grant; or keep access after removal from a team.",
+      "mitigated_by": [
+        "I-11",
+        "I-12"
+      ]
+    },
+    {
+      "id": "T-17",
+      "category": "field_leak",
+      "description": "Read a hidden field through a calculated field, conflict response, audit history, export, notification, search snippet, or AI.",
+      "mitigated_by": [
+        "I-18",
+        "I-16"
+      ]
+    },
+    {
+      "id": "T-18",
+      "category": "staleness",
+      "description": "A queued job or long-running agent acts with permissions that were revoked after enqueue.",
+      "mitigated_by": [
+        "I-12",
+        "I-14"
+      ]
+    },
+    {
+      "id": "T-19",
+      "category": "staleness",
+      "description": "A cached derived condition or projection serves a stale authorization decision.",
+      "mitigated_by": [
+        "I-04",
+        "I-12"
+      ]
+    },
+    {
+      "id": "T-20",
+      "category": "guest_escalation",
+      "description": "Guest reshares, sees unshared children/parents, the member directory, or all-brands aggregates.",
+      "mitigated_by": [
+        "I-07",
+        "I-11"
+      ]
+    },
+    {
+      "id": "T-21",
+      "category": "guest_escalation",
+      "description": "Guest reaches trash or archived content of formerly shared records.",
+      "mitigated_by": [
+        "I-07",
+        "I-12"
+      ]
+    },
+    {
+      "id": "T-22",
+      "category": "agent_scope",
+      "description": "Agent reads or acts outside its run scope (prompt-injected scope expansion).",
+      "mitigated_by": [
+        "I-14"
+      ]
+    },
+    {
+      "id": "T-23",
+      "category": "agent_scope",
+      "description": "Confused deputy: low-privilege user assigns a task to a powerful agent or automation to reach data they cannot read.",
+      "mitigated_by": [
+        "I-11",
+        "I-14"
+      ]
+    },
+    {
+      "id": "T-24",
+      "category": "agent_scope",
+      "description": "Agent, automation, or AI approves its own output or performs gated actions without approval.",
+      "mitigated_by": [
+        "I-15"
+      ]
+    },
+    {
+      "id": "T-25",
+      "category": "spoofing",
+      "description": "Forged inbound webhook or replayed provider event creates or modifies records.",
+      "mitigated_by": [
+        "I-01",
+        "I-09"
+      ]
+    },
+    {
+      "id": "T-26",
+      "category": "spoofing",
+      "description": "Integration writes outside its mapped brand/project scope or exfiltrates via outbound sync.",
+      "mitigated_by": [
+        "I-14"
+      ]
+    },
+    {
+      "id": "T-27",
+      "category": "support_misuse",
+      "description": "Platform support reads tenant data without a valid support grant or impersonates a user.",
+      "mitigated_by": [
+        "I-03",
+        "I-17"
+      ]
+    },
+    {
+      "id": "T-28",
+      "category": "support_misuse",
+      "description": "Workspace admin exports or views data outside their authority or without audit.",
+      "mitigated_by": [
+        "I-11",
+        "I-17"
+      ]
+    },
+    {
+      "id": "T-29",
+      "category": "departure",
+      "description": "Departed member retains access via sessions, personal tokens, OAuth clients, automations, or running agents.",
+      "mitigated_by": [
+        "I-10",
+        "I-12"
+      ]
+    },
+    {
+      "id": "T-30",
+      "category": "departure",
+      "description": "Last owner removed or ownership transfer escalates a non-owner.",
+      "mitigated_by": [
+        "I-11",
+        "I-17"
+      ]
+    },
+    {
+      "id": "T-31",
+      "category": "rls_leak",
+      "description": "Pooled connection reuses another tenant's context or runs without context.",
+      "mitigated_by": [
+        "I-02",
+        "I-03"
+      ]
+    },
+    {
+      "id": "T-32",
+      "category": "rls_leak",
+      "description": "Worker or maintenance role bypasses RLS broadly.",
+      "mitigated_by": [
+        "I-02",
+        "I-03"
+      ]
+    },
+    {
+      "id": "T-33",
+      "category": "inference",
+      "description": "Not-found versus forbidden difference reveals that a readable record exists but an action is forbidden — acceptable only for readable records.",
+      "mitigated_by": [
+        "I-07"
+      ]
+    },
+    {
+      "id": "T-34",
+      "category": "cross_brand_traversal",
+      "description": "Client supplies a brand, role, plan, actor, or approval field to bypass checks.",
+      "mitigated_by": [
+        "I-09",
+        "I-13"
+      ]
+    }
+  ],
+  "tests": [
+    {
+      "id": "AT-001",
+      "threats": [
+        "T-01"
+      ],
+      "principal": "member",
+      "setup": "Member of A requests B's task public ID",
+      "scope": "record in workspace B",
+      "action": "record.read",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "not_found",
+      "silent_surfaces": [
+        "search",
+        "search_snippet",
+        "ai_context",
+        "export",
+        "notification_inapp",
+        "notification_email",
+        "activity",
+        "count_facet",
+        "sse_notice",
+        "webhook_payload",
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-002",
+      "threats": [
+        "T-01"
+      ],
+      "principal": "member",
+      "setup": "PATCH with B's ID and A's workspace header",
+      "scope": "record in workspace B",
+      "action": "record.update",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "not_found",
+      "silent_surfaces": [
+        "search",
+        "search_snippet",
+        "ai_context",
+        "export",
+        "notification_inapp",
+        "notification_email",
+        "activity",
+        "count_facet",
+        "sse_notice",
+        "webhook_payload",
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-003",
+      "threats": [
+        "T-01",
+        "T-34"
+      ],
+      "principal": "member",
+      "setup": "Create task in A with brand_id from B",
+      "scope": "brand in workspace B",
+      "action": "record.create",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "not_found",
+      "silent_surfaces": [
+        "search",
+        "search_snippet",
+        "ai_context",
+        "export",
+        "notification_inapp",
+        "notification_email",
+        "activity",
+        "count_facet",
+        "sse_notice",
+        "webhook_payload",
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-004",
+      "threats": [
+        "T-02"
+      ],
+      "principal": "system_job",
+      "setup": "Job context A attempts to load B row",
+      "scope": "job for workspace A",
+      "action": "record.read",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "not_found",
+      "silent_surfaces": [
+        "search",
+        "search_snippet",
+        "ai_context",
+        "export",
+        "notification_inapp",
+        "notification_email",
+        "activity",
+        "count_facet",
+        "sse_notice",
+        "webhook_payload",
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-005",
+      "threats": [
+        "T-03"
+      ],
+      "principal": "member",
+      "setup": "Viewer can read subtask only via share; parent hidden",
+      "scope": "child task in brand without access",
+      "action": "record.read",
+      "surface": "breadcrumb",
+      "expected": "deny",
+      "response_shape": "omitted",
+      "silent_surfaces": [
+        "search",
+        "search_snippet",
+        "ai_context",
+        "export",
+        "notification_inapp",
+        "notification_email",
+        "activity",
+        "count_facet",
+        "sse_notice",
+        "webhook_payload",
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-006",
+      "threats": [
+        "T-03"
+      ],
+      "principal": "member",
+      "setup": "Shared task inside unreadable project shows no project crumb or name",
+      "scope": "parent project hidden",
+      "action": "record.read",
+      "surface": "ui_record",
+      "expected": "allow",
+      "response_shape": "ok_filtered",
+      "silent_surfaces": [
+        "breadcrumb",
+        "count_facet"
+      ]
+    },
+    {
+      "id": "AT-007",
+      "threats": [
+        "T-04"
+      ],
+      "principal": "member",
+      "setup": "Task blocked only by hidden task shows no Blocked condition, no count, no relationship",
+      "scope": "cross-brand blocks link",
+      "action": "record.read",
+      "surface": "ui_record",
+      "expected": "allow",
+      "response_shape": "ok_filtered",
+      "silent_surfaces": [
+        "count_facet",
+        "activity",
+        "notification_inapp",
+        "search",
+        "api"
+      ]
+    },
+    {
+      "id": "AT-008",
+      "threats": [
+        "T-04"
+      ],
+      "principal": "member",
+      "setup": "Board/timeline: no dependency arrow or blocked badge from hidden blocker",
+      "scope": "cross-brand blocks link",
+      "action": "record.read",
+      "surface": "ui_list",
+      "expected": "allow",
+      "response_shape": "ok_filtered",
+      "silent_surfaces": [
+        "count_facet",
+        "capacity"
+      ]
+    },
+    {
+      "id": "AT-009",
+      "threats": [
+        "T-04"
+      ],
+      "principal": "member",
+      "setup": "Manual blocked reason remains visible (permission-safe)",
+      "scope": "manual blocked reason",
+      "action": "record.read",
+      "surface": "ui_record",
+      "expected": "allow",
+      "response_shape": "ok",
+      "silent_surfaces": []
+    },
+    {
+      "id": "AT-010",
+      "threats": [
+        "T-05"
+      ],
+      "principal": "member",
+      "setup": "Renders neutral 'Restricted item' token only",
+      "scope": "mention of hidden record in readable comment",
+      "action": "record.read",
+      "surface": "ui_record",
+      "expected": "allow",
+      "response_shape": "ok_filtered",
+      "silent_surfaces": [
+        "search_snippet",
+        "notification_inapp",
+        "ai_context"
+      ]
+    },
+    {
+      "id": "AT-011",
+      "threats": [
+        "T-05"
+      ],
+      "principal": "member",
+      "setup": "Activity items whose related endpoint is hidden are omitted",
+      "scope": "activity on hidden related record",
+      "action": "record.read",
+      "surface": "activity",
+      "expected": "deny",
+      "response_shape": "omitted",
+      "silent_surfaces": [
+        "search",
+        "search_snippet",
+        "ai_context",
+        "export",
+        "notification_inapp",
+        "notification_email",
+        "activity",
+        "count_facet",
+        "sse_notice",
+        "webhook_payload",
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-012",
+      "threats": [
+        "T-05"
+      ],
+      "principal": "member",
+      "setup": "Display-time recheck drops title/snippet/actor",
+      "scope": "notification about record later revoked",
+      "action": "record.read",
+      "surface": "notification_inapp",
+      "expected": "deny",
+      "response_shape": "omitted",
+      "silent_surfaces": [
+        "search",
+        "search_snippet",
+        "ai_context",
+        "export",
+        "notification_inapp",
+        "notification_email",
+        "activity",
+        "count_facet",
+        "sse_notice",
+        "webhook_payload",
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-013",
+      "threats": [
+        "T-06"
+      ],
+      "principal": "member",
+      "setup": "Direct file/version public ID",
+      "scope": "file version of hidden task",
+      "action": "record.download",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "not_found",
+      "silent_surfaces": [
+        "search",
+        "search_snippet",
+        "ai_context",
+        "export",
+        "notification_inapp",
+        "notification_email",
+        "activity",
+        "count_facet",
+        "sse_notice",
+        "webhook_payload",
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-014",
+      "threats": [
+        "T-06"
+      ],
+      "principal": "member",
+      "setup": "Signed URL older than its lifetime; after access revocation, a new download request is denied",
+      "scope": "expired signed URL",
+      "action": "record.download",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "not_found",
+      "silent_surfaces": [
+        "search",
+        "search_snippet",
+        "ai_context",
+        "export",
+        "notification_inapp",
+        "notification_email",
+        "activity",
+        "count_facet",
+        "sse_notice",
+        "webhook_payload",
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-015",
+      "threats": [
+        "T-07"
+      ],
+      "principal": "member",
+      "setup": "Export of all-brands view excludes hidden brand rows and hidden fields",
+      "scope": "brand without access",
+      "action": "record.export",
+      "surface": "export",
+      "expected": "deny",
+      "response_shape": "omitted",
+      "silent_surfaces": [
+        "search",
+        "search_snippet",
+        "ai_context",
+        "export",
+        "notification_inapp",
+        "notification_email",
+        "activity",
+        "count_facet",
+        "sse_notice",
+        "webhook_payload",
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-016",
+      "threats": [
+        "T-07"
+      ],
+      "principal": "member",
+      "setup": "Report rendered per recipient; hidden rows absent",
+      "scope": "scheduled report recipient lacking access",
+      "action": "report.schedule",
+      "surface": "report",
+      "expected": "deny",
+      "response_shape": "omitted",
+      "silent_surfaces": [
+        "search",
+        "search_snippet",
+        "ai_context",
+        "export",
+        "notification_inapp",
+        "notification_email",
+        "activity",
+        "count_facet",
+        "sse_notice",
+        "webhook_payload",
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-017",
+      "threats": [
+        "T-07",
+        "T-26"
+      ],
+      "principal": "integration_connection",
+      "setup": "Outbound webhook/sync never includes unmapped records",
+      "scope": "record outside mapped scope",
+      "action": "record.read",
+      "surface": "webhook_payload",
+      "expected": "deny",
+      "response_shape": "omitted",
+      "silent_surfaces": [
+        "search",
+        "search_snippet",
+        "ai_context",
+        "export",
+        "notification_inapp",
+        "notification_email",
+        "activity",
+        "count_facet",
+        "sse_notice",
+        "webhook_payload",
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-018",
+      "threats": [
+        "T-08"
+      ],
+      "principal": "member",
+      "setup": "Full-text query term only in hidden record",
+      "scope": "hidden record matching query",
+      "action": "record.read",
+      "surface": "search",
+      "expected": "deny",
+      "response_shape": "omitted",
+      "silent_surfaces": [
+        "search",
+        "search_snippet",
+        "ai_context",
+        "export",
+        "notification_inapp",
+        "notification_email",
+        "activity",
+        "count_facet",
+        "sse_notice",
+        "webhook_payload",
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-019",
+      "threats": [
+        "T-08"
+      ],
+      "principal": "ai_action",
+      "setup": "AI retrieval excludes hidden record; citation absent; answer states unknown",
+      "scope": "context including hidden record",
+      "action": "ai.execute",
+      "surface": "ai_answer",
+      "expected": "deny",
+      "response_shape": "omitted",
+      "silent_surfaces": [
+        "search",
+        "search_snippet",
+        "ai_context",
+        "export",
+        "notification_inapp",
+        "notification_email",
+        "activity",
+        "count_facet",
+        "sse_notice",
+        "webhook_payload",
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-020",
+      "threats": [
+        "T-08"
+      ],
+      "principal": "ai_action",
+      "setup": "Readable record outside selected scope excluded",
+      "scope": "selected brand narrower than access",
+      "action": "ai.execute",
+      "surface": "ai_context",
+      "expected": "deny",
+      "response_shape": "omitted",
+      "silent_surfaces": [
+        "search",
+        "search_snippet",
+        "ai_context",
+        "export",
+        "notification_inapp",
+        "notification_email",
+        "activity",
+        "count_facet",
+        "sse_notice",
+        "webhook_payload",
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-021",
+      "threats": [
+        "T-09"
+      ],
+      "principal": "member",
+      "setup": "Facet and total counts equal authorized rows only",
+      "scope": "brand without access",
+      "action": "record.read",
+      "surface": "count_facet",
+      "expected": "deny",
+      "response_shape": "omitted",
+      "silent_surfaces": [
+        "search",
+        "search_snippet",
+        "ai_context",
+        "export",
+        "notification_inapp",
+        "notification_email",
+        "activity",
+        "count_facet",
+        "sse_notice",
+        "webhook_payload",
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-022",
+      "threats": [
+        "T-09"
+      ],
+      "principal": "member",
+      "setup": "Free/busy off: hidden commitments contribute nothing",
+      "scope": "colleague with hidden commitments",
+      "action": "record.read",
+      "surface": "capacity",
+      "expected": "deny",
+      "response_shape": "omitted",
+      "silent_surfaces": [
+        "search",
+        "search_snippet",
+        "ai_context",
+        "export",
+        "notification_inapp",
+        "notification_email",
+        "activity",
+        "count_facet",
+        "sse_notice",
+        "webhook_payload",
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-023",
+      "threats": [
+        "T-09"
+      ],
+      "principal": "member",
+      "setup": "Dashboard totals sum only authorized scope keys",
+      "scope": "metric snapshot across brands",
+      "action": "record.read",
+      "surface": "report",
+      "expected": "deny",
+      "response_shape": "omitted",
+      "silent_surfaces": [
+        "search",
+        "search_snippet",
+        "ai_context",
+        "export",
+        "notification_inapp",
+        "notification_email",
+        "activity",
+        "count_facet",
+        "sse_notice",
+        "webhook_payload",
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-024",
+      "threats": [
+        "T-10"
+      ],
+      "principal": "member",
+      "setup": "Same status, body, headers, and timing envelope for both",
+      "scope": "nonexistent vs hidden ID",
+      "action": "record.read",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "not_found",
+      "silent_surfaces": [
+        "error_message",
+        "timing"
+      ]
+    },
+    {
+      "id": "AT-025",
+      "threats": [
+        "T-10"
+      ],
+      "principal": "member",
+      "setup": "Uniqueness conflict on hidden record does not reveal it",
+      "scope": "create with duplicate external key of hidden record",
+      "action": "record.create",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "validation_generic",
+      "silent_surfaces": [
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-026",
+      "threats": [
+        "T-11"
+      ],
+      "principal": "member",
+      "setup": "Query referencing unreadable field rejected for that viewer",
+      "scope": "filter on hidden field",
+      "action": "record.read",
+      "surface": "ui_list",
+      "expected": "deny",
+      "response_shape": "validation_generic",
+      "silent_surfaces": [
+        "count_facet",
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-027",
+      "threats": [
+        "T-11"
+      ],
+      "principal": "member",
+      "setup": "Sort/filter on relationship-derived conditions uses viewer-filtered derivation",
+      "scope": "sort by blocked-by hidden",
+      "action": "record.read",
+      "surface": "ui_list",
+      "expected": "deny",
+      "response_shape": "validation_generic",
+      "silent_surfaces": [
+        "count_facet"
+      ]
+    },
+    {
+      "id": "AT-028",
+      "threats": [
+        "T-12"
+      ],
+      "principal": "member",
+      "setup": "Brand-level grant does not reach restricted project",
+      "scope": "restricted project in readable brand",
+      "action": "record.read",
+      "surface": "ui_list",
+      "expected": "deny",
+      "response_shape": "omitted",
+      "silent_surfaces": [
+        "search",
+        "search_snippet",
+        "ai_context",
+        "export",
+        "notification_inapp",
+        "notification_email",
+        "activity",
+        "count_facet",
+        "sse_notice",
+        "webhook_payload",
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-029",
+      "threats": [
+        "T-12"
+      ],
+      "principal": "member",
+      "setup": "Parent project grant does not flow into restricted child",
+      "scope": "restricted child project under granted parent",
+      "action": "record.read",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "not_found",
+      "silent_surfaces": [
+        "search",
+        "search_snippet",
+        "ai_context",
+        "export",
+        "notification_inapp",
+        "notification_email",
+        "activity",
+        "count_facet",
+        "sse_notice",
+        "webhook_payload",
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-030",
+      "threats": [
+        "T-12"
+      ],
+      "principal": "member",
+      "setup": "Explicit grant allows",
+      "scope": "explicit project grant on restricted project",
+      "action": "record.read",
+      "surface": "ui_list",
+      "expected": "allow",
+      "response_shape": "ok",
+      "silent_surfaces": []
+    },
+    {
+      "id": "AT-031",
+      "threats": [
+        "T-13"
+      ],
+      "principal": "owner",
+      "setup": "Owner sees nothing until elevation",
+      "scope": "sensitive brand without grant",
+      "action": "record.read",
+      "surface": "ui_list",
+      "expected": "deny",
+      "response_shape": "omitted",
+      "silent_surfaces": [
+        "search",
+        "search_snippet",
+        "ai_context",
+        "export",
+        "notification_inapp",
+        "notification_email",
+        "activity",
+        "count_facet",
+        "sse_notice",
+        "webhook_payload",
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-032",
+      "threats": [
+        "T-13"
+      ],
+      "principal": "owner",
+      "setup": "Step-up + reason; audit + security event; scope managers notified",
+      "scope": "sensitive brand",
+      "action": "access.elevate_sensitive",
+      "surface": "api",
+      "expected": "allow",
+      "response_shape": "ok",
+      "silent_surfaces": []
+    },
+    {
+      "id": "AT-033",
+      "threats": [
+        "T-14"
+      ],
+      "principal": "guest",
+      "setup": "Next request after revocation",
+      "scope": "share revoked",
+      "action": "record.read",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "not_found",
+      "silent_surfaces": [
+        "search",
+        "search_snippet",
+        "ai_context",
+        "export",
+        "notification_inapp",
+        "notification_email",
+        "activity",
+        "count_facet",
+        "sse_notice",
+        "webhook_payload",
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-034",
+      "threats": [
+        "T-14"
+      ],
+      "principal": "guest",
+      "setup": "expires_at passed; job has not yet flipped state",
+      "scope": "share expired",
+      "action": "record.read",
+      "surface": "search",
+      "expected": "deny",
+      "response_shape": "omitted",
+      "silent_surfaces": [
+        "search",
+        "search_snippet",
+        "ai_context",
+        "export",
+        "notification_inapp",
+        "notification_email",
+        "activity",
+        "count_facet",
+        "sse_notice",
+        "webhook_payload",
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-035",
+      "threats": [
+        "T-14"
+      ],
+      "principal": "member",
+      "setup": "Epoch bump closes or filters stream",
+      "scope": "open SSE stream after revocation",
+      "action": "record.read",
+      "surface": "sse_notice",
+      "expected": "deny",
+      "response_shape": "omitted",
+      "silent_surfaces": [
+        "search",
+        "search_snippet",
+        "ai_context",
+        "export",
+        "notification_inapp",
+        "notification_email",
+        "activity",
+        "count_facet",
+        "sse_notice",
+        "webhook_payload",
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-036",
+      "threats": [
+        "T-15"
+      ],
+      "principal": "api_token_personal",
+      "setup": "Revoked token",
+      "scope": "revoked token",
+      "action": "record.read",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "unauthenticated",
+      "silent_surfaces": [
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-037",
+      "threats": [
+        "T-15"
+      ],
+      "principal": "api_token_personal",
+      "setup": "Read-only scoped token attempts write on readable record",
+      "scope": "token scope narrower than creator",
+      "action": "record.update",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "forbidden",
+      "silent_surfaces": []
+    },
+    {
+      "id": "AT-038",
+      "threats": [
+        "T-15"
+      ],
+      "principal": "member",
+      "setup": "Next request after revocation",
+      "scope": "session revoked remotely",
+      "action": "record.read",
+      "surface": "ui_record",
+      "expected": "deny",
+      "response_shape": "unauthenticated",
+      "silent_surfaces": [
+        "sse_notice"
+      ]
+    },
+    {
+      "id": "AT-039",
+      "threats": [
+        "T-16"
+      ],
+      "principal": "member",
+      "setup": "Grantable-authority check over all team grants",
+      "scope": "add user to team holding grants in brand the actor cannot manage",
+      "action": "team.manage",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "forbidden",
+      "silent_surfaces": []
+    },
+    {
+      "id": "AT-040",
+      "threats": [
+        "T-16"
+      ],
+      "principal": "member",
+      "setup": "Next query after removal",
+      "scope": "removed from team",
+      "action": "record.read",
+      "surface": "search",
+      "expected": "deny",
+      "response_shape": "omitted",
+      "silent_surfaces": [
+        "search",
+        "search_snippet",
+        "ai_context",
+        "export",
+        "notification_inapp",
+        "notification_email",
+        "activity",
+        "count_facet",
+        "sse_notice",
+        "webhook_payload",
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-041",
+      "threats": [
+        "T-17"
+      ],
+      "principal": "member",
+      "setup": "Calculated value hidden",
+      "scope": "calculated field depending on hidden field",
+      "action": "record.read",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "omitted",
+      "silent_surfaces": [
+        "export",
+        "search_snippet",
+        "ai_context"
+      ]
+    },
+    {
+      "id": "AT-042",
+      "threats": [
+        "T-17"
+      ],
+      "principal": "member",
+      "setup": "Conflict payload omits unreadable current values",
+      "scope": "conflict on field they can edit after another field hidden",
+      "action": "record.update",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "conflict_filtered",
+      "silent_surfaces": [
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-043",
+      "threats": [
+        "T-17"
+      ],
+      "principal": "member",
+      "setup": "Old/new values redacted for viewer",
+      "scope": "audit history of hidden field",
+      "action": "audit.view",
+      "surface": "audit_display",
+      "expected": "deny",
+      "response_shape": "redacted",
+      "silent_surfaces": [
+        "export"
+      ]
+    },
+    {
+      "id": "AT-044",
+      "threats": [
+        "T-17"
+      ],
+      "principal": "member",
+      "setup": "No notification to non-readers of the field",
+      "scope": "notification on hidden field change",
+      "action": "record.read",
+      "surface": "notification_email",
+      "expected": "deny",
+      "response_shape": "omitted",
+      "silent_surfaces": [
+        "search",
+        "search_snippet",
+        "ai_context",
+        "export",
+        "notification_inapp",
+        "notification_email",
+        "activity",
+        "count_facet",
+        "sse_notice",
+        "webhook_payload",
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-045",
+      "threats": [
+        "T-17"
+      ],
+      "principal": "member",
+      "setup": "Member cannot see secret metadata; admins see metadata only, never values",
+      "scope": "secret-bearing connection",
+      "action": "secrets_metadata.view",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "forbidden",
+      "silent_surfaces": [
+        "export",
+        "audit_display",
+        "ai_context"
+      ]
+    },
+    {
+      "id": "AT-046",
+      "threats": [
+        "T-18"
+      ],
+      "principal": "agent_run",
+      "setup": "Next tool call rechecks; run pauses with reason",
+      "scope": "assigner lost access mid-run",
+      "action": "record.read",
+      "surface": "ai_context",
+      "expected": "deny",
+      "response_shape": "omitted",
+      "silent_surfaces": [
+        "search",
+        "search_snippet",
+        "ai_context",
+        "export",
+        "notification_inapp",
+        "notification_email",
+        "activity",
+        "count_facet",
+        "sse_notice",
+        "webhook_payload",
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-047",
+      "threats": [
+        "T-18"
+      ],
+      "principal": "system_job",
+      "setup": "Job re-evaluates principal at execution",
+      "scope": "queued export after revocation",
+      "action": "record.export",
+      "surface": "export",
+      "expected": "deny",
+      "response_shape": "omitted",
+      "silent_surfaces": [
+        "search",
+        "search_snippet",
+        "ai_context",
+        "export",
+        "notification_inapp",
+        "notification_email",
+        "activity",
+        "count_facet",
+        "sse_notice",
+        "webhook_payload",
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-048",
+      "threats": [
+        "T-19"
+      ],
+      "principal": "member",
+      "setup": "Cache keyed by scope; global count not used",
+      "scope": "visibility-keyed derived cache",
+      "action": "record.read",
+      "surface": "ui_list",
+      "expected": "deny",
+      "response_shape": "omitted",
+      "silent_surfaces": [
+        "search",
+        "search_snippet",
+        "ai_context",
+        "export",
+        "notification_inapp",
+        "notification_email",
+        "activity",
+        "count_facet",
+        "sse_notice",
+        "webhook_payload",
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-049",
+      "threats": [
+        "T-19"
+      ],
+      "principal": "member",
+      "setup": "Context cache invalidated by epoch",
+      "scope": "permission epoch bump",
+      "action": "record.read",
+      "surface": "ui_list",
+      "expected": "deny",
+      "response_shape": "omitted",
+      "silent_surfaces": [
+        "search",
+        "search_snippet",
+        "ai_context",
+        "export",
+        "notification_inapp",
+        "notification_email",
+        "activity",
+        "count_facet",
+        "sse_notice",
+        "webhook_payload",
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-050",
+      "threats": [
+        "T-20"
+      ],
+      "principal": "guest",
+      "setup": "Onward sharing prohibited",
+      "scope": "shared record",
+      "action": "record.share",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "forbidden",
+      "silent_surfaces": []
+    },
+    {
+      "id": "AT-051",
+      "threats": [
+        "T-20"
+      ],
+      "principal": "guest",
+      "setup": "Only children selected at share time",
+      "scope": "unselected child of shared project",
+      "action": "record.read",
+      "surface": "ui_list",
+      "expected": "deny",
+      "response_shape": "omitted",
+      "silent_surfaces": [
+        "search",
+        "search_snippet",
+        "ai_context",
+        "export",
+        "notification_inapp",
+        "notification_email",
+        "activity",
+        "count_facet",
+        "sse_notice",
+        "webhook_payload",
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-052",
+      "threats": [
+        "T-20"
+      ],
+      "principal": "guest",
+      "setup": "Future children never included",
+      "scope": "child created after share",
+      "action": "record.read",
+      "surface": "search",
+      "expected": "deny",
+      "response_shape": "omitted",
+      "silent_surfaces": [
+        "search",
+        "search_snippet",
+        "ai_context",
+        "export",
+        "notification_inapp",
+        "notification_email",
+        "activity",
+        "count_facet",
+        "sse_notice",
+        "webhook_payload",
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-053",
+      "threats": [
+        "T-20"
+      ],
+      "principal": "guest",
+      "setup": "Pickers list only participants of shared records",
+      "scope": "member directory",
+      "action": "record.read",
+      "surface": "picker",
+      "expected": "deny",
+      "response_shape": "omitted",
+      "silent_surfaces": [
+        "search",
+        "search_snippet",
+        "ai_context",
+        "export",
+        "notification_inapp",
+        "notification_email",
+        "activity",
+        "count_facet",
+        "sse_notice",
+        "webhook_payload",
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-054",
+      "threats": [
+        "T-20"
+      ],
+      "principal": "guest",
+      "setup": "No aggregation beyond grants",
+      "scope": "all-brands view",
+      "action": "record.read",
+      "surface": "count_facet",
+      "expected": "deny",
+      "response_shape": "omitted",
+      "silent_surfaces": [
+        "search",
+        "search_snippet",
+        "ai_context",
+        "export",
+        "notification_inapp",
+        "notification_email",
+        "activity",
+        "count_facet",
+        "sse_notice",
+        "webhook_payload",
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-055",
+      "threats": [
+        "T-21"
+      ],
+      "principal": "guest",
+      "setup": "Guests never see Trash",
+      "scope": "formerly shared record in trash",
+      "action": "record.restore",
+      "surface": "trash",
+      "expected": "deny",
+      "response_shape": "not_found",
+      "silent_surfaces": [
+        "search",
+        "search_snippet",
+        "ai_context",
+        "export",
+        "notification_inapp",
+        "notification_email",
+        "activity",
+        "count_facet",
+        "sse_notice",
+        "webhook_payload",
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-056",
+      "threats": [
+        "T-21"
+      ],
+      "principal": "member",
+      "setup": "Current permission, not permission at deletion",
+      "scope": "trashed record, current access revoked",
+      "action": "record.restore",
+      "surface": "trash",
+      "expected": "deny",
+      "response_shape": "not_found",
+      "silent_surfaces": [
+        "search",
+        "search_snippet",
+        "ai_context",
+        "export",
+        "notification_inapp",
+        "notification_email",
+        "activity",
+        "count_facet",
+        "sse_notice",
+        "webhook_payload",
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-057",
+      "threats": [
+        "T-22"
+      ],
+      "principal": "tool_invocation",
+      "setup": "Prompt-injected request for other brand",
+      "scope": "record outside run scope",
+      "action": "record.read",
+      "surface": "ai_context",
+      "expected": "deny",
+      "response_shape": "omitted",
+      "silent_surfaces": [
+        "search",
+        "search_snippet",
+        "ai_context",
+        "export",
+        "notification_inapp",
+        "notification_email",
+        "activity",
+        "count_facet",
+        "sse_notice",
+        "webhook_payload",
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-058",
+      "threats": [
+        "T-22"
+      ],
+      "principal": "tool_invocation",
+      "setup": "Gated class held for human approval",
+      "scope": "external_message tool without approval",
+      "action": "agent.action_approve",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "approval_required",
+      "silent_surfaces": [
+        "webhook_payload",
+        "notification_email"
+      ]
+    },
+    {
+      "id": "AT-059",
+      "threats": [
+        "T-23"
+      ],
+      "principal": "member",
+      "setup": "Run scope = profile ∩ assigner ∩ assignment",
+      "scope": "assign to agent whose profile scope exceeds assigner",
+      "action": "agent.assign",
+      "surface": "ai_context",
+      "expected": "deny",
+      "response_shape": "omitted",
+      "silent_surfaces": [
+        "search",
+        "search_snippet",
+        "ai_context",
+        "export",
+        "notification_inapp",
+        "notification_email",
+        "activity",
+        "count_facet",
+        "sse_notice",
+        "webhook_payload",
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-060",
+      "threats": [
+        "T-23"
+      ],
+      "principal": "automation",
+      "setup": "Automation suspended until reassigned",
+      "scope": "automation owner lost brand access",
+      "action": "automation.run_manual",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "suspended",
+      "silent_surfaces": [
+        "webhook_payload"
+      ]
+    },
+    {
+      "id": "AT-061",
+      "threats": [
+        "T-24"
+      ],
+      "principal": "agent_run",
+      "setup": "Agents cannot decide reviews",
+      "scope": "own deliverable",
+      "action": "review.decide",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "forbidden",
+      "silent_surfaces": []
+    },
+    {
+      "id": "AT-062",
+      "threats": [
+        "T-24"
+      ],
+      "principal": "automation",
+      "setup": "Automations cannot approve",
+      "scope": "approval transition",
+      "action": "review.decide",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "forbidden",
+      "silent_surfaces": []
+    },
+    {
+      "id": "AT-063",
+      "threats": [
+        "T-25"
+      ],
+      "principal": "inbound_webhook",
+      "setup": "Signature or timestamp invalid; replayed event ID",
+      "scope": "invalid signature",
+      "action": "record.create",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "unauthenticated",
+      "silent_surfaces": [
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-064",
+      "threats": [
+        "T-25"
+      ],
+      "principal": "inbound_webhook",
+      "setup": "Payload names another brand",
+      "scope": "valid signature, target outside configured scope",
+      "action": "record.create",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "forbidden",
+      "silent_surfaces": [
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-065",
+      "threats": [
+        "T-26"
+      ],
+      "principal": "integration_connection",
+      "setup": "Mapping enforced on inbound sync",
+      "scope": "write to unmapped brand",
+      "action": "record.update",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "forbidden",
+      "silent_surfaces": []
+    },
+    {
+      "id": "AT-066",
+      "threats": [
+        "T-27"
+      ],
+      "principal": "support_operator",
+      "setup": "No grant: no access",
+      "scope": "workspace without support grant",
+      "action": "record.read",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "not_found",
+      "silent_surfaces": [
+        "search",
+        "search_snippet",
+        "ai_context",
+        "export",
+        "notification_inapp",
+        "notification_email",
+        "activity",
+        "count_facet",
+        "sse_notice",
+        "webhook_payload",
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-067",
+      "threats": [
+        "T-27"
+      ],
+      "principal": "support_operator",
+      "setup": "Support grant read-only by default; actions audited as support_operator, never as a user",
+      "scope": "valid support grant",
+      "action": "record.update",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "forbidden",
+      "silent_surfaces": []
+    },
+    {
+      "id": "AT-068",
+      "threats": [
+        "T-28"
+      ],
+      "principal": "administrator",
+      "setup": "Admin export excludes sensitive brands without grant; audited",
+      "scope": "sensitive brand rows in workspace export",
+      "action": "workspace.export",
+      "surface": "export",
+      "expected": "deny",
+      "response_shape": "omitted",
+      "silent_surfaces": [
+        "search",
+        "search_snippet",
+        "ai_context",
+        "export",
+        "notification_inapp",
+        "notification_email",
+        "activity",
+        "count_facet",
+        "sse_notice",
+        "webhook_payload",
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-069",
+      "threats": [
+        "T-29"
+      ],
+      "principal": "member",
+      "setup": "All sessions/tokens/consents revoked on removal",
+      "scope": "departed member token and OAuth consent",
+      "action": "record.read",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "unauthenticated",
+      "silent_surfaces": [
+        "search",
+        "search_snippet",
+        "ai_context",
+        "export",
+        "notification_inapp",
+        "notification_email",
+        "activity",
+        "count_facet",
+        "sse_notice",
+        "webhook_payload",
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-070",
+      "threats": [
+        "T-29"
+      ],
+      "principal": "agent_run",
+      "setup": "Runs paused pending reassignment",
+      "scope": "assigner departed",
+      "action": "record.update",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "suspended",
+      "silent_surfaces": [
+        "webhook_payload"
+      ]
+    },
+    {
+      "id": "AT-071",
+      "threats": [
+        "T-30"
+      ],
+      "principal": "owner",
+      "setup": "Last-owner protection",
+      "scope": "remove last owner",
+      "action": "membership.manage",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "forbidden",
+      "silent_surfaces": []
+    },
+    {
+      "id": "AT-072",
+      "threats": [
+        "T-30"
+      ],
+      "principal": "administrator",
+      "setup": "Non-delegable owner action",
+      "scope": "transfer ownership",
+      "action": "ownership.transfer",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "forbidden",
+      "silent_surfaces": []
+    },
+    {
+      "id": "AT-073",
+      "threats": [
+        "T-31"
+      ],
+      "principal": "member",
+      "setup": "Next transaction without SET LOCAL sees zero rows",
+      "scope": "pooled connection after tenant A transaction",
+      "action": "record.read",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "empty",
+      "silent_surfaces": [
+        "search",
+        "search_snippet",
+        "ai_context",
+        "export",
+        "notification_inapp",
+        "notification_email",
+        "activity",
+        "count_facet",
+        "sse_notice",
+        "webhook_payload",
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-074",
+      "threats": [
+        "T-31"
+      ],
+      "principal": "member",
+      "setup": "RLS WITH CHECK rejects",
+      "scope": "insert with mismatched workspace",
+      "action": "record.create",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "error_generic",
+      "silent_surfaces": [
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-075",
+      "threats": [
+        "T-32"
+      ],
+      "principal": "system_job",
+      "setup": "Worker role has NOBYPASSRLS; cross-tenant scan returns only current context",
+      "scope": "worker role",
+      "action": "record.read",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "empty",
+      "silent_surfaces": [
+        "search",
+        "search_snippet",
+        "ai_context",
+        "export",
+        "notification_inapp",
+        "notification_email",
+        "activity",
+        "count_facet",
+        "sse_notice",
+        "webhook_payload",
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-076",
+      "threats": [
+        "T-33"
+      ],
+      "principal": "member",
+      "setup": "Known-limited permission allowed only because record is readable (ST-42)",
+      "scope": "readable record, forbidden action",
+      "action": "record.trash",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "forbidden",
+      "silent_surfaces": []
+    },
+    {
+      "id": "AT-077",
+      "threats": [
+        "T-34"
+      ],
+      "principal": "member",
+      "setup": "Server ignores/rejects privileged fields in payload",
+      "scope": "client-sent role/plan/approval fields",
+      "action": "record.update",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "validation_generic",
+      "silent_surfaces": []
+    },
+    {
+      "id": "AT-078",
+      "threats": [
+        "T-09",
+        "T-12"
+      ],
+      "principal": "member",
+      "setup": "Page sizes full and totals consistent: filtering in SQL before LIMIT",
+      "scope": "pagination over restricted mix",
+      "action": "record.read",
+      "surface": "ui_list",
+      "expected": "allow",
+      "response_shape": "ok_filtered",
+      "silent_surfaces": [
+        "count_facet"
+      ]
+    },
+    {
+      "id": "AT-079",
+      "threats": [
+        "T-03",
+        "T-20"
+      ],
+      "principal": "guest",
+      "setup": "Share survives move; new brand marker shown; nothing else",
+      "scope": "share of record whose project is then moved to another brand",
+      "action": "record.read",
+      "surface": "ui_record",
+      "expected": "allow",
+      "response_shape": "ok_filtered",
+      "silent_surfaces": [
+        "breadcrumb"
+      ]
+    },
+    {
+      "id": "AT-080",
+      "threats": [
+        "T-24"
+      ],
+      "principal": "member",
+      "setup": "Auto policy: off when ≥2 approval-capable humans",
+      "scope": "self-approval with two approval-capable humans",
+      "action": "review.self_approve",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "forbidden",
+      "silent_surfaces": []
+    }
+  ]
+}

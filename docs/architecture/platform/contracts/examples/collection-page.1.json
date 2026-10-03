@@ -1,0 +1,27 @@
+{
+  "$schema_ref": "urn:pm:schema:collection-page",
+  "example": {
+    "data": [
+      {
+        "id": "tsk_01J9ZK3Q5B8V2N4M6P7R9S0T1V",
+        "type": "task",
+        "title": "Ship v2.3 changelog"
+      }
+    ],
+    "page": {
+      "limit": 50,
+      "has_more": true,
+      "next_cursor": "eyJrIjpbIjIwMjYtMTAtMTQiXX0_sig_Zm9vYmFy",
+      "total": {
+        "value": 1000,
+        "estimated": false,
+        "capped": true
+      }
+    },
+    "meta": {
+      "request_id": "req_01J9ZK3Q5B8V2N4M6P7R9S0T1W",
+      "correlation_id": "4bf92f3577b34da6a3ce929d0e0e4736",
+      "api_version": "v1"
+    }
+  }
+}

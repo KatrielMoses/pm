@@ -1,0 +1,70 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:pm:schema:usage-event",
+  "title": "Usage event",
+  "x-visibility": "internal",
+  "x-max-class": "C2",
+  "type": "object",
+  "required": [
+    "id",
+    "workspace_id",
+    "meter",
+    "quantity",
+    "unit",
+    "cost_basis",
+    "occurred_at",
+    "period_start",
+    "sequence",
+    "actor_type"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "id": {
+      "$ref": "urn:pm:schema:common#/$defs/internal_uuid"
+    },
+    "workspace_id": {
+      "$ref": "urn:pm:schema:common#/$defs/internal_uuid"
+    },
+    "brand_id": {
+      "$ref": "urn:pm:schema:common#/$defs/internal_uuid"
+    },
+    "meter": {
+      "type": "string",
+      "pattern": "^[a-z_]+\\.[a-z_]+$"
+    },
+    "quantity": {
+      "$ref": "urn:pm:schema:common#/$defs/decimal"
+    },
+    "unit": {
+      "type": "string"
+    },
+    "cost": {
+      "$ref": "urn:pm:schema:common#/$defs/money"
+    },
+    "cost_basis": {
+      "$ref": "urn:pm:schema:common#/$defs/cost_basis"
+    },
+    "occurred_at": {
+      "$ref": "urn:pm:schema:common#/$defs/timestamp"
+    },
+    "period_start": {
+      "$ref": "urn:pm:schema:common#/$defs/date"
+    },
+    "operation_id": {
+      "$ref": "urn:pm:schema:common#/$defs/internal_uuid"
+    },
+    "attempt_id": {
+      "$ref": "urn:pm:schema:common#/$defs/internal_uuid"
+    },
+    "sequence": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "actor_type": {
+      "$ref": "urn:pm:schema:common#/$defs/actor_type"
+    },
+    "correction_of": {
+      "$ref": "urn:pm:schema:common#/$defs/internal_uuid"
+    }
+  }
+}

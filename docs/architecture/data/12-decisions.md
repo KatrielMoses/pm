@@ -1,0 +1,139 @@
+# 12. Architecture decision records
+
+Status of every ADR: **proposed (Phase 0B)**, pending solutions-architect acceptance. Each record follows the same structure: context, decision, alternatives considered, and consequences.
+
+<a id="adr-01"></a>
+## ADR-01: Modular monolith with schema-per-module ownership
+
+- **Context:** The roadmap prescribes a modular monolith on one PostgreSQL database. 684 requirements span 30+ domains.
+- **Decision:** 32 modules in 6 layers, one PostgreSQL schema each. Only the owning module writes its tables. Cross-module reads go through APIs or published views. Cross-module facts travel as outbox events. Dependencies may point only to the same or lower layers ([01](01-module-map.md)), and `datamodel.py` validates this.
+- **Alternatives:** A single schema with naming conventions (ownership drifts and is unenforceable). Microservices (prohibited, and unjustified operational cost).
+- **Consequences:** Ownership is checkable. Extraction stays possible. Cross-module transactions remain available where invariants need them, at the cost of discipline in using command APIs instead of direct SQL.
+
+<a id="adr-02"></a>
+## ADR-02: Internal UUIDv7 keys; random, prefixed public IDs
+
+- **Context:** IDs must not encode tenants or reveal counts. Offline capture, imports, and idempotent creates need IDs before insert.
+- **Decision:** Internal `uuid` primary keys generated as UUIDv7 by the application and never exposed. Public IDs are `<type>_<26 base32>` from 128 random bits, stored on `core.record` (or a `public_id` column for API-visible non-addressable rows), and never change.
+- **Alternatives:** Bigint sequences (expose counts, and conflict on tenant moves or merges). Exposing UUIDv7 (leaks creation time). UUIDv4 as the primary key (poor index locality). Public ID = encoded internal ID (couples exposure to storage).
+- **Consequences:** Two identifiers per addressable record. A lookup index on `public_id`. A safe basis for URLs, exports, webhooks, and imports.
+
+<a id="adr-03"></a>
+## ADR-03: Thin record envelope plus typed tables
+
+- **Context:** Many primitives (shares, links, mentions, followers, labels, comments, attachments, custom values, search, reviews, tombstones) must reference "any addressable record" with integrity, scope, and lifecycle. The brief forbids an untyped universal records table.
+- **Decision:** `core.record` holds only identity, scope keys, lifecycle, and provenance for 30 addressable types. Domain data lives in typed tables sharing the same `id`, bound by a deferrable composite foreign key on `(id, workspace_id, scope_key, lifecycle_state)`. High-volume child data is not registered.
+- **Alternatives:** Per-pair join tables for every primitive (combinatorial growth, with no uniform lifecycle or tombstones). Polymorphic `(type, id)` without foreign keys (no integrity, orphaned rows). A universal domain table or entity–attribute–value model (prohibited; loses typing and query performance). Table inheritance (poor support for foreign keys and indexes across children).
+- **Consequences:** One extra row and index per addressable record, and a hot table that needs good indexing. In return: real foreign keys for every primitive, uniform archive, trash, purge, and tombstones, public-ID resolution, and brand moves updated in one place.
+
+<a id="adr-04"></a>
+## ADR-04: Polymorphic associations through the envelope; exclusive arcs for small fixed sets
+
+- **Decision:**
+  - Associations to "any addressable record" reference `core.record(id)` with a composite foreign key including scope where containment applies.
+  - Associations to a small fixed set of types use exclusive arcs (`num_nonnulls(a_id, b_id) = 1`). Examples: time entry → task or project; criteria item → task or project.
+  - Typed `(kind, id)` references **without** foreign keys are allowed only in append-only evidence that must outlive its target (audit, activity, usage).
+- **Alternatives:** `(type, id)` everywhere (no integrity). A separate table per pair (explosion of tables).
+- **Consequences:** Referential integrity, query behavior, and deletion semantics stay enforceable, which is the brief's condition for polymorphism.
+
+<a id="adr-05"></a>
+## ADR-05: Trees as adjacency list plus materialized ancestor array
+
+- **Decision:** `parent_id` + `ancestor_ids uuid[]` + `depth` maintained transactionally, with a GIN index on `ancestor_ids`. Structural changes take a per-root advisory lock, and cycle and depth checks run under that lock. One strategy for project, task, and document trees ([04 §4.1](04-relationship-primitives.md#41-hierarchies)).
+- **Alternatives:** Closure table (more rows and writes). `ltree` (label encoding, extension dependency). Nested sets (expensive inserts). Recursive CTEs only (slow subtree operations and authorization joins).
+- **Consequences:** Cheap ancestor and subtree queries, and moves that cost O(subtree) with bounded depth. Arrays cannot carry foreign keys, so integrity relies on the single maintained code path plus a periodic consistency check job.
+
+<a id="adr-06"></a>
+## ADR-06: Typed custom-field values
+
+- **Decision:** `workflow.field_value` holds one row per (record, field), with one typed column per value kind, a `CHECK` that the right column is set, and per-type partial indexes. Definitions are immutable in type and retired rather than deleted. Calculated fields are materialized by a sandboxed interpreter with dependency-driven recompute.
+- **Alternatives:** A `jsonb` bag on the record (no generic typed range filters or sorts without per-field expression indexes). Dynamic DDL columns per field (migrations per customer action, and lock risk). An untyped value table (loses typing).
+- **Consequences:** Generic filtering and sorting with indexes, at one join per filtered field. Core fields are never custom fields.
+
+<a id="adr-07"></a>
+## ADR-07: Append-only audit table with explicit redaction; activity as projection
+
+- **Decision:** `audit.audit_event` is written in the domain transaction, has no foreign keys to targets, and has UPDATE/DELETE revoked plus a guard trigger. Redaction goes only through a privileged procedure that writes `audit_redaction`. Optional per-partition hash chaining. `activity_item` is a rebuildable, display-safe projection.
+- **Alternatives:** Audit via database triggers on every table (captures raw columns, including secrets, and misses actor and operation context). An external log service (splits the source of truth, and harder per-tenant export and redaction). Event sourcing for all domains (high complexity, not required).
+- **Consequences:** Domain commands must emit audit explicitly, so the module APIs include it in the shared command pipeline. Storage grows fast, which is handled by partitioning when thresholds hit ([10 §10.9](10-postgresql-guidance.md#109-append-heavy-tables-and-partitioning)).
+
+<a id="adr-08"></a>
+## ADR-08: Transactional outbox, consumer inbox, external-effect ledger, database-backed jobs
+
+- **Decision:** Facts are written to `execution.outbox_event` in the domain transaction. Consumers deduplicate through `inbox_receipt`. External side effects go through `external_effect` with a stable effect key. Safe destinations may receive retries and must deduplicate where supported; an unknown outcome at a destination that cannot deduplicate moves to `waiting` for human confirmation. Jobs use `execution.job` with `SKIP LOCKED`, leases, backoff, dead-letter, and per-workspace fairness caps.
+- **Alternatives:** Kafka or Redis queues (prohibited at outset, adding operational cost and dual-write risk). Dispatching directly after commit (lost events on crash). LISTEN/NOTIFY alone (not durable).
+- **Consequences:** At-least-once internal delivery with idempotent consumers, and provider-dependent external deduplication with explicit reconciliation for unknown outcomes. Exactly-once external delivery is never promised. Polling load on PostgreSQL stays small at expected volume. A broker can replace the dispatcher later without changing producers.
+
+<a id="adr-09"></a>
+## ADR-09: Fractional rank strings for manual ordering
+
+- **Decision:** `rank text COLLATE "C"`, base-62 keys generated between neighbors, ordered by `(rank, id)` so equal ranks are deterministic, with background rebalancing when keys grow long.
+- **Alternatives:** Integer positions (renumbering storms and contention). Floats (precision exhaustion). Linked lists (expensive reads, fragile under concurrency).
+- **Consequences:** Concurrent drag-and-drop never blocks, and equal-rank ties are resolved deterministically.
+
+<a id="adr-10"></a>
+## ADR-10: PostgreSQL full-text search projection with query-time authorization
+
+- **Decision:** `search.search_document` with weighted `tsvector`, GIN, and `pg_trgm` for quick search, fed by the outbox. Authorization predicates are applied in the query, and nothing ACL-related is copied into the index. `pgvector` is a later, optional addition in the same database (OD-31).
+- **Alternatives:** Elasticsearch or OpenSearch (prohibited, with ACL synchronization risk). A separate vector database (prohibited). Searching base tables directly (couples search to every module's schema).
+- **Consequences:** Revocations take effect immediately. Ranking quality is that of PostgreSQL full-text search, revisited in 5A with measurements.
+
+<a id="adr-11"></a>
+## ADR-11: Soft deletion only where recovery is promised; batches, tombstones, durable purge
+
+- **Decision:** Lifecycle on the envelope, mirrored on typed rows. Archive and deletion batches for subtrees. Guarded idempotent restore. Purge as a resumable operation that leaves tombstones and redacts evidence explicitly. Evidence, execution history, and billing use retention classes instead of trash. All periods are read from `governance.retention_policy`, and a null period disables purge.
+- **Alternatives:** A `deleted_at` column per table (no batches, inconsistent cascades). Hard delete plus restore from backup (no self-service recovery). Archive tables (copying breaks foreign keys and IDs).
+- **Consequences:** Hot indexes must be partial on active rows. Read APIs default to active. Restoring from backup requires the purge-ledger replay ([08 §8.11](08-deletion-retention.md#811-external-systems-and-backups)).
+
+<a id="adr-12"></a>
+## ADR-12: Optimistic concurrency with field-level merge; locks only for named invariants
+
+- **Decision:** Field-merge entities compare client base values per field. Other entities use row versions. Locks are listed exhaustively in [09 §9.3](09-concurrency-consistency.md#93-operations-that-lock-or-serialize), with a global lock order.
+- **Alternatives:** Pessimistic editing locks (poor UX, stale locks). Last write wins (violates ST-02/ST-06). Per-field version columns (schema bloat).
+- **Consequences:** The client must send base values for changed fields. The conflict response needs the last writer, which is available from `updated_by_*` or audit.
+
+<a id="adr-13"></a>
+## ADR-13: Tenant consistency by composite foreign keys; RLS as backstop
+
+- **Decision:**
+  - Every tenant table carries `workspace_id`. Brand-owned tables carry `brand_id`. Optional-brand tables carry a generated `scope_key`.
+  - Every parent reference is a composite foreign key that includes the scope columns.
+  - Row-level security on `workspace_id` via a transaction-local setting.
+  - Brand, project, and record authorization stay in the 0C policy layer.
+- **Alternatives:** Deriving tenant through joins (unsafe joins and slow filters). RLS for all authorization (hard to express grants and shares and to test, with planner cost and policy sprawl). Schema-per-tenant (operational cost at many small tenants).
+- **Consequences:** Some wide composite indexes. A missed filter cannot cross tenants. Deferrable constraints let brand moves stay consistent.
+
+<a id="adr-14"></a>
+## ADR-14: Temporal storage types
+
+- **Decision:** Instants as `timestamptz` with IANA-zone companions where local intent matters. Due and start dates as floating `date`. Deadlines as exactly one of date or instant+zone. Effort as integer minutes, tracked time as integer seconds. Recurrence as an RFC 5545 subset anchored to a zone, with occurrence keys ([06](06-temporal-model.md)).
+- **Alternatives:** Everything as `timestamptz` (makes "due on Friday" depend on the creator's zone). Storing UTC offsets (breaks across DST). `interval` for effort (awkward aggregation).
+- **Consequences:** Queries pass the evaluation zone explicitly, and the 0A semantics (viewer versus brand time) are preserved.
+
+<a id="adr-15"></a>
+## ADR-15: Shared operation/attempt model for all execution
+
+- **Decision:** `execution.operation` (one logical outcome) and `execution.attempt` (tries) are shared by AI actions, agent runs, automation runs, syncs, imports, exports, bulk edits, brand moves, purges, template installations, report runs, and briefings. Each has a typed 1:1 detail table. One `exec_state` vocabulary with structured terminal reasons.
+- **Alternatives:** Separate state columns per domain (divergent vocabularies, the risk 0A warned against). A generic job table only (no logical-outcome identity).
+- **Consequences:** Uniform retry, cancellation, metering, success-rate metrics, and "never report failure as success". 0D builds its job contract on this.
+
+<a id="adr-16"></a>
+## ADR-16: Secrets outside application records
+
+- **Decision:** Credentials and keys live in a secret store; the vendor is chosen later and must be managed. Application rows hold `*_secret_ref` only. Tokens are stored as hashes with display prefixes. Application-level envelope encryption is used for listed C3 fields.
+- **Alternatives:** Encrypted columns holding secrets (keys and data in the same blast radius, with secrets appearing in backups and replicas).
+- **Consequences:** The secret store's availability matters for integrations, which is handled by degraded mode (REL-013). Backups never contain usable credentials.
+
+<a id="adr-17"></a>
+## ADR-17: Immutable status categories and versioned workflow rules
+
+- **Decision:** A status's category never changes, so `status_category` is denormalized onto records. Transition rules live in immutable revisions referenced by audit. Statuses and fields are retired rather than deleted while referenced.
+- **Alternatives:** Join to the status table for every category filter (slower lists). Mutable categories (silently rewrite reports and history).
+- **Consequences:** Changing a category is an explicit migration operation.
+
+<a id="adr-18"></a>
+## ADR-18: Viewer-specific derived conditions; no global relationship-derived columns
+
+- **Decision:** Because hidden endpoints must be fully omitted (UXD-28), records never store viewer-independent derived conditions that come from relationships (blocked flags, dependency counts). Derived conditions are computed per viewer, with caches keyed by endpoint visibility scope ([03 §3.5](03-tenancy-brand-sharing.md#35-hidden-endpoints-counts-and-derived-conditions)).
+- **Alternatives:** A denormalized `is_blocked` column (leaks existence across brands). Placeholder rows (rejected by the approved decision).
+- **Consequences:** Somewhat more query work for boards and timelines. Correct and consistent omission across UI, API, search, AI, exports, and notifications.
