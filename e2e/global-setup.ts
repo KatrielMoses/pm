@@ -27,8 +27,13 @@ export default async function globalSetup(): Promise<() => Promise<void>> {
     PUBLIC_BASE_URL: `http://127.0.0.1:${port}`,
     MAIL_CAPTURE_DIR: mailbox,
     WORKER_POLL_INTERVAL_MS: '100',
+    // 1F: the local/test component harness and a scratch purge ledger (development adapters).
+    COMPONENT_HARNESS: 'true',
+    PURGE_LEDGER: 'local',
+    PURGE_LEDGER_DIR: join(scratch, 'purge-ledger'),
     RATE_LIMIT_POLICIES: JSON.stringify({
       'sign_in.source': { limit: 10000, windowMs: 60000 },
+      'sign_in.email': { limit: 10000, windowMs: 60000 },
       'register.source': { limit: 10000, windowMs: 60000 },
       'token.source': { limit: 10000, windowMs: 60000 },
       'recovery.source': { limit: 10000, windowMs: 60000 },

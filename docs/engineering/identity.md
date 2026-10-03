@@ -19,7 +19,7 @@ is; it never grants authority inside a workspace.
 | Recovery codes | C4 | `identity.recovery_code.code_hash` (SHA-256 of 80-bit codes) | Shown once |
 | Mail token in flight | C4 | Secret vault; `mail_delivery.secret_ref` | Vault entry destroyed after send or at expiry |
 | Email, display name, locale, time zone | C3 | `identity.account` | `email_key` is the normalised unique key |
-| Network prefix, user-agent family | C3 | `identity.session`, `identity.security_event_buffer` | Full IP and UA never stored |
+| Network prefix, user-agent family | C3 | `identity.session`, `audit.security_event` (1B rows: `identity.security_event_buffer`, drained in 1F) | Full IP and UA never stored |
 | Rate-limit keys | C2 | `ops.rate_limit_bucket` | `HMAC(signing key, policy ‖ dimension)`; not reversible to IP or email |
 
 C4 values never enter logs, traces, metrics, audit values, error reports, or URLs that are sent
@@ -145,9 +145,10 @@ policy layer can construct; no route exposes it in 1B.
    force password resets as policy decides. TOTP seeds sit in the vault, not the database.
 4. **Vault key exposed:** rotate the vault key and require MFA re-enrolment.
 
-Application-driven steps (reset, user revocation) write security events to
-`identity.security_event_buffer` (ADR-0008 B4). Manual SQL steps do not, so record them in the
-incident log.
+Application-driven steps (reset, user revocation) write security events to the append-only
+`audit.security_event` (since 1F; see [audit.md](audit.md)). Manual SQL steps do not, so record them
+in the incident log. Account holders see their own events under Account security → Security
+activity.
 
 ## Retention hooks
 
@@ -160,10 +161,10 @@ deletes:
 - expired vault entries;
 - rate-limit buckets idle for 24 h.
 
-`identity.security_event_buffer` is never swept: it is append-only and is drained into the 1F
-immutable sink under the [ADR-0008 handoff contract](adr/0008-identity-and-sessions.md#phase-1f-handoff-security-event-buffer).
-Account deletion and the security-event sink belong to later phases (1F audit; deletion policy in
-`docs/product/deletion-retention-history.md`).
+`identity.security_event_buffer` is never swept: it is append-only and was drained into
+`audit.security_event` under the [ADR-0008 handoff contract](adr/0008-identity-and-sessions.md#phase-1f-handoff-security-event-buffer)
+(see [audit.md](audit.md#phase-1b-buffer-handoff-adr-0008-executed)). Account deletion belongs to a
+later phase (deletion policy in `docs/product/deletion-retention-history.md`).
 
 ## How membership connects
 

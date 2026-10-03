@@ -88,6 +88,44 @@ export interface ServerConfig {
   };
   secrets: { provider: 'env' };
   identity: IdentityConfig;
+  lifecycle: LifecycleConfig;
+  audit: {
+    /**
+     * Operational warning threshold for waiting on a workspace audit-chain lock
+     * (AUDIT_CHAIN_LOCK_WAIT_WARN_MS). Not a product promise; see docs/engineering/audit.md.
+     */
+    chainLockWaitWarnMs: number;
+  };
+  features: {
+    /** Local/test-only component harness route for reusable UI states (refused when deployed). */
+    componentHarness: boolean;
+  };
+}
+
+/** Retention classes (0B vocabulary) that may carry a platform default period. */
+export const RETENTION_CLASSES = [
+  'R-LIVE',
+  'R-EVIDENCE',
+  'R-AUDIT',
+  'R-EXEC',
+  'R-PERSONAL',
+  'R-BILLING',
+  'R-DERIVED',
+  'R-EPHEMERAL',
+  'R-PLATFORM',
+] as const;
+export type RetentionClassKey = (typeof RETENTION_CLASSES)[number];
+
+/**
+ * Lifecycle settings (1F). Retention periods are product-owner decisions: unset means "not
+ * decided" and every dependent purge does nothing. No duration is defaulted here.
+ */
+export interface LifecycleConfig {
+  /** Platform default period per retention class in ms; absent = undecided (purge disabled). */
+  retentionPeriodsMs: Readonly<Partial<Record<RetentionClassKey, number>>>;
+  /** Purge ledger outside the database backup set. `local` is a development adapter. */
+  purgeLedger: 'local' | 'none';
+  purgeLedgerDir: string | undefined;
 }
 
 /** Identity and session settings (1B). Lifetimes and limits are operational defaults, not promises. */
@@ -197,6 +235,9 @@ const DEFAULTS = {
   MAIL_FROM: 'PM <no-reply@localhost>',
   MAIL_RETENTION_MS: String(7 * 86_400_000),
   SECRET_VAULT: 'none',
+  PURGE_LEDGER: 'none',
+  COMPONENT_HARNESS: 'false',
+  AUDIT_CHAIN_LOCK_WAIT_WARN_MS: '250',
 } as const;
 
 const schema = z.object({
@@ -269,6 +310,11 @@ const schema = z.object({
   MAIL_RETENTION_MS: int(60_000, 90 * 86_400_000),
   SECRET_VAULT: z.enum(['dev-database', 'none']),
   DEV_VAULT_KEY: z.string().optional(),
+  RETENTION_PERIODS: z.string().optional(),
+  PURGE_LEDGER: z.enum(['local', 'none']),
+  PURGE_LEDGER_DIR: z.string().min(1).optional(),
+  COMPONENT_HARNESS: bool,
+  AUDIT_CHAIN_LOCK_WAIT_WARN_MS: int(1, 600_000),
 });
 
 /** Variables a deployed environment must set explicitly (no silent local defaults). */
@@ -513,6 +559,32 @@ export function loadServerConfig(options: LoadOptions): ServerConfig {
     }
   }
 
+  let retentionPeriodsMs: Partial<Record<RetentionClassKey, number>> = {};
+  if (c.RETENTION_PERIODS) {
+    try {
+      retentionPeriodsMs = z
+        .partialRecord(
+          z.enum(RETENTION_CLASSES),
+          z
+            .number()
+            .int()
+            .min(60_000)
+            .max(100 * 366 * 86_400_000),
+        )
+        .parse(JSON.parse(c.RETENTION_PERIODS));
+    } catch {
+      issues.push('RETENTION_PERIODS: must be JSON {"<retention class>": <milliseconds>}');
+    }
+  }
+  if (deployed && c.PURGE_LEDGER === 'local')
+    issues.push(
+      'PURGE_LEDGER: the local ledger is a development adapter; no ledger store is approved',
+    );
+  if (c.PURGE_LEDGER === 'local' && !c.PURGE_LEDGER_DIR)
+    issues.push('PURGE_LEDGER_DIR: required with the local purge ledger');
+  if (deployed && c.COMPONENT_HARNESS)
+    issues.push('COMPONENT_HARNESS: the component harness is allowed only in local and test');
+
   if (env === 'production' && c.LOG_LEVEL === 'debug') {
     issues.push('LOG_LEVEL: debug is not allowed in production');
   }
@@ -592,6 +664,13 @@ export function loadServerConfig(options: LoadOptions): ServerConfig {
       dispatcherStaleMs: c.READINESS_DISPATCHER_STALE_MS,
     },
     secrets: { provider: c.SECRET_PROVIDER },
+    lifecycle: {
+      retentionPeriodsMs,
+      purgeLedger: c.PURGE_LEDGER,
+      purgeLedgerDir: c.PURGE_LEDGER_DIR,
+    },
+    features: { componentHarness: c.COMPONENT_HARNESS },
+    audit: { chainLockWaitWarnMs: c.AUDIT_CHAIN_LOCK_WAIT_WARN_MS },
     identity: {
       publicOrigin,
       allowedOrigins,

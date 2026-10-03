@@ -60,6 +60,10 @@ worker process is a startup error. All identities of one process must target the
 | `OAUTH_PROVIDERS` | optional | — | comma list; only `local` exists (local/test only) |
 | `BOT_PROTECTION` | optional | — | `none` or `test` (local/test only) |
 | `SESSION_*`, `EMAIL_VERIFICATION_TOKEN_MS`, `PASSWORD_RESET_TOKEN_MS`, `SIGN_IN_CONTINUATION_MS`, `OAUTH_STATE_MS`, `RESEND_COOLDOWN_MS`, `STEP_UP_*`, `ARGON2_*`, `AUTH_RESPONSE_FLOOR_MS`, `RATE_LIMIT_POLICIES`, `LEGAL_TERMS_VERSION`, `LEGAL_PRIVACY_VERSION` | optional | optional | identity operational defaults, see [identity.md](identity.md); not published promises |
+| `RETENTION_PERIODS` | optional | optional | JSON `{"<retention class>": <ms>}`; **unset by default** = every period undecided, so no scheduled purge runs (1F) |
+| `PURGE_LEDGER`, `PURGE_LEDGER_DIR` | — | optional | `none` (default: purge blocks before deleting) or `local` (development adapter, refused when deployed) |
+| `COMPONENT_HARNESS` | optional | — | `false` by default; `true` only in local/test (renders `/_harness/lifecycle`) |
+| `AUDIT_CHAIN_LOCK_WAIT_WARN_MS` | optional | optional | default 250; operational warning threshold for audit-chain lock waits (not a promise; see audit.md) |
 
 Values are configuration, not customer promises (PQ-05). The 0D parameter values above are
 implementation defaults owned by 1A (`WORKSPACE_CONCURRENCY_CAP` is owned by 11C).

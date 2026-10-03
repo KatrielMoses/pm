@@ -12,7 +12,16 @@ import {
 import { CaptureTransport, createVault } from '@pm/identity';
 import { PUBLIC_CONFIG } from '@pm/config/public';
 import { createLogger, errorFields, initTelemetry, LogErrorReporter } from '@pm/observability';
-import { WorkerRuntime } from '@pm/platform';
+import { AuditWriter } from '@pm/audit';
+import {
+  createPurgeLedger,
+  LifecycleRegistry,
+  LifecycleService,
+  PurgeExecutor,
+  readRecoveryGate,
+  RetentionPolicy,
+} from '@pm/lifecycle';
+import { SYSTEM_PRINCIPAL, WorkerRuntime } from '@pm/platform';
 import { HEALTH_FILE } from './health-file.ts';
 import { registeredConsumers, registeredHandlers, registeredSchedules } from './registry.ts';
 
@@ -47,6 +56,9 @@ async function main(): Promise<void> {
 
   const errors = new LogErrorReporter(logger);
   const platformDb = new PlatformDatabase(workerPool, deps);
+  // A restored environment stays closed until purge-ledger replay completes (0B §8.11).
+  const gate = await readRecoveryGate(platformDb);
+  if (gate.state !== 'open') throw new Error('recovery gate closed: purge-ledger replay required');
   if (config.identity.mailTransport !== 'capture') throw new Error('no mail transport configured');
   const identityDeps = {
     db: platformDb,
@@ -57,11 +69,45 @@ async function main(): Promise<void> {
     logger,
     metrics: telemetry.metrics,
   };
+  const tenantDb = new TenantDatabase(workerPool, deps);
+  const discovery = new PlatformDiscovery(dispatcherPool);
+  // Record types register their containment and purge hooks in their owning phases; until then
+  // the registry is empty and purge of any batch blocks safely (missing_purge_hook).
+  const lifecycle = new LifecycleService({
+    registry: new LifecycleRegistry(),
+    writer: new AuditWriter({
+      module: 'lifecycle',
+      logger,
+      metrics: telemetry.metrics,
+      lockWaitWarnMs: config.audit.chainLockWaitWarnMs,
+    }),
+    retention: new RetentionPolicy(config.lifecycle),
+    metrics: telemetry.metrics,
+    logger,
+  });
   const runtime = new WorkerRuntime({
-    db: new TenantDatabase(workerPool, deps),
-    discovery: new PlatformDiscovery(dispatcherPool),
+    db: tenantDb,
+    discovery,
     platformDb,
-    handlers: registeredHandlers(identityDeps),
+    handlers: registeredHandlers({
+      identity: identityDeps,
+      audit: {
+        tenant: tenantDb,
+        platform: platformDb,
+        discovery,
+        metrics: telemetry.metrics,
+        logger,
+      },
+      lifecycle: {
+        executor: new PurgeExecutor(lifecycle, createPurgeLedger(config.lifecycle)),
+        scheduler: {
+          svc: lifecycle,
+          tenant: tenantDb,
+          discovery,
+          systemPrincipalId: SYSTEM_PRINCIPAL.id,
+        },
+      },
+    }),
     consumers: registeredConsumers(),
     schedules: registeredSchedules(),
     params: { ...config.jobs, outboxReplayWindowMs: config.retention.outboxReplayWindowMs },

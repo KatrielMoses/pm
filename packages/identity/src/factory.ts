@@ -5,7 +5,8 @@ import { LocalOAuthProvider } from './oauth/local-provider.ts';
 import type { OAuthProvider } from './oauth/provider.ts';
 import { PasswordHasher } from './password.ts';
 import { PostgresRateLimiter, type RateLimiter } from './rate-limit.ts';
-import { BufferedSecurityEvents } from './security-events.ts';
+import { AuditSecurityEventSink } from '@pm/audit';
+import type { SecurityEventPort } from './security-events.ts';
 import { IdentityService, noBotProtection, testBotProtection } from './service.ts';
 import { DevDatabaseVault } from './vault.ts';
 
@@ -23,6 +24,8 @@ export function createIdentityService(deps: {
   logger: Logger;
   metrics: Metrics;
   limiter?: RateLimiter;
+  /** Security-event sink. Default: the final append-only `audit.security_event` (1F). */
+  events?: SecurityEventPort;
 }): { service: IdentityService; localOAuth: LocalOAuthProvider | undefined } {
   const { config } = deps;
   if (!config.signingKey) throw new Error('AUTH_SIGNING_KEY is required');
@@ -41,7 +44,7 @@ export function createIdentityService(deps: {
     vault: createVault(config),
     limiter:
       deps.limiter ?? new PostgresRateLimiter(deps.db, signingKey, config.rateLimitOverrides),
-    events: new BufferedSecurityEvents(),
+    events: deps.events ?? new AuditSecurityEventSink(deps.metrics),
     oauth,
     bot: config.botProtection === 'test' ? testBotProtection : noBotProtection,
     signingKey,

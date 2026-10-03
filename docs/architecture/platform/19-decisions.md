@@ -175,3 +175,9 @@ All decisions are **proposed (Phase 0D)**, pending solutions-architect acceptanc
 - **Decision:** Register `ses_` (`identity.session`), `mfa_` (`identity.mfa_factor`), and `oid_` (`identity.oauth_identity`), so sessions, factors, and linked identities are addressable for listing, revocation, and unlinking. `locked` joins the step-up challenge states as a stored terminal state, set by the failed verification that reaches `STEP_UP_MAX_ATTEMPTS` (a new 1B parameter). The 0C/0D authorization response shapes gain `step_up_required`.
 - **Alternatives:** Implementation-only prefixes (two registries). Locking as a derived condition (it changes when the parameter changes, and nothing records the transition).
 - **Consequences:** 64 ID prefixes and 31 named parameters. A locked challenge can never verify or yield a token.
+
+<a id="pl-18"></a>
+### PL-18: Audit change entries carry a value digest and a redaction reason (Phase 1F amendment)
+- **Decision:** Each `changes[]` entry carries `digest` (`sha256:` of the canonical entry without the digest), so the tamper-evidence chain covers values through digests and an explicit redaction (which replaces values with `redacted: true` and a `reason` of `purge`, `account_deletion`, `privacy_request`, or `legal_request`) keeps the chain valid while an undeclared value edit does not. The chain is one sequence per workspace.
+- **Alternatives:** Hashing values directly into the chain (any redaction would break it). No per-entry fingerprint (a value edit and a recorded redaction would look the same).
+- **Consequences:** A redacted entry remains verifiable against its `audit_redaction` record. Verification detects edits, gaps, reordering, unrecorded redactions, and truncation below a checkpoint. It is not cryptographic non-repudiation.

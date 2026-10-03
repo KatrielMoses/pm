@@ -8,12 +8,14 @@
     "dist"
   ],
   "dependencies": {
-    "@pm/contracts": "workspace:*",
+    "@pm/audit": "workspace:*",
     "@pm/config": "workspace:*",
-    "@pm/observability": "workspace:*",
+    "@pm/contracts": "workspace:*",
     "@pm/db": "workspace:*",
-    "@pm/platform": "workspace:*",
-    "@pm/identity": "workspace:*"
+    "@pm/identity": "workspace:*",
+    "@pm/lifecycle": "workspace:*",
+    "@pm/observability": "workspace:*",
+    "@pm/platform": "workspace:*"
   },
   "devDependencies": {
     "@pm/test-support": "workspace:*",

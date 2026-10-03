@@ -5,6 +5,7 @@ import {
   newUuidV7,
   uuidToTraceId,
   type ActorRef,
+  type ExecutionContext,
   type EffectDestinationClass,
   type ExecState,
   type JobErrorClass,
@@ -138,10 +139,23 @@ export interface WorkerRuntimeOptions {
 
 const SYSTEM_ACTOR: ActorRef = { type: 'system' };
 /** Stable principal for platform-scheduled system jobs (no tenant authority). */
-const SYSTEM_PRINCIPAL = {
+export const SYSTEM_PRINCIPAL = {
   type: 'system_job' as const,
   id: '01920000-0000-7000-8000-000000000001',
 };
+
+/** Execution context for system work (scheduled retention, ledger replay); never request data. */
+export function systemExecutionContext(workspaceId: string | null): ExecutionContext {
+  return {
+    workspaceId,
+    correlationId: newTraceId(),
+    authenticatedPrincipal: SYSTEM_PRINCIPAL,
+    effectivePrincipal: SYSTEM_PRINCIPAL,
+    delegationChain: [{ type: 'system_job', id: SYSTEM_PRINCIPAL.id }],
+    epochs: { workspace: 0, principal: 0 },
+    dataClassLimit: 'C3',
+  };
+}
 
 type JobRow = Selectable<JobTable>;
 

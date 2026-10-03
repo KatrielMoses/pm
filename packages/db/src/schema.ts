@@ -437,6 +437,279 @@ export interface DevSecretVaultTable {
   expires_at: Ts | null;
 }
 
+// ---------------------------------------------------------------------------------------------
+// Phase 1F: audit, core, governance, recovery
+// ---------------------------------------------------------------------------------------------
+
+export type ChangeClass = 'plain' | 'content' | 'personal' | 'secret' | 'credential_ref';
+export type RedactionReason = 'purge' | 'account_deletion' | 'privacy_request' | 'legal_request';
+/** One stored audit change entry (0D §12.1); `digest` fingerprints the entry before redaction. */
+export type StoredChange = {
+  field: string;
+  class: ChangeClass;
+  digest: string;
+  old?: unknown;
+  new?: unknown;
+  hash?: string;
+  version_ref?: string;
+  changed?: true;
+  redacted?: true;
+  reason?: RedactionReason;
+};
+export type SourceKind =
+  | 'ui'
+  | 'api'
+  | 'paste'
+  | 'voice'
+  | 'email'
+  | 'form'
+  | 'webhook'
+  | 'import'
+  | 'integration'
+  | 'ai_proposal'
+  | 'automation'
+  | 'agent'
+  | 'template'
+  | 'system';
+
+export interface AuditEventTable {
+  id: string;
+  occurred_at: Ts;
+  workspace_id: string;
+  brand_id: string | null;
+  action: string;
+  actor_type: ActorType;
+  actor_id: string | null;
+  on_behalf_of_membership_id: string | null;
+  delegation_chain: Json<Array<{ type: string; id: string }>>;
+  target_record_id: string | null;
+  target_type: string;
+  target_public_id: string | null;
+  changes: Json<StoredChange[]>;
+  operation_id: string | null;
+  attempt_id: string | null;
+  correlation_id: string;
+  causation_id: string | null;
+  source_kind: SourceKind;
+  source_ref: string | null;
+  workflow_revision_id: string | null;
+  retention_class: Defaulted<'R-AUDIT'>;
+  chain_seq: ColumnType<string, string | number | bigint, never>;
+  prev_hash: Bytes;
+  hash: Bytes;
+}
+
+export interface AuditRedactionTable {
+  id: string;
+  redacted_at: DTs;
+  workspace_id: string;
+  audit_event_id: string;
+  audit_event_occurred_at: Ts;
+  fields: string[];
+  reason: RedactionReason;
+  authorized_by_type: ActorType;
+  authorized_by_id: string | null;
+  operation_id: string;
+  correlation_id: string;
+}
+
+export interface SecurityEventTable {
+  id: string;
+  occurred_at: DTs;
+  category: string;
+  action: string;
+  outcome: 'success' | 'failure' | 'denied';
+  actor_type: ActorType;
+  actor_id: string | null;
+  subject_type: string | null;
+  subject_id: string | null;
+  workspace_id: string | null;
+  network_prefix: string | null;
+  user_agent_family: string | null;
+  correlation_id: string;
+  retention_class: Defaulted<'R-AUDIT'>;
+}
+
+export interface ChainCheckpointTable {
+  id: string;
+  recorded_at: DTs;
+  workspace_id: string;
+  chain_seq: ColumnType<string, string | number | bigint, never>;
+  hash: Bytes;
+}
+
+export interface ActivityItemTable {
+  id: string;
+  created_at: DTs;
+  workspace_id: string;
+  brand_id: string | null;
+  project_id: string | null;
+  target_record_id: string;
+  related_record_id: string | null;
+  audit_event_id: string;
+  occurred_at: Ts;
+  summary_key: string;
+  display_values: Json<Record<string, string | number | boolean | null>>;
+  group_key: string | null;
+}
+
+export interface BufferVerificationTable {
+  id: string;
+  verified_at: DTs;
+  outcome: 'verified' | 'mismatch';
+  buffer_count: ColumnType<string, string | number | bigint, never>;
+  sink_count: ColumnType<string, string | number | bigint, never>;
+  buffer_digest: string;
+  sink_digest: string;
+  per_day: Json<Array<{ day: string; buffer: number; sink: number }>>;
+}
+
+export type LifecycleState = 'active' | 'archived' | 'trashed' | 'purged';
+export type ArchiveCause = 'self' | 'cascade';
+export type DeletionBatchState = 'trashed' | 'restoring' | 'restored' | 'purging' | 'purged';
+
+export interface RecordTypeTable {
+  record_type: string;
+  public_id_prefix: string;
+  owner_module: string;
+  test_only: Defaulted<boolean>;
+}
+
+export interface RecordTable {
+  id: string;
+  public_id: string;
+  record_type: string;
+  workspace_id: string;
+  brand_id: string | null;
+  scope_key: ColumnType<string, never, never>;
+  owner_membership_id: string | null;
+  lifecycle_state: Defaulted<LifecycleState>;
+  archive_cause: ArchiveCause | null;
+  archive_batch_id: string | null;
+  archived_at: Ts | null;
+  archived_by_type: ActorType | null;
+  archived_by_id: string | null;
+  deletion_batch_id: string | null;
+  prior_lifecycle_state: LifecycleState | null;
+  trashed_at: Ts | null;
+  trashed_by_type: ActorType | null;
+  trashed_by_id: string | null;
+  purged_at: Ts | null;
+  source_kind: SourceKind;
+  source_ref: string | null;
+  template_installation_id: string | null;
+  created_at: DTs;
+  created_by_actor_type: ActorType;
+  created_by_actor_id: string | null;
+  updated_at: DTs;
+  version: ColumnType<string, string | number | undefined, string | number>;
+}
+
+export interface ArchiveBatchTable {
+  id: string;
+  workspace_id: string;
+  brand_id: string | null;
+  root_record_id: string;
+  state: Defaulted<'archived' | 'restored'>;
+  member_count: number;
+  archived_at: DTs;
+  archived_by_type: ActorType;
+  archived_by_id: string | null;
+  restored_at: Ts | null;
+  restored_by_type: ActorType | null;
+  restored_by_id: string | null;
+  operation_id: string | null;
+  correlation_id: string;
+  version: ColumnType<string, string | number | undefined, string | number>;
+}
+
+export interface ArchiveBatchMemberTable {
+  workspace_id: string;
+  batch_id: string;
+  record_id: string;
+  cause: ArchiveCause;
+}
+
+export type DeletionBlockResult =
+  | 'hold'
+  | 'evidence_lock_partial'
+  | 'evidence_lock_all'
+  | 'missing_purge_hook'
+  | 'ledger_unavailable';
+
+export interface DeletionBatchTable {
+  id: string;
+  workspace_id: string;
+  brand_id: string | null;
+  scope_key: ColumnType<string, never, never>;
+  root_record_id: string;
+  state: Defaulted<DeletionBatchState>;
+  trashed_at: DTs;
+  trashed_by_type: ActorType;
+  trashed_by_id: string | null;
+  restore_location: Json<{ container_record_id?: string | null; container_type?: string | null }>;
+  member_count: number;
+  hold: Defaulted<boolean>;
+  evidence_locked_count: Defaulted<number>;
+  block_result: DeletionBlockResult | null;
+  operation_id: string | null;
+  restored_at: Ts | null;
+  restored_by_type: ActorType | null;
+  restored_by_id: string | null;
+  purge_started_at: Ts | null;
+  purged_at: Ts | null;
+  ledger_entry_id: string | null;
+  ledger_acknowledged_at: Ts | null;
+  terminal_outcome: 'restored' | 'purged' | 'purged_with_exclusions' | null;
+  correlation_id: string;
+  /** Residual batch lineage: the batch this one was split from, and the purge that split it. */
+  split_from_batch_id: string | null;
+  split_operation_id: string | null;
+  version: ColumnType<string, string | number | undefined, string | number>;
+}
+
+export interface DeletionBatchMemberTable {
+  workspace_id: string;
+  batch_id: string;
+  record_id: string;
+  record_type: string;
+  prior_lifecycle_state: LifecycleState;
+  depth: number;
+  outcome: Defaulted<'pending' | 'restored' | 'purged' | 'moved_to_successor'>;
+  /** Set when a residual (evidence-locked) member moved to a successor batch. */
+  successor_batch_id: string | null;
+}
+
+export type RetentionClass =
+  | 'R-LIVE'
+  | 'R-EVIDENCE'
+  | 'R-AUDIT'
+  | 'R-EXEC'
+  | 'R-PERSONAL'
+  | 'R-BILLING'
+  | 'R-DERIVED'
+  | 'R-EPHEMERAL'
+  | 'R-PLATFORM';
+
+export interface RetentionPolicyTable {
+  id: string;
+  workspace_id: string;
+  retention_class: RetentionClass;
+  period: string | null;
+  source: 'plan' | 'workspace';
+  effective_from: DTs;
+  created_at: DTs;
+  version: Defaulted<number>;
+}
+
+export interface RecoveryGateTable {
+  id: Defaulted<number>;
+  state: Defaulted<'open' | 'replay_required'>;
+  backup_point: Ts | null;
+  replayed_through: Ts | null;
+  updated_at: DTs;
+}
+
 export interface Database {
   'tenancy.workspace': WorkspaceTable;
   'exec.operation': OperationTable;
@@ -460,6 +733,20 @@ export interface Database {
   'identity.step_up_challenge': StepUpChallengeTable;
   'identity.mail_delivery': MailDeliveryTable;
   'identity.security_event_buffer': SecurityEventBufferTable;
+  'audit.audit_event': AuditEventTable;
+  'audit.audit_redaction': AuditRedactionTable;
+  'audit.security_event': SecurityEventTable;
+  'audit.chain_checkpoint': ChainCheckpointTable;
+  'audit.activity_item': ActivityItemTable;
+  'audit.buffer_verification': BufferVerificationTable;
+  'core.record_type': RecordTypeTable;
+  'core.record': RecordTable;
+  'core.archive_batch': ArchiveBatchTable;
+  'core.archive_batch_member': ArchiveBatchMemberTable;
+  'core.deletion_batch': DeletionBatchTable;
+  'core.deletion_batch_member': DeletionBatchMemberTable;
+  'governance.retention_policy': RetentionPolicyTable;
+  'ops.recovery_gate': RecoveryGateTable;
 }
 
 /** Column inventory per table, compared with the migrated catalog by the schema-drift test. */
@@ -858,4 +1145,182 @@ export const TABLE_COLUMNS: Readonly<Record<keyof Database, readonly string[]>> 
     'correlation_id',
     'retention_class',
   ],
+  'audit.audit_event': [
+    'id',
+    'occurred_at',
+    'workspace_id',
+    'brand_id',
+    'action',
+    'actor_type',
+    'actor_id',
+    'on_behalf_of_membership_id',
+    'delegation_chain',
+    'target_record_id',
+    'target_type',
+    'target_public_id',
+    'changes',
+    'operation_id',
+    'attempt_id',
+    'correlation_id',
+    'causation_id',
+    'source_kind',
+    'source_ref',
+    'workflow_revision_id',
+    'retention_class',
+    'chain_seq',
+    'prev_hash',
+    'hash',
+  ],
+  'audit.audit_redaction': [
+    'id',
+    'redacted_at',
+    'workspace_id',
+    'audit_event_id',
+    'audit_event_occurred_at',
+    'fields',
+    'reason',
+    'authorized_by_type',
+    'authorized_by_id',
+    'operation_id',
+    'correlation_id',
+  ],
+  'audit.security_event': [
+    'id',
+    'occurred_at',
+    'category',
+    'action',
+    'outcome',
+    'actor_type',
+    'actor_id',
+    'subject_type',
+    'subject_id',
+    'workspace_id',
+    'network_prefix',
+    'user_agent_family',
+    'correlation_id',
+    'retention_class',
+  ],
+  'audit.chain_checkpoint': ['id', 'recorded_at', 'workspace_id', 'chain_seq', 'hash'],
+  'audit.activity_item': [
+    'id',
+    'created_at',
+    'workspace_id',
+    'brand_id',
+    'project_id',
+    'target_record_id',
+    'related_record_id',
+    'audit_event_id',
+    'occurred_at',
+    'summary_key',
+    'display_values',
+    'group_key',
+  ],
+  'audit.buffer_verification': [
+    'id',
+    'verified_at',
+    'outcome',
+    'buffer_count',
+    'sink_count',
+    'buffer_digest',
+    'sink_digest',
+    'per_day',
+  ],
+  'core.record_type': ['record_type', 'public_id_prefix', 'owner_module', 'test_only'],
+  'core.record': [
+    'id',
+    'public_id',
+    'record_type',
+    'workspace_id',
+    'brand_id',
+    'scope_key',
+    'owner_membership_id',
+    'lifecycle_state',
+    'archive_cause',
+    'archive_batch_id',
+    'archived_at',
+    'archived_by_type',
+    'archived_by_id',
+    'deletion_batch_id',
+    'prior_lifecycle_state',
+    'trashed_at',
+    'trashed_by_type',
+    'trashed_by_id',
+    'purged_at',
+    'source_kind',
+    'source_ref',
+    'template_installation_id',
+    'created_at',
+    'created_by_actor_type',
+    'created_by_actor_id',
+    'updated_at',
+    'version',
+  ],
+  'core.archive_batch': [
+    'id',
+    'workspace_id',
+    'brand_id',
+    'root_record_id',
+    'state',
+    'member_count',
+    'archived_at',
+    'archived_by_type',
+    'archived_by_id',
+    'restored_at',
+    'restored_by_type',
+    'restored_by_id',
+    'operation_id',
+    'correlation_id',
+    'version',
+  ],
+  'core.archive_batch_member': ['workspace_id', 'batch_id', 'record_id', 'cause'],
+  'core.deletion_batch': [
+    'id',
+    'workspace_id',
+    'brand_id',
+    'scope_key',
+    'root_record_id',
+    'state',
+    'trashed_at',
+    'trashed_by_type',
+    'trashed_by_id',
+    'restore_location',
+    'member_count',
+    'hold',
+    'evidence_locked_count',
+    'block_result',
+    'operation_id',
+    'restored_at',
+    'restored_by_type',
+    'restored_by_id',
+    'purge_started_at',
+    'purged_at',
+    'ledger_entry_id',
+    'ledger_acknowledged_at',
+    'terminal_outcome',
+    'correlation_id',
+    'version',
+    'split_from_batch_id',
+    'split_operation_id',
+  ],
+  'core.deletion_batch_member': [
+    'workspace_id',
+    'batch_id',
+    'record_id',
+    'record_type',
+    'prior_lifecycle_state',
+    'depth',
+    'outcome',
+    'successor_batch_id',
+  ],
+  'governance.retention_policy': [
+    'id',
+    'workspace_id',
+    'retention_class',
+    'period',
+    'source',
+    'effective_from',
+    'created_at',
+    'version',
+  ],
+  'ops.recovery_gate': ['id', 'state', 'backup_point', 'replayed_through', 'updated_at'],
 };

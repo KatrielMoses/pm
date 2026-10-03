@@ -8,15 +8,17 @@
     "dist"
   ],
   "dependencies": {
-    "@pm/contracts": "workspace:*",
-    "@pm/config": "workspace:*",
-    "@pm/observability": "workspace:*",
-    "@pm/db": "workspace:*",
-    "@pm/platform": "workspace:*",
-    "@opentelemetry/api": "1.9.1",
-    "fastify": "5.12.5",
     "@fastify/static": "10.1.5",
-    "@pm/identity": "workspace:*"
+    "@opentelemetry/api": "1.9.1",
+    "@pm/audit": "workspace:*",
+    "@pm/config": "workspace:*",
+    "@pm/contracts": "workspace:*",
+    "@pm/db": "workspace:*",
+    "@pm/identity": "workspace:*",
+    "@pm/lifecycle": "workspace:*",
+    "@pm/observability": "workspace:*",
+    "@pm/platform": "workspace:*",
+    "fastify": "5.12.5"
   },
   "devDependencies": {
     "@pm/test-support": "workspace:*",

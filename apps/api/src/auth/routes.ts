@@ -10,6 +10,7 @@ import { currentTraceparent, type Logger } from '@pm/observability';
 import { requestFingerprint } from '@pm/platform';
 import {
   IdentityError,
+  InvalidCursorError,
   safeEqual,
   type AuthContext,
   type IdentityService,
@@ -32,6 +33,8 @@ export interface AuthRouteDeps {
   logger: Logger;
   /** Present only when the local/test OAuth provider is configured (never in deployed envs). */
   localOAuth?: LocalOAuthProvider | undefined;
+  /** Local/test-only component harness flag (configuration refuses it when deployed). */
+  componentHarness?: boolean;
 }
 
 const UNSAFE = new Set(['POST', 'PUT', 'PATCH', 'DELETE']);
@@ -280,6 +283,7 @@ export function registerAuth(app: FastifyInstance, deps: AuthRouteDeps): void {
         bot_protection: cfg.botProtection,
         oauth_providers: identity.oauthProviders().map((p) => ({ id: p.id, name: p.displayName })),
         password_min_length: 12,
+        component_harness: deps.componentHarness === true,
       },
       m(request),
     ),
@@ -406,6 +410,60 @@ export function registerAuth(app: FastifyInstance, deps: AuthRouteDeps): void {
         page: { limit: 50, has_more: false },
         meta: m(request),
       };
+    }),
+  );
+
+  // Own-account security activity (1F): this account's account-level events only, display-safe.
+  app.get(
+    '/v1/auth/security-activity',
+    wrap(async (request, reply) => {
+      const ctx = requireAuth(request);
+      const q = (request.query ?? {}) as Record<string, unknown>;
+      const limit = q.limit === undefined ? 25 : Number(q.limit);
+      const cursor = typeof q.cursor === 'string' ? q.cursor : undefined;
+      if (
+        !Number.isInteger(limit) ||
+        limit < 1 ||
+        limit > 100 ||
+        (q.cursor !== undefined && !cursor)
+      )
+        return fail(request, reply, 'validation_failed', {
+          issues: [
+            { pointer: '/query', code: 'invalid_page', message: 'Check the page parameters.' },
+          ],
+        });
+      try {
+        const page = await identity.listSecurityActivity(ctx, { limit, cursor });
+        return nonResourceEnvelope(
+          'security_activity',
+          {
+            items: page.items.map((e) => ({
+              occurred_at: e.occurredAt,
+              category: e.category,
+              action: e.action,
+              outcome: e.outcome,
+              this_session: e.thisSession,
+              device: e.device,
+              network: e.network,
+              client: e.client,
+            })),
+            next_cursor: page.nextCursor,
+          },
+          m(request),
+        );
+      } catch (err) {
+        if (err instanceof InvalidCursorError)
+          return fail(request, reply, 'validation_failed', {
+            issues: [
+              {
+                pointer: '/query/cursor',
+                code: 'invalid_cursor',
+                message: 'Start again from the first page.',
+              },
+            ],
+          });
+        throw err;
+      }
     }),
   );
 

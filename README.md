@@ -1,6 +1,6 @@
 # PM — engineering README
 
-Modular-monolith SaaS foundation (Phase 1A) with identity and sessions (Phase 1B). One TypeScript codebase, one production image, two
+Modular-monolith SaaS foundation (Phase 1A) with identity and sessions (Phase 1B) and audit, deletion, and recovery primitives (Phase 1F). One TypeScript codebase, one production image, two
 long-running commands:
 
 | Process | Command (image) | Source | Does | Never does |
@@ -73,6 +73,8 @@ packages/config     Typed fail-fast configuration, secrets boundary, browser-saf
 packages/db         Pools, fail-closed tenant transactions, discovery, migrator, SQL migrations, role bootstrap
 packages/observability  Allow-listed JSON logger, redaction, OpenTelemetry tracing/metrics, error reporting
 packages/platform   Operations, jobs, outbox/inbox, idempotency, external effects, worker runtime
+packages/audit      Same-transaction audit writer, classified changes, hash chain, security-event sink, 1B buffer drain (1F)
+packages/lifecycle  Record envelope, archive/trash/restore/purge, retention values, purge ledger, recovery gate (1F)
 packages/identity   Accounts, passwords, sessions, MFA, step-up, OAuth boundary, rate limits, mail outbox (1B)
 packages/test-infra     Leaf test infrastructure (no @pm deps): disposable PostgreSQL, databases, 0D schema validation
 packages/test-support   Downstream test support: binds @pm/db bootstrap/migrator, fixtures, harness, Vitest global setup
@@ -83,7 +85,7 @@ scripts/            verify, scans, guards, local tooling, container entrypoint
 Package graph (enforced by `scripts/check-workspace-graph.mjs` and pnpm's own cycle check): the
 **complete** graph (dependencies, devDependencies, optionalDependencies, peerDependencies) is
 acyclic, and runtime edges follow `contracts`, `config` → `observability` → `db` → `platform` →
-`identity` → `api`, `worker`; `web` → `config/public`. Test packages are dev-only: `test-infra` is a leaf any
+`audit` → `lifecycle`/`identity` → `api`, `worker`; `web` → `config/public`. Test packages are dev-only: `test-infra` is a leaf any
 package may use; `test-support` sits downstream of `db` and is used only by `platform`, `api`,
 `worker`, and e2e. Details: [ADR-0001](docs/engineering/adr/0001-typescript-pnpm-modular-monolith.md#package-graph).
 

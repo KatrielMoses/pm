@@ -1,0 +1,20 @@
+-- Reverts 0014 (local/test only).
+DROP FUNCTION audit.redact_purged_values(uuid, uuid, exec.actor_type, uuid, uuid);
+REVOKE SELECT (id, workspace_id, kind, execution_state) ON exec.operation FROM audit_maintainer;
+DROP TABLE core.deletion_batch_member;
+DROP TABLE core.archive_batch_member;
+ALTER TABLE core.deletion_batch DROP CONSTRAINT deletion_batch_root_fkey;
+ALTER TABLE core.archive_batch DROP CONSTRAINT archive_batch_root_fkey;
+DROP TABLE core.record;
+DROP TABLE core.deletion_batch;
+DROP TABLE core.archive_batch;
+DROP TABLE core.record_type;
+DROP FUNCTION core.batch_member_guard();
+DROP FUNCTION core.archive_batch_guard();
+DROP FUNCTION core.deletion_batch_guard();
+DROP FUNCTION core.record_guard();
+DROP FUNCTION core.valid_restore_location(jsonb);
+DROP TYPE core.deletion_batch_state;
+DROP TYPE core.archive_cause;
+DROP TYPE core.lifecycle_state;
+DROP SCHEMA core;

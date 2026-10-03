@@ -12,7 +12,10 @@ extensions are needed in 1A: UUIDv7 keys are application-generated, and `gen_ran
 | `exec_dispatch` | execution | Payload-free `SECURITY DEFINER` scheduling functions |
 | `tenancy` | tenancy | `workspace` anchor (1C extends it additively) |
 | `access` | access | empty (1D) |
-| `ops` | operational | `schema_migration`, `environment_binding`, `worker_heartbeat`, `rate_limit_bucket`, `dev_secret_vault` (no tenant data) |
+| `ops` | operational | `schema_migration`, `environment_binding`, `worker_heartbeat`, `rate_limit_bucket`, `dev_secret_vault`, `recovery_gate` (no tenant data) |
+| `audit` | audit (1F) | audit_event, audit_redaction, security_event, chain_checkpoint, activity_item, buffer_verification (0013, 0015); `redact_purged_values` (0014). Append-only by grants **and** triggers; see [audit.md](audit.md) |
+| `core` | core (1F) | record_type, record, archive_batch(+member), deletion_batch(+member) (0014); residual-batch lineage and membership invariants (0016); see [lifecycle.md](lifecycle.md) |
+| `governance` | governance (1F) | retention_policy (0015): nullable values only |
 | `identity` | identity (1B) | account, credential, mfa_factor, recovery_code, session, oauth_identity, verification_token, step_up_challenge, mail_delivery, security_event_buffer (0011); stored `locked` step-up state (0012). Platform scope, no tenant RLS; see [identity.md](identity.md) |
 
 ## Roles (0C §12.3)
@@ -28,9 +31,11 @@ Created by `packages/db/bootstrap/roles.sql` (provider admin, once per cluster),
 | `app_worker` | yes | **subject** | worker tenant work |
 | `dispatcher` | yes | subject | `EXECUTE` on `exec_dispatch.*` only; cannot select any tenant table |
 | `pm_scheduler` | no | subject + discovery policies | Owns the definer functions; column grants exclude payload, context, keys |
+| `audit_maintainer` | no | subject | Owns only `audit.redact_purged_values` (1F); the sole identity the audit triggers let change value fields, and only under a transaction-local redaction operation. Only `pm_owner` is a member (SET only); no login role can become it |
 
 No role has `SUPERUSER`, `BYPASSRLS`, `CREATEROLE`, `CREATEDB`, or `REPLICATION` (catalog test).
-`app_ro`, `audit_maintainer`, and `platform_support` arrive with the phases that need them.
+`app_ro` and `platform_support` arrive with the phases that need them. **Existing clusters must
+re-run the role bootstrap before migration 0013** (it creates `audit_maintainer`).
 
 **Managed providers.** If the provider reserves role creation for its admin user, run
 `bootstrap` (`node /app/entrypoint.mjs bootstrap`) or `roles.sql` as that admin. The logical model
@@ -65,6 +70,10 @@ dedicated purge identity) deletes in this order, in the workspace's context:
 
 1. `exec.inbox_receipt` 2. `exec.external_effect` 3. `exec.idempotency_key` 4. `exec.outbox_event`
 5. `exec.attempt` 6. `exec.job` 7. `exec.operation` 8. `tenancy.workspace`
+
+1F tables (`core.*`, `governance.retention_policy`, `audit.*`) join this order ahead of `exec.*`.
+Audit rows are append-only for every role, so workspace deletion (SEC-021) must first add its own
+guarded, audited `audit_maintainer` deletion path (ADR-0009 G7); none exists yet.
 
 Attempts are append-only; their guard permits `DELETE` only when the transaction-local marker
 `app.purge_workspace_id` equals the attempt's workspace. No application role holds `DELETE` on

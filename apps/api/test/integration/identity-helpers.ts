@@ -111,6 +111,7 @@ export async function identityEnv(overrides: Record<string, string> = {}): Promi
         migrations: 'ok',
         dispatcher: 'ok',
         object_storage: 'not_configured',
+        recovery_gate: 'ok',
       },
     }),
     auth: { identity: service, localOAuth },

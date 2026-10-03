@@ -523,6 +523,27 @@ def check_step_up(policy, registry):
     return errs
 
 
+def check_record_types(model):
+    """The migrated core.record_type seed equals the 0B addressable entities (type, prefix, module)."""
+    errs = []
+    mig = P("packages/db/migrations")
+    if not os.path.isdir(mig):
+        return errs
+    seeded = None
+    for f in sorted(x for x in os.listdir(mig) if x.endswith(".up.sql")):
+        m = re.search(r"INSERT INTO core\.record_type \(record_type, public_id_prefix, owner_module\) VALUES(.*?);", read(os.path.join(mig, f)), re.S)
+        if m:
+            seeded = set(re.findall(r"\('([a-z_]+)', '([a-z]+)', '([a-z_]+)'\)", m.group(1)))
+    if seeded is None:
+        return errs
+    expected = {(e["name"], e["public_id_prefix"], e["module"]) for e in model["entities"] if e["addressable"]}
+    for x in sorted(expected - seeded):
+        errs.append("record type %s (%s_, %s) is addressable in 0B but not seeded in core.record_type" % x)
+    for x in sorted(seeded - expected):
+        errs.append("core.record_type seeds %s (%s_, %s), which is not an addressable 0B entity" % x)
+    return errs
+
+
 def main():
     rep = Report()
     run_packages(rep)
@@ -539,6 +560,7 @@ def main():
     rep.add("cross: cross-phase blockers resolved", check_blockers())
     rep.add("cross: Phase 0 summary documents (links, references)", check_summary_docs())
     rep.add("cross: step-up actions and challenge states (0C/0D/runtime)", check_step_up(policy, registry))
+    rep.add("cross: record types seeded from the 0B addressable entities", check_record_types(model))
     failed = 0
     for name, (errs, detail) in rep.sections.items():
         status = "PASS" if not errs else "FAIL (%d)" % len(errs)

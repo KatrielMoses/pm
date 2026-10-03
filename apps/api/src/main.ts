@@ -61,7 +61,11 @@ async function main(): Promise<void> {
     tracer: telemetry.tracer,
     errors,
     webDistDir: config.http.webDistDir ?? (existsSync(defaultWeb) ? defaultWeb : undefined),
-    auth: { identity: identity.service, localOAuth: identity.localOAuth },
+    auth: {
+      identity: identity.service,
+      localOAuth: identity.localOAuth,
+      componentHarness: config.features.componentHarness,
+    },
     readiness: () =>
       checkReadiness({
         health,

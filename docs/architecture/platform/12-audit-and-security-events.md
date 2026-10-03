@@ -10,7 +10,7 @@ Storage: 0B [§7](../data/07-audit-provenance.md). Schemas: internal `audit-even
 | `action` | `<resource>.<verb>` (e.g., `task.status_changed`, `grant.revoked`, `export.generated`, `agent.tool_called`) |
 | `actor` | `{type, id, on_behalf_of, delegation_chain}`. Actor type is one of the six 0A/0B types. Delegated actions record the full chain (member → agent run …). |
 | `target` | `{record_id, type, public_id}`. No foreign key, so it survives purge as a tombstone reference. |
-| `changes[]` | `{field, class, old?, new?, hash?, version_ref?, redacted?, changed?}` per field-class rules: `plain` → values; `content` → `hash` + `version_ref`; `personal` → values marked for redaction on account deletion; `secret` → **only** `changed: true` (schema-enforced: `old`/`new`/`hash` are forbidden); `credential_ref` → the reference changed only |
+| `changes[]` | `{field, class, digest, old?, new?, hash?, version_ref?, redacted?, reason?, changed?}` per field-class rules (`digest` fingerprints the entry's values, see PL-18): `plain` → values; `content` → `hash` + `version_ref`; `personal` → values marked for redaction on account deletion; `secret` → **only** `changed: true` (schema-enforced: `old`/`new`/`hash` are forbidden); `credential_ref` → the reference changed only |
 | `operation_id`, `attempt_id`, `correlation_id`, `causation_id`, `source`, `workflow_revision_id` | Correlation and provenance |
 | `retention_class` | Constant `R-AUDIT`; the period comes from the retention policy (OD-36) |
 

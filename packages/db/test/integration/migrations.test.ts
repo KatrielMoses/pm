@@ -161,7 +161,10 @@ describe('migration 0012: stored locked step-up state', () => {
     ).rejects.toThrow(/step_up_challenge_(locked_tokenless|verified_state)/);
     await set(`state = 'locked', locked_at = now(), failed_attempts = 5`);
 
-    expect(await migrator(db).down(11)).toEqual([12]);
+    const above11 = loadMigrations()
+      .map((m) => m.version)
+      .filter((v) => v > 11);
+    expect(await migrator(db).down(11)).toEqual([...above11].reverse());
     const reverted = await db.admin(
       `SELECT state FROM identity.step_up_challenge WHERE public_id = $1`,
       [id],
@@ -174,7 +177,7 @@ describe('migration 0012: stored locked step-up state', () => {
     expect(col.rows).toHaveLength(0);
     await expect(set(`state = 'locked'`)).rejects.toThrow(/step_up_challenge_state_known/);
 
-    expect((await migrator(db).up()).applied).toEqual([12]);
+    expect((await migrator(db).up()).applied).toEqual(above11);
     expect(await stateDef()).toContain("'locked'");
     const history = await db.admin(
       'SELECT checksum, down_checksum FROM ops.schema_migration WHERE version = 12',

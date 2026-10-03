@@ -30,4 +30,12 @@ export class PlatformHealth {
     );
     return rows[0]?.age_ms ?? null;
   }
+
+  /** False while a restored environment awaits purge-ledger replay (ops.recovery_gate, 1F). */
+  async recoveryGateOpen(): Promise<boolean> {
+    const { rows } = await this.#pool.query<{ state: string }>(
+      'SELECT state FROM ops.recovery_gate WHERE id = 1',
+    );
+    return rows[0]?.state === 'open';
+  }
 }

@@ -76,6 +76,8 @@ services:
       DEV_VAULT_KEY: ${PM_DEV_VAULT_KEY:?}
       MAIL_TRANSPORT: capture
       MAIL_CAPTURE_DIR: /tmp/pm-mailbox
+      PURGE_LEDGER: local
+      PURGE_LEDGER_DIR: /tmp/pm-purge-ledger
     depends_on: { migrate: { condition: service_completed_successfully } }
 
 volumes:
