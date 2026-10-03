@@ -29,7 +29,7 @@ docker run --rm --entrypoint sh "$IMAGE" -c '
 ' || fail "forbidden content in image"
 docker run --rm --entrypoint sh "$IMAGE" -c '
   set -e
-  for tool in gitleaks osv-scanner pnpm corepack tsc vite vitest playwright eslint; do
+  for tool in gitleaks osv-scanner pnpm corepack npm npx yarn tsc vite vitest playwright eslint git; do
     ! command -v "$tool" >/dev/null 2>&1 || { echo "tool present: $tool"; exit 1; }
   done
   [ ! -e /app/.github ] && [ ! -e /app/docs ] && [ ! -e /app/briefs ] && [ ! -e /app/e2e ] && [ ! -e /app/scripts ]

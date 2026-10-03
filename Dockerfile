@@ -40,6 +40,10 @@ ARG BUILD_ID=dev
 ENV NODE_ENV=production BUILD_VERSION=${BUILD_VERSION} BUILD_ID=${BUILD_ID} \
     HTTP_HOST=0.0.0.0 HTTP_PORT=3000 WEB_DIST_DIR=/app/web/dist WORKER_HEALTH_FILE=/tmp/pm-worker-health
 WORKDIR /app
+# The runtime needs only `node`: remove the package managers bundled with the base image.
+RUN rm -rf /usr/local/lib/node_modules/npm /usr/local/lib/node_modules/corepack \
+      /usr/local/bin/npm /usr/local/bin/npx /usr/local/bin/corepack /usr/local/bin/yarn /usr/local/bin/yarnpkg /opt/yarn-* \
+ && rm -rf /root/.npm /tmp/*
 COPY --from=build /out /app
 USER node
 EXPOSE 3000
