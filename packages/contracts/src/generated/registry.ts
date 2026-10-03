@@ -1,6 +1,7 @@
 // GENERATED FILE - do not edit by hand.
 // Source: docs/architecture/platform/contracts/registry.json (schema_version 1)
 //         docs/architecture/access/policy/policy.json (schema_version 1)
+//         docs/architecture/data/model/model.json (schema_version 1)
 //         docs/architecture/platform/contracts/schemas/step-up-challenge.schema.json
 // Regenerate: pnpm contracts:generate
 
@@ -81,7 +82,15 @@ export const FORBIDDEN_METRIC_LABELS = [
   "name",
   "query",
   "ip",
-  "user_agent"
+  "user_agent",
+  "workspace",
+  "brand",
+  "membership",
+  "membership_id",
+  "account",
+  "account_id",
+  "timezone",
+  "content"
 ] as const;
 export type ForbiddenMetricLabel = (typeof FORBIDDEN_METRIC_LABELS)[number];
 
@@ -295,6 +304,43 @@ export const TELEMETRY_SIGNALS = [
     "type": "counter",
     "labels": [
       "outcome"
+    ]
+  },
+  {
+    "name": "tenancy.commands",
+    "type": "counter",
+    "labels": [
+      "command",
+      "outcome"
+    ]
+  },
+  {
+    "name": "tenancy.authz_decisions",
+    "type": "counter",
+    "labels": [
+      "action_key",
+      "outcome"
+    ]
+  },
+  {
+    "name": "tenancy.context_failures",
+    "type": "counter",
+    "labels": [
+      "reason"
+    ]
+  },
+  {
+    "name": "tenancy.context_fallbacks",
+    "type": "counter",
+    "labels": [
+      "reason"
+    ]
+  },
+  {
+    "name": "tenancy.rls_denials",
+    "type": "counter",
+    "labels": [
+      "module"
     ]
   }
 ] as const;
@@ -1755,7 +1801,16 @@ export const ACTIONS = [
       "workspace"
     ],
     "stepUp": false,
-    "riskClass": "R0"
+    "riskClass": "R0",
+    "requiredLevel": "view",
+    "roles": {
+      "owner": "implicit",
+      "administrator": "implicit",
+      "member": "grant:view",
+      "limited_member": "grant:view",
+      "read_only": "grant:view",
+      "guest": "grant:view"
+    }
   },
   {
     "key": "record.create",
@@ -1767,7 +1822,16 @@ export const ACTIONS = [
       "record"
     ],
     "stepUp": false,
-    "riskClass": "R1"
+    "riskClass": "R1",
+    "requiredLevel": "edit",
+    "roles": {
+      "owner": "implicit",
+      "administrator": "implicit",
+      "member": "grant:edit",
+      "limited_member": "grant:edit",
+      "read_only": "deny",
+      "guest": "grant:edit"
+    }
   },
   {
     "key": "record.update",
@@ -1779,7 +1843,16 @@ export const ACTIONS = [
       "workspace"
     ],
     "stepUp": false,
-    "riskClass": "R1"
+    "riskClass": "R1",
+    "requiredLevel": "edit",
+    "roles": {
+      "owner": "implicit",
+      "administrator": "implicit",
+      "member": "grant:edit",
+      "limited_member": "grant:edit",
+      "read_only": "deny",
+      "guest": "grant:edit"
+    }
   },
   {
     "key": "record.archive",
@@ -1791,7 +1864,16 @@ export const ACTIONS = [
       "workspace"
     ],
     "stepUp": false,
-    "riskClass": "R1"
+    "riskClass": "R1",
+    "requiredLevel": "edit",
+    "roles": {
+      "owner": "implicit",
+      "administrator": "implicit",
+      "member": "grant:edit",
+      "limited_member": "grant:edit",
+      "read_only": "deny",
+      "guest": "deny"
+    }
   },
   {
     "key": "record.restore",
@@ -1803,7 +1885,16 @@ export const ACTIONS = [
       "workspace"
     ],
     "stepUp": false,
-    "riskClass": "R1"
+    "riskClass": "R1",
+    "requiredLevel": "edit",
+    "roles": {
+      "owner": "implicit",
+      "administrator": "implicit",
+      "member": "grant:edit",
+      "limited_member": "grant:edit",
+      "read_only": "deny",
+      "guest": "deny"
+    }
   },
   {
     "key": "record.trash",
@@ -1815,7 +1906,16 @@ export const ACTIONS = [
       "workspace"
     ],
     "stepUp": false,
-    "riskClass": "R1"
+    "riskClass": "R1",
+    "requiredLevel": "edit",
+    "roles": {
+      "owner": "implicit",
+      "administrator": "implicit",
+      "member": "grant:edit",
+      "limited_member": "grant:edit",
+      "read_only": "deny",
+      "guest": "deny"
+    }
   },
   {
     "key": "record.purge",
@@ -1825,7 +1925,16 @@ export const ACTIONS = [
       "brand"
     ],
     "stepUp": true,
-    "riskClass": "R4"
+    "riskClass": "R4",
+    "requiredLevel": null,
+    "roles": {
+      "owner": "implicit",
+      "administrator": "implicit",
+      "member": "deny",
+      "limited_member": "deny",
+      "read_only": "deny",
+      "guest": "deny"
+    }
   },
   {
     "key": "record.comment",
@@ -1837,7 +1946,16 @@ export const ACTIONS = [
       "workspace"
     ],
     "stepUp": false,
-    "riskClass": "R0"
+    "riskClass": "R0",
+    "requiredLevel": "comment",
+    "roles": {
+      "owner": "implicit",
+      "administrator": "implicit",
+      "member": "grant:comment",
+      "limited_member": "grant:comment",
+      "read_only": "deny",
+      "guest": "grant:comment"
+    }
   },
   {
     "key": "comment.edit_own",
@@ -1846,7 +1964,16 @@ export const ACTIONS = [
       "record"
     ],
     "stepUp": false,
-    "riskClass": "R0"
+    "riskClass": "R0",
+    "requiredLevel": "comment",
+    "roles": {
+      "owner": "own",
+      "administrator": "own",
+      "member": "own",
+      "limited_member": "own",
+      "read_only": "own",
+      "guest": "own"
+    }
   },
   {
     "key": "comment.moderate",
@@ -1857,7 +1984,16 @@ export const ACTIONS = [
       "record"
     ],
     "stepUp": false,
-    "riskClass": "R2"
+    "riskClass": "R2",
+    "requiredLevel": "manage",
+    "roles": {
+      "owner": "implicit",
+      "administrator": "implicit",
+      "member": "grant:manage",
+      "limited_member": "grant:manage",
+      "read_only": "deny",
+      "guest": "deny"
+    }
   },
   {
     "key": "record.follow",
@@ -1869,7 +2005,16 @@ export const ACTIONS = [
       "workspace"
     ],
     "stepUp": false,
-    "riskClass": "R0"
+    "riskClass": "R0",
+    "requiredLevel": "view",
+    "roles": {
+      "owner": "implicit",
+      "administrator": "implicit",
+      "member": "grant:view",
+      "limited_member": "grant:view",
+      "read_only": "grant:view",
+      "guest": "grant:view"
+    }
   },
   {
     "key": "record.assign",
@@ -1879,7 +2024,16 @@ export const ACTIONS = [
       "record"
     ],
     "stepUp": false,
-    "riskClass": "R1"
+    "riskClass": "R1",
+    "requiredLevel": "edit",
+    "roles": {
+      "owner": "implicit",
+      "administrator": "implicit",
+      "member": "grant:edit",
+      "limited_member": "grant:edit",
+      "read_only": "deny",
+      "guest": "grant:edit"
+    }
   },
   {
     "key": "record.delegate",
@@ -1888,7 +2042,16 @@ export const ACTIONS = [
       "record"
     ],
     "stepUp": false,
-    "riskClass": "R1"
+    "riskClass": "R1",
+    "requiredLevel": "edit",
+    "roles": {
+      "owner": "implicit",
+      "administrator": "implicit",
+      "member": "grant:edit",
+      "limited_member": "grant:edit",
+      "read_only": "deny",
+      "guest": "grant:edit"
+    }
   },
   {
     "key": "record.relate",
@@ -1897,7 +2060,16 @@ export const ACTIONS = [
       "record"
     ],
     "stepUp": false,
-    "riskClass": "R1"
+    "riskClass": "R1",
+    "requiredLevel": "edit",
+    "roles": {
+      "owner": "implicit",
+      "administrator": "implicit",
+      "member": "grant:edit",
+      "limited_member": "grant:edit",
+      "read_only": "deny",
+      "guest": "grant:edit"
+    }
   },
   {
     "key": "record.upload",
@@ -1909,7 +2081,16 @@ export const ACTIONS = [
       "workspace"
     ],
     "stepUp": false,
-    "riskClass": "R1"
+    "riskClass": "R1",
+    "requiredLevel": "edit",
+    "roles": {
+      "owner": "implicit",
+      "administrator": "implicit",
+      "member": "grant:edit",
+      "limited_member": "grant:edit",
+      "read_only": "deny",
+      "guest": "grant:edit"
+    }
   },
   {
     "key": "record.download",
@@ -1921,7 +2102,16 @@ export const ACTIONS = [
       "workspace"
     ],
     "stepUp": false,
-    "riskClass": "R0"
+    "riskClass": "R0",
+    "requiredLevel": "view",
+    "roles": {
+      "owner": "implicit",
+      "administrator": "implicit",
+      "member": "grant:view",
+      "limited_member": "grant:view",
+      "read_only": "grant:view",
+      "guest": "grant:view"
+    }
   },
   {
     "key": "record.move",
@@ -1932,7 +2122,16 @@ export const ACTIONS = [
       "record"
     ],
     "stepUp": false,
-    "riskClass": "R1"
+    "riskClass": "R1",
+    "requiredLevel": "edit",
+    "roles": {
+      "owner": "implicit",
+      "administrator": "implicit",
+      "member": "grant:edit",
+      "limited_member": "grant:edit",
+      "read_only": "deny",
+      "guest": "deny"
+    }
   },
   {
     "key": "record.move_brand",
@@ -1941,7 +2140,16 @@ export const ACTIONS = [
       "brand"
     ],
     "stepUp": false,
-    "riskClass": "R3"
+    "riskClass": "R3",
+    "requiredLevel": "manage",
+    "roles": {
+      "owner": "implicit",
+      "administrator": "implicit",
+      "member": "grant:manage",
+      "limited_member": "deny",
+      "read_only": "deny",
+      "guest": "deny"
+    }
   },
   {
     "key": "record.share",
@@ -1950,7 +2158,16 @@ export const ACTIONS = [
       "record"
     ],
     "stepUp": false,
-    "riskClass": "R3"
+    "riskClass": "R3",
+    "requiredLevel": "manage",
+    "roles": {
+      "owner": "implicit",
+      "administrator": "implicit",
+      "member": "grant:manage",
+      "limited_member": "deny",
+      "read_only": "deny",
+      "guest": "deny"
+    }
   },
   {
     "key": "record.share_revoke",
@@ -1959,7 +2176,16 @@ export const ACTIONS = [
       "record"
     ],
     "stepUp": false,
-    "riskClass": "R2"
+    "riskClass": "R2",
+    "requiredLevel": "manage",
+    "roles": {
+      "owner": "implicit",
+      "administrator": "implicit",
+      "member": "grant:manage",
+      "limited_member": "deny",
+      "read_only": "deny",
+      "guest": "deny"
+    }
   },
   {
     "key": "record.export",
@@ -1971,7 +2197,16 @@ export const ACTIONS = [
       "workspace"
     ],
     "stepUp": false,
-    "riskClass": "R2"
+    "riskClass": "R2",
+    "requiredLevel": "view",
+    "roles": {
+      "owner": "implicit",
+      "administrator": "implicit",
+      "member": "grant:view",
+      "limited_member": "policy:limited_members_can_export",
+      "read_only": "deny",
+      "guest": "deny"
+    }
   },
   {
     "key": "task.complete",
@@ -1980,7 +2215,16 @@ export const ACTIONS = [
       "record"
     ],
     "stepUp": false,
-    "riskClass": "R1"
+    "riskClass": "R1",
+    "requiredLevel": "edit",
+    "roles": {
+      "owner": "implicit",
+      "administrator": "implicit",
+      "member": "grant:edit",
+      "limited_member": "grant:edit",
+      "read_only": "deny",
+      "guest": "grant:edit"
+    }
   },
   {
     "key": "project.complete",
@@ -1989,7 +2233,16 @@ export const ACTIONS = [
       "record"
     ],
     "stepUp": false,
-    "riskClass": "R2"
+    "riskClass": "R2",
+    "requiredLevel": "manage",
+    "roles": {
+      "owner": "implicit",
+      "administrator": "implicit",
+      "member": "grant:manage",
+      "limited_member": "grant:manage",
+      "read_only": "deny",
+      "guest": "deny"
+    }
   },
   {
     "key": "deliverable.submit",
@@ -1998,7 +2251,16 @@ export const ACTIONS = [
       "record"
     ],
     "stepUp": false,
-    "riskClass": "R1"
+    "riskClass": "R1",
+    "requiredLevel": "edit",
+    "roles": {
+      "owner": "implicit",
+      "administrator": "implicit",
+      "member": "grant:edit",
+      "limited_member": "grant:edit",
+      "read_only": "deny",
+      "guest": "grant:edit"
+    }
   },
   {
     "key": "review.request",
@@ -2007,7 +2269,16 @@ export const ACTIONS = [
       "record"
     ],
     "stepUp": false,
-    "riskClass": "R1"
+    "riskClass": "R1",
+    "requiredLevel": "edit",
+    "roles": {
+      "owner": "implicit",
+      "administrator": "implicit",
+      "member": "grant:edit",
+      "limited_member": "grant:edit",
+      "read_only": "deny",
+      "guest": "grant:edit"
+    }
   },
   {
     "key": "review.decide",
@@ -2016,7 +2287,16 @@ export const ACTIONS = [
       "record"
     ],
     "stepUp": false,
-    "riskClass": "R2"
+    "riskClass": "R2",
+    "requiredLevel": "comment",
+    "roles": {
+      "owner": "implicit",
+      "administrator": "implicit",
+      "member": "grant:comment",
+      "limited_member": "grant:comment",
+      "read_only": "deny",
+      "guest": "grant:comment"
+    }
   },
   {
     "key": "review.self_approve",
@@ -2025,7 +2305,16 @@ export const ACTIONS = [
       "record"
     ],
     "stepUp": false,
-    "riskClass": "R2"
+    "riskClass": "R2",
+    "requiredLevel": "comment",
+    "roles": {
+      "owner": "policy:self_approval",
+      "administrator": "policy:self_approval",
+      "member": "policy:self_approval",
+      "limited_member": "policy:self_approval",
+      "read_only": "deny",
+      "guest": "deny"
+    }
   },
   {
     "key": "defect.verify",
@@ -2034,7 +2323,16 @@ export const ACTIONS = [
       "record"
     ],
     "stepUp": false,
-    "riskClass": "R2"
+    "riskClass": "R2",
+    "requiredLevel": "edit",
+    "roles": {
+      "owner": "implicit",
+      "administrator": "implicit",
+      "member": "grant:edit",
+      "limited_member": "grant:edit",
+      "read_only": "deny",
+      "guest": "deny"
+    }
   },
   {
     "key": "time.log_own",
@@ -2043,7 +2341,16 @@ export const ACTIONS = [
       "record"
     ],
     "stepUp": false,
-    "riskClass": "R0"
+    "riskClass": "R0",
+    "requiredLevel": "comment",
+    "roles": {
+      "owner": "implicit",
+      "administrator": "implicit",
+      "member": "grant:comment",
+      "limited_member": "grant:comment",
+      "read_only": "deny",
+      "guest": "grant:comment"
+    }
   },
   {
     "key": "timesheet.submit_own",
@@ -2052,7 +2359,16 @@ export const ACTIONS = [
       "personal"
     ],
     "stepUp": false,
-    "riskClass": "R0"
+    "riskClass": "R0",
+    "requiredLevel": null,
+    "roles": {
+      "owner": "own",
+      "administrator": "own",
+      "member": "own",
+      "limited_member": "own",
+      "read_only": "own",
+      "guest": "deny"
+    }
   },
   {
     "key": "timesheet.approve",
@@ -2061,7 +2377,16 @@ export const ACTIONS = [
       "brand"
     ],
     "stepUp": false,
-    "riskClass": "R2"
+    "riskClass": "R2",
+    "requiredLevel": "manage",
+    "roles": {
+      "owner": "implicit",
+      "administrator": "implicit",
+      "member": "grant:manage",
+      "limited_member": "deny",
+      "read_only": "deny",
+      "guest": "deny"
+    }
   },
   {
     "key": "timesheet.unlock",
@@ -2070,7 +2395,16 @@ export const ACTIONS = [
       "brand"
     ],
     "stepUp": true,
-    "riskClass": "R3"
+    "riskClass": "R3",
+    "requiredLevel": null,
+    "roles": {
+      "owner": "implicit",
+      "administrator": "implicit",
+      "member": "deny",
+      "limited_member": "deny",
+      "read_only": "deny",
+      "guest": "deny"
+    }
   },
   {
     "key": "view.share",
@@ -2081,7 +2415,16 @@ export const ACTIONS = [
       "workspace"
     ],
     "stepUp": false,
-    "riskClass": "R1"
+    "riskClass": "R1",
+    "requiredLevel": "edit",
+    "roles": {
+      "owner": "implicit",
+      "administrator": "implicit",
+      "member": "grant:edit",
+      "limited_member": "deny",
+      "read_only": "deny",
+      "guest": "deny"
+    }
   },
   {
     "key": "report.schedule",
@@ -2092,7 +2435,16 @@ export const ACTIONS = [
       "workspace"
     ],
     "stepUp": false,
-    "riskClass": "R2"
+    "riskClass": "R2",
+    "requiredLevel": "edit",
+    "roles": {
+      "owner": "implicit",
+      "administrator": "implicit",
+      "member": "grant:edit",
+      "limited_member": "deny",
+      "read_only": "deny",
+      "guest": "deny"
+    }
   },
   {
     "key": "release.decide",
@@ -2101,7 +2453,16 @@ export const ACTIONS = [
       "record"
     ],
     "stepUp": true,
-    "riskClass": "R4"
+    "riskClass": "R4",
+    "requiredLevel": "manage",
+    "roles": {
+      "owner": "implicit",
+      "administrator": "implicit",
+      "member": "grant:manage",
+      "limited_member": "deny",
+      "read_only": "deny",
+      "guest": "deny"
+    }
   },
   {
     "key": "release.production_action",
@@ -2110,7 +2471,16 @@ export const ACTIONS = [
       "record"
     ],
     "stepUp": true,
-    "riskClass": "R4"
+    "riskClass": "R4",
+    "requiredLevel": "manage",
+    "roles": {
+      "owner": "implicit",
+      "administrator": "implicit",
+      "member": "grant:manage",
+      "limited_member": "deny",
+      "read_only": "deny",
+      "guest": "deny"
+    }
   },
   {
     "key": "environment.configure",
@@ -2119,7 +2489,16 @@ export const ACTIONS = [
       "brand"
     ],
     "stepUp": false,
-    "riskClass": "R2"
+    "riskClass": "R2",
+    "requiredLevel": "manage",
+    "roles": {
+      "owner": "implicit",
+      "administrator": "implicit",
+      "member": "grant:manage",
+      "limited_member": "deny",
+      "read_only": "deny",
+      "guest": "deny"
+    }
   },
   {
     "key": "tests.execute",
@@ -2130,7 +2509,16 @@ export const ACTIONS = [
       "record"
     ],
     "stepUp": false,
-    "riskClass": "R1"
+    "riskClass": "R1",
+    "requiredLevel": "edit",
+    "roles": {
+      "owner": "implicit",
+      "administrator": "implicit",
+      "member": "grant:edit",
+      "limited_member": "grant:edit",
+      "read_only": "deny",
+      "guest": "deny"
+    }
   },
   {
     "key": "personal.manage_own",
@@ -2139,7 +2527,16 @@ export const ACTIONS = [
       "personal"
     ],
     "stepUp": false,
-    "riskClass": "R0"
+    "riskClass": "R0",
+    "requiredLevel": null,
+    "roles": {
+      "owner": "own",
+      "administrator": "own",
+      "member": "own",
+      "limited_member": "own",
+      "read_only": "own",
+      "guest": "own"
+    }
   },
   {
     "key": "sessions.manage_own",
@@ -2148,7 +2545,16 @@ export const ACTIONS = [
       "personal"
     ],
     "stepUp": false,
-    "riskClass": "R1"
+    "riskClass": "R1",
+    "requiredLevel": null,
+    "roles": {
+      "owner": "own",
+      "administrator": "own",
+      "member": "own",
+      "limited_member": "own",
+      "read_only": "own",
+      "guest": "own"
+    }
   },
   {
     "key": "account.mfa_enroll",
@@ -2157,7 +2563,16 @@ export const ACTIONS = [
       "personal"
     ],
     "stepUp": true,
-    "riskClass": "R3"
+    "riskClass": "R3",
+    "requiredLevel": null,
+    "roles": {
+      "owner": "own",
+      "administrator": "own",
+      "member": "own",
+      "limited_member": "own",
+      "read_only": "own",
+      "guest": "own"
+    }
   },
   {
     "key": "account.mfa_disable",
@@ -2166,7 +2581,16 @@ export const ACTIONS = [
       "personal"
     ],
     "stepUp": true,
-    "riskClass": "R4"
+    "riskClass": "R4",
+    "requiredLevel": null,
+    "roles": {
+      "owner": "own",
+      "administrator": "own",
+      "member": "own",
+      "limited_member": "own",
+      "read_only": "own",
+      "guest": "own"
+    }
   },
   {
     "key": "account.recovery_codes_regenerate",
@@ -2175,7 +2599,16 @@ export const ACTIONS = [
       "personal"
     ],
     "stepUp": true,
-    "riskClass": "R3"
+    "riskClass": "R3",
+    "requiredLevel": null,
+    "roles": {
+      "owner": "own",
+      "administrator": "own",
+      "member": "own",
+      "limited_member": "own",
+      "read_only": "own",
+      "guest": "own"
+    }
   },
   {
     "key": "api_tokens.personal",
@@ -2184,7 +2617,34 @@ export const ACTIONS = [
       "personal"
     ],
     "stepUp": true,
-    "riskClass": "R3"
+    "riskClass": "R3",
+    "requiredLevel": null,
+    "roles": {
+      "owner": "own",
+      "administrator": "own",
+      "member": "own",
+      "limited_member": "policy:limited_members_tokens",
+      "read_only": "own",
+      "guest": "deny"
+    }
+  },
+  {
+    "key": "workspace.create",
+    "kind": "personal",
+    "scopes": [
+      "personal"
+    ],
+    "stepUp": false,
+    "riskClass": "R2",
+    "requiredLevel": null,
+    "roles": {
+      "owner": "deny",
+      "administrator": "deny",
+      "member": "deny",
+      "limited_member": "deny",
+      "read_only": "deny",
+      "guest": "deny"
+    }
   },
   {
     "key": "workspace.view_settings",
@@ -2193,7 +2653,16 @@ export const ACTIONS = [
       "workspace"
     ],
     "stepUp": false,
-    "riskClass": "R0"
+    "riskClass": "R0",
+    "requiredLevel": null,
+    "roles": {
+      "owner": "implicit",
+      "administrator": "implicit",
+      "member": "implicit",
+      "limited_member": "implicit",
+      "read_only": "implicit",
+      "guest": "deny"
+    }
   },
   {
     "key": "workspace.configure",
@@ -2202,7 +2671,16 @@ export const ACTIONS = [
       "workspace"
     ],
     "stepUp": false,
-    "riskClass": "R2"
+    "riskClass": "R2",
+    "requiredLevel": null,
+    "roles": {
+      "owner": "implicit",
+      "administrator": "implicit",
+      "member": "deny",
+      "limited_member": "deny",
+      "read_only": "deny",
+      "guest": "deny"
+    }
   },
   {
     "key": "workspace.delete",
@@ -2211,7 +2689,16 @@ export const ACTIONS = [
       "workspace"
     ],
     "stepUp": true,
-    "riskClass": "R4"
+    "riskClass": "R4",
+    "requiredLevel": null,
+    "roles": {
+      "owner": "implicit",
+      "administrator": "deny",
+      "member": "deny",
+      "limited_member": "deny",
+      "read_only": "deny",
+      "guest": "deny"
+    }
   },
   {
     "key": "ownership.transfer",
@@ -2220,7 +2707,16 @@ export const ACTIONS = [
       "workspace"
     ],
     "stepUp": true,
-    "riskClass": "R4"
+    "riskClass": "R4",
+    "requiredLevel": null,
+    "roles": {
+      "owner": "implicit",
+      "administrator": "deny",
+      "member": "deny",
+      "limited_member": "deny",
+      "read_only": "deny",
+      "guest": "deny"
+    }
   },
   {
     "key": "brand.create",
@@ -2229,7 +2725,16 @@ export const ACTIONS = [
       "workspace"
     ],
     "stepUp": false,
-    "riskClass": "R2"
+    "riskClass": "R2",
+    "requiredLevel": null,
+    "roles": {
+      "owner": "implicit",
+      "administrator": "implicit",
+      "member": "deny",
+      "limited_member": "deny",
+      "read_only": "deny",
+      "guest": "deny"
+    }
   },
   {
     "key": "brand.configure",
@@ -2238,7 +2743,16 @@ export const ACTIONS = [
       "brand"
     ],
     "stepUp": false,
-    "riskClass": "R2"
+    "riskClass": "R2",
+    "requiredLevel": null,
+    "roles": {
+      "owner": "implicit",
+      "administrator": "implicit",
+      "member": "grant:manage",
+      "limited_member": "grant:manage",
+      "read_only": "deny",
+      "guest": "deny"
+    }
   },
   {
     "key": "brand.archive",
@@ -2247,7 +2761,16 @@ export const ACTIONS = [
       "brand"
     ],
     "stepUp": false,
-    "riskClass": "R3"
+    "riskClass": "R3",
+    "requiredLevel": null,
+    "roles": {
+      "owner": "implicit",
+      "administrator": "implicit",
+      "member": "deny",
+      "limited_member": "deny",
+      "read_only": "deny",
+      "guest": "deny"
+    }
   },
   {
     "key": "brand.delete",
@@ -2256,7 +2779,16 @@ export const ACTIONS = [
       "brand"
     ],
     "stepUp": true,
-    "riskClass": "R4"
+    "riskClass": "R4",
+    "requiredLevel": null,
+    "roles": {
+      "owner": "implicit",
+      "administrator": "implicit",
+      "member": "deny",
+      "limited_member": "deny",
+      "read_only": "deny",
+      "guest": "deny"
+    }
   },
   {
     "key": "brand.mark_sensitive",
@@ -2265,7 +2797,16 @@ export const ACTIONS = [
       "brand"
     ],
     "stepUp": true,
-    "riskClass": "R3"
+    "riskClass": "R3",
+    "requiredLevel": null,
+    "roles": {
+      "owner": "implicit",
+      "administrator": "implicit",
+      "member": "deny",
+      "limited_member": "deny",
+      "read_only": "deny",
+      "guest": "deny"
+    }
   },
   {
     "key": "membership.invite_member",
@@ -2274,7 +2815,16 @@ export const ACTIONS = [
       "workspace"
     ],
     "stepUp": false,
-    "riskClass": "R2"
+    "riskClass": "R2",
+    "requiredLevel": null,
+    "roles": {
+      "owner": "implicit",
+      "administrator": "implicit",
+      "member": "deny",
+      "limited_member": "deny",
+      "read_only": "deny",
+      "guest": "deny"
+    }
   },
   {
     "key": "membership.invite_guest",
@@ -2283,7 +2833,16 @@ export const ACTIONS = [
       "record"
     ],
     "stepUp": false,
-    "riskClass": "R3"
+    "riskClass": "R3",
+    "requiredLevel": null,
+    "roles": {
+      "owner": "implicit",
+      "administrator": "implicit",
+      "member": "policy:members_invite_guests",
+      "limited_member": "deny",
+      "read_only": "deny",
+      "guest": "deny"
+    }
   },
   {
     "key": "membership.manage",
@@ -2292,7 +2851,16 @@ export const ACTIONS = [
       "workspace"
     ],
     "stepUp": true,
-    "riskClass": "R3"
+    "riskClass": "R3",
+    "requiredLevel": null,
+    "roles": {
+      "owner": "implicit",
+      "administrator": "implicit",
+      "member": "deny",
+      "limited_member": "deny",
+      "read_only": "deny",
+      "guest": "deny"
+    }
   },
   {
     "key": "team.manage",
@@ -2301,7 +2869,16 @@ export const ACTIONS = [
       "workspace"
     ],
     "stepUp": false,
-    "riskClass": "R2"
+    "riskClass": "R2",
+    "requiredLevel": null,
+    "roles": {
+      "owner": "implicit",
+      "administrator": "implicit",
+      "member": "deny",
+      "limited_member": "deny",
+      "read_only": "deny",
+      "guest": "deny"
+    }
   },
   {
     "key": "access.grant_scope",
@@ -2312,7 +2889,16 @@ export const ACTIONS = [
       "project"
     ],
     "stepUp": false,
-    "riskClass": "R3"
+    "riskClass": "R3",
+    "requiredLevel": null,
+    "roles": {
+      "owner": "implicit",
+      "administrator": "implicit",
+      "member": "grant:manage",
+      "limited_member": "grant:manage",
+      "read_only": "deny",
+      "guest": "deny"
+    }
   },
   {
     "key": "access.restrict_scope",
@@ -2324,7 +2910,16 @@ export const ACTIONS = [
       "field"
     ],
     "stepUp": false,
-    "riskClass": "R3"
+    "riskClass": "R3",
+    "requiredLevel": null,
+    "roles": {
+      "owner": "implicit",
+      "administrator": "implicit",
+      "member": "grant:manage",
+      "limited_member": "grant:manage",
+      "read_only": "deny",
+      "guest": "deny"
+    }
   },
   {
     "key": "access.preview",
@@ -2335,7 +2930,16 @@ export const ACTIONS = [
       "project"
     ],
     "stepUp": false,
-    "riskClass": "R0"
+    "riskClass": "R0",
+    "requiredLevel": null,
+    "roles": {
+      "owner": "implicit",
+      "administrator": "implicit",
+      "member": "grant:manage",
+      "limited_member": "grant:manage",
+      "read_only": "deny",
+      "guest": "deny"
+    }
   },
   {
     "key": "access.elevate_sensitive",
@@ -2345,7 +2949,16 @@ export const ACTIONS = [
       "project"
     ],
     "stepUp": true,
-    "riskClass": "R4"
+    "riskClass": "R4",
+    "requiredLevel": null,
+    "roles": {
+      "owner": "implicit",
+      "administrator": "deny",
+      "member": "deny",
+      "limited_member": "deny",
+      "read_only": "deny",
+      "guest": "deny"
+    }
   },
   {
     "key": "sharing.policy.configure",
@@ -2354,7 +2967,16 @@ export const ACTIONS = [
       "workspace"
     ],
     "stepUp": true,
-    "riskClass": "R3"
+    "riskClass": "R3",
+    "requiredLevel": null,
+    "roles": {
+      "owner": "implicit",
+      "administrator": "implicit",
+      "member": "deny",
+      "limited_member": "deny",
+      "read_only": "deny",
+      "guest": "deny"
+    }
   },
   {
     "key": "feature_availability.configure",
@@ -2363,7 +2985,16 @@ export const ACTIONS = [
       "workspace"
     ],
     "stepUp": false,
-    "riskClass": "R2"
+    "riskClass": "R2",
+    "requiredLevel": null,
+    "roles": {
+      "owner": "implicit",
+      "administrator": "implicit",
+      "member": "deny",
+      "limited_member": "deny",
+      "read_only": "deny",
+      "guest": "deny"
+    }
   },
   {
     "key": "custom_roles.manage",
@@ -2372,7 +3003,16 @@ export const ACTIONS = [
       "workspace"
     ],
     "stepUp": true,
-    "riskClass": "R3"
+    "riskClass": "R3",
+    "requiredLevel": null,
+    "roles": {
+      "owner": "implicit",
+      "administrator": "implicit",
+      "member": "deny",
+      "limited_member": "deny",
+      "read_only": "deny",
+      "guest": "deny"
+    }
   },
   {
     "key": "workflow.configure",
@@ -2383,7 +3023,16 @@ export const ACTIONS = [
       "project"
     ],
     "stepUp": false,
-    "riskClass": "R2"
+    "riskClass": "R2",
+    "requiredLevel": null,
+    "roles": {
+      "owner": "implicit",
+      "administrator": "implicit",
+      "member": "grant:manage",
+      "limited_member": "grant:manage",
+      "read_only": "deny",
+      "guest": "deny"
+    }
   },
   {
     "key": "fields.configure",
@@ -2394,7 +3043,16 @@ export const ACTIONS = [
       "project"
     ],
     "stepUp": false,
-    "riskClass": "R2"
+    "riskClass": "R2",
+    "requiredLevel": null,
+    "roles": {
+      "owner": "implicit",
+      "administrator": "implicit",
+      "member": "grant:manage",
+      "limited_member": "grant:manage",
+      "read_only": "deny",
+      "guest": "deny"
+    }
   },
   {
     "key": "views.configure",
@@ -2405,7 +3063,16 @@ export const ACTIONS = [
       "project"
     ],
     "stepUp": false,
-    "riskClass": "R1"
+    "riskClass": "R1",
+    "requiredLevel": null,
+    "roles": {
+      "owner": "implicit",
+      "administrator": "implicit",
+      "member": "grant:manage",
+      "limited_member": "grant:manage",
+      "read_only": "deny",
+      "guest": "deny"
+    }
   },
   {
     "key": "templates.manage",
@@ -2415,7 +3082,16 @@ export const ACTIONS = [
       "brand"
     ],
     "stepUp": false,
-    "riskClass": "R2"
+    "riskClass": "R2",
+    "requiredLevel": null,
+    "roles": {
+      "owner": "implicit",
+      "administrator": "implicit",
+      "member": "grant:manage",
+      "limited_member": "grant:manage",
+      "read_only": "deny",
+      "guest": "deny"
+    }
   },
   {
     "key": "notifications.configure_scope",
@@ -2425,7 +3101,16 @@ export const ACTIONS = [
       "project"
     ],
     "stepUp": false,
-    "riskClass": "R2"
+    "riskClass": "R2",
+    "requiredLevel": null,
+    "roles": {
+      "owner": "implicit",
+      "administrator": "implicit",
+      "member": "grant:manage",
+      "limited_member": "grant:manage",
+      "read_only": "deny",
+      "guest": "deny"
+    }
   },
   {
     "key": "ai.configure_brand",
@@ -2434,7 +3119,16 @@ export const ACTIONS = [
       "brand"
     ],
     "stepUp": false,
-    "riskClass": "R2"
+    "riskClass": "R2",
+    "requiredLevel": null,
+    "roles": {
+      "owner": "implicit",
+      "administrator": "implicit",
+      "member": "grant:manage",
+      "limited_member": "grant:manage",
+      "read_only": "deny",
+      "guest": "deny"
+    }
   },
   {
     "key": "ai.providers.manage",
@@ -2443,7 +3137,16 @@ export const ACTIONS = [
       "workspace"
     ],
     "stepUp": true,
-    "riskClass": "R3"
+    "riskClass": "R3",
+    "requiredLevel": null,
+    "roles": {
+      "owner": "implicit",
+      "administrator": "implicit",
+      "member": "deny",
+      "limited_member": "deny",
+      "read_only": "deny",
+      "guest": "deny"
+    }
   },
   {
     "key": "ai.limits.configure",
@@ -2453,7 +3156,16 @@ export const ACTIONS = [
       "brand"
     ],
     "stepUp": true,
-    "riskClass": "R3"
+    "riskClass": "R3",
+    "requiredLevel": null,
+    "roles": {
+      "owner": "implicit",
+      "administrator": "implicit",
+      "member": "deny",
+      "limited_member": "deny",
+      "read_only": "deny",
+      "guest": "deny"
+    }
   },
   {
     "key": "agents.configure",
@@ -2462,7 +3174,16 @@ export const ACTIONS = [
       "workspace"
     ],
     "stepUp": false,
-    "riskClass": "R3"
+    "riskClass": "R3",
+    "requiredLevel": null,
+    "roles": {
+      "owner": "implicit",
+      "administrator": "implicit",
+      "member": "policy:members_configure_agents",
+      "limited_member": "deny",
+      "read_only": "deny",
+      "guest": "deny"
+    }
   },
   {
     "key": "automations.configure",
@@ -2472,7 +3193,16 @@ export const ACTIONS = [
       "brand"
     ],
     "stepUp": false,
-    "riskClass": "R2"
+    "riskClass": "R2",
+    "requiredLevel": null,
+    "roles": {
+      "owner": "implicit",
+      "administrator": "implicit",
+      "member": "grant:manage",
+      "limited_member": "grant:manage",
+      "read_only": "deny",
+      "guest": "deny"
+    }
   },
   {
     "key": "integrations.configure",
@@ -2482,7 +3212,16 @@ export const ACTIONS = [
       "brand"
     ],
     "stepUp": false,
-    "riskClass": "R3"
+    "riskClass": "R3",
+    "requiredLevel": null,
+    "roles": {
+      "owner": "implicit",
+      "administrator": "implicit",
+      "member": "grant:manage",
+      "limited_member": "deny",
+      "read_only": "deny",
+      "guest": "deny"
+    }
   },
   {
     "key": "api_tokens.service.manage",
@@ -2491,7 +3230,16 @@ export const ACTIONS = [
       "workspace"
     ],
     "stepUp": true,
-    "riskClass": "R3"
+    "riskClass": "R3",
+    "requiredLevel": null,
+    "roles": {
+      "owner": "implicit",
+      "administrator": "implicit",
+      "member": "deny",
+      "limited_member": "deny",
+      "read_only": "deny",
+      "guest": "deny"
+    }
   },
   {
     "key": "webhooks.manage",
@@ -2501,7 +3249,16 @@ export const ACTIONS = [
       "brand"
     ],
     "stepUp": false,
-    "riskClass": "R3"
+    "riskClass": "R3",
+    "requiredLevel": null,
+    "roles": {
+      "owner": "implicit",
+      "administrator": "implicit",
+      "member": "grant:manage",
+      "limited_member": "deny",
+      "read_only": "deny",
+      "guest": "deny"
+    }
   },
   {
     "key": "security.configure",
@@ -2510,7 +3267,16 @@ export const ACTIONS = [
       "workspace"
     ],
     "stepUp": true,
-    "riskClass": "R4"
+    "riskClass": "R4",
+    "requiredLevel": null,
+    "roles": {
+      "owner": "implicit",
+      "administrator": "implicit",
+      "member": "deny",
+      "limited_member": "deny",
+      "read_only": "deny",
+      "guest": "deny"
+    }
   },
   {
     "key": "sessions.manage_others",
@@ -2519,7 +3285,16 @@ export const ACTIONS = [
       "workspace"
     ],
     "stepUp": true,
-    "riskClass": "R3"
+    "riskClass": "R3",
+    "requiredLevel": null,
+    "roles": {
+      "owner": "implicit",
+      "administrator": "implicit",
+      "member": "deny",
+      "limited_member": "deny",
+      "read_only": "deny",
+      "guest": "deny"
+    }
   },
   {
     "key": "retention.configure",
@@ -2528,7 +3303,16 @@ export const ACTIONS = [
       "workspace"
     ],
     "stepUp": true,
-    "riskClass": "R4"
+    "riskClass": "R4",
+    "requiredLevel": null,
+    "roles": {
+      "owner": "implicit",
+      "administrator": "deny",
+      "member": "deny",
+      "limited_member": "deny",
+      "read_only": "deny",
+      "guest": "deny"
+    }
   },
   {
     "key": "legal_hold.manage",
@@ -2538,7 +3322,16 @@ export const ACTIONS = [
       "brand"
     ],
     "stepUp": true,
-    "riskClass": "R4"
+    "riskClass": "R4",
+    "requiredLevel": null,
+    "roles": {
+      "owner": "implicit",
+      "administrator": "deny",
+      "member": "deny",
+      "limited_member": "deny",
+      "read_only": "deny",
+      "guest": "deny"
+    }
   },
   {
     "key": "trash.manage",
@@ -2548,7 +3341,16 @@ export const ACTIONS = [
       "brand"
     ],
     "stepUp": false,
-    "riskClass": "R2"
+    "riskClass": "R2",
+    "requiredLevel": null,
+    "roles": {
+      "owner": "implicit",
+      "administrator": "implicit",
+      "member": "deny",
+      "limited_member": "deny",
+      "read_only": "deny",
+      "guest": "deny"
+    }
   },
   {
     "key": "audit.view",
@@ -2557,7 +3359,16 @@ export const ACTIONS = [
       "workspace"
     ],
     "stepUp": false,
-    "riskClass": "R0"
+    "riskClass": "R0",
+    "requiredLevel": null,
+    "roles": {
+      "owner": "implicit",
+      "administrator": "implicit",
+      "member": "deny",
+      "limited_member": "deny",
+      "read_only": "deny",
+      "guest": "deny"
+    }
   },
   {
     "key": "audit.export",
@@ -2566,7 +3377,16 @@ export const ACTIONS = [
       "workspace"
     ],
     "stepUp": true,
-    "riskClass": "R3"
+    "riskClass": "R3",
+    "requiredLevel": null,
+    "roles": {
+      "owner": "implicit",
+      "administrator": "implicit",
+      "member": "deny",
+      "limited_member": "deny",
+      "read_only": "deny",
+      "guest": "deny"
+    }
   },
   {
     "key": "workspace.export",
@@ -2575,7 +3395,16 @@ export const ACTIONS = [
       "workspace"
     ],
     "stepUp": true,
-    "riskClass": "R3"
+    "riskClass": "R3",
+    "requiredLevel": null,
+    "roles": {
+      "owner": "implicit",
+      "administrator": "implicit",
+      "member": "deny",
+      "limited_member": "deny",
+      "read_only": "deny",
+      "guest": "deny"
+    }
   },
   {
     "key": "usage.view",
@@ -2585,7 +3414,16 @@ export const ACTIONS = [
       "brand"
     ],
     "stepUp": false,
-    "riskClass": "R0"
+    "riskClass": "R0",
+    "requiredLevel": null,
+    "roles": {
+      "owner": "implicit",
+      "administrator": "implicit",
+      "member": "grant:manage",
+      "limited_member": "grant:manage",
+      "read_only": "deny",
+      "guest": "deny"
+    }
   },
   {
     "key": "billing.view",
@@ -2594,7 +3432,16 @@ export const ACTIONS = [
       "workspace"
     ],
     "stepUp": false,
-    "riskClass": "R0"
+    "riskClass": "R0",
+    "requiredLevel": null,
+    "roles": {
+      "owner": "implicit",
+      "administrator": "implicit",
+      "member": "deny",
+      "limited_member": "deny",
+      "read_only": "deny",
+      "guest": "deny"
+    }
   },
   {
     "key": "billing.manage",
@@ -2603,7 +3450,16 @@ export const ACTIONS = [
       "workspace"
     ],
     "stepUp": true,
-    "riskClass": "R3"
+    "riskClass": "R3",
+    "requiredLevel": null,
+    "roles": {
+      "owner": "implicit",
+      "administrator": "policy:admins_manage_billing",
+      "member": "deny",
+      "limited_member": "deny",
+      "read_only": "deny",
+      "guest": "deny"
+    }
   },
   {
     "key": "secrets_metadata.view",
@@ -2613,7 +3469,16 @@ export const ACTIONS = [
       "connection"
     ],
     "stepUp": false,
-    "riskClass": "R0"
+    "riskClass": "R0",
+    "requiredLevel": null,
+    "roles": {
+      "owner": "implicit",
+      "administrator": "implicit",
+      "member": "deny",
+      "limited_member": "deny",
+      "read_only": "deny",
+      "guest": "deny"
+    }
   },
   {
     "key": "health.view",
@@ -2623,7 +3488,16 @@ export const ACTIONS = [
       "brand"
     ],
     "stepUp": false,
-    "riskClass": "R0"
+    "riskClass": "R0",
+    "requiredLevel": null,
+    "roles": {
+      "owner": "implicit",
+      "administrator": "implicit",
+      "member": "grant:manage",
+      "limited_member": "deny",
+      "read_only": "deny",
+      "guest": "deny"
+    }
   },
   {
     "key": "support_access.grant",
@@ -2632,7 +3506,16 @@ export const ACTIONS = [
       "workspace"
     ],
     "stepUp": true,
-    "riskClass": "R4"
+    "riskClass": "R4",
+    "requiredLevel": null,
+    "roles": {
+      "owner": "implicit",
+      "administrator": "implicit",
+      "member": "deny",
+      "limited_member": "deny",
+      "read_only": "deny",
+      "guest": "deny"
+    }
   },
   {
     "key": "emergency_stop.trigger",
@@ -2641,7 +3524,16 @@ export const ACTIONS = [
       "workspace"
     ],
     "stepUp": false,
-    "riskClass": "R1"
+    "riskClass": "R1",
+    "requiredLevel": null,
+    "roles": {
+      "owner": "implicit",
+      "administrator": "implicit",
+      "member": "deny",
+      "limited_member": "deny",
+      "read_only": "deny",
+      "guest": "deny"
+    }
   },
   {
     "key": "ai.execute",
@@ -2653,7 +3545,16 @@ export const ACTIONS = [
       "record"
     ],
     "stepUp": false,
-    "riskClass": "R1"
+    "riskClass": "R1",
+    "requiredLevel": "view",
+    "roles": {
+      "owner": "implicit",
+      "administrator": "implicit",
+      "member": "grant:view",
+      "limited_member": "policy:limited_members_ai",
+      "read_only": "policy:read_only_ai",
+      "guest": "deny"
+    }
   },
   {
     "key": "ai.apply_proposal",
@@ -2662,7 +3563,16 @@ export const ACTIONS = [
       "record"
     ],
     "stepUp": false,
-    "riskClass": "R1"
+    "riskClass": "R1",
+    "requiredLevel": "edit",
+    "roles": {
+      "owner": "implicit",
+      "administrator": "implicit",
+      "member": "grant:edit",
+      "limited_member": "grant:edit",
+      "read_only": "deny",
+      "guest": "deny"
+    }
   },
   {
     "key": "agent.assign",
@@ -2671,7 +3581,16 @@ export const ACTIONS = [
       "record"
     ],
     "stepUp": false,
-    "riskClass": "R2"
+    "riskClass": "R2",
+    "requiredLevel": "edit",
+    "roles": {
+      "owner": "implicit",
+      "administrator": "implicit",
+      "member": "grant:edit",
+      "limited_member": "policy:limited_members_agents",
+      "read_only": "deny",
+      "guest": "deny"
+    }
   },
   {
     "key": "agent.run_control",
@@ -2680,7 +3599,16 @@ export const ACTIONS = [
       "record"
     ],
     "stepUp": false,
-    "riskClass": "R1"
+    "riskClass": "R1",
+    "requiredLevel": "edit",
+    "roles": {
+      "owner": "implicit",
+      "administrator": "implicit",
+      "member": "grant:edit",
+      "limited_member": "grant:edit",
+      "read_only": "deny",
+      "guest": "deny"
+    }
   },
   {
     "key": "agent.action_approve",
@@ -2689,7 +3617,16 @@ export const ACTIONS = [
       "record"
     ],
     "stepUp": false,
-    "riskClass": "R3"
+    "riskClass": "R3",
+    "requiredLevel": "manage",
+    "roles": {
+      "owner": "implicit",
+      "administrator": "implicit",
+      "member": "grant:manage",
+      "limited_member": "deny",
+      "read_only": "deny",
+      "guest": "deny"
+    }
   },
   {
     "key": "automation.run_manual",
@@ -2699,7 +3636,16 @@ export const ACTIONS = [
       "workspace"
     ],
     "stepUp": false,
-    "riskClass": "R2"
+    "riskClass": "R2",
+    "requiredLevel": "manage",
+    "roles": {
+      "owner": "implicit",
+      "administrator": "implicit",
+      "member": "grant:manage",
+      "limited_member": "grant:manage",
+      "read_only": "deny",
+      "guest": "deny"
+    }
   },
   {
     "key": "integration.sync_now",
@@ -2708,7 +3654,16 @@ export const ACTIONS = [
       "connection"
     ],
     "stepUp": false,
-    "riskClass": "R1"
+    "riskClass": "R1",
+    "requiredLevel": null,
+    "roles": {
+      "owner": "implicit",
+      "administrator": "implicit",
+      "member": "grant:manage",
+      "limited_member": "deny",
+      "read_only": "deny",
+      "guest": "deny"
+    }
   },
   {
     "key": "import.execute",
@@ -2718,7 +3673,16 @@ export const ACTIONS = [
       "brand"
     ],
     "stepUp": false,
-    "riskClass": "R2"
+    "riskClass": "R2",
+    "requiredLevel": null,
+    "roles": {
+      "owner": "implicit",
+      "administrator": "implicit",
+      "member": "grant:edit",
+      "limited_member": "deny",
+      "read_only": "deny",
+      "guest": "deny"
+    }
   },
   {
     "key": "webhook.test_send",
@@ -2728,10 +3692,51 @@ export const ACTIONS = [
       "brand"
     ],
     "stepUp": false,
-    "riskClass": "R2"
+    "riskClass": "R2",
+    "requiredLevel": null,
+    "roles": {
+      "owner": "implicit",
+      "administrator": "implicit",
+      "member": "grant:manage",
+      "limited_member": "deny",
+      "read_only": "deny",
+      "guest": "deny"
+    }
   }
 ] as const;
 export type ActionKey = (typeof ACTIONS)[number]['key'];
+
+/** 0C account commands (AZ-18): account-level actions performed before any tenant context. */
+export const ACCOUNT_COMMANDS = [
+  {
+    "action": "workspace.create",
+    "principals": [
+      "account"
+    ],
+    "gates": [
+      "email_verified",
+      "account_active",
+      "rate_limit",
+      "idempotency_key"
+    ]
+  }
+] as const;
+export type AccountCommand = (typeof ACCOUNT_COMMANDS)[number]['action'];
+
+/** 0B brand operational status (ADR-19): business metadata, never lifecycle. */
+export const BRAND_OPERATIONAL_STATUSES = [
+  "operating",
+  "paused",
+  "planned"
+] as const;
+export type BrandOperationalStatus = (typeof BRAND_OPERATIONAL_STATUSES)[number];
+
+/** 0B brand notification content mode. */
+export const BRAND_NOTIFICATION_CONTENT_MODES = [
+  "standard",
+  "minimal"
+] as const;
+export type BrandNotificationContentMode = (typeof BRAND_NOTIFICATION_CONTENT_MODES)[number];
 
 /** 0D §11.2 step-up challenge states (`locked` is stored and terminal). */
 export const STEP_UP_CHALLENGE_STATES = [

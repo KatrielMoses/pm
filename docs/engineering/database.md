@@ -10,8 +10,8 @@ extensions are needed in 1A: UUIDv7 keys are application-generated, and `gen_ran
 |---|---|---|
 | `exec` | execution (0B model `schema: exec`) | operation, attempt, job, outbox_event, inbox_receipt, idempotency_key, external_effect; enums; `current_workspace_id()` |
 | `exec_dispatch` | execution | Payload-free `SECURITY DEFINER` scheduling functions |
-| `tenancy` | tenancy | `workspace` anchor (1C extends it additively) |
-| `access` | access | empty (1D) |
+| `tenancy` | tenancy | `workspace` anchor (extended in place, 0017), `membership` (0017), `brand`, `brand_setting`, `scope_preference` (0018); directory definer functions owned by `pm_directory`. See [tenancy.md](tenancy.md) |
+| `access` | access | `role`, `role_assignment`, `permission_epoch` (0017); 1D extends them |
 | `ops` | operational | `schema_migration`, `environment_binding`, `worker_heartbeat`, `rate_limit_bucket`, `dev_secret_vault`, `recovery_gate` (no tenant data) |
 | `audit` | audit (1F) | audit_event, audit_redaction, security_event, chain_checkpoint, activity_item, buffer_verification (0013, 0015); `redact_purged_values` (0014). Append-only by grants **and** triggers; see [audit.md](audit.md) |
 | `core` | core (1F) | record_type, record, archive_batch(+member), deletion_batch(+member) (0014); residual-batch lineage and membership invariants (0016); see [lifecycle.md](lifecycle.md) |
@@ -31,11 +31,13 @@ Created by `packages/db/bootstrap/roles.sql` (provider admin, once per cluster),
 | `app_worker` | yes | **subject** | worker tenant work |
 | `dispatcher` | yes | subject | `EXECUTE` on `exec_dispatch.*` only; cannot select any tenant table |
 | `pm_scheduler` | no | subject + discovery policies | Owns the definer functions; column grants exclude payload, context, keys |
+| `pm_directory` | no | subject + `directory_lookup` select policies | Owns only the 1C account→workspace directory functions (`SECURITY DEFINER`, platform scope, own account only). Only `pm_owner` is a member (SET only) |
 | `audit_maintainer` | no | subject | Owns only `audit.redact_purged_values` (1F); the sole identity the audit triggers let change value fields, and only under a transaction-local redaction operation. Only `pm_owner` is a member (SET only); no login role can become it |
 
 No role has `SUPERUSER`, `BYPASSRLS`, `CREATEROLE`, `CREATEDB`, or `REPLICATION` (catalog test).
 `app_ro` and `platform_support` arrive with the phases that need them. **Existing clusters must
-re-run the role bootstrap before migration 0013** (it creates `audit_maintainer`).
+re-run the role bootstrap before migration 0013** (it creates `audit_maintainer`) **and again before
+migration 0017** (it creates `pm_directory`).
 
 **Managed providers.** If the provider reserves role creation for its admin user, run
 `bootstrap` (`node /app/entrypoint.mjs bootstrap`) or `roles.sql` as that admin. The logical model
@@ -54,7 +56,8 @@ and escalate rather than weakening it.
   `SET`/`set_config(…, false)` are rejected by lint and by the SQL safety check.
 - `PlatformDiscovery` (dispatcher) is the separate, explicitly named cross-tenant path. Its functions
   return only IDs, queue names, lease tokens, timestamps, and counts.
-- `PlatformHealth` reads only `ops` metadata outside tenant context.
+- `PlatformHealth` reads only `ops` metadata and catalog policy state (`tenantIsolationIntact`)
+  outside tenant context; never tenant rows.
 - **Workspace existence is database-enforced** (migration 0009): every `exec` tenant table has
   `<table>_workspace_fkey (workspace_id) REFERENCES tenancy.workspace(id) ON DELETE RESTRICT`.
   Foreign-key checks bypass RLS, so the constraint holds for every identity, including owners and

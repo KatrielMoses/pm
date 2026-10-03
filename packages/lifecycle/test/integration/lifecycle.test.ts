@@ -15,6 +15,7 @@ import { testDecision } from '@pm/lifecycle/testing';
 import {
   createHarness,
   createWorkspace,
+  seedBrand,
   type Harness,
   type SyntheticWorkspace,
 } from '@pm/test-support';
@@ -269,7 +270,7 @@ describe('lifecycle commands: archive, trash, restore (0B §8.3-§8.6)', () => {
       await tx((x) => env.svc.restore(x, d('record.restore'), input(), childBatch.batchId)),
     ).toMatchObject({ alreadyRestored: false });
 
-    const brand = newUuidV7();
+    const brand = (await seedBrand(db.admin, ws.id)).id;
     const branded = await env.create(ws.id, 'Branded', undefined, { brandId: brand });
     const brandedBatch = await tx((x) => env.svc.trash(x, d('record.trash'), input(), branded));
     brandActive = false;

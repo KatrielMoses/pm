@@ -1,0 +1,31 @@
+-- Reverts 0017 (local/test only).
+DROP FUNCTION tenancy.workspace_by_creation_key(uuid, bytea);
+DROP FUNCTION tenancy.resolve_membership(uuid, text);
+DROP FUNCTION tenancy.account_workspaces(uuid);
+DROP POLICY directory_lookup ON tenancy.workspace;
+REVOKE SELECT (id, public_id, name, state, creation_key_hash, creation_request_hash, bootstrap_account_id) ON tenancy.workspace FROM pm_directory;
+REVOKE USAGE ON SCHEMA tenancy, exec FROM pm_directory;
+REVOKE UPDATE (name, logo_file_ref, timezone, locale, currency, week_start, updated_at, updated_by_actor_type,
+  updated_by_actor_id, version) ON tenancy.workspace FROM app_rw;
+GRANT UPDATE ON tenancy.workspace TO app_rw;
+DROP TRIGGER workspace_created_with_owner ON tenancy.workspace;
+DROP FUNCTION tenancy.assert_new_workspace_owned();
+DROP TABLE access.permission_epoch;
+DROP FUNCTION access.permission_epoch_monotonic();
+DROP TABLE access.role_assignment;
+DROP TRIGGER membership_keeps_owner ON tenancy.membership;
+DROP FUNCTION access.assert_workspace_has_owner();
+DROP FUNCTION access.seed_builtin_roles(uuid);
+DROP TABLE access.role;
+ALTER TABLE tenancy.workspace DROP CONSTRAINT workspace_bootstrap_membership_fkey;
+DROP TABLE tenancy.membership;
+ALTER TABLE tenancy.workspace DROP CONSTRAINT workspace_bootstrap_provenance;
+ALTER TABLE tenancy.workspace DROP CONSTRAINT workspace_creation_key_unique;
+ALTER TABLE tenancy.workspace DROP CONSTRAINT workspace_creation_request_length;
+ALTER TABLE tenancy.workspace DROP CONSTRAINT workspace_creation_key_length;
+ALTER TABLE tenancy.workspace DROP CONSTRAINT workspace_logo_file_ref_format;
+ALTER TABLE tenancy.workspace DROP COLUMN bootstrap_membership_id;
+ALTER TABLE tenancy.workspace DROP COLUMN bootstrap_account_id;
+ALTER TABLE tenancy.workspace DROP COLUMN creation_request_hash;
+ALTER TABLE tenancy.workspace DROP COLUMN creation_key_hash;
+ALTER TABLE tenancy.workspace DROP COLUMN logo_file_ref;

@@ -113,7 +113,7 @@ Rules and algorithm: [../04-effective-permissions.md](../04-effective-permission
 | `support_access.grant` | workspace | — | R4 | SU | **all** | **all** | — | — | — | — |
 | `emergency_stop.trigger` | workspace | — | R1 |  | **all** | **all** | — | — | — | — |
 
-## Personal (7)
+## Personal (8)
 
 | Action | Scopes | Level | Risk | Flags | owner | administrator | member | limited_member | read_only | guest |
 |---|---|---|---|---|---|---|---|---|---|---|
@@ -124,6 +124,7 @@ Rules and algorithm: [../04-effective-permissions.md](../04-effective-permission
 | `account.mfa_disable` | personal | — | R4 | SU | own | own | own | own | own | own |
 | `account.recovery_codes_regenerate` | personal | — | R3 | SU | own | own | own | own | own | own |
 | `api_tokens.personal` | personal | — | R3 | SU | own | own | own | if limited_members_tokens | own | — |
+| `workspace.create` | personal | — | R2 |  | — | — | — | — | — | — |
 
 ## Agent tool classes
 
@@ -192,6 +193,7 @@ Rules and algorithm: [../04-effective-permissions.md](../04-effective-permission
 | `account.mfa_disable` | Turn off own two-step verification and remove its factor and recovery codes. | none | SEC-006 | Account-level (platform scope, no workspace or membership): 'own' means the authenticated account's own factors only; it is never a tenant capability. Human-only and not delegable to tokens, agents, automations, integrations, or support: step-up is human-only (0D §11.2) and no 0D scope may list this action. |
 | `account.recovery_codes_regenerate` | Replace own recovery codes; the previous set stops working immediately. | none | SEC-006, SEC-005 | Account-level (platform scope, no workspace or membership): 'own' means the authenticated account's own factors only; it is never a tenant capability. Human-only and not delegable to tokens, agents, automations, integrations, or support: step-up is human-only (0D §11.2) and no 0D scope may list this action. |
 | `api_tokens.personal` | Create, rotate, revoke own personal API tokens (write scopes need step-up). | none | INT-017, INT-018 | Read-only role may only create read scopes. |
+| `workspace.create` | Create a workspace and become its bootstrap owner (verified human account, before any tenant context exists). | none | WSB-001 | Account-level platform command (AZ-18), listed in account_commands. No workspace role cell grants it: no membership exists before the workspace, so every cell is deny and holding any role never confers it. Only the authenticated human account principal may exercise it; tokens, service principals, OAuth clients, integrations, automations, AI, agents, support, and system jobs cannot, and no 0D scope may list it. Gates: verified email, active (not deleted) account, per-account rate limit, Idempotency-Key. It creates authority only by atomically creating the canonical workspace, the active owner membership, and the bootstrap owner assignment. |
 | `workspace.view_settings` | View workspace name, locale, timezone, currency, week start. | none | WSB-002 |  |
 | `workspace.configure` | Edit workspace profile and defaults. | none | WSB-002, ADM-001 |  |
 | `workspace.delete` | Request workspace deletion. | none | SEC-021 |  |

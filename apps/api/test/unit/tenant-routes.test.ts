@@ -15,13 +15,27 @@ function sources(dir: string): string[] {
 }
 
 /**
- * Phase 1F: tenant lifecycle and audit services need a policy decision from 1D. Until then no
- * public route may reach them, and no application code may use the test-only decision issuer.
+ * Phase 1F/1C confinement. Tenant lifecycle and audit services need a policy decision. Since 1C the
+ * only issuer reachable from a request is the tenancy policy compiler (`@pm/tenancy`), which
+ * imports the restricted `@pm/lifecycle/policy-issuer` subpath; nothing else may. The API reaches
+ * lifecycle only through `@pm/tenancy`, and the only lifecycle actions exposed are brand archive
+ * and restore (`…/brands/{br}:archive|:restore`). Trash, purge, retention, and tenant audit stay
+ * unexposed.
  */
-describe('no tenant lifecycle or audit endpoint before 1D policy decisions', () => {
+describe('tenant lifecycle and audit endpoints are reachable only through policy decisions', () => {
   const appFiles = ['apps/api/src', 'apps/worker/src', 'apps/web/src'].flatMap((d) =>
     sources(join(ROOT, d)),
   );
+  const packageFiles = readdirSync(join(ROOT, 'packages'), { withFileTypes: true })
+    .filter((e) => e.isDirectory())
+    .flatMap((e) => {
+      const dir = join(ROOT, 'packages', e.name, 'src');
+      try {
+        return sources(dir);
+      } catch {
+        return [];
+      }
+    });
 
   it('application code never imports the test-only decision issuer', () => {
     const offenders = appFiles.filter((f) =>
@@ -30,14 +44,21 @@ describe('no tenant lifecycle or audit endpoint before 1D policy decisions', () 
     expect(offenders).toEqual([]);
   });
 
-  it('the API process does not wire lifecycle services at all', () => {
+  it('only the tenancy policy compiler imports the restricted decision issuer', () => {
+    const importers = [...appFiles, ...packageFiles]
+      .filter((f) => readFileSync(f, 'utf8').includes("from '@pm/lifecycle/policy-issuer'"))
+      .map((f) => f.slice(ROOT.length + 1));
+    expect(importers).toEqual(['packages/tenancy/src/service.ts']);
+  });
+
+  it('the API process reaches lifecycle only through @pm/tenancy', () => {
     const api = sources(join(ROOT, 'apps/api/src')).filter((f) =>
-      readFileSync(f, 'utf8').includes("from '@pm/lifecycle'"),
+      readFileSync(f, 'utf8').includes("from '@pm/lifecycle"),
     );
     expect(api).toEqual([]);
   });
 
-  it('no API route path exposes trash, archive, restore, purge, retention, or tenant audit', () => {
+  it('no API route path exposes trash, purge, retention, records, or tenant audit', () => {
     const paths = sources(join(ROOT, 'apps/api/src')).flatMap((f) =>
       [...readFileSync(f, 'utf8').matchAll(/['`](\/v1\/[^'`\s]*)['`]/g)].map((m) => m[1]!),
     );
@@ -48,5 +69,14 @@ describe('no tenant lifecycle or audit endpoint before 1D policy decisions', () 
     expect(tenant).toEqual([]);
     // The only audit-derived surface is the account's own security activity.
     expect(paths).toContain('/v1/auth/security-activity');
+  });
+
+  it('archive and restore verbs exist only as brand actions in the tenancy routes', () => {
+    const verbs = sources(join(ROOT, 'apps/api/src')).filter((f) =>
+      /verb === '(archive|restore)'/.test(readFileSync(f, 'utf8')),
+    );
+    expect(verbs.map((f) => f.slice(ROOT.length + 1))).toEqual(['apps/api/src/tenancy/routes.ts']);
+    const routes = readFileSync(join(ROOT, 'apps/api/src/tenancy/routes.ts'), 'utf8');
+    expect(routes).toContain("'/v1/workspaces/:ws/brands/:brand'");
   });
 });

@@ -5,7 +5,6 @@ import { AuthProvider, useAuth } from './auth.tsx';
 import { AccountSecurityPage } from './pages/account-security.tsx';
 import {
   ForgotPasswordPage,
-  OnboardingPage,
   RegisterPage,
   ResetPasswordPage,
   SignInPage,
@@ -14,7 +13,16 @@ import {
   VerifyEmailPage,
 } from './pages/auth-pages.tsx';
 import { LifecycleHarnessPage } from './pages/harness.tsx';
-import { Link, Router, useRouter } from './router.tsx';
+import {
+  BrandSettingsPage,
+  FirstBrandPage,
+  NewBrandPage,
+  OnboardingPage,
+  WorkspaceHomePage,
+  WorkspaceSettingsPage,
+  WorkspacesPage,
+} from './pages/workspace-pages.tsx';
+import { Link, matchPath, Router, useRouter } from './router.tsx';
 import { StepUpProvider } from './stepup.tsx';
 import { Page } from './ui/layout.tsx';
 import './styles.css';
@@ -28,6 +36,7 @@ const ROUTES: Record<string, () => React.JSX.Element> = {
   '/forgot-password': ForgotPasswordPage,
   '/reset-password': ResetPasswordPage,
   '/onboarding': OnboardingPage,
+  '/workspaces': WorkspacesPage,
   '/account/security': AccountSecurityPage,
   '/status': () => <App />,
   // Local/test component harness (the page itself renders "not found" unless enabled).
@@ -42,11 +51,27 @@ function Home() {
   return <Page title="Loading">{null}</Page>;
 }
 
+/** Workspace routes carry public IDs in the path; the server re-derives authority on every call. */
+const PARAM_ROUTES: Array<[string, (p: Record<string, string>) => React.JSX.Element]> = [
+  ['/workspaces/:ws/first-brand', (p) => <FirstBrandPage ws={p.ws!} />],
+  ['/workspaces/:ws/settings', (p) => <WorkspaceSettingsPage ws={p.ws!} />],
+  ['/workspaces/:ws/brands/new', (p) => <NewBrandPage ws={p.ws!} />],
+  [
+    '/workspaces/:ws/brands/:brand',
+    (p) => <BrandSettingsPage key={p.brand} ws={p.ws!} brand={p.brand!} />,
+  ],
+  ['/workspaces/:ws', (p) => <WorkspaceHomePage key={p.ws} ws={p.ws!} />],
+];
+
 function Routes() {
   const { path } = useRouter();
   if (path === '/') return <Home />;
   const Component = ROUTES[path];
   if (Component) return <Component />;
+  for (const [pattern, render] of PARAM_ROUTES) {
+    const params = matchPath(pattern, path);
+    if (params) return render(params);
+  }
   return (
     <Page title="Page not found">
       <p>

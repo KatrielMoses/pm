@@ -29,27 +29,29 @@ references, provenance, creation facts, and `version`.
 
 ### Follow-up constraints for later phases
 
-`brand_id` and `owner_membership_id` are validated plain references until their tables exist.
-There are deliberately no placeholder brand or member tables.
+`owner_membership_id` is a validated plain reference until 1D adds its foreign key.
 
-**1C** (after `tenancy.brand` exists with `UNIQUE (workspace_id, id)`), in an expand migration:
+**1C (done, migration 0018; ADR-0010 C11, C18):**
 
 ```sql
 ALTER TABLE core.record ADD CONSTRAINT record_brand_fkey
   FOREIGN KEY (workspace_id, brand_id) REFERENCES tenancy.brand (workspace_id, id) ON DELETE RESTRICT NOT VALID;
 ALTER TABLE core.record VALIDATE CONSTRAINT record_brand_fkey;
 -- Same for core.archive_batch (archive_batch_brand_fkey) and core.deletion_batch (deletion_batch_brand_fkey).
--- Replace BRANDS_UNTIL_1C with the real BrandPort (restore into an archived brand is blocked).
+-- The real BrandPort is `tenancyBrandPort` (@pm/tenancy): restore into a non-active brand is blocked.
 ```
+
+Brands register a containment-only adapter (`brandAdapter`: children = registered `rootsInBrand`),
+with no purge hooks, so a brand purge blocks with `missing_purge_hook`.
 
 `audit.audit_event.brand_id` and `audit.activity_item.brand_id` stay plain forever: they record
 the scope at event time and must survive brand moves and purges.
 
 **1D:**
 
-- add `FOREIGN KEY (workspace_id, owner_membership_id) REFERENCES access.membership (workspace_id, id)`
+- add `FOREIGN KEY (workspace_id, owner_membership_id) REFERENCES tenancy.membership (workspace_id, id)`
   on `core.record`;
-- implement the policy layer that issues `PolicyDecision` for `record.archive`, `record.restore`,
+- extend the tenancy policy compiler to issue `PolicyDecision` for `record.archive`, `record.restore`,
   `record.trash`, `record.purge`, `trash.manage`, and `audit.view`;
 - add per-record trash visibility for editors (0C §11.1).
 
@@ -60,16 +62,17 @@ workspace, and target. Only an issuer holding the module-private token can build
 
 | Issuer | Use |
 |---|---|
-| 1D policy layer (future) | Real member decisions |
+| `@pm/lifecycle/policy-issuer` (1C) | Decisions compiled by the tenancy policy compiler from canonical membership; today only `brand.archive` (brand archive/restore). Its only allowed importer is `packages/tenancy/src` |
 | `systemDecision('record.purge', …)` | The scheduled retention purge, which runs as the system |
 | `@pm/lifecycle/testing` | Tests only |
 
 A unit test enforces the boundary:
 
 - no application source imports `@pm/lifecycle/testing`;
-- the API process does not import `@pm/lifecycle`;
-- no `/v1` route path contains trash, archive, restore, purge, retention, records, lifecycle, or
-  tenant audit.
+- only `packages/tenancy/src/service.ts` imports `@pm/lifecycle/policy-issuer`;
+- the API process reaches lifecycle only through `@pm/tenancy`;
+- no `/v1` route path contains trash, purge, retention, records, lifecycle, or tenant audit. Archive
+  and restore exist only as the brand actions `…/brands/{br}:archive|:restore` (1C).
 
 ## State machines
 

@@ -31,6 +31,16 @@ export const ALLOWED_RUNTIME = {
     '@pm/platform',
     '@pm/audit',
   ],
+  '@pm/tenancy': [
+    '@pm/contracts',
+    '@pm/config',
+    '@pm/observability',
+    '@pm/db',
+    '@pm/platform',
+    '@pm/audit',
+    '@pm/lifecycle',
+    '@pm/identity',
+  ],
   '@pm/test-infra': [],
   '@pm/test-support': [
     '@pm/test-infra',
@@ -48,6 +58,7 @@ export const ALLOWED_RUNTIME = {
     '@pm/audit',
     '@pm/lifecycle',
     '@pm/identity',
+    '@pm/tenancy',
   ],
   '@pm/worker': [
     '@pm/contracts',
@@ -58,6 +69,7 @@ export const ALLOWED_RUNTIME = {
     '@pm/audit',
     '@pm/lifecycle',
     '@pm/identity',
+    '@pm/tenancy',
   ],
   '@pm/web': ['@pm/config'],
 };

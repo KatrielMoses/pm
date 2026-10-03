@@ -80,6 +80,7 @@ describe('web/API process', () => {
         dispatcher: 'fail',
         object_storage: 'not_configured',
         recovery_gate: 'ok',
+        tenant_isolation: 'ok',
       },
       build: 'abc1234',
     });

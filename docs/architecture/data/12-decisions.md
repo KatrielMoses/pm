@@ -137,3 +137,10 @@ Status of every ADR: **proposed (Phase 0B)**, pending solutions-architect accept
 - **Decision:** Because hidden endpoints must be fully omitted (UXD-28), records never store viewer-independent derived conditions that come from relationships (blocked flags, dependency counts). Derived conditions are computed per viewer, with caches keyed by endpoint visibility scope ([03 §3.5](03-tenancy-brand-sharing.md#35-hidden-endpoints-counts-and-derived-conditions)).
 - **Alternatives:** A denormalized `is_blocked` column (leaks existence across brands). Placeholder rows (rejected by the approved decision).
 - **Consequences:** Somewhat more query work for boards and timelines. Correct and consistent omission across UI, API, search, AI, exports, and notifications.
+
+<a id="adr-19"></a>
+## ADR-19: Brand operational status is business metadata, distinct from lifecycle (Phase 1C amendment)
+
+- **Decision:** `tenancy.brand.operational_status` (`brand_operational_status`) takes exactly `operating`, `paused`, or `planned`. It describes the business, not the record. Archive, trash, and purge stay in `core.record.lifecycle_state` (§8) and are never represented by operational status. A paused brand is fully active for authorization and lists; an archived brand is excluded from active scope whatever its operational status.
+- **Alternatives:** One `status` column that mixes business state with archive (duplicates lifecycle state, and restore would need to guess the prior value). Free-text status (unvalidated, unreportable).
+- **Consequences:** The database CHECK, the generated runtime vocabulary, API validation, and UI options all derive from this entity's key column. The integration validator fails if any of them diverges.

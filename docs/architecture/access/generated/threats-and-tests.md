@@ -43,6 +43,7 @@ Narrative: [../14-threat-model.md](../14-threat-model.md).
 | T-33 | inference | Not-found versus forbidden difference reveals that a readable record exists but an action is forbidden — acceptable only for readable records. | I-07 | AT-076 |
 | T-34 | cross_brand_traversal | Client supplies a brand, role, plan, actor, or approval field to bypass checks. | I-09, I-13 | AT-003, AT-077 |
 | T-35 | spoofing | Account takeover through account security: a stolen or unattended session, or a delegated credential, enrolls or disables a second factor or regenerates recovery codes. | I-01, I-09, I-14, I-17 | AT-081, AT-082, AT-083, AT-084, AT-085, AT-086 |
+| T-36 | spoofing | Tenant-creation abuse: a delegated or non-human principal, an unverified or deleted account, a flood of requests, or a replayed request creates workspaces or gains tenant authority through creation, or a body claim names an existing workspace, role, or membership. | I-01, I-02, I-09, I-11, I-14, I-17 | AT-087, AT-088, AT-089, AT-090, AT-091, AT-092, AT-093, AT-094 |
 
 ## Test matrix
 
@@ -134,6 +135,14 @@ Narrative: [../14-threat-model.md](../14-threat-model.md).
 | AT-084 | T-35 | api_token_personal | Personal API token calls an account-security endpoint — own account | `account.mfa_disable` | api | **deny** | unauthenticated | — |
 | AT-085 | T-35 | agent_run | Agent run attempts recovery-code regeneration for the run owner — run owner account | `account.recovery_codes_regenerate` | api | **deny** | unauthenticated | — |
 | AT-086 | T-35 | account | No factor enrolled; fresh password step-up — own account | `account.mfa_enroll` | api | **allow** | ok | — |
+| AT-087 | T-36 | account | Verified, active human account with a session; Idempotency-Key — no workspace yet | `workspace.create` | api | **allow** | ok | — |
+| AT-088 | T-36 | account | Account whose email is not verified — no workspace yet | `workspace.create` | api | **deny** | forbidden | — |
+| AT-089 | T-36 | api_token_personal | Personal API token calls workspace creation — token owner account | `workspace.create` | api | **deny** | unauthenticated | — |
+| AT-090 | T-36 | agent_run | Agent run attempts to create a workspace for its owner — run owner account | `workspace.create` | api | **deny** | unauthenticated | — |
+| AT-091 | T-36 | automation | Automation attempts to create a workspace — automation owner account | `workspace.create` | api | **deny** | unauthenticated | — |
+| AT-092 | T-36 | account | Same Idempotency-Key replayed concurrently; then reused with a different body — own account | `workspace.create` | api | **allow** | ok | — |
+| AT-093 | T-36 | account | Body names an existing workspace, role, or membership — own account | `workspace.create` | api | **deny** | validation_generic | — |
+| AT-094 | T-36 | account | Requests beyond the per-account workspace-creation limit — own account | `workspace.create` | api | **deny** | error_generic | — |
 
 ## Response shapes
 

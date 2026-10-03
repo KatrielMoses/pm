@@ -32,6 +32,8 @@ export interface ErrorBody {
   retry_after_seconds?: number;
   operation_id?: string;
   step_up?: Record<string, unknown>;
+  /** 0D §4.3 conflict payload (schema `conflict`). */
+  conflict?: Record<string, unknown>;
 }
 
 /** 0D error-envelope. */
@@ -64,6 +66,7 @@ export function errorEnvelope(
     retryAfterSeconds?: number;
     operationId?: string;
     stepUp?: Record<string, unknown>;
+    conflict?: Record<string, unknown>;
   } = {},
 ): ErrorEnvelope {
   const entry = errorCodeEntry(code);
@@ -82,6 +85,7 @@ export function errorEnvelope(
   if (extra.retryAfterSeconds !== undefined) body.retry_after_seconds = extra.retryAfterSeconds;
   if (extra.operationId !== undefined) body.operation_id = extra.operationId;
   if (extra.stepUp !== undefined) body.step_up = extra.stepUp;
+  if (extra.conflict !== undefined) body.conflict = extra.conflict;
   return { error: body };
 }
 
@@ -122,6 +126,9 @@ export const NON_RESOURCE_TYPES = [
   // 1F: the account's own security activity. Security events are internal records without public
   // IDs (0D security-event schema), so the display projection is not a resource collection.
   'security_activity',
+  // 1C: the server-derived workspace/brand scope for the caller. A computed view over authorized
+  // brands and a personal preference, not a record.
+  'workspace_context',
 ] as const;
 export type NonResourceType = (typeof NON_RESOURCE_TYPES)[number];
 

@@ -17,6 +17,11 @@
       "@pm/source": "./src/testing.ts",
       "types": "./dist/testing.d.ts",
       "default": "./dist/testing.js"
+    },
+    "./policy-issuer": {
+      "@pm/source": "./src/policy-issuer.ts",
+      "types": "./dist/policy-issuer.d.ts",
+      "default": "./dist/policy-issuer.js"
     }
   },
   "dependencies": {

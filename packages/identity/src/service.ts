@@ -12,8 +12,10 @@ import {
   type AuthMethod,
   type PlatformDatabase,
   type PlatformTransaction,
+  type ScopedTransaction,
   type StepUpMethod,
   type TokenPurpose,
+  type WorkspaceTransaction,
 } from '@pm/db';
 import type { Logger, Metrics } from '@pm/observability';
 import { completeIdempotencyKey, enqueueJob, reserveIdempotencyKey } from '@pm/platform';
@@ -164,7 +166,7 @@ export class IdentityService {
   }
 
   #event(
-    tx: PlatformTransaction,
+    tx: ScopedTransaction,
     meta: RequestMeta,
     e: Omit<SecurityEvent, 'correlationId' | 'network'>,
   ): Promise<void> {
@@ -2192,7 +2194,49 @@ export class IdentityService {
     req: ProtectedRequest,
     meta: RequestMeta,
   ): Promise<boolean> {
-    if (!isWellFormedToken(req.stepUpToken)) return false;
+    return (await this.#consumeIn(tx, ctx, action, target, null, req, meta)) !== null;
+  }
+
+  /**
+   * Consumes a tenant-action step-up token inside the caller's workspace transaction, so the token
+   * and the action commit or roll back together (1C). The token must have been issued for this
+   * account, session, membership, workspace, action, target, and idempotency key; it is single use.
+   * Returns the consumed challenge ID (for the audit link) or null when no valid token was presented.
+   * The caller decides authorization first: a consumed step-up never grants permission.
+   */
+  async consumeWorkspaceStepUp(
+    tx: WorkspaceTransaction,
+    ctx: AuthContext,
+    binding: {
+      actionKey: string;
+      target?: { type: string; id: string } | undefined;
+      membershipId: string;
+    },
+    req: ProtectedRequest,
+    meta: RequestMeta,
+  ): Promise<string | null> {
+    if ((ACCOUNT_STEP_UP_ACTIONS as readonly string[]).includes(binding.actionKey)) return null;
+    return this.#consumeIn(
+      tx,
+      ctx,
+      binding.actionKey,
+      binding.target,
+      { membershipId: binding.membershipId, workspaceId: tx.workspaceId },
+      req,
+      meta,
+    );
+  }
+
+  async #consumeIn(
+    tx: ScopedTransaction,
+    ctx: AuthContext,
+    action: string,
+    target: { type: string; id: string } | undefined,
+    tenant: { membershipId: string; workspaceId: string } | null,
+    req: ProtectedRequest,
+    meta: RequestMeta,
+  ): Promise<string | null> {
+    if (!isWellFormedToken(req.stepUpToken)) return null;
     const targetHash = this.#targetHash(target);
     const consumed = await tx.db
       .updateTable('identity.step_up_challenge')
@@ -2205,6 +2249,14 @@ export class IdentityService {
       .where('action_key', '=', action)
       .where((eb) =>
         targetHash ? eb('target_hash', '=', targetHash) : eb('target_hash', 'is', null),
+      )
+      .where((eb) =>
+        tenant
+          ? eb.and([
+              eb('membership_id', '=', tenant.membershipId),
+              eb('workspace_id', '=', tenant.workspaceId),
+            ])
+          : eb.and([eb('membership_id', 'is', null), eb('workspace_id', 'is', null)]),
       )
       .where((eb) =>
         eb.or([
@@ -2223,7 +2275,7 @@ export class IdentityService {
         subject: { type: 'session', id: ctx.session.id },
       });
     }
-    return Boolean(consumed);
+    return consumed?.id ?? null;
   }
 
   // -------------------------------------------------------------------------------------------

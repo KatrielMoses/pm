@@ -35,11 +35,12 @@ The registry lists 29 required signals ([generated/registries.md](generated/regi
 | Usage | reservations denied, cap stops |
 | Audit | **write failures** |
 | Auth | step-up outcomes, support-access actions |
+| Tenancy | workspace/brand command outcomes, authorization decisions by action and outcome, tenant-context failures and fallbacks by reason, RLS denials by module ([PL-19](19-decisions.md#pl-19)) |
 
 ## 17.4 Health and readiness
 
 - `GET /healthz` (liveness: the process responds).
-- `GET /readyz` (readiness: database reachable, migrations at the expected version, outbox dispatcher alive, object storage reachable).
+- `GET /readyz` (readiness: database reachable, migrations at the expected version, outbox dispatcher alive, object storage reachable, post-restore recovery gate open, and tenant-isolation policy state intact ([PL-19](19-decisions.md#pl-19))).
 
 Both return no tenant data or version details beyond a build identifier, and are not exposed publicly beyond the load balancer.
 

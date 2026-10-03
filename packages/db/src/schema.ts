@@ -1,6 +1,8 @@
 import type { ColumnType, Generated } from 'kysely';
 import type {
   ActorType,
+  BrandNotificationContentMode,
+  BrandOperationalStatus,
   DataClass,
   EffectDestinationClass,
   EffectState,
@@ -64,6 +66,11 @@ export interface WorkspaceTable {
   updated_by_actor_type: ActorType;
   updated_by_actor_id: string | null;
   version: Defaulted<number>;
+  logo_file_ref: string | null;
+  creation_key_hash: Buffer | null;
+  creation_request_hash: Buffer | null;
+  bootstrap_account_id: string | null;
+  bootstrap_membership_id: string | null;
 }
 
 export interface OperationTable extends ContextColumns {
@@ -710,6 +717,118 @@ export interface RecoveryGateTable {
   updated_at: DTs;
 }
 
+export type MembershipKind = 'member' | 'guest';
+export type MembershipState = 'invited' | 'active' | 'suspended' | 'removed';
+
+export interface MembershipTable {
+  id: string;
+  public_id: string;
+  workspace_id: string;
+  account_id: string;
+  kind: MembershipKind;
+  state: MembershipState;
+  display_name_override: string | null;
+  invited_at: Ts | null;
+  joined_at: Ts | null;
+  suspended_at: Ts | null;
+  removed_at: Ts | null;
+  created_at: DTs;
+  updated_at: DTs;
+  version: Defaulted<number>;
+}
+
+export type RoleKind = 'workspace_role' | 'scope_level';
+
+export interface RoleTable {
+  id: string;
+  workspace_id: string;
+  key: string;
+  kind: RoleKind;
+  level: string | null;
+  builtin: Defaulted<boolean>;
+  created_at: DTs;
+  version: Defaulted<number>;
+}
+
+export type GrantSource =
+  'bootstrap_owner' | 'brand_creator' | 'sensitivity_creator' | 'assigned' | 'elevation';
+
+export interface RoleAssignmentTable {
+  id: string;
+  workspace_id: string;
+  principal_type: 'membership';
+  principal_id: string;
+  membership_principal_id: Generated<string | null>;
+  scope_type: 'workspace' | 'brand';
+  scope_id: string;
+  brand_scope_id: Generated<string | null>;
+  role_id: string;
+  role_kind: RoleKind;
+  grant_source: GrantSource;
+  granted_by_membership_id: string | null;
+  expires_at: Ts | null;
+  elevated: Defaulted<boolean>;
+  elevation_reason: string | null;
+  elevation_step_up_id: string | null;
+  created_at: DTs;
+  version: Defaulted<number>;
+}
+
+export interface PermissionEpochTable {
+  workspace_id: string;
+  epoch_kind: 'workspace' | 'principal' | 'agent_class';
+  subject_id: string | null;
+  epoch: Defaulted<number>;
+  bumped_at: DTs;
+}
+
+export type { BrandOperationalStatus } from '@pm/contracts';
+export type NotificationContentMode = BrandNotificationContentMode;
+
+export interface BrandTable {
+  id: string;
+  workspace_id: string;
+  scope_key: string;
+  lifecycle_state: Defaulted<LifecycleState>;
+  name: string;
+  short_name: string | null;
+  logo_file_ref: string | null;
+  color: string;
+  icon: string;
+  description: string | null;
+  operational_status: Defaulted<BrandOperationalStatus>;
+  timezone: string;
+  is_sensitive: Defaulted<boolean>;
+  notification_content_mode: Defaulted<NotificationContentMode>;
+  created_at: DTs;
+  created_by_membership_id: string;
+  updated_at: DTs;
+  updated_by_membership_id: string | null;
+  version: Defaulted<number>;
+}
+
+export interface BrandSettingTable {
+  workspace_id: string;
+  brand_id: string;
+  working_hours: Json<Record<string, unknown>>;
+  calendar: Json<Record<string, unknown>>;
+  priorities: Json<Record<string, unknown>>;
+  notification_settings: Json<Record<string, unknown>> | null;
+  ai_settings: Json<Record<string, unknown>> | null;
+  integration_settings: Json<Record<string, unknown>> | null;
+  updated_at: DTs;
+  updated_by_membership_id: string | null;
+  version: Defaulted<number>;
+}
+
+export interface ScopePreferenceTable {
+  workspace_id: string;
+  owner_membership_id: string;
+  scope_kind: 'brand' | 'all';
+  brand_id: string | null;
+  updated_at: DTs;
+}
+
 export interface Database {
   'tenancy.workspace': WorkspaceTable;
   'exec.operation': OperationTable;
@@ -747,6 +866,13 @@ export interface Database {
   'core.deletion_batch_member': DeletionBatchMemberTable;
   'governance.retention_policy': RetentionPolicyTable;
   'ops.recovery_gate': RecoveryGateTable;
+  'tenancy.membership': MembershipTable;
+  'access.role': RoleTable;
+  'access.role_assignment': RoleAssignmentTable;
+  'access.permission_epoch': PermissionEpochTable;
+  'tenancy.brand': BrandTable;
+  'tenancy.brand_setting': BrandSettingTable;
+  'tenancy.scope_preference': ScopePreferenceTable;
 }
 
 /** Column inventory per table, compared with the migrated catalog by the schema-drift test. */
@@ -768,6 +894,11 @@ export const TABLE_COLUMNS: Readonly<Record<keyof Database, readonly string[]>> 
     'updated_by_actor_type',
     'updated_by_actor_id',
     'version',
+    'logo_file_ref',
+    'creation_key_hash',
+    'creation_request_hash',
+    'bootstrap_account_id',
+    'bootstrap_membership_id',
   ],
   'exec.operation': [
     'id',
@@ -1323,4 +1454,83 @@ export const TABLE_COLUMNS: Readonly<Record<keyof Database, readonly string[]>> 
     'version',
   ],
   'ops.recovery_gate': ['id', 'state', 'backup_point', 'replayed_through', 'updated_at'],
+  'tenancy.membership': [
+    'id',
+    'public_id',
+    'workspace_id',
+    'account_id',
+    'kind',
+    'state',
+    'display_name_override',
+    'invited_at',
+    'joined_at',
+    'suspended_at',
+    'removed_at',
+    'created_at',
+    'updated_at',
+    'version',
+  ],
+  'access.role': ['id', 'workspace_id', 'key', 'kind', 'level', 'builtin', 'created_at', 'version'],
+  'access.role_assignment': [
+    'id',
+    'workspace_id',
+    'principal_type',
+    'principal_id',
+    'membership_principal_id',
+    'scope_type',
+    'scope_id',
+    'brand_scope_id',
+    'role_id',
+    'role_kind',
+    'grant_source',
+    'granted_by_membership_id',
+    'expires_at',
+    'elevated',
+    'elevation_reason',
+    'elevation_step_up_id',
+    'created_at',
+    'version',
+  ],
+  'access.permission_epoch': ['workspace_id', 'epoch_kind', 'subject_id', 'epoch', 'bumped_at'],
+  'tenancy.brand': [
+    'id',
+    'workspace_id',
+    'scope_key',
+    'lifecycle_state',
+    'name',
+    'short_name',
+    'logo_file_ref',
+    'color',
+    'icon',
+    'description',
+    'operational_status',
+    'timezone',
+    'is_sensitive',
+    'notification_content_mode',
+    'created_at',
+    'created_by_membership_id',
+    'updated_at',
+    'updated_by_membership_id',
+    'version',
+  ],
+  'tenancy.brand_setting': [
+    'workspace_id',
+    'brand_id',
+    'working_hours',
+    'calendar',
+    'priorities',
+    'notification_settings',
+    'ai_settings',
+    'integration_settings',
+    'updated_at',
+    'updated_by_membership_id',
+    'version',
+  ],
+  'tenancy.scope_preference': [
+    'workspace_id',
+    'owner_membership_id',
+    'scope_kind',
+    'brand_id',
+    'updated_at',
+  ],
 };

@@ -299,7 +299,7 @@ Source: `contracts/registry.json`.
 
 ## Telemetry signals
 
-Forbidden metric labels: `workspace_id`, `brand_id`, `record_id`, `public_id`, `email`, `title`, `name`, `query`, `ip`, `user_agent`.
+Forbidden metric labels: `workspace_id`, `brand_id`, `record_id`, `public_id`, `email`, `title`, `name`, `query`, `ip`, `user_agent`, `workspace`, `brand`, `membership`, `membership_id`, `account`, `account_id`, `timezone`, `content`.
 
 | Signal | Type | Labels | Area |
 |---|---|---|---|
@@ -332,6 +332,11 @@ Forbidden metric labels: `workspace_id`, `brand_id`, `record_id`, `public_id`, `
 | `audit.write_failures` | counter | module | audit |
 | `step_up.challenges` | counter | outcome | auth |
 | `security.support_access_actions` | counter | outcome | auth |
+| `tenancy.commands` | counter | command, outcome | tenancy |
+| `tenancy.authz_decisions` | counter | action_key, outcome | tenancy |
+| `tenancy.context_failures` | counter | reason | tenancy |
+| `tenancy.context_fallbacks` | counter | reason | tenancy |
+| `tenancy.rls_denials` | counter | module | tenancy |
 
 ## Named parameters (values are configuration, not promises)
 

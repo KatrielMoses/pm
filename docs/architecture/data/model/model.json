@@ -1700,7 +1700,7 @@
         "color",
         "icon",
         "description",
-        "status brand_status",
+        "operational_status brand_operational_status (operating|paused|planned)",
         "timezone text",
         "is_sensitive boolean",
         "notification_content_mode (standard|minimal)"
@@ -1711,7 +1711,7 @@
         "WSB-005",
         "WSB-010"
       ],
-      "notes": "For the brand row, brand_id = id."
+      "notes": "For the brand row, brand_id = id. operational_status is business metadata only (ADR-19): archive, trash, and purge are core.record.lifecycle_state and are never represented by operational_status."
     },
     {
       "name": "membership",
@@ -1901,6 +1901,43 @@
         "WSB-014"
       ],
       "notes": ""
+    },
+    {
+      "name": "scope_preference",
+      "module": "tenancy",
+      "purpose": "Per person per workspace: the last selected brand or all-brands context. Revalidated against current authorization on every use; never grants access.",
+      "scope": "personal",
+      "addressable": false,
+      "public_id_prefix": null,
+      "extends": null,
+      "containment_parents": [],
+      "associations": [
+        "membership",
+        "brand"
+      ],
+      "lifecycle": "mutable",
+      "concurrency": "locked",
+      "retention_class": "R-PERSONAL",
+      "confidentiality": "C1",
+      "volume": "medium",
+      "export": "self",
+      "search_ai": "no",
+      "may_contain_secrets": "no",
+      "personal_data": "incidental",
+      "uniqueness": [
+        "(workspace_id, owner_membership_id)"
+      ],
+      "sensitive_fields": [],
+      "key_columns": [
+        "owner_membership_id",
+        "scope_kind (brand|all)",
+        "brand_id"
+      ],
+      "requirements": [
+        "WSB-006",
+        "WSB-009"
+      ],
+      "notes": "Phase 1C. Upserted on its primary key (row lock); the latest selection wins. A stale or unauthorized brand falls back to the first authorized active brand; it never broadens to all brands."
     },
     {
       "name": "role",

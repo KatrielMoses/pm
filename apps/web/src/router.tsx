@@ -91,3 +91,23 @@ export function takeFragmentToken(): string | undefined {
     window.history.replaceState(null, '', window.location.pathname + window.location.search);
   return m?.[1];
 }
+
+/**
+ * Matches `/workspaces/:ws/brands/:brand`-style patterns. Parameters are single path segments of
+ * public-ID characters only; anything else does not match (the page is then "not found").
+ */
+export function matchPath(pattern: string, path: string): Record<string, string> | null {
+  const p = pattern.split('/');
+  const s = path.split('/');
+  if (p.length !== s.length) return null;
+  const params: Record<string, string> = {};
+  for (let i = 0; i < p.length; i++) {
+    const part = p[i]!;
+    const seg = s[i]!;
+    if (part.startsWith(':')) {
+      if (!/^[A-Za-z0-9_]{1,64}$/.test(seg)) return null;
+      params[part.slice(1)] = seg;
+    } else if (part !== seg) return null;
+  }
+  return params;
+}
