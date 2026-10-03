@@ -13,6 +13,9 @@ import {
   type IdentityEnv,
 } from './identity-helpers.ts';
 
+/** Synthetic credential for the redaction test. */
+const NEW_PASSWORD = 'Zz-unique-passphrase-91'; // gitleaks:allow (synthetic)
+
 describe('identity: OAuth boundary (local provider)', () => {
   let env: IdentityEnv;
 
@@ -349,8 +352,8 @@ describe('identity: abuse controls, timing, jobs, and redaction', () => {
     await b.post('/v1/auth/password:forgot', { email: 'redact-me@example.test' });
     await env.deliverMail();
     const token = tokenFrom(mailTo(env, 'redact-me@example.test', 'reset').at(-1));
-    await b.post('/v1/auth/password:reset', { token, password: 'Zz-unique-passphrase-91' });
-    await signIn(b, 'redact-me@example.test', 'Zz-unique-passphrase-91');
+    await b.post('/v1/auth/password:reset', { token, password: NEW_PASSWORD });
+    await signIn(b, 'redact-me@example.test', NEW_PASSWORD);
     await b.get('/v1/auth/me');
     // MFA: step-up token, TOTP seed, recovery codes.
     const key = idemKey();
@@ -360,7 +363,7 @@ describe('identity: abuse controls, timing, jobs, and redaction', () => {
     const stepUpToken = (
       await b.post(`/v1/auth/step-up/${ch.id}:verify`, {
         method: 'password',
-        proof: 'Zz-unique-passphrase-91',
+        proof: NEW_PASSWORD,
       })
     ).json().data.token as string;
     const { id, secret } = (
@@ -390,7 +393,7 @@ describe('identity: abuse controls, timing, jobs, and redaction', () => {
     expect((await b.get(callback.pathname + callback.search)).statusCode).toBe(303);
     // A second device signs in with a recovery code.
     const other = new Browser(env.app);
-    await signIn(other, 'redact-me@example.test', 'Zz-unique-passphrase-91');
+    await signIn(other, 'redact-me@example.test', NEW_PASSWORD);
     expect(
       (await other.post('/v1/auth/sign-in:mfa', { method: 'recovery_code', code: codes[0] }))
         .statusCode,
@@ -399,7 +402,7 @@ describe('identity: abuse controls, timing, jobs, and redaction', () => {
     const logs = env.h.sink.lines.join('\n');
     const secrets = [
       PASSWORD,
-      'Zz-unique-passphrase-91',
+      NEW_PASSWORD,
       token,
       b.session!,
       other.session!,
