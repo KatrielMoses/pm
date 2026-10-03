@@ -1,5 +1,9 @@
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
+import { STEP_UP_CHALLENGE_STATES } from '@pm/contracts';
 import {
+  ACCOUNT_STEP_UP_ACTIONS,
   base32Decode,
   base32Encode,
   checkPasswordPolicy,
@@ -234,5 +238,51 @@ describe('mail templates', () => {
         expect(r.text).not.toContain('T'.repeat(43));
       }
     }
+  });
+});
+
+describe('account step-up actions come from the canonical 0C registry (AZ-17)', () => {
+  const policy = JSON.parse(
+    readFileSync(
+      resolve(import.meta.dirname, '../../../../docs/architecture/access/policy/policy.json'),
+      'utf8',
+    ),
+  ) as {
+    actions: Array<{
+      key: string;
+      kind: string;
+      scopes: string[];
+      step_up: boolean;
+      risk_class: string;
+      roles: Record<string, string>;
+    }>;
+  };
+
+  it('equals the personal, step-up-flagged account.* actions of policy.json', () => {
+    const canonical = policy.actions.filter(
+      (a) => a.kind === 'personal' && a.step_up && a.key.startsWith('account.'),
+    );
+    expect([...ACCOUNT_STEP_UP_ACTIONS].sort()).toEqual(canonical.map((a) => a.key).sort());
+    expect([...ACCOUNT_STEP_UP_ACTIONS].sort()).toEqual([
+      'account.mfa_disable',
+      'account.mfa_enroll',
+      'account.recovery_codes_regenerate',
+    ]);
+    for (const a of canonical) {
+      expect(a.scopes).toEqual(['personal']);
+      expect(new Set(Object.values(a.roles))).toEqual(new Set(['own']));
+      expect(['R3', 'R4']).toContain(a.risk_class);
+    }
+  });
+
+  it('uses the 0D challenge states, including the stored terminal locked state', () => {
+    expect(STEP_UP_CHALLENGE_STATES).toEqual([
+      'pending',
+      'verified',
+      'consumed',
+      'expired',
+      'cancelled',
+      'locked',
+    ]);
   });
 });

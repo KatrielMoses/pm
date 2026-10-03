@@ -1,6 +1,6 @@
 # 14. Threat model and verification matrix
 
-The 34 threats and 80 authorization tests are machine-readable in [policy/threats.json](policy/threats.json) and rendered in [generated/threats-and-tests.md](generated/threats-and-tests.md).
+The 35 threats and 86 authorization tests are machine-readable in [policy/threats.json](policy/threats.json) and rendered in [generated/threats-and-tests.md](generated/threats-and-tests.md).
 
 ## 14.1 Coverage
 

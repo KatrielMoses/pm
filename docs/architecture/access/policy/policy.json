@@ -1590,6 +1590,88 @@
       "notes": ""
     },
     {
+      "key": "account.mfa_enroll",
+      "kind": "personal",
+      "scopes": [
+        "personal"
+      ],
+      "description": "Enroll an authenticator (TOTP) factor on own account.",
+      "required_level": null,
+      "risk_class": "R3",
+      "approval_class": "none",
+      "step_up": true,
+      "second_approval": false,
+      "non_delegable": false,
+      "entitlement": null,
+      "roles": {
+        "owner": "own",
+        "administrator": "own",
+        "member": "own",
+        "limited_member": "own",
+        "read_only": "own",
+        "guest": "own"
+      },
+      "requirements": [
+        "SEC-006"
+      ],
+      "notes": "Account-level (platform scope, no workspace or membership): 'own' means the authenticated account's own factors only; it is never a tenant capability. Human-only and not delegable to tokens, agents, automations, integrations, or support: step-up is human-only (0D §11.2) and no 0D scope may list this action. Step-up accepts the password when no factor exists yet, so enrollment never requires MFA before the first MFA."
+    },
+    {
+      "key": "account.mfa_disable",
+      "kind": "personal",
+      "scopes": [
+        "personal"
+      ],
+      "description": "Turn off own two-step verification and remove its factor and recovery codes.",
+      "required_level": null,
+      "risk_class": "R4",
+      "approval_class": "none",
+      "step_up": true,
+      "second_approval": false,
+      "non_delegable": false,
+      "entitlement": null,
+      "roles": {
+        "owner": "own",
+        "administrator": "own",
+        "member": "own",
+        "limited_member": "own",
+        "read_only": "own",
+        "guest": "own"
+      },
+      "requirements": [
+        "SEC-006"
+      ],
+      "notes": "Account-level (platform scope, no workspace or membership): 'own' means the authenticated account's own factors only; it is never a tenant capability. Human-only and not delegable to tokens, agents, automations, integrations, or support: step-up is human-only (0D §11.2) and no 0D scope may list this action."
+    },
+    {
+      "key": "account.recovery_codes_regenerate",
+      "kind": "personal",
+      "scopes": [
+        "personal"
+      ],
+      "description": "Replace own recovery codes; the previous set stops working immediately.",
+      "required_level": null,
+      "risk_class": "R3",
+      "approval_class": "none",
+      "step_up": true,
+      "second_approval": false,
+      "non_delegable": false,
+      "entitlement": null,
+      "roles": {
+        "owner": "own",
+        "administrator": "own",
+        "member": "own",
+        "limited_member": "own",
+        "read_only": "own",
+        "guest": "own"
+      },
+      "requirements": [
+        "SEC-006",
+        "SEC-005"
+      ],
+      "notes": "Account-level (platform scope, no workspace or membership): 'own' means the authenticated account's own factors only; it is never a tenant capability. Human-only and not delegable to tokens, agents, automations, integrations, or support: step-up is human-only (0D §11.2) and no 0D scope may list this action."
+    },
+    {
       "key": "api_tokens.personal",
       "kind": "personal",
       "scopes": [

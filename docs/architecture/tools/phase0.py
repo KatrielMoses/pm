@@ -440,6 +440,89 @@ def check_summary_docs():
     return errs
 
 
+RUNTIME_DIRS = ["apps", "packages"]
+RUNTIME_SKIP_DIRS = {"node_modules", "dist", "test", "generated"}
+
+
+def runtime_sources():
+    for base in RUNTIME_DIRS:
+        for dirpath, dirs, files in os.walk(P(base)):
+            dirs[:] = sorted(d for d in dirs if d not in RUNTIME_SKIP_DIRS)
+            for f in sorted(files):
+                if f.endswith((".ts", ".tsx")) and not f.endswith(".d.ts"):
+                    yield os.path.join(dirpath, f)
+
+
+def migrated_check_values(table, constraint):
+    """Last definition of `constraint` across the ordered up-migrations: the values of its IN (...) list."""
+    values = None
+    mig = P("packages/db/migrations")
+    if not os.path.isdir(mig):
+        return None
+    pat = re.compile(r"CONSTRAINT %s\s+CHECK\s*\(\s*state IN\s*\(([^)]*)\)" % re.escape(constraint))
+    for f in sorted(x for x in os.listdir(mig) if x.endswith(".up.sql")):
+        text = read(os.path.join(mig, f))
+        if table not in text:
+            continue
+        for m in pat.finditer(text):
+            values = re.findall(r"'([a-z_]+)'", m.group(1))
+    return values
+
+
+def check_step_up(policy, registry):
+    """Step-up invariants across 0C/0D and the runtime (Phase 1B review 01): every runtime step-up
+    action is a step-up action in 0C; own-account step-up actions are personal, human-only (no scope
+    lists them), R3/R4, and implemented; the stored challenge states agree across 0D and the DB."""
+    errs = []
+    A = {a["key"]: a for a in policy["actions"]}
+    scoped = {x for s in registry["scopes"] for x in s["actions"]}
+    for a in A.values():
+        if a["risk_class"] == "R4" and not a["step_up"] and a["key"] != "emergency_stop.trigger":
+            errs.append("0C %s is R4 without step-up" % a["key"])
+    personal = {k: a for k, a in A.items() if k.startswith("account.")}
+    for k, a in personal.items():
+        if a["kind"] != "personal" or not a["step_up"]:
+            errs.append("0C own-account action %s must be personal and step-up protected" % k)
+        if a["scopes"] != ["personal"]:
+            errs.append("0C %s must be scoped to personal only" % k)
+        if set(a["roles"].values()) != {"own"}:
+            errs.append("0C %s must be 'own' for every role (never a tenant capability)" % k)
+        if a["risk_class"] not in ("R3", "R4"):
+            errs.append("0C %s: own-account security actions are R3 or R4" % k)
+        if a["second_approval"] or a["entitlement"]:
+            errs.append("0C %s: own-account security needs no approver or entitlement" % k)
+        if k in scoped:
+            errs.append("0D scope lists human-only step-up action %s" % k)
+    # Runtime: #protected(...) action arguments and explicit step-up action keys.
+    protected = re.compile(r"#protected\(\s*\w+\s*,\s*'([a-z_]+(?:\.[a-z_]+)+)'")
+    account_literal = re.compile(r"(?:actionKey|action_key|stepUpAction)\s*[:=(]\s*'([a-z_]+(?:\.[a-z_]+)+)'")
+    used = set()
+    for f in runtime_sources():
+        rel = os.path.relpath(f, ROOT)
+        text = read(f)
+        for m in protected.finditer(text):
+            used.add(m.group(1))
+            if m.group(1) not in A or not A[m.group(1)]["step_up"]:
+                errs.append("%s: step-up protected action %s is not a 0C step-up action" % (rel, m.group(1)))
+        for m in account_literal.finditer(text):
+            if m.group(1) not in A or not A[m.group(1)]["step_up"]:
+                errs.append("%s: step-up action key %s is not a 0C step-up action" % (rel, m.group(1)))
+    if os.path.isdir(P("packages/identity/src")):
+        for k in sorted(set(personal) - used):
+            errs.append("0C step-up action %s has no runtime #protected(...) use" % k)
+    # Challenge states: 0D schema ↔ last migrated DB constraint.
+    schema = load(P("docs/architecture/platform/contracts/schemas/step-up-challenge.schema.json"))
+    states = schema["properties"]["state"]["enum"]
+    if "locked" not in states:
+        errs.append("0D step-up challenge states lack the stored terminal state 'locked'")
+    if not any(p["name"] == "STEP_UP_MAX_ATTEMPTS" for p in registry["parameters"]):
+        errs.append("0D parameter STEP_UP_MAX_ATTEMPTS is not registered")
+    db = migrated_check_values("identity.step_up_challenge", "step_up_challenge_state_known")
+    if db is not None and sorted(db) != sorted(states):
+        errs.append("DB step_up_challenge states %s differ from 0D %s" % (db, states))
+    return errs
+
+
 def main():
     rep = Report()
     run_packages(rep)
@@ -455,6 +538,7 @@ def main():
     rep.add("cross: approved amendments present at source", check_required_statements())
     rep.add("cross: cross-phase blockers resolved", check_blockers())
     rep.add("cross: Phase 0 summary documents (links, references)", check_summary_docs())
+    rep.add("cross: step-up actions and challenge states (0C/0D/runtime)", check_step_up(policy, registry))
     failed = 0
     for name, (errs, detail) in rep.sections.items():
         status = "PASS" if not errs else "FAIL (%d)" % len(errs)

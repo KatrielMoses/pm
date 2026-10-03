@@ -1,8 +1,8 @@
 # ADR-0008: Identity and sessions (Phase 1B) — decisions and deviations
 
-Status: proposed (awaiting product-owner review). Items marked **needs approval** change or extend
-an accepted Phase 0 document and must be accepted, amended, or rejected before 1B is called
-complete. Everything else is an implementation decision inside the brief.
+Status: **accepted and implemented** (Phase 1B review 01). The ten proposed choices B1–B10 have
+the dispositions below. B1 and B2 are recorded at the authoritative Phase 0 sources. B8 was rejected
+and replaced by a stored `locked` state. No item awaits approval.
 
 ## Decisions inside the brief
 
@@ -15,7 +15,7 @@ complete. Everything else is an implementation decision inside the brief.
 | I5 | One-time tokens | 256-bit random, base64url, stored as SHA-256 in `identity.verification_token` (purpose, expiry, consumed). Links put the token in the URL **fragment** (`#token=`), so it never reaches server logs, `Referer`, or proxies. Mail delivery carries a vault reference only; the vault entry is destroyed after send. | Brief: raw tokens shown/sent once; C4 never in ordinary tables |
 | I6 | Enumeration resistance | Registration, resend, and recovery always answer the same acknowledgement; a response-time floor (`AUTH_RESPONSE_FLOOR_MS`, default 400 ms) and a dummy Argon2 verification for unknown accounts equalise timing class; rate-limit keys are per source and per email, so a limited response says nothing about existence. Registering an existing address sends the owner an "already registered" notice instead. | Brief |
 | I7 | Abuse controls | Postgres buckets `ops.rate_limit_bucket`, keyed by `HMAC(signing key, policy ‖ dimension)` (no raw IP or email stored). Escalating temporary blocks 30 s × 2^strikes, capped at 15 min. **No permanent lockout.** Policy numbers are operational defaults, overridable with `RATE_LIMIT_POLICIES`, and are **not published**. | Brief: lockout promises and global numbers remain unset |
-| I8 | Step-up | 0D §11.2 exactly: `403 step_up_required` with a challenge bound to session, account, action, target hash, and idempotency-key hash; verification returns a single-use token; the client retries the same request with `Step-Up` and the same `Idempotency-Key`. Token consumed in the action's transaction. | Brief |
+| I8 | Step-up | 0D §11.2 exactly: `403 step_up_required` with a challenge bound to session, account, action, target hash, and idempotency-key hash; verification returns a single-use token; repeated failures store the terminal `locked` state (see B8); the client retries the same request with `Step-Up` and the same `Idempotency-Key`. Token consumed in the action's transaction. | Brief |
 | I9 | MFA | TOTP (RFC 6238, SHA-1, 6 digits, 30 s, ±1 step, replay-protected by last-used step). Seed stored in the secret vault, referenced from `identity.mfa_factor.secret_ref`, destroyed on disable/re-enrol. 10 recovery codes of 80 random bits each, stored only as SHA-256 (high entropy, so a slow hash adds nothing), single use; regenerate replaces all. | Brief; authenticator compatibility |
 | I10 | Secret vault | `SecretVault` interface in `@pm/config`. Only adapter shipped: `DevDatabaseVault` (AES-256-GCM, key `DEV_VAULT_KEY`), **refused at startup in deployed modes**. | Brief: KMS boundary with non-production adapter |
 | I11 | Mail | Outbox-style `identity.mail_delivery` rows, delivered by the worker (`identity.mail_delivery` job). Local transport `capture` writes files to `MAIL_CAPTURE_DIR`; refused in deployed modes. | Brief: mail via outbox; no vendor chosen |
@@ -23,24 +23,47 @@ complete. Everything else is an implementation decision inside the brief.
 | I13 | Device data | Sessions record a user-agent **family** label and a network **prefix** (IPv4 /24, IPv6 /48), never the full IP or UA string. | Data minimisation |
 | I14 | Cleanup | Recurring platform job `identity.cleanup` (every 15 min) deletes expired tokens, challenges, sessions past `SESSION_RETENTION_MS`, delivered mail past `MAIL_RETENTION_MS`, expired vault entries, and stale rate-limit buckets. | Brief |
 
-## Deviations and additions needing product-owner approval
+## Review dispositions (B1–B10)
 
-| # | Topic | Accepted text | Implementation | Why | Cost to change |
-|---|---|---|---|---|---|
-| B1 | Public-ID prefixes | 0D registry has no prefixes for sessions, MFA factors, or OAuth identities | **Needs approval.** Pending prefixes `ses_`, `mfa_`, `oid_` in `packages/contracts/src/pending.ts`, accepted by the ID parser but kept out of the generated 0D registry | Session revocation, factor management, and unlink need addressable resources | Low (rename prefixes before any external client) |
-| B2 | Step-up action keys | 0C action catalog has no account-level MFA actions | **Needs approval.** `account.mfa_enroll`, `account.mfa_disable`, `account.recovery_codes_regenerate` (in `ACCOUNT_STEP_UP_ACTIONS`). These are the only step-up-protected 1B actions; OAuth link/unlink and session revocation rely on the session plus CSRF | 0D §11.2 requires an action key in the challenge | Low (add to 0C or rename) |
-| B3 | Singleton envelopes | ADR-0007 D6 limits id-less envelopes to `platform_status` | **Needs approval.** `PLATFORM_SINGLETON_TYPES` extended with `acknowledgement`, `sign_in_result`, `step_up_token`, `recovery_code_set`, `oauth_authorization`; the confinement unit test now covers `apps/api/src/auth/routes.ts` | These responses are not records and have no public ID | Low |
-| B4 | Security events | 0D audit/outbox; outbox payloads are capped at C2 | **Needs approval.** Durable `identity.security_event_buffer` (platform scope, C3 payloads such as network prefix) until the 1F audit sink exists; no 0D identity event types are registered | Identity events must not go through the C2 outbox and 1F is not built | Medium (migrate buffer into 1F audit) |
-| B5 | Platform-scope execution | ADR-0007 D5 kept `exec.job.workspace_id NOT NULL` | Migration 0010 makes `exec.job.workspace_id` and `exec.idempotency_key.workspace_id` nullable under an explicit `exec.in_platform_scope()` RLS policy (`app.platform_scope='platform'` and no workspace context); operations, attempts, effects, and outbox stay tenant-only (CHECK `workspace_id IS NOT NULL OR operation_id IS NULL`) | Mail delivery, cleanup, and account-level idempotency are not tenant work | Low — this is the additive change D5 anticipated |
-| B6 | Email key | 0B suggests a case-insensitive email | `identity.account.email_key text UNIQUE`, normalised by the application (Unicode NFC, trim, IDNA/lower-case domain, lower-cased local part for the key; the display form keeps the original local-part case) instead of `citext` | Deterministic normalisation in one place; no extension dependency | Low |
-| B7 | Recovery codes | 0B shows recovery codes on the MFA factor | Child table `identity.recovery_code` (one row per hashed code) | Single-use consumption under row locks | Low |
-| B8 | Locked challenge | 0D §11.2 lists a `locked` challenge state | Derived condition: `failed_attempts ≥ STEP_UP_MAX_ATTEMPTS` → `429 rate_limited`; no stored state | Avoids a second source of truth | Low |
-| B9 | OAuth registration | — | OAuth sign-in only for an already-linked identity; no account creation via OAuth | Avoids unverified-email account creation until a provider is approved | Low |
-| B10 | WebAuthn | 0D lists `webauthn` as a step-up method | Boundary only (method name reserved, filtered from the UI). **WebAuthn is not supported** and is not claimed | Brief: not claimed until tested end to end | — |
+| # | Topic | Disposition | Final decision | Where it is recorded |
+|---|---|---|---|---|
+| B1 | Public-ID prefixes | **Accepted; registered at source** | `ses_` → `identity.session`, `mfa_` → `identity.mfa_factor`, `oid_` → `identity.oauth_identity`, owner module `identity`. One registry and one validation path: the generated `ID_PREFIXES` (the pending catalog and its parser path are removed) | 0D `platform/contracts/registry.json` `id_prefixes`; 0B `public_id_prefix` on the three entities; decision PL-17 in `docs/architecture/platform/19-decisions.md` |
+| B2 | Account step-up actions | **Accepted; registered at source** | `account.mfa_enroll` (R3), `account.mfa_disable` (R4), `account.recovery_codes_regenerate` (R3): kind `personal`, scope `personal`, `own` for every role (never a tenant capability), step-up, no approver or entitlement, SEC-006 (+ SEC-005 for recovery codes). Human-only: step-up is unavailable to non-human principals and no 0D scope may list them. Enrollment accepts a password step-up when no factor exists. ADM-013 (workspace ownership transfer) does not apply to own-account security, so it is not mapped. Runtime `ACCOUNT_STEP_UP_ACTIONS` is derived from the generated 0C `ACTIONS`; the Phase 0 validator checks every runtime `#protected(...)` action | 0C `access/policy/policy.json`; threat T-35 and tests AT-081…086 in `threats.json`; decision AZ-17 in `docs/architecture/access/15-decisions.md`; `phase0.py` section "step-up actions and challenge states" |
+| B3 | Id-less responses | **Accepted** | A closed set of **non-resource** response types (`NON_RESOURCE_TYPES`: `platform_status`, `acknowledgement`, `sign_in_result`, `step_up_token`, `recovery_code_set`, `oauth_authorization`) built only by `nonResourceEnvelope`. These are not resources and not "singletons". The builder refuses any type outside the set and any registered 0D resource type. A unit test proves no member collides with a resource type, and a confinement test limits callers to `/v1/status` and the auth routes. Ordinary resources must use `successEnvelope`, which requires a registered public ID | `packages/contracts/src/envelopes.ts` |
+| B4 | Security events | **Accepted (temporary sink)** | Append-only `identity.security_event_buffer` until the 1F immutable audit sink exists. 1F must follow the handoff contract below | This ADR, [§ Phase 1F handoff](#phase-1f-handoff-security-event-buffer) |
+| B5 | Platform-scope execution | **Accepted** | Migration 0010: `exec.job.workspace_id` and `exec.idempotency_key.workspace_id` nullable only under `exec.in_platform_scope()` (`app.platform_scope='platform'` and no workspace context). Tenant and platform contexts are mutually exclusive; operations, attempts, effects, and outbox stay tenant-only | Migration 0010; [database.md](../database.md#platform-scope-migration-0010) |
+| B6 | Email key | **Accepted** | `identity.account.email_key text UNIQUE`, normalised by the application (Unicode NFC, trim, IDNA/lower-case domain, lower-cased local part; the display form keeps the original case) instead of `citext` | Migration 0011 |
+| B7 | Recovery codes | **Accepted** | Child table `identity.recovery_code`, one SHA-256 row per code, consumed under row locks | Migration 0011 |
+| B8 | Locked challenge | **Rejected → replaced** | `locked` is a **stored terminal state**. Migration 0012 adds it to the state constraint, with `locked_at` and consistency checks (locked ⇔ `locked_at`; locked rows hold no token). The failed verification that reaches `STEP_UP_MAX_ATTEMPTS` sets `pending → locked` atomically under the row lock, see [identity.md](../identity.md#step-up-0d-112) | 0D step-up-challenge schema state enum and §11.2; parameter `STEP_UP_MAX_ATTEMPTS`; 0B `identity.step_up_challenge`; PL-17; migration 0012 |
+| B9 | OAuth registration | **Accepted** | OAuth sign-in only for an already-linked identity; no account creation via OAuth | Service and tests |
+| B10 | WebAuthn | **Accepted (boundary only)** | Method name reserved and filtered from the UI. **WebAuthn is not supported** and is not claimed | — |
 
-## Production blockers (product-owner decisions)
+## Phase 1F handoff: security-event buffer
 
-The configuration rejects every local adapter in deployed modes (`dev-database` vault, `capture`
+The buffer holds every identity security event since 1B. Application roles may only INSERT into it,
+and no job deletes from it. Its rows match the 0D `security-event` fields: `id` (UUIDv7, the
+event's identity), `occurred_at`, `category`, `action`, `outcome`, actor, subject, `workspace_id`
+(null in 1B), `network_prefix`, `user_agent_family`, `correlation_id`, and `retention_class
+= 'R-AUDIT'`. Phase 1F must move it into the immutable sink **without loss or duplication**:
+
+1. **Cut over writers first.** Point `SecurityEventPort` at the 1F sink, or dual-write to both,
+   so no event lands only in the buffer after the drain starts.
+2. **Drain idempotently.** Copy each buffered row into the sink keyed by its original `id`
+   (insert-if-absent), in `occurred_at, id` order and in bounded batches. Keep the original `id`
+   and `occurred_at`; never re-stamp them. Re-running the drain must add nothing.
+3. **Verify.** For the whole buffer, and per day of `occurred_at`, compare the buffer and the sink
+   on the row count and on a SHA-256 over the canonical serialization of the copied fields, ordered
+   by `id`. Any mismatch stops the process; the buffer stays.
+4. **Retire only by contract migration.** After verification, and after a release in which nothing
+   writes to the buffer, a later `-- migrate:phase contract` migration revokes the INSERT grants and
+   drops `identity.security_event_buffer`. No expand migration or job deletes buffered events.
+5. **Prove it.** 1F integration tests cover a drain re-run (no duplicates), a drain interrupted
+   mid-batch (resumes without loss), and count/checksum equality before the drop.
+
+## Deployment decisions (accepted as later decisions; deployed modes fail closed)
+
+The provider-neutral posture is accepted: these choices do not block Phase 1B acceptance. The
+configuration rejects every local adapter in deployed modes (`dev-database` vault, `capture`
 mail, `local` OAuth, `test` bot protection, `COOKIE_SECURE=false`). Consequences:
 
 1. **Startup blocker:** the API and worker need a secret store/KMS adapter for `SECRET_VAULT`

@@ -2,7 +2,7 @@ import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import {
   errorEnvelope,
   meta,
-  platformSingletonEnvelope,
+  nonResourceEnvelope,
   successEnvelope,
   type ErrorCode,
 } from '@pm/contracts';
@@ -116,7 +116,7 @@ export function registerAuth(app: FastifyInstance, deps: AuthRouteDeps): void {
 
   const m = (request: FastifyRequest) => meta(request.pm.requestId, request.pm.correlationId);
   const ack = (request: FastifyRequest, status: string) =>
-    platformSingletonEnvelope('acknowledgement', { status }, m(request));
+    nonResourceEnvelope('acknowledgement', { status }, m(request));
 
   const requireAuth = (request: FastifyRequest): AuthContext => {
     if (!request.auth) throw new IdentityError('unauthenticated');
@@ -146,9 +146,7 @@ export function registerAuth(app: FastifyInstance, deps: AuthRouteDeps): void {
     reply
       .code(r.status)
       .header('idempotent-replayed', 'true')
-      .send(
-        platformSingletonEnvelope('acknowledgement', { status: 'already_completed' }, m(request)),
-      );
+      .send(nonResourceEnvelope('acknowledgement', { status: 'already_completed' }, m(request)));
 
   const setSession = (reply: FastifyReply, issued: IssuedSession) =>
     reply.header('set-cookie', [sessionCookie(issued.token), clearContinuation()]);
@@ -273,7 +271,7 @@ export function registerAuth(app: FastifyInstance, deps: AuthRouteDeps): void {
 
   // ---- Registration and email verification ----------------------------------------------------
   app.get('/v1/auth/config', async (request) =>
-    platformSingletonEnvelope(
+    nonResourceEnvelope(
       'acknowledgement',
       {
         status: 'ok',
@@ -337,7 +335,7 @@ export function registerAuth(app: FastifyInstance, deps: AuthRouteDeps): void {
       );
       if (r.kind === 'mfa_required') {
         reply.header('set-cookie', [continuationCookie(r.continuation)]);
-        return platformSingletonEnvelope(
+        return nonResourceEnvelope(
           'sign_in_result',
           { state: 'mfa_required', methods: r.methods },
           m(request),
@@ -345,7 +343,7 @@ export function registerAuth(app: FastifyInstance, deps: AuthRouteDeps): void {
       }
       setSession(reply, r.issued);
       reply.header('x-csrf-token', identity.csrfToken(r.issued.session.id));
-      return platformSingletonEnvelope('sign_in_result', { state: 'signed_in' }, m(request));
+      return nonResourceEnvelope('sign_in_result', { state: 'signed_in' }, m(request));
     }),
   );
 
@@ -361,7 +359,7 @@ export function registerAuth(app: FastifyInstance, deps: AuthRouteDeps): void {
       );
       setSession(reply, issued);
       reply.header('x-csrf-token', identity.csrfToken(issued.session.id));
-      return platformSingletonEnvelope('sign_in_result', { state: 'signed_in' }, m(request));
+      return nonResourceEnvelope('sign_in_result', { state: 'signed_in' }, m(request));
     }),
   );
 
@@ -532,7 +530,7 @@ export function registerAuth(app: FastifyInstance, deps: AuthRouteDeps): void {
       if (isReplay(r)) return replay(request, reply, r);
       setSession(reply, r.issued);
       reply.header('x-csrf-token', identity.csrfToken(r.issued.session.id));
-      return platformSingletonEnvelope('recovery_code_set', { codes: r.recoveryCodes }, m(request));
+      return nonResourceEnvelope('recovery_code_set', { codes: r.recoveryCodes }, m(request));
     }),
   );
 
@@ -558,7 +556,7 @@ export function registerAuth(app: FastifyInstance, deps: AuthRouteDeps): void {
         metaOf(request),
       );
       if (isReplay(r)) return replay(request, reply, r);
-      return platformSingletonEnvelope('recovery_code_set', { codes: r.recoveryCodes }, m(request));
+      return nonResourceEnvelope('recovery_code_set', { codes: r.recoveryCodes }, m(request));
     }),
   );
 
@@ -573,7 +571,7 @@ export function registerAuth(app: FastifyInstance, deps: AuthRouteDeps): void {
         { method: b.method, proof: b.proof },
         metaOf(request),
       );
-      return platformSingletonEnvelope(
+      return nonResourceEnvelope(
         'step_up_token',
         { token: r.token, expires_at: ISO(r.expiresAt), challenge: r.challenge },
         m(request),
@@ -598,7 +596,7 @@ export function registerAuth(app: FastifyInstance, deps: AuthRouteDeps): void {
         b.return_to,
         metaOf(request),
       );
-      return platformSingletonEnvelope('oauth_authorization', { url }, m(request));
+      return nonResourceEnvelope('oauth_authorization', { url }, m(request));
     },
   });
 

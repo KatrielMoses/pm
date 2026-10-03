@@ -106,7 +106,7 @@ for allow-listed packages (`allowBuilds` in `pnpm-workspace.yaml`). Inventory an
 | `/readyz` 503 with `migrations: fail` | The database is behind the artifact: run `pnpm migrate up`. |
 | Sign-in or form posts return `403 forbidden` locally | The page origin is not allowed. Use `PUBLIC_BASE_URL` (default http://localhost:5173) or add the origin to `ALLOWED_ORIGINS`. |
 | No verification email arrives | Local mail is captured to `.local/mailbox/`, and only while the worker runs (`pnpm dev`). |
-| `SECRET_VAULT`/`MAIL_TRANSPORT` rejected in a deployed mode | Expected: no KMS or mail provider is approved yet ([ADR-0008](docs/engineering/adr/0008-identity-and-sessions.md#production-blockers-product-owner-decisions)). |
+| `SECRET_VAULT`/`MAIL_TRANSPORT` rejected in a deployed mode | Expected: no KMS or mail provider is approved yet ([ADR-0008](docs/engineering/adr/0008-identity-and-sessions.md#deployment-decisions-accepted-as-later-decisions-deployed-modes-fail-closed)). |
 | `migration history verification failed` | A migration file changed after it was applied. Never edit applied migrations; add a new one. |
 | Integration tests hang on start | No Docker and `PM_TEST_PG=container`; use `PM_TEST_PG=embedded`. |
 | Vite says port 5173 is in use | Another program holds it; Vite picks the next port automatically. |

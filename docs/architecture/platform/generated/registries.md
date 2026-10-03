@@ -62,6 +62,9 @@ Source: `contracts/registry.json`.
 | `shr_` | share_group | access.share_group | access |  |
 | `apr_` | action_approval | agents.action_approval | agents |  |
 | `stp_` | step_up_challenge | identity.step_up_challenge | identity |  |
+| `ses_` | session | identity.session | identity |  |
+| `mfa_` | mfa_factor | identity.mfa_factor | identity |  |
+| `oid_` | oauth_identity | identity.oauth_identity | identity |  |
 | `exf_` | export_file | transfer.export_file | transfer |  |
 | `req_` | request | — | execution | Per-request identifier; exists only in responses, logs, and traces (no persistence). |
 | `ext_` | external_identity | integrations.external_identity | integrations |  |
@@ -124,6 +127,7 @@ Source: `contracts/registry.json`.
 | `validation_generic` | error:validation_failed |
 | `empty` | success:200 (empty page) |
 | `error_generic` | error:internal_error |
+| `step_up_required` | error:step_up_required |
 
 ## States
 
@@ -352,6 +356,7 @@ Forbidden metric labels: `workspace_id`, `brand_id`, `record_id`, `public_id`, `
 | `UPLOAD_SESSION_LIFETIME` | Lifetime of an upload session. | 4E |
 | `STEP_UP_WINDOW` | Validity of a verified step-up token. | 1B |
 | `STEP_UP_CHALLENGE_LIFETIME` | Validity of an unverified challenge. | 1B |
+| `STEP_UP_MAX_ATTEMPTS` | Failed verifications after which a challenge is stored as locked (terminal). | 1B |
 | `PAGE_LIMIT_DEFAULT` | Default page size. | 3A |
 | `PAGE_LIMIT_MAX` | Maximum page size (schema cap 200). | 3A |
 | `TOTAL_COUNT_CAP` | Above this, totals are capped/estimated. | 3A |

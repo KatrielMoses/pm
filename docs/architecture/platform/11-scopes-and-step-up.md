@@ -17,7 +17,7 @@ There are 19 scopes, in the format `<family>:<access>` ([generated/registries.md
 
 ## 11.2 Step-up challenges (AQ-05)
 
-Step-up applies to the 24 actions flagged SU in the 0C matrix (all R4 actions and the 0E ST-33 cases).
+Step-up applies to the 27 actions flagged SU in the 0C matrix (all R4 actions, the 0E ST-33 cases, and the three personal account-security actions `account.mfa_enroll`, `account.mfa_disable`, and `account.recovery_codes_regenerate`).
 
 1. A request for a step-up action without a valid step-up token returns the `step_up_required` error with a `step-up-challenge` object:
    - `id: stp_…`, `action_key`;
@@ -37,6 +37,7 @@ Step-up applies to the 24 actions flagged SU in the 0C matrix (all R4 actions an
 | Concern | Rule |
 |---|---|
 | Replay | Tokens are single-use and bound to session, action, and target. Challenges expire. Failed verifications are rate-limited, and repeated failures lock the challenge. |
+| Locking | The failed verification that reaches `STEP_UP_MAX_ATTEMPTS` atomically stores `state: locked` (terminal). A locked challenge never verifies or yields a token, even if the parameter later changes. Further attempts return `rate_limited` and change nothing. Cancelling it changes nothing. It is removed with other expired challenges. |
 | Cancellation | `POST …/{stp}:cancel` → `state: cancelled`. The original action does not proceed. |
 | Audit | `security-event` with category `step_up` for challenge issued, verified, failed, and consumed, and the consuming action's audit event references the step-up ID |
 | UI continuation | The original request's input is preserved client-side (0E ST-02). After verification the client resubmits automatically and shows the result. |

@@ -481,6 +481,30 @@
       "note": ""
     },
     {
+      "prefix": "ses",
+      "resource": "session",
+      "entity": "identity.session",
+      "owner_module": "identity",
+      "platform_only": false,
+      "note": ""
+    },
+    {
+      "prefix": "mfa",
+      "resource": "mfa_factor",
+      "entity": "identity.mfa_factor",
+      "owner_module": "identity",
+      "platform_only": false,
+      "note": ""
+    },
+    {
+      "prefix": "oid",
+      "resource": "oauth_identity",
+      "entity": "identity.oauth_identity",
+      "owner_module": "identity",
+      "platform_only": false,
+      "note": ""
+    },
+    {
       "prefix": "exf",
       "resource": "export_file",
       "entity": "transfer.export_file",
@@ -2712,7 +2736,8 @@
     "conflict_filtered": "error:conflict",
     "validation_generic": "error:validation_failed",
     "empty": "success:200 (empty page)",
-    "error_generic": "error:internal_error"
+    "error_generic": "error:internal_error",
+    "step_up_required": "error:step_up_required"
   },
   "parameters": [
     {
@@ -2808,6 +2833,11 @@
     {
       "name": "STEP_UP_CHALLENGE_LIFETIME",
       "meaning": "Validity of an unverified challenge.",
+      "owner": "1B"
+    },
+    {
+      "name": "STEP_UP_MAX_ATTEMPTS",
+      "meaning": "Failed verifications after which a challenge is stored as locked (terminal).",
       "owner": "1B"
     },
     {

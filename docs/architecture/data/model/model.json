@@ -1466,7 +1466,7 @@
       "purpose": "MFA factor (TOTP secret reference, WebAuthn credential), recovery-code hashes.",
       "scope": "platform",
       "addressable": false,
-      "public_id_prefix": null,
+      "public_id_prefix": "mfa",
       "extends": null,
       "containment_parents": [
         "account"
@@ -1483,7 +1483,9 @@
       "personal_data": "incidental",
       "uniqueness": [],
       "sensitive_fields": [],
-      "key_columns": [],
+      "key_columns": [
+        "public_id text (mfa_)"
+      ],
       "requirements": [
         "SEC-006"
       ],
@@ -1495,7 +1497,7 @@
       "purpose": "Authenticated session with device metadata; revocable remotely.",
       "scope": "platform",
       "addressable": false,
-      "public_id_prefix": null,
+      "public_id_prefix": "ses",
       "extends": null,
       "containment_parents": [
         "account"
@@ -1514,7 +1516,9 @@
         "token_hash"
       ],
       "sensitive_fields": [],
-      "key_columns": [],
+      "key_columns": [
+        "public_id text (ses_)"
+      ],
       "requirements": [
         "SEC-008",
         "PERM-013"
@@ -1527,7 +1531,7 @@
       "purpose": "Link between an account and an external identity provider subject.",
       "scope": "platform",
       "addressable": false,
-      "public_id_prefix": null,
+      "public_id_prefix": "oid",
       "extends": null,
       "containment_parents": [
         "account"
@@ -1546,7 +1550,9 @@
         "(provider, subject)"
       ],
       "sensitive_fields": [],
-      "key_columns": [],
+      "key_columns": [
+        "public_id text (oid_)"
+      ],
       "requirements": [
         "SEC-007"
       ],
@@ -1610,20 +1616,21 @@
         "action_key text (0C)",
         "target_hash bytea",
         "methods text[]",
-        "state (pending|verified|consumed|expired|cancelled)",
+        "state (pending|verified|consumed|expired|cancelled|locked)",
         "challenge_nonce_hash bytea",
         "token_hash bytea null",
         "expires_at",
         "verified_at null",
         "consumed_at null",
         "failed_attempts int",
+        "locked_at null",
         "public_id text (stp_)"
       ],
       "requirements": [
         "SEC-006",
         "ADM-013"
       ],
-      "notes": "0D §11.2. Tokens are stored only as hashes."
+      "notes": "0D §11.2. Tokens are stored only as hashes. `locked` is a stored terminal state, set atomically by the failed attempt that reaches STEP_UP_MAX_ATTEMPTS."
     },
     {
       "name": "workspace",

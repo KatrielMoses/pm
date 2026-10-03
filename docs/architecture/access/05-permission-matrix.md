@@ -2,7 +2,7 @@
 
 The matrix is machine-readable in [policy/policy.json](policy/policy.json) and rendered in [generated/permission-matrix.md](generated/permission-matrix.md).
 
-**Dimensions:** 98 actions × 6 default roles = 588 explicit cells. Each action also declares:
+**Dimensions:** 101 actions × 6 default roles = 606 explicit cells. Each action also declares:
 
 - its applicable scope levels (workspace, brand, project, record, personal, field, connection);
 - the required access level;
@@ -38,7 +38,7 @@ The matrix is machine-readable in [policy/policy.json](policy/policy.json) and r
 | Flag | Actions | Rule |
 |---|---|---|
 | **Non-delegable** (owner only; excluded from custom roles; cannot be granted to any service principal, token, agent, or automation) | `workspace.delete`, `ownership.transfer`, `retention.configure`, `legal_hold.manage`, `access.elevate_sensitive` | Validator-enforced |
-| **Step-up authentication** (fresh re-authentication; mechanism in 1B) | 24 actions, including all R4 actions, write-scoped API tokens, AI provider keys, security settings, membership management, sharing policy, workspace and audit exports, billing changes, period unlock, support access, brand sensitivity | Includes all 0E ST-33 re-authentication cases. Validator: every R4 action has step-up. |
+| **Step-up authentication** (fresh re-authentication; mechanism in 1B) | 27 actions, including all R4 actions, own-account MFA enrollment, MFA removal, and recovery-code regeneration, write-scoped API tokens, AI provider keys, security settings, membership management, sharing policy, workspace and audit exports, billing changes, period unlock, support access, brand sensitivity | Includes all 0E ST-33 re-authentication cases. Validator: every R4 action has step-up. |
 | **Second / independent approval** | `record.purge`, `workspace.delete`, `release.decide` (and every action whose approval class is `independent_if_available`) | Required when policy enables it and another approval-capable human exists; otherwise labelled self-approval ([10](10-approvals-separation-of-duties.md)) |
 | **Entitlement-limited** | `custom_roles.manage` (custom_roles), `audit.export` (audit_export), `legal_hold.manage` (legal_hold) | Entitlements only remove capabilities (I-13) |
 | **Never automatable** | Every R4 action; `review.decide`, `review.self_approve`, `defect.verify`, `release.decide` | No service principal, token, agent, automation, or AI may perform them (I-15) |

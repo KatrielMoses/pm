@@ -385,7 +385,7 @@ MFA factor (TOTP secret reference, WebAuthn credential), recovery-code hashes.
 | Volume / export / search-AI | `medium` / `never` / `no` |
 | Secrets / personal data | `secret-ref` / `incidental` |
 | Uniqueness | — |
-| Key typed columns | standard columns only |
+| Key typed columns | `public_id text (mfa_)` |
 | Sensitive fields | — |
 | Requirements | SEC-006 |
 
@@ -405,7 +405,7 @@ Authenticated session with device metadata; revocable remotely.
 | Volume / export / search-AI | `high` / `never` / `no` |
 | Secrets / personal data | `hash-only` / `yes` |
 | Uniqueness | `token_hash` |
-| Key typed columns | standard columns only |
+| Key typed columns | `public_id text (ses_)` |
 | Sensitive fields | — |
 | Requirements | SEC-008, PERM-013 |
 
@@ -425,7 +425,7 @@ Link between an account and an external identity provider subject.
 | Volume / export / search-AI | `medium` / `self` / `no` |
 | Secrets / personal data | `no` / `yes` |
 | Uniqueness | `(provider, subject)` |
-| Key typed columns | standard columns only |
+| Key typed columns | `public_id text (oid_)` |
 | Sensitive fields | — |
 | Requirements | SEC-007 |
 
@@ -465,10 +465,10 @@ Step-up challenge and single-use verified token bound to session, membership, ac
 | Volume / export / search-AI | `medium` / `never` / `no` |
 | Secrets / personal data | `hash-only` / `yes` |
 | Uniqueness | — |
-| Key typed columns | `session_id`; `membership_id`; `workspace_id (plain reference)`; `action_key text (0C)`; `target_hash bytea`; `methods text[]`; `state (pending\|verified\|consumed\|expired\|cancelled)`; `challenge_nonce_hash bytea`; `token_hash bytea null`; `expires_at`; `verified_at null`; `consumed_at null`; `failed_attempts int`; `public_id text (stp_)` |
+| Key typed columns | `session_id`; `membership_id`; `workspace_id (plain reference)`; `action_key text (0C)`; `target_hash bytea`; `methods text[]`; `state (pending\|verified\|consumed\|expired\|cancelled\|locked)`; `challenge_nonce_hash bytea`; `token_hash bytea null`; `expires_at`; `verified_at null`; `consumed_at null`; `failed_attempts int`; `locked_at null`; `public_id text (stp_)` |
 | Sensitive fields | — |
 | Requirements | SEC-006, ADM-013 |
-| Notes | 0D §11.2. Tokens are stored only as hashes. |
+| Notes | 0D §11.2. Tokens are stored only as hashes. `locked` is a stored terminal state, set atomically by the failed attempt that reaches STEP_UP_MAX_ATTEMPTS. |
 
 ## Workspaces and brands (`tenancy`, schema `tenancy`)
 

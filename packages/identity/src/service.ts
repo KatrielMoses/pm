@@ -38,6 +38,7 @@ import {
   ACCOUNT_STEP_UP_ACTIONS,
   IdentityError,
   issue,
+  type AccountStepUpAction,
   type AccountView,
   type AuthContext,
   type IssuedSession,
@@ -1471,7 +1472,7 @@ export class IdentityService {
 
   async #protected<T>(
     ctx: AuthContext | NonHumanPrincipal,
-    action: (typeof ACCOUNT_STEP_UP_ACTIONS)[number] | undefined,
+    action: AccountStepUpAction | undefined,
     target: { type: string; id: string } | undefined,
     req: ProtectedRequest,
     meta: RequestMeta,
@@ -1886,17 +1887,38 @@ export class IdentityService {
   ): Promise<StepUpChallengeView> {
     return this.#flow('step_up_challenge', async () => {
       if (ctx.principal !== 'account') throw new IdentityError('step_up_unavailable');
-      const tenantAction = ACTIONS.find((a) => a.key === request.actionKey);
-      const accountAction = (ACCOUNT_STEP_UP_ACTIONS as readonly string[]).includes(
-        request.actionKey,
-      );
-      if (tenantAction) {
-        if (!tenantAction.stepUp)
+      // One catalog: the generated 0C registry (workspace and personal actions alike).
+      const action = ACTIONS.find((a) => a.key === request.actionKey);
+      if (!action) {
+        throw new IdentityError('validation_failed', {
+          issues: [issue('/action_key', 'unsupported_field', 'Unknown action.')],
+        });
+      }
+      if (!action.stepUp)
+        throw new IdentityError('validation_failed', {
+          issues: [
+            issue('/action_key', 'step_up_not_applicable', 'This action does not use step-up.'),
+          ],
+        });
+      const accountAction = (ACCOUNT_STEP_UP_ACTIONS as readonly string[]).includes(action.key);
+      if (accountAction) {
+        // Own-account actions never carry tenant context (AZ-17).
+        if (request.membershipId || request.workspaceId) {
           throw new IdentityError('validation_failed', {
             issues: [
-              issue('/action_key', 'step_up_not_applicable', 'This action does not use step-up.'),
+              issue(
+                '/action_key',
+                'tenant_binding_forbidden',
+                'This action is not workspace-scoped.',
+              ),
             ],
           });
+        }
+      } else if (action.kind === 'personal') {
+        throw new IdentityError('validation_failed', {
+          issues: [issue('/action_key', 'unsupported_field', 'Unknown action.')],
+        });
+      } else {
         if (!request.membershipId || !request.workspaceId) {
           throw new IdentityError('validation_failed', {
             issues: [
@@ -1908,10 +1930,6 @@ export class IdentityService {
             ],
           });
         }
-      } else if (!accountAction) {
-        throw new IdentityError('validation_failed', {
-          issues: [issue('/action_key', 'unsupported_field', 'Unknown action.')],
-        });
       }
       await this.#limit('step_up.account', ctx.account.id);
       return this.#d.db.withPlatform({ module: 'identity' }, async (tx) => {
@@ -1956,9 +1974,11 @@ export class IdentityService {
   }
 
   /**
-   * Verifies a proof for a pending challenge. Failures are counted (and committed); at the limit
-   * the challenge is locked. Success returns a single-use token valid for STEP_UP_WINDOW. A
-   * step-up never extends the session.
+   * Verifies a proof for a pending challenge under a row lock, so concurrent attempts serialize
+   * and exactly one terminal outcome wins. Failures are counted and committed; the failure that
+   * reaches STEP_UP_MAX_ATTEMPTS stores the terminal `locked` state in the same transaction. A
+   * locked challenge is answered without checking the proof or changing anything. Success returns
+   * a single-use token valid for STEP_UP_WINDOW. A step-up never extends the session.
    */
   async verifyStepUp(
     ctx: AuthContext | NonHumanPrincipal,
@@ -1982,6 +2002,8 @@ export class IdentityService {
                 .executeTakeFirst()
             : undefined;
         if (!ch) return { kind: 'not_found' as const };
+        // Terminal and stored: never re-evaluated against the current parameter.
+        if (ch.state === 'locked') return { kind: 'locked' as const, until: ch.expires_at };
         if (ch.state !== 'pending') return { kind: 'not_pending' as const };
         if (ch.expires_at.getTime() <= Date.now()) {
           await tx.db
@@ -1991,8 +2013,11 @@ export class IdentityService {
             .execute();
           return { kind: 'expired' as const };
         }
-        if (ch.failed_attempts >= this.#d.config.stepUpMaxAttempts)
+        // The parameter was lowered below this challenge's count: lock it now, without a proof.
+        if (ch.failed_attempts >= this.#d.config.stepUpMaxAttempts) {
+          await this.#lockChallenge(tx, ctx, ch.id, ch.failed_attempts, meta);
           return { kind: 'locked' as const, until: ch.expires_at };
+        }
         const method = input.method as StepUpMethod;
         const allowed = (ch.methods as string[]).includes(method) && method !== 'webauthn';
         const ok =
@@ -2005,11 +2030,6 @@ export class IdentityService {
           ));
         if (!ok) {
           const attempts = ch.failed_attempts + 1;
-          await tx.db
-            .updateTable('identity.step_up_challenge')
-            .set({ failed_attempts: attempts, version: sql`version + 1` })
-            .where('id', '=', ch.id)
-            .execute();
           await this.#event(tx, meta, {
             category: 'step_up',
             action: 'step_up.failed',
@@ -2017,9 +2037,17 @@ export class IdentityService {
             actor: { type: 'human', id: ctx.account.id },
             subject: { type: 'session', id: ctx.session.id },
           });
-          return attempts >= this.#d.config.stepUpMaxAttempts
-            ? { kind: 'locked' as const, until: ch.expires_at }
-            : { kind: 'invalid' as const };
+          if (attempts >= this.#d.config.stepUpMaxAttempts) {
+            await this.#lockChallenge(tx, ctx, ch.id, attempts, meta);
+            return { kind: 'locked' as const, until: ch.expires_at };
+          }
+          await tx.db
+            .updateTable('identity.step_up_challenge')
+            .set({ failed_attempts: attempts, version: sql`version + 1` })
+            .where('id', '=', ch.id)
+            .where('state', '=', 'pending')
+            .execute();
+          return { kind: 'invalid' as const };
         }
         const token = newOpaqueToken();
         const tokenExpiresAt = new Date(Date.now() + this.#d.config.stepUpWindowMs);
@@ -2082,6 +2110,40 @@ export class IdentityService {
     });
   }
 
+  /** pending → locked, atomically with the attempt count; records the transition (no secrets). */
+  async #lockChallenge(
+    tx: PlatformTransaction,
+    ctx: AuthContext,
+    challengeId: string,
+    attempts: number,
+    meta: RequestMeta,
+  ): Promise<void> {
+    const locked = await tx.db
+      .updateTable('identity.step_up_challenge')
+      .set({
+        state: 'locked',
+        locked_at: new Date(),
+        failed_attempts: attempts,
+        version: sql`version + 1`,
+      })
+      .where('id', '=', challengeId)
+      .where('state', '=', 'pending')
+      .returning('id')
+      .executeTakeFirst();
+    if (!locked) return;
+    await this.#event(tx, meta, {
+      category: 'step_up',
+      action: 'step_up.locked',
+      outcome: 'denied',
+      actor: { type: 'human', id: ctx.account.id },
+      subject: { type: 'session', id: ctx.session.id },
+    });
+  }
+
+  /**
+   * Cancels a pending or verified challenge. Terminal challenges (consumed, expired, cancelled,
+   * locked) are not changed: the answer is `not_found`, so a locked challenge stays locked.
+   */
   async cancelStepUp(
     ctx: AuthContext,
     challengePublicId: unknown,

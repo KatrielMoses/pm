@@ -1,4 +1,4 @@
-import type { ErrorIssue } from '@pm/contracts';
+import { ACTIONS, type ActionKey, type ErrorIssue, type StepUpChallengeState } from '@pm/contracts';
 import type { AuthMethod, StepUpMethod } from '@pm/db';
 
 /** Request facts the identity service may use. Minimized before storage (device.ts). */
@@ -62,7 +62,7 @@ export interface StepUpChallengeView {
   action_key: string;
   methods: StepUpMethod[];
   expires_at: string;
-  state: 'pending' | 'verified' | 'consumed' | 'expired' | 'cancelled';
+  state: StepUpChallengeState;
   verify: string;
   cancel: string;
 }
@@ -117,13 +117,15 @@ export const issue = (pointer: string, code: string, message: string): ErrorIssu
   message,
 });
 
-/** Account-level step-up actions (pending 0C registration; ADR-0008 B2). */
-export const ACCOUNT_STEP_UP_ACTIONS = [
-  'account.mfa_enroll',
-  'account.mfa_disable',
-  'account.recovery_codes_regenerate',
-] as const;
-export type AccountStepUpAction = (typeof ACCOUNT_STEP_UP_ACTIONS)[number];
+export type AccountStepUpAction = Extract<ActionKey, `account.${string}`>;
+
+/**
+ * Own-account step-up actions: the personal, step-up-flagged `account.*` rows of the generated 0C
+ * registry (AZ-17). Not maintained here; the Phase 0 validator checks every runtime use.
+ */
+export const ACCOUNT_STEP_UP_ACTIONS: readonly AccountStepUpAction[] = ACTIONS.filter(
+  (a) => a.kind === 'personal' && a.stepUp && a.key.startsWith('account.'),
+).map((a) => a.key as AccountStepUpAction);
 
 /** Replay of an idempotent protected action: stored status and references only (PC-02). */
 export interface ReplayResult {

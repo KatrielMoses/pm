@@ -9,6 +9,7 @@ import type {
   JobErrorClass,
   JobState,
   RiskClass,
+  StepUpChallengeState,
   TerminalReason,
   WaitingReason,
 } from '@pm/contracts';
@@ -366,7 +367,7 @@ export interface StepUpChallengeTable {
   target_type: string | null;
   target_hash: Bytes | null;
   methods: StepUpMethod[];
-  state: Defaulted<'pending' | 'verified' | 'consumed' | 'expired' | 'cancelled'>;
+  state: Defaulted<StepUpChallengeState>;
   challenge_nonce_hash: Bytes;
   token_hash: Bytes | null;
   idempotency_key_hash: Bytes | null;
@@ -377,6 +378,7 @@ export interface StepUpChallengeTable {
   consumed_at: Ts | null;
   cancelled_at: Ts | null;
   failed_attempts: Defaulted<number>;
+  locked_at: Ts | null;
   created_at: DTs;
   version: Defaulted<number>;
 }
@@ -820,6 +822,7 @@ export const TABLE_COLUMNS: Readonly<Record<keyof Database, readonly string[]>> 
     'consumed_at',
     'cancelled_at',
     'failed_attempts',
+    'locked_at',
     'created_at',
     'version',
   ],

@@ -13,7 +13,7 @@ extensions are needed in 1A: UUIDv7 keys are application-generated, and `gen_ran
 | `tenancy` | tenancy | `workspace` anchor (1C extends it additively) |
 | `access` | access | empty (1D) |
 | `ops` | operational | `schema_migration`, `environment_binding`, `worker_heartbeat`, `rate_limit_bucket`, `dev_secret_vault` (no tenant data) |
-| `identity` | identity (1B) | account, credential, mfa_factor, recovery_code, session, oauth_identity, verification_token, step_up_challenge, mail_delivery, security_event_buffer. Platform scope, no tenant RLS; see [identity.md](identity.md) |
+| `identity` | identity (1B) | account, credential, mfa_factor, recovery_code, session, oauth_identity, verification_token, step_up_challenge, mail_delivery, security_event_buffer (0011); stored `locked` step-up state (0012). Platform scope, no tenant RLS; see [identity.md](identity.md) |
 
 ## Roles (0C §12.3)
 

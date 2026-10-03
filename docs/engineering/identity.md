@@ -86,8 +86,29 @@ A protected action without a fresh step-up returns `403 step_up_required` with a
 hash, and idempotency-key hash. `POST /v1/auth/step-up/{id}:verify` with a password, TOTP code, or
 recovery code returns a single-use token. The client retries the **same** request with
 `Step-Up` and the same `Idempotency-Key`; the token is consumed inside the action's
-transaction. Repeated failures (`STEP_UP_MAX_ATTEMPTS`) return `429`. The web app keeps the
-original form mounted beneath the step-up dialog and resumes it after verification.
+transaction. The web app keeps the original form mounted beneath the step-up dialog and resumes it
+after verification.
+
+Step-up actions come from the generated 0C registry. Workspace actions need a membership. The
+own-account actions `account.mfa_enroll`, `account.mfa_disable`, and
+`account.recovery_codes_regenerate` (AZ-17) must not carry one.
+
+**Challenge states** (0D schema, generated `STEP_UP_CHALLENGE_STATES`): `pending`, `verified`,
+`consumed`, `expired`, `cancelled`, `locked`.
+
+| Event | Rule |
+|---|---|
+| Wrong proof below the limit | `failed_attempts + 1`, `step_up.failed` event, `422 invalid_proof` |
+| Wrong proof reaching `STEP_UP_MAX_ATTEMPTS` | In the same row-locked transaction: `state = 'locked'`, `locked_at`, the final count, `step_up.failed` and `step_up.locked` (outcome `denied`) events. Answer `429 rate_limited` |
+| Any attempt on a locked challenge | `429 rate_limited`. The proof is not checked; no count, state, or event changes. Abuse rate limits still apply |
+| Pending challenge whose count already meets a lowered limit | Locked on the next attempt without checking the proof |
+| Raised limit after locking | Irrelevant: `locked` is stored and terminal, so it never verifies or yields a token |
+| Concurrent final attempts | `SELECT … FOR UPDATE` serializes them. Either the correct proof wins (`verified`, and the late wrong proof gets `409`), or the wrong proof wins (`locked`, and the correct proof gets `429` with no token). Never both |
+| Cancel | Only `pending`/`verified` challenges cancel. Terminal states, including `locked`, answer `404` and stay unchanged |
+| Retention | Locked challenges are deleted by `identity.cleanup` once `expires_at` is a day past, like other expired challenges |
+
+The database enforces locked ⇔ `locked_at` and that a locked row has no token or verification
+(migration 0012).
 
 ## OAuth boundary
 
@@ -139,6 +160,8 @@ deletes:
 - expired vault entries;
 - rate-limit buckets idle for 24 h.
 
+`identity.security_event_buffer` is never swept: it is append-only and is drained into the 1F
+immutable sink under the [ADR-0008 handoff contract](adr/0008-identity-and-sessions.md#phase-1f-handoff-security-event-buffer).
 Account deletion and the security-event sink belong to later phases (1F audit; deletion policy in
 `docs/product/deletion-retention-history.md`).
 
