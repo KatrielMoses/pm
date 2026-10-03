@@ -4,7 +4,7 @@ import {
   type JobErrorClass,
   type WaitingReason,
 } from '@pm/contracts';
-import { sql, type WorkspaceTransaction } from '@pm/db';
+import { sql, type ScopedTransaction } from '@pm/db';
 import type { Logger } from '@pm/observability';
 import { contextColumns } from './execution-context.ts';
 
@@ -33,7 +33,7 @@ export interface EnqueueJobInput {
 
 /** Enqueues in the caller's transaction. An active duplicate (same dedupe key) is absorbed. */
 export async function enqueueJob(
-  tx: WorkspaceTransaction,
+  tx: ScopedTransaction,
   input: EnqueueJobInput,
 ): Promise<{ id: string; deduplicated: boolean }> {
   if (!QUEUE.test(input.queue)) throw new JobContractError('queue');
@@ -78,7 +78,7 @@ export async function enqueueJob(
 
 /** Cancels a job that has not started; started jobs observe cancellation at step boundaries. */
 export async function requestJobCancel(
-  tx: WorkspaceTransaction,
+  tx: ScopedTransaction,
   jobId: string,
 ): Promise<'cancelled' | 'requested' | 'not_cancellable'> {
   const queued = await tx.db
@@ -164,7 +164,8 @@ export interface JobInfo {
   id: string;
   kind: string;
   queue: string;
-  workspaceId: string;
+  /** null for platform-scoped jobs. */
+  workspaceId: string | null;
   operationId: string | undefined;
   attemptId: string | undefined;
   attemptNumber: number;
@@ -183,7 +184,7 @@ export interface JobHandlerContext {
    */
   step<T extends Record<string, unknown> | void>(
     name: string,
-    fn: (tx: WorkspaceTransaction) => Promise<T>,
+    fn: (tx: ScopedTransaction) => Promise<T>,
   ): Promise<T>;
   /**
    * Performs an external effect through the effect ledger: the stable key is recorded before the

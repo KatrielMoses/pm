@@ -2,11 +2,19 @@
 // Same artifact as the web/API process; no public ingress.
 import { writeFileSync } from 'node:fs';
 import { loadLocalDotEnv, loadServerConfig } from '@pm/config';
-import { assertApplicationIdentity, createPool, PlatformDiscovery, TenantDatabase } from '@pm/db';
+import {
+  assertApplicationIdentity,
+  createPool,
+  PlatformDatabase,
+  PlatformDiscovery,
+  TenantDatabase,
+} from '@pm/db';
+import { CaptureTransport, createVault } from '@pm/identity';
+import { PUBLIC_CONFIG } from '@pm/config/public';
 import { createLogger, errorFields, initTelemetry, LogErrorReporter } from '@pm/observability';
 import { WorkerRuntime } from '@pm/platform';
 import { HEALTH_FILE } from './health-file.ts';
-import { registeredConsumers, registeredHandlers } from './registry.ts';
+import { registeredConsumers, registeredHandlers, registeredSchedules } from './registry.ts';
 
 async function main(): Promise<void> {
   loadLocalDotEnv();
@@ -38,11 +46,24 @@ async function main(): Promise<void> {
   await assertApplicationIdentity(dispatcherPool, config.env);
 
   const errors = new LogErrorReporter(logger);
+  const platformDb = new PlatformDatabase(workerPool, deps);
+  if (config.identity.mailTransport !== 'capture') throw new Error('no mail transport configured');
+  const identityDeps = {
+    db: platformDb,
+    config: config.identity,
+    vault: createVault(config.identity),
+    transport: new CaptureTransport(config.identity.mailCaptureDir),
+    appName: PUBLIC_CONFIG.appName,
+    logger,
+    metrics: telemetry.metrics,
+  };
   const runtime = new WorkerRuntime({
     db: new TenantDatabase(workerPool, deps),
     discovery: new PlatformDiscovery(dispatcherPool),
-    handlers: registeredHandlers(),
+    platformDb,
+    handlers: registeredHandlers(identityDeps),
     consumers: registeredConsumers(),
+    schedules: registeredSchedules(),
     params: { ...config.jobs, outboxReplayWindowMs: config.retention.outboxReplayWindowMs },
     buildId: config.build.id,
     pools: [workerPool, dispatcherPool],

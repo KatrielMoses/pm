@@ -31,6 +31,7 @@ import {
   type Tracer,
 } from '@pm/observability';
 import type { Readiness } from './readiness.ts';
+import { registerAuth, type AuthRouteDeps } from './auth/routes.ts';
 
 declare module 'fastify' {
   interface FastifyRequest {
@@ -49,6 +50,8 @@ export interface AppDeps {
   webDistDir?: string | undefined;
   /** Public status is cached briefly so the unauthenticated endpoint cannot hammer the database. */
   statusCacheMs?: number;
+  /** Identity routes and request authentication (1B). */
+  auth?: Omit<AuthRouteDeps, 'logger'> | undefined;
 }
 
 const STATUS_CLASS = (status: number) => `${Math.floor(status / 100)}xx`;
@@ -213,6 +216,8 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
       reply.header('cache-control', 'no-cache').sendFile('index.html'),
     );
   }
+
+  if (deps.auth) registerAuth(app, { ...deps.auth, logger: deps.logger });
 
   // Liveness: the process responds. Nothing else (0D §17.4).
   app.get('/healthz', () => ({ status: 'ok' }));

@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto';
 import { newUuidV7, type PrincipalRef } from '@pm/contracts';
-import type { WorkspaceTransaction } from '@pm/db';
+import type { ScopedTransaction } from '@pm/db';
 import { canonicalJson } from './canonical-json.ts';
 
 /** 0D §5.2 key syntax. */
@@ -66,7 +66,7 @@ export interface ReserveInput {
  * first transaction ends, then observe its outcome: in progress, replayable, or a different request.
  */
 export async function reserveIdempotencyKey(
-  tx: WorkspaceTransaction,
+  tx: ScopedTransaction,
   input: ReserveInput,
 ): Promise<ReserveResult> {
   if (!IDEMPOTENCY_KEY_PATTERN.test(input.key)) throw new IdempotencyKeyError();
@@ -125,7 +125,7 @@ export async function reserveIdempotencyKey(
 }
 
 async function finish(
-  tx: WorkspaceTransaction,
+  tx: ScopedTransaction,
   principal: PrincipalRef,
   key: string,
   values: {
@@ -152,7 +152,7 @@ async function finish(
 }
 
 export function completeIdempotencyKey(
-  tx: WorkspaceTransaction,
+  tx: ScopedTransaction,
   principal: PrincipalRef,
   key: string,
   response: StoredResponseRef,
@@ -169,7 +169,7 @@ export function completeIdempotencyKey(
 
 /** Deterministic 4xx failures (validation, authorization, not-found) are stored and replayed. */
 export function failIdempotencyKeyDeterministic(
-  tx: WorkspaceTransaction,
+  tx: ScopedTransaction,
   principal: PrincipalRef,
   key: string,
   status: number,
@@ -185,7 +185,7 @@ export function failIdempotencyKeyDeterministic(
 
 /** Transient failures are not stored: the reservation is released so a retry executes. */
 export async function releaseIdempotencyKey(
-  tx: WorkspaceTransaction,
+  tx: ScopedTransaction,
   principal: PrincipalRef,
   key: string,
 ): Promise<void> {

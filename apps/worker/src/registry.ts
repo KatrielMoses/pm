@@ -1,13 +1,18 @@
-import type { JobHandler, OutboxConsumer } from '@pm/platform';
+import type { JobHandler, OutboxConsumer, RecurringJob } from '@pm/platform';
+import { IDENTITY_SCHEDULES, identityJobHandlers, type IdentityJobDeps } from '@pm/identity';
 
 /**
- * Job handlers and outbox consumers registered by product modules. Phase 1A ships the execution
- * engine only; feature handlers (exports, digests, purge, ...) register here in their own phases.
+ * Job handlers, outbox consumers, and recurring platform jobs registered by product modules.
+ * 1B: identity mail delivery and retention sweeps (platform-scoped, workspace-free).
  */
-export function registeredHandlers(): JobHandler[] {
-  return [];
+export function registeredHandlers(identity: IdentityJobDeps): JobHandler[] {
+  return [...identityJobHandlers(identity)];
 }
 
 export function registeredConsumers(): OutboxConsumer[] {
   return [];
+}
+
+export function registeredSchedules(): RecurringJob[] {
+  return [...IDENTITY_SCHEDULES];
 }

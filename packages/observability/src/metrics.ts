@@ -25,6 +25,14 @@ export const FOUNDATION_SIGNALS = [
   { name: 'worker.up', type: 'gauge', labels: ['role'] },
   { name: 'readiness.checks', type: 'counter', labels: ['check', 'outcome'] },
   { name: 'telemetry.label_rejected', type: 'counter', labels: [] },
+  // Identity (1B): bounded flow/outcome vocabularies; never emails, accounts, sessions, or IPs.
+  { name: 'identity.flow.outcomes', type: 'counter', labels: ['flow', 'outcome'] },
+  { name: 'identity.flow.duration', type: 'histogram', labels: ['flow', 'outcome'] },
+  { name: 'identity.rate_limited', type: 'counter', labels: ['policy'] },
+  { name: 'identity.sessions', type: 'gauge', labels: ['state'] },
+  { name: 'identity.cleanup.deleted', type: 'counter', labels: ['kind'] },
+  { name: 'mail.enqueued', type: 'counter', labels: ['template'] },
+  { name: 'mail.deliveries', type: 'counter', labels: ['template', 'outcome'] },
 ] as const satisfies readonly SignalDefinition[];
 
 export const ALL_SIGNALS: readonly SignalDefinition[] = [

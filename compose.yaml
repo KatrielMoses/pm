@@ -55,6 +55,12 @@ services:
     environment:
       APP_ENV: local
       DATABASE_APP_URL: postgres://app_rw:${PM_ROLE_PASSWORD_APP_RW}@db:5432/pm_local
+      PUBLIC_BASE_URL: http://localhost:3000
+      AUTH_SIGNING_KEY: ${PM_AUTH_SIGNING_KEY:?}
+      SECRET_VAULT: dev-database
+      DEV_VAULT_KEY: ${PM_DEV_VAULT_KEY:?}
+      COOKIE_SECURE: 'false'
+      OAUTH_PROVIDERS: local
     ports: ['127.0.0.1:3000:3000']
     depends_on: { migrate: { condition: service_completed_successfully } }
 
@@ -65,6 +71,11 @@ services:
       APP_ENV: local
       DATABASE_WORKER_URL: postgres://app_worker:${PM_ROLE_PASSWORD_APP_WORKER}@db:5432/pm_local
       DATABASE_DISPATCHER_URL: postgres://dispatcher:${PM_ROLE_PASSWORD_DISPATCHER}@db:5432/pm_local
+      PUBLIC_BASE_URL: http://localhost:3000
+      SECRET_VAULT: dev-database
+      DEV_VAULT_KEY: ${PM_DEV_VAULT_KEY:?}
+      MAIL_TRANSPORT: capture
+      MAIL_CAPTURE_DIR: /tmp/pm-mailbox
     depends_on: { migrate: { condition: service_completed_successfully } }
 
 volumes:

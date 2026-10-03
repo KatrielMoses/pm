@@ -1,4 +1,4 @@
-# Engineering documentation (Phase 1A)
+# Engineering documentation (Phases 1A–1B)
 
 Implementation notes for the accepted Phase 0 architecture. Where these notes and the accepted
 documents in `docs/architecture/` differ, the accepted documents govern, and the difference is
@@ -12,4 +12,5 @@ recorded in [ADR-0007](adr/0007-deviations.md).
 | [observability.md](observability.md) | Logs, traces, metrics, redaction, health and readiness |
 | [backup-and-recovery.md](backup-and-recovery.md) | Backup/restore policy foundation (no RPO/RTO promises) |
 | [dependency-inventory.md](dependency-inventory.md) | Generated dependency and license inventory |
-| [adr/](adr/) | Implementation ADRs 0001–0007 |
+| [identity.md](identity.md) | Identity and sessions (1B): classification, passwords, sessions, CSRF, step-up, OAuth boundary, revocation, compromise runbook |
+| [adr/](adr/) | Implementation ADRs 0001–0008 |

@@ -50,7 +50,27 @@ const url = (role: string) =>
 if (fresh) {
   writeFileSync(
     '.env',
-    `APP_ENV=local\nDATABASE_APP_URL=${url('app_rw')}\nDATABASE_WORKER_URL=${url('app_worker')}\nDATABASE_DISPATCHER_URL=${url('dispatcher')}\nDATABASE_MIGRATOR_URL=${url('migrator')}\nHTTP_HOST=127.0.0.1\nHTTP_PORT=3000\nLOG_LEVEL=info\n`,
+    [
+      'APP_ENV=local',
+      `DATABASE_APP_URL=${url('app_rw')}`,
+      `DATABASE_WORKER_URL=${url('app_worker')}`,
+      `DATABASE_DISPATCHER_URL=${url('dispatcher')}`,
+      `DATABASE_MIGRATOR_URL=${url('migrator')}`,
+      'HTTP_HOST=127.0.0.1',
+      'HTTP_PORT=3000',
+      'LOG_LEVEL=info',
+      '# Identity (development adapters; refused outside local/test)',
+      'PUBLIC_BASE_URL=http://localhost:5173',
+      'ALLOWED_ORIGINS=http://localhost:3000,http://127.0.0.1:5173',
+      `AUTH_SIGNING_KEY=${randomBytes(32).toString('base64url')}`,
+      'SECRET_VAULT=dev-database',
+      `DEV_VAULT_KEY=${randomBytes(32).toString('base64url')}`,
+      'MAIL_TRANSPORT=capture',
+      'MAIL_CAPTURE_DIR=.local/mailbox',
+      'COOKIE_SECURE=false',
+      'OAUTH_PROVIDERS=local',
+      '',
+    ].join('\n'),
     { mode: 0o600 },
   );
   console.log('wrote .env with generated local credentials');

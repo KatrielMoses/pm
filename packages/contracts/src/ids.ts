@@ -1,11 +1,14 @@
 import { randomBytes, randomFillSync } from 'node:crypto';
 import { ID_PREFIXES, type IdPrefix } from './generated/registry.ts';
+import { PENDING_ID_PREFIXES, type PendingIdPrefix } from './pending.ts';
 
 // Crockford base32 without I, L, O, U (0D common#/$defs/public_id).
 const CROCKFORD = '0123456789ABCDEFGHJKMNPQRSTVWXYZ';
 const PUBLIC_ID_BODY = /^[0-9A-HJKMNP-TV-Z]{26}$/;
 const UUID_V7 = /^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
-const KNOWN_PREFIXES: ReadonlySet<string> = new Set(ID_PREFIXES.map((p) => p.prefix));
+const KNOWN_PREFIXES: ReadonlySet<string> = new Set(
+  [...ID_PREFIXES, ...PENDING_ID_PREFIXES].map((p) => p.prefix),
+);
 
 /** Encodes 128 random bits as 26 Crockford base32 characters (top two bits are zero). */
 function encode128(bytes: Uint8Array): string {
@@ -20,11 +23,11 @@ function encode128(bytes: Uint8Array): string {
 }
 
 /** Public ID: `<prefix>_<26 Crockford base32>` over 128 random bits (0B §2.2). */
-export function newPublicId(prefix: IdPrefix): string {
+export function newPublicId(prefix: IdPrefix | PendingIdPrefix): string {
   return `${prefix}_${encode128(randomBytes(16))}`;
 }
 
-export function isPublicId(value: string, prefix?: IdPrefix): boolean {
+export function isPublicId(value: string, prefix?: IdPrefix | PendingIdPrefix): boolean {
   const sep = value.indexOf('_');
   if (sep < 2) return false;
   const p = value.slice(0, sep);

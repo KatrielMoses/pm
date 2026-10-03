@@ -50,14 +50,17 @@ const patterns = [
 ];
 const skip = /^(node_modules|dist|\.git|\.local|reports|test-results|playwright-report|docs)$/;
 const hits = [];
+// Like gitleaks: a line carrying `gitleaks:allow` is a reviewed synthetic fixture.
 const walk = (dir) => {
   for (const name of readdirSync(dir)) {
-    if (skip.test(name)) continue;
+    if (skip.test(name) || (dir === '.' && LOCAL_SECRET_FILES.includes(name))) continue;
     const p = join(dir, name);
     if (statSync(p).isDirectory()) walk(p);
     else if (statSync(p).size < 1_000_000) {
-      const text = readFileSync(p, 'utf8');
-      for (const re of patterns) if (re.test(text)) hits.push(`${p}: ${re.source.slice(0, 30)}`);
+      const lines = readFileSync(p, 'utf8').split('\n');
+      for (const re of patterns)
+        if (lines.some((l) => re.test(l) && !l.includes('gitleaks:allow')))
+          hits.push(`${p}: ${re.source.slice(0, 30)}`);
     }
   }
 };

@@ -1658,3 +1658,498 @@ export const PRINCIPALS = [
   }
 ] as const;
 export type PrincipalType = (typeof PRINCIPALS)[number]['id'];
+
+/** 0C actions (workspace-scoped authorization vocabulary). */
+export const ACTIONS = [
+  {
+    "key": "record.read",
+    "stepUp": false,
+    "riskClass": "R0"
+  },
+  {
+    "key": "record.create",
+    "stepUp": false,
+    "riskClass": "R1"
+  },
+  {
+    "key": "record.update",
+    "stepUp": false,
+    "riskClass": "R1"
+  },
+  {
+    "key": "record.archive",
+    "stepUp": false,
+    "riskClass": "R1"
+  },
+  {
+    "key": "record.restore",
+    "stepUp": false,
+    "riskClass": "R1"
+  },
+  {
+    "key": "record.trash",
+    "stepUp": false,
+    "riskClass": "R1"
+  },
+  {
+    "key": "record.purge",
+    "stepUp": true,
+    "riskClass": "R4"
+  },
+  {
+    "key": "record.comment",
+    "stepUp": false,
+    "riskClass": "R0"
+  },
+  {
+    "key": "comment.edit_own",
+    "stepUp": false,
+    "riskClass": "R0"
+  },
+  {
+    "key": "comment.moderate",
+    "stepUp": false,
+    "riskClass": "R2"
+  },
+  {
+    "key": "record.follow",
+    "stepUp": false,
+    "riskClass": "R0"
+  },
+  {
+    "key": "record.assign",
+    "stepUp": false,
+    "riskClass": "R1"
+  },
+  {
+    "key": "record.delegate",
+    "stepUp": false,
+    "riskClass": "R1"
+  },
+  {
+    "key": "record.relate",
+    "stepUp": false,
+    "riskClass": "R1"
+  },
+  {
+    "key": "record.upload",
+    "stepUp": false,
+    "riskClass": "R1"
+  },
+  {
+    "key": "record.download",
+    "stepUp": false,
+    "riskClass": "R0"
+  },
+  {
+    "key": "record.move",
+    "stepUp": false,
+    "riskClass": "R1"
+  },
+  {
+    "key": "record.move_brand",
+    "stepUp": false,
+    "riskClass": "R3"
+  },
+  {
+    "key": "record.share",
+    "stepUp": false,
+    "riskClass": "R3"
+  },
+  {
+    "key": "record.share_revoke",
+    "stepUp": false,
+    "riskClass": "R2"
+  },
+  {
+    "key": "record.export",
+    "stepUp": false,
+    "riskClass": "R2"
+  },
+  {
+    "key": "task.complete",
+    "stepUp": false,
+    "riskClass": "R1"
+  },
+  {
+    "key": "project.complete",
+    "stepUp": false,
+    "riskClass": "R2"
+  },
+  {
+    "key": "deliverable.submit",
+    "stepUp": false,
+    "riskClass": "R1"
+  },
+  {
+    "key": "review.request",
+    "stepUp": false,
+    "riskClass": "R1"
+  },
+  {
+    "key": "review.decide",
+    "stepUp": false,
+    "riskClass": "R2"
+  },
+  {
+    "key": "review.self_approve",
+    "stepUp": false,
+    "riskClass": "R2"
+  },
+  {
+    "key": "defect.verify",
+    "stepUp": false,
+    "riskClass": "R2"
+  },
+  {
+    "key": "time.log_own",
+    "stepUp": false,
+    "riskClass": "R0"
+  },
+  {
+    "key": "timesheet.submit_own",
+    "stepUp": false,
+    "riskClass": "R0"
+  },
+  {
+    "key": "timesheet.approve",
+    "stepUp": false,
+    "riskClass": "R2"
+  },
+  {
+    "key": "timesheet.unlock",
+    "stepUp": true,
+    "riskClass": "R3"
+  },
+  {
+    "key": "view.share",
+    "stepUp": false,
+    "riskClass": "R1"
+  },
+  {
+    "key": "report.schedule",
+    "stepUp": false,
+    "riskClass": "R2"
+  },
+  {
+    "key": "release.decide",
+    "stepUp": true,
+    "riskClass": "R4"
+  },
+  {
+    "key": "release.production_action",
+    "stepUp": true,
+    "riskClass": "R4"
+  },
+  {
+    "key": "environment.configure",
+    "stepUp": false,
+    "riskClass": "R2"
+  },
+  {
+    "key": "tests.execute",
+    "stepUp": false,
+    "riskClass": "R1"
+  },
+  {
+    "key": "personal.manage_own",
+    "stepUp": false,
+    "riskClass": "R0"
+  },
+  {
+    "key": "sessions.manage_own",
+    "stepUp": false,
+    "riskClass": "R1"
+  },
+  {
+    "key": "api_tokens.personal",
+    "stepUp": true,
+    "riskClass": "R3"
+  },
+  {
+    "key": "workspace.view_settings",
+    "stepUp": false,
+    "riskClass": "R0"
+  },
+  {
+    "key": "workspace.configure",
+    "stepUp": false,
+    "riskClass": "R2"
+  },
+  {
+    "key": "workspace.delete",
+    "stepUp": true,
+    "riskClass": "R4"
+  },
+  {
+    "key": "ownership.transfer",
+    "stepUp": true,
+    "riskClass": "R4"
+  },
+  {
+    "key": "brand.create",
+    "stepUp": false,
+    "riskClass": "R2"
+  },
+  {
+    "key": "brand.configure",
+    "stepUp": false,
+    "riskClass": "R2"
+  },
+  {
+    "key": "brand.archive",
+    "stepUp": false,
+    "riskClass": "R3"
+  },
+  {
+    "key": "brand.delete",
+    "stepUp": true,
+    "riskClass": "R4"
+  },
+  {
+    "key": "brand.mark_sensitive",
+    "stepUp": true,
+    "riskClass": "R3"
+  },
+  {
+    "key": "membership.invite_member",
+    "stepUp": false,
+    "riskClass": "R2"
+  },
+  {
+    "key": "membership.invite_guest",
+    "stepUp": false,
+    "riskClass": "R3"
+  },
+  {
+    "key": "membership.manage",
+    "stepUp": true,
+    "riskClass": "R3"
+  },
+  {
+    "key": "team.manage",
+    "stepUp": false,
+    "riskClass": "R2"
+  },
+  {
+    "key": "access.grant_scope",
+    "stepUp": false,
+    "riskClass": "R3"
+  },
+  {
+    "key": "access.restrict_scope",
+    "stepUp": false,
+    "riskClass": "R3"
+  },
+  {
+    "key": "access.preview",
+    "stepUp": false,
+    "riskClass": "R0"
+  },
+  {
+    "key": "access.elevate_sensitive",
+    "stepUp": true,
+    "riskClass": "R4"
+  },
+  {
+    "key": "sharing.policy.configure",
+    "stepUp": true,
+    "riskClass": "R3"
+  },
+  {
+    "key": "feature_availability.configure",
+    "stepUp": false,
+    "riskClass": "R2"
+  },
+  {
+    "key": "custom_roles.manage",
+    "stepUp": true,
+    "riskClass": "R3"
+  },
+  {
+    "key": "workflow.configure",
+    "stepUp": false,
+    "riskClass": "R2"
+  },
+  {
+    "key": "fields.configure",
+    "stepUp": false,
+    "riskClass": "R2"
+  },
+  {
+    "key": "views.configure",
+    "stepUp": false,
+    "riskClass": "R1"
+  },
+  {
+    "key": "templates.manage",
+    "stepUp": false,
+    "riskClass": "R2"
+  },
+  {
+    "key": "notifications.configure_scope",
+    "stepUp": false,
+    "riskClass": "R2"
+  },
+  {
+    "key": "ai.configure_brand",
+    "stepUp": false,
+    "riskClass": "R2"
+  },
+  {
+    "key": "ai.providers.manage",
+    "stepUp": true,
+    "riskClass": "R3"
+  },
+  {
+    "key": "ai.limits.configure",
+    "stepUp": true,
+    "riskClass": "R3"
+  },
+  {
+    "key": "agents.configure",
+    "stepUp": false,
+    "riskClass": "R3"
+  },
+  {
+    "key": "automations.configure",
+    "stepUp": false,
+    "riskClass": "R2"
+  },
+  {
+    "key": "integrations.configure",
+    "stepUp": false,
+    "riskClass": "R3"
+  },
+  {
+    "key": "api_tokens.service.manage",
+    "stepUp": true,
+    "riskClass": "R3"
+  },
+  {
+    "key": "webhooks.manage",
+    "stepUp": false,
+    "riskClass": "R3"
+  },
+  {
+    "key": "security.configure",
+    "stepUp": true,
+    "riskClass": "R4"
+  },
+  {
+    "key": "sessions.manage_others",
+    "stepUp": true,
+    "riskClass": "R3"
+  },
+  {
+    "key": "retention.configure",
+    "stepUp": true,
+    "riskClass": "R4"
+  },
+  {
+    "key": "legal_hold.manage",
+    "stepUp": true,
+    "riskClass": "R4"
+  },
+  {
+    "key": "trash.manage",
+    "stepUp": false,
+    "riskClass": "R2"
+  },
+  {
+    "key": "audit.view",
+    "stepUp": false,
+    "riskClass": "R0"
+  },
+  {
+    "key": "audit.export",
+    "stepUp": true,
+    "riskClass": "R3"
+  },
+  {
+    "key": "workspace.export",
+    "stepUp": true,
+    "riskClass": "R3"
+  },
+  {
+    "key": "usage.view",
+    "stepUp": false,
+    "riskClass": "R0"
+  },
+  {
+    "key": "billing.view",
+    "stepUp": false,
+    "riskClass": "R0"
+  },
+  {
+    "key": "billing.manage",
+    "stepUp": true,
+    "riskClass": "R3"
+  },
+  {
+    "key": "secrets_metadata.view",
+    "stepUp": false,
+    "riskClass": "R0"
+  },
+  {
+    "key": "health.view",
+    "stepUp": false,
+    "riskClass": "R0"
+  },
+  {
+    "key": "support_access.grant",
+    "stepUp": true,
+    "riskClass": "R4"
+  },
+  {
+    "key": "emergency_stop.trigger",
+    "stepUp": false,
+    "riskClass": "R1"
+  },
+  {
+    "key": "ai.execute",
+    "stepUp": false,
+    "riskClass": "R1"
+  },
+  {
+    "key": "ai.apply_proposal",
+    "stepUp": false,
+    "riskClass": "R1"
+  },
+  {
+    "key": "agent.assign",
+    "stepUp": false,
+    "riskClass": "R2"
+  },
+  {
+    "key": "agent.run_control",
+    "stepUp": false,
+    "riskClass": "R1"
+  },
+  {
+    "key": "agent.action_approve",
+    "stepUp": false,
+    "riskClass": "R3"
+  },
+  {
+    "key": "automation.run_manual",
+    "stepUp": false,
+    "riskClass": "R2"
+  },
+  {
+    "key": "integration.sync_now",
+    "stepUp": false,
+    "riskClass": "R1"
+  },
+  {
+    "key": "import.execute",
+    "stepUp": false,
+    "riskClass": "R2"
+  },
+  {
+    "key": "webhook.test_send",
+    "stepUp": false,
+    "riskClass": "R2"
+  }
+] as const;
+export type ActionKey = (typeof ACTIONS)[number]['key'];

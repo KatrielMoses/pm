@@ -1,6 +1,6 @@
 # PM — engineering README
 
-Modular-monolith SaaS foundation (Phase 1A). One TypeScript codebase, one production image, two
+Modular-monolith SaaS foundation (Phase 1A) with identity and sessions (Phase 1B). One TypeScript codebase, one production image, two
 long-running commands:
 
 | Process | Command (image) | Source | Does | Never does |
@@ -28,7 +28,12 @@ pnpm db:local          # terminal 1: PostgreSQL on 127.0.0.1:54329, roles, migra
 pnpm dev               # terminal 2: web/API :3000, worker, Vite dev server :5173 (proxies /v1)
 ```
 
-Open http://localhost:5173 (or the port Vite prints). With Docker instead:
+Open http://localhost:5173 (or the port Vite prints) and create an account at `/register`. Local
+mail (verification, reset, security notices) is not sent; the worker writes each message to
+`.local/mailbox/` as a file. Open the link it contains to continue. The local OAuth provider
+(`OAUTH_PROVIDERS=local`) is a deterministic test stand-in, not a real identity provider.
+
+With Docker instead:
 
 ```sh
 cp compose.env.example compose.env    # replace every value
@@ -68,6 +73,7 @@ packages/config     Typed fail-fast configuration, secrets boundary, browser-saf
 packages/db         Pools, fail-closed tenant transactions, discovery, migrator, SQL migrations, role bootstrap
 packages/observability  Allow-listed JSON logger, redaction, OpenTelemetry tracing/metrics, error reporting
 packages/platform   Operations, jobs, outbox/inbox, idempotency, external effects, worker runtime
+packages/identity   Accounts, passwords, sessions, MFA, step-up, OAuth boundary, rate limits, mail outbox (1B)
 packages/test-infra     Leaf test infrastructure (no @pm deps): disposable PostgreSQL, databases, 0D schema validation
 packages/test-support   Downstream test support: binds @pm/db bootstrap/migrator, fixtures, harness, Vitest global setup
 e2e/                Playwright browser smoke
@@ -77,7 +83,7 @@ scripts/            verify, scans, guards, local tooling, container entrypoint
 Package graph (enforced by `scripts/check-workspace-graph.mjs` and pnpm's own cycle check): the
 **complete** graph (dependencies, devDependencies, optionalDependencies, peerDependencies) is
 acyclic, and runtime edges follow `contracts`, `config` → `observability` → `db` → `platform` →
-`api`, `worker`; `web` → `config/public`. Test packages are dev-only: `test-infra` is a leaf any
+`identity` → `api`, `worker`; `web` → `config/public`. Test packages are dev-only: `test-infra` is a leaf any
 package may use; `test-support` sits downstream of `db` and is used only by `platform`, `api`,
 `worker`, and e2e. Details: [ADR-0001](docs/engineering/adr/0001-typescript-pnpm-modular-monolith.md#package-graph).
 
@@ -98,6 +104,9 @@ for allow-listed packages (`allowBuilds` in `pnpm-workspace.yaml`). Inventory an
 | `database is bound to a different environment` | The database was migrated for another `APP_ENV`. Use a database from the right namespace. |
 | `/readyz` 503 with `dispatcher: fail` | No worker is running (or its heartbeat is stale). Start `pnpm dev` or the worker command. |
 | `/readyz` 503 with `migrations: fail` | The database is behind the artifact: run `pnpm migrate up`. |
+| Sign-in or form posts return `403 forbidden` locally | The page origin is not allowed. Use `PUBLIC_BASE_URL` (default http://localhost:5173) or add the origin to `ALLOWED_ORIGINS`. |
+| No verification email arrives | Local mail is captured to `.local/mailbox/`, and only while the worker runs (`pnpm dev`). |
+| `SECRET_VAULT`/`MAIL_TRANSPORT` rejected in a deployed mode | Expected: no KMS or mail provider is approved yet ([ADR-0008](docs/engineering/adr/0008-identity-and-sessions.md#production-blockers-product-owner-decisions)). |
 | `migration history verification failed` | A migration file changed after it was applied. Never edit applied migrations; add a new one. |
 | Integration tests hang on start | No Docker and `PM_TEST_PG=container`; use `PM_TEST_PG=embedded`. |
 | Vite says port 5173 is in use | Another program holds it; Vite picks the next port automatically. |

@@ -10,6 +10,8 @@ export default async function globalSetup(): Promise<() => Promise<void>> {
   if (!existsSync(join(ROOT, 'apps/web/dist/index.html')))
     throw new Error('Run `pnpm build` before the browser smoke test.');
   const port = process.env.PM_E2E_PORT ?? '4173';
+  const scratch = mkdtempSync(join(tmpdir(), 'pm-e2e-'));
+  const mailbox = join(scratch, 'mailbox');
   const server = await startPostgres();
   const urls = await provisionDatabase(server, 'pm_e2e', generatePasswords());
   const env = {
@@ -20,8 +22,22 @@ export default async function globalSetup(): Promise<() => Promise<void>> {
     BUILD_VERSION: '0.1.0',
     BUILD_ID: 'e2e',
     WEB_DIST_DIR: join(ROOT, 'apps/web/dist'),
-    WORKER_HEALTH_FILE: join(mkdtempSync(join(tmpdir(), 'pm-e2e-')), 'health'),
+    WORKER_HEALTH_FILE: join(scratch, 'health'),
+    // Identity: links and the CSRF origin check use the browser-visible origin.
+    PUBLIC_BASE_URL: `http://127.0.0.1:${port}`,
+    MAIL_CAPTURE_DIR: mailbox,
+    WORKER_POLL_INTERVAL_MS: '100',
+    RATE_LIMIT_POLICIES: JSON.stringify({
+      'sign_in.source': { limit: 10000, windowMs: 60000 },
+      'register.source': { limit: 10000, windowMs: 60000 },
+      'token.source': { limit: 10000, windowMs: 60000 },
+      'recovery.source': { limit: 10000, windowMs: 60000 },
+      'resend.source': { limit: 10000, windowMs: 60000 },
+      'oauth.source': { limit: 10000, windowMs: 60000 },
+    }),
   };
+  // Captured mail (one-time links) stays in a private temp directory, never in reports.
+  process.env.PM_E2E_MAILBOX = mailbox;
   const dist = process.env.PM_SMOKE_DIST === '1';
   const start = (app: string): ChildProcess =>
     spawn(

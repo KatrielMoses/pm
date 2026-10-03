@@ -31,6 +31,7 @@ export interface ErrorBody {
   issues?: ErrorIssue[];
   retry_after_seconds?: number;
   operation_id?: string;
+  step_up?: Record<string, unknown>;
 }
 
 /** 0D error-envelope. */
@@ -58,7 +59,12 @@ export function meta(requestId: string, correlationId: string): ResponseMeta {
 export function errorEnvelope(
   code: ErrorCode,
   ids: { requestId: string; correlationId: string },
-  extra: { issues?: ErrorIssue[]; retryAfterSeconds?: number; operationId?: string } = {},
+  extra: {
+    issues?: ErrorIssue[];
+    retryAfterSeconds?: number;
+    operationId?: string;
+    stepUp?: Record<string, unknown>;
+  } = {},
 ): ErrorEnvelope {
   const entry = errorCodeEntry(code);
   if (typeof entry.httpStatus !== 'number') {
@@ -75,6 +81,7 @@ export function errorEnvelope(
   if (extra.issues?.length) body.issues = extra.issues;
   if (extra.retryAfterSeconds !== undefined) body.retry_after_seconds = extra.retryAfterSeconds;
   if (extra.operationId !== undefined) body.operation_id = extra.operationId;
+  if (extra.stepUp !== undefined) body.step_up = extra.stepUp;
   return { error: body };
 }
 
@@ -103,7 +110,15 @@ export function successEnvelope<T extends { id: string; type: string }>(
  * (health/status) use the success-envelope shape without `data.id`. The allow-list is closed;
  * ordinary resources must use `successEnvelope`, which requires a public ID.
  */
-export const PLATFORM_SINGLETON_TYPES = ['platform_status'] as const;
+export const PLATFORM_SINGLETON_TYPES = [
+  'platform_status',
+  // Phase 1B authentication responses (not records; ADR-0008 B3):
+  'acknowledgement',
+  'sign_in_result',
+  'step_up_token',
+  'recovery_code_set',
+  'oauth_authorization',
+] as const;
 export type PlatformSingletonType = (typeof PLATFORM_SINGLETON_TYPES)[number];
 
 export interface PlatformSingletonEnvelope<T extends Record<string, unknown>> {

@@ -41,6 +41,9 @@ echo "runtime user: $(docker run --rm --entrypoint id "$IMAGE")"
 echo "== runtime"
 pw() { openssl rand -hex 18; }
 ADMIN=$(pw); MIG=$(pw); RES=$(pw); APP=$(pw); WRK=$(pw); DSP=$(pw)
+key() { openssl rand 32 | base64 | tr '+/' '-_' | tr -d '='; }
+SIGNING=$(key); VAULT=$(key)
+IDENTITY_ENV=(-e SECRET_VAULT=dev-database -e "DEV_VAULT_KEY=$VAULT" -e COOKIE_SECURE=false -e PUBLIC_BASE_URL=http://127.0.0.1:3999)
 docker network create "$NET" >/dev/null
 docker run -d --name pm-smoke-db --network "$NET" -e POSTGRES_USER=pm_admin -e POSTGRES_PASSWORD="$ADMIN" -e POSTGRES_DB=pm_test "$PG_IMAGE" >/dev/null
 # Wait on TCP: during first-run init the image serves only its Unix socket from a temporary server.
@@ -53,9 +56,9 @@ run -e BOOTSTRAP_ADMIN_URL="$(url pm_admin "$ADMIN")" -e BOOTSTRAP_DATABASE=pm_t
   -e PM_ROLE_PASSWORD_APP_WORKER="$WRK" -e PM_ROLE_PASSWORD_DISPATCHER="$DSP" "$IMAGE" bootstrap
 run -e APP_ENV=test -e DATABASE_MIGRATOR_URL="$(url migrator "$MIG")" "$IMAGE" migrate up
 run -e APP_ENV=test -e DATABASE_MIGRATOR_URL="$(url migrator "$MIG")" "$IMAGE" migrate verify
-docker run -d --name pm-smoke-worker --network "$NET" -e APP_ENV=test \
+docker run -d --name pm-smoke-worker --network "$NET" -e APP_ENV=test "${IDENTITY_ENV[@]}" -e MAIL_TRANSPORT=capture \
   -e DATABASE_WORKER_URL="$(url app_worker "$WRK")" -e DATABASE_DISPATCHER_URL="$(url dispatcher "$DSP")" "$IMAGE" worker >/dev/null
-docker run -d --name pm-smoke-web --network "$NET" -p 127.0.0.1:3999:3000 -e APP_ENV=test \
+docker run -d --name pm-smoke-web --network "$NET" -p 127.0.0.1:3999:3000 -e APP_ENV=test "${IDENTITY_ENV[@]}" -e "AUTH_SIGNING_KEY=$SIGNING" \
   -e DATABASE_APP_URL="$(url app_rw "$APP")" "$IMAGE" web >/dev/null
 for c in pm-smoke-web pm-smoke-worker; do
   for _ in $(seq 90); do [ "$(docker inspect -f '{{.State.Health.Status}}' $c)" = healthy ] && break; sleep 1; done
@@ -76,6 +79,6 @@ done
 docker logs pm-smoke-web 2>&1 | grep -q '"event":"api.stopped"' || fail "web shutdown not logged"
 docker logs pm-smoke-worker 2>&1 | grep -q '"event":"worker.stopped"' || fail "worker shutdown not logged"
 for c in pm-smoke-web pm-smoke-worker; do
-  ! docker logs $c 2>&1 | grep -qE "$APP|$WRK|$DSP|$MIG|$ADMIN|postgres://" || fail "credentials or database URLs in $c logs"
+  ! docker logs $c 2>&1 | grep -qE "$APP|$WRK|$DSP|$MIG|$ADMIN|$SIGNING|$VAULT|postgres://" || fail "credentials, keys, or database URLs in $c logs"
 done
 echo "IMAGE SMOKE PASSED"

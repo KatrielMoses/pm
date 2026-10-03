@@ -87,6 +87,46 @@ export interface ServerConfig {
     dispatcherStaleMs: number;
   };
   secrets: { provider: 'env' };
+  identity: IdentityConfig;
+}
+
+/** Identity and session settings (1B). Lifetimes and limits are operational defaults, not promises. */
+export interface IdentityConfig {
+  /** Origin used in email links and for the CSRF origin check. */
+  publicOrigin: string;
+  /** Origins accepted on state-changing requests (the public origin plus local dev origins). */
+  allowedOrigins: readonly string[];
+  /** Secure cookies; false only for explicit local/test HTTP. */
+  cookieSecure: boolean;
+  /** HMAC key: CSRF tokens and privacy-preserving rate-limit keys (domain-separated). */
+  signingKey: Secret | undefined;
+  sessionIdleMs: number;
+  sessionAbsoluteMs: number;
+  sessionTouchMs: number;
+  /** Ended sessions and their minimized device/network context are deleted after this. */
+  sessionRetentionMs: number;
+  emailVerificationTokenMs: number;
+  passwordResetTokenMs: number;
+  signInContinuationMs: number;
+  oauthStateMs: number;
+  resendCooldownMs: number;
+  stepUpChallengeMs: number; // STEP_UP_CHALLENGE_LIFETIME
+  stepUpWindowMs: number; // STEP_UP_WINDOW
+  stepUpMaxAttempts: number;
+  argon2: { memoryKiB: number; passes: number; parallelism: number; maxConcurrency: number };
+  /** Minimum response time for enumeration-sensitive endpoints (bounded timing class). */
+  responseFloorMs: number;
+  /** RATE_LIMIT_POLICIES overrides (0D named parameter); code defaults otherwise. */
+  rateLimitOverrides: Readonly<Record<string, { limit: number; windowMs: number }>>;
+  legal: { termsVersion: string; privacyVersion: string };
+  oauthProviders: readonly string[];
+  botProtection: 'none' | 'test';
+  mailTransport: 'capture' | 'none';
+  mailCaptureDir: string | undefined;
+  mailFrom: string;
+  mailRetentionMs: number;
+  vault: 'dev-database' | 'none';
+  devVaultKey: Secret | undefined;
 }
 
 export class ConfigError extends Error {
@@ -131,6 +171,32 @@ const DEFAULTS = {
   READINESS_REQUIRE_DISPATCHER: 'true',
   READINESS_DISPATCHER_STALE_MS: '30000',
   SECRET_PROVIDER: 'env',
+  COOKIE_SECURE: 'true',
+  SESSION_IDLE_TIMEOUT_MS: String(3 * 86_400_000),
+  SESSION_ABSOLUTE_TIMEOUT_MS: String(30 * 86_400_000),
+  SESSION_TOUCH_INTERVAL_MS: '60000',
+  SESSION_RETENTION_MS: String(30 * 86_400_000),
+  EMAIL_VERIFICATION_TOKEN_MS: String(86_400_000),
+  PASSWORD_RESET_TOKEN_MS: String(30 * 60_000),
+  SIGN_IN_CONTINUATION_MS: String(5 * 60_000),
+  OAUTH_STATE_MS: String(10 * 60_000),
+  RESEND_COOLDOWN_MS: '60000',
+  STEP_UP_CHALLENGE_LIFETIME_MS: String(5 * 60_000),
+  STEP_UP_WINDOW_MS: String(5 * 60_000),
+  STEP_UP_MAX_ATTEMPTS: '5',
+  ARGON2_MEMORY_KIB: '65536',
+  ARGON2_PASSES: '3',
+  ARGON2_PARALLELISM: '1',
+  ARGON2_MAX_CONCURRENCY: '4',
+  AUTH_RESPONSE_FLOOR_MS: '400',
+  LEGAL_TERMS_VERSION: 'terms-draft-1',
+  LEGAL_PRIVACY_VERSION: 'privacy-draft-1',
+  OAUTH_PROVIDERS: '',
+  BOT_PROTECTION: 'none',
+  MAIL_TRANSPORT: 'none',
+  MAIL_FROM: 'PM <no-reply@localhost>',
+  MAIL_RETENTION_MS: String(7 * 86_400_000),
+  SECRET_VAULT: 'none',
 } as const;
 
 const schema = z.object({
@@ -172,6 +238,37 @@ const schema = z.object({
   READINESS_REQUIRE_DISPATCHER: bool,
   READINESS_DISPATCHER_STALE_MS: int(1000, 3_600_000),
   SECRET_PROVIDER: z.enum(['env']),
+  COOKIE_SECURE: bool,
+  AUTH_SIGNING_KEY: z.string().optional(),
+  ALLOWED_ORIGINS: z.string().optional(),
+  SESSION_IDLE_TIMEOUT_MS: int(60_000, 90 * 86_400_000),
+  SESSION_ABSOLUTE_TIMEOUT_MS: int(60_000, 400 * 86_400_000),
+  SESSION_TOUCH_INTERVAL_MS: int(1000, 3_600_000),
+  SESSION_RETENTION_MS: int(60_000, 400 * 86_400_000),
+  EMAIL_VERIFICATION_TOKEN_MS: int(60_000, 7 * 86_400_000),
+  PASSWORD_RESET_TOKEN_MS: int(60_000, 86_400_000),
+  SIGN_IN_CONTINUATION_MS: int(30_000, 3_600_000),
+  OAUTH_STATE_MS: int(30_000, 3_600_000),
+  RESEND_COOLDOWN_MS: int(0, 3_600_000),
+  STEP_UP_CHALLENGE_LIFETIME_MS: int(30_000, 3_600_000),
+  STEP_UP_WINDOW_MS: int(10_000, 3_600_000),
+  STEP_UP_MAX_ATTEMPTS: int(1, 20),
+  ARGON2_MEMORY_KIB: int(19_456, 1_048_576),
+  ARGON2_PASSES: int(1, 10),
+  ARGON2_PARALLELISM: int(1, 16),
+  ARGON2_MAX_CONCURRENCY: int(1, 64),
+  AUTH_RESPONSE_FLOOR_MS: int(0, 5000),
+  RATE_LIMIT_POLICIES: z.string().optional(),
+  LEGAL_TERMS_VERSION: z.string().regex(/^[A-Za-z0-9._-]{1,40}$/),
+  LEGAL_PRIVACY_VERSION: z.string().regex(/^[A-Za-z0-9._-]{1,40}$/),
+  OAUTH_PROVIDERS: z.string().regex(/^([a-z][a-z0-9_]{1,31}(,[a-z][a-z0-9_]{1,31})*)?$/),
+  BOT_PROTECTION: z.enum(['none', 'test']),
+  MAIL_TRANSPORT: z.enum(['capture', 'none']),
+  MAIL_CAPTURE_DIR: z.string().min(1).optional(),
+  MAIL_FROM: z.string().min(3).max(200),
+  MAIL_RETENTION_MS: int(60_000, 90 * 86_400_000),
+  SECRET_VAULT: z.enum(['dev-database', 'none']),
+  DEV_VAULT_KEY: z.string().optional(),
 });
 
 /** Variables a deployed environment must set explicitly (no silent local defaults). */
@@ -325,6 +422,97 @@ export function loadServerConfig(options: LoadOptions): ServerConfig {
       issues.push('BUILD_ID/BUILD_VERSION: development build identifiers are not allowed');
     }
   }
+  // Identity (1B) ------------------------------------------------------------------------------
+  const devOnly = !deployed;
+  const publicOrigin = (() => {
+    const base =
+      c.PUBLIC_BASE_URL ??
+      (env === 'local' ? 'http://localhost:5173' : `http://127.0.0.1:${c.HTTP_PORT}`);
+    return new URL(base).origin;
+  })();
+  const allowedOrigins = [publicOrigin];
+  for (const o of (c.ALLOWED_ORIGINS ?? '')
+    .split(',')
+    .map((x) => x.trim())
+    .filter(Boolean)) {
+    let origin: string;
+    try {
+      origin = new URL(o).origin;
+    } catch {
+      issues.push('ALLOWED_ORIGINS: entries must be absolute origins');
+      continue;
+    }
+    if (deployed && !origin.startsWith('https://'))
+      issues.push('ALLOWED_ORIGINS: https origins only in deployed environments');
+    allowedOrigins.push(origin);
+  }
+  if (!c.COOKIE_SECURE && !devOnly)
+    issues.push('COOKIE_SECURE: insecure cookies are allowed only in local and test');
+  const keyBytes = (name: string, raw: string | undefined, needed: boolean): Secret | undefined => {
+    if (raw === undefined || raw === '') {
+      if (needed) issues.push(`${name}: required for the ${options.service} process`);
+      return undefined;
+    }
+    const bytes = Buffer.from(raw, 'base64url');
+    if (bytes.length < 32 || !/^[A-Za-z0-9_-]+$/.test(raw))
+      issues.push(`${name}: must be base64url encoding of at least 32 random bytes`);
+    return new Secret(raw);
+  };
+  const signingKey = keyBytes('AUTH_SIGNING_KEY', c.AUTH_SIGNING_KEY, options.service === 'api');
+  if (c.SESSION_IDLE_TIMEOUT_MS > c.SESSION_ABSOLUTE_TIMEOUT_MS)
+    issues.push('SESSION_IDLE_TIMEOUT_MS: must not exceed SESSION_ABSOLUTE_TIMEOUT_MS');
+  if (c.SESSION_TOUCH_INTERVAL_MS * 2 > c.SESSION_IDLE_TIMEOUT_MS)
+    issues.push('SESSION_TOUCH_INTERVAL_MS: must be well below SESSION_IDLE_TIMEOUT_MS');
+  const oauthProviders = c.OAUTH_PROVIDERS ? c.OAUTH_PROVIDERS.split(',') : [];
+  // Development-only adapters: never in preview/staging/production (no vendor is approved yet).
+  if (deployed) {
+    if (oauthProviders.includes('local'))
+      issues.push(
+        'OAUTH_PROVIDERS: the local test provider is not allowed in deployed environments',
+      );
+    if (c.MAIL_TRANSPORT === 'capture')
+      issues.push(
+        'MAIL_TRANSPORT: capture is a development transport; no production mail provider is approved',
+      );
+    if (c.SECRET_VAULT === 'dev-database')
+      issues.push(
+        'SECRET_VAULT: dev-database is a development store; no secret store/KMS is approved (DQ-28)',
+      );
+    if (c.BOT_PROTECTION === 'test')
+      issues.push('BOT_PROTECTION: the test adapter is not allowed in deployed environments');
+  }
+  const identityServices: Service[] = ['api', 'worker'];
+  if (identityServices.includes(options.service)) {
+    if (c.SECRET_VAULT === 'none')
+      issues.push(
+        `SECRET_VAULT: a secret store is required for the ${options.service} process (identity secrets)`,
+      );
+    if (c.MAIL_TRANSPORT === 'none' && options.service === 'worker')
+      issues.push('MAIL_TRANSPORT: a mail transport is required for the worker process');
+  }
+  const devVaultKey = keyBytes(
+    'DEV_VAULT_KEY',
+    c.DEV_VAULT_KEY,
+    c.SECRET_VAULT === 'dev-database' && identityServices.includes(options.service),
+  );
+  let rateLimitOverrides: Record<string, { limit: number; windowMs: number }> = {};
+  if (c.RATE_LIMIT_POLICIES) {
+    try {
+      const parsedPolicies = z
+        .record(
+          z.string().regex(/^[a-z_.]{1,64}$/),
+          z.object({
+            limit: z.number().int().min(1).max(1_000_000),
+            windowMs: z.number().int().min(1000).max(86_400_000),
+          }),
+        )
+        .parse(JSON.parse(c.RATE_LIMIT_POLICIES));
+      rateLimitOverrides = parsedPolicies;
+    } catch {
+      issues.push('RATE_LIMIT_POLICIES: must be JSON {"policy": {"limit": n, "windowMs": n}}');
+    }
+  }
+
   if (env === 'production' && c.LOG_LEVEL === 'debug') {
     issues.push('LOG_LEVEL: debug is not allowed in production');
   }
@@ -404,6 +592,41 @@ export function loadServerConfig(options: LoadOptions): ServerConfig {
       dispatcherStaleMs: c.READINESS_DISPATCHER_STALE_MS,
     },
     secrets: { provider: c.SECRET_PROVIDER },
+    identity: {
+      publicOrigin,
+      allowedOrigins,
+      cookieSecure: c.COOKIE_SECURE,
+      signingKey,
+      sessionIdleMs: c.SESSION_IDLE_TIMEOUT_MS,
+      sessionAbsoluteMs: c.SESSION_ABSOLUTE_TIMEOUT_MS,
+      sessionTouchMs: c.SESSION_TOUCH_INTERVAL_MS,
+      sessionRetentionMs: c.SESSION_RETENTION_MS,
+      emailVerificationTokenMs: c.EMAIL_VERIFICATION_TOKEN_MS,
+      passwordResetTokenMs: c.PASSWORD_RESET_TOKEN_MS,
+      signInContinuationMs: c.SIGN_IN_CONTINUATION_MS,
+      oauthStateMs: c.OAUTH_STATE_MS,
+      resendCooldownMs: c.RESEND_COOLDOWN_MS,
+      stepUpChallengeMs: c.STEP_UP_CHALLENGE_LIFETIME_MS,
+      stepUpWindowMs: c.STEP_UP_WINDOW_MS,
+      stepUpMaxAttempts: c.STEP_UP_MAX_ATTEMPTS,
+      argon2: {
+        memoryKiB: c.ARGON2_MEMORY_KIB,
+        passes: c.ARGON2_PASSES,
+        parallelism: c.ARGON2_PARALLELISM,
+        maxConcurrency: c.ARGON2_MAX_CONCURRENCY,
+      },
+      responseFloorMs: c.AUTH_RESPONSE_FLOOR_MS,
+      rateLimitOverrides,
+      legal: { termsVersion: c.LEGAL_TERMS_VERSION, privacyVersion: c.LEGAL_PRIVACY_VERSION },
+      oauthProviders,
+      botProtection: c.BOT_PROTECTION,
+      mailTransport: c.MAIL_TRANSPORT,
+      mailCaptureDir: c.MAIL_CAPTURE_DIR,
+      mailFrom: c.MAIL_FROM,
+      mailRetentionMs: c.MAIL_RETENTION_MS,
+      vault: c.SECRET_VAULT,
+      devVaultKey,
+    },
   };
 }
 

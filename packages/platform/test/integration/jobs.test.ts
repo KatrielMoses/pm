@@ -283,6 +283,7 @@ describe('durable jobs (0D §7)', () => {
         queue: 'default',
         handle: async (ctx) => {
           await ctx.step('one', async (tx) => {
+            if (tx.workspaceId === null) throw new Error('tenant job expected');
             await requestOperationCancel(tx, ctx.job.operationId!);
           });
           await ctx.step('two', async () => {

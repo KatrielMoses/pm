@@ -45,6 +45,5 @@ jobs:
           # Logs are allow-listed and redacted at source; no env dumps, .env files, or database files.
           path: |
             reports/
-            playwright-report/
           retention-days: 30
           if-no-files-found: warn

@@ -54,7 +54,8 @@ export interface PrincipalRef {
  * Built server-side only (0D §2.2); never from request bodies (0C I-09).
  */
 export interface ExecutionContext {
-  workspaceId: string;
+  /** Tenant workspace, or null for platform-scoped work (identity, platform jobs; 1B). */
+  workspaceId: string | null;
   requestId?: string;
   /** W3C trace id (32 hex). */
   correlationId: string;

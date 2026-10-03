@@ -51,6 +51,15 @@ worker process is a startup error. All identities of one process must target the
 | `IDEMPOTENCY_RETENTION_MS`, `OUTBOX_REPLAY_WINDOW_MS` | optional | optional | 0D parameters; defaults 72 h / 1 h |
 | `READINESS_REQUIRE_DISPATCHER`, `READINESS_DISPATCHER_STALE_MS` | optional | — | default `true` / 30 s |
 | `WORKER_HEALTH_FILE` | — | optional | image default `/tmp/pm-worker-health` |
+| `AUTH_SIGNING_KEY` | required | — | base64url, ≥ 32 bytes; CSRF tokens and rate-limit keys (1B) |
+| `ALLOWED_ORIGINS` | optional | — | extra origins besides `PUBLIC_BASE_URL`; https only when deployed |
+| `COOKIE_SECURE` | optional | — | default `true`; `false` allowed only in `local`/`test` |
+| `SECRET_VAULT` | required | required | `dev-database` (local/test only) or `none`; a KMS adapter needs approval (ADR-0008) |
+| `DEV_VAULT_KEY` | with `dev-database` | with `dev-database` | base64url 32 bytes; refused in deployed modes |
+| `MAIL_TRANSPORT`, `MAIL_FROM`, `MAIL_CAPTURE_DIR`, `MAIL_RETENTION_MS` | — | required / optional | `capture` (local/test only) or `none`; no vendor approved |
+| `OAUTH_PROVIDERS` | optional | — | comma list; only `local` exists (local/test only) |
+| `BOT_PROTECTION` | optional | — | `none` or `test` (local/test only) |
+| `SESSION_*`, `EMAIL_VERIFICATION_TOKEN_MS`, `PASSWORD_RESET_TOKEN_MS`, `SIGN_IN_CONTINUATION_MS`, `OAUTH_STATE_MS`, `RESEND_COOLDOWN_MS`, `STEP_UP_*`, `ARGON2_*`, `AUTH_RESPONSE_FLOOR_MS`, `RATE_LIMIT_POLICIES`, `LEGAL_TERMS_VERSION`, `LEGAL_PRIVACY_VERSION` | optional | optional | identity operational defaults, see [identity.md](identity.md); not published promises |
 
 Values are configuration, not customer promises (PQ-05). The 0D parameter values above are
 implementation defaults owned by 1A (`WORKSPACE_CONCURRENCY_CAP` is owned by 11C).
@@ -64,6 +73,9 @@ implementation defaults owned by 1A (`WORKSPACE_CONCURRENCY_CAP` is owned by 11C
   environment provider exists; values of the form `secretref:<name>` are rejected until a vendor is
   approved, rather than simulated.
 - Images contain no `.env`, credentials, or test fixtures (checked by `scripts/image-smoke.sh`).
+- `SecretVault` (1B) is the boundary for application-held secrets such as MFA seeds and in-flight
+  mail tokens. Only `DevDatabaseVault` exists (AES-256-GCM in `ops.dev_secret_vault`), and every
+  deployed mode refuses it at startup.
 
 ## Network contract
 

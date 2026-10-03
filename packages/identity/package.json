@@ -1,0 +1,28 @@
+{
+  "name": "@pm/identity",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "license": "UNLICENSED",
+  "files": [
+    "dist"
+  ],
+  "exports": {
+    ".": {
+      "@pm/source": "./src/index.ts",
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "dependencies": {
+    "@pm/config": "workspace:*",
+    "@pm/contracts": "workspace:*",
+    "@pm/db": "workspace:*",
+    "@pm/observability": "workspace:*",
+    "@pm/platform": "workspace:*"
+  },
+  "devDependencies": {
+    "@pm/test-infra": "workspace:*",
+    "@pm/test-support": "workspace:*"
+  }
+}

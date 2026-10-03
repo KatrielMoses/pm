@@ -15,7 +15,8 @@
     "@pm/platform": "workspace:*",
     "@opentelemetry/api": "1.9.1",
     "fastify": "5.12.5",
-    "@fastify/static": "10.1.5"
+    "@fastify/static": "10.1.5",
+    "@pm/identity": "workspace:*"
   },
   "devDependencies": {
     "@pm/test-support": "workspace:*",

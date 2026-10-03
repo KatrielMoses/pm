@@ -115,7 +115,13 @@ describe('tenant RLS foundation (0C §12.7)', () => {
         AND (EXISTS (SELECT 1 FROM pg_attribute a WHERE a.attrelid = c.oid AND a.attname = 'workspace_id' AND NOT a.attisdropped)
              OR (n.nspname = 'tenancy' AND c.relname = 'workspace'))
       ORDER BY 1`);
-    expect(res.rows.map((r) => r.t).sort()).toEqual([...TENANT_TABLES, 'tenancy.workspace'].sort());
+    // Platform-scoped tables (0B scope "platform") keep workspace_id only as a plain reference and
+    // carry no tenant RLS by design. The list is exact: any new table must be classified here.
+    const PLATFORM_SCOPED = ['identity.security_event_buffer', 'identity.step_up_challenge'];
+    expect(res.rows.map((r) => r.t).sort()).toEqual(
+      [...TENANT_TABLES, 'tenancy.workspace', ...PLATFORM_SCOPED].sort(),
+    );
+    res.rows = res.rows.filter((r) => !PLATFORM_SCOPED.includes(r.t));
     for (const row of res.rows) {
       expect(row, row.t).toMatchObject({
         relrowsecurity: true,

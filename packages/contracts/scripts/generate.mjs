@@ -51,6 +51,11 @@ const principals = policy.principals.map((p) => ({
   id: p.id,
   platformOnly: Boolean(p.platform_only),
 }));
+const actions = policy.actions.map((a) => ({
+  key: a.key,
+  stepUp: Boolean(a.step_up),
+  riskClass: a.risk_class,
+}));
 
 const body = `// GENERATED FILE - do not edit by hand.
 // Source: docs/architecture/platform/contracts/registry.json (schema_version ${registry.schema_version})
@@ -88,6 +93,10 @@ ${constArray(
 )}
 export const PRINCIPALS = ${lit(principals)} as const;
 export type PrincipalType = (typeof PRINCIPALS)[number]['id'];
+
+/** 0C actions (workspace-scoped authorization vocabulary). */
+export const ACTIONS = ${lit(actions)} as const;
+export type ActionKey = (typeof ACTIONS)[number]['key'];
 `;
 
 if (process.argv.includes('--check')) {

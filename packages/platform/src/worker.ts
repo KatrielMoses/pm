@@ -1,6 +1,7 @@
 import { randomBytes } from 'node:crypto';
 import {
   newPublicId,
+  newTraceId,
   newUuidV7,
   uuidToTraceId,
   type ActorRef,
@@ -15,6 +16,8 @@ import {
   type JobTable,
   type PlatformDiscovery,
   type Selectable,
+  type PlatformDatabase,
+  type ScopedTransaction,
   type TenantDatabase,
   type WorkspaceTransaction,
 } from '@pm/db';
@@ -43,12 +46,19 @@ import {
   JobError,
   retryDelayMs,
   RETRYABLE_CLASSES,
+  enqueueJob,
   type JobHandler,
   type JobHandlerContext,
   type JobResult,
 } from './jobs.ts';
 import { isTerminalState, transitionOperation } from './operations.ts';
 import { toInternalEvent, type OutboxConsumer } from './outbox.ts';
+
+/** Operations, attempts, and effects are tenant-only (CHECK job_platform_without_operation). */
+function tenantTx(tx: ScopedTransaction): WorkspaceTransaction {
+  if (tx.workspaceId === null) throw new JobContractError('operation work requires a workspace');
+  return tx;
+}
 
 /** Abort reasons. Each maps to one finalization path. */
 export class LeaseLostError extends Error {
@@ -98,8 +108,20 @@ export interface WorkerParams {
   statsIntervalMs?: number;
 }
 
+/** A recurring platform job enqueued by any running worker (deduplicated while active). */
+export interface RecurringJob {
+  kind: string;
+  queue: string;
+  intervalMs: number;
+  maxAttempts?: number;
+  timeoutSeconds?: number;
+}
+
 export interface WorkerRuntimeOptions {
   db: TenantDatabase;
+  /** Platform-scope access for workspace-free jobs (identity mail, retention sweeps). */
+  platformDb?: PlatformDatabase;
+  schedules?: readonly RecurringJob[];
   discovery: PlatformDiscovery;
   handlers: readonly JobHandler[];
   consumers: readonly OutboxConsumer[];
@@ -115,6 +137,11 @@ export interface WorkerRuntimeOptions {
 }
 
 const SYSTEM_ACTOR: ActorRef = { type: 'system' };
+/** Stable principal for platform-scheduled system jobs (no tenant authority). */
+const SYSTEM_PRINCIPAL = {
+  type: 'system_job' as const,
+  id: '01920000-0000-7000-8000-000000000001',
+};
 
 type JobRow = Selectable<JobTable>;
 
@@ -146,6 +173,7 @@ export class WorkerRuntime {
   #timer: NodeJS.Timeout | undefined;
   #lastMaintenance = 0;
   #lastStats = 0;
+  readonly #lastScheduled = new Map<string, number>();
 
   constructor(options: WorkerRuntimeOptions) {
     this.#o = options;
@@ -195,6 +223,7 @@ export class WorkerRuntime {
     if (this.#state !== 'running') return { claimed: 0, reaped: 0, dispatched: 0 };
     const p = this.#o.params;
     await this.#o.discovery.heartbeat(this.workerId, this.#o.buildId);
+    await this.enqueueDueSchedules();
     const reaped = await this.reapExpiredLeases();
     let claimed = 0;
     const started: Promise<void>[] = [];
@@ -225,7 +254,7 @@ export class WorkerRuntime {
     return { claimed, reaped, dispatched };
   }
 
-  #track(claim: { jobId: string; workspaceId: string; leaseToken: string }): Promise<void> {
+  #track(claim: { jobId: string; workspaceId: string | null; leaseToken: string }): Promise<void> {
     const abort = new AbortController();
     const done = this.#processJob(claim, abort)
       .catch((err: unknown) => {
@@ -239,18 +268,24 @@ export class WorkerRuntime {
     return done;
   }
 
+  /** One transaction in exactly one scope: the job's workspace, or the platform for platform jobs. */
   #tx<T>(
-    workspaceId: string,
-    fn: (tx: WorkspaceTransaction) => Promise<T>,
+    workspaceId: string | null,
+    fn: (tx: ScopedTransaction) => Promise<T>,
     readOnly = false,
   ): Promise<T> {
     if (this.#state === 'killed') return Promise.reject(new WorkerKilledError());
+    if (workspaceId === null) {
+      if (!this.#o.platformDb)
+        return Promise.reject(new JobContractError('platform jobs need a platform database'));
+      return this.#o.platformDb.withPlatform({ module: 'exec', readOnly }, fn);
+    }
     return this.#o.db.withWorkspace(workspaceId, { module: 'exec', readOnly }, fn);
   }
 
   /** Lease fence: the row is ours only while state = leased and the token matches. */
   async #fence(
-    tx: WorkspaceTransaction,
+    tx: ScopedTransaction,
     jobId: string,
     leaseToken: string,
   ): Promise<JobRow | undefined> {
@@ -264,7 +299,7 @@ export class WorkerRuntime {
       .executeTakeFirst();
   }
 
-  async #cancelRequested(tx: WorkspaceTransaction, job: JobRow): Promise<boolean> {
+  async #cancelRequested(tx: ScopedTransaction, job: JobRow): Promise<boolean> {
     if (job.cancel_requested_at) return true;
     if (!job.operation_id) return false;
     const op = await tx.db
@@ -276,7 +311,7 @@ export class WorkerRuntime {
   }
 
   async #processJob(
-    claim: { jobId: string; workspaceId: string; leaseToken: string },
+    claim: { jobId: string; workspaceId: string | null; leaseToken: string },
     abort: AbortController,
   ): Promise<void> {
     const { jobId, workspaceId: ws, leaseToken } = claim;
@@ -303,7 +338,7 @@ export class WorkerRuntime {
             code: 'cancelled_before_start',
           });
           if (!isTerminalState(op.execution_state)) {
-            await transitionOperation(tx, {
+            await transitionOperation(tenantTx(tx), {
               operationId: job.operation_id,
               to: 'cancelled',
               terminalReason: 'user_cancelled',
@@ -324,7 +359,7 @@ export class WorkerRuntime {
           .insertInto('exec.attempt')
           .values({
             id: attemptId,
-            workspace_id: ws,
+            workspace_id: tenantTx(tx).workspaceId,
             public_id: newPublicId('att'),
             operation_id: job.operation_id,
             job_id: job.id,
@@ -332,7 +367,7 @@ export class WorkerRuntime {
           })
           .execute();
         if (op.execution_state !== 'running') {
-          await transitionOperation(tx, {
+          await transitionOperation(tenantTx(tx), {
             operationId: job.operation_id,
             to: 'running',
             actor: SYSTEM_ACTOR,
@@ -371,7 +406,7 @@ export class WorkerRuntime {
       job_id: job.id,
       job_kind: job.kind,
       queue: job.queue,
-      workspace_id: ws,
+      ...(ws ? { workspace_id: ws } : {}),
       correlation_id: context.correlationId,
       attempt_number: attemptNumber,
       ...(job.operation_id ? { operation_id: job.operation_id } : {}),
@@ -447,7 +482,7 @@ export class WorkerRuntime {
     );
   }
 
-  async #heartbeat(ws: string, jobId: string, leaseToken: string): Promise<boolean> {
+  async #heartbeat(ws: string | null, jobId: string, leaseToken: string): Promise<boolean> {
     return this.#tx(ws, async (tx) => {
       const res = await tx.db
         .updateTable('exec.job')
@@ -474,7 +509,7 @@ export class WorkerRuntime {
     signal: AbortSignal,
   ): JobHandlerContext {
     const ws = job.workspace_id;
-    const guard = async (tx: WorkspaceTransaction): Promise<JobRow> => {
+    const guard = async (tx: ScopedTransaction): Promise<JobRow> => {
       if (signal.aborted) throw signal.reason as Error;
       const fenced = await this.#fence(tx, job.id, leaseToken);
       if (!fenced) throw new LeaseLostError();
@@ -497,7 +532,7 @@ export class WorkerRuntime {
       signal,
       step: async <T extends Record<string, unknown> | void>(
         name: string,
-        fn: (tx: WorkspaceTransaction) => Promise<T>,
+        fn: (tx: ScopedTransaction) => Promise<T>,
       ): Promise<T> => {
         if (!/^[a-z0-9_.]{1,64}$/.test(name)) throw new JobContractError('step name');
         return this.#tx(ws, async (tx) => {
@@ -526,9 +561,13 @@ export class WorkerRuntime {
         if (!operationId) throw new JobContractError('external effects require an operation');
         const prepared = await this.#tx(ws, async (tx) => {
           await guard(tx);
-          const row = await recordEffect(tx, { operationId, effectKey, destinationClass });
+          const row = await recordEffect(tenantTx(tx), {
+            operationId,
+            effectKey,
+            destinationClass,
+          });
           const decision = decideEffect(row);
-          if (decision === 'attempt') await markEffectAttempt(tx, row.id, attemptId);
+          if (decision === 'attempt') await markEffectAttempt(tenantTx(tx), row.id, attemptId);
           return { row, decision };
         });
         const { row, decision } = prepared;
@@ -548,16 +587,18 @@ export class WorkerRuntime {
           const result = await perform(
             row.provider_idempotency_key ?? `${operationId}:${effectKey}`,
           );
-          await this.#tx(ws, (tx) => markEffectOutcome(tx, row.id, 'sent', result.externalRef));
+          await this.#tx(ws, (tx) =>
+            markEffectOutcome(tenantTx(tx), row.id, 'sent', result.externalRef),
+          );
           return { state: 'sent', externalRef: result.externalRef };
         } catch (err) {
           if (err instanceof EffectOutcomeUnknownError) {
-            await this.#tx(ws, (tx) => markEffectOutcome(tx, row.id, 'unknown'));
+            await this.#tx(ws, (tx) => markEffectOutcome(tenantTx(tx), row.id, 'unknown'));
             log.warn('effect.outcome_unknown', { destination_class: destinationClass });
             if (destinationClass === 'unsafe') throw new AwaitReconciliationError();
             throw new JobError('transient', 'effect_outcome_unknown');
           }
-          await this.#tx(ws, (tx) => markEffectOutcome(tx, row.id, 'failed'));
+          await this.#tx(ws, (tx) => markEffectOutcome(tenantTx(tx), row.id, 'failed'));
           throw err;
         }
       },
@@ -565,7 +606,7 @@ export class WorkerRuntime {
   }
 
   async #finishJob(
-    tx: WorkspaceTransaction,
+    tx: ScopedTransaction,
     job: JobRow,
     state: 'succeeded' | 'dead' | 'cancelled',
     lastError?: { class: JobErrorClass; code: string },
@@ -587,7 +628,7 @@ export class WorkerRuntime {
   }
 
   async #endAttempt(
-    tx: WorkspaceTransaction,
+    tx: ScopedTransaction,
     attemptId: string | undefined,
     state: ExecState,
     extra: {
@@ -629,7 +670,7 @@ export class WorkerRuntime {
     const ws = job.workspace_id;
     const op = job.operation_id;
     const transition = (
-      tx: WorkspaceTransaction,
+      tx: ScopedTransaction,
       to: ExecState,
       extra: {
         terminalReason?: TerminalReason;
@@ -638,7 +679,7 @@ export class WorkerRuntime {
       } = {},
     ) =>
       op
-        ? transitionOperation(tx, {
+        ? transitionOperation(tenantTx(tx), {
             operationId: op,
             to,
             actor: SYSTEM_ACTOR,
@@ -668,7 +709,7 @@ export class WorkerRuntime {
         await this.#finishJob(tx, fenced, 'cancelled', { class: 'policy', code: 'cancelled' });
         await this.#endAttempt(tx, attemptId, 'cancelled', { terminalReason: 'user_cancelled' });
         if (op) {
-          const effects = await cancelOpenEffects(tx, op);
+          const effects = await cancelOpenEffects(tenantTx(tx), op);
           if (effects.reported.length)
             log.warn('job.cancelled_with_sent_effects', { count: effects.reported.length });
         }
@@ -797,7 +838,7 @@ export class WorkerRuntime {
         if (job.attempts >= job.max_attempts) {
           await this.#finishJob(tx, job, 'dead', { class: 'worker_lost', code: 'lease_expired' });
           if (job.operation_id) {
-            await transitionOperation(tx, {
+            await transitionOperation(tenantTx(tx), {
               operationId: job.operation_id,
               to: 'failed',
               terminalReason: 'error',
@@ -826,7 +867,7 @@ export class WorkerRuntime {
         this.#o.logger.warn('job.lease_expired', {
           job_id: job.id,
           queue: job.queue,
-          workspace_id: workspaceId,
+          ...(workspaceId ? { workspace_id: workspaceId } : {}),
           correlation_id: uuidToTraceId(job.correlation_id),
         });
         return true;
@@ -886,7 +927,7 @@ export class WorkerRuntime {
                   this.#o.tracer,
                   'outbox.consume',
                   { 'pm.consumer': consumer.name },
-                  () => consumer.handle(tx, event),
+                  () => consumer.handle(tenantTx(tx), event),
                 );
               });
             } catch (err) {
@@ -928,6 +969,38 @@ export class WorkerRuntime {
     return dispatched;
   }
 
+  /**
+   * Enqueues recurring platform jobs whose interval elapsed. The active-job dedupe key makes this
+   * safe with any number of workers: at most one instance of each recurring job is active.
+   */
+  async enqueueDueSchedules(now = Date.now()): Promise<number> {
+    let enqueued = 0;
+    for (const schedule of this.#o.schedules ?? []) {
+      if (now - (this.#lastScheduled.get(schedule.kind) ?? 0) < schedule.intervalMs) continue;
+      this.#lastScheduled.set(schedule.kind, now);
+      const result = await this.#tx(null, (tx) =>
+        enqueueJob(tx, {
+          queue: schedule.queue,
+          kind: schedule.kind,
+          dedupeKey: `schedule:${schedule.kind}`,
+          maxAttempts: schedule.maxAttempts ?? this.#o.params.maxAttempts,
+          timeoutSeconds: schedule.timeoutSeconds ?? Math.ceil(this.#o.params.timeoutMs / 1000),
+          context: {
+            workspaceId: null,
+            correlationId: newTraceId(),
+            authenticatedPrincipal: SYSTEM_PRINCIPAL,
+            effectivePrincipal: SYSTEM_PRINCIPAL,
+            delegationChain: [{ type: 'system_job', id: SYSTEM_PRINCIPAL.id }],
+            epochs: { workspace: 0, principal: 0 },
+            dataClassLimit: 'C3',
+          },
+        }),
+      );
+      if (!result.deduplicated) enqueued++;
+    }
+    return enqueued;
+  }
+
   /** Retention sweeps, one transaction per explicit workspace (0C §12.4 step 3). */
   async runMaintenance(): Promise<number> {
     const cutoff = new Date(Date.now() - this.#o.params.outboxReplayWindowMs);
@@ -954,6 +1027,16 @@ export class WorkerRuntime {
           )
           .execute();
         await tx.db.deleteFrom('exec.job').where('finished_at', '<', cutoff).execute();
+      });
+    }
+    if (this.#o.platformDb) {
+      // Platform scope: finished platform jobs and expired account-level idempotency keys.
+      await this.#tx(null, async (tx) => {
+        await tx.db.deleteFrom('exec.job').where('finished_at', '<', cutoff).execute();
+        await tx.db
+          .deleteFrom('exec.idempotency_key')
+          .where('expires_at', '<', sql<Date>`now()`)
+          .execute();
       });
     }
     return workspaces.length;
