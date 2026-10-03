@@ -17,6 +17,7 @@ COPY packages/contracts/package.json packages/contracts/
 COPY packages/db/package.json packages/db/
 COPY packages/observability/package.json packages/observability/
 COPY packages/platform/package.json packages/platform/
+COPY packages/test-infra/package.json packages/test-infra/
 COPY packages/test-support/package.json packages/test-support/
 RUN --mount=type=cache,id=pnpm-store,target=/pnpm/store pnpm install --frozen-lockfile --ignore-scripts
 COPY . .

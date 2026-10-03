@@ -14,7 +14,7 @@
     "build": "pnpm run contracts:generate:check && tsc -b && pnpm --filter @pm/web build",
     "clean": "node scripts/clean.mjs",
     "typecheck": "tsc -b && tsc -p tsconfig.test.json && pnpm --filter @pm/web typecheck",
-    "lint": "eslint . --max-warnings=0 && node scripts/check-sql-safety.mjs && node scripts/check-workspace-graph.mjs",
+    "lint": "eslint . --max-warnings=0 && node scripts/check-sql-safety.mjs && node scripts/check-workspace-graph.mjs && node scripts/check-dockerfile.mjs",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "test:unit": "vitest run --project unit --project web",
