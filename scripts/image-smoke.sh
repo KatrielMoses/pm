@@ -43,7 +43,9 @@ pw() { openssl rand -hex 18; }
 ADMIN=$(pw); MIG=$(pw); RES=$(pw); APP=$(pw); WRK=$(pw); DSP=$(pw)
 docker network create "$NET" >/dev/null
 docker run -d --name pm-smoke-db --network "$NET" -e POSTGRES_USER=pm_admin -e POSTGRES_PASSWORD="$ADMIN" -e POSTGRES_DB=pm_test "$PG_IMAGE" >/dev/null
-for _ in $(seq 60); do docker exec pm-smoke-db pg_isready -U pm_admin -d pm_test >/dev/null 2>&1 && break; sleep 1; done
+# Wait on TCP: during first-run init the image serves only its Unix socket from a temporary server.
+for _ in $(seq 90); do docker exec pm-smoke-db pg_isready -h 127.0.0.1 -p 5432 -U pm_admin -d pm_test >/dev/null 2>&1 && break; sleep 1; done
+docker exec pm-smoke-db pg_isready -h 127.0.0.1 -p 5432 -U pm_admin -d pm_test || fail "PostgreSQL did not become ready on TCP"
 url() { echo "postgres://$1:$2@pm-smoke-db:5432/pm_test"; }
 run() { docker run --rm --network "$NET" "$@"; }
 run -e BOOTSTRAP_ADMIN_URL="$(url pm_admin "$ADMIN")" -e BOOTSTRAP_DATABASE=pm_test \
