@@ -22,7 +22,7 @@ services:
     ports: ['127.0.0.1:54330:5432']
     volumes: [pgdata:/var/lib/postgresql]
     healthcheck:
-      test: ['CMD-SHELL', 'pg_isready -U pm_admin -d pm_local']
+      test: ['CMD-SHELL', 'pg_isready -h 127.0.0.1 -p 5432 -U pm_admin -d pm_local']
       interval: 2s
       retries: 30
 
