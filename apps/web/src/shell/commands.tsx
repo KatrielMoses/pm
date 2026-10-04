@@ -3,6 +3,7 @@ import {
   useCallback,
   useContext,
   useEffect,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -98,7 +99,8 @@ export function CommandProvider({ children }: { children: ReactNode }) {
 
   // One listener for the whole app, removed on unmount; it never acts behind a modal dialog.
   const latest = useRef({ commands, singleKeyShortcuts, paletteOpen, execute });
-  useEffect(() => {
+  // Layout effects: the listener sees new commands before the page that offers them paints.
+  useLayoutEffect(() => {
     latest.current = { commands, singleKeyShortcuts, paletteOpen, execute };
   }, [commands, singleKeyShortcuts, paletteOpen, execute]);
   useEffect(() => {
@@ -203,10 +205,11 @@ export function useRegisterCommands(list: Command[]): void {
   const owner = useRef(Symbol('commands'));
   const key = list.map((c) => `${c.id}|${c.label}|${c.href ?? ''}|${c.shortcut ?? ''}`).join('\n');
   const latest = useRef(list);
-  useEffect(() => {
+  // Registered before paint, so a visible page never lacks its commands and shortcuts.
+  useLayoutEffect(() => {
     latest.current = list;
   });
-  useEffect(() => {
+  useLayoutEffect(() => {
     const o = owner.current;
     // Wrap `run` so registrations always call the latest closure.
     register(

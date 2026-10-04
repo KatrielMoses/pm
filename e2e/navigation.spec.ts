@@ -220,6 +220,7 @@ test('palette, shortcuts, favorites, recents, breadcrumbs, and titles', async ({
   // Keyboard shortcuts (fine pointers only by default; UXD-04).
   if (info.project.name === 'desktop') {
     await page.goto(`/workspaces/${ws}/home`);
+    await expect(page.getByRole('heading', { level: 1 })).toHaveText('Shell Co');
     await page.locator('body').press('g');
     await page.locator('body').press('t');
     await expect(page.getByRole('heading', { level: 1 })).toHaveText('Today');
