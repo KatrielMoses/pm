@@ -1,7 +1,7 @@
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { SHELL_COMMAND_IDS, SHELL_DESTINATIONS } from '@pm/contracts/shell';
-import { ROUTE_COMPONENTS } from '../src/app-routes.tsx';
+import { ROUTE_COMPONENTS, Routes } from '../src/app-routes.tsx';
 import { AuthProvider } from '../src/auth.tsx';
 import { Router } from '../src/router.tsx';
 import { applyAppearance, followSystemTheme } from '../src/shell/appearance.ts';
@@ -37,6 +37,7 @@ import {
 } from '../src/shell/shortcuts.ts';
 import { pruneSelection } from '../src/shell/view-state.ts';
 import { widthClass } from '../src/shell/width.ts';
+import { StepUpProvider } from '../src/stepup.tsx';
 import { Dialog } from '../src/ui/dialog.tsx';
 import { Page } from '../src/ui/layout.tsx';
 
@@ -550,5 +551,47 @@ describe('page focus (A11Y focus on navigation)', () => {
       </Router>,
     );
     expect(document.activeElement?.textContent).toBe('Elsewhere');
+  });
+});
+
+describe('sessions that end while a tab is open', () => {
+  it('a workspace page whose session was revoked goes to sign-in, not a connection error', async () => {
+    let meCalls = 0;
+    vi.spyOn(globalThis, 'fetch').mockImplementation(async (input) => {
+      const path = typeof input === 'string' ? input : (input as Request).url;
+      if (path.endsWith('/v1/auth/me') && meCalls++ === 0)
+        return new Response(
+          JSON.stringify({
+            data: {
+              id: 'acc_01J00000000000000000000000',
+              email: 'p@example.test',
+              display_name: 'P',
+              email_verified: true,
+              session: { id: 'ses_x', assurance: 'single_factor', auth_methods: ['password'] },
+              mfa: { totp: false, recovery_codes_remaining: 0 },
+            },
+          }),
+          { status: 200 },
+        );
+      // The session was revoked: every later request is unauthenticated.
+      return new Response(JSON.stringify({ error: { code: 'unauthenticated' } }), { status: 401 });
+    });
+    window.history.replaceState(null, '', '/workspaces/ws_01J0000000000000000000000Z/home');
+    render(
+      <Router>
+        <AuthProvider>
+          <PreferencesProvider>
+            <StepUpProvider>
+              <CommandProvider>
+                <Routes />
+              </CommandProvider>
+            </StepUpProvider>
+          </PreferencesProvider>
+        </AuthProvider>
+      </Router>,
+    );
+    expect(await screen.findByRole('heading', { level: 1, name: 'Sign in' })).toBeTruthy();
+    expect(window.location.pathname).toBe('/sign-in');
+    expect(screen.queryByText(/Check your connection/)).toBeNull();
   });
 });

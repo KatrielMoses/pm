@@ -43,7 +43,12 @@ import {
 import { useRouter } from './router.tsx';
 import { AppShell } from './shell/layout.tsx';
 import { canSee, matchRoute, ROUTES, type RouteDef } from './shell/registry.ts';
-import { isNotAvailable, useWorkspaceShell, WorkspaceShellProvider } from './shell/workspace.tsx';
+import {
+  isNotAvailable,
+  isSignedOut,
+  useWorkspaceShell,
+  WorkspaceShellProvider,
+} from './shell/workspace.tsx';
 import { Page } from './ui/layout.tsx';
 
 type Params = Record<string, string>;
@@ -125,6 +130,15 @@ function RequireSession({ children }: { children: ReactElement }) {
  */
 function WorkspaceGate({ def, params }: { def: RouteDef | null; params: Params }) {
   const shellState = useWorkspaceShell()!;
+  const { refresh } = useAuth();
+  // A session that ended while the tab was open (revoked, removed, signed out elsewhere) is not a
+  // connection problem: re-reading the session signs the tab out, and RequireSession then goes to
+  // sign-in, as a fresh load would.
+  const signedOut = isSignedOut(shellState.failure);
+  useEffect(() => {
+    if (signedOut) void refresh();
+  }, [signedOut, refresh]);
+  if (signedOut) return <Page title="Loading">{null}</Page>;
   if (shellState.failure) {
     if (isNotAvailable(shellState.failure)) return <NotAvailablePage />;
     return (

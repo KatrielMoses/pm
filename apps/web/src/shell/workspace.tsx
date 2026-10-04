@@ -218,6 +218,11 @@ export function useWorkspaceShell(): WorkspaceShellState | null {
   return useContext(WorkspaceShellContext);
 }
 
+/** True when the session ended (signed out elsewhere, revoked, or expired) while the tab was open. */
+export function isSignedOut(err: unknown): boolean {
+  return err instanceof ApiError && err.status === 401;
+}
+
 /** True when the failure means "no access or no such workspace" (one indistinguishable state). */
 export function isNotAvailable(err: unknown): boolean {
   return err instanceof ApiError && (err.code === 'not_found' || err.code === 'forbidden');
