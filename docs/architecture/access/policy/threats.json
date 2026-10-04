@@ -383,6 +383,30 @@
         "I-14",
         "I-17"
       ]
+    },
+    {
+      "id": "T-37",
+      "category": "spoofing",
+      "description": "Invitation abuse: replaying, forwarding, or racing an invitation token; accepting with a different account; enumerating accounts or memberships through invite outcomes; a guest invitation conferring workspace, brand, or inherited access; an administrator inviting an owner.",
+      "mitigated_by": [
+        "I-01",
+        "I-04",
+        "I-07",
+        "I-09",
+        "I-11",
+        "I-17"
+      ]
+    },
+    {
+      "id": "T-38",
+      "category": "departure",
+      "description": "Ownership or departure failure: a workspace left without an active owner, an ownership transfer accepted by the wrong principal or without step-up, a removed or suspended member keeping access through sessions, cached contexts, teams, grants, queued jobs, or pooled connections, or owned resources left without an accountable owner.",
+      "mitigated_by": [
+        "I-01",
+        "I-11",
+        "I-12",
+        "I-17"
+      ]
     }
   ],
   "tests": [
@@ -2279,6 +2303,204 @@
       "surface": "api",
       "expected": "deny",
       "response_shape": "error_generic",
+      "silent_surfaces": []
+    },
+    {
+      "id": "AT-095",
+      "threats": [
+        "T-37"
+      ],
+      "principal": "account",
+      "setup": "Invitation token used a second time after acceptance",
+      "scope": "own account",
+      "action": "invitation.accept",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "not_found",
+      "silent_surfaces": [
+        "error_message",
+        "timing"
+      ]
+    },
+    {
+      "id": "AT-096",
+      "threats": [
+        "T-37"
+      ],
+      "principal": "account",
+      "setup": "Signed-in account's verified email differs from the invited email",
+      "scope": "own account",
+      "action": "invitation.accept",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "not_found",
+      "silent_surfaces": [
+        "error_message",
+        "timing"
+      ]
+    },
+    {
+      "id": "AT-097",
+      "threats": [
+        "T-37"
+      ],
+      "principal": "account",
+      "setup": "Two concurrent acceptances of the same invitation",
+      "scope": "own account",
+      "action": "invitation.accept",
+      "surface": "api",
+      "expected": "allow",
+      "response_shape": "ok",
+      "silent_surfaces": []
+    },
+    {
+      "id": "AT-098",
+      "threats": [
+        "T-37"
+      ],
+      "principal": "agent_run",
+      "setup": "Agent run attempts to accept an invitation for its owner",
+      "scope": "run owner account",
+      "action": "invitation.accept",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "unauthenticated",
+      "silent_surfaces": []
+    },
+    {
+      "id": "AT-099",
+      "threats": [
+        "T-37"
+      ],
+      "principal": "administrator",
+      "setup": "Administrator invites someone as owner",
+      "scope": "workspace",
+      "action": "membership.invite_member",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "forbidden",
+      "silent_surfaces": []
+    },
+    {
+      "id": "AT-100",
+      "threats": [
+        "T-37"
+      ],
+      "principal": "member",
+      "setup": "Member invites a guest while members_invite_guests is off",
+      "scope": "shared record",
+      "action": "membership.invite_guest",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "forbidden",
+      "silent_surfaces": []
+    },
+    {
+      "id": "AT-101",
+      "threats": [
+        "T-37"
+      ],
+      "principal": "guest",
+      "setup": "Guest accepts an invitation and lists brands, people, and trash",
+      "scope": "workspace",
+      "action": "record.read",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "omitted",
+      "silent_surfaces": [
+        "search",
+        "count_facet",
+        "picker",
+        "ui_list",
+        "trash",
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-102",
+      "threats": [
+        "T-37"
+      ],
+      "principal": "administrator",
+      "setup": "Invite an email that already belongs to an active member or an unknown account",
+      "scope": "workspace",
+      "action": "membership.invite_member",
+      "surface": "api",
+      "expected": "allow",
+      "response_shape": "ok",
+      "silent_surfaces": []
+    },
+    {
+      "id": "AT-103",
+      "threats": [
+        "T-38"
+      ],
+      "principal": "owner",
+      "setup": "Last active owner removes, suspends, demotes, or leaves",
+      "scope": "workspace",
+      "action": "membership.manage",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "conflict_filtered",
+      "silent_surfaces": []
+    },
+    {
+      "id": "AT-104",
+      "threats": [
+        "T-38"
+      ],
+      "principal": "administrator",
+      "setup": "Ownership transfer accepted by a principal other than the recipient",
+      "scope": "workspace",
+      "action": "ownership.accept",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "not_found",
+      "silent_surfaces": [
+        "error_message",
+        "timing"
+      ]
+    },
+    {
+      "id": "AT-105",
+      "threats": [
+        "T-38"
+      ],
+      "principal": "member",
+      "setup": "Recipient accepts an ownership transfer without a fresh step-up",
+      "scope": "workspace",
+      "action": "ownership.accept",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "step_up_required",
+      "silent_surfaces": []
+    },
+    {
+      "id": "AT-106",
+      "threats": [
+        "T-38"
+      ],
+      "principal": "member",
+      "setup": "Removed member reuses an old session, a cached context, a team grant, and a queued job",
+      "scope": "workspace",
+      "action": "record.read",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "unauthenticated",
+      "silent_surfaces": []
+    },
+    {
+      "id": "AT-107",
+      "threats": [
+        "T-38"
+      ],
+      "principal": "owner",
+      "setup": "Removing a member who owns registered resources that cannot be reassigned",
+      "scope": "workspace",
+      "action": "membership.manage",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "conflict_filtered",
       "silent_surfaces": []
     }
   ]

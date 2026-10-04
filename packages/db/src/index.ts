@@ -6,4 +6,4 @@ export * from './health.ts';
 export * from './migrator.ts';
 export * from './bootstrap.ts';
 export { sql } from 'kysely';
-export type { Kysely, Transaction, Selectable, Insertable, Updateable } from 'kysely';
+export type { Kysely, Transaction, Selectable, Insertable, Updateable, RawBuilder } from 'kysely';

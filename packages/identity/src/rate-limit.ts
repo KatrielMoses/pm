@@ -20,6 +20,10 @@ export const DEFAULT_POLICIES = {
   'oauth.source': { limit: 60, windowMs: 15 * 60_000 },
   // Account command (0C AZ-18): new workspaces per account; replays of the same key are free.
   'workspace.create': { limit: 10, windowMs: 60 * 60_000 },
+  // Account command (0C AZ-19): invitation acceptance attempts per account.
+  'invitation.accept': { limit: 30, windowMs: 60 * 60_000 },
+  // Invitations sent per inviting membership (resends included).
+  'invitation.send': { limit: 100, windowMs: 60 * 60_000 },
 } as const satisfies Record<string, { limit: number; windowMs: number }>;
 export type RateLimitPolicy = keyof typeof DEFAULT_POLICIES;
 

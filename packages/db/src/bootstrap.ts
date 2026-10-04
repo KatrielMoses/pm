@@ -48,7 +48,8 @@ export async function bootstrapRoles(
 }
 
 /**
- * Re-asserts database-level privileges (CONNECT for login roles, CREATE for pm_owner) on a database
+ * Re-asserts database-level privileges (CONNECT for login roles, TEMPORARY for the application
+ * identities, CREATE for pm_owner) on a database
  * created from a template or restored logically: those privileges belong to the database object,
  * not to its contents. Roles must already exist.
  */
@@ -67,6 +68,8 @@ export async function grantDatabaseAccess(
     for (const role of LOGIN_ROLES)
       await client.query(`GRANT CONNECT ON DATABASE ${ident} TO ${role}`);
     await client.query(`GRANT CREATE ON DATABASE ${ident} TO pm_owner`);
+    // Visibility-context temporary tables (0C §4.5): explicit, not the PUBLIC default.
+    await client.query(`GRANT TEMPORARY ON DATABASE ${ident} TO app_rw, app_worker`);
   } finally {
     await client.end();
   }

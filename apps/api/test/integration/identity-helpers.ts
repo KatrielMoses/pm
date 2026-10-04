@@ -121,7 +121,7 @@ export async function identityEnv(overrides: Record<string, string> = {}): Promi
       tenancy: createTenancyService({
         tenant: h.app,
         platform: h.platform,
-        stepUp: service,
+        identity: service,
         config: h.config,
         logger: h.logger,
         metrics: h.telemetry.metrics,

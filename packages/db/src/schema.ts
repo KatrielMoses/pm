@@ -344,7 +344,11 @@ export interface OauthIdentityTable {
 }
 
 export type TokenPurpose =
-  'email_verification' | 'password_reset' | 'sign_in_continuation' | 'oauth_state';
+  | 'email_verification'
+  | 'password_reset'
+  | 'sign_in_continuation'
+  | 'oauth_state'
+  | 'invitation_acceptance';
 
 export interface VerificationTokenTable {
   id: string;
@@ -735,6 +739,8 @@ export interface MembershipTable {
   created_at: DTs;
   updated_at: DTs;
   version: Defaulted<number>;
+  departure_reason: 'removed' | 'left' | 'account_deleted' | null;
+  state_changed_by_membership_id: string | null;
 }
 
 export type RoleKind = 'workspace_role' | 'scope_level';
@@ -756,9 +762,10 @@ export type GrantSource =
 export interface RoleAssignmentTable {
   id: string;
   workspace_id: string;
-  principal_type: 'membership';
+  principal_type: 'membership' | 'team';
   principal_id: string;
   membership_principal_id: Generated<string | null>;
+  team_principal_id: Generated<string | null>;
   scope_type: 'workspace' | 'brand';
   scope_id: string;
   brand_scope_id: Generated<string | null>;
@@ -829,6 +836,146 @@ export interface ScopePreferenceTable {
   updated_at: DTs;
 }
 
+export type ShareLevel = 'read' | 'comment' | 'edit';
+export type ShareState = 'active' | 'revoked' | 'expired';
+export type GranteeType = 'brand' | 'membership' | 'team';
+
+export interface TeamTable {
+  id: string;
+  workspace_id: string;
+  scope_key: string;
+  lifecycle_state: Defaulted<LifecycleState>;
+  name: string;
+  description: string | null;
+  created_by_membership_id: string;
+  created_at: DTs;
+  updated_at: DTs;
+  updated_by_membership_id: string | null;
+  version: Defaulted<number>;
+}
+
+export interface TeamMemberTable {
+  workspace_id: string;
+  team_id: string;
+  membership_id: string;
+  added_by_membership_id: string;
+  created_at: DTs;
+}
+
+export interface WorkspacePolicyTable {
+  workspace_id: string;
+  self_approval_mode: Defaulted<'auto' | 'allowed' | 'forbidden'>;
+  require_independent_for: Defaulted<string[]>;
+  members_invite_guests: Defaulted<boolean>;
+  limited_members_can_export: Defaulted<boolean>;
+  limited_members_tokens: Defaulted<boolean>;
+  limited_members_ai: Defaulted<boolean>;
+  limited_members_agents: Defaulted<boolean>;
+  read_only_ai: Defaulted<boolean>;
+  members_configure_agents: Defaulted<boolean>;
+  admins_manage_billing: Defaulted<boolean>;
+  comment_on_archived: Defaulted<boolean>;
+  workspace_records_default_level: Defaulted<'none' | 'view' | 'comment' | 'edit'>;
+  cross_brand_sharing_enabled: Defaulted<boolean>;
+  guest_invitations_enabled: Defaulted<boolean>;
+  public_links_enabled: Defaulted<boolean>;
+  share_max_expiry: string | null;
+  token_max_lifetime: string | null;
+  low_impact_agent_actions: Defaulted<string[]>;
+  updated_at: DTs;
+  updated_by_membership_id: string | null;
+  version: Defaulted<number>;
+}
+
+export type InvitationState = 'pending' | 'accepted' | 'revoked' | 'expired';
+
+export interface InvitationTable {
+  id: string;
+  public_id: string;
+  workspace_id: string;
+  email_key: string;
+  kind: MembershipKind;
+  role_key: string | null;
+  scope_proposal: Json<Record<string, unknown>>;
+  invited_by_membership_id: string;
+  state: Defaulted<InvitationState>;
+  expires_at: Ts;
+  send_count: Defaulted<number>;
+  last_sent_at: DTs;
+  token_id: string;
+  accepted_account_id: string | null;
+  accepted_membership_id: string | null;
+  revoked_by_membership_id: string | null;
+  decided_at: Ts | null;
+  created_at: DTs;
+  updated_at: DTs;
+  version: Defaulted<number>;
+}
+
+export interface ShareGroupTable {
+  id: string;
+  public_id: string;
+  workspace_id: string;
+  source_record_id: string;
+  source_brand_id: string | null;
+  grantee_type: GranteeType;
+  grantee_id: string;
+  grantee_membership_id: Generated<string | null>;
+  grantee_team_id: Generated<string | null>;
+  grantee_brand_id: Generated<string | null>;
+  level: ShareLevel;
+  expires_at: Ts | null;
+  state: Defaulted<ShareState>;
+  created_by_membership_id: string;
+  created_at: DTs;
+  revoked_at: Ts | null;
+  revoked_by_membership_id: string | null;
+  record_count: number;
+  version: Defaulted<number>;
+}
+
+export interface RecordGrantTable {
+  id: string;
+  public_id: string;
+  workspace_id: string;
+  share_group_id: string;
+  record_id: string;
+  source_brand_id: string | null;
+  grantee_type: GranteeType;
+  grantee_id: string;
+  grantee_key: Generated<string>;
+  grantee_membership_id: Generated<string | null>;
+  grantee_team_id: Generated<string | null>;
+  grantee_brand_id: Generated<string | null>;
+  level: ShareLevel;
+  state: Defaulted<ShareState>;
+  expires_at: Ts | null;
+  created_by_membership_id: string;
+  created_at: DTs;
+  revoked_at: Ts | null;
+  revoked_by_membership_id: string | null;
+  version: Defaulted<number>;
+}
+
+export type OwnershipTransferState = 'pending' | 'accepted' | 'cancelled' | 'expired';
+
+export interface OwnershipTransferTable {
+  id: string;
+  public_id: string;
+  workspace_id: string;
+  from_membership_id: string;
+  to_membership_id: string;
+  state: Defaulted<OwnershipTransferState>;
+  demote_previous: boolean;
+  expires_at: Ts;
+  requested_step_up_id: string;
+  accepted_step_up_id: string | null;
+  decided_at: Ts | null;
+  decided_by_membership_id: string | null;
+  created_at: DTs;
+  version: Defaulted<number>;
+}
+
 export interface Database {
   'tenancy.workspace': WorkspaceTable;
   'exec.operation': OperationTable;
@@ -873,6 +1020,13 @@ export interface Database {
   'tenancy.brand': BrandTable;
   'tenancy.brand_setting': BrandSettingTable;
   'tenancy.scope_preference': ScopePreferenceTable;
+  'tenancy.team': TeamTable;
+  'tenancy.team_member': TeamMemberTable;
+  'access.workspace_policy': WorkspacePolicyTable;
+  'tenancy.invitation': InvitationTable;
+  'access.share_group': ShareGroupTable;
+  'access.record_grant': RecordGrantTable;
+  'tenancy.ownership_transfer': OwnershipTransferTable;
 }
 
 /** Column inventory per table, compared with the migrated catalog by the schema-drift test. */
@@ -1469,6 +1623,8 @@ export const TABLE_COLUMNS: Readonly<Record<keyof Database, readonly string[]>> 
     'created_at',
     'updated_at',
     'version',
+    'departure_reason',
+    'state_changed_by_membership_id',
   ],
   'access.role': ['id', 'workspace_id', 'key', 'kind', 'level', 'builtin', 'created_at', 'version'],
   'access.role_assignment': [
@@ -1477,6 +1633,7 @@ export const TABLE_COLUMNS: Readonly<Record<keyof Database, readonly string[]>> 
     'principal_type',
     'principal_id',
     'membership_principal_id',
+    'team_principal_id',
     'scope_type',
     'scope_id',
     'brand_scope_id',
@@ -1532,5 +1689,130 @@ export const TABLE_COLUMNS: Readonly<Record<keyof Database, readonly string[]>> 
     'scope_kind',
     'brand_id',
     'updated_at',
+  ],
+  'tenancy.team': [
+    'id',
+    'workspace_id',
+    'scope_key',
+    'lifecycle_state',
+    'name',
+    'description',
+    'created_by_membership_id',
+    'created_at',
+    'updated_at',
+    'updated_by_membership_id',
+    'version',
+  ],
+  'tenancy.team_member': [
+    'workspace_id',
+    'team_id',
+    'membership_id',
+    'added_by_membership_id',
+    'created_at',
+  ],
+  'access.workspace_policy': [
+    'workspace_id',
+    'self_approval_mode',
+    'require_independent_for',
+    'members_invite_guests',
+    'limited_members_can_export',
+    'limited_members_tokens',
+    'limited_members_ai',
+    'limited_members_agents',
+    'read_only_ai',
+    'members_configure_agents',
+    'admins_manage_billing',
+    'comment_on_archived',
+    'workspace_records_default_level',
+    'cross_brand_sharing_enabled',
+    'guest_invitations_enabled',
+    'public_links_enabled',
+    'share_max_expiry',
+    'token_max_lifetime',
+    'low_impact_agent_actions',
+    'updated_at',
+    'updated_by_membership_id',
+    'version',
+  ],
+  'tenancy.invitation': [
+    'id',
+    'public_id',
+    'workspace_id',
+    'email_key',
+    'kind',
+    'role_key',
+    'scope_proposal',
+    'invited_by_membership_id',
+    'state',
+    'expires_at',
+    'send_count',
+    'last_sent_at',
+    'token_id',
+    'accepted_account_id',
+    'accepted_membership_id',
+    'revoked_by_membership_id',
+    'decided_at',
+    'created_at',
+    'updated_at',
+    'version',
+  ],
+  'access.share_group': [
+    'id',
+    'public_id',
+    'workspace_id',
+    'source_record_id',
+    'source_brand_id',
+    'grantee_type',
+    'grantee_id',
+    'grantee_membership_id',
+    'grantee_team_id',
+    'grantee_brand_id',
+    'level',
+    'expires_at',
+    'state',
+    'created_by_membership_id',
+    'created_at',
+    'revoked_at',
+    'revoked_by_membership_id',
+    'record_count',
+    'version',
+  ],
+  'access.record_grant': [
+    'id',
+    'public_id',
+    'workspace_id',
+    'share_group_id',
+    'record_id',
+    'source_brand_id',
+    'grantee_type',
+    'grantee_id',
+    'grantee_key',
+    'grantee_membership_id',
+    'grantee_team_id',
+    'grantee_brand_id',
+    'level',
+    'state',
+    'expires_at',
+    'created_by_membership_id',
+    'created_at',
+    'revoked_at',
+    'revoked_by_membership_id',
+    'version',
+  ],
+  'tenancy.ownership_transfer': [
+    'id',
+    'public_id',
+    'workspace_id',
+    'from_membership_id',
+    'to_membership_id',
+    'state',
+    'demote_previous',
+    'expires_at',
+    'requested_step_up_id',
+    'accepted_step_up_id',
+    'decided_at',
+    'decided_by_membership_id',
+    'created_at',
+    'version',
   ],
 };

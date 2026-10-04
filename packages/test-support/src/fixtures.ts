@@ -121,10 +121,18 @@ export async function seedBrand(
      VALUES ($1, $2, $3, $3, 'Synthetic', 'UTC', 'en', 't1', 'p1', now())`,
     [account, newPublicId('acct'), email],
   );
+  // Internal members hold exactly one workspace role (migration 0019 role-shape check).
   await admin(
-    `INSERT INTO tenancy.membership (id, public_id, workspace_id, account_id, kind, state, joined_at)
-     VALUES ($1, $2, $3, $4, 'member', 'active', now())`,
-    [membershipId, newPublicId('mem'), workspaceId, account],
+    `BEGIN;
+     SELECT access.seed_builtin_roles('${workspaceId}')
+       WHERE NOT EXISTS (SELECT 1 FROM access.role WHERE workspace_id = '${workspaceId}');
+     INSERT INTO tenancy.membership (id, public_id, workspace_id, account_id, kind, state, joined_at)
+       VALUES ('${membershipId}', '${newPublicId('mem')}', '${workspaceId}', '${account}', 'member', 'active', now());
+     INSERT INTO access.role_assignment (id, workspace_id, principal_type, principal_id, scope_type, scope_id,
+       role_id, role_kind, grant_source)
+       SELECT '${newUuidV7()}', '${workspaceId}', 'membership', '${membershipId}', 'workspace', '${workspaceId}',
+         r.id, 'workspace_role', 'assigned' FROM access.role r WHERE r.workspace_id = '${workspaceId}' AND r.key = 'member';
+     COMMIT;`,
   );
   await admin(
     `BEGIN;

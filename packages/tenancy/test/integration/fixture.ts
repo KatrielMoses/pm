@@ -1,7 +1,14 @@
 import { createHash, randomBytes } from 'node:crypto';
 import { AuditSecurityEventSink, AuditWriter } from '@pm/audit';
-import { newPublicId, newUuidV7 } from '@pm/contracts';
-import { PostgresRateLimiter, type AuthContext, type StepUpChallengeView } from '@pm/identity';
+import { newPublicId, newRequestId, newUuidV7 } from '@pm/contracts';
+import {
+  createIdentityService,
+  createVault,
+  NoopRateLimiter,
+  PostgresRateLimiter,
+  type AuthContext,
+  type StepUpChallengeView,
+} from '@pm/identity';
 import {
   LifecycleRegistry,
   LifecycleService,
@@ -12,6 +19,8 @@ import {
   registerTenancyLifecycle,
   tenancyBrandPort,
   TenancyService,
+  CollaborationService,
+  type CollaborationIdentityPort,
   type Caller,
   type Mutation,
   type StepUpPort,
@@ -130,7 +139,10 @@ export async function seedAccount(
       mfaVerifiedAt: null,
     },
   };
-  return { auth, meta: { correlationId: randomBytes(16).toString('hex'), requestId: 'req_test' } };
+  return {
+    auth,
+    meta: { correlationId: randomBytes(16).toString('hex'), requestId: newRequestId() },
+  };
 }
 
 /** A fresh Idempotency-Key and fingerprint (the API derives the fingerprint from the request). */
@@ -160,18 +172,16 @@ export async function seedSecondOwner(
 ): Promise<{ caller: Caller; membershipId: string }> {
   const caller = await seedAccount(db);
   const membershipId = newUuidV7();
+  // One transaction: an internal membership holds its workspace role at commit (0019 role shape).
   await db.admin(
-    `INSERT INTO tenancy.membership (id, public_id, workspace_id, account_id, kind, state, joined_at)
-     VALUES ($1, $2, $3, $4, 'member', 'active', now());
-     `.trim(),
-    [membershipId, newPublicId('mem'), workspaceId, caller.auth.account.id],
-  );
-  await db.admin(
-    `INSERT INTO access.role_assignment (id, workspace_id, principal_type, principal_id, scope_type, scope_id,
+    `BEGIN;
+     INSERT INTO tenancy.membership (id, public_id, workspace_id, account_id, kind, state, joined_at)
+       VALUES ('${membershipId}', '${newPublicId('mem')}', '${workspaceId}', '${caller.auth.account.id}', 'member', 'active', now());
+     INSERT INTO access.role_assignment (id, workspace_id, principal_type, principal_id, scope_type, scope_id,
        role_id, role_kind, grant_source)
-     SELECT $1, $2, 'membership', $3, 'workspace', $2, r.id, 'workspace_role', 'assigned'
-       FROM access.role r WHERE r.workspace_id = $2 AND r.key = 'owner'`,
-    [newUuidV7(), workspaceId, membershipId],
+       SELECT '${newUuidV7()}', '${workspaceId}', 'membership', '${membershipId}', 'workspace', '${workspaceId}',
+         r.id, 'workspace_role', 'assigned' FROM access.role r WHERE r.workspace_id = '${workspaceId}' AND r.key = 'owner';
+     COMMIT;`,
   );
   return { caller, membershipId };
 }
@@ -179,4 +189,125 @@ export async function seedSecondOwner(
 export async function workspaceIdOf(db: TestDatabase, publicId: string): Promise<string> {
   return (await db.admin(`SELECT id FROM tenancy.workspace WHERE public_id = $1`, [publicId]))
     .rows[0].id as string;
+}
+
+// -------------------------------------------------------------------------------------------
+// Phase 1D collaboration environment
+// -------------------------------------------------------------------------------------------
+
+export interface CollabEnv extends TenancyEnv {
+  collab: CollaborationService;
+  /** Raw invitation token from the sealed mail outbox (tests only; never printed). */
+  tokenFor(email: string): Promise<string>;
+}
+
+export function collabEnv(
+  db: TestDatabase,
+  options: {
+    arrayMax?: number;
+    extra?: RecordTypeAdapter[];
+    harnessOverrides?: Record<string, string>;
+  } = {},
+): CollabEnv {
+  const base = tenancyEnv(db, options.extra ?? []);
+  const { h, stepUp, registry } = base;
+  const metrics = h.telemetry.metrics;
+  const { service: identity } = createIdentityService({
+    db: h.platform,
+    config: h.config.identity,
+    appName: 'PM',
+    logger: h.logger,
+    metrics,
+    limiter: new NoopRateLimiter(),
+  });
+  const writer = new AuditWriter({ module: 'tenancy', logger: h.logger, metrics });
+  const lifecycle = new LifecycleService({
+    registry,
+    writer,
+    retention: new RetentionPolicy(h.config.lifecycle),
+    brands: tenancyBrandPort,
+    metrics,
+    logger: h.logger,
+  });
+  const port: CollaborationIdentityPort = {
+    issueInvitationToken: identity.issueInvitationToken.bind(identity),
+    revokeInvitationToken: identity.revokeInvitationToken.bind(identity),
+    lookupInvitationToken: identity.lookupInvitationToken.bind(identity),
+    consumeInvitationToken: identity.consumeInvitationToken.bind(identity),
+    revokeSessionsForDeparture: identity.revokeSessionsForDeparture.bind(identity),
+    consumeWorkspaceStepUp: stepUp.consumeWorkspaceStepUp,
+    createStepUpChallenge: stepUp.createStepUpChallenge,
+  };
+  const collab = new CollaborationService({
+    tenant: h.app,
+    platform: h.platform,
+    writer,
+    security: new AuditSecurityEventSink(metrics),
+    lifecycle,
+    stepUp: port,
+    identity: port,
+    limiter: new PostgresRateLimiter(h.platform, randomBytes(32), {
+      'workspace.create': { limit: 1000, windowMs: 3_600_000 },
+      'invitation.accept': { limit: 1000, windowMs: 3_600_000 },
+      'invitation.send': { limit: 1000, windowMs: 3_600_000 },
+    }),
+    signingKey: randomBytes(32),
+    settings: {
+      invitationLifetimeMs: 3_600_000,
+      ownershipTransferLifetimeMs: 3_600_000,
+      principalContextArrayMax: options.arrayMax ?? 10_000,
+      previewTtlMs: 600_000,
+    },
+    metrics,
+    logger: h.logger,
+  });
+  const vault = createVault(h.config.identity);
+  return {
+    ...base,
+    collab,
+    async tokenFor(email: string) {
+      return h.platformWorker.withPlatform({ module: 'test', readOnly: true }, async (tx) => {
+        const row = await tx.db
+          .selectFrom('identity.mail_delivery')
+          .select('sealed_ref')
+          .where('recipient', '=', email)
+          .where('template', '=', 'workspace_invitation')
+          .orderBy('created_at', 'desc')
+          .limit(1)
+          .executeTakeFirstOrThrow();
+        const token = await vault.get(row.sealed_ref!, { scope: tx });
+        if (!token) throw new Error('no sealed invitation token');
+        return token;
+      });
+    },
+  };
+}
+
+/** A test-only record type contained in a brand (or the workspace when brandId is null). */
+export async function seedRecord(
+  db: TestDatabase,
+  workspaceId: string,
+  brandId: string | null,
+  ownerMembershipId: string | null = null,
+): Promise<{ id: string; publicId: string }> {
+  await db.admin(
+    `INSERT INTO core.record_type (record_type, public_id_prefix, owner_module, test_only)
+     VALUES ('foundation_fixture', 'fxt', 'fixture', true) ON CONFLICT DO NOTHING`,
+  );
+  const id = newUuidV7();
+  const publicId = newPublicId('fxt' as never);
+  await db.admin(
+    `INSERT INTO core.record (id, public_id, record_type, workspace_id, brand_id, owner_membership_id, source_kind, created_by_actor_type)
+     VALUES ($1, $2, 'foundation_fixture', $3, $4, $5, 'system', 'system')`,
+    [id, publicId, workspaceId, brandId, ownerMembershipId],
+  );
+  return { id, publicId };
+}
+
+export async function membershipOf(db: TestDatabase, workspaceId: string, accountId: string) {
+  const r = await db.admin(
+    `SELECT id, public_id, state, kind FROM tenancy.membership WHERE workspace_id = $1 AND account_id = $2`,
+    [workspaceId, accountId],
+  );
+  return r.rows[0] as { id: string; public_id: string; state: string; kind: string } | undefined;
 }

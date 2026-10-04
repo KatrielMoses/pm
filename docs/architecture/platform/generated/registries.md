@@ -72,6 +72,8 @@ Source: `contracts/registry.json`.
 | `rd_` | release_decision | delivery.release_decision | delivery |  |
 | `sag_` | support_access_grant | access.support_access_grant | access |  |
 | `fpol_` | field_policy | access.field_policy | access |  |
+| `inv_` | invitation | tenancy.invitation | tenancy |  |
+| `otr_` | ownership_transfer | tenancy.ownership_transfer | tenancy |  |
 
 ## Error codes
 
@@ -220,6 +222,11 @@ Source: `contracts/registry.json`.
 | `ai.briefing.generated` v1 | ai.briefing | kind, period_key | C1 |  | yes |  |  |  | — |
 | `transfer.export.ready` v1 | transfer.export_job | format | C1 |  | yes |  |  |  | — |
 | `templates.template.installed` v1 | templates.template_installation | template_version_id, sample | C1 | yes |  |  |  |  | — |
+| `tenancy.membership.activated` v1 | tenancy.membership | kind, reason | C1 | yes | yes |  |  |  | — |
+| `tenancy.membership.suspended` v1 | tenancy.membership | reason | C1 | yes |  |  |  |  | — |
+| `access.role.revoked` v1 | access.role_assignment | scope_type | C1 | yes | yes |  |  |  | — |
+| `tenancy.team.membership_changed` v1 | tenancy.team_member | change | C1 | yes |  |  |  |  | — |
+| `tenancy.ownership.transferred` v1 | tenancy.ownership_transfer | demoted_previous | C1 | yes | yes |  |  |  | — |
 
 ## SSE topics
 
@@ -337,6 +344,11 @@ Forbidden metric labels: `workspace_id`, `brand_id`, `record_id`, `public_id`, `
 | `tenancy.context_failures` | counter | reason | tenancy |
 | `tenancy.context_fallbacks` | counter | reason | tenancy |
 | `tenancy.rls_denials` | counter | module | tenancy |
+| `tenancy.invitation_outcomes` | counter | stage, outcome | tenancy |
+| `tenancy.revocations` | counter | kind, outcome | tenancy |
+| `tenancy.epoch_stale` | counter | consumer | tenancy |
+| `tenancy.ownership_hook_failures` | counter | hook | tenancy |
+| `tenancy.context_strategy` | counter | strategy | tenancy |
 
 ## Named parameters (values are configuration, not promises)
 
@@ -373,3 +385,6 @@ Forbidden metric labels: `workspace_id`, `brand_id`, `record_id`, `public_id`, `
 | `IMPORT_ROLLBACK_PERIOD` | Import rollback window (0A parameter, OD-40). | PO |
 | `USAGE_WARNING_THRESHOLDS` | Default warning thresholds as basis points of allowance. | 7A |
 | `UNDO_RETENTION` | How long an operation remains undoable server-side. | 2D |
+| `PRINCIPAL_CONTEXT_ARRAY_MAX` | Largest visibility-context array bound as a query parameter before the compiler switches to a transaction-scoped temporary table (0C §4.5). | 1D/11D |
+| `INVITATION_LIFETIME` | How long an invitation token stays acceptable before the invitation expires. | 1D |
+| `OWNERSHIP_TRANSFER_LIFETIME` | How long a pending ownership transfer waits for the recipient before it expires. | 1D |

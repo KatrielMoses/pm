@@ -165,13 +165,17 @@ describe('tenant isolation matrix (1C)', () => {
         [ws.a1.id, memA1, brandB1],
       ),
     ).rejects.toThrow(/foreign key/);
-    // Membership and grant tables are not writable beyond INSERT, and never via UPDATE/DELETE.
+    // 1D grants managed transitions on memberships and assignments; database invariants still
+    // refuse authority tampering even through the app role directly (last owner, guarded state).
     await expect(asApp(ws.a1.id, `DELETE FROM access.role_assignment`)).rejects.toThrow(
-      /permission denied/,
+      /active owner|role shape/,
     );
     await expect(
-      asApp(ws.a1.id, `UPDATE tenancy.membership SET state = 'removed'`),
-    ).rejects.toThrow(/permission denied/);
+      asApp(ws.a1.id, `UPDATE tenancy.membership SET state = 'removed', version = version + 1`),
+    ).rejects.toThrow(/removed_fields|departure_reason|active owner/);
+    await expect(asApp(ws.a1.id, `DELETE FROM tenancy.membership`)).rejects.toThrow(
+      /permission denied/,
+    );
     await expect(asApp(ws.a1.id, `UPDATE tenancy.workspace SET state = 'purging'`)).rejects.toThrow(
       /permission denied/,
     );

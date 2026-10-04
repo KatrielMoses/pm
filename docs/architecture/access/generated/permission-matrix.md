@@ -58,7 +58,7 @@ Rules and algorithm: [../04-effective-permissions.md](../04-effective-permission
 | `import.execute` | workspace, brand | — | R2 |  | **all** | **all** | ≥edit | — | — | — |
 | `webhook.test_send` | workspace, brand | — | R2 |  | **all** | **all** | ≥manage | — | — | — |
 
-## Administrative capabilities (50)
+## Administrative capabilities (51)
 
 | Action | Scopes | Level | Risk | Flags | owner | administrator | member | limited_member | read_only | guest |
 |---|---|---|---|---|---|---|---|---|---|---|
@@ -76,6 +76,7 @@ Rules and algorithm: [../04-effective-permissions.md](../04-effective-permission
 | `membership.invite_member` | workspace | — | R2 |  | **all** | **all** | — | — | — | — |
 | `membership.invite_guest` | record | — | R3 |  | **all** | **all** | if members_invite_guests | — | — | — |
 | `membership.manage` | workspace | — | R3 | SU | **all** | **all** | — | — | — | — |
+| `ownership.accept` | workspace | — | R4 | SU | own | own | own | own | own | — |
 | `team.manage` | workspace | — | R2 |  | **all** | **all** | — | — | — | — |
 | `access.grant_scope` | workspace, brand, project | — | R3 |  | **all** | **all** | ≥manage | ≥manage | — | — |
 | `access.restrict_scope` | brand, project, record, field | — | R3 |  | **all** | **all** | ≥manage | ≥manage | — | — |
@@ -113,7 +114,7 @@ Rules and algorithm: [../04-effective-permissions.md](../04-effective-permission
 | `support_access.grant` | workspace | — | R4 | SU | **all** | **all** | — | — | — | — |
 | `emergency_stop.trigger` | workspace | — | R1 |  | **all** | **all** | — | — | — | — |
 
-## Personal (8)
+## Personal (10)
 
 | Action | Scopes | Level | Risk | Flags | owner | administrator | member | limited_member | read_only | guest |
 |---|---|---|---|---|---|---|---|---|---|---|
@@ -125,6 +126,8 @@ Rules and algorithm: [../04-effective-permissions.md](../04-effective-permission
 | `account.recovery_codes_regenerate` | personal | — | R3 | SU | own | own | own | own | own | own |
 | `api_tokens.personal` | personal | — | R3 | SU | own | own | own | if limited_members_tokens | own | — |
 | `workspace.create` | personal | — | R2 |  | — | — | — | — | — | — |
+| `invitation.accept` | personal | — | R2 |  | — | — | — | — | — | — |
+| `membership.leave` | personal | — | R2 |  | own | own | own | own | own | own |
 
 ## Agent tool classes
 
@@ -206,6 +209,9 @@ Rules and algorithm: [../04-effective-permissions.md](../04-effective-permission
 | `membership.invite_member` | Invite members (role ≤ inviter's grantable roles). | none | COL-001 |  |
 | `membership.invite_guest` | Invite a guest by sharing a record with an email. | none | COL-002, PERM-005 | Also requires record.share on each record shared. |
 | `membership.manage` | Change workspace roles, suspend, or remove memberships (owners managed only by owners). | none | ADM-003, PERM-014 |  |
+| `invitation.accept` | Accept a workspace invitation addressed to the authenticated account's verified email. | none | COL-001, COL-002 | Account command (AZ-19): performed before any membership exists, so every workspace role cell is deny. Only the human account principal may exercise it and no 0D scope may list it. Gates: verified email equal to the invitation's normalized email, active account, single-use unexpired token, per-account rate limit, Idempotency-Key. It creates authority only by atomically activating the membership and exactly the role assignment or record grants the invitation proposed. |
+| `ownership.accept` | Accept an ownership transfer addressed to one's own active internal membership. | none | ADM-013 | Recipient side of ownership.transfer (AZ-19): 'own' means only a pending transfer addressed to the caller's own membership. Human-only (step-up); never delegable to tokens, agents, automations, or integrations, and no 0D scope may list it. Guests can never become owners. |
+| `membership.leave` | Leave a workspace (end one's own membership). | none | PERM-014 | Own membership only. Refused while the caller is the last active owner or while registered owned resources cannot be reassigned or suspended (AZ-19). Human-only; no 0D scope may list it. |
 | `team.manage` | Create teams and change team membership (actor needs authority over every scope the team holds grants in). | none | COL-003 |  |
 | `access.grant_scope` | Assign scope roles (access levels) at workspace, brand, or project. | none | COL-004, PERM-003 |  |
 | `access.restrict_scope` | Mark a project/document restricted or set field visibility. | none | PERM-006, PERM-003 |  |

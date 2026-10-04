@@ -1,43 +1,14 @@
-import { expect, test, type Page } from '@playwright/test';
-import { expectAccessible, PASSWORD, register, signedIn, uniqueEmail, verify } from './support.ts';
+import { expect, test } from '@playwright/test';
+import {
+  createBrand,
+  createWorkspace,
+  expectAccessible,
+  noHorizontalOverflow,
+  owner,
+  PASSWORD,
+} from './support.ts';
 
 /** Phase 1C: account → workspace → brands, settings, context switching, sensitivity, archive. */
-
-async function owner(
-  page: Page,
-  info: Parameters<typeof uniqueEmail>[1],
-  prefix: string,
-): Promise<string> {
-  const email = uniqueEmail(prefix, info);
-  await register(page, email);
-  await verify(page, email);
-  await signedIn(page, email);
-  await expect(page.getByRole('heading', { level: 1 })).toHaveText('Welcome, E2E Person');
-  return email;
-}
-
-async function createWorkspace(page: Page, name: string): Promise<string> {
-  await expect(page.getByRole('heading', { name: 'Create your workspace' })).toBeVisible();
-  await page.getByLabel(/^Workspace name/).fill(name);
-  await page.getByLabel('Time zone').selectOption('Europe/Lisbon');
-  await page.getByLabel('Currency').selectOption('EUR');
-  await page.getByLabel('Week starts on').selectOption({ label: 'Monday' });
-  await page.getByRole('button', { name: 'Create workspace' }).click();
-  await expect(page.getByRole('heading', { level: 1 })).toHaveText('Add your first brand');
-  return /\/workspaces\/(ws_[0-9A-Z]{26})\//.exec(page.url())![1]!;
-}
-
-async function createBrand(page: Page, name: string, icon = 'Leaf'): Promise<void> {
-  await page.getByLabel(/^Brand name/).fill(name);
-  await page.getByRole('radio', { name: icon }).check();
-  await page.getByRole('button', { name: 'Create brand' }).click();
-  await expect(page.getByRole('status').filter({ hasText: `${name} was created.` })).toBeVisible();
-}
-
-const noHorizontalOverflow = (page: Page) =>
-  page.evaluate<number>(
-    'document.documentElement.scrollWidth - document.documentElement.clientWidth',
-  );
 
 test('owner journey: workspace, three brands, settings, switcher, sensitivity, archive and restore', async ({
   page,

@@ -21,6 +21,7 @@ import {
   ICON_GLYPH,
   mergeRequest,
   OPERATIONAL_STATUSES,
+  pendingInvitation,
   tenancy,
   timeZones,
   WEEKDAYS,
@@ -41,6 +42,7 @@ import {
   type HoursDraft,
 } from '../tenancy/editors.tsx';
 import { LoadProblem, ResourceView, useResource } from '../tenancy/resource.tsx';
+import { BrandAccessPanel } from './people-pages.tsx';
 import { ContextSwitcher } from '../tenancy/switcher.tsx';
 
 // -------------------------------------------------------------------------------------------
@@ -48,7 +50,7 @@ import { ContextSwitcher } from '../tenancy/switcher.tsx';
 // -------------------------------------------------------------------------------------------
 
 /** Redirects signed-out visitors; renders nothing until the session is known. */
-function useSignedIn(): boolean {
+export function useSignedIn(): boolean {
   const { me } = useAuth();
   const { navigate } = useRouter();
   useEffect(() => {
@@ -64,12 +66,12 @@ const STATUS_LABEL: Record<OperationalStatus, string> = {
   planned: 'Planned',
 };
 
-function WorkspaceNav({
+export function WorkspaceNav({
   workspaceId,
   current,
 }: {
   workspaceId: string;
-  current: 'brands' | 'settings' | 'brand';
+  current: 'brands' | 'settings' | 'brand' | 'people' | 'teams';
 }) {
   const { signOut } = useAuth();
   const { navigate } = useRouter();
@@ -84,6 +86,8 @@ function WorkspaceNav({
     <nav aria-label="Workspace" className="workspace-nav">
       <ul>
         {item(`/workspaces/${workspaceId}`, 'Brands', current === 'brands')}
+        {item(`/workspaces/${workspaceId}/people`, 'People', current === 'people')}
+        {item(`/workspaces/${workspaceId}/teams`, 'Teams', current === 'teams')}
         {item(`/workspaces/${workspaceId}/settings`, 'Workspace settings', current === 'settings')}
         {item('/workspaces', 'Switch workspace', false)}
         {item('/account/security', 'Account security', false)}
@@ -101,7 +105,7 @@ function WorkspaceNav({
   );
 }
 
-function BrandMark({ brand }: { brand: Pick<Brand, 'color' | 'icon'> }) {
+export function BrandMark({ brand }: { brand: Pick<Brand, 'color' | 'icon'> }) {
   return (
     <span className="brand-mark" style={{ backgroundColor: brand.color }} aria-hidden="true">
       {ICON_GLYPH[brand.icon] ?? '●'}
@@ -110,7 +114,7 @@ function BrandMark({ brand }: { brand: Pick<Brand, 'color' | 'icon'> }) {
 }
 
 /** Splits API issues into per-field messages (by pointer) and the rest (shown as a banner). */
-function splitIssues(
+export function splitIssues(
   error: unknown,
   pointers: Record<string, string>,
 ): { fields: FieldErrors; other: ApiIssue[] } {
@@ -126,7 +130,7 @@ function splitIssues(
   return { fields, other };
 }
 
-function OtherIssues({ issues }: { issues: ApiIssue[] }) {
+export function OtherIssues({ issues }: { issues: ApiIssue[] }) {
   if (!issues.length) return null;
   return (
     <Banner tone="danger" title="Some changes couldn't be saved">
@@ -140,7 +144,7 @@ function OtherIssues({ issues }: { issues: ApiIssue[] }) {
 }
 
 /** Explains failures that are not field validation: conflict, offline, not found, forbidden. */
-function SaveProblem({
+export function SaveProblem({
   error,
   onKeepMine,
   onUseLatest,
@@ -267,11 +271,16 @@ export function OnboardingPage() {
   const { navigate } = useRouter();
   const list = useResource(() => tenancy.listWorkspaces(), ready ? 'ws' : 'wait');
   useEffect(() => {
+    // An invitation opened before signing in resumes here (token kept in session storage only).
+    if (ready && pendingInvitation.get()) {
+      navigate('/invitations/accept', { replace: true });
+      return;
+    }
     if (list.state.status === 'ready' && list.state.data.length) {
       const target = list.state.data.find((w) => w.selected) ?? list.state.data[0]!;
       navigate(`/workspaces/${target.id}`, { replace: true });
     }
-  }, [list.state, navigate]);
+  }, [list.state, navigate, ready]);
   if (!me || !ready) return <Page title="Loading">{null}</Page>;
   const hasNone = list.state.status === 'ready' && !list.state.data.length;
   return (
@@ -912,6 +921,9 @@ export function WorkspaceSettingsPage({ ws }: { ws: string }) {
       <ResourceView resource={workspace.state} onRetry={workspace.retry} what="workspace">
         {(w) => <WorkspaceSettingsForm workspace={w} onSaved={workspace.set} />}
       </ResourceView>
+      <p>
+        <Link to={`/workspaces/${ws}/settings/access`}>Sharing, guests, and ownership</Link>
+      </p>
     </Page>
   );
 }
@@ -1162,6 +1174,9 @@ function BrandSettingsBody({
       />
       {!archived && brand.capabilities.mark_sensitive ? (
         <SensitivitySection ws={ws} brand={brand} onSaved={onBrand} />
+      ) : null}
+      {!archived && brand.capabilities.grant_access ? (
+        <BrandAccessPanel ws={ws} brand={brand.id} />
       ) : null}
       {!archived && brand.capabilities.archive ? (
         <ArchiveSection ws={ws} brand={brand} onArchived={onBrand} reload={reload} />

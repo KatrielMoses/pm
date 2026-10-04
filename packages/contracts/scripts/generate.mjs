@@ -78,6 +78,19 @@ const accountCommands = (policy.account_commands ?? []).map((c) => ({
   gates: c.gates,
 }));
 
+const roleDefinitions = policy.roles.map((r) => ({
+  id: r.id,
+  membershipKind: r.membership_kind,
+  levelCap: r.level_cap,
+  canAssign: r.can_assign_roles,
+}));
+const workspacePolicyFields = (policy.workspace_policy ?? []).map((f) => ({
+  field: f.field,
+  default: f.default,
+  governedBy: f.governed_by,
+  ownerOnly: f.owner_only,
+}));
+
 /** `name kind (a|b|c)` key column of a 0B entity → its closed vocabulary. */
 function vocabulary(entity, column) {
   const e = model.entities.find((x) => x.name === entity);
@@ -133,6 +146,14 @@ export type ActionKey = (typeof ACTIONS)[number]['key'];
 /** 0C account commands (AZ-18): account-level actions performed before any tenant context. */
 export const ACCOUNT_COMMANDS = ${lit(accountCommands)} as const;
 export type AccountCommand = (typeof ACCOUNT_COMMANDS)[number]['action'];
+
+/** 0C §3.1 default roles: membership kind, level cap, and grantable authority (I-11). */
+export const ROLE_DEFINITIONS = ${lit(roleDefinitions)} as const;
+export type RoleId = (typeof ROLE_DEFINITIONS)[number]['id'];
+
+/** 0C AZ-19 workspace policy fields: safe defaults and governing actions. */
+export const WORKSPACE_POLICY_FIELDS = ${lit(workspacePolicyFields)} as const;
+export type WorkspacePolicyField = (typeof WORKSPACE_POLICY_FIELDS)[number]['field'];
 
 /** 0B brand operational status (ADR-19): business metadata, never lifecycle. */
 ${constArray('BRAND_OPERATIONAL_STATUSES', vocabulary('brand', 'operational_status'), 'BrandOperationalStatus')}

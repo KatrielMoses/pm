@@ -187,3 +187,13 @@ All decisions are **proposed (Phase 0D)**, pending solutions-architect acceptanc
 - **Decision:** Five bounded tenancy signals are registered: `tenancy.commands` (command, outcome), `tenancy.authz_decisions` (action_key, outcome), `tenancy.context_failures` (reason), `tenancy.context_fallbacks` (reason), and `tenancy.rls_denials` (module). The forbidden metric labels also cover `workspace`, `brand`, `membership`, `membership_id`, `account`, `account_id`, `timezone`, and `content`. Readiness gains a `tenant_isolation` check that reads only the catalog: every tenant table in `tenancy` and `access` has forced RLS with exactly one `tenant_isolation` policy, and the account directory functions are security-definer functions owned by their dedicated role. It reports a check name and state only.
 - **Alternatives:** Unregistered runtime signals (drift between code and contract). A data-reading isolation probe (would touch tenant rows from an unscoped context).
 - **Consequences:** The runtime only accepts registered signals with declared labels, and a validation test checks every emitted signal's name, type, and label set against the registry. A schema restored without its RLS or directory ownership fails readiness instead of serving traffic.
+
+<a id="pl-20"></a>
+### PL-20: Membership, invitation, team, grant, and ownership contracts (Phase 1D amendment)
+- **Decision:**
+  - Public ID prefixes `inv` (invitation) and `otr` (ownership transfer).
+  - Five C1 internal events: `tenancy.membership.activated`, `tenancy.membership.suspended`, `access.role.revoked`, `tenancy.team.membership_changed`, and `tenancy.ownership.transferred`. With the existing `access.role.assigned`, `access.grant.created/revoked`, and `tenancy.membership.removed`, they are the hooks the notification phase consumes. None carries names, emails, or content.
+  - Five bounded tenancy signals: `tenancy.invitation_outcomes` (stage, outcome), `tenancy.revocations` (kind, outcome), `tenancy.epoch_stale` (consumer), `tenancy.ownership_hook_failures` (hook), `tenancy.context_strategy` (strategy).
+  - Named parameters `PRINCIPAL_CONTEXT_ARRAY_MAX`, `INVITATION_LIFETIME`, and `OWNERSHIP_TRANSFER_LIFETIME`.
+- **Alternatives:** Unregistered runtime events and metrics (drift). Per-tenant plan numbers for these limits (OD-44 is unset).
+- **Consequences:** Values are operational defaults, not product promises. The runtime emits only registered events and signals, and the drift tests enforce it.

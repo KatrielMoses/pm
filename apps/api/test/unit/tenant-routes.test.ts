@@ -48,7 +48,9 @@ describe('tenant lifecycle and audit endpoints are reachable only through policy
     const importers = [...appFiles, ...packageFiles]
       .filter((f) => readFileSync(f, 'utf8').includes("from '@pm/lifecycle/policy-issuer'"))
       .map((f) => f.slice(ROOT.length + 1));
-    expect(importers).toEqual(['packages/tenancy/src/service.ts']);
+    // Only the tenancy policy compiler (its service modules) issues lifecycle decisions.
+    expect(importers.length).toBeGreaterThan(0);
+    expect(importers.filter((f) => !f.startsWith('packages/tenancy/src/'))).toEqual([]);
   });
 
   it('the API process reaches lifecycle only through @pm/tenancy', () => {
@@ -69,6 +71,9 @@ describe('tenant lifecycle and audit endpoints are reachable only through policy
     expect(tenant).toEqual([]);
     // The only audit-derived surface is the account's own security activity.
     expect(paths).toContain('/v1/auth/security-activity');
+    // 1D: the "shared with me" list is the only record surface (exact-record grants and the
+    // visibility predicate; no trash, purge, or lifecycle verbs).
+    expect(paths).toContain('/v1/workspaces/:ws/shared');
   });
 
   it('archive and restore verbs exist only as brand actions in the tenancy routes', () => {

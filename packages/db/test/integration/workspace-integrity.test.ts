@@ -144,6 +144,14 @@ describe('database-enforced workspace existence (1A review 01, correction 2)', (
       'tenancy.brand_setting',
       'tenancy.membership',
       'tenancy.scope_preference',
+      // Phase 1D collaboration tables.
+      'access.record_grant',
+      'access.share_group',
+      'access.workspace_policy',
+      'tenancy.invitation',
+      'tenancy.ownership_transfer',
+      'tenancy.team',
+      'tenancy.team_member',
     ];
     expect(res.rows.map((r) => r.tbl).sort()).toEqual(
       [...TENANT_TABLES.map((t) => `exec.${t}`), ...phase1f, ...phase1c].sort(),
@@ -175,8 +183,9 @@ describe('database-enforced workspace existence (1A review 01, correction 2)', (
       FROM pg_constraint c JOIN pg_namespace n ON n.oid = c.connamespace
       WHERE c.contype = 'f' AND n.nspname IN ('exec', 'tenancy', 'access', 'ops')
       ORDER BY 1`);
-    // exec: 7 workspace keys + 6 composite same-workspace keys; 1C tenancy/access: 20 keys.
-    expect(res.rows.length).toBe(33);
+    // exec: 7 workspace keys + 6 composite same-workspace keys; 1C tenancy/access: 20 keys;
+    // 1D collaboration (teams, invitations, policy, shares, ownership transfer): 38 keys.
+    expect(res.rows.length).toBe(71);
     for (const r of res.rows)
       expect(r, `${r.tbl}.${r.conname}`).toMatchObject({
         referencing_indexed: true,

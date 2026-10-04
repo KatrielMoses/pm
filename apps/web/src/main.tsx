@@ -22,6 +22,15 @@ import {
   WorkspaceSettingsPage,
   WorkspacesPage,
 } from './pages/workspace-pages.tsx';
+import {
+  AcceptInvitationPage,
+  AccessSettingsPage,
+  InvitePage,
+  MemberPage,
+  PeoplePage,
+  TeamPage,
+  TeamsPage,
+} from './pages/people-pages.tsx';
 import { Link, matchPath, Router, useRouter } from './router.tsx';
 import { StepUpProvider } from './stepup.tsx';
 import { Page } from './ui/layout.tsx';
@@ -37,6 +46,7 @@ const ROUTES: Record<string, () => React.JSX.Element> = {
   '/reset-password': ResetPasswordPage,
   '/onboarding': OnboardingPage,
   '/workspaces': WorkspacesPage,
+  '/invitations/accept': AcceptInvitationPage,
   '/account/security': AccountSecurityPage,
   '/status': () => <App />,
   // Local/test component harness (the page itself renders "not found" unless enabled).
@@ -55,6 +65,12 @@ function Home() {
 const PARAM_ROUTES: Array<[string, (p: Record<string, string>) => React.JSX.Element]> = [
   ['/workspaces/:ws/first-brand', (p) => <FirstBrandPage ws={p.ws!} />],
   ['/workspaces/:ws/settings', (p) => <WorkspaceSettingsPage ws={p.ws!} />],
+  ['/workspaces/:ws/settings/access', (p) => <AccessSettingsPage ws={p.ws!} />],
+  ['/workspaces/:ws/people', (p) => <PeoplePage key={p.ws} ws={p.ws!} />],
+  ['/workspaces/:ws/people/invite', (p) => <InvitePage ws={p.ws!} />],
+  ['/workspaces/:ws/people/:mem', (p) => <MemberPage key={p.mem} ws={p.ws!} member={p.mem!} />],
+  ['/workspaces/:ws/teams', (p) => <TeamsPage ws={p.ws!} />],
+  ['/workspaces/:ws/teams/:team', (p) => <TeamPage key={p.team} ws={p.ws!} team={p.team!} />],
   ['/workspaces/:ws/brands/new', (p) => <NewBrandPage ws={p.ws!} />],
   [
     '/workspaces/:ws/brands/:brand',

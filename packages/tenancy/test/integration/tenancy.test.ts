@@ -179,7 +179,8 @@ describe('workspace bootstrap (1C)', () => {
     ).rejects.toThrow(/owner/);
     await expect(
       db.admin(
-        `UPDATE tenancy.membership SET state = 'suspended', suspended_at = now() WHERE workspace_id = $1`,
+        `UPDATE tenancy.membership SET state = 'suspended', suspended_at = now(), version = version + 1
+          WHERE workspace_id = $1`,
         [ws],
       ),
     ).rejects.toThrow(/owner/);
@@ -190,14 +191,14 @@ describe('workspace bootstrap (1C)', () => {
         [ws],
       ),
     ).rejects.toThrow(/owner|permission|denied/);
-    // The application role has no route or grant to change memberships or assignments in 1C.
+    // 1D: column-scoped transitions only; memberships are never deleted (history, ownership).
     const grants = await db.admin(
-      `SELECT has_table_privilege('app_rw', 'access.role_assignment', 'UPDATE') AS u,
-              has_table_privilege('app_rw', 'access.role_assignment', 'DELETE') AS d,
-              has_table_privilege('app_rw', 'tenancy.membership', 'UPDATE') AS mu,
-              has_table_privilege('app_rw', 'tenancy.membership', 'DELETE') AS md`,
+      `SELECT has_column_privilege('app_rw', 'access.role_assignment', 'role_id', 'UPDATE') AS u,
+              has_column_privilege('app_rw', 'access.role_assignment', 'principal_id', 'UPDATE') AS up,
+              has_table_privilege('app_rw', 'tenancy.membership', 'DELETE') AS md,
+              has_column_privilege('app_rw', 'tenancy.membership', 'account_id', 'UPDATE') AS ma`,
     );
-    expect(grants.rows[0]).toEqual({ u: false, d: false, mu: false, md: false });
+    expect(grants.rows[0]).toEqual({ u: true, up: false, md: false, ma: false });
   });
 
   it('a workspace created without its bootstrap owner cannot commit', async () => {

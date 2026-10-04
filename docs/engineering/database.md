@@ -10,8 +10,8 @@ extensions are needed in 1A: UUIDv7 keys are application-generated, and `gen_ran
 |---|---|---|
 | `exec` | execution (0B model `schema: exec`) | operation, attempt, job, outbox_event, inbox_receipt, idempotency_key, external_effect; enums; `current_workspace_id()` |
 | `exec_dispatch` | execution | Payload-free `SECURITY DEFINER` scheduling functions |
-| `tenancy` | tenancy | `workspace` anchor (extended in place, 0017), `membership` (0017), `brand`, `brand_setting`, `scope_preference` (0018); directory definer functions owned by `pm_directory`. See [tenancy.md](tenancy.md) |
-| `access` | access | `role`, `role_assignment`, `permission_epoch` (0017); 1D extends them |
+| `tenancy` | tenancy | `workspace` anchor (extended in place, 0017), `membership` (0017; guarded transitions 0019), `brand`, `brand_setting`, `scope_preference` (0018), `team`, `team_member`, `invitation`, `ownership_transfer` (0019); directory definer functions owned by `pm_directory`. See [tenancy.md](tenancy.md) |
+| `access` | access | `role`, `role_assignment`, `permission_epoch` (0017); `workspace_policy`, `share_group`, `record_grant`, team principals and the role-shape check (0019) |
 | `ops` | operational | `schema_migration`, `environment_binding`, `worker_heartbeat`, `rate_limit_bucket`, `dev_secret_vault`, `recovery_gate` (no tenant data) |
 | `audit` | audit (1F) | audit_event, audit_redaction, security_event, chain_checkpoint, activity_item, buffer_verification (0013, 0015); `redact_purged_values` (0014). Append-only by grants **and** triggers; see [audit.md](audit.md) |
 | `core` | core (1F) | record_type, record, archive_batch(+member), deletion_batch(+member) (0014); residual-batch lineage and membership invariants (0016); see [lifecycle.md](lifecycle.md) |
@@ -37,7 +37,7 @@ Created by `packages/db/bootstrap/roles.sql` (provider admin, once per cluster),
 No role has `SUPERUSER`, `BYPASSRLS`, `CREATEROLE`, `CREATEDB`, or `REPLICATION` (catalog test).
 `app_ro` and `platform_support` arrive with the phases that need them. **Existing clusters must
 re-run the role bootstrap before migration 0013** (it creates `audit_maintainer`) **and again before
-migration 0017** (it creates `pm_directory`).
+migration 0017** (it creates `pm_directory`) **and before 0019** (explicit `TEMPORARY` for `app_rw`/`app_worker`, used by oversized visibility contexts).
 
 **Managed providers.** If the provider reserves role creation for its admin user, run
 `bootstrap` (`node /app/entrypoint.mjs bootstrap`) or `roles.sql` as that admin. The logical model

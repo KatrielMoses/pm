@@ -231,7 +231,7 @@ describe('mail templates', () => {
       expect(r.subject.length).toBeGreaterThan(5);
       expect(r.html).not.toContain('<script>');
       expect(r.text).not.toMatch(/[0-9a-f]{8}-[0-9a-f]{4}-/);
-      if (t === 'email_verification' || t === 'password_reset') {
+      if (t === 'email_verification' || t === 'password_reset' || t === 'workspace_invitation') {
         expect(r.text).toMatch(/https:\/\/app\.example\.test\/[a-z-/]+#token=T{43}/);
         expect(r.text).not.toMatch(/\?token=/);
       } else {

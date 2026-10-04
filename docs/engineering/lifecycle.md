@@ -49,8 +49,8 @@ the scope at event time and must survive brand moves and purges.
 
 **1D:**
 
-- add `FOREIGN KEY (workspace_id, owner_membership_id) REFERENCES tenancy.membership (workspace_id, id)`
-  on `core.record`;
+- ~~add `FOREIGN KEY (workspace_id, owner_membership_id) REFERENCES tenancy.membership (workspace_id, id)`
+  on `core.record`~~ (done, migration 0019; departure hooks reassign owners);
 - extend the tenancy policy compiler to issue `PolicyDecision` for `record.archive`, `record.restore`,
   `record.trash`, `record.purge`, `trash.manage`, and `audit.view`;
 - add per-record trash visibility for editors (0C §11.1).

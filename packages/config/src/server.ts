@@ -96,6 +96,15 @@ export interface ServerConfig {
      */
     chainLockWaitWarnMs: number;
   };
+  /** Collaboration (1D). Operational defaults from the 0D named parameters, not product promises. */
+  tenancy: {
+    /** INVITATION_LIFETIME */
+    invitationLifetimeMs: number;
+    /** OWNERSHIP_TRANSFER_LIFETIME */
+    ownershipTransferLifetimeMs: number;
+    /** PRINCIPAL_CONTEXT_ARRAY_MAX: above this, visibility arrays move to a temporary table. */
+    principalContextArrayMax: number;
+  };
   features: {
     /** Local/test-only component harness route for reusable UI states (refused when deployed). */
     componentHarness: boolean;
@@ -238,6 +247,9 @@ const DEFAULTS = {
   PURGE_LEDGER: 'none',
   COMPONENT_HARNESS: 'false',
   AUDIT_CHAIN_LOCK_WAIT_WARN_MS: '250',
+  INVITATION_LIFETIME_MS: String(7 * 86_400_000),
+  OWNERSHIP_TRANSFER_LIFETIME_MS: String(3 * 86_400_000),
+  PRINCIPAL_CONTEXT_ARRAY_MAX: '10000',
 } as const;
 
 const schema = z.object({
@@ -315,6 +327,9 @@ const schema = z.object({
   PURGE_LEDGER_DIR: z.string().min(1).optional(),
   COMPONENT_HARNESS: bool,
   AUDIT_CHAIN_LOCK_WAIT_WARN_MS: int(1, 600_000),
+  INVITATION_LIFETIME_MS: int(60_000, 30 * 86_400_000),
+  OWNERSHIP_TRANSFER_LIFETIME_MS: int(60_000, 30 * 86_400_000),
+  PRINCIPAL_CONTEXT_ARRAY_MAX: int(1, 1_000_000),
 });
 
 /** Variables a deployed environment must set explicitly (no silent local defaults). */
@@ -671,6 +686,11 @@ export function loadServerConfig(options: LoadOptions): ServerConfig {
     },
     features: { componentHarness: c.COMPONENT_HARNESS },
     audit: { chainLockWaitWarnMs: c.AUDIT_CHAIN_LOCK_WAIT_WARN_MS },
+    tenancy: {
+      invitationLifetimeMs: c.INVITATION_LIFETIME_MS,
+      ownershipTransferLifetimeMs: c.OWNERSHIP_TRANSFER_LIFETIME_MS,
+      principalContextArrayMax: c.PRINCIPAL_CONTEXT_ARRAY_MAX,
+    },
     identity: {
       publicOrigin,
       allowedOrigins,
