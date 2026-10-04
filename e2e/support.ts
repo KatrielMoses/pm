@@ -183,6 +183,13 @@ export async function goTo(page: Page, name: string): Promise<void> {
     await direct.first().click();
     return;
   }
-  await page.getByRole('button', { name: 'More' }).click();
+  const more = page.getByRole('button', { name: 'More' });
+  if (!(await more.isVisible()))
+    // Fail fast with what the shell actually rendered (synthetic test data only).
+    throw new Error(
+      `goTo(${name}): no visible navigation entry at ${JSON.stringify(page.viewportSize())}\n` +
+        (await page.getByRole('navigation', { name: 'Primary' }).first().ariaSnapshot()),
+    );
+  await more.click();
   await page.getByRole('dialog', { name: 'More' }).getByRole('link', { name, exact: true }).click();
 }

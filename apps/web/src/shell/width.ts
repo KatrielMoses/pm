@@ -40,7 +40,10 @@ export function useWidthClass(): WidthClass {
   return value;
 }
 
-/** Whether the primary pointer is fine (UXD-04: single-key shortcuts default on for these). */
+/**
+ * UXD-04: single-key shortcuts default on except for touch-first use. "Not coarse" rather than
+ * "fine" so keyboard-only setups that report no pointer at all (`pointer: none`) keep them.
+ */
 export function finePointer(): boolean {
-  return typeof window.matchMedia === 'function' && window.matchMedia('(pointer: fine)').matches;
+  return typeof window.matchMedia !== 'function' || !window.matchMedia('(pointer: coarse)').matches;
 }

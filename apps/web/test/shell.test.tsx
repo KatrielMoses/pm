@@ -71,8 +71,8 @@ function mockViewport(width: number, fine = true) {
       ? width >= Number(min[1])
       : query.includes('pointer: fine')
         ? fine
-        : query.includes('prefers-color-scheme: dark')
-          ? false
+        : query.includes('pointer: coarse')
+          ? !fine
           : false;
     return {
       matches,
@@ -321,6 +321,20 @@ describe('command registry and keyboard handling', () => {
     await key({ key: 'g', isComposing: true });
     await key({ key: 'h' });
     expect(run).not.toHaveBeenCalled();
+    await key({ key: 'g' });
+    await key({ key: 'h' });
+    expect(run).toHaveBeenCalledTimes(1);
+  });
+
+  it('auto keeps single-key shortcuts on without a pointer (keyboard-only) and off for touch', async () => {
+    window.matchMedia = ((query: string) => ({
+      matches: query.includes('pointer: none'),
+      media: query,
+      addEventListener: () => undefined,
+      removeEventListener: () => undefined,
+    })) as unknown as typeof window.matchMedia;
+    const run = vi.fn();
+    renderShell([{ id: 'go.home', label: 'Home', group: 'Go to', shortcut: 'G H', run }]);
     await key({ key: 'g' });
     await key({ key: 'h' });
     expect(run).toHaveBeenCalledTimes(1);
