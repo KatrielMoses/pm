@@ -172,6 +172,9 @@ export const noHorizontalOverflow = (page: Page) =>
  * the link, otherwise the Compact More sheet (RS-05).
  */
 export async function goTo(page: Page, name: string): Promise<void> {
+  // Wait until the shell has rendered its navigation (sidebar, rail, or Compact bottom bar)
+  // before deciding which surface holds the entry: `isVisible` does not wait.
+  await expect(page.getByRole('navigation', { name: 'Primary' }).first()).toBeVisible();
   const direct = page.getByRole('navigation', { name: 'Primary' }).getByRole('link', {
     name,
     exact: true,

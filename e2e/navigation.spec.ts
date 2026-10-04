@@ -51,6 +51,11 @@ async function mod(page: Page): Promise<'Meta' | 'Control'> {
 }
 
 async function openPalette(page: Page) {
+  // The shortcut works once the shell has rendered and the page has loaded its context (shell
+  // commands register when the shell mounts, before the page leaves its loading state); a person
+  // cannot press it earlier either. One press, no retry.
+  await expect(page.getByRole('button', { name: 'Search and commands' })).toBeVisible();
+  await expect(page.getByRole('heading', { level: 1 })).not.toHaveText('Loading');
   await page.keyboard.press(`${await mod(page)}+K`);
   await expect(page.getByRole('dialog', { name: 'Command palette' })).toBeVisible();
   return page.getByRole('combobox', { name: 'Search commands, pages, and records' });
