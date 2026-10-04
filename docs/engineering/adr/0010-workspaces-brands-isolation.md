@@ -1,6 +1,6 @@
 # ADR-0010: Workspaces, brands, and tenant isolation (Phase 1C) — decisions, deviations, 1D handoff
 
-Status: **implemented; acceptance pending CI** (Phase 1C review 01 reconciled D1, D2, and D7 at
+Status: **accepted and implemented** (P1-W3; no-skip CI run `37145703535` on `30919ff`: all gates passed on `postgres:18.6-bookworm@sha256:3725f4e2499eef5134592b3b4ab79a543ed7f8e533b05b5b637af926630f6650`; osv-scanner, pnpm audit, and gitleaks 8.30.1 clean; image `sha256:26c180ffa6594cfaefc5f57d3c890fe657c1e6e2cd92f3d8eb1bcf76082baf40`, 260,503,749 bytes, runs as `uid=1000(node)`). Phase 1C review 01 reconciled D1, D2, and D7 at
 their Phase 0 sources; D3–D6 and D8–D12 accepted). Engineering detail:
 [tenancy.md](../tenancy.md). Accepted sources: 0A (WSB catalog), 0B data model, 0C authorization
 policy, 0D platform contracts, 0E UX patterns.
