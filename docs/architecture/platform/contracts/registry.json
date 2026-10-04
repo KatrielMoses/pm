@@ -2921,6 +2921,74 @@
         "strategy"
       ],
       "area": "tenancy"
+    },
+    {
+      "name": "views.recent_writes",
+      "type": "counter",
+      "labels": [
+        "outcome"
+      ],
+      "area": "views"
+    },
+    {
+      "name": "views.favorite_changes",
+      "type": "counter",
+      "labels": [
+        "op",
+        "outcome"
+      ],
+      "area": "views"
+    },
+    {
+      "name": "views.state_ops",
+      "type": "counter",
+      "labels": [
+        "op",
+        "outcome"
+      ],
+      "area": "views"
+    },
+    {
+      "name": "views.state_decode_failures",
+      "type": "counter",
+      "labels": [
+        "source",
+        "reason"
+      ],
+      "area": "views"
+    },
+    {
+      "name": "views.omitted_targets",
+      "type": "counter",
+      "labels": [
+        "list"
+      ],
+      "area": "views"
+    },
+    {
+      "name": "views.cleanup",
+      "type": "counter",
+      "labels": [
+        "kind"
+      ],
+      "area": "views"
+    },
+    {
+      "name": "shell.commands",
+      "type": "counter",
+      "labels": [
+        "command",
+        "trigger"
+      ],
+      "area": "shell"
+    },
+    {
+      "name": "identity.preference_updates",
+      "type": "counter",
+      "labels": [
+        "outcome"
+      ],
+      "area": "identity"
     }
   ],
   "forbidden_metric_labels": [
@@ -3129,6 +3197,31 @@
       "name": "OWNERSHIP_TRANSFER_LIFETIME",
       "meaning": "How long a pending ownership transfer waits for the recipient before it expires.",
       "owner": "1D"
+    },
+    {
+      "name": "FAVORITES_MAX",
+      "meaning": "Most favorites one person may keep in one workspace; adding beyond it is refused with a limit error, never silently dropped.",
+      "owner": "1E"
+    },
+    {
+      "name": "RECENT_ITEMS_MAX",
+      "meaning": "Recently viewed entries kept per person per workspace (the full Recently Viewed list); older visits are trimmed in the recording transaction.",
+      "owner": "1E"
+    },
+    {
+      "name": "RECENT_VISIT_COALESCE",
+      "meaning": "Window in which a repeat visit to the same target is coalesced into the existing recent entry without another write.",
+      "owner": "1E"
+    },
+    {
+      "name": "VIEW_STATE_MAX_BYTES",
+      "meaning": "Largest stored view-state document (serialized) accepted per view and device.",
+      "owner": "1E"
+    },
+    {
+      "name": "VIEW_STATE_TTL",
+      "meaning": "How long stored per-device view state survives without being written before cleanup removes it.",
+      "owner": "1E"
     }
   ],
   "sse_topics": [

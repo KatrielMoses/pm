@@ -266,6 +266,9 @@ importers:
       '@pm/config':
         specifier: workspace:*
         version: link:../../packages/config
+      '@pm/contracts':
+        specifier: workspace:*
+        version: link:../../packages/contracts
       react:
         specifier: 19.3.0
         version: 19.3.0

@@ -32,6 +32,7 @@ import {
 } from '@pm/observability';
 import type { Readiness } from './readiness.ts';
 import { registerAuth, type AuthRouteDeps } from './auth/routes.ts';
+import { registerShell } from './shell/routes.ts';
 import { registerTenancy, type TenancyRouteDeps } from './tenancy/routes.ts';
 
 declare module 'fastify' {
@@ -222,6 +223,7 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
 
   if (deps.auth) registerAuth(app, { ...deps.auth, logger: deps.logger });
   if (deps.auth && deps.tenancy) registerTenancy(app, deps.tenancy);
+  if (deps.auth) registerShell(app, { metrics: deps.metrics });
 
   // Liveness: the process responds. Nothing else (0D §17.4).
   app.get('/healthz', () => ({ status: 'ok' }));

@@ -218,3 +218,54 @@ Contexts are rebuilt on every request, so there is no cross-request cache to go 
 | `…/integration/account-command.test.ts` | `workspace.create` gates (AT-087…094) |
 | `apps/api/test/integration/collaboration-api.test.ts` | HTTP journey with real mail and step-up, guests, transfer, no internal IDs |
 | `e2e/collaboration.spec.ts` | sender and recipient journeys, people, roles, brand access, removal, teams, policy, transfer, accessibility, forced colors, reflow (desktop + mobile) |
+
+## Phase 1E shell and personal navigation
+
+Decisions and deviations: [ADR-0012](adr/0012-application-shell-navigation.md).
+
+| Module | Contents |
+|---|---|
+| `@pm/contracts/shell` | Browser-safe contracts: destinations, command ids, preference values, scope tokens, view-state schemas and decoders, fractional ranks |
+| `@pm/tenancy` | `navigation.ts`, `personal-data.ts`, `jobs.ts`, and the context resolver in `service.ts` |
+| `@pm/identity` | `preferences.ts` |
+| Web | `apps/web/src/shell/*`, `pages/shell-pages.tsx`, `app-routes.tsx`, `tenancy/switcher.tsx` |
+
+### Data (migration 0020)
+
+| Object | Notes |
+|---|---|
+| `identity.account_preference` | One row per account; missing means defaults; column-scoped UPDATE; row version |
+| `views.favorite` | `(workspace, owner membership, record)` unique; rank in the C collation; FKs to membership and `core.record` |
+| `views.recent_item` | Same key; latest visit and visit count; index `(workspace, owner, visited_at DESC, record)` |
+| `views.view_state` | `(workspace, owner, device hash, view key)`; JSON object ≤ 32 KiB hard cap (configured `VIEW_STATE_MAX_BYTES` is lower); `expires_at` index for cleanup |
+| `views.view_pin` | Shared-view pins: schema, trigger (`saved_view` targets only), read grant; no write grant yet |
+| `exec_dispatch.discover_views_cleanup` | Dispatcher definer function returning workspace ids only |
+
+### API
+
+| Route | Purpose |
+|---|---|
+| `GET/PATCH /v1/auth/preferences` | Typed preferences; `ETag`/`If-Match` (`409` on a stale version) |
+| `GET /v1/workspaces/{ws}/context?scope=` + `X-Device-Key` | Context with the normalized scope, `scope_token`, `principal`, and `fallback` (`narrowed`, `invalid`, `stale_selection`, `no_selection`) |
+| `POST /v1/workspaces/{ws}:select` `{scope: brand\|brands\|all}` + `X-Device-Key` | Stores the per-device default (and the membership selection for single-brand and all-brands scopes) |
+| `GET /favorites`, `PUT/DELETE /favorites/{target}`, `POST /favorites/{target}:move {after}` | Favorites |
+| `GET /recent?limit=&type=&brand=`, `POST /recent {target}`, `POST /recent:clear`, `DELETE /recent/{target}` | Recently viewed |
+| `GET/PUT/DELETE /view-state/{view}` + `X-Device-Key` | Per-device view state |
+| `GET /navigation/targets?q=`, `GET /navigation/pins` | Palette record provider; pins |
+| `POST /v1/shell/events` | Allow-listed shell counters |
+
+All workspace routes above are under `/v1/workspaces/{ws}`, use the caller's principal, and authorize through `personal.manage_own` (the `own` cell for every role, including guests). Responses carry public IDs only.
+
+### Re-authorization and revocation
+
+Personal lists are recompiled from canonical rows on every read, the same as every other tenant read. The browser re-reads the context and the navigation lists on every navigation. A lost grant, sensitive-brand grant, team, archive visibility, membership, or session therefore disappears from the shell on the next page; there are no stale cached entries.
+
+### Tests (1E)
+
+| Suite | Proves |
+|---|---|
+| `packages/contracts/test/unit/shell.test.ts` | Scope tokens, allow-listed decoding (prototype keys), URL round trips, ranks |
+| `packages/tenancy/test/integration/navigation.test.ts` | Three workspaces × six roles + guest: AT-108…114, limits, concurrency, scope normalization, view state, retention cleanup, erasers, preferences, pins, EXPLAIN |
+| `apps/api/test/integration/navigation-api.test.ts` | HTTP surface, ETags, CSRF, device partitioning, telemetry allow-list, no UUIDs |
+| `apps/web/test/shell.test.tsx`, `scripts/test/web-design-tokens.test.mjs` | Registry coverage and permissions, width classes, key map conflicts, keyboard handling, palette, breadcrumbs, marker contrast, appearance, drafts, DS-21 contrast gate |
+| `e2e/navigation.spec.ts` (desktop, tablet, mobile) | Surfaces, scope URLs and history, record scope switch, palette, shortcuts, favorites, recents and pruning, titles, preferences and first paint, read-only members and removal, width boundaries, reflow, forced colors, skip links |

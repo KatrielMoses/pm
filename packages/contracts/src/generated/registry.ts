@@ -379,6 +379,66 @@ export const TELEMETRY_SIGNALS = [
     "labels": [
       "strategy"
     ]
+  },
+  {
+    "name": "views.recent_writes",
+    "type": "counter",
+    "labels": [
+      "outcome"
+    ]
+  },
+  {
+    "name": "views.favorite_changes",
+    "type": "counter",
+    "labels": [
+      "op",
+      "outcome"
+    ]
+  },
+  {
+    "name": "views.state_ops",
+    "type": "counter",
+    "labels": [
+      "op",
+      "outcome"
+    ]
+  },
+  {
+    "name": "views.state_decode_failures",
+    "type": "counter",
+    "labels": [
+      "source",
+      "reason"
+    ]
+  },
+  {
+    "name": "views.omitted_targets",
+    "type": "counter",
+    "labels": [
+      "list"
+    ]
+  },
+  {
+    "name": "views.cleanup",
+    "type": "counter",
+    "labels": [
+      "kind"
+    ]
+  },
+  {
+    "name": "shell.commands",
+    "type": "counter",
+    "labels": [
+      "command",
+      "trigger"
+    ]
+  },
+  {
+    "name": "identity.preference_updates",
+    "type": "counter",
+    "labels": [
+      "outcome"
+    ]
   }
 ] as const;
 export type TelemetrySignalName = (typeof TELEMETRY_SIGNALS)[number]['name'];
@@ -1813,7 +1873,12 @@ export const PARAMETER_NAMES = [
   "UNDO_RETENTION",
   "PRINCIPAL_CONTEXT_ARRAY_MAX",
   "INVITATION_LIFETIME",
-  "OWNERSHIP_TRANSFER_LIFETIME"
+  "OWNERSHIP_TRANSFER_LIFETIME",
+  "FAVORITES_MAX",
+  "RECENT_ITEMS_MAX",
+  "RECENT_VISIT_COALESCE",
+  "VIEW_STATE_MAX_BYTES",
+  "VIEW_STATE_TTL"
 ] as const;
 export type ParameterName = (typeof PARAMETER_NAMES)[number];
 

@@ -197,3 +197,12 @@ All decisions are **proposed (Phase 0D)**, pending solutions-architect acceptanc
   - Named parameters `PRINCIPAL_CONTEXT_ARRAY_MAX`, `INVITATION_LIFETIME`, and `OWNERSHIP_TRANSFER_LIFETIME`.
 - **Alternatives:** Unregistered runtime events and metrics (drift). Per-tenant plan numbers for these limits (OD-44 is unset).
 - **Consequences:** Values are operational defaults, not product promises. The runtime emits only registered events and signals, and the drift tests enforce it.
+
+<a id="pl-21"></a>
+### PL-21: Shell, personal navigation, and view-state contracts (Phase 1E amendment)
+- **Decision:**
+  - Eight bounded signals: `views.recent_writes` (outcome), `views.favorite_changes` (op, outcome), `views.state_ops` (op, outcome), `views.state_decode_failures` (source, reason), `views.omitted_targets` (list), `views.cleanup` (kind), `shell.commands` (command, trigger), and `identity.preference_updates` (outcome). `shell.commands` takes its `command` values only from the fixed shell command registry in `@pm/contracts`; any other value is rejected before counting.
+  - Named parameters `FAVORITES_MAX`, `RECENT_ITEMS_MAX`, `RECENT_VISIT_COALESCE`, `VIEW_STATE_MAX_BYTES`, and `VIEW_STATE_TTL`.
+  - No new events or public ID prefixes: favorites, recents, view state, and preferences are personal hints that never change authority, so they produce no outbox events, and none is addressable.
+- **Alternatives:** Auditing every recent visit or view-state write (it would flood the immutable audit with churn). Free-form command or route labels (unbounded cardinality, and route parameters could carry identifiers).
+- **Consequences:** No signal carries a tenant, account, brand, route parameter, record, title, or query value. Values are operational defaults, not product promises.

@@ -26,7 +26,7 @@ User-generated content (uploaded videos, documents written by customers) cannot 
 
 <a id="a11y-kb-03"></a>**A11Y-KB-03 — No traps [A+M].** Focus can leave every component with standard keys. Modal dialogs and sheets *contain* focus while open, and <kbd>Esc</kbd> always closes them, subject to the unsaved-changes prompt ([ST-09](06-interaction-states.md#st-09)). Rich-text editors are exited with <kbd>Esc</kbd> then <kbd>Tab</kbd> ([A11Y-PA-09](#a11y-pa-09)).
 
-<a id="a11y-kb-04"></a>**A11Y-KB-04 — Skip links and region navigation [A+M].** The first focusable element on every page is "Skip to main content". When a detail panel is open, a second skip link, "Skip to details panel", follows it. <kbd>F6</kbd>/<kbd>Shift</kbd>+<kbd>F6</kbd> cycles header → navigation → main → panel ([RS-12](04-responsive-shell.md#rs-12)).
+<a id="a11y-kb-04"></a>**A11Y-KB-04 — Skip links and region navigation [A+M].** The first focusable element on every page is "Skip to main content". A second skip link, "Skip to navigation", follows it, and when a detail panel is open a third, "Skip to details panel", follows that. Region navigation is provided by these skip links and by the command palette's permission-filtered region actions (*Move focus to main content*, *Move focus to navigation*, and *Move focus to details panel* while a panel is open), alongside the landmarks screen readers use for region jumps. The product does not intercept <kbd>F6</kbd> or any other browser function key; [A11Y-KB-07](#a11y-kb-07) rule 2 is the controlling rule ([RS-12](04-responsive-shell.md#rs-12)).
 
 <a id="a11y-kb-05"></a>**A11Y-KB-05 — One tab stop per composite [M].** Lists of records, toolbars, tab lists, menus, grids, boards, calendars and trees are single tab stops with arrow-key navigation inside (roving `tabindex` or `aria-activedescendant`). The last-focused item is remembered when focus returns to the composite.
 
@@ -147,7 +147,7 @@ User-generated content (uploaded videos, documents written by customers) cannot 
 - Inline diffs mark insertions and deletions with text equivalents (`<ins>`/`<del>` or visually hidden "added"/"removed").
 - Decision buttons name the outcome ([ST-50](06-interaction-states.md#st-50)).
 
-<a id="a11y-pa-11"></a>**A11Y-PA-11 — Toasts and banners [M].** Toasts are status messages that never take focus. Their action (Undo) is reachable by keyboard in two ways: through <kbd>Ctrl/⌘</kbd>+<kbd>Z</kbd>, and through <kbd>F6</kbd> region cycling, which includes the toast region while a toast is visible. Banners are regions with a heading-equivalent name, and critical banners are announced once.
+<a id="a11y-pa-11"></a>**A11Y-PA-11 — Toasts and banners [M].** Toasts are status messages that never take focus. Their action (Undo) is reachable by keyboard in two ways: through <kbd>Ctrl/⌘</kbd>+<kbd>Z</kbd>, and through the command palette, which offers the toast's action (for example *Undo …*) while the toast is visible. Region navigation follows [A11Y-KB-04](#a11y-kb-04); no browser function key is intercepted ([A11Y-KB-07](#a11y-kb-07)). Banners are regions with a heading-equivalent name, and critical banners are announced once.
 
 <a id="a11y-pa-12"></a>**A11Y-PA-12 — Side panel [M].** Non-modal, labelled region. Focus moves to its heading on open. The underlying list stays operable. Previous/next controls announce the new item ([RS-33](04-responsive-shell.md#rs-33)).
 

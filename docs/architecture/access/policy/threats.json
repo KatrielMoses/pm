@@ -407,6 +407,17 @@
         "I-12",
         "I-17"
       ]
+    },
+    {
+      "id": "T-39",
+      "category": "inference",
+      "description": "Personal navigation leakage: favorites, recents, view state, URL scope, breadcrumbs, page titles, palette results, shortcuts, or navigation entries revealing or re-opening a record, brand, person, or destination the viewer can no longer (or never could) access, including through forged identifiers, stale client caches, stored state, or another workspace's identifiers.",
+      "mitigated_by": [
+        "I-01",
+        "I-02",
+        "I-11",
+        "I-12"
+      ]
     }
   ],
   "tests": [
@@ -2501,6 +2512,121 @@
       "surface": "api",
       "expected": "deny",
       "response_shape": "conflict_filtered",
+      "silent_surfaces": []
+    },
+    {
+      "id": "AT-108",
+      "threats": [
+        "T-39"
+      ],
+      "principal": "member",
+      "setup": "A favorite or recent entry whose target became unreadable: grant or team access removed, sensitive-brand grant removed, brand archived without archive visibility, or record purged",
+      "scope": "record",
+      "action": "record.read",
+      "surface": "ui_list",
+      "expected": "deny",
+      "response_shape": "omitted",
+      "silent_surfaces": [
+        "count_facet",
+        "breadcrumb",
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-109",
+      "threats": [
+        "T-39"
+      ],
+      "principal": "member",
+      "setup": "Favoriting, reordering, or recording a visit to a forged identifier or another workspace's public ID",
+      "scope": "record",
+      "action": "personal.manage_own",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "not_found",
+      "silent_surfaces": [
+        "error_message",
+        "timing"
+      ]
+    },
+    {
+      "id": "AT-110",
+      "threats": [
+        "T-39"
+      ],
+      "principal": "guest",
+      "setup": "Guest shell: navigation, command palette, breadcrumbs, and recents",
+      "scope": "workspace",
+      "action": "record.read",
+      "surface": "picker",
+      "expected": "deny",
+      "response_shape": "omitted",
+      "silent_surfaces": [
+        "count_facet",
+        "ui_list"
+      ]
+    },
+    {
+      "id": "AT-111",
+      "threats": [
+        "T-39"
+      ],
+      "principal": "member",
+      "setup": "Malformed, oversized, wrong-version, or prototype-polluting view state or URL state",
+      "scope": "personal",
+      "action": "personal.manage_own",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "validation_generic",
+      "silent_surfaces": [
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-112",
+      "threats": [
+        "T-39"
+      ],
+      "principal": "member",
+      "setup": "URL or stored scope naming a brand the viewer cannot access, an archived brand, or another workspace's brand",
+      "scope": "brand",
+      "action": "record.read",
+      "surface": "ui_list",
+      "expected": "deny",
+      "response_shape": "omitted",
+      "silent_surfaces": [
+        "error_message",
+        "count_facet"
+      ]
+    },
+    {
+      "id": "AT-113",
+      "threats": [
+        "T-39"
+      ],
+      "principal": "limited_member",
+      "setup": "Command palette, shortcuts, and navigation offer actions and destinations the principal cannot use",
+      "scope": "workspace",
+      "action": "workspace.configure",
+      "surface": "picker",
+      "expected": "deny",
+      "response_shape": "omitted",
+      "silent_surfaces": [
+        "count_facet"
+      ]
+    },
+    {
+      "id": "AT-114",
+      "threats": [
+        "T-39"
+      ],
+      "principal": "member",
+      "setup": "Removed or suspended member's favorites, recents, view state, and shell entries on the next request",
+      "scope": "workspace",
+      "action": "record.read",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "unauthenticated",
       "silent_surfaces": []
     }
   ]

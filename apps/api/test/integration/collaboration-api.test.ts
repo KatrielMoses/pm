@@ -200,7 +200,16 @@ describe('collaboration API (1D): invitations, people, access changes, guests, t
         id: rec,
         type: 'foundation_fixture',
         lifecycle_state: 'active',
-        brand: { name: 'Main', icon: 'circle', color: '#336699' },
+        // The reusable brand-marker shape (1E, WSB-015): the owning brand only.
+        brand: {
+          kind: 'brand',
+          id: brand,
+          name: 'Main',
+          short_name: null,
+          icon: 'circle',
+          color: '#336699',
+          archived: false,
+        },
       },
     ]);
     expect((await guest.get(`/v1/workspaces/${ws}/people`)).statusCode).toBe(404);

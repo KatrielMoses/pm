@@ -166,3 +166,20 @@ export const noHorizontalOverflow = (page: Page) =>
   page.evaluate<number>(
     'document.documentElement.scrollWidth - document.documentElement.clientWidth',
   );
+
+/**
+ * Follows a shell navigation entry by name on any width class: the sidebar or rail when it shows
+ * the link, otherwise the Compact More sheet (RS-05).
+ */
+export async function goTo(page: Page, name: string): Promise<void> {
+  const direct = page.getByRole('navigation', { name: 'Primary' }).getByRole('link', {
+    name,
+    exact: true,
+  });
+  if (await direct.first().isVisible()) {
+    await direct.first().click();
+    return;
+  }
+  await page.getByRole('button', { name: 'More' }).click();
+  await page.getByRole('dialog', { name: 'More' }).getByRole('link', { name, exact: true }).click();
+}

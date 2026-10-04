@@ -268,6 +268,7 @@ erDiagram
   favorite }o..o{ record : "references"
   recent_item }o..o{ record : "references"
   view_state }o..o{ saved_view : "references"
+  view_pin }o..o{ saved_view : "references"
 ```
 
 ## Search

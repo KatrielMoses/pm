@@ -1980,7 +1980,7 @@
         "WSB-006",
         "WSB-009"
       ],
-      "notes": "Phase 1C. Upserted on its primary key (row lock); the latest selection wins. A stale or unauthorized brand falls back to the first authorized active brand; it never broadens to all brands."
+      "notes": "Phase 1C. Upserted on its primary key (row lock); the latest selection wins. A stale or unauthorized brand falls back to the first authorized active brand; it never broadens to all brands. Phase 1E: the URL scope (`scope=all|brand:{id}|brands:{id},…`) is authoritative on scope-sensitive pages and is validated and normalized server-side on every request; the per-device default lives in view_state (`shell.scope`), and this row remains the cross-device fallback and the directory's most-recent-workspace signal."
     },
     {
       "name": "role",
@@ -5330,14 +5330,22 @@
       "search_ai": "yes",
       "may_contain_secrets": "no",
       "personal_data": "incidental",
-      "uniqueness": [],
+      "uniqueness": [
+        "(workspace_id, owner_membership_id, record_id)"
+      ],
       "sensitive_fields": [],
-      "key_columns": [],
+      "key_columns": [
+        "owner_membership_id",
+        "record_id (core.record: a readable record or saved view)",
+        "target kind = the referenced core.record's registered record_type (joined, not copied)",
+        "rank text (fractional key, ≤ 64 chars; ties broken by record_id)",
+        "created_at"
+      ],
       "requirements": [
         "NAV-008",
         "VIEW-019"
       ],
-      "notes": ""
+      "notes": "Phase 1E. A personal hint, never authority: every entry is re-authorized against the owner's current principal at display and activation, and unreadable, purged, or hidden-brand targets are omitted silently and removed opportunistically. At most FAVORITES_MAX per owner. Add and remove are idempotent; reorder moves one entry between two neighbours with a bounded fractional rank (rebalanced when a key would exceed its length)."
     },
     {
       "name": "recent_item",
@@ -5360,13 +5368,21 @@
       "search_ai": "no",
       "may_contain_secrets": "no",
       "personal_data": "incidental",
-      "uniqueness": [],
+      "uniqueness": [
+        "(workspace_id, owner_membership_id, record_id)"
+      ],
       "sensitive_fields": [],
-      "key_columns": [],
+      "key_columns": [
+        "owner_membership_id",
+        "record_id (core.record)",
+        "target kind = the referenced core.record's registered record_type (joined, not copied)",
+        "visited_at timestamptz",
+        "visit_count integer"
+      ],
       "requirements": [
         "NAV-007"
       ],
-      "notes": ""
+      "notes": "Phase 1E. One row per owner and target holding the latest authorized visit; recorded only after a successful authorized render, coalesced within RECENT_VISIT_COALESCE, and trimmed to RECENT_ITEMS_MAX per owner in the same transaction. Re-authorized at display; clearable. Churn is not audited."
     },
     {
       "name": "view_state",
@@ -5389,13 +5405,23 @@
       "search_ai": "no",
       "may_contain_secrets": "no",
       "personal_data": "incidental",
-      "uniqueness": [],
+      "uniqueness": [
+        "(workspace_id, owner_membership_id, device_key_hash, view_key)"
+      ],
       "sensitive_fields": [],
-      "key_columns": [],
+      "key_columns": [
+        "owner_membership_id",
+        "device_key_hash bytea (SHA-256 of an opaque per-device key; never the key itself)",
+        "view_key text (registered route or view identity)",
+        "schema_version integer",
+        "state jsonb (versioned, allow-listed fields; at most VIEW_STATE_MAX_BYTES)",
+        "expires_at timestamptz (VIEW_STATE_TTL after the last write)",
+        "version integer"
+      ],
       "requirements": [
         "NAV-011"
       ],
-      "notes": ""
+      "notes": "Phase 1E. Durable per-device view state (RS-20): filters, sort, grouping, columns, density override, and the scroll anchor. Selection and open item are session-only and never stored here. Upserts are last-write-wins per device with an optional row-version precondition; expired rows are deleted on write and by the views cleanup job. Record identifiers inside the state are hints re-authorized on use."
     },
     {
       "name": "search_document",
@@ -7888,6 +7914,83 @@
         "REL-015"
       ],
       "notes": ""
+    },
+    {
+      "addressable": false,
+      "public_id_prefix": null,
+      "extends": null,
+      "containment_parents": [],
+      "associations": [],
+      "uniqueness": [
+        "(account_id)"
+      ],
+      "sensitive_fields": [],
+      "name": "account_preference",
+      "module": "identity",
+      "purpose": "Typed personal preferences that follow the account across workspaces and devices: theme, density, motion, shortcuts, start destination, record opening, hidden destinations.",
+      "scope": "platform",
+      "lifecycle": "mutable",
+      "concurrency": "row-version",
+      "retention_class": "R-PERSONAL",
+      "confidentiality": "C1",
+      "volume": "low",
+      "export": "self",
+      "search_ai": "no",
+      "may_contain_secrets": "no",
+      "personal_data": "incidental",
+      "key_columns": [
+        "account_id",
+        "theme (system|light|dark)",
+        "density (comfortable|compact)",
+        "motion (system|reduce)",
+        "shortcuts (auto|on|off)",
+        "start_destination text null (registered destination)",
+        "record_open (panel|full_page)",
+        "hidden_destinations text[] (registered destinations)",
+        "version integer"
+      ],
+      "requirements": [
+        "NAV-010",
+        "NAV-013",
+        "NAV-001"
+      ],
+      "notes": "Phase 1E. One row per account; a missing row means the defaults. Account-scoped (not workspace-personal) because appearance and input preferences apply before a workspace is chosen and on every device; device-local state (sidebar collapse, per-device scope default, scroll anchors) is not stored here. Deleted with the account. No field changes authority or exposure, so changes are not material audit events."
+    },
+    {
+      "addressable": false,
+      "public_id_prefix": null,
+      "extends": null,
+      "containment_parents": [],
+      "associations": [
+        "saved_view"
+      ],
+      "uniqueness": [
+        "(workspace_id, scope_key, saved_view_id)"
+      ],
+      "sensitive_fields": [],
+      "name": "view_pin",
+      "module": "views",
+      "purpose": "A shared saved view pinned into workspace or brand navigation by someone allowed to configure views. Never grants access.",
+      "scope": "workspace_or_brand",
+      "lifecycle": "mutable",
+      "concurrency": "ordered",
+      "retention_class": "R-LIVE",
+      "confidentiality": "C1",
+      "volume": "low",
+      "export": "filtered",
+      "search_ai": "no",
+      "may_contain_secrets": "no",
+      "personal_data": "no",
+      "key_columns": [
+        "scope_key (workspace or brand)",
+        "saved_view_id (core.record of type saved_view)",
+        "rank text",
+        "pinned_by_membership_id"
+      ],
+      "requirements": [
+        "NAV-008"
+      ],
+      "notes": "Phase 1E foundation: table, read path, and authorization hook only. Pins are created through views.configure once the view engine provides shared saved views (VIEW phase); until then no pin can exist. Each pin is re-authorized at display like any other target."
     }
   ]
 }

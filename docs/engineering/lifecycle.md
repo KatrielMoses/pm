@@ -290,3 +290,8 @@ pagination. It appears only when the server reports `COMPONENT_HARNESS`, which i
 and refused when deployed. It is covered by component tests and by Playwright with axe on desktop
 and mobile, keyboard-only use, reduced motion, forced colors, and 200% zoom (reflow at half
 width).
+
+## Phase 1E: personal references and personal data
+
+- `registerTenancyLifecycle` wraps every adapter with `withPersonalReferenceCleanup`, so a purge removes favorites and recent items that point at purged records in the projection step. Brands and teams still have no purge hooks, so their purges keep blocking safely.
+- `defaultPersonalDataRegistry()` registers the views eraser (favorites, recents, and view state of a membership) and the identity eraser (account preferences). The departure retention sweep (`views.cleanup`, once an R-PERSONAL period is configured) and the future account-deletion command call these erasers.

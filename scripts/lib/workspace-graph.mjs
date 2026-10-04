@@ -71,7 +71,9 @@ export const ALLOWED_RUNTIME = {
     '@pm/identity',
     '@pm/tenancy',
   ],
-  '@pm/web': ['@pm/config'],
+  // The browser bundle imports only browser-safe entries (@pm/config/public, @pm/contracts/shell),
+  // enforced by the web lint rule.
+  '@pm/web': ['@pm/config', '@pm/contracts'],
 };
 
 /** Test-only packages: never a runtime dependency of a shipped package. */

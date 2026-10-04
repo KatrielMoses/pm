@@ -46,6 +46,7 @@ Narrative: [../14-threat-model.md](../14-threat-model.md).
 | T-36 | spoofing | Tenant-creation abuse: a delegated or non-human principal, an unverified or deleted account, a flood of requests, or a replayed request creates workspaces or gains tenant authority through creation, or a body claim names an existing workspace, role, or membership. | I-01, I-02, I-09, I-11, I-14, I-17 | AT-087, AT-088, AT-089, AT-090, AT-091, AT-092, AT-093, AT-094 |
 | T-37 | spoofing | Invitation abuse: replaying, forwarding, or racing an invitation token; accepting with a different account; enumerating accounts or memberships through invite outcomes; a guest invitation conferring workspace, brand, or inherited access; an administrator inviting an owner. | I-01, I-04, I-07, I-09, I-11, I-17 | AT-095, AT-096, AT-097, AT-098, AT-099, AT-100, AT-101, AT-102 |
 | T-38 | departure | Ownership or departure failure: a workspace left without an active owner, an ownership transfer accepted by the wrong principal or without step-up, a removed or suspended member keeping access through sessions, cached contexts, teams, grants, queued jobs, or pooled connections, or owned resources left without an accountable owner. | I-01, I-11, I-12, I-17 | AT-103, AT-104, AT-105, AT-106, AT-107 |
+| T-39 | inference | Personal navigation leakage: favorites, recents, view state, URL scope, breadcrumbs, page titles, palette results, shortcuts, or navigation entries revealing or re-opening a record, brand, person, or destination the viewer can no longer (or never could) access, including through forged identifiers, stale client caches, stored state, or another workspace's identifiers. | I-01, I-02, I-11, I-12 | AT-108, AT-109, AT-110, AT-111, AT-112, AT-113, AT-114 |
 
 ## Test matrix
 
@@ -158,6 +159,13 @@ Narrative: [../14-threat-model.md](../14-threat-model.md).
 | AT-105 | T-38 | member | Recipient accepts an ownership transfer without a fresh step-up — workspace | `ownership.accept` | api | **deny** | step_up_required | — |
 | AT-106 | T-38 | member | Removed member reuses an old session, a cached context, a team grant, and a queued job — workspace | `record.read` | api | **deny** | unauthenticated | — |
 | AT-107 | T-38 | owner | Removing a member who owns registered resources that cannot be reassigned — workspace | `membership.manage` | api | **deny** | conflict_filtered | — |
+| AT-108 | T-39 | member | A favorite or recent entry whose target became unreadable: grant or team access removed, sensitive-brand grant removed, brand archived without archive visibility, or record purged — record | `record.read` | ui_list | **deny** | omitted | count_facet, breadcrumb, error_message |
+| AT-109 | T-39 | member | Favoriting, reordering, or recording a visit to a forged identifier or another workspace's public ID — record | `personal.manage_own` | api | **deny** | not_found | error_message, timing |
+| AT-110 | T-39 | guest | Guest shell: navigation, command palette, breadcrumbs, and recents — workspace | `record.read` | picker | **deny** | omitted | count_facet, ui_list |
+| AT-111 | T-39 | member | Malformed, oversized, wrong-version, or prototype-polluting view state or URL state — personal | `personal.manage_own` | api | **deny** | validation_generic | error_message |
+| AT-112 | T-39 | member | URL or stored scope naming a brand the viewer cannot access, an archived brand, or another workspace's brand — brand | `record.read` | ui_list | **deny** | omitted | error_message, count_facet |
+| AT-113 | T-39 | limited_member | Command palette, shortcuts, and navigation offer actions and destinations the principal cannot use — workspace | `workspace.configure` | picker | **deny** | omitted | count_facet |
+| AT-114 | T-39 | member | Removed or suspended member's favorites, recents, view state, and shell entries on the next request — workspace | `record.read` | api | **deny** | unauthenticated | — |
 
 ## Response shapes
 

@@ -144,3 +144,14 @@ Status of every ADR: **proposed (Phase 0B)**, pending solutions-architect accept
 - **Decision:** `tenancy.brand.operational_status` (`brand_operational_status`) takes exactly `operating`, `paused`, or `planned`. It describes the business, not the record. Archive, trash, and purge stay in `core.record.lifecycle_state` (§8) and are never represented by operational status. A paused brand is fully active for authorization and lists; an archived brand is excluded from active scope whatever its operational status.
 - **Alternatives:** One `status` column that mixes business state with archive (duplicates lifecycle state, and restore would need to guess the prior value). Free-text status (unvalidated, unreportable).
 - **Consequences:** The database CHECK, the generated runtime vocabulary, API validation, and UI options all derive from this entity's key column. The integration validator fails if any of them diverges.
+
+<a id="adr-20"></a>
+## ADR-20: Personal navigation state and account preferences (Phase 1E amendment)
+
+- **Decision:**
+  - `favorite`, `recent_item`, and `view_state` are personal rows (workspace plus owner membership) in the `views` schema. Favorites and recents reference `core.record` through composite foreign keys and are unique per owner and target.
+  - `view_state` is also keyed by a hash of an opaque per-device key and a registered view identity. Its JSON state is versioned, size-bounded, and allow-listed.
+  - Appearance and input preferences (theme, density, motion, shortcuts, start destination, record opening, hidden destinations) live in the account-scoped `account_preference` entity, because they apply before any workspace is chosen. Device-local state (sidebar collapse, the per-device scope default, scroll anchors) is never stored there.
+  - `view_pin` gives shared-view pins a schema and read path. No pin can exist until the view engine provides shared saved views.
+- **Alternatives:** Workspace-personal preferences (theme unknown on sign-in and personal pages; one choice per workspace). Storing titles or brand names with favorites and recents (stale and leaky). Pixel scroll offsets (wrong after list changes).
+- **Consequences:** Every entry is a hint re-authorized at display and activation, and unreadable targets are omitted silently. Personal rows are deleted with the membership's personal data (R-PERSONAL) and by the views cleanup job. Recent and view-state churn is never a material audit event.

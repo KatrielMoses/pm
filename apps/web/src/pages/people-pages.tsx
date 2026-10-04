@@ -21,13 +21,10 @@ import { Dialog } from '../ui/dialog.tsx';
 import { Announce, Banner } from '../ui/feedback.tsx';
 import { ErrorSummary, Field, SelectField, SubmitButton } from '../ui/form.tsx';
 import { Page } from '../ui/layout.tsx';
-import {
-  OtherIssues,
-  SaveProblem,
-  splitIssues,
-  useSignedIn,
-  WorkspaceNav,
-} from './workspace-pages.tsx';
+import { BrandMarker } from '../shell/brand-marker.tsx';
+import { OtherIssues, SaveProblem, splitIssues, useSignedIn } from './workspace-pages.tsx';
+import { FavoriteToggle } from './shell-pages.tsx';
+import { useRecordVisit } from '../shell/workspace.tsx';
 
 // -------------------------------------------------------------------------------------------
 // Reviewed changes: preview (exposure summary) → confirm → apply (step-up handled by the client)
@@ -243,7 +240,6 @@ export function PeoplePage({ ws }: { ws: string }) {
   };
   return (
     <Page title="People" wide>
-      <WorkspaceNav workspaceId={ws} current="people" />
       <ResourceView resource={data.state} onRetry={data.retry} what="people list">
         {(d) => {
           const term = query.trim().toLowerCase();
@@ -471,7 +467,6 @@ export function InvitePage({ ws }: { ws: string }) {
   const [attempt, setAttempt] = useState(0);
   return (
     <Page title="Invite people" wide>
-      <WorkspaceNav workspaceId={ws} current="people" />
       <ResourceView resource={data.state} onRetry={data.retry} what="invitation form">
         {(d) => {
           const allowedRoles = GRANTABLE[d.me?.role ?? ''] ?? [];
@@ -606,7 +601,10 @@ export function InvitePage({ ws }: { ws: string }) {
                           }
                         />
                         {r.type.replace(/_/g, ' ')} {r.id.slice(-6)}
-                        {r.brand ? <span className="hint"> · {r.brand.name}</span> : null}
+                        <span className="hint">
+                          {' · '}
+                          <BrandMarker marker={r.brand} size={16} />
+                        </span>
                       </label>
                     ))
                   ) : (
@@ -650,11 +648,16 @@ export function MemberPage({ ws, member }: { ws: string; member: string }) {
   const [problem, setProblem] = useState<unknown>(null);
   const title = data.state.status === 'ready' ? data.state.data.member.display_name : 'Person';
   return (
-    <Page title={title} wide>
-      <WorkspaceNav workspaceId={ws} current="people" />
-      <p>
-        <Link to={`/workspaces/${ws}/people`}>Back to people</Link>
-      </p>
+    <Page
+      title={title}
+      wide
+      record={data.state.status === 'ready' ? { title } : null}
+      breadcrumbs={[
+        { label: 'Workspace', marker: { kind: 'workspace' } },
+        { label: 'People', to: `/workspaces/${ws}/people` },
+        { label: title },
+      ]}
+    >
       <ResourceView resource={data.state} onRetry={data.retry} what="person">
         {(d) => {
           const m = d.member;
@@ -1124,7 +1127,6 @@ export function TeamsPage({ ws }: { ws: string }) {
   const { fields } = splitIssues(error, { '/name': 'team-name' });
   return (
     <Page title="Teams" wide>
-      <WorkspaceNav workspaceId={ws} current="teams" />
       <p className="lead">
         Teams group people. Giving a team brand access gives it to everyone in the team.
       </p>
@@ -1213,13 +1215,26 @@ export function TeamPage({ ws, team }: { ws: string; team: string }) {
   const [dialog, setDialog] = useState<Change | null>(null);
   const [said, setSaid] = useState('');
   const [problem, setProblem] = useState<unknown>(null);
-  const title = data.state.status === 'ready' ? `Team ${data.state.data.t.name}` : 'Team';
+  const loaded = data.state.status === 'ready' ? data.state.data.t : null;
+  const title = loaded ? `Team ${loaded.name}` : 'Team';
+  // A successful authorized render counts as a visit (NAV-007); archived teams are not navigable.
+  useRecordVisit(loaded && loaded.lifecycle_state === 'active' ? loaded.id : null);
   return (
-    <Page title={title} wide>
-      <WorkspaceNav workspaceId={ws} current="teams" />
-      <p>
-        <Link to={`/workspaces/${ws}/teams`}>Back to teams</Link>
-      </p>
+    <Page
+      title={title}
+      wide
+      record={loaded ? { title: loaded.name } : null}
+      breadcrumbs={[
+        { label: 'Workspace', marker: { kind: 'workspace' } },
+        { label: 'Teams', to: `/workspaces/${ws}/teams` },
+        { label: loaded?.name ?? 'Team' },
+      ]}
+      actions={
+        loaded && loaded.lifecycle_state === 'active' ? (
+          <FavoriteToggle target={loaded.id} label={loaded.name} />
+        ) : undefined
+      }
+    >
       <ResourceView resource={data.state} onRetry={data.retry} what="team">
         {(d) => {
           const inTeam = new Set(d.t.members.map((m) => m.id));
@@ -1418,10 +1433,6 @@ export function AccessSettingsPage({ ws }: { ws: string }) {
   };
   return (
     <Page title="Sharing and ownership" wide>
-      <WorkspaceNav workspaceId={ws} current="settings" />
-      <p>
-        <Link to={`/workspaces/${ws}/settings`}>Back to workspace settings</Link>
-      </p>
       <ResourceView resource={data.state} onRetry={data.retry} what="sharing settings">
         {(d) => {
           const me = d.people.find((p) => p.is_you);

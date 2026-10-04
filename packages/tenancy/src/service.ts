@@ -6,7 +6,17 @@ import {
   type AuditWriter,
   type CommandSource,
 } from '@pm/audit';
-import { newPublicId, newUuidV7, type ActionKey, type ExecutionContext } from '@pm/contracts';
+import {
+  decodeViewState,
+  formatScopeToken,
+  newPublicId,
+  newUuidV7,
+  parseScopeToken,
+  VIEW_STATE_SCHEMAS,
+  type ActionKey,
+  type ExecutionContext,
+  type ScopeToken,
+} from '@pm/contracts';
 import {
   sql,
   TenantContextError,
@@ -51,6 +61,7 @@ import { authorizeAccountCommand } from './account-commands.ts';
 import { invalid, issue, TenancyError } from './errors.ts';
 import {
   decideBrand,
+  decidePersonal,
   decideWorkspace,
   workspaceCapabilities,
   type Level,
@@ -138,13 +149,36 @@ export interface WorkspaceView {
 
 export type ScopeSelection = { kind: 'brand'; brand_id: string } | { kind: 'all' };
 
+/**
+ * The server-derived scope (1C; extended in 1E with multi-brand scopes, URL tokens, and the
+ * per-device default). Every brand listed is authorized and active at the time of the request.
+ */
 export interface ContextView {
-  workspace: { id: string; name: string; capabilities: WorkspaceView['capabilities'] };
+  workspace: { id: string; name: string; capabilities: ReturnType<typeof workspaceCapabilities> };
+  principal: 'member' | 'guest';
   scope:
-    { kind: 'brand'; brand_id: string } | { kind: 'all'; brand_ids: string[] } | { kind: 'none' };
-  fallback: null | 'no_selection' | 'stale_selection';
+    | { kind: 'brand'; brand_id: string }
+    | { kind: 'brands'; brand_ids: string[] }
+    | { kind: 'all'; brand_ids: string[] }
+    | { kind: 'none' };
+  /** Canonical URL form of the scope (`all`, `brand:{id}`, `brands:{id},…`), or null. */
+  scope_token: string | null;
+  /**
+   * Why the returned scope differs from what was asked for: nothing stored or requested
+   * (`no_selection`), a stored selection is gone (`stale_selection`), part of a requested set is
+   * not accessible (`narrowed`), or the requested token is malformed (`invalid`). Inaccessible
+   * brands are never named; the scope only ever narrows.
+   */
+  fallback: null | 'no_selection' | 'stale_selection' | 'narrowed' | 'invalid';
   brands: ReturnType<typeof brandSummary>[];
   archived_brands?: ReturnType<typeof brandSummary>[];
+}
+
+/** Options for resolving the scope: an explicit (URL) token, then the device default. */
+export interface ScopeRequest {
+  scope?: unknown;
+  /** SHA-256 of the caller's opaque per-device key (see navigation.ts). */
+  device?: Buffer | null;
 }
 
 const IDEMPOTENCY_RETENTION_MS = 24 * 60 * 60 * 1000;
@@ -237,6 +271,12 @@ export class TenancyService {
 
   protected requireWorkspace(p: Principal, action: ActionKey): void {
     const o = decideWorkspace(p, action);
+    this.decision(action, o);
+    if (!o.allowed) throw new TenancyError(o.code);
+  }
+
+  protected requirePersonal(p: Principal, action: ActionKey): void {
+    const o = decidePersonal(p, action);
     this.decision(action, o);
     if (!o.allowed) throw new TenancyError(o.code);
   }
@@ -1342,6 +1382,7 @@ export class TenancyService {
     tx: WorkspaceTransaction,
     p: Principal,
     includeArchived: boolean,
+    request: ScopeRequest = {},
   ): Promise<ContextView> {
     const w = await tx.db
       .selectFrom('tenancy.workspace')
@@ -1349,30 +1390,67 @@ export class TenancyService {
       .where('id', '=', tx.workspaceId)
       .executeTakeFirstOrThrow();
     const brands = await authorizedActiveBrands(tx, p);
-    const pref = await tx.db
-      .selectFrom('tenancy.scope_preference')
-      .select(['scope_kind', 'brand_id'])
-      .where('owner_membership_id', '=', p.membershipId)
-      .executeTakeFirst();
-    let scope: ContextView['scope'];
+    const byPublic = new Map(brands.map((b) => [b.public_id, b]));
+    // 1) an explicit (URL) token; 2) this device's default; 3) the membership's last selection.
+    let token: ScopeToken | null = null;
     let fallback: ContextView['fallback'] = null;
-    const chosen =
-      pref?.scope_kind === 'brand' ? brands.find((b) => b.id === pref.brand_id) : undefined;
-    if (pref?.scope_kind === 'all') {
+    const explicit = request.scope !== undefined && request.scope !== null && request.scope !== '';
+    if (explicit) {
+      token = parseScopeToken(request.scope);
+      if (!token) fallback = 'invalid';
+    } else {
+      if (request.device) token = await this.deviceScope(tx, p, request.device);
+      if (!token) {
+        const pref = await tx.db
+          .selectFrom('tenancy.scope_preference as s')
+          .leftJoin('core.record as r', (j) =>
+            j.onRef('r.workspace_id', '=', 's.workspace_id').onRef('r.id', '=', 's.brand_id'),
+          )
+          .select(['s.scope_kind', 'r.public_id'])
+          .where('s.owner_membership_id', '=', p.membershipId)
+          .executeTakeFirst();
+        if (pref?.scope_kind === 'all') token = { kind: 'all' };
+        else if (pref?.public_id) token = { kind: 'brand', brand: pref.public_id };
+        else if (pref) fallback = 'stale_selection';
+      }
+    }
+    let scope: ContextView['scope'] | null = null;
+    if (token?.kind === 'all') {
       // The union of currently authorized active brands: explicit IDs, never a wildcard.
       scope = { kind: 'all', brand_ids: brands.map((b) => b.public_id) };
-    } else if (chosen) {
-      scope = { kind: 'brand', brand_id: chosen.public_id };
-    } else {
-      // Missing, stale, archived, revoked, or now-sensitive selection: narrow to the first
-      // authorized active brand (or require selection), never broaden to all brands.
-      fallback = pref ? 'stale_selection' : 'no_selection';
+    } else if (token?.kind === 'brand') {
+      if (byPublic.has(token.brand)) scope = { kind: 'brand', brand_id: token.brand };
+      else fallback = 'stale_selection';
+    } else if (token?.kind === 'brands') {
+      const kept = token.brands.filter((id) => byPublic.has(id));
+      if (kept.length !== token.brands.length) fallback = 'narrowed';
+      if (kept.length >= 2) scope = { kind: 'brands', brand_ids: kept };
+      else if (kept.length === 1) scope = { kind: 'brand', brand_id: kept[0]! };
+      else fallback = 'stale_selection';
+    }
+    if (!scope) {
+      // Missing, stale, archived, revoked, malformed, or now-sensitive selection: narrow to the
+      // first authorized active brand (or require selection), never broaden to all brands.
+      fallback ??= 'no_selection';
       this.d.metrics.count('tenancy.context_fallbacks', 1, { reason: fallback });
       scope = brands[0] ? { kind: 'brand', brand_id: brands[0].public_id } : { kind: 'none' };
+    } else if (fallback === 'narrowed') {
+      this.d.metrics.count('tenancy.context_fallbacks', 1, { reason: fallback });
     }
     const view: ContextView = {
       workspace: { id: w.public_id, name: w.name, capabilities: workspaceCapabilities(p) },
+      principal: p.kind,
       scope,
+      scope_token:
+        scope.kind === 'none'
+          ? null
+          : formatScopeToken(
+              scope.kind === 'all'
+                ? { kind: 'all' }
+                : scope.kind === 'brand'
+                  ? { kind: 'brand', brand: scope.brand_id }
+                  : { kind: 'brands', brands: scope.brand_ids },
+            ),
       fallback,
       brands: brands.map(brandSummary),
     };
@@ -1383,38 +1461,92 @@ export class TenancyService {
     return view;
   }
 
+  /** This device's stored default scope (view state `shell.scope`), decoded and allow-listed. */
+  protected async deviceScope(
+    tx: WorkspaceTransaction,
+    p: Principal,
+    device: Buffer,
+  ): Promise<ScopeToken | null> {
+    const row = await tx.db
+      .selectFrom('views.view_state')
+      .select(['state', 'schema_version', 'expires_at'])
+      .where('owner_membership_id', '=', p.membershipId)
+      .where('device_key_hash', '=', device)
+      .where('view_key', '=', 'shell.scope')
+      .executeTakeFirst();
+    if (!row || row.expires_at <= new Date()) return null;
+    const decoded = decodeViewState('shell.scope', row.state, {
+      store: 'device',
+      version: row.schema_version,
+    });
+    if (!decoded.ok) {
+      this.d.metrics.count('views.state_decode_failures', 1, {
+        source: 'server',
+        reason: decoded.reason,
+      });
+      return null;
+    }
+    return typeof decoded.state.scope === 'string' ? parseScopeToken(decoded.state.scope) : null;
+  }
+
   async getContext(
     caller: Caller,
     workspacePublicId: unknown,
-    options: { includeArchived?: boolean } = {},
+    options: { includeArchived?: boolean } & ScopeRequest = {},
   ): Promise<ContextView> {
     return this.inWorkspace(caller, workspacePublicId, { readOnly: true }, (tx, p) =>
-      this.context(tx, p, options.includeArchived === true),
+      this.context(tx, p, options.includeArchived === true, {
+        scope: options.scope,
+        device: options.device ?? null,
+      }),
     );
   }
 
   /**
-   * Selects the workspace (and optionally a brand or all-brands scope) as the caller's personal
-   * preference. A brand must be authorized and active; anything else is the same `not_found`.
+   * Selects the workspace and a scope (one brand, several brands, or all authorized brands) as the
+   * caller's preference: the per-device default when a device is known, and the membership's
+   * cross-device last selection for single-brand and all-brands scopes. Every named brand must be
+   * authorized and active; anything else is the same `not_found`.
    */
   async selectContext(
     caller: Caller,
     workspacePublicId: unknown,
     body: unknown,
+    options: { device?: Buffer | null; viewStateTtlMs?: number } = {},
   ): Promise<ContextView> {
     const b = isObject(body) ? body : {};
     for (const k of Object.keys(b))
-      if (k !== 'scope' && k !== 'brand_id')
+      if (k !== 'scope' && k !== 'brand_id' && k !== 'brand_ids')
         throw invalid(issue(`/${k}`, 'unsupported_field', 'This field is not supported.'));
-    if (b.scope !== undefined && b.scope !== 'brand' && b.scope !== 'all')
-      throw invalid(issue('/scope', 'invalid_option', 'Choose one brand or all brands.'));
+    if (b.scope !== undefined && b.scope !== 'brand' && b.scope !== 'brands' && b.scope !== 'all')
+      throw invalid(
+        issue('/scope', 'invalid_option', 'Choose one brand, several brands, or all brands.'),
+      );
+    if (
+      b.scope === 'brands' &&
+      (!Array.isArray(b.brand_ids) || b.brand_ids.length < 1 || b.brand_ids.length > 50)
+    )
+      throw invalid(issue('/brand_ids', 'invalid_option', 'Choose between 1 and 50 brands.'));
     try {
       const out = await this.inWorkspace(caller, workspacePublicId, {}, async (tx, p) => {
         let selection: { scope_kind: 'brand' | 'all'; brand_id: string | null } | null = null;
-        if (b.scope === 'all') selection = { scope_kind: 'all', brand_id: null };
-        else if (b.scope === 'brand') {
+        let token: ScopeToken | null = null;
+        if (b.scope === 'all') {
+          selection = { scope_kind: 'all', brand_id: null };
+          token = { kind: 'all' };
+        } else if (b.scope === 'brand') {
           const row = await findBrand(tx, p, b.brand_id, { states: 'active' });
           selection = { scope_kind: 'brand', brand_id: row.id };
+          token = { kind: 'brand', brand: row.public_id };
+        } else if (b.scope === 'brands') {
+          const ids = [...new Set(b.brand_ids as unknown[])];
+          const rows = [];
+          for (const id of ids) rows.push(await findBrand(tx, p, id, { states: 'active' }));
+          token =
+            rows.length === 1
+              ? { kind: 'brand', brand: rows[0]!.public_id }
+              : { kind: 'brands', brands: rows.map((r) => r.public_id) };
+          if (rows.length === 1) selection = { scope_kind: 'brand', brand_id: rows[0]!.id };
         } else {
           const existing = await tx.db
             .selectFrom('tenancy.scope_preference')
@@ -1442,8 +1574,47 @@ export class TenancyService {
               }),
             )
             .execute();
+        } else if (b.scope === 'brands') {
+          // A multi-brand scope is a per-device default only; the membership row keeps its last
+          // single-brand or all-brands selection (it also drives the directory's recent workspace).
+          await tx.db
+            .updateTable('tenancy.scope_preference')
+            .set({ updated_at: new Date() })
+            .where('owner_membership_id', '=', p.membershipId)
+            .execute();
         }
-        return this.context(tx, p, false);
+        if (token && options.device) {
+          const now = new Date();
+          const state = { scope: formatScopeToken(token) };
+          const expires = new Date(now.getTime() + (options.viewStateTtlMs ?? 90 * 86_400_000));
+          await tx.db
+            .insertInto('views.view_state')
+            .values({
+              workspace_id: tx.workspaceId,
+              owner_membership_id: p.membershipId,
+              device_key_hash: options.device,
+              view_key: 'shell.scope',
+              schema_version: VIEW_STATE_SCHEMAS['shell.scope'].version,
+              state: JSON.stringify(state),
+              updated_at: now,
+              expires_at: expires,
+            })
+            .onConflict((oc) =>
+              oc
+                .columns(['workspace_id', 'owner_membership_id', 'device_key_hash', 'view_key'])
+                .doUpdateSet((eb) => ({
+                  schema_version: VIEW_STATE_SCHEMAS['shell.scope'].version,
+                  state: JSON.stringify(state),
+                  updated_at: now,
+                  expires_at: expires,
+                  version: eb('views.view_state.version', '+', 1),
+                })),
+            )
+            .execute();
+        }
+        return this.context(tx, p, false, {
+          scope: token ? formatScopeToken(token) : undefined,
+        });
       });
       this.count('context.select', 'ok');
       return out;

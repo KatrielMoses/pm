@@ -19,8 +19,10 @@ import {
   registerTenancyLifecycle,
   tenancyBrandPort,
   TenancyService,
-  CollaborationService,
+  NavigationService,
+  DEFAULT_VIEWS_SETTINGS,
   type CollaborationIdentityPort,
+  type ViewsSettings,
   type Caller,
   type Mutation,
   type StepUpPort,
@@ -196,7 +198,8 @@ export async function workspaceIdOf(db: TestDatabase, publicId: string): Promise
 // -------------------------------------------------------------------------------------------
 
 export interface CollabEnv extends TenancyEnv {
-  collab: CollaborationService;
+  /** The full 1C–1E service (collaboration plus personal navigation). */
+  collab: NavigationService;
   /** Raw invitation token from the sealed mail outbox (tests only; never printed). */
   tokenFor(email: string): Promise<string>;
 }
@@ -206,6 +209,7 @@ export function collabEnv(
   options: {
     arrayMax?: number;
     extra?: RecordTypeAdapter[];
+    views?: Partial<ViewsSettings>;
     harnessOverrides?: Record<string, string>;
   } = {},
 ): CollabEnv {
@@ -238,7 +242,7 @@ export function collabEnv(
     consumeWorkspaceStepUp: stepUp.consumeWorkspaceStepUp,
     createStepUpChallenge: stepUp.createStepUpChallenge,
   };
-  const collab = new CollaborationService({
+  const collab = new NavigationService({
     tenant: h.app,
     platform: h.platform,
     writer,
@@ -258,6 +262,7 @@ export function collabEnv(
       principalContextArrayMax: options.arrayMax ?? 10_000,
       previewTtlMs: 600_000,
     },
+    views: { ...DEFAULT_VIEWS_SETTINGS, ...options.views },
     metrics,
     logger: h.logger,
   });

@@ -13,7 +13,8 @@ export type TenancyErrorCode =
   | 'workspace_read_only'
   | 'cursor_invalid'
   | 'unauthenticated'
-  | 'rate_limited';
+  | 'rate_limited'
+  | 'limit_exceeded';
 
 /** Conflict payload (0D §4.3). `theirs` only for fields the caller can read now. */
 export interface ConflictDetail {

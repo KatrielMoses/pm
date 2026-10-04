@@ -349,6 +349,14 @@ Forbidden metric labels: `workspace_id`, `brand_id`, `record_id`, `public_id`, `
 | `tenancy.epoch_stale` | counter | consumer | tenancy |
 | `tenancy.ownership_hook_failures` | counter | hook | tenancy |
 | `tenancy.context_strategy` | counter | strategy | tenancy |
+| `views.recent_writes` | counter | outcome | views |
+| `views.favorite_changes` | counter | op, outcome | views |
+| `views.state_ops` | counter | op, outcome | views |
+| `views.state_decode_failures` | counter | source, reason | views |
+| `views.omitted_targets` | counter | list | views |
+| `views.cleanup` | counter | kind | views |
+| `shell.commands` | counter | command, trigger | shell |
+| `identity.preference_updates` | counter | outcome | identity |
 
 ## Named parameters (values are configuration, not promises)
 
@@ -388,3 +396,8 @@ Forbidden metric labels: `workspace_id`, `brand_id`, `record_id`, `public_id`, `
 | `PRINCIPAL_CONTEXT_ARRAY_MAX` | Largest visibility-context array bound as a query parameter before the compiler switches to a transaction-scoped temporary table (0C §4.5). | 1D/11D |
 | `INVITATION_LIFETIME` | How long an invitation token stays acceptable before the invitation expires. | 1D |
 | `OWNERSHIP_TRANSFER_LIFETIME` | How long a pending ownership transfer waits for the recipient before it expires. | 1D |
+| `FAVORITES_MAX` | Most favorites one person may keep in one workspace; adding beyond it is refused with a limit error, never silently dropped. | 1E |
+| `RECENT_ITEMS_MAX` | Recently viewed entries kept per person per workspace (the full Recently Viewed list); older visits are trimmed in the recording transaction. | 1E |
+| `RECENT_VISIT_COALESCE` | Window in which a repeat visit to the same target is coalesced into the existing recent entry without another write. | 1E |
+| `VIEW_STATE_MAX_BYTES` | Largest stored view-state document (serialized) accepted per view and device. | 1E |
+| `VIEW_STATE_TTL` | How long stored per-device view state survives without being written before cleanup removes it. | 1E |

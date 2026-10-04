@@ -12,6 +12,11 @@
       "@pm/source": "./src/index.ts",
       "types": "./dist/index.d.ts",
       "default": "./dist/index.js"
+    },
+    "./shell": {
+      "@pm/source": "./src/shell.ts",
+      "types": "./dist/shell.d.ts",
+      "default": "./dist/shell.js"
     }
   },
   "devDependencies": {

@@ -229,6 +229,16 @@ export function decideWorkspace(p: Principal, action: ActionKey): Outcome {
 }
 
 /**
+ * Personal-scope actions (0C kind `personal`): `own` means the caller acts on their own personal
+ * data in this workspace (favorites, recents, view state); anything else is denied. Account
+ * commands never reach here (they have no membership yet).
+ */
+export function decidePersonal(p: Principal, action: ActionKey): Outcome {
+  scoped(action, 'personal');
+  return cell(action, p.role).kind === 'own' ? ALLOW : FORBIDDEN;
+}
+
+/**
  * Brand-scope actions. `implicit` cells apply through the role only on non-sensitive brands; on a
  * sensitive brand the same cell needs an explicit `manage` grant (the creator grant, 0C §4.4).
  */

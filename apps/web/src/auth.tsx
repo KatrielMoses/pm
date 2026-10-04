@@ -1,5 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from 'react';
 import { api, ApiError, clearCsrf } from './api.ts';
+import { clearPersonalClientState } from './shell/drafts.ts';
 
 export interface Me {
   id: string;
@@ -42,6 +43,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       await api('POST', '/v1/auth/sign-out');
     } finally {
       clearCsrf();
+      clearPersonalClientState();
       setMe(null);
     }
   }, []);

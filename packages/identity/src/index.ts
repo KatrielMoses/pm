@@ -16,3 +16,4 @@ export * from './service.ts';
 export * from './jobs.ts';
 export * from './factory.ts';
 export * from './security-activity.ts';
+export * from './preferences.ts';

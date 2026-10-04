@@ -11,4 +11,7 @@ export * from './collaboration.ts';
 export * from './ownership.ts';
 export * from './preview.ts';
 export * from './visibility.ts';
+export * from './navigation.ts';
+export * from './personal-data.ts';
+export * from './jobs.ts';
 export { compilePrincipal, principalFreshness } from './principal.ts';

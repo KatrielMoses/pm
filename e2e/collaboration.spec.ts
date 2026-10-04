@@ -173,7 +173,7 @@ test('teams, sharing settings, ownership transfer, states, and reflow', async ({
 
   // Not found and no access look identical; guests' and strangers' views give nothing away.
   await page.goto(`/workspaces/${ws}/people/mem_01J0000000000000000000000Z`);
-  await expect(page.getByText("We can't find this person")).toBeVisible();
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText("This page isn't available");
 
   // Forced colors with reduced motion, and 320 px reflow on the people pages.
   await page.emulateMedia({ reducedMotion: 'reduce', forcedColors: 'active' });

@@ -48,6 +48,11 @@ export default tseslint.config(
     },
   },
   {
+    // Same-origin pre-paint script (no modules, no imports): browser globals only.
+    files: ['apps/web/public/**/*.js'],
+    languageOptions: { globals: { ...globals.browser }, sourceType: 'script' },
+  },
+  {
     files: ['apps/web/src/**/*.{ts,tsx}', 'apps/web/test/**/*.{ts,tsx}'],
     languageOptions: { globals: { ...globals.browser } },
     plugins: { 'react-hooks': reactHooks },
@@ -59,8 +64,9 @@ export default tseslint.config(
         {
           patterns: [
             {
-              regex: '^@pm/(?!config/public$)',
-              message: 'The web app may import only @pm/config/public from the workspace.',
+              regex: '^@pm/(?!config/public$|contracts/shell$)',
+              message:
+                'The web app may import only @pm/config/public and @pm/contracts/shell from the workspace.',
             },
             { regex: '^node:', message: 'Node built-ins are not available in the browser.' },
           ],

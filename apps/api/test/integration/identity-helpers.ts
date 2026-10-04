@@ -190,7 +190,7 @@ export class Browser {
   }
 
   async request(
-    method: 'GET' | 'POST' | 'PATCH' | 'PUT',
+    method: 'GET' | 'POST' | 'PATCH' | 'PUT' | 'DELETE',
     url: string,
     opts: {
       body?: unknown;
@@ -251,6 +251,10 @@ export class Browser {
 
   put(url: string, body?: unknown, opts: { headers?: Record<string, string> } = {}) {
     return this.request('PUT', url, { ...opts, body });
+  }
+
+  delete(url: string, opts: { headers?: Record<string, string> } = {}) {
+    return this.request('DELETE', url, opts);
   }
 
   get session(): string | undefined {

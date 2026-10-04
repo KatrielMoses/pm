@@ -9,10 +9,16 @@ import {
 import { currentTraceparent } from '@pm/observability';
 import { requestFingerprint } from '@pm/platform';
 import { IdentityError } from '@pm/identity';
-import { TenancyError, type Caller, type CollaborationService, type Mutation } from '@pm/tenancy';
+import {
+  deviceKeyHash,
+  TenancyError,
+  type Caller,
+  type Mutation,
+  type NavigationService,
+} from '@pm/tenancy';
 
 export interface TenancyRouteDeps {
-  tenancy: CollaborationService;
+  tenancy: NavigationService;
 }
 
 /** URL settings segments → service namespaces. */
@@ -133,6 +139,9 @@ export function registerTenancy(app: FastifyInstance, deps: TenancyRouteDeps): v
     return i > 0 ? { id: raw!.slice(0, i), verb: raw!.slice(i + 1) } : undefined;
   };
 
+  /** The hashed per-device key (`X-Device-Key`), or null when absent or malformed. */
+  const device = (request: FastifyRequest) => deviceKeyHash(header(request, 'x-device-key'));
+
   type P = { ws?: string; brand?: string; ns?: string };
   const params = (request: FastifyRequest) => request.params as P;
   const q = (request: FastifyRequest) => (request.query ?? {}) as Record<string, unknown>;
@@ -184,7 +193,9 @@ export function registerTenancy(app: FastifyInstance, deps: TenancyRouteDeps): v
         return resource(request, reply, r.data, r);
       }
       if (!t || t.verb !== 'select') return fail(request, reply, 'not_found');
-      const ctx = await tenancy.selectContext(caller(request), t.id, request.body ?? {});
+      const ctx = await tenancy.selectContext(caller(request), t.id, request.body ?? {}, {
+        device: device(request),
+      });
       return nonResourceEnvelope('workspace_context', { ...ctx }, m(request));
     }),
   );
@@ -194,6 +205,9 @@ export function registerTenancy(app: FastifyInstance, deps: TenancyRouteDeps): v
     wrap(async (request) => {
       const ctx = await tenancy.getContext(caller(request), params(request).ws, {
         includeArchived: q(request).include_archived === 'true',
+        // The URL scope token (validated and normalized server-side, never trusted).
+        scope: q(request).scope,
+        device: device(request),
       });
       return nonResourceEnvelope('workspace_context', { ...ctx }, m(request));
     }),
@@ -622,6 +636,154 @@ export function registerTenancy(app: FastifyInstance, deps: TenancyRouteDeps): v
             : undefined;
       if (!r) return fail(request, reply, 'not_found');
       return resource(request, reply, r.data, r);
+    }),
+  );
+
+  // ---- Personal navigation (1E): favorites, recently viewed, view state, palette records ------
+  type PT = { target?: string; view?: string };
+  const pt = (request: FastifyRequest) => request.params as PT;
+  const noStore = (reply: FastifyReply) => reply.header('cache-control', 'private, no-store');
+
+  app.get(
+    '/v1/workspaces/:ws/favorites',
+    wrap(async (request, reply) => {
+      noStore(reply);
+      return list(request, await tenancy.listFavorites(caller(request), ws(request)));
+    }),
+  );
+  app.put(
+    '/v1/workspaces/:ws/favorites/:target',
+    wrap(async (request, reply) => {
+      const r = await tenancy.addFavorite(caller(request), ws(request), pt(request).target);
+      return reply
+        .code(r.created ? 201 : 200)
+        .send(nonResourceEnvelope('favorite', { target: r.target }, m(request)));
+    }),
+  );
+  app.delete(
+    '/v1/workspaces/:ws/favorites/:target',
+    wrap(async (request, reply) => {
+      await tenancy.removeFavorite(caller(request), ws(request), pt(request).target);
+      return reply.code(204).send();
+    }),
+  );
+  app.post(
+    '/v1/workspaces/:ws/favorites/:target',
+    wrap(async (request, reply) => {
+      const t = split(pt(request).target);
+      if (t?.verb !== 'move') return fail(request, reply, 'not_found');
+      return list(
+        request,
+        await tenancy.moveFavorite(caller(request), ws(request), t.id, request.body ?? {}),
+      );
+    }),
+  );
+
+  app.get(
+    '/v1/workspaces/:ws/recent',
+    wrap(async (request, reply) => {
+      noStore(reply);
+      const qq = q(request);
+      return list(
+        request,
+        await tenancy.listRecent(caller(request), ws(request), {
+          limit: qq.limit,
+          type: qq.type,
+          brand: qq.brand,
+        }),
+      );
+    }),
+  );
+  app.post(
+    '/v1/workspaces/:ws/recent',
+    wrap(async (request, reply) => {
+      const b = (request.body ?? {}) as Record<string, unknown>;
+      const r = await tenancy.recordVisit(caller(request), ws(request), b.target);
+      return reply.code(202).send(nonResourceEnvelope('recent_item', r, m(request)));
+    }),
+  );
+  app.post(
+    '/v1/workspaces/:ws/recent::clear',
+    wrap(async (request) => {
+      const r = await tenancy.clearRecent(caller(request), ws(request));
+      return nonResourceEnvelope('recent_item', r, m(request));
+    }),
+  );
+  app.delete(
+    '/v1/workspaces/:ws/recent/:target',
+    wrap(async (request, reply) => {
+      await tenancy.clearRecent(caller(request), ws(request), pt(request).target);
+      return reply.code(204).send();
+    }),
+  );
+
+  const viewStateBody = (
+    request: FastifyRequest,
+    reply: FastifyReply,
+    v: { key: string; schema_version: number; state: object; version: number },
+  ) => {
+    noStore(reply).header('etag', `"${v.version}"`);
+    return nonResourceEnvelope('view_state', { ...v }, m(request));
+  };
+  app.get(
+    '/v1/workspaces/:ws/view-state/:view',
+    wrap(async (request, reply) =>
+      viewStateBody(
+        request,
+        reply,
+        await tenancy.getViewState(caller(request), ws(request), pt(request).view, device(request)),
+      ),
+    ),
+  );
+  app.put(
+    '/v1/workspaces/:ws/view-state/:view',
+    wrap(async (request, reply) => {
+      const raw = header(request, 'if-match');
+      let ifMatch: number | undefined;
+      if (raw !== undefined) {
+        const mm = /^"(\d{1,15})"$/.exec(raw.trim());
+        if (!mm) return fail(request, reply, 'precondition_required');
+        ifMatch = Number(mm[1]);
+      }
+      return viewStateBody(
+        request,
+        reply,
+        await tenancy.putViewState(
+          caller(request),
+          ws(request),
+          pt(request).view,
+          device(request),
+          request.body,
+          ifMatch,
+        ),
+      );
+    }),
+  );
+  app.delete(
+    '/v1/workspaces/:ws/view-state/:view',
+    wrap(async (request, reply) => {
+      await tenancy.deleteViewState(
+        caller(request),
+        ws(request),
+        pt(request).view,
+        device(request),
+      );
+      return reply.code(204).send();
+    }),
+  );
+
+  app.get(
+    '/v1/workspaces/:ws/navigation/targets',
+    wrap(async (request, reply) => {
+      noStore(reply);
+      return list(request, await tenancy.searchTargets(caller(request), ws(request), q(request).q));
+    }),
+  );
+  app.get(
+    '/v1/workspaces/:ws/navigation/pins',
+    wrap(async (request, reply) => {
+      noStore(reply);
+      return list(request, await tenancy.listPins(caller(request), ws(request)));
     }),
   );
 }

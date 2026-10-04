@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react';
 import { ApiError, type ApiIssue } from '../api.ts';
 import { useAuth } from '../auth.tsx';
-import { Link, useRouter } from '../router.tsx';
+import { Link, useLeaveGuard, useRouter } from '../router.tsx';
 import { useStepUp } from '../stepup.tsx';
 import { Dialog } from '../ui/dialog.tsx';
 import { Announce, Banner, ProblemBanner } from '../ui/feedback.tsx';
@@ -31,7 +31,6 @@ import {
   type OperationalStatus,
   type Priorities,
   type Workspace,
-  type WorkspaceContext,
 } from '../tenancy/client.ts';
 import {
   hoursDraft,
@@ -43,7 +42,9 @@ import {
 } from '../tenancy/editors.tsx';
 import { LoadProblem, ResourceView, useResource } from '../tenancy/resource.tsx';
 import { BrandAccessPanel } from './people-pages.tsx';
-import { ContextSwitcher } from '../tenancy/switcher.tsx';
+import { FavoriteToggle } from './shell-pages.tsx';
+import { summaryMarker } from '../shell/brand-marker.tsx';
+import { useRecordVisit, useWorkspaceShell } from '../shell/workspace.tsx';
 
 // -------------------------------------------------------------------------------------------
 // Shared pieces
@@ -65,45 +66,6 @@ const STATUS_LABEL: Record<OperationalStatus, string> = {
   paused: 'Paused',
   planned: 'Planned',
 };
-
-export function WorkspaceNav({
-  workspaceId,
-  current,
-}: {
-  workspaceId: string;
-  current: 'brands' | 'settings' | 'brand' | 'people' | 'teams';
-}) {
-  const { signOut } = useAuth();
-  const { navigate } = useRouter();
-  const item = (to: string, label: string, here: boolean) => (
-    <li>
-      <Link to={to} aria-current={here ? 'page' : undefined}>
-        {label}
-      </Link>
-    </li>
-  );
-  return (
-    <nav aria-label="Workspace" className="workspace-nav">
-      <ul>
-        {item(`/workspaces/${workspaceId}`, 'Brands', current === 'brands')}
-        {item(`/workspaces/${workspaceId}/people`, 'People', current === 'people')}
-        {item(`/workspaces/${workspaceId}/teams`, 'Teams', current === 'teams')}
-        {item(`/workspaces/${workspaceId}/settings`, 'Workspace settings', current === 'settings')}
-        {item('/workspaces', 'Switch workspace', false)}
-        {item('/account/security', 'Account security', false)}
-        <li>
-          <button
-            type="button"
-            className="button button-ghost"
-            onClick={() => void signOut().then(() => navigate('/sign-in'))}
-          >
-            Sign out
-          </button>
-        </li>
-      </ul>
-    </nav>
-  );
-}
 
 export function BrandMark({ brand }: { brand: Pick<Brand, 'color' | 'icon'> }) {
   return (
@@ -728,7 +690,6 @@ export function NewBrandPage({ ws }: { ws: string }) {
   const workspace = useWorkspace(ws, ready);
   return (
     <Page title="Add a brand" wide>
-      <WorkspaceNav workspaceId={ws} current="brands" />
       <ResourceView resource={workspace.state} onRetry={workspace.retry} what="workspace">
         {(w) =>
           w.capabilities.create_brand ? (
@@ -746,154 +707,6 @@ export function NewBrandPage({ ws }: { ws: string }) {
         }
       </ResourceView>
     </Page>
-  );
-}
-
-// -------------------------------------------------------------------------------------------
-// Workspace home: context switcher and brand cards (active / archived)
-// -------------------------------------------------------------------------------------------
-
-export function WorkspaceHomePage({ ws }: { ws: string }) {
-  const ready = useSignedIn();
-  const { search } = useRouter();
-  const stepUp = useStepUp();
-  const key = ready ? `home:${ws}` : 'wait';
-  const data = useResource(async () => {
-    const [context, active, archived] = await Promise.all([
-      tenancy.context(ws),
-      tenancy.listBrands(ws, 'active'),
-      tenancy.listBrands(ws, 'archived'),
-    ]);
-    return {
-      context,
-      active: active.data,
-      archived: archived.data,
-      activeMore: active.page.has_more,
-    };
-  }, key);
-  const [said, setSaid] = useState('');
-  const [problem, setProblem] = useState<unknown>(null);
-  const created = search.get('created');
-  const restore = async (b: Brand) => {
-    setProblem(null);
-    try {
-      await tenancy.restore(ws, b.id, b.version, stepUp);
-      setSaid(`${b.name} was restored.`);
-      data.reload();
-    } catch (err) {
-      setProblem(err);
-    }
-  };
-  const title =
-    data.state.status === 'ready' ? data.state.data.context.workspace.name : 'Workspace';
-  return (
-    <Page title={title} wide>
-      <WorkspaceNav workspaceId={ws} current="brands" />
-      <ResourceView resource={data.state} onRetry={data.retry} what="workspace">
-        {(d) => {
-          const createdBrand = created ? d.active.find((b) => b.id === created) : undefined;
-          return (
-            <>
-              {createdBrand && !said ? <Announce>{createdBrand.name} was created.</Announce> : null}
-              {said ? <Announce>{said}</Announce> : null}
-              <SaveProblem
-                error={problem}
-                onUseLatest={() => {
-                  setProblem(null);
-                  data.reload();
-                }}
-              />
-              <section aria-labelledby="scope-h" className="card">
-                <h2 id="scope-h">Brand scope</h2>
-                <ContextSwitcher
-                  workspaceId={ws}
-                  context={d.context}
-                  onChange={(context: WorkspaceContext) => data.set({ ...d, context })}
-                />
-              </section>
-              <section aria-labelledby="active-h">
-                <div className="section-head">
-                  <h2 id="active-h">
-                    Active brands ({d.active.length}
-                    {d.activeMore ? '+' : ''})
-                  </h2>
-                  {d.context.workspace.capabilities.create_brand ? (
-                    <Link to={`/workspaces/${ws}/brands/new`} className="button button-primary">
-                      Add a brand
-                    </Link>
-                  ) : null}
-                </div>
-                {d.active.length ? (
-                  <ul className="brand-cards">
-                    {d.active.map((b) => (
-                      <BrandCard key={b.id} ws={ws} brand={b} />
-                    ))}
-                  </ul>
-                ) : (
-                  <p className="empty">
-                    No active brands. Add a brand to start organizing work by business or product
-                    line.
-                  </p>
-                )}
-              </section>
-              <section aria-labelledby="archived-h">
-                <h2 id="archived-h">Archived brands ({d.archived.length})</h2>
-                {d.archived.length ? (
-                  <ul className="brand-cards">
-                    {d.archived.map((b) => (
-                      <BrandCard key={b.id} ws={ws} brand={b} onRestore={() => void restore(b)} />
-                    ))}
-                  </ul>
-                ) : (
-                  <p className="empty">No archived brands.</p>
-                )}
-              </section>
-            </>
-          );
-        }}
-      </ResourceView>
-    </Page>
-  );
-}
-
-function BrandCard({ ws, brand, onRestore }: { ws: string; brand: Brand; onRestore?: () => void }) {
-  const headingId = `card-${brand.id}`;
-  return (
-    <li className="brand-card card" aria-labelledby={headingId}>
-      <div className="brand-card-head">
-        <BrandMark brand={brand} />
-        <h3 id={headingId}>{brand.name}</h3>
-      </div>
-      <p className="badges">
-        {brand.lifecycle_state === 'archived' ? (
-          <span className="badge badge-warning">Archived</span>
-        ) : (
-          <span className="badge badge-info">{STATUS_LABEL[brand.operational_status]}</span>
-        )}
-        {brand.is_sensitive ? <span className="badge badge-danger">Sensitive</span> : null}
-      </p>
-      <dl className="brand-facts">
-        {brand.short_name ? (
-          <>
-            <dt>Short name</dt>
-            <dd>{brand.short_name}</dd>
-          </>
-        ) : null}
-        <dt>Time zone</dt>
-        <dd>{brand.timezone.replace(/_/g, ' ')}</dd>
-      </dl>
-      <div className="actions actions-compact">
-        <Link to={`/workspaces/${ws}/brands/${brand.id}`}>
-          {brand.lifecycle_state === 'archived' ? 'View' : 'Settings'}{' '}
-          <span className="visually-hidden">for {brand.name}</span>
-        </Link>
-        {onRestore && brand.capabilities.restore ? (
-          <button type="button" className="button button-secondary" onClick={onRestore}>
-            Restore <span className="visually-hidden">{brand.name}</span>
-          </button>
-        ) : null}
-      </div>
-    </li>
   );
 }
 
@@ -917,7 +730,6 @@ export function WorkspaceSettingsPage({ ws }: { ws: string }) {
   const workspace = useWorkspace(ws, ready);
   return (
     <Page title="Workspace settings" wide>
-      <WorkspaceNav workspaceId={ws} current="settings" />
       <ResourceView resource={workspace.state} onRetry={workspace.retry} what="workspace">
         {(w) => <WorkspaceSettingsForm workspace={w} onSaved={workspace.set} />}
       </ResourceView>
@@ -953,6 +765,10 @@ function WorkspaceSettingsForm({
   const set = <K extends keyof WorkspaceForm>(k: K, v: WorkspaceForm[K]) =>
     setDraft((d) => ({ ...d, [k]: v }));
   const canEdit = base.capabilities.configure;
+  // RS-25: settings edits are not draftable; leaving with unsaved changes asks first.
+  useLeaveGuard(
+    canEdit && Object.keys(mergeRequest(base.version, pickWs(base), draft).changes).length > 0,
+  );
   const submit = async (e: FormEvent) => {
     e.preventDefault();
     if (busy) return;
@@ -1081,6 +897,7 @@ const BRAND_PATCH_POINTERS: Record<string, string> = Object.fromEntries(
 
 export function BrandSettingsPage({ ws, brand }: { ws: string; brand: string }) {
   const ready = useSignedIn();
+  const shellState = useWorkspaceShell();
   const data = useResource(
     async () => {
       const [b, s] = await Promise.all([
@@ -1091,14 +908,34 @@ export function BrandSettingsPage({ ws, brand }: { ws: string; brand: string }) 
     },
     ready ? `brand:${ws}:${brand}` : 'wait',
   );
-  const title =
-    data.state.status === 'ready' ? `${data.state.data.brand.name} settings` : 'Brand settings';
+  const loaded = data.state.status === 'ready' ? data.state.data.brand : null;
+  // A successful authorized render counts as a visit (NAV-007); opening a brand outside the
+  // current scope moves the shell scope to it (IA-25).
+  useRecordVisit(loaded?.id ?? null);
+  const enter = shellState?.enterRecordBrand;
+  useEffect(() => {
+    if (loaded && loaded.lifecycle_state === 'active') enter?.(loaded.id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loaded?.id, shellState?.context !== null]);
+  const title = loaded ? `${loaded.name} settings` : 'Brand settings';
   return (
-    <Page title={title} wide>
-      <WorkspaceNav workspaceId={ws} current="brand" />
-      <p>
-        <Link to={`/workspaces/${ws}`}>Back to brands</Link>
-      </p>
+    <Page
+      title={title}
+      wide
+      record={loaded ? { title: loaded.name, isBrand: true } : null}
+      breadcrumbs={
+        loaded
+          ? [
+              {
+                label: loaded.name,
+                marker: summaryMarker(loaded, loaded.lifecycle_state === 'archived'),
+              },
+              { label: 'Settings' },
+            ]
+          : undefined
+      }
+      actions={loaded ? <FavoriteToggle target={loaded.id} label={loaded.name} /> : undefined}
+    >
       <ResourceView resource={data.state} onRetry={data.retry} what="brand">
         {(d) => (
           <BrandSettingsBody
