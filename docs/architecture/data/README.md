@@ -1,6 +1,6 @@
 # Domain and data architecture (Phase 0B)
 
-Status: **proposed: developer complete, awaiting solutions-architect review.** Nothing here marks a roadmap item complete.
+Status: **accepted** (Phase 0B, P0-W2); accepted at the Phase 0 exit gate (P0-IR1; [exit-gate report](../PHASE_0_EXIT_GATE.md)). Later approved amendments are recorded at their sources.
 
 This set defines one PostgreSQL-oriented logical model for the whole product scope in [`FEATURES.md`](../../../FEATURES.md). It covers modules and ownership, tenancy and brand scope, relationships, lifecycle and state axes, time, audit and evidence, deletion and retention, concurrency, PostgreSQL guidance, and data classification. It consumes the accepted Phase 0A contracts ([`docs/product/`](../../product/README.md)), the Phase 0E UX foundation ([`docs/ux/`](../../ux/README.md)), and the approved decisions in `ROADMAP_CHECKLIST.md`.
 

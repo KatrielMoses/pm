@@ -16,4 +16,5 @@ recorded in [ADR-0007](adr/0007-deviations.md).
 | [lifecycle.md](lifecycle.md) | Records, archive/trash/restore/purge, tombstones, retention, purge ledger, recovery gate (1F) |
 | [identity.md](identity.md) | Identity and sessions (1B): classification, passwords, sessions, CSRF, step-up, OAuth boundary, revocation, compromise runbook |
 | [tenancy.md](tenancy.md) | Workspaces, memberships, brands, settings, context selection, policy compiler, tenant isolation (1C); people, invitations, teams, grants, shares, previews, departure, ownership transfer (1D); application shell, scope URLs, favorites, recents, view state, preferences (1E) |
+| [phase1/](phase1/exit-report.md) | Phase 1 integration review: exit report, requirement closure map (`closure.json`, checked by `tools/phase1.py`), branch topology and merge order, manual smoke checklist |
 | [adr/](adr/) | Implementation ADRs 0001–0012 |

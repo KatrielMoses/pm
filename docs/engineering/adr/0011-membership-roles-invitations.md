@@ -1,6 +1,6 @@
 # ADR-0011: Membership, roles, invitations, teams, sharing, and ownership (Phase 1D)
 
-Status: **implemented; acceptance pending CI.** Engineering detail: [tenancy.md](../tenancy.md#phase-1d-collaboration).
+Status: **accepted and implemented** (P1-W4; deviations F1–F8 accepted; no-skip CI run `37191365644` on `74e3c54`: all gates passed on `postgres:18.6-bookworm@sha256:3725f4e2499eef5134592b3b4ab79a543ed7f8e533b05b5b637af926630f6650`; scanners clean; image `sha256:9e307fa7683442dd3eab0392426fc9c3ee21a75ca5e6849ea0d18352b274e59f`, 260,819,454 bytes, runs as `uid=1000(node)`). Engineering detail: [tenancy.md](../tenancy.md#phase-1d-collaboration).
 Extends ADR-0010 (1C). Accepted sources:
 - 0C: AZ-19, T-37/T-38, AT-095…107;
 - 0B: membership, team, team_member, invitation, ownership_transfer, workspace_policy, share_group, record_grant;

@@ -1,6 +1,6 @@
 # Deletion, recovery, retention, and historical truth
 
-Status: proposed (Phase 0A), awaiting architect review.
+Status: accepted (Phase 0A, P0-W1; Phase 0 exit gate P0-IR1).
 
 This document fixes **behavior**. It deliberately contains **no durations**. Every period below is a named parameter whose value requires a product-owner decision (and, where marked, legal review). Until those decisions are made, the product must not publish or display a number. Engineering builds each period as configurable, and nothing may be hard-coded.
 

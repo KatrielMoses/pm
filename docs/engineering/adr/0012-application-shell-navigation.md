@@ -1,6 +1,6 @@
 # ADR-0012: Application shell and personal navigation (Phase 1E)
 
-Status: **implemented; deviations F1–F9 accepted by the product owner; acceptance pending CI.** Engineering detail: [tenancy.md](../tenancy.md#phase-1e-shell-and-personal-navigation).
+Status: **accepted and implemented** (P1-W5; deviations F1–F9 accepted; no-skip CI run `37202829149` on head `5f636c8`: all 11 gates passed on `postgres:18.6-bookworm@sha256:3725f4e2499eef5134592b3b4ab79a543ed7f8e533b05b5b637af926630f6650`; osv-scanner (no issues), pnpm audit (no known vulnerabilities), gitleaks 8.30.1 (no leaks), licence policy (no violations); production image `sha256:4fbeca95cf13b001508cc5d07beef1b1a000879a3061685842a34aea77ae4c46`, 261,037,872 bytes, runs as `uid=1000(node)`, readiness and image smoke passed). Engineering detail: [tenancy.md](../tenancy.md#phase-1e-shell-and-personal-navigation).
 Extends ADR-0010 (1C) and ADR-0011 (1D).
 
 Accepted sources:

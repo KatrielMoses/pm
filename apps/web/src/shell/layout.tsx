@@ -633,7 +633,7 @@ function Sidebar({ kind }: { kind: 'workspace' | 'personal' }) {
         <ul className="nav-list">
           {kind === 'personal' ? (
             <li>
-              <Link to="/workspaces" className="nav-link">
+              <Link to="/workspaces" className="nav-link" title="Workspaces">
                 <span className="nav-icon" aria-hidden="true">
                   ▦
                 </span>

@@ -1,6 +1,6 @@
 # Time and scheduling semantics
 
-Status: proposed (Phase 0A), awaiting architect review. Terms are defined in the [glossary](glossary.md).
+Status: accepted (Phase 0A, P0-W1; Phase 0 exit gate P0-IR1). Terms are defined in the [glossary](glossary.md).
 
 ## 1. The date and time fields
 

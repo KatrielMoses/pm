@@ -15,7 +15,7 @@ Source wording is copied verbatim from `FEATURES.md`. Owner = owning roadmap sub
 | WSB-005 | Archive and restore brands | 9 | 1C | 1F | brand-context |  |
 | WSB-006 | Switch between individual brands and an all-brands view | 10 | 1C | 1E | brand-context |  |
 | WSB-007 | Keep projects, tasks, documents, files, activity, and permissions separated by brand | 11 | 1C | 0B, 0C, 2A, 2B, 4C, 4E | authorization, brand-context | ambiguity [OD-06](../open-decisions.md#od-06) |
-| WSB-008 | Share selected records across brands | 12 | 1C | 0B, 0C | authorization, brand-context | roadmap-gap [OD-04](../open-decisions.md#od-04); missing-decision [OD-04](../open-decisions.md#od-04) |
+| WSB-008 | Share selected records across brands | 12 | 2A | 0B, 0C, 1D | authorization, brand-context | roadmap-gap [OD-04](../open-decisions.md#od-04); missing-decision [OD-04](../open-decisions.md#od-04) |
 | WSB-009 | Prevent accidental cross-brand data exposure | 13 | 1C | 0C, 11B | authorization, brand-context |  |
 | WSB-010 | Configure brand-specific working hours and calendars | 14 | 1C | 3E, 6C | brand-context, time-semantics |  |
 | WSB-011 | Configure brand-specific goals and priorities | 15 | 1C | 5B | brand-context |  |
@@ -740,7 +740,7 @@ Source wording is copied verbatim from `FEATURES.md`. Owner = owning roadmap sub
 | REL-004 | Use idempotent processing for retried background jobs | 676 | 0D | 1A, 11C | reliability | roadmap-gap |
 | REL-005 | Provide retry and dead-letter handling for failed jobs | 677 | 0D | 1A, 11C | degraded-mode, reliability | roadmap-gap |
 | REL-006 | Display synchronization, automation, AI, and agent failures to affected users | 678 | 11C | 6A, 7A, 8A, 8C | actor-provenance, degraded-mode, reliability |  |
-| REL-007 | Provide service health monitoring and alerting | 679 | 1A | 11F | notification, reliability |  |
+| REL-007 | Provide service health monitoring and alerting | 679 | 1A | 11C, 11F | notification, reliability |  |
 | REL-008 | Provide error tracking and request tracing | 680 | 1A |  | reliability |  |
 | REL-009 | Measure page load, interaction, search, and save latency | 681 | 11D | 1A | reliability |  |
 | REL-010 | Keep primary task capture and update interactions responsive under expected load | 682 | 11D | 2E | accessibility, reliability |  |

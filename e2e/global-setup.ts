@@ -43,6 +43,11 @@ export default async function globalSetup(): Promise<() => Promise<void>> {
   };
   // Captured mail (one-time links) stays in a private temp directory, never in reports.
   process.env.PM_E2E_MAILBOX = mailbox;
+  // Phase 1 exit journey: seeds one test-only fixture record and inspects state past RLS. These
+  // URLs carry generated per-run passwords and live only in this process tree's environment.
+  process.env.PM_E2E_ADMIN_URL = server.adminUrl('pm_e2e');
+  process.env.PM_E2E_APP_URL = urls.app;
+  process.env.PM_E2E_WORKER_URL = urls.worker;
   const dist = process.env.PM_SMOKE_DIST === '1';
   const start = (app: string): ChildProcess =>
     spawn(
