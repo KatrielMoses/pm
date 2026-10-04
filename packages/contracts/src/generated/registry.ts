@@ -342,6 +342,43 @@ export const TELEMETRY_SIGNALS = [
     "labels": [
       "module"
     ]
+  },
+  {
+    "name": "tenancy.invitation_outcomes",
+    "type": "counter",
+    "labels": [
+      "stage",
+      "outcome"
+    ]
+  },
+  {
+    "name": "tenancy.revocations",
+    "type": "counter",
+    "labels": [
+      "kind",
+      "outcome"
+    ]
+  },
+  {
+    "name": "tenancy.epoch_stale",
+    "type": "counter",
+    "labels": [
+      "consumer"
+    ]
+  },
+  {
+    "name": "tenancy.ownership_hook_failures",
+    "type": "counter",
+    "labels": [
+      "hook"
+    ]
+  },
+  {
+    "name": "tenancy.context_strategy",
+    "type": "counter",
+    "labels": [
+      "strategy"
+    ]
   }
 ] as const;
 export type TelemetrySignalName = (typeof TELEMETRY_SIGNALS)[number]['name'];
@@ -1199,6 +1236,20 @@ export const ID_PREFIXES = [
     "entity": "access.field_policy",
     "ownerModule": "access",
     "platformOnly": false
+  },
+  {
+    "prefix": "inv",
+    "resource": "invitation",
+    "entity": "tenancy.invitation",
+    "ownerModule": "tenancy",
+    "platformOnly": false
+  },
+  {
+    "prefix": "otr",
+    "resource": "ownership_transfer",
+    "entity": "tenancy.ownership_transfer",
+    "ownerModule": "tenancy",
+    "platformOnly": false
   }
 ] as const;
 export type IdPrefix = (typeof ID_PREFIXES)[number]['prefix'];
@@ -1678,6 +1729,52 @@ export const INTERNAL_EVENTS = [
       "sample"
     ],
     "maxClass": "C1"
+  },
+  {
+    "type": "tenancy.membership.activated",
+    "schemaVersion": 1,
+    "aggregateEntity": "tenancy.membership",
+    "fields": [
+      "kind",
+      "reason"
+    ],
+    "maxClass": "C1"
+  },
+  {
+    "type": "tenancy.membership.suspended",
+    "schemaVersion": 1,
+    "aggregateEntity": "tenancy.membership",
+    "fields": [
+      "reason"
+    ],
+    "maxClass": "C1"
+  },
+  {
+    "type": "access.role.revoked",
+    "schemaVersion": 1,
+    "aggregateEntity": "access.role_assignment",
+    "fields": [
+      "scope_type"
+    ],
+    "maxClass": "C1"
+  },
+  {
+    "type": "tenancy.team.membership_changed",
+    "schemaVersion": 1,
+    "aggregateEntity": "tenancy.team_member",
+    "fields": [
+      "change"
+    ],
+    "maxClass": "C1"
+  },
+  {
+    "type": "tenancy.ownership.transferred",
+    "schemaVersion": 1,
+    "aggregateEntity": "tenancy.ownership_transfer",
+    "fields": [
+      "demoted_previous"
+    ],
+    "maxClass": "C1"
   }
 ] as const;
 export type InternalEventType = (typeof INTERNAL_EVENTS)[number]['type'];
@@ -1713,7 +1810,10 @@ export const PARAMETER_NAMES = [
   "EXPORT_LINK_LIFETIME",
   "IMPORT_ROLLBACK_PERIOD",
   "USAGE_WARNING_THRESHOLDS",
-  "UNDO_RETENTION"
+  "UNDO_RETENTION",
+  "PRINCIPAL_CONTEXT_ARRAY_MAX",
+  "INVITATION_LIFETIME",
+  "OWNERSHIP_TRANSFER_LIFETIME"
 ] as const;
 export type ParameterName = (typeof PARAMETER_NAMES)[number];
 
@@ -2863,6 +2963,60 @@ export const ACTIONS = [
     }
   },
   {
+    "key": "invitation.accept",
+    "kind": "personal",
+    "scopes": [
+      "personal"
+    ],
+    "stepUp": false,
+    "riskClass": "R2",
+    "requiredLevel": null,
+    "roles": {
+      "owner": "deny",
+      "administrator": "deny",
+      "member": "deny",
+      "limited_member": "deny",
+      "read_only": "deny",
+      "guest": "deny"
+    }
+  },
+  {
+    "key": "ownership.accept",
+    "kind": "admin",
+    "scopes": [
+      "workspace"
+    ],
+    "stepUp": true,
+    "riskClass": "R4",
+    "requiredLevel": null,
+    "roles": {
+      "owner": "own",
+      "administrator": "own",
+      "member": "own",
+      "limited_member": "own",
+      "read_only": "own",
+      "guest": "deny"
+    }
+  },
+  {
+    "key": "membership.leave",
+    "kind": "personal",
+    "scopes": [
+      "personal"
+    ],
+    "stepUp": false,
+    "riskClass": "R2",
+    "requiredLevel": null,
+    "roles": {
+      "owner": "own",
+      "administrator": "own",
+      "member": "own",
+      "limited_member": "own",
+      "read_only": "own",
+      "guest": "own"
+    }
+  },
+  {
     "key": "team.manage",
     "kind": "admin",
     "scopes": [
@@ -3719,9 +3873,192 @@ export const ACCOUNT_COMMANDS = [
       "rate_limit",
       "idempotency_key"
     ]
+  },
+  {
+    "action": "invitation.accept",
+    "principals": [
+      "account"
+    ],
+    "gates": [
+      "email_verified",
+      "account_active",
+      "rate_limit",
+      "idempotency_key",
+      "email_match",
+      "single_use_token"
+    ]
   }
 ] as const;
 export type AccountCommand = (typeof ACCOUNT_COMMANDS)[number]['action'];
+
+/** 0C §3.1 default roles: membership kind, level cap, and grantable authority (I-11). */
+export const ROLE_DEFINITIONS = [
+  {
+    "id": "owner",
+    "membershipKind": "member",
+    "levelCap": null,
+    "canAssign": [
+      "owner",
+      "administrator",
+      "member",
+      "limited_member",
+      "read_only",
+      "guest"
+    ]
+  },
+  {
+    "id": "administrator",
+    "membershipKind": "member",
+    "levelCap": null,
+    "canAssign": [
+      "administrator",
+      "member",
+      "limited_member",
+      "read_only",
+      "guest"
+    ]
+  },
+  {
+    "id": "member",
+    "membershipKind": "member",
+    "levelCap": null,
+    "canAssign": [
+      "guest"
+    ]
+  },
+  {
+    "id": "limited_member",
+    "membershipKind": "member",
+    "levelCap": null,
+    "canAssign": []
+  },
+  {
+    "id": "read_only",
+    "membershipKind": "member",
+    "levelCap": "view",
+    "canAssign": []
+  },
+  {
+    "id": "guest",
+    "membershipKind": "guest",
+    "levelCap": "edit",
+    "canAssign": []
+  }
+] as const;
+export type RoleId = (typeof ROLE_DEFINITIONS)[number]['id'];
+
+/** 0C AZ-19 workspace policy fields: safe defaults and governing actions. */
+export const WORKSPACE_POLICY_FIELDS = [
+  {
+    "field": "self_approval_mode",
+    "default": "auto",
+    "governedBy": "sharing.policy.configure",
+    "ownerOnly": false
+  },
+  {
+    "field": "require_independent_for",
+    "default": [],
+    "governedBy": "sharing.policy.configure",
+    "ownerOnly": false
+  },
+  {
+    "field": "members_invite_guests",
+    "default": false,
+    "governedBy": "sharing.policy.configure",
+    "ownerOnly": false
+  },
+  {
+    "field": "limited_members_can_export",
+    "default": false,
+    "governedBy": "sharing.policy.configure",
+    "ownerOnly": false
+  },
+  {
+    "field": "limited_members_tokens",
+    "default": false,
+    "governedBy": "workspace.configure",
+    "ownerOnly": false
+  },
+  {
+    "field": "limited_members_ai",
+    "default": false,
+    "governedBy": "workspace.configure",
+    "ownerOnly": false
+  },
+  {
+    "field": "limited_members_agents",
+    "default": false,
+    "governedBy": "workspace.configure",
+    "ownerOnly": false
+  },
+  {
+    "field": "read_only_ai",
+    "default": false,
+    "governedBy": "workspace.configure",
+    "ownerOnly": false
+  },
+  {
+    "field": "members_configure_agents",
+    "default": false,
+    "governedBy": "workspace.configure",
+    "ownerOnly": false
+  },
+  {
+    "field": "admins_manage_billing",
+    "default": false,
+    "governedBy": "billing.manage",
+    "ownerOnly": true
+  },
+  {
+    "field": "comment_on_archived",
+    "default": false,
+    "governedBy": "workspace.configure",
+    "ownerOnly": false
+  },
+  {
+    "field": "workspace_records_default_level",
+    "default": "view",
+    "governedBy": "workspace.configure",
+    "ownerOnly": false
+  },
+  {
+    "field": "cross_brand_sharing_enabled",
+    "default": false,
+    "governedBy": "sharing.policy.configure",
+    "ownerOnly": false
+  },
+  {
+    "field": "guest_invitations_enabled",
+    "default": true,
+    "governedBy": "sharing.policy.configure",
+    "ownerOnly": false
+  },
+  {
+    "field": "public_links_enabled",
+    "default": false,
+    "governedBy": "sharing.policy.configure",
+    "ownerOnly": false
+  },
+  {
+    "field": "share_max_expiry",
+    "default": null,
+    "governedBy": "sharing.policy.configure",
+    "ownerOnly": false
+  },
+  {
+    "field": "token_max_lifetime",
+    "default": null,
+    "governedBy": "workspace.configure",
+    "ownerOnly": false
+  },
+  {
+    "field": "low_impact_agent_actions",
+    "default": [],
+    "governedBy": "workspace.configure",
+    "ownerOnly": false
+  }
+] as const;
+export type WorkspacePolicyField = (typeof WORKSPACE_POLICY_FIELDS)[number]['field'];
 
 /** 0B brand operational status (ADR-19): business metadata, never lifecycle. */
 export const BRAND_OPERATIONAL_STATUSES = [

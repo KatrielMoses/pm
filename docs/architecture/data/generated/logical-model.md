@@ -532,9 +532,10 @@ An account's membership in a workspace with kind (member, guest) and state.
 | Volume / export / search-AI | `medium` / `admin` / `metadata` |
 | Secrets / personal data | `no` / `yes` |
 | Uniqueness | `(workspace_id, account_id)` |
-| Key typed columns | `account_id`; `kind membership_kind (member\|guest)`; `state (invited\|active\|suspended\|removed)`; `display_name_override`; `removed_at` |
+| Key typed columns | `account_id`; `kind membership_kind (member\|guest)`; `state (invited\|active\|suspended\|removed)`; `display_name_override`; `invited_at`; `joined_at`; `suspended_at`; `removed_at`; `departure_reason membership_departure (removed\|left\|account_deleted) null`; `state_changed_by_membership_id null` |
 | Sensitive fields | — |
 | Requirements | COL-001, COL-002, PERM-014 |
+| Notes | Phase 1D: state transitions invited→active, active→suspended→active, active\|suspended→removed (terminal). A removed membership keeps its row for audit and ownership history; it never regains authority (a new invitation reactivates it as a fresh active state only through invitation.accept). Guests never hold role assignments. |
 
 <a id="entity-team"></a>
 ### `team`
@@ -552,9 +553,10 @@ Named group of memberships; may span brands; is a grant holder, never a scope.
 | Volume / export / search-AI | `low` / `filtered` / `yes` |
 | Secrets / personal data | `no` / `incidental` |
 | Uniqueness | — |
-| Key typed columns | standard columns only |
+| Key typed columns | `name text`; `description text null`; `created_by_membership_id` |
 | Sensitive fields | — |
 | Requirements | COL-003 |
+| Notes | Addressable core.record extension (brand_id NULL, workspace scope). Teams may span brands but are never a scope; they are grantees of role assignments and record grants. Phase 1D. |
 
 <a id="entity-team-member"></a>
 ### `team_member`
@@ -572,9 +574,10 @@ Membership in a team.
 | Volume / export / search-AI | `medium` / `filtered` / `yes` |
 | Secrets / personal data | `no` / `incidental` |
 | Uniqueness | `(team_id, membership_id)` |
-| Key typed columns | standard columns only |
+| Key typed columns | `team_id`; `membership_id`; `added_by_membership_id`; `created_at` |
 | Sensitive fields | — |
 | Requirements | COL-003 |
+| Notes | Internal memberships only (guests may not join teams that hold scope grants). Removed with team membership changes and on departure; a removal bumps the member's principal epoch. |
 
 <a id="entity-invitation"></a>
 ### `invitation`
@@ -591,10 +594,11 @@ Pending invitation by email with intended role and scope.
 | Retention / confidentiality | `R-EPHEMERAL` / `C3` |
 | Volume / export / search-AI | `low` / `admin` / `no` |
 | Secrets / personal data | `no` / `yes` |
-| Uniqueness | — |
-| Key typed columns | standard columns only |
+| Uniqueness | `(workspace_id, email_key) where state = pending` |
+| Key typed columns | `email_key text (normalized invited email)`; `kind membership_kind (member\|guest)`; `role_key text (built-in workspace role for members; null for guests)`; `scope_proposal jsonb (brand access levels for members; fixed record shares for guests)`; `invited_by_membership_id`; `state invitation_state (pending\|accepted\|revoked\|expired)`; `expires_at`; `send_count int`; `last_sent_at`; `token_id uuid (identity.verification_token; the raw token is never stored)`; `accepted_account_id null`; `accepted_membership_id null`; `revoked_by_membership_id null`; `decided_at null` |
 | Sensitive fields | — |
 | Requirements | COL-001, COL-002 |
+| Notes | Phase 1D. One pending invitation per (workspace, email_key). Resend issues a new single-use token that supersedes the previous one (identity token lineage); the invitation row keeps its ID. Acceptance requires the authenticated verified account's normalized email to equal email_key (0C AZ-19). |
 
 <a id="entity-ownership-transfer"></a>
 ### `ownership_transfer`
@@ -611,10 +615,11 @@ Workspace ownership transfer request and acceptance.
 | Retention / confidentiality | `R-AUDIT` / `C2` |
 | Volume / export / search-AI | `low` / `filtered` / `no` |
 | Secrets / personal data | `no` / `incidental` |
-| Uniqueness | — |
-| Key typed columns | standard columns only |
+| Uniqueness | `(workspace_id) where state = pending` |
+| Key typed columns | `from_membership_id`; `to_membership_id`; `state ownership_transfer_state (pending\|accepted\|cancelled\|expired)`; `demote_previous boolean`; `expires_at`; `requested_step_up_id`; `accepted_step_up_id null`; `decided_at null`; `decided_by_membership_id null` |
 | Sensitive fields | — |
 | Requirements | ADM-013 |
+| Notes | Phase 1D. At most one pending transfer per workspace. Acceptance by the recipient (ownership.accept, step-up) atomically adds the owner role and optionally demotes the previous owner to administrator; last-owner protection holds throughout. Immutable after a terminal state. |
 
 <a id="entity-brand-setting"></a>
 ### `brand_setting`

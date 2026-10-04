@@ -129,6 +129,16 @@ export const NON_RESOURCE_TYPES = [
   // 1C: the server-derived workspace/brand scope for the caller. A computed view over authorized
   // brands and a personal preference, not a record.
   'workspace_context',
+  // 1D: computed views and command results that are not records.
+  'access_explanation',
+  'departure_plan',
+  'permission_preview',
+  'permission_change',
+  'brand_access',
+  'invitation_preview',
+  'invitation_acceptance',
+  'workspace_policy',
+  'ownership_transfer_status',
 ] as const;
 export type NonResourceType = (typeof NON_RESOURCE_TYPES)[number];
 

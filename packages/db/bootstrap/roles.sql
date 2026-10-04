@@ -55,6 +55,9 @@ BEGIN
     EXECUTE format('ALTER ROLE %I LOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION NOBYPASSRLS NOINHERIT PASSWORD %L', r.name, pw);
     EXECUTE format('GRANT CONNECT ON DATABASE %I TO %I', db, r.name);
   END LOOP;
+  -- Transaction-scoped temporary tables for oversized visibility contexts (0C §4.5; 1D). Explicit,
+  -- because managed providers may revoke the PUBLIC default.
+  EXECUTE format('GRANT TEMPORARY ON DATABASE %I TO app_rw, app_worker', db);
 
   -- Operational identities may act as the owner, but only by explicit SET ROLE (no inheritance).
   EXECUTE 'GRANT pm_owner TO migrator WITH INHERIT FALSE, SET TRUE';

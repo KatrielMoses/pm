@@ -64,6 +64,9 @@ worker process is a startup error. All identities of one process must target the
 | `PURGE_LEDGER`, `PURGE_LEDGER_DIR` | — | optional | `none` (default: purge blocks before deleting) or `local` (development adapter, refused when deployed) |
 | `COMPONENT_HARNESS` | optional | — | `false` by default; `true` only in local/test (renders `/_harness/lifecycle`) |
 | `AUDIT_CHAIN_LOCK_WAIT_WARN_MS` | optional | optional | default 250; operational warning threshold for audit-chain lock waits (not a promise; see audit.md) |
+| `INVITATION_LIFETIME_MS` | optional | optional | default 7 days; how long an invitation link stays acceptable (0D `INVITATION_LIFETIME`) |
+| `OWNERSHIP_TRANSFER_LIFETIME_MS` | optional | optional | default 3 days; pending ownership transfers expire after this (0D `OWNERSHIP_TRANSFER_LIFETIME`) |
+| `PRINCIPAL_CONTEXT_ARRAY_MAX` | optional | optional | default 10000; visibility arrays above this use a transaction-scoped temporary table (0D `PRINCIPAL_CONTEXT_ARRAY_MAX`) |
 
 Values are configuration, not customer promises (PQ-05). The 0D parameter values above are
 implementation defaults owned by 1A (`WORKSPACE_CONCURRENCY_CAP` is owned by 11C).

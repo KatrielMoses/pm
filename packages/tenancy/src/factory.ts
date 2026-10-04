@@ -5,17 +5,18 @@ import type { Logger, Metrics } from '@pm/observability';
 import { PostgresRateLimiter } from '@pm/identity';
 import { LifecycleRegistry, LifecycleService, RetentionPolicy } from '@pm/lifecycle';
 import { registerTenancyLifecycle, tenancyBrandPort } from './lifecycle.ts';
-import { TenancyService, type StepUpPort } from './service.ts';
+import { CollaborationService, type CollaborationIdentityPort } from './collaboration.ts';
 
 /** Wires the tenancy service from validated configuration (API process and tests). */
 export function createTenancyService(deps: {
   tenant: TenantDatabase;
   platform: PlatformDatabase;
-  stepUp: StepUpPort;
-  config: Pick<ServerConfig, 'identity' | 'lifecycle' | 'audit'>;
+  /** Identity (1B): step-up, invitation tokens and mail, departure session revocation. */
+  identity: CollaborationIdentityPort;
+  config: Pick<ServerConfig, 'identity' | 'lifecycle' | 'audit' | 'tenancy'>;
   logger: Logger;
   metrics: Metrics;
-}): TenancyService {
+}): CollaborationService {
   const { config } = deps;
   if (!config.identity.signingKey) throw new Error('AUTH_SIGNING_KEY is required');
   const writer = new AuditWriter({
@@ -34,13 +35,20 @@ export function createTenancyService(deps: {
     logger: deps.logger,
   });
   const signingKey = Buffer.from(config.identity.signingKey.reveal(), 'base64url');
-  return new TenancyService({
+  return new CollaborationService({
     tenant: deps.tenant,
     platform: deps.platform,
     writer,
     security: new AuditSecurityEventSink(deps.metrics),
     lifecycle,
-    stepUp: deps.stepUp,
+    stepUp: deps.identity,
+    identity: deps.identity,
+    settings: {
+      invitationLifetimeMs: config.tenancy.invitationLifetimeMs,
+      ownershipTransferLifetimeMs: config.tenancy.ownershipTransferLifetimeMs,
+      principalContextArrayMax: config.tenancy.principalContextArrayMax,
+      previewTtlMs: 10 * 60_000,
+    },
     limiter: new PostgresRateLimiter(deps.platform, signingKey, config.identity.rateLimitOverrides),
     signingKey,
     metrics: deps.metrics,

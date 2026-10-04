@@ -156,6 +156,29 @@ def validate(policy, threats, quiet=False):
         if a["kind"] == "personal" and set(a["roles"].values()) == {"deny"} and a["key"] not in command_actions:
             errors.append("%s: an all-deny personal action must be a registered account command" % a["key"])
 
+    # workspace policy fields (AZ-19): every 0B workspace_policy column has a type, a safe default, and
+    # a governing action; no role can configure a policy field that gates its own matrix cells
+    model_cols = None
+    for e in load(MODEL)["entities"]:
+        if e["module"] == "access" and e["name"] == "workspace_policy":
+            model_cols = [c.split(" ", 1)[0] for c in e["key_columns"]]
+    fields = policy.get("workspace_policy", [])
+    if model_cols is not None and [f["field"] for f in fields] != model_cols:
+        errors.append("workspace_policy fields %s differ from 0B access.workspace_policy %s" % ([f["field"] for f in fields], model_cols))
+    for f in fields:
+        g = actions.get(f["governed_by"])
+        if g is None:
+            errors.append("workspace_policy %s: unknown governing action %s" % (f["field"], f["governed_by"]))
+            continue
+        if f["field"] == "public_links_enabled" and f["default"] is not False:
+            errors.append("workspace_policy public_links_enabled must default to false (OD-27)")
+        gated = [r for r in ROLES if any(a["roles"][r] == "policy:%s" % f["field"] for a in actions.values())]
+        for r in gated:
+            if g["roles"][r] not in ("deny",) and not (f["owner_only"] and r != "owner"):
+                errors.append("workspace_policy %s: role %s could configure the policy that gates its own cells" % (f["field"], r))
+        if f["owner_only"] and g["roles"]["owner"] == "deny":
+            errors.append("workspace_policy %s: owner-only field needs an owner-capable governing action" % f["field"])
+
     # required action vocabulary coverage
     blob = " ".join(actions)
     for w in REQUIRED_ACTION_WORDS:

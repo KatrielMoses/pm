@@ -196,15 +196,17 @@ export class IdentityService {
    * transaction (the outbox pattern). A one-time token travels only as a secret-store reference.
    */
   async #enqueueMail(
-    tx: PlatformTransaction,
+    tx: ScopedTransaction,
     meta: RequestMeta,
     m: {
       template: MailTemplate;
       recipient: string;
       locale: string;
-      accountId: string;
+      accountId: string | null;
       token?: string;
       tokenExpiresAt?: Date;
+      /** Workspace transactions enqueue under that workspace's execution context. */
+      context?: ExecutionContext;
     },
   ): Promise<void> {
     const id = newUuidV7();
@@ -235,7 +237,7 @@ export class IdentityService {
       dedupeKey: `mail:${id}`,
       maxAttempts: 8,
       timeoutSeconds: 30,
-      context: this.#systemContext(meta),
+      context: m.context ?? this.#systemContext(meta),
     });
     this.#d.metrics.count('mail.enqueued', 1, { template: m.template });
   }
@@ -1088,7 +1090,7 @@ export class IdentityService {
   }
 
   async #revoke(
-    tx: PlatformTransaction,
+    tx: ScopedTransaction,
     accountId: string,
     reason:
       | 'sign_out'
@@ -1109,6 +1111,152 @@ export class IdentityService {
     if (scope.except) q = q.where('id', '!=', scope.except);
     const res = await q.executeTakeFirst();
     return Number(res.numUpdatedRows);
+  }
+
+  // -------------------------------------------------------------------------------------------
+  // Collaboration support (1D): invitation tokens and departure revocation, in the caller's
+  // workspace transaction so the tenant change, the token, the mail, and the revocation commit
+  // together. Identity tables carry no tenant RLS; tenancy owns the authorization decision.
+  // -------------------------------------------------------------------------------------------
+
+  /**
+   * Issues a single-use invitation token (hash only; the raw token is sealed for the durable mail
+   * job and destroyed after delivery) and enqueues the invitation mail. Supersedes an earlier
+   * token of the same invitation (resend). No workspace name or inviter goes into the mail.
+   */
+  async issueInvitationToken(
+    tx: WorkspaceTransaction,
+    input: {
+      email: string;
+      locale: string;
+      invitationId: string;
+      expiresAt: Date;
+      supersedesTokenId: string | null;
+      exec: ExecutionContext;
+      meta: RequestMeta;
+    },
+  ): Promise<{ tokenId: string }> {
+    if (input.supersedesTokenId)
+      await tx.db
+        .updateTable('identity.verification_token')
+        .set({ revoked_at: new Date() })
+        .where('id', '=', input.supersedesTokenId)
+        .where('purpose', '=', 'invitation_acceptance')
+        .where('consumed_at', 'is', null)
+        .where('revoked_at', 'is', null)
+        .execute();
+    const token = newOpaqueToken();
+    const tokenId = newUuidV7();
+    await tx.db
+      .insertInto('identity.verification_token')
+      .values({
+        id: tokenId,
+        purpose: 'invitation_acceptance',
+        account_id: null,
+        token_hash: token.hash,
+        expires_at: input.expiresAt,
+        supersedes_token_id: input.supersedesTokenId,
+        context: JSON.stringify({
+          workspace_id: tx.workspaceId,
+          invitation_id: input.invitationId,
+        }),
+      })
+      .execute();
+    await this.#enqueueMail(tx, input.meta, {
+      template: 'workspace_invitation',
+      recipient: input.email,
+      locale: input.locale,
+      accountId: null,
+      token: token.raw,
+      tokenExpiresAt: input.expiresAt,
+      context: input.exec,
+    });
+    return { tokenId };
+  }
+
+  /** Revokes an invitation's open token (invitation revoked or expired). */
+  async revokeInvitationToken(tx: WorkspaceTransaction, tokenId: string): Promise<void> {
+    await tx.db
+      .updateTable('identity.verification_token')
+      .set({ revoked_at: new Date() })
+      .where('id', '=', tokenId)
+      .where('purpose', '=', 'invitation_acceptance')
+      .where('consumed_at', 'is', null)
+      .where('revoked_at', 'is', null)
+      .execute();
+  }
+
+  /**
+   * Resolves a presented invitation token to its workspace and invitation without consuming it.
+   * Malformed, unknown, revoked, used, and expired tokens all return null (no oracle).
+   */
+  async lookupInvitationToken(
+    raw: unknown,
+    options: { includeConsumed?: boolean } = {},
+  ): Promise<{
+    tokenId: string;
+    workspaceId: string;
+    invitationId: string;
+    consumed: boolean;
+  } | null> {
+    if (!isWellFormedToken(raw)) return null;
+    return this.#d.db.withPlatform({ module: 'identity', readOnly: true }, async (tx) => {
+      const row = await tx.db
+        .selectFrom('identity.verification_token')
+        .select(['id', 'context', 'consumed_at'])
+        .where('token_hash', '=', hashToken(raw))
+        .where('purpose', '=', 'invitation_acceptance')
+        .where('revoked_at', 'is', null)
+        .$if(!options.includeConsumed, (q) =>
+          q.where('consumed_at', 'is', null).where('expires_at', '>', new Date()),
+        )
+        .executeTakeFirst();
+      const ctx = row?.context as { workspace_id?: unknown; invitation_id?: unknown } | undefined;
+      if (!row || typeof ctx?.workspace_id !== 'string' || typeof ctx.invitation_id !== 'string')
+        return null;
+      return {
+        tokenId: row.id,
+        workspaceId: ctx.workspace_id,
+        invitationId: ctx.invitation_id,
+        consumed: row.consumed_at !== null,
+      };
+    });
+  }
+
+  /** Consumes an invitation token exactly once, in the acceptance transaction. */
+  async consumeInvitationToken(tx: WorkspaceTransaction, tokenId: string): Promise<boolean> {
+    const res = await tx.db
+      .updateTable('identity.verification_token')
+      .set({ consumed_at: new Date() })
+      .where('id', '=', tokenId)
+      .where('purpose', '=', 'invitation_acceptance')
+      .where('consumed_at', 'is', null)
+      .where('revoked_at', 'is', null)
+      .where('expires_at', '>', new Date())
+      .returning('id')
+      .executeTakeFirst();
+    return Boolean(res);
+  }
+
+  /**
+   * Departure (0C §11.5): revokes every session of the departed account in the removal
+   * transaction, so the next request is unauthenticated. Recorded as a workspace security event.
+   */
+  async revokeSessionsForDeparture(
+    tx: WorkspaceTransaction,
+    accountId: string,
+    actorMembershipId: string,
+    meta: RequestMeta,
+  ): Promise<number> {
+    const n = await this.#revoke(tx, accountId, 'administrative');
+    await this.#event(tx, meta, {
+      category: 'session',
+      action: 'session.revoked_on_departure',
+      outcome: 'success',
+      actor: { type: 'human', id: actorMembershipId },
+      subject: { type: 'account', id: accountId },
+    });
+    return n;
   }
 
   /** Own-account security activity (1F): only this account's account-level events. */

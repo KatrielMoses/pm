@@ -559,6 +559,22 @@
       "owner_module": "access",
       "platform_only": false,
       "note": ""
+    },
+    {
+      "prefix": "inv",
+      "resource": "invitation",
+      "entity": "tenancy.invitation",
+      "owner_module": "tenancy",
+      "platform_only": false,
+      "note": ""
+    },
+    {
+      "prefix": "otr",
+      "resource": "ownership_transfer",
+      "entity": "tenancy.ownership_transfer",
+      "owner_module": "tenancy",
+      "platform_only": false,
+      "note": ""
     }
   ],
   "error_codes": [
@@ -2060,6 +2076,118 @@
       "requirements": [],
       "allow_list_version": null,
       "delivery_authorization": null
+    },
+    {
+      "type": "tenancy.membership.activated",
+      "schema_version": 1,
+      "aggregate_entity": "tenancy.membership",
+      "fields": [
+        "kind",
+        "reason"
+      ],
+      "max_class": "C1",
+      "consumers": {
+        "activity": true,
+        "notification": true,
+        "metrics": false,
+        "automation_trigger": false,
+        "search_index": false
+      },
+      "public_webhook": null,
+      "requirements": [
+        "COL-001",
+        "COL-002"
+      ],
+      "allow_list_version": null,
+      "delivery_authorization": null
+    },
+    {
+      "type": "tenancy.membership.suspended",
+      "schema_version": 1,
+      "aggregate_entity": "tenancy.membership",
+      "fields": [
+        "reason"
+      ],
+      "max_class": "C1",
+      "consumers": {
+        "activity": true,
+        "notification": false,
+        "metrics": false,
+        "automation_trigger": false,
+        "search_index": false
+      },
+      "public_webhook": null,
+      "requirements": [
+        "PERM-013"
+      ],
+      "allow_list_version": null,
+      "delivery_authorization": null
+    },
+    {
+      "type": "access.role.revoked",
+      "schema_version": 1,
+      "aggregate_entity": "access.role_assignment",
+      "fields": [
+        "scope_type"
+      ],
+      "max_class": "C1",
+      "consumers": {
+        "activity": true,
+        "notification": true,
+        "metrics": false,
+        "automation_trigger": false,
+        "search_index": false
+      },
+      "public_webhook": null,
+      "requirements": [
+        "PERM-013"
+      ],
+      "allow_list_version": null,
+      "delivery_authorization": null
+    },
+    {
+      "type": "tenancy.team.membership_changed",
+      "schema_version": 1,
+      "aggregate_entity": "tenancy.team_member",
+      "fields": [
+        "change"
+      ],
+      "max_class": "C1",
+      "consumers": {
+        "activity": true,
+        "notification": false,
+        "metrics": false,
+        "automation_trigger": false,
+        "search_index": false
+      },
+      "public_webhook": null,
+      "requirements": [
+        "COL-003"
+      ],
+      "allow_list_version": null,
+      "delivery_authorization": null
+    },
+    {
+      "type": "tenancy.ownership.transferred",
+      "schema_version": 1,
+      "aggregate_entity": "tenancy.ownership_transfer",
+      "fields": [
+        "demoted_previous"
+      ],
+      "max_class": "C1",
+      "consumers": {
+        "activity": true,
+        "notification": true,
+        "metrics": false,
+        "automation_trigger": false,
+        "search_index": false
+      },
+      "public_webhook": null,
+      "requirements": [
+        "ADM-013"
+      ],
+      "allow_list_version": null,
+      "delivery_authorization": null
     }
   ],
   "scopes": [
@@ -2751,6 +2879,48 @@
         "module"
       ],
       "area": "tenancy"
+    },
+    {
+      "name": "tenancy.invitation_outcomes",
+      "type": "counter",
+      "labels": [
+        "stage",
+        "outcome"
+      ],
+      "area": "tenancy"
+    },
+    {
+      "name": "tenancy.revocations",
+      "type": "counter",
+      "labels": [
+        "kind",
+        "outcome"
+      ],
+      "area": "tenancy"
+    },
+    {
+      "name": "tenancy.epoch_stale",
+      "type": "counter",
+      "labels": [
+        "consumer"
+      ],
+      "area": "tenancy"
+    },
+    {
+      "name": "tenancy.ownership_hook_failures",
+      "type": "counter",
+      "labels": [
+        "hook"
+      ],
+      "area": "tenancy"
+    },
+    {
+      "name": "tenancy.context_strategy",
+      "type": "counter",
+      "labels": [
+        "strategy"
+      ],
+      "area": "tenancy"
     }
   ],
   "forbidden_metric_labels": [
@@ -2944,6 +3114,21 @@
       "name": "UNDO_RETENTION",
       "meaning": "How long an operation remains undoable server-side.",
       "owner": "2D"
+    },
+    {
+      "name": "PRINCIPAL_CONTEXT_ARRAY_MAX",
+      "meaning": "Largest visibility-context array bound as a query parameter before the compiler switches to a transaction-scoped temporary table (0C §4.5).",
+      "owner": "1D/11D"
+    },
+    {
+      "name": "INVITATION_LIFETIME",
+      "meaning": "How long an invitation token stays acceptable before the invitation expires.",
+      "owner": "1D"
+    },
+    {
+      "name": "OWNERSHIP_TRANSFER_LIFETIME",
+      "meaning": "How long a pending ownership transfer waits for the recipient before it expires.",
+      "owner": "1D"
     }
   ],
   "sse_topics": [

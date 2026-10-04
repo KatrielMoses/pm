@@ -55,7 +55,7 @@ async function main(): Promise<void> {
   const tenancy = createTenancyService({
     tenant: new TenantDatabase(pool, dbDeps),
     platform: platformDb,
-    stepUp: identity.service,
+    identity: identity.service,
     config,
     logger,
     metrics: telemetry.metrics,

@@ -167,3 +167,19 @@ All decisions are **proposed (Phase 0C)**, pending solutions-architect acceptanc
 - **Decision:** `workspace.create` (R2, the same class as `brand.create`) is a personal-kind action registered in `account_commands`. A verified human account performs it before any tenant context exists. Every workspace role cell is `deny`: no membership exists yet, so no role can confer it, and holding a role in another workspace never does. Only the `account` principal may exercise it. Tokens, service principals, OAuth clients, integrations, automations, AI, agents, support, and system jobs cannot, and no 0D scope may list it. The mandatory gates are a verified email, an active (not deleted) account, a per-account rate limit, and an Idempotency-Key. It creates authority only by atomically creating the canonical workspace, the active owner membership, and the bootstrap owner assignment (WSB-001). Threat T-36 and tests AT-087…094 cover it.
 - **Alternatives:** An unregistered runtime command (authorization outside the catalog). An `own` cell per role (would read as a tenant capability). A workspace-scoped action (no workspace exists to scope it).
 - **Consequences:** The 0C action count becomes 102 and the personal kind 8. The validator requires every all-deny personal action to be a registered account command with human-only principals and all four gates. The integration validator checks that runtime authorization uses only catalog actions and that `workspace.create` never reaches tenant or delegated evaluation.
+
+<a id="az-19"></a>
+### AZ-19: Invitation acceptance, ownership acceptance, leaving, and workspace policy fields (Phase 1D amendment)
+- **Decision:**
+  - `invitation.accept` (R2) is an account command like `workspace.create`: every role cell is `deny`, and only the human account principal may perform it. Its gates add a verified email equal to the invitation's normalized email and a single-use, unexpired token. It creates exactly the role assignment (internal) or record grants (guest) the invitation proposed.
+  - `ownership.accept` (R4, step-up) is the recipient side of `ownership.transfer`: `own` for internal roles (only a transfer addressed to the caller's membership), `deny` for guests.
+  - `membership.leave` (R2) is `own` for every role and is refused for the last active owner or while registered owned resources cannot be reassigned or suspended.
+  - None of the three is delegable, and no 0D scope may list them.
+  - `workspace_policy` in `policy.json` gives each 0B `access.workspace_policy` column a type, a safe default, and its governing action (`sharing.policy.configure`, `workspace.configure`, or the owner-only `billing.manage` for `admins_manage_billing`).
+- **Alternatives:**
+  - Treating acceptance as a side effect of sign-in (authority without an authorization decision).
+  - One generic `workspace.configure` for every policy key (an administrator could enable `admins_manage_billing` for themselves).
+- **Consequences:**
+  - The 0C action count becomes 105 (admin 51, personal 10).
+  - The validator checks that the policy fields equal the 0B columns, that `public_links_enabled` defaults to false, and that no role can configure a field that gates its own matrix cells.
+  - Threats T-37 and T-38, with tests AT-095…107, cover invitation abuse, ownership, and departure.

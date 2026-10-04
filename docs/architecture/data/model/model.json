@@ -1745,14 +1745,19 @@
         "kind membership_kind (member|guest)",
         "state (invited|active|suspended|removed)",
         "display_name_override",
-        "removed_at"
+        "invited_at",
+        "joined_at",
+        "suspended_at",
+        "removed_at",
+        "departure_reason membership_departure (removed|left|account_deleted) null",
+        "state_changed_by_membership_id null"
       ],
       "requirements": [
         "COL-001",
         "COL-002",
         "PERM-014"
       ],
-      "notes": ""
+      "notes": "Phase 1D: state transitions invited→active, active→suspended→active, active|suspended→removed (terminal). A removed membership keeps its row for audit and ownership history; it never regains authority (a new invitation reactivates it as a fresh active state only through invitation.accept). Guests never hold role assignments."
     },
     {
       "name": "team",
@@ -1775,11 +1780,15 @@
       "personal_data": "incidental",
       "uniqueness": [],
       "sensitive_fields": [],
-      "key_columns": [],
+      "key_columns": [
+        "name text",
+        "description text null",
+        "created_by_membership_id"
+      ],
       "requirements": [
         "COL-003"
       ],
-      "notes": ""
+      "notes": "Addressable core.record extension (brand_id NULL, workspace scope). Teams may span brands but are never a scope; they are grantees of role assignments and record grants. Phase 1D."
     },
     {
       "name": "team_member",
@@ -1808,11 +1817,16 @@
         "(team_id, membership_id)"
       ],
       "sensitive_fields": [],
-      "key_columns": [],
+      "key_columns": [
+        "team_id",
+        "membership_id",
+        "added_by_membership_id",
+        "created_at"
+      ],
       "requirements": [
         "COL-003"
       ],
-      "notes": ""
+      "notes": "Internal memberships only (guests may not join teams that hold scope grants). Removed with team membership changes and on departure; a removal bumps the member's principal epoch."
     },
     {
       "name": "invitation",
@@ -1820,7 +1834,7 @@
       "purpose": "Pending invitation by email with intended role and scope.",
       "scope": "workspace",
       "addressable": false,
-      "public_id_prefix": null,
+      "public_id_prefix": "inv",
       "extends": null,
       "containment_parents": [
         "workspace"
@@ -1835,14 +1849,31 @@
       "search_ai": "no",
       "may_contain_secrets": "no",
       "personal_data": "yes",
-      "uniqueness": [],
+      "uniqueness": [
+        "(workspace_id, email_key) where state = pending"
+      ],
       "sensitive_fields": [],
-      "key_columns": [],
+      "key_columns": [
+        "email_key text (normalized invited email)",
+        "kind membership_kind (member|guest)",
+        "role_key text (built-in workspace role for members; null for guests)",
+        "scope_proposal jsonb (brand access levels for members; fixed record shares for guests)",
+        "invited_by_membership_id",
+        "state invitation_state (pending|accepted|revoked|expired)",
+        "expires_at",
+        "send_count int",
+        "last_sent_at",
+        "token_id uuid (identity.verification_token; the raw token is never stored)",
+        "accepted_account_id null",
+        "accepted_membership_id null",
+        "revoked_by_membership_id null",
+        "decided_at null"
+      ],
       "requirements": [
         "COL-001",
         "COL-002"
       ],
-      "notes": ""
+      "notes": "Phase 1D. One pending invitation per (workspace, email_key). Resend issues a new single-use token that supersedes the previous one (identity token lineage); the invitation row keeps its ID. Acceptance requires the authenticated verified account's normalized email to equal email_key (0C AZ-19)."
     },
     {
       "name": "ownership_transfer",
@@ -1850,7 +1881,7 @@
       "purpose": "Workspace ownership transfer request and acceptance.",
       "scope": "workspace",
       "addressable": false,
-      "public_id_prefix": null,
+      "public_id_prefix": "otr",
       "extends": null,
       "containment_parents": [],
       "associations": [],
@@ -1863,13 +1894,25 @@
       "search_ai": "no",
       "may_contain_secrets": "no",
       "personal_data": "incidental",
-      "uniqueness": [],
+      "uniqueness": [
+        "(workspace_id) where state = pending"
+      ],
       "sensitive_fields": [],
-      "key_columns": [],
+      "key_columns": [
+        "from_membership_id",
+        "to_membership_id",
+        "state ownership_transfer_state (pending|accepted|cancelled|expired)",
+        "demote_previous boolean",
+        "expires_at",
+        "requested_step_up_id",
+        "accepted_step_up_id null",
+        "decided_at null",
+        "decided_by_membership_id null"
+      ],
       "requirements": [
         "ADM-013"
       ],
-      "notes": ""
+      "notes": "Phase 1D. At most one pending transfer per workspace. Acceptance by the recipient (ownership.accept, step-up) atomically adds the owner role and optionally demotes the previous owner to administrator; last-owner protection holds throughout. Immutable after a terminal state."
     },
     {
       "name": "brand_setting",

@@ -210,11 +210,11 @@ function pgError(err: unknown): { code?: string; constraint?: string } {
  * bumps commit together.
  */
 export class TenancyService {
-  readonly #d: TenancyDeps;
+  protected readonly d: TenancyDeps;
   readonly #cursorKey: Buffer;
 
   constructor(deps: TenancyDeps) {
-    this.#d = deps;
+    this.d = deps;
     this.#cursorKey = createHmac('sha256', deps.signingKey)
       .update('cursor:tenancy-brands')
       .digest();
@@ -224,30 +224,30 @@ export class TenancyService {
   // Plumbing
   // ---------------------------------------------------------------------------------------------
 
-  #count(command: string, outcome: string): void {
-    this.#d.metrics.count('tenancy.commands', 1, { command, outcome });
+  protected count(command: string, outcome: string): void {
+    this.d.metrics.count('tenancy.commands', 1, { command, outcome });
   }
 
-  #decision(action: ActionKey, outcome: { allowed: boolean; code?: string }): void {
-    this.#d.metrics.count('tenancy.authz_decisions', 1, {
+  protected decision(action: ActionKey, outcome: { allowed: boolean; code?: string }): void {
+    this.d.metrics.count('tenancy.authz_decisions', 1, {
       action_key: action,
       outcome: outcome.allowed ? 'allow' : (outcome.code ?? 'deny'),
     });
   }
 
-  #requireWorkspace(p: Principal, action: ActionKey): void {
+  protected requireWorkspace(p: Principal, action: ActionKey): void {
     const o = decideWorkspace(p, action);
-    this.#decision(action, o);
+    this.decision(action, o);
     if (!o.allowed) throw new TenancyError(o.code);
   }
 
-  #requireBrand(p: Principal, action: ActionKey, row: BrandRow): void {
+  protected requireBrand(p: Principal, action: ActionKey, row: BrandRow): void {
     const o = decideBrand(p, action, facts(row));
-    this.#decision(action, o);
+    this.decision(action, o);
     if (!o.allowed) throw new TenancyError(o.code);
   }
 
-  #exec(caller: Caller, p: Principal): ExecutionContext {
+  protected exec(caller: Caller, p: Principal): ExecutionContext {
     const m = caller.meta;
     const principal = { type: 'member' as const, id: p.membershipId };
     return {
@@ -264,19 +264,19 @@ export class TenancyService {
     };
   }
 
-  #cmd(caller: Caller, p: Principal, brandId: string | null = null): CommandContext {
+  protected cmd(caller: Caller, p: Principal, brandId: string | null = null): CommandContext {
     const source: CommandSource = { kind: 'ui' };
-    return CommandContext.fromExecution(this.#exec(caller, p), source, { brandId });
+    return CommandContext.fromExecution(this.exec(caller, p), source, { brandId });
   }
 
-  async #security(
+  protected async security(
     tx: WorkspaceTransaction,
     caller: Caller,
     p: Principal,
     action: string,
     subject: { type: string; id: string },
   ): Promise<void> {
-    await this.#d.security.record(tx, {
+    await this.d.security.record(tx, {
       category: 'permission',
       action,
       outcome: 'success',
@@ -287,7 +287,7 @@ export class TenancyService {
   }
 
   /** Path workspace → membership (platform directory), then one workspace transaction. */
-  async #inWorkspace<T>(
+  protected async inWorkspace<T>(
     caller: Caller,
     workspacePublicId: unknown,
     options: { readOnly?: boolean },
@@ -296,27 +296,27 @@ export class TenancyService {
     const accountId = caller.auth.account.id;
     let resolved: { workspaceId: string; membershipId: string };
     try {
-      resolved = await this.#d.platform.withPlatform({ module: 'tenancy', readOnly: true }, (tx) =>
+      resolved = await this.d.platform.withPlatform({ module: 'tenancy', readOnly: true }, (tx) =>
         resolveMembership(tx, accountId, workspacePublicId),
       );
     } catch (err) {
       if (err instanceof TenancyError)
-        this.#d.metrics.count('tenancy.context_failures', 1, { reason: 'no_membership' });
+        this.d.metrics.count('tenancy.context_failures', 1, { reason: 'no_membership' });
       throw err;
     }
     try {
-      return await this.#d.tenant.withWorkspace(
+      return await this.d.tenant.withWorkspace(
         resolved.workspaceId,
         { module: 'tenancy', ...(options.readOnly ? { readOnly: true } : {}) },
         async (tx) => fn(tx, await loadPrincipal(tx, accountId, resolved.membershipId)),
       );
     } catch (err) {
       if (err instanceof TenantContextError) {
-        this.#d.metrics.count('tenancy.context_failures', 1, { reason: err.reason });
+        this.d.metrics.count('tenancy.context_failures', 1, { reason: err.reason });
         throw new TenancyError('not_found');
       }
       if (pgError(err).code === '42501')
-        this.#d.metrics.count('tenancy.rls_denials', 1, { module: 'tenancy' });
+        this.d.metrics.count('tenancy.rls_denials', 1, { module: 'tenancy' });
       throw err;
     }
   }
@@ -326,7 +326,7 @@ export class TenancyService {
    * change + audit → completion, all in one workspace transaction. A replay re-renders the stored
    * reference through the caller's current authorization (0D §8, PC-02).
    */
-  async #mutate<T extends { id: string; type: string }>(
+  protected async mutate<T extends { id: string; type: string }>(
     caller: Caller,
     command: string,
     workspacePublicId: unknown,
@@ -343,7 +343,7 @@ export class TenancyService {
   ): Promise<Result<T>> {
     requireKey(req.idempotencyKey);
     try {
-      const out = await this.#inWorkspace(caller, workspacePublicId, {}, async (tx, p) => {
+      const out = await this.inWorkspace(caller, workspacePublicId, {}, async (tx, p) => {
         if (p.workspaceState !== 'active') throw new TenancyError('workspace_read_only');
         const principal = { type: 'member' as const, id: p.membershipId };
         const reserved = await reserveIdempotencyKey(tx, {
@@ -371,12 +371,12 @@ export class TenancyService {
         });
         return { status: done.status, data: done.data, replayed: false };
       });
-      this.#count(command, out.replayed ? 'replayed' : 'ok');
+      this.count(command, out.replayed ? 'replayed' : 'ok');
       return out;
     } catch (err) {
       if (err instanceof StepUpNeeded) {
-        this.#count(command, 'step_up_required');
-        const challenge: StepUpChallengeView = await this.#d.stepUp.createStepUpChallenge(
+        this.count(command, 'step_up_required');
+        const challenge: StepUpChallengeView = await this.d.stepUp.createStepUpChallenge(
           caller.auth,
           {
             actionKey: err.actionKey,
@@ -391,33 +391,33 @@ export class TenancyService {
           stepUp: challenge as unknown as Record<string, unknown>,
         });
       }
-      throw this.#mapFailure(command, err);
+      throw this.mapFailure(command, err);
     }
   }
 
-  #mapFailure(command: string, err: unknown): unknown {
+  protected mapFailure(command: string, err: unknown): unknown {
     const pg = pgError(err);
     if (pg.code === '23505' && pg.constraint === 'brand_name_unique') {
-      this.#count(command, 'validation_failed');
+      this.count(command, 'validation_failed');
       return invalid(issue('/name', 'name_taken', 'That name is not available. Choose another.'));
     }
     if (err instanceof LifecycleError) {
-      this.#count(command, `lifecycle_${err.reason}`);
+      this.count(command, `lifecycle_${err.reason}`);
       return err.reason === 'not_found'
         ? new TenancyError('not_found')
         : new TenancyError('conflict');
     }
     if (err instanceof PolicyDecisionError) {
-      this.#count(command, 'policy_rejected');
+      this.count(command, 'policy_rejected');
       return new TenancyError('forbidden');
     }
-    if (err instanceof TenancyError) this.#count(command, err.code);
-    else this.#count(command, 'error');
+    if (err instanceof TenancyError) this.count(command, err.code);
+    else this.count(command, 'error');
     return err;
   }
 
   /** Inside a transaction: a verified, bound, single-use step-up or a challenge round trip. */
-  async #stepUp(
+  protected async stepUp(
     tx: WorkspaceTransaction,
     caller: Caller,
     p: Principal,
@@ -425,7 +425,7 @@ export class TenancyService {
     actionKey: ActionKey,
     target: { type: string; id: string },
   ): Promise<string> {
-    const id = await this.#d.stepUp.consumeWorkspaceStepUp(
+    const id = await this.d.stepUp.consumeWorkspaceStepUp(
       tx,
       caller.auth,
       { actionKey, target, membershipId: p.membershipId },
@@ -441,8 +441,11 @@ export class TenancyService {
    * (still present, email still verified), then the per-account rate limit applies. Replays of an
    * already-completed key return before this, so retries never consume quota.
    */
-  async #accountCommandGates(auth: AuthContext, policy: 'workspace.create'): Promise<void> {
-    const account = await this.#d.platform.withPlatform(
+  protected async accountCommandGates(
+    auth: AuthContext,
+    policy: 'workspace.create' | 'invitation.accept',
+  ): Promise<void> {
+    const account = await this.d.platform.withPlatform(
       { module: 'tenancy', readOnly: true },
       (tx) =>
         tx.db
@@ -456,9 +459,9 @@ export class TenancyService {
       throw new TenancyError('forbidden', {
         issues: [issue('/', 'email_unverified', 'Verify your email address to continue.')],
       });
-    const decision = await this.#d.limiter.consume(policy, auth.account.id);
+    const decision = await this.d.limiter.consume(policy, auth.account.id);
     if (!decision.allowed) {
-      this.#count(policy, 'rate_limited');
+      this.count(policy, 'rate_limited');
       throw new TenancyError('rate_limited', { retryAfterSeconds: decision.retryAfterSeconds });
     }
   }
@@ -470,7 +473,7 @@ export class TenancyService {
   async listWorkspaces(
     caller: Caller,
   ): Promise<Array<{ id: string; type: 'workspace'; name: string; selected: boolean }>> {
-    const { entries, selected } = await this.#d.platform.withPlatform(
+    const { entries, selected } = await this.d.platform.withPlatform(
       { module: 'tenancy', readOnly: true },
       async (tx) => ({
         entries: await accountWorkspaces(tx, caller.auth.account.id),
@@ -485,7 +488,7 @@ export class TenancyService {
     }));
   }
 
-  async #workspaceView(tx: WorkspaceTransaction, p: Principal): Promise<WorkspaceView> {
+  protected async workspaceView(tx: WorkspaceTransaction, p: Principal): Promise<WorkspaceView> {
     const w = await tx.db
       .selectFrom('tenancy.workspace')
       .select([
@@ -521,9 +524,9 @@ export class TenancyService {
   }
 
   async getWorkspace(caller: Caller, workspacePublicId: unknown): Promise<WorkspaceView> {
-    return this.#inWorkspace(caller, workspacePublicId, { readOnly: true }, async (tx, p) => {
-      this.#requireWorkspace(p, 'workspace.view_settings');
-      return this.#workspaceView(tx, p);
+    return this.inWorkspace(caller, workspacePublicId, { readOnly: true }, async (tx, p) => {
+      this.requireWorkspace(p, 'workspace.view_settings');
+      return this.workspaceView(tx, p);
     });
   }
 
@@ -543,18 +546,18 @@ export class TenancyService {
     try {
       // 0C AZ-18: an account command, never a tenant decision (no membership exists yet).
       auth = authorizeAccountCommand('workspace.create', caller.auth);
-      this.#decision('workspace.create', { allowed: true });
+      this.decision('workspace.create', { allowed: true });
     } catch (err) {
       if (err instanceof TenancyError) {
-        this.#decision('workspace.create', { allowed: false, code: err.code });
-        this.#count('workspace.create', err.code);
+        this.decision('workspace.create', { allowed: false, code: err.code });
+        this.count('workspace.create', err.code);
       }
       throw err;
     }
     const input = parseWorkspaceCreate(body);
     const keyHash = sha256(`${auth.account.id}:${req.idempotencyKey}`);
     const replay = async () => {
-      const existing = await this.#d.platform.withPlatform(
+      const existing = await this.d.platform.withPlatform(
         { module: 'tenancy', readOnly: true },
         async (tx) =>
           (
@@ -574,13 +577,13 @@ export class TenancyService {
     try {
       const prior = await replay();
       if (prior) {
-        this.#count('workspace.create', 'replayed');
+        this.count('workspace.create', 'replayed');
         return prior;
       }
-      await this.#accountCommandGates(auth, 'workspace.create');
+      await this.accountCommandGates(auth, 'workspace.create');
       const workspaceId = newUuidV7();
       const membershipId = newUuidV7();
-      const out = await this.#d.tenant.withWorkspace(
+      const out = await this.d.tenant.withWorkspace(
         workspaceId,
         { module: 'tenancy', creatingWorkspace: true },
         async (tx) => {
@@ -643,8 +646,8 @@ export class TenancyService {
             ])
             .execute();
           const p = await loadPrincipal(tx, auth.account.id, membershipId);
-          const cmd = this.#cmd(caller, p);
-          await this.#d.writer.write(tx, cmd, {
+          const cmd = this.cmd(caller, p);
+          await this.d.writer.write(tx, cmd, {
             action: 'workspace.created',
             target: { recordId: workspaceId, type: 'workspace', publicId },
             changes: [
@@ -655,12 +658,12 @@ export class TenancyService {
               change.plain('week_start', null, input.week_start),
             ],
           });
-          await this.#d.writer.write(tx, cmd, {
+          await this.d.writer.write(tx, cmd, {
             action: 'membership.created',
             target: { recordId: membershipId, type: 'membership', publicId: membershipPublicId },
             changes: [change.plain('kind', null, 'member'), change.plain('state', null, 'active')],
           });
-          await this.#d.writer.write(tx, cmd, {
+          await this.d.writer.write(tx, cmd, {
             action: 'role_assignment.created',
             target: { recordId: assignmentId, type: 'role_assignment', publicId: null },
             changes: [
@@ -669,7 +672,7 @@ export class TenancyService {
               change.plain('grant_source', null, 'bootstrap_owner'),
             ],
           });
-          await this.#security(tx, caller, p, 'role_assignment.created', {
+          await this.security(tx, caller, p, 'role_assignment.created', {
             type: 'membership',
             id: membershipId,
           });
@@ -678,10 +681,10 @@ export class TenancyService {
             const created = await this.#createBrandIn(tx, caller, p, input.first_brand);
             firstBrand = brandView(created.principal, created.row);
           }
-          return { workspace: await this.#workspaceView(tx, p), first_brand: firstBrand };
+          return { workspace: await this.workspaceView(tx, p), first_brand: firstBrand };
         },
       );
-      this.#count('workspace.create', 'ok');
+      this.count('workspace.create', 'ok');
       return { status: 201, data: out, replayed: false };
     } catch (err) {
       // A concurrent duplicate with the same key lost the unique race: return the winner.
@@ -691,11 +694,11 @@ export class TenancyService {
       ) {
         const prior = await replay();
         if (prior) {
-          this.#count('workspace.create', 'replayed');
+          this.count('workspace.create', 'replayed');
           return prior;
         }
       }
-      throw this.#mapFailure('workspace.create', err);
+      throw this.mapFailure('workspace.create', err);
     }
   }
 
@@ -707,13 +710,13 @@ export class TenancyService {
     req: Mutation,
   ): Promise<Result<WorkspaceView>> {
     const merge = parseMerge(body, WORKSPACE_PATCH_FIELDS);
-    return this.#mutate(
+    return this.mutate(
       caller,
       'workspace.update',
       workspacePublicId,
       req,
       async (tx, p) => {
-        this.#requireWorkspace(p, 'workspace.configure');
+        this.requireWorkspace(p, 'workspace.configure');
         const w = await tx.db
           .selectFrom('tenancy.workspace')
           .select([
@@ -767,16 +770,16 @@ export class TenancyService {
             })
             .where('id', '=', tx.workspaceId)
             .execute();
-          await this.#d.writer.write(tx, this.#cmd(caller, p), {
+          await this.d.writer.write(tx, this.cmd(caller, p), {
             action: 'workspace.updated',
             target: { recordId: tx.workspaceId, type: 'workspace', publicId: w.public_id },
             changes,
           });
         }
-        const data = await this.#workspaceView(tx, p);
+        const data = await this.workspaceView(tx, p);
         return { status: 200, ref: { id: data.id, type: 'workspace' }, data };
       },
-      (tx, p) => this.#workspaceView(tx, p),
+      (tx, p) => this.workspaceView(tx, p),
     );
   }
 
@@ -808,7 +811,7 @@ export class TenancyService {
     const limitRaw = query.limit === undefined ? 50 : Number(query.limit);
     if (!Number.isInteger(limitRaw) || limitRaw < 1 || limitRaw > 200)
       throw invalid(issue('/query/limit', 'invalid_limit', 'Use a page size from 1 to 200.'));
-    return this.#inWorkspace(caller, workspacePublicId, { readOnly: true }, async (tx, p) => {
+    return this.inWorkspace(caller, workspacePublicId, { readOnly: true }, async (tx, p) => {
       const fingerprint = `${states}`;
       const after =
         typeof query.cursor === 'string'
@@ -847,7 +850,7 @@ export class TenancyService {
     workspacePublicId: unknown,
     brandPublicId: unknown,
   ): Promise<BrandView> {
-    return this.#inWorkspace(caller, workspacePublicId, { readOnly: true }, async (tx, p) =>
+    return this.inWorkspace(caller, workspacePublicId, { readOnly: true }, async (tx, p) =>
       brandView(p, await findBrand(tx, p, brandPublicId)),
     );
   }
@@ -858,13 +861,13 @@ export class TenancyService {
     body: unknown,
     req: Mutation,
   ): Promise<Result<BrandView>> {
-    return this.#mutate(
+    return this.mutate(
       caller,
       'brand.create',
       workspacePublicId,
       req,
       async (tx, p) => {
-        this.#requireWorkspace(p, 'brand.create');
+        this.requireWorkspace(p, 'brand.create');
         const ws = await tx.db
           .selectFrom('tenancy.workspace')
           .select('timezone')
@@ -898,8 +901,8 @@ export class TenancyService {
       .executeTakeFirst();
     if (taken)
       throw invalid(issue('/name', 'name_taken', 'That name is not available. Choose another.'));
-    const cmd = this.#cmd(caller, p);
-    const envelope = await createRecord(tx, this.#d.writer, cmd, {
+    const cmd = this.cmd(caller, p);
+    const envelope = await createRecord(tx, this.d.writer, cmd, {
       recordType: 'brand',
       ownerMembershipId: p.membershipId,
     });
@@ -933,9 +936,9 @@ export class TenancyService {
         updated_by_membership_id: p.membershipId,
       })
       .execute();
-    const brandCmd = this.#cmd(caller, p, envelope.id);
+    const brandCmd = this.cmd(caller, p, envelope.id);
     const target = { recordId: envelope.id, type: 'brand', publicId: envelope.publicId };
-    await this.#d.writer.write(tx, brandCmd, {
+    await this.d.writer.write(tx, brandCmd, {
       action: 'brand.created',
       target,
       changes: [
@@ -951,7 +954,7 @@ export class TenancyService {
           : []),
       ],
     });
-    const next = await this.#grantManage(
+    const next = await this.grantManage(
       tx,
       caller,
       p,
@@ -964,7 +967,7 @@ export class TenancyService {
   }
 
   /** Explicit brand-scope manage grant for the acting membership (idempotent per source). */
-  async #grantManage(
+  protected async grantManage(
     tx: WorkspaceTransaction,
     caller: Caller,
     p: Principal,
@@ -990,7 +993,7 @@ export class TenancyService {
       })
       .execute();
     await bumpEpoch(tx, 'principal', p.membershipId);
-    await this.#d.writer.write(tx, this.#cmd(caller, p, brandId), {
+    await this.d.writer.write(tx, this.cmd(caller, p, brandId), {
       action: 'role_assignment.created',
       target: { recordId: assignmentId, type: 'role_assignment', publicId: null },
       changes: [
@@ -1000,7 +1003,7 @@ export class TenancyService {
         change.plain('grant_source', null, source),
       ],
     });
-    await this.#security(tx, caller, p, 'role_assignment.created', {
+    await this.security(tx, caller, p, 'role_assignment.created', {
       type: 'membership',
       id: p.membershipId,
     });
@@ -1018,14 +1021,14 @@ export class TenancyService {
     req: Mutation,
   ): Promise<Result<BrandView>> {
     const merge = parseMerge(body, BRAND_PATCH_FIELDS);
-    return this.#mutate(
+    return this.mutate(
       caller,
       'brand.update',
       workspacePublicId,
       req,
       async (tx, p) => {
         const row = await findBrand(tx, p, brandPublicId, { forUpdate: true });
-        this.#requireBrand(p, 'brand.configure', row);
+        this.requireBrand(p, 'brand.configure', row);
         requireActive(row);
         const current: Record<string, unknown> = Object.fromEntries(
           BRAND_PATCH_FIELDS.map((f) => [f, row[f]]),
@@ -1083,7 +1086,7 @@ export class TenancyService {
             })
             .where('id', '=', row.id)
             .execute();
-          await this.#d.writer.write(tx, this.#cmd(caller, p, row.id), {
+          await this.d.writer.write(tx, this.cmd(caller, p, row.id), {
             action: 'brand.updated',
             target: { recordId: row.id, type: 'brand', publicId: row.public_id },
             changes,
@@ -1119,27 +1122,27 @@ export class TenancyService {
       );
     const wanted = b.is_sensitive;
     const expected = parseIfMatch(req.ifMatch);
-    return this.#mutate(
+    return this.mutate(
       caller,
       'brand.set_sensitivity',
       workspacePublicId,
       req,
       async (tx, p) => {
         const row = await findBrand(tx, p, brandPublicId, { forUpdate: true });
-        this.#requireBrand(p, 'brand.mark_sensitive', row);
+        this.requireBrand(p, 'brand.mark_sensitive', row);
         requireActive(row);
         requireVersion(expected, Number(row.version));
         if (row.is_sensitive === wanted) {
           const data = brandView(p, row);
           return { status: 200, ref: { id: data.id, type: 'brand' }, data };
         }
-        await this.#stepUp(tx, caller, p, req, 'brand.mark_sensitive', {
+        await this.stepUp(tx, caller, p, req, 'brand.mark_sensitive', {
           type: 'brand',
           id: row.public_id,
         });
         let next = p;
         if (wanted)
-          next = await this.#grantManage(
+          next = await this.grantManage(
             tx,
             caller,
             p,
@@ -1158,12 +1161,12 @@ export class TenancyService {
           .where('id', '=', row.id)
           .execute();
         await bumpEpoch(tx, 'workspace', null);
-        await this.#d.writer.write(tx, this.#cmd(caller, next, row.id), {
+        await this.d.writer.write(tx, this.cmd(caller, next, row.id), {
           action: 'brand.sensitivity_changed',
           target: { recordId: row.id, type: 'brand', publicId: row.public_id },
           changes: [change.plain('is_sensitive', row.is_sensitive, wanted)],
         });
-        await this.#security(tx, caller, next, 'brand.sensitivity_changed', {
+        await this.security(tx, caller, next, 'brand.sensitivity_changed', {
           type: 'brand',
           id: row.id,
         });
@@ -1217,14 +1220,14 @@ export class TenancyService {
     kind: 'archive' | 'restore',
   ): Promise<Result<BrandView>> {
     const expected = parseIfMatch(req.ifMatch);
-    return this.#mutate(
+    return this.mutate(
       caller,
       command,
       workspacePublicId,
       req,
       async (tx, p) => {
         const row = await findBrand(tx, p, brandPublicId, { forUpdate: true });
-        this.#requireBrand(p, 'brand.archive', row);
+        this.requireBrand(p, 'brand.archive', row);
         requireVersion(expected, Number(row.version));
         const target = kind === 'archive' ? 'archived' : 'active';
         if (row.lifecycle_state !== target) {
@@ -1234,9 +1237,9 @@ export class TenancyService {
             [row.id],
             p.membershipId,
           );
-          const input = { exec: this.#exec(caller, p), source: { kind: 'ui' as const } };
-          if (kind === 'archive') await this.#d.lifecycle.archive(tx, decision, input, row.id);
-          else await this.#d.lifecycle.unarchive(tx, decision, input, row.id);
+          const input = { exec: this.exec(caller, p), source: { kind: 'ui' as const } };
+          if (kind === 'archive') await this.d.lifecycle.archive(tx, decision, input, row.id);
+          else await this.d.lifecycle.unarchive(tx, decision, input, row.id);
           await tx.db
             .updateTable('tenancy.brand')
             .set({
@@ -1264,7 +1267,7 @@ export class TenancyService {
     workspacePublicId: unknown,
     brandPublicId: unknown,
   ): Promise<BrandSettingsView> {
-    return this.#inWorkspace(caller, workspacePublicId, { readOnly: true }, async (tx, p) => {
+    return this.inWorkspace(caller, workspacePublicId, { readOnly: true }, async (tx, p) => {
       const row = await findBrand(tx, p, brandPublicId);
       return settingsView(row, await loadSettings(tx, row.id));
     });
@@ -1291,14 +1294,14 @@ export class TenancyService {
           : parsePriorities(body, issues);
     issues.throwIfAny();
     const expected = parseIfMatch(req.ifMatch);
-    return this.#mutate(
+    return this.mutate(
       caller,
       `brand_settings.${ns}`,
       workspacePublicId,
       req,
       async (tx, p) => {
         const row = await findBrand(tx, p, brandPublicId, { forUpdate: true });
-        this.#requireBrand(p, 'brand.configure', row);
+        this.requireBrand(p, 'brand.configure', row);
         requireActive(row);
         const settings = await loadSettings(tx, row.id, true);
         requireVersion(expected, Number(settings.version));
@@ -1314,7 +1317,7 @@ export class TenancyService {
             })
             .where('brand_id', '=', row.id)
             .execute();
-          await this.#d.writer.write(tx, this.#cmd(caller, p, row.id), {
+          await this.d.writer.write(tx, this.cmd(caller, p, row.id), {
             action: 'brand_setting.updated',
             target: { recordId: row.id, type: 'brand', publicId: row.public_id },
             // Structured settings are recorded by canonical content hash (audit values are scalars).
@@ -1335,7 +1338,7 @@ export class TenancyService {
   // Context (server-derived scope; personal preference validated on every use)
   // ---------------------------------------------------------------------------------------------
 
-  async #context(
+  protected async context(
     tx: WorkspaceTransaction,
     p: Principal,
     includeArchived: boolean,
@@ -1364,7 +1367,7 @@ export class TenancyService {
       // Missing, stale, archived, revoked, or now-sensitive selection: narrow to the first
       // authorized active brand (or require selection), never broaden to all brands.
       fallback = pref ? 'stale_selection' : 'no_selection';
-      this.#d.metrics.count('tenancy.context_fallbacks', 1, { reason: fallback });
+      this.d.metrics.count('tenancy.context_fallbacks', 1, { reason: fallback });
       scope = brands[0] ? { kind: 'brand', brand_id: brands[0].public_id } : { kind: 'none' };
     }
     const view: ContextView = {
@@ -1385,8 +1388,8 @@ export class TenancyService {
     workspacePublicId: unknown,
     options: { includeArchived?: boolean } = {},
   ): Promise<ContextView> {
-    return this.#inWorkspace(caller, workspacePublicId, { readOnly: true }, (tx, p) =>
-      this.#context(tx, p, options.includeArchived === true),
+    return this.inWorkspace(caller, workspacePublicId, { readOnly: true }, (tx, p) =>
+      this.context(tx, p, options.includeArchived === true),
     );
   }
 
@@ -1406,7 +1409,7 @@ export class TenancyService {
     if (b.scope !== undefined && b.scope !== 'brand' && b.scope !== 'all')
       throw invalid(issue('/scope', 'invalid_option', 'Choose one brand or all brands.'));
     try {
-      const out = await this.#inWorkspace(caller, workspacePublicId, {}, async (tx, p) => {
+      const out = await this.inWorkspace(caller, workspacePublicId, {}, async (tx, p) => {
         let selection: { scope_kind: 'brand' | 'all'; brand_id: string | null } | null = null;
         if (b.scope === 'all') selection = { scope_kind: 'all', brand_id: null };
         else if (b.scope === 'brand') {
@@ -1440,12 +1443,12 @@ export class TenancyService {
             )
             .execute();
         }
-        return this.#context(tx, p, false);
+        return this.context(tx, p, false);
       });
-      this.#count('context.select', 'ok');
+      this.count('context.select', 'ok');
       return out;
     } catch (err) {
-      throw this.#mapFailure('context.select', err);
+      throw this.mapFailure('context.select', err);
     }
   }
 

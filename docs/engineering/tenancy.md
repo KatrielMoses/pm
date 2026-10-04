@@ -143,3 +143,78 @@ tenancy/access tenant table, directory functions definer-owned by `pm_directory`
 | `…/account-command.test.ts` | AZ-18 gates: non-human principals, deleted/unverified accounts (re-read), per-account rate limit with free replays, body claims |
 | Phase 0 validator | `workspace.create` registration, runtime authorization actions ⊆ 0C, brand vocabularies 0B = DB = runtime |
 | `apps/api/test/integration/tenancy-api.test.ts` | HTTP: onboarding, ETags, replay, non-disclosing 404s, If-Match, real bound step-up, no internal IDs |
+
+## Phase 1D collaboration
+
+Decisions and deviations: [ADR-0011](adr/0011-membership-roles-invitations.md). Modules:
+- `@pm/tenancy`: `collaboration.ts`, `visibility.ts`, `preview.ts`, `ownership.ts`, `account-commands.ts`;
+- `apps/api/src/tenancy/routes.ts`;
+- `apps/web/src/pages/people-pages.tsx`.
+
+### Data (migration 0019)
+
+| Object | Notes |
+|---|---|
+| `tenancy.membership` | `departure_reason`, `state_changed_by_membership_id`; guarded transitions (`invited→active`, `active⇄suspended`, `→removed`, `removed→active` only by re-acceptance); never deleted |
+| `tenancy.team`, `tenancy.team_member` | Teams are `core.record` envelopes (workspace scope, lifecycle via 1F; no purge hooks); internal members only |
+| `access.role_assignment` | Team principals (`team_principal_id`); teams never hold a workspace role; column-scoped UPDATE (`role_id`, `expires_at`) and DELETE for revocation |
+| Role shape (deferred trigger) | Guests: no assignments, no teams. Active/suspended members: exactly one workspace role. Removed: no authority |
+| `access.workspace_policy` | Typed 0C fields; a missing row means the safe defaults; `public_links_enabled` fixed false |
+| `tenancy.invitation` | `inv_`; one pending per email; terms immutable; decided rows immutable |
+| `access.share_group`, `access.record_grant` | `shr_` / `grt_`; one active grant per (record, grantee); 0B semi-join indexes |
+| `tenancy.ownership_transfer` | `otr_`; one pending per workspace; immutable once decided |
+| `core.record.owner_membership_id` | FK to membership (deferred from 1F) |
+| identity | Token purpose `invitation_acceptance`; mail template `workspace_invitation` |
+
+### Who may do what (1D actions)
+
+| Action | Owner | Administrator | Member | Limited / read-only | Guest |
+|---|---|---|---|---|---|
+| Invite members (`membership.invite_member`) | any role | never owner | — | — | — |
+| Invite guests (`membership.invite_guest`) | ✓ | ✓ | if `members_invite_guests` | — | — |
+| Manage people (`membership.manage`, step-up) | ✓ (incl. owners) | ✓ except owners | — | — | — |
+| Teams (`team.manage`) | ✓ | ✓ | — | — | — |
+| Brand access (`access.grant_scope`) | ✓ ≤ own level | ✓ ≤ own level (non-sensitive) | with manage on the brand | limited: with manage | — |
+| Preview (`access.preview`) | ✓ | ✓ | in brands they manage | limited: in brands they manage | — |
+| Sharing policy (`sharing.policy.configure`, step-up) | ✓ | ✓ | — | — | — |
+| Transfer ownership (step-up) | ✓ | — | — | — | — |
+| Accept ownership (own, step-up) | — | own | own | own | — |
+| Leave | own | own | own | own | own |
+
+### API (all under `/v1/workspaces/{ws}` unless noted)
+
+| Route | Purpose |
+|---|---|
+| `GET /people[?state&kind&q]`, `GET /people/{mem}` | Directory (internal members only; emails only for people managers and inviters) |
+| `GET /people/{mem}/access`, `GET /people/{mem}/departure-plan` | Effective-access explanation; ownership plan |
+| `POST /access:preview` `{change}` → `{diff, preview_token}`; `POST /access:apply` `{change, preview_token}` | Reviewed changes: `role`, `suspend`, `remove`, `brand_grant`, `brand_revoke`, `team_add`, `team_remove` (step-up for membership changes) |
+| `POST /people/{mem}:remove` `{preview_token, reassign_to}`, `POST /people/{mem}:reactivate`, `POST /{ws}:leave` | Departure and reactivation |
+| `GET/POST /invitations`, `POST /invitations/{inv}:resend\|:revoke` | Invitations |
+| `POST /v1/invitations:inspect` `{token}`, `POST /v1/invitations:accept` `{token}` | Recipient (no workspace in the path; the account is the session) |
+| `GET/POST /teams`, `GET/PATCH /teams/{team}`, `POST /teams/{team}:archive\|:restore` | Teams |
+| `GET /brands/{br}/access` | Grants on a brand (people and teams) |
+| `POST /shares`, `POST /shares/{shr}:revoke`, `GET /shared` | Record-share primitives; the caller's readable records |
+| `GET/PATCH /policy` | Workspace policy (governing actions per field; `confirm_exposure`) |
+| `GET/POST /ownership-transfer`, `POST /ownership-transfer/{otr}:accept\|:cancel` | Ownership transfer |
+
+### Revocation propagation
+
+| Event | Next check | In flight |
+|---|---|---|
+| Removal / leave | Principal resolution fails (`not_found`); every account session is revoked, so the next request is unauthenticated | Queued and leased jobs acting as the member are cancelled; `principalFreshness` returns `revoked` for deferred consumers |
+| Suspension | Principal resolution fails | Jobs cancelled; sessions kept (the account may belong to other workspaces) |
+| Role, grant, or team change | Compiled per request from canonical rows (no cross-request cache) | Epochs bumped; `principalFreshness` returns `changed` |
+| Share revoke or expiry | Query-time predicate | — |
+
+Contexts are rebuilt on every request, so there is no cross-request cache to go stale. Pooled connections carry only transaction-local context, as tested in the isolation suites.
+
+### Tests (1D)
+
+| Suite | Proves |
+|---|---|
+| `packages/tenancy/test/unit/policy-validation.test.ts` | grantable authority, cells, caps, guests, workspace scope, team grants, onward sharing, preview fingerprints |
+| `…/integration/collaboration.test.ts` | invitation lifecycle (single-use, email-bound, race-safe, resend/revoke), six roles, guests, preview/apply, sensitive brands with teams, removal with ownership plan, sessions, last owner, transfer, policy |
+| `…/integration/collab-isolation.test.ts` | three workspaces × six roles cross-tenant `not_found`, teams, expiry, preview = enforcement for every role, temp-table/semi-join/array equivalence, role and last-owner races, EXPLAIN per principal shape |
+| `…/integration/account-command.test.ts` | `workspace.create` gates (AT-087…094) |
+| `apps/api/test/integration/collaboration-api.test.ts` | HTTP journey with real mail and step-up, guests, transfer, no internal IDs |
+| `e2e/collaboration.spec.ts` | sender and recipient journeys, people, roles, brand access, removal, teams, policy, transfer, accessibility, forced colors, reflow (desktop + mobile) |

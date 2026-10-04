@@ -7,3 +7,8 @@ export * from './service.ts';
 export { accountWorkspaces, loadPrincipal, resolveMembership } from './principal.ts';
 export * from './factory.ts';
 export * from './account-commands.ts';
+export * from './collaboration.ts';
+export * from './ownership.ts';
+export * from './preview.ts';
+export * from './visibility.ts';
+export { compilePrincipal, principalFreshness } from './principal.ts';

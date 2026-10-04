@@ -44,6 +44,8 @@ Narrative: [../14-threat-model.md](../14-threat-model.md).
 | T-34 | cross_brand_traversal | Client supplies a brand, role, plan, actor, or approval field to bypass checks. | I-09, I-13 | AT-003, AT-077 |
 | T-35 | spoofing | Account takeover through account security: a stolen or unattended session, or a delegated credential, enrolls or disables a second factor or regenerates recovery codes. | I-01, I-09, I-14, I-17 | AT-081, AT-082, AT-083, AT-084, AT-085, AT-086 |
 | T-36 | spoofing | Tenant-creation abuse: a delegated or non-human principal, an unverified or deleted account, a flood of requests, or a replayed request creates workspaces or gains tenant authority through creation, or a body claim names an existing workspace, role, or membership. | I-01, I-02, I-09, I-11, I-14, I-17 | AT-087, AT-088, AT-089, AT-090, AT-091, AT-092, AT-093, AT-094 |
+| T-37 | spoofing | Invitation abuse: replaying, forwarding, or racing an invitation token; accepting with a different account; enumerating accounts or memberships through invite outcomes; a guest invitation conferring workspace, brand, or inherited access; an administrator inviting an owner. | I-01, I-04, I-07, I-09, I-11, I-17 | AT-095, AT-096, AT-097, AT-098, AT-099, AT-100, AT-101, AT-102 |
+| T-38 | departure | Ownership or departure failure: a workspace left without an active owner, an ownership transfer accepted by the wrong principal or without step-up, a removed or suspended member keeping access through sessions, cached contexts, teams, grants, queued jobs, or pooled connections, or owned resources left without an accountable owner. | I-01, I-11, I-12, I-17 | AT-103, AT-104, AT-105, AT-106, AT-107 |
 
 ## Test matrix
 
@@ -143,6 +145,19 @@ Narrative: [../14-threat-model.md](../14-threat-model.md).
 | AT-092 | T-36 | account | Same Idempotency-Key replayed concurrently; then reused with a different body — own account | `workspace.create` | api | **allow** | ok | — |
 | AT-093 | T-36 | account | Body names an existing workspace, role, or membership — own account | `workspace.create` | api | **deny** | validation_generic | — |
 | AT-094 | T-36 | account | Requests beyond the per-account workspace-creation limit — own account | `workspace.create` | api | **deny** | error_generic | — |
+| AT-095 | T-37 | account | Invitation token used a second time after acceptance — own account | `invitation.accept` | api | **deny** | not_found | error_message, timing |
+| AT-096 | T-37 | account | Signed-in account's verified email differs from the invited email — own account | `invitation.accept` | api | **deny** | not_found | error_message, timing |
+| AT-097 | T-37 | account | Two concurrent acceptances of the same invitation — own account | `invitation.accept` | api | **allow** | ok | — |
+| AT-098 | T-37 | agent_run | Agent run attempts to accept an invitation for its owner — run owner account | `invitation.accept` | api | **deny** | unauthenticated | — |
+| AT-099 | T-37 | administrator | Administrator invites someone as owner — workspace | `membership.invite_member` | api | **deny** | forbidden | — |
+| AT-100 | T-37 | member | Member invites a guest while members_invite_guests is off — shared record | `membership.invite_guest` | api | **deny** | forbidden | — |
+| AT-101 | T-37 | guest | Guest accepts an invitation and lists brands, people, and trash — workspace | `record.read` | api | **deny** | omitted | search, count_facet, picker, ui_list, trash, error_message |
+| AT-102 | T-37 | administrator | Invite an email that already belongs to an active member or an unknown account — workspace | `membership.invite_member` | api | **allow** | ok | — |
+| AT-103 | T-38 | owner | Last active owner removes, suspends, demotes, or leaves — workspace | `membership.manage` | api | **deny** | conflict_filtered | — |
+| AT-104 | T-38 | administrator | Ownership transfer accepted by a principal other than the recipient — workspace | `ownership.accept` | api | **deny** | not_found | error_message, timing |
+| AT-105 | T-38 | member | Recipient accepts an ownership transfer without a fresh step-up — workspace | `ownership.accept` | api | **deny** | step_up_required | — |
+| AT-106 | T-38 | member | Removed member reuses an old session, a cached context, a team grant, and a queued job — workspace | `record.read` | api | **deny** | unauthenticated | — |
+| AT-107 | T-38 | owner | Removing a member who owns registered resources that cannot be reassigned — workspace | `membership.manage` | api | **deny** | conflict_filtered | — |
 
 ## Response shapes
 

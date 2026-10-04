@@ -22,9 +22,19 @@ export function brandAdapter(registry: LifecycleRegistry): RecordTypeAdapter {
   };
 }
 
-/** Registers the brand record type (API and worker use the same registration). */
+/**
+ * Teams (1D) are workspace-scoped envelopes with no contained records. Archived teams confer no
+ * grants (the compiler counts active teams only). No purge hooks: a team purge blocks safely.
+ */
+export const teamAdapter: RecordTypeAdapter = {
+  recordType: 'team',
+  children: () => Promise.resolve([]),
+  containerOf: () => Promise.resolve(null),
+};
+
+/** Registers the brand and team record types (API and worker use the same registration). */
 export function registerTenancyLifecycle(registry: LifecycleRegistry): LifecycleRegistry {
-  return registry.register(brandAdapter(registry));
+  return registry.register(brandAdapter(registry)).register(teamAdapter);
 }
 
 /** Real brand state for lifecycle restore checks: restore into a non-active brand is blocked. */

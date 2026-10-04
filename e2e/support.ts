@@ -127,3 +127,42 @@ export async function openLink(page: Page, path: string): Promise<void> {
   await page.goto('about:blank');
   await page.goto(path);
 }
+
+// ---- Workspace helpers (1C/1D) -----------------------------------------------------------
+
+export async function owner(
+  page: Page,
+  info: Parameters<typeof uniqueEmail>[1],
+  prefix: string,
+  name = 'E2E Person',
+): Promise<string> {
+  const email = uniqueEmail(prefix, info);
+  await register(page, email, name);
+  await verify(page, email);
+  await signedIn(page, email);
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText(`Welcome, ${name}`);
+  return email;
+}
+
+export async function createWorkspace(page: Page, name: string): Promise<string> {
+  await expect(page.getByRole('heading', { name: 'Create your workspace' })).toBeVisible();
+  await page.getByLabel(/^Workspace name/).fill(name);
+  await page.getByLabel('Time zone').selectOption('Europe/Lisbon');
+  await page.getByLabel('Currency').selectOption('EUR');
+  await page.getByLabel('Week starts on').selectOption({ label: 'Monday' });
+  await page.getByRole('button', { name: 'Create workspace' }).click();
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText('Add your first brand');
+  return /\/workspaces\/(ws_[0-9A-Z]{26})\//.exec(page.url())![1]!;
+}
+
+export async function createBrand(page: Page, name: string, icon = 'Leaf'): Promise<void> {
+  await page.getByLabel(/^Brand name/).fill(name);
+  await page.getByRole('radio', { name: icon }).check();
+  await page.getByRole('button', { name: 'Create brand' }).click();
+  await expect(page.getByRole('status').filter({ hasText: `${name} was created.` })).toBeVisible();
+}
+
+export const noHorizontalOverflow = (page: Page) =>
+  page.evaluate<number>(
+    'document.documentElement.scrollWidth - document.documentElement.clientWidth',
+  );

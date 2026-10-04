@@ -525,8 +525,8 @@ def check_step_up(policy, registry):
 
 # Authorization call sites whose first quoted argument is a 0C action key.
 AUTHZ_CALL = re.compile(
-    r"(#requireWorkspace|#requireBrand|decideWorkspace|decideBrand|issueLifecycleDecision|requireDecision|"
-    r"testDecision|systemDecision|authorizeAccountCommand|#stepUp)\([^'`)]*?'([a-z_]+\.[a-z_]+)'"
+    r"((?:#|\.)requireWorkspace|(?:#|\.)requireBrand|decideWorkspace|decideBrand|decideRecord|issueLifecycleDecision|requireDecision|"
+    r"testDecision|systemDecision|authorizeAccountCommand|(?:#|\.)stepUp)\([^'`)]*?'([a-z_]+\.[a-z_]+)'"
 )
 
 

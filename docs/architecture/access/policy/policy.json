@@ -2056,6 +2056,88 @@
       "notes": ""
     },
     {
+      "key": "invitation.accept",
+      "kind": "personal",
+      "scopes": [
+        "personal"
+      ],
+      "description": "Accept a workspace invitation addressed to the authenticated account's verified email.",
+      "required_level": null,
+      "risk_class": "R2",
+      "approval_class": "none",
+      "step_up": false,
+      "second_approval": false,
+      "non_delegable": false,
+      "entitlement": null,
+      "roles": {
+        "owner": "deny",
+        "administrator": "deny",
+        "member": "deny",
+        "limited_member": "deny",
+        "read_only": "deny",
+        "guest": "deny"
+      },
+      "requirements": [
+        "COL-001",
+        "COL-002"
+      ],
+      "notes": "Account command (AZ-19): performed before any membership exists, so every workspace role cell is deny. Only the human account principal may exercise it and no 0D scope may list it. Gates: verified email equal to the invitation's normalized email, active account, single-use unexpired token, per-account rate limit, Idempotency-Key. It creates authority only by atomically activating the membership and exactly the role assignment or record grants the invitation proposed."
+    },
+    {
+      "key": "ownership.accept",
+      "kind": "admin",
+      "scopes": [
+        "workspace"
+      ],
+      "description": "Accept an ownership transfer addressed to one's own active internal membership.",
+      "required_level": null,
+      "risk_class": "R4",
+      "approval_class": "none",
+      "step_up": true,
+      "second_approval": false,
+      "non_delegable": false,
+      "entitlement": null,
+      "roles": {
+        "owner": "own",
+        "administrator": "own",
+        "member": "own",
+        "limited_member": "own",
+        "read_only": "own",
+        "guest": "deny"
+      },
+      "requirements": [
+        "ADM-013"
+      ],
+      "notes": "Recipient side of ownership.transfer (AZ-19): 'own' means only a pending transfer addressed to the caller's own membership. Human-only (step-up); never delegable to tokens, agents, automations, or integrations, and no 0D scope may list it. Guests can never become owners."
+    },
+    {
+      "key": "membership.leave",
+      "kind": "personal",
+      "scopes": [
+        "personal"
+      ],
+      "description": "Leave a workspace (end one's own membership).",
+      "required_level": null,
+      "risk_class": "R2",
+      "approval_class": "none",
+      "step_up": false,
+      "second_approval": false,
+      "non_delegable": false,
+      "entitlement": null,
+      "roles": {
+        "owner": "own",
+        "administrator": "own",
+        "member": "own",
+        "limited_member": "own",
+        "read_only": "own",
+        "guest": "own"
+      },
+      "requirements": [
+        "PERM-014"
+      ],
+      "notes": "Own membership only. Refused while the caller is the last active owner or while registered owned resources cannot be reassigned or suspended (AZ-19). Human-only; no 0D scope may list it."
+    },
+    {
       "key": "team.manage",
       "kind": "admin",
       "scopes": [
@@ -3347,6 +3429,158 @@
       "requirements": [
         "WSB-001"
       ]
+    },
+    {
+      "action": "invitation.accept",
+      "principals": [
+        "account"
+      ],
+      "gates": [
+        "email_verified",
+        "account_active",
+        "rate_limit",
+        "idempotency_key",
+        "email_match",
+        "single_use_token"
+      ],
+      "creates": [
+        "tenancy.membership",
+        "access.role_assignment",
+        "access.record_grant"
+      ],
+      "grants": "exactly the role assignment (internal) or record grants (guest) the invitation proposed",
+      "requirements": [
+        "COL-001",
+        "COL-002"
+      ]
+    }
+  ],
+  "workspace_policy": [
+    {
+      "field": "self_approval_mode",
+      "type": "enum(auto|allowed|forbidden)",
+      "default": "auto",
+      "governed_by": "sharing.policy.configure",
+      "owner_only": false
+    },
+    {
+      "field": "require_independent_for",
+      "type": "text[]",
+      "default": [],
+      "governed_by": "sharing.policy.configure",
+      "owner_only": false
+    },
+    {
+      "field": "members_invite_guests",
+      "type": "boolean",
+      "default": false,
+      "governed_by": "sharing.policy.configure",
+      "owner_only": false
+    },
+    {
+      "field": "limited_members_can_export",
+      "type": "boolean",
+      "default": false,
+      "governed_by": "sharing.policy.configure",
+      "owner_only": false
+    },
+    {
+      "field": "limited_members_tokens",
+      "type": "boolean",
+      "default": false,
+      "governed_by": "workspace.configure",
+      "owner_only": false
+    },
+    {
+      "field": "limited_members_ai",
+      "type": "boolean",
+      "default": false,
+      "governed_by": "workspace.configure",
+      "owner_only": false
+    },
+    {
+      "field": "limited_members_agents",
+      "type": "boolean",
+      "default": false,
+      "governed_by": "workspace.configure",
+      "owner_only": false
+    },
+    {
+      "field": "read_only_ai",
+      "type": "boolean",
+      "default": false,
+      "governed_by": "workspace.configure",
+      "owner_only": false
+    },
+    {
+      "field": "members_configure_agents",
+      "type": "boolean",
+      "default": false,
+      "governed_by": "workspace.configure",
+      "owner_only": false
+    },
+    {
+      "field": "admins_manage_billing",
+      "type": "boolean",
+      "default": false,
+      "governed_by": "billing.manage",
+      "owner_only": true
+    },
+    {
+      "field": "comment_on_archived",
+      "type": "boolean",
+      "default": false,
+      "governed_by": "workspace.configure",
+      "owner_only": false
+    },
+    {
+      "field": "workspace_records_default_level",
+      "type": "enum(none|view|comment|edit)",
+      "default": "view",
+      "governed_by": "workspace.configure",
+      "owner_only": false
+    },
+    {
+      "field": "cross_brand_sharing_enabled",
+      "type": "boolean",
+      "default": false,
+      "governed_by": "sharing.policy.configure",
+      "owner_only": false
+    },
+    {
+      "field": "guest_invitations_enabled",
+      "type": "boolean",
+      "default": true,
+      "governed_by": "sharing.policy.configure",
+      "owner_only": false
+    },
+    {
+      "field": "public_links_enabled",
+      "type": "boolean (fixed false; OD-27)",
+      "default": false,
+      "governed_by": "sharing.policy.configure",
+      "owner_only": false
+    },
+    {
+      "field": "share_max_expiry",
+      "type": "interval null",
+      "default": null,
+      "governed_by": "sharing.policy.configure",
+      "owner_only": false
+    },
+    {
+      "field": "token_max_lifetime",
+      "type": "interval null",
+      "default": null,
+      "governed_by": "workspace.configure",
+      "owner_only": false
+    },
+    {
+      "field": "low_impact_agent_actions",
+      "type": "text[] (agent tool classes, OD-23)",
+      "default": [],
+      "governed_by": "workspace.configure",
+      "owner_only": false
     }
   ]
 }

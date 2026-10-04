@@ -2,6 +2,15 @@ import { describe, expect, it } from 'vitest';
 import { ACCOUNT_COMMANDS, ACTIONS } from '@pm/contracts';
 import {
   authorizeAccountCommand,
+  canAssignRole,
+  canManageMember,
+  decideRecord,
+  DEFAULT_POLICY,
+  previewToken,
+  recordLevel,
+  subjectKeys,
+  verifyPreviewToken,
+  workspaceLevel,
   brandCapabilities,
   brandLevel,
   calendar,
@@ -30,8 +39,12 @@ const principal = (role: WorkspaceRole | null, grants: Record<string, Level> = {
   workspaceId: 'w',
   membershipId: 'm',
   accountId: 'a',
+  kind: role === 'guest' ? 'guest' : 'member',
   role,
   grants: new Map(Object.entries(grants)),
+  grantSources: [],
+  teams: [],
+  policy: DEFAULT_POLICY,
   epochs: { workspace: 0, principal: 0 },
 });
 const brand = (over: Partial<BrandFacts> = {}): BrandFacts => ({
@@ -120,6 +133,7 @@ describe('policy compilation (0C matrix)', () => {
       archive: false,
       restore: true,
       mark_sensitive: false,
+      grant_access: false,
     });
   });
 
@@ -361,7 +375,10 @@ describe('account commands (0C AZ-18)', () => {
   };
 
   it('workspace.create is registered, all-deny for every role, and human-account only', () => {
-    expect(ACCOUNT_COMMANDS.map((c) => c.action)).toEqual(['workspace.create']);
+    expect(ACCOUNT_COMMANDS.map((c) => c.action)).toEqual([
+      'workspace.create',
+      'invitation.accept',
+    ]);
     const row = ACTIONS.find((a) => a.key === 'workspace.create')!;
     expect(row.kind).toBe('personal');
     expect(new Set(Object.values(row.roles))).toEqual(new Set(['deny']));
@@ -388,5 +405,131 @@ describe('account commands (0C AZ-18)', () => {
       }),
     ).toThrow(expect.objectContaining({ code: 'forbidden' }));
     expect(() => decideWorkspace(principal('owner'), 'workspace.create')).toThrow();
+  });
+});
+
+describe('1D compiler: grantable authority, caps, guests, workspace scope, previews', () => {
+  const p1 = (role: WorkspaceRole, over: Partial<Principal> = {}): Principal => ({
+    ...principal(role),
+    ...over,
+  });
+
+  it('grantable authority follows 0C §3.1: owners assign any role, administrators never owner', () => {
+    expect(canAssignRole('owner', 'owner')).toBe(true);
+    expect(canAssignRole('administrator', 'owner')).toBe(false);
+    expect(canAssignRole('administrator', 'administrator')).toBe(true);
+    expect(canAssignRole('member', 'member')).toBe(false);
+    expect(canAssignRole('member', 'guest')).toBe(true);
+    expect(canManageMember(p1('administrator'), 'owner', null)).toBe(false);
+    expect(canManageMember(p1('administrator'), 'member', 'owner')).toBe(false);
+    expect(canManageMember(p1('owner'), 'administrator', 'owner')).toBe(true);
+    expect(canManageMember(p1('member'), 'guest', null)).toBe(false);
+  });
+
+  it('policy cells read the workspace policy; own cells allow only the caller own target', () => {
+    const member = p1('member');
+    expect(decideWorkspace(member, 'ownership.accept')).toEqual({ allowed: true });
+    expect(decideWorkspace(p1('guest'), 'ownership.accept')).toEqual({
+      allowed: false,
+      code: 'forbidden',
+    });
+    expect(decideWorkspace(member, 'ownership.transfer')).toEqual({
+      allowed: false,
+      code: 'forbidden',
+    });
+    expect(decideWorkspace(p1('administrator'), 'ownership.transfer')).toEqual({
+      allowed: false,
+      code: 'forbidden',
+    });
+  });
+
+  it('role caps: read-only views at most; guests see only exact shares, at most edit', () => {
+    const ro = p1('read_only', { grants: new Map([['b1', 'manage']]) });
+    expect(brandLevel(ro, brand())).toBe('view');
+    const guest = p1('guest', { kind: 'guest', grants: new Map([['b1', 'manage']]) });
+    expect(brandLevel(guest, brand())).toBeNull();
+    expect(
+      recordLevel(guest, { brand: brand(), lifecycleState: 'active', shareLevel: null }),
+    ).toBeNull();
+    expect(
+      recordLevel(guest, { brand: brand(), lifecycleState: 'active', shareLevel: 'edit' }),
+    ).toBe('edit');
+    expect(
+      recordLevel(guest, { brand: brand(), lifecycleState: 'trashed', shareLevel: 'edit' }),
+    ).toBeNull();
+    expect(
+      recordLevel(guest, { brand: null, lifecycleState: 'active', shareLevel: null }),
+    ).toBeNull();
+    // Archived: view (or comment by policy) at most.
+    expect(
+      recordLevel(p1('owner'), { brand: brand(), lifecycleState: 'archived', shareLevel: null }),
+    ).toBe('view');
+  });
+
+  it('workspace-scoped records never flow into brands; members use the default level; limited none', () => {
+    expect(workspaceLevel(p1('owner'))).toBe('manage');
+    expect(workspaceLevel(p1('member'))).toBe('view');
+    expect(
+      workspaceLevel(
+        p1('member', { policy: { ...DEFAULT_POLICY, workspace_records_default_level: 'comment' } }),
+      ),
+    ).toBe('comment');
+    expect(
+      workspaceLevel(
+        p1('read_only', { policy: { ...DEFAULT_POLICY, workspace_records_default_level: 'edit' } }),
+      ),
+    ).toBe('view');
+    expect(workspaceLevel(p1('limited_member'))).toBeNull();
+    expect(brandLevel(p1('member'), brand())).toBeNull();
+  });
+
+  it('team grants count like direct grants; brand-context subjects are never added for guests', () => {
+    const viaTeam = p1('limited_member', { teams: ['t1'], grants: new Map([['b1', 'edit']]) });
+    expect(brandLevel(viaTeam, brand())).toBe('edit');
+    expect(subjectKeys(viaTeam, ['b1'])).toEqual(['b1', 'm', 't1'].sort());
+    expect(subjectKeys(p1('guest', { kind: 'guest' }), ['b1'])).toEqual(['m']);
+  });
+
+  it('onward sharing is never derived from a share (AT-050)', () => {
+    const shared = p1('member');
+    expect(
+      decideRecord(shared, 'record.share', {
+        brand: brand(),
+        lifecycleState: 'active',
+        shareLevel: 'edit',
+      }),
+    ).toEqual({
+      allowed: false,
+      code: 'forbidden',
+    });
+    expect(
+      decideRecord(p1('owner'), 'record.share', {
+        brand: brand(),
+        lifecycleState: 'active',
+        shareLevel: null,
+      }),
+    ).toEqual({
+      allowed: true,
+    });
+  });
+
+  it('preview fingerprints bind viewer, change, epochs, and diff, and expire', () => {
+    const key = Buffer.alloc(32, 1);
+    const diff = {
+      brands: [],
+      records_gained: {},
+      records_lost: {},
+      capabilities_gained: [],
+      capabilities_lost: [],
+      affected_members: 1,
+      increases_access: false,
+    };
+    const input = { viewer: 'v', change: { kind: 'role' }, epochs: [1], diff };
+    const t = previewToken(key, input, 60_000, 1_000);
+    expect(verifyPreviewToken(key, t, input, 2_000)).toBe(true);
+    expect(verifyPreviewToken(key, t, { ...input, epochs: [2] }, 2_000)).toBe(false);
+    expect(verifyPreviewToken(key, t, { ...input, viewer: 'w' }, 2_000)).toBe(false);
+    expect(verifyPreviewToken(key, t, input, 70_000)).toBe(false);
+    expect(verifyPreviewToken(Buffer.alloc(32, 2), t, input, 2_000)).toBe(false);
   });
 });

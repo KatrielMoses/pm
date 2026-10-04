@@ -9,6 +9,7 @@ export const MAIL_TEMPLATES = [
   'sessions_revoked',
   'oauth_linked',
   'oauth_unlinked',
+  'workspace_invitation',
 ] as const;
 export type MailTemplate = (typeof MAIL_TEMPLATES)[number];
 
@@ -129,5 +130,17 @@ export function renderTemplate(template: MailTemplate, input: TemplateInput): Re
         'A sign-in method was removed from your account.',
         SECURITY_FOOTER,
       ]);
+    case 'workspace_invitation':
+      // No workspace name, inviter, or role in mail: those are shown only after the recipient
+      // signs in with the invited email address (0C AZ-19).
+      return render(
+        input,
+        `You're invited to a workspace on ${input.appName}`,
+        [
+          `Someone invited this email address to join a workspace on ${input.appName}. Sign in or create an account with this same email address to see the details and accept.`,
+          "This link works once and expires. If you weren't expecting this, you can ignore this email.",
+        ],
+        { label: 'View invitation', url: link('/invitations/accept') },
+      );
   }
 }

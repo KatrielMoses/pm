@@ -45,6 +45,14 @@ const PHASE_1C_TENANT_TABLES = [
   'tenancy.brand',
   'tenancy.brand_setting',
   'tenancy.scope_preference',
+  // Phase 1D
+  'tenancy.team',
+  'tenancy.team_member',
+  'access.workspace_policy',
+  'tenancy.invitation',
+  'access.share_group',
+  'access.record_grant',
+  'tenancy.ownership_transfer',
 ] as const;
 
 /** Seeds one row in every tenant execution table for a workspace. */
