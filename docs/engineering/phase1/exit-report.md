@@ -93,10 +93,17 @@ Each fix is narrow, has a regression test, and is described in its commit.
 
 ## Reviews
 
-- **Reliability.** No sleeps, retries, skips, or longer timeouts were added. The `goTo` "More"
-  failure seen twice in 1E CI (runs 37199290059 and 37201537775, Medium width) has not recurred
-  in later runs or in any local run. Its fail-fast diagnostics (`e2e/support.ts`) are kept, so a
-  recurrence prints the rendered navigation. **Status: unexplained, not recurring, monitored.**
+- **Reliability.** No sleeps, retries, skips, or longer timeouts were added. The intermittent
+  `goTo` failure (1E runs 37199290059 and 37201537775, and integration run 37213306080, all at
+  Medium width) is **root-caused and fixed**:
+  - While the workspace context loads, the shell deliberately shows only the personal Settings
+    section; permission-filtered entries stay absent until access is known.
+  - The helper waited only for the navigation to be visible, which a page still showing "Loading"
+    already satisfies. It then checked for the entry once.
+  - It now also waits for the page to leave its loading state before choosing the sidebar, rail,
+    or More sheet. That is the same readiness signal `openPalette` uses.
+  - Holding the context response reproduced the failure on every attempt; with the fix, that
+    reproduction passes. The fail-fast diagnostics are kept.
 - **Security and privacy.**
   - Security headers are asserted on deep links and API responses.
   - No secrets in logs, which is existing coverage.

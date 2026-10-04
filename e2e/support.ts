@@ -172,9 +172,12 @@ export const noHorizontalOverflow = (page: Page) =>
  * the link, otherwise the Compact More sheet (RS-05).
  */
 export async function goTo(page: Page, name: string): Promise<void> {
-  // Wait until the shell has rendered its navigation (sidebar, rail, or Compact bottom bar)
-  // before deciding which surface holds the entry: `isVisible` does not wait.
+  // Wait until the shell has rendered its navigation (sidebar, rail, or Compact bottom bar) and
+  // the page has left its loading state before deciding which surface holds the entry:
+  // `isVisible` does not wait, and while the workspace context loads the shell deliberately shows
+  // no permission-filtered entries (only the personal Settings section).
   await expect(page.getByRole('navigation', { name: 'Primary' }).first()).toBeVisible();
+  await expect(page.getByRole('heading', { level: 1 })).not.toHaveText('Loading');
   const direct = page.getByRole('navigation', { name: 'Primary' }).getByRole('link', {
     name,
     exact: true,
