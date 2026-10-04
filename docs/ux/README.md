@@ -19,6 +19,8 @@ This folder is the product-design contract for the multi-brand work-management a
 | 9 | [Decision and risk register](09-decisions-and-risks.md) | Open UX decisions with defaults, 0A dependencies, risks | Product owner, solutions architect |
 | — | [`tools/`](tools/) | Repeatable checks: token contrast and documentation links | Reviewers, 1E |
 
+Phase 1E implementation notes: the shell, the route registry, the key map, view-state ownership, and the accepted deviations are recorded in [ADR-0012](../engineering/adr/0012-application-shell-navigation.md). Region navigation is by skip links and permission-filtered palette actions; F6 is not bound ([A11Y-KB-04](07-accessibility.md#a11y-kb-04), with [A11Y-KB-07](07-accessibility.md#a11y-kb-07) controlling; reconciled in RS-12, RS-33, and A11Y-PA-11). The token contrast gate (DS-21) also runs as `scripts/test/web-design-tokens.test.mjs` against the stylesheet.
+
 Suggested reading order: 1 → 2 → 4 → 6 → 5 → 7 → 8 → 3 → 9. Journeys (3) are the most useful once the rules they apply are familiar.
 
 ## Conventions used across this set

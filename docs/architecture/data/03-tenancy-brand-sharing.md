@@ -120,6 +120,8 @@ Brand status is not lifecycle: a brand's `operational_status` (`operating`, `pau
 
 Personal rows (`today_commitment`, `notification`, `view_state`, `favorite`, `recent_item`, `work_block`, `availability_rule`, `time_off`, `reminder`, `briefing`, `inbox_item`) are filtered by `owner_membership_id = :me` in addition to workspace. When they reference brand-owned records, the reference never grants access, and lists drop referenced records the owner can no longer read. A Today commitment to a task whose access was revoked disappears from Today, and the row stays for the daily record.
 
+Phase 1E makes this concrete for `favorite`, `recent_item`, and `view_state` ([ADR-20](12-decisions.md#adr-20)). Entries are re-authorized at display and activation and dropped silently when unreadable. A URL or stored scope naming a brand the viewer cannot access is normalized server-side to an accessible scope, never broadened.
+
 ## 3.9 Guests
 
 Guests are memberships with `kind = 'guest'`. They have **no implicit workspace-level access**. Workspace-scoped records are visible to them only through explicit record grants. Guest queries never use workspace, brand, project, team, or containment-inherited role assignments. Each shared child is its own fixed grant row; future children are never included.

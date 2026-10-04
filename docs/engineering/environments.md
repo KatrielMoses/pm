@@ -67,6 +67,11 @@ worker process is a startup error. All identities of one process must target the
 | `INVITATION_LIFETIME_MS` | optional | optional | default 7 days; how long an invitation link stays acceptable (0D `INVITATION_LIFETIME`) |
 | `OWNERSHIP_TRANSFER_LIFETIME_MS` | optional | optional | default 3 days; pending ownership transfers expire after this (0D `OWNERSHIP_TRANSFER_LIFETIME`) |
 | `PRINCIPAL_CONTEXT_ARRAY_MAX` | optional | optional | default 10000; visibility arrays above this use a transaction-scoped temporary table (0D `PRINCIPAL_CONTEXT_ARRAY_MAX`) |
+| `FAVORITES_MAX` | optional | optional | default 200; most favorites per person per workspace (0D `FAVORITES_MAX`) |
+| `RECENT_ITEMS_MAX` | optional | optional | default 50; recently viewed entries kept per person per workspace (0D `RECENT_ITEMS_MAX`) |
+| `RECENT_VISIT_COALESCE_MS` | optional | optional | default 30000; repeat visits within this window are not written again (0D `RECENT_VISIT_COALESCE`) |
+| `VIEW_STATE_MAX_BYTES` | optional | optional | default 8192 (1024–16384); largest stored view state per view and device (0D `VIEW_STATE_MAX_BYTES`) |
+| `VIEW_STATE_TTL_MS` | optional | optional | default 90 days; stored view state not written for this long is removed (0D `VIEW_STATE_TTL`) |
 
 Values are configuration, not customer promises (PQ-05). The 0D parameter values above are
 implementation defaults owned by 1A (`WORKSPACE_CONCURRENCY_CAP` is owned by 11C).

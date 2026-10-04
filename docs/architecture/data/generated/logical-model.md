@@ -470,6 +470,27 @@ Step-up challenge and single-use verified token bound to session, membership, ac
 | Requirements | SEC-006, ADM-013 |
 | Notes | 0D §11.2. Tokens are stored only as hashes. `locked` is a stored terminal state, set atomically by the failed attempt that reaches STEP_UP_MAX_ATTEMPTS. |
 
+<a id="entity-account-preference"></a>
+### `account_preference`
+
+Typed personal preferences that follow the account across workspaces and devices: theme, density, motion, shortcuts, start destination, record opening, hidden destinations.
+
+| Property | Value |
+|---|---|
+| Scope | `platform` |
+| Contained by | — |
+| Extends (1:1) | — |
+| Associations | — |
+| Lifecycle / concurrency | `mutable` / `row-version` |
+| Retention / confidentiality | `R-PERSONAL` / `C1` |
+| Volume / export / search-AI | `low` / `self` / `no` |
+| Secrets / personal data | `no` / `incidental` |
+| Uniqueness | `(account_id)` |
+| Key typed columns | `account_id`; `theme (system\|light\|dark)`; `density (comfortable\|compact)`; `motion (system\|reduce)`; `shortcuts (auto\|on\|off)`; `start_destination text null (registered destination)`; `record_open (panel\|full_page)`; `hidden_destinations text[] (registered destinations)`; `version integer` |
+| Sensitive fields | — |
+| Requirements | NAV-010, NAV-013, NAV-001 |
+| Notes | Phase 1E. One row per account; a missing row means the defaults. Account-scoped (not workspace-personal) because appearance and input preferences apply before a workspace is chosen and on every device; device-local state (sidebar collapse, per-device scope default, scroll anchors) is not stored here. Deleted with the account. No field changes authority or exposure, so changes are not material audit events. |
+
 ## Workspaces and brands (`tenancy`, schema `tenancy`)
 
 Workspaces, brands and brand settings, memberships, teams, invitations, ownership transfer.
@@ -660,7 +681,7 @@ Per person per workspace: the last selected brand or all-brands context. Revalid
 | Key typed columns | `owner_membership_id`; `scope_kind (brand\|all)`; `brand_id` |
 | Sensitive fields | — |
 | Requirements | WSB-006, WSB-009 |
-| Notes | Phase 1C. Upserted on its primary key (row lock); the latest selection wins. A stale or unauthorized brand falls back to the first authorized active brand; it never broadens to all brands. |
+| Notes | Phase 1C. Upserted on its primary key (row lock); the latest selection wins. A stale or unauthorized brand falls back to the first authorized active brand; it never broadens to all brands. Phase 1E: the URL scope (`scope=all\|brand:{id}\|brands:{id},…`) is authoritative on scope-sensitive pages and is validated and normalized server-side on every request; the per-device default lives in view_state (`shell.scope`), and this row remains the cross-device fallback and the directory's most-recent-workspace signal. |
 
 ## Grants and policy storage (`access`, schema `access`)
 
@@ -2653,10 +2674,11 @@ Personal favorite or pin of a record or view, with order.
 | Retention / confidentiality | `R-PERSONAL` / `C1` |
 | Volume / export / search-AI | `medium` / `self` / `yes` |
 | Secrets / personal data | `no` / `incidental` |
-| Uniqueness | — |
-| Key typed columns | standard columns only |
+| Uniqueness | `(workspace_id, owner_membership_id, record_id)` |
+| Key typed columns | `owner_membership_id`; `record_id (core.record: a readable record or saved view)`; `target kind = the referenced core.record's registered record_type (joined, not copied)`; `rank text (fractional key, ≤ 64 chars; ties broken by record_id)`; `created_at` |
 | Sensitive fields | — |
 | Requirements | NAV-008, VIEW-019 |
+| Notes | Phase 1E. A personal hint, never authority: every entry is re-authorized against the owner's current principal at display and activation, and unreadable, purged, or hidden-brand targets are omitted silently and removed opportunistically. At most FAVORITES_MAX per owner. Add and remove are idempotent; reorder moves one entry between two neighbours with a bounded fractional rank (rebalanced when a key would exceed its length). |
 
 <a id="entity-recent-item"></a>
 ### `recent_item`
@@ -2673,10 +2695,11 @@ Recently viewed records (capped per person).
 | Retention / confidentiality | `R-PERSONAL` / `C1` |
 | Volume / export / search-AI | `high` / `self` / `no` |
 | Secrets / personal data | `no` / `incidental` |
-| Uniqueness | — |
-| Key typed columns | standard columns only |
+| Uniqueness | `(workspace_id, owner_membership_id, record_id)` |
+| Key typed columns | `owner_membership_id`; `record_id (core.record)`; `target kind = the referenced core.record's registered record_type (joined, not copied)`; `visited_at timestamptz`; `visit_count integer` |
 | Sensitive fields | — |
 | Requirements | NAV-007 |
+| Notes | Phase 1E. One row per owner and target holding the latest authorized visit; recorded only after a successful authorized render, coalesced within RECENT_VISIT_COALESCE, and trimmed to RECENT_ITEMS_MAX per owner in the same transaction. Re-authorized at display; clearable. Churn is not audited. |
 
 <a id="entity-view-state"></a>
 ### `view_state`
@@ -2693,10 +2716,32 @@ Persisted filters, sort, grouping, scroll anchor per person per view.
 | Retention / confidentiality | `R-PERSONAL` / `C1` |
 | Volume / export / search-AI | `high` / `never` / `no` |
 | Secrets / personal data | `no` / `incidental` |
-| Uniqueness | — |
-| Key typed columns | standard columns only |
+| Uniqueness | `(workspace_id, owner_membership_id, device_key_hash, view_key)` |
+| Key typed columns | `owner_membership_id`; `device_key_hash bytea (SHA-256 of an opaque per-device key; never the key itself)`; `view_key text (registered route or view identity)`; `schema_version integer`; `state jsonb (versioned, allow-listed fields; at most VIEW_STATE_MAX_BYTES)`; `expires_at timestamptz (VIEW_STATE_TTL after the last write)`; `version integer` |
 | Sensitive fields | — |
 | Requirements | NAV-011 |
+| Notes | Phase 1E. Durable per-device view state (RS-20): filters, sort, grouping, columns, density override, and the scroll anchor. Selection and open item are session-only and never stored here. Upserts are last-write-wins per device with an optional row-version precondition; expired rows are deleted on write and by the views cleanup job. Record identifiers inside the state are hints re-authorized on use. |
+
+<a id="entity-view-pin"></a>
+### `view_pin`
+
+A shared saved view pinned into workspace or brand navigation by someone allowed to configure views. Never grants access.
+
+| Property | Value |
+|---|---|
+| Scope | `workspace_or_brand` |
+| Contained by | — |
+| Extends (1:1) | — |
+| Associations | [`saved_view`](logical-model.md#entity-saved-view) |
+| Lifecycle / concurrency | `mutable` / `ordered` |
+| Retention / confidentiality | `R-LIVE` / `C1` |
+| Volume / export / search-AI | `low` / `filtered` / `no` |
+| Secrets / personal data | `no` / `no` |
+| Uniqueness | `(workspace_id, scope_key, saved_view_id)` |
+| Key typed columns | `scope_key (workspace or brand)`; `saved_view_id (core.record of type saved_view)`; `rank text`; `pinned_by_membership_id` |
+| Sensitive fields | — |
+| Requirements | NAV-008 |
+| Notes | Phase 1E foundation: table, read path, and authorization hook only. Pins are created through views.configure once the view engine provides shared saved views (VIEW phase); until then no pin can exist. Each pin is re-authorized at display like any other target. |
 
 ## Search (`search`, schema `search`)
 

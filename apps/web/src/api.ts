@@ -57,7 +57,7 @@ export interface ConflictPayload {
   fields?: Array<{ field: string; yours: unknown; theirs?: unknown; theirs_readable: boolean }>;
 }
 
-export type Method = 'GET' | 'POST' | 'PATCH' | 'PUT';
+export type Method = 'GET' | 'POST' | 'PATCH' | 'PUT' | 'DELETE';
 
 let csrfToken: string | undefined;
 

@@ -105,6 +105,19 @@ export interface ServerConfig {
     /** PRINCIPAL_CONTEXT_ARRAY_MAX: above this, visibility arrays move to a temporary table. */
     principalContextArrayMax: number;
   };
+  /** Personal navigation (1E). Operational defaults from the 0D named parameters. */
+  views: {
+    /** FAVORITES_MAX */
+    favoritesMax: number;
+    /** RECENT_ITEMS_MAX */
+    recentItemsMax: number;
+    /** RECENT_VISIT_COALESCE */
+    recentVisitCoalesceMs: number;
+    /** VIEW_STATE_MAX_BYTES */
+    viewStateMaxBytes: number;
+    /** VIEW_STATE_TTL */
+    viewStateTtlMs: number;
+  };
   features: {
     /** Local/test-only component harness route for reusable UI states (refused when deployed). */
     componentHarness: boolean;
@@ -250,6 +263,11 @@ const DEFAULTS = {
   INVITATION_LIFETIME_MS: String(7 * 86_400_000),
   OWNERSHIP_TRANSFER_LIFETIME_MS: String(3 * 86_400_000),
   PRINCIPAL_CONTEXT_ARRAY_MAX: '10000',
+  FAVORITES_MAX: '200',
+  RECENT_ITEMS_MAX: '50',
+  RECENT_VISIT_COALESCE_MS: '30000',
+  VIEW_STATE_MAX_BYTES: '8192',
+  VIEW_STATE_TTL_MS: String(90 * 86_400_000),
 } as const;
 
 const schema = z.object({
@@ -330,6 +348,11 @@ const schema = z.object({
   INVITATION_LIFETIME_MS: int(60_000, 30 * 86_400_000),
   OWNERSHIP_TRANSFER_LIFETIME_MS: int(60_000, 30 * 86_400_000),
   PRINCIPAL_CONTEXT_ARRAY_MAX: int(1, 1_000_000),
+  FAVORITES_MAX: int(1, 1000),
+  RECENT_ITEMS_MAX: int(5, 200),
+  RECENT_VISIT_COALESCE_MS: int(0, 3_600_000),
+  VIEW_STATE_MAX_BYTES: int(1024, 16_384),
+  VIEW_STATE_TTL_MS: int(86_400_000, 400 * 86_400_000),
 });
 
 /** Variables a deployed environment must set explicitly (no silent local defaults). */
@@ -690,6 +713,13 @@ export function loadServerConfig(options: LoadOptions): ServerConfig {
       invitationLifetimeMs: c.INVITATION_LIFETIME_MS,
       ownershipTransferLifetimeMs: c.OWNERSHIP_TRANSFER_LIFETIME_MS,
       principalContextArrayMax: c.PRINCIPAL_CONTEXT_ARRAY_MAX,
+    },
+    views: {
+      favoritesMax: c.FAVORITES_MAX,
+      recentItemsMax: c.RECENT_ITEMS_MAX,
+      recentVisitCoalesceMs: c.RECENT_VISIT_COALESCE_MS,
+      viewStateMaxBytes: c.VIEW_STATE_MAX_BYTES,
+      viewStateTtlMs: c.VIEW_STATE_TTL_MS,
     },
     identity: {
       publicOrigin,

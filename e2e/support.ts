@@ -166,3 +166,30 @@ export const noHorizontalOverflow = (page: Page) =>
   page.evaluate<number>(
     'document.documentElement.scrollWidth - document.documentElement.clientWidth',
   );
+
+/**
+ * Follows a shell navigation entry by name on any width class: the sidebar or rail when it shows
+ * the link, otherwise the Compact More sheet (RS-05).
+ */
+export async function goTo(page: Page, name: string): Promise<void> {
+  // Wait until the shell has rendered its navigation (sidebar, rail, or Compact bottom bar)
+  // before deciding which surface holds the entry: `isVisible` does not wait.
+  await expect(page.getByRole('navigation', { name: 'Primary' }).first()).toBeVisible();
+  const direct = page.getByRole('navigation', { name: 'Primary' }).getByRole('link', {
+    name,
+    exact: true,
+  });
+  if (await direct.first().isVisible()) {
+    await direct.first().click();
+    return;
+  }
+  const more = page.getByRole('button', { name: 'More' });
+  if (!(await more.isVisible()))
+    // Fail fast with what the shell actually rendered (synthetic test data only).
+    throw new Error(
+      `goTo(${name}): no visible navigation entry at ${JSON.stringify(page.viewportSize())}\n` +
+        (await page.getByRole('navigation', { name: 'Primary' }).first().ariaSnapshot()),
+    );
+  await more.click();
+  await page.getByRole('dialog', { name: 'More' }).getByRole('link', { name, exact: true }).click();
+}

@@ -159,6 +159,70 @@ export async function authorizedActiveBrands(
     .execute()) as BrandRow[];
 }
 
+/** Readable brands among internal ids, through the same visibility predicate (1E targets). */
+export async function readableBrandsByIds(
+  tx: WorkspaceTransaction,
+  p: Principal,
+  ids: readonly string[],
+): Promise<BrandRow[]> {
+  if (!ids.length) return [];
+  const rows = (await visibleBrands(tx, p, 'active_or_archived')
+    .select(COLUMNS)
+    .where('b.id', 'in', [...ids])
+    .execute()) as BrandRow[];
+  return rows.filter((r) => brandLevel(p, facts(r)) !== null);
+}
+
+/** Bounded, permission-safe name search over readable active brands (palette records, 1E). */
+export async function searchBrands(
+  tx: WorkspaceTransaction,
+  p: Principal,
+  term: string,
+  limit: number,
+): Promise<BrandRow[]> {
+  const like = `%${term.replace(/[\\%_]/g, (c) => `\\${c}`)}%`;
+  const rows = (await visibleBrands(tx, p, 'active')
+    .select(COLUMNS)
+    .where((eb) => eb.or([eb('b.name', 'ilike', like), eb('b.short_name', 'ilike', like)]))
+    .orderBy(sql`lower(b.name)`)
+    .orderBy('b.id')
+    .limit(limit)
+    .execute()) as BrandRow[];
+  return rows.filter((r) => brandLevel(p, facts(r)) !== null);
+}
+
+/**
+ * The one brand-marker response shape (WSB-015, DS-40): a record's owning brand, the neutral
+ * workspace marker for workspace-scoped records, or "no brand yet". Built only from a brand the
+ * viewer can read; never from an untrusted URL.
+ */
+export type BrandMarkerView =
+  | {
+      kind: 'brand';
+      id: string;
+      name: string;
+      short_name: string | null;
+      color: string;
+      icon: string;
+      archived: boolean;
+    }
+  | { kind: 'workspace' }
+  | { kind: 'unbranded' };
+
+export function brandMarker(
+  row: Pick<BrandRow, 'public_id' | 'name' | 'short_name' | 'color' | 'icon' | 'lifecycle_state'>,
+): BrandMarkerView {
+  return {
+    kind: 'brand',
+    id: row.public_id,
+    name: row.name,
+    short_name: row.short_name,
+    color: row.color,
+    icon: row.icon,
+    archived: row.lifecycle_state === 'archived',
+  };
+}
+
 export function brandView(p: Principal, row: BrandRow) {
   return {
     id: row.public_id,

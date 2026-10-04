@@ -391,6 +391,35 @@ export function registerAuth(app: FastifyInstance, deps: AuthRouteDeps): void {
     }),
   );
 
+  // ---- Personal preferences (1E) --------------------------------------------------------------
+  const preferencesBody = (request: FastifyRequest, v: { preferences: object; version: number }) =>
+    nonResourceEnvelope('preferences', { ...v.preferences, version: v.version }, m(request));
+  app.get(
+    '/v1/auth/preferences',
+    wrap(async (request, reply) => {
+      const ctx = requireAuth(request);
+      const v = await identity.getPreferences(ctx);
+      reply.header('etag', `"${v.version}"`).header('cache-control', 'no-store');
+      return preferencesBody(request, v);
+    }),
+  );
+  app.patch(
+    '/v1/auth/preferences',
+    wrap(async (request, reply) => {
+      const ctx = requireAuth(request);
+      const raw = request.headers['if-match'];
+      let ifMatch: number | undefined;
+      if (typeof raw === 'string') {
+        const mm = /^"(\d{1,15})"$/.exec(raw.trim());
+        if (!mm) throw new IdentityError('precondition_required');
+        ifMatch = Number(mm[1]);
+      }
+      const v = await identity.updatePreferences(ctx, request.body, ifMatch);
+      reply.header('etag', `"${v.version}"`).header('cache-control', 'no-store');
+      return preferencesBody(request, v);
+    }),
+  );
+
   // ---- Sessions ---------------------------------------------------------------------------
   app.get(
     '/v1/auth/sessions',

@@ -11,7 +11,7 @@ Class definitions and rules: [../11-data-classification.md](../11-data-classific
 | Execution platform | 7 | C2 | R-EPHEMERAL, R-EXEC | filtered, never | no | no | incidental | very-high |
 | Audit and activity | 4 | C3 | R-AUDIT, R-DERIVED | admin, filtered | metadata, no | no | incidental, yes | very-high |
 | Record envelope and lifecycle | 4 | C2 | R-AUDIT, R-LIVE | filtered, full | metadata, no | no | incidental | very-high |
-| Identity and accounts | 7 | C4 | R-EPHEMERAL, R-PERSONAL | never, self | no | hash-only, secret-ref | incidental, yes | high |
+| Identity and accounts | 8 | C4 | R-EPHEMERAL, R-PERSONAL | never, self | no | hash-only, secret-ref | incidental, yes | high |
 | Workspaces and brands | 9 | C3 | R-AUDIT, R-EPHEMERAL, R-LIVE, R-PERSONAL | admin, filtered, full, self | metadata, no, yes | no | incidental, yes | medium |
 | Grants and policy storage | 9 | C2 | R-AUDIT, R-EPHEMERAL, R-LIVE | admin, filtered, never | no | no | incidental | medium |
 | Retention and governance | 3 | C3 | R-AUDIT, R-LIVE | filtered | no | no | incidental, yes | low |
@@ -28,7 +28,7 @@ Class definitions and rules: [../11-data-classification.md](../11-data-classific
 | Time tracking | 4 | C2 | R-EVIDENCE, R-LIVE | filtered | yes | no | incidental | very-high |
 | Documents and knowledge | 4 | C2 | R-EVIDENCE, R-LIVE | filtered | yes | no | incidental | high |
 | Goals and portfolios | 5 | C2 | R-LIVE | filtered | yes | no | incidental | medium |
-| Views and navigation state | 5 | C1 | R-LIVE, R-PERSONAL | filtered, never, self | no, yes | no | incidental | high |
+| Views and navigation state | 6 | C1 | R-LIVE, R-PERSONAL | filtered, never, self | no, yes | no | incidental, no | high |
 | Search | 3 | C2 | R-DERIVED, R-PERSONAL | never, self | no, yes | no | incidental | very-high |
 | Metrics, dashboards, and reports | 5 | C2 | R-DERIVED, R-EXEC, R-LIVE, R-PLATFORM | filtered, never, self | metadata, no, yes | no | incidental | high |
 | Integrations, API, and webhooks | 13 | C4 | R-AUDIT, R-EXEC, R-LIVE, R-PERSONAL | admin, filtered, never, self | metadata, no, yes | hash-only, possible, secret-ref | incidental, yes | very-high |
@@ -250,3 +250,5 @@ Class definitions and rules: [../11-data-classification.md](../11-data-classific
 | [`diagnostics_bundle`](logical-model.md#entity-diagnostics-bundle) | support | workspace | C3 | high | none (technical) | R-EPHEMERAL | never | low | no | possible | incidental |
 | [`feedback_item`](logical-model.md#entity-feedback-item) | support | workspace | C2 | standard (per-record) | material changes | R-LIVE | self | medium | no | no | incidental |
 | [`platform_content`](logical-model.md#entity-platform-content) | support | platform | C0 | low | configuration changes | R-PLATFORM | never | low | yes | no | incidental |
+| [`account_preference`](logical-model.md#entity-account-preference) | identity | platform | C1 | low | configuration changes | R-PERSONAL | self | low | no | no | incidental |
+| [`view_pin`](logical-model.md#entity-view-pin) | views | workspace_or_brand | C1 | low | configuration changes | R-LIVE | filtered | low | no | no | no |

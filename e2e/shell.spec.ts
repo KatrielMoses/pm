@@ -57,7 +57,9 @@ test('serves the shell for client routes and JSON envelopes for unknown API rout
   request,
 }) => {
   await page.goto('/some/client/route');
-  await expect(page.getByRole('heading', { level: 1 })).toHaveText('Page not found');
+  // ST-41: one not-available state for unknown and unauthorized addresses.
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText("This page isn't available");
+  await expect(page).toHaveTitle('Not available · PM');
   const api = await request.get('/v1/unknown');
   expect(api.status()).toBe(404);
   expect((await api.json()).error.code).toBe('not_found');

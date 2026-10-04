@@ -976,6 +976,63 @@ export interface OwnershipTransferTable {
   version: Defaulted<number>;
 }
 
+export type ThemePreference = 'system' | 'light' | 'dark';
+export type DensityPreference = 'comfortable' | 'compact';
+export type MotionPreference = 'system' | 'reduce';
+export type ShortcutsPreference = 'auto' | 'on' | 'off';
+export type RecordOpenPreference = 'panel' | 'full_page';
+
+export interface AccountPreferenceTable {
+  account_id: string;
+  theme: Defaulted<ThemePreference>;
+  density: Defaulted<DensityPreference>;
+  motion: Defaulted<MotionPreference>;
+  shortcuts: Defaulted<ShortcutsPreference>;
+  start_destination: string | null;
+  record_open: Defaulted<RecordOpenPreference>;
+  hidden_destinations: Defaulted<string[]>;
+  updated_at: DTs;
+  version: Defaulted<number>;
+}
+
+export interface FavoriteTable {
+  workspace_id: string;
+  owner_membership_id: string;
+  record_id: string;
+  rank: string;
+  created_at: DTs;
+}
+
+export interface RecentItemTable {
+  workspace_id: string;
+  owner_membership_id: string;
+  record_id: string;
+  visited_at: DTs;
+  visit_count: Defaulted<number>;
+}
+
+export interface ViewStateTable {
+  workspace_id: string;
+  owner_membership_id: string;
+  device_key_hash: Bytes;
+  view_key: string;
+  schema_version: number;
+  state: Json<Record<string, unknown>>;
+  updated_at: DTs;
+  expires_at: Ts;
+  version: Defaulted<number>;
+}
+
+export interface ViewPinTable {
+  workspace_id: string;
+  scope_key: string;
+  brand_id: string | null;
+  saved_view_id: string;
+  rank: string;
+  pinned_by_membership_id: string;
+  created_at: DTs;
+}
+
 export interface Database {
   'tenancy.workspace': WorkspaceTable;
   'exec.operation': OperationTable;
@@ -1027,6 +1084,11 @@ export interface Database {
   'access.share_group': ShareGroupTable;
   'access.record_grant': RecordGrantTable;
   'tenancy.ownership_transfer': OwnershipTransferTable;
+  'identity.account_preference': AccountPreferenceTable;
+  'views.favorite': FavoriteTable;
+  'views.recent_item': RecentItemTable;
+  'views.view_state': ViewStateTable;
+  'views.view_pin': ViewPinTable;
 }
 
 /** Column inventory per table, compared with the migrated catalog by the schema-drift test. */
@@ -1814,5 +1876,45 @@ export const TABLE_COLUMNS: Readonly<Record<keyof Database, readonly string[]>> 
     'decided_by_membership_id',
     'created_at',
     'version',
+  ],
+  'identity.account_preference': [
+    'account_id',
+    'theme',
+    'density',
+    'motion',
+    'shortcuts',
+    'start_destination',
+    'record_open',
+    'hidden_destinations',
+    'updated_at',
+    'version',
+  ],
+  'views.favorite': ['workspace_id', 'owner_membership_id', 'record_id', 'rank', 'created_at'],
+  'views.recent_item': [
+    'workspace_id',
+    'owner_membership_id',
+    'record_id',
+    'visited_at',
+    'visit_count',
+  ],
+  'views.view_state': [
+    'workspace_id',
+    'owner_membership_id',
+    'device_key_hash',
+    'view_key',
+    'schema_version',
+    'state',
+    'updated_at',
+    'expires_at',
+    'version',
+  ],
+  'views.view_pin': [
+    'workspace_id',
+    'scope_key',
+    'brand_id',
+    'saved_view_id',
+    'rank',
+    'pinned_by_membership_id',
+    'created_at',
   ],
 };

@@ -13,6 +13,7 @@ import { createRecord, LifecycleError } from '@pm/lifecycle';
 import { issueLifecycleDecision } from '@pm/lifecycle/policy-issuer';
 import { requestJobCancel, writeOutboxEvent } from '@pm/platform';
 import { authorizeAccountCommand } from './account-commands.ts';
+import { brandMarker } from './brands.ts';
 import { invalid, issue, TenancyError } from './errors.ts';
 import { defaultOwnershipRegistry, type OwnershipRegistry } from './ownership.ts';
 import {
@@ -2818,13 +2819,19 @@ export class CollaborationService extends TenancyService {
         .leftJoin('tenancy.brand as b', (j) =>
           j.onRef('b.workspace_id', '=', 'r.workspace_id').onRef('b.id', '=', 'r.brand_id'),
         )
+        .leftJoin('core.record as br', (j) =>
+          j.onRef('br.workspace_id', '=', 'b.workspace_id').onRef('br.id', '=', 'b.id'),
+        )
         .select([
           'r.public_id',
           'r.record_type',
           'r.lifecycle_state',
+          'br.public_id as brand_public_id',
           'b.name as brand_name',
+          'b.short_name as brand_short_name',
           'b.icon as brand_icon',
           'b.color as brand_color',
+          'b.lifecycle_state as brand_state',
         ])
         .where('r.record_type', 'not in', ['brand', 'team'])
         .where(vis.where('r'))
@@ -2835,10 +2842,19 @@ export class CollaborationService extends TenancyService {
         id: r.public_id,
         type: r.record_type,
         lifecycle_state: r.lifecycle_state,
-        // The owning brand marker only (UXD-06); never other brands, parents, or relationships.
-        brand: r.brand_name
-          ? { name: r.brand_name, icon: r.brand_icon, color: r.brand_color }
-          : null,
+        // The owning brand marker only (UXD-06, WSB-015); never other brands, parents, or
+        // relationships. Workspace-scoped records carry the neutral workspace marker.
+        brand:
+          r.brand_name && r.brand_public_id
+            ? brandMarker({
+                public_id: r.brand_public_id,
+                name: r.brand_name,
+                short_name: r.brand_short_name,
+                color: r.brand_color!,
+                icon: r.brand_icon!,
+                lifecycle_state: r.brand_state!,
+              })
+            : ({ kind: 'workspace' } as const),
       }));
     });
   }

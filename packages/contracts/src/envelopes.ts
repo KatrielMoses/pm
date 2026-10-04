@@ -139,6 +139,13 @@ export const NON_RESOURCE_TYPES = [
   'invitation_acceptance',
   'workspace_policy',
   'ownership_transfer_status',
+  // 1E: personal navigation and preferences (hints about the caller, never records themselves).
+  'preferences',
+  'favorite',
+  'recent_item',
+  'view_state',
+  'navigation_target',
+  'shell_navigation',
 ] as const;
 export type NonResourceType = (typeof NON_RESOURCE_TYPES)[number];
 

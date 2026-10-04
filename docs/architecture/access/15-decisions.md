@@ -183,3 +183,14 @@ All decisions are **proposed (Phase 0C)**, pending solutions-architect acceptanc
   - The 0C action count becomes 105 (admin 51, personal 10).
   - The validator checks that the policy fields equal the 0B columns, that `public_links_enabled` defaults to false, and that no role can configure a field that gates its own matrix cells.
   - Threats T-37 and T-38, with tests AT-095…107, cover invitation abuse, ownership, and departure.
+
+<a id="az-20"></a>
+### AZ-20: Personal navigation is a hint, never authority (Phase 1E amendment)
+- **Decision:**
+  - Favorites, recents, view state, and preferences are managed under `personal.manage_own` (`own` for every role, including guests). They store identifiers only and never confer access.
+  - Every displayed or activated entry is re-authorized through the same compiler and visibility predicate as the target's own read. Unreadable entries are omitted with no placeholder, count, or hint, and removed opportunistically.
+  - Shell navigation, breadcrumbs, the command palette, and shortcuts are filtered by the principal's capabilities. Unavailable entries are absent, not disabled.
+  - URL and stored scopes are validated server-side. Inaccessible brands are dropped and the scope is narrowed, never broadened.
+  - Shared-view pins use `views.configure` and are re-authorized at display.
+- **Alternatives:** Client-side filtering of a server list of all favorites (leaks through the response). Showing "unavailable" entries (reveals prior existence).
+- **Consequences:** Threat T-39 with tests AT-108…114 covers stale, forged, guest, malformed-state, scope, palette, and departure cases. No new action is needed, so the 0C action count stays 105.

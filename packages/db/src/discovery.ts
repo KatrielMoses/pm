@@ -121,6 +121,19 @@ export class PlatformDiscovery {
     return rows.map((r) => r.workspace_id);
   }
 
+  /**
+   * Workspaces with expired view state, or with personal navigation rows of memberships removed
+   * before `departedBefore` (1E). NULL `departedBefore` (undecided R-PERSONAL period) selects only
+   * expired view state.
+   */
+  async discoverViewsCleanup(departedBefore: Date | null, limit: number): Promise<string[]> {
+    const { rows } = await this.#pool.query<{ workspace_id: string }>(
+      'SELECT workspace_id FROM exec_dispatch.discover_views_cleanup($1, $2)',
+      [departedBefore, limit],
+    );
+    return rows.map((r) => r.workspace_id);
+  }
+
   /** Worker liveness (platform table, no tenant data). */
   async heartbeat(workerId: string, buildId: string, stopping = false): Promise<void> {
     await this.#pool.query(

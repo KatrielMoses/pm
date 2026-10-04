@@ -1,4 +1,5 @@
 import { api, protectedRequest, type StepUpResolver } from '../api.ts';
+import type { BrandMarkerData } from '../shell/client.ts';
 
 /** Typed client for the 1C tenancy API. Every identifier is a public ID. */
 
@@ -586,7 +587,8 @@ export const collab = {
         data: Array<{
           id: string;
           type: string;
-          brand: { name: string; icon: string; color: string } | null;
+          lifecycle_state: string;
+          brand: BrandMarkerData;
         }>;
       }>('GET', `${ws(w)}/shared`)
     ).body.data,

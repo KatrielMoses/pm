@@ -2,6 +2,7 @@ import { useEffect, useState, type ReactNode } from 'react';
 import { ApiError } from '../api.ts';
 import { Link } from '../router.tsx';
 import { Banner } from '../ui/feedback.tsx';
+import { NotAvailableBody, useMarkNotAvailable } from '../ui/layout.tsx';
 
 export type Resource<T> =
   { status: 'loading' } | { status: 'ready'; data: T } | { status: 'failed'; error: unknown };
@@ -76,21 +77,19 @@ export function LoadProblem({
   what: string;
 }) {
   const code = error instanceof ApiError ? error.code : 'internal_error';
+  const mark = useMarkNotAvailable();
+  const missing = code === 'not_found';
+  useEffect(() => {
+    if (missing) mark?.();
+  }, [missing, mark]);
   const retry = (
     <button type="button" className="button button-secondary" onClick={onRetry}>
       Try again
     </button>
   );
-  if (code === 'not_found')
-    return (
-      <Banner
-        tone="warning"
-        title={`We can't find this ${what}`}
-        action={<Link to="/onboarding">Go to your workspaces</Link>}
-      >
-        It may not exist, or you may not have access to it.
-      </Banner>
-    );
+  // ST-41: not found and not authorized are one canonical state; inside a page the whole page
+  // switches to it (heading and title included), so nothing about the target is disclosed.
+  if (missing) return <NotAvailableBody />;
   if (code === 'forbidden')
     return (
       <Banner tone="warning" title="You don't have permission to do this">

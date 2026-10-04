@@ -5,7 +5,8 @@ import type { Logger, Metrics } from '@pm/observability';
 import { PostgresRateLimiter } from '@pm/identity';
 import { LifecycleRegistry, LifecycleService, RetentionPolicy } from '@pm/lifecycle';
 import { registerTenancyLifecycle, tenancyBrandPort } from './lifecycle.ts';
-import { CollaborationService, type CollaborationIdentityPort } from './collaboration.ts';
+import type { CollaborationIdentityPort } from './collaboration.ts';
+import { NavigationService } from './navigation.ts';
 
 /** Wires the tenancy service from validated configuration (API process and tests). */
 export function createTenancyService(deps: {
@@ -13,10 +14,10 @@ export function createTenancyService(deps: {
   platform: PlatformDatabase;
   /** Identity (1B): step-up, invitation tokens and mail, departure session revocation. */
   identity: CollaborationIdentityPort;
-  config: Pick<ServerConfig, 'identity' | 'lifecycle' | 'audit' | 'tenancy'>;
+  config: Pick<ServerConfig, 'identity' | 'lifecycle' | 'audit' | 'tenancy' | 'views'>;
   logger: Logger;
   metrics: Metrics;
-}): CollaborationService {
+}): NavigationService {
   const { config } = deps;
   if (!config.identity.signingKey) throw new Error('AUTH_SIGNING_KEY is required');
   const writer = new AuditWriter({
@@ -35,7 +36,7 @@ export function createTenancyService(deps: {
     logger: deps.logger,
   });
   const signingKey = Buffer.from(config.identity.signingKey.reveal(), 'base64url');
-  return new CollaborationService({
+  return new NavigationService({
     tenant: deps.tenant,
     platform: deps.platform,
     writer,
@@ -49,6 +50,7 @@ export function createTenancyService(deps: {
       principalContextArrayMax: config.tenancy.principalContextArrayMax,
       previewTtlMs: 10 * 60_000,
     },
+    views: config.views,
     limiter: new PostgresRateLimiter(deps.platform, signingKey, config.identity.rateLimitOverrides),
     signingKey,
     metrics: deps.metrics,

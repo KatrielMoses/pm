@@ -109,6 +109,12 @@ async function main(): Promise<void> {
           systemPrincipalId: SYSTEM_PRINCIPAL.id,
         },
       },
+      views: {
+        tenant: tenantDb,
+        discovery,
+        retention: lifecycle.deps.retention,
+        metrics: telemetry.metrics,
+      },
     }),
     consumers: registeredConsumers(),
     schedules: registeredSchedules(),

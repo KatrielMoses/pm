@@ -1,8 +1,12 @@
 import { useEffect, useId, useRef, useState, type ReactNode } from 'react';
+import { createPortal } from 'react-dom';
 
 /** Open dialogs, bottom to top. Only the top one is interactive; the ones beneath become inert. */
 const stack: Array<(top: boolean) => void> = [];
 const syncStack = () => stack.forEach((set, i) => set(i === stack.length - 1));
+
+/** Whether any modal dialog is open (global shortcuts never act behind a modal; RS-12). */
+export const isModalOpen = (): boolean => stack.length > 0;
 
 /**
  * Modal dialog (0E DS dialog; ST-33 for destructive actions): labelled, focus trapped, Esc closes,
@@ -76,7 +80,9 @@ export function Dialog({
       opener?.focus?.();
     };
   }, [destructive, onClose]);
-  return (
+  // Portalled to the document body so no sticky or positioned ancestor (the shell header) can
+  // trap the scrim below other fixed shell surfaces.
+  return createPortal(
     <div className="scrim" inert={!top}>
       <div
         ref={ref}
@@ -95,6 +101,7 @@ export function Dialog({
         ) : null}
         {children}
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }

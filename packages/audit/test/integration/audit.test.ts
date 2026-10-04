@@ -391,8 +391,11 @@ describe('audit events: same-transaction truth, append-only storage, tamper evid
       ...points('audit.chain.lock_wait_exceeded'),
     ])
       expect(Object.keys(p.attributes)).toEqual(['module']);
-    // The warning is content-free.
-    const warnings = h.sink.lines.filter((l) => l.includes('"audit.chain_lock_wait_high"'));
+    // The warning is content-free. The harness (and its log sink) is shared by every test in this
+    // file, so only this test's workspace is counted (other tests may wait on a slow runner).
+    const warnings = h.sink.lines.filter(
+      (l) => l.includes('"audit.chain_lock_wait_high"') && l.includes(ws.id),
+    );
     expect(warnings).toHaveLength(5);
     expect(warnings.join('\n').includes('secret holder title')).toBe(false);
   });

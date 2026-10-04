@@ -3,6 +3,7 @@ import {
   createBrand,
   createWorkspace,
   expectAccessible,
+  goTo,
   noHorizontalOverflow,
   owner,
   PASSWORD,
@@ -39,21 +40,27 @@ test('owner journey: workspace, three brands, settings, switcher, sensitivity, a
   await page.getByRole('link', { name: 'Cancel' }).click();
 
   const active = page.getByRole('region', { name: /Active brands/ });
-  await expect(active.getByRole('listitem')).toHaveCount(3);
 
-  // Switcher: one brand, then all brands; the selection persists across reloads.
-  const switcher = page.getByLabel('Showing');
-  await expect(switcher).toHaveValue(/br_/);
-  await switcher.selectOption({ label: 'All brands (3)' });
-  await expect(page.getByText('Now showing all 3 brands you can access.')).toBeAttached();
+  // Switcher (1E shell): one brand, then all brands; the URL carries the scope and reloads keep it.
+  const scope = () => page.getByRole('button', { name: /^Brand scope:/ });
+  const choose = async (name: string) => {
+    await scope().click();
+    await page.getByRole('listbox', { name: 'Brand scope' }).getByRole('option', { name }).click();
+  };
+  await expect(scope()).toHaveAccessibleName(/Brand scope: Coastline/);
+  await choose('All brands');
+  await expect(page).toHaveURL(/scope=all/);
+  await expect(active.getByRole('listitem')).toHaveCount(3);
   await page.reload();
-  await expect(page.getByLabel('Showing')).toHaveValue('all');
-  await page.getByLabel('Showing').selectOption({ label: 'Summit' });
+  await expect(scope()).toHaveAccessibleName(/Brand scope: All brands/);
+  await choose('Summit');
+  await expect(page).toHaveURL(/scope=brand%3Abr_|scope=brand:br_/);
   await page.reload();
-  await expect(page.getByLabel('Showing').locator('option:checked')).toHaveText('Summit');
+  await expect(scope()).toHaveAccessibleName(/Brand scope: Summit/);
+  await choose('All brands');
 
   // Workspace settings: field-merge save with success announcement.
-  await page.getByRole('link', { name: 'Workspace settings' }).click();
+  await goTo(page, 'Workspace settings');
   await expect(page.getByRole('heading', { level: 1 })).toHaveText('Workspace settings');
   await page.getByLabel('Currency').selectOption('USD');
   await page.getByRole('button', { name: 'Save workspace settings' }).click();
@@ -61,7 +68,7 @@ test('owner journey: workspace, three brands, settings, switcher, sensitivity, a
   await expectAccessible(page, 'workspace settings');
 
   // Brand settings: identity, working hours (overlap validation), priorities.
-  await page.getByRole('link', { name: 'Brands', exact: true }).click();
+  await goTo(page, 'Home');
   await active.getByRole('link', { name: 'Settings for Summit' }).click();
   await expect(page.getByRole('heading', { level: 1 })).toHaveText('Summit settings');
   await expectAccessible(page, 'brand settings');
@@ -130,16 +137,18 @@ test('owner journey: workspace, three brands, settings, switcher, sensitivity, a
   await archive.getByRole('button', { name: 'Archive brand' }).click();
   await expect(page.getByText('This brand is archived')).toBeVisible();
   await expect(page.getByRole('button', { name: 'Save identity' })).toHaveCount(0);
-  await page.getByRole('link', { name: 'Back to brands' }).click();
+  await goTo(page, 'Home');
   await expect(
     page.getByRole('region', { name: /Archived brands/ }).getByRole('listitem'),
   ).toHaveCount(1);
-  await expect(page.getByLabel('Showing').locator('option')).toHaveText([
-    'All brands (2)',
-    'Coastline',
-    'Meadow',
+  // The archived brand leaves the active scope options and appears only in the Archived group.
+  await scope().click();
+  await expect(page.getByRole('listbox', { name: 'Brand scope' }).getByRole('option')).toHaveText([
+    'All brands',
+    /Coastline$/,
+    /Meadow$/,
   ]);
-  await expect(page.getByText('Your last selection is no longer available')).toBeVisible();
+  await page.keyboard.press('Escape');
   await page.getByRole('button', { name: 'Restore Summit' }).click();
   await expect(page.getByText('Summit was restored.')).toBeAttached();
   await expect(
@@ -162,11 +171,14 @@ test('states: not found, conflict, offline, keyboard, zoom, reduced motion, high
   const ws = await createWorkspace(page, 'States Co');
   await createBrand(page, 'Orchard');
 
-  // Not found and no access look the same, including for a well-formed guessed ID.
+  // Not found and no access look the same (ST-41), including for a well-formed guessed ID.
+  const unavailable = "This page isn't available";
   await page.goto(`/workspaces/${ws}/brands/br_01J0000000000000000000000Z`);
-  await expect(page.getByText("We can't find this brand")).toBeVisible();
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText(unavailable);
+  await expect(page).toHaveTitle('Not available · PM');
   await page.goto('/workspaces/ws_01J0000000000000000000000Z');
-  await expect(page.getByText("We can't find this workspace")).toBeVisible();
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText(unavailable);
+  await expect(page).toHaveTitle('Not available · PM');
   await expectAccessible(page, 'not found');
 
   // A second account cannot open the first owner's workspace.
@@ -174,7 +186,7 @@ test('states: not found, conflict, offline, keyboard, zoom, reduced motion, high
   const otherPage = await other.newPage();
   await owner(otherPage, info, 'tenancy-other');
   await otherPage.goto(`/workspaces/${ws}`);
-  await expect(otherPage.getByText("We can't find this workspace")).toBeVisible();
+  await expect(otherPage.getByRole('heading', { level: 1 })).toHaveText(unavailable);
   await other.close();
 
   // Conflict: another tab changes the same field; my input is kept and I choose.
@@ -206,10 +218,9 @@ test('states: not found, conflict, offline, keyboard, zoom, reduced motion, high
   await page.context().setOffline(false);
   await page.evaluate('window.dispatchEvent(new Event("online"))');
 
-  // Keyboard: switcher is a native select reachable by Tab; links and buttons operate by Enter.
+  // Keyboard: links and buttons operate by Enter; a sole brand is a plain label (IA-23).
   await page.goto(`/workspaces/${ws}`);
-  await page.getByLabel('Showing').focus();
-  await expect(page.getByLabel('Showing')).toBeFocused();
+  await expect(page.getByRole('button', { name: /^Brand scope:/ })).toHaveCount(0);
   await page.getByRole('link', { name: 'Settings for Orchard' }).focus();
   await page.keyboard.press('Enter');
   await expect(page.getByRole('heading', { level: 1 })).toHaveText('Orchard settings');
@@ -231,7 +242,7 @@ test('states: not found, conflict, offline, keyboard, zoom, reduced motion, high
       await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
       expect(await noHorizontalOverflow(page), `${path} at ${width}px`).toBeLessThanOrEqual(0);
     }
-    await page.getByRole('link', { name: 'Brands', exact: true }).click();
+    await goTo(page, 'Home');
     await page.getByRole('link', { name: 'Settings for Orchard' }).click();
     await expect(page.getByRole('region', { name: 'Working hours' })).toBeVisible();
     expect(await noHorizontalOverflow(page), `brand settings at ${width}px`).toBeLessThanOrEqual(0);

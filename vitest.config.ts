@@ -6,6 +6,7 @@ import { fileURLToPath } from 'node:url';
 // output. Each entry mirrors a package.json `exports` entry's `@pm/source` condition.
 const src = (path: string) => fileURLToPath(new URL(path, import.meta.url));
 const ENTRIES: Record<string, string> = {
+  '@pm/contracts/shell': 'packages/contracts/src/shell.ts',
   '@pm/contracts': 'packages/contracts/src/index.ts',
   '@pm/config/public': 'packages/config/src/public.ts',
   '@pm/config': 'packages/config/src/index.ts',

@@ -34,6 +34,7 @@ import {
 } from './primitives.ts';
 import type { RateLimiter, RateLimitPolicy } from './rate-limit.ts';
 import { hashRecoveryCode, newRecoveryCodes, normalizeRecoveryCode } from './recovery-codes.ts';
+import { readPreferences, writePreferences, type PreferencesView } from './preferences.ts';
 import { listOwnSecurityActivity, type SecurityActivityPage } from './security-activity.ts';
 import type { SecurityEvent, SecurityEventPort } from './security-events.ts';
 import { newTotpSecret, otpauthUri, verifyTotp } from './totp.ts';
@@ -1410,6 +1411,20 @@ export class IdentityService {
       });
       return n;
     });
+  }
+
+  /** Own typed preferences (1E). A missing row yields the defaults with version 0. */
+  async getPreferences(ctx: AuthContext): Promise<PreferencesView> {
+    return readPreferences(this.#d.db, ctx.account.id);
+  }
+
+  /** Partial update of own preferences; `ifMatch` (a previous version) makes it conditional. */
+  async updatePreferences(
+    ctx: AuthContext,
+    body: unknown,
+    ifMatch: number | undefined,
+  ): Promise<PreferencesView> {
+    return writePreferences(this.#d.db, this.#d.metrics, ctx.account.id, body, ifMatch);
   }
 
   async me(ctx: AuthContext): Promise<{

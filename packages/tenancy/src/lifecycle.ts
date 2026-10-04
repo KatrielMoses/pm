@@ -1,5 +1,6 @@
 import type { WorkspaceTransaction } from '@pm/db';
 import type { BrandPort, LifecycleRegistry, RecordRef, RecordTypeAdapter } from '@pm/lifecycle';
+import { withPersonalReferenceCleanup } from './personal-data.ts';
 
 /**
  * Brand lifecycle hooks registered with Phase 1F. Containment children are the top-level records
@@ -32,9 +33,15 @@ export const teamAdapter: RecordTypeAdapter = {
   containerOf: () => Promise.resolve(null),
 };
 
-/** Registers the brand and team record types (API and worker use the same registration). */
+/**
+ * Registers the brand and team record types (API and worker use the same registration). Every
+ * adapter is wrapped so a purge also removes personal favorites and recents of purged records
+ * (1E); brands and teams have no purge hooks yet, so for them the wrapper changes nothing.
+ */
 export function registerTenancyLifecycle(registry: LifecycleRegistry): LifecycleRegistry {
-  return registry.register(brandAdapter(registry)).register(teamAdapter);
+  return registry
+    .register(withPersonalReferenceCleanup(brandAdapter(registry)))
+    .register(withPersonalReferenceCleanup(teamAdapter));
 }
 
 /** Real brand state for lifecycle restore checks: restore into a non-active brand is blocked. */

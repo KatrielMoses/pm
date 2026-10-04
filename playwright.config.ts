@@ -23,6 +23,14 @@ export default defineConfig({
   },
   projects: [
     { name: 'desktop', use: { ...devices['Desktop Chrome'] } },
-    { name: 'mobile', use: { ...devices['Pixel 7'] } },
+    // 1E: Medium width class (rail + overlay panels) with touch, at tablet portrait.
+    {
+      name: 'tablet',
+      use: { ...devices['Galaxy Tab S4'] },
+      testMatch: /navigation\.spec\.ts/,
+      grepInvert: /@desktop-only|@no-tablet/,
+    },
+    // Width-class and appearance journeys drive viewports themselves (desktop project only).
+    { name: 'mobile', use: { ...devices['Pixel 7'] }, grepInvert: /@desktop-only/ },
   ],
 });
