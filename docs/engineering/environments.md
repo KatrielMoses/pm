@@ -54,6 +54,7 @@ worker process is a startup error. All identities of one process must target the
 | `AUTH_SIGNING_KEY` | required | — | base64url, ≥ 32 bytes; CSRF tokens and rate-limit keys (1B) |
 | `ALLOWED_ORIGINS` | optional | — | extra origins besides `PUBLIC_BASE_URL`; https only when deployed |
 | `COOKIE_SECURE` | optional | — | default `true`; `false` allowed only in `local`/`test` |
+| `SECRET_PROVIDER` | optional | optional | `env` (the only provider); `secretref:` values are refused until a secret store is approved (DQ-28) |
 | `SECRET_VAULT` | required | required | `dev-database` (local/test only) or `none`; a KMS adapter needs approval (ADR-0008) |
 | `DEV_VAULT_KEY` | with `dev-database` | with `dev-database` | base64url 32 bytes; refused in deployed modes |
 | `MAIL_TRANSPORT`, `MAIL_FROM`, `MAIL_CAPTURE_DIR`, `MAIL_RETENTION_MS` | — | required / optional | `capture` (local/test only) or `none`; no vendor approved |
