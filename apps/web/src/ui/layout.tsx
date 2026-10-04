@@ -18,6 +18,9 @@ import { OfflineBanner } from './feedback.tsx';
  * ST-41: anything on a page that finds its subject missing or not authorized switches the whole
  * page to the one canonical not-available state (same heading, copy, and title in every case).
  */
+/** The path whose heading last received navigation focus (one per arrival). */
+let lastFocusedPath: string | null = null;
+
 const NotAvailableContext = createContext<(() => void) | null>(null);
 
 export function useMarkNotAvailable(): (() => void) | null {
@@ -86,8 +89,17 @@ export function Page({
       : documentTitle(PUBLIC_CONFIG.appName, section, title === section ? null : { title });
   useEffect(() => {
     document.title = docTitle;
-    heading.current?.focus();
   }, [docTitle]);
+  // Focus moves to the heading when the person arrives at a new page (screen readers announce
+  // it), not when a loaded page's title fills in, so focus they already moved (a skip link, a
+  // field) is never taken back. If the previously focused heading unmounted, focus is restored.
+  useEffect(() => {
+    const lost = !document.activeElement || document.activeElement === document.body;
+    if (lastFocusedPath !== path || lost) {
+      lastFocusedPath = path;
+      heading.current?.focus();
+    }
+  }, [path]);
   const body = (
     <main id="main" className={wide ? 'page page-wide' : 'page'} tabIndex={-1}>
       {breadcrumbs && !notAvailable ? <Breadcrumbs trail={breadcrumbs} /> : null}

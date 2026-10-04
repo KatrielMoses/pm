@@ -38,6 +38,7 @@ import {
 import { pruneSelection } from '../src/shell/view-state.ts';
 import { widthClass } from '../src/shell/width.ts';
 import { Dialog } from '../src/ui/dialog.tsx';
+import { Page } from '../src/ui/layout.tsx';
 
 const ALL: ShellCapabilities = {
   configure: true,
@@ -515,5 +516,25 @@ describe('appearance, drafts, device key, selection pruning', () => {
       kept: ['b', 'c'],
       removed: 1,
     });
+  });
+});
+
+describe('page focus (A11Y focus on navigation)', () => {
+  it('focuses the heading on arrival but never takes back focus when the title fills in', () => {
+    const view = render(
+      <Router>
+        <button>Elsewhere</button>
+        <Page title="Loading">{null}</Page>
+      </Router>,
+    );
+    expect(document.activeElement?.textContent).toBe('Loading');
+    screen.getByRole('button', { name: 'Elsewhere' }).focus();
+    view.rerender(
+      <Router>
+        <button>Elsewhere</button>
+        <Page title="Loaded title">{null}</Page>
+      </Router>,
+    );
+    expect(document.activeElement?.textContent).toBe('Elsewhere');
   });
 });

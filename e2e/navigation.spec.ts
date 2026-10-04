@@ -381,7 +381,9 @@ test('responsive boundaries, reflow, zoom, landmarks, skip links, forced colors,
   // Keyboard: the first Tab reaches the skip link, which moves focus into main.
   await page.setViewportSize({ width: 1280, height: 800 });
   await page.goto(`/workspaces/${ws}/home`);
-  // The skip link is the first focusable element and becomes visible when focused.
+  // The skip link is the first focusable element and becomes visible when focused; focus moved to
+  // it is kept while the page finishes loading.
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText('Shell Co');
   const skip = page.getByRole('link', { name: 'Skip to main content' });
   const first = await page.evaluate<string>(
     "document.querySelector('a, button, input, select, textarea')?.textContent ?? ''",

@@ -792,14 +792,19 @@ function WorkspaceSettingsForm({
       setBusy(false);
     }
   };
+  // Re-reading the latest version keeps the form busy, so a save cannot go out against the
+  // version that just conflicted.
   const refresh = async (keepMine: boolean) => {
     setError(null);
+    setBusy(true);
     try {
       const latest = await tenancy.getWorkspace(base.id);
       setBase(latest);
       if (!keepMine) setDraft(pickWs(latest));
     } catch (err) {
       setError(err);
+    } finally {
+      setBusy(false);
     }
   };
   const { fields, other } = splitIssues(error, WS_PATCH_POINTERS);
@@ -1070,12 +1075,15 @@ function IdentitySection({
   };
   const refresh = async (keepMine: boolean) => {
     setError(null);
+    setBusy(true);
     try {
       const latest = await tenancy.getBrand(ws, base.id);
       onSaved(latest);
       if (!keepMine) setDraft(identityOf(latest));
     } catch (err) {
       setError(err);
+    } finally {
+      setBusy(false);
     }
   };
   const { fields, other } = splitIssues(error, BRAND_PATCH_POINTERS);
@@ -1140,6 +1148,7 @@ function useSettingsSave(
   };
   const latest = async () => {
     setError(null);
+    setBusy(true);
     try {
       const next = await tenancy.getSettings(ws, brand.id);
       onSaved(next);
@@ -1147,6 +1156,8 @@ function useSettingsSave(
     } catch (err) {
       setError(err);
       return null;
+    } finally {
+      setBusy(false);
     }
   };
   return { busy, error, saved, save, latest, setError };
