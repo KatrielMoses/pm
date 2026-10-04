@@ -94,6 +94,57 @@ describe('migrations from an empty database', () => {
     expect(await catalogFingerprint(second)).toEqual(await catalogFingerprint(first));
   });
 
+  it('upgrades through every Phase 1 boundary to the candidate and reverses each boundary step', async () => {
+    // Accepted subphase boundaries: 1A 0009, 1B 0012, 1F 0016, 1C 0018, 1D 0019, 1E 0020.
+    const boundaries = [9, 12, 16, 18, 19, 20];
+    const full = async (db: TestDatabase) => {
+      const objects = await db.admin(`
+        SELECT n.nspname, c.relname, c.relkind::text, c.relrowsecurity, c.relforcerowsecurity
+          FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace
+         WHERE n.nspname NOT IN ('pg_catalog', 'information_schema', 'pg_toast')
+         ORDER BY 1, 2`);
+      const cons = await db.admin(`
+        SELECT n.nspname, c.conname, pg_get_constraintdef(c.oid) AS def
+          FROM pg_constraint c JOIN pg_namespace n ON n.oid = c.connamespace
+         WHERE n.nspname NOT IN ('pg_catalog', 'information_schema') ORDER BY 1, 2`);
+      const grants = await db.admin(`
+        SELECT table_schema, table_name, grantee, privilege_type FROM information_schema.role_table_grants
+         WHERE table_schema NOT IN ('pg_catalog', 'information_schema') ORDER BY 1, 2, 3, 4`);
+      const pol = await db.admin(
+        `SELECT schemaname, tablename, policyname, roles::text, qual, with_check FROM pg_policies ORDER BY 1, 2, 3`,
+      );
+      return JSON.stringify([objects.rows, cons.rows, grants.rows, pol.rows]);
+    };
+    const stepped = await createEmptyTestDatabase();
+    const reference = await createEmptyTestDatabase();
+    try {
+      await migrator(reference).up();
+      const at = new Map<number, string>();
+      for (const to of boundaries) {
+        await migrator(stepped).up({ to });
+        expect((await migrator(stepped).status()).report.problems, `at ${to}`).toEqual([]);
+        at.set(to, await full(stepped));
+      }
+      // Stepping through the boundaries reaches exactly the one-shot candidate catalog.
+      expect(at.get(20)).toEqual(await full(reference));
+      // Each subphase's step reverses to the prior boundary's exact catalog and re-applies to its
+      // own, walking down from the candidate.
+      for (let i = boundaries.length - 1; i > 0; i--) {
+        const [lower, upper] = [boundaries[i - 1]!, boundaries[i]!];
+        await migrator(stepped).down(lower);
+        expect(await full(stepped), `down to ${lower}`).toEqual(at.get(lower));
+        await migrator(stepped).up({ to: upper });
+        expect(await full(stepped), `up to ${upper}`).toEqual(at.get(upper));
+        await migrator(stepped).down(lower);
+      }
+      await migrator(stepped).up();
+      expect(await full(stepped)).toEqual(await full(reference));
+    } finally {
+      await stepped.drop();
+      await reference.drop();
+    }
+  });
+
   it('refuses identities other than migrator', async () => {
     const bad = new Migrator({ connectionString: first.app, environment: 'test' });
     await expect(bad.up()).rejects.toThrow(/migrator role/);
