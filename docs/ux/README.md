@@ -1,6 +1,6 @@
 # UX Foundation (Phase 0E)
 
-Status: **Developer complete — awaiting solutions-architect review.** Nothing in this set is approved until review is recorded in `ROADMAP_CHECKLIST.md`.
+Status: **accepted** (Phase 0E, P0-W1); accepted at the Phase 0 exit gate (P0-IR1; [exit-gate report](../architecture/PHASE_0_EXIT_GATE.md)).
 
 This folder is the product-design contract for the multi-brand work-management application described in [`FEATURES.md`](../../FEATURES.md). Later phases implement against it. It defines *how the product behaves* — structure, navigation, states, accessibility, responsive behavior and design-system foundations. It does not define final visual polish, the product name, data schemas, APIs or authorization algorithms.
 
@@ -43,7 +43,7 @@ Suggested reading order: 1 → 2 → 4 → 6 → 5 → 7 → 8 → 3 → 9. Jour
 | `DEP-0A-nn` | Dependency on Phase 0A vocabulary | [09](09-decisions-and-risks.md#2-dependencies-on-phase-0a) |
 | `UXR-nn` | UX risk | [09](09-decisions-and-risks.md#4-ux-risk-register) |
 
-**Requirement references.** Phase 0A's requirement catalog ([`docs/product/requirements/`](../product/requirements/README.md)) arrived during this work and is still awaiting review. Until it is accepted, this set cites `FEATURES.md` by section name, for example *FEATURES › Today and planning*. Replacing those citations with catalog IDs is a mechanical follow-up and changes no meaning (tracked as [UXD-24](09-decisions-and-risks.md#uxd-24)).
+**Requirement references.** Phase 0A's requirement catalog ([`docs/product/requirements/`](../product/requirements/README.md)) arrived during this work and is now accepted (P0-W1). This set still cites `FEATURES.md` by section name, for example *FEATURES › Today and planning*. Replacing those citations with catalog IDs is a mechanical follow-up and changes no meaning (tracked as [UXD-24](09-decisions-and-risks.md#uxd-24)).
 
 **Provisional vocabulary.** Terms such as *brand*, *Inbox item*, *Today commitment*, *scheduled work block*, *deliverable*, *acceptance* and *agent run* follow their plain reading in `FEATURES.md`. Where 0A could reasonably define a term differently, the text marks it with its `DEP-0A-nn` ID. If 0A resolves a term differently, the UX rule follows 0A; the interaction rule itself does not change. This set has been reconciled against 0A's proposal in [`docs/product/`](../product/README.md). The status of each dependency, and the one conflict left for review ([UXD-28](09-decisions-and-risks.md#uxd-28)), are in [09 §2.1](09-decisions-and-risks.md#21-reconciliation-with-the-0a-proposal).
 

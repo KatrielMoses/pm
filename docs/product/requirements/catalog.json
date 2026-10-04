@@ -189,10 +189,11 @@
         "position": 8,
         "line": 12
       },
-      "owner_subphase": "1C",
+      "owner_subphase": "2A",
       "contributing_subphases": [
         "0B",
-        "0C"
+        "0C",
+        "1D"
       ],
       "concerns": [
         "authorization",
@@ -201,12 +202,12 @@
       "flags": [
         {
           "type": "roadmap-gap",
-          "note": "Cross-brand sharing is defined by 0B/0C but no implementation sub-phase names it; provisionally owned by 1C.",
+          "note": "Resolved by OD-04 (architect decision, Phase 1 integration review): owned by 2A, the first user-facing sharing (projects); 1D provides the generic exact-record-grant foundation. Previously provisional in 1C.",
           "decision": "OD-04"
         },
         {
           "type": "missing-decision",
-          "note": "Which record types are shareable and which access levels a share can grant.",
+          "note": "Resolved by OD-04: record types are non-shareable unless their owning phase registers them; levels are view, comment, or edit, capped by the module and the sharer; shares never permit onward sharing and cover only explicitly selected records.",
           "decision": "OD-04"
         }
       ]
@@ -11473,6 +11474,7 @@
       },
       "owner_subphase": "1A",
       "contributing_subphases": [
+        "11C",
         "11F"
       ],
       "concerns": [

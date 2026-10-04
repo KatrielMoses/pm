@@ -1,6 +1,6 @@
 # Platform contracts (Phase 0D)
 
-Status: **proposed: developer complete, awaiting solutions-architect review.** Nothing here marks a roadmap item complete.
+Status: **accepted** (Phase 0D, P0-W4); accepted at the Phase 0 exit gate (P0-IR1; [exit-gate report](../PHASE_0_EXIT_GATE.md)). Later approved amendments are recorded at their sources.
 
 This set defines the shared technical language that every implementation phase uses: identifiers, encodings, HTTP conventions, errors, concurrency, idempotency, operations, jobs, events, webhooks, live updates, scopes, step-up, audit, notifications, usage, entitlements, files, imports/exports, and observability. It builds on [0A](../../product/README.md), [0E](../../ux/README.md), [0B](../data/README.md), [0C](../access/README.md), and the decisions in `ROADMAP_CHECKLIST.md`.
 

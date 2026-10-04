@@ -32,7 +32,7 @@
           "contains": "load balancer (TLS termination)"
         }
       ],
-      "note": "Deployed configurations require TLS to PostgreSQL and an https public URL; cookies are Secure. Ingress TLS is a load-balancer property and no hosting is provisioned (OD-43).",
+      "note": "Deployed configurations require TLS to PostgreSQL and an https public URL; cookies are Secure. Production in-transit verification completes in 11B once hosting exists (OD-43). Deferral approved by the architect (2026-10-04, Phase 1 integration review); not implemented in Phase 1.",
       "deferred_to": [
         "11B"
       ],
@@ -63,7 +63,7 @@
           "contains": "encrypted at rest by the provider"
         }
       ],
-      "note": "Credentials, tokens, and MFA seeds are hashed or encrypted by the application; storage and backup encryption at rest are provider properties of the unprovisioned managed database (OD-43).",
+      "note": "Credentials, tokens, and MFA seeds are hashed or encrypted by the application. Production at-rest verification completes in 11B once hosting exists (OD-43). Deferral approved by the architect (2026-10-04, Phase 1 integration review); not implemented in Phase 1.",
       "deferred_to": [
         "11B"
       ],
@@ -173,7 +173,7 @@
           "contains": "No backups exist yet"
         }
       ],
-      "note": "Phase 1A scope is the backup policy; backups, restore tests, and recovery objectives are 11C once hosting exists (OD-42, OD-43).",
+      "note": "Phase 1A delivered the backup policy only. Real backup creation, restoration testing, and recovery evidence complete in 11C (OD-42, OD-43). Deferral approved by the architect (2026-10-04, Phase 1 integration review); not implemented in Phase 1.",
       "deferred_to": [
         "11C"
       ],
@@ -204,7 +204,7 @@
           "contains": "records HTTP metrics with bounded labels only"
         }
       ],
-      "note": "Liveness, truthful readiness, and bounded OTLP metrics exist; alert rules and dashboards need a monitoring backend (11C, 11F).",
+      "note": "Liveness, truthful readiness, and bounded OTLP metrics exist. A real monitoring backend, alert rules, escalation, and operational procedures complete across 11C and 11F. Deferral approved by the architect (2026-10-04, Phase 1 integration review); not implemented in Phase 1.",
       "deferred_to": [
         "11C",
         "11F"
@@ -494,22 +494,20 @@
     },
     {
       "id": "WSB-008",
-      "role": "owned",
-      "disposition": "foundation",
+      "role": "contributing",
+      "contribution": "1D",
+      "disposition": "contributed",
       "evidence": [
         {
           "file": "packages/tenancy/test/integration/collaboration.test.ts",
           "contains": "guests see exactly their shared records"
+        },
+        {
+          "file": "packages/tenancy/test/integration/collab-isolation.test.ts",
+          "contains": "expired and revoked grants never count"
         }
       ],
-      "note": "One brand or none per record; no implicit cross-brand sharing. Exact record grants (1D) are the sharing mechanism. Which record types are shareable across brands is undecided.",
-      "deferred_to": [],
-      "accepted_by": [
-        "adr:0010#D11"
-      ],
-      "pending_decisions": [
-        "OD-04"
-      ]
+      "note": "Generic exact-record grants (one grant per selected record, revocable, expiring, no onward sharing). Owner 2A delivers the first user-facing sharing (OD-04, decided)."
     },
     {
       "id": "WSB-009",

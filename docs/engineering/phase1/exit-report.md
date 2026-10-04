@@ -45,11 +45,15 @@ invite a scoped guest, switch contexts, and prove isolation with automated autho
 
 ## Requirement closure
 
-`phase1.py` passes with 65 owned requirements and 38 contributions:
+`phase1.py` passes with 64 owned requirements and 39 contributions:
 
 - 49 implemented;
-- 16 foundations, each with deferral targets and an accepted source;
-- 38 contributions with evidence.
+- 15 foundations, each with deferral targets and an accepted source;
+- 39 contributions with evidence.
+
+WSB-008 is now owned by 2A, with 1D contributing (OD-04, decided). The validator also enforces the
+architect's decisions: the hosting-dependent requirements stay foundations with exactly their
+approved deferrals, and WSB-008's ownership stays 2A.
 
 Every evidence citation is checked to exist.
 
@@ -57,13 +61,13 @@ Foundations and why each is accepted:
 
 | Requirement | Deferred to | Accepted by | Open decision |
 |---|---|---|---|
-| SEC-001 in transit, SEC-002 at rest | 11B | roadmap 1A scope, ADR-0005 | OD-43 hosting |
+| SEC-001 in transit, SEC-002 at rest | 11B (production verification once hosting exists) | **architect, 2026-10-04**; roadmap 1A scope, ADR-0005 | OD-43 hosting |
 | SEC-012 infrastructure scanning | 11B | roadmap 1A/11B | — |
-| SEC-017 backups | 11C | roadmap 1A ("backup policy") | OD-42, OD-43 |
-| REL-007 alerting | 11C, 11F | roadmap 1A/11C/11F, catalog | — |
+| SEC-017 backups | 11C (real backups, restoration tests, recovery evidence) | **architect, 2026-10-04**; roadmap 1A ("backup policy") | OD-42, OD-43 |
+| REL-007 monitoring and alerting | 11C, 11F (backend, alert rules, escalation, procedures) | **architect, 2026-10-04**; roadmap 1A/11C/11F, catalog | — |
 | WSB-007 separation for later record types | 2A, 2B, 4C, 4E | catalog | OD-06 |
-| WSB-008 cross-brand sharing | **none named** | ADR-0010 D11 | OD-04 |
-| PRJ-027, PRJ-028 project permissions, guest views | 2A, 3A | catalog, ADR-0011 F4 | OD-27 |
+| PRJ-027 project permissions | 2A | catalog, ADR-0011 F4 | — |
+| PRJ-028 guest project views | 3A | catalog, ADR-0011 F4 | OD-27 |
 | COL-004, PERM-003 project, task, document, and integration levels | 2B, 4C, 6A | ADR-0011 F4 | — |
 | WSB-015 brand marker on later surfaces | 4B, 5A, 7B | catalog, ADR-0010 D12 | — |
 | NAV-008 pinned views | 3A | ADR-0012 F4, VIEW-019 | — |
@@ -106,23 +110,33 @@ Each fix is narrow, has a regression test, and is described in its commit.
   non-root image, and the hourly `views.cleanup` job are unchanged and covered by existing gates.
   No cloud resources exist, so the running cost is zero until hosting (OD-43).
 
-## Findings for the product owner
+## Decisions recorded (architect, 2026-10-04)
 
-1. **WSB-008 has no destination subphase.** ADR-0010 D11 accepts "foundation only", and OD-04
-   (which record types are shareable across brands) is open. Choose an owning subphase or record
-   an explicit scope decision.
-2. **1A requirements that are foundation-only until hosting exists:** SEC-001, SEC-002, SEC-017,
-   REL-007. They rest on the accepted provider-neutral decision. Confirm the 11B, 11C, and 11F
-   deferrals.
-3. **Phase 0 summary documents still say "proposed / awaiting review"**, although Phase 0 is
-   accepted:
-   - `docs/architecture/{data,access,platform}/README.md`;
-   - `docs/ux/README.md`, including its requirement-references paragraph;
-   - `docs/product/README.md`.
+1. **WSB-008 (cross-brand sharing): owned by 2A, and OD-04 is decided.**
+   - 1D remains the generic exact-record-grant foundation. 2A delivers the first user-facing
+     sharing, for projects.
+   - Record types are non-shareable by default. Each record-owning phase registers its type's
+     shareability and supported levels.
+   - Levels are `view`, `comment`, and `edit`, capped by the module and by what the sharer may
+     grant. Guests are capped at `edit`.
+   - Access received through a share never permits onward sharing.
+   - A share covers only explicitly selected records.
 
-   This is reported, not edited: changing accepted Phase 0 documents is a Phase 0 decision.
-4. **Assistive technology.** No NVDA, JAWS, or VoiceOver pass has been run (ADR-0012 F6; 11E). See
-   [manual-smoke.md](manual-smoke.md).
+   Recorded in the catalog, the OD-04 entry, ADR-0010 D11, the regenerated catalog and summary, and
+   `closure.json`.
+2. **Hosting-dependent requirements: approved deferrals.**
+   - SEC-001 and SEC-002 complete in 11B.
+   - SEC-017 completes in 11C.
+   - REL-007 completes in 11C and 11F.
+
+   Their Phase 1 work stays an accepted foundation; none is marked implemented.
+3. **Phase 0 status labels: reconciled as status metadata only.**
+   - Updated: the architecture, product, and UX READMEs, and the 0A contract documents' status
+     lines. They now cite P0-W1…W4 and P0-IR1.
+   - No contract text changed. Historical reports (the Phase 0 exit-gate report and the UX
+     decisions log) are unchanged.
+4. **Assistive technology: deferred to 11E.** No NVDA, JAWS, or VoiceOver pass has been run, and
+   none is claimed (ADR-0012 F6). See [manual-smoke.md](manual-smoke.md).
 
 ## Related
 

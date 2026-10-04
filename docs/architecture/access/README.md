@@ -1,6 +1,6 @@
 # Authorization and policy model (Phase 0C)
 
-Status: **proposed: developer complete, awaiting solutions-architect review.** Nothing here marks a roadmap item complete.
+Status: **accepted** (Phase 0C, P0-W3); accepted at the Phase 0 exit gate (P0-IR1; [exit-gate report](../PHASE_0_EXIT_GATE.md)). Later approved amendments are recorded at their sources.
 
 One server-side authorization model for every surface: UI, API, search, exports, notifications, reports, AI retrieval, agents, automations, integrations, webhooks, background jobs, and support/administration tools. It builds on the accepted 0A contracts ([`docs/product/`](../../product/README.md)), the 0E UX foundation ([`docs/ux/`](../../ux/README.md)), the 0B data architecture ([`docs/architecture/data/`](../data/README.md)), and the approved decisions in `ROADMAP_CHECKLIST.md`.
 

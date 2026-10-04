@@ -20,6 +20,11 @@ P = lambda *x: os.path.join(ROOT, *x)
 PHASE1 = re.compile(r"^1[A-F]$")
 DISPOSITIONS = {"implemented", "foundation", "contributed"}
 PHASE1_ADRS = ["0008", "0009", "0010", "0011", "0012"]
+# Architect decisions at the Phase 1 integration review (2026-10-04). Hosting-dependent requirements
+# stay accepted foundations with exactly these deferrals; they are never "implemented" in Phase 1.
+APPROVED_DEFERRALS = {"SEC-001": ["11B"], "SEC-002": ["11B"], "SEC-017": ["11C"], "REL-007": ["11C", "11F"]}
+# OD-04 (decided): cross-brand sharing is owned by 2A; 1D contributes the exact-record-grant foundation.
+DECIDED_OWNERS = {"WSB-008": ("2A", "1D")}
 ADR_ACCEPTED = re.compile(r"^Status: \*\*accepted and implemented\*\*", re.M)
 
 
@@ -166,6 +171,18 @@ def check_closure(catalog, closure, subphases):
             for d in pending:
                 if not re.fullmatch(r"OD-\d{2}", d):
                     errs.append("%s: malformed pending decision %r" % (i, d))
+    for i, targets in APPROVED_DEFERRALS.items():
+        e = seen.get(i)
+        if not e or e.get("disposition") != "foundation" or sorted(e.get("deferred_to") or []) != targets:
+            errs.append("%s: must stay a foundation deferred to %s (architect decision)" % (i, ",".join(targets)))
+        elif not set(targets) <= set(reqs[i].get("contributing_subphases", [])):
+            errs.append("%s: catalog contributing_subphases must include %s" % (i, ",".join(targets)))
+    for i, (owner, contribution) in DECIDED_OWNERS.items():
+        r = reqs.get(i, {})
+        if r.get("owner_subphase") != owner or contribution not in r.get("contributing_subphases", []):
+            errs.append("%s: catalog must record owner %s with %s contributing (OD-04)" % (i, owner, contribution))
+        if seen.get(i, {}).get("contribution") != contribution:
+            errs.append("%s: closure must record the %s contribution" % (i, contribution))
     counts = {}
     for e in entries:
         counts[e.get("disposition")] = counts.get(e.get("disposition"), 0) + 1

@@ -1,6 +1,6 @@
 # Lifecycle and state semantics
 
-Status: proposed (Phase 0A), awaiting architect review. See the [glossary](glossary.md) for terms and [hierarchy-and-scope.md](hierarchy-and-scope.md) for cascade rules.
+Status: accepted (Phase 0A, P0-W1; Phase 0 exit gate P0-IR1). See the [glossary](glossary.md) for terms and [hierarchy-and-scope.md](hierarchy-and-scope.md) for cascade rules.
 
 ## 1. One vocabulary, several independent axes
 

@@ -1,6 +1,6 @@
 # Open product decisions register
 
-Status: proposed (Phase 0A). Every entry needs a product-owner decision, and entries marked **legal** or **commercial** also need that review. A **safe default** is what engineering may build *for now*: it keeps the decision reversible and makes no customer-facing promise. No default here may be published as a commitment until approved.
+Status: register accepted with Phase 0A (P0-W1). Each entry stays open until it is marked decided. Open entries need a product-owner decision, and entries marked **legal** or **commercial** also need that review. A **safe default** is what engineering may build *for now*: it keeps the decision reversible and makes no customer-facing promise. No default here may be published as a commitment until approved.
 
 Requirements flagged with each decision are listed automatically in [requirements/summary.md](requirements/summary.md#open-decisions-referenced-by-requirements). When a decision is approved, the solutions architect records it in `ROADMAP_CHECKLIST.md` → *Decisions and scope changes*, and this entry is marked **Decided (date)**.
 
@@ -41,11 +41,16 @@ Requirements flagged with each decision are listed automatically in [requirement
 
 <a id="od-04"></a>
 ### OD-04 — Cross-brand sharing model
-- **Decision (approved for architecture):** Projects, tasks, documents, files, goals, and saved views may be shared explicitly across brands. Shares are read-only by default, may optionally grant comment or edit, never include children unless individually selected, may expire, are revocable, and never grant onward sharing, moving, deletion, or configuration rights.
-- **Why it matters:** WSB-008 requires sharing and WSB-009 requires preventing exposure. No implementation sub-phase owns sharing explicitly (a roadmap gap). 1C is the provisional owner.
-- **Affects:** WSB-008, WSB-009, PERM-012, PRJ-028, COL-002 · phases 0B, 0C, 1C, 1D.
-- **Safe default:** Projects, tasks, documents, files, goals, and saved views are shareable. Shares are read-only by default, with comment/edit optional. Children are excluded unless selected, and expiry is optional ([hierarchy §5.2](hierarchy-and-scope.md#52-explicit-sharing)).
-- **If deferred:** No cross-brand visibility exists except through workspace-scoped records, so WSB-008 cannot pass.
+- **Decided (2026-10-04, architect, Phase 1 integration review):** WSB-008 is owned by **2A**. 1D remains the generic exact-record-grant foundation, and 2A delivers the first user-facing sharing, for projects.
+  - **Shareable types:** Record types are **non-shareable by default**. Every record-owning phase must register whether its type is shareable and which levels it supports. Projects, tasks, documents, files, goals, and saved views are candidates, but each is shareable only once its phase registers it.
+  - **Levels:** Shares grant only `view`, `comment`, or `edit` (read-only by default). A share is further capped by what the target module implements and by what the sharer may grant. Guests are capped at `edit`.
+  - **No onward sharing:** Access received through a share never permits sharing onward, moving, deletion, or configuration.
+  - **Exactly the selected records:** A share covers only explicitly selected records, with one grant per selected record. It never covers descendants, related records, future children, or inferred content. A child is shared only when it is itself selected.
+  - **Expiry and revocation:** Shares may expire and are revocable.
+- **Why it matters:** WSB-008 requires sharing and WSB-009 requires preventing exposure. No implementation sub-phase named sharing (a roadmap gap). 1C was the provisional owner until this decision.
+- **Affects:** WSB-008, WSB-009, PERM-012, PRJ-028, COL-002 · phases 0B, 0C, 1D, 2A, and every later record-owning phase.
+- **Contract:** [hierarchy §5.2](hierarchy-and-scope.md#52-explicit-sharing), plus the decision above.
+- **If deferred:** No longer applicable (decided).
 
 <a id="od-05"></a>
 ### OD-05 — Cross-brand relationships
