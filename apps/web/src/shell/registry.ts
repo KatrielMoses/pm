@@ -254,6 +254,38 @@ export const ROUTES: readonly RouteDef[] = [
     },
     visible: (a) => member(a) && a.capabilities.view_directory,
   },
+  // 2C (0E Phase 2C note): workflow and field administration at a chosen scope, and the
+  // approvals queue. Pages decide authority per scope; members see the entry points.
+  {
+    id: 'workflows',
+    pattern: '/workspaces/:ws/settings/workflows',
+    shell: 'workspace',
+    section: 'Workflows',
+    nav: { placement: 'admin', label: 'Workflows', short: 'Workflows', icon: '⇉', order: 2 },
+    visible: member,
+  },
+  {
+    id: 'fields',
+    pattern: '/workspaces/:ws/settings/fields',
+    shell: 'workspace',
+    section: 'Custom fields',
+    nav: { placement: 'admin', label: 'Custom fields', short: 'Fields', icon: '▤', order: 3 },
+    visible: member,
+  },
+  {
+    id: 'field_sets',
+    pattern: '/workspaces/:ws/settings/field-sets',
+    shell: 'workspace',
+    section: 'Field sets',
+    visible: member,
+  },
+  {
+    id: 'approvals',
+    pattern: '/workspaces/:ws/approvals',
+    shell: 'workspace',
+    section: 'Approvals',
+    visible: member,
+  },
   {
     id: 'workspace_root',
     pattern: '/workspaces/:ws',

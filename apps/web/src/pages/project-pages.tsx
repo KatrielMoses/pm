@@ -4,12 +4,16 @@ import {
   PROJECT_HEALTH,
   PROJECT_PRIORITIES,
   PROJECT_SECTIONS,
-  PROJECT_STATUSES,
   SCOPE_ITEM_KINDS,
   type ProjectSectionKey,
 } from '@pm/contracts/shell';
 import { canonicalJson, plainFromRichText, richTextFromPlain } from '@pm/contracts/rich-text';
 import { ApiError } from '../api.ts';
+import {
+  RecordFieldsSection,
+  TransitionControl,
+  useStatusChoices,
+} from '../workflow/record-workflow.tsx';
 import { ProjectTasksSection } from './task-pages.tsx';
 import {
   projects,
@@ -280,9 +284,11 @@ function GroupedList({
       out.set(key, g);
     }
     if (byStatus) {
-      const order = PROJECT_STATUSES.map((s) => s.key as string);
+      // Group order follows status categories (custom statuses included), then name.
+      const order = ['planned', 'active', 'paused', 'done', 'cancelled'];
+      const cat = (g: { rows: ProjectSummary[] }) => order.indexOf(g.rows[0]!.status.category);
       return [...out.entries()]
-        .sort((a, b) => order.indexOf(a[0]) - order.indexOf(b[0]))
+        .sort((a, b) => cat(a[1]) - cat(b[1]) || a[1].label.localeCompare(b[1].label))
         .map(([, g]) => g);
     }
     return [...out.values()];
@@ -865,6 +871,9 @@ function OverviewSection({ ws, o, reload }: { ws: string; o: Overview; reload: (
   const [kind, setKind] = useState<'decision' | 'open_question'>('decision');
   return (
     <>
+      {p.capabilities.edit ? (
+        <TransitionControl ws={ws} rec={p.id} version={p.version} onChanged={reload} />
+      ) : null}
       <section className="card" aria-labelledby="ov-summary">
         <h2 id="ov-summary">Summary</h2>
         <dl className="facts">
@@ -1611,6 +1620,29 @@ function SettingsSection({ ws, o, reload }: { ws: string; o: Overview; reload: (
   return (
     <>
       {p.capabilities.edit ? <ProjectIdentityForm ws={ws} project={p} onSaved={reload} /> : null}
+      {p.capabilities.edit ? <RecordFieldsSection ws={ws} rec={p.id} onSaved={reload} /> : null}
+      <section className="card" aria-labelledby="st-config">
+        <h2 id="st-config">Workflows and fields for this project</h2>
+        <p>
+          <Link
+            to={`${routeHref('workflows', { ws })}?scope=${encodeURIComponent(`project:${p.id}`)}`}
+          >
+            Workflows
+          </Link>
+          {' · '}
+          <Link
+            to={`${routeHref('fields', { ws })}?scope=${encodeURIComponent(`project:${p.id}`)}`}
+          >
+            Custom fields
+          </Link>
+          {' · '}
+          <Link
+            to={`${routeHref('field_sets', { ws })}?scope=${encodeURIComponent(`project:${p.id}`)}`}
+          >
+            Field sets
+          </Link>
+        </p>
+      </section>
 
       {p.capabilities.manage_access ? (
         <section className="card" aria-labelledby="st-access">
@@ -2043,6 +2075,7 @@ function ProjectIdentityForm({
   const stepUp = useStepUp();
   const [base, setBase] = useState(project);
   const [draft, setDraft] = useState(() => identityOf(project));
+  const statusChoices = useStatusChoices(ws, base.id, base.status, base.version, 'project');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<unknown>(null);
   const [saved, setSaved] = useState(0);
@@ -2138,12 +2171,7 @@ function ProjectIdentityForm({
           value={draft.status}
           onChange={set('status')}
           error={fields['st-status']}
-          options={PROJECT_STATUSES.filter(
-            (s) =>
-              base.capabilities.complete ||
-              s.key !== 'completed' ||
-              base.status.key === 'completed',
-          ).map((s) => ({ value: s.key, label: s.name }))}
+          options={statusChoices}
         />
         <SelectField
           id="st-priority"

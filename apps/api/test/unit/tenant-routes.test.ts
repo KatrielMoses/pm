@@ -87,6 +87,7 @@ describe('tenant lifecycle and audit endpoints are reachable only through policy
       'apps/api/src/work/routes.ts',
       // 2B (0C AZ-22): task lifecycle verbs, decided through the same tenancy-exported issuer.
       'apps/api/src/work/task-routes.ts',
+      'apps/api/src/work/workflow-routes.ts',
     ]);
     const routes = readFileSync(join(ROOT, 'apps/api/src/tenancy/routes.ts'), 'utf8');
     expect(routes).toContain("'/v1/workspaces/:ws/brands/:brand'");
