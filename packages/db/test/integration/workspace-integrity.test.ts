@@ -178,6 +178,22 @@ describe('database-enforced workspace existence (1A review 01, correction 2)', (
       'work.task_assignee',
       'work.task_inherited_criterion',
       'work.task_label',
+      // Phase 2C workflows, approvals, custom fields, field sets, and field policy.
+      'access.field_policy',
+      'workflow.approval_decision',
+      'workflow.approval_request',
+      'workflow.field_definition',
+      'workflow.field_option',
+      'workflow.field_set',
+      'workflow.field_set_attachment',
+      'workflow.field_set_version',
+      'workflow.field_value',
+      'workflow.formula_dependency',
+      'workflow.transition',
+      'workflow.transition_approver',
+      'workflow.transition_requirement',
+      'workflow.workflow',
+      'workflow.workflow_status',
     ];
     expect(res.rows.map((r) => r.tbl).sort()).toEqual(
       [...TENANT_TABLES.map((t) => `exec.${t}`), ...phase1f, ...phase1c].sort(),
@@ -213,8 +229,10 @@ describe('database-enforced workspace existence (1A review 01, correction 2)', (
     // 1D collaboration (teams, invitations, policy, shares, ownership transfer): 38 keys;
     // 1E personal navigation (favorites, recents, view state, view pins): 12 keys;
     // 2A projects, structures, relationships, templates, recurrence, project role scope: 60 keys;
-    // 2B tasks, assignees, checklists, task criteria, inherited criteria, labels, links: 33 keys.
-    expect(res.rows.length).toBe(176);
+    // 2B tasks, assignees, checklists, task criteria, inherited criteria, labels, links: 33 keys;
+    // 2C workflows, statuses, transitions, approvals (24) and fields, values, sets, field policy (30),
+    // less the three platform-status keys that became trigger-checked status references: +51.
+    expect(res.rows.length).toBe(227);
     for (const r of res.rows)
       expect(r, `${r.tbl}.${r.conname}`).toMatchObject({
         referencing_indexed: true,

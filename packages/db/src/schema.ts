@@ -1392,6 +1392,219 @@ export interface RecurrenceSeriesTable {
   version: Defaulted<number>;
 }
 
+// Phase 2C (0025, 0026): workflows, approvals, custom fields, field sets, field policy.
+export interface WorkflowTable {
+  id: string;
+  public_id: string;
+  workspace_id: string;
+  brand_id: string | null;
+  project_id: string | null;
+  scope_kind: string;
+  record_kind: string;
+  name: string;
+  state: Defaulted<string>;
+  created_by_membership_id: string | null;
+  created_at: DTs;
+  updated_at: DTs;
+  version: Defaulted<number>;
+}
+export interface WorkflowStatusTable {
+  id: string;
+  public_id: string;
+  workspace_id: string;
+  workflow_id: string;
+  name: string;
+  normalized_name: string;
+  description: string | null;
+  category: string;
+  color: string;
+  icon: string | null;
+  rank: string;
+  state: Defaulted<string>;
+  created_at: DTs;
+  updated_at: DTs;
+  version: Defaulted<number>;
+}
+export interface WfTransitionTable {
+  id: string;
+  public_id: string;
+  workspace_id: string;
+  workflow_id: string;
+  from_status_id: string;
+  to_status_id: string;
+  description: string | null;
+  rank: string;
+  confirmation_tier: Defaulted<string>;
+  approval_policy: Defaulted<string>;
+  allow_self_approval: Defaulted<boolean>;
+  state: Defaulted<string>;
+  created_at: DTs;
+  updated_at: DTs;
+  version: Defaulted<number>;
+}
+export interface WfTransitionRequirementTable {
+  id: string;
+  workspace_id: string;
+  transition_id: string;
+  field_kind: string;
+  builtin_key: string | null;
+  definition_id: string | null;
+  allow_manager_override: Defaulted<boolean>;
+  rank: string;
+  created_at: DTs;
+}
+export interface WfTransitionApproverTable {
+  workspace_id: string;
+  transition_id: string;
+  membership_id: string;
+  rank: string;
+}
+export interface WfApprovalRequestTable {
+  id: string;
+  public_id: string;
+  workspace_id: string;
+  brand_id: string;
+  workflow_id: string;
+  transition_id: string;
+  transition_version: number;
+  record_id: string;
+  record_type: string;
+  record_version: number;
+  fingerprint: string;
+  requester_membership_id: string;
+  policy: string;
+  approver_membership_ids: Defaulted<string[]>;
+  allow_self_approval: boolean;
+  expires_at: Ts;
+  created_at: DTs;
+  closed_at: Ts | null;
+  closed_reason: string | null;
+}
+export interface WfApprovalDecisionTable {
+  id: string;
+  workspace_id: string;
+  approval_request_id: string;
+  approver_membership_id: string;
+  decision: string;
+  note_hash: string | null;
+  decided_at: DTs;
+}
+export interface WfFieldDefinitionTable {
+  id: string;
+  public_id: string;
+  workspace_id: string;
+  brand_id: string | null;
+  project_id: string | null;
+  scope_kind: string;
+  lineage_id: string;
+  applies_to_project: boolean;
+  applies_to_task: boolean;
+  name: string;
+  normalized_name: string;
+  description: string | null;
+  field_type: string;
+  config: ColumnType<Record<string, unknown>, string | undefined, string>;
+  required: Defaulted<boolean>;
+  presentation: Defaulted<string>;
+  applicability: Defaulted<string>;
+  view_visibility: ColumnType<Record<string, unknown>, string | undefined, string>;
+  formula_ast: Json<Record<string, unknown>> | null;
+  formula_version: Defaulted<number>;
+  result_type: string | null;
+  extensions: ColumnType<Record<string, unknown>, string | undefined, string>;
+  rank: string;
+  state: Defaulted<string>;
+  created_by_membership_id: string | null;
+  created_at: DTs;
+  updated_at: DTs;
+  version: Defaulted<number>;
+}
+export interface WfFieldOptionTable {
+  id: string;
+  public_id: string;
+  workspace_id: string;
+  definition_id: string;
+  label: string;
+  normalized_label: string;
+  color: string;
+  rank: string;
+  state: Defaulted<string>;
+  created_at: DTs;
+  updated_at: DTs;
+  version: Defaulted<number>;
+}
+export interface WfFormulaDependencyTable {
+  workspace_id: string;
+  definition_id: string;
+  depends_on_definition_id: string;
+}
+export interface WfFieldValueTable {
+  workspace_id: string;
+  brand_id: string;
+  definition_id: string;
+  record_id: string;
+  value: Json<unknown> | null;
+  value_text: string | null;
+  value_numeric: string | null;
+  value_date: string | null;
+  value_bool: boolean | null;
+  value_ref: string | null;
+  currency_code: string | null;
+  computed: Defaulted<boolean>;
+  formula_version: number | null;
+  error_code: string | null;
+  extensions: ColumnType<Record<string, unknown>, string | undefined, string>;
+  updated_by_membership_id: string | null;
+  updated_at: DTs;
+  version: Defaulted<number>;
+}
+export interface WfFieldSetTable {
+  id: string;
+  public_id: string;
+  workspace_id: string;
+  brand_id: string | null;
+  project_id: string | null;
+  scope_kind: string;
+  applies_to_project: boolean;
+  applies_to_task: boolean;
+  name: string;
+  normalized_name: string;
+  current_version: Defaulted<number>;
+  state: Defaulted<string>;
+  created_by_membership_id: string | null;
+  created_at: DTs;
+  updated_at: DTs;
+  version: Defaulted<number>;
+}
+export interface WfFieldSetVersionTable {
+  workspace_id: string;
+  field_set_id: string;
+  version: number;
+  items: Json<unknown[]>;
+  created_by_membership_id: string | null;
+  created_at: DTs;
+}
+export interface WfFieldSetAttachmentTable {
+  workspace_id: string;
+  brand_id: string;
+  record_id: string;
+  field_set_id: string;
+  version: number;
+  attached_by_membership_id: string | null;
+  attached_at: DTs;
+}
+export interface FieldPolicyTable {
+  workspace_id: string;
+  definition_id: string;
+  read_rule: Defaulted<string>;
+  read_min_level: string | null;
+  edit_min_level: string | null;
+  guest_visible: Defaulted<boolean>;
+  index_for_search: Defaulted<boolean>;
+  updated_at: DTs;
+  version: Defaulted<number>;
+}
+
 export interface Database {
   'tenancy.workspace': WorkspaceTable;
   'exec.operation': OperationTable;
@@ -1468,6 +1681,21 @@ export interface Database {
   'templates.template': TemplateTable;
   'templates.template_version': TemplateVersionTable;
   'planning.recurrence_series': RecurrenceSeriesTable;
+  'workflow.workflow': WorkflowTable;
+  'workflow.workflow_status': WorkflowStatusTable;
+  'workflow.transition': WfTransitionTable;
+  'workflow.transition_requirement': WfTransitionRequirementTable;
+  'workflow.transition_approver': WfTransitionApproverTable;
+  'workflow.approval_request': WfApprovalRequestTable;
+  'workflow.approval_decision': WfApprovalDecisionTable;
+  'workflow.field_definition': WfFieldDefinitionTable;
+  'workflow.field_option': WfFieldOptionTable;
+  'workflow.formula_dependency': WfFormulaDependencyTable;
+  'workflow.field_value': WfFieldValueTable;
+  'workflow.field_set': WfFieldSetTable;
+  'workflow.field_set_version': WfFieldSetVersionTable;
+  'workflow.field_set_attachment': WfFieldSetAttachmentTable;
+  'access.field_policy': FieldPolicyTable;
 }
 
 /** Column inventory per table, compared with the migrated catalog by the schema-drift test. */
@@ -2614,6 +2842,208 @@ export const TABLE_COLUMNS: Readonly<Record<keyof Database, readonly string[]>> 
     'split_from_series_id',
     'owner_membership_id',
     'created_at',
+    'updated_at',
+    'version',
+  ],
+  'workflow.workflow': [
+    'id',
+    'public_id',
+    'workspace_id',
+    'brand_id',
+    'project_id',
+    'scope_kind',
+    'record_kind',
+    'name',
+    'state',
+    'created_by_membership_id',
+    'created_at',
+    'updated_at',
+    'version',
+  ],
+  'workflow.workflow_status': [
+    'id',
+    'public_id',
+    'workspace_id',
+    'workflow_id',
+    'name',
+    'normalized_name',
+    'description',
+    'category',
+    'color',
+    'icon',
+    'rank',
+    'state',
+    'created_at',
+    'updated_at',
+    'version',
+  ],
+  'workflow.transition': [
+    'id',
+    'public_id',
+    'workspace_id',
+    'workflow_id',
+    'from_status_id',
+    'to_status_id',
+    'description',
+    'rank',
+    'confirmation_tier',
+    'approval_policy',
+    'allow_self_approval',
+    'state',
+    'created_at',
+    'updated_at',
+    'version',
+  ],
+  'workflow.transition_requirement': [
+    'id',
+    'workspace_id',
+    'transition_id',
+    'field_kind',
+    'builtin_key',
+    'definition_id',
+    'allow_manager_override',
+    'rank',
+    'created_at',
+  ],
+  'workflow.transition_approver': ['workspace_id', 'transition_id', 'membership_id', 'rank'],
+  'workflow.approval_request': [
+    'id',
+    'public_id',
+    'workspace_id',
+    'brand_id',
+    'workflow_id',
+    'transition_id',
+    'transition_version',
+    'record_id',
+    'record_type',
+    'record_version',
+    'fingerprint',
+    'requester_membership_id',
+    'policy',
+    'approver_membership_ids',
+    'allow_self_approval',
+    'expires_at',
+    'created_at',
+    'closed_at',
+    'closed_reason',
+  ],
+  'workflow.approval_decision': [
+    'id',
+    'workspace_id',
+    'approval_request_id',
+    'approver_membership_id',
+    'decision',
+    'note_hash',
+    'decided_at',
+  ],
+  'workflow.field_definition': [
+    'id',
+    'public_id',
+    'workspace_id',
+    'brand_id',
+    'project_id',
+    'scope_kind',
+    'lineage_id',
+    'applies_to_project',
+    'applies_to_task',
+    'name',
+    'normalized_name',
+    'description',
+    'field_type',
+    'config',
+    'required',
+    'presentation',
+    'applicability',
+    'view_visibility',
+    'formula_ast',
+    'formula_version',
+    'result_type',
+    'extensions',
+    'rank',
+    'state',
+    'created_by_membership_id',
+    'created_at',
+    'updated_at',
+    'version',
+  ],
+  'workflow.field_option': [
+    'id',
+    'public_id',
+    'workspace_id',
+    'definition_id',
+    'label',
+    'normalized_label',
+    'color',
+    'rank',
+    'state',
+    'created_at',
+    'updated_at',
+    'version',
+  ],
+  'workflow.formula_dependency': ['workspace_id', 'definition_id', 'depends_on_definition_id'],
+  'workflow.field_value': [
+    'workspace_id',
+    'brand_id',
+    'definition_id',
+    'record_id',
+    'value',
+    'value_text',
+    'value_numeric',
+    'value_date',
+    'value_bool',
+    'value_ref',
+    'currency_code',
+    'computed',
+    'formula_version',
+    'error_code',
+    'extensions',
+    'updated_by_membership_id',
+    'updated_at',
+    'version',
+  ],
+  'workflow.field_set': [
+    'id',
+    'public_id',
+    'workspace_id',
+    'brand_id',
+    'project_id',
+    'scope_kind',
+    'applies_to_project',
+    'applies_to_task',
+    'name',
+    'normalized_name',
+    'current_version',
+    'state',
+    'created_by_membership_id',
+    'created_at',
+    'updated_at',
+    'version',
+  ],
+  'workflow.field_set_version': [
+    'workspace_id',
+    'field_set_id',
+    'version',
+    'items',
+    'created_by_membership_id',
+    'created_at',
+  ],
+  'workflow.field_set_attachment': [
+    'workspace_id',
+    'brand_id',
+    'record_id',
+    'field_set_id',
+    'version',
+    'attached_by_membership_id',
+    'attached_at',
+  ],
+  'access.field_policy': [
+    'workspace_id',
+    'definition_id',
+    'read_rule',
+    'read_min_level',
+    'edit_min_level',
+    'guest_visible',
+    'index_for_search',
     'updated_at',
     'version',
   ],
