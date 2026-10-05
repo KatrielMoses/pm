@@ -1,0 +1,816 @@
+{
+  "schema_version": 1,
+  "phase": "2C",
+  "status": "candidate",
+  "adr": "0015",
+  "accepted_by_kinds": {
+    "catalog:contributing": "the subphase is a contributing_subphase of the requirement in the accepted 0A catalog",
+    "roadmap:<sub>": "the BUILD_ROADMAP subphase scope",
+    "adr:<nnnn>[#row]": "an engineering ADR row naming the subphase (proposed ADRs are allowed only while the closure status is candidate)",
+    "requirement:<ID>": "the requirement that owns the capability (its owner_subphase)"
+  },
+  "requirements": [
+    {
+      "id": "PRJ-009",
+      "role": "owned",
+      "disposition": "implemented",
+      "evidence": [
+        {
+          "file": "packages/db/migrations/0025_workflow_configuration.up.sql",
+          "contains": "CREATE TABLE workflow.workflow_status ("
+        },
+        {
+          "file": "packages/work/test/integration/workflows.test.ts",
+          "contains": "defaults stay; resolution is project"
+        }
+      ],
+      "note": "Custom project statuses through project-kind workflows."
+    },
+    {
+      "id": "TSK-016",
+      "role": "owned",
+      "disposition": "implemented",
+      "evidence": [
+        {
+          "file": "packages/db/migrations/0026_custom_fields.up.sql",
+          "contains": "CREATE TABLE workflow.field_value ("
+        },
+        {
+          "file": "packages/work/test/integration/fields.test.ts",
+          "contains": "every type validates and normalizes"
+        }
+      ],
+      "note": "Custom fields on tasks (and projects)."
+    },
+    {
+      "id": "TSK-031",
+      "role": "owned",
+      "disposition": "implemented",
+      "evidence": [
+        {
+          "file": "packages/work/test/integration/workflows.test.ts",
+          "contains": "a workflow-required custom field gates completion"
+        }
+      ],
+      "note": "Completion fields are transition requirements into done."
+    },
+    {
+      "id": "WFL-001",
+      "role": "owned",
+      "disposition": "implemented",
+      "evidence": [
+        {
+          "file": "docs/product/lifecycle-and-states.md",
+          "contains": "Configurable workflows (Phase 2C"
+        },
+        {
+          "file": "packages/work/test/integration/workflows.test.ts",
+          "contains": "defaults stay"
+        }
+      ],
+      "note": "Default project and task workflows remain the platform statuses."
+    },
+    {
+      "id": "WFL-002",
+      "role": "owned",
+      "disposition": "implemented",
+      "evidence": [
+        {
+          "file": "packages/db/migrations/0025_workflow_configuration.up.sql",
+          "contains": "workflow_scope_shape"
+        },
+        {
+          "file": "packages/work/test/integration/workflows.test.ts",
+          "contains": "resolution is project → brand → workspace → default"
+        }
+      ],
+      "note": "Custom task statuses per workspace, brand, or project."
+    },
+    {
+      "id": "WFL-003",
+      "role": "owned",
+      "disposition": "implemented",
+      "evidence": [
+        {
+          "file": "packages/db/migrations/0025_workflow_configuration.up.sql",
+          "contains": "workflow_record_kind_known"
+        }
+      ],
+      "note": "Custom project statuses."
+    },
+    {
+      "id": "WFL-004",
+      "role": "owned",
+      "disposition": "implemented",
+      "evidence": [
+        {
+          "file": "packages/work/test/integration/workflows.test.ts",
+          "contains": "categories are fixed in the database"
+        },
+        {
+          "file": "apps/web/src/pages/workflow-pages.tsx",
+          "contains": "Move up<span className=\"visually-hidden\"> {s.name}</span>"
+        }
+      ],
+      "note": "Reorder (buttons) and color statuses; identity kept."
+    },
+    {
+      "id": "WFL-005",
+      "role": "owned",
+      "disposition": "implemented",
+      "evidence": [
+        {
+          "file": "packages/work/test/integration/workflows.test.ts",
+          "contains": "registered transitions restrict edges"
+        }
+      ],
+      "note": "Allowed transitions."
+    },
+    {
+      "id": "WFL-006",
+      "role": "owned",
+      "disposition": "implemented",
+      "evidence": [
+        {
+          "file": "packages/db/migrations/0025_workflow_configuration.up.sql",
+          "contains": "CREATE TABLE workflow.transition_requirement ("
+        },
+        {
+          "file": "packages/work/test/integration/workflows.test.ts",
+          "contains": "required fields are atomic"
+        }
+      ],
+      "note": "Required fields for transitions."
+    },
+    {
+      "id": "WFL-007",
+      "role": "owned",
+      "disposition": "implemented",
+      "evidence": [
+        {
+          "file": "packages/db/migrations/0025_workflow_configuration.up.sql",
+          "contains": "CREATE TABLE workflow.approval_request ("
+        },
+        {
+          "file": "packages/work/test/integration/workflows.test.ts",
+          "contains": "approvals: bound to the record version"
+        }
+      ],
+      "note": "Approval requirements; review states are 4A.",
+      "enriched_by": [
+        "4A"
+      ],
+      "accepted_by": [
+        "catalog:contributing"
+      ]
+    },
+    {
+      "id": "WFL-008",
+      "role": "owned",
+      "disposition": "implemented",
+      "evidence": [
+        {
+          "file": "packages/db/migrations/0026_custom_fields.up.sql",
+          "contains": "field_definition_type_known"
+        },
+        {
+          "file": "packages/work/test/integration/fields.test.ts",
+          "contains": "every type validates"
+        }
+      ],
+      "note": "All twelve field types."
+    },
+    {
+      "id": "WFL-009",
+      "role": "owned",
+      "disposition": "implemented",
+      "evidence": [
+        {
+          "file": "packages/db/migrations/0026_custom_fields.up.sql",
+          "contains": "CREATE TABLE access.field_policy ("
+        },
+        {
+          "file": "packages/work/test/integration/fields.test.ts",
+          "contains": "field policy: hidden fields"
+        }
+      ],
+      "note": "Visibility by item type and policy; view visibility metadata stored for 3A.",
+      "enriched_by": [
+        "3A"
+      ],
+      "accepted_by": [
+        "catalog:contributing"
+      ]
+    },
+    {
+      "id": "WFL-010",
+      "role": "owned",
+      "disposition": "implemented",
+      "evidence": [
+        {
+          "file": "packages/db/migrations/0026_custom_fields.up.sql",
+          "contains": "CREATE TABLE workflow.field_set_version ("
+        },
+        {
+          "file": "packages/work/test/integration/fields.test.ts",
+          "contains": "field sets attach a version"
+        }
+      ],
+      "note": "Reusable versioned field sets."
+    },
+    {
+      "id": "WFL-011",
+      "role": "owned",
+      "disposition": "implemented",
+      "evidence": [
+        {
+          "file": "packages/work/src/workflow/formula.ts",
+          "contains": "export function compileFormula"
+        },
+        {
+          "file": "packages/work/test/integration/fields.test.ts",
+          "contains": "formulas: typed AST"
+        }
+      ],
+      "note": "Calculated (formula) fields."
+    },
+    {
+      "id": "WFL-012",
+      "role": "owned",
+      "disposition": "implemented",
+      "evidence": [
+        {
+          "file": "packages/work/src/workflow/field-types.ts",
+          "contains": "export async function normalizeValue"
+        },
+        {
+          "file": "packages/work/test/unit/workflow-engine.test.ts",
+          "contains": "field values"
+        }
+      ],
+      "note": "Validation server-side and in the database."
+    },
+    {
+      "id": "WFL-013",
+      "role": "owned",
+      "disposition": "implemented",
+      "evidence": [
+        {
+          "file": "apps/web/src/workflow/record-workflow.tsx",
+          "contains": "More fields ("
+        },
+        {
+          "file": "e2e/workflows.spec.ts",
+          "contains": "advanced fields under \"More fields\""
+        }
+      ],
+      "note": "Advanced fields under More fields."
+    },
+    {
+      "id": "WFL-014",
+      "role": "owned",
+      "disposition": "implemented",
+      "evidence": [
+        {
+          "file": "packages/work/src/workflow/serialization.ts",
+          "contains": "export function parseFieldDocument"
+        },
+        {
+          "file": "packages/work/test/integration/fields.test.ts",
+          "contains": "round-trips losslessly"
+        }
+      ],
+      "note": "Canonical serialization; import/export jobs are 6D.",
+      "enriched_by": [
+        "6D"
+      ],
+      "accepted_by": [
+        "catalog:contributing"
+      ]
+    },
+    {
+      "id": "TSK-029",
+      "role": "contributing",
+      "disposition": "contributed",
+      "contribution": "2C",
+      "evidence": [
+        {
+          "file": "packages/db/migrations/0025_workflow_configuration.up.sql",
+          "contains": "approval_decision_known"
+        }
+      ],
+      "note": "Generic approval facts and gates; collaborative task review is 4A."
+    },
+    {
+      "id": "TSK-030",
+      "role": "contributing",
+      "disposition": "contributed",
+      "contribution": "2C",
+      "evidence": [
+        {
+          "file": "docs/engineering/adr/0015-workflows-fields.md",
+          "contains": "4A adds review states"
+        }
+      ],
+      "note": "Approve and reject facts only; review requested and changes requested are 4A."
+    },
+    {
+      "id": "FILE-007",
+      "role": "contributing",
+      "disposition": "contributed",
+      "contribution": "2C",
+      "evidence": [
+        {
+          "file": "docs/engineering/adr/0015-workflows-fields.md",
+          "contains": "4E connects deliverable reviews"
+        }
+      ],
+      "note": "Approval facts reusable by deliverable review (4E)."
+    }
+  ],
+  "decisions": [
+    {
+      "id": "D1",
+      "title": "One workflow system",
+      "adr_row": "W1",
+      "sources": [
+        {
+          "file": "docs/architecture/data/12-decisions.md",
+          "contains": "ADR-23"
+        }
+      ],
+      "evidence": [
+        {
+          "file": "packages/db/migrations/0025_workflow_configuration.up.sql",
+          "contains": "CREATE TABLE workflow.workflow ("
+        },
+        {
+          "file": "docs/engineering/adr/0015-workflows-fields.md",
+          "contains": "| W1 |"
+        }
+      ]
+    },
+    {
+      "id": "D2",
+      "title": "Scope and precedence",
+      "adr_row": "W2",
+      "sources": [
+        {
+          "file": "docs/product/lifecycle-and-states.md",
+          "contains": "project → brand → workspace → platform default"
+        }
+      ],
+      "evidence": [
+        {
+          "file": "packages/db/migrations/0025_workflow_configuration.up.sql",
+          "contains": "CREATE FUNCTION workflow.resolve_workflow"
+        },
+        {
+          "file": "docs/engineering/adr/0015-workflows-fields.md",
+          "contains": "| W2 |"
+        }
+      ]
+    },
+    {
+      "id": "D3",
+      "title": "Status identity",
+      "adr_row": "W3",
+      "sources": [
+        {
+          "file": "docs/architecture/data/12-decisions.md",
+          "contains": "ADR-23"
+        }
+      ],
+      "evidence": [
+        {
+          "file": "packages/db/migrations/0025_workflow_configuration.up.sql",
+          "contains": "workflow_status_guard"
+        },
+        {
+          "file": "docs/engineering/adr/0015-workflows-fields.md",
+          "contains": "| W3 |"
+        }
+      ]
+    },
+    {
+      "id": "D4",
+      "title": "Defaults",
+      "adr_row": "W4",
+      "sources": [
+        {
+          "file": "docs/architecture/data/12-decisions.md",
+          "contains": "ADR-23"
+        }
+      ],
+      "evidence": [
+        {
+          "file": "packages/work/src/workflow/statuses.ts",
+          "contains": "export function initialStatus"
+        },
+        {
+          "file": "docs/engineering/adr/0015-workflows-fields.md",
+          "contains": "| W4 |"
+        }
+      ]
+    },
+    {
+      "id": "D5",
+      "title": "Transitions",
+      "adr_row": "W5",
+      "sources": [
+        {
+          "file": "docs/architecture/data/12-decisions.md",
+          "contains": "ADR-23"
+        }
+      ],
+      "evidence": [
+        {
+          "file": "packages/work/src/workflow/transitions.ts",
+          "contains": "export function evaluateTransition"
+        },
+        {
+          "file": "docs/engineering/adr/0015-workflows-fields.md",
+          "contains": "| W5 |"
+        }
+      ]
+    },
+    {
+      "id": "D6",
+      "title": "Required fields",
+      "adr_row": "W6",
+      "sources": [
+        {
+          "file": "docs/architecture/data/12-decisions.md",
+          "contains": "ADR-23"
+        }
+      ],
+      "evidence": [
+        {
+          "file": "packages/work/test/integration/workflows.test.ts",
+          "contains": "leaves the record unchanged"
+        },
+        {
+          "file": "docs/engineering/adr/0015-workflows-fields.md",
+          "contains": "| W6 |"
+        }
+      ]
+    },
+    {
+      "id": "D7",
+      "title": "Approvals",
+      "adr_row": "W7",
+      "sources": [
+        {
+          "file": "docs/architecture/access/15-decisions.md",
+          "contains": "AZ-23"
+        }
+      ],
+      "evidence": [
+        {
+          "file": "packages/db/migrations/0025_workflow_configuration.up.sql",
+          "contains": "approval_request_guard"
+        },
+        {
+          "file": "docs/engineering/adr/0015-workflows-fields.md",
+          "contains": "| W7 |"
+        }
+      ]
+    },
+    {
+      "id": "D8",
+      "title": "Apply",
+      "adr_row": "W8",
+      "sources": [
+        {
+          "file": "docs/architecture/data/12-decisions.md",
+          "contains": "ADR-23"
+        }
+      ],
+      "evidence": [
+        {
+          "file": "packages/work/src/workflow-service.ts",
+          "contains": "verifyPreviewToken(this.#transitionKey"
+        },
+        {
+          "file": "docs/engineering/adr/0015-workflows-fields.md",
+          "contains": "| W8 |"
+        }
+      ]
+    },
+    {
+      "id": "D9",
+      "title": "Configuration lifecycle",
+      "adr_row": "W9",
+      "sources": [
+        {
+          "file": "docs/architecture/data/12-decisions.md",
+          "contains": "ADR-23"
+        }
+      ],
+      "evidence": [
+        {
+          "file": "packages/work/test/integration/workflows.test.ts",
+          "contains": "migration keeps the category"
+        },
+        {
+          "file": "docs/engineering/adr/0015-workflows-fields.md",
+          "contains": "| W9 |"
+        }
+      ]
+    },
+    {
+      "id": "D10",
+      "title": "Field types",
+      "adr_row": "W10",
+      "sources": [
+        {
+          "file": "docs/architecture/data/12-decisions.md",
+          "contains": "ADR-23"
+        }
+      ],
+      "evidence": [
+        {
+          "file": "packages/db/migrations/0026_custom_fields.up.sql",
+          "contains": "'person', 'label', 'checkbox', 'url', 'email', 'select', 'formula'"
+        },
+        {
+          "file": "docs/engineering/adr/0015-workflows-fields.md",
+          "contains": "| W10 |"
+        }
+      ]
+    },
+    {
+      "id": "D11",
+      "title": "Definition scope",
+      "adr_row": "W11",
+      "sources": [
+        {
+          "file": "docs/architecture/data/12-decisions.md",
+          "contains": "ADR-23"
+        }
+      ],
+      "evidence": [
+        {
+          "file": "packages/db/migrations/0026_custom_fields.up.sql",
+          "contains": "field_definition_active_lineage"
+        },
+        {
+          "file": "docs/engineering/adr/0015-workflows-fields.md",
+          "contains": "| W11 |"
+        }
+      ]
+    },
+    {
+      "id": "D12",
+      "title": "Values",
+      "adr_row": "W12",
+      "sources": [
+        {
+          "file": "docs/architecture/data/12-decisions.md",
+          "contains": "ADR-23"
+        }
+      ],
+      "evidence": [
+        {
+          "file": "packages/db/migrations/0026_custom_fields.up.sql",
+          "contains": "CREATE FUNCTION workflow.field_value_shape"
+        },
+        {
+          "file": "docs/engineering/adr/0015-workflows-fields.md",
+          "contains": "| W12 |"
+        }
+      ]
+    },
+    {
+      "id": "D13",
+      "title": "Validation",
+      "adr_row": "W13",
+      "sources": [
+        {
+          "file": "docs/architecture/data/12-decisions.md",
+          "contains": "ADR-23"
+        }
+      ],
+      "evidence": [
+        {
+          "file": "packages/work/src/workflow/pattern.ts",
+          "contains": "export function compilePattern"
+        },
+        {
+          "file": "docs/engineering/adr/0015-workflows-fields.md",
+          "contains": "| W13 |"
+        }
+      ]
+    },
+    {
+      "id": "D14",
+      "title": "Currency and percentage",
+      "adr_row": "W14",
+      "sources": [
+        {
+          "file": "docs/architecture/data/12-decisions.md",
+          "contains": "ADR-23"
+        }
+      ],
+      "evidence": [
+        {
+          "file": "packages/work/test/integration/fields.test.ts",
+          "contains": "currency is minor units"
+        },
+        {
+          "file": "docs/engineering/adr/0015-workflows-fields.md",
+          "contains": "| W14 |"
+        }
+      ]
+    },
+    {
+      "id": "D15",
+      "title": "References",
+      "adr_row": "W15",
+      "sources": [
+        {
+          "file": "docs/architecture/data/12-decisions.md",
+          "contains": "ADR-23"
+        }
+      ],
+      "evidence": [
+        {
+          "file": "packages/work/test/integration/fields.test.ts",
+          "contains": "references grant no access"
+        },
+        {
+          "file": "docs/engineering/adr/0015-workflows-fields.md",
+          "contains": "| W15 |"
+        }
+      ]
+    },
+    {
+      "id": "D16",
+      "title": "Options",
+      "adr_row": "W16",
+      "sources": [
+        {
+          "file": "docs/architecture/data/12-decisions.md",
+          "contains": "ADR-23"
+        }
+      ],
+      "evidence": [
+        {
+          "file": "packages/work/test/integration/fields.test.ts",
+          "contains": "in-use removal needs a replacement"
+        },
+        {
+          "file": "docs/engineering/adr/0015-workflows-fields.md",
+          "contains": "| W16 |"
+        }
+      ]
+    },
+    {
+      "id": "D17",
+      "title": "Formula safety",
+      "adr_row": "W17",
+      "sources": [
+        {
+          "file": "docs/product/open-decisions.md",
+          "contains": "### OD-11"
+        }
+      ],
+      "evidence": [
+        {
+          "file": "packages/work/test/unit/workflow-engine.test.ts",
+          "contains": "refuses code, unknown functions"
+        },
+        {
+          "file": "docs/engineering/adr/0015-workflows-fields.md",
+          "contains": "| W17 |"
+        }
+      ]
+    },
+    {
+      "id": "D18",
+      "title": "Formula graph",
+      "adr_row": "W18",
+      "sources": [
+        {
+          "file": "docs/architecture/data/12-decisions.md",
+          "contains": "ADR-23"
+        }
+      ],
+      "evidence": [
+        {
+          "file": "packages/db/migrations/0026_custom_fields.up.sql",
+          "contains": "assert_formula_acyclic"
+        },
+        {
+          "file": "docs/engineering/adr/0015-workflows-fields.md",
+          "contains": "| W18 |"
+        }
+      ]
+    },
+    {
+      "id": "D19",
+      "title": "Formula authorization",
+      "adr_row": "W19",
+      "sources": [
+        {
+          "file": "docs/architecture/data/12-decisions.md",
+          "contains": "ADR-23"
+        }
+      ],
+      "evidence": [
+        {
+          "file": "packages/work/test/integration/fields.test.ts",
+          "contains": "formulas over hidden inputs are absent"
+        },
+        {
+          "file": "docs/engineering/adr/0015-workflows-fields.md",
+          "contains": "| W19 |"
+        }
+      ]
+    },
+    {
+      "id": "D20",
+      "title": "Visibility",
+      "adr_row": "W20",
+      "sources": [
+        {
+          "file": "docs/architecture/access/07-field-secret-derived-data.md",
+          "contains": "implemented for custom fields in Phase 2C"
+        }
+      ],
+      "evidence": [
+        {
+          "file": "packages/work/src/workflow/field-access.ts",
+          "contains": "export async function fieldsForRecord"
+        },
+        {
+          "file": "docs/engineering/adr/0015-workflows-fields.md",
+          "contains": "| W20 |"
+        }
+      ]
+    },
+    {
+      "id": "D21",
+      "title": "Advanced fields",
+      "adr_row": "W21",
+      "sources": [
+        {
+          "file": "docs/architecture/data/12-decisions.md",
+          "contains": "ADR-23"
+        }
+      ],
+      "evidence": [
+        {
+          "file": "apps/web/src/workflow/record-workflow.tsx",
+          "contains": "aria-expanded={more}"
+        },
+        {
+          "file": "docs/engineering/adr/0015-workflows-fields.md",
+          "contains": "| W21 |"
+        }
+      ]
+    },
+    {
+      "id": "D22",
+      "title": "Field sets",
+      "adr_row": "W22",
+      "sources": [
+        {
+          "file": "docs/architecture/data/12-decisions.md",
+          "contains": "ADR-23"
+        }
+      ],
+      "evidence": [
+        {
+          "file": "packages/work/test/integration/fields.test.ts",
+          "contains": "never change records until an explicit upgrade"
+        },
+        {
+          "file": "docs/engineering/adr/0015-workflows-fields.md",
+          "contains": "| W22 |"
+        }
+      ]
+    },
+    {
+      "id": "D23",
+      "title": "Serialization",
+      "adr_row": "W23",
+      "sources": [
+        {
+          "file": "docs/architecture/data/12-decisions.md",
+          "contains": "ADR-23"
+        }
+      ],
+      "evidence": [
+        {
+          "file": "packages/work/test/integration/fields.test.ts",
+          "contains": "keeps unknown parts opaque"
+        },
+        {
+          "file": "docs/engineering/adr/0015-workflows-fields.md",
+          "contains": "| W23 |"
+        }
+      ]
+    }
+  ]
+}

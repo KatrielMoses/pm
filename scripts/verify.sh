@@ -31,7 +31,7 @@ step "1. clean install with lockfile enforcement (no workspace cycles)"
 install_log=$(mktemp)
 pnpm install --frozen-lockfile 2>&1 | tee "$install_log"
 if grep -qi "cyclic workspace dependencies" "$install_log"; then die "pnpm reported cyclic workspace dependencies"; fi
-step "2. Phase 0 integration validator and Phase 1, 2A, and 2B closure checks"
+step "2. Phase 0 integration validator and Phase 1, 2A, 2B, and 2C closure checks"
 python3 docs/architecture/tools/phase0.py
 python3 docs/engineering/tools/phase1.py
 python3 docs/engineering/tools/phase2.py

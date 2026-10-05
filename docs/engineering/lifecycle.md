@@ -319,3 +319,11 @@ Archive is read-only: commands on an archived project or phase return `forbidden
 | Project | Adds its tasks | Also deletes inherited criterion responses for its definition-of-done items |
 
 An archived task is read-only (`forbidden`) until restored. The departure hook `taskAssigneeHook` ends a departing member's assignments in the same transaction.
+
+## Phase 2C: workflow facts
+
+Task and project purge hooks also remove the record's custom field values, field-set attachments,
+and approval requests and decisions (worker `DELETE` grants). `record.purge` is decided at the
+record's brand (0C: owners and administrators) after a readability check (ADR-0015 V4).
+Configuration (workflows, statuses, transitions, fields, options, sets) has its own reversible
+active/archived state; deleting it is refused while referenced.

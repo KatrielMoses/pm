@@ -89,3 +89,13 @@ Project names, descriptions, criteria, scope entries, updates, decisions, budget
 | `work.task.completions` | `outcome` (`completed`, `override`, `refused_criteria`, `refused_subtasks`) | Completion results; a rising `override` share means criteria are not being maintained |
 
 Task titles, descriptions, checklist and criteria text, link URLs, and label names never appear in labels, logs, or error context.
+
+## Workflows and fields (2C)
+
+| Signal | Labels | Meaning |
+|---|---|---|
+| `workflow.transitions` | `outcome` (`ok`, `refused`, `review_required`, `stale`, `approval_required`, an approval state, `applied`) | Every gated status change through the one evaluator |
+| `workflow.transition.duration` | `outcome` | Evaluation and enforcement time per status change |
+| `workflow.formula.evaluations` | `outcome` (`ok`, `missing`, `invalid`, `divide_by_zero`, `cycle`, `overflow`) | Formula results computed on writes and reads |
+
+Field names, values, formulas, option labels, status names, and emails never appear in labels, logs, or error context. Audit records value changes as hashes under `fields.<field id>`.
