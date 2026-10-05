@@ -10,6 +10,7 @@
     { "path": "packages/lifecycle" },
     { "path": "packages/identity" },
     { "path": "packages/tenancy" },
+    { "path": "packages/work" },
     { "path": "packages/test-infra" },
     { "path": "packages/test-support" },
     { "path": "apps/api" },

@@ -19,6 +19,7 @@
     "@pm/observability": "workspace:*",
     "@pm/platform": "workspace:*",
     "@pm/tenancy": "workspace:*",
+    "@pm/work": "workspace:*",
     "fastify": "5.12.5"
   },
   "devDependencies": {

@@ -13,7 +13,7 @@ import {
   type LocalOAuthProvider,
   type MailMessage,
 } from '@pm/identity';
-import { createTenancyService } from '@pm/tenancy';
+import { createWorkService } from '@pm/work';
 import { createHarness, type Harness } from '@pm/test-support';
 import { createTestDatabase, type TestDatabase } from '@pm/test-support/vitest';
 import { buildApp } from '../../src/app.ts';
@@ -95,6 +95,15 @@ export async function identityEnv(overrides: Record<string, string> = {}): Promi
     errors: new LogErrorReporter(h.logger),
   });
   await worker.start({ loop: false });
+  // Production parity: one service instance serves the 1C–1E and 2A route modules.
+  const work = createWorkService({
+    tenant: h.app,
+    platform: h.platform,
+    identity: service,
+    config: h.config,
+    logger: h.logger,
+    metrics: h.telemetry.metrics,
+  });
   const app = await buildApp({
     config: {
       env: 'test',
@@ -117,16 +126,8 @@ export async function identityEnv(overrides: Record<string, string> = {}): Promi
       },
     }),
     auth: { identity: service, localOAuth },
-    tenancy: {
-      tenancy: createTenancyService({
-        tenant: h.app,
-        platform: h.platform,
-        identity: service,
-        config: h.config,
-        logger: h.logger,
-        metrics: h.telemetry.metrics,
-      }),
-    },
+    tenancy: { tenancy: work },
+    work: { work },
   });
   await app.ready();
   return {

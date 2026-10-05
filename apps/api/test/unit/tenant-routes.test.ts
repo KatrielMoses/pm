@@ -76,12 +76,42 @@ describe('tenant lifecycle and audit endpoints are reachable only through policy
     expect(paths).toContain('/v1/workspaces/:ws/shared');
   });
 
-  it('archive and restore verbs exist only as brand actions in the tenancy routes', () => {
+  it('lifecycle verbs exist only in the registered route modules (tenancy brands, work projects)', () => {
+    // 1C: brand archive/restore. 2A (0C AZ-21): the work routes module, whose service obtains
+    // lifecycle decisions only through the tenancy-exported issuer. Every other API file is refused.
     const verbs = sources(join(ROOT, 'apps/api/src')).filter((f) =>
-      /verb === '(archive|restore)'/.test(readFileSync(f, 'utf8')),
+      /['"](archive|unarchive|restore|trash|purge)['"]/.test(readFileSync(f, 'utf8')),
     );
-    expect(verbs.map((f) => f.slice(ROOT.length + 1))).toEqual(['apps/api/src/tenancy/routes.ts']);
+    expect(verbs.map((f) => f.slice(ROOT.length + 1)).sort()).toEqual([
+      'apps/api/src/tenancy/routes.ts',
+      'apps/api/src/work/routes.ts',
+    ]);
     const routes = readFileSync(join(ROOT, 'apps/api/src/tenancy/routes.ts'), 'utf8');
     expect(routes).toContain("'/v1/workspaces/:ws/brands/:brand'");
+  });
+
+  it('work code runs lifecycle commands only with a tenancy-issued decision', () => {
+    const work = sources(join(ROOT, 'packages/work/src'));
+    const callers = work.filter((f) =>
+      /lifecycle\.(archive|unarchive|trash|restore|requestPurge)\(/.test(readFileSync(f, 'utf8')),
+    );
+    expect(callers.length).toBeGreaterThan(0);
+    for (const f of callers) {
+      const text = readFileSync(f, 'utf8');
+      // Every lifecycle call in the file takes `this.issueLifecycle(...)` (tenancy's issuer).
+      const calls = [
+        ...text.matchAll(/lifecycle\.(archive|unarchive|trash|restore|requestPurge)\(/g),
+      ].length;
+      const issued = [...text.matchAll(/issueLifecycle\(/g)].length;
+      expect(issued, f).toBeGreaterThanOrEqual(calls);
+    }
+    expect(readFileSync(join(ROOT, 'packages/work/src/service.ts'), 'utf8')).toContain(
+      'issueRecordLifecycleDecision',
+    );
+    // Work code never constructs decisions itself.
+    for (const f of work)
+      expect(readFileSync(f, 'utf8'), f).not.toMatch(
+        /new PolicyDecision|policy-issuer|lifecycle\/testing/,
+      );
   });
 });

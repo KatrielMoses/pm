@@ -34,6 +34,7 @@ import type { Readiness } from './readiness.ts';
 import { registerAuth, type AuthRouteDeps } from './auth/routes.ts';
 import { registerShell } from './shell/routes.ts';
 import { registerTenancy, type TenancyRouteDeps } from './tenancy/routes.ts';
+import { registerWork, type WorkRouteDeps } from './work/routes.ts';
 
 declare module 'fastify' {
   interface FastifyRequest {
@@ -56,6 +57,8 @@ export interface AppDeps {
   auth?: Omit<AuthRouteDeps, 'logger'> | undefined;
   /** Workspace, brand, settings, and context routes (1C); require `auth`. */
   tenancy?: TenancyRouteDeps | undefined;
+  /** Projects and project structures (2A); require `auth`. */
+  work?: WorkRouteDeps | undefined;
 }
 
 const STATUS_CLASS = (status: number) => `${Math.floor(status / 100)}xx`;
@@ -223,6 +226,7 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
 
   if (deps.auth) registerAuth(app, { ...deps.auth, logger: deps.logger });
   if (deps.auth && deps.tenancy) registerTenancy(app, deps.tenancy);
+  if (deps.auth && deps.work) registerWork(app, deps.work);
   if (deps.auth) registerShell(app, { metrics: deps.metrics });
 
   // Liveness: the process responds. Nothing else (0D §17.4).

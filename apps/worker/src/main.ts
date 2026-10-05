@@ -15,14 +15,14 @@ import { createLogger, errorFields, initTelemetry, LogErrorReporter } from '@pm/
 import { AuditWriter } from '@pm/audit';
 import {
   createPurgeLedger,
-  LifecycleRegistry,
   LifecycleService,
   PurgeExecutor,
   readRecoveryGate,
   RetentionPolicy,
 } from '@pm/lifecycle';
 import { SYSTEM_PRINCIPAL, WorkerRuntime } from '@pm/platform';
-import { registerTenancyLifecycle, tenancyBrandPort } from '@pm/tenancy';
+import { tenancyBrandPort } from '@pm/tenancy';
+import { productLifecycleRegistry } from '@pm/work';
 import { HEALTH_FILE } from './health-file.ts';
 import { registeredConsumers, registeredHandlers, registeredSchedules } from './registry.ts';
 
@@ -72,10 +72,10 @@ async function main(): Promise<void> {
   };
   const tenantDb = new TenantDatabase(workerPool, deps);
   const discovery = new PlatformDiscovery(dispatcherPool);
-  // Record types register their containment and purge hooks in their owning phases. Brands (1C)
-  // register containment only, so purging a brand batch blocks safely (missing_purge_hook).
+  // Record types register their containment and purge hooks in their owning phases: brands (1C)
+  // containment only (a brand purge blocks safely), projects and their structures (2A) with hooks.
   const lifecycle = new LifecycleService({
-    registry: registerTenancyLifecycle(new LifecycleRegistry()),
+    registry: productLifecycleRegistry(),
     brands: tenancyBrandPort,
     writer: new AuditWriter({
       module: 'lifecycle',
@@ -114,6 +114,13 @@ async function main(): Promise<void> {
         discovery,
         retention: lifecycle.deps.retention,
         metrics: telemetry.metrics,
+      },
+      work: {
+        tenant: tenantDb,
+        discovery,
+        metrics: telemetry.metrics,
+        logger,
+        settings: config.work,
       },
     }),
     consumers: registeredConsumers(),

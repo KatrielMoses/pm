@@ -10,6 +10,7 @@ import {
   type SchedulerDeps,
 } from '@pm/lifecycle';
 import { VIEWS_SCHEDULES, viewsCleanupHandler, type ViewsCleanupDeps } from '@pm/tenancy';
+import { recurrenceHandler, WORK_SCHEDULES, type RecurrenceJobDeps } from '@pm/work';
 
 /**
  * Job handlers, outbox consumers, and recurring jobs registered by product modules.
@@ -17,12 +18,14 @@ import { VIEWS_SCHEDULES, viewsCleanupHandler, type ViewsCleanupDeps } from '@pm
  * 1F: audit chain verification, the 1B security-event buffer drain, activity projection, durable
  * purge, the retention purge scheduler, and the (disabled until decided) tombstone sweep.
  * 1E: views cleanup (expired per-device view state, departed members' personal navigation).
+ * 2A: recurring project generation (bounded catch-up, owner authority rechecked per series).
  */
 export interface WorkerModules {
   identity: IdentityJobDeps;
   audit: AuditJobDeps;
   lifecycle: { executor: PurgeExecutor; scheduler: SchedulerDeps };
   views: ViewsCleanupDeps;
+  work: RecurrenceJobDeps;
 }
 
 export function registeredHandlers(m: WorkerModules): JobHandler[] {
@@ -33,6 +36,7 @@ export function registeredHandlers(m: WorkerModules): JobHandler[] {
     purgeSchedulerHandler(m.lifecycle.scheduler),
     tombstoneSweepHandler(m.lifecycle.scheduler),
     viewsCleanupHandler(m.views),
+    recurrenceHandler(m.work),
   ];
 }
 
@@ -41,5 +45,11 @@ export function registeredConsumers(): OutboxConsumer[] {
 }
 
 export function registeredSchedules(): RecurringJob[] {
-  return [...IDENTITY_SCHEDULES, ...AUDIT_SCHEDULES, ...LIFECYCLE_SCHEDULES, ...VIEWS_SCHEDULES];
+  return [
+    ...IDENTITY_SCHEDULES,
+    ...AUDIT_SCHEDULES,
+    ...LIFECYCLE_SCHEDULES,
+    ...VIEWS_SCHEDULES,
+    ...WORK_SCHEDULES,
+  ];
 }

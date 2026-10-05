@@ -118,6 +118,19 @@ export interface ServerConfig {
     /** VIEW_STATE_TTL */
     viewStateTtlMs: number;
   };
+  /** Projects (2A). Bounds from the 0D named parameters (PL-22). */
+  work: {
+    /** PROJECT_DEPTH_MAX (root = 0); never above the database invariant ceiling of 32. */
+    projectDepthMax: number;
+    /** TEMPLATE_ITEMS_MAX; never above the database bound of 500. */
+    templateItemsMax: number;
+    /** RECURRENCE_CATCHUP_MAX: occurrences per series per run. */
+    recurrenceCatchupMax: number;
+    /** RECURRENCE_WORKSPACE_DISCOVERY_MAX: workspaces per recurrence job run. */
+    recurrenceWorkspaceDiscoveryMax: number;
+    /** RECURRENCE_SERIES_DISCOVERY_MAX: due series per workspace per run. */
+    recurrenceSeriesDiscoveryMax: number;
+  };
   features: {
     /** Local/test-only component harness route for reusable UI states (refused when deployed). */
     componentHarness: boolean;
@@ -268,6 +281,11 @@ const DEFAULTS = {
   RECENT_VISIT_COALESCE_MS: '30000',
   VIEW_STATE_MAX_BYTES: '8192',
   VIEW_STATE_TTL_MS: String(90 * 86_400_000),
+  PROJECT_DEPTH_MAX: '10',
+  TEMPLATE_ITEMS_MAX: '500',
+  RECURRENCE_CATCHUP_MAX: '12',
+  RECURRENCE_WORKSPACE_DISCOVERY_MAX: '200',
+  RECURRENCE_SERIES_DISCOVERY_MAX: '50',
 } as const;
 
 const schema = z.object({
@@ -353,6 +371,11 @@ const schema = z.object({
   RECENT_VISIT_COALESCE_MS: int(0, 3_600_000),
   VIEW_STATE_MAX_BYTES: int(1024, 16_384),
   VIEW_STATE_TTL_MS: int(86_400_000, 400 * 86_400_000),
+  PROJECT_DEPTH_MAX: int(1, 32),
+  TEMPLATE_ITEMS_MAX: int(1, 500),
+  RECURRENCE_CATCHUP_MAX: int(1, 100),
+  RECURRENCE_WORKSPACE_DISCOVERY_MAX: int(1, 1000),
+  RECURRENCE_SERIES_DISCOVERY_MAX: int(1, 500),
 });
 
 /** Variables a deployed environment must set explicitly (no silent local defaults). */
@@ -720,6 +743,13 @@ export function loadServerConfig(options: LoadOptions): ServerConfig {
       recentVisitCoalesceMs: c.RECENT_VISIT_COALESCE_MS,
       viewStateMaxBytes: c.VIEW_STATE_MAX_BYTES,
       viewStateTtlMs: c.VIEW_STATE_TTL_MS,
+    },
+    work: {
+      projectDepthMax: c.PROJECT_DEPTH_MAX,
+      templateItemsMax: c.TEMPLATE_ITEMS_MAX,
+      recurrenceCatchupMax: c.RECURRENCE_CATCHUP_MAX,
+      recurrenceWorkspaceDiscoveryMax: c.RECURRENCE_WORKSPACE_DISCOVERY_MAX,
+      recurrenceSeriesDiscoveryMax: c.RECURRENCE_SERIES_DISCOVERY_MAX,
     },
     identity: {
       publicOrigin,

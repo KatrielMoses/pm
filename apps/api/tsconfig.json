@@ -11,6 +11,7 @@
     { "path": "../../packages/audit" },
     { "path": "../../packages/lifecycle" },
     { "path": "../../packages/tenancy" },
+    { "path": "../../packages/work" },
     { "path": "../../packages/identity" }
   ]
 }

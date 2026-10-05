@@ -56,6 +56,41 @@ describe('server configuration', () => {
     expect(Object.keys(w.database.connections).sort()).toEqual(['dispatcher', 'worker']);
   });
 
+  it('project bounds (0D PL-22): defaults, ranges, and three distinct recurrence layers', () => {
+    expect(loadServerConfig({ service: 'worker', env: local }).work).toEqual({
+      projectDepthMax: 10,
+      templateItemsMax: 500,
+      recurrenceCatchupMax: 12,
+      recurrenceWorkspaceDiscoveryMax: 200,
+      recurrenceSeriesDiscoveryMax: 50,
+    });
+    const set = (env: Record<string, string>) =>
+      loadServerConfig({ service: 'worker', env: { ...local, ...env } });
+    expect(
+      set({ RECURRENCE_WORKSPACE_DISCOVERY_MAX: '1', RECURRENCE_SERIES_DISCOVERY_MAX: '1' }).work,
+    ).toMatchObject({
+      recurrenceWorkspaceDiscoveryMax: 1,
+      recurrenceSeriesDiscoveryMax: 1,
+    });
+    expect(
+      set({ RECURRENCE_WORKSPACE_DISCOVERY_MAX: '1000', RECURRENCE_SERIES_DISCOVERY_MAX: '500' })
+        .work,
+    ).toMatchObject({
+      recurrenceWorkspaceDiscoveryMax: 1000,
+      recurrenceSeriesDiscoveryMax: 500,
+    });
+    for (const [key, bad] of [
+      ['RECURRENCE_WORKSPACE_DISCOVERY_MAX', '0'],
+      ['RECURRENCE_WORKSPACE_DISCOVERY_MAX', '1001'],
+      ['RECURRENCE_SERIES_DISCOVERY_MAX', '0'],
+      ['RECURRENCE_SERIES_DISCOVERY_MAX', '501'],
+      ['RECURRENCE_SERIES_DISCOVERY_MAX', '2.5'],
+    ] as const)
+      expect(issues(() => set({ [key]: bad })).join(' '), `${key}=${bad}`).toMatch(
+        new RegExp(`^${key}`),
+      );
+  });
+
   it('rejects missing secrets and wrong identities', () => {
     expect(issues(() => loadServerConfig({ service: 'api', env: { APP_ENV: 'local' } }))).toContain(
       'DATABASE_APP_URL: required for the api process',
