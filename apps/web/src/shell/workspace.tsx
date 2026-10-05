@@ -125,10 +125,19 @@ export function WorkspaceShellProvider({ ws, children }: { ws: string; children:
     };
   }, [ws, memberOrGuest, path, listNonce]);
 
+  // The location a pending scope selection may still update: if the person navigated while the
+  // selection was in flight, the late result must not pull them back to the page they left.
+  const here = useRef('');
+  const location = `${path}?${search.toString()}`;
+  useEffect(() => {
+    here.current = location;
+  }, [location]);
   const selectScope = useCallback<WorkspaceShellState['selectScope']>(
     async (sel) => {
+      const from = here.current;
       const ctx = await shell.select(ws, sel);
       setContext(ctx);
+      if (here.current !== from) return;
       const token = ctx.scope_token ?? undefined;
       if (scopeSensitive) {
         const q = new URLSearchParams(search);
