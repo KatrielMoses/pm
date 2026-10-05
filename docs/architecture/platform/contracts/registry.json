@@ -575,6 +575,46 @@
       "owner_module": "tenancy",
       "platform_only": false,
       "note": ""
+    },
+    {
+      "prefix": "phs",
+      "resource": "phase",
+      "entity": "work.phase",
+      "owner_module": "work",
+      "platform_only": false,
+      "note": "Phase 2A (PL-22)."
+    },
+    {
+      "prefix": "sco",
+      "resource": "scope_item",
+      "entity": "work.scope_item",
+      "owner_module": "work",
+      "platform_only": false,
+      "note": "Phase 2A (PL-22)."
+    },
+    {
+      "prefix": "cri",
+      "resource": "criteria_item",
+      "entity": "work.criteria_item",
+      "owner_module": "work",
+      "platform_only": false,
+      "note": "Phase 2A (PL-22)."
+    },
+    {
+      "prefix": "pup",
+      "resource": "project_update",
+      "entity": "work.project_update",
+      "owner_module": "work",
+      "platform_only": false,
+      "note": "Phase 2A (PL-22)."
+    },
+    {
+      "prefix": "rcs",
+      "resource": "recurrence_series",
+      "entity": "planning.recurrence_series",
+      "owner_module": "planning",
+      "platform_only": false,
+      "note": "Phase 2A (PL-22)."
     }
   ],
   "error_codes": [
@@ -2188,6 +2228,374 @@
       ],
       "allow_list_version": null,
       "delivery_authorization": null
+    },
+    {
+      "type": "work.project.updated",
+      "schema_version": 1,
+      "aggregate_entity": "work.project",
+      "fields": [
+        "changed_fields"
+      ],
+      "max_class": "C1",
+      "consumers": {
+        "activity": true,
+        "notification": false,
+        "metrics": false,
+        "automation_trigger": true,
+        "search_index": true
+      },
+      "public_webhook": null,
+      "requirements": [
+        "PRJ-001",
+        "PRJ-004"
+      ],
+      "allow_list_version": null,
+      "delivery_authorization": null
+    },
+    {
+      "type": "work.project.moved",
+      "schema_version": 1,
+      "aggregate_entity": "work.project",
+      "fields": [
+        "parent_project_id",
+        "depth"
+      ],
+      "max_class": "C1",
+      "consumers": {
+        "activity": true,
+        "notification": false,
+        "metrics": false,
+        "automation_trigger": true,
+        "search_index": true
+      },
+      "public_webhook": null,
+      "requirements": [
+        "PRJ-012"
+      ],
+      "allow_list_version": null,
+      "delivery_authorization": null
+    },
+    {
+      "type": "work.project.owner_changed",
+      "schema_version": 1,
+      "aggregate_entity": "work.project",
+      "fields": [
+        "owner_membership_id"
+      ],
+      "max_class": "C1",
+      "consumers": {
+        "activity": true,
+        "notification": true,
+        "metrics": false,
+        "automation_trigger": true,
+        "search_index": false
+      },
+      "public_webhook": null,
+      "requirements": [
+        "PRJ-003"
+      ],
+      "allow_list_version": null,
+      "delivery_authorization": null
+    },
+    {
+      "type": "work.phase.created",
+      "schema_version": 1,
+      "aggregate_entity": "work.phase",
+      "fields": [
+        "project_id"
+      ],
+      "max_class": "C1",
+      "consumers": {
+        "activity": true,
+        "notification": false,
+        "metrics": false,
+        "automation_trigger": true,
+        "search_index": true
+      },
+      "public_webhook": null,
+      "requirements": [
+        "PRJ-010"
+      ],
+      "allow_list_version": null,
+      "delivery_authorization": null
+    },
+    {
+      "type": "work.phase.updated",
+      "schema_version": 1,
+      "aggregate_entity": "work.phase",
+      "fields": [
+        "project_id",
+        "changed_fields"
+      ],
+      "max_class": "C1",
+      "consumers": {
+        "activity": true,
+        "notification": false,
+        "metrics": false,
+        "automation_trigger": true,
+        "search_index": true
+      },
+      "public_webhook": null,
+      "requirements": [
+        "PRJ-010"
+      ],
+      "allow_list_version": null,
+      "delivery_authorization": null
+    },
+    {
+      "type": "work.milestone.created",
+      "schema_version": 1,
+      "aggregate_entity": "work.milestone",
+      "fields": [
+        "project_id",
+        "phase_id"
+      ],
+      "max_class": "C1",
+      "consumers": {
+        "activity": true,
+        "notification": false,
+        "metrics": false,
+        "automation_trigger": true,
+        "search_index": true
+      },
+      "public_webhook": null,
+      "requirements": [
+        "PRJ-010"
+      ],
+      "allow_list_version": null,
+      "delivery_authorization": null
+    },
+    {
+      "type": "work.milestone.updated",
+      "schema_version": 1,
+      "aggregate_entity": "work.milestone",
+      "fields": [
+        "project_id",
+        "status",
+        "changed_fields"
+      ],
+      "max_class": "C1",
+      "consumers": {
+        "activity": true,
+        "notification": false,
+        "metrics": false,
+        "automation_trigger": true,
+        "search_index": true
+      },
+      "public_webhook": null,
+      "requirements": [
+        "PRJ-010"
+      ],
+      "allow_list_version": null,
+      "delivery_authorization": null
+    },
+    {
+      "type": "work.decision_record.created",
+      "schema_version": 1,
+      "aggregate_entity": "work.decision_record",
+      "fields": [
+        "project_id",
+        "kind",
+        "state"
+      ],
+      "max_class": "C1",
+      "consumers": {
+        "activity": true,
+        "notification": false,
+        "metrics": false,
+        "automation_trigger": true,
+        "search_index": true
+      },
+      "public_webhook": null,
+      "requirements": [
+        "PRJ-024"
+      ],
+      "allow_list_version": null,
+      "delivery_authorization": null
+    },
+    {
+      "type": "work.decision_record.state_changed",
+      "schema_version": 1,
+      "aggregate_entity": "work.decision_record",
+      "fields": [
+        "kind",
+        "state"
+      ],
+      "max_class": "C1",
+      "consumers": {
+        "activity": true,
+        "notification": false,
+        "metrics": false,
+        "automation_trigger": true,
+        "search_index": true
+      },
+      "public_webhook": null,
+      "requirements": [
+        "PRJ-024"
+      ],
+      "allow_list_version": null,
+      "delivery_authorization": null
+    },
+    {
+      "type": "work.project_update.posted",
+      "schema_version": 1,
+      "aggregate_entity": "work.project_update",
+      "fields": [
+        "project_id",
+        "source_kind",
+        "health"
+      ],
+      "max_class": "C1",
+      "consumers": {
+        "activity": true,
+        "notification": false,
+        "metrics": false,
+        "automation_trigger": true,
+        "search_index": false
+      },
+      "public_webhook": null,
+      "requirements": [
+        "PRJ-025"
+      ],
+      "allow_list_version": null,
+      "delivery_authorization": null
+    },
+    {
+      "type": "work.project_update.verified",
+      "schema_version": 1,
+      "aggregate_entity": "work.project_update",
+      "fields": [
+        "project_id"
+      ],
+      "max_class": "C1",
+      "consumers": {
+        "activity": true,
+        "notification": false,
+        "metrics": false,
+        "automation_trigger": true,
+        "search_index": false
+      },
+      "public_webhook": null,
+      "requirements": [
+        "PRJ-025"
+      ],
+      "allow_list_version": null,
+      "delivery_authorization": null
+    },
+    {
+      "type": "relations.relationship.removed",
+      "schema_version": 1,
+      "aggregate_entity": "relations.record_relationship",
+      "fields": [
+        "kind",
+        "from_record_id",
+        "to_record_id"
+      ],
+      "max_class": "C1",
+      "consumers": {
+        "activity": true,
+        "notification": false,
+        "metrics": false,
+        "automation_trigger": true,
+        "search_index": false
+      },
+      "public_webhook": null,
+      "requirements": [
+        "PRJ-011"
+      ],
+      "allow_list_version": null,
+      "delivery_authorization": null
+    },
+    {
+      "type": "templates.template.created",
+      "schema_version": 1,
+      "aggregate_entity": "templates.template",
+      "fields": [
+        "target_record_type",
+        "item_count"
+      ],
+      "max_class": "C1",
+      "consumers": {
+        "activity": true,
+        "notification": false,
+        "metrics": false,
+        "automation_trigger": false,
+        "search_index": true
+      },
+      "public_webhook": null,
+      "requirements": [
+        "PRJ-015",
+        "PRJ-014"
+      ],
+      "allow_list_version": null,
+      "delivery_authorization": null
+    },
+    {
+      "type": "templates.template.applied",
+      "schema_version": 1,
+      "aggregate_entity": "templates.template",
+      "fields": [
+        "template_version_id",
+        "record_id"
+      ],
+      "max_class": "C1",
+      "consumers": {
+        "activity": true,
+        "notification": false,
+        "metrics": false,
+        "automation_trigger": true,
+        "search_index": false
+      },
+      "public_webhook": null,
+      "requirements": [
+        "PRJ-014"
+      ],
+      "allow_list_version": null,
+      "delivery_authorization": null
+    },
+    {
+      "type": "planning.recurrence_series.defined",
+      "schema_version": 1,
+      "aggregate_entity": "planning.recurrence_series",
+      "fields": [
+        "target_kind"
+      ],
+      "max_class": "C1",
+      "consumers": {
+        "activity": true,
+        "notification": false,
+        "metrics": false,
+        "automation_trigger": false,
+        "search_index": false
+      },
+      "public_webhook": null,
+      "requirements": [
+        "PRJ-013"
+      ],
+      "allow_list_version": null,
+      "delivery_authorization": null
+    },
+    {
+      "type": "planning.recurrence_series.state_changed",
+      "schema_version": 1,
+      "aggregate_entity": "planning.recurrence_series",
+      "fields": [
+        "state"
+      ],
+      "max_class": "C1",
+      "consumers": {
+        "activity": true,
+        "notification": false,
+        "metrics": false,
+        "automation_trigger": false,
+        "search_index": false
+      },
+      "public_webhook": null,
+      "requirements": [
+        "PRJ-013"
+      ],
+      "allow_list_version": null,
+      "delivery_authorization": null
     }
   ],
   "scopes": [
@@ -2989,6 +3397,22 @@
         "outcome"
       ],
       "area": "identity"
+    },
+    {
+      "name": "work.recurrence.occurrences",
+      "type": "counter",
+      "labels": [
+        "outcome"
+      ],
+      "area": "work"
+    },
+    {
+      "name": "work.hierarchy.moves",
+      "type": "counter",
+      "labels": [
+        "outcome"
+      ],
+      "area": "work"
     }
   ],
   "forbidden_metric_labels": [
@@ -3222,6 +3646,31 @@
       "name": "VIEW_STATE_TTL",
       "meaning": "How long stored per-device view state survives without being written before cleanup removes it.",
       "owner": "1E"
+    },
+    {
+      "name": "PROJECT_DEPTH_MAX",
+      "meaning": "Deepest project level a command accepts (root = 0) when creating, moving, duplicating, or generating projects. The database separately enforces an invariant ceiling of 32 that is not a runtime parameter.",
+      "owner": "2A"
+    },
+    {
+      "name": "TEMPLATE_ITEMS_MAX",
+      "meaning": "Most structural items (project, phases, milestones, criteria, scope items) one template version or recurrence snapshot may contain.",
+      "owner": "2A"
+    },
+    {
+      "name": "RECURRENCE_CATCHUP_MAX",
+      "meaning": "Most missed occurrences one recurrence series may generate in a single catch-up run; later ones wait for the next run.",
+      "owner": "2A"
+    },
+    {
+      "name": "RECURRENCE_WORKSPACE_DISCOVERY_MAX",
+      "meaning": "Most workspaces with due recurrence work one recurrence job run visits (default 200, range 1–1000). Workspaces are taken oldest-waiting first, so remaining work stays eligible for the next run.",
+      "owner": "2A"
+    },
+    {
+      "name": "RECURRENCE_SERIES_DISCOVERY_MAX",
+      "meaning": "Most due recurrence series one job run processes in one workspace (default 50, range 1–500). Series are taken oldest-waiting first (last run, then id), so later series are never starved.",
+      "owner": "2A"
     }
   ],
   "sse_topics": [

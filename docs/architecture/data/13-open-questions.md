@@ -123,11 +123,11 @@ Each question records the assumption this set makes now and the reversible exten
 | <a id="dq-22"></a>DQ-22 | Calculated-field expression language and limits | 2C (OD-11) | Sandboxed AST interpreter, no SQL evaluation |
 | <a id="dq-23"></a>DQ-23 | Supported RRULE subset and generation horizon | 2D | Subset listed in [06 §6.4](06-temporal-model.md#64-recurrence) |
 | <a id="dq-24"></a>DQ-24 | Search language configurations, attachment text extraction, OCR | 5A (OD-31) | `simple` + English configurations, text formats only |
-| <a id="dq-25"></a>DQ-25 | Document content format and realtime engine | 4C/4D (OD-30) | Versioned rich-text JSON documents, optimistic saves |
-| <a id="dq-26"></a>DQ-26 | Product depth cap value | 2B (OD-08) | Technical ceiling 32, product cap 10 |
+| <a id="dq-25"></a>DQ-25 | Document content format and realtime engine | 4C/4D (OD-30) | Versioned rich-text JSON documents, optimistic saves. The rich-text envelope and version 1 (plain-text subset, used by `work.project.description_rich`) are fixed by 0D PL-23; 4C extends them |
+| <a id="dq-26"></a>DQ-26 | Product depth cap value | 2B (OD-08) | Technical ceiling 32, product cap 10. Projects closed by [ADR-21](12-decisions.md#adr-21) (`PROJECT_DEPTH_MAX`); task depth stays with 2B |
 | <a id="dq-27"></a>DQ-27 | Size threshold where bulk edits, archives, and brand moves switch to locked background jobs | 1F/2D | Implementation-measured |
 | <a id="dq-28"></a>DQ-28 | Secret store and KMS vendor | 1A | Managed service, references only |
-| <a id="dq-29"></a>DQ-29 | Structure of decision records | 2A (OD-15) | `work.decision_record` addressable entity, an extension point |
+| <a id="dq-29"></a>DQ-29 | Structure of decision records | 2A (OD-15) | Closed by [ADR-21](12-decisions.md#adr-21): `kind` decision or open_question with kind-specific states |
 
 ## 13.5 Legal, commercial, or customer promises (product-owner approval)
 

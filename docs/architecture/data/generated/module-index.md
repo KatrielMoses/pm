@@ -162,6 +162,7 @@ flowchart BT
   templates --> tenancy
   templates --> execution
   templates --> audit
+  templates --> work
   ai --> core
   ai --> tenancy
   ai --> metering
@@ -200,12 +201,12 @@ flowchart BT
 | **Retention and governance** (`governance`) | 1 | `governance` | Retention policy references, legal holds, deletion requests for accounts and workspaces. | tenancy, core, audit, execution | `retention.policy_changed`, `workspace.deletion_requested` | ADM, SEC | 3 |
 | **Usage metering and limits** (`metering`) | 1 | `metering` | Usage events, period balances, spend limits, usage reservations for hard caps. | tenancy, execution, audit | `usage.threshold_reached`, `usage.limit_reached` | AI, BILL | 4 |
 | **Billing and entitlements** (`billing`) | 1 | `billing` | Billing accounts, subscriptions, plans, entitlements, invoices, payment events, coupons. Billing records outlive workspaces. | tenancy, metering, execution, audit | `subscription.*`, `entitlement.changed` | BILL | 7 |
-| **Workflows and custom fields** (`workflow`) | 2 | `workflow` | Workflows, statuses mapped to fixed categories, transitions and rules with revisions, custom field definitions, field sets, typed values, calculated fields. | tenancy, core, audit, execution | `workflow.revised`, `field.values_changed` | WFL | 8 |
+| **Workflows and custom fields** (`workflow`) | 2 | `workflow` | Workflows, statuses mapped to fixed categories, transitions and rules with revisions, custom field definitions, field sets, typed values, calculated fields. | tenancy, core, audit, execution | `workflow.revised`, `field.values_changed` | WFL | 9 |
 | **Relationship primitives** (`relations`) | 2 | `relations` | Typed record relationships (dependency, related), labels, mentions and record links, followers. | core, tenancy, audit, execution | `relationship.*`, `mention.created`, `follow.*` | TSK | 6 |
 | **Files, deliverables, and evidence** (`files`) | 3 | `files` | Stored objects, files and versions, attachments, external links, deliverables and versions, evidence items, storage usage. | core, tenancy, work, collab, metering, audit, execution | `file.scanned`, `deliverable.version_submitted` | FILE | 8 |
 | **Comments and reviews** (`collab`) | 2 | `collab` | Comments, threads, revisions, reactions, review requests and immutable review decisions. | core, tenancy, audit, execution | `comment.*`, `review.requested`, `review.decided` | COL, TSK | 5 |
 | **Notifications** (`notify`) | 2 | `notify` | Notifications, delivery attempts per channel, preferences, mutes, quiet hours, digests. | core, tenancy, execution, audit | `notification.delivered` | COL, NTF | 4 |
-| **Projects and tasks** (`work`) | 3 | `work` | Projects (trees), phases, milestones, tasks (trees), assignees, checklists, criteria items, project updates, decisions, reminders. | core, tenancy, workflow, relations, collab, audit, execution | `project.*`, `task.*`, `task.completed` | PRJ, TSK | 11 |
+| **Projects and tasks** (`work`) | 3 | `work` | Projects (trees), phases, milestones, tasks (trees), assignees, checklists, criteria items, project updates, decisions, reminders. | core, tenancy, workflow, relations, collab, audit, execution | `project.*`, `task.*`, `task.completed` | PRJ, TSK | 12 |
 | **Inbox and capture** (`capture`) | 3 | `capture` | Personal Inbox items, notes, intake forms and submissions, email capture addresses, triage outcomes. | core, tenancy, work, files, audit, execution | `inbox.captured`, `inbox.triaged` | CAP | 5 |
 | **Today, scheduling, and capacity** (`planning`) | 3 | `planning` | Today commitments, daily records, work blocks, recurrence series, availability, holidays, time off, capacity reservations. | core, tenancy, work, capture, audit, execution | `commitment.*`, `work_block.*`, `occurrence.generated` | CAL, PLAN, TIME | 10 |
 | **Time tracking** (`time`) | 3 | `timetrack` | Time entries and timers, timesheets, per-brand approvals, period locks. | core, tenancy, work, audit, execution | `time_entry.*`, `timesheet.*` | TIME, TSK | 4 |
@@ -218,7 +219,7 @@ flowchart BT
 | **Import and export** (`transfer`) | 4 | `transfer` | Import jobs, saved mappings, row outcomes and rollback, export jobs and expiring export files. | core, tenancy, files, execution, audit | `import.*`, `export.*` | DATA | 5 |
 | **Test management and defects** (`quality`) | 4 | `quality` | Test cases and immutable versions, suites, runs, results, flaky classification, defect details, verification records. | core, tenancy, work, files, integrations, delivery, execution, audit | `test_result.recorded`, `defect.verified` | TEST | 8 |
 | **Development links and releases** (`delivery`) | 4 | `delivery` | Development links, external code facts, environments, deployments, releases, scope, checklist, blocker waivers, immutable release decisions. | core, tenancy, work, integrations, execution, audit | `release.decided`, `deployment.recorded` | DEV, TEST | 9 |
-| **Templates and onboarding** (`templates`) | 4 | `templates` | Templates and immutable template versions, installations and provenance, sample data, onboarding progress. | core, tenancy, execution, audit | `template.installed` | ONB | 4 |
+| **Templates and onboarding** (`templates`) | 4 | `templates` | Templates and immutable template versions, installations and provenance, sample data, onboarding progress. | core, tenancy, execution, audit, work | `template.installed` | ONB | 4 |
 | **AI actions and briefings** (`ai`) | 5 | `ai` | Provider configurations, brand AI profiles, AI actions, context references, outputs, change proposals, briefings and statements, corrections. | core, tenancy, metering, execution, audit | `ai_action.*`, `proposal.applied`, `briefing.generated` | AI, BRF | 11 |
 | **Automations** (`automation`) | 5 | `automation` | Automation definitions with immutable versions, runs and step runs. | core, tenancy, metering, execution, audit | `automation_run.*` | AUTO | 4 |
 | **Agents and execution control** (`agents`) | 5 | `agents` | Agent profiles, scope and tool grants, connectors, assignments, runs, tool calls, artifacts, action approvals, emergency stop. | core, tenancy, access, work, collab, files, metering, integrations, execution, audit | `agent_run.*`, `action_approval.*` | AGT | 10 |

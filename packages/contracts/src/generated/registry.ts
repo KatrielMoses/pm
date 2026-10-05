@@ -439,6 +439,20 @@ export const TELEMETRY_SIGNALS = [
     "labels": [
       "outcome"
     ]
+  },
+  {
+    "name": "work.recurrence.occurrences",
+    "type": "counter",
+    "labels": [
+      "outcome"
+    ]
+  },
+  {
+    "name": "work.hierarchy.moves",
+    "type": "counter",
+    "labels": [
+      "outcome"
+    ]
   }
 ] as const;
 export type TelemetrySignalName = (typeof TELEMETRY_SIGNALS)[number]['name'];
@@ -1310,6 +1324,41 @@ export const ID_PREFIXES = [
     "entity": "tenancy.ownership_transfer",
     "ownerModule": "tenancy",
     "platformOnly": false
+  },
+  {
+    "prefix": "phs",
+    "resource": "phase",
+    "entity": "work.phase",
+    "ownerModule": "work",
+    "platformOnly": false
+  },
+  {
+    "prefix": "sco",
+    "resource": "scope_item",
+    "entity": "work.scope_item",
+    "ownerModule": "work",
+    "platformOnly": false
+  },
+  {
+    "prefix": "cri",
+    "resource": "criteria_item",
+    "entity": "work.criteria_item",
+    "ownerModule": "work",
+    "platformOnly": false
+  },
+  {
+    "prefix": "pup",
+    "resource": "project_update",
+    "entity": "work.project_update",
+    "ownerModule": "work",
+    "platformOnly": false
+  },
+  {
+    "prefix": "rcs",
+    "resource": "recurrence_series",
+    "entity": "planning.recurrence_series",
+    "ownerModule": "planning",
+    "platformOnly": false
   }
 ] as const;
 export type IdPrefix = (typeof ID_PREFIXES)[number]['prefix'];
@@ -1835,6 +1884,164 @@ export const INTERNAL_EVENTS = [
       "demoted_previous"
     ],
     "maxClass": "C1"
+  },
+  {
+    "type": "work.project.updated",
+    "schemaVersion": 1,
+    "aggregateEntity": "work.project",
+    "fields": [
+      "changed_fields"
+    ],
+    "maxClass": "C1"
+  },
+  {
+    "type": "work.project.moved",
+    "schemaVersion": 1,
+    "aggregateEntity": "work.project",
+    "fields": [
+      "parent_project_id",
+      "depth"
+    ],
+    "maxClass": "C1"
+  },
+  {
+    "type": "work.project.owner_changed",
+    "schemaVersion": 1,
+    "aggregateEntity": "work.project",
+    "fields": [
+      "owner_membership_id"
+    ],
+    "maxClass": "C1"
+  },
+  {
+    "type": "work.phase.created",
+    "schemaVersion": 1,
+    "aggregateEntity": "work.phase",
+    "fields": [
+      "project_id"
+    ],
+    "maxClass": "C1"
+  },
+  {
+    "type": "work.phase.updated",
+    "schemaVersion": 1,
+    "aggregateEntity": "work.phase",
+    "fields": [
+      "project_id",
+      "changed_fields"
+    ],
+    "maxClass": "C1"
+  },
+  {
+    "type": "work.milestone.created",
+    "schemaVersion": 1,
+    "aggregateEntity": "work.milestone",
+    "fields": [
+      "project_id",
+      "phase_id"
+    ],
+    "maxClass": "C1"
+  },
+  {
+    "type": "work.milestone.updated",
+    "schemaVersion": 1,
+    "aggregateEntity": "work.milestone",
+    "fields": [
+      "project_id",
+      "status",
+      "changed_fields"
+    ],
+    "maxClass": "C1"
+  },
+  {
+    "type": "work.decision_record.created",
+    "schemaVersion": 1,
+    "aggregateEntity": "work.decision_record",
+    "fields": [
+      "project_id",
+      "kind",
+      "state"
+    ],
+    "maxClass": "C1"
+  },
+  {
+    "type": "work.decision_record.state_changed",
+    "schemaVersion": 1,
+    "aggregateEntity": "work.decision_record",
+    "fields": [
+      "kind",
+      "state"
+    ],
+    "maxClass": "C1"
+  },
+  {
+    "type": "work.project_update.posted",
+    "schemaVersion": 1,
+    "aggregateEntity": "work.project_update",
+    "fields": [
+      "project_id",
+      "source_kind",
+      "health"
+    ],
+    "maxClass": "C1"
+  },
+  {
+    "type": "work.project_update.verified",
+    "schemaVersion": 1,
+    "aggregateEntity": "work.project_update",
+    "fields": [
+      "project_id"
+    ],
+    "maxClass": "C1"
+  },
+  {
+    "type": "relations.relationship.removed",
+    "schemaVersion": 1,
+    "aggregateEntity": "relations.record_relationship",
+    "fields": [
+      "kind",
+      "from_record_id",
+      "to_record_id"
+    ],
+    "maxClass": "C1"
+  },
+  {
+    "type": "templates.template.created",
+    "schemaVersion": 1,
+    "aggregateEntity": "templates.template",
+    "fields": [
+      "target_record_type",
+      "item_count"
+    ],
+    "maxClass": "C1"
+  },
+  {
+    "type": "templates.template.applied",
+    "schemaVersion": 1,
+    "aggregateEntity": "templates.template",
+    "fields": [
+      "template_version_id",
+      "record_id"
+    ],
+    "maxClass": "C1"
+  },
+  {
+    "type": "planning.recurrence_series.defined",
+    "schemaVersion": 1,
+    "aggregateEntity": "planning.recurrence_series",
+    "fields": [
+      "target_kind"
+    ],
+    "maxClass": "C1"
+  },
+  {
+    "type": "planning.recurrence_series.state_changed",
+    "schemaVersion": 1,
+    "aggregateEntity": "planning.recurrence_series",
+    "fields": [
+      "state"
+    ],
+    "maxClass": "C1"
   }
 ] as const;
 export type InternalEventType = (typeof INTERNAL_EVENTS)[number]['type'];
@@ -1878,7 +2085,12 @@ export const PARAMETER_NAMES = [
   "RECENT_ITEMS_MAX",
   "RECENT_VISIT_COALESCE",
   "VIEW_STATE_MAX_BYTES",
-  "VIEW_STATE_TTL"
+  "VIEW_STATE_TTL",
+  "PROJECT_DEPTH_MAX",
+  "TEMPLATE_ITEMS_MAX",
+  "RECURRENCE_CATCHUP_MAX",
+  "RECURRENCE_WORKSPACE_DISCOVERY_MAX",
+  "RECURRENCE_SERIES_DISCOVERY_MAX"
 ] as const;
 export type ParameterName = (typeof PARAMETER_NAMES)[number];
 
@@ -2405,6 +2617,42 @@ export const ACTIONS = [
       "administrator": "implicit",
       "member": "grant:manage",
       "limited_member": "grant:manage",
+      "read_only": "deny",
+      "guest": "deny"
+    }
+  },
+  {
+    "key": "project.verify_update",
+    "kind": "record",
+    "scopes": [
+      "record"
+    ],
+    "stepUp": false,
+    "riskClass": "R1",
+    "requiredLevel": "edit",
+    "roles": {
+      "owner": "implicit",
+      "administrator": "implicit",
+      "member": "grant:edit",
+      "limited_member": "grant:edit",
+      "read_only": "deny",
+      "guest": "deny"
+    }
+  },
+  {
+    "key": "project.manage_recurrence",
+    "kind": "record",
+    "scopes": [
+      "record"
+    ],
+    "stepUp": false,
+    "riskClass": "R2",
+    "requiredLevel": "manage",
+    "roles": {
+      "owner": "implicit",
+      "administrator": "implicit",
+      "member": "grant:manage",
+      "limited_member": "deny",
       "read_only": "deny",
       "guest": "deny"
     }

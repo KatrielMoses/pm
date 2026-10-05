@@ -1212,6 +1212,27 @@ A status with fixed category, color, order. Category is immutable; retire instea
 | Sensitive fields | — |
 | Requirements | WFL-004, WFL-001 |
 
+<a id="entity-platform-status"></a>
+### `platform_status`
+
+Immutable platform-default statuses per record type (projects in 2A: Planned, Active, On hold, Completed, Cancelled).
+
+| Property | Value |
+|---|---|
+| Scope | `platform` |
+| Contained by | — |
+| Extends (1:1) | — |
+| Associations | — |
+| Lifecycle / concurrency | `append-only` / `append-only` |
+| Retention / confidentiality | `R-PLATFORM` / `C1` |
+| Volume / export / search-AI | `low` / `full` / `no` |
+| Secrets / personal data | `no` / `no` |
+| Uniqueness | `(record_type, key)` |
+| Key typed columns | `record_type`; `key`; `name`; `category status_category (immutable)`; `rank` |
+| Sensitive fields | — |
+| Requirements | PRJ-009, PRJ-004 |
+| Notes | Phase 2A (ADR-21): seeded by migration only; Phase 2C adds workspace workflows and custom statuses. |
+
 <a id="entity-workflow-revision"></a>
 ### `workflow_revision`
 
@@ -1830,50 +1851,32 @@ Bounded body of work in one brand; may have a parent project in the same brand.
 | Retention / confidentiality | `R-LIVE` / `C2` |
 | Volume / export / search-AI | `medium` / `filtered` / `yes` |
 | Secrets / personal data | `no` / `incidental` |
-| Uniqueness | — |
-| Key typed columns | `parent_project_id null`; `ancestor_ids uuid[]`; `depth smallint`; `name`; `description_rich jsonb`; `status_id`; `status_category (denormalized)`; `priority`; `start_date date`; `target_date date`; `deadline_date date \| deadline_at timestamptz + deadline_tz`; `completed_at`; `health health_value`; `health_source (manual\|suggested)`; `owner_id`; `budget_amount numeric + currency`; `time_budget_minutes`; `ai_budget_micros`; `rank text`; `access_mode (inherit\|restricted)`; `allow_record_shares boolean (default false when restricted)` |
+| Uniqueness | `(recurrence_series_id, occurrence_key) where recurrence_series_id is not null` |
+| Key typed columns | `parent_project_id null (same workspace and brand)`; `ancestor_ids uuid[] (root first, excluding self)`; `depth smallint (root = 0; PROJECT_DEPTH_MAX enforced by commands, hard ceiling 32 in the database)`; `name`; `description_rich jsonb`; `icon`; `color`; `status_id (workflow.platform_status until 2C)`; `status_category (denormalized, guarded)`; `priority (none\|low\|medium\|high\|urgent)`; `start_date date`; `target_date date`; `deadline_date date \| deadline_at timestamptz + deadline_tz`; `completed_at`; `health health_value (on_track\|at_risk\|off_track) null`; `health_source (manual\|suggested)`; `owner_membership_id (accountable responsibility, not authority)`; `budget_amount numeric + currency`; `time_budget_minutes`; `ai_budget_micros`; `rank text`; `access_mode (inherit\|restricted)`; `allow_record_shares boolean (default false when restricted)`; `recurrence_series_id null (validated by planning)`; `occurrence_key text null`; `intake_source_id null (validated intake_form record; provenance, PRJ-017)`; `version bigint` |
 | Sensitive fields | — |
-| Requirements | PRJ-001, PRJ-002, PRJ-004, PRJ-012, PRJ-020 |
-
-<a id="entity-project-member"></a>
-### `project_member`
-
-Collaborator role on a project.
-
-| Property | Value |
-|---|---|
-| Scope | `inherited` |
-| Contained by | [`project`](logical-model.md#entity-project) |
-| Extends (1:1) | — |
-| Associations | [`membership`](logical-model.md#entity-membership) |
-| Lifecycle / concurrency | `mutable` / `row-version` |
-| Retention / confidentiality | `R-LIVE` / `C2` |
-| Volume / export / search-AI | `medium` / `filtered` / `yes` |
-| Secrets / personal data | `no` / `incidental` |
-| Uniqueness | `(project_id, membership_id)` |
-| Key typed columns | standard columns only |
-| Sensitive fields | — |
-| Requirements | PRJ-003 |
+| Requirements | PRJ-001, PRJ-002, PRJ-003, PRJ-004, PRJ-007, PRJ-008, PRJ-012, PRJ-013, PRJ-019, PRJ-020, PRJ-021, PRJ-027, PRJ-017, WSB-007, WSB-008, GOAL-008, LA-002 |
+| Notes | Phase 2A (ADR-21): collaborator authority is project-scoped access.role_assignment only (no project_member table); owner_membership_id is responsibility and is paired with an explicit project manage grant; a deferred guard keeps one eligible manager on every active project. Completion is derived (OD-13), never stored as authorization. |
 
 <a id="entity-phase"></a>
 ### `phase`
 
-Ordered stage of a project.
+Ordered stage of a project; reversible archive distinct from trash (ADR-21).
 
 | Property | Value |
 |---|---|
-| Scope | `inherited` |
+| Scope | `brand` · addressable (`core.record`, public prefix `phs_`) |
 | Contained by | [`project`](logical-model.md#entity-project) |
 | Extends (1:1) | — |
 | Associations | — |
-| Lifecycle / concurrency | `trash` / `ordered` |
+| Lifecycle / concurrency | `full` / `ordered` |
 | Retention / confidentiality | `R-LIVE` / `C2` |
 | Volume / export / search-AI | `medium` / `filtered` / `yes` |
 | Secrets / personal data | `no` / `incidental` |
 | Uniqueness | — |
-| Key typed columns | standard columns only |
+| Key typed columns | `project_id`; `name`; `rank text`; `start_date date null`; `end_date date null`; `status (planned\|active\|completed)`; `owner_membership_id null`; `version bigint` |
 | Sensitive fields | — |
 | Requirements | PRJ-010 |
+| Notes | Phase 2A (ADR-21): archive and restore use the canonical core.record lifecycle; archived phases keep their rank and history. |
 
 <a id="entity-milestone"></a>
 ### `milestone`
@@ -1891,7 +1894,7 @@ Dated checkpoint in a project.
 | Volume / export / search-AI | `medium` / `filtered` / `yes` |
 | Secrets / personal data | `no` / `incidental` |
 | Uniqueness | — |
-| Key typed columns | standard columns only |
+| Key typed columns | `project_id`; `phase_id null (same project)`; `name`; `rank text`; `due_date date null`; `status (planned\|reached\|missed\|cancelled)`; `reached_at null`; `owner_membership_id null`; `version bigint` |
 | Sensitive fields | — |
 | Requirements | PRJ-010, VIEW-008 |
 
@@ -1971,14 +1974,35 @@ Acceptance criterion, definition-of-done item, or success criterion on a task or
 | Volume / export / search-AI | `high` / `filtered` / `yes` |
 | Secrets / personal data | `no` / `incidental` |
 | Uniqueness | — |
-| Key typed columns | `owner_kind (task\|project)`; `kind (acceptance\|definition_of_done\|success)`; `text`; `met boolean`; `met_by/at` |
+| Key typed columns | `public_id text (cri_)`; `owner_kind (task\|project)`; `kind (acceptance\|definition_of_done\|success)`; `text`; `rank text`; `met boolean`; `met_by/at`; `version bigint` |
 | Sensitive fields | — |
 | Requirements | TSK-020, TSK-021, PRJ-005 |
+
+<a id="entity-scope-item"></a>
+### `scope_item`
+
+Project scope statement, exclusion, risk, assumption, or constraint (PRJ-006).
+
+| Property | Value |
+|---|---|
+| Scope | `inherited` |
+| Contained by | [`project`](logical-model.md#entity-project) |
+| Extends (1:1) | — |
+| Associations | — |
+| Lifecycle / concurrency | `mutable` / `ordered` |
+| Retention / confidentiality | `R-LIVE` / `C2` |
+| Volume / export / search-AI | `medium` / `filtered` / `yes` |
+| Secrets / personal data | `no` / `incidental` |
+| Uniqueness | — |
+| Key typed columns | `public_id text (sco_)`; `project_id`; `kind (scope\|exclusion\|risk\|assumption\|constraint)`; `text (content-classified)`; `rank text`; `version bigint` |
+| Sensitive fields | — |
+| Requirements | PRJ-006 |
+| Notes | Phase 2A (ADR-21): ordered and mutable; text is audited as content (hash only). |
 
 <a id="entity-project-update"></a>
 ### `project_update`
 
-Status update for a project; verified when authored or approved by the owner (OD-16 assumption).
+Status update for a project; append-only. Verified only by a separate human verification fact (OD-16, decided).
 
 | Property | Value |
 |---|---|
@@ -1991,14 +2015,35 @@ Status update for a project; verified when authored or approved by the owner (OD
 | Volume / export / search-AI | `medium` / `filtered` / `yes` |
 | Secrets / personal data | `no` / `incidental` |
 | Uniqueness | — |
-| Key typed columns | `body`; `health`; `verified_by/at null`; `source_kind (human\|ai_draft)` |
+| Key typed columns | `public_id text (pup_)`; `project_id`; `body`; `health null`; `source_kind (human\|ai_draft\|import\|system)`; `author_membership_id null` |
 | Sensitive fields | — |
 | Requirements | PRJ-025, AI-016 |
+
+<a id="entity-project-update-verification"></a>
+### `project_update_verification`
+
+Append-only fact that an authorized human verified a project update (OD-16).
+
+| Property | Value |
+|---|---|
+| Scope | `inherited` |
+| Contained by | [`project_update`](logical-model.md#entity-project-update) |
+| Extends (1:1) | — |
+| Associations | — |
+| Lifecycle / concurrency | `append-only` / `append-only` |
+| Retention / confidentiality | `R-LIVE` / `C2` |
+| Volume / export / search-AI | `medium` / `filtered` / `yes` |
+| Secrets / personal data | `no` / `incidental` |
+| Uniqueness | `(update_id)` |
+| Key typed columns | `update_id`; `verifier_membership_id`; `verified_at`; `audit_event_id` |
+| Sensitive fields | — |
+| Requirements | PRJ-025 |
+| Notes | Phase 2A (ADR-21): authoring alone never verifies; AI, imported, and system drafts stay unverified until this fact exists. |
 
 <a id="entity-decision-record"></a>
 ### `decision_record`
 
-Structured decision (proposed, decided, superseded); extension point pending OD-15.
+Structured decision or open question in a project or brand (OD-15, decided).
 
 | Property | Value |
 |---|---|
@@ -2011,9 +2056,10 @@ Structured decision (proposed, decided, superseded); extension point pending OD-
 | Volume / export / search-AI | `medium` / `filtered` / `yes` |
 | Secrets / personal data | `no` / `incidental` |
 | Uniqueness | — |
-| Key typed columns | standard columns only |
+| Key typed columns | `project_id null`; `kind (decision\|open_question)`; `state (decision: proposed\|decided\|superseded; question: open\|resolved)`; `statement`; `outcome text null (decision outcome or question resolution)`; `owner_membership_id null`; `due_date date null`; `decided_at/resolved_at null`; `superseded_by_id null`; `version bigint` |
 | Sensitive fields | — |
 | Requirements | PRJ-024, AI-013 |
+| Notes | Phase 2A (ADR-21): cross-kind states are rejected by the database and the service; documents may link later but are not the authority. |
 
 <a id="entity-reminder"></a>
 ### `reminder`
@@ -2219,9 +2265,10 @@ Recurrence rule anchored to an IANA timezone with template, mode, and split line
 | Volume / export / search-AI | `medium` / `filtered` / `yes` |
 | Secrets / personal data | `no` / `incidental` |
 | Uniqueness | — |
-| Key typed columns | `target_kind (task\|project\|work_block)`; `rrule text (RFC 5545 subset)`; `anchor_tz text`; `dtstart_local timestamp`; `mode (schedule\|after_completion)`; `template_payload jsonb (typed per target)`; `generated_through date`; `ends_at_occurrence text null`; `split_from_series_id null` |
+| Key typed columns | `public_id text (rcs_)`; `target_kind (task\|project\|work_block)`; `source_record_id null`; `state (active\|paused)`; `rrule text (RFC 5545 subset)`; `anchor_tz text`; `dtstart_local timestamp`; `mode (schedule\|after_completion)`; `template_payload jsonb (typed per target; frozen at definition, immutable)`; `generated_through date`; `ends_at_occurrence text null`; `split_from_series_id null`; `version bigint`; `last_run_at timestamptz (discovery fairness: oldest-waiting first; operational, not versioned)` |
 | Sensitive fields | — |
 | Requirements | TSK-027, PRJ-013, CAL-005 |
+| Notes | Phase 2A (ADR-21): template_payload is copied once from an approved template or project serialization and never updated; occurrences carry (recurrence_series_id, occurrence_key), unique per target table; catch-up is bounded by RECURRENCE_CATCHUP_MAX. |
 
 <a id="entity-recurrence-exception"></a>
 ### `recurrence_exception`
@@ -3648,7 +3695,7 @@ Reusable blueprint (workspace, project, task, document, automation, agent) at pl
 | Volume / export / search-AI | `low` / `filtered` / `yes` |
 | Secrets / personal data | `no` / `incidental` |
 | Uniqueness | — |
-| Key typed columns | standard columns only |
+| Key typed columns | `name`; `target_record_type (project)`; `current_version_id`; `version bigint` |
 | Sensitive fields | — |
 | Requirements | ONB-006, ONB-013, PRJ-014, TSK-028 |
 | Notes | Platform templates live in a platform table with the same shape and no workspace_id. |
@@ -3669,9 +3716,10 @@ Immutable template content package (typed, versioned schema).
 | Volume / export / search-AI | `low` / `filtered` / `yes` |
 | Secrets / personal data | `no` / `incidental` |
 | Uniqueness | — |
-| Key typed columns | standard columns only |
+| Key typed columns | `template_id`; `version_number`; `schema_version`; `content jsonb (typed package; at most TEMPLATE_ITEMS_MAX items)`; `item_count`; `created_from_record_type null` |
 | Sensitive fields | — |
 | Requirements | ONB-014 |
+| Notes | Phase 2A (ADR-21): serializations from projects strip personal data, collaborators, shares, activity/audit, secrets, unsupported later-module data, and cross-brand references. |
 
 <a id="entity-template-installation"></a>
 ### `template_installation`

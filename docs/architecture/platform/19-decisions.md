@@ -206,3 +206,26 @@ All decisions are **proposed (Phase 0D)**, pending solutions-architect acceptanc
   - No new events or public ID prefixes: favorites, recents, view state, and preferences are personal hints that never change authority, so they produce no outbox events, and none is addressable.
 - **Alternatives:** Auditing every recent visit or view-state write (it would flood the immutable audit with churn). Free-form command or route labels (unbounded cardinality, and route parameters could carry identifiers).
 - **Consequences:** No signal carries a tenant, account, brand, route parameter, record, title, or query value. Values are operational defaults, not product promises.
+
+<a id="pl-22"></a>
+### PL-22: Project contracts (Phase 2A amendment)
+- **Decision:**
+  - Public ID prefixes `phs` (phase), `sco` (scope item), `cri` (criteria item), `pup` (project update), and `rcs` (recurrence series).
+  - Sixteen C1 internal events for project updates, moves, and ownership; phases; milestones; decisions and questions; update posting and verification; relationship removal; template creation and application; and recurrence definition and state. Lifecycle stays on the existing `core.record.*` events.
+  - Named bounds `PROJECT_DEPTH_MAX` (10), `TEMPLATE_ITEMS_MAX` (500), and `RECURRENCE_CATCHUP_MAX` (12). The database depth ceiling of 32 is an invariant, not a parameter.
+  - Recurrence discovery bounds `RECURRENCE_WORKSPACE_DISCOVERY_MAX` (200, range 1–1000) and `RECURRENCE_SERIES_DISCOVERY_MAX` (50, range 1–500). Three distinct layers: workspaces per run, series per workspace per run, occurrences per series per run (`RECURRENCE_CATCHUP_MAX`). Both discovery layers take the oldest-waiting work first (a series' last run time, set at creation and on every run), so work beyond a batch stays eligible and is reached in a bounded number of runs.
+  - Two bounded signals: `work.recurrence.occurrences` (outcome) and `work.hierarchy.moves` (outcome).
+  - Cycle and depth refusals are `validation_failed` issues (`cycle`, `depth_exceeded`). Share refusals follow 0C AZ-21: `not_found` for unreadable targets, `forbidden` for readable but unshareable ones.
+- **Alternatives:** New error codes for cycles and depth (they are field validation, not new failure classes). Per-entity lifecycle events (the `core.record.*` events already cover archive, trash, restore, and purge).
+- **Consequences:** Event payloads carry identifiers, kinds, and states only, never titles, descriptions, risks, budgets, or hidden endpoint data. 71 ID prefixes, 68 events, 44 named parameters.
+
+<a id="pl-23"></a>
+### PL-23: Rich text version 1 (Phase 2A amendment)
+- **Decision:**
+  - Schema `rich-text` defines the canonical rich-text envelope `{type: "doc", version, content}`. Version 1 is the plain-text subset: paragraphs of unmarked text nodes, one paragraph per line. Other node types, marks, and attributes are refused, never stored.
+  - Text nodes are non-empty and contain no line breaks or control characters (tab allowed). Length limits apply to the extracted text (paragraphs joined by a line break, in code points), never to serialized JSON.
+  - A document without non-whitespace text is refused; `null` is the only empty value.
+  - Field merges send `base_hash` (`sha256:` over the RFC 8785 canonical form) for rich-text fields (§4.2). The runtime validator (`@pm/contracts/rich-text`) and the database check (`tenancy.valid_rich_text`) apply the same rules.
+  - First use: `work.project.description_rich` (20,000 characters). The Phase 2A editor is a plain multiline control encoding version 1.
+- **Alternatives:** A plain-text column until 4C (a later destructive content migration). Storing arbitrary JSON (unvalidated content at rest). Choosing the full 4C format now (premature; PQ-06 stays with 4C).
+- **Consequences:** Phase 4C adds node and mark types under the same envelope and `version`. Stored version 1 documents remain valid without migration. 30 schemas.

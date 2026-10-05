@@ -17,12 +17,12 @@ Class definitions and rules: [../11-data-classification.md](../11-data-classific
 | Retention and governance | 3 | C3 | R-AUDIT, R-LIVE | filtered | no | no | incidental, yes | low |
 | Usage metering and limits | 4 | C2 | R-BILLING, R-EXEC, R-LIVE | admin, filtered | no | no | incidental | very-high |
 | Billing and entitlements | 7 | C3 | R-BILLING, R-LIVE, R-PLATFORM | admin, filtered, never | no | no | incidental, yes | medium |
-| Workflows and custom fields | 8 | C2 | R-LIVE | filtered | yes | no | incidental | very-high |
+| Workflows and custom fields | 9 | C2 | R-LIVE, R-PLATFORM | filtered, full | no, yes | no | incidental, no | very-high |
 | Relationship primitives | 6 | C2 | R-LIVE | filtered | yes | no | incidental | high |
 | Files, deliverables, and evidence | 8 | C2 | R-DERIVED, R-EPHEMERAL, R-EVIDENCE, R-LIVE | filtered, never | no, yes | no | incidental | high |
 | Comments and reviews | 5 | C2 | R-AUDIT, R-EVIDENCE, R-LIVE | admin, filtered | yes | no | incidental | very-high |
 | Notifications | 4 | C2 | R-EXEC, R-PERSONAL | never, self | no | no | incidental | very-high |
-| Projects and tasks | 11 | C2 | R-LIVE, R-PERSONAL | filtered, self | yes | no | incidental | very-high |
+| Projects and tasks | 12 | C2 | R-LIVE, R-PERSONAL | filtered, self | yes | no | incidental | very-high |
 | Inbox and capture | 5 | C3 | R-LIVE, R-PERSONAL | filtered, self | metadata, no, yes | hash-only | incidental, yes | high |
 | Today, scheduling, and capacity | 10 | C3 | R-LIVE, R-PERSONAL | filtered, self | no, yes | no | incidental, yes | high |
 | Time tracking | 4 | C2 | R-EVIDENCE, R-LIVE | filtered | yes | no | incidental | very-high |
@@ -101,6 +101,7 @@ Class definitions and rules: [../11-data-classification.md](../11-data-classific
 | [`coupon_redemption`](logical-model.md#entity-coupon-redemption) | billing | workspace | C2 | standard (per-record) | is evidence / append-only | R-BILLING | filtered | low | no | no | incidental |
 | [`workflow`](logical-model.md#entity-workflow) | workflow | workspace_or_brand | C1 | low | configuration changes | R-LIVE | filtered | low | yes | no | incidental |
 | [`workflow_status`](logical-model.md#entity-workflow-status) | workflow | inherited | C1 | low | configuration changes | R-LIVE | filtered | low | yes | no | incidental |
+| [`platform_status`](logical-model.md#entity-platform-status) | workflow | platform | C1 | low | is evidence / append-only | R-PLATFORM | full | low | no | no | no |
 | [`workflow_revision`](logical-model.md#entity-workflow-revision) | workflow | inherited | C1 | low | is evidence / append-only | R-LIVE | filtered | low | yes | no | incidental |
 | [`field_definition`](logical-model.md#entity-field-definition) | workflow | workspace_or_brand | C1 | low | configuration changes | R-LIVE | filtered | low | yes | no | incidental |
 | [`field_option`](logical-model.md#entity-field-option) | workflow | inherited | C1 | low | configuration changes | R-LIVE | filtered | medium | yes | no | incidental |
@@ -131,14 +132,15 @@ Class definitions and rules: [../11-data-classification.md](../11-data-classific
 | [`notification_preference`](logical-model.md#entity-notification-preference) | notify | personal | C1 | low | configuration changes | R-PERSONAL | self | medium | no | no | incidental |
 | [`digest`](logical-model.md#entity-digest) | notify | personal | C2 | standard (per-record) | is evidence / append-only | R-PERSONAL | self | high | no | no | incidental |
 | [`project`](logical-model.md#entity-project) | work | brand | C2 | standard (per-record) | material changes | R-LIVE | filtered | medium | yes | no | incidental |
-| [`project_member`](logical-model.md#entity-project-member) | work | inherited | C2 | standard (per-record) | material changes | R-LIVE | filtered | medium | yes | no | incidental |
-| [`phase`](logical-model.md#entity-phase) | work | inherited | C2 | standard (per-record) | material changes | R-LIVE | filtered | medium | yes | no | incidental |
+| [`phase`](logical-model.md#entity-phase) | work | brand | C2 | standard (per-record) | material changes | R-LIVE | filtered | medium | yes | no | incidental |
 | [`milestone`](logical-model.md#entity-milestone) | work | brand | C2 | standard (per-record) | material changes | R-LIVE | filtered | medium | yes | no | incidental |
 | [`task`](logical-model.md#entity-task) | work | brand | C2 | standard (per-record) | material changes | R-LIVE | filtered | very-high | yes | no | incidental |
 | [`task_assignee`](logical-model.md#entity-task-assignee) | work | inherited | C2 | standard (per-record) | material changes | R-LIVE | filtered | very-high | yes | no | incidental |
 | [`checklist_item`](logical-model.md#entity-checklist-item) | work | inherited | C2 | standard (per-record) | material changes | R-LIVE | filtered | high | yes | no | incidental |
 | [`criteria_item`](logical-model.md#entity-criteria-item) | work | inherited | C2 | standard (per-record) | material changes | R-LIVE | filtered | high | yes | no | incidental |
+| [`scope_item`](logical-model.md#entity-scope-item) | work | inherited | C2 | standard (per-record) | material changes | R-LIVE | filtered | medium | yes | no | incidental |
 | [`project_update`](logical-model.md#entity-project-update) | work | inherited | C2 | standard (per-record) | is evidence / append-only | R-LIVE | filtered | medium | yes | no | incidental |
+| [`project_update_verification`](logical-model.md#entity-project-update-verification) | work | inherited | C2 | standard (per-record) | is evidence / append-only | R-LIVE | filtered | medium | yes | no | incidental |
 | [`decision_record`](logical-model.md#entity-decision-record) | work | brand | C2 | standard (per-record) | material changes | R-LIVE | filtered | medium | yes | no | incidental |
 | [`reminder`](logical-model.md#entity-reminder) | work | personal | C2 | standard (per-record) | material changes | R-PERSONAL | self | high | yes | no | incidental |
 | [`inbox_item`](logical-model.md#entity-inbox-item) | capture | personal_brand_optional | C2 | standard (per-record) | material changes | R-LIVE | self | high | yes | no | incidental |

@@ -656,7 +656,8 @@
         "core",
         "tenancy",
         "execution",
-        "audit"
+        "audit",
+        "work"
       ],
       "publishes": [
         "template.installed"
@@ -2879,6 +2880,42 @@
       "notes": ""
     },
     {
+      "name": "platform_status",
+      "module": "workflow",
+      "purpose": "Immutable platform-default statuses per record type (projects in 2A: Planned, Active, On hold, Completed, Cancelled).",
+      "scope": "platform",
+      "addressable": false,
+      "public_id_prefix": null,
+      "extends": null,
+      "containment_parents": [],
+      "associations": [],
+      "lifecycle": "append-only",
+      "concurrency": "append-only",
+      "retention_class": "R-PLATFORM",
+      "confidentiality": "C1",
+      "volume": "low",
+      "export": "full",
+      "search_ai": "no",
+      "may_contain_secrets": "no",
+      "personal_data": "no",
+      "uniqueness": [
+        "(record_type, key)"
+      ],
+      "sensitive_fields": [],
+      "key_columns": [
+        "record_type",
+        "key",
+        "name",
+        "category status_category (immutable)",
+        "rank"
+      ],
+      "requirements": [
+        "PRJ-009",
+        "PRJ-004"
+      ],
+      "notes": "Phase 2A (ADR-21): seeded by migration only; Phase 2C adds workspace workflows and custom statuses."
+    },
+    {
       "name": "workflow_revision",
       "module": "workflow",
       "purpose": "Immutable snapshot of allowed transitions, required fields, and approval rules.",
@@ -3929,86 +3966,73 @@
       "search_ai": "yes",
       "may_contain_secrets": "no",
       "personal_data": "incidental",
-      "uniqueness": [],
+      "uniqueness": [
+        "(recurrence_series_id, occurrence_key) where recurrence_series_id is not null"
+      ],
       "sensitive_fields": [],
       "key_columns": [
-        "parent_project_id null",
-        "ancestor_ids uuid[]",
-        "depth smallint",
+        "parent_project_id null (same workspace and brand)",
+        "ancestor_ids uuid[] (root first, excluding self)",
+        "depth smallint (root = 0; PROJECT_DEPTH_MAX enforced by commands, hard ceiling 32 in the database)",
         "name",
         "description_rich jsonb",
-        "status_id",
-        "status_category (denormalized)",
-        "priority",
+        "icon",
+        "color",
+        "status_id (workflow.platform_status until 2C)",
+        "status_category (denormalized, guarded)",
+        "priority (none|low|medium|high|urgent)",
         "start_date date",
         "target_date date",
         "deadline_date date | deadline_at timestamptz + deadline_tz",
         "completed_at",
-        "health health_value",
+        "health health_value (on_track|at_risk|off_track) null",
         "health_source (manual|suggested)",
-        "owner_id",
+        "owner_membership_id (accountable responsibility, not authority)",
         "budget_amount numeric + currency",
         "time_budget_minutes",
         "ai_budget_micros",
         "rank text",
         "access_mode (inherit|restricted)",
-        "allow_record_shares boolean (default false when restricted)"
+        "allow_record_shares boolean (default false when restricted)",
+        "recurrence_series_id null (validated by planning)",
+        "occurrence_key text null",
+        "intake_source_id null (validated intake_form record; provenance, PRJ-017)",
+        "version bigint"
       ],
       "requirements": [
         "PRJ-001",
         "PRJ-002",
+        "PRJ-003",
         "PRJ-004",
+        "PRJ-007",
+        "PRJ-008",
         "PRJ-012",
-        "PRJ-020"
+        "PRJ-013",
+        "PRJ-019",
+        "PRJ-020",
+        "PRJ-021",
+        "PRJ-027",
+        "PRJ-017",
+        "WSB-007",
+        "WSB-008",
+        "GOAL-008",
+        "LA-002"
       ],
-      "notes": ""
-    },
-    {
-      "name": "project_member",
-      "module": "work",
-      "purpose": "Collaborator role on a project.",
-      "scope": "inherited",
-      "addressable": false,
-      "public_id_prefix": null,
-      "extends": null,
-      "containment_parents": [
-        "project"
-      ],
-      "associations": [
-        "membership"
-      ],
-      "lifecycle": "mutable",
-      "concurrency": "row-version",
-      "retention_class": "R-LIVE",
-      "confidentiality": "C2",
-      "volume": "medium",
-      "export": "filtered",
-      "search_ai": "yes",
-      "may_contain_secrets": "no",
-      "personal_data": "incidental",
-      "uniqueness": [
-        "(project_id, membership_id)"
-      ],
-      "sensitive_fields": [],
-      "key_columns": [],
-      "requirements": [
-        "PRJ-003"
-      ],
-      "notes": ""
+      "notes": "Phase 2A (ADR-21): collaborator authority is project-scoped access.role_assignment only (no project_member table); owner_membership_id is responsibility and is paired with an explicit project manage grant; a deferred guard keeps one eligible manager on every active project. Completion is derived (OD-13), never stored as authorization."
     },
     {
       "name": "phase",
       "module": "work",
-      "purpose": "Ordered stage of a project.",
-      "scope": "inherited",
-      "addressable": false,
-      "public_id_prefix": null,
+      "purpose": "Ordered stage of a project; reversible archive distinct from trash (ADR-21).",
+      "scope": "brand",
+      "addressable": true,
+      "public_id_prefix": "phs",
       "extends": null,
       "containment_parents": [
         "project"
       ],
       "associations": [],
-      "lifecycle": "trash",
+      "lifecycle": "full",
       "concurrency": "ordered",
       "retention_class": "R-LIVE",
       "confidentiality": "C2",
@@ -4019,11 +4043,20 @@
       "personal_data": "incidental",
       "uniqueness": [],
       "sensitive_fields": [],
-      "key_columns": [],
+      "key_columns": [
+        "project_id",
+        "name",
+        "rank text",
+        "start_date date null",
+        "end_date date null",
+        "status (planned|active|completed)",
+        "owner_membership_id null",
+        "version bigint"
+      ],
       "requirements": [
         "PRJ-010"
       ],
-      "notes": ""
+      "notes": "Phase 2A (ADR-21): archive and restore use the canonical core.record lifecycle; archived phases keep their rank and history."
     },
     {
       "name": "milestone",
@@ -4048,7 +4081,17 @@
       "personal_data": "incidental",
       "uniqueness": [],
       "sensitive_fields": [],
-      "key_columns": [],
+      "key_columns": [
+        "project_id",
+        "phase_id null (same project)",
+        "name",
+        "rank text",
+        "due_date date null",
+        "status (planned|reached|missed|cancelled)",
+        "reached_at null",
+        "owner_membership_id null",
+        "version bigint"
+      ],
       "requirements": [
         "PRJ-010",
         "VIEW-008"
@@ -4212,11 +4255,14 @@
       "uniqueness": [],
       "sensitive_fields": [],
       "key_columns": [
+        "public_id text (cri_)",
         "owner_kind (task|project)",
         "kind (acceptance|definition_of_done|success)",
         "text",
+        "rank text",
         "met boolean",
-        "met_by/at"
+        "met_by/at",
+        "version bigint"
       ],
       "requirements": [
         "TSK-020",
@@ -4226,9 +4272,45 @@
       "notes": ""
     },
     {
+      "name": "scope_item",
+      "module": "work",
+      "purpose": "Project scope statement, exclusion, risk, assumption, or constraint (PRJ-006).",
+      "scope": "inherited",
+      "addressable": false,
+      "public_id_prefix": null,
+      "extends": null,
+      "containment_parents": [
+        "project"
+      ],
+      "associations": [],
+      "lifecycle": "mutable",
+      "concurrency": "ordered",
+      "retention_class": "R-LIVE",
+      "confidentiality": "C2",
+      "volume": "medium",
+      "export": "filtered",
+      "search_ai": "yes",
+      "may_contain_secrets": "no",
+      "personal_data": "incidental",
+      "uniqueness": [],
+      "sensitive_fields": [],
+      "key_columns": [
+        "public_id text (sco_)",
+        "project_id",
+        "kind (scope|exclusion|risk|assumption|constraint)",
+        "text (content-classified)",
+        "rank text",
+        "version bigint"
+      ],
+      "requirements": [
+        "PRJ-006"
+      ],
+      "notes": "Phase 2A (ADR-21): ordered and mutable; text is audited as content (hash only)."
+    },
+    {
       "name": "project_update",
       "module": "work",
-      "purpose": "Status update for a project; verified when authored or approved by the owner (OD-16 assumption).",
+      "purpose": "Status update for a project; append-only. Verified only by a separate human verification fact (OD-16, decided).",
       "scope": "inherited",
       "addressable": false,
       "public_id_prefix": null,
@@ -4249,10 +4331,12 @@
       "uniqueness": [],
       "sensitive_fields": [],
       "key_columns": [
+        "public_id text (pup_)",
+        "project_id",
         "body",
-        "health",
-        "verified_by/at null",
-        "source_kind (human|ai_draft)"
+        "health null",
+        "source_kind (human|ai_draft|import|system)",
+        "author_membership_id null"
       ],
       "requirements": [
         "PRJ-025",
@@ -4261,9 +4345,45 @@
       "notes": ""
     },
     {
+      "name": "project_update_verification",
+      "module": "work",
+      "purpose": "Append-only fact that an authorized human verified a project update (OD-16).",
+      "scope": "inherited",
+      "addressable": false,
+      "public_id_prefix": null,
+      "extends": null,
+      "containment_parents": [
+        "project_update"
+      ],
+      "associations": [],
+      "lifecycle": "append-only",
+      "concurrency": "append-only",
+      "retention_class": "R-LIVE",
+      "confidentiality": "C2",
+      "volume": "medium",
+      "export": "filtered",
+      "search_ai": "yes",
+      "may_contain_secrets": "no",
+      "personal_data": "incidental",
+      "uniqueness": [
+        "(update_id)"
+      ],
+      "sensitive_fields": [],
+      "key_columns": [
+        "update_id",
+        "verifier_membership_id",
+        "verified_at",
+        "audit_event_id"
+      ],
+      "requirements": [
+        "PRJ-025"
+      ],
+      "notes": "Phase 2A (ADR-21): authoring alone never verifies; AI, imported, and system drafts stay unverified until this fact exists."
+    },
+    {
       "name": "decision_record",
       "module": "work",
-      "purpose": "Structured decision (proposed, decided, superseded); extension point pending OD-15.",
+      "purpose": "Structured decision or open question in a project or brand (OD-15, decided).",
       "scope": "brand",
       "addressable": true,
       "public_id_prefix": "dec",
@@ -4284,12 +4404,23 @@
       "personal_data": "incidental",
       "uniqueness": [],
       "sensitive_fields": [],
-      "key_columns": [],
+      "key_columns": [
+        "project_id null",
+        "kind (decision|open_question)",
+        "state (decision: proposed|decided|superseded; question: open|resolved)",
+        "statement",
+        "outcome text null (decision outcome or question resolution)",
+        "owner_membership_id null",
+        "due_date date null",
+        "decided_at/resolved_at null",
+        "superseded_by_id null",
+        "version bigint"
+      ],
       "requirements": [
         "PRJ-024",
         "AI-013"
       ],
-      "notes": ""
+      "notes": "Phase 2A (ADR-21): cross-kind states are rejected by the database and the service; documents may link later but are not the authority."
     },
     {
       "name": "reminder",
@@ -4623,22 +4754,27 @@
       "uniqueness": [],
       "sensitive_fields": [],
       "key_columns": [
+        "public_id text (rcs_)",
         "target_kind (task|project|work_block)",
+        "source_record_id null",
+        "state (active|paused)",
         "rrule text (RFC 5545 subset)",
         "anchor_tz text",
         "dtstart_local timestamp",
         "mode (schedule|after_completion)",
-        "template_payload jsonb (typed per target)",
+        "template_payload jsonb (typed per target; frozen at definition, immutable)",
         "generated_through date",
         "ends_at_occurrence text null",
-        "split_from_series_id null"
+        "split_from_series_id null",
+        "version bigint",
+        "last_run_at timestamptz (discovery fairness: oldest-waiting first; operational, not versioned)"
       ],
       "requirements": [
         "TSK-027",
         "PRJ-013",
         "CAL-005"
       ],
-      "notes": ""
+      "notes": "Phase 2A (ADR-21): template_payload is copied once from an approved template or project serialization and never updated; occurrences carry (recurrence_series_id, occurrence_key), unique per target table; catch-up is bounded by RECURRENCE_CATCHUP_MAX."
     },
     {
       "name": "recurrence_exception",
@@ -6891,7 +7027,12 @@
       "personal_data": "incidental",
       "uniqueness": [],
       "sensitive_fields": [],
-      "key_columns": [],
+      "key_columns": [
+        "name",
+        "target_record_type (project)",
+        "current_version_id",
+        "version bigint"
+      ],
       "requirements": [
         "ONB-006",
         "ONB-013",
@@ -6923,11 +7064,18 @@
       "personal_data": "incidental",
       "uniqueness": [],
       "sensitive_fields": [],
-      "key_columns": [],
+      "key_columns": [
+        "template_id",
+        "version_number",
+        "schema_version",
+        "content jsonb (typed package; at most TEMPLATE_ITEMS_MAX items)",
+        "item_count",
+        "created_from_record_type null"
+      ],
       "requirements": [
         "ONB-014"
       ],
-      "notes": ""
+      "notes": "Phase 2A (ADR-21): serializations from projects strip personal data, collaborators, shares, activity/audit, secrets, unsupported later-module data, and cross-brand references."
     },
     {
       "name": "template_installation",

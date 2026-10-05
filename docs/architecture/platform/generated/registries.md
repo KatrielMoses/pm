@@ -74,6 +74,11 @@ Source: `contracts/registry.json`.
 | `fpol_` | field_policy | access.field_policy | access |  |
 | `inv_` | invitation | tenancy.invitation | tenancy |  |
 | `otr_` | ownership_transfer | tenancy.ownership_transfer | tenancy |  |
+| `phs_` | phase | work.phase | work | Phase 2A (PL-22). |
+| `sco_` | scope_item | work.scope_item | work | Phase 2A (PL-22). |
+| `cri_` | criteria_item | work.criteria_item | work | Phase 2A (PL-22). |
+| `pup_` | project_update | work.project_update | work | Phase 2A (PL-22). |
+| `rcs_` | recurrence_series | planning.recurrence_series | planning | Phase 2A (PL-22). |
 
 ## Error codes
 
@@ -227,6 +232,22 @@ Source: `contracts/registry.json`.
 | `access.role.revoked` v1 | access.role_assignment | scope_type | C1 | yes | yes |  |  |  | — |
 | `tenancy.team.membership_changed` v1 | tenancy.team_member | change | C1 | yes |  |  |  |  | — |
 | `tenancy.ownership.transferred` v1 | tenancy.ownership_transfer | demoted_previous | C1 | yes | yes |  |  |  | — |
+| `work.project.updated` v1 | work.project | changed_fields | C1 | yes |  |  | yes | yes | — |
+| `work.project.moved` v1 | work.project | parent_project_id, depth | C1 | yes |  |  | yes | yes | — |
+| `work.project.owner_changed` v1 | work.project | owner_membership_id | C1 | yes | yes |  | yes |  | — |
+| `work.phase.created` v1 | work.phase | project_id | C1 | yes |  |  | yes | yes | — |
+| `work.phase.updated` v1 | work.phase | project_id, changed_fields | C1 | yes |  |  | yes | yes | — |
+| `work.milestone.created` v1 | work.milestone | project_id, phase_id | C1 | yes |  |  | yes | yes | — |
+| `work.milestone.updated` v1 | work.milestone | project_id, status, changed_fields | C1 | yes |  |  | yes | yes | — |
+| `work.decision_record.created` v1 | work.decision_record | project_id, kind, state | C1 | yes |  |  | yes | yes | — |
+| `work.decision_record.state_changed` v1 | work.decision_record | kind, state | C1 | yes |  |  | yes | yes | — |
+| `work.project_update.posted` v1 | work.project_update | project_id, source_kind, health | C1 | yes |  |  | yes |  | — |
+| `work.project_update.verified` v1 | work.project_update | project_id | C1 | yes |  |  | yes |  | — |
+| `relations.relationship.removed` v1 | relations.record_relationship | kind, from_record_id, to_record_id | C1 | yes |  |  | yes |  | — |
+| `templates.template.created` v1 | templates.template | target_record_type, item_count | C1 | yes |  |  |  | yes | — |
+| `templates.template.applied` v1 | templates.template | template_version_id, record_id | C1 | yes |  |  | yes |  | — |
+| `planning.recurrence_series.defined` v1 | planning.recurrence_series | target_kind | C1 | yes |  |  |  |  | — |
+| `planning.recurrence_series.state_changed` v1 | planning.recurrence_series | state | C1 | yes |  |  |  |  | — |
 
 ## SSE topics
 
@@ -357,6 +378,8 @@ Forbidden metric labels: `workspace_id`, `brand_id`, `record_id`, `public_id`, `
 | `views.cleanup` | counter | kind | views |
 | `shell.commands` | counter | command, trigger | shell |
 | `identity.preference_updates` | counter | outcome | identity |
+| `work.recurrence.occurrences` | counter | outcome | work |
+| `work.hierarchy.moves` | counter | outcome | work |
 
 ## Named parameters (values are configuration, not promises)
 
@@ -401,3 +424,8 @@ Forbidden metric labels: `workspace_id`, `brand_id`, `record_id`, `public_id`, `
 | `RECENT_VISIT_COALESCE` | Window in which a repeat visit to the same target is coalesced into the existing recent entry without another write. | 1E |
 | `VIEW_STATE_MAX_BYTES` | Largest stored view-state document (serialized) accepted per view and device. | 1E |
 | `VIEW_STATE_TTL` | How long stored per-device view state survives without being written before cleanup removes it. | 1E |
+| `PROJECT_DEPTH_MAX` | Deepest project level a command accepts (root = 0) when creating, moving, duplicating, or generating projects. The database separately enforces an invariant ceiling of 32 that is not a runtime parameter. | 2A |
+| `TEMPLATE_ITEMS_MAX` | Most structural items (project, phases, milestones, criteria, scope items) one template version or recurrence snapshot may contain. | 2A |
+| `RECURRENCE_CATCHUP_MAX` | Most missed occurrences one recurrence series may generate in a single catch-up run; later ones wait for the next run. | 2A |
+| `RECURRENCE_WORKSPACE_DISCOVERY_MAX` | Most workspaces with due recurrence work one recurrence job run visits (default 200, range 1–1000). Workspaces are taken oldest-waiting first, so remaining work stays eligible for the next run. | 2A |
+| `RECURRENCE_SERIES_DISCOVERY_MAX` | Most due recurrence series one job run processes in one workspace (default 50, range 1–500). Series are taken oldest-waiting first (last run, then id), so later series are never starved. | 2A |

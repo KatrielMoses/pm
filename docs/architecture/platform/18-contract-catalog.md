@@ -2,7 +2,7 @@
 
 ## 18.1 Schemas
 
-There are 29 schemas in `contracts/schemas/`, rendered in [generated/schema-reference.md](generated/schema-reference.md) with every example.
+There are 30 schemas in `contracts/schemas/`, rendered in [generated/schema-reference.md](generated/schema-reference.md) with every example.
 
 | Family | Schemas | Visibility |
 |---|---|---|
@@ -10,6 +10,7 @@ There are 29 schemas in `contracts/schemas/`, rendered in [generated/schema-refe
 | Success and pagination | `success-envelope`, `collection-page` | public |
 | Errors and gates | `error-envelope`, `conflict`, `approval-required`, `step-up-challenge` | public |
 | Concurrency | `field-merge-request`, `conflict` | public |
+| Content | `rich-text` (version 1, PL-23) | public |
 | Idempotency | `idempotency-record` | internal |
 | Operations | `operation`, `attempt`, `partial-result` | public |
 | Execution | `execution-context`, `job` | internal |

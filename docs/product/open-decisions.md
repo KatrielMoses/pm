@@ -118,35 +118,49 @@ Requirements flagged with each decision are listed automatically in [requirement
 
 <a id="od-13"></a>
 ### OD-13 — Project completion percentage formula
-- **Decision:** Count-based, estimate-weighted, or milestone-weighted. Are paused tasks and subtasks included?
+- **Decided (2026-10-04, architect, Phase 2A brief):** The basis is count-based on **leaf** tasks.
+  - Until tasks exist (2A), a completed project shows 100% and any other project 0%, labelled *Status-based*.
+  - From 2B, completion is done leaf tasks divided by all non-cancelled leaf tasks the viewer may read. Paused tasks count in the denominator.
+  - There is no estimate weighting until 5C explicitly replaces the basis.
+  - Hidden work never affects a visible numerator, denominator, count, or explanation in a way that discloses existence.
 - **Why it matters:** It is shown on every project and portfolio, and it must never be mistaken for completion ([lifecycle §3](lifecycle-and-states.md#project-completion-versus-completion-percentage)).
-- **Affects:** PRJ-020, RPT-005, GOAL-005 · phases 2A, 5C.
-- **Safe default:** Share of non-cancelled **top-level** tasks in the `done` category (paused tasks included in the denominator), with the method displayed.
-- **If deferred:** 5C must version the metric, so a later formula change would alter historical displays.
+- **Affects:** PRJ-020, RPT-005, GOAL-005 · phases 2A, 2B, 5C.
+- **If deferred:** No longer applicable (decided). 5C versions the metric if it changes the basis.
 
 <a id="od-14"></a>
 ### OD-14 — Recurring projects
-- **Decision:** What a recurring project is (PRJ-013).
+- **Decided (2026-10-04, architect, Phase 2A brief):** A recurring project is a schedule that creates a new, independent project for each occurrence from an **immutable snapshot**.
+  - **Snapshot:** frozen once, when the series is defined, from an approved template or project serialization, and stored in the planning-owned series.
+  - **Copied:** phases and milestones (with the project's own fields).
+  - **Never copied:** activity, audit, shares, collaborators, personal data, secrets, and cross-brand references.
+  - **Idempotency:** each occurrence has a stable occurrence key, unique per series.
+  - **Missed occurrences:** catch-up is bounded by `RECURRENCE_CATCHUP_MAX`.
+  - **Phase split:** 2A delivers definition, pause and resume, manual next occurrence, and worker generation. 2D may improve the interaction but not these semantics.
 - **Why it matters:** It could mean template instantiation, repeating phases, or a reopened project, and each has a different data model.
 - **Affects:** PRJ-013, PRJ-014 · phases 2A, 2D.
-- **Safe default:** A schedule on a project template that creates a new, independent project for each occurrence.
-- **If deferred:** PRJ-013 remains unimplementable as written.
+- **If deferred:** No longer applicable (decided).
 
 <a id="od-15"></a>
 ### OD-15 — "Decision" as a record type
-- **Decision:** Are decisions (PRJ-024, SRCH-001, DOC-006, AI-013) a document type, or a structured record (proposed / decided / superseded, owner, date)?
+- **Decided (2026-10-04, architect, Phase 2A brief):** Decisions and open questions are one structured record type, the decision record (`dec_`), with a kind of *decision* or *open question*.
+  - **Fields:** statement, outcome or resolution, owner, and applicable dates.
+  - **Decision states:** proposed → decided → superseded.
+  - **Question states:** open → resolved.
+  - **Rejected:** cross-kind states.
+  - **Documents:** may link to decision records later, but they are not the authority.
 - **Why it matters:** AI extraction (AI-013), project display (PRJ-024), and briefings (BRF-009) need somewhere structured to put decisions.
 - **Affects:** PRJ-024, SRCH-001, DOC-006, AI-013, BRF-009 · phases 0B, 2A, 4C, 7C.
-- **Safe default:** A lightweight structured record that can be embedded in documents and is searchable as its own type.
-- **If deferred:** Decisions remain free text, and PRJ-024 can only list documents tagged "decision".
+- **If deferred:** No longer applicable (decided).
 
 <a id="od-16"></a>
 ### OD-16 — "Latest verified project update"
-- **Decision:** Who or what verifies a project update (PRJ-025)?
+- **Decided (2026-10-04, architect, Phase 2A brief):** An update is verified only by an explicit verification action by an authorized human project owner or collaborator.
+  - **Authoring alone never verifies.** AI-drafted, imported, and system updates stay unverified until that action.
+  - **Updates stay append-only.** Verification is a separate fact recording the verifier and time.
+  - **Latest verified update:** the newest update that has a verification fact.
 - **Why it matters:** Unverified AI drafts could otherwise be presented as the project's status.
 - **Affects:** PRJ-025, AI-016, BRF-004 · phases 2A, 7C, 7E.
-- **Safe default:** An update is *verified* when authored or explicitly approved by the project owner or their delegate. AI-drafted updates stay unverified until approved.
-- **If deferred:** PRJ-025 has no testable meaning.
+- **If deferred:** No longer applicable (decided).
 
 <a id="od-17"></a>
 ### OD-17 — Staleness and freshness thresholds
