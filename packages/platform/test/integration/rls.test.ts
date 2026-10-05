@@ -58,6 +58,19 @@ const PHASE_1C_TENANT_TABLES = [
   'views.recent_item',
   'views.view_state',
   'views.view_pin',
+  // Phase 2A
+  'planning.recurrence_series',
+  'relations.record_relationship',
+  'templates.template',
+  'templates.template_version',
+  'work.criteria_item',
+  'work.decision_record',
+  'work.milestone',
+  'work.phase',
+  'work.project',
+  'work.project_update',
+  'work.project_update_verification',
+  'work.scope_item',
 ] as const;
 
 /** Seeds one row in every tenant execution table for a workspace. */
@@ -361,8 +374,9 @@ describe('tenant RLS foundation (0C §12.7)', () => {
              has_function_privilege('app_rw', p.oid, 'EXECUTE') AS app_exec,
              has_function_privilege('app_worker', p.oid, 'EXECUTE') AS worker_exec
       FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace WHERE n.nspname = 'exec_dispatch' ORDER BY 1`);
-    // 1A–1F: 9 functions; 1E adds discover_views_cleanup (workspace ids only).
-    expect(fns.rows.length).toBe(10);
+    // 1A–1F: 9 functions; 1E adds discover_views_cleanup and 2A discover_recurrence_due
+    // (workspace ids only).
+    expect(fns.rows.length).toBe(11);
     const allowed = new Set([
       'job_id',
       'workspace_id',
