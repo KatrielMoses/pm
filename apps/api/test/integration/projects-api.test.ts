@@ -99,7 +99,8 @@ describe('projects API (2A)', () => {
     expect(o.json().data).toMatchObject({
       type: 'project_overview',
       project: { name: 'Renamed' },
-      task_facts: { available: false },
+      // 2B: project-native task facts from readable tasks (none yet).
+      task_facts: { available: true, total: 0, overdue: 0, blocked: 0, unassigned: 0 },
     });
   });
 

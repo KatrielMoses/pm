@@ -5,7 +5,8 @@ import { withPersonalReferenceCleanup } from '@pm/tenancy';
 /**
  * Project record types for the 1F lifecycle (0B ADR-21). Containment the lifecycle follows:
  * brand → every project in it (each project is its own lifecycle root inside the brand); project →
- * its phases, milestones, and decisions. Child projects are never containment children of their
+ * its phases, milestones, decisions, and every task in it (2B; tasks are project content, so a
+ * project's lifecycle carries them). Child projects are never containment children of their
  * parent: a project lifecycle command never archives, trashes, or purges sub-projects, and a purge
  * refuses while a live child still references the parent (the foreign key would also block it).
  */
@@ -21,6 +22,7 @@ export const projectAdapter: RecordTypeAdapter = {
       SELECT id, 'phase' AS type FROM work.phase WHERE project_id = ANY(${[...parentIds]}::uuid[])
       UNION ALL SELECT id, 'milestone' FROM work.milestone WHERE project_id = ANY(${[...parentIds]}::uuid[])
       UNION ALL SELECT id, 'decision_record' FROM work.decision_record WHERE project_id = ANY(${[...parentIds]}::uuid[])
+      UNION ALL SELECT id, 'task' FROM work.task WHERE project_id = ANY(${[...parentIds]}::uuid[])
       ORDER BY 1`.execute(tx.db);
     return refs(rows.rows);
   },
@@ -61,6 +63,10 @@ export const projectAdapter: RecordTypeAdapter = {
         .where('project_id', 'in', ids)
         .execute();
       await tx.db.deleteFrom('work.project_update').where('project_id', 'in', ids).execute();
+      await sql`DELETE FROM work.task_inherited_criterion x USING work.criteria_item c
+                 WHERE c.id = x.criteria_item_id AND c.project_id = ANY(${ids}::uuid[])`.execute(
+        tx.db,
+      );
       await tx.db.deleteFrom('work.criteria_item').where('project_id', 'in', ids).execute();
       await tx.db.deleteFrom('work.scope_item').where('project_id', 'in', ids).execute();
       // Series sourced from the project keep their frozen snapshot; the source link detaches.
@@ -173,6 +179,83 @@ export const decisionAdapter: RecordTypeAdapter = {
   },
 };
 
+/**
+ * Tasks (0B ADR-22). A task's own lifecycle never cascades to its subtasks (the command applies
+ * to each one only when `include_subtasks` is confirmed), so tasks report no containment children.
+ * Projectless tasks are brand roots; project tasks travel with their project. Purge is refused
+ * while a live child task still references a purged parent.
+ */
+export const taskAdapter: RecordTypeAdapter = {
+  recordType: 'task',
+  children: () => Promise.resolve([]),
+  async rootsInBrand(tx, brandIds) {
+    if (!brandIds.length) return [];
+    const rows = await tx.db
+      .selectFrom('work.task')
+      .select('id')
+      .where('brand_id', 'in', [...brandIds])
+      .where('project_id', 'is', null)
+      .where('lifecycle_state', '<>', 'purged')
+      .orderBy('id')
+      .execute();
+    return rows.map((r) => ({ id: r.id, recordType: 'task' }));
+  },
+  async containerOf(tx, recordId) {
+    const r = await tx.db
+      .selectFrom('work.task')
+      .select(['parent_task_id', 'project_id', 'brand_id'])
+      .where('id', '=', recordId)
+      .executeTakeFirst();
+    if (!r) return null;
+    return r.parent_task_id
+      ? { id: r.parent_task_id, recordType: 'task' }
+      : r.project_id
+        ? { id: r.project_id, recordType: 'project' }
+        : { id: r.brand_id, recordType: 'brand' };
+  },
+  purge: {
+    async deleteContent(tx, recordIds) {
+      const ids = [...recordIds];
+      const live = await tx.db
+        .selectFrom('work.task')
+        .select('id')
+        .where('parent_task_id', 'in', ids)
+        .where('id', 'not in', ids)
+        .executeTakeFirst();
+      if (live) throw new Error('task purge blocked: a live child task references it');
+      await tx.db.deleteFrom('work.task_assignee').where('task_id', 'in', ids).execute();
+      await tx.db.deleteFrom('work.checklist_item').where('task_id', 'in', ids).execute();
+      await tx.db.deleteFrom('work.task_inherited_criterion').where('task_id', 'in', ids).execute();
+      await tx.db.deleteFrom('work.criteria_item').where('task_id', 'in', ids).execute();
+      await tx.db.deleteFrom('work.task_label').where('task_id', 'in', ids).execute();
+      await tx.db
+        .deleteFrom('relations.record_link')
+        .where('source_record_id', 'in', ids)
+        .execute();
+      // Children purged in the same batch go first (deepest first) so the parent key never dangles.
+      const rows = await tx.db
+        .selectFrom('work.task')
+        .select(['id', 'depth'])
+        .where('id', 'in', ids)
+        .execute();
+      for (const r of rows.sort((a, b) => b.depth - a.depth))
+        await tx.db.deleteFrom('work.task').where('id', '=', r.id).execute();
+    },
+    async removeAssociations(tx, recordIds) {
+      const ids = [...recordIds];
+      const rel = await tx.db
+        .deleteFrom('relations.record_relationship')
+        .where((eb) => eb.or([eb('from_record_id', 'in', ids), eb('to_record_id', 'in', ids)]))
+        .executeTakeFirst();
+      const links = await tx.db
+        .deleteFrom('relations.record_link')
+        .where('target_record_id', 'in', ids)
+        .executeTakeFirst();
+      return Number(rel.numDeletedRows) + Number(links.numDeletedRows);
+    },
+  },
+};
+
 export const templateAdapter: RecordTypeAdapter = {
   recordType: 'template',
   children: () => Promise.resolve([]),
@@ -199,6 +282,7 @@ export function registerWorkLifecycle(registry: LifecycleRegistry): LifecycleReg
     phaseAdapter,
     milestoneAdapter,
     decisionAdapter,
+    taskAdapter,
     templateAdapter,
   ])
     registry.register(withPersonalReferenceCleanup(a));

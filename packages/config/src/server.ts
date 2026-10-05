@@ -130,6 +130,17 @@ export interface ServerConfig {
     recurrenceWorkspaceDiscoveryMax: number;
     /** RECURRENCE_SERIES_DISCOVERY_MAX: due series per workspace per run. */
     recurrenceSeriesDiscoveryMax: number;
+    /** Task bounds (0D PL-24). TASK_DEPTH_MAX never exceeds the database ceiling of 64. */
+    taskDepthMax: number;
+    taskSubtreeMax: number;
+    taskItemsMax: number;
+    taskAssigneesMax: number;
+    taskLabelsMax: number;
+    brandLabelsMax: number;
+    taskEstimateMinutesMax: number;
+    /** PAGE_LIMIT_DEFAULT / PAGE_LIMIT_MAX (schema cap 200). */
+    pageLimitDefault: number;
+    pageLimitMax: number;
   };
   features: {
     /** Local/test-only component harness route for reusable UI states (refused when deployed). */
@@ -286,6 +297,15 @@ const DEFAULTS = {
   RECURRENCE_CATCHUP_MAX: '12',
   RECURRENCE_WORKSPACE_DISCOVERY_MAX: '200',
   RECURRENCE_SERIES_DISCOVERY_MAX: '50',
+  TASK_DEPTH_MAX: '20',
+  TASK_SUBTREE_MAX: '500',
+  TASK_ITEMS_MAX: '200',
+  TASK_ASSIGNEES_MAX: '20',
+  TASK_LABELS_MAX: '50',
+  BRAND_LABELS_MAX: '1000',
+  TASK_ESTIMATE_MINUTES_MAX: '100000',
+  PAGE_LIMIT_DEFAULT: '50',
+  PAGE_LIMIT_MAX: '200',
 } as const;
 
 const schema = z.object({
@@ -376,6 +396,15 @@ const schema = z.object({
   RECURRENCE_CATCHUP_MAX: int(1, 100),
   RECURRENCE_WORKSPACE_DISCOVERY_MAX: int(1, 1000),
   RECURRENCE_SERIES_DISCOVERY_MAX: int(1, 500),
+  TASK_DEPTH_MAX: int(1, 64),
+  TASK_SUBTREE_MAX: int(1, 5000),
+  TASK_ITEMS_MAX: int(1, 1000),
+  TASK_ASSIGNEES_MAX: int(1, 100),
+  TASK_LABELS_MAX: int(1, 200),
+  BRAND_LABELS_MAX: int(1, 10000),
+  TASK_ESTIMATE_MINUTES_MAX: int(60, 1000000),
+  PAGE_LIMIT_DEFAULT: int(1, 200),
+  PAGE_LIMIT_MAX: int(1, 200),
 });
 
 /** Variables a deployed environment must set explicitly (no silent local defaults). */
@@ -750,6 +779,15 @@ export function loadServerConfig(options: LoadOptions): ServerConfig {
       recurrenceCatchupMax: c.RECURRENCE_CATCHUP_MAX,
       recurrenceWorkspaceDiscoveryMax: c.RECURRENCE_WORKSPACE_DISCOVERY_MAX,
       recurrenceSeriesDiscoveryMax: c.RECURRENCE_SERIES_DISCOVERY_MAX,
+      taskDepthMax: c.TASK_DEPTH_MAX,
+      taskSubtreeMax: c.TASK_SUBTREE_MAX,
+      taskItemsMax: c.TASK_ITEMS_MAX,
+      taskAssigneesMax: c.TASK_ASSIGNEES_MAX,
+      taskLabelsMax: c.TASK_LABELS_MAX,
+      brandLabelsMax: c.BRAND_LABELS_MAX,
+      taskEstimateMinutesMax: c.TASK_ESTIMATE_MINUTES_MAX,
+      pageLimitDefault: Math.min(c.PAGE_LIMIT_DEFAULT, c.PAGE_LIMIT_MAX),
+      pageLimitMax: c.PAGE_LIMIT_MAX,
     },
     identity: {
       publicOrigin,

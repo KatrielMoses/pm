@@ -1355,7 +1355,7 @@ One typed value per (record, field); exactly one typed column populated per fiel
 
 ## Relationship primitives (`relations`, schema `relations`)
 
-Typed record relationships (dependency, related), labels, mentions and record links, followers.
+Typed record relationships (dependency, related), mentions and record links, followers.
 
 <a id="entity-record-relationship"></a>
 ### `record_relationship`
@@ -1377,46 +1377,6 @@ Typed association between two records (blocks, related); stores both endpoint br
 | Sensitive fields | — |
 | Requirements | TSK-012, TSK-013, TSK-014, PRJ-011, GOAL-010 |
 | Notes | Never used for authorization. Cycle prevention applies to 'blocks' (no dependency cycles) via transactional check. |
-
-<a id="entity-label"></a>
-### `label`
-
-Free-form classifier at workspace or brand scope.
-
-| Property | Value |
-|---|---|
-| Scope | `workspace_or_brand` |
-| Contained by | — |
-| Extends (1:1) | — |
-| Associations | — |
-| Lifecycle / concurrency | `mutable` / `row-version` |
-| Retention / confidentiality | `R-LIVE` / `C1` |
-| Volume / export / search-AI | `medium` / `filtered` / `yes` |
-| Secrets / personal data | `no` / `incidental` |
-| Uniqueness | `(scope_key, lower(name))` |
-| Key typed columns | standard columns only |
-| Sensitive fields | — |
-| Requirements | TSK-015 |
-
-<a id="entity-label-assignment"></a>
-### `label_assignment`
-
-Label applied to a record.
-
-| Property | Value |
-|---|---|
-| Scope | `inherited` |
-| Contained by | — |
-| Extends (1:1) | — |
-| Associations | [`label`](logical-model.md#entity-label), [`record`](logical-model.md#entity-record) |
-| Lifecycle / concurrency | `mutable` / `row-version` |
-| Retention / confidentiality | `R-LIVE` / `C1` |
-| Volume / export / search-AI | `high` / `filtered` / `yes` |
-| Secrets / personal data | `no` / `incidental` |
-| Uniqueness | `(record_id, label_id)` |
-| Key typed columns | standard columns only |
-| Sensitive fields | — |
-| Requirements | TSK-015, TSK-035 |
 
 <a id="entity-mention"></a>
 ### `mention`
@@ -1454,10 +1414,10 @@ Non-blocking reference to a record or external URL from a record (documents to t
 | Volume / export / search-AI | `high` / `filtered` / `yes` |
 | Secrets / personal data | `no` / `incidental` |
 | Uniqueness | — |
-| Key typed columns | standard columns only |
+| Key typed columns | `public_id text (lnk_)`; `source_record_id`; `target_kind (url\|record)`; `url text null (https only, normalized)`; `target_record_id null (a registered, independently readable record type)`; `title text null`; `rank text`; `created_by_membership_id`; `version bigint` |
 | Sensitive fields | — |
 | Requirements | DOC-008, TSK-017 |
-| Notes | Target is a record or a URL. Links to synced external objects use the target record that integrations.external_identity maps. |
+| Notes | Target is a record or a URL. Phase 2B implements safe https URL links on tasks; record targets (documents, files, external records) are offered only once their owning record type exists and is independently readable. Links to synced external objects use the target record that integrations.external_identity maps. |
 
 <a id="entity-follower"></a>
 ### `follower`
@@ -1834,7 +1794,49 @@ Generated digest bundle for a recipient and period.
 
 ## Projects and tasks (`work`, schema `work`)
 
-Projects (trees), phases, milestones, tasks (trees), assignees, checklists, criteria items, project updates, decisions, reminders.
+Projects (trees), phases, milestones, tasks (trees), assignees, checklists, criteria items, labels, project updates, decisions, reminders.
+
+<a id="entity-label"></a>
+### `label`
+
+Free-form classifier at workspace or brand scope.
+
+| Property | Value |
+|---|---|
+| Scope | `brand` |
+| Contained by | — |
+| Extends (1:1) | — |
+| Associations | — |
+| Lifecycle / concurrency | `mutable` / `row-version` |
+| Retention / confidentiality | `R-LIVE` / `C1` |
+| Volume / export / search-AI | `medium` / `filtered` / `yes` |
+| Secrets / personal data | `no` / `incidental` |
+| Uniqueness | `(brand_id, normalized_name)` |
+| Key typed columns | `public_id text (lbl_)`; `brand_id`; `name`; `normalized_name (lower, trimmed, collapsed spaces)`; `color`; `icon null`; `rank text`; `lifecycle_state (active\|archived)`; `version bigint` |
+| Sensitive fields | — |
+| Requirements | TSK-015 |
+| Notes | Phase 2B (ADR-22, OD-10): one concept for labels and tags, scoped to exactly one brand. Renames keep identity; archived labels stay on tasks and leave default pickers. Labels never grant authority. |
+
+<a id="entity-task-label"></a>
+### `task_label`
+
+Label applied to a record.
+
+| Property | Value |
+|---|---|
+| Scope | `inherited` |
+| Contained by | — |
+| Extends (1:1) | — |
+| Associations | [`label`](logical-model.md#entity-label), [`task`](logical-model.md#entity-task) |
+| Lifecycle / concurrency | `mutable` / `row-version` |
+| Retention / confidentiality | `R-LIVE` / `C1` |
+| Volume / export / search-AI | `high` / `filtered` / `yes` |
+| Secrets / personal data | `no` / `incidental` |
+| Uniqueness | `(task_id, label_id)` |
+| Key typed columns | `task_id`; `label_id (same workspace and brand)`; `added_by_membership_id`; `added_at` |
+| Sensitive fields | — |
+| Requirements | TSK-015 |
+| Notes | Phase 2B (ADR-22): replaces the generic label_assignment; labels apply to tasks only until another record type registers them. |
 
 <a id="entity-project"></a>
 ### `project`
@@ -1914,9 +1916,10 @@ Unit of work: exactly one brand, optional project, optional parent task; defects
 | Volume / export / search-AI | `very-high` / `filtered` / `yes` |
 | Secrets / personal data | `no` / `incidental` |
 | Uniqueness | — |
-| Key typed columns | `task_type (task\|defect)`; `project_id null`; `parent_task_id null`; `ancestor_ids uuid[]`; `depth smallint`; `phase_id null`; `milestone_id null`; `title`; `description_rich jsonb`; `status_id`; `status_category (denormalized)`; `priority`; `start_date date`; `due_date date`; `due_time time null + due_tz`; `deadline_date date \| deadline_at timestamptz + deadline_tz`; `estimate_minutes int`; `remaining_estimate_minutes int`; `completed_at`; `manual_blocked_reason text null`; `expected_deliverable_type`; `requires_acceptance boolean`; `rank_in_parent text`; `last_meaningful_update_at`; `recurrence_series_id null`; `occurrence_key text null`; `version bigint` |
+| Key typed columns | `project_id null (same workspace and brand; subtasks share their parent's project identity)`; `parent_task_id null (same workspace, brand, and project identity)`; `ancestor_ids uuid[] (root first, excluding self)`; `depth smallint (root = 0; TASK_DEPTH_MAX enforced by commands, hard ceiling 64 in the database)`; `title`; `description_rich jsonb (rich text version 1, 0D PL-23)`; `status_id (workflow.platform_status until 2C)`; `status_category (denormalized, guarded)`; `prior_status_id null (reopen target)`; `priority (none\|low\|medium\|high\|urgent)`; `start_date date`; `due_date date`; `deadline_date date \| deadline_at timestamptz + deadline_tz (never changed implicitly)`; `estimate_minutes int null`; `remaining_estimate_minutes int null`; `completed_at`; `completion_override_reason text null`; `expected_deliverable_type (document\|file\|url\|pull_request\|test_report\|other) null`; `expected_deliverable_detail text null`; `requires_acceptance boolean`; `rank text`; `created_by_membership_id`; `version bigint` |
 | Sensitive fields | — |
-| Requirements | TSK-001, TSK-002, TSK-003, TSK-005, TSK-010, TSK-031, TSK-041 |
+| Requirements | TSK-001, TSK-002, TSK-003, TSK-004, TSK-005, TSK-006, TSK-010, TSK-022, TSK-023, TSK-031, TSK-039, TSK-041 |
+| Notes | Phase 2B (ADR-22): phase/milestone association, task types, manual blocked reasons, due times, recurrence, and freshness fields are not part of 2B; they arrive with their owning phases. Scheduled time is a planning work block (3C), never a task column. |
 
 <a id="entity-task-assignee"></a>
 ### `task_assignee`
@@ -1934,9 +1937,10 @@ Person assigned to a task (multiple allowed). Agent assignment is agents.agent_a
 | Volume / export / search-AI | `very-high` / `filtered` / `yes` |
 | Secrets / personal data | `no` / `incidental` |
 | Uniqueness | `(task_id, membership_id)` |
-| Key typed columns | standard columns only |
+| Key typed columns | `task_id`; `membership_id (active internal member; never a guest)`; `is_primary boolean (at most one per task)`; `rank text`; `assigned_by_membership_id`; `assigned_at` |
 | Sensitive fields | — |
 | Requirements | TSK-007, COL-015 |
+| Notes | Responsibility only, never authority (0C AZ-22). Removed or suspended members' assignments end on departure. |
 
 <a id="entity-checklist-item"></a>
 ### `checklist_item`
@@ -1954,9 +1958,10 @@ Lightweight checkbox in a task.
 | Volume / export / search-AI | `high` / `filtered` / `yes` |
 | Secrets / personal data | `no` / `incidental` |
 | Uniqueness | — |
-| Key typed columns | standard columns only |
+| Key typed columns | `public_id text (chk_)`; `task_id`; `text`; `rank text`; `done boolean`; `done_by_membership_id null`; `done_at null`; `version bigint` |
 | Sensitive fields | — |
 | Requirements | TSK-011 |
+| Notes | Ordered facts of a task, not tasks: no assignees, dates, or dependencies, and no effect on task status. |
 
 <a id="entity-criteria-item"></a>
 ### `criteria_item`
@@ -1974,9 +1979,30 @@ Acceptance criterion, definition-of-done item, or success criterion on a task or
 | Volume / export / search-AI | `high` / `filtered` / `yes` |
 | Secrets / personal data | `no` / `incidental` |
 | Uniqueness | — |
-| Key typed columns | `public_id text (cri_)`; `owner_kind (task\|project)`; `kind (acceptance\|definition_of_done\|success)`; `text`; `rank text`; `met boolean`; `met_by/at`; `version bigint` |
+| Key typed columns | `public_id text (cri_)`; `owner_kind (task\|project)`; `project_id null / task_id null (exactly one, per owner_kind)`; `kind (success\|definition_of_done for projects; acceptance\|definition_of_done for tasks)`; `text`; `rank text`; `met boolean`; `met_by/at`; `required boolean (task items)`; `version bigint` |
 | Sensitive fields | — |
 | Requirements | TSK-020, TSK-021, PRJ-005 |
+| Notes | Phase 2B (ADR-22): project definition-of-done items apply to the project's tasks as read-only inherited defaults, evaluated at read time and never copied; a task records whether each inherited item is met or dismissed (work.task_inherited_criterion). |
+
+<a id="entity-task-inherited-criterion"></a>
+### `task_inherited_criterion`
+
+A task's response to an inherited project definition-of-done item: met or explicitly dismissed (ADR-22).
+
+| Property | Value |
+|---|---|
+| Scope | `inherited` |
+| Contained by | [`task`](logical-model.md#entity-task) |
+| Extends (1:1) | — |
+| Associations | [`criteria_item`](logical-model.md#entity-criteria-item) |
+| Lifecycle / concurrency | `mutable` / `row-version` |
+| Retention / confidentiality | `R-LIVE` / `C1` |
+| Volume / export / search-AI | `medium` / `filtered` / `no` |
+| Secrets / personal data | `no` / `incidental` |
+| Uniqueness | `(task_id, criteria_item_id)` |
+| Key typed columns | `task_id`; `criteria_item_id (a definition-of-done item of the task's project)`; `state (met\|dismissed)`; `by_membership_id`; `at` |
+| Sensitive fields | — |
+| Requirements | TSK-021 |
 
 <a id="entity-scope-item"></a>
 ### `scope_item`

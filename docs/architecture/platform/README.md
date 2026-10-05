@@ -35,7 +35,7 @@ This set defines the shared technical language that every implementation phase u
 |---|---|
 | `contracts/schemas/*.schema.json` | 30 JSON Schemas (draft 2020-12): 23 public, 7 internal |
 | `contracts/examples/*.json` | 38 examples, each validated against its schema |
-| `contracts/registry.json` | 71 public ID prefixes (each mapped to a 0B entity or a documented platform-only owner), 32 error codes, 0C response-shape mapping, states, 19 operation kinds, 68 internal events (20 public webhook types), 19 scopes, 14 meters, 18 notification types, 49 telemetry signals, 44 named parameters |
+| `contracts/registry.json` | 74 public ID prefixes (each mapped to a 0B entity or a documented platform-only owner), 32 error codes, 0C response-shape mapping, states, 19 operation kinds, 72 internal events (20 public webhook types), 19 scopes, 14 meters, 18 notification types, 51 telemetry signals, 51 named parameters |
 | [generated/schema-reference.md](generated/schema-reference.md) | Field tables and examples for every schema |
 | [generated/registries.md](generated/registries.md) | All registries rendered |
 | `tools/platformcontracts.py` | Validator and renderer |

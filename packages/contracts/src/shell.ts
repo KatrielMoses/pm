@@ -134,7 +134,7 @@ export const SHELL_COMMAND_TRIGGERS = ['palette', 'shortcut'] as const;
 export type ShellCommandTrigger = (typeof SHELL_COMMAND_TRIGGERS)[number];
 
 /** Record types the shell can navigate to today (palette records, favorites, recents). */
-export const NAVIGABLE_RECORD_TYPES = ['brand', 'team', 'project'] as const;
+export const NAVIGABLE_RECORD_TYPES = ['brand', 'team', 'project', 'task'] as const;
 export type NavigableRecordType = (typeof NAVIGABLE_RECORD_TYPES)[number];
 
 // -----------------------------------------------------------------------------------------------
@@ -484,9 +484,43 @@ export const PROJECT_SHARE_LEVELS = ['view', 'comment', 'edit'] as const;
  * means the section works in 2A; otherwise it is an addressable route with an honest unavailable
  * state. Tests and Releases are addressable but their tabs stay absent until enabled (UXD-14).
  */
+/** Phase 2B immutable platform task statuses (0B ADR-22); 2C adds custom statuses. */
+export const TASK_STATUSES = [
+  { key: 'backlog', name: 'Backlog', category: 'planned' },
+  { key: 'todo', name: 'To do', category: 'planned' },
+  { key: 'in_progress', name: 'In progress', category: 'active' },
+  { key: 'blocked', name: 'Blocked', category: 'paused' },
+  { key: 'done', name: 'Done', category: 'done' },
+  { key: 'cancelled', name: 'Cancelled', category: 'cancelled' },
+] as const;
+export type TaskStatusKey = (typeof TASK_STATUSES)[number]['key'];
+export const TASK_CRITERIA_KINDS = ['acceptance', 'definition_of_done'] as const;
+export const DELIVERABLE_TYPES = [
+  'document',
+  'file',
+  'url',
+  'pull_request',
+  'test_report',
+  'other',
+] as const;
+export type DeliverableType = (typeof DELIVERABLE_TYPES)[number];
+export const RELATIONSHIP_KINDS = ['blocks', 'blocked_by', 'related'] as const;
+export type RelationshipKind = (typeof RELATIONSHIP_KINDS)[number];
+export const LABEL_COLORS = [
+  '#6b7280',
+  '#dc2626',
+  '#ea580c',
+  '#ca8a04',
+  '#16a34a',
+  '#0891b2',
+  '#2563eb',
+  '#7c3aed',
+  '#db2777',
+] as const;
+
 export const PROJECT_SECTIONS = [
   { key: 'overview', label: 'Overview', phase: null, conditional: false },
-  { key: 'tasks', label: 'Tasks', phase: '2B', conditional: false },
+  { key: 'tasks', label: 'Tasks', phase: null, conditional: false },
   { key: 'timeline', label: 'Timeline', phase: null, conditional: false },
   { key: 'calendar', label: 'Calendar', phase: '3B', conditional: false },
   { key: 'documents', label: 'Documents', phase: '4C', conditional: false },

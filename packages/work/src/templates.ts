@@ -131,7 +131,11 @@ export async function serializeProject(
       phase_key: m.phase_id ? (keyOf.get(m.phase_id) ?? null) : null,
       due_offset_days: days(p.start_date, m.due_date),
     })),
-    criteria: criteria.map((c) => ({ kind: c.kind, text: c.text })),
+    // Project-owned items only (the query is by project_id), so kinds are success | definition_of_done.
+    criteria: criteria.map((c) => ({
+      kind: c.kind as 'success' | 'definition_of_done',
+      text: c.text,
+    })),
     scope_items: scope.map((s) => ({ kind: s.kind, text: s.text })),
   };
   if (itemCount(pkg) > maxItems)

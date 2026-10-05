@@ -71,6 +71,14 @@ const PHASE_1C_TENANT_TABLES = [
   'work.project_update',
   'work.project_update_verification',
   'work.scope_item',
+  // Phase 2B
+  'relations.record_link',
+  'work.checklist_item',
+  'work.label',
+  'work.task',
+  'work.task_assignee',
+  'work.task_inherited_criterion',
+  'work.task_label',
 ] as const;
 
 /** Seeds one row in every tenant execution table for a workspace. */

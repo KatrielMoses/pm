@@ -80,3 +80,12 @@ environment awaits purge-ledger replay.
 | `work.recurrence.occurrences` | `outcome` (`generated`, `manual`, `paused`, `catchup_deferred`, `workspace_batch_full`, `series_batch_full`) | Recurrence results. A steady `workspace_batch_full` or `series_batch_full` means the discovery bounds (`RECURRENCE_WORKSPACE_DISCOVERY_MAX`, `RECURRENCE_SERIES_DISCOVERY_MAX`) are reached every run: work still completes, oldest-waiting first, over more runs; raise the bound if due times slip |
 
 Project names, descriptions, criteria, scope entries, updates, decisions, budgets, and dependency endpoints never appear in labels, logs, or error context. Audit records content-class changes as hashes.
+
+## Tasks (2B)
+
+| Signal | Labels | Meaning |
+|---|---|---|
+| `work.task.moves` | `outcome` (`ok`, `brand` for an applied cross-brand move, a 0D error code, `invariant` when a database check refused it, `error`) | Task move and cross-brand move commands |
+| `work.task.completions` | `outcome` (`completed`, `override`, `refused_criteria`, `refused_subtasks`) | Completion results; a rising `override` share means criteria are not being maintained |
+
+Task titles, descriptions, checklist and criteria text, link URLs, and label names never appear in labels, logs, or error context.

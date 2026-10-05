@@ -12,6 +12,8 @@ import type { ShareLevel } from './policy.ts';
  */
 export const SHAREABLE_RECORD_TYPES: ReadonlyMap<string, readonly ShareLevel[]> = new Map([
   ['project', ['read', 'comment', 'edit'] as const],
+  // 2B (0C AZ-22): the task record, its checklist, and its own criteria only.
+  ['task', ['read', 'comment', 'edit'] as const],
 ]);
 
 /** Share levels a record type supports, or null when it is not shareable. */

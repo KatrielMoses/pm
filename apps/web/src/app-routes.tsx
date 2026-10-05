@@ -23,6 +23,7 @@ import {
   TeamsPage,
 } from './pages/people-pages.tsx';
 import { ProjectPage, ProjectsPage } from './pages/project-pages.tsx';
+import { ProjectlessTasksPage, TaskPage } from './pages/task-pages.tsx';
 import {
   FavoritesPage,
   HomePage,
@@ -74,6 +75,8 @@ export const ROUTE_COMPONENTS: Record<string, Render> = {
   projects: destination('projects'),
   project: (p) => <ProjectPage key={p.prj} ws={p.ws!} prj={p.prj!} />,
   project_section: (p) => <ProjectPage key={p.prj} ws={p.ws!} prj={p.prj!} section={p.section!} />,
+  tasks: (p) => <ProjectlessTasksPage ws={p.ws!} />,
+  task: (p) => <TaskPage key={p.tsk} ws={p.ws!} tsk={p.tsk!} />,
   calendar: destination('calendar'),
   knowledge: destination('knowledge'),
   goals: destination('goals'),

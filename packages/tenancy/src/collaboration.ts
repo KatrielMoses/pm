@@ -59,7 +59,7 @@ import {
   type TenancyDeps,
 } from './service.ts';
 import { Issues, text } from './validation.ts';
-import { projectChainOf } from './projects.ts';
+import { governingProjectId, projectChainOf } from './projects.ts';
 import { shareableLevels, sharesChildren } from './sharing.ts';
 import { compileVisibility } from './visibility.ts';
 
@@ -2893,7 +2893,9 @@ export class CollaborationService extends TenancyService {
     const levels = shareableLevels(r.record_type, r.test_only);
     if (!levels) return { kind: 'forbidden', reason: 'not_shareable_type' };
     const brand = r.brand_id ? (vis.ctx.brands.find((b) => b.id === r.brand_id) ?? null) : null;
-    const project = r.record_type === 'project' ? await projectChainOf(tx, r.id) : null;
+    // The governing project (a project itself, or a task's project) decides chain and restriction.
+    const governing = await governingProjectId(tx, { id: r.id, recordType: r.record_type });
+    const project = governing ? await projectChainOf(tx, governing) : null;
     // Onward sharing is never derived from shares (AT-050): ownership-derived level only.
     const d = decideRecord(p, 'record.share', {
       brand,

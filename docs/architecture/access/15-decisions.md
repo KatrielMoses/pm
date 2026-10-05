@@ -205,3 +205,17 @@ All decisions are **proposed (Phase 0C)**, pending solutions-architect acceptanc
   - **New actions.** `project.verify_update` (OD-16) and `project.manage_recurrence` (OD-14). The action count becomes 107.
 - **Alternatives:** A `project_member` level (a second authority source). Owner as implicit manager (contradicts I-10). Returning `not_found` for every share refusal (hides real permission errors from people who can see the record).
 - **Consequences:** The compiled visibility predicate gains the restricted-project subtraction and the project-grant branch of §4.5. Preview and enforcement stay one engine.
+
+<a id="az-22"></a>
+### AZ-22: Task authority, assignment, and the task share (Phase 2B amendment)
+- **Decision:**
+  - **Visibility.** A project-contained task follows its project's chain (brand access until a restricted project, then explicit project grants); a projectless task follows its brand. Both use the one compiled predicate, before pagination, counts, rollups, history, and relationships. No owner or administrator bypass.
+  - **Responsibility is not authority.** Creators, assignees, and labels never grant access. Only active internal members may be assigned; an assignment to a task the person cannot read stays invisible to them (AT-117).
+  - **Task share.** `task` is shareable at view, comment, and edit (stored view = read). A share grants the task representation, its checklist, and its own criteria items, plus the owning brand marker. It never grants the parent, children, project, inherited project criteria, assignees' directory data, labels beyond their displayed names, dependencies or related endpoints, links to records the reader cannot read, history, comments, attachments, or future descendants. Commands that a share excludes return `not_found` to a share-only reader (AT-118). No onward sharing.
+  - **Relationships.** `record.relate` on the source plus readability of both endpoints at creation; every display re-authorizes both and omits unreadable counterparts with no count or clue (AT-119).
+  - **Completion override.** Completing with incomplete required criteria, or a parent with incomplete descendants, needs `task.override_completion` and a reason; the recorded count covers only descendants the actor can read (AT-120).
+  - **Cross-brand move.** The existing `record.move_brand`, decided at manage in both the source and the destination brand, with preview and confirmation (AT-121).
+  - **Labels.** `label.manage` at brand scope.
+  - **New actions.** `task.override_completion` and `label.manage`. The action count becomes 109.
+- **Alternatives:** Assignment as a grant (contradicts I-10). Shares implying children or the project (contradicts OD-04). A separate task permission table (a second authority source).
+- **Consequences:** The compiled predicate's governing-project derivation gains tasks; preview and enforcement stay one engine.

@@ -308,3 +308,14 @@ width).
 | Template | None | Removes its versions and the template |
 
 Archive is read-only: commands on an archived project or phase return `forbidden` until restored. Phase archive and restore use the canonical lifecycle decisions and audit, distinct from Trash. Work routes obtain decisions only through `issueRecordLifecycleDecision` from `@pm/tenancy`; `apps/api/test/unit/tenant-routes.test.ts` rejects any other caller.
+
+## Phase 2B: task adapter
+
+`taskAdapter` joins `registerWorkLifecycle`. Project lifecycle now includes the project's tasks.
+
+| Container | Children in its cascade | Purge hook |
+|---|---|---|
+| Task | Its subtasks only when the command sets `include_subtasks`; batches are per node | Refused while a live child task references it. Removes assignees, checklist and task criteria items, inherited responses, labels, and its links; associations remove relationships and links that target it |
+| Project | Adds its tasks | Also deletes inherited criterion responses for its definition-of-done items |
+
+An archived task is read-only (`forbidden`) until restored. The departure hook `taskAssigneeHook` ends a departing member's assignments in the same transaction.

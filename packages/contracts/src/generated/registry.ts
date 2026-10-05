@@ -453,6 +453,20 @@ export const TELEMETRY_SIGNALS = [
     "labels": [
       "outcome"
     ]
+  },
+  {
+    "name": "work.task.moves",
+    "type": "counter",
+    "labels": [
+      "outcome"
+    ]
+  },
+  {
+    "name": "work.task.completions",
+    "type": "counter",
+    "labels": [
+      "outcome"
+    ]
   }
 ] as const;
 export type TelemetrySignalName = (typeof TELEMETRY_SIGNALS)[number]['name'];
@@ -1359,6 +1373,27 @@ export const ID_PREFIXES = [
     "entity": "planning.recurrence_series",
     "ownerModule": "planning",
     "platformOnly": false
+  },
+  {
+    "prefix": "chk",
+    "resource": "checklist_item",
+    "entity": "work.checklist_item",
+    "ownerModule": "work",
+    "platformOnly": false
+  },
+  {
+    "prefix": "lbl",
+    "resource": "label",
+    "entity": "work.label",
+    "ownerModule": "work",
+    "platformOnly": false
+  },
+  {
+    "prefix": "lnk",
+    "resource": "record_link",
+    "entity": "relations.record_link",
+    "ownerModule": "relations",
+    "platformOnly": false
   }
 ] as const;
 export type IdPrefix = (typeof ID_PREFIXES)[number]['prefix'];
@@ -1463,6 +1498,46 @@ export const INTERNAL_EVENTS = [
     "aggregateEntity": "work.task",
     "fields": [
       "assignee_membership_ids"
+    ],
+    "maxClass": "C1"
+  },
+  {
+    "type": "work.task.moved",
+    "schemaVersion": 1,
+    "aggregateEntity": "work.task",
+    "fields": [
+      "project_id",
+      "parent_task_id",
+      "depth"
+    ],
+    "maxClass": "C1"
+  },
+  {
+    "type": "work.task.reopened",
+    "schemaVersion": 1,
+    "aggregateEntity": "work.task",
+    "fields": [
+      "status_id",
+      "status_category"
+    ],
+    "maxClass": "C1"
+  },
+  {
+    "type": "work.label.created",
+    "schemaVersion": 1,
+    "aggregateEntity": "work.label",
+    "fields": [
+      "label_id"
+    ],
+    "maxClass": "C1"
+  },
+  {
+    "type": "work.label.updated",
+    "schemaVersion": 1,
+    "aggregateEntity": "work.label",
+    "fields": [
+      "label_id",
+      "lifecycle_state"
     ],
     "maxClass": "C1"
   },
@@ -2090,7 +2165,14 @@ export const PARAMETER_NAMES = [
   "TEMPLATE_ITEMS_MAX",
   "RECURRENCE_CATCHUP_MAX",
   "RECURRENCE_WORKSPACE_DISCOVERY_MAX",
-  "RECURRENCE_SERIES_DISCOVERY_MAX"
+  "RECURRENCE_SERIES_DISCOVERY_MAX",
+  "TASK_DEPTH_MAX",
+  "TASK_SUBTREE_MAX",
+  "TASK_ITEMS_MAX",
+  "TASK_ASSIGNEES_MAX",
+  "TASK_LABELS_MAX",
+  "BRAND_LABELS_MAX",
+  "TASK_ESTIMATE_MINUTES_MAX"
 ] as const;
 export type ParameterName = (typeof PARAMETER_NAMES)[number];
 
@@ -2601,6 +2683,42 @@ export const ACTIONS = [
       "limited_member": "grant:edit",
       "read_only": "deny",
       "guest": "grant:edit"
+    }
+  },
+  {
+    "key": "task.override_completion",
+    "kind": "record",
+    "scopes": [
+      "record"
+    ],
+    "stepUp": false,
+    "riskClass": "R2",
+    "requiredLevel": "manage",
+    "roles": {
+      "owner": "implicit",
+      "administrator": "implicit",
+      "member": "grant:manage",
+      "limited_member": "deny",
+      "read_only": "deny",
+      "guest": "deny"
+    }
+  },
+  {
+    "key": "label.manage",
+    "kind": "admin",
+    "scopes": [
+      "brand"
+    ],
+    "stepUp": false,
+    "riskClass": "R1",
+    "requiredLevel": "edit",
+    "roles": {
+      "owner": "implicit",
+      "administrator": "implicit",
+      "member": "grant:edit",
+      "limited_member": "deny",
+      "read_only": "deny",
+      "guest": "deny"
     }
   },
   {

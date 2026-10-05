@@ -77,6 +77,15 @@ worker process is a startup error. All identities of one process must target the
 | `RECURRENCE_CATCHUP_MAX` | optional | optional | default 12 (1–100); most missed occurrences one series generates per worker run (0D `RECURRENCE_CATCHUP_MAX`) |
 | `RECURRENCE_WORKSPACE_DISCOVERY_MAX` | optional | optional | default 200 (1–1000); most workspaces with due recurrence work one job run visits, oldest-waiting first (0D `RECURRENCE_WORKSPACE_DISCOVERY_MAX`) |
 | `RECURRENCE_SERIES_DISCOVERY_MAX` | optional | optional | default 50 (1–500); most due series one run processes per workspace, oldest-waiting first (0D `RECURRENCE_SERIES_DISCOVERY_MAX`) |
+| `TASK_DEPTH_MAX` | optional | optional | default 20 (1–64); deepest subtask level a command accepts, root = 0 (0D `TASK_DEPTH_MAX`). The database keeps an invariant ceiling of 64 |
+| `TASK_SUBTREE_MAX` | optional | optional | default 500 (1–5000); most tasks one subtree move, lifecycle command, or duplicate touches (0D `TASK_SUBTREE_MAX`) |
+| `TASK_ITEMS_MAX` | optional | optional | default 200 (1–1000); most checklist items, criteria items, or links per task, each kind counted separately (0D `TASK_ITEMS_MAX`) |
+| `TASK_ASSIGNEES_MAX` | optional | optional | default 20 (1–100); most assignees on one task (0D `TASK_ASSIGNEES_MAX`) |
+| `TASK_LABELS_MAX` | optional | optional | default 50 (1–200); most labels on one task (0D `TASK_LABELS_MAX`) |
+| `BRAND_LABELS_MAX` | optional | optional | default 1000 (1–10000); most labels in one brand (0D `BRAND_LABELS_MAX`) |
+| `TASK_ESTIMATE_MINUTES_MAX` | optional | optional | default 100000 (60–1000000); largest estimate or remaining estimate in minutes (0D `TASK_ESTIMATE_MINUTES_MAX`) |
+| `PAGE_LIMIT_DEFAULT` | optional | optional | default 50 (1–200, never above `PAGE_LIMIT_MAX`); page size for task lists (0D `PAGE_LIMIT_DEFAULT`) |
+| `PAGE_LIMIT_MAX` | optional | optional | default 200 (1–200); largest page for task and project lists (0D `PAGE_LIMIT_MAX`) |
 | `VIEW_STATE_TTL_MS` | optional | optional | default 90 days; stored view state not written for this long is removed (0D `VIEW_STATE_TTL`) |
 
 Values are configuration, not customer promises (PQ-05). The 0D parameter values above are

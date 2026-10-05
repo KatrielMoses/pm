@@ -489,7 +489,7 @@ export class WorkService extends ProjectService {
         tx,
         'work.phase',
         (q) => q.where('project_id', '=', project.id),
-        null,
+        'last',
       );
       await tx.db
         .insertInto('work.phase')
@@ -710,7 +710,7 @@ export class WorkService extends ProjectService {
         tx,
         'work.milestone',
         (q) => q.where('project_id', '=', project.id),
-        null,
+        'last',
       );
       await tx.db
         .insertInto('work.milestone')
@@ -858,7 +858,7 @@ export class WorkService extends ProjectService {
         tx,
         t,
         (q) => q.where('project_id', '=', project.id).where('kind', '=', input.kind as string),
-        null,
+        'last',
       );
       await tx.db
         .insertInto(t)
@@ -1623,7 +1623,7 @@ export class WorkService extends ProjectService {
         input.parent
           ? q.where('parent_project_id', '=', input.parent.id)
           : q.where('parent_project_id', 'is', null).where('brand_id', '=', input.brandId),
-      null,
+      'last',
     );
     return instantiatePackage(
       tx,

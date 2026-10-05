@@ -10,6 +10,7 @@ import {
 } from '@pm/contracts/shell';
 import { canonicalJson, plainFromRichText, richTextFromPlain } from '@pm/contracts/rich-text';
 import { ApiError } from '../api.ts';
+import { ProjectTasksSection } from './task-pages.tsx';
 import {
   projects,
   type Overview,
@@ -81,7 +82,7 @@ const LEVEL_OPTIONS = [
   { value: 'manage', label: 'Can manage' },
 ];
 
-function StatusBadge({ status }: { status: { name: string; category: string } }) {
+export function StatusBadge({ status }: { status: { name: string; category: string } }) {
   return (
     <span className={`badge status-${status.category}`}>
       <span aria-hidden="true">{STATUS_ICON[status.category]} </span>
@@ -106,7 +107,7 @@ function HealthBadge({ value }: { value: string | null }) {
 }
 
 /** Runs one command with the shared busy/error/announcement pattern. */
-function useCommand(onDone: () => void) {
+export function useCommand(onDone: () => void) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<unknown>(null);
   const [said, setSaid] = useState('');
@@ -783,6 +784,8 @@ export function ProjectPage({
               <OverviewSection ws={ws} o={o} reload={data.reload} />
             ) : section === 'timeline' ? (
               <TimelineSection ws={ws} o={o} reload={data.reload} />
+            ) : section === 'tasks' ? (
+              <ProjectTasksSection ws={ws} project={o.project} />
             ) : (
               <SettingsSection ws={ws} o={o} reload={data.reload} />
             )}
@@ -880,7 +883,12 @@ function OverviewSection({ ws, o, reload }: { ws: string; o: Overview; reload: (
           </dd>
           <dt>Completion</dt>
           <dd>
-            {p.completion.percent}% <span className="hint">Status-based until tasks arrive</span>
+            {p.completion.percent}%{' '}
+            <span className="hint">
+              {p.completion.basis === 'leaf_tasks'
+                ? 'Of the tasks you can see'
+                : 'Status-based until tasks are added'}
+            </span>
           </dd>
           {p.budget ? (
             <>
@@ -900,9 +908,15 @@ function OverviewSection({ ws, o, reload }: { ws: string; o: Overview; reload: (
               ))}
           </div>
         ) : null}
-        <p className="hint">
-          Overdue, blocked, unassigned, and at-risk work appears here once tasks arrive.
-        </p>
+        {o.task_facts.available ? (
+          <p aria-label="Task facts">
+            {o.task_facts.total} {o.task_facts.total === 1 ? 'task' : 'tasks'} ·{' '}
+            {o.task_facts.overdue} overdue · {o.task_facts.blocked} blocked ·{' '}
+            {o.task_facts.unassigned} unassigned
+          </p>
+        ) : (
+          <p className="hint">Task facts aren't shown for projects shared with you.</p>
+        )}
       </section>
 
       <section className="card" aria-labelledby="ov-update">
@@ -1983,7 +1997,7 @@ function SettingsSection({ ws, o, reload }: { ws: string; o: Overview; reload: (
 }
 
 /** `sha256:` over the RFC 8785 form, exactly as the server hashes rich-text base values. */
-async function richTextHash(value: unknown): Promise<string> {
+export async function richTextHash(value: unknown): Promise<string> {
   const bytes = new TextEncoder().encode(canonicalJson(value ?? null));
   const digest = new Uint8Array(await crypto.subtle.digest('SHA-256', bytes));
   return `sha256:${[...digest].map((b) => b.toString(16).padStart(2, '0')).join('')}`;

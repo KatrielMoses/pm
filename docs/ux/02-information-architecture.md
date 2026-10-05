@@ -282,6 +282,13 @@ Section navigation is a tab row on expanded and medium layouts, and a section me
 - **Tests and Releases:** their routes exist, but their tabs stay absent until a software template or setting enables them ([UXD-14](09-decisions-and-risks.md#uxd-14)).
 - **Overview:** shows only project-native facts. Task-derived counts are labelled as arriving with tasks.
 
+**Phase 2B implementation note.** Tasks replace the Tasks section placeholder:
+- **Project Tasks section:** an accessible paged list and hierarchy (status, priority, assignees, dates, estimates, brand marker, authorized totals) with visible Move up, Move down, Indent, and Outdent controls. Drag and drop, inline and bulk editing, and undo arrive in 2D.
+- **Task page:** the canonical `/{ws}/tasks/{taskId}` page holds every task field and section. The list-preserving side panel (`item=`) arrives with list views (3A); until then a task opens its page and Back restores the list.
+- **Projectless tasks:** `/{ws}/tasks` lists tasks without a project in the current scope; it is an entry path, not a saved view (My Work is 3B, Inbox 2E).
+- **Creation:** inside a project, the brand is the project's and read-only; elsewhere in aggregate scope the brand is chosen explicitly.
+- **Honest absences:** comments and followers (4A), files and documents (4C/4E), external records (6A), agents (8B), reminders and recurrence (2D) show an "isn't available yet" state; scheduled time shows the empty work-block state (3C).
+
 ## 6. Record page anatomy
 
 All record pages (task, project overview, document, goal, deliverable, test run, defect, release, agent run) share one anatomy. That way review, provenance and state appear in the same place everywhere.

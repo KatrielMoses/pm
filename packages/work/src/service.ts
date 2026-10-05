@@ -148,6 +148,11 @@ export class ProjectService extends NavigationService {
   protected readonly ws: WorkSettings;
   protected readonly workWriter: AuditWriter;
 
+  /** PAGE_LIMIT_MAX for list envelopes. */
+  get pageLimitMax(): number {
+    return this.ws.pageLimitMax;
+  }
+
   constructor(deps: WorkDeps) {
     super(deps);
     this.ws = deps.work ?? DEFAULT_WORK_SETTINGS;
@@ -620,7 +625,10 @@ export class ProjectService extends NavigationService {
       if (query.parent === 'root') parentId = null;
       else if (query.parent !== undefined)
         parentId = (await this.loadProject(tx, p, query.parent)).id;
-      const limit = Math.min(Math.max(Number(query.limit) || 200, 1), 200);
+      const limit = Math.min(
+        Math.max(Number(query.limit) || this.ws.pageLimitMax, 1),
+        this.ws.pageLimitMax,
+      );
       let q = tx.db
         .selectFrom('core.record as r')
         .innerJoin('work.project as w', (j) =>
@@ -726,23 +734,41 @@ export class ProjectService extends NavigationService {
   // Create, edit, move
   // ---------------------------------------------------------------------------------------------
 
+  /**
+   * A fractional rank among siblings: after the sibling `after`, first when `after` is null, or
+   * last when `after` is 'last' (creation appends). Rebalances once when the gap is exhausted.
+   */
   protected async nextRank(
     tx: WorkspaceTransaction,
     table:
-      'work.project' | 'work.phase' | 'work.milestone' | 'work.criteria_item' | 'work.scope_item',
+      | 'work.project'
+      | 'work.phase'
+      | 'work.milestone'
+      | 'work.criteria_item'
+      | 'work.scope_item'
+      | 'work.task'
+      | 'work.checklist_item'
+      | 'work.label'
+      | 'work.task_assignee'
+      | 'relations.record_link',
     where: (q: any) => any, // eslint-disable-line @typescript-eslint/no-explicit-any
-    after: string | null,
+    after: string | null | 'last',
+    key: 'id' | 'membership_id' = 'id',
   ): Promise<string> {
     const siblings: Array<{ id: string; rank: string }> = await where(
-      tx.db.selectFrom(table).select(['id', 'rank']),
+      tx.db.selectFrom(table).select([`${key} as id`, 'rank']),
     )
       .orderBy('rank')
-      .orderBy('id')
+      .orderBy(key)
       .execute();
-    let idx = after === null ? siblings.length - 1 : siblings.findIndex((s) => s.id === after);
-    if (after !== null && idx < 0)
-      throw invalid(issue('/after', 'invalid_reference', 'Choose an item from the list.'));
-    if (after === null) idx = siblings.length - 1;
+    let idx: number;
+    if (after === 'last') idx = siblings.length - 1;
+    else if (after === null) idx = -1;
+    else {
+      idx = siblings.findIndex((s) => s.id === after);
+      if (idx < 0)
+        throw invalid(issue('/after', 'invalid_reference', 'Choose an item from the list.'));
+    }
     const before = idx >= 0 ? siblings[idx]!.rank : null;
     const next = siblings[idx + 1]?.rank ?? null;
     const r = rankBetween(before, next);
@@ -750,7 +776,7 @@ export class ProjectService extends NavigationService {
     // Rebalance the sibling list evenly, then retry once.
     const ranks = evenRanks(siblings.length + 1);
     for (const [i, s] of siblings.entries())
-      await tx.db.updateTable(table).set({ rank: ranks[i]! }).where('id', '=', s.id).execute();
+      await tx.db.updateTable(table).set({ rank: ranks[i]! }).where(key, '=', s.id).execute();
     return rankBetween(ranks[idx] ?? null, ranks[idx + 1] ?? null) ?? ranks[siblings.length]!;
   }
 
@@ -803,7 +829,7 @@ export class ProjectService extends NavigationService {
         input.parent
           ? q.where('parent_project_id', '=', input.parent.id)
           : q.where('parent_project_id', 'is', null).where('brand_id', '=', input.brandId),
-      null,
+      'last',
     );
     const f = input.fields;
     await tx.db

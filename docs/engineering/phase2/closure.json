@@ -500,10 +500,14 @@
       "evidence": [
         {
           "file": "apps/web/src/pages/project-pages.tsx",
-          "contains": "Overdue, blocked, unassigned, and at-risk work appears here once tasks arrive."
+          "contains": "aria-label=\"Task facts\""
+        },
+        {
+          "file": "packages/work/src/task-items.ts",
+          "contains": "task_facts: {"
         }
       ],
-      "note": "Project-native facts only, with task-derived sections labelled honestly (brief: richer in 2B/5C)."
+      "note": "Project-native facts in 2A, with task-derived sections labelled honestly; 2B fills total, overdue, blocked, and unassigned task facts through the visibility predicate (5C enriches)."
     },
     {
       "id": "PRJ-024",

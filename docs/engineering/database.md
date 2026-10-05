@@ -166,3 +166,29 @@ Definer functions (owner `pm_owner`, `search_path` pinned, `EXECUTE` revoked fro
 | `exec_dispatch.discover_recurrence_due(now, limit)` | dispatcher | Workspace ids with due active series, oldest-waiting first (`min(last_run_at)`); `limit` is `RECURRENCE_WORKSPACE_DISCOVERY_MAX` |
 
 **RLS and indexes.** Array operators (`@>`, `&&`, `= ANY(array_column)`) are not leakproof, so under RLS they cannot be index conditions. Hierarchy queries therefore walk `parent_project_id` (`project_children`) recursively instead of filtering `ancestor_ids`; no GIN index is kept. Query-plan tests (`packages/work/test/integration/contracts.test.ts`) seed 5,000 projects with structures, dependencies, and assignments, and check the list, children, subtree walk, scope seeds, structure, relationship, project-assignment, occurrence, and due-work indexes.
+
+## Phase 2B: tasks and relationships
+
+Migrations `0023_work_tasks` and `0024_task_relationships_sharing` (ADR-0014). Down migrations restore
+the exact 0022 catalog (boundary test `[…, 22, 23, 24]`); 0024's down restores the 0016 `core.record_guard`.
+
+| Schema | Objects |
+|---|---|
+| `workflow` | Six `platform_status` rows for `task` (Backlog, To do, In progress, Blocked, Done, Cancelled) with fixed ids |
+| `work` | `task` (`core.record` extension: brand, optional project, parent, `depth` ≤ 64, `description_rich`, status and `status_category` (trigger `task_status_category`), priority, `start_date`, `due_date`, deadline as `deadline_date` or `deadline_at` + `deadline_tz`, estimates, expected deliverable, completion and override, `COLLATE "C"` rank, version; deferred `task_ancestry` checks brand and project identity with the parent); `task_assignee` (unique `task_assignee_one_primary`, eligibility trigger); `checklist_item` (`chk_`); `criteria_item.task_id` and `required` (project or task arc); `task_inherited_criterion` (per-task state for an inherited project item); `label` (`lbl_`, brand-scoped) and `task_label` |
+| `relations` | `record_link` (`lnk_`; `https` URL or record target, checked in the database) |
+| Functions | `work.move_task_brand(uuid[], uuid)` (security definer; the only brand change for task records, allowed by `core.record_guard` for its owner); deferred `assert_departing_assignee` |
+
+Child foreign keys of `work.task` use `ON UPDATE CASCADE` so the brand move is one statement.
+Hierarchy walks recurse on `parent_task_id` (indexes `task_children`, `task_by_project`,
+`task_projectless`); no array predicates. `packages/work/test/integration/task-plans.test.ts`
+checks plans at 5,000 and 50,000 tasks for lists, children, assignees, labels, items,
+relationships, and history, for restricted and grant-heavy principals.
+
+| Suite | Proves |
+|---|---|
+| `packages/work/test/integration/tasks.test.ts` | Scope, depth, fields, completion gates and overrides, checklists, labels, links, relationships, moves (including concurrent reparents), cross-brand move, lifecycle, duplicate, assignees and departure, history, project rollups |
+| `packages/work/test/integration/task-access.test.ts` | Three workspaces, all six roles, projectless and project tasks, surfaces agreeing with single-record checks, share boundary, hidden endpoints, forged identifiers |
+| `packages/work/test/integration/task-plans.test.ts` | `app_rw` and `app_worker` isolation; query plans at volume |
+| `apps/api/test/integration/tasks-api.test.ts` | HTTP flows with ETags, verbs and item routes, uniform `not_found`, no internal UUIDs |
+| `apps/web/test/tasks.test.tsx`, `e2e/tasks.spec.ts` | Task routes; tree keyboard and Move/Indent/Outdent; task page flows, conflict, offline, axe, forced colors, 320 px on desktop, tablet, and mobile |

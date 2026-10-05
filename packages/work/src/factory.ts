@@ -12,9 +12,9 @@ import {
   type CollaborationIdentityPort,
 } from '@pm/tenancy';
 import { registerWorkLifecycle } from './lifecycle.ts';
-import { projectTargets } from './navigation.ts';
-import { projectOwnerHook } from './ownership.ts';
-import { WorkService } from './structures.ts';
+import { projectTargets, taskTargets } from './navigation.ts';
+import { projectOwnerHook, taskAssigneeHook } from './ownership.ts';
+import { TaskService } from './task-items.ts';
 import { DEFAULT_WORK_SETTINGS, type WorkSettings } from './validation.ts';
 
 /** The lifecycle registry with every record type registered so far (API and worker). */
@@ -23,7 +23,7 @@ export function productLifecycleRegistry(): LifecycleRegistry {
 }
 
 /**
- * Wires the full 1C–2A service (tenancy, collaboration, navigation, projects) from validated
+ * Wires the full 1C–2B service (tenancy, collaboration, navigation, projects, tasks) from validated
  * configuration. Work plugs into tenancy by injection only: its lifecycle adapters, its navigation
  * target, and its departure hook.
  */
@@ -36,7 +36,7 @@ export function createWorkService(deps: {
   };
   logger: Logger;
   metrics: Metrics;
-}): WorkService {
+}): TaskService {
   const { config } = deps;
   if (!config.identity.signingKey) throw new Error('AUTH_SIGNING_KEY is required');
   const writer = new AuditWriter({
@@ -55,7 +55,7 @@ export function createWorkService(deps: {
   });
   const signingKey = Buffer.from(config.identity.signingKey.reveal(), 'base64url');
   const arrayMax = config.tenancy.principalContextArrayMax;
-  return new WorkService({
+  return new TaskService({
     tenant: deps.tenant,
     platform: deps.platform,
     writer,
@@ -63,7 +63,7 @@ export function createWorkService(deps: {
     lifecycle,
     stepUp: deps.identity,
     identity: deps.identity,
-    ownership: defaultOwnershipRegistry().register(projectOwnerHook),
+    ownership: defaultOwnershipRegistry().register(projectOwnerHook).register(taskAssigneeHook),
     settings: {
       invitationLifetimeMs: config.tenancy.invitationLifetimeMs,
       ownershipTransferLifetimeMs: config.tenancy.ownershipTransferLifetimeMs,
@@ -71,7 +71,9 @@ export function createWorkService(deps: {
       previewTtlMs: 10 * 60_000,
     },
     views: config.views,
-    targets: defaultNavigationTargets().register(projectTargets(arrayMax)),
+    targets: defaultNavigationTargets()
+      .register(projectTargets(arrayMax))
+      .register(taskTargets(arrayMax)),
     work: config.work ?? DEFAULT_WORK_SETTINGS,
     limiter: new PostgresRateLimiter(deps.platform, signingKey, config.identity.rateLimitOverrides),
     signingKey,

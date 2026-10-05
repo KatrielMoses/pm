@@ -22,7 +22,9 @@ import {
   productLifecycleRegistry,
   projectOwnerHook,
   projectTargets,
-  WorkService,
+  taskAssigneeHook,
+  taskTargets,
+  TaskService,
   type WorkSettings,
 } from '@pm/work';
 import {
@@ -43,7 +45,7 @@ export {
 
 export interface WorkEnv {
   h: Harness;
-  svc: WorkService;
+  svc: TaskService;
   stepUp: StubStepUp;
   lifecycle: LifecycleService;
   tokenFor(email: string): Promise<string>;
@@ -84,7 +86,7 @@ export function workEnv(
     createStepUpChallenge: stepUp.createStepUpChallenge,
   };
   const arrayMax = options.arrayMax ?? 10_000;
-  const svc = new WorkService({
+  const svc = new TaskService({
     tenant: h.app,
     platform: h.platform,
     writer,
@@ -92,7 +94,7 @@ export function workEnv(
     lifecycle,
     stepUp: port,
     identity: port,
-    ownership: defaultOwnershipRegistry().register(projectOwnerHook),
+    ownership: defaultOwnershipRegistry().register(projectOwnerHook).register(taskAssigneeHook),
     limiter: new PostgresRateLimiter(h.platform, randomBytes(32), {
       'workspace.create': { limit: 1000, windowMs: 3_600_000 },
       'invitation.accept': { limit: 1000, windowMs: 3_600_000 },
@@ -106,7 +108,9 @@ export function workEnv(
       previewTtlMs: 600_000,
     },
     views: DEFAULT_VIEWS_SETTINGS,
-    targets: defaultNavigationTargets().register(projectTargets(arrayMax)),
+    targets: defaultNavigationTargets()
+      .register(projectTargets(arrayMax))
+      .register(taskTargets(arrayMax)),
     work: { ...DEFAULT_WORK_SETTINGS, ...options.work },
     metrics,
     logger: h.logger,

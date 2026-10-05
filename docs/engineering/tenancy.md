@@ -331,3 +331,12 @@ Shares and collaborator grants use the 1D preview/apply changes `record_share`, 
 | `packages/work/test/integration/contracts.test.ts` | Planning and budget fields and the completion basis; intake provenance; concurrent reparenting and reordering; query plans at volume; direct `app_rw` on a pooled connection and `app_worker` isolation, including the recurrence job |
 | `apps/api/test/integration/projects-api.test.ts`, `apps/api/test/unit/tenant-routes.test.ts` | HTTP flows with ETags; uniform `not_found`; the lifecycle-issuer boundary |
 | `apps/web/test/projects.test.tsx`, `e2e/projects.spec.ts` | Section order and conditional tabs; tree keyboard and Move/Indent/Outdent; first project, overview, timeline, honest sections, conflict, offline, archive, restrict, duplicate, axe, forced colors, zoom, 320 px on desktop, tablet, and mobile |
+
+## Phase 2B tasks
+
+A task's governing project is its project (or none); `governingProjectId` resolves it for share
+resolution before the project chain. Projectless tasks follow brand access; project tasks follow the
+2A project chain, including restriction. `task` is in the shareability registry (`read`, `comment`,
+`edit`): a share covers the task, its checklist, and its own criteria only (ADR-0014 T15).
+Assignment never grants access. `label.manage` governs brand labels; `task.override_completion`
+governs completing with unmet items; `record.move_brand` for tasks needs manage in both brands.

@@ -129,7 +129,8 @@ export async function projectChainOf(
 
 /**
  * SQL for the governing project of a `core.record` row: the project itself, or the project that
- * contains a phase, milestone, or decision. Other record types have none.
+ * contains a phase, milestone, decision, or task (2B; a projectless task has none and follows its
+ * brand). Other record types have none.
  */
 export function governingProject(alias: string) {
   const r = sql.raw(alias);
@@ -138,5 +139,29 @@ export function governingProject(alias: string) {
     WHEN 'phase' THEN (SELECT x.project_id FROM work.phase x WHERE x.workspace_id = ${r}.workspace_id AND x.id = ${r}.id)
     WHEN 'milestone' THEN (SELECT x.project_id FROM work.milestone x WHERE x.workspace_id = ${r}.workspace_id AND x.id = ${r}.id)
     WHEN 'decision_record' THEN (SELECT x.project_id FROM work.decision_record x WHERE x.workspace_id = ${r}.workspace_id AND x.id = ${r}.id)
+    WHEN 'task' THEN (SELECT x.project_id FROM work.task x WHERE x.workspace_id = ${r}.workspace_id AND x.id = ${r}.id)
     ELSE NULL END)`;
+}
+
+/** The governing project id of a record (the same derivation as `governingProject`), or null. */
+export async function governingProjectId(
+  tx: WorkspaceTransaction,
+  record: { id: string; recordType: string },
+): Promise<string | null> {
+  if (record.recordType === 'project') return record.id;
+  const table =
+    record.recordType === 'task'
+      ? 'work.task'
+      : record.recordType === 'phase'
+        ? 'work.phase'
+        : record.recordType === 'milestone'
+          ? 'work.milestone'
+          : record.recordType === 'decision_record'
+            ? 'work.decision_record'
+            : null;
+  if (!table) return null;
+  const r = await sql<{
+    project_id: string | null;
+  }>`SELECT project_id FROM ${sql.table(table)} WHERE id = ${record.id}`.execute(tx.db);
+  return r.rows[0]?.project_id ?? null;
 }

@@ -12,6 +12,11 @@ configured bounds, the one-type sharing registry, decision kinds and states, the
 verification fact, the reversible phase lifecycle, template layering, the lifecycle issuer boundary,
 no followers, and event and error registration across the work, relations, templates, and planning
 modules.
+
+Phase 2B (docs/engineering/phase2/closure-2b.json) is checked by the same closure rules plus its own
+drift checks: the six task statuses, task bounds and the depth ceiling 64, the two-type sharing
+registry, history over the audit ledger (no history table), no follower rows, the brand-move
+definer as the only brand change, and task and label event registration.
 """
 import json
 import os
@@ -70,7 +75,7 @@ def check_evidence(owner, items, cache, errs):
             errs.append("%s: %s does not contain %r" % (owner, ev["file"], ev["contains"]))
 
 
-def check_closure(catalog, closure, subphases):
+def check_closure(catalog, closure, subphases, SUBPHASE=SUBPHASE, DECISION_IDS=DECISION_IDS):
     errs = []
     candidate = closure.get("status") == "candidate"
     if closure.get("phase") != SUBPHASE:
@@ -86,11 +91,11 @@ def check_closure(catalog, closure, subphases):
             errs.append("%s: listed twice" % e["id"])
         seen[e["id"]] = e
     for i in sorted(owned - set(seen)):
-        errs.append("%s: 2A-owned requirement has no closure entry" % i)
+        errs.append("%s: %s-owned requirement has no closure entry" % (i, SUBPHASE))
     for i in sorted(contributing - set(seen)):
-        errs.append("%s: 2A contribution has no closure entry" % i)
+        errs.append("%s: %s contribution has no closure entry" % (i, SUBPHASE))
     for i in sorted(set(seen) - owned - contributing):
-        errs.append("%s: closure entry for a requirement 2A neither owns nor contributes to" % i)
+        errs.append("%s: closure entry for a requirement %s neither owns nor contributes to" % (i, SUBPHASE))
     cache = {}
     for e in closure["requirements"]:
         i, r = e["id"], reqs.get(e["id"])
@@ -130,7 +135,7 @@ def check_closure(catalog, closure, subphases):
                 errs.append("%s: unknown accepted_by kind %r" % (i, ref))
     decisions = {d["id"]: d for d in closure.get("decisions", [])}
     if sorted(decisions, key=lambda x: int(x[1:])) != DECISION_IDS:
-        errs.append("decisions must be exactly D1..D18 (the Phase 2A brief's architecture decisions)")
+        errs.append("decisions must be exactly D1..D18 (the Phase %s brief's architecture decisions)" % SUBPHASE)
     for d in decisions.values():
         check_evidence(d["id"] + " sources", d.get("sources"), cache, errs)
         check_evidence(d["id"], d.get("evidence"), cache, errs)
@@ -206,10 +211,11 @@ def check_sharing_registry():
     text = read(P("packages/tenancy/src/sharing.ts"))
     m = re.search(r"SHAREABLE_RECORD_TYPES[^=]*= new Map\(\[(.*?)\]\);", text, re.S)
     types = re.findall(r"\['(\w+)', \[", m.group(1)) if m else []
-    if types != ["project"]:
-        errs.append("the shareability registry must hold exactly 'project' (found %r)" % types)
-    if m and "'read', 'comment', 'edit'" not in m.group(1):
-        errs.append("project share levels must be read (API view), comment, edit")
+    if types != ["project", "task"]:
+        errs.append("the shareability registry must hold exactly 'project' and 'task' (found %r)" % types)
+    for t in types:
+        if m and "['%s', ['read', 'comment', 'edit'] as const]" % t not in m.group(1):
+            errs.append("%s share levels must be read (API view), comment, edit" % t)
     return errs, "shareable: %s" % ", ".join(types)
 
 
@@ -432,18 +438,143 @@ def check_share_boundary():
     return errs, "project, criteria, scope, latest verified update"
 
 
+# ---- Phase 2B -----------------------------------------------------------------------------------
+
+TASK_STATUSES = [("backlog", "planned"), ("todo", "planned"), ("in_progress", "active"), ("blocked", "paused"), ("done", "done"), ("cancelled", "cancelled")]
+TASK_BOUNDS = {"TASK_DEPTH_MAX": ("taskDepthMax", 20), "TASK_SUBTREE_MAX": ("taskSubtreeMax", 500), "TASK_ITEMS_MAX": ("taskItemsMax", 200),
+               "TASK_ASSIGNEES_MAX": ("taskAssigneesMax", 20), "TASK_LABELS_MAX": ("taskLabelsMax", 50), "BRAND_LABELS_MAX": ("brandLabelsMax", 1000),
+               "TASK_ESTIMATE_MINUTES_MAX": ("taskEstimateMinutesMax", 100000)}
+MIGRATIONS_2B = ["packages/db/migrations/0023_work_tasks.up.sql", "packages/db/migrations/0024_task_relationships_sharing.up.sql"]
+
+
+def migrations_2b():
+    return "\n".join(read(P(m)) for m in MIGRATIONS_2B)
+
+
+def check_task_statuses():
+    errs = []
+    sql = read(P(MIGRATIONS_2B[0]))
+    m = re.search(r"INSERT INTO workflow\.platform_status \([^)]*\) VALUES(.*?);", sql, re.S)
+    rows = re.findall(r"\('([0-9a-f-]{36})', 'task', '(\w+)', '[^']+', '(\w+)', (\d)\)", m.group(1)) if m else []
+    if [(k, c) for _, k, c, _ in rows] != TASK_STATUSES:
+        errs.append("task statuses drifted from the six seeded defaults: %r" % [(k, c) for _, k, c, _ in rows])
+    shell = read(P("packages/contracts/src/shell.ts"))
+    core = read(P("packages/work/src/task-core.ts"))
+    for sid, key, cat, _ in rows:
+        if not re.search(r"key: '%s'[^}]*category: '%s'" % (key, cat), shell) or sid not in core:
+            errs.append("task status %s (%s) is not the same in contracts and the task service" % (key, sid))
+    return errs, "%d task statuses" % len(rows)
+
+
+def check_task_bounds(registry):
+    errs = []
+    params = {p["name"] for p in registry["parameters"]}
+    server = read(P("packages/config/src/server.ts"))
+    env = read(P("docs/engineering/environments.md"))
+    validation = read(P("packages/work/src/validation.ts"))
+    for name, (field, default) in TASK_BOUNDS.items():
+        if name not in params:
+            errs.append("%s is not a 0D parameter" % name)
+        if not re.search(r"\b%s: '%d'" % (name, default), server):
+            errs.append("%s default in the configuration is not %d" % (name, default))
+        if name not in env:
+            errs.append("%s is not documented in environments.md" % name)
+        if not re.search(r"%s: %s\b" % (field, "{:_}".format(default).replace(",", "_")), validation) and not re.search(r"%s: %d\b" % (field, default), validation):
+            errs.append("DEFAULT_WORK_SETTINGS.%s is not %d" % (field, default))
+    if "TASK_DEPTH_CEILING = 64" not in validation or "CHECK (depth BETWEEN 0 AND 64)" not in read(P(MIGRATIONS_2B[0])):
+        errs.append("the task depth ceiling 64 must match in the service and the database")
+    if "TASK_DEPTH_MAX: int(1, 64)" not in server:
+        errs.append("TASK_DEPTH_MAX must never be configurable above the database ceiling 64")
+    return errs, ", ".join(TASK_BOUNDS)
+
+
+def check_task_history_and_followers(model):
+    """History is the audit ledger (decision D14); followers are 4A (TSK-009 contribution only)."""
+    errs = []
+    sql = migrations_2b()
+    if re.search(r"CREATE TABLE \w+\.\w*history", sql):
+        errs.append("a 2B migration creates a history table (history is a projection of the audit ledger)")
+    if re.search(r"CREATE TABLE \w+\.\w*follower", sql):
+        errs.append("a 2B migration creates a follower table (followers are 4A)")
+    if any("history" in e["name"] or "follower" in e["name"] for e in model["entities"] if e.get("module") == "work"):
+        errs.append("work registers a history or follower entity")
+    if "audit.audit_event" not in read(P("packages/work/src/task-items.ts")):
+        errs.append("task history no longer reads the audit ledger")
+    return errs, "audit projection; no followers"
+
+
+def check_brand_move():
+    """Only the definer changes a task's brand; the guard exception names it; links stay https-only."""
+    errs = []
+    sql = read(P(MIGRATIONS_2B[1]))
+    if not re.search(r"CREATE FUNCTION work\.move_task_brand\(.*?SECURITY DEFINER", sql, re.S | re.I):
+        errs.append("work.move_task_brand must be a security definer")
+    if "CREATE OR REPLACE FUNCTION core.record_guard" not in sql:
+        errs.append("0024 does not carry the record guard brand-move exception")
+    if "CREATE OR REPLACE FUNCTION core.record_guard" in read(P(MIGRATIONS_2B[0])):
+        errs.append("0023 must not change the record guard")
+    if "https://" not in sql:
+        errs.append("record_link must be https-only in the database")
+    items = read(P("packages/work/src/task-items.ts"))
+    if "LINK_TARGET_TYPES: ReadonlySet<string> = new Set<string>([])" not in items:
+        errs.append("record-target link types changed; register them through an ADR first")
+    return errs, "definer-only brand change; https links"
+
+
+def check_task_events(registry):
+    events = {e["type"] for e in registry["events"]}
+    errs, found = [], 0
+    pattern = re.compile(r"'((?:work)\.(?:task|label|task_label|checklist_item)\.[a-z_]+)'")
+    for base in ("packages/work/src", "apps/api/src/work"):
+        for dirpath, _dirs, files in os.walk(P(base)):
+            for n in files:
+                text = read(os.path.join(dirpath, n))
+                rel = os.path.relpath(os.path.join(dirpath, n), phase1.ROOT)
+                for m in pattern.finditer(text):
+                    if m.group(1) in ("work.task.completions", "work.task.moves"):
+                        continue
+                    found += 1
+                    if m.group(1) not in events:
+                        errs.append("%s: event %r is not registered in 0D" % (rel, m.group(1)))
+    for t in ("work.task.moves", "work.task.completions"):
+        if t not in {x["name"] for x in registry["telemetry"]}:
+            errs.append("%s is not registered telemetry" % t)
+    return errs, "%d event literals" % found
+
+
+def check_adr_2b(closure):
+    path = phase1.adr_path("0014")
+    if not path:
+        return ["ADR-0014 missing"], ""
+    text = read(path)
+    m = ADR_STATUS.search(text)
+    if not m:
+        return ["ADR-0014 status must be **proposed** or **accepted and implemented**"], ""
+    if closure.get("status") == "accepted" and m.group(1) != "accepted and implemented":
+        return ["closure is accepted but ADR-0014 is not"], ""
+    errs = []
+    for d in closure.get("decisions", []):
+        if not re.search(r"^\| %s \|" % re.escape(d.get("adr_row", "")), text, re.M):
+            errs.append("%s: ADR-0014 has no row %s" % (d["id"], d.get("adr_row")))
+    return errs, "ADR-0014 %s" % m.group(1)
+
+
 def main():
     catalog = load(P("docs/product/requirements/catalog.json"))
     registry = load(P("docs/architecture/platform/contracts/registry.json"))
     model = load(P("docs/architecture/data/model/model.json"))
     closure = load(P("docs/engineering/phase2/closure.json"))
+    closure_2b = load(P("docs/engineering/phase2/closure-2b.json"))
     subphases = phase1.roadmap_subphases()
+    closure_2b_result = check_closure(catalog, closure_2b, subphases, "2B")
+    if closure_2b.get("phase") != "2B":
+        closure_2b_result[0].append("closure-2b phase must be 2B")
     sections = [
         ("phase 2A: requirement and decision closure", check_closure(catalog, closure, subphases)),
         ("phase 2A: one collaborator authority; structures registered", check_one_authority(model)),
         ("phase 2A: five platform-default statuses", check_statuses()),
         ("phase 2A: bounds registered, configured, and enforced", check_bounds(registry)),
-        ("phase 2A: shareability registry", check_sharing_registry()),
+        ("phase 2A/2B: shareability registry", check_sharing_registry()),
         ("phase 2A: decision kinds and states", check_decision_kinds()),
         ("phase 2A: updates and verifications append-only", check_append_only()),
         ("phase 2A: templates layering", check_layering(model)),
@@ -460,6 +591,13 @@ def main():
         ("phase 2A: recurrence discovery bounds (G3)", check_discovery_bounds(registry)),
         ("phase 2A: recurrence UI (G5)", check_recurrence_ui()),
         ("phase 2A: ADR status", check_adr()),
+        ("phase 2B: requirement and decision closure", closure_2b_result),
+        ("phase 2B: six platform-default task statuses", check_task_statuses()),
+        ("phase 2B: task bounds and the depth ceiling", check_task_bounds(registry)),
+        ("phase 2B: history over the audit ledger; no followers", check_task_history_and_followers(model)),
+        ("phase 2B: cross-brand move and links", check_brand_move()),
+        ("phase 2B: task events and telemetry registered", check_task_events(registry)),
+        ("phase 2B: ADR status and decision rows", check_adr_2b(closure_2b)),
     ]
     failed = 0
     for name, result in sections:
@@ -468,7 +606,7 @@ def main():
         for e in errs:
             print("    ERROR: " + e)
         failed += bool(errs)
-    print("PHASE 2A CLOSURE: %s" % ("PASS" if not failed else "FAIL (%d sections)" % failed))
+    print("PHASE 2A/2B CLOSURE: %s" % ("PASS" if not failed else "FAIL (%d sections)" % failed))
     return 1 if failed else 0
 
 

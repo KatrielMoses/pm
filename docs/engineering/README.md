@@ -18,4 +18,4 @@ recorded in [ADR-0007](adr/0007-deviations.md).
 | [tenancy.md](tenancy.md) | Workspaces, memberships, brands, settings, context selection, policy compiler, tenant isolation (1C); people, invitations, teams, grants, shares, previews, departure, ownership transfer (1D); application shell, scope URLs, favorites, recents, view state, preferences (1E); projects, hierarchy, project authority, sharing, structures, templates, recurrence (2A) |
 | [phase1/](phase1/exit-report.md) | Phase 1 integration review: exit report, requirement closure map (`closure.json`, checked by `tools/phase1.py`), branch topology and merge order, manual smoke checklist |
 | [phase2/](phase2/closure.json) | Phase 2A requirement and decision closure (`closure.json`, checked by `tools/phase2.py`) |
-| [adr/](adr/) | Implementation ADRs 0001–0013 |
+| [adr/](adr/) | Implementation ADRs 0001–0014 |
