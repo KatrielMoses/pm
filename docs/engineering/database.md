@@ -132,3 +132,37 @@ gates RLS policies that admit only rows with `workspace_id IS NULL`. `exec.job.w
 stay tenant-only (`CHECK (workspace_id IS NOT NULL OR operation_id IS NULL)`). The tenant and
 platform scopes are mutually exclusive: a platform transaction cannot see tenant rows, and a tenant
 transaction cannot see platform rows.
+
+## Phase 2A: work, relations, templates, planning
+
+Migrations `0021_work_projects` and `0022_project_relations_templates_recurrence` (ADR-0013). Down
+migrations restore the exact 0020 catalog (boundary test `[…, 20, 21, 22]`).
+
+| Schema | Objects |
+|---|---|
+| `workflow` | `platform_status`: five immutable rows with fixed ids (`planned`, `active`, `on_hold`→paused, `completed`→done, `cancelled`), read-only for application roles |
+| `work` | `project` (`core.record` extension: brand, parent, `ancestor_ids`, `depth` ≤ 32, `description_rich` (rich text version 1, `tenancy.valid_rich_text`), status and denormalized `status_category`, priority, dates, `completed_at` tied to the done category, manual health, owner, budgets, `COLLATE "C"` rank, `access_mode`, `allow_record_shares`, intake provenance, recurrence identity, version); `phase`, `milestone`, `decision_record` (`core.record` extensions); `criteria_item`, `scope_item`, `project_update`, `project_update_verification` (public ids, no envelope) |
+| `relations` | `record_relationship` (`blocks`, `related`; both endpoints and both brands carried with composite FKs) |
+| `templates` | `template`, `template_version` (immutable package, `item_count` 1–500) |
+| `planning` | `recurrence_series` (immutable `template_payload`, version + 1 on every change except the operational `last_run_at` fairness stamp; partial index `recurrence_series_fair` for oldest-waiting discovery) |
+| `access` | `role_assignment.project_scope_id` (generated from project-scoped rows; FK to `work.project`); `grant_source` adds `project_manager` |
+
+Invariants enforced in the database:
+
+- **Ancestry.** A deferred trigger checks each project against its parent at commit, so a subtree rewrite can run as one statement.
+- **Status category.** A trigger keeps `status_category` equal to the status row's category.
+- **Decision states.** The state must fit the kind; outcomes are required for decided and resolved; supersession is shaped.
+- **Last manager.** Deferred guards on project, assignment, and membership refuse a commit that leaves an active project without a manager.
+- **Append-only updates.** `project_update` and its verification have no `UPDATE` grant for any role. Only the worker's purge hook may `DELETE` them.
+- **Immutable snapshots.** `recurrence_series.template_payload` is immutable; `(workspace, series, occurrence_key)` is unique on `work.project`.
+
+Definer functions (owner `pm_owner`, `search_path` pinned, `EXECUTE` revoked from `PUBLIC`):
+
+| Function | Caller | Purpose |
+|---|---|---|
+| `work.project_has_manager(workspace, project)` | app_rw, app_worker (via guards) | Eligible-manager check |
+| `work.grant_occurrence_manager(…)` | app_worker | The explicit manage grant for a generated occurrence (the worker has no assignment `INSERT`) |
+| `work.remove_purged_project_access(…)` | app_worker | Removes project-scoped assignments of a trashed or purged project during purge |
+| `exec_dispatch.discover_recurrence_due(now, limit)` | dispatcher | Workspace ids with due active series, oldest-waiting first (`min(last_run_at)`); `limit` is `RECURRENCE_WORKSPACE_DISCOVERY_MAX` |
+
+**RLS and indexes.** Array operators (`@>`, `&&`, `= ANY(array_column)`) are not leakproof, so under RLS they cannot be index conditions. Hierarchy queries therefore walk `parent_project_id` (`project_children`) recursively instead of filtering `ancestor_ids`; no GIN index is kept. Query-plan tests (`packages/work/test/integration/contracts.test.ts`) seed 5,000 projects with structures, dependencies, and assignments, and check the list, children, subtree walk, scope seeds, structure, relationship, project-assignment, occurrence, and due-work indexes.

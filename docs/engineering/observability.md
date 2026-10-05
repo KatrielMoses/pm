@@ -71,3 +71,12 @@ should page. `audit.chain_problems` logs chain positions and problem kinds only.
 (warn) logs `workspace_id` and `duration_ms` only. Purge logs carry
 `batch_id`, `reason`, and IDs. Readiness adds `recovery_gate`, which fails while a restored
 environment awaits purge-ledger replay.
+
+## Projects (2A)
+
+| Signal | Labels | Meaning |
+|---|---|---|
+| `work.hierarchy.moves` | `outcome` (`ok`, a 0D error code such as `validation_failed`, `not_found`, `forbidden`, `conflict`; `invariant` when a database check refused it; `error`) | Project move commands |
+| `work.recurrence.occurrences` | `outcome` (`generated`, `manual`, `paused`, `catchup_deferred`, `workspace_batch_full`, `series_batch_full`) | Recurrence results. A steady `workspace_batch_full` or `series_batch_full` means the discovery bounds (`RECURRENCE_WORKSPACE_DISCOVERY_MAX`, `RECURRENCE_SERIES_DISCOVERY_MAX`) are reached every run: work still completes, oldest-waiting first, over more runs; raise the bound if due times slip |
+
+Project names, descriptions, criteria, scope entries, updates, decisions, budgets, and dependency endpoints never appear in labels, logs, or error context. Audit records content-class changes as hashes.

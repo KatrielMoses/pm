@@ -269,3 +269,65 @@ Personal lists are recompiled from canonical rows on every read, the same as eve
 | `apps/api/test/integration/navigation-api.test.ts` | HTTP surface, ETags, CSRF, device partitioning, telemetry allow-list, no UUIDs |
 | `apps/web/test/shell.test.tsx`, `scripts/test/web-design-tokens.test.mjs` | Registry coverage and permissions, width classes, key map conflicts, keyboard handling, palette, breadcrumbs, marker contrast, appearance, drafts, DS-21 contrast gate |
 | `e2e/navigation.spec.ts` (desktop, tablet, mobile) | Surfaces, scope URLs and history, record scope switch, palette, shortcuts, favorites, recents and pruning, titles, preferences and first paint, read-only members and removal, width boundaries, reflow, forced colors, skip links |
+
+## Phase 2A projects and hierarchy
+
+Decisions and deviations: [ADR-0013](adr/0013-projects-hierarchy.md).
+
+| Module | Contents |
+|---|---|
+| `@pm/work` | `service.ts` (`ProjectService`: projects, hierarchy, owner, access), `structures.ts` (`WorkService`: overview, phases, milestones, criteria, scope items, updates and verification, decisions, dependencies, templates, duplicate, recurrence), `templates.ts` (package schema v1), `instantiate.ts`, `recurrence.ts` (RRULE subset), `validation.ts` (fields and the three bounds), `lifecycle.ts`, `navigation.ts`, `ownership.ts`, `jobs.ts`, `factory.ts` |
+| `@pm/tenancy` | `projects.ts` (project scope, chains, governing project), `sharing.ts` (shareability registry), `record-decisions.ts` (the record lifecycle issuer), and the project branch of `visibility.ts`, `principal.ts`, `policy.ts`, `preview.ts` |
+| `@pm/contracts/shell` | Project statuses, priorities, health, kinds, `PROJECT_SECTIONS` |
+| API | `apps/api/src/work/routes.ts`, shared helpers in `apps/api/src/route-kit.ts` |
+| Web | `apps/web/src/projects/client.ts`, `pages/project-pages.tsx` |
+
+### Authority
+
+- **One collaborator authority.** Project collaborators are `access.role_assignment` rows with `scope_type = 'project'` (generated `project_scope_id`, FK to `work.project`). Levels are `view`, `comment`, `edit`, `manage`, capped by the workspace role. There is no project-member table.
+- **Owner is responsibility.** `owner_membership_id` grants nothing by itself. Creation, ownership transfer, and restriction write or keep a `manage` assignment with `grant_source = 'project_manager'` in the same transaction. Deferred triggers on project, assignment, and membership refuse a commit that leaves an active project without an eligible manager.
+- **Restriction.** `access_mode = 'restricted'` anywhere in the chain (self → root) stops brand, workspace, and implicit role access for that subtree, including owners and administrators. Explicit project grants flow down until the next restricted project. `allow_record_shares` (default false on restricted projects) controls new exact shares.
+- **Scope loading.** `projectScope` loads only the rows that can change a decision: restricted projects and their descendants, plus projects reachable from the principal's grants. It is a recursive walk seeded from the `project_restricted` partial index and the primary key, descending by `parent_project_id`. Array operators are not leakproof, so under RLS an `ancestor_ids` predicate could never use an index.
+- **Visibility.** The 1D compiler subtracts restricted chains from brand access and adds granted projects, before pagination and counts. Every project surface (list, totals, tree, overview, dependency display, palette, favorites, recents, breadcrumbs, targets) uses this predicate. Previews use the same code on hypothetical principals.
+- **Sharing.** `SHAREABLE_RECORD_TYPES` holds `project` only (`read`, `comment`, `edit`; API `view` is stored `read`). Shares never carry children. A caller who cannot read the target gets `not_found`. A caller who can read it but lacks `record.share`, or targets an unshareable type, gets `forbidden`.
+- **Share recipients** (share only, ADR-0013 P5) read the project, its criteria and scope items, and the latest verified update's content and ID. Phases, milestones, decisions, dependencies, children, recurrence, templates, collaborators, update history, verification details, and counts are absent; every command a share excludes returns `not_found`. Each overview section is authorized separately, so independent authority shows more.
+
+### Hierarchy
+
+A project has at most one parent in the same workspace and brand. `ancestor_ids` and `depth` are denormalized: a check ties `depth` to the ancestry length, a deferred trigger compares each row with its parent at commit, and the database ceiling is 32. Commands enforce `PROJECT_DEPTH_MAX`. A move:
+
+1. takes transaction advisory locks on both brand roots in a fixed order;
+2. locks the project and checks the target (same brand, readable, not a descendant);
+3. measures the subtree height with a recursive walk and checks the depth bound;
+4. computes a fractional rank among the destination siblings;
+5. rewrites every descendant's ancestry in one statement, then the project itself.
+
+Concurrent opposite moves serialize on the root locks, so one succeeds and the other sees the new ancestry and is refused as a cycle.
+
+### API
+
+| Route | Purpose |
+|---|---|
+| `GET /v1/workspaces/{ws}/projects?brands=&state=&parent=&limit=` | List (comma-separated brands; `parent=root`; authorized totals, at most 200) |
+| `POST /projects` | Create (`brand` or `parent`; optional `template`, `intake_source`) |
+| `GET /projects/{prj}`, `GET /projects/{prj}/overview`, `PATCH /projects/{prj}` | Read, overview, field-merge edit (`If-Match`). `description` is rich text version 1 (0D PL-23) and merges with `base_hash` |
+| `POST /projects/{prj}:{verb}` | `move`, `owner`, `access`, `duplicate`, `template`, `archive`, `unarchive`, `trash`, `restore`, `purge` |
+| `POST /projects/{prj}/phases`, `/milestones`, `PATCH …/{id}`, `POST …/{id}:{verb}` | Create, edit, `move`, `archive`, `unarchive`, `trash`, `restore` |
+| `POST /projects/{prj}/criteria`, `/scope-items`, `PATCH`/`DELETE …/{id}`, `POST …/{id}:move` | Ordered criteria and scope entries |
+| `POST /projects/{prj}/updates`, `POST …/updates/{pup}:verify` | Append-only updates; explicit verification |
+| `POST /projects/{prj}/decisions`, `PATCH …/decisions/{dec}` | Decisions and open questions |
+| `POST /projects/{prj}/dependencies {target}`, `DELETE …/dependencies/{prj}` | "Waits on" edges |
+| `GET/POST /projects/{prj}/recurrences`, `POST …/recurrences/{rcs}:{pause\|resume\|generate}` | Recurrence. `POST` takes `{frequency, interval, weekdays, month_days, start, anchor_tz, ends}`; the series view returns the structured rule, `next_occurrence` (local intent), `next_due_at`, and `status` (`active`, `paused`, `catching_up`, `ended`) |
+| `GET /v1/workspaces/{ws}/templates` | Template catalog |
+
+Shares and collaborator grants use the 1D preview/apply changes `record_share`, `project_grant`, and `project_revoke`.
+
+### Tests (2A)
+
+| Suite | Proves |
+|---|---|
+| `packages/work/test/integration/projects.test.ts` | Creation with platform status and manager grant; field merge and conflicts; hierarchy (same brand, cycles, depth, atomic subtree move, stale ancestry refused); phases, milestones, criteria, and scope entries; append-only updates and verification; decision state machines; dependency cycles; templates, duplicate, and `TEMPLATE_ITEMS_MAX`; recurrence (frozen snapshot, idempotent keys, catch-up bound, pause); lifecycle without cascade and purge blocked by children |
+| `packages/work/test/integration/project-access.test.ts` | Three workspaces, three brands (sensitive and archived), all six roles, restricted and inherited projects, a guest, exact cross-brand shares, every surface agreeing with single-record checks, hidden dependency endpoints, forged identifiers, departure and next-check revocation |
+| `packages/work/test/integration/contracts.test.ts` | Planning and budget fields and the completion basis; intake provenance; concurrent reparenting and reordering; query plans at volume; direct `app_rw` on a pooled connection and `app_worker` isolation, including the recurrence job |
+| `apps/api/test/integration/projects-api.test.ts`, `apps/api/test/unit/tenant-routes.test.ts` | HTTP flows with ETags; uniform `not_found`; the lifecycle-issuer boundary |
+| `apps/web/test/projects.test.tsx`, `e2e/projects.spec.ts` | Section order and conditional tabs; tree keyboard and Move/Indent/Outdent; first project, overview, timeline, honest sections, conflict, offline, archive, restrict, duplicate, axe, forced colors, zoom, 320 px on desktop, tablet, and mobile |

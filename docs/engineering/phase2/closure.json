@@ -1,0 +1,964 @@
+{
+  "schema_version": 1,
+  "phase": "2A",
+  "status": "candidate",
+  "adr": "0013",
+  "dispositions": [
+    {
+      "id": "G1",
+      "disposition": "corrected",
+      "adr_contains": "Rich description storage is implemented in 2A",
+      "evidence": [
+        {
+          "file": "packages/db/migrations/0021_work_projects.up.sql",
+          "contains": "CONSTRAINT project_description_rich CHECK (tenancy.valid_rich_text(description_rich, 20000))"
+        },
+        {
+          "file": "docs/architecture/platform/contracts/schemas/rich-text.schema.json",
+          "contains": "urn:pm:schema:rich-text"
+        },
+        {
+          "file": "packages/work/test/integration/contracts.test.ts",
+          "contains": "rich descriptions (0D PL-23): round trip, base_hash merges, validation, database check, copies"
+        },
+        {
+          "file": "packages/contracts/test/unit/rich-text.test.ts",
+          "contains": "forward compatible"
+        }
+      ]
+    },
+    {
+      "id": "G2",
+      "disposition": "accepted",
+      "adr_contains": "Accepted with the exact boundary in P5",
+      "evidence": [
+        {
+          "file": "packages/work/test/integration/project-access.test.ts",
+          "contains": "share-only boundary: the project, criteria, scope, and the latest verified update; nothing else"
+        },
+        {
+          "file": "docs/architecture/access/15-decisions.md",
+          "contains": "A project share grants exactly the project representation"
+        }
+      ]
+    },
+    {
+      "id": "G3",
+      "disposition": "corrected",
+      "adr_contains": "Registered parameters (P19), no literals",
+      "evidence": [
+        {
+          "file": "docs/architecture/platform/contracts/registry.json",
+          "contains": "RECURRENCE_SERIES_DISCOVERY_MAX"
+        },
+        {
+          "file": "packages/work/test/integration/contracts.test.ts",
+          "contains": "recurrence discovery uses the injected registered bounds, oldest-waiting first, without starvation"
+        },
+        {
+          "file": "packages/config/test/unit/config.test.ts",
+          "contains": "three distinct recurrence layers"
+        }
+      ]
+    },
+    {
+      "id": "G4",
+      "disposition": "accepted",
+      "adr_contains": "no planner strategy is pinned without production data",
+      "evidence": [
+        {
+          "file": "packages/work/test/integration/contracts.test.ts",
+          "contains": "G4 evidence at 50,000 projects"
+        }
+      ]
+    },
+    {
+      "id": "G5",
+      "disposition": "corrected",
+      "adr_contains": "Rejected as a deferral; corrected",
+      "evidence": [
+        {
+          "file": "e2e/projects.spec.ts",
+          "contains": "all four frequencies, end conditions, field errors, keyboard use, and DST-stable local time"
+        },
+        {
+          "file": "e2e/projects.spec.ts",
+          "contains": "permission loss: a manager who becomes read-only can no longer pause or generate"
+        },
+        {
+          "file": "packages/work/test/unit/recurrence.test.ts",
+          "contains": "local time is the intent across DST"
+        }
+      ]
+    },
+    {
+      "id": "G6",
+      "disposition": "accepted",
+      "adr_contains": "rename/archive/version management UI is 10B",
+      "evidence": [
+        {
+          "file": "packages/work/src/instantiate.ts",
+          "contains": "templates.template.applied"
+        }
+      ]
+    },
+    {
+      "id": "G7",
+      "disposition": "accepted",
+      "adr_contains": "Entirely 4A (PRJ-026)",
+      "evidence": [
+        {
+          "file": "docs/engineering/tools/phase2.py",
+          "contains": "def check_no_followers"
+        }
+      ]
+    },
+    {
+      "id": "G8",
+      "disposition": "accepted",
+      "adr_contains": "real forms and anonymous, routing, and abuse flows are 2E/OD-28",
+      "evidence": [
+        {
+          "file": "packages/work/test/integration/contracts.test.ts",
+          "contains": "intake provenance"
+        }
+      ]
+    },
+    {
+      "id": "G9",
+      "disposition": "accepted",
+      "adr_contains": "is not claimed complete",
+      "evidence": [
+        {
+          "file": "e2e/projects.spec.ts",
+          "contains": "expectAccessible"
+        }
+      ]
+    },
+    {
+      "id": "P17",
+      "disposition": "accepted",
+      "adr_contains": "Accepted narrowly",
+      "evidence": [
+        {
+          "file": "apps/api/test/unit/envelopes.test.ts",
+          "contains": "only the work routes construct it, through the shared envelope builder, and they construct nothing else"
+        },
+        {
+          "file": "packages/contracts/src/envelopes.ts",
+          "contains": "'project_overview'"
+        }
+      ]
+    }
+  ],
+  "accepted_by_kinds": {
+    "catalog:contributing": "the subphase is a contributing_subphase of the requirement in the accepted 0A catalog",
+    "roadmap:<sub>": "the BUILD_ROADMAP subphase scope",
+    "adr:<nnnn>[#row]": "an engineering ADR row naming the subphase (proposed ADRs are allowed only while the closure status is candidate)",
+    "requirement:<ID>": "the requirement that owns the capability (its owner_subphase)"
+  },
+  "requirements": [
+    {
+      "id": "WSB-008",
+      "role": "owned",
+      "disposition": "implemented",
+      "evidence": [
+        {
+          "file": "packages/tenancy/src/sharing.ts",
+          "contains": "export const SHAREABLE_RECORD_TYPES"
+        },
+        {
+          "file": "packages/work/test/integration/project-access.test.ts",
+          "contains": "cross-brand exact shares: the project record only, never children, never reshared"
+        },
+        {
+          "file": "docs/architecture/access/15-decisions.md",
+          "contains": "AZ-21"
+        }
+      ],
+      "note": "First user-facing exact-record cross-brand share: projects through the 1D share engine and preview (OD-04: 1D contributed the grant foundation)."
+    },
+    {
+      "id": "PRJ-001",
+      "role": "owned",
+      "disposition": "implemented",
+      "evidence": [
+        {
+          "file": "packages/work/test/integration/projects.test.ts",
+          "contains": "lifecycle never cascades to child projects; purge is blocked while a child remains"
+        },
+        {
+          "file": "packages/work/test/integration/projects.test.ts",
+          "contains": "templates and duplicate copy structure only and report what was not copied"
+        },
+        {
+          "file": "apps/api/test/integration/projects-api.test.ts",
+          "contains": "creates, reads, lists, and edits a project with ETag preconditions"
+        }
+      ],
+      "note": "Create, edit, duplicate, archive, restore, trash, restore from trash, and purge request through the 1F machinery."
+    },
+    {
+      "id": "PRJ-002",
+      "role": "owned",
+      "disposition": "implemented",
+      "evidence": [
+        {
+          "file": "packages/db/migrations/0021_work_projects.up.sql",
+          "contains": "brand_id uuid NOT NULL"
+        },
+        {
+          "file": "packages/work/test/integration/projects.test.ts",
+          "contains": "issueOf('brand_required')"
+        }
+      ]
+    },
+    {
+      "id": "PRJ-003",
+      "role": "owned",
+      "disposition": "implemented",
+      "evidence": [
+        {
+          "file": "packages/work/test/integration/project-access.test.ts",
+          "contains": "collaborators: grants above the granter are refused; the last eligible manager cannot be removed"
+        },
+        {
+          "file": "packages/work/test/integration/project-access.test.ts",
+          "contains": "suspension, removal, and departure take effect on the next check; ownership never dangles"
+        }
+      ],
+      "note": "Owner is accountable responsibility with an explicit manage grant; collaborators are project-scoped role assignments only (AZ-21)."
+    },
+    {
+      "id": "PRJ-004",
+      "role": "owned",
+      "disposition": "implemented",
+      "evidence": [
+        {
+          "file": "packages/work/src/validation.ts",
+          "contains": "export const PROJECT_FIELDS"
+        },
+        {
+          "file": "packages/work/test/integration/projects.test.ts",
+          "contains": "lists with authorized totals and edits by field merge with version conflicts"
+        },
+        {
+          "file": "packages/db/migrations/0021_work_projects.up.sql",
+          "contains": "CONSTRAINT project_completed_when_done"
+        }
+      ]
+    },
+    {
+      "id": "PRJ-005",
+      "role": "owned",
+      "disposition": "implemented",
+      "evidence": [
+        {
+          "file": "packages/db/migrations/0021_work_projects.up.sql",
+          "contains": "CREATE TABLE work.criteria_item"
+        },
+        {
+          "file": "packages/work/test/integration/projects.test.ts",
+          "contains": "phases, milestones, criteria, and scope entries are ordered, audited, and reversible"
+        }
+      ]
+    },
+    {
+      "id": "PRJ-006",
+      "role": "owned",
+      "disposition": "implemented",
+      "evidence": [
+        {
+          "file": "packages/db/migrations/0021_work_projects.up.sql",
+          "contains": "CREATE TABLE work.scope_item"
+        },
+        {
+          "file": "packages/work/test/integration/projects.test.ts",
+          "contains": "phases, milestones, criteria, and scope entries are ordered, audited, and reversible"
+        }
+      ]
+    },
+    {
+      "id": "PRJ-007",
+      "role": "owned",
+      "disposition": "implemented",
+      "enriched_by": [
+        "7A"
+      ],
+      "accepted_by": [
+        "catalog:contributing"
+      ],
+      "evidence": [
+        {
+          "file": "packages/work/test/integration/contracts.test.ts",
+          "contains": "planning fields: dates, deadline, manual health, budgets, and the status-based completion basis"
+        }
+      ],
+      "note": "Money budget, time budget, and AI budget (integer micros as a string) are defined; AI spend enforcement is 7A."
+    },
+    {
+      "id": "PRJ-008",
+      "role": "owned",
+      "disposition": "implemented",
+      "enriched_by": [
+        "5C"
+      ],
+      "accepted_by": [
+        "catalog:contributing"
+      ],
+      "evidence": [
+        {
+          "file": "packages/db/migrations/0021_work_projects.up.sql",
+          "contains": "CONSTRAINT project_health_source"
+        },
+        {
+          "file": "packages/work/test/integration/contracts.test.ts",
+          "contains": "health: { value: 'on_track', source: 'manual' }"
+        }
+      ],
+      "note": "Manual health now; the schema carries `suggested` for the 5C derivation."
+    },
+    {
+      "id": "PRJ-010",
+      "role": "owned",
+      "disposition": "implemented",
+      "evidence": [
+        {
+          "file": "packages/work/test/integration/projects.test.ts",
+          "contains": "phases, milestones, criteria, and scope entries are ordered, audited, and reversible"
+        },
+        {
+          "file": "apps/web/src/pages/project-pages.tsx",
+          "contains": "function TimelineSection"
+        }
+      ]
+    },
+    {
+      "id": "PRJ-011",
+      "role": "owned",
+      "disposition": "implemented",
+      "evidence": [
+        {
+          "file": "packages/work/test/integration/projects.test.ts",
+          "contains": "dependencies: cycles are refused; removal is audited"
+        },
+        {
+          "file": "packages/work/test/integration/project-access.test.ts",
+          "contains": "hidden dependency endpoints are omitted entirely (no title, brand, count, or clue)"
+        }
+      ]
+    },
+    {
+      "id": "PRJ-012",
+      "role": "owned",
+      "disposition": "implemented",
+      "evidence": [
+        {
+          "file": "packages/work/test/integration/projects.test.ts",
+          "contains": "hierarchy: same brand only, no cycles, depth bounded, subtree ancestry moves atomically"
+        },
+        {
+          "file": "packages/work/test/integration/contracts.test.ts",
+          "contains": "concurrent reparenting cannot create a cycle; concurrent reorders keep distinct ranks"
+        },
+        {
+          "file": "apps/web/test/projects.test.tsx",
+          "contains": "Move up/down, Indent, and Outdent are visible buttons that send one move command"
+        }
+      ]
+    },
+    {
+      "id": "PRJ-013",
+      "role": "owned",
+      "disposition": "implemented",
+      "enriched_by": [
+        "2D"
+      ],
+      "accepted_by": [
+        "catalog:contributing"
+      ],
+      "evidence": [
+        {
+          "file": "packages/work/test/integration/projects.test.ts",
+          "contains": "recurrence: frozen snapshot, idempotent occurrence keys, bounded worker catch-up"
+        },
+        {
+          "file": "packages/work/test/integration/contracts.test.ts",
+          "contains": "direct app_worker and the recurrence job: scoped to one workspace; foreign series are invisible"
+        }
+      ],
+      "note": "OD-14 semantics are final; 2D may improve the interaction only."
+    },
+    {
+      "id": "PRJ-014",
+      "role": "owned",
+      "disposition": "implemented",
+      "enriched_by": [
+        "10B"
+      ],
+      "accepted_by": [
+        "catalog:contributing"
+      ],
+      "evidence": [
+        {
+          "file": "packages/work/test/integration/projects.test.ts",
+          "contains": "templates and duplicate copy structure only and report what was not copied"
+        },
+        {
+          "file": "packages/work/test/integration/projects.test.ts",
+          "contains": "template size is bounded by TEMPLATE_ITEMS_MAX exactly"
+        }
+      ]
+    },
+    {
+      "id": "PRJ-015",
+      "role": "owned",
+      "disposition": "implemented",
+      "enriched_by": [
+        "10B"
+      ],
+      "accepted_by": [
+        "catalog:contributing"
+      ],
+      "evidence": [
+        {
+          "file": "packages/work/src/templates.ts",
+          "contains": "Never copied: owners and collaborators"
+        },
+        {
+          "file": "packages/work/test/integration/projects.test.ts",
+          "contains": "templates and duplicate copy structure only and report what was not copied"
+        }
+      ]
+    },
+    {
+      "id": "PRJ-019",
+      "role": "owned",
+      "disposition": "implemented",
+      "enriched_by": [
+        "3B",
+        "3D",
+        "4C",
+        "4E",
+        "5D"
+      ],
+      "accepted_by": [
+        "catalog:contributing"
+      ],
+      "evidence": [
+        {
+          "file": "packages/contracts/src/shell.ts",
+          "contains": "export const PROJECT_SECTIONS"
+        },
+        {
+          "file": "apps/web/test/projects.test.tsx",
+          "contains": "the fixed order; Tests and Releases are conditional and absent from the navigation"
+        },
+        {
+          "file": "apps/web/src/pages/project-pages.tsx",
+          "contains": "isn't available yet"
+        }
+      ],
+      "note": "Overview, Timeline, and Settings are functional; later sections are real routes with honest unavailable states (Tasks 2B, Costs 5C per PROJECT_SECTIONS)."
+    },
+    {
+      "id": "PRJ-020",
+      "role": "owned",
+      "disposition": "implemented",
+      "enriched_by": [
+        "5C"
+      ],
+      "accepted_by": [
+        "catalog:contributing"
+      ],
+      "evidence": [
+        {
+          "file": "packages/work/src/service.ts",
+          "contains": "basis: 'status' as const"
+        },
+        {
+          "file": "packages/work/test/integration/contracts.test.ts",
+          "contains": "completion: { percent: 100, basis: 'status' }"
+        },
+        {
+          "file": "docs/product/open-decisions.md",
+          "contains": "labelled *Status-based*"
+        }
+      ],
+      "note": "OD-13: status-based until tasks exist; leaf-task rollup from 2B."
+    },
+    {
+      "id": "PRJ-021",
+      "role": "owned",
+      "disposition": "implemented",
+      "enriched_by": [
+        "5C"
+      ],
+      "accepted_by": [
+        "catalog:contributing"
+      ],
+      "evidence": [
+        {
+          "file": "apps/web/src/pages/project-pages.tsx",
+          "contains": "Overdue, blocked, unassigned, and at-risk work appears here once tasks arrive."
+        }
+      ],
+      "note": "Project-native facts only, with task-derived sections labelled honestly (brief: richer in 2B/5C)."
+    },
+    {
+      "id": "PRJ-024",
+      "role": "owned",
+      "disposition": "implemented",
+      "enriched_by": [
+        "4C"
+      ],
+      "accepted_by": [
+        "catalog:contributing"
+      ],
+      "evidence": [
+        {
+          "file": "packages/work/test/integration/projects.test.ts",
+          "contains": "decisions and questions follow their kind-specific state machines"
+        },
+        {
+          "file": "packages/db/migrations/0021_work_projects.up.sql",
+          "contains": "CONSTRAINT decision_record_state_for_kind"
+        }
+      ]
+    },
+    {
+      "id": "PRJ-025",
+      "role": "owned",
+      "disposition": "implemented",
+      "enriched_by": [
+        "7E"
+      ],
+      "accepted_by": [
+        "catalog:contributing"
+      ],
+      "evidence": [
+        {
+          "file": "packages/work/test/integration/projects.test.ts",
+          "contains": "updates are append-only; only an explicit human verification makes one \"latest verified\""
+        },
+        {
+          "file": "packages/db/migrations/0021_work_projects.up.sql",
+          "contains": "CREATE TABLE work.project_update_verification"
+        }
+      ]
+    },
+    {
+      "id": "WSB-007",
+      "role": "contributing",
+      "disposition": "contributed",
+      "contribution": "2A",
+      "evidence": [
+        {
+          "file": "packages/work/test/integration/project-access.test.ts",
+          "contains": "inherited projects follow brand access; restricted projects need explicit grants for everyone"
+        },
+        {
+          "file": "packages/work/test/integration/contracts.test.ts",
+          "contains": "direct app_rw on a pooled connection: no context sees nothing; each workspace sees only itself"
+        }
+      ],
+      "note": "Projects and their structures carry brand keys with same-brand composite constraints."
+    },
+    {
+      "id": "PRJ-009",
+      "role": "contributing",
+      "disposition": "contributed",
+      "contribution": "2A",
+      "evidence": [
+        {
+          "file": "packages/db/migrations/0021_work_projects.up.sql",
+          "contains": "INSERT INTO workflow.platform_status"
+        }
+      ],
+      "note": "The five immutable platform-default statuses; custom statuses are 2C."
+    },
+    {
+      "id": "PRJ-017",
+      "role": "contributing",
+      "disposition": "contributed",
+      "contribution": "2A",
+      "evidence": [
+        {
+          "file": "packages/work/test/integration/contracts.test.ts",
+          "contains": "intake provenance: a readable form in the brand is recorded; unknown and foreign sources are one refusal"
+        }
+      ],
+      "note": "Provenance only; forms, anonymous submission, routing, and abuse protection are 2E (OD-28)."
+    },
+    {
+      "id": "PRJ-027",
+      "role": "contributing",
+      "disposition": "contributed",
+      "contribution": "2A",
+      "evidence": [
+        {
+          "file": "packages/tenancy/src/projects.ts",
+          "contains": "export async function projectScope"
+        },
+        {
+          "file": "packages/work/test/integration/project-access.test.ts",
+          "contains": "every surface agrees with single-record enforcement (list, palette, favorites, recents, breadcrumb)"
+        }
+      ]
+    },
+    {
+      "id": "GOAL-008",
+      "role": "contributing",
+      "disposition": "contributed",
+      "contribution": "2A",
+      "evidence": [
+        {
+          "file": "apps/web/src/pages/project-pages.tsx",
+          "contains": "Show archived"
+        }
+      ],
+      "note": "Projects list by status category (planned, active, paused, done, cancelled) and archived; goal portfolio views are 5B."
+    },
+    {
+      "id": "GOAL-010",
+      "role": "contributing",
+      "disposition": "contributed",
+      "contribution": "2A",
+      "evidence": [
+        {
+          "file": "packages/work/test/integration/project-access.test.ts",
+          "contains": "hidden dependency endpoints are omitted entirely (no title, brand, count, or clue)"
+        }
+      ],
+      "note": "Cross-project, cross-brand dependency display with independent endpoint authorization; portfolio rendering is 5B."
+    },
+    {
+      "id": "ONB-013",
+      "role": "contributing",
+      "disposition": "contributed",
+      "contribution": "2A",
+      "evidence": [
+        {
+          "file": "packages/work/src/templates.ts",
+          "contains": "schema_version: 1"
+        }
+      ],
+      "note": "Reusable project templates; task, document, automation, and agent templates belong to their phases."
+    },
+    {
+      "id": "LA-002",
+      "role": "contributing",
+      "disposition": "contributed",
+      "contribution": "2A",
+      "evidence": [
+        {
+          "file": "e2e/projects.spec.ts",
+          "contains": "creates the first useful project without configuration"
+        }
+      ],
+      "note": "The first project needs only a name and brand (the five platform statuses are usable immediately)."
+    }
+  ],
+  "decisions": [
+    {
+      "id": "D1",
+      "title": "OD-13 completion percentage",
+      "sources": [
+        {
+          "file": "docs/product/open-decisions.md",
+          "contains": "### OD-13"
+        }
+      ],
+      "evidence": [
+        {
+          "file": "packages/work/src/service.ts",
+          "contains": "basis: 'status' as const"
+        }
+      ]
+    },
+    {
+      "id": "D2",
+      "title": "OD-14 recurrence and layering",
+      "sources": [
+        {
+          "file": "docs/architecture/data/12-decisions.md",
+          "contains": "template_payload"
+        }
+      ],
+      "evidence": [
+        {
+          "file": "packages/db/migrations/0022_project_relations_templates_recurrence.up.sql",
+          "contains": "template_payload"
+        },
+        {
+          "file": "packages/work/test/integration/projects.test.ts",
+          "contains": "recurrence: frozen snapshot, idempotent occurrence keys, bounded worker catch-up"
+        }
+      ]
+    },
+    {
+      "id": "D3",
+      "title": "OD-15 decision records",
+      "sources": [
+        {
+          "file": "docs/product/open-decisions.md",
+          "contains": "### OD-15"
+        }
+      ],
+      "evidence": [
+        {
+          "file": "packages/db/migrations/0021_work_projects.up.sql",
+          "contains": "CONSTRAINT decision_record_state_for_kind"
+        }
+      ]
+    },
+    {
+      "id": "D4",
+      "title": "OD-16 verified updates",
+      "sources": [
+        {
+          "file": "docs/product/open-decisions.md",
+          "contains": "### OD-16"
+        }
+      ],
+      "evidence": [
+        {
+          "file": "packages/db/migrations/0021_work_projects.up.sql",
+          "contains": "CREATE TABLE work.project_update_verification"
+        }
+      ]
+    },
+    {
+      "id": "D5",
+      "title": "Collaborator authority and ownership",
+      "sources": [
+        {
+          "file": "docs/architecture/access/15-decisions.md",
+          "contains": "AZ-21"
+        }
+      ],
+      "evidence": [
+        {
+          "file": "packages/db/migrations/0021_work_projects.up.sql",
+          "contains": "project_manager_on_assignment"
+        }
+      ]
+    },
+    {
+      "id": "D6",
+      "title": "Readable but unshareable is forbidden",
+      "sources": [
+        {
+          "file": "docs/architecture/access/06-guests-sharing-public-links.md",
+          "contains": "AT-050, AT-116"
+        }
+      ],
+      "evidence": [
+        {
+          "file": "packages/tenancy/test/integration/collaboration.test.ts",
+          "contains": "forbidden"
+        },
+        {
+          "file": "packages/work/test/integration/project-access.test.ts",
+          "contains": "Received share authority never reshares (forbidden: the project is readable)."
+        }
+      ]
+    },
+    {
+      "id": "D7",
+      "title": "Project sections",
+      "sources": [
+        {
+          "file": "docs/ux/02-information-architecture.md",
+          "contains": "Phase 2A implementation note"
+        }
+      ],
+      "evidence": [
+        {
+          "file": "apps/web/test/projects.test.tsx",
+          "contains": "the fixed order; Tests and Releases are conditional and absent from the navigation"
+        }
+      ]
+    },
+    {
+      "id": "D8",
+      "title": "Reversible phase archive",
+      "sources": [
+        {
+          "file": "docs/architecture/data/model/model.json",
+          "contains": "reversible archive distinct from trash"
+        }
+      ],
+      "evidence": [
+        {
+          "file": "packages/work/test/integration/projects.test.ts",
+          "contains": "phases, milestones, criteria, and scope entries are ordered, audited, and reversible"
+        }
+      ]
+    },
+    {
+      "id": "D9",
+      "title": "Platform default statuses",
+      "sources": [
+        {
+          "file": "docs/architecture/data/12-decisions.md",
+          "contains": "platform_status"
+        }
+      ],
+      "evidence": [
+        {
+          "file": "packages/db/migrations/0021_work_projects.up.sql",
+          "contains": "INSERT INTO workflow.platform_status"
+        }
+      ]
+    },
+    {
+      "id": "D10",
+      "title": "Scope and risk records",
+      "sources": [
+        {
+          "file": "docs/architecture/data/model/model.json",
+          "contains": "\"name\": \"scope_item\""
+        }
+      ],
+      "evidence": [
+        {
+          "file": "packages/db/migrations/0021_work_projects.up.sql",
+          "contains": "CREATE TABLE work.scope_item"
+        }
+      ]
+    },
+    {
+      "id": "D11",
+      "title": "Hierarchy bounds and concurrency",
+      "sources": [
+        {
+          "file": "docs/architecture/platform/contracts/registry.json",
+          "contains": "PROJECT_DEPTH_MAX"
+        }
+      ],
+      "evidence": [
+        {
+          "file": "packages/db/migrations/0021_work_projects.up.sql",
+          "contains": "CONSTRAINT project_depth_ceiling CHECK (depth BETWEEN 0 AND 32)"
+        },
+        {
+          "file": "packages/work/test/integration/contracts.test.ts",
+          "contains": "concurrent reparenting cannot create a cycle"
+        }
+      ]
+    },
+    {
+      "id": "D12",
+      "title": "Dependencies and OD-05",
+      "sources": [
+        {
+          "file": "docs/architecture/access/15-decisions.md",
+          "contains": "AZ-21"
+        }
+      ],
+      "evidence": [
+        {
+          "file": "packages/work/test/integration/project-access.test.ts",
+          "contains": "hidden dependency endpoints are omitted entirely (no title, brand, count, or clue)"
+        }
+      ]
+    },
+    {
+      "id": "D13",
+      "title": "Templates",
+      "sources": [
+        {
+          "file": "docs/architecture/platform/contracts/registry.json",
+          "contains": "TEMPLATE_ITEMS_MAX"
+        }
+      ],
+      "evidence": [
+        {
+          "file": "packages/work/test/integration/projects.test.ts",
+          "contains": "template size is bounded by TEMPLATE_ITEMS_MAX exactly"
+        }
+      ]
+    },
+    {
+      "id": "D14",
+      "title": "Sharing registry",
+      "sources": [
+        {
+          "file": "docs/architecture/access/06-guests-sharing-public-links.md",
+          "contains": "Shareable types"
+        }
+      ],
+      "evidence": [
+        {
+          "file": "packages/tenancy/src/sharing.ts",
+          "contains": "export const SHAREABLE_RECORD_TYPES"
+        }
+      ]
+    },
+    {
+      "id": "D15",
+      "title": "Lifecycle issuer",
+      "sources": [
+        {
+          "file": "docs/architecture/access/15-decisions.md",
+          "contains": "AZ-21"
+        }
+      ],
+      "evidence": [
+        {
+          "file": "apps/api/test/unit/tenant-routes.test.ts",
+          "contains": "work code runs lifecycle commands only with a tenancy-issued decision"
+        }
+      ]
+    },
+    {
+      "id": "D16",
+      "title": "PRJ-017 provenance",
+      "sources": [
+        {
+          "file": "docs/architecture/data/model/model.json",
+          "contains": "intake_source_id"
+        }
+      ],
+      "evidence": [
+        {
+          "file": "packages/work/test/integration/contracts.test.ts",
+          "contains": "intake provenance"
+        }
+      ]
+    },
+    {
+      "id": "D17",
+      "title": "No followers in 2A",
+      "sources": [
+        {
+          "file": "docs/engineering/adr/0013-projects-hierarchy.md",
+          "contains": "Entirely 4A (PRJ-026)"
+        }
+      ],
+      "evidence": [
+        {
+          "file": "docs/engineering/tools/phase2.py",
+          "contains": "def check_no_followers"
+        }
+      ]
+    },
+    {
+      "id": "D18",
+      "title": "Registered bounds and events",
+      "sources": [
+        {
+          "file": "docs/architecture/platform/19-decisions.md",
+          "contains": "PL-22"
+        }
+      ],
+      "evidence": [
+        {
+          "file": "packages/work/src/validation.ts",
+          "contains": "export const DEFAULT_WORK_SETTINGS"
+        }
+      ]
+    }
+  ]
+}
