@@ -1,0 +1,815 @@
+{
+  "schema_version": 1,
+  "phase": "2B",
+  "status": "candidate",
+  "adr": "0014",
+  "accepted_by_kinds": {
+    "catalog:contributing": "the subphase is a contributing_subphase of the requirement in the accepted 0A catalog",
+    "roadmap:<sub>": "the BUILD_ROADMAP subphase scope",
+    "adr:<nnnn>[#row]": "an engineering ADR row naming the subphase (proposed ADRs are allowed only while the closure status is candidate)",
+    "requirement:<ID>": "the requirement that owns the capability (its owner_subphase)"
+  },
+  "requirements": [
+    {
+      "id": "WSB-007",
+      "role": "contributing",
+      "disposition": "contributed",
+      "contribution": "2B",
+      "evidence": [
+        {
+          "file": "packages/db/migrations/0023_work_tasks.up.sql",
+          "contains": "task_ancestry"
+        },
+        {
+          "file": "packages/work/test/integration/task-access.test.ts",
+          "contains": "projectless tasks follow the brand; project tasks follow the project chain; sensitive brands need grants"
+        },
+        {
+          "file": "packages/work/test/integration/tasks.test.ts",
+          "contains": "cross-brand move: manage in both brands, preview then atomic apply"
+        }
+      ],
+      "note": "Tasks carry a mandatory brand; brand changes only through the previewed cross-brand move (OD-02)."
+    },
+    {
+      "id": "TSK-001",
+      "role": "owned",
+      "disposition": "implemented",
+      "evidence": [
+        {
+          "file": "apps/api/test/integration/tasks-api.test.ts",
+          "contains": "creates, reads (with detail), lists, and edits a task with ETag preconditions"
+        },
+        {
+          "file": "packages/work/test/integration/tasks.test.ts",
+          "contains": "duplicate copies fields, own criteria, checklist text (reset), labels, URL links; reports omissions"
+        },
+        {
+          "file": "packages/work/test/integration/tasks.test.ts",
+          "contains": "lifecycle applies to the selected task only unless include_subtasks; purge blocked by live children"
+        },
+        {
+          "file": "packages/work/test/integration/tasks.test.ts",
+          "contains": "moves: reorder, reparent, project change rewrites the subtree"
+        }
+      ],
+      "note": "Create, edit, duplicate, move, archive, restore, trash, purge."
+    },
+    {
+      "id": "TSK-002",
+      "role": "owned",
+      "disposition": "implemented",
+      "evidence": [
+        {
+          "file": "packages/db/migrations/0023_work_tasks.up.sql",
+          "contains": "CREATE TABLE work.task ("
+        },
+        {
+          "file": "packages/work/test/integration/tasks.test.ts",
+          "contains": "brand is mandatory, project optional; containers share brand and project identity"
+        }
+      ],
+      "note": "OD-02: brand mandatory; project optional."
+    },
+    {
+      "id": "TSK-003",
+      "role": "owned",
+      "disposition": "implemented",
+      "evidence": [
+        {
+          "file": "apps/web/src/pages/task-pages.tsx",
+          "contains": "export function ProjectlessTasksPage"
+        },
+        {
+          "file": "e2e/tasks.spec.ts",
+          "contains": "projectless tasks have their own entry path"
+        }
+      ],
+      "note": "Projectless tasks with their own entry path."
+    },
+    {
+      "id": "TSK-004",
+      "role": "owned",
+      "disposition": "implemented",
+      "evidence": [
+        {
+          "file": "packages/db/migrations/0023_work_tasks.up.sql",
+          "contains": "tenancy.valid_rich_text(description_rich, 20000)"
+        },
+        {
+          "file": "apps/web/src/pages/task-pages.tsx",
+          "contains": "richTextHash(base.description)"
+        }
+      ],
+      "note": "Title and the 2A rich-text description contract."
+    },
+    {
+      "id": "TSK-005",
+      "role": "owned",
+      "disposition": "implemented",
+      "evidence": [
+        {
+          "file": "packages/work/test/integration/tasks.test.ts",
+          "contains": "fields: dates, deadline as date or instant, estimates, deliverable; done only through Complete"
+        },
+        {
+          "file": "packages/db/migrations/0023_work_tasks.up.sql",
+          "contains": "deadline_tz"
+        }
+      ],
+      "note": "Status, priority, start, due, deadline (OD-01). Scheduled time and duration are planning work blocks (3C).",
+      "enriched_by": [
+        "3C"
+      ],
+      "accepted_by": [
+        "adr:0014#T3"
+      ]
+    },
+    {
+      "id": "TSK-006",
+      "role": "owned",
+      "disposition": "implemented",
+      "evidence": [
+        {
+          "file": "apps/web/src/pages/task-pages.tsx",
+          "contains": "Work blocks for this task arrive with planning (3C)"
+        },
+        {
+          "file": "docs/product/open-decisions.md",
+          "contains": "### OD-01"
+        }
+      ],
+      "note": "Due dates and deadlines are dates on the task; scheduled blocks are a separate 3C record.",
+      "enriched_by": [
+        "3C"
+      ],
+      "accepted_by": [
+        "catalog:contributing"
+      ]
+    },
+    {
+      "id": "TSK-007",
+      "role": "owned",
+      "disposition": "implemented",
+      "evidence": [
+        {
+          "file": "packages/db/migrations/0023_work_tasks.up.sql",
+          "contains": "task_assignee_one_primary"
+        },
+        {
+          "file": "packages/work/test/integration/tasks.test.ts",
+          "contains": "assignees: active members only, one primary, never authority; departure ends assignments"
+        }
+      ],
+      "note": "One or more active members, one primary, never authority."
+    },
+    {
+      "id": "TSK-008",
+      "role": "contributing",
+      "disposition": "contributed",
+      "contribution": "2B",
+      "evidence": [
+        {
+          "file": "packages/db/migrations/0023_work_tasks.up.sql",
+          "contains": "CREATE TABLE work.task_assignee ("
+        }
+      ],
+      "note": "Extension point only: assignment is a separate fact table that an agent assignee kind can join in 8B; no agent rows in 2B."
+    },
+    {
+      "id": "TSK-009",
+      "role": "contributing",
+      "disposition": "contributed",
+      "contribution": "2B",
+      "evidence": [
+        {
+          "file": "apps/web/src/pages/task-pages.tsx",
+          "contains": "followers: 'Followers (4A)'"
+        }
+      ],
+      "note": "No follower rows in 2B; the task page names followers as a 4A absence."
+    },
+    {
+      "id": "TSK-010",
+      "role": "owned",
+      "disposition": "implemented",
+      "evidence": [
+        {
+          "file": "packages/work/test/integration/tasks.test.ts",
+          "contains": "depth is bounded by TASK_DEPTH_MAX (root = 0) and the database ceiling is 64"
+        },
+        {
+          "file": "packages/db/migrations/0023_work_tasks.up.sql",
+          "contains": "CHECK (depth BETWEEN 0 AND 64)"
+        }
+      ],
+      "note": "Subtasks bounded by TASK_DEPTH_MAX and TASK_SUBTREE_MAX."
+    },
+    {
+      "id": "TSK-011",
+      "role": "owned",
+      "disposition": "implemented",
+      "evidence": [
+        {
+          "file": "packages/work/test/integration/tasks.test.ts",
+          "contains": "checklists are ordered reversible facts that never change task status"
+        },
+        {
+          "file": "packages/db/migrations/0023_work_tasks.up.sql",
+          "contains": "CREATE TABLE work.checklist_item ("
+        }
+      ],
+      "note": "Ordered checklists."
+    },
+    {
+      "id": "TSK-012",
+      "role": "owned",
+      "disposition": "implemented",
+      "evidence": [
+        {
+          "file": "packages/work/test/integration/tasks.test.ts",
+          "contains": "relationships: one blocks family (blocked by is its inverse), related stored once, no cycles"
+        }
+      ],
+      "note": "Dependencies are blocks edges (OD-05)."
+    },
+    {
+      "id": "TSK-013",
+      "role": "owned",
+      "disposition": "implemented",
+      "evidence": [
+        {
+          "file": "packages/work/test/integration/tasks.test.ts",
+          "contains": "relationships: one blocks family (blocked by is its inverse), related stored once, no cycles"
+        },
+        {
+          "file": "packages/work/test/integration/task-access.test.ts",
+          "contains": "hidden relationship endpoints, children, and counts disappear consistently (AT-119)"
+        }
+      ],
+      "note": "Blocking and blocked-by are one directed edge."
+    },
+    {
+      "id": "TSK-014",
+      "role": "owned",
+      "disposition": "implemented",
+      "evidence": [
+        {
+          "file": "packages/work/test/integration/tasks.test.ts",
+          "contains": "related stored once"
+        }
+      ],
+      "note": "Related is symmetric and stored once."
+    },
+    {
+      "id": "TSK-015",
+      "role": "owned",
+      "disposition": "implemented",
+      "evidence": [
+        {
+          "file": "packages/db/migrations/0023_work_tasks.up.sql",
+          "contains": "CREATE TABLE work.label ("
+        },
+        {
+          "file": "packages/work/test/integration/tasks.test.ts",
+          "contains": "labels: one brand each, normalized unique names, archived stay on tasks; never authority"
+        }
+      ],
+      "note": "Brand-scoped labels (tags are the same concept)."
+    },
+    {
+      "id": "TSK-017",
+      "role": "owned",
+      "disposition": "implemented",
+      "evidence": [
+        {
+          "file": "packages/db/migrations/0024_task_relationships_sharing.up.sql",
+          "contains": "CREATE TABLE relations.record_link ("
+        },
+        {
+          "file": "packages/work/test/integration/tasks.test.ts",
+          "contains": "links: https only, normalized; record targets only for registered readable types"
+        }
+      ],
+      "note": "Safe https links and the record-target adapter; files (4E), documents (4C), and external records (6A) attach later.",
+      "enriched_by": [
+        "4C",
+        "4E",
+        "6A"
+      ],
+      "accepted_by": [
+        "catalog:contributing"
+      ]
+    },
+    {
+      "id": "TSK-020",
+      "role": "owned",
+      "disposition": "implemented",
+      "evidence": [
+        {
+          "file": "packages/work/test/integration/tasks.test.ts",
+          "contains": "completion gates: required criteria and inherited project definition of done; override needs a reason"
+        }
+      ],
+      "note": "Acceptance criteria on tasks (OD-08)."
+    },
+    {
+      "id": "TSK-021",
+      "role": "owned",
+      "disposition": "implemented",
+      "evidence": [
+        {
+          "file": "packages/db/migrations/0023_work_tasks.up.sql",
+          "contains": "CREATE TABLE work.task_inherited_criterion ("
+        },
+        {
+          "file": "packages/work/test/integration/tasks.test.ts",
+          "contains": "inherited project definition of done"
+        }
+      ],
+      "note": "Task definition of done; project items inherited by evaluation."
+    },
+    {
+      "id": "TSK-022",
+      "role": "owned",
+      "disposition": "implemented",
+      "evidence": [
+        {
+          "file": "packages/db/migrations/0023_work_tasks.up.sql",
+          "contains": "expected_deliverable_type"
+        },
+        {
+          "file": "docs/product/open-decisions.md",
+          "contains": "### OD-09"
+        }
+      ],
+      "note": "Expected deliverable type (OD-09); file deliverables are 4E.",
+      "enriched_by": [
+        "4E"
+      ],
+      "accepted_by": [
+        "catalog:contributing"
+      ]
+    },
+    {
+      "id": "TSK-023",
+      "role": "owned",
+      "disposition": "implemented",
+      "evidence": [
+        {
+          "file": "packages/db/migrations/0023_work_tasks.up.sql",
+          "contains": "remaining_estimate_minutes"
+        },
+        {
+          "file": "docs/product/open-decisions.md",
+          "contains": "### OD-10"
+        }
+      ],
+      "note": "Estimate and remaining estimate (OD-10); tracked time is 3D.",
+      "enriched_by": [
+        "3D"
+      ],
+      "accepted_by": [
+        "catalog:contributing"
+      ]
+    },
+    {
+      "id": "TSK-034",
+      "role": "contributing",
+      "disposition": "contributed",
+      "contribution": "2B",
+      "evidence": [
+        {
+          "file": "apps/web/src/pages/task-pages.tsx",
+          "contains": "export function TaskPage"
+        },
+        {
+          "file": "docs/ux/02-information-architecture.md",
+          "contains": "Phase 2B implementation note"
+        }
+      ],
+      "note": "One canonical task record and page that every later view references (3A)."
+    },
+    {
+      "id": "TSK-039",
+      "role": "owned",
+      "disposition": "implemented",
+      "evidence": [
+        {
+          "file": "packages/work/test/integration/tasks.test.ts",
+          "contains": "history: the audit ledger projection with content redacted and hidden endpoints omitted"
+        },
+        {
+          "file": "apps/api/test/integration/tasks-api.test.ts",
+          "contains": "history"
+        }
+      ],
+      "note": "History projected from the audit ledger; previous values for plain fields."
+    },
+    {
+      "id": "TIME-003",
+      "role": "contributing",
+      "disposition": "contributed",
+      "contribution": "2B",
+      "evidence": [
+        {
+          "file": "packages/db/migrations/0023_work_tasks.up.sql",
+          "contains": "estimate_minutes"
+        },
+        {
+          "file": "packages/work/test/integration/tasks.test.ts",
+          "contains": "project rollups: completion is readable done leaves over readable non-cancelled leaves (OD-13)"
+        }
+      ],
+      "note": "Planned effort per task (estimates); project effort rollups are 3D."
+    }
+  ],
+  "decisions": [
+    {
+      "id": "D1",
+      "title": "OD-02 scope and cross-brand move",
+      "adr_row": "T1",
+      "sources": [
+        {
+          "file": "docs/product/open-decisions.md",
+          "contains": "### OD-02"
+        }
+      ],
+      "evidence": [
+        {
+          "file": "packages/db/migrations/0024_task_relationships_sharing.up.sql",
+          "contains": "CREATE FUNCTION work.move_task_brand"
+        },
+        {
+          "file": "packages/work/test/integration/tasks.test.ts",
+          "contains": "cross-brand move: manage in both brands, preview then atomic apply; labels removed; stale preview refused"
+        },
+        {
+          "file": "docs/engineering/adr/0014-tasks-relationships.md",
+          "contains": "| T1 |"
+        }
+      ]
+    },
+    {
+      "id": "D2",
+      "title": "Six immutable task statuses",
+      "adr_row": "T2",
+      "sources": [
+        {
+          "file": "docs/product/lifecycle-and-states.md",
+          "contains": "Backlog"
+        }
+      ],
+      "evidence": [
+        {
+          "file": "packages/db/migrations/0023_work_tasks.up.sql",
+          "contains": "'task', 'cancelled', 'Cancelled', 'cancelled', 6"
+        },
+        {
+          "file": "docs/engineering/adr/0014-tasks-relationships.md",
+          "contains": "| T2 |"
+        }
+      ]
+    },
+    {
+      "id": "D3",
+      "title": "Dates per OD-01",
+      "adr_row": "T3",
+      "sources": [
+        {
+          "file": "docs/product/open-decisions.md",
+          "contains": "### OD-01"
+        }
+      ],
+      "evidence": [
+        {
+          "file": "packages/work/test/integration/tasks.test.ts",
+          "contains": "fields: dates, deadline as date or instant"
+        },
+        {
+          "file": "docs/engineering/adr/0014-tasks-relationships.md",
+          "contains": "| T3 |"
+        }
+      ]
+    },
+    {
+      "id": "D4",
+      "title": "Assignees",
+      "adr_row": "T4",
+      "sources": [
+        {
+          "file": "docs/architecture/data/12-decisions.md",
+          "contains": "ADR-22"
+        }
+      ],
+      "evidence": [
+        {
+          "file": "packages/work/test/integration/tasks.test.ts",
+          "contains": "assignees: active members only, one primary, never authority"
+        },
+        {
+          "file": "docs/engineering/adr/0014-tasks-relationships.md",
+          "contains": "| T4 |"
+        }
+      ]
+    },
+    {
+      "id": "D5",
+      "title": "Subtask tree bounds",
+      "adr_row": "T5",
+      "sources": [
+        {
+          "file": "docs/architecture/platform/19-decisions.md",
+          "contains": "TASK_DEPTH_MAX"
+        }
+      ],
+      "evidence": [
+        {
+          "file": "packages/work/test/integration/tasks.test.ts",
+          "contains": "database ceiling is 64"
+        },
+        {
+          "file": "packages/work/test/integration/tasks.test.ts",
+          "contains": "concurrent opposing reparents serialize"
+        },
+        {
+          "file": "docs/engineering/adr/0014-tasks-relationships.md",
+          "contains": "| T5 |"
+        }
+      ]
+    },
+    {
+      "id": "D6",
+      "title": "Checklists",
+      "adr_row": "T6",
+      "sources": [
+        {
+          "file": "docs/architecture/data/12-decisions.md",
+          "contains": "checklist_item"
+        }
+      ],
+      "evidence": [
+        {
+          "file": "packages/work/test/integration/tasks.test.ts",
+          "contains": "never change task status"
+        },
+        {
+          "file": "docs/engineering/adr/0014-tasks-relationships.md",
+          "contains": "| T6 |"
+        }
+      ]
+    },
+    {
+      "id": "D7",
+      "title": "Dependencies",
+      "adr_row": "T7",
+      "sources": [
+        {
+          "file": "docs/architecture/data/04-relationship-primitives.md",
+          "contains": "blocks"
+        }
+      ],
+      "evidence": [
+        {
+          "file": "packages/work/test/integration/tasks.test.ts",
+          "contains": "no cycles"
+        },
+        {
+          "file": "docs/engineering/adr/0014-tasks-relationships.md",
+          "contains": "| T7 |"
+        }
+      ]
+    },
+    {
+      "id": "D8",
+      "title": "Labels",
+      "adr_row": "T8",
+      "sources": [
+        {
+          "file": "docs/architecture/data/12-decisions.md",
+          "contains": "task_label"
+        }
+      ],
+      "evidence": [
+        {
+          "file": "packages/work/test/integration/tasks.test.ts",
+          "contains": "labels: one brand each"
+        },
+        {
+          "file": "docs/engineering/adr/0014-tasks-relationships.md",
+          "contains": "| T8 |"
+        }
+      ]
+    },
+    {
+      "id": "D9",
+      "title": "Rich description",
+      "adr_row": "T9",
+      "sources": [
+        {
+          "file": "docs/architecture/platform/19-decisions.md",
+          "contains": "PL-23"
+        }
+      ],
+      "evidence": [
+        {
+          "file": "packages/db/migrations/0023_work_tasks.up.sql",
+          "contains": "description_rich"
+        },
+        {
+          "file": "docs/engineering/adr/0014-tasks-relationships.md",
+          "contains": "| T9 |"
+        }
+      ]
+    },
+    {
+      "id": "D10",
+      "title": "Criteria and inherited definition of done",
+      "adr_row": "T10",
+      "sources": [
+        {
+          "file": "docs/product/open-decisions.md",
+          "contains": "### OD-08"
+        }
+      ],
+      "evidence": [
+        {
+          "file": "packages/work/test/integration/tasks.test.ts",
+          "contains": "override needs a reason"
+        },
+        {
+          "file": "docs/engineering/adr/0014-tasks-relationships.md",
+          "contains": "| T10 |"
+        }
+      ]
+    },
+    {
+      "id": "D11",
+      "title": "Expected deliverable",
+      "adr_row": "T11",
+      "sources": [
+        {
+          "file": "docs/product/open-decisions.md",
+          "contains": "### OD-09"
+        }
+      ],
+      "evidence": [
+        {
+          "file": "packages/db/migrations/0023_work_tasks.up.sql",
+          "contains": "expected_deliverable_type"
+        },
+        {
+          "file": "docs/engineering/adr/0014-tasks-relationships.md",
+          "contains": "| T11 |"
+        }
+      ]
+    },
+    {
+      "id": "D12",
+      "title": "Estimates",
+      "adr_row": "T12",
+      "sources": [
+        {
+          "file": "docs/product/open-decisions.md",
+          "contains": "### OD-10"
+        }
+      ],
+      "evidence": [
+        {
+          "file": "packages/db/migrations/0023_work_tasks.up.sql",
+          "contains": "remaining_estimate_minutes"
+        },
+        {
+          "file": "docs/engineering/adr/0014-tasks-relationships.md",
+          "contains": "| T12 |"
+        }
+      ]
+    },
+    {
+      "id": "D13",
+      "title": "Links",
+      "adr_row": "T13",
+      "sources": [
+        {
+          "file": "docs/architecture/data/04-relationship-primitives.md",
+          "contains": "record_link"
+        }
+      ],
+      "evidence": [
+        {
+          "file": "packages/db/migrations/0024_task_relationships_sharing.up.sql",
+          "contains": "https"
+        },
+        {
+          "file": "docs/engineering/adr/0014-tasks-relationships.md",
+          "contains": "| T13 |"
+        }
+      ]
+    },
+    {
+      "id": "D14",
+      "title": "History over the audit ledger",
+      "adr_row": "T14",
+      "sources": [
+        {
+          "file": "docs/architecture/access/15-decisions.md",
+          "contains": "AZ-22"
+        }
+      ],
+      "evidence": [
+        {
+          "file": "packages/work/test/integration/tasks.test.ts",
+          "contains": "history: the audit ledger projection"
+        },
+        {
+          "file": "docs/engineering/adr/0014-tasks-relationships.md",
+          "contains": "| T14 |"
+        }
+      ]
+    },
+    {
+      "id": "D15",
+      "title": "Task share boundary",
+      "adr_row": "T15",
+      "sources": [
+        {
+          "file": "docs/architecture/access/06-guests-sharing-public-links.md",
+          "contains": "Task share boundary"
+        }
+      ],
+      "evidence": [
+        {
+          "file": "packages/work/test/integration/task-access.test.ts",
+          "contains": "share-only boundary: the task, its checklist and own criteria; nothing else; no onward sharing"
+        },
+        {
+          "file": "docs/engineering/adr/0014-tasks-relationships.md",
+          "contains": "| T15 |"
+        }
+      ]
+    },
+    {
+      "id": "D16",
+      "title": "Completion and reopen",
+      "adr_row": "T16",
+      "sources": [
+        {
+          "file": "docs/architecture/access/policy/policy.json",
+          "contains": "task.override_completion"
+        }
+      ],
+      "evidence": [
+        {
+          "file": "packages/work/test/integration/tasks.test.ts",
+          "contains": "a parent with incomplete subtasks needs a confirmed override; completing never cascades"
+        },
+        {
+          "file": "docs/engineering/adr/0014-tasks-relationships.md",
+          "contains": "| T16 |"
+        }
+      ]
+    },
+    {
+      "id": "D17",
+      "title": "Duplicate",
+      "adr_row": "T17",
+      "sources": [
+        {
+          "file": "docs/architecture/data/12-decisions.md",
+          "contains": "ADR-22"
+        }
+      ],
+      "evidence": [
+        {
+          "file": "packages/work/test/integration/tasks.test.ts",
+          "contains": "duplicate copies fields"
+        },
+        {
+          "file": "docs/engineering/adr/0014-tasks-relationships.md",
+          "contains": "| T17 |"
+        }
+      ]
+    },
+    {
+      "id": "D18",
+      "title": "Lifecycle scope",
+      "adr_row": "T18",
+      "sources": [
+        {
+          "file": "docs/architecture/data/12-decisions.md",
+          "contains": "ADR-22"
+        }
+      ],
+      "evidence": [
+        {
+          "file": "packages/work/test/integration/tasks.test.ts",
+          "contains": "lifecycle applies to the selected task only unless include_subtasks"
+        },
+        {
+          "file": "docs/engineering/adr/0014-tasks-relationships.md",
+          "contains": "| T18 |"
+        }
+      ]
+    }
+  ]
+}
