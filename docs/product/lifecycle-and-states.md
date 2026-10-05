@@ -39,14 +39,21 @@ Project status categories map to the portfolio states that FEATURES requires (GO
 
 | Status | Category | Allowed next (default) | Notes |
 |---|---|---|---|
-| Backlog | planned | To do, In progress, Cancelled | |
-| To do | planned | Backlog, In progress, Blocked, Cancelled | |
-| In progress | active | To do, Blocked, Done, Cancelled | |
-| Blocked | paused | To do, In progress, Cancelled | A manual state; a `blocks` dependency is shown, never a status change |
-| Done | done | Reopen | Only through *complete*: required acceptance and definition-of-done items must be met, or an authorized override records a reason |
-| Cancelled | cancelled | Reopen | |
+| Backlog | planned | Any non-terminal status; Cancel | |
+| To do | planned | Any non-terminal status; Cancel | |
+| In progress | active | Any non-terminal status; Complete; Cancel | |
+| Blocked | paused | Any non-terminal status; Cancel | A manual state; a `blocks` dependency is shown, never a status change |
+| Done | done | Reopen | Only through *Complete*: required acceptance and definition-of-done items must be met, or an authorized override records a reason |
+| Cancelled | cancelled | Reopen | Only through *Cancel* (a status change into a cancelled status) |
 
-These six statuses are the immutable platform defaults seeded in Phase 2B; 2C adds custom statuses and transitions without a second status table. Reopening returns to the prior non-terminal status when it is still valid, otherwise To do. Completing a parent never completes its descendants, and completing a child never changes its parent's or project's status.
+These six statuses are the immutable platform defaults seeded in Phase 2B. The default project workflow is the five 2A statuses (Planned, Active, On hold, Completed, Cancelled) with the same rules. Reopening returns to the prior non-terminal status when it is still valid, otherwise the first planned status. Completing a parent never completes its descendants, and completing a child never changes its parent's or project's status.
+
+### Configurable workflows (Phase 2C, WFL-002–007)
+
+- **One workflow system.** A workflow targets one record kind (project or task) and one scope (workspace, brand, or project). The most specific applicable workflow wins: project → brand → workspace → platform default. A project-scoped task workflow applies only to that project's tasks; projectless tasks use their brand's, then the workspace's, then the default. Changing a workflow never changes who can see a record.
+- **Statuses.** A custom status has a stable identity, a name, description, color, icon, and order, and exactly one category from the table above. The category is fixed. Renaming, recoloring, and reordering keep identity and history. A status in use cannot be deleted: archiving removes it from new choices, and records keep it until they are migrated.
+- **Transitions.** Without transition rules a workflow behaves like the default. Once a workflow has any active transition, only its registered edges are allowed. Complete, Cancel, and Reopen still apply, and a generic edit can never skip a rule.
+- **Required fields and approvals.** A transition can require built-in or custom fields (checked on the final record, before the change) and an approval (`one_manager` or `all_named_approvers`). Approval requests are bound to the record version. Any change makes a pending request stale, and nobody approves their own request unless the transition allows it and the workspace's self-approval policy permits it ([OD-20](open-decisions.md#od-20)). Review requested and changes requested states are Phase 4A.
 
 ## 3. Completion, review, and acceptance are different facts
 

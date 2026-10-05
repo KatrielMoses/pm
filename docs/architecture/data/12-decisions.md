@@ -198,3 +198,18 @@ Status of every ADR: **proposed (Phase 0B)**, pending solutions-architect accept
   - **Description.** Rich text version 1 in `description_rich` (0D PL-23).
 - **Alternatives:** Mandatory projects (contradicts TSK-003). Unlimited depth (unbounded rewrites). A task status table (a second status system). Copying project definition-of-done items into tasks (drifts from the source). A mutable history table (diverges from the audit ledger).
 - **Consequences:** Task visibility is the 1D compiler's: project-contained tasks follow their project chain; projectless tasks follow the brand. Project completion becomes readable done leaf tasks over readable non-cancelled leaf tasks (OD-13).
+
+<a id="adr-23"></a>
+## ADR-23: Configurable workflows and custom fields (Phase 2C amendment)
+
+- **Decision:**
+  - **One workflow system.** `workflow.workflow` (`wf_`) targets one record kind (project or task) at one scope (workspace, brand, or project); at most one active workflow per scope and kind. Resolution: project → brand → workspace → platform default. `workflow.platform_status` stays the immutable default and is never copied.
+  - **Statuses.** `workflow.workflow_status` (`sts_`) rows belong to one workflow and carry exactly one fixed category. A record's `status_id` references a platform status or a workflow status. A trigger checks it on every write: the status belongs to the record kind, and a newly chosen custom status belongs to the workflow that currently applies. A delete guard refuses removing a status in use. `status_category` stays denormalized and guarded.
+  - **Transitions.** `workflow.transition` (`trn_`) rows replace the planned `workflow_revision` snapshot. Requirements (`transition_requirement`) and named approvers (`transition_approver`) are child rows. Approval requests bind to a transition version.
+  - **Approvals.** `workflow.approval_request` (`wap_`) and `workflow.approval_decision` are append-only facts. A request records the record version, transition and version, fingerprint, requester, approvers, and expiry; its only mutation is a one-time close (`applied` or `withdrawn`).
+  - **Fields.** `workflow.field_definition` (`fld_`) carries the immutable type, typed `config`, presentation, applicability (`always` or `via_set`), view-visibility metadata, and, for formulas, the AST, version, and result type. `calculated_field_definition` is folded into the formula type (OD-11); `formula_dependency` stores explicit edges. Broader-scope fields accumulate unless shadowed by the same `lineage_id`.
+  - **Values.** `workflow.field_value` is the one value relation (definition, record). It holds validated typed JSON plus normalized typed columns, workspace and brand roots, version, updater, and RLS. Currency is integer minor units plus an ISO 4217 code. Formula results are computed rows with a typed error code.
+  - **Field sets.** `workflow.field_set` (`fst_`), immutable `field_set_version`, and `field_set_attachment` (lineage, not a copy). Upgrades are explicit.
+  - **Field visibility.** `access.field_policy` (0C §7.1) is implemented for custom definitions.
+- **Alternatives:** A JSON blob of transitions per revision (it cannot carry foreign keys to statuses, fields, or approvers). A column per custom field (unbounded schema churn). A separate calculated-field entity (two engines).
+- **Consequences:** Two migrations, `0025_workflow_configuration` and `0026_custom_fields`, with down migrations to 0024. Imports and exports (6D) serialize through the canonical field schema (WFL-014).

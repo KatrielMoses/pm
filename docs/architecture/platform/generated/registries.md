@@ -82,6 +82,12 @@ Source: `contracts/registry.json`.
 | `chk_` | checklist_item | work.checklist_item | work | Phase 2B (PL-24). |
 | `lbl_` | label | work.label | work | Phase 2B (PL-24). |
 | `lnk_` | record_link | relations.record_link | relations | Phase 2B (PL-24). |
+| `sts_` | workflow_status | workflow.workflow_status | workflow | Phase 2C (PL-25). |
+| `trn_` | transition | workflow.transition | workflow | Phase 2C (PL-25). |
+| `wap_` | workflow_approval | workflow.approval_request | workflow | Phase 2C (PL-25). |
+| `fld_` | field_definition | workflow.field_definition | workflow | Phase 2C (PL-25). |
+| `fop_` | field_option | workflow.field_option | workflow | Phase 2C (PL-25). |
+| `fst_` | field_set | workflow.field_set | workflow | Phase 2C (PL-25). |
 
 ## Error codes
 
@@ -255,6 +261,20 @@ Source: `contracts/registry.json`.
 | `templates.template.applied` v1 | templates.template | template_version_id, record_id | C1 | yes |  |  | yes |  | — |
 | `planning.recurrence_series.defined` v1 | planning.recurrence_series | target_kind | C1 | yes |  |  |  |  | — |
 | `planning.recurrence_series.state_changed` v1 | planning.recurrence_series | state | C1 | yes |  |  |  |  | — |
+| `workflow.workflow.created` v1 | workflow.workflow | record_kind, scope_kind | C1 | yes |  |  |  |  | — |
+| `workflow.workflow.updated` v1 | workflow.workflow | changed_fields, lifecycle_state | C1 | yes |  |  |  |  | — |
+| `workflow.status.created` v1 | workflow.workflow_status | workflow_id, category | C1 | yes |  |  |  |  | — |
+| `workflow.status.updated` v1 | workflow.workflow_status | workflow_id, changed_fields, lifecycle_state | C1 | yes |  |  |  |  | — |
+| `workflow.transition.created` v1 | workflow.transition | workflow_id, approval_policy | C1 | yes |  |  |  |  | — |
+| `workflow.transition.updated` v1 | workflow.transition | workflow_id, changed_fields, lifecycle_state | C1 | yes |  |  |  |  | — |
+| `workflow.approval_request.created` v1 | workflow.approval_request | transition_id, policy, record_type | C1 | yes |  |  |  |  | — |
+| `workflow.approval_request.decided` v1 | workflow.approval_request | decision, state | C1 | yes |  |  |  |  | — |
+| `workflow.approval_request.closed` v1 | workflow.approval_request | closed_reason | C1 | yes |  |  |  |  | — |
+| `workflow.field_definition.created` v1 | workflow.field_definition | field_type, scope_kind | C1 | yes |  |  |  |  | — |
+| `workflow.field_definition.updated` v1 | workflow.field_definition | changed_fields, lifecycle_state | C1 | yes |  |  |  |  | — |
+| `workflow.field_set.versioned` v1 | workflow.field_set | version | C1 | yes |  |  |  |  | — |
+| `workflow.field_set.applied` v1 | workflow.field_set | record_type, version | C1 | yes |  |  |  |  | — |
+| `workflow.field_value.changed` v1 | workflow.field_value | record_type, definition_ids | C1 | yes |  |  |  |  | — |
 
 ## SSE topics
 
@@ -389,6 +409,9 @@ Forbidden metric labels: `workspace_id`, `brand_id`, `record_id`, `public_id`, `
 | `work.hierarchy.moves` | counter | outcome | work |
 | `work.task.moves` | counter | outcome | work |
 | `work.task.completions` | counter | outcome | work |
+| `workflow.transitions` | counter | outcome | workflow |
+| `workflow.transition.duration` | histogram | outcome | workflow |
+| `workflow.formula.evaluations` | counter | outcome | workflow |
 
 ## Named parameters (values are configuration, not promises)
 
@@ -445,3 +468,20 @@ Forbidden metric labels: `workspace_id`, `brand_id`, `record_id`, `public_id`, `
 | `TASK_LABELS_MAX` | Most labels on one task; default 50, range 1–200. | 2B |
 | `BRAND_LABELS_MAX` | Most active and archived labels in one brand; default 1000, range 1–10000. | 2B |
 | `TASK_ESTIMATE_MINUTES_MAX` | Largest estimate or remaining estimate, in minutes; default 100000, range 60–1000000. | 2B |
+| `WORKFLOW_STATUSES_MAX` | Most statuses in one workflow; default 50, range 2–200. | 2C |
+| `WORKFLOW_TRANSITIONS_MAX` | Most transitions in one workflow; default 400, range 1–2000. | 2C |
+| `TRANSITION_REQUIREMENTS_MAX` | Most required fields on one transition; default 30, range 1–100. | 2C |
+| `TRANSITION_APPROVERS_MAX` | Most named approvers on one transition; default 10, range 1–50. | 2C |
+| `APPROVAL_EXPIRY_HOURS` | How long an approval request stays valid; default 168, range 1–2160. | 2C |
+| `TRANSITION_PREVIEW_TTL_SECONDS` | Lifetime of a signed transition preview fingerprint; default 600, range 60–3600. | 2C |
+| `FIELD_DEFINITIONS_MAX` | Most active field definitions at one scope; default 200, range 1–1000. | 2C |
+| `FIELD_OPTIONS_MAX` | Most options on one select field; default 200, range 2–1000. | 2C |
+| `FIELD_SETS_MAX` | Most active field sets at one scope; default 100, range 1–500. | 2C |
+| `FIELD_SET_ITEMS_MAX` | Most definitions in one field set version; default 100, range 1–500. | 2C |
+| `FIELD_TEXT_MAX` | Longest custom text value in characters; default 5000, range 1–20000. | 2C |
+| `FIELD_PATTERN_MAX` | Longest validation pattern in characters; default 200, range 1–1000. | 2C |
+| `FORMULA_SOURCE_MAX` | Longest formula source in characters; default 2000, range 10–10000. | 2C |
+| `FORMULA_AST_NODES_MAX` | Most nodes in a compiled formula; default 200, range 10–2000. | 2C |
+| `FORMULA_DEPTH_MAX` | Deepest formula dependency chain; default 8, range 1–32. | 2C |
+| `FORMULA_REFS_MAX` | Most field references in one formula; default 20, range 1–100. | 2C |
+| `FIELD_VALUE_BULK_MAX` | Most records migrated by one status or option replacement command; default 500, range 1–5000. | 2C |

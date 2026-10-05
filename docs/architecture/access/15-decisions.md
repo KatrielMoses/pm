@@ -219,3 +219,15 @@ All decisions are **proposed (Phase 0C)**, pending solutions-architect acceptanc
   - **New actions.** `task.override_completion` and `label.manage`. The action count becomes 109.
 - **Alternatives:** Assignment as a grant (contradicts I-10). Shares implying children or the project (contradicts OD-04). A separate task permission table (a second authority source).
 - **Consequences:** The compiled predicate's governing-project derivation gains tasks; preview and enforcement stay one engine.
+
+<a id="az-23"></a>
+### AZ-23: Workflow configuration, transitions, approvals, and field policy (Phase 2C amendment)
+- **Decision:**
+  - **Configuration.** `workflow.configure` and `fields.configure` are decided at the configuration's own scope: workspace, brand (`decideBrand`, so sensitive brands need an explicit manage grant), or project (`decideProject`, so restricted projects need explicit project manage). There is no owner or administrator bypass, and nobody configures above their grantable authority. Changing a workflow or field scope never changes record authority.
+  - **Transitions.** `workflow.transition` (record, edit) covers preview and apply, including Complete, Cancel, and Reopen. A generic edit that changes status runs the same evaluator (AT-122). Required fields are checked on the final merged record under lock, and a missing field leaves the record unchanged (AT-123).
+  - **Approvals.** `workflow.approval_request` (record, edit) and `workflow.approval_decide` (record, view, plus policy eligibility). Eligibility is manage on the record (`one_manager`) or being a named approver (`all_named_approvers`). An approver who cannot read the record gets `not_found`, and their queue omits the request (AT-124). Being an approver grants no access. Self-approval needs the transition flag and the workspace `self_approval` policy (OD-20). Agents and other non-human principals never decide. Any change to the record, transition, or permission makes a request or preview stale (AT-125).
+  - **Field policy.** `access.field_policy` (0C §7.1) is applied to custom fields through `field.value_read` and `field.value_edit` by every serializer, error, count, audit display, and serialization. Hidden fields are absent, not null (AT-126). A formula is readable only where every input is readable (AT-127). `field.formula_inspect` explains inputs only under the same rule.
+  - **References.** Person and label values never grant access (AT-128).
+  - **New actions.** `workflow.transition`, `workflow.approval_request`, `workflow.approval_decide`, `field.value_read`, `field.value_edit`, `field.formula_inspect`. The action count becomes 115.
+- **Alternatives:** Approval rights as an access grant (contradicts I-10). UI-only field hiding (contradicts I-18). A separate approval permission table (a second authority source).
+- **Consequences:** The compiled context gains readable and editable custom field keys per (record kind, scope). Preview and enforcement stay one evaluator.

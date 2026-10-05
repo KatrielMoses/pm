@@ -789,7 +789,7 @@ Field visibility/edit policy for a record type at a scope (workspace, brand, pro
 | Key typed columns | `record_type`; `scope_record_id null (project envelope in core.record)`; `field_key text (core field key or custom field id)`; `read_rule field_rule (all_readers\|min_level\|roles\|teams)`; `read_min_level access_level null`; `read_principals uuid[] null`; `edit_rule field_rule`; `edit_min_level access_level null`; `guest_visible boolean`; `index_for_search boolean` |
 | Sensitive fields | — |
 | Requirements | PERM-003, WFL-009 |
-| Notes | 0C §7.1. Public ID prefix fpol (0D registry). Calculated-field visibility is derived from its dependencies' policies, never stored separately. Field keys are validated by the access command against the core field catalog and workflow.field_definition (no cross-layer foreign key; retired field IDs remain valid). |
+| Notes | 0C §7.1. Public ID prefix fpol (0D registry). Calculated-field visibility is derived from its dependencies' policies, never stored separately. Field keys are validated by the access command against the core field catalog and workflow.field_definition (no cross-layer foreign key; retired field IDs remain valid). Phase 2C implements it for custom field definitions (field_key = definition id): read and edit minimum levels and guest visibility. Formula visibility is the intersection of its inputs. |
 
 <a id="entity-permission-epoch"></a>
 ### `permission_epoch`
@@ -1183,14 +1183,15 @@ Statuses, transitions, and rules for a record type at a scope (workspace, brand,
 | Contained by | — |
 | Extends (1:1) | — |
 | Associations | — |
-| Lifecycle / concurrency | `full` / `row-version` |
+| Lifecycle / concurrency | `mutable` / `row-version` |
 | Retention / confidentiality | `R-LIVE` / `C1` |
 | Volume / export / search-AI | `low` / `filtered` / `yes` |
 | Secrets / personal data | `no` / `incidental` |
-| Uniqueness | — |
-| Key typed columns | `record_type`; `scope_type (workspace\|brand\|project)`; `project_id null`; `current_revision_id` |
+| Uniqueness | `one active workflow per (workspace, scope_kind, brand_id, project_id, record_kind)` |
+| Key typed columns | `public_id text (wf_)`; `record_kind (project\|task)`; `scope_kind (workspace\|brand\|project)`; `brand_id null`; `project_id null`; `name`; `lifecycle_state (active\|archived)`; `version bigint` |
 | Sensitive fields | — |
-| Requirements | WFL-001, WFL-002, WFL-003 |
+| Requirements | WFL-001, WFL-002, WFL-003, PRJ-009 |
+| Notes | Phase 2C (ADR-23). Resolution is the most specific applicable scope: project → brand → workspace → platform default. Changing scope never changes record authority. Archive is reversible; purge is refused while records use its statuses. |
 
 <a id="entity-workflow-status"></a>
 ### `workflow_status`
@@ -1203,14 +1204,15 @@ A status with fixed category, color, order. Category is immutable; retire instea
 | Contained by | [`workflow`](logical-model.md#entity-workflow) |
 | Extends (1:1) | — |
 | Associations | — |
-| Lifecycle / concurrency | `mutable` / `ordered` |
+| Lifecycle / concurrency | `mutable` / `row-version` |
 | Retention / confidentiality | `R-LIVE` / `C1` |
 | Volume / export / search-AI | `low` / `filtered` / `yes` |
 | Secrets / personal data | `no` / `incidental` |
-| Uniqueness | `(workflow_id, lower(name)) among non-retired` |
-| Key typed columns | `name`; `category status_category (immutable)`; `color`; `rank text`; `retired_at` |
+| Uniqueness | `(workflow_id, normalized_name) among active statuses` |
+| Key typed columns | `public_id text (sts_)`; `workflow_id`; `name`; `description null`; `category status_category (immutable)`; `color`; `icon null`; `rank text`; `lifecycle_state (active\|archived)`; `version bigint` |
 | Sensitive fields | — |
-| Requirements | WFL-004, WFL-001 |
+| Requirements | WFL-002, WFL-003, WFL-004, PRJ-009 |
+| Notes | Phase 2C (ADR-23). A record's status_id references a platform status or a workflow status (trigger-checked, delete-guarded). The category is fixed; a status in use is archived, never deleted, until records are migrated. |
 
 <a id="entity-platform-status"></a>
 ### `platform_status`
@@ -1231,12 +1233,12 @@ Immutable platform-default statuses per record type (projects in 2A: Planned, Ac
 | Key typed columns | `record_type`; `key`; `name`; `category status_category (immutable)`; `rank` |
 | Sensitive fields | — |
 | Requirements | PRJ-009, PRJ-004 |
-| Notes | Phase 2A (ADR-21): seeded by migration only; Phase 2C adds workspace workflows and custom statuses. |
+| Notes | Phase 2A (ADR-21): seeded by migration only; Phase 2C adds workspace workflows and custom statuses. Phase 2C: unchanged immutable seeds; never copied into workflow_status. |
 
-<a id="entity-workflow-revision"></a>
-### `workflow_revision`
+<a id="entity-transition"></a>
+### `transition`
 
-Immutable snapshot of allowed transitions, required fields, and approval rules.
+A directed from-status → to-status rule of a workflow, with required fields, confirmation, and approval policy.
 
 | Property | Value |
 |---|---|
@@ -1244,14 +1246,120 @@ Immutable snapshot of allowed transitions, required fields, and approval rules.
 | Contained by | [`workflow`](logical-model.md#entity-workflow) |
 | Extends (1:1) | — |
 | Associations | — |
-| Lifecycle / concurrency | `versioned-immutable` / `append-only` |
+| Lifecycle / concurrency | `mutable` / `row-version` |
 | Retention / confidentiality | `R-LIVE` / `C1` |
 | Volume / export / search-AI | `low` / `filtered` / `yes` |
 | Secrets / personal data | `no` / `incidental` |
-| Uniqueness | `(workflow_id, revision_number)` |
-| Key typed columns | `transitions jsonb (validated schema)`; `required_fields jsonb`; `approval_rules jsonb`; `created_by` |
+| Uniqueness | `(workflow_id, from_status_id, to_status_id) among active transitions` |
+| Key typed columns | `public_id text (trn_)`; `workflow_id`; `from_status_id`; `to_status_id`; `description null`; `rank text`; `confirmation_tier (none\|confirm\|step_up)`; `approval_policy (none\|one_manager\|all_named_approvers)`; `allow_self_approval boolean`; `lifecycle_state (active\|archived)`; `version bigint` |
 | Sensitive fields | — |
 | Requirements | WFL-005, WFL-006, WFL-007 |
+| Notes | Phase 2C (ADR-23). Once a workflow has an active transition, only registered edges are allowed. Replaces the planned workflow_revision snapshot: transitions are versioned rows and approval requests bind to the transition version. |
+
+<a id="entity-transition-requirement"></a>
+### `transition_requirement`
+
+A field that must be present for a transition (built-in key or custom field definition).
+
+| Property | Value |
+|---|---|
+| Scope | `inherited` |
+| Contained by | [`transition`](logical-model.md#entity-transition) |
+| Extends (1:1) | — |
+| Associations | — |
+| Lifecycle / concurrency | `mutable` / `ordered` |
+| Retention / confidentiality | `R-LIVE` / `C1` |
+| Volume / export / search-AI | `low` / `filtered` / `yes` |
+| Secrets / personal data | `no` / `incidental` |
+| Uniqueness | — |
+| Key typed columns | `transition_id`; `field_kind (builtin\|custom)`; `builtin_key null`; `definition_id null`; `allow_manager_override boolean` |
+| Sensitive fields | — |
+| Requirements | WFL-006, TSK-031 |
+| Notes | Phase 2C (ADR-23). Checked on the final merged record under lock, before any mutation. |
+
+<a id="entity-transition-approver"></a>
+### `transition_approver`
+
+A named approver of a transition (all_named_approvers).
+
+| Property | Value |
+|---|---|
+| Scope | `inherited` |
+| Contained by | [`transition`](logical-model.md#entity-transition) |
+| Extends (1:1) | — |
+| Associations | — |
+| Lifecycle / concurrency | `mutable` / `ordered` |
+| Retention / confidentiality | `R-LIVE` / `C1` |
+| Volume / export / search-AI | `low` / `filtered` / `yes` |
+| Secrets / personal data | `no` / `yes` |
+| Uniqueness | — |
+| Key typed columns | `transition_id`; `membership_id` |
+| Sensitive fields | — |
+| Requirements | WFL-007 |
+| Notes | Phase 2C (ADR-23). Naming an approver grants no record access. |
+
+<a id="entity-approval-request"></a>
+### `approval_request`
+
+An immutable request to apply one transition to one record version.
+
+| Property | Value |
+|---|---|
+| Scope | `inherited` |
+| Contained by | [`workflow`](logical-model.md#entity-workflow) |
+| Extends (1:1) | — |
+| Associations | — |
+| Lifecycle / concurrency | `append-only` / `append-only` |
+| Retention / confidentiality | `R-LIVE` / `C1` |
+| Volume / export / search-AI | `medium` / `filtered` / `yes` |
+| Secrets / personal data | `no` / `yes` |
+| Uniqueness | — |
+| Key typed columns | `public_id text (wap_)`; `workflow_id`; `transition_id`; `transition_version`; `record_id`; `record_kind`; `record_version`; `fingerprint`; `requester_membership_id`; `policy`; `approver_membership_ids uuid[]`; `expires_at`; `closed_at null`; `closed_reason (applied\|withdrawn) null` |
+| Sensitive fields | — |
+| Requirements | WFL-007, TSK-029 |
+| Notes | Phase 2C (ADR-23). Facts are immutable except a one-time close. State (pending, approved, rejected, stale, expired, applied, withdrawn) is derived from decisions, the record version, and time. |
+
+<a id="entity-approval-decision"></a>
+### `approval_decision`
+
+An immutable approve or reject decision on an approval request.
+
+| Property | Value |
+|---|---|
+| Scope | `inherited` |
+| Contained by | [`approval_request`](logical-model.md#entity-approval-request) |
+| Extends (1:1) | — |
+| Associations | — |
+| Lifecycle / concurrency | `append-only` / `append-only` |
+| Retention / confidentiality | `R-LIVE` / `C1` |
+| Volume / export / search-AI | `medium` / `filtered` / `yes` |
+| Secrets / personal data | `no` / `yes` |
+| Uniqueness | — |
+| Key typed columns | `approval_request_id`; `approver_membership_id`; `decision (approve\|reject)`; `note_hash null`; `decided_at` |
+| Sensitive fields | — |
+| Requirements | WFL-007, TSK-029 |
+| Notes | Phase 2C (ADR-23). One decision per approver per request; never updated or deleted by application roles. |
+
+<a id="entity-formula-dependency"></a>
+### `formula_dependency`
+
+An explicit edge from a formula field definition to a field it reads.
+
+| Property | Value |
+|---|---|
+| Scope | `inherited` |
+| Contained by | [`field_definition`](logical-model.md#entity-field-definition) |
+| Extends (1:1) | — |
+| Associations | — |
+| Lifecycle / concurrency | `mutable` / `append-only` |
+| Retention / confidentiality | `R-LIVE` / `C1` |
+| Volume / export / search-AI | `low` / `filtered` / `yes` |
+| Secrets / personal data | `no` / `incidental` |
+| Uniqueness | — |
+| Key typed columns | `definition_id`; `depends_on_definition_id` |
+| Sensitive fields | — |
+| Requirements | WFL-011 |
+| Notes | Phase 2C (ADR-23). Cycle-checked at save (service plus deferred database guard); bounded by FORMULA_DEPTH_MAX and FORMULA_REFS_MAX. |
 
 <a id="entity-field-definition"></a>
 ### `field_definition`
@@ -1269,9 +1377,10 @@ Custom field definition with immutable type and validation rules; retire instead
 | Volume / export / search-AI | `low` / `filtered` / `yes` |
 | Secrets / personal data | `no` / `incidental` |
 | Uniqueness | `(scope_key, record_type, lower(name)) among non-retired` |
-| Key typed columns | `record_type`; `project_id null`; `field_type field_type (immutable)`; `validation jsonb`; `options via field_option`; `visibility jsonb`; `advanced boolean`; `retired_at` |
+| Key typed columns | `public_id text (fld_)`; `lineage_id uuid`; `scope_kind (workspace\|brand\|project)`; `brand_id null`; `project_id null`; `applies_to_project boolean`; `applies_to_task boolean`; `name`; `description null`; `field_type (immutable: text\|number\|currency\|percentage\|date\|person\|label\|checkbox\|url\|email\|select\|formula)`; `config jsonb (validated per type)`; `required boolean`; `presentation (primary\|advanced)`; `applicability (always\|via_set)`; `view_visibility jsonb`; `formula_ast jsonb null`; `formula_version int`; `result_type null`; `rank text`; `lifecycle_state (active\|archived)`; `version bigint` |
 | Sensitive fields | — |
-| Requirements | WFL-008, WFL-009, WFL-012, WFL-013 |
+| Requirements | TSK-016, WFL-008, WFL-009, WFL-011, WFL-012, WFL-013 |
+| Notes | Phase 2C (ADR-23). Formula is a field type (OD-11), not a second system. Fields from broader scopes accumulate unless shadowed by a narrower definition with the same lineage_id; names are not identity. Purge is refused while values or references exist. |
 
 <a id="entity-field-option"></a>
 ### `field_option`
@@ -1289,9 +1398,10 @@ Option of a select or multi-select field.
 | Volume / export / search-AI | `medium` / `filtered` / `yes` |
 | Secrets / personal data | `no` / `incidental` |
 | Uniqueness | — |
-| Key typed columns | standard columns only |
+| Key typed columns | `public_id text (fop_)`; `definition_id`; `label`; `color`; `rank text`; `lifecycle_state (active\|archived)`; `version bigint` |
 | Sensitive fields | — |
 | Requirements | WFL-008 |
+| Notes | Phase 2C (ADR-23). Stable identity; renaming keeps stored meaning. Removing an in-use option needs a replacement (bounded migration) or archival. |
 
 <a id="entity-field-set"></a>
 ### `field_set`
@@ -1309,19 +1419,20 @@ Reusable bundle of field definitions.
 | Volume / export / search-AI | `low` / `filtered` / `yes` |
 | Secrets / personal data | `no` / `incidental` |
 | Uniqueness | — |
-| Key typed columns | standard columns only |
+| Key typed columns | `public_id text (fst_)`; `scope_kind`; `brand_id null`; `project_id null`; `applies_to_project boolean`; `applies_to_task boolean`; `name`; `current_version int`; `lifecycle_state (active\|archived)`; `version bigint` |
 | Sensitive fields | — |
 | Requirements | WFL-010 |
+| Notes | Phase 2C (ADR-23). Versioned; applying attaches a version snapshot without copying definitions or values. |
 
-<a id="entity-calculated-field-definition"></a>
-### `calculated_field_definition`
+<a id="entity-field-set-version"></a>
+### `field_set_version`
 
-Sandboxed expression (validated AST), declared dependencies, version; values materialized.
+An immutable ordered snapshot of a field set's definitions and presentation overrides.
 
 | Property | Value |
 |---|---|
 | Scope | `inherited` |
-| Contained by | [`field_definition`](logical-model.md#entity-field-definition) |
+| Contained by | [`field_set`](logical-model.md#entity-field-set) |
 | Extends (1:1) | — |
 | Associations | — |
 | Lifecycle / concurrency | `versioned-immutable` / `append-only` |
@@ -1329,9 +1440,31 @@ Sandboxed expression (validated AST), declared dependencies, version; values mat
 | Volume / export / search-AI | `low` / `filtered` / `yes` |
 | Secrets / personal data | `no` / `incidental` |
 | Uniqueness | — |
-| Key typed columns | standard columns only |
+| Key typed columns | `field_set_id`; `version int`; `items jsonb (definition_id, presentation, rank)`; `created_by_membership_id` |
 | Sensitive fields | — |
-| Requirements | WFL-011, WFL-008 |
+| Requirements | WFL-010 |
+| Notes | Phase 2C (ADR-23). |
+
+<a id="entity-field-set-attachment"></a>
+### `field_set_attachment`
+
+A record's attachment to one field set version (lineage, not a copy).
+
+| Property | Value |
+|---|---|
+| Scope | `inherited` |
+| Contained by | — |
+| Extends (1:1) | — |
+| Associations | [`record`](logical-model.md#entity-record), [`field_set`](logical-model.md#entity-field-set) |
+| Lifecycle / concurrency | `mutable` / `row-version` |
+| Retention / confidentiality | `R-LIVE` / `C1` |
+| Volume / export / search-AI | `high` / `filtered` / `yes` |
+| Secrets / personal data | `no` / `incidental` |
+| Uniqueness | — |
+| Key typed columns | `record_id`; `field_set_id`; `version int`; `attached_by_membership_id` |
+| Sensitive fields | — |
+| Requirements | WFL-010 |
+| Notes | Phase 2C (ADR-23). Later set versions never change attached records until a manager explicitly upgrades them with a preview. |
 
 <a id="entity-field-value"></a>
 ### `field_value`
@@ -1348,10 +1481,11 @@ One typed value per (record, field); exactly one typed column populated per fiel
 | Retention / confidentiality | `R-LIVE` / `C2` |
 | Volume / export / search-AI | `very-high` / `filtered` / `yes` |
 | Secrets / personal data | `no` / `incidental` |
-| Uniqueness | `(record_id, field_id)` |
-| Key typed columns | `record_id`; `field_id`; `value_text`; `value_numeric numeric`; `value_date date`; `value_ts timestamptz`; `value_bool`; `value_ref uuid`; `value_option_ids uuid[]`; `computed_at/calc_version (calculated only)` |
+| Uniqueness | `(definition_id, record_id)` |
+| Key typed columns | `workspace_id`; `brand_id`; `definition_id`; `record_id`; `value jsonb (validated typed JSON)`; `value_text null`; `value_numeric numeric null`; `value_date date null`; `value_bool null`; `value_ref uuid null`; `currency_code char(3) null`; `computed boolean`; `formula_version int null`; `error_code (missing\|invalid\|divide_by_zero\|cycle\|overflow) null`; `extensions jsonb`; `updated_by_membership_id null`; `updated_at`; `version bigint` |
 | Sensitive fields | — |
-| Requirements | TSK-016, WFL-012, WFL-014 |
+| Requirements | TSK-016, WFL-008, WFL-011, WFL-012, WFL-014 |
+| Notes | Phase 2C (ADR-23). One canonical relation, never a column per field. Typed columns are normalized copies for filtering and sorting. Formula results are computed rows (read-only). Person and label values reference identities but grant no access. |
 
 ## Relationship primitives (`relations`, schema `relations`)
 

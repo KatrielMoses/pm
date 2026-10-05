@@ -240,3 +240,24 @@ All decisions are **proposed (Phase 0D)**, pending solutions-architect acceptanc
   - Cycle, depth, and criteria refusals are `validation_failed` issues (`cycle`, `depth_exceeded`, `criteria_incomplete`); share refusals follow 0C AZ-21/AZ-22.
 - **Alternatives:** A separate history table (the 1F audit ledger is the history). Per-entity events for checklist items and links (they are task content; `work.task.updated` names the changed fields).
 - **Consequences:** Event payloads carry identifiers, kinds, and states only, never titles, descriptions, checklist text, URLs, or label names. 74 ID prefixes, 72 events, 51 named parameters, 51 telemetry signals.
+
+<a id="pl-25"></a>
+### PL-25: Workflow and custom-field contracts (Phase 2C amendment)
+- **Decision:**
+  - Public ID prefixes `sts` (workflow status), `trn` (transition), `wap` (workflow approval request; `apr` is the agent action approval), `fld` (field definition), `fop` (field option), and `fst` (field set). Workflows keep `wf`.
+  - Fourteen C1 events. Five for configuration: `workflow.workflow.created`/`updated`, `workflow.status.created`/`updated`, `workflow.transition.created`/`updated`. Three for approvals: `workflow.approval_request.created`/`decided`/`closed`. Fields: `workflow.field_definition.created`/`updated`, `workflow.field_set.versioned`/`applied`, and `workflow.field_value.changed`. Status changes keep `work.task.status_changed` and `work.project.status_changed`.
+  - Named bounds:
+    - Workflows: `WORKFLOW_STATUSES_MAX` (50), `WORKFLOW_TRANSITIONS_MAX` (400), `TRANSITION_REQUIREMENTS_MAX` (30).
+    - Approvals and previews: `TRANSITION_APPROVERS_MAX` (10), `APPROVAL_EXPIRY_HOURS` (168), `TRANSITION_PREVIEW_TTL_SECONDS` (600).
+    - Fields and sets: `FIELD_DEFINITIONS_MAX` (200), `FIELD_OPTIONS_MAX` (200), `FIELD_SETS_MAX` (100), `FIELD_SET_ITEMS_MAX` (100), `FIELD_TEXT_MAX` (5000), `FIELD_PATTERN_MAX` (200).
+    - Formulas: `FORMULA_SOURCE_MAX` (2000), `FORMULA_AST_NODES_MAX` (200), `FORMULA_DEPTH_MAX` (8), `FORMULA_REFS_MAX` (20).
+    - Bulk migration: `FIELD_VALUE_BULK_MAX` (500).
+  - Three bounded signals: `workflow.transitions` (outcome), `workflow.transition.duration` (outcome), and `workflow.formula.evaluations` (outcome).
+  - Refusals:
+    - Transition refusals are `validation_failed` issues (`transition_not_allowed`, `required`, `invalid`).
+    - Approval gates are `approval_required`.
+    - Stale previews and approvals are `conflict` (`stale`).
+    - In-use configuration is `conflict` (`in_use`).
+    - Formula problems are `validation_failed` issues (`cycle`, `depth_exceeded`, `formula_invalid`).
+- **Alternatives:** A dedicated error code per workflow refusal (the 0D set is closed; issue codes carry the detail). Unbounded formula graphs.
+- **Consequences:** Event payloads carry identifiers, kinds, categories, and states only, never names, values, formulas, option labels, or emails. 80 ID prefixes, 86 events, 68 named parameters, 54 telemetry signals.

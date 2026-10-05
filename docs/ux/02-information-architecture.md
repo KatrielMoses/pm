@@ -289,6 +289,15 @@ Section navigation is a tab row on expanded and medium layouts, and a section me
 - **Creation:** inside a project, the brand is the project's and read-only; elsewhere in aggregate scope the brand is chosen explicitly.
 - **Honest absences:** comments and followers (4A), files and documents (4C/4E), external records (6A), agents (8B), reminders and recurrence (2D) show an "isn't available yet" state; scheduled time shows the empty work-block state (3C).
 
+**Phase 2C implementation note.** Workflows and custom fields are configured in settings and appear on existing project and task pages:
+- **Administration:** `/{ws}/settings/workflows`, `/{ws}/settings/fields`, and `/{ws}/settings/field-sets`. Each opens at workspace scope; a scope selector picks a brand or project, and project settings link there with that project preselected. Every reorder, connection, and option change has a button or menu alternative; there are no drag-only builders.
+- **Workflows:** record kind, statuses (name, category, color, order, archive), transitions as a list (from → to) with required fields, confirmation, and approval policy.
+- **Fields:** type-specific configuration, applicability (project, task), visibility (field policy), validation, options, a formula builder with dependencies and a safe preview, primary or advanced presentation, and stored view-visibility metadata (applied by views in 3A).
+- **Field sets:** ordered composition, scope, versions, and an explicit upgrade preview per record.
+- **Approvals:** `/{ws}/approvals` lists pending transition approvals the person may decide (before → after, requester, expiry, stale or expired state) with Approve and Reject. The requester applies an approved transition from the record.
+- **Records:** project and task pages resolve their workflow's statuses. A status change that needs fields or an approval opens a transition dialog. Custom fields appear in key fields, with advanced fields under "More fields": keyboard reachable, searchable by label, and expanded and focused when they hold an error.
+- **Honest absences:** review requested and changes requested states, comments, and notifications (4A), deliverable reviews (4E), saved-view application of field visibility (3A), and import and export jobs (6D).
+
 ## 6. Record page anatomy
 
 All record pages (task, project overview, document, goal, deliverable, test run, defect, release, agent run) share one anatomy. That way review, provenance and state appear in the same place everywhere.

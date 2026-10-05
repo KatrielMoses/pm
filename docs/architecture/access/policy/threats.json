@@ -429,6 +429,17 @@
         "I-10",
         "I-11"
       ]
+    },
+    {
+      "id": "T-41",
+      "category": "inference",
+      "description": "Workflow and field exposure: custom statuses, transitions, or approvals bypassing category, Complete/Reopen, or required-field rules; approvers or person/label field values gaining access; hidden fields, options, or formula inputs leaking through payloads, errors, counts, sorting, serialization, audit, or formula results; stale approvals or previews replayed.",
+      "mitigated_by": [
+        "I-01",
+        "I-02",
+        "I-10",
+        "I-18"
+      ]
     }
   ],
   "tests": [
@@ -2756,6 +2767,140 @@
       "expected": "deny",
       "response_shape": "forbidden",
       "silent_surfaces": []
+    },
+    {
+      "id": "AT-122",
+      "threats": [
+        "T-41"
+      ],
+      "principal": "member",
+      "setup": "Status edit that skips a registered transition, or patches into done without Complete",
+      "scope": "task",
+      "action": "workflow.transition",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "validation_generic",
+      "silent_surfaces": []
+    },
+    {
+      "id": "AT-123",
+      "threats": [
+        "T-41"
+      ],
+      "principal": "member",
+      "setup": "Transition with a missing required field; the record is unchanged",
+      "scope": "task",
+      "action": "workflow.transition",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "validation_generic",
+      "silent_surfaces": []
+    },
+    {
+      "id": "AT-124",
+      "threats": [
+        "T-41"
+      ],
+      "principal": "member",
+      "setup": "Named approver without read access to the record",
+      "scope": "task",
+      "action": "workflow.approval_decide",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "not_found",
+      "silent_surfaces": [
+        "ui_list",
+        "count_facet",
+        "notification_inapp"
+      ]
+    },
+    {
+      "id": "AT-125",
+      "threats": [
+        "T-41"
+      ],
+      "principal": "member",
+      "setup": "Apply with a stale approval or fingerprint after any record change",
+      "scope": "task",
+      "action": "workflow.transition",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "conflict_filtered",
+      "silent_surfaces": []
+    },
+    {
+      "id": "AT-126",
+      "threats": [
+        "T-41"
+      ],
+      "principal": "limited_member",
+      "setup": "Custom field hidden by field policy",
+      "scope": "task",
+      "action": "field.value_read",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "omitted",
+      "silent_surfaces": [
+        "export",
+        "audit_display",
+        "error_message",
+        "count_facet",
+        "search"
+      ]
+    },
+    {
+      "id": "AT-127",
+      "threats": [
+        "T-41"
+      ],
+      "principal": "limited_member",
+      "setup": "Formula over a hidden input",
+      "scope": "task",
+      "action": "field.value_read",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "omitted",
+      "silent_surfaces": [
+        "error_message",
+        "export",
+        "audit_display"
+      ]
+    },
+    {
+      "id": "AT-128",
+      "threats": [
+        "T-41"
+      ],
+      "principal": "member",
+      "setup": "Person or label field value naming someone who cannot read the record",
+      "scope": "task",
+      "action": "record.read",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "not_found",
+      "silent_surfaces": [
+        "ui_list",
+        "search",
+        "notification_inapp"
+      ]
+    },
+    {
+      "id": "AT-129",
+      "threats": [
+        "T-41"
+      ],
+      "principal": "member",
+      "setup": "Configure a workflow at a restricted project without explicit manage",
+      "scope": "project",
+      "action": "workflow.configure",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "not_found",
+      "silent_surfaces": [
+        "ui_list",
+        "breadcrumb",
+        "picker"
+      ]
     }
   ]
 }

@@ -2,7 +2,7 @@
 
 The matrix is machine-readable in [policy/policy.json](policy/policy.json) and rendered in [generated/permission-matrix.md](generated/permission-matrix.md).
 
-**Dimensions:** 109 actions × 6 default roles = 654 explicit cells. Each action also declares:
+**Dimensions:** 115 actions × 6 default roles = 690 explicit cells. Each action also declares:
 
 - its applicable scope levels (workspace, brand, project, record, personal, field, connection);
 - the required access level;
