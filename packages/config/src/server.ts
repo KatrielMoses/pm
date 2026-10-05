@@ -141,6 +141,24 @@ export interface ServerConfig {
     /** PAGE_LIMIT_DEFAULT / PAGE_LIMIT_MAX (schema cap 200). */
     pageLimitDefault: number;
     pageLimitMax: number;
+    /** Workflow and custom-field bounds (0D PL-25). */
+    workflowStatusesMax: number;
+    workflowTransitionsMax: number;
+    transitionRequirementsMax: number;
+    transitionApproversMax: number;
+    approvalExpiryHours: number;
+    transitionPreviewTtlSeconds: number;
+    fieldDefinitionsMax: number;
+    fieldOptionsMax: number;
+    fieldSetsMax: number;
+    fieldSetItemsMax: number;
+    fieldTextMax: number;
+    fieldPatternMax: number;
+    formulaSourceMax: number;
+    formulaAstNodesMax: number;
+    formulaDepthMax: number;
+    formulaRefsMax: number;
+    fieldValueBulkMax: number;
   };
   features: {
     /** Local/test-only component harness route for reusable UI states (refused when deployed). */
@@ -306,6 +324,23 @@ const DEFAULTS = {
   TASK_ESTIMATE_MINUTES_MAX: '100000',
   PAGE_LIMIT_DEFAULT: '50',
   PAGE_LIMIT_MAX: '200',
+  WORKFLOW_STATUSES_MAX: '50',
+  WORKFLOW_TRANSITIONS_MAX: '400',
+  TRANSITION_REQUIREMENTS_MAX: '30',
+  TRANSITION_APPROVERS_MAX: '10',
+  APPROVAL_EXPIRY_HOURS: '168',
+  TRANSITION_PREVIEW_TTL_SECONDS: '600',
+  FIELD_DEFINITIONS_MAX: '200',
+  FIELD_OPTIONS_MAX: '200',
+  FIELD_SETS_MAX: '100',
+  FIELD_SET_ITEMS_MAX: '100',
+  FIELD_TEXT_MAX: '5000',
+  FIELD_PATTERN_MAX: '200',
+  FORMULA_SOURCE_MAX: '2000',
+  FORMULA_AST_NODES_MAX: '200',
+  FORMULA_DEPTH_MAX: '8',
+  FORMULA_REFS_MAX: '20',
+  FIELD_VALUE_BULK_MAX: '500',
 } as const;
 
 const schema = z.object({
@@ -405,6 +440,23 @@ const schema = z.object({
   TASK_ESTIMATE_MINUTES_MAX: int(60, 1000000),
   PAGE_LIMIT_DEFAULT: int(1, 200),
   PAGE_LIMIT_MAX: int(1, 200),
+  WORKFLOW_STATUSES_MAX: int(2, 200),
+  WORKFLOW_TRANSITIONS_MAX: int(1, 2000),
+  TRANSITION_REQUIREMENTS_MAX: int(1, 100),
+  TRANSITION_APPROVERS_MAX: int(1, 50),
+  APPROVAL_EXPIRY_HOURS: int(1, 2160),
+  TRANSITION_PREVIEW_TTL_SECONDS: int(60, 3600),
+  FIELD_DEFINITIONS_MAX: int(1, 1000),
+  FIELD_OPTIONS_MAX: int(2, 1000),
+  FIELD_SETS_MAX: int(1, 500),
+  FIELD_SET_ITEMS_MAX: int(1, 500),
+  FIELD_TEXT_MAX: int(1, 20000),
+  FIELD_PATTERN_MAX: int(1, 1000),
+  FORMULA_SOURCE_MAX: int(10, 10000),
+  FORMULA_AST_NODES_MAX: int(10, 2000),
+  FORMULA_DEPTH_MAX: int(1, 32),
+  FORMULA_REFS_MAX: int(1, 100),
+  FIELD_VALUE_BULK_MAX: int(1, 5000),
 });
 
 /** Variables a deployed environment must set explicitly (no silent local defaults). */
@@ -788,6 +840,23 @@ export function loadServerConfig(options: LoadOptions): ServerConfig {
       taskEstimateMinutesMax: c.TASK_ESTIMATE_MINUTES_MAX,
       pageLimitDefault: Math.min(c.PAGE_LIMIT_DEFAULT, c.PAGE_LIMIT_MAX),
       pageLimitMax: c.PAGE_LIMIT_MAX,
+      workflowStatusesMax: c.WORKFLOW_STATUSES_MAX,
+      workflowTransitionsMax: c.WORKFLOW_TRANSITIONS_MAX,
+      transitionRequirementsMax: c.TRANSITION_REQUIREMENTS_MAX,
+      transitionApproversMax: c.TRANSITION_APPROVERS_MAX,
+      approvalExpiryHours: c.APPROVAL_EXPIRY_HOURS,
+      transitionPreviewTtlSeconds: c.TRANSITION_PREVIEW_TTL_SECONDS,
+      fieldDefinitionsMax: c.FIELD_DEFINITIONS_MAX,
+      fieldOptionsMax: c.FIELD_OPTIONS_MAX,
+      fieldSetsMax: c.FIELD_SETS_MAX,
+      fieldSetItemsMax: c.FIELD_SET_ITEMS_MAX,
+      fieldTextMax: c.FIELD_TEXT_MAX,
+      fieldPatternMax: c.FIELD_PATTERN_MAX,
+      formulaSourceMax: c.FORMULA_SOURCE_MAX,
+      formulaAstNodesMax: c.FORMULA_AST_NODES_MAX,
+      formulaDepthMax: c.FORMULA_DEPTH_MAX,
+      formulaRefsMax: c.FORMULA_REFS_MAX,
+      fieldValueBulkMax: c.FIELD_VALUE_BULK_MAX,
     },
     identity: {
       publicOrigin,

@@ -50,6 +50,40 @@ export interface WorkSettings {
   /** `PAGE_LIMIT_DEFAULT` and `PAGE_LIMIT_MAX` for task and project lists. */
   pageLimitDefault: number;
   pageLimitMax: number;
+  /** `WORKFLOW_STATUSES_MAX` */
+  workflowStatusesMax: number;
+  /** `WORKFLOW_TRANSITIONS_MAX` */
+  workflowTransitionsMax: number;
+  /** `TRANSITION_REQUIREMENTS_MAX` */
+  transitionRequirementsMax: number;
+  /** `TRANSITION_APPROVERS_MAX` */
+  transitionApproversMax: number;
+  /** `APPROVAL_EXPIRY_HOURS` */
+  approvalExpiryHours: number;
+  /** `TRANSITION_PREVIEW_TTL_SECONDS` */
+  transitionPreviewTtlSeconds: number;
+  /** `FIELD_DEFINITIONS_MAX` */
+  fieldDefinitionsMax: number;
+  /** `FIELD_OPTIONS_MAX` */
+  fieldOptionsMax: number;
+  /** `FIELD_SETS_MAX` */
+  fieldSetsMax: number;
+  /** `FIELD_SET_ITEMS_MAX` */
+  fieldSetItemsMax: number;
+  /** `FIELD_TEXT_MAX` */
+  fieldTextMax: number;
+  /** `FIELD_PATTERN_MAX` */
+  fieldPatternMax: number;
+  /** `FORMULA_SOURCE_MAX` */
+  formulaSourceMax: number;
+  /** `FORMULA_AST_NODES_MAX` */
+  formulaAstNodesMax: number;
+  /** `FORMULA_DEPTH_MAX` */
+  formulaDepthMax: number;
+  /** `FORMULA_REFS_MAX` */
+  formulaRefsMax: number;
+  /** `FIELD_VALUE_BULK_MAX` */
+  fieldValueBulkMax: number;
 }
 
 export const DEFAULT_WORK_SETTINGS: WorkSettings = Object.freeze({
@@ -67,6 +101,23 @@ export const DEFAULT_WORK_SETTINGS: WorkSettings = Object.freeze({
   taskEstimateMinutesMax: 100_000,
   pageLimitDefault: 50,
   pageLimitMax: 200,
+  workflowStatusesMax: 50,
+  workflowTransitionsMax: 400,
+  transitionRequirementsMax: 30,
+  transitionApproversMax: 10,
+  approvalExpiryHours: 168,
+  transitionPreviewTtlSeconds: 600,
+  fieldDefinitionsMax: 200,
+  fieldOptionsMax: 200,
+  fieldSetsMax: 100,
+  fieldSetItemsMax: 100,
+  fieldTextMax: 5_000,
+  fieldPatternMax: 200,
+  formulaSourceMax: 2_000,
+  formulaAstNodesMax: 200,
+  formulaDepthMax: 8,
+  formulaRefsMax: 20,
+  fieldValueBulkMax: 500,
 });
 
 /** The database invariant behind `TASK_DEPTH_MAX` (migration 0023). */
@@ -221,6 +272,8 @@ export function projectField(field: string, v: unknown, issues: Issues): unknown
     case 'color':
       return v === null ? null : colorValue(v, p, issues);
     case 'status':
+      // A platform key or a workflow status ID; the applicable workflow decides (ADR-0015 W3).
+      if (typeof v === 'string' && /^sts_[0-9A-HJKMNP-TV-Z]{26}$/.test(v)) return v;
       return enumValue(
         v,
         PROJECT_STATUSES.map((s) => s.key),

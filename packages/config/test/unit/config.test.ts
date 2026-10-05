@@ -72,6 +72,23 @@ describe('server configuration', () => {
       taskEstimateMinutesMax: 100000,
       pageLimitDefault: 50,
       pageLimitMax: 200,
+      workflowStatusesMax: 50,
+      workflowTransitionsMax: 400,
+      transitionRequirementsMax: 30,
+      transitionApproversMax: 10,
+      approvalExpiryHours: 168,
+      transitionPreviewTtlSeconds: 600,
+      fieldDefinitionsMax: 200,
+      fieldOptionsMax: 200,
+      fieldSetsMax: 100,
+      fieldSetItemsMax: 100,
+      fieldTextMax: 5000,
+      fieldPatternMax: 200,
+      formulaSourceMax: 2000,
+      formulaAstNodesMax: 200,
+      formulaDepthMax: 8,
+      formulaRefsMax: 20,
+      fieldValueBulkMax: 500,
     });
     const set = (env: Record<string, string>) =>
       loadServerConfig({ service: 'worker', env: { ...local, ...env } });
@@ -94,6 +111,14 @@ describe('server configuration', () => {
       ['RECURRENCE_SERIES_DISCOVERY_MAX', '0'],
       ['RECURRENCE_SERIES_DISCOVERY_MAX', '501'],
       ['RECURRENCE_SERIES_DISCOVERY_MAX', '2.5'],
+      // 2C bounds (0D PL-25): every range edge is refused outside its registered range.
+      ['WORKFLOW_STATUSES_MAX', '1'],
+      ['APPROVAL_EXPIRY_HOURS', '2161'],
+      ['TRANSITION_PREVIEW_TTL_SECONDS', '59'],
+      ['FIELD_TEXT_MAX', '20001'],
+      ['FORMULA_DEPTH_MAX', '33'],
+      ['FORMULA_AST_NODES_MAX', '9'],
+      ['FIELD_VALUE_BULK_MAX', '0'],
     ] as const)
       expect(issues(() => set({ [key]: bad })).join(' '), `${key}=${bad}`).toMatch(
         new RegExp(`^${key}`),

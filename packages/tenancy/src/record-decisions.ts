@@ -2,7 +2,15 @@ import type { WorkspaceTransaction } from '@pm/db';
 import type { LifecycleAction, PolicyDecision } from '@pm/lifecycle';
 import { issueLifecycleDecision } from '@pm/lifecycle/policy-issuer';
 import { TenancyError } from './errors.ts';
-import { decideRecord, type BrandFacts, type Principal, type ProjectChain } from './policy.ts';
+import {
+  decideBrand,
+  decideRecord,
+  decideWorkspace,
+  recordLevel,
+  type BrandFacts,
+  type Principal,
+  type ProjectChain,
+} from './policy.ts';
 
 /**
  * The tenancy-exported lifecycle issuer (0C AZ-21, Phase 2A confinement rule). Record-owning
@@ -35,12 +43,22 @@ export function issueRecordLifecycleDecision<A extends RecordLifecycleAction>(
   // lifecycle service still enforces which transitions are legal from the current state.
   if (record.lifecycleState === 'purged') throw new TenancyError('not_found');
   const lifecycleState = 'active' as const;
-  const outcome = decideRecord(p, action, {
+  const facts = {
     brand: record.brand,
     lifecycleState,
     shareLevel: null,
     projectChain: record.projectChain,
-  });
+  };
+  // `record.purge` is an administrative action at the record's brand (or the workspace for a
+  // brandless record), 0C policy; the record must still be readable to the caller.
+  const outcome =
+    action === 'record.purge'
+      ? recordLevel(p, facts) === null
+        ? ({ allowed: false, code: 'not_found' } as const)
+        : record.brand
+          ? decideBrand(p, action, { ...record.brand, lifecycleState: 'active' })
+          : decideWorkspace(p, action)
+      : decideRecord(p, action, facts);
   if (!outcome.allowed) throw new TenancyError(outcome.code);
   return issueLifecycleDecision(action, tx.workspaceId, [record.id], p.membershipId);
 }

@@ -14,6 +14,17 @@ import { withPersonalReferenceCleanup } from '@pm/tenancy';
 const refs = (rows: Array<{ id: string; type: string }>): RecordRef[] =>
   rows.map((r) => ({ id: r.id, recordType: r.type }));
 
+/** A purged record's workflow facts: values, set attachments, approval requests and decisions. */
+async function purgeWorkflowFacts(tx: WorkspaceTransaction, ids: string[]) {
+  await sql`DELETE FROM workflow.approval_decision d USING workflow.approval_request r
+             WHERE r.id = d.approval_request_id AND r.record_id = ANY(${ids}::uuid[])`.execute(
+    tx.db,
+  );
+  await tx.db.deleteFrom('workflow.approval_request').where('record_id', 'in', ids).execute();
+  await tx.db.deleteFrom('workflow.field_value').where('record_id', 'in', ids).execute();
+  await tx.db.deleteFrom('workflow.field_set_attachment').where('record_id', 'in', ids).execute();
+}
+
 export const projectAdapter: RecordTypeAdapter = {
   recordType: 'project',
   async children(tx, parentIds) {
@@ -72,6 +83,7 @@ export const projectAdapter: RecordTypeAdapter = {
       // Series sourced from the project keep their frozen snapshot; the source link detaches.
       await sql`UPDATE planning.recurrence_series SET source_record_id = NULL, updated_at = now(), version = version + 1
                  WHERE source_record_id = ANY(${ids}::uuid[])`.execute(tx.db);
+      await purgeWorkflowFacts(tx, ids);
       await tx.db.deleteFrom('work.project').where('id', 'in', ids).execute();
     },
     async removeAssociations(tx, recordIds) {
@@ -232,6 +244,7 @@ export const taskAdapter: RecordTypeAdapter = {
         .deleteFrom('relations.record_link')
         .where('source_record_id', 'in', ids)
         .execute();
+      await purgeWorkflowFacts(tx, ids);
       // Children purged in the same batch go first (deepest first) so the parent key never dangles.
       const rows = await tx.db
         .selectFrom('work.task')

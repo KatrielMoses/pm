@@ -143,7 +143,7 @@ export class TaskService extends TaskCoreService {
         subtasks: subtasks.map((s) => ({
           id: s.public_id,
           title: s.title,
-          status: this.taskStatusView(s.status_id),
+          status: this.taskStatusView(s.status_id, tx),
           lifecycle_state: s.lifecycle_state,
         })),
         links,
@@ -256,7 +256,7 @@ export class TaskService extends TaskCoreService {
       rows.map((r) => ({
         id: r.public_id,
         title: r.title,
-        status: this.taskStatusView(r.status_id),
+        status: this.taskStatusView(r.status_id, tx),
         lifecycle_state: r.lifecycle_state,
         brand: brandMarker({
           public_id: r.brand_public,

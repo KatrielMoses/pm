@@ -1,3 +1,4 @@
+import { primeStatuses } from './workflow/statuses.ts';
 import { change } from '@pm/audit';
 import { newPublicId, newUuidV7 } from '@pm/contracts';
 import { sql, type WorkspaceTransaction } from '@pm/db';
@@ -221,6 +222,10 @@ export class WorkService extends ProjectService {
         .orderBy('w.rank')
         .orderBy('w.id')
         .execute();
+      await primeStatuses(
+        tx,
+        children.map((c) => c.status_id),
+      );
       return {
         project: await this.projectView(tx, p, project),
         criteria: criteria.map((c) => ({
@@ -291,7 +296,7 @@ export class WorkService extends ProjectService {
         children: children.map((c) => ({
           id: c.public_id,
           name: c.name,
-          status: this.statusView(c.status_id),
+          status: this.statusView(c.status_id, tx),
         })),
         // Task-derived facts arrive with tasks (2B/5C); nothing is fabricated here.
         task_facts: { available: false as const },
@@ -349,7 +354,7 @@ export class WorkService extends ProjectService {
       rows.map((x) => ({
         id: x.public_id,
         name: x.name,
-        status: this.statusView(x.status_id),
+        status: this.statusView(x.status_id, tx),
         lifecycle_state: x.lifecycle_state,
         brand: brandMarker({
           public_id: x.brand_public_id,
@@ -360,10 +365,13 @@ export class WorkService extends ProjectService {
           lifecycle_state: x.brand_state,
         }),
       }));
-    return {
-      blocked_by: view(await side('to_record_id', 'from_record_id')),
-      blocks: view(await side('from_record_id', 'to_record_id')),
-    };
+    const blockedBy = await side('to_record_id', 'from_record_id');
+    const blocks = await side('from_record_id', 'to_record_id');
+    await primeStatuses(
+      tx,
+      [...blockedBy, ...blocks].map((x) => x.status_id),
+    );
+    return { blocked_by: view(blockedBy), blocks: view(blocks) };
   }
 
   // ---------------------------------------------------------------------------------------------
