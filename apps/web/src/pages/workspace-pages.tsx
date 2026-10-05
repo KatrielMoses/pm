@@ -84,7 +84,15 @@ export function splitIssues(
   const other: ApiIssue[] = [];
   if (!(error instanceof ApiError) || error.code !== 'validation_failed') return { fields, other };
   for (const i of error.issues) {
-    const f = i.pointer ? pointers[i.pointer] : undefined;
+    // Exact pointer, else the nearest registered parent (e.g. a rich-text field's inner path).
+    const key = i.pointer
+      ? i.pointer in pointers
+        ? i.pointer
+        : Object.keys(pointers)
+            .filter((k) => i.pointer!.startsWith(`${k}/`))
+            .sort((a, b) => b.length - a.length)[0]
+      : undefined;
+    const f = key ? pointers[key] : undefined;
     if (f) {
       if (!fields[f]) fields[f] = i.message;
     } else other.push(i);
@@ -145,7 +153,10 @@ export function SaveProblem({
             {error.conflict.fields.map((f) => (
               <li key={f.field}>
                 {f.field.replace(/_/g, ' ')} is now{' '}
-                {f.theirs_readable ? `“${String(f.theirs ?? 'empty')}”` : 'different'}.
+                {f.theirs_readable && (f.theirs === null || typeof f.theirs !== 'object')
+                  ? `“${String(f.theirs ?? 'empty')}”`
+                  : 'different'}
+                .
               </li>
             ))}
           </ul>

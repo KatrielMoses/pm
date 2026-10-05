@@ -47,8 +47,10 @@ const CAP_LABEL: Record<string, string> = {
 export function ExposureSummary({ diff }: { diff: ExposureDiff }) {
   const gained = Object.entries(diff.records_gained);
   const lost = Object.entries(diff.records_lost);
+  const projects = diff.projects ?? [];
   const nothing =
     !diff.brands.length &&
+    !projects.length &&
     !gained.length &&
     !lost.length &&
     !diff.capabilities_gained.length &&
@@ -68,6 +70,16 @@ export function ExposureSummary({ diff }: { diff: ExposureDiff }) {
             <li key={b.brand.id}>
               <strong>{b.brand.name}</strong>: {b.before ? LEVEL_LABEL[b.before] : 'no access'} →{' '}
               {b.after ? LEVEL_LABEL[b.after] : 'no access'}
+            </li>
+          ))}
+        </ul>
+      ) : null}
+      {projects.length ? (
+        <ul aria-label="Project access changes">
+          {projects.map((x) => (
+            <li key={x.project.id}>
+              <strong>{x.project.name}</strong>: {x.before ? LEVEL_LABEL[x.before] : 'no access'} →{' '}
+              {x.after ? LEVEL_LABEL[x.after] : 'no access'}
             </li>
           ))}
         </ul>

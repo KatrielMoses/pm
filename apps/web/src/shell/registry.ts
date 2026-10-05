@@ -112,6 +112,19 @@ const destinations: RouteDef[] = SHELL_DESTINATIONS.map((d, i) => ({
 export const ROUTES: readonly RouteDef[] = [
   ...destinations,
   {
+    id: 'project',
+    pattern: '/workspaces/:ws/projects/:prj',
+    shell: 'workspace',
+    section: 'Projects',
+    // Guests open shared projects from Shared with me; the API decides what each person can read.
+  },
+  {
+    id: 'project_section',
+    pattern: '/workspaces/:ws/projects/:prj/:section',
+    shell: 'workspace',
+    section: 'Projects',
+  },
+  {
     id: 'shared',
     pattern: '/workspaces/:ws/shared',
     shell: 'workspace',
