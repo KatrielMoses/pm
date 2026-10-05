@@ -64,9 +64,10 @@ describe('project sections (0E Phase 2A note, UXD-14)', () => {
       'tests',
       'releases',
     ]);
-    // Only Overview, Timeline, and Settings are functional in 2A; the rest name their phase.
+    // Overview, Timeline, Settings (2A) and Tasks (2B) are functional; the rest name their phase.
     expect(PROJECT_SECTIONS.filter((s) => s.phase === null).map((s) => s.key)).toEqual([
       'overview',
+      'tasks',
       'timeline',
       'settings',
     ]);

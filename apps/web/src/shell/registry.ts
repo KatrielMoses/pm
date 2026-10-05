@@ -125,6 +125,20 @@ export const ROUTES: readonly RouteDef[] = [
     section: 'Projects',
   },
   {
+    id: 'tasks',
+    pattern: '/workspaces/:ws/tasks',
+    shell: 'workspace',
+    section: 'Tasks',
+    visible: member,
+  },
+  {
+    id: 'task',
+    pattern: '/workspaces/:ws/tasks/:tsk',
+    shell: 'workspace',
+    section: 'Tasks',
+    // Guests open shared tasks from Shared with me; the API decides what each person can read.
+  },
+  {
     id: 'shared',
     pattern: '/workspaces/:ws/shared',
     shell: 'workspace',

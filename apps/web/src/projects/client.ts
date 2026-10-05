@@ -66,7 +66,7 @@ export interface Project {
   budget: { amount: string; currency: string | null } | null;
   time_budget_minutes: number | null;
   ai_budget_micros: string | null;
-  completion: { percent: number; basis: 'status' };
+  completion: { percent: number; basis: 'status' | 'leaf_tasks' };
   owner: { id: string; name: string } | null;
   access_mode: 'inherit' | 'restricted';
   allow_record_shares: boolean;
@@ -150,7 +150,9 @@ export interface Overview {
     }>;
   };
   children: Array<{ id: string; name: string; status: StatusView }>;
-  task_facts: { available: false };
+  task_facts:
+    | { available: false }
+    | { available: true; total: number; overdue: number; blocked: number; unassigned: number };
 }
 
 export interface Series {

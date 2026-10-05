@@ -1,10 +1,11 @@
 import type { FastifyInstance, FastifyRequest } from 'fastify';
 import { nonResourceEnvelope } from '@pm/contracts';
-import type { WorkService } from '@pm/work';
+import type { TaskService } from '@pm/work';
 import { routeKit } from '../route-kit.ts';
+import { registerTasks } from './task-routes.ts';
 
 export interface WorkRouteDeps {
-  work: WorkService;
+  work: TaskService;
 }
 
 type Params = {
@@ -33,10 +34,11 @@ export function registerWork(app: FastifyInstance, deps: WorkRouteDeps): void {
   const q = (request: FastifyRequest) => (request.query ?? {}) as Record<string, unknown>;
   const list = <T>(request: FastifyRequest, data: T[], total?: unknown) => ({
     data,
-    page: { limit: 200, has_more: false, ...(total ? { total } : {}) },
+    page: { limit: work.pageLimitMax, has_more: false, ...(total ? { total } : {}) },
     meta: m(request),
   });
   const base = '/v1/workspaces/:ws/projects';
+  registerTasks(app, work);
 
   app.get(
     base,

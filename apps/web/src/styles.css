@@ -1673,3 +1673,22 @@ fieldset.card legend {
     outline-offset: -2px;
   }
 }
+
+/* Project section navigation: wrapping tabs, each at least a 24px target (WCAG 2.5.8). */
+.section-nav .tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem 1rem;
+  list-style: none;
+  margin: 0 0 1rem;
+  padding: 0;
+}
+.section-nav .tabs a {
+  display: inline-flex;
+  align-items: center;
+  min-block-size: 2.75rem;
+  padding-inline: 0.25rem;
+}
+.section-nav .tabs a[aria-current='page'] {
+  font-weight: 600;
+}

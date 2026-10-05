@@ -72,7 +72,7 @@ test('creates the first useful project without configuration; sections are hones
     'page',
   );
   await expect(page.getByText('Planned').first()).toBeVisible();
-  await expect(page.getByText('Status-based until tasks arrive')).toBeVisible();
+  await expect(page.getByText('Status-based until tasks are added')).toBeVisible();
 
   // Overview: a success criterion, an update, and an explicit verification.
   await page.getByLabel('Add a success criterion').fill('Launch page live');
@@ -109,7 +109,7 @@ test('creates the first useful project without configuration; sections are hones
 
   // Later sections are honest; Tests is addressable but its tab is absent (UXD-14).
   await sections(page).getByRole('link', { name: 'Tasks' }).click();
-  await expect(page.getByRole('heading', { name: "Tasks isn't available yet" })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Tasks', level: 2 })).toBeVisible();
   await page.goto(`/workspaces/${ws}/projects/${prj}/tests`);
   await expect(page.getByRole('heading', { name: "Tests isn't available yet" })).toBeVisible();
   await expect(sections(page).getByRole('link', { name: 'Tests' })).toHaveCount(0);
