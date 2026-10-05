@@ -57,8 +57,10 @@ test('configures a workflow and moves a task through required fields and an appr
   await expect(tasks.getByRole('heading', { name: 'Release' })).toBeVisible();
   // Reorder with buttons (no drag).
   await tasks.getByRole('button', { name: 'Move down To do' }).click();
-  await expect(page.getByText('Status moved.')).toBeAttached();
+  await expect(tasks.getByRole('button', { name: 'Move up To do' })).toBeEnabled();
   await tasks.getByRole('button', { name: 'Move up To do' }).click();
+  // Wait for the reorder to land (the next command carries the workflow version it returns).
+  await expect(tasks.getByRole('button', { name: 'Move up To do' })).toBeDisabled();
   // To do → In progress requires a due date; In progress → Done needs one manager's approval.
   const add = tasks.getByRole('form', { name: 'Add a transition' });
   await add.getByLabel('From').selectOption({ label: 'To do' });
