@@ -1,6 +1,8 @@
 import { createHmac, timingSafeEqual } from 'node:crypto';
 import { sql, type WorkspaceTransaction } from '@pm/db';
 import { canonicalJson } from '@pm/platform';
+import { governingProject, projectScope } from './projects.ts';
+import { compileVisibility } from './visibility.ts';
 import {
   brandLevel,
   decideBrand,
@@ -118,6 +120,12 @@ export interface ExposureDiff {
   records_lost: Record<string, number>;
   capabilities_gained: string[];
   capabilities_lost: string[];
+  /** Projects (readable by the previewer) whose effective level for the target changes. */
+  projects: Array<{
+    project: { id: string; name: string };
+    before: Level | null;
+    after: Level | null;
+  }>;
   /** Internal members affected (team changes affect every member of the team). */
   affected_members: number;
   increases_access: boolean;
@@ -125,19 +133,79 @@ export interface ExposureDiff {
 
 async function countByType(
   tx: WorkspaceTransaction,
+  viewer: Principal,
   brandIds: readonly string[],
 ): Promise<Record<string, number>> {
   if (!brandIds.length) return {};
+  // Brand access never reaches records governed by a restricted project chain (0C AZ-21).
+  const restricted = (await projectScope(tx, viewer)).restrictedChain;
   const rows = await tx.db
-    .selectFrom('core.record')
-    .select(['record_type', (eb) => eb.fn.countAll<string>().as('n')])
-    .where('brand_id', 'in', [...brandIds])
-    .where('lifecycle_state', '=', 'active')
-    .where('record_type', '<>', 'brand')
-    .groupBy('record_type')
-    .orderBy('record_type')
+    .selectFrom('core.record as r')
+    .select(['r.record_type', (eb) => eb.fn.countAll<string>().as('n')])
+    .where('r.brand_id', 'in', [...brandIds])
+    .where('r.lifecycle_state', '=', 'active')
+    .where('r.record_type', '<>', 'brand')
+    .where(
+      restricted.length
+        ? sql<boolean>`(${governingProject('r')} IS NULL OR ${governingProject('r')} <> ALL(${restricted}::uuid[]))`
+        : sql<boolean>`true`,
+    )
+    .groupBy('r.record_type')
+    .orderBy('r.record_type')
     .execute();
   return Object.fromEntries(rows.map((r) => [r.record_type, Number(r.n)]));
+}
+
+/**
+ * Exact record delta through the one visibility predicate: records the target can read after the
+ * change but not before (and the reverse), counted only where the previewer can read them. Used
+ * for project grants and shares, where brand-level counting would not equal enforcement.
+ */
+export async function visibleDelta(
+  tx: WorkspaceTransaction,
+  viewer: Principal,
+  pairs: ReadonlyArray<{ before: Principal | null; after: Principal | null }>,
+  arrayMax: number,
+  extra: { gainedRecord?: { id: string; type: string } | null } = {},
+): Promise<{ gained: Record<string, number>; lost: Record<string, number> }> {
+  const v = await compileVisibility(tx, viewer, { need: 'view', arrayMax });
+  const gained: Record<string, number> = {};
+  const lost: Record<string, number> = {};
+  const add = (into: Record<string, number>, rows: Array<{ record_type: string; n: string }>) => {
+    for (const r of rows) into[r.record_type] = Math.max(into[r.record_type] ?? 0, Number(r.n));
+  };
+  for (const { before, after } of pairs) {
+    const b = before ? await compileVisibility(tx, before, { need: 'view', arrayMax }) : null;
+    const a = after ? await compileVisibility(tx, after, { need: 'view', arrayMax }) : null;
+    const yes = (x: typeof a) =>
+      x ? sql<boolean>`coalesce(${x.where('r')}, false)` : sql<boolean>`false`;
+    for (const [into, inc, exc] of [
+      [gained, a, b],
+      [lost, b, a],
+    ] as const) {
+      const rows = await tx.db
+        .selectFrom('core.record as r')
+        .select(['r.record_type', (eb) => eb.fn.countAll<string>().as('n')])
+        .where('r.record_type', 'not in', ['brand', 'team'])
+        .where(v.where('r'))
+        .where(yes(inc))
+        .where(sql<boolean>`NOT ${yes(exc)}`)
+        .groupBy('r.record_type')
+        .orderBy('r.record_type')
+        .execute();
+      add(into, rows);
+    }
+    if (extra.gainedRecord && b) {
+      const had = await tx.db
+        .selectFrom('core.record as r')
+        .select('r.id')
+        .where('r.id', '=', extra.gainedRecord.id)
+        .where(b.where('r'))
+        .executeTakeFirst();
+      if (!had) gained[extra.gainedRecord.type] = Math.max(gained[extra.gainedRecord.type] ?? 0, 1);
+    }
+  }
+  return { gained, lost };
 }
 
 /**
@@ -187,8 +255,9 @@ export async function exposureDiff(
   }));
   return {
     brands: brandsOut,
-    records_gained: await countByType(tx, [...gainedBrands]),
-    records_lost: await countByType(tx, [...lostBrands]),
+    records_gained: await countByType(tx, viewer, [...gainedBrands]),
+    records_lost: await countByType(tx, viewer, [...lostBrands]),
+    projects: [],
     capabilities_gained: [...capsGained].sort(),
     capabilities_lost: [...capsLost].sort(),
     affected_members: pairs.length,

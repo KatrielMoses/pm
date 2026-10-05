@@ -43,6 +43,8 @@ const principal = (role: WorkspaceRole | null, grants: Record<string, Level> = {
   role,
   grants: new Map(Object.entries(grants)),
   grantSources: [],
+  projectGrants: new Map(),
+  projectGrantSources: [],
   teams: [],
   policy: DEFAULT_POLICY,
   epochs: { workspace: 0, principal: 0 },
@@ -134,7 +136,16 @@ describe('policy compilation (0C matrix)', () => {
       restore: true,
       mark_sensitive: false,
       grant_access: false,
+      create_records: false,
     });
+    // Creating records follows record.create: members need an edit grant; read-only never.
+    expect(brandCapabilities(principal('member', { b1: 'edit' }), brand()).create_records).toBe(
+      true,
+    );
+    expect(brandCapabilities(principal('member'), brand()).create_records).toBe(false);
+    expect(brandCapabilities(principal('read_only', { b1: 'edit' }), brand()).create_records).toBe(
+      false,
+    );
   });
 
   it('refuses actions outside their declared scope (compiler misuse is a programming error)', () => {
@@ -517,6 +528,7 @@ describe('1D compiler: grantable authority, caps, guests, workspace scope, previ
     const key = Buffer.alloc(32, 1);
     const diff = {
       brands: [],
+      projects: [],
       records_gained: {},
       records_lost: {},
       capabilities_gained: [],

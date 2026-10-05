@@ -146,6 +146,8 @@ export const NON_RESOURCE_TYPES = [
   'view_state',
   'navigation_target',
   'shell_navigation',
+  // 2A: the project overview is a computed composite of one project and its authorized structures.
+  'project_overview',
 ] as const;
 export type NonResourceType = (typeof NON_RESOURCE_TYPES)[number];
 

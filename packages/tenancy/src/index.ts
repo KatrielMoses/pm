@@ -14,4 +14,7 @@ export * from './visibility.ts';
 export * from './navigation.ts';
 export * from './personal-data.ts';
 export * from './jobs.ts';
-export { compilePrincipal, principalFreshness } from './principal.ts';
+export { bumpEpoch, compilePrincipal, principalFreshness } from './principal.ts';
+export * from './projects.ts';
+export * from './sharing.ts';
+export * from './record-decisions.ts';

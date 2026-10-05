@@ -20,17 +20,22 @@ import {
   brandLevel,
   canAssignRole,
   canGrantBrand,
+  canGrantProject,
   canManageMember,
   decideBrand,
+  decideProject,
   decideRecord,
   decideWorkspace,
   levelRank,
   LEVELS,
+  maxLevel,
+  recordLevel,
   roleCap,
   shareToLevel,
   WORKSPACE_ROLES,
   type Level,
   type Principal,
+  type ProjectChain,
   type ShareLevel,
   type WorkspaceRole,
 } from './policy.ts';
@@ -41,6 +46,7 @@ import {
   inspectable,
   previewToken,
   verifyPreviewToken,
+  visibleDelta,
   type BrandRef,
   type ExposureDiff,
 } from './preview.ts';
@@ -53,6 +59,8 @@ import {
   type TenancyDeps,
 } from './service.ts';
 import { Issues, text } from './validation.ts';
+import { projectChainOf } from './projects.ts';
+import { shareableLevels, sharesChildren } from './sharing.ts';
 import { compileVisibility } from './visibility.ts';
 
 /** Identity capabilities the collaboration commands borrow (1B tokens, mail, sessions, step-up). */
@@ -124,7 +132,38 @@ export type ProposedChange =
       expires_at: string | null;
     }
   | { kind: 'brand_revoke'; brand: string; principal: string }
-  | { kind: 'team_add' | 'team_remove'; team: string; member: string };
+  | { kind: 'team_add' | 'team_remove'; team: string; member: string }
+  | { kind: 'project_grant'; project: string; principal: string; level: Level }
+  | { kind: 'project_revoke'; project: string; principal: string }
+  | {
+      kind: 'record_share';
+      record: string;
+      grantee: string;
+      level: ShareLevel;
+      expires_at: string | null;
+    };
+
+/** One reviewed change: target principals before/after, the epochs it was computed under, and its apply step. */
+interface Proposal {
+  change: ProposedChange;
+  pairs: Array<{ before: Principal | null; after: Principal | null }>;
+  epochs: unknown;
+  /** Project scope changes: the exact delta and the project's level change are previewed. */
+  project?: ProjectRef;
+  /** Shares: the exact record the grantees gain. */
+  sharedRecord?: { id: string; type: string };
+  apply: (caller: Caller) => Promise<{ ref: { id: string; type: string } }>;
+}
+
+/** A project as a scope target (public id, brand facts, governing chain). */
+interface ProjectRef {
+  id: string;
+  publicId: string;
+  name: string;
+  brand: BrandRef;
+  lifecycleState: 'active' | 'archived' | 'trashed' | 'purged';
+  chain: ProjectChain;
+}
 
 interface TeamRef {
   id: string;
@@ -148,7 +187,24 @@ interface ShareTarget {
   publicId: string;
   recordType: string;
   brandId: string | null;
+  levels: readonly ShareLevel[];
+  sharesChildren: boolean;
 }
+
+/** Share target resolution (0C AZ-21): unreadable → not_found; readable but not shareable → forbidden. */
+type ShareResolution =
+  | { kind: 'ok'; target: ShareTarget }
+  | { kind: 'not_found' }
+  | {
+      kind: 'forbidden';
+      reason: 'not_shareable_type' | 'not_permitted' | 'record_shares_disallowed';
+    };
+
+const SHARE_REFUSAL = {
+  not_shareable_type: "This kind of item can't be shared.",
+  not_permitted: "You don't have permission to share this item.",
+  record_shares_disallowed: 'This restricted project does not allow sharing individual items.',
+} as const;
 
 function pg(err: unknown): { code?: string; constraint?: string; message?: string } {
   return typeof err === 'object' && err !== null
@@ -487,12 +543,7 @@ export class CollaborationService extends TenancyService {
     p: Principal,
     raw: unknown,
     lock: boolean,
-  ): Promise<{
-    change: ProposedChange;
-    pairs: Array<{ before: Principal | null; after: Principal | null }>;
-    epochs: unknown;
-    apply: (caller: Caller) => Promise<{ ref: { id: string; type: string } }>;
-  }> {
+  ): Promise<Proposal> {
     const c = parseChange(raw);
     const epochsOf = async (ids: string[]) =>
       (
@@ -605,6 +656,95 @@ export class CollaborationService extends TenancyService {
           },
         };
       }
+      case 'project_grant':
+      case 'project_revoke': {
+        const project = await this.#projectByPublic(tx, p, c.project, lock);
+        const principal = await this.#grantee(tx, c.principal);
+        const facts = {
+          brand: project.brand,
+          lifecycleState: project.lifecycleState,
+          chain: project.chain,
+        };
+        const current = await this.#projectGrantLevel(tx, project.id, principal);
+        this.#require(
+          p,
+          'access.grant_scope',
+          c.kind === 'project_grant'
+            ? project.lifecycleState === 'active' && canGrantProject(p, facts, c.level)
+            : decideProject(p, 'access.grant_scope', facts).allowed &&
+                levelRank(
+                  recordLevel(p, {
+                    brand: project.brand,
+                    lifecycleState: 'active',
+                    shareLevel: null,
+                    projectChain: project.chain,
+                  }),
+                ) >= levelRank(current),
+        );
+        const members = await principal.members();
+        const pairs = [];
+        for (const m of members) {
+          const before = await compile(m);
+          const sources = before.projectGrantSources.filter(
+            (s) =>
+              !(
+                s.projectId === project.id &&
+                (principal.type === 'team' ? s.teamId === principal.id : s.via === 'direct')
+              ),
+          );
+          if (c.kind === 'project_grant')
+            sources.push({
+              projectId: project.id,
+              level: c.level,
+              via: principal.type === 'team' ? 'team' : 'direct',
+              teamId: principal.type === 'team' ? principal.id : null,
+              expiresAt: null,
+            });
+          const projectGrants = new Map<string, Level>();
+          for (const s of sources)
+            if (levelRank(s.level) > levelRank(projectGrants.get(s.projectId) ?? null))
+              projectGrants.set(s.projectId, s.level);
+          pairs.push({ before, after: { ...before, projectGrants, projectGrantSources: sources } });
+        }
+        return {
+          change: c,
+          pairs,
+          epochs: await epochsOf(members.map((m) => m.id)),
+          project,
+          apply: async (caller) => {
+            if (c.kind === 'project_grant')
+              await this.#applyProjectGrant(tx, caller, p, project, principal, c.level);
+            else await this.#applyProjectRevoke(tx, caller, p, project, principal);
+            return { ref: { id: project.publicId, type: 'project' } };
+          },
+        };
+      }
+      case 'record_share': {
+        const target = await this.#shareTarget(tx, p, c.record, '/change/record');
+        const principal = await this.#grantee(tx, c.grantee, true);
+        const members = await principal.members();
+        const pairs = [];
+        for (const m of members) {
+          const before = await compile(m);
+          pairs.push({ before, after: before });
+        }
+        return {
+          change: c,
+          pairs,
+          epochs: await epochsOf(members.map((m) => m.id)),
+          sharedRecord: { id: target.id, type: target.recordType },
+          apply: async (caller) => {
+            const id = await this.#createShareTx(tx, caller, p, {
+              record: c.record,
+              children: [],
+              grantee: c.grantee,
+              level: c.level,
+              expires_at: c.expires_at ? new Date(c.expires_at) : null,
+            });
+            return { ref: { id, type: 'share_group' } };
+          },
+        };
+      }
       case 'team_add':
       case 'team_remove': {
         const team = await this.#team(tx, c.team, lock);
@@ -653,12 +793,52 @@ export class CollaborationService extends TenancyService {
     }
   }
 
+  /** The one exposure diff: brand levels and capabilities, plus exact deltas for projects and shares. */
+  async #diff(tx: WorkspaceTransaction, p: Principal, prop: Proposal): Promise<ExposureDiff> {
+    const diff = await exposureDiff(tx, p, prop.pairs, await brandRefs(tx));
+    if (!prop.project && !prop.sharedRecord) return diff;
+    const delta = await visibleDelta(tx, p, prop.pairs, this.c.settings.principalContextArrayMax, {
+      gainedRecord: prop.sharedRecord ?? null,
+    });
+    const projects: ExposureDiff['projects'] = [];
+    if (prop.project) {
+      const facts = {
+        brand: prop.project.brand,
+        lifecycleState: 'active' as const,
+        shareLevel: null,
+        projectChain: prop.project.chain,
+      };
+      let before: Level | null = null;
+      let after: Level | null = null;
+      for (const pair of prop.pairs) {
+        before = maxLevel(before, pair.before ? recordLevel(pair.before, facts) : null);
+        after = maxLevel(after, pair.after ? recordLevel(pair.after, facts) : null);
+      }
+      if (before !== after)
+        projects.push({
+          project: { id: prop.project.publicId, name: prop.project.name },
+          before,
+          after,
+        });
+    }
+    const increases =
+      projects.some((x) => levelRank(x.after) > levelRank(x.before)) ||
+      Object.keys(delta.gained).length > 0;
+    return {
+      ...diff,
+      projects,
+      records_gained: delta.gained,
+      records_lost: delta.lost,
+      increases_access: diff.increases_access || increases,
+    };
+  }
+
   /** Returns the exposure diff and a short-lived fingerprint the apply step must present. */
   async previewChange(caller: Caller, workspacePublicId: unknown, body: unknown) {
     return this.inWorkspace(caller, workspacePublicId, { readOnly: true }, async (tx, p) => {
       this.#directory(p);
       const prop = await this.#proposal(tx, p, body, false);
-      const diff = await exposureDiff(tx, p, prop.pairs, await brandRefs(tx));
+      const diff = await this.#diff(tx, p, prop);
       return {
         change: prop.change,
         diff,
@@ -687,7 +867,7 @@ export class CollaborationService extends TenancyService {
       async (tx, p) => {
         this.#directory(p);
         const prop = await this.#proposal(tx, p, changeBody, true);
-        const diff = await exposureDiff(tx, p, prop.pairs, await brandRefs(tx));
+        const diff = await this.#diff(tx, p, prop);
         if (
           !verifyPreviewToken(this.#previewKey, token, {
             viewer: p.membershipId,
@@ -1297,12 +1477,7 @@ export class CollaborationService extends TenancyService {
             cl ? { allowed: true } : { allowed: false, code: 'forbidden' },
           );
           if (!cl) throw new TenancyError('forbidden');
-          await this.#validateShareTargets(
-            tx,
-            p,
-            input.records.map((r) => r.record),
-            '/records',
-          );
+          await this.#validateShareTargets(tx, p, input.records, '/records');
         }
         // Lazy expiry: a stale pending invitation for the same email closes before a new one.
         await tx.db
@@ -1784,8 +1959,9 @@ export class CollaborationService extends TenancyService {
           }
         } else {
           for (const r of proposal.records ?? []) {
-            const rec = await this.#recordForShare(tx, ip, r.record);
-            if (!rec) continue;
+            const res = await this.#resolveShare(tx, ip, r.record);
+            if (res.kind !== 'ok' || !res.target.levels.includes(r.level)) continue;
+            const rec = res.target;
             await this.#insertShare(
               tx,
               acceptCaller,
@@ -2218,7 +2394,11 @@ export class CollaborationService extends TenancyService {
   }
 
   /** A grantee: an active internal membership or an active team (never a guest). */
-  async #grantee(tx: WorkspaceTransaction, publicId: unknown): Promise<Grantee> {
+  async #grantee(
+    tx: WorkspaceTransaction,
+    publicId: unknown,
+    allowGuest = false,
+  ): Promise<Grantee> {
     if (typeof publicId === 'string' && PUBLIC('team').test(publicId)) {
       const t = await this.#team(tx, publicId);
       if (t.lifecycleState !== 'active') throw new TenancyError('conflict');
@@ -2245,6 +2425,14 @@ export class CollaborationService extends TenancyService {
       };
     }
     const m = await this.#member(tx, publicId);
+    if (allowGuest && m.state === 'active' && m.kind === 'guest')
+      return {
+        type: 'membership' as const,
+        id: m.id,
+        publicId: m.public_id,
+        currentBrandLevel: () => null,
+        members: async () => [{ id: m.id, account_id: m.account_id, kind: m.kind }],
+      };
     if (m.kind !== 'member' || m.state !== 'active')
       throw invalid(
         issue(
@@ -2270,6 +2458,193 @@ export class CollaborationService extends TenancyService {
         (direct.find((d) => d.brand_scope_id === brandId)?.level as Level | undefined) ?? null,
       members: async () => [{ id: m.id, account_id: m.account_id, kind: m.kind }],
     };
+  }
+
+  /** A readable project by public id; unknown, foreign, and unreadable are the same not_found. */
+  async #projectByPublic(
+    tx: WorkspaceTransaction,
+    p: Principal,
+    publicId: unknown,
+    lock = false,
+  ): Promise<ProjectRef> {
+    if (typeof publicId !== 'string' || !PUBLIC('prj').test(publicId))
+      throw new TenancyError('not_found');
+    let q = tx.db
+      .selectFrom('core.record as r')
+      .innerJoin('work.project as w', (j) =>
+        j.onRef('w.workspace_id', '=', 'r.workspace_id').onRef('w.id', '=', 'r.id'),
+      )
+      .select(['r.id', 'r.public_id', 'w.name', 'w.brand_id', 'r.lifecycle_state'])
+      .where('r.public_id', '=', publicId)
+      .where('r.record_type', '=', 'project');
+    if (lock) q = q.forUpdate('w');
+    const row = await q.executeTakeFirst();
+    if (!row) throw new TenancyError('not_found');
+    const brand = (await brandRefs(tx)).find((b) => b.id === row.brand_id);
+    const scope = await projectChainOf(tx, row.id);
+    if (!brand || !scope) throw new TenancyError('not_found');
+    const ref: ProjectRef = {
+      id: row.id,
+      publicId: row.public_id,
+      name: row.name,
+      brand,
+      lifecycleState: row.lifecycle_state,
+      chain: scope.chain,
+    };
+    const lv = recordLevel(p, {
+      brand,
+      lifecycleState: row.lifecycle_state,
+      shareLevel: null,
+      projectChain: scope.chain,
+    });
+    if (lv === null) throw new TenancyError('not_found');
+    return ref;
+  }
+
+  /** The principal's current direct (or team) project-scope level. */
+  async #projectGrantLevel(
+    tx: WorkspaceTransaction,
+    projectId: string,
+    principal: Grantee,
+  ): Promise<Level | null> {
+    const row = await tx.db
+      .selectFrom('access.role_assignment as a')
+      .innerJoin('access.role as r', (j) =>
+        j.onRef('r.workspace_id', '=', 'a.workspace_id').onRef('r.id', '=', 'a.role_id'),
+      )
+      .select('r.level')
+      .where('a.principal_type', '=', principal.type)
+      .where('a.principal_id', '=', principal.id)
+      .where('a.project_scope_id', '=', projectId)
+      .executeTakeFirst();
+    return (row?.level as Level | undefined) ?? null;
+  }
+
+  async #applyProjectGrant(
+    tx: WorkspaceTransaction,
+    caller: Caller,
+    p: Principal,
+    project: ProjectRef,
+    principal: Grantee,
+    level: Level,
+  ) {
+    const roleId = await this.#roleId(tx, `scope_${level}`);
+    const existing = await tx.db
+      .selectFrom('access.role_assignment')
+      .select(['id', 'version'])
+      .where('principal_type', '=', principal.type)
+      .where('principal_id', '=', principal.id)
+      .where('project_scope_id', '=', project.id)
+      .forUpdate()
+      .executeTakeFirst();
+    let id: string;
+    if (existing) {
+      id = existing.id;
+      await tx.db
+        .updateTable('access.role_assignment')
+        .set({ role_id: roleId, version: sql`version + 1` })
+        .where('id', '=', existing.id)
+        .execute();
+    } else {
+      id = newUuidV7();
+      await tx.db
+        .insertInto('access.role_assignment')
+        .values({
+          id,
+          workspace_id: tx.workspaceId,
+          principal_type: principal.type,
+          principal_id: principal.id,
+          scope_type: 'project',
+          scope_id: project.id,
+          role_id: roleId,
+          role_kind: 'scope_level',
+          grant_source: 'assigned',
+          granted_by_membership_id: p.membershipId,
+        })
+        .execute();
+    }
+    for (const m of await principal.members()) await bumpEpoch(tx, 'principal', m.id);
+    await bumpEpoch(tx, 'workspace', null);
+    await this.#audit(
+      tx,
+      caller,
+      p,
+      'role_assignment.granted',
+      { recordId: project.id, type: 'project', publicId: project.publicId },
+      [change.plain('principal', null, principal.publicId), change.plain('level', null, level)],
+      project.brand.id,
+    );
+    await this.security(tx, caller, p, 'role_assignment.granted', {
+      type: principal.type,
+      id: principal.id,
+    });
+    await this.#event(
+      tx,
+      caller,
+      p,
+      'access.role.assigned',
+      { type: 'access.role_assignment', id, sequence: existing ? Number(existing.version) + 1 : 0 },
+      { scope_type: 'project', role_id: roleId },
+    );
+  }
+
+  async #applyProjectRevoke(
+    tx: WorkspaceTransaction,
+    caller: Caller,
+    p: Principal,
+    project: ProjectRef,
+    principal: Grantee,
+  ) {
+    const row = await tx.db
+      .selectFrom('access.role_assignment')
+      .select(['id', 'version'])
+      .where('principal_type', '=', principal.type)
+      .where('principal_id', '=', principal.id)
+      .where('project_scope_id', '=', project.id)
+      .forUpdate()
+      .executeTakeFirst();
+    if (!row) return;
+    await tx.db.deleteFrom('access.role_assignment').where('id', '=', row.id).execute();
+    // The last eligible manager of an active project cannot be removed (deferred database guard).
+    try {
+      await sql`SET CONSTRAINTS access.project_manager_on_assignment IMMEDIATE`.execute(tx.db);
+    } catch (err) {
+      if (pg(err).code === '23514')
+        throw new TenancyError('conflict', {
+          issues: [
+            issue(
+              '/',
+              'last_project_manager',
+              'A project needs at least one person with manage access.',
+            ),
+          ],
+        });
+      throw err;
+    }
+    await sql`SET CONSTRAINTS access.project_manager_on_assignment DEFERRED`.execute(tx.db);
+    for (const m of await principal.members()) await bumpEpoch(tx, 'principal', m.id);
+    await bumpEpoch(tx, 'workspace', null);
+    await this.#audit(
+      tx,
+      caller,
+      p,
+      'role_assignment.revoked',
+      { recordId: project.id, type: 'project', publicId: project.publicId },
+      [change.plain('principal', principal.publicId, null)],
+      project.brand.id,
+    );
+    await this.security(tx, caller, p, 'role_assignment.revoked', {
+      type: principal.type,
+      id: principal.id,
+    });
+    await this.#event(
+      tx,
+      caller,
+      p,
+      'access.role.revoked',
+      { type: 'access.role_assignment', id: row.id, sequence: Number(row.version) + 1 },
+      { scope_type: 'project' },
+    );
   }
 
   async listBrandAccess(caller: Caller, workspacePublicId: unknown, brandPublicId: unknown) {
@@ -2488,47 +2863,93 @@ export class CollaborationService extends TenancyService {
   // Explicit record shares (WSB-008, PERM-005): generic primitives over core.record targets
   // ---------------------------------------------------------------------------------------------
 
-  async #recordForShare(
+  async #resolveShare(
     tx: WorkspaceTransaction,
     p: Principal,
     publicId: unknown,
-  ): Promise<ShareTarget | null> {
+  ): Promise<ShareResolution> {
     if (typeof publicId !== 'string' || !/^[a-z]{2,5}_[0-9A-HJKMNP-TV-Z]{26}$/.test(publicId))
-      return null;
+      return { kind: 'not_found' };
     const vis = await compileVisibility(tx, p, {
       need: 'view',
       arrayMax: this.c.settings.principalContextArrayMax,
     });
     const r = await tx.db
       .selectFrom('core.record as r')
-      .select(['r.id', 'r.public_id', 'r.record_type', 'r.brand_id', 'r.lifecycle_state'])
+      .innerJoin('core.record_type as t', 't.record_type', 'r.record_type')
+      .select([
+        'r.id',
+        'r.public_id',
+        'r.record_type',
+        'r.brand_id',
+        'r.lifecycle_state',
+        't.test_only',
+      ])
       .where('r.public_id', '=', publicId)
       .where('r.record_type', 'not in', ['brand', 'team'])
       .where(vis.where('r'))
       .executeTakeFirst();
-    if (!r) return null;
+    if (!r) return { kind: 'not_found' };
+    const levels = shareableLevels(r.record_type, r.test_only);
+    if (!levels) return { kind: 'forbidden', reason: 'not_shareable_type' };
     const brand = r.brand_id ? (vis.ctx.brands.find((b) => b.id === r.brand_id) ?? null) : null;
+    const project = r.record_type === 'project' ? await projectChainOf(tx, r.id) : null;
     // Onward sharing is never derived from shares (AT-050): ownership-derived level only.
     const d = decideRecord(p, 'record.share', {
       brand,
       lifecycleState: r.lifecycle_state,
       shareLevel: null,
+      projectChain: project?.chain ?? null,
     });
-    if (!d.allowed) return null;
-    return { id: r.id, publicId: r.public_id, recordType: r.record_type, brandId: r.brand_id };
+    if (!d.allowed) return { kind: 'forbidden', reason: 'not_permitted' };
+    // Restricted projects take new shares only when the project allows them (0C §4.3).
+    if (project && project.chain.some((n) => n.restricted) && !project.allowRecordShares)
+      return { kind: 'forbidden', reason: 'record_shares_disallowed' };
+    return {
+      kind: 'ok',
+      target: {
+        id: r.id,
+        publicId: r.public_id,
+        recordType: r.record_type,
+        brandId: r.brand_id,
+        levels,
+        sharesChildren: sharesChildren(r.record_type, r.test_only),
+      },
+    };
+  }
+
+  /** The resolved target, or the safe refusal (not_found / forbidden with a reason issue). */
+  async #shareTarget(
+    tx: WorkspaceTransaction,
+    p: Principal,
+    publicId: unknown,
+    pointer: string,
+  ): Promise<ShareTarget> {
+    const res = await this.#resolveShare(tx, p, publicId);
+    if (res.kind === 'ok') return res.target;
+    if (res.kind === 'not_found') throw new TenancyError('not_found');
+    throw new TenancyError('forbidden', {
+      issues: [issue(pointer, res.reason, SHARE_REFUSAL[res.reason])],
+    });
   }
 
   async #validateShareTargets(
     tx: WorkspaceTransaction,
     p: Principal,
-    records: readonly string[],
+    records: ReadonlyArray<{ record: string; level: ShareLevel }>,
     pointer: string,
   ) {
-    for (const [i, id] of records.entries())
-      if (!(await this.#recordForShare(tx, p, id)))
+    for (const [i, r] of records.entries()) {
+      const target = await this.#shareTarget(tx, p, r.record, `${pointer}/${i}/record`);
+      if (!target.levels.includes(r.level))
         throw invalid(
-          issue(`${pointer}/${i}/record`, 'not_shareable', "That item isn't available to share."),
+          issue(
+            `${pointer}/${i}/level`,
+            'level_not_supported',
+            "That access level isn't available for this item.",
+          ),
         );
+    }
   }
 
   async #insertShare(
@@ -2622,73 +3043,95 @@ export class CollaborationService extends TenancyService {
       workspacePublicId,
       req,
       async (tx, p) => {
-        const source = await this.#recordForShare(tx, p, input.record);
-        if (!source) throw new TenancyError('not_found');
-        this.decision('record.share', { allowed: true });
-        const records = [source];
-        for (const [i, id] of input.children.entries()) {
-          const child = await this.#recordForShare(tx, p, id);
-          if (!child)
-            throw invalid(
-              issue(`/children/${i}`, 'not_shareable', "That item isn't available to share."),
-            );
-          records.push(child);
-        }
-        let grantee: { type: 'membership' | 'team' | 'brand'; id: string };
-        let granteeBrandId: string | null = null;
-        if (PUBLIC('mem').test(input.grantee)) {
-          const m = await this.#member(tx, input.grantee);
-          if (m.state !== 'active')
-            throw invalid(issue('/grantee', 'not_active', 'Choose an active person.'));
-          grantee = { type: 'membership', id: m.id };
-        } else if (PUBLIC('team').test(input.grantee)) {
-          const t = await this.#team(tx, input.grantee);
-          if (t.lifecycleState !== 'active')
-            throw invalid(issue('/grantee', 'not_active', 'Choose an active team.'));
-          grantee = { type: 'team', id: t.id };
-        } else {
-          const b = await this.#brandByPublic(tx, input.grantee);
-          if (b.lifecycleState !== 'active' || brandLevel(p, b) === null)
-            throw new TenancyError('not_found');
-          grantee = { type: 'brand', id: b.id };
-          granteeBrandId = b.id;
-        }
-        const crossBrand =
-          (granteeBrandId !== null && granteeBrandId !== source.brandId) ||
-          records.some((r) => r.brandId !== source.brandId);
-        if (crossBrand && !p.policy.cross_brand_sharing_enabled)
-          throw new TenancyError('forbidden', {
-            issues: [
-              issue(
-                '/grantee',
-                'cross_brand_sharing_disabled',
-                'Sharing across brands is turned off for this workspace.',
-              ),
-            ],
-          });
-        let expiresAt = input.expires_at;
-        if (p.policy.share_max_expiry) {
-          const max = await sql<{
-            t: Date;
-          }>`SELECT now() + ${p.policy.share_max_expiry}::interval AS t`.execute(tx.db);
-          const cap = max.rows[0]!.t;
-          if (!expiresAt || expiresAt > cap) expiresAt = cap;
-        }
-        const id = await this.#insertShare(
-          tx,
-          caller,
-          p,
-          source,
-          records,
-          grantee,
-          input.level,
-          expiresAt,
-        );
+        const id = await this.#createShareTx(tx, caller, p, input);
         const data = await this.#shareView(tx, id);
         return { status: 201, ref: { id, type: 'share_group' }, data };
       },
       async (tx, _p, ref) => this.#shareView(tx, ref.id),
     );
+  }
+
+  /** One share inside the caller's transaction (direct command or a reviewed `record_share`). */
+  async #createShareTx(
+    tx: WorkspaceTransaction,
+    caller: Caller,
+    p: Principal,
+    input: ReturnType<typeof parseShare>,
+  ): Promise<string> {
+    const source = await this.#shareTarget(tx, p, input.record, '/record');
+    this.decision('record.share', { allowed: true });
+    if (!source.levels.includes(input.level))
+      throw invalid(
+        issue('/level', 'level_not_supported', "That access level isn't available for this item."),
+      );
+    if (input.children.length && !source.sharesChildren)
+      throw invalid(
+        issue(
+          '/children',
+          'children_not_shareable',
+          'This item is shared on its own; contained items are never included.',
+        ),
+      );
+    const records = [source];
+    for (const [i, id] of input.children.entries()) {
+      const res = await this.#resolveShare(tx, p, id);
+      if (res.kind !== 'ok' || !res.target.levels.includes(input.level))
+        throw invalid(
+          issue(`/children/${i}`, 'not_shareable', "That item isn't available to share."),
+        );
+      records.push(res.target);
+    }
+    let grantee: { type: 'membership' | 'team' | 'brand'; id: string };
+    let granteeBrandId: string | null = null;
+    if (PUBLIC('mem').test(input.grantee)) {
+      const m = await this.#member(tx, input.grantee);
+      if (m.state !== 'active')
+        throw invalid(issue('/grantee', 'not_active', 'Choose an active person.'));
+      grantee = { type: 'membership', id: m.id };
+    } else if (PUBLIC('team').test(input.grantee)) {
+      const t = await this.#team(tx, input.grantee);
+      if (t.lifecycleState !== 'active')
+        throw invalid(issue('/grantee', 'not_active', 'Choose an active team.'));
+      grantee = { type: 'team', id: t.id };
+    } else {
+      const b = await this.#brandByPublic(tx, input.grantee);
+      if (b.lifecycleState !== 'active' || brandLevel(p, b) === null)
+        throw new TenancyError('not_found');
+      grantee = { type: 'brand', id: b.id };
+      granteeBrandId = b.id;
+    }
+    const crossBrand =
+      (granteeBrandId !== null && granteeBrandId !== source.brandId) ||
+      records.some((r) => r.brandId !== source.brandId);
+    if (crossBrand && !p.policy.cross_brand_sharing_enabled)
+      throw new TenancyError('forbidden', {
+        issues: [
+          issue(
+            '/grantee',
+            'cross_brand_sharing_disabled',
+            'Sharing across brands is turned off for this workspace.',
+          ),
+        ],
+      });
+    let expiresAt = input.expires_at;
+    if (p.policy.share_max_expiry) {
+      const max = await sql<{
+        t: Date;
+      }>`SELECT now() + ${p.policy.share_max_expiry}::interval AS t`.execute(tx.db);
+      const cap = max.rows[0]!.t;
+      if (!expiresAt || expiresAt > cap) expiresAt = cap;
+    }
+    const id = await this.#insertShare(
+      tx,
+      caller,
+      p,
+      source,
+      records,
+      grantee,
+      input.level,
+      expiresAt,
+    );
+    return id;
   }
 
   async #shareView(tx: WorkspaceTransaction, publicId: string) {
@@ -2746,10 +3189,10 @@ export class CollaborationService extends TenancyService {
           .select('public_id')
           .where('id', '=', g.source_record_id)
           .executeTakeFirstOrThrow();
-        const allowed =
-          g.created_by_membership_id === p.membershipId ||
-          Boolean(await this.#recordForShare(tx, p, src.public_id));
-        if (!allowed) throw new TenancyError('not_found');
+        const res = await this.#resolveShare(tx, p, src.public_id);
+        const allowed = g.created_by_membership_id === p.membershipId || res.kind === 'ok';
+        // Readable source without share authority: forbidden; otherwise nothing is disclosed.
+        if (!allowed) throw new TenancyError(res.kind === 'forbidden' ? 'forbidden' : 'not_found');
         this.decision('record.share_revoke', { allowed: true });
         if (g.state === 'active') {
           const now = new Date();
@@ -3443,6 +3886,52 @@ export function parseChange(raw: unknown): ProposedChange {
     case 'team_remove':
       out = { kind, team: str('team', 'team'), member: str('member', 'mem') };
       break;
+    case 'project_grant':
+    case 'project_revoke': {
+      const project = str('project', 'prj');
+      const principal = b.principal;
+      if (
+        typeof principal !== 'string' ||
+        !(PUBLIC('mem').test(principal) || PUBLIC('team').test(principal))
+      )
+        issues.add('/change/principal', 'invalid_reference', 'Choose a person or team.');
+      if (kind === 'project_grant') {
+        if (!(LEVELS as readonly unknown[]).includes(b.level))
+          issues.add('/change/level', 'invalid_option', 'Choose a level.');
+        out = { kind, project, principal: principal as string, level: b.level as Level };
+      } else out = { kind, project, principal: principal as string };
+      break;
+    }
+    case 'record_share': {
+      const record = b.record;
+      if (typeof record !== 'string' || !/^[a-z]{2,5}_[0-9A-HJKMNP-TV-Z]{26}$/.test(record))
+        issues.add('/change/record', 'invalid_reference', 'Choose an item to share.');
+      const grantee = b.grantee;
+      if (
+        typeof grantee !== 'string' ||
+        !(PUBLIC('mem').test(grantee) || PUBLIC('team').test(grantee))
+      )
+        issues.add('/change/grantee', 'invalid_reference', 'Choose a person or team.');
+      // The API's `view` is the stored `read` level (0C AZ-21); no fourth level exists.
+      const raw = b.level ?? 'view';
+      const level = raw === 'view' ? 'read' : raw;
+      if (!['read', 'comment', 'edit'].includes(level as string))
+        issues.add('/change/level', 'invalid_option', 'Choose view, comment, or edit.');
+      const exp = b.expires_at ?? null;
+      if (
+        exp !== null &&
+        (typeof exp !== 'string' || Number.isNaN(Date.parse(exp)) || Date.parse(exp) <= Date.now())
+      )
+        issues.add('/change/expires_at', 'invalid_date', 'Choose a future date.');
+      out = {
+        kind,
+        record: record as string,
+        grantee: grantee as string,
+        level: level as ShareLevel,
+        expires_at: exp as string | null,
+      };
+      break;
+    }
     default:
       issues.add('/change/kind', 'invalid_option', 'Choose a change.');
   }

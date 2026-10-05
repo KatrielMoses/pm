@@ -1704,7 +1704,8 @@ function requireVersion(expected: number, current: number): void {
 
 interface MergeRequest {
   version: number | undefined;
-  changes: Map<string, { base: unknown; value: unknown }>;
+  /** `baseHash` (0D §4.2 `base_hash`) replaces `base` for rich text and large values. */
+  changes: Map<string, { base: unknown; baseHash?: string; value: unknown }>;
 }
 
 /** Parses a 0D `field-merge-request`; unknown fields are `unsupported_field`. */
@@ -1720,17 +1721,33 @@ export function parseMerge(body: unknown, allowed: readonly string[]): MergeRequ
       issues.add(`/${k}`, 'unsupported_field', 'This field is not supported.');
   if (b.version !== undefined && (typeof b.version !== 'number' || !Number.isInteger(b.version)))
     issues.add('/version', 'invalid_type', 'Version must be a whole number.');
-  const changes = new Map<string, { base: unknown; value: unknown }>();
+  const changes = new Map<string, { base: unknown; baseHash?: string; value: unknown }>();
   for (const [field, c] of Object.entries(b.changes as Record<string, unknown>)) {
     if (!allowed.includes(field)) {
       issues.add(`/changes/${field}`, 'unsupported_field', 'This field is not supported.');
       continue;
     }
-    if (!isObject(c) || !('base' in c) || !('value' in c)) {
+    // Exactly one of `base` (the value last seen) or `base_hash` (sha256 of its RFC 8785 form).
+    if (
+      !isObject(c) ||
+      !('value' in c) ||
+      'base' in c === 'base_hash' in c ||
+      Object.keys(c).some((k) => k !== 'base' && k !== 'base_hash' && k !== 'value')
+    ) {
       issues.add(`/changes/${field}`, 'invalid_type', 'Send the base and new value.');
       continue;
     }
-    changes.set(field, { base: c.base, value: c.value });
+    if ('base_hash' in c) {
+      if (typeof c.base_hash !== 'string' || !/^sha256:[0-9a-f]{64}$/.test(c.base_hash)) {
+        issues.add(
+          `/changes/${field}/base_hash`,
+          'invalid_type',
+          'Send the hash of the base value.',
+        );
+        continue;
+      }
+      changes.set(field, { base: undefined, baseHash: c.base_hash, value: c.value });
+    } else changes.set(field, { base: c.base, value: c.value });
   }
   if (!changes.size) issues.add('/changes', 'required', 'Send at least one changed field.');
   issues.throwIfAny();
@@ -1755,7 +1772,11 @@ function applyMerge(
     const v = validate(field, c.value, issues);
     if (v === undefined) continue;
     if (same(current[field], v)) continue;
-    if (merge.version === version || same(current[field], c.base)) {
+    const matchesBase =
+      c.baseHash !== undefined
+        ? contentHash(current[field] ?? null) === c.baseHash
+        : same(current[field], c.base);
+    if (merge.version === version || matchesBase) {
       next[field] = v;
       clean.push(field);
     } else conflicts.push(field);
@@ -1903,3 +1924,8 @@ export function parseWorkspaceCreate(body: unknown): WorkspaceCreateInput {
     first_brand: firstBrand,
   };
 }
+
+// Shared with record-owning modules (Phase 2A work): one 0D field-merge, version check, and audit
+// diff implementation.
+export { applyMerge as applyFieldMerge, diff as auditDiff, requireVersion };
+export type { MergeRequest };
