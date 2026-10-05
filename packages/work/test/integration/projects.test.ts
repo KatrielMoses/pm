@@ -185,7 +185,8 @@ describe('projects (2A)', () => {
       mutation(),
     );
     let o = await env.svc.overview(owner, ws, p.id);
-    expect(o.phases.map((x) => x.name)).toEqual(['Discovery', 'Build']);
+    // `after: null` places the phase first (the parseAfter contract the UI's Move up relies on).
+    expect(o.phases.map((x) => x.name)).toEqual(['Build', 'Discovery']);
     expect(o.milestones).toEqual([expect.objectContaining({ name: 'Beta', phase: ph1.id })]);
     expect(o.criteria).toEqual([
       expect.objectContaining({ kind: 'success', text: '1,000 signups', met: false }),
@@ -197,9 +198,10 @@ describe('projects (2A)', () => {
     expect(o.phases.find((x) => x.id === ph1.id)).toMatchObject({ lifecycle_state: 'archived' });
     await env.svc.childLifecycle(owner, ws, p.id, 'phase', ph1.id, 'unarchive', mutation());
     o = await env.svc.overview(owner, ws, p.id);
+    // Rank is kept across archive and restore (Build was moved first above).
     expect(o.phases.map((x) => [x.name, x.lifecycle_state])).toEqual([
-      ['Discovery', 'active'],
       ['Build', 'active'],
+      ['Discovery', 'active'],
     ]);
     const actions = (
       await db.admin(

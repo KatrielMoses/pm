@@ -33,6 +33,23 @@ export interface WorkSettings {
   recurrenceWorkspaceDiscoveryMax: number;
   /** `RECURRENCE_SERIES_DISCOVERY_MAX`: most due series one run processes per workspace. */
   recurrenceSeriesDiscoveryMax: number;
+  /** `TASK_DEPTH_MAX`: deepest subtask level a command accepts (root = 0). */
+  taskDepthMax: number;
+  /** `TASK_SUBTREE_MAX`: most tasks one subtree operation (move, lifecycle, duplicate) touches. */
+  taskSubtreeMax: number;
+  /** `TASK_ITEMS_MAX`: most checklist items, criteria items, or links per task (each kind). */
+  taskItemsMax: number;
+  /** `TASK_ASSIGNEES_MAX` */
+  taskAssigneesMax: number;
+  /** `TASK_LABELS_MAX` */
+  taskLabelsMax: number;
+  /** `BRAND_LABELS_MAX` */
+  brandLabelsMax: number;
+  /** `TASK_ESTIMATE_MINUTES_MAX` */
+  taskEstimateMinutesMax: number;
+  /** `PAGE_LIMIT_DEFAULT` and `PAGE_LIMIT_MAX` for task and project lists. */
+  pageLimitDefault: number;
+  pageLimitMax: number;
 }
 
 export const DEFAULT_WORK_SETTINGS: WorkSettings = Object.freeze({
@@ -41,7 +58,19 @@ export const DEFAULT_WORK_SETTINGS: WorkSettings = Object.freeze({
   recurrenceCatchupMax: 12,
   recurrenceWorkspaceDiscoveryMax: 200,
   recurrenceSeriesDiscoveryMax: 50,
+  taskDepthMax: 20,
+  taskSubtreeMax: 500,
+  taskItemsMax: 200,
+  taskAssigneesMax: 20,
+  taskLabelsMax: 50,
+  brandLabelsMax: 1000,
+  taskEstimateMinutesMax: 100_000,
+  pageLimitDefault: 50,
+  pageLimitMax: 200,
 });
+
+/** The database invariant behind `TASK_DEPTH_MAX` (migration 0023). */
+export const TASK_DEPTH_CEILING = 64;
 
 /** The database invariant behind `PROJECT_DEPTH_MAX` (migration 0021). */
 export const PROJECT_DEPTH_CEILING = 32;
@@ -94,7 +123,7 @@ export function enumValue<T extends string>(
   return v as T;
 }
 
-function nonNegativeInt(
+export function nonNegativeInt(
   v: unknown,
   pointer: string,
   issues: Issues,

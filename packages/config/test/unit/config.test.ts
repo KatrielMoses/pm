@@ -63,6 +63,15 @@ describe('server configuration', () => {
       recurrenceCatchupMax: 12,
       recurrenceWorkspaceDiscoveryMax: 200,
       recurrenceSeriesDiscoveryMax: 50,
+      taskDepthMax: 20,
+      taskSubtreeMax: 500,
+      taskItemsMax: 200,
+      taskAssigneesMax: 20,
+      taskLabelsMax: 50,
+      brandLabelsMax: 1000,
+      taskEstimateMinutesMax: 100000,
+      pageLimitDefault: 50,
+      pageLimitMax: 200,
     });
     const set = (env: Record<string, string>) =>
       loadServerConfig({ service: 'worker', env: { ...local, ...env } });

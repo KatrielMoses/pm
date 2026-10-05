@@ -104,3 +104,27 @@ export const projectOwnerHook: OwnershipHook = {
     return n + Number(s.numUpdatedRows);
   },
 };
+
+/**
+ * Departure (AZ-22): assignments are responsibility of active members only, so a departing
+ * member's assignments end (never transferred: responsibility is chosen, not inherited). The
+ * deferred database guard refuses a removal that leaves any assignment behind.
+ */
+export const taskAssigneeHook: OwnershipHook = {
+  key: 'task_assignee',
+  async plan(tx, membershipId) {
+    const r = await tx.db
+      .selectFrom('work.task_assignee')
+      .select((eb) => eb.fn.countAll<string>().as('n'))
+      .where('membership_id', '=', membershipId)
+      .executeTakeFirstOrThrow();
+    return { hook: 'task_assignee', owned: Number(r.n), requiresAssignee: false };
+  },
+  async apply(tx, from) {
+    const r = await tx.db
+      .deleteFrom('work.task_assignee')
+      .where('membership_id', '=', from)
+      .executeTakeFirst();
+    return Number(r.numDeletedRows);
+  },
+};
