@@ -23,6 +23,7 @@ COPY packages/platform/package.json packages/platform/
 COPY packages/tenancy/package.json packages/tenancy/
 COPY packages/test-infra/package.json packages/test-infra/
 COPY packages/test-support/package.json packages/test-support/
+COPY packages/work/package.json packages/work/
 RUN --mount=type=cache,id=pnpm-store,target=/pnpm/store pnpm install --frozen-lockfile --ignore-scripts
 COPY . .
 RUN pnpm run contracts:generate:check && pnpm exec tsc -b && pnpm --filter @pm/web build

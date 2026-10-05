@@ -10,6 +10,7 @@ import {
   type Level,
   type Principal,
 } from './policy.ts';
+import { governingProject, projectIdsAtLevel, projectScope } from './projects.ts';
 
 /**
  * The record visibility predicate (0C §4.5), compiled once per request from the principal and
@@ -21,6 +22,10 @@ import {
  * exact-record grants to the principal's subject keys (membership, teams, viewable brand
  * contexts — never brand contexts for guests). Arrays above `arrayMax` move into a
  * transaction-scoped temporary table joined the same way.
+ *
+ * Project scope (0C AZ-21): records governed by a restricted project chain leave the brand branch;
+ * explicit project grants add a project branch (flowing down until a restricted project). Callers
+ * over typed tables pass the governing project column; generic `core.record` queries derive it.
  */
 
 export interface VisibilityContext {
@@ -33,6 +38,10 @@ export interface VisibilityContext {
   strategy: 'array' | 'temp_table' | 'semi_join';
   /** Share levels that satisfy `need` (read=view). Empty: shares cannot satisfy it. */
   shareLevels: string[];
+  /** Projects whose chain is restricted (excluded from the brand branch). */
+  restrictedProjects: string[];
+  /** Projects reachable at `need` through explicit project grants. */
+  projectIds: string[];
 }
 
 let tempSeq = 0;
@@ -55,7 +64,10 @@ export async function compileVisibility(
   tx: WorkspaceTransaction,
   p: Principal,
   options: { need: Level; includeArchived?: boolean; arrayMax: number; brands?: BrandFacts[] },
-): Promise<{ ctx: VisibilityContext; where: (alias: string) => RawBuilder<boolean> }> {
+): Promise<{
+  ctx: VisibilityContext;
+  where: (alias: string, opts?: { project?: RawBuilder<unknown> }) => RawBuilder<boolean>;
+}> {
   const brands = options.brands ?? (await brandFacts(tx));
   const cap = roleCap(p.role);
   const effectiveNeed = options.need;
@@ -88,7 +100,14 @@ export async function compileVisibility(
   const includeArchived =
     (options.includeArchived ?? false) &&
     levelRank(effectiveNeed) <= levelRank(p.policy.comment_on_archived ? 'comment' : 'view');
-  const oversized = brandIds.length > options.arrayMax || subjects.length > options.arrayMax;
+  const scope = await projectScope(tx, p);
+  const restrictedProjects = scope.restrictedChain;
+  const projectIds = capped ? projectIdsAtLevel(scope, effectiveNeed) : [];
+  const oversized =
+    brandIds.length > options.arrayMax ||
+    subjects.length > options.arrayMax ||
+    restrictedProjects.length > options.arrayMax ||
+    projectIds.length > options.arrayMax;
   // Temporary tables cannot be created in read-only transactions; there the same sets join as a
   // row-set semi-join over `unnest` (equivalent plan shape, no catalog writes).
   const readOnly = oversized
@@ -103,26 +122,34 @@ export async function compileVisibility(
     : readOnly
       ? 'semi_join'
       : 'temp_table';
-  let brandSet: RawBuilder<unknown> = sql`${brandIds}::uuid[]`;
-  let subjectSet: RawBuilder<unknown> = sql`${subjects}::uuid[]`;
-  if (strategy === 'semi_join') {
-    brandSet = sql`ARRAY(SELECT DISTINCT unnest(${brandIds}::uuid[]))`;
-    subjectSet = sql`ARRAY(SELECT DISTINCT unnest(${subjects}::uuid[]))`;
-  }
+  const sets: Record<'brands' | 'subjects' | 'restricted' | 'projects', RawBuilder<unknown>> = {
+    brands: sql`${brandIds}::uuid[]`,
+    subjects: sql`${subjects}::uuid[]`,
+    restricted: sql`${restrictedProjects}::uuid[]`,
+    projects: sql`${projectIds}::uuid[]`,
+  };
+  const values = {
+    brands: brandIds,
+    subjects,
+    restricted: restrictedProjects,
+    projects: projectIds,
+  };
+  if (strategy === 'semi_join')
+    for (const k of Object.keys(values) as Array<keyof typeof values>)
+      sets[k] = sql`ARRAY(SELECT DISTINCT unnest(${values[k]}::uuid[]))`;
   if (strategy === 'temp_table') {
     const n = ++tempSeq;
-    const bt = sql.raw(`pg_temp.ctx_brands_${n}`);
-    const st = sql.raw(`pg_temp.ctx_subjects_${n}`);
-    await sql`CREATE TEMP TABLE ${bt} (id uuid PRIMARY KEY) ON COMMIT DROP`.execute(tx.db);
-    await sql`CREATE TEMP TABLE ${st} (id uuid PRIMARY KEY) ON COMMIT DROP`.execute(tx.db);
-    if (brandIds.length)
-      await sql`INSERT INTO ${bt} SELECT unnest(${brandIds}::uuid[])`.execute(tx.db);
-    await sql`INSERT INTO ${st} SELECT unnest(${subjects}::uuid[])`.execute(tx.db);
-    await sql`ANALYZE ${bt}`.execute(tx.db);
-    await sql`ANALYZE ${st}`.execute(tx.db);
-    brandSet = sql`ARRAY(SELECT id FROM ${bt})`;
-    subjectSet = sql`ARRAY(SELECT id FROM ${st})`;
+    for (const k of Object.keys(values) as Array<keyof typeof values>) {
+      const t = sql.raw(`pg_temp.ctx_${k}_${n}`);
+      await sql`CREATE TEMP TABLE ${t} (id uuid PRIMARY KEY) ON COMMIT DROP`.execute(tx.db);
+      if (values[k].length)
+        await sql`INSERT INTO ${t} SELECT unnest(${values[k]}::uuid[])`.execute(tx.db);
+      await sql`ANALYZE ${t}`.execute(tx.db);
+      sets[k] = sql`ARRAY(SELECT id FROM ${t})`;
+    }
   }
+  const brandSet = sets.brands;
+  const subjectSet = sets.subjects;
   const ctx: VisibilityContext = {
     need: effectiveNeed,
     brands,
@@ -132,10 +159,18 @@ export async function compileVisibility(
     includeArchived,
     strategy,
     shareLevels,
+    restrictedProjects,
+    projectIds,
   };
   const states = includeArchived ? ['active', 'archived'] : ['active'];
-  const where = (alias: string) => {
+  const projectAware = restrictedProjects.length > 0 || projectIds.length > 0;
+  const where = (alias: string, opts: { project?: RawBuilder<unknown> } = {}) => {
     const r = sql.raw(alias);
+    const gp = projectAware ? (opts.project ?? governingProject(alias)) : null;
+    const brandBranch = gp
+      ? sql`(${r}.brand_id = ANY(${brandSet}) AND (${gp} IS NULL OR ${gp} <> ALL(${sets.restricted})))`
+      : sql`${r}.brand_id = ANY(${brandSet})`;
+    const projectBranch = gp && projectIds.length ? sql`${gp} = ANY(${sets.projects})` : sql`false`;
     const wsBranch =
       wsLevel !== null && levelRank(wsLevel) >= levelRank(effectiveNeed)
         ? sql`${r}.brand_id IS NULL`
@@ -148,7 +183,7 @@ export async function compileVisibility(
                        AND g.level = ANY(${shareLevels}::text[]))`
       : sql`false`;
     return sql<boolean>`(${r}.lifecycle_state = ANY(${states}::core.lifecycle_state[])
-      AND (${wsBranch} OR ${r}.brand_id = ANY(${brandSet}) OR ${shareBranch}))`;
+      AND (${wsBranch} OR ${brandBranch} OR ${projectBranch} OR ${shareBranch}))`;
   };
   return { ctx, where };
 }

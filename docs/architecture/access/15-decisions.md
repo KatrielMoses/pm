@@ -194,3 +194,14 @@ All decisions are **proposed (Phase 0C)**, pending solutions-architect acceptanc
   - Shared-view pins use `views.configure` and are re-authorized at display.
 - **Alternatives:** Client-side filtering of a server list of all favorites (leaks through the response). Showing "unavailable" entries (reveals prior existence).
 - **Consequences:** Threat T-39 with tests AT-108…114 covers stale, forged, guest, malformed-state, scope, palette, and departure cases. No new action is needed, so the 0C action count stays 105.
+
+<a id="az-21"></a>
+### AZ-21: Project authority, restriction, and shareable types (Phase 2A amendment)
+- **Decision:**
+  - **Collaborators.** Project collaborators are project-scoped `access.role_assignment` rows (view, comment, edit, manage). No other table confers project authority. Owners and administrators have implicit access only to non-restricted projects in non-sensitive brands; sensitive brands and restricted projects need explicit grants.
+  - **Ownership.** The project owner is accountable responsibility (I-10), never authority. Creating, transferring ownership of, or restricting a project creates or keeps an explicit project manage grant for the responsible manager. A deferred guard keeps one eligible manager on every active project.
+  - **Restriction.** A restricted project stops brand, workspace, and ancestor-project grants for itself and its descendants. Only explicit project grants and exact record grants count. `allow_record_shares` defaults to false.
+  - **Shares.** One shareability registry names the shareable record types and their enforced levels. A project share grants exactly the project representation plus its intrinsic, non-addressable facts: criteria items and scope items (scope, exclusion, risk, assumption, constraint), and the latest verified update's content and public ID (PRJ-025). It never grants phases, milestones, decisions or open questions, dependencies, child projects, recurrence configuration, templates, collaborators, grants, audit or activity, verification history (verifier, time), unverified or older updates, or update counts. Each overview section is authorized on its own; a separate authority may show more. Direct child endpoints return `not_found` to a share-only reader. Unreadable targets return `not_found` (AT-115); readable targets without `record.share`, or of an unshareable type, return `forbidden` (AT-050, AT-116).
+  - **New actions.** `project.verify_update` (OD-16) and `project.manage_recurrence` (OD-14). The action count becomes 107.
+- **Alternatives:** A `project_member` level (a second authority source). Owner as implicit manager (contradicts I-10). Returning `not_found` for every share refusal (hides real permission errors from people who can see the record).
+- **Consequences:** The compiled visibility predicate gains the restricted-project subtraction and the project-grant branch of §4.5. Preview and enforcement stay one engine.

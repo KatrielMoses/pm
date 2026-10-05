@@ -1117,6 +1117,60 @@
       "notes": ""
     },
     {
+      "key": "project.verify_update",
+      "kind": "record",
+      "scopes": [
+        "record"
+      ],
+      "description": "Verify a project update as an accountable human (OD-16).",
+      "required_level": "edit",
+      "risk_class": "R1",
+      "approval_class": "none",
+      "step_up": false,
+      "second_approval": false,
+      "non_delegable": false,
+      "entitlement": null,
+      "roles": {
+        "owner": "implicit",
+        "administrator": "implicit",
+        "member": "grant:edit",
+        "limited_member": "grant:edit",
+        "read_only": "deny",
+        "guest": "deny"
+      },
+      "requirements": [
+        "PRJ-025"
+      ],
+      "notes": "Human principals only; authoring never verifies; AI, imported, and system drafts stay unverified until this action (AZ-21)."
+    },
+    {
+      "key": "project.manage_recurrence",
+      "kind": "record",
+      "scopes": [
+        "record"
+      ],
+      "description": "Define, pause, or resume a project recurrence, or generate its next occurrence (OD-14).",
+      "required_level": "manage",
+      "risk_class": "R2",
+      "approval_class": "none",
+      "step_up": false,
+      "second_approval": false,
+      "non_delegable": false,
+      "entitlement": null,
+      "roles": {
+        "owner": "implicit",
+        "administrator": "implicit",
+        "member": "grant:manage",
+        "limited_member": "deny",
+        "read_only": "deny",
+        "guest": "deny"
+      },
+      "requirements": [
+        "PRJ-013"
+      ],
+      "notes": "Each generated occurrence also requires record.create in the project's brand, rechecked by the worker before each step (AZ-21)."
+    },
+    {
       "key": "deliverable.submit",
       "kind": "record",
       "scopes": [

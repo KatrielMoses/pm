@@ -239,8 +239,22 @@ describe('collaboration (1D)', () => {
     await expect(env.collab.listTeams(guest, ws, {})).rejects.toEqual(reason('not_found'));
     expect(await brandIdsOf(guest)).toEqual([]);
     expect((await env.svc.getContext(guest, ws)).brands).toEqual([]);
+    // Readable but not shareable by a guest (received share authority never reshares, AT-050):
+    // forbidden. A record the guest cannot read stays not_found and indistinguishable from a
+    // guessed identifier (AT-115).
     await expect(
       env.collab.createShare(guest, ws, { record: shared.publicId, grantee: brandA }, mutation()),
+    ).rejects.toEqual(reason('forbidden'));
+    await expect(
+      env.collab.createShare(guest, ws, { record: other.publicId, grantee: brandA }, mutation()),
+    ).rejects.toEqual(reason('not_found'));
+    await expect(
+      env.collab.createShare(
+        guest,
+        ws,
+        { record: 'fxt_01J0000000000000000000000Z', grantee: brandA },
+        mutation(),
+      ),
     ).rejects.toEqual(reason('not_found'));
     expect((await env.collab.listReadableRecords(guest, ws)).map((r) => r.id)).not.toContain(
       other.publicId,

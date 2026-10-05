@@ -757,7 +757,12 @@ export interface RoleTable {
 }
 
 export type GrantSource =
-  'bootstrap_owner' | 'brand_creator' | 'sensitivity_creator' | 'assigned' | 'elevation';
+  | 'bootstrap_owner'
+  | 'brand_creator'
+  | 'sensitivity_creator'
+  | 'assigned'
+  | 'elevation'
+  | 'project_manager';
 
 export interface RoleAssignmentTable {
   id: string;
@@ -766,9 +771,10 @@ export interface RoleAssignmentTable {
   principal_id: string;
   membership_principal_id: Generated<string | null>;
   team_principal_id: Generated<string | null>;
-  scope_type: 'workspace' | 'brand';
+  scope_type: 'workspace' | 'brand' | 'project';
   scope_id: string;
   brand_scope_id: Generated<string | null>;
+  project_scope_id: Generated<string | null>;
   role_id: string;
   role_kind: RoleKind;
   grant_source: GrantSource;
@@ -1033,6 +1039,245 @@ export interface ViewPinTable {
   created_at: DTs;
 }
 
+// ---- Phase 2A: work, workflow, relations, templates, planning (0021, 0022) ----------------------
+
+export type StatusCategory = 'planned' | 'active' | 'paused' | 'done' | 'cancelled';
+export type ProjectPriority = 'none' | 'low' | 'medium' | 'high' | 'urgent';
+export type ProjectHealth = 'on_track' | 'at_risk' | 'off_track';
+
+export interface PlatformStatusTable {
+  id: string;
+  record_type: string;
+  key: string;
+  name: string;
+  category: StatusCategory;
+  rank: number;
+}
+
+export interface ProjectTable {
+  id: string;
+  workspace_id: string;
+  brand_id: string;
+  scope_key: string;
+  lifecycle_state: Defaulted<LifecycleState>;
+  parent_project_id: string | null;
+  ancestor_ids: Defaulted<string[]>;
+  depth: Defaulted<number>;
+  name: string;
+  /** Rich text version 1 (0D PL-23); validated by tenancy.valid_rich_text. */
+  description_rich: Json<unknown> | null;
+  icon: string | null;
+  color: string | null;
+  status_id: string;
+  status_category: Defaulted<StatusCategory>;
+  priority: Defaulted<ProjectPriority>;
+  start_date: string | null;
+  target_date: string | null;
+  deadline_date: string | null;
+  completed_at: Ts | null;
+  health: ProjectHealth | null;
+  health_source: 'manual' | 'suggested' | null;
+  owner_membership_id: string;
+  budget_amount: string | null;
+  budget_currency: string | null;
+  time_budget_minutes: number | null;
+  ai_budget_micros: string | null;
+  rank: string;
+  access_mode: Defaulted<'inherit' | 'restricted'>;
+  allow_record_shares: Defaulted<boolean>;
+  recurrence_series_id: string | null;
+  occurrence_key: string | null;
+  intake_source_id: string | null;
+  created_by_membership_id: string | null;
+  created_at: DTs;
+  updated_at: DTs;
+  updated_by_membership_id: string | null;
+  version: Defaulted<number>;
+}
+
+export interface PhaseTable {
+  id: string;
+  workspace_id: string;
+  brand_id: string;
+  scope_key: string;
+  lifecycle_state: Defaulted<LifecycleState>;
+  project_id: string;
+  name: string;
+  rank: string;
+  start_date: string | null;
+  end_date: string | null;
+  status: Defaulted<'planned' | 'active' | 'completed'>;
+  owner_membership_id: string | null;
+  created_at: DTs;
+  updated_at: DTs;
+  updated_by_membership_id: string | null;
+  version: Defaulted<number>;
+}
+
+export interface MilestoneTable {
+  id: string;
+  workspace_id: string;
+  brand_id: string;
+  scope_key: string;
+  lifecycle_state: Defaulted<LifecycleState>;
+  project_id: string;
+  phase_id: string | null;
+  name: string;
+  rank: string;
+  due_date: string | null;
+  status: Defaulted<'planned' | 'reached' | 'missed' | 'cancelled'>;
+  reached_at: Ts | null;
+  owner_membership_id: string | null;
+  created_at: DTs;
+  updated_at: DTs;
+  updated_by_membership_id: string | null;
+  version: Defaulted<number>;
+}
+
+export interface CriteriaItemTable {
+  id: string;
+  public_id: string;
+  workspace_id: string;
+  brand_id: string;
+  owner_kind: Defaulted<'project'>;
+  project_id: string;
+  kind: 'success' | 'definition_of_done';
+  text: string;
+  rank: string;
+  met: Defaulted<boolean>;
+  met_by_membership_id: string | null;
+  met_at: Ts | null;
+  created_at: DTs;
+  updated_at: DTs;
+  version: Defaulted<number>;
+}
+
+export type ScopeItemKind = 'scope' | 'exclusion' | 'risk' | 'assumption' | 'constraint';
+export interface ScopeItemTable {
+  id: string;
+  public_id: string;
+  workspace_id: string;
+  brand_id: string;
+  project_id: string;
+  kind: ScopeItemKind;
+  text: string;
+  rank: string;
+  created_at: DTs;
+  updated_at: DTs;
+  version: Defaulted<number>;
+}
+
+export interface ProjectUpdateTable {
+  id: string;
+  public_id: string;
+  workspace_id: string;
+  brand_id: string;
+  project_id: string;
+  body: string;
+  health: ProjectHealth | null;
+  source_kind: 'human' | 'ai_draft' | 'import' | 'system';
+  author_membership_id: string | null;
+  created_at: DTs;
+}
+
+export interface ProjectUpdateVerificationTable {
+  workspace_id: string;
+  update_id: string;
+  project_id: string;
+  verifier_membership_id: string;
+  verified_at: DTs;
+  audit_event_id: string;
+}
+
+export type DecisionKind = 'decision' | 'open_question';
+export type DecisionState = 'proposed' | 'decided' | 'superseded' | 'open' | 'resolved';
+export interface DecisionRecordTable {
+  id: string;
+  workspace_id: string;
+  brand_id: string;
+  scope_key: string;
+  lifecycle_state: Defaulted<LifecycleState>;
+  project_id: string | null;
+  kind: DecisionKind;
+  state: DecisionState;
+  statement: string;
+  outcome: string | null;
+  owner_membership_id: string | null;
+  due_date: string | null;
+  decided_at: Ts | null;
+  resolved_at: Ts | null;
+  superseded_by_id: string | null;
+  created_at: DTs;
+  updated_at: DTs;
+  updated_by_membership_id: string | null;
+  version: Defaulted<number>;
+}
+
+export interface RecordRelationshipTable {
+  id: string;
+  workspace_id: string;
+  kind: 'blocks' | 'related';
+  from_record_id: string;
+  to_record_id: string;
+  from_brand_id: string;
+  to_brand_id: string;
+  created_by_membership_id: string | null;
+  created_at: DTs;
+}
+
+export interface TemplateTable {
+  id: string;
+  workspace_id: string;
+  brand_id: string | null;
+  scope_key: string;
+  lifecycle_state: Defaulted<LifecycleState>;
+  name: string;
+  target_record_type: 'project';
+  current_version_id: string | null;
+  created_by_membership_id: string | null;
+  created_at: DTs;
+  updated_at: DTs;
+  version: Defaulted<number>;
+}
+
+export interface TemplateVersionTable {
+  id: string;
+  workspace_id: string;
+  template_id: string;
+  version_number: number;
+  schema_version: number;
+  content: Json<Record<string, unknown>>;
+  item_count: number;
+  created_from_record_type: string | null;
+  created_by_membership_id: string | null;
+  created_at: DTs;
+}
+
+export interface RecurrenceSeriesTable {
+  id: string;
+  public_id: string;
+  workspace_id: string;
+  brand_id: string;
+  target_kind: 'project';
+  source_record_id: string | null;
+  state: Defaulted<'active' | 'paused'>;
+  rrule: string;
+  anchor_tz: string;
+  dtstart_local: string;
+  mode: Defaulted<'schedule'>;
+  template_payload: Json<Record<string, unknown>>;
+  payload_item_count: number;
+  generated_through: string | null;
+  next_due_at: Ts | null;
+  last_run_at: DTs;
+  ends_at_occurrence: string | null;
+  split_from_series_id: string | null;
+  owner_membership_id: string;
+  created_at: DTs;
+  updated_at: DTs;
+  version: Defaulted<number>;
+}
+
 export interface Database {
   'tenancy.workspace': WorkspaceTable;
   'exec.operation': OperationTable;
@@ -1089,6 +1334,19 @@ export interface Database {
   'views.recent_item': RecentItemTable;
   'views.view_state': ViewStateTable;
   'views.view_pin': ViewPinTable;
+  'workflow.platform_status': PlatformStatusTable;
+  'work.project': ProjectTable;
+  'work.phase': PhaseTable;
+  'work.milestone': MilestoneTable;
+  'work.criteria_item': CriteriaItemTable;
+  'work.scope_item': ScopeItemTable;
+  'work.project_update': ProjectUpdateTable;
+  'work.project_update_verification': ProjectUpdateVerificationTable;
+  'work.decision_record': DecisionRecordTable;
+  'relations.record_relationship': RecordRelationshipTable;
+  'templates.template': TemplateTable;
+  'templates.template_version': TemplateVersionTable;
+  'planning.recurrence_series': RecurrenceSeriesTable;
 }
 
 /** Column inventory per table, compared with the migrated catalog by the schema-drift test. */
@@ -1699,6 +1957,7 @@ export const TABLE_COLUMNS: Readonly<Record<keyof Database, readonly string[]>> 
     'scope_type',
     'scope_id',
     'brand_scope_id',
+    'project_scope_id',
     'role_id',
     'role_kind',
     'grant_source',
@@ -1916,5 +2175,214 @@ export const TABLE_COLUMNS: Readonly<Record<keyof Database, readonly string[]>> 
     'rank',
     'pinned_by_membership_id',
     'created_at',
+  ],
+  'workflow.platform_status': ['id', 'record_type', 'key', 'name', 'category', 'rank'],
+  'work.project': [
+    'id',
+    'workspace_id',
+    'brand_id',
+    'scope_key',
+    'lifecycle_state',
+    'parent_project_id',
+    'ancestor_ids',
+    'depth',
+    'name',
+    'description_rich',
+    'icon',
+    'color',
+    'status_id',
+    'status_category',
+    'priority',
+    'start_date',
+    'target_date',
+    'deadline_date',
+    'completed_at',
+    'health',
+    'health_source',
+    'owner_membership_id',
+    'budget_amount',
+    'budget_currency',
+    'time_budget_minutes',
+    'ai_budget_micros',
+    'rank',
+    'access_mode',
+    'allow_record_shares',
+    'recurrence_series_id',
+    'occurrence_key',
+    'intake_source_id',
+    'created_by_membership_id',
+    'created_at',
+    'updated_at',
+    'updated_by_membership_id',
+    'version',
+  ],
+  'work.phase': [
+    'id',
+    'workspace_id',
+    'brand_id',
+    'scope_key',
+    'lifecycle_state',
+    'project_id',
+    'name',
+    'rank',
+    'start_date',
+    'end_date',
+    'status',
+    'owner_membership_id',
+    'created_at',
+    'updated_at',
+    'updated_by_membership_id',
+    'version',
+  ],
+  'work.milestone': [
+    'id',
+    'workspace_id',
+    'brand_id',
+    'scope_key',
+    'lifecycle_state',
+    'project_id',
+    'phase_id',
+    'name',
+    'rank',
+    'due_date',
+    'status',
+    'reached_at',
+    'owner_membership_id',
+    'created_at',
+    'updated_at',
+    'updated_by_membership_id',
+    'version',
+  ],
+  'work.criteria_item': [
+    'id',
+    'public_id',
+    'workspace_id',
+    'brand_id',
+    'owner_kind',
+    'project_id',
+    'kind',
+    'text',
+    'rank',
+    'met',
+    'met_by_membership_id',
+    'met_at',
+    'created_at',
+    'updated_at',
+    'version',
+  ],
+  'work.scope_item': [
+    'id',
+    'public_id',
+    'workspace_id',
+    'brand_id',
+    'project_id',
+    'kind',
+    'text',
+    'rank',
+    'created_at',
+    'updated_at',
+    'version',
+  ],
+  'work.project_update': [
+    'id',
+    'public_id',
+    'workspace_id',
+    'brand_id',
+    'project_id',
+    'body',
+    'health',
+    'source_kind',
+    'author_membership_id',
+    'created_at',
+  ],
+  'work.project_update_verification': [
+    'workspace_id',
+    'update_id',
+    'project_id',
+    'verifier_membership_id',
+    'verified_at',
+    'audit_event_id',
+  ],
+  'work.decision_record': [
+    'id',
+    'workspace_id',
+    'brand_id',
+    'scope_key',
+    'lifecycle_state',
+    'project_id',
+    'kind',
+    'state',
+    'statement',
+    'outcome',
+    'owner_membership_id',
+    'due_date',
+    'decided_at',
+    'resolved_at',
+    'superseded_by_id',
+    'created_at',
+    'updated_at',
+    'updated_by_membership_id',
+    'version',
+  ],
+  'relations.record_relationship': [
+    'id',
+    'workspace_id',
+    'kind',
+    'from_record_id',
+    'to_record_id',
+    'from_brand_id',
+    'to_brand_id',
+    'created_by_membership_id',
+    'created_at',
+  ],
+  'templates.template': [
+    'id',
+    'workspace_id',
+    'brand_id',
+    'scope_key',
+    'lifecycle_state',
+    'name',
+    'target_record_type',
+    'current_version_id',
+    'created_by_membership_id',
+    'created_at',
+    'updated_at',
+    'version',
+  ],
+  'templates.template_version': [
+    'id',
+    'workspace_id',
+    'template_id',
+    'version_number',
+    'schema_version',
+    'content',
+    'item_count',
+    'created_from_record_type',
+    'created_by_membership_id',
+    'created_at',
+  ],
+  'planning.recurrence_series': [
+    'id',
+    'public_id',
+    'workspace_id',
+    'brand_id',
+    'target_kind',
+    'source_record_id',
+    'state',
+    'rrule',
+    'anchor_tz',
+    'dtstart_local',
+    'mode',
+    'template_payload',
+    'payload_item_count',
+    'generated_through',
+    'next_due_at',
+    'last_run_at',
+    'ends_at_occurrence',
+    'split_from_series_id',
+    'owner_membership_id',
+    'created_at',
+    'updated_at',
+    'version',
   ],
 };

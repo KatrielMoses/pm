@@ -295,3 +295,16 @@ width).
 
 - `registerTenancyLifecycle` wraps every adapter with `withPersonalReferenceCleanup`, so a purge removes favorites and recent items that point at purged records in the projection step. Brands and teams still have no purge hooks, so their purges keep blocking safely.
 - `defaultPersonalDataRegistry()` registers the views eraser (favorites, recents, and view state of a membership) and the identity eraser (account preferences). The departure retention sweep (`views.cleanup`, once an R-PERSONAL period is configured) and the future account-deletion command call these erasers.
+
+## Phase 2A: work adapters
+
+`registerWorkLifecycle` (`packages/work/src/lifecycle.ts`) adds the project types to the 1F registry (`productLifecycleRegistry()` in `@pm/work`; the API and worker use it).
+
+| Container | Children in its cascade | Purge hook |
+|---|---|---|
+| Brand | Every project of the brand (`rootsInBrand`; each is its own root), and through each project its phases, milestones, and decisions. Templates are not in the cascade (catalog lifecycle is 10B) | None yet: a brand purge still blocks with `missing_purge_hook` (1C) |
+| Project | Its phases, milestones, and decisions only; never child projects | Blocked with `children_remain` while a child references it. Removes updates, verifications, criteria, scope items, relationships, and project-scoped grants (definer function); nulls recurrence sources |
+| Phase | None (milestones belong to the project) | Clears `phase_id` on its milestones |
+| Template | None | Removes its versions and the template |
+
+Archive is read-only: commands on an archived project or phase return `forbidden` until restored. Phase archive and restore use the canonical lifecycle decisions and audit, distinct from Trash. Work routes obtain decisions only through `issueRecordLifecycleDecision` from `@pm/tenancy`; `apps/api/test/unit/tenant-routes.test.ts` rejects any other caller.

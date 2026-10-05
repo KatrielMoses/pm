@@ -247,6 +247,9 @@ importers:
       '@pm/tenancy':
         specifier: workspace:*
         version: link:../../packages/tenancy
+      '@pm/work':
+        specifier: workspace:*
+        version: link:../../packages/work
       fastify:
         specifier: 5.12.5
         version: 5.12.5
@@ -321,6 +324,9 @@ importers:
       '@pm/tenancy':
         specifier: workspace:*
         version: link:../../packages/tenancy
+      '@pm/work':
+        specifier: workspace:*
+        version: link:../../packages/work
     devDependencies:
       '@pm/test-support':
         specifier: workspace:*
@@ -619,6 +625,49 @@ importers:
         version: 5.0.3(@opentelemetry/api@1.9.1)(@types/node@24.19.1)(jsdom@30.1.1)(vite@8.3.2(@types/node@24.19.1)(yaml@2.9.1))
     devDependencies:
       '@types/pg':
+        specifier: 8.23.1
+        version: 8.23.1
+
+  packages/work:
+    dependencies:
+      '@pm/audit':
+        specifier: workspace:*
+        version: link:../audit
+      '@pm/config':
+        specifier: workspace:*
+        version: link:../config
+      '@pm/contracts':
+        specifier: workspace:*
+        version: link:../contracts
+      '@pm/db':
+        specifier: workspace:*
+        version: link:../db
+      '@pm/identity':
+        specifier: workspace:*
+        version: link:../identity
+      '@pm/lifecycle':
+        specifier: workspace:*
+        version: link:../lifecycle
+      '@pm/observability':
+        specifier: workspace:*
+        version: link:../observability
+      '@pm/platform':
+        specifier: workspace:*
+        version: link:../platform
+      '@pm/tenancy':
+        specifier: workspace:*
+        version: link:../tenancy
+    devDependencies:
+      '@pm/test-infra':
+        specifier: workspace:*
+        version: link:../test-infra
+      '@pm/test-support':
+        specifier: workspace:*
+        version: link:../test-support
+      '@types/pg':
+        specifier: 8.23.1
+        version: 8.23.1
+      pg:
         specifier: 8.23.1
         version: 8.23.1
 

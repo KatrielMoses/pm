@@ -28,7 +28,7 @@ export const DESTINATION_PHASE: Readonly<Record<ShellDestination, string | null>
   today: '3C',
   inbox: '2E',
   my_work: '3B',
-  projects: '2A',
+  projects: null,
   calendar: '3B',
   knowledge: '4C',
   goals: '5B',
@@ -127,20 +127,26 @@ export const SHELL_COMMAND_IDS = [
   'people.invite',
   'team.create',
   'favorite.toggle',
+  'project.create',
 ] as const;
 export type ShellCommandId = (typeof SHELL_COMMAND_IDS)[number];
 export const SHELL_COMMAND_TRIGGERS = ['palette', 'shortcut'] as const;
 export type ShellCommandTrigger = (typeof SHELL_COMMAND_TRIGGERS)[number];
 
 /** Record types the shell can navigate to today (palette records, favorites, recents). */
-export const NAVIGABLE_RECORD_TYPES = ['brand', 'team'] as const;
+export const NAVIGABLE_RECORD_TYPES = ['brand', 'team', 'project'] as const;
 export type NavigableRecordType = (typeof NAVIGABLE_RECORD_TYPES)[number];
 
 // -----------------------------------------------------------------------------------------------
 // Public identifiers (0B §2.2) without importing the generated registry
 // -----------------------------------------------------------------------------------------------
 const ID_BODY = '[0-9A-HJKMNP-TV-Z]{26}';
-export const SHELL_ID_PREFIXES = { brand: 'br', team: 'team', membership: 'mem' } as const;
+export const SHELL_ID_PREFIXES = {
+  brand: 'br',
+  team: 'team',
+  membership: 'mem',
+  project: 'prj',
+} as const;
 
 export function isShellPublicId(value: unknown, prefixes: readonly string[]): value is string {
   if (typeof value !== 'string' || value.length > 40) return false;
@@ -239,11 +245,14 @@ export const VIEW_STATE_SCHEMAS = {
       },
       brand: { spec: { kind: 'id', prefixes: ['br'] }, stores: ['url'] },
       // Scroll is restored by anchor item, then by its former position (RS-20).
-      anchor: { spec: { kind: 'id', prefixes: ['br', 'team'] }, stores: ['device', 'session'] },
+      anchor: {
+        spec: { kind: 'id', prefixes: ['br', 'team', 'prj'] },
+        stores: ['device', 'session'],
+      },
       position: { spec: { kind: 'position', max: 10_000 }, stores: ['device', 'session'] },
       // Selection lives only in this tab's session and is pruned to visible items.
       selected: {
-        spec: { kind: 'ids', prefixes: ['br', 'team'], max: 200 },
+        spec: { kind: 'ids', prefixes: ['br', 'team', 'prj'], max: 200 },
         stores: ['session'],
       },
     },
@@ -438,3 +447,56 @@ export function evenRanks(n: number): string[] {
   }
   return out;
 }
+
+// -----------------------------------------------------------------------------------------------
+// Projects (Phase 2A, 0B ADR-21): browser-safe vocabularies shared by the API and the web app
+// -----------------------------------------------------------------------------------------------
+
+/** The immutable platform project statuses (seeded by migration 0021), in their fixed order. */
+export const PROJECT_STATUSES = [
+  { key: 'planned', name: 'Planned', category: 'planned' },
+  { key: 'active', name: 'Active', category: 'active' },
+  { key: 'on_hold', name: 'On hold', category: 'paused' },
+  { key: 'completed', name: 'Completed', category: 'done' },
+  { key: 'cancelled', name: 'Cancelled', category: 'cancelled' },
+] as const;
+export type ProjectStatusKey = (typeof PROJECT_STATUSES)[number]['key'];
+export type StatusCategory = (typeof PROJECT_STATUSES)[number]['category'];
+export const PROJECT_PRIORITIES = ['none', 'low', 'medium', 'high', 'urgent'] as const;
+export type ProjectPriority = (typeof PROJECT_PRIORITIES)[number];
+export const PROJECT_HEALTH = ['on_track', 'at_risk', 'off_track'] as const;
+export type ProjectHealth = (typeof PROJECT_HEALTH)[number];
+export const SCOPE_ITEM_KINDS = ['scope', 'exclusion', 'risk', 'assumption', 'constraint'] as const;
+export type ScopeItemKind = (typeof SCOPE_ITEM_KINDS)[number];
+export const CRITERIA_KINDS = ['success', 'definition_of_done'] as const;
+export const PHASE_STATUSES = ['planned', 'active', 'completed'] as const;
+export const MILESTONE_STATUSES = ['planned', 'reached', 'missed', 'cancelled'] as const;
+export const DECISION_KINDS = ['decision', 'open_question'] as const;
+/** Kind-specific states (OD-15): decisions proposed → decided → superseded; questions open → resolved. */
+export const DECISION_STATES = {
+  decision: ['proposed', 'decided', 'superseded'],
+  open_question: ['open', 'resolved'],
+} as const;
+export const PROJECT_SHARE_LEVELS = ['view', 'comment', 'edit'] as const;
+
+/**
+ * Project sections in their fixed visible order (0E IA §5, Phase 2A decision 7). `phase` null
+ * means the section works in 2A; otherwise it is an addressable route with an honest unavailable
+ * state. Tests and Releases are addressable but their tabs stay absent until enabled (UXD-14).
+ */
+export const PROJECT_SECTIONS = [
+  { key: 'overview', label: 'Overview', phase: null, conditional: false },
+  { key: 'tasks', label: 'Tasks', phase: '2B', conditional: false },
+  { key: 'timeline', label: 'Timeline', phase: null, conditional: false },
+  { key: 'calendar', label: 'Calendar', phase: '3B', conditional: false },
+  { key: 'documents', label: 'Documents', phase: '4C', conditional: false },
+  { key: 'files', label: 'Files', phase: '4E', conditional: false },
+  { key: 'activity', label: 'Activity', phase: '3B', conditional: false },
+  { key: 'time', label: 'Time', phase: '3D', conditional: false },
+  { key: 'costs', label: 'Costs', phase: '5C', conditional: false },
+  { key: 'reports', label: 'Reports', phase: '5D', conditional: false },
+  { key: 'settings', label: 'Settings', phase: null, conditional: false },
+  { key: 'tests', label: 'Tests', phase: '9B', conditional: true },
+  { key: 'releases', label: 'Releases', phase: '9D', conditional: true },
+] as const;
+export type ProjectSectionKey = (typeof PROJECT_SECTIONS)[number]['key'];

@@ -72,6 +72,11 @@ worker process is a startup error. All identities of one process must target the
 | `RECENT_ITEMS_MAX` | optional | optional | default 50; recently viewed entries kept per person per workspace (0D `RECENT_ITEMS_MAX`) |
 | `RECENT_VISIT_COALESCE_MS` | optional | optional | default 30000; repeat visits within this window are not written again (0D `RECENT_VISIT_COALESCE`) |
 | `VIEW_STATE_MAX_BYTES` | optional | optional | default 8192 (1024–16384); largest stored view state per view and device (0D `VIEW_STATE_MAX_BYTES`) |
+| `PROJECT_DEPTH_MAX` | optional | optional | default 10 (1–32); deepest project level a command accepts, root = 0 (0D `PROJECT_DEPTH_MAX`). The database keeps an invariant ceiling of 32 |
+| `TEMPLATE_ITEMS_MAX` | optional | optional | default 500 (1–500); most items in one template version or recurrence snapshot (0D `TEMPLATE_ITEMS_MAX`) |
+| `RECURRENCE_CATCHUP_MAX` | optional | optional | default 12 (1–100); most missed occurrences one series generates per worker run (0D `RECURRENCE_CATCHUP_MAX`) |
+| `RECURRENCE_WORKSPACE_DISCOVERY_MAX` | optional | optional | default 200 (1–1000); most workspaces with due recurrence work one job run visits, oldest-waiting first (0D `RECURRENCE_WORKSPACE_DISCOVERY_MAX`) |
+| `RECURRENCE_SERIES_DISCOVERY_MAX` | optional | optional | default 50 (1–500); most due series one run processes per workspace, oldest-waiting first (0D `RECURRENCE_SERIES_DISCOVERY_MAX`) |
 | `VIEW_STATE_TTL_MS` | optional | optional | default 90 days; stored view state not written for this long is removed (0D `VIEW_STATE_TTL`) |
 
 Values are configuration, not customer promises (PQ-05). The 0D parameter values above are

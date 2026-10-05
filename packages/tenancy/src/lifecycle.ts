@@ -4,7 +4,7 @@ import { withPersonalReferenceCleanup } from './personal-data.ts';
 
 /**
  * Brand lifecycle hooks registered with Phase 1F. Containment children are the top-level records
- * other modules declare through `rootsInBrand` (none exist yet). The adapter deliberately has no
+ * other modules declare through `rootsInBrand` (projects since 2A). The adapter deliberately has no
  * purge hooks: a brand purge blocks with `missing_purge_hook` until every contained module has
  * registered its own (1C does not claim brand purge support).
  */

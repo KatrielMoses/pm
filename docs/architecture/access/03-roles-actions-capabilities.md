@@ -28,7 +28,7 @@ Everything else comes from grants.
 | member | guest only, and only through sharing when the policy allows it |
 | limited member, read-only, guest | none |
 
-The validator proves that each assignable role never exceeds its assigner on any of the 105 actions.
+The validator proves that each assignable role never exceeds its assigner on any of the 107 actions.
 
 **Last-owner protection:** removing, demoting, or suspending the last active owner is rejected (AT-071).
 
@@ -45,7 +45,7 @@ Levels are ordered. A requirement "≥ edit" is satisfied by edit or manage.
 
 ## 3.3 Action vocabulary
 
-There are 105 actions in four kinds. The authoritative list is [policy/policy.json](policy/policy.json), rendered in [generated/permission-matrix.md](generated/permission-matrix.md).
+There are 107 actions in four kinds. The authoritative list is [policy/policy.json](policy/policy.json), rendered in [generated/permission-matrix.md](generated/permission-matrix.md).
 
 | Kind | Count | What it governs | Evaluated against |
 |---|---|---|---|

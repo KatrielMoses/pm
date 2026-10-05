@@ -41,6 +41,18 @@ export const ALLOWED_RUNTIME = {
     '@pm/lifecycle',
     '@pm/identity',
   ],
+  // Layer 3 (0B module map): projects and project structures; plugs into tenancy by injection.
+  '@pm/work': [
+    '@pm/contracts',
+    '@pm/config',
+    '@pm/observability',
+    '@pm/db',
+    '@pm/platform',
+    '@pm/audit',
+    '@pm/lifecycle',
+    '@pm/identity',
+    '@pm/tenancy',
+  ],
   '@pm/test-infra': [],
   '@pm/test-support': [
     '@pm/test-infra',
@@ -59,6 +71,7 @@ export const ALLOWED_RUNTIME = {
     '@pm/lifecycle',
     '@pm/identity',
     '@pm/tenancy',
+    '@pm/work',
   ],
   '@pm/worker': [
     '@pm/contracts',
@@ -70,8 +83,10 @@ export const ALLOWED_RUNTIME = {
     '@pm/lifecycle',
     '@pm/identity',
     '@pm/tenancy',
+    '@pm/work',
   ],
-  // The browser bundle imports only browser-safe entries (@pm/config/public, @pm/contracts/shell),
+  // The browser bundle imports only browser-safe entries (@pm/config/public, @pm/contracts/shell,
+  // @pm/contracts/rich-text),
   // enforced by the web lint rule.
   '@pm/web': ['@pm/config', '@pm/contracts'],
 };

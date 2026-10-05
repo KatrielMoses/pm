@@ -64,9 +64,9 @@ export default tseslint.config(
         {
           patterns: [
             {
-              regex: '^@pm/(?!config/public$|contracts/shell$)',
+              regex: '^@pm/(?!config/public$|contracts/shell$|contracts/rich-text$)',
               message:
-                'The web app may import only @pm/config/public and @pm/contracts/shell from the workspace.',
+                'The web app may import only @pm/config/public, @pm/contracts/shell, and @pm/contracts/rich-text from the workspace.',
             },
             { regex: '^node:', message: 'Node built-ins are not available in the browser.' },
           ],

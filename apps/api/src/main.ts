@@ -11,7 +11,7 @@ import {
   TenantDatabase,
 } from '@pm/db';
 import { createIdentityService } from '@pm/identity';
-import { createTenancyService } from '@pm/tenancy';
+import { createWorkService } from '@pm/work';
 import { PUBLIC_CONFIG } from '@pm/config/public';
 import { createLogger, errorFields, initTelemetry, LogErrorReporter } from '@pm/observability';
 import { buildApp } from './app.ts';
@@ -52,7 +52,8 @@ async function main(): Promise<void> {
     logger,
     metrics: telemetry.metrics,
   });
-  const tenancy = createTenancyService({
+  // One service instance: projects (2A) extend the 1C–1E tenancy service.
+  const tenancy = createWorkService({
     tenant: new TenantDatabase(pool, dbDeps),
     platform: platformDb,
     identity: identity.service,
@@ -75,6 +76,7 @@ async function main(): Promise<void> {
       componentHarness: config.features.componentHarness,
     },
     tenancy: { tenancy },
+    work: { work: tenancy },
     readiness: () =>
       checkReadiness({
         health,

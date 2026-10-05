@@ -68,7 +68,7 @@ Project status categories map to the portfolio states that FEATURES requires (GO
 
 ### Project completion versus completion percentage
 
-- **Completion percentage** is a derived progress metric. The default formula is the share of non-cancelled tasks in `done`, displayed with its method ([OD-13](open-decisions.md#od-13)). It is informational and **never** completes a project.
+- **Completion percentage** is a derived progress metric. It is status-based (0% or 100%) until tasks exist; from 2B it is the share of non-cancelled leaf tasks in `done` that the viewer may read, displayed with its method ([OD-13](open-decisions.md#od-13)). It is informational and **never** completes a project.
 - **Project completion** is a human decision (setting a `done` project status). It may be gated by the project's definition of done and success criteria checklist (PRJ-005). A project can be completed below 100% (descoped work is cancelled), and a project at 100% is not complete until someone completes it.
 - Completing a project with open tasks requires a confirmation listing them ([hierarchy §3.1](hierarchy-and-scope.md#31-lifecycle-effects-on-children)).
 

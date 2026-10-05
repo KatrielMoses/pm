@@ -157,6 +157,19 @@ describe('database-enforced workspace existence (1A review 01, correction 2)', (
       'views.recent_item',
       'views.view_pin',
       'views.view_state',
+      // Phase 2A projects, relationships, templates, and recurrence.
+      'planning.recurrence_series',
+      'relations.record_relationship',
+      'templates.template',
+      'templates.template_version',
+      'work.criteria_item',
+      'work.decision_record',
+      'work.milestone',
+      'work.phase',
+      'work.project',
+      'work.project_update',
+      'work.project_update_verification',
+      'work.scope_item',
     ];
     expect(res.rows.map((r) => r.tbl).sort()).toEqual(
       [...TENANT_TABLES.map((t) => `exec.${t}`), ...phase1f, ...phase1c].sort(),
@@ -186,12 +199,13 @@ describe('database-enforced workspace existence (1A review 01, correction 2)', (
             AND i.indkey::int2[] @> c.confkey AND i.indkey::int2[] <@ c.confkey
         ) AS referenced_unique
       FROM pg_constraint c JOIN pg_namespace n ON n.oid = c.connamespace
-      WHERE c.contype = 'f' AND n.nspname IN ('exec', 'tenancy', 'access', 'ops', 'views')
+      WHERE c.contype = 'f' AND n.nspname IN ('exec', 'tenancy', 'access', 'ops', 'views', 'workflow', 'work', 'relations', 'templates', 'planning')
       ORDER BY 1`);
     // exec: 7 workspace keys + 6 composite same-workspace keys; 1C tenancy/access: 20 keys;
     // 1D collaboration (teams, invitations, policy, shares, ownership transfer): 38 keys;
-    // 1E personal navigation (favorites, recents, view state, view pins): 12 keys.
-    expect(res.rows.length).toBe(83);
+    // 1E personal navigation (favorites, recents, view state, view pins): 12 keys;
+    // 2A projects, structures, relationships, templates, recurrence, project role scope: 60 keys.
+    expect(res.rows.length).toBe(143);
     for (const r of res.rows)
       expect(r, `${r.tbl}.${r.conname}`).toMatchObject({
         referencing_indexed: true,

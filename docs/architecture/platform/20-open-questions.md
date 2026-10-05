@@ -44,7 +44,7 @@
 | ID | Question | Owner | Default |
 |---|---|---|---|
 | <a id="pq-05"></a>PQ-05 | Concrete values for all named parameters (leases, backoff, caps, buffers, lifetimes, page limits, bulk limits, tolerances) | 1A, 1B, 1E, 2D, 3A, 4E, 6B, 7A, 11C | Measured; never published as promises |
-| <a id="pq-06"></a>PQ-06 | Rich-text JSON document format (affects `base_hash` canonicalization) | 4C (DQ-25) | Versioned JSON tree |
+| <a id="pq-06"></a>PQ-06 | Rich-text JSON document format (affects `base_hash` canonicalization) | 4C (DQ-25) | Versioned JSON tree. Envelope and version 1 (plain-text subset) decided in [PL-23](19-decisions.md#pl-23); 4C extends nodes and marks |
 | <a id="pq-07"></a>PQ-07 | Provider-specific inbound adapters and signature schemes (GitHub, Google, payment, test runners) | 6A, 6B, 9A, 10A | Adapt into `webhook-inbound-generic` semantics |
 | <a id="pq-09"></a>PQ-09 | Error message copy and localization | 0E / 10D | Safe messages in the registry |
 | <a id="pq-10"></a>PQ-10 | Multipart upload thresholds and part sizes | 4E | Storage-provider defaults |

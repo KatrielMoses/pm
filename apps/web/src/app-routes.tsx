@@ -22,6 +22,7 @@ import {
   TeamPage,
   TeamsPage,
 } from './pages/people-pages.tsx';
+import { ProjectPage, ProjectsPage } from './pages/project-pages.tsx';
 import {
   FavoritesPage,
   HomePage,
@@ -57,7 +58,9 @@ type Render = (p: Params) => ReactElement;
 const destination = (d: ShellDestination): Render =>
   d === 'home'
     ? (p) => <HomePage key={p.ws} ws={p.ws!} />
-    : () => <UnavailableDestinationPage destination={d} />;
+    : d === 'projects'
+      ? (p) => <ProjectsPage key={p.ws} ws={p.ws!} />
+      : () => <UnavailableDestinationPage destination={d} />;
 
 /**
  * Every registry route maps to exactly one page. The registry unit test checks that this record
@@ -69,6 +72,8 @@ export const ROUTE_COMPONENTS: Record<string, Render> = {
   inbox: destination('inbox'),
   my_work: destination('my_work'),
   projects: destination('projects'),
+  project: (p) => <ProjectPage key={p.prj} ws={p.ws!} prj={p.prj!} />,
+  project_section: (p) => <ProjectPage key={p.prj} ws={p.ws!} prj={p.prj!} section={p.section!} />,
   calendar: destination('calendar'),
   knowledge: destination('knowledge'),
   goals: destination('goals'),

@@ -2628,6 +2628,38 @@
       "expected": "deny",
       "response_shape": "unauthenticated",
       "silent_surfaces": []
+    },
+    {
+      "id": "AT-115",
+      "threats": [
+        "T-20"
+      ],
+      "principal": "member",
+      "setup": "Share attempt on a record the caller cannot read (other brand, restricted project, or unknown id)",
+      "scope": "unreadable record",
+      "action": "record.share",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "not_found",
+      "silent_surfaces": [
+        "error_message",
+        "activity",
+        "count_facet"
+      ]
+    },
+    {
+      "id": "AT-116",
+      "threats": [
+        "T-20"
+      ],
+      "principal": "member",
+      "setup": "Share attempt on a phase, milestone, decision, update, scope item, or other type not registered as shareable",
+      "scope": "record of an unshareable type",
+      "action": "record.share",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "forbidden",
+      "silent_surfaces": []
     }
   ]
 }

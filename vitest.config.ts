@@ -7,6 +7,7 @@ import { fileURLToPath } from 'node:url';
 const src = (path: string) => fileURLToPath(new URL(path, import.meta.url));
 const ENTRIES: Record<string, string> = {
   '@pm/contracts/shell': 'packages/contracts/src/shell.ts',
+  '@pm/contracts/rich-text': 'packages/contracts/src/rich-text.ts',
   '@pm/contracts': 'packages/contracts/src/index.ts',
   '@pm/config/public': 'packages/config/src/public.ts',
   '@pm/config': 'packages/config/src/index.ts',
@@ -19,6 +20,7 @@ const ENTRIES: Record<string, string> = {
   '@pm/lifecycle': 'packages/lifecycle/src/index.ts',
   '@pm/identity': 'packages/identity/src/index.ts',
   '@pm/tenancy': 'packages/tenancy/src/index.ts',
+  '@pm/work': 'packages/work/src/index.ts',
   '@pm/test-support/vitest': 'packages/test-support/src/test-database.ts',
   '@pm/test-support/global-setup': 'packages/test-support/src/vitest-global-setup.ts',
   '@pm/test-support': 'packages/test-support/src/index.ts',

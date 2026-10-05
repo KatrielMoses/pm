@@ -276,6 +276,12 @@ Every project uses the same section set, in this order. Sections with no content
 
 Section navigation is a tab row on expanded and medium layouts, and a section menu on compact ([RS-41](04-responsive-shell.md#rs-41)). Each section is a URL.
 
+**Phase 2A implementation note.** These rules apply until each section's owning phase delivers it:
+- **Timeline:** works in 2A, as accessible lists of phases, milestones, and dependencies.
+- **Tasks, Calendar, Documents, Files, Activity, Time, Costs, and Reports:** each keeps its place and its URL, but shows an honest "isn't available yet" state rather than an empty collection that would suggest there is nothing to show.
+- **Tests and Releases:** their routes exist, but their tabs stay absent until a software template or setting enables them ([UXD-14](09-decisions-and-risks.md#uxd-14)).
+- **Overview:** shows only project-native facts. Task-derived counts are labelled as arriving with tasks.
+
 ## 6. Record page anatomy
 
 All record pages (task, project overview, document, goal, deliverable, test run, defect, release, agent run) share one anatomy. That way review, provenance and state appear in the same place everywhere.

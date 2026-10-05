@@ -27,7 +27,7 @@ Narrative: [../14-threat-model.md](../14-threat-model.md).
 | T-17 | field_leak | Read a hidden field through a calculated field, conflict response, audit history, export, notification, search snippet, or AI. | I-18, I-16 | AT-041, AT-042, AT-043, AT-044, AT-045 |
 | T-18 | staleness | A queued job or long-running agent acts with permissions that were revoked after enqueue. | I-12, I-14 | AT-046, AT-047 |
 | T-19 | staleness | A cached derived condition or projection serves a stale authorization decision. | I-04, I-12 | AT-048, AT-049 |
-| T-20 | guest_escalation | Guest reshares, sees unshared children/parents, the member directory, or all-brands aggregates. | I-07, I-11 | AT-050, AT-051, AT-052, AT-053, AT-054, AT-079 |
+| T-20 | guest_escalation | Guest reshares, sees unshared children/parents, the member directory, or all-brands aggregates. | I-07, I-11 | AT-050, AT-051, AT-052, AT-053, AT-054, AT-079, AT-115, AT-116 |
 | T-21 | guest_escalation | Guest reaches trash or archived content of formerly shared records. | I-07, I-12 | AT-055, AT-056 |
 | T-22 | agent_scope | Agent reads or acts outside its run scope (prompt-injected scope expansion). | I-14 | AT-057, AT-058 |
 | T-23 | agent_scope | Confused deputy: low-privilege user assigns a task to a powerful agent or automation to reach data they cannot read. | I-11, I-14 | AT-059, AT-060 |
@@ -166,6 +166,8 @@ Narrative: [../14-threat-model.md](../14-threat-model.md).
 | AT-112 | T-39 | member | URL or stored scope naming a brand the viewer cannot access, an archived brand, or another workspace's brand — brand | `record.read` | ui_list | **deny** | omitted | error_message, count_facet |
 | AT-113 | T-39 | limited_member | Command palette, shortcuts, and navigation offer actions and destinations the principal cannot use — workspace | `workspace.configure` | picker | **deny** | omitted | count_facet |
 | AT-114 | T-39 | member | Removed or suspended member's favorites, recents, view state, and shell entries on the next request — workspace | `record.read` | api | **deny** | unauthenticated | — |
+| AT-115 | T-20 | member | Share attempt on a record the caller cannot read (other brand, restricted project, or unknown id) — unreadable record | `record.share` | api | **deny** | not_found | error_message, activity, count_facet |
+| AT-116 | T-20 | member | Share attempt on a phase, milestone, decision, update, scope item, or other type not registered as shareable — record of an unshareable type | `record.share` | api | **deny** | forbidden | — |
 
 ## Response shapes
 

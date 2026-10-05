@@ -90,6 +90,15 @@ export interface GrantSource {
   expiresAt: Date | null;
 }
 
+/** Where a project level came from (preview explanations). */
+export interface ProjectGrantSource {
+  projectId: string;
+  level: Level;
+  via: 'direct' | 'team';
+  teamId: string | null;
+  expiresAt: Date | null;
+}
+
 /** The compiled principal for one request (never sent to clients). */
 export interface Principal {
   readonly workspaceId: string;
@@ -100,6 +109,12 @@ export interface Principal {
   /** Explicit brand-scope grants (direct ∪ team): brand id → highest granted level. */
   readonly grants: ReadonlyMap<string, Level>;
   readonly grantSources: readonly GrantSource[];
+  /**
+   * Explicit project-scope grants (direct ∪ team, 0C AZ-21): project id → highest granted level.
+   * The only collaborator authority; empty for guests (no scope assignments, AZ-06).
+   */
+  readonly projectGrants: ReadonlyMap<string, Level>;
+  readonly projectGrantSources: readonly ProjectGrantSource[];
   /** Active team memberships (internal members only). */
   readonly teams: readonly string[];
   readonly policy: WorkspacePolicyValues;
@@ -139,8 +154,34 @@ export function brandLevel(p: Principal, brand: BrandFacts): Level | null {
 }
 
 /**
- * Effective level on a record (0C §4.3) for the scopes that exist today: workspace-scoped or
- * brand-scoped envelopes plus exact-record shares. Project/document scopes plug in here (2B/4C).
+ * The governing project chain of a record (0C §4.3, AZ-21): the project itself (or the project
+ * containing the record) first, then each ancestor up to the root. `restricted` is the project's
+ * own access mode; restriction is inherited by descendants for the purpose of stopping broader
+ * grants (DQ-02).
+ */
+export type ProjectChain = ReadonlyArray<{ readonly id: string; readonly restricted: boolean }>;
+
+/**
+ * Project-derived authority over a chain: explicit project grants flow down to descendants until a
+ * restricted project; brand, workspace, and implicit role access count only when no project on the
+ * chain is restricted. Ownership is never authority (I-10).
+ */
+export function projectChainLevel(
+  p: Principal,
+  chain: ProjectChain,
+): { explicit: Level | null; brandAllowed: boolean } {
+  let explicit: Level | null = null;
+  let flowing = true;
+  for (const node of chain) {
+    if (flowing) explicit = maxLevel(explicit, p.projectGrants.get(node.id) ?? null);
+    if (node.restricted) flowing = false;
+  }
+  return { explicit, brandAllowed: !chain.some((n) => n.restricted) };
+}
+
+/**
+ * Effective level on a record (0C §4.3): workspace-scoped or brand-scoped envelopes, project
+ * scope (restriction and explicit project grants, AZ-21), plus exact-record shares.
  */
 export function recordLevel(
   p: Principal,
@@ -148,13 +189,22 @@ export function recordLevel(
     brand: BrandFacts | null;
     lifecycleState: 'active' | 'archived' | 'trashed' | 'purged';
     shareLevel: ShareLevel | null;
+    projectChain?: ProjectChain | null;
   },
 ): Level | null {
   if (record.lifecycleState === 'purged' || record.lifecycleState === 'trashed') return null;
+  const chain = record.projectChain ?? [];
+  const project = chain.length ? projectChainLevel(p, chain) : null;
   let lv: Level | null = null;
   if (record.brand === null) lv = workspaceLevel(p);
-  else if (record.brand.lifecycleState !== 'trashed' && record.brand.lifecycleState !== 'purged')
+  else if (
+    record.brand.lifecycleState !== 'trashed' &&
+    record.brand.lifecycleState !== 'purged' &&
+    (project === null || project.brandAllowed)
+  )
     lv = brandLevel(p, { ...record.brand, lifecycleState: 'active' });
+  if (project && p.kind !== 'guest' && record.brand?.lifecycleState !== 'trashed')
+    lv = maxLevel(lv, project.explicit);
   if (record.shareLevel) lv = maxLevel(lv, shareToLevel(record.shareLevel));
   lv = minLevel(lv, roleCap(p.role));
   if (lv !== null && p.kind === 'guest') lv = minLevel(lv, 'edit');
@@ -309,6 +359,64 @@ export function canManageMember(
   return to === null || canAssignRole(p.role, to);
 }
 
+/**
+ * Project-scope admin actions (`access.grant_scope`, `access.restrict_scope`, `access.preview`,
+ * `record.create` inside a project): the role cell, then the caller's project level computed like
+ * a record level without shares. `implicit` reaches non-restricted projects in non-sensitive brands
+ * only; restricted chains and sensitive brands need an explicit project manage grant.
+ */
+export function decideProject(
+  p: Principal,
+  action: ActionKey,
+  project: {
+    brand: BrandFacts;
+    lifecycleState: 'active' | 'archived' | 'trashed' | 'purged';
+    chain: ProjectChain;
+  },
+): Outcome {
+  scoped(action, 'project');
+  const lv = recordLevel(p, {
+    brand: project.brand,
+    lifecycleState: project.lifecycleState,
+    shareLevel: null,
+    projectChain: project.chain,
+  });
+  if (lv === null) return NOT_FOUND;
+  const c = cell(action, p.role);
+  switch (c.kind) {
+    case 'deny':
+    case 'own':
+      return FORBIDDEN;
+    case 'policy':
+      return policyAllows(p, c.key) ? ALLOW : FORBIDDEN;
+    case 'grant':
+      return levelRank(lv) >= levelRank(c.level) ? ALLOW : FORBIDDEN;
+    default: {
+      const need = (actionDef(action).requiredLevel as Level | null) ?? 'manage';
+      return levelRank(lv) >= levelRank(need) ? ALLOW : FORBIDDEN;
+    }
+  }
+}
+
+/** May `p` grant `level` on a project? Never above the granter's own project level. */
+export function canGrantProject(
+  p: Principal,
+  project: Parameters<typeof decideProject>[2],
+  level: Level,
+): boolean {
+  if (!decideProject(p, 'access.grant_scope', project).allowed) return false;
+  return (
+    levelRank(
+      recordLevel(p, {
+        brand: project.brand,
+        lifecycleState: project.lifecycleState,
+        shareLevel: null,
+        projectChain: project.chain,
+      }),
+    ) >= levelRank(level)
+  );
+}
+
 /** May `p` grant `level` on `brand`? Never above the granter's own level (0C §3.2 manage). */
 export function canGrantBrand(p: Principal, brand: BrandFacts, level: Level): boolean {
   if (!decideBrand(p, 'access.grant_scope', brand).allowed) return false;
@@ -352,6 +460,8 @@ export function brandCapabilities(p: Principal, brand: BrandFacts) {
     restore: brand.lifecycleState === 'archived' && allowed('brand.archive'),
     mark_sensitive: active && allowed('brand.mark_sensitive'),
     grant_access: active && allowed('access.grant_scope'),
+    /** `record.create` in the brand (projects today), the same decision the create command makes. */
+    create_records: active && allowed('record.create'),
   };
 }
 

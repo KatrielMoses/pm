@@ -48,6 +48,7 @@ export interface Brand {
     restore: boolean;
     mark_sensitive: boolean;
     grant_access?: boolean;
+    create_records?: boolean;
   };
 }
 
@@ -368,6 +369,12 @@ export interface ExposureDiff {
   }>;
   records_gained: Record<string, number>;
   records_lost: Record<string, number>;
+  /** 2A: projects (readable by the previewer) whose level for the target changes. */
+  projects?: Array<{
+    project: { id: string; name: string };
+    before: string | null;
+    after: string | null;
+  }>;
   capabilities_gained: string[];
   capabilities_lost: string[];
   affected_members: number;
@@ -385,7 +392,16 @@ export type Change =
       expires_at: string | null;
     }
   | { kind: 'brand_revoke'; brand: string; principal: string }
-  | { kind: 'team_add' | 'team_remove'; team: string; member: string };
+  | { kind: 'team_add' | 'team_remove'; team: string; member: string }
+  | { kind: 'project_grant'; project: string; principal: string; level: string }
+  | { kind: 'project_revoke'; project: string; principal: string }
+  | {
+      kind: 'record_share';
+      record: string;
+      grantee: string;
+      level: string;
+      expires_at: string | null;
+    };
 
 export interface Explanation {
   member: Member;

@@ -155,3 +155,28 @@ Status of every ADR: **proposed (Phase 0B)**, pending solutions-architect accept
   - `view_pin` gives shared-view pins a schema and read path. No pin can exist until the view engine provides shared saved views.
 - **Alternatives:** Workspace-personal preferences (theme unknown on sign-in and personal pages; one choice per workspace). Storing titles or brand names with favorites and recents (stale and leaky). Pixel scroll offsets (wrong after list changes).
 - **Consequences:** Every entry is a hint re-authorized at display and activation, and unreadable targets are omitted silently. Personal rows are deleted with the membership's personal data (R-PERSONAL) and by the views cleanup job. Recent and view-state churn is never a material audit event.
+
+<a id="adr-21"></a>
+## ADR-21: Projects, hierarchy, and project structures (Phase 2A amendment)
+
+- **Decision:**
+  - **Collaborators.** Collaborator authority is project-scoped `access.role_assignment` only (view, comment, edit, manage). There is no project-member table. `work.project.owner_membership_id` is accountable responsibility, not authority. Creating a project, transferring ownership, or restricting it creates or keeps an explicit project manage grant for the responsible manager. A deferred guard keeps one eligible manager on every active project.
+  - **Hierarchy.** At most one parent, in the same workspace and brand, never its own ancestor. The adjacency list stays authoritative, with `ancestor_ids` and `depth` (root = 0) maintained in the same transaction under tree-root advisory locks (ADR-05).
+    - Commands enforce `PROJECT_DEPTH_MAX`. The database keeps a hard corruption ceiling of 32, which is an invariant, not a tunable parameter (closes DQ-26 for projects).
+    - Project lifecycle commands never cascade to child projects. Purge is blocked while a live child references the parent.
+  - **Phases.** The `phase` entity is addressable (`phs`) with the full lifecycle. Archive is reversible and distinct from trash, and keeps rank and history.
+  - **Scope entries.** `scope_item` holds ordered scope, exclusion, risk, assumption, and constraint entries.
+  - **Updates (OD-16).** `project_update` stays append-only. Verification is a separate append-only `project_update_verification` fact; authoring never verifies.
+  - **Decisions (OD-15).** `decision_record` carries `kind` (decision or open_question) with kind-specific states: decision proposed, decided, superseded; question open, resolved (closes DQ-29).
+  - **Statuses.** `platform_status` seeds the immutable project statuses Planned, Active, On hold, Completed, Cancelled until 2C adds workspace workflows.
+  - **Project description.** `work.project.description_rich jsonb` holds rich text version 1 (0D PL-23), checked by `tenancy.valid_rich_text` (20,000 characters of extracted text). The 4C editor extends node and mark types without migrating stored descriptions.
+  - **Share representation.** A project share's representation is the project plus its intrinsic facts (`criteria_item`, `scope_item`) and the latest verified update's content (0C AZ-21). No other `work` row is reachable through a share.
+  - **Recurrence (OD-14).** `work.project` carries `recurrence_series_id` and `occurrence_key`. The planning module owns the series and validates the reference. The frozen snapshot lives in `planning.recurrence_series.template_payload`. `templates` (layer 4) may read and serialize `work`; `work` and `planning` never depend on `templates`.
+  - **Provenance (PRJ-017).** Projects keep an optional validated intake source reference.
+- **Alternatives:**
+  - A `project_member` table with levels: a second authority source.
+  - Owner as implicit authority: contradicts 0C I-10.
+  - Mutating updates to mark verification: breaks append-only.
+  - A document subtype for decisions: no structured states.
+  - A recurrence foreign key to `template_version`: violates module layering.
+- **Consequences:** Project visibility is compiled by the 1D policy compiler. Completion is derived from status in 2A and from readable leaf tasks from 2B (OD-13); nothing about it is stored as authority.

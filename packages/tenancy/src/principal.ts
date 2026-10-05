@@ -6,6 +6,7 @@ import {
   LEVELS,
   WORKSPACE_ROLES,
   type GrantSource,
+  type ProjectGrantSource,
   type Level,
   type Principal,
   type WorkspacePolicyValues,
@@ -140,6 +141,7 @@ export async function compilePrincipal(
     .select([
       'a.scope_type',
       'a.brand_scope_id',
+      'a.project_scope_id',
       'a.team_principal_id',
       'a.expires_at',
       'r.key',
@@ -156,6 +158,8 @@ export async function compilePrincipal(
   let role: WorkspaceRole | null = null;
   const grants = new Map<string, Level>();
   const grantSources: GrantSource[] = [];
+  const projectGrants = new Map<string, Level>();
+  const projectGrantSources: ProjectGrantSource[] = [];
   for (const a of assignments) {
     if (a.scope_type === 'workspace' && !a.team_principal_id) {
       if ((WORKSPACE_ROLES as readonly string[]).includes(a.key)) role = a.key as WorkspaceRole;
@@ -172,12 +176,27 @@ export async function compilePrincipal(
       const prev = grants.get(a.brand_scope_id);
       if (!prev || LEVELS.indexOf(level) > LEVELS.indexOf(prev))
         grants.set(a.brand_scope_id, level);
+    } else if (a.scope_type === 'project' && a.project_scope_id && a.level) {
+      const level = a.level as Level;
+      if (!(LEVELS as readonly string[]).includes(level)) continue;
+      projectGrantSources.push({
+        projectId: a.project_scope_id,
+        level,
+        via: a.team_principal_id ? 'team' : 'direct',
+        teamId: a.team_principal_id,
+        expiresAt: a.expires_at ? new Date(a.expires_at) : null,
+      });
+      const prev = projectGrants.get(a.project_scope_id);
+      if (!prev || LEVELS.indexOf(level) > LEVELS.indexOf(prev))
+        projectGrants.set(a.project_scope_id, level);
     }
   }
   if (kind === 'guest') {
     role = 'guest';
     grants.clear();
     grantSources.length = 0;
+    projectGrants.clear();
+    projectGrantSources.length = 0;
   }
   const policyRow = await tx.db
     .selectFrom('access.workspace_policy')
@@ -206,6 +225,8 @@ export async function compilePrincipal(
     role,
     grants,
     grantSources,
+    projectGrants,
+    projectGrantSources,
     teams,
     policy,
     epochs: {

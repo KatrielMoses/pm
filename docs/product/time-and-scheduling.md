@@ -67,7 +67,7 @@ When a block is moved after the due date or deadline, the UI shows the warning a
 | **Generation** | Idempotent per (series, occurrence date). A retried generation job never creates two occurrences for the same date ([lifecycle §8](lifecycle-and-states.md#8-retries-reruns-and-idempotency)). |
 | **DST** | Rules are evaluated in their anchor timezone: "Fridays 16:00 Europe/Lisbon" stays at 16:00 local when the UTC offset changes. |
 | **Recurring calendar work** (CAL-005) | Recurring **work blocks** (e.g., "Mon/Wed 09:00–11:00 deep work on Optestra"), which is different from recurring **tasks**. A recurring block can be attached to one ongoing task or to none (a capacity reservation). |
-| **Recurring projects** (PRJ-013) | Recommended: a project series that instantiates a project from a template on a schedule ([OD-14](open-decisions.md#od-14)). |
+| **Recurring projects** (PRJ-013) | A project series that instantiates an independent project from an immutable snapshot on a schedule ([OD-14](open-decisions.md#od-14), decided). |
 
 ## 5. Availability and capacity
 

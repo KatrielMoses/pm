@@ -4,7 +4,7 @@
 
 Rules and algorithm: [../04-effective-permissions.md](../04-effective-permissions.md). Legend: **all** = implicit across non-sensitive scopes (sensitive brands and restricted projects still require explicit grants or audited elevation); ≥level = allowed where the principal's effective access level on the target is at least that level; own = own personal items only; if X = only when workspace policy X is enabled; — = never. Flags: ND non-delegable (owner only, excluded from custom roles), SU step-up authentication, 2A second/independent approval when available, E plan entitlement required.
 
-## Record permissions (33)
+## Record permissions (35)
 
 | Action | Scopes | Level | Risk | Flags | owner | administrator | member | limited_member | read_only | guest |
 |---|---|---|---|---|---|---|---|---|---|---|
@@ -30,6 +30,8 @@ Rules and algorithm: [../04-effective-permissions.md](../04-effective-permission
 | `record.export` | brand, project, record, workspace | view | R2 |  | **all** | **all** | ≥view | if limited_members_can_export | — | — |
 | `task.complete` | record | edit | R1 |  | **all** | **all** | ≥edit | ≥edit | — | ≥edit |
 | `project.complete` | record | manage | R2 |  | **all** | **all** | ≥manage | ≥manage | — | — |
+| `project.verify_update` | record | edit | R1 |  | **all** | **all** | ≥edit | ≥edit | — | — |
+| `project.manage_recurrence` | record | manage | R2 |  | **all** | **all** | ≥manage | — | — | — |
 | `deliverable.submit` | record | edit | R1 |  | **all** | **all** | ≥edit | ≥edit | — | ≥edit |
 | `review.request` | record | edit | R1 |  | **all** | **all** | ≥edit | ≥edit | — | ≥edit |
 | `review.decide` | record | comment | R2 |  | **all** | **all** | ≥comment | ≥comment | — | ≥comment |
@@ -175,6 +177,8 @@ Rules and algorithm: [../04-effective-permissions.md](../04-effective-permission
 | `record.export` | Export records or the current filtered view (permission-filtered). | none | VIEW-022, PERM-010, RPT-022 |  |
 | `task.complete` | Move a task to a done-category status; completion gates apply. | none | TSK-031, AGT-022 |  |
 | `project.complete` | Complete a project (human decision). | none | PRJ-005 |  |
+| `project.verify_update` | Verify a project update as an accountable human (OD-16). | none | PRJ-025 | Human principals only; authoring never verifies; AI, imported, and system drafts stay unverified until this action (AZ-21). |
+| `project.manage_recurrence` | Define, pause, or resume a project recurrence, or generate its next occurrence (OD-14). | none | PRJ-013 | Each generated occurrence also requires record.create in the project's brand, rechecked by the worker before each step (AZ-21). |
 | `deliverable.submit` | Submit a deliverable version for review. | none | FILE-007 |  |
 | `review.request` | Request a review or approval. | none | COL-013 |  |
 | `review.decide` | Approve/accept, request changes, or reject as an eligible reviewer; evaluated at decision time. | none | TSK-029, AGT-020, FILE-009 | Reviewer must be designated by the reviewer rule, be human, and be able to read the whole subject scope (UXD-11). |
