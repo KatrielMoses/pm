@@ -75,6 +75,14 @@ export async function createDisposableDatabase(options: {
     throw err;
   }
   const adminPool = new pg.Pool({ connectionString: server.adminUrl(name), max: 2 });
+  // Teardown drops the database WITH (FORCE), which terminates any admin connection still open
+  // (57P01). That termination is expected only while dropping; any other pool error still fails
+  // the run as an unhandled error.
+  let dropping = false;
+  adminPool.on('error', (err: Error & { code?: string }) => {
+    if (dropping && err.code === '57P01') return;
+    throw err;
+  });
   return {
     name,
     server,
@@ -85,6 +93,7 @@ export async function createDisposableDatabase(options: {
     },
     admin: (sql, params = []) => adminPool.query(sql, params),
     drop: async () => {
+      dropping = true;
       await adminPool.end();
       await dropDatabase(server, name);
     },
