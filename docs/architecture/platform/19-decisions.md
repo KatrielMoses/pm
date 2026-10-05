@@ -229,3 +229,14 @@ All decisions are **proposed (Phase 0D)**, pending solutions-architect acceptanc
   - First use: `work.project.description_rich` (20,000 characters). The Phase 2A editor is a plain multiline control encoding version 1.
 - **Alternatives:** A plain-text column until 4C (a later destructive content migration). Storing arbitrary JSON (unvalidated content at rest). Choosing the full 4C format now (premature; PQ-06 stays with 4C).
 - **Consequences:** Phase 4C adds node and mark types under the same envelope and `version`. Stored version 1 documents remain valid without migration. 30 schemas.
+
+<a id="pl-24"></a>
+### PL-24: Task contracts (Phase 2B amendment)
+- **Decision:**
+  - Public ID prefixes `chk` (checklist item), `lbl` (label), and `lnk` (record link). Tasks keep `tsk`; task criteria use `cri`.
+  - Four new C1 events: `work.task.moved`, `work.task.reopened`, `work.label.created`, and `work.label.updated`. Task creation, update, status, completion, and assignment use the existing `work.task.*` events; relationships use `relations.relationship.*`; lifecycle stays on `core.record.*`.
+  - Named bounds `TASK_DEPTH_MAX` (20, range 1–64), `TASK_SUBTREE_MAX` (500), `TASK_ITEMS_MAX` (200 per kind), `TASK_ASSIGNEES_MAX` (20), `TASK_LABELS_MAX` (50), `BRAND_LABELS_MAX` (1000), and `TASK_ESTIMATE_MINUTES_MAX` (100000). The database depth ceiling of 64 is an invariant, not a parameter. Task and project lists page with `PAGE_LIMIT_DEFAULT` and `PAGE_LIMIT_MAX`.
+  - Two bounded signals: `work.task.moves` (outcome) and `work.task.completions` (outcome).
+  - Cycle, depth, and criteria refusals are `validation_failed` issues (`cycle`, `depth_exceeded`, `criteria_incomplete`); share refusals follow 0C AZ-21/AZ-22.
+- **Alternatives:** A separate history table (the 1F audit ledger is the history). Per-entity events for checklist items and links (they are task content; `work.task.updated` names the changed fields).
+- **Consequences:** Event payloads carry identifiers, kinds, and states only, never titles, descriptions, checklist text, URLs, or label names. 74 ID prefixes, 72 events, 51 named parameters, 51 telemetry signals.

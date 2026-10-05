@@ -18,11 +18,11 @@ Class definitions and rules: [../11-data-classification.md](../11-data-classific
 | Usage metering and limits | 4 | C2 | R-BILLING, R-EXEC, R-LIVE | admin, filtered | no | no | incidental | very-high |
 | Billing and entitlements | 7 | C3 | R-BILLING, R-LIVE, R-PLATFORM | admin, filtered, never | no | no | incidental, yes | medium |
 | Workflows and custom fields | 9 | C2 | R-LIVE, R-PLATFORM | filtered, full | no, yes | no | incidental, no | very-high |
-| Relationship primitives | 6 | C2 | R-LIVE | filtered | yes | no | incidental | high |
+| Relationship primitives | 4 | C2 | R-LIVE | filtered | yes | no | incidental | high |
 | Files, deliverables, and evidence | 8 | C2 | R-DERIVED, R-EPHEMERAL, R-EVIDENCE, R-LIVE | filtered, never | no, yes | no | incidental | high |
 | Comments and reviews | 5 | C2 | R-AUDIT, R-EVIDENCE, R-LIVE | admin, filtered | yes | no | incidental | very-high |
 | Notifications | 4 | C2 | R-EXEC, R-PERSONAL | never, self | no | no | incidental | very-high |
-| Projects and tasks | 12 | C2 | R-LIVE, R-PERSONAL | filtered, self | yes | no | incidental | very-high |
+| Projects and tasks | 15 | C2 | R-LIVE, R-PERSONAL | filtered, self | no, yes | no | incidental | very-high |
 | Inbox and capture | 5 | C3 | R-LIVE, R-PERSONAL | filtered, self | metadata, no, yes | hash-only | incidental, yes | high |
 | Today, scheduling, and capacity | 10 | C3 | R-LIVE, R-PERSONAL | filtered, self | no, yes | no | incidental, yes | high |
 | Time tracking | 4 | C2 | R-EVIDENCE, R-LIVE | filtered | yes | no | incidental | very-high |
@@ -109,8 +109,8 @@ Class definitions and rules: [../11-data-classification.md](../11-data-classific
 | [`calculated_field_definition`](logical-model.md#entity-calculated-field-definition) | workflow | inherited | C1 | low | is evidence / append-only | R-LIVE | filtered | low | yes | no | incidental |
 | [`field_value`](logical-model.md#entity-field-value) | workflow | inherited | C2 | standard (per-record) | material changes | R-LIVE | filtered | very-high | yes | no | incidental |
 | [`record_relationship`](logical-model.md#entity-record-relationship) | relations | workspace | C2 | standard (per-record) | material changes | R-LIVE | filtered | high | yes | no | incidental |
-| [`label`](logical-model.md#entity-label) | relations | workspace_or_brand | C1 | low | configuration changes | R-LIVE | filtered | medium | yes | no | incidental |
-| [`label_assignment`](logical-model.md#entity-label-assignment) | relations | inherited | C1 | low | configuration changes | R-LIVE | filtered | high | yes | no | incidental |
+| [`label`](logical-model.md#entity-label) | work | brand | C1 | low | configuration changes | R-LIVE | filtered | medium | yes | no | incidental |
+| [`task_label`](logical-model.md#entity-task-label) | work | inherited | C1 | low | configuration changes | R-LIVE | filtered | high | yes | no | incidental |
 | [`mention`](logical-model.md#entity-mention) | relations | inherited | C2 | standard (per-record) | material changes | R-LIVE | filtered | high | yes | no | incidental |
 | [`record_link`](logical-model.md#entity-record-link) | relations | inherited | C2 | standard (per-record) | material changes | R-LIVE | filtered | high | yes | no | incidental |
 | [`follower`](logical-model.md#entity-follower) | relations | inherited | C2 | standard (per-record) | material changes | R-LIVE | filtered | high | yes | no | incidental |
@@ -138,6 +138,7 @@ Class definitions and rules: [../11-data-classification.md](../11-data-classific
 | [`task_assignee`](logical-model.md#entity-task-assignee) | work | inherited | C2 | standard (per-record) | material changes | R-LIVE | filtered | very-high | yes | no | incidental |
 | [`checklist_item`](logical-model.md#entity-checklist-item) | work | inherited | C2 | standard (per-record) | material changes | R-LIVE | filtered | high | yes | no | incidental |
 | [`criteria_item`](logical-model.md#entity-criteria-item) | work | inherited | C2 | standard (per-record) | material changes | R-LIVE | filtered | high | yes | no | incidental |
+| [`task_inherited_criterion`](logical-model.md#entity-task-inherited-criterion) | work | inherited | C1 | low | configuration changes | R-LIVE | filtered | medium | no | no | incidental |
 | [`scope_item`](logical-model.md#entity-scope-item) | work | inherited | C2 | standard (per-record) | material changes | R-LIVE | filtered | medium | yes | no | incidental |
 | [`project_update`](logical-model.md#entity-project-update) | work | inherited | C2 | standard (per-record) | is evidence / append-only | R-LIVE | filtered | medium | yes | no | incidental |
 | [`project_update_verification`](logical-model.md#entity-project-update-verification) | work | inherited | C2 | standard (per-record) | is evidence / append-only | R-LIVE | filtered | medium | yes | no | incidental |

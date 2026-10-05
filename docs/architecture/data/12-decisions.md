@@ -180,3 +180,21 @@ Status of every ADR: **proposed (Phase 0B)**, pending solutions-architect accept
   - A document subtype for decisions: no structured states.
   - A recurrence foreign key to `template_version`: violates module layering.
 - **Consequences:** Project visibility is compiled by the 1D policy compiler. Completion is derived from status in 2A and from readable leaf tasks from 2B (OD-13); nothing about it is stored as authority.
+
+<a id="adr-22"></a>
+## ADR-22: Tasks and relationships (Phase 2B amendment)
+
+- **Decision:**
+  - **Scope (OD-02).** Every task has one workspace and one brand; `project_id` is optional and, when set, in the same workspace and brand (composite keys). Cross-brand moves are explicit commands: a projectless task, or one moving together with a destination project in the target brand.
+  - **Tree (OD-08).** Subtasks share workspace, brand, and project identity (both may be projectless). `ancestor_ids` and `depth` (root = 0) are maintained under lock-ordered commands; `TASK_DEPTH_MAX` (20) is enforced by commands and the database ceiling is 64. A move takes the whole subtree.
+  - **Statuses.** `workflow.platform_status` seeds immutable task statuses Backlog (planned), To do (planned), In progress (active), Blocked (paused), Done (done), Cancelled (cancelled). `prior_status_id` keeps the reopen target.
+  - **Dates (OD-01).** `start_date`, `due_date`, and a deadline stored as `deadline_date` or as `deadline_at` with `deadline_tz`. No schedule columns on tasks (3C work blocks).
+  - **Assignees.** `work.task_assignee` holds active internal memberships with an ordered display and at most one primary (partial unique index). Assignment is responsibility, never authority.
+  - **Checklists and criteria.** `work.checklist_item` (ordered facts). `work.criteria_item` gains `owner_kind = task` with kinds acceptance and definition of done; project definition-of-done items are inherited by evaluation, and `work.task_inherited_criterion` records whether each inherited item is met or explicitly dismissed.
+  - **Labels (OD-10).** `work.label` (one brand) and `work.task_label` replace `relations.label` and `relations.label_assignment`.
+  - **Links.** `relations.record_link` with `target_kind` url or record.
+  - **Relationships (OD-09).** Task dependencies and related tasks use `relations.record_relationship` (`blocks`, `related`).
+  - **History.** The 1F audit ledger is the task history; no history table.
+  - **Description.** Rich text version 1 in `description_rich` (0D PL-23).
+- **Alternatives:** Mandatory projects (contradicts TSK-003). Unlimited depth (unbounded rewrites). A task status table (a second status system). Copying project definition-of-done items into tasks (drifts from the source). A mutable history table (diverges from the audit ledger).
+- **Consequences:** Task visibility is the 1D compiler's: project-contained tasks follow their project chain; projectless tasks follow the brand. Project completion becomes readable done leaf tasks over readable non-cancelled leaf tasks (OD-13).

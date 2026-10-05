@@ -79,6 +79,9 @@ Source: `contracts/registry.json`.
 | `cri_` | criteria_item | work.criteria_item | work | Phase 2A (PL-22). |
 | `pup_` | project_update | work.project_update | work | Phase 2A (PL-22). |
 | `rcs_` | recurrence_series | planning.recurrence_series | planning | Phase 2A (PL-22). |
+| `chk_` | checklist_item | work.checklist_item | work | Phase 2B (PL-24). |
+| `lbl_` | label | work.label | work | Phase 2B (PL-24). |
+| `lnk_` | record_link | relations.record_link | relations | Phase 2B (PL-24). |
 
 ## Error codes
 
@@ -190,6 +193,10 @@ Source: `contracts/registry.json`.
 | `work.task.status_changed` v1 | work.task | from_status_id, to_status_id, to_category | C1 | yes | yes | yes | yes |  | `task.status_changed` |
 | `work.task.completed` v1 | work.task | completed_at, status_category, project_id | C1 | yes | yes | yes | yes |  | `task.completed` |
 | `work.task.assigned` v1 | work.task | assignee_membership_ids | C1 | yes | yes |  | yes |  | `task.assigned` |
+| `work.task.moved` v1 | work.task | project_id, parent_task_id, depth | C1 | yes |  |  | yes | yes | — |
+| `work.task.reopened` v1 | work.task | status_id, status_category | C1 | yes |  |  | yes | yes | — |
+| `work.label.created` v1 | work.label | label_id | C1 |  |  |  |  | yes | — |
+| `work.label.updated` v1 | work.label | label_id, lifecycle_state | C1 |  |  |  |  | yes | — |
 | `work.project.created` v1 | work.project | parent_project_id, status_id | C1 | yes |  | yes | yes | yes | `project.created` |
 | `work.project.status_changed` v1 | work.project | to_category, health | C1 | yes | yes | yes | yes |  | `project.status_changed` |
 | `collab.comment.created` v1 | collab.comment | host_record_id, root_comment_id, mention_ids | C1 | yes | yes |  | yes | yes | `comment.created` |
@@ -380,6 +387,8 @@ Forbidden metric labels: `workspace_id`, `brand_id`, `record_id`, `public_id`, `
 | `identity.preference_updates` | counter | outcome | identity |
 | `work.recurrence.occurrences` | counter | outcome | work |
 | `work.hierarchy.moves` | counter | outcome | work |
+| `work.task.moves` | counter | outcome | work |
+| `work.task.completions` | counter | outcome | work |
 
 ## Named parameters (values are configuration, not promises)
 
@@ -429,3 +438,10 @@ Forbidden metric labels: `workspace_id`, `brand_id`, `record_id`, `public_id`, `
 | `RECURRENCE_CATCHUP_MAX` | Most missed occurrences one recurrence series may generate in a single catch-up run; later ones wait for the next run. | 2A |
 | `RECURRENCE_WORKSPACE_DISCOVERY_MAX` | Most workspaces with due recurrence work one recurrence job run visits (default 200, range 1–1000). Workspaces are taken oldest-waiting first, so remaining work stays eligible for the next run. | 2A |
 | `RECURRENCE_SERIES_DISCOVERY_MAX` | Most due recurrence series one job run processes in one workspace (default 50, range 1–500). Series are taken oldest-waiting first (last run, then id), so later series are never starved. | 2A |
+| `TASK_DEPTH_MAX` | Deepest subtask level a command accepts (root = 0) when creating, reparenting, moving, or duplicating tasks; default 20, range 1–64. The database separately enforces an invariant ceiling of 64 that is not a runtime parameter. | 2B |
+| `TASK_SUBTREE_MAX` | Most tasks one subtree operation touches (a move or a lifecycle command with include_subtasks, or a duplicate with include_subtasks); default 500, range 1–5000. Larger subtrees are refused before any change. | 2B |
+| `TASK_ITEMS_MAX` | Most checklist items, criteria items, and links each task holds (each kind counted separately); default 200, range 1–1000. | 2B |
+| `TASK_ASSIGNEES_MAX` | Most active assignees on one task; default 20, range 1–100. | 2B |
+| `TASK_LABELS_MAX` | Most labels on one task; default 50, range 1–200. | 2B |
+| `BRAND_LABELS_MAX` | Most active and archived labels in one brand; default 1000, range 1–10000. | 2B |
+| `TASK_ESTIMATE_MINUTES_MAX` | Largest estimate or remaining estimate, in minutes; default 100000, range 60–1000000. | 2B |

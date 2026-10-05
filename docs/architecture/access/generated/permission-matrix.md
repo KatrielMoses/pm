@@ -4,7 +4,7 @@
 
 Rules and algorithm: [../04-effective-permissions.md](../04-effective-permissions.md). Legend: **all** = implicit across non-sensitive scopes (sensitive brands and restricted projects still require explicit grants or audited elevation); ≥level = allowed where the principal's effective access level on the target is at least that level; own = own personal items only; if X = only when workspace policy X is enabled; — = never. Flags: ND non-delegable (owner only, excluded from custom roles), SU step-up authentication, 2A second/independent approval when available, E plan entitlement required.
 
-## Record permissions (35)
+## Record permissions (36)
 
 | Action | Scopes | Level | Risk | Flags | owner | administrator | member | limited_member | read_only | guest |
 |---|---|---|---|---|---|---|---|---|---|---|
@@ -29,6 +29,7 @@ Rules and algorithm: [../04-effective-permissions.md](../04-effective-permission
 | `record.share_revoke` | record | manage | R2 |  | **all** | **all** | ≥manage | — | — | — |
 | `record.export` | brand, project, record, workspace | view | R2 |  | **all** | **all** | ≥view | if limited_members_can_export | — | — |
 | `task.complete` | record | edit | R1 |  | **all** | **all** | ≥edit | ≥edit | — | ≥edit |
+| `task.override_completion` | record | manage | R2 |  | **all** | **all** | ≥manage | — | — | — |
 | `project.complete` | record | manage | R2 |  | **all** | **all** | ≥manage | ≥manage | — | — |
 | `project.verify_update` | record | edit | R1 |  | **all** | **all** | ≥edit | ≥edit | — | — |
 | `project.manage_recurrence` | record | manage | R2 |  | **all** | **all** | ≥manage | — | — | — |
@@ -60,11 +61,12 @@ Rules and algorithm: [../04-effective-permissions.md](../04-effective-permission
 | `import.execute` | workspace, brand | — | R2 |  | **all** | **all** | ≥edit | — | — | — |
 | `webhook.test_send` | workspace, brand | — | R2 |  | **all** | **all** | ≥manage | — | — | — |
 
-## Administrative capabilities (51)
+## Administrative capabilities (52)
 
 | Action | Scopes | Level | Risk | Flags | owner | administrator | member | limited_member | read_only | guest |
 |---|---|---|---|---|---|---|---|---|---|---|
 | `record.purge` | workspace, brand | — | R4 | SU 2A | **all** | **all** | — | — | — | — |
+| `label.manage` | brand | edit | R1 |  | **all** | **all** | ≥edit | — | — | — |
 | `timesheet.unlock` | brand | — | R3 | SU | **all** | **all** | — | — | — | — |
 | `workspace.view_settings` | workspace | — | R0 |  | **all** | **all** | **all** | **all** | **all** | — |
 | `workspace.configure` | workspace | — | R2 |  | **all** | **all** | — | — | — | — |
@@ -171,11 +173,13 @@ Rules and algorithm: [../04-effective-permissions.md](../04-effective-permission
 | `record.upload` | Attach files or links to a record. | none | FILE-001 |  |
 | `record.download` | Download a file version (clean scan state only). | none | FILE-012 |  |
 | `record.move` | Move within a brand (change container); needs edit on source and destination. | none | TSK-001 |  |
-| `record.move_brand` | Move a subtree to another brand (ownership change). | none | WSB-009 | Manage on source and create (edit) on target brand. |
+| `record.move_brand` | Move a subtree to another brand (ownership change). | none | TSK-001, WSB-009 | Manage on source and create (edit) on target brand. Tasks (2B, AZ-22): manage in both brands, with an exposure preview and confirmation. |
 | `record.share` | Create or change an explicit record grant (share) to a brand, member, team, or guest. | none | WSB-008, PERM-005, PERM-012 | Share level ≤ sharer's level; never onward-sharable; restricted projects disallow record shares unless the project allows them. |
 | `record.share_revoke` | Revoke a share (the original sharer or a manager). | none | WSB-008 |  |
 | `record.export` | Export records or the current filtered view (permission-filtered). | none | VIEW-022, PERM-010, RPT-022 |  |
 | `task.complete` | Move a task to a done-category status; completion gates apply. | none | TSK-031, AGT-022 |  |
+| `task.override_completion` | Complete a task whose required criteria or descendants are incomplete, recording a reason (ADR-22). | none | TSK-020, TSK-021 | Human principals only; the reason and the visible incomplete count are audited (AZ-22). Never satisfied by a share. |
+| `label.manage` | Create, rename, reorder, archive, and restore a brand's labels (OD-10). | none | TSK-015 | Labels never grant authority (AZ-22). |
 | `project.complete` | Complete a project (human decision). | none | PRJ-005 |  |
 | `project.verify_update` | Verify a project update as an accountable human (OD-16). | none | PRJ-025 | Human principals only; authoring never verifies; AI, imported, and system drafts stay unverified until this action (AZ-21). |
 | `project.manage_recurrence` | Define, pause, or resume a project recurrence, or generate its next occurrence (OD-14). | none | PRJ-013 | Each generated occurrence also requires record.create in the project's brand, rechecked by the worker before each step (AZ-21). |

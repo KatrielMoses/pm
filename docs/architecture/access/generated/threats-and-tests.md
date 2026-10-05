@@ -47,6 +47,7 @@ Narrative: [../14-threat-model.md](../14-threat-model.md).
 | T-37 | spoofing | Invitation abuse: replaying, forwarding, or racing an invitation token; accepting with a different account; enumerating accounts or memberships through invite outcomes; a guest invitation conferring workspace, brand, or inherited access; an administrator inviting an owner. | I-01, I-04, I-07, I-09, I-11, I-17 | AT-095, AT-096, AT-097, AT-098, AT-099, AT-100, AT-101, AT-102 |
 | T-38 | departure | Ownership or departure failure: a workspace left without an active owner, an ownership transfer accepted by the wrong principal or without step-up, a removed or suspended member keeping access through sessions, cached contexts, teams, grants, queued jobs, or pooled connections, or owned resources left without an accountable owner. | I-01, I-11, I-12, I-17 | AT-103, AT-104, AT-105, AT-106, AT-107 |
 | T-39 | inference | Personal navigation leakage: favorites, recents, view state, URL scope, breadcrumbs, page titles, palette results, shortcuts, or navigation entries revealing or re-opening a record, brand, person, or destination the viewer can no longer (or never could) access, including through forged identifiers, stale client caches, stored state, or another workspace's identifiers. | I-01, I-02, I-11, I-12 | AT-108, AT-109, AT-110, AT-111, AT-112, AT-113, AT-114 |
+| T-40 | inference | Task exposure through responsibility or sharing: assignees, creators, or labels gaining access; a task share exposing its parent, project, children, relationships, links to inaccessible records, history, or brand aggregates; hidden relationship endpoints or descendants affecting counts, completion overrides, or rollups. | I-01, I-02, I-10, I-11 | AT-117, AT-118, AT-119, AT-120, AT-121 |
 
 ## Test matrix
 
@@ -168,6 +169,11 @@ Narrative: [../14-threat-model.md](../14-threat-model.md).
 | AT-114 | T-39 | member | Removed or suspended member's favorites, recents, view state, and shell entries on the next request — workspace | `record.read` | api | **deny** | unauthenticated | — |
 | AT-115 | T-20 | member | Share attempt on a record the caller cannot read (other brand, restricted project, or unknown id) — unreadable record | `record.share` | api | **deny** | not_found | error_message, activity, count_facet |
 | AT-116 | T-20 | member | Share attempt on a phase, milestone, decision, update, scope item, or other type not registered as shareable — record of an unshareable type | `record.share` | api | **deny** | forbidden | — |
+| AT-117 | T-40 | member | Assignee of a task in a project or brand the member cannot read — assigned task | `record.read` | api | **deny** | not_found | ui_list, count_facet, notification_inapp |
+| AT-118 | T-40 | guest | Task share only: request the parent, project, subtasks, relationships, links, or history — shared task's context | `record.read` | api | **deny** | not_found | breadcrumb, count_facet, activity |
+| AT-119 | T-40 | member | Task with a blocks or related edge to a task the viewer cannot read — hidden relationship endpoint | `record.read` | ui_record | **deny** | omitted | count_facet, activity, breadcrumb |
+| AT-120 | T-40 | member | Complete a parent whose hidden descendants are incomplete — parent task | `task.override_completion` | api | **deny** | ok_filtered | error_message, count_facet |
+| AT-121 | T-40 | member | Cross-brand move without manage in the destination brand — task | `record.move_brand` | api | **deny** | forbidden | — |
 
 ## Response shapes
 

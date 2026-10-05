@@ -108,8 +108,6 @@ erDiagram
 ```mermaid
 erDiagram
   record_relationship }o..o{ record : "references"
-  label_assignment }o..o{ label : "references"
-  label_assignment }o..o{ record : "references"
   mention }o..o{ record : "references"
   mention }o..o{ membership : "references"
   mention }o..o{ team : "references"
@@ -158,6 +156,8 @@ erDiagram
 
 ```mermaid
 erDiagram
+  task_label }o..o{ label : "references"
+  task_label }o..o{ task : "references"
   brand ||--o{ project : "contains"
   project ||--o{ project : "contains"
   project }o..o{ record_relationship : "references"
@@ -178,6 +178,8 @@ erDiagram
   task ||--o{ checklist_item : "contains"
   task ||--o{ criteria_item : "contains"
   project ||--o{ criteria_item : "contains"
+  task ||--o{ task_inherited_criterion : "contains"
+  task_inherited_criterion }o..o{ criteria_item : "references"
   project ||--o{ scope_item : "contains"
   project ||--o{ project_update : "contains"
   project_update ||--o{ project_update_verification : "contains"

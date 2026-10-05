@@ -275,7 +275,7 @@
       "name": "Relationship primitives",
       "layer": 2,
       "schema": "relations",
-      "responsibilities": "Typed record relationships (dependency, related), labels, mentions and record links, followers.",
+      "responsibilities": "Typed record relationships (dependency, related), mentions and record links, followers.",
       "depends_on": [
         "core",
         "tenancy",
@@ -361,7 +361,7 @@
       "name": "Projects and tasks",
       "layer": 3,
       "schema": "work",
-      "responsibilities": "Projects (trees), phases, milestones, tasks (trees), assignees, checklists, criteria items, project updates, decisions, reminders.",
+      "responsibilities": "Projects (trees), phases, milestones, tasks (trees), assignees, checklists, criteria items, labels, project updates, decisions, reminders.",
       "depends_on": [
         "core",
         "tenancy",
@@ -3173,9 +3173,9 @@
     },
     {
       "name": "label",
-      "module": "relations",
+      "module": "work",
       "purpose": "Free-form classifier at workspace or brand scope.",
-      "scope": "workspace_or_brand",
+      "scope": "brand",
       "addressable": false,
       "public_id_prefix": null,
       "extends": null,
@@ -3191,18 +3191,28 @@
       "may_contain_secrets": "no",
       "personal_data": "incidental",
       "uniqueness": [
-        "(scope_key, lower(name))"
+        "(brand_id, normalized_name)"
       ],
       "sensitive_fields": [],
-      "key_columns": [],
+      "key_columns": [
+        "public_id text (lbl_)",
+        "brand_id",
+        "name",
+        "normalized_name (lower, trimmed, collapsed spaces)",
+        "color",
+        "icon null",
+        "rank text",
+        "lifecycle_state (active|archived)",
+        "version bigint"
+      ],
       "requirements": [
         "TSK-015"
       ],
-      "notes": ""
+      "notes": "Phase 2B (ADR-22, OD-10): one concept for labels and tags, scoped to exactly one brand. Renames keep identity; archived labels stay on tasks and leave default pickers. Labels never grant authority."
     },
     {
-      "name": "label_assignment",
-      "module": "relations",
+      "name": "task_label",
+      "module": "work",
       "purpose": "Label applied to a record.",
       "scope": "inherited",
       "addressable": false,
@@ -3211,7 +3221,7 @@
       "containment_parents": [],
       "associations": [
         "label",
-        "record"
+        "task"
       ],
       "lifecycle": "mutable",
       "concurrency": "row-version",
@@ -3223,15 +3233,19 @@
       "may_contain_secrets": "no",
       "personal_data": "incidental",
       "uniqueness": [
-        "(record_id, label_id)"
+        "(task_id, label_id)"
       ],
       "sensitive_fields": [],
-      "key_columns": [],
-      "requirements": [
-        "TSK-015",
-        "TSK-035"
+      "key_columns": [
+        "task_id",
+        "label_id (same workspace and brand)",
+        "added_by_membership_id",
+        "added_at"
       ],
-      "notes": ""
+      "requirements": [
+        "TSK-015"
+      ],
+      "notes": "Phase 2B (ADR-22): replaces the generic label_assignment; labels apply to tasks only until another record type registers them."
     },
     {
       "name": "mention",
@@ -3295,12 +3309,22 @@
       "personal_data": "incidental",
       "uniqueness": [],
       "sensitive_fields": [],
-      "key_columns": [],
+      "key_columns": [
+        "public_id text (lnk_)",
+        "source_record_id",
+        "target_kind (url|record)",
+        "url text null (https only, normalized)",
+        "target_record_id null (a registered, independently readable record type)",
+        "title text null",
+        "rank text",
+        "created_by_membership_id",
+        "version bigint"
+      ],
       "requirements": [
         "DOC-008",
         "TSK-017"
       ],
-      "notes": "Target is a record or a URL. Links to synced external objects use the target record that integrations.external_identity maps."
+      "notes": "Target is a record or a URL. Phase 2B implements safe https URL links on tasks; record targets (documents, files, external records) are offered only once their owning record type exists and is independently readable. Links to synced external objects use the target record that integrations.external_identity maps."
     },
     {
       "name": "follower",
@@ -4128,44 +4152,45 @@
       "uniqueness": [],
       "sensitive_fields": [],
       "key_columns": [
-        "task_type (task|defect)",
-        "project_id null",
-        "parent_task_id null",
-        "ancestor_ids uuid[]",
-        "depth smallint",
-        "phase_id null",
-        "milestone_id null",
+        "project_id null (same workspace and brand; subtasks share their parent's project identity)",
+        "parent_task_id null (same workspace, brand, and project identity)",
+        "ancestor_ids uuid[] (root first, excluding self)",
+        "depth smallint (root = 0; TASK_DEPTH_MAX enforced by commands, hard ceiling 64 in the database)",
         "title",
-        "description_rich jsonb",
-        "status_id",
-        "status_category (denormalized)",
-        "priority",
+        "description_rich jsonb (rich text version 1, 0D PL-23)",
+        "status_id (workflow.platform_status until 2C)",
+        "status_category (denormalized, guarded)",
+        "prior_status_id null (reopen target)",
+        "priority (none|low|medium|high|urgent)",
         "start_date date",
         "due_date date",
-        "due_time time null + due_tz",
-        "deadline_date date | deadline_at timestamptz + deadline_tz",
-        "estimate_minutes int",
-        "remaining_estimate_minutes int",
+        "deadline_date date | deadline_at timestamptz + deadline_tz (never changed implicitly)",
+        "estimate_minutes int null",
+        "remaining_estimate_minutes int null",
         "completed_at",
-        "manual_blocked_reason text null",
-        "expected_deliverable_type",
+        "completion_override_reason text null",
+        "expected_deliverable_type (document|file|url|pull_request|test_report|other) null",
+        "expected_deliverable_detail text null",
         "requires_acceptance boolean",
-        "rank_in_parent text",
-        "last_meaningful_update_at",
-        "recurrence_series_id null",
-        "occurrence_key text null",
+        "rank text",
+        "created_by_membership_id",
         "version bigint"
       ],
       "requirements": [
         "TSK-001",
         "TSK-002",
         "TSK-003",
+        "TSK-004",
         "TSK-005",
+        "TSK-006",
         "TSK-010",
+        "TSK-022",
+        "TSK-023",
         "TSK-031",
+        "TSK-039",
         "TSK-041"
       ],
-      "notes": ""
+      "notes": "Phase 2B (ADR-22): phase/milestone association, task types, manual blocked reasons, due times, recurrence, and freshness fields are not part of 2B; they arrive with their owning phases. Scheduled time is a planning work block (3C), never a task column."
     },
     {
       "name": "task_assignee",
@@ -4194,12 +4219,19 @@
         "(task_id, membership_id)"
       ],
       "sensitive_fields": [],
-      "key_columns": [],
+      "key_columns": [
+        "task_id",
+        "membership_id (active internal member; never a guest)",
+        "is_primary boolean (at most one per task)",
+        "rank text",
+        "assigned_by_membership_id",
+        "assigned_at"
+      ],
       "requirements": [
         "TSK-007",
         "COL-015"
       ],
-      "notes": ""
+      "notes": "Responsibility only, never authority (0C AZ-22). Removed or suspended members' assignments end on departure."
     },
     {
       "name": "checklist_item",
@@ -4224,11 +4256,20 @@
       "personal_data": "incidental",
       "uniqueness": [],
       "sensitive_fields": [],
-      "key_columns": [],
+      "key_columns": [
+        "public_id text (chk_)",
+        "task_id",
+        "text",
+        "rank text",
+        "done boolean",
+        "done_by_membership_id null",
+        "done_at null",
+        "version bigint"
+      ],
       "requirements": [
         "TSK-011"
       ],
-      "notes": ""
+      "notes": "Ordered facts of a task, not tasks: no assignees, dates, or dependencies, and no effect on task status."
     },
     {
       "name": "criteria_item",
@@ -4257,17 +4298,58 @@
       "key_columns": [
         "public_id text (cri_)",
         "owner_kind (task|project)",
-        "kind (acceptance|definition_of_done|success)",
+        "project_id null / task_id null (exactly one, per owner_kind)",
+        "kind (success|definition_of_done for projects; acceptance|definition_of_done for tasks)",
         "text",
         "rank text",
         "met boolean",
         "met_by/at",
+        "required boolean (task items)",
         "version bigint"
       ],
       "requirements": [
         "TSK-020",
         "TSK-021",
         "PRJ-005"
+      ],
+      "notes": "Phase 2B (ADR-22): project definition-of-done items apply to the project's tasks as read-only inherited defaults, evaluated at read time and never copied; a task records whether each inherited item is met or dismissed (work.task_inherited_criterion)."
+    },
+    {
+      "name": "task_inherited_criterion",
+      "module": "work",
+      "purpose": "A task's response to an inherited project definition-of-done item: met or explicitly dismissed (ADR-22).",
+      "scope": "inherited",
+      "addressable": false,
+      "public_id_prefix": null,
+      "extends": null,
+      "containment_parents": [
+        "task"
+      ],
+      "associations": [
+        "criteria_item"
+      ],
+      "lifecycle": "mutable",
+      "concurrency": "row-version",
+      "retention_class": "R-LIVE",
+      "confidentiality": "C1",
+      "volume": "medium",
+      "export": "filtered",
+      "search_ai": "no",
+      "may_contain_secrets": "no",
+      "personal_data": "incidental",
+      "uniqueness": [
+        "(task_id, criteria_item_id)"
+      ],
+      "sensitive_fields": [],
+      "key_columns": [
+        "task_id",
+        "criteria_item_id (a definition-of-done item of the task's project)",
+        "state (met|dismissed)",
+        "by_membership_id",
+        "at"
+      ],
+      "requirements": [
+        "TSK-021"
       ],
       "notes": ""
     },

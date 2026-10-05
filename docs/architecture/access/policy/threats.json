@@ -418,6 +418,17 @@
         "I-11",
         "I-12"
       ]
+    },
+    {
+      "id": "T-40",
+      "category": "inference",
+      "description": "Task exposure through responsibility or sharing: assignees, creators, or labels gaining access; a task share exposing its parent, project, children, relationships, links to inaccessible records, history, or brand aggregates; hidden relationship endpoints or descendants affecting counts, completion overrides, or rollups.",
+      "mitigated_by": [
+        "I-01",
+        "I-02",
+        "I-10",
+        "I-11"
+      ]
     }
   ],
   "tests": [
@@ -2656,6 +2667,91 @@
       "setup": "Share attempt on a phase, milestone, decision, update, scope item, or other type not registered as shareable",
       "scope": "record of an unshareable type",
       "action": "record.share",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "forbidden",
+      "silent_surfaces": []
+    },
+    {
+      "id": "AT-117",
+      "threats": [
+        "T-40"
+      ],
+      "principal": "member",
+      "setup": "Assignee of a task in a project or brand the member cannot read",
+      "scope": "assigned task",
+      "action": "record.read",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "not_found",
+      "silent_surfaces": [
+        "ui_list",
+        "count_facet",
+        "notification_inapp"
+      ]
+    },
+    {
+      "id": "AT-118",
+      "threats": [
+        "T-40"
+      ],
+      "principal": "guest",
+      "setup": "Task share only: request the parent, project, subtasks, relationships, links, or history",
+      "scope": "shared task's context",
+      "action": "record.read",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "not_found",
+      "silent_surfaces": [
+        "breadcrumb",
+        "count_facet",
+        "activity"
+      ]
+    },
+    {
+      "id": "AT-119",
+      "threats": [
+        "T-40"
+      ],
+      "principal": "member",
+      "setup": "Task with a blocks or related edge to a task the viewer cannot read",
+      "scope": "hidden relationship endpoint",
+      "action": "record.read",
+      "surface": "ui_record",
+      "expected": "deny",
+      "response_shape": "omitted",
+      "silent_surfaces": [
+        "count_facet",
+        "activity",
+        "breadcrumb"
+      ]
+    },
+    {
+      "id": "AT-120",
+      "threats": [
+        "T-40"
+      ],
+      "principal": "member",
+      "setup": "Complete a parent whose hidden descendants are incomplete",
+      "scope": "parent task",
+      "action": "task.override_completion",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "ok_filtered",
+      "silent_surfaces": [
+        "error_message",
+        "count_facet"
+      ]
+    },
+    {
+      "id": "AT-121",
+      "threats": [
+        "T-40"
+      ],
+      "principal": "member",
+      "setup": "Cross-brand move without manage in the destination brand",
+      "scope": "task",
+      "action": "record.move_brand",
       "surface": "api",
       "expected": "deny",
       "response_shape": "forbidden",

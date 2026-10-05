@@ -17,19 +17,19 @@ Requirements flagged with each decision are listed automatically in [requirement
 
 <a id="od-01"></a>
 ### OD-01 — Due date versus deadline
-- **Decision:** Confirm *due date* = internal target that drives overdue, and *deadline* = hard external commitment that is never changed implicitly.
+- **Decided (2026-10-05, architect, Phase 2B brief):** *Start date* is the planned earliest start. *Due date* is the internal desired completion date and may change during planning. *Deadline* is an external or hard commitment, stored as a date or as an instant with its time zone, and never changed implicitly: completing, moving, or recurring never rewrites it. *Scheduled time* is a separate planning work block (3C); tasks store no schedule fields. *Duration* in TSK-005 means the task estimate (`estimate_minutes`); work-block duration belongs to 3C.
 - **Why it matters:** FEATURES uses both terms (TSK-005, PLAN-003, CAL-013). Without a distinction, "prevent deadline changes when moving work" is either meaningless or blocks every reschedule.
 - **Affects:** TSK-005, PLAN-002, PLAN-003, CAL-013, RPT-003 · phases 2B, 3C, 5C, 6C.
 - **Safe default:** As in [time-and-scheduling.md §1](time-and-scheduling.md#1-the-date-and-time-fields). Both fields are optional, and most tasks will only have a due date.
-- **If deferred:** The model carries both fields regardless, but overdue and at-risk reporting may be mislabeled and rework the 3C Today rules.
+- **If deferred:** No longer applicable (decided).
 
 <a id="od-02"></a>
 ### OD-02 — Is a project required for every task?
-- **Decision (approved for architecture):** TSK-002 ("assign every task to a brand and project") conflicts with TSK-003 ("support tasks without a project"). A brand is required and a project is optional.
+- **Decided (2026-10-05, architect, Phase 2B brief):** Every task has exactly one workspace and one brand; the project is optional and, when present, in the same workspace and brand. A task may move between same-brand projects or become projectless. A cross-brand move is an explicit command, allowed only for a projectless task or together with a valid destination project in the target brand. It requires manage authority in both brands, an exposure preview, confirmation, and atomic revalidation.
 - **Why it matters:** It determines whether projectless tasks exist, where triaged Inbox items land, and whether a task can be restored without its project.
 - **Affects:** TSK-002, TSK-003, CAP-012 · phases 0B, 2B, 2E.
 - **Safe default:** Brand mandatory, project optional ([hierarchy §2](hierarchy-and-scope.md#2-scope-of-every-major-record)).
-- **If deferred:** 2B cannot finalize task validation, and 0B cannot set the project reference's nullability.
+- **If deferred:** No longer applicable (decided).
 
 <a id="od-03"></a>
 ### OD-03 — Unbranded Inbox items
@@ -78,27 +78,27 @@ Requirements flagged with each decision are listed automatically in [requirement
 
 <a id="od-08"></a>
 ### OD-08 — Subtask nesting depth
-- **Decision:** "Unlimited nesting safeguards" (TSK-010) means either unlimited depth with cycle prevention, or a capped depth.
+- **Decided (2026-10-05, architect, Phase 2B brief):** Subtasks form a same-workspace, same-brand tree whose parent and child share project identity (both may be projectless). The application bound is `TASK_DEPTH_MAX` = 20 (root = 0) with a database corruption ceiling of 64. Reparenting is lock-ordered, cycle-safe, and rewrites ancestry atomically. "Unlimited nesting safeguards" is met by this generous explicit bound, not literal infinity.
 - **Why it matters:** Depth affects query cost, UI layout on mobile, rollups, and import/export.
 - **Affects:** TSK-010, DATA-001, VIEW-001 · phases 0B, 2B, 3B.
 - **Safe default:** A system cap (recommended 10 levels, configurable lower per workspace), cycle prevention, and depth checks on move and import.
-- **If deferred:** A cap must exist anyway. Raising it later is cheap, and lowering it after customers exceed it is not.
+- **If deferred:** No longer applicable (decided).
 
 <a id="od-09"></a>
 ### OD-09 — Dependencies versus blocking relationships
-- **Decision:** Are TSK-012 (dependencies) and TSK-013 (blocking/blocked-by) one relationship family?
+- **Decided (2026-10-05, architect, Phase 2B brief):** One family. `blocks` is the single directed dependency edge and *blocked by* is its inverse presentation. A task cannot block itself, duplicate an edge, or create a cycle. `related` is a separate symmetric relationship stored once. Relationships never grant access; cross-brand edges follow [OD-05](#od-05).
 - **Why it matters:** Two parallel models produce inconsistent "blocked" calculations across views, Gantt, and briefings.
 - **Affects:** TSK-012, TSK-013, PRJ-011, GOAL-010, VIEW-005 · phases 0B, 2A, 2B, 3B.
 - **Safe default:** One family, with *blocks/blocked by* as the default dependency type. Finish-to-start style types may be added later, and *related* is non-blocking.
-- **If deferred:** There is a risk of building two models in 2A and 2B.
+- **If deferred:** No longer applicable (decided).
 
 <a id="od-10"></a>
 ### OD-10 — Synonyms: watchers/followers, labels/tags
-- **Decision:** Confirm each pair is a single concept (TSK-009, TSK-015).
+- **Decided (2026-10-05, architect, Phase 2B brief):** Each pair is one concept. *Label* is the canonical name: one brand-scoped `work.label` with a normalized unique name, colour or icon, lifecycle, and order, joined to tasks of the same brand. Labels never grant authority; renames keep identity; archived labels stay on tasks but leave default pickers. *Follower* is canonical and belongs entirely to 4A.
 - **Why it matters:** Duplicate concepts double the notification and filter logic.
 - **Affects:** TSK-009, TSK-015, COL-010, PRJ-026, VIEW-012 · phases 2B, 4A.
 - **Safe default:** Use *follower* and *label* in UI and API, and accept the other word in search and import mapping.
-- **If deferred:** Low risk, as long as no second implementation is started.
+- **If deferred:** No longer applicable (decided).
 
 <a id="od-11"></a>
 ### OD-11 — Formula fields versus calculated fields

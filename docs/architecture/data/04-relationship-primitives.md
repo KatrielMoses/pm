@@ -44,7 +44,7 @@ The array approach keeps one row per node, bounded depth makes moves cheap, and 
 
 ## 4.3 Links and mentions
 
-- `relations.record_link`: a non-blocking link from a record to another record or to a URL (DOC-008, TSK-017). Links to synced external objects target the internal record mapped by `integrations.external_identity`, or a URL when no mirror exists.
+- `relations.record_link`: a non-blocking link from a record to another record or to a URL (DOC-008, TSK-017). Phase 2B implements normalized `https` URL links on tasks; record targets are accepted only for a registered record type the actor can independently read, and are omitted on display when unreadable. Links to synced external objects target the internal record mapped by `integrations.external_identity`, or a URL when no mirror exists.
 - `relations.mention`: extracted from authored content (comment, document version, rich-text field) on save. Columns: `source_kind`, `source_id`, `target_kind` (record, membership, team, agent), `target_id`, `notified`. Mentions are **re-extracted from the content** on each revision, so stored rows reflect the current text.
 - Rendering of an unreadable mention target is the neutral "Restricted item" token. The token is produced at read time, and nothing about the target is stored in the source content (only its ID).
 
@@ -54,7 +54,7 @@ The array approach keeps one row per node, bounded depth makes moves cheap, and 
 
 ## 4.5 Labels
 
-`relations.label` (workspace or brand scope, `UNIQUE (scope_key, lower(name))`) and `relations.label_assignment (record_id, label_id)`. A label may be applied only to records in a scope where it is valid: workspace labels anywhere in the workspace, brand labels only within that brand. The command enforces this, and bulk cross-brand labeling follows ST-13.
+Amended in Phase 2B ([ADR-22](12-decisions.md#adr-22), OD-10): `work.label` is scoped to exactly one brand (`UNIQUE (brand_id, normalized_name)`), and `work.task_label (task_id, label_id)` applies it to tasks of the same workspace and brand only (composite keys). Labels and tags are one concept; labels never grant authority. Other record types gain labels only when their phase registers them.
 
 ## 4.6 Custom fields
 

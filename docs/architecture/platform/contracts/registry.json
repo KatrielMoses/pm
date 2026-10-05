@@ -615,6 +615,30 @@
       "owner_module": "planning",
       "platform_only": false,
       "note": "Phase 2A (PL-22)."
+    },
+    {
+      "prefix": "chk",
+      "resource": "checklist_item",
+      "entity": "work.checklist_item",
+      "owner_module": "work",
+      "platform_only": false,
+      "note": "Phase 2B (PL-24)."
+    },
+    {
+      "prefix": "lbl",
+      "resource": "label",
+      "entity": "work.label",
+      "owner_module": "work",
+      "platform_only": false,
+      "note": "Phase 2B (PL-24)."
+    },
+    {
+      "prefix": "lnk",
+      "resource": "record_link",
+      "entity": "relations.record_link",
+      "owner_module": "relations",
+      "platform_only": false,
+      "note": "Phase 2B (PL-24)."
     }
   ],
   "error_codes": [
@@ -1291,6 +1315,99 @@
       ],
       "allow_list_version": 1,
       "delivery_authorization": "subscription_owner_at_delivery"
+    },
+    {
+      "type": "work.task.moved",
+      "schema_version": 1,
+      "aggregate_entity": "work.task",
+      "fields": [
+        "project_id",
+        "parent_task_id",
+        "depth"
+      ],
+      "max_class": "C1",
+      "consumers": {
+        "activity": true,
+        "notification": false,
+        "metrics": false,
+        "automation_trigger": true,
+        "search_index": true
+      },
+      "public_webhook": null,
+      "requirements": [
+        "TSK-001",
+        "TSK-010"
+      ],
+      "allow_list_version": null,
+      "delivery_authorization": null
+    },
+    {
+      "type": "work.task.reopened",
+      "schema_version": 1,
+      "aggregate_entity": "work.task",
+      "fields": [
+        "status_id",
+        "status_category"
+      ],
+      "max_class": "C1",
+      "consumers": {
+        "activity": true,
+        "notification": false,
+        "metrics": false,
+        "automation_trigger": true,
+        "search_index": true
+      },
+      "public_webhook": null,
+      "requirements": [
+        "TSK-005"
+      ],
+      "allow_list_version": null,
+      "delivery_authorization": null
+    },
+    {
+      "type": "work.label.created",
+      "schema_version": 1,
+      "aggregate_entity": "work.label",
+      "fields": [
+        "label_id"
+      ],
+      "max_class": "C1",
+      "consumers": {
+        "activity": false,
+        "notification": false,
+        "metrics": false,
+        "automation_trigger": false,
+        "search_index": true
+      },
+      "public_webhook": null,
+      "requirements": [
+        "TSK-015"
+      ],
+      "allow_list_version": null,
+      "delivery_authorization": null
+    },
+    {
+      "type": "work.label.updated",
+      "schema_version": 1,
+      "aggregate_entity": "work.label",
+      "fields": [
+        "label_id",
+        "lifecycle_state"
+      ],
+      "max_class": "C1",
+      "consumers": {
+        "activity": false,
+        "notification": false,
+        "metrics": false,
+        "automation_trigger": false,
+        "search_index": true
+      },
+      "public_webhook": null,
+      "requirements": [
+        "TSK-015"
+      ],
+      "allow_list_version": null,
+      "delivery_authorization": null
     },
     {
       "type": "work.project.created",
@@ -3413,6 +3530,22 @@
         "outcome"
       ],
       "area": "work"
+    },
+    {
+      "name": "work.task.moves",
+      "type": "counter",
+      "labels": [
+        "outcome"
+      ],
+      "area": "work"
+    },
+    {
+      "name": "work.task.completions",
+      "type": "counter",
+      "labels": [
+        "outcome"
+      ],
+      "area": "work"
     }
   ],
   "forbidden_metric_labels": [
@@ -3671,6 +3804,41 @@
       "name": "RECURRENCE_SERIES_DISCOVERY_MAX",
       "meaning": "Most due recurrence series one job run processes in one workspace (default 50, range 1–500). Series are taken oldest-waiting first (last run, then id), so later series are never starved.",
       "owner": "2A"
+    },
+    {
+      "name": "TASK_DEPTH_MAX",
+      "meaning": "Deepest subtask level a command accepts (root = 0) when creating, reparenting, moving, or duplicating tasks; default 20, range 1–64. The database separately enforces an invariant ceiling of 64 that is not a runtime parameter.",
+      "owner": "2B"
+    },
+    {
+      "name": "TASK_SUBTREE_MAX",
+      "meaning": "Most tasks one subtree operation touches (a move or a lifecycle command with include_subtasks, or a duplicate with include_subtasks); default 500, range 1–5000. Larger subtrees are refused before any change.",
+      "owner": "2B"
+    },
+    {
+      "name": "TASK_ITEMS_MAX",
+      "meaning": "Most checklist items, criteria items, and links each task holds (each kind counted separately); default 200, range 1–1000.",
+      "owner": "2B"
+    },
+    {
+      "name": "TASK_ASSIGNEES_MAX",
+      "meaning": "Most active assignees on one task; default 20, range 1–100.",
+      "owner": "2B"
+    },
+    {
+      "name": "TASK_LABELS_MAX",
+      "meaning": "Most labels on one task; default 50, range 1–200.",
+      "owner": "2B"
+    },
+    {
+      "name": "BRAND_LABELS_MAX",
+      "meaning": "Most active and archived labels in one brand; default 1000, range 1–10000.",
+      "owner": "2B"
+    },
+    {
+      "name": "TASK_ESTIMATE_MINUTES_MAX",
+      "meaning": "Largest estimate or remaining estimate, in minutes; default 100000, range 60–1000000.",
+      "owner": "2B"
     }
   ],
   "sse_topics": [

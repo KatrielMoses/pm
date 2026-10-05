@@ -39,11 +39,14 @@ Project status categories map to the portfolio states that FEATURES requires (GO
 
 | Status | Category | Allowed next (default) | Notes |
 |---|---|---|---|
-| To do | planned | In progress, Cancelled | |
-| In progress | active | To do, In review, Done, Cancelled | |
-| In review | active | In progress, Done | Entering creates a review request if the task has a reviewer or an expected deliverable |
-| Done | done | In progress (reopen) | Gated by required fields and approval rules when configured (WFL-006/007) |
-| Cancelled | cancelled | To do (reopen) | Reason required |
+| Backlog | planned | To do, In progress, Cancelled | |
+| To do | planned | Backlog, In progress, Blocked, Cancelled | |
+| In progress | active | To do, Blocked, Done, Cancelled | |
+| Blocked | paused | To do, In progress, Cancelled | A manual state; a `blocks` dependency is shown, never a status change |
+| Done | done | Reopen | Only through *complete*: required acceptance and definition-of-done items must be met, or an authorized override records a reason |
+| Cancelled | cancelled | Reopen | |
+
+These six statuses are the immutable platform defaults seeded in Phase 2B; 2C adds custom statuses and transitions without a second status table. Reopening returns to the prior non-terminal status when it is still valid, otherwise To do. Completing a parent never completes its descendants, and completing a child never changes its parent's or project's status.
 
 ## 3. Completion, review, and acceptance are different facts
 

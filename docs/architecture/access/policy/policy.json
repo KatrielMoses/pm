@@ -969,9 +969,10 @@
         "guest": "deny"
       },
       "requirements": [
+        "TSK-001",
         "WSB-009"
       ],
-      "notes": "Manage on source and create (edit) on target brand."
+      "notes": "Manage on source and create (edit) on target brand. Tasks (2B, AZ-22): manage in both brands, with an exposure preview and confirmation."
     },
     {
       "key": "record.share",
@@ -1088,6 +1089,61 @@
         "AGT-022"
       ],
       "notes": ""
+    },
+    {
+      "key": "task.override_completion",
+      "kind": "record",
+      "scopes": [
+        "record"
+      ],
+      "description": "Complete a task whose required criteria or descendants are incomplete, recording a reason (ADR-22).",
+      "required_level": "manage",
+      "risk_class": "R2",
+      "approval_class": "none",
+      "step_up": false,
+      "second_approval": false,
+      "non_delegable": false,
+      "entitlement": null,
+      "roles": {
+        "owner": "implicit",
+        "administrator": "implicit",
+        "member": "grant:manage",
+        "limited_member": "deny",
+        "read_only": "deny",
+        "guest": "deny"
+      },
+      "requirements": [
+        "TSK-020",
+        "TSK-021"
+      ],
+      "notes": "Human principals only; the reason and the visible incomplete count are audited (AZ-22). Never satisfied by a share."
+    },
+    {
+      "key": "label.manage",
+      "kind": "admin",
+      "scopes": [
+        "brand"
+      ],
+      "description": "Create, rename, reorder, archive, and restore a brand's labels (OD-10).",
+      "required_level": "edit",
+      "risk_class": "R1",
+      "approval_class": "none",
+      "step_up": false,
+      "second_approval": false,
+      "non_delegable": false,
+      "entitlement": null,
+      "roles": {
+        "owner": "implicit",
+        "administrator": "implicit",
+        "member": "grant:edit",
+        "limited_member": "deny",
+        "read_only": "deny",
+        "guest": "deny"
+      },
+      "requirements": [
+        "TSK-015"
+      ],
+      "notes": "Labels never grant authority (AZ-22)."
     },
     {
       "key": "project.complete",
