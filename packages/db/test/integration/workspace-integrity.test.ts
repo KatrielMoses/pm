@@ -170,6 +170,14 @@ describe('database-enforced workspace existence (1A review 01, correction 2)', (
       'work.project_update',
       'work.project_update_verification',
       'work.scope_item',
+      // Phase 2B tasks, labels, and record links.
+      'relations.record_link',
+      'work.checklist_item',
+      'work.label',
+      'work.task',
+      'work.task_assignee',
+      'work.task_inherited_criterion',
+      'work.task_label',
     ];
     expect(res.rows.map((r) => r.tbl).sort()).toEqual(
       [...TENANT_TABLES.map((t) => `exec.${t}`), ...phase1f, ...phase1c].sort(),
@@ -204,8 +212,9 @@ describe('database-enforced workspace existence (1A review 01, correction 2)', (
     // exec: 7 workspace keys + 6 composite same-workspace keys; 1C tenancy/access: 20 keys;
     // 1D collaboration (teams, invitations, policy, shares, ownership transfer): 38 keys;
     // 1E personal navigation (favorites, recents, view state, view pins): 12 keys;
-    // 2A projects, structures, relationships, templates, recurrence, project role scope: 60 keys.
-    expect(res.rows.length).toBe(143);
+    // 2A projects, structures, relationships, templates, recurrence, project role scope: 60 keys;
+    // 2B tasks, assignees, checklists, task criteria, inherited criteria, labels, links: 33 keys.
+    expect(res.rows.length).toBe(176);
     for (const r of res.rows)
       expect(r, `${r.tbl}.${r.conname}`).toMatchObject({
         referencing_indexed: true,

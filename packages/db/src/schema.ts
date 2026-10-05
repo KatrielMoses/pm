@@ -1139,14 +1139,128 @@ export interface CriteriaItemTable {
   public_id: string;
   workspace_id: string;
   brand_id: string;
-  owner_kind: Defaulted<'project'>;
-  project_id: string;
-  kind: 'success' | 'definition_of_done';
+  owner_kind: Defaulted<'project' | 'task'>;
+  project_id: string | null;
+  kind: 'success' | 'definition_of_done' | 'acceptance';
   text: string;
   rank: string;
   met: Defaulted<boolean>;
   met_by_membership_id: string | null;
   met_at: Ts | null;
+  created_at: DTs;
+  updated_at: DTs;
+  version: Defaulted<number>;
+  /** Phase 2B: task-owned items (owner_kind = 'task'). */
+  task_id: string | null;
+  required: Defaulted<boolean>;
+}
+
+/** Phase 2B tasks (0B ADR-22). */
+export interface TaskTable {
+  id: string;
+  workspace_id: string;
+  brand_id: string;
+  scope_key: string;
+  lifecycle_state: Defaulted<LifecycleState>;
+  project_id: string | null;
+  parent_task_id: string | null;
+  ancestor_ids: Defaulted<string[]>;
+  depth: Defaulted<number>;
+  title: string;
+  description_rich: Json<unknown> | null;
+  status_id: string;
+  status_category: string;
+  prior_status_id: string | null;
+  priority: Defaulted<string>;
+  start_date: string | null;
+  due_date: string | null;
+  deadline_date: string | null;
+  deadline_at: Ts | null;
+  deadline_tz: string | null;
+  estimate_minutes: number | null;
+  remaining_estimate_minutes: number | null;
+  completed_at: Ts | null;
+  completed_by_membership_id: string | null;
+  completion_override_reason: string | null;
+  expected_deliverable_type: string | null;
+  expected_deliverable_detail: string | null;
+  requires_acceptance: Defaulted<boolean>;
+  rank: string;
+  created_by_membership_id: string | null;
+  created_at: DTs;
+  updated_at: DTs;
+  updated_by_membership_id: string | null;
+  version: Defaulted<number>;
+}
+export interface TaskAssigneeTable {
+  workspace_id: string;
+  brand_id: string;
+  task_id: string;
+  membership_id: string;
+  is_primary: Defaulted<boolean>;
+  rank: string;
+  assigned_by_membership_id: string | null;
+  assigned_at: DTs;
+}
+export interface ChecklistItemTable {
+  id: string;
+  public_id: string;
+  workspace_id: string;
+  brand_id: string;
+  task_id: string;
+  text: string;
+  rank: string;
+  done: Defaulted<boolean>;
+  done_by_membership_id: string | null;
+  done_at: Ts | null;
+  created_at: DTs;
+  updated_at: DTs;
+  version: Defaulted<number>;
+}
+export interface TaskInheritedCriterionTable {
+  workspace_id: string;
+  brand_id: string;
+  task_id: string;
+  criteria_item_id: string;
+  state: 'met' | 'dismissed';
+  by_membership_id: string;
+  at: DTs;
+}
+export interface LabelTable {
+  id: string;
+  public_id: string;
+  workspace_id: string;
+  brand_id: string;
+  name: string;
+  normalized_name: string;
+  color: string;
+  icon: string | null;
+  rank: string;
+  state: Defaulted<'active' | 'archived'>;
+  created_by_membership_id: string | null;
+  created_at: DTs;
+  updated_at: DTs;
+  version: Defaulted<number>;
+}
+export interface TaskLabelTable {
+  workspace_id: string;
+  brand_id: string;
+  task_id: string;
+  label_id: string;
+  added_by_membership_id: string | null;
+  added_at: DTs;
+}
+export interface RecordLinkTable {
+  id: string;
+  public_id: string;
+  workspace_id: string;
+  source_record_id: string;
+  target_kind: 'url' | 'record';
+  url: string | null;
+  target_record_id: string | null;
+  title: string | null;
+  rank: string;
+  created_by_membership_id: string | null;
   created_at: DTs;
   updated_at: DTs;
   version: Defaulted<number>;
@@ -1339,6 +1453,13 @@ export interface Database {
   'work.phase': PhaseTable;
   'work.milestone': MilestoneTable;
   'work.criteria_item': CriteriaItemTable;
+  'work.task': TaskTable;
+  'work.task_assignee': TaskAssigneeTable;
+  'work.checklist_item': ChecklistItemTable;
+  'work.task_inherited_criterion': TaskInheritedCriterionTable;
+  'work.label': LabelTable;
+  'work.task_label': TaskLabelTable;
+  'relations.record_link': RecordLinkTable;
   'work.scope_item': ScopeItemTable;
   'work.project_update': ProjectUpdateTable;
   'work.project_update_verification': ProjectUpdateVerificationTable;
@@ -2266,6 +2387,117 @@ export const TABLE_COLUMNS: Readonly<Record<keyof Database, readonly string[]>> 
     'met',
     'met_by_membership_id',
     'met_at',
+    'created_at',
+    'updated_at',
+    'version',
+    'task_id',
+    'required',
+  ],
+  'work.task': [
+    'id',
+    'workspace_id',
+    'brand_id',
+    'scope_key',
+    'lifecycle_state',
+    'project_id',
+    'parent_task_id',
+    'ancestor_ids',
+    'depth',
+    'title',
+    'description_rich',
+    'status_id',
+    'status_category',
+    'prior_status_id',
+    'priority',
+    'start_date',
+    'due_date',
+    'deadline_date',
+    'deadline_at',
+    'deadline_tz',
+    'estimate_minutes',
+    'remaining_estimate_minutes',
+    'completed_at',
+    'completed_by_membership_id',
+    'completion_override_reason',
+    'expected_deliverable_type',
+    'expected_deliverable_detail',
+    'requires_acceptance',
+    'rank',
+    'created_by_membership_id',
+    'created_at',
+    'updated_at',
+    'updated_by_membership_id',
+    'version',
+  ],
+  'work.task_assignee': [
+    'workspace_id',
+    'brand_id',
+    'task_id',
+    'membership_id',
+    'is_primary',
+    'rank',
+    'assigned_by_membership_id',
+    'assigned_at',
+  ],
+  'work.checklist_item': [
+    'id',
+    'public_id',
+    'workspace_id',
+    'brand_id',
+    'task_id',
+    'text',
+    'rank',
+    'done',
+    'done_by_membership_id',
+    'done_at',
+    'created_at',
+    'updated_at',
+    'version',
+  ],
+  'work.task_inherited_criterion': [
+    'workspace_id',
+    'brand_id',
+    'task_id',
+    'criteria_item_id',
+    'state',
+    'by_membership_id',
+    'at',
+  ],
+  'work.label': [
+    'id',
+    'public_id',
+    'workspace_id',
+    'brand_id',
+    'name',
+    'normalized_name',
+    'color',
+    'icon',
+    'rank',
+    'state',
+    'created_by_membership_id',
+    'created_at',
+    'updated_at',
+    'version',
+  ],
+  'work.task_label': [
+    'workspace_id',
+    'brand_id',
+    'task_id',
+    'label_id',
+    'added_by_membership_id',
+    'added_at',
+  ],
+  'relations.record_link': [
+    'id',
+    'public_id',
+    'workspace_id',
+    'source_record_id',
+    'target_kind',
+    'url',
+    'target_record_id',
+    'title',
+    'rank',
+    'created_by_membership_id',
     'created_at',
     'updated_at',
     'version',
