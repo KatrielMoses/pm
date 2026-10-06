@@ -111,6 +111,14 @@ describe('server configuration', () => {
       inboxMergeMax: 20,
       intakeFormsMax: 50,
       intakeSubmissionsPerHour: 20,
+      timeEntryMaxHours: 24,
+      timeTimerMaxHours: 12,
+      timeReportRangeDaysMax: 366,
+      timeReportRowsMax: 500,
+      timeExportRowsMax: 10_000,
+      timeTimesheetEntriesMax: 2000,
+      timeRunawayDiscoveryMax: 100,
+      timeRunawayBatchMax: 200,
     });
     const set = (env: Record<string, string>) =>
       loadServerConfig({ service: 'worker', env: { ...local, ...env } });
@@ -146,6 +154,8 @@ describe('server configuration', () => {
       ['TASK_STALE_ACTIVE_DAYS', '91'],
       ['CAPTURE_PASTE_LINES_MAX', '501'],
       ['INBOX_MERGE_MAX', '1'],
+      ['TIME_TIMER_MAX_HOURS', '25'],
+      ['TIME_EXPORT_ROWS_MAX', '99'],
     ] as const)
       expect(issues(() => set({ [key]: bad })).join(' '), `${key}=${bad}`).toMatch(
         new RegExp(`^${key}`),

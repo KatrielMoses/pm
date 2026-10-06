@@ -152,6 +152,15 @@ export class PlatformDiscovery {
     return rows.map((r) => r.workspace_id);
   }
 
+  /** Workspaces with a running timer whose total has reached `maxSeconds` (3D, ids only). */
+  async discoverRunawayTimers(now: Date, maxSeconds: number, limit: number): Promise<string[]> {
+    const { rows } = await this.#pool.query<{ workspace_id: string }>(
+      'SELECT workspace_id FROM exec_dispatch.discover_runaway_timers($1, $2, $3)',
+      [now, maxSeconds, limit],
+    );
+    return rows.map((r) => r.workspace_id);
+  }
+
   /** Worker liveness (platform table, no tenant data). */
   async heartbeat(workerId: string, buildId: string, stopping = false): Promise<void> {
     await this.#pool.query(

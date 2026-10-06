@@ -128,6 +128,22 @@ export interface WorkSettings {
   intakeFormsMax: number;
   /** `INTAKE_SUBMISSIONS_PER_HOUR` */
   intakeSubmissionsPerHour: number;
+  /** `TIME_ENTRY_MAX_HOURS` */
+  timeEntryMaxHours: number;
+  /** `TIME_TIMER_MAX_HOURS` */
+  timeTimerMaxHours: number;
+  /** `TIME_REPORT_RANGE_DAYS_MAX` */
+  timeReportRangeDaysMax: number;
+  /** `TIME_REPORT_ROWS_MAX` */
+  timeReportRowsMax: number;
+  /** `TIME_EXPORT_ROWS_MAX` */
+  timeExportRowsMax: number;
+  /** `TIME_TIMESHEET_ENTRIES_MAX` */
+  timeTimesheetEntriesMax: number;
+  /** `TIME_RUNAWAY_DISCOVERY_MAX` */
+  timeRunawayDiscoveryMax: number;
+  /** `TIME_RUNAWAY_BATCH_MAX` */
+  timeRunawayBatchMax: number;
 }
 
 export const DEFAULT_WORK_SETTINGS: WorkSettings = Object.freeze({
@@ -184,6 +200,14 @@ export const DEFAULT_WORK_SETTINGS: WorkSettings = Object.freeze({
   inboxMergeMax: 20,
   intakeFormsMax: 50,
   intakeSubmissionsPerHour: 20,
+  timeEntryMaxHours: 24,
+  timeTimerMaxHours: 12,
+  timeReportRangeDaysMax: 366,
+  timeReportRowsMax: 500,
+  timeExportRowsMax: 10_000,
+  timeTimesheetEntriesMax: 2000,
+  timeRunawayDiscoveryMax: 100,
+  timeRunawayBatchMax: 200,
 });
 
 /** The database invariant behind `TASK_DEPTH_MAX` (migration 0023). */

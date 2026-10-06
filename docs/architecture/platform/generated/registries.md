@@ -219,7 +219,7 @@ Source: `contracts/registry.json`.
 | `capture.inbox.triaged` v1 | capture.inbox_item | outcome, converted_record_id | C1 |  |  |  |  |  | — |
 | `planning.work_block.moved` v1 | planning.work_block | starts_at, ends_at, source | C1 |  |  | yes | yes |  | — |
 | `planning.occurrence.generated` v1 | planning.recurrence_series | occurrence_key, record_id | C1 |  |  |  | yes |  | — |
-| `time.time_entry.recorded` v1 | time.time_entry | duration_seconds, billable | C1 | yes |  | yes |  |  | — |
+| `time.time_entry.recorded` v1 | time.time_entry | duration_seconds, billable, source | C1 | yes |  | yes |  |  | — |
 | `time.timesheet.approved` v1 | time.timesheet_approval | period_start, brand_id | C1 | yes | yes | yes | yes |  | — |
 | `knowledge.document.source_approved` v1 | knowledge.source_approval | document_version_id | C1 | yes |  |  | yes | yes | — |
 | `access.grant.created` v1 | access.record_grant | record_id, grantee_type, level, expires_at | C1 | yes | yes |  |  |  | — |
@@ -289,6 +289,13 @@ Source: `contracts/registry.json`.
 | `capture.intake_form.created` v1 | capture.intake_form | target_kind | C1 |  |  | yes |  |  | — |
 | `capture.intake_form.updated` v1 | capture.intake_form | state | C1 |  |  | yes |  |  | — |
 | `capture.intake.submitted` v1 | capture.intake_form | inbox_item_id | C1 |  |  | yes |  |  | — |
+| `time.time_entry.updated` v1 | time.time_entry | duration_seconds, billable | C1 | yes |  | yes |  |  | — |
+| `time.time_entry.deleted` v1 | time.time_entry | duration_seconds | C1 | yes |  | yes |  |  | — |
+| `time.timer.auto_stopped` v1 | time.time_entry | duration_seconds | C1 | yes |  | yes |  |  | — |
+| `time.timesheet.submitted` v1 | time.timesheet | period_start, lines | C1 | yes |  | yes |  |  | — |
+| `time.timesheet.withdrawn` v1 | time.timesheet | period_start | C1 | yes |  | yes |  |  | — |
+| `time.timesheet.rejected` v1 | time.timesheet_approval | period_start, brand_id | C1 | yes | yes | yes |  |  | — |
+| `time.timesheet.unlocked` v1 | time.period_lock | period_start, brand_id | C1 | yes | yes | yes |  |  | — |
 
 ## SSE topics
 
@@ -432,6 +439,11 @@ Forbidden metric labels: `workspace_id`, `brand_id`, `record_id`, `public_id`, `
 | `capture.items` | counter | outcome | capture |
 | `capture.parse` | counter | outcome | capture |
 | `capture.triage` | counter | outcome | capture |
+| `time.entries` | counter | source, outcome | time |
+| `time.timers` | counter | action, outcome | time |
+| `time.timesheets` | counter | action, outcome | time |
+| `time.exports` | counter | format | time |
+| `time.timer_guard` | counter | outcome | time |
 
 ## Named parameters (values are configuration, not promises)
 
@@ -527,3 +539,11 @@ Forbidden metric labels: `workspace_id`, `brand_id`, `record_id`, `public_id`, `
 | `INBOX_MERGE_MAX` | Most Inbox items one merge may combine; default 20, range 2–100. | 2E |
 | `INTAKE_FORMS_MAX` | Most intake forms per brand; default 50, range 1–500. | 2E |
 | `INTAKE_SUBMISSIONS_PER_HOUR` | Most submissions one person may make to one form per hour; default 20, range 1–1000. | 2E |
+| `TIME_ENTRY_MAX_HOURS` | Longest single time entry or timer run, in hours; default 24, range 1–24. | 3D |
+| `TIME_TIMER_MAX_HOURS` | Hours after which a still-running timer is stopped automatically by the timer guard; default 12, range 1–24. | 3D |
+| `TIME_REPORT_RANGE_DAYS_MAX` | Widest date range one time report, timesheet list, or export may cover, in days; default 366, range 7–1830. | 3D |
+| `TIME_REPORT_ROWS_MAX` | Most rows (groups) one planned-versus-actual report returns; default 500, range 10–5000. | 3D |
+| `TIME_EXPORT_ROWS_MAX` | Most time entries one direct export may contain; default 10000, range 100–50000. | 3D |
+| `TIME_TIMESHEET_ENTRIES_MAX` | Most time entries one person may have in one timesheet period; default 2000, range 10–10000. | 3D |
+| `TIME_RUNAWAY_DISCOVERY_MAX` | Most workspaces one timer-guard run examines; default 100, range 1–1000. | 3D |
+| `TIME_RUNAWAY_BATCH_MAX` | Most runaway timers one timer-guard run stops per workspace; default 200, range 1–1000. | 3D |

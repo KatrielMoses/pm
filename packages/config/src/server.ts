@@ -181,6 +181,14 @@ export interface ServerConfig {
     inboxMergeMax: number;
     intakeFormsMax: number;
     intakeSubmissionsPerHour: number;
+    timeEntryMaxHours: number;
+    timeTimerMaxHours: number;
+    timeReportRangeDaysMax: number;
+    timeReportRowsMax: number;
+    timeExportRowsMax: number;
+    timeTimesheetEntriesMax: number;
+    timeRunawayDiscoveryMax: number;
+    timeRunawayBatchMax: number;
   };
   features: {
     /** Local/test-only component harness route for reusable UI states (refused when deployed). */
@@ -385,6 +393,14 @@ const DEFAULTS = {
   INBOX_MERGE_MAX: '20',
   INTAKE_FORMS_MAX: '50',
   INTAKE_SUBMISSIONS_PER_HOUR: '20',
+  TIME_ENTRY_MAX_HOURS: '24',
+  TIME_TIMER_MAX_HOURS: '12',
+  TIME_REPORT_RANGE_DAYS_MAX: '366',
+  TIME_REPORT_ROWS_MAX: '500',
+  TIME_EXPORT_ROWS_MAX: '10000',
+  TIME_TIMESHEET_ENTRIES_MAX: '2000',
+  TIME_RUNAWAY_DISCOVERY_MAX: '100',
+  TIME_RUNAWAY_BATCH_MAX: '200',
 } as const;
 
 const schema = z.object({
@@ -523,6 +539,14 @@ const schema = z.object({
   INBOX_MERGE_MAX: int(2, 100),
   INTAKE_FORMS_MAX: int(1, 500),
   INTAKE_SUBMISSIONS_PER_HOUR: int(1, 1000),
+  TIME_ENTRY_MAX_HOURS: int(1, 24),
+  TIME_TIMER_MAX_HOURS: int(1, 24),
+  TIME_REPORT_RANGE_DAYS_MAX: int(7, 1830),
+  TIME_REPORT_ROWS_MAX: int(10, 5000),
+  TIME_EXPORT_ROWS_MAX: int(100, 50000),
+  TIME_TIMESHEET_ENTRIES_MAX: int(10, 10000),
+  TIME_RUNAWAY_DISCOVERY_MAX: int(1, 1000),
+  TIME_RUNAWAY_BATCH_MAX: int(1, 1000),
 });
 
 /** Variables a deployed environment must set explicitly (no silent local defaults). */
@@ -945,6 +969,14 @@ export function loadServerConfig(options: LoadOptions): ServerConfig {
       inboxMergeMax: c.INBOX_MERGE_MAX,
       intakeFormsMax: c.INTAKE_FORMS_MAX,
       intakeSubmissionsPerHour: c.INTAKE_SUBMISSIONS_PER_HOUR,
+      timeEntryMaxHours: c.TIME_ENTRY_MAX_HOURS,
+      timeTimerMaxHours: c.TIME_TIMER_MAX_HOURS,
+      timeReportRangeDaysMax: c.TIME_REPORT_RANGE_DAYS_MAX,
+      timeReportRowsMax: c.TIME_REPORT_ROWS_MAX,
+      timeExportRowsMax: c.TIME_EXPORT_ROWS_MAX,
+      timeTimesheetEntriesMax: c.TIME_TIMESHEET_ENTRIES_MAX,
+      timeRunawayDiscoveryMax: c.TIME_RUNAWAY_DISCOVERY_MAX,
+      timeRunawayBatchMax: c.TIME_RUNAWAY_BATCH_MAX,
     },
     identity: {
       publicOrigin,

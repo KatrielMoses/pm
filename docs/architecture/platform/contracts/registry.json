@@ -1781,7 +1781,8 @@
       "aggregate_entity": "time.time_entry",
       "fields": [
         "duration_seconds",
-        "billable"
+        "billable",
+        "source"
       ],
       "max_class": "C1",
       "consumers": {
@@ -1792,7 +1793,11 @@
         "search_index": false
       },
       "public_webhook": null,
-      "requirements": [],
+      "requirements": [
+        "TSK-024",
+        "TSK-025",
+        "TIME-004"
+      ],
       "allow_list_version": null,
       "delivery_authorization": null
     },
@@ -1813,7 +1818,10 @@
         "search_index": false
       },
       "public_webhook": null,
-      "requirements": [],
+      "requirements": [
+        "TIME-012",
+        "TIME-013"
+      ],
       "allow_list_version": null,
       "delivery_authorization": null
     },
@@ -3372,6 +3380,165 @@
       ],
       "allow_list_version": null,
       "delivery_authorization": null
+    },
+    {
+      "type": "time.time_entry.updated",
+      "schema_version": 1,
+      "aggregate_entity": "time.time_entry",
+      "fields": [
+        "duration_seconds",
+        "billable"
+      ],
+      "max_class": "C1",
+      "consumers": {
+        "activity": true,
+        "notification": false,
+        "metrics": true,
+        "automation_trigger": false,
+        "search_index": false
+      },
+      "public_webhook": null,
+      "requirements": [
+        "TSK-024",
+        "TSK-026"
+      ],
+      "allow_list_version": null,
+      "delivery_authorization": null
+    },
+    {
+      "type": "time.time_entry.deleted",
+      "schema_version": 1,
+      "aggregate_entity": "time.time_entry",
+      "fields": [
+        "duration_seconds"
+      ],
+      "max_class": "C1",
+      "consumers": {
+        "activity": true,
+        "notification": false,
+        "metrics": true,
+        "automation_trigger": false,
+        "search_index": false
+      },
+      "public_webhook": null,
+      "requirements": [
+        "TSK-024"
+      ],
+      "allow_list_version": null,
+      "delivery_authorization": null
+    },
+    {
+      "type": "time.timer.auto_stopped",
+      "schema_version": 1,
+      "aggregate_entity": "time.time_entry",
+      "fields": [
+        "duration_seconds"
+      ],
+      "max_class": "C1",
+      "consumers": {
+        "activity": true,
+        "notification": false,
+        "metrics": true,
+        "automation_trigger": false,
+        "search_index": false
+      },
+      "public_webhook": null,
+      "requirements": [
+        "TSK-025"
+      ],
+      "allow_list_version": null,
+      "delivery_authorization": null
+    },
+    {
+      "type": "time.timesheet.submitted",
+      "schema_version": 1,
+      "aggregate_entity": "time.timesheet",
+      "fields": [
+        "period_start",
+        "lines"
+      ],
+      "max_class": "C1",
+      "consumers": {
+        "activity": true,
+        "notification": false,
+        "metrics": true,
+        "automation_trigger": false,
+        "search_index": false
+      },
+      "public_webhook": null,
+      "requirements": [
+        "TIME-012"
+      ],
+      "allow_list_version": null,
+      "delivery_authorization": null
+    },
+    {
+      "type": "time.timesheet.withdrawn",
+      "schema_version": 1,
+      "aggregate_entity": "time.timesheet",
+      "fields": [
+        "period_start"
+      ],
+      "max_class": "C1",
+      "consumers": {
+        "activity": true,
+        "notification": false,
+        "metrics": true,
+        "automation_trigger": false,
+        "search_index": false
+      },
+      "public_webhook": null,
+      "requirements": [
+        "TIME-012"
+      ],
+      "allow_list_version": null,
+      "delivery_authorization": null
+    },
+    {
+      "type": "time.timesheet.rejected",
+      "schema_version": 1,
+      "aggregate_entity": "time.timesheet_approval",
+      "fields": [
+        "period_start",
+        "brand_id"
+      ],
+      "max_class": "C1",
+      "consumers": {
+        "activity": true,
+        "notification": true,
+        "metrics": true,
+        "automation_trigger": false,
+        "search_index": false
+      },
+      "public_webhook": null,
+      "requirements": [
+        "TIME-012"
+      ],
+      "allow_list_version": null,
+      "delivery_authorization": null
+    },
+    {
+      "type": "time.timesheet.unlocked",
+      "schema_version": 1,
+      "aggregate_entity": "time.period_lock",
+      "fields": [
+        "period_start",
+        "brand_id"
+      ],
+      "max_class": "C1",
+      "consumers": {
+        "activity": true,
+        "notification": true,
+        "metrics": true,
+        "automation_trigger": false,
+        "search_index": false
+      },
+      "public_webhook": null,
+      "requirements": [
+        "TIME-013"
+      ],
+      "allow_list_version": null,
+      "delivery_authorization": null
     }
   ],
   "scopes": [
@@ -4277,6 +4444,49 @@
         "outcome"
       ],
       "area": "capture"
+    },
+    {
+      "name": "time.entries",
+      "type": "counter",
+      "labels": [
+        "source",
+        "outcome"
+      ],
+      "area": "time"
+    },
+    {
+      "name": "time.timers",
+      "type": "counter",
+      "labels": [
+        "action",
+        "outcome"
+      ],
+      "area": "time"
+    },
+    {
+      "name": "time.timesheets",
+      "type": "counter",
+      "labels": [
+        "action",
+        "outcome"
+      ],
+      "area": "time"
+    },
+    {
+      "name": "time.exports",
+      "type": "counter",
+      "labels": [
+        "format"
+      ],
+      "area": "time"
+    },
+    {
+      "name": "time.timer_guard",
+      "type": "counter",
+      "labels": [
+        "outcome"
+      ],
+      "area": "time"
     }
   ],
   "forbidden_metric_labels": [
@@ -4765,6 +4975,46 @@
       "name": "INTAKE_SUBMISSIONS_PER_HOUR",
       "meaning": "Most submissions one person may make to one form per hour; default 20, range 1–1000.",
       "owner": "2E"
+    },
+    {
+      "name": "TIME_ENTRY_MAX_HOURS",
+      "meaning": "Longest single time entry or timer run, in hours; default 24, range 1–24.",
+      "owner": "3D"
+    },
+    {
+      "name": "TIME_TIMER_MAX_HOURS",
+      "meaning": "Hours after which a still-running timer is stopped automatically by the timer guard; default 12, range 1–24.",
+      "owner": "3D"
+    },
+    {
+      "name": "TIME_REPORT_RANGE_DAYS_MAX",
+      "meaning": "Widest date range one time report, timesheet list, or export may cover, in days; default 366, range 7–1830.",
+      "owner": "3D"
+    },
+    {
+      "name": "TIME_REPORT_ROWS_MAX",
+      "meaning": "Most rows (groups) one planned-versus-actual report returns; default 500, range 10–5000.",
+      "owner": "3D"
+    },
+    {
+      "name": "TIME_EXPORT_ROWS_MAX",
+      "meaning": "Most time entries one direct export may contain; default 10000, range 100–50000.",
+      "owner": "3D"
+    },
+    {
+      "name": "TIME_TIMESHEET_ENTRIES_MAX",
+      "meaning": "Most time entries one person may have in one timesheet period; default 2000, range 10–10000.",
+      "owner": "3D"
+    },
+    {
+      "name": "TIME_RUNAWAY_DISCOVERY_MAX",
+      "meaning": "Most workspaces one timer-guard run examines; default 100, range 1–1000.",
+      "owner": "3D"
+    },
+    {
+      "name": "TIME_RUNAWAY_BATCH_MAX",
+      "meaning": "Most runaway timers one timer-guard run stops per workspace; default 200, range 1–1000.",
+      "owner": "3D"
     }
   ],
   "sse_topics": [

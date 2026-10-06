@@ -530,6 +530,44 @@ export const TELEMETRY_SIGNALS = [
     "labels": [
       "outcome"
     ]
+  },
+  {
+    "name": "time.entries",
+    "type": "counter",
+    "labels": [
+      "source",
+      "outcome"
+    ]
+  },
+  {
+    "name": "time.timers",
+    "type": "counter",
+    "labels": [
+      "action",
+      "outcome"
+    ]
+  },
+  {
+    "name": "time.timesheets",
+    "type": "counter",
+    "labels": [
+      "action",
+      "outcome"
+    ]
+  },
+  {
+    "name": "time.exports",
+    "type": "counter",
+    "labels": [
+      "format"
+    ]
+  },
+  {
+    "name": "time.timer_guard",
+    "type": "counter",
+    "labels": [
+      "outcome"
+    ]
   }
 ] as const;
 export type TelemetrySignalName = (typeof TELEMETRY_SIGNALS)[number]['name'];
@@ -1808,7 +1846,8 @@ export const INTERNAL_EVENTS = [
     "aggregateEntity": "time.time_entry",
     "fields": [
       "duration_seconds",
-      "billable"
+      "billable",
+      "source"
     ],
     "maxClass": "C1"
   },
@@ -2494,6 +2533,73 @@ export const INTERNAL_EVENTS = [
       "inbox_item_id"
     ],
     "maxClass": "C1"
+  },
+  {
+    "type": "time.time_entry.updated",
+    "schemaVersion": 1,
+    "aggregateEntity": "time.time_entry",
+    "fields": [
+      "duration_seconds",
+      "billable"
+    ],
+    "maxClass": "C1"
+  },
+  {
+    "type": "time.time_entry.deleted",
+    "schemaVersion": 1,
+    "aggregateEntity": "time.time_entry",
+    "fields": [
+      "duration_seconds"
+    ],
+    "maxClass": "C1"
+  },
+  {
+    "type": "time.timer.auto_stopped",
+    "schemaVersion": 1,
+    "aggregateEntity": "time.time_entry",
+    "fields": [
+      "duration_seconds"
+    ],
+    "maxClass": "C1"
+  },
+  {
+    "type": "time.timesheet.submitted",
+    "schemaVersion": 1,
+    "aggregateEntity": "time.timesheet",
+    "fields": [
+      "period_start",
+      "lines"
+    ],
+    "maxClass": "C1"
+  },
+  {
+    "type": "time.timesheet.withdrawn",
+    "schemaVersion": 1,
+    "aggregateEntity": "time.timesheet",
+    "fields": [
+      "period_start"
+    ],
+    "maxClass": "C1"
+  },
+  {
+    "type": "time.timesheet.rejected",
+    "schemaVersion": 1,
+    "aggregateEntity": "time.timesheet_approval",
+    "fields": [
+      "period_start",
+      "brand_id"
+    ],
+    "maxClass": "C1"
+  },
+  {
+    "type": "time.timesheet.unlocked",
+    "schemaVersion": 1,
+    "aggregateEntity": "time.period_lock",
+    "fields": [
+      "period_start",
+      "brand_id"
+    ],
+    "maxClass": "C1"
   }
 ] as const;
 export type InternalEventType = (typeof INTERNAL_EVENTS)[number]['type'];
@@ -2588,7 +2694,15 @@ export const PARAMETER_NAMES = [
   "TRIAGE_BATCH_MAX",
   "INBOX_MERGE_MAX",
   "INTAKE_FORMS_MAX",
-  "INTAKE_SUBMISSIONS_PER_HOUR"
+  "INTAKE_SUBMISSIONS_PER_HOUR",
+  "TIME_ENTRY_MAX_HOURS",
+  "TIME_TIMER_MAX_HOURS",
+  "TIME_REPORT_RANGE_DAYS_MAX",
+  "TIME_REPORT_ROWS_MAX",
+  "TIME_EXPORT_ROWS_MAX",
+  "TIME_TIMESHEET_ENTRIES_MAX",
+  "TIME_RUNAWAY_DISCOVERY_MAX",
+  "TIME_RUNAWAY_BATCH_MAX"
 ] as const;
 export type ParameterName = (typeof PARAMETER_NAMES)[number];
 

@@ -1549,6 +1549,101 @@ export interface IntakeSubmissionTable {
   submitted_at: DTs;
 }
 
+// Phase 3D (0031): time entries, segments, timesheets, approval lines, decisions, period locks.
+export type TimeEntryState = 'running' | 'paused' | 'stopped';
+export interface TimeEntryTable {
+  id: string;
+  public_id: string;
+  workspace_id: string;
+  brand_id: string;
+  membership_id: string;
+  task_id: string | null;
+  project_id: string | null;
+  source: 'manual' | 'timer';
+  state: Defaulted<TimeEntryState>;
+  started_at: Ts | null;
+  ended_at: Ts | null;
+  work_date: string;
+  tz: string;
+  duration_seconds: Defaulted<number>;
+  billable: Defaulted<boolean>;
+  note: Defaulted<string>;
+  auto_stopped: Defaulted<boolean>;
+  created_at: DTs;
+  updated_at: DTs;
+  version: Defaulted<number>;
+}
+export interface TimeSegmentTable {
+  id: string;
+  workspace_id: string;
+  entry_id: string;
+  membership_id: string;
+  started_at: Ts;
+  ended_at: Ts | null;
+}
+export type TimesheetState = 'open' | 'submitted' | 'approved';
+export interface TimesheetTable {
+  id: string;
+  public_id: string;
+  workspace_id: string;
+  membership_id: string;
+  period_start: string;
+  period_end: string;
+  state: Defaulted<TimesheetState>;
+  submitted_at: Ts | null;
+  created_at: DTs;
+  updated_at: DTs;
+  version: Defaulted<number>;
+}
+export type TimesheetLineState = 'pending' | 'approved' | 'rejected' | 'withdrawn' | 'unlocked';
+export interface TimesheetLineTable {
+  id: string;
+  workspace_id: string;
+  timesheet_id: string;
+  brand_id: string;
+  state: TimesheetLineState;
+  submitted_seconds: number;
+  submitted_billable_seconds: number;
+  submitted_entries: number;
+  submitted_hash: string;
+  updated_at: DTs;
+  version: Defaulted<number>;
+}
+export interface TimesheetApprovalTable {
+  id: string;
+  workspace_id: string;
+  timesheet_id: string;
+  line_id: string;
+  brand_id: string;
+  membership_id: string;
+  period_start: string;
+  period_end: string;
+  decided_by_membership_id: string;
+  decision: 'approve' | 'reject';
+  self_approval: boolean;
+  note_hash: string | null;
+  total_seconds: number;
+  billable_seconds: number;
+  entry_count: number;
+  entries_hash: string;
+  timesheet_version: number;
+  created_at: DTs;
+}
+export interface PeriodLockTable {
+  id: string;
+  workspace_id: string;
+  brand_id: string;
+  membership_id: string;
+  period_start: string;
+  period_end: string;
+  action: 'lock' | 'unlock';
+  approval_id: string | null;
+  reason: string | null;
+  by_membership_id: string;
+  step_up_id: string | null;
+  created_at: DTs;
+}
+
 // Phase 2C (0025, 0026): workflows, approvals, custom fields, field sets, field policy.
 export interface WorkflowTable {
   id: string;
@@ -1862,6 +1957,12 @@ export interface Database {
   'capture.capture_conversion': CaptureConversionTable;
   'capture.intake_form': IntakeFormTable;
   'capture.intake_submission': IntakeSubmissionTable;
+  'timetrack.time_entry': TimeEntryTable;
+  'timetrack.time_segment': TimeSegmentTable;
+  'timetrack.timesheet': TimesheetTable;
+  'timetrack.timesheet_line': TimesheetLineTable;
+  'timetrack.timesheet_approval': TimesheetApprovalTable;
+  'timetrack.period_lock': PeriodLockTable;
 }
 
 /** Column inventory per table, compared with the migrated catalog by the schema-drift test. */
@@ -3343,5 +3444,95 @@ export const TABLE_COLUMNS: Readonly<Record<keyof Database, readonly string[]>> 
     'submitter_membership_id',
     'inbox_item_id',
     'submitted_at',
+  ],
+  'timetrack.time_entry': [
+    'id',
+    'public_id',
+    'workspace_id',
+    'brand_id',
+    'membership_id',
+    'task_id',
+    'project_id',
+    'source',
+    'state',
+    'started_at',
+    'ended_at',
+    'work_date',
+    'tz',
+    'duration_seconds',
+    'billable',
+    'note',
+    'auto_stopped',
+    'created_at',
+    'updated_at',
+    'version',
+  ],
+  'timetrack.time_segment': [
+    'id',
+    'workspace_id',
+    'entry_id',
+    'membership_id',
+    'started_at',
+    'ended_at',
+  ],
+  'timetrack.timesheet': [
+    'id',
+    'public_id',
+    'workspace_id',
+    'membership_id',
+    'period_start',
+    'period_end',
+    'state',
+    'submitted_at',
+    'created_at',
+    'updated_at',
+    'version',
+  ],
+  'timetrack.timesheet_line': [
+    'id',
+    'workspace_id',
+    'timesheet_id',
+    'brand_id',
+    'state',
+    'submitted_seconds',
+    'submitted_billable_seconds',
+    'submitted_entries',
+    'submitted_hash',
+    'updated_at',
+    'version',
+  ],
+  'timetrack.timesheet_approval': [
+    'id',
+    'workspace_id',
+    'timesheet_id',
+    'line_id',
+    'brand_id',
+    'membership_id',
+    'period_start',
+    'period_end',
+    'decided_by_membership_id',
+    'decision',
+    'self_approval',
+    'note_hash',
+    'total_seconds',
+    'billable_seconds',
+    'entry_count',
+    'entries_hash',
+    'timesheet_version',
+    'created_at',
+  ],
+  'timetrack.period_lock': [
+    'id',
+    'workspace_id',
+    'brand_id',
+    'membership_id',
+    'period_start',
+    'period_end',
+    'action',
+    'approval_id',
+    'reason',
+    'by_membership_id',
+    'step_up_id',
+    'created_at',
   ],
 };

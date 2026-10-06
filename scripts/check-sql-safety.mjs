@@ -4,7 +4,7 @@ import { join } from 'node:path';
 
 const dir = process.argv[2] ?? 'packages/db/migrations';
 const problems = [];
-const tenantSchemas = /^(exec|tenancy|access|work|workflow|relations|templates|planning)\./;
+const tenantSchemas = /^(exec|tenancy|access|work|workflow|relations|templates|planning|timetrack)\./;
 
 for (const file of readdirSync(dir)
   .filter((f) => f.endsWith('.sql'))
