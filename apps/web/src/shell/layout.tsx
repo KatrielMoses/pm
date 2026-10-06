@@ -265,13 +265,16 @@ function Header({
       ) : null}
       <span className="header-spacer" />
       {onCapture ? (
+        // Compact headers get an icon button, like search, so the bar never overflows at 320 px.
         <button
           type="button"
-          className="button button-primary capture-button"
+          className={compact ? 'icon-button' : 'button button-primary capture-button'}
+          aria-label={compact ? 'Capture' : undefined}
           aria-keyshortcuts="C"
           onClick={onCapture}
         >
-          <span aria-hidden="true">＋</span> Capture
+          <span aria-hidden="true">＋</span>
+          {compact ? null : ' Capture'}
         </button>
       ) : null}
       <button
