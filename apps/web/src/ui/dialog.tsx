@@ -53,7 +53,8 @@ export function Dialog({
       ].filter((el) => !el.hasAttribute('disabled'));
     const initial = destructive
       ? node.querySelector<HTMLElement>('[data-cancel]')
-      : node.querySelector<HTMLElement>('input, [data-initial]');
+      : (node.querySelector<HTMLElement>('[data-initial]') ??
+        node.querySelector<HTMLElement>('input'));
     (initial ?? focusables()[0] ?? node).focus();
     const onKey = (e: KeyboardEvent) => {
       if (!isTop.current) return;

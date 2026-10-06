@@ -32,7 +32,7 @@ import {
 } from '../tasks/interaction.tsx';
 import { collab, tenancy, type Member } from '../tenancy/client.ts';
 import { ResourceView, useResource } from '../tenancy/resource.tsx';
-import { Dialog } from '../ui/dialog.tsx';
+import { Dialog, isModalOpen } from '../ui/dialog.tsx';
 import { Announce, Banner } from '../ui/feedback.tsx';
 import { ErrorSummary, Field, SelectField, SubmitButton, TextAreaField } from '../ui/form.tsx';
 import { Page } from '../ui/layout.tsx';
@@ -158,7 +158,8 @@ export function TaskTree({
       refs.current.get(focused)?.focus();
   }, [focused]);
   useEffect(() => {
-    if (initialFocus) refs.current.get(initialFocus)?.focus();
+    // A background refresh never takes focus from an open modal (Phase 2 integration).
+    if (initialFocus && !isModalOpen()) refs.current.get(initialFocus)?.focus();
   }, [initialFocus]);
   const expand = async (n: Node) => {
     if (!n.children) {
