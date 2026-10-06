@@ -148,7 +148,7 @@ export const capture = {
     return (
       await protectedRequest<{ data: InboxItem }>(
         'POST',
-        `${w(ws)}/inbox/${inb}:restore`,
+        `${w(ws)}/inbox/${inb}:return_to_inbox`,
         {},
         stepUp,
       )

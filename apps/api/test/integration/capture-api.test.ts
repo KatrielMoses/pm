@@ -136,7 +136,7 @@ describe('capture API (2E)', () => {
     );
     expect(mg.statusCode, mg.body).toBe(200);
     expect(
-      keep(await owner.post(`${base()}/inbox/${x}:restore`, {}, { headers: key() })).statusCode,
+      keep(await owner.post(`${base()}/inbox/${x}:return_to_inbox`, {}, { headers: key() })).statusCode,
     ).toBe(200);
   });
 

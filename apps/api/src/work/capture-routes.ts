@@ -70,7 +70,7 @@ export function registerCapture(app: FastifyInstance, work: CaptureService): voi
     `${ws}/inbox/:inb`,
     wrap(async (request, reply) => {
       const t = split(p(request).inb);
-      if (!t || t.verb !== 'restore') return fail(request, reply, 'not_found');
+      if (!t || t.verb !== 'return_to_inbox') return fail(request, reply, 'not_found');
       return done(
         request,
         reply,
