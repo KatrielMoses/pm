@@ -432,6 +432,7 @@ describe('timesheets, approvals, and period locks (3D)', () => {
     await log(worker, harborTask, week, 45);
     for (let round = 0; round < 3; round++) {
       const s = await submit(worker, week);
+      const before = (await sheet(worker, s.id)).lines[0]!.decisions.length;
       const results = await Promise.allSettled([
         env.svc.withdrawTimesheet(worker, ws, s.id, ifMatch(s.version)),
         env.svc.decideTimesheet(
@@ -445,10 +446,13 @@ describe('timesheets, approvals, and period locks (3D)', () => {
       expect(results.filter((r) => r.status === 'fulfilled')).toHaveLength(1);
       for (const r of results)
         if (r.status === 'rejected') expect(r.reason).toEqual(reason('conflict'));
+      // Whichever won, the result and its evidence agree: a decision exists exactly when the
+      // rejection won, and the line says so.
       const now = await sheet(worker, s.id);
-      const decisions = now.lines[0]!.decisions.length;
+      const rejectWon = results[1]!.status === 'fulfilled';
       expect(now.state).toBe('open');
-      expect(now.lines[0]!.state).toBe(decisions > round ? 'rejected' : 'withdrawn');
+      expect(now.lines[0]!.decisions.length).toBe(before + (rejectWon ? 1 : 0));
+      expect(now.lines[0]!.state).toBe(rejectWon ? 'rejected' : 'withdrawn');
     }
   });
 
