@@ -4466,6 +4466,8 @@
         "last_meaningful_update_at timestamptz (OD-17 freshness; maintained by triggers)"
       ],
       "requirements": [
+        "CAP-001",
+        "CAP-003",
         "TSK-001",
         "TSK-002",
         "TSK-003",
@@ -4826,15 +4828,19 @@
       "sensitive_fields": [],
       "key_columns": [
         "owner_membership_id",
-        "brand_id null",
-        "raw_text text",
-        "source_kind (typed|paste|voice|email|form|api|webhook)",
-        "source_ref text",
-        "parsed_suggestions jsonb (versioned schema)",
+        "brand_id null (until triage; OD-03)",
+        "intent (task|note)",
+        "raw_text text (immutable original)",
+        "source_kind (typed|paste|form|voice|email|api|webhook; 2E produces typed, paste, form)",
+        "source_ref text null (safe public ID: batch, form)",
+        "correlation_id",
+        "parse_version int",
+        "parsed jsonb (versioned, deterministic)",
+        "capture_batch_id null",
         "triage_state (untriaged|converted|merged|discarded)",
-        "converted_record_id null",
+        "converted_kind null + converted_record_id null",
         "merged_into_id null",
-        "snoozed_until"
+        "version bigint"
       ],
       "requirements": [
         "CAP-011",
@@ -4842,7 +4848,7 @@
         "CAP-013",
         "CAP-016"
       ],
-      "notes": ""
+      "notes": "Phase 2E (ADR-25): personal; visible only to its owner (OD-03), brand optional until triage. raw_text, source, and correlation are immutable (trigger). Merged and discarded items are kept; nothing is deleted by triage."
     },
     {
       "name": "note",
@@ -4852,11 +4858,7 @@
       "addressable": true,
       "public_id_prefix": "note",
       "extends": null,
-      "containment_parents": [
-        "brand",
-        "project",
-        "task"
-      ],
+      "containment_parents": [],
       "associations": [],
       "lifecycle": "full",
       "concurrency": "row-version",
@@ -4869,12 +4871,19 @@
       "personal_data": "incidental",
       "uniqueness": [],
       "sensitive_fields": [],
-      "key_columns": [],
+      "key_columns": [
+        "owner_membership_id",
+        "brand_id null",
+        "title",
+        "body text",
+        "source_inbox_item_id null",
+        "version bigint"
+      ],
       "requirements": [
         "CAP-002",
         "CAP-014"
       ],
-      "notes": ""
+      "notes": "Phase 2E (ADR-25): personal until filed (OD-03 rule). Converting a note to a task or project keeps the note and records the conversion."
     },
     {
       "name": "intake_form",
@@ -4899,12 +4908,20 @@
       "personal_data": "incidental",
       "uniqueness": [],
       "sensitive_fields": [],
-      "key_columns": [],
+      "key_columns": [
+        "brand_id",
+        "name",
+        "description",
+        "target_kind (task|project)",
+        "queue_owner_membership_id",
+        "state (active|archived)",
+        "version bigint"
+      ],
       "requirements": [
         "CAP-007",
         "PRJ-017"
       ],
-      "notes": ""
+      "notes": "Phase 2E (ADR-25): members-only while OD-28 is open; submissions land in the queue owner's Inbox with the form's brand."
     },
     {
       "name": "intake_submission",
@@ -4929,11 +4946,16 @@
       "personal_data": "yes",
       "uniqueness": [],
       "sensitive_fields": [],
-      "key_columns": [],
+      "key_columns": [
+        "form_id",
+        "submitter_membership_id",
+        "inbox_item_id",
+        "submitted_at"
+      ],
       "requirements": [
         "CAP-007"
       ],
-      "notes": ""
+      "notes": "Phase 2E (ADR-25): append-only receipt linking a submission to the Inbox item it created; the text lives on the item."
     },
     {
       "name": "email_capture_address",
@@ -8643,6 +8665,50 @@
         "TSK-038"
       ],
       "notes": "Phase 2D (ADR-24). Applying an undo is an audited inverse command with a new idempotency key and a version check; it never bypasses current authorization."
+    },
+    {
+      "name": "capture_conversion",
+      "module": "capture",
+      "purpose": "Lineage of one triage or note conversion: the source Inbox item or note and the record it became.",
+      "scope": "workspace",
+      "addressable": false,
+      "public_id_prefix": null,
+      "extends": null,
+      "containment_parents": [],
+      "associations": [
+        "inbox_item",
+        "note",
+        "task",
+        "project"
+      ],
+      "lifecycle": "append-only",
+      "concurrency": "append-only",
+      "retention_class": "R-LIVE",
+      "confidentiality": "C1",
+      "volume": "medium",
+      "export": "filtered",
+      "search_ai": "metadata",
+      "may_contain_secrets": "no",
+      "personal_data": "incidental",
+      "uniqueness": [
+        "(source_record_id, target_record_id)"
+      ],
+      "sensitive_fields": [],
+      "key_columns": [
+        "source_record_id",
+        "source_kind (inbox_item|note)",
+        "target_record_id",
+        "target_kind (task|note|project)",
+        "by_membership_id",
+        "created_at"
+      ],
+      "requirements": [
+        "CAP-012",
+        "CAP-014",
+        "CAP-016",
+        "PRJ-017"
+      ],
+      "notes": "Phase 2E (ADR-25)."
     }
   ]
 }

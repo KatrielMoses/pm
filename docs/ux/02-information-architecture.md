@@ -490,3 +490,12 @@ These rules apply to every surface: lists, search, palette, notifications, dashb
 - **Undo:** reversible changes show an Undo toast for 30 seconds. It is keyboard reachable and announced, and it explains when a later change makes undo unavailable.
 - **Task page:** signal badges (stale, blocked, rescheduled, missing owner, date, criteria, or dependency) with a Missing information panel; possible duplicates while creating; Remind me and Snooze (personal); Reschedule with an explicit due-date or deadline choice; Repeat (recurrence) and Save as template; the task's origin (including the template and version it came from).
 - **Honest absences:** reminder delivery by email, push, or chat (4B), AI similarity (7C), rollups (5C), work blocks (3C), and the template catalog (10B).
+
+**Phase 2E implementation note.** Capture and the Inbox:
+- **Capture anywhere:** every signed-in screen has a Capture button and the `c` shortcut. It opens one dialog that saves a task or a note with no brand, project, or status needed. Typed tokens (dates, `due …`, `!high`, `30m`, `every week`, `#label`, `+project`, `brand:Name`, `@person`) are shown as detected values before saving, and ambiguous ones need a choice. Parsing is rule-based and is never described as AI.
+- **Paste:** pasting several lines previews one candidate per line. Each can be edited, removed, or split, and the save reports every candidate.
+- **Inbox:** `/{ws}/inbox` is the person's own daily Inbox (untriaged first). Each item shows its original text and source. Triage into a task, note, or project, or discard it, after a permission-checked preview. Merge duplicates through a preview that names the item kept.
+- **Notes:** `/{ws}/notes` lists the person's notes; a note converts into a task or project after confirmation and stays in place.
+- **Intake forms:** brand settings list forms (members-only while OD-28 is open); `/{ws}/forms/{form}` lets members submit.
+- **Honest absences:** voice (7F), email forwarding (6A), API and webhook capture (6B), file storage (4E), and anonymous forms (OD-28).
+

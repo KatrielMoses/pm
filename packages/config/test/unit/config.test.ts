@@ -101,6 +101,16 @@ describe('server configuration', () => {
       undoWindowSeconds: 30,
       duplicateWindowDays: 90,
       duplicateCandidatesMax: 5,
+      captureTextMax: 10000,
+      capturePasteLinesMax: 100,
+      captureLinksMax: 10,
+      captureFilesMax: 10,
+      captureParseTokensMax: 64,
+      captureRatePerMinute: 60,
+      triageBatchMax: 50,
+      inboxMergeMax: 20,
+      intakeFormsMax: 50,
+      intakeSubmissionsPerHour: 20,
     });
     const set = (env: Record<string, string>) =>
       loadServerConfig({ service: 'worker', env: { ...local, ...env } });
@@ -134,6 +144,8 @@ describe('server configuration', () => {
       ['UNDO_WINDOW_SECONDS', '301'],
       ['BULK_ITEMS_MAX', '0'],
       ['TASK_STALE_ACTIVE_DAYS', '91'],
+      ['CAPTURE_PASTE_LINES_MAX', '501'],
+      ['INBOX_MERGE_MAX', '1'],
     ] as const)
       expect(issues(() => set({ [key]: bad })).join(' '), `${key}=${bad}`).toMatch(
         new RegExp(`^${key}`),

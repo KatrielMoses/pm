@@ -354,3 +354,7 @@ readable only where all its inputs are (AZ-23). Approvers and person or label va
 ## Phase 2D task interaction
 
 `TaskInteractionService` (AZ-24): `task.remind` and `task.snooze` are view-level and personal; `task.manage_recurrence` needs manage, and the worker rechecks `record.create` on the brand or project chain per run. Bulk items are authorized one by one through the task capability flags; ordering is `record.update` on owned context; undo entries belong to their actor and re-run current authorization. Signals and duplicates use the visibility predicate inside SQL, so hidden rows change neither results nor statements.
+
+## Phase 2E capture
+
+Capture, the Inbox, notes, merge, and parse previews are personal (`personal.manage_own`, OD-03): every query filters by the owner's membership, with no administrator bypass. Triage and note conversion decide `record.create` at the destination brand or project chain at preview and apply. Intake forms use `intake.manage` (brand admin) and `intake.submit` (brand view, members only while OD-28 is open). Name resolution and form lookups run fixed statements, so hidden and unknown are indistinguishable.

@@ -27,7 +27,8 @@ export default defineConfig({
     {
       name: 'tablet',
       use: { ...devices['Galaxy Tab S4'] },
-      testMatch: /(navigation|exit-journey|projects|tasks|task-interaction|workflows)\.spec\.ts/,
+      testMatch:
+        /(navigation|exit-journey|projects|tasks|task-interaction|workflows|capture)\.spec\.ts/,
       grepInvert: /@desktop-only|@no-tablet/,
     },
     // Width-class and appearance journeys drive viewports themselves (desktop project only).

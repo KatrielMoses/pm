@@ -100,6 +100,12 @@ const PHASE_1C_TENANT_TABLES = [
   'planning.task_snooze',
   'work.bulk_operation',
   'work.undo_entry',
+  // Phase 2E Inbox items, notes, conversion lineage, intake forms, and submissions.
+  'capture.inbox_item',
+  'capture.note',
+  'capture.capture_conversion',
+  'capture.intake_form',
+  'capture.intake_submission',
 ] as const;
 
 /** Seeds one row in every tenant execution table for a workspace. */

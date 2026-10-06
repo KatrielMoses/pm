@@ -220,6 +220,17 @@ All decisions are **proposed (Phase 0C)**, pending solutions-architect acceptanc
 - **Alternatives:** Assignment as a grant (contradicts I-10). Shares implying children or the project (contradicts OD-04). A separate task permission table (a second authority source).
 - **Consequences:** The compiled predicate's governing-project derivation gains tasks; preview and enforcement stay one engine.
 
+<a id="az-25"></a>
+### AZ-25: Inbox and universal capture (Phase 2E amendment)
+- **Decision:**
+  - **Personal capture.** Capture, Inbox, notes, merge, and parse previews use `personal.manage_own`: only the owner sees or changes their items and notes, with no owner or administrator bypass (OD-03, AT-138). Brand context on a personal item grants nothing.
+  - **Resolution.** Parsing resolves brands, projects, members, and labels only among those the person can read. Unknown and hidden names are reported identically as unresolved, with the same statements (AT-139).
+  - **Triage and conversion.** Turning an item or note into a task or project requires `record.create` at the destination brand or project chain, decided at preview and again at apply (AT-140, AT-141). Converting to a note or discarding is personal.
+  - **Intake forms.** `intake.manage` (admin, brand) configures forms (AT-145). `intake.submit` (brand, view) lets readers of the brand submit (AT-143, AT-144). Members only while OD-28 is open; guests are refused. Submitting reveals nothing about the queue.
+  - **New actions.** `intake.manage`, `intake.submit`. The action count becomes 120.
+- **Alternatives:** A shared brand intake queue visible to managers (OD-03 keeps items personal; a queue owner triages). Anonymous forms (OD-28 is open).
+- **Consequences:** Personal rows are filtered by owner in every query in addition to workspace RLS.
+
 <a id="az-24"></a>
 ### AZ-24: Task interaction quality (Phase 2D amendment)
 - **Decision:**

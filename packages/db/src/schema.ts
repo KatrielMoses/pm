@@ -1465,6 +1465,90 @@ export interface UndoEntryTable {
   version: Defaulted<number>;
 }
 
+// Phase 2E (0029, 0030): personal Inbox items and notes, conversion lineage, intake forms.
+export const CAPTURE_SOURCE_KINDS = [
+  'typed',
+  'paste',
+  'form',
+  'voice',
+  'email',
+  'api',
+  'webhook',
+] as const;
+export type CaptureSourceKind = (typeof CAPTURE_SOURCE_KINDS)[number];
+export interface InboxItemTable {
+  id: string;
+  workspace_id: string;
+  brand_id: string | null;
+  scope_key: string;
+  lifecycle_state: Defaulted<LifecycleState>;
+  owner_membership_id: string;
+  intent: Defaulted<'task' | 'note'>;
+  raw_text: string;
+  source_kind: CaptureSourceKind;
+  source_ref: string | null;
+  correlation_id: string;
+  parse_version: number;
+  parsed: ColumnType<Record<string, unknown>, string | undefined, string>;
+  capture_batch_id: string | null;
+  triage_state: Defaulted<'untriaged' | 'converted' | 'merged' | 'discarded'>;
+  converted_kind: 'task' | 'note' | 'project' | null;
+  converted_record_id: string | null;
+  merged_into_id: string | null;
+  triaged_at: Ts | null;
+  created_at: DTs;
+  updated_at: DTs;
+  version: Defaulted<number>;
+}
+export interface NoteTable {
+  id: string;
+  workspace_id: string;
+  brand_id: string | null;
+  scope_key: string;
+  lifecycle_state: Defaulted<LifecycleState>;
+  owner_membership_id: string;
+  title: string;
+  body: Defaulted<string>;
+  source_inbox_item_id: string | null;
+  created_at: DTs;
+  updated_at: DTs;
+  version: Defaulted<number>;
+}
+export interface CaptureConversionTable {
+  id: string;
+  workspace_id: string;
+  source_record_id: string;
+  source_kind: 'inbox_item' | 'note';
+  target_record_id: string;
+  target_kind: 'task' | 'note' | 'project';
+  by_membership_id: string;
+  created_at: DTs;
+}
+export interface IntakeFormTable {
+  id: string;
+  workspace_id: string;
+  brand_id: string;
+  scope_key: string;
+  lifecycle_state: Defaulted<LifecycleState>;
+  name: string;
+  description: Defaulted<string>;
+  target_kind: Defaulted<'task' | 'project'>;
+  queue_owner_membership_id: string;
+  state: Defaulted<'active' | 'archived'>;
+  created_by_membership_id: string | null;
+  created_at: DTs;
+  updated_at: DTs;
+  version: Defaulted<number>;
+}
+export interface IntakeSubmissionTable {
+  id: string;
+  workspace_id: string;
+  form_id: string;
+  submitter_membership_id: string;
+  inbox_item_id: string;
+  submitted_at: DTs;
+}
+
 // Phase 2C (0025, 0026): workflows, approvals, custom fields, field sets, field policy.
 export interface WorkflowTable {
   id: string;
@@ -1773,6 +1857,11 @@ export interface Database {
   'planning.task_snooze': TaskSnoozeTable;
   'work.bulk_operation': BulkOperationTable;
   'work.undo_entry': UndoEntryTable;
+  'capture.inbox_item': InboxItemTable;
+  'capture.note': NoteTable;
+  'capture.capture_conversion': CaptureConversionTable;
+  'capture.intake_form': IntakeFormTable;
+  'capture.intake_submission': IntakeSubmissionTable;
 }
 
 /** Column inventory per table, compared with the migrated catalog by the schema-drift test. */
@@ -3182,5 +3271,77 @@ export const TABLE_COLUMNS: Readonly<Record<keyof Database, readonly string[]>> 
     'expires_at',
     'closed_at',
     'version',
+  ],
+  'capture.inbox_item': [
+    'id',
+    'workspace_id',
+    'brand_id',
+    'scope_key',
+    'lifecycle_state',
+    'owner_membership_id',
+    'intent',
+    'raw_text',
+    'source_kind',
+    'source_ref',
+    'correlation_id',
+    'parse_version',
+    'parsed',
+    'capture_batch_id',
+    'triage_state',
+    'converted_kind',
+    'converted_record_id',
+    'merged_into_id',
+    'triaged_at',
+    'created_at',
+    'updated_at',
+    'version',
+  ],
+  'capture.note': [
+    'id',
+    'workspace_id',
+    'brand_id',
+    'scope_key',
+    'lifecycle_state',
+    'owner_membership_id',
+    'title',
+    'body',
+    'source_inbox_item_id',
+    'created_at',
+    'updated_at',
+    'version',
+  ],
+  'capture.capture_conversion': [
+    'id',
+    'workspace_id',
+    'source_record_id',
+    'source_kind',
+    'target_record_id',
+    'target_kind',
+    'by_membership_id',
+    'created_at',
+  ],
+  'capture.intake_form': [
+    'id',
+    'workspace_id',
+    'brand_id',
+    'scope_key',
+    'lifecycle_state',
+    'name',
+    'description',
+    'target_kind',
+    'queue_owner_membership_id',
+    'state',
+    'created_by_membership_id',
+    'created_at',
+    'updated_at',
+    'version',
+  ],
+  'capture.intake_submission': [
+    'id',
+    'workspace_id',
+    'form_id',
+    'submitter_membership_id',
+    'inbox_item_id',
+    'submitted_at',
   ],
 };

@@ -27,6 +27,7 @@ import { shortcutLabel } from './shortcuts.ts';
 import { targetHref, TARGET_TYPE_LABEL } from './targets.ts';
 import { useWidthClass } from './width.ts';
 import { useWorkspaceShell } from './workspace.tsx';
+import { CaptureDialog } from '../pages/capture-pages.tsx';
 
 /**
  * The application shell (NAV-001, NAV-014; RS §2): every signed-in page renders inside it.
@@ -167,12 +168,29 @@ export function AppShell({
   useShellCommands(kind);
   const collapsed = device.sidebar === 'collapsed';
   const frame = useMemo(() => ({ kind }), [kind]);
+  // 2E: Capture from every signed-in workspace screen (button and `c`), one dialog, one command.
+  const [capturing, setCapturing] = useState(false);
+  const captureWs = kind === 'workspace' ? (shellState?.context?.workspace.id ?? null) : null;
+  useRegisterCommands(
+    captureWs
+      ? [
+          {
+            id: 'capture.open',
+            label: 'Capture a task or note',
+            group: 'Actions',
+            keywords: 'quick add new task note inbox',
+            shortcut: 'C',
+            run: () => setCapturing(true),
+          },
+        ]
+      : [],
+  );
   return (
     <ShellFrameContext.Provider value={frame}>
       <div className="app" data-collapsed={collapsed ? 'true' : undefined}>
         <SkipLink target="main">Skip to main content</SkipLink>
         <SkipLink target="primary-nav">Skip to navigation</SkipLink>
-        <Header kind={kind} />
+        <Header kind={kind} onCapture={captureWs ? () => setCapturing(true) : null} />
         <div className="app-body">
           <Sidebar kind={kind} />
           <div className="app-main">
@@ -184,6 +202,9 @@ export function AppShell({
         {width === 'compact' ? <BottomBar kind={kind} /> : null}
         {paletteOpen ? <CommandPalette /> : null}
         {helpOpen ? <ShortcutReference /> : null}
+        {capturing && captureWs ? (
+          <CaptureDialog ws={captureWs} onClose={() => setCapturing(false)} />
+        ) : null}
       </div>
     </ShellFrameContext.Provider>
   );
@@ -205,7 +226,13 @@ function SkipLink({ target, children }: { target: string; children: ReactNode })
   );
 }
 
-function Header({ kind }: { kind: 'workspace' | 'personal' }) {
+function Header({
+  kind,
+  onCapture,
+}: {
+  kind: 'workspace' | 'personal';
+  onCapture: (() => void) | null;
+}) {
   const { openPalette } = useCommands();
   const { device, updateDevice } = usePreferences();
   const shellState = useWorkspaceShell();
@@ -237,6 +264,19 @@ function Header({ kind }: { kind: 'workspace' | 'personal' }) {
         <span className="workspace-name">{shellState.context.workspace.name}</span>
       ) : null}
       <span className="header-spacer" />
+      {onCapture ? (
+        // Compact headers get an icon button, like search, so the bar never overflows at 320 px.
+        <button
+          type="button"
+          className={compact ? 'icon-button' : 'button button-primary capture-button'}
+          aria-label={compact ? 'Capture' : undefined}
+          aria-keyshortcuts="C"
+          onClick={onCapture}
+        >
+          <span aria-hidden="true">＋</span>
+          {compact ? null : ' Capture'}
+        </button>
+      ) : null}
       <button
         type="button"
         className={compact ? 'icon-button' : 'search-button'}

@@ -1666,11 +1666,18 @@
         "guest": "own"
       },
       "requirements": [
+        "CAP-001",
+        "CAP-002",
+        "CAP-004",
         "CAP-011",
-        "PLAN-008",
-        "NTF-007"
+        "CAP-012",
+        "CAP-013",
+        "CAP-014",
+        "CAP-016",
+        "NTF-007",
+        "PLAN-008"
       ],
-      "notes": ""
+      "notes": "Phase 2E (AZ-25): capture, Inbox, notes, merge, and triage previews are personal; turning an item into operational work also needs record.create at the destination."
     },
     {
       "key": "sessions.manage_own",
@@ -3778,6 +3785,61 @@
         "TSK-027"
       ],
       "notes": "Phase 2D (AZ-24): each occurrence also requires record.create in the series' brand (and project), rechecked by the worker before each step; a series whose owner lost it pauses."
+    },
+    {
+      "key": "intake.manage",
+      "kind": "admin",
+      "scopes": [
+        "brand"
+      ],
+      "description": "Create, edit, archive, and route a brand's intake forms.",
+      "required_level": null,
+      "risk_class": "R2",
+      "approval_class": "none",
+      "step_up": false,
+      "second_approval": false,
+      "non_delegable": false,
+      "entitlement": null,
+      "roles": {
+        "owner": "implicit",
+        "administrator": "implicit",
+        "member": "grant:manage",
+        "limited_member": "deny",
+        "read_only": "deny",
+        "guest": "deny"
+      },
+      "requirements": [
+        "CAP-007",
+        "PRJ-017"
+      ],
+      "notes": "Phase 2E (AZ-25): decided at the brand (decideBrand); sensitive brands need an explicit manage grant. The queue owner must be an active member who can read the brand."
+    },
+    {
+      "key": "intake.submit",
+      "kind": "record",
+      "scopes": [
+        "brand"
+      ],
+      "description": "Submit an intake form of a brand one can read.",
+      "required_level": "view",
+      "risk_class": "R1",
+      "approval_class": "none",
+      "step_up": false,
+      "second_approval": false,
+      "non_delegable": false,
+      "entitlement": null,
+      "roles": {
+        "owner": "implicit",
+        "administrator": "implicit",
+        "member": "grant:view",
+        "limited_member": "grant:view",
+        "read_only": "grant:view",
+        "guest": "deny"
+      },
+      "requirements": [
+        "CAP-007"
+      ],
+      "notes": "Phase 2E (AZ-25): members-only while OD-28 is open; rate-limited per person and form. Submitting grants nothing and never reveals the queue."
     }
   ],
   "account_commands": [

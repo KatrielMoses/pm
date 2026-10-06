@@ -171,6 +171,16 @@ export interface ServerConfig {
     undoWindowSeconds: number;
     duplicateWindowDays: number;
     duplicateCandidatesMax: number;
+    captureTextMax: number;
+    capturePasteLinesMax: number;
+    captureLinksMax: number;
+    captureFilesMax: number;
+    captureParseTokensMax: number;
+    captureRatePerMinute: number;
+    triageBatchMax: number;
+    inboxMergeMax: number;
+    intakeFormsMax: number;
+    intakeSubmissionsPerHour: number;
   };
   features: {
     /** Local/test-only component harness route for reusable UI states (refused when deployed). */
@@ -365,6 +375,16 @@ const DEFAULTS = {
   UNDO_WINDOW_SECONDS: '30',
   DUPLICATE_WINDOW_DAYS: '90',
   DUPLICATE_CANDIDATES_MAX: '5',
+  CAPTURE_TEXT_MAX: '10000',
+  CAPTURE_PASTE_LINES_MAX: '100',
+  CAPTURE_LINKS_MAX: '10',
+  CAPTURE_FILES_MAX: '10',
+  CAPTURE_PARSE_TOKENS_MAX: '64',
+  CAPTURE_RATE_PER_MINUTE: '60',
+  TRIAGE_BATCH_MAX: '50',
+  INBOX_MERGE_MAX: '20',
+  INTAKE_FORMS_MAX: '50',
+  INTAKE_SUBMISSIONS_PER_HOUR: '20',
 } as const;
 
 const schema = z.object({
@@ -493,6 +513,16 @@ const schema = z.object({
   UNDO_WINDOW_SECONDS: int(5, 300),
   DUPLICATE_WINDOW_DAYS: int(1, 365),
   DUPLICATE_CANDIDATES_MAX: int(1, 20),
+  CAPTURE_TEXT_MAX: int(100, 50000),
+  CAPTURE_PASTE_LINES_MAX: int(1, 500),
+  CAPTURE_LINKS_MAX: int(0, 50),
+  CAPTURE_FILES_MAX: int(0, 50),
+  CAPTURE_PARSE_TOKENS_MAX: int(8, 256),
+  CAPTURE_RATE_PER_MINUTE: int(1, 600),
+  TRIAGE_BATCH_MAX: int(1, 200),
+  INBOX_MERGE_MAX: int(2, 100),
+  INTAKE_FORMS_MAX: int(1, 500),
+  INTAKE_SUBMISSIONS_PER_HOUR: int(1, 1000),
 });
 
 /** Variables a deployed environment must set explicitly (no silent local defaults). */
@@ -905,6 +935,16 @@ export function loadServerConfig(options: LoadOptions): ServerConfig {
       undoWindowSeconds: c.UNDO_WINDOW_SECONDS,
       duplicateWindowDays: c.DUPLICATE_WINDOW_DAYS,
       duplicateCandidatesMax: c.DUPLICATE_CANDIDATES_MAX,
+      captureTextMax: c.CAPTURE_TEXT_MAX,
+      capturePasteLinesMax: c.CAPTURE_PASTE_LINES_MAX,
+      captureLinksMax: c.CAPTURE_LINKS_MAX,
+      captureFilesMax: c.CAPTURE_FILES_MAX,
+      captureParseTokensMax: c.CAPTURE_PARSE_TOKENS_MAX,
+      captureRatePerMinute: c.CAPTURE_RATE_PER_MINUTE,
+      triageBatchMax: c.TRIAGE_BATCH_MAX,
+      inboxMergeMax: c.INBOX_MERGE_MAX,
+      intakeFormsMax: c.INTAKE_FORMS_MAX,
+      intakeSubmissionsPerHour: c.INTAKE_SUBMISSIONS_PER_HOUR,
     },
     identity: {
       publicOrigin,

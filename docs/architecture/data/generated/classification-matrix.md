@@ -23,7 +23,7 @@ Class definitions and rules: [../11-data-classification.md](../11-data-classific
 | Comments and reviews | 5 | C2 | R-AUDIT, R-EVIDENCE, R-LIVE | admin, filtered | yes | no | incidental | very-high |
 | Notifications | 4 | C2 | R-EXEC, R-PERSONAL | never, self | no | no | incidental | very-high |
 | Projects and tasks | 16 | C2 | R-EPHEMERAL, R-LIVE | filtered, never | no, yes | no | incidental | very-high |
-| Inbox and capture | 5 | C3 | R-LIVE, R-PERSONAL | filtered, self | metadata, no, yes | hash-only | incidental, yes | high |
+| Inbox and capture | 6 | C3 | R-LIVE, R-PERSONAL | filtered, self | metadata, no, yes | hash-only | incidental, yes | high |
 | Today, scheduling, and capacity | 12 | C3 | R-LIVE, R-PERSONAL | filtered, self | no, yes | no | incidental, yes | high |
 | Time tracking | 4 | C2 | R-EVIDENCE, R-LIVE | filtered | yes | no | incidental | very-high |
 | Documents and knowledge | 4 | C2 | R-EVIDENCE, R-LIVE | filtered | yes | no | incidental | high |
@@ -264,3 +264,4 @@ Class definitions and rules: [../11-data-classification.md](../11-data-classific
 | [`task_snooze`](logical-model.md#entity-task-snooze) | planning | personal | C1 | low | configuration changes | R-PERSONAL | self | medium | no | no | yes |
 | [`bulk_operation`](logical-model.md#entity-bulk-operation) | work | workspace | C1 | low | configuration changes | R-EPHEMERAL | never | medium | no | no | incidental |
 | [`undo_entry`](logical-model.md#entity-undo-entry) | work | workspace | C2 | standard (per-record) | material changes | R-EPHEMERAL | never | high | no | no | incidental |
+| [`capture_conversion`](logical-model.md#entity-capture-conversion) | capture | workspace | C1 | low | is evidence / append-only | R-LIVE | filtered | medium | metadata | no | incidental |

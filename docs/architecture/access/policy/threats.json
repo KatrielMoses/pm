@@ -451,6 +451,17 @@
         "I-10",
         "I-18"
       ]
+    },
+    {
+      "id": "T-43",
+      "category": "inference",
+      "description": "Capture exposure: another person's Inbox items or notes visible to anyone (including owners and administrators); parsing, previews, counts, errors, or timing revealing hidden brands, projects, members, or labels; triage or note conversion creating work where the person lacks record.create; intake forms leaking the queue or accepting submissions from people who cannot read the brand; rate and size bounds bypassed.",
+      "mitigated_by": [
+        "I-01",
+        "I-02",
+        "I-10",
+        "I-18"
+      ]
     }
   ],
   "tests": [
@@ -3046,6 +3057,139 @@
       "silent_surfaces": [
         "error_message",
         "audit_display"
+      ]
+    },
+    {
+      "id": "AT-138",
+      "threats": [
+        "T-43"
+      ],
+      "principal": "administrator",
+      "setup": "Read another member's Inbox item or note",
+      "scope": "personal",
+      "action": "personal.manage_own",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "not_found",
+      "silent_surfaces": [
+        "ui_list",
+        "search",
+        "count_facet"
+      ]
+    },
+    {
+      "id": "AT-139",
+      "threats": [
+        "T-43"
+      ],
+      "principal": "member",
+      "setup": "Parse text naming a brand, project, or member the person cannot read",
+      "scope": "personal",
+      "action": "personal.manage_own",
+      "surface": "api",
+      "expected": "allow",
+      "response_shape": "ok_filtered",
+      "silent_surfaces": [
+        "error_message",
+        "timing"
+      ]
+    },
+    {
+      "id": "AT-140",
+      "threats": [
+        "T-43"
+      ],
+      "principal": "limited_member",
+      "setup": "Triage an Inbox item into a brand without record.create",
+      "scope": "brand",
+      "action": "record.create",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "forbidden",
+      "silent_surfaces": [
+        "ui_list"
+      ]
+    },
+    {
+      "id": "AT-141",
+      "threats": [
+        "T-43"
+      ],
+      "principal": "member",
+      "setup": "Triage into a restricted project without access",
+      "scope": "project",
+      "action": "record.create",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "not_found",
+      "silent_surfaces": [
+        "error_message",
+        "timing"
+      ]
+    },
+    {
+      "id": "AT-142",
+      "threats": [
+        "T-43"
+      ],
+      "principal": "member",
+      "setup": "Merge an Inbox item owned by someone else",
+      "scope": "personal",
+      "action": "personal.manage_own",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "not_found",
+      "silent_surfaces": [
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-143",
+      "threats": [
+        "T-43"
+      ],
+      "principal": "guest",
+      "setup": "Submit an intake form",
+      "scope": "brand",
+      "action": "intake.submit",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "not_found",
+      "silent_surfaces": [
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-144",
+      "threats": [
+        "T-43"
+      ],
+      "principal": "member",
+      "setup": "Submit an intake form of a brand the person cannot read",
+      "scope": "brand",
+      "action": "intake.submit",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "not_found",
+      "silent_surfaces": [
+        "error_message",
+        "timing"
+      ]
+    },
+    {
+      "id": "AT-145",
+      "threats": [
+        "T-43"
+      ],
+      "principal": "member",
+      "setup": "Configure intake forms without brand manage",
+      "scope": "brand",
+      "action": "intake.manage",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "forbidden",
+      "silent_surfaces": [
+        "ui_list"
       ]
     }
   ]

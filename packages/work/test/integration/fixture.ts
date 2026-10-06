@@ -24,7 +24,7 @@ import {
   projectTargets,
   taskAssigneeHook,
   taskTargets,
-  TaskInteractionService,
+  CaptureService,
   type WorkSettings,
 } from '@pm/work';
 import {
@@ -45,7 +45,7 @@ export {
 
 export interface WorkEnv {
   h: Harness;
-  svc: TaskInteractionService;
+  svc: CaptureService;
   stepUp: StubStepUp;
   lifecycle: LifecycleService;
   tokenFor(email: string): Promise<string>;
@@ -54,7 +54,12 @@ export interface WorkEnv {
 /** The full 1C–2A service exactly as the factory wires it (work adapters, targets, hook). */
 export function workEnv(
   db: TestDatabase,
-  options: { arrayMax?: number; work?: Partial<WorkSettings> } = {},
+  options: {
+    arrayMax?: number;
+    work?: Partial<WorkSettings>;
+    captureRate?: number;
+    intakeRate?: number;
+  } = {},
 ): WorkEnv {
   const h = createHarness(db);
   const metrics = h.telemetry.metrics;
@@ -86,7 +91,7 @@ export function workEnv(
     createStepUpChallenge: stepUp.createStepUpChallenge,
   };
   const arrayMax = options.arrayMax ?? 10_000;
-  const svc = new TaskInteractionService({
+  const svc = new CaptureService({
     tenant: h.app,
     platform: h.platform,
     writer,
@@ -99,6 +104,8 @@ export function workEnv(
       'workspace.create': { limit: 1000, windowMs: 3_600_000 },
       'invitation.accept': { limit: 1000, windowMs: 3_600_000 },
       'invitation.send': { limit: 1000, windowMs: 3_600_000 },
+      'capture.member': { limit: options.captureRate ?? 10_000, windowMs: 60_000 },
+      'intake.submit': { limit: options.intakeRate ?? 10_000, windowMs: 3_600_000 },
     }),
     signingKey: randomBytes(32),
     settings: {

@@ -199,6 +199,18 @@ Status of every ADR: **proposed (Phase 0B)**, pending solutions-architect accept
 - **Alternatives:** Mandatory projects (contradicts TSK-003). Unlimited depth (unbounded rewrites). A task status table (a second status system). Copying project definition-of-done items into tasks (drifts from the source). A mutable history table (diverges from the audit ledger).
 - **Consequences:** Task visibility is the 1D compiler's: project-contained tasks follow their project chain; projectless tasks follow the brand. Project completion becomes readable done leaf tasks over readable non-cancelled leaf tasks (OD-13).
 
+<a id="adr-25"></a>
+## ADR-25: Inbox and universal capture (Phase 2E amendment)
+
+- **Decision:**
+  - **Inbox items.** `capture.inbox_item` (`inb_`) is a personal record (OD-03) with an optional brand. It stores the immutable original text, source kind (`typed`, `paste`, `form` produced in 2E; `voice`, `email`, `api`, `webhook` reserved for 7F, 6A, and 6B), safe source reference, and correlation. It also holds the intent (task or note), a versioned deterministic parse, and triage state (untriaged, converted, merged, discarded). A trigger keeps the original text and source immutable. Merging and discarding keep the item.
+  - **Notes.** `capture.note` (`note_`) is personal until filed and keeps its source Inbox item. Converting a note never removes it.
+  - **Lineage.** `capture.capture_conversion` is append-only (source item or note, resulting record, kind, actor). Tasks created by triage have origin `intake` with the source item's public ID.
+  - **Intake forms.** `capture.intake_form` (`form_`) belongs to one brand and one queue owner. `capture.intake_submission` is an append-only receipt to the Inbox item it created. Forms are members-only while OD-28 is open.
+  - **Attachments.** Links use `relations.record_link` on the item or note. File storage is 4E: file references are refused per attachment (`storage_unavailable`) without losing the capture.
+- **Alternatives:** A separate brand intake queue table (a second Inbox). Storing parse results only on the client (not explainable later).
+- **Consequences:** Two migrations, `0029_capture_inbox` and `0030_intake_forms`, with down migrations to 0028. No email address, voice, API, or file-storage tables.
+
 <a id="adr-24"></a>
 ## ADR-24: Task interaction quality (Phase 2D amendment)
 

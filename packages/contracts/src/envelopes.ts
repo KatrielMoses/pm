@@ -166,6 +166,10 @@ export const NON_RESOURCE_TYPES = [
   'template_application',
   // 2D review 01: the statuses a bulk status change may offer for a selection.
   'bulk_status_options',
+  // 2E: a deterministic capture parse (spans, values, ambiguities) and triage and merge previews.
+  'capture_preview',
+  'triage_preview',
+  'merge_preview',
 ] as const;
 export type NonResourceType = (typeof NON_RESOURCE_TYPES)[number];
 

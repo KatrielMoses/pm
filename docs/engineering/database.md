@@ -230,3 +230,13 @@ Migrations `0027_task_interaction` and `0028_task_bulk_undo` (ADR-0016, 0B ADR-2
 - `planning.recurrence_series` accepts `target_kind = task` and an optional `project_id`; `templates.template` accepts `task`.
 - `planning.task_reminder` (guarded forward-only states; `task_reminder_due` for discovery through `exec_dispatch.discover_reminders_due`) and `planning.task_snooze`: personal, RLS, removed on task purge and member departure.
 - `work.bulk_operation` and `work.undo_entry`: actor-owned, one-way closes (`work.bulk_undo_guard`), expired rows deleted by their owner.
+
+## Phase 2E: capture
+
+Migrations `0029_capture_inbox` and `0030_intake_forms` (ADR-0017, 0B ADR-25) create the `capture` schema:
+- `inbox_item`: personal (owner-filtered in the service, RLS by workspace), with a guard trigger that keeps the original text, source, correlation, owner, and brand immutable and makes triage forward-only with restore. `inbox_item_by_owner` serves the daily Inbox.
+- `note`: personal, with its source item.
+- `capture_conversion`: append-only lineage.
+- `intake_form`: brand-scoped, with a queue owner.
+- `intake_submission`: append-only receipts.
+The worker may detach `work.project.intake_source_id` and `capture.note.source_inbox_item_id` during purge.

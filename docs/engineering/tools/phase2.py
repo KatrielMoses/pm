@@ -800,10 +800,10 @@ def check_2d_invariants():
     if "updateTable('work.task')" in body:
         errs.append("snooze edits the task")
     m = sorted(f for f in os.listdir(P("packages/db/migrations")) if f.endswith(".up.sql"))
-    if m[-2:] != ["0027_task_interaction.up.sql", "0028_task_bulk_undo.up.sql"]:
+    if [x for x in m if x.startswith(("0027_", "0028_"))] != ["0027_task_interaction.up.sql", "0028_task_bulk_undo.up.sql"]:
         errs.append("2D migrations must be exactly 0027_task_interaction and 0028_task_bulk_undo")
     t = read(P("packages/db/test/integration/migrations.test.ts"))
-    if "26, 27, 28]" not in t or "at.get(28)" not in t:
+    if "26, 27, 28," not in t and "26, 27, 28]" not in t:
         errs.append("migration boundary test does not cover 27 and 28")
     return errs, "invariants"
 
@@ -842,6 +842,86 @@ def check_adr_2d(closure):
     return errs, "ADR-0016 %s" % m.group(1)
 
 
+# ---- Phase 2E -------------------------------------------------------------------------------------
+
+BOUNDS_2E = ["CAPTURE_TEXT_MAX", "CAPTURE_PASTE_LINES_MAX", "CAPTURE_LINKS_MAX", "CAPTURE_FILES_MAX",
+             "CAPTURE_PARSE_TOKENS_MAX", "CAPTURE_RATE_PER_MINUTE", "TRIAGE_BATCH_MAX", "INBOX_MERGE_MAX",
+             "INTAKE_FORMS_MAX", "INTAKE_SUBMISSIONS_PER_HOUR"]
+
+
+def check_2e_contracts(registry):
+    """Every 2E bound, event, metric, and envelope is registered and wired."""
+    errs = []
+    params = {x["name"] for x in registry["parameters"]}
+    cfg = read(P("packages/config/src/server.ts"))
+    env = read(P("docs/engineering/environments.md"))
+    for b in BOUNDS_2E:
+        if b not in params:
+            errs.append("%s not registered" % b)
+        if "%s: int(" % b not in cfg or "`%s`" % b not in env:
+            errs.append("%s not configured and documented" % b)
+    events = {e["type"] for e in registry["events"]}
+    code = read(P("packages/work/src/capture-service.ts"))
+    for m in re.finditer(r"type: '(capture\.[a-z_]+\.[a-z_]+)'", code):
+        if m.group(1) not in events:
+            errs.append("event %s is not registered" % m.group(1))
+    metrics = {x["name"] for x in registry["telemetry"]}
+    for m in ("capture.items", "capture.parse", "capture.triage"):
+        if m not in metrics:
+            errs.append("metric %s not registered" % m)
+    env_ts = read(P("packages/contracts/src/envelopes.ts"))
+    for t in ("capture_preview", "triage_preview", "merge_preview"):
+        if "'%s'" % t not in env_ts:
+            errs.append("envelope %s not registered" % t)
+    return errs, "%d bounds" % len(BOUNDS_2E)
+
+
+def check_2e_invariants():
+    """No AI in the parser; immutable originals; scope limited to 2E tables; exact migrations."""
+    errs = []
+    parser = read(P("packages/work/src/capture/parser.ts"))
+    for bad in ("fetch(", "import(", "openai", "anthropic", "model"):
+        code = re.sub(r"//.*|/\*[\s\S]*?\*/", "", parser)
+        if bad in code.lower():
+            errs.append("the deterministic parser references %s" % bad)
+    m29 = read(P("packages/db/migrations/0029_capture_inbox.up.sql"))
+    m30 = read(P("packages/db/migrations/0030_intake_forms.up.sql"))
+    if "the original capture is immutable" not in m29:
+        errs.append("inbox item guard missing")
+    if re.search(r"GRANT UPDATE \([^)]*raw_text", m29):
+        errs.append("original text is updatable")
+    for bad in ("email_capture_address", "voice", "upload_session", "file_object", "webhook_subscription"):
+        if re.search(r"CREATE TABLE \w+\.%s" % bad, m29 + m30):
+            errs.append("0029/0030 create a later-phase table (%s)" % bad)
+    m = sorted(f for f in os.listdir(P("packages/db/migrations")) if f.endswith(".up.sql"))
+    if [x for x in m if x.startswith(("0029_", "0030_"))] != ["0029_capture_inbox.up.sql", "0030_intake_forms.up.sql"]:
+        errs.append("2E migrations must be exactly 0029_capture_inbox and 0030_intake_forms")
+    t = read(P("packages/db/test/integration/migrations.test.ts"))
+    if "28, 29, 30" not in t:
+        errs.append("migration boundary test does not cover 29 and 30")
+    od = read(P("docs/product/open-decisions.md"))
+    if "Still open; recorded as a blocker" not in od:
+        errs.append("the OD-28 blocker is not recorded")
+    return errs, "invariants"
+
+
+def check_adr_2e(closure):
+    path = phase1.adr_path("0017")
+    if not path:
+        return ["ADR-0017 missing"], ""
+    text = read(path)
+    m = ADR_STATUS.search(text)
+    if not m:
+        return ["ADR-0017 status must be **proposed** or **accepted and implemented**"], ""
+    errs = []
+    if closure.get("status") == "accepted" and m.group(1) != "accepted and implemented":
+        errs.append("closure is accepted but ADR-0017 is not")
+    for d in closure.get("decisions", []):
+        if not re.search(r"^\| %s \|" % re.escape(d.get("adr_row", "")), text, re.M):
+            errs.append("%s: ADR-0017 has no row %s" % (d["id"], d.get("adr_row")))
+    return errs, "ADR-0017 %s" % m.group(1)
+
+
 def main():
     catalog = load(P("docs/product/requirements/catalog.json"))
     registry = load(P("docs/architecture/platform/contracts/registry.json"))
@@ -852,6 +932,8 @@ def main():
     closure_2b_result = check_closure(catalog, closure_2b, subphases, "2B")
     closure_2c = load(P("docs/engineering/phase2/closure-2c.json"))
     closure_2c_result = check_closure(catalog, closure_2c, subphases, "2C", ["D%d" % i for i in range(1, 27)])
+    closure_2e = load(P("docs/engineering/phase2/closure-2e.json"))
+    closure_2e_result = check_closure(catalog, closure_2e, subphases, "2E", ["D%d" % i for i in range(1, 13)])
     closure_2d = load(P("docs/engineering/phase2/closure-2d.json"))
     closure_2d_result = check_closure(catalog, closure_2d, subphases, "2D", ["D%d" % i for i in range(1, 14)])
     if closure_2b.get("phase") != "2B":
@@ -899,6 +981,10 @@ def main():
         ("phase 2D: origin, personal state, migrations, scope", check_2d_invariants()),
         ("phase 2D: ADR status and decision rows", check_adr_2d(closure_2d)),
         ("phase 2D: review 01 corrections evidenced", check_review01_2d(closure_2d)),
+        ("phase 2E: requirement and decision closure", closure_2e_result),
+        ("phase 2E: bounds, events, metrics, envelopes", check_2e_contracts(registry)),
+        ("phase 2E: parser, originals, migrations, scope", check_2e_invariants()),
+        ("phase 2E: ADR status and decision rows", check_adr_2e(closure_2e)),
     ]
     failed = 0
     for name, result in sections:
@@ -907,7 +993,7 @@ def main():
         for e in errs:
             print("    ERROR: " + e)
         failed += bool(errs)
-    print("PHASE 2A/2B/2C/2D CLOSURE: %s" % ("PASS" if not failed else "FAIL (%d sections)" % failed))
+    print("PHASE 2A/2B/2C/2D/2E CLOSURE: %s" % ("PASS" if not failed else "FAIL (%d sections)" % failed))
     return 1 if failed else 0
 
 

@@ -202,13 +202,14 @@ erDiagram
 ```mermaid
 erDiagram
   record ||--|| inbox_item : "envelope"
-  brand ||--o{ note : "contains"
-  project ||--o{ note : "contains"
-  task ||--o{ note : "contains"
   record ||--|| note : "envelope"
   brand ||--o{ intake_form : "contains"
   record ||--|| intake_form : "envelope"
   intake_form ||--o{ intake_submission : "contains"
+  capture_conversion }o..o{ inbox_item : "references"
+  capture_conversion }o..o{ note : "references"
+  capture_conversion }o..o{ task : "references"
+  capture_conversion }o..o{ project : "references"
 ```
 
 ## Today, scheduling, and capacity

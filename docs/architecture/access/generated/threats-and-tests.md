@@ -50,6 +50,7 @@ Narrative: [../14-threat-model.md](../14-threat-model.md).
 | T-40 | inference | Task exposure through responsibility or sharing: assignees, creators, or labels gaining access; a task share exposing its parent, project, children, relationships, links to inaccessible records, history, or brand aggregates; hidden relationship endpoints or descendants affecting counts, completion overrides, or rollups. | I-01, I-02, I-10, I-11 | AT-117, AT-118, AT-119, AT-120, AT-121 |
 | T-41 | inference | Workflow and field exposure: custom statuses, transitions, or approvals bypassing category, Complete/Reopen, or required-field rules; approvers or person/label field values gaining access; hidden fields, options, or formula inputs leaking through payloads, errors, counts, sorting, serialization, audit, or formula results; stale approvals or previews replayed. | I-01, I-02, I-10, I-18 | AT-122, AT-123, AT-124, AT-125, AT-126, AT-127, AT-128, AT-129 |
 | T-42 | inference | Task interaction exposure: freshness, blocked, missing-data, or duplicate signals, bulk previews and reports, undo entries, reminders, snoozes, template applications, or recurring occurrences revealing unreadable tasks, hidden fields, or other people's personal state, by content, count, error, or timing; recurrence or bulk acting beyond current authority. | I-01, I-02, I-10, I-18 | AT-130, AT-131, AT-132, AT-133, AT-134, AT-135, AT-136, AT-137 |
+| T-43 | inference | Capture exposure: another person's Inbox items or notes visible to anyone (including owners and administrators); parsing, previews, counts, errors, or timing revealing hidden brands, projects, members, or labels; triage or note conversion creating work where the person lacks record.create; intake forms leaking the queue or accepting submissions from people who cannot read the brand; rate and size bounds bypassed. | I-01, I-02, I-10, I-18 | AT-138, AT-139, AT-140, AT-141, AT-142, AT-143, AT-144, AT-145 |
 
 ## Test matrix
 
@@ -192,6 +193,14 @@ Narrative: [../14-threat-model.md](../14-threat-model.md).
 | AT-135 | T-42 | member | Read another person's snooze or reminder on a shared task — task | `task.snooze` | api | **deny** | omitted | ui_record, activity, audit_display |
 | AT-136 | T-42 | member | Recurring series whose owner lost record.create in the brand — task | `task.manage_recurrence` | api | **deny** | omitted | activity |
 | AT-137 | T-42 | limited_member | Apply a task template whose content includes a field hidden from the applier — task | `record.create` | api | **allow** | ok_filtered | error_message, audit_display |
+| AT-138 | T-43 | administrator | Read another member's Inbox item or note — personal | `personal.manage_own` | api | **deny** | not_found | ui_list, search, count_facet |
+| AT-139 | T-43 | member | Parse text naming a brand, project, or member the person cannot read — personal | `personal.manage_own` | api | **allow** | ok_filtered | error_message, timing |
+| AT-140 | T-43 | limited_member | Triage an Inbox item into a brand without record.create — brand | `record.create` | api | **deny** | forbidden | ui_list |
+| AT-141 | T-43 | member | Triage into a restricted project without access — project | `record.create` | api | **deny** | not_found | error_message, timing |
+| AT-142 | T-43 | member | Merge an Inbox item owned by someone else — personal | `personal.manage_own` | api | **deny** | not_found | error_message |
+| AT-143 | T-43 | guest | Submit an intake form — brand | `intake.submit` | api | **deny** | not_found | error_message |
+| AT-144 | T-43 | member | Submit an intake form of a brand the person cannot read — brand | `intake.submit` | api | **deny** | not_found | error_message, timing |
+| AT-145 | T-43 | member | Configure intake forms without brand manage — brand | `intake.manage` | api | **deny** | forbidden | ui_list |
 
 ## Response shapes
 
