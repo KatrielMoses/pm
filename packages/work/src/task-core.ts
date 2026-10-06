@@ -474,6 +474,10 @@ export class TaskCoreService extends WorkService {
       trash: life('record.trash'),
       create_subtask: active && own && rec('record.create', false),
       history: own,
+      // 2D (AZ-24): recurring schedules and task templates.
+      manage_recurrence: active && own && rec('task.manage_recurrence', false),
+      save_template:
+        own && decideBrand(p, 'templates.manage', { ...t.brand, lifecycleState: 'active' }).allowed,
     };
   }
 
@@ -722,6 +726,7 @@ export class TaskCoreService extends WorkService {
           't.project_id',
           't.depth',
           't.rank',
+          't.version',
           'r.lifecycle_state',
           'br.public_id as brand_public_id',
           'b.name as brand_name',
@@ -798,6 +803,7 @@ export class TaskCoreService extends WorkService {
           remaining_estimate_minutes: x.remaining_estimate_minutes,
           depth: x.depth,
           children: childCount.get(x.id) ?? 0,
+          version: Number(x.version),
           assignees: assignees
             .filter((a) => a.task_id === x.id)
             .map((a) => ({

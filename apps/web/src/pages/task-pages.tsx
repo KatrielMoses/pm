@@ -1,5 +1,10 @@
 import { useEffect, useMemo, useRef, useState, type FormEvent, type KeyboardEvent } from 'react';
-import { DELIVERABLE_TYPES, LABEL_COLORS, PROJECT_PRIORITIES } from '@pm/contracts/shell';
+import {
+  DELIVERABLE_TYPES,
+  LABEL_COLORS,
+  PROJECT_PRIORITIES,
+  TASK_STATUSES,
+} from '@pm/contracts/shell';
 import { plainFromRichText, richTextFromPlain } from '@pm/contracts/rich-text';
 import { ApiError } from '../api.ts';
 import {
@@ -12,7 +17,24 @@ import { BrandMarker } from '../shell/brand-marker.tsx';
 import { routeHref } from '../shell/registry.ts';
 import { useRecordVisit, useWorkspaceShell } from '../shell/workspace.tsx';
 import { useStepUp } from '../stepup.tsx';
-import { tasks, type Task, type TaskDetail, type TaskSummary } from '../tasks/client.ts';
+import {
+  tasks,
+  type Task,
+  type TaskDetail,
+  type TaskSignals,
+  type TaskSummary,
+  type UndoHandle,
+} from '../tasks/client.ts';
+import {
+  BulkBar,
+  DuplicateHint,
+  InlineEditor,
+  RemindersSection,
+  RescheduleDialog,
+  SignalBadges,
+  TaskSignalsPanel,
+  UndoToast,
+} from '../tasks/interaction.tsx';
 import { collab, tenancy, type Member } from '../tenancy/client.ts';
 import { ResourceView, useResource } from '../tenancy/resource.tsx';
 import { Dialog } from '../ui/dialog.tsx';
@@ -20,14 +42,17 @@ import { Announce, Banner } from '../ui/feedback.tsx';
 import { ErrorSummary, Field, SelectField, SubmitButton, TextAreaField } from '../ui/form.tsx';
 import { Page } from '../ui/layout.tsx';
 import { ReviewedChange } from './people-pages.tsx';
-import { richTextHash, StatusBadge, useCommand } from './project-pages.tsx';
+import { RecurrenceEditor, richTextHash, StatusBadge, useCommand } from './project-pages.tsx';
 import { FavoriteToggle } from './shell-pages.tsx';
 import { OtherIssues, SaveProblem, splitIssues } from './workspace-pages.tsx';
 
 /**
  * Phase 2B tasks (0E Phase 2B note): the project Tasks section (paged list and keyboard hierarchy
  * with visible Move up, Move down, Indent, Outdent), the projectless task list, and the canonical
- * task page. Drag and drop, inline and bulk editing, undo, and saved views arrive in 2D/3A.
+ * task page. Phase 2D (ADR-0016) adds ordering commands (top, bottom, to a position; drag is a
+ * pointer shortcut over the same command), inline edits with save states, signal badges, bulk
+ * changes with a preview, undo, duplicate hints, templates, reminders, snooze, reschedule, and
+ * recurring tasks. Saved views arrive in 3A.
  */
 
 const PRIORITY_LABEL: Record<string, string> = {
@@ -52,8 +77,6 @@ const UNAVAILABLE: Record<string, string> = {
   documents: 'Documents (4C)',
   external_records: 'External records (6A)',
   agents: 'Agents (8B)',
-  reminders: 'Reminders (2D)',
-  recurrence: 'Recurrence (2D)',
 };
 
 const fmtMinutes = (m: number | null) =>
@@ -100,6 +123,8 @@ export function TaskTree({
   roots,
   onChanged,
   initialFocus = null,
+  signals = {},
+  onUndo,
 }: {
   ws: string;
   roots: TaskSummary[];
@@ -107,6 +132,10 @@ export function TaskTree({
   onChanged: (said: string, moved: string) => void;
   /** The task to focus on mount: the moved task survives the reload that remounts the tree. */
   initialFocus?: string | null;
+  /** 2D: signals of the loaded tasks (readable ones only). */
+  signals?: Record<string, TaskSignals>;
+  /** 2D: the undo handle of the latest reversible change made here. */
+  onUndo?: (handle: UndoHandle | null, what: string) => void;
 }) {
   const { navigate } = useRouter();
   const stepUp = useStepUp();
@@ -150,9 +179,31 @@ export function TaskTree({
       await tasks.verb(ws, n.t.id, 'move', body, stepUp);
       onChanged(message, n.t.id);
     }, message);
+  // 2D ordering commands (D9): the same command for buttons, keys, and drag.
+  const reorder = (
+    n: Node,
+    body: { position: 'up' | 'down' | 'top' | 'bottom' | 'to'; index?: number },
+  ) =>
+    void cmd.run(async () => {
+      const r = await tasks.reorder(ws, n.t.id, body, n.t.version, stepUp);
+      onUndo?.(r.undo, `${n.t.title} moved`);
+      onChanged(`${n.t.title}: ${r.announcement}`, n.t.id);
+    }, '');
+  const [positionText, setPositionText] = useState('');
+  const [editing, setEditing] = useState(false);
+  const dragged = useRef<Node | null>(null);
   const onKey = (e: KeyboardEvent) => {
     if (!current) return;
     const i = visible.indexOf(current);
+    if (e.altKey && !e.ctrlKey && !e.metaKey) {
+      const k = { ArrowUp: 'up', ArrowDown: 'down', Home: 'top', End: 'bottom' }[e.key] as
+        'up' | 'down' | 'top' | 'bottom' | undefined;
+      if (k) {
+        e.preventDefault();
+        reorder(current, { position: k });
+        return;
+      }
+    }
     const go = (n: Node | undefined) => {
       if (n) {
         e.preventDefault();
@@ -201,6 +252,23 @@ export function TaskTree({
           if (e.target === e.currentTarget) setFocused(n.t.id);
         }}
         className="tree-item"
+        // Pointer shortcut only: dropping on a sibling runs the same "move to position" command.
+        draggable
+        onDragStart={(e) => {
+          e.stopPropagation();
+          dragged.current = n;
+        }}
+        onDragOver={(e) => {
+          if (dragged.current && dragged.current.parent === n.parent) e.preventDefault();
+        }}
+        onDrop={(e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          const d = dragged.current;
+          dragged.current = null;
+          if (!d || d === n || d.parent !== n.parent) return;
+          reorder(d, { position: 'to', index: siblings(n).indexOf(n) + 1 });
+        }}
       >
         <span className="tree-label">
           <span aria-hidden="true">
@@ -212,6 +280,7 @@ export function TaskTree({
             {n.t.due_date ? ` · due ${n.t.due_date}` : ''}
             {n.t.estimate_minutes !== null ? ` · ${fmtMinutes(n.t.estimate_minutes)}` : ''}
           </span>
+          {signals[n.t.id] ? <SignalBadges signals={signals[n.t.id]!} /> : null}
         </span>
         {open.has(n.t.id) && n.children?.length ? (
           <ul role="group">{render(n.children, level + 1)}</ul>
@@ -292,6 +361,89 @@ export function TaskTree({
           >
             Outdent
           </button>
+          <button
+            type="button"
+            className="button button-secondary"
+            disabled={idx <= 0 || cmd.busy}
+            aria-keyshortcuts="Alt+Home"
+            onClick={() => reorder(current, { position: 'top' })}
+          >
+            Move to top
+          </button>
+          <button
+            type="button"
+            className="button button-secondary"
+            disabled={idx < 0 || idx >= sib.length - 1 || cmd.busy}
+            aria-keyshortcuts="Alt+End"
+            onClick={() => reorder(current, { position: 'bottom' })}
+          >
+            Move to bottom
+          </button>
+          <form
+            className="inline-form"
+            aria-label={`Move ${current.t.title} to a position`}
+            noValidate
+            onSubmit={(e) => {
+              e.preventDefault();
+              const n = Number(positionText);
+              if (Number.isInteger(n) && n >= 1) reorder(current, { position: 'to', index: n });
+            }}
+          >
+            <Field
+              id="move-to-position"
+              label={`Position (1–${sib.length})`}
+              type="number"
+              inputMode="numeric"
+              min={1}
+              max={sib.length}
+              value={positionText}
+              onChange={(e) => setPositionText(e.target.value)}
+            />
+            <button type="submit" className="button button-secondary" disabled={cmd.busy}>
+              Move to position
+            </button>
+          </form>
+          <button
+            type="button"
+            className="button button-secondary"
+            aria-expanded={editing}
+            onClick={() => setEditing(!editing)}
+          >
+            {editing ? 'Done editing' : 'Edit in place'}
+          </button>
+        </div>
+      ) : null}
+      {current && editing ? (
+        <div className="inline-editors" role="group" aria-label={`Edit ${current.t.title}`}>
+          {(
+            [
+              ['title', 'Title', current.t.title],
+              ['priority', 'Priority', current.t.priority],
+              ['due_date', 'Due date', current.t.due_date],
+            ] as const
+          ).map(([field, label, value]) => (
+            <InlineEditor
+              key={`${current.t.id}:${field}:${value ?? ''}`}
+              ws={ws}
+              taskId={current.t.id}
+              version={current.t.version}
+              field={field}
+              label={label}
+              value={value}
+              onSaved={(t, message) => {
+                current.t = {
+                  ...current.t,
+                  title: t.title,
+                  priority: t.priority,
+                  due_date: t.due_date,
+                  version: t.version,
+                };
+                force((x) => x + 1);
+                onUndo?.(t.undo ?? null, `${label} changed`);
+                onChanged(message, current.t.id);
+              }}
+            />
+          ))}
         </div>
       ) : null}
       <SaveProblem error={cmd.error} />
@@ -304,11 +456,14 @@ function TaskCollection({
   query,
   createWith,
   emptyText,
+  brand,
 }: {
   ws: string;
   query: Record<string, string>;
   createWith: (title: string) => Record<string, unknown> | null;
   emptyText: string;
+  /** 2D: the brand new tasks belong to (duplicate hints, templates, bulk labels). */
+  brand: string | null;
 }) {
   const stepUp = useStepUp();
   const [cursor, setCursor] = useState<string | undefined>(undefined);
@@ -333,6 +488,63 @@ function TaskCollection({
   const [said, setSaid] = useState('');
   const [movedId, setMovedId] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [undo, setUndo] = useState<{ handle: UndoHandle | null; what: string }>({
+    handle: null,
+    what: '',
+  });
+  const [bulk, setBulk] = useState(false);
+  const [signals, setSignals] = useState<Record<string, TaskSignals>>({});
+  const ids = pages.map((p) => p.id).join(',');
+  useEffect(() => {
+    let live = true;
+    const list = ids ? ids.split(',').slice(0, 200) : [];
+    void tasks
+      .signalsFor(ws, list)
+      .then((items) => {
+        if (live) setSignals(Object.fromEntries(items.map((i) => [i.task, i.signals])));
+      })
+      .catch(() => undefined);
+    return () => {
+      live = false;
+    };
+  }, [ws, ids]);
+  const labels = useResource(
+    () => (brand ? tasks.labels(ws, brand) : Promise.resolve([])),
+    `labels:${ws}:${brand ?? ''}`,
+  );
+  const templates = useResource(() => tasks.templates(ws), `task-templates:${ws}`);
+  const [template, setTemplate] = useState('');
+  const fromTemplate = async () => {
+    const body = createWith(title || 'x');
+    if (!template || !brand || !body) return;
+    setBusy(true);
+    setError(null);
+    try {
+      const r = await tasks.applyTemplate(
+        ws,
+        template,
+        {
+          brand,
+          ...(body.project ? { project: body.project } : {}),
+          ...(title.trim() ? { title: title.trim() } : {}),
+        },
+        stepUp,
+      );
+      const left = (r.omitted ?? []).filter(
+        (o) => o === 'unavailable_fields' || o === 'unavailable_labels' || o === 'hidden_fields',
+      );
+      setSaid(
+        `Task created from template.${left.length ? ' Some content was left out because it isn’t available here.' : ''}`,
+      );
+      setTitle('');
+      setCursor(undefined);
+      data.reload();
+    } catch (err) {
+      if (!(err instanceof ApiError && err.code === 'cancelled')) setError(err);
+    } finally {
+      setBusy(false);
+    }
+  };
   const create = async (e: FormEvent) => {
     e.preventDefault();
     const body = createWith(title);
@@ -371,7 +583,30 @@ function TaskCollection({
           error={fields['new-task-title']}
           maxLength={300}
         />
+        <DuplicateHint ws={ws} brand={brand} project={query.project ?? null} title={title} />
         <SubmitButton busy={busy}>Add task</SubmitButton>
+        {templates.state.status === 'ready' && templates.state.data.length && brand ? (
+          <span className="inline-form">
+            <SelectField
+              id="new-task-template"
+              label="Or start from a template"
+              value={template}
+              onChange={setTemplate}
+              options={[
+                { value: '', label: 'Choose a template' },
+                ...templates.state.data.map((t) => ({ value: t.id, label: t.name })),
+              ]}
+            />
+            <button
+              type="button"
+              className="button button-secondary"
+              disabled={!template || busy}
+              onClick={() => void fromTemplate()}
+            >
+              Create from template
+            </button>
+          </span>
+        ) : null}
         <OtherIssues issues={other} />
         {!Object.keys(fields).length && !other.length ? <SaveProblem error={error} /> : null}
         <Announce>{said}</Announce>
@@ -392,6 +627,8 @@ function TaskCollection({
                 ws={ws}
                 roots={pages}
                 initialFocus={movedId}
+                signals={signals}
+                onUndo={(handle, what) => setUndo({ handle, what })}
                 onChanged={(message, id) => {
                   setSaid(message);
                   setMovedId(id);
@@ -399,6 +636,45 @@ function TaskCollection({
                   data.reload();
                 }}
               />
+              <UndoToast
+                ws={ws}
+                handle={undo.handle}
+                what={undo.what}
+                onDone={(message) => {
+                  setUndo({ handle: null, what: '' });
+                  setSaid(message);
+                  setCursor(undefined);
+                  data.reload();
+                }}
+              />
+              <button
+                type="button"
+                className="button button-secondary"
+                aria-expanded={bulk}
+                onClick={() => setBulk(!bulk)}
+              >
+                {bulk ? 'Hide bulk changes' : 'Change several tasks'}
+              </button>
+              {bulk ? (
+                <BulkBar
+                  ws={ws}
+                  choices={pages.map((p) => ({ id: p.id, title: p.title }))}
+                  statuses={TASK_STATUSES.filter(
+                    (x) => x.category !== 'done' && x.category !== 'cancelled',
+                  ).map((x) => ({ value: x.key, label: x.name }))}
+                  labels={
+                    labels.state.status === 'ready'
+                      ? labels.state.data.map((l) => ({ value: l.id, label: l.name }))
+                      : []
+                  }
+                  onApplied={(message, handle) => {
+                    setSaid(message);
+                    setUndo({ handle, what: message.replace(/\.$/, '') });
+                    setCursor(undefined);
+                    data.reload();
+                  }}
+                />
+              ) : null}
               {d.page.has_more ? (
                 <button
                   type="button"
@@ -422,7 +698,7 @@ export function ProjectTasksSection({
   project,
 }: {
   ws: string;
-  project: { id: string; capabilities: { edit: boolean } };
+  project: { id: string; capabilities: { edit: boolean }; brand?: { kind: string; id?: string } };
 }) {
   return (
     <section className="card" aria-labelledby="tasks-heading">
@@ -432,6 +708,7 @@ export function ProjectTasksSection({
         query={{ project: project.id }}
         createWith={(title) => (title.trim() ? { project: project.id, title: title.trim() } : null)}
         emptyText="No tasks in this project yet."
+        brand={project.brand?.kind === 'brand' ? (project.brand.id ?? null) : null}
       />
     </section>
   );
@@ -469,6 +746,7 @@ export function ProjectlessTasksPage({ ws }: { ws: string }) {
           return title.trim() ? { title: title.trim(), ...(b ? { brand: b } : {}) } : null;
         }}
         emptyText="No tasks without a project."
+        brand={single ?? (brand || null)}
       />
     </Page>
   );
@@ -558,6 +836,7 @@ function TaskBody({
         ) : null}
       </div>
       <CompletionControls ws={ws} task={task} detail={detail} reload={reload} />
+      <TaskInteractionSections ws={ws} task={task} reload={reload} />
       {caps.edit && !task.shared_only ? (
         <TransitionControl ws={ws} rec={task.id} version={task.version} onChanged={reload} />
       ) : null}
@@ -596,6 +875,127 @@ function TaskBody({
       </section>
       {caps.history ? <HistorySection ws={ws} task={task} /> : null}
       {!task.shared_only ? <TaskManageSection ws={ws} task={task} reload={reload} /> : null}
+    </>
+  );
+}
+
+/**
+ * 2D on the task page: signals and the missing-information panel, the caller's own reminders and
+ * snooze, Reschedule (an explicit due-date or deadline choice), Repeat, and Save as template.
+ */
+function TaskInteractionSections({
+  ws,
+  task,
+  reload,
+}: {
+  ws: string;
+  task: Task;
+  reload: () => void;
+}) {
+  const stepUp = useStepUp();
+  const info = useResource(
+    () => tasks.signals(ws, task.id),
+    `signals:${ws}:${task.id}:${task.version}`,
+  );
+  const [resched, setResched] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [said, setSaid] = useState('');
+  const again = () => {
+    info.reload();
+    reload();
+  };
+  return (
+    <>
+      <ResourceView resource={info.state} onRetry={info.retry} what="signals">
+        {(i) => (
+          <>
+            <TaskSignalsPanel ws={ws} task={task} info={i} reload={again} />
+            {task.lifecycle_state === 'active' ? (
+              <RemindersSection ws={ws} task={task} info={i} reload={info.reload} />
+            ) : null}
+          </>
+        )}
+      </ResourceView>
+      {task.capabilities.edit && task.lifecycle_state === 'active' ? (
+        <section className="card" aria-labelledby="resched-h">
+          <h2 id="resched-h">Reschedule</h2>
+          <p className="hint">
+            Change the due date or, separately, the deadline. Snoozing never changes either.
+          </p>
+          <button
+            type="button"
+            className="button button-secondary"
+            onClick={() => setResched(true)}
+          >
+            Reschedule…
+          </button>
+          {resched ? (
+            <RescheduleDialog
+              ws={ws}
+              task={task}
+              onClose={() => setResched(false)}
+              onDone={() => {
+                setResched(false);
+                setSaid('Rescheduled.');
+                again();
+              }}
+            />
+          ) : null}
+        </section>
+      ) : null}
+      {task.capabilities.manage_recurrence ? (
+        <section className="card" aria-labelledby="repeat-h">
+          <h2 id="repeat-h">Repeat</h2>
+          <p className="hint">
+            Each occurrence is a new task from today’s content: never its assignees, shares,
+            history, comments, or relationships.
+          </p>
+          <RecurrenceEditor
+            noun="task"
+            cacheKey={`task-rcs:${ws}:${task.id}`}
+            load={() => tasks.recurrences(ws, task.id)}
+            define={(body) => tasks.child(ws, task.id, 'recurrences', body, stepUp)}
+            verb={(id, v) => tasks.childVerb(ws, task.id, 'recurrences', id, v, {}, stepUp)}
+          />
+        </section>
+      ) : null}
+      {task.capabilities.save_template ? (
+        <section className="card" aria-labelledby="tpl-h">
+          <h2 id="tpl-h">Template</h2>
+          <form
+            aria-label="Save as template"
+            noValidate
+            onSubmit={(e) => {
+              e.preventDefault();
+              const name = (new FormData(e.currentTarget).get('name') as string).trim();
+              if (!name || saving) return;
+              setSaving(true);
+              void tasks
+                .verb(ws, task.id, 'save_as_template', { name }, stepUp)
+                .then(() =>
+                  setSaid(
+                    'Saved as a template. Assignees, shares, and history are never included.',
+                  ),
+                )
+                .catch((err) => {
+                  if (!(err instanceof ApiError && err.code === 'cancelled'))
+                    setSaid("Couldn't save the template.");
+                })
+                .finally(() => setSaving(false));
+            }}
+          >
+            <Field
+              id="tpl-name"
+              name="name"
+              label="Template name"
+              maxLength={200}
+              defaultValue={task.title}
+            />
+            <SubmitButton busy={saving}>Save as template</SubmitButton>
+          </form>
+        </section>
+      ) : null}
+      <Announce>{said}</Announce>
     </>
   );
 }

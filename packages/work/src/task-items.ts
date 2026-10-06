@@ -157,8 +157,6 @@ export class TaskService extends TaskCoreService {
           'documents',
           'external_records',
           'agents',
-          'reminders',
-          'recurrence',
         ],
       };
     });

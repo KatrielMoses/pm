@@ -20,6 +20,7 @@ const row = (id: string, title: string, children = 0): TaskSummary => ({
   title,
   status,
   priority: 'none',
+  version: 0,
   start_date: null,
   due_date: null,
   deadline: null,

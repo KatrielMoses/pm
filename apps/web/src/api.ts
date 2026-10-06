@@ -68,7 +68,7 @@ export function newIdempotencyKey(): string {
 export async function api<T = unknown>(
   method: Method,
   path: string,
-  options: { body?: unknown; headers?: Record<string, string> } = {},
+  options: { body?: unknown; headers?: Record<string, string>; signal?: AbortSignal } = {},
 ): Promise<{ status: number; body: T }> {
   if (!navigator.onLine)
     throw new ApiError({ code: 'offline', status: 0, message: "You're offline." });
@@ -83,9 +83,13 @@ export async function api<T = unknown>(
       method,
       headers,
       credentials: 'same-origin',
+      ...(options.signal ? { signal: options.signal } : {}),
       ...(method !== 'GET' ? { body: JSON.stringify(options.body ?? {}) } : {}),
     });
   } catch {
+    // A superseded read (2D): the caller started a newer request and ignores this one.
+    if (options.signal?.aborted)
+      throw new ApiError({ code: 'aborted', status: 0, message: 'Superseded.' });
     throw new ApiError({
       code: navigator.onLine ? 'network' : 'offline',
       status: 0,
