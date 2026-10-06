@@ -18,6 +18,9 @@ export * from './task-recurrence.ts';
 export * from './task-interaction.ts';
 export * from './capture-service.ts';
 export * from './capture/parser.ts';
+export * from './time/time-service.ts';
+export * from './time/semantics.ts';
+export * from './time/jobs.ts';
 export {
   PROJECT_STATUS_ID,
   resolveWorkflow,

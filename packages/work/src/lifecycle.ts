@@ -69,6 +69,8 @@ export const projectAdapter: RecordTypeAdapter = {
         .where('id', 'not in', ids)
         .executeTakeFirst();
       if (live) throw new Error('project purge blocked: a live child project references it');
+      // Time logged on the project itself goes with it (3D; its tasks purge their own).
+      await tx.db.deleteFrom('timetrack.time_entry').where('project_id', 'in', ids).execute();
       await tx.db
         .deleteFrom('work.project_update_verification')
         .where('project_id', 'in', ids)
@@ -239,6 +241,8 @@ export const taskAdapter: RecordTypeAdapter = {
         .where('id', 'not in', ids)
         .executeTakeFirst();
       if (live) throw new Error('task purge blocked: a live child task references it');
+      // Time logged on the task goes with it (3D); approvals keep their own totals and hash.
+      await tx.db.deleteFrom('timetrack.time_entry').where('task_id', 'in', ids).execute();
       await tx.db.deleteFrom('work.task_assignee').where('task_id', 'in', ids).execute();
       await tx.db.deleteFrom('work.checklist_item').where('task_id', 'in', ids).execute();
       await tx.db.deleteFrom('work.task_inherited_criterion').where('task_id', 'in', ids).execute();

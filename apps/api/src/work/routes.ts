@@ -1,14 +1,15 @@
 import type { FastifyInstance, FastifyRequest } from 'fastify';
 import { nonResourceEnvelope } from '@pm/contracts';
-import type { CaptureService } from '@pm/work';
+import type { TimeService } from '@pm/work';
 import { routeKit } from '../route-kit.ts';
 import { registerCapture } from './capture-routes.ts';
 import { registerTaskInteraction } from './interaction-routes.ts';
 import { registerTasks } from './task-routes.ts';
+import { registerTime } from './time-routes.ts';
 import { registerWorkflows } from './workflow-routes.ts';
 
 export interface WorkRouteDeps {
-  work: CaptureService;
+  work: TimeService;
 }
 
 type Params = {
@@ -45,6 +46,7 @@ export function registerWork(app: FastifyInstance, deps: WorkRouteDeps): void {
   registerTaskInteraction(app, work);
   registerCapture(app, work);
   registerWorkflows(app, work);
+  registerTime(app, work);
 
   app.get(
     base,

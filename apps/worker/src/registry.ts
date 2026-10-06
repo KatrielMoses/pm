@@ -13,6 +13,8 @@ import { VIEWS_SCHEDULES, viewsCleanupHandler, type ViewsCleanupDeps } from '@pm
 import {
   recurrenceHandler,
   remindersHandler,
+  TIME_SCHEDULES,
+  timerGuardHandler,
   WORK_SCHEDULES,
   type RecurrenceJobDeps,
 } from '@pm/work';
@@ -25,6 +27,7 @@ import {
  * 1E: views cleanup (expired per-device view state, departed members' personal navigation).
  * 2A: recurring project generation (bounded catch-up, owner authority rechecked per series).
  * 2D: recurring task generation (same job) and personal task reminders (deduplicated firing).
+ * 3D: the timer guard (runaway timers stop at TIME_TIMER_MAX_HOURS, once).
  */
 export interface WorkerModules {
   identity: IdentityJobDeps;
@@ -44,6 +47,7 @@ export function registeredHandlers(m: WorkerModules): JobHandler[] {
     viewsCleanupHandler(m.views),
     recurrenceHandler(m.work),
     remindersHandler(m.work),
+    timerGuardHandler(m.work),
   ];
 }
 
@@ -58,5 +62,6 @@ export function registeredSchedules(): RecurringJob[] {
     ...LIFECYCLE_SCHEDULES,
     ...VIEWS_SCHEDULES,
     ...WORK_SCHEDULES,
+    ...TIME_SCHEDULES,
   ];
 }

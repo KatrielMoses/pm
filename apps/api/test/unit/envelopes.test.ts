@@ -27,7 +27,7 @@ describe('non-resource envelope stays confined (ADR-0007 D6, ADR-0008 B3)', () =
       );
     // /v1/status, the 1B authentication results, the 1C–1E tenancy computed views, and the 2A
     // project overview composite (closed non-resource list, ADR-0008 B3, ADR-0010, ADR-0013 P17),
-    // and the 2D task interaction views (ADR-0016).
+    // the 2D task interaction views (ADR-0016), and the 3D time views (ADR-0019).
     expect([...new Set(uses.filter((f) => !f.endsWith('envelopes.ts')))].sort()).toEqual([
       'apps/api/src/app.ts',
       'apps/api/src/auth/routes.ts',
@@ -36,6 +36,7 @@ describe('non-resource envelope stays confined (ADR-0007 D6, ADR-0008 B3)', () =
       'apps/api/src/work/interaction-routes.ts',
       'apps/api/src/work/routes.ts',
       'apps/api/src/work/task-routes.ts',
+      'apps/api/src/work/time-routes.ts',
       'apps/api/src/work/workflow-routes.ts',
     ]);
   });
