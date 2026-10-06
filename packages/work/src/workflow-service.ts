@@ -28,6 +28,13 @@ import type { LoadedTask } from './task-core.ts';
 import { TaskService } from './task-items.ts';
 import { isPublic } from './validation.ts';
 import { fieldsForRecord, valuesOf } from './workflow/field-access.ts';
+import {
+  configChanges,
+  statusSnapshot,
+  transitionSnapshot,
+  workflowSnapshot,
+  type Snapshot,
+} from './workflow/config-audit.ts';
 import { CONTROL_CHARS, hasValue } from './workflow/field-types.ts';
 import {
   loadWorkflow,
@@ -106,14 +113,8 @@ const BUILTIN_LABEL: Record<string, string> = {
   budget: 'Budget',
 };
 
-const TRANSITION_AUDIT_NAME: Record<string, string> = {
-  allowSelf: 'allow_self_approval',
-  approval: 'approval_policy',
-  confirmation: 'confirmation',
-  description: 'description',
-  requirements: 'requirements',
-  approvers: 'approvers',
-};
+/** Objects detailed per configuration audit entry; beyond it the entry records a count. */
+const CONFIG_AUDIT_OBJECTS_MAX = 8;
 const isObj = (x: unknown): x is Record<string, unknown> =>
   !!x && typeof x === 'object' && !Array.isArray(x);
 const norm = (s: string) => s.toLowerCase().replace(/\s+/g, ' ');
@@ -293,6 +294,96 @@ export class WorkflowService extends TaskService {
   // ---------------------------------------------------------------------------------------------
   // Workflows
   // ---------------------------------------------------------------------------------------------
+
+  /** The audit snapshot of a status or transition (null once deleted). */
+  protected async configSnap(
+    tx: WorkspaceTransaction,
+    entity: 'status' | 'transition',
+    id: string,
+  ): Promise<Snapshot | null> {
+    if (entity === 'status') {
+      const st = await tx.db
+        .selectFrom('workflow.workflow_status')
+        .selectAll()
+        .where('id', '=', id)
+        .executeTakeFirst();
+      return st ? statusSnapshot(st) : null;
+    }
+    const t = await tx.db
+      .selectFrom('workflow.transition')
+      .selectAll()
+      .where('id', '=', id)
+      .executeTakeFirst();
+    if (!t) return null;
+    const ends = await this.publicIdsOfStatuses(tx, [t.from_status_id, t.to_status_id]);
+    const reqs = await tx.db
+      .selectFrom('workflow.transition_requirement')
+      .select(['builtin_key', 'definition_id', 'allow_manager_override'])
+      .where('transition_id', '=', id)
+      .execute();
+    const defs = await this.publicIdsOf(
+      tx,
+      reqs.map((r) => r.definition_id).filter((x): x is string => !!x),
+      'workflow.field_definition',
+    );
+    const appr = await tx.db
+      .selectFrom('workflow.transition_approver')
+      .select('membership_id')
+      .where('transition_id', '=', id)
+      .execute();
+    const mems = await this.publicIdsOf(
+      tx,
+      appr.map((a) => a.membership_id),
+      'tenancy.membership',
+    );
+    return transitionSnapshot({
+      ...t,
+      from: ends.get(t.from_status_id)!,
+      to: ends.get(t.to_status_id)!,
+      requirements: reqs.map((r) => ({
+        ref: r.builtin_key ? `builtin:${r.builtin_key}` : defs.get(r.definition_id!)!,
+        override: r.allow_manager_override,
+      })),
+      approvers: appr.map((a) => mems.get(a.membership_id)!),
+    });
+  }
+
+  /** Audit changes for a new workflow: its snapshot and its statuses (bounded). */
+  protected async creationChanges(tx: WorkspaceTransaction, id: string, scopeKind: string) {
+    const w = await tx.db
+      .selectFrom('workflow.workflow')
+      .selectAll()
+      .where('id', '=', id)
+      .executeTakeFirstOrThrow();
+    const st = await tx.db
+      .selectFrom('workflow.workflow_status')
+      .selectAll()
+      .where('workflow_id', '=', id)
+      .orderBy('rank')
+      .execute();
+    const out = configChanges('workflow', 'workflow.create', scopeKind, null, workflowSnapshot(w));
+    st.slice(0, CONFIG_AUDIT_OBJECTS_MAX).forEach((s, i) =>
+      out.push(
+        ...configChanges('status', 'workflow.create', scopeKind, null, statusSnapshot(s), i + 1),
+      ),
+    );
+    if (st.length > CONFIG_AUDIT_OBJECTS_MAX)
+      out.push(
+        change.plain('workflow.objects_not_detailed', null, st.length - CONFIG_AUDIT_OBJECTS_MAX),
+      );
+    return out;
+  }
+
+  protected async publicIdsOfStatuses(tx: WorkspaceTransaction, ids: string[]) {
+    const out = new Map<string, string>();
+    for (const r of await tx.db
+      .selectFrom('workflow.workflow_status')
+      .select(['id', 'public_id'])
+      .where('id', 'in', ids)
+      .execute())
+      out.set(r.id, r.public_id);
+    return out;
+  }
 
   protected async workflowRow(tx: WorkspaceTransaction, publicId: unknown, lock = false) {
     if (!isPublic(publicId, 'wf')) throw new TenancyError('not_found');
@@ -594,11 +685,7 @@ export class WorkflowService extends TaskService {
           p,
           'workflow.created',
           { id, type: 'workflow', publicId },
-          [
-            change.plain('record_kind', null, kind),
-            change.plain('scope_kind', null, scope.kind),
-            change.plain('statuses', null, parsed.length),
-          ],
+          await this.creationChanges(tx, id, scope.kind),
           scope.brandId,
         );
         await this.configEvent(
@@ -664,9 +751,11 @@ export class WorkflowService extends TaskService {
         w: Awaited<ReturnType<WorkflowService['workflowRow']>>;
         scope: ConfigScope;
         b: Record<string, unknown>;
+        /** Records a status or transition's snapshot now; its after state is taken at the end. */
+        track: (entity: 'status' | 'transition', id: string) => Promise<void>;
       },
     ) => Promise<{
-      audit: ReturnType<typeof change.plain>[];
+      audit?: ReturnType<typeof change.plain>[];
       event?: {
         type:
           | 'workflow.workflow.updated'
@@ -686,15 +775,57 @@ export class WorkflowService extends TaskService {
       req,
       async (tx, p) => {
         const { w, scope } = await this.editWorkflow(tx, p, wfId, req, b);
-        const out = await fn(tx, p, { w, scope, b });
+        // Before/after snapshots (ADR-0015 W9): the workflow itself and every tracked object.
+        const wfBefore = workflowSnapshot(w);
+        const tracked = new Map<
+          string,
+          { entity: 'status' | 'transition'; before: Snapshot | null }
+        >();
+        const track = async (entity: 'status' | 'transition', id: string) => {
+          if (!tracked.has(id))
+            tracked.set(id, { entity, before: await this.configSnap(tx, entity, id) });
+        };
+        const out = await fn(tx, p, { w, scope, b, track });
         await this.bumpWorkflow(tx, w.id);
+        const changes = [
+          ...configChanges(
+            'workflow',
+            command,
+            scope.kind,
+            wfBefore,
+            workflowSnapshot(await this.workflowRow(tx, w.public_id)),
+          ),
+        ];
+        const slots = { status: 0, transition: 0 };
+        let detailed = 0;
+        for (const [id, t] of tracked) {
+          if (detailed++ >= CONFIG_AUDIT_OBJECTS_MAX) break;
+          changes.push(
+            ...configChanges(
+              t.entity,
+              command,
+              scope.kind,
+              t.before,
+              await this.configSnap(tx, t.entity, id),
+              ++slots[t.entity],
+            ),
+          );
+        }
+        if (tracked.size > CONFIG_AUDIT_OBJECTS_MAX)
+          changes.push(
+            change.plain(
+              'workflow.objects_not_detailed',
+              null,
+              tracked.size - CONFIG_AUDIT_OBJECTS_MAX,
+            ),
+          );
         await this.configAudit(
           tx,
           caller,
           p,
           command,
           { id: w.id, type: 'workflow', publicId: w.public_id },
-          out.audit,
+          [...changes, ...(out.audit ?? [])],
           scope.brandId,
         );
         await this.configEvent(
@@ -735,7 +866,6 @@ export class WorkflowService extends TaskService {
         const name = plain(b.name, '/name', 80, { required: true, label: 'a workflow name' })!;
         await tx.db.updateTable('workflow.workflow').set({ name }).where('id', '=', w.id).execute();
         return {
-          audit: [change.content('name', { hash: hash(name) })],
           event: {
             type: 'workflow.workflow.updated',
             data: { changed_fields: 'name', lifecycle_state: w.state },
@@ -783,7 +913,6 @@ export class WorkflowService extends TaskService {
           throw e;
         }
         return {
-          audit: [change.plain('state', w.state, state)],
           event: {
             type: 'workflow.workflow.updated',
             data: { changed_fields: 'state', lifecycle_state: state },
@@ -850,7 +979,11 @@ export class WorkflowService extends TaskService {
           p,
           'workflow.deleted',
           { id: w.id, type: 'workflow', publicId: w.public_id },
-          [change.plain('state', 'archived', 'deleted')],
+          [
+            ...configChanges('workflow', 'workflow.delete', scope.kind, workflowSnapshot(w), null),
+            change.plain('workflow.deleted_statuses', null, statuses.length),
+            change.plain('workflow.deleted_transitions', null, trs.length),
+          ],
           scope.brandId,
         );
         return {
@@ -887,7 +1020,7 @@ export class WorkflowService extends TaskService {
       body,
       req,
       'workflow.add_status',
-      async (tx, _p, { w, b }) => {
+      async (tx, _p, { w, b, track }) => {
         const s = this.parseStatusInput(b.status, '/status', true);
         const count = await tx.db
           .selectFrom('workflow.workflow_status')
@@ -911,11 +1044,13 @@ export class WorkflowService extends TaskService {
           (q) => q.where('workflow_id', '=', w.id),
           'last',
         );
+        const sid = newUuidV7();
+        await track('status', sid);
         try {
           await tx.db
             .insertInto('workflow.workflow_status')
             .values({
-              id: newUuidV7(),
+              id: sid,
               public_id: newPublicId('sts'),
               workspace_id: tx.workspaceId,
               workflow_id: w.id,
@@ -932,7 +1067,6 @@ export class WorkflowService extends TaskService {
           throw nameTaken(e, '/status/name');
         }
         return {
-          audit: [change.plain('status_added', null, s.category!)],
           event: {
             type: 'workflow.status.created',
             data: { workflow_id: w.id, category: s.category! },
@@ -957,8 +1091,9 @@ export class WorkflowService extends TaskService {
       body,
       req,
       'workflow.update_status',
-      async (tx, _p, { w, b }) => {
+      async (tx, _p, { w, b, track }) => {
         const st = await this.statusRow(tx, w.id, stsId);
+        await track('status', st.id);
         const s = this.parseStatusInput(b.status, '/status', false);
         const set: Record<string, unknown> = { updated_at: new Date(), version: sql`version + 1` };
         if (s.name !== undefined)
@@ -976,15 +1111,6 @@ export class WorkflowService extends TaskService {
           throw nameTaken(e, '/status/name');
         }
         return {
-          audit: Object.keys(s).map((k) =>
-            change.plain(
-              `status_${k}`,
-              null,
-              k === 'name' || k === 'description'
-                ? true
-                : ((s as Record<string, unknown>)[k] as never),
-            ),
-          ),
           event: {
             type: 'workflow.status.updated',
             data: {
@@ -1013,8 +1139,9 @@ export class WorkflowService extends TaskService {
       body,
       req,
       'workflow.move_status',
-      async (tx, _p, { w, b }) => {
+      async (tx, _p, { w, b, track }) => {
         const st = await this.statusRow(tx, w.id, stsId);
+        await track('status', st.id);
         const after =
           b.after === null
             ? null
@@ -1033,7 +1160,6 @@ export class WorkflowService extends TaskService {
           .where('id', '=', st.id)
           .execute();
         return {
-          audit: [change.plain('status_moved', null, true)],
           event: {
             type: 'workflow.status.updated',
             data: { workflow_id: w.id, changed_fields: 'rank', lifecycle_state: st.state },
@@ -1060,8 +1186,9 @@ export class WorkflowService extends TaskService {
       body,
       req,
       state === 'archived' ? 'workflow.archive_status' : 'workflow.unarchive_status',
-      async (tx, _p, { w }) => {
+      async (tx, _p, { w, track }) => {
         const st = await this.statusRow(tx, w.id, stsId);
+        await track('status', st.id);
         if (state === 'archived') {
           const left = await tx.db
             .selectFrom('workflow.workflow_status')
@@ -1088,7 +1215,17 @@ export class WorkflowService extends TaskService {
         } catch (e) {
           throw nameTaken(e, '/');
         }
-        if (state === 'archived')
+        if (state === 'archived') {
+          const edges = await tx.db
+            .selectFrom('workflow.transition')
+            .select('id')
+            .where('workflow_id', '=', w.id)
+            .where((eb) =>
+              eb.or([eb('from_status_id', '=', st.id), eb('to_status_id', '=', st.id)]),
+            )
+            .where('state', '=', 'active')
+            .execute();
+          for (const e of edges) await track('transition', e.id);
           await tx.db
             .updateTable('workflow.transition')
             .set({ state: 'archived', updated_at: new Date(), version: sql`version + 1` })
@@ -1098,8 +1235,8 @@ export class WorkflowService extends TaskService {
             )
             .where('state', '=', 'active')
             .execute();
+        }
         return {
-          audit: [change.plain('status_state', st.state, state)],
           event: {
             type: 'workflow.status.updated',
             data: { workflow_id: w.id, changed_fields: 'state', lifecycle_state: state },
@@ -1125,8 +1262,9 @@ export class WorkflowService extends TaskService {
       body,
       req,
       'workflow.delete_status',
-      async (tx, _p, { w }) => {
+      async (tx, _p, { w, track }) => {
         const st = await this.statusRow(tx, w.id, stsId);
+        await track('status', st.id);
         const used = await this.statusesInUse(tx, [st.id]);
         const edges = await tx.db
           .selectFrom('workflow.transition')
@@ -1151,6 +1289,7 @@ export class WorkflowService extends TaskService {
               issue('/', 'in_use', 'Records use this status. Archive it, or migrate them first.'),
             ],
           });
+        for (const e of edges) await track('transition', e.id);
         if (edges.length)
           await tx.db
             .deleteFrom('workflow.transition')
@@ -1162,7 +1301,6 @@ export class WorkflowService extends TaskService {
             .execute();
         await tx.db.deleteFrom('workflow.workflow_status').where('id', '=', st.id).execute();
         return {
-          audit: [change.plain('status_deleted', null, st.category)],
           event: {
             type: 'workflow.status.updated',
             data: { workflow_id: w.id, changed_fields: 'deleted', lifecycle_state: 'deleted' },
@@ -1232,7 +1370,12 @@ export class WorkflowService extends TaskService {
           p,
           'workflow.status_migrated',
           { id: w.id, type: 'workflow', publicId: w.public_id },
-          [change.plain('records_migrated', null, ids.length)],
+          [
+            change.plain('status.operation', null, 'workflow.migrate_status'),
+            change.plain('status.migrated_from', null, from.public_id),
+            change.plain('status.migrated_to', null, target.public_id),
+            change.plain('status.records_migrated', null, ids.length),
+          ],
           scope.brandId,
         );
         return {
@@ -1474,7 +1617,7 @@ export class WorkflowService extends TaskService {
       body,
       req,
       'workflow.add_transition',
-      async (tx, _p, { w, b }) => {
+      async (tx, _p, { w, b, track }) => {
         const t = await this.parseTransitionInput(tx, w, b.transition, true);
         this.checkApprovalShape(t.approval!, t.approvers!.length);
         const n = await tx.db
@@ -1501,6 +1644,7 @@ export class WorkflowService extends TaskService {
         if (st.some((s) => s.state !== 'active'))
           throw invalid(issue('/transition', 'archived_status', 'Both statuses must be active.'));
         const id = newUuidV7();
+        await track('transition', id);
         const rank = await this.nextRank(
           tx,
           'workflow.transition',
@@ -1533,10 +1677,6 @@ export class WorkflowService extends TaskService {
         }
         await this.writeTransitionChildren(tx, id, t);
         return {
-          audit: [
-            change.plain('transition_added', null, t.approval!),
-            change.plain('required_fields', null, t.requirements!.length),
-          ],
           event: {
             type: 'workflow.transition.created',
             data: { workflow_id: w.id, approval_policy: t.approval! },
@@ -1561,8 +1701,9 @@ export class WorkflowService extends TaskService {
       body,
       req,
       'workflow.update_transition',
-      async (tx, _p, { w, b }) => {
+      async (tx, _p, { w, b, track }) => {
         const tr = await this.transitionRow(tx, w.id, trnId);
+        await track('transition', tr.id);
         const t = await this.parseTransitionInput(tx, w, b.transition, false);
         const policy = t.approval ?? tr.approval_policy;
         const approvers =
@@ -1584,9 +1725,6 @@ export class WorkflowService extends TaskService {
         await tx.db.updateTable('workflow.transition').set(set).where('id', '=', tr.id).execute();
         await this.writeTransitionChildren(tx, tr.id, t);
         return {
-          audit: Object.keys(t).map((k) =>
-            change.plain(`transition.${TRANSITION_AUDIT_NAME[k] ?? k}`, null, true),
-          ),
           event: {
             type: 'workflow.transition.updated',
             data: {
@@ -1628,8 +1766,9 @@ export class WorkflowService extends TaskService {
       body,
       req,
       state === 'archived' ? 'workflow.archive_transition' : 'workflow.unarchive_transition',
-      async (tx, _p, { w }) => {
+      async (tx, _p, { w, track }) => {
         const tr = await this.transitionRow(tx, w.id, trnId);
+        await track('transition', tr.id);
         if (state === 'active') {
           const st = await tx.db
             .selectFrom('workflow.workflow_status')
@@ -1657,7 +1796,6 @@ export class WorkflowService extends TaskService {
           throw e;
         }
         return {
-          audit: [change.plain('transition_state', tr.state, state)],
           event: {
             type: 'workflow.transition.updated',
             data: { workflow_id: w.id, changed_fields: 'state', lifecycle_state: state },
@@ -1682,8 +1820,9 @@ export class WorkflowService extends TaskService {
       body,
       req,
       'workflow.move_transition',
-      async (tx, _p, { w, b }) => {
+      async (tx, _p, { w, b, track }) => {
         const tr = await this.transitionRow(tx, w.id, trnId);
+        await track('transition', tr.id);
         const after =
           b.after === null
             ? null
@@ -1702,7 +1841,6 @@ export class WorkflowService extends TaskService {
           .where('id', '=', tr.id)
           .execute();
         return {
-          audit: [change.plain('transition_moved', null, true)],
           event: {
             type: 'workflow.transition.updated',
             data: { workflow_id: w.id, changed_fields: 'rank', lifecycle_state: tr.state },
@@ -1728,8 +1866,9 @@ export class WorkflowService extends TaskService {
       body,
       req,
       'workflow.delete_transition',
-      async (tx, _p, { w }) => {
+      async (tx, _p, { w, track }) => {
         const tr = await this.transitionRow(tx, w.id, trnId);
+        await track('transition', tr.id);
         const used = await tx.db
           .selectFrom('workflow.approval_request')
           .select('id')
@@ -1744,7 +1883,6 @@ export class WorkflowService extends TaskService {
           });
         await tx.db.deleteFrom('workflow.transition').where('id', '=', tr.id).execute();
         return {
-          audit: [change.plain('transition_deleted', null, true)],
           event: {
             type: 'workflow.transition.updated',
             data: { workflow_id: w.id, changed_fields: 'deleted', lifecycle_state: 'deleted' },
@@ -1917,6 +2055,23 @@ export class WorkflowService extends TaskService {
    */
   protected override async gateStatusChange(tx: WorkspaceTransaction, p: Principal, g: StatusGate) {
     const started = performance.now();
+    // Lock order (ADR-0015): the record row (taken by the command), then the applicable workflow
+    // row FOR SHARE. Configuration commands hold it FOR UPDATE, so a configuration change and a
+    // status change serialize; a workflow that moved since it was resolved is a stale change.
+    if (g.wf) {
+      const cur = await tx.db
+        .selectFrom('workflow.workflow')
+        .select(['version', 'state'])
+        .where('id', '=', g.wf.id)
+        .forShare()
+        .executeTakeFirst();
+      if (!cur || Number(cur.version) !== g.wf.version || cur.state !== 'active') {
+        this.d.metrics.count('workflow.transitions', 1, { outcome: 'stale' });
+        throw new TenancyError('conflict', {
+          issues: [issue('/status', 'stale', 'The workflow changed. Review the change again.')],
+        });
+      }
+    }
     const presence = await this.presenceFor(tx, p, g);
     const e = this.evaluate(tx, p, g, presence);
     const done = (outcome: string) => {

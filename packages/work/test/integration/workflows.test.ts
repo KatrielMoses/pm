@@ -566,4 +566,93 @@ describe('workflows (2C)', () => {
       closed,
     );
   });
+
+  it('configuration audit: safe before/after facts in the ledger, hashed content, no free text (W9)', async () => {
+    const wf = await workflow({
+      scope: 'workspace',
+      record_kind: 'project',
+      name: 'Audit flow Secret',
+      statuses: statuses([
+        ['Idea', 'planned'],
+        ['Live', 'active'],
+        ['Shipped', 'done'],
+      ]),
+    });
+    const [idea, live] = ['Idea', 'Live'].map((n) => keyOf(wf, n)) as [string, string];
+    let w = (
+      await env.svc.updateStatus(
+        owner,
+        ws,
+        wf.id,
+        idea,
+        { status: { name: 'Proposal Private Words', color: '#112233' } },
+        v(wf.version),
+      )
+    ).data;
+    w = (
+      await env.svc.addTransition(
+        owner,
+        ws,
+        wf.id,
+        {
+          transition: {
+            from: idea,
+            to: live,
+            description: 'Only after legal review by Grace',
+            requirements: [{ builtin: 'owner' }],
+          },
+        },
+        v(w.version),
+      )
+    ).data;
+    const trn = w.transitions[0]!.id;
+    const mgr = (await membershipOf(db, wsId, manager.auth.account.id))!;
+    await env.svc.updateTransition(
+      owner,
+      ws,
+      wf.id,
+      trn,
+      {
+        transition: {
+          approval_policy: 'all_named_approvers',
+          approvers: [mgr.public_id],
+          confirmation: 'confirm',
+        },
+      },
+      v(w.version),
+    );
+    const rows = (
+      await db.admin(
+        `SELECT action, changes FROM audit.audit_event WHERE workspace_id = $1 AND target_public_id = $2 ORDER BY occurred_at, id`,
+        [wsId, wf.id],
+      )
+    ).rows as Array<{
+      action: string;
+      changes: Array<{ field: string; class: string; old?: unknown; new?: unknown }>;
+    }>;
+    const by = (action: string) =>
+      Object.fromEntries(rows.find((r) => r.action === action)!.changes.map((c) => [c.field, c]));
+    const created = by('workflow.created');
+    expect(created['workflow.operation']).toMatchObject({ new: 'workflow.create' });
+    expect(created['workflow.name_hash']!.new).toMatch(/^sha256:/);
+    const st = by('workflow.update_status');
+    expect(st['status.o1.id']).toMatchObject({ old: idea, new: idea });
+    expect(st['status.o1.changed']).toMatchObject({ new: ['color', 'name_hash'] });
+    expect(st['status.o1.color']).toMatchObject({ old: '#6b7280', new: '#112233' });
+    expect(st['status.o1.category']).toBeUndefined();
+    const added = by('workflow.add_transition');
+    expect(added['transition.o1.from']).toMatchObject({ old: null, new: idea });
+    expect(added['transition.o1.required_fields']).toMatchObject({ new: ['builtin:owner'] });
+    const upd = by('workflow.update_transition');
+    expect(upd['transition.o1.confirmation']).toMatchObject({ old: 'none', new: 'confirm' });
+    expect(upd['transition.o1.approval_policy']).toMatchObject({
+      old: 'none',
+      new: 'all_named_approvers',
+    });
+    expect(upd['transition.o1.approver_count']).toMatchObject({ old: 0, new: 1 });
+    expect(upd['workflow.version']).toBeDefined();
+    const all = JSON.stringify(rows);
+    for (const leak of ['Secret', 'Private Words', 'Grace', 'legal review', mgr.public_id])
+      expect(all).not.toContain(leak);
+  });
 });

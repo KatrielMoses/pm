@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import {
+  configChanges,
+  isHashedSetting,
+  transitionSnapshot,
+} from '../../src/workflow/config-audit.ts';
+import {
   FieldValidation,
   normalizeValue,
   parseFieldConfig,
@@ -228,5 +233,93 @@ describe('canonical serialization (WFL-014)', () => {
     const unknownType = { ...doc, definitions: [{ ...doc.definitions[0], type: 'hologram' }] };
     const parsed = parseFieldDocument(unknownType, limits);
     expect(parsed.definitions[0]).toEqual({ opaque: unknownType.definitions[0] });
+  });
+});
+
+describe('configuration audit facts (ADR-0015 W9)', () => {
+  const base = {
+    public_id: 'trn_00000000000000000000000001',
+    from: 'sts_00000000000000000000000001',
+    to: 'sts_00000000000000000000000002',
+    description: 'Ship only after QA signs off with Ada',
+    confirmation_tier: 'none',
+    approval_policy: 'none',
+    allow_self_approval: false,
+    state: 'active',
+    version: 1,
+    requirements: [{ ref: 'builtin:due_date', override: false }],
+    approvers: [] as string[],
+  };
+
+  it('records scalar before/after for settings and hashes for content and approver identities', () => {
+    const before = transitionSnapshot(base);
+    const after = transitionSnapshot({
+      ...base,
+      approval_policy: 'all_named_approvers',
+      approvers: ['mem_00000000000000000000000009'],
+      description: 'Changed wording',
+      requirements: [
+        { ref: 'fld_00000000000000000000000004', override: true },
+        { ref: 'builtin:due_date', override: false },
+      ],
+      version: 2,
+    });
+    const changes = configChanges(
+      'transition',
+      'workflow.update_transition',
+      'brand',
+      before,
+      after,
+    );
+    const byField = Object.fromEntries(changes.map((c) => [c.field, c]));
+    expect(byField['transition.operation']).toMatchObject({
+      class: 'plain',
+      new: 'workflow.update_transition',
+    });
+    expect(byField['transition.id']).toMatchObject({ old: base.public_id, new: base.public_id });
+    expect(byField['transition.changed']).toMatchObject({
+      new: [
+        'approval_policy',
+        'approver_count',
+        'approvers_hash',
+        'description_hash',
+        'required_fields',
+      ],
+    });
+    expect(byField['transition.approval_policy']).toMatchObject({
+      old: 'none',
+      new: 'all_named_approvers',
+    });
+    expect(byField['transition.required_fields']).toMatchObject({
+      old: ['builtin:due_date'],
+      new: ['builtin:due_date', 'fld_00000000000000000000000004:override'],
+    });
+    expect(byField['transition.description_hash']!.new).toMatch(/^sha256:[0-9a-f]{64}$/);
+    expect(byField['transition.approvers_hash']!.new).toMatch(/^sha256:[0-9a-f]{64}$/);
+    // No free text, personal identifier, or unchanged setting is in the entry.
+    const text = JSON.stringify(changes);
+    for (const leak of ['Ada', 'QA signs off', 'Changed wording', 'mem_00000000000000000000000009'])
+      expect(text).not.toContain(leak);
+    expect(byField['transition.confirmation']).toBeUndefined();
+    for (const c of changes)
+      if (isHashedSetting(c.field)) expect(String((c as { new: unknown }).new)).toMatch(/^sha256:/);
+  });
+
+  it('is deterministic, covers creation and deletion, and stays within the ledger bounds', () => {
+    const a = configChanges('transition', 'op', 'workspace', null, transitionSnapshot(base));
+    const b = configChanges(
+      'transition',
+      'op',
+      'workspace',
+      null,
+      transitionSnapshot({ ...base, requirements: [...base.requirements] }),
+    );
+    expect(JSON.stringify(a)).toBe(JSON.stringify(b));
+    const gone = configChanges('transition', 'op', 'workspace', transitionSnapshot(base), null);
+    expect(gone.find((c) => c.field === 'transition.state')).toMatchObject({
+      old: 'active',
+      new: null,
+    });
+    expect(a.length).toBeLessThan(20);
   });
 });
