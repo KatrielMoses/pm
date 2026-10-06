@@ -108,6 +108,26 @@ export interface WorkSettings {
   duplicateWindowDays: number;
   /** `DUPLICATE_CANDIDATES_MAX` */
   duplicateCandidatesMax: number;
+  /** `CAPTURE_TEXT_MAX` */
+  captureTextMax: number;
+  /** `CAPTURE_PASTE_LINES_MAX` */
+  capturePasteLinesMax: number;
+  /** `CAPTURE_LINKS_MAX` */
+  captureLinksMax: number;
+  /** `CAPTURE_FILES_MAX` */
+  captureFilesMax: number;
+  /** `CAPTURE_PARSE_TOKENS_MAX` */
+  captureParseTokensMax: number;
+  /** `CAPTURE_RATE_PER_MINUTE` */
+  captureRatePerMinute: number;
+  /** `TRIAGE_BATCH_MAX` */
+  triageBatchMax: number;
+  /** `INBOX_MERGE_MAX` */
+  inboxMergeMax: number;
+  /** `INTAKE_FORMS_MAX` */
+  intakeFormsMax: number;
+  /** `INTAKE_SUBMISSIONS_PER_HOUR` */
+  intakeSubmissionsPerHour: number;
 }
 
 export const DEFAULT_WORK_SETTINGS: WorkSettings = Object.freeze({
@@ -154,6 +174,16 @@ export const DEFAULT_WORK_SETTINGS: WorkSettings = Object.freeze({
   undoWindowSeconds: 30,
   duplicateWindowDays: 90,
   duplicateCandidatesMax: 5,
+  captureTextMax: 10_000,
+  capturePasteLinesMax: 100,
+  captureLinksMax: 10,
+  captureFilesMax: 10,
+  captureParseTokensMax: 64,
+  captureRatePerMinute: 60,
+  triageBatchMax: 50,
+  inboxMergeMax: 20,
+  intakeFormsMax: 50,
+  intakeSubmissionsPerHour: 20,
 });
 
 /** The database invariant behind `TASK_DEPTH_MAX` (migration 0023). */

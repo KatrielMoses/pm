@@ -51,7 +51,7 @@ CREATE TABLE capture.inbox_item (
   CONSTRAINT inbox_item_source_known CHECK (source_kind IN
     ('typed', 'paste', 'form', 'voice', 'email', 'api', 'webhook')),
   CONSTRAINT inbox_item_source_ref CHECK (source_ref IS NULL OR source_ref ~ '^[a-z]{2,5}_[0-9A-HJKMNP-TV-Z]{26}$'
-    OR source_ref ~ '^batch:[0-9a-f-]{36}$'),
+    OR source_ref ~ '^batch:[0-9A-HJKMNP-TV-Z]{26}$'),
   CONSTRAINT inbox_item_parse_version CHECK (parse_version >= 1),
   CONSTRAINT inbox_item_parsed CHECK (jsonb_typeof(parsed) = 'object' AND pg_column_size(parsed) <= 65536),
   CONSTRAINT inbox_item_triage_known CHECK (triage_state IN ('untriaged', 'converted', 'merged', 'discarded')),
@@ -180,4 +180,5 @@ GRANT SELECT, INSERT ON capture.capture_conversion TO app_rw;
 -- The worker purges personal records (lifecycle and departure) and detaches project intake sources.
 GRANT SELECT, DELETE ON capture.inbox_item, capture.note, capture.capture_conversion TO app_worker;
 GRANT UPDATE (intake_source_id) ON work.project TO app_worker;
+GRANT UPDATE (source_inbox_item_id) ON capture.note TO app_worker;
 REVOKE ALL ON FUNCTION capture.inbox_item_guard() FROM PUBLIC;

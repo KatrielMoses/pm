@@ -24,6 +24,10 @@ export const DEFAULT_POLICIES = {
   'invitation.accept': { limit: 30, windowMs: 60 * 60_000 },
   // Invitations sent per inviting membership (resends included).
   'invitation.send': { limit: 100, windowMs: 60 * 60_000 },
+  // 2E: capture commands per membership (CAPTURE_RATE_PER_MINUTE) and intake submissions per
+  // membership and form (INTAKE_SUBMISSIONS_PER_HOUR); the work settings override both.
+  'capture.member': { limit: 60, windowMs: 60_000 },
+  'intake.submit': { limit: 20, windowMs: 60 * 60_000 },
 } as const satisfies Record<string, { limit: number; windowMs: number }>;
 export type RateLimitPolicy = keyof typeof DEFAULT_POLICIES;
 

@@ -2069,55 +2069,11 @@ export class TaskInteractionService extends FieldService {
         const t = await this.loadTask(tx, p, tsk, { lock: true });
         this.requireTaskAction(p, 'task.manage_recurrence', t, { shares: false });
         this.requireTaskActive(t);
-        const project = t.row.project_id
-          ? await this.loadProject(tx, p, (await this.publicOf(tx, t.row.project_id))!)
-          : null;
-        this.requireCreateIn(p, { brand: t.brand, project, chain: t.chain });
-        // The snapshot is frozen once here and never updated (database guard).
-        const { pkg } = await serializeTask(
-          tx,
-          p,
-          { id: t.id, brandId: t.brand.id, projectId: t.row.project_id, level: t.level },
-          this.ws.templateItemsMax,
-        );
-        const first = occurrences(rule, input.start, null, 1)[0];
-        if (!first)
-          throw invalid(
-            issue('/ends', 'ends_before_first', 'This schedule ends before its first occurrence.'),
-          );
-        const id = newUuidV7();
-        const publicId = newPublicId('rcs');
-        await tx.db
-          .insertInto('planning.recurrence_series')
-          .values({
-            id,
-            public_id: publicId,
-            workspace_id: tx.workspaceId,
-            brand_id: t.brand.id,
-            target_kind: 'task',
-            source_record_id: t.id,
-            project_id: t.row.project_id,
-            rrule: input.rrule,
-            anchor_tz: input.anchor_tz,
-            dtstart_local: input.start,
-            template_payload: JSON.stringify(pkg),
-            payload_item_count: taskPackageItems(pkg),
-            next_due_at: localToUtc(first, input.anchor_tz),
-            owner_membership_id: p.membershipId,
-          })
-          .execute();
-        await this.taskAudit(tx, caller, p, 'recurrence.defined', t, [
-          change.plain('series', null, publicId),
-          change.plain('rrule', null, input.rrule),
-          change.plain('anchor_tz', null, input.anchor_tz),
-        ]);
-        await writeOutboxEvent(tx, {
-          type: 'planning.recurrence_series.defined',
-          aggregate: { type: 'planning.recurrence_series', id, sequence: 0 },
-          data: { target_kind: 'task' },
-          actor: { type: 'human', id: p.membershipId },
-          context: this.exec(caller, p),
-          brandId: t.brand.id,
+        const { id, publicId } = await this.createTaskSeries(tx, caller, p, t, {
+          rrule: input.rrule,
+          rule,
+          anchor_tz: input.anchor_tz,
+          start: input.start,
         });
         return {
           status: 201,
@@ -2127,6 +2083,71 @@ export class TaskInteractionService extends FieldService {
       },
       async (tx, _p, ref) => seriesView(await this.seriesRowByPublic(tx, ref.id)),
     );
+  }
+
+  /**
+   * Freezes a task's snapshot into a new task series owned by `p` (the caller has checked
+   * task.manage_recurrence). Shared by Repeat and by capture triage of a parsed recurrence (2E).
+   */
+  protected async createTaskSeries(
+    tx: WorkspaceTransaction,
+    caller: Caller,
+    p: Principal,
+    t: LoadedTask,
+    input: { rrule: string; rule: ReturnType<typeof parseRule>; anchor_tz: string; start: string },
+  ): Promise<{ id: string; publicId: string }> {
+    const rule = input.rule;
+    const project = t.row.project_id
+      ? await this.loadProject(tx, p, (await this.publicOf(tx, t.row.project_id))!)
+      : null;
+    this.requireCreateIn(p, { brand: t.brand, project, chain: t.chain });
+    // The snapshot is frozen once here and never updated (database guard).
+    const { pkg } = await serializeTask(
+      tx,
+      p,
+      { id: t.id, brandId: t.brand.id, projectId: t.row.project_id, level: t.level },
+      this.ws.templateItemsMax,
+    );
+    const first = occurrences(rule, input.start, null, 1)[0];
+    if (!first)
+      throw invalid(
+        issue('/ends', 'ends_before_first', 'This schedule ends before its first occurrence.'),
+      );
+    const id = newUuidV7();
+    const publicId = newPublicId('rcs');
+    await tx.db
+      .insertInto('planning.recurrence_series')
+      .values({
+        id,
+        public_id: publicId,
+        workspace_id: tx.workspaceId,
+        brand_id: t.brand.id,
+        target_kind: 'task',
+        source_record_id: t.id,
+        project_id: t.row.project_id,
+        rrule: input.rrule,
+        anchor_tz: input.anchor_tz,
+        dtstart_local: input.start,
+        template_payload: JSON.stringify(pkg),
+        payload_item_count: taskPackageItems(pkg),
+        next_due_at: localToUtc(first, input.anchor_tz),
+        owner_membership_id: p.membershipId,
+      })
+      .execute();
+    await this.taskAudit(tx, caller, p, 'recurrence.defined', t, [
+      change.plain('series', null, publicId),
+      change.plain('rrule', null, input.rrule),
+      change.plain('anchor_tz', null, input.anchor_tz),
+    ]);
+    await writeOutboxEvent(tx, {
+      type: 'planning.recurrence_series.defined',
+      aggregate: { type: 'planning.recurrence_series', id, sequence: 0 },
+      data: { target_kind: 'task' },
+      actor: { type: 'human', id: p.membershipId },
+      context: this.exec(caller, p),
+      brandId: t.brand.id,
+    });
+    return { id, publicId };
   }
 
   protected seriesRow(tx: WorkspaceTransaction, id: string) {

@@ -115,6 +115,16 @@ worker process is a startup error. All identities of one process must target the
 | `UNDO_WINDOW_SECONDS` | optional | optional | default 30 (5–300); how long a reversible task change can be undone (0D `UNDO_WINDOW_SECONDS`) |
 | `DUPLICATE_WINDOW_DAYS` | optional | optional | default 90 (1–365); how far back deterministic duplicate matching looks (0D `DUPLICATE_WINDOW_DAYS`) |
 | `DUPLICATE_CANDIDATES_MAX` | optional | optional | default 5 (1–20); most duplicate candidates returned (0D `DUPLICATE_CANDIDATES_MAX`) |
+| `CAPTURE_TEXT_MAX` | optional | optional | default 10000 (100–50000); most characters in one capture or note body (0D `CAPTURE_TEXT_MAX`) |
+| `CAPTURE_PASTE_LINES_MAX` | optional | optional | default 100 (1–500); most candidate items one paste may create (0D `CAPTURE_PASTE_LINES_MAX`) |
+| `CAPTURE_LINKS_MAX` | optional | optional | default 10 (0–50); most links attached to one capture (0D `CAPTURE_LINKS_MAX`) |
+| `CAPTURE_FILES_MAX` | optional | optional | default 10 (0–50); most file references attached to one capture (refused until 4E storage) (0D `CAPTURE_FILES_MAX`) |
+| `CAPTURE_PARSE_TOKENS_MAX` | optional | optional | default 64 (8–256); most tokens the deterministic parser examines per line (0D `CAPTURE_PARSE_TOKENS_MAX`) |
+| `CAPTURE_RATE_PER_MINUTE` | optional | optional | default 60 (1–600); most capture commands one person may run per minute (0D `CAPTURE_RATE_PER_MINUTE`) |
+| `TRIAGE_BATCH_MAX` | optional | optional | default 50 (1–200); most Inbox items one triage command may change (0D `TRIAGE_BATCH_MAX`) |
+| `INBOX_MERGE_MAX` | optional | optional | default 20 (2–100); most Inbox items one merge may combine (0D `INBOX_MERGE_MAX`) |
+| `INTAKE_FORMS_MAX` | optional | optional | default 50 (1–500); most intake forms per brand (0D `INTAKE_FORMS_MAX`) |
+| `INTAKE_SUBMISSIONS_PER_HOUR` | optional | optional | default 20 (1–1000); most submissions one person may make to one form per hour (0D `INTAKE_SUBMISSIONS_PER_HOUR`) |
 | `VIEW_STATE_TTL_MS` | optional | optional | default 90 days; stored view state not written for this long is removed (0D `VIEW_STATE_TTL`) |
 
 Values are configuration, not customer promises (PQ-05). The 0D parameter values above are

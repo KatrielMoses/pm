@@ -16,6 +16,8 @@ export * from './field-service.ts';
 export * from './task-package.ts';
 export * from './task-recurrence.ts';
 export * from './task-interaction.ts';
+export * from './capture-service.ts';
+export * from './capture/parser.ts';
 export {
   PROJECT_STATUS_ID,
   resolveWorkflow,

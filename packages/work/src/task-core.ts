@@ -986,7 +986,13 @@ export class TaskCoreService extends WorkService {
     p: Principal,
     c: Awaited<ReturnType<TaskCoreService['resolveContainer']>>,
     fields: Record<string, unknown>,
-    opts: { after?: string | 'last'; source?: 'ui' | 'template'; lenientStatus?: boolean } = {},
+    opts: {
+      after?: string | 'last';
+      source?: 'ui' | 'template' | 'paste' | 'form';
+      lenientStatus?: boolean;
+      /** 2E: origin for tasks made from captured input (default manual). */
+      origin?: { kind: 'intake'; ref: Record<string, string> };
+    } = {},
   ): Promise<{ id: string; publicId: string }> {
     const depth = c.parent ? c.parent.row.depth + 1 : 0;
     if (depth > this.ws.taskDepthMax)
@@ -1046,6 +1052,9 @@ export class TaskCoreService extends WorkService {
         created_by_membership_id: p.membershipId,
         ...(this.taskColumns(merged) as { title: string }),
         status_id: initial.id,
+        ...(opts.origin
+          ? { origin_kind: opts.origin.kind, origin_ref: JSON.stringify(opts.origin.ref) }
+          : {}),
       })
       .execute();
     const { deadline: dl, ...rest } = merged;

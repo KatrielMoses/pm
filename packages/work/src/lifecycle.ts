@@ -298,6 +298,97 @@ export const templateAdapter: RecordTypeAdapter = {
   },
 };
 
+/** Brand-scoped capture rows purge with their brand; brandless ones only with the workspace. */
+const brandRoots =
+  (table: 'capture.inbox_item' | 'capture.note' | 'capture.intake_form', recordType: string) =>
+  async (tx: WorkspaceTransaction, brandIds: readonly string[]) => {
+    if (!brandIds.length) return [];
+    const rows = await tx.db
+      .selectFrom(table)
+      .select('id')
+      .where('brand_id', 'in', [...brandIds])
+      .where('lifecycle_state', '<>', 'purged')
+      .orderBy('id')
+      .execute();
+    return rows.map((r) => ({ id: r.id, recordType }));
+  };
+
+/** Detaches records that name a purged capture record as their source (never cascades). */
+async function detachCaptureSources(tx: WorkspaceTransaction, ids: string[]) {
+  await sql`UPDATE work.project SET intake_source_id = NULL WHERE intake_source_id = ANY(${ids}::uuid[])`.execute(
+    tx.db,
+  );
+  await tx.db
+    .deleteFrom('capture.capture_conversion')
+    .where('source_record_id', 'in', ids)
+    .execute();
+  await tx.db.deleteFrom('relations.record_link').where('source_record_id', 'in', ids).execute();
+}
+
+/** Personal Inbox items (2E, OD-03); merged items are removed before the item they merged into. */
+export const inboxItemAdapter: RecordTypeAdapter = {
+  recordType: 'inbox_item',
+  children: () => Promise.resolve([]),
+  rootsInBrand: brandRoots('capture.inbox_item', 'inbox_item'),
+  containerOf: () => Promise.resolve(null),
+  purge: {
+    async deleteContent(tx, recordIds) {
+      const ids = [...recordIds];
+      await detachCaptureSources(tx, ids);
+      await sql`UPDATE capture.note SET source_inbox_item_id = NULL WHERE source_inbox_item_id = ANY(${ids}::uuid[])`.execute(
+        tx.db,
+      );
+      await tx.db
+        .deleteFrom('capture.intake_submission')
+        .where('inbox_item_id', 'in', ids)
+        .execute();
+      await tx.db
+        .deleteFrom('capture.inbox_item')
+        .where('id', 'in', ids)
+        .where('merged_into_id', 'is not', null)
+        .execute();
+      await tx.db.deleteFrom('capture.inbox_item').where('id', 'in', ids).execute();
+    },
+  },
+};
+
+/** Personal notes (2E). */
+export const noteAdapter: RecordTypeAdapter = {
+  recordType: 'note',
+  children: () => Promise.resolve([]),
+  rootsInBrand: brandRoots('capture.note', 'note'),
+  containerOf: () => Promise.resolve(null),
+  purge: {
+    async deleteContent(tx, recordIds) {
+      const ids = [...recordIds];
+      await detachCaptureSources(tx, ids);
+      await tx.db.deleteFrom('capture.note').where('id', 'in', ids).execute();
+    },
+  },
+};
+
+/** Brand intake forms (2E); submissions are receipts and go with the form. */
+export const intakeFormAdapter: RecordTypeAdapter = {
+  recordType: 'intake_form',
+  children: () => Promise.resolve([]),
+  rootsInBrand: brandRoots('capture.intake_form', 'intake_form'),
+  async containerOf(tx, recordId) {
+    const r = await tx.db
+      .selectFrom('capture.intake_form')
+      .select('brand_id')
+      .where('id', '=', recordId)
+      .executeTakeFirst();
+    return r ? { id: r.brand_id, recordType: 'brand' } : null;
+  },
+  purge: {
+    async deleteContent(tx, recordIds) {
+      const ids = [...recordIds];
+      await tx.db.deleteFrom('capture.intake_submission').where('form_id', 'in', ids).execute();
+      await tx.db.deleteFrom('capture.intake_form').where('id', 'in', ids).execute();
+    },
+  },
+};
+
 /** Registers the work record types (API and worker use the same registration). */
 export function registerWorkLifecycle(registry: LifecycleRegistry): LifecycleRegistry {
   for (const a of [
@@ -307,6 +398,9 @@ export function registerWorkLifecycle(registry: LifecycleRegistry): LifecycleReg
     decisionAdapter,
     taskAdapter,
     templateAdapter,
+    inboxItemAdapter,
+    noteAdapter,
+    intakeFormAdapter,
   ])
     registry.register(withPersonalReferenceCleanup(a));
   return registry;
