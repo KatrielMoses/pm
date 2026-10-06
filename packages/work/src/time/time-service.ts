@@ -117,6 +117,7 @@ interface ViewRow extends EntryRow {
   person_name: string;
   closed: 'submitted' | 'locked' | null;
   visible: boolean;
+  loggable: boolean;
 }
 
 /** The FROM clause every entry read uses: the entry, its target record, and the task (if any). */
@@ -339,6 +340,22 @@ export class TimeService extends CaptureService {
       : sql<boolean>`${work}`;
   }
 
+  /**
+   * Where the viewer may log time now: the same compiled predicate at `comment` on active work
+   * (time.log_own's level; read-only roles are capped at view, guests need a comment share).
+   */
+  protected async loggablePredicate(
+    tx: WorkspaceTransaction,
+    p: Principal,
+  ): Promise<RawBuilder<boolean>> {
+    const vis = await compileVisibility(tx, p, {
+      need: 'comment',
+      includeArchived: false,
+      arrayMax: this.c.settings.principalContextArrayMax,
+    });
+    return vis.where('r', { project: sql`coalesce(tk.project_id, e.project_id)` });
+  }
+
   /** A readable project for grouping (a task's hidden project is never named or counted). */
   protected async projectPredicate(tx: WorkspaceTransaction, p: Principal, alias: string) {
     const vis = await compileVisibility(tx, p, {
@@ -353,7 +370,12 @@ export class TimeService extends CaptureService {
   protected async entryRows(
     tx: WorkspaceTransaction,
     where: RawBuilder<boolean>,
-    opts: { limit: number; order?: 'asc' | 'desc'; visible?: RawBuilder<boolean> },
+    opts: {
+      limit: number;
+      order?: 'asc' | 'desc';
+      visible?: RawBuilder<boolean>;
+      loggable?: RawBuilder<boolean>;
+    },
   ): Promise<ViewRow[]> {
     const dir = sql.raw(opts.order === 'asc' ? 'ASC' : 'DESC');
     const r = await sql<ViewRow>`
@@ -361,7 +383,8 @@ export class TimeService extends CaptureService {
         br.public_id AS brand_public_id, b.name AS brand_name,
         m.public_id AS person_public_id, coalesce(m.display_name_override, a.display_name) AS person_name,
         timetrack.day_closed(e.workspace_id, e.membership_id, e.brand_id, e.work_date) AS closed,
-        ${opts.visible ?? sql`true`} AS visible
+        ${opts.visible ?? sql`true`} AS visible,
+        ${opts.loggable ?? sql`false`} AS loggable
       FROM ${ENTRY_FROM}
       LEFT JOIN work.project pj ON pj.workspace_id = e.workspace_id AND pj.id = e.project_id
       JOIN tenancy.brand b ON b.workspace_id = e.workspace_id AND b.id = e.brand_id
@@ -433,7 +456,7 @@ export class TimeService extends CaptureService {
         segments: s,
         status: r.closed ?? 'open',
         own,
-        editable: own && r.visible && r.closed === null,
+        editable: own && r.visible && r.loggable && r.closed === null,
         version: Number(r.version),
         created_at: iso(r.created_at)!,
         updated_at: iso(r.updated_at)!,
@@ -455,7 +478,7 @@ export class TimeService extends CaptureService {
     const rows = await this.entryRows(
       tx,
       sql<boolean>`e.public_id = ${te} AND (${vis} OR (e.membership_id = ${p.membershipId}::uuid AND ${own}))`,
-      { limit: 1, visible: vis },
+      { limit: 1, visible: vis, loggable: await this.loggablePredicate(tx, p) },
     );
     if (!rows.length) throw new TenancyError('not_found');
     return (await this.views(tx, p, rows))[0]!;
@@ -1356,6 +1379,7 @@ export class TimeService extends CaptureService {
       const rows = await this.entryRows(tx, sql.join(parts, sql` AND `) as RawBuilder<boolean>, {
         limit: limit + 1,
         visible: vis,
+        loggable: await this.loggablePredicate(tx, p),
       });
       const page = rows.slice(0, limit);
       const last = page.at(-1);
@@ -1508,7 +1532,12 @@ export class TimeService extends CaptureService {
         tx,
         sql<boolean>`${vis} AND e.membership_id = ${p.membershipId}::uuid
           AND e.work_date BETWEEN ${period.start}::date AND ${period.end}::date`,
-        { limit: this.ws.timeTimesheetEntriesMax, order: 'asc', visible: vis },
+        {
+          limit: this.ws.timeTimesheetEntriesMax,
+          order: 'asc',
+          visible: vis,
+          loggable: await this.loggablePredicate(tx, p),
+        },
       );
       const entries = await this.views(tx, p, entryRows);
       const days = Array.from({ length: 7 }, (_, i) => addDays(period.start, i)).map((d) => ({
@@ -1700,7 +1729,12 @@ export class TimeService extends CaptureService {
       sql<boolean>`${vis} AND e.membership_id = ${row.membership_id}::uuid
         AND e.work_date BETWEEN ${row.period_start}::date AND ${row.period_end}::date
         ${brandIds ? sql`AND e.brand_id = ANY(${brandIds}::uuid[])` : sql``}`,
-      { limit: this.ws.timeTimesheetEntriesMax, order: 'asc', visible: vis },
+      {
+        limit: this.ws.timeTimesheetEntriesMax,
+        order: 'asc',
+        visible: vis,
+        loggable: await this.loggablePredicate(tx, p),
+      },
     );
     const selfOk = owner ? await this.selfApprovalAllowed(tx, p) : false;
     return {

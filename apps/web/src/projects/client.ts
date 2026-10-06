@@ -42,6 +42,8 @@ export interface ProjectCapabilities {
   verify_update: boolean;
   manage_recurrence: boolean;
   save_template: boolean;
+  /** 3D: may log own time here. */
+  log_time: boolean;
 }
 
 export interface Project {

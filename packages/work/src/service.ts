@@ -523,6 +523,8 @@ export class ProjectService extends NavigationService {
           ...project.brand,
           lifecycleState: 'active',
         }).allowed,
+      // 3D: log own time on the project itself (time.log_own; a share may grant it).
+      log_time: active && rec('time.log_own'),
     };
   }
 

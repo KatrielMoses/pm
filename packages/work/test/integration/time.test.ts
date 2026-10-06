@@ -499,6 +499,33 @@ describe('time entries and timers (3D)', () => {
     await guarded.h.close();
   });
 
+  it('keeps entries readable but read-only when logging rights are downgraded', async () => {
+    const mem = await join(env, db, owner, ws, { kind: 'member', role: 'member' });
+    const memId = (await membershipOf(db, wsId, mem.auth.account.id))!.public_id;
+    await apply(env, owner, ws, {
+      kind: 'brand_grant',
+      brand: brands.Summit,
+      principal: memId,
+      level: 'edit',
+    });
+    const e = await entry({ target: other, work_date: '2026-04-13', duration_minutes: 25 }, mem);
+    expect(e.editable).toBe(true);
+    await apply(env, owner, ws, {
+      kind: 'brand_grant',
+      brand: brands.Summit,
+      principal: memId,
+      level: 'view',
+    });
+    const seen = await env.svc.getEntry(mem, ws, e.id);
+    expect(seen).toMatchObject({ editable: false, target: { id: other } });
+    await expect(
+      env.svc.updateEntry(mem, ws, e.id, { billable: true }, ifMatch(e.version)),
+    ).rejects.toEqual(reason('forbidden'));
+    await expect(
+      entry({ target: other, work_date: '2026-04-14', duration_minutes: 5 }, mem),
+    ).rejects.toEqual(reason('forbidden'));
+  });
+
   it('hides entries on work a person can no longer read, but lets them stop their live timer', async () => {
     const mem = await join(env, db, owner, ws, { kind: 'member', role: 'member' });
     const memId = (await membershipOf(db, wsId, mem.auth.account.id))!.public_id;

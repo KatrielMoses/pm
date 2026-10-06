@@ -36,6 +36,7 @@ import { Dialog, isModalOpen } from '../ui/dialog.tsx';
 import { Announce, Banner } from '../ui/feedback.tsx';
 import { ErrorSummary, Field, SelectField, SubmitButton, TextAreaField } from '../ui/form.tsx';
 import { Page } from '../ui/layout.tsx';
+import { WorkTimePanel } from './time-pages.tsx';
 import { ReviewedChange } from './people-pages.tsx';
 import { RecurrenceEditor, richTextHash, StatusBadge, useCommand } from './project-pages.tsx';
 import { FavoriteToggle } from './shell-pages.tsx';
@@ -852,6 +853,9 @@ function TaskBody({
       ) : null}
       {!task.shared_only ? (
         <RelationshipsSection ws={ws} task={task} detail={detail} reload={reload} />
+      ) : null}
+      {task.lifecycle_state !== 'trashed' ? (
+        <WorkTimePanel ws={ws} target={task.id} canLog={!!caps.log_time} version={task.version} />
       ) : null}
       <section className="card" aria-labelledby="sched-heading">
         <h2 id="sched-heading">Scheduled time</h2>
@@ -2281,7 +2285,7 @@ function HistorySection({ ws, task }: { ws: string; task: Task }) {
       <ResourceView resource={data.state} onRetry={data.retry} what="history">
         {(h) => (
           <>
-            <ol className="plain-list">
+            <ol className="plain-list history-list">
               {h.data.map((e) => (
                 <li key={e.key}>
                   <strong>{e.action.replace('.', ' ').replace(/_/g, ' ')}</strong>{' '}

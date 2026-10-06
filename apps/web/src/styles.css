@@ -1692,3 +1692,103 @@ fieldset.card legend {
 .section-nav .tabs a[aria-current='page'] {
   font-weight: 600;
 }
+/* Task history: long identifiers in change values wrap instead of widening the page at 320 px. */
+.history-list {
+  overflow-wrap: anywhere;
+}
+/* Phase 3D: time tracking, timesheets, approvals, and reports. */
+.timer-elapsed {
+  font-size: 1.75rem;
+  font-variant-numeric: tabular-nums;
+  margin: var(--space-2) 0;
+}
+.timer-target {
+  overflow-wrap: anywhere;
+}
+.time-entries,
+.time-lines {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+.time-entry,
+.time-line {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-1) var(--space-3);
+  padding: var(--space-2) 0;
+  border-bottom: 1px solid var(--color-border-subtle);
+}
+.time-entry-main {
+  flex: 1 1 14rem;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.time-entry-meta {
+  flex: 1 1 12rem;
+}
+.time-entry-note {
+  flex: 1 1 100%;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+.time-line-status {
+  flex: 1 1 16rem;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.log-time-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0 var(--space-3);
+}
+.log-time-row .field {
+  flex: 1 1 10rem;
+  min-width: 0;
+}
+.log-time-details > summary {
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+}
+.table-scroll {
+  /* Wide tables scroll inside the wrapper. It is the containing block for the visually hidden
+     (absolutely positioned) text in cells, so that text is clipped here and never widens the page. */
+  position: relative;
+  overflow-x: auto;
+  max-width: 100%;
+}
+.time-week th,
+.time-week td,
+.time-report td {
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.time-sheets {
+  display: grid;
+  gap: var(--space-3);
+}
+button[aria-pressed='true'] {
+  text-decoration: underline;
+  text-underline-offset: 0.25em;
+  font-weight: 600;
+}
+@media (max-width: 599px) {
+  .timer-elapsed {
+    font-size: 1.375rem;
+  }
+  .time-entry .button {
+    flex: 1 1 100%;
+  }
+}
+@media (forced-colors: active) {
+  .time-entry,
+  .time-line {
+    border-bottom: 1px solid CanvasText;
+  }
+  button[aria-pressed='true'] {
+    border: 2px solid Highlight;
+  }
+}

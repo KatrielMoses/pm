@@ -41,6 +41,7 @@ import {
   TextAreaField,
 } from '../ui/form.tsx';
 import { Page } from '../ui/layout.tsx';
+import { WorkTimePanel } from './time-pages.tsx';
 import { ReviewedChange } from './people-pages.tsx';
 import { OtherIssues, SaveProblem, splitIssues } from './workspace-pages.tsx';
 import { FavoriteToggle } from './shell-pages.tsx';
@@ -792,6 +793,13 @@ export function ProjectPage({
               <TimelineSection ws={ws} o={o} reload={data.reload} />
             ) : section === 'tasks' ? (
               <ProjectTasksSection ws={ws} project={o.project} />
+            ) : section === 'time' ? (
+              <WorkTimePanel
+                ws={ws}
+                target={o.project.id}
+                canLog={!!o.project.capabilities.log_time}
+                version={o.project.version}
+              />
             ) : (
               <SettingsSection ws={ws} o={o} reload={data.reload} />
             )}
