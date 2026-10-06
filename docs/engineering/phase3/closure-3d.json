@@ -1,0 +1,496 @@
+{
+  "schema_version": 1,
+  "phase": "3D",
+  "status": "candidate",
+  "adr": "0019",
+  "accepted_by_kinds": {
+    "catalog:contributing": "the subphase is a contributing_subphase of the requirement in the accepted 0A catalog",
+    "roadmap:<sub>": "the BUILD_ROADMAP subphase scope",
+    "adr:<nnnn>[#row]": "an engineering ADR row naming the subphase (proposed ADRs are allowed only while the closure status is candidate)",
+    "requirement:<ID>": "the requirement that owns the capability (its owner_subphase)"
+  },
+  "requirements": [
+    {
+      "id": "PRJ-022",
+      "role": "owned",
+      "disposition": "implemented",
+      "evidence": [
+        {
+          "file": "packages/work/src/time/time-service.ts",
+          "contains": "async workSummary("
+        },
+        {
+          "file": "packages/work/test/integration/time-reports.test.ts",
+          "contains": "summarises a task and a project: planned, actual, and remaining effort"
+        },
+        {
+          "file": "e2e/time.spec.ts",
+          "contains": "projects/${prj}/time"
+        }
+      ],
+      "note": "The project's Time section: time budget, readable task estimates, logged time (billable and yours), and remaining effort."
+    },
+    {
+      "id": "TSK-024",
+      "role": "owned",
+      "disposition": "implemented",
+      "evidence": [
+        {
+          "file": "packages/work/src/time/time-service.ts",
+          "contains": "async createEntry("
+        },
+        {
+          "file": "packages/work/test/integration/time.test.ts",
+          "contains": "records timed and duration-only entries with UTC instants, the zone, and the local day"
+        },
+        {
+          "file": "e2e/time.spec.ts",
+          "contains": "Log time with a typed duration on the task"
+        }
+      ],
+      "note": "Manual timed and duration-only entries with edit (If-Match), move, and delete by their owner."
+    },
+    {
+      "id": "TSK-025",
+      "role": "owned",
+      "disposition": "implemented",
+      "evidence": [
+        {
+          "file": "packages/work/src/time/time-service.ts",
+          "contains": "async timerAction("
+        },
+        {
+          "file": "packages/work/test/integration/time.test.ts",
+          "contains": "runs one timer per person: start, pause, resume, stop, idempotent by state, recoverable"
+        },
+        {
+          "file": "apps/web/test/time.test.tsx",
+          "contains": "keeps a stop pressed offline on the device and sends it once when back online"
+        }
+      ],
+      "note": "Start, pause, resume, and stop; one live timer per person; offline replay; the timer guard."
+    },
+    {
+      "id": "TSK-026",
+      "role": "owned",
+      "disposition": "implemented",
+      "evidence": [
+        {
+          "file": "packages/db/migrations/0031_time_tracking.up.sql",
+          "contains": "billable boolean NOT NULL DEFAULT false"
+        },
+        {
+          "file": "packages/work/test/integration/time-reports.test.ts",
+          "contains": "reports planned versus actual by brand with billable split and exact totals"
+        }
+      ],
+      "note": "Billable flag per entry; billable and non-billable totals everywhere."
+    },
+    {
+      "id": "TIME-003",
+      "role": "owned",
+      "disposition": "implemented",
+      "evidence": [
+        {
+          "file": "packages/work/src/time/time-service.ts",
+          "contains": "task_estimate_minutes"
+        },
+        {
+          "file": "e2e/time.spec.ts",
+          "contains": "Planned effort (TIME-003): the task estimate."
+        }
+      ],
+      "note": "Task estimates (TSK-023) and project time budgets, shown with readable task estimates; reports name their planned measure."
+    },
+    {
+      "id": "TIME-004",
+      "role": "owned",
+      "disposition": "implemented",
+      "evidence": [
+        {
+          "file": "packages/db/migrations/0031_time_tracking.up.sql",
+          "contains": "CREATE TABLE timetrack.time_entry"
+        },
+        {
+          "file": "packages/work/test/integration/time.test.ts",
+          "contains": "computes durations across daylight-saving changes from UTC instants, in the entry zone"
+        }
+      ],
+      "note": "Actual effort as entries with DST-safe durations from UTC segments."
+    },
+    {
+      "id": "TIME-005",
+      "role": "owned",
+      "disposition": "implemented",
+      "evidence": [
+        {
+          "file": "packages/work/src/time/time-service.ts",
+          "contains": "async timeReport("
+        },
+        {
+          "file": "packages/work/test/integration/time-reports.test.ts",
+          "contains": "groups by member and by calendar period, and bounds rows and ranges"
+        },
+        {
+          "file": "packages/work/test/integration/time-reports.test.ts",
+          "contains": "never names or counts work the viewer cannot read"
+        }
+      ],
+      "note": "By member, brand, project, task, day, week, and month, under the viewer's predicate."
+    },
+    {
+      "id": "TIME-006",
+      "role": "owned",
+      "disposition": "implemented",
+      "evidence": [
+        {
+          "file": "packages/work/src/time/time-service.ts",
+          "contains": "remaining_estimate_else_estimate_minus_actual"
+        },
+        {
+          "file": "packages/work/test/integration/time-reports.test.ts",
+          "contains": "the remaining estimate wins over estimate − actual"
+        }
+      ],
+      "note": "Remaining project effort over open readable tasks, unestimated tasks counted; no child-project rollups (5C)."
+    },
+    {
+      "id": "TIME-011",
+      "role": "owned",
+      "disposition": "implemented",
+      "evidence": [
+        {
+          "file": "packages/work/src/time/time-service.ts",
+          "contains": "billable_seconds"
+        },
+        {
+          "file": "packages/work/test/integration/time-reports.test.ts",
+          "contains": "billable: 'billable'"
+        }
+      ],
+      "note": "Billable and non-billable time in entries, timesheets, reports, summaries, and exports."
+    },
+    {
+      "id": "TIME-012",
+      "role": "owned",
+      "disposition": "implemented",
+      "evidence": [
+        {
+          "file": "packages/work/src/time/time-service.ts",
+          "contains": "async submitTimesheet("
+        },
+        {
+          "file": "packages/work/src/time/time-service.ts",
+          "contains": "async decideTimesheet("
+        },
+        {
+          "file": "packages/work/test/integration/timesheets.test.ts",
+          "contains": "lets only people who manage a brand now decide its line, and never their own unless allowed"
+        },
+        {
+          "file": "e2e/time.spec.ts",
+          "contains": "Submit the week; a one-person workspace may self-approve, and it is labelled."
+        }
+      ],
+      "note": "Weekly submission per brand line, withdraw, approve or reject by brand managers now, OD-20 self-approval labelled."
+    },
+    {
+      "id": "TIME-013",
+      "role": "owned",
+      "disposition": "implemented",
+      "evidence": [
+        {
+          "file": "packages/db/migrations/0031_time_tracking.up.sql",
+          "contains": "CREATE FUNCTION timetrack.time_entry_guard()"
+        },
+        {
+          "file": "packages/work/src/time/time-service.ts",
+          "contains": "async unlockTimesheet("
+        },
+        {
+          "file": "packages/work/test/integration/timesheets.test.ts",
+          "contains": "unlocks an approved line only for admins, with step-up and a reason, and requires re-approval"
+        }
+      ],
+      "note": "Append-only lock rows; admin-only unlock with step-up and reason; re-approval required (OD-26)."
+    },
+    {
+      "id": "TIME-014",
+      "role": "owned",
+      "disposition": "implemented",
+      "evidence": [
+        {
+          "file": "packages/work/src/time/time-service.ts",
+          "contains": "async exportTime("
+        },
+        {
+          "file": "packages/work/test/integration/time-reports.test.ts",
+          "contains": "exports readable entries as CSV or JSON, neutralizes formulas, bounds rows, and audits"
+        },
+        {
+          "file": "e2e/time.spec.ts",
+          "contains": "Export CSV"
+        }
+      ],
+      "note": "Bounded direct CSV/JSON export of readable entries, audited; stored and adapter exports are 6D."
+    },
+    {
+      "id": "PRJ-019",
+      "role": "contributing",
+      "disposition": "contributed",
+      "contribution": "3D",
+      "evidence": [
+        {
+          "file": "packages/contracts/src/shell.ts",
+          "contains": "{ key: 'time', label: 'Time', phase: null, conditional: false }"
+        }
+      ],
+      "note": "The project Time section is live."
+    },
+    {
+      "id": "TSK-023",
+      "role": "contributing",
+      "disposition": "contributed",
+      "contribution": "3D",
+      "evidence": [
+        {
+          "file": "packages/work/src/time/time-service.ts",
+          "contains": "remaining_estimate_minutes"
+        }
+      ],
+      "note": "Estimate and remaining estimate drive planned and remaining effort."
+    },
+    {
+      "id": "VIEW-011",
+      "role": "contributing",
+      "disposition": "contributed",
+      "contribution": "3D",
+      "evidence": [
+        {
+          "file": "packages/work/src/time/time-service.ts",
+          "contains": "async timesheetPeriod("
+        },
+        {
+          "file": "apps/web/src/pages/time-pages.tsx",
+          "contains": "Time per day this week"
+        }
+      ],
+      "note": "The person's week: per-day totals, lines, and entries; 3B renders the time-sheet view through the query engine."
+    },
+    {
+      "id": "GOAL-011",
+      "role": "contributing",
+      "disposition": "contributed",
+      "contribution": "3D",
+      "evidence": [
+        {
+          "file": "packages/work/test/integration/time-reports.test.ts",
+          "contains": "group: 'brand'"
+        }
+      ],
+      "note": "Brand time investment from the brand grouping of the report; AI usage is 7A."
+    },
+    {
+      "id": "BRF-012",
+      "role": "contributing",
+      "disposition": "contributed",
+      "contribution": "3D",
+      "evidence": [
+        {
+          "file": "packages/work/src/time/time-service.ts",
+          "contains": "planned_measure"
+        }
+      ],
+      "note": "Planned versus actual with its stated measure, for 7E briefings."
+    },
+    {
+      "id": "RPT-011",
+      "role": "contributing",
+      "disposition": "contributed",
+      "contribution": "3D",
+      "evidence": [
+        {
+          "file": "packages/work/test/integration/time-reports.test.ts",
+          "contains": "group: 'project'"
+        }
+      ],
+      "note": "Project and brand time investment for 5D dashboards."
+    },
+    {
+      "id": "LA-013",
+      "role": "contributing",
+      "disposition": "contributed",
+      "contribution": "3D",
+      "evidence": [
+        {
+          "file": "packages/work/test/integration/time-reports.test.ts",
+          "contains": "never names or counts work the viewer cannot read"
+        }
+      ],
+      "note": "Planned and actual time across brands, permission-safe; shared capacity is 3E."
+    }
+  ],
+  "decisions": [
+    {
+      "id": "D1",
+      "title": "Planned and actual effort, timers, billable state, remaining effort, timesheets, locks, and export",
+      "adr_row": "T12",
+      "sources": [
+        {
+          "file": "docs/product/time-and-scheduling.md",
+          "contains": "Planned versus actual: *planned* = estimates"
+        }
+      ],
+      "evidence": [
+        {
+          "file": "packages/work/src/time/time-service.ts",
+          "contains": "async workSummary("
+        },
+        {
+          "file": "e2e/time.spec.ts",
+          "contains": "estimate, time, log, submit, self-approve, lock, unlock, report, and export a week"
+        },
+        {
+          "file": "docs/engineering/adr/0019-time-tracking-timesheets.md",
+          "contains": "| T12 |"
+        }
+      ]
+    },
+    {
+      "id": "D2",
+      "title": "Authoritative time semantics: UTC and zones, DST-safe durations, no negative or overlapping time, timer recovery, idempotent actions, immutable audit, deterministic rounding; OD-26 resolved",
+      "adr_row": "T1",
+      "sources": [
+        {
+          "file": "docs/product/time-and-scheduling.md",
+          "contains": "As implemented (Phase 3D, ADR-0019)"
+        },
+        {
+          "file": "docs/product/open-decisions.md",
+          "contains": "**Status (Phase 3D, 2026-10-07):** Decided as the safe default"
+        }
+      ],
+      "evidence": [
+        {
+          "file": "packages/work/src/time/semantics.ts",
+          "contains": "export function hoursOf("
+        },
+        {
+          "file": "packages/work/test/integration/time.test.ts",
+          "contains": "never lets one person’s time overlap (service check and database guard)"
+        },
+        {
+          "file": "packages/work/test/integration/time.test.ts",
+          "contains": "keeps one live timer per person when starts race"
+        },
+        {
+          "file": "docs/engineering/adr/0019-time-tracking-timesheets.md",
+          "contains": "| T1 |"
+        }
+      ]
+    },
+    {
+      "id": "D3",
+      "title": "Tenant, brand, project, task, member, guest, and approver permissions at read and write; approved and locked time immutable with an audited adjustment path; totals exclude inaccessible records",
+      "adr_row": "T8",
+      "sources": [
+        {
+          "file": "docs/architecture/access/15-decisions.md",
+          "contains": "AZ-27: Time tracking, timesheets, approvals, and unlock"
+        }
+      ],
+      "evidence": [
+        {
+          "file": "packages/work/src/time/time-service.ts",
+          "contains": "protected async entryPredicate("
+        },
+        {
+          "file": "packages/work/test/integration/time.test.ts",
+          "contains": "hides entries on work a person can no longer read, but lets them stop their live timer"
+        },
+        {
+          "file": "packages/work/test/integration/timesheets.test.ts",
+          "contains": "refuses a decision by an approver who cannot read every entry in the line"
+        },
+        {
+          "file": "docs/engineering/adr/0019-time-tracking-timesheets.md",
+          "contains": "| T8 |"
+        },
+        {
+          "file": "docs/engineering/adr/0019-time-tracking-timesheets.md",
+          "contains": "| T11 |"
+        }
+      ]
+    },
+    {
+      "id": "D4",
+      "title": "Reuse canonical policy, audit, event, idempotency, query, export, and worker contracts; exact migration rollback; bounds; concurrency; worker recovery; no 3C, 3E, 5C, or 6D work",
+      "adr_row": "T6",
+      "sources": [
+        {
+          "file": "docs/architecture/platform/19-decisions.md",
+          "contains": "PL-29: Time tracking contracts"
+        },
+        {
+          "file": "docs/architecture/data/12-decisions.md",
+          "contains": "ADR-27: Time tracking, timesheets, and period locks"
+        }
+      ],
+      "evidence": [
+        {
+          "file": "packages/db/migrations/0031_time_tracking.down.sql",
+          "contains": "Restores the exact 0030 catalog"
+        },
+        {
+          "file": "packages/work/src/time/jobs.ts",
+          "contains": "export function timerGuardHandler("
+        },
+        {
+          "file": "packages/work/test/integration/time.test.ts",
+          "contains": "stops runaway timers once, at exactly the limit, and marks them for review"
+        },
+        {
+          "file": "packages/work/test/integration/timesheets.test.ts",
+          "contains": "serializes a decision against a withdrawal: exactly one wins, and evidence matches the result"
+        },
+        {
+          "file": "docs/engineering/adr/0019-time-tracking-timesheets.md",
+          "contains": "| T6 |"
+        }
+      ]
+    },
+    {
+      "id": "D5",
+      "title": "API, unit, integration, component, and responsive browser and accessibility coverage; sources, ADR, contracts, closure, and validator",
+      "adr_row": "T5",
+      "sources": [
+        {
+          "file": "docs/ux/02-information-architecture.md",
+          "contains": "Phase 3D implementation note"
+        }
+      ],
+      "evidence": [
+        {
+          "file": "apps/api/test/integration/time-api.test.ts",
+          "contains": "time API (3D)"
+        },
+        {
+          "file": "apps/web/test/time.test.tsx",
+          "contains": "computes elapsed time from the server clock and announces state changes, not ticks"
+        },
+        {
+          "file": "e2e/time.spec.ts",
+          "contains": "a teammate whose role is lowered keeps their time visible but can no longer log or edit it"
+        },
+        {
+          "file": "docs/engineering/tools/phase3d.py",
+          "contains": "PHASE 3D CLOSURE"
+        },
+        {
+          "file": "docs/engineering/adr/0019-time-tracking-timesheets.md",
+          "contains": "| T5 |"
+        }
+      ]
+    }
+  ]
+}
