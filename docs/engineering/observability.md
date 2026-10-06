@@ -103,3 +103,7 @@ Field names, values, formulas, option labels, status names, and emails never app
 ## Task interaction (2D)
 
 Counters `work.reminders.fired`, `work.bulk.items`, and `work.undo.applied` (outcome label only); task occurrences reuse `work.recurrence.occurrences`. Outbox facts carry identifiers, counts, and states only.
+
+## Capture (2E)
+
+Counters `capture.items`, `capture.parse`, and `capture.triage` (outcome label only). Captured text never appears in logs, metrics, events, or audit (content hashes only).

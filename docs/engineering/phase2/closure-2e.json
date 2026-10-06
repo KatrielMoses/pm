@@ -1,0 +1,597 @@
+{
+  "schema_version": 1,
+  "phase": "2E",
+  "status": "candidate",
+  "adr": "0017",
+  "accepted_by_kinds": {
+    "catalog:contributing": "the subphase is a contributing_subphase of the requirement in the accepted 0A catalog",
+    "roadmap:<sub>": "the BUILD_ROADMAP subphase scope",
+    "adr:<nnnn>[#row]": "an engineering ADR row naming the subphase (proposed ADRs are allowed only while the closure status is candidate)",
+    "requirement:<ID>": "the requirement that owns the capability (its owner_subphase)"
+  },
+  "requirements": [
+    {
+      "id": "CAP-001",
+      "role": "owned",
+      "disposition": "implemented",
+      "evidence": [
+        {
+          "file": "apps/web/src/shell/layout.tsx",
+          "contains": "id: 'capture.open'"
+        },
+        {
+          "file": "e2e/capture.spec.ts",
+          "contains": "capture by button and keyboard"
+        }
+      ],
+      "note": "Capture from every signed-in workspace screen."
+    },
+    {
+      "id": "CAP-002",
+      "role": "owned",
+      "disposition": "implemented",
+      "evidence": [
+        {
+          "file": "packages/work/src/capture-service.ts",
+          "contains": "async insertNote("
+        },
+        {
+          "file": "packages/work/test/integration/capture.test.ts",
+          "contains": "notes: captured at once"
+        }
+      ],
+      "note": "Notes captured directly."
+    },
+    {
+      "id": "CAP-003",
+      "role": "owned",
+      "disposition": "implemented",
+      "evidence": [
+        {
+          "file": "packages/work/src/capture/parser.ts",
+          "contains": "export function parseCapture("
+        },
+        {
+          "file": "packages/work/test/unit/capture-parser.test.ts",
+          "contains": "deterministic capture parser"
+        }
+      ],
+      "note": "Deterministic natural-language detection; AI parsing is 7F.",
+      "enriched_by": [
+        "7F"
+      ],
+      "accepted_by": [
+        "catalog:contributing"
+      ]
+    },
+    {
+      "id": "CAP-004",
+      "role": "owned",
+      "disposition": "implemented",
+      "evidence": [
+        {
+          "file": "packages/work/src/capture/parser.ts",
+          "contains": "export function splitPaste("
+        },
+        {
+          "file": "packages/work/test/integration/capture.test.ts",
+          "contains": "paste: one candidate per line"
+        }
+      ],
+      "note": "Paste preview with editable, removable, splittable candidates."
+    },
+    {
+      "id": "CAP-006",
+      "role": "owned",
+      "disposition": "foundation",
+      "evidence": [
+        {
+          "file": "packages/db/migrations/0029_capture_inbox.up.sql",
+          "contains": "'voice', 'email', 'api', 'webhook'"
+        },
+        {
+          "file": "docs/product/open-decisions.md",
+          "contains": "Email forwarding is owned by 6A"
+        }
+      ],
+      "note": "Adapter-ready email source kind; forwarding is 6A (OD-29 open).",
+      "deferred_to": [
+        "6A"
+      ],
+      "accepted_by": [
+        "catalog:contributing"
+      ]
+    },
+    {
+      "id": "CAP-007",
+      "role": "owned",
+      "disposition": "implemented",
+      "evidence": [
+        {
+          "file": "packages/db/migrations/0030_intake_forms.up.sql",
+          "contains": "CREATE TABLE capture.intake_form ("
+        },
+        {
+          "file": "packages/work/test/integration/capture.test.ts",
+          "contains": "intake forms: members of the brand submit"
+        }
+      ],
+      "note": "Members-only brand intake forms while OD-28 is open."
+    },
+    {
+      "id": "CAP-009",
+      "role": "owned",
+      "disposition": "implemented",
+      "evidence": [
+        {
+          "file": "packages/work/src/capture-service.ts",
+          "contains": "protected async resolve("
+        },
+        {
+          "file": "packages/work/test/integration/capture.test.ts",
+          "contains": "detects values deterministically"
+        }
+      ],
+      "note": "Brand, project, owner, due date, priority, duration, recurrence, labels.",
+      "enriched_by": [
+        "7F"
+      ],
+      "accepted_by": [
+        "catalog:contributing"
+      ]
+    },
+    {
+      "id": "CAP-010",
+      "role": "owned",
+      "disposition": "implemented",
+      "evidence": [
+        {
+          "file": "apps/web/src/pages/capture-pages.tsx",
+          "contains": "export function DetectedList("
+        },
+        {
+          "file": "apps/web/test/capture.test.tsx",
+          "contains": "detected values are explained"
+        }
+      ],
+      "note": "Detected values shown before saving; ambiguous ones need a choice."
+    },
+    {
+      "id": "CAP-011",
+      "role": "owned",
+      "disposition": "implemented",
+      "evidence": [
+        {
+          "file": "packages/work/test/integration/capture.test.ts",
+          "contains": "captures an incomplete task with no configuration"
+        },
+        {
+          "file": "packages/db/migrations/0029_capture_inbox.up.sql",
+          "contains": "brand_id uuid,"
+        }
+      ],
+      "note": "No configuration needed (OD-03)."
+    },
+    {
+      "id": "CAP-012",
+      "role": "owned",
+      "disposition": "implemented",
+      "evidence": [
+        {
+          "file": "packages/work/src/capture-service.ts",
+          "contains": "async triage("
+        },
+        {
+          "file": "packages/work/test/integration/capture-access.test.ts",
+          "contains": "triage decides record.create"
+        }
+      ],
+      "note": "Triage to tasks, notes, projects, or discard."
+    },
+    {
+      "id": "CAP-013",
+      "role": "owned",
+      "disposition": "implemented",
+      "evidence": [
+        {
+          "file": "packages/work/src/capture-service.ts",
+          "contains": "async merge("
+        },
+        {
+          "file": "packages/work/test/integration/capture.test.ts",
+          "contains": "merge: preview names the kept item"
+        }
+      ],
+      "note": "Merge with preview; sources preserved and restorable."
+    },
+    {
+      "id": "CAP-014",
+      "role": "owned",
+      "disposition": "implemented",
+      "evidence": [
+        {
+          "file": "packages/work/src/capture-service.ts",
+          "contains": "async convertNote("
+        },
+        {
+          "file": "e2e/capture.spec.ts",
+          "contains": "notes convert to tasks after confirmation"
+        }
+      ],
+      "note": "Note conversion with confirmation; the note stays."
+    },
+    {
+      "id": "CAP-015",
+      "role": "owned",
+      "disposition": "implemented",
+      "evidence": [
+        {
+          "file": "packages/work/src/capture-service.ts",
+          "contains": "code: 'storage_unavailable'"
+        },
+        {
+          "file": "packages/work/test/integration/capture.test.ts",
+          "contains": "attachments: links attach"
+        }
+      ],
+      "note": "Links attach; file storage is 4E.",
+      "enriched_by": [
+        "4E"
+      ],
+      "accepted_by": [
+        "catalog:contributing"
+      ]
+    },
+    {
+      "id": "CAP-016",
+      "role": "owned",
+      "disposition": "implemented",
+      "evidence": [
+        {
+          "file": "packages/db/migrations/0029_capture_inbox.up.sql",
+          "contains": "the original capture is immutable"
+        },
+        {
+          "file": "packages/work/test/integration/capture.test.ts",
+          "contains": "keeps the original text, source, and correlation"
+        }
+      ],
+      "note": "Original text and source preserved."
+    },
+    {
+      "id": "PRJ-017",
+      "role": "owned",
+      "disposition": "implemented",
+      "evidence": [
+        {
+          "file": "packages/work/src/capture-service.ts",
+          "contains": "intakeSourceId: item.id"
+        },
+        {
+          "file": "packages/work/test/integration/capture.test.ts",
+          "contains": "triage to project (PRJ-017)"
+        }
+      ],
+      "note": "Projects from intake requests and Inbox items."
+    },
+    {
+      "id": "CAP-005",
+      "role": "contributing",
+      "disposition": "contributed",
+      "evidence": [
+        {
+          "file": "packages/db/migrations/0029_capture_inbox.up.sql",
+          "contains": "'voice'"
+        }
+      ],
+      "note": "Adapter-ready voice source kind; transcription is 7F.",
+      "contribution": "2E"
+    },
+    {
+      "id": "CAP-008",
+      "role": "contributing",
+      "disposition": "contributed",
+      "evidence": [
+        {
+          "file": "packages/db/migrations/0029_capture_inbox.up.sql",
+          "contains": "'api', 'webhook'"
+        }
+      ],
+      "note": "Adapter-ready API and webhook source kinds; endpoints are 6B.",
+      "contribution": "2E"
+    },
+    {
+      "id": "TSK-040",
+      "role": "contributing",
+      "disposition": "contributed",
+      "evidence": [
+        {
+          "file": "packages/work/src/capture-service.ts",
+          "contains": "origin: { kind: 'intake', ref: { inbox: item.public_id } }"
+        }
+      ],
+      "note": "Tasks from capture show origin intake.",
+      "contribution": "2E"
+    },
+    {
+      "id": "REL-010",
+      "role": "contributing",
+      "disposition": "contributed",
+      "evidence": [
+        {
+          "file": "packages/work/test/integration/capture-access.test.ts",
+          "contains": "daily Inbox plan at 20,000 items"
+        }
+      ],
+      "note": "Indexed Inbox and bounded capture work.",
+      "contribution": "2E"
+    },
+    {
+      "id": "LA-003",
+      "role": "contributing",
+      "disposition": "contributed",
+      "evidence": [
+        {
+          "file": "e2e/capture.spec.ts",
+          "contains": "first use: brand, project, capture"
+        }
+      ],
+      "note": "Capture on desktop and mobile web.",
+      "contribution": "2E"
+    }
+  ],
+  "decisions": [
+    {
+      "id": "D1",
+      "title": "One capture path",
+      "adr_row": "E1",
+      "sources": [
+        {
+          "file": "docs/architecture/data/12-decisions.md",
+          "contains": "ADR-25"
+        }
+      ],
+      "evidence": [
+        {
+          "file": "packages/work/src/capture-service.ts",
+          "contains": "async capture("
+        },
+        {
+          "file": "docs/engineering/adr/0017-inbox-capture.md",
+          "contains": "| E1 |"
+        }
+      ]
+    },
+    {
+      "id": "D2",
+      "title": "No configuration needed",
+      "adr_row": "E2",
+      "sources": [
+        {
+          "file": "docs/product/open-decisions.md",
+          "contains": "OD-03"
+        }
+      ],
+      "evidence": [
+        {
+          "file": "packages/work/test/integration/capture.test.ts",
+          "contains": "captures an incomplete task with no configuration"
+        },
+        {
+          "file": "docs/engineering/adr/0017-inbox-capture.md",
+          "contains": "| E2 |"
+        }
+      ]
+    },
+    {
+      "id": "D3",
+      "title": "Paste",
+      "adr_row": "E3",
+      "sources": [
+        {
+          "file": "docs/ux/02-information-architecture.md",
+          "contains": "**Paste:**"
+        }
+      ],
+      "evidence": [
+        {
+          "file": "packages/work/src/capture-service.ts",
+          "contains": "SAVEPOINT capture_item"
+        },
+        {
+          "file": "docs/engineering/adr/0017-inbox-capture.md",
+          "contains": "| E3 |"
+        }
+      ]
+    },
+    {
+      "id": "D4",
+      "title": "Deterministic parsing",
+      "adr_row": "E4",
+      "sources": [
+        {
+          "file": "docs/architecture/platform/19-decisions.md",
+          "contains": "AI parsing (7F"
+        }
+      ],
+      "evidence": [
+        {
+          "file": "packages/work/src/capture/parser.ts",
+          "contains": "export const PARSER_VERSION = 1;"
+        },
+        {
+          "file": "docs/engineering/adr/0017-inbox-capture.md",
+          "contains": "| E4 |"
+        }
+      ]
+    },
+    {
+      "id": "D5",
+      "title": "Triage",
+      "adr_row": "E5",
+      "sources": [
+        {
+          "file": "docs/architecture/access/15-decisions.md",
+          "contains": "**Triage and conversion.**"
+        }
+      ],
+      "evidence": [
+        {
+          "file": "packages/work/src/capture-service.ts",
+          "contains": "protected async triageOne("
+        },
+        {
+          "file": "docs/engineering/adr/0017-inbox-capture.md",
+          "contains": "| E5 |"
+        }
+      ]
+    },
+    {
+      "id": "D6",
+      "title": "Merge",
+      "adr_row": "E6",
+      "sources": [
+        {
+          "file": "docs/architecture/data/12-decisions.md",
+          "contains": "Merging and discarding keep the item"
+        }
+      ],
+      "evidence": [
+        {
+          "file": "packages/work/src/capture-service.ts",
+          "contains": "async previewMerge("
+        },
+        {
+          "file": "docs/engineering/adr/0017-inbox-capture.md",
+          "contains": "| E6 |"
+        }
+      ]
+    },
+    {
+      "id": "D7",
+      "title": "Notes",
+      "adr_row": "E7",
+      "sources": [
+        {
+          "file": "docs/architecture/data/12-decisions.md",
+          "contains": "Converting a note never removes it"
+        }
+      ],
+      "evidence": [
+        {
+          "file": "packages/work/src/capture-service.ts",
+          "contains": "async convertNote("
+        },
+        {
+          "file": "docs/engineering/adr/0017-inbox-capture.md",
+          "contains": "| E7 |"
+        }
+      ]
+    },
+    {
+      "id": "D8",
+      "title": "Attachments",
+      "adr_row": "E8",
+      "sources": [
+        {
+          "file": "docs/architecture/data/12-decisions.md",
+          "contains": "**Attachments.**"
+        }
+      ],
+      "evidence": [
+        {
+          "file": "packages/work/src/capture-service.ts",
+          "contains": "'storage_unavailable'"
+        },
+        {
+          "file": "docs/engineering/adr/0017-inbox-capture.md",
+          "contains": "| E8 |"
+        }
+      ]
+    },
+    {
+      "id": "D9",
+      "title": "Intake forms",
+      "adr_row": "E9",
+      "sources": [
+        {
+          "file": "docs/product/open-decisions.md",
+          "contains": "Status (Phase 2E, 2026-10-06):** Still open; recorded as a blocker"
+        }
+      ],
+      "evidence": [
+        {
+          "file": "packages/work/src/capture-service.ts",
+          "contains": "async submitForm("
+        },
+        {
+          "file": "docs/engineering/adr/0017-inbox-capture.md",
+          "contains": "| E9 |"
+        }
+      ]
+    },
+    {
+      "id": "D10",
+      "title": "Adapters",
+      "adr_row": "E10",
+      "sources": [
+        {
+          "file": "docs/product/open-decisions.md",
+          "contains": "Email forwarding is owned by 6A"
+        }
+      ],
+      "evidence": [
+        {
+          "file": "packages/db/migrations/0029_capture_inbox.up.sql",
+          "contains": "'voice', 'email', 'api', 'webhook'"
+        },
+        {
+          "file": "docs/engineering/adr/0017-inbox-capture.md",
+          "contains": "| E10 |"
+        }
+      ]
+    },
+    {
+      "id": "D11",
+      "title": "Bounds and abuse",
+      "adr_row": "E11",
+      "sources": [
+        {
+          "file": "docs/architecture/platform/19-decisions.md",
+          "contains": "CAPTURE_RATE_PER_MINUTE"
+        }
+      ],
+      "evidence": [
+        {
+          "file": "packages/identity/src/rate-limit.ts",
+          "contains": "'capture.member'"
+        },
+        {
+          "file": "docs/engineering/adr/0017-inbox-capture.md",
+          "contains": "| E11 |"
+        }
+      ]
+    },
+    {
+      "id": "D12",
+      "title": "Permission-safe responses",
+      "adr_row": "E12",
+      "sources": [
+        {
+          "file": "docs/architecture/access/policy/threats.json",
+          "contains": "T-43"
+        }
+      ],
+      "evidence": [
+        {
+          "file": "packages/work/test/integration/capture-access.test.ts",
+          "contains": "sameShapeAndTime("
+        },
+        {
+          "file": "docs/engineering/adr/0017-inbox-capture.md",
+          "contains": "| E12 |"
+        }
+      ]
+    }
+  ]
+}

@@ -331,3 +331,7 @@ active/archived state; deleting it is refused while referenced.
 ## Phase 2D: personal and short-lived rows
 
 Task purge deletes the task's reminders and snoozes and detaches task series sourced from it. Project purge pauses task series that generate into it. Member departure erases reminders, snoozes, bulk operations, and undo entries with the member's other personal rows.
+
+## Phase 2E: capture records
+
+`inbox_item`, `note`, and `intake_form` have lifecycle adapters: branded ones purge with their brand, and all purge with the workspace. Purge detaches project intake sources and note sources, removes lineage, record links, and submissions, and deletes merged items before the item they merged into.
