@@ -4,7 +4,7 @@
 
 Rules and algorithm: [../04-effective-permissions.md](../04-effective-permissions.md). Legend: **all** = implicit across non-sensitive scopes (sensitive brands and restricted projects still require explicit grants or audited elevation); ≥level = allowed where the principal's effective access level on the target is at least that level; own = own personal items only; if X = only when workspace policy X is enabled; — = never. Flags: ND non-delegable (owner only, excluded from custom roles), SU step-up authentication, 2A second/independent approval when available, E plan entitlement required.
 
-## Record permissions (42)
+## Record permissions (45)
 
 | Action | Scopes | Level | Risk | Flags | owner | administrator | member | limited_member | read_only | guest |
 |---|---|---|---|---|---|---|---|---|---|---|
@@ -50,6 +50,9 @@ Rules and algorithm: [../04-effective-permissions.md](../04-effective-permission
 | `field.value_read` | record | view | R0 |  | **all** | **all** | ≥view | ≥view | ≥view | ≥view |
 | `field.value_edit` | record | edit | R1 |  | **all** | **all** | ≥edit | ≥edit | — | ≥edit |
 | `field.formula_inspect` | record | view | R0 |  | **all** | **all** | ≥view | ≥view | ≥view | — |
+| `task.remind` | record | view | R0 |  | **all** | **all** | ≥view | ≥view | ≥view | ≥view |
+| `task.snooze` | record | view | R0 |  | **all** | **all** | ≥view | ≥view | ≥view | ≥view |
+| `task.manage_recurrence` | record | manage | R2 |  | **all** | **all** | ≥manage | — | — | — |
 
 ## Execution permissions (11)
 
@@ -277,3 +280,6 @@ Rules and algorithm: [../04-effective-permissions.md](../04-effective-permission
 | `field.value_read` | Read custom field values on a record, subject to field policy. | none | TSK-016, WFL-009 | Phase 2C (AZ-23). Intersected with access.field_policy and definition applicability; hidden fields are absent everywhere (0C §7.2). |
 | `field.value_edit` | Edit custom field values on a record, subject to field policy. | none | TSK-016, WFL-012 | Phase 2C (AZ-23). Formula results are never editable. Person and label values grant no access. |
 | `field.formula_inspect` | Inspect a formula's inputs, dependencies, and error on a record. | none | WFL-011 | Phase 2C (AZ-23). Only when every input is readable; never reveals hidden input values or names. |
+| `task.remind` | Set, change, or dismiss one's own reminder on a readable task. | none | TSK-032 | Phase 2D (AZ-24): personal; grants nothing and changes nothing on the task. The worker rechecks record.read before firing; a reminder whose task became unreadable is cancelled silently. |
+| `task.snooze` | Snooze or unsnooze a readable task for oneself. | none | TSK-033 | Phase 2D (AZ-24): personal; never edits dates, status, or access, and is invisible to others. |
+| `task.manage_recurrence` | Define, pause, resume, or end a task recurrence, or generate its next occurrence. | none | TSK-027 | Phase 2D (AZ-24): each occurrence also requires record.create in the series' brand (and project), rechecked by the worker before each step; a series whose owner lost it pauses. |

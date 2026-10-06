@@ -483,3 +483,10 @@ These rules apply to every surface: lists, search, palette, notifications, dashb
 
 <a id="ia-48"></a>
 - **IA-48 — AI and agents inherit the viewer's lens.** AI answers, briefings and citations shown to a user contain only records that user may access ([J-08](03-journeys.md#j-08-ai-proposes-record-changes-for-selective-approval)). Agent output shown to a reviewer is subject to the same rules, so an agent with broader scope cannot show a reviewer what the reviewer may not see ([UXD-11](09-decisions-and-risks.md#uxd-11)).
+
+**Phase 2D implementation note.** Task interaction quality lives on existing task surfaces; there are no new top-level destinations:
+- **Lists:** inline edits of title, status, assignee, due date, and priority show a save state (saving, saved, conflict, offline, failed). A conflict offers Keep mine, Use latest, or Cancel. Selection checkboxes open a bulk bar with a preview before any change and a per-item report after. A status change lists the selected tasks' own statuses, custom ones included, marks those only some tasks offer, and the preview shows each task's proposed status and any refusal.
+- **Ordering:** every row has a Move menu (up, down, top, bottom, move to position) and keyboard shortcuts with a live-region announcement. Drag is an optional pointer convenience over the same commands, and compact layouts never require it.
+- **Undo:** reversible changes show an Undo toast for 30 seconds. It is keyboard reachable and announced, and it explains when a later change makes undo unavailable.
+- **Task page:** signal badges (stale, blocked, rescheduled, missing owner, date, criteria, or dependency) with a Missing information panel; possible duplicates while creating; Remind me and Snooze (personal); Reschedule with an explicit due-date or deadline choice; Repeat (recurrence) and Save as template; the task's origin (including the template and version it came from).
+- **Honest absences:** reminder delivery by email, push, or chat (4B), AI similarity (7C), rollups (5C), work blocks (3C), and the template catalog (10B).

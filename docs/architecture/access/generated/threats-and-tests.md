@@ -49,6 +49,7 @@ Narrative: [../14-threat-model.md](../14-threat-model.md).
 | T-39 | inference | Personal navigation leakage: favorites, recents, view state, URL scope, breadcrumbs, page titles, palette results, shortcuts, or navigation entries revealing or re-opening a record, brand, person, or destination the viewer can no longer (or never could) access, including through forged identifiers, stale client caches, stored state, or another workspace's identifiers. | I-01, I-02, I-11, I-12 | AT-108, AT-109, AT-110, AT-111, AT-112, AT-113, AT-114 |
 | T-40 | inference | Task exposure through responsibility or sharing: assignees, creators, or labels gaining access; a task share exposing its parent, project, children, relationships, links to inaccessible records, history, or brand aggregates; hidden relationship endpoints or descendants affecting counts, completion overrides, or rollups. | I-01, I-02, I-10, I-11 | AT-117, AT-118, AT-119, AT-120, AT-121 |
 | T-41 | inference | Workflow and field exposure: custom statuses, transitions, or approvals bypassing category, Complete/Reopen, or required-field rules; approvers or person/label field values gaining access; hidden fields, options, or formula inputs leaking through payloads, errors, counts, sorting, serialization, audit, or formula results; stale approvals or previews replayed. | I-01, I-02, I-10, I-18 | AT-122, AT-123, AT-124, AT-125, AT-126, AT-127, AT-128, AT-129 |
+| T-42 | inference | Task interaction exposure: freshness, blocked, missing-data, or duplicate signals, bulk previews and reports, undo entries, reminders, snoozes, template applications, or recurring occurrences revealing unreadable tasks, hidden fields, or other people's personal state, by content, count, error, or timing; recurrence or bulk acting beyond current authority. | I-01, I-02, I-10, I-18 | AT-130, AT-131, AT-132, AT-133, AT-134, AT-135, AT-136, AT-137 |
 
 ## Test matrix
 
@@ -183,6 +184,14 @@ Narrative: [../14-threat-model.md](../14-threat-model.md).
 | AT-127 | T-41 | limited_member | Formula over a hidden input — task | `field.value_read` | api | **deny** | omitted | error_message, export, audit_display |
 | AT-128 | T-41 | member | Person or label field value naming someone who cannot read the record — task | `record.read` | api | **deny** | not_found | ui_list, search, notification_inapp |
 | AT-129 | T-41 | member | Configure a workflow at a restricted project without explicit manage — project | `workflow.configure` | api | **deny** | not_found | ui_list, breadcrumb, picker |
+| AT-130 | T-42 | member | Duplicate candidates where the only match is in an unreadable brand or restricted project — task | `record.create` | api | **allow** | ok_filtered | count_facet, timing |
+| AT-131 | T-42 | member | Missing-dependency and blocked signals whose blocker is unreadable — task | `record.read` | api | **allow** | ok_filtered | error_message, timing |
+| AT-132 | T-42 | member | Bulk preview over an explicit set containing an unreadable task — task | `record.update` | api | **deny** | not_found | count_facet, error_message |
+| AT-133 | T-42 | member | Undo of an entry created by another person — task | `record.update` | api | **deny** | not_found | error_message |
+| AT-134 | T-42 | guest | Set a reminder on a task not shared with the guest — task | `task.remind` | api | **deny** | not_found | notification_inapp, timing |
+| AT-135 | T-42 | member | Read another person's snooze or reminder on a shared task — task | `task.snooze` | api | **deny** | omitted | ui_record, activity, audit_display |
+| AT-136 | T-42 | member | Recurring series whose owner lost record.create in the brand — task | `task.manage_recurrence` | api | **deny** | omitted | activity |
+| AT-137 | T-42 | limited_member | Apply a task template whose content includes a field hidden from the applier — task | `record.create` | api | **allow** | ok_filtered | error_message, audit_display |
 
 ## Response shapes
 

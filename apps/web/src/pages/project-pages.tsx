@@ -2321,7 +2321,36 @@ function NextOccurrence({ s }: { s: Series }) {
  */
 function RecurrenceSection({ ws, project }: { ws: string; project: Project }) {
   const stepUp = useStepUp();
-  const list = useResource(() => projects.recurrences(ws, project.id), `rcs:${ws}:${project.id}`);
+  return (
+    <RecurrenceEditor
+      noun="project"
+      cacheKey={`rcs:${ws}:${project.id}`}
+      load={() => projects.recurrences(ws, project.id)}
+      define={(body) => projects.child(ws, project.id, 'recurrences', body, stepUp)}
+      verb={(id, v) => projects.childVerb(ws, project.id, 'recurrences', id, v, {}, stepUp)}
+    />
+  );
+}
+
+/**
+ * The recurring-schedule editor shared by projects (PRJ-013) and tasks (TSK-027, 2D): the same
+ * rule subset, anchor zone, and end conditions; the record kind only changes the wording and the
+ * endpoints.
+ */
+export function RecurrenceEditor({
+  noun,
+  cacheKey,
+  load,
+  define,
+  verb,
+}: {
+  noun: 'project' | 'task';
+  cacheKey: string;
+  load: () => Promise<Series[]>;
+  define: (body: Record<string, unknown>) => Promise<unknown>;
+  verb: (id: string, verb: 'pause' | 'resume' | 'generate') => Promise<unknown>;
+}) {
+  const list = useResource(load, cacheKey);
   const cmd = useCommand(list.reload);
   const [form, setForm] = useState({
     frequency: 'weekly' as Series['rule']['frequency'],
@@ -2369,7 +2398,7 @@ function RecurrenceSection({ ws, project }: { ws: string; project: Project }) {
     if (form.frequency === 'monthly' && form.monthDay) body.month_days = [Number(form.monthDay)];
     setBusy(true);
     try {
-      await projects.child(ws, project.id, 'recurrences', body, stepUp);
+      await define(body);
       setSaid('Recurrence set up.');
       list.reload();
     } catch (err) {
@@ -2410,16 +2439,7 @@ function RecurrenceSection({ ws, project }: { ws: string; project: Project }) {
                         disabled={cmd.busy}
                         onClick={() =>
                           void cmd.run(
-                            () =>
-                              projects.childVerb(
-                                ws,
-                                project.id,
-                                'recurrences',
-                                s.id,
-                                s.state === 'active' ? 'pause' : 'resume',
-                                {},
-                                stepUp,
-                              ),
+                            () => verb(s.id, s.state === 'active' ? 'pause' : 'resume'),
                             s.state === 'active' ? 'Recurrence paused.' : 'Recurrence resumed.',
                           )
                         }
@@ -2434,19 +2454,7 @@ function RecurrenceSection({ ws, project }: { ws: string; project: Project }) {
                         className="button button-secondary"
                         disabled={cmd.busy}
                         onClick={() =>
-                          void cmd.run(
-                            () =>
-                              projects.childVerb(
-                                ws,
-                                project.id,
-                                'recurrences',
-                                s.id,
-                                'generate',
-                                {},
-                                stepUp,
-                              ),
-                            'Next occurrence created.',
-                          )
+                          void cmd.run(() => verb(s.id, 'generate'), 'Next occurrence created.')
                         }
                       >
                         Create next occurrence now
@@ -2458,7 +2466,7 @@ function RecurrenceSection({ ws, project }: { ws: string; project: Project }) {
               ))}
             </ul>
           ) : (
-            <p>This project does not repeat.</p>
+            <p>This {noun} does not repeat.</p>
           )
         }
       </ResourceView>

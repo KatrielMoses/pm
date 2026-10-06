@@ -159,6 +159,18 @@ export interface ServerConfig {
     formulaDepthMax: number;
     formulaRefsMax: number;
     fieldValueBulkMax: number;
+    taskStaleActiveDays: number;
+    taskStalePlannedDays: number;
+    taskRescheduleCount: number;
+    taskRescheduleWindowDays: number;
+    taskRemindersMax: number;
+    reminderFireBatchMax: number;
+    taskSnoozeMaxDays: number;
+    bulkItemsMax: number;
+    bulkPreviewTtlSeconds: number;
+    undoWindowSeconds: number;
+    duplicateWindowDays: number;
+    duplicateCandidatesMax: number;
   };
   features: {
     /** Local/test-only component harness route for reusable UI states (refused when deployed). */
@@ -341,6 +353,18 @@ const DEFAULTS = {
   FORMULA_DEPTH_MAX: '8',
   FORMULA_REFS_MAX: '20',
   FIELD_VALUE_BULK_MAX: '500',
+  TASK_STALE_ACTIVE_DAYS: '7',
+  TASK_STALE_PLANNED_DAYS: '14',
+  TASK_RESCHEDULE_COUNT: '3',
+  TASK_RESCHEDULE_WINDOW_DAYS: '14',
+  TASK_REMINDERS_MAX: '10',
+  REMINDER_FIRE_BATCH_MAX: '500',
+  TASK_SNOOZE_MAX_DAYS: '365',
+  BULK_ITEMS_MAX: '200',
+  BULK_PREVIEW_TTL_SECONDS: '600',
+  UNDO_WINDOW_SECONDS: '30',
+  DUPLICATE_WINDOW_DAYS: '90',
+  DUPLICATE_CANDIDATES_MAX: '5',
 } as const;
 
 const schema = z.object({
@@ -457,6 +481,18 @@ const schema = z.object({
   FORMULA_DEPTH_MAX: int(1, 32),
   FORMULA_REFS_MAX: int(1, 100),
   FIELD_VALUE_BULK_MAX: int(1, 5000),
+  TASK_STALE_ACTIVE_DAYS: int(1, 90),
+  TASK_STALE_PLANNED_DAYS: int(1, 180),
+  TASK_RESCHEDULE_COUNT: int(2, 20),
+  TASK_RESCHEDULE_WINDOW_DAYS: int(1, 90),
+  TASK_REMINDERS_MAX: int(1, 50),
+  REMINDER_FIRE_BATCH_MAX: int(1, 5000),
+  TASK_SNOOZE_MAX_DAYS: int(1, 3650),
+  BULK_ITEMS_MAX: int(1, 1000),
+  BULK_PREVIEW_TTL_SECONDS: int(60, 3600),
+  UNDO_WINDOW_SECONDS: int(5, 300),
+  DUPLICATE_WINDOW_DAYS: int(1, 365),
+  DUPLICATE_CANDIDATES_MAX: int(1, 20),
 });
 
 /** Variables a deployed environment must set explicitly (no silent local defaults). */
@@ -857,6 +893,18 @@ export function loadServerConfig(options: LoadOptions): ServerConfig {
       formulaDepthMax: c.FORMULA_DEPTH_MAX,
       formulaRefsMax: c.FORMULA_REFS_MAX,
       fieldValueBulkMax: c.FIELD_VALUE_BULK_MAX,
+      taskStaleActiveDays: c.TASK_STALE_ACTIVE_DAYS,
+      taskStalePlannedDays: c.TASK_STALE_PLANNED_DAYS,
+      taskRescheduleCount: c.TASK_RESCHEDULE_COUNT,
+      taskRescheduleWindowDays: c.TASK_RESCHEDULE_WINDOW_DAYS,
+      taskRemindersMax: c.TASK_REMINDERS_MAX,
+      reminderFireBatchMax: c.REMINDER_FIRE_BATCH_MAX,
+      taskSnoozeMaxDays: c.TASK_SNOOZE_MAX_DAYS,
+      bulkItemsMax: c.BULK_ITEMS_MAX,
+      bulkPreviewTtlSeconds: c.BULK_PREVIEW_TTL_SECONDS,
+      undoWindowSeconds: c.UNDO_WINDOW_SECONDS,
+      duplicateWindowDays: c.DUPLICATE_WINDOW_DAYS,
+      duplicateCandidatesMax: c.DUPLICATE_CANDIDATES_MAX,
     },
     identity: {
       publicOrigin,

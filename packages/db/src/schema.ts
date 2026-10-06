@@ -1191,7 +1191,23 @@ export interface TaskTable {
   updated_at: DTs;
   updated_by_membership_id: string | null;
   version: Defaulted<number>;
+  // Phase 2D (0027): origin (immutable), recurrence identity, and OD-17 freshness.
+  origin_kind: Defaulted<TaskOriginKind>;
+  origin_ref: ColumnType<Record<string, string | number>, string | undefined, string>;
+  recurrence_series_id: string | null;
+  occurrence_key: string | null;
+  last_meaningful_update_at: DTs;
 }
+export const TASK_ORIGIN_KINDS = [
+  'manual',
+  'recurring',
+  'template',
+  'intake',
+  'import',
+  'integration',
+  'ai_draft',
+] as const;
+export type TaskOriginKind = (typeof TASK_ORIGIN_KINDS)[number];
 export interface TaskAssigneeTable {
   workspace_id: string;
   brand_id: string;
@@ -1346,7 +1362,7 @@ export interface TemplateTable {
   scope_key: string;
   lifecycle_state: Defaulted<LifecycleState>;
   name: string;
-  target_record_type: 'project';
+  target_record_type: 'project' | 'task';
   current_version_id: string | null;
   created_by_membership_id: string | null;
   created_at: DTs;
@@ -1372,7 +1388,7 @@ export interface RecurrenceSeriesTable {
   public_id: string;
   workspace_id: string;
   brand_id: string;
-  target_kind: 'project';
+  target_kind: 'project' | 'task';
   source_record_id: string | null;
   state: Defaulted<'active' | 'paused'>;
   rrule: string;
@@ -1389,6 +1405,63 @@ export interface RecurrenceSeriesTable {
   owner_membership_id: string;
   created_at: DTs;
   updated_at: DTs;
+  version: Defaulted<number>;
+  /** Phase 2D (0027): a task series' project (same brand). */
+  project_id: string | null;
+}
+
+// Phase 2D (0027, 0028): personal reminders and snoozes, bulk operations, undo entries.
+export interface TaskReminderTable {
+  id: string;
+  public_id: string;
+  workspace_id: string;
+  owner_membership_id: string;
+  task_id: string;
+  remind_at: Ts;
+  state: Defaulted<'scheduled' | 'fired' | 'dismissed' | 'cancelled'>;
+  fired_at: Ts | null;
+  created_at: DTs;
+  updated_at: DTs;
+  version: Defaulted<number>;
+}
+export interface TaskSnoozeTable {
+  workspace_id: string;
+  owner_membership_id: string;
+  task_id: string;
+  until_at: Ts;
+  created_at: DTs;
+  updated_at: DTs;
+  version: Defaulted<number>;
+}
+export interface BulkOperationTable {
+  id: string;
+  public_id: string;
+  workspace_id: string;
+  owner_membership_id: string;
+  operation: string;
+  params: ColumnType<Record<string, unknown>, string | undefined, string>;
+  mode: 'atomic' | 'partial';
+  state: Defaulted<'previewed' | 'executed' | 'expired'>;
+  item_ids: string[];
+  fingerprint: Buffer;
+  results: Json<unknown[]> | null;
+  created_at: DTs;
+  expires_at: Ts;
+  executed_at: Ts | null;
+  version: Defaulted<number>;
+}
+export interface UndoEntryTable {
+  id: string;
+  public_id: string;
+  workspace_id: string;
+  owner_membership_id: string;
+  command: string;
+  targets: Json<unknown[]>;
+  inverse: Json<Record<string, unknown>>;
+  state: Defaulted<'available' | 'applied' | 'expired' | 'conflicted'>;
+  created_at: DTs;
+  expires_at: Ts;
+  closed_at: Ts | null;
   version: Defaulted<number>;
 }
 
@@ -1696,6 +1769,10 @@ export interface Database {
   'workflow.field_set_version': WfFieldSetVersionTable;
   'workflow.field_set_attachment': WfFieldSetAttachmentTable;
   'access.field_policy': FieldPolicyTable;
+  'planning.task_reminder': TaskReminderTable;
+  'planning.task_snooze': TaskSnoozeTable;
+  'work.bulk_operation': BulkOperationTable;
+  'work.undo_entry': UndoEntryTable;
 }
 
 /** Column inventory per table, compared with the migrated catalog by the schema-drift test. */
@@ -2656,6 +2733,11 @@ export const TABLE_COLUMNS: Readonly<Record<keyof Database, readonly string[]>> 
     'updated_at',
     'updated_by_membership_id',
     'version',
+    'origin_kind',
+    'origin_ref',
+    'recurrence_series_id',
+    'occurrence_key',
+    'last_meaningful_update_at',
   ],
   'work.task_assignee': [
     'workspace_id',
@@ -2844,6 +2926,7 @@ export const TABLE_COLUMNS: Readonly<Record<keyof Database, readonly string[]>> 
     'created_at',
     'updated_at',
     'version',
+    'project_id',
   ],
   'workflow.workflow': [
     'id',
@@ -3045,6 +3128,59 @@ export const TABLE_COLUMNS: Readonly<Record<keyof Database, readonly string[]>> 
     'guest_visible',
     'index_for_search',
     'updated_at',
+    'version',
+  ],
+  'planning.task_reminder': [
+    'id',
+    'public_id',
+    'workspace_id',
+    'owner_membership_id',
+    'task_id',
+    'remind_at',
+    'state',
+    'fired_at',
+    'created_at',
+    'updated_at',
+    'version',
+  ],
+  'planning.task_snooze': [
+    'workspace_id',
+    'owner_membership_id',
+    'task_id',
+    'until_at',
+    'created_at',
+    'updated_at',
+    'version',
+  ],
+  'work.bulk_operation': [
+    'id',
+    'public_id',
+    'workspace_id',
+    'owner_membership_id',
+    'operation',
+    'params',
+    'mode',
+    'state',
+    'item_ids',
+    'fingerprint',
+    'results',
+    'created_at',
+    'expires_at',
+    'executed_at',
+    'version',
+  ],
+  'work.undo_entry': [
+    'id',
+    'public_id',
+    'workspace_id',
+    'owner_membership_id',
+    'command',
+    'targets',
+    'inverse',
+    'state',
+    'created_at',
+    'expires_at',
+    'closed_at',
     'version',
   ],
 };

@@ -1,6 +1,6 @@
 import type { RichTextDoc } from '@pm/contracts/rich-text';
 import { api, protectedRequest, type StepUpResolver } from '../api.ts';
-import type { StatusView } from '../projects/client.ts';
+import type { Series, StatusView } from '../projects/client.ts';
 import type { BrandMarkerData } from '../shell/client.ts';
 
 /** Typed client for the 2B tasks API. Every identifier is a public ID. */
@@ -20,6 +20,7 @@ export interface TaskSummary {
   remaining_estimate_minutes: number | null;
   depth: number;
   children: number;
+  version: number;
   assignees: Array<{ id: string; name: string; primary: boolean }>;
   lifecycle_state: 'active' | 'archived';
   brand: BrandMarkerData;
@@ -40,6 +41,8 @@ export interface TaskCapabilities {
   trash: boolean;
   create_subtask: boolean;
   history: boolean;
+  manage_recurrence: boolean;
+  save_template: boolean;
 }
 
 export interface Task {
@@ -74,7 +77,12 @@ export interface Task {
   lifecycle_state: 'active' | 'archived' | 'trashed';
   shared_only: boolean;
   capabilities: TaskCapabilities;
+  /** Origin (2D): a closed kind plus safe identifiers (template, series, occurrence). */
+  source: { kind: TaskOriginKind } & Record<string, string | number>;
+  last_meaningful_update_at: string | null;
   version: number;
+  /** The actor's undo handle after an edit (2D); null on replays and for other commands. */
+  undo?: UndoHandle | null;
 }
 
 export interface RelatedTask {
@@ -127,7 +135,102 @@ export interface Label {
   version: number;
 }
 
+export type TaskOriginKind =
+  'manual' | 'recurring' | 'template' | 'intake' | 'import' | 'integration' | 'ai_draft';
+
+export interface UndoHandle {
+  id: string;
+  expires_at: string;
+}
+
+/** 2D: signals are independent and computed only from what the viewer may read. */
+export interface TaskSignals {
+  stale: boolean;
+  blocked: boolean | null;
+  repeatedly_rescheduled: boolean;
+  missing_owner: boolean | null;
+  missing_date: boolean;
+  missing_criteria: boolean | null;
+  missing_dependency: boolean | null;
+}
+
+export interface Reminder {
+  id: string;
+  type: 'task_reminder';
+  remind_at: string;
+  state: 'scheduled' | 'fired' | 'dismissed' | 'cancelled';
+  fired_at: string | null;
+  version: number;
+  task: { id: string; title?: string };
+}
+
+export interface TaskInteraction {
+  type: 'task_signals';
+  task: { id: string; version: number };
+  signals: TaskSignals;
+  freshness: {
+    last_meaningful_update_at: string | null;
+    stale_after_days: number | null;
+    reschedule_rule: { count: number; window_days: number };
+  };
+  source: { kind: TaskOriginKind } & Record<string, string | number>;
+  recurrence: Array<{ id: string; state: string }>;
+  reminders: Reminder[];
+  snooze: { until: string; version: number } | null;
+}
+
+export type BulkOperation =
+  | 'set_status'
+  | 'set_priority'
+  | 'set_due_date'
+  | 'add_label'
+  | 'remove_label'
+  | 'archive'
+  | 'trash';
+export type BulkOutcome =
+  | 'ready'
+  | 'no_change'
+  | 'applied'
+  | 'not_found'
+  | 'forbidden'
+  | 'conflict'
+  | 'invalid'
+  | 'skipped';
+
+export interface BulkOp {
+  id: string;
+  type: 'bulk_operation';
+  operation: BulkOperation;
+  mode: 'atomic' | 'partial';
+  destructive: boolean;
+  state: 'previewed' | 'executed' | 'expired';
+  expires_at: string;
+  executed_at: string | null;
+  items: Array<{
+    task: string;
+    outcome: BulkOutcome;
+    code?: string;
+    target?: StatusView;
+    required_fields?: string[];
+  }>;
+  counts: Partial<Record<BulkOutcome, number>>;
+  version: number;
+  undo?: UndoHandle | null;
+}
+
+export interface TaskTemplate {
+  id: string;
+  type: 'template';
+  target: 'task';
+  name: string;
+  version: number;
+  item_count: number;
+  brand: string | null;
+  not_copied?: string[];
+}
+
 const base = (ws: string) => `/v1/workspaces/${ws}/tasks`;
+const wsBase = (ws: string) => `/v1/workspaces/${ws}`;
 type Ref = { id: string; type: string };
 
 export const tasks = {
@@ -271,5 +374,152 @@ export const tasks = {
         stepUp,
       )
     ).body.data;
+  },
+  // ---- 2D: signals, duplicates, personal state, ordering, bulk, undo, templates ----------------
+  async signals(ws: string, tsk: string, signal?: AbortSignal) {
+    return (
+      await api<{ data: TaskInteraction }>('GET', `${base(ws)}/${tsk}/signals`, {
+        ...(signal ? { signal } : {}),
+      })
+    ).body.data;
+  },
+  async signalsFor(ws: string, ids: string[], signal?: AbortSignal) {
+    if (!ids.length) return [];
+    return (
+      await api<{
+        data: {
+          items: Array<{ task: string; signals: TaskSignals }>;
+        };
+      }>('GET', `${wsBase(ws)}/task-signals?tasks=${ids.map(encodeURIComponent).join(',')}`, {
+        ...(signal ? { signal } : {}),
+      })
+    ).body.data.items;
+  },
+  async duplicates(
+    ws: string,
+    query: { brand: string; title: string; project?: string; exclude?: string },
+    signal?: AbortSignal,
+  ) {
+    const q = new URLSearchParams();
+    for (const [k, v] of Object.entries(query)) if (v) q.set(k, v);
+    return (
+      await api<{
+        data: {
+          candidates: Array<{ id: string; title: string; status: StatusView; created_at: string }>;
+        };
+      }>('GET', `${wsBase(ws)}/task-duplicates?${q}`, { ...(signal ? { signal } : {}) })
+    ).body.data.candidates;
+  },
+  async reminders(ws: string) {
+    return (await api<{ data: Reminder[] }>('GET', `${wsBase(ws)}/reminders`)).body.data;
+  },
+  async remind(ws: string, tsk: string, remindAt: string, stepUp: StepUpResolver) {
+    return (
+      await protectedRequest<{ data: Reminder }>(
+        'POST',
+        `${base(ws)}/${tsk}/reminders`,
+        { remind_at: remindAt },
+        stepUp,
+      )
+    ).body.data;
+  },
+  async updateReminder(ws: string, rem: string, body: unknown, stepUp: StepUpResolver) {
+    return (
+      await protectedRequest<{ data: Reminder }>(
+        'PATCH',
+        `${wsBase(ws)}/reminders/${rem}`,
+        body,
+        stepUp,
+      )
+    ).body.data;
+  },
+  async reorder(
+    ws: string,
+    tsk: string,
+    body: { position: 'up' | 'down' | 'top' | 'bottom' | 'to'; index?: number },
+    version: number,
+    stepUp: StepUpResolver,
+  ) {
+    return (
+      await protectedRequest<{
+        data: {
+          id: string;
+          position: number;
+          total: number;
+          announcement: string;
+          undo: UndoHandle | null;
+        };
+      }>('POST', `${base(ws)}/${tsk}:reorder`, body, stepUp, { ifMatch: version })
+    ).body.data;
+  },
+  async previewBulk(
+    ws: string,
+    body: {
+      operation: BulkOperation;
+      params?: Record<string, unknown>;
+      tasks: string[];
+      mode?: 'atomic' | 'partial';
+    },
+    stepUp: StepUpResolver,
+  ) {
+    return (
+      await protectedRequest<{ data: BulkOp }>('POST', `${wsBase(ws)}/task-bulk`, body, stepUp)
+    ).body.data;
+  },
+  async bulkStatusOptions(ws: string, ids: string[], signal?: AbortSignal) {
+    return (
+      await api<{
+        data: {
+          tasks: number;
+          editable: number;
+          mixed_workflows: boolean;
+          options: Array<{ status: StatusView; available_for: number; all: boolean }>;
+        };
+      }>(
+        'GET',
+        `${wsBase(ws)}/task-bulk/status-options?tasks=${ids.map(encodeURIComponent).join(',')}`,
+        {
+          ...(signal ? { signal } : {}),
+        },
+      )
+    ).body.data;
+  },
+  async executeBulk(ws: string, bop: string, stepUp: StepUpResolver) {
+    return (
+      await protectedRequest<{ data: BulkOp }>(
+        'POST',
+        `${wsBase(ws)}/task-bulk/${bop}:execute`,
+        {},
+        stepUp,
+      )
+    ).body.data;
+  },
+  async undo(ws: string, und: string, stepUp: StepUpResolver) {
+    return (
+      await protectedRequest<{ data: { id: string; state: string; tasks: string[] } }>(
+        'POST',
+        `${wsBase(ws)}/undo/${und}:apply`,
+        {},
+        stepUp,
+      )
+    ).body.data;
+  },
+  async templates(ws: string) {
+    return (await api<{ data: TaskTemplate[] }>('GET', `${wsBase(ws)}/task-templates`)).body.data;
+  },
+  async applyTemplate(
+    ws: string,
+    tpl: string,
+    body: Record<string, unknown>,
+    stepUp: StepUpResolver,
+  ) {
+    return (
+      await protectedRequest<{
+        data: { task: Task; copied: Record<string, number> | null; omitted: string[] | null };
+      }>('POST', `${wsBase(ws)}/task-templates/${tpl}:apply`, body, stepUp)
+    ).body.data;
+  },
+  async recurrences(ws: string, tsk: string) {
+    return (await api<{ data: Series[] }>('GET', `${base(ws)}/${tsk}/recurrences`)).body.data;
   },
 };

@@ -241,6 +241,23 @@ All decisions are **proposed (Phase 0D)**, pending solutions-architect acceptanc
 - **Alternatives:** A separate history table (the 1F audit ledger is the history). Per-entity events for checklist items and links (they are task content; `work.task.updated` names the changed fields).
 - **Consequences:** Event payloads carry identifiers, kinds, and states only, never titles, descriptions, checklist text, URLs, or label names. 74 ID prefixes, 72 events, 51 named parameters, 51 telemetry signals.
 
+<a id="pl-26"></a>
+### PL-26: Task interaction contracts (Phase 2D amendment)
+- **Decision:**
+  - Public ID prefixes `rem` (task reminder), `bop` (bulk operation), and `und` (undo entry). Task series keep `rcs`; task templates keep `tpl`.
+  - Five C1 events: `planning.task_reminder.scheduled`, `planning.task_reminder.fired` (the content-free outbox fact 4B delivers), `work.bulk_operation.executed`, `work.task.undone`, and `templates.template.versioned` (a new immutable template version). Generated task occurrences reuse `planning.occurrence.generated`; edits reuse `work.task.*`.
+  - Named bounds:
+    - Freshness (OD-17): `TASK_STALE_ACTIVE_DAYS` (7), `TASK_STALE_PLANNED_DAYS` (14), `TASK_RESCHEDULE_COUNT` (3), `TASK_RESCHEDULE_WINDOW_DAYS` (14).
+    - Personal state: `TASK_REMINDERS_MAX` (10), `REMINDER_FIRE_BATCH_MAX` (500), `TASK_SNOOZE_MAX_DAYS` (365).
+    - Bulk and undo: `BULK_ITEMS_MAX` (200), `BULK_PREVIEW_TTL_SECONDS` (600), `UNDO_WINDOW_SECONDS` (30).
+    - Duplicates: `DUPLICATE_WINDOW_DAYS` (90), `DUPLICATE_CANDIDATES_MAX` (5).
+  - One job, `work.reminders` (every minute; discovery through a payload-free dispatcher function). Task recurrence runs in the existing `work.recurrence` job.
+  - Three bounded signals: `work.reminders.fired`, `work.bulk.items`, and `work.undo.applied` (outcome).
+  - Refusals: an expired or superseded undo, bulk preview, or inline base is `conflict` (`stale`); a bulk set over the bound or a snooze beyond its bound is `validation_failed` (`too_many`, `out_of_range`); unreadable items are `not_found`.
+- Review 01: the non-resource `bulk_status_options` envelope lists a selection's statuses (custom included) with per-status task counts; task origin gains `template`.
+- **Alternatives:** Per-channel reminder events (channels are 4B). A bulk job per item (one command, one report).
+- **Consequences:** Event payloads carry identifiers, kinds, counts, and states only, never titles, reminder notes, or field values. 83 ID prefixes, 91 events, 80 named parameters, 57 telemetry signals.
+
 <a id="pl-25"></a>
 ### PL-25: Workflow and custom-field contracts (Phase 2C amendment)
 - **Decision:**

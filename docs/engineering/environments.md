@@ -103,6 +103,18 @@ worker process is a startup error. All identities of one process must target the
 | `FORMULA_DEPTH_MAX` | optional | optional | default 8 (1–32); deepest formula dependency chain (0D `FORMULA_DEPTH_MAX`) |
 | `FORMULA_REFS_MAX` | optional | optional | default 20 (1–100); most field references in one formula (0D `FORMULA_REFS_MAX`) |
 | `FIELD_VALUE_BULK_MAX` | optional | optional | default 500 (1–5000); most records migrated by one status or option replacement command (0D `FIELD_VALUE_BULK_MAX`) |
+| `TASK_STALE_ACTIVE_DAYS` | optional | optional | default 7 (1–90); days without a meaningful update before an active or blocked task is stale (OD-17) (0D `TASK_STALE_ACTIVE_DAYS`) |
+| `TASK_STALE_PLANNED_DAYS` | optional | optional | default 14 (1–180); days without a meaningful update before a planned task is stale (OD-17) (0D `TASK_STALE_PLANNED_DAYS`) |
+| `TASK_RESCHEDULE_COUNT` | optional | optional | default 3 (2–20); material due-date or deadline edits within the window that mark a task repeatedly rescheduled (OD-17) (0D `TASK_RESCHEDULE_COUNT`) |
+| `TASK_RESCHEDULE_WINDOW_DAYS` | optional | optional | default 14 (1–90); window for counting reschedules (OD-17) (0D `TASK_RESCHEDULE_WINDOW_DAYS`) |
+| `TASK_REMINDERS_MAX` | optional | optional | default 10 (1–50); most scheduled reminders one person holds on one task (0D `TASK_REMINDERS_MAX`) |
+| `REMINDER_FIRE_BATCH_MAX` | optional | optional | default 500 (1–5000); most due reminders one worker run fires per workspace (0D `REMINDER_FIRE_BATCH_MAX`) |
+| `TASK_SNOOZE_MAX_DAYS` | optional | optional | default 365 (1–3650); furthest a snooze may reach (0D `TASK_SNOOZE_MAX_DAYS`) |
+| `BULK_ITEMS_MAX` | optional | optional | default 200 (1–1000); most tasks in one bulk command's explicit set (0D `BULK_ITEMS_MAX`) |
+| `BULK_PREVIEW_TTL_SECONDS` | optional | optional | default 600 (60–3600); how long a bulk preview may be executed (0D `BULK_PREVIEW_TTL_SECONDS`) |
+| `UNDO_WINDOW_SECONDS` | optional | optional | default 30 (5–300); how long a reversible task change can be undone (0D `UNDO_WINDOW_SECONDS`) |
+| `DUPLICATE_WINDOW_DAYS` | optional | optional | default 90 (1–365); how far back deterministic duplicate matching looks (0D `DUPLICATE_WINDOW_DAYS`) |
+| `DUPLICATE_CANDIDATES_MAX` | optional | optional | default 5 (1–20); most duplicate candidates returned (0D `DUPLICATE_CANDIDATES_MAX`) |
 | `VIEW_STATE_TTL_MS` | optional | optional | default 90 days; stored view state not written for this long is removed (0D `VIEW_STATE_TTL`) |
 
 Values are configuration, not customer promises (PQ-05). The 0D parameter values above are

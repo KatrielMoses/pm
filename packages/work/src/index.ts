@@ -13,6 +13,9 @@ export * from './ownership.ts';
 export * from './jobs.ts';
 export * from './workflow-service.ts';
 export * from './field-service.ts';
+export * from './task-package.ts';
+export * from './task-recurrence.ts';
+export * from './task-interaction.ts';
 export {
   PROJECT_STATUS_ID,
   resolveWorkflow,

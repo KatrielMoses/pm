@@ -488,6 +488,27 @@ export const TELEMETRY_SIGNALS = [
     "labels": [
       "outcome"
     ]
+  },
+  {
+    "name": "work.reminders.fired",
+    "type": "counter",
+    "labels": [
+      "outcome"
+    ]
+  },
+  {
+    "name": "work.bulk.items",
+    "type": "counter",
+    "labels": [
+      "outcome"
+    ]
+  },
+  {
+    "name": "work.undo.applied",
+    "type": "counter",
+    "labels": [
+      "outcome"
+    ]
   }
 ] as const;
 export type TelemetrySignalName = (typeof TELEMETRY_SIGNALS)[number]['name'];
@@ -1457,6 +1478,27 @@ export const ID_PREFIXES = [
     "entity": "workflow.field_set",
     "ownerModule": "workflow",
     "platformOnly": false
+  },
+  {
+    "prefix": "rem",
+    "resource": "task_reminder",
+    "entity": "planning.task_reminder",
+    "ownerModule": "planning",
+    "platformOnly": false
+  },
+  {
+    "prefix": "bop",
+    "resource": "bulk_operation",
+    "entity": "work.bulk_operation",
+    "ownerModule": "work",
+    "platformOnly": false
+  },
+  {
+    "prefix": "und",
+    "resource": "undo_entry",
+    "entity": "work.undo_entry",
+    "ownerModule": "work",
+    "platformOnly": false
   }
 ] as const;
 export type IdPrefix = (typeof ID_PREFIXES)[number]['prefix'];
@@ -2154,6 +2196,17 @@ export const INTERNAL_EVENTS = [
     "maxClass": "C1"
   },
   {
+    "type": "templates.template.versioned",
+    "schemaVersion": 1,
+    "aggregateEntity": "templates.template",
+    "fields": [
+      "target_record_type",
+      "version",
+      "item_count"
+    ],
+    "maxClass": "C1"
+  },
+  {
     "type": "templates.template.applied",
     "schemaVersion": 1,
     "aggregateEntity": "templates.template",
@@ -2321,6 +2374,49 @@ export const INTERNAL_EVENTS = [
       "definition_ids"
     ],
     "maxClass": "C1"
+  },
+  {
+    "type": "planning.task_reminder.scheduled",
+    "schemaVersion": 1,
+    "aggregateEntity": "planning.task_reminder",
+    "fields": [
+      "task_id",
+      "state"
+    ],
+    "maxClass": "C1"
+  },
+  {
+    "type": "planning.task_reminder.fired",
+    "schemaVersion": 1,
+    "aggregateEntity": "planning.task_reminder",
+    "fields": [
+      "task_id",
+      "account_id"
+    ],
+    "maxClass": "C1"
+  },
+  {
+    "type": "work.bulk_operation.executed",
+    "schemaVersion": 1,
+    "aggregateEntity": "work.bulk_operation",
+    "fields": [
+      "operation",
+      "mode",
+      "item_count",
+      "succeeded",
+      "failed"
+    ],
+    "maxClass": "C1"
+  },
+  {
+    "type": "work.task.undone",
+    "schemaVersion": 1,
+    "aggregateEntity": "work.task",
+    "fields": [
+      "task_id",
+      "command"
+    ],
+    "maxClass": "C1"
   }
 ] as const;
 export type InternalEventType = (typeof INTERNAL_EVENTS)[number]['type'];
@@ -2393,7 +2489,19 @@ export const PARAMETER_NAMES = [
   "FORMULA_AST_NODES_MAX",
   "FORMULA_DEPTH_MAX",
   "FORMULA_REFS_MAX",
-  "FIELD_VALUE_BULK_MAX"
+  "FIELD_VALUE_BULK_MAX",
+  "TASK_STALE_ACTIVE_DAYS",
+  "TASK_STALE_PLANNED_DAYS",
+  "TASK_RESCHEDULE_COUNT",
+  "TASK_RESCHEDULE_WINDOW_DAYS",
+  "TASK_REMINDERS_MAX",
+  "REMINDER_FIRE_BATCH_MAX",
+  "TASK_SNOOZE_MAX_DAYS",
+  "BULK_ITEMS_MAX",
+  "BULK_PREVIEW_TTL_SECONDS",
+  "UNDO_WINDOW_SECONDS",
+  "DUPLICATE_WINDOW_DAYS",
+  "DUPLICATE_CANDIDATES_MAX"
 ] as const;
 export type ParameterName = (typeof PARAMETER_NAMES)[number];
 
@@ -4614,6 +4722,60 @@ export const ACTIONS = [
       "member": "grant:view",
       "limited_member": "grant:view",
       "read_only": "grant:view",
+      "guest": "deny"
+    }
+  },
+  {
+    "key": "task.remind",
+    "kind": "record",
+    "scopes": [
+      "record"
+    ],
+    "stepUp": false,
+    "riskClass": "R0",
+    "requiredLevel": "view",
+    "roles": {
+      "owner": "implicit",
+      "administrator": "implicit",
+      "member": "grant:view",
+      "limited_member": "grant:view",
+      "read_only": "grant:view",
+      "guest": "grant:view"
+    }
+  },
+  {
+    "key": "task.snooze",
+    "kind": "record",
+    "scopes": [
+      "record"
+    ],
+    "stepUp": false,
+    "riskClass": "R0",
+    "requiredLevel": "view",
+    "roles": {
+      "owner": "implicit",
+      "administrator": "implicit",
+      "member": "grant:view",
+      "limited_member": "grant:view",
+      "read_only": "grant:view",
+      "guest": "grant:view"
+    }
+  },
+  {
+    "key": "task.manage_recurrence",
+    "kind": "record",
+    "scopes": [
+      "record"
+    ],
+    "stepUp": false,
+    "riskClass": "R2",
+    "requiredLevel": "manage",
+    "roles": {
+      "owner": "implicit",
+      "administrator": "implicit",
+      "member": "grant:manage",
+      "limited_member": "deny",
+      "read_only": "deny",
       "guest": "deny"
     }
   }

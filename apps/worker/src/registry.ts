@@ -10,7 +10,12 @@ import {
   type SchedulerDeps,
 } from '@pm/lifecycle';
 import { VIEWS_SCHEDULES, viewsCleanupHandler, type ViewsCleanupDeps } from '@pm/tenancy';
-import { recurrenceHandler, WORK_SCHEDULES, type RecurrenceJobDeps } from '@pm/work';
+import {
+  recurrenceHandler,
+  remindersHandler,
+  WORK_SCHEDULES,
+  type RecurrenceJobDeps,
+} from '@pm/work';
 
 /**
  * Job handlers, outbox consumers, and recurring jobs registered by product modules.
@@ -19,6 +24,7 @@ import { recurrenceHandler, WORK_SCHEDULES, type RecurrenceJobDeps } from '@pm/w
  * purge, the retention purge scheduler, and the (disabled until decided) tombstone sweep.
  * 1E: views cleanup (expired per-device view state, departed members' personal navigation).
  * 2A: recurring project generation (bounded catch-up, owner authority rechecked per series).
+ * 2D: recurring task generation (same job) and personal task reminders (deduplicated firing).
  */
 export interface WorkerModules {
   identity: IdentityJobDeps;
@@ -37,6 +43,7 @@ export function registeredHandlers(m: WorkerModules): JobHandler[] {
     tombstoneSweepHandler(m.lifecycle.scheduler),
     viewsCleanupHandler(m.views),
     recurrenceHandler(m.work),
+    remindersHandler(m.work),
   ];
 }
 

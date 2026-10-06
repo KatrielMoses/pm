@@ -194,6 +194,11 @@ describe('database-enforced workspace existence (1A review 01, correction 2)', (
       'workflow.transition_requirement',
       'workflow.workflow',
       'workflow.workflow_status',
+      // Phase 2D reminders, snoozes, bulk operations, and undo entries.
+      'planning.task_reminder',
+      'planning.task_snooze',
+      'work.bulk_operation',
+      'work.undo_entry',
     ];
     expect(res.rows.map((r) => r.tbl).sort()).toEqual(
       [...TENANT_TABLES.map((t) => `exec.${t}`), ...phase1f, ...phase1c].sort(),
@@ -231,8 +236,9 @@ describe('database-enforced workspace existence (1A review 01, correction 2)', (
     // 2A projects, structures, relationships, templates, recurrence, project role scope: 60 keys;
     // 2B tasks, assignees, checklists, task criteria, inherited criteria, labels, links: 33 keys;
     // 2C workflows, statuses, transitions, approvals (24) and fields, values, sets, field policy (30),
-    // less the three platform-status keys that became trigger-checked status references: +51.
-    expect(res.rows.length).toBe(227);
+    // less the three platform-status keys that became trigger-checked status references: +51;
+    // 2D task occurrences, task series projects, reminders, snoozes, bulk operations, undo: +12.
+    expect(res.rows.length).toBe(239);
     for (const r of res.rows)
       expect(r, `${r.tbl}.${r.conname}`).toMatchObject({
         referencing_indexed: true,

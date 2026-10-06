@@ -55,6 +55,21 @@ These six statuses are the immutable platform defaults seeded in Phase 2B. The d
 - **Transitions.** Without transition rules a workflow behaves like the default. Once a workflow has any active transition, only its registered edges are allowed. Complete, Cancel, and Reopen still apply, and a generic edit can never skip a rule.
 - **Required fields and approvals.** A transition can require built-in or custom fields (checked on the final record, before the change) and an approval (`one_manager` or `all_named_approvers`). Approval requests are bound to the record version. Any change makes a pending request stale, and nobody approves their own request unless the transition allows it and the workspace's self-approval policy permits it ([OD-20](open-decisions.md#od-20)). Review requested and changes requested states are Phase 4A.
 
+### Task signals (Phase 2D, OD-17)
+
+Signals are independent, derived only from facts the viewer may read, and never change the task.
+
+| Signal | Meaning |
+|---|---|
+| Stale | No meaningful update for 7 days (active category, including blocked) or 14 days (planned); paused, done, and cancelled tasks are never stale |
+| Blocked | An incoming `blocks` relationship from a readable task that is not done or cancelled |
+| Repeatedly rescheduled | 3 material due-date or deadline edits within 14 days |
+| Missing owner | An open task with no active assignee |
+| Missing date | An open task with neither a due date nor a deadline |
+| Missing criteria | An open task with no acceptance criteria of its own and none inherited from its project |
+| Missing dependency | A readable incoming blocker was cancelled, archived, or trashed, so the task waits on work that will not finish |
+| Possible duplicate | Another readable open task in the same workspace and brand (and a compatible project) has the same normalized title within the recent window (advisory only) |
+
 ## 3. Completion, review, and acceptance are different facts
 
 | Fact | Definition | Recorded as | Can an agent, automation, or integration set it? |

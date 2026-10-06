@@ -89,6 +89,18 @@ describe('server configuration', () => {
       formulaDepthMax: 8,
       formulaRefsMax: 20,
       fieldValueBulkMax: 500,
+      taskStaleActiveDays: 7,
+      taskStalePlannedDays: 14,
+      taskRescheduleCount: 3,
+      taskRescheduleWindowDays: 14,
+      taskRemindersMax: 10,
+      reminderFireBatchMax: 500,
+      taskSnoozeMaxDays: 365,
+      bulkItemsMax: 200,
+      bulkPreviewTtlSeconds: 600,
+      undoWindowSeconds: 30,
+      duplicateWindowDays: 90,
+      duplicateCandidatesMax: 5,
     });
     const set = (env: Record<string, string>) =>
       loadServerConfig({ service: 'worker', env: { ...local, ...env } });
@@ -119,6 +131,9 @@ describe('server configuration', () => {
       ['FORMULA_DEPTH_MAX', '33'],
       ['FORMULA_AST_NODES_MAX', '9'],
       ['FIELD_VALUE_BULK_MAX', '0'],
+      ['UNDO_WINDOW_SECONDS', '301'],
+      ['BULK_ITEMS_MAX', '0'],
+      ['TASK_STALE_ACTIVE_DAYS', '91'],
     ] as const)
       expect(issues(() => set({ [key]: bad })).join(' '), `${key}=${bad}`).toMatch(
         new RegExp(`^${key}`),

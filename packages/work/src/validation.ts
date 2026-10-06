@@ -84,6 +84,30 @@ export interface WorkSettings {
   formulaRefsMax: number;
   /** `FIELD_VALUE_BULK_MAX` */
   fieldValueBulkMax: number;
+  /** `TASK_STALE_ACTIVE_DAYS` */
+  taskStaleActiveDays: number;
+  /** `TASK_STALE_PLANNED_DAYS` */
+  taskStalePlannedDays: number;
+  /** `TASK_RESCHEDULE_COUNT` */
+  taskRescheduleCount: number;
+  /** `TASK_RESCHEDULE_WINDOW_DAYS` */
+  taskRescheduleWindowDays: number;
+  /** `TASK_REMINDERS_MAX` */
+  taskRemindersMax: number;
+  /** `REMINDER_FIRE_BATCH_MAX` */
+  reminderFireBatchMax: number;
+  /** `TASK_SNOOZE_MAX_DAYS` */
+  taskSnoozeMaxDays: number;
+  /** `BULK_ITEMS_MAX` */
+  bulkItemsMax: number;
+  /** `BULK_PREVIEW_TTL_SECONDS` */
+  bulkPreviewTtlSeconds: number;
+  /** `UNDO_WINDOW_SECONDS` */
+  undoWindowSeconds: number;
+  /** `DUPLICATE_WINDOW_DAYS` */
+  duplicateWindowDays: number;
+  /** `DUPLICATE_CANDIDATES_MAX` */
+  duplicateCandidatesMax: number;
 }
 
 export const DEFAULT_WORK_SETTINGS: WorkSettings = Object.freeze({
@@ -118,6 +142,18 @@ export const DEFAULT_WORK_SETTINGS: WorkSettings = Object.freeze({
   formulaDepthMax: 8,
   formulaRefsMax: 20,
   fieldValueBulkMax: 500,
+  taskStaleActiveDays: 7,
+  taskStalePlannedDays: 14,
+  taskRescheduleCount: 3,
+  taskRescheduleWindowDays: 14,
+  taskRemindersMax: 10,
+  reminderFireBatchMax: 500,
+  taskSnoozeMaxDays: 365,
+  bulkItemsMax: 200,
+  bulkPreviewTtlSeconds: 600,
+  undoWindowSeconds: 30,
+  duplicateWindowDays: 90,
+  duplicateCandidatesMax: 5,
 });
 
 /** The database invariant behind `TASK_DEPTH_MAX` (migration 0023). */

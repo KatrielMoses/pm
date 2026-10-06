@@ -1,12 +1,13 @@
 import type { FastifyInstance, FastifyRequest } from 'fastify';
 import { nonResourceEnvelope } from '@pm/contracts';
-import type { FieldService } from '@pm/work';
+import type { TaskInteractionService } from '@pm/work';
 import { routeKit } from '../route-kit.ts';
+import { registerTaskInteraction } from './interaction-routes.ts';
 import { registerTasks } from './task-routes.ts';
 import { registerWorkflows } from './workflow-routes.ts';
 
 export interface WorkRouteDeps {
-  work: FieldService;
+  work: TaskInteractionService;
 }
 
 type Params = {
@@ -40,6 +41,7 @@ export function registerWork(app: FastifyInstance, deps: WorkRouteDeps): void {
   });
   const base = '/v1/workspaces/:ws/projects';
   registerTasks(app, work);
+  registerTaskInteraction(app, work);
   registerWorkflows(app, work);
 
   app.get(

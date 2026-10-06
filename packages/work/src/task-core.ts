@@ -110,6 +110,11 @@ export type TaskRow = {
   created_at: Date;
   updated_at: Date;
   version: number;
+  origin_kind: string;
+  origin_ref: Record<string, string | number>;
+  recurrence_series_id: string | null;
+  occurrence_key: string | null;
+  last_meaningful_update_at: Date;
 };
 
 /** A task resolved through the one compiled level (brand or project chain, share, lifecycle). */
@@ -278,6 +283,7 @@ export class TaskCoreService extends WorkService {
         completed_at: row.completed_at ? new Date(row.completed_at) : null,
         created_at: new Date(row.created_at),
         updated_at: new Date(row.updated_at),
+        last_meaningful_update_at: new Date(row.last_meaningful_update_at),
         version: Number(row.version),
       } as TaskRow,
     };
@@ -468,6 +474,10 @@ export class TaskCoreService extends WorkService {
       trash: life('record.trash'),
       create_subtask: active && own && rec('record.create', false),
       history: own,
+      // 2D (AZ-24): recurring schedules and task templates.
+      manage_recurrence: active && own && rec('task.manage_recurrence', false),
+      save_template:
+        own && decideBrand(p, 'templates.manage', { ...t.brand, lifecycleState: 'active' }).allowed,
     };
   }
 
@@ -607,6 +617,9 @@ export class TaskCoreService extends WorkService {
       progress,
       // Scheduled time is a planning work block (3C); tasks store no schedule fields (OD-01).
       scheduled: { available: false as const },
+      // Origin (ADR-0016 D12): the closed kind for every reader; safe identifiers for own readers.
+      source: own ? { kind: r.origin_kind, ...r.origin_ref } : { kind: r.origin_kind },
+      last_meaningful_update_at: own ? r.last_meaningful_update_at.toISOString() : null,
       lifecycle_state: t.lifecycleState,
       your_level: t.level,
       shared_only: !own,
@@ -713,6 +726,7 @@ export class TaskCoreService extends WorkService {
           't.project_id',
           't.depth',
           't.rank',
+          't.version',
           'r.lifecycle_state',
           'br.public_id as brand_public_id',
           'b.name as brand_name',
@@ -789,6 +803,7 @@ export class TaskCoreService extends WorkService {
           remaining_estimate_minutes: x.remaining_estimate_minutes,
           depth: x.depth,
           children: childCount.get(x.id) ?? 0,
+          version: Number(x.version),
           assignees: assignees
             .filter((a) => a.task_id === x.id)
             .map((a) => ({
@@ -1130,7 +1145,11 @@ export class TaskCoreService extends WorkService {
     const merge = transition
       ? { version: transition.version, changes: new Map() }
       : parseMerge(body, TASK_FIELDS);
-    return this.mutate(
+    return this.mutate<
+      Awaited<ReturnType<TaskCoreService['taskView']>> & {
+        undo: { id: string; expires_at: string } | null;
+      }
+    >(
       caller,
       transition ? 'task.transition' : 'task.update',
       ws,
@@ -1157,84 +1176,140 @@ export class TaskCoreService extends WorkService {
           return {
             status: 200,
             ref: { id: t.publicId, type: 'task' },
-            data: await this.taskView(tx, p, t),
+            data: { ...(await this.taskView(tx, p, t)), undo: null },
           };
-        const statusChanging = next.status !== undefined && next.status !== current.status;
-        const from = statusRef(tx, t.row.status_id);
-        if (statusChanging && TERMINAL.has(from.category))
-          throw invalid(
-            issue('/changes/status', 'use_reopen', 'Reopen the task to change its status.'),
-          );
-        const merged = { ...current, ...next };
-        this.checkDates(merged);
-        let to: StatusRef | null = null;
-        if (statusChanging) {
-          const wf = await this.taskWorkflow(tx, t.brand.id, t.row.project_id);
-          to = statusFromKey('task', wf, next.status, '/changes/status');
-          await this.taskGate(
-            tx,
-            caller,
-            req,
-            p,
-            t,
-            { wf, from, to, intent: 'edit', merged },
-            transition,
-          );
-        }
-        const set: Record<string, unknown> = {
-          ...this.taskColumns(next),
-          updated_at: new Date(),
-          updated_by_membership_id: p.membershipId,
-          version: version + 1,
-        };
-        if (to) set.status_id = to.id;
-        if (to && to.category === 'cancelled') set.prior_status_id = t.row.status_id;
-        await tx.db.updateTable('work.task').set(set).where('id', '=', t.id).execute();
-        await tx.db
-          .updateTable('core.record')
-          .set({ version: sql`version + 1` })
-          .where('id', '=', t.id)
-          .execute();
-        const diff = auditDiff(
-          { ...current, deadline: JSON.stringify(current.deadline) },
-          {
-            ...next,
-            ...(next.deadline !== undefined ? { deadline: JSON.stringify(next.deadline) } : {}),
-          },
-          TASK_CONTENT_FIELDS,
-        );
-        await this.taskAudit(tx, caller, p, 'task.updated', t, diff);
-        await this.workEvent(
-          tx,
-          caller,
-          p,
-          'work.task.updated',
-          { type: 'work.task', id: t.id, sequence: version + 1 },
-          { changed_fields: Object.keys(next).sort().join(',') },
-          t.brand.id,
-        );
-        if (statusChanging)
-          await this.workEvent(
-            tx,
-            caller,
-            p,
-            'work.task.status_changed',
-            { type: 'work.task', id: t.id, sequence: version + 1 },
-            {
-              from_status_id: t.row.status_id,
-              to_status_id: to!.id,
-              to_category: to!.category,
-            },
-            t.brand.id,
-          );
+        await this.applyTaskChanges(tx, caller, req, p, t, current, next, transition);
+        const undo = transition
+          ? null
+          : await this.recordUndo(tx, p, {
+              command: 'task.update',
+              targets: [{ id: t.id, version: version + 1 }],
+              inverse: {
+                fields: Object.fromEntries(Object.keys(next).map((k) => [k, current[k] ?? null])),
+              },
+              before: current,
+              after: next,
+            });
         return {
           status: 200,
           ref: { id: t.publicId, type: 'task' },
-          data: await this.taskView(tx, p, await this.loadTask(tx, p, t.publicId)),
+          data: {
+            ...(await this.taskView(tx, p, await this.loadTask(tx, p, t.publicId))),
+            // The actor's undo handle for this change (ADR-0016 D11); null on replays.
+            undo,
+          },
         };
       },
-      async (tx, p, ref) => this.taskView(tx, p, await this.loadTask(tx, p, ref.id)),
+      async (tx, p, ref) => ({
+        ...(await this.taskView(tx, p, await this.loadTask(tx, p, ref.id))),
+        undo: null,
+      }),
     );
+  }
+
+  /**
+   * Applies validated field changes to a locked, editable task: status changes run the one
+   * transition evaluator; the row, envelope version, audit, and outbox events commit together.
+   * Shared by edits, inline edits, bulk commands, and undo (ADR-0016 D8, D10, D11).
+   */
+  protected async applyTaskChanges(
+    tx: WorkspaceTransaction,
+    caller: Caller,
+    req: Mutation,
+    p: Principal,
+    t: LoadedTask,
+    current: Record<string, unknown>,
+    next: Record<string, unknown>,
+    transition?: TaskTransition,
+  ): Promise<number> {
+    const version = t.row.version;
+    const statusChanging = next.status !== undefined && next.status !== current.status;
+    const from = statusRef(tx, t.row.status_id);
+    if (statusChanging && TERMINAL.has(from.category))
+      throw invalid(
+        issue('/changes/status', 'use_reopen', 'Reopen the task to change its status.'),
+      );
+    const merged = { ...current, ...next };
+    this.checkDates(merged);
+    let to: StatusRef | null = null;
+    if (statusChanging) {
+      const wf = await this.taskWorkflow(tx, t.brand.id, t.row.project_id);
+      to = statusFromKey('task', wf, next.status, '/changes/status');
+      await this.taskGate(
+        tx,
+        caller,
+        req,
+        p,
+        t,
+        { wf, from, to, intent: 'edit', merged },
+        transition,
+      );
+    }
+    const set: Record<string, unknown> = {
+      ...this.taskColumns(next),
+      updated_at: new Date(),
+      updated_by_membership_id: p.membershipId,
+      version: version + 1,
+    };
+    if (to) set.status_id = to.id;
+    if (to && to.category === 'cancelled') set.prior_status_id = t.row.status_id;
+    await tx.db.updateTable('work.task').set(set).where('id', '=', t.id).execute();
+    await tx.db
+      .updateTable('core.record')
+      .set({ version: sql`version + 1` })
+      .where('id', '=', t.id)
+      .execute();
+    const diff = auditDiff(
+      { ...current, deadline: JSON.stringify(current.deadline) },
+      {
+        ...next,
+        ...(next.deadline !== undefined ? { deadline: JSON.stringify(next.deadline) } : {}),
+      },
+      TASK_CONTENT_FIELDS,
+    );
+    await this.taskAudit(tx, caller, p, 'task.updated', t, diff);
+    await this.workEvent(
+      tx,
+      caller,
+      p,
+      'work.task.updated',
+      { type: 'work.task', id: t.id, sequence: version + 1 },
+      { changed_fields: Object.keys(next).sort().join(',') },
+      t.brand.id,
+    );
+    if (statusChanging)
+      await this.workEvent(
+        tx,
+        caller,
+        p,
+        'work.task.status_changed',
+        { type: 'work.task', id: t.id, sequence: version + 1 },
+        {
+          from_status_id: t.row.status_id,
+          to_status_id: to!.id,
+          to_category: to!.category,
+        },
+        t.brand.id,
+      );
+    return version + 1;
+  }
+
+  /**
+   * Records the inverse of a reversible task change for its actor (ADR-0016 D11). The 2B/2C chain
+   * keeps no undo entries; the 2D service overrides this.
+   */
+  protected async recordUndo(
+    _tx: WorkspaceTransaction,
+    _p: Principal,
+    _entry: {
+      command: string;
+      targets: Array<{ id: string; version: number }>;
+      inverse: Record<string, unknown>;
+      before: Record<string, unknown>;
+      after: Record<string, unknown>;
+    },
+  ): Promise<{ id: string; expires_at: string } | null> {
+    return null;
   }
 
   /** Required criteria not yet met: the task's own and its project's inherited definition of done. */

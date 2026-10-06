@@ -99,3 +99,7 @@ Task titles, descriptions, checklist and criteria text, link URLs, and label nam
 | `workflow.formula.evaluations` | `outcome` (`ok`, `missing`, `invalid`, `divide_by_zero`, `cycle`, `overflow`) | Formula results computed on writes and reads |
 
 Field names, values, formulas, option labels, status names, and emails never appear in labels, logs, or error context. Audit records value changes as hashes under `fields.<field id>`.
+
+## Task interaction (2D)
+
+Counters `work.reminders.fired`, `work.bulk.items`, and `work.undo.applied` (outcome label only); task occurrences reuse `work.recurrence.occurrences`. Outbox facts carry identifiers, counts, and states only.

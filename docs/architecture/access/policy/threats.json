@@ -440,6 +440,17 @@
         "I-10",
         "I-18"
       ]
+    },
+    {
+      "id": "T-42",
+      "category": "inference",
+      "description": "Task interaction exposure: freshness, blocked, missing-data, or duplicate signals, bulk previews and reports, undo entries, reminders, snoozes, template applications, or recurring occurrences revealing unreadable tasks, hidden fields, or other people's personal state, by content, count, error, or timing; recurrence or bulk acting beyond current authority.",
+      "mitigated_by": [
+        "I-01",
+        "I-02",
+        "I-10",
+        "I-18"
+      ]
     }
   ],
   "tests": [
@@ -2900,6 +2911,141 @@
         "ui_list",
         "breadcrumb",
         "picker"
+      ]
+    },
+    {
+      "id": "AT-130",
+      "threats": [
+        "T-42"
+      ],
+      "principal": "member",
+      "setup": "Duplicate candidates where the only match is in an unreadable brand or restricted project",
+      "scope": "task",
+      "action": "record.create",
+      "surface": "api",
+      "expected": "allow",
+      "response_shape": "ok_filtered",
+      "silent_surfaces": [
+        "count_facet",
+        "timing"
+      ]
+    },
+    {
+      "id": "AT-131",
+      "threats": [
+        "T-42"
+      ],
+      "principal": "member",
+      "setup": "Missing-dependency and blocked signals whose blocker is unreadable",
+      "scope": "task",
+      "action": "record.read",
+      "surface": "api",
+      "expected": "allow",
+      "response_shape": "ok_filtered",
+      "silent_surfaces": [
+        "error_message",
+        "timing"
+      ]
+    },
+    {
+      "id": "AT-132",
+      "threats": [
+        "T-42"
+      ],
+      "principal": "member",
+      "setup": "Bulk preview over an explicit set containing an unreadable task",
+      "scope": "task",
+      "action": "record.update",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "not_found",
+      "silent_surfaces": [
+        "count_facet",
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-133",
+      "threats": [
+        "T-42"
+      ],
+      "principal": "member",
+      "setup": "Undo of an entry created by another person",
+      "scope": "task",
+      "action": "record.update",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "not_found",
+      "silent_surfaces": [
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-134",
+      "threats": [
+        "T-42"
+      ],
+      "principal": "guest",
+      "setup": "Set a reminder on a task not shared with the guest",
+      "scope": "task",
+      "action": "task.remind",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "not_found",
+      "silent_surfaces": [
+        "notification_inapp",
+        "timing"
+      ]
+    },
+    {
+      "id": "AT-135",
+      "threats": [
+        "T-42"
+      ],
+      "principal": "member",
+      "setup": "Read another person's snooze or reminder on a shared task",
+      "scope": "task",
+      "action": "task.snooze",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "omitted",
+      "silent_surfaces": [
+        "ui_record",
+        "activity",
+        "audit_display"
+      ]
+    },
+    {
+      "id": "AT-136",
+      "threats": [
+        "T-42"
+      ],
+      "principal": "member",
+      "setup": "Recurring series whose owner lost record.create in the brand",
+      "scope": "task",
+      "action": "task.manage_recurrence",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "omitted",
+      "silent_surfaces": [
+        "activity"
+      ]
+    },
+    {
+      "id": "AT-137",
+      "threats": [
+        "T-42"
+      ],
+      "principal": "limited_member",
+      "setup": "Apply a task template whose content includes a field hidden from the applier",
+      "scope": "task",
+      "action": "record.create",
+      "surface": "api",
+      "expected": "allow",
+      "response_shape": "ok_filtered",
+      "silent_surfaces": [
+        "error_message",
+        "audit_display"
       ]
     }
   ]

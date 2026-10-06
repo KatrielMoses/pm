@@ -222,3 +222,11 @@ Lock order (ADR-0015 W24): record row → applicable workflow row `FOR SHARE` fo
 | `packages/work/test/integration/field-timing.test.ts` | Review 01: equal statement shapes and one timing class (`@pm/test-support` timing harness) for hidden vs visible fields, unreadable vs unknown records, formula explanations, required-field errors, history, export, and set-preview counts |
 | `apps/api/test/integration/workflows-api.test.ts` | HTTP configuration, preview and apply, values with ETags, collection verbs, uniform `not_found`, no internal UUIDs |
 | `apps/web/test/workflow.test.tsx`, `e2e/workflows.spec.ts` | Routes; More fields; transition dialog; configuration, approvals, and fields on desktop, tablet, and mobile with axe, forced colors, and 320 px |
+
+## Phase 2D: task interaction quality
+
+Migrations `0027_task_interaction` and `0028_task_bulk_undo` (ADR-0016, 0B ADR-24):
+- `work.task` gains `origin_kind`/`origin_ref` (immutable: trigger plus grants), `recurrence_series_id`/`occurrence_key` (unique together), and `last_meaningful_update_at` (triggers on the task and its content tables through the definer `work.touch_task`). Indexes: `task_duplicate_probe` (normalized title), `task_by_freshness`, and `task_rank_by_brand`.
+- `planning.recurrence_series` accepts `target_kind = task` and an optional `project_id`; `templates.template` accepts `task`.
+- `planning.task_reminder` (guarded forward-only states; `task_reminder_due` for discovery through `exec_dispatch.discover_reminders_due`) and `planning.task_snooze`: personal, RLS, removed on task purge and member departure.
+- `work.bulk_operation` and `work.undo_entry`: actor-owned, one-way closes (`work.bulk_undo_guard`), expired rows deleted by their owner.
