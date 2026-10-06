@@ -241,6 +241,21 @@ All decisions are **proposed (Phase 0D)**, pending solutions-architect acceptanc
 - **Alternatives:** A separate history table (the 1F audit ledger is the history). Per-entity events for checklist items and links (they are task content; `work.task.updated` names the changed fields).
 - **Consequences:** Event payloads carry identifiers, kinds, and states only, never titles, descriptions, checklist text, URLs, or label names. 74 ID prefixes, 72 events, 51 named parameters, 51 telemetry signals.
 
+<a id="pl-28"></a>
+### PL-28: Query and saved-view contracts (Phase 3A amendment)
+- **Decision:**
+  - **Queries.** `POST …/tasks:query` and `POST …/projects:query` (§2.4) take the 0B query AST (`v: 1`, entity, AND/OR filter groups, multi-sort, grouping), an optional presentation, an optional brand `scope`, `limit`, `cursor`, `include_total`, and the caller's `today` for relative dates.
+    - Responses are `collection-page` envelopes with an optional `view` object: columns, group summaries computed with the identical authorized predicate, and labels for readable filter values.
+    - Cursors are opaque, MAC-bound keyset positions over the sort keys and the record ID. Totals are capped at `TOTAL_COUNT_CAP`.
+  - **Exports.** `POST …/tasks:export` and `…/projects:export` return CSV (formula-neutralized) or JSON directly, bounded by `EXPORT_ROWS_MAX`, with `Cache-Control: private, no-store`. Larger views are refused with `validation_failed` (`too_many`). The stored `export` operation and `exf_` artifacts stay with 4E and 6D.
+  - **Saved views.** Prefix `view` (registered in 0B) is implemented. `…/views` (list, create), `…/views/{view}` (read, `PATCH` with `If-Match`, delete), verbs `:share`, `:unshare`, `:pin`, `:unpin`, and `…/views/defaults` (`GET` resolution, `PUT` set or clear).
+  - **Non-resource envelopes.** `view_catalog` (usable fields and operators), `view_field_options` (readable choices for a reference field), `view_default_resolution`, and `view_default`.
+  - **Events.** Seven: `views.saved_view.created`, `.updated`, `.shared`, `.unshared`, `.deleted`, `views.default.changed`, and `views.pin.changed`.
+  - **Bounds.** `QUERY_CONDITIONS_MAX` (40), `QUERY_DEPTH_MAX` (3), `QUERY_SORTS_MAX` (5), `QUERY_VALUES_MAX` (100), `QUERY_GROUPS_MAX` (200), `VIEW_COLUMNS_MAX` (20), `SAVED_VIEWS_MAX` (200), `VIEW_PINS_MAX` (20), `EXPORT_ROWS_MAX` (5000), with `TOTAL_COUNT_CAP` (10000) now configured.
+  - **Signals.** `views.queries` (entity, outcome), `views.query_duration` (entity), and `views.exports` (entity, format).
+- **Alternatives:** `GET` with the AST in the URL (it would land in logs and the 0D field-selection rule). Offset pages (forbidden for mutable collections).
+- **Consequences:** Payloads carry identifiers, kinds, and counts only, never names or query text. 83 ID prefixes, 104 events, 99 named parameters, 63 telemetry signals.
+
 <a id="pl-27"></a>
 ### PL-27: Capture contracts (Phase 2E amendment)
 - **Decision:**

@@ -128,6 +128,26 @@ export interface WorkSettings {
   intakeFormsMax: number;
   /** `INTAKE_SUBMISSIONS_PER_HOUR` */
   intakeSubmissionsPerHour: number;
+  /** `QUERY_CONDITIONS_MAX` */
+  queryConditionsMax: number;
+  /** `QUERY_DEPTH_MAX` */
+  queryDepthMax: number;
+  /** `QUERY_SORTS_MAX` */
+  querySortsMax: number;
+  /** `QUERY_VALUES_MAX` */
+  queryValuesMax: number;
+  /** `QUERY_GROUPS_MAX` */
+  queryGroupsMax: number;
+  /** `VIEW_COLUMNS_MAX` */
+  viewColumnsMax: number;
+  /** `SAVED_VIEWS_MAX` */
+  savedViewsMax: number;
+  /** `VIEW_PINS_MAX` */
+  viewPinsMax: number;
+  /** `EXPORT_ROWS_MAX` */
+  exportRowsMax: number;
+  /** `TOTAL_COUNT_CAP` */
+  totalCountCap: number;
 }
 
 export const DEFAULT_WORK_SETTINGS: WorkSettings = Object.freeze({
@@ -184,6 +204,16 @@ export const DEFAULT_WORK_SETTINGS: WorkSettings = Object.freeze({
   inboxMergeMax: 20,
   intakeFormsMax: 50,
   intakeSubmissionsPerHour: 20,
+  queryConditionsMax: 40,
+  queryDepthMax: 3,
+  querySortsMax: 5,
+  queryValuesMax: 100,
+  queryGroupsMax: 200,
+  viewColumnsMax: 20,
+  savedViewsMax: 200,
+  viewPinsMax: 20,
+  exportRowsMax: 5_000,
+  totalCountCap: 10_000,
 });
 
 /** The database invariant behind `TASK_DEPTH_MAX` (migration 0023). */

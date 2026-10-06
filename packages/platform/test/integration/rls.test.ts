@@ -58,6 +58,8 @@ const PHASE_1C_TENANT_TABLES = [
   'views.recent_item',
   'views.view_state',
   'views.view_pin',
+  'views.saved_view',
+  'views.view_default',
   // Phase 2A
   'planning.recurrence_series',
   'relations.record_relationship',
