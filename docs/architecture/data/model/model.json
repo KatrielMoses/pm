@@ -8498,7 +8498,7 @@
       "containment_parents": [],
       "may_contain_secrets": "no",
       "uniqueness": [
-        "(workspace_id, account_id, task_id, remind_at)"
+        "(workspace_id, owner_membership_id, task_id, remind_at)"
       ],
       "sensitive_fields": [],
       "name": "task_reminder",
@@ -8520,7 +8520,7 @@
       "personal_data": "yes",
       "key_columns": [
         "public_id text (rem_)",
-        "account_id",
+        "owner_membership_id",
         "task_id",
         "remind_at timestamptz",
         "state (scheduled|fired|dismissed|cancelled)",
@@ -8537,7 +8537,7 @@
       "containment_parents": [],
       "may_contain_secrets": "no",
       "uniqueness": [
-        "(workspace_id, account_id, task_id)"
+        "(workspace_id, owner_membership_id, task_id)"
       ],
       "sensitive_fields": [],
       "name": "task_snooze",
@@ -8558,7 +8558,7 @@
       "search_ai": "no",
       "personal_data": "yes",
       "key_columns": [
-        "account_id",
+        "owner_membership_id",
         "task_id",
         "until_at timestamptz",
         "version bigint"
@@ -8593,7 +8593,7 @@
       "personal_data": "incidental",
       "key_columns": [
         "public_id text (bop_)",
-        "account_id",
+        "owner_membership_id",
         "operation text",
         "mode (atomic|partial)",
         "state (previewed|executed|expired)",
@@ -8632,7 +8632,7 @@
       "personal_data": "incidental",
       "key_columns": [
         "public_id text (und_)",
-        "account_id",
+        "owner_membership_id",
         "command text",
         "targets jsonb (task id and expected version per target)",
         "inverse jsonb (prior values of the changed fields only)",

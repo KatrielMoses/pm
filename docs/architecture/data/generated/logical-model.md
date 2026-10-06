@@ -2237,7 +2237,7 @@ A previewed then executed bulk command over a bounded explicit set of tasks, wit
 | Volume / export / search-AI | `medium` / `never` / `no` |
 | Secrets / personal data | `no` / `incidental` |
 | Uniqueness | — |
-| Key typed columns | `public_id text (bop_)`; `account_id`; `operation text`; `mode (atomic\|partial)`; `state (previewed\|executed\|expired)`; `item_ids uuid[] (at most BULK_ITEMS_MAX)`; `fingerprint bytea`; `results jsonb (per item: id, outcome, code)`; `expires_at` |
+| Key typed columns | `public_id text (bop_)`; `owner_membership_id`; `operation text`; `mode (atomic\|partial)`; `state (previewed\|executed\|expired)`; `item_ids uuid[] (at most BULK_ITEMS_MAX)`; `fingerprint bytea`; `results jsonb (per item: id, outcome, code)`; `expires_at` |
 | Sensitive fields | — |
 | Requirements | TSK-038 |
 | Notes | Phase 2D (ADR-24). Results carry identifiers and outcome codes only; unreadable items are reported as not_found without detail. |
@@ -2258,7 +2258,7 @@ The inverse of one reversible task mutation, available to its actor for UNDO_WIN
 | Volume / export / search-AI | `high` / `never` / `no` |
 | Secrets / personal data | `no` / `incidental` |
 | Uniqueness | — |
-| Key typed columns | `public_id text (und_)`; `account_id`; `command text`; `targets jsonb (task id and expected version per target)`; `inverse jsonb (prior values of the changed fields only)`; `state (available\|applied\|expired\|conflicted)`; `expires_at` |
+| Key typed columns | `public_id text (und_)`; `owner_membership_id`; `command text`; `targets jsonb (task id and expected version per target)`; `inverse jsonb (prior values of the changed fields only)`; `state (available\|applied\|expired\|conflicted)`; `expires_at` |
 | Sensitive fields | — |
 | Requirements | TSK-043 |
 | Notes | Phase 2D (ADR-24). Applying an undo is an audited inverse command with a new idempotency key and a version check; it never bypasses current authorization. |
@@ -2587,8 +2587,8 @@ A person's reminder about one task at one instant (personal; never changes the t
 | Retention / confidentiality | `R-PERSONAL` / `C1` |
 | Volume / export / search-AI | `high` / `self` / `no` |
 | Secrets / personal data | `no` / `yes` |
-| Uniqueness | `(workspace_id, account_id, task_id, remind_at)` |
-| Key typed columns | `public_id text (rem_)`; `account_id`; `task_id`; `remind_at timestamptz`; `state (scheduled\|fired\|dismissed\|cancelled)`; `fired_at null`; `version bigint` |
+| Uniqueness | `(workspace_id, owner_membership_id, task_id, remind_at)` |
+| Key typed columns | `public_id text (rem_)`; `owner_membership_id`; `task_id`; `remind_at timestamptz`; `state (scheduled\|fired\|dismissed\|cancelled)`; `fired_at null`; `version bigint` |
 | Sensitive fields | — |
 | Requirements | TSK-032 |
 | Notes | Phase 2D (ADR-24): replaces the planned work.reminder. Firing is deduplicated by the state transition and writes a content-free outbox fact; delivery channels are 4B. |
@@ -2608,8 +2608,8 @@ A person's snooze of one task until an instant (hides it from that person's remi
 | Retention / confidentiality | `R-PERSONAL` / `C1` |
 | Volume / export / search-AI | `medium` / `self` / `no` |
 | Secrets / personal data | `no` / `yes` |
-| Uniqueness | `(workspace_id, account_id, task_id)` |
-| Key typed columns | `account_id`; `task_id`; `until_at timestamptz`; `version bigint` |
+| Uniqueness | `(workspace_id, owner_membership_id, task_id)` |
+| Key typed columns | `owner_membership_id`; `task_id`; `until_at timestamptz`; `version bigint` |
 | Sensitive fields | — |
 | Requirements | TSK-033 |
 | Notes | Phase 2D (ADR-24). Not a meaningful update (OD-17). |

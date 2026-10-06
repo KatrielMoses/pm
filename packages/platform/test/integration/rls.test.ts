@@ -95,6 +95,11 @@ const PHASE_1C_TENANT_TABLES = [
   'workflow.transition_requirement',
   'workflow.workflow',
   'workflow.workflow_status',
+  // Phase 2D reminders, snoozes, bulk operations, and undo entries.
+  'planning.task_reminder',
+  'planning.task_snooze',
+  'work.bulk_operation',
+  'work.undo_entry',
 ] as const;
 
 /** Seeds one row in every tenant execution table for a workspace. */
@@ -399,8 +404,8 @@ describe('tenant RLS foundation (0C §12.7)', () => {
              has_function_privilege('app_worker', p.oid, 'EXECUTE') AS worker_exec
       FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace WHERE n.nspname = 'exec_dispatch' ORDER BY 1`);
     // 1A–1F: 9 functions; 1E adds discover_views_cleanup and 2A discover_recurrence_due
-    // (workspace ids only).
-    expect(fns.rows.length).toBe(11);
+    // (workspace ids only); 2D discover_reminders_due.
+    expect(fns.rows.length).toBe(12);
     const allowed = new Set([
       'job_id',
       'workspace_id',
