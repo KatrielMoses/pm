@@ -105,7 +105,9 @@ describe('tenant lifecycle and audit endpoints are reachable only through policy
       const calls = [
         ...text.matchAll(/lifecycle\.(archive|unarchive|trash|restore|requestPurge)\(/g),
       ].length;
-      const issued = [...text.matchAll(/issueLifecycle\(/g)].length;
+      // 3A: saved views use tenancy's saved-view issuer (AZ-26) through the same confinement.
+      const issued = [...text.matchAll(/issueLifecycle\(|issueSavedViewLifecycleDecision\(/g)]
+        .length;
       expect(issued, f).toBeGreaterThanOrEqual(calls);
     }
     expect(readFileSync(join(ROOT, 'packages/work/src/service.ts'), 'utf8')).toContain(

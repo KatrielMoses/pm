@@ -24,7 +24,8 @@ import {
   projectTargets,
   taskAssigneeHook,
   taskTargets,
-  CaptureService,
+  savedViewTargets,
+  ViewService,
   type WorkSettings,
 } from '@pm/work';
 import {
@@ -45,7 +46,7 @@ export {
 
 export interface WorkEnv {
   h: Harness;
-  svc: CaptureService;
+  svc: ViewService;
   stepUp: StubStepUp;
   lifecycle: LifecycleService;
   tokenFor(email: string): Promise<string>;
@@ -91,7 +92,7 @@ export function workEnv(
     createStepUpChallenge: stepUp.createStepUpChallenge,
   };
   const arrayMax = options.arrayMax ?? 10_000;
-  const svc = new CaptureService({
+  const svc = new ViewService({
     tenant: h.app,
     platform: h.platform,
     writer,
@@ -117,7 +118,8 @@ export function workEnv(
     views: DEFAULT_VIEWS_SETTINGS,
     targets: defaultNavigationTargets()
       .register(projectTargets(arrayMax))
-      .register(taskTargets(arrayMax)),
+      .register(taskTargets(arrayMax))
+      .register(savedViewTargets(arrayMax)),
     work: { ...DEFAULT_WORK_SETTINGS, ...options.work },
     metrics,
     logger: h.logger,

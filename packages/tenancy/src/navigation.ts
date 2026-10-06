@@ -5,7 +5,7 @@ import {
   isViewKey,
   NAVIGABLE_RECORD_TYPES,
   rankBetween,
-  VIEW_STATE_SCHEMAS,
+  viewSchema,
   type NavigableRecordType,
   type ViewKey,
   type ViewStateValue,
@@ -710,7 +710,7 @@ export class NavigationService extends CollaborationService {
     device: Buffer | null,
   ): Promise<ViewStateView> {
     const k = this.#viewKey(key);
-    const schema = VIEW_STATE_SCHEMAS[k];
+    const schema = viewSchema(k)!;
     const empty: ViewStateView = { key: k, schema_version: schema.version, state: {}, version: 0 };
     if (!device) return empty;
     const out = await this.inWorkspace(
@@ -761,7 +761,7 @@ export class NavigationService extends CollaborationService {
     ifMatch: number | undefined,
   ): Promise<ViewStateView> {
     const k = this.#viewKey(key);
-    const schema = VIEW_STATE_SCHEMAS[k];
+    const schema = viewSchema(k)!;
     const fail = (outcome: string, err: TenancyError): never => {
       this.d.metrics.count('views.state_ops', 1, { op: 'write', outcome });
       throw err;

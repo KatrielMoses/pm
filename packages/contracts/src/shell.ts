@@ -116,6 +116,7 @@ export const SHELL_COMMAND_IDS = [
   'go.reports',
   'go.shared',
   'go.recent',
+  'go.views',
   'go.people',
   'go.teams',
   'go.workspace_settings',
@@ -135,7 +136,7 @@ export const SHELL_COMMAND_TRIGGERS = ['palette', 'shortcut'] as const;
 export type ShellCommandTrigger = (typeof SHELL_COMMAND_TRIGGERS)[number];
 
 /** Record types the shell can navigate to today (palette records, favorites, recents). */
-export const NAVIGABLE_RECORD_TYPES = ['brand', 'team', 'project', 'task'] as const;
+export const NAVIGABLE_RECORD_TYPES = ['brand', 'team', 'project', 'task', 'saved_view'] as const;
 export type NavigableRecordType = (typeof NAVIGABLE_RECORD_TYPES)[number];
 
 // -----------------------------------------------------------------------------------------------
@@ -259,8 +260,41 @@ export const VIEW_STATE_SCHEMAS = {
     },
   },
 } as const satisfies Record<string, ViewStateSchema>;
-export type ViewKey = keyof typeof VIEW_STATE_SCHEMAS;
+
+/**
+ * Keyed view-state families (3A, RS-20 "per user per view"): one schema, one key per saved view
+ * (`views.saved.<view id in lower case>`) or per draft entity (`views.draft.task|project`). The
+ * state is the current query and presentation (base64url JSON, re-validated by the engine on
+ * every run) plus the scroll anchor.
+ */
+const SAVED_VIEW_STATE: ViewStateSchema = {
+  version: 1,
+  fields: {
+    q: { spec: { kind: 'text', max: 8000 }, stores: ['url', 'device'] },
+    anchor: { spec: { kind: 'id', prefixes: ['tsk', 'prj'] }, stores: ['device', 'session'] },
+    position: { spec: { kind: 'position', max: 100_000 }, stores: ['device', 'session'] },
+  },
+};
+const VIEW_STATE_FAMILIES: ReadonlyArray<{ pattern: RegExp; schema: ViewStateSchema }> = [
+  { pattern: /^views\.saved\.view_[0-9a-hjkmnp-tv-z]{26}$/, schema: SAVED_VIEW_STATE },
+  { pattern: /^views\.draft\.(task|project)$/, schema: SAVED_VIEW_STATE },
+];
+
+export type ViewKey =
+  keyof typeof VIEW_STATE_SCHEMAS | `views.saved.${string}` | `views.draft.${'task' | 'project'}`;
 export const VIEW_KEYS = Object.keys(VIEW_STATE_SCHEMAS) as ViewKey[];
+
+/** The schema of a registered key or key family (null for anything else). */
+export function viewSchema(key: unknown): ViewStateSchema | null {
+  if (typeof key !== 'string') return null;
+  if (Object.prototype.hasOwnProperty.call(VIEW_STATE_SCHEMAS, key))
+    return VIEW_STATE_SCHEMAS[key as keyof typeof VIEW_STATE_SCHEMAS];
+  return VIEW_STATE_FAMILIES.find((f) => f.pattern.test(key))?.schema ?? null;
+}
+
+/** The view-state key of a saved view (public IDs are upper case; keys are lower case). */
+export const savedViewKey = (view: string): ViewKey =>
+  `views.saved.${view.toLowerCase()}` as ViewKey;
 
 export type ViewStateValue = Record<string, string | string[]>;
 export type DecodeFailure = 'malformed' | 'version' | 'too_large' | 'field' | 'unknown_view';
@@ -271,7 +305,7 @@ export type DecodeResult =
 export const VIEW_STATE_HARD_MAX_BYTES = 16_384;
 
 export function isViewKey(key: unknown): key is ViewKey {
-  return typeof key === 'string' && Object.prototype.hasOwnProperty.call(VIEW_STATE_SCHEMAS, key);
+  return viewSchema(key) !== null;
 }
 
 function decodeField(spec: ViewFieldSpec, value: unknown): string | string[] | undefined {
@@ -321,7 +355,7 @@ export function decodeViewState(
   options: { store: ViewFieldStore; version?: number; maxBytes?: number },
 ): DecodeResult {
   if (!isViewKey(key)) return { ok: false, reason: 'unknown_view' };
-  const schema: ViewStateSchema = VIEW_STATE_SCHEMAS[key];
+  const schema: ViewStateSchema = viewSchema(key)!;
   if (options.version !== undefined && options.version !== schema.version)
     return { ok: false, reason: 'version' };
   if (input === null || typeof input !== 'object' || Array.isArray(input))
@@ -351,7 +385,7 @@ export function decodeViewState(
 
 /** Reads a view's URL-owned fields from query parameters (unknown parameters are ignored). */
 export function viewStateFromSearch(key: ViewKey, search: URLSearchParams): DecodeResult {
-  const schema: ViewStateSchema = VIEW_STATE_SCHEMAS[key];
+  const schema: ViewStateSchema = viewSchema(key)!;
   const raw: Record<string, unknown> = {};
   for (const [name, def] of Object.entries(schema.fields)) {
     if (!def.stores.includes('url')) continue;
@@ -368,7 +402,7 @@ export function viewStateToSearch(
   state: ViewStateValue,
   base: URLSearchParams,
 ): URLSearchParams {
-  const schema: ViewStateSchema = VIEW_STATE_SCHEMAS[key];
+  const schema: ViewStateSchema = viewSchema(key)!;
   const out = new URLSearchParams(base);
   for (const [name, def] of Object.entries(schema.fields)) {
     if (!def.stores.includes('url')) continue;
@@ -386,7 +420,7 @@ export function pickStore(
   state: ViewStateValue,
   store: ViewFieldStore,
 ): ViewStateValue {
-  const schema: ViewStateSchema = VIEW_STATE_SCHEMAS[key];
+  const schema: ViewStateSchema = viewSchema(key)!;
   const out: ViewStateValue = {};
   for (const [name, def] of Object.entries(schema.fields))
     if (def.stores.includes(store) && state[name] !== undefined) out[name] = state[name]!;
