@@ -742,6 +742,89 @@ def check_review01(closure):
     return errs, "concurrency, audit, timing"
 
 
+# ---- Phase 2D -------------------------------------------------------------------------------------
+
+BOUNDS_2D = ["TASK_STALE_ACTIVE_DAYS", "TASK_STALE_PLANNED_DAYS", "TASK_RESCHEDULE_COUNT",
+             "TASK_RESCHEDULE_WINDOW_DAYS", "TASK_REMINDERS_MAX", "REMINDER_FIRE_BATCH_MAX",
+             "TASK_SNOOZE_MAX_DAYS", "BULK_ITEMS_MAX", "BULK_PREVIEW_TTL_SECONDS",
+             "UNDO_WINDOW_SECONDS", "DUPLICATE_WINDOW_DAYS", "DUPLICATE_CANDIDATES_MAX"]
+
+
+def check_2d_contracts(registry):
+    """Every 2D bound, event, prefix, metric, and envelope is registered and wired."""
+    errs = []
+    params = {x["name"] for x in registry["parameters"]}
+    cfg = read(P("packages/config/src/server.ts"))
+    env = read(P("docs/engineering/environments.md"))
+    for b in BOUNDS_2D:
+        if b not in params:
+            errs.append("%s not registered" % b)
+        if "%s: int(" % b not in cfg or "`%s`" % b not in env:
+            errs.append("%s not configured and documented" % b)
+    events = {e["type"] for e in registry["events"]}
+    code = read(P("packages/work/src/task-interaction.ts")) + read(P("packages/work/src/jobs.ts"))
+    for m in re.finditer(r"'((?:planning|work|templates)\.[a-z_]+\.[a-z_]+)'", code):
+        if m.group(1).startswith(("work.reminders", "work.bulk.", "work.undo.", "work.recurrence")):
+            continue
+        if m.group(1) not in events:
+            errs.append("event %s is not registered" % m.group(1))
+    prefixes = {x["prefix"] for x in registry["id_prefixes"]}
+    for pre in ("rem", "bop", "und"):
+        if pre not in prefixes:
+            errs.append("prefix %s not registered" % pre)
+    metrics = {x["name"] for x in registry["telemetry"]}
+    for m in ("work.reminders.fired", "work.bulk.items", "work.undo.applied"):
+        if m not in metrics:
+            errs.append("metric %s not registered" % m)
+    env_ts = read(P("packages/contracts/src/envelopes.ts"))
+    for t in ("task_signals", "duplicate_candidates", "template_application"):
+        if "'%s'" % t not in env_ts:
+            errs.append("envelope %s not registered" % t)
+    return errs, "%d bounds" % len(BOUNDS_2D)
+
+
+def check_2d_invariants():
+    """Origin immutable, personal state never edits tasks, migrations exact, no 3C/4B tables."""
+    errs = []
+    m27 = read(P("packages/db/migrations/0027_task_interaction.up.sql"))
+    m28 = read(P("packages/db/migrations/0028_task_bulk_undo.up.sql"))
+    if "CREATE TRIGGER task_origin_immutable" not in m27:
+        errs.append("origin immutability trigger missing")
+    if re.search(r"GRANT UPDATE \([^)]*origin_kind", m27):
+        errs.append("origin columns are updatable")
+    for bad in ("work_block", "notification_channel", "delivery"):
+        if re.search(r"CREATE TABLE \w+\.%s" % bad, m27 + m28):
+            errs.append("0027/0028 create a %s table (3C/4B scope)" % bad)
+    svc = read(P("packages/work/src/task-interaction.ts"))
+    body = svc[svc.index("async snoozeTask("):svc.index("protected async snoozeView(")]
+    if "updateTable('work.task')" in body:
+        errs.append("snooze edits the task")
+    m = sorted(f for f in os.listdir(P("packages/db/migrations")) if f.endswith(".up.sql"))
+    if m[-2:] != ["0027_task_interaction.up.sql", "0028_task_bulk_undo.up.sql"]:
+        errs.append("2D migrations must be exactly 0027_task_interaction and 0028_task_bulk_undo")
+    t = read(P("packages/db/test/integration/migrations.test.ts"))
+    if "26, 27, 28]" not in t or "at.get(28)" not in t:
+        errs.append("migration boundary test does not cover 27 and 28")
+    return errs, "invariants"
+
+
+def check_adr_2d(closure):
+    path = phase1.adr_path("0016")
+    if not path:
+        return ["ADR-0016 missing"], ""
+    text = read(path)
+    m = ADR_STATUS.search(text)
+    if not m:
+        return ["ADR-0016 status must be **proposed** or **accepted and implemented**"], ""
+    errs = []
+    if closure.get("status") == "accepted" and m.group(1) != "accepted and implemented":
+        errs.append("closure is accepted but ADR-0016 is not")
+    for d in closure.get("decisions", []):
+        if not re.search(r"^\| %s \|" % re.escape(d.get("adr_row", "")), text, re.M):
+            errs.append("%s: ADR-0016 has no row %s" % (d["id"], d.get("adr_row")))
+    return errs, "ADR-0016 %s" % m.group(1)
+
+
 def main():
     catalog = load(P("docs/product/requirements/catalog.json"))
     registry = load(P("docs/architecture/platform/contracts/registry.json"))
@@ -752,6 +835,8 @@ def main():
     closure_2b_result = check_closure(catalog, closure_2b, subphases, "2B")
     closure_2c = load(P("docs/engineering/phase2/closure-2c.json"))
     closure_2c_result = check_closure(catalog, closure_2c, subphases, "2C", ["D%d" % i for i in range(1, 27)])
+    closure_2d = load(P("docs/engineering/phase2/closure-2d.json"))
+    closure_2d_result = check_closure(catalog, closure_2d, subphases, "2D", ["D%d" % i for i in range(1, 14)])
     if closure_2b.get("phase") != "2B":
         closure_2b_result[0].append("closure-2b phase must be 2B")
     sections = [
@@ -792,6 +877,10 @@ def main():
         ("phase 2C: workflow events registered", check_workflow_events(registry)),
         ("phase 2C: ADR status and decision rows", check_adr_2c(closure_2c)),
         ("phase 2C: review 01 corrections evidenced", check_review01(closure_2c)),
+        ("phase 2D: requirement and decision closure", closure_2d_result),
+        ("phase 2D: bounds, events, prefixes, metrics, envelopes", check_2d_contracts(registry)),
+        ("phase 2D: origin, personal state, migrations, scope", check_2d_invariants()),
+        ("phase 2D: ADR status and decision rows", check_adr_2d(closure_2d)),
     ]
     failed = 0
     for name, result in sections:
@@ -800,7 +889,7 @@ def main():
         for e in errs:
             print("    ERROR: " + e)
         failed += bool(errs)
-    print("PHASE 2A/2B/2C CLOSURE: %s" % ("PASS" if not failed else "FAIL (%d sections)" % failed))
+    print("PHASE 2A/2B/2C/2D CLOSURE: %s" % ("PASS" if not failed else "FAIL (%d sections)" % failed))
     return 1 if failed else 0
 
 

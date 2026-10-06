@@ -327,3 +327,7 @@ and approval requests and decisions (worker `DELETE` grants). `record.purge` is 
 record's brand (0C: owners and administrators) after a readability check (ADR-0015 V4).
 Configuration (workflows, statuses, transitions, fields, options, sets) has its own reversible
 active/archived state; deleting it is refused while referenced.
+
+## Phase 2D: personal and short-lived rows
+
+Task purge deletes the task's reminders and snoozes and detaches task series sourced from it. Project purge pauses task series that generate into it. Member departure erases reminders, snoozes, bulk operations, and undo entries with the member's other personal rows.

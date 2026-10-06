@@ -2239,7 +2239,7 @@ A previewed then executed bulk command over a bounded explicit set of tasks, wit
 | Uniqueness | — |
 | Key typed columns | `public_id text (bop_)`; `owner_membership_id`; `operation text`; `mode (atomic\|partial)`; `state (previewed\|executed\|expired)`; `item_ids uuid[] (at most BULK_ITEMS_MAX)`; `fingerprint bytea`; `results jsonb (per item: id, outcome, code)`; `expires_at` |
 | Sensitive fields | — |
-| Requirements | TSK-038 |
+| Requirements | TSK-035 |
 | Notes | Phase 2D (ADR-24). Results carry identifiers and outcome codes only; unreadable items are reported as not_found without detail. |
 
 <a id="entity-undo-entry"></a>
@@ -2260,7 +2260,7 @@ The inverse of one reversible task mutation, available to its actor for UNDO_WIN
 | Uniqueness | — |
 | Key typed columns | `public_id text (und_)`; `owner_membership_id`; `command text`; `targets jsonb (task id and expected version per target)`; `inverse jsonb (prior values of the changed fields only)`; `state (available\|applied\|expired\|conflicted)`; `expires_at` |
 | Sensitive fields | — |
-| Requirements | TSK-043 |
+| Requirements | TSK-038 |
 | Notes | Phase 2D (ADR-24). Applying an undo is an audited inverse command with a new idempotency key and a version check; it never bypasses current authorization. |
 
 ## Inbox and capture (`capture`, schema `capture`)

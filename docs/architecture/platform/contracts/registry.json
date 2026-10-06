@@ -3207,7 +3207,7 @@
       },
       "public_webhook": null,
       "requirements": [
-        "TSK-038"
+        "TSK-035"
       ],
       "allow_list_version": null,
       "delivery_authorization": null
@@ -3230,7 +3230,7 @@
       },
       "public_webhook": null,
       "requirements": [
-        "TSK-043"
+        "TSK-038"
       ],
       "allow_list_version": null,
       "delivery_authorization": null

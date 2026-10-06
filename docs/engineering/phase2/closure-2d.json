@@ -1,0 +1,591 @@
+{
+  "schema_version": 1,
+  "phase": "2D",
+  "status": "candidate",
+  "adr": "0016",
+  "accepted_by_kinds": {
+    "catalog:contributing": "the subphase is a contributing_subphase of the requirement in the accepted 0A catalog",
+    "roadmap:<sub>": "the BUILD_ROADMAP subphase scope",
+    "adr:<nnnn>[#row]": "an engineering ADR row naming the subphase (proposed ADRs are allowed only while the closure status is candidate)",
+    "requirement:<ID>": "the requirement that owns the capability (its owner_subphase)"
+  },
+  "requirements": [
+    {
+      "id": "TSK-027",
+      "role": "owned",
+      "disposition": "implemented",
+      "evidence": [
+        {
+          "file": "packages/db/migrations/0027_task_interaction.up.sql",
+          "contains": "CREATE UNIQUE INDEX task_occurrence_unique"
+        },
+        {
+          "file": "packages/work/test/integration/task-interaction.test.ts",
+          "contains": "recurring tasks: frozen snapshot"
+        }
+      ],
+      "note": "Task series on the planning occurrence model."
+    },
+    {
+      "id": "TSK-028",
+      "role": "owned",
+      "disposition": "implemented",
+      "evidence": [
+        {
+          "file": "packages/work/src/task-interaction.ts",
+          "contains": "async applyTaskTemplate("
+        },
+        {
+          "file": "packages/work/test/integration/task-interaction.test.ts",
+          "contains": "templates: immutable versions"
+        }
+      ],
+      "note": "Task templates; the catalog is 10B.",
+      "enriched_by": [
+        "10B"
+      ],
+      "accepted_by": [
+        "catalog:contributing"
+      ]
+    },
+    {
+      "id": "TSK-032",
+      "role": "owned",
+      "disposition": "implemented",
+      "evidence": [
+        {
+          "file": "packages/db/migrations/0027_task_interaction.up.sql",
+          "contains": "CREATE TABLE planning.task_reminder ("
+        },
+        {
+          "file": "packages/work/test/integration/task-interaction.test.ts",
+          "contains": "reminders: personal"
+        }
+      ],
+      "note": "Reminder facts and outbox; delivery channels are 4B.",
+      "enriched_by": [
+        "4B"
+      ],
+      "accepted_by": [
+        "catalog:contributing"
+      ]
+    },
+    {
+      "id": "TSK-033",
+      "role": "owned",
+      "disposition": "implemented",
+      "evidence": [
+        {
+          "file": "packages/db/migrations/0027_task_interaction.up.sql",
+          "contains": "CREATE TABLE planning.task_snooze ("
+        },
+        {
+          "file": "packages/work/test/integration/task-interaction.test.ts",
+          "contains": "snooze: personal"
+        }
+      ],
+      "note": "Personal snooze; reschedule through explicit field edits."
+    },
+    {
+      "id": "TSK-035",
+      "role": "owned",
+      "disposition": "implemented",
+      "evidence": [
+        {
+          "file": "packages/db/migrations/0028_task_bulk_undo.up.sql",
+          "contains": "CREATE TABLE work.bulk_operation ("
+        },
+        {
+          "file": "packages/work/test/integration/task-interaction.test.ts",
+          "contains": "bulk: preview first"
+        }
+      ],
+      "note": "Bounded explicit sets, preview, atomic or partial."
+    },
+    {
+      "id": "TSK-036",
+      "role": "owned",
+      "disposition": "implemented",
+      "evidence": [
+        {
+          "file": "packages/work/src/task-interaction.ts",
+          "contains": "async reorderTask("
+        },
+        {
+          "file": "apps/web/test/task-interaction.test.tsx",
+          "contains": "keys, buttons, and drag run the same command"
+        }
+      ],
+      "note": "Ordering by command with drag as a pointer shortcut; board status drag is 3B.",
+      "enriched_by": [
+        "3B"
+      ],
+      "accepted_by": [
+        "catalog:contributing"
+      ]
+    },
+    {
+      "id": "TSK-037",
+      "role": "owned",
+      "disposition": "implemented",
+      "evidence": [
+        {
+          "file": "apps/web/src/tasks/interaction.tsx",
+          "contains": "export function InlineEditor("
+        },
+        {
+          "file": "packages/work/test/integration/task-interaction-plans.test.ts",
+          "contains": "inline edits: non-overlapping fields merge"
+        }
+      ],
+      "note": "Field-merge inline edits with conflict choices."
+    },
+    {
+      "id": "TSK-038",
+      "role": "owned",
+      "disposition": "implemented",
+      "evidence": [
+        {
+          "file": "packages/db/migrations/0028_task_bulk_undo.up.sql",
+          "contains": "CREATE TABLE work.undo_entry ("
+        },
+        {
+          "file": "packages/work/test/integration/task-interaction.test.ts",
+          "contains": "undo: field edits and moves"
+        }
+      ],
+      "note": "Audited inverse commands within the window."
+    },
+    {
+      "id": "TSK-040",
+      "role": "owned",
+      "disposition": "implemented",
+      "evidence": [
+        {
+          "file": "packages/db/migrations/0027_task_interaction.up.sql",
+          "contains": "task_origin_immutable"
+        },
+        {
+          "file": "packages/work/test/integration/task-interaction.test.ts",
+          "contains": "source: tasks created by people are manual"
+        }
+      ],
+      "note": "Closed origin kinds; intake and import producers arrive in 2E/6D.",
+      "enriched_by": [
+        "2E"
+      ],
+      "accepted_by": [
+        "catalog:contributing"
+      ]
+    },
+    {
+      "id": "TSK-041",
+      "role": "owned",
+      "disposition": "implemented",
+      "evidence": [
+        {
+          "file": "packages/db/migrations/0027_task_interaction.up.sql",
+          "contains": "last_meaningful_update_at"
+        },
+        {
+          "file": "packages/work/test/integration/task-interaction.test.ts",
+          "contains": "freshness: meaningful updates move it"
+        }
+      ],
+      "note": "OD-17 freshness."
+    },
+    {
+      "id": "TSK-042",
+      "role": "owned",
+      "disposition": "implemented",
+      "evidence": [
+        {
+          "file": "packages/db/migrations/0027_task_interaction.up.sql",
+          "contains": "task_duplicate_probe"
+        },
+        {
+          "file": "packages/work/test/integration/task-interaction-access.test.ts",
+          "contains": "duplicates show readable candidates only"
+        }
+      ],
+      "note": "Deterministic duplicates; AI similarity is 7C.",
+      "enriched_by": [
+        "7C"
+      ],
+      "accepted_by": [
+        "catalog:contributing"
+      ]
+    },
+    {
+      "id": "TSK-043",
+      "role": "owned",
+      "disposition": "implemented",
+      "evidence": [
+        {
+          "file": "packages/work/src/task-interaction.ts",
+          "contains": "missing_dependency"
+        },
+        {
+          "file": "packages/work/test/integration/task-interaction.test.ts",
+          "contains": "signals: stale thresholds"
+        }
+      ],
+      "note": "Missing owner, date, criteria, dependency."
+    },
+    {
+      "id": "TSK-044",
+      "role": "owned",
+      "disposition": "implemented",
+      "evidence": [
+        {
+          "file": "packages/work/src/task-interaction.ts",
+          "contains": "repeatedly_rescheduled"
+        },
+        {
+          "file": "packages/work/test/integration/task-interaction.test.ts",
+          "contains": "reschedule: three material"
+        }
+      ],
+      "note": "Stale, blocked, rescheduled; rollups are 5C.",
+      "enriched_by": [
+        "5C"
+      ],
+      "accepted_by": [
+        "catalog:contributing"
+      ]
+    },
+    {
+      "id": "REL-001",
+      "role": "owned",
+      "disposition": "implemented",
+      "evidence": [
+        {
+          "file": "apps/web/src/tasks/interaction.tsx",
+          "contains": "export function SaveStatus("
+        },
+        {
+          "file": "e2e/task-interaction.spec.ts",
+          "contains": "Priority saved."
+        }
+      ],
+      "note": "Save states, visible revert, aborted superseded reads."
+    },
+    {
+      "id": "REL-003",
+      "role": "owned",
+      "disposition": "implemented",
+      "evidence": [
+        {
+          "file": "packages/work/test/integration/task-interaction-plans.test.ts",
+          "contains": "concurrency: one bulk execution"
+        },
+        {
+          "file": "packages/work/test/integration/task-interaction-plans.test.ts",
+          "contains": "overlapping fields return a conflict"
+        }
+      ],
+      "note": "Predictable concurrent edits, bulk, undo, reminders."
+    },
+    {
+      "id": "PRJ-013",
+      "role": "contributing",
+      "disposition": "contributed",
+      "evidence": [
+        {
+          "file": "packages/work/src/jobs.ts",
+          "contains": "generateTaskOccurrences"
+        }
+      ],
+      "note": "The recurrence engine serves task series.",
+      "contribution": "2D"
+    },
+    {
+      "id": "CAL-005",
+      "role": "contributing",
+      "disposition": "contributed",
+      "evidence": [
+        {
+          "file": "docs/product/time-and-scheduling.md",
+          "contains": "Recurring tasks"
+        }
+      ],
+      "note": "Future task occurrences only; work blocks are 3C.",
+      "contribution": "2D"
+    }
+  ],
+  "decisions": [
+    {
+      "id": "D1",
+      "title": "Recurring tasks",
+      "adr_row": "T1",
+      "sources": [
+        {
+          "file": "docs/product/time-and-scheduling.md",
+          "contains": "Recurring tasks"
+        }
+      ],
+      "evidence": [
+        {
+          "file": "packages/db/migrations/0027_task_interaction.up.sql",
+          "contains": "recurrence_series_project_for_tasks"
+        },
+        {
+          "file": "docs/engineering/adr/0016-task-interaction-quality.md",
+          "contains": "| T1 |"
+        }
+      ]
+    },
+    {
+      "id": "D2",
+      "title": "Task templates",
+      "adr_row": "T2",
+      "sources": [
+        {
+          "file": "docs/architecture/data/12-decisions.md",
+          "contains": "ADR-24"
+        }
+      ],
+      "evidence": [
+        {
+          "file": "packages/work/src/task-interaction.ts",
+          "contains": "async createTaskTemplate("
+        },
+        {
+          "file": "docs/engineering/adr/0016-task-interaction-quality.md",
+          "contains": "| T2 |"
+        }
+      ]
+    },
+    {
+      "id": "D3",
+      "title": "Reminders",
+      "adr_row": "T3",
+      "sources": [
+        {
+          "file": "docs/architecture/access/15-decisions.md",
+          "contains": "AZ-24"
+        }
+      ],
+      "evidence": [
+        {
+          "file": "packages/work/src/jobs.ts",
+          "contains": "export function remindersHandler("
+        },
+        {
+          "file": "docs/engineering/adr/0016-task-interaction-quality.md",
+          "contains": "| T3 |"
+        }
+      ]
+    },
+    {
+      "id": "D4",
+      "title": "Snooze and reschedule",
+      "adr_row": "T4",
+      "sources": [
+        {
+          "file": "docs/product/time-and-scheduling.md",
+          "contains": "\"Snooze\""
+        }
+      ],
+      "evidence": [
+        {
+          "file": "packages/work/src/task-interaction.ts",
+          "contains": "async snoozeTask("
+        },
+        {
+          "file": "docs/engineering/adr/0016-task-interaction-quality.md",
+          "contains": "| T4 |"
+        }
+      ]
+    },
+    {
+      "id": "D5",
+      "title": "Freshness (OD-17)",
+      "adr_row": "T5",
+      "sources": [
+        {
+          "file": "docs/product/open-decisions.md",
+          "contains": "Decided (2026-10-06"
+        }
+      ],
+      "evidence": [
+        {
+          "file": "packages/db/migrations/0027_task_interaction.up.sql",
+          "contains": "CREATE FUNCTION work.task_freshness()"
+        },
+        {
+          "file": "docs/engineering/adr/0016-task-interaction-quality.md",
+          "contains": "| T5 |"
+        }
+      ]
+    },
+    {
+      "id": "D6",
+      "title": "Signals",
+      "adr_row": "T6",
+      "sources": [
+        {
+          "file": "docs/product/lifecycle-and-states.md",
+          "contains": "Task signals (Phase 2D"
+        }
+      ],
+      "evidence": [
+        {
+          "file": "packages/work/src/task-interaction.ts",
+          "contains": "protected async signalsFor("
+        },
+        {
+          "file": "docs/engineering/adr/0016-task-interaction-quality.md",
+          "contains": "| T6 |"
+        }
+      ]
+    },
+    {
+      "id": "D7",
+      "title": "Duplicates",
+      "adr_row": "T7",
+      "sources": [
+        {
+          "file": "docs/architecture/access/15-decisions.md",
+          "contains": "Signals and duplicates"
+        }
+      ],
+      "evidence": [
+        {
+          "file": "packages/work/src/task-interaction.ts",
+          "contains": "async duplicateCandidates("
+        },
+        {
+          "file": "docs/engineering/adr/0016-task-interaction-quality.md",
+          "contains": "| T7 |"
+        }
+      ]
+    },
+    {
+      "id": "D8",
+      "title": "Bulk",
+      "adr_row": "T8",
+      "sources": [
+        {
+          "file": "docs/architecture/platform/19-decisions.md",
+          "contains": "BULK_ITEMS_MAX"
+        }
+      ],
+      "evidence": [
+        {
+          "file": "packages/work/src/task-interaction.ts",
+          "contains": "async executeBulk("
+        },
+        {
+          "file": "docs/engineering/adr/0016-task-interaction-quality.md",
+          "contains": "| T8 |"
+        }
+      ]
+    },
+    {
+      "id": "D9",
+      "title": "Ordering",
+      "adr_row": "T9",
+      "sources": [
+        {
+          "file": "docs/ux/02-information-architecture.md",
+          "contains": "Ordering:"
+        }
+      ],
+      "evidence": [
+        {
+          "file": "packages/work/src/task-interaction.ts",
+          "contains": "async reorderTask("
+        },
+        {
+          "file": "docs/engineering/adr/0016-task-interaction-quality.md",
+          "contains": "| T9 |"
+        }
+      ]
+    },
+    {
+      "id": "D10",
+      "title": "Inline edits",
+      "adr_row": "T10",
+      "sources": [
+        {
+          "file": "docs/ux/02-information-architecture.md",
+          "contains": "Keep mine"
+        }
+      ],
+      "evidence": [
+        {
+          "file": "packages/work/src/task-core.ts",
+          "contains": "protected async applyTaskChanges("
+        },
+        {
+          "file": "docs/engineering/adr/0016-task-interaction-quality.md",
+          "contains": "| T10 |"
+        }
+      ]
+    },
+    {
+      "id": "D11",
+      "title": "Undo",
+      "adr_row": "T11",
+      "sources": [
+        {
+          "file": "docs/architecture/platform/19-decisions.md",
+          "contains": "UNDO_WINDOW_SECONDS"
+        }
+      ],
+      "evidence": [
+        {
+          "file": "packages/work/src/task-interaction.ts",
+          "contains": "async applyUndo("
+        },
+        {
+          "file": "docs/engineering/adr/0016-task-interaction-quality.md",
+          "contains": "| T11 |"
+        }
+      ]
+    },
+    {
+      "id": "D12",
+      "title": "Source",
+      "adr_row": "T12",
+      "sources": [
+        {
+          "file": "docs/architecture/data/12-decisions.md",
+          "contains": "**Origin.**"
+        }
+      ],
+      "evidence": [
+        {
+          "file": "packages/db/migrations/0027_task_interaction.up.sql",
+          "contains": "task_origin_known"
+        },
+        {
+          "file": "docs/engineering/adr/0016-task-interaction-quality.md",
+          "contains": "| T12 |"
+        }
+      ]
+    },
+    {
+      "id": "D13",
+      "title": "Reliability and privacy",
+      "adr_row": "T13",
+      "sources": [
+        {
+          "file": "docs/architecture/access/policy/threats.json",
+          "contains": "T-42"
+        }
+      ],
+      "evidence": [
+        {
+          "file": "packages/work/test/integration/task-interaction-access.test.ts",
+          "contains": "sameShapeAndTime("
+        },
+        {
+          "file": "docs/engineering/adr/0016-task-interaction-quality.md",
+          "contains": "| T13 |"
+        }
+      ]
+    }
+  ]
+}

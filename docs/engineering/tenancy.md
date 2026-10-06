@@ -350,3 +350,7 @@ workspace, brand (`decideBrand`, so sensitive brands need explicit manage), or p
 policy eligibility), `field.value_read`, `field.value_edit`, and `field.formula_inspect`. Field
 visibility intersects record readability, applicability, and `access.field_policy`; a formula is
 readable only where all its inputs are (AZ-23). Approvers and person or label values grant nothing.
+
+## Phase 2D task interaction
+
+`TaskInteractionService` (AZ-24): `task.remind` and `task.snooze` are view-level and personal; `task.manage_recurrence` needs manage, and the worker rechecks `record.create` on the brand or project chain per run. Bulk items are authorized one by one through the task capability flags; ordering is `record.update` on owned context; undo entries belong to their actor and re-run current authorization. Signals and duplicates use the visibility predicate inside SQL, so hidden rows change neither results nor statements.
