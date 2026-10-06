@@ -295,6 +295,7 @@ export function TextAreaField({
   value,
   onChange,
   maxLength,
+  onPasteText,
 }: {
   id: string;
   label: string;
@@ -303,10 +304,19 @@ export function TextAreaField({
   value: string;
   onChange: (value: string) => void;
   maxLength?: number;
+  /** Called with pasted text; return true to take over the paste (2E multi-line capture). */
+  onPasteText?: (text: string) => boolean;
 }) {
   return (
     <FieldFrame id={id} label={label} hint={hint} error={error}>
       <textarea
+        onPaste={
+          onPasteText
+            ? (e) => {
+                if (onPasteText(e.clipboardData.getData('text'))) e.preventDefault();
+              }
+            : undefined
+        }
         id={id}
         name={id}
         rows={4}

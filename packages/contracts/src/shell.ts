@@ -26,7 +26,7 @@ export type ShellDestination = (typeof SHELL_DESTINATIONS)[number];
 export const DESTINATION_PHASE: Readonly<Record<ShellDestination, string | null>> = {
   home: null,
   today: '3C',
-  inbox: '2E',
+  inbox: null,
   my_work: '3B',
   projects: null,
   calendar: '3B',
@@ -128,6 +128,7 @@ export const SHELL_COMMAND_IDS = [
   'team.create',
   'favorite.toggle',
   'project.create',
+  'capture.open',
 ] as const;
 export type ShellCommandId = (typeof SHELL_COMMAND_IDS)[number];
 export const SHELL_COMMAND_TRIGGERS = ['palette', 'shortcut'] as const;

@@ -131,6 +131,23 @@ export const ROUTES: readonly RouteDef[] = [
     section: 'Tasks',
     visible: member,
   },
+  // 2E: notes and intake forms (the Inbox is the `inbox` destination).
+  { id: 'notes', pattern: '/workspaces/:ws/notes', shell: 'workspace', section: 'Inbox' },
+  { id: 'note', pattern: '/workspaces/:ws/notes/:note', shell: 'workspace', section: 'Inbox' },
+  {
+    id: 'intake_forms',
+    pattern: '/workspaces/:ws/forms',
+    shell: 'workspace',
+    section: 'Inbox',
+    visible: member,
+  },
+  {
+    id: 'intake_form',
+    pattern: '/workspaces/:ws/forms/:form',
+    shell: 'workspace',
+    section: 'Inbox',
+    visible: member,
+  },
   {
     id: 'task',
     pattern: '/workspaces/:ws/tasks/:tsk',

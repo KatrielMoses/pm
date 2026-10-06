@@ -57,6 +57,13 @@ import {
   useWorkspaceShell,
   WorkspaceShellProvider,
 } from './shell/workspace.tsx';
+import {
+  InboxPage,
+  IntakeFormPage,
+  IntakeFormsPage,
+  NotePage,
+  NotesPage,
+} from './pages/capture-pages.tsx';
 import { Page } from './ui/layout.tsx';
 
 type Params = Record<string, string>;
@@ -67,7 +74,9 @@ const destination = (d: ShellDestination): Render =>
     ? (p) => <HomePage key={p.ws} ws={p.ws!} />
     : d === 'projects'
       ? (p) => <ProjectsPage key={p.ws} ws={p.ws!} />
-      : () => <UnavailableDestinationPage destination={d} />;
+      : d === 'inbox'
+        ? (p) => <InboxPage key={p.ws} ws={p.ws!} />
+        : () => <UnavailableDestinationPage destination={d} />;
 
 /**
  * Every registry route maps to exactly one page. The registry unit test checks that this record
@@ -82,6 +91,10 @@ export const ROUTE_COMPONENTS: Record<string, Render> = {
   project: (p) => <ProjectPage key={p.prj} ws={p.ws!} prj={p.prj!} />,
   project_section: (p) => <ProjectPage key={p.prj} ws={p.ws!} prj={p.prj!} section={p.section!} />,
   tasks: (p) => <ProjectlessTasksPage ws={p.ws!} />,
+  notes: (p) => <NotesPage key={p.ws} ws={p.ws!} />,
+  note: (p) => <NotePage key={p.note} ws={p.ws!} note={p.note!} />,
+  intake_forms: (p) => <IntakeFormsPage key={p.ws} ws={p.ws!} />,
+  intake_form: (p) => <IntakeFormPage key={p.form} ws={p.ws!} form={p.form!} />,
   workflows: (p) => <WorkflowsPage ws={p.ws!} />,
   fields: (p) => <FieldsPage ws={p.ws!} />,
   field_sets: (p) => <FieldSetsPage ws={p.ws!} />,
