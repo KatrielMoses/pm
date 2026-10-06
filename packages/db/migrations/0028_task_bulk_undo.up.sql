@@ -26,7 +26,7 @@ CREATE TABLE work.bulk_operation (
   CONSTRAINT bulk_operation_owner_fkey FOREIGN KEY (workspace_id, owner_membership_id)
     REFERENCES tenancy.membership (workspace_id, id) ON DELETE RESTRICT,
   CONSTRAINT bulk_operation_kind_known CHECK (operation IN ('set_status', 'set_priority', 'set_due_date',
-    'set_assignee', 'add_label', 'remove_label', 'move_project', 'archive', 'trash')),
+    'add_label', 'remove_label', 'archive', 'trash')),
   CONSTRAINT bulk_operation_mode_known CHECK (mode IN ('atomic', 'partial')),
   CONSTRAINT bulk_operation_state_known CHECK (state IN ('previewed', 'executed', 'expired')),
   -- The database bound is the widest configurable BULK_ITEMS_MAX.
@@ -106,7 +106,8 @@ CREATE POLICY tenant_isolation ON work.undo_entry
   USING (workspace_id = exec.current_workspace_id()) WITH CHECK (workspace_id = exec.current_workspace_id());
 
 REVOKE ALL ON work.bulk_operation, work.undo_entry FROM PUBLIC;
-GRANT SELECT, INSERT ON work.bulk_operation, work.undo_entry TO app_rw;
+-- The actor's own expired rows are removed when they create new ones (bounded, owner-scoped).
+GRANT SELECT, INSERT, DELETE ON work.bulk_operation, work.undo_entry TO app_rw;
 GRANT UPDATE (state, results, executed_at, version) ON work.bulk_operation TO app_rw;
 GRANT UPDATE (state, closed_at, version) ON work.undo_entry TO app_rw;
 -- The worker deletes expired rows and rows of departed members.

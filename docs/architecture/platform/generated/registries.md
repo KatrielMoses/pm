@@ -261,6 +261,7 @@ Source: `contracts/registry.json`.
 | `work.project_update.verified` v1 | work.project_update | project_id | C1 | yes |  |  | yes |  | — |
 | `relations.relationship.removed` v1 | relations.record_relationship | kind, from_record_id, to_record_id | C1 | yes |  |  | yes |  | — |
 | `templates.template.created` v1 | templates.template | target_record_type, item_count | C1 | yes |  |  |  | yes | — |
+| `templates.template.versioned` v1 | templates.template | target_record_type, version, item_count | C1 | yes |  |  |  | yes | — |
 | `templates.template.applied` v1 | templates.template | template_version_id, record_id | C1 | yes |  |  | yes |  | — |
 | `planning.recurrence_series.defined` v1 | planning.recurrence_series | target_kind | C1 | yes |  |  |  |  | — |
 | `planning.recurrence_series.state_changed` v1 | planning.recurrence_series | state | C1 | yes |  |  |  |  | — |

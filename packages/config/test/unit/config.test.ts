@@ -119,6 +119,9 @@ describe('server configuration', () => {
       ['FORMULA_DEPTH_MAX', '33'],
       ['FORMULA_AST_NODES_MAX', '9'],
       ['FIELD_VALUE_BULK_MAX', '0'],
+      ['UNDO_WINDOW_SECONDS', '301'],
+      ['BULK_ITEMS_MAX', '0'],
+      ['TASK_STALE_ACTIVE_DAYS', '91'],
     ] as const)
       expect(issues(() => set({ [key]: bad })).join(' '), `${key}=${bad}`).toMatch(
         new RegExp(`^${key}`),

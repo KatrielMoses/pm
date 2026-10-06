@@ -2,7 +2,7 @@
 DROP FUNCTION exec_dispatch.discover_reminders_due(timestamptz, integer);
 REVOKE INSERT ON workflow.field_value FROM app_worker;
 REVOKE INSERT ON work.task, work.checklist_item, work.task_label, relations.record_link FROM app_worker;
-REVOKE UPDATE (project_id) ON planning.recurrence_series FROM app_rw;
+REVOKE UPDATE (project_id) ON planning.recurrence_series FROM app_rw, app_worker;
 REVOKE UPDATE (last_meaningful_update_at) ON work.task FROM app_rw;
 REVOKE SELECT (workspace_id, state, remind_at) ON planning.task_reminder FROM pm_scheduler;
 DROP TABLE planning.task_snooze;

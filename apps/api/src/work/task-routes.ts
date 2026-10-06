@@ -1,7 +1,8 @@
 import type { FastifyInstance, FastifyRequest } from 'fastify';
 import { nonResourceEnvelope } from '@pm/contracts';
-import type { FieldService } from '@pm/work';
+import type { TaskInteractionService } from '@pm/work';
 import { routeKit } from '../route-kit.ts';
+import { taskInteractionVerb } from './interaction-routes.ts';
 
 type Params = {
   ws?: string;
@@ -20,7 +21,7 @@ type Params = {
  * (0D); lifecycle decisions come from the service through the tenancy-exported issuer. History is
  * a permission-filtered projection of the audit ledger for the task's own readers (TSK-039).
  */
-export function registerTasks(app: FastifyInstance, work: FieldService): void {
+export function registerTasks(app: FastifyInstance, work: TaskInteractionService): void {
   const { m, fail, caller, mutation, wrap, resource, split } = routeKit();
   const p = (request: FastifyRequest) => request.params as Params;
   const q = (request: FastifyRequest) => (request.query ?? {}) as Record<string, unknown>;
@@ -116,8 +117,11 @@ export function registerTasks(app: FastifyInstance, work: FieldService): void {
             reply,
             await work.taskLifecycle(c, w, t.id, t.verb, request.body, req),
           );
-        default:
-          return fail(request, reply, 'not_found');
+        default: {
+          // 2D commands: ordering, snooze, manual freshness, save as template (ADR-0016).
+          const r = await taskInteractionVerb(work, t.verb, c, w, t.id, request.body, req);
+          return r ? done(request, reply, r) : fail(request, reply, 'not_found');
+        }
       }
     }),
   );

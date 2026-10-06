@@ -1417,7 +1417,7 @@ export class WorkService extends ProjectService {
   // Templates and duplicate (PRJ-001/014/015)
   // ---------------------------------------------------------------------------------------------
 
-  async listTemplates(caller: Caller, ws: unknown) {
+  async listTemplates(caller: Caller, ws: unknown, target: 'project' | 'task' = 'project') {
     return this.inWorkspace(caller, ws, { readOnly: true }, async (tx, p) => {
       const vis = await compileVisibility(tx, p, {
         need: 'view',
@@ -1430,7 +1430,14 @@ export class WorkService extends ProjectService {
         )
         .innerJoin('templates.template_version as v', 'v.id', 't.current_version_id')
         .leftJoin('core.record as br', 'br.id', 't.brand_id')
-        .select(['r.public_id', 't.name', 'v.item_count', 'br.public_id as brand'])
+        .select([
+          'r.public_id',
+          't.name',
+          'v.item_count',
+          'v.version_number',
+          'br.public_id as brand',
+        ])
+        .where('t.target_record_type', '=', target)
         .where(vis.where('r'))
         .orderBy('t.name')
         .limit(200)
@@ -1439,6 +1446,8 @@ export class WorkService extends ProjectService {
         id: r.public_id,
         type: 'template' as const,
         name: r.name,
+        target,
+        version: r.version_number,
         item_count: r.item_count,
         brand: r.brand,
       }));
@@ -1588,6 +1597,7 @@ export class WorkService extends ProjectService {
       .innerJoin('templates.template_version as v', 'v.id', 't.current_version_id')
       .select(['t.id', 't.brand_id', 'v.id as version_id', 'v.content'])
       .where('r.public_id', '=', input.templatePublicId)
+      .where('t.target_record_type', '=', 'project')
       .where('r.lifecycle_state', '=', 'active')
       .where(vis.where('r'))
       .executeTakeFirst();
@@ -2062,7 +2072,7 @@ export function fmtTs(v: string | Date): string {
  * as an instant, and a status. `catching_up` means occurrences are due now and wait for the next
  * job run (bounded catch-up); `ended` means the end condition has no further occurrence.
  */
-function seriesView(
+export function seriesView(
   r: Pick<
     SeriesRow,
     | 'public_id'

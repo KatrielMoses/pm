@@ -1193,7 +1193,7 @@ export interface TaskTable {
   version: Defaulted<number>;
   // Phase 2D (0027): origin (immutable), recurrence identity, and OD-17 freshness.
   origin_kind: Defaulted<TaskOriginKind>;
-  origin_ref: Defaulted<Json<Record<string, string | number>>>;
+  origin_ref: ColumnType<Record<string, string | number>, string | undefined, string>;
   recurrence_series_id: string | null;
   occurrence_key: string | null;
   last_meaningful_update_at: DTs;
@@ -1438,7 +1438,7 @@ export interface BulkOperationTable {
   workspace_id: string;
   owner_membership_id: string;
   operation: string;
-  params: Defaulted<Json<Record<string, unknown>>>;
+  params: ColumnType<Record<string, unknown>, string | undefined, string>;
   mode: 'atomic' | 'partial';
   state: Defaulted<'previewed' | 'executed' | 'expired'>;
   item_ids: string[];

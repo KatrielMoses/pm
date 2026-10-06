@@ -245,7 +245,7 @@ All decisions are **proposed (Phase 0D)**, pending solutions-architect acceptanc
 ### PL-26: Task interaction contracts (Phase 2D amendment)
 - **Decision:**
   - Public ID prefixes `rem` (task reminder), `bop` (bulk operation), and `und` (undo entry). Task series keep `rcs`; task templates keep `tpl`.
-  - Four C1 events: `planning.task_reminder.scheduled`, `planning.task_reminder.fired` (the content-free outbox fact 4B delivers), `work.bulk_operation.executed`, and `work.task.undone`. Generated task occurrences reuse `planning.occurrence.generated`; edits reuse `work.task.*`.
+  - Five C1 events: `planning.task_reminder.scheduled`, `planning.task_reminder.fired` (the content-free outbox fact 4B delivers), `work.bulk_operation.executed`, `work.task.undone`, and `templates.template.versioned` (a new immutable template version). Generated task occurrences reuse `planning.occurrence.generated`; edits reuse `work.task.*`.
   - Named bounds:
     - Freshness (OD-17): `TASK_STALE_ACTIVE_DAYS` (7), `TASK_STALE_PLANNED_DAYS` (14), `TASK_RESCHEDULE_COUNT` (3), `TASK_RESCHEDULE_WINDOW_DAYS` (14).
     - Personal state: `TASK_REMINDERS_MAX` (10), `REMINDER_FIRE_BATCH_MAX` (500), `TASK_SNOOZE_MAX_DAYS` (365).
@@ -255,7 +255,7 @@ All decisions are **proposed (Phase 0D)**, pending solutions-architect acceptanc
   - Three bounded signals: `work.reminders.fired`, `work.bulk.items`, and `work.undo.applied` (outcome).
   - Refusals: an expired or superseded undo, bulk preview, or inline base is `conflict` (`stale`); a bulk set over the bound or a snooze beyond its bound is `validation_failed` (`too_many`, `out_of_range`); unreadable items are `not_found`.
 - **Alternatives:** Per-channel reminder events (channels are 4B). A bulk job per item (one command, one report).
-- **Consequences:** Event payloads carry identifiers, kinds, counts, and states only, never titles, reminder notes, or field values. 83 ID prefixes, 90 events, 80 named parameters, 57 telemetry signals.
+- **Consequences:** Event payloads carry identifiers, kinds, counts, and states only, never titles, reminder notes, or field values. 83 ID prefixes, 91 events, 80 named parameters, 57 telemetry signals.
 
 <a id="pl-25"></a>
 ### PL-25: Workflow and custom-field contracts (Phase 2C amendment)

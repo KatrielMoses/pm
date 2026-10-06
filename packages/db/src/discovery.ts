@@ -143,6 +143,15 @@ export class PlatformDiscovery {
     return rows.map((r) => r.workspace_id);
   }
 
+  /** Workspaces with scheduled task reminders that are due (2D, ids only). */
+  async discoverRemindersDue(now: Date, limit: number): Promise<string[]> {
+    const { rows } = await this.#pool.query<{ workspace_id: string }>(
+      'SELECT workspace_id FROM exec_dispatch.discover_reminders_due($1, $2)',
+      [now, limit],
+    );
+    return rows.map((r) => r.workspace_id);
+  }
+
   /** Worker liveness (platform table, no tenant data). */
   async heartbeat(workerId: string, buildId: string, stopping = false): Promise<void> {
     await this.#pool.query(

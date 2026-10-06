@@ -61,13 +61,13 @@ Signals are independent, derived only from facts the viewer may read, and never 
 
 | Signal | Meaning |
 |---|---|
-| Stale | No meaningful update for 7 days (active or blocked) or 14 days (planned) |
-| Blocked | A paused-category status, or an active incoming `blocks` relationship from a readable, non-final task |
+| Stale | No meaningful update for 7 days (active category, including blocked) or 14 days (planned); paused, done, and cancelled tasks are never stale |
+| Blocked | An incoming `blocks` relationship from a readable task that is not done or cancelled |
 | Repeatedly rescheduled | 3 material due-date or deadline edits within 14 days |
-| Missing owner | No eligible assignee |
-| Missing date | A due date or deadline the workflow requires is empty |
-| Missing criteria | Required criteria are unmet |
-| Missing dependency | An active incoming blocker is unresolved |
+| Missing owner | An open task with no active assignee |
+| Missing date | An open task with neither a due date nor a deadline |
+| Missing criteria | An open task with no acceptance criteria of its own and none inherited from its project |
+| Missing dependency | A readable incoming blocker was cancelled, archived, or trashed, so the task waits on work that will not finish |
 | Possible duplicate | Another readable open task in the same workspace and brand (and a compatible project) has the same normalized title within the recent window (advisory only) |
 
 ## 3. Completion, review, and acceptance are different facts

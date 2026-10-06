@@ -47,7 +47,16 @@ export async function eraseMembershipNavigation(
   membershipId: string,
 ): Promise<number> {
   let n = 0;
-  for (const table of ['views.favorite', 'views.recent_item', 'views.view_state'] as const) {
+  // 2D: personal reminders and snoozes, and the member's short-lived bulk and undo rows.
+  for (const table of [
+    'views.favorite',
+    'views.recent_item',
+    'views.view_state',
+    'planning.task_reminder',
+    'planning.task_snooze',
+    'work.bulk_operation',
+    'work.undo_entry',
+  ] as const) {
     const r = await tx.db
       .deleteFrom(table)
       .where('owner_membership_id', '=', membershipId)

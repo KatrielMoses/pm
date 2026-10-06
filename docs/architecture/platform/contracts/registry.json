@@ -2720,6 +2720,30 @@
       "delivery_authorization": null
     },
     {
+      "type": "templates.template.versioned",
+      "schema_version": 1,
+      "aggregate_entity": "templates.template",
+      "fields": [
+        "target_record_type",
+        "version",
+        "item_count"
+      ],
+      "max_class": "C1",
+      "consumers": {
+        "activity": true,
+        "notification": false,
+        "metrics": false,
+        "automation_trigger": false,
+        "search_index": true
+      },
+      "public_webhook": null,
+      "requirements": [
+        "TSK-028"
+      ],
+      "allow_list_version": null,
+      "delivery_authorization": null
+    },
+    {
       "type": "templates.template.applied",
       "schema_version": 1,
       "aggregate_entity": "templates.template",

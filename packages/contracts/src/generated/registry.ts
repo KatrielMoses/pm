@@ -2196,6 +2196,17 @@ export const INTERNAL_EVENTS = [
     "maxClass": "C1"
   },
   {
+    "type": "templates.template.versioned",
+    "schemaVersion": 1,
+    "aggregateEntity": "templates.template",
+    "fields": [
+      "target_record_type",
+      "version",
+      "item_count"
+    ],
+    "maxClass": "C1"
+  },
+  {
     "type": "templates.template.applied",
     "schemaVersion": 1,
     "aggregateEntity": "templates.template",

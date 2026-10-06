@@ -83,6 +83,10 @@ export const projectAdapter: RecordTypeAdapter = {
       // Series sourced from the project keep their frozen snapshot; the source link detaches.
       await sql`UPDATE planning.recurrence_series SET source_record_id = NULL, updated_at = now(), version = version + 1
                  WHERE source_record_id = ANY(${ids}::uuid[])`.execute(tx.db);
+      // Task series that generate into the project pause and detach from it (ADR-0016).
+      await sql`UPDATE planning.recurrence_series
+                   SET project_id = NULL, state = 'paused', next_due_at = NULL, updated_at = now(), version = version + 1
+                 WHERE project_id = ANY(${ids}::uuid[])`.execute(tx.db);
       await purgeWorkflowFacts(tx, ids);
       await tx.db.deleteFrom('work.project').where('id', 'in', ids).execute();
     },
@@ -240,6 +244,12 @@ export const taskAdapter: RecordTypeAdapter = {
       await tx.db.deleteFrom('work.task_inherited_criterion').where('task_id', 'in', ids).execute();
       await tx.db.deleteFrom('work.criteria_item').where('task_id', 'in', ids).execute();
       await tx.db.deleteFrom('work.task_label').where('task_id', 'in', ids).execute();
+      // Personal reminders and snoozes go with the task; series sourced from it keep their frozen
+      // snapshot and detach (ADR-0016).
+      await tx.db.deleteFrom('planning.task_reminder').where('task_id', 'in', ids).execute();
+      await tx.db.deleteFrom('planning.task_snooze').where('task_id', 'in', ids).execute();
+      await sql`UPDATE planning.recurrence_series SET source_record_id = NULL, updated_at = now(), version = version + 1
+                 WHERE source_record_id = ANY(${ids}::uuid[])`.execute(tx.db);
       await tx.db
         .deleteFrom('relations.record_link')
         .where('source_record_id', 'in', ids)
