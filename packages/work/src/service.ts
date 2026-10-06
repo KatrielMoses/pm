@@ -108,6 +108,8 @@ export interface LoadedProject {
 }
 
 const STATUS_ID: Record<ProjectStatusKey, string> = PROJECT_STATUS_ID;
+/** A well-formed identifier no row has (constant-shape not-found paths). */
+export const NIL_ID = '00000000-0000-7000-8000-000000000000';
 
 const DATE_FIELDS = new Set(['start_date', 'target_date', 'deadline_date']);
 const toDate = (v: unknown): string | null =>
@@ -181,25 +183,17 @@ export class ProjectService extends NavigationService {
       .where('r.record_type', '=', 'project');
     if (opts.lock) q = q.forUpdate('w');
     const row = await q.executeTakeFirst();
-    if (!row) throw new TenancyError('not_found');
+    if (!row) {
+      // Constant shape (ADR-0015 W20, corrective review 01): an unknown identifier runs the same
+      // brand, chain, and share statements as an existing record the caller cannot read, so
+      // existence is not visible through the number or order of statements.
+      await this.projectBrandRow(tx, NIL_ID);
+      await projectChainOf(tx, NIL_ID);
+      await this.shareLevelOf(tx, p, NIL_ID);
+      throw new TenancyError('not_found');
+    }
     await primeStatuses(tx, [row.status_id]);
-    const brandRow = await tx.db
-      .selectFrom('tenancy.brand as b')
-      .innerJoin('core.record as br', (j) =>
-        j.onRef('br.workspace_id', '=', 'b.workspace_id').onRef('br.id', '=', 'b.id'),
-      )
-      .select([
-        'b.id',
-        'br.public_id',
-        'b.name',
-        'b.short_name',
-        'b.color',
-        'b.icon',
-        'b.is_sensitive',
-        'b.lifecycle_state',
-      ])
-      .where('b.id', '=', row.brand_id)
-      .executeTakeFirstOrThrow();
+    const brandRow = (await this.projectBrandRow(tx, row.brand_id))!;
     const scope = await projectChainOf(tx, row.id);
     if (!scope) throw new TenancyError('not_found');
     const brand = {
@@ -239,6 +233,26 @@ export class ProjectService extends NavigationService {
         version: Number(row.version),
       } as LoadedProject['row'],
     };
+  }
+
+  protected projectBrandRow(tx: WorkspaceTransaction, brandId: string) {
+    return tx.db
+      .selectFrom('tenancy.brand as b')
+      .innerJoin('core.record as br', (j) =>
+        j.onRef('br.workspace_id', '=', 'b.workspace_id').onRef('br.id', '=', 'b.id'),
+      )
+      .select([
+        'b.id',
+        'br.public_id',
+        'b.name',
+        'b.short_name',
+        'b.color',
+        'b.icon',
+        'b.is_sensitive',
+        'b.lifecycle_state',
+      ])
+      .where('b.id', '=', brandId)
+      .executeTakeFirst();
   }
 
   /** The best active, unexpired exact-record grant the principal holds on a record. */

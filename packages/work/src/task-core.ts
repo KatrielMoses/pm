@@ -36,7 +36,7 @@ import {
   type ShareLevel,
 } from '@pm/tenancy';
 import type { ActionKey } from '@pm/contracts';
-import { toDate, type LoadedProject, type WorkDeps } from './service.ts';
+import { NIL_ID, toDate, type LoadedProject, type WorkDeps } from './service.ts';
 import { WorkService } from './structures.ts';
 import {
   parseAssignees,
@@ -205,8 +205,10 @@ export class TaskCoreService extends WorkService {
   }
 
   protected async chainOfProject(tx: WorkspaceTransaction, projectId: string | null) {
-    if (!projectId) return [] as ProjectChain;
-    return (await projectChainOf(tx, projectId))?.chain ?? [];
+    // Projectless tasks run the same chain statement (on an identifier no row has), so project
+    // membership is not visible through statement shape (ADR-0015 W20).
+    const chain = (await projectChainOf(tx, projectId ?? NIL_ID))?.chain ?? [];
+    return projectId ? chain : ([] as ProjectChain);
   }
 
   /**
@@ -231,14 +233,23 @@ export class TaskCoreService extends WorkService {
       .where('r.record_type', '=', 'task');
     if (opts.lock) q = q.forUpdate('t');
     const row = await q.executeTakeFirst();
-    if (!row) throw new TenancyError('not_found');
+    if (!row) {
+      // Constant shape (ADR-0015 W20): the same brand, chain, and share statements as an existing
+      // task the caller cannot read; existence is not visible in the statements a request runs.
+      await this.brandFactsOf(tx, NIL_ID).catch(() => undefined);
+      await this.chainOfProject(tx, null);
+      await this.shareLevelOf(tx, p, NIL_ID);
+      throw new TenancyError('not_found');
+    }
     await primeStatuses(tx, [row.status_id, row.prior_status_id]);
     const { facts: brand, marker } = await this.brandFactsOf(tx, row.brand_id);
     const chain = await this.chainOfProject(tx, row.project_id);
     const trashed = row.lifecycle_state === 'trashed';
+    // The share lookup always runs (trashed or not) so every branch has the same statements.
+    const share = await this.shareLevelOf(tx, p, row.id);
     if (trashed && !opts.allowTrashed) throw new TenancyError('not_found');
     const lifecycleState = trashed ? 'active' : row.lifecycle_state;
-    const shareLevel = trashed ? null : await this.shareLevelOf(tx, p, row.id);
+    const shareLevel = trashed ? null : share;
     const level = recordLevel(p, { brand, lifecycleState, projectChain: chain, shareLevel });
     if (level === null) throw new TenancyError('not_found');
     const ownLevel = recordLevel(p, {

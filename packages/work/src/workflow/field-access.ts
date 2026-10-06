@@ -118,11 +118,11 @@ export function canEdit(p: Principal, level: Level | null, pol: PolicyRow): bool
 
 export async function policiesOf(tx: WorkspaceTransaction, ids: string[]) {
   const out = new Map<string, PolicyRow>();
-  if (!ids.length) return out;
+  // Always one statement, even with no definitions (constant shape, ADR-0015 W20).
   for (const r of await tx.db
     .selectFrom('access.field_policy')
     .select(['definition_id', 'read_rule', 'read_min_level', 'edit_min_level', 'guest_visible'])
-    .where('definition_id', 'in', ids)
+    .where('definition_id', 'in', ids.length ? ids : ['00000000-0000-7000-8000-000000000000'])
     .execute())
     out.set(r.definition_id, r as unknown as PolicyRow);
   return out;
@@ -240,11 +240,10 @@ export async function fieldsForRecord(
 
 export async function formulaInputs(tx: WorkspaceTransaction, ids: string[]) {
   const out = new Map<string, string[]>();
-  if (!ids.length) return out;
   for (const r of await tx.db
     .selectFrom('workflow.formula_dependency')
     .select(['definition_id', 'depends_on_definition_id'])
-    .where('definition_id', 'in', ids)
+    .where('definition_id', 'in', ids.length ? ids : ['00000000-0000-7000-8000-000000000000'])
     .execute())
     out.set(r.definition_id, [...(out.get(r.definition_id) ?? []), r.depends_on_definition_id]);
   return out;

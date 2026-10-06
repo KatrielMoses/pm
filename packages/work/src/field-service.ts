@@ -16,6 +16,7 @@ import {
 import { isPublic } from './validation.ts';
 import { WorkflowService, type ConfigScope } from './workflow-service.ts';
 import {
+  canRead,
   DEFINITION_COLUMNS,
   fieldsForRecord,
   formulaInputs,
@@ -110,6 +111,17 @@ export class FieldService extends WorkflowService {
   // Definitions
   // ---------------------------------------------------------------------------------------------
 
+  /**
+   * Lock order (ADR-0015): the workspace field-graph lock comes before any definition row lock.
+   * Definition commands take it first, so two edits never wait on each other's rows inside the
+   * graph section (a formula edit inserts dependencies whose keys lock the referenced rows).
+   */
+  protected async lockFieldGraph(tx: WorkspaceTransaction) {
+    await sql`SELECT pg_advisory_xact_lock(hashtextextended(${`formula-graph:${tx.workspaceId}`}, 0))`.execute(
+      tx.db,
+    );
+  }
+
   protected async definitionRow(
     tx: WorkspaceTransaction,
     fld: unknown,
@@ -182,6 +194,34 @@ export class FieldService extends WorkflowService {
       in_use: Number(valueCount.n) > 0,
       version: d.version,
     };
+  }
+
+  /** Active options of several select fields in one statement (always run, even when empty). */
+  protected async optionsByDefinition(tx: WorkspaceTransaction, ids: string[]) {
+    const rows = await tx.db
+      .selectFrom('workflow.field_option')
+      .select(['definition_id', 'public_id', 'label', 'color', 'state', 'version'])
+      .where('definition_id', 'in', ids.length ? ids : ['00000000-0000-7000-8000-000000000000'])
+      .where('state', '=', 'active')
+      .orderBy('rank')
+      .orderBy('id')
+      .execute();
+    const out = new Map<
+      string,
+      Array<{ id: string; label: string; color: string; state: string; version: number }>
+    >();
+    for (const o of rows)
+      out.set(o.definition_id, [
+        ...(out.get(o.definition_id) ?? []),
+        {
+          id: o.public_id,
+          label: o.label,
+          color: o.color,
+          state: o.state,
+          version: Number(o.version),
+        },
+      ]);
+    return out;
   }
 
   protected async optionsOf(tx: WorkspaceTransaction, definitionId: string, all: boolean) {
@@ -415,6 +455,9 @@ export class FieldService extends WorkflowService {
       throw e;
     }
     const inputIds = compiled.refs.map((r) => refs.get(r)!.id);
+    // The formula graph is edited one transaction at a time per workspace (ADR-0015 lock order):
+    // two concurrent edits could each add one edge of a cycle that neither check would see.
+    await this.lockFieldGraph(tx);
     // Depth: the longest chain through existing formulas (bounded by FORMULA_DEPTH_MAX); a chain
     // that reaches this definition is a cycle.
     const depthOf = async (ids: string[], depth: number, seen: Set<string>): Promise<number> => {
@@ -479,6 +522,7 @@ export class FieldService extends WorkflowService {
       ws,
       req,
       async (tx, p) => {
+        await this.lockFieldGraph(tx);
         const scope = await this.configScope(tx, p, 'fields.configure', b.scope);
         const count = await tx.db
           .selectFrom('workflow.field_definition')
@@ -632,6 +676,7 @@ export class FieldService extends WorkflowService {
       ws,
       req,
       async (tx, p) => {
+        await this.lockFieldGraph(tx);
         const d = await this.definitionRow(tx, fld, true);
         const scope = await this.rowScope(tx, p, 'fields.configure', d);
         const expected =
@@ -855,6 +900,7 @@ export class FieldService extends WorkflowService {
       ws,
       req,
       async (tx, p) => {
+        await this.lockFieldGraph(tx);
         const d = await this.definitionRow(tx, fld, true);
         const scope = await this.rowScope(tx, p, 'fields.configure', d);
         if (d.state !== 'archived')
@@ -1180,13 +1226,16 @@ export class FieldService extends WorkflowService {
     const byId = new Map(fields.map((f) => [f.def.id, f]));
     const optionIds = fields.filter((f) => f.def.field_type === 'select').map((f) => f.def.id);
     const optionLabels = new Map<string, string>();
-    if (optionIds.length)
-      for (const o of await tx.db
-        .selectFrom('workflow.field_option')
-        .select(['id', 'label'])
-        .where('definition_id', 'in', optionIds)
-        .execute())
-        optionLabels.set(o.id, o.label);
+    for (const o of await tx.db
+      .selectFrom('workflow.field_option')
+      .select(['id', 'label'])
+      .where(
+        'definition_id',
+        'in',
+        optionIds.length ? optionIds : ['00000000-0000-7000-8000-000000000000'],
+      )
+      .execute())
+      optionLabels.set(o.id, o.label);
     const out = new Map<string, { value: unknown; error: string | null }>();
     const visiting = new Set<string>();
     const resolve = (id: string): { value: unknown; error: string | null } => {
@@ -1237,50 +1286,50 @@ export class FieldService extends WorkflowService {
         .filter((f) => f.def.field_type === type)
         .map((f) => stored.get(f.def.id))
         .filter((v): v is string => typeof v === 'string');
+    // Every lookup always runs (an empty set queries a nil identifier): whether a hidden field
+    // holds a value never changes the statements a read executes (ADR-0015 W20).
+    const orNil = (xs: string[]) => (xs.length ? xs : ['00000000-0000-7000-8000-000000000000']);
     const people = new Map<string, { id: string; name: string }>();
     const ppl = refs('person');
-    if (ppl.length)
-      for (const m of await tx.db
-        .selectFrom('tenancy.membership as m')
-        .innerJoin('identity.account as a', 'a.id', 'm.account_id')
-        .select(['m.id', 'm.public_id', 'a.display_name', 'm.display_name_override'])
-        .where('m.id', 'in', ppl)
-        .execute())
-        people.set(m.id, { id: m.public_id, name: m.display_name_override ?? m.display_name });
+    for (const m of await tx.db
+      .selectFrom('tenancy.membership as m')
+      .innerJoin('identity.account as a', 'a.id', 'm.account_id')
+      .select(['m.id', 'm.public_id', 'a.display_name', 'm.display_name_override'])
+      .where('m.id', 'in', orNil(ppl))
+      .execute())
+      people.set(m.id, { id: m.public_id, name: m.display_name_override ?? m.display_name });
     const labels = new Map<
       string,
       { id: string; name: string; color: string; archived: boolean }
     >();
     const lbl = refs('label');
-    if (lbl.length)
-      for (const l of await tx.db
-        .selectFrom('work.label')
-        .select(['id', 'public_id', 'name', 'color', 'state'])
-        .where('id', 'in', lbl)
-        .execute())
-        labels.set(l.id, {
-          id: l.public_id,
-          name: l.name,
-          color: l.color,
-          archived: l.state === 'archived',
-        });
+    for (const l of await tx.db
+      .selectFrom('work.label')
+      .select(['id', 'public_id', 'name', 'color', 'state'])
+      .where('id', 'in', orNil(lbl))
+      .execute())
+      labels.set(l.id, {
+        id: l.public_id,
+        name: l.name,
+        color: l.color,
+        archived: l.state === 'archived',
+      });
     const options = new Map<
       string,
       { id: string; label: string; color: string; archived: boolean }
     >();
     const opt = refs('select');
-    if (opt.length)
-      for (const o of await tx.db
-        .selectFrom('workflow.field_option')
-        .select(['id', 'public_id', 'label', 'color', 'state'])
-        .where('id', 'in', opt)
-        .execute())
-        options.set(o.id, {
-          id: o.public_id,
-          label: o.label,
-          color: o.color,
-          archived: o.state === 'archived',
-        });
+    for (const o of await tx.db
+      .selectFrom('workflow.field_option')
+      .select(['id', 'public_id', 'label', 'color', 'state'])
+      .where('id', 'in', orNil(opt))
+      .execute())
+      options.set(o.id, {
+        id: o.public_id,
+        label: o.label,
+        color: o.color,
+        archived: o.state === 'archived',
+      });
     return (f: ResolvedField, v: unknown): unknown => {
       if (v === null || v === undefined) return null;
       switch (f.def.field_type) {
@@ -1330,28 +1379,26 @@ export class FieldService extends WorkflowService {
     );
     const values = await valuesOf(tx, r.id);
     // Stale or missing formula results are computed now (reads never write).
-    const stale = fields.some(
-      (f) =>
-        f.def.field_type === 'formula' &&
-        values.get(f.def.id)?.formula_version !== f.def.formula_version,
+    // Formula results are computed on every read (current definition, current inputs) so neither a
+    // stale materialization nor a hidden formula changes what a read executes (W18, W20).
+    const computed = await this.computeFormulas(
+      tx,
+      fields,
+      new Map([...values].map(([k, v]) => [k, { value: v.value }])),
     );
-    const computed = stale
-      ? await this.computeFormulas(
-          tx,
-          fields,
-          new Map([...values].map(([k, v]) => [k, { value: v.value }])),
-        )
-      : null;
     const visible = fields.filter((f) => f.readable);
+    // Constant shape (ADR-0015 W20): reference and option lookups cover every applicable field,
+    // readable or not, and visibility is applied in memory; a hidden field changes no statement.
     const pub = await this.publicValues(
       tx,
-      visible,
+      fields,
       new Map([...values].map(([k, v]) => [k, v.value])),
     );
     const editLevel = decideRecord(p, 'field.value_edit', r.facts).allowed;
-    const options = new Map<string, unknown>();
-    for (const f of visible.filter((x) => x.def.field_type === 'select'))
-      options.set(f.def.id, await this.optionsOf(tx, f.def.id, false));
+    const options = await this.optionsByDefinition(
+      tx,
+      fields.filter((x) => x.def.field_type === 'select').map((x) => x.def.id),
+    );
     const list = visible
       .sort(
         (a, b) =>
@@ -1709,14 +1756,16 @@ export class FieldService extends WorkflowService {
         { id: r.id, kind: r.kind, brandId: r.brandId, projectId: r.projectId },
         r.level,
       );
-      const f = fields.find((x) => x.def.public_id === fld);
-      if (!f || !f.readable || f.def.field_type !== 'formula') throw new TenancyError('not_found');
+      // Constant shape (W19, W20): values and results are computed before the visibility decision,
+      // so a hidden, missing, or non-formula field runs the same statements as a readable one.
       const values = await valuesOf(tx, r.id);
       const res = await this.computeFormulas(
         tx,
         fields,
         new Map([...values].map(([k, v]) => [k, { value: v.value }])),
       );
+      const f = fields.find((x) => x.def.public_id === fld);
+      if (!f || !f.readable || f.def.field_type !== 'formula') throw new TenancyError('not_found');
       const inputs = fields.filter((x) => f.inputs.includes(x.def.id));
       return {
         field: f.def.public_id,
@@ -2109,6 +2158,7 @@ export class FieldService extends WorkflowService {
       to: target,
       gained: after.filter((x) => !before.includes(x)),
       removed,
+      removedWithValues: removed.filter((x) => hasValue(values.get(x)?.value)),
       hidden_values: removed.filter((x) => hasValue(values.get(x)?.value)).length,
     };
   }
@@ -2157,13 +2207,26 @@ export class FieldService extends WorkflowService {
           .filter((f) => f.readable)
           .map((f) => f.def.id),
       );
+      const policies = await policiesOf(tx, e.gained);
+      const readableByPolicy = (id: string) =>
+        canRead(
+          p,
+          r.level,
+          policies.get(id) ?? {
+            read_rule: 'all_readers',
+            read_min_level: null,
+            edit_min_level: null,
+            guest_visible: false,
+          },
+        );
       return {
         set: s.public_id,
         from_version: e.from,
         to_version: e.to,
-        fields_added: e.gained.map((x) => pubs.get(x)),
+        // Only fields this reader may read are named or counted (field policy, W20, W22).
+        fields_added: e.gained.filter((x) => readableByPolicy(x)).map((x) => pubs.get(x)),
         fields_removed: e.removed.filter((x) => visible.has(x)).map((x) => pubs.get(x)),
-        values_hidden: e.hidden_values,
+        values_hidden: e.removedWithValues.filter((x) => visible.has(x)).length,
         values_deleted: 0,
       };
     });
@@ -2220,7 +2283,7 @@ export class FieldService extends WorkflowService {
           { recordId: r.id, type: r.kind, publicId: r.publicId },
           [
             change.plain('field_set_version', e.from, e.to),
-            change.plain('values_hidden', null, e.hidden_values),
+            change.plain('fields.hidden_value_count', null, e.hidden_values),
           ],
           r.brandId,
         );
@@ -2337,21 +2400,25 @@ export class FieldService extends WorkflowService {
       const values: unknown[] = [];
       if (query.record !== undefined) {
         const r = await this.workRecord(tx, p, query.record);
-        const fields = (
-          await fieldsForRecord(
-            tx,
-            p,
-            { id: r.id, kind: r.kind, brandId: r.brandId, projectId: r.projectId },
-            r.level,
-          )
-        ).filter((f) => f.readable);
+        const all = await fieldsForRecord(
+          tx,
+          p,
+          { id: r.id, kind: r.kind, brandId: r.brandId, projectId: r.projectId },
+          r.level,
+        );
         const stored = await valuesOf(tx, r.id);
-        for (const f of fields) {
+        // One reference lookup over every applicable field; visibility filters in memory (W20).
+        const pub = await this.publicValues(
+          tx,
+          all,
+          new Map([...stored].map(([k, v]) => [k, v.value])),
+        );
+        for (const f of all.filter((x) => x.readable)) {
           const v = stored.get(f.def.id);
           if (!v) continue;
           const pubRef =
             ['person', 'label', 'select'].includes(f.def.field_type) && typeof v.value === 'string'
-              ? (await this.publicValues(tx, [f], new Map([[f.def.id, v.value]])))(f, v.value)
+              ? pub(f, v.value)
               : null;
           values.push({
             record: r.publicId,
