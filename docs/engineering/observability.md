@@ -107,3 +107,12 @@ Counters `work.reminders.fired`, `work.bulk.items`, and `work.undo.applied` (out
 ## Capture (2E)
 
 Counters `capture.items`, `capture.parse`, and `capture.triage` (outcome label only). Captured text never appears in logs, metrics, events, or audit (content hashes only).
+
+## Views (3A)
+
+Views emit two counters and one histogram:
+- `views.queries` (entity, outcome)
+- `views.query_duration` (entity)
+- `views.exports` (entity, format)
+
+Query text, filter values, view names, and exported rows never appear in logs, metrics, or events. Audit records a content hash of the exported query.

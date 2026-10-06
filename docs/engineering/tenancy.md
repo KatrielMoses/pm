@@ -358,3 +358,12 @@ readable only where all its inputs are (AZ-23). Approvers and person or label va
 ## Phase 2E capture
 
 Capture, the Inbox, notes, merge, and parse previews are personal (`personal.manage_own`, OD-03): every query filters by the owner's membership, with no administrator bypass. Triage and note conversion decide `record.create` at the destination brand or project chain at preview and apply. Intake forms use `intake.manage` (brand admin) and `intake.submit` (brand view, members only while OD-28 is open). Name resolution and form lookups run fixed statements, so hidden and unknown are indistinguishable.
+
+## Phase 3A views
+
+`ViewService` (AZ-26) runs every query, saved or ad hoc, with the caller's own `compileVisibility` predicate:
+- **Joined records.** A second, archive-inclusive predicate covers joined readable projects and parents, so hidden projects contribute no health, milestone, or name.
+- **Value resolution.** Reference values resolve with one statement per referenced kind among readable records. People fields and non-`all_readers` custom fields are `unsupported_field` for whoever may not use them.
+- **Shared views.** Sharing decides `view.share` at exactly one scope. Defaults and pins decide `views.configure` and require a view shared there.
+- **Personal state.** Personal views, the person's default, and view state are `personal.manage_own`.
+- **Lifecycle.** Delete uses tenancy's `issueSavedViewLifecycleDecision`.

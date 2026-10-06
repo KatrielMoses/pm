@@ -472,8 +472,14 @@
         "guest": "grant:view"
       },
       "requirements": [
+        "LA-016",
         "PERM-004",
-        "LA-016"
+        "VIEW-012",
+        "VIEW-013",
+        "VIEW-014",
+        "VIEW-015",
+        "VIEW-022",
+        "WSB-019"
       ],
       "notes": ""
     },
@@ -1500,7 +1506,7 @@
         "VIEW-017",
         "RPT-020"
       ],
-      "notes": ""
+      "notes": "Phase 3A (AZ-26): shares a saved view with exactly one scope (workspace, brand, or project); decided at that scope (grant:edit for members, never satisfied by record shares). Running a shared view compiles each viewer's own predicate and field allow-list. The same decision lets a person change, unshare, or delete the shared definition."
     },
     {
       "key": "report.schedule",
@@ -1674,10 +1680,13 @@
         "CAP-013",
         "CAP-014",
         "CAP-016",
+        "NAV-011",
         "NTF-007",
-        "PLAN-008"
+        "PLAN-008",
+        "VIEW-016",
+        "VIEW-018"
       ],
-      "notes": "Phase 2E (AZ-25): capture, Inbox, notes, merge, and triage previews are personal; turning an item into operational work also needs record.create at the destination."
+      "notes": "Phase 2E (AZ-25): capture, Inbox, notes, merge, and triage previews are personal; turning an item into operational work also needs record.create at the destination. Phase 3A (AZ-26): personal saved views, a person's own default view, and per-view state are personal; no owner or administrator bypass."
     },
     {
       "key": "sessions.manage_own",
@@ -2580,7 +2589,7 @@
         "VIEW-018",
         "VIEW-019"
       ],
-      "notes": ""
+      "notes": "Phase 3A (AZ-26): sets brand and project default views and pins views into workspace or brand navigation; only a view shared with that exact scope (or the workspace, for defaults) qualifies, so everyone it applies to can read it."
     },
     {
       "key": "templates.manage",

@@ -199,6 +199,21 @@ Status of every ADR: **proposed (Phase 0B)**, pending solutions-architect accept
 - **Alternatives:** Mandatory projects (contradicts TSK-003). Unlimited depth (unbounded rewrites). A task status table (a second status system). Copying project definition-of-done items into tasks (drifts from the source). A mutable history table (diverges from the audit ledger).
 - **Consequences:** Task visibility is the 1D compiler's: project-contained tasks follow their project chain; projectless tasks follow the brand. Project completion becomes readable done leaf tasks over readable non-cancelled leaf tasks (OD-13).
 
+<a id="adr-26"></a>
+## ADR-26: Saved views, defaults, and pins (Phase 3A amendment)
+
+- **Decision:**
+  - **Saved views.** `views.saved_view` (`view_`) is a workspace-level record (its `core.record` brand is NULL, because record scope is immutable). It stores the entity (task or project), the name, the owner (its creator), and the visibility (personal or shared). A shared view names exactly one scope through `share_brand_id` and `share_project_id`. Its query is the canonical serialization of the versioned AST (at most 32 KiB) with a separate presentation (columns, density; at most 8 KiB). Layout is `list` until 3B adds others. Concurrency is row-version.
+  - **Defaults.** `views.view_default` holds one row per (target kind, target, entity), for a member, a brand, or a project, pointing to a saved view.
+  - **Pins.** `views.view_pin` (1E) gains its write path. A trigger keeps every pin on a view shared with the pin's own scope.
+  - **View state.** `views.view_state` gains keyed families (`views.saved.<view id>`, `views.draft.task|project`) under one allow-listed schema.
+  - **Lifecycle.** Delete is a lifecycle trash. Views shared with a brand purge with it. Views shared with a project are that project's content. Pins and scope defaults go with any change of share.
+- **Alternatives:**
+  - Brand-scoped view records: a share could not change scope without changing an immutable record scope.
+  - A view per share scope: duplicate definitions that drift.
+  - Storing query results: they would freeze and widen access.
+- **Consequences:** One migration, `0031_saved_views`, with a down migration to 0030. No 3B layout tables, 3C planning, or 6D export-job tables.
+
 <a id="adr-25"></a>
 ## ADR-25: Inbox and universal capture (Phase 2E amendment)
 

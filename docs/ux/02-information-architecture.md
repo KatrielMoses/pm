@@ -499,3 +499,20 @@ These rules apply to every surface: lists, search, palette, notifications, dashb
 - **Intake forms:** brand settings list forms (members-only while OD-28 is open); `/{ws}/forms/{form}` lets members submit.
 - **Honest absences:** voice (7F), email forwarding (6A), API and webhook capture (6B), file storage (4E), and anonymous forms (OD-28).
 
+
+**Phase 3A implementation note.** Saved views:
+- **One builder.** `/{ws}/views/new?entity=task|project` and every saved view share one builder:
+  - filters combined with "all" (and) or "any" (or), with nested groups;
+  - multi-sort with Up and Down reordering;
+  - grouping, with dates by day, week, or month;
+  - shown columns in order, plus comfortable or compact density.
+  Value pickers list only what the person can see. Unfinished conditions wait for a value instead of erroring.
+- **Results.** A table in a focusable scroll region, with group header rows and counts, "Show more" keyset pages, and a live result count. A view never shows anyone more than they can already see.
+- **Deep links and state.** The URL carries the view (`q`), so links, reload, and Back reproduce it. Changes replace the history entry. The last state and scroll anchor are kept per person, device, and view.
+- **Saving and sharing.**
+  - Views save as personal.
+  - Sharing names exactly one scope: the workspace, a brand, or a project.
+  - A shared view the person changed shows **Modified** with Save (when they may), Save as new view, and Reset.
+  - Shared views can be pinned to workspace or brand navigation (a "Pinned views" sidebar section) and made the default for a brand or project. Each person can choose their own default.
+- **Export and links.** Export CSV or JSON of exactly what the person sees, up to the export bound. Copy link.
+- **Honest absences:** board, calendar, timeline, and the other 3B renderings; stored export files and scheduled exports (4E, 6D); public or link-shared views (disabled by decision).

@@ -1,0 +1,434 @@
+{
+  "schema_version": 1,
+  "phase": "3A",
+  "status": "candidate",
+  "adr": "0018",
+  "accepted_by_kinds": {
+    "catalog:contributing": "the subphase is a contributing_subphase of the requirement in the accepted 0A catalog",
+    "roadmap:<sub>": "the BUILD_ROADMAP subphase scope",
+    "adr:<nnnn>[#row]": "an engineering ADR row naming the subphase (proposed ADRs are allowed only while the closure status is candidate)",
+    "requirement:<ID>": "the requirement that owns the capability (its owner_subphase)"
+  },
+  "requirements": [
+    {
+      "id": "VIEW-012",
+      "role": "owned",
+      "disposition": "implemented",
+      "evidence": [
+        {
+          "file": "packages/work/src/views/query.ts",
+          "contains": "export const CATALOG"
+        },
+        {
+          "file": "packages/work/test/integration/views.test.ts",
+          "contains": "filters match the oracle"
+        }
+      ],
+      "note": "Brand, project, status, priority, owner, assignee, agent (exact over today's data until 7A), dates, labels, milestone, health, and custom fields."
+    },
+    {
+      "id": "VIEW-013",
+      "role": "owned",
+      "disposition": "implemented",
+      "evidence": [
+        {
+          "file": "packages/work/src/views/compile.ts",
+          "contains": "filter(g: Group | null)"
+        },
+        {
+          "file": "packages/work/test/integration/views.test.ts",
+          "contains": "AND/OR groups"
+        },
+        {
+          "file": "e2e/views.spec.ts",
+          "contains": "Any of them (or)"
+        }
+      ],
+      "note": "Nested AND/OR groups bounded by QUERY_DEPTH_MAX and QUERY_CONDITIONS_MAX."
+    },
+    {
+      "id": "VIEW-014",
+      "role": "owned",
+      "disposition": "implemented",
+      "evidence": [
+        {
+          "file": "packages/work/src/views/compile.ts",
+          "contains": "export function after("
+        },
+        {
+          "file": "packages/work/test/integration/views.test.ts",
+          "contains": "keyset pages cover every row exactly once"
+        }
+      ],
+      "note": "Multi-sort with nulls last and keyset pages."
+    },
+    {
+      "id": "VIEW-015",
+      "role": "owned",
+      "disposition": "implemented",
+      "evidence": [
+        {
+          "file": "packages/work/src/views/compile.ts",
+          "contains": "groupKey("
+        },
+        {
+          "file": "packages/work/test/integration/views.test.ts",
+          "contains": "groups are counted with the same authorized predicate"
+        }
+      ],
+      "note": "Group by brand, project, status, priority, owner, assignee, dates (day/week/month), milestone, health, and custom fields."
+    },
+    {
+      "id": "VIEW-016",
+      "role": "owned",
+      "disposition": "implemented",
+      "evidence": [
+        {
+          "file": "packages/work/src/views/view-service.ts",
+          "contains": "async createView("
+        },
+        {
+          "file": "e2e/views.spec.ts",
+          "contains": "Save view"
+        }
+      ],
+      "note": "Personal saved views (owner only)."
+    },
+    {
+      "id": "VIEW-017",
+      "role": "owned",
+      "disposition": "implemented",
+      "evidence": [
+        {
+          "file": "packages/work/src/views/view-service.ts",
+          "contains": "async shareView("
+        },
+        {
+          "file": "packages/work/test/integration/views.test.ts",
+          "contains": "saved views: personal, shared exactly, never widened, revocable"
+        }
+      ],
+      "note": "Exact, revocable sharing at one scope; never widens access."
+    },
+    {
+      "id": "VIEW-018",
+      "role": "owned",
+      "disposition": "implemented",
+      "evidence": [
+        {
+          "file": "packages/work/src/views/view-service.ts",
+          "contains": "async setDefault("
+        },
+        {
+          "file": "packages/work/test/integration/views.test.ts",
+          "contains": "defaults resolve the person, then the project, then the brand"
+        }
+      ],
+      "note": "Defaults per person, brand, and project."
+    },
+    {
+      "id": "VIEW-019",
+      "role": "owned",
+      "disposition": "implemented",
+      "evidence": [
+        {
+          "file": "packages/work/src/views/view-service.ts",
+          "contains": "async pinView("
+        },
+        {
+          "file": "apps/web/src/shell/layout.tsx",
+          "contains": "Pinned views"
+        }
+      ],
+      "note": "Pins into workspace and brand navigation."
+    },
+    {
+      "id": "VIEW-020",
+      "role": "owned",
+      "disposition": "implemented",
+      "evidence": [
+        {
+          "file": "packages/work/src/views/query.ts",
+          "contains": "export function parsePresentation("
+        },
+        {
+          "file": "apps/web/src/pages/view-pages.tsx",
+          "contains": "function ColumnsEditor("
+        }
+      ],
+      "note": "Visible columns in order and density."
+    },
+    {
+      "id": "VIEW-022",
+      "role": "owned",
+      "disposition": "implemented",
+      "evidence": [
+        {
+          "file": "packages/work/src/views/view-service.ts",
+          "contains": "async exportView("
+        },
+        {
+          "file": "apps/api/test/integration/views-api.test.ts",
+          "contains": "exports CSV and JSON"
+        }
+      ],
+      "enriched_by": [
+        "6D"
+      ],
+      "accepted_by": [
+        "catalog:contributing",
+        "adr:0018#Q8"
+      ],
+      "note": "Bounded direct export of exactly what the requester sees; stored export jobs and artifacts enrich it in 6D/4E."
+    },
+    {
+      "id": "WSB-019",
+      "role": "owned",
+      "disposition": "implemented",
+      "evidence": [
+        {
+          "file": "packages/work/src/views/view-service.ts",
+          "contains": "Brand scope (WSB-019)"
+        },
+        {
+          "file": "apps/web/src/pages/view-pages.tsx",
+          "contains": "scope.length ? { scope }"
+        }
+      ],
+      "note": "Every query honors the shell's brand scope (narrowed to readable brands) and brand filters."
+    },
+    {
+      "id": "TSK-034",
+      "role": "owned",
+      "disposition": "implemented",
+      "evidence": [
+        {
+          "file": "docs/engineering/adr/0018-saved-views-query-engine.md",
+          "contains": "| Q2 |"
+        },
+        {
+          "file": "packages/work/test/integration/views.test.ts",
+          "contains": "saved views: personal, shared exactly"
+        }
+      ],
+      "note": "Views are queries over the one task table: a task appears in any number of views without copies."
+    },
+    {
+      "id": "NAV-004",
+      "role": "contributing",
+      "disposition": "contributed",
+      "contribution": "3A",
+      "evidence": [
+        {
+          "file": "packages/work/src/views/query.ts",
+          "contains": "`me` is the caller"
+        }
+      ],
+      "note": "Query primitive for My Work (assignee = me); the destination is 3B."
+    },
+    {
+      "id": "NAV-005",
+      "role": "contributing",
+      "disposition": "contributed",
+      "contribution": "3A",
+      "evidence": [
+        {
+          "file": "packages/work/src/views/compile.ts",
+          "contains": "a.membership_id <> a.assigned_by_membership_id"
+        }
+      ],
+      "note": "Assigned-by filter for Assigned by Me; the destination is 3B."
+    },
+    {
+      "id": "NAV-011",
+      "role": "contributing",
+      "disposition": "contributed",
+      "contribution": "3A",
+      "evidence": [
+        {
+          "file": "packages/contracts/src/shell.ts",
+          "contains": "views.saved"
+        },
+        {
+          "file": "e2e/views.spec.ts",
+          "contains": "a reload reproduces it"
+        }
+      ],
+      "note": "Per-view state (filters, sort, grouping, columns, scroll anchor) per person and device."
+    },
+    {
+      "id": "PRJ-028",
+      "role": "contributing",
+      "disposition": "contributed",
+      "contribution": "3A",
+      "evidence": [
+        {
+          "file": "docs/engineering/adr/0018-saved-views-query-engine.md",
+          "contains": "Public or link-shared views stay disabled"
+        }
+      ],
+      "note": "Guests run personal views over exact grants only; public views stay disabled by decision."
+    },
+    {
+      "id": "WFL-009",
+      "role": "contributing",
+      "disposition": "contributed",
+      "contribution": "3A",
+      "evidence": [
+        {
+          "file": "packages/work/src/views/view-service.ts",
+          "contains": "protected presentationFor("
+        }
+      ],
+      "note": "Field visibility per view through presentation columns, limited to fields the viewer may read."
+    },
+    {
+      "id": "REL-011",
+      "role": "contributing",
+      "disposition": "contributed",
+      "contribution": "3A",
+      "evidence": [
+        {
+          "file": "packages/work/src/views/view-service.ts",
+          "contains": "encodeCursor("
+        },
+        {
+          "file": "apps/api/test/integration/views-api.test.ts",
+          "contains": "keyset pages"
+        }
+      ],
+      "note": "Keyset pagination for large lists."
+    }
+  ],
+  "decisions": [
+    {
+      "id": "D1",
+      "title": "One canonical query AST, evaluator, and authorization before disclosure",
+      "adr_row": "Q2",
+      "sources": [
+        {
+          "file": "docs/architecture/data/04-relationship-primitives.md",
+          "contains": "versioned query AST"
+        }
+      ],
+      "evidence": [
+        {
+          "file": "packages/work/src/views/compile.ts",
+          "contains": "export class Compiler"
+        },
+        {
+          "file": "packages/work/test/integration/views.test.ts",
+          "contains": "hidden and unknown filter values run the same statements"
+        },
+        {
+          "file": "docs/engineering/adr/0018-saved-views-query-engine.md",
+          "contains": "| Q2 |"
+        }
+      ]
+    },
+    {
+      "id": "D2",
+      "title": "Personal, shared, and default views; pins; columns; exports; deep links; state",
+      "adr_row": "Q7",
+      "sources": [
+        {
+          "file": "docs/architecture/access/15-decisions.md",
+          "contains": "AZ-26"
+        }
+      ],
+      "evidence": [
+        {
+          "file": "packages/work/src/views/view-service.ts",
+          "contains": "async unshareView("
+        },
+        {
+          "file": "e2e/views.spec.ts",
+          "contains": "build, save, share, pin, default, export, and delete a view"
+        },
+        {
+          "file": "docs/engineering/adr/0018-saved-views-query-engine.md",
+          "contains": "| Q7 |"
+        }
+      ]
+    },
+    {
+      "id": "D3",
+      "title": "Reuse contracts; migrations with exact rollback; bounded queries and exports; scope exclusions",
+      "adr_row": "Q8",
+      "sources": [
+        {
+          "file": "docs/architecture/platform/19-decisions.md",
+          "contains": "PL-28"
+        }
+      ],
+      "evidence": [
+        {
+          "file": "packages/db/migrations/0031_saved_views.down.sql",
+          "contains": "Restores the exact 0030 catalog"
+        },
+        {
+          "file": "packages/db/test/integration/migrations.test.ts",
+          "contains": "3A adds 0031"
+        },
+        {
+          "file": "docs/engineering/adr/0018-saved-views-query-engine.md",
+          "contains": "| Q8 |"
+        }
+      ]
+    },
+    {
+      "id": "D4",
+      "title": "Unit, property, SQL plan, isolation, concurrency, API, and browser accessibility tests",
+      "adr_row": "Q4",
+      "sources": [
+        {
+          "file": "docs/architecture/access/policy/threats.json",
+          "contains": "T-44"
+        }
+      ],
+      "evidence": [
+        {
+          "file": "packages/work/test/unit/view-query.test.ts",
+          "contains": "property: every generated valid query parses"
+        },
+        {
+          "file": "packages/work/test/integration/views.test.ts",
+          "contains": "every catalog field compiles with every operator"
+        },
+        {
+          "file": "e2e/views.spec.ts",
+          "contains": "forced colours"
+        },
+        {
+          "file": "docs/engineering/adr/0018-saved-views-query-engine.md",
+          "contains": "| Q4 |"
+        }
+      ]
+    },
+    {
+      "id": "D5",
+      "title": "Authoritative 0B/0C/0D/0E records, ADR, generated contracts, closure, and validators",
+      "adr_row": "Q10",
+      "sources": [
+        {
+          "file": "docs/architecture/data/12-decisions.md",
+          "contains": "ADR-26"
+        }
+      ],
+      "evidence": [
+        {
+          "file": "docs/ux/02-information-architecture.md",
+          "contains": "Phase 3A implementation note"
+        },
+        {
+          "file": "docs/engineering/tools/phase3.py",
+          "contains": "phase 3A"
+        },
+        {
+          "file": "docs/engineering/adr/0018-saved-views-query-engine.md",
+          "contains": "| Q10 |"
+        }
+      ]
+    }
+  ]
+}
