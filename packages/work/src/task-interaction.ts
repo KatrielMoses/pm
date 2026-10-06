@@ -5,7 +5,6 @@ import { sql, type WorkspaceTransaction } from '@pm/db';
 import { writeOutboxEvent } from '@pm/platform';
 import {
   decideBrand,
-  decideRecord,
   findBrand,
   Issues,
   invalid,
@@ -1143,23 +1142,15 @@ export class TaskInteractionService extends FieldService {
     op: BulkOperation,
     value: unknown,
   ): Promise<BulkOutcome> {
-    const allowed = (action: ActionKey, shares = true) =>
-      decideRecord(p, action, {
-        brand: t.brand,
-        lifecycleState: t.lifecycleState,
-        shareLevel: shares && t.ownLevel === null ? (t.level === 'view' ? 'read' : 'edit') : null,
-        projectChain: t.chain,
-      }).allowed;
+    // The same decisions the commands make (the task's capability flags).
+    const can = this.taskCapabilities(p, t);
     if (op === 'archive' || op === 'trash') {
-      if (t.ownLevel === null) return 'forbidden';
       if (op === 'archive' && t.lifecycleState !== 'active') return 'no_change';
-      return allowed(op === 'archive' ? 'record.archive' : 'record.trash', false)
-        ? 'ready'
-        : 'forbidden';
+      return can[op] ? 'ready' : 'forbidden';
     }
-    if (t.lifecycleState !== 'active') return 'invalid';
+    if (t.lifecycleState !== 'active') return can.restore || can.trash ? 'invalid' : 'forbidden';
     if (op === 'add_label' || op === 'remove_label') {
-      if (t.ownLevel === null || !allowed('record.update', false)) return 'forbidden';
+      if (!can.edit_context) return 'forbidden';
       const label = await tx.db
         .selectFrom('work.label as l')
         .select('l.id')
@@ -1176,7 +1167,7 @@ export class TaskInteractionService extends FieldService {
         .executeTakeFirst();
       return (op === 'add_label') === !!has ? 'no_change' : 'ready';
     }
-    if (!allowed('record.update')) return 'forbidden';
+    if (!can.edit) return 'forbidden';
     const field = BULK_FIELD[op]!;
     const current = this.currentFields(t.row, tx);
     if (JSON.stringify(current[field] ?? null) === JSON.stringify(value ?? null))
