@@ -19,8 +19,24 @@ export async function createDatabase(
   );
 }
 
+/** How long teardown waits for a database's sessions to finish closing before forcing the drop. */
+const DRAIN_WAIT_MS = 5_000;
+
 export async function dropDatabase(server: PostgresServer, name: string): Promise<void> {
   if (!NAME.test(name)) throw new Error('invalid database name');
+  // Ordered teardown: pools ended by a test may still be sending their termination messages.
+  // Waiting until those sessions are gone means FORCE only ends sessions that truly linger, so a
+  // closing client never sees 57P01 as an unhandled pool error. Bounded; never a retry.
+  const deadline = Date.now() + DRAIN_WAIT_MS;
+  for (;;) {
+    const r = await adminQuery(
+      server,
+      `SELECT count(*)::int AS n FROM pg_stat_activity WHERE datname = $1 AND pid <> pg_backend_pid()`,
+      [name],
+    );
+    if (r.rows[0].n === 0 || Date.now() > deadline) break;
+    await new Promise((resolve) => setTimeout(resolve, 25));
+  }
   await adminQuery(server, `DROP DATABASE IF EXISTS ${name} WITH (FORCE)`);
 }
 
