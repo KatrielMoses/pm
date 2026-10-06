@@ -75,6 +75,13 @@ The fixtures are:
    - The fix: `[data-initial]` now takes precedence, and the Capture text area sets it
      (`apps/web/src/ui/dialog.tsx`, `apps/web/src/ui/form.tsx`).
    - Proof: the exit journey's keyboard-only step.
+3. **A background task-list refresh stole focus from an open modal.**
+   - The problem: after Undo, the project task tree remounts and focuses the moved task. Because
+     the refresh landed late, it took focus out of an already-open Capture dialog. CI caught this
+     on desktop.
+   - The fix: the tree's initial focus now yields while a modal is open
+     (`apps/web/src/pages/task-pages.tsx`).
+   - Proof: the exit journey's keyboard-only step, which runs right after Undo.
 
 No contract drift, migration incompatibility, or cross-surface UX break needed any other change.
 
