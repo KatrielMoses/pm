@@ -150,14 +150,7 @@ export class TaskService extends TaskCoreService {
         links,
         relationships,
         // Honest absences (later phases); nothing is fabricated.
-        unavailable: [
-          'comments',
-          'followers',
-          'files',
-          'documents',
-          'external_records',
-          'agents',
-        ],
+        unavailable: ['comments', 'followers', 'files', 'documents', 'external_records', 'agents'],
       };
     });
   }
