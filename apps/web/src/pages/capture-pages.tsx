@@ -251,6 +251,7 @@ export function CaptureDialog({ ws, onClose }: { ws: string; onClose: () => void
           <>
             <TextAreaField
               id="capture-text"
+              initial
               label="What do you want to capture?"
               hint="Try: Renew domain tomorrow !high 30m #ops. Paste several lines to capture several items."
               value={text}

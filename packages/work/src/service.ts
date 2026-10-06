@@ -192,7 +192,6 @@ export class ProjectService extends NavigationService {
       await this.shareLevelOf(tx, p, NIL_ID);
       throw new TenancyError('not_found');
     }
-    await primeStatuses(tx, [row.status_id]);
     const brandRow = (await this.projectBrandRow(tx, row.brand_id))!;
     const scope = await projectChainOf(tx, row.id);
     if (!scope) throw new TenancyError('not_found');
@@ -211,6 +210,9 @@ export class ProjectService extends NavigationService {
     };
     const level = recordLevel(p, { ...facts, shareLevel });
     if (level === null) throw new TenancyError('not_found');
+    // Statuses are primed only for readable records (Phase 2 integration): a custom-workflow
+    // status on an unreadable record must not add a statement an unknown identifier lacks.
+    await primeStatuses(tx, [row.status_id]);
     return {
       id: row.id,
       publicId: row.public_id,

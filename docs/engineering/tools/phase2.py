@@ -922,6 +922,38 @@ def check_adr_2e(closure):
     return errs, "ADR-0017 %s" % m.group(1)
 
 
+def check_integration(catalog, closures):
+    """Phase 2 exit gate: across 2A-2E every owned requirement is closed once, by its owner, and every
+    partial disposition (contributed, foundation) names the later subphase that completes it."""
+    errs = []
+    reqs = {r["id"]: r for r in catalog["requirements"]}
+    owners = {}
+    counts = {}
+    for sub, closure in closures.items():
+        for e in closure["requirements"]:
+            r = reqs.get(e["id"])
+            if r is None:
+                errs.append("%s: closure-%s lists a requirement absent from the catalog" % (e["id"], sub))
+                continue
+            counts[e["disposition"]] = counts.get(e["disposition"], 0) + 1
+            if r.get("owner_subphase") == sub:
+                if e["id"] in owners:
+                    errs.append("%s: owned closure recorded in both %s and %s" % (e["id"], owners[e["id"]], sub))
+                owners[e["id"]] = sub
+            elif sub not in r.get("contributing_subphases", []):
+                errs.append("%s: closure-%s neither owns nor contributes" % (e["id"], sub))
+            elif e["disposition"] == "implemented":
+                errs.append("%s: a %s contribution cannot be marked implemented" % (e["id"], sub))
+            if e["disposition"] == "foundation" and not re.search(r"\b\d[A-Z]\b", e.get("note", "")):
+                errs.append("%s: foundation (deferred) disposition must name the completing subphase" % e["id"])
+    for i, r in sorted(reqs.items()):
+        if r.get("owner_subphase") in closures and i not in owners:
+            errs.append("%s: %s-owned requirement is not closed" % (i, r["owner_subphase"]))
+    detail = "%d owned closed once across %s; %s" % (
+        len(owners), "/".join(closures), ", ".join("%s %d" % kv for kv in sorted(counts.items())))
+    return errs, detail
+
+
 def main():
     catalog = load(P("docs/product/requirements/catalog.json"))
     registry = load(P("docs/architecture/platform/contracts/registry.json"))
@@ -985,6 +1017,12 @@ def main():
         ("phase 2E: bounds, events, metrics, envelopes", check_2e_contracts(registry)),
         ("phase 2E: parser, originals, migrations, scope", check_2e_invariants()),
         ("phase 2E: ADR status and decision rows", check_adr_2e(closure_2e)),
+        (
+            "phase 2: integration closure (2A-2E, deferrals explicit)",
+            check_integration(
+                catalog, {"2A": closure, "2B": closure_2b, "2C": closure_2c, "2D": closure_2d, "2E": closure_2e}
+            ),
+        ),
     ]
     failed = 0
     for name, result in sections:

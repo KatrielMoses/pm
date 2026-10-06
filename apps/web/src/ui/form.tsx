@@ -296,6 +296,7 @@ export function TextAreaField({
   onChange,
   maxLength,
   onPasteText,
+  initial = false,
 }: {
   id: string;
   label: string;
@@ -306,10 +307,13 @@ export function TextAreaField({
   maxLength?: number;
   /** Called with pasted text; return true to take over the paste (2E multi-line capture). */
   onPasteText?: (text: string) => boolean;
+  /** Receives the dialog's initial focus (the field is the dialog's purpose). */
+  initial?: boolean;
 }) {
   return (
     <FieldFrame id={id} label={label} hint={hint} error={error}>
       <textarea
+        data-initial={initial || undefined}
         onPaste={
           onPasteText
             ? (e) => {

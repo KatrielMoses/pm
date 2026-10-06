@@ -246,7 +246,6 @@ export class TaskCoreService extends WorkService {
       await this.shareLevelOf(tx, p, NIL_ID);
       throw new TenancyError('not_found');
     }
-    await primeStatuses(tx, [row.status_id, row.prior_status_id]);
     const { facts: brand, marker } = await this.brandFactsOf(tx, row.brand_id);
     const chain = await this.chainOfProject(tx, row.project_id);
     const trashed = row.lifecycle_state === 'trashed';
@@ -265,6 +264,9 @@ export class TaskCoreService extends WorkService {
     });
     if (trashed && (ownLevel === null || levelRank(ownLevel) < levelRank('edit')))
       throw new TenancyError('not_found');
+    // Statuses are primed only for readable tasks (Phase 2 integration): a custom-workflow status
+    // on an unreadable task must not add a statement an unknown identifier lacks.
+    await primeStatuses(tx, [row.status_id, row.prior_status_id]);
     return {
       id: row.id,
       publicId: row.public_id,
