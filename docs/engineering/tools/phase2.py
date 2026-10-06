@@ -135,7 +135,7 @@ def check_closure(catalog, closure, subphases, SUBPHASE=SUBPHASE, DECISION_IDS=D
                 errs.append("%s: unknown accepted_by kind %r" % (i, ref))
     decisions = {d["id"]: d for d in closure.get("decisions", [])}
     if sorted(decisions, key=lambda x: int(x[1:])) != DECISION_IDS:
-        errs.append("decisions must be exactly D1..D18 (the Phase %s brief's architecture decisions)" % SUBPHASE)
+        errs.append("decisions must be exactly %s..%s (the Phase %s brief's architecture decisions)" % (DECISION_IDS[0], DECISION_IDS[-1], SUBPHASE))
     for d in decisions.values():
         check_evidence(d["id"] + " sources", d.get("sources"), cache, errs)
         check_evidence(d["id"], d.get("evidence"), cache, errs)
@@ -179,7 +179,7 @@ def check_statuses():
         errs.append("platform statuses drifted from the five seeded defaults: %r" % [(k, c) for _, k, c, _ in rows])
     shell = read(P("packages/contracts/src/shell.ts"))
     for sid, key, cat, _ in rows:
-        if not re.search(r"key: '%s'[^}]*category: '%s'" % (key, cat), shell) or sid not in read(P("packages/work/src/service.ts")):
+        if not re.search(r"key: '%s'[^}]*category: '%s'" % (key, cat), shell) or sid not in read(P("packages/work/src/workflow/statuses.ts")):
             errs.append("status %s (%s) is not the same in contracts and the work service" % (key, sid))
     return errs, "%d platform statuses" % len(rows)
 
@@ -459,7 +459,7 @@ def check_task_statuses():
     if [(k, c) for _, k, c, _ in rows] != TASK_STATUSES:
         errs.append("task statuses drifted from the six seeded defaults: %r" % [(k, c) for _, k, c, _ in rows])
     shell = read(P("packages/contracts/src/shell.ts"))
-    core = read(P("packages/work/src/task-core.ts"))
+    core = read(P("packages/work/src/workflow/statuses.ts"))
     for sid, key, cat, _ in rows:
         if not re.search(r"key: '%s'[^}]*category: '%s'" % (key, cat), shell) or sid not in core:
             errs.append("task status %s (%s) is not the same in contracts and the task service" % (key, sid))
@@ -558,6 +558,189 @@ def check_adr_2b(closure):
             errs.append("%s: ADR-0014 has no row %s" % (d["id"], d.get("adr_row")))
     return errs, "ADR-0014 %s" % m.group(1)
 
+# ---- Phase 2C -----------------------------------------------------------------------------------
+
+MIGRATIONS_2C = ["packages/db/migrations/0025_workflow_configuration.up.sql", "packages/db/migrations/0026_custom_fields.up.sql"]
+WORKFLOW_BOUNDS = {"WORKFLOW_STATUSES_MAX": ("workflowStatusesMax", 50), "WORKFLOW_TRANSITIONS_MAX": ("workflowTransitionsMax", 400),
+                   "TRANSITION_REQUIREMENTS_MAX": ("transitionRequirementsMax", 30), "TRANSITION_APPROVERS_MAX": ("transitionApproversMax", 10),
+                   "APPROVAL_EXPIRY_HOURS": ("approvalExpiryHours", 168), "TRANSITION_PREVIEW_TTL_SECONDS": ("transitionPreviewTtlSeconds", 600),
+                   "FIELD_DEFINITIONS_MAX": ("fieldDefinitionsMax", 200), "FIELD_OPTIONS_MAX": ("fieldOptionsMax", 200),
+                   "FIELD_SETS_MAX": ("fieldSetsMax", 100), "FIELD_SET_ITEMS_MAX": ("fieldSetItemsMax", 100), "FIELD_TEXT_MAX": ("fieldTextMax", 5000),
+                   "FIELD_PATTERN_MAX": ("fieldPatternMax", 200), "FORMULA_SOURCE_MAX": ("formulaSourceMax", 2000),
+                   "FORMULA_AST_NODES_MAX": ("formulaAstNodesMax", 200), "FORMULA_DEPTH_MAX": ("formulaDepthMax", 8),
+                   "FORMULA_REFS_MAX": ("formulaRefsMax", 20), "FIELD_VALUE_BULK_MAX": ("fieldValueBulkMax", 500)}
+FIELD_TYPES = ["text", "number", "currency", "percentage", "date", "person", "label", "checkbox", "url", "email", "select", "formula"]
+
+
+def migrations_2c():
+    return "\n".join(read(P(m)) for m in MIGRATIONS_2C)
+
+
+def check_one_workflow_system():
+    """W1/W3: no second status table, platform statuses never copied, records' statuses guarded."""
+    errs = []
+    sql = migrations_2c()
+    tables = re.findall(r"CREATE TABLE (\w+\.\w+)", sql)
+    for t in tables:
+        if "status" in t and t != "workflow.workflow_status":
+            errs.append("a second status table: %s" % t)
+    if "INSERT INTO workflow.platform_status" in sql:
+        errs.append("2C migrations copy or add platform statuses")
+    up = read(P(MIGRATIONS_2C[0]))
+    for need in ("DROP CONSTRAINT task_status_id_fkey", "DROP CONSTRAINT project_status_id_fkey", "CREATE TRIGGER workflow_status_guard",
+                 "workflow.status_offered('task'", "workflow.status_offered('project'", "workflow_one_active"):
+        if need not in up:
+            errs.append("0025 lacks %s" % need)
+    return errs, "%d tables; statuses guarded" % len(tables)
+
+
+def check_workflow_bounds(registry):
+    errs = []
+    params = {p["name"] for p in registry["parameters"]}
+    server = read(P("packages/config/src/server.ts"))
+    env = read(P("docs/engineering/environments.md"))
+    validation = read(P("packages/work/src/validation.ts"))
+    for name, (field, default) in WORKFLOW_BOUNDS.items():
+        if name not in params:
+            errs.append("%s is not a 0D parameter" % name)
+        if not re.search(r"\b%s: '%d'" % (name, default), server):
+            errs.append("%s default in the configuration is not %d" % (name, default))
+        if name not in env:
+            errs.append("%s is not documented in environments.md" % name)
+        if not re.search(r"%s: %s\b" % (field, "{:_}".format(default).replace(",", "_")), validation) and not re.search(r"%s: %d\b" % (field, default), validation):
+            errs.append("DEFAULT_WORK_SETTINGS.%s is not %d" % (field, default))
+    return errs, "%d bounds" % len(WORKFLOW_BOUNDS)
+
+
+def check_field_types():
+    """W10: the twelve types agree in the database, the service, and the web client."""
+    errs = []
+    sql = read(P(MIGRATIONS_2C[1]))
+    m = re.search(r"field_definition_type_known CHECK \(field_type IN \((.*?)\)\)", sql, re.S)
+    db = re.findall(r"'(\w+)'", m.group(1)) if m else []
+    if db != FIELD_TYPES:
+        errs.append("database field types drifted: %r" % db)
+    svc = read(P("packages/work/src/workflow/field-types.ts"))
+    m2 = re.search(r"export const FIELD_TYPES = \[(.*?)\] as const", svc, re.S)
+    if not m2 or re.findall(r"'(\w+)'", m2.group(1)) != FIELD_TYPES:
+        errs.append("service field types drifted")
+    web = read(P("apps/web/src/workflow/client.ts"))
+    for t in FIELD_TYPES:
+        if not re.search(r"\b%s: '" % t, web):
+            errs.append("web client lacks a label for %s" % t)
+    return errs, "%d types" % len(FIELD_TYPES)
+
+
+def check_formula_safety():
+    """W17: no dynamic code anywhere in the workflow engine; the registry is closed."""
+    errs = []
+    base = P("packages/work/src/workflow")
+    for n in os.listdir(base):
+        text = read(os.path.join(base, n))
+        code = re.sub(r"//.*|/\*[\s\S]*?\*/", "", text)
+        for bad in ("eval(", "new Function", "Function(", "import(", "vm.", "child_process", "fetch(", "Date.now()", "Math.random", "new RegExp(src"):
+            if bad in code and not (n == "field-types.ts" and bad == "new RegExp(src"):
+                errs.append("packages/work/src/workflow/%s uses %s" % (n, bad))
+    f = read(os.path.join(base, "formula.ts"))
+    if "export const FORMULA_AST_VERSION = 1;" not in f:
+        errs.append("formula AST version is not 1")
+    return errs, "no dynamic code"
+
+
+def check_approval_immutability():
+    """W7: decisions are append-only; requests change only by their one-time close."""
+    errs = []
+    sql = read(P(MIGRATIONS_2C[0]))
+    if "GRANT SELECT, INSERT ON workflow.approval_request, workflow.approval_decision TO app_rw;" not in sql:
+        errs.append("approval facts are not insert-only for app_rw")
+    if "GRANT UPDATE (closed_at, closed_reason) ON workflow.approval_request TO app_rw;" not in sql:
+        errs.append("the one-time close grant changed")
+    for m in re.finditer(r"GRANT ([^;]*?) ON ([^;]*?) TO ([^;]+);", sql):
+        if "workflow.approval_decision" in m.group(2) and re.search(r"\b(UPDATE|ALL)\b", m.group(1)):
+            errs.append("approval decisions are updatable")
+    if "CREATE TRIGGER approval_request_guard" not in sql:
+        errs.append("approval request guard missing")
+    return errs, "append-only"
+
+
+def check_workflow_events(registry):
+    events = {e["type"] for e in registry["events"]}
+    errs, found = [], 0
+    pattern = re.compile(r"'(workflow\.[a-z_]+\.[a-z_]+)'")
+    for f in ("packages/work/src/workflow-service.ts", "packages/work/src/field-service.ts"):
+        for m in pattern.finditer(read(P(f))):
+            if m.group(1).startswith(("workflow.transitions", "workflow.transition.duration", "workflow.formula.")):
+                continue
+            if m.group(1).count(".") != 2 or m.group(1).split(".")[1] in ("workflow_status", "approval_request", "field_definition", "field_set", "field_value", "workflow", "status", "transition"):
+                found += 1
+                if m.group(1) not in events:
+                    errs.append("%s: event %r is not registered in 0D" % (f, m.group(1)))
+    return errs, "%d event literals" % found
+
+
+def check_adr_2c(closure):
+    path = phase1.adr_path("0015")
+    if not path:
+        return ["ADR-0015 missing"], ""
+    text = read(path)
+    m = ADR_STATUS.search(text)
+    if not m:
+        return ["ADR-0015 status must be **proposed** or **accepted and implemented**"], ""
+    errs = []
+    if closure.get("status") == "accepted" and m.group(1) != "accepted and implemented":
+        errs.append("closure is accepted but ADR-0015 is not")
+    for d in closure.get("decisions", []):
+        if not re.search(r"^\| %s \|" % re.escape(d.get("adr_row", "")), text, re.M):
+            errs.append("%s: ADR-0015 has no row %s" % (d["id"], d.get("adr_row")))
+    return errs, "ADR-0015 %s" % m.group(1)
+
+
+# ---- Phase 2C corrective review 01 ---------------------------------------------------------------
+
+CONCURRENCY_PAIRS = [
+    "workflow edit vs status reorder",
+    "transition add/edit/archive and required-field changes",
+    "a configuration change while a transition preview/apply is in flight",
+    "field definitions, values, and set versions",
+    "formula dependency edits racing toward a cycle",
+    "approval policy, requests, decisions, and applies",
+]
+TIMING_SURFACES = ["record fields:", "formula explanations:", "required-field errors:", "audit projection:", "serialization and counts:"]
+
+
+def check_review01(closure):
+    """The three corrections: concurrency suite, configuration audit facts, timing evidence."""
+    errs = []
+    ids = {c["id"] for c in closure.get("corrections", [])}
+    if ids != {"R01-C1", "R01-C2", "R01-C3"}:
+        errs.append("closure-2c must record corrections R01-C1..C3")
+    cache = {}
+    for c in closure.get("corrections", []):
+        check_evidence(c["id"], c.get("evidence"), cache, errs)
+    ct = read(P("packages/work/test/integration/workflow-concurrency.test.ts"))
+    for pair in CONCURRENCY_PAIRS:
+        if pair not in ct:
+            errs.append("concurrency suite lacks: %s" % pair)
+    for need in ("contended(", "pg_stat_activity", "set_config('app.workspace_id'", "db.worker", "exec.outbox_event", "audit.audit_event"):
+        if need not in ct:
+            errs.append("concurrency suite does not use %s" % need)
+    svc = read(P("packages/work/src/workflow-service.ts"))
+    if "configChanges(" not in svc or "track('transition'" not in svc or "track('status'" not in svc:
+        errs.append("workflow configuration commands do not record before/after snapshots")
+    if re.search(r"change\.plain\('(status|transition)_(added|moved|state|deleted)'", svc):
+        errs.append("ad hoc configuration audit changes remain (use configChanges)")
+    tt = read(P("packages/work/test/integration/field-timing.test.ts"))
+    for surface in TIMING_SURFACES:
+        if surface not in tt:
+            errs.append("timing suite lacks surface: %s" % surface)
+    for need in ("statementShape", "measureClasses"):
+        if need not in tt:
+            errs.append("timing suite does not use %s" % need)
+    harness = read(P("packages/test-support/src/timing.ts"))
+    if "export const TIMING_DEFAULTS" not in harness or "absMs" not in harness or "rel:" not in harness:
+        errs.append("the timing threshold is not documented in the harness")
+    return errs, "concurrency, audit, timing"
+
 
 def main():
     catalog = load(P("docs/product/requirements/catalog.json"))
@@ -567,6 +750,8 @@ def main():
     closure_2b = load(P("docs/engineering/phase2/closure-2b.json"))
     subphases = phase1.roadmap_subphases()
     closure_2b_result = check_closure(catalog, closure_2b, subphases, "2B")
+    closure_2c = load(P("docs/engineering/phase2/closure-2c.json"))
+    closure_2c_result = check_closure(catalog, closure_2c, subphases, "2C", ["D%d" % i for i in range(1, 27)])
     if closure_2b.get("phase") != "2B":
         closure_2b_result[0].append("closure-2b phase must be 2B")
     sections = [
@@ -598,6 +783,15 @@ def main():
         ("phase 2B: cross-brand move and links", check_brand_move()),
         ("phase 2B: task events and telemetry registered", check_task_events(registry)),
         ("phase 2B: ADR status and decision rows", check_adr_2b(closure_2b)),
+        ("phase 2C: requirement and decision closure", closure_2c_result),
+        ("phase 2C: one workflow system; statuses guarded", check_one_workflow_system()),
+        ("phase 2C: workflow and field bounds", check_workflow_bounds(registry)),
+        ("phase 2C: twelve field types agree", check_field_types()),
+        ("phase 2C: formula engine has no dynamic code", check_formula_safety()),
+        ("phase 2C: approval facts append-only", check_approval_immutability()),
+        ("phase 2C: workflow events registered", check_workflow_events(registry)),
+        ("phase 2C: ADR status and decision rows", check_adr_2c(closure_2c)),
+        ("phase 2C: review 01 corrections evidenced", check_review01(closure_2c)),
     ]
     failed = 0
     for name, result in sections:
@@ -606,7 +800,7 @@ def main():
         for e in errs:
             print("    ERROR: " + e)
         failed += bool(errs)
-    print("PHASE 2A/2B CLOSURE: %s" % ("PASS" if not failed else "FAIL (%d sections)" % failed))
+    print("PHASE 2A/2B/2C CLOSURE: %s" % ("PASS" if not failed else "FAIL (%d sections)" % failed))
     return 1 if failed else 0
 
 

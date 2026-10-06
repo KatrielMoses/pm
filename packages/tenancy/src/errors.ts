@@ -10,6 +10,7 @@ export type TenancyErrorCode =
   | 'idempotency_key_reuse'
   | 'idempotency_in_progress'
   | 'step_up_required'
+  | 'approval_required'
   | 'workspace_read_only'
   | 'cursor_invalid'
   | 'unauthenticated'

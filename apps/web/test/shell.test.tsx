@@ -124,8 +124,14 @@ describe('route registry (NAV-001, NAV-012)', () => {
     const ids = (a: Access | null, p: Parameters<typeof navEntries>[0]) =>
       navEntries(p, a).map((r) => r.id);
     expect(ids(owner, 'primary')).toEqual([...SHELL_DESTINATIONS]);
-    expect(ids(owner, 'admin')).toEqual(['workspace_settings', 'access_settings']);
-    expect(ids(plainMember, 'admin')).toEqual(['access_settings']);
+    // 2C: workflow and field administration entries for members; each page decides per scope.
+    expect(ids(owner, 'admin')).toEqual([
+      'workspace_settings',
+      'access_settings',
+      'workflows',
+      'fields',
+    ]);
+    expect(ids(plainMember, 'admin')).toEqual(['access_settings', 'workflows', 'fields']);
     expect(ids(guest, 'primary')).toEqual(['shared']);
     expect(ids(guest, 'workspace')).toEqual([]);
     expect(ids(guest, 'admin')).toEqual([]);

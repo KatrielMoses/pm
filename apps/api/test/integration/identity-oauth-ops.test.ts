@@ -1,3 +1,4 @@
+import { median } from '@pm/test-support';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import type { LightMyRequestResponse } from 'fastify';
 import {
@@ -268,7 +269,6 @@ describe('identity: abuse controls, timing, jobs, and redaction', () => {
         ),
       );
     }
-    const median = (xs: number[]) => xs.sort((x, y) => x - y)[1]!;
     for (const t of [...known, ...unknown]) expect(t).toBeGreaterThanOrEqual(240);
     expect(Math.abs(median(known) - median(unknown))).toBeLessThan(120);
   });

@@ -102,11 +102,12 @@ Requirements flagged with each decision are listed automatically in [requirement
 
 <a id="od-11"></a>
 ### OD-11 — Formula fields versus calculated fields
-- **Decision:** Are WFL-008's "formula" type and WFL-011's "calculated fields" the same capability?
+- **Decided (2026-10-05, architect, Phase 2C brief):** One capability. *Formula* is a custom-field type, and WFL-011's calculated fields are formula fields. A formula compiles to a versioned typed AST (never `eval`, JavaScript, SQL, templates, or user code). It may use field references on the same record, literals, arithmetic, comparison, boolean conditionals, null handling, and a small deterministic function registry. It has no network, current time, randomness, secrets, context, cross-record queries, or side effects. Results are read-only, errors are typed (`missing`, `invalid`, `divide_by_zero`, `cycle`, `overflow`), and a result is visible only where every input is visible.
+- **Original question:** Are WFL-008's "formula" type and WFL-011's "calculated fields" the same capability?
 - **Why it matters:** Each expression engine is a security and performance surface.
 - **Affects:** WFL-008, WFL-011 · phases 0D, 2C.
 - **Safe default:** One calculated-field type with a sandboxed, side-effect-free expression language, with limits defined in 0B/0D.
-- **If deferred:** 2C may build one engine and later need a second.
+- **If deferred:** No longer applicable (decided).
 
 <a id="od-12"></a>
 ### OD-12 — Timeline versus Gantt

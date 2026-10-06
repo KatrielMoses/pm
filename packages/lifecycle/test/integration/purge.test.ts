@@ -467,10 +467,16 @@ describe('durable purge, tombstones, retention, and the purge ledger (0B ยง8.7-ย
     } finally {
       await owner.end();
     }
-    // Application identities cannot reopen a closed environment themselves.
-    await expect(
-      db.admin(`SET ROLE app_rw; UPDATE ops.recovery_gate SET state = 'open'`),
-    ).rejects.toThrow(/permission denied/);
-    await db.admin('RESET ROLE');
+    // Application identities cannot reopen a closed environment themselves (a real app_rw login,
+    // not a role switch on a pooled admin connection).
+    const app = new pg.Client({ connectionString: db.app });
+    await app.connect();
+    try {
+      await expect(app.query(`UPDATE ops.recovery_gate SET state = 'open'`)).rejects.toThrow(
+        /permission denied/,
+      );
+    } finally {
+      await app.end();
+    }
   });
 });

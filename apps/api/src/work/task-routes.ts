@@ -1,6 +1,6 @@
 import type { FastifyInstance, FastifyRequest } from 'fastify';
 import { nonResourceEnvelope } from '@pm/contracts';
-import type { TaskService } from '@pm/work';
+import type { FieldService } from '@pm/work';
 import { routeKit } from '../route-kit.ts';
 
 type Params = {
@@ -20,7 +20,7 @@ type Params = {
  * (0D); lifecycle decisions come from the service through the tenancy-exported issuer. History is
  * a permission-filtered projection of the audit ledger for the task's own readers (TSK-039).
  */
-export function registerTasks(app: FastifyInstance, work: TaskService): void {
+export function registerTasks(app: FastifyInstance, work: FieldService): void {
   const { m, fail, caller, mutation, wrap, resource, split } = routeKit();
   const p = (request: FastifyRequest) => request.params as Params;
   const q = (request: FastifyRequest) => (request.query ?? {}) as Record<string, unknown>;

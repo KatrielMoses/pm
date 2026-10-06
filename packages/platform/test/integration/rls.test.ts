@@ -79,6 +79,22 @@ const PHASE_1C_TENANT_TABLES = [
   'work.task_assignee',
   'work.task_inherited_criterion',
   'work.task_label',
+  // Phase 2C workflows, approvals, custom fields, field sets, and field policy.
+  'access.field_policy',
+  'workflow.approval_decision',
+  'workflow.approval_request',
+  'workflow.field_definition',
+  'workflow.field_option',
+  'workflow.field_set',
+  'workflow.field_set_attachment',
+  'workflow.field_set_version',
+  'workflow.field_value',
+  'workflow.formula_dependency',
+  'workflow.transition',
+  'workflow.transition_approver',
+  'workflow.transition_requirement',
+  'workflow.workflow',
+  'workflow.workflow_status',
 ] as const;
 
 /** Seeds one row in every tenant execution table for a workspace. */

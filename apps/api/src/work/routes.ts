@@ -1,11 +1,12 @@
 import type { FastifyInstance, FastifyRequest } from 'fastify';
 import { nonResourceEnvelope } from '@pm/contracts';
-import type { TaskService } from '@pm/work';
+import type { FieldService } from '@pm/work';
 import { routeKit } from '../route-kit.ts';
 import { registerTasks } from './task-routes.ts';
+import { registerWorkflows } from './workflow-routes.ts';
 
 export interface WorkRouteDeps {
-  work: TaskService;
+  work: FieldService;
 }
 
 type Params = {
@@ -39,6 +40,7 @@ export function registerWork(app: FastifyInstance, deps: WorkRouteDeps): void {
   });
   const base = '/v1/workspaces/:ws/projects';
   registerTasks(app, work);
+  registerWorkflows(app, work);
 
   app.get(
     base,

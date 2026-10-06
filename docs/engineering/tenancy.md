@@ -340,3 +340,13 @@ resolution before the project chain. Projectless tasks follow brand access; proj
 `edit`): a share covers the task, its checklist, and its own criteria only (ADR-0014 T15).
 Assignment never grants access. `label.manage` governs brand labels; `task.override_completion`
 governs completing with unmet items; `record.move_brand` for tasks needs manage in both brands.
+
+## Phase 2C workflows and fields
+
+`workflow.configure` and `fields.configure` are decided at the configuration's own scope:
+workspace, brand (`decideBrand`, so sensitive brands need explicit manage), or project
+(`decideProject`, so restricted projects need explicit project manage). Record actions:
+`workflow.transition` and `workflow.approval_request` (edit), `workflow.approval_decide` (view plus
+policy eligibility), `field.value_read`, `field.value_edit`, and `field.formula_inspect`. Field
+visibility intersects record readability, applicability, and `access.field_policy`; a formula is
+readable only where all its inputs are (AZ-23). Approvers and person or label values grant nothing.

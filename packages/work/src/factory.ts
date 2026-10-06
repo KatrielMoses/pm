@@ -14,7 +14,7 @@ import {
 import { registerWorkLifecycle } from './lifecycle.ts';
 import { projectTargets, taskTargets } from './navigation.ts';
 import { projectOwnerHook, taskAssigneeHook } from './ownership.ts';
-import { TaskService } from './task-items.ts';
+import { FieldService } from './field-service.ts';
 import { DEFAULT_WORK_SETTINGS, type WorkSettings } from './validation.ts';
 
 /** The lifecycle registry with every record type registered so far (API and worker). */
@@ -36,7 +36,7 @@ export function createWorkService(deps: {
   };
   logger: Logger;
   metrics: Metrics;
-}): TaskService {
+}): FieldService {
   const { config } = deps;
   if (!config.identity.signingKey) throw new Error('AUTH_SIGNING_KEY is required');
   const writer = new AuditWriter({
@@ -55,7 +55,7 @@ export function createWorkService(deps: {
   });
   const signingKey = Buffer.from(config.identity.signingKey.reveal(), 'base64url');
   const arrayMax = config.tenancy.principalContextArrayMax;
-  return new TaskService({
+  return new FieldService({
     tenant: deps.tenant,
     platform: deps.platform,
     writer,

@@ -25,6 +25,12 @@ import {
 import { ProjectPage, ProjectsPage } from './pages/project-pages.tsx';
 import { ProjectlessTasksPage, TaskPage } from './pages/task-pages.tsx';
 import {
+  ApprovalsPage,
+  FieldSetsPage,
+  FieldsPage,
+  WorkflowsPage,
+} from './pages/workflow-pages.tsx';
+import {
   FavoritesPage,
   HomePage,
   NotAvailablePage,
@@ -76,6 +82,10 @@ export const ROUTE_COMPONENTS: Record<string, Render> = {
   project: (p) => <ProjectPage key={p.prj} ws={p.ws!} prj={p.prj!} />,
   project_section: (p) => <ProjectPage key={p.prj} ws={p.ws!} prj={p.prj!} section={p.section!} />,
   tasks: (p) => <ProjectlessTasksPage ws={p.ws!} />,
+  workflows: (p) => <WorkflowsPage ws={p.ws!} />,
+  fields: (p) => <FieldsPage ws={p.ws!} />,
+  field_sets: (p) => <FieldSetsPage ws={p.ws!} />,
+  approvals: (p) => <ApprovalsPage ws={p.ws!} />,
   task: (p) => <TaskPage key={p.tsk} ws={p.ws!} tsk={p.tsk!} />,
   calendar: destination('calendar'),
   knowledge: destination('knowledge'),

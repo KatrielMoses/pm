@@ -2,7 +2,7 @@
 
 ## 7.1 Field policy
 
-A field policy (proposed `access.field_policy`, AC-03) attaches to a **record type + scope** (workspace, brand, project) and a **field**, which is either a core field key or a custom field definition. It sets:
+A field policy (`access.field_policy`, AC-03; implemented for custom fields in Phase 2C, [AZ-23](15-decisions.md#az-23)) attaches to a **record type + scope** (workspace, brand, project) and a **field**, which is either a core field key or a custom field definition. It sets:
 
 | Setting | Values | Default |
 |---|---|---|

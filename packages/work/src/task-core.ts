@@ -1,7 +1,7 @@
 import { createHash, createHmac } from 'node:crypto';
 import { change } from '@pm/audit';
 import { newPublicId, newUuidV7 } from '@pm/contracts';
-import { TASK_STATUSES, type TaskStatusKey } from '@pm/contracts/shell';
+import type { TaskStatusKey } from '@pm/contracts/shell';
 import { sql, type WorkspaceTransaction } from '@pm/db';
 import { writeOutboxEvent } from '@pm/platform';
 import {
@@ -36,7 +36,7 @@ import {
   type ShareLevel,
 } from '@pm/tenancy';
 import type { ActionKey } from '@pm/contracts';
-import { toDate, type LoadedProject, type WorkDeps } from './service.ts';
+import { NIL_ID, toDate, type LoadedProject, type WorkDeps } from './service.ts';
 import { WorkService } from './structures.ts';
 import {
   parseAssignees,
@@ -53,21 +53,33 @@ import {
   type Deadline,
 } from './task-validation.ts';
 import { isPublic } from './validation.ts';
+import type { StatusGate } from './workflow/transitions.ts';
 
-/** Fixed ids of the immutable platform task statuses (migration 0023). */
-export const TASK_STATUS_ID: Record<TaskStatusKey, string> = {
-  backlog: '01920000-0000-7000-8000-000000000006',
-  todo: '01920000-0000-7000-8000-000000000007',
-  in_progress: '01920000-0000-7000-8000-000000000008',
-  blocked: '01920000-0000-7000-8000-000000000009',
-  done: '01920000-0000-7000-8000-00000000000a',
-  cancelled: '01920000-0000-7000-8000-00000000000b',
-};
-const TASK_KEY_BY_ID = new Map(
-  Object.entries(TASK_STATUS_ID).map(([k, v]) => [v, k as TaskStatusKey]),
-);
-const TASK_STATUS = new Map(TASK_STATUSES.map((s) => [s.key, s]));
-const TERMINAL = new Set(['done', 'cancelled']);
+/** The transition apply command's extra input (ADR-0015 W8). */
+export interface TaskTransition {
+  to: string;
+  version: number;
+  apply: StatusGate['apply'];
+  overrideReason: string | null;
+  confirmSubtasks: boolean;
+}
+import {
+  firstOfCategory,
+  initialStatus,
+  offered,
+  primeStatuses,
+  resolveWorkflow,
+  statusFromKey,
+  statusRef,
+  statusView,
+  TASK_STATUS_ID as PLATFORM_TASK_STATUS_ID,
+  TERMINAL,
+  type StatusRef,
+  type WorkflowRef,
+} from './workflow/statuses.ts';
+
+/** Fixed ids of the immutable platform task statuses (migration 0023; one source in statuses.ts). */
+export const TASK_STATUS_ID: Record<TaskStatusKey, string> = PLATFORM_TASK_STATUS_ID;
 
 export type TaskRow = {
   project_id: string | null;
@@ -193,8 +205,10 @@ export class TaskCoreService extends WorkService {
   }
 
   protected async chainOfProject(tx: WorkspaceTransaction, projectId: string | null) {
-    if (!projectId) return [] as ProjectChain;
-    return (await projectChainOf(tx, projectId))?.chain ?? [];
+    // Projectless tasks run the same chain statement (on an identifier no row has), so project
+    // membership is not visible through statement shape (ADR-0015 W20).
+    const chain = (await projectChainOf(tx, projectId ?? NIL_ID))?.chain ?? [];
+    return projectId ? chain : ([] as ProjectChain);
   }
 
   /**
@@ -219,13 +233,23 @@ export class TaskCoreService extends WorkService {
       .where('r.record_type', '=', 'task');
     if (opts.lock) q = q.forUpdate('t');
     const row = await q.executeTakeFirst();
-    if (!row) throw new TenancyError('not_found');
+    if (!row) {
+      // Constant shape (ADR-0015 W20): the same brand, chain, and share statements as an existing
+      // task the caller cannot read; existence is not visible in the statements a request runs.
+      await this.brandFactsOf(tx, NIL_ID).catch(() => undefined);
+      await this.chainOfProject(tx, null);
+      await this.shareLevelOf(tx, p, NIL_ID);
+      throw new TenancyError('not_found');
+    }
+    await primeStatuses(tx, [row.status_id, row.prior_status_id]);
     const { facts: brand, marker } = await this.brandFactsOf(tx, row.brand_id);
     const chain = await this.chainOfProject(tx, row.project_id);
     const trashed = row.lifecycle_state === 'trashed';
+    // The share lookup always runs (trashed or not) so every branch has the same statements.
+    const share = await this.shareLevelOf(tx, p, row.id);
     if (trashed && !opts.allowTrashed) throw new TenancyError('not_found');
     const lifecycleState = trashed ? 'active' : row.lifecycle_state;
-    const shareLevel = trashed ? null : await this.shareLevelOf(tx, p, row.id);
+    const shareLevel = trashed ? null : share;
     const level = recordLevel(p, { brand, lifecycleState, projectChain: chain, shareLevel });
     if (level === null) throw new TenancyError('not_found');
     const ownLevel = recordLevel(p, {
@@ -363,10 +387,54 @@ export class TaskCoreService extends WorkService {
     );
   }
 
-  protected taskStatusView(statusId: string) {
-    const key = TASK_KEY_BY_ID.get(statusId)!;
-    const s = TASK_STATUS.get(key)!;
-    return { key: s.key, name: s.name, category: s.category };
+  protected taskStatusView(statusId: string, tx: WorkspaceTransaction) {
+    return statusView(statusRef(tx, statusId));
+  }
+
+  /** The workflow that applies to a task in this container (project → brand → workspace). */
+  protected taskWorkflow(tx: WorkspaceTransaction, brandId: string, projectId: string | null) {
+    return resolveWorkflow(tx, 'task', { workspaceId: tx.workspaceId, brandId, projectId });
+  }
+
+  /** Runs the one transition evaluator for a task status change (ADR-0015 W5–W8). */
+  protected taskGate(
+    tx: WorkspaceTransaction,
+    caller: Caller,
+    req: Mutation,
+    p: Principal,
+    t: LoadedTask,
+    g: {
+      wf: WorkflowRef | null;
+      from: StatusRef;
+      to: StatusRef;
+      intent: StatusGate['intent'];
+      merged: Record<string, unknown>;
+    },
+    transition?: TaskTransition,
+  ) {
+    return this.gateStatusChange(tx, p, {
+      kind: 'task',
+      record: {
+        id: t.id,
+        publicId: t.publicId,
+        version: t.row.version,
+        brandId: t.brand.id,
+        projectId: t.row.project_id,
+      },
+      facts: {
+        brand: t.brand,
+        lifecycleState: t.lifecycleState,
+        shareLevel: null,
+        projectChain: t.chain,
+      },
+      ...g,
+      intent: transition ? 'apply' : g.intent,
+      apply: transition?.apply ?? null,
+      overrideReason: transition?.overrideReason ?? null,
+      stepUp: () =>
+        this.stepUp(tx, caller, p, req, 'workflow.transition', { type: 'task', id: t.publicId }),
+      caller,
+    });
   }
 
   /** Capability flags for one task: the same decisions the commands make (booleans only). */
@@ -491,7 +559,7 @@ export class TaskCoreService extends WorkService {
         .executeTakeFirstOrThrow();
       progress = { done: Number(c.done), total: Number(c.total) };
     }
-    const status = this.taskStatusView(r.status_id);
+    const status = this.taskStatusView(r.status_id, tx);
     return {
       id: t.publicId,
       type: 'task' as const,
@@ -699,12 +767,16 @@ export class TaskCoreService extends WorkService {
         : [];
       const childCount = new Map(children.map((c) => [c.parent_task_id, Number(c.n)]));
       const last = page.at(-1);
+      await primeStatuses(
+        tx,
+        page.map((x) => x.status_id),
+      );
       return {
         data: page.map((x) => ({
           id: x.public_id,
           type: 'task' as const,
           title: x.title,
-          status: this.taskStatusView(x.status_id),
+          status: this.taskStatusView(x.status_id, tx),
           priority: x.priority,
           start_date: toDate(x.start_date),
           due_date: toDate(x.due_date),
@@ -862,7 +934,8 @@ export class TaskCoreService extends WorkService {
     const out: Record<string, unknown> = {};
     for (const [k, v] of Object.entries(fields)) {
       if (k === 'description') out.description_rich = v === null ? null : JSON.stringify(v);
-      else if (k === 'status') out.status_id = TASK_STATUS_ID[v as TaskStatusKey];
+      // The status id is resolved through the applicable workflow by the caller.
+      else if (k === 'status') continue;
       else if (k === 'deadline') {
         const d = v as Deadline;
         out.deadline_date = d && 'date' in d ? d.date : null;
@@ -898,7 +971,7 @@ export class TaskCoreService extends WorkService {
     p: Principal,
     c: Awaited<ReturnType<TaskCoreService['resolveContainer']>>,
     fields: Record<string, unknown>,
-    opts: { after?: string | 'last'; source?: 'ui' | 'template' } = {},
+    opts: { after?: string | 'last'; source?: 'ui' | 'template'; lenientStatus?: boolean } = {},
   ): Promise<{ id: string; publicId: string }> {
     const depth = c.parent ? c.parent.row.depth + 1 : 0;
     if (depth > this.ws.taskDepthMax)
@@ -927,7 +1000,20 @@ export class TaskCoreService extends WorkService {
       })
       .execute();
     const rank = await this.nextRank(tx, 'work.task', this.siblingScope(c), opts.after ?? 'last');
-    const merged: Record<string, unknown> = { status: 'todo', ...fields };
+    // The starting status comes from the workflow that applies in the container (W4). A copied
+    // status the destination no longer offers falls back to the starting status.
+    const wf = await this.taskWorkflow(tx, c.brand.id, c.project?.id ?? null);
+    const wanted = fields.status;
+    const initial: StatusRef =
+      wanted === undefined
+        ? initialStatus('task', wf)
+        : opts.lenientStatus
+          ? (offered('task', wf).find((x) => x.key === wanted && !TERMINAL.has(x.category)) ??
+            initialStatus('task', wf))
+          : statusFromKey('task', wf, wanted, '/status');
+    if (initial.category === 'done')
+      throw invalid(issue('/status', 'use_complete', 'Create the task, then complete it.'));
+    const merged: Record<string, unknown> = { ...fields, status: initial.key };
     this.checkDates(merged);
     await tx.db
       .insertInto('work.task')
@@ -943,7 +1029,8 @@ export class TaskCoreService extends WorkService {
         status_category: 'planned',
         rank,
         created_by_membership_id: p.membershipId,
-        ...(this.taskColumns(merged) as { title: string; status_id: string }),
+        ...(this.taskColumns(merged) as { title: string }),
+        status_id: initial.id,
       })
       .execute();
     const { deadline: dl, ...rest } = merged;
@@ -967,7 +1054,7 @@ export class TaskCoreService extends WorkService {
       data: {
         project_id: c.project?.id ?? null,
         parent_task_id: c.parent?.id ?? null,
-        status_id: TASK_STATUS_ID[merged.status as TaskStatusKey],
+        status_id: initial.id,
         source_kind: opts.source ?? 'ui',
       },
       actor: { type: 'human', id: p.membershipId },
@@ -1014,11 +1101,11 @@ export class TaskCoreService extends WorkService {
   // Field edits, completion, reopening
   // ---------------------------------------------------------------------------------------------
 
-  protected currentFields(r: TaskRow): Record<string, unknown> {
+  protected currentFields(r: TaskRow, tx: WorkspaceTransaction): Record<string, unknown> {
     return {
       title: r.title,
       description: r.description_rich ?? null,
-      status: TASK_KEY_BY_ID.get(r.status_id),
+      status: statusRef(tx, r.status_id).key,
       priority: r.priority,
       start_date: r.start_date,
       due_date: r.due_date,
@@ -1031,11 +1118,21 @@ export class TaskCoreService extends WorkService {
     };
   }
 
-  async updateTask(caller: Caller, ws: unknown, tsk: unknown, body: unknown, req: Mutation) {
-    const merge = parseMerge(body, TASK_FIELDS);
+  async updateTask(
+    caller: Caller,
+    ws: unknown,
+    tsk: unknown,
+    body: unknown,
+    req: Mutation,
+    transition?: TaskTransition,
+  ) {
+    // The transition apply command is a status-only edit with a preview or approval (W8).
+    const merge = transition
+      ? { version: transition.version, changes: new Map() }
+      : parseMerge(body, TASK_FIELDS);
     return this.mutate(
       caller,
-      'task.update',
+      transition ? 'task.transition' : 'task.update',
       ws,
       req,
       async (tx, p) => {
@@ -1043,13 +1140,17 @@ export class TaskCoreService extends WorkService {
         const version = t.row.version;
         const expected = req.ifMatch !== undefined ? parseIfMatch(req.ifMatch) : merge.version;
         if (expected === undefined) throw new TenancyError('precondition_required');
-        const current = this.currentFields(t.row);
-        const next = applyFieldMerge(
-          { ...merge, version: expected === version ? version : merge.version },
-          current,
-          version,
-          (field, value, issues) => taskField(field, value, issues, this.ws.taskEstimateMinutesMax),
-        );
+        const current = this.currentFields(t.row, tx);
+        if (transition) requireVersion(expected, version);
+        const next: Record<string, unknown> = transition
+          ? { status: transition.to }
+          : applyFieldMerge(
+              { ...merge, version: expected === version ? version : merge.version },
+              current,
+              version,
+              (field, value, issues) =>
+                taskField(field, value, issues, this.ws.taskEstimateMinutesMax),
+            );
         if (expected !== version && merge.version === undefined && !Object.keys(next).length)
           requireVersion(expected, version);
         if (!Object.keys(next).length)
@@ -1059,22 +1160,35 @@ export class TaskCoreService extends WorkService {
             data: await this.taskView(tx, p, t),
           };
         const statusChanging = next.status !== undefined && next.status !== current.status;
-        if (
-          statusChanging &&
-          TERMINAL.has(TASK_STATUS.get(current.status as TaskStatusKey)!.category)
-        )
+        const from = statusRef(tx, t.row.status_id);
+        if (statusChanging && TERMINAL.has(from.category))
           throw invalid(
             issue('/changes/status', 'use_reopen', 'Reopen the task to change its status.'),
           );
         const merged = { ...current, ...next };
         this.checkDates(merged);
+        let to: StatusRef | null = null;
+        if (statusChanging) {
+          const wf = await this.taskWorkflow(tx, t.brand.id, t.row.project_id);
+          to = statusFromKey('task', wf, next.status, '/changes/status');
+          await this.taskGate(
+            tx,
+            caller,
+            req,
+            p,
+            t,
+            { wf, from, to, intent: 'edit', merged },
+            transition,
+          );
+        }
         const set: Record<string, unknown> = {
           ...this.taskColumns(next),
           updated_at: new Date(),
           updated_by_membership_id: p.membershipId,
           version: version + 1,
         };
-        if (statusChanging && next.status === 'cancelled') set.prior_status_id = t.row.status_id;
+        if (to) set.status_id = to.id;
+        if (to && to.category === 'cancelled') set.prior_status_id = t.row.status_id;
         await tx.db.updateTable('work.task').set(set).where('id', '=', t.id).execute();
         await tx.db
           .updateTable('core.record')
@@ -1108,8 +1222,8 @@ export class TaskCoreService extends WorkService {
             { type: 'work.task', id: t.id, sequence: version + 1 },
             {
               from_status_id: t.row.status_id,
-              to_status_id: TASK_STATUS_ID[next.status as TaskStatusKey],
-              to_category: TASK_STATUS.get(next.status as TaskStatusKey)!.category,
+              to_status_id: to!.id,
+              to_category: to!.category,
             },
             t.brand.id,
           );
@@ -1163,11 +1277,20 @@ export class TaskCoreService extends WorkService {
     return Number(r.rows[0]?.n ?? 0);
   }
 
-  async completeTask(caller: Caller, ws: unknown, tsk: unknown, body: unknown, req: Mutation) {
-    const input = parseComplete(body);
+  async completeTask(
+    caller: Caller,
+    ws: unknown,
+    tsk: unknown,
+    body: unknown,
+    req: Mutation,
+    transition?: TaskTransition,
+  ) {
+    const input = transition
+      ? { overrideReason: transition.overrideReason, confirmSubtasks: transition.confirmSubtasks }
+      : parseComplete(body);
     return this.mutate(
       caller,
-      'task.complete',
+      transition ? 'task.transition' : 'task.complete',
       ws,
       req,
       async (tx, p) => {
@@ -1178,8 +1301,9 @@ export class TaskCoreService extends WorkService {
         if (p.kind !== 'member') throw new TenancyError('forbidden');
         this.requireTaskActive(t);
         if (req.ifMatch !== undefined) requireVersion(parseIfMatch(req.ifMatch), t.row.version);
+        if (transition) requireVersion(transition.version, t.row.version);
         const category = t.row.status_category;
-        if (category === 'done')
+        if (category === 'done' && !transition)
           return {
             status: 200,
             ref: { id: t.publicId, type: 'task' },
@@ -1219,11 +1343,34 @@ export class TaskCoreService extends WorkService {
             shares: false,
             excluded: 'forbidden',
           });
+        // Into done through the workflow: the chosen done status, or the first one (W4–W6).
+        const wf = await this.taskWorkflow(tx, t.brand.id, t.row.project_id);
+        const from = statusRef(tx, t.row.status_id);
+        const done = transition
+          ? statusFromKey('task', wf, transition.to, '/to')
+          : firstOfCategory('task', wf, 'done');
+        if (!done)
+          throw invalid(issue('/', 'workflow_incomplete', 'This workflow has no done status.'));
+        const gate = await this.taskGate(
+          tx,
+          caller,
+          req,
+          p,
+          t,
+          {
+            wf,
+            from,
+            to: done,
+            intent: 'complete',
+            merged: this.currentFields(t.row, tx),
+          },
+          transition,
+        );
         const now = new Date();
         await tx.db
           .updateTable('work.task')
           .set({
-            status_id: TASK_STATUS_ID.done,
+            status_id: done.id,
             prior_status_id: t.row.status_id,
             completed_at: now,
             completed_by_membership_id: p.membershipId,
@@ -1240,8 +1387,9 @@ export class TaskCoreService extends WorkService {
           .where('id', '=', t.id)
           .execute();
         await this.taskAudit(tx, caller, p, 'task.completed', t, [
-          change.plain('status', TASK_KEY_BY_ID.get(t.row.status_id), 'done'),
+          change.plain('status', from.key, done.key),
           change.plain('override', null, needsOverride),
+          ...(gate.overrideUsed ? [change.plain('workflow_requirement_override', null, true)] : []),
           ...(needsOverride
             ? [
                 change.content('override_reason', {
@@ -1273,7 +1421,7 @@ export class TaskCoreService extends WorkService {
           { type: 'work.task', id: t.id, sequence: t.row.version + 1 },
           {
             from_status_id: t.row.status_id,
-            to_status_id: TASK_STATUS_ID.done,
+            to_status_id: done.id,
             to_category: 'done',
           },
           t.brand.id,
@@ -1291,10 +1439,16 @@ export class TaskCoreService extends WorkService {
     );
   }
 
-  async reopenTask(caller: Caller, ws: unknown, tsk: unknown, req: Mutation) {
+  async reopenTask(
+    caller: Caller,
+    ws: unknown,
+    tsk: unknown,
+    req: Mutation,
+    transition?: TaskTransition,
+  ) {
     return this.mutate(
       caller,
-      'task.reopen',
+      transition ? 'task.transition' : 'task.reopen',
       ws,
       req,
       async (tx, p) => {
@@ -1308,14 +1462,27 @@ export class TaskCoreService extends WorkService {
             ref: { id: t.publicId, type: 'task' },
             data: await this.taskView(tx, p, t),
           };
-        // The prior non-terminal status when still valid, otherwise To do (ADR-22).
-        const prior =
-          t.row.prior_status_id &&
-          TASK_KEY_BY_ID.has(t.row.prior_status_id) &&
-          !TERMINAL.has(TASK_STATUS.get(TASK_KEY_BY_ID.get(t.row.prior_status_id)!)!.category)
-            ? t.row.prior_status_id
-            : TASK_STATUS_ID.todo;
-        const to = TASK_KEY_BY_ID.get(prior)!;
+        if (transition) requireVersion(transition.version, t.row.version);
+        // The prior non-terminal status when the workflow still offers it, otherwise its first
+        // planned status (ADR-22, ADR-0015 W4); the apply command may name the target.
+        const wf = await this.taskWorkflow(tx, t.brand.id, t.row.project_id);
+        const from = statusRef(tx, t.row.status_id);
+        const choices = offered('task', wf);
+        const target: StatusRef = transition
+          ? statusFromKey('task', wf, transition.to, '/to')
+          : (choices.find((x) => x.id === t.row.prior_status_id && !TERMINAL.has(x.category)) ??
+            initialStatus('task', wf));
+        await this.taskGate(
+          tx,
+          caller,
+          req,
+          p,
+          t,
+          { wf, from, to: target, intent: 'reopen', merged: this.currentFields(t.row, tx) },
+          transition,
+        );
+        const prior = target.id;
+        const to = target.key;
         await tx.db
           .updateTable('work.task')
           .set({
@@ -1336,7 +1503,7 @@ export class TaskCoreService extends WorkService {
           .where('id', '=', t.id)
           .execute();
         await this.taskAudit(tx, caller, p, 'task.reopened', t, [
-          change.plain('status', TASK_KEY_BY_ID.get(t.row.status_id), to),
+          change.plain('status', from.key, to),
         ]);
         await this.workEvent(
           tx,
@@ -1344,7 +1511,7 @@ export class TaskCoreService extends WorkService {
           p,
           'work.task.reopened',
           { type: 'work.task', id: t.id, sequence: t.row.version + 1 },
-          { status_id: prior, status_category: TASK_STATUS.get(to)!.category },
+          { status_id: prior, status_category: target.category },
           t.brand.id,
         );
         return {
@@ -1797,6 +1964,11 @@ export class TaskCoreService extends WorkService {
           })
           .where('id', '=', t.id)
           .execute();
+        // Label values belong to the old brand's labels and cannot follow (ADR-0015 W15).
+        await sql`DELETE FROM workflow.field_value v USING workflow.field_definition d
+                   WHERE d.id = v.definition_id AND d.field_type = 'label' AND v.record_id = ANY(${plan.ids}::uuid[])`.execute(
+          tx.db,
+        );
         await sql`SELECT work.move_task_brand(${plan.ids}::uuid[], ${to}::uuid)`.execute(tx.db);
         await bumpEpoch(tx, 'workspace', null);
         await this.workAudit(
@@ -2059,17 +2231,22 @@ export class TaskCoreService extends WorkService {
           c: Awaited<ReturnType<TaskCoreService['resolveContainer']>>,
           title?: string,
         ) => {
-          const fields = this.currentFields(from.row);
-          const status = TERMINAL.has(from.row.status_category)
-            ? 'todo'
-            : (fields.status as string);
-          const created = await this.insertTask(tx, caller, p, c, {
-            ...Object.fromEntries(
-              Object.entries(fields).filter(([, v]) => v !== null && v !== undefined),
-            ),
-            status,
-            ...(title ? { title } : {}),
-          });
+          const fields = this.currentFields(from.row, tx);
+          const { status: copiedStatus, ...rest } = fields;
+          const created = await this.insertTask(
+            tx,
+            caller,
+            p,
+            c,
+            {
+              ...Object.fromEntries(
+                Object.entries(rest).filter(([, v]) => v !== null && v !== undefined),
+              ),
+              ...(TERMINAL.has(from.row.status_category) ? {} : { status: copiedStatus }),
+              ...(title ? { title } : {}),
+            },
+            { lenientStatus: true },
+          );
           copied.tasks++;
           const items = await tx.db
             .selectFrom('work.checklist_item')

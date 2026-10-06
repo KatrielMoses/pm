@@ -7,7 +7,7 @@ import { invalid, issue } from '@pm/tenancy';
 import { instanceDates, itemCount, type TemplatePackage } from './templates.ts';
 import { createHash } from 'node:crypto';
 
-const STATUS_PLANNED = '01920000-0000-7000-8000-000000000001';
+import { initialStatus, resolveWorkflow } from './workflow/statuses.ts';
 
 export interface InstantiateContext {
   writer: AuditWriter;
@@ -102,6 +102,15 @@ export async function instantiatePackage(
       created_by_actor_id: cmd.actor.id,
     })
     .execute();
+  // The starting status comes from the workflow that applies to the new project (ADR-0015 W4).
+  const initial = initialStatus(
+    'project',
+    await resolveWorkflow(tx, 'project', {
+      workspaceId: tx.workspaceId,
+      brandId: input.brandId,
+      projectId: id,
+    }),
+  );
   await tx.db
     .insertInto('work.project')
     .values({
@@ -118,7 +127,7 @@ export async function instantiatePackage(
         : null,
       icon: pkg.project.icon,
       color: pkg.project.color,
-      status_id: STATUS_PLANNED,
+      status_id: initial.id,
       priority: pkg.project.priority as never,
       start_date: dates.start_date,
       target_date: dates.target_date,
@@ -255,7 +264,7 @@ export async function instantiatePackage(
   await writeOutboxEvent(tx, {
     type: 'work.project.created',
     aggregate: { type: 'work.project', id, sequence: 0 },
-    data: { parent_project_id: input.parent?.id ?? null, status_id: STATUS_PLANNED },
+    data: { parent_project_id: input.parent?.id ?? null, status_id: initial.id },
     actor: { type: actor.type === 'member' ? 'human' : 'system', id: actor.id },
     context: ctx.exec,
     brandId: input.brandId,

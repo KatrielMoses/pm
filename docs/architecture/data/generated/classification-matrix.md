@@ -17,7 +17,7 @@ Class definitions and rules: [../11-data-classification.md](../11-data-classific
 | Retention and governance | 3 | C3 | R-AUDIT, R-LIVE | filtered | no | no | incidental, yes | low |
 | Usage metering and limits | 4 | C2 | R-BILLING, R-EXEC, R-LIVE | admin, filtered | no | no | incidental | very-high |
 | Billing and entitlements | 7 | C3 | R-BILLING, R-LIVE, R-PLATFORM | admin, filtered, never | no | no | incidental, yes | medium |
-| Workflows and custom fields | 9 | C2 | R-LIVE, R-PLATFORM | filtered, full | no, yes | no | incidental, no | very-high |
+| Workflows and custom fields | 15 | C2 | R-LIVE, R-PLATFORM | filtered, full | no, yes | no | incidental, no, yes | very-high |
 | Relationship primitives | 4 | C2 | R-LIVE | filtered | yes | no | incidental | high |
 | Files, deliverables, and evidence | 8 | C2 | R-DERIVED, R-EPHEMERAL, R-EVIDENCE, R-LIVE | filtered, never | no, yes | no | incidental | high |
 | Comments and reviews | 5 | C2 | R-AUDIT, R-EVIDENCE, R-LIVE | admin, filtered | yes | no | incidental | very-high |
@@ -102,11 +102,17 @@ Class definitions and rules: [../11-data-classification.md](../11-data-classific
 | [`workflow`](logical-model.md#entity-workflow) | workflow | workspace_or_brand | C1 | low | configuration changes | R-LIVE | filtered | low | yes | no | incidental |
 | [`workflow_status`](logical-model.md#entity-workflow-status) | workflow | inherited | C1 | low | configuration changes | R-LIVE | filtered | low | yes | no | incidental |
 | [`platform_status`](logical-model.md#entity-platform-status) | workflow | platform | C1 | low | is evidence / append-only | R-PLATFORM | full | low | no | no | no |
-| [`workflow_revision`](logical-model.md#entity-workflow-revision) | workflow | inherited | C1 | low | is evidence / append-only | R-LIVE | filtered | low | yes | no | incidental |
+| [`transition`](logical-model.md#entity-transition) | workflow | inherited | C1 | low | configuration changes | R-LIVE | filtered | low | yes | no | incidental |
+| [`transition_requirement`](logical-model.md#entity-transition-requirement) | workflow | inherited | C1 | low | configuration changes | R-LIVE | filtered | low | yes | no | incidental |
+| [`transition_approver`](logical-model.md#entity-transition-approver) | workflow | inherited | C1 | low | configuration changes | R-LIVE | filtered | low | yes | no | yes |
+| [`approval_request`](logical-model.md#entity-approval-request) | workflow | inherited | C1 | low | is evidence / append-only | R-LIVE | filtered | medium | yes | no | yes |
+| [`approval_decision`](logical-model.md#entity-approval-decision) | workflow | inherited | C1 | low | is evidence / append-only | R-LIVE | filtered | medium | yes | no | yes |
+| [`formula_dependency`](logical-model.md#entity-formula-dependency) | workflow | inherited | C1 | low | configuration changes | R-LIVE | filtered | low | yes | no | incidental |
 | [`field_definition`](logical-model.md#entity-field-definition) | workflow | workspace_or_brand | C1 | low | configuration changes | R-LIVE | filtered | low | yes | no | incidental |
 | [`field_option`](logical-model.md#entity-field-option) | workflow | inherited | C1 | low | configuration changes | R-LIVE | filtered | medium | yes | no | incidental |
 | [`field_set`](logical-model.md#entity-field-set) | workflow | workspace_or_brand | C1 | low | configuration changes | R-LIVE | filtered | low | yes | no | incidental |
-| [`calculated_field_definition`](logical-model.md#entity-calculated-field-definition) | workflow | inherited | C1 | low | is evidence / append-only | R-LIVE | filtered | low | yes | no | incidental |
+| [`field_set_version`](logical-model.md#entity-field-set-version) | workflow | inherited | C1 | low | is evidence / append-only | R-LIVE | filtered | low | yes | no | incidental |
+| [`field_set_attachment`](logical-model.md#entity-field-set-attachment) | workflow | inherited | C1 | low | configuration changes | R-LIVE | filtered | high | yes | no | incidental |
 | [`field_value`](logical-model.md#entity-field-value) | workflow | inherited | C2 | standard (per-record) | material changes | R-LIVE | filtered | very-high | yes | no | incidental |
 | [`record_relationship`](logical-model.md#entity-record-relationship) | relations | workspace | C2 | standard (per-record) | material changes | R-LIVE | filtered | high | yes | no | incidental |
 | [`label`](logical-model.md#entity-label) | work | brand | C1 | low | configuration changes | R-LIVE | filtered | medium | yes | no | incidental |

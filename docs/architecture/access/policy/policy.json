@@ -2481,7 +2481,7 @@
         "brand",
         "project"
       ],
-      "description": "Configure statuses, transitions, rules.",
+      "description": "Configure workflows, statuses, transitions, required fields, and approval policies.",
       "required_level": null,
       "risk_class": "R2",
       "approval_class": "none",
@@ -2498,10 +2498,16 @@
         "guest": "deny"
       },
       "requirements": [
+        "PRJ-009",
+        "WFL-001",
         "WFL-002",
-        "WFL-005"
+        "WFL-003",
+        "WFL-004",
+        "WFL-005",
+        "WFL-006",
+        "WFL-007"
       ],
-      "notes": ""
+      "notes": "Phase 2C (AZ-23): at the workflow's own scope (workspace, brand, or project), within grantable authority; no owner/admin bypass on sensitive brands or restricted projects."
     },
     {
       "key": "fields.configure",
@@ -2528,9 +2534,16 @@
         "guest": "deny"
       },
       "requirements": [
-        "WFL-008"
+        "TSK-016",
+        "WFL-008",
+        "WFL-009",
+        "WFL-010",
+        "WFL-011",
+        "WFL-012",
+        "WFL-013",
+        "WFL-014"
       ],
-      "notes": ""
+      "notes": "Phase 2C (AZ-23): definitions, options, formulas, field policies, and field sets at their own scope."
     },
     {
       "key": "views.configure",
@@ -3516,6 +3529,174 @@
         "INT-011"
       ],
       "notes": ""
+    },
+    {
+      "key": "workflow.transition",
+      "kind": "record",
+      "scopes": [
+        "record"
+      ],
+      "description": "Preview and apply a workflow status transition (including Complete, Cancel, and Reopen).",
+      "required_level": "edit",
+      "risk_class": "R1",
+      "approval_class": "none",
+      "step_up": false,
+      "second_approval": false,
+      "non_delegable": false,
+      "entitlement": null,
+      "roles": {
+        "owner": "implicit",
+        "administrator": "implicit",
+        "member": "grant:edit",
+        "limited_member": "grant:edit",
+        "read_only": "deny",
+        "guest": "grant:edit"
+      },
+      "requirements": [
+        "WFL-005",
+        "WFL-006",
+        "TSK-031"
+      ],
+      "notes": "Phase 2C (AZ-23). Preview and apply share one evaluator; a generic edit that changes status is evaluated the same way."
+    },
+    {
+      "key": "workflow.approval_request",
+      "kind": "record",
+      "scopes": [
+        "record"
+      ],
+      "description": "Request approval for a gated transition.",
+      "required_level": "edit",
+      "risk_class": "R1",
+      "approval_class": "none",
+      "step_up": false,
+      "second_approval": false,
+      "non_delegable": false,
+      "entitlement": null,
+      "roles": {
+        "owner": "implicit",
+        "administrator": "implicit",
+        "member": "grant:edit",
+        "limited_member": "grant:edit",
+        "read_only": "deny",
+        "guest": "grant:edit"
+      },
+      "requirements": [
+        "WFL-007",
+        "TSK-029"
+      ],
+      "notes": "Phase 2C (AZ-23). The request is bound to the record version; any change makes it stale."
+    },
+    {
+      "key": "workflow.approval_decide",
+      "kind": "record",
+      "scopes": [
+        "record"
+      ],
+      "description": "Approve or reject a pending transition approval.",
+      "required_level": "view",
+      "risk_class": "R2",
+      "approval_class": "none",
+      "step_up": false,
+      "second_approval": false,
+      "non_delegable": false,
+      "entitlement": null,
+      "roles": {
+        "owner": "implicit",
+        "administrator": "implicit",
+        "member": "grant:view",
+        "limited_member": "grant:view",
+        "read_only": "deny",
+        "guest": "deny"
+      },
+      "requirements": [
+        "WFL-007",
+        "TSK-029"
+      ],
+      "notes": "Phase 2C (AZ-23). Also requires eligibility by the transition policy: manage on the record (one_manager) or being a named approver (all_named_approvers). Being an approver grants no access. Self-approval needs both the transition flag and the workspace self_approval policy (OD-20). Human principals only."
+    },
+    {
+      "key": "field.value_read",
+      "kind": "record",
+      "scopes": [
+        "record"
+      ],
+      "description": "Read custom field values on a record, subject to field policy.",
+      "required_level": "view",
+      "risk_class": "R0",
+      "approval_class": "none",
+      "step_up": false,
+      "second_approval": false,
+      "non_delegable": false,
+      "entitlement": null,
+      "roles": {
+        "owner": "implicit",
+        "administrator": "implicit",
+        "member": "grant:view",
+        "limited_member": "grant:view",
+        "read_only": "grant:view",
+        "guest": "grant:view"
+      },
+      "requirements": [
+        "TSK-016",
+        "WFL-009"
+      ],
+      "notes": "Phase 2C (AZ-23). Intersected with access.field_policy and definition applicability; hidden fields are absent everywhere (0C §7.2)."
+    },
+    {
+      "key": "field.value_edit",
+      "kind": "record",
+      "scopes": [
+        "record"
+      ],
+      "description": "Edit custom field values on a record, subject to field policy.",
+      "required_level": "edit",
+      "risk_class": "R1",
+      "approval_class": "none",
+      "step_up": false,
+      "second_approval": false,
+      "non_delegable": false,
+      "entitlement": null,
+      "roles": {
+        "owner": "implicit",
+        "administrator": "implicit",
+        "member": "grant:edit",
+        "limited_member": "grant:edit",
+        "read_only": "deny",
+        "guest": "grant:edit"
+      },
+      "requirements": [
+        "TSK-016",
+        "WFL-012"
+      ],
+      "notes": "Phase 2C (AZ-23). Formula results are never editable. Person and label values grant no access."
+    },
+    {
+      "key": "field.formula_inspect",
+      "kind": "record",
+      "scopes": [
+        "record"
+      ],
+      "description": "Inspect a formula's inputs, dependencies, and error on a record.",
+      "required_level": "view",
+      "risk_class": "R0",
+      "approval_class": "none",
+      "step_up": false,
+      "second_approval": false,
+      "non_delegable": false,
+      "entitlement": null,
+      "roles": {
+        "owner": "implicit",
+        "administrator": "implicit",
+        "member": "grant:view",
+        "limited_member": "grant:view",
+        "read_only": "grant:view",
+        "guest": "deny"
+      },
+      "requirements": [
+        "WFL-011"
+      ],
+      "notes": "Phase 2C (AZ-23). Only when every input is readable; never reveals hidden input values or names."
     }
   ],
   "account_commands": [

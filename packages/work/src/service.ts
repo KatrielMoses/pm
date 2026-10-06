@@ -1,11 +1,6 @@
 import { AuditWriter, change } from '@pm/audit';
 import { canonicalJson, newPublicId, newUuidV7, type IdPrefix } from '@pm/contracts';
-import {
-  PROJECT_STATUSES,
-  evenRanks,
-  rankBetween,
-  type ProjectStatusKey,
-} from '@pm/contracts/shell';
+import { evenRanks, rankBetween, type ProjectStatusKey } from '@pm/contracts/shell';
 import { sql, type WorkspaceTransaction } from '@pm/db';
 import { writeOutboxEvent } from '@pm/platform';
 import {
@@ -40,6 +35,17 @@ import {
   type ShareLevel,
 } from '@pm/tenancy';
 import type { ActionKey } from '@pm/contracts';
+import {
+  initialStatus,
+  primeStatuses,
+  PROJECT_STATUS_ID,
+  resolveWorkflow,
+  statusFromKey,
+  statusRef,
+  statusView,
+  type StatusRef,
+} from './workflow/statuses.ts';
+import type { StatusGate } from './workflow/transitions.ts';
 import {
   DEFAULT_WORK_SETTINGS,
   isPublic,
@@ -101,17 +107,9 @@ export interface LoadedProject {
   };
 }
 
-const STATUS_BY_KEY = new Map(PROJECT_STATUSES.map((s) => [s.key, s]));
-const STATUS_ID: Record<ProjectStatusKey, string> = {
-  planned: '01920000-0000-7000-8000-000000000001',
-  active: '01920000-0000-7000-8000-000000000002',
-  on_hold: '01920000-0000-7000-8000-000000000003',
-  completed: '01920000-0000-7000-8000-000000000004',
-  cancelled: '01920000-0000-7000-8000-000000000005',
-};
-const KEY_BY_STATUS_ID = new Map(
-  Object.entries(STATUS_ID).map(([k, v]) => [v, k as ProjectStatusKey]),
-);
+const STATUS_ID: Record<ProjectStatusKey, string> = PROJECT_STATUS_ID;
+/** A well-formed identifier no row has (constant-shape not-found paths). */
+export const NIL_ID = '00000000-0000-7000-8000-000000000000';
 
 const DATE_FIELDS = new Set(['start_date', 'target_date', 'deadline_date']);
 const toDate = (v: unknown): string | null =>
@@ -185,24 +183,17 @@ export class ProjectService extends NavigationService {
       .where('r.record_type', '=', 'project');
     if (opts.lock) q = q.forUpdate('w');
     const row = await q.executeTakeFirst();
-    if (!row) throw new TenancyError('not_found');
-    const brandRow = await tx.db
-      .selectFrom('tenancy.brand as b')
-      .innerJoin('core.record as br', (j) =>
-        j.onRef('br.workspace_id', '=', 'b.workspace_id').onRef('br.id', '=', 'b.id'),
-      )
-      .select([
-        'b.id',
-        'br.public_id',
-        'b.name',
-        'b.short_name',
-        'b.color',
-        'b.icon',
-        'b.is_sensitive',
-        'b.lifecycle_state',
-      ])
-      .where('b.id', '=', row.brand_id)
-      .executeTakeFirstOrThrow();
+    if (!row) {
+      // Constant shape (ADR-0015 W20, corrective review 01): an unknown identifier runs the same
+      // brand, chain, and share statements as an existing record the caller cannot read, so
+      // existence is not visible through the number or order of statements.
+      await this.projectBrandRow(tx, NIL_ID);
+      await projectChainOf(tx, NIL_ID);
+      await this.shareLevelOf(tx, p, NIL_ID);
+      throw new TenancyError('not_found');
+    }
+    await primeStatuses(tx, [row.status_id]);
+    const brandRow = (await this.projectBrandRow(tx, row.brand_id))!;
     const scope = await projectChainOf(tx, row.id);
     if (!scope) throw new TenancyError('not_found');
     const brand = {
@@ -242,6 +233,26 @@ export class ProjectService extends NavigationService {
         version: Number(row.version),
       } as LoadedProject['row'],
     };
+  }
+
+  protected projectBrandRow(tx: WorkspaceTransaction, brandId: string) {
+    return tx.db
+      .selectFrom('tenancy.brand as b')
+      .innerJoin('core.record as br', (j) =>
+        j.onRef('br.workspace_id', '=', 'b.workspace_id').onRef('br.id', '=', 'b.id'),
+      )
+      .select([
+        'b.id',
+        'br.public_id',
+        'b.name',
+        'b.short_name',
+        'b.color',
+        'b.icon',
+        'b.is_sensitive',
+        'b.lifecycle_state',
+      ])
+      .where('b.id', '=', brandId)
+      .executeTakeFirst();
   }
 
   /** The best active, unexpired exact-record grant the principal holds on a record. */
@@ -443,10 +454,26 @@ export class ProjectService extends NavigationService {
   // Views
   // ---------------------------------------------------------------------------------------------
 
-  protected statusView(statusId: string) {
-    const key = KEY_BY_STATUS_ID.get(statusId) ?? 'planned';
-    const s = STATUS_BY_KEY.get(key)!;
-    return { key: s.key, name: s.name, category: s.category };
+  /** A record status view (platform or workflow status; the transaction must have primed it). */
+  protected statusView(statusId: string, tx: WorkspaceTransaction) {
+    return statusView(statusRef(tx, statusId));
+  }
+
+  /** The workflow that applies to a project (project → brand → workspace → default). */
+  protected projectWorkflow(tx: WorkspaceTransaction, brandId: string, projectId: string | null) {
+    return resolveWorkflow(tx, 'project', { workspaceId: tx.workspaceId, brandId, projectId });
+  }
+
+  /**
+   * Evaluates and authorizes a status change (implemented by the workflow layer, which owns the
+   * evaluator, required fields, and approvals). The base refuses nothing beyond the commands.
+   */
+  protected async gateStatusChange(
+    _tx: WorkspaceTransaction,
+    _p: Principal,
+    _g: StatusGate,
+  ): Promise<{ overrideUsed: boolean }> {
+    return { overrideUsed: false };
   }
 
   protected capabilities(p: Principal, project: LoadedProject) {
@@ -544,7 +571,7 @@ export class ProjectService extends NavigationService {
           .where('id', '=', r.recurrence_series_id)
           .executeTakeFirst()
       : undefined;
-    const status = this.statusView(r.status_id);
+    const status = this.statusView(r.status_id, tx);
     return {
       id: project.publicId,
       type: 'project' as const,
@@ -692,12 +719,16 @@ export class ProjectService extends NavigationService {
       const childCount = new Map(readableChildren.map((c) => [c.parent_project_id, Number(c.n)]));
       const readableIds = new Set(ids);
       const publicById = new Map(rows.map((x) => [x.id, x.public_id]));
+      await primeStatuses(
+        tx,
+        rows.map((x) => x.status_id),
+      );
       return {
         data: rows.map((x) => ({
           id: x.public_id,
           type: 'project' as const,
           name: x.name,
-          status: this.statusView(x.status_id),
+          status: this.statusView(x.status_id, tx),
           priority: x.priority,
           health: x.health,
           target_date: toDate(x.target_date),
@@ -750,7 +781,11 @@ export class ProjectService extends NavigationService {
       | 'work.checklist_item'
       | 'work.label'
       | 'work.task_assignee'
-      | 'relations.record_link',
+      | 'relations.record_link'
+      | 'workflow.workflow_status'
+      | 'workflow.transition'
+      | 'workflow.field_definition'
+      | 'workflow.field_option',
     where: (q: any) => any, // eslint-disable-line @typescript-eslint/no-explicit-any
     after: string | null | 'last',
     key: 'id' | 'membership_id' = 'id',
@@ -821,7 +856,13 @@ export class ProjectService extends NavigationService {
         created_by_actor_id: cmd.actor.id,
       })
       .execute();
-    const statusKey = (input.fields.status as ProjectStatusKey | undefined) ?? 'planned';
+    // A new project starts in a status its applicable workflow offers (ADR-0015 W4).
+    const wf = await this.projectWorkflow(tx, input.brandId, id);
+    const initial: StatusRef =
+      input.fields.status !== undefined
+        ? statusFromKey('project', wf, input.fields.status, '/status')
+        : initialStatus('project', wf);
+    const statusKey = initial.key;
     const rank = await this.nextRank(
       tx,
       'work.project',
@@ -846,12 +887,12 @@ export class ProjectService extends NavigationService {
         description_rich: f.description ? JSON.stringify(f.description) : null,
         icon: (f.icon as string | null | undefined) ?? null,
         color: (f.color as string | null | undefined) ?? null,
-        status_id: STATUS_ID[statusKey],
+        status_id: initial.id,
         priority: (f.priority as never) ?? 'none',
         start_date: (f.start_date as string | null | undefined) ?? null,
         target_date: (f.target_date as string | null | undefined) ?? null,
         deadline_date: (f.deadline_date as string | null | undefined) ?? null,
-        completed_at: statusKey === 'completed' ? new Date() : null,
+        completed_at: initial.category === 'done' ? new Date() : null,
         health: (f.health as never) ?? null,
         health_source: f.health ? 'manual' : null,
         owner_membership_id: p.membershipId,
@@ -892,7 +933,7 @@ export class ProjectService extends NavigationService {
       p,
       'work.project.created',
       { type: 'work.project', id, sequence: 0 },
-      { parent_project_id: input.parent?.id ?? null, status_id: STATUS_ID[statusKey] },
+      { parent_project_id: input.parent?.id ?? null, status_id: initial.id },
       input.brandId,
     );
     return { id, publicId };
@@ -1012,11 +1053,20 @@ export class ProjectService extends NavigationService {
     projectPublicId: unknown,
     body: unknown,
     req: Mutation,
+    transition?: {
+      to: string;
+      version: number;
+      apply: StatusGate['apply'];
+      overrideReason: string | null;
+    },
   ) {
-    const merge = parseMerge(body, PROJECT_FIELDS);
+    // The transition apply command is a status-only edit with a preview or approval (W8).
+    const merge = transition
+      ? { version: transition.version, changes: new Map() }
+      : parseMerge(body, PROJECT_FIELDS);
     return this.mutate(
       caller,
-      'project.update',
+      transition ? 'project.transition' : 'project.update',
       workspacePublicId,
       req,
       async (tx, p) => {
@@ -1032,7 +1082,7 @@ export class ProjectService extends NavigationService {
           description: r.description_rich ?? null,
           icon: r.icon,
           color: r.color,
-          status: KEY_BY_STATUS_ID.get(r.status_id),
+          status: statusRef(tx, r.status_id).key,
           priority: r.priority,
           start_date: r.start_date,
           target_date: r.target_date,
@@ -1043,12 +1093,15 @@ export class ProjectService extends NavigationService {
           time_budget_minutes: r.time_budget_minutes,
           ai_budget_micros: r.ai_budget_micros === null ? null : String(r.ai_budget_micros),
         };
-        const next = applyFieldMerge(
-          { ...merge, version: expected === version ? version : merge.version },
-          current,
-          version,
-          (field, value, issues) => projectField(field, value, issues),
-        );
+        if (transition) requireVersion(expected, version);
+        const next = transition
+          ? { status: transition.to }
+          : applyFieldMerge(
+              { ...merge, version: expected === version ? version : merge.version },
+              current,
+              version,
+              (field, value, issues) => projectField(field, value, issues),
+            );
         if (expected !== version && merge.version === undefined && !Object.keys(next).length)
           requireVersion(expected, version);
         if (!Object.keys(next).length)
@@ -1058,9 +1111,46 @@ export class ProjectService extends NavigationService {
             data: await this.projectView(tx, p, project),
           };
         const statusChanging = next.status !== undefined && next.status !== current.status;
-        if (statusChanging && (next.status === 'completed' || current.status === 'completed'))
-          this.requireProjectAction(p, 'project.complete', project, { shares: false });
         const merged = { ...current, ...next };
+        let toStatus: StatusRef | null = null;
+        if (statusChanging) {
+          // One evaluator for every status change (ADR-0015 W5): edges, required fields, approvals.
+          const wf = await this.projectWorkflow(tx, project.brand.id, project.id);
+          const from = statusRef(tx, r.status_id);
+          toStatus = statusFromKey('project', wf, next.status, '/changes/status');
+          if (toStatus.category === 'done' || from.category === 'done')
+            this.requireProjectAction(p, 'project.complete', project, { shares: false });
+          await this.gateStatusChange(tx, p, {
+            kind: 'project',
+            record: {
+              id: project.id,
+              publicId: project.publicId,
+              version,
+              brandId: project.brand.id,
+              projectId: project.id,
+            },
+            facts: {
+              brand: project.brand,
+              lifecycleState: project.lifecycleState,
+              shareLevel: this.#shareFor(project),
+              projectChain: project.chain,
+            },
+            wf,
+            from,
+            to: toStatus,
+            intent: transition ? 'apply' : 'edit',
+            merged: { ...merged, owner: r.owner_membership_id },
+            apply: transition?.apply ?? null,
+            overrideReason: transition?.overrideReason ?? null,
+            stepUp: () =>
+              this.stepUp(tx, caller, p, req, 'workflow.transition', {
+                type: 'project',
+                id: project.publicId,
+              }),
+            caller,
+          });
+          next.status = toStatus.key;
+        }
         if (
           merged.start_date &&
           merged.target_date &&
@@ -1088,8 +1178,8 @@ export class ProjectService extends NavigationService {
         };
         for (const [k, v] of Object.entries(next)) {
           if (k === 'status') {
-            set.status_id = STATUS_ID[v as ProjectStatusKey];
-            set.completed_at = v === 'completed' ? new Date() : null;
+            set.status_id = toStatus!.id;
+            set.completed_at = toStatus!.category === 'done' ? new Date() : null;
           } else if (k === 'health') {
             set.health = v;
             set.health_source = v === null ? null : 'manual';
@@ -1130,7 +1220,7 @@ export class ProjectService extends NavigationService {
             'work.project.status_changed',
             { type: 'work.project', id: project.id, sequence: version + 1 },
             {
-              to_category: STATUS_BY_KEY.get(merged.status as ProjectStatusKey)!.category,
+              to_category: toStatus?.category ?? statusRef(tx, r.status_id).category,
               health: (merged.health as string | null) ?? null,
             },
             project.brand.id,

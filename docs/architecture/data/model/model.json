@@ -2192,7 +2192,7 @@
         "PERM-003",
         "WFL-009"
       ],
-      "notes": "0C §7.1. Public ID prefix fpol (0D registry). Calculated-field visibility is derived from its dependencies' policies, never stored separately. Field keys are validated by the access command against the core field catalog and workflow.field_definition (no cross-layer foreign key; retired field IDs remain valid)."
+      "notes": "0C §7.1. Public ID prefix fpol (0D registry). Calculated-field visibility is derived from its dependencies' policies, never stored separately. Field keys are validated by the access command against the core field catalog and workflow.field_definition (no cross-layer foreign key; retired field IDs remain valid). Phase 2C implements it for custom field definitions (field_key = definition id): read and edit minimum levels and guest visibility. Formula visibility is the intersection of its inputs."
     },
     {
       "name": "permission_epoch",
@@ -2817,7 +2817,7 @@
       "extends": null,
       "containment_parents": [],
       "associations": [],
-      "lifecycle": "full",
+      "lifecycle": "mutable",
       "concurrency": "row-version",
       "retention_class": "R-LIVE",
       "confidentiality": "C1",
@@ -2826,20 +2826,27 @@
       "search_ai": "yes",
       "may_contain_secrets": "no",
       "personal_data": "incidental",
-      "uniqueness": [],
+      "uniqueness": [
+        "one active workflow per (workspace, scope_kind, brand_id, project_id, record_kind)"
+      ],
       "sensitive_fields": [],
       "key_columns": [
-        "record_type",
-        "scope_type (workspace|brand|project)",
+        "public_id text (wf_)",
+        "record_kind (project|task)",
+        "scope_kind (workspace|brand|project)",
+        "brand_id null",
         "project_id null",
-        "current_revision_id"
+        "name",
+        "lifecycle_state (active|archived)",
+        "version bigint"
       ],
       "requirements": [
         "WFL-001",
         "WFL-002",
-        "WFL-003"
+        "WFL-003",
+        "PRJ-009"
       ],
-      "notes": ""
+      "notes": "Phase 2C (ADR-23). Resolution is the most specific applicable scope: project → brand → workspace → platform default. Changing scope never changes record authority. Archive is reversible; purge is refused while records use its statuses."
     },
     {
       "name": "workflow_status",
@@ -2854,7 +2861,7 @@
       ],
       "associations": [],
       "lifecycle": "mutable",
-      "concurrency": "ordered",
+      "concurrency": "row-version",
       "retention_class": "R-LIVE",
       "confidentiality": "C1",
       "volume": "low",
@@ -2863,21 +2870,28 @@
       "may_contain_secrets": "no",
       "personal_data": "incidental",
       "uniqueness": [
-        "(workflow_id, lower(name)) among non-retired"
+        "(workflow_id, normalized_name) among active statuses"
       ],
       "sensitive_fields": [],
       "key_columns": [
+        "public_id text (sts_)",
+        "workflow_id",
         "name",
+        "description null",
         "category status_category (immutable)",
         "color",
+        "icon null",
         "rank text",
-        "retired_at"
+        "lifecycle_state (active|archived)",
+        "version bigint"
       ],
       "requirements": [
+        "WFL-002",
+        "WFL-003",
         "WFL-004",
-        "WFL-001"
+        "PRJ-009"
       ],
-      "notes": ""
+      "notes": "Phase 2C (ADR-23). A record's status_id references a platform status or a workflow status (trigger-checked, delete-guarded). The category is fixed; a status in use is archived, never deleted, until records are migrated."
     },
     {
       "name": "platform_status",
@@ -2913,12 +2927,12 @@
         "PRJ-009",
         "PRJ-004"
       ],
-      "notes": "Phase 2A (ADR-21): seeded by migration only; Phase 2C adds workspace workflows and custom statuses."
+      "notes": "Phase 2A (ADR-21): seeded by migration only; Phase 2C adds workspace workflows and custom statuses. Phase 2C: unchanged immutable seeds; never copied into workflow_status."
     },
     {
-      "name": "workflow_revision",
+      "name": "transition",
       "module": "workflow",
-      "purpose": "Immutable snapshot of allowed transitions, required fields, and approval rules.",
+      "purpose": "A directed from-status → to-status rule of a workflow, with required fields, confirmation, and approval policy.",
       "scope": "inherited",
       "addressable": false,
       "public_id_prefix": null,
@@ -2927,8 +2941,8 @@
         "workflow"
       ],
       "associations": [],
-      "lifecycle": "versioned-immutable",
-      "concurrency": "append-only",
+      "lifecycle": "mutable",
+      "concurrency": "row-version",
       "retention_class": "R-LIVE",
       "confidentiality": "C1",
       "volume": "low",
@@ -2937,21 +2951,209 @@
       "may_contain_secrets": "no",
       "personal_data": "incidental",
       "uniqueness": [
-        "(workflow_id, revision_number)"
+        "(workflow_id, from_status_id, to_status_id) among active transitions"
       ],
       "sensitive_fields": [],
       "key_columns": [
-        "transitions jsonb (validated schema)",
-        "required_fields jsonb",
-        "approval_rules jsonb",
-        "created_by"
+        "public_id text (trn_)",
+        "workflow_id",
+        "from_status_id",
+        "to_status_id",
+        "description null",
+        "rank text",
+        "confirmation_tier (none|confirm|step_up)",
+        "approval_policy (none|one_manager|all_named_approvers)",
+        "allow_self_approval boolean",
+        "lifecycle_state (active|archived)",
+        "version bigint"
       ],
       "requirements": [
         "WFL-005",
         "WFL-006",
         "WFL-007"
       ],
-      "notes": ""
+      "notes": "Phase 2C (ADR-23). Once a workflow has an active transition, only registered edges are allowed. Replaces the planned workflow_revision snapshot: transitions are versioned rows and approval requests bind to the transition version."
+    },
+    {
+      "name": "transition_requirement",
+      "module": "workflow",
+      "purpose": "A field that must be present for a transition (built-in key or custom field definition).",
+      "scope": "inherited",
+      "addressable": false,
+      "public_id_prefix": null,
+      "extends": null,
+      "containment_parents": [
+        "transition"
+      ],
+      "associations": [],
+      "lifecycle": "mutable",
+      "concurrency": "ordered",
+      "retention_class": "R-LIVE",
+      "confidentiality": "C1",
+      "volume": "low",
+      "export": "filtered",
+      "search_ai": "yes",
+      "may_contain_secrets": "no",
+      "personal_data": "incidental",
+      "uniqueness": [],
+      "sensitive_fields": [],
+      "key_columns": [
+        "transition_id",
+        "field_kind (builtin|custom)",
+        "builtin_key null",
+        "definition_id null",
+        "allow_manager_override boolean"
+      ],
+      "requirements": [
+        "WFL-006",
+        "TSK-031"
+      ],
+      "notes": "Phase 2C (ADR-23). Checked on the final merged record under lock, before any mutation."
+    },
+    {
+      "name": "transition_approver",
+      "module": "workflow",
+      "purpose": "A named approver of a transition (all_named_approvers).",
+      "scope": "inherited",
+      "addressable": false,
+      "public_id_prefix": null,
+      "extends": null,
+      "containment_parents": [
+        "transition"
+      ],
+      "associations": [],
+      "lifecycle": "mutable",
+      "concurrency": "ordered",
+      "retention_class": "R-LIVE",
+      "confidentiality": "C1",
+      "volume": "low",
+      "export": "filtered",
+      "search_ai": "yes",
+      "may_contain_secrets": "no",
+      "personal_data": "yes",
+      "uniqueness": [],
+      "sensitive_fields": [],
+      "key_columns": [
+        "transition_id",
+        "membership_id"
+      ],
+      "requirements": [
+        "WFL-007"
+      ],
+      "notes": "Phase 2C (ADR-23). Naming an approver grants no record access."
+    },
+    {
+      "name": "approval_request",
+      "module": "workflow",
+      "purpose": "An immutable request to apply one transition to one record version.",
+      "scope": "inherited",
+      "addressable": false,
+      "public_id_prefix": null,
+      "extends": null,
+      "containment_parents": [
+        "workflow"
+      ],
+      "associations": [],
+      "lifecycle": "append-only",
+      "concurrency": "append-only",
+      "retention_class": "R-LIVE",
+      "confidentiality": "C1",
+      "volume": "medium",
+      "export": "filtered",
+      "search_ai": "yes",
+      "may_contain_secrets": "no",
+      "personal_data": "yes",
+      "uniqueness": [],
+      "sensitive_fields": [],
+      "key_columns": [
+        "public_id text (wap_)",
+        "workflow_id",
+        "transition_id",
+        "transition_version",
+        "record_id",
+        "record_kind",
+        "record_version",
+        "fingerprint",
+        "requester_membership_id",
+        "policy",
+        "approver_membership_ids uuid[]",
+        "expires_at",
+        "closed_at null",
+        "closed_reason (applied|withdrawn) null"
+      ],
+      "requirements": [
+        "WFL-007",
+        "TSK-029"
+      ],
+      "notes": "Phase 2C (ADR-23). Facts are immutable except a one-time close. State (pending, approved, rejected, stale, expired, applied, withdrawn) is derived from decisions, the record version, and time."
+    },
+    {
+      "name": "approval_decision",
+      "module": "workflow",
+      "purpose": "An immutable approve or reject decision on an approval request.",
+      "scope": "inherited",
+      "addressable": false,
+      "public_id_prefix": null,
+      "extends": null,
+      "containment_parents": [
+        "approval_request"
+      ],
+      "associations": [],
+      "lifecycle": "append-only",
+      "concurrency": "append-only",
+      "retention_class": "R-LIVE",
+      "confidentiality": "C1",
+      "volume": "medium",
+      "export": "filtered",
+      "search_ai": "yes",
+      "may_contain_secrets": "no",
+      "personal_data": "yes",
+      "uniqueness": [],
+      "sensitive_fields": [],
+      "key_columns": [
+        "approval_request_id",
+        "approver_membership_id",
+        "decision (approve|reject)",
+        "note_hash null",
+        "decided_at"
+      ],
+      "requirements": [
+        "WFL-007",
+        "TSK-029"
+      ],
+      "notes": "Phase 2C (ADR-23). One decision per approver per request; never updated or deleted by application roles."
+    },
+    {
+      "name": "formula_dependency",
+      "module": "workflow",
+      "purpose": "An explicit edge from a formula field definition to a field it reads.",
+      "scope": "inherited",
+      "addressable": false,
+      "public_id_prefix": null,
+      "extends": null,
+      "containment_parents": [
+        "field_definition"
+      ],
+      "associations": [],
+      "lifecycle": "mutable",
+      "concurrency": "append-only",
+      "retention_class": "R-LIVE",
+      "confidentiality": "C1",
+      "volume": "low",
+      "export": "filtered",
+      "search_ai": "yes",
+      "may_contain_secrets": "no",
+      "personal_data": "incidental",
+      "uniqueness": [],
+      "sensitive_fields": [],
+      "key_columns": [
+        "definition_id",
+        "depends_on_definition_id"
+      ],
+      "requirements": [
+        "WFL-011"
+      ],
+      "notes": "Phase 2C (ADR-23). Cycle-checked at save (service plus deferred database guard); bounded by FORMULA_DEPTH_MAX and FORMULA_REFS_MAX."
     },
     {
       "name": "field_definition",
@@ -2977,22 +3179,37 @@
       ],
       "sensitive_fields": [],
       "key_columns": [
-        "record_type",
+        "public_id text (fld_)",
+        "lineage_id uuid",
+        "scope_kind (workspace|brand|project)",
+        "brand_id null",
         "project_id null",
-        "field_type field_type (immutable)",
-        "validation jsonb",
-        "options via field_option",
-        "visibility jsonb",
-        "advanced boolean",
-        "retired_at"
+        "applies_to_project boolean",
+        "applies_to_task boolean",
+        "name",
+        "description null",
+        "field_type (immutable: text|number|currency|percentage|date|person|label|checkbox|url|email|select|formula)",
+        "config jsonb (validated per type)",
+        "required boolean",
+        "presentation (primary|advanced)",
+        "applicability (always|via_set)",
+        "view_visibility jsonb",
+        "formula_ast jsonb null",
+        "formula_version int",
+        "result_type null",
+        "rank text",
+        "lifecycle_state (active|archived)",
+        "version bigint"
       ],
       "requirements": [
+        "TSK-016",
         "WFL-008",
         "WFL-009",
+        "WFL-011",
         "WFL-012",
         "WFL-013"
       ],
-      "notes": ""
+      "notes": "Phase 2C (ADR-23). Formula is a field type (OD-11), not a second system. Fields from broader scopes accumulate unless shadowed by a narrower definition with the same lineage_id; names are not identity. Purge is refused while values or references exist."
     },
     {
       "name": "field_option",
@@ -3017,11 +3234,19 @@
       "personal_data": "incidental",
       "uniqueness": [],
       "sensitive_fields": [],
-      "key_columns": [],
+      "key_columns": [
+        "public_id text (fop_)",
+        "definition_id",
+        "label",
+        "color",
+        "rank text",
+        "lifecycle_state (active|archived)",
+        "version bigint"
+      ],
       "requirements": [
         "WFL-008"
       ],
-      "notes": ""
+      "notes": "Phase 2C (ADR-23). Stable identity; renaming keeps stored meaning. Removing an in-use option needs a replacement (bounded migration) or archival."
     },
     {
       "name": "field_set",
@@ -3046,22 +3271,33 @@
       "personal_data": "incidental",
       "uniqueness": [],
       "sensitive_fields": [],
-      "key_columns": [],
+      "key_columns": [
+        "public_id text (fst_)",
+        "scope_kind",
+        "brand_id null",
+        "project_id null",
+        "applies_to_project boolean",
+        "applies_to_task boolean",
+        "name",
+        "current_version int",
+        "lifecycle_state (active|archived)",
+        "version bigint"
+      ],
       "requirements": [
         "WFL-010"
       ],
-      "notes": ""
+      "notes": "Phase 2C (ADR-23). Versioned; applying attaches a version snapshot without copying definitions or values."
     },
     {
-      "name": "calculated_field_definition",
+      "name": "field_set_version",
       "module": "workflow",
-      "purpose": "Sandboxed expression (validated AST), declared dependencies, version; values materialized.",
+      "purpose": "An immutable ordered snapshot of a field set's definitions and presentation overrides.",
       "scope": "inherited",
       "addressable": false,
       "public_id_prefix": null,
       "extends": null,
       "containment_parents": [
-        "field_definition"
+        "field_set"
       ],
       "associations": [],
       "lifecycle": "versioned-immutable",
@@ -3075,12 +3311,51 @@
       "personal_data": "incidental",
       "uniqueness": [],
       "sensitive_fields": [],
-      "key_columns": [],
-      "requirements": [
-        "WFL-011",
-        "WFL-008"
+      "key_columns": [
+        "field_set_id",
+        "version int",
+        "items jsonb (definition_id, presentation, rank)",
+        "created_by_membership_id"
       ],
-      "notes": ""
+      "requirements": [
+        "WFL-010"
+      ],
+      "notes": "Phase 2C (ADR-23)."
+    },
+    {
+      "name": "field_set_attachment",
+      "module": "workflow",
+      "purpose": "A record's attachment to one field set version (lineage, not a copy).",
+      "scope": "inherited",
+      "addressable": false,
+      "public_id_prefix": null,
+      "extends": null,
+      "containment_parents": [],
+      "associations": [
+        "record",
+        "field_set"
+      ],
+      "lifecycle": "mutable",
+      "concurrency": "row-version",
+      "retention_class": "R-LIVE",
+      "confidentiality": "C1",
+      "volume": "high",
+      "export": "filtered",
+      "search_ai": "yes",
+      "may_contain_secrets": "no",
+      "personal_data": "incidental",
+      "uniqueness": [],
+      "sensitive_fields": [],
+      "key_columns": [
+        "record_id",
+        "field_set_id",
+        "version int",
+        "attached_by_membership_id"
+      ],
+      "requirements": [
+        "WFL-010"
+      ],
+      "notes": "Phase 2C (ADR-23). Later set versions never change attached records until a manager explicitly upgrades them with a preview."
     },
     {
       "name": "field_value",
@@ -3105,27 +3380,37 @@
       "may_contain_secrets": "no",
       "personal_data": "incidental",
       "uniqueness": [
-        "(record_id, field_id)"
+        "(definition_id, record_id)"
       ],
       "sensitive_fields": [],
       "key_columns": [
+        "workspace_id",
+        "brand_id",
+        "definition_id",
         "record_id",
-        "field_id",
-        "value_text",
-        "value_numeric numeric",
-        "value_date date",
-        "value_ts timestamptz",
-        "value_bool",
-        "value_ref uuid",
-        "value_option_ids uuid[]",
-        "computed_at/calc_version (calculated only)"
+        "value jsonb (validated typed JSON)",
+        "value_text null",
+        "value_numeric numeric null",
+        "value_date date null",
+        "value_bool null",
+        "value_ref uuid null",
+        "currency_code char(3) null",
+        "computed boolean",
+        "formula_version int null",
+        "error_code (missing|invalid|divide_by_zero|cycle|overflow) null",
+        "extensions jsonb",
+        "updated_by_membership_id null",
+        "updated_at",
+        "version bigint"
       ],
       "requirements": [
         "TSK-016",
+        "WFL-008",
+        "WFL-011",
         "WFL-012",
         "WFL-014"
       ],
-      "notes": ""
+      "notes": "Phase 2C (ADR-23). One canonical relation, never a column per field. Typed columns are normalized copies for filtering and sorting. Formula results are computed rows (read-only). Person and label values reference identities but grant no access."
     },
     {
       "name": "record_relationship",

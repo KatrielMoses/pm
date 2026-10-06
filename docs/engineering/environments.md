@@ -86,6 +86,23 @@ worker process is a startup error. All identities of one process must target the
 | `TASK_ESTIMATE_MINUTES_MAX` | optional | optional | default 100000 (60–1000000); largest estimate or remaining estimate in minutes (0D `TASK_ESTIMATE_MINUTES_MAX`) |
 | `PAGE_LIMIT_DEFAULT` | optional | optional | default 50 (1–200, never above `PAGE_LIMIT_MAX`); page size for task lists (0D `PAGE_LIMIT_DEFAULT`) |
 | `PAGE_LIMIT_MAX` | optional | optional | default 200 (1–200); largest page for task and project lists (0D `PAGE_LIMIT_MAX`) |
+| `WORKFLOW_STATUSES_MAX` | optional | optional | default 50 (2–200); most statuses in one workflow (0D `WORKFLOW_STATUSES_MAX`) |
+| `WORKFLOW_TRANSITIONS_MAX` | optional | optional | default 400 (1–2000); most transitions in one workflow (0D `WORKFLOW_TRANSITIONS_MAX`) |
+| `TRANSITION_REQUIREMENTS_MAX` | optional | optional | default 30 (1–100); most required fields on one transition (0D `TRANSITION_REQUIREMENTS_MAX`) |
+| `TRANSITION_APPROVERS_MAX` | optional | optional | default 10 (1–50); most named approvers on one transition (0D `TRANSITION_APPROVERS_MAX`) |
+| `APPROVAL_EXPIRY_HOURS` | optional | optional | default 168 (1–2160); how long an approval request stays valid (0D `APPROVAL_EXPIRY_HOURS`) |
+| `TRANSITION_PREVIEW_TTL_SECONDS` | optional | optional | default 600 (60–3600); lifetime of a signed transition preview fingerprint (0D `TRANSITION_PREVIEW_TTL_SECONDS`) |
+| `FIELD_DEFINITIONS_MAX` | optional | optional | default 200 (1–1000); most active field definitions at one scope (0D `FIELD_DEFINITIONS_MAX`) |
+| `FIELD_OPTIONS_MAX` | optional | optional | default 200 (2–1000); most options on one select field (0D `FIELD_OPTIONS_MAX`) |
+| `FIELD_SETS_MAX` | optional | optional | default 100 (1–500); most active field sets at one scope (0D `FIELD_SETS_MAX`) |
+| `FIELD_SET_ITEMS_MAX` | optional | optional | default 100 (1–500); most definitions in one field set version (0D `FIELD_SET_ITEMS_MAX`) |
+| `FIELD_TEXT_MAX` | optional | optional | default 5000 (1–20000); longest custom text value in characters (0D `FIELD_TEXT_MAX`) |
+| `FIELD_PATTERN_MAX` | optional | optional | default 200 (1–1000); longest validation pattern in characters (0D `FIELD_PATTERN_MAX`) |
+| `FORMULA_SOURCE_MAX` | optional | optional | default 2000 (10–10000); longest formula source in characters (0D `FORMULA_SOURCE_MAX`) |
+| `FORMULA_AST_NODES_MAX` | optional | optional | default 200 (10–2000); most nodes in a compiled formula (0D `FORMULA_AST_NODES_MAX`) |
+| `FORMULA_DEPTH_MAX` | optional | optional | default 8 (1–32); deepest formula dependency chain (0D `FORMULA_DEPTH_MAX`) |
+| `FORMULA_REFS_MAX` | optional | optional | default 20 (1–100); most field references in one formula (0D `FORMULA_REFS_MAX`) |
+| `FIELD_VALUE_BULK_MAX` | optional | optional | default 500 (1–5000); most records migrated by one status or option replacement command (0D `FIELD_VALUE_BULK_MAX`) |
 | `VIEW_STATE_TTL_MS` | optional | optional | default 90 days; stored view state not written for this long is removed (0D `VIEW_STATE_TTL`) |
 
 Values are configuration, not customer promises (PQ-05). The 0D parameter values above are

@@ -29,6 +29,7 @@ import {
   parseTaskCriterion,
 } from './task-validation.ts';
 import { isObject, isPublic, parseAfter } from './validation.ts';
+import { fieldsForRecord } from './workflow/field-access.ts';
 
 const pgCode = (err: unknown) =>
   typeof err === 'object' && err !== null ? (err as { code?: string }).code : undefined;
@@ -143,7 +144,7 @@ export class TaskService extends TaskCoreService {
         subtasks: subtasks.map((s) => ({
           id: s.public_id,
           title: s.title,
-          status: this.taskStatusView(s.status_id),
+          status: this.taskStatusView(s.status_id, tx),
           lifecycle_state: s.lifecycle_state,
         })),
         links,
@@ -256,7 +257,7 @@ export class TaskService extends TaskCoreService {
       rows.map((r) => ({
         id: r.public_id,
         title: r.title,
-        status: this.taskStatusView(r.status_id),
+        status: this.taskStatusView(r.status_id, tx),
         lifecycle_state: r.lifecycle_state,
         brand: brandMarker({
           public_id: r.brand_public,
@@ -1280,27 +1281,46 @@ export class TaskService extends TaskCoreService {
         }
         return { ok: true, value: out.join(', ') || null };
       };
+      // Custom field changes are shown only for fields this reader can read now; the resolution
+      // always runs, and an entry with nothing left to show is omitted (W20, AZ-23).
+      const fieldAccess = await fieldsForRecord(
+        tx,
+        p,
+        { id: t.id, kind: 'task', brandId: t.brand.id, projectId: t.row.project_id },
+        t.level,
+      );
+      const readableFields = new Set(
+        fieldAccess.filter((f) => f.readable).map((f) => `fields.${f.def.public_id.toLowerCase()}`),
+      );
+      const visibleChange = (c: StoredChange) =>
+        !c.field.startsWith('fields.') || readableFields.has(c.field);
+      const shown = page.filter((e) => {
+        const cs = e.changes as StoredChange[];
+        return !cs.length || cs.some(visibleChange);
+      });
       const last = page.at(-1);
       return {
-        data: page.map((e) => ({
+        data: shown.map((e) => ({
           // An opaque stable key (internal identifiers never leave the API).
           key: createHash('sha256').update(e.id).digest('base64url').slice(0, 22),
           at: new Date(e.occurred_at).toISOString(),
           action: e.action,
           actor: { type: e.actor_type, name: e.actor_id ? (actors.get(e.actor_id) ?? null) : null },
           source: e.source_kind,
-          changes: (e.changes as StoredChange[]).flatMap(
-            (c): Array<{ field: string; changed?: true; before?: unknown; after?: unknown }> => {
-              // Content-class and personal values are never shown; redacted entries stay redacted.
-              if (c.class !== 'plain' || c.redacted)
-                return [{ field: c.field, changed: true as const }];
-              const o = show(c.old);
-              const n = show(c.new);
-              // A change naming a record the reader cannot read is omitted entirely (OD-05).
-              if (!o.ok || !n.ok) return [];
-              return [{ field: c.field, before: o.value, after: n.value }];
-            },
-          ),
+          changes: (e.changes as StoredChange[])
+            .filter(visibleChange)
+            .flatMap(
+              (c): Array<{ field: string; changed?: true; before?: unknown; after?: unknown }> => {
+                // Content-class and personal values are never shown; redacted entries stay redacted.
+                if (c.class !== 'plain' || c.redacted)
+                  return [{ field: c.field, changed: true as const }];
+                const o = show(c.old);
+                const n = show(c.new);
+                // A change naming a record the reader cannot read is omitted entirely (OD-05).
+                if (!o.ok || !n.ok) return [];
+                return [{ field: c.field, before: o.value, after: n.value }];
+              },
+            ),
         })),
         page: {
           has_more: rows.length > limit,

@@ -639,6 +639,54 @@
       "owner_module": "relations",
       "platform_only": false,
       "note": "Phase 2B (PL-24)."
+    },
+    {
+      "prefix": "sts",
+      "resource": "workflow_status",
+      "entity": "workflow.workflow_status",
+      "owner_module": "workflow",
+      "platform_only": false,
+      "note": "Phase 2C (PL-25)."
+    },
+    {
+      "prefix": "trn",
+      "resource": "transition",
+      "entity": "workflow.transition",
+      "owner_module": "workflow",
+      "platform_only": false,
+      "note": "Phase 2C (PL-25)."
+    },
+    {
+      "prefix": "wap",
+      "resource": "workflow_approval",
+      "entity": "workflow.approval_request",
+      "owner_module": "workflow",
+      "platform_only": false,
+      "note": "Phase 2C (PL-25)."
+    },
+    {
+      "prefix": "fld",
+      "resource": "field_definition",
+      "entity": "workflow.field_definition",
+      "owner_module": "workflow",
+      "platform_only": false,
+      "note": "Phase 2C (PL-25)."
+    },
+    {
+      "prefix": "fop",
+      "resource": "field_option",
+      "entity": "workflow.field_option",
+      "owner_module": "workflow",
+      "platform_only": false,
+      "note": "Phase 2C (PL-25)."
+    },
+    {
+      "prefix": "fst",
+      "resource": "field_set",
+      "entity": "workflow.field_set",
+      "owner_module": "workflow",
+      "platform_only": false,
+      "note": "Phase 2C (PL-25)."
     }
   ],
   "error_codes": [
@@ -2713,6 +2761,336 @@
       ],
       "allow_list_version": null,
       "delivery_authorization": null
+    },
+    {
+      "type": "workflow.workflow.created",
+      "schema_version": 1,
+      "aggregate_entity": "workflow.workflow",
+      "fields": [
+        "record_kind",
+        "scope_kind"
+      ],
+      "max_class": "C1",
+      "consumers": {
+        "activity": true,
+        "notification": false,
+        "metrics": false,
+        "automation_trigger": false,
+        "search_index": false
+      },
+      "public_webhook": null,
+      "requirements": [
+        "WFL-002",
+        "WFL-003"
+      ],
+      "allow_list_version": null,
+      "delivery_authorization": null
+    },
+    {
+      "type": "workflow.workflow.updated",
+      "schema_version": 1,
+      "aggregate_entity": "workflow.workflow",
+      "fields": [
+        "changed_fields",
+        "lifecycle_state"
+      ],
+      "max_class": "C1",
+      "consumers": {
+        "activity": true,
+        "notification": false,
+        "metrics": false,
+        "automation_trigger": false,
+        "search_index": false
+      },
+      "public_webhook": null,
+      "requirements": [
+        "WFL-002",
+        "WFL-003"
+      ],
+      "allow_list_version": null,
+      "delivery_authorization": null
+    },
+    {
+      "type": "workflow.status.created",
+      "schema_version": 1,
+      "aggregate_entity": "workflow.workflow_status",
+      "fields": [
+        "workflow_id",
+        "category"
+      ],
+      "max_class": "C1",
+      "consumers": {
+        "activity": true,
+        "notification": false,
+        "metrics": false,
+        "automation_trigger": false,
+        "search_index": false
+      },
+      "public_webhook": null,
+      "requirements": [
+        "WFL-002",
+        "WFL-004"
+      ],
+      "allow_list_version": null,
+      "delivery_authorization": null
+    },
+    {
+      "type": "workflow.status.updated",
+      "schema_version": 1,
+      "aggregate_entity": "workflow.workflow_status",
+      "fields": [
+        "workflow_id",
+        "changed_fields",
+        "lifecycle_state"
+      ],
+      "max_class": "C1",
+      "consumers": {
+        "activity": true,
+        "notification": false,
+        "metrics": false,
+        "automation_trigger": false,
+        "search_index": false
+      },
+      "public_webhook": null,
+      "requirements": [
+        "WFL-004"
+      ],
+      "allow_list_version": null,
+      "delivery_authorization": null
+    },
+    {
+      "type": "workflow.transition.created",
+      "schema_version": 1,
+      "aggregate_entity": "workflow.transition",
+      "fields": [
+        "workflow_id",
+        "approval_policy"
+      ],
+      "max_class": "C1",
+      "consumers": {
+        "activity": true,
+        "notification": false,
+        "metrics": false,
+        "automation_trigger": false,
+        "search_index": false
+      },
+      "public_webhook": null,
+      "requirements": [
+        "WFL-005"
+      ],
+      "allow_list_version": null,
+      "delivery_authorization": null
+    },
+    {
+      "type": "workflow.transition.updated",
+      "schema_version": 1,
+      "aggregate_entity": "workflow.transition",
+      "fields": [
+        "workflow_id",
+        "changed_fields",
+        "lifecycle_state"
+      ],
+      "max_class": "C1",
+      "consumers": {
+        "activity": true,
+        "notification": false,
+        "metrics": false,
+        "automation_trigger": false,
+        "search_index": false
+      },
+      "public_webhook": null,
+      "requirements": [
+        "WFL-005",
+        "WFL-006",
+        "WFL-007"
+      ],
+      "allow_list_version": null,
+      "delivery_authorization": null
+    },
+    {
+      "type": "workflow.approval_request.created",
+      "schema_version": 1,
+      "aggregate_entity": "workflow.approval_request",
+      "fields": [
+        "transition_id",
+        "policy",
+        "record_type"
+      ],
+      "max_class": "C1",
+      "consumers": {
+        "activity": true,
+        "notification": false,
+        "metrics": false,
+        "automation_trigger": false,
+        "search_index": false
+      },
+      "public_webhook": null,
+      "requirements": [
+        "WFL-007"
+      ],
+      "allow_list_version": null,
+      "delivery_authorization": null
+    },
+    {
+      "type": "workflow.approval_request.decided",
+      "schema_version": 1,
+      "aggregate_entity": "workflow.approval_request",
+      "fields": [
+        "decision",
+        "state"
+      ],
+      "max_class": "C1",
+      "consumers": {
+        "activity": true,
+        "notification": false,
+        "metrics": false,
+        "automation_trigger": false,
+        "search_index": false
+      },
+      "public_webhook": null,
+      "requirements": [
+        "WFL-007"
+      ],
+      "allow_list_version": null,
+      "delivery_authorization": null
+    },
+    {
+      "type": "workflow.approval_request.closed",
+      "schema_version": 1,
+      "aggregate_entity": "workflow.approval_request",
+      "fields": [
+        "closed_reason"
+      ],
+      "max_class": "C1",
+      "consumers": {
+        "activity": true,
+        "notification": false,
+        "metrics": false,
+        "automation_trigger": false,
+        "search_index": false
+      },
+      "public_webhook": null,
+      "requirements": [
+        "WFL-007"
+      ],
+      "allow_list_version": null,
+      "delivery_authorization": null
+    },
+    {
+      "type": "workflow.field_definition.created",
+      "schema_version": 1,
+      "aggregate_entity": "workflow.field_definition",
+      "fields": [
+        "field_type",
+        "scope_kind"
+      ],
+      "max_class": "C1",
+      "consumers": {
+        "activity": true,
+        "notification": false,
+        "metrics": false,
+        "automation_trigger": false,
+        "search_index": false
+      },
+      "public_webhook": null,
+      "requirements": [
+        "WFL-008"
+      ],
+      "allow_list_version": null,
+      "delivery_authorization": null
+    },
+    {
+      "type": "workflow.field_definition.updated",
+      "schema_version": 1,
+      "aggregate_entity": "workflow.field_definition",
+      "fields": [
+        "changed_fields",
+        "lifecycle_state"
+      ],
+      "max_class": "C1",
+      "consumers": {
+        "activity": true,
+        "notification": false,
+        "metrics": false,
+        "automation_trigger": false,
+        "search_index": false
+      },
+      "public_webhook": null,
+      "requirements": [
+        "WFL-008",
+        "WFL-012"
+      ],
+      "allow_list_version": null,
+      "delivery_authorization": null
+    },
+    {
+      "type": "workflow.field_set.versioned",
+      "schema_version": 1,
+      "aggregate_entity": "workflow.field_set",
+      "fields": [
+        "version"
+      ],
+      "max_class": "C1",
+      "consumers": {
+        "activity": true,
+        "notification": false,
+        "metrics": false,
+        "automation_trigger": false,
+        "search_index": false
+      },
+      "public_webhook": null,
+      "requirements": [
+        "WFL-010"
+      ],
+      "allow_list_version": null,
+      "delivery_authorization": null
+    },
+    {
+      "type": "workflow.field_set.applied",
+      "schema_version": 1,
+      "aggregate_entity": "workflow.field_set",
+      "fields": [
+        "record_type",
+        "version"
+      ],
+      "max_class": "C1",
+      "consumers": {
+        "activity": true,
+        "notification": false,
+        "metrics": false,
+        "automation_trigger": false,
+        "search_index": false
+      },
+      "public_webhook": null,
+      "requirements": [
+        "WFL-010"
+      ],
+      "allow_list_version": null,
+      "delivery_authorization": null
+    },
+    {
+      "type": "workflow.field_value.changed",
+      "schema_version": 1,
+      "aggregate_entity": "workflow.field_value",
+      "fields": [
+        "record_type",
+        "definition_ids"
+      ],
+      "max_class": "C1",
+      "consumers": {
+        "activity": true,
+        "notification": false,
+        "metrics": false,
+        "automation_trigger": false,
+        "search_index": false
+      },
+      "public_webhook": null,
+      "requirements": [
+        "TSK-016",
+        "WFL-012"
+      ],
+      "allow_list_version": null,
+      "delivery_authorization": null
     }
   ],
   "scopes": [
@@ -3546,6 +3924,30 @@
         "outcome"
       ],
       "area": "work"
+    },
+    {
+      "name": "workflow.transitions",
+      "type": "counter",
+      "labels": [
+        "outcome"
+      ],
+      "area": "workflow"
+    },
+    {
+      "name": "workflow.transition.duration",
+      "type": "histogram",
+      "labels": [
+        "outcome"
+      ],
+      "area": "workflow"
+    },
+    {
+      "name": "workflow.formula.evaluations",
+      "type": "counter",
+      "labels": [
+        "outcome"
+      ],
+      "area": "workflow"
     }
   ],
   "forbidden_metric_labels": [
@@ -3839,6 +4241,91 @@
       "name": "TASK_ESTIMATE_MINUTES_MAX",
       "meaning": "Largest estimate or remaining estimate, in minutes; default 100000, range 60–1000000.",
       "owner": "2B"
+    },
+    {
+      "name": "WORKFLOW_STATUSES_MAX",
+      "meaning": "Most statuses in one workflow; default 50, range 2–200.",
+      "owner": "2C"
+    },
+    {
+      "name": "WORKFLOW_TRANSITIONS_MAX",
+      "meaning": "Most transitions in one workflow; default 400, range 1–2000.",
+      "owner": "2C"
+    },
+    {
+      "name": "TRANSITION_REQUIREMENTS_MAX",
+      "meaning": "Most required fields on one transition; default 30, range 1–100.",
+      "owner": "2C"
+    },
+    {
+      "name": "TRANSITION_APPROVERS_MAX",
+      "meaning": "Most named approvers on one transition; default 10, range 1–50.",
+      "owner": "2C"
+    },
+    {
+      "name": "APPROVAL_EXPIRY_HOURS",
+      "meaning": "How long an approval request stays valid; default 168, range 1–2160.",
+      "owner": "2C"
+    },
+    {
+      "name": "TRANSITION_PREVIEW_TTL_SECONDS",
+      "meaning": "Lifetime of a signed transition preview fingerprint; default 600, range 60–3600.",
+      "owner": "2C"
+    },
+    {
+      "name": "FIELD_DEFINITIONS_MAX",
+      "meaning": "Most active field definitions at one scope; default 200, range 1–1000.",
+      "owner": "2C"
+    },
+    {
+      "name": "FIELD_OPTIONS_MAX",
+      "meaning": "Most options on one select field; default 200, range 2–1000.",
+      "owner": "2C"
+    },
+    {
+      "name": "FIELD_SETS_MAX",
+      "meaning": "Most active field sets at one scope; default 100, range 1–500.",
+      "owner": "2C"
+    },
+    {
+      "name": "FIELD_SET_ITEMS_MAX",
+      "meaning": "Most definitions in one field set version; default 100, range 1–500.",
+      "owner": "2C"
+    },
+    {
+      "name": "FIELD_TEXT_MAX",
+      "meaning": "Longest custom text value in characters; default 5000, range 1–20000.",
+      "owner": "2C"
+    },
+    {
+      "name": "FIELD_PATTERN_MAX",
+      "meaning": "Longest validation pattern in characters; default 200, range 1–1000.",
+      "owner": "2C"
+    },
+    {
+      "name": "FORMULA_SOURCE_MAX",
+      "meaning": "Longest formula source in characters; default 2000, range 10–10000.",
+      "owner": "2C"
+    },
+    {
+      "name": "FORMULA_AST_NODES_MAX",
+      "meaning": "Most nodes in a compiled formula; default 200, range 10–2000.",
+      "owner": "2C"
+    },
+    {
+      "name": "FORMULA_DEPTH_MAX",
+      "meaning": "Deepest formula dependency chain; default 8, range 1–32.",
+      "owner": "2C"
+    },
+    {
+      "name": "FORMULA_REFS_MAX",
+      "meaning": "Most field references in one formula; default 20, range 1–100.",
+      "owner": "2C"
+    },
+    {
+      "name": "FIELD_VALUE_BULK_MAX",
+      "meaning": "Most records migrated by one status or option replacement command; default 500, range 1–5000.",
+      "owner": "2C"
     }
   ],
   "sse_topics": [

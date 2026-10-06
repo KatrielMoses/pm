@@ -148,6 +148,17 @@ export const NON_RESOURCE_TYPES = [
   'shell_navigation',
   // 2A: the project overview is a computed composite of one project and its authorized structures.
   'project_overview',
+  // 2C: computed workflow and field views (ADR-0015): a record's available transitions and one
+  // transition's preview, a record's readable custom fields, formula previews and explanations, a
+  // field-set upgrade preview, and the canonical field document and its round-trip check.
+  'transition_options',
+  'transition_preview',
+  'record_fields',
+  'formula_preview',
+  'formula_explanation',
+  'field_set_preview',
+  'field_document',
+  'field_document_check',
 ] as const;
 export type NonResourceType = (typeof NON_RESOURCE_TYPES)[number];
 

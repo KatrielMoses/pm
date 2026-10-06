@@ -4,7 +4,7 @@
 
 Rules and algorithm: [../04-effective-permissions.md](../04-effective-permissions.md). Legend: **all** = implicit across non-sensitive scopes (sensitive brands and restricted projects still require explicit grants or audited elevation); ≥level = allowed where the principal's effective access level on the target is at least that level; own = own personal items only; if X = only when workspace policy X is enabled; — = never. Flags: ND non-delegable (owner only, excluded from custom roles), SU step-up authentication, 2A second/independent approval when available, E plan entitlement required.
 
-## Record permissions (36)
+## Record permissions (42)
 
 | Action | Scopes | Level | Risk | Flags | owner | administrator | member | limited_member | read_only | guest |
 |---|---|---|---|---|---|---|---|---|---|---|
@@ -44,6 +44,12 @@ Rules and algorithm: [../04-effective-permissions.md](../04-effective-permission
 | `report.schedule` | brand, project, workspace | edit | R2 |  | **all** | **all** | ≥edit | — | — | — |
 | `release.decide` | record | manage | R4 | SU 2A | **all** | **all** | ≥manage | — | — | — |
 | `environment.configure` | brand | manage | R2 |  | **all** | **all** | ≥manage | — | — | — |
+| `workflow.transition` | record | edit | R1 |  | **all** | **all** | ≥edit | ≥edit | — | ≥edit |
+| `workflow.approval_request` | record | edit | R1 |  | **all** | **all** | ≥edit | ≥edit | — | ≥edit |
+| `workflow.approval_decide` | record | view | R2 |  | **all** | **all** | ≥view | ≥view | — | — |
+| `field.value_read` | record | view | R0 |  | **all** | **all** | ≥view | ≥view | ≥view | ≥view |
+| `field.value_edit` | record | edit | R1 |  | **all** | **all** | ≥edit | ≥edit | — | ≥edit |
+| `field.formula_inspect` | record | view | R0 |  | **all** | **all** | ≥view | ≥view | ≥view | — |
 
 ## Execution permissions (11)
 
@@ -228,8 +234,8 @@ Rules and algorithm: [../04-effective-permissions.md](../04-effective-permission
 | `sharing.policy.configure` | Configure sharing, guest, export, self-approval, and public-link policy. | none | ADM-014 |  |
 | `feature_availability.configure` | Configure feature availability by role. | none | ADM-015 |  |
 | `custom_roles.manage` | Create custom roles from allowed capabilities. | none | PERM-002 |  |
-| `workflow.configure` | Configure statuses, transitions, rules. | none | WFL-002, WFL-005 |  |
-| `fields.configure` | Configure custom fields and field sets. | none | WFL-008 |  |
+| `workflow.configure` | Configure workflows, statuses, transitions, required fields, and approval policies. | none | PRJ-009, WFL-001, WFL-002, WFL-003, WFL-004, WFL-005, WFL-006, WFL-007 | Phase 2C (AZ-23): at the workflow's own scope (workspace, brand, or project), within grantable authority; no owner/admin bypass on sensitive brands or restricted projects. |
+| `fields.configure` | Configure custom fields and field sets. | none | TSK-016, WFL-008, WFL-009, WFL-010, WFL-011, WFL-012, WFL-013, WFL-014 | Phase 2C (AZ-23): definitions, options, formulas, field policies, and field sets at their own scope. |
 | `views.configure` | Set default views per brand/project and pin shared views to navigation. | none | VIEW-018, VIEW-019 |  |
 | `templates.manage` | Create and manage templates. | none | ONB-013 |  |
 | `notifications.configure_scope` | Configure brand/project notification rules and minimal-content mode. | none | WSB-014 |  |
@@ -265,3 +271,9 @@ Rules and algorithm: [../04-effective-permissions.md](../04-effective-permission
 | `integration.sync_now` | Trigger a sync on a connection. | none | INT-006 |  |
 | `import.execute` | Run an import into a scope. | none | DATA-001, LA-005 |  |
 | `webhook.test_send` | Send a test delivery to an outbound webhook. | none | INT-011 |  |
+| `workflow.transition` | Preview and apply a workflow status transition (including Complete, Cancel, and Reopen). | none | WFL-005, WFL-006, TSK-031 | Phase 2C (AZ-23). Preview and apply share one evaluator; a generic edit that changes status is evaluated the same way. |
+| `workflow.approval_request` | Request approval for a gated transition. | none | WFL-007, TSK-029 | Phase 2C (AZ-23). The request is bound to the record version; any change makes it stale. |
+| `workflow.approval_decide` | Approve or reject a pending transition approval. | none | WFL-007, TSK-029 | Phase 2C (AZ-23). Also requires eligibility by the transition policy: manage on the record (one_manager) or being a named approver (all_named_approvers). Being an approver grants no access. Self-approval needs both the transition flag and the workspace self_approval policy (OD-20). Human principals only. |
+| `field.value_read` | Read custom field values on a record, subject to field policy. | none | TSK-016, WFL-009 | Phase 2C (AZ-23). Intersected with access.field_policy and definition applicability; hidden fields are absent everywhere (0C §7.2). |
+| `field.value_edit` | Edit custom field values on a record, subject to field policy. | none | TSK-016, WFL-012 | Phase 2C (AZ-23). Formula results are never editable. Person and label values grant no access. |
+| `field.formula_inspect` | Inspect a formula's inputs, dependencies, and error on a record. | none | WFL-011 | Phase 2C (AZ-23). Only when every input is readable; never reveals hidden input values or names. |

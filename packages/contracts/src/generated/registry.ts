@@ -467,6 +467,27 @@ export const TELEMETRY_SIGNALS = [
     "labels": [
       "outcome"
     ]
+  },
+  {
+    "name": "workflow.transitions",
+    "type": "counter",
+    "labels": [
+      "outcome"
+    ]
+  },
+  {
+    "name": "workflow.transition.duration",
+    "type": "histogram",
+    "labels": [
+      "outcome"
+    ]
+  },
+  {
+    "name": "workflow.formula.evaluations",
+    "type": "counter",
+    "labels": [
+      "outcome"
+    ]
   }
 ] as const;
 export type TelemetrySignalName = (typeof TELEMETRY_SIGNALS)[number]['name'];
@@ -1394,6 +1415,48 @@ export const ID_PREFIXES = [
     "entity": "relations.record_link",
     "ownerModule": "relations",
     "platformOnly": false
+  },
+  {
+    "prefix": "sts",
+    "resource": "workflow_status",
+    "entity": "workflow.workflow_status",
+    "ownerModule": "workflow",
+    "platformOnly": false
+  },
+  {
+    "prefix": "trn",
+    "resource": "transition",
+    "entity": "workflow.transition",
+    "ownerModule": "workflow",
+    "platformOnly": false
+  },
+  {
+    "prefix": "wap",
+    "resource": "workflow_approval",
+    "entity": "workflow.approval_request",
+    "ownerModule": "workflow",
+    "platformOnly": false
+  },
+  {
+    "prefix": "fld",
+    "resource": "field_definition",
+    "entity": "workflow.field_definition",
+    "ownerModule": "workflow",
+    "platformOnly": false
+  },
+  {
+    "prefix": "fop",
+    "resource": "field_option",
+    "entity": "workflow.field_option",
+    "ownerModule": "workflow",
+    "platformOnly": false
+  },
+  {
+    "prefix": "fst",
+    "resource": "field_set",
+    "entity": "workflow.field_set",
+    "ownerModule": "workflow",
+    "platformOnly": false
   }
 ] as const;
 export type IdPrefix = (typeof ID_PREFIXES)[number]['prefix'];
@@ -2117,6 +2180,147 @@ export const INTERNAL_EVENTS = [
       "state"
     ],
     "maxClass": "C1"
+  },
+  {
+    "type": "workflow.workflow.created",
+    "schemaVersion": 1,
+    "aggregateEntity": "workflow.workflow",
+    "fields": [
+      "record_kind",
+      "scope_kind"
+    ],
+    "maxClass": "C1"
+  },
+  {
+    "type": "workflow.workflow.updated",
+    "schemaVersion": 1,
+    "aggregateEntity": "workflow.workflow",
+    "fields": [
+      "changed_fields",
+      "lifecycle_state"
+    ],
+    "maxClass": "C1"
+  },
+  {
+    "type": "workflow.status.created",
+    "schemaVersion": 1,
+    "aggregateEntity": "workflow.workflow_status",
+    "fields": [
+      "workflow_id",
+      "category"
+    ],
+    "maxClass": "C1"
+  },
+  {
+    "type": "workflow.status.updated",
+    "schemaVersion": 1,
+    "aggregateEntity": "workflow.workflow_status",
+    "fields": [
+      "workflow_id",
+      "changed_fields",
+      "lifecycle_state"
+    ],
+    "maxClass": "C1"
+  },
+  {
+    "type": "workflow.transition.created",
+    "schemaVersion": 1,
+    "aggregateEntity": "workflow.transition",
+    "fields": [
+      "workflow_id",
+      "approval_policy"
+    ],
+    "maxClass": "C1"
+  },
+  {
+    "type": "workflow.transition.updated",
+    "schemaVersion": 1,
+    "aggregateEntity": "workflow.transition",
+    "fields": [
+      "workflow_id",
+      "changed_fields",
+      "lifecycle_state"
+    ],
+    "maxClass": "C1"
+  },
+  {
+    "type": "workflow.approval_request.created",
+    "schemaVersion": 1,
+    "aggregateEntity": "workflow.approval_request",
+    "fields": [
+      "transition_id",
+      "policy",
+      "record_type"
+    ],
+    "maxClass": "C1"
+  },
+  {
+    "type": "workflow.approval_request.decided",
+    "schemaVersion": 1,
+    "aggregateEntity": "workflow.approval_request",
+    "fields": [
+      "decision",
+      "state"
+    ],
+    "maxClass": "C1"
+  },
+  {
+    "type": "workflow.approval_request.closed",
+    "schemaVersion": 1,
+    "aggregateEntity": "workflow.approval_request",
+    "fields": [
+      "closed_reason"
+    ],
+    "maxClass": "C1"
+  },
+  {
+    "type": "workflow.field_definition.created",
+    "schemaVersion": 1,
+    "aggregateEntity": "workflow.field_definition",
+    "fields": [
+      "field_type",
+      "scope_kind"
+    ],
+    "maxClass": "C1"
+  },
+  {
+    "type": "workflow.field_definition.updated",
+    "schemaVersion": 1,
+    "aggregateEntity": "workflow.field_definition",
+    "fields": [
+      "changed_fields",
+      "lifecycle_state"
+    ],
+    "maxClass": "C1"
+  },
+  {
+    "type": "workflow.field_set.versioned",
+    "schemaVersion": 1,
+    "aggregateEntity": "workflow.field_set",
+    "fields": [
+      "version"
+    ],
+    "maxClass": "C1"
+  },
+  {
+    "type": "workflow.field_set.applied",
+    "schemaVersion": 1,
+    "aggregateEntity": "workflow.field_set",
+    "fields": [
+      "record_type",
+      "version"
+    ],
+    "maxClass": "C1"
+  },
+  {
+    "type": "workflow.field_value.changed",
+    "schemaVersion": 1,
+    "aggregateEntity": "workflow.field_value",
+    "fields": [
+      "record_type",
+      "definition_ids"
+    ],
+    "maxClass": "C1"
   }
 ] as const;
 export type InternalEventType = (typeof INTERNAL_EVENTS)[number]['type'];
@@ -2172,7 +2376,24 @@ export const PARAMETER_NAMES = [
   "TASK_ASSIGNEES_MAX",
   "TASK_LABELS_MAX",
   "BRAND_LABELS_MAX",
-  "TASK_ESTIMATE_MINUTES_MAX"
+  "TASK_ESTIMATE_MINUTES_MAX",
+  "WORKFLOW_STATUSES_MAX",
+  "WORKFLOW_TRANSITIONS_MAX",
+  "TRANSITION_REQUIREMENTS_MAX",
+  "TRANSITION_APPROVERS_MAX",
+  "APPROVAL_EXPIRY_HOURS",
+  "TRANSITION_PREVIEW_TTL_SECONDS",
+  "FIELD_DEFINITIONS_MAX",
+  "FIELD_OPTIONS_MAX",
+  "FIELD_SETS_MAX",
+  "FIELD_SET_ITEMS_MAX",
+  "FIELD_TEXT_MAX",
+  "FIELD_PATTERN_MAX",
+  "FORMULA_SOURCE_MAX",
+  "FORMULA_AST_NODES_MAX",
+  "FORMULA_DEPTH_MAX",
+  "FORMULA_REFS_MAX",
+  "FIELD_VALUE_BULK_MAX"
 ] as const;
 export type ParameterName = (typeof PARAMETER_NAMES)[number];
 
@@ -4285,6 +4506,114 @@ export const ACTIONS = [
       "member": "grant:manage",
       "limited_member": "deny",
       "read_only": "deny",
+      "guest": "deny"
+    }
+  },
+  {
+    "key": "workflow.transition",
+    "kind": "record",
+    "scopes": [
+      "record"
+    ],
+    "stepUp": false,
+    "riskClass": "R1",
+    "requiredLevel": "edit",
+    "roles": {
+      "owner": "implicit",
+      "administrator": "implicit",
+      "member": "grant:edit",
+      "limited_member": "grant:edit",
+      "read_only": "deny",
+      "guest": "grant:edit"
+    }
+  },
+  {
+    "key": "workflow.approval_request",
+    "kind": "record",
+    "scopes": [
+      "record"
+    ],
+    "stepUp": false,
+    "riskClass": "R1",
+    "requiredLevel": "edit",
+    "roles": {
+      "owner": "implicit",
+      "administrator": "implicit",
+      "member": "grant:edit",
+      "limited_member": "grant:edit",
+      "read_only": "deny",
+      "guest": "grant:edit"
+    }
+  },
+  {
+    "key": "workflow.approval_decide",
+    "kind": "record",
+    "scopes": [
+      "record"
+    ],
+    "stepUp": false,
+    "riskClass": "R2",
+    "requiredLevel": "view",
+    "roles": {
+      "owner": "implicit",
+      "administrator": "implicit",
+      "member": "grant:view",
+      "limited_member": "grant:view",
+      "read_only": "deny",
+      "guest": "deny"
+    }
+  },
+  {
+    "key": "field.value_read",
+    "kind": "record",
+    "scopes": [
+      "record"
+    ],
+    "stepUp": false,
+    "riskClass": "R0",
+    "requiredLevel": "view",
+    "roles": {
+      "owner": "implicit",
+      "administrator": "implicit",
+      "member": "grant:view",
+      "limited_member": "grant:view",
+      "read_only": "grant:view",
+      "guest": "grant:view"
+    }
+  },
+  {
+    "key": "field.value_edit",
+    "kind": "record",
+    "scopes": [
+      "record"
+    ],
+    "stepUp": false,
+    "riskClass": "R1",
+    "requiredLevel": "edit",
+    "roles": {
+      "owner": "implicit",
+      "administrator": "implicit",
+      "member": "grant:edit",
+      "limited_member": "grant:edit",
+      "read_only": "deny",
+      "guest": "grant:edit"
+    }
+  },
+  {
+    "key": "field.formula_inspect",
+    "kind": "record",
+    "scopes": [
+      "record"
+    ],
+    "stepUp": false,
+    "riskClass": "R0",
+    "requiredLevel": "view",
+    "roles": {
+      "owner": "implicit",
+      "administrator": "implicit",
+      "member": "grant:view",
+      "limited_member": "grant:view",
+      "read_only": "grant:view",
       "guest": "deny"
     }
   }

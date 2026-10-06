@@ -1,12 +1,12 @@
 import { useEffect, useMemo, useRef, useState, type FormEvent, type KeyboardEvent } from 'react';
-import {
-  DELIVERABLE_TYPES,
-  LABEL_COLORS,
-  PROJECT_PRIORITIES,
-  TASK_STATUSES,
-} from '@pm/contracts/shell';
+import { DELIVERABLE_TYPES, LABEL_COLORS, PROJECT_PRIORITIES } from '@pm/contracts/shell';
 import { plainFromRichText, richTextFromPlain } from '@pm/contracts/rich-text';
 import { ApiError } from '../api.ts';
+import {
+  RecordFieldsSection,
+  TransitionControl,
+  useStatusChoices,
+} from '../workflow/record-workflow.tsx';
 import { Link, useRouter } from '../router.tsx';
 import { BrandMarker } from '../shell/brand-marker.tsx';
 import { routeHref } from '../shell/registry.ts';
@@ -558,11 +558,15 @@ function TaskBody({
         ) : null}
       </div>
       <CompletionControls ws={ws} task={task} detail={detail} reload={reload} />
+      {caps.edit && !task.shared_only ? (
+        <TransitionControl ws={ws} rec={task.id} version={task.version} onChanged={reload} />
+      ) : null}
       {caps.edit ? (
         <TaskFieldsForm ws={ws} task={task} onSaved={reload} />
       ) : (
         <TaskFacts task={task} />
       )}
+      {!task.shared_only ? <RecordFieldsSection ws={ws} rec={task.id} onSaved={reload} /> : null}
       <CriteriaSection ws={ws} task={task} detail={detail} reload={reload} />
       <ChecklistSection ws={ws} task={task} detail={detail} reload={reload} />
       {!task.shared_only ? (
@@ -696,6 +700,8 @@ function TaskFieldsForm({ ws, task, onSaved }: { ws: string; task: Task; onSaved
   const [attempt, setAttempt] = useState(0);
   const set = (k: keyof Draft) => (v: string) => setDraft((d) => ({ ...d, [k]: v }));
   const terminal = base.status.category === 'done' || base.status.category === 'cancelled';
+  // The applicable workflow's statuses that a plain edit may choose (ADR-0015 W5).
+  const statusChoices = useStatusChoices(ws, base.id, base.status, base.version, 'task');
   const valueOf = (d: Draft): Record<string, unknown> => ({
     title: d.title,
     description: richTextFromPlain(d.description),
@@ -809,9 +815,7 @@ function TaskFieldsForm({ ws, task, onSaved }: { ws: string; task: Task; onSaved
           value={draft.status}
           onChange={set('status')}
           error={fields['tf-status']}
-          options={TASK_STATUSES.filter((s) =>
-            terminal ? s.key === base.status.key : s.category !== 'done',
-          ).map((s) => ({ value: s.key, label: s.name }))}
+          options={terminal ? [{ value: base.status.key, label: base.status.name }] : statusChoices}
         />
         <SelectField
           id="tf-priority"

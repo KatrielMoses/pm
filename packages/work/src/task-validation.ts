@@ -120,6 +120,7 @@ export function taskField(field: string, v: unknown, issues: Issues, estimateMax
         issues.add(p, 'use_complete', 'Use Complete to finish a task.');
         return undefined;
       }
+      if (typeof v === 'string' && /^sts_[0-9A-HJKMNP-TV-Z]{26}$/.test(v)) return v;
       return enumValue(v, SETTABLE_STATUSES, p, issues);
     }
     case 'priority':

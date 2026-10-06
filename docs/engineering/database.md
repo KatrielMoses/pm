@@ -192,3 +192,33 @@ relationships, and history, for restricted and grant-heavy principals.
 | `packages/work/test/integration/task-plans.test.ts` | `app_rw` and `app_worker` isolation; query plans at volume |
 | `apps/api/test/integration/tasks-api.test.ts` | HTTP flows with ETags, verbs and item routes, uniform `not_found`, no internal UUIDs |
 | `apps/web/test/tasks.test.tsx`, `e2e/tasks.spec.ts` | Task routes; tree keyboard and Move/Indent/Outdent; task page flows, conflict, offline, axe, forced colors, 320 px on desktop, tablet, and mobile |
+
+## Phase 2C: workflows and custom fields
+
+Migrations `0025_workflow_configuration` and `0026_custom_fields` (ADR-0015). Down migrations restore
+the exact 0024 catalog (boundary test `[…, 24, 25, 26]`): 0025's down restores the 2A/2B status
+triggers and platform-status foreign keys; 0026's down restores the 0024 `work.move_task_brand`.
+
+| Schema | Objects |
+|---|---|
+| `workflow` | `workflow` (`wf_`, scope and record kind, one active per scope and kind); `workflow_status` (`sts_`, fixed category, guarded); `transition` (`trn_`, one active edge per pair) with `transition_requirement` and `transition_approver`; append-only `approval_request` (`wap_`, one-time close) and `approval_decision`; `field_definition` (`fld_`, immutable type, lineage, formula AST); `field_option` (`fop_`); `formula_dependency` (deferred acyclic check); `field_value` (typed JSON plus normalized columns derived by `field_value_shape`); `field_set` (`fst_`), immutable `field_set_version`, `field_set_attachment` |
+| `access` | `field_policy` (read rule, minimum levels, guest visibility) per custom definition |
+| Functions | `workflow.resolve_workflow`, `workflow.status_category`, `workflow.status_offered` (used by the task and project status triggers); guards `workflow_status_guard`, `approval_request_guard`, `field_definition_guard`, `field_value_shape`, `assert_formula_acyclic` |
+
+`work.task.status_id`, `prior_status_id`, and `work.project.status_id` no longer have a foreign key to
+`workflow.platform_status`. The status triggers resolve either catalog and refuse a new choice the
+applicable workflow does not offer; `workflow_status_guard` refuses deleting a status in use. The
+SQL safety gate now covers the `workflow` schema.
+
+Lock order (ADR-0015 W24): record row → applicable workflow row `FOR SHARE` for status changes; workflow row `FOR UPDATE` → status and transition rows for workflow configuration; the workspace field-graph advisory lock → definition row for field configuration; record row → approval request row for approvals.
+
+| Suite | Proves |
+|---|---|
+| `packages/work/test/unit/workflow-engine.test.ts` | Formula language, typed errors, AST validation; linear-time patterns; field values (currency, percentage, URL, email); lossless serialization |
+| `packages/work/test/integration/workflows.test.ts` | Resolution and precedence, fixed categories, archive and migration, transitions that edits cannot bypass, atomic required fields, approvals (stale, rejected, applied once, self-approval), TSK-031 |
+| `packages/work/test/integration/fields.test.ts` | Every type, references without access, options with replacement, formula chains, cycles, depth, field policy, field sets, cross-brand move and purge, the canonical document |
+| `packages/work/test/integration/workflow-plans.test.ts` | Pooled `app_rw` and `app_worker` isolation for all 15 tables; append-only approvals; query plans at 5,000 records × 10 fields |
+| `packages/work/test/integration/workflow-concurrency.test.ts` | Review 01: two managers on the same or overlapping configuration through a pooled `app_rw` barrier (workflow edit vs reorder, transitions and requirements, a configuration change during preview/apply, definitions, values, set versions, formula cycles, approvals); one success plus a typed conflict or serialized commits; invariants, audit, outbox, permission epochs |
+| `packages/work/test/integration/field-timing.test.ts` | Review 01: equal statement shapes and one timing class (`@pm/test-support` timing harness) for hidden vs visible fields, unreadable vs unknown records, formula explanations, required-field errors, history, export, and set-preview counts |
+| `apps/api/test/integration/workflows-api.test.ts` | HTTP configuration, preview and apply, values with ETags, collection verbs, uniform `not_found`, no internal UUIDs |
+| `apps/web/test/workflow.test.tsx`, `e2e/workflows.spec.ts` | Routes; More fields; transition dialog; configuration, approvals, and fields on desktop, tablet, and mobile with axe, forced colors, and 320 px |
