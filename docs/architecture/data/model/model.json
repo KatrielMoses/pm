@@ -4460,7 +4460,7 @@
         "rank text",
         "created_by_membership_id",
         "version bigint",
-        "origin_kind (manual|recurring|intake|import|integration|ai_draft; immutable)",
+        "origin_kind (manual|recurring|template|intake|import|integration|ai_draft; immutable)",
         "origin_ref jsonb (safe identifiers only: series, occurrence, template, version; immutable)",
         "recurrence_series_id null + occurrence_key null (unique together)",
         "last_meaningful_update_at timestamptz (OD-17 freshness; maintained by triggers)"

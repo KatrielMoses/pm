@@ -175,6 +175,16 @@ export function registerTaskInteraction(app: FastifyInstance, work: TaskInteract
     ),
   );
   app.get(
+    `${ws}/task-bulk/status-options`,
+    wrap(async (request) =>
+      nonResourceEnvelope(
+        'bulk_status_options',
+        await work.bulkStatusOptions(caller(request), p(request).ws, q(request)),
+        m(request),
+      ),
+    ),
+  );
+  app.get(
     `${ws}/task-bulk/:bop`,
     wrap(async (request, reply) =>
       resource(request, reply, await work.getBulk(caller(request), p(request).ws, p(request).bop)),

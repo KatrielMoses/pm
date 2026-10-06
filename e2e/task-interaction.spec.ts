@@ -190,3 +190,71 @@ test('task page: signals, reminders, snooze, reschedule, repeat, and templates',
   expect(await noHorizontalOverflow(page), 'task page at 320px').toBeLessThanOrEqual(0);
   await expectAccessible(page, 'task page at 320px');
 });
+
+/** Seeds through the API in the signed-in context (synchronizer token and idempotency key). */
+async function seed(page: Page, path: string, data: unknown) {
+  const origin = new URL(page.url()).origin;
+  const me = await page.request.get('/v1/auth/me');
+  const r = await page.request.post(path, {
+    headers: {
+      origin,
+      'x-csrf-token': me.headers()['x-csrf-token'] ?? '',
+      'idempotency-key': `e2e-${crypto.randomUUID()}`,
+    },
+    data,
+  });
+  expect(r.status(), await r.text()).toBeLessThan(300);
+  return (await r.json()).data;
+}
+
+test('bulk status offers the project workflow’s custom statuses and previews each target', async ({
+  page,
+}, info) => {
+  const ws = await projectless(page, info, 'ti-custom');
+  const brands = await (await page.request.get(`/v1/workspaces/${ws}/brands`)).json();
+  const brand = brands.data.find((b: { name: string }) => b.name === 'Harbor').id;
+  const prj = await seed(page, `/v1/workspaces/${ws}/projects`, { brand, name: 'Custom flow' });
+  await seed(page, `/v1/workspaces/${ws}/workflows`, {
+    scope: `project:${prj.id}`,
+    record_kind: 'task',
+    name: 'Studio',
+    statuses: [
+      { name: 'Inbox', category: 'planned' },
+      { name: 'Polishing', category: 'active' },
+      { name: 'Released', category: 'done' },
+    ],
+  });
+  for (const title of ['Cut trailer', 'Mix audio'])
+    await seed(page, `/v1/workspaces/${ws}/tasks`, { project: prj.id, title });
+  await page.goto(`/workspaces/${ws}/projects/${prj.id}/tasks`);
+  await expect(tree(page).getByRole('treeitem')).toHaveCount(2);
+  await page.getByRole('button', { name: 'Change several tasks' }).click();
+  const bulk = page.getByRole('region', { name: 'Change several tasks' });
+  await bulk.getByRole('button', { name: 'Select all shown' }).click();
+  await bulk.getByLabel('Action').selectOption('set_status');
+  const status = bulk.getByLabel('Status');
+  await expect(status.locator('option', { hasText: 'Polishing (custom)' })).toHaveCount(1);
+  await expect(status.locator('option', { hasText: 'In progress' })).toHaveCount(0);
+  await status.selectOption({ label: 'Polishing (custom)' });
+  await expectAccessible(page, 'bulk status with custom statuses');
+  await bulk.getByRole('button', { name: 'Preview change' }).click();
+  const dialog = page.getByRole('dialog', { name: 'Set status: preview' });
+  await expect(dialog.getByRole('columnheader', { name: 'Proposed status' })).toBeVisible();
+  await expect(
+    dialog.getByRole('row', { name: /Cut trailer Polishing Will change/ }),
+  ).toBeVisible();
+  await expectAccessible(page, 'bulk status preview');
+  await dialog.getByRole('button', { name: 'Apply to 2 tasks' }).click();
+  await expect(page.getByText('Set status: 2 of 2 changed.', { exact: true })).toBeAttached();
+  await expect(tree(page).getByRole('treeitem', { name: /Cut trailer/ })).toContainText(
+    'Polishing',
+  );
+  for (const width of [320, 600]) {
+    await page.setViewportSize({ width, height: page.viewportSize()!.height });
+    await page.reload();
+    await expect(tree(page)).toBeVisible();
+    expect(await noHorizontalOverflow(page), `custom statuses at ${width}px`).toBeLessThanOrEqual(
+      0,
+    );
+  }
+});

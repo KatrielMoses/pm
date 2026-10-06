@@ -90,6 +90,64 @@ describe('task interaction quality (2D)', () => {
     });
   });
 
+  it('origins (review 01): template, manual, duplicate, recurring, and the closed system kinds each keep their own', async () => {
+    const src = await task({ title: 'Origin source' });
+    expect(src.source).toEqual({ kind: 'manual' });
+    const tpl = (
+      await env.svc.createTaskTemplate(owner, ws, src.id, { name: 'Origin tpl' }, mutation())
+    ).data;
+    const fromTpl = (
+      await env.svc.applyTaskTemplate(owner, ws, tpl.id, { brand: brands.Harbor }, mutation())
+    ).application.task;
+    expect(fromTpl.source).toEqual({ kind: 'template', template: tpl.id, version: 1 });
+    const v2 = (await env.svc.versionTaskTemplate(owner, ws, tpl.id, { task: src.id }, mutation()))
+      .data;
+    const fromV2 = (
+      await env.svc.applyTaskTemplate(owner, ws, tpl.id, { brand: brands.Harbor }, mutation())
+    ).application.task;
+    expect(fromV2.source).toEqual({ kind: 'template', template: tpl.id, version: v2.version });
+    // Duplicating keeps a person's action manual; the source task's origin is untouched.
+    const dup = (await env.svc.duplicateTask(owner, ws, fromTpl.id, {}, mutation())).data as {
+      id: string;
+    };
+    expect((await env.svc.getTask(owner, ws, dup.id)).source).toEqual({ kind: 'manual' });
+    expect((await env.svc.getTask(owner, ws, fromTpl.id)).source.kind).toBe('template');
+    // A recurring occurrence is recurring, never template.
+    const s = (
+      await env.svc.defineTaskRecurrence(
+        owner,
+        ws,
+        src.id,
+        { frequency: 'daily', anchor_tz: 'UTC', start: '2026-06-01T09:00' },
+        mutation(),
+      )
+    ).data;
+    const occ = (await env.svc.generateNextTaskOccurrence(owner, ws, src.id, s.id, mutation())).data
+      .occurrence!;
+    expect((await env.svc.getTask(owner, ws, occ.id)).source).toEqual({
+      kind: 'recurring',
+      series: s.id,
+      occurrence: '2026-06-01T09:00',
+    });
+    // Intake, import, integration, and AI drafts arrive through their producers (2E, 6D, 6A, 7A);
+    // the closed set and its readback hold for each. An unknown kind is refused.
+    const con = await db.admin(
+      `SELECT pg_get_constraintdef(oid) AS d FROM pg_constraint WHERE conname = 'task_origin_known'`,
+    );
+    for (const kind of [
+      'manual',
+      'recurring',
+      'template',
+      'intake',
+      'import',
+      'integration',
+      'ai_draft',
+    ])
+      expect(con.rows[0].d).toContain(`'${kind}'`);
+    // Existing manual tasks stay manual.
+    expect((await env.svc.getTask(owner, ws, src.id)).source).toEqual({ kind: 'manual' });
+  });
+
   it('freshness: meaningful updates move it; reads, rank, reminders, and snoozes do not', async () => {
     const t = await task({ title: 'Fresh' });
     const t2 = await task({ title: 'Sibling' });
@@ -765,7 +823,7 @@ describe('task interaction quality (2D)', () => {
       estimate_minutes: 30,
       assignees: [],
     });
-    expect(made.source).toEqual({ kind: 'manual', template: tpl.id, version: 1 });
+    expect(made.source).toEqual({ kind: 'template', template: tpl.id, version: 1 });
     const d = await env.svc.taskDetail(owner, ws, made.id);
     expect(d.checklist.map((c) => [c.text, c.done])).toEqual([['Prep', false]]);
     expect(d.criteria.map((c) => c.text)).toEqual(['Signed off']);

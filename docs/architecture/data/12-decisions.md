@@ -203,9 +203,9 @@ Status of every ADR: **proposed (Phase 0B)**, pending solutions-architect accept
 ## ADR-24: Task interaction quality (Phase 2D amendment)
 
 - **Decision:**
-  - **Origin.** `work.task.origin_kind` is a closed kind (`manual`, `recurring`, `intake`, `import`, `integration`, `ai_draft`) with `origin_ref`, a JSON object of safe public identifiers only. A trigger refuses any change after insert; only a registered migration may rewrite them. `core.record.source_kind` keeps recording the creation channel.
+  - **Origin.** `work.task.origin_kind` is a closed kind (`manual`, `recurring`, `template`, `intake`, `import`, `integration`, `ai_draft`) with `origin_ref`, a JSON object of safe public identifiers only. A trigger refuses any change after insert; only a registered migration may rewrite them. `core.record.source_kind` keeps recording the creation channel.
   - **Recurring tasks.** `planning.recurrence_series.target_kind` gains `task`, plus an optional `project_id`. Occurrences are `work.task` rows carrying `(recurrence_series_id, occurrence_key)`, unique together, so generation is idempotent.
-  - **Templates.** `templates.template.target_record_type` gains `task`; versions stay immutable rows.
+  - **Templates.** `templates.template.target_record_type` gains `task`; versions stay immutable rows. A task created from a template has origin `template` with the template's public ID and version in `origin_ref` (review 01).
   - **Reminders and snoozes.** `planning.task_reminder` (`rem_`) and `planning.task_snooze` are personal rows keyed by workspace, account, and task. They never reference or change task dates, status, or access. The planned `work.reminder` is replaced.
   - **Freshness.** `work.task.last_meaningful_update_at` is maintained by triggers on the task and its content tables (assignees, checklist, criteria, labels, links, relationships, custom field values) for the OD-17 meaningful changes only. Repeated rescheduling is counted from the audit ledger (`audit_event_by_target`), so there is no second history store.
   - **Bulk and undo.** `work.bulk_operation` (`bop_`) and `work.undo_entry` (`und_`) are short-lived, workspace-scoped, RLS-protected rows for the actor. `work.task_rank` is indexed per brand and project for ordering commands.

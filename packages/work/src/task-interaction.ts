@@ -35,7 +35,7 @@ import {
 import { generateTaskOccurrences } from './task-recurrence.ts';
 import { TASK_FIELDS, taskField } from './task-validation.ts';
 import { isPublic, parseRecurrence } from './validation.ts';
-import { TERMINAL } from './workflow/statuses.ts';
+import { offered, statusFromKey, statusRef, statusView, TERMINAL } from './workflow/statuses.ts';
 
 /** The bulk operations (0028 closed set). Archive and trash are destructive (atomic by default). */
 export const BULK_OPERATIONS = [
@@ -54,6 +54,17 @@ const BULK_FIELD: Partial<Record<BulkOperation, 'status' | 'priority' | 'due_dat
   set_priority: 'priority',
   set_due_date: 'due_date',
 };
+
+/** One item of a preview or report: identifiers, codes, and readable status facts only. */
+export interface BulkItem {
+  task: string;
+  outcome: BulkOutcome;
+  code?: string;
+  /** set_status: the proposed status as this task's workflow names it. */
+  target?: ReturnType<typeof statusView>;
+  /** set_status: readable required fields still missing (labels only). */
+  required_fields?: string[];
+}
 
 /** Per-item outcomes a preview or report may carry (identifiers and codes only). */
 export type BulkOutcome =
@@ -1115,7 +1126,7 @@ export class TaskInteractionService extends FieldService {
       executed_at?: Date | string | null;
       version: number | string;
     },
-    items: Array<{ task: string; outcome: BulkOutcome; code?: string }>,
+    items: BulkItem[],
   ) {
     const counts: Partial<Record<BulkOutcome, number>> = {};
     for (const i of items) counts[i.outcome] = (counts[i.outcome] ?? 0) + 1;
@@ -1141,16 +1152,17 @@ export class TaskInteractionService extends FieldService {
     t: LoadedTask,
     op: BulkOperation,
     value: unknown,
-  ): Promise<BulkOutcome> {
+  ): Promise<Omit<BulkItem, 'task'>> {
     // The same decisions the commands make (the task's capability flags).
     const can = this.taskCapabilities(p, t);
     if (op === 'archive' || op === 'trash') {
-      if (op === 'archive' && t.lifecycleState !== 'active') return 'no_change';
-      return can[op] ? 'ready' : 'forbidden';
+      if (op === 'archive' && t.lifecycleState !== 'active') return { outcome: 'no_change' };
+      return { outcome: can[op] ? 'ready' : 'forbidden' };
     }
-    if (t.lifecycleState !== 'active') return can.restore || can.trash ? 'invalid' : 'forbidden';
+    if (t.lifecycleState !== 'active')
+      return { outcome: can.restore || can.trash ? 'invalid' : 'forbidden', code: 'archived' };
     if (op === 'add_label' || op === 'remove_label') {
-      if (!can.edit_context) return 'forbidden';
+      if (!can.edit_context) return { outcome: 'forbidden' };
       const label = await tx.db
         .selectFrom('work.label as l')
         .select('l.id')
@@ -1158,22 +1170,106 @@ export class TaskInteractionService extends FieldService {
         .where('l.brand_id', '=', t.brand.id)
         .where('l.state', '=', 'active')
         .executeTakeFirst();
-      if (!label) return 'invalid';
+      if (!label) return { outcome: 'invalid', code: 'label_unavailable' };
       const has = await tx.db
         .selectFrom('work.task_label')
         .select('label_id')
         .where('task_id', '=', t.id)
         .where('label_id', '=', label.id)
         .executeTakeFirst();
-      return (op === 'add_label') === !!has ? 'no_change' : 'ready';
+      return { outcome: (op === 'add_label') === !!has ? 'no_change' : 'ready' };
     }
-    if (!can.edit) return 'forbidden';
+    if (!can.edit) return { outcome: 'forbidden' };
+    if (op === 'set_status') return this.previewStatus(tx, p, t, value as string);
     const field = BULK_FIELD[op]!;
     const current = this.currentFields(t.row, tx);
     if (JSON.stringify(current[field] ?? null) === JSON.stringify(value ?? null))
-      return 'no_change';
-    if (field === 'status' && TERMINAL.has(t.row.status_category as never)) return 'invalid';
-    return 'ready';
+      return { outcome: 'no_change' };
+    return { outcome: 'ready' };
+  }
+
+  /**
+   * A bulk status change for one task through the one transition evaluator (2C W5–W8): the target
+   * must be offered by this task's workflow (never mapped to another status), the edge allowed,
+   * required fields present, and no confirmation or approval needed (those go one task at a time).
+   */
+  protected async previewStatus(
+    tx: WorkspaceTransaction,
+    p: Principal,
+    t: LoadedTask,
+    key: string,
+  ): Promise<Omit<BulkItem, 'task'>> {
+    const wf = await this.taskWorkflow(tx, t.brand.id, t.row.project_id);
+    const from = statusRef(tx, t.row.status_id);
+    if (TERMINAL.has(from.category)) return { outcome: 'invalid', code: 'use_reopen' };
+    const target = offered('task', wf).find(
+      (x) => x.key === key && x.state === 'active' && !TERMINAL.has(x.category),
+    );
+    if (!target) return { outcome: 'invalid', code: 'status_unavailable' };
+    if (target.key === from.key) return { outcome: 'no_change', target: statusView(target) };
+    const r = await this.workRecord(tx, p, t.publicId);
+    const to = statusFromKey('task', wf, key, '/params/value');
+    const g = this.gateFor(r, wf, from, to, 'edit');
+    const e = this.evaluate(tx, p, g, await this.presenceFor(tx, p, g));
+    const base = {
+      target: statusView(to),
+      required_fields: e.required.filter((x) => !x.satisfied).map((x) => x.label),
+    };
+    if (!e.allowed)
+      return { outcome: 'invalid', code: e.issues[0]?.code ?? 'transition_not_allowed', ...base };
+    if (e.approval.policy !== 'none')
+      return { outcome: 'invalid', code: 'approval_required', ...base };
+    if (e.confirmation !== 'none') return { outcome: 'invalid', code: 'needs_review', ...base };
+    return { outcome: 'ready', ...base };
+  }
+
+  /**
+   * The statuses a bulk status change may offer for a selection (ADR-0016 T8, review 01): each
+   * readable task's workflow statuses (custom ones included), with how many selected tasks offer
+   * each. A status offered by only some tasks is labelled so; it applies only in partial mode, and
+   * the preview refuses it per item. Unreadable tasks are as absent as unknown ones.
+   */
+  async bulkStatusOptions(caller: Caller, ws: unknown, query: Record<string, unknown>) {
+    const raw = typeof query.tasks === 'string' ? query.tasks.split(',').filter(Boolean) : [];
+    if (!raw.length) throw invalid(issue('/tasks', 'required', 'Select at least one task.'));
+    if (raw.length > this.ws.bulkItemsMax)
+      throw invalid(
+        issue('/tasks', 'too_many', `Select at most ${this.ws.bulkItemsMax} tasks at once.`),
+      );
+    return this.inWorkspace(caller, ws, { readOnly: true }, async (tx, p) => {
+      const byKey = new Map<string, { status: ReturnType<typeof statusView>; tasks: number }>();
+      const workflows = new Set<string>();
+      let readable = 0;
+      let editable = 0;
+      for (const id of [...new Set(raw)]) {
+        let t: LoadedTask;
+        try {
+          t = await this.loadTask(tx, p, id);
+        } catch (err) {
+          if (err instanceof TenancyError && err.code === 'not_found') continue;
+          throw err;
+        }
+        readable++;
+        if (!this.taskCapabilities(p, t).edit) continue;
+        editable++;
+        const wf = await this.taskWorkflow(tx, t.brand.id, t.row.project_id);
+        workflows.add(wf?.publicId ?? 'default');
+        for (const st of offered('task', wf))
+          if (st.state === 'active' && !TERMINAL.has(st.category)) {
+            const o = byKey.get(st.key) ?? { status: statusView(st), tasks: 0 };
+            o.tasks++;
+            byKey.set(st.key, o);
+          }
+      }
+      return {
+        tasks: readable,
+        editable,
+        mixed_workflows: workflows.size > 1,
+        options: [...byKey.values()]
+          .map((o) => ({ status: o.status, available_for: o.tasks, all: o.tasks === editable }))
+          .sort((a, b) => Number(b.all) - Number(a.all)),
+      };
+    });
   }
 
   async previewBulk(caller: Caller, ws: unknown, body: unknown, req: Mutation) {
@@ -1184,8 +1280,9 @@ export class TaskInteractionService extends FieldService {
       ws,
       req,
       async (tx, p) => {
-        const items: Array<{ task: string; outcome: BulkOutcome }> = [];
+        const items: BulkItem[] = [];
         const ids: string[] = [];
+        const versions: Record<string, number> = {};
         for (const pub of input.tasks) {
           let t: LoadedTask;
           try {
@@ -1198,9 +1295,10 @@ export class TaskInteractionService extends FieldService {
             throw err;
           }
           ids.push(t.id);
+          versions[t.id] = t.row.version;
           items.push({
             task: pub,
-            outcome: await this.previewItem(tx, p, t, input.operation, input.value),
+            ...(await this.previewItem(tx, p, t, input.operation, input.value)),
           });
         }
         if (!ids.length)
@@ -1221,7 +1319,11 @@ export class TaskInteractionService extends FieldService {
             workspace_id: tx.workspaceId,
             owner_membership_id: p.membershipId,
             operation: input.operation,
-            params: JSON.stringify(input.value === undefined ? {} : { value: input.value }),
+            params: JSON.stringify({
+              ...(input.value === undefined ? {} : { value: input.value }),
+              // Each task's version at preview: a later change makes that item stale (ETag).
+              versions,
+            }),
             mode: input.mode,
             item_ids: ids,
             fingerprint: sha([input.operation, input.value ?? null, input.mode, input.tasks]),
@@ -1298,14 +1400,26 @@ export class TaskInteractionService extends FieldService {
         if (req.ifMatch !== undefined)
           requireVersion(parseIfMatch(req.ifMatch), Number(op.version));
         const operation = op.operation as BulkOperation;
-        const value = (op.params as { value?: unknown }).value;
-        const items: Array<{ task: string; outcome: BulkOutcome; code?: string }> = [];
+        const { value, versions = {} } = op.params as {
+          value?: unknown;
+          versions?: Record<string, number>;
+        };
+        const items: BulkItem[] = [];
         const inverses: Record<string, Record<string, unknown>> = {};
         const targets: Array<{ id: string; version: number }> = [];
         for (const [i, id] of op.item_ids.entries()) {
           const pub = (await this.publicOf(tx, id)) ?? NIL;
           if (op.mode === 'partial') await sql`SAVEPOINT bulk_item`.execute(tx.db);
           try {
+            const now = await tx.db
+              .selectFrom('work.task')
+              .select('version')
+              .where('id', '=', id)
+              .executeTakeFirst();
+            if (now && versions[id] !== undefined && Number(now.version) !== versions[id])
+              throw new TenancyError('conflict', {
+                issues: [issue(`/tasks/${i}`, 'stale', 'This task changed after the preview.')],
+              });
             const r = await this.executeItem(tx, caller, req, p, pub, operation, value);
             if (op.mode === 'partial') await sql`RELEASE SAVEPOINT bulk_item`.execute(tx.db);
             items.push({ task: pub, outcome: r.outcome });
@@ -1314,13 +1428,15 @@ export class TaskInteractionService extends FieldService {
               targets.push({ id, version: r.version! });
             }
           } catch (err) {
-            const code = err instanceof TenancyError ? err.code : 'failed';
+            const code =
+              err instanceof TenancyError ? (err.issues?.[0]?.code ?? err.code) : 'failed';
+            const kind = err instanceof TenancyError ? err.code : 'failed';
             const outcome: BulkOutcome =
-              code === 'not_found'
+              kind === 'not_found'
                 ? 'not_found'
-                : code === 'forbidden'
+                : kind === 'forbidden'
                   ? 'forbidden'
-                  : code === 'conflict'
+                  : kind === 'conflict'
                     ? 'conflict'
                     : 'invalid';
             if (op.mode === 'atomic') {
@@ -1877,7 +1993,10 @@ export class TaskInteractionService extends FieldService {
               ...(title !== undefined ? { title: title as string } : {}),
               ...(due !== undefined ? { due_date: due as string | null } : {}),
             },
-            origin: { kind: 'manual', ref: { template: tp.public_id, version: tp.version_number } },
+            origin: {
+              kind: 'template',
+              ref: { template: tp.public_id, version: tp.version_number },
+            },
             level,
             itemsMax: this.ws.templateItemsMax,
           },

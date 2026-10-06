@@ -164,6 +164,8 @@ export const NON_RESOURCE_TYPES = [
   'task_signals',
   'duplicate_candidates',
   'template_application',
+  // 2D review 01: the statuses a bulk status change may offer for a selection.
+  'bulk_status_options',
 ] as const;
 export type NonResourceType = (typeof NON_RESOURCE_TYPES)[number];
 

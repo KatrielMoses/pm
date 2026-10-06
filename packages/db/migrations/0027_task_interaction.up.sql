@@ -13,7 +13,7 @@ ALTER TABLE work.task ADD COLUMN recurrence_series_id uuid;
 ALTER TABLE work.task ADD COLUMN occurrence_key text;
 ALTER TABLE work.task ADD COLUMN last_meaningful_update_at timestamptz NOT NULL DEFAULT now();
 ALTER TABLE work.task ADD CONSTRAINT task_origin_known CHECK (origin_kind IN
-  ('manual', 'recurring', 'intake', 'import', 'integration', 'ai_draft'));
+  ('manual', 'recurring', 'template', 'intake', 'import', 'integration', 'ai_draft'));
 -- Safe metadata only: an object of at most eight short public identifiers or numbers.
 ALTER TABLE work.task ADD CONSTRAINT task_origin_ref_shape CHECK (jsonb_typeof(origin_ref) = 'object'
   AND pg_column_size(origin_ref) <= 1024);

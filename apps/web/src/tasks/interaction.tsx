@@ -334,6 +334,7 @@ export function SignalBadges({ signals }: { signals: TaskSignals }) {
 const SOURCE_TEXT: Record<string, string> = {
   manual: 'Created by a person',
   recurring: 'Created by a recurring schedule',
+  template: 'Created from a template',
   intake: 'Created from intake',
   import: 'Imported',
   integration: 'Created by an integration',
@@ -384,7 +385,9 @@ export function TaskSignalsPanel({
       ) : null}
       <p className="hint">
         {SOURCE_TEXT[info.source.kind] ?? 'Created'}
-        {info.source.template ? ' from a template' : ''}
+        {info.source.kind === 'template' && info.source.version
+          ? ` (version ${String(info.source.version)})`
+          : ''}
         {info.source.occurrence ? ` (${String(info.source.occurrence).replace('T', ' ')})` : ''}.
       </p>
       {missing.length ? (
@@ -728,6 +731,24 @@ const OUTCOME_TEXT: Record<BulkOutcome, string> = {
   invalid: "Can't be changed this way",
   skipped: 'Skipped',
 };
+const CODE_TEXT: Record<string, string> = {
+  status_unavailable: 'Its workflow doesn’t offer this status',
+  transition_not_allowed: 'Its workflow doesn’t allow this change',
+  requirements_unmet: 'Required fields are missing',
+  required: 'Required fields are missing',
+  approval_required: 'Needs an approval — change it on the task',
+  needs_review: 'Needs confirmation — change it on the task',
+  use_reopen: 'Reopen it first',
+  stale: 'Changed since the preview',
+  archived: 'Archived',
+};
+const detailOf = (i: BulkOp['items'][number]) =>
+  [
+    i.code && CODE_TEXT[i.code] ? CODE_TEXT[i.code] : null,
+    i.required_fields?.length ? `Needs: ${i.required_fields.join(', ')}` : null,
+  ]
+    .filter(Boolean)
+    .join('. ');
 
 /**
  * The bulk bar: choose tasks (checkboxes), an action and its value, preview every item, then
@@ -737,13 +758,11 @@ const OUTCOME_TEXT: Record<BulkOutcome, string> = {
 export function BulkBar({
   ws,
   choices,
-  statuses,
   labels,
   onApplied,
 }: {
   ws: string;
   choices: Array<{ id: string; title: string }>;
-  statuses: Array<{ value: string; label: string }>;
   labels: Array<{ value: string; label: string }>;
   onApplied: (message: string, undo: UndoHandle | null) => void;
 }) {
@@ -756,6 +775,36 @@ export function BulkBar({
   const [report, setReport] = useState<BulkOp | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
+  // Statuses for the current selection: every workflow involved, custom statuses included, with
+  // how many selected tasks offer each (review 01). Never mapped to a built-in status.
+  const latest = useLatest();
+  const [statusInfo, setStatusInfo] = useState<Awaited<
+    ReturnType<typeof tasks.bulkStatusOptions>
+  > | null>(null);
+  const selectionKey = [...selected].sort().join(',');
+  useEffect(() => {
+    if (op !== 'set_status' || !selectionKey) return;
+    void latest((signal) => tasks.bulkStatusOptions(ws, selectionKey.split(','), signal))
+      .then((r) => {
+        if (!r) return;
+        setStatusInfo(r);
+        setValue((v) =>
+          r.options.some((o) => o.status.key === v) ? v : (r.options[0]?.status.key ?? ''),
+        );
+      })
+      .catch(() => setStatusInfo(null));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ws, op, selectionKey]);
+  const statuses =
+    statusInfo && selectionKey
+      ? statusInfo.options.map((o) => ({
+          value: o.status.key,
+          label: `${o.status.name}${'custom' in o.status && o.status.custom ? ' (custom)' : ''}${
+            o.all ? '' : ` — only ${o.available_for} of ${statusInfo.editable} tasks`
+          }`,
+        }))
+      : [];
+  const chosen = statusInfo?.options.find((o) => o.status.key === value);
   const titleOf = (id: string) => choices.find((c) => c.id === id)?.title ?? 'A task you can’t see';
   const destructive = op === 'archive' || op === 'trash';
   const params = (): Record<string, unknown> | undefined =>
@@ -826,7 +875,12 @@ export function BulkBar({
         label="Status"
         value={value}
         onChange={setValue}
-        options={statuses}
+        options={statuses.length ? statuses : [{ value: '', label: 'Select tasks first' }]}
+        hint={
+          statusInfo?.mixed_workflows
+            ? 'These tasks use different workflows. A status only some of them offer is refused for the others in the preview; nothing is mapped to another status.'
+            : undefined
+        }
       />
     ) : op === 'set_priority' ? (
       <SelectField
@@ -912,6 +966,13 @@ export function BulkBar({
         }))}
       />
       {valueField}
+      {op === 'set_status' && chosen && !chosen.all ? (
+        <p className="hint" role="status">
+          Only {chosen.available_for} of {statusInfo!.editable} selected tasks offer “
+          {chosen.status.name}”. The preview refuses it for the others; applying changes only the
+          tasks that offer it.
+        </p>
+      ) : null}
       {destructive ? (
         <label className="choice">
           <input type="checkbox" checked={partial} onChange={(e) => setPartial(e.target.checked)} />{' '}
@@ -945,6 +1006,7 @@ export function BulkBar({
             <thead>
               <tr>
                 <th scope="col">Task</th>
+                {preview.operation === 'set_status' ? <th scope="col">Proposed status</th> : null}
                 <th scope="col">Result</th>
               </tr>
             </thead>
@@ -952,7 +1014,11 @@ export function BulkBar({
               {preview.items.map((i) => (
                 <tr key={i.task}>
                   <td>{titleOf(i.task)}</td>
-                  <td>{OUTCOME_TEXT[i.outcome]}</td>
+                  {preview.operation === 'set_status' ? <td>{i.target?.name ?? '—'}</td> : null}
+                  <td>
+                    {OUTCOME_TEXT[i.outcome]}
+                    {detailOf(i) ? `: ${detailOf(i)}` : ''}
+                  </td>
                 </tr>
               ))}
             </tbody>
@@ -984,6 +1050,7 @@ export function BulkBar({
             {report.items.map((i) => (
               <li key={i.task}>
                 {titleOf(i.task)}: {OUTCOME_TEXT[i.outcome]}
+                {detailOf(i) ? ` (${detailOf(i)})` : ''}
               </li>
             ))}
           </ul>

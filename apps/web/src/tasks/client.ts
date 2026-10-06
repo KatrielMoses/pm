@@ -136,7 +136,7 @@ export interface Label {
 }
 
 export type TaskOriginKind =
-  'manual' | 'recurring' | 'intake' | 'import' | 'integration' | 'ai_draft';
+  'manual' | 'recurring' | 'template' | 'intake' | 'import' | 'integration' | 'ai_draft';
 
 export interface UndoHandle {
   id: string;
@@ -206,7 +206,13 @@ export interface BulkOp {
   state: 'previewed' | 'executed' | 'expired';
   expires_at: string;
   executed_at: string | null;
-  items: Array<{ task: string; outcome: BulkOutcome; code?: string }>;
+  items: Array<{
+    task: string;
+    outcome: BulkOutcome;
+    code?: string;
+    target?: StatusView;
+    required_fields?: string[];
+  }>;
   counts: Partial<Record<BulkOutcome, number>>;
   version: number;
   undo?: UndoHandle | null;
@@ -458,6 +464,24 @@ export const tasks = {
   ) {
     return (
       await protectedRequest<{ data: BulkOp }>('POST', `${wsBase(ws)}/task-bulk`, body, stepUp)
+    ).body.data;
+  },
+  async bulkStatusOptions(ws: string, ids: string[], signal?: AbortSignal) {
+    return (
+      await api<{
+        data: {
+          tasks: number;
+          editable: number;
+          mixed_workflows: boolean;
+          options: Array<{ status: StatusView; available_for: number; all: boolean }>;
+        };
+      }>(
+        'GET',
+        `${wsBase(ws)}/task-bulk/status-options?tasks=${ids.map(encodeURIComponent).join(',')}`,
+        {
+          ...(signal ? { signal } : {}),
+        },
+      )
     ).body.data;
   },
   async executeBulk(ws: string, bop: string, stepUp: StepUpResolver) {

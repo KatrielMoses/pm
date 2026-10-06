@@ -498,6 +498,193 @@ describe('task interaction authority and privacy (2D)', () => {
     ).rejects.toEqual(issueOf('use_complete'));
   });
 
+  it('bulk status (review 01): custom statuses, mixed workflows, refusals per item, stale and revoked items', async () => {
+    const w = W[1]!;
+    const o = w.people.owner;
+    const prj = async (name: string) =>
+      (await env.svc.createProject(o, w.ws, { brand: w.brands.main, name }, mutation())).data.id;
+    const [p1, p2] = [await prj('Flow one'), await prj('Flow two')];
+    const notes = (
+      await env.svc.createFieldDefinition(
+        o,
+        w.ws,
+        { scope: `project:${p1}`, applies_to: ['task'], name: 'Notes', field_type: 'text' },
+        mutation(),
+      )
+    ).data;
+    const wf = async (scope: string, names: string[]) =>
+      (
+        await env.svc.createWorkflow(
+          o,
+          w.ws,
+          {
+            scope,
+            record_kind: 'task',
+            name: names.join('/'),
+            statuses: [
+              { name: names[0], category: 'planned' },
+              { name: names[1], category: 'active' },
+              { name: names[2], category: 'done' },
+            ],
+          },
+          mutation(),
+        )
+      ).data;
+    const wf1 = await wf(`project:${p1}`, ['Open', 'Review', 'Closed']);
+    const wf2 = await wf(`project:${p2}`, ['Queued', 'Doing', 'Shipped']);
+    const [open1, review] = [wf1.statuses[0]!.id, wf1.statuses[1]!.id];
+    const [queued, doing] = [wf2.statuses[0]!.id, wf2.statuses[1]!.id];
+    await env.svc.addTransition(
+      o,
+      w.ws,
+      wf1.id,
+      { transition: { from: open1, to: review, requirements: [{ field: notes.id }] } },
+      mutation({ ifMatch: `"${wf1.version}"` }),
+    );
+    await env.svc.addTransition(
+      o,
+      w.ws,
+      wf2.id,
+      { transition: { from: queued, to: doing, approval_policy: 'one_manager' } },
+      mutation({ ifMatch: `"${wf2.version}"` }),
+    );
+    const mk = async (project: string, title: string) =>
+      (await env.svc.createTask(o, w.ws, { project, title }, mutation())).data.id;
+    const a1 = await mk(p1, 'Needs notes');
+    const a2 = await mk(p1, 'Has notes');
+    const b1 = await mk(p2, 'Other workflow');
+    const f = await env.svc.recordFields(o, w.ws, a2);
+    await env.svc.updateRecordFields(
+      o,
+      w.ws,
+      a2,
+      { version: f.version, changes: { [notes.id]: { value: 'ok' } } },
+      mutation(),
+    );
+    // Options for a mixed selection: each workflow's custom statuses, with how many tasks offer them.
+    const opts = await env.svc.bulkStatusOptions(o, w.ws, { tasks: [a1, a2, b1].join(',') });
+    expect(opts).toMatchObject({ tasks: 3, editable: 3, mixed_workflows: true });
+    expect(opts.options.find((x) => x.status.key === review)).toMatchObject({
+      available_for: 2,
+      all: false,
+      status: { name: 'Review', custom: true },
+    });
+    expect(opts.options.find((x) => x.status.key === doing)).toMatchObject({
+      available_for: 1,
+      all: false,
+    });
+    expect(opts.options.some((x) => x.status.key === 'in_progress')).toBe(false);
+    // Preview: target per task, required fields named, unavailable status refused, never mapped.
+    const pv = (
+      await env.svc.previewBulk(
+        o,
+        w.ws,
+        { operation: 'set_status', params: { value: review }, tasks: [a1, a2, b1] },
+        mutation(),
+      )
+    ).data;
+    expect(pv.items).toEqual([
+      expect.objectContaining({
+        task: a1,
+        outcome: 'invalid',
+        required_fields: ['Notes'],
+        target: expect.objectContaining({ key: review }),
+      }),
+      expect.objectContaining({
+        task: a2,
+        outcome: 'ready',
+        target: expect.objectContaining({ key: review, name: 'Review' }),
+      }),
+      expect.objectContaining({ task: b1, outcome: 'invalid', code: 'status_unavailable' }),
+    ]);
+    const ap = (
+      await env.svc.previewBulk(
+        o,
+        w.ws,
+        { operation: 'set_status', params: { value: doing }, tasks: [b1] },
+        mutation(),
+      )
+    ).data;
+    expect(ap.items[0]).toMatchObject({ outcome: 'invalid', code: 'approval_required' });
+    // Apply: only a2 changes, through the evaluator; the others report the same refusals.
+    const ex = (await env.svc.executeBulk(o, w.ws, pv.id, mutation())).data;
+    expect(ex.items.map((i) => i.outcome)).toEqual(['invalid', 'applied', 'invalid']);
+    expect((await env.svc.getTask(o, w.ws, a2)).status).toMatchObject({
+      key: review,
+      custom: true,
+    });
+    expect((await env.svc.getTask(o, w.ws, b1)).status.key).toBe(queued);
+    // Stale: a change after the preview makes the item a conflict at apply.
+    const a3 = await mk(p1, 'Stale one');
+    const f3 = await env.svc.recordFields(o, w.ws, a3);
+    await env.svc.updateRecordFields(
+      o,
+      w.ws,
+      a3,
+      { version: f3.version, changes: { [notes.id]: { value: 'ok' } } },
+      mutation(),
+    );
+    const sp = (
+      await env.svc.previewBulk(
+        o,
+        w.ws,
+        { operation: 'set_status', params: { value: review }, tasks: [a3] },
+        mutation(),
+      )
+    ).data;
+    expect(sp.items[0]!.outcome).toBe('ready');
+    const v3 = (await env.svc.getTask(o, w.ws, a3)).version;
+    await env.svc.updateTask(
+      o,
+      w.ws,
+      a3,
+      merge(v3, { title: { base: 'Stale one', value: 'Renamed' } }),
+      mutation(),
+    );
+    const sx = (await env.svc.executeBulk(o, w.ws, sp.id, mutation())).data;
+    expect(sx.items[0]).toMatchObject({ outcome: 'conflict', code: 'stale' });
+    expect((await env.svc.getTask(o, w.ws, a3)).status.key).toBe(open1);
+    // Permission loss between preview and apply: the item is not_found and unchanged.
+    const lim = w.people.limited_member;
+    const limMem = await mem(1, lim);
+    await apply(env, o, w.ws, {
+      kind: 'project_grant',
+      project: p1,
+      principal: limMem,
+      level: 'edit',
+    });
+    const lp = (
+      await env.svc.previewBulk(
+        lim,
+        w.ws,
+        { operation: 'set_status', params: { value: review }, tasks: [a3] },
+        mutation(),
+      )
+    ).data;
+    expect(lp.items[0]!.outcome).toBe('ready');
+    await env.svc.setAccess(
+      o,
+      w.ws,
+      p1,
+      { access_mode: 'restricted', allow_record_shares: true },
+      mutation(),
+    );
+    await apply(env, o, w.ws, { kind: 'project_revoke', project: p1, principal: limMem });
+    const lx = (await env.svc.executeBulk(lim, w.ws, lp.id, mutation())).data;
+    expect(lx.items[0]!.outcome).toBe('not_found');
+    expect((await env.svc.getTask(o, w.ws, a3)).status.key).toBe(open1);
+    // Share-only readers (a comment share) are refused per item.
+    const g = (
+      await env.svc.previewBulk(
+        w.people.guest,
+        w.ws,
+        { operation: 'set_status', params: { value: 'in_progress' }, tasks: [w.shared] },
+        mutation(),
+      )
+    ).data;
+    expect(g.items[0]!.outcome).toBe('forbidden');
+  });
+
   it('a series pauses when its owner loses authority; resuming requires current manage (AT-136)', async () => {
     const w = W[1]!;
     const o = w.people.owner;

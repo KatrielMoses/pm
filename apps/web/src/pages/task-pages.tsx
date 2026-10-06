@@ -1,10 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type FormEvent, type KeyboardEvent } from 'react';
-import {
-  DELIVERABLE_TYPES,
-  LABEL_COLORS,
-  PROJECT_PRIORITIES,
-  TASK_STATUSES,
-} from '@pm/contracts/shell';
+import { DELIVERABLE_TYPES, LABEL_COLORS, PROJECT_PRIORITIES } from '@pm/contracts/shell';
 import { plainFromRichText, richTextFromPlain } from '@pm/contracts/rich-text';
 import { ApiError } from '../api.ts';
 import {
@@ -659,9 +654,6 @@ function TaskCollection({
                 <BulkBar
                   ws={ws}
                   choices={pages.map((p) => ({ id: p.id, title: p.title }))}
-                  statuses={TASK_STATUSES.filter(
-                    (x) => x.category !== 'done' && x.category !== 'cancelled',
-                  ).map((x) => ({ value: x.key, label: x.name }))}
                   labels={
                     labels.state.status === 'ready'
                       ? labels.state.data.map((l) => ({ value: l.id, label: l.name }))

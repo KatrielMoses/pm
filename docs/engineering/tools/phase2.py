@@ -777,7 +777,7 @@ def check_2d_contracts(registry):
         if m not in metrics:
             errs.append("metric %s not registered" % m)
     env_ts = read(P("packages/contracts/src/envelopes.ts"))
-    for t in ("task_signals", "duplicate_candidates", "template_application"):
+    for t in ("task_signals", "duplicate_candidates", "template_application", "bulk_status_options"):
         if "'%s'" % t not in env_ts:
             errs.append("envelope %s not registered" % t)
     return errs, "%d bounds" % len(BOUNDS_2D)
@@ -806,6 +806,23 @@ def check_2d_invariants():
     if "26, 27, 28]" not in t or "at.get(28)" not in t:
         errs.append("migration boundary test does not cover 27 and 28")
     return errs, "invariants"
+
+
+def check_review01_2d(closure):
+    """2D review 01: template origin and custom-status bulk changes, evidenced."""
+    errs = []
+    ids = {c["id"] for c in closure.get("corrections", [])}
+    if ids != {"R01-C1", "R01-C2"}:
+        errs.append("closure-2d must record corrections R01-C1 and R01-C2")
+    cache = {}
+    for c in closure.get("corrections", []):
+        check_evidence(c["id"], c.get("evidence"), cache, errs)
+    for where in ("packages/db/src/schema.ts", "apps/web/src/tasks/client.ts", "packages/db/migrations/0027_task_interaction.up.sql"):
+        if "'template'" not in read(P(where)):
+            errs.append("%s lacks the template origin kind" % where)
+    if "TASK_STATUSES" in read(P("apps/web/src/pages/task-pages.tsx")):
+        errs.append("the bulk bar still lists only platform statuses")
+    return errs, "R01-C1, R01-C2"
 
 
 def check_adr_2d(closure):
@@ -881,6 +898,7 @@ def main():
         ("phase 2D: bounds, events, prefixes, metrics, envelopes", check_2d_contracts(registry)),
         ("phase 2D: origin, personal state, migrations, scope", check_2d_invariants()),
         ("phase 2D: ADR status and decision rows", check_adr_2d(closure_2d)),
+        ("phase 2D: review 01 corrections evidenced", check_review01_2d(closure_2d)),
     ]
     failed = 0
     for name, result in sections:

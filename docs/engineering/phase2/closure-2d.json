@@ -587,5 +587,55 @@
         }
       ]
     }
+  ],
+  "corrections": [
+    {
+      "id": "R01-C1",
+      "title": "Template provenance is a first-class task origin",
+      "evidence": [
+        {
+          "file": "packages/db/migrations/0027_task_interaction.up.sql",
+          "contains": "('manual', 'recurring', 'template', 'intake', 'import', 'integration', 'ai_draft')"
+        },
+        {
+          "file": "packages/work/src/task-interaction.ts",
+          "contains": "ref: { template: tp.public_id, version: tp.version_number }"
+        },
+        {
+          "file": "packages/work/test/integration/task-interaction.test.ts",
+          "contains": "origins (review 01)"
+        },
+        {
+          "file": "docs/engineering/adr/0016-task-interaction-quality.md",
+          "contains": "review 01 adds `template`"
+        }
+      ]
+    },
+    {
+      "id": "R01-C2",
+      "title": "Bulk status supports custom workflow statuses",
+      "evidence": [
+        {
+          "file": "packages/work/src/task-interaction.ts",
+          "contains": "async bulkStatusOptions("
+        },
+        {
+          "file": "packages/work/test/integration/task-interaction-access.test.ts",
+          "contains": "bulk status (review 01)"
+        },
+        {
+          "file": "apps/api/test/integration/task-interaction-api.test.ts",
+          "contains": "bulk status options and previews name custom workflow statuses"
+        },
+        {
+          "file": "apps/web/test/task-interaction.test.tsx",
+          "contains": "bulk status (review 01)"
+        },
+        {
+          "file": "e2e/task-interaction.spec.ts",
+          "contains": "bulk status offers the project workflow"
+        }
+      ]
+    }
   ]
 }

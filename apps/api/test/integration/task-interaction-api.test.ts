@@ -194,6 +194,60 @@ describe('task interaction API (2D)', () => {
     expect(tooMany.statusCode).toBe(422);
   });
 
+  it('bulk status options and previews name custom workflow statuses (review 01)', async () => {
+    const prj = keep(
+      await owner.post(`${base()}/projects`, { brand, name: 'Custom flow' }, { headers: key() }),
+    ).json().data;
+    const wf = keep(
+      await owner.post(
+        `${base()}/workflows`,
+        {
+          scope: `project:${prj.id}`,
+          record_kind: 'task',
+          name: 'Custom',
+          statuses: [
+            { name: 'Inbox', category: 'planned' },
+            { name: 'Polishing', category: 'active' },
+            { name: 'Released', category: 'done' },
+          ],
+        },
+        { headers: key() },
+      ),
+    );
+    expect(wf.statusCode, wf.body).toBe(201);
+    const polishing = wf.json().data.statuses[1].id;
+    const inProject = await task('In the custom flow', { project: prj.id });
+    const loose = await task('Platform statuses');
+    const o = keep(
+      await owner.get(`${base()}/task-bulk/status-options?tasks=${inProject.id},${loose.id}`),
+    );
+    expect(o.statusCode, o.body).toBe(200);
+    expect(o.json().data).toMatchObject({
+      type: 'bulk_status_options',
+      tasks: 2,
+      mixed_workflows: true,
+    });
+    expect(
+      o.json().data.options.find((x: { status: { key: string } }) => x.status.key === polishing),
+    ).toMatchObject({ available_for: 1, all: false, status: { name: 'Polishing', custom: true } });
+    const p = keep(
+      await owner.post(
+        `${base()}/task-bulk`,
+        { operation: 'set_status', params: { value: polishing }, tasks: [inProject.id, loose.id] },
+        { headers: key() },
+      ),
+    );
+    expect(p.statusCode, p.body).toBe(201);
+    expect(p.json().data.items).toEqual([
+      expect.objectContaining({
+        task: inProject.id,
+        outcome: 'ready',
+        target: expect.objectContaining({ name: 'Polishing' }),
+      }),
+      expect.objectContaining({ task: loose.id, outcome: 'invalid', code: 'status_unavailable' }),
+    ]);
+  });
+
   it('templates and recurrence: save as template, apply (template_application), define and generate', async () => {
     const t = await task('Template me', { priority: 'high' });
     const tpl = keep(

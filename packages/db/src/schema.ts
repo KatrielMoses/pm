@@ -1201,6 +1201,7 @@ export interface TaskTable {
 export const TASK_ORIGIN_KINDS = [
   'manual',
   'recurring',
+  'template',
   'intake',
   'import',
   'integration',

@@ -254,6 +254,7 @@ All decisions are **proposed (Phase 0D)**, pending solutions-architect acceptanc
   - One job, `work.reminders` (every minute; discovery through a payload-free dispatcher function). Task recurrence runs in the existing `work.recurrence` job.
   - Three bounded signals: `work.reminders.fired`, `work.bulk.items`, and `work.undo.applied` (outcome).
   - Refusals: an expired or superseded undo, bulk preview, or inline base is `conflict` (`stale`); a bulk set over the bound or a snooze beyond its bound is `validation_failed` (`too_many`, `out_of_range`); unreadable items are `not_found`.
+- Review 01: the non-resource `bulk_status_options` envelope lists a selection's statuses (custom included) with per-status task counts; task origin gains `template`.
 - **Alternatives:** Per-channel reminder events (channels are 4B). A bulk job per item (one command, one report).
 - **Consequences:** Event payloads carry identifiers, kinds, counts, and states only, never titles, reminder notes, or field values. 83 ID prefixes, 91 events, 80 named parameters, 57 telemetry signals.
 

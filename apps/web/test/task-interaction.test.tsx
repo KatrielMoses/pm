@@ -350,7 +350,6 @@ describe('bulk bar (D8)', () => {
           { id: 'tsk_1', title: 'Alpha' },
           { id: 'tsk_2', title: 'Bravo' },
         ]}
-        statuses={[{ value: 'todo', label: 'To do' }]}
         labels={[]}
         onApplied={applied}
       />,
@@ -376,5 +375,85 @@ describe('bulk bar (D8)', () => {
     );
     expect(applied).toHaveBeenCalledWith('Archive: 1 of 2 changed.', null);
     expect(screen.getByText("Bravo: You can't change this one")).toBeTruthy();
+  });
+});
+
+describe('bulk status (review 01): the selection’s statuses, custom ones included', () => {
+  it('lists each workflow’s statuses with how many tasks offer them and shows the proposed target per task', async () => {
+    const opts = vi.spyOn(tasks, 'bulkStatusOptions').mockResolvedValue({
+      tasks: 2,
+      editable: 2,
+      mixed_workflows: true,
+      options: [
+        {
+          status: { key: 'todo', name: 'To do', category: 'planned' },
+          available_for: 2,
+          all: true,
+        },
+        {
+          status: { key: 'sts_X', name: 'Polishing', category: 'active', custom: true } as never,
+          available_for: 1,
+          all: false,
+        },
+      ],
+    });
+    const preview = vi.spyOn(tasks, 'previewBulk').mockResolvedValue({
+      id: 'bop_2',
+      type: 'bulk_operation',
+      operation: 'set_status',
+      mode: 'partial',
+      destructive: false,
+      state: 'previewed',
+      expires_at: new Date(Date.now() + 600_000).toISOString(),
+      executed_at: null,
+      items: [
+        {
+          task: 'tsk_1',
+          outcome: 'ready',
+          target: { key: 'sts_X', name: 'Polishing', category: 'active' } as never,
+        },
+        { task: 'tsk_2', outcome: 'invalid', code: 'status_unavailable' },
+      ],
+      counts: { ready: 1, invalid: 1 },
+      version: 0,
+    });
+    wrap(
+      <BulkBar
+        ws="ws_A"
+        choices={[
+          { id: 'tsk_1', title: 'Alpha' },
+          { id: 'tsk_2', title: 'Bravo' },
+        ]}
+        labels={[]}
+        onApplied={() => undefined}
+      />,
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Select all shown' }));
+    await act(async () =>
+      fireEvent.change(screen.getByLabelText('Action'), { target: { value: 'set_status' } }),
+    );
+    expect(opts).toHaveBeenCalledWith('ws_A', ['tsk_1', 'tsk_2'], expect.anything());
+    const select = screen.getByLabelText('Status') as HTMLSelectElement;
+    expect([...select.options].map((o) => o.textContent)).toEqual([
+      'To do',
+      'Polishing (custom) — only 1 of 2 tasks',
+    ]);
+    expect(screen.getByText(/use different workflows/)).toBeTruthy();
+    fireEvent.change(select, { target: { value: 'sts_X' } });
+    expect(screen.getByText(/Only 1 of 2 selected tasks offer/)).toBeTruthy();
+    await act(async () => fireEvent.click(screen.getByRole('button', { name: 'Preview change' })));
+    expect(preview).toHaveBeenCalledWith(
+      'ws_A',
+      { operation: 'set_status', params: { value: 'sts_X' }, tasks: ['tsk_1', 'tsk_2'] },
+      expect.anything(),
+    );
+    const rows = within(screen.getByRole('dialog'))
+      .getAllByRole('row')
+      .map((r) => r.textContent);
+    expect(rows).toEqual([
+      'TaskProposed statusResult',
+      'AlphaPolishingWill change',
+      "Bravo—Can't be changed this way: Its workflow doesn’t offer this status",
+    ]);
   });
 });
