@@ -64,6 +64,7 @@ import {
   NotePage,
   NotesPage,
 } from './pages/capture-pages.tsx';
+import { SavedViewPage, SavedViewsPage } from './pages/view-pages.tsx';
 import { Page } from './ui/layout.tsx';
 
 type Params = Record<string, string>;
@@ -105,6 +106,8 @@ export const ROUTE_COMPONENTS: Record<string, Render> = {
   goals: destination('goals'),
   reports: destination('reports'),
   shared: (p) => <SharedWithMePage key={p.ws} ws={p.ws!} />,
+  views: (p) => <SavedViewsPage key={p.ws} ws={p.ws!} />,
+  view: (p) => <SavedViewPage key={p.view} ws={p.ws!} view={p.view!} />,
   favorites: (p) => <FavoritesPage key={p.ws} ws={p.ws!} />,
   recent: (p) => <RecentPage key={p.ws} ws={p.ws!} />,
   people: (p) => <PeoplePage key={p.ws} ws={p.ws!} />,

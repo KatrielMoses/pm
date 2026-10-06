@@ -112,6 +112,8 @@ export const shell = {
       })
     ).body.data,
 
+  pins: async (id: string) =>
+    (await api<{ data: NavTarget[] }>('GET', `${ws(id)}/navigation/pins`)).body.data,
   favorites: async (id: string) =>
     (await api<{ data: NavTarget[] }>('GET', `${ws(id)}/favorites`)).body.data,
   addFavorite: async (id: string, target: string) =>

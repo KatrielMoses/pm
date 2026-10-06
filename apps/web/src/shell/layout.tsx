@@ -530,6 +530,18 @@ function PersonalLists({ ws }: { ws: string }) {
   const shellState = useWorkspaceShell()!;
   return (
     <>
+      {shellState.pins.length ? (
+        <section className="nav-section nav-pins" aria-labelledby="nav-pins-h">
+          <h2 id="nav-pins-h" className="nav-heading">
+            <Link to={routeHref('views', { ws })}>Pinned views</Link>
+          </h2>
+          <ul>
+            {shellState.pins.slice(0, 20).map((t) => (
+              <TargetLink key={t.id} ws={ws} t={t} />
+            ))}
+          </ul>
+        </section>
+      ) : null}
       <section className="nav-section nav-favorites" aria-labelledby="nav-fav-h">
         <h2 id="nav-fav-h" className="nav-heading">
           <Link to={routeHref('favorites', { ws })}>Favorites</Link>

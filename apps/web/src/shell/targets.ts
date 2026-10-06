@@ -10,6 +10,8 @@ export function targetHref(ws: string, t: Pick<NavTarget, 'id' | 'type'>): strin
       return routeHref('project', { ws, prj: t.id });
     case 'task':
       return routeHref('task', { ws, tsk: t.id });
+    case 'saved_view':
+      return routeHref('view', { ws, view: t.id });
     default:
       return routeHref('team', { ws, team: t.id });
   }
@@ -20,4 +22,5 @@ export const TARGET_TYPE_LABEL: Record<NavTarget['type'], string> = {
   team: 'Team',
   project: 'Project',
   task: 'Task',
+  saved_view: 'Saved view',
 };
