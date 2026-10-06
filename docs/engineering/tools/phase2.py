@@ -695,6 +695,53 @@ def check_adr_2c(closure):
     return errs, "ADR-0015 %s" % m.group(1)
 
 
+# ---- Phase 2C corrective review 01 ---------------------------------------------------------------
+
+CONCURRENCY_PAIRS = [
+    "workflow edit vs status reorder",
+    "transition add/edit/archive and required-field changes",
+    "a configuration change while a transition preview/apply is in flight",
+    "field definitions, values, and set versions",
+    "formula dependency edits racing toward a cycle",
+    "approval policy, requests, decisions, and applies",
+]
+TIMING_SURFACES = ["record fields:", "formula explanations:", "required-field errors:", "audit projection:", "serialization and counts:"]
+
+
+def check_review01(closure):
+    """The three corrections: concurrency suite, configuration audit facts, timing evidence."""
+    errs = []
+    ids = {c["id"] for c in closure.get("corrections", [])}
+    if ids != {"R01-C1", "R01-C2", "R01-C3"}:
+        errs.append("closure-2c must record corrections R01-C1..C3")
+    cache = {}
+    for c in closure.get("corrections", []):
+        check_evidence(c["id"], c.get("evidence"), cache, errs)
+    ct = read(P("packages/work/test/integration/workflow-concurrency.test.ts"))
+    for pair in CONCURRENCY_PAIRS:
+        if pair not in ct:
+            errs.append("concurrency suite lacks: %s" % pair)
+    for need in ("contended(", "pg_stat_activity", "set_config('app.workspace_id'", "db.worker", "exec.outbox_event", "audit.audit_event"):
+        if need not in ct:
+            errs.append("concurrency suite does not use %s" % need)
+    svc = read(P("packages/work/src/workflow-service.ts"))
+    if "configChanges(" not in svc or "track('transition'" not in svc or "track('status'" not in svc:
+        errs.append("workflow configuration commands do not record before/after snapshots")
+    if re.search(r"change\.plain\('(status|transition)_(added|moved|state|deleted)'", svc):
+        errs.append("ad hoc configuration audit changes remain (use configChanges)")
+    tt = read(P("packages/work/test/integration/field-timing.test.ts"))
+    for surface in TIMING_SURFACES:
+        if surface not in tt:
+            errs.append("timing suite lacks surface: %s" % surface)
+    for need in ("statementShape", "measureClasses"):
+        if need not in tt:
+            errs.append("timing suite does not use %s" % need)
+    harness = read(P("packages/test-support/src/timing.ts"))
+    if "export const TIMING_DEFAULTS" not in harness or "absMs" not in harness or "rel:" not in harness:
+        errs.append("the timing threshold is not documented in the harness")
+    return errs, "concurrency, audit, timing"
+
+
 def main():
     catalog = load(P("docs/product/requirements/catalog.json"))
     registry = load(P("docs/architecture/platform/contracts/registry.json"))
@@ -704,7 +751,7 @@ def main():
     subphases = phase1.roadmap_subphases()
     closure_2b_result = check_closure(catalog, closure_2b, subphases, "2B")
     closure_2c = load(P("docs/engineering/phase2/closure-2c.json"))
-    closure_2c_result = check_closure(catalog, closure_2c, subphases, "2C", ["D%d" % i for i in range(1, 24)])
+    closure_2c_result = check_closure(catalog, closure_2c, subphases, "2C", ["D%d" % i for i in range(1, 27)])
     if closure_2b.get("phase") != "2B":
         closure_2b_result[0].append("closure-2b phase must be 2B")
     sections = [
@@ -744,6 +791,7 @@ def main():
         ("phase 2C: approval facts append-only", check_approval_immutability()),
         ("phase 2C: workflow events registered", check_workflow_events(registry)),
         ("phase 2C: ADR status and decision rows", check_adr_2c(closure_2c)),
+        ("phase 2C: review 01 corrections evidenced", check_review01(closure_2c)),
     ]
     failed = 0
     for name, result in sections:

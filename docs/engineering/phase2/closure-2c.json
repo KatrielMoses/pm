@@ -811,6 +811,165 @@
           "contains": "| W23 |"
         }
       ]
+    },
+    {
+      "id": "D24",
+      "title": "Lock order and configuration concurrency (review 01)",
+      "adr_row": "W24",
+      "sources": [
+        {
+          "file": "docs/engineering/adr/0015-workflows-fields.md",
+          "contains": "| W24 |"
+        }
+      ],
+      "evidence": [
+        {
+          "file": "packages/work/test/integration/workflow-concurrency.test.ts",
+          "contains": "workflow edit vs status reorder at the same version"
+        },
+        {
+          "file": "packages/work/test/integration/workflow-concurrency.test.ts",
+          "contains": "formula dependency edits racing toward a cycle"
+        },
+        {
+          "file": "packages/work/test/integration/workflow-concurrency.test.ts",
+          "contains": "a configuration change while a transition preview/apply is in flight"
+        },
+        {
+          "file": "packages/work/test/integration/workflow-concurrency.test.ts",
+          "contains": "approval policy, requests, decisions, and applies"
+        },
+        {
+          "file": "packages/work/src/field-service.ts",
+          "contains": "protected async lockFieldGraph"
+        },
+        {
+          "file": "packages/work/src/workflow-service.ts",
+          "contains": ".forShare()"
+        }
+      ]
+    },
+    {
+      "id": "D25",
+      "title": "Configuration audit facts (review 01)",
+      "adr_row": "W25",
+      "sources": [
+        {
+          "file": "docs/architecture/data/07-audit-provenance.md",
+          "contains": "7.3.1 Workflow configuration facts"
+        }
+      ],
+      "evidence": [
+        {
+          "file": "packages/work/src/workflow/config-audit.ts",
+          "contains": "export function configChanges"
+        },
+        {
+          "file": "packages/work/test/unit/workflow-engine.test.ts",
+          "contains": "records scalar before/after for settings and hashes"
+        },
+        {
+          "file": "packages/work/test/integration/workflows.test.ts",
+          "contains": "configuration audit: safe before/after facts in the ledger"
+        }
+      ]
+    },
+    {
+      "id": "D26",
+      "title": "Constant-shape reads and timing evidence (review 01)",
+      "adr_row": "W26",
+      "sources": [
+        {
+          "file": "docs/engineering/adr/0015-workflows-fields.md",
+          "contains": "| W26 |"
+        }
+      ],
+      "evidence": [
+        {
+          "file": "packages/test-support/src/timing.ts",
+          "contains": "export async function statementShape"
+        },
+        {
+          "file": "packages/work/test/integration/field-timing.test.ts",
+          "contains": "record fields: hidden values present vs absent"
+        },
+        {
+          "file": "packages/work/test/integration/field-timing.test.ts",
+          "contains": "formula explanations: hidden formula"
+        },
+        {
+          "file": "packages/work/test/integration/field-timing.test.ts",
+          "contains": "required-field errors: a hidden requirement"
+        },
+        {
+          "file": "packages/work/test/integration/field-timing.test.ts",
+          "contains": "audit projection: history with hidden field changes"
+        },
+        {
+          "file": "packages/work/test/integration/field-timing.test.ts",
+          "contains": "serialization and counts"
+        }
+      ]
+    }
+  ],
+  "corrections": [
+    {
+      "id": "R01-C1",
+      "title": "Dedicated configuration concurrency coverage",
+      "evidence": [
+        {
+          "file": "packages/work/test/integration/workflow-concurrency.test.ts",
+          "contains": "contended("
+        },
+        {
+          "file": "packages/work/test/integration/workflow-concurrency.test.ts",
+          "contains": "Direct pooled app_rw"
+        },
+        {
+          "file": "packages/work/test/integration/workflow-concurrency.test.ts",
+          "contains": "Direct pooled app_worker"
+        },
+        {
+          "file": "docs/engineering/adr/0015-workflows-fields.md",
+          "contains": "| W24 |"
+        }
+      ]
+    },
+    {
+      "id": "R01-C2",
+      "title": "Complete transition-configuration audit facts",
+      "evidence": [
+        {
+          "file": "packages/work/src/workflow-service.ts",
+          "contains": "++slots[t.entity]"
+        },
+        {
+          "file": "packages/work/test/integration/workflows.test.ts",
+          "contains": "for (const leak of ['Secret', 'Private Words', 'Grace'"
+        },
+        {
+          "file": "docs/engineering/adr/0015-workflows-fields.md",
+          "contains": "| W25 |"
+        }
+      ]
+    },
+    {
+      "id": "R01-C3",
+      "title": "Hidden-field timing evidence and bounded behavior",
+      "evidence": [
+        {
+          "file": "packages/work/test/integration/field-timing.test.ts",
+          "contains": "sameShapeAndTime"
+        },
+        {
+          "file": "packages/test-support/src/timing.ts",
+          "contains": "export const TIMING_DEFAULTS"
+        },
+        {
+          "file": "docs/engineering/adr/0015-workflows-fields.md",
+          "contains": "| V9 |"
+        }
+      ]
     }
   ]
 }

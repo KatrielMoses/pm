@@ -210,11 +210,15 @@ triggers and platform-status foreign keys; 0026's down restores the 0024 `work.m
 applicable workflow does not offer; `workflow_status_guard` refuses deleting a status in use. The
 SQL safety gate now covers the `workflow` schema.
 
+Lock order (ADR-0015 W24): record row → applicable workflow row `FOR SHARE` for status changes; workflow row `FOR UPDATE` → status and transition rows for workflow configuration; the workspace field-graph advisory lock → definition row for field configuration; record row → approval request row for approvals.
+
 | Suite | Proves |
 |---|---|
 | `packages/work/test/unit/workflow-engine.test.ts` | Formula language, typed errors, AST validation; linear-time patterns; field values (currency, percentage, URL, email); lossless serialization |
 | `packages/work/test/integration/workflows.test.ts` | Resolution and precedence, fixed categories, archive and migration, transitions that edits cannot bypass, atomic required fields, approvals (stale, rejected, applied once, self-approval), TSK-031 |
 | `packages/work/test/integration/fields.test.ts` | Every type, references without access, options with replacement, formula chains, cycles, depth, field policy, field sets, cross-brand move and purge, the canonical document |
 | `packages/work/test/integration/workflow-plans.test.ts` | Pooled `app_rw` and `app_worker` isolation for all 15 tables; append-only approvals; query plans at 5,000 records × 10 fields |
+| `packages/work/test/integration/workflow-concurrency.test.ts` | Review 01: two managers on the same or overlapping configuration through a pooled `app_rw` barrier (workflow edit vs reorder, transitions and requirements, a configuration change during preview/apply, definitions, values, set versions, formula cycles, approvals); one success plus a typed conflict or serialized commits; invariants, audit, outbox, permission epochs |
+| `packages/work/test/integration/field-timing.test.ts` | Review 01: equal statement shapes and one timing class (`@pm/test-support` timing harness) for hidden vs visible fields, unreadable vs unknown records, formula explanations, required-field errors, history, export, and set-preview counts |
 | `apps/api/test/integration/workflows-api.test.ts` | HTTP configuration, preview and apply, values with ETags, collection verbs, uniform `not_found`, no internal UUIDs |
 | `apps/web/test/workflow.test.tsx`, `e2e/workflows.spec.ts` | Routes; More fields; transition dialog; configuration, approvals, and fields on desktop, tablet, and mobile with axe, forced colors, and 320 px |

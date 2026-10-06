@@ -50,6 +50,17 @@ Each field in the domain model is tagged with a **value class** in the owning mo
 | `secret` | **Never captured**: `{changed: true}` only |
 | `credential-ref` | Reference ID changes only |
 
+### 7.3.1 Workflow configuration facts (Phase 2C, ADR-23)
+
+Workflow, status, transition, required-field, and approval-policy changes record deterministic before/after snapshots in the audit ledger (no separate history store):
+
+| Snapshot setting | Class in the entry | Notes |
+|---|---|---|
+| Public IDs, operation, scope kind, record kind, category, color, icon, rank, state, version, confirmation tier, approval policy, self-approval flag, required-field references (`builtin:<key>` or a field's public ID, `:override`), approver count | `plain` (C1) | Bounded scalars or arrays |
+| Names, descriptions | `plain` holding a canonical SHA-256 (`*_hash`) | Equality is checkable; the text is not stored |
+| Approver set | `plain` holding a canonical SHA-256 of the sorted IDs | No personal identifiers in the entry |
+| Custom field values (`fields.<field id>`) | `content` hash | Projected only for readers of the field |
+
 ## 7.4 Immutable decisions and evidence
 
 | Record | Table | Immutability |
