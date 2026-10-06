@@ -61,14 +61,12 @@ test('first use: brand, project, capture by button and keyboard, paste, daily In
   await expect(dialog(page)).toBeVisible();
   const area = dialog(page).getByLabel('What do you want to capture?');
   await area.focus();
-  await page.evaluate(() => {
-    const ta = document.activeElement as HTMLTextAreaElement;
+  await page.evaluate(`(() => {
+    const ta = document.activeElement;
     const data = new DataTransfer();
-    data.setData('text', '- Book venue\n- Order banners; print flyers');
-    ta.dispatchEvent(
-      new ClipboardEvent('paste', { clipboardData: data, bubbles: true, cancelable: true }),
-    );
-  });
+    data.setData('text', '- Book venue\\n- Order banners; print flyers');
+    ta.dispatchEvent(new ClipboardEvent('paste', { clipboardData: data, bubbles: true, cancelable: true }));
+  })()`);
   await expect(dialog(page).getByLabel('Item 2')).toHaveValue('Order banners; print flyers');
   await dialog(page).getByRole('button', { name: 'Split item 2 at semicolons' }).click();
   await expect(dialog(page).getByLabel('Item 3')).toHaveValue('print flyers');
