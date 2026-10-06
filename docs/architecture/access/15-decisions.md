@@ -220,6 +220,18 @@ All decisions are **proposed (Phase 0C)**, pending solutions-architect acceptanc
 - **Alternatives:** Assignment as a grant (contradicts I-10). Shares implying children or the project (contradicts OD-04). A separate task permission table (a second authority source).
 - **Consequences:** The compiled predicate's governing-project derivation gains tasks; preview and enforcement stay one engine.
 
+<a id="az-24"></a>
+### AZ-24: Task interaction quality (Phase 2D amendment)
+- **Decision:**
+  - **Personal state.** `task.remind` and `task.snooze` (record, view) are personal: they grant nothing, change nothing on the task, and are never shown to anyone else. The reminder worker rechecks `record.read` before firing; a reminder on a task that became unreadable is cancelled without notice (AT-134, AT-135).
+  - **Recurrence.** `task.manage_recurrence` (record, manage) mirrors `project.manage_recurrence`; each occurrence needs `record.create` in the brand (and the project), rechecked per occurrence, and a series whose owner lost it pauses (AT-136). Occurrences never copy assignees, shares, approvals, relationships, comments, history, or field values the owner could not read.
+  - **Templates.** Creating or versioning task templates is `templates.manage`; applying one is `record.create` at the explicit brand or project. Content the applier may not set is omitted and reported by kind, never by value (AT-137).
+  - **Signals and duplicates.** Freshness, blocked, missing-data, and duplicate signals are computed only from records and fields the viewer can read; unreadable blockers and candidates are omitted with no count or placeholder (AT-130, AT-131).
+  - **Bulk, ordering, and undo.** Bulk commands authorize every item with that item's own action. Unreadable items in an explicit set are reported as `not_found`, exactly like unknown identifiers (AT-132). Ordering commands are `record.update` on the moved task. Undo entries belong to their actor alone and re-run current authorization and version checks (AT-133).
+  - **New actions.** `task.remind`, `task.snooze`, and `task.manage_recurrence`. The action count becomes 118.
+- **Alternatives:** Reminders as shared task facts (would expose personal state). A bulk-specific permission (a second authority source).
+- **Consequences:** No new access tables; personal rows are RLS-limited to their account.
+
 <a id="az-23"></a>
 ### AZ-23: Workflow configuration, transitions, approvals, and field policy (Phase 2C amendment)
 - **Decision:**

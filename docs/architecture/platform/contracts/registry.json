@@ -687,6 +687,30 @@
       "owner_module": "workflow",
       "platform_only": false,
       "note": "Phase 2C (PL-25)."
+    },
+    {
+      "prefix": "rem",
+      "resource": "task_reminder",
+      "entity": "planning.task_reminder",
+      "owner_module": "planning",
+      "platform_only": false,
+      "note": "Phase 2D (PL-26)."
+    },
+    {
+      "prefix": "bop",
+      "resource": "bulk_operation",
+      "entity": "work.bulk_operation",
+      "owner_module": "work",
+      "platform_only": false,
+      "note": "Phase 2D (PL-26)."
+    },
+    {
+      "prefix": "und",
+      "resource": "undo_entry",
+      "entity": "work.undo_entry",
+      "owner_module": "work",
+      "platform_only": false,
+      "note": "Phase 2D (PL-26)."
     }
   ],
   "error_codes": [
@@ -3091,6 +3115,101 @@
       ],
       "allow_list_version": null,
       "delivery_authorization": null
+    },
+    {
+      "type": "planning.task_reminder.scheduled",
+      "schema_version": 1,
+      "aggregate_entity": "planning.task_reminder",
+      "fields": [
+        "task_id",
+        "state"
+      ],
+      "max_class": "C1",
+      "consumers": {
+        "activity": false,
+        "notification": false,
+        "metrics": true,
+        "automation_trigger": false,
+        "search_index": false
+      },
+      "public_webhook": null,
+      "requirements": [
+        "TSK-032"
+      ],
+      "allow_list_version": null,
+      "delivery_authorization": null
+    },
+    {
+      "type": "planning.task_reminder.fired",
+      "schema_version": 1,
+      "aggregate_entity": "planning.task_reminder",
+      "fields": [
+        "task_id",
+        "account_id"
+      ],
+      "max_class": "C1",
+      "consumers": {
+        "activity": false,
+        "notification": true,
+        "metrics": true,
+        "automation_trigger": false,
+        "search_index": false
+      },
+      "public_webhook": null,
+      "requirements": [
+        "TSK-032"
+      ],
+      "allow_list_version": null,
+      "delivery_authorization": null
+    },
+    {
+      "type": "work.bulk_operation.executed",
+      "schema_version": 1,
+      "aggregate_entity": "work.bulk_operation",
+      "fields": [
+        "operation",
+        "mode",
+        "item_count",
+        "succeeded",
+        "failed"
+      ],
+      "max_class": "C1",
+      "consumers": {
+        "activity": true,
+        "notification": false,
+        "metrics": true,
+        "automation_trigger": false,
+        "search_index": false
+      },
+      "public_webhook": null,
+      "requirements": [
+        "TSK-038"
+      ],
+      "allow_list_version": null,
+      "delivery_authorization": null
+    },
+    {
+      "type": "work.task.undone",
+      "schema_version": 1,
+      "aggregate_entity": "work.task",
+      "fields": [
+        "task_id",
+        "command"
+      ],
+      "max_class": "C1",
+      "consumers": {
+        "activity": true,
+        "notification": false,
+        "metrics": true,
+        "automation_trigger": false,
+        "search_index": false
+      },
+      "public_webhook": null,
+      "requirements": [
+        "TSK-043"
+      ],
+      "allow_list_version": null,
+      "delivery_authorization": null
     }
   ],
   "scopes": [
@@ -3948,6 +4067,30 @@
         "outcome"
       ],
       "area": "workflow"
+    },
+    {
+      "name": "work.reminders.fired",
+      "type": "counter",
+      "labels": [
+        "outcome"
+      ],
+      "area": "work"
+    },
+    {
+      "name": "work.bulk.items",
+      "type": "counter",
+      "labels": [
+        "outcome"
+      ],
+      "area": "work"
+    },
+    {
+      "name": "work.undo.applied",
+      "type": "counter",
+      "labels": [
+        "outcome"
+      ],
+      "area": "work"
     }
   ],
   "forbidden_metric_labels": [
@@ -4326,6 +4469,66 @@
       "name": "FIELD_VALUE_BULK_MAX",
       "meaning": "Most records migrated by one status or option replacement command; default 500, range 1–5000.",
       "owner": "2C"
+    },
+    {
+      "name": "TASK_STALE_ACTIVE_DAYS",
+      "meaning": "Days without a meaningful update after which an active or blocked task is stale (OD-17); default 7, range 1–90.",
+      "owner": "2D"
+    },
+    {
+      "name": "TASK_STALE_PLANNED_DAYS",
+      "meaning": "Days without a meaningful update after which a planned task is stale (OD-17); default 14, range 1–180.",
+      "owner": "2D"
+    },
+    {
+      "name": "TASK_RESCHEDULE_COUNT",
+      "meaning": "Material due-date or deadline edits within the window that mark a task repeatedly rescheduled (OD-17); default 3, range 2–20.",
+      "owner": "2D"
+    },
+    {
+      "name": "TASK_RESCHEDULE_WINDOW_DAYS",
+      "meaning": "Window for counting reschedules (OD-17); default 14, range 1–90.",
+      "owner": "2D"
+    },
+    {
+      "name": "TASK_REMINDERS_MAX",
+      "meaning": "Most scheduled reminders one person may hold on one task; default 10, range 1–50.",
+      "owner": "2D"
+    },
+    {
+      "name": "REMINDER_FIRE_BATCH_MAX",
+      "meaning": "Most due reminders one worker run fires per workspace; later ones wait for the next run; default 500, range 1–5000.",
+      "owner": "2D"
+    },
+    {
+      "name": "TASK_SNOOZE_MAX_DAYS",
+      "meaning": "Furthest a snooze may reach; default 365, range 1–3650.",
+      "owner": "2D"
+    },
+    {
+      "name": "BULK_ITEMS_MAX",
+      "meaning": "Most tasks in one bulk command's explicit set; default 200, range 1–1000.",
+      "owner": "2D"
+    },
+    {
+      "name": "BULK_PREVIEW_TTL_SECONDS",
+      "meaning": "How long a bulk preview may be executed; default 600, range 60–3600.",
+      "owner": "2D"
+    },
+    {
+      "name": "UNDO_WINDOW_SECONDS",
+      "meaning": "How long a reversible mutation can be undone; default 30, range 5–300.",
+      "owner": "2D"
+    },
+    {
+      "name": "DUPLICATE_WINDOW_DAYS",
+      "meaning": "How far back deterministic duplicate matching looks; default 90, range 1–365.",
+      "owner": "2D"
+    },
+    {
+      "name": "DUPLICATE_CANDIDATES_MAX",
+      "meaning": "Most duplicate candidates returned; default 5, range 1–20.",
+      "owner": "2D"
     }
   ],
   "sse_topics": [

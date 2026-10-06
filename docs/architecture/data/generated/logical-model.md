@@ -2050,10 +2050,10 @@ Unit of work: exactly one brand, optional project, optional parent task; defects
 | Volume / export / search-AI | `very-high` / `filtered` / `yes` |
 | Secrets / personal data | `no` / `incidental` |
 | Uniqueness | — |
-| Key typed columns | `project_id null (same workspace and brand; subtasks share their parent's project identity)`; `parent_task_id null (same workspace, brand, and project identity)`; `ancestor_ids uuid[] (root first, excluding self)`; `depth smallint (root = 0; TASK_DEPTH_MAX enforced by commands, hard ceiling 64 in the database)`; `title`; `description_rich jsonb (rich text version 1, 0D PL-23)`; `status_id (workflow.platform_status until 2C)`; `status_category (denormalized, guarded)`; `prior_status_id null (reopen target)`; `priority (none\|low\|medium\|high\|urgent)`; `start_date date`; `due_date date`; `deadline_date date \| deadline_at timestamptz + deadline_tz (never changed implicitly)`; `estimate_minutes int null`; `remaining_estimate_minutes int null`; `completed_at`; `completion_override_reason text null`; `expected_deliverable_type (document\|file\|url\|pull_request\|test_report\|other) null`; `expected_deliverable_detail text null`; `requires_acceptance boolean`; `rank text`; `created_by_membership_id`; `version bigint` |
+| Key typed columns | `project_id null (same workspace and brand; subtasks share their parent's project identity)`; `parent_task_id null (same workspace, brand, and project identity)`; `ancestor_ids uuid[] (root first, excluding self)`; `depth smallint (root = 0; TASK_DEPTH_MAX enforced by commands, hard ceiling 64 in the database)`; `title`; `description_rich jsonb (rich text version 1, 0D PL-23)`; `status_id (workflow.platform_status until 2C)`; `status_category (denormalized, guarded)`; `prior_status_id null (reopen target)`; `priority (none\|low\|medium\|high\|urgent)`; `start_date date`; `due_date date`; `deadline_date date \| deadline_at timestamptz + deadline_tz (never changed implicitly)`; `estimate_minutes int null`; `remaining_estimate_minutes int null`; `completed_at`; `completion_override_reason text null`; `expected_deliverable_type (document\|file\|url\|pull_request\|test_report\|other) null`; `expected_deliverable_detail text null`; `requires_acceptance boolean`; `rank text`; `created_by_membership_id`; `version bigint`; `origin_kind (manual\|recurring\|intake\|import\|integration\|ai_draft; immutable)`; `origin_ref jsonb (safe identifiers only: series, occurrence, template, version; immutable)`; `recurrence_series_id null + occurrence_key null (unique together)`; `last_meaningful_update_at timestamptz (OD-17 freshness; maintained by triggers)` |
 | Sensitive fields | — |
-| Requirements | TSK-001, TSK-002, TSK-003, TSK-004, TSK-005, TSK-006, TSK-010, TSK-022, TSK-023, TSK-031, TSK-039, TSK-041 |
-| Notes | Phase 2B (ADR-22): phase/milestone association, task types, manual blocked reasons, due times, recurrence, and freshness fields are not part of 2B; they arrive with their owning phases. Scheduled time is a planning work block (3C), never a task column. |
+| Requirements | TSK-001, TSK-002, TSK-003, TSK-004, TSK-005, TSK-006, TSK-010, TSK-022, TSK-023, TSK-027, TSK-031, TSK-033, TSK-035, TSK-036, TSK-037, TSK-038, TSK-039, TSK-040, TSK-041, TSK-042, TSK-043, TSK-044 |
+| Notes | Phase 2B (ADR-22): phase/milestone association, task types, manual blocked reasons, due times, recurrence, and freshness fields are not part of 2B; they arrive with their owning phases. Scheduled time is a planning work block (3C), never a task column. Phase 2D (ADR-24): task origin is a closed kind with safe metadata, immutable except through a registered migration; freshness is a trigger-maintained column; repeated rescheduling is derived from the audit ledger. |
 
 <a id="entity-task-assignee"></a>
 ### `task_assignee`
@@ -2221,25 +2221,47 @@ Structured decision or open question in a project or brand (OD-15, decided).
 | Requirements | PRJ-024, AI-013 |
 | Notes | Phase 2A (ADR-21): cross-kind states are rejected by the database and the service; documents may link later but are not the authority. |
 
-<a id="entity-reminder"></a>
-### `reminder`
+<a id="entity-bulk-operation"></a>
+### `bulk_operation`
 
-Personal reminder for a task at an instant.
+A previewed then executed bulk command over a bounded explicit set of tasks, with a per-item report.
 
 | Property | Value |
 |---|---|
-| Scope | `personal` |
+| Scope | `workspace` |
 | Contained by | — |
 | Extends (1:1) | — |
 | Associations | [`task`](logical-model.md#entity-task) |
 | Lifecycle / concurrency | `state-machine` / `row-version` |
-| Retention / confidentiality | `R-PERSONAL` / `C2` |
-| Volume / export / search-AI | `high` / `self` / `yes` |
+| Retention / confidentiality | `R-EPHEMERAL` / `C1` |
+| Volume / export / search-AI | `medium` / `never` / `no` |
 | Secrets / personal data | `no` / `incidental` |
 | Uniqueness | — |
-| Key typed columns | standard columns only |
+| Key typed columns | `public_id text (bop_)`; `account_id`; `operation text`; `mode (atomic\|partial)`; `state (previewed\|executed\|expired)`; `item_ids uuid[] (at most BULK_ITEMS_MAX)`; `fingerprint bytea`; `results jsonb (per item: id, outcome, code)`; `expires_at` |
 | Sensitive fields | — |
-| Requirements | TSK-032 |
+| Requirements | TSK-038 |
+| Notes | Phase 2D (ADR-24). Results carry identifiers and outcome codes only; unreadable items are reported as not_found without detail. |
+
+<a id="entity-undo-entry"></a>
+### `undo_entry`
+
+The inverse of one reversible task mutation, available to its actor for UNDO_WINDOW_SECONDS or until a conflicting change.
+
+| Property | Value |
+|---|---|
+| Scope | `workspace` |
+| Contained by | — |
+| Extends (1:1) | — |
+| Associations | [`task`](logical-model.md#entity-task) |
+| Lifecycle / concurrency | `state-machine` / `row-version` |
+| Retention / confidentiality | `R-EPHEMERAL` / `C2` |
+| Volume / export / search-AI | `high` / `never` / `no` |
+| Secrets / personal data | `no` / `incidental` |
+| Uniqueness | — |
+| Key typed columns | `public_id text (und_)`; `account_id`; `command text`; `targets jsonb (task id and expected version per target)`; `inverse jsonb (prior values of the changed fields only)`; `state (available\|applied\|expired\|conflicted)`; `expires_at` |
+| Sensitive fields | — |
+| Requirements | TSK-043 |
+| Notes | Phase 2D (ADR-24). Applying an undo is an audited inverse command with a new idempotency key and a version check; it never bypasses current authorization. |
 
 ## Inbox and capture (`capture`, schema `capture`)
 
@@ -2425,10 +2447,10 @@ Recurrence rule anchored to an IANA timezone with template, mode, and split line
 | Volume / export / search-AI | `medium` / `filtered` / `yes` |
 | Secrets / personal data | `no` / `incidental` |
 | Uniqueness | — |
-| Key typed columns | `public_id text (rcs_)`; `target_kind (task\|project\|work_block)`; `source_record_id null`; `state (active\|paused)`; `rrule text (RFC 5545 subset)`; `anchor_tz text`; `dtstart_local timestamp`; `mode (schedule\|after_completion)`; `template_payload jsonb (typed per target; frozen at definition, immutable)`; `generated_through date`; `ends_at_occurrence text null`; `split_from_series_id null`; `version bigint`; `last_run_at timestamptz (discovery fairness: oldest-waiting first; operational, not versioned)` |
+| Key typed columns | `public_id text (rcs_)`; `target_kind (task\|project\|work_block)`; `project_id null (task series: the project generated tasks join; same brand)`; `source_record_id null`; `state (active\|paused)`; `rrule text (RFC 5545 subset)`; `anchor_tz text`; `dtstart_local timestamp`; `mode (schedule\|after_completion)`; `template_payload jsonb (typed per target; frozen at definition, immutable)`; `generated_through date`; `ends_at_occurrence text null`; `split_from_series_id null`; `version bigint`; `last_run_at timestamptz (discovery fairness: oldest-waiting first; operational, not versioned)` |
 | Sensitive fields | — |
 | Requirements | TSK-027, PRJ-013, CAL-005 |
-| Notes | Phase 2A (ADR-21): template_payload is copied once from an approved template or project serialization and never updated; occurrences carry (recurrence_series_id, occurrence_key), unique per target table; catch-up is bounded by RECURRENCE_CATCHUP_MAX. |
+| Notes | Phase 2A (ADR-21): template_payload is copied once from an approved template or project serialization and never updated; occurrences carry (recurrence_series_id, occurrence_key), unique per target table; catch-up is bounded by RECURRENCE_CATCHUP_MAX. Phase 2D (ADR-24): target_kind task is implemented; occurrences are work.task rows. |
 
 <a id="entity-recurrence-exception"></a>
 ### `recurrence_exception`
@@ -2549,6 +2571,48 @@ Planned share or minutes of a person's capacity for one brand per period (soft t
 | Key typed columns | standard columns only |
 | Sensitive fields | — |
 | Requirements | TIME-002, WSB-017 |
+
+<a id="entity-task-reminder"></a>
+### `task_reminder`
+
+A person's reminder about one task at one instant (personal; never changes the task).
+
+| Property | Value |
+|---|---|
+| Scope | `personal` |
+| Contained by | — |
+| Extends (1:1) | — |
+| Associations | [`task`](logical-model.md#entity-task) |
+| Lifecycle / concurrency | `state-machine` / `row-version` |
+| Retention / confidentiality | `R-PERSONAL` / `C1` |
+| Volume / export / search-AI | `high` / `self` / `no` |
+| Secrets / personal data | `no` / `yes` |
+| Uniqueness | `(workspace_id, account_id, task_id, remind_at)` |
+| Key typed columns | `public_id text (rem_)`; `account_id`; `task_id`; `remind_at timestamptz`; `state (scheduled\|fired\|dismissed\|cancelled)`; `fired_at null`; `version bigint` |
+| Sensitive fields | — |
+| Requirements | TSK-032 |
+| Notes | Phase 2D (ADR-24): replaces the planned work.reminder. Firing is deduplicated by the state transition and writes a content-free outbox fact; delivery channels are 4B. |
+
+<a id="entity-task-snooze"></a>
+### `task_snooze`
+
+A person's snooze of one task until an instant (hides it from that person's reminder and Today surfaces; never changes dates).
+
+| Property | Value |
+|---|---|
+| Scope | `personal` |
+| Contained by | — |
+| Extends (1:1) | — |
+| Associations | [`task`](logical-model.md#entity-task) |
+| Lifecycle / concurrency | `mutable` / `row-version` |
+| Retention / confidentiality | `R-PERSONAL` / `C1` |
+| Volume / export / search-AI | `medium` / `self` / `no` |
+| Secrets / personal data | `no` / `yes` |
+| Uniqueness | `(workspace_id, account_id, task_id)` |
+| Key typed columns | `account_id`; `task_id`; `until_at timestamptz`; `version bigint` |
+| Sensitive fields | — |
+| Requirements | TSK-033 |
+| Notes | Phase 2D (ADR-24). Not a meaningful update (OD-17). |
 
 ## Time tracking (`time`, schema `timetrack`)
 
@@ -3855,10 +3919,10 @@ Reusable blueprint (workspace, project, task, document, automation, agent) at pl
 | Volume / export / search-AI | `low` / `filtered` / `yes` |
 | Secrets / personal data | `no` / `incidental` |
 | Uniqueness | — |
-| Key typed columns | `name`; `target_record_type (project)`; `current_version_id`; `version bigint` |
+| Key typed columns | `name`; `target_record_type (project\|task)`; `current_version_id`; `version bigint` |
 | Sensitive fields | — |
 | Requirements | ONB-006, ONB-013, PRJ-014, TSK-028 |
-| Notes | Platform templates live in a platform table with the same shape and no workspace_id. |
+| Notes | Platform templates live in a platform table with the same shape and no workspace_id. Phase 2D (ADR-24): task templates use the same immutable version rows; applying one needs an explicit brand (and optional project) and reports omissions. |
 
 <a id="entity-template-version"></a>
 ### `template_version`

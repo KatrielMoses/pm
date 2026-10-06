@@ -4459,7 +4459,11 @@
         "requires_acceptance boolean",
         "rank text",
         "created_by_membership_id",
-        "version bigint"
+        "version bigint",
+        "origin_kind (manual|recurring|intake|import|integration|ai_draft; immutable)",
+        "origin_ref jsonb (safe identifiers only: series, occurrence, template, version; immutable)",
+        "recurrence_series_id null + occurrence_key null (unique together)",
+        "last_meaningful_update_at timestamptz (OD-17 freshness; maintained by triggers)"
       ],
       "requirements": [
         "TSK-001",
@@ -4471,11 +4475,21 @@
         "TSK-010",
         "TSK-022",
         "TSK-023",
+        "TSK-027",
         "TSK-031",
+        "TSK-033",
+        "TSK-035",
+        "TSK-036",
+        "TSK-037",
+        "TSK-038",
         "TSK-039",
-        "TSK-041"
+        "TSK-040",
+        "TSK-041",
+        "TSK-042",
+        "TSK-043",
+        "TSK-044"
       ],
-      "notes": "Phase 2B (ADR-22): phase/milestone association, task types, manual blocked reasons, due times, recurrence, and freshness fields are not part of 2B; they arrive with their owning phases. Scheduled time is a planning work block (3C), never a task column."
+      "notes": "Phase 2B (ADR-22): phase/milestone association, task types, manual blocked reasons, due times, recurrence, and freshness fields are not part of 2B; they arrive with their owning phases. Scheduled time is a planning work block (3C), never a task column. Phase 2D (ADR-24): task origin is a closed kind with safe metadata, immutable except through a registered migration; freshness is a trigger-maintained column; repeated rescheduling is derived from the audit ledger."
     },
     {
       "name": "task_assignee",
@@ -4790,35 +4804,6 @@
       "notes": "Phase 2A (ADR-21): cross-kind states are rejected by the database and the service; documents may link later but are not the authority."
     },
     {
-      "name": "reminder",
-      "module": "work",
-      "purpose": "Personal reminder for a task at an instant.",
-      "scope": "personal",
-      "addressable": false,
-      "public_id_prefix": null,
-      "extends": null,
-      "containment_parents": [],
-      "associations": [
-        "task"
-      ],
-      "lifecycle": "state-machine",
-      "concurrency": "row-version",
-      "retention_class": "R-PERSONAL",
-      "confidentiality": "C2",
-      "volume": "high",
-      "export": "self",
-      "search_ai": "yes",
-      "may_contain_secrets": "no",
-      "personal_data": "incidental",
-      "uniqueness": [],
-      "sensitive_fields": [],
-      "key_columns": [],
-      "requirements": [
-        "TSK-032"
-      ],
-      "notes": ""
-    },
-    {
       "name": "inbox_item",
       "module": "capture",
       "purpose": "Raw captured input owned by one person; brand optional until triage; preserves original text and source.",
@@ -5123,6 +5108,7 @@
       "key_columns": [
         "public_id text (rcs_)",
         "target_kind (task|project|work_block)",
+        "project_id null (task series: the project generated tasks join; same brand)",
         "source_record_id null",
         "state (active|paused)",
         "rrule text (RFC 5545 subset)",
@@ -5141,7 +5127,7 @@
         "PRJ-013",
         "CAL-005"
       ],
-      "notes": "Phase 2A (ADR-21): template_payload is copied once from an approved template or project serialization and never updated; occurrences carry (recurrence_series_id, occurrence_key), unique per target table; catch-up is bounded by RECURRENCE_CATCHUP_MAX."
+      "notes": "Phase 2A (ADR-21): template_payload is copied once from an approved template or project serialization and never updated; occurrences carry (recurrence_series_id, occurrence_key), unique per target table; catch-up is bounded by RECURRENCE_CATCHUP_MAX. Phase 2D (ADR-24): target_kind task is implemented; occurrences are work.task rows."
     },
     {
       "name": "recurrence_exception",
@@ -7396,7 +7382,7 @@
       "sensitive_fields": [],
       "key_columns": [
         "name",
-        "target_record_type (project)",
+        "target_record_type (project|task)",
         "current_version_id",
         "version bigint"
       ],
@@ -7406,7 +7392,7 @@
         "PRJ-014",
         "TSK-028"
       ],
-      "notes": "Platform templates live in a platform table with the same shape and no workspace_id."
+      "notes": "Platform templates live in a platform table with the same shape and no workspace_id. Phase 2D (ADR-24): task templates use the same immutable version rows; applying one needs an explicit brand (and optional project) and reports omissions."
     },
     {
       "name": "template_version",
@@ -8506,6 +8492,157 @@
         "NAV-008"
       ],
       "notes": "Phase 1E foundation: table, read path, and authorization hook only. Pins are created through views.configure once the view engine provides shared saved views (VIEW phase); until then no pin can exist. Each pin is re-authorized at display like any other target."
+    },
+    {
+      "extends": null,
+      "containment_parents": [],
+      "may_contain_secrets": "no",
+      "uniqueness": [
+        "(workspace_id, account_id, task_id, remind_at)"
+      ],
+      "sensitive_fields": [],
+      "name": "task_reminder",
+      "module": "planning",
+      "purpose": "A person's reminder about one task at one instant (personal; never changes the task).",
+      "scope": "personal",
+      "addressable": false,
+      "public_id_prefix": "rem",
+      "associations": [
+        "task"
+      ],
+      "lifecycle": "state-machine",
+      "concurrency": "row-version",
+      "retention_class": "R-PERSONAL",
+      "confidentiality": "C1",
+      "volume": "high",
+      "export": "self",
+      "search_ai": "no",
+      "personal_data": "yes",
+      "key_columns": [
+        "public_id text (rem_)",
+        "account_id",
+        "task_id",
+        "remind_at timestamptz",
+        "state (scheduled|fired|dismissed|cancelled)",
+        "fired_at null",
+        "version bigint"
+      ],
+      "requirements": [
+        "TSK-032"
+      ],
+      "notes": "Phase 2D (ADR-24): replaces the planned work.reminder. Firing is deduplicated by the state transition and writes a content-free outbox fact; delivery channels are 4B."
+    },
+    {
+      "extends": null,
+      "containment_parents": [],
+      "may_contain_secrets": "no",
+      "uniqueness": [
+        "(workspace_id, account_id, task_id)"
+      ],
+      "sensitive_fields": [],
+      "name": "task_snooze",
+      "module": "planning",
+      "purpose": "A person's snooze of one task until an instant (hides it from that person's reminder and Today surfaces; never changes dates).",
+      "scope": "personal",
+      "addressable": false,
+      "public_id_prefix": null,
+      "associations": [
+        "task"
+      ],
+      "lifecycle": "mutable",
+      "concurrency": "row-version",
+      "retention_class": "R-PERSONAL",
+      "confidentiality": "C1",
+      "volume": "medium",
+      "export": "self",
+      "search_ai": "no",
+      "personal_data": "yes",
+      "key_columns": [
+        "account_id",
+        "task_id",
+        "until_at timestamptz",
+        "version bigint"
+      ],
+      "requirements": [
+        "TSK-033"
+      ],
+      "notes": "Phase 2D (ADR-24). Not a meaningful update (OD-17)."
+    },
+    {
+      "extends": null,
+      "containment_parents": [],
+      "may_contain_secrets": "no",
+      "uniqueness": [],
+      "sensitive_fields": [],
+      "name": "bulk_operation",
+      "module": "work",
+      "purpose": "A previewed then executed bulk command over a bounded explicit set of tasks, with a per-item report.",
+      "scope": "workspace",
+      "addressable": false,
+      "public_id_prefix": "bop",
+      "associations": [
+        "task"
+      ],
+      "lifecycle": "state-machine",
+      "concurrency": "row-version",
+      "retention_class": "R-EPHEMERAL",
+      "confidentiality": "C1",
+      "volume": "medium",
+      "export": "never",
+      "search_ai": "no",
+      "personal_data": "incidental",
+      "key_columns": [
+        "public_id text (bop_)",
+        "account_id",
+        "operation text",
+        "mode (atomic|partial)",
+        "state (previewed|executed|expired)",
+        "item_ids uuid[] (at most BULK_ITEMS_MAX)",
+        "fingerprint bytea",
+        "results jsonb (per item: id, outcome, code)",
+        "expires_at"
+      ],
+      "requirements": [
+        "TSK-038"
+      ],
+      "notes": "Phase 2D (ADR-24). Results carry identifiers and outcome codes only; unreadable items are reported as not_found without detail."
+    },
+    {
+      "extends": null,
+      "containment_parents": [],
+      "may_contain_secrets": "no",
+      "uniqueness": [],
+      "sensitive_fields": [],
+      "name": "undo_entry",
+      "module": "work",
+      "purpose": "The inverse of one reversible task mutation, available to its actor for UNDO_WINDOW_SECONDS or until a conflicting change.",
+      "scope": "workspace",
+      "addressable": false,
+      "public_id_prefix": "und",
+      "associations": [
+        "task"
+      ],
+      "lifecycle": "state-machine",
+      "concurrency": "row-version",
+      "retention_class": "R-EPHEMERAL",
+      "confidentiality": "C2",
+      "volume": "high",
+      "export": "never",
+      "search_ai": "no",
+      "personal_data": "incidental",
+      "key_columns": [
+        "public_id text (und_)",
+        "account_id",
+        "command text",
+        "targets jsonb (task id and expected version per target)",
+        "inverse jsonb (prior values of the changed fields only)",
+        "state (available|applied|expired|conflicted)",
+        "expires_at"
+      ],
+      "requirements": [
+        "TSK-043"
+      ],
+      "notes": "Phase 2D (ADR-24). Applying an undo is an audited inverse command with a new idempotency key and a version check; it never bypasses current authorization."
     }
   ]
 }

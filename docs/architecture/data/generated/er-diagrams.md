@@ -193,7 +193,8 @@ erDiagram
   project ||--o{ decision_record : "contains"
   brand ||--o{ decision_record : "contains"
   record ||--|| decision_record : "envelope"
-  reminder }o..o{ task : "references"
+  bulk_operation }o..o{ task : "references"
+  undo_entry }o..o{ task : "references"
 ```
 
 ## Inbox and capture
@@ -225,6 +226,8 @@ erDiagram
   recurrence_series ||--o{ recurrence_exception : "contains"
   brand ||--o{ brand_calendar : "contains"
   capacity_reservation }o..o{ membership : "references"
+  task_reminder }o..o{ task : "references"
+  task_snooze }o..o{ task : "references"
 ```
 
 ## Time tracking

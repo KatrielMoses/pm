@@ -88,6 +88,9 @@ Source: `contracts/registry.json`.
 | `fld_` | field_definition | workflow.field_definition | workflow | Phase 2C (PL-25). |
 | `fop_` | field_option | workflow.field_option | workflow | Phase 2C (PL-25). |
 | `fst_` | field_set | workflow.field_set | workflow | Phase 2C (PL-25). |
+| `rem_` | task_reminder | planning.task_reminder | planning | Phase 2D (PL-26). |
+| `bop_` | bulk_operation | work.bulk_operation | work | Phase 2D (PL-26). |
+| `und_` | undo_entry | work.undo_entry | work | Phase 2D (PL-26). |
 
 ## Error codes
 
@@ -275,6 +278,10 @@ Source: `contracts/registry.json`.
 | `workflow.field_set.versioned` v1 | workflow.field_set | version | C1 | yes |  |  |  |  | — |
 | `workflow.field_set.applied` v1 | workflow.field_set | record_type, version | C1 | yes |  |  |  |  | — |
 | `workflow.field_value.changed` v1 | workflow.field_value | record_type, definition_ids | C1 | yes |  |  |  |  | — |
+| `planning.task_reminder.scheduled` v1 | planning.task_reminder | task_id, state | C1 |  |  | yes |  |  | — |
+| `planning.task_reminder.fired` v1 | planning.task_reminder | task_id, account_id | C1 |  | yes | yes |  |  | — |
+| `work.bulk_operation.executed` v1 | work.bulk_operation | operation, mode, item_count, succeeded, failed | C1 | yes |  | yes |  |  | — |
+| `work.task.undone` v1 | work.task | task_id, command | C1 | yes |  | yes |  |  | — |
 
 ## SSE topics
 
@@ -412,6 +419,9 @@ Forbidden metric labels: `workspace_id`, `brand_id`, `record_id`, `public_id`, `
 | `workflow.transitions` | counter | outcome | workflow |
 | `workflow.transition.duration` | histogram | outcome | workflow |
 | `workflow.formula.evaluations` | counter | outcome | workflow |
+| `work.reminders.fired` | counter | outcome | work |
+| `work.bulk.items` | counter | outcome | work |
+| `work.undo.applied` | counter | outcome | work |
 
 ## Named parameters (values are configuration, not promises)
 
@@ -485,3 +495,15 @@ Forbidden metric labels: `workspace_id`, `brand_id`, `record_id`, `public_id`, `
 | `FORMULA_DEPTH_MAX` | Deepest formula dependency chain; default 8, range 1–32. | 2C |
 | `FORMULA_REFS_MAX` | Most field references in one formula; default 20, range 1–100. | 2C |
 | `FIELD_VALUE_BULK_MAX` | Most records migrated by one status or option replacement command; default 500, range 1–5000. | 2C |
+| `TASK_STALE_ACTIVE_DAYS` | Days without a meaningful update after which an active or blocked task is stale (OD-17); default 7, range 1–90. | 2D |
+| `TASK_STALE_PLANNED_DAYS` | Days without a meaningful update after which a planned task is stale (OD-17); default 14, range 1–180. | 2D |
+| `TASK_RESCHEDULE_COUNT` | Material due-date or deadline edits within the window that mark a task repeatedly rescheduled (OD-17); default 3, range 2–20. | 2D |
+| `TASK_RESCHEDULE_WINDOW_DAYS` | Window for counting reschedules (OD-17); default 14, range 1–90. | 2D |
+| `TASK_REMINDERS_MAX` | Most scheduled reminders one person may hold on one task; default 10, range 1–50. | 2D |
+| `REMINDER_FIRE_BATCH_MAX` | Most due reminders one worker run fires per workspace; later ones wait for the next run; default 500, range 1–5000. | 2D |
+| `TASK_SNOOZE_MAX_DAYS` | Furthest a snooze may reach; default 365, range 1–3650. | 2D |
+| `BULK_ITEMS_MAX` | Most tasks in one bulk command's explicit set; default 200, range 1–1000. | 2D |
+| `BULK_PREVIEW_TTL_SECONDS` | How long a bulk preview may be executed; default 600, range 60–3600. | 2D |
+| `UNDO_WINDOW_SECONDS` | How long a reversible mutation can be undone; default 30, range 5–300. | 2D |
+| `DUPLICATE_WINDOW_DAYS` | How far back deterministic duplicate matching looks; default 90, range 1–365. | 2D |
+| `DUPLICATE_CANDIDATES_MAX` | Most duplicate candidates returned; default 5, range 1–20. | 2D |

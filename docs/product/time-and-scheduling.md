@@ -37,7 +37,8 @@ TSK-005 lists both "scheduled time" and "duration". They map to the task's **wor
 | Calendar event moved in Google (CAL-012) | Linked block start/end | Due date, deadline |
 | Commit item to Today | Creates a Today commitment | Any date on the item (PLAN-008) |
 | Remove from Today / carry over at shutdown | Commitment for that day | Any date on the item |
-| "Reschedule" (snooze or move) | Due date **or** block, as the dialog states explicitly | Deadline |
+| "Reschedule" | The due date **or** (separately, explicitly) the deadline, through the ordinary edit commands with audit (Phase 2D) | Everything else |
+| "Snooze" | Nothing on the item: a personal snooze hides it from that person's reminder and Today surfaces until an instant (Phase 2D) | Every date, status, and other person's view |
 | Accept an AI-proposed daily plan (PLAN-013) | Commitments and work blocks listed in the proposal | Due dates and deadlines, unless an individual proposed change says so and the user keeps it selected |
 | Bulk "schedule" (TSK-035) | The field named in the bulk dialog | Everything else |
 | Edit deadline | Deadline (with audit; notifies followers) | Blocks, due date |
@@ -67,6 +68,7 @@ When a block is moved after the due date or deadline, the UI shows the warning a
 | **Generation** | Idempotent per (series, occurrence date). A retried generation job never creates two occurrences for the same date ([lifecycle §8](lifecycle-and-states.md#8-retries-reruns-and-idempotency)). |
 | **DST** | Rules are evaluated in their anchor timezone: "Fridays 16:00 Europe/Lisbon" stays at 16:00 local when the UTC offset changes. |
 | **Recurring calendar work** (CAL-005) | Recurring **work blocks** (e.g., "Mon/Wed 09:00–11:00 deep work on Optestra"), which is different from recurring **tasks**. A recurring block can be attached to one ongoing task or to none (a capacity reservation). |
+| **Recurring tasks** (TSK-027, Phase 2D) | A task series (the planning series, `target_kind = task`) that instantiates an independent task from an immutable snapshot: fields, own criteria, checklist text (reset), labels, and URL links. Never assignees, shares, history, comments, relationships, approvals, private context, or field values the series owner could not read. Authority to create in the brand or project is re-checked per occurrence; a series pauses when its owner loses it. The project RRULE subset, anchor zone, catch-up bound, and idempotent keys apply unchanged. |
 | **Recurring projects** (PRJ-013) | A project series that instantiates an independent project from an immutable snapshot on a schedule ([OD-14](open-decisions.md#od-14), decided). |
 
 ## 5. Availability and capacity

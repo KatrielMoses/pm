@@ -55,6 +55,21 @@ These six statuses are the immutable platform defaults seeded in Phase 2B. The d
 - **Transitions.** Without transition rules a workflow behaves like the default. Once a workflow has any active transition, only its registered edges are allowed. Complete, Cancel, and Reopen still apply, and a generic edit can never skip a rule.
 - **Required fields and approvals.** A transition can require built-in or custom fields (checked on the final record, before the change) and an approval (`one_manager` or `all_named_approvers`). Approval requests are bound to the record version. Any change makes a pending request stale, and nobody approves their own request unless the transition allows it and the workspace's self-approval policy permits it ([OD-20](open-decisions.md#od-20)). Review requested and changes requested states are Phase 4A.
 
+### Task signals (Phase 2D, OD-17)
+
+Signals are independent, derived only from facts the viewer may read, and never change the task.
+
+| Signal | Meaning |
+|---|---|
+| Stale | No meaningful update for 7 days (active or blocked) or 14 days (planned) |
+| Blocked | A paused-category status, or an active incoming `blocks` relationship from a readable, non-final task |
+| Repeatedly rescheduled | 3 material due-date or deadline edits within 14 days |
+| Missing owner | No eligible assignee |
+| Missing date | A due date or deadline the workflow requires is empty |
+| Missing criteria | Required criteria are unmet |
+| Missing dependency | An active incoming blocker is unresolved |
+| Possible duplicate | Another readable open task in the same workspace and brand (and a compatible project) has the same normalized title within the recent window (advisory only) |
+
 ## 3. Completion, review, and acceptance are different facts
 
 | Fact | Definition | Recorded as | Can an agent, automation, or integration set it? |

@@ -22,9 +22,9 @@ Class definitions and rules: [../11-data-classification.md](../11-data-classific
 | Files, deliverables, and evidence | 8 | C2 | R-DERIVED, R-EPHEMERAL, R-EVIDENCE, R-LIVE | filtered, never | no, yes | no | incidental | high |
 | Comments and reviews | 5 | C2 | R-AUDIT, R-EVIDENCE, R-LIVE | admin, filtered | yes | no | incidental | very-high |
 | Notifications | 4 | C2 | R-EXEC, R-PERSONAL | never, self | no | no | incidental | very-high |
-| Projects and tasks | 15 | C2 | R-LIVE, R-PERSONAL | filtered, self | no, yes | no | incidental | very-high |
+| Projects and tasks | 16 | C2 | R-EPHEMERAL, R-LIVE | filtered, never | no, yes | no | incidental | very-high |
 | Inbox and capture | 5 | C3 | R-LIVE, R-PERSONAL | filtered, self | metadata, no, yes | hash-only | incidental, yes | high |
-| Today, scheduling, and capacity | 10 | C3 | R-LIVE, R-PERSONAL | filtered, self | no, yes | no | incidental, yes | high |
+| Today, scheduling, and capacity | 12 | C3 | R-LIVE, R-PERSONAL | filtered, self | no, yes | no | incidental, yes | high |
 | Time tracking | 4 | C2 | R-EVIDENCE, R-LIVE | filtered | yes | no | incidental | very-high |
 | Documents and knowledge | 4 | C2 | R-EVIDENCE, R-LIVE | filtered | yes | no | incidental | high |
 | Goals and portfolios | 5 | C2 | R-LIVE | filtered | yes | no | incidental | medium |
@@ -149,7 +149,6 @@ Class definitions and rules: [../11-data-classification.md](../11-data-classific
 | [`project_update`](logical-model.md#entity-project-update) | work | inherited | C2 | standard (per-record) | is evidence / append-only | R-LIVE | filtered | medium | yes | no | incidental |
 | [`project_update_verification`](logical-model.md#entity-project-update-verification) | work | inherited | C2 | standard (per-record) | is evidence / append-only | R-LIVE | filtered | medium | yes | no | incidental |
 | [`decision_record`](logical-model.md#entity-decision-record) | work | brand | C2 | standard (per-record) | material changes | R-LIVE | filtered | medium | yes | no | incidental |
-| [`reminder`](logical-model.md#entity-reminder) | work | personal | C2 | standard (per-record) | material changes | R-PERSONAL | self | high | yes | no | incidental |
 | [`inbox_item`](logical-model.md#entity-inbox-item) | capture | personal_brand_optional | C2 | standard (per-record) | material changes | R-LIVE | self | high | yes | no | incidental |
 | [`note`](logical-model.md#entity-note) | capture | personal_brand_optional | C2 | standard (per-record) | material changes | R-LIVE | filtered | medium | yes | no | incidental |
 | [`intake_form`](logical-model.md#entity-intake-form) | capture | brand | C2 | standard (per-record) | material changes | R-LIVE | filtered | low | yes | no | incidental |
@@ -261,3 +260,7 @@ Class definitions and rules: [../11-data-classification.md](../11-data-classific
 | [`platform_content`](logical-model.md#entity-platform-content) | support | platform | C0 | low | configuration changes | R-PLATFORM | never | low | yes | no | incidental |
 | [`account_preference`](logical-model.md#entity-account-preference) | identity | platform | C1 | low | configuration changes | R-PERSONAL | self | low | no | no | incidental |
 | [`view_pin`](logical-model.md#entity-view-pin) | views | workspace_or_brand | C1 | low | configuration changes | R-LIVE | filtered | low | no | no | no |
+| [`task_reminder`](logical-model.md#entity-task-reminder) | planning | personal | C1 | low | configuration changes | R-PERSONAL | self | high | no | no | yes |
+| [`task_snooze`](logical-model.md#entity-task-snooze) | planning | personal | C1 | low | configuration changes | R-PERSONAL | self | medium | no | no | yes |
+| [`bulk_operation`](logical-model.md#entity-bulk-operation) | work | workspace | C1 | low | configuration changes | R-EPHEMERAL | never | medium | no | no | incidental |
+| [`undo_entry`](logical-model.md#entity-undo-entry) | work | workspace | C2 | standard (per-record) | material changes | R-EPHEMERAL | never | high | no | no | incidental |

@@ -159,6 +159,15 @@ export const NON_RESOURCE_TYPES = [
   'field_set_preview',
   'field_document',
   'field_document_check',
+  // 2D: computed task interaction views (ADR-0016): a task's signals, deterministic duplicate
+  // candidates, a bulk preview and its per-item report, a template application's omissions report,
+  // and the result of applying an undo.
+  'task_signals',
+  'duplicate_candidates',
+  'bulk_preview',
+  'bulk_report',
+  'template_application',
+  'undo_result',
 ] as const;
 export type NonResourceType = (typeof NON_RESOURCE_TYPES)[number];
 

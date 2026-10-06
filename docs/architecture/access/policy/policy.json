@@ -3697,6 +3697,87 @@
         "WFL-011"
       ],
       "notes": "Phase 2C (AZ-23). Only when every input is readable; never reveals hidden input values or names."
+    },
+    {
+      "key": "task.remind",
+      "kind": "record",
+      "scopes": [
+        "record"
+      ],
+      "description": "Set, change, or dismiss one's own reminder on a readable task.",
+      "required_level": "view",
+      "risk_class": "R0",
+      "approval_class": "none",
+      "step_up": false,
+      "second_approval": false,
+      "non_delegable": false,
+      "entitlement": null,
+      "roles": {
+        "owner": "implicit",
+        "administrator": "implicit",
+        "member": "grant:view",
+        "limited_member": "grant:view",
+        "read_only": "grant:view",
+        "guest": "grant:view"
+      },
+      "requirements": [
+        "TSK-032"
+      ],
+      "notes": "Phase 2D (AZ-24): personal; grants nothing and changes nothing on the task. The worker rechecks record.read before firing; a reminder whose task became unreadable is cancelled silently."
+    },
+    {
+      "key": "task.snooze",
+      "kind": "record",
+      "scopes": [
+        "record"
+      ],
+      "description": "Snooze or unsnooze a readable task for oneself.",
+      "required_level": "view",
+      "risk_class": "R0",
+      "approval_class": "none",
+      "step_up": false,
+      "second_approval": false,
+      "non_delegable": false,
+      "entitlement": null,
+      "roles": {
+        "owner": "implicit",
+        "administrator": "implicit",
+        "member": "grant:view",
+        "limited_member": "grant:view",
+        "read_only": "grant:view",
+        "guest": "grant:view"
+      },
+      "requirements": [
+        "TSK-033"
+      ],
+      "notes": "Phase 2D (AZ-24): personal; never edits dates, status, or access, and is invisible to others."
+    },
+    {
+      "key": "task.manage_recurrence",
+      "kind": "record",
+      "scopes": [
+        "record"
+      ],
+      "description": "Define, pause, resume, or end a task recurrence, or generate its next occurrence.",
+      "required_level": "manage",
+      "risk_class": "R2",
+      "approval_class": "none",
+      "step_up": false,
+      "second_approval": false,
+      "non_delegable": false,
+      "entitlement": null,
+      "roles": {
+        "owner": "implicit",
+        "administrator": "implicit",
+        "member": "grant:manage",
+        "limited_member": "deny",
+        "read_only": "deny",
+        "guest": "deny"
+      },
+      "requirements": [
+        "TSK-027"
+      ],
+      "notes": "Phase 2D (AZ-24): each occurrence also requires record.create in the series' brand (and project), rechecked by the worker before each step; a series whose owner lost it pauses."
     }
   ],
   "account_commands": [

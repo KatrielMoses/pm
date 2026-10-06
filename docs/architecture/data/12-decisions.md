@@ -199,6 +199,19 @@ Status of every ADR: **proposed (Phase 0B)**, pending solutions-architect accept
 - **Alternatives:** Mandatory projects (contradicts TSK-003). Unlimited depth (unbounded rewrites). A task status table (a second status system). Copying project definition-of-done items into tasks (drifts from the source). A mutable history table (diverges from the audit ledger).
 - **Consequences:** Task visibility is the 1D compiler's: project-contained tasks follow their project chain; projectless tasks follow the brand. Project completion becomes readable done leaf tasks over readable non-cancelled leaf tasks (OD-13).
 
+<a id="adr-24"></a>
+## ADR-24: Task interaction quality (Phase 2D amendment)
+
+- **Decision:**
+  - **Origin.** `work.task.origin_kind` is a closed kind (`manual`, `recurring`, `intake`, `import`, `integration`, `ai_draft`) with `origin_ref`, a JSON object of safe public identifiers only. A trigger refuses any change after insert; only a registered migration may rewrite them. `core.record.source_kind` keeps recording the creation channel.
+  - **Recurring tasks.** `planning.recurrence_series.target_kind` gains `task`, plus an optional `project_id`. Occurrences are `work.task` rows carrying `(recurrence_series_id, occurrence_key)`, unique together, so generation is idempotent.
+  - **Templates.** `templates.template.target_record_type` gains `task`; versions stay immutable rows.
+  - **Reminders and snoozes.** `planning.task_reminder` (`rem_`) and `planning.task_snooze` are personal rows keyed by workspace, account, and task. They never reference or change task dates, status, or access. The planned `work.reminder` is replaced.
+  - **Freshness.** `work.task.last_meaningful_update_at` is maintained by triggers on the task and its content tables (assignees, checklist, criteria, labels, links, relationships, custom field values) for the OD-17 meaningful changes only. Repeated rescheduling is counted from the audit ledger (`audit_event_by_target`), so there is no second history store.
+  - **Bulk and undo.** `work.bulk_operation` (`bop_`) and `work.undo_entry` (`und_`) are short-lived, workspace-scoped, RLS-protected rows for the actor. `work.task_rank` is indexed per brand and project for ordering commands.
+- **Alternatives:** Freshness computed from the audit ledger on every read (an unbounded scan per list). Snooze as a due-date edit (it would change shared dates). A generic command journal for undo (stores more than the inverse needs).
+- **Consequences:** Two migrations, `0027_task_interaction` and `0028_task_bulk_undo`, with down migrations to 0026. No 3C work-block or 4B channel tables.
+
 <a id="adr-23"></a>
 ## ADR-23: Configurable workflows and custom fields (Phase 2C amendment)
 
