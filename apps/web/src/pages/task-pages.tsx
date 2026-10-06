@@ -750,7 +750,9 @@ export function ProjectlessTasksPage({ ws }: { ws: string }) {
 
 export function TaskPage({ ws, tsk }: { ws: string; tsk: string }) {
   const shellState = useWorkspaceShell();
-  const data = useResource(() => tasks.get(ws, tsk), `task:${ws}:${tsk}`);
+  const data = useResource(() => tasks.get(ws, tsk), `task:${ws}:${tsk}`, {
+    keepOnRefreshError: true,
+  });
   const t = data.state.status === 'ready' ? data.state.data : null;
   useRecordVisit(t && t.lifecycle_state === 'active' ? t.id : null);
   const enter = shellState?.enterRecordBrand;

@@ -11,7 +11,11 @@ export type Resource<T> =
  * Loads data per key (`wait` defers loading). `retry` shows the loading state again; `reload` keeps showing the current
  * data until the new data arrives. State is only set from the request's own callbacks.
  */
-export function useResource<T>(load: () => Promise<T>, key: string) {
+export function useResource<T>(
+  load: () => Promise<T>,
+  key: string,
+  options: { keepOnRefreshError?: boolean } = {},
+) {
   const [entry, setEntry] = useState<{ key: string; state: Resource<T> }>({
     key,
     state: { status: 'loading' },
@@ -23,13 +27,13 @@ export function useResource<T>(load: () => Promise<T>, key: string) {
     let active = true;
     load().then(
       (data) => active && setEntry({ key, state: { status: 'ready', data } }),
-      // A failed background refresh keeps what is already on screen (2D REL-001): going offline
-      // during a reload never discards the page or what the person is typing. A first load, a
-      // retry, or another key still shows the failure.
+      // With `keepOnRefreshError` (2D REL-001: the task page), a failed background refresh keeps
+      // what is already on screen, so going offline during a reload never discards the page or
+      // what the person is typing. First loads, retries, and other keys still show the failure.
       (error: unknown) =>
         active &&
         setEntry((prev) =>
-          prev.key === key && prev.state.status === 'ready'
+          options.keepOnRefreshError && prev.key === key && prev.state.status === 'ready'
             ? prev
             : { key, state: { status: 'failed', error } },
         ),

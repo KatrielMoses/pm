@@ -458,8 +458,8 @@ describe('bulk status (review 01): the selection’s statuses, custom ones inclu
   });
 });
 
-describe('background refresh keeps the page (REL-001)', () => {
-  it('a failed reload keeps the loaded data; a first load still fails visibly', async () => {
+describe('background refresh keeps the task page (REL-001)', () => {
+  it('with keepOnRefreshError a failed reload keeps the loaded data; a retry still fails visibly', async () => {
     const { useResource } = await import('../src/tenancy/resource.tsx');
     let fail = false;
     const load = vi.fn(async () => {
@@ -468,7 +468,7 @@ describe('background refresh keeps the page (REL-001)', () => {
     });
     let api: ReturnType<typeof useResource<string>> | null = null;
     function Probe() {
-      api = useResource(load, 'k');
+      api = useResource(load, 'k', { keepOnRefreshError: true });
       return <p>{api.state.status}</p>;
     }
     render(<Probe />);
@@ -478,6 +478,25 @@ describe('background refresh keeps the page (REL-001)', () => {
     await act(async () => api!.reload());
     expect(screen.getByText('ready')).toBeTruthy();
     await act(async () => api!.retry());
+    expect(screen.getByText('failed')).toBeTruthy();
+  });
+
+  it('without the option, a failed reload still shows the failure (other pages unchanged)', async () => {
+    const { useResource } = await import('../src/tenancy/resource.tsx');
+    let fail = false;
+    const load = vi.fn(async () => {
+      if (fail) throw new ApiError({ code: 'offline', status: 0, message: "You're offline." });
+      return 'loaded';
+    });
+    let api: ReturnType<typeof useResource<string>> | null = null;
+    function Probe() {
+      api = useResource(load, 'k2');
+      return <p>{api.state.status}</p>;
+    }
+    render(<Probe />);
+    await act(async () => undefined);
+    fail = true;
+    await act(async () => api!.reload());
     expect(screen.getByText('failed')).toBeTruthy();
   });
 });
