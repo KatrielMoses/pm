@@ -125,6 +125,16 @@ worker process is a startup error. All identities of one process must target the
 | `INBOX_MERGE_MAX` | optional | optional | default 20 (2–100); most Inbox items one merge may combine (0D `INBOX_MERGE_MAX`) |
 | `INTAKE_FORMS_MAX` | optional | optional | default 50 (1–500); most intake forms per brand (0D `INTAKE_FORMS_MAX`) |
 | `INTAKE_SUBMISSIONS_PER_HOUR` | optional | optional | default 20 (1–1000); most submissions one person may make to one form per hour (0D `INTAKE_SUBMISSIONS_PER_HOUR`) |
+| `QUERY_CONDITIONS_MAX` | optional | optional | default 40 (1–200); most conditions one view query may combine (0D `QUERY_CONDITIONS_MAX`) |
+| `QUERY_DEPTH_MAX` | optional | optional | default 3 (1–6); deepest nesting of AND/OR filter groups (0D `QUERY_DEPTH_MAX`) |
+| `QUERY_SORTS_MAX` | optional | optional | default 5 (1–10); most sort keys in one view query (0D `QUERY_SORTS_MAX`) |
+| `QUERY_VALUES_MAX` | optional | optional | default 100 (1–500); most values one filter condition may list (0D `QUERY_VALUES_MAX`) |
+| `QUERY_GROUPS_MAX` | optional | optional | default 200 (10–1000); most groups one grouped query returns (0D `QUERY_GROUPS_MAX`) |
+| `VIEW_COLUMNS_MAX` | optional | optional | default 20 (1–50); most visible columns in one view (0D `VIEW_COLUMNS_MAX`) |
+| `SAVED_VIEWS_MAX` | optional | optional | default 200 (1–2000); most saved views one person may own in a workspace (0D `SAVED_VIEWS_MAX`) |
+| `VIEW_PINS_MAX` | optional | optional | default 20 (1–100); most views pinned into one workspace or brand navigation (0D `VIEW_PINS_MAX`) |
+| `EXPORT_ROWS_MAX` | optional | optional | default 5000 (1–50000); most rows one direct view export may contain (0D `EXPORT_ROWS_MAX`) |
+| `TOTAL_COUNT_CAP` | optional | optional | default 10000 (100–100000); exact totals above this are reported as capped (0D `TOTAL_COUNT_CAP`) |
 | `VIEW_STATE_TTL_MS` | optional | optional | default 90 days; stored view state not written for this long is removed (0D `VIEW_STATE_TTL`) |
 
 Values are configuration, not customer promises (PQ-05). The 0D parameter values above are

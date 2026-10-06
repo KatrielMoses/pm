@@ -18,6 +18,8 @@ export * from './task-recurrence.ts';
 export * from './task-interaction.ts';
 export * from './capture-service.ts';
 export * from './capture/parser.ts';
+export * from './views/view-service.ts';
+export * from './views/query.ts';
 export {
   PROJECT_STATUS_ID,
   resolveWorkflow,

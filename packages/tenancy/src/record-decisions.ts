@@ -4,6 +4,8 @@ import { issueLifecycleDecision } from '@pm/lifecycle/policy-issuer';
 import { TenancyError } from './errors.ts';
 import {
   decideBrand,
+  decidePersonal,
+  decideProject,
   decideRecord,
   decideWorkspace,
   recordLevel,
@@ -61,4 +63,44 @@ export function issueRecordLifecycleDecision<A extends RecordLifecycleAction>(
       : decideRecord(p, action, facts);
   if (!outcome.allowed) throw new TenancyError(outcome.code);
   return issueLifecycleDecision(action, tx.workspaceId, [record.id], p.membershipId);
+}
+
+/**
+ * Saved views (Phase 3A, 0C AZ-26): a personal view is deleted by its owner only
+ * (`personal.manage_own`); a shared view by whoever may share views at its exact scope
+ * (`view.share` at the workspace, brand, or project, never through record shares).
+ */
+export function issueSavedViewLifecycleDecision(
+  tx: WorkspaceTransaction,
+  p: Principal,
+  view: {
+    id: string;
+    ownerMembershipId: string;
+    scope:
+      | { kind: 'personal' }
+      | { kind: 'workspace' }
+      | { kind: 'brand'; brand: BrandFacts }
+      | {
+          kind: 'project';
+          project: {
+            brand: BrandFacts;
+            lifecycleState: 'active' | 'archived' | 'trashed' | 'purged';
+            chain: ProjectChain;
+          };
+        };
+  },
+): PolicyDecision<'record.trash'> {
+  const s = view.scope;
+  const outcome =
+    s.kind === 'personal'
+      ? view.ownerMembershipId === p.membershipId
+        ? decidePersonal(p, 'personal.manage_own')
+        : ({ allowed: false, code: 'not_found' } as const)
+      : s.kind === 'workspace'
+        ? decideWorkspace(p, 'view.share')
+        : s.kind === 'brand'
+          ? decideBrand(p, 'view.share', s.brand)
+          : decideProject(p, 'view.share', s.project);
+  if (!outcome.allowed) throw new TenancyError(outcome.code);
+  return issueLifecycleDecision('record.trash', tx.workspaceId, [view.id], p.membershipId);
 }

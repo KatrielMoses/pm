@@ -462,6 +462,18 @@
         "I-10",
         "I-18"
       ]
+    },
+    {
+      "id": "T-44",
+      "category": "inference",
+      "description": "Saved-view exposure: a shared, pinned, or default view widening record access; rows, totals, group counts, group labels, cursors, filter-value labels, exports, or timing revealing hidden records, brands, projects, members, labels, or fields; personal views visible to others (including owners and administrators); sharing, pinning, or defaults set without authority at the exact scope; a cursor or export reused by another person or after revocation.",
+      "mitigated_by": [
+        "I-01",
+        "I-02",
+        "I-07",
+        "I-10",
+        "I-18"
+      ]
     }
   ],
   "tests": [
@@ -3190,6 +3202,140 @@
       "response_shape": "forbidden",
       "silent_surfaces": [
         "ui_list"
+      ]
+    },
+    {
+      "id": "AT-146",
+      "threats": [
+        "T-44"
+      ],
+      "principal": "member",
+      "setup": "Run a view shared by an owner that matches records in a brand and restricted project the member cannot read",
+      "scope": "brand",
+      "action": "record.read",
+      "surface": "api",
+      "expected": "allow",
+      "response_shape": "ok_filtered",
+      "silent_surfaces": [
+        "count_facet",
+        "export",
+        "timing"
+      ]
+    },
+    {
+      "id": "AT-147",
+      "threats": [
+        "T-44"
+      ],
+      "principal": "member",
+      "setup": "Filter a query by a hidden brand, project, or label versus an unknown one",
+      "scope": "brand",
+      "action": "record.read",
+      "surface": "api",
+      "expected": "allow",
+      "response_shape": "empty",
+      "silent_surfaces": [
+        "error_message",
+        "timing",
+        "picker"
+      ]
+    },
+    {
+      "id": "AT-148",
+      "threats": [
+        "T-44"
+      ],
+      "principal": "administrator",
+      "setup": "Read another member's personal saved view",
+      "scope": "personal",
+      "action": "personal.manage_own",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "not_found",
+      "silent_surfaces": [
+        "ui_list",
+        "picker"
+      ]
+    },
+    {
+      "id": "AT-149",
+      "threats": [
+        "T-44"
+      ],
+      "principal": "limited_member",
+      "setup": "Share a saved view with a brand the member can only view",
+      "scope": "brand",
+      "action": "view.share",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "forbidden",
+      "silent_surfaces": [
+        "ui_list"
+      ]
+    },
+    {
+      "id": "AT-150",
+      "threats": [
+        "T-44"
+      ],
+      "principal": "member",
+      "setup": "Pin a view to navigation or set a brand default without views.configure",
+      "scope": "brand",
+      "action": "views.configure",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "forbidden",
+      "silent_surfaces": [
+        "ui_list"
+      ]
+    },
+    {
+      "id": "AT-151",
+      "threats": [
+        "T-44"
+      ],
+      "principal": "guest",
+      "setup": "Filter, sort, group, or show columns by owner, assignee, or a non-guest-visible field",
+      "scope": "record",
+      "action": "record.read",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "validation_generic",
+      "silent_surfaces": [
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-152",
+      "threats": [
+        "T-44"
+      ],
+      "principal": "member",
+      "setup": "Use another person's or another query's page cursor",
+      "scope": "workspace",
+      "action": "record.read",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "validation_generic",
+      "silent_surfaces": [
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-153",
+      "threats": [
+        "T-44"
+      ],
+      "principal": "member",
+      "setup": "Export the current view after losing access to some of its records",
+      "scope": "brand",
+      "action": "record.read",
+      "surface": "export",
+      "expected": "allow",
+      "response_shape": "ok_filtered",
+      "silent_surfaces": [
+        "export",
+        "count_facet"
       ]
     }
   ]

@@ -80,6 +80,79 @@
     },
     "meta": {
       "$ref": "urn:pm:schema:meta"
+    },
+    "view": {
+      "description": "Query metadata for saved-view query collections (Phase 3A, PL-28): visible columns, group summaries computed with the identical authorized predicate as the rows, and labels for the filter values the caller can read (unreadable and unknown values are both absent).",
+      "type": "object",
+      "required": [
+        "columns",
+        "refs"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "columns": {
+          "type": "array",
+          "maxItems": 50,
+          "items": {
+            "type": "object",
+            "required": [
+              "field",
+              "label"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "field": {
+                "type": "string",
+                "maxLength": 64
+              },
+              "label": {
+                "type": "string",
+                "maxLength": 200
+              }
+            }
+          }
+        },
+        "groups": {
+          "type": "array",
+          "maxItems": 1000,
+          "items": {
+            "type": "object",
+            "required": [
+              "key",
+              "label",
+              "count"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "key": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "maxLength": 1000
+              },
+              "label": {
+                "type": "string",
+                "maxLength": 1000
+              },
+              "count": {
+                "type": "integer",
+                "minimum": 0
+              }
+            }
+          }
+        },
+        "groups_truncated": {
+          "type": "boolean"
+        },
+        "refs": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string",
+            "maxLength": 300
+          }
+        }
+      }
     }
   }
 }

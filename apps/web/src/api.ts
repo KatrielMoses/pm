@@ -169,3 +169,54 @@ export async function protectedPost<T>(
 ): Promise<{ status: number; body: T; replayed: boolean }> {
   return protectedRequest<T>('POST', path, body, resolveStepUp);
 }
+
+/**
+ * A POST whose success response is a file (3A view export). Errors use the JSON error envelope
+ * like every other request; the file body is returned as text with its suggested name.
+ */
+export async function downloadPost(
+  path: string,
+  body: unknown,
+): Promise<{ text: string; filename: string; contentType: string }> {
+  if (!navigator.onLine)
+    throw new ApiError({ code: 'offline', status: 0, message: "You're offline." });
+  const headers: Record<string, string> = {
+    accept: 'text/csv, application/json',
+    'content-type': 'application/json',
+  };
+  if (csrfToken) headers['x-csrf-token'] = csrfToken;
+  let res: Response;
+  try {
+    res = await fetch(path, {
+      method: 'POST',
+      headers,
+      credentials: 'same-origin',
+      body: JSON.stringify(body),
+    });
+  } catch {
+    throw new ApiError({ code: 'network', status: 0, message: 'Network error.' });
+  }
+  const token = res.headers.get('x-csrf-token');
+  if (token) csrfToken = token;
+  if (!res.ok) {
+    let e: Record<string, unknown> = {};
+    try {
+      e = ((await res.json()) as { error?: Record<string, unknown> }).error ?? {};
+    } catch {
+      // not JSON
+    }
+    throw new ApiError({
+      code: typeof e.code === 'string' ? e.code : 'internal_error',
+      status: res.status,
+      message: typeof e.message === 'string' ? e.message : 'Something went wrong.',
+      issues: Array.isArray(e.issues) ? (e.issues as ApiIssue[]) : [],
+    });
+  }
+  const disposition = res.headers.get('content-disposition') ?? '';
+  const filename = /filename="([^"]+)"/.exec(disposition)?.[1] ?? 'export';
+  return {
+    text: await res.text(),
+    filename,
+    contentType: (res.headers.get('content-type') ?? 'text/plain').split(';')[0]!,
+  };
+}

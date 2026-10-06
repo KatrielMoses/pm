@@ -167,7 +167,7 @@ Rules and algorithm: [../04-effective-permissions.md](../04-effective-permission
 
 | Action | Description | Approval class | Requirements | Notes |
 |---|---|---|---|---|
-| `record.read` | Read a record and its own comments/attachments. | none | PERM-004, LA-016 |  |
+| `record.read` | Read a record and its own comments/attachments. | none | LA-016, PERM-004, VIEW-012, VIEW-013, VIEW-014, VIEW-015, VIEW-022, WSB-019 |  |
 | `record.create` | Create a record in a container. | none | PRJ-001, TSK-001 |  |
 | `record.update` | Edit fields of a record. | none | PERM-004 |  |
 | `record.archive` | Archive a record and its contained subtree. | none | PRJ-001 |  |
@@ -203,13 +203,13 @@ Rules and algorithm: [../04-effective-permissions.md](../04-effective-permission
 | `timesheet.submit_own` | Submit own timesheet. | none | TIME-012 |  |
 | `timesheet.approve` | Approve a timesheet's brand line. | none | TIME-012 |  |
 | `timesheet.unlock` | Unlock an approved period with reason. | none | TIME-013 |  |
-| `view.share` | Share a saved view, dashboard, or report to a scope (never grants record access). | none | VIEW-017, RPT-020 |  |
+| `view.share` | Share a saved view, dashboard, or report to a scope (never grants record access). | none | VIEW-017, RPT-020 | Phase 3A (AZ-26): shares a saved view with exactly one scope (workspace, brand, or project); decided at that scope (grant:edit for members, never satisfied by record shares). Running a shared view compiles each viewer's own predicate and field allow-list. The same decision lets a person change, unshare, or delete the shared definition. |
 | `report.schedule` | Schedule report delivery to recipients (rendered per recipient). | none | RPT-021 |  |
 | `release.decide` | Record a go/no-go decision as an eligible approver. | independent_if_available | TEST-024, TEST-025 |  |
 | `release.production_action` | Trigger or record a production deployment or rollback. | independent_if_available | DEV-009, AGT-016 |  |
 | `environment.configure` | Configure environments and their URLs/evidence. | none | DEV-015 |  |
 | `tests.execute` | Start or rerun test runs. | none | TEST-015 |  |
-| `personal.manage_own` | Inbox, Today, notifications, personal views, favorites, reminders, availability, profile. | none | CAP-001, CAP-002, CAP-004, CAP-011, CAP-012, CAP-013, CAP-014, CAP-016, NTF-007, PLAN-008 | Phase 2E (AZ-25): capture, Inbox, notes, merge, and triage previews are personal; turning an item into operational work also needs record.create at the destination. |
+| `personal.manage_own` | Inbox, Today, notifications, personal views, favorites, reminders, availability, profile. | none | CAP-001, CAP-002, CAP-004, CAP-011, CAP-012, CAP-013, CAP-014, CAP-016, NAV-011, NTF-007, PLAN-008, VIEW-016, VIEW-018 | Phase 2E (AZ-25): capture, Inbox, notes, merge, and triage previews are personal; turning an item into operational work also needs record.create at the destination. Phase 3A (AZ-26): personal saved views, a person's own default view, and per-view state are personal; no owner or administrator bypass. |
 | `sessions.manage_own` | List and revoke own sessions. | none | SEC-008 |  |
 | `account.mfa_enroll` | Enroll an authenticator (TOTP) factor on own account. | none | SEC-006 | Account-level (platform scope, no workspace or membership): 'own' means the authenticated account's own factors only; it is never a tenant capability. Human-only and not delegable to tokens, agents, automations, integrations, or support: step-up is human-only (0D §11.2) and no 0D scope may list this action. Step-up accepts the password when no factor exists yet, so enrollment never requires MFA before the first MFA. |
 | `account.mfa_disable` | Turn off own two-step verification and remove its factor and recovery codes. | none | SEC-006 | Account-level (platform scope, no workspace or membership): 'own' means the authenticated account's own factors only; it is never a tenant capability. Human-only and not delegable to tokens, agents, automations, integrations, or support: step-up is human-only (0D §11.2) and no 0D scope may list this action. |
@@ -241,7 +241,7 @@ Rules and algorithm: [../04-effective-permissions.md](../04-effective-permission
 | `custom_roles.manage` | Create custom roles from allowed capabilities. | none | PERM-002 |  |
 | `workflow.configure` | Configure workflows, statuses, transitions, required fields, and approval policies. | none | PRJ-009, WFL-001, WFL-002, WFL-003, WFL-004, WFL-005, WFL-006, WFL-007 | Phase 2C (AZ-23): at the workflow's own scope (workspace, brand, or project), within grantable authority; no owner/admin bypass on sensitive brands or restricted projects. |
 | `fields.configure` | Configure custom fields and field sets. | none | TSK-016, WFL-008, WFL-009, WFL-010, WFL-011, WFL-012, WFL-013, WFL-014 | Phase 2C (AZ-23): definitions, options, formulas, field policies, and field sets at their own scope. |
-| `views.configure` | Set default views per brand/project and pin shared views to navigation. | none | VIEW-018, VIEW-019 |  |
+| `views.configure` | Set default views per brand/project and pin shared views to navigation. | none | VIEW-018, VIEW-019 | Phase 3A (AZ-26): sets brand and project default views and pins views into workspace or brand navigation; only a view shared with that exact scope (or the workspace, for defaults) qualifies, so everyone it applies to can read it. |
 | `templates.manage` | Create and manage templates. | none | ONB-013 |  |
 | `notifications.configure_scope` | Configure brand/project notification rules and minimal-content mode. | none | WSB-014 |  |
 | `ai.configure_brand` | Configure brand AI profile and approved-source policy. | none | WSB-012 |  |

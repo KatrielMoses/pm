@@ -36,6 +36,8 @@ interface WorkspaceShellState {
   failure: unknown;
   access: Access | null;
   favorites: NavTarget[];
+  /** Shared saved views pinned into this workspace's or its brands' navigation (3A). */
+  pins: NavTarget[];
   recent: RecentItem[];
   /** The scope token requested by this history entry (URL or entry state), if any. */
   requested: string | null;
@@ -68,6 +70,7 @@ export function WorkspaceShellProvider({ ws, children }: { ws: string; children:
   const [failure, setFailure] = useState<unknown>(null);
   const [favorites, setFavorites] = useState<NavTarget[]>([]);
   const [recent, setRecent] = useState<RecentItem[]>([]);
+  const [pins, setPins] = useState<NavTarget[]>([]);
   const [notice, setNotice] = useState<ScopeNotice | null>(null);
   const [listNonce, setListNonce] = useState(0);
   const [contextNonce, setContextNonce] = useState(0);
@@ -112,11 +115,16 @@ export function WorkspaceShellProvider({ ws, children }: { ws: string; children:
   useEffect(() => {
     if (!memberOrGuest) return;
     let active = true;
-    Promise.all([shell.favorites(ws), shell.recent(ws, { limit: 'sidebar' })]).then(
-      ([f, r]) => {
+    Promise.all([
+      shell.favorites(ws),
+      shell.recent(ws, { limit: 'sidebar' }),
+      shell.pins(ws).catch(() => [] as NavTarget[]),
+    ]).then(
+      ([f, r, pinned]) => {
         if (!active) return;
         setFavorites(f);
         setRecent(r);
+        setPins(pinned);
       },
       () => undefined,
     );
@@ -196,6 +204,7 @@ export function WorkspaceShellProvider({ ws, children }: { ws: string; children:
       failure,
       access,
       favorites: context ? favorites : [],
+      pins: context ? pins : [],
       recent: context ? recent : [],
       requested,
       notice,
@@ -212,6 +221,7 @@ export function WorkspaceShellProvider({ ws, children }: { ws: string; children:
       failure,
       access,
       favorites,
+      pins,
       recent,
       requested,
       notice,

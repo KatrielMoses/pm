@@ -170,6 +170,10 @@ export const NON_RESOURCE_TYPES = [
   'capture_preview',
   'triage_preview',
   'merge_preview',
+  'view_catalog',
+  'view_default',
+  'view_default_resolution',
+  'view_field_options',
 ] as const;
 export type NonResourceType = (typeof NON_RESOURCE_TYPES)[number];
 

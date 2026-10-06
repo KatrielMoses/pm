@@ -289,6 +289,13 @@ Source: `contracts/registry.json`.
 | `capture.intake_form.created` v1 | capture.intake_form | target_kind | C1 |  |  | yes |  |  | — |
 | `capture.intake_form.updated` v1 | capture.intake_form | state | C1 |  |  | yes |  |  | — |
 | `capture.intake.submitted` v1 | capture.intake_form | inbox_item_id | C1 |  |  | yes |  |  | — |
+| `views.saved_view.created` v1 | views.saved_view | entity, visibility | C1 |  |  | yes |  |  | — |
+| `views.saved_view.updated` v1 | views.saved_view | entity, visibility | C1 |  |  | yes |  |  | — |
+| `views.saved_view.shared` v1 | views.saved_view | entity, scope | C1 |  |  | yes |  |  | — |
+| `views.saved_view.unshared` v1 | views.saved_view | entity | C1 |  |  | yes |  |  | — |
+| `views.saved_view.deleted` v1 | views.saved_view | entity | C1 |  |  | yes |  |  | — |
+| `views.default.changed` v1 | views.view_default | target, entity, cleared | C1 |  |  | yes |  |  | — |
+| `views.pin.changed` v1 | views.view_pin | scope, pinned | C1 |  |  | yes |  |  | — |
 
 ## SSE topics
 
@@ -432,6 +439,9 @@ Forbidden metric labels: `workspace_id`, `brand_id`, `record_id`, `public_id`, `
 | `capture.items` | counter | outcome | capture |
 | `capture.parse` | counter | outcome | capture |
 | `capture.triage` | counter | outcome | capture |
+| `views.queries` | counter | entity, outcome | views |
+| `views.query_duration` | histogram | entity | views |
+| `views.exports` | counter | entity, format | views |
 
 ## Named parameters (values are configuration, not promises)
 
@@ -527,3 +537,12 @@ Forbidden metric labels: `workspace_id`, `brand_id`, `record_id`, `public_id`, `
 | `INBOX_MERGE_MAX` | Most Inbox items one merge may combine; default 20, range 2–100. | 2E |
 | `INTAKE_FORMS_MAX` | Most intake forms per brand; default 50, range 1–500. | 2E |
 | `INTAKE_SUBMISSIONS_PER_HOUR` | Most submissions one person may make to one form per hour; default 20, range 1–1000. | 2E |
+| `QUERY_CONDITIONS_MAX` | Most conditions one view query may combine; default 40, range 1–200. | 3A |
+| `QUERY_DEPTH_MAX` | Deepest nesting of AND/OR filter groups; default 3, range 1–6. | 3A |
+| `QUERY_SORTS_MAX` | Most sort keys in one view query; default 5, range 1–10. | 3A |
+| `QUERY_VALUES_MAX` | Most values one filter condition may list; default 100, range 1–500. | 3A |
+| `QUERY_GROUPS_MAX` | Most groups one grouped query returns (more are reported as truncated); default 200, range 10–1000. | 3A |
+| `VIEW_COLUMNS_MAX` | Most visible columns in one view; default 20, range 1–50. | 3A |
+| `SAVED_VIEWS_MAX` | Most active saved views one person may own in a workspace; default 200, range 1–2000. | 3A |
+| `VIEW_PINS_MAX` | Most views pinned into one workspace or brand navigation; default 20, range 1–100. | 3A |
+| `EXPORT_ROWS_MAX` | Most rows one direct export of the current view may contain; larger views must be narrowed; default 5000, range 1–50000. | 3A |

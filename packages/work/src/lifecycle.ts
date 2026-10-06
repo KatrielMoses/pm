@@ -34,6 +34,7 @@ export const projectAdapter: RecordTypeAdapter = {
       UNION ALL SELECT id, 'milestone' FROM work.milestone WHERE project_id = ANY(${[...parentIds]}::uuid[])
       UNION ALL SELECT id, 'decision_record' FROM work.decision_record WHERE project_id = ANY(${[...parentIds]}::uuid[])
       UNION ALL SELECT id, 'task' FROM work.task WHERE project_id = ANY(${[...parentIds]}::uuid[])
+      UNION ALL SELECT id, 'saved_view' FROM views.saved_view WHERE share_project_id = ANY(${[...parentIds]}::uuid[])
       ORDER BY 1`.execute(tx.db);
     return refs(rows.rows);
   },
@@ -69,6 +70,8 @@ export const projectAdapter: RecordTypeAdapter = {
         .where('id', 'not in', ids)
         .executeTakeFirst();
       if (live) throw new Error('project purge blocked: a live child project references it');
+      // Views shared with the project are its content (3A); its defaults go with it.
+      await tx.db.deleteFrom('views.view_default').where('project_id', 'in', ids).execute();
       await tx.db
         .deleteFrom('work.project_update_verification')
         .where('project_id', 'in', ids)
@@ -389,6 +392,35 @@ export const intakeFormAdapter: RecordTypeAdapter = {
   },
 };
 
+/**
+ * Saved views (3A). Views are workspace records; a view shared with a brand or one of its projects
+ * purges with that brand. Pins and defaults referencing a purged view go with it.
+ */
+export const savedViewAdapter: RecordTypeAdapter = {
+  recordType: 'saved_view',
+  children: () => Promise.resolve([]),
+  async rootsInBrand(tx, brandIds) {
+    if (!brandIds.length) return [];
+    const rows = await tx.db
+      .selectFrom('views.saved_view')
+      .select('id')
+      .where('share_brand_id', 'in', [...brandIds])
+      .where('lifecycle_state', '<>', 'purged')
+      .orderBy('id')
+      .execute();
+    return rows.map((r) => ({ id: r.id, recordType: 'saved_view' }));
+  },
+  containerOf: () => Promise.resolve(null),
+  purge: {
+    async deleteContent(tx, recordIds) {
+      const ids = [...recordIds];
+      await tx.db.deleteFrom('views.view_pin').where('saved_view_id', 'in', ids).execute();
+      await tx.db.deleteFrom('views.view_default').where('saved_view_id', 'in', ids).execute();
+      await tx.db.deleteFrom('views.saved_view').where('id', 'in', ids).execute();
+    },
+  },
+};
+
 /** Registers the work record types (API and worker use the same registration). */
 export function registerWorkLifecycle(registry: LifecycleRegistry): LifecycleRegistry {
   for (const a of [
@@ -401,6 +433,7 @@ export function registerWorkLifecycle(registry: LifecycleRegistry): LifecycleReg
     inboxItemAdapter,
     noteAdapter,
     intakeFormAdapter,
+    savedViewAdapter,
   ])
     registry.register(withPersonalReferenceCleanup(a));
   return registry;

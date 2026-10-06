@@ -24,6 +24,7 @@
     "validate:phase0": "python3 docs/architecture/tools/phase0.py",
     "validate:phase1": "python3 docs/engineering/tools/phase1.py",
     "validate:phase2": "python3 docs/engineering/tools/phase2.py",
+    "validate:phase3": "python3 docs/engineering/tools/phase3.py",
     "contracts:generate": "node packages/contracts/scripts/generate.mjs",
     "contracts:generate:check": "node packages/contracts/scripts/generate.mjs --check",
     "migrate": "node packages/db/dist/cli/migrate.js",
