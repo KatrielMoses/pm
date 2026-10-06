@@ -457,3 +457,27 @@ describe('bulk status (review 01): the selection’s statuses, custom ones inclu
     ]);
   });
 });
+
+describe('background refresh keeps the page (REL-001)', () => {
+  it('a failed reload keeps the loaded data; a first load still fails visibly', async () => {
+    const { useResource } = await import('../src/tenancy/resource.tsx');
+    let fail = false;
+    const load = vi.fn(async () => {
+      if (fail) throw new ApiError({ code: 'offline', status: 0, message: "You're offline." });
+      return 'loaded';
+    });
+    let api: ReturnType<typeof useResource<string>> | null = null;
+    function Probe() {
+      api = useResource(load, 'k');
+      return <p>{api.state.status}</p>;
+    }
+    render(<Probe />);
+    await act(async () => undefined);
+    expect(screen.getByText('ready')).toBeTruthy();
+    fail = true;
+    await act(async () => api!.reload());
+    expect(screen.getByText('ready')).toBeTruthy();
+    await act(async () => api!.retry());
+    expect(screen.getByText('failed')).toBeTruthy();
+  });
+});

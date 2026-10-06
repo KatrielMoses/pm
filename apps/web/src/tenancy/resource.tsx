@@ -23,7 +23,16 @@ export function useResource<T>(load: () => Promise<T>, key: string) {
     let active = true;
     load().then(
       (data) => active && setEntry({ key, state: { status: 'ready', data } }),
-      (error: unknown) => active && setEntry({ key, state: { status: 'failed', error } }),
+      // A failed background refresh keeps what is already on screen (2D REL-001): going offline
+      // during a reload never discards the page or what the person is typing. A first load, a
+      // retry, or another key still shows the failure.
+      (error: unknown) =>
+        active &&
+        setEntry((prev) =>
+          prev.key === key && prev.state.status === 'ready'
+            ? prev
+            : { key, state: { status: 'failed', error } },
+        ),
     );
     return () => {
       active = false;
