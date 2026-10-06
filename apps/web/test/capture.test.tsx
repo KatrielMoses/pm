@@ -216,13 +216,11 @@ describe('the Inbox', () => {
     const pv = vi
       .spyOn(capture, 'previewTriage')
       .mockResolvedValue({ to: 'task', items: [{ item: 'inb_1', outcome: 'ready' }] });
-    const tr = vi
-      .spyOn(capture, 'triage')
-      .mockResolvedValue({
-        id: 'inb_1',
-        to: 'task',
-        items: [{ item: 'inb_1', outcome: 'applied', record: 'tsk_1' }],
-      });
+    const tr = vi.spyOn(capture, 'triage').mockResolvedValue({
+      id: 'inb_1',
+      to: 'task',
+      items: [{ item: 'inb_1', outcome: 'applied', record: 'tsk_1' }],
+    });
     wrap(<InboxPage ws="ws_A" />);
     await act(async () => undefined);
     const list = screen.getByRole('list', { name: 'Inbox items' });
