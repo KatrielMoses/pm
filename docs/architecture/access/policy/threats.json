@@ -462,6 +462,17 @@
         "I-10",
         "I-18"
       ]
+    },
+    {
+      "id": "T-45",
+      "category": "inference",
+      "description": "Time exposure and tampering: entries, totals, reports, timesheets, approval views, or exports naming or counting work the viewer cannot read; logging, editing, or moving time without time.log_own on the work; changing another person's entries; approving a brand line without manage now, without seeing all of it, or as a self-approval the policy forbids; unlocking an approved period without workspace admin authority, a reason, or step-up; editing or moving submitted or approved time through any path.",
+      "mitigated_by": [
+        "I-01",
+        "I-02",
+        "I-10",
+        "I-18"
+      ]
     }
   ],
   "tests": [
@@ -3190,6 +3201,138 @@
       "response_shape": "forbidden",
       "silent_surfaces": [
         "ui_list"
+      ]
+    },
+    {
+      "id": "AT-154",
+      "threats": [
+        "T-45"
+      ],
+      "principal": "member",
+      "setup": "Log time on a task with only view access (read-only role or view grant)",
+      "scope": "task",
+      "action": "time.log_own",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "forbidden",
+      "silent_surfaces": [
+        "ui_record"
+      ]
+    },
+    {
+      "id": "AT-155",
+      "threats": [
+        "T-45"
+      ],
+      "principal": "member",
+      "setup": "Report, summarize, or export time where some entries are on a restricted project the viewer cannot read",
+      "scope": "workspace",
+      "action": "record.read",
+      "surface": "report",
+      "expected": "deny",
+      "response_shape": "omitted",
+      "silent_surfaces": [
+        "export",
+        "count_facet",
+        "ui_list"
+      ]
+    },
+    {
+      "id": "AT-156",
+      "threats": [
+        "T-45"
+      ],
+      "principal": "member",
+      "setup": "Change or delete another person's time entry on readable work",
+      "scope": "task",
+      "action": "time.log_own",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "not_found",
+      "silent_surfaces": [
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-157",
+      "threats": [
+        "T-45"
+      ],
+      "principal": "member",
+      "setup": "Approve a brand line containing time on work the approver cannot read",
+      "scope": "brand",
+      "action": "timesheet.approve",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "forbidden",
+      "silent_surfaces": [
+        "ui_list"
+      ]
+    },
+    {
+      "id": "AT-158",
+      "threats": [
+        "T-45"
+      ],
+      "principal": "member",
+      "setup": "Approve own timesheet line while another approval-capable member exists",
+      "scope": "brand",
+      "action": "timesheet.approve",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "forbidden",
+      "silent_surfaces": [
+        "ui_record"
+      ]
+    },
+    {
+      "id": "AT-159",
+      "threats": [
+        "T-45"
+      ],
+      "principal": "member",
+      "setup": "Unlock an approved period as a brand manager who is not a workspace admin",
+      "scope": "brand",
+      "action": "timesheet.unlock",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "not_found",
+      "silent_surfaces": [
+        "ui_record",
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-160",
+      "threats": [
+        "T-45"
+      ],
+      "principal": "member",
+      "setup": "Edit, delete, or move to another brand time in a submitted or approved period",
+      "scope": "task",
+      "action": "time.log_own",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "conflict_filtered",
+      "silent_surfaces": [
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-161",
+      "threats": [
+        "T-45"
+      ],
+      "principal": "guest",
+      "setup": "List or export time on a shared task logged by other people",
+      "scope": "shared record",
+      "action": "record.read",
+      "surface": "export",
+      "expected": "deny",
+      "response_shape": "omitted",
+      "silent_surfaces": [
+        "ui_list",
+        "report"
       ]
     }
   ]

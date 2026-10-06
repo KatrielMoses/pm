@@ -240,3 +240,14 @@ Migrations `0029_capture_inbox` and `0030_intake_forms` (ADR-0017, 0B ADR-25) cr
 - `intake_form`: brand-scoped, with a queue owner.
 - `intake_submission`: append-only receipts.
 The worker may detach `work.project.intake_source_id` and `capture.note.source_inbox_item_id` during purge.
+
+## Phase 3D: time tracking
+
+Migration `0031_time_tracking` (ADR-0019, 0B ADR-27) creates the `timetrack` schema:
+- `time_entry` (`te_`): one task or one project in its brand (the brand is part of the target foreign key, `ON UPDATE CASCADE`), manual or timer, UTC instants, IANA zone, local `work_date`, whole-second duration, billable, note. `time_entry_one_live_timer` keeps one running or paused timer per person.
+- `time_segment`: half-open UTC intervals of timed entries; `time_segment_guard` refuses overlaps per person, and the deferred `time_entry_consistency` trigger keeps durations equal to closed segments.
+- `timesheet` (`tsh_`, seven-day periods) and `timesheet_line` (one brand's state, submitted totals, and hash).
+- `timesheet_approval` and `period_lock`: append-only (`timetrack.append_only`), deletable only by an explicit workspace purge.
+- `timetrack.lock_person` (transaction advisory lock per person) and `timetrack.day_closed` (submitted or locked) back `time_entry_guard`, which refuses any change to closed time except deletion by the worker role during lifecycle purge.
+- `exec_dispatch.discover_runaway_timers` (payload-free; owned by `pm_scheduler`) serves the timer guard.
+

@@ -499,3 +499,11 @@ These rules apply to every surface: lists, search, palette, notifications, dashb
 - **Intake forms:** brand settings list forms (members-only while OD-28 is open); `/{ws}/forms/{form}` lets members submit.
 - **Honest absences:** voice (7F), email forwarding (6A), API and webhook capture (6B), file storage (4E), and anonymous forms (OD-28).
 
+**Phase 3D implementation note.** Time tracking and timesheets:
+- **Time:** `/{ws}/time` (Workspace section of the navigation, members) shows the live timer, the person's week (per-day totals, billable and non-billable), the timesheet with each brand's state, entries with Edit, and Log time. Previous week, This week, and Next week move the period.
+- **Timer:** started from a task or project; it survives a refresh and runs on the server's clock. Pause, Resume, and Stop and save are buttons; elapsed time is not announced every second, state changes are. Pause and stop pressed offline are kept on the device and sent when the connection returns. A timer whose work became unavailable shows no title and can still be stopped.
+- **Task and project:** a Time panel (the task page; the project's Time section) shows estimate or time budget and task estimates, logged time (billable and yours), and remaining effort, with Start timer and Log time where the person may log time. Durations are typed as `1:30`, `90`, `1.5h`, or `45m`, shown as h:mm, and spoken in words.
+- **Approvals:** `/{ws}/time/approvals` lists waiting (or decided) weeks for brands the person manages: Approve per brand, Return with a note, and, for workspace admins, Unlock with a reason after confirming it is them. Self-approval appears only where policy allows it and is labelled.
+- **Reports:** `/{ws}/time/report` compares planned and actual time by brand, project, task, person, day, week, or month, says which planned measure it uses, and exports CSV or JSON of the entries the person can see.
+- **Honest absences:** work blocks (3C), capacity and allocation (3E), rollups (5C), stored and scheduled exports and accounting adapters (6D).
+

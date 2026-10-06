@@ -241,6 +241,21 @@ All decisions are **proposed (Phase 0D)**, pending solutions-architect acceptanc
 - **Alternatives:** A separate history table (the 1F audit ledger is the history). Per-entity events for checklist items and links (they are task content; `work.task.updated` names the changed fields).
 - **Consequences:** Event payloads carry identifiers, kinds, and states only, never titles, descriptions, checklist text, URLs, or label names. 74 ID prefixes, 72 events, 51 named parameters, 51 telemetry signals.
 
+<a id="pl-29"></a>
+### PL-29: Time tracking contracts (Phase 3D amendment)
+- **Decision:**
+  - Prefixes `te` (time entry) and `tsh` (timesheet), registered in 0D, are implemented; segments, lines, approvals, and lock rows have no public ID.
+  - Resources and verbs: `time-entries` (list, create, read, `PATCH` and `DELETE` with `If-Match`, and `:pause`, `:resume`, `:stop`), `timer` (start; the live timer as a non-resource view), `timesheets` (submit; the approval queue; read; `:withdraw`, `:decide`, and `:unlock` with `If-Match`; unlock needs `Step-Up`), and `time-export` (a direct CSV or JSON download).
+  - Timer actions are idempotent by state as well as by key: pausing a paused timer, resuming a running one, or stopping a stopped one returns the current entry, so an offline action replayed with its key and instant applies once. Client instants are accepted from `TIME_ENTRY_MAX_HOURS` in the past to five minutes ahead.
+  - Events: `time.time_entry.recorded` (now with `source`) and `time.timesheet.approved` are implemented. Seven are added: `time.time_entry.updated`, `time.time_entry.deleted`, `time.timer.auto_stopped`, `time.timesheet.submitted`, `time.timesheet.withdrawn`, `time.timesheet.rejected`, and `time.timesheet.unlocked`.
+  - Named bounds: `TIME_ENTRY_MAX_HOURS` (24), `TIME_TIMER_MAX_HOURS` (12), `TIME_REPORT_RANGE_DAYS_MAX` (366), `TIME_REPORT_ROWS_MAX` (500), `TIME_EXPORT_ROWS_MAX` (10000), `TIME_TIMESHEET_ENTRIES_MAX` (2000), `TIME_RUNAWAY_DISCOVERY_MAX` (100), and `TIME_RUNAWAY_BATCH_MAX` (200).
+  - Five signals: `time.entries` (source, outcome), `time.timers` (action, outcome), `time.timesheets` (action, outcome), `time.exports` (format), and `time.timer_guard` (outcome).
+  - Non-resource envelopes: `timer_status`, `timesheet_period`, `time_report`, and `time_summary`.
+  - Refusals: `conflict` issues `overlap`, `timer_running`, `timer_live`, `timer_stopped`, `period_submitted`, `period_locked`, `time_locked`, `already_submitted`, `not_pending`, and `stale`; `forbidden` issues `self_approval` and `incomplete_visibility`; `validation_failed` issues `future`, `too_long`, `day_full`, `too_wide`, `too_many`, and `nothing_to_submit`; unlock without step-up is `step_up_required`.
+  - Rounding: durations are exact seconds; displays and exports round once, half-up, to hundredths of an hour.
+- **Alternatives:** A stored export artifact (needs 4E storage and the 6D platform). A dedicated error code per time refusal (the 0D set is closed; issue codes carry the detail).
+- **Consequences:** Payloads carry identifiers, durations, dates, and flags only, never notes or reasons. 83 ID prefixes, 104 events, 98 named parameters, 65 telemetry signals.
+
 <a id="pl-27"></a>
 ### PL-27: Capture contracts (Phase 2E amendment)
 - **Decision:**

@@ -199,6 +199,19 @@ Status of every ADR: **proposed (Phase 0B)**, pending solutions-architect accept
 - **Alternatives:** Mandatory projects (contradicts TSK-003). Unlimited depth (unbounded rewrites). A task status table (a second status system). Copying project definition-of-done items into tasks (drifts from the source). A mutable history table (diverges from the audit ledger).
 - **Consequences:** Task visibility is the 1D compiler's: project-contained tasks follow their project chain; projectless tasks follow the brand. Project completion becomes readable done leaf tasks over readable non-cancelled leaf tasks (OD-13).
 
+<a id="adr-27"></a>
+## ADR-27: Time tracking, timesheets, and period locks (Phase 3D amendment)
+
+- **Decision:**
+  - **Entries.** `timetrack.time_entry` (`te_`) belongs to the person and to exactly one task or one project in that work's brand; the brand is part of the target foreign key (`ON UPDATE CASCADE`), so a task moved to another brand carries its entries. `source` is `manual` or `timer`; `state` is `running`, `paused`, or `stopped` (manual entries are always stopped). Every entry keeps its IANA zone and the local `work_date` it counts towards; instants are UTC whole seconds. Durations are never negative and at most 24 hours (`TIME_ENTRY_MAX_HOURS`); one live timer per person (partial unique index).
+  - **Segments.** `timetrack.time_segment` holds the half-open UTC intervals of a timed entry (one for a manual timed entry; one per run between pauses for a timer; an open segment is a running timer). A person's segments never overlap: a guard trigger checks under a per-person transaction lock. A deferred constraint trigger keeps each entry's duration equal to its closed segments. Duration-only manual entries have no segments and do not take part in overlap.
+  - **Timesheets.** `timetrack.timesheet` (`tsh_`) is one person's seven-day period starting on the workspace week start, `open`, `submitted`, or `approved`. `timetrack.timesheet_line` holds one brand's state (`pending`, `approved`, `rejected`, `withdrawn`, `unlocked`) and the submitted totals and entry hash.
+  - **Evidence.** `timetrack.timesheet_approval` is append-only: who decided which line of whose period, `approve` or `reject`, `self_approval` (OD-20), and the exact entries (count, totals, hash, sheet version). `timetrack.period_lock` is append-only: `lock` rows (written by an approval) and `unlock` rows (reason and step-up, OD-26); the latest row per person, brand, and period decides.
+  - **Lock enforcement.** Every write that a period check protects takes the person's transaction lock first; a guard trigger refuses any insert, update, move, or delete of an entry (or its segments) whose day is in a submitted timesheet or an approved, locked period. The only sanctioned deletions are lifecycle purge of the work (the worker role) and an explicit workspace purge; approvals keep their own totals and hash.
+  - **Deviations from §6.6.** Exactly one target (not "at least one"); `timesheet_id` and `locked` are derived from timesheet and lock rows rather than stored; the per-person transaction lock and guard trigger replace `FOR SHARE` on the lock row; a `timesheet_line` table carries per-brand state.
+- **Alternatives:** An exclusion constraint for overlap (needs `btree_gist`, which the platform does not install). Storing pauses as a list on the entry (cannot be checked for overlap). A mutable lock flag (loses unlock history).
+- **Consequences:** Migration `0031_time_tracking` with a down migration to 0030. No work blocks, capacity, rollups, or export-adapter tables (3C, 3E, 5C, 6D).
+
 <a id="adr-25"></a>
 ## ADR-25: Inbox and universal capture (Phase 2E amendment)
 

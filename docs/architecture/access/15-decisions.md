@@ -220,6 +220,21 @@ All decisions are **proposed (Phase 0C)**, pending solutions-architect acceptanc
 - **Alternatives:** Assignment as a grant (contradicts I-10). Shares implying children or the project (contradicts OD-04). A separate task permission table (a second authority source).
 - **Consequences:** The compiled predicate's governing-project derivation gains tasks; preview and enforcement stay one engine.
 
+<a id="az-27"></a>
+### AZ-27: Time tracking, timesheets, approvals, and unlock (Phase 3D amendment)
+- **Decision:**
+  - **Logging.** `time.log_own` (record, comment) is decided on the task or project at every write (create, edit, move to another target, timer start and resume). A share at comment or above grants it, guests included; read-only roles never log (AT-154).
+  - **Reading.** An entry is readable through its work's compiled visibility (view; archived work included, trashed and hidden work never). Guests read only their own entries. Lists, totals, reports, summaries, timesheets, approval views, and exports run the same predicate inside SQL, so hidden work is never named or counted (AT-155).
+  - **Own entries only.** Only the owner changes an entry; anyone else gets `not_found`. After losing access, a person may still pause, stop, or discard their own live timer (target and note withheld); resuming needs `time.log_own` again (AT-156).
+  - **Submission.** `timesheet.submit_own` (personal; guests denied) by the period's owner only.
+  - **Approval.** `timesheet.approve` (brand, manage) is decided now, per brand line. The approver must be able to read every entry in the line; otherwise `forbidden` (`incomplete_visibility`) (AT-157). Self-approval follows the workspace policy (OD-20: `auto` allows it only while one approval-capable member exists) and is recorded and labelled (AT-158). Being an approver grants no access.
+  - **Unlock (OD-26).** `timesheet.unlock` (admin, brand, R3, step-up): workspace owners and administrators only, with a reason. It appends an `unlock` row, writes a `permission` security event, and requires the line to be submitted and approved again (AT-159).
+  - **Locks.** Submitted or approved time cannot be created, changed, moved between brands, or deleted by anyone through any path; the database guard repeats the rule (AT-160).
+  - **Exports.** A time export contains only what the requester can read at request time and writes an `export` security event (AT-161).
+  - **No new actions.** The four 0C actions (`time.log_own`, `timesheet.submit_own`, `timesheet.approve`, `timesheet.unlock`) are implemented unchanged.
+- **Alternatives:** Approver authority from the timesheet owner's manager relationship (no such relationship exists; brand manage is the canonical authority). Unlock by brand managers (OD-26 chose workspace admins).
+- **Consequences:** Time rows are filtered by the viewer's predicate in addition to workspace RLS; the per-person lock serializes approval with every edit it protects.
+
 <a id="az-25"></a>
 ### AZ-25: Inbox and universal capture (Phase 2E amendment)
 - **Decision:**

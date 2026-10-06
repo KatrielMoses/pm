@@ -45,6 +45,7 @@ Machine-readable models win over prose for structure (entities, columns, actions
 | [OD-01](../product/open-decisions.md#od-01) due date versus deadline | Decided in Phase 2B: due = internal target; deadline = external, explicit-only (date or instant); scheduling is a separate work block | 2B |
 | [OD-08](../product/open-decisions.md#od-08) subtask depth | Decided in Phase 2B: `TASK_DEPTH_MAX` 20, database ceiling 64 | 2B |
 | [OD-09](../product/open-decisions.md#od-09), [OD-10](../product/open-decisions.md#od-10), [OD-11](../product/open-decisions.md#od-11), [OD-12](../product/open-decisions.md#od-12) | One dependency family; follower/label canonical; one calculated-field type; Timeline ≠ Gantt as defined | 2B, 2C, 3B |
+| [OD-26](../product/open-decisions.md#od-26) unlocking approved time | Implemented in Phase 3D: workspace admins only, step-up and a reason, audited unlock row, re-approval required; OD-20 self-approval applies to timesheet lines | 3D |
 | [OD-28](../product/open-decisions.md#od-28) intake forms | Open; Phase 2E implements the deferred rule only (members-only, brand-owned forms) | 2E (blocker recorded) |
 | [OD-29](../product/open-decisions.md#od-29) email capture | Open; 6A owns forwarding; 2E keeps the adapter-ready source kind | 2E (deferred to 6A) |
 | [OD-17](../product/open-decisions.md#od-17) staleness and freshness | Decided in Phase 2D for tasks: meaningful-update definition; 7/14-day stale thresholds; 3 reschedules in 14 days; registered parameters | 2D |

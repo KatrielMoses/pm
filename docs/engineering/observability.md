@@ -107,3 +107,8 @@ Counters `work.reminders.fired`, `work.bulk.items`, and `work.undo.applied` (out
 ## Capture (2E)
 
 Counters `capture.items`, `capture.parse`, and `capture.triage` (outcome label only). Captured text never appears in logs, metrics, events, or audit (content hashes only).
+
+## Time (3D)
+
+Counters `time.entries` (source, outcome), `time.timers` (action, outcome: `ok`, `noop`, `capped`), `time.timesheets` (action, outcome: `ok`, `self`), `time.exports` (format), and `time.timer_guard` (outcome: `stopped`, `workspace_batch_full`). Events carry identifiers, durations, dates, and flags only. Notes and unlock reasons never appear in logs, metrics, or events; audit keeps their hashes. Exports write an `export` security event; unlocks a `permission` security event.
+

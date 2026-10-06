@@ -358,3 +358,8 @@ readable only where all its inputs are (AZ-23). Approvers and person or label va
 ## Phase 2E capture
 
 Capture, the Inbox, notes, merge, and parse previews are personal (`personal.manage_own`, OD-03): every query filters by the owner's membership, with no administrator bypass. Triage and note conversion decide `record.create` at the destination brand or project chain at preview and apply. Intake forms use `intake.manage` (brand admin) and `intake.submit` (brand view, members only while OD-28 is open). Name resolution and form lookups run fixed statements, so hidden and unknown are indistinguishable.
+
+## Phase 3D time tracking
+
+`TimeService` (AZ-27): `time.log_own` (comment) on the task or project at every write; only the owner changes an entry. Reads use the work's compiled visibility (view, archived included) inside SQL, with guests limited to their own entries; `editable` uses the same compiler at `comment` on active work. `timesheet.submit_own` is personal; `timesheet.approve` is decided per brand line now, needs the whole line to be readable, and applies OD-20 through the shared `selfApprovalAllowed`; `timesheet.unlock` is the admin action with step-up (OD-26). Approvers never gain access through approval.
+

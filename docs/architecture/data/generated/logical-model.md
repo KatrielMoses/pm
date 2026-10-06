@@ -2646,7 +2646,7 @@ Time entries and timers, timesheets, per-brand approvals, period locks.
 <a id="entity-time-entry"></a>
 ### `time_entry`
 
-Actual time on a task or project in its brand; a running timer is an entry with ended_at null.
+Actual time on one task or one project in that work's brand: manual (timed or duration-only) or a timer (running, paused, stopped).
 
 | Property | Value |
 |---|---|
@@ -2658,10 +2658,32 @@ Actual time on a task or project in its brand; a running timer is an entry with 
 | Retention / confidentiality | `R-LIVE` / `C2` |
 | Volume / export / search-AI | `very-high` / `filtered` / `yes` |
 | Secrets / personal data | `no` / `incidental` |
-| Uniqueness | `one running timer per membership: unique (membership_id) where ended_at is null` |
-| Key typed columns | `membership_id`; `task_id null`; `project_id null`; `started_at`; `ended_at null`; `duration_seconds int`; `billable boolean`; `note`; `timesheet_id null`; `locked boolean (derived from period lock)` |
+| Uniqueness | `one live timer per membership: unique (workspace_id, membership_id) where state in (running, paused)`; `public_id` |
+| Key typed columns | `public_id text (te_)`; `membership_id`; `task_id null`; `project_id null (exactly one target)`; `source (manual\|timer)`; `state (running\|paused\|stopped)`; `started_at null`; `ended_at null`; `work_date date (local day in tz)`; `tz text (IANA)`; `duration_seconds int (sum of closed segments)`; `billable boolean`; `note text <= 1000`; `auto_stopped boolean`; `version bigint` |
 | Sensitive fields | — |
-| Requirements | TSK-024, TSK-025, TSK-026, TIME-004 |
+| Requirements | TSK-024, TSK-025, TSK-026, TIME-004, TIME-011 |
+| Notes | Phase 3D (ADR-27). The brand is part of the target foreign key (ON UPDATE CASCADE), so a task moved to another brand carries its entries; the lock guard refuses the move while any is submitted or approved. Submitted/locked state is derived from timesheet and period_lock rows (not stored). |
+
+<a id="entity-time-segment"></a>
+### `time_segment`
+
+One UTC interval of a timed entry (half-open; an open segment is a running timer).
+
+| Property | Value |
+|---|---|
+| Scope | `inherited` |
+| Contained by | [`time_entry`](logical-model.md#entity-time-entry) |
+| Extends (1:1) | — |
+| Associations | [`membership`](logical-model.md#entity-membership) |
+| Lifecycle / concurrency | `mutable` / `locked` |
+| Retention / confidentiality | `R-LIVE` / `C2` |
+| Volume / export / search-AI | `very-high` / `filtered` / `no` |
+| Secrets / personal data | `no` / `incidental` |
+| Uniqueness | `one open segment per membership` |
+| Key typed columns | `entry_id`; `membership_id`; `started_at`; `ended_at null` |
+| Sensitive fields | — |
+| Requirements | TSK-025, TIME-004 |
+| Notes | Phase 3D (ADR-27): segments of one person never overlap (database guard under the person lock). |
 
 <a id="entity-timesheet"></a>
 ### `timesheet`
@@ -2678,10 +2700,32 @@ Person and period container spanning brands; submitted and approved per brand li
 | Retention / confidentiality | `R-LIVE` / `C2` |
 | Volume / export / search-AI | `medium` / `filtered` / `yes` |
 | Secrets / personal data | `no` / `incidental` |
-| Uniqueness | `(membership_id, period_start)` |
-| Key typed columns | standard columns only |
+| Uniqueness | `(workspace_id, membership_id, period_start)`; `public_id` |
+| Key typed columns | `public_id text (tsh_)`; `membership_id`; `period_start date`; `period_end date (= start + 6)`; `state (open\|submitted\|approved)`; `submitted_at null`; `version bigint` |
 | Sensitive fields | — |
 | Requirements | TIME-012 |
+| Notes | Phase 3D (ADR-27): seven-day periods starting on the workspace week start; per-brand lines in timesheet_line. |
+
+<a id="entity-timesheet-line"></a>
+### `timesheet_line`
+
+One brand's part of a submitted timesheet: its state and the submitted totals and hash.
+
+| Property | Value |
+|---|---|
+| Scope | `brand` |
+| Contained by | — |
+| Extends (1:1) | — |
+| Associations | [`timesheet`](logical-model.md#entity-timesheet) |
+| Lifecycle / concurrency | `state-machine` / `locked` |
+| Retention / confidentiality | `R-LIVE` / `C2` |
+| Volume / export / search-AI | `medium` / `filtered` / `no` |
+| Secrets / personal data | `no` / `incidental` |
+| Uniqueness | `(timesheet_id, brand_id)` |
+| Key typed columns | `timesheet_id`; `brand_id`; `state (pending\|approved\|rejected\|withdrawn\|unlocked)`; `submitted_seconds`; `submitted_billable_seconds`; `submitted_entries`; `submitted_hash`; `version` |
+| Sensitive fields | — |
+| Requirements | TIME-012, TIME-013 |
+| Notes | Phase 3D (ADR-27). |
 
 <a id="entity-timesheet-approval"></a>
 ### `timesheet_approval`
@@ -2699,9 +2743,10 @@ Per-brand approval of a timesheet's entries; immutable decision row.
 | Volume / export / search-AI | `medium` / `filtered` / `yes` |
 | Secrets / personal data | `no` / `incidental` |
 | Uniqueness | — |
-| Key typed columns | standard columns only |
+| Key typed columns | `timesheet_id`; `line_id`; `brand_id`; `membership_id (subject)`; `period_start`; `period_end`; `decided_by_membership_id`; `decision (approve\|reject)`; `self_approval boolean (OD-20)`; `note_hash null`; `total_seconds`; `billable_seconds`; `entry_count`; `entries_hash`; `timesheet_version` |
 | Sensitive fields | — |
 | Requirements | TIME-012, TIME-013 |
+| Notes | Phase 3D (ADR-27): immutable evidence of exactly which entries were decided. |
 
 <a id="entity-period-lock"></a>
 ### `period_lock`
@@ -2719,9 +2764,10 @@ Lock on approved period for a person and brand; unlock is an audited new row.
 | Volume / export / search-AI | `low` / `filtered` / `yes` |
 | Secrets / personal data | `no` / `incidental` |
 | Uniqueness | — |
-| Key typed columns | standard columns only |
+| Key typed columns | `brand_id`; `membership_id`; `period_start`; `period_end`; `action (lock\|unlock)`; `approval_id null (lock)`; `reason null (unlock, OD-26)`; `by_membership_id`; `step_up_id null` |
 | Sensitive fields | — |
 | Requirements | TIME-013 |
+| Notes | Phase 3D (ADR-27): the latest row per (person, brand, period) decides; unlock needs a reason and step-up (OD-26). |
 
 ## Documents and knowledge (`knowledge`, schema `knowledge`)
 

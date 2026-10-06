@@ -51,6 +51,7 @@ Narrative: [../14-threat-model.md](../14-threat-model.md).
 | T-41 | inference | Workflow and field exposure: custom statuses, transitions, or approvals bypassing category, Complete/Reopen, or required-field rules; approvers or person/label field values gaining access; hidden fields, options, or formula inputs leaking through payloads, errors, counts, sorting, serialization, audit, or formula results; stale approvals or previews replayed. | I-01, I-02, I-10, I-18 | AT-122, AT-123, AT-124, AT-125, AT-126, AT-127, AT-128, AT-129 |
 | T-42 | inference | Task interaction exposure: freshness, blocked, missing-data, or duplicate signals, bulk previews and reports, undo entries, reminders, snoozes, template applications, or recurring occurrences revealing unreadable tasks, hidden fields, or other people's personal state, by content, count, error, or timing; recurrence or bulk acting beyond current authority. | I-01, I-02, I-10, I-18 | AT-130, AT-131, AT-132, AT-133, AT-134, AT-135, AT-136, AT-137 |
 | T-43 | inference | Capture exposure: another person's Inbox items or notes visible to anyone (including owners and administrators); parsing, previews, counts, errors, or timing revealing hidden brands, projects, members, or labels; triage or note conversion creating work where the person lacks record.create; intake forms leaking the queue or accepting submissions from people who cannot read the brand; rate and size bounds bypassed. | I-01, I-02, I-10, I-18 | AT-138, AT-139, AT-140, AT-141, AT-142, AT-143, AT-144, AT-145 |
+| T-45 | inference | Time exposure and tampering: entries, totals, reports, timesheets, approval views, or exports naming or counting work the viewer cannot read; logging, editing, or moving time without time.log_own on the work; changing another person's entries; approving a brand line without manage now, without seeing all of it, or as a self-approval the policy forbids; unlocking an approved period without workspace admin authority, a reason, or step-up; editing or moving submitted or approved time through any path. | I-01, I-02, I-10, I-18 | AT-154, AT-155, AT-156, AT-157, AT-158, AT-159, AT-160, AT-161 |
 
 ## Test matrix
 
@@ -201,6 +202,14 @@ Narrative: [../14-threat-model.md](../14-threat-model.md).
 | AT-143 | T-43 | guest | Submit an intake form — brand | `intake.submit` | api | **deny** | not_found | error_message |
 | AT-144 | T-43 | member | Submit an intake form of a brand the person cannot read — brand | `intake.submit` | api | **deny** | not_found | error_message, timing |
 | AT-145 | T-43 | member | Configure intake forms without brand manage — brand | `intake.manage` | api | **deny** | forbidden | ui_list |
+| AT-154 | T-45 | member | Log time on a task with only view access (read-only role or view grant) — task | `time.log_own` | api | **deny** | forbidden | ui_record |
+| AT-155 | T-45 | member | Report, summarize, or export time where some entries are on a restricted project the viewer cannot read — workspace | `record.read` | report | **deny** | omitted | export, count_facet, ui_list |
+| AT-156 | T-45 | member | Change or delete another person's time entry on readable work — task | `time.log_own` | api | **deny** | not_found | error_message |
+| AT-157 | T-45 | member | Approve a brand line containing time on work the approver cannot read — brand | `timesheet.approve` | api | **deny** | forbidden | ui_list |
+| AT-158 | T-45 | member | Approve own timesheet line while another approval-capable member exists — brand | `timesheet.approve` | api | **deny** | forbidden | ui_record |
+| AT-159 | T-45 | member | Unlock an approved period as a brand manager who is not a workspace admin — brand | `timesheet.unlock` | api | **deny** | not_found | ui_record, error_message |
+| AT-160 | T-45 | member | Edit, delete, or move to another brand time in a submitted or approved period — task | `time.log_own` | api | **deny** | conflict_filtered | error_message |
+| AT-161 | T-45 | guest | List or export time on a shared task logged by other people — shared record | `record.read` | export | **deny** | omitted | ui_list, report |
 
 ## Response shapes
 

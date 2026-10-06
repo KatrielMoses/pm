@@ -195,6 +195,7 @@ Requirements flagged with each decision are listed automatically in [requirement
 - **Affects:** AGT-018, TSK-029, TEST-024, TIME-012, FILE-009 · phases 4A, 8D, 9D, 3D.
 - **Safe default:** Allowed when workspace policy permits it. The default is **on** for workspaces with one member who has approval rights and **off** once there are two. Self-approval is always recorded and visibly labeled, and agents can never approve.
 - **If deferred:** The launch acceptance flows LA-009 and LA-012 cannot be completed by a solo founder.
+- **Status (Phase 3D, 2026-10-07):** Timesheet approval (TIME-012) applies the workspace `self_approval_mode` exactly as workflow approvals do (2C): under `auto`, a person may approve their own brand line only while the workspace has one active member; every decision records `self_approval`, and the timesheet shows it as self-approved.
 
 <a id="od-21"></a>
 ### OD-21 — Defect verification and flaky-result policy
@@ -243,6 +244,7 @@ Requirements flagged with each decision are listed automatically in [requirement
 - **Affects:** TIME-012, TIME-013 · phase 3D.
 - **Safe default:** Workspace admins only, with a reason. The unlock is audited, and re-approval is required.
 - **If deferred:** The safe default applies.
+- **Status (Phase 3D, 2026-10-07):** Decided as the safe default (Phase 0 exit gate, admin-only unlock) and implemented: `timesheet.unlock` is limited to workspace owners and administrators, needs step-up and a reason (3–500 characters), appends an audited `unlock` row and a security event, and returns the brand line to the person, who must submit it again for a fresh approval (ADR-0019 T11).
 
 ## B. Launch scope boundaries
 
