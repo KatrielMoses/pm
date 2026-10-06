@@ -4,7 +4,7 @@
 
 Rules and algorithm: [../04-effective-permissions.md](../04-effective-permissions.md). Legend: **all** = implicit across non-sensitive scopes (sensitive brands and restricted projects still require explicit grants or audited elevation); ≥level = allowed where the principal's effective access level on the target is at least that level; own = own personal items only; if X = only when workspace policy X is enabled; — = never. Flags: ND non-delegable (owner only, excluded from custom roles), SU step-up authentication, 2A second/independent approval when available, E plan entitlement required.
 
-## Record permissions (45)
+## Record permissions (46)
 
 | Action | Scopes | Level | Risk | Flags | owner | administrator | member | limited_member | read_only | guest |
 |---|---|---|---|---|---|---|---|---|---|---|
@@ -53,6 +53,7 @@ Rules and algorithm: [../04-effective-permissions.md](../04-effective-permission
 | `task.remind` | record | view | R0 |  | **all** | **all** | ≥view | ≥view | ≥view | ≥view |
 | `task.snooze` | record | view | R0 |  | **all** | **all** | ≥view | ≥view | ≥view | ≥view |
 | `task.manage_recurrence` | record | manage | R2 |  | **all** | **all** | ≥manage | — | — | — |
+| `intake.submit` | brand | view | R1 |  | **all** | **all** | ≥view | ≥view | ≥view | — |
 
 ## Execution permissions (11)
 
@@ -70,7 +71,7 @@ Rules and algorithm: [../04-effective-permissions.md](../04-effective-permission
 | `import.execute` | workspace, brand | — | R2 |  | **all** | **all** | ≥edit | — | — | — |
 | `webhook.test_send` | workspace, brand | — | R2 |  | **all** | **all** | ≥manage | — | — | — |
 
-## Administrative capabilities (52)
+## Administrative capabilities (53)
 
 | Action | Scopes | Level | Risk | Flags | owner | administrator | member | limited_member | read_only | guest |
 |---|---|---|---|---|---|---|---|---|---|---|
@@ -126,6 +127,7 @@ Rules and algorithm: [../04-effective-permissions.md](../04-effective-permission
 | `health.view` | workspace, brand | — | R0 |  | **all** | **all** | ≥manage | — | — | — |
 | `support_access.grant` | workspace | — | R4 | SU | **all** | **all** | — | — | — | — |
 | `emergency_stop.trigger` | workspace | — | R1 |  | **all** | **all** | — | — | — | — |
+| `intake.manage` | brand | — | R2 |  | **all** | **all** | ≥manage | — | — | — |
 
 ## Personal (10)
 
@@ -207,7 +209,7 @@ Rules and algorithm: [../04-effective-permissions.md](../04-effective-permission
 | `release.production_action` | Trigger or record a production deployment or rollback. | independent_if_available | DEV-009, AGT-016 |  |
 | `environment.configure` | Configure environments and their URLs/evidence. | none | DEV-015 |  |
 | `tests.execute` | Start or rerun test runs. | none | TEST-015 |  |
-| `personal.manage_own` | Inbox, Today, notifications, personal views, favorites, reminders, availability, profile. | none | CAP-011, PLAN-008, NTF-007 |  |
+| `personal.manage_own` | Inbox, Today, notifications, personal views, favorites, reminders, availability, profile. | none | CAP-001, CAP-002, CAP-004, CAP-011, CAP-012, CAP-013, CAP-014, CAP-016, NTF-007, PLAN-008 | Phase 2E (AZ-25): capture, Inbox, notes, merge, and triage previews are personal; turning an item into operational work also needs record.create at the destination. |
 | `sessions.manage_own` | List and revoke own sessions. | none | SEC-008 |  |
 | `account.mfa_enroll` | Enroll an authenticator (TOTP) factor on own account. | none | SEC-006 | Account-level (platform scope, no workspace or membership): 'own' means the authenticated account's own factors only; it is never a tenant capability. Human-only and not delegable to tokens, agents, automations, integrations, or support: step-up is human-only (0D §11.2) and no 0D scope may list this action. Step-up accepts the password when no factor exists yet, so enrollment never requires MFA before the first MFA. |
 | `account.mfa_disable` | Turn off own two-step verification and remove its factor and recovery codes. | none | SEC-006 | Account-level (platform scope, no workspace or membership): 'own' means the authenticated account's own factors only; it is never a tenant capability. Human-only and not delegable to tokens, agents, automations, integrations, or support: step-up is human-only (0D §11.2) and no 0D scope may list this action. |
@@ -283,3 +285,5 @@ Rules and algorithm: [../04-effective-permissions.md](../04-effective-permission
 | `task.remind` | Set, change, or dismiss one's own reminder on a readable task. | none | TSK-032 | Phase 2D (AZ-24): personal; grants nothing and changes nothing on the task. The worker rechecks record.read before firing; a reminder whose task became unreadable is cancelled silently. |
 | `task.snooze` | Snooze or unsnooze a readable task for oneself. | none | TSK-033 | Phase 2D (AZ-24): personal; never edits dates, status, or access, and is invisible to others. |
 | `task.manage_recurrence` | Define, pause, resume, or end a task recurrence, or generate its next occurrence. | none | TSK-027 | Phase 2D (AZ-24): each occurrence also requires record.create in the series' brand (and project), rechecked by the worker before each step; a series whose owner lost it pauses. |
+| `intake.manage` | Create, edit, archive, and route a brand's intake forms. | none | CAP-007, PRJ-017 | Phase 2E (AZ-25): decided at the brand (decideBrand); sensitive brands need an explicit manage grant. The queue owner must be an active member who can read the brand. |
+| `intake.submit` | Submit an intake form of a brand one can read. | none | CAP-007 | Phase 2E (AZ-25): members-only while OD-28 is open; rate-limited per person and form. Submitting grants nothing and never reveals the queue. |

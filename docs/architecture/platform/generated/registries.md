@@ -215,7 +215,7 @@ Source: `contracts/registry.json`.
 | `relations.mention.created` v1 | relations.mention | source_kind, target_kind, target_id | C1 | yes | yes |  |  |  | — |
 | `files.file.scanned` v1 | files.file_version | scan_state | C1 |  |  |  |  |  | — |
 | `files.deliverable.version_submitted` v1 | files.deliverable_version | deliverable_id, version_number | C1 | yes | yes |  | yes |  | `deliverable.submitted` |
-| `capture.inbox.captured` v1 | capture.inbox_item | source_kind | C1 |  |  |  |  |  | — |
+| `capture.inbox.captured` v1 | capture.inbox_item | source_kind, intent | C1 |  |  |  |  |  | — |
 | `capture.inbox.triaged` v1 | capture.inbox_item | outcome, converted_record_id | C1 |  |  |  |  |  | — |
 | `planning.work_block.moved` v1 | planning.work_block | starts_at, ends_at, source | C1 |  |  | yes | yes |  | — |
 | `planning.occurrence.generated` v1 | planning.recurrence_series | occurrence_key, record_id | C1 |  |  |  | yes |  | — |
@@ -283,6 +283,12 @@ Source: `contracts/registry.json`.
 | `planning.task_reminder.fired` v1 | planning.task_reminder | task_id, account_id | C1 |  | yes | yes |  |  | — |
 | `work.bulk_operation.executed` v1 | work.bulk_operation | operation, mode, item_count, succeeded, failed | C1 | yes |  | yes |  |  | — |
 | `work.task.undone` v1 | work.task | task_id, command | C1 | yes |  | yes |  |  | — |
+| `capture.inbox.merged` v1 | capture.inbox_item | merged_count | C1 |  |  | yes |  |  | — |
+| `capture.note.created` v1 | capture.note | source_kind | C1 |  |  | yes |  |  | — |
+| `capture.note.converted` v1 | capture.note | target_kind, target_record_id | C1 |  |  | yes |  |  | — |
+| `capture.intake_form.created` v1 | capture.intake_form | target_kind | C1 |  |  | yes |  |  | — |
+| `capture.intake_form.updated` v1 | capture.intake_form | state | C1 |  |  | yes |  |  | — |
+| `capture.intake.submitted` v1 | capture.intake_form | inbox_item_id | C1 |  |  | yes |  |  | — |
 
 ## SSE topics
 
@@ -423,6 +429,9 @@ Forbidden metric labels: `workspace_id`, `brand_id`, `record_id`, `public_id`, `
 | `work.reminders.fired` | counter | outcome | work |
 | `work.bulk.items` | counter | outcome | work |
 | `work.undo.applied` | counter | outcome | work |
+| `capture.items` | counter | outcome | capture |
+| `capture.parse` | counter | outcome | capture |
+| `capture.triage` | counter | outcome | capture |
 
 ## Named parameters (values are configuration, not promises)
 
@@ -508,3 +517,13 @@ Forbidden metric labels: `workspace_id`, `brand_id`, `record_id`, `public_id`, `
 | `UNDO_WINDOW_SECONDS` | How long a reversible mutation can be undone; default 30, range 5–300. | 2D |
 | `DUPLICATE_WINDOW_DAYS` | How far back deterministic duplicate matching looks; default 90, range 1–365. | 2D |
 | `DUPLICATE_CANDIDATES_MAX` | Most duplicate candidates returned; default 5, range 1–20. | 2D |
+| `CAPTURE_TEXT_MAX` | Most characters in one capture or note body; default 10000, range 100–50000. | 2E |
+| `CAPTURE_PASTE_LINES_MAX` | Most candidate items one paste may create; default 100, range 1–500. | 2E |
+| `CAPTURE_LINKS_MAX` | Most links attached to one capture; default 10, range 0–50. | 2E |
+| `CAPTURE_FILES_MAX` | Most file references attached to one capture (refused until 4E storage); default 10, range 0–50. | 2E |
+| `CAPTURE_PARSE_TOKENS_MAX` | Most tokens the deterministic parser examines per line; default 64, range 8–256. | 2E |
+| `CAPTURE_RATE_PER_MINUTE` | Most capture commands one person may run per minute; default 60, range 1–600. | 2E |
+| `TRIAGE_BATCH_MAX` | Most Inbox items one triage command may change; default 50, range 1–200. | 2E |
+| `INBOX_MERGE_MAX` | Most Inbox items one merge may combine; default 20, range 2–100. | 2E |
+| `INTAKE_FORMS_MAX` | Most intake forms per brand; default 50, range 1–500. | 2E |
+| `INTAKE_SUBMISSIONS_PER_HOUR` | Most submissions one person may make to one form per hour; default 20, range 1–1000. | 2E |

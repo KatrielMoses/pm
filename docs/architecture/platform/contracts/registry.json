@@ -1687,7 +1687,8 @@
       "schema_version": 1,
       "aggregate_entity": "capture.inbox_item",
       "fields": [
-        "source_kind"
+        "source_kind",
+        "intent"
       ],
       "max_class": "C1",
       "consumers": {
@@ -1699,6 +1700,8 @@
       },
       "public_webhook": null,
       "requirements": [
+        "CAP-001",
+        "CAP-002",
         "CAP-016"
       ],
       "allow_list_version": null,
@@ -1721,7 +1724,9 @@
         "search_index": false
       },
       "public_webhook": null,
-      "requirements": [],
+      "requirements": [
+        "CAP-012"
+      ],
       "allow_list_version": null,
       "delivery_authorization": null
     },
@@ -3234,6 +3239,139 @@
       ],
       "allow_list_version": null,
       "delivery_authorization": null
+    },
+    {
+      "type": "capture.inbox.merged",
+      "schema_version": 1,
+      "aggregate_entity": "capture.inbox_item",
+      "fields": [
+        "merged_count"
+      ],
+      "max_class": "C1",
+      "consumers": {
+        "activity": false,
+        "notification": false,
+        "metrics": true,
+        "automation_trigger": false,
+        "search_index": false
+      },
+      "public_webhook": null,
+      "requirements": [
+        "CAP-013"
+      ],
+      "allow_list_version": null,
+      "delivery_authorization": null
+    },
+    {
+      "type": "capture.note.created",
+      "schema_version": 1,
+      "aggregate_entity": "capture.note",
+      "fields": [
+        "source_kind"
+      ],
+      "max_class": "C1",
+      "consumers": {
+        "activity": false,
+        "notification": false,
+        "metrics": true,
+        "automation_trigger": false,
+        "search_index": false
+      },
+      "public_webhook": null,
+      "requirements": [
+        "CAP-002"
+      ],
+      "allow_list_version": null,
+      "delivery_authorization": null
+    },
+    {
+      "type": "capture.note.converted",
+      "schema_version": 1,
+      "aggregate_entity": "capture.note",
+      "fields": [
+        "target_kind",
+        "target_record_id"
+      ],
+      "max_class": "C1",
+      "consumers": {
+        "activity": false,
+        "notification": false,
+        "metrics": true,
+        "automation_trigger": false,
+        "search_index": false
+      },
+      "public_webhook": null,
+      "requirements": [
+        "CAP-014"
+      ],
+      "allow_list_version": null,
+      "delivery_authorization": null
+    },
+    {
+      "type": "capture.intake_form.created",
+      "schema_version": 1,
+      "aggregate_entity": "capture.intake_form",
+      "fields": [
+        "target_kind"
+      ],
+      "max_class": "C1",
+      "consumers": {
+        "activity": false,
+        "notification": false,
+        "metrics": true,
+        "automation_trigger": false,
+        "search_index": false
+      },
+      "public_webhook": null,
+      "requirements": [
+        "CAP-007"
+      ],
+      "allow_list_version": null,
+      "delivery_authorization": null
+    },
+    {
+      "type": "capture.intake_form.updated",
+      "schema_version": 1,
+      "aggregate_entity": "capture.intake_form",
+      "fields": [
+        "state"
+      ],
+      "max_class": "C1",
+      "consumers": {
+        "activity": false,
+        "notification": false,
+        "metrics": true,
+        "automation_trigger": false,
+        "search_index": false
+      },
+      "public_webhook": null,
+      "requirements": [
+        "CAP-007"
+      ],
+      "allow_list_version": null,
+      "delivery_authorization": null
+    },
+    {
+      "type": "capture.intake.submitted",
+      "schema_version": 1,
+      "aggregate_entity": "capture.intake_form",
+      "fields": [
+        "inbox_item_id"
+      ],
+      "max_class": "C1",
+      "consumers": {
+        "activity": false,
+        "notification": false,
+        "metrics": true,
+        "automation_trigger": false,
+        "search_index": false
+      },
+      "public_webhook": null,
+      "requirements": [
+        "CAP-007"
+      ],
+      "allow_list_version": null,
+      "delivery_authorization": null
     }
   ],
   "scopes": [
@@ -4115,6 +4253,30 @@
         "outcome"
       ],
       "area": "work"
+    },
+    {
+      "name": "capture.items",
+      "type": "counter",
+      "labels": [
+        "outcome"
+      ],
+      "area": "capture"
+    },
+    {
+      "name": "capture.parse",
+      "type": "counter",
+      "labels": [
+        "outcome"
+      ],
+      "area": "capture"
+    },
+    {
+      "name": "capture.triage",
+      "type": "counter",
+      "labels": [
+        "outcome"
+      ],
+      "area": "capture"
     }
   ],
   "forbidden_metric_labels": [
@@ -4553,6 +4715,56 @@
       "name": "DUPLICATE_CANDIDATES_MAX",
       "meaning": "Most duplicate candidates returned; default 5, range 1–20.",
       "owner": "2D"
+    },
+    {
+      "name": "CAPTURE_TEXT_MAX",
+      "meaning": "Most characters in one capture or note body; default 10000, range 100–50000.",
+      "owner": "2E"
+    },
+    {
+      "name": "CAPTURE_PASTE_LINES_MAX",
+      "meaning": "Most candidate items one paste may create; default 100, range 1–500.",
+      "owner": "2E"
+    },
+    {
+      "name": "CAPTURE_LINKS_MAX",
+      "meaning": "Most links attached to one capture; default 10, range 0–50.",
+      "owner": "2E"
+    },
+    {
+      "name": "CAPTURE_FILES_MAX",
+      "meaning": "Most file references attached to one capture (refused until 4E storage); default 10, range 0–50.",
+      "owner": "2E"
+    },
+    {
+      "name": "CAPTURE_PARSE_TOKENS_MAX",
+      "meaning": "Most tokens the deterministic parser examines per line; default 64, range 8–256.",
+      "owner": "2E"
+    },
+    {
+      "name": "CAPTURE_RATE_PER_MINUTE",
+      "meaning": "Most capture commands one person may run per minute; default 60, range 1–600.",
+      "owner": "2E"
+    },
+    {
+      "name": "TRIAGE_BATCH_MAX",
+      "meaning": "Most Inbox items one triage command may change; default 50, range 1–200.",
+      "owner": "2E"
+    },
+    {
+      "name": "INBOX_MERGE_MAX",
+      "meaning": "Most Inbox items one merge may combine; default 20, range 2–100.",
+      "owner": "2E"
+    },
+    {
+      "name": "INTAKE_FORMS_MAX",
+      "meaning": "Most intake forms per brand; default 50, range 1–500.",
+      "owner": "2E"
+    },
+    {
+      "name": "INTAKE_SUBMISSIONS_PER_HOUR",
+      "meaning": "Most submissions one person may make to one form per hour; default 20, range 1–1000.",
+      "owner": "2E"
     }
   ],
   "sse_topics": [

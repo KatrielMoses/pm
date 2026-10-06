@@ -241,6 +241,18 @@ All decisions are **proposed (Phase 0D)**, pending solutions-architect acceptanc
 - **Alternatives:** A separate history table (the 1F audit ledger is the history). Per-entity events for checklist items and links (they are task content; `work.task.updated` names the changed fields).
 - **Consequences:** Event payloads carry identifiers, kinds, and states only, never titles, descriptions, checklist text, URLs, or label names. 74 ID prefixes, 72 events, 51 named parameters, 51 telemetry signals.
 
+<a id="pl-27"></a>
+### PL-27: Capture contracts (Phase 2E amendment)
+- **Decision:**
+  - Prefixes `inb`, `note`, and `form` (registered in 0B) are implemented; lineage and submissions have no public ID.
+  - Events: `capture.inbox.captured` (source kind, intent) and `capture.inbox.triaged` are implemented. Six are added: `capture.inbox.merged`, `capture.note.created`, `capture.note.converted`, `capture.intake_form.created`, `capture.intake_form.updated`, and `capture.intake.submitted`.
+  - Named bounds: `CAPTURE_TEXT_MAX` (10000), `CAPTURE_PASTE_LINES_MAX` (100), `CAPTURE_LINKS_MAX` (10), `CAPTURE_FILES_MAX` (10), `CAPTURE_PARSE_TOKENS_MAX` (64), `CAPTURE_RATE_PER_MINUTE` (60), `TRIAGE_BATCH_MAX` (50), `INBOX_MERGE_MAX` (20), `INTAKE_FORMS_MAX` (50), and `INTAKE_SUBMISSIONS_PER_HOUR` (20).
+  - Three signals: `capture.items`, `capture.parse`, and `capture.triage` (outcome).
+  - Non-resource envelopes: `capture_preview` (deterministic parse with spans, values, and ambiguities), `triage_preview`, and `merge_preview`.
+  - Refusals: rate limits are `rate_limited`; oversize text and pastes are `validation_failed` (`too_long`, `too_many`); files are `dependency_unavailable` per attachment (`storage_unavailable`, 4E), and the capture is kept.
+- **Alternatives:** AI parsing (7F; 2E is deterministic and claims no AI). One event per pasted line (a capture batch is one command).
+- **Consequences:** Payloads carry identifiers, kinds, and counts only, never captured text. 83 ID prefixes, 97 events, 90 named parameters, 60 telemetry signals.
+
 <a id="pl-26"></a>
 ### PL-26: Task interaction contracts (Phase 2D amendment)
 - **Decision:**

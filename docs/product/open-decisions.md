@@ -261,6 +261,7 @@ Requirements flagged with each decision are listed automatically in [requirement
 - **Affects:** CAP-007, PRJ-017 · phases 2E, 0C, 11B.
 - **Safe default:** Each form belongs to one brand. Submissions land in that brand's intake queue, with rate limits, bot protection, and attachment scanning.
 - **If deferred:** Forms are limited to authenticated members.
+- **Status (Phase 2E, 2026-10-06):** Still open; recorded as a blocker. 2E implements only the deferred rule: a form belongs to one brand and accepts submissions from signed-in members who can read that brand, rate-limited per person and form (`INTAKE_SUBMISSIONS_PER_HOUR`), into the form owner's Inbox as brand intake items. No anonymous access, bot protection, or attachment scanning is implemented until OD-28 is decided (11B).
 
 <a id="od-29"></a>
 ### OD-29 — Capture by forwarding email
@@ -269,6 +270,7 @@ Requirements flagged with each decision are listed automatically in [requirement
 - **Affects:** CAP-006 · phases 2E (provisional), 6A.
 - **Safe default:** A personal forwarding address that lands in the owner's Inbox, accepts only verified sender addresses, and scans attachments. The architect should assign an owning sub-phase.
 - **If deferred:** CAP-006 slips past 2E.
+- **Status (Phase 2E, 2026-10-06):** Still open. Email forwarding is owned by 6A; 2E keeps the adapter-ready `email` source kind on Inbox items and creates no address, inbound mail, or sender verification (CAP-006 is a foundation deferred to 6A).
 
 <a id="od-30"></a>
 ### OD-30 — Realtime collaborative editing at launch

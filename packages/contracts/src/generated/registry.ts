@@ -509,6 +509,27 @@ export const TELEMETRY_SIGNALS = [
     "labels": [
       "outcome"
     ]
+  },
+  {
+    "name": "capture.items",
+    "type": "counter",
+    "labels": [
+      "outcome"
+    ]
+  },
+  {
+    "name": "capture.parse",
+    "type": "counter",
+    "labels": [
+      "outcome"
+    ]
+  },
+  {
+    "name": "capture.triage",
+    "type": "counter",
+    "labels": [
+      "outcome"
+    ]
   }
 ] as const;
 export type TelemetrySignalName = (typeof TELEMETRY_SIGNALS)[number]['name'];
@@ -1745,7 +1766,8 @@ export const INTERNAL_EVENTS = [
     "schemaVersion": 1,
     "aggregateEntity": "capture.inbox_item",
     "fields": [
-      "source_kind"
+      "source_kind",
+      "intent"
     ],
     "maxClass": "C1"
   },
@@ -2417,6 +2439,61 @@ export const INTERNAL_EVENTS = [
       "command"
     ],
     "maxClass": "C1"
+  },
+  {
+    "type": "capture.inbox.merged",
+    "schemaVersion": 1,
+    "aggregateEntity": "capture.inbox_item",
+    "fields": [
+      "merged_count"
+    ],
+    "maxClass": "C1"
+  },
+  {
+    "type": "capture.note.created",
+    "schemaVersion": 1,
+    "aggregateEntity": "capture.note",
+    "fields": [
+      "source_kind"
+    ],
+    "maxClass": "C1"
+  },
+  {
+    "type": "capture.note.converted",
+    "schemaVersion": 1,
+    "aggregateEntity": "capture.note",
+    "fields": [
+      "target_kind",
+      "target_record_id"
+    ],
+    "maxClass": "C1"
+  },
+  {
+    "type": "capture.intake_form.created",
+    "schemaVersion": 1,
+    "aggregateEntity": "capture.intake_form",
+    "fields": [
+      "target_kind"
+    ],
+    "maxClass": "C1"
+  },
+  {
+    "type": "capture.intake_form.updated",
+    "schemaVersion": 1,
+    "aggregateEntity": "capture.intake_form",
+    "fields": [
+      "state"
+    ],
+    "maxClass": "C1"
+  },
+  {
+    "type": "capture.intake.submitted",
+    "schemaVersion": 1,
+    "aggregateEntity": "capture.intake_form",
+    "fields": [
+      "inbox_item_id"
+    ],
+    "maxClass": "C1"
   }
 ] as const;
 export type InternalEventType = (typeof INTERNAL_EVENTS)[number]['type'];
@@ -2501,7 +2578,17 @@ export const PARAMETER_NAMES = [
   "BULK_PREVIEW_TTL_SECONDS",
   "UNDO_WINDOW_SECONDS",
   "DUPLICATE_WINDOW_DAYS",
-  "DUPLICATE_CANDIDATES_MAX"
+  "DUPLICATE_CANDIDATES_MAX",
+  "CAPTURE_TEXT_MAX",
+  "CAPTURE_PASTE_LINES_MAX",
+  "CAPTURE_LINKS_MAX",
+  "CAPTURE_FILES_MAX",
+  "CAPTURE_PARSE_TOKENS_MAX",
+  "CAPTURE_RATE_PER_MINUTE",
+  "TRIAGE_BATCH_MAX",
+  "INBOX_MERGE_MAX",
+  "INTAKE_FORMS_MAX",
+  "INTAKE_SUBMISSIONS_PER_HOUR"
 ] as const;
 export type ParameterName = (typeof PARAMETER_NAMES)[number];
 
@@ -4776,6 +4863,42 @@ export const ACTIONS = [
       "member": "grant:manage",
       "limited_member": "deny",
       "read_only": "deny",
+      "guest": "deny"
+    }
+  },
+  {
+    "key": "intake.manage",
+    "kind": "admin",
+    "scopes": [
+      "brand"
+    ],
+    "stepUp": false,
+    "riskClass": "R2",
+    "requiredLevel": null,
+    "roles": {
+      "owner": "implicit",
+      "administrator": "implicit",
+      "member": "grant:manage",
+      "limited_member": "deny",
+      "read_only": "deny",
+      "guest": "deny"
+    }
+  },
+  {
+    "key": "intake.submit",
+    "kind": "record",
+    "scopes": [
+      "brand"
+    ],
+    "stepUp": false,
+    "riskClass": "R1",
+    "requiredLevel": "view",
+    "roles": {
+      "owner": "implicit",
+      "administrator": "implicit",
+      "member": "grant:view",
+      "limited_member": "grant:view",
+      "read_only": "grant:view",
       "guest": "deny"
     }
   }

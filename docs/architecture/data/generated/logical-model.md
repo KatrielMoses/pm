@@ -2052,7 +2052,7 @@ Unit of work: exactly one brand, optional project, optional parent task; defects
 | Uniqueness | — |
 | Key typed columns | `project_id null (same workspace and brand; subtasks share their parent's project identity)`; `parent_task_id null (same workspace, brand, and project identity)`; `ancestor_ids uuid[] (root first, excluding self)`; `depth smallint (root = 0; TASK_DEPTH_MAX enforced by commands, hard ceiling 64 in the database)`; `title`; `description_rich jsonb (rich text version 1, 0D PL-23)`; `status_id (workflow.platform_status until 2C)`; `status_category (denormalized, guarded)`; `prior_status_id null (reopen target)`; `priority (none\|low\|medium\|high\|urgent)`; `start_date date`; `due_date date`; `deadline_date date \| deadline_at timestamptz + deadline_tz (never changed implicitly)`; `estimate_minutes int null`; `remaining_estimate_minutes int null`; `completed_at`; `completion_override_reason text null`; `expected_deliverable_type (document\|file\|url\|pull_request\|test_report\|other) null`; `expected_deliverable_detail text null`; `requires_acceptance boolean`; `rank text`; `created_by_membership_id`; `version bigint`; `origin_kind (manual\|recurring\|template\|intake\|import\|integration\|ai_draft; immutable)`; `origin_ref jsonb (safe identifiers only: series, occurrence, template, version; immutable)`; `recurrence_series_id null + occurrence_key null (unique together)`; `last_meaningful_update_at timestamptz (OD-17 freshness; maintained by triggers)` |
 | Sensitive fields | — |
-| Requirements | TSK-001, TSK-002, TSK-003, TSK-004, TSK-005, TSK-006, TSK-010, TSK-022, TSK-023, TSK-027, TSK-031, TSK-033, TSK-035, TSK-036, TSK-037, TSK-038, TSK-039, TSK-040, TSK-041, TSK-042, TSK-043, TSK-044 |
+| Requirements | CAP-001, CAP-003, TSK-001, TSK-002, TSK-003, TSK-004, TSK-005, TSK-006, TSK-010, TSK-022, TSK-023, TSK-027, TSK-031, TSK-033, TSK-035, TSK-036, TSK-037, TSK-038, TSK-039, TSK-040, TSK-041, TSK-042, TSK-043, TSK-044 |
 | Notes | Phase 2B (ADR-22): phase/milestone association, task types, manual blocked reasons, due times, recurrence, and freshness fields are not part of 2B; they arrive with their owning phases. Scheduled time is a planning work block (3C), never a task column. Phase 2D (ADR-24): task origin is a closed kind with safe metadata, immutable except through a registered migration; freshness is a trigger-maintained column; repeated rescheduling is derived from the audit ledger. |
 
 <a id="entity-task-assignee"></a>
@@ -2283,9 +2283,10 @@ Raw captured input owned by one person; brand optional until triage; preserves o
 | Volume / export / search-AI | `high` / `self` / `yes` |
 | Secrets / personal data | `no` / `incidental` |
 | Uniqueness | — |
-| Key typed columns | `owner_membership_id`; `brand_id null`; `raw_text text`; `source_kind (typed\|paste\|voice\|email\|form\|api\|webhook)`; `source_ref text`; `parsed_suggestions jsonb (versioned schema)`; `triage_state (untriaged\|converted\|merged\|discarded)`; `converted_record_id null`; `merged_into_id null`; `snoozed_until` |
+| Key typed columns | `owner_membership_id`; `brand_id null (until triage; OD-03)`; `intent (task\|note)`; `raw_text text (immutable original)`; `source_kind (typed\|paste\|form\|voice\|email\|api\|webhook; 2E produces typed, paste, form)`; `source_ref text null (safe public ID: batch, form)`; `correlation_id`; `parse_version int`; `parsed jsonb (versioned, deterministic)`; `capture_batch_id null`; `triage_state (untriaged\|converted\|merged\|discarded)`; `converted_kind null + converted_record_id null`; `merged_into_id null`; `version bigint` |
 | Sensitive fields | — |
 | Requirements | CAP-011, CAP-012, CAP-013, CAP-016 |
+| Notes | Phase 2E (ADR-25): personal; visible only to its owner (OD-03), brand optional until triage. raw_text, source, and correlation are immutable (trigger). Merged and discarded items are kept; nothing is deleted by triage. |
 
 <a id="entity-note"></a>
 ### `note`
@@ -2295,7 +2296,7 @@ Lightweight note; personal until filed to a brand, project, or task.
 | Property | Value |
 |---|---|
 | Scope | `personal_brand_optional` · addressable (`core.record`, public prefix `note_`) |
-| Contained by | [`brand`](logical-model.md#entity-brand), [`project`](logical-model.md#entity-project), [`task`](logical-model.md#entity-task) |
+| Contained by | — |
 | Extends (1:1) | — |
 | Associations | — |
 | Lifecycle / concurrency | `full` / `row-version` |
@@ -2303,9 +2304,10 @@ Lightweight note; personal until filed to a brand, project, or task.
 | Volume / export / search-AI | `medium` / `filtered` / `yes` |
 | Secrets / personal data | `no` / `incidental` |
 | Uniqueness | — |
-| Key typed columns | standard columns only |
+| Key typed columns | `owner_membership_id`; `brand_id null`; `title`; `body text`; `source_inbox_item_id null`; `version bigint` |
 | Sensitive fields | — |
 | Requirements | CAP-002, CAP-014 |
+| Notes | Phase 2E (ADR-25): personal until filed (OD-03 rule). Converting a note to a task or project keeps the note and records the conversion. |
 
 <a id="entity-intake-form"></a>
 ### `intake_form`
@@ -2323,9 +2325,10 @@ Brand-owned intake form definition (public submission rules pending OD-28).
 | Volume / export / search-AI | `low` / `filtered` / `yes` |
 | Secrets / personal data | `no` / `incidental` |
 | Uniqueness | — |
-| Key typed columns | standard columns only |
+| Key typed columns | `brand_id`; `name`; `description`; `target_kind (task\|project)`; `queue_owner_membership_id`; `state (active\|archived)`; `version bigint` |
 | Sensitive fields | — |
 | Requirements | CAP-007, PRJ-017 |
+| Notes | Phase 2E (ADR-25): members-only while OD-28 is open; submissions land in the queue owner's Inbox with the form's brand. |
 
 <a id="entity-intake-submission"></a>
 ### `intake_submission`
@@ -2343,9 +2346,10 @@ Submission received by a form, routed into the brand intake queue.
 | Volume / export / search-AI | `medium` / `filtered` / `metadata` |
 | Secrets / personal data | `no` / `yes` |
 | Uniqueness | — |
-| Key typed columns | standard columns only |
+| Key typed columns | `form_id`; `submitter_membership_id`; `inbox_item_id`; `submitted_at` |
 | Sensitive fields | — |
 | Requirements | CAP-007 |
+| Notes | Phase 2E (ADR-25): append-only receipt linking a submission to the Inbox item it created; the text lives on the item. |
 
 <a id="entity-email-capture-address"></a>
 ### `email_capture_address`
@@ -2366,6 +2370,27 @@ Personal forwarding address and verified senders (pending OD-29).
 | Key typed columns | standard columns only |
 | Sensitive fields | — |
 | Requirements | CAP-006 |
+
+<a id="entity-capture-conversion"></a>
+### `capture_conversion`
+
+Lineage of one triage or note conversion: the source Inbox item or note and the record it became.
+
+| Property | Value |
+|---|---|
+| Scope | `workspace` |
+| Contained by | — |
+| Extends (1:1) | — |
+| Associations | [`inbox_item`](logical-model.md#entity-inbox-item), [`note`](logical-model.md#entity-note), [`task`](logical-model.md#entity-task), [`project`](logical-model.md#entity-project) |
+| Lifecycle / concurrency | `append-only` / `append-only` |
+| Retention / confidentiality | `R-LIVE` / `C1` |
+| Volume / export / search-AI | `medium` / `filtered` / `metadata` |
+| Secrets / personal data | `no` / `incidental` |
+| Uniqueness | `(source_record_id, target_record_id)` |
+| Key typed columns | `source_record_id`; `source_kind (inbox_item\|note)`; `target_record_id`; `target_kind (task\|note\|project)`; `by_membership_id`; `created_at` |
+| Sensitive fields | — |
+| Requirements | CAP-012, CAP-014, CAP-016, PRJ-017 |
+| Notes | Phase 2E (ADR-25). |
 
 ## Today, scheduling, and capacity (`planning`, schema `planning`)
 
