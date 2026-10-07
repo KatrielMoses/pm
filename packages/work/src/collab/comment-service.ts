@@ -1468,6 +1468,16 @@ export class CommentService extends CapacityService {
       .where('deleted_at', 'is', null)
       .executeTakeFirstOrThrow();
     const own = host.ownLevel !== null;
+    // Only a current assignee can hand their own assignment over (COL-014).
+    const assigned =
+      host.kind === 'task' && own
+        ? !!(await tx.db
+            .selectFrom('work.task_assignee')
+            .select('task_id')
+            .where('task_id', '=', host.id)
+            .where('membership_id', '=', p.membershipId)
+            .executeTakeFirst())
+        : false;
     return {
       record: { id: host.publicId, type: host.kind },
       following: !!mine,
@@ -1480,7 +1490,7 @@ export class CommentService extends CapacityService {
         see_followers: own,
         request_review: own && host.allows('review.request', { shares: false }),
         delegate:
-          host.kind === 'task' && own && host.lifecycleState === 'active'
+          assigned && host.lifecycleState === 'active'
             ? host.allows('record.delegate', { shares: false })
             : false,
       },

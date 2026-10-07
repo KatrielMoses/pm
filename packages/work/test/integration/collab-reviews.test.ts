@@ -453,6 +453,13 @@ describe('Reviews, approvals, delegation, and assignment history (4A)', () => {
       await expect(
         env.svc.delegateTask(rev1, ws, t.id, { to: id.rev2! }, mutation()),
       ).rejects.toEqual(issueOf('not_assignee'));
+      // Only a current assignee is offered the handover.
+      expect((await env.svc.collaborationSummary(author, ws, t.id)).capabilities.delegate).toBe(
+        true,
+      );
+      expect((await env.svc.collaborationSummary(rev1, ws, t.id)).capabilities.delegate).toBe(
+        false,
+      );
       for (const to of [id.outsider!, `mem_${'0'.repeat(26)}`, id.author!])
         await expect(env.svc.delegateTask(author, ws, t.id, { to }, mutation())).rejects.toEqual(
           issueOf('not_assignable'),
