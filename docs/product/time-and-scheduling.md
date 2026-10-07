@@ -88,6 +88,8 @@ When a block is moved after the due date or deadline, the UI shows the warning a
 | **Overcommitment** | Committed or scheduled estimates exceed available time for the period (PLAN-007, TIME-015) | Computed warning |
 | **Cross-brand conflict** | Overlapping blocks or events across brands, or a brand reservation that cannot be met because of another brand's commitments (WSB-018, CAL-009) | Computed warning |
 
+- **As implemented (Phase 3E, ADR-0022).** Working hours are local windows per weekday in the person's zone, converted for each date, so a 09:00–17:00 window stays 8 hours on a DST day. A weekly capacity override scales each day's working minutes. Time off and observed brand holidays are then subtracted. A brand holiday counts for a person who observes brand holidays and holds a reservation in that brand ([OD-19](open-decisions.md#od-19)). Use is the larger of scheduled blocks (with preparation and buffer) and open estimates due in the period. Over-allocation means use exceeds availability, and under-allocation means use is below half of it. Reservations are pro-rated by days. Conflicts are overlapping blocks in different brands and reservations that cannot be met. Others see time off only as unavailable minutes, and never see work or brands they cannot read. All capacity warnings inform and never block.
+
 Capacity and availability shown to a viewer are computed only from commitments the viewer may read. Time occupied by commitments the viewer cannot read is not shown. Anonymous free/busy disclosure to colleagues requires a separate explicit policy and is off by default ([hierarchy §4](hierarchy-and-scope.md#4-the-all-brands-view)). A person may always see their own authorized connected-calendar availability.
 
 ## 6. Today
@@ -97,6 +99,7 @@ Capacity and availability shown to a viewer are computed only from commitments t
 - **"Scheduled for today"** means committed for today or having a work block today. An item merely *due* today appears under "Due today" until it is committed or scheduled ([OD-18](open-decisions.md#od-18)).
 - **Shutdown** (PLAN-018): unfinished commitments are offered **carry to tomorrow**, **pick a day**, **return to backlog**, or **leave**. None of these choices changes the due date or deadline unless the user explicitly selects it.
 - **Daily record** (PLAN-019): a snapshot at end of day of what was committed, completed, carried over, and dropped, plus planned versus actual time. Snapshots are not rewritten by later edits.
+- **As implemented (Phase 3C, ADR-0021).** The day runs from local midnight to local midnight in the person's zone, so DST days are 23 or 25 hours. Commitments are ordered by hand and can be locked; locked items are never moved, carried, or removed until unlocked. Blocks are whole minutes with optional preparation and buffer; nothing may overlap a focus block. A block moved after the due date or deadline is flagged, and changing the due date is a separate, explicit edit. Recurring blocks keep their local time across DST. A day without a shutdown is closed automatically after it ends, recording open items as done or not finished.
 
 ## 7. Time tracking
 

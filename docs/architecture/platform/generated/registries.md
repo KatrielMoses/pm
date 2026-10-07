@@ -91,6 +91,10 @@ Source: `contracts/registry.json`.
 | `rem_` | task_reminder | planning.task_reminder | planning | Phase 2D (PL-26). |
 | `bop_` | bulk_operation | work.bulk_operation | work | Phase 2D (PL-26). |
 | `und_` | undo_entry | work.undo_entry | work | Phase 2D (PL-26). |
+| `bls_` | block_series | planning.block_series | planning | Phase 3C (PL-31). |
+| `tof_` | time_off | planning.time_off | planning |  |
+| `hol_` | holiday | planning.holiday | planning |  |
+| `rsv_` | capacity_reservation | planning.capacity_reservation | planning |  |
 
 ## Error codes
 
@@ -303,6 +307,21 @@ Source: `contracts/registry.json`.
 | `time.timesheet.withdrawn` v1 | time.timesheet | period_start | C1 | yes |  | yes |  |  | — |
 | `time.timesheet.rejected` v1 | time.timesheet_approval | period_start, brand_id | C1 | yes | yes | yes |  |  | — |
 | `time.timesheet.unlocked` v1 | time.period_lock | period_start, brand_id | C1 | yes | yes | yes |  |  | — |
+| `planning.work_block.created` v1 | planning.work_block | source, focus | C1 |  |  | yes |  |  | — |
+| `planning.work_block.deleted` v1 | planning.work_block | source | C1 |  |  | yes |  |  | — |
+| `planning.block_series.defined` v1 | planning.block_series | occurrences | C1 |  |  | yes |  |  | — |
+| `planning.block_series.ended` v1 | planning.block_series | removed | C1 |  |  | yes |  |  | — |
+| `planning.today.committed` v1 | planning.today_commitment | day, source | C1 |  |  | yes |  |  | — |
+| `planning.today.changed` v1 | planning.today_commitment | day, change | C1 |  |  | yes |  |  | — |
+| `planning.day.closed` v1 | planning.daily_record | day, closed_by, committed, completed | C1 |  |  | yes |  |  | — |
+| `planning.capacity_profile.updated` v1 | planning.capacity_profile | windows, weekly_capacity_minutes, observe_brand_holidays | C1 |  |  | yes |  |  | — |
+| `planning.time_off.created` v1 | planning.time_off | kind, all_day, days | C1 |  |  | yes |  |  | — |
+| `planning.time_off.updated` v1 | planning.time_off | kind, all_day, days | C1 |  |  | yes |  |  | — |
+| `planning.time_off.deleted` v1 | planning.time_off | kind | C1 |  |  | yes |  |  | — |
+| `planning.holiday.created` v1 | planning.holiday | day | C1 |  |  | yes |  |  | — |
+| `planning.holiday.deleted` v1 | planning.holiday | day | C1 |  |  | yes |  |  | — |
+| `planning.capacity_reservation.set` v1 | planning.capacity_reservation | minutes_per_week, effective_from, effective_to | C1 |  |  | yes |  |  | — |
+| `planning.capacity_reservation.removed` v1 | planning.capacity_reservation | effective_from | C1 |  |  | yes |  |  | — |
 
 ## SSE topics
 
@@ -455,6 +474,12 @@ Forbidden metric labels: `workspace_id`, `brand_id`, `record_id`, `public_id`, `
 | `time.exports` | counter | format | time |
 | `time.timer_guard` | counter | outcome | time |
 | `views.layout_reads` | counter | layout, outcome | views |
+| `planning.today` | counter | action, outcome | planning |
+| `planning.blocks` | counter | action, outcome | planning |
+| `planning.block_series` | counter | outcome | planning |
+| `planning.day_close` | counter | outcome | planning |
+| `capacity.reads` | counter | view, outcome | planning |
+| `capacity.changes` | counter | kind, outcome | planning |
 
 ## Named parameters (values are configuration, not promises)
 
@@ -570,3 +595,17 @@ Forbidden metric labels: `workspace_id`, `brand_id`, `record_id`, `public_id`, `
 | `LAYOUT_ITEMS_MAX` | Most records one layout read (Gantt dependencies, milestones, portfolio progress, timesheet time) may name; default 200, range 10–1000. | 3B |
 | `WORKLOAD_DAYS_MAX` | Longest date range one workload grid may cover; default 366, range 7–731. | 3B |
 | `ACTIVITY_RECORDS_MAX` | Most records whose activity one activity view reads (more are reported as truncated); default 500, range 10–5000. | 3B |
+| `TODAY_ITEMS_MAX` | Most Today commitments one person may have on one day; default 100, range 1–500. | 3C |
+| `TODAY_LIST_MAX` | Most tasks one Today section (overdue, due today, upcoming deadlines) returns; default 50, range 5–200. | 3C |
+| `UPCOMING_DEADLINE_DAYS` | How many days ahead Today lists upcoming deadlines; default 14, range 1–90. | 3C |
+| `WORK_BLOCKS_PER_DAY_MAX` | Most work blocks one person may have starting on one local day; default 50, range 1–200. | 3C |
+| `WORK_BLOCKS_RANGE_DAYS_MAX` | Widest range of days one work-block listing may cover; default 42, range 1–366. | 3C |
+| `BLOCK_SERIES_MAX` | Most active recurring block series one person may have; default 50, range 1–500. | 3C |
+| `BLOCK_SERIES_HORIZON_DAYS` | How many days ahead recurring work blocks are generated; default 28, range 1–180. | 3C |
+| `DAY_CLOSE_DISCOVERY_MAX` | Most workspaces one day-close or block-series run examines; default 100, range 1–1000. | 3C |
+| `DAY_CLOSE_BATCH_MAX` | Most person-days one day-close run records per workspace; default 200, range 1–1000. | 3C |
+| `AVAILABILITY_WINDOWS_MAX` | Most working windows one person may define per week; default 28, range 7–56. | 3E |
+| `TIME_OFF_ENTRIES_MAX` | Most time-off entries one person may keep; default 500, range 10–5000. | 3E |
+| `BRAND_HOLIDAYS_MAX` | Most holidays one brand may keep; default 1000, range 10–10000. | 3E |
+| `CAPACITY_RANGE_DAYS_MAX` | Longest date range one capacity read may cover; default 93, range 7–366. | 3E |
+| `CAPACITY_PEOPLE_MAX` | Most people one team capacity read may include; default 100, range 1–1000. | 3E |

@@ -213,6 +213,32 @@ Status of every ADR: **proposed (Phase 0B)**, pending solutions-architect accept
   - A view per share scope: duplicate definitions that drift.
   - Storing query results: they would freeze and widen access.
 - **Consequences:** One migration, `0031_saved_views`, with a down migration to 0030. No 3B layout tables, 3C planning, or 6D export-job tables.
+<a id="adr-30"></a>
+## ADR-30: Working hours, time off, brand holidays, and capacity reservations (Phase 3E amendment)
+
+- **Decision:**
+  - **Capacity profile.** `planning.capacity_profile` holds one row per membership: an optional weekly capacity override (`weekly_capacity_minutes`, 0 to 10080), whether the person observes brand holidays (default yes), and a row version.
+  - **Working hours.** `planning.availability_rule` holds local wall-clock windows per weekday (1 Monday to 7 Sunday, minutes `[start, end)`). A guard trigger refuses overlapping windows on one weekday. Windows are evaluated per date in the person's own zone (`identity.account.timezone`, else the workspace calendar zone), so DST days have their real length.
+  - **Time off.** `planning.time_off` (`tof_`) is personal: a kind (`vacation`, `sick`, `personal`, `holiday`, `unavailable`), either all-day local dates (inclusive, read in `source_tz`) or timed UTC instants, and an optional label.
+  - **Brand holidays.** `planning.holiday` (`hol_`) is one manual holiday per brand and day (OD-19). It removes a person's day only when the person observes brand holidays and holds a reservation in that brand covering the day.
+  - **Reservations.** `planning.capacity_reservation` (`rsv_`) is a weekly planning target for one person in one brand (`minutes_per_week`, `effective_from`, optional `effective_to`, `set_by`, version). It warns and never blocks. A new reservation from a later date closes the open one the day before.
+  - **Nothing cached.** Availability, allocation, and conflicts are computed on read from these rows, 3C blocks and commitments, and 3A-visible estimates. No capacity snapshot is stored.
+- **Alternatives:** Storing availability per day (it would drift with zone and rule changes). Holidays as time-off rows per person (one brand edit would fan out to many personal rows). Reservations as hard limits (TIME-002 says they are targets).
+- **Consequences:** Migration `0035_capacity` with a down migration that restores 0034 exactly. All five tables use workspace RLS. No external holiday feeds or connected calendars (6C), and no AI rescheduling (7F).
+
+<a id="adr-29"></a>
+## ADR-29: Today, work blocks, and daily records (Phase 3C amendment)
+
+- **Decision:**
+  - **Commitments.** `planning.today_commitment` is a person's choice to do one task on one local day (the viewer's zone, OD-18): manual order (`rank`), `locked`, and an outcome (`open`, then `done`, `carried` with the target day, `returned` to the backlog, or `dropped`). Committing never changes the task. A closed commitment is final (guard trigger). One per person, day, and task.
+  - **Work blocks.** `planning.work_block` (`blk_`) is calendar time reserved to do work: UTC instants in whole minutes (5 minutes to 24 hours) with the zone they were entered in, an optional task (its brand cascades with the task), or a personal title; `focus`, `locked`, preparation and buffer minutes, and a source (`manual`, `estimate`, `recurrence`). Blocks are distinct from due dates and deadlines and never change them.
+  - **Focus protection.** No block may overlap a focus block of the same person, preparation and buffer included; a guard trigger repeats the rule under a per-person transaction lock.
+  - **Recurring blocks.** `planning.block_series` (`bls_`) holds a rule in the 2A RFC 5545 subset, an anchor zone, a local start, a duration, and block settings. Occurrences are work blocks keyed `(series_id, occurrence_key)` (the local date-time), generated idempotently through `BLOCK_SERIES_HORIZON_DAYS`; local time is stable across DST.
+  - **Daily records.** `planning.daily_record` is written once per person and day (at shutdown or by the day-close job): committed, completed, carried, returned, and dropped counts that always add up; planned minutes (estimates) with unestimated items counted; block and focus minutes; actual seconds from 3D time entries; and an item snapshot. It is never updated.
+  - **Deviation.** `work_block` keeps its public ID but does not use the core record envelope in 3C (no trash); the seeded record type stays reserved for 6C calendar sync.
+- **Alternatives:** Reusing `recurrence_series` for blocks (it requires a brand; personal blocks may have none). Changing due dates when blocks move (contradicts CAL-013). Rewriting daily records after later edits (PLAN-019 says snapshots are not rewritten).
+- **Consequences:** Migration `0034_today_planning` with a down migration to 0032. No working hours, capacity, holidays, calendar events, or AI plans (3E, 6C, 7F).
+
 <a id="adr-28"></a>
 ## ADR-28: Core view layouts (Phase 3B amendment)
 

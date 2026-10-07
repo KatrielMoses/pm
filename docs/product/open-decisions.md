@@ -184,6 +184,7 @@ Requirements flagged with each decision are listed automatically in [requirement
 - **Affects:** PLAN-001, PLAN-002, PLAN-003 · phase 3C.
 - **Safe default:** As in [time-and-scheduling.md §6](time-and-scheduling.md#6-today).
 - **If deferred:** 3C cannot finalize acceptance tests.
+- **Status (Phase 3C, 2026-10-07):** Decided as the safe default at the Phase 0 exit gate and implemented: Today uses the viewer's profile zone; committed and block-scheduled work are shown, with overdue, due-today, and upcoming-deadline items in separate sections (ADR-0021 P1–P2).
 
 <a id="od-19"></a>
 ### OD-19 — Holiday calendars
@@ -192,6 +193,7 @@ Requirements flagged with each decision are listed automatically in [requirement
 - **Affects:** CAL-010, WSB-010, TIME-010 · phases 3E, 6C.
 - **Safe default:** Manual holiday entries per brand and per person at launch, plus whatever the connected calendar provides.
 - **If deferred:** Capacity ignores public holidays unless entered manually.
+- **Status (Phase 3E, 2026-10-07):** Decided as the safe default for launch and implemented: holidays are manual brand holidays set under `brand.configure`, and individual holidays are personal time off of kind `holiday`. A brand holiday removes a person's day only if the person observes brand holidays and holds a reservation in that brand covering the day. External holiday feeds and connected-calendar holidays stay with 6C (ADR-0022 C4).
 
 <a id="od-20"></a>
 ### OD-20 — Human self-approval

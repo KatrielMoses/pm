@@ -143,13 +143,12 @@ def check_invariants():
         "packages/work/test/integration/timesheets.test.ts": [
             "closes the whole period for the person while submitted",
             "unlocks an approved line only for admins"],
-        "packages/db/test/integration/migrations.test.ts": [
-            "boundaries = [9, 12, 16, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32"],
     }.items():
         text = read(P(path))
         for n in needles:
             if n not in text:
                 errs.append("%s lacks %r" % (path, n))
+    errs += phase1.check_boundaries([9, 12, 16] + list(range(18, 33)))
     return errs, "migration guards, predicate-only reads, OD-20/OD-26"
 
 

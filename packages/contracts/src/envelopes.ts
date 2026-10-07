@@ -185,6 +185,17 @@ export const NON_RESOURCE_TYPES = [
   'timesheet_period',
   'time_report',
   'time_summary',
+  // 3C: Today, the day plan, and planned-versus-completed daily records.
+  'today_view',
+  'day_plan',
+  'daily_records',
+  'today_commitment',
+  'daily_record',
+  // 3E: working hours, capacity reads, and capacity-aware rescheduling inputs.
+  'capacity_profile',
+  'capacity',
+  'team_capacity',
+  'rescheduling_inputs',
 ] as const;
 export type NonResourceType = (typeof NON_RESOURCE_TYPES)[number];
 

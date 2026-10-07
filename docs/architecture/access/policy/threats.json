@@ -497,6 +497,28 @@
         "I-10",
         "I-18"
       ]
+    },
+    {
+      "id": "T-47",
+      "category": "inference",
+      "description": "Planning exposure and drift: another person's Today, blocks, series, or records visible to anyone; commitments or blocks revealing or granting access to tasks the owner cannot read (including after revocation); Today lists counting hidden work; planning commands changing due dates or deadlines; locked items or focus blocks moved or overlapped; daily records rewritten.",
+      "mitigated_by": [
+        "I-01",
+        "I-02",
+        "I-10",
+        "I-18"
+      ]
+    },
+    {
+      "id": "T-48",
+      "category": "inference",
+      "description": "Cross-brand capacity leakage: another person's capacity, reservations, or conflicts visible without capacity.view; time-off kinds, labels, or entries visible to anyone but their owner; blocks, estimates, holidays, or conflicts revealing work or brands the viewer cannot read; reservations set without capacity.reserve; visibility outliving a revoked grant.",
+      "mitigated_by": [
+        "I-01",
+        "I-02",
+        "I-10",
+        "I-18"
+      ]
     }
   ],
   "tests": [
@@ -3604,6 +3626,270 @@
       "response_shape": "forbidden",
       "silent_surfaces": [
         "ui_list"
+      ]
+    },
+    {
+      "id": "AT-169",
+      "threats": [
+        "T-47"
+      ],
+      "principal": "administrator",
+      "setup": "Read or change another person's Today, blocks, or daily records",
+      "scope": "personal",
+      "action": "personal.manage_own",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "not_found",
+      "silent_surfaces": [
+        "ui_list",
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-170",
+      "threats": [
+        "T-47"
+      ],
+      "principal": "member",
+      "setup": "Commit or schedule a task the person cannot read",
+      "scope": "task",
+      "action": "record.read",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "not_found",
+      "silent_surfaces": [
+        "error_message",
+        "timing"
+      ]
+    },
+    {
+      "id": "AT-171",
+      "threats": [
+        "T-47"
+      ],
+      "principal": "member",
+      "setup": "Today after losing access to a committed and scheduled task",
+      "scope": "personal",
+      "action": "record.read",
+      "surface": "ui_list",
+      "expected": "deny",
+      "response_shape": "omitted",
+      "silent_surfaces": [
+        "count_facet",
+        "report"
+      ]
+    },
+    {
+      "id": "AT-172",
+      "threats": [
+        "T-47"
+      ],
+      "principal": "member",
+      "setup": "Overdue and upcoming-deadline sections with hidden tasks assigned to the person",
+      "scope": "personal",
+      "action": "record.read",
+      "surface": "ui_list",
+      "expected": "deny",
+      "response_shape": "omitted",
+      "silent_surfaces": [
+        "count_facet"
+      ]
+    },
+    {
+      "id": "AT-173",
+      "threats": [
+        "T-47"
+      ],
+      "principal": "member",
+      "setup": "Move a block after the task's deadline",
+      "scope": "task",
+      "action": "record.update",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "ok_filtered",
+      "silent_surfaces": [
+        "activity"
+      ]
+    },
+    {
+      "id": "AT-174",
+      "threats": [
+        "T-47"
+      ],
+      "principal": "member",
+      "setup": "Reorder, carry, or remove a locked commitment or block",
+      "scope": "personal",
+      "action": "personal.manage_own",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "conflict_filtered",
+      "silent_surfaces": [
+        "ui_record"
+      ]
+    },
+    {
+      "id": "AT-175",
+      "threats": [
+        "T-47"
+      ],
+      "principal": "member",
+      "setup": "Schedule a block over a focus block",
+      "scope": "personal",
+      "action": "personal.manage_own",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "conflict_filtered",
+      "silent_surfaces": [
+        "ui_record"
+      ]
+    },
+    {
+      "id": "AT-176",
+      "threats": [
+        "T-47"
+      ],
+      "principal": "member",
+      "setup": "Rewrite a closed day's record",
+      "scope": "personal",
+      "action": "personal.manage_own",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "conflict_filtered",
+      "silent_surfaces": [
+        "report"
+      ]
+    },
+    {
+      "id": "AT-177",
+      "threats": [
+        "T-48"
+      ],
+      "principal": "member",
+      "setup": "Read another person's capacity without capacity.view",
+      "scope": "personal",
+      "action": "capacity.view",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "not_found",
+      "silent_surfaces": [
+        "error_message",
+        "timing"
+      ]
+    },
+    {
+      "id": "AT-178",
+      "threats": [
+        "T-48"
+      ],
+      "principal": "member",
+      "setup": "Read team capacity without capacity.view",
+      "scope": "workspace",
+      "action": "capacity.view",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "forbidden",
+      "silent_surfaces": [
+        "count_facet"
+      ]
+    },
+    {
+      "id": "AT-179",
+      "threats": [
+        "T-48"
+      ],
+      "principal": "member",
+      "setup": "Lead with a Harbor manage grant reads a person who also works in Summit",
+      "scope": "brand",
+      "action": "capacity.view",
+      "surface": "capacity",
+      "expected": "allow",
+      "response_shape": "ok_filtered",
+      "silent_surfaces": [
+        "count_facet",
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-180",
+      "threats": [
+        "T-48"
+      ],
+      "principal": "member",
+      "setup": "Another person's time off seen with capacity.view",
+      "scope": "personal",
+      "action": "personal.manage_own",
+      "surface": "capacity",
+      "expected": "deny",
+      "response_shape": "redacted",
+      "silent_surfaces": [
+        "ui_record",
+        "activity"
+      ]
+    },
+    {
+      "id": "AT-181",
+      "threats": [
+        "T-48"
+      ],
+      "principal": "member",
+      "setup": "Conflicts, holidays, and reservations in a brand the viewer cannot read",
+      "scope": "brand",
+      "action": "record.read",
+      "surface": "capacity",
+      "expected": "deny",
+      "response_shape": "omitted",
+      "silent_surfaces": [
+        "count_facet",
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-182",
+      "threats": [
+        "T-48"
+      ],
+      "principal": "member",
+      "setup": "Set a reservation without capacity.reserve, or in an unreadable brand",
+      "scope": "brand",
+      "action": "capacity.reserve",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "forbidden",
+      "silent_surfaces": [
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-183",
+      "threats": [
+        "T-48"
+      ],
+      "principal": "member",
+      "setup": "Capacity read after the capacity.view grant is revoked",
+      "scope": "brand",
+      "action": "capacity.view",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "forbidden",
+      "silent_surfaces": [
+        "count_facet"
+      ]
+    },
+    {
+      "id": "AT-184",
+      "threats": [
+        "T-48"
+      ],
+      "principal": "member",
+      "setup": "Stranger from another workspace calls every capacity route",
+      "scope": "workspace",
+      "action": "capacity.view",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "not_found",
+      "silent_surfaces": [
+        "error_message",
+        "timing"
       ]
     }
   ]

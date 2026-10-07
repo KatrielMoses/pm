@@ -25,6 +25,8 @@ import {
 import { ProjectPage, ProjectsPage } from './pages/project-pages.tsx';
 import { ProjectlessTasksPage, TaskPage } from './pages/task-pages.tsx';
 import { TimeApprovalsPage, TimePage, TimeReportPage } from './pages/time-pages.tsx';
+import { TodayPage } from './pages/today-pages.tsx';
+import { CapacityPage } from './pages/capacity-pages.tsx';
 import {
   ApprovalsPage,
   FieldSetsPage,
@@ -74,11 +76,13 @@ type Render = (p: Params) => ReactElement;
 const destination = (d: ShellDestination): Render =>
   d === 'home'
     ? (p) => <HomePage key={p.ws} ws={p.ws!} />
-    : d === 'projects'
-      ? (p) => <ProjectsPage key={p.ws} ws={p.ws!} />
-      : d === 'inbox'
-        ? (p) => <InboxPage key={p.ws} ws={p.ws!} />
-        : () => <UnavailableDestinationPage destination={d} />;
+    : d === 'today'
+      ? (p) => <TodayPage key={p.ws} ws={p.ws!} />
+      : d === 'projects'
+        ? (p) => <ProjectsPage key={p.ws} ws={p.ws!} />
+        : d === 'inbox'
+          ? (p) => <InboxPage key={p.ws} ws={p.ws!} />
+          : () => <UnavailableDestinationPage destination={d} />;
 
 /**
  * Every registry route maps to exactly one page. The registry unit test checks that this record
@@ -104,6 +108,7 @@ export const ROUTE_COMPONENTS: Record<string, Render> = {
   time: (p) => <TimePage key={p.ws} ws={p.ws!} />,
   time_approvals: (p) => <TimeApprovalsPage key={p.ws} ws={p.ws!} />,
   time_report: (p) => <TimeReportPage key={p.ws} ws={p.ws!} />,
+  capacity: (p) => <CapacityPage key={p.ws} ws={p.ws!} />,
   task: (p) => <TaskPage key={p.tsk} ws={p.ws!} tsk={p.tsk!} />,
   calendar: (p) => <CalendarPage key={p.ws} ws={p.ws!} />,
   knowledge: destination('knowledge'),

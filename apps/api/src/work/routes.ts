@@ -1,17 +1,19 @@
 import type { FastifyInstance, FastifyRequest } from 'fastify';
 import { nonResourceEnvelope } from '@pm/contracts';
-import type { LayoutService } from '@pm/work';
+import type { CapacityService } from '@pm/work';
 import { routeKit } from '../route-kit.ts';
 import { registerCapture } from './capture-routes.ts';
 import { registerTaskInteraction } from './interaction-routes.ts';
 import { registerTasks } from './task-routes.ts';
+import { registerPlanning } from './planning-routes.ts';
 import { registerTime } from './time-routes.ts';
 import { registerLayouts } from './layout-routes.ts';
+import { registerCapacity } from './capacity-routes.ts';
 import { registerViews } from './view-routes.ts';
 import { registerWorkflows } from './workflow-routes.ts';
 
 export interface WorkRouteDeps {
-  work: LayoutService;
+  work: CapacityService;
 }
 
 type Params = {
@@ -51,6 +53,8 @@ export function registerWork(app: FastifyInstance, deps: WorkRouteDeps): void {
   registerViews(app, work);
   registerTime(app, work);
   registerLayouts(app, work);
+  registerPlanning(app, work);
+  registerCapacity(app, work);
 
   app.get(
     base,

@@ -40,6 +40,7 @@ Default: **optimistic concurrency.** Locks are used only for the named invariant
 | One active run per task and agent; duplicate starts (ST-65) | `UNIQUE (task_id, agent_profile_id) WHERE` non-terminal on `agent_run`. Generally, `UNIQUE (workspace_id, kind, dedupe_key)` partial on non-terminal operations. |
 | Hard spend caps | `FOR UPDATE` on `metering.usage_balance` to reserve the estimated amount before start; settle or release at the terminal state |
 | Recurrence generation | `ON CONFLICT (series_id, occurrence_key) DO NOTHING` |
+| Capacity profile and reservations (Phase 3E) | `If-Match` row versions. `pg_advisory_xact_lock` per person for the profile and working hours, and per brand and member for reservations, so concurrent edits give one `conflict`. An overlap guard trigger covers working windows. |
 | Workspace ownership transfer, subscription changes | `FOR UPDATE` on the workspace or subscription row |
 
 Lock order (to avoid deadlocks): workspace → brand → tree root advisory locks (ascending ID) → batch → envelope rows (ascending ID) → typed rows → balances.
@@ -96,6 +97,6 @@ The rule: **the domain change, its audit event, and its outbox event commit toge
 | Metric snapshots, rollups | Outbox + scheduled recompute | Minutes, with freshness shown (RPT-024, ST-47) | Per scope key, summed per viewer |
 | Calculated field values | Dependency events | Seconds; "Calculating…" state | As the host record |
 | Notification fan-out | Outbox | Seconds | Re-checked at delivery and display |
-| Capacity caches | Planning events | Seconds | Viewer-filtered |
+| Capacity caches | Not built in Phase 3E: capacity is computed on read (ADR-30) | None | Viewer-filtered on every read |
 
 Authorization decisions are **never materialized into projections**. A revoked grant takes effect on the next query without reindexing.

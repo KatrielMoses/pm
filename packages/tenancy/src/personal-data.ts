@@ -47,19 +47,37 @@ export async function eraseMembershipNavigation(
   membershipId: string,
 ): Promise<number> {
   let n = 0;
-  // 2D: personal reminders and snoozes, and the member's short-lived bulk and undo rows.
+  // 2D: personal reminders and snoozes, and the member's short-lived bulk and undo rows; 3C plans.
   for (const table of [
     'views.favorite',
     'views.recent_item',
     'views.view_state',
     'planning.task_reminder',
     'planning.task_snooze',
+    // 3C: personal plans (blocks before their series) and daily records.
+    'planning.work_block',
+    'planning.block_series',
+    'planning.today_commitment',
+    'planning.daily_record',
     'work.bulk_operation',
     'work.undo_entry',
   ] as const) {
     const r = await tx.db
       .deleteFrom(table)
       .where('owner_membership_id', '=', membershipId)
+      .executeTakeFirst();
+    n += Number(r.numDeletedRows);
+  }
+  // 3E: the person's time off and the reservations about them, then the profile (its working
+  // windows cascade). Holidays and reservations they set for others stay (brand settings).
+  for (const table of [
+    'planning.time_off',
+    'planning.capacity_reservation',
+    'planning.capacity_profile',
+  ] as const) {
+    const r = await tx.db
+      .deleteFrom(table)
+      .where('membership_id', '=', membershipId)
       .executeTakeFirst();
     n += Number(r.numDeletedRows);
   }

@@ -132,7 +132,7 @@
       "evidence": [
         {
           "file": "apps/web/src/pages/task-pages.tsx",
-          "contains": "Work blocks for this task arrive with planning (3C)"
+          "contains": "<TaskPlanPanel"
         },
         {
           "file": "docs/product/open-decisions.md",

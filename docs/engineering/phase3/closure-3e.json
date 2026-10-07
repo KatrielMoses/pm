@@ -1,0 +1,552 @@
+{
+  "schema_version": 1,
+  "phase": "3E",
+  "status": "candidate",
+  "adr": "0022",
+  "accepted_by_kinds": {
+    "catalog:contributing": "the subphase is a contributing_subphase of the requirement in the accepted 0A catalog",
+    "roadmap:<sub>": "the BUILD_ROADMAP subphase scope",
+    "adr:<nnnn>[#row]": "an engineering ADR row naming the subphase (proposed ADRs are allowed only while the closure status is candidate)",
+    "requirement:<ID>": "the requirement that owns the capability (its owner_subphase)"
+  },
+  "requirements": [
+    {
+      "id": "WSB-017",
+      "role": "owned",
+      "disposition": "implemented",
+      "evidence": [
+        {
+          "file": "packages/work/src/capacity/capacity-service.ts",
+          "contains": "async personCapacity("
+        },
+        {
+          "file": "packages/work/test/integration/capacity.test.ts",
+          "contains": "reports estimates per brand and over-allocation on the due day"
+        }
+      ],
+      "note": "Founder capacity across brands: the person view over every readable brand, with reserved, scheduled, and estimated time per brand.",
+      "enriched_by": [
+        "1C"
+      ],
+      "accepted_by": [
+        "catalog:contributing"
+      ]
+    },
+    {
+      "id": "WSB-018",
+      "role": "owned",
+      "disposition": "implemented",
+      "evidence": [
+        {
+          "file": "packages/work/src/capacity/semantics.ts",
+          "contains": "export function crossBrandOverlaps("
+        },
+        {
+          "file": "packages/work/test/integration/capacity.test.ts",
+          "contains": "finds cross-brand overlaps and unmet reservations, limited to readable brands"
+        },
+        {
+          "file": "e2e/capacity.spec.ts",
+          "contains": "a brand lead sees only their brand’s share of the founder’s capacity, and loses it with access"
+        }
+      ],
+      "note": "Conflicting commitments across brands: overlapping blocks of different brands and unmet reservations. Calendar-event conflicts are enriched by 6C.",
+      "enriched_by": [
+        "6C"
+      ],
+      "accepted_by": [
+        "catalog:contributing"
+      ]
+    },
+    {
+      "id": "CAL-009",
+      "role": "owned",
+      "disposition": "implemented",
+      "evidence": [
+        {
+          "file": "packages/work/src/capacity/capacity-service.ts",
+          "contains": "kind: 'reservation_unmet' as const"
+        },
+        {
+          "file": "packages/work/test/unit/capacity-semantics.test.ts",
+          "contains": "reports overlaps only between different brands"
+        },
+        {
+          "file": "e2e/capacity.spec.ts",
+          "contains": "Harbor and Summit overlap for 1 h"
+        }
+      ],
+      "note": "Scheduling conflicts across brands from 3C blocks and reservations, never naming unreadable brands."
+    },
+    {
+      "id": "CAL-010",
+      "role": "owned",
+      "disposition": "implemented",
+      "evidence": [
+        {
+          "file": "packages/work/src/capacity/semantics.ts",
+          "contains": "localToUtc(`${day}T${clock(w.start)}`, tz)"
+        },
+        {
+          "file": "packages/work/test/integration/capacity.test.ts",
+          "contains": "applies brand holidays only where the person holds a reservation and observes them (OD-19)"
+        },
+        {
+          "file": "packages/work/test/integration/capacity.test.ts",
+          "contains": "keeps the real length of DST days in the person’s zone"
+        }
+      ],
+      "note": "Working hours in the person's zone, DST-correct, minus time off and observed manual brand holidays (OD-19). Connected-calendar unavailability is enriched by 6C and localization by 11E.",
+      "enriched_by": [
+        "6C",
+        "11E"
+      ],
+      "accepted_by": [
+        "catalog:contributing"
+      ]
+    },
+    {
+      "id": "TIME-001",
+      "role": "owned",
+      "disposition": "implemented",
+      "evidence": [
+        {
+          "file": "packages/work/src/capacity/capacity-service.ts",
+          "contains": "async setMyCapacityProfile("
+        },
+        {
+          "file": "packages/work/test/integration/capacity.test.ts",
+          "contains": "starts unconfigured, then sets working hours with If-Match and validates windows"
+        },
+        {
+          "file": "apps/api/test/integration/capacity-api.test.ts",
+          "contains": "sets working hours with If-Match and reads capacity"
+        },
+        {
+          "file": "e2e/capacity.spec.ts",
+          "contains": "working hours, week capacity, conflicts, time off, holidays, reservations, Today, and workload"
+        }
+      ],
+      "note": "Working hours per weekday and an optional weekly capacity override, personal and If-Match versioned."
+    },
+    {
+      "id": "TIME-002",
+      "role": "owned",
+      "disposition": "implemented",
+      "evidence": [
+        {
+          "file": "packages/work/src/capacity/capacity-service.ts",
+          "contains": "async setReservation("
+        },
+        {
+          "file": "packages/work/test/integration/capacity.test.ts",
+          "contains": "keeps reservations to capacity.reserve and shows them only where visible"
+        }
+      ],
+      "note": "Brand capacity reservations (weekly targets) under capacity.reserve; a later reservation closes the open one."
+    },
+    {
+      "id": "TIME-007",
+      "role": "owned",
+      "disposition": "implemented",
+      "evidence": [
+        {
+          "file": "packages/work/src/capacity/capacity-service.ts",
+          "contains": "async teamCapacity("
+        },
+        {
+          "file": "packages/work/test/unit/capacity-semantics.test.ts",
+          "contains": "classifies over, under, and ok allocation"
+        }
+      ],
+      "note": "Over and under allocation per person; team reads need capacity.view."
+    },
+    {
+      "id": "TIME-008",
+      "role": "owned",
+      "disposition": "implemented",
+      "evidence": [
+        {
+          "file": "packages/work/src/capacity/capacity-service.ts",
+          "contains": "async personCapacity("
+        },
+        {
+          "file": "packages/work/test/integration/capacity.test.ts",
+          "contains": "computes availability per day, scaled by a weekly override"
+        }
+      ],
+      "note": "Founder capacity across every readable brand (the person view)."
+    },
+    {
+      "id": "TIME-009",
+      "role": "owned",
+      "disposition": "implemented",
+      "evidence": [
+        {
+          "file": "packages/work/src/capacity/capacity-service.ts",
+          "contains": "capacity: 'per_person' as const"
+        },
+        {
+          "file": "packages/work/test/integration/capacity.test.ts",
+          "contains": "warns on Today when the plan exceeds the day, and fills the workload grid"
+        }
+      ],
+      "note": "Workload by day, week, and month: the 3B workload buckets gain per-person availability, over, and under."
+    },
+    {
+      "id": "TIME-010",
+      "role": "owned",
+      "disposition": "implemented",
+      "evidence": [
+        {
+          "file": "packages/work/src/capacity/capacity-service.ts",
+          "contains": "async createTimeOff("
+        },
+        {
+          "file": "packages/work/test/integration/capacity.test.ts",
+          "contains": "removes time off from availability and keeps its details private"
+        },
+        {
+          "file": "packages/work/test/unit/capacity-semantics.test.ts",
+          "contains": "reads all-day time off in its own zone"
+        },
+        {
+          "file": "e2e/capacity.spec.ts",
+          "contains": "await off.getByRole('button', { name: 'Add time off' }).click();"
+        }
+      ],
+      "note": "Time off and unavailable periods (all-day local or timed), personal; others see only unavailable minutes."
+    },
+    {
+      "id": "TIME-015",
+      "role": "owned",
+      "disposition": "implemented",
+      "evidence": [
+        {
+          "file": "packages/work/src/capacity/capacity-service.ts",
+          "contains": "warning: planned > d!.available"
+        },
+        {
+          "file": "packages/work/test/integration/capacity.test.ts",
+          "contains": "warns on Today when the plan exceeds the day, and fills the workload grid"
+        },
+        {
+          "file": "e2e/capacity.spec.ts",
+          "contains": "await expect(page.getByText(/working time|working hours/).first()).toBeVisible();"
+        }
+      ],
+      "note": "Warns when plans exceed available capacity on Today and in capacity reads; never blocks."
+    },
+    {
+      "id": "TIME-016",
+      "role": "owned",
+      "disposition": "foundation",
+      "evidence": [
+        {
+          "file": "packages/work/src/capacity/capacity-service.ts",
+          "contains": "async reschedulingInputs("
+        },
+        {
+          "file": "packages/work/src/capacity/capacity-service.ts",
+          "contains": "proposals: null"
+        }
+      ],
+      "note": "Foundation: capacity-aware rescheduling inputs (free and over minutes per day, commitments, locked count, conflicts). Proposals are 7F's.",
+      "deferred_to": [
+        "7F"
+      ],
+      "accepted_by": [
+        "catalog:contributing"
+      ]
+    },
+    {
+      "id": "WSB-010",
+      "role": "contributing",
+      "disposition": "contributed",
+      "contribution": "3E",
+      "evidence": [
+        {
+          "file": "packages/db/migrations/0035_capacity.up.sql",
+          "contains": "CREATE TABLE planning.holiday ("
+        },
+        {
+          "file": "docs/engineering/adr/0022-capacity-cross-brand-conflicts.md",
+          "contains": "| C4 |"
+        }
+      ],
+      "note": "Brand holiday calendar (manual, OD-19) with the brand zone; brand working hours and calendars stay with 1C and 6C."
+    },
+    {
+      "id": "VIEW-007",
+      "role": "contributing",
+      "disposition": "contributed",
+      "contribution": "3E",
+      "evidence": [
+        {
+          "file": "packages/work/src/capacity/capacity-service.ts",
+          "contains": "cells[bucket] = { available, over: a.over, under: a.under };"
+        },
+        {
+          "file": "e2e/capacity.spec.ts",
+          "contains": "expect(grid.people[0].capacity[day]).toMatchObject({ over: 60 });"
+        }
+      ],
+      "note": "The 3B workload view gains capacity per person and bucket."
+    },
+    {
+      "id": "PLAN-005",
+      "role": "contributing",
+      "disposition": "contributed",
+      "contribution": "3E",
+      "evidence": [
+        {
+          "file": "packages/work/src/capacity/capacity-service.ts",
+          "contains": "available_minutes: configured ? d!.available : null"
+        }
+      ],
+      "note": "Today shows available working time from working hours."
+    },
+    {
+      "id": "PLAN-006",
+      "role": "contributing",
+      "disposition": "contributed",
+      "contribution": "3E",
+      "evidence": [
+        {
+          "file": "packages/work/src/capacity/capacity-service.ts",
+          "contains": "planned_minutes: planned"
+        }
+      ],
+      "note": "Today compares planned minutes with available time."
+    },
+    {
+      "id": "PLAN-007",
+      "role": "contributing",
+      "disposition": "contributed",
+      "contribution": "3E",
+      "evidence": [
+        {
+          "file": "packages/work/src/capacity/capacity-service.ts",
+          "contains": "// TIME-015 / PLAN-007: the plan exceeds what the day has room for (a warning only)."
+        }
+      ],
+      "note": "Today warns when commitments exceed capacity."
+    },
+    {
+      "id": "CAL-008",
+      "role": "contributing",
+      "disposition": "contributed",
+      "contribution": "3E",
+      "evidence": [
+        {
+          "file": "packages/work/test/unit/capacity-semantics.test.ts",
+          "contains": "reports overlaps only between different brands"
+        }
+      ],
+      "note": "Block-overlap detection that 6C extends to calendar events."
+    },
+    {
+      "id": "BRF-011",
+      "role": "contributing",
+      "disposition": "contributed",
+      "contribution": "3E",
+      "evidence": [
+        {
+          "file": "packages/work/src/capacity/capacity-service.ts",
+          "contains": "async reschedulingInputs("
+        }
+      ],
+      "note": "Capacity conflicts and overcommitted days are available as inputs for 7E briefings."
+    },
+    {
+      "id": "RPT-010",
+      "role": "contributing",
+      "disposition": "contributed",
+      "contribution": "3E",
+      "evidence": [
+        {
+          "file": "packages/work/src/capacity/capacity-service.ts",
+          "contains": "async teamCapacity("
+        }
+      ],
+      "note": "Workload and capacity figures that 5D reports reuse."
+    },
+    {
+      "id": "LA-013",
+      "role": "contributing",
+      "disposition": "contributed",
+      "contribution": "3E",
+      "evidence": [
+        {
+          "file": "packages/work/src/capacity/capacity-service.ts",
+          "contains": "async personCapacity("
+        }
+      ],
+      "note": "Shared capacity across brands for the founder launch flow."
+    }
+  ],
+  "decisions": [
+    {
+      "id": "D1",
+      "title": "Working hours in the person's zone with DST-correct day lengths; weekly override; time off and holidays subtracted",
+      "adr_row": "C1",
+      "sources": [
+        {
+          "file": "docs/product/time-and-scheduling.md",
+          "contains": "As implemented (Phase 3E, ADR-0022)"
+        }
+      ],
+      "evidence": [
+        {
+          "file": "packages/work/test/unit/capacity-semantics.test.ts",
+          "contains": "turns local windows into instants per date, keeping DST days their real length"
+        },
+        {
+          "file": "packages/work/test/integration/capacity.test.ts",
+          "contains": "keeps the real length of DST days in the person’s zone"
+        },
+        {
+          "file": "docs/engineering/adr/0022-capacity-cross-brand-conflicts.md",
+          "contains": "| C1 |"
+        },
+        {
+          "file": "docs/engineering/adr/0022-capacity-cross-brand-conflicts.md",
+          "contains": "| C2 |"
+        }
+      ]
+    },
+    {
+      "id": "D2",
+      "title": "Time off personal; others see unavailable minutes only; capacity.view and capacity.reserve; strangers not_found; revocation immediate",
+      "adr_row": "C3",
+      "sources": [
+        {
+          "file": "docs/architecture/access/15-decisions.md",
+          "contains": "AZ-30: Capacity and cross-brand conflicts"
+        }
+      ],
+      "evidence": [
+        {
+          "file": "packages/work/test/integration/capacity.test.ts",
+          "contains": "denies other people’s capacity without capacity.view, and after permission loss"
+        },
+        {
+          "file": "apps/api/test/integration/capacity-api.test.ts",
+          "contains": "gives strangers the same not_found everywhere and never returns internal UUIDs"
+        },
+        {
+          "file": "docs/engineering/adr/0022-capacity-cross-brand-conflicts.md",
+          "contains": "| C3 |"
+        }
+      ]
+    },
+    {
+      "id": "D3",
+      "title": "OD-19: manual brand holidays only; applied through observance and reservations; no feeds (6C)",
+      "adr_row": "C4",
+      "sources": [
+        {
+          "file": "docs/product/open-decisions.md",
+          "contains": "**Status (Phase 3E, 2026-10-07):**"
+        }
+      ],
+      "evidence": [
+        {
+          "file": "packages/work/test/integration/capacity.test.ts",
+          "contains": "applies brand holidays only where the person holds a reservation and observes them (OD-19)"
+        },
+        {
+          "file": "docs/engineering/adr/0022-capacity-cross-brand-conflicts.md",
+          "contains": "| C4 |"
+        }
+      ]
+    },
+    {
+      "id": "D4",
+      "title": "Reservations as targets, versioned and serialized; computation reusing 3A queries and 3C blocks; conflicts limited to readable brands",
+      "adr_row": "C6",
+      "sources": [
+        {
+          "file": "docs/architecture/data/12-decisions.md",
+          "contains": "ADR-30: Working hours, time off, brand holidays, and capacity reservations"
+        }
+      ],
+      "evidence": [
+        {
+          "file": "packages/work/src/capacity/capacity-service.ts",
+          "contains": "await this.compileQuery("
+        },
+        {
+          "file": "packages/work/test/integration/capacity.test.ts",
+          "contains": "finds cross-brand overlaps and unmet reservations, limited to readable brands"
+        },
+        {
+          "file": "packages/work/test/integration/capacity.test.ts",
+          "contains": "serializes concurrent profile edits on the version"
+        },
+        {
+          "file": "docs/engineering/adr/0022-capacity-cross-brand-conflicts.md",
+          "contains": "| C5 |"
+        },
+        {
+          "file": "docs/engineering/adr/0022-capacity-cross-brand-conflicts.md",
+          "contains": "| C6 |"
+        }
+      ]
+    },
+    {
+      "id": "D5",
+      "title": "Surfaces: Today capacity warning, workload availability, rescheduling inputs without proposals",
+      "adr_row": "C7",
+      "sources": [
+        {
+          "file": "docs/ux/02-information-architecture.md",
+          "contains": "Phase 3E implementation note"
+        }
+      ],
+      "evidence": [
+        {
+          "file": "packages/work/src/capacity/capacity-service.ts",
+          "contains": "protected override async dayView("
+        },
+        {
+          "file": "packages/work/test/integration/capacity.test.ts",
+          "contains": "warns on Today when the plan exceeds the day, and fills the workload grid"
+        },
+        {
+          "file": "docs/engineering/adr/0022-capacity-cross-brand-conflicts.md",
+          "contains": "| C7 |"
+        }
+      ]
+    },
+    {
+      "id": "D6",
+      "title": "Contracts, honest absences (7F, 6C, 5C, 4B); sources, ADR, closure, validator; migration rollback",
+      "adr_row": "C9",
+      "sources": [
+        {
+          "file": "docs/architecture/platform/19-decisions.md",
+          "contains": "PL-32: Capacity contracts"
+        }
+      ],
+      "evidence": [
+        {
+          "file": "packages/db/migrations/0035_capacity.down.sql",
+          "contains": "Restores the exact 0034 catalog"
+        },
+        {
+          "file": "docs/engineering/tools/phase3e.py",
+          "contains": "PHASE 3E CLOSURE"
+        },
+        {
+          "file": "docs/engineering/adr/0022-capacity-cross-brand-conflicts.md",
+          "contains": "| C8 |"
+        },
+        {
+          "file": "docs/engineering/adr/0022-capacity-cross-brand-conflicts.md",
+          "contains": "| C9 |"
+        }
+      ]
+    }
+  ]
+}

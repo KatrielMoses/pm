@@ -71,7 +71,7 @@ Rules and algorithm: [../04-effective-permissions.md](../04-effective-permission
 | `import.execute` | workspace, brand | — | R2 |  | **all** | **all** | ≥edit | — | — | — |
 | `webhook.test_send` | workspace, brand | — | R2 |  | **all** | **all** | ≥manage | — | — | — |
 
-## Administrative capabilities (53)
+## Administrative capabilities (55)
 
 | Action | Scopes | Level | Risk | Flags | owner | administrator | member | limited_member | read_only | guest |
 |---|---|---|---|---|---|---|---|---|---|---|
@@ -128,6 +128,8 @@ Rules and algorithm: [../04-effective-permissions.md](../04-effective-permission
 | `support_access.grant` | workspace | — | R4 | SU | **all** | **all** | — | — | — | — |
 | `emergency_stop.trigger` | workspace | — | R1 |  | **all** | **all** | — | — | — | — |
 | `intake.manage` | brand | — | R2 |  | **all** | **all** | ≥manage | — | — | — |
+| `capacity.view` | workspace, brand | — | R1 |  | **all** | **all** | ≥manage | — | — | — |
+| `capacity.reserve` | brand | — | R1 |  | **all** | **all** | ≥manage | — | — | — |
 
 ## Personal (10)
 
@@ -209,7 +211,7 @@ Rules and algorithm: [../04-effective-permissions.md](../04-effective-permission
 | `release.production_action` | Trigger or record a production deployment or rollback. | independent_if_available | DEV-009, AGT-016 |  |
 | `environment.configure` | Configure environments and their URLs/evidence. | none | DEV-015 |  |
 | `tests.execute` | Start or rerun test runs. | none | TEST-015 |  |
-| `personal.manage_own` | Inbox, Today, notifications, personal views, favorites, reminders, availability, profile. | none | CAP-001, CAP-002, CAP-004, CAP-011, CAP-012, CAP-013, CAP-014, CAP-016, NAV-011, NTF-007, PLAN-008, VIEW-016, VIEW-018 | Phase 2E (AZ-25): capture, Inbox, notes, merge, and triage previews are personal; turning an item into operational work also needs record.create at the destination. Phase 3A (AZ-26): personal saved views, a person's own default view, and per-view state are personal; no owner or administrator bypass. |
+| `personal.manage_own` | Inbox, Today, notifications, personal views, favorites, reminders, availability, profile. | none | CAP-001, CAP-002, CAP-004, CAP-011, CAP-012, CAP-013, CAP-014, CAP-016, NAV-011, NTF-007, PLAN-008, TIME-001, TIME-010, TIME-015, TIME-016, VIEW-016, VIEW-018 | Phase 2E (AZ-25): capture, Inbox, notes, merge, and triage previews are personal; turning an item into operational work also needs record.create at the destination. Phase 3A (AZ-26): personal saved views, a person's own default view, and per-view state are personal; no owner or administrator bypass. Phase 3E (AZ-30): working hours, weekly capacity, time off, and one's own capacity and conflicts are personal. |
 | `sessions.manage_own` | List and revoke own sessions. | none | SEC-008 |  |
 | `account.mfa_enroll` | Enroll an authenticator (TOTP) factor on own account. | none | SEC-006 | Account-level (platform scope, no workspace or membership): 'own' means the authenticated account's own factors only; it is never a tenant capability. Human-only and not delegable to tokens, agents, automations, integrations, or support: step-up is human-only (0D §11.2) and no 0D scope may list this action. Step-up accepts the password when no factor exists yet, so enrollment never requires MFA before the first MFA. |
 | `account.mfa_disable` | Turn off own two-step verification and remove its factor and recovery codes. | none | SEC-006 | Account-level (platform scope, no workspace or membership): 'own' means the authenticated account's own factors only; it is never a tenant capability. Human-only and not delegable to tokens, agents, automations, integrations, or support: step-up is human-only (0D §11.2) and no 0D scope may list this action. |
@@ -221,7 +223,7 @@ Rules and algorithm: [../04-effective-permissions.md](../04-effective-permission
 | `workspace.delete` | Request workspace deletion. | none | SEC-021 |  |
 | `ownership.transfer` | Transfer workspace ownership (last-owner protection). | none | ADM-013 |  |
 | `brand.create` | Create a brand. | none | WSB-003 |  |
-| `brand.configure` | Edit brand identity, settings, calendars, goals, notification rules, AI profile. | none | WSB-004, WSB-010, WSB-012 |  |
+| `brand.configure` | Edit brand identity, settings, calendars, goals, notification rules, AI profile. | none | CAL-010, WSB-004, WSB-010, WSB-012 |  |
 | `brand.archive` | Archive or restore a brand. | none | WSB-005 |  |
 | `brand.delete` | Trash a brand. | none | WSB-005 |  |
 | `brand.mark_sensitive` | Mark or unmark a brand sensitive (removes implicit role access). | none | PERM-006 |  |
@@ -287,3 +289,5 @@ Rules and algorithm: [../04-effective-permissions.md](../04-effective-permission
 | `task.manage_recurrence` | Define, pause, resume, or end a task recurrence, or generate its next occurrence. | none | TSK-027 | Phase 2D (AZ-24): each occurrence also requires record.create in the series' brand (and project), rechecked by the worker before each step; a series whose owner lost it pauses. |
 | `intake.manage` | Create, edit, archive, and route a brand's intake forms. | none | CAP-007, PRJ-017 | Phase 2E (AZ-25): decided at the brand (decideBrand); sensitive brands need an explicit manage grant. The queue owner must be an active member who can read the brand. |
 | `intake.submit` | Submit an intake form of a brand one can read. | none | CAP-007 | Phase 2E (AZ-25): members-only while OD-28 is open; rate-limited per person and form. Submitting grants nothing and never reveals the queue. |
+| `capacity.view` | See other people's availability, allocation, reservations, and conflicts for a brand or the workspace (never what the viewer cannot read). | none | TIME-007, TIME-008, WSB-017, WSB-018 | Phase 3E (AZ-30): time off shows only as unavailable minutes; kinds and labels stay personal. |
+| `capacity.reserve` | Set brand capacity reservations (weekly planning targets) for people. | none | TIME-002 | Phase 3E (AZ-30): a target, never a block; the person must be an active member. |

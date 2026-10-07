@@ -2411,10 +2411,11 @@ A person's commitment to an item on a day (in their timezone and day-start offse
 | Retention / confidentiality | `R-PERSONAL` / `C2` |
 | Volume / export / search-AI | `high` / `self` / `yes` |
 | Secrets / personal data | `no` / `incidental` |
-| Uniqueness | `(membership_id, day, record_id)` |
-| Key typed columns | `membership_id`; `day date`; `record_id`; `rank text`; `locked boolean`; `outcome (open\|done\|carried\|returned\|dropped)` |
+| Uniqueness | `(owner_membership_id, day, task_id)` |
+| Key typed columns | `owner_membership_id`; `day date (viewer's zone)`; `task_id`; `brand_id (cascades with the task)`; `rank text`; `locked boolean`; `outcome (open\|done\|carried\|returned\|dropped)`; `carried_to date null`; `source (manual\|plan\|carry)`; `closed_at null`; `version` |
 | Sensitive fields | — |
-| Requirements | PLAN-008, PLAN-009, PLAN-017 |
+| Requirements | PLAN-001, PLAN-008, PLAN-009, PLAN-016, PLAN-017 |
+| Notes | Phase 3C (ADR-29): never changes the task's dates; closed commitments are final. |
 
 <a id="entity-daily-record"></a>
 ### `daily_record`
@@ -2432,9 +2433,10 @@ Immutable end-of-day snapshot of planned versus completed work and time.
 | Volume / export / search-AI | `medium` / `self` / `yes` |
 | Secrets / personal data | `no` / `incidental` |
 | Uniqueness | `(membership_id, day)` |
-| Key typed columns | standard columns only |
+| Key typed columns | `owner_membership_id`; `day`; `tz`; `closed_by (shutdown\|auto)`; `committed`; `completed`; `carried`; `returned`; `dropped`; `planned_minutes`; `unestimated`; `block_minutes`; `focus_minutes`; `actual_seconds`; `items jsonb` |
 | Sensitive fields | — |
-| Requirements | PLAN-019, RPT-005 |
+| Requirements | PLAN-018, PLAN-019, RPT-005 |
+| Notes | Phase 3C (ADR-29): written once at shutdown or by the day-close job; never rewritten. |
 
 <a id="entity-work-block"></a>
 ### `work_block`
@@ -2447,14 +2449,36 @@ Reserved calendar time for a task (or none, as a reservation); moving it never c
 | Contained by | — |
 | Extends (1:1) | — |
 | Associations | [`task`](logical-model.md#entity-task), [`brand`](logical-model.md#entity-brand) |
-| Lifecycle / concurrency | `full` / `row-version` |
+| Lifecycle / concurrency | `mutable` / `row-version` |
 | Retention / confidentiality | `R-PERSONAL` / `C2` |
 | Volume / export / search-AI | `high` / `self` / `yes` |
 | Secrets / personal data | `no` / `incidental` |
-| Uniqueness | — |
-| Key typed columns | `membership_id`; `task_id null`; `brand_id (of task or reservation)`; `starts_at timestamptz`; `ends_at timestamptz`; `source_tz text`; `focus boolean`; `locked boolean`; `buffer_kind null`; `source (manual\|calendar\|ai_plan\|recurrence)`; `recurrence_series_id null`; `occurrence_key null` |
+| Uniqueness | `(series_id, occurrence_key)`; `public_id` |
+| Key typed columns | `public_id text (blk_)`; `owner_membership_id`; `task_id null`; `brand_id null (= the task's brand; cascades with the task)`; `title null (blocks without a task)`; `starts_at timestamptz`; `ends_at timestamptz`; `source_tz text`; `focus boolean`; `locked boolean`; `prep_minutes`; `buffer_minutes`; `source (manual\|estimate\|recurrence)`; `series_id null`; `occurrence_key null`; `version` |
 | Sensitive fields | — |
-| Requirements | TSK-006, CAL-003, CAL-004, CAL-013, PLAN-014 |
+| Requirements | TSK-006, CAL-005, CAL-011, CAL-013, PLAN-014, PLAN-015, PLAN-017 |
+| Notes | Phase 3C (ADR-29): personal. The seeded core record type stays reserved: 3C blocks carry their own public ID and are deleted with audit (no trash), and removed with their task. Focus blocks are protected against overlap by a guard under the person's lock. Calendar and AI sources are 6C and 7F. |
+
+<a id="entity-block-series"></a>
+### `block_series`
+
+A person's recurring work block (CAL-005): a rule in an anchor zone, a duration, and block settings.
+
+| Property | Value |
+|---|---|
+| Scope | `personal` |
+| Contained by | — |
+| Extends (1:1) | — |
+| Associations | [`task`](logical-model.md#entity-task) |
+| Lifecycle / concurrency | `state-machine` / `row-version` |
+| Retention / confidentiality | `R-PERSONAL` / `C1` |
+| Volume / export / search-AI | `low` / `self` / `no` |
+| Secrets / personal data | `no` / `incidental` |
+| Uniqueness | `public_id` |
+| Key typed columns | `public_id text (bls_)`; `owner_membership_id`; `task_id null`; `title null`; `rrule (2A subset)`; `anchor_tz`; `dtstart_local`; `duration_minutes`; `focus`; `prep_minutes`; `buffer_minutes`; `state (active\|ended)`; `generated_through` |
+| Sensitive fields | — |
+| Requirements | CAL-005 |
+| Notes | Phase 3C (ADR-29): occurrences are work blocks keyed (series_id, occurrence_key), generated idempotently through BLOCK_SERIES_HORIZON_DAYS. |
 
 <a id="entity-recurrence-series"></a>
 ### `recurrence_series`
@@ -2512,10 +2536,11 @@ Recurring weekly working windows for a person in their timezone, with effective 
 | Retention / confidentiality | `R-PERSONAL` / `C2` |
 | Volume / export / search-AI | `low` / `self` / `yes` |
 | Secrets / personal data | `no` / `incidental` |
-| Uniqueness | — |
-| Key typed columns | standard columns only |
+| Uniqueness | `(workspace_id, membership_id, weekday, start_minute)` |
+| Key typed columns | `membership_id`; `weekday (1 Monday … 7 Sunday)`; `start_minute, end_minute (local, [start, end))` |
 | Sensitive fields | — |
 | Requirements | TIME-001 |
+| Notes | Phase 3E (ADR-30): non-overlapping windows (guard trigger); evaluated per date in the person's zone, so DST days have their real length. |
 
 <a id="entity-brand-calendar"></a>
 ### `brand_calendar`
@@ -2536,6 +2561,7 @@ Brand working hours, timezone reference, and holidays.
 | Key typed columns | standard columns only |
 | Sensitive fields | — |
 | Requirements | WSB-010, CAL-010 |
+| Notes |  Phase 3E (ADR-30): the brand zone (tenancy.brand.timezone) and planning.holiday serve as the brand calendar; brand working hours stay with 1C/6C. |
 
 <a id="entity-holiday"></a>
 ### `holiday`
@@ -2544,7 +2570,7 @@ Holiday date for a person or brand calendar (manual at launch, OD-19).
 
 | Property | Value |
 |---|---|
-| Scope | `workspace_or_brand` |
+| Scope | `brand` |
 | Contained by | — |
 | Extends (1:1) | — |
 | Associations | — |
@@ -2552,10 +2578,11 @@ Holiday date for a person or brand calendar (manual at launch, OD-19).
 | Retention / confidentiality | `R-LIVE` / `C1` |
 | Volume / export / search-AI | `low` / `filtered` / `yes` |
 | Secrets / personal data | `no` / `incidental` |
-| Uniqueness | — |
-| Key typed columns | standard columns only |
+| Uniqueness | `(workspace_id, brand_id, day)` |
+| Key typed columns | `brand_id`; `day date`; `name` |
 | Sensitive fields | — |
 | Requirements | CAL-010 |
+| Notes | Phase 3E (ADR-30, OD-19): manual brand holidays; they reduce a person's availability when the person observes brand holidays and holds a reservation in that brand. |
 
 <a id="entity-time-off"></a>
 ### `time_off`
@@ -2573,9 +2600,10 @@ Typed unavailable period for a person.
 | Volume / export / search-AI | `low` / `self` / `no` |
 | Secrets / personal data | `no` / `yes` |
 | Uniqueness | — |
-| Key typed columns | standard columns only |
+| Key typed columns | `membership_id`; `kind (vacation\|sick\|personal\|holiday\|unavailable)`; `all_day + starts_on/ends_on (inclusive local dates) \| starts_at/ends_at (instants)`; `source_tz`; `label null`; `version` |
 | Sensitive fields | `kind (e.g., sick)` |
 | Requirements | TIME-010 |
+| Notes | Phase 3E (ADR-30): personal; others with capacity.view see only unavailable minutes, never kinds or labels. |
 
 <a id="entity-capacity-reservation"></a>
 ### `capacity_reservation`
@@ -2592,10 +2620,11 @@ Planned share or minutes of a person's capacity for one brand per period (soft t
 | Retention / confidentiality | `R-LIVE` / `C2` |
 | Volume / export / search-AI | `low` / `filtered` / `yes` |
 | Secrets / personal data | `no` / `incidental` |
-| Uniqueness | `(brand_id, membership_id, period_kind, period_start)` |
-| Key typed columns | standard columns only |
+| Uniqueness | `(workspace_id, brand_id, membership_id, effective_from)` |
+| Key typed columns | `brand_id`; `membership_id`; `minutes_per_week`; `effective_from date`; `effective_to date null`; `set_by_membership_id`; `version` |
 | Sensitive fields | — |
 | Requirements | TIME-002, WSB-017 |
+| Notes | Phase 3E (ADR-30): a weekly planning target; exceeding it warns and never blocks. |
 
 <a id="entity-task-reminder"></a>
 ### `task_reminder`
@@ -2638,6 +2667,27 @@ A person's snooze of one task until an instant (hides it from that person's remi
 | Sensitive fields | — |
 | Requirements | TSK-033 |
 | Notes | Phase 2D (ADR-24). Not a meaningful update (OD-17). |
+
+<a id="entity-capacity-profile"></a>
+### `capacity_profile`
+
+Per person: weekly capacity override and whether brand holidays reduce their availability.
+
+| Property | Value |
+|---|---|
+| Scope | `personal` |
+| Contained by | — |
+| Extends (1:1) | — |
+| Associations | — |
+| Lifecycle / concurrency | `mutable` / `row-version` |
+| Retention / confidentiality | `R-PERSONAL` / `C2` |
+| Volume / export / search-AI | `low` / `self` / `yes` |
+| Secrets / personal data | `no` / `incidental` |
+| Uniqueness | `(workspace_id, membership_id)` |
+| Key typed columns | `membership_id`; `weekly_capacity_minutes null (override; else the working windows)`; `observe_brand_holidays boolean`; `version` |
+| Sensitive fields | — |
+| Requirements | TIME-001 |
+| Notes | Phase 3E (ADR-30): the zone is the person's own (identity.account.timezone). |
 
 ## Time tracking (`time`, schema `timetrack`)
 

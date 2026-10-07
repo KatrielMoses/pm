@@ -154,6 +154,16 @@ export interface WorkSettings {
   workloadDaysMax: number;
   /** `ACTIVITY_RECORDS_MAX` */
   activityRecordsMax: number;
+  /** `AVAILABILITY_WINDOWS_MAX` */
+  availabilityWindowsMax: number;
+  /** `TIME_OFF_ENTRIES_MAX` */
+  timeOffEntriesMax: number;
+  /** `BRAND_HOLIDAYS_MAX` */
+  brandHolidaysMax: number;
+  /** `CAPACITY_RANGE_DAYS_MAX` */
+  capacityRangeDaysMax: number;
+  /** `CAPACITY_PEOPLE_MAX` */
+  capacityPeopleMax: number;
   /** `TIME_ENTRY_MAX_HOURS` */
   timeEntryMaxHours: number;
   /** `TIME_TIMER_MAX_HOURS` */
@@ -170,6 +180,24 @@ export interface WorkSettings {
   timeRunawayDiscoveryMax: number;
   /** `TIME_RUNAWAY_BATCH_MAX` */
   timeRunawayBatchMax: number;
+  /** `TODAY_ITEMS_MAX` */
+  todayItemsMax: number;
+  /** `TODAY_LIST_MAX` */
+  todayListMax: number;
+  /** `UPCOMING_DEADLINE_DAYS` */
+  upcomingDeadlineDays: number;
+  /** `WORK_BLOCKS_PER_DAY_MAX` */
+  workBlocksPerDayMax: number;
+  /** `WORK_BLOCKS_RANGE_DAYS_MAX` */
+  workBlocksRangeDaysMax: number;
+  /** `BLOCK_SERIES_MAX` */
+  blockSeriesMax: number;
+  /** `BLOCK_SERIES_HORIZON_DAYS` */
+  blockSeriesHorizonDays: number;
+  /** `DAY_CLOSE_DISCOVERY_MAX` */
+  dayCloseDiscoveryMax: number;
+  /** `DAY_CLOSE_BATCH_MAX` */
+  dayCloseBatchMax: number;
 }
 
 export const DEFAULT_WORK_SETTINGS: WorkSettings = Object.freeze({
@@ -239,6 +267,11 @@ export const DEFAULT_WORK_SETTINGS: WorkSettings = Object.freeze({
   layoutItemsMax: 200,
   workloadDaysMax: 366,
   activityRecordsMax: 500,
+  availabilityWindowsMax: 28,
+  timeOffEntriesMax: 500,
+  brandHolidaysMax: 1000,
+  capacityRangeDaysMax: 93,
+  capacityPeopleMax: 100,
   timeEntryMaxHours: 24,
   timeTimerMaxHours: 12,
   timeReportRangeDaysMax: 366,
@@ -247,6 +280,15 @@ export const DEFAULT_WORK_SETTINGS: WorkSettings = Object.freeze({
   timeTimesheetEntriesMax: 2000,
   timeRunawayDiscoveryMax: 100,
   timeRunawayBatchMax: 200,
+  todayItemsMax: 100,
+  todayListMax: 50,
+  upcomingDeadlineDays: 14,
+  workBlocksPerDayMax: 50,
+  workBlocksRangeDaysMax: 42,
+  blockSeriesMax: 50,
+  blockSeriesHorizonDays: 28,
+  dayCloseDiscoveryMax: 100,
+  dayCloseBatchMax: 200,
 });
 
 /** The database invariant behind `TASK_DEPTH_MAX` (migration 0023). */

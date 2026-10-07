@@ -347,3 +347,10 @@ Task purge deletes the task's reminders and snoozes and detaches task series sou
 
 Time entries are not records: they live and go with their work. Task purge deletes the task's entries, and project purge deletes entries logged on the project itself (its tasks purge their own); the worker role is the only role the lock guard lets delete approved or submitted time. Approval and lock rows are R-EVIDENCE and keep their own totals and entry hash, so a brand with them cannot be purged. Trashing work hides its time from every list and total; restoring it brings the time back. Moving a task to another brand carries its entries unless any is submitted or approved (`time_locked`).
 
+## Phase 3C: plans
+
+Commitments, blocks, and series are personal planning rows, not records. Task purge deletes the task's commitments, blocks (series occurrences included), and series; daily records keep their item snapshot by internal ID and stop naming purged tasks. Member departure erases blocks, series, commitments, and records with the member's other personal rows. A task moved to another brand carries its commitments, blocks, and series.
+
+## Phase 3E: capacity
+
+Capacity profiles, working hours, time off, brand holidays, and reservations are planning rows, not records. They have no trash, and deletes are audited. Capacity itself is never stored. Their membership and brand foreign keys are `ON DELETE RESTRICT`. Member departure and account deletion erase the person's time off, the reservations about them, and their profile with its working windows (`eraseMembershipNavigation` in `tenancy/personal-data.ts`, next to the 3C planning rows); memberships are never hard-deleted, so the restrict keys hold. Holidays and reservations a person set for others are brand settings and stay. Brand purge still blocks with `missing_purge_hook` (1C), so no brand row with holidays or reservations is ever deleted; the brand purge hook that removes them arrives with brand purge support.

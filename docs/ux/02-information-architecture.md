@@ -543,3 +543,23 @@ These rules apply to every surface: lists, search, palette, notifications, dashb
   - capacity and over-allocation (3E);
   - baseline versus actual (5C);
   - Following (4A).
+
+**Phase 3C implementation note.** Today and manual planning:
+- **Today:** the `today` destination shows the day in the person's zone: Plan (committed estimate, scheduled and focus minutes; available time and meetings named as later capabilities), Committed (manual order with Move up, Move down, Lock, Next day, Remove), Scheduled (blocks with time, focus, repeats, preparation and buffer, and warnings when a block ends after the due date or deadline), then Overdue, Due today, and Upcoming deadlines, each with Add to day. Previous day, Today, and Next day change the day.
+- **Plan and shutdown:** Shut down the day asks, for each unfinished item, carry to tomorrow, pick a day, return to backlog, or leave it; locked items stay. A closed day shows its record.
+- **Blocks:** Schedule a block (for a committed task or a named block; start, minutes, preparation, buffer, focus). Overlapping a focus block is refused. Recurring blocks are added by day of week and time and can be ended.
+- **Task page:** a Plan panel with Add to today and Schedule focus time from the estimate. Nothing here changes a due date or deadline.
+- **Honest absences:** working hours and capacity (3E), calendar events (6C), drag on the calendar (3B), AI plans (7F).
+
+**Phase 3E implementation note.** Capacity and cross-brand conflicts:
+- **Capacity:** the `capacity` destination shows the week by day (available, unavailable, planned, and over or under), capacity by brand (reserved, scheduled, and estimated), and conflicts (overlapping blocks in different brands and unmet reservations). Previous week and Next week change the range.
+- **Settings:**
+  - My working hours: windows per weekday, an optional weekly capacity, and whether brand holidays apply.
+  - My time off: kind, first and last day, and an optional note.
+  - These are personal. Others see time off only as unavailable time.
+- **Team and brands:**
+  - Team allocation shows each person's over and under allocation to people with capacity access.
+  - Brand reservations and holidays are shown to people who may set them.
+  - Brands the viewer cannot read are never named.
+- **Today and workload:** Today's plan shows available time and a warning when the plan exceeds it. The warning never blocks. Without working hours, Today asks the person to set them. The workload layout shows availability per person and period.
+- **Honest absences:** suggested reschedules (7F), calendar events and holiday feeds (6C), capacity notifications (4B), and rollups (5C).

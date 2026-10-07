@@ -599,6 +599,52 @@ export const TELEMETRY_SIGNALS = [
       "layout",
       "outcome"
     ]
+  },
+  {
+    "name": "planning.today",
+    "type": "counter",
+    "labels": [
+      "action",
+      "outcome"
+    ]
+  },
+  {
+    "name": "planning.blocks",
+    "type": "counter",
+    "labels": [
+      "action",
+      "outcome"
+    ]
+  },
+  {
+    "name": "planning.block_series",
+    "type": "counter",
+    "labels": [
+      "outcome"
+    ]
+  },
+  {
+    "name": "planning.day_close",
+    "type": "counter",
+    "labels": [
+      "outcome"
+    ]
+  },
+  {
+    "name": "capacity.reads",
+    "type": "counter",
+    "labels": [
+      "view",
+      "outcome"
+    ]
+  },
+  {
+    "name": "capacity.changes",
+    "type": "counter",
+    "labels": [
+      "kind",
+      "outcome"
+    ]
   }
 ] as const;
 export type TelemetrySignalName = (typeof TELEMETRY_SIGNALS)[number]['name'];
@@ -1588,6 +1634,34 @@ export const ID_PREFIXES = [
     "resource": "undo_entry",
     "entity": "work.undo_entry",
     "ownerModule": "work",
+    "platformOnly": false
+  },
+  {
+    "prefix": "bls",
+    "resource": "block_series",
+    "entity": "planning.block_series",
+    "ownerModule": "planning",
+    "platformOnly": false
+  },
+  {
+    "prefix": "tof",
+    "resource": "time_off",
+    "entity": "planning.time_off",
+    "ownerModule": "planning",
+    "platformOnly": false
+  },
+  {
+    "prefix": "hol",
+    "resource": "holiday",
+    "entity": "planning.holiday",
+    "ownerModule": "planning",
+    "platformOnly": false
+  },
+  {
+    "prefix": "rsv",
+    "resource": "capacity_reservation",
+    "entity": "planning.capacity_reservation",
+    "ownerModule": "planning",
     "platformOnly": false
   }
 ] as const;
@@ -2700,6 +2774,155 @@ export const INTERNAL_EVENTS = [
       "brand_id"
     ],
     "maxClass": "C1"
+  },
+  {
+    "type": "planning.work_block.created",
+    "schemaVersion": 1,
+    "aggregateEntity": "planning.work_block",
+    "fields": [
+      "source",
+      "focus"
+    ],
+    "maxClass": "C1"
+  },
+  {
+    "type": "planning.work_block.deleted",
+    "schemaVersion": 1,
+    "aggregateEntity": "planning.work_block",
+    "fields": [
+      "source"
+    ],
+    "maxClass": "C1"
+  },
+  {
+    "type": "planning.block_series.defined",
+    "schemaVersion": 1,
+    "aggregateEntity": "planning.block_series",
+    "fields": [
+      "occurrences"
+    ],
+    "maxClass": "C1"
+  },
+  {
+    "type": "planning.block_series.ended",
+    "schemaVersion": 1,
+    "aggregateEntity": "planning.block_series",
+    "fields": [
+      "removed"
+    ],
+    "maxClass": "C1"
+  },
+  {
+    "type": "planning.today.committed",
+    "schemaVersion": 1,
+    "aggregateEntity": "planning.today_commitment",
+    "fields": [
+      "day",
+      "source"
+    ],
+    "maxClass": "C1"
+  },
+  {
+    "type": "planning.today.changed",
+    "schemaVersion": 1,
+    "aggregateEntity": "planning.today_commitment",
+    "fields": [
+      "day",
+      "change"
+    ],
+    "maxClass": "C1"
+  },
+  {
+    "type": "planning.day.closed",
+    "schemaVersion": 1,
+    "aggregateEntity": "planning.daily_record",
+    "fields": [
+      "day",
+      "closed_by",
+      "committed",
+      "completed"
+    ],
+    "maxClass": "C1"
+  },
+  {
+    "type": "planning.capacity_profile.updated",
+    "schemaVersion": 1,
+    "aggregateEntity": "planning.capacity_profile",
+    "fields": [
+      "windows",
+      "weekly_capacity_minutes",
+      "observe_brand_holidays"
+    ],
+    "maxClass": "C1"
+  },
+  {
+    "type": "planning.time_off.created",
+    "schemaVersion": 1,
+    "aggregateEntity": "planning.time_off",
+    "fields": [
+      "kind",
+      "all_day",
+      "days"
+    ],
+    "maxClass": "C1"
+  },
+  {
+    "type": "planning.time_off.updated",
+    "schemaVersion": 1,
+    "aggregateEntity": "planning.time_off",
+    "fields": [
+      "kind",
+      "all_day",
+      "days"
+    ],
+    "maxClass": "C1"
+  },
+  {
+    "type": "planning.time_off.deleted",
+    "schemaVersion": 1,
+    "aggregateEntity": "planning.time_off",
+    "fields": [
+      "kind"
+    ],
+    "maxClass": "C1"
+  },
+  {
+    "type": "planning.holiday.created",
+    "schemaVersion": 1,
+    "aggregateEntity": "planning.holiday",
+    "fields": [
+      "day"
+    ],
+    "maxClass": "C1"
+  },
+  {
+    "type": "planning.holiday.deleted",
+    "schemaVersion": 1,
+    "aggregateEntity": "planning.holiday",
+    "fields": [
+      "day"
+    ],
+    "maxClass": "C1"
+  },
+  {
+    "type": "planning.capacity_reservation.set",
+    "schemaVersion": 1,
+    "aggregateEntity": "planning.capacity_reservation",
+    "fields": [
+      "minutes_per_week",
+      "effective_from",
+      "effective_to"
+    ],
+    "maxClass": "C1"
+  },
+  {
+    "type": "planning.capacity_reservation.removed",
+    "schemaVersion": 1,
+    "aggregateEntity": "planning.capacity_reservation",
+    "fields": [
+      "effective_from"
+    ],
+    "maxClass": "C1"
   }
 ] as const;
 export type InternalEventType = (typeof INTERNAL_EVENTS)[number]['type'];
@@ -2814,7 +3037,21 @@ export const PARAMETER_NAMES = [
   "TIME_RUNAWAY_BATCH_MAX",
   "LAYOUT_ITEMS_MAX",
   "WORKLOAD_DAYS_MAX",
-  "ACTIVITY_RECORDS_MAX"
+  "ACTIVITY_RECORDS_MAX",
+  "TODAY_ITEMS_MAX",
+  "TODAY_LIST_MAX",
+  "UPCOMING_DEADLINE_DAYS",
+  "WORK_BLOCKS_PER_DAY_MAX",
+  "WORK_BLOCKS_RANGE_DAYS_MAX",
+  "BLOCK_SERIES_MAX",
+  "BLOCK_SERIES_HORIZON_DAYS",
+  "DAY_CLOSE_DISCOVERY_MAX",
+  "DAY_CLOSE_BATCH_MAX",
+  "AVAILABILITY_WINDOWS_MAX",
+  "TIME_OFF_ENTRIES_MAX",
+  "BRAND_HOLIDAYS_MAX",
+  "CAPACITY_RANGE_DAYS_MAX",
+  "CAPACITY_PEOPLE_MAX"
 ] as const;
 export type ParameterName = (typeof PARAMETER_NAMES)[number];
 
@@ -5125,6 +5362,43 @@ export const ACTIONS = [
       "member": "grant:view",
       "limited_member": "grant:view",
       "read_only": "grant:view",
+      "guest": "deny"
+    }
+  },
+  {
+    "key": "capacity.view",
+    "kind": "admin",
+    "scopes": [
+      "workspace",
+      "brand"
+    ],
+    "stepUp": false,
+    "riskClass": "R1",
+    "requiredLevel": null,
+    "roles": {
+      "owner": "implicit",
+      "administrator": "implicit",
+      "member": "grant:manage",
+      "limited_member": "deny",
+      "read_only": "deny",
+      "guest": "deny"
+    }
+  },
+  {
+    "key": "capacity.reserve",
+    "kind": "admin",
+    "scopes": [
+      "brand"
+    ],
+    "stepUp": false,
+    "riskClass": "R1",
+    "requiredLevel": null,
+    "roles": {
+      "owner": "implicit",
+      "administrator": "implicit",
+      "member": "grant:manage",
+      "limited_member": "deny",
+      "read_only": "deny",
       "guest": "deny"
     }
   }

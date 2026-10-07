@@ -258,6 +258,20 @@ def check_config_documented():
     return errs, "%d keys" % len(keys)
 
 
+def migration_boundaries():
+    """The integer list after `boundaries = [` in the migrations integration test (formatter-proof)."""
+    text = read(P("packages/db/test/integration/migrations.test.ts"))
+    m = re.search(r"boundaries\s*=\s*\[([^\]]*)\]", text, re.S)
+    return [int(x) for x in re.findall(r"\d+", m.group(1))] if m else []
+
+
+def check_boundaries(required):
+    """Errors for every required migration boundary missing from the migrations integration test."""
+    have = set(migration_boundaries())
+    missing = [n for n in required if n not in have]
+    return ["packages/db/test/integration/migrations.test.ts: boundaries lack %s" % ", ".join(map(str, missing))] if missing else []
+
+
 def check_migrations():
     errs = []
     d = P("packages/db/migrations")

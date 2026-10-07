@@ -232,6 +232,32 @@ All decisions are **proposed (Phase 0C)**, pending solutions-architect acceptanc
   - **No new actions.** The action count stays 120.
 - **Alternatives:** Materialized shared result sets (they would freeze and widen access). Views carrying their creator's authority (a second authority source). Stored export files before 4E (they would need re-authorization on download and storage the platform does not have yet).
 - **Consequences:** Threat T-44 with tests AT-146 to AT-153.
+<a id="az-30"></a>
+### AZ-30: Capacity and cross-brand conflicts (Phase 3E amendment)
+- **Decision:**
+  - **Personal settings.** Working hours, the weekly override, holiday observance, and time off are `personal.manage_own`. Only their owner changes them. Someone else's time-off entry is `not_found`.
+  - **New actions.** `capacity.view` (workspace or brand) lets a person see others' availability, allocation, reservations, and conflicts. `capacity.reserve` (brand) sets reservations. Owners and administrators hold both implicitly, and members need a manage grant. The action count is now 122.
+  - **Others' time off.** With `capacity.view`, time off shows only as unavailable minutes. Kinds, labels, and entries stay private (AT-180).
+  - **What a viewer sees.** Your own view lists all your blocks, and blocks on work you cannot read become unbranded busy time. For anyone else, the view shows only blocks and estimates on tasks the viewer can read, in brands where the viewer holds `capacity.view` (AT-179). Estimates come from the 3A compiled query with the viewer's predicate. A brand the viewer cannot read is never named, counted, or used to apply a holiday (AT-181).
+  - **Refusals.** Without `capacity.view`, another person's capacity is `not_found` (AT-177) and a team read is `forbidden` (AT-178). A reservation without `capacity.reserve` is `forbidden`, and in an unreadable brand it is `not_found` (AT-182). Brand holidays are changed under `brand.configure`.
+  - **Revocation.** Visibility is decided on each read, so losing a grant removes access at once (AT-183). Strangers get the same `not_found` on every capacity route (AT-184).
+- **Alternatives:** Free/busy for everyone (off by default; time-and-scheduling §5). Showing time-off kinds to managers (personal data). A capacity cache filtered per viewer (it could outlive a revocation).
+- **Consequences:** Threat T-48 with tests AT-177 to AT-184.
+
+<a id="az-29"></a>
+### AZ-29: Today and manual planning (Phase 3C amendment)
+- **Decision:**
+  - **Personal.** Today commitments, work blocks, block series, and daily records use `personal.manage_own`: only their owner reads or changes them, with no owner or administrator bypass (AT-169).
+  - **Work it names.** Committing a task, scheduling a block for it, or creating a series for it needs the task to be readable now (`record.read`, view); hidden and unknown tasks are one `not_found` (AT-170). A block or commitment never grants anything.
+  - **Revocation.** When the owner can no longer read a task, its commitments drop out of Today and its blocks remain as busy time without a title or link (AT-171); plans and records never reveal the task.
+  - **Lists.** Overdue, due-today, and upcoming-deadline sections run the 3A query engine with the viewer's own predicate (AT-172).
+  - **Dates.** Planning commands never change due dates or deadlines; changing a due date after moving a block is a separate, explicit task edit under `record.update` (AT-173).
+  - **Locks.** Locked commitments and blocks are never moved, reordered, carried, or removed by any command until the person unlocks them (AT-174); focus blocks refuse overlapping blocks (AT-175).
+  - **Records.** Daily records are append-only (AT-176).
+  - **No new actions.**
+- **Alternatives:** Shared or manager-visible plans (personal data; OD-03 pattern). Letting a block grant read access to its task (contradicts I-10).
+- **Consequences:** Planning rows are filtered by owner in every query in addition to workspace RLS.
+
 <a id="az-28"></a>
 ### AZ-28: Core view layouts (Phase 3B amendment)
 - **Decision:**
