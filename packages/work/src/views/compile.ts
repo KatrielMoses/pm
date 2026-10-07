@@ -318,6 +318,12 @@ export class Compiler {
           () => sql`false`,
           sql`false`,
         );
+      case 'following': {
+        // The caller's own explicit follows only (OD-10): nobody filters by another person's.
+        const mine = sql<boolean>`EXISTS (SELECT 1 FROM relations.follower fo WHERE fo.workspace_id = r.workspace_id
+          AND fo.record_id = r.id AND fo.membership_id = ${r.me}::uuid)`;
+        return c.op === 'is_true' || c.op === 'is_not_empty' ? mine : sql<boolean>`NOT ${mine}`;
+      }
       case 'subtask': {
         // A subtask whose parent the viewer cannot read is reported as top-level (its parent is
         // absent everywhere else too).

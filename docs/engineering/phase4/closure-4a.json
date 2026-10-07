@@ -20,8 +20,16 @@
           "contains": "async following("
         },
         {
+          "file": "packages/work/src/views/compile.ts",
+          "contains": "case 'following'"
+        },
+        {
           "file": "packages/work/test/integration/collab.test.ts",
           "contains": "lists followed records the person can read now, and drops a follow after access is lost"
+        },
+        {
+          "file": "packages/work/test/integration/collab.test.ts",
+          "contains": "reuses the query engine: tasks and projects followed by the caller, never by anyone else"
         }
       ],
       "note": "The My Work Following tab lists the records the person follows and can read now (`GET /me/following`), newest follow first.",
@@ -556,6 +564,10 @@
         {
           "file": "packages/work/test/integration/collab.test.ts",
           "contains": "lists followed records the person can read now, and drops a follow after access is lost"
+        },
+        {
+          "file": "packages/work/test/integration/collab.test.ts",
+          "contains": "reuses the query engine: tasks and projects followed by the caller, never by anyone else"
         },
         {
           "file": "apps/api/test/integration/collab-api.test.ts",

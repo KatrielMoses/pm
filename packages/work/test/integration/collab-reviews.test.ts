@@ -1,7 +1,7 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { sql } from '@pm/db';
 import { createTestDatabase, type TestDatabase } from '@pm/test-support/vitest';
-import type { Caller } from '@pm/tenancy';
+import { eraseMembershipNavigation, type Caller } from '@pm/tenancy';
 import {
   apply,
   join,
@@ -583,6 +583,9 @@ describe('Reviews, approvals, delegation, and assignment history (4A)', () => {
     it('closes a leaving requester’s requests, drops a leaving reviewer, and records their assignments ending', async () => {
       const leaver = await join(env, db, owner, ws, { kind: 'member', role: 'member' });
       const leaverId = await mem(leaver);
+      const leaverMembership = (
+        await db.admin(`SELECT id FROM tenancy.membership WHERE public_id = '${leaverId}'`)
+      ).rows[0].id as string;
       await apply(env, owner, ws, {
         kind: 'brand_grant',
         brand: brands.Harbor,
@@ -606,6 +609,11 @@ describe('Reviews, approvals, delegation, and assignment history (4A)', () => {
         { assignees: [leaverId], version: await ver(d.id) },
         mutation(),
       );
+      // The leaver also follows a task and reacts to a comment (personal rows the eraser removes).
+      const chat = (await env.svc.createComment(owner, ws, d.id, { text: 'Anyone?' }, mutation()))
+        .data;
+      await env.svc.follow(leaver, ws, d.id, true, mutation());
+      await env.svc.setReaction(leaver, ws, chat.id, 'eyes', true, mutation());
       const preview = await env.svc.previewChange(owner, ws, { kind: 'remove', member: leaverId });
       expect(preview).toBeDefined();
       env.stepUp.allow = true;
@@ -630,6 +638,20 @@ describe('Reviews, approvals, delegation, and assignment history (4A)', () => {
         state: 'withdrawn',
         closed_reason: 'reviewer_departed',
       });
+      // A removed member is never listed as a follower; the retention eraser then removes the rows.
+      expect((await env.svc.followers(owner, ws, d.id)).data.map((f) => f.id)).not.toContain(
+        leaverId,
+      );
+      const erased = await env.h.worker.withWorkspace(wsId, { module: 'test' }, (tx) =>
+        eraseMembershipNavigation(tx, leaverMembership),
+      );
+      expect(erased).toBeGreaterThanOrEqual(2);
+      const left = await db.admin(
+        `SELECT (SELECT count(*) FROM relations.follower WHERE membership_id = '${leaverMembership}')::int AS follows,
+                (SELECT count(*) FROM collab.reaction WHERE membership_id = '${leaverMembership}')::int AS reactions`,
+      );
+      expect(left.rows[0]).toMatchObject({ follows: 0, reactions: 0 });
+      expect((await env.svc.getComment(owner, ws, chat.id)).reactions).toEqual([]);
       const h = await env.svc.assignmentHistory(owner, ws, d.id, {});
       expect(h.data.map((e) => [e.kind, e.via])).toEqual([
         ['unassigned', 'departure'],

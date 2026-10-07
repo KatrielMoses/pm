@@ -891,4 +891,55 @@ describe('Comments, mentions, reactions, and following (4A)', () => {
     const timing = await measureClasses(classes);
     expect(timing.maxDelta, JSON.stringify(timing.medians)).toBeLessThanOrEqual(timing.threshold);
   });
+
+  it('reuses the query engine: tasks and projects followed by the caller, never by anyone else', async () => {
+    const t = (
+      await env.svc.createTask(
+        owner,
+        ws,
+        { brand: brands.Harbor, title: 'Followed task' },
+        mutation(),
+      )
+    ).data;
+    const p = (
+      await env.svc.createProject(
+        owner,
+        ws,
+        { brand: brands.Harbor, name: 'Followed project' },
+        mutation(),
+      )
+    ).data;
+    await env.svc.follow(owner, ws, t.id, true, mutation());
+    await env.svc.follow(owner, ws, p.id, true, mutation());
+    const mine = { op: 'and', items: [{ field: 'following', op: 'is_true' }] };
+    const tasks = await env.svc.query(owner, ws, 'task', {
+      query: { entity: 'task', filter: mine },
+    });
+    expect(tasks.data.map((r) => r.id)).toEqual([t.id]);
+    const projects = await env.svc.query(owner, ws, 'project', {
+      query: { entity: 'project', filter: mine },
+    });
+    expect(projects.data.map((r) => r.id)).toEqual([p.id]);
+    // Someone who follows nothing sees nothing, even on records the owner follows.
+    const none = await env.svc.query(editor, ws, 'task', {
+      query: { entity: 'task', filter: mine },
+    });
+    expect(none.data.map((r) => r.id)).not.toContain(t.id);
+    const not = await env.svc.query(editor, ws, 'task', {
+      query: {
+        entity: 'task',
+        filter: { op: 'and', items: [{ field: 'following', op: 'is_false' }] },
+      },
+    });
+    expect(not.data.map((r) => r.id)).toContain(t.id);
+    // The filter takes no person: another member's follows cannot be probed through it.
+    await expect(
+      env.svc.query(editor, ws, 'task', {
+        query: {
+          entity: 'task',
+          filter: { op: 'and', items: [{ field: 'following', op: 'any_of', value: [pub.owner] }] },
+        },
+      }),
+    ).rejects.toEqual(reason('validation_failed'));
+  });
 });

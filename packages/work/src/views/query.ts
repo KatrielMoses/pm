@@ -90,6 +90,8 @@ const common: Record<string, FieldSpec> = {
   updated_at: f('date', 'Updated', { sortable: true, groupable: true }),
   completed_at: f('date', 'Completed', { sortable: true, groupable: true }),
   rank: f('number', 'Manual order', { sortable: true, column: false, filterable: false }),
+  // 4A (OD-10): only the caller's own follows are ever filterable, never anyone else's.
+  following: f('bool', 'Followed by me', { column: false }),
 };
 
 /** The field catalog per entity (VIEW-012, VIEW-014, VIEW-015). Custom fields are `field:fld_…`. */
