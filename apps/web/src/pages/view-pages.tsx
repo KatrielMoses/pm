@@ -215,7 +215,7 @@ function LayoutOptions({
       {layout === 'workload' ? (
         <SelectField
           id="opt-bucket"
-          label="Group by"
+          label="Time buckets"
           value={presentation.bucket ?? 'week'}
           onChange={(v) => set('bucket', v)}
           options={['day', 'week', 'month'].map((z) => ({ value: z, label: titleCase(z) }))}
@@ -828,7 +828,12 @@ export function ViewWorkspace({
         <section
           id="view-panel"
           className="view-panel"
-          aria-label={titleCase(panel === 'filter' ? 'filters' : panel)}
+          // Named like the button that opens it; "Layout" alone would collide with the Layout picker.
+          aria-label={
+            panel === 'layout'
+              ? 'Layout options'
+              : titleCase(panel === 'filter' ? 'filters' : panel)
+          }
         >
           {panel === 'filter' ? (
             <FilterEditor

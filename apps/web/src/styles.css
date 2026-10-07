@@ -1281,6 +1281,8 @@ main:focus {
 .popover-host,
 .scope {
   position: relative;
+  /* A header flex item: may shrink so a long scope label ("All brands") ellipsizes at 320 px. */
+  min-width: 0;
 }
 .popover,
 .scope-popover {
@@ -1329,7 +1331,7 @@ main:focus {
   border-color: var(--color-border-subtle);
 }
 .scope-bar .scope-trigger {
-  max-width: 11rem;
+  max-width: min(11rem, 100%);
 }
 .scope-caret {
   color: var(--color-text-secondary);
@@ -2396,4 +2398,11 @@ nav.tabs a[aria-current='page'] {
     outline: 2px solid CanvasText;
     outline-offset: -2px;
   }
+}
+
+/* Phase 3 integration: calendar "Schedule…" sits under its event (CAL-003). */
+.calendar-schedule {
+  display: block;
+  font-size: 0.875em;
+  padding-inline: var(--space-1);
 }
