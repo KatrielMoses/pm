@@ -855,9 +855,16 @@ describe('Comments, mentions, reactions, and following (4A)', () => {
     const req = (
       await env.svc.requestReview(owner, ws, hiddenTask.id, { reviewers: [pub.owner!] }, mutation())
     ).data;
-    await db.admin(`UPDATE access.workspace_policy SET self_approval_mode = 'auto' WHERE workspace_id = '${wsId}'`);
+    await db.admin(
+      `UPDATE access.workspace_policy SET self_approval_mode = 'auto' WHERE workspace_id = '${wsId}'`,
+    );
     const hiddenProject = (
-      await env.svc.createProject(owner, ws, { brand: brands.Summit, name: 'Summit project' }, mutation())
+      await env.svc.createProject(
+        owner,
+        ws,
+        { brand: brands.Summit, name: 'Summit project' },
+        mutation(),
+      )
     ).data;
     const hiddenOnProject = await post(owner, 'In a Summit project', {}, hiddenProject.id);
     const unknownTask = `tsk_${'0'.repeat(26)}`;
@@ -878,7 +885,9 @@ describe('Comments, mentions, reactions, and following (4A)', () => {
     expect(await shape('unknownReview')).toEqual(await shape('hiddenReview'));
     expect(await shape('unknownProjectList')).toEqual(await shape('hiddenProjectList'));
     // A project-hosted comment costs the project loader's statements: the same count as the task's.
-    expect((await shape('hiddenProjectComment')).length).toBe((await shape('hiddenComment')).length);
+    expect((await shape('hiddenProjectComment')).length).toBe(
+      (await shape('hiddenComment')).length,
+    );
     const timing = await measureClasses(classes);
     expect(timing.maxDelta, JSON.stringify(timing.medians)).toBeLessThanOrEqual(timing.threshold);
   });
