@@ -120,6 +120,12 @@ const PHASE_1C_TENANT_TABLES = [
   'planning.daily_record',
   'planning.today_commitment',
   'planning.work_block',
+  // Phase 3E capacity profiles, working windows, time off, holidays, and reservations.
+  'planning.capacity_profile',
+  'planning.availability_rule',
+  'planning.time_off',
+  'planning.holiday',
+  'planning.capacity_reservation',
 ] as const;
 
 /** Seeds one row in every tenant execution table for a workspace. */
