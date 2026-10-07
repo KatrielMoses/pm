@@ -92,6 +92,9 @@ Source: `contracts/registry.json`.
 | `bop_` | bulk_operation | work.bulk_operation | work | Phase 2D (PL-26). |
 | `und_` | undo_entry | work.undo_entry | work | Phase 2D (PL-26). |
 | `bls_` | block_series | planning.block_series | planning | Phase 3C (PL-31). |
+| `tof_` | time_off | planning.time_off | planning |  |
+| `hol_` | holiday | planning.holiday | planning |  |
+| `rsv_` | capacity_reservation | planning.capacity_reservation | planning |  |
 
 ## Error codes
 
@@ -311,6 +314,14 @@ Source: `contracts/registry.json`.
 | `planning.today.committed` v1 | planning.today_commitment | day, source | C1 |  |  | yes |  |  | — |
 | `planning.today.changed` v1 | planning.today_commitment | day, change | C1 |  |  | yes |  |  | — |
 | `planning.day.closed` v1 | planning.daily_record | day, closed_by, committed, completed | C1 |  |  | yes |  |  | — |
+| `planning.capacity_profile.updated` v1 | planning.capacity_profile | windows, weekly_capacity_minutes, observe_brand_holidays | C1 |  |  | yes |  |  | — |
+| `planning.time_off.created` v1 | planning.time_off | kind, all_day, days | C1 |  |  | yes |  |  | — |
+| `planning.time_off.updated` v1 | planning.time_off | kind, all_day, days | C1 |  |  | yes |  |  | — |
+| `planning.time_off.deleted` v1 | planning.time_off | kind | C1 |  |  | yes |  |  | — |
+| `planning.holiday.created` v1 | planning.holiday | day | C1 |  |  | yes |  |  | — |
+| `planning.holiday.deleted` v1 | planning.holiday | day | C1 |  |  | yes |  |  | — |
+| `planning.capacity_reservation.set` v1 | planning.capacity_reservation | minutes_per_week, effective_from, effective_to | C1 |  |  | yes |  |  | — |
+| `planning.capacity_reservation.removed` v1 | planning.capacity_reservation | effective_from | C1 |  |  | yes |  |  | — |
 
 ## SSE topics
 
@@ -467,6 +478,8 @@ Forbidden metric labels: `workspace_id`, `brand_id`, `record_id`, `public_id`, `
 | `planning.blocks` | counter | action, outcome | planning |
 | `planning.block_series` | counter | outcome | planning |
 | `planning.day_close` | counter | outcome | planning |
+| `capacity.reads` | counter | view, outcome | planning |
+| `capacity.changes` | counter | kind, outcome | planning |
 
 ## Named parameters (values are configuration, not promises)
 
@@ -591,3 +604,8 @@ Forbidden metric labels: `workspace_id`, `brand_id`, `record_id`, `public_id`, `
 | `BLOCK_SERIES_HORIZON_DAYS` | How many days ahead recurring work blocks are generated; default 28, range 1–180. | 3C |
 | `DAY_CLOSE_DISCOVERY_MAX` | Most workspaces one day-close or block-series run examines; default 100, range 1–1000. | 3C |
 | `DAY_CLOSE_BATCH_MAX` | Most person-days one day-close run records per workspace; default 200, range 1–1000. | 3C |
+| `AVAILABILITY_WINDOWS_MAX` | Most working windows one person may define per week; default 28, range 7–56. | 3E |
+| `TIME_OFF_ENTRIES_MAX` | Most time-off entries one person may keep; default 500, range 10–5000. | 3E |
+| `BRAND_HOLIDAYS_MAX` | Most holidays one brand may keep; default 1000, range 10–10000. | 3E |
+| `CAPACITY_RANGE_DAYS_MAX` | Longest date range one capacity read may cover; default 93, range 7–366. | 3E |
+| `CAPACITY_PEOPLE_MAX` | Most people one team capacity read may include; default 100, range 1–1000. | 3E |

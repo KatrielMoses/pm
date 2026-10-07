@@ -629,6 +629,22 @@ export const TELEMETRY_SIGNALS = [
     "labels": [
       "outcome"
     ]
+  },
+  {
+    "name": "capacity.reads",
+    "type": "counter",
+    "labels": [
+      "view",
+      "outcome"
+    ]
+  },
+  {
+    "name": "capacity.changes",
+    "type": "counter",
+    "labels": [
+      "kind",
+      "outcome"
+    ]
   }
 ] as const;
 export type TelemetrySignalName = (typeof TELEMETRY_SIGNALS)[number]['name'];
@@ -1624,6 +1640,27 @@ export const ID_PREFIXES = [
     "prefix": "bls",
     "resource": "block_series",
     "entity": "planning.block_series",
+    "ownerModule": "planning",
+    "platformOnly": false
+  },
+  {
+    "prefix": "tof",
+    "resource": "time_off",
+    "entity": "planning.time_off",
+    "ownerModule": "planning",
+    "platformOnly": false
+  },
+  {
+    "prefix": "hol",
+    "resource": "holiday",
+    "entity": "planning.holiday",
+    "ownerModule": "planning",
+    "platformOnly": false
+  },
+  {
+    "prefix": "rsv",
+    "resource": "capacity_reservation",
+    "entity": "planning.capacity_reservation",
     "ownerModule": "planning",
     "platformOnly": false
   }
@@ -2806,6 +2843,86 @@ export const INTERNAL_EVENTS = [
       "completed"
     ],
     "maxClass": "C1"
+  },
+  {
+    "type": "planning.capacity_profile.updated",
+    "schemaVersion": 1,
+    "aggregateEntity": "planning.capacity_profile",
+    "fields": [
+      "windows",
+      "weekly_capacity_minutes",
+      "observe_brand_holidays"
+    ],
+    "maxClass": "C1"
+  },
+  {
+    "type": "planning.time_off.created",
+    "schemaVersion": 1,
+    "aggregateEntity": "planning.time_off",
+    "fields": [
+      "kind",
+      "all_day",
+      "days"
+    ],
+    "maxClass": "C1"
+  },
+  {
+    "type": "planning.time_off.updated",
+    "schemaVersion": 1,
+    "aggregateEntity": "planning.time_off",
+    "fields": [
+      "kind",
+      "all_day",
+      "days"
+    ],
+    "maxClass": "C1"
+  },
+  {
+    "type": "planning.time_off.deleted",
+    "schemaVersion": 1,
+    "aggregateEntity": "planning.time_off",
+    "fields": [
+      "kind"
+    ],
+    "maxClass": "C1"
+  },
+  {
+    "type": "planning.holiday.created",
+    "schemaVersion": 1,
+    "aggregateEntity": "planning.holiday",
+    "fields": [
+      "day"
+    ],
+    "maxClass": "C1"
+  },
+  {
+    "type": "planning.holiday.deleted",
+    "schemaVersion": 1,
+    "aggregateEntity": "planning.holiday",
+    "fields": [
+      "day"
+    ],
+    "maxClass": "C1"
+  },
+  {
+    "type": "planning.capacity_reservation.set",
+    "schemaVersion": 1,
+    "aggregateEntity": "planning.capacity_reservation",
+    "fields": [
+      "minutes_per_week",
+      "effective_from",
+      "effective_to"
+    ],
+    "maxClass": "C1"
+  },
+  {
+    "type": "planning.capacity_reservation.removed",
+    "schemaVersion": 1,
+    "aggregateEntity": "planning.capacity_reservation",
+    "fields": [
+      "effective_from"
+    ],
+    "maxClass": "C1"
   }
 ] as const;
 export type InternalEventType = (typeof INTERNAL_EVENTS)[number]['type'];
@@ -2929,7 +3046,12 @@ export const PARAMETER_NAMES = [
   "BLOCK_SERIES_MAX",
   "BLOCK_SERIES_HORIZON_DAYS",
   "DAY_CLOSE_DISCOVERY_MAX",
-  "DAY_CLOSE_BATCH_MAX"
+  "DAY_CLOSE_BATCH_MAX",
+  "AVAILABILITY_WINDOWS_MAX",
+  "TIME_OFF_ENTRIES_MAX",
+  "BRAND_HOLIDAYS_MAX",
+  "CAPACITY_RANGE_DAYS_MAX",
+  "CAPACITY_PEOPLE_MAX"
 ] as const;
 export type ParameterName = (typeof PARAMETER_NAMES)[number];
 
@@ -5240,6 +5362,43 @@ export const ACTIONS = [
       "member": "grant:view",
       "limited_member": "grant:view",
       "read_only": "grant:view",
+      "guest": "deny"
+    }
+  },
+  {
+    "key": "capacity.view",
+    "kind": "admin",
+    "scopes": [
+      "workspace",
+      "brand"
+    ],
+    "stepUp": false,
+    "riskClass": "R1",
+    "requiredLevel": null,
+    "roles": {
+      "owner": "implicit",
+      "administrator": "implicit",
+      "member": "grant:manage",
+      "limited_member": "deny",
+      "read_only": "deny",
+      "guest": "deny"
+    }
+  },
+  {
+    "key": "capacity.reserve",
+    "kind": "admin",
+    "scopes": [
+      "brand"
+    ],
+    "stepUp": false,
+    "riskClass": "R1",
+    "requiredLevel": null,
+    "roles": {
+      "owner": "implicit",
+      "administrator": "implicit",
+      "member": "grant:manage",
+      "limited_member": "deny",
+      "read_only": "deny",
       "guest": "deny"
     }
   }

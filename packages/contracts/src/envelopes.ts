@@ -191,6 +191,11 @@ export const NON_RESOURCE_TYPES = [
   'daily_records',
   'today_commitment',
   'daily_record',
+  // 3E: working hours, capacity reads, and capacity-aware rescheduling inputs.
+  'capacity_profile',
+  'capacity',
+  'team_capacity',
+  'rescheduling_inputs',
 ] as const;
 export type NonResourceType = (typeof NON_RESOURCE_TYPES)[number];
 

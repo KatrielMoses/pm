@@ -194,6 +194,11 @@ export interface ServerConfig {
     layoutItemsMax: number;
     workloadDaysMax: number;
     activityRecordsMax: number;
+    availabilityWindowsMax: number;
+    timeOffEntriesMax: number;
+    brandHolidaysMax: number;
+    capacityRangeDaysMax: number;
+    capacityPeopleMax: number;
     timeEntryMaxHours: number;
     timeTimerMaxHours: number;
     timeReportRangeDaysMax: number;
@@ -428,6 +433,11 @@ const DEFAULTS = {
   LAYOUT_ITEMS_MAX: '200',
   WORKLOAD_DAYS_MAX: '366',
   ACTIVITY_RECORDS_MAX: '500',
+  AVAILABILITY_WINDOWS_MAX: '28',
+  TIME_OFF_ENTRIES_MAX: '500',
+  BRAND_HOLIDAYS_MAX: '1000',
+  CAPACITY_RANGE_DAYS_MAX: '93',
+  CAPACITY_PEOPLE_MAX: '100',
   TIME_ENTRY_MAX_HOURS: '24',
   TIME_TIMER_MAX_HOURS: '12',
   TIME_REPORT_RANGE_DAYS_MAX: '366',
@@ -596,6 +606,11 @@ const schema = z.object({
   LAYOUT_ITEMS_MAX: int(10, 1000),
   WORKLOAD_DAYS_MAX: int(7, 731),
   ACTIVITY_RECORDS_MAX: int(10, 5000),
+  AVAILABILITY_WINDOWS_MAX: int(7, 56),
+  TIME_OFF_ENTRIES_MAX: int(10, 5000),
+  BRAND_HOLIDAYS_MAX: int(10, 10000),
+  CAPACITY_RANGE_DAYS_MAX: int(7, 366),
+  CAPACITY_PEOPLE_MAX: int(1, 1000),
   TIME_ENTRY_MAX_HOURS: int(1, 24),
   TIME_TIMER_MAX_HOURS: int(1, 24),
   TIME_REPORT_RANGE_DAYS_MAX: int(7, 1830),
@@ -1048,6 +1063,11 @@ export function loadServerConfig(options: LoadOptions): ServerConfig {
       layoutItemsMax: c.LAYOUT_ITEMS_MAX,
       workloadDaysMax: c.WORKLOAD_DAYS_MAX,
       activityRecordsMax: c.ACTIVITY_RECORDS_MAX,
+      availabilityWindowsMax: c.AVAILABILITY_WINDOWS_MAX,
+      timeOffEntriesMax: c.TIME_OFF_ENTRIES_MAX,
+      brandHolidaysMax: c.BRAND_HOLIDAYS_MAX,
+      capacityRangeDaysMax: c.CAPACITY_RANGE_DAYS_MAX,
+      capacityPeopleMax: c.CAPACITY_PEOPLE_MAX,
       timeEntryMaxHours: c.TIME_ENTRY_MAX_HOURS,
       timeTimerMaxHours: c.TIME_TIMER_MAX_HOURS,
       timeReportRangeDaysMax: c.TIME_REPORT_RANGE_DAYS_MAX,

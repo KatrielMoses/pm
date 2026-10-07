@@ -1995,7 +1995,71 @@ export interface FieldPolicyTable {
   version: Defaulted<number>;
 }
 
+// ---- Phase 3E: capacity (0035) -----------------------------------------------------------------
+
+export interface CapacityProfileTable {
+  workspace_id: string;
+  membership_id: string;
+  weekly_capacity_minutes: number | null;
+  observe_brand_holidays: Defaulted<boolean>;
+  updated_at: DTs;
+  version: Defaulted<number>;
+}
+export interface AvailabilityRuleTable {
+  workspace_id: string;
+  membership_id: string;
+  weekday: number;
+  start_minute: number;
+  end_minute: number;
+}
+export interface TimeOffTable {
+  id: string;
+  public_id: string;
+  workspace_id: string;
+  membership_id: string;
+  kind: 'vacation' | 'sick' | 'personal' | 'holiday' | 'unavailable';
+  all_day: boolean;
+  starts_on: string | null;
+  ends_on: string | null;
+  starts_at: Ts | null;
+  ends_at: Ts | null;
+  source_tz: string;
+  label: string | null;
+  created_at: DTs;
+  updated_at: DTs;
+  version: Defaulted<number>;
+}
+export interface HolidayTable {
+  id: string;
+  public_id: string;
+  workspace_id: string;
+  brand_id: string;
+  day: string;
+  name: string;
+  created_by_membership_id: string | null;
+  created_at: DTs;
+}
+export interface CapacityReservationTable {
+  id: string;
+  public_id: string;
+  workspace_id: string;
+  brand_id: string;
+  membership_id: string;
+  minutes_per_week: number;
+  effective_from: string;
+  effective_to: string | null;
+  set_by_membership_id: string;
+  created_at: DTs;
+  updated_at: DTs;
+  version: Defaulted<number>;
+}
+
 export interface Database {
+  'planning.capacity_profile': CapacityProfileTable;
+  'planning.availability_rule': AvailabilityRuleTable;
+  'planning.time_off': TimeOffTable;
+  'planning.holiday': HolidayTable;
+  'planning.capacity_reservation': CapacityReservationTable;
   'tenancy.workspace': WorkspaceTable;
   'exec.operation': OperationTable;
   'exec.attempt': AttemptTable;
@@ -2970,6 +3034,62 @@ export const TABLE_COLUMNS: Readonly<Record<keyof Database, readonly string[]>> 
     'project_id',
     'saved_view_id',
     'set_by_membership_id',
+    'updated_at',
+    'version',
+  ],
+  'planning.capacity_profile': [
+    'workspace_id',
+    'membership_id',
+    'weekly_capacity_minutes',
+    'observe_brand_holidays',
+    'updated_at',
+    'version',
+  ],
+  'planning.availability_rule': [
+    'workspace_id',
+    'membership_id',
+    'weekday',
+    'start_minute',
+    'end_minute',
+  ],
+  'planning.time_off': [
+    'id',
+    'public_id',
+    'workspace_id',
+    'membership_id',
+    'kind',
+    'all_day',
+    'starts_on',
+    'ends_on',
+    'starts_at',
+    'ends_at',
+    'source_tz',
+    'label',
+    'created_at',
+    'updated_at',
+    'version',
+  ],
+  'planning.holiday': [
+    'id',
+    'public_id',
+    'workspace_id',
+    'brand_id',
+    'day',
+    'name',
+    'created_by_membership_id',
+    'created_at',
+  ],
+  'planning.capacity_reservation': [
+    'id',
+    'public_id',
+    'workspace_id',
+    'brand_id',
+    'membership_id',
+    'minutes_per_week',
+    'effective_from',
+    'effective_to',
+    'set_by_membership_id',
+    'created_at',
     'updated_at',
     'version',
   ],

@@ -154,6 +154,16 @@ export interface WorkSettings {
   workloadDaysMax: number;
   /** `ACTIVITY_RECORDS_MAX` */
   activityRecordsMax: number;
+  /** `AVAILABILITY_WINDOWS_MAX` */
+  availabilityWindowsMax: number;
+  /** `TIME_OFF_ENTRIES_MAX` */
+  timeOffEntriesMax: number;
+  /** `BRAND_HOLIDAYS_MAX` */
+  brandHolidaysMax: number;
+  /** `CAPACITY_RANGE_DAYS_MAX` */
+  capacityRangeDaysMax: number;
+  /** `CAPACITY_PEOPLE_MAX` */
+  capacityPeopleMax: number;
   /** `TIME_ENTRY_MAX_HOURS` */
   timeEntryMaxHours: number;
   /** `TIME_TIMER_MAX_HOURS` */
@@ -257,6 +267,11 @@ export const DEFAULT_WORK_SETTINGS: WorkSettings = Object.freeze({
   layoutItemsMax: 200,
   workloadDaysMax: 366,
   activityRecordsMax: 500,
+  availabilityWindowsMax: 28,
+  timeOffEntriesMax: 500,
+  brandHolidaysMax: 1000,
+  capacityRangeDaysMax: 93,
+  capacityPeopleMax: 100,
   timeEntryMaxHours: 24,
   timeTimerMaxHours: 12,
   timeReportRangeDaysMax: 366,

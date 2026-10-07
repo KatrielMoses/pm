@@ -719,6 +719,30 @@
       "owner_module": "planning",
       "platform_only": false,
       "note": "Phase 3C (PL-31)."
+    },
+    {
+      "prefix": "tof",
+      "resource": "time_off",
+      "entity": "planning.time_off",
+      "owner_module": "planning",
+      "platform_only": false,
+      "note": ""
+    },
+    {
+      "prefix": "hol",
+      "resource": "holiday",
+      "entity": "planning.holiday",
+      "owner_module": "planning",
+      "platform_only": false,
+      "note": ""
+    },
+    {
+      "prefix": "rsv",
+      "resource": "capacity_reservation",
+      "entity": "planning.capacity_reservation",
+      "owner_module": "planning",
+      "platform_only": false,
+      "note": ""
     }
   ],
   "error_codes": [
@@ -3875,6 +3899,190 @@
       ],
       "allow_list_version": null,
       "delivery_authorization": null
+    },
+    {
+      "type": "planning.capacity_profile.updated",
+      "schema_version": 1,
+      "aggregate_entity": "planning.capacity_profile",
+      "fields": [
+        "windows",
+        "weekly_capacity_minutes",
+        "observe_brand_holidays"
+      ],
+      "max_class": "C1",
+      "consumers": {
+        "activity": false,
+        "notification": false,
+        "metrics": true,
+        "automation_trigger": false,
+        "search_index": false
+      },
+      "public_webhook": null,
+      "requirements": [
+        "TIME-001"
+      ],
+      "allow_list_version": null,
+      "delivery_authorization": null
+    },
+    {
+      "type": "planning.time_off.created",
+      "schema_version": 1,
+      "aggregate_entity": "planning.time_off",
+      "fields": [
+        "kind",
+        "all_day",
+        "days"
+      ],
+      "max_class": "C1",
+      "consumers": {
+        "activity": false,
+        "notification": false,
+        "metrics": true,
+        "automation_trigger": false,
+        "search_index": false
+      },
+      "public_webhook": null,
+      "requirements": [
+        "TIME-010"
+      ],
+      "allow_list_version": null,
+      "delivery_authorization": null
+    },
+    {
+      "type": "planning.time_off.updated",
+      "schema_version": 1,
+      "aggregate_entity": "planning.time_off",
+      "fields": [
+        "kind",
+        "all_day",
+        "days"
+      ],
+      "max_class": "C1",
+      "consumers": {
+        "activity": false,
+        "notification": false,
+        "metrics": true,
+        "automation_trigger": false,
+        "search_index": false
+      },
+      "public_webhook": null,
+      "requirements": [
+        "TIME-010"
+      ],
+      "allow_list_version": null,
+      "delivery_authorization": null
+    },
+    {
+      "type": "planning.time_off.deleted",
+      "schema_version": 1,
+      "aggregate_entity": "planning.time_off",
+      "fields": [
+        "kind"
+      ],
+      "max_class": "C1",
+      "consumers": {
+        "activity": false,
+        "notification": false,
+        "metrics": true,
+        "automation_trigger": false,
+        "search_index": false
+      },
+      "public_webhook": null,
+      "requirements": [
+        "TIME-010"
+      ],
+      "allow_list_version": null,
+      "delivery_authorization": null
+    },
+    {
+      "type": "planning.holiday.created",
+      "schema_version": 1,
+      "aggregate_entity": "planning.holiday",
+      "fields": [
+        "day"
+      ],
+      "max_class": "C1",
+      "consumers": {
+        "activity": false,
+        "notification": false,
+        "metrics": true,
+        "automation_trigger": false,
+        "search_index": false
+      },
+      "public_webhook": null,
+      "requirements": [
+        "CAL-010"
+      ],
+      "allow_list_version": null,
+      "delivery_authorization": null
+    },
+    {
+      "type": "planning.holiday.deleted",
+      "schema_version": 1,
+      "aggregate_entity": "planning.holiday",
+      "fields": [
+        "day"
+      ],
+      "max_class": "C1",
+      "consumers": {
+        "activity": false,
+        "notification": false,
+        "metrics": true,
+        "automation_trigger": false,
+        "search_index": false
+      },
+      "public_webhook": null,
+      "requirements": [
+        "CAL-010"
+      ],
+      "allow_list_version": null,
+      "delivery_authorization": null
+    },
+    {
+      "type": "planning.capacity_reservation.set",
+      "schema_version": 1,
+      "aggregate_entity": "planning.capacity_reservation",
+      "fields": [
+        "minutes_per_week",
+        "effective_from",
+        "effective_to"
+      ],
+      "max_class": "C1",
+      "consumers": {
+        "activity": false,
+        "notification": false,
+        "metrics": true,
+        "automation_trigger": false,
+        "search_index": false
+      },
+      "public_webhook": null,
+      "requirements": [
+        "TIME-002"
+      ],
+      "allow_list_version": null,
+      "delivery_authorization": null
+    },
+    {
+      "type": "planning.capacity_reservation.removed",
+      "schema_version": 1,
+      "aggregate_entity": "planning.capacity_reservation",
+      "fields": [
+        "effective_from"
+      ],
+      "max_class": "C1",
+      "consumers": {
+        "activity": false,
+        "notification": false,
+        "metrics": true,
+        "automation_trigger": false,
+        "search_index": false
+      },
+      "public_webhook": null,
+      "requirements": [
+        "TIME-002"
+      ],
+      "allow_list_version": null,
+      "delivery_authorization": null
     }
   ],
   "scopes": [
@@ -4892,6 +5100,24 @@
         "outcome"
       ],
       "area": "planning"
+    },
+    {
+      "name": "capacity.reads",
+      "type": "counter",
+      "labels": [
+        "view",
+        "outcome"
+      ],
+      "area": "planning"
+    },
+    {
+      "name": "capacity.changes",
+      "type": "counter",
+      "labels": [
+        "kind",
+        "outcome"
+      ],
+      "area": "planning"
     }
   ],
   "forbidden_metric_labels": [
@@ -5525,6 +5751,31 @@
       "name": "DAY_CLOSE_BATCH_MAX",
       "meaning": "Most person-days one day-close run records per workspace; default 200, range 1–1000.",
       "owner": "3C"
+    },
+    {
+      "name": "AVAILABILITY_WINDOWS_MAX",
+      "meaning": "Most working windows one person may define per week; default 28, range 7–56.",
+      "owner": "3E"
+    },
+    {
+      "name": "TIME_OFF_ENTRIES_MAX",
+      "meaning": "Most time-off entries one person may keep; default 500, range 10–5000.",
+      "owner": "3E"
+    },
+    {
+      "name": "BRAND_HOLIDAYS_MAX",
+      "meaning": "Most holidays one brand may keep; default 1000, range 10–10000.",
+      "owner": "3E"
+    },
+    {
+      "name": "CAPACITY_RANGE_DAYS_MAX",
+      "meaning": "Longest date range one capacity read may cover; default 93, range 7–366.",
+      "owner": "3E"
+    },
+    {
+      "name": "CAPACITY_PEOPLE_MAX",
+      "meaning": "Most people one team capacity read may include; default 100, range 1–1000.",
+      "owner": "3E"
     }
   ],
   "sse_topics": [

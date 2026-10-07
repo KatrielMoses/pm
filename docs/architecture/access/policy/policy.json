@@ -1696,10 +1696,14 @@
         "NAV-011",
         "NTF-007",
         "PLAN-008",
+        "TIME-001",
+        "TIME-010",
+        "TIME-015",
+        "TIME-016",
         "VIEW-016",
         "VIEW-018"
       ],
-      "notes": "Phase 2E (AZ-25): capture, Inbox, notes, merge, and triage previews are personal; turning an item into operational work also needs record.create at the destination. Phase 3A (AZ-26): personal saved views, a person's own default view, and per-view state are personal; no owner or administrator bypass."
+      "notes": "Phase 2E (AZ-25): capture, Inbox, notes, merge, and triage previews are personal; turning an item into operational work also needs record.create at the destination. Phase 3A (AZ-26): personal saved views, a person's own default view, and per-view state are personal; no owner or administrator bypass. Phase 3E (AZ-30): working hours, weekly capacity, time off, and one's own capacity and conflicts are personal."
     },
     {
       "key": "sessions.manage_own",
@@ -2024,6 +2028,7 @@
         "guest": "deny"
       },
       "requirements": [
+        "CAL-010",
         "WSB-004",
         "WSB-010",
         "WSB-012"
@@ -3862,6 +3867,64 @@
         "CAP-007"
       ],
       "notes": "Phase 2E (AZ-25): members-only while OD-28 is open; rate-limited per person and form. Submitting grants nothing and never reveals the queue."
+    },
+    {
+      "key": "capacity.view",
+      "kind": "admin",
+      "scopes": [
+        "workspace",
+        "brand"
+      ],
+      "description": "See other people's availability, allocation, reservations, and conflicts for a brand or the workspace (never what the viewer cannot read).",
+      "required_level": null,
+      "risk_class": "R1",
+      "approval_class": "none",
+      "step_up": false,
+      "second_approval": false,
+      "non_delegable": false,
+      "entitlement": null,
+      "roles": {
+        "owner": "implicit",
+        "administrator": "implicit",
+        "member": "grant:manage",
+        "limited_member": "deny",
+        "read_only": "deny",
+        "guest": "deny"
+      },
+      "requirements": [
+        "TIME-007",
+        "TIME-008",
+        "WSB-017",
+        "WSB-018"
+      ],
+      "notes": "Phase 3E (AZ-30): time off shows only as unavailable minutes; kinds and labels stay personal."
+    },
+    {
+      "key": "capacity.reserve",
+      "kind": "admin",
+      "scopes": [
+        "brand"
+      ],
+      "description": "Set brand capacity reservations (weekly planning targets) for people.",
+      "required_level": null,
+      "risk_class": "R1",
+      "approval_class": "none",
+      "step_up": false,
+      "second_approval": false,
+      "non_delegable": false,
+      "entitlement": null,
+      "roles": {
+        "owner": "implicit",
+        "administrator": "implicit",
+        "member": "grant:manage",
+        "limited_member": "deny",
+        "read_only": "deny",
+        "guest": "deny"
+      },
+      "requirements": [
+        "TIME-002"
+      ],
+      "notes": "Phase 3E (AZ-30): a target, never a block; the person must be an active member."
     }
   ],
   "account_commands": [

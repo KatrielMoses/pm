@@ -136,6 +136,11 @@ worker process is a startup error. All identities of one process must target the
 | `EXPORT_ROWS_MAX` | optional | optional | default 5000 (1–50000); most rows one direct view export may contain (0D `EXPORT_ROWS_MAX`) |
 | `LAYOUT_ITEMS_MAX` | optional | optional | default 200 (10–1000); most records one layout read (dependencies, milestones, progress, time) may name (0D `LAYOUT_ITEMS_MAX`) |
 | `WORKLOAD_DAYS_MAX` | optional | optional | default 366 (7–731); longest date range one workload grid may cover (0D `WORKLOAD_DAYS_MAX`) |
+| `AVAILABILITY_WINDOWS_MAX` | optional | optional | default 28 (7–56); most working windows one person may define per week (0D `AVAILABILITY_WINDOWS_MAX`) |
+| `TIME_OFF_ENTRIES_MAX` | optional | optional | default 500 (10–5000); most time-off entries one person may keep (0D `TIME_OFF_ENTRIES_MAX`) |
+| `BRAND_HOLIDAYS_MAX` | optional | optional | default 1000 (10–10000); most holidays one brand may keep (0D `BRAND_HOLIDAYS_MAX`) |
+| `CAPACITY_RANGE_DAYS_MAX` | optional | optional | default 93 (7–366); longest date range one capacity read may cover (0D `CAPACITY_RANGE_DAYS_MAX`) |
+| `CAPACITY_PEOPLE_MAX` | optional | optional | default 100 (1–1000); most people one team capacity read may include (0D `CAPACITY_PEOPLE_MAX`) |
 | `ACTIVITY_RECORDS_MAX` | optional | optional | default 500 (10–5000); most records whose activity one activity view reads (0D `ACTIVITY_RECORDS_MAX`) |
 | `TOTAL_COUNT_CAP` | optional | optional | default 10000 (100–100000); exact totals above this are reported as capped (0D `TOTAL_COUNT_CAP`) |
 | `TIME_ENTRY_MAX_HOURS` | optional | optional | default 24 (1–24); longest single time entry or timer run, in hours (0D `TIME_ENTRY_MAX_HOURS`) |

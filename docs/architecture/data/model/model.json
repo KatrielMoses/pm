@@ -5279,13 +5279,19 @@
       "search_ai": "yes",
       "may_contain_secrets": "no",
       "personal_data": "incidental",
-      "uniqueness": [],
+      "uniqueness": [
+        "(workspace_id, membership_id, weekday, start_minute)"
+      ],
       "sensitive_fields": [],
-      "key_columns": [],
+      "key_columns": [
+        "membership_id",
+        "weekday (1 Monday … 7 Sunday)",
+        "start_minute, end_minute (local, [start, end))"
+      ],
       "requirements": [
         "TIME-001"
       ],
-      "notes": ""
+      "notes": "Phase 3E (ADR-30): non-overlapping windows (guard trigger); evaluated per date in the person's zone, so DST days have their real length."
     },
     {
       "name": "brand_calendar",
@@ -5315,15 +5321,15 @@
         "WSB-010",
         "CAL-010"
       ],
-      "notes": ""
+      "notes": " Phase 3E (ADR-30): the brand zone (tenancy.brand.timezone) and planning.holiday serve as the brand calendar; brand working hours stay with 1C/6C."
     },
     {
       "name": "holiday",
       "module": "planning",
       "purpose": "Holiday date for a person or brand calendar (manual at launch, OD-19).",
-      "scope": "workspace_or_brand",
+      "scope": "brand",
       "addressable": false,
-      "public_id_prefix": null,
+      "public_id_prefix": "hol",
       "extends": null,
       "containment_parents": [],
       "associations": [],
@@ -5336,13 +5342,19 @@
       "search_ai": "yes",
       "may_contain_secrets": "no",
       "personal_data": "incidental",
-      "uniqueness": [],
+      "uniqueness": [
+        "(workspace_id, brand_id, day)"
+      ],
       "sensitive_fields": [],
-      "key_columns": [],
+      "key_columns": [
+        "brand_id",
+        "day date",
+        "name"
+      ],
       "requirements": [
         "CAL-010"
       ],
-      "notes": ""
+      "notes": "Phase 3E (ADR-30, OD-19): manual brand holidays; they reduce a person's availability when the person observes brand holidays and holds a reservation in that brand."
     },
     {
       "name": "time_off",
@@ -5350,7 +5362,7 @@
       "purpose": "Typed unavailable period for a person.",
       "scope": "personal",
       "addressable": false,
-      "public_id_prefix": null,
+      "public_id_prefix": "tof",
       "extends": null,
       "containment_parents": [],
       "associations": [],
@@ -5367,11 +5379,18 @@
       "sensitive_fields": [
         "kind (e.g., sick)"
       ],
-      "key_columns": [],
+      "key_columns": [
+        "membership_id",
+        "kind (vacation|sick|personal|holiday|unavailable)",
+        "all_day + starts_on/ends_on (inclusive local dates) | starts_at/ends_at (instants)",
+        "source_tz",
+        "label null",
+        "version"
+      ],
       "requirements": [
         "TIME-010"
       ],
-      "notes": ""
+      "notes": "Phase 3E (ADR-30): personal; others with capacity.view see only unavailable minutes, never kinds or labels."
     },
     {
       "name": "capacity_reservation",
@@ -5379,7 +5398,7 @@
       "purpose": "Planned share or minutes of a person's capacity for one brand per period (soft target).",
       "scope": "brand",
       "addressable": false,
-      "public_id_prefix": null,
+      "public_id_prefix": "rsv",
       "extends": null,
       "containment_parents": [],
       "associations": [
@@ -5395,15 +5414,23 @@
       "may_contain_secrets": "no",
       "personal_data": "incidental",
       "uniqueness": [
-        "(brand_id, membership_id, period_kind, period_start)"
+        "(workspace_id, brand_id, membership_id, effective_from)"
       ],
       "sensitive_fields": [],
-      "key_columns": [],
+      "key_columns": [
+        "brand_id",
+        "membership_id",
+        "minutes_per_week",
+        "effective_from date",
+        "effective_to date null",
+        "set_by_membership_id",
+        "version"
+      ],
       "requirements": [
         "TIME-002",
         "WSB-017"
       ],
-      "notes": ""
+      "notes": "Phase 3E (ADR-30): a weekly planning target; exceeding it warns and never blocks."
     },
     {
       "name": "time_entry",
@@ -8946,6 +8973,40 @@
         "PRJ-017"
       ],
       "notes": "Phase 2E (ADR-25)."
+    },
+    {
+      "name": "capacity_profile",
+      "module": "planning",
+      "purpose": "Per person: weekly capacity override and whether brand holidays reduce their availability.",
+      "scope": "personal",
+      "addressable": false,
+      "public_id_prefix": null,
+      "extends": null,
+      "containment_parents": [],
+      "associations": [],
+      "lifecycle": "mutable",
+      "concurrency": "row-version",
+      "retention_class": "R-PERSONAL",
+      "confidentiality": "C2",
+      "volume": "low",
+      "export": "self",
+      "search_ai": "yes",
+      "may_contain_secrets": "no",
+      "personal_data": "incidental",
+      "uniqueness": [
+        "(workspace_id, membership_id)"
+      ],
+      "sensitive_fields": [],
+      "key_columns": [
+        "membership_id",
+        "weekly_capacity_minutes null (override; else the working windows)",
+        "observe_brand_holidays boolean",
+        "version"
+      ],
+      "requirements": [
+        "TIME-001"
+      ],
+      "notes": "Phase 3E (ADR-30): the zone is the person's own (identity.account.timezone)."
     }
   ]
 }
