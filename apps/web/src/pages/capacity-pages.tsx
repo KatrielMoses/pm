@@ -15,6 +15,7 @@ import { ResourceView, useResource } from '../tenancy/resource.tsx';
 import { Announce, Banner } from '../ui/feedback.tsx';
 import { Field, SelectField } from '../ui/form.tsx';
 import { Page } from '../ui/layout.tsx';
+import { views } from '../views/client.ts';
 
 /**
  * Phase 3E capacity (0E Phase 3E note, ADR-0022): the person's working hours in their own zone,
@@ -558,6 +559,8 @@ function BrandSection({
   // The first readable brand until one is chosen (derived, not stored).
   const brand = brands.some((b) => b.id === picked) ? picked : (brands[0]?.id ?? '');
   const reservations = useResource(() => capacity.reservations(ws), `capr:${ws}:${nonce}`);
+  // People are chosen by name (the workspace's assignable people), never by typing a member ID.
+  const people = useResource(() => views.options(ws, 'task', 'assignee'), `cap-people:${ws}`);
   const holidays = useResource(
     () =>
       brand ? capacity.holidays(ws, brand) : Promise.resolve({ data: [], can_configure: false }),
@@ -635,7 +638,7 @@ function BrandSection({
                 ws,
                 {
                   brand,
-                  member: rMember.trim(),
+                  member: rMember,
                   minutes_per_week: Math.round(Number(rHours) * 60),
                   effective_from: rFrom,
                 },
@@ -645,13 +648,16 @@ function BrandSection({
           );
         }}
       >
-        <Field
+        <SelectField
           id="rsv-member"
-          label="Person (member ID)"
-          hint="From the person's page, for example mem_…"
+          label="Person"
           value={rMember}
           required
-          onChange={(e) => setRMember(e.target.value)}
+          onChange={setRMember}
+          options={[
+            { value: '', label: 'Choose a person' },
+            ...(people.state.status === 'ready' ? people.state.data : []),
+          ]}
         />
         <Field
           id="rsv-hours"

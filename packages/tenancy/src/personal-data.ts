@@ -1,4 +1,4 @@
-import type { PlatformTransaction, WorkspaceTransaction } from '@pm/db';
+import { sql, type PlatformTransaction, type WorkspaceTransaction } from '@pm/db';
 import { erasePreferences } from '@pm/identity';
 import type { PurgeHooks, RecordTypeAdapter } from '@pm/lifecycle';
 import type { Metrics } from '@pm/observability';
@@ -41,27 +41,38 @@ export function withPersonalReferenceCleanup(adapter: RecordTypeAdapter): Record
   return { ...adapter, purge };
 }
 
+/**
+ * Personal rows keyed by `owner_membership_id`: 1E navigation; 2D reminders, snoozes, and the
+ * member's short-lived bulk and undo rows; 3C plans (blocks before their series) and daily records.
+ */
+const OWNED_PERSONAL_TABLES = [
+  'views.favorite',
+  'views.recent_item',
+  'views.view_state',
+  'planning.task_reminder',
+  'planning.task_snooze',
+  'planning.work_block',
+  'planning.block_series',
+  'planning.today_commitment',
+  'planning.daily_record',
+  'work.bulk_operation',
+  'work.undo_entry',
+] as const;
+
+/** 3E rows about the person keyed by `membership_id` (time off, reservations, then the profile). */
+const MEMBERSHIP_PERSONAL_TABLES = [
+  'planning.time_off',
+  'planning.capacity_reservation',
+  'planning.capacity_profile',
+] as const;
+
 /** Membership personal-data eraser (departure retention and account deletion). */
 export async function eraseMembershipNavigation(
   tx: WorkspaceTransaction,
   membershipId: string,
 ): Promise<number> {
   let n = 0;
-  // 2D: personal reminders and snoozes, and the member's short-lived bulk and undo rows; 3C plans.
-  for (const table of [
-    'views.favorite',
-    'views.recent_item',
-    'views.view_state',
-    'planning.task_reminder',
-    'planning.task_snooze',
-    // 3C: personal plans (blocks before their series) and daily records.
-    'planning.work_block',
-    'planning.block_series',
-    'planning.today_commitment',
-    'planning.daily_record',
-    'work.bulk_operation',
-    'work.undo_entry',
-  ] as const) {
+  for (const table of OWNED_PERSONAL_TABLES) {
     const r = await tx.db
       .deleteFrom(table)
       .where('owner_membership_id', '=', membershipId)
@@ -70,11 +81,7 @@ export async function eraseMembershipNavigation(
   }
   // 3E: the person's time off and the reservations about them, then the profile (its working
   // windows cascade). Holidays and reservations they set for others stay (brand settings).
-  for (const table of [
-    'planning.time_off',
-    'planning.capacity_reservation',
-    'planning.capacity_profile',
-  ] as const) {
+  for (const table of MEMBERSHIP_PERSONAL_TABLES) {
     const r = await tx.db
       .deleteFrom(table)
       .where('membership_id', '=', membershipId)
@@ -101,33 +108,24 @@ export async function cleanupWorkspaceViews(
     .executeTakeFirst();
   let departed = 0;
   if (options.departedBefore) {
-    // Only removed memberships that still own personal navigation rows (bounded per run).
+    // Only removed memberships that still own personal rows of any kind the eraser removes
+    // (bounded per run): a person with plans or time off but no favorites is swept too.
+    const owns = (table: string, column: string) =>
+      sql<boolean>`EXISTS (SELECT 1 FROM ${sql.table(table)} x WHERE x.${sql.ref(column)} = m.id)`;
     const gone = await tx.db
       .selectFrom('tenancy.membership as m')
       .select('m.id')
       .where('m.state', '=', 'removed')
       .where('m.removed_at', '<', options.departedBefore)
-      .where((eb) =>
-        eb.or([
-          eb.exists(
-            eb
-              .selectFrom('views.favorite as f')
-              .select('f.record_id')
-              .whereRef('f.owner_membership_id', '=', 'm.id'),
-          ),
-          eb.exists(
-            eb
-              .selectFrom('views.recent_item as r')
-              .select('r.record_id')
-              .whereRef('r.owner_membership_id', '=', 'm.id'),
-          ),
-          eb.exists(
-            eb
-              .selectFrom('views.view_state as v')
-              .select('v.view_key')
-              .whereRef('v.owner_membership_id', '=', 'm.id'),
-          ),
-        ]),
+      .where(
+        () =>
+          sql<boolean>`(${sql.join(
+            [
+              ...OWNED_PERSONAL_TABLES.map((t) => owns(t, 'owner_membership_id')),
+              ...MEMBERSHIP_PERSONAL_TABLES.map((t) => owns(t, 'membership_id')),
+            ],
+            sql` OR `,
+          )})`,
       )
       .orderBy('m.id')
       .limit(batch)

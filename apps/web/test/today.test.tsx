@@ -136,6 +136,26 @@ describe('Today (3C)', () => {
     expect(within(scheduled).getByText('Focus')).toBeTruthy();
   });
 
+  it('resizes a block by keyboard in 15-minute steps without changing its start (CAL-004)', async () => {
+    vi.spyOn(planning, 'today').mockResolvedValue(view());
+    vi.spyOn(planning, 'series').mockResolvedValue([]);
+    const update = vi.spyOn(planning, 'updateBlock').mockResolvedValue(view().scheduled[0]!);
+    wrap(<TodayPage ws="ws_A" />);
+    await act(async () => undefined);
+    const longer = screen.getAllByRole('button', { name: /^Longer\s*by 15 minutes, block at/ })[0]!;
+    longer.focus();
+    await act(async () => {
+      fireEvent.click(longer);
+    });
+    expect(update).toHaveBeenCalledWith(
+      'ws_A',
+      'blk_1',
+      0,
+      { starts_at: '2026-10-07T09:00:00Z', duration_minutes: 75 },
+      expect.anything(),
+    );
+  });
+
   it('shows available time and warns when the plan exceeds it (3E), without moving anything', async () => {
     vi.spyOn(planning, 'today').mockResolvedValue(
       view({

@@ -15,6 +15,7 @@ import { registerWorkLifecycle } from './lifecycle.ts';
 import { projectTargets, savedViewTargets, taskTargets } from './navigation.ts';
 import { projectOwnerHook, taskAssigneeHook } from './ownership.ts';
 import { CapacityService } from './capacity/capacity-service.ts';
+import { departureTimerHook } from './time/jobs.ts';
 import { DEFAULT_WORK_SETTINGS, type WorkSettings } from './validation.ts';
 
 /** The lifecycle registry with every record type registered so far (API and worker). */
@@ -64,7 +65,10 @@ export function createWorkService(deps: {
     lifecycle,
     stepUp: deps.identity,
     identity: deps.identity,
-    ownership: defaultOwnershipRegistry().register(projectOwnerHook).register(taskAssigneeHook),
+    ownership: defaultOwnershipRegistry()
+      .register(projectOwnerHook)
+      .register(taskAssigneeHook)
+      .register(departureTimerHook(writer)),
     settings: {
       invitationLifetimeMs: config.tenancy.invitationLifetimeMs,
       ownershipTransferLifetimeMs: config.tenancy.ownershipTransferLifetimeMs,

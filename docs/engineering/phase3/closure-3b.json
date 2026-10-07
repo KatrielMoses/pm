@@ -321,42 +321,38 @@
     {
       "id": "CAL-003",
       "role": "owned",
-      "disposition": "foundation",
+      "disposition": "implemented",
       "evidence": [
         {
-          "file": "docs/engineering/adr/0020-core-views.md",
-          "contains": "CAL-003 and CAL-004 are foundations"
+          "file": "apps/web/src/views/layouts.tsx",
+          "contains": "CAL-003: schedule a task as a 3C work block without dragging"
         },
         {
-          "file": "apps/web/src/views/layouts.tsx",
-          "contains": "Scheduled work blocks appear here when planning arrives (3C)"
+          "file": "apps/web/test/calendar.test.tsx",
+          "contains": "schedules a task from its calendar day by keyboard, without changing its dates"
         }
       ],
-      "deferred_to": [
-        "3C"
-      ],
-      "accepted_by": [
-        "catalog:contributing"
-      ],
-      "note": "Scheduling by drag needs 3C work blocks; nothing mutates due dates or deadlines."
+      "note": "Completed at the Phase 3 integration review: Schedule… on a calendar task creates a 3C work block (the keyboard equivalent of dragging); no date mutation."
     },
     {
       "id": "CAL-004",
       "role": "owned",
-      "disposition": "foundation",
+      "disposition": "implemented",
       "evidence": [
         {
-          "file": "docs/engineering/adr/0020-core-views.md",
-          "contains": "CAL-003 and CAL-004 are foundations"
+          "file": "apps/web/src/pages/today-pages.tsx",
+          "contains": "CAL-004: change the length without dragging"
+        },
+        {
+          "file": "apps/web/test/today.test.tsx",
+          "contains": "resizes a block by keyboard in 15-minute steps without changing its start (CAL-004)"
+        },
+        {
+          "file": "packages/work/src/planning/today-service.ts",
+          "contains": "Moves or resizes a block"
         }
       ],
-      "deferred_to": [
-        "3C"
-      ],
-      "accepted_by": [
-        "adr:0020#B3"
-      ],
-      "note": "Resizing scheduled work needs 3C work blocks."
+      "note": "Completed at the Phase 3 integration review: Today resizes a scheduled block in 15-minute steps (Shorter/Longer) through the 3C block update; no date mutation."
     },
     {
       "id": "NAV-006",

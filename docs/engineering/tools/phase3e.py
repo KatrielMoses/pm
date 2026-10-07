@@ -172,6 +172,43 @@ def check_adr(closure):
     return errs, "ADR-0022 %s" % (m.group(1) if m else "?")
 
 
+
+PHASE3 = ["3A", "3B", "3C", "3D", "3E"]
+# Out-of-phase work the Phase 3 exit gate keeps deferred, and where each deferral is recorded.
+DEFERRALS = {
+    "7F": ("docs/engineering/adr/0022-capacity-cross-brand-conflicts.md", "7F proposes reschedules"),
+    "6C": ("docs/engineering/adr/0022-capacity-cross-brand-conflicts.md", "6C owns connected-calendar events"),
+    "5C": ("docs/engineering/adr/0022-capacity-cross-brand-conflicts.md", "5C owns rollups"),
+    "4B": ("docs/engineering/adr/0022-capacity-cross-brand-conflicts.md", "4B owns delivery of capacity warnings"),
+}
+
+
+def check_phase3_exit(catalog):
+    """Phase 3 exit gate: every 3A-3E owned requirement is closed exactly once; a foundation that
+    hands work to another Phase 3 subphase is picked up there (or completed by its owner); and the
+    out-of-phase deferrals (7F proposals, 6C calendars, 5C rollups, 4B delivery) stay recorded."""
+    closures = {s: load(P("docs/engineering/phase3/closure-%s.json" % s.lower())) for s in PHASE3}
+    errs, detail = phase2.check_integration(catalog, closures)
+    by = {s: {r["id"]: r for r in c["requirements"]} for s, c in closures.items()}
+    handoffs = 0
+    for s, c in closures.items():
+        for r in c["requirements"]:
+            if r["disposition"] != "foundation":
+                continue
+            for t in sorted(set(re.findall(r"\b(3[A-E])\b", r.get("note", "")) + r.get("deferred_to", []))):
+                if t == s or t not in closures:
+                    continue
+                handoffs += 1
+                if r["id"] not in by[t]:
+                    errs.append("%s: closure-%s hands it to %s, which does not record it" % (r["id"], s, t))
+    for sub, (path, text) in DEFERRALS.items():
+        if text not in read(P(path)):
+            errs.append("deferral to %s is no longer recorded in %s" % (sub, path))
+    t16 = by["3E"].get("TIME-016", {})
+    if t16.get("disposition") != "foundation" or "7F" not in t16.get("note", ""):
+        errs.append("TIME-016: rescheduling proposals must stay a foundation deferred to 7F")
+    return errs, "%s; %d in-phase hand-offs; %d deferrals" % (detail, handoffs, len(DEFERRALS))
+
 def main():
     catalog = load(P("docs/product/requirements/catalog.json"))
     registry = load(P("docs/architecture/platform/contracts/registry.json"))
@@ -186,6 +223,7 @@ def main():
         ("phase 3E: migrations contiguous and reversible", phase1.check_migrations()),
         ("phase 3E: configuration keys documented", phase1.check_config_documented()),
         ("phase 3E: ADR status and decision rows", check_adr(closure)),
+        ("phase 3: exit gate (3A-3E closure, hand-offs, deferrals)", check_phase3_exit(catalog)),
     ]
     failed = 0
     for name, result in sections:

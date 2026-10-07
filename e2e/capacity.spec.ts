@@ -105,7 +105,7 @@ async function founder(page: Page, info: Parameters<typeof owner>[1], prefix: st
 test('working hours, week capacity, conflicts, time off, holidays, reservations, Today, and workload', async ({
   page,
 }, info) => {
-  const { ws, base, day, me } = await founder(page, info, 'cap');
+  const { ws, base, day } = await founder(page, info, 'cap');
   await page.goto(`/workspaces/${ws}/capacity`);
   await expect(h1(page)).toHaveText('Capacity');
   await expectAccessible(page, 'capacity, unconfigured');
@@ -143,7 +143,7 @@ test('working hours, week capacity, conflicts, time off, holidays, reservations,
   // Reservation and holiday in Harbor.
   const brand = card(page, 'Brand reservations and holidays');
   await brand.getByLabel('Brand').selectOption({ label: 'Harbor' });
-  await brand.getByLabel(/Person/).fill(me);
+  await brand.getByLabel('Person').selectOption({ label: 'Fay Founder' });
   await brand.getByLabel('Hours a week').fill('10');
   await brand.getByRole('button', { name: 'Reserve time' }).click();
   await expect(page.getByText('Reservation saved.')).toBeAttached();
