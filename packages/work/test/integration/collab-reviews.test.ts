@@ -641,6 +641,19 @@ describe('Reviews, approvals, delegation, and assignment history (4A)', () => {
       });
       // Under the all rule, the remaining reviewer's approval settles it once the leaver is gone.
       expect(await env.svc.getReview(owner, ws, rb.id)).toMatchObject({ state: 'approved' });
+      // The system's changes are audited and announced like the commands that make them.
+      const trail = await db.admin(
+        `SELECT action, changes::text AS c FROM audit.audit_event WHERE action IN ('review.withdrawn', 'review.decided') AND changes::text LIKE '%_departed%'`,
+      );
+      expect(trail.rows.map((r: { action: string }) => r.action).sort()).toEqual([
+        'review.decided',
+        'review.withdrawn',
+        'review.withdrawn',
+      ]);
+      const sent = await db.admin(
+        `SELECT event_type FROM exec.outbox_event WHERE event_type IN ('collab.review.withdrawn', 'collab.review.decided') AND actor_type = 'system'`,
+      );
+      expect(sent.rows).toHaveLength(3);
       expect(await env.svc.getReview(owner, ws, rc.id)).toMatchObject({
         state: 'withdrawn',
         closed_reason: 'reviewer_departed',

@@ -106,7 +106,7 @@ export function workEnv(
     ownership: defaultOwnershipRegistry()
       .register(projectOwnerHook)
       .register(taskAssigneeHook)
-      .register(reviewDepartureHook)
+      .register(reviewDepartureHook(writer))
       .register(departureTimerHook(writer)),
     limiter: new PostgresRateLimiter(h.platform, randomBytes(32), {
       'workspace.create': { limit: 1000, windowMs: 3_600_000 },

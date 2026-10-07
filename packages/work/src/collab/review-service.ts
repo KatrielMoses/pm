@@ -676,11 +676,7 @@ export class ReviewService extends CommentService {
         ws,
         req,
         async (tx, p) => {
-          const first = await this.reviewRow(tx, rvw);
-          if (!first) {
-            await this.loadReview(tx, p, rvw);
-            throw new TenancyError('not_found');
-          }
+          await this.loadReview(tx, p, rvw);
           const row = (await this.reviewRow(tx, rvw, { lock: true }))!;
           const { host, reviewers } = await this.loadReview(tx, p, rvw);
           host.decide('review.decide');

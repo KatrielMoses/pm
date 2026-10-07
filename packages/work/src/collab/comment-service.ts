@@ -981,6 +981,10 @@ export class CommentService extends CapacityService {
           const host = await this.loadHost(tx, p, rec);
           host.decide('record.comment');
           await this.collabLimit(p);
+          // Serialize posters on this record so the per-record bound holds under concurrency.
+          await sql`SELECT pg_advisory_xact_lock(hashtextextended(${host.id}::text, 41))`.execute(
+            tx.db,
+          );
           const count = await tx.db
             .selectFrom('collab.comment')
             .select((eb) => eb.fn.countAll<string>().as('n'))

@@ -69,7 +69,7 @@ export function createWorkService(deps: {
     ownership: defaultOwnershipRegistry()
       .register(projectOwnerHook)
       .register(taskAssigneeHook)
-      .register(reviewDepartureHook)
+      .register(reviewDepartureHook(writer))
       .register(departureTimerHook(writer)),
     settings: {
       invitationLifetimeMs: config.tenancy.invitationLifetimeMs,
