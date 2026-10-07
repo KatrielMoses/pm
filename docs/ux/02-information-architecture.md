@@ -516,3 +516,11 @@ These rules apply to every surface: lists, search, palette, notifications, dashb
   - Shared views can be pinned to workspace or brand navigation (a "Pinned views" sidebar section) and made the default for a brand or project. Each person can choose their own default.
 - **Export and links.** Export CSV or JSON of exactly what the person sees, up to the export bound. Copy link.
 - **Honest absences:** board, calendar, timeline, and the other 3B renderings; stored export files and scheduled exports (4E, 6D); public or link-shared views (disabled by decision).
+**Phase 3D implementation note.** Time tracking and timesheets:
+- **Time:** `/{ws}/time` (Workspace section of the navigation, members) shows the live timer, the person's week (per-day totals, billable and non-billable), the timesheet with each brand's state, entries with Edit, and Log time. Previous week, This week, and Next week move the period.
+- **Timer:** started from a task or project; it survives a refresh and runs on the server's clock. Pause, Resume, and Stop and save are buttons; elapsed time is not announced every second, state changes are. Pause and stop pressed offline are kept on the device and sent when the connection returns. A timer whose work became unavailable shows no title and can still be stopped.
+- **Task and project:** a Time panel (the task page; the project's Time section) shows estimate or time budget and task estimates, logged time (billable and yours), and remaining effort, with Start timer and Log time where the person may log time. Durations are typed as `1:30`, `90`, `1.5h`, or `45m`, shown as h:mm, and spoken in words.
+- **Approvals:** `/{ws}/time/approvals` lists waiting (or decided) weeks for brands the person manages: Approve per brand, Return with a note, and, for workspace admins, Unlock with a reason after confirming it is them. Self-approval appears only where policy allows it and is labelled.
+- **Reports:** `/{ws}/time/report` compares planned and actual time by brand, project, task, person, day, week, or month, says which planned measure it uses, and exports CSV or JSON of the entries the person can see.
+- **Honest absences:** work blocks (3C), capacity and allocation (3E), rollups (5C), stored and scheduled exports and accounting adapters (6D).
+

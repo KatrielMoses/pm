@@ -480,6 +480,8 @@ export class TaskCoreService extends WorkService {
       manage_recurrence: active && own && rec('task.manage_recurrence', false),
       save_template:
         own && decideBrand(p, 'templates.manage', { ...t.brand, lifecycleState: 'active' }).allowed,
+      // 3D: log own time on this task (time.log_own; guests with a comment share may).
+      log_time: active && rec('time.log_own'),
     };
   }
 

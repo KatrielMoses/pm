@@ -19,4 +19,5 @@ recorded in [ADR-0007](adr/0007-deviations.md).
 | [phase1/](phase1/exit-report.md) | Phase 1 integration review: exit report, requirement closure map (`closure.json`, checked by `tools/phase1.py`), branch topology and merge order, manual smoke checklist |
 | [phase2/](phase2/closure.json) | Phase 2A requirement and decision closure (`closure.json`, checked by `tools/phase2.py`) |
 | [phase3/](phase3/closure-3a.json) | Phase 3A requirement and decision closure (`closure-3a.json`, checked by `tools/phase3.py`) |
-| [adr/](adr/) | Implementation ADRs 0001–0015 |
+| [phase3/](phase3/closure-3d.json) | Phase 3D requirement and decision closure (`closure-3d.json`, checked by `tools/phase3d.py`) |
+| [adr/](adr/) | Implementation ADRs 0001–0019 |

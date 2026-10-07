@@ -135,6 +135,14 @@ worker process is a startup error. All identities of one process must target the
 | `VIEW_PINS_MAX` | optional | optional | default 20 (1–100); most views pinned into one workspace or brand navigation (0D `VIEW_PINS_MAX`) |
 | `EXPORT_ROWS_MAX` | optional | optional | default 5000 (1–50000); most rows one direct view export may contain (0D `EXPORT_ROWS_MAX`) |
 | `TOTAL_COUNT_CAP` | optional | optional | default 10000 (100–100000); exact totals above this are reported as capped (0D `TOTAL_COUNT_CAP`) |
+| `TIME_ENTRY_MAX_HOURS` | optional | optional | default 24 (1–24); longest single time entry or timer run, in hours (0D `TIME_ENTRY_MAX_HOURS`) |
+| `TIME_TIMER_MAX_HOURS` | optional | optional | default 12 (1–24); hours after which a still-running timer is stopped automatically by the timer guard (0D `TIME_TIMER_MAX_HOURS`) |
+| `TIME_REPORT_RANGE_DAYS_MAX` | optional | optional | default 366 (7–1830); widest date range one time report, timesheet list, or export may cover, in days (0D `TIME_REPORT_RANGE_DAYS_MAX`) |
+| `TIME_REPORT_ROWS_MAX` | optional | optional | default 500 (10–5000); most rows (groups) one planned-versus-actual report returns (0D `TIME_REPORT_ROWS_MAX`) |
+| `TIME_EXPORT_ROWS_MAX` | optional | optional | default 10000 (100–50000); most time entries one direct export may contain (0D `TIME_EXPORT_ROWS_MAX`) |
+| `TIME_TIMESHEET_ENTRIES_MAX` | optional | optional | default 2000 (10–10000); most time entries one person may have in one timesheet period (0D `TIME_TIMESHEET_ENTRIES_MAX`) |
+| `TIME_RUNAWAY_DISCOVERY_MAX` | optional | optional | default 100 (1–1000); most workspaces one timer-guard run examines (0D `TIME_RUNAWAY_DISCOVERY_MAX`) |
+| `TIME_RUNAWAY_BATCH_MAX` | optional | optional | default 200 (1–1000); most runaway timers one timer-guard run stops per workspace (0D `TIME_RUNAWAY_BATCH_MAX`) |
 | `VIEW_STATE_TTL_MS` | optional | optional | default 90 days; stored view state not written for this long is removed (0D `VIEW_STATE_TTL`) |
 
 Values are configuration, not customer promises (PQ-05). The 0D parameter values above are

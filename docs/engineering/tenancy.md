@@ -367,3 +367,7 @@ Capture, the Inbox, notes, merge, and parse previews are personal (`personal.man
 - **Shared views.** Sharing decides `view.share` at exactly one scope. Defaults and pins decide `views.configure` and require a view shared there.
 - **Personal state.** Personal views, the person's default, and view state are `personal.manage_own`.
 - **Lifecycle.** Delete uses tenancy's `issueSavedViewLifecycleDecision`.
+## Phase 3D time tracking
+
+`TimeService` (AZ-27): `time.log_own` (comment) on the task or project at every write; only the owner changes an entry. Reads use the work's compiled visibility (view, archived included) inside SQL, with guests limited to their own entries; `editable` uses the same compiler at `comment` on active work. `timesheet.submit_own` is personal; `timesheet.approve` is decided per brand line now, needs the whole line to be readable, and applies OD-20 through the shared `selfApprovalAllowed`; `timesheet.unlock` is the admin action with step-up (OD-26). Approvers never gain access through approval.
+

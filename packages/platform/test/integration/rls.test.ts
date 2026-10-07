@@ -108,6 +108,13 @@ const PHASE_1C_TENANT_TABLES = [
   'capture.capture_conversion',
   'capture.intake_form',
   'capture.intake_submission',
+  // Phase 3D time entries, segments, timesheets, lines, approvals, and period locks.
+  'timetrack.time_entry',
+  'timetrack.time_segment',
+  'timetrack.timesheet',
+  'timetrack.timesheet_line',
+  'timetrack.timesheet_approval',
+  'timetrack.period_lock',
 ] as const;
 
 /** Seeds one row in every tenant execution table for a workspace. */
@@ -412,8 +419,8 @@ describe('tenant RLS foundation (0C §12.7)', () => {
              has_function_privilege('app_worker', p.oid, 'EXECUTE') AS worker_exec
       FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace WHERE n.nspname = 'exec_dispatch' ORDER BY 1`);
     // 1A–1F: 9 functions; 1E adds discover_views_cleanup and 2A discover_recurrence_due
-    // (workspace ids only); 2D discover_reminders_due.
-    expect(fns.rows.length).toBe(12);
+    // (workspace ids only); 2D discover_reminders_due; 3D discover_runaway_timers.
+    expect(fns.rows.length).toBe(13);
     const allowed = new Set([
       'job_id',
       'workspace_id',

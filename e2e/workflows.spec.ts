@@ -59,8 +59,11 @@ test('configures a workflow and moves a task through required fields and an appr
   await tasks.getByRole('button', { name: 'Move down To do' }).click();
   await expect(tasks.getByRole('button', { name: 'Move up To do' })).toBeEnabled();
   await tasks.getByRole('button', { name: 'Move up To do' }).click();
-  // Wait for the reorder to land (the next command carries the workflow version it returns).
+  // Wait for the reorder to land: the editor stays busy (every button disabled) until the
+  // refreshed workflow is on screen, so an enabled Move down means the next command carries the
+  // new version. (A disabled Move up alone is also true while the move is still in flight.)
   await expect(tasks.getByRole('button', { name: 'Move up To do' })).toBeDisabled();
+  await expect(tasks.getByRole('button', { name: 'Move down To do' })).toBeEnabled();
   // To do → In progress requires a due date; In progress → Done needs one manager's approval.
   const add = tasks.getByRole('form', { name: 'Add a transition' });
   await add.getByLabel('From').selectOption({ label: 'To do' });

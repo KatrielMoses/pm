@@ -191,6 +191,14 @@ export interface ServerConfig {
     viewPinsMax: number;
     exportRowsMax: number;
     totalCountCap: number;
+    timeEntryMaxHours: number;
+    timeTimerMaxHours: number;
+    timeReportRangeDaysMax: number;
+    timeReportRowsMax: number;
+    timeExportRowsMax: number;
+    timeTimesheetEntriesMax: number;
+    timeRunawayDiscoveryMax: number;
+    timeRunawayBatchMax: number;
   };
   features: {
     /** Local/test-only component harness route for reusable UI states (refused when deployed). */
@@ -405,6 +413,14 @@ const DEFAULTS = {
   VIEW_PINS_MAX: '20',
   EXPORT_ROWS_MAX: '5000',
   TOTAL_COUNT_CAP: '10000',
+  TIME_ENTRY_MAX_HOURS: '24',
+  TIME_TIMER_MAX_HOURS: '12',
+  TIME_REPORT_RANGE_DAYS_MAX: '366',
+  TIME_REPORT_ROWS_MAX: '500',
+  TIME_EXPORT_ROWS_MAX: '10000',
+  TIME_TIMESHEET_ENTRIES_MAX: '2000',
+  TIME_RUNAWAY_DISCOVERY_MAX: '100',
+  TIME_RUNAWAY_BATCH_MAX: '200',
 } as const;
 
 const schema = z.object({
@@ -553,6 +569,14 @@ const schema = z.object({
   VIEW_PINS_MAX: int(1, 100),
   EXPORT_ROWS_MAX: int(1, 50000),
   TOTAL_COUNT_CAP: int(100, 100000),
+  TIME_ENTRY_MAX_HOURS: int(1, 24),
+  TIME_TIMER_MAX_HOURS: int(1, 24),
+  TIME_REPORT_RANGE_DAYS_MAX: int(7, 1830),
+  TIME_REPORT_ROWS_MAX: int(10, 5000),
+  TIME_EXPORT_ROWS_MAX: int(100, 50000),
+  TIME_TIMESHEET_ENTRIES_MAX: int(10, 10000),
+  TIME_RUNAWAY_DISCOVERY_MAX: int(1, 1000),
+  TIME_RUNAWAY_BATCH_MAX: int(1, 1000),
 });
 
 /** Variables a deployed environment must set explicitly (no silent local defaults). */
@@ -985,6 +1009,14 @@ export function loadServerConfig(options: LoadOptions): ServerConfig {
       viewPinsMax: c.VIEW_PINS_MAX,
       exportRowsMax: c.EXPORT_ROWS_MAX,
       totalCountCap: c.TOTAL_COUNT_CAP,
+      timeEntryMaxHours: c.TIME_ENTRY_MAX_HOURS,
+      timeTimerMaxHours: c.TIME_TIMER_MAX_HOURS,
+      timeReportRangeDaysMax: c.TIME_REPORT_RANGE_DAYS_MAX,
+      timeReportRowsMax: c.TIME_REPORT_ROWS_MAX,
+      timeExportRowsMax: c.TIME_EXPORT_ROWS_MAX,
+      timeTimesheetEntriesMax: c.TIME_TIMESHEET_ENTRIES_MAX,
+      timeRunawayDiscoveryMax: c.TIME_RUNAWAY_DISCOVERY_MAX,
+      timeRunawayBatchMax: c.TIME_RUNAWAY_BATCH_MAX,
     },
     identity: {
       publicOrigin,

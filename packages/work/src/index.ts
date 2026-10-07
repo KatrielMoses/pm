@@ -20,6 +20,9 @@ export * from './capture-service.ts';
 export * from './capture/parser.ts';
 export * from './views/view-service.ts';
 export * from './views/query.ts';
+export * from './time/time-service.ts';
+export * from './time/semantics.ts';
+export * from './time/jobs.ts';
 export {
   PROJECT_STATUS_ID,
   resolveWorkflow,

@@ -1,4 +1,4 @@
-import { useEffect, useState, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { ApiError } from '../api.ts';
 import { Link } from '../router.tsx';
 import { Banner } from '../ui/feedback.tsx';
@@ -21,22 +21,34 @@ export function useResource<T>(
     state: { status: 'loading' },
   });
   const [nonce, setNonce] = useState(0);
+  // Callers waiting for a refresh (`await refresh()`) settle when the next load for this key does,
+  // so a command can keep its controls busy until the refreshed data (and version) is on screen.
+  const waiting = useRef<Array<() => void>>([]);
+  const settle = () => {
+    for (const done of waiting.current.splice(0)) done();
+  };
   useEffect(() => {
     // `wait` = not ready to load yet (e.g. the session is still being resolved).
     if (key === 'wait') return;
     let active = true;
     load().then(
-      (data) => active && setEntry({ key, state: { status: 'ready', data } }),
+      (data) => {
+        if (!active) return;
+        setEntry({ key, state: { status: 'ready', data } });
+        settle();
+      },
       // With `keepOnRefreshError` (2D REL-001: the task page), a failed background refresh keeps
       // what is already on screen, so going offline during a reload never discards the page or
       // what the person is typing. First loads, retries, and other keys still show the failure.
-      (error: unknown) =>
-        active &&
+      (error: unknown) => {
+        if (!active) return;
         setEntry((prev) =>
           options.keepOnRefreshError && prev.key === key && prev.state.status === 'ready'
             ? prev
             : { key, state: { status: 'failed', error } },
-        ),
+        );
+        settle();
+      },
     );
     return () => {
       active = false;
@@ -47,6 +59,12 @@ export function useResource<T>(
   return {
     state,
     reload: () => setNonce((n) => n + 1),
+    /** Loads again; the promise settles once that load has finished (data or failure). */
+    refresh: () =>
+      new Promise<void>((done) => {
+        waiting.current.push(done);
+        setNonce((n) => n + 1);
+      }),
     retry: () => {
       setEntry({ key, state: { status: 'loading' } });
       setNonce((n) => n + 1);

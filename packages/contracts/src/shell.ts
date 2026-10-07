@@ -561,7 +561,7 @@ export const PROJECT_SECTIONS = [
   { key: 'documents', label: 'Documents', phase: '4C', conditional: false },
   { key: 'files', label: 'Files', phase: '4E', conditional: false },
   { key: 'activity', label: 'Activity', phase: '3B', conditional: false },
-  { key: 'time', label: 'Time', phase: '3D', conditional: false },
+  { key: 'time', label: 'Time', phase: null, conditional: false },
   { key: 'costs', label: 'Costs', phase: '5C', conditional: false },
   { key: 'reports', label: 'Reports', phase: '5D', conditional: false },
   { key: 'settings', label: 'Settings', phase: null, conditional: false },

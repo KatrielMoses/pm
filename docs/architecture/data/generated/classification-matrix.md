@@ -25,7 +25,7 @@ Class definitions and rules: [../11-data-classification.md](../11-data-classific
 | Projects and tasks | 16 | C2 | R-EPHEMERAL, R-LIVE | filtered, never | no, yes | no | incidental | very-high |
 | Inbox and capture | 6 | C3 | R-LIVE, R-PERSONAL | filtered, self | metadata, no, yes | hash-only | incidental, yes | high |
 | Today, scheduling, and capacity | 12 | C3 | R-LIVE, R-PERSONAL | filtered, self | no, yes | no | incidental, yes | high |
-| Time tracking | 4 | C2 | R-EVIDENCE, R-LIVE | filtered | yes | no | incidental | very-high |
+| Time tracking | 6 | C2 | R-EVIDENCE, R-LIVE | filtered | no, yes | no | incidental | very-high |
 | Documents and knowledge | 4 | C2 | R-EVIDENCE, R-LIVE | filtered | yes | no | incidental | high |
 | Goals and portfolios | 5 | C2 | R-LIVE | filtered | yes | no | incidental | medium |
 | Views and navigation state | 6 | C1 | R-LIVE, R-PERSONAL | filtered, never, self | no, yes | no | incidental, no | high |
@@ -165,7 +165,9 @@ Class definitions and rules: [../11-data-classification.md](../11-data-classific
 | [`time_off`](logical-model.md#entity-time-off) | planning | personal | C3 | high | all changes + access | R-PERSONAL | self | low | no | no | yes |
 | [`capacity_reservation`](logical-model.md#entity-capacity-reservation) | planning | brand | C2 | standard (per-record) | material changes | R-LIVE | filtered | low | yes | no | incidental |
 | [`time_entry`](logical-model.md#entity-time-entry) | time | brand | C2 | standard (per-record) | material changes | R-LIVE | filtered | very-high | yes | no | incidental |
+| [`time_segment`](logical-model.md#entity-time-segment) | time | inherited | C2 | standard (per-record) | material changes | R-LIVE | filtered | very-high | no | no | incidental |
 | [`timesheet`](logical-model.md#entity-timesheet) | time | personal | C2 | standard (per-record) | material changes | R-LIVE | filtered | medium | yes | no | incidental |
+| [`timesheet_line`](logical-model.md#entity-timesheet-line) | time | brand | C2 | standard (per-record) | material changes | R-LIVE | filtered | medium | no | no | incidental |
 | [`timesheet_approval`](logical-model.md#entity-timesheet-approval) | time | brand | C2 | standard (per-record) | is evidence / append-only | R-EVIDENCE | filtered | medium | yes | no | incidental |
 | [`period_lock`](logical-model.md#entity-period-lock) | time | brand | C2 | standard (per-record) | is evidence / append-only | R-EVIDENCE | filtered | low | yes | no | incidental |
 | [`document`](logical-model.md#entity-document) | knowledge | workspace_or_brand | C2 | standard (per-record) | material changes | R-LIVE | filtered | high | yes | no | incidental |

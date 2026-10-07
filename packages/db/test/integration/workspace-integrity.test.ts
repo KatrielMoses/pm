@@ -207,6 +207,13 @@ describe('database-enforced workspace existence (1A review 01, correction 2)', (
       'capture.intake_form',
       'capture.intake_submission',
       'capture.note',
+      // Phase 3D time entries, segments, timesheets, lines, approvals, and period locks.
+      'timetrack.period_lock',
+      'timetrack.time_entry',
+      'timetrack.time_segment',
+      'timetrack.timesheet',
+      'timetrack.timesheet_approval',
+      'timetrack.timesheet_line',
     ];
     expect(res.rows.map((r) => r.tbl).sort()).toEqual(
       [...TENANT_TABLES.map((t) => `exec.${t}`), ...phase1f, ...phase1c].sort(),
@@ -236,7 +243,7 @@ describe('database-enforced workspace existence (1A review 01, correction 2)', (
             AND i.indkey::int2[] @> c.confkey AND i.indkey::int2[] <@ c.confkey
         ) AS referenced_unique
       FROM pg_constraint c JOIN pg_namespace n ON n.oid = c.connamespace
-      WHERE c.contype = 'f' AND n.nspname IN ('exec', 'tenancy', 'access', 'ops', 'views', 'workflow', 'work', 'relations', 'templates', 'planning', 'capture')
+      WHERE c.contype = 'f' AND n.nspname IN ('exec', 'tenancy', 'access', 'ops', 'views', 'workflow', 'work', 'relations', 'templates', 'planning', 'capture', 'timetrack')
       ORDER BY 1`);
     // exec: 7 workspace keys + 6 composite same-workspace keys; 1C tenancy/access: 20 keys;
     // 1D collaboration (teams, invitations, policy, shares, ownership transfer): 38 keys;
@@ -247,8 +254,9 @@ describe('database-enforced workspace existence (1A review 01, correction 2)', (
     // less the three platform-status keys that became trigger-checked status references: +51;
     // 2D task occurrences, task series projects, reminders, snoozes, bulk operations, undo: +12;
     // 2E Inbox items, notes, lineage (13) and intake forms and submissions (9): +22;
-    // 3A saved views (7) and view defaults (6): +13.
-    expect(res.rows.length).toBe(274);
+    // 3A saved views (7) and view defaults (6): +13;
+    // 3D entries (5), segments (3), timesheets (2), lines (3), approvals (6), period locks (5): +24.
+    expect(res.rows.length).toBe(298);
     for (const r of res.rows)
       expect(r, `${r.tbl}.${r.conname}`).toMatchObject({
         referencing_indexed: true,

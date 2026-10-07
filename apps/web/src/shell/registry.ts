@@ -306,6 +306,29 @@ export const ROUTES: readonly RouteDef[] = [
     section: 'Field sets',
     visible: member,
   },
+  // 3D: time tracking (my week and timesheet), timesheet approvals, and reports with export.
+  {
+    id: 'time',
+    pattern: '/workspaces/:ws/time',
+    shell: 'workspace',
+    section: 'Time',
+    nav: { placement: 'workspace', label: 'Time', short: 'Time', icon: '◷', order: 2 },
+    visible: member,
+  },
+  {
+    id: 'time_approvals',
+    pattern: '/workspaces/:ws/time/approvals',
+    shell: 'workspace',
+    section: 'Time',
+    visible: member,
+  },
+  {
+    id: 'time_report',
+    pattern: '/workspaces/:ws/time/report',
+    shell: 'workspace',
+    section: 'Time',
+    visible: member,
+  },
   {
     id: 'approvals',
     pattern: '/workspaces/:ws/approvals',

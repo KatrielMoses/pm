@@ -238,6 +238,9 @@ erDiagram
   time_entry }o..o{ task : "references"
   time_entry }o..o{ project : "references"
   time_entry }o..o{ membership : "references"
+  time_entry ||--o{ time_segment : "contains"
+  time_segment }o..o{ membership : "references"
+  timesheet_line }o..o{ timesheet : "references"
   timesheet_approval }o..o{ timesheet : "references"
 ```
 

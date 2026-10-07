@@ -116,3 +116,7 @@ Views emit two counters and one histogram:
 - `views.exports` (entity, format)
 
 Query text, filter values, view names, and exported rows never appear in logs, metrics, or events. Audit records a content hash of the exported query.
+## Time (3D)
+
+Counters `time.entries` (source, outcome), `time.timers` (action, outcome: `ok`, `noop`, `capped`), `time.timesheets` (action, outcome: `ok`, `self`), `time.exports` (format), and `time.timer_guard` (outcome: `stopped`, `workspace_batch_full`). Events carry identifiers, durations, dates, and flags only. Notes and unlock reasons never appear in logs, metrics, or events; audit keeps their hashes. Exports write an `export` security event; unlocks a `permission` security event.
+

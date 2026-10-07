@@ -174,6 +174,11 @@ export const NON_RESOURCE_TYPES = [
   'view_default',
   'view_default_resolution',
   'view_field_options',
+  // 3D: the live timer, one person's period, planned-versus-actual reports, and work summaries.
+  'timer_status',
+  'timesheet_period',
+  'time_report',
+  'time_summary',
 ] as const;
 export type NonResourceType = (typeof NON_RESOURCE_TYPES)[number];
 
