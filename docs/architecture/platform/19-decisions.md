@@ -255,6 +255,27 @@ All decisions are **proposed (Phase 0D)**, pending solutions-architect acceptanc
   - **Signals.** `views.queries` (entity, outcome), `views.query_duration` (entity), and `views.exports` (entity, format).
 - **Alternatives:** `GET` with the AST in the URL (it would land in logs and the 0D field-selection rule). Offset pages (forbidden for mutable collections).
 - **Consequences:** Payloads carry identifiers, kinds, and counts only, never names or query text. 83 ID prefixes, 104 events, 99 named parameters, 63 telemetry signals.
+<a id="pl-32"></a>
+### PL-32: Capacity contracts (Phase 3E amendment)
+- **Decision:**
+  - Prefixes `tof` (time off), `hol` (brand holiday), and `rsv` (capacity reservation) are added.
+  - Resources and verbs:
+    - `me/capacity-profile`: `GET`, and `PUT` with `If-Match`.
+    - `me/time-off`: list and create; `PATCH` and `DELETE` with `If-Match`.
+    - `brands/{brand}/holidays`: list, create, and delete.
+    - `capacity-reservations`: list and set; `DELETE` with `If-Match`.
+    - `capacity`: one person's capacity over a range.
+    - `capacity/team`: over and under allocation for a brand or the workspace.
+    - `me/rescheduling-inputs`.
+  - Events (8): `planning.capacity_profile.updated`, `planning.time_off.created`, `.updated`, `.deleted`, `planning.holiday.created`, `.deleted`, `planning.capacity_reservation.set`, and `.removed`. Time-off events carry the kind. No event carries labels or names.
+  - Named bounds: `AVAILABILITY_WINDOWS_MAX` (28), `TIME_OFF_ENTRIES_MAX` (500), `BRAND_HOLIDAYS_MAX` (1000), `CAPACITY_RANGE_DAYS_MAX` (93), and `CAPACITY_PEOPLE_MAX` (100).
+  - Two signals: `capacity.reads` (view, outcome) and `capacity.changes` (kind, outcome).
+  - Non-resource envelopes: `capacity_profile`, `capacity`, `team_capacity`, and `rescheduling_inputs`. Rescheduling inputs carry `proposals: null`, because 7F proposes.
+  - The Today `day_plan` gains `available_minutes` and `capacity` (`available`, `planned_minutes`, `over_minutes`, `warning`), or `{available: false, reason: 'no_working_hours'}`. The workload layout gains per-person, per-bucket `{available, over, under}`.
+  - Refusals: `conflict` (stale version) and `validation_failed` issues `invalid`, `required`, `too_many`, `too_long`, and `duplicate`.
+- **Alternatives:** Capacity on the Today endpoint alone (team and founder views need ranges). Proposals in 3E (7F owns them).
+- **Consequences:** Payloads carry identifiers, days, minutes, and flags only. Time-off labels and holiday names appear only to people allowed to see them. 87 ID prefixes, 126 events, 124 named parameters, 75 telemetry signals.
+
 <a id="pl-31"></a>
 ### PL-31: Today and planning contracts (Phase 3C amendment)
 - **Decision:**

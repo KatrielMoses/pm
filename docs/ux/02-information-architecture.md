@@ -550,3 +550,16 @@ These rules apply to every surface: lists, search, palette, notifications, dashb
 - **Blocks:** Schedule a block (for a committed task or a named block; start, minutes, preparation, buffer, focus). Overlapping a focus block is refused. Recurring blocks are added by day of week and time and can be ended.
 - **Task page:** a Plan panel with Add to today and Schedule focus time from the estimate. Nothing here changes a due date or deadline.
 - **Honest absences:** working hours and capacity (3E), calendar events (6C), drag on the calendar (3B), AI plans (7F).
+
+**Phase 3E implementation note.** Capacity and cross-brand conflicts:
+- **Capacity:** the `capacity` destination shows the week by day (available, unavailable, planned, and over or under), capacity by brand (reserved, scheduled, and estimated), and conflicts (overlapping blocks in different brands and unmet reservations). Previous week and Next week change the range.
+- **Settings:**
+  - My working hours: windows per weekday, an optional weekly capacity, and whether brand holidays apply.
+  - My time off: kind, first and last day, and an optional note.
+  - These are personal. Others see time off only as unavailable time.
+- **Team and brands:**
+  - Team allocation shows each person's over and under allocation to people with capacity access.
+  - Brand reservations and holidays are shown to people who may set them.
+  - Brands the viewer cannot read are never named.
+- **Today and workload:** Today's plan shows available time and a warning when the plan exceeds it. The warning never blocks. Without working hours, Today asks the person to set them. The workload layout shows availability per person and period.
+- **Honest absences:** suggested reschedules (7F), calendar events and holiday feeds (6C), capacity notifications (4B), and rollups (5C).

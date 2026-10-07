@@ -272,3 +272,14 @@ Migration `0034_today_planning` (ADR-0021, 0B ADR-29) adds to the `planning` sch
 - `block_series` (`bls_`): a 2A-subset rule in an anchor zone, local start, duration, and block settings.
 - `daily_record`: one per person and day; `daily_record_guard` refuses updates.
 - `exec_dispatch.discover_days_to_close` and `discover_block_series_due` (payload-free, `pm_scheduler`) serve the worker; the worker reads `identity.account (id, timezone)` only.
+
+## Phase 3E: capacity
+
+Migration `0035_capacity` (ADR-0022, 0B ADR-30) adds to the `planning` schema:
+- `capacity_profile`: one per membership, with an optional `weekly_capacity_minutes` (0–10080), `observe_brand_holidays` (default true), and a version.
+- `availability_rule`: weekday (1–7) and local `[start_minute, end_minute)`. `availability_rule_guard` refuses overlapping windows.
+- `time_off` (`tof_`): kind (`vacation`, `sick`, `personal`, `holiday`, `unavailable`), either all-day local dates with `source_tz` or timed instants, an optional label, and a version.
+- `holiday` (`hol_`): one manual holiday per brand and day (OD-19).
+- `capacity_reservation` (`rsv_`): brand, member, `minutes_per_week`, `effective_from` and `effective_to`, `set_by`, and a version.
+
+All five tables have `tenant_isolation` RLS. The down migration restores the exact 0034 catalog.

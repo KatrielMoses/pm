@@ -55,6 +55,7 @@ Narrative: [../14-threat-model.md](../14-threat-model.md).
 | T-45 | inference | Time exposure and tampering: entries, totals, reports, timesheets, approval views, or exports naming or counting work the viewer cannot read; logging, editing, or moving time without time.log_own on the work; changing another person's entries; approving a brand line without manage now, without seeing all of it, or as a self-approval the policy forbids; unlocking an approved period without workspace admin authority, a reason, or step-up; editing or moving submitted or approved time through any path. | I-01, I-02, I-10, I-18 | AT-154, AT-155, AT-156, AT-157, AT-158, AT-159, AT-160, AT-161 |
 | T-46 | inference | Core view exposure: a board column count, calendar event, timeline or Gantt bar, dependency arrow, workload total, milestone, portfolio percentage, timesheet cell, or activity entry revealing a record, endpoint, field, or person the viewer cannot read; board moves or date changes bypassing workflow gates, permissions, or versions, or silently changing deadlines; activity readable through a share; another person's time shown. | I-01, I-02, I-07, I-10, I-18 | AT-162, AT-163, AT-164, AT-165, AT-166, AT-167, AT-168 |
 | T-47 | inference | Planning exposure and drift: another person's Today, blocks, series, or records visible to anyone; commitments or blocks revealing or granting access to tasks the owner cannot read (including after revocation); Today lists counting hidden work; planning commands changing due dates or deadlines; locked items or focus blocks moved or overlapped; daily records rewritten. | I-01, I-02, I-10, I-18 | AT-169, AT-170, AT-171, AT-172, AT-173, AT-174, AT-175, AT-176 |
+| T-48 | inference | Cross-brand capacity leakage: another person's capacity, reservations, or conflicts visible without capacity.view; time-off kinds, labels, or entries visible to anyone but their owner; blocks, estimates, holidays, or conflicts revealing work or brands the viewer cannot read; reservations set without capacity.reserve; visibility outliving a revoked grant. | I-01, I-02, I-10, I-18 | AT-177, AT-178, AT-179, AT-180, AT-181, AT-182, AT-183, AT-184 |
 
 ## Test matrix
 
@@ -236,6 +237,14 @@ Narrative: [../14-threat-model.md](../14-threat-model.md).
 | AT-174 | T-47 | member | Reorder, carry, or remove a locked commitment or block — personal | `personal.manage_own` | api | **deny** | conflict_filtered | ui_record |
 | AT-175 | T-47 | member | Schedule a block over a focus block — personal | `personal.manage_own` | api | **deny** | conflict_filtered | ui_record |
 | AT-176 | T-47 | member | Rewrite a closed day's record — personal | `personal.manage_own` | api | **deny** | conflict_filtered | report |
+| AT-177 | T-48 | member | Read another person's capacity without capacity.view — personal | `capacity.view` | api | **deny** | not_found | error_message, timing |
+| AT-178 | T-48 | member | Read team capacity without capacity.view — workspace | `capacity.view` | api | **deny** | forbidden | count_facet |
+| AT-179 | T-48 | member | Lead with a Harbor manage grant reads a person who also works in Summit — brand | `capacity.view` | capacity | **allow** | ok_filtered | count_facet, error_message |
+| AT-180 | T-48 | member | Another person's time off seen with capacity.view — personal | `personal.manage_own` | capacity | **deny** | redacted | ui_record, activity |
+| AT-181 | T-48 | member | Conflicts, holidays, and reservations in a brand the viewer cannot read — brand | `record.read` | capacity | **deny** | omitted | count_facet, error_message |
+| AT-182 | T-48 | member | Set a reservation without capacity.reserve, or in an unreadable brand — brand | `capacity.reserve` | api | **deny** | forbidden | error_message |
+| AT-183 | T-48 | member | Capacity read after the capacity.view grant is revoked — brand | `capacity.view` | api | **deny** | forbidden | count_facet |
+| AT-184 | T-48 | member | Stranger from another workspace calls every capacity route — workspace | `capacity.view` | api | **deny** | not_found | error_message, timing |
 
 ## Response shapes
 

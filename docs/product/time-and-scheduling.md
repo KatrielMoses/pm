@@ -88,6 +88,8 @@ When a block is moved after the due date or deadline, the UI shows the warning a
 | **Overcommitment** | Committed or scheduled estimates exceed available time for the period (PLAN-007, TIME-015) | Computed warning |
 | **Cross-brand conflict** | Overlapping blocks or events across brands, or a brand reservation that cannot be met because of another brand's commitments (WSB-018, CAL-009) | Computed warning |
 
+- **As implemented (Phase 3E, ADR-0022).** Working hours are local windows per weekday in the person's zone, converted for each date, so a 09:00–17:00 window stays 8 hours on a DST day. A weekly capacity override scales each day's working minutes. Time off and observed brand holidays are then subtracted. A brand holiday counts for a person who observes brand holidays and holds a reservation in that brand ([OD-19](open-decisions.md#od-19)). Use is the larger of scheduled blocks (with preparation and buffer) and open estimates due in the period. Over-allocation means use exceeds availability, and under-allocation means use is below half of it. Reservations are pro-rated by days. Conflicts are overlapping blocks in different brands and reservations that cannot be met. Others see time off only as unavailable minutes, and never see work or brands they cannot read. All capacity warnings inform and never block.
+
 Capacity and availability shown to a viewer are computed only from commitments the viewer may read. Time occupied by commitments the viewer cannot read is not shown. Anonymous free/busy disclosure to colleagues requires a separate explicit policy and is off by default ([hierarchy §4](hierarchy-and-scope.md#4-the-all-brands-view)). A person may always see their own authorized connected-calendar availability.
 
 ## 6. Today

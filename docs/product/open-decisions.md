@@ -193,6 +193,7 @@ Requirements flagged with each decision are listed automatically in [requirement
 - **Affects:** CAL-010, WSB-010, TIME-010 · phases 3E, 6C.
 - **Safe default:** Manual holiday entries per brand and per person at launch, plus whatever the connected calendar provides.
 - **If deferred:** Capacity ignores public holidays unless entered manually.
+- **Status (Phase 3E, 2026-10-07):** Decided as the safe default for launch and implemented: holidays are manual brand holidays set under `brand.configure`, and individual holidays are personal time off of kind `holiday`. A brand holiday removes a person's day only if the person observes brand holidays and holds a reservation in that brand covering the day. External holiday feeds and connected-calendar holidays stay with 6C (ADR-0022 C4).
 
 <a id="od-20"></a>
 ### OD-20 — Human self-approval

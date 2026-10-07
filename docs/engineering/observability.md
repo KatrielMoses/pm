@@ -128,3 +128,7 @@ Counters `time.entries` (source, outcome), `time.timers` (action, outcome: `ok`,
 ## Planning (3C)
 
 Counters `planning.today` (action, outcome), `planning.blocks` (action, outcome), `planning.block_series` (outcome: `defined`, `generated`, `skipped`), and `planning.day_close` (outcome: `closed`). Events carry identifiers, days, counts, sources, and flags; never task or block titles (audit keeps block-title hashes).
+
+## Capacity (3E)
+
+Counters `capacity.reads` (view: `person`, `team`, or `rescheduling`; outcome) and `capacity.changes` (kind: `profile`, `time_off`, `holiday`, or `reservation`; outcome). Events carry identifiers, days, minutes, and kinds, never time-off labels or holiday names.

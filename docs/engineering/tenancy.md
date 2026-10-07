@@ -382,3 +382,7 @@ Capture, the Inbox, notes, merge, and parse previews are personal (`personal.man
 ## Phase 3C Today and planning
 
 `PlanningService` (AZ-29): every command and read is `personal.manage_own` and filtered by owner, with no administrator bypass. Naming a task goes through the task loader (readable now, active). Today's lists run the 3A query engine with the viewer's predicate; commitments and blocks join the same compiled visibility, so unreadable tasks drop out (commitments) or lose their title and link (blocks). Planning never writes a task.
+
+## Phase 3E capacity
+
+`CapacityService` (AZ-30) extends the planning, layout, and time services. Working hours, the weekly override, and time off are `personal.manage_own`, and someone else's time-off entry is `not_found`. Reading another person needs `capacity.view` at the workspace or at one of the brands considered. Without it the person is `not_found`, and a team read is `forbidden`. Brand holidays need `brand.configure`, and reservations need `capacity.reserve` at the brand. A reservation in a brand the caller cannot read is `not_found`. Estimates run the 3A compiled query with the viewer's predicate (`compileQuery`). Blocks are filtered to readable tasks in brands where the viewer holds `capacity.view`. A person's own unreadable blocks become unbranded busy time. Holidays and reservations count only in readable brands. Nothing is cached, so a revoked grant takes effect on the next read.

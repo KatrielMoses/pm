@@ -213,6 +213,19 @@ Status of every ADR: **proposed (Phase 0B)**, pending solutions-architect accept
   - A view per share scope: duplicate definitions that drift.
   - Storing query results: they would freeze and widen access.
 - **Consequences:** One migration, `0031_saved_views`, with a down migration to 0030. No 3B layout tables, 3C planning, or 6D export-job tables.
+<a id="adr-30"></a>
+## ADR-30: Working hours, time off, brand holidays, and capacity reservations (Phase 3E amendment)
+
+- **Decision:**
+  - **Capacity profile.** `planning.capacity_profile` holds one row per membership: an optional weekly capacity override (`weekly_capacity_minutes`, 0 to 10080), whether the person observes brand holidays (default yes), and a row version.
+  - **Working hours.** `planning.availability_rule` holds local wall-clock windows per weekday (1 Monday to 7 Sunday, minutes `[start, end)`). A guard trigger refuses overlapping windows on one weekday. Windows are evaluated per date in the person's own zone (`identity.account.timezone`, else the workspace calendar zone), so DST days have their real length.
+  - **Time off.** `planning.time_off` (`tof_`) is personal: a kind (`vacation`, `sick`, `personal`, `holiday`, `unavailable`), either all-day local dates (inclusive, read in `source_tz`) or timed UTC instants, and an optional label.
+  - **Brand holidays.** `planning.holiday` (`hol_`) is one manual holiday per brand and day (OD-19). It removes a person's day only when the person observes brand holidays and holds a reservation in that brand covering the day.
+  - **Reservations.** `planning.capacity_reservation` (`rsv_`) is a weekly planning target for one person in one brand (`minutes_per_week`, `effective_from`, optional `effective_to`, `set_by`, version). It warns and never blocks. A new reservation from a later date closes the open one the day before.
+  - **Nothing cached.** Availability, allocation, and conflicts are computed on read from these rows, 3C blocks and commitments, and 3A-visible estimates. No capacity snapshot is stored.
+- **Alternatives:** Storing availability per day (it would drift with zone and rule changes). Holidays as time-off rows per person (one brand edit would fan out to many personal rows). Reservations as hard limits (TIME-002 says they are targets).
+- **Consequences:** Migration `0035_capacity` with a down migration that restores 0034 exactly. All five tables use workspace RLS. No external holiday feeds or connected calendars (6C), and no AI rescheduling (7F).
+
 <a id="adr-29"></a>
 ## ADR-29: Today, work blocks, and daily records (Phase 3C amendment)
 

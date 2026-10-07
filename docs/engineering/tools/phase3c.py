@@ -127,13 +127,12 @@ def check_invariants():
             "commits tasks without changing any date",
             "generates recurring blocks at a stable local time across DST",
             "keeps plans personal, omits unreadable work, and survives revocation"],
-        "packages/db/test/integration/migrations.test.ts": [
-            "boundaries = [9, 12, 16, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34"],
     }.items():
         text = read(P(path))
         for n in needles:
             if n not in text:
                 errs.append("%s lacks %r" % (path, n))
+    errs += phase1.check_boundaries([9, 12, 16] + list(range(18, 35)))
     return errs, "migration guards, reused evaluators, personal plans"
 
 

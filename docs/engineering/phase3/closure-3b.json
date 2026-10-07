@@ -479,8 +479,8 @@
       ],
       "evidence": [
         {
-          "file": "apps/web/src/views/layouts.tsx",
-          "contains": "Capacity, working hours, and over-allocation arrive with capacity planning (3E)."
+          "file": "packages/work/src/views/layout-service.ts",
+          "contains": "capacity: null as 'per_person' | null"
         },
         {
           "file": "docs/engineering/adr/0020-core-views.md",
