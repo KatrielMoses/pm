@@ -1119,38 +1119,33 @@ function NewField({
       <form
         onSubmit={(e) => {
           e.preventDefault();
-          void r
-            .run(
-              () =>
-                fields.create(
-                  ws,
-                  {
-                    scope,
-                    name,
-                    field_type: type,
-                    applies_to: appliesTo === 'both' ? ['project', 'task'] : [appliesTo],
-                    presentation,
-                    applicability,
-                    config: config(),
-                    visibility:
-                      visibility === 'all_readers'
-                        ? { read: 'all_readers' }
-                        : { read: 'min_level', read_min_level: visibility },
-                  },
-                  stepUp,
-                ),
-              'Field added.',
-            )
-            .then(
-              (ok) =>
-                ok &&
-                (setName(''),
-                setSource(''),
-                setPreview(null),
-                setPresentation('primary'),
-                setApplicability('always'),
-                setVisibility('all_readers')),
+          // Clear the form as soon as the field exists (not after the list refresh), so anything
+          // typed for the next field while the list refreshes is never wiped.
+          void r.run(async () => {
+            await fields.create(
+              ws,
+              {
+                scope,
+                name,
+                field_type: type,
+                applies_to: appliesTo === 'both' ? ['project', 'task'] : [appliesTo],
+                presentation,
+                applicability,
+                config: config(),
+                visibility:
+                  visibility === 'all_readers'
+                    ? { read: 'all_readers' }
+                    : { read: 'min_level', read_min_level: visibility },
+              },
+              stepUp,
             );
+            setName('');
+            setSource('');
+            setPreview(null);
+            setPresentation('primary');
+            setApplicability('always');
+            setVisibility('all_readers');
+          }, 'Field added.');
         }}
         noValidate
       >
