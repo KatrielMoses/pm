@@ -4674,6 +4674,15 @@
         "outcome"
       ],
       "area": "time"
+    },
+    {
+      "name": "views.layout_reads",
+      "type": "counter",
+      "labels": [
+        "layout",
+        "outcome"
+      ],
+      "area": "views"
     }
   ],
   "forbidden_metric_labels": [
@@ -5247,6 +5256,21 @@
       "name": "TIME_RUNAWAY_BATCH_MAX",
       "meaning": "Most runaway timers one timer-guard run stops per workspace; default 200, range 1–1000.",
       "owner": "3D"
+    },
+    {
+      "name": "LAYOUT_ITEMS_MAX",
+      "meaning": "Most records one layout read (Gantt dependencies, milestones, portfolio progress, timesheet time) may name; default 200, range 10–1000.",
+      "owner": "3B"
+    },
+    {
+      "name": "WORKLOAD_DAYS_MAX",
+      "meaning": "Longest date range one workload grid may cover; default 366, range 7–731.",
+      "owner": "3B"
+    },
+    {
+      "name": "ACTIVITY_RECORDS_MAX",
+      "meaning": "Most records whose activity one activity view reads (more are reported as truncated); default 500, range 10–5000.",
+      "owner": "3B"
     }
   ],
   "sse_topics": [

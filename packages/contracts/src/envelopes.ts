@@ -174,6 +174,12 @@ export const NON_RESOURCE_TYPES = [
   'view_default',
   'view_default_resolution',
   'view_field_options',
+  'view_workload',
+  'view_dependencies',
+  'view_time',
+  'view_milestones',
+  'view_progress',
+  'view_activity',
   // 3D: the live timer, one person's period, planned-versus-actual reports, and work summaries.
   'timer_status',
   'timesheet_period',

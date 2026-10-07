@@ -148,6 +148,12 @@ export interface WorkSettings {
   exportRowsMax: number;
   /** `TOTAL_COUNT_CAP` */
   totalCountCap: number;
+  /** `LAYOUT_ITEMS_MAX` */
+  layoutItemsMax: number;
+  /** `WORKLOAD_DAYS_MAX` */
+  workloadDaysMax: number;
+  /** `ACTIVITY_RECORDS_MAX` */
+  activityRecordsMax: number;
   /** `TIME_ENTRY_MAX_HOURS` */
   timeEntryMaxHours: number;
   /** `TIME_TIMER_MAX_HOURS` */
@@ -230,6 +236,9 @@ export const DEFAULT_WORK_SETTINGS: WorkSettings = Object.freeze({
   viewPinsMax: 20,
   exportRowsMax: 5_000,
   totalCountCap: 10_000,
+  layoutItemsMax: 200,
+  workloadDaysMax: 366,
+  activityRecordsMax: 500,
   timeEntryMaxHours: 24,
   timeTimerMaxHours: 12,
   timeReportRangeDaysMax: 366,

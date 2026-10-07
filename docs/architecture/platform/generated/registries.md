@@ -454,6 +454,7 @@ Forbidden metric labels: `workspace_id`, `brand_id`, `record_id`, `public_id`, `
 | `time.timesheets` | counter | action, outcome | time |
 | `time.exports` | counter | format | time |
 | `time.timer_guard` | counter | outcome | time |
+| `views.layout_reads` | counter | layout, outcome | views |
 
 ## Named parameters (values are configuration, not promises)
 
@@ -566,3 +567,6 @@ Forbidden metric labels: `workspace_id`, `brand_id`, `record_id`, `public_id`, `
 | `TIME_TIMESHEET_ENTRIES_MAX` | Most time entries one person may have in one timesheet period; default 2000, range 10–10000. | 3D |
 | `TIME_RUNAWAY_DISCOVERY_MAX` | Most workspaces one timer-guard run examines; default 100, range 1–1000. | 3D |
 | `TIME_RUNAWAY_BATCH_MAX` | Most runaway timers one timer-guard run stops per workspace; default 200, range 1–1000. | 3D |
+| `LAYOUT_ITEMS_MAX` | Most records one layout read (Gantt dependencies, milestones, portfolio progress, timesheet time) may name; default 200, range 10–1000. | 3B |
+| `WORKLOAD_DAYS_MAX` | Longest date range one workload grid may cover; default 366, range 7–731. | 3B |
+| `ACTIVITY_RECORDS_MAX` | Most records whose activity one activity view reads (more are reported as truncated); default 500, range 10–5000. | 3B |

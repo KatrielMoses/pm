@@ -191,6 +191,9 @@ export interface ServerConfig {
     viewPinsMax: number;
     exportRowsMax: number;
     totalCountCap: number;
+    layoutItemsMax: number;
+    workloadDaysMax: number;
+    activityRecordsMax: number;
     timeEntryMaxHours: number;
     timeTimerMaxHours: number;
     timeReportRangeDaysMax: number;
@@ -413,6 +416,9 @@ const DEFAULTS = {
   VIEW_PINS_MAX: '20',
   EXPORT_ROWS_MAX: '5000',
   TOTAL_COUNT_CAP: '10000',
+  LAYOUT_ITEMS_MAX: '200',
+  WORKLOAD_DAYS_MAX: '366',
+  ACTIVITY_RECORDS_MAX: '500',
   TIME_ENTRY_MAX_HOURS: '24',
   TIME_TIMER_MAX_HOURS: '12',
   TIME_REPORT_RANGE_DAYS_MAX: '366',
@@ -569,6 +575,9 @@ const schema = z.object({
   VIEW_PINS_MAX: int(1, 100),
   EXPORT_ROWS_MAX: int(1, 50000),
   TOTAL_COUNT_CAP: int(100, 100000),
+  LAYOUT_ITEMS_MAX: int(10, 1000),
+  WORKLOAD_DAYS_MAX: int(7, 731),
+  ACTIVITY_RECORDS_MAX: int(10, 5000),
   TIME_ENTRY_MAX_HOURS: int(1, 24),
   TIME_TIMER_MAX_HOURS: int(1, 24),
   TIME_REPORT_RANGE_DAYS_MAX: int(7, 1830),
@@ -1009,6 +1018,9 @@ export function loadServerConfig(options: LoadOptions): ServerConfig {
       viewPinsMax: c.VIEW_PINS_MAX,
       exportRowsMax: c.EXPORT_ROWS_MAX,
       totalCountCap: c.TOTAL_COUNT_CAP,
+      layoutItemsMax: c.LAYOUT_ITEMS_MAX,
+      workloadDaysMax: c.WORKLOAD_DAYS_MAX,
+      activityRecordsMax: c.ACTIVITY_RECORDS_MAX,
       timeEntryMaxHours: c.TIME_ENTRY_MAX_HOURS,
       timeTimerMaxHours: c.TIME_TIMER_MAX_HOURS,
       timeReportRangeDaysMax: c.TIME_REPORT_RANGE_DAYS_MAX,
