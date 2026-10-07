@@ -1,6 +1,7 @@
 import { newUuidV7 } from '@pm/contracts';
 import { sql } from '@pm/db';
 import type { OwnershipHook } from '@pm/tenancy';
+import { recordAssignmentChange } from './collab/history.ts';
 
 /**
  * Departure (0C §11.5, PERM-014, AZ-21): a departing member's accountable project ownership, phase
@@ -121,6 +122,20 @@ export const taskAssigneeHook: OwnershipHook = {
     return { hook: 'task_assignee', owned: Number(r.n), requiresAssignee: false };
   },
   async apply(tx, from) {
+    // The departure is recorded as the member's own `unassigned` fact on each task (4A history).
+    const tasks = await tx.db
+      .selectFrom('work.task_assignee')
+      .select('task_id')
+      .where('membership_id', '=', from)
+      .execute();
+    for (const t of tasks)
+      await recordAssignmentChange(tx, {
+        taskId: t.task_id,
+        actorMembershipId: from,
+        via: 'departure',
+        before: [from],
+        after: [],
+      });
     const r = await tx.db
       .deleteFrom('work.task_assignee')
       .where('membership_id', '=', from)

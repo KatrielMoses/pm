@@ -14,7 +14,8 @@ import {
 import { registerWorkLifecycle } from './lifecycle.ts';
 import { projectTargets, savedViewTargets, taskTargets } from './navigation.ts';
 import { projectOwnerHook, taskAssigneeHook } from './ownership.ts';
-import { CapacityService } from './capacity/capacity-service.ts';
+import { ReviewService } from './collab/review-service.ts';
+import { reviewDepartureHook } from './collab/departure.ts';
 import { departureTimerHook } from './time/jobs.ts';
 import { DEFAULT_WORK_SETTINGS, type WorkSettings } from './validation.ts';
 
@@ -24,7 +25,7 @@ export function productLifecycleRegistry(): LifecycleRegistry {
 }
 
 /**
- * Wires the full 1C–3D service (with 3B layouts and 3C planning) (tenancy, collaboration, navigation, projects, tasks) from validated
+ * Wires the full 1C–4A service (with 3B layouts, 3C planning, and 4A collaboration) (tenancy, collaboration, navigation, projects, tasks) from validated
  * configuration. Work plugs into tenancy by injection only: its lifecycle adapters, its navigation
  * target, and its departure hook.
  */
@@ -37,7 +38,7 @@ export function createWorkService(deps: {
   };
   logger: Logger;
   metrics: Metrics;
-}): CapacityService {
+}): ReviewService {
   const { config } = deps;
   if (!config.identity.signingKey) throw new Error('AUTH_SIGNING_KEY is required');
   const writer = new AuditWriter({
@@ -57,7 +58,7 @@ export function createWorkService(deps: {
   const signingKey = Buffer.from(config.identity.signingKey.reveal(), 'base64url');
   const arrayMax = config.tenancy.principalContextArrayMax;
   const work = config.work ?? DEFAULT_WORK_SETTINGS;
-  return new CapacityService({
+  return new ReviewService({
     tenant: deps.tenant,
     platform: deps.platform,
     writer,
@@ -68,6 +69,7 @@ export function createWorkService(deps: {
     ownership: defaultOwnershipRegistry()
       .register(projectOwnerHook)
       .register(taskAssigneeHook)
+      .register(reviewDepartureHook)
       .register(departureTimerHook(writer)),
     settings: {
       invitationLifetimeMs: config.tenancy.invitationLifetimeMs,
@@ -85,6 +87,7 @@ export function createWorkService(deps: {
       ...config.identity.rateLimitOverrides,
       'capture.member': { limit: work.captureRatePerMinute, windowMs: 60_000 },
       'intake.submit': { limit: work.intakeSubmissionsPerHour, windowMs: 60 * 60_000 },
+      'comment.member': { limit: work.commentRatePerMinute, windowMs: 60_000 },
     }),
     signingKey,
     metrics: deps.metrics,

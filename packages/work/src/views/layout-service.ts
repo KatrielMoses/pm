@@ -9,6 +9,7 @@ import {
   type Principal,
 } from '@pm/tenancy';
 import type { WorkDeps } from '../service.ts';
+import { COLLAB_REF } from '../validation.ts';
 import { fieldsForRecord } from '../workflow/field-access.ts';
 import type { Entity } from './query.ts';
 import { PlanningService } from '../planning/today-service.ts';
@@ -544,7 +545,7 @@ export class LayoutService extends PlanningService {
             if (id.startsWith('mem_')) {
               const name = byPublic.get(id);
               if (name) out.push(part.endsWith('*') ? `${name} (primary)` : name);
-            } else if (readable.has(id)) out.push(id);
+            } else if (readable.has(id) || COLLAB_REF.test(id)) out.push(id);
             else return { ok: false, value: null };
           }
           return { ok: true, value: out.join(', ') || null };

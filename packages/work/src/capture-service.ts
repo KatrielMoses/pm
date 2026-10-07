@@ -16,6 +16,7 @@ import {
   type Principal,
 } from '@pm/tenancy';
 import { parseCapture, PARSER_VERSION, splitPaste, type ParseToken } from './capture/parser.ts';
+import { recordAssignmentChange } from './collab/history.ts';
 import { composeRule, parseRule } from './recurrence.ts';
 import { normalizeLabel } from './task-validation.ts';
 import { TaskInteractionService } from './task-interaction.ts';
@@ -1013,7 +1014,7 @@ export class CaptureService extends TaskInteractionService {
         .select(['id', 'kind', 'state'])
         .where('public_id', '=', fields.owner)
         .executeTakeFirst();
-      if (m && m.kind === 'member' && m.state === 'active')
+      if (m && m.kind === 'member' && m.state === 'active') {
         await tx.db
           .insertInto('work.task_assignee')
           .values({
@@ -1026,7 +1027,14 @@ export class CaptureService extends TaskInteractionService {
             assigned_by_membership_id: p.membershipId,
           })
           .execute();
-      else omitted.push('owner');
+        await recordAssignmentChange(tx, {
+          taskId: t.id,
+          actorMembershipId: p.membershipId,
+          via: 'assign',
+          before: [],
+          after: [m.id],
+        });
+      } else omitted.push('owner');
     }
     if (isObj(fields.recurrence)) {
       const fresh = await this.loadTask(tx, p, created.publicId, { lock: true });
