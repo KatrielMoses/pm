@@ -65,7 +65,7 @@ import {
   NotePage,
   NotesPage,
 } from './pages/capture-pages.tsx';
-import { SavedViewPage, SavedViewsPage } from './pages/view-pages.tsx';
+import { CalendarPage, MyWorkPage, SavedViewPage, SavedViewsPage } from './pages/view-pages.tsx';
 import { Page } from './ui/layout.tsx';
 
 type Params = Record<string, string>;
@@ -88,7 +88,7 @@ export const ROUTE_COMPONENTS: Record<string, Render> = {
   home: destination('home'),
   today: destination('today'),
   inbox: destination('inbox'),
-  my_work: destination('my_work'),
+  my_work: (p) => <MyWorkPage key={p.ws} ws={p.ws!} />,
   projects: destination('projects'),
   project: (p) => <ProjectPage key={p.prj} ws={p.ws!} prj={p.prj!} />,
   project_section: (p) => <ProjectPage key={p.prj} ws={p.ws!} prj={p.prj!} section={p.section!} />,
@@ -105,7 +105,7 @@ export const ROUTE_COMPONENTS: Record<string, Render> = {
   time_approvals: (p) => <TimeApprovalsPage key={p.ws} ws={p.ws!} />,
   time_report: (p) => <TimeReportPage key={p.ws} ws={p.ws!} />,
   task: (p) => <TaskPage key={p.tsk} ws={p.ws!} tsk={p.tsk!} />,
-  calendar: destination('calendar'),
+  calendar: (p) => <CalendarPage key={p.ws} ws={p.ws!} />,
   knowledge: destination('knowledge'),
   goals: destination('goals'),
   reports: destination('reports'),

@@ -53,9 +53,76 @@ export interface Query {
   sort?: SortKey[];
   group?: { field: string; granularity?: 'day' | 'week' | 'month' } | null;
 }
+export type Layout =
+  | 'list'
+  | 'board'
+  | 'table'
+  | 'calendar'
+  | 'timeline'
+  | 'gantt'
+  | 'workload'
+  | 'milestones'
+  | 'portfolio'
+  | 'activity'
+  | 'timesheet';
+export const LAYOUTS: Record<Entity, Layout[]> = {
+  task: [
+    'list',
+    'board',
+    'table',
+    'calendar',
+    'timeline',
+    'gantt',
+    'workload',
+    'activity',
+    'timesheet',
+  ],
+  project: [
+    'list',
+    'board',
+    'table',
+    'calendar',
+    'timeline',
+    'gantt',
+    'milestones',
+    'portfolio',
+    'activity',
+  ],
+};
+export const LAYOUT_TEXT: Record<Layout, string> = {
+  list: 'List',
+  board: 'Board',
+  table: 'Table',
+  calendar: 'Calendar',
+  timeline: 'Timeline',
+  gantt: 'Gantt',
+  workload: 'Workload',
+  milestones: 'Milestones',
+  portfolio: 'Portfolio',
+  activity: 'Activity',
+  timesheet: 'Timesheet',
+};
+export const DATE_FIELDS: Record<Entity, string[]> = {
+  task: ['due_date', 'deadline_date', 'start_date'],
+  project: ['target_date', 'deadline_date', 'start_date'],
+};
+
+/** Presentation plus layout (the layout travels in the URL with the rest; ADR-0020 B1). */
 export interface Presentation {
   columns: string[];
   density: 'comfortable' | 'compact';
+  layout?: Layout;
+  board_field?: 'status' | 'priority';
+  date_field?: string;
+  calendar_mode?: 'day' | 'week' | 'month' | 'agenda';
+  zoom?: 'day' | 'week' | 'month' | 'quarter';
+  bucket?: 'day' | 'week' | 'month';
+}
+
+/** What the server's presentation accepts (the layout is a separate saved-view field). */
+export function serverPresentation(p: Presentation): Omit<Presentation, 'layout'> {
+  const { layout: _layout, ...rest } = p;
+  return rest;
 }
 
 export interface QueryRow {
@@ -102,6 +169,7 @@ export interface SavedView {
   can_manage: boolean;
   query: Query;
   presentation: Partial<Presentation>;
+  layout: Layout;
   version: number;
 }
 
@@ -141,7 +209,11 @@ export const views = {
   ) {
     return (
       await api<QueryPage>('POST', `${w(ws)}/${plural(body.query.entity)}:query`, {
-        body: { today: today(), ...body },
+        body: {
+          today: today(),
+          ...body,
+          ...(body.presentation ? { presentation: serverPresentation(body.presentation) } : {}),
+        },
         ...(signal ? { signal } : {}),
       })
     ).body;
@@ -159,6 +231,7 @@ export const views = {
     return downloadPost(`${w(ws)}/${plural(body.query.entity)}:export`, {
       today: today(),
       ...body,
+      ...(body.presentation ? { presentation: serverPresentation(body.presentation) } : {}),
     });
   },
   async list(ws: string, entity?: Entity) {
@@ -174,8 +247,19 @@ export const views = {
     body: { name: string; description?: string; query: Query; presentation: Presentation },
     stepUp: StepUpResolver,
   ) {
-    return (await protectedRequest<{ data: SavedView }>('POST', `${w(ws)}/views`, body, stepUp))
-      .body.data;
+    const { presentation, ...rest } = body;
+    return (
+      await protectedRequest<{ data: SavedView }>(
+        'POST',
+        `${w(ws)}/views`,
+        {
+          ...rest,
+          presentation: serverPresentation(presentation),
+          layout: presentation.layout ?? 'list',
+        },
+        stepUp,
+      )
+    ).body.data;
   },
   async update(
     ws: string,
@@ -185,9 +269,19 @@ export const views = {
     stepUp: StepUpResolver,
   ) {
     return (
-      await protectedRequest<{ data: SavedView }>('PATCH', `${w(ws)}/views/${view}`, body, stepUp, {
-        ifMatch: version,
-      })
+      await protectedRequest<{ data: SavedView }>(
+        'PATCH',
+        `${w(ws)}/views/${view}`,
+        body.presentation
+          ? {
+              ...body,
+              presentation: serverPresentation(body.presentation),
+              layout: body.presentation.layout ?? 'list',
+            }
+          : body,
+        stepUp,
+        { ifMatch: version },
+      )
     ).body.data;
   },
   async verb(
@@ -263,9 +357,118 @@ export function decodeState(raw: string): { query: Query; presentation: Presenta
           ? v.p.columns.filter((c) => typeof c === 'string')
           : [],
         density: v.p?.density === 'compact' ? 'compact' : 'comfortable',
+        ...pick(v.p, ['layout', 'board_field', 'date_field', 'calendar_mode', 'zoom', 'bucket']),
       },
     };
   } catch {
     return null;
   }
+}
+
+const pick = (o: unknown, keys: string[]) => {
+  const out: Record<string, string> = {};
+  if (o && typeof o === 'object')
+    for (const k of keys) {
+      const v = (o as Record<string, unknown>)[k];
+      if (typeof v === 'string' && /^[a-z_]{1,20}$/.test(v)) out[k] = v;
+    }
+  return out as Partial<Presentation>;
+};
+
+const ql = (ws: string, path: string) => `${w(ws)}/${path}`;
+type LayoutBody = { query: Query; scope?: string[] };
+
+/** Layout reads (3B): facts for records the same query returns (ADR-0020). */
+export const layouts = {
+  async workload(
+    ws: string,
+    body: LayoutBody & { bucket: 'day' | 'week' | 'month'; from: string; to: string },
+  ) {
+    return (
+      await api<{
+        data: {
+          buckets: string[];
+          people: Array<{
+            id: string | null;
+            name: string;
+            total_minutes: number;
+            cells: Record<string, { minutes: number; tasks: number; unestimated: number }>;
+          }>;
+        };
+      }>('POST', ql(ws, 'tasks:workload'), { body: { today: today(), ...body } })
+    ).body.data;
+  },
+  async dependencies(ws: string, body: LayoutBody & { ids: string[] }) {
+    return (
+      await api<{ data: { edges: Array<{ from: string; to: string; kind: 'blocks' }> } }>(
+        'POST',
+        ql(ws, 'tasks:dependencies'),
+        { body: { today: today(), ...body } },
+      )
+    ).body.data.edges;
+  },
+  async myTime(ws: string, body: LayoutBody & { ids: string[]; from: string; days: number }) {
+    return (
+      await api<{
+        data: {
+          days: string[];
+          cells: Array<{ task: string; day: string; minutes: number; billable_minutes: number }>;
+        };
+      }>('POST', ql(ws, 'tasks:my_time'), { body: { today: today(), ...body } })
+    ).body.data;
+  },
+  async milestones(ws: string, body: LayoutBody & { ids: string[] }) {
+    return (
+      await api<{
+        data: {
+          milestones: Array<{
+            id: string;
+            project: string;
+            name: string;
+            due_date: string | null;
+            status: string;
+          }>;
+        };
+      }>('POST', ql(ws, 'projects:milestones'), { body: { today: today(), ...body } })
+    ).body.data.milestones;
+  },
+  async progress(ws: string, body: LayoutBody & { ids: string[] }) {
+    return (
+      await api<{
+        data: {
+          progress: Array<{ project: string; done: number; total: number; percent: number | null }>;
+        };
+      }>('POST', ql(ws, 'projects:progress'), { body: { today: today(), ...body } })
+    ).body.data.progress;
+  },
+  async activity(
+    ws: string,
+    entity: Entity,
+    body: LayoutBody & {
+      actor?: string;
+      actor_type?: string;
+      action?: string;
+      cursor?: string;
+      limit?: number;
+    },
+  ) {
+    return (
+      await api<{
+        data: {
+          items: ActivityItem[];
+          page: { has_more: boolean; next_cursor?: string };
+          records_truncated: boolean;
+        };
+      }>('POST', ql(ws, `${entity}s:activity`), { body: { today: today(), ...body } })
+    ).body.data;
+  },
+};
+
+export interface ActivityItem {
+  key: string;
+  at: string;
+  action: string;
+  actor: { type: string; id?: string; name?: string };
+  record: { id: string; type: Entity; title: string };
+  changes: Array<{ field: string; from?: unknown; to?: unknown; changed?: true }>;
 }
