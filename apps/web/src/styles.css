@@ -2354,3 +2354,46 @@ nav.tabs a[aria-current='page'] {
     border-bottom: 1px solid CanvasText;
   }
 }
+
+/* Phase 3E: capacity (working hours, time off, reservations) and workload capacity. */
+.capacity-hours {
+  border: 0;
+  padding: 0;
+  margin: 0 0 var(--space-3);
+  min-width: 0;
+}
+.capacity-hours legend {
+  font-weight: 600;
+  margin-bottom: var(--space-2);
+}
+.capacity-day {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  margin-bottom: var(--space-2);
+}
+.capacity-day > label:first-child {
+  flex: 0 0 8rem;
+}
+.capacity-list {
+  padding-left: var(--space-4);
+  overflow-wrap: anywhere;
+}
+.capacity-list li {
+  margin-bottom: var(--space-2);
+}
+.workload-over {
+  background: var(--color-status-warning-bg);
+  color: var(--color-status-warning-fg);
+}
+.workload-capacity {
+  display: block;
+  font-size: 0.875em;
+}
+@media (forced-colors: active) {
+  .workload-over {
+    outline: 2px solid CanvasText;
+    outline-offset: -2px;
+  }
+}

@@ -26,6 +26,7 @@ import { ProjectPage, ProjectsPage } from './pages/project-pages.tsx';
 import { ProjectlessTasksPage, TaskPage } from './pages/task-pages.tsx';
 import { TimeApprovalsPage, TimePage, TimeReportPage } from './pages/time-pages.tsx';
 import { TodayPage } from './pages/today-pages.tsx';
+import { CapacityPage } from './pages/capacity-pages.tsx';
 import {
   ApprovalsPage,
   FieldSetsPage,
@@ -107,6 +108,7 @@ export const ROUTE_COMPONENTS: Record<string, Render> = {
   time: (p) => <TimePage key={p.ws} ws={p.ws!} />,
   time_approvals: (p) => <TimeApprovalsPage key={p.ws} ws={p.ws!} />,
   time_report: (p) => <TimeReportPage key={p.ws} ws={p.ws!} />,
+  capacity: (p) => <CapacityPage key={p.ws} ws={p.ws!} />,
   task: (p) => <TaskPage key={p.tsk} ws={p.ws!} tsk={p.tsk!} />,
   calendar: (p) => <CalendarPage key={p.ws} ws={p.ws!} />,
   knowledge: destination('knowledge'),

@@ -75,7 +75,7 @@ test('plan the day: commit, order, lock, focus block, offline, shut down, and ca
   await expect(h1(page)).toHaveText('Today');
   const committed = page.getByRole('list', { name: 'Committed tasks in order' });
   await expect(committed.getByRole('listitem')).toHaveCount(2);
-  await expect(page.getByText(/arrive with capacity planning \(3E\)/)).toBeVisible();
+  await expect(page.getByRole('link', { name: 'working hours' })).toBeVisible();
   await expectAccessible(page, 'today');
   // Keyboard only: move Review deck to the top, then lock it.
   await committed.getByRole('button', { name: 'Move up Review deck' }).focus();

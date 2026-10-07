@@ -24,7 +24,8 @@ import { Page } from '../ui/layout.tsx';
  * commitments in manual order, scheduled work blocks, and separate overdue, due-today, and
  * upcoming-deadline sections; daily planning; blocks with focus, lock, preparation, and buffer;
  * recurring blocks; and shutdown with carry, pick a day, return, or leave. Nothing here changes a
- * due date or deadline. Capacity (3E) and meetings (6C) are honest absences.
+ * due date or deadline. Available time and the over-capacity warning come from 3E working hours;
+ * meetings (6C) are an honest absence.
  */
 
 const describe = (err: unknown, fallback = 'That did not work. Try again.') =>
@@ -593,13 +594,36 @@ export function TodayPage({ ws }: { ws: string }) {
                   </div>
                   <div>
                     <dt>Available time</dt>
-                    <dd>Working hours and capacity arrive with capacity planning (3E).</dd>
+                    <dd>
+                      {v.capacity.available ? (
+                        <>
+                          {mins(v.capacity.available_minutes)} of {mins(v.capacity.working_minutes)}{' '}
+                          working time
+                          {v.capacity.holiday ? ' (holiday)' : ''}
+                          {v.capacity.unavailable_minutes && !v.capacity.holiday
+                            ? ` · ${mins(v.capacity.unavailable_minutes)} time off`
+                            : ''}
+                        </>
+                      ) : (
+                        <>
+                          Set your <Link to={`/workspaces/${ws}/capacity`}>working hours</Link> to
+                          see available time.
+                        </>
+                      )}
+                    </dd>
                   </div>
                   <div>
                     <dt>Meetings</dt>
                     <dd>Calendar events arrive with calendar sync (6C).</dd>
                   </div>
                 </dl>
+                {v.capacity.available && v.capacity.warning ? (
+                  <Banner tone="warning" title="More planned than available">
+                    {mins(v.capacity.planned_minutes)} planned against{' '}
+                    {mins(v.capacity.available_minutes)} available — {mins(v.capacity.over_minutes)}{' '}
+                    over. Nothing was moved; choose what to carry or reschedule.
+                  </Banner>
+                ) : null}
                 {v.record ? (
                   <Banner tone="info" title="This day is closed">
                     Planned {v.record.committed}: {v.record.completed} done, {v.record.carried}{' '}

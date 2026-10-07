@@ -78,7 +78,20 @@ export interface TodayView {
     block_minutes: number;
     focus_minutes: number;
   };
-  available_minutes: null;
+  available_minutes: number | null;
+  /** 3E: the day's capacity against the plan (a warning only), or why it is unknown. */
+  capacity:
+    | {
+        available: true;
+        available_minutes: number;
+        working_minutes: number;
+        unavailable_minutes: number;
+        holiday: boolean;
+        planned_minutes: number;
+        over_minutes: number;
+        warning: boolean;
+      }
+    | { available: false; reason: 'no_working_hours' };
   record: DayRecord | null;
   can_shutdown: boolean;
 }

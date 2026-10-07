@@ -993,8 +993,9 @@ export function WorkloadLayout({ ws, query, scope, presentation }: LayoutProps) 
                     <th scope="row">{p.name}</th>
                     {data.buckets.map((b) => {
                       const c = p.cells[b];
+                      const cap = p.capacity?.[b];
                       return (
-                        <td key={b}>
+                        <td key={b} className={cap?.over ? 'workload-over' : undefined}>
                           {c ? (
                             <>
                               {hours(c.minutes)}
@@ -1007,6 +1008,13 @@ export function WorkloadLayout({ ws, query, scope, presentation }: LayoutProps) 
                           ) : (
                             <span className="hint">—</span>
                           )}
+                          {cap ? (
+                            <span className="workload-capacity">
+                              {' '}
+                              of {hours(cap.available)}
+                              {cap.over ? <strong> · {hours(cap.over)} over</strong> : null}
+                            </span>
+                          ) : null}
                         </td>
                       );
                     })}
@@ -1021,7 +1029,8 @@ export function WorkloadLayout({ ws, query, scope, presentation }: LayoutProps) 
         )
       ) : null}
       <p className="hint">
-        Capacity, working hours, and over-allocation arrive with capacity planning (3E).
+        “of” shows available time from working hours and time off, where you may see it; over-
+        allocation is a warning and nothing is moved.
       </p>
     </div>
   );

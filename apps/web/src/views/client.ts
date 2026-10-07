@@ -393,7 +393,10 @@ export const layouts = {
             name: string;
             total_minutes: number;
             cells: Record<string, { minutes: number; tasks: number; unestimated: number }>;
+            /** 3E: available time per bucket where the viewer may see this person's capacity. */
+            capacity: Record<string, { available: number; over: number; under: number }> | null;
           }>;
+          capacity: 'per_person' | null;
         };
       }>('POST', ql(ws, 'tasks:workload'), { body: { today: today(), ...body } })
     ).body.data;

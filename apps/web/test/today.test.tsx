@@ -100,6 +100,7 @@ const view = (extra: Partial<TodayView> = {}): TodayView => ({
     focus_minutes: 60,
   },
   available_minutes: null,
+  capacity: { available: false, reason: 'no_working_hours' },
   record: null,
   can_shutdown: true,
   ...extra,
@@ -119,7 +120,9 @@ describe('Today (3C)', () => {
     wrap(<TodayPage ws="ws_A" />);
     await act(async () => undefined);
     expect(screen.getByRole('heading', { level: 1 }).textContent).toBe('Today');
-    expect(screen.getByText(/arrive with capacity planning \(3E\)/)).toBeTruthy();
+    expect(screen.getByRole('link', { name: 'working hours' }).getAttribute('href')).toBe(
+      '/workspaces/ws_A/capacity',
+    );
     expect(screen.getByText(/arrive with calendar sync \(6C\)/)).toBeTruthy();
     const overdue = screen.getByRole('region', { name: 'Overdue' });
     expect(
@@ -131,6 +134,30 @@ describe('Today (3C)', () => {
     expect(within(scheduled).getByText('Ends after the deadline')).toBeTruthy();
     expect(within(scheduled).getByText('Busy (unavailable item)')).toBeTruthy();
     expect(within(scheduled).getByText('Focus')).toBeTruthy();
+  });
+
+  it('shows available time and warns when the plan exceeds it (3E), without moving anything', async () => {
+    vi.spyOn(planning, 'today').mockResolvedValue(
+      view({
+        available_minutes: 240,
+        capacity: {
+          available: true,
+          available_minutes: 240,
+          working_minutes: 480,
+          unavailable_minutes: 240,
+          holiday: false,
+          planned_minutes: 300,
+          over_minutes: 60,
+          warning: true,
+        },
+      }),
+    );
+    vi.spyOn(planning, 'series').mockResolvedValue([]);
+    wrap(<TodayPage ws="ws_A" />);
+    await act(async () => undefined);
+    expect(screen.getByText(/4:00 of 8:00 working time/)).toBeTruthy();
+    expect(screen.getByText('More planned than available')).toBeTruthy();
+    expect(screen.getByText(/Nothing was moved/)).toBeTruthy();
   });
 
   it('reorders by keyboard-reachable buttons and never moves locked items', async () => {

@@ -329,6 +329,15 @@ export const ROUTES: readonly RouteDef[] = [
     section: 'Time',
     visible: member,
   },
+  // 3E: working hours, time off, capacity by day and brand, team allocation, reservations.
+  {
+    id: 'capacity',
+    pattern: '/workspaces/:ws/capacity',
+    shell: 'workspace',
+    section: 'Capacity',
+    nav: { placement: 'workspace', label: 'Capacity', short: 'Capacity', icon: '◔', order: 3 },
+    visible: member,
+  },
   {
     id: 'approvals',
     pattern: '/workspaces/:ws/approvals',
