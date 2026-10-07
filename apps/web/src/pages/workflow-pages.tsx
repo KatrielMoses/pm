@@ -109,7 +109,7 @@ function ScopePicker({
   );
 }
 
-function useRunner(reload: () => void) {
+function useRunner(reload: () => void | Promise<void>) {
   const [error, setError] = useState<string | null>(null);
   const [said, setSaid] = useState('');
   const [busy, setBusy] = useState(false);
@@ -120,7 +120,9 @@ function useRunner(reload: () => void) {
     try {
       await fn();
       setSaid(done);
-      reload();
+      // Stay busy until the refreshed workflow (and its new version) is on screen, so the next
+      // command never carries the version this one just replaced.
+      await reload();
       return true;
     } catch (e) {
       if (!(e instanceof ApiError && e.code === 'cancelled')) setError(message(e));
@@ -164,10 +166,10 @@ export function WorkflowsPage({ ws }: { ws: string }) {
                     </p>
                   ) : null}
                   {here.map((wf) => (
-                    <WorkflowEditor key={wf.id} ws={ws} wf={wf} reload={data.reload} />
+                    <WorkflowEditor key={wf.id} ws={ws} wf={wf} reload={data.refresh} />
                   ))}
                   {!here.some((x) => x.state === 'active') ? (
-                    <NewWorkflow ws={ws} scope={scope} kind={kind} reload={data.reload} />
+                    <NewWorkflow ws={ws} scope={scope} kind={kind} reload={data.refresh} />
                   ) : null}
                 </section>
               );
@@ -188,7 +190,7 @@ function NewWorkflow({
   ws: string;
   scope: string;
   kind: 'task' | 'project';
-  reload: () => void;
+  reload: () => void | Promise<void>;
 }) {
   const stepUp = useStepUp();
   const r = useRunner(reload);
@@ -313,7 +315,15 @@ function NewWorkflow({
   );
 }
 
-function WorkflowEditor({ ws, wf, reload }: { ws: string; wf: Workflow; reload: () => void }) {
+function WorkflowEditor({
+  ws,
+  wf,
+  reload,
+}: {
+  ws: string;
+  wf: Workflow;
+  reload: () => void | Promise<void>;
+}) {
   const stepUp = useStepUp();
   const r = useRunner(reload);
   const [newStatus, setNewStatus] = useState({ name: '', category: 'active' as Category });
@@ -652,7 +662,15 @@ function WorkflowEditor({ ws, wf, reload }: { ws: string; wf: Workflow; reload: 
   );
 }
 
-function NewTransition({ ws, wf, reload }: { ws: string; wf: Workflow; reload: () => void }) {
+function NewTransition({
+  ws,
+  wf,
+  reload,
+}: {
+  ws: string;
+  wf: Workflow;
+  reload: () => void | Promise<void>;
+}) {
   const stepUp = useStepUp();
   const r = useRunner(reload);
   const active = wf.statuses.filter((s) => s.state === 'active');
@@ -853,12 +871,12 @@ export function FieldsPage({ ws }: { ws: string }) {
                     prev={d.data[i - 1]?.id ?? null}
                     next={d.data[i + 1]?.id ?? null}
                     all={d.data}
-                    reload={data.reload}
+                    reload={data.refresh}
                   />
                 ))}
               </ul>
             </section>
-            <NewField ws={ws} scope={scope} existing={d.data} reload={data.reload} />
+            <NewField ws={ws} scope={scope} existing={d.data} reload={data.refresh} />
           </>
         )}
       </ResourceView>
@@ -879,7 +897,7 @@ function FieldRow({
   prev: string | null;
   next: string | null;
   all: FieldDefinition[];
-  reload: () => void;
+  reload: () => void | Promise<void>;
 }) {
   const stepUp = useStepUp();
   const r = useRunner(reload);
@@ -1080,7 +1098,7 @@ function NewField({
   ws: string;
   scope: string;
   existing: FieldDefinition[];
-  reload: () => void;
+  reload: () => void | Promise<void>;
 }) {
   const stepUp = useStepUp();
   const r = useRunner(reload);

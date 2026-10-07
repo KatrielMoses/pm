@@ -159,8 +159,12 @@ export function TaskTree({
       refs.current.get(focused)?.focus();
   }, [focused]);
   useEffect(() => {
-    // A background refresh never takes focus from an open modal (Phase 2 integration).
-    if (initialFocus && !isModalOpen()) refs.current.get(initialFocus)?.focus();
+    // The remount after a move puts focus back on the moved task only when focus was lost with the
+    // old tree (it is on the body) or is still in a tree. A background refresh never takes focus
+    // the person has moved elsewhere (the Capture button, an open modal, a field).
+    const active = document.activeElement;
+    const lost = !active || active === document.body || !!active.closest('[role="tree"]');
+    if (initialFocus && lost && !isModalOpen()) refs.current.get(initialFocus)?.focus();
   }, [initialFocus]);
   const expand = async (n: Node) => {
     if (!n.children) {
