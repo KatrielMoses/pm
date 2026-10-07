@@ -519,6 +519,18 @@
         "I-10",
         "I-18"
       ]
+    },
+    {
+      "id": "T-49",
+      "category": "inference",
+      "description": "Collaboration leakage and tampering: comments, replies, reactions, mentions, followers, review requests and decisions, delegation, or assignment history revealing a record, person, team, field, or prior value the viewer cannot read, through lists, counts, chips, mention pickers, the Following view, queues, or activity; mentions or reviewer lists confirming hidden people; another person's comment edited or rewritten (administrators included); edits or deletions outside the author's window; decisions made by non-reviewers, on a changed version, twice, or by the requester against the self-approval policy; following inherited from role, assignment, or share; a delegation that grants access or names hidden people; comment text surviving in audit or after purge.",
+      "mitigated_by": [
+        "I-01",
+        "I-02",
+        "I-07",
+        "I-10",
+        "I-18"
+      ]
     }
   ],
   "tests": [
@@ -3890,6 +3902,235 @@
       "silent_surfaces": [
         "error_message",
         "timing"
+      ]
+    },
+    {
+      "id": "AT-185",
+      "threats": [
+        "T-49"
+      ],
+      "principal": "member",
+      "setup": "Member without access lists, reads, edits, deletes, reacts to, and reads revisions of comments on a task in a restricted project",
+      "scope": "task",
+      "action": "record.read",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "not_found",
+      "silent_surfaces": [
+        "error_message",
+        "timing"
+      ]
+    },
+    {
+      "id": "AT-186",
+      "threats": [
+        "T-49"
+      ],
+      "principal": "member",
+      "setup": "Read-only member and read-level guest post a comment, reply, or reaction on a readable task",
+      "scope": "task",
+      "action": "record.comment",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "forbidden",
+      "silent_surfaces": [
+        "error_message",
+        "timing"
+      ]
+    },
+    {
+      "id": "AT-187",
+      "threats": [
+        "T-49"
+      ],
+      "principal": "member",
+      "setup": "Member mentions a hidden member, an unknown member, a hidden record, and an agent in a comment",
+      "scope": "task",
+      "action": "record.comment",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "validation_generic",
+      "silent_surfaces": [
+        "error_message",
+        "timing",
+        "picker"
+      ]
+    },
+    {
+      "id": "AT-188",
+      "threats": [
+        "T-49"
+      ],
+      "principal": "member",
+      "setup": "Owner or administrator edits another person's comment, and a member without manage deletes it",
+      "scope": "task",
+      "action": "comment.edit_own",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "forbidden",
+      "silent_surfaces": [
+        "error_message",
+        "timing"
+      ]
+    },
+    {
+      "id": "AT-189",
+      "threats": [
+        "T-49"
+      ],
+      "principal": "member",
+      "setup": "Author edits or deletes their own comment after the audit window has closed",
+      "scope": "task",
+      "action": "comment.edit_own",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "forbidden",
+      "silent_surfaces": [
+        "error_message",
+        "timing"
+      ]
+    },
+    {
+      "id": "AT-190",
+      "threats": [
+        "T-49"
+      ],
+      "principal": "member",
+      "setup": "A person who neither wrote a comment nor holds comment.moderate reads its revision trail",
+      "scope": "task",
+      "action": "comment.moderate",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "forbidden",
+      "silent_surfaces": [
+        "error_message",
+        "timing"
+      ]
+    },
+    {
+      "id": "AT-191",
+      "threats": [
+        "T-49"
+      ],
+      "principal": "member",
+      "setup": "Member follows a record they cannot read, and a follow outlives a revoked grant",
+      "scope": "task",
+      "action": "record.follow",
+      "surface": "ui_list",
+      "expected": "deny",
+      "response_shape": "omitted",
+      "silent_surfaces": [
+        "error_message",
+        "timing",
+        "count_facet",
+        "notification_inapp"
+      ]
+    },
+    {
+      "id": "AT-192",
+      "threats": [
+        "T-49"
+      ],
+      "principal": "guest",
+      "setup": "Guest or share-only member asks for followers, reviews, delegation, and assignment history of the shared task",
+      "scope": "shared record",
+      "action": "record.read",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "not_found",
+      "silent_surfaces": [
+        "error_message",
+        "timing",
+        "count_facet"
+      ]
+    },
+    {
+      "id": "AT-193",
+      "threats": [
+        "T-49"
+      ],
+      "principal": "member",
+      "setup": "Non-reviewer, a reviewer after the version changed, a second decision, and a decision on a settled review",
+      "scope": "task",
+      "action": "review.decide",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "conflict_filtered",
+      "silent_surfaces": [
+        "error_message",
+        "timing"
+      ]
+    },
+    {
+      "id": "AT-194",
+      "threats": [
+        "T-49"
+      ],
+      "principal": "member",
+      "setup": "Requester decides their own review while the workspace forbids self-approval",
+      "scope": "task",
+      "action": "review.decide",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "forbidden",
+      "silent_surfaces": [
+        "error_message",
+        "timing"
+      ]
+    },
+    {
+      "id": "AT-195",
+      "threats": [
+        "T-49"
+      ],
+      "principal": "member",
+      "setup": "Delegation by a non-assignee, to a hidden or unknown person, or to oneself",
+      "scope": "task",
+      "action": "record.delegate",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "validation_generic",
+      "silent_surfaces": [
+        "error_message",
+        "timing"
+      ]
+    },
+    {
+      "id": "AT-196",
+      "threats": [
+        "T-49"
+      ],
+      "principal": "member",
+      "setup": "Activity of a task shows comments, reviews, delegation, and reassignment naming records, people, or values the viewer cannot read",
+      "scope": "task",
+      "action": "record.read",
+      "surface": "activity",
+      "expected": "allow",
+      "response_shape": "ok_filtered",
+      "silent_surfaces": [
+        "error_message",
+        "count_facet",
+        "notification_inapp",
+        "search",
+        "export"
+      ]
+    },
+    {
+      "id": "AT-197",
+      "threats": [
+        "T-49"
+      ],
+      "principal": "member",
+      "setup": "Stranger from another workspace calls every collaboration route",
+      "scope": "workspace",
+      "action": "record.comment",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "not_found",
+      "silent_surfaces": [
+        "error_message",
+        "timing",
+        "count_facet"
       ]
     }
   ]

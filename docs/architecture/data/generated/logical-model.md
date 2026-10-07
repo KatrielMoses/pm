@@ -1527,10 +1527,11 @@ Reference from authored content (comment, document version, description) to a re
 | Retention / confidentiality | `R-LIVE` / `C2` |
 | Volume / export / search-AI | `high` / `filtered` / `yes` |
 | Secrets / personal data | `no` / `incidental` |
-| Uniqueness | — |
-| Key typed columns | `source_kind (comment\|document_version\|record_field)`; `source_id`; `target_kind`; `target_id`; `notified boolean` |
+| Uniqueness | `(source_id, target) per kind` |
+| Key typed columns | `source_kind (comment)`; `source_id`; `target_kind (member\|team\|record)`; `target_membership_id \| target_team_id \| target_record_id (exactly one)`; `position`; `notified boolean` |
 | Sensitive fields | — |
 | Requirements | TSK-019, DOC-009, COL-007 |
+| Notes | Phase 4A (ADR-31): resolved only to what the author may name in the host record's scope; shown only while the viewer can see the target; `notified` is 4B's flag. Document and record-field sources arrive with 4C. |
 
 <a id="entity-record-link"></a>
 ### `record_link`
@@ -1569,9 +1570,10 @@ Person following a record (canonical term for watcher).
 | Volume / export / search-AI | `high` / `filtered` / `yes` |
 | Secrets / personal data | `no` / `incidental` |
 | Uniqueness | `(record_id, membership_id)` |
-| Key typed columns | standard columns only |
+| Key typed columns | `record_id`; `membership_id`; `source (explicit)`; `created_at` |
 | Sensitive fields | — |
 | Requirements | TSK-009, COL-010, PRJ-026 |
+| Notes | Phase 4A (ADR-31, OD-10): one explicit subscription per person and record; never inherited from membership, assignment, ownership, or a share; an unreadable follow is inert and never reported. Notification preferences are 4B. |
 
 ## Files, deliverables, and evidence (`files`, schema `files`)
 
@@ -1740,12 +1742,12 @@ Per-workspace storage totals for limits (rollup).
 
 ## Comments and reviews (`collab`, schema `collab`)
 
-Comments, threads, revisions, reactions, review requests and immutable review decisions.
+Comments, threads, revisions, reactions, review requests with named reviewers, immutable per-reviewer decisions, and the append-only assignment history behind delegation and reassignment.
 
 <a id="entity-comment"></a>
 ### `comment`
 
-Comment or threaded reply on exactly one host record.
+Comment or threaded reply on exactly one host record (a task or a project until later phases register more); a deleted comment is a tombstone.
 
 | Property | Value |
 |---|---|
@@ -1758,9 +1760,10 @@ Comment or threaded reply on exactly one host record.
 | Volume / export / search-AI | `very-high` / `filtered` / `yes` |
 | Secrets / personal data | `no` / `incidental` |
 | Uniqueness | — |
-| Key typed columns | `host_record_id`; `root_comment_id null`; `body_rich jsonb`; `body_text text`; `author_actor_type`; `author_id`; `edited_at`; `deleted_at` |
+| Key typed columns | `public_id text (cmt_)`; `host_record_id`; `root_comment_id null (thread root; replies never nest deeper)`; `in_reply_to_comment_id null`; `body_rich jsonb null (rich-text v1; null once deleted)`; `body_text text null`; `author_membership_id`; `author_actor_type (member)`; `created_at`; `edited_at null`; `edit_count`; `deleted_at null`; `deleted_by_membership_id null`; `deleted_by_kind (author\|moderator) null`; `version` |
 | Sensitive fields | — |
 | Requirements | TSK-018, COL-005, COL-006, COL-009 |
+| Notes | Phase 4A (ADR-31): flat threads; the author edits or deletes only inside COMMENT_EDIT_WINDOW_MINUTES (OD-38), moderators (manage) delete but never edit; deletion clears the body and keeps the prior body in comment_revision. Authorized through the host record on every read. Purge removes the content; audit keeps hashes only. |
 
 <a id="entity-comment-revision"></a>
 ### `comment_revision`
@@ -1777,15 +1780,16 @@ Prior body of an edited or deleted comment (retention per OD-38).
 | Retention / confidentiality | `R-AUDIT` / `C2` |
 | Volume / export / search-AI | `high` / `admin` / `yes` |
 | Secrets / personal data | `no` / `incidental` |
-| Uniqueness | — |
-| Key typed columns | standard columns only |
+| Uniqueness | `(comment_id, revision_no)` |
+| Key typed columns | `comment_id`; `revision_no`; `kind (edited\|deleted)`; `body_rich jsonb`; `body_text`; `actor_membership_id`; `created_at` |
 | Sensitive fields | — |
 | Requirements | COL-009 |
+| Notes | Phase 4A (ADR-31, OD-38): append-only prior bodies; readable by the author and by people with comment.moderate on the host; removed with the host on purge. |
 
 <a id="entity-reaction"></a>
 ### `reaction`
 
-Reaction on a comment.
+Reaction on a comment from a fixed vocabulary (thumbs_up, heart, celebrate, eyes, check, question, thanks, laugh).
 
 | Property | Value |
 |---|---|
@@ -1797,15 +1801,16 @@ Reaction on a comment.
 | Retention / confidentiality | `R-LIVE` / `C1` |
 | Volume / export / search-AI | `high` / `filtered` / `yes` |
 | Secrets / personal data | `no` / `incidental` |
-| Uniqueness | `(comment_id, membership_id, emoji)` |
-| Key typed columns | standard columns only |
+| Uniqueness | `(comment_id, membership_id, reaction)` |
+| Key typed columns | `comment_id`; `membership_id`; `reaction (fixed vocabulary)`; `created_at` |
 | Sensitive fields | — |
 | Requirements | COL-008 |
+| Notes | Phase 4A (ADR-31): set or cleared only by the person themselves; lists show counts and the viewer's own reactions, never who else reacted. |
 
 <a id="entity-review-request"></a>
 ### `review_request`
 
-Request to review a subject version (task, deliverable version, document version, proposal, action, timesheet, release).
+Request to review or approve one version of a record (a task or a project until later phases register more), with named reviewers and a rule.
 
 | Property | Value |
 |---|---|
@@ -1817,15 +1822,16 @@ Request to review a subject version (task, deliverable version, document version
 | Retention / confidentiality | `R-EVIDENCE` / `C2` |
 | Volume / export / search-AI | `medium` / `filtered` / `yes` |
 | Secrets / personal data | `no` / `incidental` |
-| Uniqueness | — |
-| Key typed columns | `subject_kind`; `subject_id`; `subject_version_ref`; `requested_by`; `reviewer_rule jsonb`; `state review_state`; `previous_request_id` |
+| Uniqueness | `(subject_record_id) where state = requested (one open request per record)` |
+| Key typed columns | `public_id text (rvw_)`; `subject_record_id`; `subject_kind (task\|project)`; `subject_version`; `kind (review\|approval)`; `rule (any\|all)`; `state (requested\|changes_requested\|approved\|rejected\|withdrawn\|superseded)`; `requested_by_membership_id`; `message_text null`; `previous_request_id null`; `closed_reason null`; `settled_at null`; `version` |
 | Sensitive fields | — |
 | Requirements | TSK-029, TSK-030, COL-013, AGT-020 |
+| Notes | Phase 4A (ADR-31): decisions are bound to the version reviewed; the request settles at most once; refresh supersedes an open request. Does not change the record's status (workflow approvals, 2C, stay the status gate). |
 
 <a id="entity-review-decision"></a>
 ### `review_decision`
 
-Immutable decision on a review request (approved/accepted, changes_requested, rejected) with self-approval flag.
+Immutable decision by one named reviewer on a review request (approved, changes_requested, or rejected) with a self-approval flag.
 
 | Property | Value |
 |---|---|
@@ -1837,10 +1843,53 @@ Immutable decision on a review request (approved/accepted, changes_requested, re
 | Retention / confidentiality | `R-EVIDENCE` / `C2` |
 | Volume / export / search-AI | `medium` / `filtered` / `yes` |
 | Secrets / personal data | `no` / `incidental` |
-| Uniqueness | `(review_request_id) one terminal decision` |
-| Key typed columns | `decision review_outcome`; `reviewer_id`; `reviewer_actor_type (human only)`; `subject_version_ref`; `comment`; `self_approval boolean`; `decided_at` |
+| Uniqueness | `(review_request_id, reviewer_membership_id) one decision per named reviewer` |
+| Key typed columns | `review_request_id`; `reviewer_membership_id (human only)`; `outcome (approved\|changes_requested\|rejected)`; `subject_version`; `note_text null`; `self_approval boolean`; `decided_at` |
 | Sensitive fields | — |
-| Requirements | FILE-009, AGT-018, AUD-007 |
+| Requirements | COL-013, TSK-029, TSK-030, FILE-009, AGT-018, AUD-007 |
+| Notes | Phase 4A (ADR-31): replaces the single terminal decision of the Phase 0 sketch; with the `all` rule several reviewers decide and the request settles once. |
+
+<a id="entity-review-reviewer"></a>
+### `review_reviewer`
+
+A reviewer named on a review request (an active internal member who could decide at request time).
+
+| Property | Value |
+|---|---|
+| Scope | `inherited` |
+| Contained by | [`review_request`](logical-model.md#entity-review-request) |
+| Extends (1:1) | — |
+| Associations | [`membership`](logical-model.md#entity-membership) |
+| Lifecycle / concurrency | `mutable` / `row-version` |
+| Retention / confidentiality | `R-LIVE` / `C2` |
+| Volume / export / search-AI | `medium` / `filtered` / `yes` |
+| Secrets / personal data | `no` / `incidental` |
+| Uniqueness | `(review_request_id, membership_id)` |
+| Key typed columns | `review_request_id`; `membership_id (active internal member)`; `rank` |
+| Sensitive fields | — |
+| Requirements | COL-013, TSK-029 |
+| Notes | Phase 4A (ADR-31): a departing reviewer who has not decided is removed from open requests; decided reviewers stay as history. |
+
+<a id="entity-assignment-event"></a>
+### `assignment_event`
+
+Append-only fact that responsibility for a task was assigned, removed, reassigned, or delegated.
+
+| Property | Value |
+|---|---|
+| Scope | `inherited` |
+| Contained by | [`record`](logical-model.md#entity-record) |
+| Extends (1:1) | — |
+| Associations | [`membership`](logical-model.md#entity-membership) |
+| Lifecycle / concurrency | `append-only` / `append-only` |
+| Retention / confidentiality | `R-LIVE` / `C2` |
+| Volume / export / search-AI | `high` / `filtered` / `yes` |
+| Secrets / personal data | `no` / `incidental` |
+| Uniqueness | — |
+| Key typed columns | `task_id`; `kind (assigned\|unassigned\|reassigned\|delegated)`; `via (assign\|delegate\|departure)`; `from_membership_id null`; `to_membership_id null`; `actor_membership_id`; `note_text null`; `occurred_at` |
+| Sensitive fields | — |
+| Requirements | COL-014, COL-015 |
+| Notes | Phase 4A (ADR-31): readable only through ownership of the task (history is outside a share); people are named only to members. Removed with the task on purge. |
 
 ## Notifications (`notify`, schema `notify`)
 
@@ -2071,10 +2120,10 @@ Person assigned to a task (multiple allowed). Agent assignment is agents.agent_a
 | Volume / export / search-AI | `very-high` / `filtered` / `yes` |
 | Secrets / personal data | `no` / `incidental` |
 | Uniqueness | `(task_id, membership_id)` |
-| Key typed columns | `task_id`; `membership_id (active internal member; never a guest)`; `is_primary boolean (at most one per task)`; `rank text`; `assigned_by_membership_id`; `assigned_at` |
+| Key typed columns | `task_id`; `membership_id (active internal member; never a guest)`; `is_primary boolean (at most one per task)`; `rank text`; `assigned_by_membership_id`; `assigned_at`; `delegated_from_membership_id null (set when the assignment was handed over, 4A)`; `delegated_at null` |
 | Sensitive fields | — |
 | Requirements | TSK-007, COL-015 |
-| Notes | Responsibility only, never authority (0C AZ-22). Removed or suspended members' assignments end on departure. |
+| Notes | Responsibility only, never authority (0C AZ-22). Removed or suspended members' assignments end on departure. Phase 4A: delegation records who handed the assignment over; every change is also an append-only collab.assignment_event. |
 
 <a id="entity-checklist-item"></a>
 ### `checklist_item`

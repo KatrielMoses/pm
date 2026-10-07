@@ -81,7 +81,12 @@ export const reviewDepartureHook: OwnershipHook = {
       else if (next !== 'requested')
         await tx.db
           .updateTable('collab.review_request')
-          .set({ state: next, settled_at: new Date(), updated_at: new Date(), version: sql`version + 1` })
+          .set({
+            state: next,
+            settled_at: new Date(),
+            updated_at: new Date(),
+            version: sql`version + 1`,
+          })
           .where('id', '=', q.id)
           .execute();
       n += 1;

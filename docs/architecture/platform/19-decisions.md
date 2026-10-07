@@ -255,6 +255,23 @@ All decisions are **proposed (Phase 0D)**, pending solutions-architect acceptanc
   - **Signals.** `views.queries` (entity, outcome), `views.query_duration` (entity), and `views.exports` (entity, format).
 - **Alternatives:** `GET` with the AST in the URL (it would land in logs and the 0D field-selection rule). Offset pages (forbidden for mutable collections).
 - **Consequences:** Payloads carry identifiers, kinds, and counts only, never names or query text. 83 ID prefixes, 104 events, 99 named parameters, 63 telemetry signals.
+<a id="pl-33"></a>
+### PL-33: Collaboration contracts (Phase 4A amendment)
+- **Decision:**
+  - Prefixes `cmt` (comment) and `rvw` (review request) are implemented; no new prefix is added.
+  - Resources and verbs, all under the workspace:
+    - `records/{id}/comments`: list (roots, with inline replies, by cursor) and create; `comments/{id}`: read, `PATCH` with `If-Match`, `DELETE` (a tombstone); `comments/{id}/replies` and `comments/{id}/revisions`; `PUT` and `DELETE` on `comments/{id}/reactions/{key}`.
+    - `records/{id}/mention-candidates`: people who can read the record, teams, and readable records.
+    - `records/{id}/collaboration`: the caller's follow state, comment count, capabilities, and latest review; `PUT` and `DELETE` on `records/{id}/follow`; `records/{id}/followers`; `me/following`.
+    - `records/{id}/reviews`: list and create; `reviews/{id}`: read, with `:decide`, `:withdraw`, and `:refresh`; `me/reviews`.
+    - `tasks/{id}:delegate` and `tasks/{id}/assignment-history`.
+  - Events: `collab.comment.created` (existing), `collab.comment.edited`, `.deleted`, and `.reaction_changed`; `relations.mention.created` (existing); `relations.follow.added` and `.removed`; `collab.review.requested` and `.decided` (existing, fields extended), `collab.review.withdrawn` and `.superseded`; and `work.task.delegated`. Payloads carry identifiers and flags only; no event carries a comment body, note, or message.
+  - Named bounds: `COMMENT_BODY_MAX_CHARS` (10000), `COMMENT_EDIT_WINDOW_MINUTES` (1440), `COMMENT_MENTIONS_MAX` (20), `COMMENTS_PER_RECORD_MAX` (5000), `COMMENT_RATE_PER_MINUTE` (30), `COMMENT_REPLIES_INLINE_MAX` (20), `FOLLOWERS_LIST_MAX` (200), and `REVIEW_REVIEWERS_MAX` (10).
+  - Five signals: `collab.comments` (action, outcome), `collab.reactions` (change, outcome), `collab.follows` (change, outcome), `collab.reviews` (action, outcome), and `collab.delegations` (kind, outcome).
+  - Non-resource envelope: `collaboration_summary`.
+  - Refusals: `conflict` issues `deleted`, `review_open`, `review_closed`, `already_decided`, `subject_changed` (with `conflict.current_version`), `review_replaced`, and `record_archived`; `forbidden` issues `window_closed`, `not_reviewer`, `self_decision`, and `not_assignee`; `validation_failed` issues `not_mentionable`, `not_reviewer`, `self_review`, `not_assignable`, `too_many`, `too_long`, `required`, and `invalid_reference`; `rate_limited` for comment bursts.
+- **Alternatives:** Per-host comment routes (`/tasks/{id}/comments`, `/projects/{id}/comments`, and later documents and deliverables) would multiply the same contract; one record-addressed family serves every host. Webhooks for the new events (6B decides what leaves the system).
+- **Consequences:** Payloads carry identifiers, kinds, and flags only. 87 ID prefixes, 134 events, 132 named parameters, 80 telemetry signals.
 <a id="pl-32"></a>
 ### PL-32: Capacity contracts (Phase 3E amendment)
 - **Decision:**

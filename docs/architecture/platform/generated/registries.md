@@ -213,8 +213,8 @@ Source: `contracts/registry.json`.
 | `work.project.created` v1 | work.project | parent_project_id, status_id | C1 | yes |  | yes | yes | yes | `project.created` |
 | `work.project.status_changed` v1 | work.project | to_category, health | C1 | yes | yes | yes | yes |  | `project.status_changed` |
 | `collab.comment.created` v1 | collab.comment | host_record_id, root_comment_id, mention_ids | C1 | yes | yes |  | yes | yes | `comment.created` |
-| `collab.review.requested` v1 | collab.review_request | subject_kind, subject_ref, reviewer_rule | C1 | yes | yes |  | yes |  | `review.requested` |
-| `collab.review.decided` v1 | collab.review_decision | decision, self_approval, subject_ref | C1 | yes | yes | yes | yes |  | `review.decided` |
+| `collab.review.requested` v1 | collab.review_request | subject_kind, subject_ref, reviewer_rule, request_kind | C1 | yes | yes |  | yes |  | `review.requested` |
+| `collab.review.decided` v1 | collab.review_decision | decision, self_approval, subject_ref, review_state | C1 | yes | yes | yes | yes |  | `review.decided` |
 | `relations.relationship.created` v1 | relations.record_relationship | kind, from_record_id, to_record_id | C1 | yes | yes |  | yes |  | — |
 | `relations.mention.created` v1 | relations.mention | source_kind, target_kind, target_id | C1 | yes | yes |  |  |  | — |
 | `files.file.scanned` v1 | files.file_version | scan_state | C1 |  |  |  |  |  | — |
@@ -322,6 +322,14 @@ Source: `contracts/registry.json`.
 | `planning.holiday.deleted` v1 | planning.holiday | day | C1 |  |  | yes |  |  | — |
 | `planning.capacity_reservation.set` v1 | planning.capacity_reservation | minutes_per_week, effective_from, effective_to | C1 |  |  | yes |  |  | — |
 | `planning.capacity_reservation.removed` v1 | planning.capacity_reservation | effective_from | C1 |  |  | yes |  |  | — |
+| `collab.comment.edited` v1 | collab.comment | host_record_id, edit_count | C1 | yes |  | yes |  | yes | — |
+| `collab.comment.deleted` v1 | collab.comment | host_record_id, deleted_by | C1 | yes |  | yes |  | yes | — |
+| `collab.comment.reaction_changed` v1 | collab.comment | host_record_id, reaction, change | C1 |  |  | yes |  |  | — |
+| `relations.follow.added` v1 | relations.follower | record_type, membership_id | C1 |  |  | yes |  |  | — |
+| `relations.follow.removed` v1 | relations.follower | record_type, membership_id | C1 |  |  | yes |  |  | — |
+| `collab.review.withdrawn` v1 | collab.review_request | subject_kind, subject_ref, reason | C1 | yes | yes | yes |  |  | — |
+| `collab.review.superseded` v1 | collab.review_request | subject_kind, subject_ref, successor_ref | C1 | yes |  | yes |  |  | — |
+| `work.task.delegated` v1 | work.task | from_membership_id, to_membership_id | C1 | yes | yes | yes |  |  | — |
 
 ## SSE topics
 
@@ -480,6 +488,11 @@ Forbidden metric labels: `workspace_id`, `brand_id`, `record_id`, `public_id`, `
 | `planning.day_close` | counter | outcome | planning |
 | `capacity.reads` | counter | view, outcome | planning |
 | `capacity.changes` | counter | kind, outcome | planning |
+| `collab.comments` | counter | action, outcome | collab |
+| `collab.reactions` | counter | change, outcome | collab |
+| `collab.follows` | counter | change, outcome | collab |
+| `collab.reviews` | counter | action, outcome | collab |
+| `collab.delegations` | counter | kind, outcome | collab |
 
 ## Named parameters (values are configuration, not promises)
 
@@ -609,3 +622,11 @@ Forbidden metric labels: `workspace_id`, `brand_id`, `record_id`, `public_id`, `
 | `BRAND_HOLIDAYS_MAX` | Most holidays one brand may keep; default 1000, range 10–10000. | 3E |
 | `CAPACITY_RANGE_DAYS_MAX` | Longest date range one capacity read may cover; default 93, range 7–366. | 3E |
 | `CAPACITY_PEOPLE_MAX` | Most people one team capacity read may include; default 100, range 1–1000. | 3E |
+| `COMMENT_BODY_MAX_CHARS` | Longest comment body, in characters of extracted text; default 10000, range 100–50000. | 4A |
+| `COMMENT_EDIT_WINDOW_MINUTES` | How long after posting an author may edit or delete their own comment (the OD-38 audit window); default 1440, range 5–10080. Moderators are not bound by it. | 4A |
+| `COMMENT_MENTIONS_MAX` | Most mentions one comment may carry; default 20, range 1–100. | 4A |
+| `COMMENTS_PER_RECORD_MAX` | Most comments (roots and replies, deleted ones included) one record may hold; default 5000, range 100–50000. | 4A |
+| `COMMENT_RATE_PER_MINUTE` | Most comments, replies, and edits one person may post per minute; default 30, range 1–600. | 4A |
+| `COMMENT_REPLIES_INLINE_MAX` | Most replies a comment list returns inline under each thread (more are fetched by cursor); default 20, range 1–100. | 4A |
+| `FOLLOWERS_LIST_MAX` | Most followers one record's follower list returns; default 200, range 10–1000. | 4A |
+| `REVIEW_REVIEWERS_MAX` | Most reviewers one review request may name; default 10, range 1–50. | 4A |

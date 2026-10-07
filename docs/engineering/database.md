@@ -283,3 +283,17 @@ Migration `0035_capacity` (ADR-0022, 0B ADR-30) adds to the `planning` schema:
 - `capacity_reservation` (`rsv_`): brand, member, `minutes_per_week`, `effective_from` and `effective_to`, `set_by`, and a version.
 
 All five tables have `tenant_isolation` RLS. The down migration restores the exact 0034 catalog.
+
+## Phase 4A: collaboration
+
+Migration `0036_collaboration_reviews` (ADR-0023, 0B ADR-31) adds the `collab` schema and two `relations` tables:
+- `collab.comment` (`cmt_`): a host record, a flat thread (`root_comment_id`, `in_reply_to_comment_id`), a rich-text body, and a tombstone shape (a deleted comment has no body and names who removed it). `comment_thread_guard` keeps a reply in its root's thread and record and pins host, thread, author, and time. The application role cannot delete comments.
+- `collab.comment_revision`: append-only prior bodies (the application role cannot update or delete).
+- `collab.reaction`: one row per comment, person, and reaction from a fixed vocabulary.
+- `relations.mention`: typed targets (member, team, or record, exactly one), their order, and `notified` for 4B.
+- `relations.follower`: one explicit subscription per person and record.
+- `collab.review_request` (`rvw_`), `review_reviewer` (active internal members, trigger-checked), and `review_decision` (one immutable decision per named reviewer). A partial unique index allows one open request per record.
+- `collab.assignment_event`: append-only assignment history. `work.task_assignee` gains `delegated_from_membership_id` and `delegated_at`.
+
+All nine new tables have `tenant_isolation` RLS and full indexes on every foreign key. The worker may select and delete them to purge a host's content; the down migration restores the exact 0035 catalog.
+

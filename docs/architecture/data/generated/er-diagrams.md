@@ -149,6 +149,10 @@ erDiagram
   review_request }o..o{ record : "references"
   review_request }o..o{ membership : "references"
   review_request ||--o{ review_decision : "contains"
+  review_request ||--o{ review_reviewer : "contains"
+  review_reviewer }o..o{ membership : "references"
+  record ||--o{ assignment_event : "contains"
+  assignment_event }o..o{ membership : "references"
 ```
 
 ## Notifications

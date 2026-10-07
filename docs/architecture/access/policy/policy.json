@@ -704,7 +704,7 @@
         "COL-005",
         "COL-008"
       ],
-      "notes": ""
+      "notes": "Phase 4A (AZ-31): also gates replies, reactions, and mentions; read-only members and read-level shares cannot; an archived record needs the comment_on_archived policy."
     },
     {
       "key": "comment.edit_own",
@@ -731,7 +731,7 @@
       "requirements": [
         "COL-009"
       ],
-      "notes": ""
+      "notes": "Phase 4A (AZ-31, OD-38): the author only, inside COMMENT_EDIT_WINDOW_MINUTES; every edit appends the prior body to the revision trail; nobody edits another person's comment."
     },
     {
       "key": "comment.moderate",
@@ -760,7 +760,7 @@
       "requirements": [
         "COL-009"
       ],
-      "notes": ""
+      "notes": "Phase 4A (AZ-31, OD-38): deletes (never edits) another person's comment as a tombstone at any time; reads revision trails."
     },
     {
       "key": "record.follow",
@@ -790,7 +790,7 @@
       "requirements": [
         "COL-010"
       ],
-      "notes": ""
+      "notes": "Phase 4A (AZ-31, OD-10): explicit, personal, idempotent; grants nothing and is never derived from role, assignment, ownership, or a share."
     },
     {
       "key": "record.assign",
@@ -819,7 +819,7 @@
         "TSK-007",
         "COL-015"
       ],
-      "notes": ""
+      "notes": "Phase 4A (AZ-31): every change of responsibility is an append-only assignment event."
     },
     {
       "key": "record.delegate",
@@ -846,7 +846,7 @@
       "requirements": [
         "COL-014"
       ],
-      "notes": ""
+      "notes": "Phase 4A (AZ-31): a current assignee hands their own assignment to an active member who can read the task; context a share does not carry."
     },
     {
       "key": "record.relate",
@@ -1297,7 +1297,7 @@
       "requirements": [
         "COL-013"
       ],
-      "notes": ""
+      "notes": "Phase 4A (AZ-31): names reviewers who can decide now; through ownership only (a share does not carry it); at most one open request per record."
     },
     {
       "key": "review.decide",
@@ -1326,7 +1326,7 @@
         "AGT-020",
         "FILE-009"
       ],
-      "notes": "Reviewer must be designated by the reviewer rule, be human, and be able to read the whole subject scope (UXD-11)."
+      "notes": "Phase 4A (AZ-31): a named, still-eligible reviewer, on the version reviewed; evaluated when deciding. Reviewer must be designated by the reviewer rule, be human, and be able to read the whole subject scope (UXD-11)."
     },
     {
       "key": "review.self_approve",
@@ -1353,7 +1353,7 @@
       "requirements": [
         "AGT-018"
       ],
-      "notes": "Default on only while exactly one approval-capable human exists; always labelled and audited (OD-20)."
+      "notes": "Phase 4A (AZ-31, OD-20): evaluated through the workspace self_approval_mode exactly as workflow approvals are, and refused when require_independent_for names review.decide; always labelled and audited. Default on only while exactly one approval-capable human exists (OD-20)."
     },
     {
       "key": "defect.verify",

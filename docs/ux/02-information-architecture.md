@@ -563,3 +563,11 @@ These rules apply to every surface: lists, search, palette, notifications, dashb
   - Brands the viewer cannot read are never named.
 - **Today and workload:** Today's plan shows available time and a warning when the plan exceeds it. The warning never blocks. Without working hours, Today asks the person to set them. The workload layout shows availability per person and period.
 - **Honest absences:** suggested reschedules (7F), calendar events and holiday feeds (6C), capacity notifications (4B), and rollups (5C).
+
+**Phase 4A implementation note.** Comments, following, and reviews:
+- **Task and project pages:** a Comments region (composer, threads with replies, reactions, edit, delete, and history), a Follow button with a followers list for people who read the record through ownership, and a Reviews region (request, decide, withdraw, ask again). Tasks also have Hand over and Assignment history. Comments and reviews sit with the page's existing content and keep its section order.
+- **Mentions:** typing `@` opens a list of people who can read the record, teams, and readable records. Keyboard and screen-reader operable. Someone who can't be mentioned is never explained: the refusal is the same for every case.
+- **My Work:** Following lists the records you follow and can read now, newest first. Reviews shows reviews to do and reviews you asked for, with a toggle for settled ones. A follow you can no longer read is not listed.
+- **Honest states:** a deleted comment shows "This comment was deleted" (or removed by a moderator) and keeps its replies. A review made stale by a later change says so and offers Ask again. Read-only and share-only readers see only what they may do, with a plain reason.
+- **Honest absences:** notifications and delivery preferences for mentions, replies, and reviews (4B), comments and suggestions in documents (4C), live co-editing and presence (4D), file attachments on comments (4E), and agent reviewers (8D).
+

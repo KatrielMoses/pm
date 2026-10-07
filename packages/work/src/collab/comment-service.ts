@@ -22,12 +22,7 @@ import { CapacityService } from '../capacity/capacity-service.ts';
 import { NIL_ID, type LoadedProject } from '../service.ts';
 import type { LoadedTask } from '../task-core.ts';
 import { isPublic } from '../validation.ts';
-import {
-  COLLAB_HOSTS,
-  withinEditWindow,
-  type CollabHostKind,
-  type Reaction,
-} from './semantics.ts';
+import { COLLAB_HOSTS, withinEditWindow, type CollabHostKind, type Reaction } from './semantics.ts';
 import {
   parseCommentCreate,
   parseCommentEdit,
@@ -56,7 +51,10 @@ export interface CollabHost {
   ownLevel: Level | null;
   version: number;
   /** Decides `action` on the host as the caller; throws not_found or forbidden. */
-  decide(action: ActionKey, opts?: { shares?: boolean; excluded?: 'not_found' | 'forbidden' }): void;
+  decide(
+    action: ActionKey,
+    opts?: { shares?: boolean; excluded?: 'not_found' | 'forbidden' },
+  ): void;
   allows(action: ActionKey, opts?: { shares?: boolean }): boolean;
   /** The SQL that joins the host row's own table, for visibility predicates. */
   projectOf: ReturnType<typeof sql>;
@@ -88,6 +86,13 @@ interface CursorPos {
   id: string;
 }
 
+type CollabMetric =
+  | 'collab.comments'
+  | 'collab.reactions'
+  | 'collab.follows'
+  | 'collab.reviews'
+  | 'collab.delegations';
+
 /** A timestamp as text with its full microseconds, so a keyset cursor never rounds a row away. */
 export const cursorAt = (col: string) =>
   sql<string>`to_char(${sql.raw(col)} AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US"+00:00"')`;
@@ -114,17 +119,18 @@ export class CommentService extends CapacityService {
   // Plumbing
   // ---------------------------------------------------------------------------------------------
 
-  protected countCollab(
-    metric: 'collab.comments' | 'collab.reactions' | 'collab.follows' | 'collab.reviews',
-    label: string,
-    outcome: string,
-  ) {
-    const key = metric === 'collab.reactions' || metric === 'collab.follows' ? 'change' : 'action';
+  protected countCollab(metric: CollabMetric, label: string, outcome: string) {
+    const key =
+      metric === 'collab.reactions' || metric === 'collab.follows'
+        ? 'change'
+        : metric === 'collab.delegations'
+          ? 'kind'
+          : 'action';
     this.d.metrics.count(metric, 1, { [key]: label, outcome });
   }
 
   protected async tracked<T>(
-    metric: 'collab.comments' | 'collab.reactions' | 'collab.follows' | 'collab.reviews',
+    metric: CollabMetric,
     label: string,
     fn: () => Promise<T>,
   ): Promise<T> {
@@ -175,7 +181,8 @@ export class CommentService extends CapacityService {
 
   protected async collabLimit(p: Principal): Promise<void> {
     const d = await this.c.limiter.consume('comment.member' as never, p.membershipId);
-    if (!d.allowed) throw new TenancyError('rate_limited', { retryAfterSeconds: d.retryAfterSeconds });
+    if (!d.allowed)
+      throw new TenancyError('rate_limited', { retryAfterSeconds: d.retryAfterSeconds });
   }
 
   // ---------------------------------------------------------------------------------------------
@@ -380,7 +387,10 @@ export class CommentService extends CapacityService {
     const ids = rows.map((r) => r.id);
     const authorIds = [
       ...new Set(
-        rows.flatMap((r) => [r.author_membership_id, r.deleted_by_membership_id ?? r.author_membership_id]),
+        rows.flatMap((r) => [
+          r.author_membership_id,
+          r.deleted_by_membership_id ?? r.author_membership_id,
+        ]),
       ),
     ];
     const people = new Map(
@@ -394,7 +404,11 @@ export class CommentService extends CapacityService {
       ).map((m) => [m.id, m]),
     );
     const refIds = [
-      ...new Set(rows.flatMap((r) => [r.root_comment_id, r.in_reply_to_comment_id]).filter((x): x is string => !!x)),
+      ...new Set(
+        rows
+          .flatMap((r) => [r.root_comment_id, r.in_reply_to_comment_id])
+          .filter((x): x is string => !!x),
+      ),
     ];
     const publicOf = new Map(
       refIds.length
@@ -436,7 +450,9 @@ export class CommentService extends CapacityService {
         type: 'comment' as const,
         host: { id: host.publicId, type: host.kind },
         thread: r.root_comment_id ? (publicOf.get(r.root_comment_id) ?? null) : null,
-        in_reply_to: r.in_reply_to_comment_id ? (publicOf.get(r.in_reply_to_comment_id) ?? null) : null,
+        in_reply_to: r.in_reply_to_comment_id
+          ? (publicOf.get(r.in_reply_to_comment_id) ?? null)
+          : null,
         body: deleted ? null : r.body_rich,
         text: deleted ? null : r.body_text,
         deleted,
@@ -451,14 +467,20 @@ export class CommentService extends CapacityService {
         mentions: deleted ? [] : (mentions.get(r.id) ?? []),
         reactions: deleted
           ? []
-          : [...reacts.entries()].map(([reaction, v]) => ({ reaction, count: v.count, mine: v.mine })),
+          : [...reacts.entries()].map(([reaction, v]) => ({
+              reaction,
+              count: v.count,
+              mine: v.mine,
+            })),
         capabilities: {
           reply: canComment,
           react: canComment && !deleted,
           edit: !deleted && mine && canComment && open && host.allows('comment.edit_own'),
           delete:
             !deleted &&
-            ((mine && open && host.allows('comment.edit_own')) || (!mine && canModerate) || (mine && canModerate)),
+            ((mine && open && host.allows('comment.edit_own')) ||
+              (!mine && canModerate) ||
+              (mine && canModerate)),
           history: mine || canModerate,
         },
       };
@@ -475,7 +497,13 @@ export class CommentService extends CapacityService {
     if (p.kind !== 'member' || !commentIds.length) return out;
     const rows = await tx.db
       .selectFrom('relations.mention')
-      .select(['source_id', 'target_kind', 'target_membership_id', 'target_team_id', 'target_record_id'])
+      .select([
+        'source_id',
+        'target_kind',
+        'target_membership_id',
+        'target_team_id',
+        'target_record_id',
+      ])
       .where('source_id', 'in', commentIds)
       .orderBy('position')
       .orderBy('id')
@@ -490,7 +518,14 @@ export class CommentService extends CapacityService {
             await tx.db
               .selectFrom('tenancy.membership as m')
               .innerJoin('identity.account as a', 'a.id', 'm.account_id')
-              .select(['m.id', 'm.public_id', 'm.state', 'm.kind', 'a.display_name', 'm.display_name_override'])
+              .select([
+                'm.id',
+                'm.public_id',
+                'm.state',
+                'm.kind',
+                'a.display_name',
+                'm.display_name_override',
+              ])
               .where('m.id', 'in', memberIds)
               .execute()
           ).map((m) => [m.id, m])
@@ -520,7 +555,9 @@ export class CommentService extends CapacityService {
                 LEFT JOIN work.task t ON t.workspace_id = r.workspace_id AND t.id = r.id
                 LEFT JOIN work.project w ON w.workspace_id = r.workspace_id AND w.id = r.id
                WHERE r.id = ANY(${recordIds}::uuid[])
-                 AND ${vis.where('r', { project: sql`COALESCE(t.project_id, w.id)` })}`.execute(tx.db)
+                 AND ${vis.where('r', { project: sql`COALESCE(t.project_id, w.id)` })}`.execute(
+              tx.db,
+            )
           ).rows.map((r) => [r.id, r])
         : [],
     );
@@ -532,7 +569,8 @@ export class CommentService extends CapacityService {
           chip = { kind: 'member', id: m.public_id, name: this.personName(m) };
       } else if (r.target_team_id) {
         const t = teams.get(r.target_team_id);
-        if (t && t.lifecycle_state === 'active') chip = { kind: 'team', id: t.public_id, name: t.name };
+        if (t && t.lifecycle_state === 'active')
+          chip = { kind: 'team', id: t.public_id, name: t.name };
       } else if (r.target_record_id) {
         const rec = records.get(r.target_record_id);
         if (rec) chip = { kind: 'record', id: rec.public_id, name: rec.title };
@@ -648,8 +686,12 @@ export class CommentService extends CapacityService {
     commentId: string,
     next: Awaited<ReturnType<CommentService['resolveMentions']>>,
   ) {
-    const key = (r: { kind: string; membershipId: string | null; teamId: string | null; recordId: string | null }) =>
-      `${r.kind}:${r.membershipId ?? r.teamId ?? r.recordId}`;
+    const key = (r: {
+      kind: string;
+      membershipId: string | null;
+      teamId: string | null;
+      recordId: string | null;
+    }) => `${r.kind}:${r.membershipId ?? r.teamId ?? r.recordId}`;
     const existing = await tx.db
       .selectFrom('relations.mention')
       .select(['id', 'target_kind', 'target_membership_id', 'target_team_id', 'target_record_id'])
@@ -673,7 +715,11 @@ export class CommentService extends CapacityService {
     for (const [position, m] of next.entries()) {
       const known = have.get(key(m));
       if (known) {
-        await tx.db.updateTable('relations.mention').set({ position }).where('id', '=', known).execute();
+        await tx.db
+          .updateTable('relations.mention')
+          .set({ position })
+          .where('id', '=', known)
+          .execute();
         continue;
       }
       const id = newUuidV7();
@@ -763,7 +809,11 @@ export class CommentService extends CapacityService {
                    WHERE c.workspace_id = ${tx.workspaceId} AND c.root_comment_id = ANY(${ids}::uuid[])) x
                  WHERE x.rn <= ${inline}
                  ORDER BY x.created_at, x.id`.execute(tx.db)
-            ).rows.map((r) => ({ ...r, version: Number(r.version), edit_count: Number(r.edit_count) }))
+            ).rows.map((r) => ({
+              ...r,
+              version: Number(r.version),
+              edit_count: Number(r.edit_count),
+            }))
           : [];
         const counts = new Map(
           ids.length
@@ -883,7 +933,9 @@ export class CommentService extends CapacityService {
       const rows = await tx.db
         .selectFrom('collab.comment_revision as v')
         .innerJoin('tenancy.membership as m', (j) =>
-          j.onRef('m.workspace_id', '=', 'v.workspace_id').onRef('m.id', '=', 'v.actor_membership_id'),
+          j
+            .onRef('m.workspace_id', '=', 'v.workspace_id')
+            .onRef('m.id', '=', 'v.actor_membership_id'),
         )
         .innerJoin('identity.account as a', 'a.id', 'm.account_id')
         .select([
@@ -936,7 +988,11 @@ export class CommentService extends CapacityService {
             .executeTakeFirstOrThrow();
           if (Number(count.n) >= this.ws.commentsPerRecordMax)
             throw invalid(
-              issue('/', 'too_many', `A record can hold at most ${this.ws.commentsPerRecordMax} comments.`),
+              issue(
+                '/',
+                'too_many',
+                `A record can hold at most ${this.ws.commentsPerRecordMax} comments.`,
+              ),
             );
           let root: { id: string; public_id: string } | null = null;
           let replyTo: { id: string } | null = null;
@@ -993,7 +1049,11 @@ export class CommentService extends CapacityService {
             host.brand.id,
           );
           await this.emitMentions(tx, caller, p, host, added);
-          return { status: 201, ref: { id: publicId, type: 'comment' }, data: await this.commentOut(tx, p, host, id) };
+          return {
+            status: 201,
+            ref: { id: publicId, type: 'comment' },
+            data: await this.commentOut(tx, p, host, id),
+          };
         },
         async (tx, p, ref) => {
           const { row, host } = await this.loadComment(tx, p, ref.id);
@@ -1061,11 +1121,15 @@ export class CommentService extends CapacityService {
             throw new TenancyError('conflict', {
               issues: [issue('/', 'deleted', 'This comment was deleted.')],
             });
-          if (!withinEditWindow(new Date(row.created_at), new Date(), this.ws.commentEditWindowMinutes))
+          if (
+            !withinEditWindow(
+              new Date(row.created_at),
+              new Date(),
+              this.ws.commentEditWindowMinutes,
+            )
+          )
             throw new TenancyError('forbidden', {
-              issues: [
-                issue('/', 'window_closed', "This comment can't be edited any more."),
-              ],
+              issues: [issue('/', 'window_closed', "This comment can't be edited any more.")],
             });
           const expected = req.ifMatch !== undefined ? parseIfMatch(req.ifMatch) : input.version;
           if (expected === undefined) throw new TenancyError('precondition_required');
@@ -1073,7 +1137,8 @@ export class CommentService extends CapacityService {
           await this.collabLimit(p);
           const mentions = await this.resolveMentions(tx, p, host, input.mentions);
           const changed =
-            row.body_text !== input.text || canonicalJson(row.body_rich) !== canonicalJson(input.doc);
+            row.body_text !== input.text ||
+            canonicalJson(row.body_rich) !== canonicalJson(input.doc);
           if (changed) {
             await this.appendRevision(tx, row, 'edited', p.membershipId);
             await tx.db
@@ -1314,7 +1379,12 @@ export class CommentService extends CapacityService {
   // ---------------------------------------------------------------------------------------------
 
   /** People who can read the record, teams, and readable records matching `q`, bounded. */
-  async mentionCandidates(caller: Caller, ws: unknown, rec: unknown, query: Record<string, unknown>) {
+  async mentionCandidates(
+    caller: Caller,
+    ws: unknown,
+    rec: unknown,
+    query: Record<string, unknown>,
+  ) {
     const q = parseCursorQuery(query, ['q']);
     const needle = typeof q.q === 'string' ? q.q.trim().toLowerCase() : '';
     if (needle.length > 80) throw invalid(issue('/q', 'too_long', 'Search for fewer characters.'));
@@ -1322,7 +1392,8 @@ export class CommentService extends CapacityService {
       const host = await this.loadHost(tx, p, rec);
       host.decide('record.comment');
       // Guests have no directory (AZ-06): nothing to offer.
-      if (p.kind !== 'member') return { data: [] as Array<{ kind: string; id: string; name: string }> };
+      if (p.kind !== 'member')
+        return { data: [] as Array<{ kind: string; id: string; name: string }> };
       const max = Math.min(this.pageLimit(q.limit), 20);
       const like = `%${needle.replace(/[\\%_]/g, (c) => `\\${c}`)}%`;
       const out: Array<{ kind: string; id: string; name: string }> = [];
@@ -1362,7 +1433,9 @@ export class CommentService extends CapacityService {
            WHERE r.workspace_id = ${tx.workspaceId} AND r.record_type IN ('task', 'project')
              AND lower(COALESCE(t.title, w.name)) LIKE ${like} ESCAPE '\\'
              AND ${vis.where('r', { project: sql`COALESCE(t.project_id, w.id)` })}
-           ORDER BY lower(COALESCE(t.title, w.name)), r.id LIMIT ${max - out.length}`.execute(tx.db);
+           ORDER BY lower(COALESCE(t.title, w.name)), r.id LIMIT ${max - out.length}`.execute(
+          tx.db,
+        );
         for (const r of recs.rows) out.push({ kind: 'record', id: r.public_id, name: r.title });
       }
       return { data: out };

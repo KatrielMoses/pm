@@ -213,6 +213,19 @@ Status of every ADR: **proposed (Phase 0B)**, pending solutions-architect accept
   - A view per share scope: duplicate definitions that drift.
   - Storing query results: they would freeze and widen access.
 - **Consequences:** One migration, `0031_saved_views`, with a down migration to 0030. No 3B layout tables, 3C planning, or 6D export-job tables.
+<a id="adr-31"></a>
+## ADR-31: Comments, mentions, followers, reviews, and assignment history (Phase 4A amendment)
+
+- **Decision:**
+  - **Comments.** `collab.comment` (`cmt_`) hangs on one host record (a task or a project until later phases register more) and is authorized through that host on every read. Threads are flat: a root, and replies naming the root and the comment they answer. A body is rich-text version 1; `body_text` is its extracted plain text. Deleting is a tombstone: the body leaves the row, and the row keeps its author, time, and place in the thread.
+  - **Revisions (OD-38).** `collab.comment_revision` is append-only. It holds the prior body of every edit and of a deletion. Authors edit or delete only within `COMMENT_EDIT_WINDOW_MINUTES`; moderators (manage on the host) delete but never edit. Purge removes bodies, revisions, reactions, and mentions with the host; audit events keep content hashes only.
+  - **Reactions.** `collab.reaction` has one row per comment, person, and reaction from a fixed vocabulary of eight.
+  - **Mentions.** `relations.mention` references a comment's person, team, or record targets through typed foreign keys (exactly one target column), keeps their order, and carries `notified` for 4B. Document and record-field sources arrive with 4C.
+  - **Followers (OD-10).** `relations.follower` is one explicit subscription per person and record, with source `explicit`. It is never derived and grants nothing.
+  - **Reviews.** `collab.review_request` (`rvw_`) targets one record at one version, with a kind (`review` or `approval`), a rule (`any` or `all`), and a state. At most one request per record is open (partial unique index). `collab.review_reviewer` names the reviewers (active internal members, trigger-checked). `collab.review_decision` has one immutable decision per named reviewer, so the single terminal decision of the Phase 0 sketch becomes one decision per reviewer with a request that settles at most once.
+  - **Assignment history.** `collab.assignment_event` is append-only (assigned, unassigned, reassigned, delegated; via assign, delegate, or departure). `work.task_assignee` gains `delegated_from_membership_id` and `delegated_at`.
+- **Alternatives:** Hard-deleting comments (breaks threads and audit). Storing bodies in audit (privacy and OD-38). Deriving followers from assignment or membership (notification noise and disclosure). A single decision column on the request (cannot express the `all` rule). Brand identifiers on comments (they would go stale on brand moves; the host row owns the brand).
+- **Consequences:** Migration `0036_collaboration_reviews` with an exact 0035 rollback. All new tables have workspace RLS; the application role cannot delete comments, revisions, decisions, or assignment events, and the worker purges them with their host.
 <a id="adr-30"></a>
 ## ADR-30: Working hours, time off, brand holidays, and capacity reservations (Phase 3E amendment)
 

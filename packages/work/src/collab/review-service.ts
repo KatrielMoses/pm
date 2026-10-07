@@ -11,7 +11,12 @@ import {
 } from '@pm/tenancy';
 import { cursorAt, hashText, CommentService, type CollabHost } from './comment-service.ts';
 import { isPublic } from '../validation.ts';
-import { settleReview, type ReviewOutcome, type ReviewRule, type ReviewState } from './semantics.ts';
+import {
+  settleReview,
+  type ReviewOutcome,
+  type ReviewRule,
+  type ReviewState,
+} from './semantics.ts';
 import {
   parseCursorQuery,
   parseDecision,
@@ -203,7 +208,10 @@ export class ReviewService extends CommentService {
       state: row.state,
       requested_by:
         people && requester
-          ? { id: requester.public_id, name: requester.display_name_override ?? requester.display_name }
+          ? {
+              id: requester.public_id,
+              name: requester.display_name_override ?? requester.display_name,
+            }
           : null,
       message: row.message_text,
       reviewers: rs.map((r) => ({
@@ -230,7 +238,9 @@ export class ReviewService extends CommentService {
           open && (isRequester || host.allows('comment.moderate')) && host.ownLevel !== null,
         refresh:
           isRequester &&
-          (row.state === 'requested' || row.state === 'changes_requested' || row.state === 'rejected') &&
+          (row.state === 'requested' ||
+            row.state === 'changes_requested' ||
+            row.state === 'rejected') &&
           host.lifecycleState === 'active',
       },
     };
@@ -271,11 +281,13 @@ export class ReviewService extends CommentService {
                    ${cursorAt('q.created_at')} AS cursor_at
               FROM collab.review_request q
              WHERE q.workspace_id = ${tx.workspaceId} AND q.subject_record_id = ${host.id}
-               ${host.ownLevel === null
-                 ? sql`AND (q.requested_by_membership_id = ${p.membershipId} OR EXISTS (
+               ${
+                 host.ownLevel === null
+                   ? sql`AND (q.requested_by_membership_id = ${p.membershipId} OR EXISTS (
                       SELECT 1 FROM collab.review_reviewer rv WHERE rv.workspace_id = q.workspace_id
                         AND rv.review_request_id = q.id AND rv.membership_id = ${p.membershipId}))`
-                 : sql``}
+                   : sql``
+               }
                ${after ? sql`AND (q.created_at, q.id) < (${after.at}::timestamptz, ${after.id}::uuid)` : sql``}
              ORDER BY q.created_at DESC, q.id DESC LIMIT ${limit + 1}`.execute(tx.db)
         ).rows.map((r) => ({
@@ -323,7 +335,9 @@ export class ReviewService extends CommentService {
     const role = q.role === undefined ? 'reviewer' : q.role;
     const state = q.state === undefined ? 'open' : q.state;
     if (role !== 'reviewer' && role !== 'requester')
-      throw invalid(issue('/role', 'invalid_option', 'Choose reviews to do or reviews you asked for.'));
+      throw invalid(
+        issue('/role', 'invalid_option', 'Choose reviews to do or reviews you asked for.'),
+      );
     if (state !== 'open' && state !== 'settled' && state !== 'all')
       throw invalid(issue('/state', 'invalid_option', 'Choose open, settled, or all.'));
     return this.tracked('collab.reviews', 'queue', () =>
@@ -346,19 +360,23 @@ export class ReviewService extends CommentService {
                    q.closed_reason, q.settled_at, q.created_at, q.version, r.public_id AS subject_public,
                    r.record_type AS subject_record_type, r.brand_id, ${cursorAt('q.created_at')} AS cursor_at,
                    COALESCE(t.title, w.name) AS title, COALESCE(t.version, w.version) AS current_version,
-                   ${role === 'reviewer'
-                     ? sql`(SELECT d.outcome FROM collab.review_decision d WHERE d.workspace_id = q.workspace_id
+                   ${
+                     role === 'reviewer'
+                       ? sql`(SELECT d.outcome FROM collab.review_decision d WHERE d.workspace_id = q.workspace_id
                               AND d.review_request_id = q.id AND d.reviewer_membership_id = ${p.membershipId}) AS my_outcome`
-                     : sql`NULL::text AS my_outcome`}
+                       : sql`NULL::text AS my_outcome`
+                   }
               FROM collab.review_request q
               JOIN core.record r ON r.workspace_id = q.workspace_id AND r.id = q.subject_record_id
               LEFT JOIN work.task t ON t.workspace_id = r.workspace_id AND t.id = r.id
               LEFT JOIN work.project w ON w.workspace_id = r.workspace_id AND w.id = r.id
              WHERE q.workspace_id = ${tx.workspaceId}
-               ${role === 'reviewer'
-                 ? sql`AND EXISTS (SELECT 1 FROM collab.review_reviewer rv WHERE rv.workspace_id = q.workspace_id
+               ${
+                 role === 'reviewer'
+                   ? sql`AND EXISTS (SELECT 1 FROM collab.review_reviewer rv WHERE rv.workspace_id = q.workspace_id
                         AND rv.review_request_id = q.id AND rv.membership_id = ${p.membershipId})`
-                 : sql`AND q.requested_by_membership_id = ${p.membershipId}`}
+                   : sql`AND q.requested_by_membership_id = ${p.membershipId}`
+               }
                ${state === 'open' ? sql`AND q.state = 'requested'` : state === 'settled' ? sql`AND q.state <> 'requested'` : sql``}
                AND ${vis.where('r', { project: sql`COALESCE(t.project_id, w.id)` })}
                ${after ? sql`AND (q.created_at, q.id) < (${after.at}::timestamptz, ${after.id}::uuid)` : sql``}
@@ -432,11 +450,13 @@ export class ReviewService extends CommentService {
                q.closed_reason, q.settled_at, q.created_at, q.version, ${host.publicId}::text AS subject_public
           FROM collab.review_request q
          WHERE q.workspace_id = ${tx.workspaceId} AND q.subject_record_id = ${host.id}
-           ${host.ownLevel === null
-             ? sql`AND (q.requested_by_membership_id = ${p.membershipId} OR EXISTS (
+           ${
+             host.ownLevel === null
+               ? sql`AND (q.requested_by_membership_id = ${p.membershipId} OR EXISTS (
                   SELECT 1 FROM collab.review_reviewer rv WHERE rv.workspace_id = q.workspace_id
                     AND rv.review_request_id = q.id AND rv.membership_id = ${p.membershipId}))`
-             : sql``}
+               : sql``
+           }
          ORDER BY q.created_at DESC, q.id DESC LIMIT 1`.execute(tx.db)
     ).rows[0];
     return {
@@ -546,7 +566,9 @@ export class ReviewService extends CommentService {
       change.plain('subject_version', null, host.version),
       change.plain('reviewers', null, reviewers.map((r) => r.public_id).join(',')),
       ...(previous ? [change.plain('previous_review', null, previous.public_id)] : []),
-      ...(input.message ? [change.content('review_message', { hash: hashText(input.message) })] : []),
+      ...(input.message
+        ? [change.content('review_message', { hash: hashText(input.message) })]
+        : []),
     ]);
     await this.workEvent(
       tx,
@@ -612,14 +634,20 @@ export class ReviewService extends CommentService {
   protected requireReviewable(host: CollabHost): void {
     if (host.lifecycleState !== 'active')
       throw new TenancyError('conflict', {
-        issues: [issue('/', 'record_archived', 'This is archived. Restore it to request a review.')],
+        issues: [
+          issue('/', 'record_archived', 'This is archived. Restore it to request a review.'),
+        ],
       });
   }
 
   protected subjectChanged(current: number) {
     return new TenancyError('conflict', {
       issues: [
-        issue('/subject_version', 'subject_changed', 'This changed after the review began. Look again.'),
+        issue(
+          '/subject_version',
+          'subject_changed',
+          'This changed after the review began. Look again.',
+        ),
       ],
       conflict: { current_version: current },
     });
@@ -657,7 +685,10 @@ export class ReviewService extends CommentService {
           const { host, reviewers } = await this.loadReview(tx, p, rvw);
           host.decide('review.decide');
           const me = reviewers.find((r) => r.membership_id === p.membershipId);
-          if (!me) throw new TenancyError('forbidden', { issues: [issue('/', 'not_reviewer', "You aren't a reviewer here.")] });
+          if (!me)
+            throw new TenancyError('forbidden', {
+              issues: [issue('/', 'not_reviewer', "You aren't a reviewer here.")],
+            });
           if (row.state !== 'requested')
             throw new TenancyError('conflict', {
               issues: [issue('/', 'review_closed', 'This review is already settled.')],
@@ -722,7 +753,12 @@ export class ReviewService extends CommentService {
             p,
             'collab.review.decided',
             { type: 'collab.review_decision', id: decisionId, sequence: 0 },
-            { decision: input.outcome, self_approval: self, subject_ref: host.id, review_state: next },
+            {
+              decision: input.outcome,
+              self_approval: self,
+              subject_ref: host.id,
+              review_state: next,
+            },
             host.brand.id,
           );
           return {
@@ -911,7 +947,7 @@ export class ReviewService extends CommentService {
    */
   async delegateTask(caller: Caller, ws: unknown, tsk: unknown, body: unknown, req: Mutation) {
     const input = parseDelegate(body);
-    return this.tracked('collab.reviews', 'delegate', () =>
+    return this.tracked('collab.delegations', 'delegate', () =>
       this.mutate(
         caller,
         'task.delegate',
@@ -927,7 +963,7 @@ export class ReviewService extends CommentService {
             .executeTakeFirst();
           if (!mine)
             throw new TenancyError('forbidden', {
-              issues: [issue('/', 'not_assignee', "You can only hand over work assigned to you.")],
+              issues: [issue('/', 'not_assignee', 'You can only hand over work assigned to you.')],
             });
           const target = (await this.activeMembers(tx, [input.to]))[0];
           const host = await this.loadHost(tx, p, t.publicId);
@@ -942,9 +978,7 @@ export class ReviewService extends CommentService {
               'view',
             ));
           if (!eligible || !target)
-            throw invalid(
-              issue('/to', 'not_assignable', "That person can't take this over."),
-            );
+            throw invalid(issue('/to', 'not_assignable', "That person can't take this over."));
           const already = await tx.db
             .selectFrom('work.task_assignee')
             .select('is_primary')
@@ -1001,7 +1035,9 @@ export class ReviewService extends CommentService {
           await this.bumpTask(tx, t, p);
           await this.taskAudit(tx, caller, p, 'task.delegated', t, [
             change.plain('delegated', me.public_id, target.public_id),
-            ...(input.note ? [change.content('delegation_note', { hash: hashText(input.note) })] : []),
+            ...(input.note
+              ? [change.content('delegation_note', { hash: hashText(input.note) })]
+              : []),
           ]);
           await this.workEvent(
             tx,
@@ -1027,7 +1063,12 @@ export class ReviewService extends CommentService {
    * `GET /tasks/{id}/assignment-history`: who was assigned, handed over, or reassigned, newest
    * first. Outside a share (AZ-22); people are named only to members.
    */
-  async assignmentHistory(caller: Caller, ws: unknown, tsk: unknown, query: Record<string, unknown>) {
+  async assignmentHistory(
+    caller: Caller,
+    ws: unknown,
+    tsk: unknown,
+    query: Record<string, unknown>,
+  ) {
     const q = parseCursorQuery(query, []);
     return this.inWorkspace(caller, ws, { readOnly: true }, async (tx, p) => {
       const t = await this.loadTask(tx, p, tsk);
@@ -1056,7 +1097,9 @@ export class ReviewService extends CommentService {
       ).rows;
       const page = rows.slice(0, limit);
       const ids = [
-        ...new Set(page.flatMap((r) => [r.from_id, r.to_id, r.actor_id]).filter((x): x is string => !!x)),
+        ...new Set(
+          page.flatMap((r) => [r.from_id, r.to_id, r.actor_id]).filter((x): x is string => !!x),
+        ),
       ];
       const people = new Map(
         ids.length
@@ -1067,7 +1110,10 @@ export class ReviewService extends CommentService {
                 .select(['m.id', 'm.public_id', 'm.display_name_override', 'a.display_name'])
                 .where('m.id', 'in', ids)
                 .execute()
-            ).map((m) => [m.id, { id: m.public_id, name: m.display_name_override ?? m.display_name }])
+            ).map((m) => [
+              m.id,
+              { id: m.public_id, name: m.display_name_override ?? m.display_name },
+            ])
           : [],
       );
       const who = (id: string | null) => (id ? (people.get(id) ?? null) : null);

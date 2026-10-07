@@ -2,6 +2,8 @@ import { createHash } from 'node:crypto';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { createTestDatabase, type TestDatabase } from '@pm/test-support/vitest';
 import type { Caller } from '@pm/tenancy';
+import { sql } from '@pm/db';
+import { measureClasses, statementShape } from '@pm/test-support';
 import { productLifecycleRegistry } from '@pm/work';
 import {
   apply,
@@ -662,5 +664,222 @@ describe('Comments, mentions, reactions, and following (4A)', () => {
     expect(all).toContain('sha256:');
     expect(all).not.toContain('secret words');
     expect(all).not.toContain('Secret words');
+  });
+
+  it('serializes concurrent edits of one comment on its version', async () => {
+    const c = await post(editor, 'Race to edit');
+    const results = await Promise.allSettled([
+      env.svc.editComment(editor, ws, c.id, { text: 'Edit A' }, ifMatch(0)),
+      env.svc.editComment(editor, ws, c.id, { text: 'Edit B' }, ifMatch(0)),
+    ]);
+    expect(results.filter((r) => r.status === 'fulfilled')).toHaveLength(1);
+    expect(
+      (results.find((r) => r.status === 'rejected') as PromiseRejectedResult).reason,
+    ).toMatchObject({
+      code: 'conflict',
+    });
+    const now = await env.svc.getComment(editor, ws, c.id);
+    expect(now).toMatchObject({ version: 1, edit_count: 1 });
+    expect((await env.svc.commentRevisions(editor, ws, c.id)).length).toBe(1);
+  });
+
+  it('rate limits comment bursts per person and never on an idempotent replay', async () => {
+    const limited = workEnv(db, { commentRate: 2 });
+    try {
+      const key = mutation();
+      await limited.svc.createComment(owner, ws, task.id, { text: 'one' }, key);
+      await limited.svc.createComment(owner, ws, task.id, { text: 'one' }, key); // replay: free
+      await limited.svc.createComment(owner, ws, task.id, { text: 'two' }, mutation());
+      await expect(
+        limited.svc.createComment(owner, ws, task.id, { text: 'three' }, mutation()),
+      ).rejects.toEqual(reason('rate_limited'));
+      // Another person is not affected.
+      await limited.svc.createComment(editor, ws, task.id, { text: 'mine' }, mutation());
+    } finally {
+      await limited.h.close();
+    }
+  });
+
+  it('holds its invariants in the database: threads stay in their record, identity is pinned, history is append-only', async () => {
+    const a = await post(owner, 'Thread A');
+    const other = (
+      await env.svc.createTask(
+        owner,
+        ws,
+        { brand: brands.Harbor, title: 'Another record' },
+        mutation(),
+      )
+    ).data;
+    const b = await post(owner, 'Thread B', {}, other.id);
+    await expect(
+      db.admin(
+        `INSERT INTO collab.comment (id, public_id, workspace_id, host_record_id, root_comment_id, in_reply_to_comment_id, body_rich, body_text, author_membership_id)
+         SELECT gen_random_uuid(), 'cmt_' || repeat('1', 26), x.workspace_id, x.host_record_id, y.id, y.id, x.body_rich, 'cross', x.author_membership_id
+           FROM collab.comment x, collab.comment y WHERE x.public_id = '${a.id}' AND y.public_id = '${b.id}'`,
+      ),
+    ).rejects.toThrow(/same record/);
+    await expect(
+      db.admin(
+        `UPDATE collab.comment SET author_membership_id = host_record_id WHERE public_id = '${a.id}'`,
+      ),
+    ).rejects.toThrow();
+    for (const stmt of [
+      sql`DELETE FROM collab.comment`,
+      sql`UPDATE collab.comment SET created_at = now()`,
+      sql`DELETE FROM collab.comment_revision`,
+      sql`UPDATE collab.comment_revision SET body_text = 'x'`,
+      sql`UPDATE collab.reaction SET reaction = 'heart'`,
+    ])
+      await expect(
+        env.h.app.withWorkspace(wsId, { module: 'test' }, (tx) => stmt.execute(tx.db)),
+      ).rejects.toThrow(/permission denied/);
+    // A tombstone stays deleted and has no body; a live comment has one.
+    await expect(
+      db.admin(
+        `UPDATE collab.comment SET body_rich = NULL, body_text = NULL WHERE public_id = '${a.id}'`,
+      ),
+    ).rejects.toThrow(/comment_body_shape/);
+  });
+
+  it('allows comments on archived records only when the workspace policy says so', async () => {
+    const t = (
+      await env.svc.createTask(
+        owner,
+        ws,
+        { brand: brands.Harbor, title: 'Archived chat' },
+        mutation(),
+      )
+    ).data;
+    await env.svc.taskLifecycle(owner, ws, t.id, 'archive', {}, mutation());
+    await expect(
+      env.svc.createComment(owner, ws, t.id, { text: 'late' }, mutation()),
+    ).rejects.toEqual(reason('forbidden'));
+    await db.admin(
+      `INSERT INTO access.workspace_policy (workspace_id, comment_on_archived) VALUES ('${wsId}', true)
+       ON CONFLICT (workspace_id) DO UPDATE SET comment_on_archived = true`,
+    );
+    try {
+      expect((await post(owner, 'allowed now', {}, t.id)).text).toBe('allowed now');
+    } finally {
+      await db.admin(
+        `UPDATE access.workspace_policy SET comment_on_archived = false WHERE workspace_id = '${wsId}'`,
+      );
+    }
+  });
+
+  it('shows collaboration in activity and history without bodies, and omits what the viewer cannot read', async () => {
+    const t = (
+      await env.svc.createTask(
+        owner,
+        ws,
+        { brand: brands.Harbor, title: 'Audited chat' },
+        mutation(),
+      )
+    ).data;
+    const hiddenPeer = await join(env, db, owner, ws, { kind: 'member', role: 'member' });
+    const c = await post(editor, 'Words that must not appear in activity', {}, t.id);
+    await env.svc.editComment(
+      editor,
+      ws,
+      c.id,
+      { text: 'Edited words that must not appear' },
+      ifMatch(0),
+    );
+    await env.svc.setReaction(owner, ws, c.id, 'heart', true, mutation());
+    const r = (
+      await env.svc.requestReview(owner, ws, t.id, { reviewers: [pub.editor!] }, mutation())
+    ).data;
+    await env.svc.decideReview(
+      editor,
+      ws,
+      r.id,
+      { outcome: 'approved', subject_version: (await env.svc.getTask(owner, ws, t.id)).version },
+      mutation(),
+    );
+    const feed = await env.svc.activity(owner, ws, 'task', {
+      query: { entity: 'task' },
+      limit: 200,
+    });
+    const mine = feed.data.filter((e) => e.record.id === t.id).map((e) => e.action);
+    expect(mine).toEqual(
+      expect.arrayContaining([
+        'comment.created',
+        'comment.edited',
+        'review.requested',
+        'review.decided',
+      ]),
+    );
+    const json = JSON.stringify(feed);
+    expect(json).not.toContain('must not appear');
+    expect(json).toContain(c.id); // the reference is shown; the words never are
+    const history = await env.svc.taskHistory(owner, ws, t.id);
+    expect(JSON.stringify(history)).not.toContain('must not appear');
+    expect(history.data.map((e) => e.action)).toEqual(
+      expect.arrayContaining(['comment.created', 'review.decided']),
+    );
+    // History is outside a share: a share-only reader gets nothing.
+    expect(
+      (await env.svc.activity(commenter, ws, 'task', { query: { entity: 'task' } })).data,
+    ).toEqual([]);
+    // A reassignment naming a person the viewer may not see as a person is a plain reference, not a name.
+    await env.svc.setAssignees(
+      owner,
+      ws,
+      t.id,
+      {
+        assignees: [await mem(hiddenPeer)],
+        version: (await env.svc.getTask(owner, ws, t.id)).version,
+      },
+      mutation(),
+    );
+    const guestFeed = await env.svc.activity(readGuest, ws, 'task', { query: { entity: 'task' } });
+    expect(JSON.stringify(guestFeed)).not.toContain(await mem(hiddenPeer));
+  });
+
+  it('gives hidden and unknown comments, records, and reviews the same statements and time', async () => {
+    const spans = () => env.h.telemetry.spans!;
+    const hiddenTask = (
+      await env.svc.createTask(
+        owner,
+        ws,
+        { brand: brands.Summit, title: 'Summit only' },
+        mutation(),
+      )
+    ).data;
+    const hidden = await post(owner, 'In Summit', {}, hiddenTask.id);
+    // Only the owner reads Summit, so the owner is the reviewer; self-review needs the policy.
+    await db.admin(
+      `INSERT INTO access.workspace_policy (workspace_id, self_approval_mode) VALUES ('${wsId}', 'allowed')
+       ON CONFLICT (workspace_id) DO UPDATE SET self_approval_mode = 'allowed'`,
+    );
+    const req = (
+      await env.svc.requestReview(owner, ws, hiddenTask.id, { reviewers: [pub.owner!] }, mutation())
+    ).data;
+    await db.admin(`UPDATE access.workspace_policy SET self_approval_mode = 'auto' WHERE workspace_id = '${wsId}'`);
+    const hiddenProject = (
+      await env.svc.createProject(owner, ws, { brand: brands.Summit, name: 'Summit project' }, mutation())
+    ).data;
+    const hiddenOnProject = await post(owner, 'In a Summit project', {}, hiddenProject.id);
+    const unknownTask = `tsk_${'0'.repeat(26)}`;
+    const classes = {
+      hiddenComment: () => env.svc.getComment(editor, ws, hidden.id),
+      unknownComment: () => env.svc.getComment(editor, ws, `cmt_${'0'.repeat(26)}`),
+      hiddenList: () => env.svc.listComments(editor, ws, hiddenTask.id, {}),
+      unknownList: () => env.svc.listComments(editor, ws, unknownTask, {}),
+      hiddenProjectComment: () => env.svc.getComment(editor, ws, hiddenOnProject.id),
+      hiddenProjectList: () => env.svc.listComments(editor, ws, hiddenProject.id, {}),
+      unknownProjectList: () => env.svc.listComments(editor, ws, `prj_${'0'.repeat(26)}`, {}),
+      hiddenReview: () => env.svc.getReview(editor, ws, req.id),
+      unknownReview: () => env.svc.getReview(editor, ws, `rvw_${'0'.repeat(26)}`),
+    };
+    const shape = async (k: keyof typeof classes) => statementShape(spans(), classes[k]);
+    expect(await shape('unknownComment')).toEqual(await shape('hiddenComment'));
+    expect(await shape('unknownList')).toEqual(await shape('hiddenList'));
+    expect(await shape('unknownReview')).toEqual(await shape('hiddenReview'));
+    expect(await shape('unknownProjectList')).toEqual(await shape('hiddenProjectList'));
+    // A project-hosted comment costs the project loader's statements: the same count as the task's.
+    expect((await shape('hiddenProjectComment')).length).toBe((await shape('hiddenComment')).length);
+    const timing = await measureClasses(classes);
+    expect(timing.maxDelta, JSON.stringify(timing.medians)).toBeLessThanOrEqual(timing.threshold);
   });
 });

@@ -230,7 +230,11 @@ export function parseDecision(body: unknown): DecisionInput {
     issues.add('/outcome', 'invalid_option', 'Approve, request changes, or reject.');
   const n = note(b.note, '/note', issues);
   let subjectVersion = 0;
-  if (typeof b.subject_version === 'number' && Number.isInteger(b.subject_version) && b.subject_version >= 0)
+  if (
+    typeof b.subject_version === 'number' &&
+    Number.isInteger(b.subject_version) &&
+    b.subject_version >= 0
+  )
     subjectVersion = b.subject_version;
   else issues.add('/subject_version', 'required', 'Send the version you reviewed.');
   issues.throwIfAny();
