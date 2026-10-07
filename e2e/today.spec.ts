@@ -96,7 +96,8 @@ test('plan the day: commit, order, lock, focus block, offline, shut down, and ca
   await form.getByLabel('Minutes').fill('60');
   await form.getByLabel('Focus block (protected)').check();
   await form.getByRole('button', { name: 'Schedule' }).click();
-  await expect(scheduled.getByText('Focus')).toBeVisible();
+  await expect(page.getByText(/^Scheduled \d/)).toBeAttached();
+  await expect(scheduled.getByRole('list')).toContainText('Focus');
   await form.getByLabel('For').selectOption({ label: 'Something else (name it)' });
   await form.getByLabel('Name').fill('Call');
   await form.getByLabel('Start').fill('09:30');

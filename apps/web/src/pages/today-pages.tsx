@@ -361,8 +361,7 @@ function BlockForm({ ws, v, onDone }: { ws: string; v: TodayView; onDone: (msg: 
 
 function SeriesSection({ ws, onDone }: { ws: string; onDone: (msg: string) => void }) {
   const stepUp = useStepUp();
-  const [nonce, setNonce] = useState(0);
-  const data = useResource(() => planning.series(ws), `series:${ws}:${nonce}`);
+  const data = useResource(() => planning.series(ws), `series:${ws}`);
   const [title, setTitle] = useState('');
   const [days, setDays] = useState<string[]>(['MO']);
   const [time, setTime] = useState('09:00');
@@ -408,7 +407,7 @@ function SeriesSection({ ws, onDone }: { ws: string; onDone: (msg: string) => vo
                             onDone(
                               'Recurring block ended. Future blocks you had not changed were removed.',
                             );
-                            setNonce((n) => n + 1);
+                            data.reload();
                           })
                           .catch((err) => setError(describe(err)))
                       }
@@ -446,7 +445,7 @@ function SeriesSection({ ws, onDone }: { ws: string; onDone: (msg: string) => vo
                 `Recurring block added: ${s.generated} scheduled${s.skipped ? `, ${s.skipped} skipped (focus time already there)` : ''}.`,
               );
               setTitle('');
-              setNonce((n) => n + 1);
+              data.reload();
             })
             .catch((err) => setError(describe(err)));
         }}
@@ -512,11 +511,12 @@ function SeriesSection({ ws, onDone }: { ws: string; onDone: (msg: string) => vo
 
 export function TodayPage({ ws }: { ws: string }) {
   const [day, setDay] = useState('today');
-  const [nonce, setNonce] = useState(0);
-  const reload = () => setNonce((n) => n + 1);
-  const data = useResource(() => planning.today(ws, day), `today:${ws}:${day}:${nonce}`, {
+  // A stable key: changes refresh the day in place (what is on screen, and any half-filled form,
+  // stays until the new data arrives) instead of replacing the page with a loading state.
+  const data = useResource(() => planning.today(ws, day), `today:${ws}:${day}`, {
     keepOnRefreshError: true,
   });
+  const reload = data.reload;
   const r = useRunner(reload);
   const [said, setSaid] = useState('');
   const [shutdown, setShutdown] = useState(false);
@@ -525,7 +525,7 @@ export function TodayPage({ ws }: { ws: string }) {
     const back = () => reload();
     window.addEventListener('online', back);
     return () => window.removeEventListener('online', back);
-  }, []);
+  }, [reload]);
   const v = data.state.status === 'ready' ? data.state.data : null;
   return (
     <Page title={v ? dayTitle(v.day, v.today) : 'Today'} wide section="Today">
