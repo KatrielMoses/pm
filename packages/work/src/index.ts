@@ -23,6 +23,7 @@ export * from './views/query.ts';
 export * from './time/time-service.ts';
 export * from './time/semantics.ts';
 export * from './time/jobs.ts';
+export * from './views/layout-service.ts';
 export {
   PROJECT_STATUS_ID,
   resolveWorkflow,

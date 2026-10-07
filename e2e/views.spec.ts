@@ -59,6 +59,8 @@ test('build, save, share, pin, default, export, and delete a view', async ({ pag
   await page.getByRole('link', { name: 'New task view' }).click();
   await expect(h1(page)).toHaveText('New task view');
   await expect(page.getByRole('status').filter({ hasText: /tasks?$/ })).toHaveText('4 tasks');
+  // 3B: the list layout is RS-50 rows; this journey checks the table rendering (RS-53).
+  await page.getByLabel('Layout', { exact: true }).selectOption({ label: 'Table' });
 
   // Filters: priority is urgent OR high (keyboard only).
   await page.getByRole('button', { name: 'Filters' }).focus();

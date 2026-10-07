@@ -232,6 +232,19 @@ All decisions are **proposed (Phase 0C)**, pending solutions-architect acceptanc
   - **No new actions.** The action count stays 120.
 - **Alternatives:** Materialized shared result sets (they would freeze and widen access). Views carrying their creator's authority (a second authority source). Stored export files before 4E (they would need re-authorization on download and storage the platform does not have yet).
 - **Consequences:** Threat T-44 with tests AT-146 to AT-153.
+<a id="az-28"></a>
+### AZ-28: Core view layouts (Phase 3B amendment)
+- **Decision:**
+  - **One record set.** Every layout renders the records the person's own compiled 3A query returns. Layout facts are computed only for those records: workload totals, Gantt dependencies (both endpoints must be returned), milestones and progress of returned projects (progress counts readable leaf tasks only, OD-13), and the person's own time. Hidden records never change a column count, bar, arrow, cell, total, or percentage (AT-162 to AT-164, AT-167).
+  - **Activity** covers returned records the person can read through ownership; history is outside a share (AZ-22, AT-165). Every record and person a change names is re-authorized, changes to fields they cannot read are dropped, and entries with nothing left are omitted (IA-43).
+  - **Changes go through the canonical commands.**
+    - Board status moves preview and apply the workflow transition with the record version. Gated moves (required fields, approval, confirmation) change nothing and are reported per item (AT-166).
+    - Priority moves and timeline date shifts are field merges with base values and versions. Dependency-aware shifts are explicit and per item.
+    - No layout changes a deadline. Every command needs `record.update` (AT-168).
+  - **No new actions.** The action count is unchanged.
+- **Alternatives:** Layout-specific aggregates computed with a broader predicate (they would leak through counts). Board moves that write `status_id` directly (they would bypass gates).
+- **Consequences:** Threat T-46 with tests AT-162 to AT-168.
+
 <a id="az-27"></a>
 ### AZ-27: Time tracking, timesheets, approvals, and unlock (Phase 3D amendment)
 - **Decision:**

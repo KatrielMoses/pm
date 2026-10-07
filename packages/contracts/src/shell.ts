@@ -27,9 +27,9 @@ export const DESTINATION_PHASE: Readonly<Record<ShellDestination, string | null>
   home: null,
   today: '3C',
   inbox: null,
-  my_work: '3B',
+  my_work: null,
   projects: null,
-  calendar: '3B',
+  calendar: null,
   knowledge: '4C',
   goals: '5B',
   reports: '5D',
@@ -278,10 +278,17 @@ const SAVED_VIEW_STATE: ViewStateSchema = {
 const VIEW_STATE_FAMILIES: ReadonlyArray<{ pattern: RegExp; schema: ViewStateSchema }> = [
   { pattern: /^views\.saved\.view_[0-9a-hjkmnp-tv-z]{26}$/, schema: SAVED_VIEW_STATE },
   { pattern: /^views\.draft\.(task|project)$/, schema: SAVED_VIEW_STATE },
+  // 3B: My Work tabs keep their own state (NAV-004, NAV-005).
+  { pattern: /^views\.my_work\.(assigned|delegated)$/, schema: SAVED_VIEW_STATE },
+  { pattern: /^views\.calendar\.home$/, schema: SAVED_VIEW_STATE },
 ];
 
 export type ViewKey =
-  keyof typeof VIEW_STATE_SCHEMAS | `views.saved.${string}` | `views.draft.${'task' | 'project'}`;
+  | keyof typeof VIEW_STATE_SCHEMAS
+  | `views.saved.${string}`
+  | `views.draft.${'task' | 'project'}`
+  | `views.my_work.${'assigned' | 'delegated'}`
+  | 'views.calendar.home';
 export const VIEW_KEYS = Object.keys(VIEW_STATE_SCHEMAS) as ViewKey[];
 
 /** The schema of a registered key or key family (null for anything else). */

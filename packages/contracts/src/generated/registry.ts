@@ -591,6 +591,14 @@ export const TELEMETRY_SIGNALS = [
     "labels": [
       "outcome"
     ]
+  },
+  {
+    "name": "views.layout_reads",
+    "type": "counter",
+    "labels": [
+      "layout",
+      "outcome"
+    ]
   }
 ] as const;
 export type TelemetrySignalName = (typeof TELEMETRY_SIGNALS)[number]['name'];
@@ -2803,7 +2811,10 @@ export const PARAMETER_NAMES = [
   "TIME_EXPORT_ROWS_MAX",
   "TIME_TIMESHEET_ENTRIES_MAX",
   "TIME_RUNAWAY_DISCOVERY_MAX",
-  "TIME_RUNAWAY_BATCH_MAX"
+  "TIME_RUNAWAY_BATCH_MAX",
+  "LAYOUT_ITEMS_MAX",
+  "WORKLOAD_DAYS_MAX",
+  "ACTIVITY_RECORDS_MAX"
 ] as const;
 export type ParameterName = (typeof PARAMETER_NAMES)[number];
 

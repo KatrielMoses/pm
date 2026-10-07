@@ -259,3 +259,7 @@ Migration `0032_time_tracking` (ADR-0019, 0B ADR-27) creates the `timetrack` sch
 - `timetrack.lock_person` (transaction advisory lock per person) and `timetrack.day_closed` (submitted or locked) back `time_entry_guard`, which refuses any change to closed time except deletion by the worker role during lifecycle purge.
 - `exec_dispatch.discover_runaway_timers` (payload-free; owned by `pm_scheduler`) serves the timer guard.
 
+
+## Phase 3B core views
+
+Migration `0033_core_view_layouts` (ADR-0020, 0B ADR-28) widens `saved_view_layout_known` to the core layouts and adds `saved_view_layout_entity`, which ties each layout to its entity. It adds no tables or indexes: activity uses `audit_event_by_target`.

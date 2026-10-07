@@ -116,6 +116,11 @@ Requirements flagged with each decision are listed automatically in [requirement
 - **Affects:** VIEW-004, VIEW-005 · phase 3B.
 - **Safe default:** *Timeline* shows date bars grouped by brand, project, or milestone, with no dependency arrows. *Gantt* adds dependency arrows, dependency-aware rescheduling, and baseline versus actual.
 - **If deferred:** 3B acceptance criteria for these two views stay ambiguous.
+- **Decided (Phase 3B, 2026-10-07, under the brief's authority to resolve outstanding view decisions; ADR-0020 B4):** the safe default.
+  - *Timeline* shows date bars (start to due or target) over a day, week, month, or quarter zoom, with no dependency arrows.
+  - *Gantt* adds the `blocks` dependencies between shown items and dependency-aware rescheduling. Moving a bar offers, never silently applies, the same shift to the items it blocks, reported item by item.
+  - Neither ever changes a deadline.
+  - Baseline versus actual needs stored baselines and is deferred to reporting (5C).
 
 <a id="od-13"></a>
 ### OD-13 — Project completion percentage formula

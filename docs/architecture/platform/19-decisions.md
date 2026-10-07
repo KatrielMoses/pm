@@ -255,6 +255,22 @@ All decisions are **proposed (Phase 0D)**, pending solutions-architect acceptanc
   - **Signals.** `views.queries` (entity, outcome), `views.query_duration` (entity), and `views.exports` (entity, format).
 - **Alternatives:** `GET` with the AST in the URL (it would land in logs and the 0D field-selection rule). Offset pages (forbidden for mutable collections).
 - **Consequences:** Payloads carry identifiers, kinds, and counts only, never names or query text. 83 ID prefixes, 104 events, 99 named parameters, 63 telemetry signals.
+<a id="pl-30"></a>
+### PL-30: Core view layout contracts (Phase 3B amendment)
+- **Decision:**
+  - **Saved views.** Resources gain `layout` on create and `PATCH`; a layout another entity uses is `validation_failed`. Presentation accepts `board_field`, `date_field`, `calendar_mode`, `zoom`, and `bucket`.
+  - **Layout reads.** These take the view's query AST, scope, and `today`:
+    - `POST …/tasks:workload` (`bucket`, `from`, `to`; at most `WORKLOAD_DAYS_MAX` days; members only)
+    - `…/tasks:dependencies`, `…/tasks:my_time`, `…/projects:milestones`, and `…/projects:progress` (`ids`, at most `LAYOUT_ITEMS_MAX`)
+    - `…/tasks:activity` and `…/projects:activity` (`actor`, `actor_type`, `action`; MAC-bound cursor; at most `ACTIVITY_RECORDS_MAX` records)
+  - **Non-resource envelopes:** `view_workload`, `view_dependencies`, `view_time`, `view_milestones`, `view_progress`, and `view_activity`.
+  - **Identifiers.** Group keys in query collections are public IDs (or status keys), never internal identifiers. This corrects 3A.
+  - **Bounds:** `LAYOUT_ITEMS_MAX` (200), `WORKLOAD_DAYS_MAX` (366), and `ACTIVITY_RECORDS_MAX` (500).
+  - **Signal:** `views.layout_reads` (layout, outcome).
+  - **Changes from layouts** use existing contracts only: transition preview and apply, task and project merge `PATCH`, and reorder. No new mutation endpoint.
+- **Alternatives:** One generic `:layout` endpoint (its responses would differ by layout; separate envelopes keep them typed).
+- **Consequences:** No new events. 83 ID prefixes, 111 events, 110 named parameters, 69 telemetry signals.
+
 <a id="pl-29"></a>
 ### PL-29: Time tracking contracts (Phase 3D amendment)
 - **Decision:**

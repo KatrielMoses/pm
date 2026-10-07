@@ -28,6 +28,7 @@ import type { WorkDeps } from '../service.ts';
 import { isPublic } from '../validation.ts';
 import {
   platformStatus,
+  platformStatusById,
   platformStatuses,
   primeStatuses,
   statusRef,
@@ -54,6 +55,7 @@ import {
   isGroup,
   parsePresentation,
   parseQuery,
+  parseLayout,
   REF_PREFIX,
   serializeQuery,
   typeCustomCondition,
@@ -515,21 +517,17 @@ export class ViewService extends CaptureService {
    * Runs a query for one viewer: validation, resolution, totals, groups, one keyset page, and
    * row hydration. Statements depend only on the query's structure and the visible rows.
    */
-  protected async runQuery(
+  /**
+   * Parses, authorizes, and compiles a query for one viewer: the one FROM/WHERE every result,
+   * total, group, export, and layout read uses (3A Q2; 3B layouts reuse it, ADR-0020 B1).
+   */
+  protected async compileQuery(
     tx: WorkspaceTransaction,
     p: Principal,
     raw: { query: unknown; presentation?: unknown; scope?: unknown; today?: unknown },
-    opts: {
-      entity?: Entity;
-      limit: number;
-      cursor?: unknown;
-      includeTotal: boolean;
-      groups: boolean;
-      /** Diagnostics only (never routed): return the plan of the rows statement instead. */
-      explain?: boolean;
-    },
-  ): Promise<QueryResult & { plan?: unknown }> {
-    let q = parseQuery(raw.query, this.queryBounds, opts.entity);
+    entity?: Entity,
+  ) {
+    let q = parseQuery(raw.query, this.queryBounds, entity);
     const pres = this.presentationFor(p, raw.presentation, q.entity);
     const scope = this.parseScope(raw.scope);
     const vis = await compileVisibility(tx, p, {
@@ -561,6 +559,29 @@ export class ViewService extends CaptureService {
     const where = sql`${this.from(q.entity, vis, refVis)} AND ${scoped} AND ${c.filter(q.filter)}`;
     const keys = orderKeys(c, q);
     const groupValue = q.group ? c.groupValue(q.group.field, q.group.granularity) : null;
+    return { q, pres, scope, labels, refs, fields, vis, refVis, c, where, keys, groupValue };
+  }
+
+  protected async runQuery(
+    tx: WorkspaceTransaction,
+    p: Principal,
+    raw: { query: unknown; presentation?: unknown; scope?: unknown; today?: unknown },
+    opts: {
+      entity?: Entity;
+      limit: number;
+      cursor?: unknown;
+      includeTotal: boolean;
+      groups: boolean;
+      /** Diagnostics only (never routed): return the plan of the rows statement instead. */
+      explain?: boolean;
+    },
+  ): Promise<QueryResult & { plan?: unknown }> {
+    const { q, pres, scope, labels, fields, c, where, keys, groupValue } = await this.compileQuery(
+      tx,
+      p,
+      raw,
+      opts.entity,
+    );
     const fp = this.fingerprint(q, scope);
     const cur = opts.cursor ? this.decodeCursor(p, fp, opts.cursor, keys) : null;
 
@@ -592,8 +613,12 @@ export class ViewService extends CaptureService {
           GROUP BY x.v, x.k ORDER BY (x.k IS NULL), x.k, x.v LIMIT ${max + 1}`.execute(tx.db)
       ).rows;
       groupsTruncated = rows.length > max;
+      const pub = await this.publicKeys(
+        tx,
+        rows.map((r) => r.v),
+      );
       groups = rows.slice(0, max).map((r) => ({
-        key: r.v === null ? null : this.keyString(r.v),
+        key: r.v === null ? null : (pub.get(this.keyString(r.v)) ?? this.keyString(r.v)),
         label: r.v === null ? this.emptyLabel(q.group!.field) : (r.label ?? this.keyString(r.v)),
         count: Number(r.n),
       }));
@@ -629,6 +654,14 @@ export class ViewService extends CaptureService {
         last.id as string,
       );
     }
+    if (groupValue) {
+      const pub = await this.publicKeys(
+        tx,
+        page.map((r) => r.g),
+      );
+      for (const r of page)
+        if (r.g !== null && r.g !== undefined) r.g = pub.get(this.keyString(r.g)) ?? r.g;
+    }
     const data = await this.hydrate(tx, p, q, pres, fields, page);
     const refsOut: Record<string, string> = {};
     for (const [k, v] of labels) refsOut[k] = v;
@@ -656,6 +689,39 @@ export class ViewService extends CaptureService {
     return p.kind === 'guest' && !chosen
       ? { ...pres, columns: pres.columns.filter((c) => !PEOPLE.has(c)) }
       : pres;
+  }
+
+  /**
+   * Group keys never carry internal identifiers (0D §2.3): record, member, status, option, and
+   * label UUIDs become their public IDs (platform statuses their keys). One statement, only for
+   * values of rows the viewer already reads.
+   */
+  protected async publicKeys(tx: WorkspaceTransaction, values: unknown[]) {
+    const out = new Map<string, string>();
+    const ids = [
+      ...new Set(
+        values
+          .filter((v): v is string => typeof v === 'string' && /^[0-9a-f-]{36}$/.test(v))
+          .filter((v) => {
+            const ps = platformStatusById(v);
+            if (ps) out.set(v, ps.key);
+            return !ps;
+          }),
+      ),
+    ];
+    if (!ids.length) return out;
+    for (const r of (
+      await sql<{ id: string; public_id: string }>`
+        SELECT id, public_id FROM core.record WHERE workspace_id = ${tx.workspaceId} AND id = ANY(${ids}::uuid[])
+        UNION ALL SELECT id, public_id FROM tenancy.membership WHERE workspace_id = ${tx.workspaceId} AND id = ANY(${ids}::uuid[])
+        UNION ALL SELECT id, public_id FROM workflow.workflow_status WHERE workspace_id = ${tx.workspaceId} AND id = ANY(${ids}::uuid[])
+        UNION ALL SELECT id, public_id FROM workflow.field_option WHERE workspace_id = ${tx.workspaceId} AND id = ANY(${ids}::uuid[])
+        UNION ALL SELECT id, public_id FROM work.label WHERE workspace_id = ${tx.workspaceId} AND id = ANY(${ids}::uuid[])`.execute(
+        tx.db,
+      )
+    ).rows)
+      out.set(r.id, r.public_id);
+    return out;
   }
 
   protected parseScope(raw: unknown): string[] {
@@ -1535,6 +1601,7 @@ export class ViewService extends CaptureService {
         this.decision('personal.manage_own', o);
         if (!o.allowed) throw new TenancyError(o.code);
         const { presentation } = await this.validateDefinition(tx, p, b, entity);
+        const layout = parseLayout(b.layout, entity);
         const n = await tx.db
           .selectFrom('views.saved_view')
           .select((eb) => eb.fn.countAll<string>().as('n'))
@@ -1574,6 +1641,7 @@ export class ViewService extends CaptureService {
             owner_membership_id: p.membershipId,
             query: JSON.stringify(this.storedQuery(b.query, entity)),
             presentation: JSON.stringify(presentation),
+            layout,
             updated_by_membership_id: p.membershipId,
           })
           .execute();
@@ -1612,7 +1680,7 @@ export class ViewService extends CaptureService {
     const b = isObj(body) ? body : {};
     this.parseName(b, false);
     for (const k of Object.keys(b))
-      if (!['name', 'description', 'query', 'presentation', 'version'].includes(k))
+      if (!['name', 'description', 'query', 'presentation', 'layout', 'version'].includes(k))
         throw invalid(issue(`/${k}`, 'unknown_key', 'This key is not allowed.'));
     return this.mutate(
       caller,
@@ -1646,6 +1714,7 @@ export class ViewService extends CaptureService {
             ...(def && b.presentation !== undefined
               ? { presentation: JSON.stringify(def.presentation) }
               : {}),
+            ...(b.layout !== undefined ? { layout: parseLayout(b.layout, v.row.entity) } : {}),
             updated_at: new Date(),
             updated_by_membership_id: p.membershipId,
             version: Number(v.row.version) + 1,

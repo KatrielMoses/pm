@@ -53,6 +53,7 @@ Narrative: [../14-threat-model.md](../14-threat-model.md).
 | T-43 | inference | Capture exposure: another person's Inbox items or notes visible to anyone (including owners and administrators); parsing, previews, counts, errors, or timing revealing hidden brands, projects, members, or labels; triage or note conversion creating work where the person lacks record.create; intake forms leaking the queue or accepting submissions from people who cannot read the brand; rate and size bounds bypassed. | I-01, I-02, I-10, I-18 | AT-138, AT-139, AT-140, AT-141, AT-142, AT-143, AT-144, AT-145 |
 | T-44 | inference | Saved-view exposure: a shared, pinned, or default view widening record access; rows, totals, group counts, group labels, cursors, filter-value labels, exports, or timing revealing hidden records, brands, projects, members, labels, or fields; personal views visible to others (including owners and administrators); sharing, pinning, or defaults set without authority at the exact scope; a cursor or export reused by another person or after revocation. | I-01, I-02, I-07, I-10, I-18 | AT-146, AT-147, AT-148, AT-149, AT-150, AT-151, AT-152, AT-153 |
 | T-45 | inference | Time exposure and tampering: entries, totals, reports, timesheets, approval views, or exports naming or counting work the viewer cannot read; logging, editing, or moving time without time.log_own on the work; changing another person's entries; approving a brand line without manage now, without seeing all of it, or as a self-approval the policy forbids; unlocking an approved period without workspace admin authority, a reason, or step-up; editing or moving submitted or approved time through any path. | I-01, I-02, I-10, I-18 | AT-154, AT-155, AT-156, AT-157, AT-158, AT-159, AT-160, AT-161 |
+| T-46 | inference | Core view exposure: a board column count, calendar event, timeline or Gantt bar, dependency arrow, workload total, milestone, portfolio percentage, timesheet cell, or activity entry revealing a record, endpoint, field, or person the viewer cannot read; board moves or date changes bypassing workflow gates, permissions, or versions, or silently changing deadlines; activity readable through a share; another person's time shown. | I-01, I-02, I-07, I-10, I-18 | AT-162, AT-163, AT-164, AT-165, AT-166, AT-167, AT-168 |
 
 ## Test matrix
 
@@ -219,6 +220,13 @@ Narrative: [../14-threat-model.md](../14-threat-model.md).
 | AT-159 | T-45 | member | Unlock an approved period as a brand manager who is not a workspace admin — brand | `timesheet.unlock` | api | **deny** | not_found | ui_record, error_message |
 | AT-160 | T-45 | member | Edit, delete, or move to another brand time in a submitted or approved period — task | `time.log_own` | api | **deny** | conflict_filtered | error_message |
 | AT-161 | T-45 | guest | List or export time on a shared task logged by other people — shared record | `record.read` | export | **deny** | omitted | ui_list, report |
+| AT-162 | T-46 | member | Workload over a brand that holds tasks in a restricted project and a sensitive brand — brand | `record.read` | capacity | **allow** | ok_filtered | count_facet, timing |
+| AT-163 | T-46 | member | Gantt dependencies between a readable task and one in a restricted project — record | `record.read` | ui_record | **allow** | ok_filtered | timing |
+| AT-164 | T-46 | member | Portfolio progress of a project holding tasks the member cannot read — project | `record.read` | report | **allow** | ok_filtered | count_facet |
+| AT-165 | T-46 | member | Read activity of a task readable only through a record share — record | `record.read` | activity | **deny** | omitted | count_facet |
+| AT-166 | T-46 | member | Move a task on a board into a status whose transition needs fields or approval — record | `record.update` | api | **deny** | forbidden | ui_list |
+| AT-167 | T-46 | member | Timesheet layout over tasks other people logged time on — personal | `personal.manage_own` | ui_list | **allow** | ok_filtered | count_facet |
+| AT-168 | T-46 | read_only | Shift a timeline bar or move a board card without edit — record | `record.update` | api | **deny** | forbidden | ui_list |
 
 ## Response shapes
 

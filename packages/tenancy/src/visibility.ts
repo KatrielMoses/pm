@@ -63,7 +63,14 @@ export async function brandFacts(tx: WorkspaceTransaction): Promise<BrandFacts[]
 export async function compileVisibility(
   tx: WorkspaceTransaction,
   p: Principal,
-  options: { need: Level; includeArchived?: boolean; arrayMax: number; brands?: BrandFacts[] },
+  options: {
+    need: Level;
+    includeArchived?: boolean;
+    arrayMax: number;
+    brands?: BrandFacts[];
+    /** False: record shares do not count (history and activity are outside a share, AZ-22). */
+    shares?: boolean;
+  },
 ): Promise<{
   ctx: VisibilityContext;
   where: (alias: string, opts?: { project?: RawBuilder<unknown> }) => RawBuilder<boolean>;
@@ -91,12 +98,13 @@ export async function compileVisibility(
   const subjects = subjectKeys(p, viewable);
   const wsLevel = capped ? workspaceLevel(p) : null;
   const shareCap = p.kind === 'guest' ? minLevel(cap, 'edit') : cap;
-  const shareLevels = !capped
-    ? []
-    : (['read', 'comment', 'edit'] as const).filter((s) => {
-        const lv = minLevel(s === 'read' ? 'view' : s, shareCap);
-        return levelRank(lv) >= levelRank(effectiveNeed);
-      });
+  const shareLevels =
+    !capped || options.shares === false
+      ? []
+      : (['read', 'comment', 'edit'] as const).filter((s) => {
+          const lv = minLevel(s === 'read' ? 'view' : s, shareCap);
+          return levelRank(lv) >= levelRank(effectiveNeed);
+        });
   const includeArchived =
     (options.includeArchived ?? false) &&
     levelRank(effectiveNeed) <= levelRank(p.policy.comment_on_archived ? 'comment' : 'view');

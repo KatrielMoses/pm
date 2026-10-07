@@ -1042,6 +1042,18 @@ export interface ViewPinTable {
 // ---- Phase 3A: saved views and view defaults (0031) --------------------------------------------
 
 export type ViewEntity = 'task' | 'project';
+export type ViewLayout =
+  | 'list'
+  | 'board'
+  | 'table'
+  | 'calendar'
+  | 'timeline'
+  | 'gantt'
+  | 'workload'
+  | 'milestones'
+  | 'portfolio'
+  | 'activity'
+  | 'timesheet';
 
 export interface SavedViewTable {
   id: string;
@@ -1059,7 +1071,7 @@ export interface SavedViewTable {
   schema_version: Defaulted<number>;
   query: Json<Record<string, unknown>>;
   presentation: ColumnType<Record<string, unknown>, string | undefined, string>;
-  layout: Defaulted<'list'>;
+  layout: Defaulted<ViewLayout>;
   shared_at: Ts | null;
   shared_by_membership_id: string | null;
   created_at: DTs;

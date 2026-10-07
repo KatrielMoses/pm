@@ -13,6 +13,7 @@ import { ApiError } from '../api.ts';
 import { Link, useRouter } from '../router.tsx';
 import { routeHref } from '../shell/registry.ts';
 import { useScrollAnchor, useViewState } from '../shell/view-state.ts';
+import { useWidthClass } from '../shell/width.ts';
 import { useWorkspaceShell } from '../shell/workspace.tsx';
 import { useStepUp } from '../stepup.tsx';
 import { Dialog } from '../ui/dialog.tsx';
@@ -20,9 +21,27 @@ import { Announce, Banner, ProblemBanner } from '../ui/feedback.tsx';
 import { Field, SelectField } from '../ui/form.tsx';
 import { Page } from '../ui/layout.tsx';
 import {
+  ActivityLayout,
+  BoardLayout,
+  calendarWindow,
+  CalendarLayout,
+  DetailPanel,
+  ListLayout,
+  MilestonesLayout,
+  PortfolioLayout,
+  TimelineLayout,
+  TimesheetLayout,
+  useItemParam,
+  WorkloadLayout,
+} from '../views/layouts.tsx';
+import {
   decodeState,
   encodeState,
+  DATE_FIELDS,
+  LAYOUT_TEXT,
+  LAYOUTS,
   views,
+  type Layout,
   type Catalog,
   type CatalogField,
   type Condition,
@@ -92,6 +111,119 @@ const OPS: Record<string, string[]> = {
 const NO_VALUE = new Set(['is_empty', 'is_not_empty', 'is_true', 'is_false']);
 const titleCase = (s: string) => (s ? s[0]!.toUpperCase() + s.slice(1).replace(/_/g, ' ') : s);
 const isGroup = (n: Condition | Group): n is Group => 'items' in n;
+
+/** Layouts that draw something even with no matching rows (their data is their own read). */
+const ALWAYS_SHOWN = new Set<Layout>(['calendar', 'workload', 'activity']);
+const LAYOUT_HAS_OPTIONS = new Set<Layout>(['board', 'calendar', 'timeline', 'gantt', 'workload']);
+/** Columns a layout draws, added to the query's columns (never a filter). */
+const LAYOUT_COLUMNS: Partial<Record<Layout, (e: Entity, p: Presentation) => string[]>> = {
+  list: (e) => [e === 'task' ? 'due_date' : 'target_date', 'owner'],
+  board: (e, p) => [p.board_field ?? 'status', 'owner'],
+  calendar: (e, p) => [
+    p.date_field ?? (e === 'task' ? 'due_date' : 'target_date'),
+    ...(e === 'task' ? ['deadline_date', 'project'] : []),
+  ],
+  timeline: (e) => ['start_date', e === 'task' ? 'due_date' : 'target_date'],
+  gantt: (e) => ['start_date', e === 'task' ? 'due_date' : 'target_date'],
+  portfolio: () => ['health', 'target_date'],
+};
+const todayIso = () => {
+  const d = new Date();
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+};
+
+type RenderProps = Parameters<typeof ListLayout>[0] & {
+  anchor: string;
+  setAnchor: (d: string) => void;
+  mode: NonNullable<Presentation['calendar_mode']>;
+  setMode: (m: NonNullable<Presentation['calendar_mode']>) => void;
+};
+function LayoutSwitch({ layout, props: p }: { layout: Layout; props: RenderProps }): ReactNode {
+  switch (layout) {
+    case 'board':
+      return <BoardLayout {...p} />;
+    case 'calendar':
+      return <CalendarLayout {...p} />;
+    case 'timeline':
+      return <TimelineLayout {...p} gantt={false} />;
+    case 'gantt':
+      return <TimelineLayout {...p} gantt />;
+    case 'workload':
+      return <WorkloadLayout {...p} />;
+    case 'milestones':
+      return <MilestonesLayout {...p} />;
+    case 'portfolio':
+      return <PortfolioLayout {...p} />;
+    case 'activity':
+      return <ActivityLayout {...p} />;
+    case 'timesheet':
+      return <TimesheetLayout {...p} />;
+    default:
+      return <ListLayout {...p} />;
+  }
+}
+
+function LayoutOptions({
+  entity,
+  layout,
+  presentation,
+  onChange,
+}: {
+  entity: Entity;
+  layout: Layout;
+  presentation: Presentation;
+  onChange: (p: Presentation) => void;
+}) {
+  const dates = DATE_FIELDS[entity];
+  const set = (k: keyof Presentation, v: string) => onChange({ ...presentation, [k]: v });
+  return (
+    <div className="layout-options">
+      {layout === 'board' ? (
+        <SelectField
+          id="opt-board"
+          label="Columns by"
+          value={presentation.board_field ?? 'status'}
+          onChange={(v) => set('board_field', v)}
+          options={[
+            { value: 'status', label: 'Status' },
+            ...(entity === 'task' ? [{ value: 'priority', label: 'Priority' }] : []),
+          ]}
+        />
+      ) : null}
+      {layout === 'calendar' ? (
+        <SelectField
+          id="opt-date"
+          label="Place by"
+          value={presentation.date_field ?? dates[0]!}
+          onChange={(v) => set('date_field', v)}
+          options={dates.map((d) => ({ value: d, label: titleCase(d.replace('_date', ' date')) }))}
+        />
+      ) : null}
+      {layout === 'timeline' || layout === 'gantt' ? (
+        <SelectField
+          id="opt-zoom"
+          label="Zoom"
+          value={presentation.zoom ?? 'week'}
+          onChange={(v) => set('zoom', v)}
+          options={['day', 'week', 'month', 'quarter'].map((z) => ({
+            value: z,
+            label: titleCase(z),
+          }))}
+        />
+      ) : null}
+      {layout === 'workload' ? (
+        <SelectField
+          id="opt-bucket"
+          label="Group by"
+          value={presentation.bucket ?? 'week'}
+          onChange={(v) => set('bucket', v)}
+          options={['day', 'week', 'month'].map((z) => ({ value: z, label: titleCase(z) }))}
+        />
+      ) : null}
+    </div>
+  );
+}
 
 const DEFAULT_PRESENTATION = (catalog: Catalog): Presentation => ({
   columns: catalog.default_columns,
@@ -242,24 +374,40 @@ export function SavedViewPage({ ws, view }: { ws: string; view: string }) {
       viewKey={key}
       saved={saved}
       onSaved={(v) => setSaved(v)}
+      {...(isDraft && LAYOUTS[entity].includes(search.get('layout') as Layout)
+        ? { initialLayout: search.get('layout') as Layout }
+        : {})}
     />
   );
 }
 
-function ViewWorkspace({
+export function ViewWorkspace({
   ws,
   entity,
   viewKey,
   saved,
   onSaved,
+  initialLayout,
+  fixed,
+  heading,
+  intro,
 }: {
   ws: string;
   entity: Entity;
   viewKey: ViewKey;
   saved: SavedView | null;
   onSaved: (v: SavedView) => void;
+  /** A draft's first layout (`?layout=`). */
+  initialLayout?: Layout;
+  /** A filter every query of this page keeps (My Work, a project's sections; 3B). */
+  fixed?: Group;
+  /** A page title used instead of the view name (fixed pages). */
+  heading?: string;
+  /** Content shown under the title (My Work tabs). */
+  intro?: ReactNode;
 }) {
   const { navigate } = useRouter();
+  const width = useWidthClass();
   const shellState = useWorkspaceShell();
   const stepUp = useStepUp();
   const state = useViewState(ws, viewKey);
@@ -275,12 +423,17 @@ function ViewWorkspace({
       return {
         query: { ...saved.query, entity },
         presentation: {
+          ...saved.presentation,
           columns: saved.presentation.columns ?? catalog.default_columns,
           density: saved.presentation.density ?? 'comfortable',
+          layout: saved.layout ?? 'list',
         },
       };
-    return { query: { v: 1, entity }, presentation: DEFAULT_PRESENTATION(catalog) };
-  }, [catalog, saved, entity]);
+    return {
+      query: { v: 1, entity },
+      presentation: { ...DEFAULT_PRESENTATION(catalog), layout: initialLayout ?? 'list' },
+    };
+  }, [catalog, saved, entity, initialLayout]);
   const urlQ = typeof state.state.q === 'string' ? state.state.q : '';
   const fromUrl = useMemo(() => {
     const d = urlQ ? decodeState(urlQ) : null;
@@ -292,31 +445,66 @@ function ViewWorkspace({
       : base;
   }, [urlQ, base, entity]);
   // The working copy changes at once; the URL and device state follow (debounced). A URL change
-  // made elsewhere (Back, Forward, Reset, a pasted link) replaces the working copy.
+  // made elsewhere (Back, Forward, a pasted link) replaces the working copy. The URL can lag behind
+  // several quick edits, so any state this page wrote itself is an echo, never an outside change.
   const [current, setLocal] = useState(fromUrl);
-  const written = useRef('');
+  const written = useRef(new Set<string>());
+  const remember = (q: string) => {
+    written.current.delete(q);
+    written.current.add(q);
+    if (written.current.size > 50) written.current.delete(written.current.values().next().value!);
+  };
   useEffect(() => {
-    setLocal((prev) => (prev === null || urlQ !== written.current ? fromUrl : prev));
+    setLocal((prev) => (prev === null || !written.current.has(urlQ) ? fromUrl : prev));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [fromUrl]);
   const modified = !!(saved && current && base && !same(current, base));
+  /** The query to save or export: the person's own conditions plus any fixed page filter. */
+  const withFixed = (q: Query): Query =>
+    fixed ? { ...q, filter: q.filter ? { op: 'and', items: [fixed, q.filter] } : fixed } : q;
   const setCurrent = (next: { query: Query; presentation: Presentation }) => {
     setLocal(next);
     const q = base && same(next, base) ? '' : encodeState(next.query, next.presentation);
-    written.current = q;
+    remember(q);
     state.set({ q: q || undefined });
   };
   /** Back to the saved definition (or the draft defaults), now and in the URL. */
   const resetToBase = () => {
     setLocal(base);
-    written.current = '';
+    remember('');
     state.set({ q: undefined });
   };
   /** Only complete conditions run; one being edited waits for its value. */
-  const runnable = useMemo(
-    () => (current ? { ...current, query: completeQuery(current.query) } : null),
-    [current],
-  );
+  const layout: Layout = current?.presentation.layout ?? 'list';
+  const [anchorDay, setAnchorDay] = useState(() => todayIso());
+  const calendarMode =
+    current?.presentation.calendar_mode ?? (width === 'compact' ? 'agenda' : 'month');
+  const runnable = useMemo(() => {
+    if (!current) return null;
+    const own = completeQuery(current.query);
+    const query: Query = fixed
+      ? { ...own, filter: own.filter ? { op: 'and', items: [fixed, own.filter] } : fixed }
+      : own;
+    // Layouts never filter on their own: they only ask the engine for the columns they draw
+    // and, for the calendar, narrow the same query to the visible dates (ADR-0020 B1).
+    const need = LAYOUT_COLUMNS[layout]?.(entity, current.presentation) ?? [];
+    const columns = [...new Set([...current.presentation.columns, ...need])].slice(0, 20);
+    let q = query;
+    if (layout === 'calendar') {
+      const win = calendarWindow(calendarMode, anchorDay);
+      const field =
+        current.presentation.date_field ?? (entity === 'task' ? 'due_date' : 'target_date');
+      const fields =
+        entity === 'task' && field !== 'deadline_date' ? [field, 'deadline_date'] : [field];
+      const range: Group = {
+        op: 'or',
+        items: fields.map((f) => ({ field: f, op: 'between', value: [win.from, win.to] })),
+      };
+      q = { ...query, filter: query.filter ? { op: 'and', items: [query.filter, range] } : range };
+    }
+    return { query: q, presentation: { ...current.presentation, columns } };
+  }, [current, layout, calendarMode, anchorDay, entity, fixed]);
+  const [nonce, setNonce] = useState(0);
 
   // Results: first page on every change, then keyset pages on demand.
   const [page, setPage] = useState<QueryPage | null>(null);
@@ -327,7 +515,7 @@ function ViewWorkspace({
     const s = shellState?.context?.scope;
     return s?.kind === 'brands' ? s.brand_ids : s?.kind === 'brand' ? [s.brand_id] : [];
   }, [shellState?.context?.scope]);
-  const runKey = runnable ? JSON.stringify([runnable, scope]) : '';
+  const runKey = runnable ? JSON.stringify([runnable, scope, nonce]) : '';
   const seq = useRef(0);
   useEffect(() => {
     if (!runnable) return;
@@ -398,7 +586,24 @@ function ViewWorkspace({
     ),
   );
 
-  const [panel, setPanel] = useState<'filter' | 'sort' | 'group' | 'columns' | null>(null);
+  const [panel, setPanel] = useState<'filter' | 'sort' | 'group' | 'columns' | 'layout' | null>(
+    null,
+  );
+  const [item, setItem] = useItemParam();
+  const onOpen = useCallback(
+    (id: string) => {
+      // Compact opens the full page; wider widths keep the view and open the panel (RS-32).
+      if (width === 'compact')
+        navigate(
+          id.startsWith('tsk_')
+            ? routeHref('task', { ws, tsk: id })
+            : routeHref('project', { ws, prj: id }),
+        );
+      else setItem(id);
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [width, ws],
+  );
   const [dialog, setDialog] = useState<
     'save_as' | 'share' | 'default' | 'export' | 'delete' | null
   >(null);
@@ -424,12 +629,14 @@ function ViewWorkspace({
         stepUp,
       );
       onSaved(v);
-      written.current = '';
+      remember('');
       setLocal({
         query: { ...v.query, entity },
         presentation: {
+          ...v.presentation,
           columns: v.presentation.columns ?? current.presentation.columns,
           density: v.presentation.density ?? 'comfortable',
+          layout: v.layout ?? 'list',
         },
       });
       state.set({ q: undefined });
@@ -438,7 +645,7 @@ function ViewWorkspace({
 
   if (catalogError) return <Page title="Saved view">{<ProblemBanner error={catalogError} />}</Page>;
   if (!catalog || !current) return <Page title="Saved view">{<p role="status">Loading…</p>}</Page>;
-  const title = saved ? saved.name : `New ${ENTITY_TEXT[entity].one} view`;
+  const title = heading ?? (saved ? saved.name : `New ${ENTITY_TEXT[entity].one} view`);
   const fields = new Map(catalog.fields.map((f) => [f.field, f]));
   const total = page?.page.total;
   const summary = page
@@ -462,6 +669,7 @@ function ViewWorkspace({
       breadcrumbs={[{ label: 'Saved views', to: routeHref('views', { ws }) }]}
       wide
     >
+      {intro}
       <p className="view-meta">
         <span>{sharedTo}</span>
         {modified ? (
@@ -572,6 +780,7 @@ function ViewWorkspace({
                 : 'Group',
             ],
             ['columns', 'Columns'],
+            ...(LAYOUT_HAS_OPTIONS.has(layout) ? ([['layout', 'Layout options']] as const) : []),
           ] as const
         ).map(([id, label]) => (
           <button
@@ -585,6 +794,18 @@ function ViewWorkspace({
             {label}
           </button>
         ))}
+        <SelectField
+          id="view-layout"
+          label="Layout"
+          value={layout}
+          onChange={(l) =>
+            setCurrent({
+              ...current,
+              presentation: { ...current.presentation, layout: l as Layout },
+            })
+          }
+          options={LAYOUTS[entity].map((l) => ({ value: l, label: LAYOUT_TEXT[l] }))}
+        />
         <fieldset className="density">
           <legend className="visually-hidden">Density</legend>
           {(['comfortable', 'compact'] as const).map((d) => (
@@ -639,6 +860,13 @@ function ViewWorkspace({
                 setCurrent({ ...current, query: { ...current.query, group: group ?? undefined } })
               }
             />
+          ) : panel === 'layout' ? (
+            <LayoutOptions
+              entity={entity}
+              layout={layout}
+              presentation={current.presentation}
+              onChange={(presentation) => setCurrent({ ...current, presentation })}
+            />
           ) : (
             <ColumnsEditor
               catalog={catalog}
@@ -659,19 +887,68 @@ function ViewWorkspace({
       <p className="view-summary" role="status" aria-live="polite">
         {summary}
       </p>
-      {page && !rows.length ? (
+      {page && !rows.length && !ALWAYS_SHOWN.has(layout) ? (
         <p className="hint">Nothing matches. {filterCount ? 'Remove a filter to see more.' : ''}</p>
       ) : null}
-      {rows.length ? (
-        <div
-          ref={list}
-          className={`view-results density-${current.presentation.density}`}
-          role="region"
-          aria-label={`${title} results`}
-          tabIndex={0}
-        >
-          <ResultsTable ws={ws} entity={entity} page={page!} rows={rows} catalog={catalog} />
-        </div>
+      {page && runnable && (rows.length || ALWAYS_SHOWN.has(layout)) ? (
+        layout === 'table' ? (
+          <div
+            ref={list}
+            className={`view-results density-${current.presentation.density}`}
+            role="region"
+            aria-label={`${title} results`}
+            tabIndex={0}
+          >
+            <ResultsTable
+              ws={ws}
+              entity={entity}
+              page={page}
+              rows={rows}
+              catalog={catalog}
+              onOpen={onOpen}
+            />
+          </div>
+        ) : (
+          <div
+            ref={list}
+            className={`layout-region layout-${layout} density-${current.presentation.density}`}
+            role="region"
+            aria-label={`${title} results`}
+          >
+            <LayoutSwitch
+              layout={layout}
+              props={{
+                ws,
+                entity,
+                rows,
+                page,
+                presentation: runnable.presentation,
+                query: runnable.query,
+                scope,
+                catalog,
+                onOpen,
+                onChanged: () => setNonce((n) => n + 1),
+                anchor: anchorDay,
+                setAnchor: setAnchorDay,
+                mode: calendarMode,
+                setMode: (m) =>
+                  setCurrent({
+                    ...current,
+                    presentation: { ...current.presentation, calendar_mode: m },
+                  }),
+              }}
+            />
+          </div>
+        )
+      ) : null}
+      {item ? (
+        <DetailPanel
+          key={item}
+          ws={ws}
+          entity={item.startsWith('prj_') ? 'project' : 'task'}
+          id={item}
+          onClose={() => setItem(null)}
+        />
       ) : null}
       {page?.page.has_more ? (
         <button
@@ -690,7 +967,11 @@ function ViewWorkspace({
           onSave={async (name) => {
             const v = await views.create(
               ws,
-              { name, query: completeQuery(current.query), presentation: current.presentation },
+              {
+                name,
+                query: withFixed(completeQuery(current.query)),
+                presentation: current.presentation,
+              },
               stepUp,
             );
             setDialog(null);
@@ -728,7 +1009,7 @@ function ViewWorkspace({
           onClose={() => setDialog(null)}
           onExport={async (format) => {
             const file = await views.exportView(ws, {
-              query: completeQuery(current.query),
+              query: withFixed(completeQuery(current.query)),
               presentation: current.presentation,
               format,
               name: title,
@@ -869,12 +1150,15 @@ function ResultsTable({
   page,
   rows,
   catalog,
+  onOpen,
 }: {
   ws: string;
   entity: Entity;
   page: QueryPage;
   rows: QueryRow[];
   catalog: Catalog;
+  /** Opens the detail panel over the view (VIEW-023); the title links to the full page otherwise. */
+  onOpen?: (id: string) => void;
 }) {
   const cols = page.view.columns;
   const groups = page.view.groups;
@@ -899,7 +1183,17 @@ function ResultsTable({
         {cols.map((c, i) =>
           i === 0 ? (
             <th key={c.field} scope="row">
-              {cell(ws, entity, c.field, row)}
+              {onOpen && (c.field === 'title' || c.field === 'name') ? (
+                <button
+                  type="button"
+                  className="link-button card-title"
+                  onClick={() => onOpen(row.id)}
+                >
+                  {row.title}
+                </button>
+              ) : (
+                cell(ws, entity, c.field, row)
+              )}
             </th>
           ) : (
             <td key={c.field}>{cell(ws, entity, c.field, row)}</td>
@@ -910,7 +1204,7 @@ function ResultsTable({
   });
   void catalog;
   return (
-    <table className="view-table">
+    <table className="view-table frozen-first">
       <caption className="visually-hidden">{ENTITY_TEXT[entity].many} in this view</caption>
       <thead>
         <tr>
@@ -1846,5 +2140,85 @@ function ExportDialog({
         </div>
       </form>
     </Dialog>
+  );
+}
+
+// -------------------------------------------------------------------------------------------------
+// My Work (NAV-004) and Assigned by Me (NAV-005): fixed queries over the same engine
+// -------------------------------------------------------------------------------------------------
+
+const OPEN: Condition = { field: 'status_category', op: 'not_in', value: ['done', 'cancelled'] };
+const MY_WORK: Record<'assigned' | 'delegated', { label: string; filter: Group }> = {
+  assigned: {
+    label: 'Assigned to me',
+    filter: { op: 'and', items: [{ field: 'assignee', op: 'any_of', value: ['me'] }, OPEN] },
+  },
+  delegated: {
+    label: 'Assigned by me',
+    filter: { op: 'and', items: [{ field: 'assigned_by', op: 'any_of', value: ['me'] }, OPEN] },
+  },
+};
+
+export function MyWorkPage({ ws }: { ws: string }) {
+  const { search, path } = useRouter();
+  const raw = search.get('tab');
+  const tab = raw === 'delegated' || raw === 'following' ? raw : 'assigned';
+  const tabs = (
+    <nav className="tabs" aria-label="My Work">
+      <ul>
+        {(
+          [
+            ['assigned', 'Assigned to me'],
+            ['delegated', 'Assigned by me'],
+            ['following', 'Following'],
+          ] as const
+        ).map(([id, label]) => (
+          <li key={id}>
+            <Link to={`${path}?tab=${id}`} aria-current={tab === id ? 'page' : undefined}>
+              {label}
+            </Link>
+          </li>
+        ))}
+      </ul>
+    </nav>
+  );
+  if (tab === 'following')
+    return (
+      <Page title="My Work">
+        {tabs}
+        <p className="hint">
+          Following records arrives with comments and following (4A). Until then, use Assigned to
+          me, Assigned by me, or favorites.
+        </p>
+      </Page>
+    );
+  const key = `views.my_work.${tab}` as ViewKey;
+  return (
+    <ViewWorkspace
+      key={key}
+      ws={ws}
+      entity="task"
+      viewKey={key}
+      saved={null}
+      onSaved={() => undefined}
+      fixed={MY_WORK[tab].filter}
+      heading="My Work"
+      intro={tabs}
+    />
+  );
+}
+
+/** The Calendar destination (CAL-001/002): every task the person can see, on the calendar. */
+export function CalendarPage({ ws }: { ws: string }) {
+  return (
+    <ViewWorkspace
+      ws={ws}
+      entity="task"
+      viewKey="views.calendar.home"
+      saved={null}
+      onSaved={() => undefined}
+      initialLayout="calendar"
+      heading="Calendar"
+    />
   );
 }
