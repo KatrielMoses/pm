@@ -199,6 +199,15 @@ export interface ServerConfig {
     timeTimesheetEntriesMax: number;
     timeRunawayDiscoveryMax: number;
     timeRunawayBatchMax: number;
+    todayItemsMax: number;
+    todayListMax: number;
+    upcomingDeadlineDays: number;
+    workBlocksPerDayMax: number;
+    workBlocksRangeDaysMax: number;
+    blockSeriesMax: number;
+    blockSeriesHorizonDays: number;
+    dayCloseDiscoveryMax: number;
+    dayCloseBatchMax: number;
   };
   features: {
     /** Local/test-only component harness route for reusable UI states (refused when deployed). */
@@ -421,6 +430,15 @@ const DEFAULTS = {
   TIME_TIMESHEET_ENTRIES_MAX: '2000',
   TIME_RUNAWAY_DISCOVERY_MAX: '100',
   TIME_RUNAWAY_BATCH_MAX: '200',
+  TODAY_ITEMS_MAX: '100',
+  TODAY_LIST_MAX: '50',
+  UPCOMING_DEADLINE_DAYS: '14',
+  WORK_BLOCKS_PER_DAY_MAX: '50',
+  WORK_BLOCKS_RANGE_DAYS_MAX: '42',
+  BLOCK_SERIES_MAX: '50',
+  BLOCK_SERIES_HORIZON_DAYS: '28',
+  DAY_CLOSE_DISCOVERY_MAX: '100',
+  DAY_CLOSE_BATCH_MAX: '200',
 } as const;
 
 const schema = z.object({
@@ -577,6 +595,15 @@ const schema = z.object({
   TIME_TIMESHEET_ENTRIES_MAX: int(10, 10000),
   TIME_RUNAWAY_DISCOVERY_MAX: int(1, 1000),
   TIME_RUNAWAY_BATCH_MAX: int(1, 1000),
+  TODAY_ITEMS_MAX: int(1, 500),
+  TODAY_LIST_MAX: int(5, 200),
+  UPCOMING_DEADLINE_DAYS: int(1, 90),
+  WORK_BLOCKS_PER_DAY_MAX: int(1, 200),
+  WORK_BLOCKS_RANGE_DAYS_MAX: int(1, 366),
+  BLOCK_SERIES_MAX: int(1, 500),
+  BLOCK_SERIES_HORIZON_DAYS: int(1, 180),
+  DAY_CLOSE_DISCOVERY_MAX: int(1, 1000),
+  DAY_CLOSE_BATCH_MAX: int(1, 1000),
 });
 
 /** Variables a deployed environment must set explicitly (no silent local defaults). */
@@ -1017,6 +1044,15 @@ export function loadServerConfig(options: LoadOptions): ServerConfig {
       timeTimesheetEntriesMax: c.TIME_TIMESHEET_ENTRIES_MAX,
       timeRunawayDiscoveryMax: c.TIME_RUNAWAY_DISCOVERY_MAX,
       timeRunawayBatchMax: c.TIME_RUNAWAY_BATCH_MAX,
+      todayItemsMax: c.TODAY_ITEMS_MAX,
+      todayListMax: c.TODAY_LIST_MAX,
+      upcomingDeadlineDays: c.UPCOMING_DEADLINE_DAYS,
+      workBlocksPerDayMax: c.WORK_BLOCKS_PER_DAY_MAX,
+      workBlocksRangeDaysMax: c.WORK_BLOCKS_RANGE_DAYS_MAX,
+      blockSeriesMax: c.BLOCK_SERIES_MAX,
+      blockSeriesHorizonDays: c.BLOCK_SERIES_HORIZON_DAYS,
+      dayCloseDiscoveryMax: c.DAY_CLOSE_DISCOVERY_MAX,
+      dayCloseBatchMax: c.DAY_CLOSE_BATCH_MAX,
     },
     identity: {
       publicOrigin,

@@ -371,3 +371,6 @@ Capture, the Inbox, notes, merge, and parse previews are personal (`personal.man
 
 `TimeService` (AZ-27): `time.log_own` (comment) on the task or project at every write; only the owner changes an entry. Reads use the work's compiled visibility (view, archived included) inside SQL, with guests limited to their own entries; `editable` uses the same compiler at `comment` on active work. `timesheet.submit_own` is personal; `timesheet.approve` is decided per brand line now, needs the whole line to be readable, and applies OD-20 through the shared `selfApprovalAllowed`; `timesheet.unlock` is the admin action with step-up (OD-26). Approvers never gain access through approval.
 
+## Phase 3C Today and planning
+
+`PlanningService` (AZ-28): every command and read is `personal.manage_own` and filtered by owner, with no administrator bypass. Naming a task goes through the task loader (readable now, active). Today's lists run the 3A query engine with the viewer's predicate; commitments and blocks join the same compiled visibility, so unreadable tasks drop out (commitments) or lose their title and link (blocks). Planning never writes a task.

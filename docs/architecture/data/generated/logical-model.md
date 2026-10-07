@@ -2411,10 +2411,11 @@ A person's commitment to an item on a day (in their timezone and day-start offse
 | Retention / confidentiality | `R-PERSONAL` / `C2` |
 | Volume / export / search-AI | `high` / `self` / `yes` |
 | Secrets / personal data | `no` / `incidental` |
-| Uniqueness | `(membership_id, day, record_id)` |
-| Key typed columns | `membership_id`; `day date`; `record_id`; `rank text`; `locked boolean`; `outcome (open\|done\|carried\|returned\|dropped)` |
+| Uniqueness | `(owner_membership_id, day, task_id)` |
+| Key typed columns | `owner_membership_id`; `day date (viewer's zone)`; `task_id`; `brand_id (cascades with the task)`; `rank text`; `locked boolean`; `outcome (open\|done\|carried\|returned\|dropped)`; `carried_to date null`; `source (manual\|plan\|carry)`; `closed_at null`; `version` |
 | Sensitive fields | — |
-| Requirements | PLAN-008, PLAN-009, PLAN-017 |
+| Requirements | PLAN-001, PLAN-008, PLAN-009, PLAN-016, PLAN-017 |
+| Notes | Phase 3C (ADR-28): never changes the task's dates; closed commitments are final. |
 
 <a id="entity-daily-record"></a>
 ### `daily_record`
@@ -2432,9 +2433,10 @@ Immutable end-of-day snapshot of planned versus completed work and time.
 | Volume / export / search-AI | `medium` / `self` / `yes` |
 | Secrets / personal data | `no` / `incidental` |
 | Uniqueness | `(membership_id, day)` |
-| Key typed columns | standard columns only |
+| Key typed columns | `owner_membership_id`; `day`; `tz`; `closed_by (shutdown\|auto)`; `committed`; `completed`; `carried`; `returned`; `dropped`; `planned_minutes`; `unestimated`; `block_minutes`; `focus_minutes`; `actual_seconds`; `items jsonb` |
 | Sensitive fields | — |
-| Requirements | PLAN-019, RPT-005 |
+| Requirements | PLAN-018, PLAN-019, RPT-005 |
+| Notes | Phase 3C (ADR-28): written once at shutdown or by the day-close job; never rewritten. |
 
 <a id="entity-work-block"></a>
 ### `work_block`
@@ -2447,14 +2449,36 @@ Reserved calendar time for a task (or none, as a reservation); moving it never c
 | Contained by | — |
 | Extends (1:1) | — |
 | Associations | [`task`](logical-model.md#entity-task), [`brand`](logical-model.md#entity-brand) |
-| Lifecycle / concurrency | `full` / `row-version` |
+| Lifecycle / concurrency | `mutable` / `row-version` |
 | Retention / confidentiality | `R-PERSONAL` / `C2` |
 | Volume / export / search-AI | `high` / `self` / `yes` |
 | Secrets / personal data | `no` / `incidental` |
-| Uniqueness | — |
-| Key typed columns | `membership_id`; `task_id null`; `brand_id (of task or reservation)`; `starts_at timestamptz`; `ends_at timestamptz`; `source_tz text`; `focus boolean`; `locked boolean`; `buffer_kind null`; `source (manual\|calendar\|ai_plan\|recurrence)`; `recurrence_series_id null`; `occurrence_key null` |
+| Uniqueness | `(series_id, occurrence_key)`; `public_id` |
+| Key typed columns | `public_id text (blk_)`; `owner_membership_id`; `task_id null`; `brand_id null (= the task's brand; cascades with the task)`; `title null (blocks without a task)`; `starts_at timestamptz`; `ends_at timestamptz`; `source_tz text`; `focus boolean`; `locked boolean`; `prep_minutes`; `buffer_minutes`; `source (manual\|estimate\|recurrence)`; `series_id null`; `occurrence_key null`; `version` |
 | Sensitive fields | — |
-| Requirements | TSK-006, CAL-003, CAL-004, CAL-013, PLAN-014 |
+| Requirements | TSK-006, CAL-005, CAL-011, CAL-013, PLAN-014, PLAN-015, PLAN-017 |
+| Notes | Phase 3C (ADR-28): personal. The seeded core record type stays reserved: 3C blocks carry their own public ID and are deleted with audit (no trash), and removed with their task. Focus blocks are protected against overlap by a guard under the person's lock. Calendar and AI sources are 6C and 7F. |
+
+<a id="entity-block-series"></a>
+### `block_series`
+
+A person's recurring work block (CAL-005): a rule in an anchor zone, a duration, and block settings.
+
+| Property | Value |
+|---|---|
+| Scope | `personal` |
+| Contained by | — |
+| Extends (1:1) | — |
+| Associations | [`task`](logical-model.md#entity-task) |
+| Lifecycle / concurrency | `state-machine` / `row-version` |
+| Retention / confidentiality | `R-PERSONAL` / `C1` |
+| Volume / export / search-AI | `low` / `self` / `no` |
+| Secrets / personal data | `no` / `incidental` |
+| Uniqueness | `public_id` |
+| Key typed columns | `public_id text (bls_)`; `owner_membership_id`; `task_id null`; `title null`; `rrule (2A subset)`; `anchor_tz`; `dtstart_local`; `duration_minutes`; `focus`; `prep_minutes`; `buffer_minutes`; `state (active\|ended)`; `generated_through` |
+| Sensitive fields | — |
+| Requirements | CAL-005 |
+| Notes | Phase 3C (ADR-28): occurrences are work blocks keyed (series_id, occurrence_key), generated idempotently through BLOCK_SERIES_HORIZON_DAYS. |
 
 <a id="entity-recurrence-series"></a>
 ### `recurrence_series`

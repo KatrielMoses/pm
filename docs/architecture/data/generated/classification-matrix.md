@@ -24,7 +24,7 @@ Class definitions and rules: [../11-data-classification.md](../11-data-classific
 | Notifications | 4 | C2 | R-EXEC, R-PERSONAL | never, self | no | no | incidental | very-high |
 | Projects and tasks | 16 | C2 | R-EPHEMERAL, R-LIVE | filtered, never | no, yes | no | incidental | very-high |
 | Inbox and capture | 6 | C3 | R-LIVE, R-PERSONAL | filtered, self | metadata, no, yes | hash-only | incidental, yes | high |
-| Today, scheduling, and capacity | 12 | C3 | R-LIVE, R-PERSONAL | filtered, self | no, yes | no | incidental, yes | high |
+| Today, scheduling, and capacity | 13 | C3 | R-LIVE, R-PERSONAL | filtered, self | no, yes | no | incidental, yes | high |
 | Time tracking | 6 | C2 | R-EVIDENCE, R-LIVE | filtered | no, yes | no | incidental | very-high |
 | Documents and knowledge | 4 | C2 | R-EVIDENCE, R-LIVE | filtered | yes | no | incidental | high |
 | Goals and portfolios | 5 | C2 | R-LIVE | filtered | yes | no | incidental | medium |
@@ -157,6 +157,7 @@ Class definitions and rules: [../11-data-classification.md](../11-data-classific
 | [`today_commitment`](logical-model.md#entity-today-commitment) | planning | personal | C2 | standard (per-record) | material changes | R-PERSONAL | self | high | yes | no | incidental |
 | [`daily_record`](logical-model.md#entity-daily-record) | planning | personal | C2 | standard (per-record) | is evidence / append-only | R-PERSONAL | self | medium | yes | no | incidental |
 | [`work_block`](logical-model.md#entity-work-block) | planning | personal | C2 | standard (per-record) | material changes | R-PERSONAL | self | high | yes | no | incidental |
+| [`block_series`](logical-model.md#entity-block-series) | planning | personal | C1 | low | configuration changes | R-PERSONAL | self | low | no | no | incidental |
 | [`recurrence_series`](logical-model.md#entity-recurrence-series) | planning | workspace_or_brand | C2 | standard (per-record) | material changes | R-LIVE | filtered | medium | yes | no | incidental |
 | [`recurrence_exception`](logical-model.md#entity-recurrence-exception) | planning | inherited | C2 | standard (per-record) | material changes | R-LIVE | filtered | medium | yes | no | incidental |
 | [`availability_rule`](logical-model.md#entity-availability-rule) | planning | personal | C2 | standard (per-record) | material changes | R-PERSONAL | self | low | yes | no | incidental |

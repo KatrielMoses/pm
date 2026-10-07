@@ -13,6 +13,9 @@ import { VIEWS_SCHEDULES, viewsCleanupHandler, type ViewsCleanupDeps } from '@pm
 import {
   recurrenceHandler,
   remindersHandler,
+  PLANNING_SCHEDULES,
+  blockSeriesHandler,
+  dayCloseHandler,
   TIME_SCHEDULES,
   timerGuardHandler,
   WORK_SCHEDULES,
@@ -28,6 +31,7 @@ import {
  * 2A: recurring project generation (bounded catch-up, owner authority rechecked per series).
  * 2D: recurring task generation (same job) and personal task reminders (deduplicated firing).
  * 3D: the timer guard (runaway timers stop at TIME_TIMER_MAX_HOURS, once).
+ * 3C: day close (records for ended days) and recurring work blocks.
  */
 export interface WorkerModules {
   identity: IdentityJobDeps;
@@ -48,6 +52,8 @@ export function registeredHandlers(m: WorkerModules): JobHandler[] {
     recurrenceHandler(m.work),
     remindersHandler(m.work),
     timerGuardHandler(m.work),
+    dayCloseHandler(m.work),
+    blockSeriesHandler(m.work),
   ];
 }
 
@@ -63,5 +69,6 @@ export function registeredSchedules(): RecurringJob[] {
     ...VIEWS_SCHEDULES,
     ...WORK_SCHEDULES,
     ...TIME_SCHEDULES,
+    ...PLANNING_SCHEDULES,
   ];
 }

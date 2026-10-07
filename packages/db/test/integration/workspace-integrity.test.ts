@@ -214,6 +214,11 @@ describe('database-enforced workspace existence (1A review 01, correction 2)', (
       'timetrack.timesheet',
       'timetrack.timesheet_approval',
       'timetrack.timesheet_line',
+      // Phase 3C work blocks, block series, Today commitments, and daily records.
+      'planning.block_series',
+      'planning.daily_record',
+      'planning.today_commitment',
+      'planning.work_block',
     ];
     expect(res.rows.map((r) => r.tbl).sort()).toEqual(
       [...TENANT_TABLES.map((t) => `exec.${t}`), ...phase1f, ...phase1c].sort(),
@@ -255,8 +260,9 @@ describe('database-enforced workspace existence (1A review 01, correction 2)', (
     // 2D task occurrences, task series projects, reminders, snoozes, bulk operations, undo: +12;
     // 2E Inbox items, notes, lineage (13) and intake forms and submissions (9): +22;
     // 3A saved views (7) and view defaults (6): +13;
-    // 3D entries (5), segments (3), timesheets (2), lines (3), approvals (6), period locks (5): +24.
-    expect(res.rows.length).toBe(298);
+    // 3D entries (5), segments (3), timesheets (2), lines (3), approvals (6), period locks (5): +24;
+    // 3C work blocks (5), block series (4), Today commitments (4), daily records (2): +15.
+    expect(res.rows.length).toBe(313);
     for (const r of res.rows)
       expect(r, `${r.tbl}.${r.conname}`).toMatchObject({
         referencing_indexed: true,

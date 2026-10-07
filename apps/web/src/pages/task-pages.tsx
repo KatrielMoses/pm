@@ -37,6 +37,7 @@ import { Announce, Banner } from '../ui/feedback.tsx';
 import { ErrorSummary, Field, SelectField, SubmitButton, TextAreaField } from '../ui/form.tsx';
 import { Page } from '../ui/layout.tsx';
 import { WorkTimePanel } from './time-pages.tsx';
+import { TaskPlanPanel } from './today-pages.tsx';
 import { ReviewedChange } from './people-pages.tsx';
 import { RecurrenceEditor, richTextHash, StatusBadge, useCommand } from './project-pages.tsx';
 import { FavoriteToggle } from './shell-pages.tsx';
@@ -858,16 +859,16 @@ function TaskBody({
       {!task.shared_only ? (
         <RelationshipsSection ws={ws} task={task} detail={detail} reload={reload} />
       ) : null}
+      {task.lifecycle_state === 'active' && !task.shared_only ? (
+        <TaskPlanPanel
+          ws={ws}
+          task={task.id}
+          estimate={task.remaining_estimate_minutes ?? task.estimate_minutes}
+        />
+      ) : null}
       {task.lifecycle_state !== 'trashed' ? (
         <WorkTimePanel ws={ws} target={task.id} canLog={!!caps.log_time} version={task.version} />
       ) : null}
-      <section className="card" aria-labelledby="sched-heading">
-        <h2 id="sched-heading">Scheduled time</h2>
-        <p>
-          Work blocks for this task arrive with planning (3C). Its due date and deadline are not
-          schedule times.
-        </p>
-      </section>
       <section className="card" aria-labelledby="later-heading">
         <h2 id="later-heading">Not available yet</h2>
         <ul>

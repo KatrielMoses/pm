@@ -711,6 +711,14 @@
       "owner_module": "work",
       "platform_only": false,
       "note": "Phase 2D (PL-26)."
+    },
+    {
+      "prefix": "bls",
+      "resource": "block_series",
+      "entity": "planning.block_series",
+      "owner_module": "planning",
+      "platform_only": false,
+      "note": "Phase 3C (PL-30)."
     }
   ],
   "error_codes": [
@@ -1749,7 +1757,9 @@
       },
       "public_webhook": null,
       "requirements": [
-        "CAL-013"
+        "CAL-013",
+        "PLAN-016",
+        "TSK-006"
       ],
       "allow_list_version": null,
       "delivery_authorization": null
@@ -3700,6 +3710,171 @@
       ],
       "allow_list_version": null,
       "delivery_authorization": null
+    },
+    {
+      "type": "planning.work_block.created",
+      "schema_version": 1,
+      "aggregate_entity": "planning.work_block",
+      "fields": [
+        "source",
+        "focus"
+      ],
+      "max_class": "C1",
+      "consumers": {
+        "activity": false,
+        "notification": false,
+        "metrics": true,
+        "automation_trigger": false,
+        "search_index": false
+      },
+      "public_webhook": null,
+      "requirements": [
+        "TSK-006",
+        "PLAN-014",
+        "CAL-011"
+      ],
+      "allow_list_version": null,
+      "delivery_authorization": null
+    },
+    {
+      "type": "planning.work_block.deleted",
+      "schema_version": 1,
+      "aggregate_entity": "planning.work_block",
+      "fields": [
+        "source"
+      ],
+      "max_class": "C1",
+      "consumers": {
+        "activity": false,
+        "notification": false,
+        "metrics": true,
+        "automation_trigger": false,
+        "search_index": false
+      },
+      "public_webhook": null,
+      "requirements": [
+        "TSK-006"
+      ],
+      "allow_list_version": null,
+      "delivery_authorization": null
+    },
+    {
+      "type": "planning.block_series.defined",
+      "schema_version": 1,
+      "aggregate_entity": "planning.block_series",
+      "fields": [
+        "occurrences"
+      ],
+      "max_class": "C1",
+      "consumers": {
+        "activity": false,
+        "notification": false,
+        "metrics": true,
+        "automation_trigger": false,
+        "search_index": false
+      },
+      "public_webhook": null,
+      "requirements": [
+        "CAL-005"
+      ],
+      "allow_list_version": null,
+      "delivery_authorization": null
+    },
+    {
+      "type": "planning.block_series.ended",
+      "schema_version": 1,
+      "aggregate_entity": "planning.block_series",
+      "fields": [
+        "removed"
+      ],
+      "max_class": "C1",
+      "consumers": {
+        "activity": false,
+        "notification": false,
+        "metrics": true,
+        "automation_trigger": false,
+        "search_index": false
+      },
+      "public_webhook": null,
+      "requirements": [
+        "CAL-005"
+      ],
+      "allow_list_version": null,
+      "delivery_authorization": null
+    },
+    {
+      "type": "planning.today.committed",
+      "schema_version": 1,
+      "aggregate_entity": "planning.today_commitment",
+      "fields": [
+        "day",
+        "source"
+      ],
+      "max_class": "C1",
+      "consumers": {
+        "activity": false,
+        "notification": false,
+        "metrics": true,
+        "automation_trigger": false,
+        "search_index": false
+      },
+      "public_webhook": null,
+      "requirements": [
+        "PLAN-008"
+      ],
+      "allow_list_version": null,
+      "delivery_authorization": null
+    },
+    {
+      "type": "planning.today.changed",
+      "schema_version": 1,
+      "aggregate_entity": "planning.today_commitment",
+      "fields": [
+        "day",
+        "change"
+      ],
+      "max_class": "C1",
+      "consumers": {
+        "activity": false,
+        "notification": false,
+        "metrics": true,
+        "automation_trigger": false,
+        "search_index": false
+      },
+      "public_webhook": null,
+      "requirements": [
+        "PLAN-009",
+        "PLAN-016",
+        "PLAN-017"
+      ],
+      "allow_list_version": null,
+      "delivery_authorization": null
+    },
+    {
+      "type": "planning.day.closed",
+      "schema_version": 1,
+      "aggregate_entity": "planning.daily_record",
+      "fields": [
+        "day",
+        "closed_by",
+        "committed",
+        "completed"
+      ],
+      "max_class": "C1",
+      "consumers": {
+        "activity": false,
+        "notification": false,
+        "metrics": true,
+        "automation_trigger": false,
+        "search_index": false
+      },
+      "public_webhook": null,
+      "requirements": [
+        "PLAN-018",
+        "PLAN-019"
+      ],
+      "allow_list_version": null,
+      "delivery_authorization": null
     }
   ],
   "scopes": [
@@ -4674,6 +4849,40 @@
         "outcome"
       ],
       "area": "time"
+    },
+    {
+      "name": "planning.today",
+      "type": "counter",
+      "labels": [
+        "action",
+        "outcome"
+      ],
+      "area": "planning"
+    },
+    {
+      "name": "planning.blocks",
+      "type": "counter",
+      "labels": [
+        "action",
+        "outcome"
+      ],
+      "area": "planning"
+    },
+    {
+      "name": "planning.block_series",
+      "type": "counter",
+      "labels": [
+        "outcome"
+      ],
+      "area": "planning"
+    },
+    {
+      "name": "planning.day_close",
+      "type": "counter",
+      "labels": [
+        "outcome"
+      ],
+      "area": "planning"
     }
   ],
   "forbidden_metric_labels": [
@@ -5247,6 +5456,51 @@
       "name": "TIME_RUNAWAY_BATCH_MAX",
       "meaning": "Most runaway timers one timer-guard run stops per workspace; default 200, range 1–1000.",
       "owner": "3D"
+    },
+    {
+      "name": "TODAY_ITEMS_MAX",
+      "meaning": "Most Today commitments one person may have on one day; default 100, range 1–500.",
+      "owner": "3C"
+    },
+    {
+      "name": "TODAY_LIST_MAX",
+      "meaning": "Most tasks one Today section (overdue, due today, upcoming deadlines) returns; default 50, range 5–200.",
+      "owner": "3C"
+    },
+    {
+      "name": "UPCOMING_DEADLINE_DAYS",
+      "meaning": "How many days ahead Today lists upcoming deadlines; default 14, range 1–90.",
+      "owner": "3C"
+    },
+    {
+      "name": "WORK_BLOCKS_PER_DAY_MAX",
+      "meaning": "Most work blocks one person may have starting on one local day; default 50, range 1–200.",
+      "owner": "3C"
+    },
+    {
+      "name": "WORK_BLOCKS_RANGE_DAYS_MAX",
+      "meaning": "Widest range of days one work-block listing may cover; default 42, range 1–366.",
+      "owner": "3C"
+    },
+    {
+      "name": "BLOCK_SERIES_MAX",
+      "meaning": "Most active recurring block series one person may have; default 50, range 1–500.",
+      "owner": "3C"
+    },
+    {
+      "name": "BLOCK_SERIES_HORIZON_DAYS",
+      "meaning": "How many days ahead recurring work blocks are generated; default 28, range 1–180.",
+      "owner": "3C"
+    },
+    {
+      "name": "DAY_CLOSE_DISCOVERY_MAX",
+      "meaning": "Most workspaces one day-close or block-series run examines; default 100, range 1–1000.",
+      "owner": "3C"
+    },
+    {
+      "name": "DAY_CLOSE_BATCH_MAX",
+      "meaning": "Most person-days one day-close run records per workspace; default 200, range 1–1000.",
+      "owner": "3C"
     }
   ],
   "sse_topics": [

@@ -129,6 +129,15 @@ describe('server configuration', () => {
       timeTimesheetEntriesMax: 2000,
       timeRunawayDiscoveryMax: 100,
       timeRunawayBatchMax: 200,
+      todayItemsMax: 100,
+      todayListMax: 50,
+      upcomingDeadlineDays: 14,
+      workBlocksPerDayMax: 50,
+      workBlocksRangeDaysMax: 42,
+      blockSeriesMax: 50,
+      blockSeriesHorizonDays: 28,
+      dayCloseDiscoveryMax: 100,
+      dayCloseBatchMax: 200,
     });
     const set = (env: Record<string, string>) =>
       loadServerConfig({ service: 'worker', env: { ...local, ...env } });
@@ -166,6 +175,8 @@ describe('server configuration', () => {
       ['INBOX_MERGE_MAX', '1'],
       ['TIME_TIMER_MAX_HOURS', '25'],
       ['TIME_EXPORT_ROWS_MAX', '99'],
+      ['BLOCK_SERIES_HORIZON_DAYS', '181'],
+      ['TODAY_LIST_MAX', '4'],
     ] as const)
       expect(issues(() => set({ [key]: bad })).join(' '), `${key}=${bad}`).toMatch(
         new RegExp(`^${key}`),

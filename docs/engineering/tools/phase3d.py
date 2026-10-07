@@ -144,7 +144,7 @@ def check_invariants():
             "closes the whole period for the person while submitted",
             "unlocks an approved line only for admins"],
         "packages/db/test/integration/migrations.test.ts": [
-            "boundaries = [9, 12, 16, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32]"],
+            "boundaries = [9, 12, 16, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32"],
     }.items():
         text = read(P(path))
         for n in needles:

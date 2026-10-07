@@ -179,6 +179,7 @@ Requirements flagged with each decision are listed automatically in [requirement
 - **Affects:** PLAN-001, PLAN-002, PLAN-003 · phase 3C.
 - **Safe default:** As in [time-and-scheduling.md §6](time-and-scheduling.md#6-today).
 - **If deferred:** 3C cannot finalize acceptance tests.
+- **Status (Phase 3C, 2026-10-07):** Decided as the safe default at the Phase 0 exit gate and implemented: Today uses the viewer's profile zone; committed and block-scheduled work are shown, with overdue, due-today, and upcoming-deadline items in separate sections (ADR-0020 P1–P2).
 
 <a id="od-19"></a>
 ### OD-19 — Holiday calendars

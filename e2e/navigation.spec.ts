@@ -87,11 +87,14 @@ test('one registry drives every navigation surface; destinations are honest and 
     ])
       await expect(nav.getByRole('link', { name, exact: true })).toBeAttached();
   }
-  // Later destinations are real routes with an honest unavailable state and the scope in the URL.
-  for (const [name, path] of [
-    ['Today', 'today'],
-    ['Reports', 'reports'],
-  ] as const) {
+  // Today is live (3C); later destinations are real routes with an honest unavailable state, and
+  // both keep the scope in the URL.
+  await goTo(page, 'Today');
+  await expect(page).toHaveURL(new RegExp(`/workspaces/${ws}/today\\?scope=`));
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText('Today');
+  await expect(page.getByText(`Today isn't available yet`)).toHaveCount(0);
+  await expect(page).toHaveTitle('Today · PM');
+  for (const [name, path] of [['Reports', 'reports']] as const) {
     await goTo(page, name);
     await expect(page).toHaveURL(new RegExp(`/workspaces/${ws}/${path}\\?scope=`));
     await expect(page.getByRole('heading', { level: 1 })).toHaveText(name);
