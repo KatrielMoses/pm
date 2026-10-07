@@ -179,6 +179,12 @@ export const NON_RESOURCE_TYPES = [
   'timesheet_period',
   'time_report',
   'time_summary',
+  // 3C: Today, the day plan, and planned-versus-completed daily records.
+  'today_view',
+  'day_plan',
+  'daily_records',
+  'today_commitment',
+  'daily_record',
 ] as const;
 export type NonResourceType = (typeof NON_RESOURCE_TYPES)[number];
 

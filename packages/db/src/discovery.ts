@@ -161,6 +161,24 @@ export class PlatformDiscovery {
     return rows.map((r) => r.workspace_id);
   }
 
+  /** Workspaces with open Today commitments on days before `before` and no record yet (3C). */
+  async discoverDaysToClose(before: string, limit: number): Promise<string[]> {
+    const { rows } = await this.#pool.query<{ workspace_id: string }>(
+      'SELECT workspace_id FROM exec_dispatch.discover_days_to_close($1, $2)',
+      [before, limit],
+    );
+    return rows.map((r) => r.workspace_id);
+  }
+
+  /** Workspaces with active block series generated short of `through` (3C, ids only). */
+  async discoverBlockSeriesDue(through: string, limit: number): Promise<string[]> {
+    const { rows } = await this.#pool.query<{ workspace_id: string }>(
+      'SELECT workspace_id FROM exec_dispatch.discover_block_series_due($1, $2)',
+      [through, limit],
+    );
+    return rows.map((r) => r.workspace_id);
+  }
+
   /** Worker liveness (platform table, no tenant data). */
   async heartbeat(workerId: string, buildId: string, stopping = false): Promise<void> {
     await this.#pool.query(

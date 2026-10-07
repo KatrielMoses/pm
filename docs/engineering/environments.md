@@ -143,6 +143,15 @@ worker process is a startup error. All identities of one process must target the
 | `TIME_TIMESHEET_ENTRIES_MAX` | optional | optional | default 2000 (10–10000); most time entries one person may have in one timesheet period (0D `TIME_TIMESHEET_ENTRIES_MAX`) |
 | `TIME_RUNAWAY_DISCOVERY_MAX` | optional | optional | default 100 (1–1000); most workspaces one timer-guard run examines (0D `TIME_RUNAWAY_DISCOVERY_MAX`) |
 | `TIME_RUNAWAY_BATCH_MAX` | optional | optional | default 200 (1–1000); most runaway timers one timer-guard run stops per workspace (0D `TIME_RUNAWAY_BATCH_MAX`) |
+| `TODAY_ITEMS_MAX` | optional | optional | default 100 (1–500); most Today commitments one person may have on one day (0D `TODAY_ITEMS_MAX`) |
+| `TODAY_LIST_MAX` | optional | optional | default 50 (5–200); most tasks one Today section (overdue, due today, upcoming deadlines) returns (0D `TODAY_LIST_MAX`) |
+| `UPCOMING_DEADLINE_DAYS` | optional | optional | default 14 (1–90); how many days ahead Today lists upcoming deadlines (0D `UPCOMING_DEADLINE_DAYS`) |
+| `WORK_BLOCKS_PER_DAY_MAX` | optional | optional | default 50 (1–200); most work blocks one person may have starting on one local day (0D `WORK_BLOCKS_PER_DAY_MAX`) |
+| `WORK_BLOCKS_RANGE_DAYS_MAX` | optional | optional | default 42 (1–366); widest range of days one work-block listing may cover (0D `WORK_BLOCKS_RANGE_DAYS_MAX`) |
+| `BLOCK_SERIES_MAX` | optional | optional | default 50 (1–500); most active recurring block series one person may have (0D `BLOCK_SERIES_MAX`) |
+| `BLOCK_SERIES_HORIZON_DAYS` | optional | optional | default 28 (1–180); how many days ahead recurring work blocks are generated (0D `BLOCK_SERIES_HORIZON_DAYS`) |
+| `DAY_CLOSE_DISCOVERY_MAX` | optional | optional | default 100 (1–1000); most workspaces one day-close or block-series run examines (0D `DAY_CLOSE_DISCOVERY_MAX`) |
+| `DAY_CLOSE_BATCH_MAX` | optional | optional | default 200 (1–1000); most person-days one day-close run records per workspace (0D `DAY_CLOSE_BATCH_MAX`) |
 | `VIEW_STATE_TTL_MS` | optional | optional | default 90 days; stored view state not written for this long is removed (0D `VIEW_STATE_TTL`) |
 
 Values are configuration, not customer promises (PQ-05). The 0D parameter values above are

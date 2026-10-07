@@ -485,6 +485,17 @@
         "I-10",
         "I-18"
       ]
+    },
+    {
+      "id": "T-46",
+      "category": "inference",
+      "description": "Planning exposure and drift: another person's Today, blocks, series, or records visible to anyone; commitments or blocks revealing or granting access to tasks the owner cannot read (including after revocation); Today lists counting hidden work; planning commands changing due dates or deadlines; locked items or focus blocks moved or overlapped; daily records rewritten.",
+      "mitigated_by": [
+        "I-01",
+        "I-02",
+        "I-10",
+        "I-18"
+      ]
     }
   ],
   "tests": [
@@ -3478,6 +3489,137 @@
       "response_shape": "omitted",
       "silent_surfaces": [
         "ui_list",
+        "report"
+      ]
+    },
+    {
+      "id": "AT-162",
+      "threats": [
+        "T-46"
+      ],
+      "principal": "administrator",
+      "setup": "Read or change another person's Today, blocks, or daily records",
+      "scope": "personal",
+      "action": "personal.manage_own",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "not_found",
+      "silent_surfaces": [
+        "ui_list",
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-163",
+      "threats": [
+        "T-46"
+      ],
+      "principal": "member",
+      "setup": "Commit or schedule a task the person cannot read",
+      "scope": "task",
+      "action": "record.read",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "not_found",
+      "silent_surfaces": [
+        "error_message",
+        "timing"
+      ]
+    },
+    {
+      "id": "AT-164",
+      "threats": [
+        "T-46"
+      ],
+      "principal": "member",
+      "setup": "Today after losing access to a committed and scheduled task",
+      "scope": "personal",
+      "action": "record.read",
+      "surface": "ui_list",
+      "expected": "deny",
+      "response_shape": "omitted",
+      "silent_surfaces": [
+        "count_facet",
+        "report"
+      ]
+    },
+    {
+      "id": "AT-165",
+      "threats": [
+        "T-46"
+      ],
+      "principal": "member",
+      "setup": "Overdue and upcoming-deadline sections with hidden tasks assigned to the person",
+      "scope": "personal",
+      "action": "record.read",
+      "surface": "ui_list",
+      "expected": "deny",
+      "response_shape": "omitted",
+      "silent_surfaces": [
+        "count_facet"
+      ]
+    },
+    {
+      "id": "AT-166",
+      "threats": [
+        "T-46"
+      ],
+      "principal": "member",
+      "setup": "Move a block after the task's deadline",
+      "scope": "task",
+      "action": "record.update",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "ok_filtered",
+      "silent_surfaces": [
+        "activity"
+      ]
+    },
+    {
+      "id": "AT-167",
+      "threats": [
+        "T-46"
+      ],
+      "principal": "member",
+      "setup": "Reorder, carry, or remove a locked commitment or block",
+      "scope": "personal",
+      "action": "personal.manage_own",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "conflict_filtered",
+      "silent_surfaces": [
+        "ui_record"
+      ]
+    },
+    {
+      "id": "AT-168",
+      "threats": [
+        "T-46"
+      ],
+      "principal": "member",
+      "setup": "Schedule a block over a focus block",
+      "scope": "personal",
+      "action": "personal.manage_own",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "conflict_filtered",
+      "silent_surfaces": [
+        "ui_record"
+      ]
+    },
+    {
+      "id": "AT-169",
+      "threats": [
+        "T-46"
+      ],
+      "principal": "member",
+      "setup": "Rewrite a closed day's record",
+      "scope": "personal",
+      "action": "personal.manage_own",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "conflict_filtered",
+      "silent_surfaces": [
         "report"
       ]
     }

@@ -221,6 +221,7 @@ erDiagram
   work_block }o..o{ task : "references"
   work_block }o..o{ brand : "references"
   record ||--|| work_block : "envelope"
+  block_series }o..o{ task : "references"
   recurrence_series }o..o{ task : "references"
   recurrence_series }o..o{ project : "references"
   recurrence_series }o..o{ work_block : "references"
