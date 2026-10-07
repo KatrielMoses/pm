@@ -347,6 +347,8 @@ Task purge deletes the task's reminders and snoozes and detaches task series sou
 
 Time entries are not records: they live and go with their work. Task purge deletes the task's entries, and project purge deletes entries logged on the project itself (its tasks purge their own); the worker role is the only role the lock guard lets delete approved or submitted time. Approval and lock rows are R-EVIDENCE and keep their own totals and entry hash, so a brand with them cannot be purged. Trashing work hides its time from every list and total; restoring it brings the time back. Moving a task to another brand carries its entries unless any is submitted or approved (`time_locked`).
 
+Departure (Phase 3 integration review): the `running_timer` ownership hook stops a removed member's running timer in the removal transaction, at the moment of removal, with the guard's audited stop (audit reason `departure`; `auto_stopped` stays false because that flag marks the guard's limit stop for review). Paused timers keep their closed time. A suspended member's timer is left to the guard, which stops it at `TIME_TIMER_MAX_HOURS`, since suspension may be lifted.
+
 ## Phase 3C: plans
 
 Commitments, blocks, and series are personal planning rows, not records. Task purge deletes the task's commitments, blocks (series occurrences included), and series; daily records keep their item snapshot by internal ID and stop naming purged tasks. Member departure erases blocks, series, commitments, and records with the member's other personal rows. A task moved to another brand carries its commitments, blocks, and series.
