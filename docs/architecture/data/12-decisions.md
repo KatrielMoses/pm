@@ -213,6 +213,22 @@ Status of every ADR: **proposed (Phase 0B)**, pending solutions-architect accept
   - A view per share scope: duplicate definitions that drift.
   - Storing query results: they would freeze and widen access.
 - **Consequences:** One migration, `0031_saved_views`, with a down migration to 0030. No 3B layout tables, 3C planning, or 6D export-job tables.
+<a id="adr-28"></a>
+## ADR-28: Core view layouts (Phase 3B amendment)
+
+- **Decision:**
+  - **Layout field.** `views.saved_view.layout` accepts the core layouts, and a second check ties each to its entity.
+    - Tasks: list, board, table, calendar, timeline, Gantt, workload, activity, and timesheet.
+    - Projects: list, board, table, calendar, timeline, Gantt, milestones, portfolio, and activity.
+  - **Layout options** are presentation keys: board field, calendar date field and mode, timeline zoom, and workload bucket.
+  - **No new tables.** A layout never stores rows, schedules, or aggregates.
+  - **Facts from existing data.** Workload totals, Gantt dependencies, milestones, portfolio progress, a person's own time, and activity are read from existing tables (`work.task`, `relations.record_relationship`, `work.milestone`, `timetrack.time_entry`, `audit.audit_event`) for records the same authorized query returns.
+  - **Scheduled work** (work blocks) remains 3C's table.
+- **Alternatives:**
+  - Per-layout tables or materialized summaries: a second source of truth that could drift or leak.
+  - A separate view type per layout: duplicate definitions.
+- **Consequences:** One migration, `0033_core_view_layouts` (constraint changes only), with a down migration to 0032.
+
 <a id="adr-27"></a>
 ## ADR-27: Time tracking, timesheets, and period locks (Phase 3D amendment)
 

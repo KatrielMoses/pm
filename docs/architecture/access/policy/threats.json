@@ -485,6 +485,18 @@
         "I-10",
         "I-18"
       ]
+    },
+    {
+      "id": "T-46",
+      "category": "inference",
+      "description": "Core view exposure: a board column count, calendar event, timeline or Gantt bar, dependency arrow, workload total, milestone, portfolio percentage, timesheet cell, or activity entry revealing a record, endpoint, field, or person the viewer cannot read; board moves or date changes bypassing workflow gates, permissions, or versions, or silently changing deadlines; activity readable through a share; another person's time shown.",
+      "mitigated_by": [
+        "I-01",
+        "I-02",
+        "I-07",
+        "I-10",
+        "I-18"
+      ]
     }
   ],
   "tests": [
@@ -3479,6 +3491,119 @@
       "silent_surfaces": [
         "ui_list",
         "report"
+      ]
+    },
+    {
+      "id": "AT-162",
+      "threats": [
+        "T-46"
+      ],
+      "principal": "member",
+      "setup": "Workload over a brand that holds tasks in a restricted project and a sensitive brand",
+      "scope": "brand",
+      "action": "record.read",
+      "surface": "capacity",
+      "expected": "allow",
+      "response_shape": "ok_filtered",
+      "silent_surfaces": [
+        "count_facet",
+        "timing"
+      ]
+    },
+    {
+      "id": "AT-163",
+      "threats": [
+        "T-46"
+      ],
+      "principal": "member",
+      "setup": "Gantt dependencies between a readable task and one in a restricted project",
+      "scope": "record",
+      "action": "record.read",
+      "surface": "ui_record",
+      "expected": "allow",
+      "response_shape": "ok_filtered",
+      "silent_surfaces": [
+        "timing"
+      ]
+    },
+    {
+      "id": "AT-164",
+      "threats": [
+        "T-46"
+      ],
+      "principal": "member",
+      "setup": "Portfolio progress of a project holding tasks the member cannot read",
+      "scope": "project",
+      "action": "record.read",
+      "surface": "report",
+      "expected": "allow",
+      "response_shape": "ok_filtered",
+      "silent_surfaces": [
+        "count_facet"
+      ]
+    },
+    {
+      "id": "AT-165",
+      "threats": [
+        "T-46"
+      ],
+      "principal": "member",
+      "setup": "Read activity of a task readable only through a record share",
+      "scope": "record",
+      "action": "record.read",
+      "surface": "activity",
+      "expected": "deny",
+      "response_shape": "omitted",
+      "silent_surfaces": [
+        "count_facet"
+      ]
+    },
+    {
+      "id": "AT-166",
+      "threats": [
+        "T-46"
+      ],
+      "principal": "member",
+      "setup": "Move a task on a board into a status whose transition needs fields or approval",
+      "scope": "record",
+      "action": "record.update",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "forbidden",
+      "silent_surfaces": [
+        "ui_list"
+      ]
+    },
+    {
+      "id": "AT-167",
+      "threats": [
+        "T-46"
+      ],
+      "principal": "member",
+      "setup": "Timesheet layout over tasks other people logged time on",
+      "scope": "personal",
+      "action": "personal.manage_own",
+      "surface": "ui_list",
+      "expected": "allow",
+      "response_shape": "ok_filtered",
+      "silent_surfaces": [
+        "count_facet"
+      ]
+    },
+    {
+      "id": "AT-168",
+      "threats": [
+        "T-46"
+      ],
+      "principal": "read_only",
+      "setup": "Shift a timeline bar or move a board card without edit",
+      "scope": "record",
+      "action": "record.update",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "forbidden",
+      "silent_surfaces": [
+        "ui_list"
       ]
     }
   ]

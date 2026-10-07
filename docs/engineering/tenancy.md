@@ -371,3 +371,10 @@ Capture, the Inbox, notes, merge, and parse previews are personal (`personal.man
 
 `TimeService` (AZ-27): `time.log_own` (comment) on the task or project at every write; only the owner changes an entry. Reads use the work's compiled visibility (view, archived included) inside SQL, with guests limited to their own entries; `editable` uses the same compiler at `comment` on active work. `timesheet.submit_own` is personal; `timesheet.approve` is decided per brand line now, needs the whole line to be readable, and applies OD-20 through the shared `selfApprovalAllowed`; `timesheet.unlock` is the admin action with step-up (OD-26). Approvers never gain access through approval.
 
+
+## Phase 3B views
+
+`LayoutService` (AZ-28) computes every layout fact from the records the caller's compiled 3A query returns:
+- **Totals, edges, and progress.** Workload is one aggregate. Gantt edges need both endpoints returned. Progress counts readable leaf tasks.
+- **Activity** uses a no-share predicate (`compileVisibility({ shares: false })`).
+- **Board and timeline changes** go through the workflow transition preview and apply, and through field merges, with versions.

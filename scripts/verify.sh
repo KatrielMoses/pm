@@ -37,6 +37,7 @@ python3 docs/engineering/tools/phase1.py
 python3 docs/engineering/tools/phase2.py
 python3 docs/engineering/tools/phase3.py
 python3 docs/engineering/tools/phase3d.py
+python3 docs/engineering/tools/phase3b.py
 step "3. formatting and lint (incl. SQL safety and the complete workspace graph)"
 pnpm format:check
 pnpm lint

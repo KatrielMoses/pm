@@ -524,3 +524,22 @@ These rules apply to every surface: lists, search, palette, notifications, dashb
 - **Reports:** `/{ws}/time/report` compares planned and actual time by brand, project, task, person, day, week, or month, says which planned measure it uses, and exports CSV or JSON of the entries the person can see.
 - **Honest absences:** work blocks (3C), capacity and allocation (3E), rollups (5C), stored and scheduled exports and accounting adapters (6D).
 
+
+**Phase 3B implementation note.** Core views:
+- **Layouts.** Every saved view, My Work, and the Calendar destination choose a layout over the one query engine:
+  - for tasks: list, board, table, calendar, timeline, Gantt, workload, activity, and timesheet;
+  - for projects: list, board, table, calendar, timeline, Gantt, milestones, portfolio, and activity.
+  The layout and its options are part of the view and its link.
+- **Board.** "Move to…" lists the moves the workflow allows. Moves that need fields or approval change nothing and say why on the card. Compact shows one column with a switcher.
+- **Calendar.** Day, week, month, and agenda, with layers for dates, deadlines, and milestones.
+- **Timeline and Gantt.** "Change dates…" shifts start and due dates and never the deadline. Gantt shows what blocks what and can move blocked tasks too when chosen.
+- **Workload.** Hours of open work by person and period, without capacity.
+- **Portfolio and Milestones.** Portfolio shows health, progress, and target date; Milestones lists each project's milestones.
+- **Activity and Timesheet.** Activity is filterable by person, actor type, and action. Timesheet shows your own time on the view's tasks.
+- **Detail panel.** Opening a record keeps the view: a panel on wider screens, the full page on Compact.
+- **Honest absences:**
+  - scheduling and resizing work blocks on the calendar (3C);
+  - external calendar events (6C);
+  - capacity and over-allocation (3E);
+  - baseline versus actual (5C);
+  - Following (4A).

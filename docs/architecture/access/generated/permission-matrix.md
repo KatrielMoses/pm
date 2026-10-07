@@ -167,7 +167,7 @@ Rules and algorithm: [../04-effective-permissions.md](../04-effective-permission
 
 | Action | Description | Approval class | Requirements | Notes |
 |---|---|---|---|---|
-| `record.read` | Read a record and its own comments/attachments. | none | LA-016, PERM-004, VIEW-012, VIEW-013, VIEW-014, VIEW-015, VIEW-022, WSB-019 |  |
+| `record.read` | Read a record and its own comments/attachments. | none | CAL-001, CAL-002, LA-016, PERM-004, VIEW-001, VIEW-002, VIEW-003, VIEW-004, VIEW-005, VIEW-006, VIEW-007, VIEW-008, VIEW-009, VIEW-010, VIEW-011, VIEW-012, VIEW-013, VIEW-014, VIEW-015, VIEW-022, WSB-019 |  |
 | `record.create` | Create a record in a container. | none | PRJ-001, TSK-001 |  |
 | `record.update` | Edit fields of a record. | none | PERM-004 |  |
 | `record.archive` | Archive a record and its contained subtree. | none | PRJ-001 |  |
