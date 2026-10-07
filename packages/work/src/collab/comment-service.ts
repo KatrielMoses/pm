@@ -19,10 +19,10 @@ import {
 } from '@pm/tenancy';
 import type { ActionKey } from '@pm/contracts';
 import { CapacityService } from '../capacity/capacity-service.ts';
-import { NIL_ID, type LoadedProject } from '../service.ts';
+import type { LoadedProject } from '../service.ts';
 import type { LoadedTask } from '../task-core.ts';
 import { isPublic } from '../validation.ts';
-import { COLLAB_HOSTS, withinEditWindow, type CollabHostKind, type Reaction } from './semantics.ts';
+import { withinEditWindow, type CollabHostKind, type Reaction } from './semantics.ts';
 import {
   parseCommentCreate,
   parseCommentEdit,
@@ -1677,9 +1677,6 @@ export class CommentService extends CapacityService {
       }),
     );
   }
-
-  /** Hosts the collaboration surfaces support (documents and deliverables register later). */
-  static readonly HOSTS: readonly CollabHostKind[] = COLLAB_HOSTS;
 }
 
-export { NIL_ID, hashText };
+export { hashText };

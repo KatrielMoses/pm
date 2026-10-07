@@ -361,11 +361,11 @@
       "contribution": "3B",
       "evidence": [
         {
-          "file": "apps/web/src/pages/view-pages.tsx",
-          "contains": "Following records arrives with comments and following (4A)"
+          "file": "apps/web/src/collab/my-work.tsx",
+          "contains": "Following"
         }
       ],
-      "note": "My Work's Following tab is reserved with an honest absence for 4A."
+      "note": "My Work's Following tab was reserved in 3B and is implemented by 4A (ADR-0023 D1)."
     },
     {
       "id": "PRJ-019",

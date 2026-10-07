@@ -9,6 +9,7 @@ import {
 } from '@pm/contracts/shell';
 import { canonicalJson, plainFromRichText, richTextFromPlain } from '@pm/contracts/rich-text';
 import { ApiError } from '../api.ts';
+import { CollaborationSections } from '../collab/collaboration.tsx';
 import {
   RecordFieldsSection,
   TransitionControl,
@@ -1216,6 +1217,17 @@ function OverviewSection({ ws, o, reload }: { ws: string; o: Overview; reload: (
             ))}
           </ul>
         </section>
+      ) : null}
+      {p.lifecycle_state !== 'trashed' ? (
+        <CollaborationSections
+          ws={ws}
+          rec={p.id}
+          kind="project"
+          version={p.version}
+          archived={p.lifecycle_state === 'archived'}
+          sharedOnly={!o.task_facts.available}
+          onRecordChanged={reload}
+        />
       ) : null}
       {cmd.error ? <ProblemBanner error={cmd.error} /> : null}
       <Announce>{cmd.said}</Announce>

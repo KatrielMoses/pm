@@ -183,11 +183,11 @@
       "contribution": "2B",
       "evidence": [
         {
-          "file": "apps/web/src/pages/task-pages.tsx",
-          "contains": "followers: 'Followers (4A)'"
+          "file": "packages/work/src/collab/comment-service.ts",
+          "contains": "async follow("
         }
       ],
-      "note": "No follower rows in 2B; the task page names followers as a 4A absence."
+      "note": "No follower rows in 2B; followers were completed by 4A (ADR-0023 D1) as an explicit per-record subscription."
     },
     {
       "id": "TSK-010",

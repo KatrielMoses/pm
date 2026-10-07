@@ -144,9 +144,11 @@ export async function protectedRequest<T>(
   path: string,
   body: unknown,
   resolveStepUp: StepUpResolver,
-  options: { ifMatch?: number | undefined } = {},
+  options: { ifMatch?: number | undefined; idempotencyKey?: string | undefined } = {},
 ): Promise<{ status: number; body: T; replayed: boolean; etag: string | null }> {
-  const key = newIdempotencyKey();
+  // A caller that may retry after an unknown outcome (a dropped connection) passes its own key, so
+  // the retry replays instead of applying twice.
+  const key = options.idempotencyKey ?? newIdempotencyKey();
   const headers: Record<string, string> = { 'idempotency-key': key };
   if (options.ifMatch !== undefined) headers['if-match'] = `"${options.ifMatch}"`;
   try {
