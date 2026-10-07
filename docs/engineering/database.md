@@ -263,3 +263,12 @@ Migration `0032_time_tracking` (ADR-0019, 0B ADR-27) creates the `timetrack` sch
 ## Phase 3B core views
 
 Migration `0033_core_view_layouts` (ADR-0020, 0B ADR-28) widens `saved_view_layout_known` to the core layouts and adds `saved_view_layout_entity`, which ties each layout to its entity. It adds no tables or indexes: activity uses `audit_event_by_target`.
+
+## Phase 3C: Today and planning
+
+Migration `0034_today_planning` (ADR-0021, 0B ADR-29) adds to the `planning` schema:
+- `today_commitment`: one per person, day, and task; rank, lock, outcome (`open` → `done`, `carried`, `returned`, `dropped`); `today_commitment_guard` keeps owner, day, and task fixed and closed rows final.
+- `work_block` (`blk_`): personal, optional task (brand cascades with it), whole-minute UTC span with its zone, focus, lock, preparation and buffer; `work_block_guard` refuses overlap with a focus block under a per-person lock; `(series_id, occurrence_key)` is unique.
+- `block_series` (`bls_`): a 2A-subset rule in an anchor zone, local start, duration, and block settings.
+- `daily_record`: one per person and day; `daily_record_guard` refuses updates.
+- `exec_dispatch.discover_days_to_close` and `discover_block_series_due` (payload-free, `pm_scheduler`) serve the worker; the worker reads `identity.account (id, timezone)` only.

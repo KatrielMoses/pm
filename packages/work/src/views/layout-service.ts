@@ -11,7 +11,7 @@ import {
 import type { WorkDeps } from '../service.ts';
 import { fieldsForRecord } from '../workflow/field-access.ts';
 import type { Entity } from './query.ts';
-import { TimeService } from '../time/time-service.ts';
+import { PlanningService } from '../planning/today-service.ts';
 
 const isObj = (v: unknown): v is Record<string, unknown> =>
   typeof v === 'object' && v !== null && !Array.isArray(v);
@@ -34,7 +34,7 @@ type Raw = { query: unknown; presentation?: unknown; scope?: unknown; today?: un
  * milestones, progress, the caller's own time, activity) for records that the same compiled,
  * authorized query returns. No layout has its own filtering, sorting, grouping, or authorization.
  */
-export class LayoutService extends TimeService {
+export class LayoutService extends PlanningService {
   readonly #activityKey: Buffer;
 
   constructor(deps: WorkDeps) {

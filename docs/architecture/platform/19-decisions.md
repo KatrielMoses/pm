@@ -255,6 +255,19 @@ All decisions are **proposed (Phase 0D)**, pending solutions-architect acceptanc
   - **Signals.** `views.queries` (entity, outcome), `views.query_duration` (entity), and `views.exports` (entity, format).
 - **Alternatives:** `GET` with the AST in the URL (it would land in logs and the 0D field-selection rule). Offset pages (forbidden for mutable collections).
 - **Consequences:** Payloads carry identifiers, kinds, and counts only, never names or query text. 83 ID prefixes, 104 events, 99 named parameters, 63 telemetry signals.
+<a id="pl-31"></a>
+### PL-31: Today and planning contracts (Phase 3C amendment)
+- **Decision:**
+  - Prefix `blk` (registered in 0D) is implemented; `bls` (block series) is added. Commitments are addressed by day and task; records by day.
+  - Resources and verbs: `today/{day}` (the Today view), `today/{day}/plan`, `today/{day}/items` (commit; `PATCH` to reorder, lock, or move with `If-Match`; `DELETE`), `today/{day}:shutdown`, `daily-records`, `work-blocks` (list, create, `from-estimate`, `PATCH` and `DELETE` with `If-Match`), and `block-series` (create, list, `:end`).
+  - Events: `planning.work_block.moved` is implemented; seven are added: `planning.work_block.created`, `planning.work_block.deleted`, `planning.block_series.defined`, `planning.block_series.ended`, `planning.today.committed`, `planning.today.changed`, and `planning.day.closed`.
+  - Named bounds: `TODAY_ITEMS_MAX` (100), `TODAY_LIST_MAX` (50), `UPCOMING_DEADLINE_DAYS` (14), `WORK_BLOCKS_PER_DAY_MAX` (50), `WORK_BLOCKS_RANGE_DAYS_MAX` (42), `BLOCK_SERIES_MAX` (50), `BLOCK_SERIES_HORIZON_DAYS` (28), `DAY_CLOSE_DISCOVERY_MAX` (100), and `DAY_CLOSE_BATCH_MAX` (200).
+  - Four signals: `planning.today` (action, outcome), `planning.blocks` (action, outcome), `planning.block_series` (outcome), and `planning.day_close` (outcome).
+  - Non-resource envelopes: `today_view`, `day_plan`, `daily_records`, and (addressed by day and task, without a public ID) `today_commitment` and `daily_record`; commitment versions travel as the `ETag`.
+  - Refusals: `conflict` issues `locked`, `focus_protected`, `already_committed`, `already_closed`, `day_closed`, and `ended`; `validation_failed` issues `past_day`, `future_day`, `too_many`, `too_short`, `too_long`, `too_wide`, `unlock_first`, and `no_estimate`. Block moves report `after_due_date` and `after_deadline` warnings and change nothing else.
+- **Alternatives:** Moving due dates as part of a block move (CAL-013 requires an explicit, separate choice).
+- **Consequences:** Payloads carry identifiers, days, counts, and flags only, never task titles or block titles. 84 ID prefixes, 118 events, 116 named parameters, 72 telemetry signals.
+
 <a id="pl-30"></a>
 ### PL-30: Core view layout contracts (Phase 3B amendment)
 - **Decision:**

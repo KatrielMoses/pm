@@ -378,3 +378,7 @@ Capture, the Inbox, notes, merge, and parse previews are personal (`personal.man
 - **Totals, edges, and progress.** Workload is one aggregate. Gantt edges need both endpoints returned. Progress counts readable leaf tasks.
 - **Activity** uses a no-share predicate (`compileVisibility({ shares: false })`).
 - **Board and timeline changes** go through the workflow transition preview and apply, and through field merges, with versions.
+
+## Phase 3C Today and planning
+
+`PlanningService` (AZ-29): every command and read is `personal.manage_own` and filtered by owner, with no administrator bypass. Naming a task goes through the task loader (readable now, active). Today's lists run the 3A query engine with the viewer's predicate; commitments and blocks join the same compiled visibility, so unreadable tasks drop out (commitments) or lose their title and link (blocks). Planning never writes a task.

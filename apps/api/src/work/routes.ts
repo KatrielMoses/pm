@@ -5,6 +5,7 @@ import { routeKit } from '../route-kit.ts';
 import { registerCapture } from './capture-routes.ts';
 import { registerTaskInteraction } from './interaction-routes.ts';
 import { registerTasks } from './task-routes.ts';
+import { registerPlanning } from './planning-routes.ts';
 import { registerTime } from './time-routes.ts';
 import { registerLayouts } from './layout-routes.ts';
 import { registerViews } from './view-routes.ts';
@@ -51,6 +52,7 @@ export function registerWork(app: FastifyInstance, deps: WorkRouteDeps): void {
   registerViews(app, work);
   registerTime(app, work);
   registerLayouts(app, work);
+  registerPlanning(app, work);
 
   app.get(
     base,

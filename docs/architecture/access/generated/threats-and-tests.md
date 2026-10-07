@@ -54,6 +54,7 @@ Narrative: [../14-threat-model.md](../14-threat-model.md).
 | T-44 | inference | Saved-view exposure: a shared, pinned, or default view widening record access; rows, totals, group counts, group labels, cursors, filter-value labels, exports, or timing revealing hidden records, brands, projects, members, labels, or fields; personal views visible to others (including owners and administrators); sharing, pinning, or defaults set without authority at the exact scope; a cursor or export reused by another person or after revocation. | I-01, I-02, I-07, I-10, I-18 | AT-146, AT-147, AT-148, AT-149, AT-150, AT-151, AT-152, AT-153 |
 | T-45 | inference | Time exposure and tampering: entries, totals, reports, timesheets, approval views, or exports naming or counting work the viewer cannot read; logging, editing, or moving time without time.log_own on the work; changing another person's entries; approving a brand line without manage now, without seeing all of it, or as a self-approval the policy forbids; unlocking an approved period without workspace admin authority, a reason, or step-up; editing or moving submitted or approved time through any path. | I-01, I-02, I-10, I-18 | AT-154, AT-155, AT-156, AT-157, AT-158, AT-159, AT-160, AT-161 |
 | T-46 | inference | Core view exposure: a board column count, calendar event, timeline or Gantt bar, dependency arrow, workload total, milestone, portfolio percentage, timesheet cell, or activity entry revealing a record, endpoint, field, or person the viewer cannot read; board moves or date changes bypassing workflow gates, permissions, or versions, or silently changing deadlines; activity readable through a share; another person's time shown. | I-01, I-02, I-07, I-10, I-18 | AT-162, AT-163, AT-164, AT-165, AT-166, AT-167, AT-168 |
+| T-47 | inference | Planning exposure and drift: another person's Today, blocks, series, or records visible to anyone; commitments or blocks revealing or granting access to tasks the owner cannot read (including after revocation); Today lists counting hidden work; planning commands changing due dates or deadlines; locked items or focus blocks moved or overlapped; daily records rewritten. | I-01, I-02, I-10, I-18 | AT-169, AT-170, AT-171, AT-172, AT-173, AT-174, AT-175, AT-176 |
 
 ## Test matrix
 
@@ -227,6 +228,14 @@ Narrative: [../14-threat-model.md](../14-threat-model.md).
 | AT-166 | T-46 | member | Move a task on a board into a status whose transition needs fields or approval — record | `record.update` | api | **deny** | forbidden | ui_list |
 | AT-167 | T-46 | member | Timesheet layout over tasks other people logged time on — personal | `personal.manage_own` | ui_list | **allow** | ok_filtered | count_facet |
 | AT-168 | T-46 | read_only | Shift a timeline bar or move a board card without edit — record | `record.update` | api | **deny** | forbidden | ui_list |
+| AT-169 | T-47 | administrator | Read or change another person's Today, blocks, or daily records — personal | `personal.manage_own` | api | **deny** | not_found | ui_list, error_message |
+| AT-170 | T-47 | member | Commit or schedule a task the person cannot read — task | `record.read` | api | **deny** | not_found | error_message, timing |
+| AT-171 | T-47 | member | Today after losing access to a committed and scheduled task — personal | `record.read` | ui_list | **deny** | omitted | count_facet, report |
+| AT-172 | T-47 | member | Overdue and upcoming-deadline sections with hidden tasks assigned to the person — personal | `record.read` | ui_list | **deny** | omitted | count_facet |
+| AT-173 | T-47 | member | Move a block after the task's deadline — task | `record.update` | api | **deny** | ok_filtered | activity |
+| AT-174 | T-47 | member | Reorder, carry, or remove a locked commitment or block — personal | `personal.manage_own` | api | **deny** | conflict_filtered | ui_record |
+| AT-175 | T-47 | member | Schedule a block over a focus block — personal | `personal.manage_own` | api | **deny** | conflict_filtered | ui_record |
+| AT-176 | T-47 | member | Rewrite a closed day's record — personal | `personal.manage_own` | api | **deny** | conflict_filtered | report |
 
 ## Response shapes
 

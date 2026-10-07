@@ -47,13 +47,18 @@ export async function eraseMembershipNavigation(
   membershipId: string,
 ): Promise<number> {
   let n = 0;
-  // 2D: personal reminders and snoozes, and the member's short-lived bulk and undo rows.
+  // 2D: personal reminders and snoozes, and the member's short-lived bulk and undo rows; 3C plans.
   for (const table of [
     'views.favorite',
     'views.recent_item',
     'views.view_state',
     'planning.task_reminder',
     'planning.task_snooze',
+    // 3C: personal plans (blocks before their series) and daily records.
+    'planning.work_block',
+    'planning.block_series',
+    'planning.today_commitment',
+    'planning.daily_record',
     'work.bulk_operation',
     'work.undo_entry',
   ] as const) {

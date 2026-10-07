@@ -98,8 +98,11 @@ describe('migrations from an empty database', () => {
     // Accepted subphase boundaries: 1A 0009, 1B 0012, 1F 0016, 1C 0018, 1D 0019, 1E 0020; 2A adds
     // 0021 (work) and 0022 (relations, templates, recurrence); 2B–2E add 0023–0030; 3A adds 0031
     // (saved views, defaults, and pin writes); 3D adds 0032 (time entries, timesheets, approvals,
-    // and period locks); 3B adds 0033 (core view layouts).
-    const boundaries = [9, 12, 16, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33];
+    // and period locks); 3B adds 0033 (core view layouts); 3C adds 0034 (Today, work blocks,
+    // block series, and daily records).
+    const boundaries = [
+      9, 12, 16, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34,
+    ];
     const full = async (db: TestDatabase) => {
       const objects = await db.admin(`
         SELECT n.nspname, c.relname, c.relkind::text, c.relrowsecurity, c.relforcerowsecurity
@@ -129,7 +132,7 @@ describe('migrations from an empty database', () => {
         at.set(to, await full(stepped));
       }
       // Stepping through the boundaries reaches exactly the one-shot candidate catalog.
-      expect(at.get(33)).toEqual(await full(reference));
+      expect(at.get(34)).toEqual(await full(reference));
       // Each subphase's step reverses to the prior boundary's exact catalog and re-applies to its
       // own, walking down from the candidate.
       for (let i = boundaries.length - 1; i > 0; i--) {

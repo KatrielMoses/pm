@@ -23,7 +23,7 @@ export function productLifecycleRegistry(): LifecycleRegistry {
 }
 
 /**
- * Wires the full 1C–3D service (tenancy, collaboration, navigation, projects, tasks) from validated
+ * Wires the full 1C–3D service (with 3B layouts and 3C planning) (tenancy, collaboration, navigation, projects, tasks) from validated
  * configuration. Work plugs into tenancy by injection only: its lifecycle adapters, its navigation
  * target, and its departure hook.
  */

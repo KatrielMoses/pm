@@ -124,3 +124,7 @@ Counters `time.entries` (source, outcome), `time.timers` (action, outcome: `ok`,
 ## Views (3B)
 
 `views.layout_reads` (layout, outcome). No record identifiers, names, or values are labels.
+
+## Planning (3C)
+
+Counters `planning.today` (action, outcome), `planning.blocks` (action, outcome), `planning.block_series` (outcome: `defined`, `generated`, `skipped`), and `planning.day_close` (outcome: `closed`). Events carry identifiers, days, counts, sources, and flags; never task or block titles (audit keeps block-title hashes).

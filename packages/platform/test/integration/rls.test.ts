@@ -115,6 +115,11 @@ const PHASE_1C_TENANT_TABLES = [
   'timetrack.timesheet_line',
   'timetrack.timesheet_approval',
   'timetrack.period_lock',
+  // Phase 3C work blocks, block series, Today commitments, and daily records.
+  'planning.block_series',
+  'planning.daily_record',
+  'planning.today_commitment',
+  'planning.work_block',
 ] as const;
 
 /** Seeds one row in every tenant execution table for a workspace. */
@@ -419,8 +424,9 @@ describe('tenant RLS foundation (0C §12.7)', () => {
              has_function_privilege('app_worker', p.oid, 'EXECUTE') AS worker_exec
       FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace WHERE n.nspname = 'exec_dispatch' ORDER BY 1`);
     // 1A–1F: 9 functions; 1E adds discover_views_cleanup and 2A discover_recurrence_due
-    // (workspace ids only); 2D discover_reminders_due; 3D discover_runaway_timers.
-    expect(fns.rows.length).toBe(13);
+    // (workspace ids only); 2D discover_reminders_due; 3D discover_runaway_timers; 3C
+    // discover_days_to_close and discover_block_series_due.
+    expect(fns.rows.length).toBe(15);
     const allowed = new Set([
       'job_id',
       'workspace_id',
