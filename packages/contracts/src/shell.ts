@@ -25,7 +25,7 @@ export type ShellDestination = (typeof SHELL_DESTINATIONS)[number];
 /** Destinations whose content belongs to a later phase (rendered as honest unavailable states). */
 export const DESTINATION_PHASE: Readonly<Record<ShellDestination, string | null>> = {
   home: null,
-  today: '3C',
+  today: null,
   inbox: null,
   my_work: '3B',
   projects: null,
