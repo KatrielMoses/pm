@@ -26,6 +26,7 @@ import {
   taskTargets,
   savedViewTargets,
   CapacityService,
+  departureTimerHook,
   type WorkSettings,
 } from '@pm/work';
 import {
@@ -100,7 +101,10 @@ export function workEnv(
     lifecycle,
     stepUp: port,
     identity: port,
-    ownership: defaultOwnershipRegistry().register(projectOwnerHook).register(taskAssigneeHook),
+    ownership: defaultOwnershipRegistry()
+      .register(projectOwnerHook)
+      .register(taskAssigneeHook)
+      .register(departureTimerHook(writer)),
     limiter: new PostgresRateLimiter(h.platform, randomBytes(32), {
       'workspace.create': { limit: 1000, windowMs: 3_600_000 },
       'invitation.accept': { limit: 1000, windowMs: 3_600_000 },

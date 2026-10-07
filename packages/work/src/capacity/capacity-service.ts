@@ -121,9 +121,15 @@ export class CapacityService extends LayoutService {
     ).rows[0];
     if (m?.id === p.membershipId) return this.subject(tx, p, 'me');
     // Another person: only with capacity.view somewhere (the workspace or a brand); otherwise the
-    // person is indistinguishable from an unknown one.
+    // person is indistinguishable from an unknown one. A departed (or never-joined) member has no
+    // capacity: their personal data awaits erasure and is not anyone's to read (phase 3 matrix).
     const brands = await this.capacityBrands(tx, p);
-    if (!m || m.kind !== 'member' || (!brands.workspace && !brands.ids.length))
+    if (
+      !m ||
+      m.kind !== 'member' ||
+      (m.state !== 'active' && m.state !== 'suspended') ||
+      (!brands.workspace && !brands.ids.length)
+    )
       throw new TenancyError('not_found');
     return {
       membershipId: m.id,
