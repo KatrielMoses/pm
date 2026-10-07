@@ -351,7 +351,9 @@ describe('task isolation and query plans (2B)', () => {
           `SELECT to_record_id FROM relations.record_relationship WHERE workspace_id = $1 AND from_record_id = $2 AND kind = 'blocks'`,
           [bid, sample.id],
         ),
-      ).toMatch(/record_relationship_by_from/);
+        // The unique constraint leads with the same (workspace_id, from_record_id) keys and serves
+        // this lookup as an index-only scan at equal cost; the planner may pick either.
+      ).toMatch(/record_relationship_by_from|record_relationship_unique/);
       expect(
         await plan(
           `SELECT from_record_id FROM relations.record_relationship WHERE workspace_id = $1 AND to_record_id = $2 AND kind = 'blocks'`,
