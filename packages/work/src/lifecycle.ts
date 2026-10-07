@@ -246,6 +246,12 @@ export const taskAdapter: RecordTypeAdapter = {
       if (live) throw new Error('task purge blocked: a live child task references it');
       // Time logged on the task goes with it (3D); approvals keep their own totals and hash.
       await tx.db.deleteFrom('timetrack.time_entry').where('task_id', 'in', ids).execute();
+      // Plans go with the task (3C): commitments, blocks, and recurring blocks for it.
+      await tx.db.deleteFrom('planning.today_commitment').where('task_id', 'in', ids).execute();
+      await tx.db.deleteFrom('planning.work_block').where('task_id', 'in', ids).execute();
+      await sql`DELETE FROM planning.work_block w USING planning.block_series s
+                 WHERE s.id = w.series_id AND s.task_id = ANY(${ids}::uuid[])`.execute(tx.db);
+      await tx.db.deleteFrom('planning.block_series').where('task_id', 'in', ids).execute();
       await tx.db.deleteFrom('work.task_assignee').where('task_id', 'in', ids).execute();
       await tx.db.deleteFrom('work.checklist_item').where('task_id', 'in', ids).execute();
       await tx.db.deleteFrom('work.task_inherited_criterion').where('task_id', 'in', ids).execute();
