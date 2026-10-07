@@ -9,6 +9,7 @@ import { registerPlanning } from './planning-routes.ts';
 import { registerTime } from './time-routes.ts';
 import { registerLayouts } from './layout-routes.ts';
 import { registerCapacity } from './capacity-routes.ts';
+import { registerCollaboration } from './collab-routes.ts';
 import { registerViews } from './view-routes.ts';
 import { registerWorkflows } from './workflow-routes.ts';
 
@@ -55,6 +56,7 @@ export function registerWork(app: FastifyInstance, deps: WorkRouteDeps): void {
   registerLayouts(app, work);
   registerPlanning(app, work);
   registerCapacity(app, work);
+  registerCollaboration(app, work);
 
   app.get(
     base,

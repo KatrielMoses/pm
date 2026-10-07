@@ -1,6 +1,6 @@
 import type { FastifyInstance, FastifyRequest } from 'fastify';
 import { nonResourceEnvelope } from '@pm/contracts';
-import type { TaskInteractionService } from '@pm/work';
+import type { ReviewService } from '@pm/work';
 import { routeKit } from '../route-kit.ts';
 import { taskInteractionVerb } from './interaction-routes.ts';
 
@@ -21,7 +21,7 @@ type Params = {
  * (0D); lifecycle decisions come from the service through the tenancy-exported issuer. History is
  * a permission-filtered projection of the audit ledger for the task's own readers (TSK-039).
  */
-export function registerTasks(app: FastifyInstance, work: TaskInteractionService): void {
+export function registerTasks(app: FastifyInstance, work: ReviewService): void {
   const { m, fail, caller, mutation, wrap, resource, split } = routeKit();
   const p = (request: FastifyRequest) => request.params as Params;
   const q = (request: FastifyRequest) => (request.query ?? {}) as Record<string, unknown>;
@@ -107,6 +107,8 @@ export function registerTasks(app: FastifyInstance, work: TaskInteractionService
           return done(request, reply, await work.duplicateTask(c, w, t.id, request.body, req));
         case 'assign':
           return done(request, reply, await work.setAssignees(c, w, t.id, request.body, req));
+        case 'delegate':
+          return done(request, reply, await work.delegateTask(c, w, t.id, request.body, req));
         case 'archive':
         case 'unarchive':
         case 'trash':
