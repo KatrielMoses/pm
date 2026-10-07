@@ -259,3 +259,11 @@ Migration `0032_time_tracking` (ADR-0019, 0B ADR-27) creates the `timetrack` sch
 - `timetrack.lock_person` (transaction advisory lock per person) and `timetrack.day_closed` (submitted or locked) back `time_entry_guard`, which refuses any change to closed time except deletion by the worker role during lifecycle purge.
 - `exec_dispatch.discover_runaway_timers` (payload-free; owned by `pm_scheduler`) serves the timer guard.
 
+## Phase 3C: Today and planning
+
+Migration `0033_today_planning` (ADR-0020, 0B ADR-28) adds to the `planning` schema:
+- `today_commitment`: one per person, day, and task; rank, lock, outcome (`open` → `done`, `carried`, `returned`, `dropped`); `today_commitment_guard` keeps owner, day, and task fixed and closed rows final.
+- `work_block` (`blk_`): personal, optional task (brand cascades with it), whole-minute UTC span with its zone, focus, lock, preparation and buffer; `work_block_guard` refuses overlap with a focus block under a per-person lock; `(series_id, occurrence_key)` is unique.
+- `block_series` (`bls_`): a 2A-subset rule in an anchor zone, local start, duration, and block settings.
+- `daily_record`: one per person and day; `daily_record_guard` refuses updates.
+- `exec_dispatch.discover_days_to_close` and `discover_block_series_due` (payload-free, `pm_scheduler`) serve the worker; the worker reads `identity.account (id, timezone)` only.

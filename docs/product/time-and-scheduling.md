@@ -97,6 +97,7 @@ Capacity and availability shown to a viewer are computed only from commitments t
 - **"Scheduled for today"** means committed for today or having a work block today. An item merely *due* today appears under "Due today" until it is committed or scheduled ([OD-18](open-decisions.md#od-18)).
 - **Shutdown** (PLAN-018): unfinished commitments are offered **carry to tomorrow**, **pick a day**, **return to backlog**, or **leave**. None of these choices changes the due date or deadline unless the user explicitly selects it.
 - **Daily record** (PLAN-019): a snapshot at end of day of what was committed, completed, carried over, and dropped, plus planned versus actual time. Snapshots are not rewritten by later edits.
+- **As implemented (Phase 3C, ADR-0020).** The day runs from local midnight to local midnight in the person's zone, so DST days are 23 or 25 hours. Commitments are ordered by hand and can be locked; locked items are never moved, carried, or removed until unlocked. Blocks are whole minutes with optional preparation and buffer; nothing may overlap a focus block. A block moved after the due date or deadline is flagged, and changing the due date is a separate, explicit edit. Recurring blocks keep their local time across DST. A day without a shutdown is closed automatically after it ends, recording open items as done or not finished.
 
 ## 7. Time tracking
 

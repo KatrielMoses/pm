@@ -1,0 +1,509 @@
+{
+  "schema_version": 1,
+  "phase": "3C",
+  "status": "candidate",
+  "adr": "0020",
+  "accepted_by_kinds": {
+    "catalog:contributing": "the subphase is a contributing_subphase of the requirement in the accepted 0A catalog",
+    "roadmap:<sub>": "the BUILD_ROADMAP subphase scope",
+    "adr:<nnnn>[#row]": "an engineering ADR row naming the subphase (proposed ADRs are allowed only while the closure status is candidate)",
+    "requirement:<ID>": "the requirement that owns the capability (its owner_subphase)"
+  },
+  "requirements": [
+    {
+      "id": "PLAN-001",
+      "role": "owned",
+      "disposition": "implemented",
+      "evidence": [
+        {
+          "file": "packages/work/src/planning/today-service.ts",
+          "contains": "async todayView("
+        },
+        {
+          "file": "packages/work/test/integration/today.test.ts",
+          "contains": "shows Today in the viewer zone with separate overdue, due-today, and deadline sections"
+        }
+      ],
+      "note": "Committed and block-scheduled work for the day in the viewer zone (OD-18), across readable brands."
+    },
+    {
+      "id": "PLAN-002",
+      "role": "owned",
+      "disposition": "implemented",
+      "evidence": [
+        {
+          "file": "packages/work/src/planning/today-service.ts",
+          "contains": "op: 'before', value: { rel: 'today', days: 0 }"
+        },
+        {
+          "file": "apps/web/test/today.test.tsx",
+          "contains": "getByRole('region', { name: 'Overdue' })"
+        }
+      ],
+      "note": "Overdue in its own section, never mixed with commitments."
+    },
+    {
+      "id": "PLAN-003",
+      "role": "owned",
+      "disposition": "implemented",
+      "evidence": [
+        {
+          "file": "packages/work/src/planning/today-service.ts",
+          "contains": "upcomingDeadlineDays"
+        },
+        {
+          "file": "packages/work/test/integration/today.test.ts",
+          "contains": "upcoming_deadlines"
+        }
+      ],
+      "note": "Deadlines within UPCOMING_DEADLINE_DAYS, separately."
+    },
+    {
+      "id": "PLAN-004",
+      "role": "owned",
+      "disposition": "foundation",
+      "evidence": [
+        {
+          "file": "packages/work/src/planning/today-service.ts",
+          "contains": "meetings: { available: false, owner: '6C' }"
+        },
+        {
+          "file": "apps/web/test/today.test.tsx",
+          "contains": "arrive with calendar sync \\(6C\\)"
+        }
+      ],
+      "note": "Foundation: Today reserves the meetings area and says calendar events arrive with 6C.",
+      "deferred_to": [
+        "6C"
+      ],
+      "accepted_by": [
+        "catalog:contributing"
+      ]
+    },
+    {
+      "id": "PLAN-005",
+      "role": "owned",
+      "disposition": "foundation",
+      "evidence": [
+        {
+          "file": "packages/work/src/planning/today-service.ts",
+          "contains": "capacity: { available: false, owner: '3E' }"
+        }
+      ],
+      "note": "Foundation: available working time needs 3E working hours; Today shows committed estimates and scheduled minutes.",
+      "deferred_to": [
+        "3E"
+      ],
+      "accepted_by": [
+        "catalog:contributing"
+      ]
+    },
+    {
+      "id": "PLAN-006",
+      "role": "owned",
+      "disposition": "foundation",
+      "evidence": [
+        {
+          "file": "packages/work/src/planning/today-service.ts",
+          "contains": "estimate_minutes: open.reduce"
+        },
+        {
+          "file": "packages/work/test/integration/today.test.ts",
+          "contains": "estimate_minutes: 30 + 90"
+        }
+      ],
+      "note": "Foundation: estimated time of the day is shown; the comparison with available time is 3E.",
+      "deferred_to": [
+        "3E"
+      ],
+      "accepted_by": [
+        "catalog:contributing"
+      ]
+    },
+    {
+      "id": "PLAN-007",
+      "role": "owned",
+      "disposition": "foundation",
+      "evidence": [
+        {
+          "file": "docs/engineering/adr/0020-today-manual-planning.md",
+          "contains": "| P12 |"
+        }
+      ],
+      "note": "Foundation: capacity warnings are 3E-owned (brief); Today supplies the committed estimate.",
+      "deferred_to": [
+        "3E"
+      ],
+      "accepted_by": [
+        "catalog:contributing"
+      ]
+    },
+    {
+      "id": "PLAN-008",
+      "role": "owned",
+      "disposition": "implemented",
+      "evidence": [
+        {
+          "file": "packages/work/src/planning/today-service.ts",
+          "contains": "async commit("
+        },
+        {
+          "file": "packages/work/test/integration/today.test.ts",
+          "contains": "commits tasks without changing any date, keeps manual order, and respects locks"
+        }
+      ],
+      "note": "Commit to a day; dates never change."
+    },
+    {
+      "id": "PLAN-009",
+      "role": "owned",
+      "disposition": "implemented",
+      "evidence": [
+        {
+          "file": "packages/work/src/planning/today-service.ts",
+          "contains": "rankBetween("
+        },
+        {
+          "file": "e2e/today.spec.ts",
+          "contains": "Move up Review deck"
+        }
+      ],
+      "note": "Manual order by keyboard-reachable controls."
+    },
+    {
+      "id": "PLAN-014",
+      "role": "owned",
+      "disposition": "implemented",
+      "evidence": [
+        {
+          "file": "packages/db/migrations/0033_today_planning.up.sql",
+          "contains": "focus_protected"
+        },
+        {
+          "file": "packages/work/test/integration/today.test.ts",
+          "contains": "focus protection"
+        }
+      ],
+      "note": "Focus blocks refuse overlapping blocks (service and guard)."
+    },
+    {
+      "id": "PLAN-015",
+      "role": "owned",
+      "disposition": "implemented",
+      "evidence": [
+        {
+          "file": "packages/db/migrations/0033_today_planning.up.sql",
+          "contains": "prep_minutes integer"
+        },
+        {
+          "file": "packages/work/test/integration/today.test.ts",
+          "contains": "buffer_minutes: 15"
+        }
+      ],
+      "note": "Preparation and buffer time counted as occupied."
+    },
+    {
+      "id": "PLAN-016",
+      "role": "owned",
+      "disposition": "implemented",
+      "evidence": [
+        {
+          "file": "packages/work/src/planning/today-service.ts",
+          "contains": "'today.rescheduled'"
+        },
+        {
+          "file": "packages/work/test/integration/today.test.ts",
+          "contains": "reschedules a commitment to a later day with an audit, never touching the task"
+        }
+      ],
+      "note": "Move, carry, or pick a day for unfinished work; audited."
+    },
+    {
+      "id": "PLAN-017",
+      "role": "owned",
+      "disposition": "implemented",
+      "evidence": [
+        {
+          "file": "packages/work/src/planning/today-service.ts",
+          "contains": "protected requireUnlocked("
+        },
+        {
+          "file": "packages/work/test/integration/today.test.ts",
+          "contains": "issueOf('locked')"
+        }
+      ],
+      "note": "Locked commitments and blocks are never moved or removed until unlocked."
+    },
+    {
+      "id": "PLAN-018",
+      "role": "owned",
+      "disposition": "implemented",
+      "evidence": [
+        {
+          "file": "packages/work/src/planning/today-service.ts",
+          "contains": "async shutdown("
+        },
+        {
+          "file": "packages/work/src/planning/today-service.ts",
+          "contains": "async dayPlan("
+        },
+        {
+          "file": "packages/work/test/integration/today.test.ts",
+          "contains": "shuts down a day: carry, pick a day, return, leave"
+        }
+      ],
+      "note": "Daily plan and shutdown routines."
+    },
+    {
+      "id": "PLAN-019",
+      "role": "owned",
+      "disposition": "implemented",
+      "evidence": [
+        {
+          "file": "packages/work/src/planning/today-service.ts",
+          "contains": "export async function writeDailyRecord("
+        },
+        {
+          "file": "packages/work/test/integration/today.test.ts",
+          "contains": "closes ended days automatically, once, with done and dropped outcomes"
+        }
+      ],
+      "note": "Append-only planned-versus-completed records with 3D actual time."
+    },
+    {
+      "id": "CAL-005",
+      "role": "owned",
+      "disposition": "implemented",
+      "evidence": [
+        {
+          "file": "packages/work/src/planning/today-service.ts",
+          "contains": "export async function generateSeries("
+        },
+        {
+          "file": "packages/work/test/integration/today.test.ts",
+          "contains": "generates recurring blocks at a stable local time across DST, once, and skips focus clashes"
+        }
+      ],
+      "note": "Recurring work blocks through the 2A rule engine (recurring tasks were 2D)."
+    },
+    {
+      "id": "CAL-011",
+      "role": "owned",
+      "disposition": "implemented",
+      "evidence": [
+        {
+          "file": "packages/work/src/planning/today-service.ts",
+          "contains": "async blockFromEstimate("
+        },
+        {
+          "file": "apps/api/test/integration/planning-api.test.ts",
+          "contains": "from-estimate"
+        }
+      ],
+      "note": "Focus blocks sized from the remaining estimate or estimate."
+    },
+    {
+      "id": "CAL-013",
+      "role": "owned",
+      "disposition": "implemented",
+      "evidence": [
+        {
+          "file": "packages/work/src/planning/semantics.ts",
+          "contains": "export function blockWarnings("
+        },
+        {
+          "file": "packages/work/test/integration/today.test.ts",
+          "contains": "Moving a block never changes the task"
+        }
+      ],
+      "note": "Block moves warn after the due date or deadline and never change them."
+    },
+    {
+      "id": "TSK-006",
+      "role": "contributing",
+      "disposition": "contributed",
+      "contribution": "3C",
+      "evidence": [
+        {
+          "file": "packages/db/migrations/0033_today_planning.up.sql",
+          "contains": "CREATE TABLE planning.work_block"
+        }
+      ],
+      "note": "Work blocks distinct from due dates."
+    },
+    {
+      "id": "CAL-003",
+      "role": "contributing",
+      "disposition": "contributed",
+      "contribution": "3C",
+      "evidence": [
+        {
+          "file": "packages/work/src/planning/today-service.ts",
+          "contains": "async updateBlock("
+        }
+      ],
+      "note": "Block moves for 3B calendar drag."
+    },
+    {
+      "id": "LA-002",
+      "role": "contributing",
+      "disposition": "contributed",
+      "contribution": "3C",
+      "evidence": [
+        {
+          "file": "e2e/today.spec.ts",
+          "contains": "plan the day: commit, order, lock, focus block, offline, shut down, and carry over"
+        }
+      ],
+      "note": "A daily plan without configuration help."
+    },
+    {
+      "id": "LA-003",
+      "role": "contributing",
+      "disposition": "contributed",
+      "contribution": "3C",
+      "evidence": [
+        {
+          "file": "e2e/today.spec.ts",
+          "contains": "Add to today"
+        }
+      ],
+      "note": "Schedule and complete work from desktop and mobile web."
+    }
+  ],
+  "decisions": [
+    {
+      "id": "D1",
+      "title": "Today, overdue/upcoming separation, commitments, order, work blocks distinct from deadlines, focus, buffers, shutdown, rescheduling, daily records",
+      "adr_row": "P2",
+      "sources": [
+        {
+          "file": "docs/product/time-and-scheduling.md",
+          "contains": "As implemented (Phase 3C, ADR-0020)"
+        }
+      ],
+      "evidence": [
+        {
+          "file": "packages/work/src/planning/today-service.ts",
+          "contains": "async todayView("
+        },
+        {
+          "file": "e2e/today.spec.ts",
+          "contains": "plan the day"
+        },
+        {
+          "file": "docs/engineering/adr/0020-today-manual-planning.md",
+          "contains": "| P2 |"
+        }
+      ]
+    },
+    {
+      "id": "D2",
+      "title": "Reuse 3A queries and 3D estimates and time; no duplicated evaluators; calendar adapters stay 6C",
+      "adr_row": "P2",
+      "sources": [
+        {
+          "file": "docs/architecture/access/15-decisions.md",
+          "contains": "AZ-28: Today and manual planning"
+        }
+      ],
+      "evidence": [
+        {
+          "file": "packages/work/src/planning/today-service.ts",
+          "contains": "await this.runQuery("
+        },
+        {
+          "file": "packages/work/src/planning/today-service.ts",
+          "contains": "FROM timetrack.time_entry"
+        },
+        {
+          "file": "docs/engineering/adr/0020-today-manual-planning.md",
+          "contains": "| P12 |"
+        }
+      ]
+    },
+    {
+      "id": "D3",
+      "title": "Distinct deadlines, blocks, and commitments; explicit due-date changes only; locked items preserved; every reschedule audited",
+      "adr_row": "P7",
+      "sources": [
+        {
+          "file": "docs/architecture/data/12-decisions.md",
+          "contains": "ADR-28: Today, work blocks, and daily records"
+        }
+      ],
+      "evidence": [
+        {
+          "file": "packages/work/test/integration/today.test.ts",
+          "contains": "never touching the task"
+        },
+        {
+          "file": "docs/engineering/adr/0020-today-manual-planning.md",
+          "contains": "| P5 |"
+        },
+        {
+          "file": "docs/engineering/adr/0020-today-manual-planning.md",
+          "contains": "| P7 |"
+        }
+      ]
+    },
+    {
+      "id": "D4",
+      "title": "Deterministic order, buffers, focus protection, planning and shutdown, rescheduling, records; timezone and DST safe; OD-18 resolved",
+      "adr_row": "P1",
+      "sources": [
+        {
+          "file": "docs/product/open-decisions.md",
+          "contains": "**Status (Phase 3C, 2026-10-07):**"
+        }
+      ],
+      "evidence": [
+        {
+          "file": "packages/work/test/unit/planning-semantics.test.ts",
+          "contains": "DST days are 23 or 25 hours"
+        },
+        {
+          "file": "packages/work/test/integration/today.test.ts",
+          "contains": "measures days and blocks in local time across daylight saving"
+        },
+        {
+          "file": "docs/engineering/adr/0020-today-manual-planning.md",
+          "contains": "| P1 |"
+        }
+      ]
+    },
+    {
+      "id": "D5",
+      "title": "3E capacity and 7F AI deferred honestly; coverage; sources, ADR, contracts, closure, validator; migration rollback",
+      "adr_row": "P12",
+      "sources": [
+        {
+          "file": "docs/ux/02-information-architecture.md",
+          "contains": "Phase 3C implementation note"
+        }
+      ],
+      "evidence": [
+        {
+          "file": "packages/db/migrations/0033_today_planning.down.sql",
+          "contains": "Restores the exact 0032 catalog"
+        },
+        {
+          "file": "apps/web/test/today.test.tsx",
+          "contains": "is a live destination"
+        },
+        {
+          "file": "e2e/today.spec.ts",
+          "contains": "a teammate who loses brand access"
+        },
+        {
+          "file": "docs/engineering/tools/phase3c.py",
+          "contains": "PHASE 3C CLOSURE"
+        },
+        {
+          "file": "docs/engineering/adr/0020-today-manual-planning.md",
+          "contains": "| P12 |"
+        }
+      ]
+    }
+  ]
+}
