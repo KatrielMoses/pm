@@ -1272,6 +1272,8 @@ export interface TaskAssigneeTable {
   rank: string;
   assigned_by_membership_id: string | null;
   assigned_at: DTs;
+  delegated_from_membership_id: string | null;
+  delegated_at: Ts | null;
 }
 export interface ChecklistItemTable {
   id: string;
@@ -2054,7 +2056,128 @@ export interface CapacityReservationTable {
   version: Defaulted<number>;
 }
 
+// ---- Phase 4A: comments, mentions, followers, reviews, assignment history (0036) --------------
+
+export type ReviewState =
+  'requested' | 'changes_requested' | 'approved' | 'rejected' | 'withdrawn' | 'superseded';
+export type ReviewOutcome = 'approved' | 'changes_requested' | 'rejected';
+
+export interface CommentTable {
+  id: string;
+  public_id: string;
+  workspace_id: string;
+  host_record_id: string;
+  root_comment_id: string | null;
+  in_reply_to_comment_id: string | null;
+  body_rich: Json<unknown> | null;
+  body_text: string | null;
+  author_membership_id: string;
+  author_actor_type: Defaulted<'member'>;
+  created_at: DTs;
+  edited_at: Ts | null;
+  edit_count: Defaulted<number>;
+  deleted_at: Ts | null;
+  deleted_by_membership_id: string | null;
+  deleted_by_kind: 'author' | 'moderator' | null;
+  version: Defaulted<number>;
+}
+export interface CommentRevisionTable {
+  id: string;
+  workspace_id: string;
+  comment_id: string;
+  revision_no: number;
+  kind: 'edited' | 'deleted';
+  body_rich: Json<unknown>;
+  body_text: string;
+  actor_membership_id: string;
+  created_at: DTs;
+}
+export interface ReactionTable {
+  workspace_id: string;
+  comment_id: string;
+  membership_id: string;
+  reaction: string;
+  created_at: DTs;
+}
+export interface MentionTable {
+  id: string;
+  workspace_id: string;
+  source_kind: Defaulted<'comment'>;
+  source_id: string;
+  target_kind: 'member' | 'team' | 'record';
+  target_membership_id: string | null;
+  target_team_id: string | null;
+  target_record_id: string | null;
+  position: Defaulted<number>;
+  notified: Defaulted<boolean>;
+  created_at: DTs;
+}
+export interface FollowerTable {
+  workspace_id: string;
+  record_id: string;
+  membership_id: string;
+  source: Defaulted<'explicit'>;
+  created_at: DTs;
+}
+export interface ReviewRequestTable {
+  id: string;
+  public_id: string;
+  workspace_id: string;
+  subject_record_id: string;
+  subject_kind: 'task' | 'project';
+  subject_version: number;
+  kind: 'review' | 'approval';
+  rule: 'any' | 'all';
+  state: Defaulted<ReviewState>;
+  requested_by_membership_id: string;
+  message_text: string | null;
+  previous_request_id: string | null;
+  closed_reason: 'requester' | 'requester_departed' | 'reviewer_departed' | 'refreshed' | null;
+  settled_at: Ts | null;
+  created_at: DTs;
+  updated_at: DTs;
+  version: Defaulted<number>;
+}
+export interface ReviewReviewerTable {
+  workspace_id: string;
+  review_request_id: string;
+  membership_id: string;
+  rank: number;
+}
+export interface ReviewDecisionTable {
+  id: string;
+  workspace_id: string;
+  review_request_id: string;
+  reviewer_membership_id: string;
+  outcome: ReviewOutcome;
+  subject_version: number;
+  note_text: string | null;
+  self_approval: Defaulted<boolean>;
+  decided_at: DTs;
+}
+export interface AssignmentEventTable {
+  id: string;
+  workspace_id: string;
+  task_id: string;
+  kind: 'assigned' | 'unassigned' | 'reassigned' | 'delegated';
+  via: 'assign' | 'delegate' | 'departure';
+  from_membership_id: string | null;
+  to_membership_id: string | null;
+  actor_membership_id: string;
+  note_text: string | null;
+  occurred_at: DTs;
+}
+
 export interface Database {
+  'collab.comment': CommentTable;
+  'collab.comment_revision': CommentRevisionTable;
+  'collab.reaction': ReactionTable;
+  'relations.mention': MentionTable;
+  'relations.follower': FollowerTable;
+  'collab.review_request': ReviewRequestTable;
+  'collab.review_reviewer': ReviewReviewerTable;
+  'collab.review_decision': ReviewDecisionTable;
+  'collab.assignment_event': AssignmentEventTable;
   'planning.capacity_profile': CapacityProfileTable;
   'planning.availability_rule': AvailabilityRuleTable;
   'planning.time_off': TimeOffTable;
@@ -3093,6 +3216,94 @@ export const TABLE_COLUMNS: Readonly<Record<keyof Database, readonly string[]>> 
     'updated_at',
     'version',
   ],
+  'collab.comment': [
+    'id',
+    'public_id',
+    'workspace_id',
+    'host_record_id',
+    'root_comment_id',
+    'in_reply_to_comment_id',
+    'body_rich',
+    'body_text',
+    'author_membership_id',
+    'author_actor_type',
+    'created_at',
+    'edited_at',
+    'edit_count',
+    'deleted_at',
+    'deleted_by_membership_id',
+    'deleted_by_kind',
+    'version',
+  ],
+  'collab.comment_revision': [
+    'id',
+    'workspace_id',
+    'comment_id',
+    'revision_no',
+    'kind',
+    'body_rich',
+    'body_text',
+    'actor_membership_id',
+    'created_at',
+  ],
+  'collab.reaction': ['workspace_id', 'comment_id', 'membership_id', 'reaction', 'created_at'],
+  'relations.mention': [
+    'id',
+    'workspace_id',
+    'source_kind',
+    'source_id',
+    'target_kind',
+    'target_membership_id',
+    'target_team_id',
+    'target_record_id',
+    'position',
+    'notified',
+    'created_at',
+  ],
+  'relations.follower': ['workspace_id', 'record_id', 'membership_id', 'source', 'created_at'],
+  'collab.review_request': [
+    'id',
+    'public_id',
+    'workspace_id',
+    'subject_record_id',
+    'subject_kind',
+    'subject_version',
+    'kind',
+    'rule',
+    'state',
+    'requested_by_membership_id',
+    'message_text',
+    'previous_request_id',
+    'closed_reason',
+    'settled_at',
+    'created_at',
+    'updated_at',
+    'version',
+  ],
+  'collab.review_reviewer': ['workspace_id', 'review_request_id', 'membership_id', 'rank'],
+  'collab.review_decision': [
+    'id',
+    'workspace_id',
+    'review_request_id',
+    'reviewer_membership_id',
+    'outcome',
+    'subject_version',
+    'note_text',
+    'self_approval',
+    'decided_at',
+  ],
+  'collab.assignment_event': [
+    'id',
+    'workspace_id',
+    'task_id',
+    'kind',
+    'via',
+    'from_membership_id',
+    'to_membership_id',
+    'actor_membership_id',
+    'note_text',
+    'occurred_at',
+  ],
   'workflow.platform_status': ['id', 'record_type', 'key', 'name', 'category', 'rank'],
   'work.project': [
     'id',
@@ -3239,6 +3450,8 @@ export const TABLE_COLUMNS: Readonly<Record<keyof Database, readonly string[]>> 
     'rank',
     'assigned_by_membership_id',
     'assigned_at',
+    'delegated_from_membership_id',
+    'delegated_at',
   ],
   'work.checklist_item': [
     'id',

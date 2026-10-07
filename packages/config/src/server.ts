@@ -216,6 +216,14 @@ export interface ServerConfig {
     blockSeriesHorizonDays: number;
     dayCloseDiscoveryMax: number;
     dayCloseBatchMax: number;
+    commentBodyMaxChars: number;
+    commentEditWindowMinutes: number;
+    commentMentionsMax: number;
+    commentsPerRecordMax: number;
+    commentRatePerMinute: number;
+    commentRepliesInlineMax: number;
+    followersListMax: number;
+    reviewReviewersMax: number;
   };
   features: {
     /** Local/test-only component harness route for reusable UI states (refused when deployed). */
@@ -455,6 +463,14 @@ const DEFAULTS = {
   BLOCK_SERIES_HORIZON_DAYS: '28',
   DAY_CLOSE_DISCOVERY_MAX: '100',
   DAY_CLOSE_BATCH_MAX: '200',
+  COMMENT_BODY_MAX_CHARS: '10000',
+  COMMENT_EDIT_WINDOW_MINUTES: '1440',
+  COMMENT_MENTIONS_MAX: '20',
+  COMMENTS_PER_RECORD_MAX: '5000',
+  COMMENT_RATE_PER_MINUTE: '30',
+  COMMENT_REPLIES_INLINE_MAX: '20',
+  FOLLOWERS_LIST_MAX: '200',
+  REVIEW_REVIEWERS_MAX: '10',
 } as const;
 
 const schema = z.object({
@@ -628,6 +644,14 @@ const schema = z.object({
   BLOCK_SERIES_HORIZON_DAYS: int(1, 180),
   DAY_CLOSE_DISCOVERY_MAX: int(1, 1000),
   DAY_CLOSE_BATCH_MAX: int(1, 1000),
+  COMMENT_BODY_MAX_CHARS: int(100, 50000),
+  COMMENT_EDIT_WINDOW_MINUTES: int(5, 10080),
+  COMMENT_MENTIONS_MAX: int(1, 100),
+  COMMENTS_PER_RECORD_MAX: int(100, 50000),
+  COMMENT_RATE_PER_MINUTE: int(1, 600),
+  COMMENT_REPLIES_INLINE_MAX: int(1, 100),
+  FOLLOWERS_LIST_MAX: int(10, 1000),
+  REVIEW_REVIEWERS_MAX: int(1, 50),
 });
 
 /** Variables a deployed environment must set explicitly (no silent local defaults). */
@@ -1085,6 +1109,14 @@ export function loadServerConfig(options: LoadOptions): ServerConfig {
       blockSeriesHorizonDays: c.BLOCK_SERIES_HORIZON_DAYS,
       dayCloseDiscoveryMax: c.DAY_CLOSE_DISCOVERY_MAX,
       dayCloseBatchMax: c.DAY_CLOSE_BATCH_MAX,
+      commentBodyMaxChars: c.COMMENT_BODY_MAX_CHARS,
+      commentEditWindowMinutes: c.COMMENT_EDIT_WINDOW_MINUTES,
+      commentMentionsMax: c.COMMENT_MENTIONS_MAX,
+      commentsPerRecordMax: c.COMMENTS_PER_RECORD_MAX,
+      commentRatePerMinute: c.COMMENT_RATE_PER_MINUTE,
+      commentRepliesInlineMax: c.COMMENT_REPLIES_INLINE_MAX,
+      followersListMax: c.FOLLOWERS_LIST_MAX,
+      reviewReviewersMax: c.REVIEW_REVIEWERS_MAX,
     },
     identity: {
       publicOrigin,

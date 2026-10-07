@@ -1574,7 +1574,9 @@
       },
       "public_webhook": "comment.created",
       "requirements": [
-        "COL-005"
+        "COL-005",
+        "COL-006",
+        "TSK-018"
       ],
       "allow_list_version": 1,
       "delivery_authorization": "subscription_owner_at_delivery"
@@ -1586,7 +1588,8 @@
       "fields": [
         "subject_kind",
         "subject_ref",
-        "reviewer_rule"
+        "reviewer_rule",
+        "request_kind"
       ],
       "max_class": "C1",
       "consumers": {
@@ -1598,7 +1601,9 @@
       },
       "public_webhook": "review.requested",
       "requirements": [
-        "COL-013"
+        "COL-013",
+        "TSK-029",
+        "TSK-030"
       ],
       "allow_list_version": 1,
       "delivery_authorization": "subscription_owner_at_delivery"
@@ -1610,7 +1615,8 @@
       "fields": [
         "decision",
         "self_approval",
-        "subject_ref"
+        "subject_ref",
+        "review_state"
       ],
       "max_class": "C1",
       "consumers": {
@@ -1622,7 +1628,9 @@
       },
       "public_webhook": "review.decided",
       "requirements": [
-        "FILE-009"
+        "FILE-009",
+        "TSK-029",
+        "TSK-030"
       ],
       "allow_list_version": 1,
       "delivery_authorization": "subscription_owner_at_delivery"
@@ -1667,7 +1675,10 @@
         "search_index": false
       },
       "public_webhook": null,
-      "requirements": [],
+      "requirements": [
+        "COL-007",
+        "TSK-019"
+      ],
       "allow_list_version": null,
       "delivery_authorization": null
     },
@@ -4083,6 +4094,198 @@
       ],
       "allow_list_version": null,
       "delivery_authorization": null
+    },
+    {
+      "type": "collab.comment.edited",
+      "schema_version": 1,
+      "aggregate_entity": "collab.comment",
+      "fields": [
+        "host_record_id",
+        "edit_count"
+      ],
+      "max_class": "C1",
+      "consumers": {
+        "activity": true,
+        "notification": false,
+        "metrics": true,
+        "automation_trigger": false,
+        "search_index": true
+      },
+      "public_webhook": null,
+      "requirements": [
+        "COL-009"
+      ],
+      "allow_list_version": null,
+      "delivery_authorization": null
+    },
+    {
+      "type": "collab.comment.deleted",
+      "schema_version": 1,
+      "aggregate_entity": "collab.comment",
+      "fields": [
+        "host_record_id",
+        "deleted_by"
+      ],
+      "max_class": "C1",
+      "consumers": {
+        "activity": true,
+        "notification": false,
+        "metrics": true,
+        "automation_trigger": false,
+        "search_index": true
+      },
+      "public_webhook": null,
+      "requirements": [
+        "COL-009"
+      ],
+      "allow_list_version": null,
+      "delivery_authorization": null
+    },
+    {
+      "type": "collab.comment.reaction_changed",
+      "schema_version": 1,
+      "aggregate_entity": "collab.comment",
+      "fields": [
+        "host_record_id",
+        "reaction",
+        "change"
+      ],
+      "max_class": "C1",
+      "consumers": {
+        "activity": false,
+        "notification": false,
+        "metrics": true,
+        "automation_trigger": false,
+        "search_index": false
+      },
+      "public_webhook": null,
+      "requirements": [
+        "COL-008"
+      ],
+      "allow_list_version": null,
+      "delivery_authorization": null
+    },
+    {
+      "type": "relations.follow.added",
+      "schema_version": 1,
+      "aggregate_entity": "relations.follower",
+      "fields": [
+        "record_type",
+        "membership_id"
+      ],
+      "max_class": "C1",
+      "consumers": {
+        "activity": false,
+        "notification": false,
+        "metrics": true,
+        "automation_trigger": false,
+        "search_index": false
+      },
+      "public_webhook": null,
+      "requirements": [
+        "COL-010",
+        "TSK-009",
+        "PRJ-026"
+      ],
+      "allow_list_version": null,
+      "delivery_authorization": null
+    },
+    {
+      "type": "relations.follow.removed",
+      "schema_version": 1,
+      "aggregate_entity": "relations.follower",
+      "fields": [
+        "record_type",
+        "membership_id"
+      ],
+      "max_class": "C1",
+      "consumers": {
+        "activity": false,
+        "notification": false,
+        "metrics": true,
+        "automation_trigger": false,
+        "search_index": false
+      },
+      "public_webhook": null,
+      "requirements": [
+        "COL-010",
+        "TSK-009",
+        "PRJ-026"
+      ],
+      "allow_list_version": null,
+      "delivery_authorization": null
+    },
+    {
+      "type": "collab.review.withdrawn",
+      "schema_version": 1,
+      "aggregate_entity": "collab.review_request",
+      "fields": [
+        "subject_kind",
+        "subject_ref",
+        "reason"
+      ],
+      "max_class": "C1",
+      "consumers": {
+        "activity": true,
+        "notification": true,
+        "metrics": true,
+        "automation_trigger": false,
+        "search_index": false
+      },
+      "public_webhook": null,
+      "requirements": [
+        "COL-013"
+      ],
+      "allow_list_version": null,
+      "delivery_authorization": null
+    },
+    {
+      "type": "collab.review.superseded",
+      "schema_version": 1,
+      "aggregate_entity": "collab.review_request",
+      "fields": [
+        "subject_kind",
+        "subject_ref",
+        "successor_ref"
+      ],
+      "max_class": "C1",
+      "consumers": {
+        "activity": true,
+        "notification": false,
+        "metrics": true,
+        "automation_trigger": false,
+        "search_index": false
+      },
+      "public_webhook": null,
+      "requirements": [
+        "COL-013"
+      ],
+      "allow_list_version": null,
+      "delivery_authorization": null
+    },
+    {
+      "type": "work.task.delegated",
+      "schema_version": 1,
+      "aggregate_entity": "work.task",
+      "fields": [
+        "from_membership_id",
+        "to_membership_id"
+      ],
+      "max_class": "C1",
+      "consumers": {
+        "activity": true,
+        "notification": true,
+        "metrics": true,
+        "automation_trigger": false,
+        "search_index": false
+      },
+      "public_webhook": null,
+      "requirements": [
+        "COL-014",
+        "COL-015"
+      ],
+      "allow_list_version": null,
+      "delivery_authorization": null
     }
   ],
   "scopes": [
@@ -5118,6 +5321,51 @@
         "outcome"
       ],
       "area": "planning"
+    },
+    {
+      "name": "collab.comments",
+      "type": "counter",
+      "labels": [
+        "action",
+        "outcome"
+      ],
+      "area": "collab"
+    },
+    {
+      "name": "collab.reactions",
+      "type": "counter",
+      "labels": [
+        "change",
+        "outcome"
+      ],
+      "area": "collab"
+    },
+    {
+      "name": "collab.follows",
+      "type": "counter",
+      "labels": [
+        "change",
+        "outcome"
+      ],
+      "area": "collab"
+    },
+    {
+      "name": "collab.reviews",
+      "type": "counter",
+      "labels": [
+        "action",
+        "outcome"
+      ],
+      "area": "collab"
+    },
+    {
+      "name": "collab.delegations",
+      "type": "counter",
+      "labels": [
+        "kind",
+        "outcome"
+      ],
+      "area": "collab"
     }
   ],
   "forbidden_metric_labels": [
@@ -5776,6 +6024,46 @@
       "name": "CAPACITY_PEOPLE_MAX",
       "meaning": "Most people one team capacity read may include; default 100, range 1–1000.",
       "owner": "3E"
+    },
+    {
+      "name": "COMMENT_BODY_MAX_CHARS",
+      "meaning": "Longest comment body, in characters of extracted text; default 10000, range 100–50000.",
+      "owner": "4A"
+    },
+    {
+      "name": "COMMENT_EDIT_WINDOW_MINUTES",
+      "meaning": "How long after posting an author may edit or delete their own comment (the OD-38 audit window); default 1440, range 5–10080. Moderators are not bound by it.",
+      "owner": "4A"
+    },
+    {
+      "name": "COMMENT_MENTIONS_MAX",
+      "meaning": "Most mentions one comment may carry; default 20, range 1–100.",
+      "owner": "4A"
+    },
+    {
+      "name": "COMMENTS_PER_RECORD_MAX",
+      "meaning": "Most comments (roots and replies, deleted ones included) one record may hold; default 5000, range 100–50000.",
+      "owner": "4A"
+    },
+    {
+      "name": "COMMENT_RATE_PER_MINUTE",
+      "meaning": "Most comments, replies, and edits one person may post per minute; default 30, range 1–600.",
+      "owner": "4A"
+    },
+    {
+      "name": "COMMENT_REPLIES_INLINE_MAX",
+      "meaning": "Most replies a comment list returns inline under each thread (more are fetched by cursor); default 20, range 1–100.",
+      "owner": "4A"
+    },
+    {
+      "name": "FOLLOWERS_LIST_MAX",
+      "meaning": "Most followers one record's follower list returns; default 200, range 10–1000.",
+      "owner": "4A"
+    },
+    {
+      "name": "REVIEW_REVIEWERS_MAX",
+      "meaning": "Most reviewers one review request may name; default 10, range 1–50.",
+      "owner": "4A"
     }
   ],
   "sse_topics": [

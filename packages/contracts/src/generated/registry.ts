@@ -645,6 +645,46 @@ export const TELEMETRY_SIGNALS = [
       "kind",
       "outcome"
     ]
+  },
+  {
+    "name": "collab.comments",
+    "type": "counter",
+    "labels": [
+      "action",
+      "outcome"
+    ]
+  },
+  {
+    "name": "collab.reactions",
+    "type": "counter",
+    "labels": [
+      "change",
+      "outcome"
+    ]
+  },
+  {
+    "name": "collab.follows",
+    "type": "counter",
+    "labels": [
+      "change",
+      "outcome"
+    ]
+  },
+  {
+    "name": "collab.reviews",
+    "type": "counter",
+    "labels": [
+      "action",
+      "outcome"
+    ]
+  },
+  {
+    "name": "collab.delegations",
+    "type": "counter",
+    "labels": [
+      "kind",
+      "outcome"
+    ]
   }
 ] as const;
 export type TelemetrySignalName = (typeof TELEMETRY_SIGNALS)[number]['name'];
@@ -1848,7 +1888,8 @@ export const INTERNAL_EVENTS = [
     "fields": [
       "subject_kind",
       "subject_ref",
-      "reviewer_rule"
+      "reviewer_rule",
+      "request_kind"
     ],
     "maxClass": "C1"
   },
@@ -1859,7 +1900,8 @@ export const INTERNAL_EVENTS = [
     "fields": [
       "decision",
       "self_approval",
-      "subject_ref"
+      "subject_ref",
+      "review_state"
     ],
     "maxClass": "C1"
   },
@@ -2923,6 +2965,89 @@ export const INTERNAL_EVENTS = [
       "effective_from"
     ],
     "maxClass": "C1"
+  },
+  {
+    "type": "collab.comment.edited",
+    "schemaVersion": 1,
+    "aggregateEntity": "collab.comment",
+    "fields": [
+      "host_record_id",
+      "edit_count"
+    ],
+    "maxClass": "C1"
+  },
+  {
+    "type": "collab.comment.deleted",
+    "schemaVersion": 1,
+    "aggregateEntity": "collab.comment",
+    "fields": [
+      "host_record_id",
+      "deleted_by"
+    ],
+    "maxClass": "C1"
+  },
+  {
+    "type": "collab.comment.reaction_changed",
+    "schemaVersion": 1,
+    "aggregateEntity": "collab.comment",
+    "fields": [
+      "host_record_id",
+      "reaction",
+      "change"
+    ],
+    "maxClass": "C1"
+  },
+  {
+    "type": "relations.follow.added",
+    "schemaVersion": 1,
+    "aggregateEntity": "relations.follower",
+    "fields": [
+      "record_type",
+      "membership_id"
+    ],
+    "maxClass": "C1"
+  },
+  {
+    "type": "relations.follow.removed",
+    "schemaVersion": 1,
+    "aggregateEntity": "relations.follower",
+    "fields": [
+      "record_type",
+      "membership_id"
+    ],
+    "maxClass": "C1"
+  },
+  {
+    "type": "collab.review.withdrawn",
+    "schemaVersion": 1,
+    "aggregateEntity": "collab.review_request",
+    "fields": [
+      "subject_kind",
+      "subject_ref",
+      "reason"
+    ],
+    "maxClass": "C1"
+  },
+  {
+    "type": "collab.review.superseded",
+    "schemaVersion": 1,
+    "aggregateEntity": "collab.review_request",
+    "fields": [
+      "subject_kind",
+      "subject_ref",
+      "successor_ref"
+    ],
+    "maxClass": "C1"
+  },
+  {
+    "type": "work.task.delegated",
+    "schemaVersion": 1,
+    "aggregateEntity": "work.task",
+    "fields": [
+      "from_membership_id",
+      "to_membership_id"
+    ],
+    "maxClass": "C1"
   }
 ] as const;
 export type InternalEventType = (typeof INTERNAL_EVENTS)[number]['type'];
@@ -3051,7 +3176,15 @@ export const PARAMETER_NAMES = [
   "TIME_OFF_ENTRIES_MAX",
   "BRAND_HOLIDAYS_MAX",
   "CAPACITY_RANGE_DAYS_MAX",
-  "CAPACITY_PEOPLE_MAX"
+  "CAPACITY_PEOPLE_MAX",
+  "COMMENT_BODY_MAX_CHARS",
+  "COMMENT_EDIT_WINDOW_MINUTES",
+  "COMMENT_MENTIONS_MAX",
+  "COMMENTS_PER_RECORD_MAX",
+  "COMMENT_RATE_PER_MINUTE",
+  "COMMENT_REPLIES_INLINE_MAX",
+  "FOLLOWERS_LIST_MAX",
+  "REVIEW_REVIEWERS_MAX"
 ] as const;
 export type ParameterName = (typeof PARAMETER_NAMES)[number];
 

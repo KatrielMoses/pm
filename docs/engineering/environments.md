@@ -160,6 +160,14 @@ worker process is a startup error. All identities of one process must target the
 | `BLOCK_SERIES_HORIZON_DAYS` | optional | optional | default 28 (1–180); how many days ahead recurring work blocks are generated (0D `BLOCK_SERIES_HORIZON_DAYS`) |
 | `DAY_CLOSE_DISCOVERY_MAX` | optional | optional | default 100 (1–1000); most workspaces one day-close or block-series run examines (0D `DAY_CLOSE_DISCOVERY_MAX`) |
 | `DAY_CLOSE_BATCH_MAX` | optional | optional | default 200 (1–1000); most person-days one day-close run records per workspace (0D `DAY_CLOSE_BATCH_MAX`) |
+| `COMMENT_BODY_MAX_CHARS` | optional | optional | default 10000 (100–50000); longest comment body, in characters of extracted text (0D `COMMENT_BODY_MAX_CHARS`) |
+| `COMMENT_EDIT_WINDOW_MINUTES` | optional | optional | default 1440 (5–10080); how long after posting an author may edit or delete their own comment (the OD-38 audit window); moderators are not bound by it (0D `COMMENT_EDIT_WINDOW_MINUTES`) |
+| `COMMENT_MENTIONS_MAX` | optional | optional | default 20 (1–100); most mentions one comment may carry (0D `COMMENT_MENTIONS_MAX`) |
+| `COMMENTS_PER_RECORD_MAX` | optional | optional | default 5000 (100–50000); most comments (roots and replies, deleted ones included) one record may hold (0D `COMMENTS_PER_RECORD_MAX`) |
+| `COMMENT_RATE_PER_MINUTE` | optional | optional | default 30 (1–600); most comments, replies, and edits one person may post per minute (0D `COMMENT_RATE_PER_MINUTE`) |
+| `COMMENT_REPLIES_INLINE_MAX` | optional | optional | default 20 (1–100); most replies a comment list returns inline under each thread; more are fetched by cursor (0D `COMMENT_REPLIES_INLINE_MAX`) |
+| `FOLLOWERS_LIST_MAX` | optional | optional | default 200 (10–1000); most followers one record's follower list returns (0D `FOLLOWERS_LIST_MAX`) |
+| `REVIEW_REVIEWERS_MAX` | optional | optional | default 10 (1–50); most reviewers one review request may name (0D `REVIEW_REVIEWERS_MAX`) |
 | `VIEW_STATE_TTL_MS` | optional | optional | default 90 days; stored view state not written for this long is removed (0D `VIEW_STATE_TTL`) |
 
 Values are configuration, not customer promises (PQ-05). The 0D parameter values above are

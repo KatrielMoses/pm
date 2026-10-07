@@ -198,6 +198,22 @@ export interface WorkSettings {
   dayCloseDiscoveryMax: number;
   /** `DAY_CLOSE_BATCH_MAX` */
   dayCloseBatchMax: number;
+  /** `COMMENT_BODY_MAX_CHARS` */
+  commentBodyMaxChars: number;
+  /** `COMMENT_EDIT_WINDOW_MINUTES` */
+  commentEditWindowMinutes: number;
+  /** `COMMENT_MENTIONS_MAX` */
+  commentMentionsMax: number;
+  /** `COMMENTS_PER_RECORD_MAX` */
+  commentsPerRecordMax: number;
+  /** `COMMENT_RATE_PER_MINUTE` */
+  commentRatePerMinute: number;
+  /** `COMMENT_REPLIES_INLINE_MAX` */
+  commentRepliesInlineMax: number;
+  /** `FOLLOWERS_LIST_MAX` */
+  followersListMax: number;
+  /** `REVIEW_REVIEWERS_MAX` */
+  reviewReviewersMax: number;
 }
 
 export const DEFAULT_WORK_SETTINGS: WorkSettings = Object.freeze({
@@ -289,6 +305,14 @@ export const DEFAULT_WORK_SETTINGS: WorkSettings = Object.freeze({
   blockSeriesHorizonDays: 28,
   dayCloseDiscoveryMax: 100,
   dayCloseBatchMax: 200,
+  commentBodyMaxChars: 10_000,
+  commentEditWindowMinutes: 1_440,
+  commentMentionsMax: 20,
+  commentsPerRecordMax: 5_000,
+  commentRatePerMinute: 30,
+  commentRepliesInlineMax: 20,
+  followersListMax: 200,
+  reviewReviewersMax: 10,
 });
 
 /** The database invariant behind `TASK_DEPTH_MAX` (migration 0023). */
@@ -312,6 +336,12 @@ export const PROJECT_ICONS = [
 
 export const isObject = (v: unknown): v is Record<string, unknown> =>
   typeof v === 'object' && v !== null && !Array.isArray(v);
+
+/**
+ * Identifiers of comments and review requests (4A). They are not records, so history and activity
+ * show them as references only because the event's own target record was already authorized.
+ */
+export const COLLAB_REF = /^(cmt|rvw)_[0-9A-HJKMNP-TV-Z]{26}$/;
 
 const PUBLIC = (prefix: string) => new RegExp(`^${prefix}_[0-9A-HJKMNP-TV-Z]{26}$`);
 export const isPublic = (v: unknown, prefix: string): v is string =>

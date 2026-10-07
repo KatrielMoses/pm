@@ -126,6 +126,16 @@ const PHASE_1C_TENANT_TABLES = [
   'planning.time_off',
   'planning.holiday',
   'planning.capacity_reservation',
+  // Phase 4A comments, revisions, reactions, mentions, followers, reviews, and assignment history.
+  'collab.comment',
+  'collab.comment_revision',
+  'collab.reaction',
+  'relations.mention',
+  'relations.follower',
+  'collab.review_request',
+  'collab.review_reviewer',
+  'collab.review_decision',
+  'collab.assignment_event',
 ] as const;
 
 /** Seeds one row in every tenant execution table for a workspace. */
