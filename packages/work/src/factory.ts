@@ -14,7 +14,7 @@ import {
 import { registerWorkLifecycle } from './lifecycle.ts';
 import { projectTargets, savedViewTargets, taskTargets } from './navigation.ts';
 import { projectOwnerHook, taskAssigneeHook } from './ownership.ts';
-import { LayoutService } from './views/layout-service.ts';
+import { CapacityService } from './capacity/capacity-service.ts';
 import { DEFAULT_WORK_SETTINGS, type WorkSettings } from './validation.ts';
 
 /** The lifecycle registry with every record type registered so far (API and worker). */
@@ -36,7 +36,7 @@ export function createWorkService(deps: {
   };
   logger: Logger;
   metrics: Metrics;
-}): LayoutService {
+}): CapacityService {
   const { config } = deps;
   if (!config.identity.signingKey) throw new Error('AUTH_SIGNING_KEY is required');
   const writer = new AuditWriter({
@@ -56,7 +56,7 @@ export function createWorkService(deps: {
   const signingKey = Buffer.from(config.identity.signingKey.reveal(), 'base64url');
   const arrayMax = config.tenancy.principalContextArrayMax;
   const work = config.work ?? DEFAULT_WORK_SETTINGS;
-  return new LayoutService({
+  return new CapacityService({
     tenant: deps.tenant,
     platform: deps.platform,
     writer,

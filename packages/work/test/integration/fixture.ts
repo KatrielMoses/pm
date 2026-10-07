@@ -25,7 +25,7 @@ import {
   taskAssigneeHook,
   taskTargets,
   savedViewTargets,
-  LayoutService,
+  CapacityService,
   type WorkSettings,
 } from '@pm/work';
 import {
@@ -46,7 +46,7 @@ export {
 
 export interface WorkEnv {
   h: Harness;
-  svc: LayoutService;
+  svc: CapacityService;
   stepUp: StubStepUp;
   lifecycle: LifecycleService;
   tokenFor(email: string): Promise<string>;
@@ -92,7 +92,7 @@ export function workEnv(
     createStepUpChallenge: stepUp.createStepUpChallenge,
   };
   const arrayMax = options.arrayMax ?? 10_000;
-  const svc = new LayoutService({
+  const svc = new CapacityService({
     tenant: h.app,
     platform: h.platform,
     writer,

@@ -166,7 +166,10 @@ describe('Phase 3B core view layouts', () => {
     const cells = asMember.people.find((x) => x.id === memberId)!.cells;
     expect(cells['2026-11-02']).toEqual({ minutes: 90, tasks: 1, unestimated: 0 });
     expect(cells['2026-11-09']).toEqual({ minutes: 0, tasks: 1, unestimated: 1 });
-    expect(asMember.capacity).toBeNull();
+    // 3E: capacity per person — the member's own row; nobody else's without capacity.view.
+    expect(asMember.capacity).toBe('per_person');
+    expect(asMember.people.find((x) => x.id === memberId)!.capacity).not.toBeNull();
+    for (const x of asMember.people.filter((p) => p.id !== memberId)) expect(x.capacity).toBeNull();
     await expect(env.svc.workload(member, ws, { ...body, to: '2028-01-01' })).rejects.toEqual(
       expect.objectContaining({ code: 'validation_failed' }),
     );

@@ -68,6 +68,19 @@ export async function eraseMembershipNavigation(
       .executeTakeFirst();
     n += Number(r.numDeletedRows);
   }
+  // 3E: the person's time off and the reservations about them, then the profile (its working
+  // windows cascade). Holidays and reservations they set for others stay (brand settings).
+  for (const table of [
+    'planning.time_off',
+    'planning.capacity_reservation',
+    'planning.capacity_profile',
+  ] as const) {
+    const r = await tx.db
+      .deleteFrom(table)
+      .where('membership_id', '=', membershipId)
+      .executeTakeFirst();
+    n += Number(r.numDeletedRows);
+  }
   return n;
 }
 

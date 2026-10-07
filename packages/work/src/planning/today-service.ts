@@ -471,8 +471,8 @@ export class PlanningService extends TimeService {
         focus_minutes: blocks.filter((b) => b.focus).reduce((s, b) => s + b.minutes, 0),
       },
       // Honest absences: working hours and capacity are 3E; calendar events are 6C.
-      available_minutes: null,
-      capacity: { available: false, owner: '3E' },
+      available_minutes: null as number | null,
+      capacity: { available: false, owner: '3E' } as Record<string, unknown>,
       meetings: { available: false, owner: '6C' },
       record: record ? this.recordView(record) : null,
       can_shutdown: !record && day <= today,

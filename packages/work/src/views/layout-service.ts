@@ -204,7 +204,7 @@ export class LayoutService extends PlanningService {
             ...x,
             total_minutes: Object.values(x.cells).reduce((n, c) => n + c.minutes, 0),
           })),
-          capacity: null,
+          capacity: null as 'per_person' | null,
         };
       }),
     );
