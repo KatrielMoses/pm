@@ -487,7 +487,54 @@ export function typeCustomCondition(
 export interface Presentation {
   columns: string[];
   density: 'comfortable' | 'compact';
+  /** Layout options (3B, ADR-0020 B1); each applies only to its layout and has a default. */
+  board_field?: 'status' | 'priority';
+  date_field?: string;
+  calendar_mode?: 'day' | 'week' | 'month' | 'agenda';
+  zoom?: 'day' | 'week' | 'month' | 'quarter';
+  bucket?: 'day' | 'week' | 'month';
 }
+
+/** The core view layouts (3B) and which entity each renders (ADR-0020 B1). */
+export const LAYOUTS = {
+  task: [
+    'list',
+    'board',
+    'table',
+    'calendar',
+    'timeline',
+    'gantt',
+    'workload',
+    'activity',
+    'timesheet',
+  ],
+  project: [
+    'list',
+    'board',
+    'table',
+    'calendar',
+    'timeline',
+    'gantt',
+    'milestones',
+    'portfolio',
+    'activity',
+  ],
+} as const satisfies Record<Entity, readonly string[]>;
+export type Layout = (typeof LAYOUTS)[Entity][number];
+
+/** Date fields a calendar or timeline may place records by (never a hidden or derived field). */
+export const LAYOUT_DATE_FIELDS: Record<Entity, readonly string[]> = {
+  task: ['due_date', 'deadline_date', 'start_date'],
+  project: ['target_date', 'deadline_date', 'start_date'],
+};
+
+const LAYOUT_OPTIONS: Record<string, readonly string[] | 'date_field'> = {
+  board_field: ['status', 'priority'],
+  date_field: 'date_field',
+  calendar_mode: ['day', 'week', 'month', 'agenda'],
+  zoom: ['day', 'week', 'month', 'quarter'],
+  bucket: ['day', 'week', 'month'],
+};
 
 export const DEFAULT_COLUMNS: Record<Entity, string[]> = {
   task: ['title', 'status', 'priority', 'owner', 'due_date', 'brand', 'project'],
@@ -499,9 +546,19 @@ export function parsePresentation(raw: unknown, entity: Entity, columnsMax: numb
     return { columns: [...DEFAULT_COLUMNS[entity]], density: 'comfortable' };
   if (!isObj(raw)) throw invalid(issue('/presentation', 'invalid', 'Presentation is an object.'));
   const issues: Issue[] = [];
-  for (const k of Object.keys(raw))
-    if (k !== 'columns' && k !== 'density')
+  const options: Partial<Presentation> = {};
+  for (const k of Object.keys(raw)) {
+    if (k === 'columns' || k === 'density') continue;
+    const allowed = LAYOUT_OPTIONS[k];
+    if (!allowed) {
       issues.push(issue(`/presentation/${k}`, 'unknown_key', 'This key is not allowed.'));
+      continue;
+    }
+    const values = allowed === 'date_field' ? LAYOUT_DATE_FIELDS[entity] : allowed;
+    if (typeof raw[k] !== 'string' || !values.includes(raw[k] as string))
+      issues.push(issue(`/presentation/${k}`, 'invalid', 'This option is not valid.'));
+    else (options as Record<string, string>)[k] = raw[k] as string;
+  }
   const density = raw.density ?? 'comfortable';
   if (density !== 'comfortable' && density !== 'compact')
     issues.push(issue('/presentation/density', 'invalid', 'Choose comfortable or compact.'));
@@ -531,7 +588,15 @@ export function parsePresentation(raw: unknown, entity: Entity, columnsMax: numb
       });
   } else columns.push(...DEFAULT_COLUMNS[entity]);
   if (issues.length) throw invalid(...issues);
-  return { columns, density: density as Presentation['density'] };
+  return { columns, density: density as Presentation['density'], ...options };
+}
+
+/** A layout for an entity, or a pointer-addressed refusal. */
+export function parseLayout(raw: unknown, entity: Entity): Layout {
+  const layout = raw ?? 'list';
+  if (typeof layout !== 'string' || !(LAYOUTS[entity] as readonly string[]).includes(layout))
+    throw invalid(issue('/layout', 'invalid', 'This layout is not available for these records.'));
+  return layout as Layout;
 }
 
 /**

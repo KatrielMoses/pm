@@ -71,6 +71,8 @@ for (const [kind, list, ids] of [
     PLATFORM_BY_KEY[kind].set(ref.key, ref);
   });
 }
+/** A platform status by its seeded ID (null for workflow statuses and anything else). */
+export const platformStatusById = (id: string) => PLATFORM.get(id) ?? null;
 export const platformStatus = (kind: RecordKind, key: string) =>
   PLATFORM_BY_KEY[kind].get(key) ?? null;
 export const platformStatuses = (kind: RecordKind) => [...PLATFORM_BY_KEY[kind].values()];
