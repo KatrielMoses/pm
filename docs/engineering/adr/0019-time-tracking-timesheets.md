@@ -1,7 +1,7 @@
 # ADR-0019: Time tracking and timesheets (Phase 3D)
 
 Status: **proposed** (implemented; awaiting one clean current-head no-skip CI run on the stacked draft PR). Engineering detail: [database.md](../database.md#phase-3d-time-tracking), [tenancy.md](../tenancy.md#phase-3d-time-tracking), [lifecycle.md](../lifecycle.md#phase-3d-time-entries), [observability.md](../observability.md#time-3d).
-Extends ADR-0017 (2E) and ADR-0015 (2C approvals and OD-20). Built in parallel with ADR-0018 (3A) from the accepted Phase 2 head.
+Extends ADR-0017 (2E) and ADR-0015 (2C approvals and OD-20). Built in parallel with ADR-0018 (3A) and stacked on the accepted 3A branch.
 
 Accepted sources (the Phase 3D brief's decisions, recorded before code):
 - 0A: TIME-003–006, TIME-011–014, TSK-024–026, and PRJ-022 (owned). Contributions: TSK-023, VIEW-011, GOAL-011, BRF-012, RPT-011, and LA-013. OD-26 decided at the Phase 0 exit gate (admin-only unlock) and applied; OD-20 applied to timesheet lines. §7 of time-and-scheduling.
@@ -39,8 +39,8 @@ Accepted sources (the Phase 3D brief's decisions, recorded before code):
 - **Guests.** Guests with a comment share may log time on that work; they have no timesheets (`timesheet.submit_own` denies guests), so their time is never approved or locked.
 - **Contributions.** The time-sheet view (VIEW-011) and the timesheet surfaces are the Time page's week and entries; 3B renders them through the query engine. Brand time investment (GOAL-011, RPT-011), the planned-versus-actual briefing (BRF-012), and the founder launch check (LA-013) consume `time-report` (brand and member groups) later.
 - **Stored exports.** TIME-014 is a bounded direct export; scheduled, stored, and accounting-adapter exports are 6D.
-- **Migration number.** `0031` is the next number after the Phase 2 head; 3A also adds `0031` in parallel, so whichever merges second renumbers its migration (the stacked merge order is recorded in the handoff).
+- **Migration number.** Built in parallel with 3A from the Phase 2 head; after integrating the accepted 3A branch, the time migration is `0032` (3A's `0031_saved_views` comes first).
 
 ## Consequences
 
-Migration `0031_time_tracking` reverses exactly to 0030. The worker runs the timer guard. Tasks and projects gain a `log_time` capability and a Time panel (the project's Time section is live). `/time`, `/time/approvals`, and `/time/report` are routes.
+Migration `0032_time_tracking` reverses exactly to 0031. The worker runs the timer guard. Tasks and projects gain a `log_time` capability and a Time panel (the project's Time section is live). `/time`, `/time/approvals`, and `/time/report` are routes.

@@ -220,6 +220,18 @@ All decisions are **proposed (Phase 0C)**, pending solutions-architect acceptanc
 - **Alternatives:** Assignment as a grant (contradicts I-10). Shares implying children or the project (contradicts OD-04). A separate task permission table (a second authority source).
 - **Consequences:** The compiled predicate's governing-project derivation gains tasks; preview and enforcement stay one engine.
 
+<a id="az-26"></a>
+### AZ-26: Reusable queries and saved views (Phase 3A amendment)
+- **Decision:**
+  - **A view grants nothing.** Every query, saved or ad hoc, runs the engine-compiled visibility predicate and field allow-list of the person running it. The query AST cannot express scope or permissions. A shared view returns each viewer's own rows (AT-146).
+  - **Before disclosure.** Rows, totals, group counts and labels, filter-value labels, cursors, and exports are all computed from the same authorized predicate. A filter value naming a hidden brand, project, member, label, milestone, status, or option resolves to nothing, exactly like an unknown value, with the same statements and timing (AT-147). People fields (owner, assignee, assigned by) and fields that are not `all_readers` (or not guest-visible for guests) are `unsupported_field` for those who may not use them, identical to unknown fields (AT-151).
+  - **Personal views.** Personal saved views, the person's own default view, and per-view state are `personal.manage_own`: only the owner sees or changes them, with no owner or administrator bypass (AT-148).
+  - **Sharing.** `view.share` is decided at exactly one scope (workspace, brand, or project), never through record shares (AT-149). Re-sharing moves the view; unsharing returns it to its owner and removes its pins and scope defaults at once. The same decision governs changing or deleting a shared definition.
+  - **Defaults and pins.** `views.configure` at the brand, project, or workspace sets defaults and pins (AT-150). Only a view shared with that exact scope (or the workspace, for defaults) qualifies, and a database trigger repeats the pin rule. Every default and pin is re-authorized for each viewer at display and skipped silently when unreadable.
+  - **Cursors and exports.** Cursors are MAC-bound to the workspace, principal, and query fingerprint, and refused for anyone or anything else (AT-152). Direct exports re-run the requester's current predicate at request time and store nothing, so no artifact outlives a revocation (AT-153); each is audited with an `export` security event.
+  - **No new actions.** The action count stays 120.
+- **Alternatives:** Materialized shared result sets (they would freeze and widen access). Views carrying their creator's authority (a second authority source). Stored export files before 4E (they would need re-authorization on download and storage the platform does not have yet).
+- **Consequences:** Threat T-44 with tests AT-146 to AT-153.
 <a id="az-27"></a>
 ### AZ-27: Time tracking, timesheets, approvals, and unlock (Phase 3D amendment)
 - **Decision:**

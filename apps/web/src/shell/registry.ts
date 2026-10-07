@@ -165,6 +165,16 @@ export const ROUTES: readonly RouteDef[] = [
     // Guests' home (IA-05); members reach shared items through My Work in its owning phase.
     visible: (a) => a.principal === 'guest',
   },
+  // 3A: saved views (personal and shared with the person); drafts open at `views/new?entity=`.
+  {
+    id: 'views',
+    pattern: '/workspaces/:ws/views',
+    shell: 'workspace',
+    section: 'Views',
+    command: 'go.views',
+    nav: { placement: 'personal', label: 'Saved views', short: 'Views', icon: '☰', order: 2 },
+  },
+  { id: 'view', pattern: '/workspaces/:ws/views/:view', shell: 'workspace', section: 'Views' },
   {
     id: 'favorites',
     pattern: '/workspaces/:ws/favorites',

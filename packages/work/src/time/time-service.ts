@@ -17,7 +17,7 @@ import {
   type Mutation,
   type Principal,
 } from '@pm/tenancy';
-import { CaptureService } from '../capture-service.ts';
+import { ViewService } from '../views/view-service.ts';
 import { isPublic } from '../validation.ts';
 import {
   addDays,
@@ -136,7 +136,7 @@ const iso = (d: Date | string | null) => (d === null ? null : new Date(d).toISOS
  * lists, totals, reports, and exports. One per-person database lock serializes every write that a
  * period check protects, and database guards repeat the overlap and lock rules.
  */
-export class TimeService extends CaptureService {
+export class TimeService extends ViewService {
   // ---------------------------------------------------------------------------------------------
   // Plumbing
   // ---------------------------------------------------------------------------------------------

@@ -155,6 +155,8 @@ describe('database-enforced workspace existence (1A review 01, correction 2)', (
       // Phase 1E personal navigation tables.
       'views.favorite',
       'views.recent_item',
+      'views.saved_view',
+      'views.view_default',
       'views.view_pin',
       'views.view_state',
       // Phase 2A projects, relationships, templates, and recurrence.
@@ -252,8 +254,9 @@ describe('database-enforced workspace existence (1A review 01, correction 2)', (
     // less the three platform-status keys that became trigger-checked status references: +51;
     // 2D task occurrences, task series projects, reminders, snoozes, bulk operations, undo: +12;
     // 2E Inbox items, notes, lineage (13) and intake forms and submissions (9): +22;
+    // 3A saved views (7) and view defaults (6): +13;
     // 3D entries (5), segments (3), timesheets (2), lines (3), approvals (6), period locks (5): +24.
-    expect(res.rows.length).toBe(285);
+    expect(res.rows.length).toBe(298);
     for (const r of res.rows)
       expect(r, `${r.tbl}.${r.conname}`).toMatchObject({
         referencing_indexed: true,

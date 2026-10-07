@@ -1039,6 +1039,49 @@ export interface ViewPinTable {
   created_at: DTs;
 }
 
+// ---- Phase 3A: saved views and view defaults (0031) --------------------------------------------
+
+export type ViewEntity = 'task' | 'project';
+
+export interface SavedViewTable {
+  id: string;
+  workspace_id: string;
+  scope_key: string;
+  lifecycle_state: Defaulted<LifecycleState>;
+  entity: ViewEntity;
+  name: string;
+  description: Defaulted<string>;
+  owner_membership_id: string;
+  visibility: Defaulted<'personal' | 'shared'>;
+  share_scope: 'workspace' | 'brand' | 'project' | null;
+  share_brand_id: string | null;
+  share_project_id: string | null;
+  schema_version: Defaulted<number>;
+  query: Json<Record<string, unknown>>;
+  presentation: ColumnType<Record<string, unknown>, string | undefined, string>;
+  layout: Defaulted<'list'>;
+  shared_at: Ts | null;
+  shared_by_membership_id: string | null;
+  created_at: DTs;
+  updated_at: DTs;
+  updated_by_membership_id: string | null;
+  version: Defaulted<number>;
+}
+
+export interface ViewDefaultTable {
+  workspace_id: string;
+  target_kind: 'member' | 'brand' | 'project';
+  target_key: string;
+  entity: ViewEntity;
+  member_id: string | null;
+  brand_id: string | null;
+  project_id: string | null;
+  saved_view_id: string;
+  set_by_membership_id: string;
+  updated_at: DTs;
+  version: Defaulted<number>;
+}
+
 // ---- Phase 2A: work, workflow, relations, templates, planning (0021, 0022) ----------------------
 
 export type StatusCategory = 'planned' | 'active' | 'paused' | 'done' | 'cancelled';
@@ -1913,6 +1956,8 @@ export interface Database {
   'views.recent_item': RecentItemTable;
   'views.view_state': ViewStateTable;
   'views.view_pin': ViewPinTable;
+  'views.saved_view': SavedViewTable;
+  'views.view_default': ViewDefaultTable;
   'workflow.platform_status': PlatformStatusTable;
   'work.project': ProjectTable;
   'work.phase': PhaseTable;
@@ -2791,6 +2836,43 @@ export const TABLE_COLUMNS: Readonly<Record<keyof Database, readonly string[]>> 
     'rank',
     'pinned_by_membership_id',
     'created_at',
+  ],
+  'views.saved_view': [
+    'id',
+    'workspace_id',
+    'scope_key',
+    'lifecycle_state',
+    'entity',
+    'name',
+    'description',
+    'owner_membership_id',
+    'visibility',
+    'share_scope',
+    'share_brand_id',
+    'share_project_id',
+    'schema_version',
+    'query',
+    'presentation',
+    'layout',
+    'shared_at',
+    'shared_by_membership_id',
+    'created_at',
+    'updated_at',
+    'updated_by_membership_id',
+    'version',
+  ],
+  'views.view_default': [
+    'workspace_id',
+    'target_kind',
+    'target_key',
+    'entity',
+    'member_id',
+    'brand_id',
+    'project_id',
+    'saved_view_id',
+    'set_by_membership_id',
+    'updated_at',
+    'version',
   ],
   'workflow.platform_status': ['id', 'record_type', 'key', 'name', 'category', 'rank'],
   'work.project': [

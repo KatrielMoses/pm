@@ -6,6 +6,7 @@ import { registerCapture } from './capture-routes.ts';
 import { registerTaskInteraction } from './interaction-routes.ts';
 import { registerTasks } from './task-routes.ts';
 import { registerTime } from './time-routes.ts';
+import { registerViews } from './view-routes.ts';
 import { registerWorkflows } from './workflow-routes.ts';
 
 export interface WorkRouteDeps {
@@ -46,6 +47,7 @@ export function registerWork(app: FastifyInstance, deps: WorkRouteDeps): void {
   registerTaskInteraction(app, work);
   registerCapture(app, work);
   registerWorkflows(app, work);
+  registerViews(app, work);
   registerTime(app, work);
 
   app.get(

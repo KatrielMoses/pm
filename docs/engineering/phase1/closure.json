@@ -922,10 +922,10 @@
         },
         {
           "file": "packages/tenancy/test/integration/navigation.test.ts",
-          "contains": "shared-view pins: read path omits every pin"
+          "contains": "shared-view pins: only a view shared at the pin scope can be pinned"
         }
       ],
-      "note": "Favorites are implemented; admin view pins have schema and read path only until saved views exist.",
+      "note": "Favorites are implemented; admin view pins have schema and read path only until saved views exist. Phase 3A (ADR-0018 Q9) completes the pin write path under views.configure.",
       "deferred_to": [
         "3A"
       ],

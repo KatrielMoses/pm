@@ -2977,9 +2977,10 @@ Stored query AST plus presentation; personal or shared to a scope. Never grants 
 | Volume / export / search-AI | `medium` / `filtered` / `yes` |
 | Secrets / personal data | `no` / `incidental` |
 | Uniqueness | — |
-| Key typed columns | `owner_membership_id null (personal)`; `shared_scope_type null`; `query jsonb (versioned AST)`; `presentation jsonb`; `layout view_layout` |
+| Key typed columns | `entity (task\|project)`; `name`; `description`; `owner_membership_id (creator; a personal view is visible to its owner only)`; `visibility (personal\|shared)`; `share_scope (workspace\|brand\|project) null + share_brand_id + share_project_id (exactly one scope when shared)`; `schema_version`; `query jsonb (versioned AST, canonical serialization; at most 32 KiB)`; `presentation jsonb (columns in order, density; at most 8 KiB)`; `layout (list until 3B)`; `shared_at, shared_by_membership_id`; `version bigint` |
 | Sensitive fields | — |
-| Requirements | VIEW-016, VIEW-017, VIEW-013 |
+| Requirements | TSK-034, VIEW-012, VIEW-013, VIEW-014, VIEW-015, VIEW-016, VIEW-017, VIEW-020, VIEW-022, WSB-019 |
+| Notes | Phase 3A (ADR-26): a workspace-level record (core.record brand NULL; record scope is immutable) whose share names exactly one scope through share_brand_id/share_project_id. Running a view compiles the viewer's own predicate and field allow-list (0C AZ-26); a definition never grants access and a shared view returns each viewer's own rows. Lifecycle: delete is trash through the lifecycle service; views shared with a brand purge with the brand; views shared with a project are that project's content (trash, restore, purge). Pins and scope defaults are removed when the share changes. |
 
 <a id="entity-view-default"></a>
 ### `view_default`
@@ -2996,10 +2997,11 @@ Default view per user, brand, or project.
 | Retention / confidentiality | `R-LIVE` / `C1` |
 | Volume / export / search-AI | `low` / `filtered` / `yes` |
 | Secrets / personal data | `no` / `incidental` |
-| Uniqueness | — |
-| Key typed columns | standard columns only |
+| Uniqueness | `(workspace_id, target_kind, target_key, entity)` |
+| Key typed columns | `target_kind (member\|brand\|project)`; `target_key (the member, brand, or project id)`; `entity (task\|project)`; `member_id \| brand_id \| project_id (exactly one, matching target_kind)`; `saved_view_id`; `set_by_membership_id`; `version bigint` |
 | Sensitive fields | — |
 | Requirements | VIEW-018 |
+| Notes | Phase 3A (ADR-26): resolution order is the person's own default, then the project's, then the brand's; a candidate the person cannot read is skipped silently. Brand and project defaults need views.configure and a view shared with the workspace or that brand or project. Project purge deletes its defaults. |
 
 <a id="entity-favorite"></a>
 ### `favorite`
@@ -3062,7 +3064,7 @@ Persisted filters, sort, grouping, scroll anchor per person per view.
 | Key typed columns | `owner_membership_id`; `device_key_hash bytea (SHA-256 of an opaque per-device key; never the key itself)`; `view_key text (registered route or view identity)`; `schema_version integer`; `state jsonb (versioned, allow-listed fields; at most VIEW_STATE_MAX_BYTES)`; `expires_at timestamptz (VIEW_STATE_TTL after the last write)`; `version integer` |
 | Sensitive fields | — |
 | Requirements | NAV-011 |
-| Notes | Phase 1E. Durable per-device view state (RS-20): filters, sort, grouping, columns, density override, and the scroll anchor. Selection and open item are session-only and never stored here. Upserts are last-write-wins per device with an optional row-version precondition; expired rows are deleted on write and by the views cleanup job. Record identifiers inside the state are hints re-authorized on use. |
+| Notes | Phase 1E. Durable per-device view state (RS-20): filters, sort, grouping, columns, density override, and the scroll anchor. Selection and open item are session-only and never stored here. Upserts are last-write-wins per device with an optional row-version precondition; expired rows are deleted on write and by the views cleanup job. Record identifiers inside the state are hints re-authorized on use. Phase 3A: keyed families `views.saved.<view id>` and `views.draft.task\|project` share one schema (the current query and presentation as base64url JSON, plus the scroll anchor); the engine re-validates the query on every run. |
 
 <a id="entity-view-pin"></a>
 ### `view_pin`
@@ -3083,7 +3085,7 @@ A shared saved view pinned into workspace or brand navigation by someone allowed
 | Key typed columns | `scope_key (workspace or brand)`; `saved_view_id (core.record of type saved_view)`; `rank text`; `pinned_by_membership_id` |
 | Sensitive fields | — |
 | Requirements | NAV-008 |
-| Notes | Phase 1E foundation: table, read path, and authorization hook only. Pins are created through views.configure once the view engine provides shared saved views (VIEW phase); until then no pin can exist. Each pin is re-authorized at display like any other target. |
+| Notes | Phase 1E foundation; Phase 3A write path (ADR-26): pins are created and removed under views.configure at the pin's scope, and only for a view shared with that exact scope (workspace pin: workspace share; brand pin: that brand's share; a trigger repeats the rule). Unsharing or deleting a view removes its pins. Each pin is re-authorized at display. |
 
 ## Search (`search`, schema `search`)
 

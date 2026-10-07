@@ -170,6 +170,10 @@ export const NON_RESOURCE_TYPES = [
   'capture_preview',
   'triage_preview',
   'merge_preview',
+  'view_catalog',
+  'view_default',
+  'view_default_resolution',
+  'view_field_options',
   // 3D: the live timer, one person's period, planned-versus-actual reports, and work summaries.
   'timer_status',
   'timesheet_period',

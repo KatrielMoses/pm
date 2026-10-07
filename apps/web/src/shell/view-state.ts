@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type RefObject } fro
 import {
   decodeViewState,
   pickStore,
-  VIEW_STATE_SCHEMAS,
+  viewSchema,
   viewStateFromSearch,
   viewStateToSearch,
   type ViewKey,
@@ -85,7 +85,7 @@ export function useViewState(ws: string, key: ViewKey) {
   useEffect(() => {
     if (!device || applied.current) return;
     applied.current = true;
-    const urlFields = Object.entries(VIEW_STATE_SCHEMAS[key].fields)
+    const urlFields = Object.entries(viewSchema(key)!.fields)
       .filter(([, d]) => (d.stores as readonly string[]).includes('url'))
       .map(([n]) => n);
     if (urlFields.some((n) => search.has(n))) return;
@@ -106,9 +106,19 @@ export function useViewState(ws: string, key: ViewKey) {
   );
 
   const latest = useRef(merged);
+  // URL-owned fields set but not yet written to the URL (debounced): a re-render in between must
+  // not replace them with the URL's older values (including fields being removed).
+  const pendingUrlFields = useRef<ViewStateValue | null>(null);
   useEffect(() => {
-    latest.current = merged;
-  }, [merged]);
+    const pending = pendingUrlFields.current;
+    if (!pending) {
+      latest.current = merged;
+      return;
+    }
+    const next: ViewStateValue = { ...merged };
+    for (const name of Object.keys(pickStore(key, merged, 'url'))) delete next[name];
+    latest.current = { ...next, ...pending };
+  }, [merged, key]);
 
   const set = useCallback(
     (patch: Record<string, string | string[] | undefined>) => {
@@ -121,8 +131,10 @@ export function useViewState(ws: string, key: ViewKey) {
       const urlPart = pickStore(key, next, 'url');
       const urlChanged = JSON.stringify(urlPart) !== JSON.stringify(pickStore(key, fromUrl, 'url'));
       if (urlChanged) {
+        pendingUrlFields.current = urlPart;
         clearTimeout(pendingUrl.current);
         pendingUrl.current = setTimeout(() => {
+          pendingUrlFields.current = null;
           const q = viewStateToSearch(
             key,
             pickStore(key, latest.current, 'url'),
@@ -142,7 +154,7 @@ export function useViewState(ws: string, key: ViewKey) {
       clearTimeout(pendingDevice.current);
       pendingDevice.current = setTimeout(() => {
         void shell
-          .saveViewState(ws, key, { schema_version: VIEW_STATE_SCHEMAS[key].version, state: dev })
+          .saveViewState(ws, key, { schema_version: viewSchema(key)!.version, state: dev })
           .then(
             (v) => setDevice(v.state),
             () => undefined,

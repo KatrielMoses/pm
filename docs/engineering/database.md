@@ -241,9 +241,17 @@ Migrations `0029_capture_inbox` and `0030_intake_forms` (ADR-0017, 0B ADR-25) cr
 - `intake_submission`: append-only receipts.
 The worker may detach `work.project.intake_source_id` and `capture.note.source_inbox_item_id` during purge.
 
+## Phase 3A: saved views
+
+Migration `0031_saved_views` (ADR-0018, 0B ADR-26):
+- **`views.saved_view`:** a workspace-level record extension. `saved_view_share_shape` allows exactly one share scope or none. The query (32 KiB) and presentation (8 KiB) have hard ceilings, and the configured `QUERY_*` bounds are lower.
+- **`views.view_default`:** one row per target kind, target, and entity, with a target-shape check.
+- **`views.view_pin`:** gains `INSERT`, `DELETE`, and `UPDATE (rank)` for `app_rw`. `view_pin_shared_guard` refuses a pin unless the view is shared with the pin's own scope.
+
+Every foreign key has a full index on its referencing columns. The worker may delete views, defaults, and pins during purge.
 ## Phase 3D: time tracking
 
-Migration `0031_time_tracking` (ADR-0019, 0B ADR-27) creates the `timetrack` schema:
+Migration `0032_time_tracking` (ADR-0019, 0B ADR-27) creates the `timetrack` schema:
 - `time_entry` (`te_`): one task or one project in its brand (the brand is part of the target foreign key, `ON UPDATE CASCADE`), manual or timer, UTC instants, IANA zone, local `work_date`, whole-second duration, billable, note. `time_entry_one_live_timer` keeps one running or paused timer per person.
 - `time_segment`: half-open UTC intervals of timed entries; `time_segment_guard` refuses overlaps per person, and the deferred `time_entry_consistency` trigger keeps durations equal to closed segments.
 - `timesheet` (`tsh_`, seven-day periods) and `timesheet_line` (one brand's state, submitted totals, and hash).

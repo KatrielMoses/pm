@@ -685,7 +685,9 @@ describe('personal navigation (1E)', () => {
     expect((await identity.getPreferences(who.auth)).version).toBe(4);
   });
 
-  it('shared-view pins: read path omits every pin until saved views are navigable', async () => {
+  it('shared-view pins: only a view shared at the pin scope can be pinned; others are refused', async () => {
+    // 1E foundation, 3A write path (ADR-0018): the application role may write pins, and the
+    // database refuses any pin whose target is not a saved view shared with the pin's scope.
     const a = W.a;
     const viewId = newUuidV7();
     const owner = (await membershipOf(db, a.id, a.owner.auth.account.id))!;
@@ -694,12 +696,15 @@ describe('personal navigation (1E)', () => {
        VALUES ($1, $2, 'saved_view', $3, NULL, 'system', 'system')`,
       [viewId, newPublicId('view'), a.id],
     );
-    await db.admin(
-      `INSERT INTO views.view_pin (workspace_id, scope_key, brand_id, saved_view_id, rank, pinned_by_membership_id)
-       VALUES ($1, $1, NULL, $2, 'V', $3)`,
-      [a.id, viewId, owner.id],
-    );
-    expect(await env.collab.listPins(a.owner, a.publicId)).toEqual([]);
+    // A saved-view record with no shared view behind it cannot be pinned.
+    await expect(
+      db.admin(
+        `INSERT INTO views.view_pin (workspace_id, scope_key, brand_id, saved_view_id, rank, pinned_by_membership_id)
+         VALUES ($1, $1, NULL, $2, 'V', $3)`,
+        [a.id, viewId, owner.id],
+      ),
+    ).rejects.toMatchObject({ code: '23514' });
+    // Nor can anything that is not a saved view.
     await expect(
       db.admin(
         `INSERT INTO views.view_pin (workspace_id, scope_key, brand_id, saved_view_id, rank, pinned_by_membership_id)
@@ -707,13 +712,14 @@ describe('personal navigation (1E)', () => {
         [a.id, a.mainId, owner.id],
       ),
     ).rejects.toMatchObject({ code: '23514' });
-    // Application roles cannot create pins yet (the view engine grants it with shared views).
+    // The application role reaches the same guard (it holds the 3A insert grant).
     await expect(
       env.h.app.withWorkspace(a.id, { module: 'test' }, (tx) =>
         sql`INSERT INTO views.view_pin (workspace_id, scope_key, saved_view_id, rank, pinned_by_membership_id)
             VALUES (${a.id}, ${a.id}, ${viewId}, 'X', ${owner.id})`.execute(tx.db),
       ),
-    ).rejects.toMatchObject({ code: '42501' });
+    ).rejects.toMatchObject({ code: '23514' });
+    expect(await env.collab.listPins(a.owner, a.publicId)).toEqual([]);
   });
 
   it('EXPLAIN: personal lists, view state, and cleanup use their indexes', async () => {

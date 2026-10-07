@@ -150,6 +150,7 @@ Collection page · visibility **public** · max class **C2**
 | `data` | array of object | yes |  |
 | `page` | object | yes |  |
 | `meta` | `meta` | yes |  |
+| `view` | object |  |  |
 
 <details><summary>Example collection-page.1.json</summary>
 

@@ -532,6 +532,29 @@ export const TELEMETRY_SIGNALS = [
     ]
   },
   {
+    "name": "views.queries",
+    "type": "counter",
+    "labels": [
+      "entity",
+      "outcome"
+    ]
+  },
+  {
+    "name": "views.query_duration",
+    "type": "histogram",
+    "labels": [
+      "entity"
+    ]
+  },
+  {
+    "name": "views.exports",
+    "type": "counter",
+    "labels": [
+      "entity",
+      "format"
+    ]
+  },
+  {
     "name": "time.entries",
     "type": "counter",
     "labels": [
@@ -2535,6 +2558,75 @@ export const INTERNAL_EVENTS = [
     "maxClass": "C1"
   },
   {
+    "type": "views.saved_view.created",
+    "schemaVersion": 1,
+    "aggregateEntity": "views.saved_view",
+    "fields": [
+      "entity",
+      "visibility"
+    ],
+    "maxClass": "C1"
+  },
+  {
+    "type": "views.saved_view.updated",
+    "schemaVersion": 1,
+    "aggregateEntity": "views.saved_view",
+    "fields": [
+      "entity",
+      "visibility"
+    ],
+    "maxClass": "C1"
+  },
+  {
+    "type": "views.saved_view.shared",
+    "schemaVersion": 1,
+    "aggregateEntity": "views.saved_view",
+    "fields": [
+      "entity",
+      "scope"
+    ],
+    "maxClass": "C1"
+  },
+  {
+    "type": "views.saved_view.unshared",
+    "schemaVersion": 1,
+    "aggregateEntity": "views.saved_view",
+    "fields": [
+      "entity"
+    ],
+    "maxClass": "C1"
+  },
+  {
+    "type": "views.saved_view.deleted",
+    "schemaVersion": 1,
+    "aggregateEntity": "views.saved_view",
+    "fields": [
+      "entity"
+    ],
+    "maxClass": "C1"
+  },
+  {
+    "type": "views.default.changed",
+    "schemaVersion": 1,
+    "aggregateEntity": "views.view_default",
+    "fields": [
+      "target",
+      "entity",
+      "cleared"
+    ],
+    "maxClass": "C1"
+  },
+  {
+    "type": "views.pin.changed",
+    "schemaVersion": 1,
+    "aggregateEntity": "views.view_pin",
+    "fields": [
+      "scope",
+      "pinned"
+    ],
+    "maxClass": "C1"
+  },
+  {
     "type": "time.time_entry.updated",
     "schemaVersion": 1,
     "aggregateEntity": "time.time_entry",
@@ -2695,6 +2787,15 @@ export const PARAMETER_NAMES = [
   "INBOX_MERGE_MAX",
   "INTAKE_FORMS_MAX",
   "INTAKE_SUBMISSIONS_PER_HOUR",
+  "QUERY_CONDITIONS_MAX",
+  "QUERY_DEPTH_MAX",
+  "QUERY_SORTS_MAX",
+  "QUERY_VALUES_MAX",
+  "QUERY_GROUPS_MAX",
+  "VIEW_COLUMNS_MAX",
+  "SAVED_VIEWS_MAX",
+  "VIEW_PINS_MAX",
+  "EXPORT_ROWS_MAX",
   "TIME_ENTRY_MAX_HOURS",
   "TIME_TIMER_MAX_HOURS",
   "TIME_REPORT_RANGE_DAYS_MAX",

@@ -336,6 +336,13 @@ Task purge deletes the task's reminders and snoozes and detaches task series sou
 
 `inbox_item`, `note`, and `intake_form` have lifecycle adapters: branded ones purge with their brand, and all purge with the workspace. Purge detaches project intake sources and note sources, removes lineage, record links, and submissions, and deletes merged items before the item they merged into.
 
+## Phase 3A: saved views
+
+`saved_view` has a lifecycle adapter:
+- **Delete** trashes the view; the lifecycle job purges it later.
+- **Brand purge** purges views shared with that brand.
+- **Project content.** Views shared with a project are that project's content: they trash, restore, and purge with it, and project purge removes the project's defaults.
+- **Purge** deletes a view's pins and defaults before the view itself.
 ## Phase 3D: time entries
 
 Time entries are not records: they live and go with their work. Task purge deletes the task's entries, and project purge deletes entries logged on the project itself (its tasks purge their own); the worker role is the only role the lock guard lets delete approved or submitted time. Approval and lock rows are R-EVIDENCE and keep their own totals and entry hash, so a brand with them cannot be purged. Trashing work hides its time from every list and total; restoring it brings the time back. Moving a task to another brand carries its entries unless any is submitted or approved (`time_locked`).

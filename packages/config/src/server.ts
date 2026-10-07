@@ -181,6 +181,16 @@ export interface ServerConfig {
     inboxMergeMax: number;
     intakeFormsMax: number;
     intakeSubmissionsPerHour: number;
+    queryConditionsMax: number;
+    queryDepthMax: number;
+    querySortsMax: number;
+    queryValuesMax: number;
+    queryGroupsMax: number;
+    viewColumnsMax: number;
+    savedViewsMax: number;
+    viewPinsMax: number;
+    exportRowsMax: number;
+    totalCountCap: number;
     timeEntryMaxHours: number;
     timeTimerMaxHours: number;
     timeReportRangeDaysMax: number;
@@ -393,6 +403,16 @@ const DEFAULTS = {
   INBOX_MERGE_MAX: '20',
   INTAKE_FORMS_MAX: '50',
   INTAKE_SUBMISSIONS_PER_HOUR: '20',
+  QUERY_CONDITIONS_MAX: '40',
+  QUERY_DEPTH_MAX: '3',
+  QUERY_SORTS_MAX: '5',
+  QUERY_VALUES_MAX: '100',
+  QUERY_GROUPS_MAX: '200',
+  VIEW_COLUMNS_MAX: '20',
+  SAVED_VIEWS_MAX: '200',
+  VIEW_PINS_MAX: '20',
+  EXPORT_ROWS_MAX: '5000',
+  TOTAL_COUNT_CAP: '10000',
   TIME_ENTRY_MAX_HOURS: '24',
   TIME_TIMER_MAX_HOURS: '12',
   TIME_REPORT_RANGE_DAYS_MAX: '366',
@@ -539,6 +559,16 @@ const schema = z.object({
   INBOX_MERGE_MAX: int(2, 100),
   INTAKE_FORMS_MAX: int(1, 500),
   INTAKE_SUBMISSIONS_PER_HOUR: int(1, 1000),
+  QUERY_CONDITIONS_MAX: int(1, 200),
+  QUERY_DEPTH_MAX: int(1, 6),
+  QUERY_SORTS_MAX: int(1, 10),
+  QUERY_VALUES_MAX: int(1, 500),
+  QUERY_GROUPS_MAX: int(10, 1000),
+  VIEW_COLUMNS_MAX: int(1, 50),
+  SAVED_VIEWS_MAX: int(1, 2000),
+  VIEW_PINS_MAX: int(1, 100),
+  EXPORT_ROWS_MAX: int(1, 50000),
+  TOTAL_COUNT_CAP: int(100, 100000),
   TIME_ENTRY_MAX_HOURS: int(1, 24),
   TIME_TIMER_MAX_HOURS: int(1, 24),
   TIME_REPORT_RANGE_DAYS_MAX: int(7, 1830),
@@ -969,6 +999,16 @@ export function loadServerConfig(options: LoadOptions): ServerConfig {
       inboxMergeMax: c.INBOX_MERGE_MAX,
       intakeFormsMax: c.INTAKE_FORMS_MAX,
       intakeSubmissionsPerHour: c.INTAKE_SUBMISSIONS_PER_HOUR,
+      queryConditionsMax: c.QUERY_CONDITIONS_MAX,
+      queryDepthMax: c.QUERY_DEPTH_MAX,
+      querySortsMax: c.QUERY_SORTS_MAX,
+      queryValuesMax: c.QUERY_VALUES_MAX,
+      queryGroupsMax: c.QUERY_GROUPS_MAX,
+      viewColumnsMax: c.VIEW_COLUMNS_MAX,
+      savedViewsMax: c.SAVED_VIEWS_MAX,
+      viewPinsMax: c.VIEW_PINS_MAX,
+      exportRowsMax: c.EXPORT_ROWS_MAX,
+      totalCountCap: c.TOTAL_COUNT_CAP,
       timeEntryMaxHours: c.TIME_ENTRY_MAX_HOURS,
       timeTimerMaxHours: c.TIME_TIMER_MAX_HOURS,
       timeReportRangeDaysMax: c.TIME_REPORT_RANGE_DAYS_MAX,

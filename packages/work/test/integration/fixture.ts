@@ -24,6 +24,7 @@ import {
   projectTargets,
   taskAssigneeHook,
   taskTargets,
+  savedViewTargets,
   TimeService,
   type WorkSettings,
 } from '@pm/work';
@@ -117,7 +118,8 @@ export function workEnv(
     views: DEFAULT_VIEWS_SETTINGS,
     targets: defaultNavigationTargets()
       .register(projectTargets(arrayMax))
-      .register(taskTargets(arrayMax)),
+      .register(taskTargets(arrayMax))
+      .register(savedViewTargets(arrayMax)),
     work: { ...DEFAULT_WORK_SETTINGS, ...options.work },
     metrics,
     logger: h.logger,

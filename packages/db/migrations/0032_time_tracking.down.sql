@@ -1,4 +1,4 @@
--- Reverts 0031 (local/test only). Restores the exact 0030 catalog.
+-- Reverts 0032 (local/test only). Restores the exact 0031 catalog.
 DROP FUNCTION exec_dispatch.discover_runaway_timers(timestamptz, integer, integer);
 REVOKE SELECT (workspace_id, entry_id, started_at, ended_at) ON timetrack.time_segment FROM pm_scheduler;
 REVOKE SELECT (workspace_id, id, duration_seconds) ON timetrack.time_entry FROM pm_scheduler;

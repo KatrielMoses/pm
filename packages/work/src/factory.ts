@@ -12,7 +12,7 @@ import {
   type CollaborationIdentityPort,
 } from '@pm/tenancy';
 import { registerWorkLifecycle } from './lifecycle.ts';
-import { projectTargets, taskTargets } from './navigation.ts';
+import { projectTargets, savedViewTargets, taskTargets } from './navigation.ts';
 import { projectOwnerHook, taskAssigneeHook } from './ownership.ts';
 import { TimeService } from './time/time-service.ts';
 import { DEFAULT_WORK_SETTINGS, type WorkSettings } from './validation.ts';
@@ -74,7 +74,8 @@ export function createWorkService(deps: {
     views: config.views,
     targets: defaultNavigationTargets()
       .register(projectTargets(arrayMax))
-      .register(taskTargets(arrayMax)),
+      .register(taskTargets(arrayMax))
+      .register(savedViewTargets(arrayMax)),
     work,
     limiter: new PostgresRateLimiter(deps.platform, signingKey, {
       ...config.identity.rateLimitOverrides,

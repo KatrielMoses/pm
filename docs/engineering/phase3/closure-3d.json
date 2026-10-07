@@ -76,7 +76,7 @@
       "disposition": "implemented",
       "evidence": [
         {
-          "file": "packages/db/migrations/0031_time_tracking.up.sql",
+          "file": "packages/db/migrations/0032_time_tracking.up.sql",
           "contains": "billable boolean NOT NULL DEFAULT false"
         },
         {
@@ -108,7 +108,7 @@
       "disposition": "implemented",
       "evidence": [
         {
-          "file": "packages/db/migrations/0031_time_tracking.up.sql",
+          "file": "packages/db/migrations/0032_time_tracking.up.sql",
           "contains": "CREATE TABLE timetrack.time_entry"
         },
         {
@@ -200,7 +200,7 @@
       "disposition": "implemented",
       "evidence": [
         {
-          "file": "packages/db/migrations/0031_time_tracking.up.sql",
+          "file": "packages/db/migrations/0032_time_tracking.up.sql",
           "contains": "CREATE FUNCTION timetrack.time_entry_guard()"
         },
         {
@@ -438,8 +438,8 @@
       ],
       "evidence": [
         {
-          "file": "packages/db/migrations/0031_time_tracking.down.sql",
-          "contains": "Restores the exact 0030 catalog"
+          "file": "packages/db/migrations/0032_time_tracking.down.sql",
+          "contains": "Restores the exact 0031 catalog"
         },
         {
           "file": "packages/work/src/time/jobs.ts",

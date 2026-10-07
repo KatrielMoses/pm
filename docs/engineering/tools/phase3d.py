@@ -7,10 +7,10 @@ Usage (from the repository root):
 Phase 3D (docs/engineering/phase3/closure-3d.json) is checked by the Phase 2 closure rules (every
 owned and contributed catalog requirement closed with existing evidence, decisions D1..D5 tied to
 ADR-0019 rows) plus drift checks: the time bounds are registered (owner 3D), configured, and
-documented; the time events, signals, and envelopes are registered; migration 0031 keeps its
-overlap, lock, consistency, append-only, and RLS guards and reverses to 0030; every time read path
+documented; the time events, signals, and envelopes are registered; migration 0032 keeps its
+overlap, lock, consistency, append-only, and RLS guards and reverses to 0031; every time read path
 runs the viewer's own predicate; OD-26 stays admin-only with step-up; and the ADR stays proposed
-until acceptance. Kept separate from the Phase 3A validator (built in parallel) so both merge.
+until acceptance. Runs after the Phase 3A validator (phase3.py).
 """
 import json
 import os
@@ -51,7 +51,7 @@ SIGNALS = ["time.entries", "time.timers", "time.timesheets", "time.exports", "ti
 ENVELOPES = ["timer_status", "timesheet_period", "time_report", "time_summary"]
 ACTIONS = {"time.log_own": "comment", "timesheet.approve": "manage"}
 SERVICE = "packages/work/src/time/time-service.ts"
-MIGRATION = "packages/db/migrations/0031_time_tracking"
+MIGRATION = "packages/db/migrations/0032_time_tracking"
 
 
 def check_contracts(registry, policy):
@@ -109,13 +109,13 @@ def check_invariants():
                    "timetrack.day_closed", "ENABLE ROW LEVEL SECURITY", "FORCE ROW LEVEL SECURITY",
                    "time_entry_task_fkey", "exec_dispatch.discover_runaway_timers"]:
         if needle not in up:
-            errs.append("0031 lacks %s" % needle)
+            errs.append("0032 lacks %s" % needle)
     for table in ["time_entry", "time_segment", "timesheet", "timesheet_line", "timesheet_approval",
                   "period_lock"]:
         if "CREATE POLICY tenant_isolation ON timetrack.%s" % table not in up:
-            errs.append("0031: timetrack.%s has no tenant_isolation policy" % table)
-    if "Restores the exact 0030 catalog" not in down:
-        errs.append("0031 down must restore 0030")
+            errs.append("0032: timetrack.%s has no tenant_isolation policy" % table)
+    if "Restores the exact 0031 catalog" not in down:
+        errs.append("0032 down must restore 0031")
     if "DISABLE ROW LEVEL SECURITY" in up:
         errs.append("RLS must stay enabled")
     svc = read(P(SERVICE))
@@ -144,7 +144,7 @@ def check_invariants():
             "closes the whole period for the person while submitted",
             "unlocks an approved line only for admins"],
         "packages/db/test/integration/migrations.test.ts": [
-            "boundaries = [9, 12, 16, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31]"],
+            "boundaries = [9, 12, 16, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32]"],
     }.items():
         text = read(P(path))
         for n in needles:
