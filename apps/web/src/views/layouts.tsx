@@ -5,6 +5,7 @@ import { Link, useRouter } from '../router.tsx';
 import { routeHref } from '../shell/registry.ts';
 import { useWidthClass } from '../shell/width.ts';
 import { useStepUp } from '../stepup.tsx';
+import { localInstant, planning } from '../planning/client.ts';
 import { tasks } from '../tasks/client.ts';
 import { Dialog } from '../ui/dialog.tsx';
 import { Announce, Banner } from '../ui/feedback.tsx';
@@ -432,7 +433,36 @@ export function CalendarLayout(
 ) {
   const { ws, rows, entity, presentation, anchor, setAnchor, mode, setMode, onOpen, scope } = props;
   const width = useWidthClass();
+  const stepUp = useStepUp();
   const field = presentation.date_field ?? (entity === 'task' ? 'due_date' : 'target_date');
+  // CAL-003: schedule a task as a 3C work block without dragging; dates never change.
+  const [scheduling, setScheduling] = useState<{ id: string; title: string } | null>(null);
+  const [slot, setSlot] = useState({ day: '', start: '09:00', minutes: '60' });
+  const [scheduleError, setScheduleError] = useState('');
+  const [scheduled, setScheduled] = useState('');
+  const schedule = async () => {
+    if (!scheduling) return;
+    setScheduleError('');
+    try {
+      await planning.createBlock(
+        ws,
+        {
+          task: scheduling.id,
+          starts_at: localInstant(slot.day, slot.start),
+          duration_minutes: Number(slot.minutes),
+        },
+        stepUp,
+      );
+      setScheduled(
+        `${scheduling.title} scheduled on ${fmtDay(slot.day)} at ${slot.start}. Its dates did not change.`,
+      );
+      setScheduling(null);
+    } catch (err) {
+      setScheduleError(
+        err instanceof ApiError ? (err.issues[0]?.message ?? err.message) : 'Not scheduled.',
+      );
+    }
+  };
   const [layers, setLayers] = useState({
     primary: true,
     deadline: entity === 'task',
@@ -553,7 +583,23 @@ export function CalendarLayout(
         >
           <span className="event-kind">{e.kind}</span> {e.label}
         </button>
-      ) : (
+      ) : null}
+      {e.open && entity === 'task' && e.kind !== 'Deadline' ? (
+        <button
+          type="button"
+          className="button button-ghost calendar-schedule"
+          onClick={() => {
+            const r = rows.find((x) => x.id === e.id);
+            const est = (r as { estimate_minutes?: number | null } | undefined)?.estimate_minutes;
+            setSlot({ day: e.day, start: '09:00', minutes: String(est && est <= 1440 ? est : 60) });
+            setScheduleError('');
+            setScheduling({ id: e.id, title: e.label });
+          }}
+        >
+          Schedule…<span className="visually-hidden"> {e.label}</span>
+        </button>
+      ) : null}
+      {e.open ? null : (
         <span className={`calendar-event kind-${e.kind.toLowerCase()}`}>
           <span className="event-kind">{e.kind}</span> {e.label}
         </span>
@@ -680,9 +726,59 @@ export function CalendarLayout(
         </div>
       )}
       <p className="hint">
-        Scheduled work blocks appear here when planning arrives (3C); external calendars when they
-        can be connected (6C). Changing a date here never changes a deadline.
+        Schedule… adds a work block to your plan; see, move, and resize it on Today. External
+        calendars arrive when they can be connected (6C). Changing a date here never changes a
+        deadline.
       </p>
+      <Announce>{scheduled}</Announce>
+      {scheduling ? (
+        <Dialog title={`Schedule “${scheduling.title}”`} onClose={() => setScheduling(null)}>
+          <p>Adds a work block to your plan. The due date and deadline do not change.</p>
+          {scheduleError ? (
+            <Banner tone="danger" title="Not scheduled">
+              {scheduleError}
+            </Banner>
+          ) : null}
+          <Field
+            id="sched-day"
+            label="Day"
+            type="date"
+            value={slot.day}
+            required
+            onChange={(ev) => setSlot({ ...slot, day: ev.target.value })}
+          />
+          <Field
+            id="sched-start"
+            label="Start"
+            type="time"
+            value={slot.start}
+            required
+            onChange={(ev) => setSlot({ ...slot, start: ev.target.value })}
+          />
+          <Field
+            id="sched-minutes"
+            label="Minutes"
+            type="number"
+            min={5}
+            max={1440}
+            value={slot.minutes}
+            required
+            onChange={(ev) => setSlot({ ...slot, minutes: ev.target.value })}
+          />
+          <div className="actions">
+            <button
+              type="button"
+              className="button button-secondary"
+              onClick={() => setScheduling(null)}
+            >
+              Cancel
+            </button>
+            <button type="button" className="button button-primary" onClick={() => void schedule()}>
+              Schedule
+            </button>
+          </div>
+        </Dialog>
+      ) : null}
     </div>
   );
 }

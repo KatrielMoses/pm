@@ -838,6 +838,37 @@ export function TodayPage({ ws }: { ws: string }) {
                             Later
                             <span className="visually-hidden"> block at {timeOf(b.starts_at)}</span>
                           </button>
+                          {/* CAL-004: change the length without dragging (15-minute steps). */}
+                          {([-15, 15] as const).map((delta) => (
+                            <button
+                              key={delta}
+                              type="button"
+                              className="button button-ghost"
+                              disabled={b.locked || r.busy || (delta < 0 && b.minutes <= 15)}
+                              onClick={() =>
+                                void r.run(
+                                  (s) =>
+                                    planning.updateBlock(
+                                      ws,
+                                      b.id,
+                                      b.version,
+                                      {
+                                        starts_at: b.starts_at,
+                                        duration_minutes: b.minutes + delta,
+                                      },
+                                      s,
+                                    ),
+                                  `Block is now ${b.minutes + delta} minutes. Due dates did not change.`,
+                                )
+                              }
+                            >
+                              {delta < 0 ? 'Shorter' : 'Longer'}
+                              <span className="visually-hidden">
+                                {' '}
+                                by 15 minutes, block at {timeOf(b.starts_at)}
+                              </span>
+                            </button>
+                          ))}
                           <button
                             type="button"
                             className="button button-ghost"
