@@ -376,3 +376,8 @@ Files are records (`file`) contained by their host: a brand, a project, a task, 
 ## Phase 4D collaborative editing
 
 A document's purge removes its live operations, sessions, and draft before anything else (`documentAdapter.purge.deleteContent`), so no unsaved live text or presence outlives it. Archive, trash, and purge refuse the next live request (`not_found`, or `document_archived`): an open session cannot keep reading or writing, and the browser keeps its own unsent text on the device. Restoring a document starts a new session from its current version.
+
+## Phase 5A search
+
+A source row's search document is removed with it: deleting a task, project, milestone, decision, document, comment, file, or deliverable deletes its `search.search_document` and any queued key in the same statement (triggers), and tombstoning a purged record deletes every document it governs or hosts (a task's comments, a project's milestones) the same way, so no searchable text outlives a purge. Trash, archive, and restore leave the documents in place: visibility is read from the record's lifecycle at request time, so a restored record is searchable again without re-indexing. A person's recent searches are personal rows: erased with their other personal data and swept after `SEARCH_RECENT_RETENTION_DAYS` by the index job.
+

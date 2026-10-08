@@ -160,8 +160,12 @@ def check_invariants():
     if "export class FileService extends LiveService" not in svc:
         errs.append("FileService must extend LiveService (4C, then 4D, then 4E, in the service chain)")
     factory = read(P("packages/work/src/factory.ts"))
-    if "}): FileService {" not in factory or "return new FileService(" not in factory:
-        errs.append("createWorkService must build and return the FileService")
+    # 5A wraps the service chain once more (SearchService extends FileService); either end is accepted.
+    built = ("}): FileService {" in factory and "return new FileService(" in factory) or (
+        "}): SearchService {" in factory and "return new SearchService(" in factory
+        and "export class SearchService extends FileService" in read(P("packages/work/src/search/search-service.ts")))
+    if not built:
+        errs.append("createWorkService must build and return the FileService (or the SearchService that extends it)")
     for method in ["async storageStatus(", "async initiateUpload(", "async getUpload(", "async completeUpload(",
                    "async addFileLink(", "async listFiles(", "async getFile(", "async renameFile(",
                    "async trashFile(", "async fileUrl(", "async compareVersions(", "async createDeliverable(",

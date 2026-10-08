@@ -5744,6 +5744,32 @@
       "area": "knowledge"
     },
     {
+      "name": "search.requests",
+      "type": "counter",
+      "labels": [
+        "op",
+        "outcome"
+      ],
+      "area": "search"
+    },
+    {
+      "name": "search.index.jobs",
+      "type": "counter",
+      "labels": [
+        "kind",
+        "outcome"
+      ],
+      "area": "search"
+    },
+    {
+      "name": "search.query.duration",
+      "type": "histogram",
+      "labels": [
+        "outcome"
+      ],
+      "area": "search"
+    },
+    {
       "name": "files.requests",
       "type": "counter",
       "labels": [
@@ -6648,6 +6674,81 @@
       "name": "LIVE_RATE_PER_MINUTE",
       "meaning": "Most live editing requests one person makes per minute; default 1200, range 10–6000.",
       "owner": "4D"
+    },
+    {
+      "name": "SEARCH_QUERY_MAX_CHARS",
+      "meaning": "Longest search query; default 200, range 20–500.",
+      "owner": "5A"
+    },
+    {
+      "name": "SEARCH_TERMS_MAX",
+      "meaning": "Most words and phrases in one search query; default 12, range 2–30.",
+      "owner": "5A"
+    },
+    {
+      "name": "SEARCH_PAGE_SIZE_MAX",
+      "meaning": "Most results one search page returns; default 50, range 10–100.",
+      "owner": "5A"
+    },
+    {
+      "name": "SEARCH_RESULTS_MAX",
+      "meaning": "Deepest result a search can page to; default 200, range 50–1000.",
+      "owner": "5A"
+    },
+    {
+      "name": "SEARCH_COUNT_MAX",
+      "meaning": "Where result counts and facets stop and say \"at least\"; default 1000, range 100–10000.",
+      "owner": "5A"
+    },
+    {
+      "name": "SEARCH_SNIPPET_CHARS",
+      "meaning": "Longest result snippet; default 220, range 80–500.",
+      "owner": "5A"
+    },
+    {
+      "name": "SEARCH_BODY_MAX_CHARS",
+      "meaning": "Most text indexed per record; default 100000, range 10000–100000.",
+      "owner": "5A"
+    },
+    {
+      "name": "SEARCH_INDEX_BATCH_MAX",
+      "meaning": "Most records one worker run indexes per workspace; default 200, range 10–1000.",
+      "owner": "5A"
+    },
+    {
+      "name": "SEARCH_INDEX_DISCOVERY_MAX",
+      "meaning": "Most workspaces one indexing run visits; default 50, range 1–500.",
+      "owner": "5A"
+    },
+    {
+      "name": "SEARCH_INDEX_MAX_ATTEMPTS",
+      "meaning": "Attempts to index a record before it is shown as failed; default 5, range 1–20.",
+      "owner": "5A"
+    },
+    {
+      "name": "SEARCH_INDEX_BACKOFF_SECONDS",
+      "meaning": "First wait before a failed indexing attempt is retried (it doubles); default 30, range 5–3600.",
+      "owner": "5A"
+    },
+    {
+      "name": "SEARCH_FAILED_RETRY_MINUTES",
+      "meaning": "How long a failed record waits between slow retries; default 360, range 10–10080.",
+      "owner": "5A"
+    },
+    {
+      "name": "SEARCH_RECENT_MAX",
+      "meaning": "Recent searches kept per person and workspace; default 25, range 5–100.",
+      "owner": "5A"
+    },
+    {
+      "name": "SEARCH_RECENT_RETENTION_DAYS",
+      "meaning": "How long a recent search is kept; default 90, range 1–365.",
+      "owner": "5A"
+    },
+    {
+      "name": "SEARCH_RATE_PER_MINUTE",
+      "meaning": "Most searches one person makes per minute; default 120, range 10–1200.",
+      "owner": "5A"
     },
     {
       "name": "DOCUMENT_EMBED_URL_MAX_CHARS",

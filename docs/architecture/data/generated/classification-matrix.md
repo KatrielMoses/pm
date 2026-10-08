@@ -193,8 +193,8 @@ Class definitions and rules: [../11-data-classification.md](../11-data-classific
 | [`favorite`](logical-model.md#entity-favorite) | views | personal | C1 | low | configuration changes | R-PERSONAL | self | medium | yes | no | incidental |
 | [`recent_item`](logical-model.md#entity-recent-item) | views | personal | C1 | low | none (technical) | R-PERSONAL | self | high | no | no | incidental |
 | [`view_state`](logical-model.md#entity-view-state) | views | personal | C1 | low | configuration changes | R-PERSONAL | never | high | no | no | incidental |
-| [`search_document`](logical-model.md#entity-search-document) | search | inherited | C2 | standard (per-record) | none (technical) | R-DERIVED | never | very-high | yes | no | incidental |
-| [`index_status`](logical-model.md#entity-index-status) | search | inherited | C1 | low | configuration changes | R-DERIVED | never | high | no | no | incidental |
+| [`search_document`](logical-model.md#entity-search-document) | search | inherited | C2 | standard (per-record) | material changes | R-DERIVED | never | very-high | yes | no | incidental |
+| [`index_status`](logical-model.md#entity-index-status) | search | inherited | C1 | low | none (technical) | R-DERIVED | never | high | no | no | incidental |
 | [`recent_search`](logical-model.md#entity-recent-search) | search | personal | C2 | standard (per-record) | none (technical) | R-PERSONAL | self | medium | no | no | incidental |
 | [`metric_definition`](logical-model.md#entity-metric-definition) | insights | platform | C0 | low | is evidence / append-only | R-PLATFORM | never | low | no | no | incidental |
 | [`metric_snapshot`](logical-model.md#entity-metric-snapshot) | insights | workspace_or_brand | C2 | standard (per-record) | none (technical) | R-DERIVED | filtered | high | metadata | no | incidental |

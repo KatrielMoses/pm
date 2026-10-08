@@ -579,6 +579,20 @@
         "I-10",
         "I-18"
       ]
+    },
+    {
+      "id": "T-54",
+      "category": "inference",
+      "description": "Search leakage and bypass: a hidden record's existence, title, text, rank, order, count, facet, excerpt, index state, or timing reached through a query, a page, a cursor, a filter, the palette, a recent search, or opening a result (or told apart from an unknown record); a share, role, brand, project, or lifecycle change that still shows results until the index is rebuilt; a deleted comment or a trashed file found while the index lags; text the owning module would not show (custom field values, live drafts, restricted reference labels) reaching the index; a person's name shown to a viewer who may not see people; a filter naming a hidden brand or project told apart from an unknown one; a cursor, recent search, or index status used by or revealing something to someone else; another workspace searched or opened; a poison record blocking the index, or an incomplete index presented as complete.",
+      "mitigated_by": [
+        "I-01",
+        "I-02",
+        "I-04",
+        "I-07",
+        "I-08",
+        "I-12",
+        "I-18"
+      ]
     }
   ],
   "tests": [
@@ -4863,6 +4877,155 @@
       "expected": "deny",
       "response_shape": "error_generic",
       "silent_surfaces": [
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-238",
+      "threats": [
+        "T-54"
+      ],
+      "principal": "member",
+      "setup": "Member without access searches for a word that appears only in a record they cannot read (title, body, comment, and document text)",
+      "scope": "hidden record text",
+      "action": "record.read",
+      "surface": "search",
+      "expected": "deny",
+      "response_shape": "omitted",
+      "silent_surfaces": [
+        "search_snippet",
+        "count_facet",
+        "timing",
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-239",
+      "threats": [
+        "T-54"
+      ],
+      "principal": "member",
+      "setup": "A share or brand grant is given and then revoked while the search index is not rebuilt",
+      "scope": "revocation without re-indexing",
+      "action": "record.read",
+      "surface": "search",
+      "expected": "deny",
+      "response_shape": "omitted",
+      "silent_surfaces": [
+        "search_snippet",
+        "count_facet",
+        "timing"
+      ]
+    },
+    {
+      "id": "AT-240",
+      "threats": [
+        "T-54"
+      ],
+      "principal": "guest",
+      "setup": "People of every role, a guest with an exact share, and a member of a restricted project or a sensitive brand search the same word",
+      "scope": "role, share, project, and brand matrix",
+      "action": "record.read",
+      "surface": "search",
+      "expected": "deny",
+      "response_shape": "omitted",
+      "silent_surfaces": [
+        "search_snippet",
+        "count_facet",
+        "timing"
+      ]
+    },
+    {
+      "id": "AT-241",
+      "threats": [
+        "T-54"
+      ],
+      "principal": "member",
+      "setup": "A comment is deleted, or a file or deliverable is trashed, or a record is archived, trashed, or purged, before the index has caught up",
+      "scope": "source state ahead of the index",
+      "action": "record.read",
+      "surface": "search",
+      "expected": "deny",
+      "response_shape": "omitted",
+      "silent_surfaces": [
+        "search_snippet",
+        "count_facet",
+        "timing"
+      ]
+    },
+    {
+      "id": "AT-242",
+      "threats": [
+        "T-54"
+      ],
+      "principal": "member",
+      "setup": "Search filtered by a brand or project the person cannot see, and by one that does not exist",
+      "scope": "filter naming a hidden brand or project",
+      "action": "record.read",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "validation_generic",
+      "silent_surfaces": [
+        "search",
+        "count_facet",
+        "timing",
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-243",
+      "threats": [
+        "T-54"
+      ],
+      "principal": "member",
+      "setup": "The index lags or a record fails to index; a person who cannot read that record requests the search and the index status",
+      "scope": "index state of hidden records",
+      "action": "record.read",
+      "surface": "count_facet",
+      "expected": "deny",
+      "response_shape": "omitted",
+      "silent_surfaces": [
+        "search",
+        "search_snippet",
+        "timing"
+      ]
+    },
+    {
+      "id": "AT-244",
+      "threats": [
+        "T-54"
+      ],
+      "principal": "member",
+      "setup": "A person opens a search result that is hidden, deleted, trashed, purged, in another workspace, or unknown",
+      "scope": "opening a result",
+      "action": "record.read",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "not_found",
+      "silent_surfaces": [
+        "search",
+        "search_snippet",
+        "count_facet",
+        "timing",
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-245",
+      "threats": [
+        "T-54"
+      ],
+      "principal": "member",
+      "setup": "A person reuses another person's cursor, changes the search under a cursor, or lists recent searches that name a place access has since removed",
+      "scope": "cursors and recent searches",
+      "action": "personal.manage_own",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "error_generic",
+      "silent_surfaces": [
+        "search",
+        "search_snippet",
+        "count_facet",
         "error_message"
       ]
     }

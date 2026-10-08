@@ -1,0 +1,27 @@
+-- Reverts 0041 (local/test only). Restores the exact 0040 catalog.
+DROP TRIGGER search_purged ON core.record;
+DROP TRIGGER search_removed ON files.deliverable;
+DROP TRIGGER search_removed ON files.file;
+DROP TRIGGER search_removed ON collab.comment;
+DROP TRIGGER search_removed ON knowledge.document;
+DROP TRIGGER search_removed ON work.decision_record;
+DROP TRIGGER search_removed ON work.milestone;
+DROP TRIGGER search_removed ON work.project;
+DROP TRIGGER search_removed ON work.task;
+DROP TRIGGER search_changed ON files.deliverable_version;
+DROP TRIGGER search_changed ON files.deliverable;
+DROP TRIGGER search_changed ON files.file;
+DROP TRIGGER search_changed ON collab.comment;
+DROP TRIGGER search_changed ON knowledge.document;
+DROP TRIGGER search_changed ON work.decision_record;
+DROP TRIGGER search_changed ON work.milestone;
+DROP TRIGGER search_changed ON work.project;
+DROP TRIGGER search_changed ON work.task;
+DROP FUNCTION exec_dispatch.discover_search_work(timestamptz, timestamptz, integer);
+DROP FUNCTION search.record_purged();
+DROP FUNCTION search.source_removed();
+DROP FUNCTION search.source_changed();
+DROP TABLE search.recent_search;
+DROP TABLE search.index_status;
+DROP TABLE search.search_document;
+DROP SCHEMA search;

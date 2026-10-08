@@ -77,7 +77,7 @@ export function WorkspaceShellProvider({ ws, children }: { ws: string; children:
   const seq = useRef(0);
 
   // Context: re-derived for every history entry (path, query, or entry state change).
-  const locationKey = `${path}?${search.toString()}#${requested ?? ''}`;
+  const locationKey = `${path}?${route?.def.stateInQuery ? '' : search.toString()}#${requested ?? ''}`;
   useEffect(() => {
     const mine = ++seq.current;
     if (urlToken && scopeSensitive && !parseScopeToken(urlToken))

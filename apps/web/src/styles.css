@@ -3823,3 +3823,158 @@ nav.tabs a[aria-current='page'] {
     transition: none;
   }
 }
+
+/* ---------------------------------------------------------------------------------------------
+   5A search: the form, the filters, the results, and matched text (UXD-19). Matched text never
+   relies on colour alone: it is bold as well, and in forced colours it uses the system mark pair.
+   --------------------------------------------------------------------------------------------- */
+.search-form {
+  display: grid;
+  gap: var(--space-2);
+  margin-bottom: var(--space-4);
+}
+.search-form > label {
+  font-weight: 600;
+}
+.search-row {
+  display: flex;
+  gap: var(--space-2);
+  min-width: 0;
+}
+.search-row input[type='search'] {
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 44px;
+  font: inherit;
+  font-size: 1rem;
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--color-border-strong);
+  border-radius: 6px;
+  background: var(--color-bg-surface);
+  color: var(--color-text-primary);
+}
+.search-layout {
+  display: grid;
+  gap: var(--space-4);
+  grid-template-columns: minmax(0, 1fr);
+  min-width: 0;
+}
+.search-filters {
+  min-width: 0;
+}
+.search-filters h2 {
+  margin-top: 0;
+}
+.search-filters summary {
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  font-weight: 600;
+  cursor: pointer;
+}
+.search-filters-body {
+  display: grid;
+  gap: var(--space-3);
+  min-width: 0;
+}
+.search-filters-body fieldset {
+  border: 1px solid var(--color-border-subtle);
+  border-radius: 6px;
+  margin: 0;
+  padding: var(--space-2) var(--space-3);
+  min-width: 0;
+}
+.search-filters-body legend {
+  font-weight: 600;
+  font-size: 0.875rem;
+  padding: 0 var(--space-1);
+}
+.search-results-region {
+  min-width: 0;
+}
+.search-results-region h2:focus {
+  outline: 3px solid var(--color-border-focus);
+  outline-offset: 2px;
+}
+.search-count {
+  margin: 0 0 var(--space-3);
+  color: var(--color-text-secondary);
+}
+.search-results {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0;
+}
+.search-result {
+  padding: var(--space-3) 0;
+  border-bottom: 1px solid var(--color-border-subtle);
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.search-title {
+  margin: 0 0 var(--space-1);
+  font-size: 1.0625rem;
+}
+.search-title a {
+  display: inline-block;
+  min-height: 24px;
+}
+.search-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-1) var(--space-3);
+  margin: 0 0 var(--space-1);
+  font-size: 0.875rem;
+  color: var(--color-text-secondary);
+}
+.search-meta .badge {
+  margin-left: 0;
+}
+.search-snippet {
+  margin: 0;
+  color: var(--color-text-primary);
+}
+.search-result mark,
+.palette mark {
+  background: var(--color-status-warning-bg);
+  color: inherit;
+  font-weight: 700;
+  border-radius: 2px;
+  padding: 0 1px;
+}
+.search-recent h2 {
+  margin-top: 0;
+}
+@media (min-width: 1024px) {
+  .search-layout {
+    grid-template-columns: 16rem minmax(0, 1fr);
+    align-items: start;
+  }
+  .search-filters {
+    position: sticky;
+    top: var(--space-4);
+  }
+}
+@media (max-width: 599px) {
+  .search-row {
+    flex-direction: column;
+  }
+  .search-row .button {
+    width: 100%;
+  }
+}
+@media (forced-colors: active) {
+  .search-result mark,
+  .palette mark {
+    background: Mark;
+    color: MarkText;
+    forced-color-adjust: none;
+  }
+  .search-filters-body fieldset,
+  .search-result {
+    border-color: CanvasText;
+  }
+}

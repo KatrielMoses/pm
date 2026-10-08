@@ -43,6 +43,12 @@ export interface RouteDef {
   destination?: ShellDestination;
   /** The URL carries the brand scope (`?scope=`) on this route (IA-24). */
   scopeSensitive?: boolean;
+  /**
+   * The query string is this page's own state (a search and its filters), not a navigation: the
+   * shell does not re-read the workspace context when only it changes. Every request the page
+   * makes is authorized by the server on its own.
+   */
+  stateInQuery?: boolean;
   /** Content belongs to a later phase: the page is an honest unavailable state (no data). */
   phase?: string | null;
   command?: ShellCommandId;
@@ -164,6 +170,17 @@ export const ROUTES: readonly RouteDef[] = [
     nav: { placement: 'primary', label: 'Shared with me', short: 'Shared', icon: '⇄', order: 0 },
     // Guests' home (IA-05); members reach shared items through My Work in its owning phase.
     visible: (a) => a.principal === 'guest',
+  },
+  // 5A: permission-aware search across records the person can read; the whole state is in the URL.
+  {
+    id: 'search',
+    pattern: '/workspaces/:ws/search',
+    shell: 'workspace',
+    section: 'Search',
+    command: 'go.search',
+    shortcut: '/',
+    stateInQuery: true,
+    // Guests search what is shared with them; the API decides what each person can read.
   },
   // 3A: saved views (personal and shared with the person); drafts open at `views/new?entity=`.
   {

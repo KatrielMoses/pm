@@ -262,6 +262,21 @@ export interface ServerConfig {
     livePollWaitSeconds: number;
     liveOpLogMax: number;
     liveRatePerMinute: number;
+    searchQueryMaxChars: number;
+    searchTermsMax: number;
+    searchPageSizeMax: number;
+    searchResultsMax: number;
+    searchCountMax: number;
+    searchSnippetChars: number;
+    searchBodyMaxChars: number;
+    searchIndexBatchMax: number;
+    searchIndexDiscoveryMax: number;
+    searchIndexMaxAttempts: number;
+    searchIndexBackoffSeconds: number;
+    searchFailedRetryMinutes: number;
+    searchRecentMax: number;
+    searchRecentRetentionDays: number;
+    searchRatePerMinute: number;
     documentEmbedUrlMaxChars: number;
     signedUrlLifetimeSeconds: number;
     uploadSessionLifetimeSeconds: number;
@@ -600,6 +615,21 @@ const DEFAULTS = {
   LIVE_POLL_WAIT_SECONDS: '20',
   LIVE_OP_LOG_MAX: '2000',
   LIVE_RATE_PER_MINUTE: '1200',
+  SEARCH_QUERY_MAX_CHARS: '200',
+  SEARCH_TERMS_MAX: '12',
+  SEARCH_PAGE_SIZE_MAX: '50',
+  SEARCH_RESULTS_MAX: '200',
+  SEARCH_COUNT_MAX: '1000',
+  SEARCH_SNIPPET_CHARS: '220',
+  SEARCH_BODY_MAX_CHARS: '100000',
+  SEARCH_INDEX_BATCH_MAX: '200',
+  SEARCH_INDEX_DISCOVERY_MAX: '50',
+  SEARCH_INDEX_MAX_ATTEMPTS: '5',
+  SEARCH_INDEX_BACKOFF_SECONDS: '30',
+  SEARCH_FAILED_RETRY_MINUTES: '360',
+  SEARCH_RECENT_MAX: '25',
+  SEARCH_RECENT_RETENTION_DAYS: '90',
+  SEARCH_RATE_PER_MINUTE: '120',
   DOCUMENT_EMBED_URL_MAX_CHARS: '2048',
   SIGNED_URL_LIFETIME: '300',
   UPLOAD_SESSION_LIFETIME: '3600',
@@ -851,6 +881,21 @@ const schema = z.object({
   LIVE_POLL_WAIT_SECONDS: int(0, 30),
   LIVE_OP_LOG_MAX: int(100, 10000),
   LIVE_RATE_PER_MINUTE: int(10, 6000),
+  SEARCH_QUERY_MAX_CHARS: int(20, 500),
+  SEARCH_TERMS_MAX: int(2, 30),
+  SEARCH_PAGE_SIZE_MAX: int(10, 100),
+  SEARCH_RESULTS_MAX: int(50, 1000),
+  SEARCH_COUNT_MAX: int(100, 10000),
+  SEARCH_SNIPPET_CHARS: int(80, 500),
+  SEARCH_BODY_MAX_CHARS: int(10000, 100000),
+  SEARCH_INDEX_BATCH_MAX: int(10, 1000),
+  SEARCH_INDEX_DISCOVERY_MAX: int(1, 500),
+  SEARCH_INDEX_MAX_ATTEMPTS: int(1, 20),
+  SEARCH_INDEX_BACKOFF_SECONDS: int(5, 3600),
+  SEARCH_FAILED_RETRY_MINUTES: int(10, 10080),
+  SEARCH_RECENT_MAX: int(5, 100),
+  SEARCH_RECENT_RETENTION_DAYS: int(1, 365),
+  SEARCH_RATE_PER_MINUTE: int(10, 1200),
   DOCUMENT_EMBED_URL_MAX_CHARS: int(128, 8192),
   SIGNED_URL_LIFETIME: int(30, 3600),
   UPLOAD_SESSION_LIFETIME: int(300, 86400),
@@ -1431,6 +1476,21 @@ export function loadServerConfig(options: LoadOptions): ServerConfig {
       livePollWaitSeconds: c.LIVE_POLL_WAIT_SECONDS,
       liveOpLogMax: c.LIVE_OP_LOG_MAX,
       liveRatePerMinute: c.LIVE_RATE_PER_MINUTE,
+      searchQueryMaxChars: c.SEARCH_QUERY_MAX_CHARS,
+      searchTermsMax: c.SEARCH_TERMS_MAX,
+      searchPageSizeMax: c.SEARCH_PAGE_SIZE_MAX,
+      searchResultsMax: c.SEARCH_RESULTS_MAX,
+      searchCountMax: c.SEARCH_COUNT_MAX,
+      searchSnippetChars: c.SEARCH_SNIPPET_CHARS,
+      searchBodyMaxChars: c.SEARCH_BODY_MAX_CHARS,
+      searchIndexBatchMax: c.SEARCH_INDEX_BATCH_MAX,
+      searchIndexDiscoveryMax: c.SEARCH_INDEX_DISCOVERY_MAX,
+      searchIndexMaxAttempts: c.SEARCH_INDEX_MAX_ATTEMPTS,
+      searchIndexBackoffSeconds: c.SEARCH_INDEX_BACKOFF_SECONDS,
+      searchFailedRetryMinutes: c.SEARCH_FAILED_RETRY_MINUTES,
+      searchRecentMax: c.SEARCH_RECENT_MAX,
+      searchRecentRetentionDays: c.SEARCH_RECENT_RETENTION_DAYS,
+      searchRatePerMinute: c.SEARCH_RATE_PER_MINUTE,
       documentEmbedUrlMaxChars: c.DOCUMENT_EMBED_URL_MAX_CHARS,
       signedUrlLifetimeSeconds: c.SIGNED_URL_LIFETIME,
       uploadSessionLifetimeSeconds: c.UPLOAD_SESSION_LIFETIME,

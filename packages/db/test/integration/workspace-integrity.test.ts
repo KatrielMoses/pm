@@ -260,6 +260,10 @@ describe('database-enforced workspace existence (1A review 01, correction 2)', (
       'files.deliverable',
       'files.deliverable_version',
       'files.storage_usage',
+      // Phase 5A search entries, the indexing queue, and recent searches.
+      'search.search_document',
+      'search.index_status',
+      'search.recent_search',
     ];
     expect(res.rows.map((r) => r.tbl).sort()).toEqual(
       [...TENANT_TABLES.map((t) => `exec.${t}`), ...phase1f, ...phase1c].sort(),
@@ -289,7 +293,7 @@ describe('database-enforced workspace existence (1A review 01, correction 2)', (
             AND i.indkey::int2[] @> c.confkey AND i.indkey::int2[] <@ c.confkey
         ) AS referenced_unique
       FROM pg_constraint c JOIN pg_namespace n ON n.oid = c.connamespace
-      WHERE c.contype = 'f' AND n.nspname IN ('exec', 'tenancy', 'access', 'ops', 'views', 'workflow', 'work', 'relations', 'templates', 'planning', 'capture', 'timetrack', 'collab', 'notify', 'knowledge', 'files')
+      WHERE c.contype = 'f' AND n.nspname IN ('exec', 'tenancy', 'access', 'ops', 'views', 'workflow', 'work', 'relations', 'templates', 'planning', 'capture', 'timetrack', 'collab', 'notify', 'knowledge', 'files', 'search')
       ORDER BY 1`);
     // exec: 7 workspace keys + 6 composite same-workspace keys; 1C tenancy/access: 20 keys;
     // 1D collaboration (teams, invitations, policy, shares, ownership transfer): 38 keys;
@@ -310,8 +314,9 @@ describe('database-enforced workspace existence (1A review 01, correction 2)', (
     // 4C documents (10), versions (3), references (5), suggestions (4), source approvals (3): +25;
     // 4E objects (1), files (6), versions (4), upload sessions (9), deliverables (7), deliverable
     // versions (7), and storage usage (1): +35;
-    // 4D live edit drafts (3), sessions (3), and operations (4): +10.
-    expect(res.rows.length).toBe(449);
+    // 4D live edit drafts (3), sessions (3), and operations (4): +10;
+    // 5A search entries (4), indexing tasks (2), and recent searches (2): +8.
+    expect(res.rows.length).toBe(457);
     for (const r of res.rows)
       expect(r, `${r.tbl}.${r.conname}`).toMatchObject({
         referencing_indexed: true,

@@ -106,7 +106,11 @@ async function uploadNotes(page: Page) {
     (u) => u.pathname.endsWith('/files') && u.searchParams.has('host'),
   );
   const input = files.getByLabel('Upload a file');
-  await input.focus();
+  // Focus can be taken back by a late re-render of the page; keep it until it holds, then press.
+  await expect(async () => {
+    await input.focus();
+    await expect(input).toBeFocused({ timeout: 500 });
+  }).toPass();
   const chooser = page.waitForEvent('filechooser');
   await page.keyboard.press('Space');
   await (await chooser).setFiles(text('notes.txt', 'line one\nline two\n'));
