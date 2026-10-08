@@ -1131,13 +1131,11 @@ describe('Goals (5B)', () => {
       expect(archived.capabilities).toMatchObject({ restore: true, update: false });
       await env.svc.goalLifecycle(editor, ws, g.id, 'unarchive', mutation());
       await env.svc.goalLifecycle(editor, ws, g.id, 'trash', mutation());
-      expect(
-        (await env.svc.listGoals(editor, ws, { trashed: 'true' })).data.map((d) => d.id),
-      ).toContain(g.id);
-      expect(
-        (await env.svc.listGoals(reader, ws, { trashed: 'true' })).data.map((d) => d.id),
-      ).not.toContain(g.id);
-      expect((await env.svc.listGoals(outsider, ws, { trashed: 'true' })).data).toEqual([]);
+      expect((await env.svc.listTrashedGoals(editor, ws)).data.map((d) => d.id)).toContain(g.id);
+      expect((await env.svc.listTrashedGoals(reader, ws)).data.map((d) => d.id)).not.toContain(
+        g.id,
+      );
+      expect((await env.svc.listTrashedGoals(outsider, ws)).data).toEqual([]);
       await env.svc.goalLifecycle(editor, ws, g.id, 'restore', mutation());
       expect((await env.svc.getGoal(editor, ws, g.id)).lifecycle_state).toBe('active');
     });

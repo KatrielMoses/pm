@@ -55,7 +55,12 @@ export function registerGoals(app: FastifyInstance, work: PortfolioService): voi
   app.get(
     `${ws}/goals`,
     wrap(async (request) =>
-      page(request, await work.listGoals(caller(request), p(request).ws, q(request))),
+      page(
+        request,
+        q(request).trashed === 'true'
+          ? await work.listTrashedGoals(caller(request), p(request).ws)
+          : await work.listGoals(caller(request), p(request).ws, q(request)),
+      ),
     ),
   );
   app.post(

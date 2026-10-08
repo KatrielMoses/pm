@@ -406,14 +406,16 @@ export class GoalService extends GoalCore {
     return { data, page: { limit: data.length, has_more: false } };
   }
 
+  async listTrashedGoals(caller: Caller, ws: unknown) {
+    return this.gTrack('goals.reads', 'trashed', () =>
+      this.inWorkspace(caller, ws, { readOnly: true }, async (tx, p) => {
+        this.requireMemberKind(p);
+        return this.trashedGoals(tx, p);
+      }),
+    );
+  }
+
   async listGoals(caller: Caller, ws: unknown, query: Record<string, unknown>) {
-    if (query.trashed === 'true')
-      return this.gTrack('goals.reads', 'trashed', () =>
-        this.inWorkspace(caller, ws, { readOnly: true }, async (tx, p) => {
-          this.requireMemberKind(p);
-          return this.trashedGoals(tx, p);
-        }),
-      );
     const q = parseGoalList(query, this.ws.pageLimitMax);
     return this.gTrack('goals.reads', 'list', () =>
       this.inWorkspace(caller, ws, { readOnly: true }, async (tx, p) => {
