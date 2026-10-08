@@ -161,7 +161,7 @@ async function announce(
 ): Promise<void> {
   await writeOutboxEvent(tx, {
     type: 'notify.delivery.state_changed',
-    aggregate: { type: 'notify.delivery', id: row.id, sequence: 0 },
+    aggregate: { type: 'notify.notification_delivery', id: row.id, sequence: 0 },
     data: { channel: row.channel, kind: row.kind, state, failure_class: failureClass },
     actor: { type: 'system', id: row.recipient_membership_id },
     context: systemExec(tx.workspaceId, row.recipient_membership_id),

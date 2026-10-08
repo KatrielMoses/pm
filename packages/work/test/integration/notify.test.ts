@@ -1,13 +1,15 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { CaptureTransport } from '@pm/identity';
+import { measureClasses, statementShape } from '@pm/test-support';
 import { createTestDatabase, type TestDatabase } from '@pm/test-support/vitest';
-import type { Caller } from '@pm/tenancy';
+import { eraseMembershipNavigation, type Caller } from '@pm/tenancy';
 import {
   DEFAULT_WORK_SETTINGS,
   DeliveryError,
   emailProviderFrom,
   type EmailProvider,
   NotificationFanOut,
+  productLifecycleRegistry,
   runNotifyWorkspace,
   type NotifyJobDeps,
 } from '@pm/work';
@@ -1267,6 +1269,217 @@ describe('Notification platform (4B)', () => {
         { event_type: 'assignment', channel: 'email' },
         mutation(),
       );
+    });
+  });
+
+  describe('isolation, idempotency, purge, and departure', () => {
+    const own = async (c: Caller, task: string) => (await forTask(c, task))[0]!;
+    const assignTo = async (title: string, who: string, brand = 'Harbor') => {
+      const t = await newTask(title, brand);
+      await env.svc.setAssignees(
+        owner,
+        ws,
+        t.id,
+        { assignees: [who], version: t.version },
+        mutation(),
+      );
+      await drain();
+      return t;
+    };
+
+    it('gives strangers, other people, and unknown notifications one answer, with the same statements and time', async () => {
+      const t = await assignTo('Private to the editor', pub.editor!);
+      const note = await own(editor, t.id);
+      const unknown = `ntf_${'0'.repeat(26)}`;
+      const classes = {
+        otherPerson: () => env.svc.getNotification(owner, ws, note.id),
+        unknown: () => env.svc.getNotification(owner, ws, unknown),
+        otherPersonState: () =>
+          env.svc.setNotificationState(owner, ws, note.id, { state: 'read' }, mutation()),
+        unknownState: () =>
+          env.svc.setNotificationState(owner, ws, unknown, { state: 'read' }, mutation()),
+      };
+      await expect(classes.otherPerson()).rejects.toEqual(reason('not_found'));
+      await expect(classes.unknown()).rejects.toEqual(reason('not_found'));
+      const spans = () => env.h.telemetry.spans!;
+      expect(await statementShape(spans(), classes.unknown)).toEqual(
+        await statementShape(spans(), classes.otherPerson),
+      );
+      expect(await statementShape(spans(), classes.unknownState)).toEqual(
+        await statementShape(spans(), classes.otherPersonState),
+      );
+      const timing = await measureClasses({
+        otherPerson: classes.otherPerson,
+        unknown: classes.unknown,
+      });
+      expect(timing.maxDelta, JSON.stringify(timing.medians)).toBeLessThanOrEqual(timing.threshold);
+      // Nobody else's notifications, counts, deliveries, or search hits ever show up.
+      expect((await mine(outsider)).map((n) => n.id)).not.toContain(note.id);
+      expect(await mine(outsider, { q: 'Private to the editor' })).toEqual([]);
+      expect(JSON.stringify(await env.svc.notificationCounts(outsider, ws))).not.toContain(note.id);
+      await expect(
+        env.svc.bulkNotificationState(
+          outsider,
+          ws,
+          { ids: [note.id], state: 'dismissed' },
+          mutation(),
+        ),
+      ).resolves.toMatchObject({ data: { updated: 0 } });
+      expect((await own(editor, t.id)).state).toBe('unread');
+    });
+
+    it('applies an event once however often it is delivered, and an occasion fires once', async () => {
+      const t = await newTask('Redelivered');
+      await env.svc.setAssignees(
+        owner,
+        ws,
+        t.id,
+        { assignees: [pub.editor!], version: t.version },
+        mutation(),
+      );
+      await drain();
+      // The consumer's inbox receipt makes redelivery of one event a no-op, so one assignment is one notice.
+      const after = await forTask(editor, t.id);
+      expect(after).toHaveLength(1);
+      expect(after[0]!.occurrences).toBe(1);
+      // Concurrent state changes against one version: one wins, the other conflicts.
+      const note = after[0]!;
+      const results = await Promise.allSettled([
+        env.svc.setNotificationState(editor, ws, note.id, { state: 'read' }, ifMatch(note.version)),
+        env.svc.setNotificationState(
+          editor,
+          ws,
+          note.id,
+          { state: 'saved' },
+          ifMatch(note.version),
+        ),
+      ]);
+      expect(results.filter((r) => r.status === 'fulfilled')).toHaveLength(1);
+      expect(results.filter((r) => r.status === 'rejected')).toHaveLength(1);
+      // The same idempotency key applies once and replays the answer.
+      const k = mutation();
+      const current = await own(editor, t.id);
+      const first = await env.svc.setNotificationState(
+        editor,
+        ws,
+        note.id,
+        { state: 'dismissed' },
+        { ...k, ifMatch: `"${current.version}"` },
+      );
+      const again = await env.svc.setNotificationState(
+        editor,
+        ws,
+        note.id,
+        { state: 'dismissed' },
+        { ...k, ifMatch: `"${current.version}"` },
+      );
+      expect(again.replayed).toBe(true);
+      expect(again.data.state).toBe(first.data.state);
+    });
+
+    it('removes notifications, deliveries, and choices about a purged record, keeping no title anywhere', async () => {
+      const t = await assignTo('Doomed notice', pub.editor!);
+      const note = await own(editor, t.id);
+      await env.svc.setNotificationPreference(
+        editor,
+        ws,
+        { event_type: 'comment', scope: t.id, channel: 'all', mode: 'muted' },
+        mutation(),
+      );
+      await env.svc.taskLifecycle(owner, ws, t.id, 'trash', {}, mutation());
+      await env.svc.taskLifecycle(owner, ws, t.id, 'purge', {}, mutation());
+      const { id } = (await sql(`SELECT id FROM core.record WHERE public_id = '${t.id}'`))[0]!;
+      await env.h.worker.withWorkspace(wsId, { module: 'test' }, async (tx) => {
+        await productLifecycleRegistry()
+          .get('task')!
+          .purge!.deleteContent(tx, [id as string]);
+      });
+      expect(
+        await sql(`SELECT 1 FROM notify.notification WHERE public_id = '${note.id}'`),
+      ).toHaveLength(0);
+      expect(
+        await sql(
+          `SELECT 1 FROM notify.delivery WHERE notification_id IS NOT NULL AND notification_id NOT IN (SELECT id FROM notify.notification)`,
+        ),
+      ).toHaveLength(0);
+      expect(
+        await sql(`SELECT 1 FROM notify.preference WHERE scope_record_id = '${id}'`),
+      ).toHaveLength(0);
+      // Events and audit never held the title.
+      const events = await sql(
+        `SELECT payload::text AS p FROM exec.outbox_event WHERE event_type LIKE 'notify.%'`,
+      );
+      expect(events.map((e) => e.p).join(' ')).not.toContain('Doomed notice');
+    });
+
+    it('erases a departed person’s notifications, deliveries, choices, and profile, and nobody else’s', async () => {
+      const leaver = await join(env, db, owner, ws, { kind: 'member', role: 'member' });
+      const leaverId = await mem(leaver);
+      await apply(env, owner, ws, {
+        kind: 'brand_grant',
+        brand: brands.Harbor,
+        principal: leaverId,
+        level: 'edit',
+      });
+      await env.svc.setNotificationProfile(leaver, ws, { digest_cadence: 'weekly' }, ifMatch(0));
+      await env.svc.setNotificationPreference(
+        leaver,
+        ws,
+        { event_type: 'comment', scope: 'workspace', channel: 'email', mode: 'muted' },
+        mutation(),
+      );
+      const t = await assignTo('For the leaver and the editor', leaverId);
+      await env.svc.setAssignees(
+        owner,
+        ws,
+        t.id,
+        {
+          assignees: [leaverId, pub.editor!],
+          version: (await env.svc.getTask(owner, ws, t.id)).version,
+        },
+        mutation(),
+      );
+      await drain();
+      const keep = await own(editor, t.id);
+      const leaverRow = (
+        await sql(`SELECT id FROM tenancy.membership WHERE public_id = '${leaverId}'`)
+      )[0]!.id as string;
+      expect(
+        await sql(
+          `SELECT 1 FROM notify.notification WHERE recipient_membership_id = '${leaverRow}'`,
+        ),
+      ).not.toHaveLength(0);
+      const preview = await env.svc.previewChange(owner, ws, { kind: 'remove', member: leaverId });
+      env.stepUp.allow = true;
+      try {
+        await env.svc.removeMember(
+          owner,
+          ws,
+          leaverId,
+          { preview_token: preview.preview_token },
+          mutation({ stepUpToken: 't' }),
+        );
+      } finally {
+        env.stepUp.allow = false;
+      }
+      // Departure retention ends (or the account is deleted): the personal-data eraser runs.
+      await env.h.worker.withWorkspace(wsId, { module: 'test' }, (tx) =>
+        eraseMembershipNavigation(tx, leaverRow),
+      );
+      for (const table of [
+        'notify.notification',
+        'notify.delivery',
+        'notify.digest',
+        'notify.preference',
+        'notify.profile',
+      ])
+        expect(
+          await sql(
+            `SELECT 1 FROM ${table} WHERE ${table === 'notify.profile' || table === 'notify.preference' ? 'membership_id' : 'recipient_membership_id'} = '${leaverRow}'`,
+          ),
+          table,
+        ).toHaveLength(0);
+      expect((await own(editor, t.id)).id).toBe(keep.id);
     });
   });
 });

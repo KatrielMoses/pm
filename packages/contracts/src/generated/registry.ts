@@ -1739,7 +1739,7 @@ export const ID_PREFIXES = [
   {
     "prefix": "ndl",
     "resource": "notification_delivery",
-    "entity": "notify.delivery",
+    "entity": "notify.notification_delivery",
     "ownerModule": "notify",
     "platformOnly": false
   }
@@ -3101,7 +3101,7 @@ export const INTERNAL_EVENTS = [
   {
     "type": "notify.delivery.state_changed",
     "schemaVersion": 1,
-    "aggregateEntity": "notify.delivery",
+    "aggregateEntity": "notify.notification_delivery",
     "fields": [
       "channel",
       "kind",
