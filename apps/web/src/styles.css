@@ -3533,6 +3533,8 @@ nav.tabs a[aria-current='page'] {
     content: ' (' attr(href) ')';
     font-size: 0.8em;
   }
+}
+
 /* Files and deliverables (4E). */
 .file-list > li,
 .deliverable-list > li.deliverable {

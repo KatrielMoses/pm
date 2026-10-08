@@ -1,4 +1,4 @@
-import { recordJoins, recordProject, recordTitle } from './record-sql.ts';
+import { recordJoins, recordProject } from './record-sql.ts';
 import { change } from '@pm/audit';
 import { newPublicId, newUuidV7 } from '@pm/contracts';
 import { sql, type WorkspaceTransaction } from '@pm/db';
