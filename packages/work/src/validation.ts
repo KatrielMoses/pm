@@ -214,6 +214,38 @@ export interface WorkSettings {
   followersListMax: number;
   /** `REVIEW_REVIEWERS_MAX` */
   reviewReviewersMax: number;
+  /** `NOTIFY_FANOUT_RECIPIENTS_MAX` */
+  notifyFanoutRecipientsMax: number;
+  /** `NOTIFY_DEDUPE_WINDOW_MINUTES` */
+  notifyDedupeWindowMinutes: number;
+  /** `NOTIFY_DELIVERY_BATCH_MAX` */
+  notifyDeliveryBatchMax: number;
+  /** `NOTIFY_DELIVERY_MAX_ATTEMPTS` */
+  notifyDeliveryMaxAttempts: number;
+  /** `NOTIFY_RETRY_BASE_SECONDS` */
+  notifyRetryBaseSeconds: number;
+  /** `NOTIFY_RETRY_MAX_SECONDS` */
+  notifyRetryMaxSeconds: number;
+  /** `NOTIFY_DIGEST_ITEMS_MAX` */
+  notifyDigestItemsMax: number;
+  /** `NOTIFY_EMAIL_PER_HOUR_MAX` */
+  notifyEmailPerHourMax: number;
+  /** `NOTIFY_RETENTION_DAYS` */
+  notifyRetentionDays: number;
+  /** `NOTIFY_PREFERENCES_MAX` */
+  notifyPreferencesMax: number;
+  /** `NOTIFY_BROWSER_ACK_TTL_MINUTES` */
+  notifyBrowserAckTtlMinutes: number;
+  /** `NOTIFY_SEARCH_QUERY_MAX` */
+  notifySearchQueryMax: number;
+  /** `NOTIFY_DISCOVERY_MAX` */
+  notifyDiscoveryMax: number;
+  /** `NOTIFY_BULK_STATE_MAX` */
+  notifyBulkStateMax: number;
+  /** `NOTIFY_DEADLINES_BATCH_MAX` */
+  notifyDeadlinesBatchMax: number;
+  /** `NOTIFY_FACTS_MAX_BYTES` */
+  notifyFactsMaxBytes: number;
 }
 
 export const DEFAULT_WORK_SETTINGS: WorkSettings = Object.freeze({
@@ -313,6 +345,22 @@ export const DEFAULT_WORK_SETTINGS: WorkSettings = Object.freeze({
   commentRepliesInlineMax: 20,
   followersListMax: 200,
   reviewReviewersMax: 10,
+  notifyFanoutRecipientsMax: 500,
+  notifyDedupeWindowMinutes: 60,
+  notifyDeliveryBatchMax: 100,
+  notifyDeliveryMaxAttempts: 6,
+  notifyRetryBaseSeconds: 60,
+  notifyRetryMaxSeconds: 3_600,
+  notifyDigestItemsMax: 50,
+  notifyEmailPerHourMax: 20,
+  notifyRetentionDays: 365,
+  notifyPreferencesMax: 200,
+  notifyBrowserAckTtlMinutes: 30,
+  notifySearchQueryMax: 100,
+  notifyDiscoveryMax: 100,
+  notifyBulkStateMax: 200,
+  notifyDeadlinesBatchMax: 500,
+  notifyFactsMaxBytes: 1_024,
 });
 
 /** The database invariant behind `TASK_DEPTH_MAX` (migration 0023). */

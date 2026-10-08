@@ -2168,7 +2168,143 @@ export interface AssignmentEventTable {
   occurred_at: DTs;
 }
 
+// ---- Phase 4B: notifications (0037) -------------------------------------------------------------
+
+export type NotificationType =
+  | 'assignment'
+  | 'mention'
+  | 'comment'
+  | 'review_requested'
+  | 'approval_decided'
+  | 'blocker'
+  | 'due_soon'
+  | 'overdue'
+  | 'integration_failure'
+  | 'automation_failure'
+  | 'agent_failure'
+  | 'agent_output_ready'
+  | 'spend_threshold'
+  | 'permission_changed'
+  | 'share_changed'
+  | 'briefing_ready'
+  | 'export_ready'
+  | 'hidden_dependency_affects_assignee';
+export type NotificationState = 'unread' | 'read' | 'saved' | 'dismissed';
+export type DeliveryState =
+  | 'pending'
+  | 'sending'
+  | 'delivered'
+  | 'failed'
+  | 'dead'
+  | 'suppressed'
+  | 'deferred_quiet_hours'
+  | 'expired';
+
+export interface NotificationTable {
+  id: string;
+  public_id: string;
+  workspace_id: string;
+  recipient_membership_id: string;
+  type: NotificationType;
+  record_id: string | null;
+  actor_membership_id: string | null;
+  source_event_id: string | null;
+  dedupe_key: string;
+  group_key: string | null;
+  facts: ColumnType<Record<string, string | number | boolean | null>, string | undefined, string>;
+  occurrences: Defaulted<number>;
+  state: Defaulted<NotificationState>;
+  digest_pending: Defaulted<boolean>;
+  digest_id: string | null;
+  created_at: DTs;
+  last_occurred_at: DTs;
+  state_changed_at: DTs;
+  version: Defaulted<number>;
+}
+export interface DigestTable {
+  id: string;
+  workspace_id: string;
+  recipient_membership_id: string;
+  period_kind: 'daily' | 'weekly';
+  period_start: Ts;
+  period_end: Ts;
+  item_count: number;
+  state: 'assembled' | 'empty';
+  created_at: DTs;
+}
+export interface DeliveryTable {
+  id: string;
+  public_id: string;
+  workspace_id: string;
+  recipient_membership_id: string;
+  channel: 'email' | 'browser';
+  kind: 'notification' | 'digest';
+  notification_id: string | null;
+  digest_id: string | null;
+  state: Defaulted<DeliveryState>;
+  attempts: Defaulted<number>;
+  next_attempt_at: DTs;
+  lease_until: Ts | null;
+  failure_class: 'transient' | 'permanent' | 'unconfigured' | 'rate_limited' | null;
+  failure_code: string | null;
+  suppress_reason: string | null;
+  provider_message_id: string | null;
+  ack_source: 'provider' | 'client' | null;
+  created_at: DTs;
+  updated_at: DTs;
+  delivered_at: Ts | null;
+  version: Defaulted<number>;
+}
+export type NotificationMode = 'immediate' | 'digest' | 'muted';
+export interface NotificationPreferenceTable {
+  id: string;
+  workspace_id: string;
+  membership_id: string;
+  event_type: string;
+  scope_kind: 'workspace' | 'brand' | 'project' | 'record';
+  scope_record_id: string | null;
+  channel: 'all' | 'in_app' | 'email' | 'browser';
+  mode: NotificationMode;
+  expires_at: Ts | null;
+  updated_at: DTs;
+  version: Defaulted<number>;
+}
+export interface NotificationProfileTable {
+  workspace_id: string;
+  membership_id: string;
+  timezone: string | null;
+  quiet_start_minute: number | null;
+  quiet_end_minute: number | null;
+  email_enabled: Defaulted<boolean>;
+  browser_enabled: Defaulted<boolean>;
+  browser_permission: Defaulted<'unknown' | 'granted' | 'denied'>;
+  digest_cadence: Defaulted<'off' | 'daily' | 'weekly'>;
+  daily_digest_minute: Defaulted<number>;
+  weekly_digest_weekday: Defaulted<number>;
+  weekly_digest_minute: Defaulted<number>;
+  updated_at: DTs;
+  version: Defaulted<number>;
+}
+export interface NotificationScopeDefaultTable {
+  id: string;
+  workspace_id: string;
+  scope_kind: 'brand' | 'project';
+  scope_record_id: string;
+  event_type: string;
+  channel: 'in_app' | 'email' | 'browser';
+  mode: NotificationMode;
+  set_by_membership_id: string;
+  updated_at: DTs;
+  version: Defaulted<number>;
+}
+
 export interface Database {
+  'notify.notification': NotificationTable;
+  'notify.digest': DigestTable;
+  'notify.delivery': DeliveryTable;
+  'notify.preference': NotificationPreferenceTable;
+  'notify.profile': NotificationProfileTable;
+  'notify.scope_default': NotificationScopeDefaultTable;
   'collab.comment': CommentTable;
   'collab.comment_revision': CommentRevisionTable;
   'collab.reaction': ReactionTable;
@@ -3303,6 +3439,103 @@ export const TABLE_COLUMNS: Readonly<Record<keyof Database, readonly string[]>> 
     'actor_membership_id',
     'note_text',
     'occurred_at',
+  ],
+  'notify.notification': [
+    'id',
+    'public_id',
+    'workspace_id',
+    'recipient_membership_id',
+    'type',
+    'record_id',
+    'actor_membership_id',
+    'source_event_id',
+    'dedupe_key',
+    'group_key',
+    'facts',
+    'occurrences',
+    'state',
+    'digest_pending',
+    'digest_id',
+    'created_at',
+    'last_occurred_at',
+    'state_changed_at',
+    'version',
+  ],
+  'notify.digest': [
+    'id',
+    'workspace_id',
+    'recipient_membership_id',
+    'period_kind',
+    'period_start',
+    'period_end',
+    'item_count',
+    'state',
+    'created_at',
+  ],
+  'notify.delivery': [
+    'id',
+    'public_id',
+    'workspace_id',
+    'recipient_membership_id',
+    'channel',
+    'kind',
+    'notification_id',
+    'digest_id',
+    'state',
+    'attempts',
+    'next_attempt_at',
+    'lease_until',
+    'failure_class',
+    'failure_code',
+    'suppress_reason',
+    'provider_message_id',
+    'ack_source',
+    'created_at',
+    'updated_at',
+    'delivered_at',
+    'version',
+  ],
+  'notify.preference': [
+    'id',
+    'workspace_id',
+    'membership_id',
+    'event_type',
+    'scope_kind',
+    'scope_record_id',
+    'channel',
+    'mode',
+    'expires_at',
+    'updated_at',
+    'version',
+  ],
+  'notify.profile': [
+    'workspace_id',
+    'membership_id',
+    'timezone',
+    'quiet_start_minute',
+    'quiet_end_minute',
+    'email_enabled',
+    'browser_enabled',
+    'browser_permission',
+    'daily_digest',
+    'daily_digest_minute',
+    'weekly_digest',
+    'weekly_digest_weekday',
+    'weekly_digest_minute',
+    'updated_at',
+    'version',
+  ],
+  'notify.scope_default': [
+    'id',
+    'workspace_id',
+    'scope_kind',
+    'scope_record_id',
+    'event_type',
+    'channel',
+    'mode',
+    'set_by_membership_id',
+    'updated_at',
+    'version',
   ],
   'workflow.platform_status': ['id', 'record_type', 'key', 'name', 'category', 'rank'],
   'work.project': [

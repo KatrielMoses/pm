@@ -154,6 +154,22 @@ describe('server configuration', () => {
       commentRepliesInlineMax: 20,
       followersListMax: 200,
       reviewReviewersMax: 10,
+      notifyFanoutRecipientsMax: 500,
+      notifyDedupeWindowMinutes: 60,
+      notifyDeliveryBatchMax: 100,
+      notifyDeliveryMaxAttempts: 6,
+      notifyRetryBaseSeconds: 60,
+      notifyRetryMaxSeconds: 3600,
+      notifyDigestItemsMax: 50,
+      notifyEmailPerHourMax: 20,
+      notifyRetentionDays: 365,
+      notifyPreferencesMax: 200,
+      notifyBrowserAckTtlMinutes: 30,
+      notifySearchQueryMax: 100,
+      notifyDiscoveryMax: 100,
+      notifyBulkStateMax: 200,
+      notifyDeadlinesBatchMax: 500,
+      notifyFactsMaxBytes: 1024,
     });
     const set = (env: Record<string, string>) =>
       loadServerConfig({ service: 'worker', env: { ...local, ...env } });
@@ -195,6 +211,8 @@ describe('server configuration', () => {
       ['TODAY_LIST_MAX', '4'],
       ['COMMENT_EDIT_WINDOW_MINUTES', '4'],
       ['REVIEW_REVIEWERS_MAX', '51'],
+      ['NOTIFY_RETENTION_DAYS', '29'],
+      ['NOTIFY_DELIVERY_MAX_ATTEMPTS', '21'],
     ] as const)
       expect(issues(() => set({ [key]: bad })).join(' '), `${key}=${bad}`).toMatch(
         new RegExp(`^${key}`),

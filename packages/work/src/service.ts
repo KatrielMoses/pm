@@ -60,6 +60,8 @@ import {
 
 export interface WorkDeps extends NavigationDeps {
   work?: WorkSettings;
+  /** Whether an email provider is configured (4B readiness); absent means none. */
+  notify?: { emailState: 'configured' | 'capture' | 'unconfigured' };
 }
 
 /** A project resolved through the one compiled level (brand, project chain, share, lifecycle). */

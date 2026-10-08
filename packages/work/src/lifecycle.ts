@@ -2,6 +2,7 @@ import { sql, type WorkspaceTransaction } from '@pm/db';
 import type { LifecycleRegistry, RecordRef, RecordTypeAdapter } from '@pm/lifecycle';
 import { withPersonalReferenceCleanup } from '@pm/tenancy';
 import { purgeCollabFacts } from './collab/purge.ts';
+import { purgeNotifyFacts } from './notify/purge.ts';
 
 /**
  * Project record types for the 1F lifecycle (0B ADR-21). Containment the lifecycle follows:
@@ -73,6 +74,7 @@ export const projectAdapter: RecordTypeAdapter = {
       if (live) throw new Error('project purge blocked: a live child project references it');
       // Its comments, followers, and reviews go with it (4A, OD-38).
       await purgeCollabFacts(tx, ids);
+      await purgeNotifyFacts(tx, ids);
       // Views shared with the project are its content (3A); its defaults go with it.
       await tx.db.deleteFrom('views.view_default').where('project_id', 'in', ids).execute();
       // Time logged on the project itself goes with it (3D; its tasks purge their own).
@@ -250,6 +252,7 @@ export const taskAdapter: RecordTypeAdapter = {
       // Comments, revisions, reactions, mentions, followers, reviews, and assignment history are
       // the task's content and go with it (4A, OD-38); audit keeps hashes only.
       await purgeCollabFacts(tx, ids);
+      await purgeNotifyFacts(tx, ids);
       // Time logged on the task goes with it (3D); approvals keep their own totals and hash.
       await tx.db.deleteFrom('timetrack.time_entry').where('task_id', 'in', ids).execute();
       // Plans go with the task (3C): commitments, blocks, and recurring blocks for it.

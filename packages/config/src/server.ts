@@ -224,6 +224,22 @@ export interface ServerConfig {
     commentRepliesInlineMax: number;
     followersListMax: number;
     reviewReviewersMax: number;
+    notifyFanoutRecipientsMax: number;
+    notifyDedupeWindowMinutes: number;
+    notifyDeliveryBatchMax: number;
+    notifyDeliveryMaxAttempts: number;
+    notifyRetryBaseSeconds: number;
+    notifyRetryMaxSeconds: number;
+    notifyDigestItemsMax: number;
+    notifyEmailPerHourMax: number;
+    notifyRetentionDays: number;
+    notifyPreferencesMax: number;
+    notifyBrowserAckTtlMinutes: number;
+    notifySearchQueryMax: number;
+    notifyDiscoveryMax: number;
+    notifyBulkStateMax: number;
+    notifyDeadlinesBatchMax: number;
+    notifyFactsMaxBytes: number;
   };
   features: {
     /** Local/test-only component harness route for reusable UI states (refused when deployed). */
@@ -471,6 +487,22 @@ const DEFAULTS = {
   COMMENT_REPLIES_INLINE_MAX: '20',
   FOLLOWERS_LIST_MAX: '200',
   REVIEW_REVIEWERS_MAX: '10',
+  NOTIFY_FANOUT_RECIPIENTS_MAX: '500',
+  NOTIFY_DEDUPE_WINDOW_MINUTES: '60',
+  NOTIFY_DELIVERY_BATCH_MAX: '100',
+  NOTIFY_DELIVERY_MAX_ATTEMPTS: '6',
+  NOTIFY_RETRY_BASE_SECONDS: '60',
+  NOTIFY_RETRY_MAX_SECONDS: '3600',
+  NOTIFY_DIGEST_ITEMS_MAX: '50',
+  NOTIFY_EMAIL_PER_HOUR_MAX: '20',
+  NOTIFY_RETENTION_DAYS: '365',
+  NOTIFY_PREFERENCES_MAX: '200',
+  NOTIFY_BROWSER_ACK_TTL_MINUTES: '30',
+  NOTIFY_SEARCH_QUERY_MAX: '100',
+  NOTIFY_DISCOVERY_MAX: '100',
+  NOTIFY_BULK_STATE_MAX: '200',
+  NOTIFY_DEADLINES_BATCH_MAX: '500',
+  NOTIFY_FACTS_MAX_BYTES: '1024',
 } as const;
 
 const schema = z.object({
@@ -652,6 +684,22 @@ const schema = z.object({
   COMMENT_REPLIES_INLINE_MAX: int(1, 100),
   FOLLOWERS_LIST_MAX: int(10, 1000),
   REVIEW_REVIEWERS_MAX: int(1, 50),
+  NOTIFY_FANOUT_RECIPIENTS_MAX: int(1, 5000),
+  NOTIFY_DEDUPE_WINDOW_MINUTES: int(1, 1440),
+  NOTIFY_DELIVERY_BATCH_MAX: int(1, 1000),
+  NOTIFY_DELIVERY_MAX_ATTEMPTS: int(1, 20),
+  NOTIFY_RETRY_BASE_SECONDS: int(5, 3600),
+  NOTIFY_RETRY_MAX_SECONDS: int(60, 86400),
+  NOTIFY_DIGEST_ITEMS_MAX: int(5, 200),
+  NOTIFY_EMAIL_PER_HOUR_MAX: int(1, 200),
+  NOTIFY_RETENTION_DAYS: int(30, 3650),
+  NOTIFY_PREFERENCES_MAX: int(10, 1000),
+  NOTIFY_BROWSER_ACK_TTL_MINUTES: int(1, 1440),
+  NOTIFY_SEARCH_QUERY_MAX: int(10, 200),
+  NOTIFY_DISCOVERY_MAX: int(1, 1000),
+  NOTIFY_BULK_STATE_MAX: int(1, 1000),
+  NOTIFY_DEADLINES_BATCH_MAX: int(10, 5000),
+  NOTIFY_FACTS_MAX_BYTES: int(128, 4096),
 });
 
 /** Variables a deployed environment must set explicitly (no silent local defaults). */
@@ -1117,6 +1165,22 @@ export function loadServerConfig(options: LoadOptions): ServerConfig {
       commentRepliesInlineMax: c.COMMENT_REPLIES_INLINE_MAX,
       followersListMax: c.FOLLOWERS_LIST_MAX,
       reviewReviewersMax: c.REVIEW_REVIEWERS_MAX,
+      notifyFanoutRecipientsMax: c.NOTIFY_FANOUT_RECIPIENTS_MAX,
+      notifyDedupeWindowMinutes: c.NOTIFY_DEDUPE_WINDOW_MINUTES,
+      notifyDeliveryBatchMax: c.NOTIFY_DELIVERY_BATCH_MAX,
+      notifyDeliveryMaxAttempts: c.NOTIFY_DELIVERY_MAX_ATTEMPTS,
+      notifyRetryBaseSeconds: c.NOTIFY_RETRY_BASE_SECONDS,
+      notifyRetryMaxSeconds: c.NOTIFY_RETRY_MAX_SECONDS,
+      notifyDigestItemsMax: c.NOTIFY_DIGEST_ITEMS_MAX,
+      notifyEmailPerHourMax: c.NOTIFY_EMAIL_PER_HOUR_MAX,
+      notifyRetentionDays: c.NOTIFY_RETENTION_DAYS,
+      notifyPreferencesMax: c.NOTIFY_PREFERENCES_MAX,
+      notifyBrowserAckTtlMinutes: c.NOTIFY_BROWSER_ACK_TTL_MINUTES,
+      notifySearchQueryMax: c.NOTIFY_SEARCH_QUERY_MAX,
+      notifyDiscoveryMax: c.NOTIFY_DISCOVERY_MAX,
+      notifyBulkStateMax: c.NOTIFY_BULK_STATE_MAX,
+      notifyDeadlinesBatchMax: c.NOTIFY_DEADLINES_BATCH_MAX,
+      notifyFactsMaxBytes: c.NOTIFY_FACTS_MAX_BYTES,
     },
     identity: {
       publicOrigin,

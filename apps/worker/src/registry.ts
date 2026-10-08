@@ -1,4 +1,5 @@
 import type { JobHandler, OutboxConsumer, RecurringJob } from '@pm/platform';
+import type { Metrics } from '@pm/observability';
 import { ActivityProjector, AUDIT_SCHEDULES, auditJobHandlers, type AuditJobDeps } from '@pm/audit';
 import { IDENTITY_SCHEDULES, identityJobHandlers, type IdentityJobDeps } from '@pm/identity';
 import {
@@ -12,6 +13,12 @@ import {
 import { VIEWS_SCHEDULES, viewsCleanupHandler, type ViewsCleanupDeps } from '@pm/tenancy';
 import {
   recurrenceHandler,
+  NotificationFanOut,
+  NOTIFY_SCHEDULES,
+  notifyDispatchHandler,
+  type NotifyJobDeps,
+  DEFAULT_WORK_SETTINGS,
+  type WorkSettings,
   remindersHandler,
   PLANNING_SCHEDULES,
   blockSeriesHandler,
@@ -32,6 +39,7 @@ import {
  * 2D: recurring task generation (same job) and personal task reminders (deduplicated firing).
  * 3D: the timer guard (runaway timers stop at TIME_TIMER_MAX_HOURS, once).
  * 3C: day close (records for ended days) and recurring work blocks.
+ * 4B: the notification fan-out consumer and the dispatcher (deliveries, digests, deadlines, retention).
  */
 export interface WorkerModules {
   identity: IdentityJobDeps;
@@ -39,6 +47,7 @@ export interface WorkerModules {
   lifecycle: { executor: PurgeExecutor; scheduler: SchedulerDeps };
   views: ViewsCleanupDeps;
   work: RecurrenceJobDeps;
+  notify: NotifyJobDeps;
 }
 
 export function registeredHandlers(m: WorkerModules): JobHandler[] {
@@ -54,11 +63,27 @@ export function registeredHandlers(m: WorkerModules): JobHandler[] {
     timerGuardHandler(m.work),
     dayCloseHandler(m.work),
     blockSeriesHandler(m.work),
+    notifyDispatchHandler(m.notify),
   ];
 }
 
-export function registeredConsumers(): OutboxConsumer[] {
-  return [new ActivityProjector()];
+export function registeredConsumers(
+  settings: WorkSettings = DEFAULT_WORK_SETTINGS,
+  deps: { arrayMax: number; metrics?: Metrics } = { arrayMax: 10_000 },
+): OutboxConsumer[] {
+  return [
+    new ActivityProjector(),
+    new NotificationFanOut(
+      {
+        notifyFanoutRecipientsMax: settings.notifyFanoutRecipientsMax,
+        notifyDedupeWindowMinutes: settings.notifyDedupeWindowMinutes,
+        notifyEmailPerHourMax: settings.notifyEmailPerHourMax,
+        notifyFactsMaxBytes: settings.notifyFactsMaxBytes,
+        principalContextArrayMax: deps.arrayMax,
+      },
+      deps.metrics,
+    ),
+  ];
 }
 
 export function registeredSchedules(): RecurringJob[] {
@@ -70,5 +95,6 @@ export function registeredSchedules(): RecurringJob[] {
     ...WORK_SCHEDULES,
     ...TIME_SCHEDULES,
     ...PLANNING_SCHEDULES,
+    ...NOTIFY_SCHEDULES,
   ];
 }

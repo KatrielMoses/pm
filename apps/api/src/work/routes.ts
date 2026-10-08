@@ -1,6 +1,6 @@
 import type { FastifyInstance, FastifyRequest } from 'fastify';
 import { nonResourceEnvelope } from '@pm/contracts';
-import type { ReviewService } from '@pm/work';
+import type { NotificationService } from '@pm/work';
 import { routeKit } from '../route-kit.ts';
 import { registerCapture } from './capture-routes.ts';
 import { registerTaskInteraction } from './interaction-routes.ts';
@@ -14,7 +14,7 @@ import { registerViews } from './view-routes.ts';
 import { registerWorkflows } from './workflow-routes.ts';
 
 export interface WorkRouteDeps {
-  work: ReviewService;
+  work: NotificationService;
 }
 
 type Params = {

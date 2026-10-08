@@ -179,6 +179,22 @@ export class PlatformDiscovery {
     return rows.map((r) => r.workspace_id);
   }
 
+  /**
+   * Workspaces with notification work: deliveries due (or leases expired), digests waiting,
+   * notifications past retention, or open tasks near their due date (4B, ids only).
+   */
+  async discoverNotificationWork(
+    now: Date,
+    retentionBefore: Date,
+    limit: number,
+  ): Promise<string[]> {
+    const { rows } = await this.#pool.query<{ workspace_id: string }>(
+      'SELECT workspace_id FROM exec_dispatch.discover_notification_work($1, $2, $3)',
+      [now, retentionBefore, limit],
+    );
+    return rows.map((r) => r.workspace_id);
+  }
+
   /** Worker liveness (platform table, no tenant data). */
   async heartbeat(workerId: string, buildId: string, stopping = false): Promise<void> {
     await this.#pool.query(

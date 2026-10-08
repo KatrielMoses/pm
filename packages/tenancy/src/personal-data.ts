@@ -94,6 +94,22 @@ export async function eraseMembershipNavigation(
       .executeTakeFirst();
     n += Number(r.numDeletedRows);
   }
+  // 4B: a person's notifications, deliveries, digests, preferences, and profile leave with them
+  // (deliveries and digests reference notifications, so they go first).
+  for (const table of ['notify.delivery', 'notify.notification', 'notify.digest'] as const) {
+    const r = await tx.db
+      .deleteFrom(table)
+      .where('recipient_membership_id', '=', membershipId)
+      .executeTakeFirst();
+    n += Number(r.numDeletedRows);
+  }
+  for (const table of ['notify.preference', 'notify.profile'] as const) {
+    const r = await tx.db
+      .deleteFrom(table)
+      .where('membership_id', '=', membershipId)
+      .executeTakeFirst();
+    n += Number(r.numDeletedRows);
+  }
   return n;
 }
 
