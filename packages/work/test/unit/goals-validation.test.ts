@@ -93,7 +93,7 @@ describe('goal inputs (5B)', () => {
       issues(() =>
         parseGoalCreate({ title: 'x', period: Q4, metric: { baseline: 1e13, target: 5 } }),
       ),
-    ).toEqual(['/metric/baseline:invalid_number']);
+    ).toEqual(['/metric/baseline:invalid_number', '/metric:incomplete']);
     expect(
       issues(() => parseGoalCreate({ title: 'x', period: Q4, metric: { target: 5 } })),
     ).toEqual(['/metric:incomplete']);
