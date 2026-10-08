@@ -2297,9 +2297,108 @@ export interface NotificationScopeDefaultTable {
   updated_at: DTs;
   version: Defaulted<number>;
 }
+export type DocumentTypeKey =
+  | 'page'
+  | 'brand_brief'
+  | 'project_brief'
+  | 'sop'
+  | 'specification'
+  | 'meeting_notes'
+  | 'decision'
+  | 'release_notes';
+export interface DocumentTable {
+  id: string;
+  workspace_id: string;
+  brand_id: string | null;
+  scope_key: string;
+  lifecycle_state: Defaulted<'active' | 'archived' | 'trashed' | 'purged'>;
+  parent_document_id: string | null;
+  ancestor_ids: Defaulted<string[]>;
+  depth: Defaulted<number>;
+  attached_project_id: string | null;
+  attached_task_id: string | null;
+  doc_type: Defaulted<DocumentTypeKey>;
+  title: string;
+  state: Defaulted<'draft' | 'current' | 'stale'>;
+  owner_membership_id: string;
+  review_due_on: ColumnType<string | null, string | null | undefined, string | null>;
+  current_version_id: string | null;
+  current_version_number: Defaulted<number>;
+  rank: string;
+  created_by_membership_id: string;
+  created_at: DTs;
+  updated_at: DTs;
+  updated_by_membership_id: string | null;
+  version: Defaulted<number>;
+}
+export interface DocumentVersionTable {
+  id: string;
+  workspace_id: string;
+  document_id: string;
+  number: number;
+  title: string;
+  content: Json<Record<string, unknown>>;
+  content_hash: string;
+  size_bytes: number;
+  kind: 'save' | 'restore' | 'suggestion' | 'template';
+  restored_from_number: number | null;
+  template_key: string | null;
+  change_summary: ColumnType<Record<string, number>, string | undefined, string>;
+  created_by_membership_id: string;
+  created_at: DTs;
+}
+export interface DocumentReferenceTable {
+  id: string;
+  workspace_id: string;
+  document_id: string;
+  block_id: string;
+  position: Defaulted<number>;
+  kind: 'mention' | 'link';
+  target_kind: 'member' | 'team' | 'record';
+  target_membership_id: string | null;
+  target_team_id: string | null;
+  target_record_id: string | null;
+  target_record_type: 'task' | 'project' | 'brand' | 'document' | null;
+  created_at: DTs;
+}
+export type DocumentSuggestionState = 'open' | 'accepted' | 'rejected' | 'withdrawn' | 'stale';
+export interface DocumentSuggestionTable {
+  id: string;
+  public_id: string;
+  workspace_id: string;
+  document_id: string;
+  block_id: string;
+  base_version: number;
+  base_block_hash: string;
+  proposed: Json<Record<string, unknown>>;
+  note: string | null;
+  state: Defaulted<DocumentSuggestionState>;
+  author_membership_id: string;
+  decided_by_membership_id: string | null;
+  decided_at: Ts | null;
+  applied_version: number | null;
+  created_at: DTs;
+  updated_at: DTs;
+  version: Defaulted<number>;
+}
+export interface SourceApprovalTable {
+  id: string;
+  workspace_id: string;
+  document_id: string;
+  version_number: number;
+  kind: 'approved' | 'revoked';
+  actor_membership_id: string;
+  note: string | null;
+  created_at: DTs;
+}
 
 export interface Database {
   'notify.notification': NotificationTable;
+  'knowledge.document': DocumentTable;
+  'knowledge.document_version': DocumentVersionTable;
+  'knowledge.document_reference': DocumentReferenceTable;
+  'knowledge.document_suggestion': DocumentSuggestionTable;
+  'knowledge.source_approval': SourceApprovalTable;
   'notify.digest': DigestTable;
   'notify.delivery': DeliveryTable;
   'notify.preference': NotificationPreferenceTable;
@@ -3439,6 +3538,90 @@ export const TABLE_COLUMNS: Readonly<Record<keyof Database, readonly string[]>> 
     'actor_membership_id',
     'note_text',
     'occurred_at',
+  ],
+  'knowledge.document': [
+    'id',
+    'workspace_id',
+    'brand_id',
+    'scope_key',
+    'lifecycle_state',
+    'parent_document_id',
+    'ancestor_ids',
+    'depth',
+    'attached_project_id',
+    'attached_task_id',
+    'doc_type',
+    'title',
+    'state',
+    'owner_membership_id',
+    'review_due_on',
+    'current_version_id',
+    'current_version_number',
+    'rank',
+    'created_by_membership_id',
+    'created_at',
+    'updated_at',
+    'updated_by_membership_id',
+    'version',
+  ],
+  'knowledge.document_version': [
+    'id',
+    'workspace_id',
+    'document_id',
+    'number',
+    'title',
+    'content',
+    'content_hash',
+    'size_bytes',
+    'kind',
+    'restored_from_number',
+    'template_key',
+    'change_summary',
+    'created_by_membership_id',
+    'created_at',
+  ],
+  'knowledge.document_reference': [
+    'id',
+    'workspace_id',
+    'document_id',
+    'block_id',
+    'position',
+    'kind',
+    'target_kind',
+    'target_membership_id',
+    'target_team_id',
+    'target_record_id',
+    'target_record_type',
+    'created_at',
+  ],
+  'knowledge.document_suggestion': [
+    'id',
+    'public_id',
+    'workspace_id',
+    'document_id',
+    'block_id',
+    'base_version',
+    'base_block_hash',
+    'proposed',
+    'note',
+    'state',
+    'author_membership_id',
+    'decided_by_membership_id',
+    'decided_at',
+    'applied_version',
+    'created_at',
+    'updated_at',
+    'version',
+  ],
+  'knowledge.source_approval': [
+    'id',
+    'workspace_id',
+    'document_id',
+    'version_number',
+    'kind',
+    'actor_membership_id',
+    'note',
+    'created_at',
   ],
   'notify.notification': [
     'id',

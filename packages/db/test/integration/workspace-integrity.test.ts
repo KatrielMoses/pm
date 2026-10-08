@@ -243,6 +243,12 @@ describe('database-enforced workspace existence (1A review 01, correction 2)', (
       'notify.preference',
       'notify.profile',
       'notify.scope_default',
+      // Phase 4C documents, versions, references, suggestions, and source approvals.
+      'knowledge.document',
+      'knowledge.document_reference',
+      'knowledge.document_suggestion',
+      'knowledge.document_version',
+      'knowledge.source_approval',
     ];
     expect(res.rows.map((r) => r.tbl).sort()).toEqual(
       [...TENANT_TABLES.map((t) => `exec.${t}`), ...phase1f, ...phase1c].sort(),
@@ -272,7 +278,7 @@ describe('database-enforced workspace existence (1A review 01, correction 2)', (
             AND i.indkey::int2[] @> c.confkey AND i.indkey::int2[] <@ c.confkey
         ) AS referenced_unique
       FROM pg_constraint c JOIN pg_namespace n ON n.oid = c.connamespace
-      WHERE c.contype = 'f' AND n.nspname IN ('exec', 'tenancy', 'access', 'ops', 'views', 'workflow', 'work', 'relations', 'templates', 'planning', 'capture', 'timetrack', 'collab', 'notify')
+      WHERE c.contype = 'f' AND n.nspname IN ('exec', 'tenancy', 'access', 'ops', 'views', 'workflow', 'work', 'relations', 'templates', 'planning', 'capture', 'timetrack', 'collab', 'notify', 'knowledge')
       ORDER BY 1`);
     // exec: 7 workspace keys + 6 composite same-workspace keys; 1C tenancy/access: 20 keys;
     // 1D collaboration (teams, invitations, policy, shares, ownership transfer): 38 keys;
@@ -289,8 +295,9 @@ describe('database-enforced workspace existence (1A review 01, correction 2)', (
     // 3E capacity profiles (2), working windows (1), time off (2), holidays (3), reservations (4): +12;
     // 4A comments (6), revisions (3), reactions (3), mentions (5), followers (3), review requests (4),
     // reviewers (3), decisions (2), assignment events (5), and the delegated assignee (1): +35;
-    // 4B notifications, digests, deliveries, preferences, profiles, and scope defaults: +19.
-    expect(res.rows.length).toBe(379);
+    // 4B notifications, digests, deliveries, preferences, profiles, and scope defaults: +19;
+    // 4C documents (10), versions (3), references (5), suggestions (4), source approvals (3): +25.
+    expect(res.rows.length).toBe(404);
     for (const r of res.rows)
       expect(r, `${r.tbl}.${r.conname}`).toMatchObject({
         referencing_indexed: true,

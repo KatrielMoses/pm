@@ -143,6 +143,12 @@ const PHASE_1C_TENANT_TABLES = [
   'notify.preference',
   'notify.profile',
   'notify.scope_default',
+  // Phase 4C documents, versions, references, suggestions, and source approvals.
+  'knowledge.document',
+  'knowledge.document_version',
+  'knowledge.document_reference',
+  'knowledge.document_suggestion',
+  'knowledge.source_approval',
 ] as const;
 
 /** Seeds one row in every tenant execution table for a workspace. */
