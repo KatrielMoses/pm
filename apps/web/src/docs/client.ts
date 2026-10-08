@@ -155,7 +155,7 @@ export interface Doc {
   references: References;
   links: LinkEntry[];
   links_restricted: number;
-  ai_source: { approved: boolean; version: number | null; at: string | null; by: string | null };
+  ai_source: { approved: boolean; version: number | null; at: string | null; by: { id: string; name: string } | null };
   created_at: string;
   updated_at: string;
   capabilities: DocCapabilities;

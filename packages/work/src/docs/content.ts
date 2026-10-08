@@ -117,6 +117,7 @@ export const DEFAULT_CONTENT_LIMITS: ContentLimits = Object.freeze({
 
 const BLOCK_ID = /^[A-Za-z0-9_-]{4,64}$/;
 const LANGUAGE = /^[a-z0-9+#._-]{1,32}$/;
+// eslint-disable-next-line no-control-regex
 const CONTROL = /[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/;
 const ID_ALPHABET = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
 

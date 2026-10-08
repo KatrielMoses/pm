@@ -38,7 +38,7 @@ describe('Documents with notifications, isolation, and concurrency (4C)', () => 
   let drain: () => Promise<void>;
   const pub: Record<string, string> = {};
   const mem = async (c: Caller) => (await membershipOf(db, wsId, c.auth.account.id))!.public_id;
-  const sql = async (text: string) => (await db.admin(text)).rows as Array<Record<string, any>>; // eslint-disable-line @typescript-eslint/no-explicit-any
+  const sql = async (text: string) => (await db.admin(text)).rows as Array<Record<string, any>>;
 
   beforeAll(async () => {
     db = await createTestDatabase();

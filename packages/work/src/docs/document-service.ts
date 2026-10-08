@@ -18,7 +18,6 @@ import {
   type Principal,
 } from '@pm/tenancy';
 import { bumpEpoch } from '@pm/tenancy';
-import { isPublic } from '../validation.ts';
 import {
   DOC_REF_PREFIX,
   changeSummary,
@@ -910,24 +909,44 @@ export class DocumentService extends DocumentCore {
           if (fresh.some((r) => r.kind === 'document' && r.id === d.publicId))
             throw invalid(issue('/records', 'not_linkable', "A document can't link to itself."));
           await this.checkNewRefs(tx, p, d, fresh, 'none');
-          await tx.db
-            .deleteFrom('knowledge.document_reference')
-            .where('document_id', '=', d.id)
-            .where('kind', '=', 'link')
-            .execute();
-          if (refs.length) {
+          // The set is replaced as the viewer sees it: links to what they cannot read stay as they are.
+          const ws0 = await this.workspacePublicId(tx);
+          const visible = await this.docRefs(
+            tx,
+            p,
+            ws0,
+            priorLinks.map((r) => ({ kind: r.target_record_type as Ref['kind'], id: r.public_id })),
+          );
+          const keep = new Set(
+            priorLinks
+              .filter((r) => !visible[`${r.target_record_type}:${r.public_id}`])
+              .map((r) => `${r.target_record_type}:${r.public_id}`),
+          );
+          const gone = priorLinks
+            .filter((r) => visible[`${r.target_record_type}:${r.public_id}`])
+            .map((r) => r.public_id);
+          if (gone.length)
+            await sql`DELETE FROM knowledge.document_reference ref USING core.record r
+                       WHERE r.workspace_id = ref.workspace_id AND r.id = ref.target_record_id
+                         AND ref.document_id = ${d.id} AND ref.kind = 'link' AND r.public_id = ANY(${gone}::text[])`.execute(
+              tx.db,
+            );
+          const wanted = refs.filter((r) => !keep.has(`${r.kind}:${r.id}`));
+          if (keep.size + wanted.length > this.ws.documentReferencesMax)
+            throw invalid(issue('/records', 'too_many', `Link at most ${this.ws.documentReferencesMax} records.`));
+          if (wanted.length) {
             const ids = new Map(
               (
                 await tx.db
                   .selectFrom('core.record')
                   .select(['id', 'public_id', 'record_type'])
-                  .where('public_id', 'in', refs.map((r) => r.id))
+                  .where('public_id', 'in', wanted.map((r) => r.id))
                   .where('lifecycle_state', 'in', ['active', 'archived'])
                   .execute()
               ).map((r) => [r.public_id, r]),
             );
-            let position = 0;
-            for (const r of refs) {
+            let position = keep.size;
+            for (const r of wanted) {
               const row = ids.get(r.id);
               if (!row) continue;
               await tx.db

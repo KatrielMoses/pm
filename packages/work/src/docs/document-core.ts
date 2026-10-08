@@ -340,6 +340,16 @@ export class DocumentCore extends NotificationService {
     }
   }
 
+  protected docLifeAllows(p: Principal, action: ActionKey, d: LoadedDocument): boolean {
+    try {
+      this.requireDocAction(p, action, d, { shares: false, lifecycleState: 'active' });
+      return true;
+    } catch (err) {
+      if (err instanceof TenancyError) return false;
+      throw err;
+    }
+  }
+
   protected requireDocActive(d: LoadedDocument): void {
     if (d.lifecycleState !== 'active')
       throw new TenancyError('conflict', {
@@ -579,8 +589,11 @@ export class DocumentCore extends NotificationService {
       assign_owner: active && own && this.docAllows(p, 'record.assign', d, { shares: false }),
       create_page: active && own && this.docAllows(p, 'record.create', d, { shares: false }),
       move: active && own && this.docAllows(p, 'record.update', d, { shares: false }),
-      archive: own && this.docAllows(p, 'record.archive', d, { shares: false }),
-      trash: own && this.docAllows(p, 'record.trash', d, { shares: false }),
+      // Lifecycle actions are decided on the live record's authority, so an archived document can
+      // still be unarchived or trashed by the people who could have archived it.
+      archive: own && active && this.docLifeAllows(p, 'record.archive', d),
+      unarchive: own && d.lifecycleState === 'archived' && this.docLifeAllows(p, 'record.restore', d),
+      trash: own && this.docLifeAllows(p, 'record.trash', d),
       share: own && this.docAllows(p, 'record.share', d, { shares: false }),
       export: this.docAllows(p, 'record.export', d),
       request_review: own && active && this.docAllows(p, 'review.request', d, { shares: false }),

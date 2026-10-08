@@ -38,6 +38,8 @@ import { Announce, Banner } from '../ui/feedback.tsx';
 import { ErrorSummary, Field, SelectField, SubmitButton, TextAreaField } from '../ui/form.tsx';
 import { Page } from '../ui/layout.tsx';
 import { WorkTimePanel } from './time-pages.tsx';
+import { DocumentsSection } from '../docs/sections.tsx';
+import { MentionedInDocuments } from '../docs/panels.tsx';
 import { TaskPlanPanel } from './today-pages.tsx';
 import { ReviewedChange } from './people-pages.tsx';
 import { RecurrenceEditor, richTextHash, StatusBadge, useCommand } from './project-pages.tsx';
@@ -70,7 +72,6 @@ const DELIVERABLE_LABEL: Record<string, string> = {
 };
 const UNAVAILABLE: Record<string, string> = {
   files: 'Files (4E)',
-  documents: 'Documents (4C)',
   external_records: 'External records (6A)',
   agents: 'Agents (8B)',
 };
@@ -868,6 +869,18 @@ function TaskBody({
       {task.lifecycle_state !== 'trashed' ? (
         <WorkTimePanel ws={ws} target={task.id} canLog={!!caps.log_time} version={task.version} />
       ) : null}
+      {task.lifecycle_state !== 'trashed' && !task.shared_only ? (
+        <>
+          <DocumentsSection
+            ws={ws}
+            task={task.id}
+            noun="task"
+            canCreate={task.lifecycle_state === 'active'}
+            headingId="task-docs-h"
+          />
+          <MentionedInDocuments ws={ws} rec={task.id} headingId="task-mentioned-h" />
+        </>
+      ) : null}
       {task.lifecycle_state !== 'trashed' ? (
         <CollaborationSections
           ws={ws}
@@ -879,14 +892,18 @@ function TaskBody({
           onRecordChanged={reload}
         />
       ) : null}
-      <section className="card" aria-labelledby="later-heading">
-        <h2 id="later-heading">Not available yet</h2>
-        <ul>
-          {detail.unavailable.map((u) => (
-            <li key={u}>{UNAVAILABLE[u] ?? u} isn't available yet.</li>
-          ))}
-        </ul>
-      </section>
+      {detail.unavailable.some((u) => u !== 'documents') ? (
+        <section className="card" aria-labelledby="later-heading">
+          <h2 id="later-heading">Not available yet</h2>
+          <ul>
+            {detail.unavailable
+              .filter((u) => u !== 'documents')
+              .map((u) => (
+                <li key={u}>{UNAVAILABLE[u] ?? u} isn't available yet.</li>
+              ))}
+          </ul>
+        </section>
+      ) : null}
       {caps.history ? <HistorySection ws={ws} task={task} /> : null}
       {!task.shared_only ? <TaskManageSection ws={ws} task={task} reload={reload} /> : null}
     </>

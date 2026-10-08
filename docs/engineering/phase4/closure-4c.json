@@ -34,6 +34,14 @@
         {
           "file": "apps/api/test/integration/documents-api.test.ts",
           "contains": "creates, reads, edits metadata with If-Match, and replays idempotently"
+        },
+        {
+          "file": "apps/web/test/documents.test.tsx",
+          "contains": "renders every block semantically, with text labels and safe links"
+        },
+        {
+          "file": "e2e/documents.spec.ts",
+          "contains": "write with every block, conflict, restore, suggest, review, link, export, archive, and trash"
         }
       ],
       "note": "Rich-text documents: blocks with stable identifiers, validated, normalized, and hashed; created, read, and edited through the compiled level."
@@ -54,6 +62,14 @@
         {
           "file": "packages/work/test/integration/documents.test.ts",
           "contains": "nests pages, moves and reorders them, and refuses cycles, depth, and moves between places"
+        },
+        {
+          "file": "apps/web/test/documents.test.tsx",
+          "contains": "lists children in order and moves one up or down with the location call"
+        },
+        {
+          "file": "apps/web/test/documents.test.tsx",
+          "contains": "shows the Workspace group, loads children only when a page is opened, and is a real tree"
         }
       ],
       "note": "Nested pages: a tree with bounded depth, breadth, and size, no cycles, and a page that lives in its parent's scope and attachment."
@@ -78,6 +94,14 @@
         {
           "file": "packages/work/test/integration/documents.test.ts",
           "contains": "decides every read and write through the placement: owners, members, read-only, outsiders, shares, and strangers"
+        },
+        {
+          "file": "apps/web/test/documents.test.tsx",
+          "contains": "asks which brand owns a new page when there is more than one, and never guesses"
+        },
+        {
+          "file": "apps/web/test/documents.test.tsx",
+          "contains": "lists the documents of a project and creates one attached to it"
         }
       ],
       "note": "Documents belong to the workspace, a brand, a project, or a task, and inherit that placement's access."
@@ -190,6 +214,10 @@
         {
           "file": "apps/api/test/integration/documents-api.test.ts",
           "contains": "saves content against the version loaded, conflicts on a stale one, lists versions, and restores"
+        },
+        {
+          "file": "apps/web/test/documents.test.tsx",
+          "contains": "Mentioned in documents shows title and type only, and an empty state that says nothing is linked"
         }
       ],
       "note": "Documents link to tasks, projects, brands, and documents through registered references, with backlinks that list only what the viewer can read. Goals, agents, and external records register when 5B, 8B, and 6A create them.",
@@ -228,6 +256,14 @@
         {
           "file": "packages/work/test/unit/docs-content.test.ts",
           "contains": "carries references without any label and lists each target once"
+        },
+        {
+          "file": "apps/web/test/documents.test.tsx",
+          "contains": "shows restricted and unresolved references as a neutral token with no identifier in the page"
+        },
+        {
+          "file": "apps/web/test/documents.test.tsx",
+          "contains": "searches, moves with the arrow keys, and writes the reference token on Enter"
         }
       ],
       "note": "Mentions of people, teams, tasks, projects, brands, and documents inside documents, checked when saved and re-checked for every viewer when shown."
@@ -248,6 +284,10 @@
         {
           "file": "packages/work/test/unit/docs-content.test.ts",
           "contains": "writes Markdown, escapes markup, and says what it could not carry"
+        },
+        {
+          "file": "apps/web/test/documents.test.tsx",
+          "contains": "edits a checklist, a table, code and a link card with native controls"
         }
       ],
       "note": "Code blocks, tables, checklists, callouts, links, and image and video embeds (as link cards: nothing is fetched). Files, uploads, and previews belong to 4E, so a file embed is refused with `unsupported_embed`.",
@@ -282,6 +322,14 @@
         {
           "file": "packages/work/test/integration/documents.test.ts",
           "contains": "goes stale, with nothing applied, when the block changed since; rejects and withdraws without touching content"
+        },
+        {
+          "file": "apps/web/test/documents.test.tsx",
+          "contains": "a commenter suggests a change to a block from the read-only page"
+        },
+        {
+          "file": "apps/web/test/documents.test.tsx",
+          "contains": "says a stale suggestion changed nothing, and withdraw is only for the author"
         }
       ],
       "note": "Comments through the 4A host (document-level; anchored comments arrive with 4D) and block suggestions that apply only to an unchanged block."
@@ -306,6 +354,10 @@
         {
           "file": "apps/api/test/integration/documents-api.test.ts",
           "contains": "saves content against the version loaded, conflicts on a stale one, lists versions, and restores"
+        },
+        {
+          "file": "apps/web/test/documents.test.tsx",
+          "contains": "lists versions with who, kind, summary, and the Current and AI source markers, and loads more"
         }
       ],
       "note": "Version history: immutable versions with author, kind, change summary, and hash; any version can be read."
@@ -326,6 +378,10 @@
         {
           "file": "apps/api/test/integration/documents-api.test.ts",
           "contains": "saves content against the version loaded, conflicts on a stale one, lists versions, and restores"
+        },
+        {
+          "file": "apps/web/test/documents.test.tsx",
+          "contains": "opens a version read-only and restores it: a new version, nothing deleted"
         }
       ],
       "note": "Restoration appends a new version holding the chosen content; history is never rewritten."
@@ -350,6 +406,10 @@
         {
           "file": "packages/work/test/unit/docs-content.test.ts",
           "contains": "derives staleness from the review date without rewriting the state"
+        },
+        {
+          "file": "apps/web/test/documents.test.tsx",
+          "contains": "shows state, review overdue and approved AI source as separate text badges"
         }
       ],
       "note": "Draft, current, and stale (stored), archived through the lifecycle; a current document past its review date is reported stale, never silently rewritten."
@@ -370,6 +430,10 @@
         {
           "file": "packages/work/test/integration/documents.test.ts",
           "contains": "moves a departing owner’s documents to the member chosen in the departure plan"
+        },
+        {
+          "file": "apps/web/test/documents.test.tsx",
+          "contains": "sends only what changed with the row version as If-Match"
         }
       ],
       "note": "An owner (an active member who can edit) and a review date, changed with optimistic concurrency; a departing owner's documents move to the chosen member."
@@ -414,6 +478,10 @@
         {
           "file": "apps/api/test/integration/documents-api.test.ts",
           "contains": "suggests, decides, and approves an AI source, and exports"
+        },
+        {
+          "file": "apps/web/test/documents.test.tsx",
+          "contains": "exports Markdown and downloads exactly what the server returned, with the notes"
         }
       ],
       "note": "Export to Markdown and HTML (OD-32): bounded, authorized, audited by counts, honest about embeds and restricted references. PDF files belong to 6D; the HTML export prints to PDF from a browser.",

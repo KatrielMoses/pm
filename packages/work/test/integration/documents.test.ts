@@ -1,6 +1,5 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { createTestDatabase, type TestDatabase } from '@pm/test-support/vitest';
-import { measureClasses, statementShape } from '@pm/test-support';
 import { productLifecycleRegistry } from '@pm/work';
 import type { Caller } from '@pm/tenancy';
 import {
@@ -43,7 +42,7 @@ describe('Documents and knowledge (4C)', () => {
   const pub: Record<string, string> = {};
 
   const mem = async (c: Caller) => (await membershipOf(db, wsId, c.auth.account.id))!.public_id;
-  const sql = async (text: string) => (await db.admin(text)).rows as Array<Record<string, any>>; // eslint-disable-line @typescript-eslint/no-explicit-any
+  const sql = async (text: string) => (await db.admin(text)).rows as Array<Record<string, any>>;
   const make = async (as: Caller, body: Record<string, unknown>) =>
     (await env.svc.createDocument(as, ws, body, mutation())).data;
   const save = async (
@@ -460,7 +459,6 @@ describe('Documents and knowledge (4C)', () => {
       grantee: pub.commenter!,
       level: 'comment',
     });
-    commenter = commenter;
     guest = await join(env, db, owner, ws, {
       kind: 'guest',
       records: [{ record: d.id, level: 'comment' }],
@@ -740,6 +738,48 @@ describe('Documents and knowledge (4C)', () => {
       expect((await env.svc.backlinks(editor, ws, target.id, {})).data.map((x) => x.title)).toEqual(
         ['Mentions it'],
       );
+    });
+
+    it('replaces the links a viewer can see and keeps the ones they cannot', async () => {
+      const secret = (
+        await env.svc.createTask(
+          owner,
+          ws,
+          { brand: brands.Summit, title: 'Unseen link' },
+          mutation(),
+        )
+      ).data;
+      const seen = (
+        await env.svc.createTask(
+          owner,
+          ws,
+          { brand: brands.Harbor, title: 'Seen link' },
+          mutation(),
+        )
+      ).data;
+      const d = await make(owner, { title: 'Mixed links', brand: brands.Harbor, starter: false });
+      const first = (
+        await env.svc.setLinks(
+          owner,
+          ws,
+          d.id,
+          { records: [secret.id, seen.id] },
+          ifMatch(d.version),
+        )
+      ).data;
+      expect(first.links_restricted).toBe(0);
+      const asEditor = await env.svc.getDocument(editor, ws, d.id);
+      expect(asEditor.links.map((l) => l.id)).toEqual([seen.id]);
+      expect(asEditor.links_restricted).toBe(1);
+      // The editor clears the links they can see; the one they cannot see stays.
+      const cleared = (
+        await env.svc.setLinks(editor, ws, d.id, { records: [] }, ifMatch(asEditor.version))
+      ).data;
+      expect(cleared.links).toEqual([]);
+      expect(cleared.links_restricted).toBe(1);
+      expect((await env.svc.getDocument(owner, ws, d.id)).links.map((l) => l.id)).toEqual([
+        secret.id,
+      ]);
     });
 
     it('comments, follows, and reviews work on a document through the collaboration host', async () => {
