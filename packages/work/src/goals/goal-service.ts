@@ -1515,9 +1515,8 @@ export class GoalService extends GoalCore {
           const publicId = newPublicId('gci');
           // Taken after the goal's lock, so check-ins order by when they were recorded, not by when
           // their transactions began (the history and the latest pointer always agree).
-          const at = (
-            await sql<{ t: Date }>`SELECT clock_timestamp() AS t`.execute(tx.db)
-          ).rows[0]!.t;
+          const at = (await sql<{ t: Date }>`SELECT clock_timestamp() AS t`.execute(tx.db)).rows[0]!
+            .t;
           await tx.db
             .insertInto('goals.goal_checkin')
             .values({

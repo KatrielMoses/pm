@@ -152,3 +152,7 @@ Counters `files.requests` (op: the service operation; outcome: `ok` or an error 
 ## Live editing (4D)
 
 The counter `knowledge.live` (action: `join`, `ops`, `poll`, `heartbeat`, `checkpoint`, or `leave`; outcome: `ok` or an error code such as `live_capacity`, `session_expired`, or `not_found`). Operations, cursors, and heartbeats are never audited and never logged with content; the audit trail records only the checkpoint's version (`document.saved`, with the contributor count and the reason it was saved). A rising `live_capacity` or `session_expired` rate is the signal that the limits in `LIVE_*` need attention.
+
+## Goals and portfolios (5B)
+
+Counters `goals.reads` (view: the read, such as goal, list, check-ins, overview, dependencies, orphans, or export; outcome: `ok` or an error code), `goals.changes` (kind: the command; outcome), and `goals.jobs` (kind: `recalculate`; outcome), plus the shared `tenancy.authz_decisions`. Goal titles, descriptions, notes, owner names, and project or task names never appear in a metric label, a log line, or an event: events carry enums and counts (scope, period kind, basis, source, confidence, days stale, member count), and the audit trail stores content hashes for titles, descriptions, and notes. Exports are audited (`goals.exported`, `portfolio.exported`, with the row count and format) and raise a security event of category export. A goal whose recalculation keeps failing is reported `failing` to people who read it and counts as `goals.jobs` outcome `failed`; its stored error is a short code, never a message.
