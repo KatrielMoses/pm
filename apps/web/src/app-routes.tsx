@@ -13,6 +13,7 @@ import {
   VerifyEmailPage,
 } from './pages/auth-pages.tsx';
 import { DocumentPage } from './pages/document-pages.tsx';
+import { SearchPage } from './pages/search-pages.tsx';
 import { KnowledgePage } from './pages/knowledge-pages.tsx';
 import { NotificationCentrePage, NotificationSettingsPage } from './pages/notify-pages.tsx';
 import { LifecycleHarnessPage } from './pages/harness.tsx';
@@ -121,6 +122,7 @@ export const ROUTE_COMPONENTS: Record<string, Render> = {
   goals: destination('goals'),
   reports: destination('reports'),
   shared: (p) => <SharedWithMePage key={p.ws} ws={p.ws!} />,
+  search: (p) => <SearchPage key={p.ws} ws={p.ws!} />,
   views: (p) => <SavedViewsPage key={p.ws} ws={p.ws!} />,
   view: (p) => <SavedViewPage key={p.view} ws={p.ws!} view={p.view!} />,
   favorites: (p) => <FavoritesPage key={p.ws} ws={p.ws!} />,

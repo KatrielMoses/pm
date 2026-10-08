@@ -3,6 +3,8 @@ import { SHELL_COMMAND_IDS, type ShellCommandId } from '@pm/contracts/shell';
 import { useRouter } from '../router.tsx';
 import { Dialog } from '../ui/dialog.tsx';
 import { BrandMarker } from './brand-marker.tsx';
+import { searchApi, type RecentSearch, type SearchResult } from '../search/client.ts';
+import { EMPTY_QUERY, kindLabel, recentQuery, resultHref, searchHref } from '../search/params.ts';
 import { shell, type NavTarget } from './client.ts';
 import { useCommands, type Command } from './commands.tsx';
 import { shortcutLabel } from './shortcuts.ts';
@@ -12,18 +14,25 @@ import { useWidthClass } from './width.ts';
 import { useWorkspaceShell } from './workspace.tsx';
 
 /**
- * Command palette (RS-11, IA-11). Groups in order: Actions, Go to, Records, Recent. Typing `>`
- * first restricts to actions. Every entry comes from the permission-filtered command registry or
- * from server lists re-authorized for this viewer, so unavailable items are absent. Records are
- * only the currently implemented navigable types; full search is Phase 5A. On Compact the palette
- * is a full-screen sheet that owns a history entry, so the system Back gesture closes it (RS-21).
+ * Command palette (RS-11, IA-11). Groups in order: Actions, Go to, Records, Search, Recent, and
+ * Recent searches (shown before anything is typed). Typing `>` first restricts to actions. Every
+ * entry comes from the permission-filtered command registry or from server lists re-authorized for
+ * this viewer, so unavailable items are absent. Records are the navigable types; Search adds the
+ * permission-aware full-text results (5A) and always offers the full search page for the term.
+ * Typing never remembers anything: only choosing "Search everywhere" submits (and remembers) a
+ * search. On Compact the palette is a full-screen sheet that owns a history entry, so the system
+ * Back gesture closes it (RS-21).
  */
 
 type Option =
   | { key: string; group: 'Actions' | 'Go to'; command: Command }
-  | { key: string; group: 'Records' | 'Recent'; target: NavTarget; href: string };
+  | { key: string; group: 'Records' | 'Recent'; target: NavTarget; href: string }
+  | { key: string; group: 'Search'; everywhere: string; href: string }
+  | { key: string; group: 'Search'; result: SearchResult; href: string }
+  | { key: string; group: 'Recent searches'; recent: RecentSearch; href: string };
 
 const GROUP_LIMIT = 8;
+const SEARCH_LIMIT = 6;
 
 function matches(text: string, term: string): boolean {
   return text.toLowerCase().includes(term);
@@ -41,6 +50,11 @@ export function CommandPalette() {
     term: '',
     records: [],
   });
+  const [searched, setSearched] = useState<{ term: string; results: SearchResult[] }>({
+    term: '',
+    results: [],
+  });
+  const [recentSearches, setRecentSearches] = useState<RecentSearch[]>([]);
   const id = useId();
   const listRef = useRef<HTMLDivElement>(null);
   const actionsOnly = input.startsWith('>');
@@ -77,22 +91,46 @@ export function CommandPalette() {
   useEffect(() => {
     if (!lookup || !ws) return;
     let live = true;
+    const controller = new AbortController();
     const t = setTimeout(() => {
       shell.targets(ws.ws, term).then(
         (r) => live && setFound({ term, records: r }),
         () => live && setFound({ term, records: [] }),
       );
+      // The permission-aware full-text lookup (5A): a few results across every searchable kind.
+      searchApi.query(ws.ws, { ...EMPTY_QUERY, q: term }, controller.signal, SEARCH_LIMIT).then(
+        (r) => live && setSearched({ term, results: r.results }),
+        () => live && setSearched({ term, results: [] }),
+      );
     }, 200);
     return () => {
       live = false;
+      controller.abort();
       clearTimeout(t);
     };
   }, [ws, lookup, term]);
+  // Recent searches are offered before anything is typed.
+  const wsId = ws?.context ? ws.ws : null;
+  useEffect(() => {
+    if (!wsId) return;
+    let live = true;
+    searchApi.recent(wsId).then(
+      (r) => live && setRecentSearches(r.slice(0, GROUP_LIMIT)),
+      () => undefined,
+    );
+    return () => {
+      live = false;
+    };
+  }, [wsId]);
   const records = useMemo(
     () => (lookup && found.term === term ? found.records : []),
     [lookup, found, term],
   );
-  const searching = lookup && found.term !== term;
+  const searching = lookup && (found.term !== term || searched.term !== term);
+  const hits = useMemo(
+    () => (lookup && searched.term === term ? searched.results : []),
+    [lookup, searched, term],
+  );
 
   const options = useMemo<Option[]>(() => {
     const out: Option[] = [];
@@ -111,13 +149,34 @@ export function CommandPalette() {
     if (ws) {
       for (const r of records.slice(0, GROUP_LIMIT))
         out.push({ key: `rec:${r.id}`, group: 'Records', target: r, href: targetHref(ws.ws, r) });
+      if (term) {
+        out.push({
+          key: 'search:all',
+          group: 'Search',
+          everywhere: term,
+          href: searchHref(ws.ws, { q: input.trim() }),
+        });
+        for (const r of hits) {
+          if (records.some((x) => x.id === r.id)) continue;
+          const href = resultHref(ws.ws, r);
+          if (href) out.push({ key: `hit:${r.type}:${r.id}`, group: 'Search', result: r, href });
+        }
+      }
       for (const r of ws.recent
         .filter((x) => !term || matches(x.label, term))
         .slice(0, GROUP_LIMIT))
         out.push({ key: `recent:${r.id}`, group: 'Recent', target: r, href: targetHref(ws.ws, r) });
+      if (!term)
+        for (const r of recentSearches)
+          out.push({
+            key: `rs:${r.handle}`,
+            group: 'Recent searches',
+            recent: r,
+            href: searchHref(ws.ws, recentQuery(r.q, r.filters)),
+          });
     }
     return out;
-  }, [commands, term, actionsOnly, records, ws]);
+  }, [commands, term, input, actionsOnly, records, hits, recentSearches, ws]);
 
   const current = options[Math.min(active, options.length - 1)];
 
@@ -143,6 +202,9 @@ export function CommandPalette() {
     }
     if (e && (e.metaKey || e.ctrlKey || e.shiftKey || e.button === 1)) return; // browser opens a tab
     e?.preventDefault();
+    // Choosing the full search submits it: this is the only place the palette remembers one.
+    if ('everywhere' in o && ws)
+      void searchApi.remember(ws.ws, { ...EMPTY_QUERY, q: input.trim() }).catch(() => undefined);
     go(o.href);
   };
 
@@ -151,7 +213,7 @@ export function CommandPalette() {
     el?.scrollIntoView?.({ block: 'nearest' });
   }, [current, id]);
 
-  const groups = ['Actions', 'Go to', 'Records', 'Recent'] as const;
+  const groups = ['Actions', 'Go to', 'Records', 'Search', 'Recent', 'Recent searches'] as const;
   return (
     <Dialog title="Command palette" onClose={close}>
       <div className={compact ? 'palette palette-sheet' : 'palette'}>
@@ -253,6 +315,46 @@ export function CommandPalette() {
                       >
                         {body}
                       </div>
+                    );
+                  }
+                  if ('everywhere' in o || 'result' in o || 'recent' in o) {
+                    return (
+                      <a
+                        key={o.key}
+                        id={`${id}-${o.key}`}
+                        role="option"
+                        aria-selected={selected}
+                        href={o.href}
+                        tabIndex={-1}
+                        className="palette-option"
+                        onMouseMove={() => setActive(options.indexOf(o))}
+                        onClick={(e) => run(o, e)}
+                      >
+                        {'everywhere' in o ? (
+                          <>
+                            <span className="palette-label">
+                              Search everywhere for “{o.everywhere}”
+                            </span>
+                            <span className="palette-meta">Full search</span>
+                          </>
+                        ) : 'result' in o ? (
+                          <>
+                            <BrandMarker
+                              marker={o.result.brand}
+                              variant="tile"
+                              size={16}
+                              decorative
+                            />
+                            <span className="palette-label">{o.result.title}</span>
+                            <span className="palette-meta">{kindLabel(o.result.type)}</span>
+                          </>
+                        ) : (
+                          <>
+                            <span className="palette-label">{o.recent.q}</span>
+                            <span className="palette-meta">Recent search</span>
+                          </>
+                        )}
+                      </a>
                     );
                   }
                   return (
