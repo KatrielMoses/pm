@@ -1,7 +1,6 @@
 import { newPublicId, newUuidV7 } from '@pm/contracts';
 import {
   sql,
-  type PlatformDatabase,
   type PlatformDiscovery,
   type TenantDatabase,
   type WorkspaceTransaction,
@@ -41,7 +40,6 @@ export const NOTIFY_SCHEDULES: readonly RecurringJob[] = [
 
 export interface NotifyJobDeps {
   tenant: TenantDatabase;
-  platform: PlatformDatabase;
   discovery: PlatformDiscovery;
   email: EmailProvider;
   /** The public origin links point at. */
@@ -108,7 +106,7 @@ export async function runNotifyWorkspace(
   if (d.email.state === 'unconfigured') await suppressUnconfigured(workspaceId, d, now);
   else {
     const ids = await claim(workspaceId, d, s, now);
-    for (const id of ids) await sendOne(workspaceId, id, d, s);
+    for (const id of ids) await sendOne(workspaceId, id, d, s, now);
   }
 }
 
@@ -630,8 +628,8 @@ async function sendOne(
   deliveryId: string,
   d: NotifyJobDeps,
   s: WorkSettings,
+  now: Date,
 ): Promise<void> {
-  const now = new Date();
   const prepared = await d.tenant.withWorkspace(workspaceId, { module: 'work' }, (tx) =>
     prepare(tx, d, s, deliveryId, now),
   );
@@ -672,15 +670,16 @@ async function sendOne(
       d.metrics.count('notify.deliveries', 1, { channel: 'email', outcome: 'deferred' });
     });
 
-  // The address lives in the platform directory; it is read only now and never stored here.
+  // The address is read only now, from the account of a person who is still an active member, and
+  // is never stored with the notification.
   const address = account
-    ? await d.platform.withPlatform({ module: 'identity', readOnly: true }, async (tx) => {
+    ? await d.tenant.withWorkspace(workspaceId, { module: 'work', readOnly: true }, async (tx) => {
         const a = await tx.db
           .selectFrom('identity.account')
-          .select(['primary_email', 'email_verified_at', 'deleted_at'])
+          .select('primary_email')
           .where('id', '=', account)
           .executeTakeFirst();
-        return a && a.email_verified_at && !a.deleted_at ? a.primary_email : null;
+        return a?.primary_email ?? null;
       })
     : null;
   if (!address)

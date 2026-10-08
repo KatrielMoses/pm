@@ -124,7 +124,6 @@ async function main(): Promise<void> {
       },
       notify: {
         tenant: tenantDb,
-        platform: platformDb,
         discovery,
         email: emailProviderFrom(identityDeps.transport, config.identity.mailFrom),
         origin: config.identity.publicOrigin,
