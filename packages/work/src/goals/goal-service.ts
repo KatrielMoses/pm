@@ -383,7 +383,7 @@ export class GoalService extends GoalCore {
   protected async trashedGoals(tx: WorkspaceTransaction, p: Principal) {
     const rows = await sql<{ public_id: string }>`
       SELECT r.public_id FROM goals.goal g JOIN core.record r ON r.workspace_id = g.workspace_id AND r.id = g.id
-       WHERE g.workspace_id = ${tx.workspaceId} AND g.lifecycle_state = 'trashed' AND g.project_id IS NULL
+       WHERE g.workspace_id = ${tx.workspaceId} AND g.lifecycle_state = 'trashed'
        ORDER BY g.updated_at DESC, g.id DESC LIMIT ${this.ws.pageLimitMax}`.execute(tx.db);
     const data = [];
     for (const r of rows.rows) {

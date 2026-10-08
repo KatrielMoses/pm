@@ -189,7 +189,7 @@ function GoalBody({
             Archive
           </button>
         ) : null}
-        {g.lifecycle_state === 'archived' ? (
+        {g.lifecycle_state === 'archived' && can?.restore !== false ? (
           <button
             type="button"
             className="button button-secondary"

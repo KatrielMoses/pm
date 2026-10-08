@@ -151,7 +151,13 @@ export interface GoalLink {
 export interface GoalDetail extends Goal {
   key_results: KeyResult[];
   links: GoalLink[];
-  capabilities: { update: boolean; check_in: boolean; archive: boolean; trash: boolean } | null;
+  capabilities: {
+    update: boolean;
+    check_in: boolean;
+    archive: boolean;
+    restore?: boolean;
+    trash: boolean;
+  } | null;
   as_of: string;
 }
 
@@ -189,6 +195,17 @@ export interface GoalWork {
   summary: { done: number; total: number };
   coverage: { truncated: boolean; relative_to: 'viewer'; note: string };
   as_of: string;
+}
+
+/** A trashed goal or portfolio the viewer may restore. */
+export interface TrashedItem {
+  id: string;
+  type: 'goal' | 'portfolio';
+  title?: string;
+  name?: string;
+  scope?: unknown;
+  lifecycle_state: 'trashed';
+  version: number;
 }
 
 export interface PageOf<T> {
@@ -500,6 +517,9 @@ export const goals = {
       await api<PageOf<Goal>>('GET', `${w(ws)}/goals${qs({ ...q })}`, signal ? { signal } : {})
     ).body;
   },
+  async trashed(ws: string) {
+    return (await api<PageOf<TrashedItem>>('GET', `${w(ws)}/goals?trashed=true`)).body;
+  },
   async get(ws: string, goal: string) {
     return (await api<{ data: GoalDetail }>('GET', `${w(ws)}/goals/${goal}`)).body.data;
   },
@@ -682,6 +702,9 @@ export const portfolios = {
       )
     ).body;
   },
+  async trashed(ws: string) {
+    return (await api<PageOf<TrashedItem>>('GET', `${w(ws)}/portfolios?trashed=true`)).body;
+  },
   async get(ws: string, pf: string) {
     return (await api<{ data: Portfolio }>('GET', `${w(ws)}/portfolios/${pf}`)).body.data;
   },
@@ -738,7 +761,7 @@ export const portfolios = {
   async verb(
     ws: string,
     pf: string,
-    verb: 'archive' | 'unarchive' | 'trash' | 'restore',
+    verb: 'archive' | 'unarchive' | 'trash' | 'restore' | 'purge',
     version: number,
     stepUp: StepUpResolver,
   ) {

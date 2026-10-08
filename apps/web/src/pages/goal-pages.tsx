@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import { ApiError } from '../api.ts';
 import { CreateGoalDialog } from '../goals/dialogs.tsx';
 import { GoalRow } from '../goals/row.tsx';
+import { TrashSection } from '../goals/trash.tsx';
 import {
   BASIS_LABEL,
   CONFIDENCE_LABEL,
@@ -499,6 +500,7 @@ export function GoalsPage({ ws }: { ws: string }) {
           }}
         </AvailableView>
       )}
+      <TrashSection ws={ws} kind="goal" onRestored={first.reload} />
       {creating ? (
         <CreateGoalDialog
           ws={ws}

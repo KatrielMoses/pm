@@ -10,6 +10,7 @@ import { ErrorSummary, Field, fieldErrorsFrom, SelectField, TextAreaField } from
 import { portfolios, type Portfolio } from './client.ts';
 import { ConfirmDialog } from './dialogs.tsx';
 import { useIdempotency, useMembers } from './hooks.ts';
+import { TrashSection } from './trash.tsx';
 import { ProblemLine, useExplain, type Explained } from './shared.tsx';
 
 /**
@@ -336,140 +337,143 @@ export function PortfoliosManager({
   };
 
   return (
-    <section className="card" aria-labelledby="pf-saved">
-      <h2 id="pf-saved">Saved portfolios</h2>
-      <p className="hint">
-        A portfolio is a named set of projects. Its health view covers only the members you can
-        read.
-      </p>
-      <div className="gl-toolbar">
-        <button
-          type="button"
-          className="button button-primary"
-          onClick={() => setDialog({ kind: 'create' })}
-        >
-          Create portfolio
-        </button>
-        <label className="choice">
-          <input
-            type="checkbox"
-            checked={archived}
-            onChange={(e) => setArchived(e.target.checked)}
-          />{' '}
-          Show archived portfolios
-        </label>
-      </div>
-      <ProblemLine problem={problem} />
-      <p className="announce" role="status">
-        {said}
-      </p>
-      {list.state.status === 'loading' ? (
-        <p className="loading" role="status">
-          Loading portfolios…
+    <>
+      <section className="card" aria-labelledby="pf-saved">
+        <h2 id="pf-saved">Saved portfolios</h2>
+        <p className="hint">
+          A portfolio is a named set of projects. Its health view covers only the members you can
+          read.
         </p>
-      ) : list.state.status === 'failed' ? (
-        <Banner
-          tone="danger"
-          title="We couldn't load portfolios"
-          action={
-            <button type="button" className="button button-secondary" onClick={list.retry}>
-              Try again
-            </button>
-          }
-        >
-          Try again in a moment.
-        </Banner>
-      ) : !items.length ? (
-        <p className="empty-state">
-          {archived ? 'No archived portfolios.' : 'No saved portfolios yet.'}
+        <div className="gl-toolbar">
+          <button
+            type="button"
+            className="button button-primary"
+            onClick={() => setDialog({ kind: 'create' })}
+          >
+            Create portfolio
+          </button>
+          <label className="choice">
+            <input
+              type="checkbox"
+              checked={archived}
+              onChange={(e) => setArchived(e.target.checked)}
+            />{' '}
+            Show archived portfolios
+          </label>
+        </div>
+        <ProblemLine problem={problem} />
+        <p className="announce" role="status">
+          {said}
         </p>
-      ) : (
-        <ul className="gl-list">
-          {items.map((p) => (
-            <li key={p.id} className="gl-row">
-              <h3 className="gl-row-title">{p.name}</h3>
-              {p.description ? <p>{p.description}</p> : null}
-              <p className="gl-meta">
-                {p.scope.kind === 'brand' ? (
-                  <BrandMarker marker={p.scope.brand} size={16} />
-                ) : (
-                  'Workspace-wide'
-                )}{' '}
-                · Owner: {p.owner?.name ?? 'No owner'} · {p.projects_count} project
-                {p.projects_count === 1 ? '' : 's'} you can read
-              </p>
-              <div className="actions-compact" role="group" aria-label={`Actions for ${p.name}`}>
-                {p.lifecycle_state === 'active' ? (
-                  <button
-                    type="button"
-                    className="button button-secondary"
-                    aria-label={`View health of ${p.name}`}
-                    onClick={() => onOpen(p.id)}
-                  >
-                    View health
-                  </button>
-                ) : null}
-                {p.capabilities.update ? (
-                  <button
-                    type="button"
-                    className="button button-ghost"
-                    aria-label={`Edit ${p.name}`}
-                    onClick={() => setDialog({ kind: 'edit', id: p.id })}
-                  >
-                    Edit
-                  </button>
-                ) : null}
-                {p.capabilities.archive && p.lifecycle_state === 'active' ? (
-                  <button
-                    type="button"
-                    className="button button-ghost"
-                    aria-label={`Archive ${p.name}`}
-                    onClick={() => setDialog({ kind: 'archive', id: p.id })}
-                  >
-                    Archive
-                  </button>
-                ) : null}
-                {p.capabilities.archive && p.lifecycle_state === 'archived' ? (
-                  <button
-                    type="button"
-                    className="button button-ghost"
-                    disabled={busy}
-                    aria-label={`Restore ${p.name}`}
-                    onClick={() => void lifecycle(p, 'unarchive')}
-                  >
-                    Restore
-                  </button>
-                ) : null}
-              </div>
-            </li>
-          ))}
-        </ul>
-      )}
-      {dialog?.kind === 'create' || (dialog?.kind === 'edit' && target) ? (
-        <PortfolioDialog
-          ws={ws}
-          {...(dialog.kind === 'edit' ? { existing: target! } : {})}
-          brands={brands}
-          onClose={() => setDialog(null)}
-          onReload={list.refresh}
-          onSaved={(p) => {
-            setDialog(null);
-            void list.refresh().then(() => setSaid(`Saved ${p.name}.`));
-          }}
-        />
-      ) : null}
-      {dialog?.kind === 'archive' && target ? (
-        <ConfirmDialog
-          title="Archive this portfolio?"
-          confirm="Archive portfolio"
-          busy={busy}
-          problem={problem}
-          onClose={() => setDialog(null)}
-          onConfirm={() => void lifecycle(target, 'archive')}
-        >
-          <p>“{target.name}” is read-only while archived. The projects in it are not affected.</p>
-        </ConfirmDialog>
-      ) : null}
-    </section>
+        {list.state.status === 'loading' ? (
+          <p className="loading" role="status">
+            Loading portfolios…
+          </p>
+        ) : list.state.status === 'failed' ? (
+          <Banner
+            tone="danger"
+            title="We couldn't load portfolios"
+            action={
+              <button type="button" className="button button-secondary" onClick={list.retry}>
+                Try again
+              </button>
+            }
+          >
+            Try again in a moment.
+          </Banner>
+        ) : !items.length ? (
+          <p className="empty-state">
+            {archived ? 'No archived portfolios.' : 'No saved portfolios yet.'}
+          </p>
+        ) : (
+          <ul className="gl-list">
+            {items.map((p) => (
+              <li key={p.id} className="gl-row">
+                <h3 className="gl-row-title">{p.name}</h3>
+                {p.description ? <p>{p.description}</p> : null}
+                <p className="gl-meta">
+                  {p.scope.kind === 'brand' ? (
+                    <BrandMarker marker={p.scope.brand} size={16} />
+                  ) : (
+                    'Workspace-wide'
+                  )}{' '}
+                  · Owner: {p.owner?.name ?? 'No owner'} · {p.projects_count} project
+                  {p.projects_count === 1 ? '' : 's'} you can read
+                </p>
+                <div className="actions-compact" role="group" aria-label={`Actions for ${p.name}`}>
+                  {p.lifecycle_state === 'active' ? (
+                    <button
+                      type="button"
+                      className="button button-secondary"
+                      aria-label={`View health of ${p.name}`}
+                      onClick={() => onOpen(p.id)}
+                    >
+                      View health
+                    </button>
+                  ) : null}
+                  {p.capabilities.update ? (
+                    <button
+                      type="button"
+                      className="button button-ghost"
+                      aria-label={`Edit ${p.name}`}
+                      onClick={() => setDialog({ kind: 'edit', id: p.id })}
+                    >
+                      Edit
+                    </button>
+                  ) : null}
+                  {p.capabilities.archive && p.lifecycle_state === 'active' ? (
+                    <button
+                      type="button"
+                      className="button button-ghost"
+                      aria-label={`Archive ${p.name}`}
+                      onClick={() => setDialog({ kind: 'archive', id: p.id })}
+                    >
+                      Archive
+                    </button>
+                  ) : null}
+                  {p.capabilities.archive && p.lifecycle_state === 'archived' ? (
+                    <button
+                      type="button"
+                      className="button button-ghost"
+                      disabled={busy}
+                      aria-label={`Restore ${p.name}`}
+                      onClick={() => void lifecycle(p, 'unarchive')}
+                    >
+                      Restore
+                    </button>
+                  ) : null}
+                </div>
+              </li>
+            ))}
+          </ul>
+        )}
+        {dialog?.kind === 'create' || (dialog?.kind === 'edit' && target) ? (
+          <PortfolioDialog
+            ws={ws}
+            {...(dialog.kind === 'edit' ? { existing: target! } : {})}
+            brands={brands}
+            onClose={() => setDialog(null)}
+            onReload={list.refresh}
+            onSaved={(p) => {
+              setDialog(null);
+              void list.refresh().then(() => setSaid(`Saved ${p.name}.`));
+            }}
+          />
+        ) : null}
+        {dialog?.kind === 'archive' && target ? (
+          <ConfirmDialog
+            title="Archive this portfolio?"
+            confirm="Archive portfolio"
+            busy={busy}
+            problem={problem}
+            onClose={() => setDialog(null)}
+            onConfirm={() => void lifecycle(target, 'archive')}
+          >
+            <p>“{target.name}” is read-only while archived. The projects in it are not affected.</p>
+          </ConfirmDialog>
+        ) : null}
+      </section>
+      <TrashSection ws={ws} kind="portfolio" onRestored={() => void list.refresh()} />
+    </>
   );
 }

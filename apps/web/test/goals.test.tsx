@@ -21,6 +21,7 @@ import { useIdempotency } from '../src/goals/hooks.ts';
 import { currentQuarter, rangeOf, shiftSel } from '../src/goals/periods.ts';
 import { ProjectGoalsCard } from '../src/goals/project-goals.tsx';
 import { ProgressView } from '../src/goals/shared.tsx';
+import { TrashSection } from '../src/goals/trash.tsx';
 import { GoalPage } from '../src/pages/goal-detail-pages.tsx';
 import { GoalsPage } from '../src/pages/goal-pages.tsx';
 import { PortfolioPage } from '../src/pages/portfolio-pages.tsx';
@@ -1455,6 +1456,90 @@ describe('project Goals card', () => {
     fireEvent.click(within(dialog).getByRole('button', { name: 'Link project' }));
     await waitFor(() => expect(add).toHaveBeenCalled());
     expect(add.mock.calls[0]!.slice(1, 3)).toEqual(['goal_ws', { target: 'prj_1' }]);
+  });
+});
+
+describe('Trash', () => {
+  const item = {
+    id: 'goal_t',
+    type: 'goal' as const,
+    title: 'Old goal',
+    lifecycle_state: 'trashed' as const,
+    version: 5,
+  };
+
+  it('lists what can be restored, restores it, and reports it', async () => {
+    vi.spyOn(goals, 'trashed').mockResolvedValue(page([item]));
+    const verb = vi
+      .spyOn(goals, 'verb')
+      .mockResolvedValue({ id: 'goal_t', type: 'goal', lifecycle_state: 'active' });
+    const restored = vi.fn();
+    wrap(<TrashSection ws={WS} kind="goal" onRestored={restored} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Show trash' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Restore Old goal' }));
+    await waitFor(() => expect(verb).toHaveBeenCalled());
+    expect(verb.mock.calls[0]!.slice(1, 4)).toEqual(['goal_t', 'restore', 5]);
+    expect(await screen.findByText('Restored Old goal.')).toBeTruthy();
+    expect(restored).toHaveBeenCalled();
+    expect(screen.getByText('The trash is empty.')).toBeTruthy();
+  });
+
+  it('permanent delete asks first, and Cancel keeps the focus on Cancel and changes nothing', async () => {
+    vi.spyOn(portfolios, 'trashed').mockResolvedValue(
+      page([
+        { id: 'pf_t', type: 'portfolio', name: 'Old pf', lifecycle_state: 'trashed', version: 2 },
+      ]),
+    );
+    const verb = vi
+      .spyOn(portfolios, 'verb')
+      .mockResolvedValue({ id: 'pf_t', lifecycle_state: 'purged' });
+    wrap(<TrashSection ws={WS} kind="portfolio" onRestored={() => undefined} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Show trash' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Delete Old pf permanently' }));
+    const dialog = await screen.findByRole('alertdialog', {
+      name: 'Delete this portfolio permanently?',
+    });
+    expect(document.activeElement).toBe(within(dialog).getByRole('button', { name: 'Cancel' }));
+    fireEvent.keyDown(document, { key: 'Escape' });
+    expect(verb).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole('button', { name: 'Delete Old pf permanently' }));
+    fireEvent.click(
+      within(await screen.findByRole('alertdialog')).getByRole('button', {
+        name: 'Delete permanently',
+      }),
+    );
+    await waitFor(() => expect(verb).toHaveBeenCalled());
+    expect(verb.mock.calls[0]!.slice(1, 4)).toEqual(['pf_t', 'purge', 2]);
+    expect(await screen.findByText('Permanently deleted Old pf.')).toBeTruthy();
+  });
+
+  it('a refusal is explained and the item stays', async () => {
+    vi.spyOn(goals, 'trashed').mockResolvedValue(page([item]));
+    vi.spyOn(goals, 'verb').mockRejectedValue(err('forbidden', 403));
+    wrap(<TrashSection ws={WS} kind="goal" onRestored={() => undefined} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Show trash' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Restore Old goal' }));
+    expect(await screen.findByText(/don't have permission/)).toBeTruthy();
+    expect(screen.getByRole('heading', { level: 3, name: 'Old goal' })).toBeTruthy();
+  });
+
+  it('an archived goal whose capabilities deny restore offers no restore button', async () => {
+    vi.spyOn(goals, 'checkins').mockResolvedValue(page([]));
+    vi.spyOn(goals, 'get').mockResolvedValue(
+      detail({
+        lifecycle_state: 'archived',
+        capabilities: {
+          update: false,
+          check_in: false,
+          archive: false,
+          restore: false,
+          trash: false,
+        },
+      }),
+    );
+    wrap(<GoalPage ws={WS} goal="goal_1" />);
+    await screen.findByText('This goal is archived');
+    expect(screen.queryByRole('button', { name: 'Restore from archive' })).toBeNull();
   });
 });
 

@@ -160,6 +160,21 @@ test('a founder creates a goal with key results, links, and check-ins and sees h
   await page.getByRole('button', { name: 'Restore from archive' }).click();
   await expect(page.getByRole('button', { name: 'Edit goal' })).toBeVisible();
 
+  // Trash: move to trash, find it in the Trash section, restore it, and open it again.
+  await page.getByRole('button', { name: 'Move to trash' }).click();
+  await page
+    .getByRole('alertdialog', { name: 'Move this goal to trash?' })
+    .getByRole('button', { name: 'Move to trash' })
+    .click();
+  await expect(h1(page)).toHaveText('Goals');
+  await expect(page.getByRole('link', { name: 'Grow signups' })).toHaveCount(0);
+  await page.getByRole('button', { name: 'Show trash' }).click();
+  await page.getByRole('button', { name: 'Restore Grow signups' }).click();
+  await expect(page.getByText('Restored Grow signups.')).toBeVisible();
+  await accessible(page, 'goals with trash');
+  await page.getByRole('link', { name: 'Grow signups' }).click();
+  await expect(h1(page)).toHaveText('Grow signups');
+
   // Reflow.
   await reflow(page, page.url(), () => expect(h1(page)).toHaveText('Grow signups'), 'goal page');
   await reflow(

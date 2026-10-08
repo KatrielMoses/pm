@@ -181,7 +181,16 @@ export function thisQuarter() {
 
 /** axe on the page's own content (shell chrome is covered by the shell journeys). */
 export async function accessible(page: Page, label: string) {
-  await expectAccessible(page, label);
+  const chrome = (hidden: boolean) =>
+    page.evaluate(
+      `for (const el of document.querySelectorAll('.bottom-nav, .app-header')) el.style.visibility = '${hidden ? 'hidden' : ''}'`,
+    );
+  await chrome(true);
+  try {
+    await expectAccessible(page, label);
+  } finally {
+    await chrome(false);
+  }
 }
 
 export const progressOf = async (page: Page, name: string) =>
