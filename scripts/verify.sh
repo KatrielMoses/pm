@@ -43,6 +43,7 @@ python3 docs/engineering/tools/phase3e.py
 python3 docs/engineering/tools/phase4a.py
 python3 docs/engineering/tools/phase4b.py
 python3 docs/engineering/tools/phase4c.py
+python3 docs/engineering/tools/phase4d.py
 python3 docs/engineering/tools/phase4e.py
 step "3. formatting and lint (incl. SQL safety and the complete workspace graph)"
 pnpm format:check

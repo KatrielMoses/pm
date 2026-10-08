@@ -99,7 +99,7 @@ export class LiveService extends KnowledgeService {
   }
 
   /** Blocks as this viewer may see them, with the labels of the references they may read. */
-  protected async liveBlocks(tx: WorkspaceTransaction, p: Principal, d: LoadedDocument, blocks: readonly Block[]) {
+  protected async shownBlocks(tx: WorkspaceTransaction, p: Principal, d: LoadedDocument, blocks: readonly Block[]) {
     const content: DocContent = { v: 2, blocks: [...blocks] };
     const refs = collectRefs(content) as Ref[];
     const resolved = refs.length ? await this.docRefs(tx, p, await this.workspacePublicId(tx), refs) : {};
@@ -113,7 +113,7 @@ export class LiveService extends KnowledgeService {
     draft: { content: unknown; seq: string | number; base_version: number; dirty: boolean },
   ) {
     const content = readContent(draft.content);
-    const { blocks, references } = await this.liveBlocks(tx, p, d, content.blocks);
+    const { blocks, references } = await this.shownBlocks(tx, p, d, content.blocks);
     return {
       seq: Number(draft.seq),
       base_version: draft.base_version,
@@ -263,7 +263,7 @@ export class LiveService extends KnowledgeService {
             await this.checkFileEmbeds(tx, d, { v: 2, blocks: [op.block] }, content);
           const result = applyOp(content, op);
           if (!result.ok) {
-            const shown = result.current ? (await this.liveBlocks(tx, p, d, [result.current])).blocks[0]! : null;
+            const shown = result.current ? (await this.shownBlocks(tx, p, d, [result.current])).blocks[0]! : null;
             rejected.push({
               op_id: raw.opId,
               code: result.code,
@@ -329,7 +329,7 @@ export class LiveService extends KnowledgeService {
     const rows = await sql<{ seq: string; session_id: string | null; op_id: string; kind: string; block_id: string; payload: { block: Block | null; after: string | null; block_hash: string | null } }>`
       SELECT seq, session_id, op_id, kind, block_id, payload FROM knowledge.edit_op
        WHERE document_id = ${d.id} AND seq > ${after} ORDER BY seq LIMIT ${EVENT_PAGE}`.execute(tx.db);
-    const shown = await this.liveBlocks(
+    const shown = await this.shownBlocks(
       tx,
       p,
       d,
