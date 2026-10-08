@@ -1124,6 +1124,24 @@ describe('Goals (5B)', () => {
 
   // -------------------------------------------------------------------------------------------
   describe('lifecycle, departure, and history', () => {
+    it('lets an editor restore an archived or trashed goal, and lists trashed goals only to those who may restore them', async () => {
+      const g = await goal(editor, { brand: brands.Harbor!, title: 'Round trip' });
+      await env.svc.goalLifecycle(editor, ws, g.id, 'archive', mutation());
+      const archived = await env.svc.getGoal(editor, ws, g.id);
+      expect(archived.capabilities).toMatchObject({ restore: true, update: false });
+      await env.svc.goalLifecycle(editor, ws, g.id, 'unarchive', mutation());
+      await env.svc.goalLifecycle(editor, ws, g.id, 'trash', mutation());
+      expect(
+        (await env.svc.listGoals(editor, ws, { trashed: 'true' })).data.map((d) => d.id),
+      ).toContain(g.id);
+      expect(
+        (await env.svc.listGoals(reader, ws, { trashed: 'true' })).data.map((d) => d.id),
+      ).not.toContain(g.id);
+      expect((await env.svc.listGoals(outsider, ws, { trashed: 'true' })).data).toEqual([]);
+      await env.svc.goalLifecycle(editor, ws, g.id, 'restore', mutation());
+      expect((await env.svc.getGoal(editor, ws, g.id)).lifecycle_state).toBe('active');
+    });
+
     it('archives a goal with its key results, restores them, and trashes and restores', async () => {
       const g = await goal(owner, { title: 'Life', basis: 'key_results' });
       await env.svc.createKeyResult(owner, ws, g.id, { title: 'K' }, mutation());

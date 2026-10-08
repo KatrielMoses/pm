@@ -116,7 +116,11 @@ export function KeyResultsSection({
                   Owner: {k.owner?.name ?? 'No owner'} · {BASIS_LABEL[k.basis]}
                 </p>
                 {metricLine(k.metric) ? <p className="gl-meta">{metricLine(k.metric)}</p> : null}
-                <ProgressView progress={k.progress} label={`Progress of key result ${k.title}`} />
+                <ProgressView
+                  progress={k.progress}
+                  label={`Progress of key result ${k.title}`}
+                  drill={{ ws, goal: goal.id, keyResult: k.id }}
+                />
                 <p className="gl-chips">
                   <ConfidenceChip value={k.latest.confidence} />
                   {k.latest.at ? (
@@ -144,40 +148,45 @@ export function KeyResultsSection({
                       <button
                         type="button"
                         className="button button-secondary"
+                        aria-label={`Check in on ${k.title}`}
                         onClick={() => setDialog({ kind: 'checkin', id: k.id })}
                       >
-                        Check in<span className="visually-hidden"> on {k.title}</span>
+                        Check in
                       </button>
                     ) : null}
                     <button
                       type="button"
                       className="button button-ghost"
+                      aria-label={`Edit ${k.title}`}
                       onClick={() => setDialog({ kind: 'edit', id: k.id })}
                     >
-                      Edit<span className="visually-hidden"> {k.title}</span>
+                      Edit
                     </button>
                     <button
                       type="button"
                       className="button button-ghost"
                       disabled={busy || i === 0}
+                      aria-label={`Move up: ${k.title}`}
                       onClick={() => void move(k, i, -1)}
                     >
-                      Move up<span className="visually-hidden">: {k.title}</span>
+                      Move up
                     </button>
                     <button
                       type="button"
                       className="button button-ghost"
                       disabled={busy || i === krs.length - 1}
+                      aria-label={`Move down: ${k.title}`}
                       onClick={() => void move(k, i, 1)}
                     >
-                      Move down<span className="visually-hidden">: {k.title}</span>
+                      Move down
                     </button>
                     <button
                       type="button"
                       className="button button-ghost"
+                      aria-label={`Archive ${k.title}`}
                       onClick={() => setDialog({ kind: 'archive', id: k.id })}
                     >
-                      Archive<span className="visually-hidden"> {k.title}</span>
+                      Archive
                     </button>
                   </div>
                 ) : null}
@@ -280,8 +289,14 @@ function LinkItem({
         </span>
       </span>
       {removable ? (
-        <button type="button" className="button button-ghost" disabled={busy} onClick={onRemove}>
-          Remove<span className="visually-hidden"> link to {t.name}</span>
+        <button
+          type="button"
+          className="button button-ghost"
+          disabled={busy}
+          onClick={onRemove}
+          aria-label={`Remove link to ${t.name}`}
+        >
+          Remove
         </button>
       ) : null}
     </li>

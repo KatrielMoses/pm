@@ -338,8 +338,10 @@ export class GoalService extends GoalCore {
                   this.goalAllows(p, 'record.update', loaded) &&
                   g.lifecycle_state === 'active' &&
                   (g.status === 'draft' || g.status === 'active'),
-                archive: this.goalAllows(p, 'record.archive', loaded),
-                trash: this.goalAllows(p, 'record.trash', loaded),
+                // Decided on the live record, so an archived goal can still be restored by an editor.
+                archive: this.lifeAllows(p, 'record.archive', loaded),
+                restore: this.lifeAllows(p, 'record.restore', loaded),
+                trash: this.lifeAllows(p, 'record.trash', loaded),
               }
             : null,
           as_of: now.toISOString(),
@@ -363,7 +365,55 @@ export class GoalService extends GoalCore {
   }
 
   /** Goals the viewer may read, filtered and paged (a keyset over period and identifier). */
+  protected lifeAllows(
+    p: Principal,
+    action: 'record.archive' | 'record.restore' | 'record.trash',
+    g: LoadedGoal,
+  ) {
+    try {
+      this.requireGoalAction(p, action, g, { lifecycleState: 'active' });
+      return true;
+    } catch (err) {
+      if (err instanceof TenancyError) return false;
+      throw err;
+    }
+  }
+
+  /** Trashed goals the viewer may restore (edit access on the live record); nothing else is listed. */
+  protected async trashedGoals(tx: WorkspaceTransaction, p: Principal) {
+    const rows = await sql<{ public_id: string }>`
+      SELECT r.public_id FROM goals.goal g JOIN core.record r ON r.workspace_id = g.workspace_id AND r.id = g.id
+       WHERE g.workspace_id = ${tx.workspaceId} AND g.lifecycle_state = 'trashed' AND g.project_id IS NULL
+       ORDER BY g.updated_at DESC, g.id DESC LIMIT ${this.ws.pageLimitMax}`.execute(tx.db);
+    const data = [];
+    for (const r of rows.rows) {
+      try {
+        const g = await this.loadGoal(tx, p, r.public_id, { allowTrashed: true });
+        data.push({
+          id: g.publicId,
+          type: 'goal' as const,
+          title: g.row.title,
+          scope: g.brandMarker
+            ? { kind: 'brand' as const, brand: g.brandMarker }
+            : { kind: 'workspace' as const },
+          lifecycle_state: 'trashed' as const,
+          version: g.row.version,
+        });
+      } catch (err) {
+        if (!(err instanceof TenancyError)) throw err;
+      }
+    }
+    return { data, page: { limit: data.length, has_more: false } };
+  }
+
   async listGoals(caller: Caller, ws: unknown, query: Record<string, unknown>) {
+    if (query.trashed === 'true')
+      return this.gTrack('goals.reads', 'trashed', () =>
+        this.inWorkspace(caller, ws, { readOnly: true }, async (tx, p) => {
+          this.requireMemberKind(p);
+          return this.trashedGoals(tx, p);
+        }),
+      );
     const q = parseGoalList(query, this.ws.pageLimitMax);
     return this.gTrack('goals.reads', 'list', () =>
       this.inWorkspace(caller, ws, { readOnly: true }, async (tx, p) => {

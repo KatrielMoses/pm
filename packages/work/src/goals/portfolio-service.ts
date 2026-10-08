@@ -224,6 +224,31 @@ export class PortfolioService extends GoalService {
     return this.gTrack('goals.reads', 'portfolios', () =>
       this.inWorkspace(caller, ws, { readOnly: true }, async (tx, p) => {
         this.requireMemberKind(p);
+        if (query.trashed === 'true') {
+          const rows = await sql<{ public_id: string }>`
+            SELECT r.public_id FROM goals.portfolio f JOIN core.record r ON r.workspace_id = f.workspace_id AND r.id = f.id
+             WHERE f.workspace_id = ${tx.workspaceId} AND f.lifecycle_state = 'trashed'
+             ORDER BY f.updated_at DESC, f.id DESC LIMIT ${this.ws.pageLimitMax}`.execute(tx.db);
+          const trashed = [];
+          for (const r of rows.rows) {
+            try {
+              const f = await this.loadPortfolio(tx, p, r.public_id, { allowTrashed: true });
+              trashed.push({
+                id: f.publicId,
+                type: 'portfolio' as const,
+                name: f.row.name,
+                scope: f.marker
+                  ? { kind: 'brand' as const, brand: f.marker }
+                  : { kind: 'workspace' as const },
+                lifecycle_state: 'trashed' as const,
+                version: Number(f.row.version),
+              });
+            } catch (err) {
+              if (!(err instanceof TenancyError)) throw err;
+            }
+          }
+          return { data: trashed, page: { limit: trashed.length, has_more: false } };
+        }
         const vis = await this.goalVisibility(tx, p, query.archived === 'true');
         const brandId =
           typeof query.brand === 'string' && isPublic(query.brand, 'br')

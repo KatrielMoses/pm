@@ -5,6 +5,7 @@ import { BrandMarker } from '../shell/brand-marker.tsx';
 import type { BrandMarkerData } from '../shell/client.ts';
 import { ResourceView, type Resource } from '../tenancy/resource.tsx';
 import { useMarkNotAvailable } from '../ui/layout.tsx';
+import { WorkDrill } from './work-drill.tsx';
 import {
   CONFIDENCE_LABEL,
   GOAL_STATUS_LABEL,
@@ -182,10 +183,13 @@ export function ProgressView({
   progress,
   label,
   summary = 'How is this calculated?',
+  drill,
 }: {
   progress: Progress;
   label: string;
   summary?: string;
+  /** Where the tasks behind a linked-work figure can be listed. */
+  drill?: { ws: string; goal: string; keyResult?: string };
 }) {
   return (
     <div className="gl-progress">
@@ -202,6 +206,7 @@ export function ProgressView({
             {progress.work.total === 1 ? 'is' : 'are'} done.
           </p>
         ) : null}
+        {progress.work && drill ? <WorkDrill {...drill} /> : null}
         {progress.key_results ? (
           <p>
             {progress.key_results.counted} of {progress.key_results.total} key result

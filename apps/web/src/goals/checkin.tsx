@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from 'react';
+import { useId, useState, type FormEvent } from 'react';
 import { ApiError } from '../api.ts';
 import { useDraft, useOnline } from '../collab/shared.tsx';
 import { useStepUp } from '../stepup.tsx';
@@ -61,6 +61,7 @@ export function CheckinForm({
   onRecorded: (c: CreatedCheckin) => void;
   onCancel?: () => void;
 }) {
+  const uid = useId();
   const stepUp = useStepUp();
   const explainError = useExplain();
   const online = useOnline();
@@ -84,15 +85,15 @@ export function CheckinForm({
     if (target) body.key_result = target;
     if (measurable && measure.trim() !== '') {
       const n = parseNumber(measure);
-      if (n === undefined || n === null) errors['ci-measure'] = 'Use a number, like 12 or 0.5.';
+      if (n === undefined || n === null) errors.measure = 'Use a number, like 12 or 0.5.';
       else if (byValue) body.value = n;
-      else if (n < 0 || n > 100) errors['ci-measure'] = 'Use a percentage from 0 to 100.';
+      else if (n < 0 || n > 100) errors.measure = 'Use a percentage from 0 to 100.';
       else body.percent = n;
     }
     if (confidence) body.confidence = confidence;
     if (note.text.trim()) body.note = note.text.trim();
     if (!Object.keys(errors).length && !Object.keys(body).filter((k) => k !== 'key_result').length)
-      errors['ci-note'] = 'Add a value, a confidence, or a note.';
+      errors.note = 'Add a value, a confidence, or a note.';
     return { body: Object.keys(errors).length ? null : body, errors };
   };
 
@@ -152,7 +153,7 @@ export function CheckinForm({
       ) : null}
       {targets.length > 1 ? (
         <SelectField
-          id="ci-target"
+          id={`${uid}-target`}
           label="What are you updating?"
           value={target}
           onChange={(v) => {
@@ -164,7 +165,7 @@ export function CheckinForm({
       ) : null}
       {measurable ? (
         <Field
-          id="ci-measure"
+          id={`${uid}-measure`}
           label={
             byValue
               ? `New value${current.metric.unit ? ` (${current.metric.unit})` : ''}`
@@ -178,7 +179,7 @@ export function CheckinForm({
           inputMode="decimal"
           value={measure}
           onChange={(e) => setMeasure(e.target.value)}
-          error={fieldError['ci-measure']}
+          error={fieldError.measure}
         />
       ) : (
         <p className="hint">
@@ -201,12 +202,12 @@ export function CheckinForm({
         ]}
       />
       <TextAreaField
-        id="ci-note"
+        id={`${uid}-note`}
         label="Note (optional)"
         value={note.text}
         onChange={note.set}
         maxLength={2000}
-        error={fieldError['ci-note']}
+        error={fieldError.note}
       />
       <ProblemLine problem={problem} busy={busy} onRetry={() => void send()}>
         <p className="hint">Your update is kept here, and a retry cannot record it twice.</p>

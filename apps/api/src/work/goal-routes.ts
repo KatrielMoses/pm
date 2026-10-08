@@ -17,9 +17,9 @@ export function registerGoals(app: FastifyInstance, work: PortfolioService): voi
   const p = (request: FastifyRequest) => request.params as Params;
   const q = (request: FastifyRequest) => (request.query ?? {}) as Record<string, unknown>;
   const ws = '/v1/workspaces/:ws';
-  const page = <T>(
+  const page = (
     request: FastifyRequest,
-    r: { data: T[]; page: Record<string, unknown> } & Record<string, unknown>,
+    r: { data: unknown[]; page: Record<string, unknown> },
   ) => ({
     ...r,
     meta: m(request),

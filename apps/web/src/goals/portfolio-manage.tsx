@@ -403,27 +403,30 @@ export function PortfoliosManager({
                   <button
                     type="button"
                     className="button button-secondary"
+                    aria-label={`View health of ${p.name}`}
                     onClick={() => onOpen(p.id)}
                   >
-                    View health<span className="visually-hidden"> of {p.name}</span>
+                    View health
                   </button>
                 ) : null}
                 {p.capabilities.update ? (
                   <button
                     type="button"
                     className="button button-ghost"
+                    aria-label={`Edit ${p.name}`}
                     onClick={() => setDialog({ kind: 'edit', id: p.id })}
                   >
-                    Edit<span className="visually-hidden"> {p.name}</span>
+                    Edit
                   </button>
                 ) : null}
                 {p.capabilities.archive && p.lifecycle_state === 'active' ? (
                   <button
                     type="button"
                     className="button button-ghost"
+                    aria-label={`Archive ${p.name}`}
                     onClick={() => setDialog({ kind: 'archive', id: p.id })}
                   >
-                    Archive<span className="visually-hidden"> {p.name}</span>
+                    Archive
                   </button>
                 ) : null}
                 {p.capabilities.archive && p.lifecycle_state === 'archived' ? (
@@ -431,9 +434,10 @@ export function PortfoliosManager({
                     type="button"
                     className="button button-ghost"
                     disabled={busy}
+                    aria-label={`Restore ${p.name}`}
                     onClick={() => void lifecycle(p, 'unarchive')}
                   >
-                    Restore<span className="visually-hidden"> {p.name}</span>
+                    Restore
                   </button>
                 ) : null}
               </div>

@@ -340,12 +340,12 @@ export function HealthTable({ ws, rows }: { ws: string; rows: PortfolioProject[]
                     <button
                       type="button"
                       className="link-button"
+                      aria-label={`Why and details for ${p.name}`}
                       aria-expanded={expanded}
                       aria-controls={id}
                       onClick={() => toggle(p.id)}
                     >
-                      {expanded ? 'Hide details' : 'Why and details'}
-                      <span className="visually-hidden"> for {p.name}</span>
+                      Why and details
                     </button>
                   </td>
                   <td data-label="Status">{p.status.label}</td>

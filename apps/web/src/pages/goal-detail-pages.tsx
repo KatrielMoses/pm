@@ -189,7 +189,7 @@ function GoalBody({
             Archive
           </button>
         ) : null}
-        {can?.archive && g.lifecycle_state === 'archived' ? (
+        {g.lifecycle_state === 'archived' ? (
           <button
             type="button"
             className="button button-secondary"
@@ -235,7 +235,11 @@ function GoalBody({
 
       <section className="card" aria-labelledby="gd-progress">
         <h2 id="gd-progress">Progress</h2>
-        <ProgressView progress={g.progress} label={`Progress of ${g.title}`} />
+        <ProgressView
+          progress={g.progress}
+          label={`Progress of ${g.title}`}
+          drill={{ ws, goal: g.id }}
+        />
         {metricLine(g.metric) ? <p className="gl-meta">{metricLine(g.metric)}</p> : null}
         <p className="gl-chips">
           <ConfidenceChip value={g.latest.confidence} />

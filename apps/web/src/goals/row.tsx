@@ -38,7 +38,11 @@ export function GoalRow({
         {goal.period.state === 'ended' ? <span> (period ended)</span> : null}
         {goal.period.state === 'upcoming' ? <span> (starts later)</span> : null}
       </p>
-      <ProgressView progress={goal.progress} label={`Progress of ${goal.title}`} />
+      <ProgressView
+        progress={goal.progress}
+        label={`Progress of ${goal.title}`}
+        drill={{ ws, goal: goal.id }}
+      />
       <p className="gl-chips">
         <ConfidenceChip value={goal.latest.confidence} />
         <UpdateChip fresh={goal.freshness} latest={goal.latest} />
@@ -51,7 +55,7 @@ export function GoalRow({
       <p className="gl-work">
         {w.visible_links === 0
           ? 'No linked work you can see.'
-          : `${w.visible_links} linked project or task${w.visible_links === 1 ? '' : 's'} you can see, ${w.active_links} active.`}
+          : `${w.visible_links} linked work item${w.visible_links === 1 ? '' : 's'} you can see, ${w.active_links} active.`}
         {open && w.active_links === 0 ? (
           <>
             {' '}

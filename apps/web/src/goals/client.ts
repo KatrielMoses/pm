@@ -173,6 +173,24 @@ export interface CreatedCheckin extends Checkin {
   confidence_label: string | null;
 }
 
+export interface WorkTask {
+  id: string;
+  type: 'task';
+  title: string;
+  status: { category: string };
+  done: boolean;
+  due_date: string | null;
+  project: { id: string; name: string | null } | null;
+}
+
+export interface GoalWork {
+  type: 'goal_work';
+  data: WorkTask[];
+  summary: { done: number; total: number };
+  coverage: { truncated: boolean; relative_to: 'viewer'; note: string };
+  as_of: string;
+}
+
 export interface PageOf<T> {
   data: T[];
   page: { limit: number; has_more: boolean; next_cursor?: string };
@@ -635,6 +653,14 @@ export const goals = {
         body,
         stepUp,
         { idempotencyKey: key },
+      )
+    ).body.data;
+  },
+  async work(ws: string, goal: string, keyResult?: string) {
+    return (
+      await api<{ data: GoalWork }>(
+        'GET',
+        `${w(ws)}/goals/${goal}/work${qs({ key_result: keyResult })}`,
       )
     ).body.data;
   },
