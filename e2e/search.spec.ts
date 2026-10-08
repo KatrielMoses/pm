@@ -69,6 +69,8 @@ test('finds work from the palette and the search page, with the whole state in t
   const s = await setup(page, info, 'search-founder');
   const { task, doc } = await seed(page, s, 'gannet');
   await page.goto(`/workspaces/${s.ws}`);
+  await expect(page.getByRole('navigation', { name: 'Primary' }).first()).toBeVisible();
+  await expect(h1(page)).not.toHaveText('Loading');
 
   // Keyboard alone: open the palette, type, choose "Search everywhere", land on the results.
   await page.keyboard.press('Control+K');
