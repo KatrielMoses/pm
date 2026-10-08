@@ -759,7 +759,39 @@ describe('Documents and knowledge (4C)', () => {
       await expect(
         env.svc.createComment(outsider, ws, d.id, { text: 'no' }, mutation()),
       ).rejects.toEqual(reason('not_found'));
-      expect((await env.svc.listComments(owner, ws, d.id, {})).data).toHaveLength(1);
+      // Comments may name documents (TSK-019): readable ones become chips, hidden ones are refused as before.
+      const other = await make(editor, {
+        title: 'Named in a comment',
+        brand: brands.Harbor,
+        starter: false,
+      });
+      const hiddenDoc = await make(owner, {
+        title: 'Summit page',
+        brand: brands.Summit,
+        starter: false,
+      });
+      const named = (
+        await env.svc.createComment(
+          editor,
+          ws,
+          d.id,
+          { text: 'See the other page', mentions: [{ kind: 'record', id: other.id }] },
+          mutation(),
+        )
+      ).data;
+      expect(named.mentions).toEqual([
+        { kind: 'record', id: other.id, name: 'Named in a comment' },
+      ]);
+      await expect(
+        env.svc.createComment(
+          editor,
+          ws,
+          d.id,
+          { text: 'And this one', mentions: [{ kind: 'record', id: hiddenDoc.id }] },
+          mutation(),
+        ),
+      ).rejects.toMatchObject({ issues: [expect.objectContaining({ code: 'not_mentionable' })] });
+      expect((await env.svc.listComments(owner, ws, d.id, {})).data).toHaveLength(2);
       await env.svc.follow(owner, ws, d.id, true, mutation());
       expect(
         (await env.svc.following(owner, ws, { type: 'document' })).data.map((x) => x.id),
