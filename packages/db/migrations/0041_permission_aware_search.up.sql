@@ -78,8 +78,9 @@ CREATE TABLE search.index_status (
   last_attempt_at timestamptz,
   failure_code text,
   CONSTRAINT index_status_pkey PRIMARY KEY (workspace_id, source_kind, source_id),
+  -- Deferred: a source row and its record may be written in either order within one transaction.
   CONSTRAINT index_status_auth_fkey FOREIGN KEY (workspace_id, auth_record_id)
-    REFERENCES core.record (workspace_id, id) ON DELETE CASCADE,
+    REFERENCES core.record (workspace_id, id) ON DELETE CASCADE DEFERRABLE INITIALLY DEFERRED,
   CONSTRAINT index_status_kind_shape CHECK (source_kind ~ '^[a-z][a-z_]{1,30}$'),
   CONSTRAINT index_status_state_known CHECK (state IN ('pending', 'failed')),
   CONSTRAINT index_status_attempts CHECK (attempts >= 0),
