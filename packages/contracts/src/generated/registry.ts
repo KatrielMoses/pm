@@ -767,6 +767,29 @@ export const TELEMETRY_SIGNALS = [
     ]
   },
   {
+    "name": "search.requests",
+    "type": "counter",
+    "labels": [
+      "op",
+      "outcome"
+    ]
+  },
+  {
+    "name": "search.index.jobs",
+    "type": "counter",
+    "labels": [
+      "kind",
+      "outcome"
+    ]
+  },
+  {
+    "name": "search.query.duration",
+    "type": "histogram",
+    "labels": [
+      "outcome"
+    ]
+  },
+  {
     "name": "files.requests",
     "type": "counter",
     "labels": [
@@ -3448,6 +3471,21 @@ export const PARAMETER_NAMES = [
   "LIVE_POLL_WAIT_SECONDS",
   "LIVE_OP_LOG_MAX",
   "LIVE_RATE_PER_MINUTE",
+  "SEARCH_QUERY_MAX_CHARS",
+  "SEARCH_TERMS_MAX",
+  "SEARCH_PAGE_SIZE_MAX",
+  "SEARCH_RESULTS_MAX",
+  "SEARCH_COUNT_MAX",
+  "SEARCH_SNIPPET_CHARS",
+  "SEARCH_BODY_MAX_CHARS",
+  "SEARCH_INDEX_BATCH_MAX",
+  "SEARCH_INDEX_DISCOVERY_MAX",
+  "SEARCH_INDEX_MAX_ATTEMPTS",
+  "SEARCH_INDEX_BACKOFF_SECONDS",
+  "SEARCH_FAILED_RETRY_MINUTES",
+  "SEARCH_RECENT_MAX",
+  "SEARCH_RECENT_RETENTION_DAYS",
+  "SEARCH_RATE_PER_MINUTE",
   "DOCUMENT_EMBED_URL_MAX_CHARS",
   "FILE_UPLOAD_MAX_BYTES",
   "WORKSPACE_STORAGE_QUOTA_BYTES",

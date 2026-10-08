@@ -290,6 +290,36 @@ export interface WorkSettings {
   liveOpLogMax: number;
   /** `LIVE_RATE_PER_MINUTE` */
   liveRatePerMinute: number;
+  /** `SEARCH_QUERY_MAX_CHARS` */
+  searchQueryMaxChars: number;
+  /** `SEARCH_TERMS_MAX` */
+  searchTermsMax: number;
+  /** `SEARCH_PAGE_SIZE_MAX` */
+  searchPageSizeMax: number;
+  /** `SEARCH_RESULTS_MAX` */
+  searchResultsMax: number;
+  /** `SEARCH_COUNT_MAX` */
+  searchCountMax: number;
+  /** `SEARCH_SNIPPET_CHARS` */
+  searchSnippetChars: number;
+  /** `SEARCH_BODY_MAX_CHARS` */
+  searchBodyMaxChars: number;
+  /** `SEARCH_INDEX_BATCH_MAX` */
+  searchIndexBatchMax: number;
+  /** `SEARCH_INDEX_DISCOVERY_MAX` */
+  searchIndexDiscoveryMax: number;
+  /** `SEARCH_INDEX_MAX_ATTEMPTS` */
+  searchIndexMaxAttempts: number;
+  /** `SEARCH_INDEX_BACKOFF_SECONDS` */
+  searchIndexBackoffSeconds: number;
+  /** `SEARCH_FAILED_RETRY_MINUTES` */
+  searchFailedRetryMinutes: number;
+  /** `SEARCH_RECENT_MAX` */
+  searchRecentMax: number;
+  /** `SEARCH_RECENT_RETENTION_DAYS` */
+  searchRecentRetentionDays: number;
+  /** `SEARCH_RATE_PER_MINUTE` */
+  searchRatePerMinute: number;
   /** `DOCUMENT_EMBED_URL_MAX_CHARS` */
   documentEmbedUrlMaxChars: number;
   /** `SIGNED_URL_LIFETIME` (seconds) */
@@ -451,6 +481,21 @@ export const DEFAULT_WORK_SETTINGS: WorkSettings = Object.freeze({
   livePollWaitSeconds: 20,
   liveOpLogMax: 2000,
   liveRatePerMinute: 1200,
+  searchQueryMaxChars: 200,
+  searchTermsMax: 12,
+  searchPageSizeMax: 50,
+  searchResultsMax: 200,
+  searchCountMax: 1_000,
+  searchSnippetChars: 220,
+  searchBodyMaxChars: 100_000,
+  searchIndexBatchMax: 200,
+  searchIndexDiscoveryMax: 50,
+  searchIndexMaxAttempts: 5,
+  searchIndexBackoffSeconds: 30,
+  searchFailedRetryMinutes: 360,
+  searchRecentMax: 25,
+  searchRecentRetentionDays: 90,
+  searchRatePerMinute: 120,
   documentEmbedUrlMaxChars: 2048,
   signedUrlLifetimeSeconds: 300,
   uploadSessionLifetimeSeconds: 3_600,

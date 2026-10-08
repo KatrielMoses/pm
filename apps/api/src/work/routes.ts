@@ -1,8 +1,9 @@
 import type { FastifyInstance, FastifyRequest } from 'fastify';
 import { nonResourceEnvelope } from '@pm/contracts';
-import type { FileService } from '@pm/work';
+import type { SearchService } from '@pm/work';
 import { routeKit } from '../route-kit.ts';
 import { registerFiles } from './files-routes.ts';
+import { registerSearch } from './search-routes.ts';
 import { registerCapture } from './capture-routes.ts';
 import { registerTaskInteraction } from './interaction-routes.ts';
 import { registerTasks } from './task-routes.ts';
@@ -17,7 +18,7 @@ import { registerViews } from './view-routes.ts';
 import { registerWorkflows } from './workflow-routes.ts';
 
 export interface WorkRouteDeps {
-  work: FileService;
+  work: SearchService;
 }
 
 type Params = {
@@ -63,6 +64,7 @@ export function registerWork(app: FastifyInstance, deps: WorkRouteDeps): void {
   registerNotifications(app, work);
   registerDocuments(app, work);
   registerFiles(app, work);
+  registerSearch(app, work);
 
   app.get(
     base,

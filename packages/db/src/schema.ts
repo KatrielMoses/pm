@@ -2552,6 +2552,44 @@ export interface StorageUsageTable {
   updated_at: DTs;
 }
 
+// Phase 5A: the permission-aware search projection, its indexing queue, and recent searches (ADR-0028).
+export interface SearchEntryTable {
+  workspace_id: string;
+  source_kind: string;
+  source_id: string;
+  auth_record_id: string;
+  context_record_id: string | null;
+  title: string;
+  body: Defaulted<string>;
+  owner_membership_id: string | null;
+  source_updated_at: Timestamp;
+  indexed_at: DTs;
+  /** Generated from title (weight A) and body (weight B); never written. */
+  tsv: ColumnType<string, never, never>;
+}
+export interface SearchIndexTaskTable {
+  workspace_id: string;
+  source_kind: string;
+  source_id: string;
+  auth_record_id: string;
+  state: Defaulted<'pending' | 'failed'>;
+  attempts: Defaulted<number>;
+  requested_at: DTs;
+  next_attempt_at: DTs;
+  last_attempt_at: Ts | null;
+  failure_code: 'source_error' | 'invalid_content' | 'timeout' | 'unknown_source' | null;
+}
+export interface SearchRecentQueryTable {
+  id: string;
+  workspace_id: string;
+  owner_membership_id: string;
+  query: string;
+  filters: ColumnType<Record<string, unknown>, string | undefined, string>;
+  query_key: string;
+  search_count: Defaulted<number>;
+  searched_at: DTs;
+}
+
 export interface Database {
   'files.file_object': FileObjectTable;
   'files.file': FileTable;
@@ -2560,6 +2598,9 @@ export interface Database {
   'files.deliverable': DeliverableTable;
   'files.deliverable_version': DeliverableVersionTable;
   'files.storage_usage': StorageUsageTable;
+  'search.entry': SearchEntryTable;
+  'search.index_task': SearchIndexTaskTable;
+  'search.recent_query': SearchRecentQueryTable;
   'notify.notification': NotificationTable;
   'knowledge.document': DocumentTable;
   'knowledge.document_version': DocumentVersionTable;
@@ -3898,6 +3939,41 @@ export const TABLE_COLUMNS: Readonly<Record<keyof Database, readonly string[]>> 
     'created_at',
     'updated_at',
     'version',
+  ],
+  'search.entry': [
+    'workspace_id',
+    'source_kind',
+    'source_id',
+    'auth_record_id',
+    'context_record_id',
+    'title',
+    'body',
+    'owner_membership_id',
+    'source_updated_at',
+    'indexed_at',
+    'tsv',
+  ],
+  'search.index_task': [
+    'workspace_id',
+    'source_kind',
+    'source_id',
+    'auth_record_id',
+    'state',
+    'attempts',
+    'requested_at',
+    'next_attempt_at',
+    'last_attempt_at',
+    'failure_code',
+  ],
+  'search.recent_query': [
+    'id',
+    'workspace_id',
+    'owner_membership_id',
+    'query',
+    'filters',
+    'query_key',
+    'search_count',
+    'searched_at',
   ],
   'knowledge.edit_draft': [
     'workspace_id',

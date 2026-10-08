@@ -146,6 +146,13 @@ async function main(): Promise<void> {
         logger,
         settings: config.work,
       },
+      search: {
+        tenant: tenantDb,
+        discovery,
+        metrics: telemetry.metrics,
+        logger,
+        settings: config.work,
+      },
     }),
     consumers: registeredConsumers(config.work, {
       arrayMax: config.tenancy.principalContextArrayMax,

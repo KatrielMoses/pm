@@ -28,7 +28,8 @@ import {
   taskAssigneeHook,
   taskTargets,
   savedViewTargets,
-  FileService,
+  SearchService,
+  type SearchSourceRegistry,
   documentOwnerHook,
   LocalObjectStorage,
   SignatureTestScanner,
@@ -55,7 +56,7 @@ export {
 
 export interface WorkEnv {
   h: Harness;
-  svc: FileService;
+  svc: SearchService;
   /** The test storage and scanner the service uses (null when a test disables them). */
   files: FileDeps;
   stepUp: StubStepUp;
@@ -74,6 +75,9 @@ export function workEnv(
     commentRate?: number;
     documentRate?: number;
     liveRate?: number;
+    searchRate?: number;
+    /** 5A: the registered search sources (default: the 5A registrations). */
+    searchSources?: SearchSourceRegistry;
     emailState?: 'configured' | 'capture' | 'unconfigured';
     /** 4E: defaults to local storage in a temp directory and the signature scanner. */
     files?: Partial<FileDeps>;
@@ -121,8 +125,9 @@ export function workEnv(
     scanner:
       options.files?.scanner !== undefined ? options.files.scanner : new SignatureTestScanner(),
   };
-  const svc = new FileService({
+  const svc = new SearchService({
     files,
+    ...(options.searchSources ? { search: { sources: options.searchSources } } : {}),
     notify: { emailState: options.emailState ?? 'capture' },
     tenant: h.app,
     platform: h.platform,
@@ -146,6 +151,7 @@ export function workEnv(
       'comment.member': { limit: options.commentRate ?? 10_000, windowMs: 60_000 },
       'document.save': { limit: options.documentRate ?? 10_000, windowMs: 60_000 },
       'document.live': { limit: options.liveRate ?? 100_000, windowMs: 60_000 },
+      'search.member': { limit: options.searchRate ?? 100_000, windowMs: 60_000 },
     }),
     signingKey: randomBytes(32),
     settings: {

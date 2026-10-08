@@ -43,7 +43,8 @@ export function withPersonalReferenceCleanup(adapter: RecordTypeAdapter): Record
 
 /**
  * Personal rows keyed by `owner_membership_id`: 1E navigation; 2D reminders, snoozes, and the
- * member's short-lived bulk and undo rows; 3C plans (blocks before their series) and daily records.
+ * member's short-lived bulk and undo rows; 3C plans (blocks before their series) and daily records;
+ * 5A recent searches.
  */
 const OWNED_PERSONAL_TABLES = [
   'views.favorite',
@@ -57,6 +58,7 @@ const OWNED_PERSONAL_TABLES = [
   'planning.daily_record',
   'work.bulk_operation',
   'work.undo_entry',
+  'search.recent_query',
 ] as const;
 
 /**

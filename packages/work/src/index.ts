@@ -68,3 +68,7 @@ export * from './files/semantics.ts';
 export * from './files/file-service.ts';
 export * from './files/jobs.ts';
 export * from './files/lifecycle.ts';
+export * from './search/search-service.ts';
+export * from './search/index-job.ts';
+export * from './search/semantics.ts';
+export * from './search/sources.ts';

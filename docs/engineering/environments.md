@@ -216,6 +216,21 @@ worker process is a startup error. All identities of one process must target the
 | `LIVE_POLL_WAIT_SECONDS` | optional | optional | default 20 (0–30); longest a live poll waits for news (0D `LIVE_POLL_WAIT_SECONDS`) |
 | `LIVE_OP_LOG_MAX` | optional | optional | default 2000 (100–10000); operations kept for reconnecting editors (0D `LIVE_OP_LOG_MAX`) |
 | `LIVE_RATE_PER_MINUTE` | optional | optional | default 1200 (10–6000); most live requests one person makes per minute (0D `LIVE_RATE_PER_MINUTE`) |
+| `SEARCH_QUERY_MAX_CHARS` | optional | optional | default 200 (20–500); longest search query, in characters (0D `SEARCH_QUERY_MAX_CHARS`) |
+| `SEARCH_TERMS_MAX` | optional | optional | default 12 (2–30); most words and phrases in one search query (0D `SEARCH_TERMS_MAX`) |
+| `SEARCH_PAGE_SIZE_MAX` | optional | optional | default 50 (10–100); most results on one search page (0D `SEARCH_PAGE_SIZE_MAX`) |
+| `SEARCH_RESULTS_MAX` | optional | optional | default 200 (50–1000); deepest result a search can page to (0D `SEARCH_RESULTS_MAX`) |
+| `SEARCH_COUNT_MAX` | optional | optional | default 1000 (100–10000); where counts and facets stop and report "at least" (0D `SEARCH_COUNT_MAX`) |
+| `SEARCH_SNIPPET_CHARS` | optional | optional | default 220 (80–500); longest result snippet, in characters (0D `SEARCH_SNIPPET_CHARS`) |
+| `SEARCH_BODY_MAX_CHARS` | optional | optional | default 100000 (10000–100000); most text indexed per record, in characters (0D `SEARCH_BODY_MAX_CHARS`) |
+| `SEARCH_INDEX_BATCH_MAX` | optional | optional | default 200 (10–1000); most records one worker run indexes per workspace (0D `SEARCH_INDEX_BATCH_MAX`) |
+| `SEARCH_INDEX_DISCOVERY_MAX` | optional | optional | default 50 (1–500); most workspaces one indexing run visits (0D `SEARCH_INDEX_DISCOVERY_MAX`) |
+| `SEARCH_INDEX_MAX_ATTEMPTS` | optional | optional | default 5 (1–20); attempts to index a record before it is reported failed (0D `SEARCH_INDEX_MAX_ATTEMPTS`) |
+| `SEARCH_INDEX_BACKOFF_SECONDS` | optional | optional | default 30 (5–3600); first wait before a failed indexing attempt is retried (it doubles) (0D `SEARCH_INDEX_BACKOFF_SECONDS`) |
+| `SEARCH_FAILED_RETRY_MINUTES` | optional | optional | default 360 (10–10080); how long a failed record waits between slow retries (0D `SEARCH_FAILED_RETRY_MINUTES`) |
+| `SEARCH_RECENT_MAX` | optional | optional | default 25 (5–100); recent searches kept per person and workspace (0D `SEARCH_RECENT_MAX`) |
+| `SEARCH_RECENT_RETENTION_DAYS` | optional | optional | default 90 (1–365); how long a recent search is kept, in days (0D `SEARCH_RECENT_RETENTION_DAYS`) |
+| `SEARCH_RATE_PER_MINUTE` | optional | optional | default 120 (10–1200); most searches one person makes per minute (0D `SEARCH_RATE_PER_MINUTE`) |
 | `DOCUMENT_EMBED_URL_MAX_CHARS` | optional | optional | default 2048 (128–8192); longest address of an embedded image, video, or link (0D `DOCUMENT_EMBED_URL_MAX_CHARS`) |
 | `SIGNED_URL_LIFETIME` | optional | optional | default 300 (30–3600); lifetime in seconds of signed upload and download URLs; never stored, logged, or sent in notifications or exports (0D `SIGNED_URL_LIFETIME`) |
 | `UPLOAD_SESSION_LIFETIME` | optional | optional | default 3600 (300–86400); lifetime in seconds of an upload session; an expired, unfinished session releases its reserved bytes and its quarantined object (0D `UPLOAD_SESSION_LIFETIME`) |
