@@ -47,7 +47,7 @@ async function reflow(page: Page, url: string, ready: () => Promise<void>, label
   await page.setViewportSize(size);
 }
 
-test('a founder creates a goal with key results, links, and check-ins and sees how progress is made', async ({
+test('a founder creates a goal with key results, links, and check-ins and sees how progress is made @desktop-only', async ({
   page,
 }, info) => {
   test.setTimeout(240_000);
@@ -285,7 +285,7 @@ async function giveBrandRemoved(page: Page, ws: string, who: string) {
   await expect(page.getByText('Access removed.')).toBeAttached();
 }
 
-test('the portfolio shows health with its rules, dependencies, and goal coverage, accessibly and by keyboard', async ({
+test('the portfolio shows health with its rules, dependencies, and goal coverage, accessibly and by keyboard @desktop-only', async ({
   page,
 }, info) => {
   test.setTimeout(240_000);
