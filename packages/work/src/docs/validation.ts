@@ -120,6 +120,7 @@ export interface ContentSave {
   hash: string;
   bytes: number;
   refs: Array<{ kind: string; id: string }>;
+  restricted: string[];
 }
 
 export function parseContentSave(body: unknown, limits: ContentLimits): ContentSave {
@@ -139,6 +140,7 @@ export function parseContentSave(body: unknown, limits: ContentLimits): ContentS
     hash: parsed!.hash,
     bytes: parsed!.bytes,
     refs: parsed!.refs,
+    restricted: parsed!.restricted,
   };
 }
 
@@ -332,6 +334,7 @@ export interface SuggestionCreate {
   baseVersion: number;
   proposed: Block;
   note: string | null;
+  restricted: string[];
 }
 
 export function parseSuggestionCreate(body: unknown, limits: ContentLimits): SuggestionCreate {
@@ -345,18 +348,20 @@ export function parseSuggestionCreate(body: unknown, limits: ContentLimits): Sug
   const baseVersion = versionNumber(b.base_version, '/base_version', issues);
   const note = plainField(b.note, '/note', issues, { max: 500, required: false, label: 'The note' }) ?? null;
   let proposed: Block | null = null;
+  let restricted: string[] = [];
   if (!isObject(b.proposed)) issues.add('/proposed', 'required', 'Send the block as you would have it.');
   else {
     const inner = new Issues();
     try {
       const parsed = parseContent({ v: 2, blocks: [{ ...b.proposed, id: block || 'blk_sugg' }] }, limits, inner);
       proposed = parsed.content.blocks[0] ?? null;
+      restricted = parsed.restricted;
     } catch {
       for (const i of inner.list) issues.add((i.pointer ?? '/').replace(/^\/blocks\/0/, '/proposed'), i.code, i.message);
     }
   }
   issues.throwIfAny();
-  return { block, baseVersion: baseVersion!, proposed: proposed!, note };
+  return { block, baseVersion: baseVersion!, proposed: proposed!, note, restricted };
 }
 
 export function parseSuggestionDecision(body: unknown): { outcome: 'accept' | 'reject' } {

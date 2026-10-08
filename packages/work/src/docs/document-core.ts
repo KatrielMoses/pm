@@ -25,7 +25,11 @@ import type { CollabHost } from '../collab/comment-service.ts';
 import { recordJoins } from '../collab/record-sql.ts';
 import {
   DEFAULT_CONTENT_LIMITS,
+  collectRefs,
+  isRestrictedRef,
+  mapRefs,
   readContent,
+  restrictedToken,
   type ContentLimits,
   type DocContent,
   type Ref,
@@ -167,6 +171,43 @@ export class DocumentCore extends NotificationService {
     } catch {
       throw new TenancyError('cursor_invalid');
     }
+  }
+
+  /** The content a viewer receives: references they cannot read become opaque tokens (IA-46). */
+  protected redact(
+    d: { id: string },
+    content: DocContent,
+    resolved: Record<string, unknown>,
+  ): DocContent {
+    return mapRefs(content, (r) =>
+      isRestrictedRef(r) || resolved[`${r.kind}:${r.id}`]
+        ? r
+        : { kind: 'restricted', id: restrictedToken(this.#posKey, d.id, r) },
+    );
+  }
+
+  /**
+   * Puts back the references that restricted tokens stand for. A token must name a reference the
+   * document already holds (its current content); anything else is refused, and nothing about
+   * what a token stands for is ever sent to the client.
+   */
+  protected restoreRefs(d: { id: string }, current: DocContent | null, next: DocContent): DocContent {
+    const known = new Map<string, Ref>();
+    if (current)
+      for (const f of collectRefs(current))
+        known.set(restrictedToken(this.#posKey, d.id, f), { kind: f.kind, id: f.id });
+    let bad = false;
+    const out = mapRefs(next, (r) => {
+      if (!isRestrictedRef(r)) return r;
+      const real = known.get(r.id);
+      if (!real) bad = true;
+      return real ?? r;
+    });
+    if (bad)
+      throw invalid(
+        issue('/content', 'invalid_reference', 'This document changed. Reload it and try again.'),
+      );
+    return out;
   }
 
   protected docFp(...parts: unknown[]): string {
@@ -601,9 +642,13 @@ export class DocumentCore extends NotificationService {
       content_version: d.row.current_version_number,
       content_hash: version?.content_hash ?? null,
       size_bytes: version?.size_bytes ?? 0,
-      content,
+      content: this.redact(d, content, resolved),
       references: resolved,
-      links: wanted.links.map((l) => ({ kind: l.kind, id: l.id, resolved: resolved[`${l.kind}:${l.id}`] ?? null })),
+      links: wanted.links.flatMap((l) => {
+        const hit = resolved[`${l.kind}:${l.id}`];
+        return hit ? [hit] : [];
+      }),
+      links_restricted: wanted.links.filter((l) => !resolved[`${l.kind}:${l.id}`]).length,
       ai_source: await this.sourceStatus(tx, p, d),
       created_at: iso(d.row.created_at),
       updated_at: iso(d.row.updated_at),
@@ -634,7 +679,9 @@ export class DocumentCore extends NotificationService {
             : b.type === 'checklist'
               ? b.items.map((i) => i.runs)
               : [];
-      for (const rs of runs) for (const r of rs) if (r.ref) all.set(`${r.ref.kind}:${r.ref.id}`, r.ref);
+      for (const rs of runs)
+        for (const r of rs)
+          if (r.ref && !isRestrictedRef(r.ref)) all.set(`${r.ref.kind}:${r.ref.id}`, r.ref);
     }
     const links = rows.filter((r) => r.kind === 'link' && r.target_record_id);
     const ids = links.map((l) => l.target_record_id!);
@@ -1033,7 +1080,7 @@ export class DocumentCore extends NotificationService {
           current: row.number === d.row.current_version_number,
           by: people.get(row.created_by_membership_id) ?? null,
           at: iso(row.created_at),
-          content,
+          content: this.redact(d, content, references),
           references,
         };
       }),

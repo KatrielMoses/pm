@@ -1,4 +1,4 @@
-import { createHash, randomBytes } from 'node:crypto';
+import { createHash, createHmac, randomBytes } from 'node:crypto';
 import { Issues } from '@pm/tenancy';
 
 /**
@@ -30,6 +30,20 @@ export interface Ref {
   id: string;
 }
 
+/**
+ * What a viewer receives in place of a reference they cannot read (IA-46): an opaque token that
+ * names nothing (no kind, no identifier, no label). A save sends it back unchanged, and the server
+ * restores the reference it stands for, so a person who cannot read a link never removes it.
+ */
+export interface RestrictedRef {
+  kind: 'restricted';
+  id: string;
+}
+export const RESTRICTED_KIND = 'restricted' as const;
+export const RESTRICTED_ID = /^rst_[0-9a-f]{16}$/;
+export const isRestrictedRef = (r: Ref | RestrictedRef): r is RestrictedRef =>
+  r.kind === RESTRICTED_KIND;
+
 /** One run of inline text, or one reference (a run with `ref` has no text). */
 export interface Run {
   text?: string;
@@ -37,7 +51,7 @@ export interface Run {
   italic?: true;
   code?: true;
   link?: string;
-  ref?: Ref;
+  ref?: Ref | RestrictedRef;
 }
 
 export const CALLOUT_TONES = ['info', 'warning', 'success'] as const;
@@ -170,7 +184,7 @@ export const contentBytes = (c: DocContent) => Buffer.byteLength(stableStringify
 // Parsing
 // -------------------------------------------------------------------------------------------
 
-type Strictness = { limits: ContentLimits; refs: Ref[]; issues: Issues };
+type Strictness = { limits: ContentLimits; refs: Ref[]; restricted: string[]; issues: Issues };
 
 function fields(
   b: Record<string, unknown>,
@@ -216,6 +230,13 @@ function parseRuns(v: unknown, path: string, st: Strictness): Run[] {
       if (raw.text !== undefined)
         issues.add(`${p}/text`, 'not_allowed', 'A reference has no text of its own.');
       const r = raw.ref;
+      if (isObject(r) && r.kind === RESTRICTED_KIND && typeof r.id === 'string' && RESTRICTED_ID.test(r.id)) {
+        fields(r, ['kind', 'id'], `${p}/ref`, issues);
+        st.restricted.push(r.id);
+        run.ref = { kind: RESTRICTED_KIND, id: r.id };
+        out.push(run);
+        return;
+      }
       if (
         !isObject(r) ||
         !(REF_KINDS as readonly unknown[]).includes(r.kind) ||
@@ -441,6 +462,8 @@ export interface ParsedContent {
   hash: string;
   bytes: number;
   refs: Ref[];
+  /** Restricted-item tokens the content carries (to be restored before it is stored). */
+  restricted: string[];
 }
 
 /** Validates and normalizes content; throws the collected issues (never echoing input). */
@@ -451,7 +474,8 @@ export function parseContent(
   base = '',
 ): ParsedContent {
   const refs: Ref[] = [];
-  const st: Strictness = { limits, refs, issues };
+  const restricted: string[] = [];
+  const st: Strictness = { limits, refs, restricted, issues };
   const blocks: Block[] = [];
   if (!isObject(raw)) {
     issues.add(base || '/', 'invalid_type', 'Send the content as an object.');
@@ -478,7 +502,13 @@ export function parseContent(
   if (bytes > limits.bodyMaxBytes)
     issues.add(base || '/', 'too_long', 'This document is too large to save.');
   issues.throwIfAny();
-  return { content, hash: documentContentHash(content), bytes, refs: [...unique.values()] };
+  return {
+    content,
+    hash: documentContentHash(content),
+    bytes,
+    refs: [...unique.values()],
+    restricted,
+  };
 }
 
 /** Re-reads stored content (already validated at save) into the canonical typed form. */
@@ -554,6 +584,40 @@ function runsOf(b: Block): Run[][] {
   }
 }
 
+/** A copy of the content with every reference replaced by `f(reference)` (pure; same shape). */
+export function mapRefs(
+  c: DocContent,
+  f: (ref: Ref | RestrictedRef) => Ref | RestrictedRef,
+): DocContent {
+  const runs = (rs: Run[]): Run[] => rs.map((r) => (r.ref ? { ref: f(r.ref) } : r));
+  return {
+    v: 2,
+    blocks: c.blocks.map((b): Block => {
+      switch (b.type) {
+        case 'paragraph':
+        case 'quote':
+          return { ...b, runs: runs(b.runs) };
+        case 'heading':
+          return { ...b, runs: runs(b.runs) };
+        case 'callout':
+          return { ...b, runs: runs(b.runs) };
+        case 'bulleted_list':
+        case 'numbered_list':
+          return { ...b, items: b.items.map(runs) };
+        case 'checklist':
+          return { ...b, items: b.items.map((i) => ({ ...i, runs: runs(i.runs) })) };
+        default:
+          return b;
+      }
+    }),
+  };
+}
+
+/** The opaque token that stands for `ref` in document `docId` (stable, names nothing). */
+export function restrictedToken(key: Buffer, docId: string, ref: Ref): string {
+  return `rst_${createHmac('sha256', key).update(`${docId}|${ref.kind}|${ref.id}`).digest('hex').slice(0, 16)}`;
+}
+
 export interface FoundRef extends Ref {
   blockId: string;
   position: number;
@@ -567,7 +631,7 @@ export function collectRefs(c: DocContent): FoundRef[] {
     let position = 0;
     for (const runs of runsOf(b))
       for (const r of runs)
-        if (r.ref) {
+        if (r.ref && !isRestrictedRef(r.ref)) {
           const key = `${r.ref.kind}:${r.ref.id}`;
           if (!seen.has(key)) {
             seen.add(key);
@@ -622,7 +686,7 @@ function mdRuns(runs: readonly Run[], resolve: DocRefResolver, note: ExportNote)
   return runs
     .map((r) => {
       if (r.ref) {
-        const hit = resolve(r.ref);
+        const hit = isRestrictedRef(r.ref) ? null : resolve(r.ref);
         if (!hit) {
           note.restricted += 1;
           return `*${RESTRICTED_LABEL}*`;
@@ -729,7 +793,7 @@ function htmlRuns(runs: readonly Run[], resolve: DocRefResolver, note: ExportNot
   return runs
     .map((r) => {
       if (r.ref) {
-        const hit = resolve(r.ref);
+        const hit = isRestrictedRef(r.ref) ? null : resolve(r.ref);
         if (!hit) {
           note.restricted += 1;
           return `<em>${RESTRICTED_LABEL}</em>`;

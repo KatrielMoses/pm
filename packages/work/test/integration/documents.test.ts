@@ -552,4 +552,262 @@ describe('Documents and knowledge (4C)', () => {
       env.svc.createDocument(sharedEditor, ws, { title: 'x', parent: d.id }, mutation()),
     ).rejects.toEqual(reason('not_found'));
   });
+
+  describe('references, backlinks, and comments', () => {
+    const run = (id: string, kind: string) => ({ ref: { kind, id } });
+
+    it('links records by registered reference, re-checks every viewer, and shows no title they cannot read', async () => {
+      const secret = (
+        await env.svc.createTask(
+          owner,
+          ws,
+          { brand: brands.Summit, title: 'Hidden acquisition' },
+          mutation(),
+        )
+      ).data;
+      const target = (
+        await env.svc.createTask(
+          owner,
+          ws,
+          { brand: brands.Harbor, title: 'Visible task' },
+          mutation(),
+        )
+      ).data;
+      const d = await make(editor, { title: 'Links', brand: brands.Harbor, starter: false });
+      // New references must be readable by the person saving; hidden, unknown, and unsupported are one issue.
+      for (const ref of [
+        run(secret.id, 'task'),
+        run(`tsk_${'0'.repeat(25)}1`, 'task'),
+        run(`prj_${'0'.repeat(25)}1`, 'project'),
+      ])
+        await expect(
+          save(editor, d, [{ id: 'blk_a', type: 'paragraph', runs: [{ text: 'See ' }, ref] }]),
+        ).rejects.toMatchObject({ issues: [expect.objectContaining({ code: 'not_linkable' })] });
+      const saved = await save(editor, d, [
+        {
+          id: 'blk_a',
+          type: 'paragraph',
+          runs: [
+            { text: 'See ' },
+            run(target.id, 'task'),
+            { text: ' and ' },
+            run(pub.owner!, 'member'),
+            { text: ' and ' },
+            run(project.id, 'project'),
+          ],
+        },
+      ]);
+      expect(saved.references[`task:${target.id}`]).toMatchObject({
+        label: 'Visible task',
+        path: `/workspaces/${ws}/tasks/${target.id}`,
+      });
+      expect(saved.references[`member:${pub.owner}`]).toMatchObject({ kind: 'member' });
+      expect(JSON.stringify(saved.content)).not.toContain('Visible task');
+      // A viewer who can read the document but not the target sees a restricted token: no entry at all.
+      const asReader = await env.svc.getDocument(reader, ws, d.id);
+      expect(asReader.references[`task:${target.id}`]).toBeDefined();
+      // An editor who cannot read a link already in the document can still save it unchanged.
+      const hiddenFromEditor = await make(owner, {
+        title: 'Owner links',
+        brand: brands.Harbor,
+        starter: false,
+      });
+      const withSecret = await save(owner, hiddenFromEditor, [
+        { id: 'blk_a', type: 'paragraph', runs: [{ text: 'Plan ' }, run(secret.id, 'task')] },
+      ]);
+      const asEditor = await env.svc.getDocument(editor, ws, withSecret.id);
+      expect(asEditor.references[`task:${secret.id}`]).toBeUndefined();
+      expect(JSON.stringify(asEditor)).not.toContain('Hidden acquisition');
+      expect(JSON.stringify(asEditor)).not.toContain(secret.id);
+      expect(asEditor.content.blocks[0]).toMatchObject({
+        runs: [
+          { text: 'Plan ' },
+          { ref: { kind: 'restricted', id: expect.stringMatching(/^rst_[0-9a-f]{16}$/) } },
+        ],
+      });
+      const token = (asEditor.content.blocks[0] as { runs: unknown[] }).runs[1];
+      const edited = await save(editor, withSecret, [
+        { id: 'blk_a', type: 'paragraph', runs: [{ text: 'Plan, edited ' }, token] },
+      ]);
+      // The link survives an editor who cannot read it: the token went back to what it stood for.
+      expect(
+        (
+          await sql(
+            `SELECT count(*)::int AS n FROM knowledge.document_reference ref JOIN core.record r ON r.id = ref.target_record_id WHERE r.public_id = '${secret.id}'`,
+          )
+        )[0]!.n,
+      ).toBe(1);
+      expect(
+        (await env.svc.getDocument(owner, ws, withSecret.id)).references[`task:${secret.id}`],
+      ).toMatchObject({ label: 'Hidden acquisition' });
+      // A token that stands for nothing in this document is refused.
+      await expect(
+        save(editor, edited, [
+          {
+            id: 'blk_a',
+            type: 'paragraph',
+            runs: [{ ref: { kind: 'restricted', id: 'rst_0123456789abcdef' } }],
+          },
+        ]),
+      ).rejects.toMatchObject({ issues: [expect.objectContaining({ code: 'invalid_reference' })] });
+      expect(edited.content_version).toBe(withSecret.content_version + 1);
+      // ...but cannot add a new link to something hidden.
+      await expect(
+        save(editor, edited, [
+          {
+            id: 'blk_a',
+            type: 'paragraph',
+            runs: [run(secret.id, 'task'), run(secret.id.replace(/.$/, '0'), 'task')],
+          },
+        ]),
+      ).rejects.toMatchObject({ issues: [expect.objectContaining({ code: 'not_linkable' })] });
+    });
+
+    it('lists backlinks only for documents and targets the viewer can read', async () => {
+      const target = (
+        await env.svc.createTask(
+          owner,
+          ws,
+          { brand: brands.Harbor, title: 'Backlinked' },
+          mutation(),
+        )
+      ).data;
+      const readable = await make(editor, {
+        title: 'Mentions it',
+        brand: brands.Harbor,
+        starter: false,
+      });
+      await save(editor, readable, [
+        { id: 'blk_a', type: 'paragraph', runs: [run(target.id, 'task')] },
+      ]);
+      const linked = await make(editor, {
+        title: 'Linked explicitly',
+        brand: brands.Harbor,
+        starter: false,
+      });
+      const withLink = (
+        await env.svc.setLinks(
+          editor,
+          ws,
+          linked.id,
+          { records: [target.id, project.id] },
+          ifMatch(linked.version),
+        )
+      ).data;
+      expect(withLink.links.map((l) => l.id).sort()).toEqual([project.id, target.id].sort());
+      const hidden = await make(owner, {
+        title: 'Summit mention',
+        brand: brands.Summit,
+        starter: false,
+      });
+      await save(owner, hidden, [
+        { id: 'blk_a', type: 'paragraph', runs: [run(target.id, 'task')] },
+      ]);
+      const seen = await env.svc.backlinks(editor, ws, target.id, {});
+      expect(seen.data.map((x) => [x.title, x.via]).sort()).toEqual([
+        ['Linked explicitly', 'link'],
+        ['Mentions it', 'mention'],
+      ]);
+      expect(
+        (await env.svc.backlinks(owner, ws, target.id, {})).data.map((x) => x.title),
+      ).toContain('Summit mention');
+      // Nothing is revealed about the links to a record the viewer cannot read.
+      await expect(env.svc.backlinks(outsider, ws, target.id, {})).rejects.toEqual(
+        reason('not_found'),
+      );
+      await expect(env.svc.backlinks(stranger, ws, target.id, {})).rejects.toEqual(
+        reason('not_found'),
+      );
+      await expect(env.svc.backlinks(editor, ws, `tsk_${'0'.repeat(26)}`, {})).rejects.toEqual(
+        reason('not_found'),
+      );
+      // A document cannot link to itself, and the explicit links are replaced as one set.
+      await expect(
+        env.svc.setLinks(
+          editor,
+          ws,
+          linked.id,
+          { records: [linked.id] },
+          ifMatch(withLink.version),
+        ),
+      ).rejects.toMatchObject({ issues: [expect.objectContaining({ code: 'not_linkable' })] });
+      const cleared = (
+        await env.svc.setLinks(editor, ws, linked.id, { records: [] }, ifMatch(withLink.version))
+      ).data;
+      expect(cleared.links).toEqual([]);
+      expect((await env.svc.backlinks(editor, ws, target.id, {})).data.map((x) => x.title)).toEqual(
+        ['Mentions it'],
+      );
+    });
+
+    it('comments, follows, and reviews work on a document through the collaboration host', async () => {
+      const d = await make(editor, {
+        title: 'Reviewed spec',
+        brand: brands.Harbor,
+        starter: false,
+      });
+      const v2 = await save(editor, d, [para('blk_a', 'Draft')]);
+      const c = (
+        await env.svc.createComment(editor, ws, d.id, { text: 'Looks right to me' }, mutation())
+      ).data;
+      expect(c).toMatchObject({ host: { id: d.id, type: 'document' } });
+      await expect(
+        env.svc.createComment(reader, ws, d.id, { text: 'no' }, mutation()),
+      ).rejects.toEqual(reason('forbidden'));
+      await expect(
+        env.svc.createComment(outsider, ws, d.id, { text: 'no' }, mutation()),
+      ).rejects.toEqual(reason('not_found'));
+      expect((await env.svc.listComments(owner, ws, d.id, {})).data).toHaveLength(1);
+      await env.svc.follow(owner, ws, d.id, true, mutation());
+      expect(
+        (await env.svc.following(owner, ws, { type: 'document' })).data.map((x) => x.id),
+      ).toContain(d.id);
+      // A review binds to the current content version and goes stale when the content changes.
+      const review = (
+        await env.svc.requestReview(
+          editor,
+          ws,
+          d.id,
+          { reviewers: [pub.owner!], subject_version: v2.content_version },
+          mutation(),
+        )
+      ).data;
+      expect(review).toMatchObject({
+        subject: { id: d.id, type: 'document', title: 'Reviewed spec' },
+        subject_version: 2,
+        stale: false,
+      });
+      const v3 = await save(editor, v2, [para('blk_a', 'Draft, revised')]);
+      expect((await env.svc.getReview(owner, ws, review.id)).stale).toBe(true);
+      await expect(
+        env.svc.decideReview(
+          owner,
+          ws,
+          review.id,
+          { outcome: 'approved', subject_version: 2 },
+          mutation(),
+        ),
+      ).rejects.toMatchObject({ issues: [expect.objectContaining({ code: 'subject_changed' })] });
+      expect(v3.content_version).toBe(3);
+      // A metadata change (state, owner, review date) never stales a review.
+      const fresh = (await env.svc.refreshReview(editor, ws, review.id, {}, mutation())).data;
+      await env.svc.updateDocument(editor, ws, d.id, { state: 'current' }, ifMatch(v3.version));
+      expect((await env.svc.getReview(owner, ws, fresh.id)).stale).toBe(false);
+      const decided = (
+        await env.svc.decideReview(
+          owner,
+          ws,
+          fresh.id,
+          { outcome: 'approved', subject_version: 3 },
+          mutation(),
+        )
+      ).data;
+      expect(decided.state).toBe('approved');
+      expect(
+        (await env.svc.myReviews(owner, ws, { role: 'reviewer', state: 'settled' })).data.map(
+          (r) => r.subject.title,
+        ),
+      ).toContain('Reviewed spec');
+    });
+  });
 });

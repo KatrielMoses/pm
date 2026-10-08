@@ -627,21 +627,34 @@ export class DocumentService extends DocumentCore {
           const title = input.title ?? d.row.title;
           if (cur && cur.hash === input.hash && cur.title === title)
             return { status: 200, ref: { id: d.publicId, type: 'document' }, data: await this.documentView(tx, p, d) };
-          await this.checkNewRefs(tx, p, d, input.refs as Ref[], 'present');
+          let next = { content: input.content, hash: input.hash, bytes: input.bytes, refs: input.refs as Ref[] };
+          if (input.restricted.length) {
+            // The client held opaque tokens for links it cannot read; they go back to what they were.
+            const restored = parseContent(
+              this.restoreRefs(d, cur?.content ?? null, input.content),
+              this.contentLimits(),
+              undefined,
+              '/content',
+            );
+            next = { content: restored.content, hash: restored.hash, bytes: restored.bytes, refs: restored.refs };
+          }
+          if (cur && cur.hash === next.hash && cur.title === title)
+            return { status: 200, ref: { id: d.publicId, type: 'document' }, data: await this.documentView(tx, p, d) };
+          await this.checkNewRefs(tx, p, d, next.refs, 'present');
           const v = await this.appendVersion(tx, p, d, {
             title,
-            content: input.content,
-            hash: input.hash,
-            bytes: input.bytes,
+            content: next.content,
+            hash: next.hash,
+            bytes: next.bytes,
             kind: 'save',
             prev: cur?.content ?? null,
           });
           await this.bumpDoc(tx, d, p, { title, current_version_id: v.id, current_version_number: v.number });
-          const mentions = await this.syncReferences(tx, d, collectRefs(input.content));
+          const mentions = await this.syncReferences(tx, d, collectRefs(next.content));
           await this.docAudit(tx, caller, p, 'document.saved', d, [
             change.plain('version', d.row.current_version_number, v.number),
             ...(title !== d.row.title ? [change.content('title', { hash: hashText(title) })] : []),
-            change.content('content', { hash: input.hash }),
+            change.content('content', { hash: next.hash }),
             change.plain('blocks_added', null, v.summary.added ?? 0),
             change.plain('blocks_changed', null, v.summary.changed ?? 0),
             change.plain('blocks_removed', null, v.summary.removed ?? 0),
@@ -649,7 +662,7 @@ export class DocumentService extends DocumentCore {
           await this.docEvent(tx, caller, p, 'knowledge.document.version_saved', d, {
             version_number: v.number,
             kind: 'save',
-            size_bytes: input.bytes,
+            size_bytes: next.bytes,
           }, d.row.version + 1);
           await this.emitDocMentions(tx, caller, p, { ...d, row: { ...d.row, version: d.row.version + 1 } }, mentions);
           const fresh = await this.loadDocument(tx, p, d.publicId);

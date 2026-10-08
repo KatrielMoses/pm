@@ -102,7 +102,7 @@ export class KnowledgeService extends DocumentService {
       ...(row.decided_by_membership_id ? [row.decided_by_membership_id] : []),
     ]);
     const ws = await this.workspacePublicId(tx);
-    const proposedRefs = collectRefs({ v: 2, blocks: [row.proposed as Block] });
+    const proposedRefs = collectRefs({ v: 2, blocks: [row.proposed as Block, ...(block ? [block] : [])] });
     const references = await this.docRefs(
       tx,
       p,
@@ -118,8 +118,8 @@ export class KnowledgeService extends DocumentService {
       base_version: row.base_version,
       state: row.state,
       effective_state: outdated ? ('stale' as const) : row.state,
-      proposed: row.proposed as Block,
-      current: block ?? null,
+      proposed: this.redact(d, { v: 2, blocks: [row.proposed as Block] }, references).blocks[0]!,
+      current: block ? this.redact(d, { v: 2, blocks: [block] }, references).blocks[0]! : null,
       references,
       note: row.note,
       author: people.get(row.author_membership_id) ?? null,
@@ -194,7 +194,11 @@ export class KnowledgeService extends DocumentService {
             .executeTakeFirstOrThrow();
           if (Number(open.n) >= this.ws.documentSuggestionsOpenMax)
             throw invalid(issue('/', 'too_many', `A document can have at most ${this.ws.documentSuggestionsOpenMax} open suggestions.`));
-          const proposed = { ...input.proposed, id: input.block } as Block;
+          let proposed = { ...input.proposed, id: input.block } as Block;
+          if (input.restricted.length) {
+            const restored = this.restoreRefs(d, cur?.content ?? null, { v: 2, blocks: [proposed] });
+            proposed = restored.blocks[0]!;
+          }
           const refs: Ref[] = collectRefs({ v: 2, blocks: [proposed] }).map((r) => ({ kind: r.kind, id: r.id }));
           await this.checkNewRefs(tx, p, d, refs, 'present');
           const id = newUuidV7();
