@@ -110,11 +110,14 @@ function IndexNotice({ index }: { index: SearchResponse['index'] }) {
   );
 }
 
-type Load =
-  | { status: 'idle' }
-  | { status: 'loading'; previous: SearchResponse | null }
-  | { status: 'done'; data: SearchResponse }
-  | { status: 'error'; error: unknown; previous: SearchResponse | null };
+interface Settled {
+  /** The request this answered: the query's address plus a counter that repeats the same search. */
+  key: string;
+  q: string;
+  data: SearchResponse | null;
+  error: unknown;
+}
+const NONE: ReadonlySet<string> = new Set();
 
 export function SearchPage({ ws }: { ws: string }) {
   const { search, navigate } = useRouter();
@@ -123,47 +126,48 @@ export function SearchPage({ ws }: { ws: string }) {
   const id = useId();
   const query = useMemo(() => parseSearchParams(search), [search]);
   const [draft, setDraft] = useState(query.q);
-  const [load, setLoad] = useState<Load>({ status: 'idle' });
-  const [gone, setGone] = useState<ReadonlySet<string>>(new Set());
+  // The last request that finished (or failed), and which request it answered. Everything shown is
+  // derived from it and from the current address, so the page never needs to reset itself.
+  const [settled, setSettled] = useState<Settled | null>(null);
+  const [goneState, setGoneState] = useState<{ key: string; ids: ReadonlySet<string> }>({
+    key: '',
+    ids: new Set(),
+  });
   const [said, setSaid] = useState('');
   const [recent, setRecent] = useState<RecentSearch[] | null>(null);
   const [recentError, setRecentError] = useState<unknown>(null);
   const [reload, setReload] = useState(0);
+  const requestKey = `${toSearchParams(parseSearchParams(search)).toString()}#${reload}`;
   const input = useRef<HTMLInputElement>(null);
   const resultsHeading = useRef<HTMLHeadingElement>(null);
   const brands = shellState?.context?.brands ?? [];
   const brandName = (b: string) => brands.find((x) => x.id === b)?.name ?? 'A brand';
 
-  // The address is the source of truth: the field follows it (Back, a shared link, a recent search).
-  useEffect(() => setDraft(query.q), [query.q]);
+  // The address is the source of truth: the field follows it (Back, a shared link, a recent
+  // search). Adjusted while rendering, not in an effect, so the field never lags the address.
+  const [syncedQ, setSyncedQ] = useState(query.q);
+  if (syncedQ !== query.q) {
+    setSyncedQ(query.q);
+    setDraft(query.q);
+  }
 
   const key = toSearchParams(query).toString();
   useEffect(() => {
-    if (!query.q) {
-      setLoad({ status: 'idle' });
-      return;
-    }
+    if (!query.q) return;
     const controller = new AbortController();
-    setLoad((l) => ({
-      status: 'loading',
-      previous:
-        l.status === 'done'
-          ? l.data
-          : l.status === 'loading' || l.status === 'error'
-            ? l.previous
-            : null,
-    }));
-    setGone(new Set());
+    const asked = `${key}#${reload}`;
     searchApi.query(ws, query, controller.signal).then(
       (data) => {
-        if (!controller.signal.aborted) setLoad({ status: 'done', data });
+        if (!controller.signal.aborted) setSettled({ key: asked, q: query.q, data, error: null });
       },
       (error: unknown) => {
         if (controller.signal.aborted) return;
-        setLoad((l) => ({
-          status: 'error',
+        // The last good results of the same words stay (marked), a different search shows none.
+        setSettled((prev) => ({
+          key: asked,
+          q: query.q,
+          data: prev && prev.q === query.q ? prev.data : null,
           error,
-          previous: l.status === 'loading' ? l.previous : null,
         }));
       },
     );
@@ -171,14 +175,21 @@ export function SearchPage({ ws }: { ws: string }) {
     // `key` stands for every field of the query.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ws, key, reload]);
+  const answered = settled?.key === requestKey;
+  const loading = Boolean(query.q) && !answered;
+  const error = answered ? settled.error : null;
+  // Earlier results stay on screen while the same words are searched again (a filter changed).
+  const data = query.q && settled && settled.q === query.q ? settled.data : null;
+  const gone = goneState.key === requestKey ? goneState.ids : NONE;
 
   // A search that failed because the connection dropped runs again by itself when it returns.
+  const offline = error instanceof ApiError && error.offline;
   useEffect(() => {
-    if (load.status !== 'error' || !(load.error instanceof ApiError) || !load.error.offline) return;
+    if (!offline) return;
     const on = () => setReload((n) => n + 1);
     window.addEventListener('online', on);
     return () => window.removeEventListener('online', on);
-  }, [load]);
+  }, [offline]);
 
   const loadRecent = useCallback(() => {
     searchApi.recent(ws).then(
@@ -220,21 +231,14 @@ export function SearchPage({ ws }: { ws: string }) {
       navigate(href);
     } catch (err) {
       if (err instanceof ApiError && err.code === 'not_found') {
-        setGone((g) => new Set(g).add(`${r.type}:${r.id}`));
+        setGoneState({ key: requestKey, ids: new Set(gone).add(`${r.type}:${r.id}`) });
         setSaid(
           `“${r.title}” is no longer available to you, so it was removed from these results.`,
         );
-      } else
-        setLoad({
-          status: 'error',
-          error: err,
-          previous: load.status === 'done' ? load.data : null,
-        });
+      } else setSettled({ key: requestKey, q: query.q, data, error: err });
     }
   };
 
-  const data = load.status === 'done' ? load.data : load.status === 'idle' ? null : load.previous;
-  const loading = load.status === 'loading';
   const shown = (data?.results ?? []).filter((r) => !gone.has(`${r.type}:${r.id}`));
   const filters = activeFilters(query);
   const first = data ? data.page.offset + 1 : 0;
@@ -394,10 +398,8 @@ export function SearchPage({ ws }: { ws: string }) {
         </p>
       </form>
 
-      {load.status === 'error' ? (
-        <ProblemBanner error={load.error} onRetry={() => setReload((n) => n + 1)} />
-      ) : null}
-      {load.status === 'error' && load.previous ? (
+      {error ? <ProblemBanner error={error} onRetry={() => setReload((n) => n + 1)} /> : null}
+      {error && data ? (
         <Banner tone="warning" title="These results are from before the problem">
           They may be out of date. Search again when the connection is back.
         </Banner>
