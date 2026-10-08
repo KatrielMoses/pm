@@ -1,7 +1,7 @@
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ApiError } from '../src/api.ts';
-import { SearchPage } from '../src/pages/search-pages.tsx';
+import { SearchHealthNotice, SearchPage } from '../src/pages/search-pages.tsx';
 import { Router } from '../src/router.tsx';
 import {
   searchApi,
@@ -608,5 +608,48 @@ describe('search page (5A)', () => {
     expect(screen.getByText('Launch plan', { selector: 'strong' })).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: 'Remove the project filter' }));
     await waitFor(() => expect(window.location.search).toBe('?q=invoice'));
+  });
+
+  it('tells administrators on Home about failed indexing, and stays silent when healthy or unreadable', async () => {
+    const status = vi.spyOn(searchApi, 'status');
+    status.mockResolvedValueOnce({
+      type: 'search_status',
+      index: { state: 'degraded', pending: 0, failed: 3, oldest_pending_seconds: null },
+      sources: [],
+      limits: { query_max_chars: 200, page_size_max: 50, results_max: 200, count_max: 1000 },
+    });
+    const { unmount } = render(
+      <Router>
+        <SearchHealthNotice ws={WS} />
+      </Router>,
+    );
+    expect(await screen.findByText("Some items couldn't be searched")).toBeTruthy();
+    expect(screen.getByText(/3 items couldn't be added to search/)).toBeTruthy();
+    expect(screen.getByRole('link', { name: 'Open search' }).getAttribute('href')).toBe(
+      `/workspaces/${WS}/search`,
+    );
+    unmount();
+    status.mockResolvedValueOnce({
+      type: 'search_status',
+      index: { state: 'complete', pending: 0, failed: 0, oldest_pending_seconds: null },
+      sources: [],
+      limits: { query_max_chars: 200, page_size_max: 50, results_max: 200, count_max: 1000 },
+    });
+    const healthy = render(
+      <Router>
+        <SearchHealthNotice ws={WS} />
+      </Router>,
+    );
+    await waitFor(() => expect(status).toHaveBeenCalledTimes(2));
+    expect(healthy.container.textContent).toBe('');
+    healthy.unmount();
+    status.mockRejectedValueOnce(new ApiError({ code: 'offline', status: 0, message: 'x' }));
+    const failed = render(
+      <Router>
+        <SearchHealthNotice ws={WS} />
+      </Router>,
+    );
+    await waitFor(() => expect(status).toHaveBeenCalledTimes(3));
+    expect(failed.container.textContent).toBe('');
   });
 });

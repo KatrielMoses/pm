@@ -17,6 +17,7 @@ import {
   type SearchQuery,
   type SearchResponse,
   type SearchResult,
+  type SearchStatus,
   type Snippet,
   type SnippetPart,
 } from '../search/client.ts';
@@ -639,5 +640,39 @@ export function SearchPage({ ws }: { ws: string }) {
         </div>
       )}
     </Page>
+  );
+}
+
+/**
+ * For people who administer the workspace (IA-10): persistent indexing failures appear on Home, not
+ * only beside individual results. It counts only records this person can read, like the search
+ * page's own banner, and says nothing when the index is healthy or the status cannot be read.
+ */
+export function SearchHealthNotice({ ws }: { ws: string }) {
+  const [index, setIndex] = useState<SearchStatus['index'] | null>(null);
+  useEffect(() => {
+    let live = true;
+    searchApi.status(ws).then(
+      (s) => live && setIndex(s.index),
+      () => undefined,
+    );
+    return () => {
+      live = false;
+    };
+  }, [ws]);
+  if (!index || index.failed === 0) return null;
+  return (
+    <Banner
+      tone="warning"
+      title="Some items couldn't be searched"
+      action={
+        <Link to={searchHref(ws, {})} className="button button-secondary">
+          Open search
+        </Link>
+      }
+    >
+      {index.failed === 1 ? '1 item' : `${number.format(index.failed)} items`} couldn't be added to
+      search and may be missing or out of date there. The problem is retried automatically.
+    </Banner>
   );
 }
