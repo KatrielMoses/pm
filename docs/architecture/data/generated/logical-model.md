@@ -3095,12 +3095,12 @@ Proposed edit on a document version; accepted or rejected by owner.
 
 ## Goals and portfolios (`goals`, schema `goals`)
 
-Goals, key results, goal links, check-ins, portfolios.
+Goals, key results, goal links, check-ins, derived recalculation state, portfolios, and portfolio members.
 
 <a id="entity-goal"></a>
 ### `goal`
 
-Desired outcome at workspace, brand, or project scope with owner, period, baseline, target, unit.
+Desired outcome at workspace, brand, or project scope with owner, period, status, and a manual, key-result, or linked-work basis; a core.record envelope that is never shareable.
 
 | Property | Value |
 |---|---|
@@ -3113,14 +3113,15 @@ Desired outcome at workspace, brand, or project scope with owner, period, baseli
 | Volume / export / search-AI | `low` / `filtered` / `yes` |
 | Secrets / personal data | `no` / `incidental` |
 | Uniqueness | — |
-| Key typed columns | standard columns only |
+| Key typed columns | `id (core.record envelope, prefix goal)`; `brand_id null (workspace goal)`; `project_id null (project goal, needs brand)`; `title`; `owner_membership_id`; `status (draft\|active\|achieved\|missed\|cancelled)`; `period_kind (quarter\|half\|year\|custom), period_start, period_end (at most 3660 days)`; `progress_basis (manual\|key_results\|linked_work)`; `unit, baseline_value, target_value, current_value (numeric(20,4), bounded)`; `latest_checkin_id, latest_checkin_at, latest_percent, latest_confidence`; `version` |
 | Sensitive fields | — |
-| Requirements | GOAL-001, GOAL-002 |
+| Requirements | GOAL-001, GOAL-002, GOAL-005, GOAL-006 |
+| Notes | Phase 5B (ADR-36): placement decides access (workspace level, brand level, or the governing project chain); never shareable. No number derived from linked work is stored here: it is computed for each viewer from the work they may read. latest_* mirror the newest manual check-in and move with it in one transaction. |
 
 <a id="entity-key-result"></a>
 ### `key_result`
 
-Measurable target within a goal.
+Measurable target within a goal; manual measurement or a manual percentage.
 
 | Property | Value |
 |---|---|
@@ -3133,14 +3134,15 @@ Measurable target within a goal.
 | Volume / export / search-AI | `low` / `filtered` / `yes` |
 | Secrets / personal data | `no` / `incidental` |
 | Uniqueness | — |
-| Key typed columns | standard columns only |
+| Key typed columns | `id (core.record envelope, prefix kr)`; `goal_id`; `title`; `owner_membership_id`; `progress_basis (manual)`; `unit, baseline_value, target_value, current_value`; `position`; `latest_checkin_id, latest_percent, latest_confidence`; `version` |
 | Sensitive fields | — |
-| Requirements | GOAL-004 |
+| Requirements | GOAL-004, GOAL-005 |
+| Notes | Phase 5B (ADR-36): lives in the scope of its goal and archives, trashes, restores, and purges with it. Key-result progress is a measurement the owner records; the goal's key-result rollup is a plain equal-weight mean of the measured ones (not a 5C metric). |
 
 <a id="entity-goal-link"></a>
 ### `goal_link`
 
-Association from goal or key result to project or task (brand goals link within their brand).
+Link from a goal or one of its key results to a project or task; grants no access and implies no progress for work the viewer cannot read.
 
 | Property | Value |
 |---|---|
@@ -3152,19 +3154,20 @@ Association from goal or key result to project or task (brand goals link within 
 | Retention / confidentiality | `R-LIVE` / `C2` |
 | Volume / export / search-AI | `medium` / `filtered` / `yes` |
 | Secrets / personal data | `no` / `incidental` |
-| Uniqueness | `(goal_or_kr_id, record_id)` |
-| Key typed columns | standard columns only |
+| Uniqueness | `(goal_id, key_result_id, target_id)` |
+| Key typed columns | `goal_id`; `key_result_id null`; `target_kind (project\|task)`; `target_id`; `created_by_membership_id` |
 | Sensitive fields | — |
-| Requirements | GOAL-003 |
+| Requirements | GOAL-003, GOAL-012, GOAL-013 |
+| Notes | Phase 5B (ADR-36): a database trigger keeps a brand goal's links inside its brand and a project goal's task links inside its project. Purge of a project or task removes the links that name it. |
 
 <a id="entity-goal-checkin"></a>
 ### `goal_checkin`
 
-Append-only progress update with confidence and source (manual or computed).
+Append-only progress update with confidence, note, and source (manual or computed).
 
 | Property | Value |
 |---|---|
-| Scope | `inherited` |
+| Scope | `inherited` · addressable (`core.record`, public prefix `gci_`) |
 | Contained by | [`goal`](logical-model.md#entity-goal), [`key_result`](logical-model.md#entity-key-result) |
 | Extends (1:1) | — |
 | Associations | — |
@@ -3172,15 +3175,37 @@ Append-only progress update with confidence and source (manual or computed).
 | Retention / confidentiality | `R-LIVE` / `C2` |
 | Volume / export / search-AI | `medium` / `filtered` / `yes` |
 | Secrets / personal data | `no` / `incidental` |
-| Uniqueness | — |
-| Key typed columns | standard columns only |
+| Uniqueness | `(goal_id, inputs_hash) for computed rows` |
+| Key typed columns | `id (prefix gci)`; `goal_id`; `key_result_id null`; `source (manual\|computed)`; `value, percent, confidence null`; `note`; `author_membership_id null (computed)`; `inputs_hash (computed rows; unique per goal and hash)`; `created_at` |
 | Sensitive fields | — |
 | Requirements | GOAL-005, GOAL-006 |
+| Notes | Phase 5B (ADR-36): immutable by trigger; the application role cannot update or delete a row. A check-in that states no confidence keeps the last stated one. Author stays on the row after departure (shown as a former member). Purge of the goal removes its history. |
+
+<a id="entity-goal-state"></a>
+### `goal_state`
+
+Viewer-neutral derived facts of one goal for background recalculation: update and period state, manual key-result rollup, inputs hash, and the dirty, due, lease, attempt, and error bookkeeping.
+
+| Property | Value |
+|---|---|
+| Scope | `inherited` |
+| Contained by | [`goal`](logical-model.md#entity-goal) |
+| Extends (1:1) | — |
+| Associations | — |
+| Lifecycle / concurrency | `mutable` / `locked` |
+| Retention / confidentiality | `R-DERIVED` / `C2` |
+| Volume / export / search-AI | `low` / `never` / `no` |
+| Secrets / personal data | `no` / `incidental` |
+| Uniqueness | `(workspace_id, goal_id)` |
+| Key typed columns | `goal_id (one per goal)`; `rollup_percent, rollup_basis (none\|manual\|key_results\|viewer_dependent)`; `inputs_hash`; `update_state (never\|fresh\|stale)`; `period_state (upcoming\|current\|ended)`; `dirty, next_check_at, claimed_until, attempts, last_error (a code)`; `computed_at` |
+| Sensitive fields | — |
+| Requirements | GOAL-005, GOAL-006 |
+| Notes | Phase 5B (ADR-36): stores nothing derived from linked work (a goal that depends on it is viewer_dependent with no number). The row is the lock for a recalculation; the scheduler role reads only workspace, dirty, due, and lease columns. Removed with the goal. |
 
 <a id="entity-portfolio"></a>
 ### `portfolio`
 
-Saved, permission-filtered collection of projects.
+Saved, named list of projects at workspace or brand scope; what a viewer sees of it is the members they may read.
 
 | Property | Value |
 |---|---|
@@ -3193,9 +3218,31 @@ Saved, permission-filtered collection of projects.
 | Volume / export / search-AI | `low` / `filtered` / `yes` |
 | Secrets / personal data | `no` / `incidental` |
 | Uniqueness | — |
-| Key typed columns | standard columns only |
+| Key typed columns | `id (core.record envelope, prefix pf)`; `brand_id null (workspace portfolio)`; `name`; `description`; `owner_membership_id`; `version` |
 | Sensitive fields | — |
-| Requirements | GOAL-007, VIEW-009 |
+| Requirements | GOAL-007, GOAL-008, GOAL-009, VIEW-009 |
+| Notes | Phase 5B (ADR-36): never shareable. Health, dependencies, budgets, deadlines, effort, and orphan findings over its members are computed per viewer and never stored. |
+
+<a id="entity-portfolio-project"></a>
+### `portfolio_project`
+
+One project named by a portfolio.
+
+| Property | Value |
+|---|---|
+| Scope | `inherited` |
+| Contained by | [`portfolio`](logical-model.md#entity-portfolio) |
+| Extends (1:1) | — |
+| Associations | [`project`](logical-model.md#entity-project) |
+| Lifecycle / concurrency | `mutable` / `locked` |
+| Retention / confidentiality | `R-LIVE` / `C2` |
+| Volume / export / search-AI | `medium` / `filtered` / `yes` |
+| Secrets / personal data | `no` / `incidental` |
+| Uniqueness | `(portfolio_id, project_id)` |
+| Key typed columns | `portfolio_id`; `project_id`; `position`; `added_by_membership_id` |
+| Sensitive fields | — |
+| Requirements | GOAL-007, GOAL-008, VIEW-009 |
+| Notes | Phase 5B (ADR-36): an explicit, bounded list of project identities (no copy of any project's data or access). A trigger keeps a brand portfolio to its brand's projects. Members an editor cannot read are preserved by an edit but never listed or counted for them. Purge of a project removes the rows that name it. |
 
 ## Views and navigation state (`views`, schema `views`)
 

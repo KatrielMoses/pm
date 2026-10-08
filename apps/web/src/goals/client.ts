@@ -655,15 +655,20 @@ export const goals = {
 };
 
 export const portfolios = {
-  async list(ws: string) {
-    return (await api<PageOf<Portfolio>>('GET', `${w(ws)}/portfolios`)).body;
+  async list(ws: string, archived = false) {
+    return (
+      await api<PageOf<Portfolio>>(
+        'GET',
+        `${w(ws)}/portfolios${qs({ archived: archived ? 'true' : undefined })}`,
+      )
+    ).body;
   },
   async get(ws: string, pf: string) {
     return (await api<{ data: Portfolio }>('GET', `${w(ws)}/portfolios/${pf}`)).body.data;
   },
   async create(
     ws: string,
-    body: { name: string; description?: string; brand?: string },
+    body: { name: string; description?: string; brand?: string; owner?: string },
     stepUp: StepUpResolver,
     o?: WriteOptions,
   ) {

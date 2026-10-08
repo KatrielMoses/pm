@@ -2434,7 +2434,6 @@ export interface SourceApprovalTable {
 }
 
 // Phase 5B: goals, key results, links, check-ins, derived state, and portfolios (ADR-0028).
-type Num = ColumnType<string, string | number, string | number>;
 type NumN = ColumnType<string | null, string | number | null | undefined, string | number | null>;
 export type GoalStatus = 'draft' | 'active' | 'achieved' | 'missed' | 'cancelled';
 export type GoalPeriodKind = 'quarter' | 'half' | 'year' | 'custom';

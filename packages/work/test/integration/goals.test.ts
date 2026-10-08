@@ -12,7 +12,6 @@ import {
   type WorkEnv,
 } from './fixture.ts';
 
-const reason = (code: string) => expect.objectContaining({ code });
 const ifMatch = (v: number) => mutation({ ifMatch: `"${v}"` });
 const Q4 = { kind: 'quarter', year: 2026, index: 4 };
 const rejects = async (p: Promise<unknown>) => {
@@ -79,9 +78,9 @@ describe('Goals (5B)', () => {
     pub.outsider = await mem(outsider);
     const mkProject = async (key: string, brand: string, name: string) =>
       (proj[key] = (await env.svc.createProject(owner, ws, { brand, name }, mutation())).data.id);
-    await mkProject('launch', brands.Harbor, 'Launch');
-    await mkProject('vault', brands.Harbor, 'Vault');
-    await mkProject('site', brands.Summit, 'Site');
+    await mkProject('launch', brands.Harbor!, 'Launch');
+    await mkProject('vault', brands.Harbor!, 'Vault');
+    await mkProject('site', brands.Summit!, 'Site');
     await env.svc.setAccess(
       owner,
       ws,

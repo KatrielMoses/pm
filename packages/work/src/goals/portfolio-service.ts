@@ -22,7 +22,6 @@ import { isPublic } from '../validation.ts';
 import { GoalService } from './goal-service.ts';
 import { num } from './goal-core.ts';
 import {
-  daysSince,
   dependencyState,
   evaluateHealth,
   HEALTH_LABEL,
@@ -54,7 +53,6 @@ const HEALTH_ORDER: Record<ProjectHealth, number> = {
   on_track: 3,
   complete: 4,
 };
-const iso = (d: Date | string | null) => (d ? new Date(d).toISOString() : null);
 
 interface ProjectFacts {
   id: string;
@@ -269,8 +267,6 @@ export class PortfolioService extends GoalService {
         async (tx, p) => {
           this.requireMemberKind(p);
           let brandId: string | null = null;
-          let facts = null as null | { brand: never };
-          void facts;
           let brandFacts: Awaited<ReturnType<PortfolioService['brandFactsOf']>> | null = null;
           if (input.brand) {
             const b = await findBrand(tx, p, input.brand);
@@ -1083,7 +1079,6 @@ export class PortfolioService extends GoalService {
         },
         dependencies: { blocking: out.length, blocked_by: inn.length },
         version: r.version,
-        _internal: { today, daysLate: next && next < today ? 1 : 0 },
       };
     });
     return { today, rows, deps, idToPublic, scope };
@@ -1206,27 +1201,26 @@ export class PortfolioService extends GoalService {
         withoutGoals++;
       const open = r.status.category !== 'done' && r.status.category !== 'cancelled';
       if (open) {
+        let late = false;
         for (const [kind, date] of [
           ['target', r.dates.target],
           ['deadline', r.dates.deadline],
         ] as const) {
           if (!date) continue;
-          if (date < today) overdueProjects += kind === 'deadline' || !r.dates.deadline ? 1 : 0;
+          if (date < today) late = true;
           else if (date <= horizon) {
             due30++;
             upcoming.push({ id: r.id, name: r.name, date, kind });
           }
         }
+        // A project counts once, however many of its dates have passed.
+        if (late) overdueProjects++;
       }
     }
     const depOpen = ev.deps.filter((d) => d.state !== 'resolved');
     const depState = (s: DependencyState) => depOpen.filter((d) => d.state === s).length;
-    const dropInternal = <T extends { _internal?: unknown }>(r: T) => {
-      const { _internal: _i, ...rest } = r;
-      return rest;
-    };
     return {
-      data: sorted.slice(0, limit).map(dropInternal),
+      data: sorted.slice(0, limit),
       summary: {
         projects: rows.length,
         by_status: byStatus,
@@ -1574,7 +1568,7 @@ export class PortfolioService extends GoalService {
                 {
                   as_of: new Date().toISOString(),
                   scope_note: 'Projects, tasks, and time you can read.',
-                  projects: rows.map(({ _internal: _i, ...r }) => r),
+                  projects: rows,
                 },
                 null,
                 2,
@@ -1583,13 +1577,5 @@ export class PortfolioService extends GoalService {
             };
       }),
     );
-  }
-
-  protected daysSinceChange(at: Date | null, now: Date) {
-    return daysSince(at, now);
-  }
-
-  protected isoOf(d: Date | string | null) {
-    return iso(d);
   }
 }

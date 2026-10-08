@@ -76,9 +76,7 @@ export async function recalcGoal(
               g.current_value::text AS current_value, g.latest_percent::text AS latest_percent,
               g.latest_checkin_id, g.latest_checkin_at
          FROM goals.goal g JOIN core.record r ON r.workspace_id = g.workspace_id AND r.id = g.id
-        WHERE g.workspace_id = ${tx.workspaceId} AND g.id = ${goalId}`.execute(
-      tx.db,
-    )
+        WHERE g.workspace_id = ${tx.workspaceId} AND g.id = ${goalId}`.execute(tx.db)
   ).rows[0];
   const next = new Date(now.getTime() + settings.goalsRecalcIntervalMinutes * 60_000);
   if (!g) return { skipped: true, appended: false, becameStale: false };
@@ -107,7 +105,7 @@ export async function recalcGoal(
   );
   const period = periodState(today, { start: g.period_start, end: g.period_end });
 
-  let basis: 'none' | 'manual' | 'key_results' | 'viewer_dependent' = 'none';
+  let basis: 'manual' | 'key_results' | 'viewer_dependent';
   let percent: number | null = null;
   let hash: string | null = null;
   if (g.progress_basis === 'manual') {

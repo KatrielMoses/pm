@@ -282,8 +282,12 @@ erDiagram
   goal_link }o..o{ task : "references"
   goal ||--o{ goal_checkin : "contains"
   key_result ||--o{ goal_checkin : "contains"
+  record ||--|| goal_checkin : "envelope"
+  goal ||--o{ goal_state : "contains"
   portfolio }o..o{ project : "references"
   record ||--|| portfolio : "envelope"
+  portfolio ||--o{ portfolio_project : "contains"
+  portfolio_project }o..o{ project : "references"
 ```
 
 ## Views and navigation state

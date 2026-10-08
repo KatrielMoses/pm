@@ -27,7 +27,7 @@ Class definitions and rules: [../11-data-classification.md](../11-data-classific
 | Today, scheduling, and capacity | 14 | C3 | R-LIVE, R-PERSONAL | filtered, self | no, yes | no | incidental, yes | high |
 | Time tracking | 6 | C2 | R-EVIDENCE, R-LIVE | filtered | no, yes | no | incidental | very-high |
 | Documents and knowledge | 8 | C2 | R-DERIVED, R-EPHEMERAL, R-EVIDENCE, R-LIVE | filtered, never | no, yes | no | incidental | high |
-| Goals and portfolios | 5 | C2 | R-LIVE | filtered | yes | no | incidental | medium |
+| Goals and portfolios | 7 | C2 | R-DERIVED, R-LIVE | filtered, never | no, yes | no | incidental | medium |
 | Views and navigation state | 6 | C1 | R-LIVE, R-PERSONAL | filtered, never, self | no, yes | no | incidental, no | high |
 | Search | 3 | C2 | R-DERIVED, R-PERSONAL | never, self | no, yes | no | incidental | very-high |
 | Metrics, dashboards, and reports | 5 | C2 | R-DERIVED, R-EXEC, R-LIVE, R-PLATFORM | filtered, never, self | metadata, no, yes | no | incidental | high |
@@ -187,7 +187,9 @@ Class definitions and rules: [../11-data-classification.md](../11-data-classific
 | [`key_result`](logical-model.md#entity-key-result) | goals | inherited | C2 | standard (per-record) | material changes | R-LIVE | filtered | low | yes | no | incidental |
 | [`goal_link`](logical-model.md#entity-goal-link) | goals | inherited | C2 | standard (per-record) | material changes | R-LIVE | filtered | medium | yes | no | incidental |
 | [`goal_checkin`](logical-model.md#entity-goal-checkin) | goals | inherited | C2 | standard (per-record) | is evidence / append-only | R-LIVE | filtered | medium | yes | no | incidental |
+| [`goal_state`](logical-model.md#entity-goal-state) | goals | inherited | C2 | standard (per-record) | material changes | R-DERIVED | never | low | no | no | incidental |
 | [`portfolio`](logical-model.md#entity-portfolio) | goals | workspace_or_brand | C2 | standard (per-record) | material changes | R-LIVE | filtered | low | yes | no | incidental |
+| [`portfolio_project`](logical-model.md#entity-portfolio-project) | goals | inherited | C2 | standard (per-record) | material changes | R-LIVE | filtered | medium | yes | no | incidental |
 | [`saved_view`](logical-model.md#entity-saved-view) | views | workspace_or_brand | C1 | low | configuration changes | R-LIVE | filtered | medium | yes | no | incidental |
 | [`view_default`](logical-model.md#entity-view-default) | views | workspace_or_brand | C1 | low | configuration changes | R-LIVE | filtered | low | yes | no | incidental |
 | [`favorite`](logical-model.md#entity-favorite) | views | personal | C1 | low | configuration changes | R-PERSONAL | self | medium | yes | no | incidental |

@@ -378,12 +378,12 @@ export class GoalService extends GoalCore {
     p: Principal,
     q: GoalListQuery,
     limit: number,
-    opts: { all?: boolean } = {},
   ) {
-    const vis = await this.goalVisibility(tx, p, q.statuses === null ? false : false);
+    const vis = await this.goalVisibility(tx, p, q.archived);
     const today = await this.workspaceToday(tx);
     const cond: RawBuilder<unknown>[] = [vis.where('r', { project: sql`g.project_id` })];
     cond.push(sql`g.workspace_id = ${tx.workspaceId}`);
+    cond.push(sql`g.lifecycle_state = ${q.archived ? 'archived' : 'active'}::core.lifecycle_state`);
     if (q.brand === 'workspace') cond.push(sql`g.brand_id IS NULL`);
     else if (q.brand) {
       const b = await tx.db
@@ -445,6 +445,7 @@ export class GoalService extends GoalCore {
       q.from,
       q.to,
       q.q,
+      q.archived,
     );
     if (q.cursor) {
       const pos = this.goalOpen(p, fp, q.cursor);
@@ -957,9 +958,9 @@ export class GoalService extends GoalCore {
           const rank = await this.nextRank(
             tx,
             'goals.key_result',
-            (q: any) => q.where('goal_id', '=', g.id),
+            (q: any) => q.where('goal_id', '=', g.id), // eslint-disable-line @typescript-eslint/no-explicit-any
             'last',
-          ); // eslint-disable-line @typescript-eslint/no-explicit-any
+          );
           await tx.db
             .insertInto('goals.key_result')
             .values({
@@ -1790,7 +1791,7 @@ export class GoalService extends GoalCore {
       this.inWorkspace(caller, ws, {}, async (tx, p) => {
         this.requireMemberKind(p);
         const max = this.ws.goalsExportRowsMax;
-        const page = await this.goalPage(tx, p, { ...q, cursor: null }, max + 1, { all: true });
+        const page = await this.goalPage(tx, p, { ...q, cursor: null }, max + 1);
         if (page.data.length > max)
           throw invalid(
             issue('/', 'too_many', `Narrow the filters: an export holds at most ${max} goals.`),

@@ -18,7 +18,6 @@ import { NIL_ID, toDate } from '../service.ts';
 import { isPublic } from '../validation.ts';
 import {
   metricPercent,
-  periodLabel,
   periodState,
   rollup,
   updateState,

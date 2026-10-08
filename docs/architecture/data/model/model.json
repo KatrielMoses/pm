@@ -479,7 +479,7 @@
       "name": "Goals and portfolios",
       "layer": 3,
       "schema": "goals",
-      "responsibilities": "Goals, key results, goal links, check-ins, portfolios.",
+      "responsibilities": "Goals, key results, goal links, check-ins, derived recalculation state, portfolios, and portfolio members.",
       "depends_on": [
         "core",
         "tenancy",
@@ -6284,7 +6284,7 @@
     {
       "name": "goal",
       "module": "goals",
-      "purpose": "Desired outcome at workspace, brand, or project scope with owner, period, baseline, target, unit.",
+      "purpose": "Desired outcome at workspace, brand, or project scope with owner, period, status, and a manual, key-result, or linked-work basis; a core.record envelope that is never shareable.",
       "scope": "workspace_or_brand",
       "addressable": true,
       "public_id_prefix": "goal",
@@ -6304,17 +6304,31 @@
       "personal_data": "incidental",
       "uniqueness": [],
       "sensitive_fields": [],
-      "key_columns": [],
+      "key_columns": [
+        "id (core.record envelope, prefix goal)",
+        "brand_id null (workspace goal)",
+        "project_id null (project goal, needs brand)",
+        "title",
+        "owner_membership_id",
+        "status (draft|active|achieved|missed|cancelled)",
+        "period_kind (quarter|half|year|custom), period_start, period_end (at most 3660 days)",
+        "progress_basis (manual|key_results|linked_work)",
+        "unit, baseline_value, target_value, current_value (numeric(20,4), bounded)",
+        "latest_checkin_id, latest_checkin_at, latest_percent, latest_confidence",
+        "version"
+      ],
       "requirements": [
         "GOAL-001",
-        "GOAL-002"
+        "GOAL-002",
+        "GOAL-005",
+        "GOAL-006"
       ],
-      "notes": ""
+      "notes": "Phase 5B (ADR-36): placement decides access (workspace level, brand level, or the governing project chain); never shareable. No number derived from linked work is stored here: it is computed for each viewer from the work they may read. latest_* mirror the newest manual check-in and move with it in one transaction."
     },
     {
       "name": "key_result",
       "module": "goals",
-      "purpose": "Measurable target within a goal.",
+      "purpose": "Measurable target within a goal; manual measurement or a manual percentage.",
       "scope": "inherited",
       "addressable": true,
       "public_id_prefix": "kr",
@@ -6334,16 +6348,27 @@
       "personal_data": "incidental",
       "uniqueness": [],
       "sensitive_fields": [],
-      "key_columns": [],
-      "requirements": [
-        "GOAL-004"
+      "key_columns": [
+        "id (core.record envelope, prefix kr)",
+        "goal_id",
+        "title",
+        "owner_membership_id",
+        "progress_basis (manual)",
+        "unit, baseline_value, target_value, current_value",
+        "position",
+        "latest_checkin_id, latest_percent, latest_confidence",
+        "version"
       ],
-      "notes": ""
+      "requirements": [
+        "GOAL-004",
+        "GOAL-005"
+      ],
+      "notes": "Phase 5B (ADR-36): lives in the scope of its goal and archives, trashes, restores, and purges with it. Key-result progress is a measurement the owner records; the goal's key-result rollup is a plain equal-weight mean of the measured ones (not a 5C metric)."
     },
     {
       "name": "goal_link",
       "module": "goals",
-      "purpose": "Association from goal or key result to project or task (brand goals link within their brand).",
+      "purpose": "Link from a goal or one of its key results to a project or task; grants no access and implies no progress for work the viewer cannot read.",
       "scope": "inherited",
       "addressable": false,
       "public_id_prefix": null,
@@ -6365,22 +6390,30 @@
       "may_contain_secrets": "no",
       "personal_data": "incidental",
       "uniqueness": [
-        "(goal_or_kr_id, record_id)"
+        "(goal_id, key_result_id, target_id)"
       ],
       "sensitive_fields": [],
-      "key_columns": [],
-      "requirements": [
-        "GOAL-003"
+      "key_columns": [
+        "goal_id",
+        "key_result_id null",
+        "target_kind (project|task)",
+        "target_id",
+        "created_by_membership_id"
       ],
-      "notes": ""
+      "requirements": [
+        "GOAL-003",
+        "GOAL-012",
+        "GOAL-013"
+      ],
+      "notes": "Phase 5B (ADR-36): a database trigger keeps a brand goal's links inside its brand and a project goal's task links inside its project. Purge of a project or task removes the links that name it."
     },
     {
       "name": "goal_checkin",
       "module": "goals",
-      "purpose": "Append-only progress update with confidence and source (manual or computed).",
+      "purpose": "Append-only progress update with confidence, note, and source (manual or computed).",
       "scope": "inherited",
-      "addressable": false,
-      "public_id_prefix": null,
+      "addressable": true,
+      "public_id_prefix": "gci",
       "extends": null,
       "containment_parents": [
         "goal",
@@ -6396,19 +6429,71 @@
       "search_ai": "yes",
       "may_contain_secrets": "no",
       "personal_data": "incidental",
-      "uniqueness": [],
+      "uniqueness": [
+        "(goal_id, inputs_hash) for computed rows"
+      ],
       "sensitive_fields": [],
-      "key_columns": [],
+      "key_columns": [
+        "id (prefix gci)",
+        "goal_id",
+        "key_result_id null",
+        "source (manual|computed)",
+        "value, percent, confidence null",
+        "note",
+        "author_membership_id null (computed)",
+        "inputs_hash (computed rows; unique per goal and hash)",
+        "created_at"
+      ],
       "requirements": [
         "GOAL-005",
         "GOAL-006"
       ],
-      "notes": ""
+      "notes": "Phase 5B (ADR-36): immutable by trigger; the application role cannot update or delete a row. A check-in that states no confidence keeps the last stated one. Author stays on the row after departure (shown as a former member). Purge of the goal removes its history."
+    },
+    {
+      "name": "goal_state",
+      "module": "goals",
+      "purpose": "Viewer-neutral derived facts of one goal for background recalculation: update and period state, manual key-result rollup, inputs hash, and the dirty, due, lease, attempt, and error bookkeeping.",
+      "scope": "inherited",
+      "addressable": false,
+      "public_id_prefix": null,
+      "extends": null,
+      "containment_parents": [
+        "goal"
+      ],
+      "associations": [],
+      "lifecycle": "mutable",
+      "concurrency": "locked",
+      "retention_class": "R-DERIVED",
+      "confidentiality": "C2",
+      "volume": "low",
+      "export": "never",
+      "search_ai": "no",
+      "may_contain_secrets": "no",
+      "personal_data": "incidental",
+      "uniqueness": [
+        "(workspace_id, goal_id)"
+      ],
+      "sensitive_fields": [],
+      "key_columns": [
+        "goal_id (one per goal)",
+        "rollup_percent, rollup_basis (none|manual|key_results|viewer_dependent)",
+        "inputs_hash",
+        "update_state (never|fresh|stale)",
+        "period_state (upcoming|current|ended)",
+        "dirty, next_check_at, claimed_until, attempts, last_error (a code)",
+        "computed_at"
+      ],
+      "requirements": [
+        "GOAL-005",
+        "GOAL-006"
+      ],
+      "notes": "Phase 5B (ADR-36): stores nothing derived from linked work (a goal that depends on it is viewer_dependent with no number). The row is the lock for a recalculation; the scheduler role reads only workspace, dirty, due, and lease columns. Removed with the goal."
     },
     {
       "name": "portfolio",
       "module": "goals",
-      "purpose": "Saved, permission-filtered collection of projects.",
+      "purpose": "Saved, named list of projects at workspace or brand scope; what a viewer sees of it is the members they may read.",
       "scope": "workspace_or_brand",
       "addressable": true,
       "public_id_prefix": "pf",
@@ -6428,12 +6513,61 @@
       "personal_data": "incidental",
       "uniqueness": [],
       "sensitive_fields": [],
-      "key_columns": [],
+      "key_columns": [
+        "id (core.record envelope, prefix pf)",
+        "brand_id null (workspace portfolio)",
+        "name",
+        "description",
+        "owner_membership_id",
+        "version"
+      ],
       "requirements": [
         "GOAL-007",
+        "GOAL-008",
+        "GOAL-009",
         "VIEW-009"
       ],
-      "notes": ""
+      "notes": "Phase 5B (ADR-36): never shareable. Health, dependencies, budgets, deadlines, effort, and orphan findings over its members are computed per viewer and never stored."
+    },
+    {
+      "name": "portfolio_project",
+      "module": "goals",
+      "purpose": "One project named by a portfolio.",
+      "scope": "inherited",
+      "addressable": false,
+      "public_id_prefix": null,
+      "extends": null,
+      "containment_parents": [
+        "portfolio"
+      ],
+      "associations": [
+        "project"
+      ],
+      "lifecycle": "mutable",
+      "concurrency": "locked",
+      "retention_class": "R-LIVE",
+      "confidentiality": "C2",
+      "volume": "medium",
+      "export": "filtered",
+      "search_ai": "yes",
+      "may_contain_secrets": "no",
+      "personal_data": "incidental",
+      "uniqueness": [
+        "(portfolio_id, project_id)"
+      ],
+      "sensitive_fields": [],
+      "key_columns": [
+        "portfolio_id",
+        "project_id",
+        "position",
+        "added_by_membership_id"
+      ],
+      "requirements": [
+        "GOAL-007",
+        "GOAL-008",
+        "VIEW-009"
+      ],
+      "notes": "Phase 5B (ADR-36): an explicit, bounded list of project identities (no copy of any project's data or access). A trigger keeps a brand portfolio to its brand's projects. Members an editor cannot read are preserved by an edit but never listed or counted for them. Purge of a project removes the rows that name it."
     },
     {
       "name": "saved_view",

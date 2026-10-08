@@ -415,6 +415,8 @@ export interface GoalListQuery {
   from: string | null;
   to: string | null;
   q: string | null;
+  /** Show archived goals instead of active ones. */
+  archived: boolean;
   limit: number | null;
   cursor: string | null;
 }
@@ -489,6 +491,7 @@ export function parseGoalList(q: Record<string, unknown>, limitMax: number): Goa
     from,
     to,
     q: search,
+    archived: q.archived === 'true',
     limit,
     cursor: str('cursor'),
   };

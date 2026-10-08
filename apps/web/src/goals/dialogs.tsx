@@ -18,6 +18,7 @@ import {
   type GoalDetail,
   type GoalPatch,
   type KeyResult,
+  type KeyResultInput,
   type Metric,
   type PeriodKind,
 } from './client.ts';
@@ -775,7 +776,7 @@ export function KeyResultDialog({
     setProblem(null);
     try {
       if (existing && initial) {
-        const patch: Parameters<typeof goals.updateKeyResult>[4] = {};
+        const patch: KeyResultInput = {};
         if (title.trim() !== initial.title) patch.title = title.trim();
         if (owner && owner !== initial.owner?.id) patch.owner = owner;
         if (basis !== initial.basis) patch.basis = basis;

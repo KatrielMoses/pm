@@ -30,6 +30,9 @@ import { ProjectlessTasksPage, TaskPage } from './pages/task-pages.tsx';
 import { TimeApprovalsPage, TimePage, TimeReportPage } from './pages/time-pages.tsx';
 import { TodayPage } from './pages/today-pages.tsx';
 import { CapacityPage } from './pages/capacity-pages.tsx';
+import { GoalsPage } from './pages/goal-pages.tsx';
+import { GoalPage } from './pages/goal-detail-pages.tsx';
+import { PortfolioPage } from './pages/portfolio-pages.tsx';
 import {
   ApprovalsPage,
   FieldSetsPage,
@@ -118,7 +121,9 @@ export const ROUTE_COMPONENTS: Record<string, Render> = {
   calendar: (p) => <CalendarPage key={p.ws} ws={p.ws!} />,
   knowledge: (p) => <KnowledgePage key={p.ws} ws={p.ws!} />,
   document: (p) => <DocumentPage key={p.doc} ws={p.ws!} doc={p.doc!} />,
-  goals: destination('goals'),
+  goals: (p) => <GoalsPage key={p.ws} ws={p.ws!} />,
+  goal: (p) => <GoalPage key={p.goal} ws={p.ws!} goal={p.goal!} />,
+  portfolio: (p) => <PortfolioPage key={p.ws} ws={p.ws!} />,
   reports: destination('reports'),
   shared: (p) => <SharedWithMePage key={p.ws} ws={p.ws!} />,
   views: (p) => <SavedViewsPage key={p.ws} ws={p.ws!} />,

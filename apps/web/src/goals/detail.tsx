@@ -20,7 +20,6 @@ import {
   ConfidenceChip,
   ProblemLine,
   ProgressView,
-  UpdateChip,
   useExplain,
   type Explained,
 } from './shared.tsx';
@@ -358,4 +357,4 @@ export function LinkedWorkSection({
   );
 }
 
-export { UpdateChip, metricLine };
+export { metricLine };
