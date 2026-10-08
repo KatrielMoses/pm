@@ -40,7 +40,7 @@ const lastDayOf = (year: number, month: number) => new Date(Date.UTC(year, month
  * `index` 1–4, `half` 1–2, `year` needs none, and `custom` takes explicit days (at most ten
  * years). Fiscal calendars are not modelled: a quarter is a calendar quarter (ADR-0028 G2).
  */
-export function periodOf(input: {
+export function goalPeriodOf(input: {
   kind: unknown;
   year?: unknown;
   index?: unknown;
@@ -55,19 +55,28 @@ export function periodOf(input: {
     return { kind, start, end };
   }
   const year = input.year;
-  if (typeof year !== 'number' || !Number.isInteger(year) || year < 2000 || year > 2200) return null;
+  if (typeof year !== 'number' || !Number.isInteger(year) || year < 2000 || year > 2200)
+    return null;
   if (kind === 'year') return { kind, start: `${year}-01-01`, end: `${year}-12-31` };
   const index = input.index;
   if (typeof index !== 'number' || !Number.isInteger(index)) return null;
   if (kind === 'half' && (index === 1 || index === 2)) {
     const m0 = index === 1 ? 1 : 7;
     const m1 = index === 1 ? 6 : 12;
-    return { kind, start: `${year}-${pad(m0)}-01`, end: `${year}-${pad(m1)}-${pad(lastDayOf(year, m1))}` };
+    return {
+      kind,
+      start: `${year}-${pad(m0)}-01`,
+      end: `${year}-${pad(m1)}-${pad(lastDayOf(year, m1))}`,
+    };
   }
   if (kind === 'quarter' && index >= 1 && index <= 4) {
     const m0 = (index - 1) * 3 + 1;
     const m1 = m0 + 2;
-    return { kind, start: `${year}-${pad(m0)}-01`, end: `${year}-${pad(m1)}-${pad(lastDayOf(year, m1))}` };
+    return {
+      kind,
+      start: `${year}-${pad(m0)}-01`,
+      end: `${year}-${pad(m1)}-${pad(lastDayOf(year, m1))}`,
+    };
   }
   return null;
 }
@@ -92,8 +101,15 @@ export function periodIsCanonical(p: Period): boolean {
   if (p.kind === 'custom') return true;
   const year = Number(p.start.slice(0, 4));
   const month = Number(p.start.slice(5, 7));
-  const index = p.kind === 'quarter' ? Math.floor((month - 1) / 3) + 1 : p.kind === 'half' ? (month <= 6 ? 1 : 2) : 0;
-  const canon = periodOf({ kind: p.kind, year, index });
+  const index =
+    p.kind === 'quarter'
+      ? Math.floor((month - 1) / 3) + 1
+      : p.kind === 'half'
+        ? month <= 6
+          ? 1
+          : 2
+        : 0;
+  const canon = goalPeriodOf({ kind: p.kind, year, index });
   return !!canon && canon.start === p.start && canon.end === p.end;
 }
 
@@ -221,12 +237,7 @@ export interface HealthReason {
 }
 
 export type Completeness =
-  | 'no_dates'
-  | 'no_tasks'
-  | 'no_time_budget'
-  | 'paused'
-  | 'cancelled'
-  | 'not_started';
+  'no_dates' | 'no_tasks' | 'no_time_budget' | 'paused' | 'cancelled' | 'not_started';
 
 export interface HealthResult {
   health: ProjectHealth;
@@ -282,7 +293,14 @@ export function evaluateHealth(i: HealthInput): HealthResult {
   }
   const active = i.statusCategory === 'active';
   const open = Math.max(i.total - i.done, 0);
-  if (active && i.startDate && dates && dates > i.startDate && i.total > 0 && i.today >= i.startDate) {
+  if (
+    active &&
+    i.startDate &&
+    dates &&
+    dates > i.startDate &&
+    i.total > 0 &&
+    i.today >= i.startDate
+  ) {
     const span = daysBetween(i.startDate, dates);
     const elapsed = Math.min(Math.max(daysBetween(i.startDate, i.today), 0), span);
     const expected = Math.round((elapsed / span) * 100);

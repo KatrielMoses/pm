@@ -14,7 +14,8 @@ import {
 import { registerWorkLifecycle } from './lifecycle.ts';
 import { projectTargets, savedViewTargets, taskTargets } from './navigation.ts';
 import { projectOwnerHook, taskAssigneeHook } from './ownership.ts';
-import { FileService } from './files/file-service.ts';
+import { PortfolioService } from './goals/portfolio-service.ts';
+import { goalOwnerHook } from './goals/ownership.ts';
 import { createMalwareScanner } from './files/scanner.ts';
 import { createObjectStorage } from './files/storage.ts';
 import { reviewDepartureHook } from './collab/departure.ts';
@@ -42,7 +43,7 @@ export function createWorkService(deps: {
     };
   logger: Logger;
   metrics: Metrics;
-}): FileService {
+}): PortfolioService {
   const { config } = deps;
   if (!config.identity.signingKey) throw new Error('AUTH_SIGNING_KEY is required');
   const writer = new AuditWriter({
@@ -62,7 +63,7 @@ export function createWorkService(deps: {
   const signingKey = Buffer.from(config.identity.signingKey.reveal(), 'base64url');
   const arrayMax = config.tenancy.principalContextArrayMax;
   const work = config.work ?? DEFAULT_WORK_SETTINGS;
-  return new FileService({
+  return new PortfolioService({
     // 4E: object storage and malware scanning, each absent until configured (never claimed).
     files: {
       storage: config.files ? createObjectStorage(config.files.storage) : null,
@@ -82,6 +83,7 @@ export function createWorkService(deps: {
       .register(projectOwnerHook)
       .register(taskAssigneeHook)
       .register(documentOwnerHook)
+      .register(goalOwnerHook)
       .register(reviewDepartureHook(writer))
       .register(departureTimerHook(writer)),
     settings: {
@@ -103,6 +105,7 @@ export function createWorkService(deps: {
       'comment.member': { limit: work.commentRatePerMinute, windowMs: 60_000 },
       'document.save': { limit: work.documentSaveRatePerMinute, windowMs: 60_000 },
       'document.live': { limit: work.liveRatePerMinute, windowMs: 60_000 },
+      'goal.checkin': { limit: work.goalCheckinRatePerMinute, windowMs: 60_000 },
     }),
     signingKey,
     metrics: deps.metrics,

@@ -217,6 +217,11 @@ export const NON_RESOURCE_TYPES = [
   // events, heartbeat, checkpoint, leave); neither has a public identifier of its own.
   'live_session',
   'live_update',
+  // 5B: a portfolio's health overview, cross-project dependencies, and orphan findings; each is
+  // computed for the viewer and has no public identifier of its own.
+  'portfolio_overview',
+  'portfolio_dependencies',
+  'portfolio_orphans',
 ] as const;
 export type NonResourceType = (typeof NON_RESOURCE_TYPES)[number];
 

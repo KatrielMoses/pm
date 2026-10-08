@@ -413,7 +413,8 @@ CREATE TRIGGER portfolio_member_integrity BEFORE INSERT ON goals.portfolio_proje
   FOR EACH ROW EXECUTE FUNCTION goals.assert_portfolio_member();
 
 -- ---------------------------------------------------------------------------------------------
--- Worker discovery (payload-free): workspaces with goals whose derived state is dirty or due.
+-- Worker discovery (payload-free): workspaces with goals whose derived state is due (a change
+-- sets the due time to now; a failure pushes it out).
 -- ---------------------------------------------------------------------------------------------
 CREATE POLICY scheduler_discovery ON goals.goal_state FOR SELECT TO pm_scheduler USING (true);
 GRANT SELECT (workspace_id, dirty, next_check_at, claimed_until) ON goals.goal_state TO pm_scheduler;
@@ -425,7 +426,7 @@ CREATE FUNCTION exec_dispatch.discover_goal_work(p_now timestamptz, p_limit inte
   SET search_path = pg_catalog, pg_temp
   AS $$
   SELECT s.workspace_id FROM goals.goal_state s
-   WHERE (s.dirty OR s.next_check_at <= p_now) AND (s.claimed_until IS NULL OR s.claimed_until <= p_now)
+   WHERE s.next_check_at <= p_now AND (s.claimed_until IS NULL OR s.claimed_until <= p_now)
    GROUP BY s.workspace_id
    ORDER BY min(s.next_check_at), s.workspace_id
    LIMIT least(greatest(p_limit, 1), 1000)
