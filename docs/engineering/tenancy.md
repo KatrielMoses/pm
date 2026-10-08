@@ -406,3 +406,8 @@ Capture, the Inbox, notes, merge, and parse previews are personal (`personal.man
 ## Phase 4D collaborative editing
 
 `LiveService` (AZ-35) sits between the knowledge and file services. Every live call is one workspace transaction that loads the document through the same compiled level as any other document request (`loadDocument`, `editableDoc`, `requireDocActive`), so a revoked share, a role change, an archive, a trash, or a purge refuses the next request. Operations restore restricted-reference tokens only against the draft's own references and check any reference new to the draft with the editor's own visibility (`checkNewRefs`); every response is redacted for the viewer (`redact`). Presence is shown to members only, joined to active memberships. `liveGuard` and `recoverLiveDraft` keep the plain save, restore, and suggestion paths from overwriting live work (`live_edit_in_progress`) and save unsaved live work as a version first.
+
+## Search (5A)
+
+Search is a derived read of records the product already owns, and it adds no authority. Each index row names the record whose access governs it and is read through the same compiled visibility predicate as every list, with record shares; the index holds no copy of brand, project, share, role, or lifecycle, so access changes apply on the next request. A person sees the name of the owner of a result only if they may see people (members, not guests). Recent searches are personal data keyed by membership, erased with the rest of a person's navigation data, and re-validated against the person's current access whenever they are listed (ADR-0028 S1, S2, S13; AZ-36).
+

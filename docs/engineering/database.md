@@ -14,6 +14,7 @@ extensions are needed in 1A: UUIDv7 keys are application-generated, and `gen_ran
 | `access` | access | `role`, `role_assignment`, `permission_epoch` (0017); `workspace_policy`, `share_group`, `record_grant`, team principals and the role-shape check (0019) |
 | `views` | views | `favorite`, `recent_item`, `view_state`, `view_pin` (0020); personal rows (workspace + owner membership), RLS-forced, cleaned by the `views.cleanup` job |
 | `identity` (1E) | identity | `account_preference` (0020): typed per-account preferences |
+| `search` (5A) | search | `search_document`, `index_status`, `recent_search` (0041): a rebuildable search projection, its key queue, and personal recent searches; see the Phase 5A section |
 | `ops` | operational | `schema_migration`, `environment_binding`, `worker_heartbeat`, `rate_limit_bucket`, `dev_secret_vault`, `recovery_gate` (no tenant data) |
 | `audit` | audit (1F) | audit_event, audit_redaction, security_event, chain_checkpoint, activity_item, buffer_verification (0013, 0015); `redact_purged_values` (0014). Append-only by grants **and** triggers; see [audit.md](audit.md) |
 | `core` | core (1F) | record_type, record, archive_batch(+member), deletion_batch(+member) (0014); residual-batch lineage and membership invariants (0016); see [lifecycle.md](lifecycle.md) |
@@ -343,3 +344,19 @@ Migration `0040_collaborative_editing` (ADR-0027, 0B ADR-35) adds three tables t
 - `knowledge.edit_op`: the ordered log (primary key `(workspace_id, document_id, seq)`); a unique `(document, member, op_id)` makes a retry idempotent; the session reference is `ON DELETE SET NULL (session_id)`.
 
 All three have `tenant_isolation` RLS, deferrable composite foreign keys to the document, and indexes on every foreign key. The application role reads, inserts, and updates drafts, inserts and deletes operations, and manages sessions; the worker may only read and delete (purge). The down migration drops the three tables, restoring the exact 0039 catalog.
+
+## Phase 5A: permission-aware search
+
+Migration `0041_permission_aware_search` (ADR-0028, 0B ADR-36) adds the `search` schema:
+- `search.search_document`: one row per searchable source row (primary key `(workspace_id, source_kind, source_id)`): the governing record (`auth_record_id`, a composite foreign key to `core.record` that cascades), the optional context record and owner, the title and body (at most 100,000 characters), the source's update time, and a generated `tsv` (the `simple` and `english` configurations, title weighted above body, ASCII punctuation as separators). It stores no brand, project, lifecycle, or permission key. There is **no GIN index**: under forced row-level security PostgreSQL cannot use one for a role subject to it (the match operator is not leakproof), so it would only slow writes (ADR-0028 S14).
+- `search.index_status`: the key queue (`pending` or `failed`, attempts, `next_attempt_at`, a failure class from a fixed list, never a message), written by triggers in the source's transaction and drained by the worker.
+- `search.recent_search`: the person's own submitted queries, unique per workspace, owner, and normalized query and filters; the owner foreign key cascades.
+
+Triggers: `search.source_changed()` (after insert or update of the searchable columns of tasks, projects, milestones, decisions, documents, comments, files, deliverables, and deliverable versions) writes the key; `search.source_removed()` (after delete) and `search.record_purged()` (after a record becomes `purged`) remove rows. They run as the owner, write and delete keys and projection rows only, and are covered by the rollback. The migration queues every existing source row. `exec_dispatch.discover_search_work(now, retention_before, limit)` is a payload-free `SECURITY DEFINER` discovery (owner `pm_scheduler`, executable by the dispatcher) of workspaces with due keys or recent searches past retention, with column-level read grants for `pm_scheduler`.
+
+All three tables have `tenant_isolation` RLS (enabled and forced) and indexes on every foreign key. The API role reads the projection and the queue and manages recent searches; the worker reads, inserts, updates, and deletes both the projection and the queue and may only read and delete recent searches (retention). The down migration drops the triggers, functions, tables, and schema, restoring the exact 0040 catalog.
+
+## Phase 5A search authority
+
+`SearchService` (AZ-36) is the last class of the service chain. Every search is one workspace transaction: it compiles the person's visibility once (`need: view`), then reads the projection through a single statement that joins each row to its governing `core.record` and applies the predicate before matching, ranking, counting, faceting, or paging; the page's excerpts, brands, projects, and owners are then read for those keys only. A source adapter (`SearchSource`) may add a live check on the row itself (a comment's `deleted_at`, a file's or deliverable's own lifecycle), so a deletion is visible before the index catches up. The index job (`searchIndexHandler`) claims keys with `FOR UPDATE SKIP LOCKED`, rebuilds each row under a savepoint, and records failures on the key.
+

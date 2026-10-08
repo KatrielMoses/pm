@@ -65,6 +65,7 @@ Lead every tenant index with `workspace_id` (and `scope_key`/`brand_id` where qu
 - `tsv = setweight(to_tsvector(cfg, title), 'A') || setweight(to_tsvector(cfg, body), 'B') || …`, with GIN on `tsv`. `pg_trgm` GIN on `title` supports quick-search prefix and fuzzy matching (command palette).
 - Fed by outbox consumers. Failures are written to `search.index_status` (SRCH-012).
 - **Authorization is applied in the query** with the same scope predicates as list views, then record grants. Highlights (`ts_headline`) are computed only for rows that pass authorization.
+- **Phase 5A amendment ([ADR-36](12-decisions.md#adr-36)).** The tables are `search.search_document`, `search.index_status`, and `search.recent_search`. The projection carries no scope or permission keys (the query joins the governing record and applies the compiled predicate), the feed is a trigger-written key queue drained by the worker, paging is keyset, and no GIN index is created because PostgreSQL cannot use one for a role subject to forced row-level security (engineering decision S14 of Phase 5A).
 - Natural-language concepts (SRCH-004): at launch, AI-assisted query interpretation over full-text search (OD-31). If semantic search is approved, add `pgvector` embeddings in `search.search_embedding` keyed like `search_document`, with the same authorization predicates. No separate vector database.
 
 ## 10.8 Object storage

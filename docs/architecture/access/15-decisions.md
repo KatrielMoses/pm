@@ -245,6 +245,20 @@ All decisions are **proposed (Phase 0C)**, pending solutions-architect acceptanc
   - **No new actions.** The action count stays 122.
 - **Alternatives:** A document-level role table (a second authority source). Showing a reference's kind when it is restricted (a hint about what exists). Letting any editor change the owner (a way to hand a document to someone who cannot act on it).
 - **Consequences:** Threat T-51 with tests AT-208 to AT-217.
+<a id="az-36"></a>
+### AZ-36: Permission-aware search (Phase 5A amendment)
+- **Decision:**
+  - **One authority, first.** Search joins every index row to the record whose access governs it and applies the compiled record-visibility predicate (the one every list and single-record read uses, with record shares) before the row is matched, ranked, counted, faceted, excerpted, remembered, or paged. The governing record is the record itself, or the host of a comment, a file, or a deliverable; milestones and decisions use their own record. The index stores text and the governing record's identifier only, never a brand, project, share, role, or lifecycle, so a change of any of them takes effect on the next request without re-indexing (AT-239, AT-240).
+  - **Hidden is unknown.** A hidden record contributes nothing to results, totals, facet counts, excerpts, ranks, order, cursors, or index state; a search for words that exist only in hidden records is indistinguishable from one for words that exist nowhere. Opening a result is `not_found` for hidden, deleted, trashed, purged, other-workspace, and unknown records alike, produced by the same statements (AT-238, AT-244). A named brand or project that is hidden is refused exactly like one that does not exist (AT-242).
+  - **State ahead of the index.** Archive, trash, restore, and purge are read from the governing record at request time. A deleted comment and a trashed file or deliverable are checked live, so they vanish before the index catches up; a purge removes the rows it governed and hosted in the same statement (AT-241).
+  - **Nothing the owner would not show.** Custom field values, live drafts and operations, restricted reference labels, file bytes, and secrets are not indexed. The name of the person a result belongs to is shown only to members who may see people; guests see none (AT-240).
+  - **Index state is counted over what the person can read.** Waiting and failed keys are counted only for records the person can read, so an edit or a failure on a hidden record leaves no trace in any figure; administrators learn of persistent failures on Home through the same counts (AT-243).
+  - **Personal and signed.** Recent searches are the person's own (`personal.manage_own`), stored only when submitted, checked again on every read, and erased with their personal data. A cursor is signed for one person and one search; any other use is `cursor_invalid` (AT-245).
+  - **No privileged read path.** Row-level security stays in force on every search table; the index triggers write keys and delete only, and the one cross-tenant function is a payload-free discovery of workspace identifiers.
+  - **No new actions.** The action count stays 122.
+- **Alternatives:** Permission keys copied into the index (stale after every change, the denormalized-authority failure T-54 describes). Filtering a fetched page in the application (counts, ranks, and paging then reflect hidden records). Hiding results with a placeholder (it discloses existence, IA-40). A definer function that reads the index outside row-level security for speed (a new privileged read path).
+- **Consequences:** Threat T-54 with tests AT-238 to AT-245.
+
 <a id="az-35"></a>
 ### AZ-35: Live collaborative editing (Phase 4D amendment)
 - **Decision:**

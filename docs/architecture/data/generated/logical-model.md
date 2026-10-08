@@ -3334,7 +3334,7 @@ Permission-filtered search projection fed by events, indexing status and failure
 <a id="entity-search-document"></a>
 ### `search_document`
 
-Search projection per addressable record (and comment): text vectors plus scope and permission keys.
+Search projection per searchable source row (a record, a comment, a file, a deliverable): title and body text and the record whose access governs it; no permission, brand, project, or lifecycle copy.
 
 | Property | Value |
 |---|---|
@@ -3342,19 +3342,20 @@ Search projection per addressable record (and comment): text vectors plus scope 
 | Contained by | — |
 | Extends (1:1) | — |
 | Associations | [`record`](logical-model.md#entity-record) |
-| Lifecycle / concurrency | `ephemeral` / `row-version` |
+| Lifecycle / concurrency | `mutable` / `locked` |
 | Retention / confidentiality | `R-DERIVED` / `C2` |
 | Volume / export / search-AI | `very-high` / `never` / `yes` |
 | Secrets / personal data | `no` / `incidental` |
-| Uniqueness | `(record_id, part_kind, part_id)` |
-| Key typed columns | `record_id`; `part_kind (record\|comment\|attachment_text)`; `brand_id`; `project_id`; `record_type`; `lifecycle_state`; `title`; `tsv tsvector`; `source_version bigint`; `indexed_at` |
+| Uniqueness | `(source_kind, source_id)` |
+| Key typed columns | `source_kind (registered adapter: project\|task\|milestone\|decision_record\|document\|comment\|file\|deliverable)`; `source_id`; `auth_record_id (the record whose access governs the row)`; `context_record_id null (the record that opens it in context)`; `title`; `body (at most 100000 characters)`; `owner_membership_id null`; `source_updated_at`; `tsv tsvector (generated: simple and english, title A and body B)`; `indexed_at` |
 | Sensitive fields | — |
-| Requirements | SRCH-001, SRCH-007, SRCH-011 |
+| Requirements | SRCH-001, SRCH-005, SRCH-007, SRCH-011, DOC-019 |
+| Notes | Phase 5A (ADR-36): rebuilt by the worker from the source of truth; every read joins auth_record_id to core.record and applies the compiled visibility predicate first, so a change of brand, project, share, role, or lifecycle needs no re-index. No GIN index (the match operator is not leakproof under forced RLS); removed with its source row and with a purged record. |
 
 <a id="entity-index-status"></a>
 ### `index_status`
 
-Per-record indexing state and last failure, visible to admins.
+The indexing queue: one key per source row whose search row is stale, with its attempts and last failure class. Keys only, never content.
 
 | Property | Value |
 |---|---|
@@ -3362,19 +3363,20 @@ Per-record indexing state and last failure, visible to admins.
 | Contained by | — |
 | Extends (1:1) | — |
 | Associations | [`record`](logical-model.md#entity-record) |
-| Lifecycle / concurrency | `mutable` / `row-version` |
+| Lifecycle / concurrency | `ephemeral` / `locked` |
 | Retention / confidentiality | `R-DERIVED` / `C1` |
 | Volume / export / search-AI | `high` / `never` / `no` |
 | Secrets / personal data | `no` / `incidental` |
-| Uniqueness | — |
-| Key typed columns | standard columns only |
+| Uniqueness | `(source_kind, source_id)` |
+| Key typed columns | `source_kind`; `source_id`; `auth_record_id`; `state (pending\|failed)`; `attempts`; `requested_at`; `next_attempt_at`; `last_attempt_at null`; `failure_code null (source_error\|invalid_content\|timeout\|unknown_source)` |
 | Sensitive fields | — |
-| Requirements | SRCH-012 |
+| Requirements | SRCH-011, SRCH-012 |
+| Notes | Phase 5A (ADR-36): written by database triggers in the source's own transaction and drained by the worker; a failed key is retried slowly and is reported to every person who can read its record (counts only over what they can see), and to administrators on Home. |
 
 <a id="entity-recent-search"></a>
 ### `recent_search`
 
-Personal recent searches.
+Personal recent searches: the person's own submitted words and filters, never results.
 
 | Property | Value |
 |---|---|
@@ -3382,14 +3384,15 @@ Personal recent searches.
 | Contained by | — |
 | Extends (1:1) | — |
 | Associations | — |
-| Lifecycle / concurrency | `ephemeral` / `row-version` |
+| Lifecycle / concurrency | `ephemeral` / `locked` |
 | Retention / confidentiality | `R-PERSONAL` / `C2` |
 | Volume / export / search-AI | `medium` / `self` / `no` |
 | Secrets / personal data | `no` / `incidental` |
-| Uniqueness | — |
-| Key typed columns | standard columns only |
+| Uniqueness | `(workspace_id, owner_membership_id, query_key)` |
+| Key typed columns | `owner_membership_id`; `query (at most 200 characters)`; `filters jsonb (kind, brand, project, state, updated, mine, mentioning_me)`; `query_key`; `search_count`; `searched_at` |
 | Sensitive fields | — |
 | Requirements | SRCH-009 |
+| Notes | Phase 5A (ADR-36): only a submitted search is stored; at most SEARCH_RECENT_MAX per person, SEARCH_RECENT_RETENTION_DAYS, erased with the person's other personal data, and checked again on every read (a search naming a brand or project the person can no longer see is left out). Never audited. |
 
 ## Metrics, dashboards, and reports (`insights`, schema `insights`)
 
