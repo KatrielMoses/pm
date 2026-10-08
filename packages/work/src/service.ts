@@ -342,7 +342,8 @@ export class ProjectService extends NavigationService {
     action: A,
     record: {
       id: string;
-      brand: BrandFacts;
+      /** Null for workspace-scoped records (4E workspace files): decided at the workspace. */
+      brand: BrandFacts | null;
       lifecycleState: LoadedProject['lifecycleState'];
       chain: ProjectChain;
     },

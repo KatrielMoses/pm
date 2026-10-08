@@ -27,7 +27,8 @@ export type ReviewState = 'requested' | ReviewOutcome | 'withdrawn' | 'supersede
 
 /** Record types that can host comments, followers, and reviews until later phases register more. */
 export const COLLAB_HOSTS = ['task', 'project'] as const;
-export type CollabHostKind = (typeof COLLAB_HOSTS)[number];
+/** 4E deliverables are hosts too, decided through their task (resolved by the file module). */
+export type CollabHostKind = (typeof COLLAB_HOSTS)[number] | 'deliverable';
 
 /** Whether an author may still edit or delete their own comment (OD-38 audit window). */
 export function withinEditWindow(createdAt: Date, now: Date, windowMinutes: number): boolean {

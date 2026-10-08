@@ -13,7 +13,7 @@ import {
   type LocalOAuthProvider,
   type MailMessage,
 } from '@pm/identity';
-import { createWorkService } from '@pm/work';
+import { createObjectStorage, createWorkService, type LocalObjectStorage } from '@pm/work';
 import { createHarness, type Harness } from '@pm/test-support';
 import { createTestDatabase, type TestDatabase } from '@pm/test-support/vitest';
 import { buildApp } from '../../src/app.ts';
@@ -129,6 +129,15 @@ export async function identityEnv(overrides: Record<string, string> = {}): Promi
     auth: { identity: service, localOAuth },
     tenancy: { tenancy: work },
     work: { work },
+    // 4E: the dev/test object store's signed URLs, when a test configures OBJECT_STORAGE=local.
+    localStorage:
+      h.config.files.storage.provider === 'local'
+        ? {
+            storage: createObjectStorage(h.config.files.storage) as LocalObjectStorage,
+            secret: h.config.files.storage.secret.reveal(),
+            maxBytes: h.config.work.fileUploadMaxBytes,
+          }
+        : undefined,
   });
   await app.ready();
   return {

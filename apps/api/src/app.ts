@@ -1,3 +1,4 @@
+import { registerLocalStorage, type LocalStorageRouteDeps } from './storage-routes.ts';
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 import fastifyStatic from '@fastify/static';
@@ -59,6 +60,8 @@ export interface AppDeps {
   tenancy?: TenancyRouteDeps | undefined;
   /** Projects and project structures (2A); require `auth`. */
   work?: WorkRouteDeps | undefined;
+  /** The dev/test object store's signed URLs (4E); only with `OBJECT_STORAGE=local`. */
+  localStorage?: LocalStorageRouteDeps | undefined;
 }
 
 const STATUS_CLASS = (status: number) => `${Math.floor(status / 100)}xx`;
@@ -228,6 +231,7 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
   if (deps.auth && deps.tenancy) registerTenancy(app, deps.tenancy);
   if (deps.auth && deps.work) registerWork(app, deps.work);
   if (deps.auth) registerShell(app, { metrics: deps.metrics });
+  if (deps.localStorage) registerLocalStorage(app, deps.localStorage);
 
   // Liveness: the process responds. Nothing else (0D §17.4).
   app.get('/healthz', () => ({ status: 'ok' }));

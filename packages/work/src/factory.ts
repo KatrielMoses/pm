@@ -14,7 +14,9 @@ import {
 import { registerWorkLifecycle } from './lifecycle.ts';
 import { projectTargets, savedViewTargets, taskTargets } from './navigation.ts';
 import { projectOwnerHook, taskAssigneeHook } from './ownership.ts';
-import { NotificationService } from './notify/notification-service.ts';
+import { FileService } from './files/file-service.ts';
+import { createMalwareScanner } from './files/scanner.ts';
+import { createObjectStorage } from './files/storage.ts';
 import { reviewDepartureHook } from './collab/departure.ts';
 import { departureTimerHook } from './time/jobs.ts';
 import { DEFAULT_WORK_SETTINGS, type WorkSettings } from './validation.ts';
@@ -33,12 +35,13 @@ export function createWorkService(deps: {
   tenant: TenantDatabase;
   platform: PlatformDatabase;
   identity: CollaborationIdentityPort;
-  config: Pick<ServerConfig, 'identity' | 'lifecycle' | 'audit' | 'tenancy' | 'views'> & {
-    work?: WorkSettings;
-  };
+  config: Pick<ServerConfig, 'identity' | 'lifecycle' | 'audit' | 'tenancy' | 'views'> &
+    Partial<Pick<ServerConfig, 'files'>> & {
+      work?: WorkSettings;
+    };
   logger: Logger;
   metrics: Metrics;
-}): NotificationService {
+}): FileService {
   const { config } = deps;
   if (!config.identity.signingKey) throw new Error('AUTH_SIGNING_KEY is required');
   const writer = new AuditWriter({
@@ -58,7 +61,12 @@ export function createWorkService(deps: {
   const signingKey = Buffer.from(config.identity.signingKey.reveal(), 'base64url');
   const arrayMax = config.tenancy.principalContextArrayMax;
   const work = config.work ?? DEFAULT_WORK_SETTINGS;
-  return new NotificationService({
+  return new FileService({
+    // 4E: object storage and malware scanning, each absent until configured (never claimed).
+    files: {
+      storage: config.files ? createObjectStorage(config.files.storage) : null,
+      scanner: config.files ? createMalwareScanner(config.files.scanner) : null,
+    },
     notify: {
       emailState: config.identity.mailTransport === 'capture' ? 'capture' : 'unconfigured',
     },

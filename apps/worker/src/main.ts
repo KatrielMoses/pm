@@ -22,7 +22,12 @@ import {
 } from '@pm/lifecycle';
 import { SYSTEM_PRINCIPAL, WorkerRuntime } from '@pm/platform';
 import { tenancyBrandPort } from '@pm/tenancy';
-import { emailProviderFrom, productLifecycleRegistry } from '@pm/work';
+import {
+  createMalwareScanner,
+  createObjectStorage,
+  emailProviderFrom,
+  productLifecycleRegistry,
+} from '@pm/work';
 import { HEALTH_FILE } from './health-file.ts';
 import { registeredConsumers, registeredHandlers, registeredSchedules } from './registry.ts';
 
@@ -131,6 +136,15 @@ async function main(): Promise<void> {
         logger,
         settings: config.work,
         arrayMax: config.tenancy.principalContextArrayMax,
+      },
+      files: {
+        tenant: tenantDb,
+        discovery,
+        storage: createObjectStorage(config.files.storage),
+        scanner: createMalwareScanner(config.files.scanner),
+        metrics: telemetry.metrics,
+        logger,
+        settings: config.work,
       },
     }),
     consumers: registeredConsumers(config.work, {

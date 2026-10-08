@@ -84,6 +84,8 @@ describe('tenant lifecycle and audit endpoints are reachable only through policy
     );
     expect(verbs.map((f) => f.slice(ROOT.length + 1)).sort()).toEqual([
       'apps/api/src/tenancy/routes.ts',
+      // 4E (0C AZ-33): `{file}:trash`, decided through the same tenancy-exported issuer.
+      'apps/api/src/work/files-routes.ts',
       'apps/api/src/work/routes.ts',
       // 2B (0C AZ-22): task lifecycle verbs, decided through the same tenancy-exported issuer.
       'apps/api/src/work/task-routes.ts',
