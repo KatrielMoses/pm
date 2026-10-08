@@ -184,6 +184,21 @@ worker process is a startup error. All identities of one process must target the
 | `NOTIFY_BULK_STATE_MAX` | optional | optional | default 200 (1–1000); most notifications one bulk state change names (0D `NOTIFY_BULK_STATE_MAX`) |
 | `NOTIFY_DEADLINES_BATCH_MAX` | optional | optional | default 500 (10–5000); most due-soon and overdue tasks one sweep considers per workspace (0D `NOTIFY_DEADLINES_BATCH_MAX`) |
 | `NOTIFY_FACTS_MAX_BYTES` | optional | optional | default 1024 (128–4096); largest facts object a notification stores (scalars only, never titles or text) (0D `NOTIFY_FACTS_MAX_BYTES`) |
+| `DOCUMENT_BODY_MAX_BYTES` | optional | optional | default 262144 (4096–2000000); largest canonical content of one document version, in bytes (0D `DOCUMENT_BODY_MAX_BYTES`) |
+| `DOCUMENT_BLOCKS_MAX` | optional | optional | default 2000 (10–5000); most blocks in one document (0D `DOCUMENT_BLOCKS_MAX`) |
+| `DOCUMENT_BLOCK_TEXT_MAX_CHARS` | optional | optional | default 20000 (100–50000); longest text of one block (0D `DOCUMENT_BLOCK_TEXT_MAX_CHARS`) |
+| `DOCUMENT_TABLE_CELLS_MAX` | optional | optional | default 1000 (4–5000); most cells in one table block (0D `DOCUMENT_TABLE_CELLS_MAX`) |
+| `DOCUMENT_DEPTH_MAX` | optional | optional | default 6 (1–16); deepest page nesting (a root is depth 0) (0D `DOCUMENT_DEPTH_MAX`) |
+| `DOCUMENT_CHILDREN_MAX` | optional | optional | default 200 (1–1000); most direct subpages of one page (0D `DOCUMENT_CHILDREN_MAX`) |
+| `DOCUMENT_TREE_MAX` | optional | optional | default 1000 (10–5000); most pages in one page tree (0D `DOCUMENT_TREE_MAX`) |
+| `DOCUMENT_VERSIONS_MAX` | optional | optional | default 1000 (10–10000); most versions one document keeps (0D `DOCUMENT_VERSIONS_MAX`) |
+| `DOCUMENT_REFERENCES_MAX` | optional | optional | default 500 (10–2000); most links and mentions in one document (0D `DOCUMENT_REFERENCES_MAX`) |
+| `DOCUMENT_SUGGESTIONS_OPEN_MAX` | optional | optional | default 100 (1–500); most open suggestions on one document (0D `DOCUMENT_SUGGESTIONS_OPEN_MAX`) |
+| `DOCUMENT_EXPORT_PAGES_MAX` | optional | optional | default 100 (1–500); most pages one export carries (0D `DOCUMENT_EXPORT_PAGES_MAX`) |
+| `DOCUMENT_EXPORT_MAX_BYTES` | optional | optional | default 5242880 (65536–52428800); largest export, in bytes (0D `DOCUMENT_EXPORT_MAX_BYTES`) |
+| `DOCUMENT_REVIEW_HORIZON_DAYS` | optional | optional | default 730 (30–3650); furthest review date, in days from today (0D `DOCUMENT_REVIEW_HORIZON_DAYS`) |
+| `DOCUMENT_SAVE_RATE_PER_MINUTE` | optional | optional | default 60 (1–600); most content saves one person makes per minute (0D `DOCUMENT_SAVE_RATE_PER_MINUTE`) |
+| `DOCUMENT_EMBED_URL_MAX_CHARS` | optional | optional | default 2048 (128–8192); longest address of an embedded image, video, or link (0D `DOCUMENT_EMBED_URL_MAX_CHARS`) |
 | `VIEW_STATE_TTL_MS` | optional | optional | default 90 days; stored view state not written for this long is removed (0D `VIEW_STATE_TTL`) |
 
 Values are configuration, not customer promises (PQ-05). The 0D parameter values above are

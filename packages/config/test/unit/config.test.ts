@@ -170,6 +170,21 @@ describe('server configuration', () => {
       notifyBulkStateMax: 200,
       notifyDeadlinesBatchMax: 500,
       notifyFactsMaxBytes: 1024,
+      documentBodyMaxBytes: 262144,
+      documentBlocksMax: 2000,
+      documentBlockTextMaxChars: 20000,
+      documentTableCellsMax: 1000,
+      documentDepthMax: 6,
+      documentChildrenMax: 200,
+      documentTreeMax: 1000,
+      documentVersionsMax: 1000,
+      documentReferencesMax: 500,
+      documentSuggestionsOpenMax: 100,
+      documentExportPagesMax: 100,
+      documentExportMaxBytes: 5242880,
+      documentReviewHorizonDays: 730,
+      documentSaveRatePerMinute: 60,
+      documentEmbedUrlMaxChars: 2048,
     });
     const set = (env: Record<string, string>) =>
       loadServerConfig({ service: 'worker', env: { ...local, ...env } });
