@@ -342,7 +342,8 @@ export class ProjectService extends NavigationService {
     action: A,
     record: {
       id: string;
-      brand: BrandFacts;
+      /** Null for a workspace-level record (a document that belongs to no brand). */
+      brand: BrandFacts | null;
       lifecycleState: LoadedProject['lifecycleState'];
       chain: ProjectChain;
     },

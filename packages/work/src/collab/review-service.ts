@@ -581,7 +581,7 @@ export class ReviewService extends CommentService {
         reviewer_rule: input.rule,
         request_kind: input.kind,
       },
-      (host.brand?.id ?? null),
+      host.brand?.id ?? null,
     );
     return { id, publicId };
   }
@@ -754,7 +754,7 @@ export class ReviewService extends CommentService {
               subject_ref: host.id,
               review_state: next,
             },
-            (host.brand?.id ?? null),
+            host.brand?.id ?? null,
           );
           return {
             status: 200,
@@ -811,7 +811,7 @@ export class ReviewService extends CommentService {
             'collab.review.withdrawn',
             { type: 'collab.review_request', id: row.id, sequence: row.version + 1 },
             { subject_kind: host.kind, subject_ref: host.id, reason: 'requester' },
-            (host.brand?.id ?? null),
+            host.brand?.id ?? null,
           );
           return {
             status: 200,
@@ -918,7 +918,7 @@ export class ReviewService extends CommentService {
               'collab.review.superseded',
               { type: 'collab.review_request', id: row.id, sequence: row.version + 1 },
               { subject_kind: host.kind, subject_ref: host.id, successor_ref: made.id },
-              (host.brand?.id ?? null),
+              host.brand?.id ?? null,
             );
           return {
             status: 201,

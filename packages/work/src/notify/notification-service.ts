@@ -504,8 +504,9 @@ export class NotificationService extends ReviewService {
         issue('/scope', 'invalid_reference', 'Choose a brand, project, or task you can open.'),
       );
     return {
-      kind: (row.record_type === 'task' || row.record_type === 'document' ? 'record' : row.record_type) as
-        'brand' | 'project' | 'record',
+      kind: (row.record_type === 'task' || row.record_type === 'document'
+        ? 'record'
+        : row.record_type) as 'brand' | 'project' | 'record',
       id: row.id,
       brand: null,
     };

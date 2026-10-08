@@ -567,9 +567,7 @@ export class CommentService extends CapacityService {
                 FROM core.record r
                 ${recordJoins}
                WHERE r.id = ANY(${recordIds}::uuid[])
-                 AND ${vis.where('r', { project: recordProject })}`.execute(
-              tx.db,
-            )
+                 AND ${vis.where('r', { project: recordProject })}`.execute(tx.db)
           ).rows.map((r) => [r.id, r])
         : [],
     );
@@ -769,7 +767,7 @@ export class CommentService extends CapacityService {
         'relations.mention.created',
         { type: 'relations.mention', id: a.id, sequence: 0 },
         { source_kind: 'comment', target_kind: a.kind, target_id: a.targetId },
-        (host.brand?.id ?? null),
+        host.brand?.id ?? null,
       );
   }
 
@@ -1061,7 +1059,7 @@ export class CommentService extends CapacityService {
               root_comment_id: root?.id ?? null,
               mention_ids: added.map((a) => a.id).join(',') || null,
             },
-            (host.brand?.id ?? null),
+            host.brand?.id ?? null,
           );
           await this.emitMentions(tx, caller, p, host, added);
           return {
@@ -1106,7 +1104,7 @@ export class CommentService extends CapacityService {
       action,
       { recordId: host.id, type: host.kind, publicId: host.publicId },
       changes,
-      (host.brand?.id ?? null),
+      host.brand?.id ?? null,
     );
   }
 
@@ -1187,7 +1185,7 @@ export class CommentService extends CapacityService {
               'collab.comment.edited',
               { type: 'collab.comment', id: row.id, sequence: row.version + 1 },
               { host_record_id: host.id, edit_count: row.edit_count + (changed ? 1 : 0) },
-              (host.brand?.id ?? null),
+              host.brand?.id ?? null,
             );
             await this.emitMentions(tx, caller, p, host, added);
           }
@@ -1299,7 +1297,7 @@ export class CommentService extends CapacityService {
             'collab.comment.deleted',
             { type: 'collab.comment', id: row.id, sequence: row.version + 1 },
             { host_record_id: host.id, deleted_by: kind },
-            (host.brand?.id ?? null),
+            host.brand?.id ?? null,
           );
           return {
             status: 200,
@@ -1373,7 +1371,7 @@ export class CommentService extends CapacityService {
               'collab.comment.reaction_changed',
               { type: 'collab.comment', id: row.id, sequence: row.version },
               { host_record_id: host.id, reaction, change: on ? 'added' : 'removed' },
-              (host.brand?.id ?? null),
+              host.brand?.id ?? null,
             );
           return {
             status: 200,
@@ -1447,9 +1445,7 @@ export class CommentService extends CapacityService {
            WHERE r.workspace_id = ${tx.workspaceId} AND r.record_type IN ('task', 'project', 'document')
              AND lower(${recordTitle}) LIKE ${like} ESCAPE '\\'
              AND ${vis.where('r', { project: recordProject })}
-           ORDER BY lower(${recordTitle}), r.id LIMIT ${max - out.length}`.execute(
-          tx.db,
-        );
+           ORDER BY lower(${recordTitle}), r.id LIMIT ${max - out.length}`.execute(tx.db);
         for (const r of recs.rows) out.push({ kind: 'record', id: r.public_id, name: r.title });
       }
       return { data: out };
@@ -1552,7 +1548,7 @@ export class CommentService extends CapacityService {
               on ? 'relations.follow.added' : 'relations.follow.removed',
               { type: 'relations.follower', id: host.id, sequence: 0 },
               { record_type: host.kind, membership_id: p.membershipId },
-              (host.brand?.id ?? null),
+              host.brand?.id ?? null,
             );
           return {
             status: 200,
@@ -1606,12 +1602,7 @@ export class CommentService extends CapacityService {
    */
   async following(caller: Caller, ws: unknown, query: Record<string, unknown>) {
     const q = parseCursorQuery(query, ['type']);
-    if (
-      q.type !== undefined &&
-      q.type !== 'task' &&
-      q.type !== 'project' &&
-      q.type !== 'document'
-    )
+    if (q.type !== undefined && q.type !== 'task' && q.type !== 'project' && q.type !== 'document')
       throw invalid(issue('/type', 'invalid_option', 'Choose tasks, projects, or documents.'));
     return this.tracked('collab.follows', 'list', () =>
       this.inWorkspace(caller, ws, { readOnly: true }, async (tx, p) => {

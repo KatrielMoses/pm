@@ -8,7 +8,6 @@ import {
   findBrand,
   invalid,
   issue,
-  issueRecordLifecycleDecision,
   parseIfMatch,
   recordLevel,
   requireVersion,
@@ -984,21 +983,7 @@ export class DocumentService extends DocumentCore {
           if (d.ownLevel === null) throw new TenancyError('forbidden');
           if (req.ifMatch !== undefined) requireVersion(parseIfMatch(req.ifMatch), d.row.version);
           const input = { exec: this.exec(caller, p), source: { kind: 'ui' as const } };
-          const issueFor = <A extends 'record.archive' | 'record.restore' | 'record.trash' | 'record.purge'>(a: A) => {
-            try {
-              const decision = issueRecordLifecycleDecision(tx, p, a, {
-                id: d.id,
-                brand: d.brand,
-                lifecycleState: d.lifecycleState,
-                projectChain: d.chain,
-              });
-              this.decision(a, { allowed: true });
-              return decision;
-            } catch (err) {
-              if (err instanceof TenancyError) this.decision(a, { allowed: false, code: err.code });
-              throw err;
-            }
-          };
+          const facts = { id: d.id, brand: d.brand, lifecycleState: d.lifecycleState, chain: d.chain };
           const state = await tx.db
             .selectFrom('core.record')
             .select(['lifecycle_state', 'deletion_batch_id'])
@@ -1010,13 +995,28 @@ export class DocumentService extends DocumentCore {
             });
           if (verb === 'archive') {
             if (state.lifecycle_state !== 'active') throw conflict();
-            await this.d.lifecycle.archive(tx, issueFor('record.archive'), input, d.id);
+            await this.d.lifecycle.archive(
+              tx,
+              this.issueLifecycle(tx, p, 'record.archive', facts),
+              input,
+              d.id,
+            );
           } else if (verb === 'unarchive') {
             if (state.lifecycle_state !== 'archived') throw conflict();
-            await this.d.lifecycle.unarchive(tx, issueFor('record.restore'), input, d.id);
+            await this.d.lifecycle.unarchive(
+              tx,
+              this.issueLifecycle(tx, p, 'record.restore', facts),
+              input,
+              d.id,
+            );
           } else if (verb === 'trash') {
             if (state.lifecycle_state !== 'active' && state.lifecycle_state !== 'archived') throw conflict();
-            await this.d.lifecycle.trash(tx, issueFor('record.trash'), input, d.id);
+            await this.d.lifecycle.trash(
+              tx,
+              this.issueLifecycle(tx, p, 'record.trash', facts),
+              input,
+              d.id,
+            );
           } else {
             if (state.lifecycle_state !== 'trashed') throw conflict();
             const own = await tx.db
@@ -1027,8 +1027,20 @@ export class DocumentService extends DocumentCore {
               .executeTakeFirst();
             // A page trashed with its parent comes back with it.
             if (!own) throw conflict();
-            if (verb === 'restore') await this.d.lifecycle.restore(tx, issueFor('record.restore'), input, own.id);
-            else await this.d.lifecycle.requestPurge(tx, issueFor('record.purge'), input, own.id);
+            if (verb === 'restore')
+              await this.d.lifecycle.restore(
+                tx,
+                this.issueLifecycle(tx, p, 'record.restore', facts),
+                input,
+                own.id,
+              );
+            else
+              await this.d.lifecycle.requestPurge(
+                tx,
+                this.issueLifecycle(tx, p, 'record.purge', facts),
+                input,
+                own.id,
+              );
           }
           await bumpEpoch(tx, 'workspace', null);
           const after = await tx.db
