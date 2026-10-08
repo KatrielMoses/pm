@@ -340,6 +340,7 @@ Requirements flagged with each decision are listed automatically in [requirement
 - **Safe default:** Retain until the record or workspace is deleted, except backups and export files, whose lifetimes are technical settings. Every value is configurable, and none is published.
 - **If deferred:** Unbounded growth, plus potential non-compliance with data minimization.
 - **Status (Phase 4B, 2026-10-08):** Notification retention stays open as a legal question and no value is published. The technical bound is `NOTIFY_RETENTION_DAYS` (default 365, configurable): notifications and their deliveries older than that age out unless the person saved them; digests age with their deliveries; a purged record's notifications and a departed person's notifications are removed with them (ADR-0024 D9).
+- **Status (Phase 4E, 2026-10-08):** File retention stays open as a legal question and no period is invented or published. Files and their versions live until their host or workspace is deleted: they trash, restore, and purge with their host through the 1F lifecycle, purge deletes the bytes through idempotent `object:{key}` effects, and evidence-locked versions (accepted deliverables, R-EVIDENCE) are skipped by purge. Expired upload sessions release their quarantined bytes after `UPLOAD_SESSION_LIFETIME`, a technical setting (ADR-0025 F9).
 
 <a id="od-37"></a>
 ### OD-37 — Legal and retention holds

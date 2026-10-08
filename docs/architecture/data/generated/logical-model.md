@@ -1598,6 +1598,7 @@ Immutable stored object in object storage: key, checksum, size, content type, sc
 | Key typed columns | `storage_key text (random, no names)`; `sha256 bytea`; `byte_size bigint`; `content_type`; `scan_state (pending\|clean\|infected\|error)`; `storage_class` |
 | Sensitive fields | — |
 | Requirements | FILE-011, FILE-012, FILE-013 |
+| Notes | Phase 4E (ADR-33): keys carry no identifiers (`q.{64 hex}` quarantined, `o.{same}` promoted); a clean object is never quarantined; an infected object's signature is internal and its bytes are deleted; orphaned objects are deleted by the file sweep through `object:{key}` external effects. No storage class or encryption column is stored (provider-side). |
 
 <a id="entity-file"></a>
 ### `file`
@@ -1618,6 +1619,7 @@ Addressable file with metadata and version chain; attached to exactly one host.
 | Key typed columns | `host_record_id`; `name`; `owner_id`; `source_kind`; `current_version_id`; `is_external boolean` |
 | Sensitive fields | — |
 | Requirements | FILE-001, FILE-003, FILE-004 |
+| Notes | Phase 4E (ADR-33): hosts are the workspace (members only), a brand, a project, a task, or a comment (its record plus comment_id; only the comment's author attaches). Authority is the host's on every read; hidden and unknown files are one not_found. Trash, restore, and purge follow the host. |
 
 <a id="entity-file-version"></a>
 ### `file_version`
@@ -1638,6 +1640,7 @@ One immutable version of a file pointing to a file_object or external URL.
 | Key typed columns | `preview_state (pending\|ready\|unsupported\|failed)`; `evidence_locked boolean` |
 | Sensitive fields | — |
 | Requirements | FILE-004, FILE-005 |
+| Notes | Phase 4E (ADR-33): immutable by trigger (only the evidence lock may be set, never cleared, and the preview state); an object or an external http(s) URL that is never copied or fetched; at most FILE_VERSIONS_MAX per file. Downloads need a clean scan and go through a short-lived signed URL that is never stored. |
 
 <a id="entity-upload-session"></a>
 ### `upload_session`
@@ -1658,7 +1661,7 @@ Upload session: declared name/type/size/checksum, host, signed-URL issuance, ver
 | Key typed columns | `host_record_id`; `file_name`; `content_type`; `byte_size bigint`; `sha256 bytea`; `state (initiated\|uploaded\|verifying\|completed\|rejected\|expired)`; `quarantine_object_key text`; `expires_at`; `file_version_id null`; `rejection_code null`; `public_id text (upl_)` |
 | Sensitive fields | — |
 | Requirements | FILE-001, FILE-011 |
-| Notes | 0D §15.1. Signed URLs are not stored. |
+| Notes | 0D §15.1. Signed URLs are not stored. Phase 4E (ADR-33): the creator's alone; reserves bytes against the workspace quota at initiation; completion re-checks authority and verifies presence, size, SHA-256, and type; a version exists only on a completed session; expiry (UPLOAD_SESSION_LIFETIME) releases the reservation and the quarantined object. |
 
 <a id="entity-deliverable"></a>
 ### `deliverable`
@@ -1679,6 +1682,7 @@ Designated output of a task with expected type and current review state.
 | Key typed columns | standard columns only |
 | Sensitive fields | — |
 | Requirements | FILE-006, TSK-022 |
+| Notes | Phase 4E (ADR-33): contained by its task (authority and visibility through the task); expected type any, file, or url (TSK-022); state follows the 4A review of the current version and accepted is final. Lists count accepted versus pending per task and project (PRJ-023). |
 
 <a id="entity-deliverable-version"></a>
 ### `deliverable_version`
@@ -1699,6 +1703,7 @@ Submitted iteration of a deliverable (file version, URL, or artifact) with revie
 | Key typed columns | `source_kind (file\|url\|artifact)`; `review_state deliverable_review_state`; `accepted_review_decision_id null`; `evidence_locked boolean`; `content_sha256` |
 | Sensitive fields | — |
 | Requirements | FILE-007, FILE-008, FILE-009, AGT-013 |
+| Notes | Phase 4E (ADR-33): source is a clean file version of the same task or a URL (agent artifacts arrive with 8C); submitted with a 4A approval request in one transaction, superseding an open one; acceptance stores the decision, who accepted, and when, and evidence-locks the row and its file version (trigger). Locked versions are skipped by purge. |
 
 <a id="entity-evidence-item"></a>
 ### `evidence_item`
@@ -1719,6 +1724,7 @@ Evidence attached to a subject (test result, defect, release decision, review, e
 | Key typed columns | `subject_kind`; `subject_id`; `kind (screenshot\|recording\|log\|trace\|report\|url)`; `file_version_id null`; `url null`; `locked_by_kind/id` |
 | Sensitive fields | — |
 | Requirements | TEST-009, TEST-012, DEV-016 |
+| Notes | Phase 4E (ADR-33): not created in 4E; arrives with 9B. |
 
 <a id="entity-storage-usage"></a>
 ### `storage_usage`
@@ -1739,6 +1745,7 @@ Per-workspace storage totals for limits (rollup).
 | Key typed columns | standard columns only |
 | Sensitive fields | — |
 | Requirements | FILE-010 |
+| Notes | Phase 4E (ADR-33): used and reserved bytes and object count, locked while an upload reserves bytes against WORKSPACE_STORAGE_QUOTA_BYTES (a technical limit until 10A plans). |
 
 ## Comments and reviews (`collab`, schema `collab`)
 

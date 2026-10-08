@@ -310,3 +310,15 @@ Migration `0037_notifications` (ADR-0024, 0B ADR-32) adds the `notify` schema:
 
 All six tables have `tenant_isolation` RLS and full indexes on every foreign key. The application role can write them; the worker reads, claims, and updates deliveries. The down migration drops the function, the grants, the policy it added on `work.task`, and the tables in key order, restoring the exact 0036 catalog.
 
+## Phase 4E: files and deliverables
+
+Migration `0038_files_deliverables` (ADR-0025, 0B ADR-33) adds the `files` schema:
+- `files.file_object`: one stored object per upload with an identifier-free key (`q.{64 hex}` while quarantined, `o.{same}` once promoted; `file_object_key_shape` and `file_object_key_matches` tie the prefix to `quarantined`), SHA-256, size, content type, scan state, attempts, and (only when infected) an internal signature.
+- `files.file` (`file_`, a `core.record`): name, owner, source (`upload` or `external`), host kind and host (`file_host_shape`), brand and `scope_key`, current version, and version count.
+- `files.file_version`: immutable by the `file_version_guard` trigger (only the evidence lock may be set, never cleared, and the preview state); an object or an external `http(s)` URL (`file_version_source_shape`).
+- `files.upload_session` (`upl_`): the declared name, type, size, and checksum, the host or target file, the quarantine key, state, rejection code, and expiry; a version only on a completed session.
+- `files.deliverable` (`dlv_`, a `core.record`) and `files.deliverable_version`: expected type, state, current and accepted versions; each version is a file version or a URL with its 4A review request, the deciding `collab.review_decision`, who accepted and when, and the evidence lock (`deliverable_version_guard` refuses any change to a locked row). `collab.review_request.subject_kind` gains `deliverable`, and `collab.review_decision` gains a workspace-qualified unique key for the composite foreign key.
+- `files.storage_usage`: one row per workspace with used and reserved bytes and the object count.
+- `exec_dispatch.discover_file_work(now, limit)`: a payload-free `SECURITY DEFINER` discovery of the workspaces with expired upload sessions or pending `object:{key}` effects (owner `pm_scheduler`, executable by the dispatcher), with column-level read grants for `pm_scheduler`.
+
+All seven tables have `tenant_isolation` RLS and indexes on every foreign key. The application role inserts and updates only named columns (objects change scan state and leave quarantine only in the worker). The down migration drops the function, grants, and policies, restores the 0037 review subject check, and drops the tables in key order, restoring the exact 0037 catalog.
