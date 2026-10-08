@@ -984,4 +984,289 @@ describe('Notification platform (4B)', () => {
       expect(note).toBeDefined();
     });
   });
+
+  describe('digests, browser, deadlines, retention, and administration', () => {
+    const fresh = async (level: 'edit' | 'view' = 'edit') => {
+      const who = await join(env, db, owner, ws, { kind: 'member', role: 'member' });
+      const id = await mem(who);
+      await apply(env, owner, ws, {
+        kind: 'brand_grant',
+        brand: brands.Harbor,
+        principal: id,
+        level,
+      });
+      return { who, id };
+    };
+    const profileOf = async (c: Caller, body: Record<string, unknown>) =>
+      env.svc.setNotificationProfile(
+        c,
+        ws,
+        body,
+        ifMatch((await env.svc.notificationProfile(c, ws)).version),
+      );
+    const assign = async (task: { id: string; version: number }, who: string) =>
+      env.svc.setAssignees(
+        owner,
+        ws,
+        task.id,
+        { assignees: [who], version: task.version },
+        mutation(),
+      );
+    const rows = async (text: string) => sql(text);
+
+    it('assembles one digest per slot, re-authorizes its items, and sends it once', async () => {
+      const a = await fresh();
+      await profileOf(a.who, { digest_cadence: 'daily', daily_digest_time: '00:00' });
+      const t = await newTask('Digest subject');
+      await env.svc.follow(a.who, ws, t.id, true, mutation());
+      await env.svc.createComment(owner, ws, t.id, { text: 'first remark' }, mutation());
+      await drain();
+      const note = (await forTask(a.who, t.id)).find((n) => n.notification_type === 'comment')!;
+      expect(note).toBeDefined();
+      mail.messages.length = 0;
+      await sweep();
+      await sweep();
+      const sent = mail.messages.filter((m) => m.subject.includes('digest'));
+      const mineDigests = (await env.svc.myDeliveries(a.who, ws, {})).data.filter(
+        (d) => d.kind === 'digest',
+      );
+      expect(mineDigests).toHaveLength(1);
+      expect(mineDigests[0]).toMatchObject({ state: 'delivered' });
+      expect(sent.some((m) => m.text.includes('Digest subject'))).toBe(true);
+      expect(
+        (await rows(`SELECT count(*)::int AS n FROM notify.digest WHERE item_count > 0`))[0]!.n,
+      ).toBeGreaterThanOrEqual(1);
+      expect(
+        (
+          await rows(
+            `SELECT digest_pending FROM notify.notification WHERE public_id = '${note.id}'`,
+          )
+        )[0]!.digest_pending,
+      ).toBe(false);
+
+      // Items the person can no longer read never reach a digest: access is rechecked at assembly.
+      const hidden = await newTask('Secret digest subject');
+      await env.svc.follow(a.who, ws, hidden.id, true, mutation());
+      await env.svc.createComment(owner, ws, hidden.id, { text: 'private' }, mutation());
+      await drain();
+      expect((await forTask(a.who, hidden.id)).some((n) => n.notification_type === 'comment')).toBe(
+        true,
+      );
+      await apply(env, owner, ws, { kind: 'brand_revoke', brand: brands.Harbor, principal: a.id });
+      await rows(
+        `UPDATE notify.digest SET period_start = period_start - interval '30 days', period_end = period_end - interval '30 days' WHERE recipient_membership_id = (SELECT id FROM tenancy.membership WHERE public_id = '${a.id}')`,
+      );
+      mail.messages.length = 0;
+      await sweep();
+      expect(JSON.stringify(mail.messages)).not.toContain('Secret digest subject');
+      expect(
+        (
+          await rows(
+            `SELECT count(*)::int AS n FROM notify.notification n JOIN tenancy.membership m ON m.id = n.recipient_membership_id WHERE m.public_id = '${a.id}' AND n.digest_pending`,
+          )
+        )[0]!.n,
+      ).toBe(0);
+    });
+
+    it('delivers to the browser only after the page reports it, and expires what nobody shows', async () => {
+      const a = await fresh();
+      await profileOf(a.who, { browser_enabled: true, browser_permission: 'granted' });
+      const t = await newTask('Browser subject');
+      await assign(t, a.id);
+      await drain();
+      const note = (await forTask(a.who, t.id))[0]!;
+      const pending = (await env.svc.browserPending(a.who, ws)).data.filter(
+        (d) => d.notification === note.id,
+      );
+      expect(pending).toHaveLength(1);
+      expect(pending[0]).toMatchObject({
+        notification: note.id,
+        path: `/workspaces/${ws}/tasks/${t.id}`,
+      });
+      expect(pending[0]!.title).toContain('Browser subject');
+      // Another person sees nothing and cannot acknowledge it.
+      expect((await env.svc.browserPending(outsider, ws)).data).toEqual([]);
+      await expect(
+        env.svc.acknowledgeBrowser(
+          outsider,
+          ws,
+          pending[0]!.delivery,
+          { outcome: 'shown' },
+          mutation(),
+        ),
+      ).rejects.toEqual(reason('not_found'));
+      await env.svc.acknowledgeBrowser(
+        a.who,
+        ws,
+        pending[0]!.delivery,
+        { outcome: 'shown' },
+        mutation(),
+      );
+      const done = (await env.svc.myDeliveries(a.who, ws, { channel: 'browser' })).data[0]!;
+      expect(done).toMatchObject({ state: 'delivered' });
+      await expect(
+        env.svc.acknowledgeBrowser(
+          a.who,
+          ws,
+          pending[0]!.delivery,
+          { outcome: 'shown' },
+          mutation(),
+        ),
+      ).rejects.toEqual(issueOf('not_pending'));
+      expect(
+        (await env.svc.browserPending(a.who, ws)).data.filter((d) => d.notification === note.id),
+      ).toEqual([]);
+      // Never shown within the window: expired, not delivered.
+      const u = await newTask('Never shown');
+      await assign(u, a.id);
+      await drain();
+      await sweep({}, new Date(Date.now() + 3_600_000));
+      const states = (await env.svc.myDeliveries(a.who, ws, { channel: 'browser' })).data.map(
+        (d) => d.state,
+      );
+      expect(states).toEqual(expect.arrayContaining(['expired', 'delivered']));
+      // A page that declines is recorded as a permanent failure.
+      const v = await newTask('Declined');
+      await assign(v, a.id);
+      await drain();
+      const again = (await env.svc.browserPending(a.who, ws)).data;
+      await env.svc.acknowledgeBrowser(
+        a.who,
+        ws,
+        again[0]!.delivery,
+        { outcome: 'declined' },
+        mutation(),
+      );
+      expect((await env.svc.myDeliveries(a.who, ws, { state: 'failed' })).data[0]).toMatchObject({
+        channel: 'browser',
+        failure_code: 'client_declined',
+      });
+      // Access lost before the page asks: the lines vanish and the delivery is suppressed.
+      const w = await newTask('Lost before shown');
+      await assign(w, a.id);
+      await drain();
+      await apply(env, owner, ws, { kind: 'brand_revoke', brand: brands.Harbor, principal: a.id });
+      expect((await env.svc.browserPending(a.who, ws)).data).toEqual([]);
+    });
+
+    it('announces due-soon and overdue work once per task and date, only to its assignees', async () => {
+      const a = await fresh();
+      const soon = await newTask('Due tomorrow');
+      const late = await newTask('Fell overdue');
+      for (const x of [soon, late]) await assign(x, a.id);
+      await rows(
+        `UPDATE work.task SET due_date = (now() AT TIME ZONE 'UTC')::date + 1 WHERE id = (SELECT id FROM core.record WHERE public_id = '${soon.id}')`,
+      );
+      await rows(
+        `UPDATE work.task SET due_date = (now() AT TIME ZONE 'UTC')::date - 1 WHERE id = (SELECT id FROM core.record WHERE public_id = '${late.id}')`,
+      );
+      await sweep();
+      await sweep();
+      expect(
+        (await forTask(a.who, soon.id)).filter((n) => n.notification_type === 'due_soon'),
+      ).toHaveLength(1);
+      expect(
+        (await forTask(a.who, late.id)).filter((n) => n.notification_type === 'overdue'),
+      ).toHaveLength(1);
+      expect(
+        (await forTask(outsider, soon.id)).filter((n) => n.notification_type === 'due_soon'),
+      ).toHaveLength(0);
+      expect(
+        (await forTask(a.who, soon.id)).find((n) => n.notification_type === 'due_soon')!
+          .occurrences,
+      ).toBe(1);
+    });
+
+    it('ages out old notifications but keeps saved ones, and erases a departed person', async () => {
+      const a = await fresh();
+      const old = await newTask('Old news');
+      const keep = await newTask('Keep me');
+      await assign(old, a.id);
+      await assign(keep, a.id);
+      await drain();
+      const oldNote = (await forTask(a.who, old.id))[0]!;
+      const keepNote = (await forTask(a.who, keep.id))[0]!;
+      await env.svc.setNotificationState(
+        a.who,
+        ws,
+        keepNote.id,
+        { state: 'saved' },
+        ifMatch(keepNote.version),
+      );
+      await rows(`UPDATE notify.notification SET last_occurred_at = now() - interval '400 days'`);
+      await sweep();
+      expect(
+        await rows(`SELECT 1 FROM notify.notification WHERE public_id = '${oldNote.id}'`),
+      ).toHaveLength(0);
+      expect(
+        await rows(`SELECT 1 FROM notify.notification WHERE public_id = '${keepNote.id}'`),
+      ).toHaveLength(1);
+      expect((await mine(a.who)).map((n) => n.id)).toEqual([keepNote.id]);
+    });
+
+    it('lets managers set brand defaults that a person can still override, and no one else', async () => {
+      const a = await fresh();
+      await env.svc.setScopeDefault(
+        owner,
+        ws,
+        brands.Harbor,
+        { event_type: 'assignment', channel: 'email', mode: 'muted' },
+        mutation(),
+      );
+      expect(
+        (await env.svc.scopeDefaults(owner, ws, brands.Harbor)).data.some(
+          (d) => d.event_type === 'assignment' && d.mode === 'muted',
+        ),
+      ).toBe(true);
+      await expect(
+        env.svc.setScopeDefault(
+          a.who,
+          ws,
+          brands.Harbor,
+          { event_type: 'assignment', channel: 'email', mode: 'immediate' },
+          mutation(),
+        ),
+      ).rejects.toEqual(reason('forbidden'));
+      await expect(
+        env.svc.setScopeDefault(
+          outsider,
+          ws,
+          brands.Harbor,
+          { event_type: 'assignment', channel: 'email', mode: 'immediate' },
+          mutation(),
+        ),
+      ).rejects.toEqual(reason('not_found'));
+      const t = await newTask('Default muted');
+      await assign(t, a.id);
+      await drain();
+      const note = (await forTask(a.who, t.id))[0]!;
+      expect(
+        await rows(
+          `SELECT d.state FROM notify.delivery d JOIN notify.notification n ON n.id = d.notification_id WHERE n.public_id = '${note.id}' AND d.channel = 'email'`,
+        ),
+      ).toHaveLength(0);
+      await env.svc.setNotificationPreference(
+        a.who,
+        ws,
+        { event_type: 'assignment', scope: brands.Harbor, channel: 'email', mode: 'immediate' },
+        mutation(),
+      );
+      const u = await newTask('Personal override');
+      await assign(u, a.id);
+      await drain();
+      const unote = (await forTask(a.who, u.id))[0]!;
+      expect(
+        await rows(
+          `SELECT d.state FROM notify.delivery d JOIN notify.notification n ON n.id = d.notification_id WHERE n.public_id = '${unote.id}' AND d.channel = 'email'`,
+        ),
+      ).toHaveLength(1);
+      await env.svc.removeScopeDefault(
+        owner,
+        ws,
+        brands.Harbor,
+        { event_type: 'assignment', channel: 'email' },
+        mutation(),
+      );
+    });
+  });
 });

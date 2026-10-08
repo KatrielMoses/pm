@@ -456,18 +456,22 @@ export class NotificationFanOut implements OutboxConsumer {
         digest_pending: digest,
       })
       .onConflict((oc) =>
-        oc.columns(['workspace_id', 'recipient_membership_id', 'dedupe_key']).doUpdateSet({
-          occurrences: sql`notify.notification.occurrences + 1`,
-          last_occurred_at: now,
-          // New activity reopens a read or dismissed item; a saved one stays saved.
-          state: sql`CASE WHEN notify.notification.state IN ('read', 'dismissed') THEN 'unread' ELSE notify.notification.state END`,
-          state_changed_at: sql`CASE WHEN notify.notification.state IN ('read', 'dismissed') THEN now() ELSE notify.notification.state_changed_at END`,
-          version: sql`notify.notification.version + 1`,
-        }),
+        // An occasion (one reminder, one due date, one event) happens once: repeating it is a no-op,
+        // not another occurrence. Time-bucket repeats collapse and reopen.
+        c.occasion
+          ? oc.columns(['workspace_id', 'recipient_membership_id', 'dedupe_key']).doNothing()
+          : oc.columns(['workspace_id', 'recipient_membership_id', 'dedupe_key']).doUpdateSet({
+              occurrences: sql`notify.notification.occurrences + 1`,
+              last_occurred_at: now,
+              // New activity reopens a read or dismissed item; a saved one stays saved.
+              state: sql`CASE WHEN notify.notification.state IN ('read', 'dismissed') THEN 'unread' ELSE notify.notification.state END`,
+              state_changed_at: sql`CASE WHEN notify.notification.state IN ('read', 'dismissed') THEN now() ELSE notify.notification.state_changed_at END`,
+              version: sql`notify.notification.version + 1`,
+            }),
       )
       .returning(['id', sql<boolean>`(xmax = 0)`.as('created')])
-      .executeTakeFirstOrThrow();
-    if (!inserted.created) return this.count(c.type, 'collapsed');
+      .executeTakeFirst();
+    if (!inserted?.created) return this.count(c.type, 'collapsed');
     this.count(c.type, 'created');
 
     const tz = validZone(profile?.timezone) ?? (await this.accountZone(tx, person.account_id));
