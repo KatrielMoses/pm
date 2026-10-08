@@ -274,8 +274,46 @@ export interface WorkSettings {
   documentReviewHorizonDays: number;
   /** `DOCUMENT_SAVE_RATE_PER_MINUTE` */
   documentSaveRatePerMinute: number;
+  /** `LIVE_EDITING_ENABLED` */
+  liveEditingEnabled: number;
+  /** `LIVE_SESSION_TTL_SECONDS` */
+  liveSessionTtlSeconds: number;
+  /** `LIVE_SESSIONS_MAX` */
+  liveSessionsMax: number;
+  /** `LIVE_SESSIONS_PER_MEMBER_MAX` */
+  liveSessionsPerMemberMax: number;
+  /** `LIVE_OPS_BATCH_MAX` */
+  liveOpsBatchMax: number;
+  /** `LIVE_POLL_WAIT_SECONDS` */
+  livePollWaitSeconds: number;
+  /** `LIVE_OP_LOG_MAX` */
+  liveOpLogMax: number;
+  /** `LIVE_RATE_PER_MINUTE` */
+  liveRatePerMinute: number;
   /** `DOCUMENT_EMBED_URL_MAX_CHARS` */
   documentEmbedUrlMaxChars: number;
+  /** `SIGNED_URL_LIFETIME` (seconds) */
+  signedUrlLifetimeSeconds: number;
+  /** `UPLOAD_SESSION_LIFETIME` (seconds) */
+  uploadSessionLifetimeSeconds: number;
+  /** `FILE_UPLOAD_MAX_BYTES` */
+  fileUploadMaxBytes: number;
+  /** `WORKSPACE_STORAGE_QUOTA_BYTES` */
+  workspaceStorageQuotaBytes: number;
+  /** `FILE_COMPARE_MAX_BYTES` */
+  fileCompareMaxBytes: number;
+  /** `FILE_SCAN_MAX_ATTEMPTS` */
+  fileScanMaxAttempts: number;
+  /** `FILE_VERSIONS_MAX` */
+  fileVersionsMax: number;
+  /** `FILES_LIST_MAX` */
+  filesListMax: number;
+  /** `DELIVERABLES_PER_TASK_MAX` */
+  deliverablesPerTaskMax: number;
+  /** `FILE_DISCOVERY_MAX` */
+  fileDiscoveryMax: number;
+  /** `FILE_EXPIRY_BATCH_MAX` */
+  fileExpiryBatchMax: number;
 }
 
 export const DEFAULT_WORK_SETTINGS: WorkSettings = Object.freeze({
@@ -405,7 +443,26 @@ export const DEFAULT_WORK_SETTINGS: WorkSettings = Object.freeze({
   documentExportMaxBytes: 5_242_880,
   documentReviewHorizonDays: 730,
   documentSaveRatePerMinute: 60,
+  liveEditingEnabled: 1,
+  liveSessionTtlSeconds: 45,
+  liveSessionsMax: 20,
+  liveSessionsPerMemberMax: 5,
+  liveOpsBatchMax: 50,
+  livePollWaitSeconds: 20,
+  liveOpLogMax: 2000,
+  liveRatePerMinute: 1200,
   documentEmbedUrlMaxChars: 2048,
+  signedUrlLifetimeSeconds: 300,
+  uploadSessionLifetimeSeconds: 3_600,
+  fileUploadMaxBytes: 104_857_600,
+  workspaceStorageQuotaBytes: 10_737_418_240,
+  fileCompareMaxBytes: 262_144,
+  fileScanMaxAttempts: 5,
+  fileVersionsMax: 100,
+  filesListMax: 200,
+  deliverablesPerTaskMax: 50,
+  fileDiscoveryMax: 100,
+  fileExpiryBatchMax: 200,
 });
 
 /** The database invariant behind `TASK_DEPTH_MAX` (migration 0023). */

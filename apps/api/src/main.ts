@@ -11,7 +11,7 @@ import {
   TenantDatabase,
 } from '@pm/db';
 import { createIdentityService } from '@pm/identity';
-import { createWorkService } from '@pm/work';
+import { createObjectStorage, createWorkService, LocalObjectStorage } from '@pm/work';
 import { PUBLIC_CONFIG } from '@pm/config/public';
 import { createLogger, errorFields, initTelemetry, LogErrorReporter } from '@pm/observability';
 import { buildApp } from './app.ts';
@@ -61,6 +61,8 @@ async function main(): Promise<void> {
     logger,
     metrics: telemetry.metrics,
   });
+  // 4E: the object store this process signs URLs for (readiness probe; local dev/test route).
+  const objectStorage = createObjectStorage(config.files.storage);
   let draining = false;
   const defaultWeb = fileURLToPath(new URL('../../web/dist', import.meta.url));
   const app = await buildApp({
@@ -77,6 +79,14 @@ async function main(): Promise<void> {
     },
     tenancy: { tenancy },
     work: { work: tenancy },
+    localStorage:
+      config.files.storage.provider === 'local' && objectStorage instanceof LocalObjectStorage
+        ? {
+            storage: objectStorage,
+            secret: config.files.storage.secret.reveal(),
+            maxBytes: config.work.fileUploadMaxBytes,
+          }
+        : undefined,
     readiness: () =>
       checkReadiness({
         health,
@@ -86,6 +96,7 @@ async function main(): Promise<void> {
         metrics: telemetry.metrics,
         isDraining: () => draining,
         emailTransport: config.identity.mailTransport,
+        objectStorage: objectStorage ? () => objectStorage.check() : undefined,
       }),
   });
   const saturation = setInterval(() => pool.recordSaturation(), 15_000);

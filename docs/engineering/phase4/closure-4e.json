@@ -1,0 +1,915 @@
+{
+  "schema_version": 1,
+  "phase": "4E",
+  "status": "candidate",
+  "adr": "0026",
+  "note": "Phase 4C runs in parallel and may claim the same identifiers (migration 0039, ADR-0026, 0B ADR-34, 0C AZ-34, T-52, AT-218 onward, 0D PL-36); the later integration renumbers deterministically, as the 3B/3C reconciliation did (merge 0949051).",
+  "accepted_by_kinds": [
+    "catalog:contributing",
+    "roadmap:<sub>",
+    "adr:<nnnn>[#row]",
+    "requirement:<ID>"
+  ],
+  "requirements": [
+    {
+      "id": "PRJ-023",
+      "role": "owned",
+      "disposition": "implemented",
+      "evidence": [
+        {
+          "file": "packages/work/src/files/file-service.ts",
+          "contains": "const counts = { accepted: 0, pending: 0"
+        },
+        {
+          "file": "apps/api/src/work/files-routes.ts",
+          "contains": "${ws}/projects/:prj/deliverables"
+        },
+        {
+          "file": "packages/work/test/integration/files.test.ts",
+          "contains": "reviews deliverables through 4A and evidence-locks the accepted version"
+        },
+        {
+          "file": "apps/api/test/integration/files-api.test.ts",
+          "contains": "links external files and runs a deliverable through review to acceptance"
+        }
+      ],
+      "note": "Task and project deliverable lists count accepted versus pending (with changes requested, rejected, and draft) from the deliverables the viewer can read; rollups into project metrics arrive with 5C."
+    },
+    {
+      "id": "FILE-001",
+      "role": "owned",
+      "disposition": "foundation",
+      "evidence": [
+        {
+          "file": "packages/work/src/files/file-service.ts",
+          "contains": "async initiateUpload("
+        },
+        {
+          "file": "packages/db/migrations/0039_files_deliverables.up.sql",
+          "contains": "host_kind IN ('workspace', 'brand', 'project', 'task', 'comment')"
+        },
+        {
+          "file": "packages/work/test/integration/files.test.ts",
+          "contains": "uploads into quarantine, scans clean, then signs a short-lived download"
+        },
+        {
+          "file": "packages/work/test/integration/files-access.test.ts",
+          "contains": "decides upload, read, and download by role, share, and host"
+        },
+        {
+          "file": "packages/work/test/integration/files-access.test.ts",
+          "contains": "lets only the comment author attach to a comment, under the comment host’s authority"
+        },
+        {
+          "file": "apps/api/test/integration/files-api.test.ts",
+          "contains": "reports storage truthfully, uploads through a signed PUT, and downloads through a 303"
+        }
+      ],
+      "note": "Uploads to workspace, brand, project, task, and comment records through signed upload sessions. Documents do not exist yet; files on document records arrive with documents (4C).",
+      "deferred_to": [
+        "4C"
+      ],
+      "accepted_by": [
+        "roadmap:4C"
+      ]
+    },
+    {
+      "id": "FILE-002",
+      "role": "owned",
+      "disposition": "implemented",
+      "evidence": [
+        {
+          "file": "packages/work/src/files/semantics.ts",
+          "contains": "export function inlineType("
+        },
+        {
+          "file": "packages/work/test/unit/files-semantics.test.ts",
+          "contains": "previews inline only what renders without running content"
+        },
+        {
+          "file": "packages/work/test/integration/files.test.ts",
+          "contains": "refuses type mismatches, checksum mismatches, and HTML/SVG inline previews"
+        },
+        {
+          "file": "apps/api/test/integration/files-api.test.ts",
+          "contains": "reports storage truthfully, uploads through a signed PUT, and downloads through a 303"
+        },
+        {
+          "file": "e2e/files.spec.ts",
+          "contains": "upload, scan, preview, download, version, compare, link, deliverable, and blocked files"
+        }
+      ],
+      "note": "Inline previews for raster images, video, audio, PDF, and text and code (as text/plain); SVG, HTML, office, and archive formats download as attachments (ADR-0026 F5: no server-side conversion of untrusted content)."
+    },
+    {
+      "id": "FILE-003",
+      "role": "owned",
+      "disposition": "implemented",
+      "evidence": [
+        {
+          "file": "packages/db/migrations/0039_files_deliverables.up.sql",
+          "contains": "owner_membership_id uuid NOT NULL"
+        },
+        {
+          "file": "packages/db/migrations/0039_files_deliverables.up.sql",
+          "contains": "source_kind text NOT NULL"
+        },
+        {
+          "file": "packages/work/test/integration/files.test.ts",
+          "contains": "uploads into quarantine, scans clean, then signs a short-lived download"
+        },
+        {
+          "file": "apps/api/test/integration/files-api.test.ts",
+          "contains": "reports storage truthfully, uploads through a signed PUT, and downloads through a 303"
+        }
+      ],
+      "note": "Each file stores its name, owner, and source; each version its type, size, SHA-256, author, and number."
+    },
+    {
+      "id": "FILE-004",
+      "role": "owned",
+      "disposition": "implemented",
+      "evidence": [
+        {
+          "file": "packages/db/migrations/0039_files_deliverables.up.sql",
+          "contains": "CREATE TRIGGER file_version_guard"
+        },
+        {
+          "file": "packages/work/test/integration/files.test.ts",
+          "contains": "keeps immutable versions, links external files without copying, and compares text"
+        },
+        {
+          "file": "packages/work/test/integration/files-access.test.ts",
+          "contains": "settles concurrent completions once and replays an idempotency key without double counting"
+        }
+      ],
+      "note": "Immutable numbered versions (at most FILE_VERSIONS_MAX), added by upload to an existing file."
+    },
+    {
+      "id": "FILE-005",
+      "role": "owned",
+      "disposition": "implemented",
+      "evidence": [
+        {
+          "file": "packages/work/src/files/file-service.ts",
+          "contains": "async addFileLink("
+        },
+        {
+          "file": "packages/work/src/files/semantics.ts",
+          "contains": "export function cleanExternalUrl("
+        },
+        {
+          "file": "packages/work/test/integration/files.test.ts",
+          "contains": "keeps immutable versions, links external files without copying, and compares text"
+        },
+        {
+          "file": "apps/api/test/integration/files-api.test.ts",
+          "contains": "links external files and runs a deliverable through review to acceptance"
+        }
+      ],
+      "note": "External http(s) links are file versions that are never copied or fetched; download redirects to the link."
+    },
+    {
+      "id": "FILE-006",
+      "role": "owned",
+      "disposition": "implemented",
+      "evidence": [
+        {
+          "file": "packages/work/src/files/file-service.ts",
+          "contains": "async submitDeliverable("
+        },
+        {
+          "file": "packages/work/test/integration/files.test.ts",
+          "contains": "reviews deliverables through 4A and evidence-locks the accepted version"
+        },
+        {
+          "file": "packages/work/test/integration/files.test.ts",
+          "contains": "asks for changes, then accepts a resubmitted link; stale decisions are refused"
+        },
+        {
+          "file": "apps/api/test/integration/files-api.test.ts",
+          "contains": "links external files and runs a deliverable through review to acceptance"
+        }
+      ],
+      "note": "A clean file of the task or a URL is submitted as a deliverable version for review."
+    },
+    {
+      "id": "FILE-007",
+      "role": "owned",
+      "disposition": "implemented",
+      "evidence": [
+        {
+          "file": "packages/work/src/files/semantics.ts",
+          "contains": "export function stateAfterReview("
+        },
+        {
+          "file": "packages/work/test/unit/files-semantics.test.ts",
+          "contains": "maps 4A outcomes to deliverable states; accepted is final"
+        },
+        {
+          "file": "packages/work/test/integration/files.test.ts",
+          "contains": "reviews deliverables through 4A and evidence-locks the accepted version"
+        },
+        {
+          "file": "packages/work/test/integration/files.test.ts",
+          "contains": "asks for changes, then accepts a resubmitted link; stale decisions are refused"
+        }
+      ],
+      "note": "Draft, ready for review, changes requested, accepted, and rejected, driven by the 4A review of the current version."
+    },
+    {
+      "id": "FILE-008",
+      "role": "owned",
+      "disposition": "implemented",
+      "evidence": [
+        {
+          "file": "packages/work/src/files/file-service.ts",
+          "contains": "async compareVersions("
+        },
+        {
+          "file": "packages/work/src/files/semantics.ts",
+          "contains": "export function lineDiff("
+        },
+        {
+          "file": "packages/work/test/unit/files-semantics.test.ts",
+          "contains": "diffs bounded text line by line and refuses oversized input"
+        },
+        {
+          "file": "packages/work/test/integration/files.test.ts",
+          "contains": "keeps immutable versions, links external files without copying, and compares text"
+        }
+      ],
+      "note": "Versions compare where formats permit: a bounded line diff for text and code up to FILE_COMPARE_MAX_BYTES, otherwise a metadata comparison that says why. A deliverable revised as new versions of one file compares through that file; its versions list sources and outcomes together."
+    },
+    {
+      "id": "FILE-009",
+      "role": "owned",
+      "disposition": "implemented",
+      "evidence": [
+        {
+          "file": "packages/db/migrations/0039_files_deliverables.up.sql",
+          "contains": "CREATE TRIGGER deliverable_version_guard"
+        },
+        {
+          "file": "packages/work/src/files/file-service.ts",
+          "contains": "accepted_by_membership_id: p.membershipId"
+        },
+        {
+          "file": "packages/work/test/integration/files.test.ts",
+          "contains": "reviews deliverables through 4A and evidence-locks the accepted version"
+        },
+        {
+          "file": "e2e/files.spec.ts",
+          "contains": "a second person accepts a deliverable through review, then loses the files with access"
+        }
+      ],
+      "note": "Acceptance records the 4A decision, who accepted, and when, and evidence-locks the version and its file version."
+    },
+    {
+      "id": "FILE-010",
+      "role": "owned",
+      "disposition": "implemented",
+      "evidence": [
+        {
+          "file": "packages/work/src/files/file-service.ts",
+          "contains": "usage_limit_reached"
+        },
+        {
+          "file": "packages/db/migrations/0039_files_deliverables.up.sql",
+          "contains": "CREATE TABLE files.storage_usage"
+        },
+        {
+          "file": "packages/work/test/integration/files.test.ts",
+          "contains": "enforces the workspace quota with reservations"
+        },
+        {
+          "file": "packages/work/test/integration/files-access.test.ts",
+          "contains": "reserves quota atomically: concurrent uploads past the quota let one through"
+        },
+        {
+          "file": "packages/work/test/integration/files.test.ts",
+          "contains": "expires unfinished uploads and releases their reservation"
+        }
+      ],
+      "note": "A per-workspace technical quota (WORKSPACE_STORAGE_QUOTA_BYTES) counts used and reserved bytes under a row lock; plan-based limits arrive with 10A."
+    },
+    {
+      "id": "FILE-011",
+      "role": "owned",
+      "disposition": "implemented",
+      "evidence": [
+        {
+          "file": "packages/work/src/files/jobs.ts",
+          "contains": "export function fileScanHandler("
+        },
+        {
+          "file": "packages/work/test/unit/files-scanner.test.ts",
+          "contains": "maps FOUND to infected with the signature"
+        },
+        {
+          "file": "packages/work/test/integration/files.test.ts",
+          "contains": "blocks infected uploads, releases their bytes, and fails closed after the last scan attempt"
+        },
+        {
+          "file": "packages/work/test/integration/files.test.ts",
+          "contains": "is honest when storage or scanning is not configured"
+        },
+        {
+          "file": "e2e/files.spec.ts",
+          "contains": "upload, scan, preview, download, version, compare, link, deliverable, and blocked files"
+        }
+      ],
+      "note": "Every upload is scanned in quarantine (ClamAV); infected and failed scans are blocked and their bytes deleted; nothing is downloadable before a clean verdict; without a scanner, uploads are refused."
+    },
+    {
+      "id": "FILE-012",
+      "role": "owned",
+      "disposition": "implemented",
+      "evidence": [
+        {
+          "file": "packages/work/src/files/file-service.ts",
+          "contains": "async fileUrl("
+        },
+        {
+          "file": "packages/work/test/integration/files.test.ts",
+          "contains": "makes hidden files the same not_found as unknown ones, and revokes access immediately"
+        },
+        {
+          "file": "packages/work/test/integration/files-access.test.ts",
+          "contains": "decides upload, read, and download by role, share, and host"
+        },
+        {
+          "file": "packages/work/test/integration/files-access.test.ts",
+          "contains": "stops reaching a file the moment access is revoked"
+        },
+        {
+          "file": "packages/work/test/integration/files-access.test.ts",
+          "contains": "keeps workspaces apart: another workspace’s identifiers are not_found"
+        },
+        {
+          "file": "apps/api/test/integration/files-api.test.ts",
+          "contains": "gives strangers the same not_found everywhere and never returns internal UUIDs"
+        },
+        {
+          "file": "packages/work/test/unit/files-storage.test.ts",
+          "contains": "rejects tampering, op mismatch, wrong key, wrong secret and expiry"
+        },
+        {
+          "file": "e2e/files.spec.ts",
+          "contains": "a second person accepts a deliverable through review, then loses the files with access"
+        }
+      ],
+      "note": "Host-derived authorization on every request, hidden equals unknown, short-lived signed URLs bound to key, operation, and expiry, and revocation effective on the next request."
+    },
+    {
+      "id": "FILE-013",
+      "role": "owned",
+      "disposition": "foundation",
+      "evidence": [
+        {
+          "file": "packages/work/src/files/lifecycle.ts",
+          "contains": "export async function deleteFiles("
+        },
+        {
+          "file": "packages/work/src/files/jobs.ts",
+          "contains": "export function fileSweepHandler("
+        },
+        {
+          "file": "packages/work/test/integration/files-access.test.ts",
+          "contains": "purges files with their task and deletes the orphaned bytes once through the sweep"
+        }
+      ],
+      "note": "Files trash, restore, and purge with their host; purge deletes the bytes through idempotent object effects and keeps evidence-locked versions. Retention periods stay undecided (OD-36); their verification arrives with 11B.",
+      "deferred_to": [
+        "11B"
+      ],
+      "accepted_by": [
+        "catalog:contributing"
+      ]
+    },
+    {
+      "id": "WSB-007",
+      "role": "contributing",
+      "disposition": "contributed",
+      "contribution": "4E",
+      "evidence": [
+        {
+          "file": "packages/db/migrations/0039_files_deliverables.up.sql",
+          "contains": "CONSTRAINT file_scope_key CHECK (scope_key = coalesce(brand_id, workspace_id))"
+        },
+        {
+          "file": "packages/work/test/integration/files.test.ts",
+          "contains": "makes hidden files the same not_found as unknown ones, and revokes access immediately"
+        },
+        {
+          "file": "packages/work/test/integration/files-access.test.ts",
+          "contains": "decides upload, read, and download by role, share, and host"
+        }
+      ],
+      "note": "Files carry their host's brand and are reachable only through it; workspace-hosted files are a distinct non-brand scope for members (OD-06)."
+    },
+    {
+      "id": "CAP-015",
+      "role": "contributing",
+      "disposition": "contributed",
+      "contribution": "4E",
+      "evidence": [
+        {
+          "file": "packages/work/src/files/file-service.ts",
+          "contains": "async initiateUpload("
+        },
+        {
+          "file": "packages/work/src/capture-service.ts",
+          "contains": "code: 'storage_unavailable'"
+        }
+      ],
+      "note": "4E provides the upload sessions capture will use; capture attachments stay refused by 2E until capture adopts them."
+    },
+    {
+      "id": "PRJ-019",
+      "role": "contributing",
+      "disposition": "contributed",
+      "contribution": "4E",
+      "evidence": [
+        {
+          "file": "apps/api/src/work/files-routes.ts",
+          "contains": "${ws}/projects/:prj/deliverables"
+        },
+        {
+          "file": "packages/work/test/integration/files-access.test.ts",
+          "contains": "decides upload, read, and download by role, share, and host"
+        }
+      ],
+      "note": "Projects host files and show their deliverables with accepted versus pending counts."
+    },
+    {
+      "id": "TSK-017",
+      "role": "contributing",
+      "disposition": "contributed",
+      "contribution": "4E",
+      "evidence": [
+        {
+          "file": "packages/work/src/files/file-service.ts",
+          "contains": "async listFiles("
+        },
+        {
+          "file": "packages/work/test/integration/files.test.ts",
+          "contains": "keeps immutable versions, links external files without copying, and compares text"
+        },
+        {
+          "file": "apps/api/test/integration/files-api.test.ts",
+          "contains": "reports storage truthfully, uploads through a signed PUT, and downloads through a 303"
+        }
+      ],
+      "note": "Tasks hold uploaded files and external links; documents and external records arrive with 4C and 6A."
+    },
+    {
+      "id": "TSK-022",
+      "role": "contributing",
+      "disposition": "contributed",
+      "contribution": "4E",
+      "evidence": [
+        {
+          "file": "packages/db/migrations/0039_files_deliverables.up.sql",
+          "contains": "CONSTRAINT deliverable_expected_known CHECK (expected_type IN ('any', 'file', 'url'))"
+        },
+        {
+          "file": "packages/work/test/integration/files.test.ts",
+          "contains": "reviews deliverables through 4A and evidence-locks the accepted version"
+        },
+        {
+          "file": "apps/api/test/integration/files-api.test.ts",
+          "contains": "links external files and runs a deliverable through review to acceptance"
+        }
+      ],
+      "note": "A task's deliverable has an expected type (any, file, or url) enforced at submission."
+    },
+    {
+      "id": "DOC-010",
+      "role": "contributing",
+      "disposition": "contributed",
+      "contribution": "4E",
+      "evidence": [
+        {
+          "file": "packages/work/src/files/semantics.ts",
+          "contains": "export function inlineType("
+        },
+        {
+          "file": "packages/work/src/files/file-service.ts",
+          "contains": "async fileUrl("
+        }
+      ],
+      "note": "Files and their inline-safe preview URLs are what documents (4C) will embed."
+    },
+    {
+      "id": "DOC-019",
+      "role": "contributing",
+      "disposition": "contributed",
+      "contribution": "4E",
+      "evidence": [
+        {
+          "file": "packages/db/migrations/0039_files_deliverables.up.sql",
+          "contains": "name text NOT NULL"
+        }
+      ],
+      "note": "Files store their names and types for the search index; content extraction is OD-31 and search is 5A."
+    },
+    {
+      "id": "BRF-007",
+      "role": "contributing",
+      "disposition": "contributed",
+      "contribution": "4E",
+      "evidence": [
+        {
+          "file": "packages/db/migrations/0039_files_deliverables.up.sql",
+          "contains": "decided_review_decision_id uuid"
+        },
+        {
+          "file": "packages/work/test/integration/files.test.ts",
+          "contains": "reviews deliverables through 4A and evidence-locks the accepted version"
+        }
+      ],
+      "note": "Acceptance is a recorded decision with who and when, separate from task completion, for briefings (7E) to report."
+    },
+    {
+      "id": "AGT-013",
+      "role": "contributing",
+      "disposition": "contributed",
+      "contribution": "4E",
+      "evidence": [
+        {
+          "file": "packages/db/migrations/0039_files_deliverables.up.sql",
+          "contains": "CREATE TABLE files.deliverable ("
+        },
+        {
+          "file": "packages/work/src/files/file-service.ts",
+          "contains": "async createDeliverable("
+        }
+      ],
+      "note": "Deliverables belong to their task; agent artifacts as deliverable sources arrive with 8C."
+    },
+    {
+      "id": "DEV-014",
+      "role": "contributing",
+      "disposition": "contributed",
+      "contribution": "4E",
+      "evidence": [
+        {
+          "file": "packages/db/migrations/0039_files_deliverables.up.sql",
+          "contains": "expected_type text NOT NULL DEFAULT 'any'"
+        },
+        {
+          "file": "packages/work/src/files/file-service.ts",
+          "contains": "async listDeliverables("
+        }
+      ],
+      "note": "Tasks declare expected deliverables and their states, which 9A reads to detect completion without output."
+    },
+    {
+      "id": "TEST-009",
+      "role": "contributing",
+      "disposition": "contributed",
+      "contribution": "4E",
+      "evidence": [
+        {
+          "file": "packages/work/src/files/file-service.ts",
+          "contains": "async addFileLink("
+        },
+        {
+          "file": "packages/work/test/integration/files.test.ts",
+          "contains": "uploads into quarantine, scans clean, then signs a short-lived download"
+        }
+      ],
+      "note": "Screenshots, recordings, logs, reports, and URLs can be stored as scanned files and links; evidence items arrive with 9B."
+    },
+    {
+      "id": "RPT-014",
+      "role": "contributing",
+      "disposition": "contributed",
+      "contribution": "4E",
+      "evidence": [
+        {
+          "file": "packages/work/src/files/file-service.ts",
+          "contains": "const counts = { accepted: 0, pending: 0"
+        },
+        {
+          "file": "apps/api/test/integration/files-api.test.ts",
+          "contains": "links external files and runs a deliverable through review to acceptance"
+        }
+      ],
+      "note": "Deliverable lists return accepted, rejected, pending, changes-requested, and draft counts for 5D reports."
+    }
+  ],
+  "decisions": [
+    {
+      "id": "D1",
+      "title": "Provider-neutral storage and scanner ports that report not_configured and refuse uploads instead of claiming storage",
+      "adr_row": "F1",
+      "sources": [
+        {
+          "file": "docs/architecture/platform/19-decisions.md",
+          "contains": "### PL-36"
+        }
+      ],
+      "evidence": [
+        {
+          "file": "packages/work/src/files/storage.ts",
+          "contains": "export interface ObjectStorage"
+        },
+        {
+          "file": "apps/api/src/readiness.ts",
+          "contains": "object_storage"
+        },
+        {
+          "file": "packages/work/test/integration/files.test.ts",
+          "contains": "is honest when storage or scanning is not configured"
+        },
+        {
+          "file": "packages/work/test/unit/files-storage.test.ts",
+          "contains": "builds adapters from config and returns null when not configured"
+        },
+        {
+          "file": "docs/engineering/adr/0026-files-deliverables.md",
+          "contains": "| F1 |"
+        }
+      ]
+    },
+    {
+      "id": "D2",
+      "title": "Identifier-free object keys and short-lived signed URLs that are never stored",
+      "adr_row": "F2",
+      "sources": [
+        {
+          "file": "docs/architecture/data/12-decisions.md",
+          "contains": "## ADR-34"
+        }
+      ],
+      "evidence": [
+        {
+          "file": "packages/work/src/files/semantics.ts",
+          "contains": "export const quarantineKey"
+        },
+        {
+          "file": "packages/work/test/unit/files-semantics.test.ts",
+          "contains": "keeps identifiers out of object keys"
+        },
+        {
+          "file": "packages/work/test/unit/files-storage.test.ts",
+          "contains": "rejects tampering, op mismatch, wrong key, wrong secret and expiry"
+        },
+        {
+          "file": "apps/api/test/integration/files-api.test.ts",
+          "contains": "reports storage truthfully, uploads through a signed PUT, and downloads through a 303"
+        },
+        {
+          "file": "docs/engineering/adr/0026-files-deliverables.md",
+          "contains": "| F2 |"
+        }
+      ]
+    },
+    {
+      "id": "D3",
+      "title": "Upload sessions verify size, checksum, and type, reserve quota, and expire",
+      "adr_row": "F3",
+      "sources": [
+        {
+          "file": "docs/architecture/platform/15-files.md",
+          "contains": "## 15.5 As implemented"
+        }
+      ],
+      "evidence": [
+        {
+          "file": "packages/work/src/files/file-service.ts",
+          "contains": "async completeUpload("
+        },
+        {
+          "file": "packages/work/test/integration/files.test.ts",
+          "contains": "refuses type mismatches, checksum mismatches, and HTML/SVG inline previews"
+        },
+        {
+          "file": "packages/work/test/integration/files.test.ts",
+          "contains": "expires unfinished uploads and releases their reservation"
+        },
+        {
+          "file": "packages/work/test/integration/files-access.test.ts",
+          "contains": "settles concurrent completions once and replays an idempotency key without double counting"
+        },
+        {
+          "file": "docs/engineering/adr/0026-files-deliverables.md",
+          "contains": "| F3 |"
+        }
+      ]
+    },
+    {
+      "id": "D4",
+      "title": "Every upload is scanned and nothing is downloadable before a clean verdict",
+      "adr_row": "F4",
+      "sources": [
+        {
+          "file": "docs/architecture/access/15-decisions.md",
+          "contains": "**Scanning and content.**"
+        }
+      ],
+      "evidence": [
+        {
+          "file": "packages/work/src/files/jobs.ts",
+          "contains": "export function fileScanHandler("
+        },
+        {
+          "file": "packages/work/test/integration/files.test.ts",
+          "contains": "blocks infected uploads, releases their bytes, and fails closed after the last scan attempt"
+        },
+        {
+          "file": "packages/work/test/unit/files-scanner.test.ts",
+          "contains": "streams chunked bytes and maps OK to clean"
+        },
+        {
+          "file": "docs/engineering/adr/0026-files-deliverables.md",
+          "contains": "| F4 |"
+        }
+      ]
+    },
+    {
+      "id": "D5",
+      "title": "Inline previews only for formats that run no content; no server-side rendering or fetching",
+      "adr_row": "F5",
+      "sources": [
+        {
+          "file": "docs/architecture/access/15-decisions.md",
+          "contains": "**Scanning and content.**"
+        }
+      ],
+      "evidence": [
+        {
+          "file": "packages/work/src/files/semantics.ts",
+          "contains": "export function inlineType("
+        },
+        {
+          "file": "packages/work/test/unit/files-semantics.test.ts",
+          "contains": "previews inline only what renders without running content"
+        },
+        {
+          "file": "packages/work/test/integration/files.test.ts",
+          "contains": "refuses type mismatches, checksum mismatches, and HTML/SVG inline previews"
+        },
+        {
+          "file": "apps/api/test/integration/files-api.test.ts",
+          "contains": "reports storage truthfully, uploads through a signed PUT, and downloads through a 303"
+        },
+        {
+          "file": "docs/engineering/adr/0026-files-deliverables.md",
+          "contains": "| F5 |"
+        }
+      ]
+    },
+    {
+      "id": "D6",
+      "title": "Immutable versions, uncopied external links, and bounded comparison",
+      "adr_row": "F6",
+      "sources": [
+        {
+          "file": "docs/architecture/data/12-decisions.md",
+          "contains": "## ADR-34"
+        }
+      ],
+      "evidence": [
+        {
+          "file": "packages/db/migrations/0039_files_deliverables.up.sql",
+          "contains": "CREATE TRIGGER file_version_guard"
+        },
+        {
+          "file": "packages/work/test/integration/files.test.ts",
+          "contains": "keeps immutable versions, links external files without copying, and compares text"
+        },
+        {
+          "file": "packages/work/test/unit/files-semantics.test.ts",
+          "contains": "diffs bounded text line by line and refuses oversized input"
+        },
+        {
+          "file": "docs/engineering/adr/0026-files-deliverables.md",
+          "contains": "| F6 |"
+        }
+      ]
+    },
+    {
+      "id": "D7",
+      "title": "Host-derived authorization where hidden equals unknown and revocation is immediate",
+      "adr_row": "F7",
+      "sources": [
+        {
+          "file": "docs/architecture/access/15-decisions.md",
+          "contains": "### AZ-34"
+        }
+      ],
+      "evidence": [
+        {
+          "file": "packages/work/test/integration/files.test.ts",
+          "contains": "makes hidden files the same not_found as unknown ones, and revokes access immediately"
+        },
+        {
+          "file": "packages/work/test/integration/files-access.test.ts",
+          "contains": "decides upload, read, and download by role, share, and host"
+        },
+        {
+          "file": "packages/work/test/integration/files-access.test.ts",
+          "contains": "lets only the comment author attach to a comment, under the comment host’s authority"
+        },
+        {
+          "file": "packages/work/test/integration/files-access.test.ts",
+          "contains": "stops reaching a file the moment access is revoked"
+        },
+        {
+          "file": "apps/api/test/integration/files-api.test.ts",
+          "contains": "gives strangers the same not_found everywhere and never returns internal UUIDs"
+        },
+        {
+          "file": "docs/engineering/adr/0026-files-deliverables.md",
+          "contains": "| F7 |"
+        }
+      ]
+    },
+    {
+      "id": "D8",
+      "title": "Deliverables reviewed through 4A and evidence-locked on acceptance",
+      "adr_row": "F8",
+      "sources": [
+        {
+          "file": "docs/architecture/data/12-decisions.md",
+          "contains": "## ADR-34"
+        }
+      ],
+      "evidence": [
+        {
+          "file": "packages/work/src/files/file-service.ts",
+          "contains": "protected override async reviewSettled("
+        },
+        {
+          "file": "packages/work/test/integration/files.test.ts",
+          "contains": "reviews deliverables through 4A and evidence-locks the accepted version"
+        },
+        {
+          "file": "packages/work/test/integration/files.test.ts",
+          "contains": "asks for changes, then accepts a resubmitted link; stale decisions are refused"
+        },
+        {
+          "file": "packages/work/test/unit/files-semantics.test.ts",
+          "contains": "maps 4A outcomes to deliverable states; accepted is final"
+        },
+        {
+          "file": "docs/engineering/adr/0026-files-deliverables.md",
+          "contains": "| F8 |"
+        }
+      ]
+    },
+    {
+      "id": "D9",
+      "title": "A technical storage quota and no invented retention period",
+      "adr_row": "F9",
+      "sources": [
+        {
+          "file": "docs/product/open-decisions.md",
+          "contains": "**Status (Phase 4E"
+        }
+      ],
+      "evidence": [
+        {
+          "file": "packages/work/test/integration/files.test.ts",
+          "contains": "enforces the workspace quota with reservations"
+        },
+        {
+          "file": "packages/work/test/integration/files-access.test.ts",
+          "contains": "reserves quota atomically: concurrent uploads past the quota let one through"
+        },
+        {
+          "file": "packages/work/test/integration/files-access.test.ts",
+          "contains": "purges files with their task and deletes the orphaned bytes once through the sweep"
+        },
+        {
+          "file": "docs/engineering/adr/0026-files-deliverables.md",
+          "contains": "| F9 |"
+        }
+      ]
+    },
+    {
+      "id": "D10",
+      "title": "Honest absences: documents, editing, connectors, search, evidence items, agent artifacts, capture attachments, plans, and legal holds stay with their phases",
+      "adr_row": "F10",
+      "sources": [
+        {
+          "file": "docs/ux/02-information-architecture.md",
+          "contains": "**Phase 4E implementation note.**"
+        }
+      ],
+      "evidence": [
+        {
+          "file": "packages/db/migrations/0039_files_deliverables.up.sql",
+          "contains": "No documents, collaborative editing, connectors, or delivery"
+        },
+        {
+          "file": "docs/engineering/adr/0026-files-deliverables.md",
+          "contains": "| F10 |"
+        }
+      ]
+    }
+  ]
+}

@@ -1,4 +1,5 @@
 import { spawn, type ChildProcess } from 'node:child_process';
+import { randomBytes } from 'node:crypto';
 import { existsSync, mkdtempSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
@@ -31,6 +32,13 @@ export default async function globalSetup(): Promise<() => Promise<void>> {
     COMPONENT_HARNESS: 'true',
     PURGE_LEDGER: 'local',
     PURGE_LEDGER_DIR: join(scratch, 'purge-ledger'),
+    // 4E: the local object store (signed same-origin URLs) and the test-signature scanner, for
+    // both the API (uploads, downloads) and the worker (the `files.scan` job).
+    OBJECT_STORAGE: 'local',
+    OBJECT_STORAGE_LOCAL_DIR: join(scratch, 'objects'),
+    OBJECT_STORAGE_LOCAL_SECRET: randomBytes(32).toString('base64url'),
+    OBJECT_STORAGE_PUBLIC_BASE_URL: `http://127.0.0.1:${port}`,
+    MALWARE_SCANNER: 'test-signature',
     RATE_LIMIT_POLICIES: JSON.stringify({
       'sign_in.source': { limit: 10000, windowMs: 60000 },
       'sign_in.email': { limit: 10000, windowMs: 60000 },

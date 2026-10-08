@@ -245,6 +245,33 @@ All decisions are **proposed (Phase 0C)**, pending solutions-architect acceptanc
   - **No new actions.** The action count stays 122.
 - **Alternatives:** A document-level role table (a second authority source). Showing a reference's kind when it is restricted (a hint about what exists). Letting any editor change the owner (a way to hand a document to someone who cannot act on it).
 - **Consequences:** Threat T-51 with tests AT-208 to AT-217.
+<a id="az-35"></a>
+### AZ-35: Live collaborative editing (Phase 4D amendment)
+- **Decision:**
+  - **The evaluator on every call.** Joining, operating, polling, heartbeating, checkpointing, and leaving each load the document through its compiled level at that moment. Watching and presence need `record.read`; editing and checkpointing need `record.update` on an active document. A revoked grant, a role change, an archive, a trash, or a purge refuses the next request (`not_found`, or `document_archived`); an unreadable and an unknown document are one `not_found` on every live route, with the same statements. A session handle is bound to the person and document that opened it and expires (`LIVE_SESSION_TTL_SECONDS`); nobody else can use it (AT-230, AT-232, AT-235).
+  - **Watching is not editing.** A reader can watch (`mode: view`); operations and checkpoints on such a session are refused, and asking for an editing session without `record.update` is refused as any other write (AT-231).
+  - **Never past the version history.** Operations edit a draft; only a checkpoint, made through the same checks as a save, becomes a version. Operations that add a link to something the editor cannot read, restore a restricted token the draft never held, or exceed the document bounds are refused (AT-236). A plain save, restore, or suggestion cannot overwrite live work: while a session is open it is refused (`live_edit_in_progress`), and unsaved work with nobody editing is saved as a version first (AT-237).
+  - **Redacted for each viewer.** Snapshots, operation responses, events, and rejections carry references the viewer cannot read as the opaque tokens of IA-46, and labels only for what the viewer can read now (AT-233).
+  - **Presence.** Presence shows a session's colour, mode, display name, and the block the person is in, and only to members, who may already see people. Guests and share-only viewers see themselves only. A person whose membership is no longer active is omitted. Presence rows are never audited, are ignored once expired and deleted on leave, the next join, and purge, and are never copied into events or notifications (AT-234).
+  - **No new actions.** The action count stays 122.
+- **Alternatives:** A CRDT or shared document state sent to every client (hidden content and references travel with it). A separate live-editing permission (a second source of authority). Auditing every operation or heartbeat (content and cursor surveillance, unbounded growth). Letting an open session outlive a revoked grant until it expires (access past revocation).
+- **Consequences:** Threat T-53 with tests AT-230 to AT-237.
+
+<a id="az-34"></a>
+### AZ-34: Files and deliverables (Phase 4E amendment)
+- **Decision:**
+  - **Through the host.** A file's authority is its host's: the workspace (members only, never guests), a brand, a project, a task, or a comment (through the comment's record). Reading, listing, and metadata are `record.read`; uploading, adding a version or an external link, and renaming are `record.upload`; download, inline preview, and comparison are `record.download`; trash is `record.trash`. A deliverable is contained by its task: creating and submitting are `deliverable.submit` on the task, and accepting is the 4A `review.decide` of a named reviewer (AZ-31). Nothing about a file or deliverable is a second source of authority (AT-218, AT-229).
+  - **Hidden is unknown.** An unreadable host, file, version, upload session, or deliverable and an unknown or malformed identifier are one `not_found` on metadata, lists, URLs, previews, comparisons, and deliverables, with the same statements. A stranger gets `not_found` on every route (AT-218, AT-219).
+  - **Revocation.** Nothing is cached: each URL is issued per authorized request, so a revoked grant refuses the next request. A URL already issued stays usable only until `SIGNED_URL_LIFETIME` ends (0D accepted residual risk, PC-03) (AT-220).
+  - **Signed URLs.** A signed URL binds the object key, the operation, the expiry, and (for uploads) the exact length, type, and checksum. Tampered, mismatched, and expired URLs are refused with no resource information. URLs are never stored, logged, emitted in events, notifications, or exports (AT-221).
+  - **Scanning and content.** Only a clean version is downloadable: pending is `file_not_ready`, infected or failed scans are `file_blocked`, and a signature is never shown. Inline preview is limited to an allow-list (raster images, audio, video, PDF, and text or code served as `text/plain`); SVG, HTML, office, and archive content is always an attachment with `nosniff` (AT-222, AT-223).
+  - **Own sessions and comments.** An upload session is its creator's alone; anyone else gets `not_found`. Only a comment's author attaches files to it (`forbidden`, `not_author`) (AT-224, AT-225).
+  - **Quota.** Bytes are reserved under a row lock at initiation, so concurrent uploads cannot exceed `WORKSPACE_STORAGE_QUOTA_BYTES` (`usage_limit_reached`) (AT-226).
+  - **Guests and links.** Guests never see workspace-hosted files (AT-227). External links are http(s) without credentials, at most 2048 characters, and are never fetched by the server (no SSRF) (AT-228).
+  - **Evidence.** An accepted deliverable version and the file version it points at are evidence-locked: no change, resubmission, trash, or purge (`evidence_locked`) (AT-229).
+  - **No new actions.** The action count stays 122.
+- **Alternatives:** A per-file access list (a second authority source). Long-lived or stored download URLs (they outlive revocation). Server-side preview rendering or link unfurling (active content and SSRF). A separate acceptance action for deliverables (4A reviews already decide).
+- **Consequences:** Threat T-52 with tests AT-218 to AT-229.
 
 <a id="az-32"></a>
 ### AZ-32: Notifications (Phase 4B amendment)

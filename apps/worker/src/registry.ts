@@ -27,6 +27,10 @@ import {
   timerGuardHandler,
   WORK_SCHEDULES,
   type RecurrenceJobDeps,
+  FILE_SCHEDULES,
+  fileScanHandler,
+  fileSweepHandler,
+  type FileJobDeps,
 } from '@pm/work';
 
 /**
@@ -40,6 +44,7 @@ import {
  * 3D: the timer guard (runaway timers stop at TIME_TIMER_MAX_HOURS, once).
  * 3C: day close (records for ended days) and recurring work blocks.
  * 4B: the notification fan-out consumer and the dispatcher (deliveries, digests, deadlines, retention).
+ * 4E: the malware scan of uploads (fail closed) and the file sweep (expired uploads, object deletion).
  */
 export interface WorkerModules {
   identity: IdentityJobDeps;
@@ -48,6 +53,7 @@ export interface WorkerModules {
   views: ViewsCleanupDeps;
   work: RecurrenceJobDeps;
   notify: NotifyJobDeps;
+  files: FileJobDeps;
 }
 
 export function registeredHandlers(m: WorkerModules): JobHandler[] {
@@ -64,6 +70,8 @@ export function registeredHandlers(m: WorkerModules): JobHandler[] {
     dayCloseHandler(m.work),
     blockSeriesHandler(m.work),
     notifyDispatchHandler(m.notify),
+    fileScanHandler(m.files),
+    fileSweepHandler(m.files),
   ];
 }
 
@@ -96,5 +104,6 @@ export function registeredSchedules(): RecurringJob[] {
     ...TIME_SCHEDULES,
     ...PLANNING_SCHEDULES,
     ...NOTIFY_SCHEDULES,
+    ...FILE_SCHEDULES,
   ];
 }

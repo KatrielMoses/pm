@@ -206,6 +206,17 @@ export const NON_RESOURCE_TYPES = [
   'notification_default',
   // 4C: an export's file (it has no public identifier of its own).
   'document_export',
+  // 4E: storage status and usage, a signed preview URL, a version comparison, a trashed file, and
+  // a record's deliverables with accepted-versus-pending counts.
+  'storage_status',
+  'file_url',
+  'file_comparison',
+  'file_trashed',
+  'deliverable_list',
+  // 4D: a live editing session (with its snapshot) and every later live exchange (operations,
+  // events, heartbeat, checkpoint, leave); neither has a public identifier of its own.
+  'live_session',
+  'live_update',
 ] as const;
 export type NonResourceType = (typeof NON_RESOURCE_TYPES)[number];
 

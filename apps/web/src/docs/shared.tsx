@@ -27,6 +27,7 @@ const DOC_CONFLICT: Record<string, string> = {
   too_large: 'This export is too large. Export fewer pages.',
   documents_attached: 'This page still has pages under it. Move or remove them first.',
   invalid_state: "That isn't possible in the document's current state.",
+  live_edit_in_progress: 'Someone is editing live. Try again after they finish.',
 };
 const DOC_VALIDATION: Record<string, string> = {
   too_far: 'That date is too far away. Choose a nearer review date.',
@@ -42,7 +43,7 @@ export function explainDoc(error: unknown, what = 'that'): Explained {
     if (error.code === 'conflict' && code && DOC_CONFLICT[code])
       return {
         message: DOC_CONFLICT[code]!,
-        kind: code === 'document_archived' ? 'rejected' : 'stale',
+        kind: code === 'document_archived' || code === 'live_edit_in_progress' ? 'rejected' : 'stale',
         retryable: false,
         version: error.conflict?.current_version,
       };
@@ -54,6 +55,12 @@ export function explainDoc(error: unknown, what = 'that'): Explained {
 
 export const isArchivedConflict = (e: unknown): boolean =>
   e instanceof ApiError && e.code === 'conflict' && e.issues.some((i) => i.code === 'document_archived');
+
+/** A non-live save or restore was refused because someone is editing live (4D, ADR-0027 C4). */
+export const isLiveInProgress = (e: unknown): boolean =>
+  e instanceof ApiError &&
+  e.code === 'conflict' &&
+  e.issues.some((i) => i.code === 'live_edit_in_progress');
 
 export const isVersionConflict = (e: unknown): boolean =>
   e instanceof ApiError &&
@@ -124,8 +131,10 @@ export function HonestAbsences() {
       <h2 id="doc-absent-h">Not available yet</h2>
       <ul>
         <li>
-          Editing together at the same time and seeing who else is here arrives with live editing
-          (4D). Until then, a save that finds a newer version asks you what to keep.
+          Seeing exactly where in a block someone is typing (cursors and selections) isn't part of
+          live editing (4D). It shows who is here and which block they are in, and shares changes
+          block by block. If live editing can't connect, a save that finds a newer version asks you
+          what to keep.
         </li>
         <li>Uploading files and previewing them arrives with files (4E). Files can't be embedded yet.</li>
         <li>

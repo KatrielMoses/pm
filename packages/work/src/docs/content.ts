@@ -56,7 +56,9 @@ export interface Run {
 
 export const CALLOUT_TONES = ['info', 'warning', 'success'] as const;
 export type CalloutTone = (typeof CALLOUT_TONES)[number];
-export const EMBED_KINDS = ['image', 'video', 'link'] as const;
+export const EMBED_KINDS = ['image', 'video', 'link', 'file'] as const;
+/** A file embed names a file attached to the document by its public identifier (4D; 4E owns the file). */
+export const FILE_EMBED_ID = /^file_[0-9A-HJKMNP-TV-Z]{26}$/;
 export type EmbedKind = (typeof EMBED_KINDS)[number];
 
 export type Block =
@@ -430,12 +432,20 @@ function parseBlock(raw: unknown, index: number, st: Strictness, seen: Set<strin
     case 'embed': {
       fields(raw, ['id', 'type', 'kind', 'url', 'title', 'alt'], path, issues);
       if (raw.kind === 'file') {
-        issues.add(
-          `${path}/kind`,
-          'unsupported_embed',
-          'Files cannot be embedded yet. Use an image, video, or link address.',
-        );
-        return null;
+        const named = typeof raw.url === 'string' && FILE_EMBED_ID.test(raw.url);
+        if (!named) {
+          issues.add(
+            `${path}/kind`,
+            'unsupported_embed',
+            'A file embed names a file attached to this document, not an address.',
+          );
+          return null;
+        }
+        const caption =
+          raw.title === undefined || raw.title === null || raw.title === ''
+            ? null
+            : cleanText(raw.title, `${path}/title`, 200, issues).replace(/\n/g, ' ') || null;
+        return { id, type: 'embed', kind: 'file', url: raw.url as string, title: caption, alt: null };
       }
       if (!(EMBED_KINDS as readonly unknown[]).includes(raw.kind))
         issues.add(`${path}/kind`, 'invalid_option', 'Choose image, video, or link.');
@@ -773,6 +783,11 @@ export function toMarkdown(
         break;
       case 'embed': {
         note.embeds += 1;
+        if (b.kind === 'file') {
+          // A file never leaves through an export (4E owns the bytes): say what was left out.
+          out.push(`*File: ${mdEscape(b.title ?? 'attached file')} (not included in this export)*`);
+          break;
+        }
         const label = mdEscape(b.title ?? b.alt ?? b.url);
         out.push(`[${b.kind === 'link' ? label : `${b.kind}: ${label}`}](${b.url})`);
         break;
@@ -870,6 +885,10 @@ export function htmlBody(c: DocContent, resolve: DocRefResolver, note: ExportNot
         break;
       case 'embed':
         note.embeds += 1;
+        if (b.kind === 'file') {
+          out.push(`<p><em>File: ${esc(b.title ?? 'attached file')} (not included in this export)</em></p>`);
+          break;
+        }
         out.push(
           `<p><a href="${esc(b.url)}" rel="noopener noreferrer nofollow">${esc(
             `${b.kind === 'link' ? '' : `${b.kind}: `}${b.title ?? b.alt ?? b.url}`,

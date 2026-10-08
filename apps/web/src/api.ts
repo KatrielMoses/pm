@@ -68,7 +68,13 @@ export function newIdempotencyKey(): string {
 export async function api<T = unknown>(
   method: Method,
   path: string,
-  options: { body?: unknown; headers?: Record<string, string>; signal?: AbortSignal } = {},
+  options: {
+    body?: unknown;
+    headers?: Record<string, string>;
+    signal?: AbortSignal;
+    /** Lets the request finish while the page unloads (leaving a live session). */
+    keepalive?: boolean;
+  } = {},
 ): Promise<{ status: number; body: T }> {
   if (!navigator.onLine)
     throw new ApiError({ code: 'offline', status: 0, message: "You're offline." });
@@ -84,6 +90,7 @@ export async function api<T = unknown>(
       headers,
       credentials: 'same-origin',
       ...(options.signal ? { signal: options.signal } : {}),
+      ...(options.keepalive ? { keepalive: true } : {}),
       ...(method !== 'GET' ? { body: JSON.stringify(options.body ?? {}) } : {}),
     });
   } catch {

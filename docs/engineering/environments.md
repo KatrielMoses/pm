@@ -64,6 +64,16 @@ worker process is a startup error. All identities of one process must target the
 | `RETENTION_PERIODS` | optional | optional | JSON `{"<retention class>": <ms>}`; **unset by default** = every period undecided, so no scheduled purge runs (1F) |
 | `PURGE_LEDGER`, `PURGE_LEDGER_DIR` | — | optional | `none` (default: purge blocks before deleting) or `local` (development adapter, refused when deployed) |
 | `COMPONENT_HARNESS` | optional | — | `false` by default; `true` only in local/test (renders `/_harness/lifecycle`) |
+| `OBJECT_STORAGE` | optional | optional | `none` (default: uploads unavailable), `s3` (any S3-compatible store, SigV4) or `local` (development adapter: filesystem directory with API-signed URLs; refused when deployed) (4E) |
+| `OBJECT_STORAGE_BUCKET`, `OBJECT_STORAGE_REGION` | with `s3` | with `s3` | bucket name and SigV4 signing region |
+| `OBJECT_STORAGE_ENDPOINT` | optional | optional | S3-compatible endpoint URL; unset = AWS `https://s3.<region>.amazonaws.com`; https only when deployed |
+| `OBJECT_STORAGE_FORCE_PATH_STYLE` | optional | optional | default `false` (virtual-host addressing); `true` for path-style stores such as MinIO |
+| `OBJECT_STORAGE_ACCESS_KEY_ID`, `OBJECT_STORAGE_SECRET_ACCESS_KEY` | with `s3` | with `s3` | access key pair; the secret key is held as a redacted secret and `secretref:` values are refused (DQ-28) |
+| `OBJECT_STORAGE_LOCAL_DIR` | with `local` | with `local` | directory holding local objects |
+| `OBJECT_STORAGE_LOCAL_SECRET` | with `local` | with `local` | base64url, ≥ 32 bytes; HMAC key for signed `/v1/storage/local/*` URLs |
+| `OBJECT_STORAGE_PUBLIC_BASE_URL` | optional | optional | base URL the local signed URLs point at; defaults to `PUBLIC_BASE_URL`, else `http://127.0.0.1:<HTTP_PORT>` |
+| `MALWARE_SCANNER` | optional | optional | `none` (default: files stay unscanned), `clamav` (clamd INSTREAM over TCP) or `test-signature` (EICAR-only development adapter; refused when deployed) (4E) |
+| `CLAMAV_HOST`, `CLAMAV_PORT`, `CLAMAV_TIMEOUT_MS` | with `clamav` | with `clamav` | clamd TCP address; port default 3310; timeout default 30000 ms (100–600000) |
 | `AUDIT_CHAIN_LOCK_WAIT_WARN_MS` | optional | optional | default 250; operational warning threshold for audit-chain lock waits (not a promise; see audit.md) |
 | `INVITATION_LIFETIME_MS` | optional | optional | default 7 days; how long an invitation link stays acceptable (0D `INVITATION_LIFETIME`) |
 | `OWNERSHIP_TRANSFER_LIFETIME_MS` | optional | optional | default 3 days; pending ownership transfers expire after this (0D `OWNERSHIP_TRANSFER_LIFETIME`) |
@@ -198,7 +208,26 @@ worker process is a startup error. All identities of one process must target the
 | `DOCUMENT_EXPORT_MAX_BYTES` | optional | optional | default 5242880 (65536–52428800); largest export, in bytes (0D `DOCUMENT_EXPORT_MAX_BYTES`) |
 | `DOCUMENT_REVIEW_HORIZON_DAYS` | optional | optional | default 730 (30–3650); furthest review date, in days from today (0D `DOCUMENT_REVIEW_HORIZON_DAYS`) |
 | `DOCUMENT_SAVE_RATE_PER_MINUTE` | optional | optional | default 60 (1–600); most content saves one person makes per minute (0D `DOCUMENT_SAVE_RATE_PER_MINUTE`) |
+| `LIVE_EDITING_ENABLED` | optional | optional | default 1 (0–1); 0 turns live editing off and every document uses versioned non-live editing (0D `LIVE_EDITING_ENABLED`) |
+| `LIVE_SESSION_TTL_SECONDS` | optional | optional | default 45 (15–300); how long a live editing session lasts without a heartbeat, poll, or operation (0D `LIVE_SESSION_TTL_SECONDS`) |
+| `LIVE_SESSIONS_MAX` | optional | optional | default 20 (2–100); most live sessions on one document (0D `LIVE_SESSIONS_MAX`) |
+| `LIVE_SESSIONS_PER_MEMBER_MAX` | optional | optional | default 5 (1–20); most live sessions one person holds at once (0D `LIVE_SESSIONS_PER_MEMBER_MAX`) |
+| `LIVE_OPS_BATCH_MAX` | optional | optional | default 50 (1–200); most operations in one live request (0D `LIVE_OPS_BATCH_MAX`) |
+| `LIVE_POLL_WAIT_SECONDS` | optional | optional | default 20 (0–30); longest a live poll waits for news (0D `LIVE_POLL_WAIT_SECONDS`) |
+| `LIVE_OP_LOG_MAX` | optional | optional | default 2000 (100–10000); operations kept for reconnecting editors (0D `LIVE_OP_LOG_MAX`) |
+| `LIVE_RATE_PER_MINUTE` | optional | optional | default 1200 (10–6000); most live requests one person makes per minute (0D `LIVE_RATE_PER_MINUTE`) |
 | `DOCUMENT_EMBED_URL_MAX_CHARS` | optional | optional | default 2048 (128–8192); longest address of an embedded image, video, or link (0D `DOCUMENT_EMBED_URL_MAX_CHARS`) |
+| `SIGNED_URL_LIFETIME` | optional | optional | default 300 (30–3600); lifetime in seconds of signed upload and download URLs; never stored, logged, or sent in notifications or exports (0D `SIGNED_URL_LIFETIME`) |
+| `UPLOAD_SESSION_LIFETIME` | optional | optional | default 3600 (300–86400); lifetime in seconds of an upload session; an expired, unfinished session releases its reserved bytes and its quarantined object (0D `UPLOAD_SESSION_LIFETIME`) |
+| `FILE_UPLOAD_MAX_BYTES` | optional | optional | default 104857600 (1024–5368709120); largest single upload in bytes (0D `FILE_UPLOAD_MAX_BYTES`) |
+| `WORKSPACE_STORAGE_QUOTA_BYTES` | optional | optional | default 10737418240 (1048576–10995116277760); stored bytes one workspace may hold, counting bytes reserved by open upload sessions (0D `WORKSPACE_STORAGE_QUOTA_BYTES`) |
+| `FILE_COMPARE_MAX_BYTES` | optional | optional | default 262144 (1024–2097152); largest text or code version compared line by line; larger versions compare by metadata (0D `FILE_COMPARE_MAX_BYTES`) |
+| `FILE_SCAN_MAX_ATTEMPTS` | optional | optional | default 5 (1–20); scan attempts before a failing scan marks the object as a scan failure (downloads stay blocked) (0D `FILE_SCAN_MAX_ATTEMPTS`) |
+| `FILE_VERSIONS_MAX` | optional | optional | default 100 (1–1000); most versions one file keeps (0D `FILE_VERSIONS_MAX`) |
+| `FILES_LIST_MAX` | optional | optional | default 200 (10–1000); most files one record lists (0D `FILES_LIST_MAX`) |
+| `DELIVERABLES_PER_TASK_MAX` | optional | optional | default 50 (1–500); most deliverables one task holds (0D `DELIVERABLES_PER_TASK_MAX`) |
+| `FILE_DISCOVERY_MAX` | optional | optional | default 100 (1–1000); most workspaces one file sweep examines (0D `FILE_DISCOVERY_MAX`) |
+| `FILE_EXPIRY_BATCH_MAX` | optional | optional | default 200 (10–5000); most expired upload sessions one sweep closes per workspace (0D `FILE_EXPIRY_BATCH_MAX`) |
 | `VIEW_STATE_TTL_MS` | optional | optional | default 90 days; stored view state not written for this long is removed (0D `VIEW_STATE_TTL`) |
 
 Values are configuration, not customer promises (PQ-05). The 0D parameter values above are

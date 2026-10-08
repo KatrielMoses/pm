@@ -254,7 +254,31 @@ export interface ServerConfig {
     documentExportMaxBytes: number;
     documentReviewHorizonDays: number;
     documentSaveRatePerMinute: number;
+    liveEditingEnabled: number;
+    liveSessionTtlSeconds: number;
+    liveSessionsMax: number;
+    liveSessionsPerMemberMax: number;
+    liveOpsBatchMax: number;
+    livePollWaitSeconds: number;
+    liveOpLogMax: number;
+    liveRatePerMinute: number;
     documentEmbedUrlMaxChars: number;
+    signedUrlLifetimeSeconds: number;
+    uploadSessionLifetimeSeconds: number;
+    fileUploadMaxBytes: number;
+    workspaceStorageQuotaBytes: number;
+    fileCompareMaxBytes: number;
+    fileScanMaxAttempts: number;
+    fileVersionsMax: number;
+    filesListMax: number;
+    deliverablesPerTaskMax: number;
+    fileDiscoveryMax: number;
+    fileExpiryBatchMax: number;
+  };
+  /** Files (4E): provider-neutral object storage and malware scanning adapters. */
+  files: {
+    storage: FilesStorageConfig;
+    scanner: FilesScannerConfig;
   };
   features: {
     /** Local/test-only component harness route for reusable UI states (refused when deployed). */
@@ -287,6 +311,37 @@ export interface LifecycleConfig {
   purgeLedger: 'local' | 'none';
   purgeLedgerDir: string | undefined;
 }
+
+/**
+ * Object storage (4E). `none` disables uploads; `local` is a development adapter (filesystem
+ * directory, URLs signed by the API) refused when deployed.
+ */
+export type FilesStorageConfig =
+  | { provider: 'none' }
+  | {
+      provider: 's3';
+      bucket: string;
+      region: string;
+      /** S3-compatible endpoint; undefined means AWS (`https://s3.<region>.amazonaws.com`). */
+      endpoint: string | undefined;
+      forcePathStyle: boolean;
+      accessKeyId: string;
+      secretAccessKey: Secret;
+    }
+  | {
+      provider: 'local';
+      dir: string;
+      /** HMAC key for the API's signed storage URLs. */
+      secret: Secret;
+      /** Origin (plus optional path prefix) that signed URLs point at. */
+      publicBaseUrl: string;
+    };
+
+/** Malware scanning (4E). `test-signature` is a development adapter refused when deployed. */
+export type FilesScannerConfig =
+  | { provider: 'none' }
+  | { provider: 'clamav'; host: string; port: number; timeoutMs: number }
+  | { provider: 'test-signature' };
 
 /** Identity and session settings (1B). Lifetimes and limits are operational defaults, not promises. */
 export interface IdentityConfig {
@@ -397,6 +452,11 @@ const DEFAULTS = {
   SECRET_VAULT: 'none',
   PURGE_LEDGER: 'none',
   COMPONENT_HARNESS: 'false',
+  OBJECT_STORAGE: 'none',
+  OBJECT_STORAGE_FORCE_PATH_STYLE: 'false',
+  MALWARE_SCANNER: 'none',
+  CLAMAV_PORT: '3310',
+  CLAMAV_TIMEOUT_MS: '30000',
   AUDIT_CHAIN_LOCK_WAIT_WARN_MS: '250',
   INVITATION_LIFETIME_MS: String(7 * 86_400_000),
   OWNERSHIP_TRANSFER_LIFETIME_MS: String(3 * 86_400_000),
@@ -532,7 +592,26 @@ const DEFAULTS = {
   DOCUMENT_EXPORT_MAX_BYTES: '5242880',
   DOCUMENT_REVIEW_HORIZON_DAYS: '730',
   DOCUMENT_SAVE_RATE_PER_MINUTE: '60',
+  LIVE_EDITING_ENABLED: '1',
+  LIVE_SESSION_TTL_SECONDS: '45',
+  LIVE_SESSIONS_MAX: '20',
+  LIVE_SESSIONS_PER_MEMBER_MAX: '5',
+  LIVE_OPS_BATCH_MAX: '50',
+  LIVE_POLL_WAIT_SECONDS: '20',
+  LIVE_OP_LOG_MAX: '2000',
+  LIVE_RATE_PER_MINUTE: '1200',
   DOCUMENT_EMBED_URL_MAX_CHARS: '2048',
+  SIGNED_URL_LIFETIME: '300',
+  UPLOAD_SESSION_LIFETIME: '3600',
+  FILE_UPLOAD_MAX_BYTES: '104857600',
+  WORKSPACE_STORAGE_QUOTA_BYTES: '10737418240',
+  FILE_COMPARE_MAX_BYTES: '262144',
+  FILE_SCAN_MAX_ATTEMPTS: '5',
+  FILE_VERSIONS_MAX: '100',
+  FILES_LIST_MAX: '200',
+  DELIVERABLES_PER_TASK_MAX: '50',
+  FILE_DISCOVERY_MAX: '100',
+  FILE_EXPIRY_BATCH_MAX: '200',
 } as const;
 
 const schema = z.object({
@@ -609,6 +688,26 @@ const schema = z.object({
   PURGE_LEDGER: z.enum(['local', 'none']),
   PURGE_LEDGER_DIR: z.string().min(1).optional(),
   COMPONENT_HARNESS: bool,
+  OBJECT_STORAGE: z.enum(['none', 's3', 'local']),
+  OBJECT_STORAGE_BUCKET: z
+    .string()
+    .regex(/^[a-z0-9][a-z0-9.-]{1,61}[a-z0-9]$/)
+    .optional(),
+  OBJECT_STORAGE_REGION: z
+    .string()
+    .regex(/^[a-z0-9-]{1,40}$/)
+    .optional(),
+  OBJECT_STORAGE_ENDPOINT: z.url().optional(),
+  OBJECT_STORAGE_FORCE_PATH_STYLE: bool,
+  OBJECT_STORAGE_ACCESS_KEY_ID: z.string().min(1).max(256).optional(),
+  OBJECT_STORAGE_SECRET_ACCESS_KEY: z.string().optional(),
+  OBJECT_STORAGE_LOCAL_DIR: z.string().min(1).optional(),
+  OBJECT_STORAGE_LOCAL_SECRET: z.string().optional(),
+  OBJECT_STORAGE_PUBLIC_BASE_URL: z.url().optional(),
+  MALWARE_SCANNER: z.enum(['none', 'clamav', 'test-signature']),
+  CLAMAV_HOST: z.string().min(1).max(255).optional(),
+  CLAMAV_PORT: int(1, 65535),
+  CLAMAV_TIMEOUT_MS: int(100, 600_000),
   AUDIT_CHAIN_LOCK_WAIT_WARN_MS: int(1, 600_000),
   INVITATION_LIFETIME_MS: int(60_000, 30 * 86_400_000),
   OWNERSHIP_TRANSFER_LIFETIME_MS: int(60_000, 30 * 86_400_000),
@@ -744,7 +843,26 @@ const schema = z.object({
   DOCUMENT_EXPORT_MAX_BYTES: int(65536, 52428800),
   DOCUMENT_REVIEW_HORIZON_DAYS: int(30, 3650),
   DOCUMENT_SAVE_RATE_PER_MINUTE: int(1, 600),
+  LIVE_EDITING_ENABLED: int(0, 1),
+  LIVE_SESSION_TTL_SECONDS: int(15, 300),
+  LIVE_SESSIONS_MAX: int(2, 100),
+  LIVE_SESSIONS_PER_MEMBER_MAX: int(1, 20),
+  LIVE_OPS_BATCH_MAX: int(1, 200),
+  LIVE_POLL_WAIT_SECONDS: int(0, 30),
+  LIVE_OP_LOG_MAX: int(100, 10000),
+  LIVE_RATE_PER_MINUTE: int(10, 6000),
   DOCUMENT_EMBED_URL_MAX_CHARS: int(128, 8192),
+  SIGNED_URL_LIFETIME: int(30, 3600),
+  UPLOAD_SESSION_LIFETIME: int(300, 86400),
+  FILE_UPLOAD_MAX_BYTES: int(1024, 5368709120),
+  WORKSPACE_STORAGE_QUOTA_BYTES: int(1048576, 10995116277760),
+  FILE_COMPARE_MAX_BYTES: int(1024, 2097152),
+  FILE_SCAN_MAX_ATTEMPTS: int(1, 20),
+  FILE_VERSIONS_MAX: int(1, 1000),
+  FILES_LIST_MAX: int(10, 1000),
+  DELIVERABLES_PER_TASK_MAX: int(1, 500),
+  FILE_DISCOVERY_MAX: int(1, 1000),
+  FILE_EXPIRY_BATCH_MAX: int(10, 5000),
 });
 
 /** Variables a deployed environment must set explicitly (no silent local defaults). */
@@ -1015,6 +1133,70 @@ export function loadServerConfig(options: LoadOptions): ServerConfig {
   if (deployed && c.COMPONENT_HARNESS)
     issues.push('COMPONENT_HARNESS: the component harness is allowed only in local and test');
 
+  // Files (4E) -----------------------------------------------------------------------------------
+  let filesStorage: FilesStorageConfig = { provider: 'none' };
+  if (c.OBJECT_STORAGE === 's3') {
+    if (!c.OBJECT_STORAGE_BUCKET)
+      issues.push('OBJECT_STORAGE_BUCKET: required with s3 object storage');
+    if (!c.OBJECT_STORAGE_REGION)
+      issues.push('OBJECT_STORAGE_REGION: required with s3 object storage');
+    if (!c.OBJECT_STORAGE_ACCESS_KEY_ID)
+      issues.push('OBJECT_STORAGE_ACCESS_KEY_ID: required with s3 object storage');
+    const rawSecret = c.OBJECT_STORAGE_SECRET_ACCESS_KEY;
+    if (!rawSecret)
+      issues.push('OBJECT_STORAGE_SECRET_ACCESS_KEY: required with s3 object storage');
+    else if (rawSecret.startsWith(SECRET_REFERENCE_PREFIX))
+      issues.push(
+        'OBJECT_STORAGE_SECRET_ACCESS_KEY: secret references require a secret-store provider (not selected; DQ-28)',
+      );
+    if (deployed && c.OBJECT_STORAGE_ENDPOINT && !c.OBJECT_STORAGE_ENDPOINT.startsWith('https://'))
+      issues.push('OBJECT_STORAGE_ENDPOINT: must use https in deployed environments');
+    filesStorage = {
+      provider: 's3',
+      bucket: c.OBJECT_STORAGE_BUCKET ?? '',
+      region: c.OBJECT_STORAGE_REGION ?? '',
+      endpoint: c.OBJECT_STORAGE_ENDPOINT,
+      forcePathStyle: c.OBJECT_STORAGE_FORCE_PATH_STYLE,
+      accessKeyId: c.OBJECT_STORAGE_ACCESS_KEY_ID ?? '',
+      secretAccessKey: new Secret(rawSecret ?? ''),
+    };
+  } else if (c.OBJECT_STORAGE === 'local') {
+    if (deployed)
+      issues.push(
+        'OBJECT_STORAGE: local is a development adapter; refused in deployed environments',
+      );
+    if (!c.OBJECT_STORAGE_LOCAL_DIR)
+      issues.push('OBJECT_STORAGE_LOCAL_DIR: required with local object storage');
+    const secret = keyBytes('OBJECT_STORAGE_LOCAL_SECRET', c.OBJECT_STORAGE_LOCAL_SECRET, false);
+    if (!secret) issues.push('OBJECT_STORAGE_LOCAL_SECRET: required with local object storage');
+    filesStorage = {
+      provider: 'local',
+      dir: c.OBJECT_STORAGE_LOCAL_DIR ?? '',
+      secret: secret ?? new Secret(''),
+      publicBaseUrl: (
+        c.OBJECT_STORAGE_PUBLIC_BASE_URL ??
+        c.PUBLIC_BASE_URL ??
+        `http://127.0.0.1:${c.HTTP_PORT}`
+      ).replace(/\/+$/, ''),
+    };
+  }
+  let filesScanner: FilesScannerConfig = { provider: 'none' };
+  if (c.MALWARE_SCANNER === 'clamav') {
+    if (!c.CLAMAV_HOST) issues.push('CLAMAV_HOST: required with the clamav malware scanner');
+    filesScanner = {
+      provider: 'clamav',
+      host: c.CLAMAV_HOST ?? '',
+      port: c.CLAMAV_PORT,
+      timeoutMs: c.CLAMAV_TIMEOUT_MS,
+    };
+  } else if (c.MALWARE_SCANNER === 'test-signature') {
+    if (deployed)
+      issues.push(
+        'MALWARE_SCANNER: test-signature is a development adapter; refused in deployed environments',
+      );
+    filesScanner = { provider: 'test-signature' };
+  }
+
   if (env === 'production' && c.LOG_LEVEL === 'debug') {
     issues.push('LOG_LEVEL: debug is not allowed in production');
   }
@@ -1099,6 +1281,7 @@ export function loadServerConfig(options: LoadOptions): ServerConfig {
       purgeLedger: c.PURGE_LEDGER,
       purgeLedgerDir: c.PURGE_LEDGER_DIR,
     },
+    files: { storage: filesStorage, scanner: filesScanner },
     features: { componentHarness: c.COMPONENT_HARNESS },
     audit: { chainLockWaitWarnMs: c.AUDIT_CHAIN_LOCK_WAIT_WARN_MS },
     tenancy: {
@@ -1240,7 +1423,26 @@ export function loadServerConfig(options: LoadOptions): ServerConfig {
       documentExportMaxBytes: c.DOCUMENT_EXPORT_MAX_BYTES,
       documentReviewHorizonDays: c.DOCUMENT_REVIEW_HORIZON_DAYS,
       documentSaveRatePerMinute: c.DOCUMENT_SAVE_RATE_PER_MINUTE,
+      liveEditingEnabled: c.LIVE_EDITING_ENABLED,
+      liveSessionTtlSeconds: c.LIVE_SESSION_TTL_SECONDS,
+      liveSessionsMax: c.LIVE_SESSIONS_MAX,
+      liveSessionsPerMemberMax: c.LIVE_SESSIONS_PER_MEMBER_MAX,
+      liveOpsBatchMax: c.LIVE_OPS_BATCH_MAX,
+      livePollWaitSeconds: c.LIVE_POLL_WAIT_SECONDS,
+      liveOpLogMax: c.LIVE_OP_LOG_MAX,
+      liveRatePerMinute: c.LIVE_RATE_PER_MINUTE,
       documentEmbedUrlMaxChars: c.DOCUMENT_EMBED_URL_MAX_CHARS,
+      signedUrlLifetimeSeconds: c.SIGNED_URL_LIFETIME,
+      uploadSessionLifetimeSeconds: c.UPLOAD_SESSION_LIFETIME,
+      fileUploadMaxBytes: c.FILE_UPLOAD_MAX_BYTES,
+      workspaceStorageQuotaBytes: c.WORKSPACE_STORAGE_QUOTA_BYTES,
+      fileCompareMaxBytes: c.FILE_COMPARE_MAX_BYTES,
+      fileScanMaxAttempts: c.FILE_SCAN_MAX_ATTEMPTS,
+      fileVersionsMax: c.FILE_VERSIONS_MAX,
+      filesListMax: c.FILES_LIST_MAX,
+      deliverablesPerTaskMax: c.DELIVERABLES_PER_TASK_MAX,
+      fileDiscoveryMax: c.FILE_DISCOVERY_MAX,
+      fileExpiryBatchMax: c.FILE_EXPIRY_BATCH_MAX,
     },
     identity: {
       publicOrigin,

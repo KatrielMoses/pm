@@ -19,7 +19,7 @@ import { DOC_TYPE_LABEL } from './client.ts';
 import { blankBlock, groupIssues, toBlock, toEdit, type EditBlock } from './model.ts';
 import { BlockView, DocView } from './render.tsx';
 import { candidateRef } from './editor.tsx';
-import { docHref, explainDoc } from './shared.tsx';
+import { docHref, explainDoc, isLiveInProgress } from './shared.tsx';
 
 /** The panels under a document: version history, suggestions, linked records, AI source, mentions. */
 
@@ -116,8 +116,17 @@ export function VersionHistory({
       setOpen(null);
       onRestored(d);
     } catch (err) {
-      const e = explainDoc(err, 'restoring');
-      if (err instanceof ApiError && err.code === 'conflict' && !err.issues.some((i) => i.code === 'already_current')) onStale();
+      const busy = isLiveInProgress(err);
+      const e = busy
+        ? { ...explainDoc(err, 'restoring'), message: 'Someone is editing live. Restore after they finish.' }
+        : explainDoc(err, 'restoring');
+      if (
+        err instanceof ApiError &&
+        err.code === 'conflict' &&
+        !busy &&
+        !err.issues.some((i) => i.code === 'already_current')
+      )
+        onStale();
       setRestore({ busy: false, e, said: '' });
     }
   };

@@ -169,12 +169,12 @@ Rules and algorithm: [../04-effective-permissions.md](../04-effective-permission
 
 | Action | Description | Approval class | Requirements | Notes |
 |---|---|---|---|---|
-| `record.read` | Read a record and its own comments/attachments. | none | CAL-001, CAL-002, LA-016, PERM-004, VIEW-001, VIEW-002, VIEW-003, VIEW-004, VIEW-005, VIEW-006, VIEW-007, VIEW-008, VIEW-009, VIEW-010, VIEW-011, VIEW-012, VIEW-013, VIEW-014, VIEW-015, VIEW-022, WSB-019 |  |
+| `record.read` | Read a record and its own comments/attachments. | none | CAL-001, CAL-002, LA-016, PERM-004, VIEW-001, VIEW-002, VIEW-003, VIEW-004, VIEW-005, VIEW-006, VIEW-007, VIEW-008, VIEW-009, VIEW-010, VIEW-011, VIEW-012, VIEW-013, VIEW-014, VIEW-015, VIEW-022, WSB-019, PRJ-023 |  |
 | `record.create` | Create a record in a container. | none | PRJ-001, TSK-001 |  |
 | `record.update` | Edit fields of a record. | none | PERM-004 | Phase 4C (AZ-33): also edits a document's content, links, state, and review date; a share at edit level may. |
 | `record.archive` | Archive a record and its contained subtree. | none | PRJ-001 |  |
 | `record.restore` | Restore from archive or trash using current effective permission. | none | LA-018 |  |
-| `record.trash` | Move a record (and batch) to trash. | none | PERM-004 |  |
+| `record.trash` | Move a record (and batch) to trash. | none | PERM-004, FILE-013 | Phase 4E (AZ-34): also trashes a file; a file an accepted deliverable uses is evidence-locked and refused. |
 | `record.purge` | Irreversibly delete a trash batch before its scheduled purge. | none | SEC-020 | Requires trash.manage authority over the scope; independent approver when policy enabled. |
 | `record.comment` | Comment, reply, react, mention in comments. | none | COL-005, COL-008 | Phase 4A (AZ-31): also gates replies, reactions, and mentions; read-only members and read-level shares cannot; an archived record needs the comment_on_archived policy. |
 | `comment.edit_own` | Edit or delete own comment (revision retained per OD-38). | none | COL-009 | Phase 4A (AZ-31, OD-38): the author only, inside COMMENT_EDIT_WINDOW_MINUTES; every edit appends the prior body to the revision trail; nobody edits another person's comment. |
@@ -183,8 +183,8 @@ Rules and algorithm: [../04-effective-permissions.md](../04-effective-permission
 | `record.assign` | Assign or reassign people (only people who can read the record). | none | TSK-007, COL-015 | Phase 4A (AZ-31): every change of responsibility is an append-only assignment event. Phase 4C (AZ-33): also changes a document's owner (an active member who can edit it), through ownership only. |
 | `record.delegate` | Delegate own assigned work to another eligible person. | none | COL-014 | Phase 4A (AZ-31): a current assignee hands their own assignment to an active member who can read the task; context a share does not carry. |
 | `record.relate` | Create a dependency/related link; requires edit on source and view on target. | none | TSK-012, TSK-014 |  |
-| `record.upload` | Attach files or links to a record. | none | FILE-001 |  |
-| `record.download` | Download a file version (clean scan state only). | none | FILE-012 |  |
+| `record.upload` | Attach files or links to a record. | none | FILE-001, FILE-003, FILE-004, FILE-005, FILE-010 | Phase 4E (AZ-34): initiates and completes uploads, adds versions and external links, and renames files on the host (workspace, brand, project, task, or comment). Only a comment's author attaches files to it; an upload session belongs to its creator alone. Workspace-hosted files are for members only. |
+| `record.download` | Download a file version (clean scan state only). | none | FILE-012, FILE-002, FILE-008, FILE-011 | Phase 4E (AZ-34): download, inline preview (allow-listed formats only), and comparison of clean versions through a short-lived signed URL issued per request; pending, infected, and failed scans are refused; external links redirect without being fetched. |
 | `record.move` | Move within a brand (change container); needs edit on source and destination. | none | TSK-001 |  |
 | `record.move_brand` | Move a subtree to another brand (ownership change). | none | TSK-001, WSB-009 | Manage on source and create (edit) on target brand. Tasks (2B, AZ-22): manage in both brands, with an exposure preview and confirmation. |
 | `record.share` | Create or change an explicit record grant (share) to a brand, member, team, or guest. | none | WSB-008, PERM-005, PERM-012 | Share level ≤ sharer's level; never onward-sharable; restricted projects disallow record shares unless the project allows them. |
@@ -196,7 +196,7 @@ Rules and algorithm: [../04-effective-permissions.md](../04-effective-permission
 | `project.complete` | Complete a project (human decision). | none | PRJ-005 |  |
 | `project.verify_update` | Verify a project update as an accountable human (OD-16). | none | PRJ-025 | Human principals only; authoring never verifies; AI, imported, and system drafts stay unverified until this action (AZ-21). |
 | `project.manage_recurrence` | Define, pause, or resume a project recurrence, or generate its next occurrence (OD-14). | none | PRJ-013 | Each generated occurrence also requires record.create in the project's brand, rechecked by the worker before each step (AZ-21). |
-| `deliverable.submit` | Submit a deliverable version for review. | none | FILE-007 |  |
+| `deliverable.submit` | Submit a deliverable version for review. | none | FILE-007, FILE-006 | Phase 4E (AZ-34): creates a task's deliverables and submits a version (a clean file of the same task or a URL) with a 4A approval request in one transaction, superseding an open one; an accepted deliverable takes no more versions. |
 | `review.request` | Request a review or approval. | none | COL-013 | Phase 4A (AZ-31): names reviewers who can decide now; through ownership only (a share does not carry it); at most one open request per record. |
 | `review.decide` | Approve/accept, request changes, or reject as an eligible reviewer; evaluated at decision time. | none | TSK-029, AGT-020, FILE-009 | Phase 4A (AZ-31): a named, still-eligible reviewer, on the version reviewed; evaluated when deciding. Reviewer must be designated by the reviewer rule, be human, and be able to read the whole subject scope (UXD-11). |
 | `review.self_approve` | Decide a review on one's own submission. | none | AGT-018 | Phase 4A (AZ-31, OD-20): evaluated through the workspace self_approval_mode exactly as workflow approvals are, and refused when require_independent_for names review.decide; always labelled and audited. Default on only while exactly one approval-capable human exists (OD-20). |

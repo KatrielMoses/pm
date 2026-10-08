@@ -3,6 +3,7 @@ import { sql } from '@pm/db';
 import type { RecordRef, RecordTypeAdapter } from '@pm/lifecycle';
 import { purgeCollabFacts } from '../collab/purge.ts';
 import { purgeNotifyFacts } from '../notify/purge.ts';
+import { fileChildren, purgeFileFacts } from '../files/lifecycle.ts';
 
 /**
  * References that name a purged record (a task, project, or document) leave with it, so no
@@ -54,7 +55,8 @@ export const documentAdapter: RecordTypeAdapter = {
       .where('lifecycle_state', '<>', 'purged')
       .orderBy('id')
       .execute();
-    return refs(rows);
+    // Files hosted on a page (and on its comments) travel with it (4D closes the 4C and 4E join).
+    return [...refs(rows), ...(await fileChildren(tx, parentIds))];
   },
   async rootsInBrand(tx, brandIds) {
     if (!brandIds.length) return [];
@@ -85,9 +87,14 @@ export const documentAdapter: RecordTypeAdapter = {
   purge: {
     async deleteContent(tx, recordIds) {
       const ids = [...recordIds];
-      // Comments, followers, reviews, notifications, and their own references go with a document.
+      // Its files first (they reference its comments and rows, 4E), then comments, followers, reviews, notifications, and their own references.
+      await purgeFileFacts(tx, ids);
       await purgeCollabFacts(tx, ids);
       await purgeNotifyFacts(tx, ids);
+      // Live editing leaves nothing behind: the operation log, the sessions, and the draft (4D).
+      await tx.db.deleteFrom('knowledge.edit_op').where('document_id', 'in', ids).execute();
+      await tx.db.deleteFrom('knowledge.edit_session').where('document_id', 'in', ids).execute();
+      await tx.db.deleteFrom('knowledge.edit_draft').where('document_id', 'in', ids).execute();
       await tx.db.deleteFrom('knowledge.document_suggestion').where('document_id', 'in', ids).execute();
       await tx.db.deleteFrom('knowledge.source_approval').where('document_id', 'in', ids).execute();
       await tx.db.deleteFrom('knowledge.document_reference').where('document_id', 'in', ids).execute();

@@ -150,7 +150,7 @@ export class TaskService extends TaskCoreService {
         links,
         relationships,
         // Honest absences (later phases); nothing is fabricated. Comments and followers are 4A's.
-        unavailable: ['files', 'documents', 'external_records', 'agents'],
+        unavailable: ['documents', 'external_records', 'agents'],
       };
     });
   }

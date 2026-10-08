@@ -555,6 +555,30 @@
         "I-10",
         "I-18"
       ]
+    },
+    {
+      "id": "T-52",
+      "category": "cross_brand_traversal",
+      "description": "File and deliverable leakage and malicious content: a file, version, name, size, preview, comparison, signed URL, upload session, deliverable, or storage figure of a workspace, brand, project, task, or comment the caller cannot read reached through metadata, list, download, preview, compare, deliverable, review queue, or error responses (or told apart from an unknown one); access surviving a revocation beyond the next request; a signed URL that was tampered with, reused for another object or operation, or replayed after its lifetime, or one stored, logged, emitted, or exported; another person's upload session completed or read; a comment attachment added by someone other than its author; a guest reaching workspace-level files; the storage quota bypassed by concurrent uploads; infected, unscanned, or failed-scan bytes downloaded; active content (SVG, HTML, scripts) rendered inline from the application's storage; the server fetching an external link (SSRF); an accepted deliverable's evidence changed, replaced, or purged.",
+      "mitigated_by": [
+        "I-01",
+        "I-02",
+        "I-07",
+        "I-10",
+        "I-18"
+      ]
+    },
+    {
+      "id": "T-53",
+      "category": "revocation",
+      "description": "Live editing leakage and bypass: a hidden editor, caret, name, record, reference, or content reached through presence, a snapshot, an operation, an event, or an error (or told apart from an unknown document); a revoked, removed, archived, trashed, or purged document still readable or writable beyond the next request through a session that was already open; a session handle used by someone else; a read-only or guest session that writes; a live operation that appends content outside the document version history, adds a link to a record the editor cannot read, restores a restricted token it never held, or exceeds the document bounds; a plain save, restore, or suggestion that overwrites or discards unsaved live work; presence or cursor traffic that is audited, stored beyond its expiry, or copied into events; a stale session that keeps editing.",
+      "mitigated_by": [
+        "I-01",
+        "I-02",
+        "I-07",
+        "I-10",
+        "I-18"
+      ]
     }
   ],
   "tests": [
@@ -4504,6 +4528,341 @@
       "silent_surfaces": [
         "export",
         "audit_display",
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-218",
+      "threats": [
+        "T-52"
+      ],
+      "principal": "member",
+      "setup": "Member without access to a brand reads metadata, lists, downloads, previews, or compares a file hosted there, with the same calls made for an unknown and a malformed file id",
+      "scope": "file in an unreadable brand",
+      "action": "record.download",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "not_found",
+      "silent_surfaces": [
+        "error_message",
+        "timing",
+        "count_facet"
+      ]
+    },
+    {
+      "id": "AT-219",
+      "threats": [
+        "T-52"
+      ],
+      "principal": "member",
+      "setup": "Stranger from another workspace calls every file, upload, link, storage, and deliverable route",
+      "scope": "workspace",
+      "action": "record.read",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "not_found",
+      "silent_surfaces": [
+        "error_message",
+        "timing",
+        "count_facet"
+      ]
+    },
+    {
+      "id": "AT-220",
+      "threats": [
+        "T-52"
+      ],
+      "principal": "member",
+      "setup": "Brand access revoked after the member listed a file and was issued a download URL",
+      "scope": "file after revocation",
+      "action": "record.download",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "not_found",
+      "silent_surfaces": [
+        "error_message",
+        "count_facet"
+      ]
+    },
+    {
+      "id": "AT-221",
+      "threats": [
+        "T-52"
+      ],
+      "principal": "member",
+      "setup": "Signed upload or download URL with a tampered signature, another key or operation, a wrong length or checksum, or past SIGNED_URL_LIFETIME",
+      "scope": "signed object URL",
+      "action": "record.download",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "unauthenticated",
+      "silent_surfaces": [
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-222",
+      "threats": [
+        "T-52"
+      ],
+      "principal": "member",
+      "setup": "Download, preview, or compare of a version whose scan is pending, infected, or failed after the last attempt",
+      "scope": "quarantined or blocked version",
+      "action": "record.download",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "error_generic",
+      "silent_surfaces": [
+        "error_message",
+        "activity"
+      ]
+    },
+    {
+      "id": "AT-223",
+      "threats": [
+        "T-52"
+      ],
+      "principal": "member",
+      "setup": "Inline preview requested for SVG, HTML, office, or archive content",
+      "scope": "active or unrenderable content",
+      "action": "record.download",
+      "surface": "api",
+      "expected": "allow",
+      "response_shape": "ok",
+      "silent_surfaces": [
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-224",
+      "threats": [
+        "T-52"
+      ],
+      "principal": "member",
+      "setup": "Another member reads or completes someone else's upload session",
+      "scope": "other person's upload session",
+      "action": "record.upload",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "not_found",
+      "silent_surfaces": [
+        "error_message",
+        "timing"
+      ]
+    },
+    {
+      "id": "AT-225",
+      "threats": [
+        "T-52"
+      ],
+      "principal": "member",
+      "setup": "Member who can upload to the host attaches a file to a comment they did not write",
+      "scope": "comment by another person",
+      "action": "record.upload",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "forbidden",
+      "silent_surfaces": [
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-226",
+      "threats": [
+        "T-52"
+      ],
+      "principal": "member",
+      "setup": "Concurrent upload initiations that together exceed WORKSPACE_STORAGE_QUOTA_BYTES",
+      "scope": "workspace storage quota",
+      "action": "record.upload",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "error_generic",
+      "silent_surfaces": [
+        "error_message",
+        "count_facet"
+      ]
+    },
+    {
+      "id": "AT-227",
+      "threats": [
+        "T-52"
+      ],
+      "principal": "guest",
+      "setup": "Guest lists, reads, or uploads workspace-level files",
+      "scope": "workspace-hosted files",
+      "action": "record.read",
+      "surface": "ui_list",
+      "expected": "deny",
+      "response_shape": "not_found",
+      "silent_surfaces": [
+        "count_facet",
+        "error_message",
+        "search"
+      ]
+    },
+    {
+      "id": "AT-228",
+      "threats": [
+        "T-52"
+      ],
+      "principal": "member",
+      "setup": "External link with a script or data scheme, embedded credentials, or more than 2048 characters; an accepted link is never fetched by the server",
+      "scope": "external link",
+      "action": "record.upload",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "validation_generic",
+      "silent_surfaces": [
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-229",
+      "threats": [
+        "T-52"
+      ],
+      "principal": "member",
+      "setup": "Change, resubmit, trash, or purge the accepted version of a deliverable or the file version it points at",
+      "scope": "evidence-locked deliverable version",
+      "action": "deliverable.submit",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "error_generic",
+      "silent_surfaces": [
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-230",
+      "threats": [
+        "T-53"
+      ],
+      "principal": "member",
+      "setup": "Member without access to a document starts a live session, sends operations, polls, heartbeats, or leaves, with the same calls made for an unknown and a malformed document id",
+      "scope": "document in an unreadable brand",
+      "action": "record.read",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "not_found",
+      "silent_surfaces": [
+        "error_message",
+        "timing",
+        "count_facet"
+      ]
+    },
+    {
+      "id": "AT-231",
+      "threats": [
+        "T-53"
+      ],
+      "principal": "member",
+      "setup": "Member who can only read a document asks for an editing session, or sends operations on a watching session",
+      "scope": "read-only live session",
+      "action": "record.update",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "forbidden",
+      "silent_surfaces": [
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-232",
+      "threats": [
+        "T-53"
+      ],
+      "principal": "member",
+      "setup": "Editor whose brand grant is revoked after the session opened sends an operation, polls, or heartbeats; the same after the document is archived, trashed, or purged",
+      "scope": "document after revocation",
+      "action": "record.update",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "not_found",
+      "silent_surfaces": [
+        "error_message",
+        "timing"
+      ]
+    },
+    {
+      "id": "AT-233",
+      "threats": [
+        "T-53"
+      ],
+      "principal": "member",
+      "setup": "Editor receives a snapshot, an operation response, an event, or a rejection for a block that links a record they cannot read",
+      "scope": "restricted reference in a live document",
+      "action": "record.read",
+      "surface": "api",
+      "expected": "allow",
+      "response_shape": "redacted",
+      "silent_surfaces": [
+        "error_message",
+        "count_facet"
+      ]
+    },
+    {
+      "id": "AT-234",
+      "threats": [
+        "T-53"
+      ],
+      "principal": "guest",
+      "setup": "Guest with a read share on one document joins live and lists presence",
+      "scope": "guest presence",
+      "action": "record.read",
+      "surface": "api",
+      "expected": "allow",
+      "response_shape": "ok_filtered",
+      "silent_surfaces": [
+        "count_facet",
+        "sse_notice"
+      ]
+    },
+    {
+      "id": "AT-235",
+      "threats": [
+        "T-53"
+      ],
+      "principal": "member",
+      "setup": "Another member uses a live session handle they did not create, or one that has expired",
+      "scope": "someone else's or a stale session",
+      "action": "record.update",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "error_generic",
+      "silent_surfaces": [
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-236",
+      "threats": [
+        "T-53"
+      ],
+      "principal": "member",
+      "setup": "Editor sends an operation that links a record they cannot read, restores a restricted token the draft never held, or exceeds the document bounds",
+      "scope": "live operation content",
+      "action": "record.update",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "validation_generic",
+      "silent_surfaces": [
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-237",
+      "threats": [
+        "T-53"
+      ],
+      "principal": "member",
+      "setup": "Member saves, restores, or accepts a suggestion while a live session is open or while unsaved live work is waiting",
+      "scope": "non-live write beside live editing",
+      "action": "record.update",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "error_generic",
+      "silent_surfaces": [
         "error_message"
       ]
     }

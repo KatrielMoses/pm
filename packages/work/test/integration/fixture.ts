@@ -1,4 +1,7 @@
 import { randomBytes } from 'node:crypto';
+import { mkdtempSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join as pathJoin } from 'node:path';
 import { AuditSecurityEventSink, AuditWriter } from '@pm/audit';
 import {
   createIdentityService,
@@ -25,8 +28,11 @@ import {
   taskAssigneeHook,
   taskTargets,
   savedViewTargets,
-  KnowledgeService,
+  FileService,
   documentOwnerHook,
+  LocalObjectStorage,
+  SignatureTestScanner,
+  type FileDeps,
   reviewDepartureHook,
   departureTimerHook,
   type WorkSettings,
@@ -49,7 +55,9 @@ export {
 
 export interface WorkEnv {
   h: Harness;
-  svc: KnowledgeService;
+  svc: FileService;
+  /** The test storage and scanner the service uses (null when a test disables them). */
+  files: FileDeps;
   stepUp: StubStepUp;
   lifecycle: LifecycleService;
   tokenFor(email: string): Promise<string>;
@@ -65,7 +73,10 @@ export function workEnv(
     intakeRate?: number;
     commentRate?: number;
     documentRate?: number;
+    liveRate?: number;
     emailState?: 'configured' | 'capture' | 'unconfigured';
+    /** 4E: defaults to local storage in a temp directory and the signature scanner. */
+    files?: Partial<FileDeps>;
   } = {},
 ): WorkEnv {
   const h = createHarness(db);
@@ -98,7 +109,20 @@ export function workEnv(
     createStepUpChallenge: stepUp.createStepUpChallenge,
   };
   const arrayMax = options.arrayMax ?? 10_000;
-  const svc = new KnowledgeService({
+  const files: FileDeps = {
+    storage:
+      options.files?.storage !== undefined
+        ? options.files.storage
+        : new LocalObjectStorage({
+            dir: mkdtempSync(pathJoin(tmpdir(), 'pm-files-')),
+            secret: randomBytes(32).toString('base64url'),
+            publicBaseUrl: 'http://127.0.0.1:1',
+          }),
+    scanner:
+      options.files?.scanner !== undefined ? options.files.scanner : new SignatureTestScanner(),
+  };
+  const svc = new FileService({
+    files,
     notify: { emailState: options.emailState ?? 'capture' },
     tenant: h.app,
     platform: h.platform,
@@ -121,6 +145,7 @@ export function workEnv(
       'intake.submit': { limit: options.intakeRate ?? 10_000, windowMs: 3_600_000 },
       'comment.member': { limit: options.commentRate ?? 10_000, windowMs: 60_000 },
       'document.save': { limit: options.documentRate ?? 10_000, windowMs: 60_000 },
+      'document.live': { limit: options.liveRate ?? 100_000, windowMs: 60_000 },
     }),
     signingKey: randomBytes(32),
     settings: {
@@ -142,6 +167,7 @@ export function workEnv(
   return {
     h,
     svc,
+    files,
     stepUp,
     lifecycle,
     async tokenFor(email: string) {

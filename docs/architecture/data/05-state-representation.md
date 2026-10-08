@@ -29,6 +29,7 @@ Input: [0A lifecycle-and-states](../../product/lifecycle-and-states.md). Each ax
 | **Claimed completion** | `audit.audit_event` / activity entry with `action = 'claimed_complete'`, actor type agent/integration/human. Agent "done" commentary lives in `agents.agent_run` notes (not verified). | Never written to status or review |
 | **Task completion** | `work.task.status_category = 'done'`, `completed_at` | Gated by the transition command: required fields, approval (review decision exists for current version), agent-assigned tasks require accepted deliverable, tasks with `requires_acceptance` require it |
 | **Deliverable accepted** | `collab.review_decision (decision='accepted', reviewer human)` + `files.deliverable_version.accepted_review_decision_id`, `evidence_locked = true` | Independent of task status |
+| **Deliverable accepted** (as implemented, Phase 4E, [ADR-34](12-decisions.md#adr-34)) | A 4A approval request on the deliverable whose decision outcome is `approved` + `files.deliverable_version.decided_review_decision_id`, `accepted_by_membership_id`, `accepted_at`, `evidence_locked = true`; the deliverable's `accepted_version_id` and state `accepted` | Independent of task status; accepted is final |
 | **Code merged** | `delivery.external_fact (fact='pr_merged', occurred_at, provider_event_id)` | Never sets defect `done`; may set "Fixed – awaiting verification" (category `active`) via automation |
 | **Deployed** | `delivery.deployment (environment_id, version_label, deployed_at, source)` | — |
 | **Defect verified** | `quality.verification_record (method rerun\|manual, test_result_id, version_label, environment_id, verified_by, verified_at)` | Required by the transition rule before a defect enters `done` when policy says so |
@@ -72,6 +73,8 @@ The run carries three facts with three timestamps: finished (`operation.ended_at
 | `delivery.release.state` | draft → preparing → ready_for_decision → go_approved / no_go → deployed → verified / rolled_back; cancelled | `go_approved`/`no_go` only via `release_decision` |
 | `integrations.connection.health` | `connected`, `needs_reauthorization`, `error`, `disconnected` | Separate from sync operation outcomes |
 | `files.file_object.scan_state` | `pending`, `clean`, `infected`, `error` | Downloads require `clean` |
+| `files.upload_session.state` (Phase 4E, [ADR-34](12-decisions.md#adr-34)) | `initiated`, `uploaded`, `verifying`, `completed`, `rejected` (with a code), `expired` | A version exists only on a completed session; expiry releases the reserved bytes |
+| `files.deliverable.state` (Phase 4E, [ADR-34](12-decisions.md#adr-34)) | `draft`, `ready_for_review`, `changes_requested`, `accepted`, `rejected` | Driven by the 4A review of the current version (`approved` → `accepted`, withdrawn → `draft`); versions add `withdrawn` and `superseded` |
 | `ai.proposed_change` | decision `pending/accepted/edited/rejected`; applied `not_applied/applied/failed` | Application is its own operation. Partial application is listed per change. |
 | `core.deletion_batch.state` | `trashed`, `restoring`, `restored`, `purging`, `purged` | Idempotent transitions ([08](08-deletion-retention.md)) |
 | `quality.test_run.execution_state` | `exec_state` subset | Counts per outcome stored in `counts`. A run is "passing" only if every required case is `passed` (computed). |

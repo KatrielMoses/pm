@@ -342,7 +342,7 @@ export class ProjectService extends NavigationService {
     action: A,
     record: {
       id: string;
-      /** Null for a workspace-level record (a document that belongs to no brand). */
+      /** Null for workspace-scoped records (a document or a workspace file that belongs to no brand): decided at the workspace. */
       brand: BrandFacts | null;
       lifecycleState: LoadedProject['lifecycleState'];
       chain: ProjectChain;

@@ -248,7 +248,18 @@ describe('database-enforced workspace existence (1A review 01, correction 2)', (
       'knowledge.document_reference',
       'knowledge.document_suggestion',
       'knowledge.document_version',
+      'knowledge.edit_draft',
+      'knowledge.edit_op',
+      'knowledge.edit_session',
       'knowledge.source_approval',
+      // Phase 4E files, versions, upload sessions, deliverables, and storage usage.
+      'files.file_object',
+      'files.file',
+      'files.file_version',
+      'files.upload_session',
+      'files.deliverable',
+      'files.deliverable_version',
+      'files.storage_usage',
     ];
     expect(res.rows.map((r) => r.tbl).sort()).toEqual(
       [...TENANT_TABLES.map((t) => `exec.${t}`), ...phase1f, ...phase1c].sort(),
@@ -278,7 +289,7 @@ describe('database-enforced workspace existence (1A review 01, correction 2)', (
             AND i.indkey::int2[] @> c.confkey AND i.indkey::int2[] <@ c.confkey
         ) AS referenced_unique
       FROM pg_constraint c JOIN pg_namespace n ON n.oid = c.connamespace
-      WHERE c.contype = 'f' AND n.nspname IN ('exec', 'tenancy', 'access', 'ops', 'views', 'workflow', 'work', 'relations', 'templates', 'planning', 'capture', 'timetrack', 'collab', 'notify', 'knowledge')
+      WHERE c.contype = 'f' AND n.nspname IN ('exec', 'tenancy', 'access', 'ops', 'views', 'workflow', 'work', 'relations', 'templates', 'planning', 'capture', 'timetrack', 'collab', 'notify', 'knowledge', 'files')
       ORDER BY 1`);
     // exec: 7 workspace keys + 6 composite same-workspace keys; 1C tenancy/access: 20 keys;
     // 1D collaboration (teams, invitations, policy, shares, ownership transfer): 38 keys;
@@ -296,8 +307,11 @@ describe('database-enforced workspace existence (1A review 01, correction 2)', (
     // 4A comments (6), revisions (3), reactions (3), mentions (5), followers (3), review requests (4),
     // reviewers (3), decisions (2), assignment events (5), and the delegated assignee (1): +35;
     // 4B notifications, digests, deliveries, preferences, profiles, and scope defaults: +19;
-    // 4C documents (10), versions (3), references (5), suggestions (4), source approvals (3): +25.
-    expect(res.rows.length).toBe(404);
+    // 4C documents (10), versions (3), references (5), suggestions (4), source approvals (3): +25;
+    // 4E objects (1), files (6), versions (4), upload sessions (9), deliverables (7), deliverable
+    // versions (7), and storage usage (1): +35;
+    // 4D live edit drafts (3), sessions (3), and operations (4): +10.
+    expect(res.rows.length).toBe(449);
     for (const r of res.rows)
       expect(r, `${r.tbl}.${r.conname}`).toMatchObject({
         referencing_indexed: true,
