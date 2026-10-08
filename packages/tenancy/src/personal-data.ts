@@ -58,7 +58,7 @@ const OWNED_PERSONAL_TABLES = [
   'planning.daily_record',
   'work.bulk_operation',
   'work.undo_entry',
-  'search.recent_query',
+  'search.recent_search',
 ] as const;
 
 /**

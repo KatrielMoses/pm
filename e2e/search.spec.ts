@@ -159,17 +159,18 @@ test('reflows at 320 px and 200% zoom, with forced colours and reduced motion, a
   await page.reload();
   await expect(results(page)).toBeVisible();
   // Matched text keeps the system mark colours in forced colours (never colour alone: also bold).
-  const mark = results(page).locator('mark').first();
-  expect(await mark.evaluate((e) => getComputedStyle(e).forcedColorAdjust)).toBe('none');
-  expect(await mark.evaluate((e) => getComputedStyle(e).fontWeight)).toBe('700');
+  const markStyle = (prop: string) =>
+    page.evaluate<string>(
+      `getComputedStyle(document.querySelector('.search-results mark')).${prop}`,
+    );
+  expect(await markStyle('forcedColorAdjust')).toBe('none');
+  expect(await markStyle('fontWeight')).toBe('700');
   // Reduced motion: nothing on the page animates or transitions.
   expect(
-    await page.evaluate(() =>
-      [...document.querySelectorAll('.search-result, .search-form, .search-filters')].every((e) => {
-        const c = getComputedStyle(e);
-        return c.animationName === 'none' && /^0s(, 0s)*$/.test(c.transitionDuration);
-      }),
-    ),
+    await page.evaluate<boolean>(`[...document.querySelectorAll('.search-result, .search-form, .search-filters')].every((e) => {
+      const c = getComputedStyle(e);
+      return c.animationName === 'none' && /^0s(, 0s)*$/.test(c.transitionDuration);
+    })`),
   ).toBe(true);
   await expectAccessible(page, 'search, forced colours and reduced motion');
   await page.emulateMedia({ reducedMotion: null, forcedColors: null });

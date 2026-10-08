@@ -220,9 +220,9 @@ describe('search authority equals record authority (5A)', () => {
     ).rejects.toEqual(reason('not_found'));
     // Row-level security holds beneath the application: another workspace's context sees no rows.
     await env.h.worker.withWorkspace(other.wsId, { module: 'test' }, async (tx) => {
-      const rows = await tx.db.selectFrom('search.entry').select('workspace_id').execute();
+      const rows = await tx.db.selectFrom('search.search_document').select('workspace_id').execute();
       expect(new Set(rows.map((r) => r.workspace_id))).toEqual(new Set([other.wsId]));
-      const queue = await tx.db.selectFrom('search.index_task').select('workspace_id').execute();
+      const queue = await tx.db.selectFrom('search.index_status').select('workspace_id').execute();
       expect(queue.every((r) => r.workspace_id === other.wsId)).toBe(true);
     });
   });

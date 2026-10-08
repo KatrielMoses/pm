@@ -83,13 +83,14 @@ const response = (extra: Partial<SearchResponse> = {}): SearchResponse => ({
   total: 1,
   total_is_lower_bound: false,
   facets: {
+    capped: false,
     kinds: [
       { kind: 'task', label: 'Tasks', count: 1 },
       { kind: 'comment', label: 'Comments', count: 2 },
     ],
     brands: [{ brand, count: 3 }],
   },
-  page: { limit: 20, offset: 0, has_more: false },
+  page: { limit: 20, position: 1, has_more: false, next_cursor: null },
   limits: { results_max: 200, count_max: 1000 },
   index: { state: 'complete', pending: 0, failed: 0, oldest_pending_seconds: null },
   ...extra,
@@ -119,7 +120,7 @@ describe('search URL state (5A)', () => {
   it('reads only valid values from the address and writes the shortest address back', () => {
     const q = parseSearchParams(
       new URLSearchParams(
-        `q=invoice&kind=task,comment,BAD!&brand=${BR},br_nope&project=${PRJ}&state=archived&updated=week&mine=true&mentioning_me=true&offset=40`,
+        `q=invoice&kind=task,comment,BAD!&brand=${BR},br_nope&project=${PRJ}&state=archived&updated=week&mine=true&mentioning_me=true&cursor=abc_DEF-123`,
       ),
     );
     expect(q).toEqual({
@@ -131,18 +132,18 @@ describe('search URL state (5A)', () => {
       updated: 'week',
       mine: true,
       mentioning_me: true,
-      offset: 40,
+      cursor: 'abc_DEF-123',
     });
     expect(toSearchParams(q).toString()).toBe(
-      `q=invoice&kind=task%2Ccomment&brand=${BR}&project=${PRJ}&state=archived&updated=week&mine=true&mentioning_me=true&offset=40`,
+      `q=invoice&kind=task%2Ccomment&brand=${BR}&project=${PRJ}&state=archived&updated=week&mine=true&mentioning_me=true&cursor=abc_DEF-123`,
     );
     expect(toSearchParams({ ...EMPTY_QUERY, q: 'a' }).toString()).toBe('q=a');
     // Anything unknown or malformed is dropped, never passed on.
     expect(
-      parseSearchParams(new URLSearchParams('state=x&updated=decade&offset=-3&mine=1&kind=')),
+      parseSearchParams(new URLSearchParams('state=x&updated=decade&cursor=bad!&mine=1&kind=')),
     ).toEqual(EMPTY_QUERY);
     expect(parseSearchParams(new URLSearchParams(`q=${'x'.repeat(300)}`)).q).toHaveLength(200);
-    expect(parseSearchParams(new URLSearchParams('offset=99999')).offset).toBe(0);
+    expect(parseSearchParams(new URLSearchParams(`cursor=${'a'.repeat(2049)}`)).cursor).toBe('');
   });
 
   it('round-trips a search through its address, a remembered search, and the request', () => {
@@ -151,18 +152,20 @@ describe('search URL state (5A)', () => {
       q: 'budget plan',
       kind: ['document'],
       state: 'any' as const,
-      offset: 20,
+      cursor: 'c1_x',
     };
     const href = searchHref(WS, q);
     expect(href.startsWith(`/workspaces/${WS}/search?`)).toBe(true);
     expect(parseSearchParams(new URL(href, 'http://x').searchParams)).toEqual(q);
     expect(recentQuery('budget plan', { kind: ['document'], state: 'any' })).toEqual({
       ...q,
-      offset: 0,
+      cursor: '',
     });
-    expect(searchQueryString(q, 6)).toBe('q=budget+plan&kind=document&state=any&offset=20&limit=6');
+    expect(searchQueryString(q, 6)).toBe(
+      'q=budget+plan&kind=document&state=any&cursor=c1_x&limit=6',
+    );
     expect(searchHref(WS, {})).toBe(`/workspaces/${WS}/search`);
-    expect(withFilters({ ...q, offset: 40 }, { mine: true }).offset).toBe(0);
+    expect(withFilters({ ...q, cursor: 'zz' }, { mine: true }).cursor).toBe('');
     expect(
       activeFilters(parseSearchParams(new URLSearchParams(`kind=aa,bb&brand=${BR}&mine=true`))),
     ).toBe(4);
@@ -295,7 +298,7 @@ describe('search page (5A)', () => {
   });
 
   it('changes filters through the address, back to the first result, and clears them together', async () => {
-    at('?q=invoice&offset=20');
+    at('?q=invoice&cursor=old_cursor');
     const q = vi.spyOn(searchApi, 'query').mockResolvedValue(response());
     renderPage();
     const filters = await screen.findByRole('complementary', { name: 'Filters' });
@@ -307,7 +310,7 @@ describe('search page (5A)', () => {
     await waitFor(() => expect(window.location.search).toContain('mine=true'));
     expect(q).toHaveBeenLastCalledWith(
       WS,
-      expect.objectContaining({ kind: ['comment'], updated: 'week', mine: true, offset: 0 }),
+      expect.objectContaining({ kind: ['comment'], updated: 'week', mine: true, cursor: '' }),
       expect.anything(),
     );
     fireEvent.click(within(filters).getByRole('button', { name: 'Clear filters' }));
@@ -360,12 +363,12 @@ describe('search page (5A)', () => {
     expect(await screen.findByText('No results for “invoice”.')).toBeTruthy();
     expect(screen.getByText('Nothing matches. Try fewer or different words.')).toBeTruthy();
     unmount();
-    at('?q=invoice&offset=20&kind=task');
+    at('?q=invoice&cursor=c2&kind=task');
     q.mockResolvedValue(
       response({
         total: 1000,
         total_is_lower_bound: true,
-        page: { limit: 20, offset: 20, has_more: true },
+        page: { limit: 20, position: 21, has_more: true, next_cursor: 'c3' },
         results: Array.from({ length: 20 }, (_, i) => result({ id: `tsk_${i}` })),
       }),
     );
@@ -375,9 +378,9 @@ describe('search page (5A)', () => {
     ).toBeTruthy();
     const nav = screen.getByRole('navigation', { name: 'Result pages' });
     expect(within(nav).getByRole('link', { name: 'Next results' }).getAttribute('href')).toBe(
-      `/workspaces/${WS}/search?q=invoice&kind=task&offset=40`,
+      `/workspaces/${WS}/search?q=invoice&kind=task&cursor=c3`,
     );
-    expect(within(nav).getByRole('link', { name: 'Previous results' }).getAttribute('href')).toBe(
+    expect(within(nav).getByRole('link', { name: 'First results' }).getAttribute('href')).toBe(
       `/workspaces/${WS}/search?q=invoice&kind=task`,
     );
   });

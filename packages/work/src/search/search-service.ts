@@ -1,4 +1,4 @@
-import { createHash } from 'node:crypto';
+import { createHash, createHmac, timingSafeEqual } from 'node:crypto';
 import { newUuidV7 } from '@pm/contracts';
 import { sql, type RawBuilder, type WorkspaceTransaction } from '@pm/db';
 import {
@@ -53,7 +53,8 @@ interface Parsed {
   parsed: ParsedQuery;
   filters: SearchFilters;
   limit: number;
-  offset: number;
+  /** The position after which this page continues, as the server last returned it. */
+  cursor: string | null;
 }
 
 /** The knobs of one search, resolved against the person's access (never trusted as identifiers). */
@@ -76,6 +77,14 @@ interface Hit {
   task_state: 'pending' | 'failed' | null;
 }
 
+/** Where the next page continues: the last result's rank, time, and key, and how many were shown. */
+interface ResultCursor {
+  r: number;
+  u: string;
+  i: string;
+  n: number;
+}
+
 export type SearchResultIndexState = 'current' | 'updating' | 'failed';
 
 /**
@@ -90,6 +99,7 @@ export type SearchResultIndexState = 'current' | 'updating' | 'failed';
  */
 export class SearchService extends FileService {
   readonly #sources: SearchSourceRegistry;
+  readonly #cursorKey: Buffer;
 
   constructor(
     deps: ConstructorParameters<typeof FileService>[0] & {
@@ -98,6 +108,9 @@ export class SearchService extends FileService {
   ) {
     super(deps);
     this.#sources = deps.search?.sources ?? defaultSearchSources();
+    this.#cursorKey = createHmac('sha256', deps.signingKey)
+      .update('cursor:search.results')
+      .digest();
   }
 
   get searchSources(): SearchSourceRegistry {
@@ -204,7 +217,7 @@ export class SearchService extends FileService {
       throw invalid(issue('/q', parsed.issue, messages[parsed.issue]));
     }
     let limit = Math.min(20, this.ws.searchPageSizeMax);
-    let offset = 0;
+    let cursor: string | null = null;
     if (withPage) {
       if (input.limit !== undefined) {
         const n = Number(input.limit);
@@ -218,17 +231,10 @@ export class SearchService extends FileService {
           );
         limit = n;
       }
-      if (input.offset !== undefined) {
-        const n = Number(input.offset);
-        if (!Number.isInteger(n) || n < 0 || n >= this.ws.searchResultsMax)
-          throw invalid(
-            issue(
-              '/offset',
-              'invalid_option',
-              `Results go only to the first ${this.ws.searchResultsMax}; narrow the search instead.`,
-            ),
-          );
-        offset = n;
+      if (input.cursor !== undefined) {
+        if (typeof input.cursor !== 'string' || input.cursor.length > 2048)
+          throw new TenancyError('cursor_invalid');
+        cursor = input.cursor;
       }
     }
     return {
@@ -236,7 +242,7 @@ export class SearchService extends FileService {
       parsed: parsed.query,
       filters: this.#filters(input),
       limit,
-      offset,
+      cursor,
     };
   }
 
@@ -348,6 +354,57 @@ export class SearchService extends FileService {
   }
 
   // ---------------------------------------------------------------------------------------------
+  // Cursors: keyset position in the ranked order, signed for one person and one search
+  // ---------------------------------------------------------------------------------------------
+
+  #fingerprint(input: Parsed): string {
+    return createHash('sha256')
+      .update(JSON.stringify([input.q, this.#canonical(input.filters)]))
+      .digest('base64url');
+  }
+
+  #sealCursor(p: Principal, fp: string, pos: ResultCursor): string {
+    const payload = JSON.stringify(pos);
+    const mac = createHmac('sha256', this.#cursorKey)
+      .update(`${p.workspaceId}|${p.membershipId}|${fp}|${payload}`)
+      .digest()
+      .subarray(0, 16)
+      .toString('base64url');
+    return Buffer.from(JSON.stringify({ p: payload, m: mac })).toString('base64url');
+  }
+
+  /** A cursor works only for the person and the search it was issued for; anything else is refused. */
+  #openCursor(p: Principal, fp: string, raw: string): ResultCursor {
+    try {
+      const o = JSON.parse(Buffer.from(raw, 'base64url').toString('utf8')) as {
+        p: string;
+        m: string;
+      };
+      const want = createHmac('sha256', this.#cursorKey)
+        .update(`${p.workspaceId}|${p.membershipId}|${fp}|${o.p}`)
+        .digest()
+        .subarray(0, 16);
+      const got = Buffer.from(o.m, 'base64url');
+      if (got.length !== want.length || !timingSafeEqual(got, want)) throw new Error();
+      const c = JSON.parse(o.p) as ResultCursor;
+      if (
+        typeof c.r !== 'number' ||
+        !Number.isFinite(c.r) ||
+        typeof c.u !== 'string' ||
+        Number.isNaN(Date.parse(c.u)) ||
+        !/^[0-9a-f-]{36}$/.test(c.i) ||
+        !Number.isInteger(c.n) ||
+        c.n < 1 ||
+        c.n > this.ws.searchResultsMax
+      )
+        throw new Error();
+      return c;
+    } catch {
+      throw new TenancyError('cursor_invalid');
+    }
+  }
+
+  // ---------------------------------------------------------------------------------------------
   // Search
   // ---------------------------------------------------------------------------------------------
 
@@ -362,12 +419,18 @@ export class SearchService extends FileService {
         const tsq = this.#tsquery(input.parsed.terms);
         const base = this.#where(tx.workspaceId, p, f, resolved, vis, tsq);
         const cap = this.ws.searchCountMax;
-        const reach = Math.max(this.ws.searchResultsMax - input.offset, 0);
+        const fp = this.#fingerprint(input);
+        const after = input.cursor ? this.#openCursor(p, fp, input.cursor) : null;
+        const position = after ? after.n : 0;
+        const reach = Math.max(this.ws.searchResultsMax - position, 0);
         const limit = Math.min(input.limit, reach);
         const kindOk = f.kinds.length ? sql`e.source_kind = ANY(${f.kinds}::text[])` : sql`true`;
         const brandOk = resolved.brandIds.length
           ? sql`r.brand_id = ANY(${resolved.brandIds}::uuid[])`
           : sql`true`;
+        const past = after
+          ? sql`AND (rank, u, i) < (${after.r}::float8, ${after.u}::timestamptz, ${after.i}::uuid)`
+          : sql``;
 
         // One pass over the authorized matches: the page, the total, and both facets are read from
         // the same materialized set (a facet counts what choosing another value would give).
@@ -375,7 +438,7 @@ export class SearchService extends FileService {
         // is not leakproof), so every extra pass would be another scan of the workspace's entries.
         const one = (
           await sql<{
-            keys: Array<{ k: string; i: string }>;
+            keys: Array<{ k: string; i: string; r: number; u: string }>;
             total: number;
             kinds: Array<{ k: string; n: number }>;
             brands: Array<{ b: string | null; n: number }>;
@@ -384,14 +447,16 @@ export class SearchService extends FileService {
               SELECT e.source_kind AS k, e.source_id AS i, e.source_updated_at AS u, r.brand_id AS b,
                      ts_rank_cd(e.tsv, ${tsq}, 32)::float8 AS rank,
                      (${kindOk}) AS kind_ok, (${brandOk}) AS brand_ok
-                FROM search.entry e
+                FROM search.search_document e
                 JOIN core.record r ON r.workspace_id = e.workspace_id AND r.id = e.auth_record_id
                WHERE ${base})
             SELECT
-              (SELECT coalesce(jsonb_agg(jsonb_build_object('k', x.k, 'i', x.i) ORDER BY x.o), '[]'::jsonb)
-                 FROM (SELECT k, i, row_number() OVER (ORDER BY rank DESC, u DESC, i) AS o
-                         FROM m WHERE kind_ok AND brand_ok
-                        ORDER BY rank DESC, u DESC, i LIMIT ${limit} OFFSET ${input.offset}) x) AS keys,
+              (SELECT coalesce(jsonb_agg(jsonb_build_object('k', x.k, 'i', x.i, 'r', x.rank, 'u', x.u)
+                                         ORDER BY x.o), '[]'::jsonb)
+                 FROM (SELECT k, i, rank, u,
+                              row_number() OVER (ORDER BY rank DESC, u DESC, i DESC) AS o
+                         FROM m WHERE kind_ok AND brand_ok ${past}
+                        ORDER BY rank DESC, u DESC, i DESC LIMIT ${limit + 1}) x) AS keys,
               (SELECT count(*)::int FROM m WHERE kind_ok AND brand_ok) AS total,
               (SELECT coalesce(jsonb_agg(jsonb_build_object('k', x.k, 'n', x.n)), '[]'::jsonb)
                  FROM (SELECT k, count(*)::int AS n FROM m WHERE brand_ok GROUP BY k) x) AS kinds,
@@ -400,21 +465,24 @@ export class SearchService extends FileService {
             tx.db,
           )
         ).rows[0]!;
+        const pageKeys = one.keys.slice(0, limit);
+        const more = one.keys.length > limit && position + limit < this.ws.searchResultsMax;
+        const lastKey = pageKeys[pageKeys.length - 1];
         const n = one.total;
         const byKind = one.kinds.map((x) => ({ k: x.k, n: Math.min(x.n, cap) }));
         const byBrand = one.brands.map((x) => ({ b: x.b, n: Math.min(x.n, cap) }));
-        const hits = limit
+        const hits = pageKeys.length
           ? (
               await sql<Hit>`
                 SELECT e.source_kind, e.source_id, e.auth_record_id, e.context_record_id, e.title,
                        left(e.body, ${SNIPPET_SCAN_CHARS}) AS body, e.source_updated_at, r.brand_id,
                        r.lifecycle_state, 0::float8 AS rank, t.state AS task_state
-                  FROM unnest(${one.keys.map((x) => x.k)}::text[], ${one.keys.map((x) => x.i)}::uuid[])
+                  FROM unnest(${pageKeys.map((x) => x.k)}::text[], ${pageKeys.map((x) => x.i)}::uuid[])
                        WITH ORDINALITY AS k(kind, id, o)
-                  JOIN search.entry e ON e.workspace_id = ${tx.workspaceId}
+                  JOIN search.search_document e ON e.workspace_id = ${tx.workspaceId}
                        AND e.source_kind = k.kind AND e.source_id = k.id
                   JOIN core.record r ON r.workspace_id = e.workspace_id AND r.id = e.auth_record_id
-                  LEFT JOIN search.index_task t ON t.workspace_id = e.workspace_id
+                  LEFT JOIN search.index_status t ON t.workspace_id = e.workspace_id
                        AND t.source_kind = e.source_kind AND t.source_id = e.source_id
                  ORDER BY k.o`.execute(tx.db)
             ).rows
@@ -461,8 +529,18 @@ export class SearchService extends FileService {
           },
           page: {
             limit,
-            offset: input.offset,
-            has_more: input.offset + hits.length < Math.min(n, this.ws.searchResultsMax),
+            /** The 1-based place of the first result on this page in the whole ranked list. */
+            position: position + 1,
+            has_more: more,
+            next_cursor:
+              more && lastKey
+                ? this.#sealCursor(p, fp, {
+                    r: lastKey.r,
+                    u: lastKey.u,
+                    i: lastKey.i,
+                    n: position + pageKeys.length,
+                  })
+                : null,
           },
           limits: { results_max: this.ws.searchResultsMax, count_max: cap },
           index,
@@ -498,7 +576,7 @@ export class SearchService extends FileService {
          WHERE r.workspace_id = ${tx.workspaceId} AND r.id = ANY(${contextIds}::uuid[])
            AND ${vis.where('r')}`.execute(tx.db);
       const titles = await sql<{ source_kind: string; source_id: string; title: string }>`
-        SELECT source_kind, source_id, title FROM search.entry
+        SELECT source_kind, source_id, title FROM search.search_document
          WHERE workspace_id = ${tx.workspaceId} AND source_id = ANY(${contextIds}::uuid[])`.execute(
         tx.db,
       );
@@ -558,7 +636,7 @@ export class SearchService extends FileService {
     const rows = (
       await sql<{ state: 'pending' | 'failed'; n: number; oldest: Date | null }>`
         SELECT t.state, count(*)::int AS n, min(t.requested_at) AS oldest
-          FROM search.index_task t
+          FROM search.index_status t
           JOIN core.record r ON r.workspace_id = t.workspace_id AND r.id = t.auth_record_id
          WHERE t.workspace_id = ${tx.workspaceId} AND t.source_kind = ANY(${this.#sources.kinds()}::text[])
            AND ${vis.where('r')}
@@ -705,15 +783,15 @@ export class SearchService extends FileService {
         const key = `${input.q.toLowerCase()}|${JSON.stringify(filters)}`;
         if (key.length > 300)
           throw invalid(issue('/q', 'too_long', 'That search is too long to remember.'));
-        await sql`INSERT INTO search.recent_query (id, workspace_id, owner_membership_id, query, filters, query_key)
+        await sql`INSERT INTO search.recent_search (id, workspace_id, owner_membership_id, query, filters, query_key)
             VALUES (${newUuidV7()}, ${tx.workspaceId}, ${p.membershipId}, ${input.q},
                     ${JSON.stringify(filters)}::jsonb, ${key})
             ON CONFLICT (workspace_id, owner_membership_id, query_key) DO UPDATE
-              SET search_count = search.recent_query.search_count + 1, searched_at = now(),
+              SET search_count = search.recent_search.search_count + 1, searched_at = now(),
                   query = EXCLUDED.query`.execute(tx.db);
         // Keep the newest SEARCH_RECENT_MAX; the rest leave with this write.
-        await sql`DELETE FROM search.recent_query WHERE id IN (
-            SELECT id FROM search.recent_query
+        await sql`DELETE FROM search.recent_search WHERE id IN (
+            SELECT id FROM search.recent_search
              WHERE workspace_id = ${tx.workspaceId} AND owner_membership_id = ${p.membershipId}
              ORDER BY searched_at DESC, id DESC OFFSET ${this.ws.searchRecentMax})`.execute(tx.db);
         return { remembered: true };
@@ -736,7 +814,7 @@ export class SearchService extends FileService {
             query_key: string;
             search_count: number;
             searched_at: Date;
-          }>`SELECT query, filters, query_key, search_count, searched_at FROM search.recent_query
+          }>`SELECT query, filters, query_key, search_count, searched_at FROM search.recent_search
               WHERE workspace_id = ${tx.workspaceId} AND owner_membership_id = ${p.membershipId}
               ORDER BY searched_at DESC, id DESC LIMIT ${this.ws.searchRecentMax}`.execute(tx.db)
         ).rows;
@@ -772,7 +850,7 @@ export class SearchService extends FileService {
     return this.trackSearch('recent_clear', () =>
       this.inWorkspace(caller, ws, {}, async (tx, p) => {
         const mine = await sql<{ id: string; query_key: string }>`
-          SELECT id, query_key FROM search.recent_query
+          SELECT id, query_key FROM search.recent_search
            WHERE workspace_id = ${tx.workspaceId} AND owner_membership_id = ${p.membershipId}`.execute(
           tx.db,
         );
@@ -782,7 +860,7 @@ export class SearchService extends FileService {
             : mine.rows.filter((r) => this.#handle(r.query_key) === handle).map((r) => r.id);
         if (handle !== undefined && !ids.length) throw new TenancyError('not_found');
         if (ids.length)
-          await sql`DELETE FROM search.recent_query WHERE workspace_id = ${tx.workspaceId}
+          await sql`DELETE FROM search.recent_search WHERE workspace_id = ${tx.workspaceId}
               AND owner_membership_id = ${p.membershipId} AND id = ANY(${ids}::uuid[])`.execute(
             tx.db,
           );

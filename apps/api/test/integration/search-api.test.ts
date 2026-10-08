@@ -118,7 +118,7 @@ describe('search API (5A)', () => {
       total: 1,
       total_is_lower_bound: false,
       index: { state: 'complete', pending: 0, failed: 0 },
-      page: { limit: 20, offset: 0, has_more: false },
+      page: { limit: 20, position: 1, has_more: false, next_cursor: null },
       query: { q: 'gannet', state: 'active' },
     });
     expect(data.results[0]).toMatchObject({

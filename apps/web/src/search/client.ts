@@ -48,7 +48,8 @@ export interface SearchQuery {
   updated: '' | SearchWindow;
   mine: boolean;
   mentioning_me: boolean;
-  offset: number;
+  /** Where this page continues, as the server issued it (empty: the first page). */
+  cursor: string;
 }
 
 export interface SearchResponse {
@@ -72,7 +73,8 @@ export interface SearchResponse {
     kinds: Array<{ kind: string; label: string; count: number }>;
     brands: Array<{ brand: BrandMarkerData; count: number }>;
   };
-  page: { limit: number; offset: number; has_more: boolean };
+  /** `position` is the 1-based place of the first result in the whole ranked list. */
+  page: { limit: number; position: number; has_more: boolean; next_cursor: string | null };
   limits: { results_max: number; count_max: number };
   index: IndexStatus;
 }
@@ -118,7 +120,7 @@ export function searchQueryString(q: SearchQuery, limit?: number): string {
   if (q.updated) p.set('updated', q.updated);
   if (q.mine) p.set('mine', 'true');
   if (q.mentioning_me) p.set('mentioning_me', 'true');
-  if (q.offset) p.set('offset', String(q.offset));
+  if (q.cursor) p.set('cursor', q.cursor);
   if (limit) p.set('limit', String(limit));
   return p.toString();
 }

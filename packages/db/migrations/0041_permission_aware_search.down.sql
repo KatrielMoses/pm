@@ -21,7 +21,7 @@ DROP FUNCTION exec_dispatch.discover_search_work(timestamptz, timestamptz, integ
 DROP FUNCTION search.record_purged();
 DROP FUNCTION search.source_removed();
 DROP FUNCTION search.source_changed();
-DROP TABLE search.recent_query;
-DROP TABLE search.index_task;
-DROP TABLE search.entry;
+DROP TABLE search.recent_search;
+DROP TABLE search.index_status;
+DROP TABLE search.search_document;
 DROP SCHEMA search;

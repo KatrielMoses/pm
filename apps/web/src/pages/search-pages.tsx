@@ -22,7 +22,7 @@ import {
 } from '../search/client.ts';
 import {
   activeFilters,
-  atOffset,
+  atCursor,
   EMPTY_QUERY,
   kindLabel,
   parseSearchParams,
@@ -241,8 +241,8 @@ export function SearchPage({ ws }: { ws: string }) {
 
   const shown = (data?.results ?? []).filter((r) => !gone.has(`${r.type}:${r.id}`));
   const filters = activeFilters(query);
-  const first = data ? data.page.offset + 1 : 0;
-  const last = data ? data.page.offset + data.results.length : 0;
+  const first = data ? data.page.position : 0;
+  const last = data ? data.page.position + data.results.length - 1 : 0;
   const totalText = data
     ? data.total_is_lower_bound
       ? `${number.format(data.total)} or more`
@@ -551,24 +551,21 @@ export function SearchPage({ ws }: { ws: string }) {
                 })}
               </ol>
             ) : null}
-            {data && (data.page.offset > 0 || data.page.has_more) ? (
+            {data && (data.page.position > 1 || data.page.next_cursor) ? (
               <nav aria-label="Result pages" className="actions">
-                {data.page.offset > 0 ? (
+                {data.page.position > 1 ? (
                   <Link
                     className="button button-secondary"
-                    to={searchHref(
-                      ws,
-                      atOffset(query, Math.max(data.page.offset - data.page.limit, 0)),
-                    )}
+                    to={searchHref(ws, atCursor(query, ''))}
                     onClick={() => resultsHeading.current?.focus()}
                   >
-                    Previous results
+                    First results
                   </Link>
                 ) : null}
-                {data.page.has_more ? (
+                {data.page.next_cursor ? (
                   <Link
                     className="button button-secondary"
-                    to={searchHref(ws, atOffset(query, data.page.offset + data.page.limit))}
+                    to={searchHref(ws, atCursor(query, data.page.next_cursor))}
                     onClick={() => resultsHeading.current?.focus()}
                   >
                     Next results
@@ -578,7 +575,7 @@ export function SearchPage({ ws }: { ws: string }) {
             ) : null}
             {data &&
             !data.page.has_more &&
-            data.page.offset + data.results.length >= data.limits.results_max ? (
+            data.page.position - 1 + data.results.length >= data.limits.results_max ? (
               <p className="hint">
                 Results stop at the first {number.format(data.limits.results_max)}. Narrow the
                 search to see more.

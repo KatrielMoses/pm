@@ -516,6 +516,9 @@ Forbidden metric labels: `workspace_id`, `brand_id`, `record_id`, `public_id`, `
 | `knowledge.exports` | counter | format, outcome | knowledge |
 | `knowledge.references` | counter | action, outcome | knowledge |
 | `knowledge.live` | counter | action, outcome | knowledge |
+| `search.requests` | counter | op, outcome | search |
+| `search.index.jobs` | counter | kind, outcome | search |
+| `search.query.duration` | histogram | outcome | search |
 | `files.requests` | counter | op, outcome | files |
 | `files.jobs` | counter | kind, outcome | files |
 
@@ -693,6 +696,21 @@ Forbidden metric labels: `workspace_id`, `brand_id`, `record_id`, `public_id`, `
 | `LIVE_POLL_WAIT_SECONDS` | Longest a live poll waits for news before answering; default 20, range 0–30. | 4D |
 | `LIVE_OP_LOG_MAX` | Operations kept so reconnecting editors can catch up; default 2000, range 100–10000. | 4D |
 | `LIVE_RATE_PER_MINUTE` | Most live editing requests one person makes per minute; default 1200, range 10–6000. | 4D |
+| `SEARCH_QUERY_MAX_CHARS` | Longest search query; default 200, range 20–500. | 5A |
+| `SEARCH_TERMS_MAX` | Most words and phrases in one search query; default 12, range 2–30. | 5A |
+| `SEARCH_PAGE_SIZE_MAX` | Most results one search page returns; default 50, range 10–100. | 5A |
+| `SEARCH_RESULTS_MAX` | Deepest result a search can page to; default 200, range 50–1000. | 5A |
+| `SEARCH_COUNT_MAX` | Where result counts and facets stop and say "at least"; default 1000, range 100–10000. | 5A |
+| `SEARCH_SNIPPET_CHARS` | Longest result snippet; default 220, range 80–500. | 5A |
+| `SEARCH_BODY_MAX_CHARS` | Most text indexed per record; default 100000, range 10000–100000. | 5A |
+| `SEARCH_INDEX_BATCH_MAX` | Most records one worker run indexes per workspace; default 200, range 10–1000. | 5A |
+| `SEARCH_INDEX_DISCOVERY_MAX` | Most workspaces one indexing run visits; default 50, range 1–500. | 5A |
+| `SEARCH_INDEX_MAX_ATTEMPTS` | Attempts to index a record before it is shown as failed; default 5, range 1–20. | 5A |
+| `SEARCH_INDEX_BACKOFF_SECONDS` | First wait before a failed indexing attempt is retried (it doubles); default 30, range 5–3600. | 5A |
+| `SEARCH_FAILED_RETRY_MINUTES` | How long a failed record waits between slow retries; default 360, range 10–10080. | 5A |
+| `SEARCH_RECENT_MAX` | Recent searches kept per person and workspace; default 25, range 5–100. | 5A |
+| `SEARCH_RECENT_RETENTION_DAYS` | How long a recent search is kept; default 90, range 1–365. | 5A |
+| `SEARCH_RATE_PER_MINUTE` | Most searches one person makes per minute; default 120, range 10–1200. | 5A |
 | `DOCUMENT_EMBED_URL_MAX_CHARS` | Longest address of an embedded image, video, or link; default 2048, range 128–8192. | 4C |
 | `FILE_UPLOAD_MAX_BYTES` | Largest single upload in bytes; default 104857600 (100 MiB), range 1024–5368709120. | 4E |
 | `WORKSPACE_STORAGE_QUOTA_BYTES` | Stored bytes one workspace may hold, counting bytes reserved by open upload sessions (a technical limit until plans set it, 10A); default 10737418240 (10 GiB), range 1048576–10995116277760. | 4E |

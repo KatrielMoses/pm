@@ -261,9 +261,9 @@ describe('database-enforced workspace existence (1A review 01, correction 2)', (
       'files.deliverable_version',
       'files.storage_usage',
       // Phase 5A search entries, the indexing queue, and recent searches.
-      'search.entry',
-      'search.index_task',
-      'search.recent_query',
+      'search.search_document',
+      'search.index_status',
+      'search.recent_search',
     ];
     expect(res.rows.map((r) => r.tbl).sort()).toEqual(
       [...TENANT_TABLES.map((t) => `exec.${t}`), ...phase1f, ...phase1c].sort(),

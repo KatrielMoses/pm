@@ -20,7 +20,7 @@ GRANT USAGE ON SCHEMA search TO app_rw, app_worker, pm_scheduler;
 -- deliverable); `context_record_id` is the record that opens it in context, shown only when the
 -- viewer may also read that record.
 -- ---------------------------------------------------------------------------------------------
-CREATE TABLE search.entry (
+CREATE TABLE search.search_document (
   workspace_id uuid NOT NULL REFERENCES tenancy.workspace (id) ON DELETE RESTRICT,
   source_kind text NOT NULL,
   source_id uuid NOT NULL,
@@ -41,32 +41,32 @@ CREATE TABLE search.entry (
     setweight(to_tsvector('simple'::regconfig, regexp_replace(body, '[\s!-/:-@\[-`{-~]+', ' ', 'g')), 'B') ||
     setweight(to_tsvector('english'::regconfig, regexp_replace(body, '[\s!-/:-@\[-`{-~]+', ' ', 'g')), 'B')
   ) STORED,
-  CONSTRAINT entry_pkey PRIMARY KEY (workspace_id, source_kind, source_id),
-  CONSTRAINT entry_auth_fkey FOREIGN KEY (workspace_id, auth_record_id)
+  CONSTRAINT search_document_pkey PRIMARY KEY (workspace_id, source_kind, source_id),
+  CONSTRAINT search_document_auth_fkey FOREIGN KEY (workspace_id, auth_record_id)
     REFERENCES core.record (workspace_id, id) ON DELETE CASCADE,
-  CONSTRAINT entry_context_fkey FOREIGN KEY (workspace_id, context_record_id)
+  CONSTRAINT search_document_context_fkey FOREIGN KEY (workspace_id, context_record_id)
     REFERENCES core.record (workspace_id, id) ON DELETE SET NULL (context_record_id),
-  CONSTRAINT entry_owner_fkey FOREIGN KEY (workspace_id, owner_membership_id)
+  CONSTRAINT search_document_owner_fkey FOREIGN KEY (workspace_id, owner_membership_id)
     REFERENCES tenancy.membership (workspace_id, id) ON DELETE SET NULL (owner_membership_id),
-  CONSTRAINT entry_kind_shape CHECK (source_kind ~ '^[a-z][a-z_]{1,30}$'),
-  CONSTRAINT entry_title_length CHECK (char_length(title) BETWEEN 1 AND 500),
-  CONSTRAINT entry_body_length CHECK (char_length(body) <= 100000)
+  CONSTRAINT search_document_kind_shape CHECK (source_kind ~ '^[a-z][a-z_]{1,30}$'),
+  CONSTRAINT search_document_title_length CHECK (char_length(title) BETWEEN 1 AND 500),
+  CONSTRAINT search_document_body_length CHECK (char_length(body) <= 100000)
 );
 -- No GIN index on `tsv`: under the forced tenant-isolation policy the planner cannot use one (the
 -- text-match operator is not leakproof, so it may not run before the policy; EXPLAIN as `app_rw`
 -- shows a scan filtered by workspace either way), and an unused index only slows every write. A
 -- query reads one workspace's entries through the primary key; see ADR-0028 D12 for the bound and
 -- the upgrade path.
-CREATE INDEX entry_by_auth ON search.entry (workspace_id, auth_record_id);
-CREATE INDEX entry_by_context ON search.entry (workspace_id, context_record_id);
-CREATE INDEX entry_by_owner ON search.entry (workspace_id, owner_membership_id);
-COMMENT ON TABLE search.entry IS 'Derived search projection (ADR-0028). Grants nothing: every read joins the governing record and applies the compiled visibility predicate. Rebuildable from the sources at any time.';
+CREATE INDEX search_document_by_auth ON search.search_document (workspace_id, auth_record_id);
+CREATE INDEX search_document_by_context ON search.search_document (workspace_id, context_record_id);
+CREATE INDEX search_document_by_owner ON search.search_document (workspace_id, owner_membership_id);
+COMMENT ON TABLE search.search_document IS 'Derived search projection (ADR-0028). Grants nothing: every read joins the governing record and applies the compiled visibility predicate. Rebuildable from the sources at any time.';
 
 -- ---------------------------------------------------------------------------------------------
 -- The indexing queue: keys only, never content. `pending` is waiting to be indexed; `failed`
 -- means the allowed attempts were used up (it is retried slowly and shown, never hidden).
 -- ---------------------------------------------------------------------------------------------
-CREATE TABLE search.index_task (
+CREATE TABLE search.index_status (
   workspace_id uuid NOT NULL REFERENCES tenancy.workspace (id) ON DELETE RESTRICT,
   source_kind text NOT NULL,
   source_id uuid NOT NULL,
@@ -77,25 +77,25 @@ CREATE TABLE search.index_task (
   next_attempt_at timestamptz NOT NULL DEFAULT now(),
   last_attempt_at timestamptz,
   failure_code text,
-  CONSTRAINT index_task_pkey PRIMARY KEY (workspace_id, source_kind, source_id),
-  CONSTRAINT index_task_auth_fkey FOREIGN KEY (workspace_id, auth_record_id)
+  CONSTRAINT index_status_pkey PRIMARY KEY (workspace_id, source_kind, source_id),
+  CONSTRAINT index_status_auth_fkey FOREIGN KEY (workspace_id, auth_record_id)
     REFERENCES core.record (workspace_id, id) ON DELETE CASCADE,
-  CONSTRAINT index_task_kind_shape CHECK (source_kind ~ '^[a-z][a-z_]{1,30}$'),
-  CONSTRAINT index_task_state_known CHECK (state IN ('pending', 'failed')),
-  CONSTRAINT index_task_attempts CHECK (attempts >= 0),
-  CONSTRAINT index_task_failure_shape CHECK (
+  CONSTRAINT index_status_kind_shape CHECK (source_kind ~ '^[a-z][a-z_]{1,30}$'),
+  CONSTRAINT index_status_state_known CHECK (state IN ('pending', 'failed')),
+  CONSTRAINT index_status_attempts CHECK (attempts >= 0),
+  CONSTRAINT index_status_failure_shape CHECK (
     failure_code IS NULL OR failure_code IN ('source_error', 'invalid_content', 'timeout', 'unknown_source'))
 );
-CREATE INDEX index_task_due ON search.index_task (next_attempt_at);
-CREATE INDEX index_task_by_state ON search.index_task (workspace_id, state, next_attempt_at);
-CREATE INDEX index_task_by_auth ON search.index_task (workspace_id, auth_record_id);
+CREATE INDEX index_status_due ON search.index_status (next_attempt_at);
+CREATE INDEX index_status_by_state ON search.index_status (workspace_id, state, next_attempt_at);
+CREATE INDEX index_status_by_auth ON search.index_status (workspace_id, auth_record_id);
 
 -- ---------------------------------------------------------------------------------------------
 -- Recent searches: the person's own typed queries (personal data, never audited, never copied to
 -- events). Filters name brands and projects by public identifier; they are checked again when
 -- listed, so a recent search never reveals a place the person can no longer see.
 -- ---------------------------------------------------------------------------------------------
-CREATE TABLE search.recent_query (
+CREATE TABLE search.recent_search (
   id uuid PRIMARY KEY,
   workspace_id uuid NOT NULL REFERENCES tenancy.workspace (id) ON DELETE RESTRICT,
   owner_membership_id uuid NOT NULL,
@@ -104,16 +104,16 @@ CREATE TABLE search.recent_query (
   query_key text NOT NULL,
   search_count integer NOT NULL DEFAULT 1,
   searched_at timestamptz NOT NULL DEFAULT now(),
-  CONSTRAINT recent_query_owner_fkey FOREIGN KEY (workspace_id, owner_membership_id)
+  CONSTRAINT recent_search_owner_fkey FOREIGN KEY (workspace_id, owner_membership_id)
     REFERENCES tenancy.membership (workspace_id, id) ON DELETE CASCADE,
-  CONSTRAINT recent_query_key UNIQUE (workspace_id, owner_membership_id, query_key),
-  CONSTRAINT recent_query_text CHECK (char_length(query) BETWEEN 1 AND 200),
-  CONSTRAINT recent_query_filters CHECK (jsonb_typeof(filters) = 'object' AND octet_length(filters::text) <= 2000),
-  CONSTRAINT recent_query_key_length CHECK (char_length(query_key) BETWEEN 1 AND 300),
-  CONSTRAINT recent_query_count CHECK (search_count >= 1)
+  CONSTRAINT recent_search_key UNIQUE (workspace_id, owner_membership_id, query_key),
+  CONSTRAINT recent_search_text CHECK (char_length(query) BETWEEN 1 AND 200),
+  CONSTRAINT recent_search_filters CHECK (jsonb_typeof(filters) = 'object' AND octet_length(filters::text) <= 2000),
+  CONSTRAINT recent_search_key_length CHECK (char_length(query_key) BETWEEN 1 AND 300),
+  CONSTRAINT recent_search_count CHECK (search_count >= 1)
 );
-CREATE INDEX recent_query_by_owner ON search.recent_query (workspace_id, owner_membership_id, searched_at DESC);
-CREATE INDEX recent_query_expiry ON search.recent_query (searched_at);
+CREATE INDEX recent_search_by_owner ON search.recent_search (workspace_id, owner_membership_id, searched_at DESC);
+CREATE INDEX recent_search_expiry ON search.recent_search (searched_at);
 
 -- ---------------------------------------------------------------------------------------------
 -- Triggers: a source change queues its key in the same transaction (so the change and its
@@ -146,7 +146,7 @@ BEGIN
     ELSE RAISE EXCEPTION 'search.source_changed: unregistered table %', TG_TABLE_NAME;
   END CASE;
   IF v_auth IS NULL THEN RETURN NULL; END IF;
-  INSERT INTO search.index_task (workspace_id, source_kind, source_id, auth_record_id)
+  INSERT INTO search.index_status (workspace_id, source_kind, source_id, auth_record_id)
   VALUES (NEW.workspace_id, v_kind, v_id, v_auth)
   ON CONFLICT (workspace_id, source_kind, source_id) DO UPDATE
     SET auth_record_id = EXCLUDED.auth_record_id, state = 'pending', attempts = 0,
@@ -158,8 +158,8 @@ CREATE FUNCTION search.source_removed() RETURNS trigger
   LANGUAGE plpgsql SECURITY DEFINER SET search_path = pg_catalog, pg_temp AS $$
 BEGIN
   -- Every registered source table is named for its source kind.
-  DELETE FROM search.entry WHERE workspace_id = OLD.workspace_id AND source_kind = TG_TABLE_NAME AND source_id = OLD.id;
-  DELETE FROM search.index_task WHERE workspace_id = OLD.workspace_id AND source_kind = TG_TABLE_NAME AND source_id = OLD.id;
+  DELETE FROM search.search_document WHERE workspace_id = OLD.workspace_id AND source_kind = TG_TABLE_NAME AND source_id = OLD.id;
+  DELETE FROM search.index_status WHERE workspace_id = OLD.workspace_id AND source_kind = TG_TABLE_NAME AND source_id = OLD.id;
   RETURN NULL;
 END $$;
 
@@ -168,9 +168,9 @@ END $$;
 CREATE FUNCTION search.record_purged() RETURNS trigger
   LANGUAGE plpgsql SECURITY DEFINER SET search_path = pg_catalog, pg_temp AS $$
 BEGIN
-  DELETE FROM search.entry WHERE workspace_id = NEW.workspace_id
+  DELETE FROM search.search_document WHERE workspace_id = NEW.workspace_id
     AND (auth_record_id = NEW.id OR context_record_id = NEW.id OR source_id = NEW.id);
-  DELETE FROM search.index_task WHERE workspace_id = NEW.workspace_id
+  DELETE FROM search.index_status WHERE workspace_id = NEW.workspace_id
     AND (auth_record_id = NEW.id OR source_id = NEW.id);
   RETURN NULL;
 END $$;
@@ -216,7 +216,7 @@ CREATE TRIGGER search_purged AFTER UPDATE OF lifecycle_state ON core.record
   EXECUTE FUNCTION search.record_purged();
 
 -- Existing rows are queued once, so the first worker runs index everything already there.
-INSERT INTO search.index_task (workspace_id, source_kind, source_id, auth_record_id)
+INSERT INTO search.index_status (workspace_id, source_kind, source_id, auth_record_id)
 SELECT workspace_id, 'task', id, id FROM work.task
 UNION ALL SELECT workspace_id, 'project', id, id FROM work.project
 UNION ALL SELECT workspace_id, 'milestone', id, id FROM work.milestone
@@ -230,10 +230,10 @@ ON CONFLICT DO NOTHING;
 -- ---------------------------------------------------------------------------------------------
 -- Worker discovery: workspaces with queued keys that are due, or recent searches past retention.
 -- ---------------------------------------------------------------------------------------------
-CREATE POLICY scheduler_discovery ON search.index_task FOR SELECT TO pm_scheduler USING (true);
-GRANT SELECT (workspace_id, next_attempt_at) ON search.index_task TO pm_scheduler;
-CREATE POLICY scheduler_discovery ON search.recent_query FOR SELECT TO pm_scheduler USING (true);
-GRANT SELECT (workspace_id, searched_at) ON search.recent_query TO pm_scheduler;
+CREATE POLICY scheduler_discovery ON search.index_status FOR SELECT TO pm_scheduler USING (true);
+GRANT SELECT (workspace_id, next_attempt_at) ON search.index_status TO pm_scheduler;
+CREATE POLICY scheduler_discovery ON search.recent_search FOR SELECT TO pm_scheduler USING (true);
+GRANT SELECT (workspace_id, searched_at) ON search.recent_search TO pm_scheduler;
 
 CREATE FUNCTION exec_dispatch.discover_search_work(p_now timestamptz, p_retention_before timestamptz, p_limit integer)
   RETURNS TABLE (workspace_id uuid)
@@ -241,11 +241,11 @@ CREATE FUNCTION exec_dispatch.discover_search_work(p_now timestamptz, p_retentio
   SET search_path = pg_catalog, pg_temp
   AS $$
   SELECT w.workspace_id FROM (
-    SELECT t.workspace_id, min(t.next_attempt_at) AS due FROM search.index_task t
+    SELECT t.workspace_id, min(t.next_attempt_at) AS due FROM search.index_status t
      WHERE t.next_attempt_at <= p_now
      GROUP BY t.workspace_id
     UNION ALL
-    SELECT q.workspace_id, min(q.searched_at) FROM search.recent_query q
+    SELECT q.workspace_id, min(q.searched_at) FROM search.recent_search q
      WHERE q.searched_at < p_retention_before
      GROUP BY q.workspace_id
   ) w
@@ -260,23 +260,23 @@ ALTER FUNCTION exec_dispatch.discover_search_work(timestamptz, timestamptz, inte
 -- ---------------------------------------------------------------------------------------------
 -- Row-level security and grants
 -- ---------------------------------------------------------------------------------------------
-ALTER TABLE search.entry ENABLE ROW LEVEL SECURITY;
-ALTER TABLE search.entry FORCE ROW LEVEL SECURITY;
-CREATE POLICY tenant_isolation ON search.entry
+ALTER TABLE search.search_document ENABLE ROW LEVEL SECURITY;
+ALTER TABLE search.search_document FORCE ROW LEVEL SECURITY;
+CREATE POLICY tenant_isolation ON search.search_document
   USING (workspace_id = exec.current_workspace_id()) WITH CHECK (workspace_id = exec.current_workspace_id());
-ALTER TABLE search.index_task ENABLE ROW LEVEL SECURITY;
-ALTER TABLE search.index_task FORCE ROW LEVEL SECURITY;
-CREATE POLICY tenant_isolation ON search.index_task
+ALTER TABLE search.index_status ENABLE ROW LEVEL SECURITY;
+ALTER TABLE search.index_status FORCE ROW LEVEL SECURITY;
+CREATE POLICY tenant_isolation ON search.index_status
   USING (workspace_id = exec.current_workspace_id()) WITH CHECK (workspace_id = exec.current_workspace_id());
-ALTER TABLE search.recent_query ENABLE ROW LEVEL SECURITY;
-ALTER TABLE search.recent_query FORCE ROW LEVEL SECURITY;
-CREATE POLICY tenant_isolation ON search.recent_query
+ALTER TABLE search.recent_search ENABLE ROW LEVEL SECURITY;
+ALTER TABLE search.recent_search FORCE ROW LEVEL SECURITY;
+CREATE POLICY tenant_isolation ON search.recent_search
   USING (workspace_id = exec.current_workspace_id()) WITH CHECK (workspace_id = exec.current_workspace_id());
 
-REVOKE ALL ON search.entry, search.index_task, search.recent_query FROM PUBLIC;
+REVOKE ALL ON search.search_document, search.index_status, search.recent_search FROM PUBLIC;
 -- The API reads entries and queue state (search and its status); only the worker writes them.
-GRANT SELECT ON search.entry, search.index_task TO app_rw;
-GRANT SELECT, INSERT, UPDATE, DELETE ON search.entry, search.index_task TO app_worker;
+GRANT SELECT ON search.search_document, search.index_status TO app_rw;
+GRANT SELECT, INSERT, UPDATE, DELETE ON search.search_document, search.index_status TO app_worker;
 -- Recent searches: the person's own rows, written by the API, swept by retention in the worker.
-GRANT SELECT, INSERT, UPDATE, DELETE ON search.recent_query TO app_rw;
-GRANT SELECT, DELETE ON search.recent_query TO app_worker;
+GRANT SELECT, INSERT, UPDATE, DELETE ON search.recent_search TO app_rw;
+GRANT SELECT, DELETE ON search.recent_search TO app_worker;

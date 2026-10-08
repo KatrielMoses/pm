@@ -2553,7 +2553,7 @@ export interface StorageUsageTable {
 }
 
 // Phase 5A: the permission-aware search projection, its indexing queue, and recent searches (ADR-0028).
-export interface SearchEntryTable {
+export interface SearchDocumentTable {
   workspace_id: string;
   source_kind: string;
   source_id: string;
@@ -2567,7 +2567,7 @@ export interface SearchEntryTable {
   /** Generated from title (weight A) and body (weight B); never written. */
   tsv: ColumnType<string, never, never>;
 }
-export interface SearchIndexTaskTable {
+export interface SearchIndexStatusTable {
   workspace_id: string;
   source_kind: string;
   source_id: string;
@@ -2579,7 +2579,7 @@ export interface SearchIndexTaskTable {
   last_attempt_at: Ts | null;
   failure_code: 'source_error' | 'invalid_content' | 'timeout' | 'unknown_source' | null;
 }
-export interface SearchRecentQueryTable {
+export interface SearchRecentSearchTable {
   id: string;
   workspace_id: string;
   owner_membership_id: string;
@@ -2598,9 +2598,9 @@ export interface Database {
   'files.deliverable': DeliverableTable;
   'files.deliverable_version': DeliverableVersionTable;
   'files.storage_usage': StorageUsageTable;
-  'search.entry': SearchEntryTable;
-  'search.index_task': SearchIndexTaskTable;
-  'search.recent_query': SearchRecentQueryTable;
+  'search.search_document': SearchDocumentTable;
+  'search.index_status': SearchIndexStatusTable;
+  'search.recent_search': SearchRecentSearchTable;
   'notify.notification': NotificationTable;
   'knowledge.document': DocumentTable;
   'knowledge.document_version': DocumentVersionTable;
@@ -3940,7 +3940,7 @@ export const TABLE_COLUMNS: Readonly<Record<keyof Database, readonly string[]>> 
     'updated_at',
     'version',
   ],
-  'search.entry': [
+  'search.search_document': [
     'workspace_id',
     'source_kind',
     'source_id',
@@ -3953,7 +3953,7 @@ export const TABLE_COLUMNS: Readonly<Record<keyof Database, readonly string[]>> 
     'indexed_at',
     'tsv',
   ],
-  'search.index_task': [
+  'search.index_status': [
     'workspace_id',
     'source_kind',
     'source_id',
@@ -3965,7 +3965,7 @@ export const TABLE_COLUMNS: Readonly<Record<keyof Database, readonly string[]>> 
     'last_attempt_at',
     'failure_code',
   ],
-  'search.recent_query': [
+  'search.recent_search': [
     'id',
     'workspace_id',
     'owner_membership_id',

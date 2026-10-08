@@ -225,7 +225,7 @@ describe('Permission-aware search (5A)', () => {
     const after = await find(outsider, 'kestrel');
     expect(after.total).toBe(0);
     expect(after.results).toEqual([]);
-    expect((await sql(`SELECT count(*)::int AS n FROM search.index_task`))[0]!.n).toBe(0);
+    expect((await sql(`SELECT count(*)::int AS n FROM search.index_status`))[0]!.n).toBe(0);
   });
 
   it('hides trashed and archived records at once, and brings them back on restore without reindexing', async () => {
@@ -278,7 +278,7 @@ describe('Permission-aware search (5A)', () => {
     expect(
       (
         await sql(
-          `SELECT count(*)::int AS n FROM search.entry WHERE source_kind = 'comment' AND body LIKE '%Marmot%'`,
+          `SELECT count(*)::int AS n FROM search.search_document WHERE source_kind = 'comment' AND body LIKE '%Marmot%'`,
         )
       )[0]!.n,
     ).toBe(0);
@@ -334,7 +334,7 @@ describe('Permission-aware search (5A)', () => {
     expect(ids(await find(editor, 'wombat'))).toEqual([fine.id]);
     let row = (
       await sql(
-        `SELECT state, attempts, failure_code, next_attempt_at > now() AS later FROM search.index_task`,
+        `SELECT state, attempts, failure_code, next_attempt_at > now() AS later FROM search.index_status`,
       )
     )[0]!;
     expect(row).toMatchObject({
@@ -353,7 +353,7 @@ describe('Permission-aware search (5A)', () => {
       at += 3 * 3_600_000;
       await indexWorkspace(d, wsId, new Date(at));
     }
-    row = (await sql(`SELECT state, attempts FROM search.index_task`))[0]!;
+    row = (await sql(`SELECT state, attempts FROM search.index_status`))[0]!;
     expect(row).toMatchObject({ state: 'failed', attempts: 5 });
     status = (await find(editor, 'wombat')).index;
     expect(status).toMatchObject({ state: 'degraded', failed: 1 });
@@ -384,7 +384,7 @@ describe('Permission-aware search (5A)', () => {
     const entries = async () =>
       (
         await sql(
-          `SELECT count(*)::int AS n FROM search.entry WHERE auth_record_id = '${id}' OR source_id = '${id}'`,
+          `SELECT count(*)::int AS n FROM search.search_document WHERE auth_record_id = '${id}' OR source_id = '${id}'`,
         )
       )[0]!.n;
     // Awaiting purge: the record is already invisible, whatever the index still holds.
@@ -401,7 +401,9 @@ describe('Permission-aware search (5A)', () => {
     expect(await entries()).toBe(0);
     expect(
       (
-        await sql(`SELECT count(*)::int AS n FROM search.index_task WHERE auth_record_id = '${id}'`)
+        await sql(
+          `SELECT count(*)::int AS n FROM search.index_status WHERE auth_record_id = '${id}'`,
+        )
       )[0]!.n,
     ).toBe(0);
     // Deleting a source row (the content hook of a purge) removes its entry the same way.
@@ -413,7 +415,11 @@ describe('Permission-aware search (5A)', () => {
       await ksql`DELETE FROM work.task WHERE id = ${id2}`.execute(tx.db);
     });
     expect(
-      (await sql(`SELECT count(*)::int AS n FROM search.entry WHERE source_id = '${id2}'`))[0]!.n,
+      (
+        await sql(
+          `SELECT count(*)::int AS n FROM search.search_document WHERE source_id = '${id2}'`,
+        )
+      )[0]!.n,
     ).toBe(0);
     // A queued key whose source is already gone is cleaned up by the worker, not kept or failed.
     const t3 = await task(editor, { title: 'Quokka third' });
@@ -421,7 +427,7 @@ describe('Permission-aware search (5A)', () => {
     await env.h.worker
       .withWorkspace(wsId, { module: 'test' }, async (tx) => {
         await ksql`DELETE FROM work.task WHERE id = ${id3}`.execute(tx.db);
-        await ksql`INSERT INTO search.index_task (workspace_id, source_kind, source_id, auth_record_id)
+        await ksql`INSERT INTO search.index_status (workspace_id, source_kind, source_id, auth_record_id)
         VALUES (${wsId}, 'task', ${id3}, ${id3})`.execute(tx.db);
       })
       .catch(() => undefined);
@@ -445,7 +451,10 @@ describe('Permission-aware search (5A)', () => {
     );
     await expect(find(editor, 'a', { state: 'x' })).rejects.toEqual(issueOf('invalid_option'));
     await expect(find(editor, 'a', { limit: 51 })).rejects.toEqual(issueOf('invalid_option'));
-    await expect(find(editor, 'a', { offset: 200 })).rejects.toEqual(issueOf('invalid_option'));
+    await expect(find(editor, 'a', { cursor: 'not-a-cursor' })).rejects.toEqual(
+      reason('cursor_invalid'),
+    );
+    await expect(find(editor, 'a', { cursor: 42 })).rejects.toEqual(reason('cursor_invalid'));
     // A brand the person cannot see and one that does not exist: the same refusal.
     const summit = brands.Summit!;
     await expect(find(outsider, 'a', { brand: summit })).rejects.toEqual(issueOf('unavailable'));
@@ -543,7 +552,7 @@ describe('Permission-aware search (5A)', () => {
     expect(ids(await find(owner, 'falcon', { mentioning_me: true }))).toEqual([]);
     expect((await find(owner, 'falcon', { updated: 'day' })).total).toBe(5);
     await sql(
-      `UPDATE search.entry SET source_updated_at = now() - interval '40 days' WHERE title = 'Falcon loose end'`,
+      `UPDATE search.search_document SET source_updated_at = now() - interval '40 days' WHERE title = 'Falcon loose end'`,
     );
     expect(ids(await find(owner, 'falcon', { updated: 'month' }))).not.toContain(outside.id);
     expect(ids(await find(owner, 'falcon', { updated: 'year' }))).toContain(outside.id);
@@ -552,14 +561,29 @@ describe('Permission-aware search (5A)', () => {
       issueOf('unavailable'),
     );
     expect(ids(await find(editor, 'falcon'))).not.toContain(summitTask.id);
-    // Paging goes through the same authorized set, with a stable order.
+    // Paging goes through the same authorized set, in one stable ranked order, by keyset cursor.
     const p1 = await find(owner, 'falcon', { limit: 2 });
-    const p2 = await find(owner, 'falcon', { limit: 2, offset: 2 });
-    const p3 = await find(owner, 'falcon', { limit: 2, offset: 4 });
-    expect(p1.page.has_more).toBe(true);
-    expect(p3.page.has_more).toBe(false);
-    expect([...ids(p1), ...ids(p2), ...ids(p3)]).toEqual(
-      ids(all).length ? [...ids(p1), ...ids(p2), ...ids(p3)] : [],
+    expect(p1.page).toMatchObject({ limit: 2, position: 1, has_more: true });
+    const p2 = await find(owner, 'falcon', { limit: 2, cursor: p1.page.next_cursor });
+    expect(p2.page).toMatchObject({ position: 3, has_more: true });
+    const p3 = await find(owner, 'falcon', { limit: 2, cursor: p2.page.next_cursor });
+    expect(p3.page).toMatchObject({ position: 5, has_more: false, next_cursor: null });
+    expect([...ids(p1), ...ids(p2), ...ids(p3)]).toEqual(ids(await find(owner, 'falcon')));
+    // A cursor works only for the person and the search it was issued for.
+    const cursor = p1.page.next_cursor;
+    await expect(find(editor, 'falcon', { cursor })).rejects.toEqual(reason('cursor_invalid'));
+    await expect(find(owner, 'falcon wiring', { cursor })).rejects.toEqual(
+      reason('cursor_invalid'),
+    );
+    await expect(find(owner, 'falcon', { cursor, kind: 'task' })).rejects.toEqual(
+      reason('cursor_invalid'),
+    );
+    await expect(find(owner, 'falcon', { cursor: `${cursor}x` })).rejects.toEqual(
+      reason('cursor_invalid'),
+    );
+    // A change between pages never repeats or skips what was already shown.
+    expect(new Set(ids(await find(owner, 'falcon', { limit: 2, cursor })))).toEqual(
+      new Set(ids(p2)),
     );
     expect(new Set([...ids(p1), ...ids(p2), ...ids(p3)])).toEqual(new Set(ids(all)));
   });
@@ -702,7 +726,7 @@ describe('Permission-aware search (5A)', () => {
     await env.svc.clearRecentSearches(editor, ws);
     expect(await mine(editor)).toEqual([]);
     expect(
-      (await sql(`SELECT count(*)::int AS n FROM search.recent_query`))[0]!.n,
+      (await sql(`SELECT count(*)::int AS n FROM search.recent_search`))[0]!.n,
     ).toBeGreaterThanOrEqual(0);
   });
 
@@ -722,7 +746,7 @@ describe('Permission-aware search (5A)', () => {
       Array.from({ length: 40 }, (_, i) => task(editor, { title: `Curlew batch item ${i}` })),
     );
     expect(
-      (await sql(`SELECT count(*)::int AS n FROM search.index_task`))[0]!.n,
+      (await sql(`SELECT count(*)::int AS n FROM search.index_status`))[0]!.n,
     ).toBeGreaterThanOrEqual(40);
     // Three workers drain the same workspace at once: every key is taken by exactly one of them.
     const small = { ...deps(), settings: { ...DEFAULT_WORK_SETTINGS, searchIndexBatchMax: 10 } };
@@ -731,13 +755,15 @@ describe('Permission-aware search (5A)', () => {
     const total = runs.reduce((n, r) => n + r.indexed, 0);
     expect(total).toBeGreaterThan(0);
     expect(runs.every((r) => r.failed === 0 && r.retried === 0)).toBe(true);
-    expect((await sql(`SELECT count(*)::int AS n FROM search.index_task`))[0]!.n).toBe(0);
+    expect((await sql(`SELECT count(*)::int AS n FROM search.index_status`))[0]!.n).toBe(0);
     expect(new Set(ids(await find(editor, 'curlew', { limit: 50 })))).toEqual(
       new Set(made.map((t) => t.id)),
     );
     expect(
       (
-        await sql(`SELECT count(*)::int AS n FROM search.entry WHERE title LIKE 'Curlew batch%'`)
+        await sql(
+          `SELECT count(*)::int AS n FROM search.search_document WHERE title LIKE 'Curlew batch%'`,
+        )
       )[0]!.n,
     ).toBe(40);
 
@@ -790,7 +816,7 @@ describe('Permission-aware search (5A)', () => {
     await Promise.all([inFlight, edit]);
     expect(edited).toBe(true);
     // The indexer wrote the text it read; the change queued behind it, so one more run converges.
-    expect((await sql(`SELECT count(*)::int AS n FROM search.index_task`))[0]!.n).toBe(1);
+    expect((await sql(`SELECT count(*)::int AS n FROM search.index_status`))[0]!.n).toBe(1);
     expect((await find(editor, 'curlew', { limit: 50 })).index.state).toBe('catching_up');
     await drain();
     expect(ids(await find(editor, 'renamed'))).toEqual([target.id]);
@@ -863,7 +889,9 @@ describe('Permission-aware search (5A)', () => {
     const run = await drain();
     expect(run.failed).toBe(0);
     const len = (
-      await sql(`SELECT char_length(body)::int AS n FROM search.entry WHERE title = 'Big one'`)
+      await sql(
+        `SELECT char_length(body)::int AS n FROM search.search_document WHERE title = 'Big one'`,
+      )
     )[0]!.n;
     expect(len).toBeGreaterThan(10_000);
     expect(len).toBeLessThanOrEqual(100_000);
@@ -880,13 +908,15 @@ describe('Permission-aware search (5A)', () => {
       limits: { results_max: 4, count_max: 3 },
     });
     expect(r.facets.kinds).toEqual([{ kind: 'task', label: 'Tasks', count: 3 }]);
-    expect(r.page).toMatchObject({ limit: 2, offset: 0, has_more: true });
-    const deep = await capped.svc.search(editor, ws, { q: 'bittern', limit: 2, offset: 2 });
+    expect(r.page).toMatchObject({ limit: 2, position: 1, has_more: true });
+    const deep = await capped.svc.search(editor, ws, {
+      q: 'bittern',
+      limit: 2,
+      cursor: r.page.next_cursor,
+    });
+    // Depth stops at SEARCH_RESULTS_MAX (4) however many matches there are.
     expect(deep.results).toHaveLength(2);
-    expect(deep.page.has_more).toBe(false);
-    await expect(capped.svc.search(editor, ws, { q: 'bittern', offset: 4 })).rejects.toEqual(
-      issueOf('invalid_option'),
-    );
+    expect(deep.page).toMatchObject({ position: 3, has_more: false, next_cursor: null });
     await expect(capped.svc.search(editor, ws, { q: 'bittern', limit: 3 })).rejects.toEqual(
       issueOf('invalid_option'),
     );
@@ -899,7 +929,7 @@ describe('Permission-aware search (5A)', () => {
     expect(
       (
         await sql(
-          `SELECT count(*)::int AS n FROM search.recent_query WHERE owner_membership_id = '${rid}'`,
+          `SELECT count(*)::int AS n FROM search.recent_search WHERE owner_membership_id = '${rid}'`,
         )
       )[0]!.n,
     ).toBe(1);
@@ -909,13 +939,13 @@ describe('Permission-aware search (5A)', () => {
     expect(
       (
         await sql(
-          `SELECT count(*)::int AS n FROM search.recent_query WHERE owner_membership_id = '${rid}'`,
+          `SELECT count(*)::int AS n FROM search.recent_search WHERE owner_membership_id = '${rid}'`,
         )
       )[0]!.n,
     ).toBe(0);
     // Retention: searches older than the bound are swept by the indexing job's housekeeping.
     await env.svc.recordRecentSearch(owner, ws, { q: 'old search' });
-    await sql(`UPDATE search.recent_query SET searched_at = now() - interval '120 days'`);
+    await sql(`UPDATE search.recent_search SET searched_at = now() - interval '120 days'`);
     const { sweepRecentSearches } = await import('@pm/work');
     expect(await sweepRecentSearches(deps(), wsId)).toBeGreaterThanOrEqual(1);
     expect((await env.svc.listRecentSearches(owner, ws)).map((r: any) => r.q)).not.toContain(

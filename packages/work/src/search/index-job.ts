@@ -77,7 +77,7 @@ async function indexOne(
 ): Promise<ItemResult> {
   const ws = tx.workspaceId;
   const claimed = (
-    await sql<Claimed>`SELECT source_kind, source_id, attempts FROM search.index_task
+    await sql<Claimed>`SELECT source_kind, source_id, attempts FROM search.index_status
         WHERE workspace_id = ${ws} AND next_attempt_at <= ${now}
         ORDER BY next_attempt_at, requested_at, source_id
         LIMIT 1 FOR UPDATE SKIP LOCKED`.execute(tx.db)
@@ -94,13 +94,13 @@ async function indexOne(
         bodyMax: d.settings.searchBodyMaxChars,
       });
       if (!doc) {
-        await sql`DELETE FROM search.entry WHERE workspace_id = ${ws}
+        await sql`DELETE FROM search.search_document WHERE workspace_id = ${ws}
             AND source_kind = ${claimed.source_kind} AND source_id = ${claimed.source_id}`.execute(
           tx.db,
         );
         outcome = 'removed';
       } else {
-        await sql`INSERT INTO search.entry (workspace_id, source_kind, source_id, auth_record_id,
+        await sql`INSERT INTO search.search_document (workspace_id, source_kind, source_id, auth_record_id,
               context_record_id, title, body, owner_membership_id, source_updated_at, indexed_at)
             VALUES (${ws}, ${claimed.source_kind}, ${claimed.source_id}, ${doc.authRecordId},
               ${doc.contextRecordId}, ${doc.title}, ${doc.body}, ${doc.ownerMembershipId},
@@ -122,7 +122,7 @@ async function indexOne(
     }
   }
   if (!failure) {
-    await sql`DELETE FROM search.index_task WHERE workspace_id = ${ws}
+    await sql`DELETE FROM search.index_status WHERE workspace_id = ${ws}
         AND source_kind = ${claimed.source_kind} AND source_id = ${claimed.source_id}`.execute(
       tx.db,
     );
@@ -133,7 +133,7 @@ async function indexOne(
   const waitSeconds = exhausted
     ? d.settings.searchFailedRetryMinutes * 60
     : backoffSeconds(attempts, d.settings.searchIndexBackoffSeconds);
-  await sql`UPDATE search.index_task
+  await sql`UPDATE search.index_status
       SET attempts = ${attempts}, state = ${exhausted ? 'failed' : 'pending'},
           failure_code = ${failure}, last_attempt_at = ${now},
           next_attempt_at = ${new Date(now.getTime() + waitSeconds * 1000)}
@@ -177,8 +177,8 @@ export async function sweepRecentSearches(
   const settings = d.settings ?? DEFAULT_WORK_SETTINGS;
   const before = new Date(now.getTime() - settings.searchRecentRetentionDays * 86_400_000);
   return d.tenant.withWorkspace(workspaceId, { module: 'search' }, async (tx) => {
-    const r = await sql`DELETE FROM search.recent_query WHERE id IN (
-        SELECT id FROM search.recent_query WHERE workspace_id = ${workspaceId} AND searched_at < ${before}
+    const r = await sql`DELETE FROM search.recent_search WHERE id IN (
+        SELECT id FROM search.recent_search WHERE workspace_id = ${workspaceId} AND searched_at < ${before}
          ORDER BY searched_at LIMIT ${settings.searchIndexBatchMax})`.execute(tx.db);
     return Number(r.numAffectedRows ?? 0);
   });

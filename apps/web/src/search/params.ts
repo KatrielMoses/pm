@@ -18,12 +18,13 @@ export const EMPTY_QUERY: SearchQuery = {
   updated: '',
   mine: false,
   mentioning_me: false,
-  offset: 0,
+  cursor: '',
 };
 
 const KIND = /^[a-z][a-z_]{1,30}$/;
 const BRAND = /^br_[0-9A-HJKMNP-TV-Z]{26}$/;
 const PROJECT = /^prj_[0-9A-HJKMNP-TV-Z]{26}$/;
+const CURSOR = /^[A-Za-z0-9_-]{1,2048}$/;
 
 const list = (p: URLSearchParams, name: string) =>
   p
@@ -35,7 +36,6 @@ const list = (p: URLSearchParams, name: string) =>
 export function parseSearchParams(p: URLSearchParams, maxChars = 200): SearchQuery {
   const state = p.get('state') as SearchState | null;
   const updated = p.get('updated') as SearchWindow | null;
-  const offset = Number(p.get('offset') ?? 0);
   return {
     q: (p.get('q') ?? '').slice(0, maxChars),
     kind: [...new Set(list(p, 'kind').filter((k) => KIND.test(k)))].slice(0, 12),
@@ -45,7 +45,7 @@ export function parseSearchParams(p: URLSearchParams, maxChars = 200): SearchQue
     updated: updated && SEARCH_WINDOWS.includes(updated) ? updated : '',
     mine: p.get('mine') === 'true',
     mentioning_me: p.get('mentioning_me') === 'true',
-    offset: Number.isInteger(offset) && offset > 0 && offset < 10_000 ? offset : 0,
+    cursor: CURSOR.test(p.get('cursor') ?? '') ? p.get('cursor')! : '',
   };
 }
 
@@ -60,7 +60,7 @@ export function toSearchParams(q: SearchQuery): URLSearchParams {
   if (q.updated) p.set('updated', q.updated);
   if (q.mine) p.set('mine', 'true');
   if (q.mentioning_me) p.set('mentioning_me', 'true');
-  if (q.offset) p.set('offset', String(q.offset));
+  if (q.cursor) p.set('cursor', q.cursor);
   return p;
 }
 
@@ -82,14 +82,14 @@ export function activeFilters(q: SearchQuery): number {
   );
 }
 
-/** Same search with a different first result (paging); the filters are untouched. */
-export const atOffset = (q: SearchQuery, offset: number): SearchQuery => ({ ...q, offset });
+/** Same search continuing from a cursor the server issued (paging); the filters are untouched. */
+export const atCursor = (q: SearchQuery, cursor: string): SearchQuery => ({ ...q, cursor });
 
 /** Changing what is asked starts again from the first result. */
 export const withFilters = (q: SearchQuery, patch: Partial<SearchQuery>): SearchQuery => ({
   ...q,
   ...patch,
-  offset: 0,
+  cursor: '',
 });
 
 type Ref = { type: string; id: string };
