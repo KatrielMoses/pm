@@ -339,10 +339,12 @@ test('appearance and reflow: forced colours, reduced motion, 320 px, and 200% zo
   const { url } = await setup(page, info, 'talk-look');
   await openTask(page, url);
   await post(page, `Long unbroken text ${'abcdefghij'.repeat(30)} and more words to wrap.`);
-  await expect(card(page, 'Comments').getByText(/Long unbroken text/)).toBeVisible();
+  // The posted comment is in the list (not just the composer's text) before the page reloads.
+  const posted = card(page, 'Comments').getByRole('list', { name: 'Comments' });
+  await expect(posted.getByText(/Long unbroken text/)).toBeVisible();
   await page.emulateMedia({ reducedMotion: 'reduce', forcedColors: 'active' });
   await page.reload();
-  await expect(card(page, 'Comments').getByText(/Long unbroken text/)).toBeVisible();
+  await expect(posted.getByText(/Long unbroken text/)).toBeVisible();
   await expectAccessible(page, 'comments, forced colours and reduced motion');
   const reaction = card(page, 'Comments').getByRole('button', { name: 'Heart' });
   await reaction.click();
@@ -440,6 +442,10 @@ test('a read-only member and a share-only guest see only what they may', async (
   const reader = await person(browser, page, ws, info, 'talk-ro-r', 'Rae Reader', 'Read-only');
   await giveBrand(page, ws, 'Harbor', 'Rae Reader', 'view');
   const rp = reader.page;
+  // The grant is in force on the server before the reader opens the task.
+  await expect
+    .poll(async () => (await rp.request.get(`${base}/tasks/${task.id}`)).status())
+    .toBe(200);
   await openTask(rp, url);
   await expect(card(rp, 'Comments').getByText('A note from the founder.')).toBeVisible();
   await expect(rp.getByLabel('Add a comment', { exact: true })).toHaveCount(0);
