@@ -2384,6 +2384,44 @@ export interface DocumentSuggestionTable {
   updated_at: DTs;
   version: Defaulted<number>;
 }
+export interface EditDraftTable {
+  workspace_id: string;
+  document_id: string;
+  base_version: number;
+  content: Json<Record<string, unknown>>;
+  content_hash: string;
+  seq: Defaulted<string | number>;
+  checkpoint_seq: Defaulted<string | number>;
+  dirty: Defaulted<boolean>;
+  last_editor_membership_id: string | null;
+  created_at: DTs;
+  updated_at: DTs;
+}
+export interface EditSessionTable {
+  id: string;
+  workspace_id: string;
+  document_id: string;
+  membership_id: string;
+  session_key: string;
+  mode: Defaulted<'edit' | 'view'>;
+  color: Defaulted<number>;
+  caret_block: string | null;
+  started_at: DTs;
+  last_seen_at: DTs;
+  expires_at: Ts;
+}
+export interface EditOpTable {
+  workspace_id: string;
+  document_id: string;
+  seq: string | number;
+  session_id: string | null;
+  membership_id: string;
+  op_id: string;
+  kind: 'insert' | 'replace' | 'delete' | 'move';
+  block_id: string;
+  payload: Json<Record<string, unknown>>;
+  created_at: DTs;
+}
 export interface SourceApprovalTable {
   id: string;
   workspace_id: string;
@@ -2397,7 +2435,7 @@ export interface SourceApprovalTable {
 
 // Phase 4E: files, immutable versions, upload sessions, deliverables, and storage usage (ADR-0026).
 export type FileScanState = 'pending' | 'clean' | 'infected' | 'error';
-export type FileHostKind = 'workspace' | 'brand' | 'project' | 'task' | 'comment';
+export type FileHostKind = 'workspace' | 'brand' | 'project' | 'task' | 'comment' | 'document';
 export type DeliverableState =
   'draft' | 'ready_for_review' | 'changes_requested' | 'accepted' | 'rejected';
 export interface FileObjectTable {
@@ -2528,6 +2566,9 @@ export interface Database {
   'knowledge.document_reference': DocumentReferenceTable;
   'knowledge.document_suggestion': DocumentSuggestionTable;
   'knowledge.source_approval': SourceApprovalTable;
+  'knowledge.edit_draft': EditDraftTable;
+  'knowledge.edit_session': EditSessionTable;
+  'knowledge.edit_op': EditOpTable;
   'notify.digest': DigestTable;
   'notify.delivery': DeliveryTable;
   'notify.preference': NotificationPreferenceTable;
@@ -3857,6 +3898,44 @@ export const TABLE_COLUMNS: Readonly<Record<keyof Database, readonly string[]>> 
     'created_at',
     'updated_at',
     'version',
+  ],
+  'knowledge.edit_draft': [
+    'workspace_id',
+    'document_id',
+    'base_version',
+    'content',
+    'content_hash',
+    'seq',
+    'checkpoint_seq',
+    'dirty',
+    'last_editor_membership_id',
+    'created_at',
+    'updated_at',
+  ],
+  'knowledge.edit_session': [
+    'id',
+    'workspace_id',
+    'document_id',
+    'membership_id',
+    'session_key',
+    'mode',
+    'color',
+    'caret_block',
+    'started_at',
+    'last_seen_at',
+    'expires_at',
+  ],
+  'knowledge.edit_op': [
+    'workspace_id',
+    'document_id',
+    'seq',
+    'session_id',
+    'membership_id',
+    'op_id',
+    'kind',
+    'block_id',
+    'payload',
+    'created_at',
   ],
   'knowledge.source_approval': [
     'id',

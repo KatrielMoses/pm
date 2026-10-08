@@ -289,6 +289,7 @@ Requirements flagged with each decision are listed automatically in [requirement
 - **Affects:** DOC-011, COL-011 · phase 4D.
 - **Safe default:** Optimistic concurrency, version history, and conflict prompts at launch, with realtime later.
 - **If deferred:** 4D builds the safe default.
+- **Status (Phase 4D, 2026-10-08):** Decided and implemented: live editing ships as an optional mode with the safe default as its fallback. The engine is a server-sequenced block-operation log with presence (ADR-0027); there is no CRDT or external provider, every operation re-checks the document's access, and a live session ends in an ordinary version. Live editing can be turned off (`LIVE_EDITING_ENABLED=0`), in which case documents use optimistic saves and conflict prompts exactly as in 4C.
 
 <a id="od-31"></a>
 ### OD-31 — Semantic search and attachment content

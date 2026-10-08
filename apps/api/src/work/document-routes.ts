@@ -1,6 +1,6 @@
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import { nonResourceEnvelope, type NonResourceType } from '@pm/contracts';
-import type { KnowledgeService } from '@pm/work';
+import type { LiveService } from '@pm/work';
 import { routeKit } from '../route-kit.ts';
 
 type Params = { ws?: string; doc?: string; dsg?: string; n?: string; rec?: string };
@@ -12,7 +12,7 @@ type Params = { ws?: string; doc?: string; dsg?: string; n?: string; rec?: strin
  * request, so a route never reveals more than the caller may see now. Unsafe requests carry
  * `Idempotency-Key`; metadata edits carry `If-Match`, content saves carry the version they loaded.
  */
-export function registerDocuments(app: FastifyInstance, work: KnowledgeService): void {
+export function registerDocuments(app: FastifyInstance, work: LiveService): void {
   const { m, fail, caller, mutation, wrap, resource, split } = routeKit();
   const p = (request: FastifyRequest) => request.params as Params;
   const q = (request: FastifyRequest) => (request.query ?? {}) as Record<string, unknown>;
@@ -172,6 +172,86 @@ export function registerDocuments(app: FastifyInstance, work: KnowledgeService):
           request.body,
           mutation(request),
         ),
+      ),
+    ),
+  );
+
+  // ---- Live editing (4D, ADR-0027): commands and an ordered long poll, each re-authorized -----
+  app.post(
+    `${ws}/documents/:doc/live/session`,
+    wrap(async (request, reply) =>
+      flat(
+        request,
+        reply,
+        'live_session',
+        await work.liveJoin(caller(request), p(request).ws, p(request).doc, request.body ?? {}),
+        { status: 201, replayed: false },
+      ),
+    ),
+  );
+  app.post(
+    `${ws}/documents/:doc/live/operations`,
+    wrap(async (request, reply) =>
+      flat(
+        request,
+        reply,
+        'live_update',
+        await work.liveOps(caller(request), p(request).ws, p(request).doc, request.body),
+      ),
+    ),
+  );
+  app.get(
+    `${ws}/documents/:doc/live/events`,
+    wrap(async (request, reply) => {
+      reply.header('cache-control', 'no-store');
+      return flat(
+        request,
+        reply,
+        'live_update',
+        await work.liveEvents(caller(request), p(request).ws, p(request).doc, q(request)),
+      );
+    }),
+  );
+  app.post(
+    `${ws}/documents/:doc/live/heartbeat`,
+    wrap(async (request, reply) =>
+      flat(
+        request,
+        reply,
+        'live_update',
+        await work.liveHeartbeat(
+          caller(request),
+          p(request).ws,
+          p(request).doc,
+          request.body ?? {},
+        ),
+      ),
+    ),
+  );
+  app.post(
+    `${ws}/documents/:doc/live/checkpoint`,
+    wrap(async (request, reply) =>
+      flat(
+        request,
+        reply,
+        'live_update',
+        await work.liveCheckpoint(
+          caller(request),
+          p(request).ws,
+          p(request).doc,
+          request.body ?? {},
+        ),
+      ),
+    ),
+  );
+  app.post(
+    `${ws}/documents/:doc/live/leave`,
+    wrap(async (request, reply) =>
+      flat(
+        request,
+        reply,
+        'live_update',
+        await work.liveLeave(caller(request), p(request).ws, p(request).doc, request.body ?? {}),
       ),
     ),
   );

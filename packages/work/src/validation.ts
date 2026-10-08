@@ -274,6 +274,22 @@ export interface WorkSettings {
   documentReviewHorizonDays: number;
   /** `DOCUMENT_SAVE_RATE_PER_MINUTE` */
   documentSaveRatePerMinute: number;
+  /** `LIVE_EDITING_ENABLED` */
+  liveEditingEnabled: number;
+  /** `LIVE_SESSION_TTL_SECONDS` */
+  liveSessionTtlSeconds: number;
+  /** `LIVE_SESSIONS_MAX` */
+  liveSessionsMax: number;
+  /** `LIVE_SESSIONS_PER_MEMBER_MAX` */
+  liveSessionsPerMemberMax: number;
+  /** `LIVE_OPS_BATCH_MAX` */
+  liveOpsBatchMax: number;
+  /** `LIVE_POLL_WAIT_SECONDS` */
+  livePollWaitSeconds: number;
+  /** `LIVE_OP_LOG_MAX` */
+  liveOpLogMax: number;
+  /** `LIVE_RATE_PER_MINUTE` */
+  liveRatePerMinute: number;
   /** `DOCUMENT_EMBED_URL_MAX_CHARS` */
   documentEmbedUrlMaxChars: number;
   /** `SIGNED_URL_LIFETIME` (seconds) */
@@ -427,6 +443,14 @@ export const DEFAULT_WORK_SETTINGS: WorkSettings = Object.freeze({
   documentExportMaxBytes: 5_242_880,
   documentReviewHorizonDays: 730,
   documentSaveRatePerMinute: 60,
+  liveEditingEnabled: 1,
+  liveSessionTtlSeconds: 45,
+  liveSessionsMax: 20,
+  liveSessionsPerMemberMax: 5,
+  liveOpsBatchMax: 50,
+  livePollWaitSeconds: 20,
+  liveOpLogMax: 2000,
+  liveRatePerMinute: 1200,
   documentEmbedUrlMaxChars: 2048,
   signedUrlLifetimeSeconds: 300,
   uploadSessionLifetimeSeconds: 3_600,

@@ -22,6 +22,8 @@ import {
   DOC_REF_PREFIX,
   changeSummary,
   collectRefs,
+  contentBytes,
+  documentContentHash,
   htmlBody,
   parseContent,
   readContent,
@@ -235,6 +237,29 @@ export class DocumentService extends DocumentCore {
         throw this.invalidRef(`/content/references/${r.kind}`);
   }
 
+  /**
+   * A file embed must name an active file attached to this document (4D). Embeds already in the
+   * previous content stay, so a file that was trashed later never blocks an unrelated save.
+   */
+  protected async checkFileEmbeds(
+    tx: WorkspaceTransaction,
+    d: LoadedDocument,
+    next: DocContent,
+    prev: DocContent | null,
+  ): Promise<void> {
+    const had = new Set(prev ? this.fileEmbedIds(prev) : []);
+    const fresh = this.fileEmbedIds(next).filter((id) => !had.has(id));
+    if (!fresh.length) return;
+    const found = await this.embeddedFiles(tx, d, {
+      v: 2,
+      blocks: next.blocks.filter((b) => b.type === 'embed' && b.kind === 'file' && fresh.includes(b.url)),
+    });
+    if (fresh.some((id) => !found[id]))
+      throw invalid(
+        issue('/content', 'invalid_file', 'Embed only files that are attached to this document.'),
+      );
+  }
+
   /** Replaces the mention rows of the current content; returns the member mentions that are new. */
   protected async syncReferences(
     tx: WorkspaceTransaction,
@@ -436,6 +461,133 @@ export class DocumentService extends DocumentCore {
   }
 
   // ---------------------------------------------------------------------------------------------
+  // Live drafts (4D, ADR-0027 C3 and C4)
+  // ---------------------------------------------------------------------------------------------
+
+  protected async draftOf(tx: WorkspaceTransaction, documentId: string, lock = false) {
+    const q = tx.db.selectFrom('knowledge.edit_draft').selectAll().where('document_id', '=', documentId);
+    return (lock ? q.forUpdate() : q).executeTakeFirst();
+  }
+
+  /** Sessions of anyone that have not expired (stale ones never count). */
+  protected async liveSessionCount(tx: WorkspaceTransaction, documentId: string): Promise<number> {
+    const r = await sql<{ n: string }>`
+      SELECT count(*) AS n FROM knowledge.edit_session
+       WHERE document_id = ${documentId} AND expires_at > now()`.execute(tx.db);
+    return Number(r.rows[0]?.n ?? 0);
+  }
+
+  /**
+   * Turns the live draft into one ordinary version (the same path as a save: canonical content,
+   * references, audit, events, mentions). Nothing happens when the draft holds nothing new. The
+   * person who triggers the checkpoint is its author; the audit counts the contributors.
+   */
+  protected async checkpointDraft(
+    tx: WorkspaceTransaction,
+    caller: Caller,
+    p: Principal,
+    d: LoadedDocument,
+    why: 'save' | 'leave' | 'recovery',
+  ): Promise<LoadedDocument> {
+    const dr = await this.draftOf(tx, d.id, true);
+    if (!dr || !dr.dirty) return d;
+    const content = readContent(dr.content);
+    const hash = documentContentHash(content);
+    const cur = await this.currentContent(tx, d);
+    const seq = Number(dr.seq);
+    const clean = async (version: number) => {
+      await tx.db
+        .updateTable('knowledge.edit_draft')
+        .set({ base_version: version, dirty: false, checkpoint_seq: seq, content_hash: hash, updated_at: new Date() })
+        .where('document_id', '=', d.id)
+        .execute();
+      await tx.db
+        .deleteFrom('knowledge.edit_op')
+        .where('document_id', '=', d.id)
+        .where('seq', '<=', Math.max(0, seq - this.ws.liveOpLogMax))
+        .execute();
+    };
+    if (cur && cur.hash === hash) {
+      await clean(d.row.current_version_number);
+      return d;
+    }
+    const bytes = contentBytes(content);
+    const v = await this.appendVersion(tx, p, d, {
+      title: d.row.title,
+      content,
+      hash,
+      bytes,
+      kind: 'save',
+      prev: cur?.content ?? null,
+    });
+    await this.bumpDoc(tx, d, p, { current_version_id: v.id, current_version_number: v.number });
+    const mentions = await this.syncReferences(tx, d, collectRefs(content));
+    const who = await sql<{ n: string }>`
+      SELECT count(DISTINCT membership_id) AS n FROM knowledge.edit_op
+       WHERE document_id = ${d.id} AND seq > ${Number(dr.checkpoint_seq)}`.execute(tx.db);
+    await this.docAudit(tx, caller, p, 'document.saved', d, [
+      change.plain('version', d.row.current_version_number, v.number),
+      change.content('content', { hash }),
+      change.plain('blocks_added', null, v.summary.added ?? 0),
+      change.plain('blocks_changed', null, v.summary.changed ?? 0),
+      change.plain('blocks_removed', null, v.summary.removed ?? 0),
+      change.plain('live_contributors', null, Number(who.rows[0]?.n ?? 0)),
+      change.plain('live_checkpoint', null, why),
+    ]);
+    await this.docEvent(tx, caller, p, 'knowledge.document.version_saved', d, {
+      version_number: v.number,
+      kind: 'save',
+      size_bytes: bytes,
+    }, d.row.version + 1);
+    await this.emitDocMentions(tx, caller, p, { ...d, row: { ...d.row, version: d.row.version + 1 } }, mentions);
+    await clean(v.number);
+    return this.loadDocument(tx, p, d.publicId, { lock: true });
+  }
+
+  /**
+   * Unsaved live work with nobody editing becomes a version in its own transaction, before a plain
+   * save or restore runs: that command may then be refused as stale, and a refusal must not roll
+   * the saved work back. The caller's own base version is then compared with the version it made.
+   */
+  protected async recoverLiveDraft(caller: Caller, ws: unknown, doc: unknown): Promise<void> {
+    const needed = await this.inWorkspace(caller, ws, { readOnly: true }, async (tx, p) => {
+      const d = await this.loadDocument(tx, p, doc);
+      const dr = await this.draftOf(tx, d.id);
+      return !!dr?.dirty && (await this.liveSessionCount(tx, d.id)) === 0;
+    });
+    if (!needed) return;
+    await this.inWorkspace(caller, ws, {}, async (tx, p) => {
+      if (p.workspaceState !== 'active') return;
+      const d = await this.loadDocument(tx, p, doc, { lock: true });
+      this.editableDoc(p, d);
+      if ((await this.liveSessionCount(tx, d.id)) === 0) await this.checkpointDraft(tx, caller, p, d, 'recovery');
+    });
+  }
+
+  /**
+   * Every path that appends a version outside the live editor calls this first (ADR-0027 C4): a
+   * live session blocks it (`live_edit_in_progress`, the client uses the live editor or waits for
+   * the session to end), and unsaved live work with nobody editing is saved as a version first, so
+   * nothing is ever lost or overwritten. Returns the document as it is afterwards.
+   */
+  protected async liveGuard(
+    tx: WorkspaceTransaction,
+    caller: Caller,
+    p: Principal,
+    d: LoadedDocument,
+  ): Promise<LoadedDocument> {
+    const dr = await this.draftOf(tx, d.id, true);
+    if (!dr) return d;
+    if ((await this.liveSessionCount(tx, d.id)) > 0)
+      throw new TenancyError('conflict', {
+        issues: [
+          issue('/', 'live_edit_in_progress', 'Someone is editing this document live. Save from the live editor, or try again when they finish.'),
+        ],
+      });
+    return dr.dirty ? this.checkpointDraft(tx, caller, p, d, 'recovery') : d;
+  }
+
+  // ---------------------------------------------------------------------------------------------
   // Create
   // ---------------------------------------------------------------------------------------------
 
@@ -611,6 +763,7 @@ export class DocumentService extends DocumentCore {
 
   async saveContent(caller: Caller, ws: unknown, doc: unknown, body: unknown, req: Mutation) {
     const input = parseContentSave(body, this.contentLimits());
+    await this.recoverLiveDraft(caller, ws, doc);
     return this.kTrack('save', 'knowledge.versions', () =>
       this.mutate(
         caller,
@@ -618,9 +771,10 @@ export class DocumentService extends DocumentCore {
         ws,
         req,
         async (tx, p) => {
-          const d = await this.loadDocument(tx, p, doc, { lock: true });
-          this.editableDoc(p, d);
+          const loaded = await this.loadDocument(tx, p, doc, { lock: true });
+          this.editableDoc(p, loaded);
           await this.docLimit(p);
+          const d = await this.liveGuard(tx, caller, p, loaded);
           requireVersion(input.baseVersion, d.row.current_version_number);
           const cur = await this.currentContent(tx, d);
           const title = input.title ?? d.row.title;
@@ -640,6 +794,7 @@ export class DocumentService extends DocumentCore {
           if (cur && cur.hash === next.hash && cur.title === title)
             return { status: 200, ref: { id: d.publicId, type: 'document' }, data: await this.documentView(tx, p, d) };
           await this.checkNewRefs(tx, p, d, next.refs, 'present');
+          await this.checkFileEmbeds(tx, d, next.content, cur?.content ?? null);
           const v = await this.appendVersion(tx, p, d, {
             title,
             content: next.content,
@@ -674,6 +829,7 @@ export class DocumentService extends DocumentCore {
 
   async restoreVersion(caller: Caller, ws: unknown, doc: unknown, body: unknown, req: Mutation) {
     const input = parseRestore(body);
+    await this.recoverLiveDraft(caller, ws, doc);
     return this.kTrack('restore', 'knowledge.versions', () =>
       this.mutate(
         caller,
@@ -681,9 +837,10 @@ export class DocumentService extends DocumentCore {
         ws,
         req,
         async (tx, p) => {
-          const d = await this.loadDocument(tx, p, doc, { lock: true });
-          this.editableDoc(p, d);
+          const loaded = await this.loadDocument(tx, p, doc, { lock: true });
+          this.editableDoc(p, loaded);
           await this.docLimit(p);
+          const d = await this.liveGuard(tx, caller, p, loaded);
           requireVersion(input.baseVersion, d.row.current_version_number);
           const target = await this.versionRow(tx, d.id, input.version);
           if (!target) throw new TenancyError('not_found');

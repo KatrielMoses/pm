@@ -21,7 +21,7 @@ import {
 } from '@pm/tenancy';
 import type { CollabHost } from '../collab/comment-service.ts';
 import { parseReviewRequest } from '../collab/validation.ts';
-import { KnowledgeService } from '../docs/suggestion-service.ts';
+import { LiveService } from '../docs/live-service.ts';
 import {
   asText,
   canSubmit,
@@ -53,7 +53,7 @@ const NIL = '00000000-0000-7000-8000-000000000000';
 export const FILE_JOB_KINDS = { scan: 'files.scan', sweep: 'files.sweep' } as const;
 export const FILE_QUEUE = 'default';
 
-export type FileHostKind = 'workspace' | 'brand' | 'project' | 'task' | 'comment';
+export type FileHostKind = 'workspace' | 'brand' | 'project' | 'task' | 'comment' | 'document';
 
 /** Where a file lives, and the authority that decides over it (always re-evaluated). */
 export interface FileHost {
@@ -128,11 +128,11 @@ export interface FileDeps {
  * task outputs whose submitted versions are reviewed through 4A; an approval accepts the version
  * and evidence-locks it with the deciding review and reviewer.
  */
-export class FileService extends KnowledgeService {
+export class FileService extends LiveService {
   readonly #storage: ObjectStorage | null;
   readonly #scanner: MalwareScanner | null;
 
-  constructor(deps: ConstructorParameters<typeof KnowledgeService>[0] & { files?: FileDeps }) {
+  constructor(deps: ConstructorParameters<typeof LiveService>[0] & { files?: FileDeps }) {
     super(deps);
     this.#storage = deps.files?.storage ?? null;
     this.#scanner = deps.files?.scanner ?? null;
@@ -215,7 +215,7 @@ export class FileService extends KnowledgeService {
   // ---------------------------------------------------------------------------------------------
 
   /**
-   * Resolves a host reference (`workspace`, `br_`, `prj_`, `tsk_`, `cmt_`). Unknown, hidden, and
+   * Resolves a host reference (`workspace`, `br_`, `prj_`, `tsk_`, `doc_`, `cmt_`). Unknown, hidden, and
    * malformed references are one `not_found`, after the same statements as a missing task.
    */
   protected async fileHost(
@@ -279,7 +279,10 @@ export class FileService extends KnowledgeService {
         commentAuthor: row.author_membership_id,
       };
     }
-    if (typeof ref === 'string' && (ref.startsWith('prj_') || ref.startsWith('tsk_'))) {
+    if (
+      typeof ref === 'string' &&
+      (ref.startsWith('prj_') || ref.startsWith('tsk_') || ref.startsWith('doc_'))
+    ) {
       return this.fromCollab(await this.loadHost(tx, p, ref));
     }
     await this.loadTask(tx, p, NIL_TASK).catch(() => undefined);
@@ -288,7 +291,7 @@ export class FileService extends KnowledgeService {
 
   protected fromCollab(host: CollabHost): FileHost {
     return {
-      kind: host.kind === 'project' ? 'project' : 'task',
+      kind: host.kind === 'project' ? 'project' : host.kind === 'document' ? 'document' : 'task',
       ref: host.publicId,
       recordId: host.id,
       commentId: null,

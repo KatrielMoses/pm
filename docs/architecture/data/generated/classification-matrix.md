@@ -26,7 +26,7 @@ Class definitions and rules: [../11-data-classification.md](../11-data-classific
 | Inbox and capture | 6 | C3 | R-LIVE, R-PERSONAL | filtered, self | metadata, no, yes | hash-only | incidental, yes | high |
 | Today, scheduling, and capacity | 14 | C3 | R-LIVE, R-PERSONAL | filtered, self | no, yes | no | incidental, yes | high |
 | Time tracking | 6 | C2 | R-EVIDENCE, R-LIVE | filtered | no, yes | no | incidental | very-high |
-| Documents and knowledge | 5 | C2 | R-EVIDENCE, R-LIVE | filtered | no, yes | no | incidental | high |
+| Documents and knowledge | 8 | C2 | R-DERIVED, R-EPHEMERAL, R-EVIDENCE, R-LIVE | filtered, never | no, yes | no | incidental | high |
 | Goals and portfolios | 5 | C2 | R-LIVE | filtered | yes | no | incidental | medium |
 | Views and navigation state | 6 | C1 | R-LIVE, R-PERSONAL | filtered, never, self | no, yes | no | incidental, no | high |
 | Search | 3 | C2 | R-DERIVED, R-PERSONAL | never, self | no, yes | no | incidental | very-high |
@@ -179,6 +179,9 @@ Class definitions and rules: [../11-data-classification.md](../11-data-classific
 | [`document_reference`](logical-model.md#entity-document-reference) | knowledge | inherited | C2 | standard (per-record) | material changes | R-LIVE | filtered | high | no | no | incidental |
 | [`document_version`](logical-model.md#entity-document-version) | knowledge | inherited | C2 | standard (per-record) | is evidence / append-only | R-LIVE | filtered | high | yes | no | incidental |
 | [`source_approval`](logical-model.md#entity-source-approval) | knowledge | inherited | C2 | standard (per-record) | is evidence / append-only | R-EVIDENCE | filtered | low | yes | no | incidental |
+| [`edit_draft`](logical-model.md#entity-edit-draft) | knowledge | inherited | C2 | standard (per-record) | material changes | R-DERIVED | never | medium | no | no | incidental |
+| [`edit_session`](logical-model.md#entity-edit-session) | knowledge | inherited | C2 | standard (per-record) | none (technical) | R-EPHEMERAL | never | medium | no | no | incidental |
+| [`edit_op`](logical-model.md#entity-edit-op) | knowledge | inherited | C2 | standard (per-record) | is evidence / append-only | R-DERIVED | never | high | no | no | incidental |
 | [`document_suggestion`](logical-model.md#entity-document-suggestion) | knowledge | inherited | C2 | standard (per-record) | material changes | R-LIVE | filtered | medium | yes | no | incidental |
 | [`goal`](logical-model.md#entity-goal) | goals | workspace_or_brand | C2 | standard (per-record) | material changes | R-LIVE | filtered | low | yes | no | incidental |
 | [`key_result`](logical-model.md#entity-key-result) | goals | inherited | C2 | standard (per-record) | material changes | R-LIVE | filtered | low | yes | no | incidental |

@@ -254,6 +254,14 @@ export interface ServerConfig {
     documentExportMaxBytes: number;
     documentReviewHorizonDays: number;
     documentSaveRatePerMinute: number;
+    liveEditingEnabled: number;
+    liveSessionTtlSeconds: number;
+    liveSessionsMax: number;
+    liveSessionsPerMemberMax: number;
+    liveOpsBatchMax: number;
+    livePollWaitSeconds: number;
+    liveOpLogMax: number;
+    liveRatePerMinute: number;
     documentEmbedUrlMaxChars: number;
     signedUrlLifetimeSeconds: number;
     uploadSessionLifetimeSeconds: number;
@@ -584,6 +592,14 @@ const DEFAULTS = {
   DOCUMENT_EXPORT_MAX_BYTES: '5242880',
   DOCUMENT_REVIEW_HORIZON_DAYS: '730',
   DOCUMENT_SAVE_RATE_PER_MINUTE: '60',
+  LIVE_EDITING_ENABLED: '1',
+  LIVE_SESSION_TTL_SECONDS: '45',
+  LIVE_SESSIONS_MAX: '20',
+  LIVE_SESSIONS_PER_MEMBER_MAX: '5',
+  LIVE_OPS_BATCH_MAX: '50',
+  LIVE_POLL_WAIT_SECONDS: '20',
+  LIVE_OP_LOG_MAX: '2000',
+  LIVE_RATE_PER_MINUTE: '1200',
   DOCUMENT_EMBED_URL_MAX_CHARS: '2048',
   SIGNED_URL_LIFETIME: '300',
   UPLOAD_SESSION_LIFETIME: '3600',
@@ -827,6 +843,14 @@ const schema = z.object({
   DOCUMENT_EXPORT_MAX_BYTES: int(65536, 52428800),
   DOCUMENT_REVIEW_HORIZON_DAYS: int(30, 3650),
   DOCUMENT_SAVE_RATE_PER_MINUTE: int(1, 600),
+  LIVE_EDITING_ENABLED: int(0, 1),
+  LIVE_SESSION_TTL_SECONDS: int(15, 300),
+  LIVE_SESSIONS_MAX: int(2, 100),
+  LIVE_SESSIONS_PER_MEMBER_MAX: int(1, 20),
+  LIVE_OPS_BATCH_MAX: int(1, 200),
+  LIVE_POLL_WAIT_SECONDS: int(0, 30),
+  LIVE_OP_LOG_MAX: int(100, 10000),
+  LIVE_RATE_PER_MINUTE: int(10, 6000),
   DOCUMENT_EMBED_URL_MAX_CHARS: int(128, 8192),
   SIGNED_URL_LIFETIME: int(30, 3600),
   UPLOAD_SESSION_LIFETIME: int(300, 86400),
@@ -1399,6 +1423,14 @@ export function loadServerConfig(options: LoadOptions): ServerConfig {
       documentExportMaxBytes: c.DOCUMENT_EXPORT_MAX_BYTES,
       documentReviewHorizonDays: c.DOCUMENT_REVIEW_HORIZON_DAYS,
       documentSaveRatePerMinute: c.DOCUMENT_SAVE_RATE_PER_MINUTE,
+      liveEditingEnabled: c.LIVE_EDITING_ENABLED,
+      liveSessionTtlSeconds: c.LIVE_SESSION_TTL_SECONDS,
+      liveSessionsMax: c.LIVE_SESSIONS_MAX,
+      liveSessionsPerMemberMax: c.LIVE_SESSIONS_PER_MEMBER_MAX,
+      liveOpsBatchMax: c.LIVE_OPS_BATCH_MAX,
+      livePollWaitSeconds: c.LIVE_POLL_WAIT_SECONDS,
+      liveOpLogMax: c.LIVE_OP_LOG_MAX,
+      liveRatePerMinute: c.LIVE_RATE_PER_MINUTE,
       documentEmbedUrlMaxChars: c.DOCUMENT_EMBED_URL_MAX_CHARS,
       signedUrlLifetimeSeconds: c.SIGNED_URL_LIFETIME,
       uploadSessionLifetimeSeconds: c.UPLOAD_SESSION_LIFETIME,

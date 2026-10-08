@@ -213,6 +213,10 @@ export const NON_RESOURCE_TYPES = [
   'file_comparison',
   'file_trashed',
   'deliverable_list',
+  // 4D: a live editing session (with its snapshot) and every later live exchange (operations,
+  // events, heartbeat, checkpoint, leave); neither has a public identifier of its own.
+  'live_session',
+  'live_update',
 ] as const;
 export type NonResourceType = (typeof NON_RESOURCE_TYPES)[number];
 

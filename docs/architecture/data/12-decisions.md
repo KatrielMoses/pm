@@ -225,6 +225,17 @@ Status of every ADR: **proposed (Phase 0B)**, pending solutions-architect accept
   - **Starters.** Built-in typed starters are versioned constants recorded on the first version; there is no template catalog (10B).
 - **Alternatives:** Titles or labels stored beside references (stale and leaky after revocation). Overwriting the current content with a history table beside it (a silent overwrite window). Restricted document trees in the shared visibility compiler now (a change to every record query). A stored `stale` state rewritten by a job (a fabricated history).
 - **Consequences:** Migration `0038_documents` with an exact 0037 rollback. All new tables have workspace RLS; versions and approvals are append-only to the application; purge removes a document's versions, references, suggestions, approvals, comments, and notifications.
+<a id="adr-35"></a>
+## ADR-35: Live editing drafts, sessions, and operations (Phase 4D amendment)
+
+- **Decision:**
+  - **Drafts.** `knowledge.edit_draft` is at most one row per document: the working block list (validated content version 2, canonical hash), the version it was opened from (`base_version`), the last sequenced operation (`seq`), the `seq` of the last checkpoint, and whether it holds operations no version contains (`dirty`). It is never a version and never read by exports, restores, suggestions, or reviews.
+  - **Sessions.** `knowledge.edit_session` is one live connection of one member to one document: an unguessable `session_key` (not an identifier of any record), mode (`edit` or `view`), a colour index, the block the person is in, and an expiry renewed by every heartbeat, poll, or operation. An expired row is never read; it is deleted on leave, by the next join to the same document, and on purge (a document holds at most `LIVE_SESSIONS_MAX` live ones). Nothing here is audited.
+  - **Operations.** `knowledge.edit_op` is the ordered, gapless log of accepted block operations (`insert`, `replace`, `delete`, `move`) with the client's `op_id` (unique per member, so a retry is idempotent) and the block it names. Rejected operations are never stored. The log is pruned beyond `LIVE_OP_LOG_MAX` at each checkpoint; a client whose position is older receives a snapshot instead.
+  - **Checkpoints.** A checkpoint appends one ordinary `document_version` through the save path (canonical content, references, audit `document.saved` with the contributor count, event `knowledge.document.version_saved`, mentions). `edit_draft.checkpoint_seq` records it.
+  - **Deletion.** Purge removes a document's operations, sessions, and draft with it, before its versions.
+- **Alternatives:** A CRDT state column (the history is a second, unauditable source of truth and carries hidden content). Storing presence in memory only (no recovery across API instances). Auditing operations (keystroke surveillance with unbounded growth).
+- **Consequences:** Migration `0040_collaborative_editing` with an exact 0039 rollback. All three tables have workspace RLS and indexes on every foreign key.
 <a id="adr-34"></a>
 ## ADR-34: Files, versions, upload sessions, and deliverables (Phase 4E amendment)
 

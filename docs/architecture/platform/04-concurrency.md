@@ -56,7 +56,7 @@ The `conflict` error with the `conflict` payload (schema `conflict`):
 - Document saves send `base_version_id` (public `dcv_…`). On mismatch the server:
   1. stores the caller's content as a **new version** (never lost, ST-02);
   2. returns the `conflict` error with `saved_as_version_id` and `current_version`, so the client can open the per-section conflict view.
-- Realtime collaborative editing (4D, OD-30) will define its own merge protocol inside the document. The version contract above remains the durable boundary.
+- Realtime collaborative editing (4D, OD-30, [PL-37](19-decisions.md#pl-37)) is a server-sequenced block-operation log on a draft inside the document: an operation names the block hash it was based on and is refused with the current block when it no longer fits. The version contract above remains the durable boundary, and a checkpoint is an ordinary version.
 
 ## 4.5 Bulk and per-item boundaries
 

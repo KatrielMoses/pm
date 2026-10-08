@@ -148,3 +148,7 @@ Counters `knowledge.documents` (action: `create`, `read`, `list`, `update`, `mov
 ## Files (4E)
 
 Counters `files.requests` (op: the service operation; outcome: `ok` or an error code), `files.jobs` (kind: `scan`, `expire`, or `delete_object`; outcome), and `upload.completed` (outcome: `ok` or the rejection code), the histogram `file.scan.duration` (outcome: the verdict), plus the shared `tenancy.authz_decisions`. The readiness check `object_storage` is `ok` when the configured store answers, `not_configured` without one, and `fail` when a configured store is unreachable; the `storage_status` resource reports object storage and the malware scanner the same way, with the workspace's used and reserved bytes. Events and logs carry identifiers, version numbers, sources, states, and codes; never file names, URLs, object keys, signed URLs, or malware signatures.
+
+## Live editing (4D)
+
+The counter `knowledge.live` (action: `join`, `ops`, `poll`, `heartbeat`, `checkpoint`, or `leave`; outcome: `ok` or an error code such as `live_capacity`, `session_expired`, or `not_found`). Operations, cursors, and heartbeats are never audited and never logged with content; the audit trail records only the checkpoint's version (`document.saved`, with the contributor count and the reason it was saved). A rising `live_capacity` or `session_expired` rate is the signal that the limits in `LIVE_*` need attention.

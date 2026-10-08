@@ -6123,6 +6123,122 @@
       "notes": "Phase 4C (ADR-33): append-only. Only the latest row for a document counts, and only for the version it names; it stops applying when a newer version is saved. Search and AI behavior built on it belong to 5A and 7B."
     },
     {
+      "module": "knowledge",
+      "scope": "inherited",
+      "addressable": false,
+      "public_id_prefix": null,
+      "extends": null,
+      "containment_parents": [
+        "document"
+      ],
+      "associations": [],
+      "concurrency": "locked",
+      "confidentiality": "C2",
+      "export": "never",
+      "search_ai": "no",
+      "may_contain_secrets": "no",
+      "personal_data": "incidental",
+      "uniqueness": [],
+      "sensitive_fields": [],
+      "requirements": [
+        "DOC-011",
+        "COL-011"
+      ],
+      "name": "edit_draft",
+      "purpose": "The live working block list of one document, opened from its current version; never a version.",
+      "lifecycle": "mutable",
+      "retention_class": "R-DERIVED",
+      "volume": "medium",
+      "key_columns": [
+        "document_id (one per document)",
+        "base_version",
+        "content jsonb (block document v2)",
+        "content_hash",
+        "seq bigint",
+        "checkpoint_seq bigint",
+        "dirty boolean",
+        "last_editor_membership_id null"
+      ],
+      "notes": "Phase 4D (ADR-35): edited only through ordered block operations; a checkpoint appends one ordinary document version. Removed with the document."
+    },
+    {
+      "module": "knowledge",
+      "scope": "inherited",
+      "addressable": false,
+      "public_id_prefix": null,
+      "extends": null,
+      "containment_parents": [
+        "document"
+      ],
+      "associations": [],
+      "concurrency": "locked",
+      "confidentiality": "C2",
+      "export": "never",
+      "search_ai": "no",
+      "may_contain_secrets": "no",
+      "personal_data": "incidental",
+      "uniqueness": [],
+      "sensitive_fields": [],
+      "requirements": [
+        "DOC-011",
+        "COL-011"
+      ],
+      "name": "edit_session",
+      "purpose": "One live editing connection of one member to one document: presence and an expiry.",
+      "lifecycle": "ephemeral",
+      "retention_class": "R-EPHEMERAL",
+      "volume": "medium",
+      "key_columns": [
+        "document_id",
+        "membership_id",
+        "session_key text (unguessable handle)",
+        "mode (edit|view)",
+        "color 0..15",
+        "caret_block null",
+        "expires_at"
+      ],
+      "notes": "Phase 4D (ADR-35): renewed by heartbeats, polls, and operations; ignored once expired and deleted on leave, the next join, and purge; never audited; shown only to members who may see people."
+    },
+    {
+      "module": "knowledge",
+      "scope": "inherited",
+      "addressable": false,
+      "public_id_prefix": null,
+      "extends": null,
+      "containment_parents": [
+        "document"
+      ],
+      "associations": [],
+      "concurrency": "append-only",
+      "confidentiality": "C2",
+      "export": "never",
+      "search_ai": "no",
+      "may_contain_secrets": "no",
+      "personal_data": "incidental",
+      "uniqueness": [],
+      "sensitive_fields": [],
+      "requirements": [
+        "DOC-011",
+        "COL-011"
+      ],
+      "name": "edit_op",
+      "purpose": "The ordered, gapless log of accepted live block operations between checkpoints.",
+      "lifecycle": "append-only",
+      "retention_class": "R-DERIVED",
+      "volume": "high",
+      "key_columns": [
+        "document_id",
+        "seq bigint",
+        "session_id null",
+        "membership_id",
+        "op_id",
+        "kind (insert|replace|delete|move)",
+        "block_id",
+        "payload jsonb"
+      ],
+      "notes": "Phase 4D (ADR-35): rejected operations are not stored; a retry with the same op_id returns the original result; pruned beyond LIVE_OP_LOG_MAX at a checkpoint."
+    },
+    {
       "name": "document_suggestion",
       "module": "knowledge",
       "purpose": "Proposed edit on a document version; accepted or rejected by owner.",

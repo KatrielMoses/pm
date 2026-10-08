@@ -253,9 +253,10 @@ export class KnowledgeService extends DocumentService {
         ws,
         req,
         async (tx, p) => {
-          const { row, doc: d } = await this.loadSuggestion(tx, p, dsg, { lock: true });
-          this.editableDoc(p, d);
+          const { row, doc: loaded } = await this.loadSuggestion(tx, p, dsg, { lock: true });
+          this.editableDoc(p, loaded);
           if (req.ifMatch !== undefined) requireVersion(parseIfMatch(req.ifMatch), row.version);
+          const d = input.outcome === 'accept' ? await this.liveGuard(tx, caller, p, loaded) : loaded;
           if (row.state !== 'open')
             throw new TenancyError('conflict', { issues: [issue('/', 'already_decided', 'This suggestion is already settled.')] });
           const now = new Date();
@@ -272,6 +273,7 @@ export class KnowledgeService extends DocumentService {
               blocks: cur.content.blocks.map((b) => (b.id === row.block_id ? proposed : b)),
             };
             const parsed = parseContent(next, this.contentLimits());
+            await this.checkFileEmbeds(tx, d, parsed.content, cur.content);
             const v = await this.appendVersion(tx, p, d, {
               title: d.row.title,
               content: parsed.content,

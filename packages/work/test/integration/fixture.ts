@@ -73,6 +73,7 @@ export function workEnv(
     intakeRate?: number;
     commentRate?: number;
     documentRate?: number;
+    liveRate?: number;
     emailState?: 'configured' | 'capture' | 'unconfigured';
     /** 4E: defaults to local storage in a temp directory and the signature scanner. */
     files?: Partial<FileDeps>;
@@ -144,6 +145,7 @@ export function workEnv(
       'intake.submit': { limit: options.intakeRate ?? 10_000, windowMs: 3_600_000 },
       'comment.member': { limit: options.commentRate ?? 10_000, windowMs: 60_000 },
       'document.save': { limit: options.documentRate ?? 10_000, windowMs: 60_000 },
+      'document.live': { limit: options.liveRate ?? 100_000, windowMs: 60_000 },
     }),
     signingKey: randomBytes(32),
     settings: {

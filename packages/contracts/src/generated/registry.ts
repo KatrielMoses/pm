@@ -759,6 +759,14 @@ export const TELEMETRY_SIGNALS = [
     ]
   },
   {
+    "name": "knowledge.live",
+    "type": "counter",
+    "labels": [
+      "action",
+      "outcome"
+    ]
+  },
+  {
     "name": "files.requests",
     "type": "counter",
     "labels": [
@@ -3432,6 +3440,14 @@ export const PARAMETER_NAMES = [
   "DOCUMENT_EXPORT_MAX_BYTES",
   "DOCUMENT_REVIEW_HORIZON_DAYS",
   "DOCUMENT_SAVE_RATE_PER_MINUTE",
+  "LIVE_EDITING_ENABLED",
+  "LIVE_SESSION_TTL_SECONDS",
+  "LIVE_SESSIONS_MAX",
+  "LIVE_SESSIONS_PER_MEMBER_MAX",
+  "LIVE_OPS_BATCH_MAX",
+  "LIVE_POLL_WAIT_SECONDS",
+  "LIVE_OP_LOG_MAX",
+  "LIVE_RATE_PER_MINUTE",
   "DOCUMENT_EMBED_URL_MAX_CHARS",
   "FILE_UPLOAD_MAX_BYTES",
   "WORKSPACE_STORAGE_QUOTA_BYTES",

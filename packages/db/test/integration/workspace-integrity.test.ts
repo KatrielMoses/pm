@@ -248,6 +248,9 @@ describe('database-enforced workspace existence (1A review 01, correction 2)', (
       'knowledge.document_reference',
       'knowledge.document_suggestion',
       'knowledge.document_version',
+      'knowledge.edit_draft',
+      'knowledge.edit_op',
+      'knowledge.edit_session',
       'knowledge.source_approval',
       // Phase 4E files, versions, upload sessions, deliverables, and storage usage.
       'files.file_object',
@@ -306,8 +309,9 @@ describe('database-enforced workspace existence (1A review 01, correction 2)', (
     // 4B notifications, digests, deliveries, preferences, profiles, and scope defaults: +19;
     // 4C documents (10), versions (3), references (5), suggestions (4), source approvals (3): +25;
     // 4E objects (1), files (6), versions (4), upload sessions (9), deliverables (7), deliverable
-    // versions (7), and storage usage (1): +35.
-    expect(res.rows.length).toBe(439);
+    // versions (7), and storage usage (1): +35;
+    // 4D live edit drafts (3), sessions (3), and operations (4): +10.
+    expect(res.rows.length).toBe(449);
     for (const r of res.rows)
       expect(r, `${r.tbl}.${r.conname}`).toMatchObject({
         referencing_indexed: true,

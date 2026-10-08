@@ -102,6 +102,7 @@ export function createWorkService(deps: {
       'intake.submit': { limit: work.intakeSubmissionsPerHour, windowMs: 60 * 60_000 },
       'comment.member': { limit: work.commentRatePerMinute, windowMs: 60_000 },
       'document.save': { limit: work.documentSaveRatePerMinute, windowMs: 60_000 },
+      'document.live': { limit: work.liveRatePerMinute, windowMs: 60_000 },
     }),
     signingKey,
     metrics: deps.metrics,

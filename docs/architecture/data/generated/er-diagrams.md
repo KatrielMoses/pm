@@ -262,6 +262,9 @@ erDiagram
   document_reference }o..o{ record : "references"
   document ||--o{ document_version : "contains"
   document_version ||--o{ source_approval : "contains"
+  document ||--o{ edit_draft : "contains"
+  document ||--o{ edit_session : "contains"
+  document ||--o{ edit_op : "contains"
   document ||--o{ document_suggestion : "contains"
 ```
 

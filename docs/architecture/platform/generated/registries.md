@@ -515,6 +515,7 @@ Forbidden metric labels: `workspace_id`, `brand_id`, `record_id`, `public_id`, `
 | `knowledge.suggestions` | counter | action, outcome | knowledge |
 | `knowledge.exports` | counter | format, outcome | knowledge |
 | `knowledge.references` | counter | action, outcome | knowledge |
+| `knowledge.live` | counter | action, outcome | knowledge |
 | `files.requests` | counter | op, outcome | files |
 | `files.jobs` | counter | kind, outcome | files |
 
@@ -684,6 +685,14 @@ Forbidden metric labels: `workspace_id`, `brand_id`, `record_id`, `public_id`, `
 | `DOCUMENT_EXPORT_MAX_BYTES` | Largest export, in bytes; default 5242880, range 65536–52428800. | 4C |
 | `DOCUMENT_REVIEW_HORIZON_DAYS` | Furthest review date, in days from today; default 730, range 30–3650. | 4C |
 | `DOCUMENT_SAVE_RATE_PER_MINUTE` | Most content saves one person makes per minute; default 60, range 1–600. | 4C |
+| `LIVE_EDITING_ENABLED` | Whether live collaborative editing is offered; 0 falls back to versioned non-live editing; default 1. | 4D |
+| `LIVE_SESSION_TTL_SECONDS` | How long a live editing session lasts without a heartbeat, poll, or operation; default 45, range 15–300. | 4D |
+| `LIVE_SESSIONS_MAX` | Most live editing sessions on one document; default 20, range 2–100. | 4D |
+| `LIVE_SESSIONS_PER_MEMBER_MAX` | Most live sessions one person holds at once; default 5, range 1–20. | 4D |
+| `LIVE_OPS_BATCH_MAX` | Most operations in one live request; default 50, range 1–200. | 4D |
+| `LIVE_POLL_WAIT_SECONDS` | Longest a live poll waits for news before answering; default 20, range 0–30. | 4D |
+| `LIVE_OP_LOG_MAX` | Operations kept so reconnecting editors can catch up; default 2000, range 100–10000. | 4D |
+| `LIVE_RATE_PER_MINUTE` | Most live editing requests one person makes per minute; default 1200, range 10–6000. | 4D |
 | `DOCUMENT_EMBED_URL_MAX_CHARS` | Longest address of an embedded image, video, or link; default 2048, range 128–8192. | 4C |
 | `FILE_UPLOAD_MAX_BYTES` | Largest single upload in bytes; default 104857600 (100 MiB), range 1024–5368709120. | 4E |
 | `WORKSPACE_STORAGE_QUOTA_BYTES` | Stored bytes one workspace may hold, counting bytes reserved by open upload sessions (a technical limit until plans set it, 10A); default 10737418240 (10 GiB), range 1048576–10995116277760. | 4E |

@@ -14,7 +14,7 @@ Default: **optimistic concurrency.** Locks are used only for the named invariant
 
 `row-version` entities (documents' metadata, saved views, settings) use plain `expected_version` checks. A mismatch returns a conflict with the current row.
 
-**Rich text and documents:** until realtime editing exists (UXD-01, OD-30), a save that sets `current_version_id` checks `base_version_id`. On mismatch, the client receives the newer version for a per-section conflict view (ST-06), and the user's content is always saved as a new `document_version` (never lost) before resolution. The collaborative engine adopted in 4D will own intra-document merge. The `document_version` table remains the durable history.
+**Rich text and documents:** until realtime editing exists (UXD-01, OD-30), a save that sets `current_version_id` checks `base_version_id`. On mismatch, the client receives the newer version for a per-section conflict view (ST-06), and the user's content is always saved as a new `document_version` (never lost) before resolution. Phase 4D (ADR-0027, [ADR-35](12-decisions.md#adr-35)) adds a live mode on top: the server sequences block-level operations on a draft, refuses an operation that no longer fits with the current block, and appends a version only at a checkpoint; this save path remains the fallback and the durable history. While a live session is open, a plain save is refused (`live_edit_in_progress`), and unsaved live work with nobody editing is saved as a version first.
 
 ## 9.2 Inline, bulk, and offline edits
 

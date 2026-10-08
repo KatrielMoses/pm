@@ -3009,6 +3009,69 @@ Verification that a specific document version is an approved AI source.
 | Requirements | DOC-017 |
 | Notes | Phase 4C (ADR-33): append-only. Only the latest row for a document counts, and only for the version it names; it stops applying when a newer version is saved. Search and AI behavior built on it belong to 5A and 7B. |
 
+<a id="entity-edit-draft"></a>
+### `edit_draft`
+
+The live working block list of one document, opened from its current version; never a version.
+
+| Property | Value |
+|---|---|
+| Scope | `inherited` |
+| Contained by | [`document`](logical-model.md#entity-document) |
+| Extends (1:1) | — |
+| Associations | — |
+| Lifecycle / concurrency | `mutable` / `locked` |
+| Retention / confidentiality | `R-DERIVED` / `C2` |
+| Volume / export / search-AI | `medium` / `never` / `no` |
+| Secrets / personal data | `no` / `incidental` |
+| Uniqueness | — |
+| Key typed columns | `document_id (one per document)`; `base_version`; `content jsonb (block document v2)`; `content_hash`; `seq bigint`; `checkpoint_seq bigint`; `dirty boolean`; `last_editor_membership_id null` |
+| Sensitive fields | — |
+| Requirements | DOC-011, COL-011 |
+| Notes | Phase 4D (ADR-35): edited only through ordered block operations; a checkpoint appends one ordinary document version. Removed with the document. |
+
+<a id="entity-edit-session"></a>
+### `edit_session`
+
+One live editing connection of one member to one document: presence and an expiry.
+
+| Property | Value |
+|---|---|
+| Scope | `inherited` |
+| Contained by | [`document`](logical-model.md#entity-document) |
+| Extends (1:1) | — |
+| Associations | — |
+| Lifecycle / concurrency | `ephemeral` / `locked` |
+| Retention / confidentiality | `R-EPHEMERAL` / `C2` |
+| Volume / export / search-AI | `medium` / `never` / `no` |
+| Secrets / personal data | `no` / `incidental` |
+| Uniqueness | — |
+| Key typed columns | `document_id`; `membership_id`; `session_key text (unguessable handle)`; `mode (edit\|view)`; `color 0..15`; `caret_block null`; `expires_at` |
+| Sensitive fields | — |
+| Requirements | DOC-011, COL-011 |
+| Notes | Phase 4D (ADR-35): renewed by heartbeats, polls, and operations; deleted on leave, expiry, and purge; never audited; shown only to members who may see people. |
+
+<a id="entity-edit-op"></a>
+### `edit_op`
+
+The ordered, gapless log of accepted live block operations between checkpoints.
+
+| Property | Value |
+|---|---|
+| Scope | `inherited` |
+| Contained by | [`document`](logical-model.md#entity-document) |
+| Extends (1:1) | — |
+| Associations | — |
+| Lifecycle / concurrency | `append-only` / `append-only` |
+| Retention / confidentiality | `R-DERIVED` / `C2` |
+| Volume / export / search-AI | `high` / `never` / `no` |
+| Secrets / personal data | `no` / `incidental` |
+| Uniqueness | — |
+| Key typed columns | `document_id`; `seq bigint`; `session_id null`; `membership_id`; `op_id`; `kind (insert\|replace\|delete\|move)`; `block_id`; `payload jsonb` |
+| Sensitive fields | — |
+| Requirements | DOC-011, COL-011 |
+| Notes | Phase 4D (ADR-35): rejected operations are not stored; a retry with the same op_id returns the original result; pruned beyond LIVE_OP_LOG_MAX at a checkpoint. |
+
 <a id="entity-document-suggestion"></a>
 ### `document_suggestion`
 

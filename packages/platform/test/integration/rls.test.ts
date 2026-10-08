@@ -146,6 +146,9 @@ const PHASE_1C_TENANT_TABLES = [
   // Phase 4C documents, versions, references, suggestions, and source approvals.
   'knowledge.document',
   'knowledge.document_version',
+  'knowledge.edit_draft',
+  'knowledge.edit_op',
+  'knowledge.edit_session',
   'knowledge.document_reference',
   'knowledge.document_suggestion',
   'knowledge.source_approval',

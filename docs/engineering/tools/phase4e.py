@@ -157,8 +157,8 @@ def check_invariants():
             errs.append("0039 must not store a signed URL (%s)" % col)
     svc = read(P(SERVICE))
     sem = read(P(SEMANTICS))
-    if "export class FileService extends KnowledgeService" not in svc:
-        errs.append("FileService must extend KnowledgeService (4C, then 4E, in the service chain)")
+    if "export class FileService extends LiveService" not in svc:
+        errs.append("FileService must extend LiveService (4C, then 4D, then 4E, in the service chain)")
     factory = read(P("packages/work/src/factory.ts"))
     if "}): FileService {" not in factory or "return new FileService(" not in factory:
         errs.append("createWorkService must build and return the FileService")

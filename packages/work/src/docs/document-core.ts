@@ -513,6 +513,66 @@ export class DocumentCore extends NotificationService {
     return out;
   }
 
+  /** Public identifiers of the files a content embeds (4D; the file itself is 4E's). */
+  protected fileEmbedIds(content: DocContent): string[] {
+    return [
+      ...new Set(
+        content.blocks.flatMap((b) => (b.type === 'embed' && b.kind === 'file' ? [b.url] : [])),
+      ),
+    ];
+  }
+
+  /**
+   * What a viewer may know of the files a document embeds: only files attached to this very
+   * document and still active, so reading the document is the authority (a trashed, purged, or
+   * foreign file is simply absent and renders as an unavailable file). Never a URL: previews and
+   * downloads stay 4E's routes, each authorized on its own.
+   */
+  protected async embeddedFiles(
+    tx: WorkspaceTransaction,
+    d: LoadedDocument,
+    content: DocContent,
+  ): Promise<
+    Record<string, { id: string; name: string; source: 'upload' | 'external'; content_type: string | null; byte_size: number | null; scan: 'clean' | 'pending' | 'blocked' | null }>
+  > {
+    const ids = this.fileEmbedIds(content);
+    if (!ids.length) return {};
+    const rows = await sql<{
+      public_id: string;
+      name: string;
+      source_kind: 'upload' | 'external';
+      content_type: string | null;
+      byte_size: string | null;
+      scan_state: string | null;
+    }>`SELECT r.public_id, f.name, f.source_kind, v.content_type, v.byte_size::text AS byte_size, o.scan_state
+         FROM files.file f
+         JOIN core.record r ON r.workspace_id = f.workspace_id AND r.id = f.id
+         LEFT JOIN files.file_version v ON v.workspace_id = f.workspace_id AND v.id = f.current_version_id
+         LEFT JOIN files.file_object o ON o.workspace_id = v.workspace_id AND o.id = v.file_object_id
+        WHERE f.workspace_id = ${tx.workspaceId} AND f.host_record_id = ${d.id} AND f.comment_id IS NULL
+          AND r.public_id = ANY(${ids}::text[]) AND r.lifecycle_state = 'active'`.execute(tx.db);
+    return Object.fromEntries(
+      rows.rows.map((r) => [
+        r.public_id,
+        {
+          id: r.public_id,
+          name: r.name,
+          source: r.source_kind,
+          content_type: r.content_type,
+          byte_size: r.byte_size === null ? null : Number(r.byte_size),
+          scan:
+            r.source_kind === 'external' || r.scan_state === null
+              ? null
+              : r.scan_state === 'clean'
+                ? ('clean' as const)
+                : r.scan_state === 'pending'
+                  ? ('pending' as const)
+                  : ('blocked' as const),
+        },
+      ]),
+    );
+  }
+
   protected async workspacePublicId(tx: WorkspaceTransaction): Promise<string> {
     const w = await tx.db
       .selectFrom('tenancy.workspace')
@@ -658,6 +718,7 @@ export class DocumentCore extends NotificationService {
       size_bytes: version?.size_bytes ?? 0,
       content: this.redact(d, content, resolved),
       references: resolved,
+      files: await this.embeddedFiles(tx, d, content),
       links: wanted.links.flatMap((l) => {
         const hit = resolved[`${l.kind}:${l.id}`];
         return hit ? [hit] : [];
@@ -751,7 +812,12 @@ export class DocumentCore extends NotificationService {
 
   protected async kTrack<T>(
     action: string,
-    metric: 'knowledge.documents' | 'knowledge.versions' | 'knowledge.suggestions' | 'knowledge.references',
+    metric:
+      | 'knowledge.documents'
+      | 'knowledge.versions'
+      | 'knowledge.suggestions'
+      | 'knowledge.references'
+      | 'knowledge.live',
     fn: () => Promise<T>,
   ): Promise<T> {
     try {

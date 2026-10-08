@@ -208,6 +208,14 @@ worker process is a startup error. All identities of one process must target the
 | `DOCUMENT_EXPORT_MAX_BYTES` | optional | optional | default 5242880 (65536–52428800); largest export, in bytes (0D `DOCUMENT_EXPORT_MAX_BYTES`) |
 | `DOCUMENT_REVIEW_HORIZON_DAYS` | optional | optional | default 730 (30–3650); furthest review date, in days from today (0D `DOCUMENT_REVIEW_HORIZON_DAYS`) |
 | `DOCUMENT_SAVE_RATE_PER_MINUTE` | optional | optional | default 60 (1–600); most content saves one person makes per minute (0D `DOCUMENT_SAVE_RATE_PER_MINUTE`) |
+| `LIVE_EDITING_ENABLED` | optional | optional | default 1 (0–1); 0 turns live editing off and every document uses versioned non-live editing (0D `LIVE_EDITING_ENABLED`) |
+| `LIVE_SESSION_TTL_SECONDS` | optional | optional | default 45 (15–300); how long a live editing session lasts without a heartbeat, poll, or operation (0D `LIVE_SESSION_TTL_SECONDS`) |
+| `LIVE_SESSIONS_MAX` | optional | optional | default 20 (2–100); most live sessions on one document (0D `LIVE_SESSIONS_MAX`) |
+| `LIVE_SESSIONS_PER_MEMBER_MAX` | optional | optional | default 5 (1–20); most live sessions one person holds at once (0D `LIVE_SESSIONS_PER_MEMBER_MAX`) |
+| `LIVE_OPS_BATCH_MAX` | optional | optional | default 50 (1–200); most operations in one live request (0D `LIVE_OPS_BATCH_MAX`) |
+| `LIVE_POLL_WAIT_SECONDS` | optional | optional | default 20 (0–30); longest a live poll waits for news (0D `LIVE_POLL_WAIT_SECONDS`) |
+| `LIVE_OP_LOG_MAX` | optional | optional | default 2000 (100–10000); operations kept for reconnecting editors (0D `LIVE_OP_LOG_MAX`) |
+| `LIVE_RATE_PER_MINUTE` | optional | optional | default 1200 (10–6000); most live requests one person makes per minute (0D `LIVE_RATE_PER_MINUTE`) |
 | `DOCUMENT_EMBED_URL_MAX_CHARS` | optional | optional | default 2048 (128–8192); longest address of an embedded image, video, or link (0D `DOCUMENT_EMBED_URL_MAX_CHARS`) |
 | `SIGNED_URL_LIFETIME` | optional | optional | default 300 (30–3600); lifetime in seconds of signed upload and download URLs; never stored, logged, or sent in notifications or exports (0D `SIGNED_URL_LIFETIME`) |
 | `UPLOAD_SESSION_LIFETIME` | optional | optional | default 3600 (300–86400); lifetime in seconds of an upload session; an expired, unfinished session releases its reserved bytes and its quarantined object (0D `UPLOAD_SESSION_LIFETIME`) |

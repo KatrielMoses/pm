@@ -245,6 +245,18 @@ All decisions are **proposed (Phase 0C)**, pending solutions-architect acceptanc
   - **No new actions.** The action count stays 122.
 - **Alternatives:** A document-level role table (a second authority source). Showing a reference's kind when it is restricted (a hint about what exists). Letting any editor change the owner (a way to hand a document to someone who cannot act on it).
 - **Consequences:** Threat T-51 with tests AT-208 to AT-217.
+<a id="az-35"></a>
+### AZ-35: Live collaborative editing (Phase 4D amendment)
+- **Decision:**
+  - **The evaluator on every call.** Joining, operating, polling, heartbeating, checkpointing, and leaving each load the document through its compiled level at that moment. Watching and presence need `record.read`; editing and checkpointing need `record.update` on an active document. A revoked grant, a role change, an archive, a trash, or a purge refuses the next request (`not_found`, or `document_archived`); an unreadable and an unknown document are one `not_found` on every live route, with the same statements. A session handle is bound to the person and document that opened it and expires (`LIVE_SESSION_TTL_SECONDS`); nobody else can use it (AT-230, AT-232, AT-235).
+  - **Watching is not editing.** A reader can watch (`mode: view`); operations and checkpoints on such a session are refused, and asking for an editing session without `record.update` is refused as any other write (AT-231).
+  - **Never past the version history.** Operations edit a draft; only a checkpoint, made through the same checks as a save, becomes a version. Operations that add a link to something the editor cannot read, restore a restricted token the draft never held, or exceed the document bounds are refused (AT-236). A plain save, restore, or suggestion cannot overwrite live work: while a session is open it is refused (`live_edit_in_progress`), and unsaved work with nobody editing is saved as a version first (AT-237).
+  - **Redacted for each viewer.** Snapshots, operation responses, events, and rejections carry references the viewer cannot read as the opaque tokens of IA-46, and labels only for what the viewer can read now (AT-233).
+  - **Presence.** Presence shows a session's colour, mode, display name, and the block the person is in, and only to members, who may already see people. Guests and share-only viewers see themselves only. A person whose membership is no longer active is omitted. Presence rows are never audited, are ignored once expired and deleted on leave, the next join, and purge, and are never copied into events or notifications (AT-234).
+  - **No new actions.** The action count stays 122.
+- **Alternatives:** A CRDT or shared document state sent to every client (hidden content and references travel with it). A separate live-editing permission (a second source of authority). Auditing every operation or heartbeat (content and cursor surveillance, unbounded growth). Letting an open session outlive a revoked grant until it expires (access past revocation).
+- **Consequences:** Threat T-53 with tests AT-230 to AT-237.
+
 <a id="az-34"></a>
 ### AZ-34: Files and deliverables (Phase 4E amendment)
 - **Decision:**

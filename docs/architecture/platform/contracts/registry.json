@@ -5735,6 +5735,15 @@
       "area": "knowledge"
     },
     {
+      "name": "knowledge.live",
+      "type": "counter",
+      "labels": [
+        "action",
+        "outcome"
+      ],
+      "area": "knowledge"
+    },
+    {
       "name": "files.requests",
       "type": "counter",
       "labels": [
@@ -6599,6 +6608,46 @@
       "name": "DOCUMENT_SAVE_RATE_PER_MINUTE",
       "meaning": "Most content saves one person makes per minute; default 60, range 1–600.",
       "owner": "4C"
+    },
+    {
+      "name": "LIVE_EDITING_ENABLED",
+      "meaning": "Whether live collaborative editing is offered; 0 falls back to versioned non-live editing; default 1.",
+      "owner": "4D"
+    },
+    {
+      "name": "LIVE_SESSION_TTL_SECONDS",
+      "meaning": "How long a live editing session lasts without a heartbeat, poll, or operation; default 45, range 15–300.",
+      "owner": "4D"
+    },
+    {
+      "name": "LIVE_SESSIONS_MAX",
+      "meaning": "Most live editing sessions on one document; default 20, range 2–100.",
+      "owner": "4D"
+    },
+    {
+      "name": "LIVE_SESSIONS_PER_MEMBER_MAX",
+      "meaning": "Most live sessions one person holds at once; default 5, range 1–20.",
+      "owner": "4D"
+    },
+    {
+      "name": "LIVE_OPS_BATCH_MAX",
+      "meaning": "Most operations in one live request; default 50, range 1–200.",
+      "owner": "4D"
+    },
+    {
+      "name": "LIVE_POLL_WAIT_SECONDS",
+      "meaning": "Longest a live poll waits for news before answering; default 20, range 0–30.",
+      "owner": "4D"
+    },
+    {
+      "name": "LIVE_OP_LOG_MAX",
+      "meaning": "Operations kept so reconnecting editors can catch up; default 2000, range 100–10000.",
+      "owner": "4D"
+    },
+    {
+      "name": "LIVE_RATE_PER_MINUTE",
+      "meaning": "Most live editing requests one person makes per minute; default 1200, range 10–6000.",
+      "owner": "4D"
     },
     {
       "name": "DOCUMENT_EMBED_URL_MAX_CHARS",

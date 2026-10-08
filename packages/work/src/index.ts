@@ -34,6 +34,8 @@ export * from './docs/semantics.ts';
 export * from './docs/document-core.ts';
 export * from './docs/document-service.ts';
 export * from './docs/suggestion-service.ts';
+export * from './docs/live-service.ts';
+export { applyOp, CONFLICT_CODES, OP_KINDS } from './docs/live.ts';
 export { purgeDocumentTargets } from './docs/lifecycle.ts';
 export { documentOwnerHook } from './docs/ownership.ts';
 export * from './notify/fanout.ts';
