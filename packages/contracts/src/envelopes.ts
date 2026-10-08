@@ -222,6 +222,8 @@ export const NON_RESOURCE_TYPES = [
   'portfolio_overview',
   'portfolio_dependencies',
   'portfolio_orphans',
+  // 5B: the readable work behind a goal's linked-work progress (the drill-down for its figure).
+  'goal_work',
 ] as const;
 export type NonResourceType = (typeof NON_RESOURCE_TYPES)[number];
 

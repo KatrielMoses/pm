@@ -267,6 +267,15 @@ describe('goals and portfolios API (5B)', () => {
       work: { done: 1, total: 2 },
       percent: 50,
     });
+    const work = keep(await owner.get(`${base()}/goals/${ids.goal}/work?key_result=${ids.kr}`));
+    expect(work.statusCode, work.body).toBe(200);
+    expect(work.json().data).toMatchObject({ type: 'goal_work', summary: { done: 1, total: 2 } });
+    expect(
+      work
+        .json()
+        .data.data.map((t: { title: string }) => t.title)
+        .sort(),
+    ).toEqual(['Ship it', 'Test it']);
     const removed = keep(
       await owner.delete(
         `${base()}/goals/${ids.goal}/links?target=${ids.project}&key_result=${ids.kr}`,

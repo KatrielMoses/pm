@@ -666,6 +666,27 @@ describe('Goals (5B)', () => {
       expect(asReader.progress.work).toEqual({ done: 1, total: 3 });
     });
 
+    it('drills every figure down to the readable tasks behind it, and only those', async () => {
+      const g = await goal(editor, { brand: brands.Harbor!, title: 'Drill', basis: 'linked_work' });
+      await env.svc.addGoalLink(owner, ws, g.id, { target: proj.launch! }, mutation());
+      await env.svc.addGoalLink(owner, ws, g.id, { target: proj.vault! }, mutation());
+      const asOwner = await env.svc.goalWork(owner, ws, g.id, {});
+      expect(asOwner.summary).toEqual({ done: 2, total: 5 });
+      expect(asOwner.data).toHaveLength(5);
+      expect(asOwner.data.filter((t) => t.done)).toHaveLength(2);
+      const asEditor = await env.svc.goalWork(editor, ws, g.id, {});
+      expect(asEditor.summary).toEqual({ done: 1, total: 3 });
+      expect(asEditor.data.map((t) => t.title).sort()).toEqual(['l1', 'l2', 'l3']);
+      expect(JSON.stringify(asEditor)).not.toMatch(/Vault|v1|v2/);
+      // The list and the count come from the same readable set, so they always agree.
+      expect(asEditor.data.length).toBe(asEditor.summary.total);
+      expect((await rejects(env.svc.goalWork(outsider, ws, g.id, {}))).code).toBe('not_found');
+      const e = await rejects(
+        env.svc.goalWork(owner, ws, g.id, { key_result: 'kr_01HZZZZZZZZZZZZZZZZZZZZZZZ' }),
+      );
+      expect(e.issues?.[0]).toMatchObject({ pointer: '/key_result' });
+    });
+
     it("counts a linked task and its subtasks, and a project's tasks only", async () => {
       const g = await goal(owner, { brand: brands.Harbor, title: 'Tasks', basis: 'linked_work' });
       const parent = (

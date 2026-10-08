@@ -120,6 +120,17 @@ export function registerGoals(app: FastifyInstance, work: PortfolioService): voi
     }),
   );
   app.get(
+    `${ws}/goals/:goal/work`,
+    wrap(async (request, reply) =>
+      flat(
+        request,
+        reply,
+        'goal_work',
+        await work.goalWork(caller(request), p(request).ws, p(request).goal, q(request)),
+      ),
+    ),
+  );
+  app.get(
     `${ws}/goals/:goal/check-ins`,
     wrap(async (request) =>
       page(

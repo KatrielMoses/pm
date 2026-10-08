@@ -578,6 +578,90 @@ export class GoalService extends GoalCore {
     );
   }
 
+  /**
+   * The readable leaf tasks behind a goal's (or one key result's) linked-work progress: the drill
+   * down for every figure the goal shows. Only work this viewer may read is listed, so the list and
+   * the counts always agree, and nothing here names work the viewer cannot read.
+   */
+  async goalWork(caller: Caller, ws: unknown, goal: unknown, query: Record<string, unknown>) {
+    return this.gTrack('goals.reads', 'work', () =>
+      this.inWorkspace(caller, ws, { readOnly: true }, async (tx, p) => {
+        const g = await this.loadGoal(tx, p, goal);
+        let krId: string | null = null;
+        if (query.key_result !== undefined && query.key_result !== '') {
+          const kr = await this.loadKeyResult(tx, g, query.key_result);
+          if (!kr)
+            throw invalid(
+              issue('/key_result', 'invalid_reference', 'Choose a key result of this goal.'),
+            );
+          krId = kr.id;
+        }
+        const links = (await this.linksOf(tx, [g.id])).filter((l) => l.key_result_id === krId);
+        const max = this.ws.pageLimitMax;
+        const vis = await this.workVisibility(tx, p);
+        const kinds = links.map((l) => l.target_kind);
+        const targets = links.map((l) => l.target_record_id);
+        const rows = links.length
+          ? (
+              await sql<{
+                public_id: string;
+                title: string;
+                status_category: string;
+                due_date: string | null;
+                project_public: string | null;
+                project_name: string | null;
+              }>`
+                WITH pairs AS (
+                  SELECT * FROM unnest(${kinds}::text[], ${targets}::uuid[]) AS x(kind, target_id)
+                ), hits AS (
+                  SELECT t.id FROM pairs p JOIN work.task t ON t.workspace_id = ${tx.workspaceId} AND p.kind = 'project' AND t.project_id = p.target_id
+                  UNION SELECT t.id FROM pairs p JOIN work.task t ON t.workspace_id = ${tx.workspaceId} AND p.kind = 'task' AND t.id = p.target_id
+                  UNION SELECT t.id FROM pairs p JOIN work.task t ON t.workspace_id = ${tx.workspaceId} AND p.kind = 'task' AND t.ancestor_ids @> ARRAY[p.target_id]
+                )
+                SELECT r.public_id, t.title, t.status_category, LEAST(t.due_date, t.deadline_date)::text AS due_date,
+                       pr.public_id AS project_public, w.name AS project_name
+                  FROM hits h
+                  JOIN work.task t ON t.workspace_id = ${tx.workspaceId} AND t.id = h.id
+                  JOIN core.record r ON r.workspace_id = t.workspace_id AND r.id = t.id
+                  LEFT JOIN work.project w ON w.workspace_id = t.workspace_id AND w.id = t.project_id
+                  LEFT JOIN core.record pr ON pr.workspace_id = w.workspace_id AND pr.id = w.id
+                 WHERE t.status_category <> 'cancelled' AND ${vis.where('r', { project: sql`t.project_id` })}
+                   AND NOT EXISTS (SELECT 1 FROM work.task c JOIN core.record cr ON cr.workspace_id = c.workspace_id AND cr.id = c.id
+                        WHERE c.workspace_id = t.workspace_id AND c.parent_task_id = t.id
+                          AND ${vis.where('cr', { project: sql`c.project_id` })})
+                 ORDER BY (t.status_category = 'done'), t.title, t.id LIMIT ${max + 1}`.execute(
+                tx.db,
+              )
+            ).rows
+          : [];
+        const truncated = rows.length > max;
+        const page = rows.slice(0, max);
+        const totals = (await this.linkedWork(tx, p, [{ key: 'k', links }])).get('k') ?? {
+          done: 0,
+          total: 0,
+        };
+        return {
+          data: page.map((r) => ({
+            id: r.public_id,
+            type: 'task' as const,
+            title: r.title,
+            status: { category: r.status_category },
+            done: r.status_category === 'done',
+            due_date: r.due_date,
+            project: r.project_public ? { id: r.project_public, name: r.project_name } : null,
+          })),
+          summary: { done: totals.done, total: totals.total },
+          coverage: {
+            truncated,
+            relative_to: 'viewer' as const,
+            note: 'Tasks you can read inside the linked projects and under the linked tasks; cancelled tasks and work you cannot read are not counted.',
+          },
+          as_of: new Date().toISOString(),
+        };
+      }),
+    );
+  }
+
   // ---------------------------------------------------------------------------------------------
   // Create and update
   // ---------------------------------------------------------------------------------------------
