@@ -13,10 +13,10 @@ import { Issues } from '@pm/tenancy';
 export const CONTENT_VERSION = 2;
 
 export const REF_KINDS = ['member', 'team', 'task', 'project', 'brand', 'document'] as const;
-export type RefKind = (typeof REF_KINDS)[number];
+export type DocRefKind = (typeof REF_KINDS)[number];
 export const RECORD_REF_KINDS = ['task', 'project', 'brand', 'document'] as const;
 export type RecordRefKind = (typeof RECORD_REF_KINDS)[number];
-export const REF_PREFIX: Record<RefKind, string> = {
+export const DOC_REF_PREFIX: Record<DocRefKind, string> = {
   member: 'mem',
   team: 'team',
   task: 'tsk',
@@ -26,7 +26,7 @@ export const REF_PREFIX: Record<RefKind, string> = {
 };
 
 export interface Ref {
-  kind: RefKind;
+  kind: DocRefKind;
   id: string;
 }
 
@@ -117,11 +117,11 @@ export function newBlockId(): string {
 const isObject = (v: unknown): v is Record<string, unknown> =>
   typeof v === 'object' && v !== null && !Array.isArray(v);
 
-const refPattern = (kind: RefKind) =>
-  new RegExp(`^${REF_PREFIX[kind]}_[0-9A-HJKMNP-TV-Z]{26}$`);
+const refPattern = (kind: DocRefKind) =>
+  new RegExp(`^${DOC_REF_PREFIX[kind]}_[0-9A-HJKMNP-TV-Z]{26}$`);
 
 /** Whether `id` is a well-formed public identifier of the reference kind. */
-export const refIdOk = (kind: RefKind, id: unknown): id is string =>
+export const refIdOk = (kind: DocRefKind, id: unknown): id is string =>
   typeof id === 'string' && refPattern(kind).test(id);
 
 /** A link or embed address: absolute, bounded, no credentials. */
@@ -162,7 +162,7 @@ export function stableStringify(value: unknown): string {
 }
 
 export const sha256 = (s: string) => `sha256:${createHash('sha256').update(s).digest('hex')}`;
-export const contentHash = (c: DocContent) => sha256(stableStringify(c));
+export const documentContentHash = (c: DocContent) => sha256(stableStringify(c));
 export const blockHash = (b: Block) => sha256(stableStringify(b));
 export const contentBytes = (c: DocContent) => Buffer.byteLength(stableStringify(c), 'utf8');
 
@@ -219,13 +219,13 @@ function parseRuns(v: unknown, path: string, st: Strictness): Run[] {
       if (
         !isObject(r) ||
         !(REF_KINDS as readonly unknown[]).includes(r.kind) ||
-        !refIdOk(r.kind as RefKind, r.id)
+        !refIdOk(r.kind as DocRefKind, r.id)
       ) {
         issues.add(`${p}/ref`, 'invalid_reference', 'Choose from the list.');
         return;
       }
       fields(r, ['kind', 'id'], `${p}/ref`, issues);
-      const ref = { kind: r.kind as RefKind, id: r.id as string };
+      const ref = { kind: r.kind as DocRefKind, id: r.id as string };
       run.ref = ref;
       st.refs.push(ref);
       out.push(run);
@@ -478,7 +478,7 @@ export function parseContent(
   if (bytes > limits.bodyMaxBytes)
     issues.add(base || '/', 'too_long', 'This document is too large to save.');
   issues.throwIfAny();
-  return { content, hash: contentHash(content), bytes, refs: [...unique.values()] };
+  return { content, hash: documentContentHash(content), bytes, refs: [...unique.values()] };
 }
 
 /** Re-reads stored content (already validated at save) into the canonical typed form. */
@@ -607,7 +607,7 @@ export function changeSummary(prev: DocContent | null, next: DocContent): Change
 // -------------------------------------------------------------------------------------------
 
 /** What a reference shows for this viewer: a label and where it leads, or null when restricted. */
-export type RefResolver = (ref: Ref) => { label: string; href: string | null } | null;
+export type DocRefResolver = (ref: Ref) => { label: string; href: string | null } | null;
 export const RESTRICTED_LABEL = 'Restricted item';
 
 export interface ExportNote {
@@ -618,7 +618,7 @@ export interface ExportNote {
 
 const mdEscape = (s: string) => s.replace(/([\\`*_[\]<>|#])/g, '\\$1');
 
-function mdRuns(runs: readonly Run[], resolve: RefResolver, note: ExportNote): string {
+function mdRuns(runs: readonly Run[], resolve: DocRefResolver, note: ExportNote): string {
   return runs
     .map((r) => {
       if (r.ref) {
@@ -646,7 +646,7 @@ const fenceFor = (text: string) => {
 export function toMarkdown(
   title: string,
   c: DocContent,
-  resolve: RefResolver,
+  resolve: DocRefResolver,
   note: ExportNote,
 ): string {
   const out: string[] = [`# ${mdEscape(title)}`];
@@ -725,7 +725,7 @@ const esc = (s: string) =>
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&#39;');
 
-function htmlRuns(runs: readonly Run[], resolve: RefResolver, note: ExportNote): string {
+function htmlRuns(runs: readonly Run[], resolve: DocRefResolver, note: ExportNote): string {
   return runs
     .map((r) => {
       if (r.ref) {
@@ -753,7 +753,7 @@ export const PRINT_STYLE =
   'blockquote{border-left:4px solid #888;margin:0;padding-left:1rem}.callout{border:2px solid #888;padding:.5rem .75rem}' +
   '@media print{body{max-width:none;margin:0}a{color:inherit}}';
 
-export function htmlBody(c: DocContent, resolve: RefResolver, note: ExportNote): string {
+export function htmlBody(c: DocContent, resolve: DocRefResolver, note: ExportNote): string {
   const out: string[] = [];
   for (const b of c.blocks) {
     switch (b.type) {

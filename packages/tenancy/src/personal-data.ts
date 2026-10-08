@@ -103,6 +103,15 @@ export async function eraseMembershipNavigation(
       .executeTakeFirst();
     n += Number(r.numDeletedRows);
   }
+  // 4C: mentions of the person in documents leave with them (the documents stay).
+  n += Number(
+    (
+      await tx.db
+        .deleteFrom('knowledge.document_reference')
+        .where('target_membership_id', '=', membershipId)
+        .executeTakeFirst()
+    ).numDeletedRows,
+  );
   for (const table of ['notify.preference', 'notify.profile'] as const) {
     const r = await tx.db
       .deleteFrom(table)

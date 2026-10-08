@@ -130,7 +130,8 @@ export async function projectChainOf(
 /**
  * SQL for the governing project of a `core.record` row: the project itself, or the project that
  * contains a phase, milestone, decision, or task (2B; a projectless task has none and follows its
- * brand). Other record types have none.
+ * brand), or a document attached to the project or to one of its tasks (4C). Other record types
+ * have none.
  */
 export function governingProject(alias: string) {
   const r = sql.raw(alias);
@@ -140,6 +141,8 @@ export function governingProject(alias: string) {
     WHEN 'milestone' THEN (SELECT x.project_id FROM work.milestone x WHERE x.workspace_id = ${r}.workspace_id AND x.id = ${r}.id)
     WHEN 'decision_record' THEN (SELECT x.project_id FROM work.decision_record x WHERE x.workspace_id = ${r}.workspace_id AND x.id = ${r}.id)
     WHEN 'task' THEN (SELECT x.project_id FROM work.task x WHERE x.workspace_id = ${r}.workspace_id AND x.id = ${r}.id)
+    WHEN 'document' THEN (SELECT COALESCE(x.attached_project_id, (SELECT t.project_id FROM work.task t WHERE t.workspace_id = x.workspace_id AND t.id = x.attached_task_id))
+                            FROM knowledge.document x WHERE x.workspace_id = ${r}.workspace_id AND x.id = ${r}.id)
     ELSE NULL END)`;
 }
 
@@ -149,6 +152,12 @@ export async function governingProjectId(
   record: { id: string; recordType: string },
 ): Promise<string | null> {
   if (record.recordType === 'project') return record.id;
+  if (record.recordType === 'document') {
+    const d = await sql<{ project_id: string | null }>`
+      SELECT COALESCE(x.attached_project_id, (SELECT t.project_id FROM work.task t WHERE t.workspace_id = x.workspace_id AND t.id = x.attached_task_id)) AS project_id
+        FROM knowledge.document x WHERE x.id = ${record.id}`.execute(tx.db);
+    return d.rows[0]?.project_id ?? null;
+  }
   const table =
     record.recordType === 'task'
       ? 'work.task'

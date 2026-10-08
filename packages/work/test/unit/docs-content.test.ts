@@ -3,7 +3,7 @@ import {
   RESTRICTED_LABEL,
   changeSummary,
   collectRefs,
-  contentHash,
+  documentContentHash,
   htmlBody,
   newBlockId,
   parseContent,
@@ -15,11 +15,11 @@ import {
   toMarkdown,
   type DocContent,
   type ExportNote,
-  type RefResolver,
+  type DocRefResolver,
 } from '../../src/docs/content.ts';
 import {
   DOC_TYPES,
-  addDays,
+  addReviewDays,
   createsCycle,
   effectiveState,
   isDate,
@@ -40,7 +40,7 @@ const issuesOf = (raw: unknown): Array<{ pointer: string; code: string }> => {
   }
   return [];
 };
-const none: RefResolver = () => null;
+const none: DocRefResolver = () => null;
 const note = (): ExportNote => ({ embeds: 0, restricted: 0 });
 
 describe('document content (ADR-0025 D2)', () => {
@@ -71,7 +71,7 @@ describe('document content (ADR-0025 D2)', () => {
     );
     expect(b.hash).toBe(a.hash);
     expect(a.hash).toMatch(/^sha256:[0-9a-f]{64}$/);
-    expect(contentHash(readContent(JSON.parse(JSON.stringify(a.content))))).toBe(a.hash);
+    expect(documentContentHash(readContent(JSON.parse(JSON.stringify(a.content))))).toBe(a.hash);
     expect(stableStringify({ b: 1, a: [2, { d: 1, c: 2 }] })).toBe('{"a":[2,{"c":2,"d":1}],"b":1}');
   });
 
@@ -354,7 +354,7 @@ describe('document export (ADR-0025 D9)', () => {
   });
 
   it('shows a reference only as the viewer’s resolver allows', () => {
-    const resolve: RefResolver = (r) => (r.id === TASK ? { label: 'Launch', href: '/t/1' } : null);
+    const resolve: DocRefResolver = (r) => (r.id === TASK ? { label: 'Launch', href: '/t/1' } : null);
     const n = note();
     expect(toMarkdown('T', content(), resolve, n)).toContain('[Launch](/t/1)');
     expect(n.restricted).toBe(0);
@@ -389,8 +389,8 @@ describe('document semantics (ADR-0025 D4, D7)', () => {
     expect(isDate('2026-02-28')).toBe(true);
     expect(isDate('2026-02-30')).toBe(false);
     expect(isDate('26-02-01')).toBe(false);
-    expect(addDays('2026-12-31', 1)).toBe('2027-01-01');
-    expect(addDays('2026-03-01', -1)).toBe('2026-02-28');
+    expect(addReviewDays('2026-12-31', 1)).toBe('2027-01-01');
+    expect(addReviewDays('2026-03-01', -1)).toBe('2026-02-28');
   });
 
   it('constrains where each type may live', () => {

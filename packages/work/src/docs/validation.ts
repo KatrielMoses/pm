@@ -2,7 +2,7 @@ import { Issues, text as plainField } from '@pm/tenancy';
 import { isObject, isPublic } from '../validation.ts';
 import {
   RECORD_REF_KINDS,
-  REF_PREFIX,
+  DOC_REF_PREFIX,
   parseContent,
   type Block,
   type ContentLimits,
@@ -215,7 +215,7 @@ export function parseLinks(body: unknown, max: number): Array<{ kind: RecordRefK
     if (b.records.length > max) issues.add('/records', 'too_many', `Link at most ${max} records.`);
     const seen = new Set<string>();
     for (const [i, r] of b.records.slice(0, max).entries()) {
-      const kind = RECORD_REF_KINDS.find((k) => isPublic(r, REF_PREFIX[k]));
+      const kind = RECORD_REF_KINDS.find((k) => isPublic(r, DOC_REF_PREFIX[k]));
       if (!kind) {
         issues.add(`/records/${i}`, 'invalid_reference', 'Choose a task, project, brand, or document.');
         continue;

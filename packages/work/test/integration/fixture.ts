@@ -25,7 +25,7 @@ import {
   taskAssigneeHook,
   taskTargets,
   savedViewTargets,
-  NotificationService,
+  KnowledgeService,
   reviewDepartureHook,
   departureTimerHook,
   type WorkSettings,
@@ -48,7 +48,7 @@ export {
 
 export interface WorkEnv {
   h: Harness;
-  svc: NotificationService;
+  svc: KnowledgeService;
   stepUp: StubStepUp;
   lifecycle: LifecycleService;
   tokenFor(email: string): Promise<string>;
@@ -96,7 +96,7 @@ export function workEnv(
     createStepUpChallenge: stepUp.createStepUpChallenge,
   };
   const arrayMax = options.arrayMax ?? 10_000;
-  const svc = new NotificationService({
+  const svc = new KnowledgeService({
     notify: { emailState: options.emailState ?? 'capture' },
     tenant: h.app,
     platform: h.platform,

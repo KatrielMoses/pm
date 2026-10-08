@@ -784,6 +784,7 @@ export class ProjectService extends NavigationService {
       | 'work.criteria_item'
       | 'work.scope_item'
       | 'work.task'
+      | 'knowledge.document'
       | 'work.checklist_item'
       | 'work.label'
       | 'work.task_assignee'

@@ -1,3 +1,4 @@
+import { recordJoins, recordProject, recordTitle } from '../collab/record-sql.ts';
 import { sql, type WorkspaceTransaction } from '@pm/db';
 import { compileVisibility, type Principal } from '@pm/tenancy';
 import {
@@ -30,7 +31,7 @@ export const GONE = 'You no longer have access to this item';
 interface RecordInfo {
   id: string;
   public_id: string;
-  record_type: 'task' | 'project';
+  record_type: 'task' | 'project' | 'document';
   title: string;
   brand_id: string | null;
   project_id: string | null;
@@ -108,18 +109,17 @@ export async function readableRecordInfo(
   const rows = await sql<{
     id: string;
     public_id: string;
-    record_type: 'task' | 'project';
+    record_type: 'task' | 'project' | 'document';
     title: string;
     brand_id: string | null;
     project_id: string | null;
     lifecycle_state: string;
-  }>`SELECT r.id, r.public_id, r.record_type, COALESCE(t.title, w.name) AS title, r.brand_id,
-            COALESCE(t.project_id, w.id) AS project_id, r.lifecycle_state
+  }>`SELECT r.id, r.public_id, r.record_type, ${recordTitle} AS title, r.brand_id,
+            ${recordProject} AS project_id, r.lifecycle_state
        FROM core.record r
-       LEFT JOIN work.task t ON t.workspace_id = r.workspace_id AND t.id = r.id
-       LEFT JOIN work.project w ON w.workspace_id = r.workspace_id AND w.id = r.id
-      WHERE r.id = ANY(${[...ids]}::uuid[]) AND r.record_type IN ('task', 'project')
-        AND ${vis.where('r', { project: sql`COALESCE(t.project_id, w.id)` })}`.execute(tx.db);
+       ${recordJoins}
+      WHERE r.id = ANY(${[...ids]}::uuid[]) AND r.record_type IN ('task', 'project', 'document')
+        AND ${vis.where('r', { project: recordProject })}`.execute(tx.db);
   const projectIds = [...new Set(rows.rows.flatMap((r) => (r.project_id ? [r.project_id] : [])))];
   const projects = new Map(
     projectIds.length
@@ -143,9 +143,9 @@ export async function readableRecordInfo(
           record_type: r.record_type,
           title: r.title,
           brand_id: r.brand_id,
-          project_id: r.project_id && r.record_type === 'task' ? r.project_id : null,
-          project_public: p && r.record_type === 'task' ? p.public_id : null,
-          project_name: p && r.record_type === 'task' ? p.name : null,
+          project_id: r.project_id && r.record_type !== 'project' ? r.project_id : null,
+          project_public: p && r.record_type !== 'project' ? p.public_id : null,
+          project_name: p && r.record_type !== 'project' ? p.name : null,
           project_readable: !!p,
           archived: r.lifecycle_state === 'archived',
         },
@@ -176,7 +176,12 @@ export interface NotificationView {
   state: string;
   available: boolean;
   summary: string;
-  record: { id: string; type: 'task' | 'project'; title: string; archived: boolean } | null;
+  record: {
+    id: string;
+    type: 'task' | 'project' | 'document';
+    title: string;
+    archived: boolean;
+  } | null;
   brand: {
     id: string;
     name: string;
@@ -321,7 +326,7 @@ export async function externalLine(
       : null;
   }
   const brand = rec.brand_id ? (await brandsOf(tx, [rec.brand_id])).get(rec.brand_id) : undefined;
-  const path = `/workspaces/${workspacePublicId}/${rec.record_type === 'task' ? 'tasks' : 'projects'}/${rec.public_id}`;
+  const path = `/workspaces/${workspacePublicId}/${rec.record_type === 'task' ? 'tasks' : rec.record_type === 'document' ? 'documents' : 'projects'}/${rec.public_id}`;
   if (brand && (brand.is_sensitive || brand.content_mode === 'minimal'))
     return { line: minimalLine(type, brand.name), path, minimal: true };
   const actors = await namesOf(

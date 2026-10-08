@@ -14,8 +14,9 @@ import {
 import { registerWorkLifecycle } from './lifecycle.ts';
 import { projectTargets, savedViewTargets, taskTargets } from './navigation.ts';
 import { projectOwnerHook, taskAssigneeHook } from './ownership.ts';
-import { NotificationService } from './notify/notification-service.ts';
+import { KnowledgeService } from './docs/suggestion-service.ts';
 import { reviewDepartureHook } from './collab/departure.ts';
+import { documentOwnerHook } from './docs/ownership.ts';
 import { departureTimerHook } from './time/jobs.ts';
 import { DEFAULT_WORK_SETTINGS, type WorkSettings } from './validation.ts';
 
@@ -38,7 +39,7 @@ export function createWorkService(deps: {
   };
   logger: Logger;
   metrics: Metrics;
-}): NotificationService {
+}): KnowledgeService {
   const { config } = deps;
   if (!config.identity.signingKey) throw new Error('AUTH_SIGNING_KEY is required');
   const writer = new AuditWriter({
@@ -58,7 +59,7 @@ export function createWorkService(deps: {
   const signingKey = Buffer.from(config.identity.signingKey.reveal(), 'base64url');
   const arrayMax = config.tenancy.principalContextArrayMax;
   const work = config.work ?? DEFAULT_WORK_SETTINGS;
-  return new NotificationService({
+  return new KnowledgeService({
     notify: {
       emailState: config.identity.mailTransport === 'capture' ? 'capture' : 'unconfigured',
     },
@@ -72,6 +73,7 @@ export function createWorkService(deps: {
     ownership: defaultOwnershipRegistry()
       .register(projectOwnerHook)
       .register(taskAssigneeHook)
+      .register(documentOwnerHook)
       .register(reviewDepartureHook(writer))
       .register(departureTimerHook(writer)),
     settings: {
@@ -91,6 +93,7 @@ export function createWorkService(deps: {
       'capture.member': { limit: work.captureRatePerMinute, windowMs: 60_000 },
       'intake.submit': { limit: work.intakeSubmissionsPerHour, windowMs: 60 * 60_000 },
       'comment.member': { limit: work.commentRatePerMinute, windowMs: 60_000 },
+      'document.save': { limit: work.documentSaveRatePerMinute, windowMs: 60_000 },
     }),
     signingKey,
     metrics: deps.metrics,

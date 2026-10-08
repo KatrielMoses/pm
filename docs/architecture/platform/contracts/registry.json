@@ -1891,7 +1891,8 @@
       "schema_version": 1,
       "aggregate_entity": "knowledge.source_approval",
       "fields": [
-        "document_version_id"
+        "document_version_id",
+        "kind"
       ],
       "max_class": "C1",
       "consumers": {

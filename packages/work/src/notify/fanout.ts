@@ -42,6 +42,7 @@ export const FANOUT_EVENTS = [
   'work.task.assigned',
   'work.task.delegated',
   'relations.mention.created',
+  'knowledge.document.mention_added',
   'collab.comment.created',
   'collab.review.requested',
   'collab.review.withdrawn',
@@ -54,6 +55,7 @@ export const FANOUT_EVENTS = [
   'relations.relationship.created',
 ] as const satisfies readonly InternalEventType[];
 
+const NIL_UUID = '00000000-0000-7000-8000-000000000000';
 const str = (v: unknown): string | null => (typeof v === 'string' && v ? v : null);
 
 /**
@@ -129,6 +131,27 @@ export class NotificationFanOut implements OutboxConsumer {
         return [
           { type: 'mention', recordId: m.host_record_id, actorId: actor, recipients, facts: {} },
         ];
+      }
+      case 'knowledge.document.mention_added': {
+        // A person named in a document (4C): notified like a mention in a comment, if they can read it.
+        const m = await tx.db
+          .selectFrom('knowledge.document_reference')
+          .select(['target_membership_id'])
+          .where('id', '=', str(data.reference_id) ?? NIL_UUID)
+          .where('document_id', '=', e.aggregate.id)
+          .executeTakeFirst();
+        return m?.target_membership_id
+          ? [
+              {
+                type: 'mention',
+                recordId: e.aggregate.id,
+                actorId: actor,
+                recipients: [m.target_membership_id],
+                facts: {},
+                occasion: `doc-mention:${str(data.reference_id)}`,
+              },
+            ]
+          : [];
       }
       case 'collab.comment.created': {
         const host = str(data.host_record_id);

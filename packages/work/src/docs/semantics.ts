@@ -62,7 +62,7 @@ export const reviewOverdue = (reviewDueOn: string | null, today: string) =>
   reviewDueOn !== null && reviewDueOn < today;
 
 /** The calendar date `days` after `from` (both `YYYY-MM-DD`). */
-export function addDays(from: string, days: number): string {
+export function addReviewDays(from: string, days: number): string {
   const d = new Date(`${from}T00:00:00Z`);
   d.setUTCDate(d.getUTCDate() + days);
   return d.toISOString().slice(0, 10);
