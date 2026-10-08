@@ -45,7 +45,7 @@ rejected: thrown in local/test, dropped and counted (`telemetry.label_rejected`)
 | Endpoint | Returns | Never returns |
 |---|---|---|
 | `GET /healthz` | `{"status":"ok"}` | anything else |
-| `GET /readyz` | `200/503 {"status","checks":{database,migrations,dispatcher,object_storage,recovery_gate,tenant_isolation},"build"}` | hosts, ports, database names, versions beyond the build ID, errors |
+| `GET /readyz` | `200/503 {"status","checks":{database,migrations,dispatcher,object_storage,email_delivery,recovery_gate,tenant_isolation},"build"}` | hosts, ports, database names, versions beyond the build ID, errors |
 | `GET /v1/status` (public, cached 5 s) | `{"data":{"type":"platform_status","status":"available"|"degraded","build":{version,build}},"meta":{…}}` | check names or reasons |
 
 Failure reasons go to `readiness.check_failed` logs. `/readyz` fails immediately when shutdown starts.

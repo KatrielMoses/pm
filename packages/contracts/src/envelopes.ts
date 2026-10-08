@@ -198,6 +198,12 @@ export const NON_RESOURCE_TYPES = [
   'rescheduling_inputs',
   // 4A: a record's collaboration summary (follow state, comment count, capabilities, latest review).
   'collaboration_summary',
+  // 4B: the person's own notification counts, profile, preferences, bulk result, and scope defaults.
+  'notification_counts',
+  'notification_profile',
+  'notification_preference',
+  'notification_update',
+  'notification_default',
 ] as const;
 export type NonResourceType = (typeof NON_RESOURCE_TYPES)[number];
 

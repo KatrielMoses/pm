@@ -38,6 +38,7 @@ describe('web/API process', () => {
           logger: h.logger,
           metrics: h.telemetry.metrics,
           isDraining: () => draining,
+          emailTransport: 'none',
         }),
     });
     // Test-only routes to exercise body parsing and unexpected failures.
@@ -79,6 +80,7 @@ describe('web/API process', () => {
         migrations: 'ok',
         dispatcher: 'fail',
         object_storage: 'not_configured',
+        email_delivery: 'not_configured',
         recovery_gate: 'ok',
         tenant_isolation: 'ok',
       },
