@@ -35,7 +35,7 @@ function ownPercent(r: {
 }
 
 /**
- * Recomputes one goal's viewer-neutral derived state (ADR-0028 G3, G11): whether its update is
+ * Recomputes one goal's viewer-neutral derived state (ADR-0028 G3, G14): whether its update is
  * fresh or stale, which side of its period it is on, and, for a goal whose progress is the
  * rollup of manual key results, the rollup itself, appended to the append-only history as a
  * `computed` check-in only when its inputs changed (the inputs hash makes a repeat the same row).

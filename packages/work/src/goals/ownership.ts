@@ -2,7 +2,7 @@ import { sql } from '@pm/db';
 import type { OwnershipHook } from '@pm/tenancy';
 
 /**
- * Departure (ADR-0028 G10): a departing member's goals, key results, and portfolios move to the
+ * Departure (ADR-0028 G16): a departing member's goals, key results, and portfolios move to the
  * member chosen in the departure plan, so none is left without an owner who can act on it.
  * Check-ins the person wrote are history and stay under their name.
  */
