@@ -354,7 +354,8 @@ describe('document export (ADR-0025 D9)', () => {
   });
 
   it('shows a reference only as the viewer’s resolver allows', () => {
-    const resolve: DocRefResolver = (r) => (r.id === TASK ? { label: 'Launch', href: '/t/1' } : null);
+    const resolve: DocRefResolver = (r) =>
+      r.id === TASK ? { label: 'Launch', href: '/t/1' } : null;
     const n = note();
     expect(toMarkdown('T', content(), resolve, n)).toContain('[Launch](/t/1)');
     expect(n.restricted).toBe(0);
