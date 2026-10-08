@@ -26,7 +26,7 @@ const issueOf = (code: string) =>
 const sha = (b: Buffer) => createHash('sha256').update(b).digest('hex');
 
 /**
- * Phase 4E files and deliverables on real PostgreSQL (ADR-0025): upload sessions with quota
+ * Phase 4E files and deliverables on real PostgreSQL (ADR-0026): upload sessions with quota
  * reservation, verification, quarantine, and the scan job (clean promotes, infected blocks, failures
  * fail closed); downloads only of clean bytes through short-lived signed URLs; versions, external
  * links, bounded comparison; deliverables reviewed through 4A with acceptance evidence and the

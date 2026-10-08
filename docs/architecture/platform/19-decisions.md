@@ -255,8 +255,8 @@ All decisions are **proposed (Phase 0D)**, pending solutions-architect acceptanc
   - **Signals.** `views.queries` (entity, outcome), `views.query_duration` (entity), and `views.exports` (entity, format).
 - **Alternatives:** `GET` with the AST in the URL (it would land in logs and the 0D field-selection rule). Offset pages (forbidden for mutable collections).
 - **Consequences:** Payloads carry identifiers, kinds, and counts only, never names or query text. 83 ID prefixes, 104 events, 99 named parameters, 63 telemetry signals.
-<a id="pl-35"></a>
-### PL-35: File and deliverable contracts (Phase 4E amendment)
+<a id="pl-36"></a>
+### PL-36: File and deliverable contracts (Phase 4E amendment)
 - **Decision:**
   - Prefixes `file`, `fv`, `upl`, `dlv`, and `dv` (registered in Phase 0) are implemented; none is added.
   - Resources and verbs, all under the workspace:

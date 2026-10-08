@@ -1,5 +1,5 @@
 -- migrate:phase expand
--- Phase 4E (0B ADR-33, 0C AZ-33, 0D PL-35; ADR-0025): stored objects (quarantined until a clean
+-- Phase 4E (0B ADR-34, 0C AZ-34, 0D PL-36; ADR-0026): stored objects (quarantined until a clean
 -- scan), files with immutable versions and external links on workspace, brand, project, task, and
 -- comment hosts, retry-safe upload sessions, deliverables with submitted versions reviewed through
 -- 4A and evidence-locked on acceptance, and per-workspace storage usage. Rows never hold a signed
@@ -337,7 +337,7 @@ CREATE TRIGGER deliverable_version_guard BEFORE UPDATE ON files.deliverable_vers
 -- Deliverable versions are review subjects through their deliverable (4A).
 ALTER TABLE collab.review_request DROP CONSTRAINT review_request_subject_known;
 ALTER TABLE collab.review_request ADD CONSTRAINT review_request_subject_known
-  CHECK (subject_kind IN ('task', 'project', 'deliverable'));
+  CHECK (subject_kind IN ('task', 'project', 'document', 'deliverable'));
 
 -- ---------------------------------------------------------------------------------------------
 -- Storage usage (FILE-010): committed bytes plus bytes reserved by open upload sessions.

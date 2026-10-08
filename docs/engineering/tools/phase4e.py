@@ -6,17 +6,17 @@ Usage (from the repository root):
 
 Phase 4E (docs/engineering/phase4/closure-4e.json) is checked by the Phase 2 closure rules (every
 owned and contributed catalog requirement closed with existing evidence, foundations deferred with
-accepted sources, decisions D1..D10 tied to ADR-0025 rows F1..F10) plus drift checks: the file
+accepted sources, decisions D1..D10 tied to ADR-0026 rows F1..F10) plus drift checks: the file
 bounds are registered (owner 4E), configured, and documented; the events, signals, envelopes, the
-file/fv/upl/dlv/dv prefixes, and the actions 4E uses are registered; migration 0038 keeps its key,
-immutability, evidence-lock, and RLS guards and its exact rollback to 0037; the service extends the
+file/fv/upl/dlv/dv prefixes, and the actions 4E uses are registered; migration 0039 keeps its key,
+immutability, evidence-lock, and RLS guards and its exact rollback to 0038; the service extends the
 notification service and is what createWorkService returns; downloads refuse anything not clean;
 inline previews exclude SVG and HTML; object keys carry no identifiers; deliverables follow 4A
 through the reviewSettled hook; storage and scanner absence is reported truthfully; and the ADR
 stays proposed until acceptance.
 
-Phase 4C runs in parallel and may claim the same numbers (0038, ADR-0025, ADR-33, AZ-33, PL-35,
-T-51, AT-208 onward); the later integration renumbers deterministically and updates this file.
+Phase 4C runs in parallel and may claim the same numbers (0039, ADR-0026, ADR-34, AZ-34, PL-36,
+T-52, AT-218 onward); the later integration renumbers deterministically and updates this file.
 """
 import os
 import re
@@ -57,7 +57,7 @@ SERVICE = "packages/work/src/files/file-service.ts"
 SEMANTICS = "packages/work/src/files/semantics.ts"
 JOBS = "packages/work/src/files/jobs.ts"
 LIFECYCLE = "packages/work/src/files/lifecycle.ts"
-MIGRATION = "packages/db/migrations/0038_files_deliverables"
+MIGRATION = "packages/db/migrations/0039_files_deliverables"
 
 
 def check_contracts(registry, policy):
@@ -135,26 +135,26 @@ def check_invariants():
                    "CREATE TRIGGER file_version_guard", "CREATE TRIGGER deliverable_version_guard",
                    "deliverable_expected_known", "deliverable_accepted_shape", "deliverable_version_accepted_shape",
                    "upload_session_key_shape", "storage_usage_nonnegative", "discover_file_work",
-                   "subject_kind IN ('task', 'project', 'deliverable')", "ENABLE ROW LEVEL SECURITY",
+                   "subject_kind IN ('task', 'project', 'document', 'deliverable')", "ENABLE ROW LEVEL SECURITY",
                    "FORCE ROW LEVEL SECURITY"]:
         if needle not in up:
-            errs.append("0038 lacks %s" % needle)
+            errs.append("0039 lacks %s" % needle)
     schema = read(P("packages/db/src/schema.ts"))
     for table in TABLES:
         if "CREATE POLICY tenant_isolation ON %s" % table not in up:
-            errs.append("0038: %s has no tenant_isolation policy" % table)
+            errs.append("0039: %s has no tenant_isolation policy" % table)
         if "'%s':" % table not in schema:
             errs.append("schema.ts lacks %s" % table)
-    if "Restores the exact 0037 catalog" not in down:
-        errs.append("0038 down must restore 0037")
-    if "subject_kind IN ('task', 'project'));" not in down:
-        errs.append("0038 down must restore the 0037 review subject check")
+    if "Restores the exact 0038 catalog" not in down:
+        errs.append("0039 down must restore 0038")
+    if "subject_kind IN ('task', 'project', 'document'));" not in down:
+        errs.append("0039 down must restore the 0038 review subject check")
     if "DISABLE ROW LEVEL SECURITY" in up:
         errs.append("RLS must stay enabled")
     # Rows never hold a signed URL.
     for col in ["signed_url", "download_url", "presigned"]:
         if col in up:
-            errs.append("0038 must not store a signed URL (%s)" % col)
+            errs.append("0039 must not store a signed URL (%s)" % col)
     svc = read(P(SERVICE))
     sem = read(P(SEMANTICS))
     if "export class FileService extends NotificationService" not in svc:
@@ -193,7 +193,7 @@ def check_invariants():
     if "export const quarantineKey = (randomHex: string) => `q.${randomHex}`" not in sem:
         errs.append("quarantine keys must be q.{random hex}")
     if "storage_key ~ '^[qo]\\.[0-9a-f]{64}$'" not in up:
-        errs.append("0038 must constrain object keys to q./o. plus 64 hex")
+        errs.append("0039 must constrain object keys to q./o. plus 64 hex")
     # Deliverables follow 4A through the reviewSettled hook.
     review = read(P("packages/work/src/collab/review-service.ts"))
     if review.count("await this.reviewSettled(") < 2:
@@ -246,9 +246,9 @@ def check_boundaries_kept():
     up = read(P(MIGRATION + ".up.sql"))
     for schema in ["knowledge", "agents", "integrations"]:
         if re.search(r"CREATE (SCHEMA|TABLE) %s\b" % schema, up):
-            errs.append("0038 creates %s structures (a later phase owns them)" % schema)
+            errs.append("0039 creates %s structures (a later phase owns them)" % schema)
     if re.search(r"CREATE TABLE files\.evidence_item\b", up):
-        errs.append("0038 creates files.evidence_item (9B owns it)")
+        errs.append("0039 creates files.evidence_item (9B owns it)")
     for path in ["packages/work/src/files/s3-storage.ts", "packages/work/src/files/storage.ts",
                  "packages/work/src/files/scanner.ts"]:
         text = read(P(path))
@@ -263,21 +263,21 @@ def check_boundaries_kept():
 
 def check_adr(closure):
     errs = []
-    path = phase1.adr_path("0025")
+    path = phase1.adr_path("0026")
     if not path:
-        return ["no ADR-0025"], ""
+        return ["no ADR-0026"], ""
     text = read(path)
     m = phase2.ADR_STATUS.search(text)
     if not m:
-        errs.append("ADR-0025 status must be accepted and implemented or proposed")
+        errs.append("ADR-0026 status must be accepted and implemented or proposed")
     elif m.group(1) == "proposed" and closure.get("status") != "candidate":
-        errs.append("ADR-0025 is proposed but the closure is not a candidate")
+        errs.append("ADR-0026 is proposed but the closure is not a candidate")
     for d in closure.get("decisions", []):
         if not re.search(r"^\| %s \|" % re.escape(d.get("adr_row", "")), text, re.M):
-            errs.append("%s: ADR-0025 has no row %s" % (d["id"], d.get("adr_row")))
+            errs.append("%s: ADR-0026 has no row %s" % (d["id"], d.get("adr_row")))
     if "Parallel numbering" not in text:
-        errs.append("ADR-0025 must record the parallel 4C numbering and its deterministic renumbering")
-    return errs, "ADR-0025 %s" % (m.group(1) if m else "?")
+        errs.append("ADR-0026 must record the parallel 4C numbering and its deterministic renumbering")
+    return errs, "ADR-0026 %s" % (m.group(1) if m else "?")
 
 
 def main():

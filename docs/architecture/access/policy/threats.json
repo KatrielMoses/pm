@@ -545,7 +545,7 @@
       ]
     },
     {
-      "id": "T-51",
+      "id": "T-52",
       "category": "cross_brand_traversal",
       "description": "File and deliverable leakage and malicious content: a file, version, name, size, preview, comparison, signed URL, upload session, deliverable, or storage figure of a workspace, brand, project, task, or comment the caller cannot read reached through metadata, list, download, preview, compare, deliverable, review queue, or error responses (or told apart from an unknown one); access surviving a revocation beyond the next request; a signed URL that was tampered with, reused for another object or operation, or replayed after its lifetime, or one stored, logged, emitted, or exported; another person's upload session completed or read; a comment attachment added by someone other than its author; a guest reaching workspace-level files; the storage quota bypassed by concurrent uploads; infected, unscanned, or failed-scan bytes downloaded; active content (SVG, HTML, scripts) rendered inline from the application's storage; the server fetching an external link (SSRF); an accepted deliverable's evidence changed, replaced, or purged.",
       "mitigated_by": [
@@ -4332,9 +4332,9 @@
       ]
     },
     {
-      "id": "AT-208",
+      "id": "AT-218",
       "threats": [
-        "T-51"
+        "T-52"
       ],
       "principal": "member",
       "setup": "Member without access to a brand reads metadata, lists, downloads, previews, or compares a file hosted there, with the same calls made for an unknown and a malformed file id",
@@ -4350,9 +4350,9 @@
       ]
     },
     {
-      "id": "AT-209",
+      "id": "AT-219",
       "threats": [
-        "T-51"
+        "T-52"
       ],
       "principal": "member",
       "setup": "Stranger from another workspace calls every file, upload, link, storage, and deliverable route",
@@ -4368,9 +4368,9 @@
       ]
     },
     {
-      "id": "AT-210",
+      "id": "AT-220",
       "threats": [
-        "T-51"
+        "T-52"
       ],
       "principal": "member",
       "setup": "Brand access revoked after the member listed a file and was issued a download URL",
@@ -4385,9 +4385,9 @@
       ]
     },
     {
-      "id": "AT-211",
+      "id": "AT-221",
       "threats": [
-        "T-51"
+        "T-52"
       ],
       "principal": "member",
       "setup": "Signed upload or download URL with a tampered signature, another key or operation, a wrong length or checksum, or past SIGNED_URL_LIFETIME",
@@ -4401,9 +4401,9 @@
       ]
     },
     {
-      "id": "AT-212",
+      "id": "AT-222",
       "threats": [
-        "T-51"
+        "T-52"
       ],
       "principal": "member",
       "setup": "Download, preview, or compare of a version whose scan is pending, infected, or failed after the last attempt",
@@ -4418,9 +4418,9 @@
       ]
     },
     {
-      "id": "AT-213",
+      "id": "AT-223",
       "threats": [
-        "T-51"
+        "T-52"
       ],
       "principal": "member",
       "setup": "Inline preview requested for SVG, HTML, office, or archive content",
@@ -4434,9 +4434,9 @@
       ]
     },
     {
-      "id": "AT-214",
+      "id": "AT-224",
       "threats": [
-        "T-51"
+        "T-52"
       ],
       "principal": "member",
       "setup": "Another member reads or completes someone else's upload session",
@@ -4451,9 +4451,9 @@
       ]
     },
     {
-      "id": "AT-215",
+      "id": "AT-225",
       "threats": [
-        "T-51"
+        "T-52"
       ],
       "principal": "member",
       "setup": "Member who can upload to the host attaches a file to a comment they did not write",
@@ -4467,9 +4467,9 @@
       ]
     },
     {
-      "id": "AT-216",
+      "id": "AT-226",
       "threats": [
-        "T-51"
+        "T-52"
       ],
       "principal": "member",
       "setup": "Concurrent upload initiations that together exceed WORKSPACE_STORAGE_QUOTA_BYTES",
@@ -4484,9 +4484,9 @@
       ]
     },
     {
-      "id": "AT-217",
+      "id": "AT-227",
       "threats": [
-        "T-51"
+        "T-52"
       ],
       "principal": "guest",
       "setup": "Guest lists, reads, or uploads workspace-level files",
@@ -4502,9 +4502,9 @@
       ]
     },
     {
-      "id": "AT-218",
+      "id": "AT-228",
       "threats": [
-        "T-51"
+        "T-52"
       ],
       "principal": "member",
       "setup": "External link with a script or data scheme, embedded credentials, or more than 2048 characters; an accepted link is never fetched by the server",
@@ -4518,9 +4518,9 @@
       ]
     },
     {
-      "id": "AT-219",
+      "id": "AT-229",
       "threats": [
-        "T-51"
+        "T-52"
       ],
       "principal": "member",
       "setup": "Change, resubmit, trash, or purge the accepted version of a deliverable or the file version it points at",

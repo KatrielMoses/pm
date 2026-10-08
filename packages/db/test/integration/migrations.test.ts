@@ -94,14 +94,14 @@ describe('migrations from an empty database', () => {
     expect(await catalogFingerprint(second)).toEqual(await catalogFingerprint(first));
   });
 
-  it('upgrades through every accepted boundary (0009–0038) to the candidate and reverses each boundary step', async () => {
+  it('upgrades through every accepted boundary (0009–0039) to the candidate and reverses each boundary step', async () => {
     // Accepted subphase boundaries: 1A 0009, 1B 0012, 1F 0016, 1C 0018, 1D 0019, 1E 0020; 2A adds
     // 0021 (work) and 0022 (relations, templates, recurrence); 2B–2E add 0023–0030; 3A adds 0031
     // (saved views, defaults, and pin writes); 3D adds 0032 (time entries, timesheets, approvals,
     // and period locks); 3B adds 0033 (core view layouts); 3C adds 0034 (Today, work blocks,
     // block series, and daily records); 3E adds 0035 (capacity); 4A adds 0036 (comments, mentions,
     // followers, reviews, and assignment history); 4B adds 0037 (notifications);
-    // 4E adds 0038 (files, versions, upload sessions, deliverables, and storage usage).
+    // 4E adds 0039 (files, versions, upload sessions, deliverables, and storage usage).
     const boundaries = [
       9, 12, 16, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38,
     ];

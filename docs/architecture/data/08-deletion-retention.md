@@ -66,7 +66,7 @@ Steps (each idempotent, resumable from the operation's checkpoint):
 1. Transition the batch `trashed` → `purging` (guarded update). Abort if a hold or evidence lock applies. Evidence-locked rows are excluded and kept, and the remainder proceeds.
 2. Delete typed rows bottom-up per module through each module's purge hook. Hooks delete hosted children (comments, field values, followers, labels, checklist items) and association rows.
 3. Enqueue object deletions as `execution.external_effect` rows (effect key = object key). An object is deleted only when no `file_version` references it.
-   *Phase 4E ([ADR-33](12-decisions.md#adr-33)):* the effect key is `object:{key}` (keys carry no identifiers); the file sweep deletes the bytes idempotently and then the orphan row. Evidence-locked versions and the objects they use are skipped. No retention period is set (OD-36): files live until their host or workspace is purged.
+   *Phase 4E ([ADR-34](12-decisions.md#adr-34)):* the effect key is `object:{key}` (keys carry no identifiers); the file sweep deletes the bytes idempotently and then the orphan row. Evidence-locked versions and the objects they use are skipped. No retention period is set (OD-36): files live until their host or workspace is purged.
 4. Redact content values in audit and activity for the purged targets (§7.7 of [07](07-audit-provenance.md#77-redaction-and-purge-of-evidence-explicit-never-silent)).
 5. Remove search documents, metric contributions (re-aggregate), notification bodies, and AI context caches.
 6. Convert envelopes to tombstones and transition the batch to `purged`. Emit `record.purged`.

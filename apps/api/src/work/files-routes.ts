@@ -13,7 +13,7 @@ type Params = {
 };
 
 /**
- * Files and deliverables (4E, ADR-0025; 0D PL-35). Bytes never pass through these routes: an
+ * Files and deliverables (4E, ADR-0026; 0D PL-36). Bytes never pass through these routes: an
  * upload is a session whose signed PUT goes straight to object storage, and a download is a 303
  * to a short-lived signed GET (`:download`), or the same URL as data for an inline preview
  * (`:preview`). Signed URLs are never stored or logged. Hidden files, sessions, and deliverables

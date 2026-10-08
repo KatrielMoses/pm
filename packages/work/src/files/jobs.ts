@@ -104,7 +104,7 @@ async function release(tx: WorkspaceTransaction, bytes: number) {
 }
 
 /**
- * The malware scan of one uploaded object (ADR-0025 F4). The object stays in quarantine — and every
+ * The malware scan of one uploaded object (ADR-0026 F4). The object stays in quarantine — and every
  * download stays refused — until the scanner says `clean`; then it is copied to its permanent key,
  * marked clean, and its previews become available. An infected object is marked `infected` (only
  * the class is ever shown, never the signature), its bytes are deleted, and its bytes leave the

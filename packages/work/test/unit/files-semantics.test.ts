@@ -14,7 +14,7 @@ import {
   uploadTypeProblem,
 } from '../../src/files/semantics.ts';
 
-/** ADR-0025 F3, F5, F6, F8: type allow-list, inline rules, names and links, keys, diffs, states. */
+/** ADR-0026 F3, F5, F6, F8: type allow-list, inline rules, names and links, keys, diffs, states. */
 describe('file semantics (4E)', () => {
   it('accepts allow-listed types only when the extension agrees', () => {
     expect(uploadTypeProblem('photo.png', 'image/png')).toBeNull();

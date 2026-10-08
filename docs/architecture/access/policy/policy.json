@@ -647,7 +647,7 @@
         "PERM-004",
         "FILE-013"
       ],
-      "notes": "Phase 4E (AZ-33): also trashes a file; a file an accepted deliverable uses is evidence-locked and refused."
+      "notes": "Phase 4E (AZ-34): also trashes a file; a file an accepted deliverable uses is evidence-locked and refused."
     },
     {
       "key": "record.purge",
@@ -910,7 +910,7 @@
         "FILE-005",
         "FILE-010"
       ],
-      "notes": "Phase 4E (AZ-33): initiates and completes uploads, adds versions and external links, and renames files on the host (workspace, brand, project, task, or comment). Only a comment's author attaches files to it; an upload session belongs to its creator alone. Workspace-hosted files are for members only."
+      "notes": "Phase 4E (AZ-34): initiates and completes uploads, adds versions and external links, and renames files on the host (workspace, brand, project, task, or comment). Only a comment's author attaches files to it; an upload session belongs to its creator alone. Workspace-hosted files are for members only."
     },
     {
       "key": "record.download",
@@ -943,7 +943,7 @@
         "FILE-008",
         "FILE-011"
       ],
-      "notes": "Phase 4E (AZ-33): download, inline preview (allow-listed formats only), and comparison of clean versions through a short-lived signed URL issued per request; pending, infected, and failed scans are refused; external links redirect without being fetched."
+      "notes": "Phase 4E (AZ-34): download, inline preview (allow-listed formats only), and comparison of clean versions through a short-lived signed URL issued per request; pending, infected, and failed scans are refused; external links redirect without being fetched."
     },
     {
       "key": "record.move",
@@ -1280,7 +1280,7 @@
         "FILE-007",
         "FILE-006"
       ],
-      "notes": "Phase 4E (AZ-33): creates a task's deliverables and submits a version (a clean file of the same task or a URL) with a 4A approval request in one transaction, superseding an open one; an accepted deliverable takes no more versions."
+      "notes": "Phase 4E (AZ-34): creates a task's deliverables and submits a version (a clean file of the same task or a URL) with a 4A approval request in one transaction, superseding an open one; an accepted deliverable takes no more versions."
     },
     {
       "key": "review.request",

@@ -10,7 +10,7 @@ export interface LocalStorageRouteDeps {
 }
 
 /**
- * The dev/test object store's signed URLs (4E, ADR-0025 F1). Registered only when
+ * The dev/test object store's signed URLs (4E, ADR-0026 F1). Registered only when
  * `OBJECT_STORAGE=local`, which is refused in deployed environments. The signature in the URL is
  * the whole authorization — exactly as for a provider's presigned URL: it binds the key, the
  * operation, the expiry, and (for PUT) the exact length and checksum; (for GET) the type and the

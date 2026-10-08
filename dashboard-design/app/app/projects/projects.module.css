@@ -1,0 +1,46 @@
+/* Projects list + New project modal. Paper tokens only. */
+
+/* ---------- list ---------- */
+.tableCard { background: var(--card); border-radius: var(--r-lg); overflow: hidden; animation: fadeUp .5s cubic-bezier(.2,.8,.2,1) both; }
+.tableCard tbody tr:focus-visible { outline: 2px solid var(--k1); outline-offset: -2px; }
+.name { display: inline-flex; align-items: center; gap: 10px; min-width: 0; }
+.name a { font-size: 14px; font-weight: 650; color: var(--text); }
+.name a:hover { text-decoration: underline; text-underline-offset: 3px; }
+.brand { font-size: 12px; font-weight: 600; color: var(--mute); }
+.prog { display: inline-flex; align-items: center; gap: 10px; width: 100%; }
+.progBar { flex: 1; min-width: 60px; }
+.prog b { font-size: 13px; font-weight: 700; font-variant-numeric: tabular-nums; min-width: 36px; text-align: right; }
+.num { font-size: 13px; font-weight: 600; color: var(--text2); font-variant-numeric: tabular-nums; }
+.soon { font-size: 13px; font-weight: 700; color: var(--amberText); font-variant-numeric: tabular-nums; }
+.bad { color: var(--redText); font-weight: 700; }
+.sep { margin: 0 5px; color: var(--mute); }
+.owner { display: inline-flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 600; color: var(--text2); }
+
+/* ---------- cards ---------- */
+.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 14px; }
+.card { background: var(--card); border-radius: var(--r-lg); padding: 18px 20px; display: flex; flex-direction: column; gap: 14px; color: var(--text); box-shadow: inset 0 0 0 1px transparent; transition: box-shadow .15s, transform .15s; animation: fadeUp .5s cubic-bezier(.2,.8,.2,1) both; }
+.card:hover { box-shadow: inset 0 0 0 1px var(--line2); transform: translateY(-2px); }
+.card:focus-visible { outline: 2px solid var(--k1); outline-offset: 2px; }
+.cardTop { display: flex; align-items: center; gap: 10px; }
+.cardName { font-size: 19px; font-weight: 700; letter-spacing: -.02em; line-height: 1.2; }
+.cardFacts { display: flex; align-items: flex-end; gap: 18px; padding-top: 12px; border-top: 1px solid var(--line); }
+.cardFacts > span { display: grid; gap: 3px; }
+.cardFacts em { font-style: normal; font-size: 12px; font-weight: 600; color: var(--mute); }
+.push { margin-left: auto; }
+
+/* ---------- modal ---------- */
+.scrim { position: fixed; inset: 0; z-index: 80; background: color-mix(in srgb, var(--ink) 30%, transparent); display: grid; place-items: center; padding: 20px; animation: fade .2s ease both; }
+.modal { width: min(480px, 100%); background: var(--card); border-radius: var(--r-xl); padding: 22px 24px; display: grid; gap: 16px; box-shadow: var(--pop); animation: fadeUp .3s cubic-bezier(.2,.8,.2,1) both; }
+.mHead { display: flex; align-items: center; justify-content: space-between; }
+.mHead h2 { margin: 0; font-size: 22px; font-weight: 700; letter-spacing: -.02em; }
+.mBrands { display: flex; gap: 8px; flex-wrap: wrap; }
+.mBrand, .mBrandOn { display: inline-flex; align-items: center; gap: 8px; height: 36px; padding: 0 14px 0 8px; border-radius: 999px; border: none; background: var(--card); box-shadow: inset 0 0 0 1px var(--line2); font-size: 13px; font-weight: 600; color: var(--text); cursor: pointer; }
+.mBrand:hover { background: var(--sub); }
+.mBrandOn { box-shadow: inset 0 0 0 2px var(--text); }
+.select { height: 40px; padding: 0 12px; border-radius: var(--r-sm); border: 1px solid var(--line2); background: var(--card); color: var(--text); width: 100%; cursor: pointer; }
+.hint { font-size: 12px; color: var(--mute); font-weight: 500; }
+.mFoot { display: flex; justify-content: flex-end; gap: 8px; padding-top: 4px; }
+
+/* shared motion keyframes (module-scoped copies; CSS modules rename keyframes) */
+@keyframes fade { from { opacity: 0; } to { opacity: 1; } }
+@keyframes fadeUp { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }

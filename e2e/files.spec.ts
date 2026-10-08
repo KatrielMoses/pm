@@ -15,7 +15,7 @@ import {
 } from './support.ts';
 
 /**
- * Phase 4E on desktop, tablet, and mobile (ADR-0025): upload a text file (keyboard only) and watch
+ * Phase 4E on desktop, tablet, and mobile (ADR-0026): upload a text file (keyboard only) and watch
  * it go Uploading → Scanning → Ready, preview it, download it, upload a new version, compare the
  * two, add an external link, and mark a deliverable; an infected upload is Blocked (malware) with
  * no download; a tampered or expired signed URL is refused. Every state passes axe; the task page

@@ -4,7 +4,7 @@ import { purgeCollabFacts } from '../collab/purge.ts';
 import { purgeNotifyFacts } from '../notify/purge.ts';
 
 /**
- * Files and deliverables in the 1F lifecycle (ADR-0025 F7; FILE-013). A file is contained by its
+ * Files and deliverables in the 1F lifecycle (ADR-0026 F7; FILE-013). A file is contained by its
  * host (brand, project, task, or the record a comment sits on); a deliverable by its task. Both
  * trash, restore, and purge with their container. Purge deletes rows and leaves each object no
  * version still uses as an orphan whose key becomes an `object:{key}` external effect; the file

@@ -1,15 +1,15 @@
-# ADR-0025: Files and deliverables (Phase 4E)
+# ADR-0026: Files and deliverables (Phase 4E)
 
 Status: **proposed** (implemented; awaiting one clean current-head no-skip CI run on the stacked draft PR). Engineering detail: [database.md](../database.md#phase-4e-files-and-deliverables), [tenancy.md](../tenancy.md#phase-4e-files-and-deliverables), [lifecycle.md](../lifecycle.md#phase-4e-files-and-deliverables), [observability.md](../observability.md#files-4e), [environments.md](../environments.md).
 Extends ADR-0023 (reviews, 4A), ADR-0024 (notifications, 4B), ADR-0009 (audit and lifecycle, 1F), and the outbox, worker, and external-effect design of ADR-0005 and ADR-0006.
 
-**Parallel numbering.** Phase 4C (documents) is built in parallel on its own branch and may claim the same identifiers: migration 0038, ADR-0025, 0B ADR-33, 0C AZ-33, threat T-51, tests AT-208 onward, and 0D PL-35. Whichever subphase integrates second renumbers its identifiers deterministically, as the 3B/3C reconciliation did (merge `0949051`): the next free migration, ADR, and 0B, 0C, and 0D numbers, with every reference, closure, and validator updated in the same change.
+**Numbering.** Phase 4E was built in parallel with 4C (documents). 4C integrated first and kept migration 0038, ADR-0025, 0B ADR-33, 0C AZ-33, threat T-51, tests AT-208 to AT-217, and 0D PL-35; 4E renumbered deterministically, as the 3B/3C reconciliation did: migration 0039, ADR-0026, 0B ADR-34, 0C AZ-34, threat T-52, tests AT-218 to AT-229, and 0D PL-36, with every reference, closure, and validator updated in the same change.
 
 Accepted sources (the Phase 4E brief's decisions, recorded before code):
 - 0A: PRJ-023 and FILE-001 to FILE-013 (owned). Contributions: WSB-007, CAP-015, PRJ-019, TSK-017, TSK-022, DOC-010, DOC-019, BRF-007, AGT-013, DEV-014, TEST-009, and RPT-014. OD-36 stays open (no retention period is invented).
-- 0B: ADR-33. `files.file_object`, `files.file`, `files.file_version`, `files.upload_session`, `files.deliverable`, `files.deliverable_version`, and `files.storage_usage`; `files.evidence_item` is not created (9B).
-- 0C: AZ-33 (no new actions; `record.read`, `record.upload`, `record.download`, `record.trash`, `deliverable.submit`, and `review.decide` are used). T-51, AT-208 to AT-219.
-- 0D: PL-35 (eleven bounds with values, three new events and two implemented, two new signals and two implemented, five non-resource envelopes, the `object_storage` readiness check); [§15](../../architecture/platform/15-files.md).
+- 0B: ADR-34. `files.file_object`, `files.file`, `files.file_version`, `files.upload_session`, `files.deliverable`, `files.deliverable_version`, and `files.storage_usage`; `files.evidence_item` is not created (9B).
+- 0C: AZ-34 (no new actions; `record.read`, `record.upload`, `record.download`, `record.trash`, `deliverable.submit`, and `review.decide` are used). T-52, AT-218 to AT-229.
+- 0D: PL-36 (eleven bounds with values, three new events and two implemented, two new signals and two implemented, five non-resource envelopes, the `object_storage` readiness check); [§15](../../architecture/platform/15-files.md).
 - 0E: the Phase 4E implementation note in 02-information-architecture; UXD-18 (honest states) applied.
 
 ## Decisions
@@ -37,4 +37,4 @@ Accepted sources (the Phase 4E brief's decisions, recorded before code):
 
 ## Consequences
 
-Migration `0038_files_deliverables` reverses exactly to 0037. The worker gains the scan job and one recurring file sweep per workspace. The API gains the file, upload, link, storage, and deliverable routes and, in development, the local storage routes.
+Migration `0039_files_deliverables` reverses exactly to 0038. The worker gains the scan job and one recurring file sweep per workspace. The API gains the file, upload, link, storage, and deliverable routes and, in development, the local storage routes.

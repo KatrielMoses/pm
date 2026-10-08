@@ -1,7 +1,7 @@
 import { api, ApiError, newIdempotencyKey, protectedRequest, type StepUpResolver } from '../api.ts';
 
 /**
- * Typed client for files and deliverables (4E, ADR-0025). Bytes never pass through the API: an
+ * Typed client for files and deliverables (4E, ADR-0026). Bytes never pass through the API: an
  * upload is a session whose signed PUT goes straight to object storage, then `:complete` records
  * the version and the scan job decides whether it becomes Ready. Downloads are a 303 to a
  * short-lived signed GET; previews read the same URL as data.

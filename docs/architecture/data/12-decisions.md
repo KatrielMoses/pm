@@ -213,8 +213,8 @@ Status of every ADR: **proposed (Phase 0B)**, pending solutions-architect accept
   - A view per share scope: duplicate definitions that drift.
   - Storing query results: they would freeze and widen access.
 - **Consequences:** One migration, `0031_saved_views`, with a down migration to 0030. No 3B layout tables, 3C planning, or 6D export-job tables.
-<a id="adr-33"></a>
-## ADR-33: Files, versions, upload sessions, and deliverables (Phase 4E amendment)
+<a id="adr-34"></a>
+## ADR-34: Files, versions, upload sessions, and deliverables (Phase 4E amendment)
 
 - **Decision:**
   - **Objects.** `files.file_object` is one stored object per upload: an identifier-free key (`q.{64 hex}` while quarantined, `o.{same}` once promoted; a check constraint ties the prefix to `quarantined`), its SHA-256, size, content type, and scan state (`pending`, `clean`, `infected`, `error`). A clean object is never quarantined. An infected object keeps its signature internally and is never shown it; its bytes are deleted. Rows never hold a URL.
@@ -225,7 +225,7 @@ Status of every ADR: **proposed (Phase 0B)**, pending solutions-architect accept
   - **Deletion.** Files and deliverables trash, restore, and purge with their host through the 1F lifecycle. Purge removes rows except evidence-locked versions (R-EVIDENCE) and records each orphaned object as an `object:{key}` external effect that the file sweep deletes. `exec_dispatch.discover_file_work` lists workspaces with expired sessions or pending object deletions, without payloads. Retention periods stay undecided (OD-36).
   - **Not built.** `files.evidence_item` (9B) and agent artifacts as deliverable sources (8C) are not created; no derived preview, thumbnail, or transcoded copy is generated, and no storage class is recorded.
 - **Alternatives:** Keys carrying workspace or file identifiers (they leak through URLs and provider logs). Mutable versions (lost history and evidence). A deliverable review state separate from 4A reviews (two decisions for one acceptance). Counting usage on the fly (races between concurrent uploads).
-- **Consequences:** Migration `0038_files_deliverables` with an exact 0037 rollback. All seven tables have workspace RLS and indexes on every foreign key.
+- **Consequences:** Migration `0039_files_deliverables` with an exact 0038 rollback. All seven tables have workspace RLS and indexes on every foreign key.
 <a id="adr-32"></a>
 ## ADR-32: Notification platform (Phase 4B amendment)
 

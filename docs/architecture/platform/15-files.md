@@ -33,7 +33,7 @@ Data foundations: 0B [§4.9](../data/04-relationship-primitives.md#49-files-atta
 - `evidence_locked: true` versions (accepted deliverables, defect evidence, release evidence) cannot be replaced or deleted. Attempts give the `evidence_locked` error.
 - Object deletion happens only through the purge job via effects (0B §8.8), after no version references the object. Retention follows 0A/0B (`TRASH_RECOVERY_PERIOD`). Export files expire per `EXPORT_LINK_LIFETIME`.
 
-## 15.5 As implemented (Phase 4E, [PL-35](19-decisions.md#pl-35))
+## 15.5 As implemented (Phase 4E, [PL-36](19-decisions.md#pl-36))
 
 - **Routes.** `GET …/storage`; `POST …/uploads`, `GET …/uploads/{upl}`, `POST …/uploads/{upl}:complete`; `GET …/files?host=`, `GET`/`PATCH …/files/{file}`, `GET …/files/{file}:download`, `…:preview`, `…:compare`, `POST …/files/{file}:trash`; `POST …/file-links`; `GET`/`POST …/tasks/{tsk}/deliverables`, `GET …/projects/{prj}/deliverables`, `GET …/deliverables/{dlv}`, `POST …/deliverables/{dlv}:submit`. The initiate body is `{host | file, name, content_type, byte_size, sha256}`, where `host` is `workspace` or a `br_`, `prj_`, `tsk_`, or `cmt_` id and `file` adds a version.
 - **Keys.** Object keys carry no identifiers: `q.{64 hex}` in quarantine and `o.{same}` once promoted (replacing `ws/{workspace_uuid}/{random}` in §15.1). The row binds the key to its workspace.

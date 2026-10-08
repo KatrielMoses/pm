@@ -2298,7 +2298,7 @@ export interface NotificationScopeDefaultTable {
   version: Defaulted<number>;
 }
 
-// Phase 4E: files, immutable versions, upload sessions, deliverables, and storage usage (ADR-0025).
+// Phase 4E: files, immutable versions, upload sessions, deliverables, and storage usage (ADR-0026).
 export type FileScanState = 'pending' | 'clean' | 'infected' | 'error';
 export type FileHostKind = 'workspace' | 'brand' | 'project' | 'task' | 'comment';
 export type DeliverableState =

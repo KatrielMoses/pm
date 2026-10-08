@@ -31,7 +31,7 @@ const sha = (b: Buffer) => createHash('sha256').update(b).digest('hex');
 
 /**
  * Phase 4E authorization, isolation, concurrency, idempotency, provider failure and recovery, and
- * deletion on real PostgreSQL (ADR-0025; 0C AZ-33). Every role and share kind sees exactly the
+ * deletion on real PostgreSQL (ADR-0026; 0C AZ-34). Every role and share kind sees exactly the
  * files its host allows; hidden and cross-workspace files are `not_found`; races settle once;
  * replays never double-count; an unavailable store is a retryable refusal that recovers; a purge
  * removes rows and its object deletions are performed once by the sweep.

@@ -1,0 +1,43 @@
+/* Plan views (Calendar · Timeline · Workload). Paper tokens only (app/app/paper.css); brand colour arrives inline via brandColor(). */
+
+/* ---------- shared: filter pills, count, ink callout, cards ---------- */
+.fOn, .fOff { height: 34px; display: inline-flex; align-items: center; gap: 8px; padding: 0 12px; border-radius: 999px; font: inherit; font-size: 13px; font-weight: 600; cursor: pointer; transition: background .15s, color .15s, box-shadow .15s; border: none; }
+.fOn { background: var(--card); color: var(--text); box-shadow: inset 0 0 0 1.5px var(--text2); }
+.fOn:hover { background: var(--sub); }
+.fOff { background: transparent; color: var(--text2); box-shadow: inset 0 0 0 1px var(--line2); }
+.fOff:hover { background: var(--card); color: var(--text); box-shadow: inset 0 0 0 1px var(--mute); }
+.fOff .sw { opacity: .4; }
+.fCount { font-size: 12px; font-weight: 700; color: var(--mute); font-variant-numeric: tabular-nums; }
+.count { font-size: 13px; font-weight: 600; color: var(--mute); padding: 0 4px; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.divider { width: 1px; height: 24px; background: var(--line2); margin: 0 2px; }
+
+.sw { width: 10px; height: 10px; border-radius: 3px; display: inline-block; flex: none; }
+.sw_task { background: var(--k1); }
+.sw_meeting { background: var(--blue); }
+.sw_focus { background: var(--hatchGrey); box-shadow: inset 0 0 0 1px var(--mute); }
+.sw_deadline { background: var(--red); }
+
+.callout { display: flex; align-items: center; gap: 12px; min-height: 52px; padding: 8px 10px 8px 12px; border-radius: var(--r-md); background: var(--ink); color: var(--ink-text); box-shadow: var(--shadow); animation: fadeUp .5s cubic-bezier(.2,.8,.2,1) both; }
+.cIcon { width: 32px; height: 32px; border-radius: 999px; background: var(--red); color: var(--card); display: grid; place-items: center; flex: none; }
+.cTitle { font-size: 14px; font-weight: 700; white-space: nowrap; }
+.cBody { flex: 1; min-width: 0; display: flex; align-items: center; gap: 6px; flex-wrap: wrap; font-size: 13px; color: var(--ink-mute); }
+.cAction { flex: none; display: inline-flex; gap: 6px; }
+.cChip { display: inline-flex; align-items: center; gap: 6px; height: 30px; padding: 0 12px 0 8px; border-radius: 999px; border: none; background: var(--ink-sub); color: var(--ink-text); font: inherit; font-size: 12.5px; font-weight: 600; cursor: pointer; white-space: nowrap; }
+.cChip:hover { background: color-mix(in srgb, var(--ink-text) 18%, transparent); }
+.cChip em { font-style: normal; color: var(--ink-mute); font-weight: 600; }
+
+.card { background: var(--card); border-radius: var(--r-lg); padding: 16px; display: flex; flex-direction: column; gap: 10px; min-width: 0; animation: fadeUp .55s cubic-bezier(.2,.8,.2,1) both; }
+.cardHead { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.cardTitle { font-size: 15px; font-weight: 600; letter-spacing: -.01em; display: inline-flex; align-items: center; gap: 8px; }
+.hint { font-size: 12.5px; color: var(--mute); font-weight: 500; }
+.legend { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; font-size: 12.5px; font-weight: 600; color: var(--text2); }
+.legend span { display: inline-flex; align-items: center; gap: 7px; }
+.legend i { display: inline-block; flex: none; }
+.stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
+.navDay { display: inline-flex; align-items: center; gap: 2px; height: 44px; padding: 0 5px; border-radius: 999px; background: var(--card); }
+.navLabel { font-size: 13px; font-weight: 600; padding: 0 6px; min-width: 76px; text-align: center; font-variant-numeric: tabular-nums; }
+
+@media (max-width: 1180px) { .stats { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+
+/* shared motion keyframes (module-scoped copies; CSS modules rename keyframes) */
+@keyframes fadeUp { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }

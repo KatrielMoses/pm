@@ -1,0 +1,61 @@
+.root { padding: 14px; }
+.frame { min-height: calc(100vh - 28px); background: var(--frame); border-radius: var(--r-xl); padding: 16px 20px 0 16px; transition: background .3s; }
+
+/* ---------- top bar ---------- */
+.top { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 16px; animation: fadeIn .5s ease both; }
+.pill { background: var(--card); border-radius: 999px; height: 52px; display: inline-flex; align-items: center; padding: 0 16px 0 11px; color: var(--text); }
+.switcher { position: relative; justify-self: center; display: inline-flex; gap: 4px; padding: 5px; border-radius: 999px; background: var(--card); }
+.sw, .swOn { height: 42px; display: inline-flex; align-items: center; gap: 8px; padding: 0 15px 0 10px; border-radius: 999px; border: none; background: transparent; font-size: 13.5px; font-weight: 600; color: var(--text2); transition: background .25s, color .25s, transform .15s; cursor: pointer; }
+.sw:hover { background: var(--sub); color: var(--text); }
+.sw:active, .swOn:active { transform: scale(.97); }
+.swOn { background: var(--ink); color: var(--ink-text); }
+.sw, .swOn { position: relative; z-index: 1; }
+.swGlide { background: transparent; }
+.allMark { width: 22px; height: 22px; border-radius: 6px; background: var(--sub); display: grid; grid-template-columns: 9px 9px; gap: 2px; place-content: center; }
+.swOn .allMark { background: color-mix(in srgb, var(--ink-text) 14%, transparent); }
+
+.topRight { display: flex; gap: 10px; align-items: center; }
+.searchPill { height: 52px; display: inline-flex; align-items: center; gap: 10px; padding: 0 10px 0 18px; border-radius: 999px; border: none; background: var(--card); color: var(--mute); font-size: 13.5px; min-width: 190px; cursor: pointer; }
+.searchPill span:first-of-type { flex: 1; text-align: left; }
+.searchPill:hover { color: var(--text2); }
+.capture { width: 52px; height: 52px; border-radius: 999px; border: none; background: var(--k1); color: var(--k1-ink); display: grid; place-items: center; cursor: pointer; box-shadow: 0 12px 26px -12px var(--k1); transition: transform .2s cubic-bezier(.2,.8,.2,1); }
+.capture:hover { transform: rotate(90deg); }
+.iconGroup { background: var(--card); border-radius: 999px; height: 52px; display: inline-flex; align-items: center; gap: 4px; padding: 0 7px; }
+.iconGroup button, .iconLink { width: 38px; height: 38px; border-radius: 999px; border: none; background: transparent; display: grid; place-items: center; position: relative; color: var(--text2); cursor: pointer; }
+.iconGroup button:hover, .iconLink:hover { background: var(--sub); color: var(--text); }
+.iconGroup .iconOn { background: var(--ink); color: var(--ink-text); }
+.iconGroup .iconOn:hover { background: var(--ink); color: var(--ink-text); }
+.bellDot { position: absolute; top: 3px; right: 2px; min-width: 17px; height: 17px; padding: 0 4px; border-radius: 99px; background: var(--k1); color: var(--k1-ink); font-size: 10px; font-weight: 800; font-style: normal; display: grid; place-items: center; box-shadow: 0 0 0 2px var(--card); }
+.user { height: 52px; display: inline-flex; align-items: center; gap: 10px; padding: 0 14px 0 7px; border-radius: 999px; background: var(--card); color: var(--text2); }
+.avatar { width: 38px; height: 38px; border-radius: 999px; background: var(--ink); color: var(--ink-text); display: grid; place-items: center; font-size: 12px; font-weight: 700; }
+.userName { font-size: 14px; font-weight: 600; color: var(--text); }
+
+/* ---------- rail ---------- */
+.body { display: grid; grid-template-columns: 54px minmax(0, 1fr); gap: 22px; margin-top: 16px; }
+.rail { display: flex; flex-direction: column; gap: 10px; position: sticky; top: 16px; height: calc(100vh - 128px); align-self: start; z-index: 20; }
+.railGroup { background: var(--card); border-radius: 999px; padding: 6px; display: grid; gap: 4px; animation: fadeUp .5s cubic-bezier(.2,.8,.2,1) both; }
+.railEnd { margin-top: auto; animation-delay: 120ms; }
+.railItem, .railOn { width: 42px; height: 42px; border-radius: 999px; border: none; background: transparent; display: grid; place-items: center; color: var(--text2); position: relative; cursor: pointer; transition: background .2s, color .2s, transform .15s; }
+.railItem:hover { background: var(--sub); color: var(--text); }
+.railItem:active { transform: scale(.94); }
+.railOn { background: var(--ink); color: var(--ink-text); }
+.railBadge { position: absolute; top: 3px; right: 3px; min-width: 16px; height: 16px; padding: 0 3px; border-radius: 99px; background: var(--k1); color: var(--k1-ink); font-size: 9.5px; font-weight: 800; font-style: normal; display: grid; place-items: center; box-shadow: 0 0 0 2px var(--card); }
+.railOn .railBadge { box-shadow: 0 0 0 2px var(--ink); }
+.tip { position: absolute; left: calc(100% + 14px); top: 50%; transform: translate(-6px, -50%); opacity: 0; pointer-events: none; white-space: nowrap; background: var(--ink); color: var(--ink-text); font-size: 12.5px; font-weight: 600; padding: 7px 11px; border-radius: 10px; transition: opacity .15s, transform .15s; display: inline-flex; gap: 10px; align-items: center; box-shadow: var(--shadow); }
+.tip em { font-style: normal; font-size: 11px; opacity: .6; font-weight: 600; }
+.railItem:hover .tip, .railOn:hover .tip, .railItem:focus-visible .tip { opacity: 1; transform: translate(0, -50%); }
+
+.main { animation: pageIn .45s cubic-bezier(.2,.8,.2,1) both; padding-bottom: 40px; display: grid; gap: 18px; align-content: start; min-width: 0; }
+
+@keyframes pageIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+@media (max-width: 1280px) {
+  .sw { font-size: 0; gap: 0; padding: 0 10px; }
+  .searchPill { min-width: 52px; padding: 0 17px; }
+  .searchPill span, .searchPill > :last-child { display: none; }
+  .userName { display: none; }
+}
+
+/* shared motion keyframes (module-scoped copies; CSS modules rename keyframes) */
+@keyframes fadeUp { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }

@@ -119,7 +119,7 @@ export interface FileDeps {
 }
 
 /**
- * Phase 4E files and deliverables (ADR-0025; 0B ADR-33, 0C AZ-33, 0D PL-35). Files live on a
+ * Phase 4E files and deliverables (ADR-0026; 0B ADR-34, 0C AZ-34, 0D PL-36). Files live on a
  * workspace, brand, project, task, or comment and inherit that host's authority every time they
  * are touched: a hidden host makes its files, versions, links, previews, and downloads the same
  * `not_found` as an unknown identifier. Bytes go straight between the browser and object storage

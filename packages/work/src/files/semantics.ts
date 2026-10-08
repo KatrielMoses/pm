@@ -1,5 +1,5 @@
 /**
- * Phase 4E file and deliverable semantics (ADR-0025 F1–F9). Pure: no database, storage, or clock.
+ * Phase 4E file and deliverable semantics (ADR-0026 F1–F9). Pure: no database, storage, or clock.
  *
  * - Uploads are accepted only for an allow-list of content types whose extension agrees with the
  *   declared type (a renamed executable is refused, not trusted).

@@ -18,7 +18,7 @@ const UUID = /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i;
 const sha = (b: Buffer) => createHash('sha256').update(b).digest('hex');
 
 /**
- * 4E HTTP surface (ADR-0025; 0D PL-35): storage status, an upload session whose signed PUT goes
+ * 4E HTTP surface (ADR-0026; 0D PL-36): storage status, an upload session whose signed PUT goes
  * to the (dev/test) object store, completion, the scan, a 303 to a signed GET that serves the
  * bytes as an attachment with nosniff, previews, versions, links, deliverables reviewed through
  * 4A, tampered and expired signed URLs refused, the same not_found for strangers, no UUIDs.
