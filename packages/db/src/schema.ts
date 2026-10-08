@@ -2433,6 +2433,132 @@ export interface SourceApprovalTable {
   created_at: DTs;
 }
 
+// Phase 5B: goals, key results, links, check-ins, derived state, and portfolios (ADR-0028).
+type Num = ColumnType<string, string | number, string | number>;
+type NumN = ColumnType<string | null, string | number | null | undefined, string | number | null>;
+export type GoalStatus = 'draft' | 'active' | 'achieved' | 'missed' | 'cancelled';
+export type GoalPeriodKind = 'quarter' | 'half' | 'year' | 'custom';
+export type GoalBasis = 'manual' | 'key_results' | 'linked_work';
+export type GoalConfidence = 'on_track' | 'at_risk' | 'off_track';
+export interface GoalTable {
+  id: string;
+  workspace_id: string;
+  brand_id: string | null;
+  scope_key: string;
+  lifecycle_state: Defaulted<'active' | 'archived' | 'trashed' | 'purged'>;
+  project_id: string | null;
+  title: string;
+  description: string | null;
+  owner_membership_id: string;
+  status: Defaulted<GoalStatus>;
+  period_kind: GoalPeriodKind;
+  period_start: ColumnType<string, string, string>;
+  period_end: ColumnType<string, string, string>;
+  progress_basis: Defaulted<GoalBasis>;
+  unit: string | null;
+  baseline_value: NumN;
+  target_value: NumN;
+  current_value: NumN;
+  latest_percent: NumN;
+  latest_checkin_id: string | null;
+  latest_checkin_at: Ts | null;
+  latest_confidence: GoalConfidence | null;
+  created_by_membership_id: string;
+  created_at: DTs;
+  updated_at: DTs;
+  updated_by_membership_id: string | null;
+  version: Defaulted<number>;
+}
+export interface KeyResultTable {
+  id: string;
+  workspace_id: string;
+  brand_id: string | null;
+  scope_key: string;
+  lifecycle_state: Defaulted<'active' | 'archived' | 'trashed' | 'purged'>;
+  goal_id: string;
+  title: string;
+  owner_membership_id: string;
+  progress_basis: Defaulted<'manual' | 'linked_work'>;
+  unit: string | null;
+  baseline_value: NumN;
+  target_value: NumN;
+  current_value: NumN;
+  latest_percent: NumN;
+  latest_checkin_id: string | null;
+  latest_checkin_at: Ts | null;
+  latest_confidence: GoalConfidence | null;
+  rank: string;
+  created_by_membership_id: string;
+  created_at: DTs;
+  updated_at: DTs;
+  updated_by_membership_id: string | null;
+  version: Defaulted<number>;
+}
+export interface GoalCheckinTable {
+  id: string;
+  public_id: string;
+  workspace_id: string;
+  goal_id: string;
+  key_result_id: string | null;
+  source: 'manual' | 'computed';
+  value: NumN;
+  progress_percent: NumN;
+  confidence: GoalConfidence | null;
+  note: string | null;
+  inputs_hash: string | null;
+  author_membership_id: string | null;
+  created_at: DTs;
+}
+export interface GoalLinkTable {
+  id: string;
+  workspace_id: string;
+  goal_id: string;
+  key_result_id: string | null;
+  target_kind: 'project' | 'task';
+  target_record_id: string;
+  target_brand_id: string;
+  created_by_membership_id: string;
+  created_at: DTs;
+}
+export interface GoalStateTable {
+  workspace_id: string;
+  goal_id: string;
+  rollup_percent: NumN;
+  rollup_basis: Defaulted<'none' | 'manual' | 'key_results' | 'viewer_dependent'>;
+  inputs_hash: string | null;
+  update_state: Defaulted<'never' | 'fresh' | 'stale'>;
+  period_state: Defaulted<'upcoming' | 'current' | 'ended'>;
+  dirty: Defaulted<boolean>;
+  next_check_at: DTs;
+  claimed_until: Ts | null;
+  attempts: Defaulted<number>;
+  last_error: string | null;
+  computed_at: Ts | null;
+}
+export interface PortfolioTable {
+  id: string;
+  workspace_id: string;
+  brand_id: string | null;
+  scope_key: string;
+  lifecycle_state: Defaulted<'active' | 'archived' | 'trashed' | 'purged'>;
+  name: string;
+  description: string | null;
+  owner_membership_id: string;
+  created_by_membership_id: string;
+  created_at: DTs;
+  updated_at: DTs;
+  updated_by_membership_id: string | null;
+  version: Defaulted<number>;
+}
+export interface PortfolioProjectTable {
+  workspace_id: string;
+  portfolio_id: string;
+  project_id: string;
+  position: number;
+  added_by_membership_id: string;
+  added_at: DTs;
+}
+
 // Phase 4E: files, immutable versions, upload sessions, deliverables, and storage usage (ADR-0026).
 export type FileScanState = 'pending' | 'clean' | 'infected' | 'error';
 export type FileHostKind = 'workspace' | 'brand' | 'project' | 'task' | 'comment' | 'document';
@@ -2569,6 +2695,13 @@ export interface Database {
   'knowledge.edit_draft': EditDraftTable;
   'knowledge.edit_session': EditSessionTable;
   'knowledge.edit_op': EditOpTable;
+  'goals.goal': GoalTable;
+  'goals.key_result': KeyResultTable;
+  'goals.goal_checkin': GoalCheckinTable;
+  'goals.goal_link': GoalLinkTable;
+  'goals.goal_state': GoalStateTable;
+  'goals.portfolio': PortfolioTable;
+  'goals.portfolio_project': PortfolioProjectTable;
   'notify.digest': DigestTable;
   'notify.delivery': DeliveryTable;
   'notify.preference': NotificationPreferenceTable;
@@ -3936,6 +4069,124 @@ export const TABLE_COLUMNS: Readonly<Record<keyof Database, readonly string[]>> 
     'block_id',
     'payload',
     'created_at',
+  ],
+  'goals.goal': [
+    'id',
+    'workspace_id',
+    'brand_id',
+    'scope_key',
+    'lifecycle_state',
+    'project_id',
+    'title',
+    'description',
+    'owner_membership_id',
+    'status',
+    'period_kind',
+    'period_start',
+    'period_end',
+    'progress_basis',
+    'unit',
+    'baseline_value',
+    'target_value',
+    'current_value',
+    'latest_percent',
+    'latest_checkin_id',
+    'latest_checkin_at',
+    'latest_confidence',
+    'created_by_membership_id',
+    'created_at',
+    'updated_at',
+    'updated_by_membership_id',
+    'version',
+  ],
+  'goals.key_result': [
+    'id',
+    'workspace_id',
+    'brand_id',
+    'scope_key',
+    'lifecycle_state',
+    'goal_id',
+    'title',
+    'owner_membership_id',
+    'progress_basis',
+    'unit',
+    'baseline_value',
+    'target_value',
+    'current_value',
+    'latest_percent',
+    'latest_checkin_id',
+    'latest_checkin_at',
+    'latest_confidence',
+    'rank',
+    'created_by_membership_id',
+    'created_at',
+    'updated_at',
+    'updated_by_membership_id',
+    'version',
+  ],
+  'goals.goal_checkin': [
+    'id',
+    'public_id',
+    'workspace_id',
+    'goal_id',
+    'key_result_id',
+    'source',
+    'value',
+    'progress_percent',
+    'confidence',
+    'note',
+    'inputs_hash',
+    'author_membership_id',
+    'created_at',
+  ],
+  'goals.goal_link': [
+    'id',
+    'workspace_id',
+    'goal_id',
+    'key_result_id',
+    'target_kind',
+    'target_record_id',
+    'target_brand_id',
+    'created_by_membership_id',
+    'created_at',
+  ],
+  'goals.goal_state': [
+    'workspace_id',
+    'goal_id',
+    'rollup_percent',
+    'rollup_basis',
+    'inputs_hash',
+    'update_state',
+    'period_state',
+    'dirty',
+    'next_check_at',
+    'claimed_until',
+    'attempts',
+    'last_error',
+    'computed_at',
+  ],
+  'goals.portfolio': [
+    'id',
+    'workspace_id',
+    'brand_id',
+    'scope_key',
+    'lifecycle_state',
+    'name',
+    'description',
+    'owner_membership_id',
+    'created_by_membership_id',
+    'created_at',
+    'updated_at',
+    'updated_by_membership_id',
+    'version',
+  ],
+  'goals.portfolio_project': [
+    'workspace_id',
+    'portfolio_id',
+    'project_id',
+    'position',
+    'added_by_membership_id',
+    'added_at',
   ],
   'knowledge.source_approval': [
     'id',
