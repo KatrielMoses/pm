@@ -2124,7 +2124,7 @@ export interface ReviewRequestTable {
   public_id: string;
   workspace_id: string;
   subject_record_id: string;
-  subject_kind: 'task' | 'project' | 'document';
+  subject_kind: 'task' | 'project' | 'document' | 'deliverable';
   subject_version: number;
   kind: 'review' | 'approval';
   rule: 'any' | 'all';
@@ -2395,7 +2395,133 @@ export interface SourceApprovalTable {
   created_at: DTs;
 }
 
+// Phase 4E: files, immutable versions, upload sessions, deliverables, and storage usage (ADR-0026).
+export type FileScanState = 'pending' | 'clean' | 'infected' | 'error';
+export type FileHostKind = 'workspace' | 'brand' | 'project' | 'task' | 'comment';
+export type DeliverableState =
+  'draft' | 'ready_for_review' | 'changes_requested' | 'accepted' | 'rejected';
+export interface FileObjectTable {
+  id: string;
+  workspace_id: string;
+  storage_key: string;
+  quarantined: Defaulted<boolean>;
+  sha256: Bytes;
+  byte_size: ColumnType<string, string | number, string | number>;
+  content_type: string;
+  scan_state: Defaulted<FileScanState>;
+  scan_signature: string | null;
+  scan_attempts: Defaulted<number>;
+  scanned_at: Timestamp | null;
+  created_at: DTs;
+}
+export interface FileTable {
+  id: string;
+  workspace_id: string;
+  brand_id: string | null;
+  scope_key: string;
+  host_kind: FileHostKind;
+  host_record_id: string | null;
+  comment_id: string | null;
+  name: string;
+  owner_membership_id: string;
+  source_kind: 'upload' | 'external';
+  current_version_id: string | null;
+  version_count: Defaulted<number>;
+  created_at: DTs;
+  updated_at: DTs;
+  version: Defaulted<number>;
+}
+export interface FileVersionTable {
+  id: string;
+  workspace_id: string;
+  file_id: string;
+  version_number: number;
+  file_object_id: string | null;
+  external_url: string | null;
+  name: string;
+  content_type: string | null;
+  byte_size: ColumnType<string | null, string | number | null, string | number | null>;
+  sha256: Buffer | null;
+  preview_state: 'pending' | 'ready' | 'unsupported' | 'failed';
+  evidence_locked: Defaulted<boolean>;
+  created_by_membership_id: string;
+  created_at: DTs;
+}
+export interface UploadSessionTable {
+  id: string;
+  public_id: string;
+  workspace_id: string;
+  brand_id: string | null;
+  host_kind: FileHostKind;
+  host_record_id: string | null;
+  comment_id: string | null;
+  target_file_id: string | null;
+  file_name: string;
+  content_type: string;
+  byte_size: ColumnType<string, string | number, string | number>;
+  sha256: Bytes;
+  state: Defaulted<'initiated' | 'uploaded' | 'verifying' | 'completed' | 'rejected' | 'expired'>;
+  quarantine_object_key: string;
+  file_object_id: string | null;
+  file_version_id: string | null;
+  rejection_code: string | null;
+  expires_at: Timestamp;
+  created_by_membership_id: string;
+  created_at: DTs;
+  updated_at: DTs;
+  version: Defaulted<number>;
+}
+export interface DeliverableTable {
+  id: string;
+  workspace_id: string;
+  brand_id: string;
+  task_id: string;
+  title: string;
+  expected_type: Defaulted<'any' | 'file' | 'url'>;
+  state: Defaulted<DeliverableState>;
+  current_version_id: string | null;
+  accepted_version_id: string | null;
+  created_by_membership_id: string;
+  created_at: DTs;
+  updated_at: DTs;
+  version: Defaulted<number>;
+}
+export interface DeliverableVersionTable {
+  id: string;
+  workspace_id: string;
+  deliverable_id: string;
+  version_number: number;
+  source_kind: 'file' | 'url';
+  file_version_id: string | null;
+  url: string | null;
+  content_sha256: Buffer | null;
+  note_text: string | null;
+  state: Defaulted<DeliverableState | 'withdrawn' | 'superseded'>;
+  review_request_id: string | null;
+  decided_review_decision_id: string | null;
+  accepted_by_membership_id: string | null;
+  accepted_at: Timestamp | null;
+  evidence_locked: Defaulted<boolean>;
+  submitted_by_membership_id: string;
+  created_at: DTs;
+  updated_at: DTs;
+}
+export interface StorageUsageTable {
+  workspace_id: string;
+  used_bytes: ColumnType<string, string | number | undefined, string | number>;
+  reserved_bytes: ColumnType<string, string | number | undefined, string | number>;
+  object_count: Defaulted<number>;
+  updated_at: DTs;
+}
+
 export interface Database {
+  'files.file_object': FileObjectTable;
+  'files.file': FileTable;
+  'files.file_version': FileVersionTable;
+  'files.upload_session': UploadSessionTable;
+  'files.deliverable': DeliverableTable;
+  'files.deliverable_version': DeliverableVersionTable;
+  'files.storage_usage': StorageUsageTable;
   'notify.notification': NotificationTable;
   'knowledge.document': DocumentTable;
   'knowledge.document_version': DocumentVersionTable;
@@ -2536,6 +2662,119 @@ export interface Database {
 
 /** Column inventory per table, compared with the migrated catalog by the schema-drift test. */
 export const TABLE_COLUMNS: Readonly<Record<keyof Database, readonly string[]>> = {
+  'files.file_object': [
+    'id',
+    'workspace_id',
+    'storage_key',
+    'quarantined',
+    'sha256',
+    'byte_size',
+    'content_type',
+    'scan_state',
+    'scan_signature',
+    'scan_attempts',
+    'scanned_at',
+    'created_at',
+  ],
+  'files.file': [
+    'id',
+    'workspace_id',
+    'brand_id',
+    'scope_key',
+    'host_kind',
+    'host_record_id',
+    'comment_id',
+    'name',
+    'owner_membership_id',
+    'source_kind',
+    'current_version_id',
+    'version_count',
+    'created_at',
+    'updated_at',
+    'version',
+  ],
+  'files.file_version': [
+    'id',
+    'workspace_id',
+    'file_id',
+    'version_number',
+    'file_object_id',
+    'external_url',
+    'name',
+    'content_type',
+    'byte_size',
+    'sha256',
+    'preview_state',
+    'evidence_locked',
+    'created_by_membership_id',
+    'created_at',
+  ],
+  'files.upload_session': [
+    'id',
+    'public_id',
+    'workspace_id',
+    'brand_id',
+    'host_kind',
+    'host_record_id',
+    'comment_id',
+    'target_file_id',
+    'file_name',
+    'content_type',
+    'byte_size',
+    'sha256',
+    'state',
+    'quarantine_object_key',
+    'file_object_id',
+    'file_version_id',
+    'rejection_code',
+    'expires_at',
+    'created_by_membership_id',
+    'created_at',
+    'updated_at',
+    'version',
+  ],
+  'files.deliverable': [
+    'id',
+    'workspace_id',
+    'brand_id',
+    'task_id',
+    'title',
+    'expected_type',
+    'state',
+    'current_version_id',
+    'accepted_version_id',
+    'created_by_membership_id',
+    'created_at',
+    'updated_at',
+    'version',
+  ],
+  'files.deliverable_version': [
+    'id',
+    'workspace_id',
+    'deliverable_id',
+    'version_number',
+    'source_kind',
+    'file_version_id',
+    'url',
+    'content_sha256',
+    'note_text',
+    'state',
+    'review_request_id',
+    'decided_review_decision_id',
+    'accepted_by_membership_id',
+    'accepted_at',
+    'evidence_locked',
+    'submitted_by_membership_id',
+    'created_at',
+    'updated_at',
+  ],
+  'files.storage_usage': [
+    'workspace_id',
+    'used_bytes',
+    'reserved_bytes',
+    'object_count',
+    'updated_at',
+  ],
   'tenancy.workspace': [
     'id',
     'public_id',

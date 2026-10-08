@@ -1,0 +1,135 @@
+/* Home (Today + My work). Tokens from app/app/paper.css only. */
+
+/* ---------- summary strip ---------- */
+.strip { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
+.strip > * { animation: fadeUp .45s cubic-bezier(.2,.8,.2,1) both; }
+.strip > *:nth-child(2) { animation-delay: 40ms; }
+.strip > *:nth-child(3) { animation-delay: 80ms; }
+.strip > *:nth-child(4) { animation-delay: 120ms; }
+.strip > * > :last-child { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.statOf { font-size: 14px; font-weight: 500; letter-spacing: 0; color: var(--mute); }
+
+/* ---------- layout ---------- */
+.layout { display: grid; grid-template-columns: minmax(0, 2fr) minmax(320px, 1fr); gap: 16px; align-items: start; }
+@media (max-width: 1100px) { .layout { grid-template-columns: 1fr; } .strip { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+
+/* ---------- the list ---------- */
+.listCard { background: var(--card); border-radius: var(--r-lg); padding: 14px 16px 12px; display: grid; gap: 6px; min-width: 0; animation: fadeUp .5s cubic-bezier(.2,.8,.2,1) both; animation-delay: 80ms; }
+.count { font-size: 13px; font-weight: 600; color: var(--mute); font-variant-numeric: tabular-nums; }
+
+.head, .row { display: grid; grid-template-columns: 28px minmax(0, 1fr) 170px 86px 56px 28px; align-items: center; column-gap: 12px; }
+.head { padding: 8px 10px 4px; font-size: 12px; font-weight: 600; color: var(--mute); border-bottom: 1px solid var(--line); }
+.right { text-align: right; }
+
+.groups { display: grid; gap: 4px; }
+.group { display: grid; }
+.gHead { display: flex; align-items: center; gap: 8px; height: 34px; padding: 0 10px; margin-top: 4px; border: none; background: transparent; text-align: left; font: inherit; color: var(--text2); }
+button.gHead { cursor: pointer; border-radius: var(--r-sm); }
+button.gHead:hover { background: var(--sub); color: var(--text); }
+.gLabel { font-size: 13px; font-weight: 700; }
+.gRed { color: var(--redText); }
+.gCount { font-size: 12px; font-weight: 700; padding: 1px 7px; border-radius: 7px; background: var(--sub2); color: var(--text2); }
+.gEst { margin-left: auto; font-size: 12px; font-weight: 600; color: var(--mute); font-variant-numeric: tabular-nums; }
+.chev { transition: transform .2s; color: var(--mute); }
+.chevClosed { transform: rotate(-90deg); }
+
+.row { min-height: 44px; padding: 0 10px; border-radius: var(--r-sm); cursor: pointer; transition: background .15s; font-size: 13.5px; outline: none; }
+.row + .row { box-shadow: inset 0 1px 0 var(--line); }
+.row:hover, .row:focus-visible { background: var(--sub); box-shadow: none; }
+.row:focus-visible { box-shadow: inset 0 0 0 2px var(--text2); }
+.title { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.titleText { font-weight: 600; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+.struck { text-decoration: line-through; color: var(--mute); }
+.project { display: flex; align-items: center; gap: 8px; min-width: 0; color: var(--text2); font-size: 13px; }
+.ellipsis { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+.when { font-size: 13px; }
+.mono { font-variant-numeric: tabular-nums; font-weight: 600; color: var(--text2); font-size: 13px; }
+.soft { color: var(--mute); font-size: 13px; }
+
+.empty { display: grid; justify-items: center; gap: 8px; padding: 28px 20px; margin: 8px 0; border-radius: var(--r-md); background: var(--sub); text-align: center; }
+.empty b { font-size: 15px; font-weight: 700; }
+.empty span { font-size: 13px; color: var(--mute); max-width: 380px; }
+
+/* ---------- ink hero: Your day ---------- */
+.hero { background: var(--ink); color: var(--ink-text); border-radius: var(--r-lg); padding: 18px 20px 16px; display: grid; gap: 12px; box-shadow: var(--shadow); min-width: 0; animation: fadeUp .5s cubic-bezier(.2,.8,.2,1) both; animation-delay: 140ms; }
+.heroHead { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.heroLabel { font-size: 15px; font-weight: 700; }
+.heroMute { font-size: 12px; color: var(--ink-mute); font-weight: 500; }
+.heroCap { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; color: var(--ink-mute); }
+.heroBad { color: var(--red); font-weight: 700; font-style: normal; }
+
+.capNum { display: flex; align-items: baseline; gap: 10px; }
+.capNum b { font-size: 40px; font-weight: 700; letter-spacing: -.045em; line-height: 1; font-variant-numeric: tabular-nums; }
+.capNum > span { font-size: 13px; color: var(--ink-mute); font-weight: 500; }
+.bar { display: flex; gap: 3px; height: 12px; }
+.bar > i { border-radius: 999px; display: block; }
+.barIn { background: var(--k1); }
+.barOver { background: var(--hatchRed); }
+.barFree { flex: 1; background: repeating-linear-gradient(135deg, var(--ink-mute) 0 2px, transparent 2px 7px); opacity: .45; }
+.capNote { display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 12.5px; color: var(--ink-mute); }
+.heroLink { border: none; background: transparent; color: var(--ink-text); font: inherit; font-size: 12.5px; font-weight: 700; text-decoration: underline; text-underline-offset: 3px; cursor: pointer; padding: 4px 0; }
+.heroLink:hover { color: var(--k1); }
+
+.next { display: grid; gap: 8px; padding: 14px; border-radius: var(--r-md); background: var(--ink-sub); }
+.nextTask { display: flex; align-items: center; gap: 10px; border: none; background: transparent; color: var(--ink-text); padding: 0; text-align: left; cursor: pointer; font: inherit; min-width: 0; }
+.nextTask b { font-size: 17px; font-weight: 700; letter-spacing: -.015em; line-height: 1.25; }
+.nextTask:hover b { text-decoration: underline; text-underline-offset: 3px; }
+.nextMeta { font-size: 12.5px; color: var(--ink-mute); font-variant-numeric: tabular-nums; }
+.nextActs { display: flex; gap: 8px; flex-wrap: wrap; }
+.nextClear { font-size: 14px; font-weight: 600; }
+
+.agenda { display: grid; gap: 6px; }
+.agList { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
+.agRow { width: 100%; display: grid; grid-template-columns: 44px minmax(0, 1fr) auto; align-items: center; gap: 10px; min-height: 30px; padding: 0 8px; border-radius: 10px; border: none; background: transparent; color: var(--ink-text); font: inherit; font-size: 13px; text-align: left; }
+.agClick { cursor: pointer; }
+.agClick:hover { background: var(--ink-sub); }
+.agTime { font-size: 12.5px; font-weight: 700; color: var(--ink-mute); font-variant-numeric: tabular-nums; }
+.agTitle { display: inline-flex; align-items: center; gap: 6px; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-weight: 600; }
+.agTitle svg { flex: none; color: var(--ink-mute); }
+.agPast { color: var(--ink-mute); }
+.agPast .agTitle { text-decoration: line-through; text-decoration-thickness: 1px; }
+.agNow { background: var(--ink-sub); box-shadow: inset 3px 0 0 var(--k1); }
+.now { position: relative; height: 14px; display: flex; align-items: center; }
+.now::before { content: ''; position: absolute; left: 50px; right: 0; height: 2px; border-radius: 2px; background: var(--k1); }
+.now span { position: relative; font-size: 12px; font-weight: 800; color: var(--k1); padding-left: 8px; font-variant-numeric: tabular-nums; }
+
+/* ---------- motion ---------- */
+.strip > * { animation-name: statIn; animation-duration: .6s; }
+@keyframes statIn { from { opacity: 0; transform: translateY(12px) scale(.98); } to { opacity: 1; transform: none; } }
+
+.groups { animation: listIn .35s ease both; }
+@keyframes listIn { from { opacity: 0; } to { opacity: 1; } }
+.row { animation: rowIn .5s cubic-bezier(.2,.8,.2,1) both; transition: background .15s, transform .15s; }
+@keyframes rowIn { from { opacity: 0; transform: translateX(-10px); } to { opacity: 1; transform: none; } }
+.row:hover { transform: translateX(2px); }
+.row:active { transform: scale(.995); }
+
+/* ticking a task draws the strike-through and fades the row */
+.titleText { background: linear-gradient(currentColor, currentColor) no-repeat 0 55% / 0% 1.5px; transition: background-size .4s cubic-bezier(.4,0,.2,1), color .3s; }
+.rowDone .titleText { background-size: 100% 1.5px; color: var(--mute); text-decoration: none; }
+.rowDone { opacity: .72; }
+.rowDone [role='checkbox'] { animation: pop .35s cubic-bezier(.2,.8,.2,1); }
+.rowTracking { background: var(--k1Soft); }
+.rowTracking + .row, .row + .rowTracking { box-shadow: none; }
+
+/* hero */
+.hero { animation-name: heroIn; animation-duration: .7s; }
+@keyframes heroIn { from { opacity: 0; transform: translateY(14px) scale(.985); } to { opacity: 1; transform: none; } }
+.barOver { background-size: 20px 20px; animation: growX .8s cubic-bezier(.2,.8,.2,1) both, march 1.1s linear infinite; }
+@keyframes march { from { background-position: 0 0; } to { background-position: 20px 0; } }
+.next { transition: box-shadow .3s, background .3s; }
+.nextLive { background: color-mix(in srgb, var(--k1) 16%, var(--ink-sub)); box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--k1) 60%, transparent); }
+.recDot { width: 8px; height: 8px; border-radius: 99px; background: currentColor; display: inline-block; animation: pulse 1.2s ease-in-out infinite; }
+.agIn { animation: rowIn .45s cubic-bezier(.2,.8,.2,1) both; }
+.now::after { content: ''; position: absolute; left: 46px; width: 8px; height: 8px; border-radius: 99px; background: var(--k1); box-shadow: 0 0 0 0 var(--k1); animation: nowPing 1.8s ease-out infinite; }
+@keyframes nowPing { 0% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--k1) 60%, transparent); } 100% { box-shadow: 0 0 0 10px transparent; } }
+.agNow { animation: rowIn .45s cubic-bezier(.2,.8,.2,1) both; }
+.agNow::before { content: ''; }
+
+@media (prefers-reduced-motion: reduce) { .row:hover { transform: none; } }
+
+/* shared motion keyframes (module-scoped copies; CSS modules rename keyframes) */
+@keyframes fadeUp { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+@keyframes growX { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+@keyframes pop { 0% { transform: scale(0); } 70% { transform: scale(1.15); } 100% { transform: scale(1); } }
+@keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: .35; } }

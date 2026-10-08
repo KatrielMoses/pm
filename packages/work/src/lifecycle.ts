@@ -4,6 +4,12 @@ import { withPersonalReferenceCleanup } from '@pm/tenancy';
 import { purgeCollabFacts } from './collab/purge.ts';
 import { purgeNotifyFacts } from './notify/purge.ts';
 import { attachedDocuments, documentAdapter, purgeDocumentTargets } from './docs/lifecycle.ts';
+import {
+  deliverableAdapter,
+  fileAdapter,
+  fileChildren,
+  purgeFileFacts,
+} from './files/lifecycle.ts';
 
 /**
  * Project record types for the 1F lifecycle (0B ADR-21). Containment the lifecycle follows:
@@ -38,6 +44,7 @@ export const projectAdapter: RecordTypeAdapter = {
       UNION ALL SELECT id, 'decision_record' FROM work.decision_record WHERE project_id = ANY(${[...parentIds]}::uuid[])
       UNION ALL SELECT id, 'task' FROM work.task WHERE project_id = ANY(${[...parentIds]}::uuid[])
       UNION ALL SELECT id, 'saved_view' FROM views.saved_view WHERE share_project_id = ANY(${[...parentIds]}::uuid[])
+      UNION ALL SELECT id, 'file' FROM files.file WHERE host_record_id = ANY(${[...parentIds]}::uuid[])
       ORDER BY 1`.execute(tx.db);
     // Documents attached to the project travel with it (4C); those on its tasks follow their tasks.
     return [...refs(rows.rows), ...(await attachedDocuments(tx, 'attached_project_id', parentIds))];
@@ -75,6 +82,8 @@ export const projectAdapter: RecordTypeAdapter = {
         .executeTakeFirst();
       if (live) throw new Error('project purge blocked: a live child project references it');
       // Its comments, followers, and reviews go with it (4A, OD-38).
+      // Its files and deliverables first (they reference its comments and rows, 4E).
+      await purgeFileFacts(tx, ids);
       await purgeCollabFacts(tx, ids);
       await purgeNotifyFacts(tx, ids);
       await purgeDocumentTargets(tx, ids);
@@ -216,8 +225,12 @@ export const decisionAdapter: RecordTypeAdapter = {
  */
 export const taskAdapter: RecordTypeAdapter = {
   recordType: 'task',
-  // Subtasks are never containment children, but the documents attached to a task are (4C).
-  children: (tx, parentIds) => attachedDocuments(tx, 'attached_task_id', parentIds),
+  // No subtasks; its files (and files on its comments), its deliverables (4E), and the documents
+  // attached to it (4C) are its content.
+  children: async (tx, parentIds) => [
+    ...(await fileChildren(tx, parentIds)),
+    ...(await attachedDocuments(tx, 'attached_task_id', parentIds)),
+  ],
   async rootsInBrand(tx, brandIds) {
     if (!brandIds.length) return [];
     const rows = await tx.db
@@ -255,6 +268,8 @@ export const taskAdapter: RecordTypeAdapter = {
       if (live) throw new Error('task purge blocked: a live child task references it');
       // Comments, revisions, reactions, mentions, followers, reviews, and assignment history are
       // the task's content and go with it (4A, OD-38); audit keeps hashes only.
+      // Its files and deliverables first (they reference its comments and rows, 4E).
+      await purgeFileFacts(tx, ids);
       await purgeCollabFacts(tx, ids);
       await purgeNotifyFacts(tx, ids);
       await purgeDocumentTargets(tx, ids);
@@ -459,6 +474,8 @@ export function registerWorkLifecycle(registry: LifecycleRegistry): LifecycleReg
     intakeFormAdapter,
     savedViewAdapter,
     documentAdapter,
+    fileAdapter,
+    deliverableAdapter,
   ])
     registry.register(withPersonalReferenceCleanup(a));
   return registry;

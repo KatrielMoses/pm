@@ -85,6 +85,19 @@ export class NotificationFanOut implements OutboxConsumer {
   // Meaning: which event concerns whom
   // ---------------------------------------------------------------------------------------------
 
+  /**
+   * The record a notification names: a 4E deliverable is reviewed through its task, so its
+   * notifications point at (and are re-authorized against) the task.
+   */
+  protected async notifiableRecord(tx: WorkspaceTransaction, id: string): Promise<string> {
+    const d = await tx.db
+      .selectFrom('files.deliverable')
+      .select('task_id')
+      .where('id', '=', id)
+      .executeTakeFirst();
+    return d?.task_id ?? id;
+  }
+
   protected async candidates(tx: WorkspaceTransaction, e: InternalEvent): Promise<Candidate[]> {
     const actor = str(e.actor.id);
     const data = e.data;
@@ -191,7 +204,7 @@ export class NotificationFanOut implements OutboxConsumer {
         return [
           {
             type: 'review_requested',
-            recordId: subject,
+            recordId: await this.notifiableRecord(tx, subject),
             actorId: actor,
             recipients: rows.rows.map((r) => r.membership_id),
             facts: withdrawn ? { change: 'withdrawn' } : { kind: str(data.request_kind) },
@@ -214,7 +227,7 @@ export class NotificationFanOut implements OutboxConsumer {
           ? [
               {
                 type: 'approval_decided',
-                recordId: r.subject_record_id,
+                recordId: await this.notifiableRecord(tx, r.subject_record_id),
                 actorId: actor,
                 recipients: [r.requested_by_membership_id],
                 facts: { outcome: r.outcome, state: str(data.review_state) },

@@ -1,3 +1,5 @@
+import { DeliverablesSummary } from '../files/deliverables.tsx';
+import { FilesPanel } from '../files/files-panel.tsx';
 import { ScopeDefaultsEditor } from '../notify/defaults.tsx';
 import { useEffect, useMemo, useRef, useState, type FormEvent, type KeyboardEvent } from 'react';
 import {
@@ -806,6 +808,11 @@ export function ProjectPage({
               <OverviewSection ws={ws} o={o} reload={data.reload} />
             ) : section === 'timeline' ? (
               <TimelineSection ws={ws} o={o} reload={data.reload} />
+            ) : section === 'files' ? (
+              <>
+                <DeliverablesSummary ws={ws} prj={prj} />
+                <FilesPanel ws={ws} host={o.project.id} noun="on this project" />
+              </>
             ) : section === 'tasks' ? (
               <ProjectTasksSection ws={ws} project={o.project} />
             ) : section === 'time' ? (
@@ -1214,6 +1221,7 @@ function OverviewSection({ ws, o, reload }: { ws: string; o: Overview; reload: (
         ) : null}
       </section>
 
+      <DeliverablesSummary ws={ws} prj={p.id} />
       <section className="card" aria-labelledby="ov-deps">
         <h2 id="ov-deps">Dependencies</h2>
         <DependencyList o={o} ws={ws} />

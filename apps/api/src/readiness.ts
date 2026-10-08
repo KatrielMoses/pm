@@ -26,6 +26,8 @@ export interface ReadinessDeps {
   isDraining: () => boolean;
   /** The configured mail transport: `none` means email is not delivered, and says so. */
   emailTransport: 'capture' | 'none';
+  /** 4E: the configured object store's probe (absent: not configured, which is truthful). */
+  objectStorage?: (() => Promise<'ok' | 'not_configured' | 'unavailable'>) | undefined;
 }
 
 const withTimeout = <T>(p: Promise<T>, ms: number): Promise<T> =>
@@ -38,8 +40,8 @@ const withTimeout = <T>(p: Promise<T>, ms: number): Promise<T> =>
 
 /**
  * Readiness (0D §17.4): database reachable, migrations at (or beyond, during expand/contract
- * rollouts) the version bundled in this artifact, dispatcher alive, object storage reachable
- * (not part of 1A), email delivery configured (4B: `not_configured` is truthful, never `fail`), the post-restore recovery gate open (1F), and the tenant-isolation policy
+ * rollouts) the version bundled in this artifact, dispatcher alive, object storage reachable when
+ * configured (4E: `not_configured` is truthful, never `fail`), email delivery configured (4B: `not_configured` is truthful, never `fail`), the post-restore recovery gate open (1F), and the tenant-isolation policy
  * state intact (1C). Reasons are logged internally; responses carry only check names and states.
  */
 export async function checkReadiness(deps: ReadinessDeps): Promise<Readiness> {
@@ -98,6 +100,17 @@ export async function checkReadiness(deps: ReadinessDeps): Promise<Readiness> {
       } catch (err) {
         fail('dispatcher', 'unreadable', err);
       }
+    }
+  }
+  if (deps.objectStorage) {
+    try {
+      const s = await withTimeout(deps.objectStorage(), 2_000);
+      checks.object_storage =
+        s === 'ok' ? 'ok' : s === 'not_configured' ? 'not_configured' : 'fail';
+      if (s === 'unavailable') fail('object_storage', 'unreachable');
+    } catch (err) {
+      checks.object_storage = 'fail';
+      fail('object_storage', 'unreachable', err);
     }
   }
   for (const [check, result] of Object.entries(checks)) {

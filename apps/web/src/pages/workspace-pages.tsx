@@ -1,3 +1,4 @@
+import { StorageUsage } from '../files/files-panel.tsx';
 import { ScopeDefaultsEditor } from '../notify/defaults.tsx';
 import { useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react';
 import { ApiError, type ApiIssue } from '../api.ts';
@@ -743,7 +744,12 @@ export function WorkspaceSettingsPage({ ws }: { ws: string }) {
   return (
     <Page title="Workspace settings" wide>
       <ResourceView resource={workspace.state} onRetry={workspace.retry} what="workspace">
-        {(w) => <WorkspaceSettingsForm workspace={w} onSaved={workspace.set} />}
+        {(w) => (
+          <>
+            <WorkspaceSettingsForm workspace={w} onSaved={workspace.set} />
+            {w.capabilities.configure ? <StorageUsage ws={ws} /> : null}
+          </>
+        )}
       </ResourceView>
       <p>
         <Link to={`/workspaces/${ws}/settings/access`}>Sharing, guests, and ownership</Link>

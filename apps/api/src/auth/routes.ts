@@ -8,6 +8,7 @@ import {
 } from '@pm/contracts';
 import { currentTraceparent, type Logger } from '@pm/observability';
 import { requestFingerprint } from '@pm/platform';
+import { LOCAL_STORAGE_ROUTE_PREFIX } from '@pm/work';
 import {
   IdentityError,
   InvalidCursorError,
@@ -177,6 +178,9 @@ export function registerAuth(app: FastifyInstance, deps: AuthRouteDeps): void {
 
   app.addHook('preHandler', async (request, reply) => {
     if (!request.url.startsWith('/v1/')) return;
+    // 4E dev/test object store: the URL signature is the whole authorization (as for a provider's
+    // presigned URL). It reads no session, so an ambient cookie must not demand a CSRF token.
+    if (request.url.startsWith(LOCAL_STORAGE_ROUTE_PREFIX)) return;
     const cookies = parseCookies(request.headers.cookie);
     const raw = cookies.get(names.session);
     const origin = request.headers.origin;

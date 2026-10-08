@@ -1709,12 +1709,14 @@
       "consumers": {
         "activity": false,
         "notification": false,
-        "metrics": false,
+        "metrics": true,
         "automation_trigger": false,
         "search_index": false
       },
       "public_webhook": null,
-      "requirements": [],
+      "requirements": [
+        "FILE-011"
+      ],
       "allow_list_version": null,
       "delivery_authorization": null
     },
@@ -4498,6 +4500,78 @@
       ],
       "allow_list_version": null,
       "delivery_authorization": null
+    },
+    {
+      "type": "files.file.added",
+      "schema_version": 1,
+      "aggregate_entity": "files.file",
+      "fields": [
+        "version_number",
+        "source"
+      ],
+      "max_class": "C1",
+      "consumers": {
+        "activity": true,
+        "notification": false,
+        "metrics": true,
+        "automation_trigger": true,
+        "search_index": false
+      },
+      "public_webhook": null,
+      "requirements": [
+        "FILE-001",
+        "FILE-005"
+      ],
+      "allow_list_version": null,
+      "delivery_authorization": null
+    },
+    {
+      "type": "files.file.version_added",
+      "schema_version": 1,
+      "aggregate_entity": "files.file",
+      "fields": [
+        "version_number",
+        "source"
+      ],
+      "max_class": "C1",
+      "consumers": {
+        "activity": true,
+        "notification": false,
+        "metrics": true,
+        "automation_trigger": true,
+        "search_index": false
+      },
+      "public_webhook": null,
+      "requirements": [
+        "FILE-004"
+      ],
+      "allow_list_version": null,
+      "delivery_authorization": null
+    },
+    {
+      "type": "files.deliverable.state_changed",
+      "schema_version": 1,
+      "aggregate_entity": "files.deliverable",
+      "fields": [
+        "state",
+        "version_number"
+      ],
+      "max_class": "C1",
+      "consumers": {
+        "activity": true,
+        "notification": false,
+        "metrics": true,
+        "automation_trigger": true,
+        "search_index": false
+      },
+      "public_webhook": null,
+      "requirements": [
+        "FILE-007",
+        "FILE-009",
+        "PRJ-023"
+      ],
+      "allow_list_version": null,
+      "delivery_authorization": null
     }
   ],
   "scopes": [
@@ -5659,6 +5733,24 @@
         "outcome"
       ],
       "area": "knowledge"
+    },
+    {
+      "name": "files.requests",
+      "type": "counter",
+      "labels": [
+        "op",
+        "outcome"
+      ],
+      "area": "files"
+    },
+    {
+      "name": "files.jobs",
+      "type": "counter",
+      "labels": [
+        "kind",
+        "outcome"
+      ],
+      "area": "files"
     }
   ],
   "forbidden_metric_labels": [
@@ -5775,12 +5867,12 @@
     },
     {
       "name": "SIGNED_URL_LIFETIME",
-      "meaning": "Lifetime of signed upload/download URLs.",
+      "meaning": "Lifetime of signed upload and download URLs in seconds; never stored, logged, or sent in notifications or exports; default 300, range 30–3600.",
       "owner": "4E"
     },
     {
       "name": "UPLOAD_SESSION_LIFETIME",
-      "meaning": "Lifetime of an upload session.",
+      "meaning": "Lifetime of an upload session in seconds; an expired, unfinished session releases its reserved bytes and quarantined object; default 3600, range 300–86400.",
       "owner": "4E"
     },
     {
@@ -6512,6 +6604,51 @@
       "name": "DOCUMENT_EMBED_URL_MAX_CHARS",
       "meaning": "Longest address of an embedded image, video, or link; default 2048, range 128–8192.",
       "owner": "4C"
+    },
+    {
+      "name": "FILE_UPLOAD_MAX_BYTES",
+      "meaning": "Largest single upload in bytes; default 104857600 (100 MiB), range 1024–5368709120.",
+      "owner": "4E"
+    },
+    {
+      "name": "WORKSPACE_STORAGE_QUOTA_BYTES",
+      "meaning": "Stored bytes one workspace may hold, counting bytes reserved by open upload sessions (a technical limit until plans set it, 10A); default 10737418240 (10 GiB), range 1048576–10995116277760.",
+      "owner": "4E"
+    },
+    {
+      "name": "FILE_COMPARE_MAX_BYTES",
+      "meaning": "Largest text or code version compared line by line (larger versions compare by metadata); default 262144, range 1024–2097152.",
+      "owner": "4E"
+    },
+    {
+      "name": "FILE_SCAN_MAX_ATTEMPTS",
+      "meaning": "Scan attempts before a failing scan marks the object scan_failed (downloads stay blocked); default 5, range 1–20.",
+      "owner": "4E"
+    },
+    {
+      "name": "FILE_VERSIONS_MAX",
+      "meaning": "Most versions one file keeps; default 100, range 1–1000.",
+      "owner": "4E"
+    },
+    {
+      "name": "FILES_LIST_MAX",
+      "meaning": "Most files one record holds and lists; default 200, range 10–1000.",
+      "owner": "4E"
+    },
+    {
+      "name": "DELIVERABLES_PER_TASK_MAX",
+      "meaning": "Most deliverables one task holds; default 50, range 1–500.",
+      "owner": "4E"
+    },
+    {
+      "name": "FILE_DISCOVERY_MAX",
+      "meaning": "Most workspaces one file sweep examines; default 100, range 1–1000.",
+      "owner": "4E"
+    },
+    {
+      "name": "FILE_EXPIRY_BATCH_MAX",
+      "meaning": "Most expired upload sessions and object deletions one sweep handles per workspace; default 200, range 10–5000.",
+      "owner": "4E"
     }
   ],
   "sse_topics": [

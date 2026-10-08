@@ -31,7 +31,7 @@ step "1. clean install with lockfile enforcement (no workspace cycles)"
 install_log=$(mktemp)
 pnpm install --frozen-lockfile 2>&1 | tee "$install_log"
 if grep -qi "cyclic workspace dependencies" "$install_log"; then die "pnpm reported cyclic workspace dependencies"; fi
-step "2. Phase 0 integration validator and Phase 1, 2, 3A, 3B, 3C, 3D, 3E, 4A, 4B, and 4C closure checks"
+step "2. Phase 0 integration validator and Phase 1, 2, 3A, 3B, 3C, 3D, 3E, 4A, 4B, 4C, and 4E closure checks"
 python3 docs/architecture/tools/phase0.py
 python3 docs/engineering/tools/phase1.py
 python3 docs/engineering/tools/phase2.py
@@ -43,6 +43,7 @@ python3 docs/engineering/tools/phase3e.py
 python3 docs/engineering/tools/phase4a.py
 python3 docs/engineering/tools/phase4b.py
 python3 docs/engineering/tools/phase4c.py
+python3 docs/engineering/tools/phase4e.py
 step "3. formatting and lint (incl. SQL safety and the complete workspace graph)"
 pnpm format:check
 pnpm lint

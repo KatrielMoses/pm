@@ -34,7 +34,7 @@ interface ReviewRow {
   id: string;
   public_id: string;
   subject_record_id: string;
-  subject_kind: 'task' | 'project' | 'document';
+  subject_kind: 'task' | 'project' | 'document' | 'deliverable';
   subject_version: number;
   kind: 'review' | 'approval';
   rule: ReviewRule;
@@ -359,7 +359,8 @@ export class ReviewService extends CommentService {
                    q.rule, q.state, q.requested_by_membership_id, q.message_text, q.previous_request_id,
                    q.closed_reason, q.settled_at, q.created_at, q.version, r.public_id AS subject_public,
                    r.record_type AS subject_record_type, r.brand_id, ${cursorAt('q.created_at')} AS cursor_at,
-                   ${recordTitle} AS title, COALESCE(t.version, w.version, kd.current_version_number) AS current_version,
+                   COALESCE(t.title, w.name, kd.title, dl.title) AS title,
+                   COALESCE(t.version, w.version, kd.current_version_number, dl.version) AS current_version,
                    ${
                      role === 'reviewer'
                        ? sql`(SELECT d.outcome FROM collab.review_decision d WHERE d.workspace_id = q.workspace_id
@@ -369,6 +370,10 @@ export class ReviewService extends CommentService {
               FROM collab.review_request q
               JOIN core.record r ON r.workspace_id = q.workspace_id AND r.id = q.subject_record_id
               ${recordJoins}
+              -- 4E: a deliverable is reviewed through its task (title, visibility).
+              LEFT JOIN files.deliverable dl ON dl.workspace_id = r.workspace_id AND dl.id = r.id
+              LEFT JOIN work.task dt ON dt.workspace_id = dl.workspace_id AND dt.id = dl.task_id
+              LEFT JOIN core.record dr ON dr.workspace_id = dt.workspace_id AND dr.id = dt.id
              WHERE q.workspace_id = ${tx.workspaceId}
                ${
                  role === 'reviewer'
@@ -377,7 +382,8 @@ export class ReviewService extends CommentService {
                    : sql`AND q.requested_by_membership_id = ${p.membershipId}`
                }
                ${state === 'open' ? sql`AND q.state = 'requested'` : state === 'settled' ? sql`AND q.state <> 'requested'` : sql``}
-               AND ${vis.where('r', { project: recordProject })}
+               AND ((dl.id IS NULL AND ${vis.where('r', { project: recordProject })})
+                 OR (dl.id IS NOT NULL AND ${vis.where('dr', { project: sql`dt.project_id` })}))
                ${after ? sql`AND (q.created_at, q.id) < (${after.at}::timestamptz, ${after.id}::uuid)` : sql``}
              ORDER BY q.created_at DESC, q.id DESC LIMIT ${limit + 1}`.execute(tx.db)
         ).rows;
@@ -586,6 +592,28 @@ export class ReviewService extends CommentService {
     return { id, publicId };
   }
 
+  /**
+   * Called in the same transaction when a review settles (or is withdrawn). Record types whose
+   * state follows their review (4E deliverables) react here; tasks and projects do not.
+   */
+  protected async reviewSettled(
+    tx: WorkspaceTransaction,
+    caller: Caller,
+    p: Principal,
+    host: CollabHost,
+    request: { id: string },
+    outcome: 'approved' | 'changes_requested' | 'rejected' | 'withdrawn',
+    decisionId: string | null,
+  ): Promise<void> {
+    void tx;
+    void caller;
+    void p;
+    void host;
+    void request;
+    void outcome;
+    void decisionId;
+  }
+
   async requestReview(caller: Caller, ws: unknown, rec: unknown, body: unknown, req: Mutation) {
     const input = parseReviewRequest(body, this.ws.reviewReviewersMax);
     return this.tracked('collab.reviews', 'request', () =>
@@ -756,6 +784,8 @@ export class ReviewService extends CommentService {
             },
             host.brand?.id ?? null,
           );
+          if (next !== 'requested')
+            await this.reviewSettled(tx, caller, p, host, row, next, decisionId);
           return {
             status: 200,
             ref: { id: row.public_id, type: 'review_request' },
@@ -813,6 +843,7 @@ export class ReviewService extends CommentService {
             { subject_kind: host.kind, subject_ref: host.id, reason: 'requester' },
             host.brand?.id ?? null,
           );
+          await this.reviewSettled(tx, caller, p, host, row, 'withdrawn', null);
           return {
             status: 200,
             ref: { id: row.public_id, type: 'review_request' },

@@ -15,7 +15,14 @@ export type TenancyErrorCode =
   | 'cursor_invalid'
   | 'unauthenticated'
   | 'rate_limited'
-  | 'limit_exceeded';
+  | 'limit_exceeded'
+  // 4E files (0D registry): storage or scanner missing, quota, scan states, checksum, evidence lock.
+  | 'dependency_unavailable'
+  | 'usage_limit_reached'
+  | 'file_not_ready'
+  | 'file_blocked'
+  | 'checksum_mismatch'
+  | 'evidence_locked';
 
 /** Conflict payload (0D §4.3). `theirs` only for fields the caller can read now. */
 export interface ConflictDetail {

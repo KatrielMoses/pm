@@ -3691,7 +3691,7 @@
         "FILE-012",
         "FILE-013"
       ],
-      "notes": ""
+      "notes": "Phase 4E (ADR-34): keys carry no identifiers (`q.{64 hex}` quarantined, `o.{same}` promoted); a clean object is never quarantined; an infected object's signature is internal and its bytes are deleted; orphaned objects are deleted by the file sweep through `object:{key}` external effects. No storage class or encryption column is stored (provider-side)."
     },
     {
       "name": "file",
@@ -3729,7 +3729,7 @@
         "FILE-003",
         "FILE-004"
       ],
-      "notes": ""
+      "notes": "Phase 4E (ADR-34): hosts are the workspace (members only), a brand, a project, a task, or a comment (its record plus comment_id; only the comment's author attaches). Authority is the host's on every read; hidden and unknown files are one not_found. Trash, restore, and purge follow the host."
     },
     {
       "name": "file_version",
@@ -3764,7 +3764,7 @@
         "FILE-004",
         "FILE-005"
       ],
-      "notes": ""
+      "notes": "Phase 4E (ADR-34): immutable by trigger (only the evidence lock may be set, never cleared, and the preview state); an object or an external http(s) URL that is never copied or fetched; at most FILE_VERSIONS_MAX per file. Downloads need a clean scan and go through a short-lived signed URL that is never stored."
     },
     {
       "name": "upload_session",
@@ -3806,7 +3806,7 @@
         "FILE-001",
         "FILE-011"
       ],
-      "notes": "0D §15.1. Signed URLs are not stored."
+      "notes": "0D §15.1. Signed URLs are not stored. Phase 4E (ADR-34): the creator's alone; reserves bytes against the workspace quota at initiation; completion re-checks authority and verifies presence, size, SHA-256, and type; a version exists only on a completed session; expiry (UPLOAD_SESSION_LIFETIME) releases the reservation and the quarantined object."
     },
     {
       "name": "deliverable",
@@ -3836,7 +3836,7 @@
         "FILE-006",
         "TSK-022"
       ],
-      "notes": ""
+      "notes": "Phase 4E (ADR-34): contained by its task (authority and visibility through the task); expected type any, file, or url (TSK-022); state follows the 4A review of the current version and accepted is final. Lists count accepted versus pending per task and project (PRJ-023)."
     },
     {
       "name": "deliverable_version",
@@ -3878,7 +3878,7 @@
         "FILE-009",
         "AGT-013"
       ],
-      "notes": ""
+      "notes": "Phase 4E (ADR-34): source is a clean file version of the same task or a URL (agent artifacts arrive with 8C); submitted with a 4A approval request in one transaction, superseding an open one; acceptance stores the decision, who accepted, and when, and evidence-locks the row and its file version (trigger). Locked versions are skipped by purge."
     },
     {
       "name": "evidence_item",
@@ -3917,7 +3917,7 @@
         "TEST-012",
         "DEV-016"
       ],
-      "notes": ""
+      "notes": "Phase 4E (ADR-34): not created in 4E; arrives with 9B."
     },
     {
       "name": "storage_usage",
@@ -3944,7 +3944,7 @@
       "requirements": [
         "FILE-010"
       ],
-      "notes": ""
+      "notes": "Phase 4E (ADR-34): used and reserved bytes and object count, locked while an upload reserves bytes against WORKSPACE_STORAGE_QUOTA_BYTES (a technical limit until 10A plans)."
     },
     {
       "name": "comment",

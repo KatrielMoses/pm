@@ -245,6 +245,21 @@ All decisions are **proposed (Phase 0C)**, pending solutions-architect acceptanc
   - **No new actions.** The action count stays 122.
 - **Alternatives:** A document-level role table (a second authority source). Showing a reference's kind when it is restricted (a hint about what exists). Letting any editor change the owner (a way to hand a document to someone who cannot act on it).
 - **Consequences:** Threat T-51 with tests AT-208 to AT-217.
+<a id="az-34"></a>
+### AZ-34: Files and deliverables (Phase 4E amendment)
+- **Decision:**
+  - **Through the host.** A file's authority is its host's: the workspace (members only, never guests), a brand, a project, a task, or a comment (through the comment's record). Reading, listing, and metadata are `record.read`; uploading, adding a version or an external link, and renaming are `record.upload`; download, inline preview, and comparison are `record.download`; trash is `record.trash`. A deliverable is contained by its task: creating and submitting are `deliverable.submit` on the task, and accepting is the 4A `review.decide` of a named reviewer (AZ-31). Nothing about a file or deliverable is a second source of authority (AT-218, AT-229).
+  - **Hidden is unknown.** An unreadable host, file, version, upload session, or deliverable and an unknown or malformed identifier are one `not_found` on metadata, lists, URLs, previews, comparisons, and deliverables, with the same statements. A stranger gets `not_found` on every route (AT-218, AT-219).
+  - **Revocation.** Nothing is cached: each URL is issued per authorized request, so a revoked grant refuses the next request. A URL already issued stays usable only until `SIGNED_URL_LIFETIME` ends (0D accepted residual risk, PC-03) (AT-220).
+  - **Signed URLs.** A signed URL binds the object key, the operation, the expiry, and (for uploads) the exact length, type, and checksum. Tampered, mismatched, and expired URLs are refused with no resource information. URLs are never stored, logged, emitted in events, notifications, or exports (AT-221).
+  - **Scanning and content.** Only a clean version is downloadable: pending is `file_not_ready`, infected or failed scans are `file_blocked`, and a signature is never shown. Inline preview is limited to an allow-list (raster images, audio, video, PDF, and text or code served as `text/plain`); SVG, HTML, office, and archive content is always an attachment with `nosniff` (AT-222, AT-223).
+  - **Own sessions and comments.** An upload session is its creator's alone; anyone else gets `not_found`. Only a comment's author attaches files to it (`forbidden`, `not_author`) (AT-224, AT-225).
+  - **Quota.** Bytes are reserved under a row lock at initiation, so concurrent uploads cannot exceed `WORKSPACE_STORAGE_QUOTA_BYTES` (`usage_limit_reached`) (AT-226).
+  - **Guests and links.** Guests never see workspace-hosted files (AT-227). External links are http(s) without credentials, at most 2048 characters, and are never fetched by the server (no SSRF) (AT-228).
+  - **Evidence.** An accepted deliverable version and the file version it points at are evidence-locked: no change, resubmission, trash, or purge (`evidence_locked`) (AT-229).
+  - **No new actions.** The action count stays 122.
+- **Alternatives:** A per-file access list (a second authority source). Long-lived or stored download URLs (they outlive revocation). Server-side preview rendering or link unfurling (active content and SSRF). A separate acceptance action for deliverables (4A reviews already decide).
+- **Consequences:** Threat T-52 with tests AT-218 to AT-229.
 
 <a id="az-32"></a>
 ### AZ-32: Notifications (Phase 4B amendment)
