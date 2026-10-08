@@ -43,6 +43,12 @@ export interface RouteDef {
   destination?: ShellDestination;
   /** The URL carries the brand scope (`?scope=`) on this route (IA-24). */
   scopeSensitive?: boolean;
+  /**
+   * The query string is this page's own state (a search and its filters), not a navigation: the
+   * shell does not re-read the workspace context when only it changes. Every request the page
+   * makes is authorized by the server on its own.
+   */
+  stateInQuery?: boolean;
   /** Content belongs to a later phase: the page is an honest unavailable state (no data). */
   phase?: string | null;
   command?: ShellCommandId;
@@ -173,6 +179,7 @@ export const ROUTES: readonly RouteDef[] = [
     section: 'Search',
     command: 'go.search',
     shortcut: 'G S',
+    stateInQuery: true,
     // Guests search what is shared with them; the API decides what each person can read.
   },
   // 3A: saved views (personal and shared with the person); drafts open at `views/new?entity=`.
