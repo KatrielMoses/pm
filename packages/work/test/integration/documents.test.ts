@@ -810,4 +810,237 @@ describe('Documents and knowledge (4C)', () => {
       ).toContain('Reviewed spec');
     });
   });
+
+  describe('suggestions and source approvals', () => {
+    const base = async (title: string) => {
+      const d = await make(editor, { title, brand: brands.Harbor, starter: false });
+      const v = await save(editor, d, [para('blk_a', 'Alpha'), para('blk_b', 'Bravo')]);
+      return v;
+    };
+    const suggest = (
+      as: Caller,
+      d: { id: string; content_version: number },
+      block: string,
+      text: string,
+    ) =>
+      env.svc.createSuggestion(
+        as,
+        ws,
+        d.id,
+        {
+          block,
+          base_version: d.content_version,
+          proposed: { type: 'paragraph', runs: [{ text }] },
+          note: 'Better wording',
+        },
+        mutation(),
+      );
+
+    it('applies a suggestion to an unchanged block as a new version, and only an editor decides', async () => {
+      await apply(env, owner, ws, {
+        kind: 'record_share',
+        record: (await base('Shared')).id,
+        grantee: pub.commenter!,
+        level: 'comment',
+      });
+      const shared = (await env.svc.listDocuments(commenter, ws, {})).data.find(
+        (x) => x.title === 'Shared',
+      )!;
+      const doc = await env.svc.getDocument(editor, ws, shared.id);
+      const made = (await suggest(commenter, doc, 'blk_a', 'Alpha, improved')).data;
+      expect(made).toMatchObject({
+        type: 'document_suggestion',
+        state: 'open',
+        effective_state: 'open',
+        block: 'blk_a',
+        note: 'Better wording',
+      });
+      expect(made.id).toMatch(/^dsg_/);
+      expect(made.author).toMatchObject({ id: pub.commenter });
+      expect(made.capabilities).toMatchObject({ accept: false, reject: false, withdraw: true });
+      // The suggester cannot decide it; a reader cannot suggest at all.
+      await expect(
+        env.svc.decideSuggestion(commenter, ws, made.id, { outcome: 'accept' }, mutation()),
+      ).rejects.toEqual(reason('forbidden'));
+      await expect(suggest(reader, doc, 'blk_a', 'x')).rejects.toEqual(reason('forbidden'));
+      await expect(suggest(outsider, doc, 'blk_a', 'x')).rejects.toEqual(reason('not_found'));
+      const decided = (
+        await env.svc.decideSuggestion(editor, ws, made.id, { outcome: 'accept' }, mutation())
+      ).data;
+      expect(decided).toMatchObject({ state: 'accepted', applied_version: 3 });
+      const now = await env.svc.getDocument(editor, ws, doc.id);
+      expect(now.content_version).toBe(3);
+      expect(now.content.blocks[0]).toMatchObject({
+        id: 'blk_a',
+        runs: [{ text: 'Alpha, improved' }],
+      });
+      expect(now.content.blocks[1]).toMatchObject({ runs: [{ text: 'Bravo' }] });
+      expect(await env.svc.getVersion(editor, ws, doc.id, 3)).toMatchObject({ kind: 'suggestion' });
+      await expect(
+        env.svc.decideSuggestion(editor, ws, made.id, { outcome: 'reject' }, mutation()),
+      ).rejects.toMatchObject({
+        issues: [expect.objectContaining({ code: 'already_decided' })],
+      });
+    });
+
+    it('goes stale, with nothing applied, when the block changed since; rejects and withdraws without touching content', async () => {
+      const doc = await base('Stale suggestions');
+      const mine = (await suggest(editor, doc, 'blk_a', 'Alpha (from a suggestion)')).data;
+      const other = (await suggest(owner, doc, 'blk_b', 'Bravo (from another)')).data;
+      const later = (await suggest(owner, doc, 'blk_b', 'Bravo, second thought')).data;
+      // The first block changes under an open suggestion.
+      const changed = await save(editor, doc, [
+        para('blk_a', 'Alpha, edited by hand'),
+        para('blk_b', 'Bravo'),
+      ]);
+      const view = await env.svc.getSuggestion(editor, ws, mine.id);
+      expect(view).toMatchObject({ state: 'open', effective_state: 'stale' });
+      expect(view.capabilities.accept).toBe(false);
+      const result = (
+        await env.svc.decideSuggestion(editor, ws, mine.id, { outcome: 'accept' }, mutation())
+      ).data;
+      expect(result).toMatchObject({ state: 'stale', applied_version: null });
+      expect((await env.svc.getDocument(editor, ws, doc.id)).content_version).toBe(
+        changed.content_version,
+      );
+      // A rejection leaves content alone; the author withdraws their own; nobody else can.
+      expect(
+        (await env.svc.decideSuggestion(editor, ws, other.id, { outcome: 'reject' }, mutation()))
+          .data.state,
+      ).toBe('rejected');
+      await expect(env.svc.withdrawSuggestion(editor, ws, later.id, mutation())).rejects.toEqual(
+        reason('forbidden'),
+      );
+      expect((await env.svc.withdrawSuggestion(owner, ws, later.id, mutation())).data.state).toBe(
+        'withdrawn',
+      );
+      expect((await env.svc.getDocument(editor, ws, doc.id)).content.blocks[1]).toMatchObject({
+        runs: [{ text: 'Bravo' }],
+      });
+      const open = await env.svc.listSuggestions(editor, ws, doc.id, {});
+      expect(open.data).toEqual([]);
+      const all = await env.svc.listSuggestions(editor, ws, doc.id, { state: 'all' });
+      expect(all.data.map((x) => x.state).sort()).toEqual(['rejected', 'stale', 'withdrawn']);
+      // Suggestions bind to the version and block they were made against.
+      await expect(suggest(editor, doc, 'blk_a', 'x')).rejects.toMatchObject({ code: 'conflict' });
+      await expect(suggest(editor, changed, 'blk_missing', 'x')).rejects.toMatchObject({
+        issues: [expect.objectContaining({ code: 'invalid_reference' })],
+      });
+      await expect(env.svc.getSuggestion(outsider, ws, mine.id)).rejects.toEqual(
+        reason('not_found'),
+      );
+      await expect(env.svc.getSuggestion(stranger, ws, mine.id)).rejects.toEqual(
+        reason('not_found'),
+      );
+      await expect(env.svc.getSuggestion(editor, ws, `dsg_${'0'.repeat(26)}`)).rejects.toEqual(
+        reason('not_found'),
+      );
+      const limited = workEnv(db, { work: { documentSuggestionsOpenMax: 1 } });
+      const l = (
+        await limited.svc.createDocument(
+          owner,
+          ws,
+          { title: 'cap', brand: brands.Harbor, starter: false },
+          mutation(),
+        )
+      ).data;
+      const l2 = (
+        await limited.svc.saveContent(
+          owner,
+          ws,
+          l.id,
+          { base_version: 1, content: content(para('blk_a', 'x')) },
+          mutation(),
+        )
+      ).data;
+      await limited.svc.createSuggestion(
+        owner,
+        ws,
+        l.id,
+        { block: 'blk_a', base_version: 2, proposed: { type: 'paragraph', runs: [{ text: 'y' }] } },
+        mutation(),
+      );
+      await expect(
+        limited.svc.createSuggestion(
+          owner,
+          ws,
+          l.id,
+          {
+            block: 'blk_a',
+            base_version: l2.content_version,
+            proposed: { type: 'paragraph', runs: [{ text: 'z' }] },
+          },
+          mutation(),
+        ),
+      ).rejects.toMatchObject({ issues: [expect.objectContaining({ code: 'too_many' })] });
+      await limited.h.close();
+    });
+
+    it('approves the current version as an AI source, stops applying on the next save, and is append-only', async () => {
+      const doc = await base('Source of truth');
+      expect(doc).toBeDefined();
+      const cap = await env.svc.getDocument(editor, ws, doc.id);
+      // The owner (the editor, who made it) may approve; another editor may not; managers may.
+      expect(cap.capabilities.approve_source).toBe(true);
+      await expect(
+        env.svc.approveSource(reader, ws, doc.id, { version: 2 }, mutation()),
+      ).rejects.toEqual(reason('forbidden'));
+      await expect(
+        env.svc.approveSource(outsider, ws, doc.id, { version: 2 }, mutation()),
+      ).rejects.toEqual(reason('not_found'));
+      await expect(
+        env.svc.approveSource(editor, ws, doc.id, { version: 1 }, mutation()),
+      ).rejects.toMatchObject({
+        issues: [expect.objectContaining({ code: 'version_changed' })],
+      });
+      const approved = (
+        await env.svc.approveSource(
+          editor,
+          ws,
+          doc.id,
+          { version: 2, note: 'Reviewed' },
+          mutation(),
+        )
+      ).data;
+      expect(approved.ai_source).toMatchObject({
+        approved: true,
+        version: 2,
+        by: { id: pub.editor },
+      });
+      expect(
+        (await env.svc.listVersions(editor, ws, doc.id, {})).data.find((v) => v.number === 2)!
+          .ai_source,
+      ).toBe(true);
+      // Approving again is a no-op; a new version no longer carries the approval.
+      await env.svc.approveSource(editor, ws, doc.id, { version: 2 }, mutation());
+      const next = await save(editor, approved, [
+        para('blk_a', 'Alpha'),
+        para('blk_b', 'Bravo, changed'),
+      ]);
+      expect(next.ai_source).toEqual({ approved: false, version: null, at: null, by: null });
+      expect(
+        (await env.svc.approveSource(editor, ws, doc.id, { version: 3 }, mutation())).data.ai_source
+          .approved,
+      ).toBe(true);
+      const revoked = (await env.svc.revokeSource(editor, ws, doc.id, { version: 3 }, mutation()))
+        .data;
+      expect(revoked.ai_source.approved).toBe(false);
+      expect(
+        (
+          await sql(
+            `SELECT kind FROM knowledge.source_approval a JOIN core.record r ON r.id = a.document_id WHERE r.public_id = '${doc.id}' ORDER BY a.created_at, a.id`,
+          )
+        ).map((r) => r.kind),
+      ).toEqual(['approved', 'approved', 'revoked']);
+      const grants = await sql(
+        `SELECT table_name, privilege_type FROM information_schema.role_table_grants WHERE grantee = 'app_rw' AND table_schema = 'knowledge' AND table_name IN ('source_approval', 'document_version') ORDER BY 1, 2`,
+      );
+      expect(grants.map((g) => `${g.table_name}:${g.privilege_type}`)).toEqual([
+        'document_version:INSERT',
+        'document_version:SELECT',
+        'source_approval:INSERT',
+        'source_approval:SELECT',
+      ]);
+    });
+  });
 });

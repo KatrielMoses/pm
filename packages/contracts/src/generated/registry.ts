@@ -2099,7 +2099,8 @@ export const INTERNAL_EVENTS = [
     "schemaVersion": 1,
     "aggregateEntity": "knowledge.source_approval",
     "fields": [
-      "document_version_id"
+      "document_version_id",
+      "kind"
     ],
     "maxClass": "C1"
   },
