@@ -2,7 +2,9 @@ import { richTextFromPlain } from '@pm/contracts';
 import { sql as ksql } from '@pm/db';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { createTestDatabase, type TestDatabase } from '@pm/test-support/vitest';
+import { eraseMembershipNavigation } from '@pm/tenancy';
 import {
+  DEFAULT_WORK_SETTINGS,
   defaultSearchSources,
   indexWorkspace,
   SearchSourceRegistry,
@@ -713,5 +715,211 @@ describe('Permission-aware search (5A)', () => {
     // Another person has their own allowance.
     await small.svc.search(owner, ws, { q: 'anything' });
     await small.h.close();
+  });
+
+  it('indexes concurrently without loss or duplication, and re-queues a change that lands mid-index', async () => {
+    const made = await Promise.all(
+      Array.from({ length: 40 }, (_, i) => task(editor, { title: `Curlew batch item ${i}` })),
+    );
+    expect(
+      (await sql(`SELECT count(*)::int AS n FROM search.index_task`))[0]!.n,
+    ).toBeGreaterThanOrEqual(40);
+    // Three workers drain the same workspace at once: every key is taken by exactly one of them.
+    const small = { ...deps(), settings: { ...DEFAULT_WORK_SETTINGS, searchIndexBatchMax: 10 } };
+    const runs = await Promise.all([1, 2, 3, 4, 5].map(() => indexWorkspace(small, wsId)));
+    await drain();
+    const total = runs.reduce((n, r) => n + r.indexed, 0);
+    expect(total).toBeGreaterThan(0);
+    expect(runs.every((r) => r.failed === 0 && r.retried === 0)).toBe(true);
+    expect((await sql(`SELECT count(*)::int AS n FROM search.index_task`))[0]!.n).toBe(0);
+    expect(new Set(ids(await find(editor, 'curlew', { limit: 50 })))).toEqual(
+      new Set(made.map((t) => t.id)),
+    );
+    expect(
+      (
+        await sql(`SELECT count(*)::int AS n FROM search.entry WHERE title LIKE 'Curlew batch%'`)
+      )[0]!.n,
+    ).toBe(40);
+
+    // A change that arrives while the row is being indexed waits for the claim, then queues again,
+    // so the entry converges to the latest text instead of staying on the one the indexer read.
+    const target = made[0]!;
+    const rename = async (title: string) => {
+      const cur = await env.svc.getTask(editor, ws, target.id);
+      await env.svc.updateTask(
+        editor,
+        ws,
+        target.id,
+        { version: cur.version, changes: { title: { base: cur.title, value: title } } },
+        mutation({ ifMatch: `"${cur.version}"` }),
+      );
+    };
+    let release!: () => void;
+    const gate = new Promise<void>((r) => (release = r));
+    let reading!: () => void;
+    const started = new Promise<void>((r) => (reading = r));
+    const slow = new SearchSourceRegistry();
+    for (const src of defaultSearchSources().all())
+      slow.register(
+        src.kind === 'task'
+          ? {
+              ...src,
+              async load(tx, id, limits) {
+                const doc = await src.load(tx, id, limits);
+                if (doc?.title === 'Curlew mid item') {
+                  reading();
+                  await gate;
+                }
+                return doc;
+              },
+            }
+          : src,
+      );
+    await rename('Curlew mid item');
+    const inFlight = indexWorkspace({ ...deps(), sources: slow }, wsId);
+    const stuck = new Promise<never>((_, reject) =>
+      setTimeout(() => reject(new Error('the indexer never reached the row')), 20_000),
+    );
+    await Promise.race([started, stuck]);
+    let edited = false;
+    const edit = rename('Curlew renamed').then(() => (edited = true));
+    await new Promise((r) => setTimeout(r, 300));
+    // The edit waits behind the indexer's claim of that row; releasing it lets both finish.
+    expect(edited).toBe(false);
+    release();
+    await Promise.all([inFlight, edit]);
+    expect(edited).toBe(true);
+    // The indexer wrote the text it read; the change queued behind it, so one more run converges.
+    expect((await sql(`SELECT count(*)::int AS n FROM search.index_task`))[0]!.n).toBe(1);
+    expect((await find(editor, 'curlew', { limit: 50 })).index.state).toBe('catching_up');
+    await drain();
+    expect(ids(await find(editor, 'renamed'))).toEqual([target.id]);
+    expect((await find(editor, 'mid')).total).toBe(0);
+    expect(ids(await find(editor, 'curlew', { limit: 50 }))).toContain(target.id);
+    expect((await find(editor, 'curlew', { limit: 50 })).index.state).toBe('complete');
+  });
+
+  it('reindexes a document from its newest saved version, and caps what it indexes and counts', async () => {
+    const d = (
+      await env.svc.createDocument(
+        owner,
+        ws,
+        { title: 'Ledger notes', brand: brands.Harbor },
+        mutation(),
+      )
+    ).data;
+    const saved = (
+      await env.svc.saveContent(
+        owner,
+        ws,
+        d.id,
+        {
+          base_version: d.content_version,
+          content: content(para('par_1', 'Original avocet text.')),
+        },
+        mutation(),
+      )
+    ).data;
+    await drain();
+    expect(ids(await find(owner, 'avocet'))).toEqual([d.id]);
+    await env.svc.saveContent(
+      owner,
+      ws,
+      d.id,
+      {
+        base_version: saved.content_version,
+        content: content(para('par_1', 'Replacement text only.')),
+      },
+      mutation(),
+    );
+    expect(ids(await find(owner, 'avocet'))).toEqual([d.id]); // the index lags and says so
+    expect((await find(owner, 'avocet')).results[0]!.index).toBe('updating');
+    await drain();
+    expect((await find(owner, 'avocet')).total).toBe(0);
+    expect(ids(await find(owner, 'replacement'))).toEqual([d.id]);
+    // A very large document is cut at SEARCH_BODY_MAX_CHARS and still indexes.
+    const words = Array.from({ length: 30_000 }, (_, i) => `lexeme${i}`).join(' ');
+    const big = (
+      await env.svc.createDocument(
+        owner,
+        ws,
+        { title: 'Big one', brand: brands.Harbor },
+        mutation(),
+      )
+    ).data;
+    await env.svc.saveContent(
+      owner,
+      ws,
+      big.id,
+      {
+        base_version: big.content_version,
+        content: content(
+          para('par_1', words.slice(0, 9_000)),
+          para('par_2', words.slice(9_000, 18_000)),
+        ),
+      },
+      mutation(),
+    );
+    const run = await drain();
+    expect(run.failed).toBe(0);
+    const len = (
+      await sql(`SELECT char_length(body)::int AS n FROM search.entry WHERE title = 'Big one'`)
+    )[0]!.n;
+    expect(len).toBeGreaterThan(10_000);
+    expect(len).toBeLessThanOrEqual(100_000);
+    // Counts and depth are bounded and say so.
+    const capped = workEnv(db, {
+      work: { searchCountMax: 3, searchResultsMax: 4, searchPageSizeMax: 2 },
+    });
+    for (let i = 0; i < 5; i++) await task(editor, { title: `Bittern cap ${i}` });
+    await drain();
+    const r = await capped.svc.search(editor, ws, { q: 'bittern', limit: 2 });
+    expect(r).toMatchObject({
+      total: 3,
+      total_is_lower_bound: true,
+      limits: { results_max: 4, count_max: 3 },
+    });
+    expect(r.facets.kinds).toEqual([{ kind: 'task', label: 'Tasks', count: 3 }]);
+    expect(r.page).toMatchObject({ limit: 2, offset: 0, has_more: true });
+    const deep = await capped.svc.search(editor, ws, { q: 'bittern', limit: 2, offset: 2 });
+    expect(deep.results).toHaveLength(2);
+    expect(deep.page.has_more).toBe(false);
+    await expect(capped.svc.search(editor, ws, { q: 'bittern', offset: 4 })).rejects.toEqual(
+      issueOf('invalid_option'),
+    );
+    await expect(capped.svc.search(editor, ws, { q: 'bittern', limit: 3 })).rejects.toEqual(
+      issueOf('invalid_option'),
+    );
+    await capped.h.close();
+  });
+
+  it('erases a person’s recent searches with their other personal data', async () => {
+    await env.svc.recordRecentSearch(reader, ws, { q: 'private words' });
+    const rid = (await membershipOf(db, wsId, reader.auth.account.id))!.id as string;
+    expect(
+      (
+        await sql(
+          `SELECT count(*)::int AS n FROM search.recent_query WHERE owner_membership_id = '${rid}'`,
+        )
+      )[0]!.n,
+    ).toBe(1);
+    await env.h.worker.withWorkspace(wsId, { module: 'test' }, (tx) =>
+      eraseMembershipNavigation(tx, rid),
+    );
+    expect(
+      (
+        await sql(
+          `SELECT count(*)::int AS n FROM search.recent_query WHERE owner_membership_id = '${rid}'`,
+        )
+      )[0]!.n,
+    ).toBe(0);
+    // Retention: searches older than the bound are swept by the indexing job's housekeeping.
+    await env.svc.recordRecentSearch(owner, ws, { q: 'old search' });
+    await sql(`UPDATE search.recent_query SET searched_at = now() - interval '120 days'`);
+    const { sweepRecentSearches } = await import('@pm/work');
+    expect(await sweepRecentSearches(deps(), wsId)).toBeGreaterThanOrEqual(1);
+    expect((await env.svc.listRecentSearches(owner, ws)).map((r: any) => r.q)).not.toContain(
+      'old search',
+    );
   });
 });

@@ -67,6 +67,8 @@ export interface SearchResponse {
   total: number;
   total_is_lower_bound: boolean;
   facets: {
+    /** A count reached the limit: counts are "at least". */
+    capped: boolean;
     kinds: Array<{ kind: string; label: string; count: number }>;
     brands: Array<{ brand: BrandMarkerData; count: number }>;
   };

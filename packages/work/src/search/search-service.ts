@@ -299,9 +299,9 @@ export class SearchService extends FileService {
   }
 
   /**
-   * The conditions every read of the index shares. `skip` leaves one filter out (a facet counts
-   * what choosing another value would give). The entry's own live state is part of it, because the
-   * index may lag a deletion.
+   * The conditions every read of the index shares, except the kind and brand choices (the search
+   * applies those as flags so each facet can count what choosing another value would give). The
+   * entry's own live state is part of it, because the index may lag a deletion.
    */
   #where(
     workspaceId: string,
@@ -310,7 +310,6 @@ export class SearchService extends FileService {
     r: Resolved,
     vis: Awaited<ReturnType<typeof compileVisibility>>,
     tsq: RawBuilder<unknown>,
-    skip?: 'kind' | 'brand',
   ): RawBuilder<boolean> {
     const states = f.state === 'active' ? ['active'] : ['active', 'archived'];
     const parts: RawBuilder<unknown>[] = [
@@ -324,9 +323,6 @@ export class SearchService extends FileService {
       const live = s.live?.('e', states);
       if (live) parts.push(sql`(e.source_kind <> ${s.kind} OR ${live})`);
     }
-    if (f.kinds.length && skip !== 'kind') parts.push(sql`e.source_kind = ANY(${f.kinds}::text[])`);
-    if (r.brandIds.length && skip !== 'brand')
-      parts.push(sql`r.brand_id = ANY(${r.brandIds}::uuid[])`);
     if (r.projectId) parts.push(sql`${governingProject('r')} = ${r.projectId}`);
     if (f.updated)
       parts.push(
@@ -364,50 +360,65 @@ export class SearchService extends FileService {
         const vis = await this.#visibility(tx, p, f);
         const resolved = await this.#resolve(tx, p, f, vis);
         const tsq = this.#tsquery(input.parsed.terms);
-        const where = (skip?: 'kind' | 'brand') =>
-          this.#where(tx.workspaceId, p, f, resolved, vis, tsq, skip);
+        const base = this.#where(tx.workspaceId, p, f, resolved, vis, tsq);
         const cap = this.ws.searchCountMax;
         const reach = Math.max(this.ws.searchResultsMax - input.offset, 0);
         const limit = Math.min(input.limit, reach);
+        const kindOk = f.kinds.length ? sql`e.source_kind = ANY(${f.kinds}::text[])` : sql`true`;
+        const brandOk = resolved.brandIds.length
+          ? sql`r.brand_id = ANY(${resolved.brandIds}::uuid[])`
+          : sql`true`;
 
-        const hits = (
-          await sql<Hit>`
-            SELECT e.source_kind, e.source_id, e.auth_record_id, e.context_record_id, e.title,
-                   left(e.body, ${SNIPPET_SCAN_CHARS}) AS body, e.source_updated_at, r.brand_id,
-                   r.lifecycle_state, ts_rank_cd(e.tsv, ${tsq}, 32)::float8 AS rank,
-                   t.state AS task_state
-              FROM search.entry e
-              JOIN core.record r ON r.workspace_id = e.workspace_id AND r.id = e.auth_record_id
-              LEFT JOIN search.index_task t ON t.workspace_id = e.workspace_id
-                   AND t.source_kind = e.source_kind AND t.source_id = e.source_id
-             WHERE ${where()}
-             ORDER BY rank DESC, e.source_updated_at DESC, e.source_id
-             LIMIT ${limit} OFFSET ${input.offset}`.execute(tx.db)
-        ).rows;
-
-        const counted = await sql<{ n: number }>`
-          SELECT count(*)::int AS n FROM (
-            SELECT 1 FROM search.entry e
-              JOIN core.record r ON r.workspace_id = e.workspace_id AND r.id = e.auth_record_id
-             WHERE ${where()} LIMIT ${cap + 1}) c`.execute(tx.db);
-        const n = counted.rows[0]?.n ?? 0;
-
-        const byKind = (
-          await sql<{ k: string; n: number }>`
-            SELECT c.k, count(*)::int AS n FROM (
-              SELECT e.source_kind AS k FROM search.entry e
+        // One pass over the authorized matches: the page, the total, and both facets are read from
+        // the same materialized set (a facet counts what choosing another value would give).
+        // Under row-level security the planner cannot use the full-text index (the match operator
+        // is not leakproof), so every extra pass would be another scan of the workspace's entries.
+        const one = (
+          await sql<{
+            keys: Array<{ k: string; i: string }>;
+            total: number;
+            kinds: Array<{ k: string; n: number }>;
+            brands: Array<{ b: string | null; n: number }>;
+          }>`
+            WITH m AS MATERIALIZED (
+              SELECT e.source_kind AS k, e.source_id AS i, e.source_updated_at AS u, r.brand_id AS b,
+                     ts_rank_cd(e.tsv, ${tsq}, 32)::float8 AS rank,
+                     (${kindOk}) AS kind_ok, (${brandOk}) AS brand_ok
+                FROM search.entry e
                 JOIN core.record r ON r.workspace_id = e.workspace_id AND r.id = e.auth_record_id
-               WHERE ${where('kind')} LIMIT ${cap}) c
-             GROUP BY c.k`.execute(tx.db)
-        ).rows;
-        const byBrand = (
-          await sql<{ b: string | null; n: number }>`
-            SELECT c.b, count(*)::int AS n FROM (
-              SELECT r.brand_id AS b FROM search.entry e
-                JOIN core.record r ON r.workspace_id = e.workspace_id AND r.id = e.auth_record_id
-               WHERE ${where('brand')} LIMIT ${cap}) c
-             GROUP BY c.b`.execute(tx.db)
-        ).rows;
+               WHERE ${base})
+            SELECT
+              (SELECT coalesce(jsonb_agg(jsonb_build_object('k', x.k, 'i', x.i) ORDER BY x.o), '[]'::jsonb)
+                 FROM (SELECT k, i, row_number() OVER (ORDER BY rank DESC, u DESC, i) AS o
+                         FROM m WHERE kind_ok AND brand_ok
+                        ORDER BY rank DESC, u DESC, i LIMIT ${limit} OFFSET ${input.offset}) x) AS keys,
+              (SELECT count(*)::int FROM m WHERE kind_ok AND brand_ok) AS total,
+              (SELECT coalesce(jsonb_agg(jsonb_build_object('k', x.k, 'n', x.n)), '[]'::jsonb)
+                 FROM (SELECT k, count(*)::int AS n FROM m WHERE brand_ok GROUP BY k) x) AS kinds,
+              (SELECT coalesce(jsonb_agg(jsonb_build_object('b', x.b, 'n', x.n)), '[]'::jsonb)
+                 FROM (SELECT b, count(*)::int AS n FROM m WHERE kind_ok GROUP BY b) x) AS brands`.execute(
+            tx.db,
+          )
+        ).rows[0]!;
+        const n = one.total;
+        const byKind = one.kinds.map((x) => ({ k: x.k, n: Math.min(x.n, cap) }));
+        const byBrand = one.brands.map((x) => ({ b: x.b, n: Math.min(x.n, cap) }));
+        const hits = limit
+          ? (
+              await sql<Hit>`
+                SELECT e.source_kind, e.source_id, e.auth_record_id, e.context_record_id, e.title,
+                       left(e.body, ${SNIPPET_SCAN_CHARS}) AS body, e.source_updated_at, r.brand_id,
+                       r.lifecycle_state, 0::float8 AS rank, t.state AS task_state
+                  FROM unnest(${one.keys.map((x) => x.k)}::text[], ${one.keys.map((x) => x.i)}::uuid[])
+                       WITH ORDINALITY AS k(kind, id, o)
+                  JOIN search.entry e ON e.workspace_id = ${tx.workspaceId}
+                       AND e.source_kind = k.kind AND e.source_id = k.id
+                  JOIN core.record r ON r.workspace_id = e.workspace_id AND r.id = e.auth_record_id
+                  LEFT JOIN search.index_task t ON t.workspace_id = e.workspace_id
+                       AND t.source_kind = e.source_kind AND t.source_id = e.source_id
+                 ORDER BY k.o`.execute(tx.db)
+            ).rows
+          : [];
 
         const results = await this.#present(tx, p, vis, hits, input);
         const brandRows = await readableBrandsByIds(
@@ -433,6 +444,7 @@ export class SearchService extends FileService {
           total,
           total_is_lower_bound: n > cap,
           facets: {
+            capped: [...byKind.map((x) => x.n), ...byBrand.map((x) => x.n)].some((c) => c >= cap),
             kinds: this.#sources.all().flatMap((s) => {
               const c = byKind.find((k) => k.k === s.kind)?.n ?? 0;
               return c > 0 || f.kinds.includes(s.kind)

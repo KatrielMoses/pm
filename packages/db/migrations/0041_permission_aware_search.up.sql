@@ -52,7 +52,11 @@ CREATE TABLE search.entry (
   CONSTRAINT entry_title_length CHECK (char_length(title) BETWEEN 1 AND 500),
   CONSTRAINT entry_body_length CHECK (char_length(body) <= 100000)
 );
-CREATE INDEX entry_tsv ON search.entry USING gin (tsv);
+-- No GIN index on `tsv`: under the forced tenant-isolation policy the planner cannot use one (the
+-- text-match operator is not leakproof, so it may not run before the policy; EXPLAIN as `app_rw`
+-- shows a scan filtered by workspace either way), and an unused index only slows every write. A
+-- query reads one workspace's entries through the primary key; see ADR-0028 D12 for the bound and
+-- the upgrade path.
 CREATE INDEX entry_by_auth ON search.entry (workspace_id, auth_record_id);
 CREATE INDEX entry_by_context ON search.entry (workspace_id, context_record_id);
 CREATE INDEX entry_by_owner ON search.entry (workspace_id, owner_membership_id);
