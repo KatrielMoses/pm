@@ -3167,7 +3167,7 @@ Append-only progress update with confidence, note, and source (manual or compute
 
 | Property | Value |
 |---|---|
-| Scope | `inherited` · addressable (`core.record`, public prefix `gci_`) |
+| Scope | `inherited` |
 | Contained by | [`goal`](logical-model.md#entity-goal), [`key_result`](logical-model.md#entity-key-result) |
 | Extends (1:1) | — |
 | Associations | — |
@@ -3176,7 +3176,7 @@ Append-only progress update with confidence, note, and source (manual or compute
 | Volume / export / search-AI | `medium` / `filtered` / `yes` |
 | Secrets / personal data | `no` / `incidental` |
 | Uniqueness | `(goal_id, inputs_hash) for computed rows` |
-| Key typed columns | `id (prefix gci)`; `goal_id`; `key_result_id null`; `source (manual\|computed)`; `value, percent, confidence null`; `note`; `author_membership_id null (computed)`; `inputs_hash (computed rows; unique per goal and hash)`; `created_at` |
+| Key typed columns | `id`; `goal_id`; `key_result_id null`; `source (manual\|computed)`; `value, percent, confidence null`; `note`; `author_membership_id null (computed)`; `inputs_hash (computed rows; unique per goal and hash)`; `created_at` |
 | Sensitive fields | — |
 | Requirements | GOAL-005, GOAL-006 |
 | Notes | Phase 5B (ADR-36): immutable by trigger; the application role cannot update or delete a row. A check-in that states no confidence keeps the last stated one. Author stays on the row after departure (shown as a former member). Purge of the goal removes its history. |

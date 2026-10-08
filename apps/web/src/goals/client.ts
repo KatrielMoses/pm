@@ -73,11 +73,7 @@ export interface Metric {
 }
 
 export type IncompleteReason =
-  | 'no_measurement'
-  | 'no_target'
-  | 'no_key_results'
-  | 'no_readable_work'
-  | 'unmeasured_key_results';
+  'no_measurement' | 'no_target' | 'no_key_results' | 'no_readable_work' | 'unmeasured_key_results';
 
 export interface Progress {
   percent: number | null;
@@ -196,6 +192,8 @@ export interface GoalQuery {
   from?: string;
   to?: string;
   q?: string;
+  /** `true` lists archived goals instead of active ones. */
+  archived?: string;
   limit?: number;
   cursor?: string;
 }
@@ -248,12 +246,7 @@ export interface HealthReason {
 }
 
 export type HealthIncomplete =
-  | 'no_dates'
-  | 'no_tasks'
-  | 'no_time_budget'
-  | 'paused'
-  | 'cancelled'
-  | 'not_started';
+  'no_dates' | 'no_tasks' | 'no_time_budget' | 'paused' | 'cancelled' | 'not_started';
 
 export interface PortfolioProject {
   id: string;
@@ -263,7 +256,12 @@ export interface PortfolioProject {
   status: { category: ProjectCategory; label: string };
   priority: string;
   owner: PersonRef | null;
-  dates: { start: string | null; target: string | null; deadline: string | null; next_deadline: string | null };
+  dates: {
+    start: string | null;
+    target: string | null;
+    deadline: string | null;
+    next_deadline: string | null;
+  };
   declared_health: { value: string; source: string | null } | null;
   health: {
     value: ProjectHealth;
@@ -480,8 +478,9 @@ const write = (o?: WriteOptions) => ({
 
 export const goals = {
   async list(ws: string, q: GoalQuery = {}, signal?: AbortSignal) {
-    return (await api<PageOf<Goal>>('GET', `${w(ws)}/goals${qs({ ...q })}`, signal ? { signal } : {}))
-      .body;
+    return (
+      await api<PageOf<Goal>>('GET', `${w(ws)}/goals${qs({ ...q })}`, signal ? { signal } : {})
+    ).body;
   },
   async get(ws: string, goal: string) {
     return (await api<{ data: GoalDetail }>('GET', `${w(ws)}/goals/${goal}`)).body.data;
@@ -628,13 +627,7 @@ export const goals = {
     return (await api<PageOf<Checkin>>('GET', `${w(ws)}/goals/${goal}/check-ins${qs({ ...q })}`))
       .body;
   },
-  async checkin(
-    ws: string,
-    goal: string,
-    body: CheckinInput,
-    stepUp: StepUpResolver,
-    key: string,
-  ) {
+  async checkin(ws: string, goal: string, body: CheckinInput, stepUp: StepUpResolver, key: string) {
     return (
       await protectedRequest<{ data: CreatedCheckin }>(
         'POST',
@@ -673,7 +666,13 @@ export const portfolios = {
     o?: WriteOptions,
   ) {
     return (
-      await protectedRequest<{ data: Portfolio }>('POST', `${w(ws)}/portfolios`, body, stepUp, write(o))
+      await protectedRequest<{ data: Portfolio }>(
+        'POST',
+        `${w(ws)}/portfolios`,
+        body,
+        stepUp,
+        write(o),
+      )
     ).body.data;
   },
   async update(
@@ -729,18 +728,29 @@ export const portfolios = {
   },
   async overview(ws: string, q: OverviewQuery = {}, signal?: AbortSignal) {
     const { portfolio, ...rest } = q;
-    const path = portfolio ? `${w(ws)}/portfolios/${portfolio}/overview` : `${w(ws)}/portfolio/overview`;
-    return (await api<{ data: PortfolioOverview }>('GET', `${path}${qs({ ...rest })}`, signal ? { signal } : {}))
-      .body.data;
+    const path = portfolio
+      ? `${w(ws)}/portfolios/${portfolio}/overview`
+      : `${w(ws)}/portfolio/overview`;
+    return (
+      await api<{ data: PortfolioOverview }>(
+        'GET',
+        `${path}${qs({ ...rest })}`,
+        signal ? { signal } : {},
+      )
+    ).body.data;
   },
   async dependencies(ws: string, q: OverviewQuery = {}) {
     return (
-      await api<{ data: PortfolioDependencies }>('GET', `${w(ws)}/portfolio/dependencies${qs({ ...q })}`)
+      await api<{ data: PortfolioDependencies }>(
+        'GET',
+        `${w(ws)}/portfolio/dependencies${qs({ ...q })}`,
+      )
     ).body.data;
   },
   async orphans(ws: string, q: OverviewQuery = {}) {
-    return (await api<{ data: PortfolioOrphans }>('GET', `${w(ws)}/portfolio/orphans${qs({ ...q })}`))
-      .body.data;
+    return (
+      await api<{ data: PortfolioOrphans }>('GET', `${w(ws)}/portfolio/orphans${qs({ ...q })}`)
+    ).body.data;
   },
   exportFile(ws: string, format: 'csv' | 'json', q: OverviewQuery = {}) {
     const { limit: _l, ...rest } = q;

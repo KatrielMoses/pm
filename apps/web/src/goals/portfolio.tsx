@@ -44,7 +44,9 @@ export function OverviewCoverage({ o }: { o: PortfolioOverview }) {
     <Coverage note={o.coverage.note} asOf={o.as_of}>
       <p>
         {plural(o.coverage.evaluated_projects, 'project')} evaluated
-        {o.coverage.scope === 'portfolio' ? ' in this portfolio' : ' from the projects you can read'}
+        {o.coverage.scope === 'portfolio'
+          ? ' in this portfolio'
+          : ' from the projects you can read'}
         . Computed live for you.
       </p>
       {o.coverage.truncated ? (
@@ -143,7 +145,8 @@ export function SummaryTiles({
           <ul className="gl-plain">
             {s.budgets.money.by_currency.map((m) => (
               <li key={m.currency}>
-                Budgeted: {new Intl.NumberFormat(undefined, { maximumFractionDigits: 2 }).format(m.budgeted)}{' '}
+                Budgeted:{' '}
+                {new Intl.NumberFormat(undefined, { maximumFractionDigits: 2 }).format(m.budgeted)}{' '}
                 {m.currency} across {plural(m.projects, 'project')}
               </li>
             ))}
@@ -152,8 +155,9 @@ export function SummaryTiles({
           <p className="hint">No money budgets are set.</p>
         )}
         <p>
-          Time: {minutesText(s.budgets.time.budgeted_minutes)} budgeted, {minutesText(s.budgets.time.logged_minutes)}{' '}
-          logged across {plural(s.budgets.time.projects, 'project')}
+          Time: {minutesText(s.budgets.time.budgeted_minutes)} budgeted,{' '}
+          {minutesText(s.budgets.time.logged_minutes)} logged across{' '}
+          {plural(s.budgets.time.projects, 'project')}
           {s.budgets.time.over_budget_projects
             ? `; ${plural(s.budgets.time.over_budget_projects, 'project')} over budget`
             : ''}
@@ -176,7 +180,8 @@ export function SummaryTiles({
       <Tile title="Goals coverage">
         <p className="gl-big">{s.goals.projects_without_goals}</p>
         <p>
-          {s.goals.projects_without_goals === 1 ? 'project has' : 'projects have'} no goal you can see.
+          {s.goals.projects_without_goals === 1 ? 'project has' : 'projects have'} no goal you can
+          see.
         </p>
         <button type="button" className="link-button" onClick={() => onOpenView('orphans')}>
           Show projects without goals
@@ -208,7 +213,10 @@ function ProjectDetails({ p, ws, id }: { p: PortfolioProject; ws: string; id: st
         <ul className="gl-plain">
           {h.reasons.map((r) => (
             <li key={r.code}>
-              <Chip tone={r.severity === 'off_track' ? 'bad' : 'warn'} glyph={r.severity === 'off_track' ? '✖' : '▲'}>
+              <Chip
+                tone={r.severity === 'off_track' ? 'bad' : 'warn'}
+                glyph={r.severity === 'off_track' ? '✖' : '▲'}
+              >
                 {r.severity === 'off_track' ? 'Off track' : 'At risk'}
               </Chip>{' '}
               {r.message}
@@ -238,8 +246,9 @@ function ProjectDetails({ p, ws, id }: { p: PortfolioProject; ws: string; id: st
         {p.tasks.overdue} overdue, {p.tasks.blocked} blocked.
       </p>
       <p>
-        Open estimate {minutesText(p.effort.open_estimate_minutes)}; {p.effort.unestimated_open_tasks} open
-        tasks have no estimate; {minutesText(p.effort.logged_minutes)} logged.
+        Open estimate {minutesText(p.effort.open_estimate_minutes)};{' '}
+        {p.effort.unestimated_open_tasks} open tasks have no estimate;{' '}
+        {minutesText(p.effort.logged_minutes)} logged.
       </p>
       <h4>Budget</h4>
       <ul className="gl-plain">
@@ -264,8 +273,8 @@ function ProjectDetails({ p, ws, id }: { p: PortfolioProject; ws: string; id: st
           : 'No goal you can see is linked to this project.'}
       </p>
       <p>
-        Blocking {plural(p.dependencies.blocking, 'open dependency', 'open dependencies')}; blocked by{' '}
-        {plural(p.dependencies.blocked_by, 'open dependency', 'open dependencies')}.
+        Blocking {plural(p.dependencies.blocking, 'open dependency', 'open dependencies')}; blocked
+        by {plural(p.dependencies.blocked_by, 'open dependency', 'open dependencies')}.
       </p>
       <p>
         <Link to={routeHref('project', { ws, prj: p.id })}>Open {p.name}</Link>
@@ -287,7 +296,12 @@ export function HealthTable({ ws, rows }: { ws: string; rows: PortfolioProject[]
   if (!rows.length)
     return <p className="empty-state">No projects match. Change the filters to see more.</p>;
   return (
-    <div className="gl-table-scroll table-scroll" role="region" aria-label="Project health" tabIndex={0}>
+    <div
+      className="gl-table-scroll table-scroll"
+      role="region"
+      aria-label="Project health"
+      tabIndex={0}
+    >
       <table className="gl-table">
         <caption className="visually-hidden">
           Project health, worst first. Each row can be expanded to show the rules behind it.
@@ -336,7 +350,10 @@ export function HealthTable({ ws, rows }: { ws: string; rows: PortfolioProject[]
                   </td>
                   <td data-label="Status">{p.status.label}</td>
                   <td data-label="Progress">
-                    <ProgressBar percent={p.progress.percent} label={`Task completion of ${p.name}`} />
+                    <ProgressBar
+                      percent={p.progress.percent}
+                      label={`Task completion of ${p.name}`}
+                    />
                     <span className="hint">
                       {p.progress.done} of {p.progress.total} tasks you can read
                     </span>
@@ -372,7 +389,10 @@ const STATE_TEXT: Record<DependencyState, string> = {
   overdue: 'Blocker overdue',
   late: 'Blocker due too late',
 };
-const STATE_STYLE: Record<DependencyState, { tone: 'good' | 'warn' | 'bad' | 'neutral'; glyph: string }> = {
+const STATE_STYLE: Record<
+  DependencyState,
+  { tone: 'good' | 'warn' | 'bad' | 'neutral'; glyph: string }
+> = {
   resolved: { tone: 'good', glyph: '✓' },
   open: { tone: 'neutral', glyph: '○' },
   overdue: { tone: 'bad', glyph: '✖' },
@@ -384,10 +404,14 @@ function PairCard({ ws, pair }: { ws: string; pair: DependencyPair }) {
   return (
     <li className="card gl-pair">
       <h3 className="gl-row-title">
-        <Link to={routeHref('project', { ws, prj: pair.blocker_project.id })}>{pair.blocker_project.name}</Link>
+        <Link to={routeHref('project', { ws, prj: pair.blocker_project.id })}>
+          {pair.blocker_project.name}
+        </Link>
         <span aria-hidden="true"> → </span>
         <span className="visually-hidden"> blocks </span>
-        <Link to={routeHref('project', { ws, prj: pair.blocked_project.id })}>{pair.blocked_project.name}</Link>
+        <Link to={routeHref('project', { ws, prj: pair.blocked_project.id })}>
+          {pair.blocked_project.name}
+        </Link>
       </h3>
       <p className="gl-chips">
         {(Object.keys(STATE_TEXT) as DependencyState[])
@@ -410,11 +434,19 @@ function PairCard({ ws, pair }: { ws: string; pair: DependencyPair }) {
           {pair.edges.map((e) => (
             <li key={`${e.blocker.id}>${e.blocked.id}`}>
               <Link to={routeHref('task', { ws, tsk: e.blocker.id })}>{e.blocker.title}</Link>
-              <span className="hint"> ({e.blocker.status_category}{e.blocker.due ? `, due ${e.blocker.due}` : ''})</span>
+              <span className="hint">
+                {' '}
+                ({e.blocker.status_category}
+                {e.blocker.due ? `, due ${e.blocker.due}` : ''})
+              </span>
               <span aria-hidden="true"> → </span>
               <span className="visually-hidden"> blocks </span>
               <Link to={routeHref('task', { ws, tsk: e.blocked.id })}>{e.blocked.title}</Link>
-              <span className="hint"> ({e.blocked.status_category}{e.blocked.due ? `, due ${e.blocked.due}` : ''})</span>{' '}
+              <span className="hint">
+                {' '}
+                ({e.blocked.status_category}
+                {e.blocked.due ? `, due ${e.blocked.due}` : ''})
+              </span>{' '}
               <Chip tone={STATE_STYLE[e.state].tone} glyph={STATE_STYLE[e.state].glyph}>
                 {STATE_TEXT[e.state]}
               </Chip>
@@ -422,7 +454,9 @@ function PairCard({ ws, pair }: { ws: string; pair: DependencyPair }) {
           ))}
         </ul>
         {total > pair.edges.length ? (
-          <p className="hint">Showing the first {pair.edges.length} of {total}.</p>
+          <p className="hint">
+            Showing the first {pair.edges.length} of {total}.
+          </p>
         ) : null}
       </details>
     </li>
@@ -434,8 +468,9 @@ export function DependenciesView({ ws, d }: { ws: string; d: PortfolioDependenci
     <>
       <Coverage note={d.coverage.note} asOf={d.as_of}>
         <p>
-          {plural(d.coverage.evaluated_projects, 'project')} evaluated. Open {d.summary.open}, blocker
-          overdue {d.summary.overdue}, blocker due too late {d.summary.late}, resolved {d.summary.resolved}.
+          {plural(d.coverage.evaluated_projects, 'project')} evaluated. Open {d.summary.open},
+          blocker overdue {d.summary.overdue}, blocker due too late {d.summary.late}, resolved{' '}
+          {d.summary.resolved}.
         </p>
         {d.coverage.truncated ? (
           <p className="gl-warn">
@@ -447,7 +482,11 @@ export function DependenciesView({ ws, d }: { ws: string; d: PortfolioDependenci
       {d.data.length ? (
         <ul className="gl-list">
           {d.data.map((pair) => (
-            <PairCard key={`${pair.blocker_project.id}>${pair.blocked_project.id}`} ws={ws} pair={pair} />
+            <PairCard
+              key={`${pair.blocker_project.id}>${pair.blocked_project.id}`}
+              ws={ws}
+              pair={pair}
+            />
           ))}
         </ul>
       ) : (
@@ -470,8 +509,8 @@ export function OrphansView({ ws, o }: { ws: string; o: PortfolioOrphans }) {
       <Coverage note={o.coverage.note} asOf={o.as_of}>
         <p className="gl-warn">
           <span aria-hidden="true">△ </span>
-          These findings are relative to you ({o.coverage.relative_to}): a project or goal that looks
-          unlinked here may be linked to something you cannot read.
+          These findings are relative to you ({o.coverage.relative_to}): a project or goal that
+          looks unlinked here may be linked to something you cannot read.
         </p>
       </Coverage>
       <section className="card" aria-labelledby="orph-projects">
@@ -496,7 +535,9 @@ export function OrphansView({ ws, o }: { ws: string; o: PortfolioOrphans }) {
             ))}
           </ul>
         ) : (
-          <p className="hint">Every planned, active, or paused project you can read has a goal you can see.</p>
+          <p className="hint">
+            Every planned, active, or paused project you can read has a goal you can see.
+          </p>
         )}
       </section>
       <section className="card" aria-labelledby="orph-goals">

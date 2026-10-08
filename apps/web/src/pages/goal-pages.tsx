@@ -21,19 +21,7 @@ import {
   type PeriodMode,
   type PeriodSel,
 } from '../goals/periods.ts';
-import {
-  AvailableView,
-  Chip,
-  ConfidenceChip,
-  Coverage,
-  explain,
-  ProblemLine,
-  ProgressView,
-  ScopeLine,
-  StatusChip,
-  UpdateChip,
-  type Explained,
-} from '../goals/shared.tsx';
+import { AvailableView, Coverage, explain, ProblemLine, type Explained } from '../goals/shared.tsx';
 import { projects } from '../projects/client.ts';
 import { Link, useRouter } from '../router.tsx';
 import { useRegisterCommands } from '../shell/commands.tsx';
@@ -61,6 +49,7 @@ interface Filters {
   update: string;
   basis: string;
   q: string;
+  archived: boolean;
 }
 const NO_FILTERS: Filters = {
   scope: '',
@@ -71,6 +60,7 @@ const NO_FILTERS: Filters = {
   update: '',
   basis: '',
   q: '',
+  archived: false,
 };
 
 function queryOf(sel: PeriodSel, f: Filters): GoalQuery {
@@ -85,18 +75,13 @@ function queryOf(sel: PeriodSel, f: Filters): GoalQuery {
     ...(f.update ? { update: f.update } : {}),
     ...(f.basis ? { basis: f.basis } : {}),
     ...(f.q.trim() ? { q: f.q.trim() } : {}),
+    ...(f.archived ? { archived: 'true' } : {}),
   };
 }
 
 // ---- Period selector --------------------------------------------------------------------------
 
-function PeriodSelector({
-  sel,
-  onChange,
-}: {
-  sel: PeriodSel;
-  onChange: (s: PeriodSel) => void;
-}) {
+function PeriodSelector({ sel, onChange }: { sel: PeriodSel; onChange: (s: PeriodSel) => void }) {
   const sized = sel.mode === 'quarter' || sel.mode === 'half' || sel.mode === 'year';
   const unit = sel.mode === 'quarter' ? 'quarter' : sel.mode === 'half' ? 'half year' : 'year';
   return (
@@ -159,7 +144,9 @@ function PeriodSelector({
               value={sel.end}
               onChange={(e) => onChange({ ...sel, end: e.target.value })}
               error={
-                sel.start && sel.end && sel.end < sel.start ? 'The last day is before the first.' : undefined
+                sel.start && sel.end && sel.end < sel.start
+                  ? 'The last day is before the first.'
+                  : undefined
               }
             />
           </div>
@@ -218,7 +205,7 @@ export function GoalsPage({ ws }: { ws: string }) {
   const key = `goals:${ws}:${JSON.stringify(query)}`;
   const first = useResource(
     () => goals.list(ws, { ...query, limit: PAGE }),
-    customInvalid || !shell?.context ? 'wait' : key,
+    customInvalid ? 'wait' : key,
   );
   const [more, setMore] = useState<{
     key: string;
@@ -228,7 +215,10 @@ export function GoalsPage({ ws }: { ws: string }) {
   } | null>(null);
   const [loadingMore, setLoadingMore] = useState(false);
   const [moreProblem, setMoreProblem] = useState<Explained | null>(null);
-  const projectList = useResource(() => projects.list(ws, { state: 'active' }), `gl-projects:${ws}`);
+  const projectList = useResource(
+    () => projects.list(ws, { state: 'active' }),
+    `gl-projects:${ws}`,
+  );
   const brands = shell?.context?.brands ?? [];
 
   useRegisterCommands([
@@ -317,10 +307,12 @@ export function GoalsPage({ ws }: { ws: string }) {
             onChange={set('project')}
             options={[
               { value: '', label: 'Any project' },
-              ...(projectList.state.status === 'ready' ? projectList.state.data.data : []).map((p) => ({
-                value: p.id,
-                label: p.name,
-              })),
+              ...(projectList.state.status === 'ready' ? projectList.state.data.data : []).map(
+                (p) => ({
+                  value: p.id,
+                  label: p.name,
+                }),
+              ),
             ]}
           />
           <SelectField
@@ -330,10 +322,12 @@ export function GoalsPage({ ws }: { ws: string }) {
             onChange={set('status')}
             options={[
               { value: '', label: 'Any status' },
-              ...(Object.keys(GOAL_STATUS_LABEL) as Array<keyof typeof GOAL_STATUS_LABEL>).map((s) => ({
-                value: s,
-                label: GOAL_STATUS_LABEL[s],
-              })),
+              ...(Object.keys(GOAL_STATUS_LABEL) as Array<keyof typeof GOAL_STATUS_LABEL>).map(
+                (s) => ({
+                  value: s,
+                  label: GOAL_STATUS_LABEL[s],
+                }),
+              ),
             ]}
           />
           <SelectField
@@ -354,10 +348,12 @@ export function GoalsPage({ ws }: { ws: string }) {
             onChange={set('confidence')}
             options={[
               { value: '', label: 'Any confidence' },
-              ...(Object.keys(CONFIDENCE_LABEL) as Array<keyof typeof CONFIDENCE_LABEL>).map((c) => ({
-                value: c,
-                label: CONFIDENCE_LABEL[c],
-              })),
+              ...(Object.keys(CONFIDENCE_LABEL) as Array<keyof typeof CONFIDENCE_LABEL>).map(
+                (c) => ({
+                  value: c,
+                  label: CONFIDENCE_LABEL[c],
+                }),
+              ),
               { value: 'none', label: 'No confidence set' },
             ]}
           />
@@ -394,6 +390,14 @@ export function GoalsPage({ ws }: { ws: string }) {
             onChange={(e) => set('q')(e.target.value)}
           />
         </div>
+        <label className="choice">
+          <input
+            type="checkbox"
+            checked={f.archived}
+            onChange={(e) => setF((cur) => ({ ...cur, archived: e.target.checked }))}
+          />{' '}
+          Show archived goals instead
+        </label>
         {filtered ? (
           <p>
             <button type="button" className="button button-ghost" onClick={() => setF(NO_FILTERS)}>
@@ -403,10 +407,18 @@ export function GoalsPage({ ws }: { ws: string }) {
         ) : null}
       </section>
       <div className="actions-compact gl-export" role="group" aria-label="Export">
-        <button type="button" className="button button-secondary" onClick={() => void download('csv')}>
+        <button
+          type="button"
+          className="button button-secondary"
+          onClick={() => void download('csv')}
+        >
           Export CSV
         </button>
-        <button type="button" className="button button-secondary" onClick={() => void download('json')}>
+        <button
+          type="button"
+          className="button button-secondary"
+          onClick={() => void download('json')}
+        >
           Export JSON
         </button>
       </div>
@@ -446,7 +458,11 @@ export function GoalsPage({ ws }: { ws: string }) {
                   </div>
                 ) : (
                   groups.map((g) => (
-                    <section key={g.key} className="card gl-group" aria-labelledby={`gl-g-${g.key}`}>
+                    <section
+                      key={g.key}
+                      className="card gl-group"
+                      aria-labelledby={`gl-g-${g.key}`}
+                    >
                       <h2 id={`gl-g-${g.key}`} className="gl-group-title">
                         {g.marker && g.marker.kind !== 'workspace' ? (
                           <BrandMarker marker={g.marker.brand} size={20} />

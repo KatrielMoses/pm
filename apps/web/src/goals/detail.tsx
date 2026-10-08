@@ -120,7 +120,9 @@ export function KeyResultsSection({
                 <p className="gl-chips">
                   <ConfidenceChip value={k.latest.confidence} />
                   {k.latest.at ? (
-                    <span className="hint">Last check-in {new Date(k.latest.at).toLocaleDateString()}</span>
+                    <span className="hint">
+                      Last check-in {new Date(k.latest.at).toLocaleDateString()}
+                    </span>
                   ) : (
                     <span className="hint">No check-in yet</span>
                   )}
@@ -133,7 +135,11 @@ export function KeyResultsSection({
                   </p>
                 ) : null}
                 {editable ? (
-                  <div className="actions-compact" role="group" aria-label={`Actions for ${k.title}`}>
+                  <div
+                    className="actions-compact"
+                    role="group"
+                    aria-label={`Actions for ${k.title}`}
+                  >
                     {goal.capabilities?.check_in ? (
                       <button
                         type="button"
@@ -182,7 +188,11 @@ export function KeyResultsSection({
       )}
       {editable ? (
         <p className="actions">
-          <button type="button" className="button button-secondary" onClick={() => setDialog({ kind: 'add' })}>
+          <button
+            type="button"
+            className="button button-secondary"
+            onClick={() => setDialog({ kind: 'add' })}
+          >
             Add key result
           </button>
         </p>
@@ -197,7 +207,9 @@ export function KeyResultsSection({
           onSaved={() => {
             const wasEdit = dialog.kind === 'edit';
             setDialog(null);
-            void reload().then(() => onChanged(wasEdit ? 'Key result saved.' : 'Key result added.'));
+            void reload().then(() =>
+              onChanged(wasEdit ? 'Key result saved.' : 'Key result added.'),
+            );
           }}
         />
       ) : null}
@@ -225,7 +237,8 @@ export function KeyResultsSection({
           onConfirm={() => void archive(open)}
         >
           <p>
-            “{open.title}” will leave the goal's progress and this list. Its check-in history is kept.
+            “{open.title}” will leave the goal's progress and this list. Its check-in history is
+            kept.
           </p>
         </ConfirmDialog>
       ) : null}
@@ -251,13 +264,15 @@ function LinkItem({
   onRemove: () => void;
 }) {
   const t = link.target;
-  const to = t.type === 'project' ? routeHref('project', { ws, prj: t.id }) : routeHref('task', { ws, tsk: t.id });
+  const to =
+    t.type === 'project'
+      ? routeHref('project', { ws, prj: t.id })
+      : routeHref('task', { ws, tsk: t.id });
   return (
     <li className="gl-link">
       <span>
         <span className="badge">{t.type === 'project' ? 'Project' : 'Task'}</span>{' '}
-        <Link to={to}>{t.name}</Link>{' '}
-        <BrandMarker marker={t.brand} size={16} />
+        <Link to={to}>{t.name}</Link> <BrandMarker marker={t.brand} size={16} />
         <span className="hint">
           {' '}
           · {CATEGORY_LABEL[t.status_category as ProjectCategory] ?? t.status_category}

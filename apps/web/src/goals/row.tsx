@@ -1,10 +1,25 @@
 import { routeHref } from '../shell/registry.ts';
 import { Link } from '../router.tsx';
 import { type Goal } from './client.ts';
-import { Chip, ConfidenceChip, ProgressView, ScopeLine, StatusChip, UpdateChip } from './shared.tsx';
+import {
+  Chip,
+  ConfidenceChip,
+  ProgressView,
+  ScopeLine,
+  StatusChip,
+  UpdateChip,
+} from './shared.tsx';
 
 /** One goal: title, scope, owner, period, status, progress with its rule, freshness, linked work. */
-export function GoalRow({ ws, goal, headingLevel = 3 }: { ws: string; goal: Goal; headingLevel?: 3 | 4 }) {
+export function GoalRow({
+  ws,
+  goal,
+  headingLevel = 3,
+}: {
+  ws: string;
+  goal: Goal;
+  headingLevel?: 3 | 4;
+}) {
   const H = `h${headingLevel}` as 'h3' | 'h4';
   const open = goal.status === 'draft' || goal.status === 'active';
   const w = goal.work;
@@ -49,4 +64,3 @@ export function GoalRow({ ws, goal, headingLevel = 3 }: { ws: string; goal: Goal
     </li>
   );
 }
-

@@ -6412,8 +6412,8 @@
       "module": "goals",
       "purpose": "Append-only progress update with confidence, note, and source (manual or computed).",
       "scope": "inherited",
-      "addressable": true,
-      "public_id_prefix": "gci",
+      "addressable": false,
+      "public_id_prefix": null,
       "extends": null,
       "containment_parents": [
         "goal",
@@ -6434,7 +6434,7 @@
       ],
       "sensitive_fields": [],
       "key_columns": [
-        "id (prefix gci)",
+        "id",
         "goal_id",
         "key_result_id null",
         "source (manual|computed)",

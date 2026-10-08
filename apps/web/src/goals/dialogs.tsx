@@ -66,7 +66,11 @@ function metricBody(
   const baseline = num(m.baseline, 'metric-baseline');
   const target = num(m.target, 'metric-target');
   const current = withCurrent ? num(m.current, 'metric-current') : null;
-  if ((baseline === null) !== (target === null) && !errors['metric-baseline'] && !errors['metric-target'])
+  if (
+    (baseline === null) !== (target === null) &&
+    !errors['metric-baseline'] &&
+    !errors['metric-target']
+  )
     errors['metric-target'] = 'Give both a baseline and a target, or neither.';
   const unit = m.unit.trim();
   if (!unit && baseline === null && target === null && current === null)
@@ -165,7 +169,8 @@ interface PeriodState {
 }
 
 function periodBody(p: PeriodState): GoalCreate['period'] | null {
-  if (p.kind === 'custom') return p.start && p.end ? { kind: 'custom', start: p.start, end: p.end } : null;
+  if (p.kind === 'custom')
+    return p.start && p.end ? { kind: 'custom', start: p.start, end: p.end } : null;
   const year = Number(p.year);
   if (!Number.isInteger(year)) return null;
   if (p.kind === 'year') return { kind: 'year', year };
@@ -187,7 +192,9 @@ function PeriodFields({
       <RadioGroup
         legend="Length"
         value={value.kind}
-        onChange={(kind) => onChange({ ...value, kind, index: kind === 'half' ? '1' : value.index })}
+        onChange={(kind) =>
+          onChange({ ...value, kind, index: kind === 'half' ? '1' : value.index })
+        }
         options={[
           { value: 'quarter', label: 'Quarter' },
           { value: 'half', label: 'Half year' },
@@ -281,8 +288,8 @@ function ConflictNotice({
   if (reloaded)
     return (
       <Banner tone="info" title="Latest version loaded">
-        Your edits are still here. Check them, then save again to apply them to the latest version of{' '}
-        {what}.
+        Your edits are still here. Check them, then save again to apply them to the latest version
+        of {what}.
       </Banner>
     );
   return (
@@ -290,7 +297,12 @@ function ConflictNotice({
       tone="warning"
       title={`This ${what} changed while you were editing`}
       action={
-        <button type="button" className="button button-secondary" onClick={onReload} disabled={busy}>
+        <button
+          type="button"
+          className="button button-secondary"
+          onClick={onReload}
+          disabled={busy}
+        >
           Load latest version
         </button>
       }
@@ -368,7 +380,8 @@ export function CreateGoalDialog({
     if (busy) return;
     const found: Record<string, string> = {};
     if (!title.trim()) found['goal-title'] = 'Give the goal a title.';
-    if (scope === 'brand' && !brand) found['goal-brand'] = 'Choose which brand this goal belongs to.';
+    if (scope === 'brand' && !brand)
+      found['goal-brand'] = 'Choose which brand this goal belongs to.';
     if (scope === 'project' && !project) found['goal-project'] = 'Choose the project.';
     const p = periodBody(period);
     if (!p) found[period.kind === 'custom' ? 'period-start' : 'period-year'] = 'Choose the period.';
@@ -607,11 +620,15 @@ export function EditGoalDialog({
     // Only what this person changed is sent, so edits made by someone else in other fields survive.
     const patch: GoalPatch = {};
     if (title.trim() !== initial.title) patch.title = title.trim();
-    if (description.trim() !== (initial.description ?? '')) patch.description = description.trim() || null;
+    if (description.trim() !== (initial.description ?? ''))
+      patch.description = description.trim() || null;
     if (owner && owner !== initial.owner?.id) patch.owner = owner;
     if (status !== initial.status) patch.status = status;
     if (JSON.stringify(period) !== JSON.stringify(periodState(initial))) patch.period = p!;
-    if (goal.basis === 'manual' && JSON.stringify(metric) !== JSON.stringify(metricState(initial.metric)))
+    if (
+      goal.basis === 'manual' &&
+      JSON.stringify(metric) !== JSON.stringify(metricState(initial.metric))
+    )
       patch.metric = m.metric ?? { unit: null, baseline: null, target: null, current: null };
     if (!Object.keys(patch).length) {
       onClose();
@@ -660,7 +677,12 @@ export function EditGoalDialog({
           focusKey={attempt}
         />
         {stale || reloaded ? (
-          <ConflictNotice what="goal" reloaded={reloaded && !stale} busy={busy} onReload={() => void reload()} />
+          <ConflictNotice
+            what="goal"
+            reloaded={reloaded && !stale}
+            busy={busy}
+            onReload={() => void reload()}
+          />
         ) : null}
         <Field
           id="goal-title"
@@ -704,7 +726,10 @@ export function EditGoalDialog({
         {goal.basis === 'manual' ? (
           <MetricFields value={metric} onChange={setMetric} errors={errors} withCurrent />
         ) : null}
-        <ProblemLine problem={error && !Object.keys(api).length && !stale ? problem : null} busy={busy} />
+        <ProblemLine
+          problem={error && !Object.keys(api).length && !stale ? problem : null}
+          busy={busy}
+        />
         <p className="actions">
           <button type="submit" className="button button-primary" disabled={busy}>
             {busy ? 'Saving…' : 'Save changes'}
@@ -740,7 +765,9 @@ export function KeyResultDialog({
   const explainError = useExplain();
   const idem = useIdempotency();
   const { members } = useMembers(ws);
-  const existing: KeyResult | undefined = krId ? goal.key_results.find((k) => k.id === krId) : undefined;
+  const existing: KeyResult | undefined = krId
+    ? goal.key_results.find((k) => k.id === krId)
+    : undefined;
   const [initial] = useState(existing);
   const [title, setTitle] = useState(existing?.title ?? '');
   const [basis, setBasis] = useState<'manual' | 'linked_work'>(existing?.basis ?? 'manual');
@@ -828,7 +855,12 @@ export function KeyResultDialog({
           focusKey={attempt}
         />
         {stale || reloaded ? (
-          <ConflictNotice what="key result" reloaded={reloaded && !stale} busy={busy} onReload={() => void reload()} />
+          <ConflictNotice
+            what="key result"
+            reloaded={reloaded && !stale}
+            busy={busy}
+            onReload={() => void reload()}
+          />
         ) : null}
         <Field
           id="kr-title"
@@ -849,7 +881,12 @@ export function KeyResultDialog({
           ]}
         />
         {basis === 'manual' ? (
-          <MetricFields value={metric} onChange={setMetric} errors={errors} withCurrent={!existing} />
+          <MetricFields
+            value={metric}
+            onChange={setMetric}
+            errors={errors}
+            withCurrent={!existing}
+          />
         ) : (
           <p className="hint">
             Progress is the completion of the projects and tasks linked to this key result, counting
@@ -869,7 +906,10 @@ export function KeyResultDialog({
             ]}
           />
         ) : null}
-        <ProblemLine problem={error && !Object.keys(api).length && !stale ? problem : null} busy={busy} />
+        <ProblemLine
+          problem={error && !Object.keys(api).length && !stale ? problem : null}
+          busy={busy}
+        />
         <p className="actions">
           <button type="submit" className="button button-primary" disabled={busy}>
             {busy ? 'Saving…' : existing ? 'Save changes' : 'Add key result'}
@@ -924,7 +964,12 @@ export function LinkDialog({
   const api = fieldErrorsFrom(error, { '/target': 'link-project', '/key_result': 'link-kr' });
   const errors = { ...api, ...local };
 
-  const brandId = goal.scope.kind === 'workspace' ? null : goal.scope.brand.kind === 'brand' ? goal.scope.brand.id : null;
+  const brandId =
+    goal.scope.kind === 'workspace'
+      ? null
+      : goal.scope.brand.kind === 'brand'
+        ? goal.scope.brand.id
+        : null;
   const choices = (projectList.state.status === 'ready' ? projectList.state.data.data : []).filter(
     (p) => !brandId || (p.brand.kind === 'brand' && p.brand.id === brandId),
   );
@@ -942,7 +987,8 @@ export function LinkDialog({
     if (busy) return;
     const target = kind === 'project' ? project : task;
     const found: Record<string, string> = {};
-    if (!target) found['link-project'] = kind === 'project' ? 'Choose a project.' : 'Choose a task.';
+    if (!target)
+      found['link-project'] = kind === 'project' ? 'Choose a project.' : 'Choose a task.';
     setLocal(found);
     setAttempt((a) => a + 1);
     if (Object.keys(found).length) return;
@@ -972,7 +1018,7 @@ export function LinkDialog({
         <p className="hint">
           You can link projects and tasks you can read.
           {goal.scope.kind === 'project'
-            ? " A project goal links tasks of its own project."
+            ? ' A project goal links tasks of its own project.'
             : goal.scope.kind === 'brand'
               ? ' A brand goal links work in its own brand.'
               : ''}
@@ -1029,8 +1075,7 @@ export function LinkDialog({
               options={[
                 {
                   value: '',
-                  label:
-                    taskList.state.status === 'loading' ? 'Loading tasks…' : 'Choose a task',
+                  label: taskList.state.status === 'loading' ? 'Loading tasks…' : 'Choose a task',
                 },
                 ...taskChoices.map((t) => ({ value: t.id, label: t.title })),
               ]}
@@ -1098,4 +1143,3 @@ export function ConfirmDialog({
     </Dialog>
   );
 }
-

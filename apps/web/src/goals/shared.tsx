@@ -61,7 +61,12 @@ const CONFIDENCE_STYLE: Record<Confidence, { tone: Tone; glyph: string }> = {
 };
 
 export function ConfidenceChip({ value }: { value: Confidence | null }) {
-  if (!value) return <Chip tone="neutral" glyph="○">No confidence set</Chip>;
+  if (!value)
+    return (
+      <Chip tone="neutral" glyph="○">
+        No confidence set
+      </Chip>
+    );
   const s = CONFIDENCE_STYLE[value];
   return (
     <Chip tone={s.tone} glyph={s.glyph}>
@@ -200,8 +205,8 @@ export function ProgressView({
         {progress.key_results ? (
           <p>
             {progress.key_results.counted} of {progress.key_results.total} key result
-            {progress.key_results.total === 1 ? '' : 's'} {progress.key_results.counted === 1 ? 'has' : 'have'} a
-            measurement.
+            {progress.key_results.total === 1 ? '' : 's'}{' '}
+            {progress.key_results.counted === 1 ? 'has' : 'have'} a measurement.
           </p>
         ) : null}
         {progress.incomplete.length ? (
@@ -227,10 +232,7 @@ export function ScopeLine({ scope }: { scope: GoalScope }) {
     <span className="gl-scope">
       <BrandMarker marker={scope.brand as BrandMarkerData} size={16} />
       {scope.kind === 'project' ? (
-        <span>
-          {' '}
-          · Project{scope.project ? `: ${scope.project.name}` : ''}
-        </span>
+        <span> · Project{scope.project ? `: ${scope.project.name}` : ''}</span>
       ) : null}
     </span>
   );
@@ -346,7 +348,12 @@ export function ProblemLine({
         <p>{problem.message}</p>
         {children}
         {problem.retryable && onRetry ? (
-          <button type="button" className="button button-secondary" onClick={onRetry} disabled={busy}>
+          <button
+            type="button"
+            className="button button-secondary"
+            onClick={onRetry}
+            disabled={busy}
+          >
             Retry
           </button>
         ) : null}

@@ -94,13 +94,13 @@ export function PortfolioPage({ ws }: { ws: string }) {
   const shell = useWorkspaceShell();
   const { path, search, navigate } = useRouter();
   const { members } = useMembers(ws);
-  const view: ViewKey = (VIEWS.find((v) => v.key === search.get('view'))?.key ?? 'health') as ViewKey;
+  const view: ViewKey = (VIEWS.find((v) => v.key === search.get('view'))?.key ??
+    'health') as ViewKey;
   const [f, setF] = useState<Filters>(NO_FILTERS);
   const [limit, setLimit] = useState(100);
   const [said, setSaid] = useState('');
   const [exportProblem, setExportProblem] = useState<Explained | null>(null);
   const query = useMemo(() => toQuery(f), [f]);
-  const ready = !!shell?.context;
   const brands = shell?.context?.brands ?? [];
   const savedList = useResource(() => portfolios.list(ws), `pf-pick:${ws}`);
   const saved = savedList.state.status === 'ready' ? savedList.state.data.data : [];
@@ -108,15 +108,15 @@ export function PortfolioPage({ ws }: { ws: string }) {
   const go = (v: ViewKey) => navigate(v === 'health' ? path : `${path}?view=${v}`);
   const overview = useResource(
     () => portfolios.overview(ws, { ...query, limit }),
-    ready && view === 'health' ? `pfo:${ws}:${JSON.stringify(query)}:${limit}` : 'wait',
+    view === 'health' ? `pfo:${ws}:${JSON.stringify(query)}:${limit}` : 'wait',
   );
   const deps = useResource(
     () => portfolios.dependencies(ws, query),
-    ready && view === 'dependencies' ? `pfd:${ws}:${JSON.stringify(query)}` : 'wait',
+    view === 'dependencies' ? `pfd:${ws}:${JSON.stringify(query)}` : 'wait',
   );
   const orphans = useResource(
     () => portfolios.orphans(ws, query),
-    ready && view === 'orphans' ? `pfx:${ws}:${JSON.stringify(query)}` : 'wait',
+    view === 'orphans' ? `pfx:${ws}:${JSON.stringify(query)}` : 'wait',
   );
 
   const set = <K extends keyof Filters>(k: K, v: Filters[K]) => setF((cur) => ({ ...cur, [k]: v }));
@@ -143,7 +143,10 @@ export function PortfolioPage({ ws }: { ws: string }) {
       title="Portfolio"
       wide
       section="Projects"
-      breadcrumbs={[{ label: 'Projects', to: routeHref('projects', { ws }) }, { label: 'Portfolio' }]}
+      breadcrumbs={[
+        { label: 'Projects', to: routeHref('projects', { ws }) },
+        { label: 'Portfolio' },
+      ]}
     >
       <p className="hint">
         Health, dependencies, and goal coverage across the projects you can read. Everything here is
@@ -175,7 +178,10 @@ export function PortfolioPage({ ws }: { ws: string }) {
               label="Brand"
               value={f.brand}
               onChange={(v) => set('brand', v)}
-              options={[{ value: '', label: 'All brands' }, ...brands.map((b) => ({ value: b.id, label: b.name }))]}
+              options={[
+                { value: '', label: 'All brands' },
+                ...brands.map((b) => ({ value: b.id, label: b.name })),
+              ]}
             />
             <SelectField
               id="pf-f-portfolio"
@@ -215,16 +221,28 @@ export function PortfolioPage({ ws }: { ws: string }) {
           </div>
           {filtered ? (
             <p>
-              <button type="button" className="button button-ghost" onClick={() => setF(NO_FILTERS)}>
+              <button
+                type="button"
+                className="button button-ghost"
+                onClick={() => setF(NO_FILTERS)}
+              >
                 Clear filters
               </button>
             </p>
           ) : null}
           <div className="actions-compact gl-export" role="group" aria-label="Export">
-            <button type="button" className="button button-secondary" onClick={() => void download('csv')}>
+            <button
+              type="button"
+              className="button button-secondary"
+              onClick={() => void download('csv')}
+            >
               Export health as CSV
             </button>
-            <button type="button" className="button button-secondary" onClick={() => void download('json')}>
+            <button
+              type="button"
+              className="button button-secondary"
+              onClick={() => void download('json')}
+            >
               Export health as JSON
             </button>
           </div>
@@ -241,13 +259,19 @@ export function PortfolioPage({ ws }: { ws: string }) {
             <>
               {o.portfolio ? (
                 <p className="hint">
-                  Showing the portfolio <strong>{o.portfolio.name}</strong>: {o.portfolio.projects_count}{' '}
-                  project{o.portfolio.projects_count === 1 ? '' : 's'} you can read.
+                  Showing the portfolio <strong>{o.portfolio.name}</strong>:{' '}
+                  {o.portfolio.projects_count} project{o.portfolio.projects_count === 1 ? '' : 's'}{' '}
+                  you can read.
                 </p>
               ) : null}
               <OverviewCoverage o={o} />
               <h2>Summary</h2>
-              <SummaryTiles ws={ws} s={o.summary} notTracked={o.coverage.not_tracked} onOpenView={go} />
+              <SummaryTiles
+                ws={ws}
+                s={o.summary}
+                notTracked={o.coverage.not_tracked}
+                onOpenView={go}
+              />
               <h2>Project health</h2>
               <HealthTable ws={ws} rows={o.data} />
               {o.page.has_more ? (

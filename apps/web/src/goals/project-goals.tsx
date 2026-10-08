@@ -74,7 +74,10 @@ function LinkToGoal({
           value={goal}
           onChange={setGoal}
           options={[
-            { value: '', label: list.state.status === 'loading' ? 'Loading goals…' : 'Choose a goal' },
+            {
+              value: '',
+              label: list.state.status === 'loading' ? 'Loading goals…' : 'Choose a goal',
+            },
             ...options.map((g) => ({ value: g.id, label: `${g.title} (${g.period.label})` })),
           ]}
         />
@@ -148,10 +151,18 @@ export function ProjectGoalsCard({
         </Link>
         {canEdit ? (
           <>
-            <button type="button" className="button button-secondary" onClick={() => setDialog('link')}>
+            <button
+              type="button"
+              className="button button-secondary"
+              onClick={() => setDialog('link')}
+            >
               Link to a goal
             </button>
-            <button type="button" className="button button-secondary" onClick={() => setDialog('create')}>
+            <button
+              type="button"
+              className="button button-secondary"
+              onClick={() => setDialog('create')}
+            >
               Add a goal for this project
             </button>
           </>

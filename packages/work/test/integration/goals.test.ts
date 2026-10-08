@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { createTestDatabase, type TestDatabase } from '@pm/test-support/vitest';
 import type { Caller } from '@pm/tenancy';
@@ -950,6 +951,153 @@ describe('Goals (5B)', () => {
         small.svc.exportGoals(ctx.owner, ctx.ws, { brand: ctx.brands.Exp }),
       );
       expect(big.issues?.[0]).toMatchObject({ code: 'too_many' });
+    });
+  });
+
+  // -------------------------------------------------------------------------------------------
+  describe('revocation and concurrency', () => {
+    it('stops every read, write, list, and export the moment access is revoked, and shrinks linked-work progress live', async () => {
+      const temp = await join(env, db, owner, ws, { kind: 'member', role: 'member' });
+      const tempId = await mem(temp);
+      await apply(env, owner, ws, {
+        kind: 'brand_grant',
+        brand: brands.Harbor!,
+        principal: tempId,
+        level: 'edit',
+      });
+      const g = await goal(owner, {
+        brand: brands.Harbor!,
+        title: 'Revocable',
+        basis: 'linked_work',
+      });
+      await env.svc.addGoalLink(owner, ws, g.id, { target: proj.launch! }, mutation());
+      expect((await env.svc.getGoal(temp, ws, g.id)).progress.work).toEqual({ done: 1, total: 3 });
+      expect((await env.svc.exportGoals(temp, ws, { brand: brands.Harbor! })).body).toContain(
+        'Revocable',
+      );
+      // A project-level restriction removes that project's work from the very next read.
+      await env.svc.setAccess(
+        owner,
+        ws,
+        proj.launch!,
+        { access_mode: 'restricted', allow_record_shares: false },
+        mutation(),
+      );
+      const shrunk = await env.svc.getGoal(temp, ws, g.id);
+      expect(shrunk.progress).toMatchObject({
+        work: { done: 0, total: 0 },
+        percent: null,
+        incomplete: ['no_readable_work'],
+      });
+      expect(shrunk.links).toEqual([]);
+      await env.svc.setAccess(
+        owner,
+        ws,
+        proj.launch!,
+        { access_mode: 'inherit', allow_record_shares: false },
+        mutation(),
+      );
+      expect((await env.svc.getGoal(temp, ws, g.id)).progress.work).toEqual({ done: 1, total: 3 });
+      // Revoking the brand removes the goal itself, everywhere, without a trace in any response.
+      await apply(env, owner, ws, {
+        kind: 'brand_revoke',
+        brand: brands.Harbor!,
+        principal: tempId,
+      });
+      expect((await rejects(env.svc.getGoal(temp, ws, g.id))).code).toBe('not_found');
+      expect(
+        (await rejects(env.svc.recordCheckin(temp, ws, g.id, { percent: 1 }, mutation()))).code,
+      ).toBe('not_found');
+      expect(
+        (await rejects(env.svc.addGoalLink(temp, ws, g.id, { target: proj.launch! }, mutation())))
+          .code,
+      ).toBe('not_found');
+      expect((await env.svc.listGoals(temp, ws, { brand: brands.Harbor! })).data).toEqual([]);
+      expect(
+        (await env.svc.exportGoals(temp, ws, { brand: brands.Harbor! })).body
+          .split('\r\n')
+          .filter(Boolean),
+      ).toHaveLength(1);
+      expect((await env.svc.portfolioOverview(temp, ws, {})).summary.projects).toBe(0);
+      expect((await rejects(env.svc.listCheckins(temp, ws, g.id, {}))).code).toBe('not_found');
+      // A replayed request after revocation is not found, and re-renders nothing.
+      const req = mutation();
+      await apply(env, owner, ws, {
+        kind: 'brand_grant',
+        brand: brands.Harbor!,
+        principal: tempId,
+        level: 'edit',
+      });
+      await env.svc.recordCheckin(temp, ws, g.id, { percent: 5 }, req).catch(() => undefined);
+      await apply(env, owner, ws, {
+        kind: 'brand_revoke',
+        brand: brands.Harbor!,
+        principal: tempId,
+      });
+      expect((await rejects(env.svc.recordCheckin(temp, ws, g.id, { percent: 5 }, req))).code).toBe(
+        'not_found',
+      );
+    });
+
+    it('keeps two concurrent check-ins, links, and key results consistent', async () => {
+      const g = await goal(owner, { title: 'Concurrent', basis: 'key_results' });
+      const both = await Promise.all([
+        env.svc.recordCheckin(owner, ws, g.id, { note: 'one', confidence: 'on_track' }, mutation()),
+        env.svc.recordCheckin(owner, ws, g.id, { note: 'two', confidence: 'at_risk' }, mutation()),
+      ]);
+      expect(both).toHaveLength(2);
+      const hist = await env.svc.listCheckins(owner, ws, g.id, {});
+      expect(hist.data).toHaveLength(2);
+      // The latest pointer is exactly the newest row in the history.
+      expect((await env.svc.getGoal(owner, ws, g.id)).latest.checkin).toBe(hist.data[0]!.id);
+      const links = await Promise.allSettled([
+        env.svc.addGoalLink(owner, ws, g.id, { target: tsk.l3! }, mutation()),
+        env.svc.addGoalLink(owner, ws, g.id, { target: tsk.l3! }, mutation()),
+      ]);
+      expect(links.every((r) => r.status === 'fulfilled')).toBe(true);
+      expect((await env.svc.getGoal(owner, ws, g.id)).links).toHaveLength(1);
+      const small = workEnv(db, { work: { goalKeyResultsMax: 2, goalsPerScopeMax: 3 } });
+      const ctx = await workspaceWith(small, db, ['Race']);
+      const sg = (
+        await small.svc.createGoal(
+          ctx.owner,
+          ctx.ws,
+          { title: 'k', period: Q4, basis: 'key_results' },
+          mutation(),
+        )
+      ).data;
+      const krs = await Promise.allSettled(
+        ['a', 'b', 'c', 'd'].map((t) =>
+          small.svc.createKeyResult(ctx.owner, ctx.ws, sg.id, { title: t }, mutation()),
+        ),
+      );
+      expect(krs.filter((r) => r.status === 'fulfilled')).toHaveLength(2);
+      const goals = await Promise.allSettled(
+        [1, 2, 3, 4, 5, 6].map((i) =>
+          small.svc.createGoal(
+            ctx.owner,
+            ctx.ws,
+            { title: `g${i}`, period: Q4, brand: ctx.brands.Race! },
+            mutation(),
+          ),
+        ),
+      );
+      expect(goals.filter((r) => r.status === 'fulfilled')).toHaveLength(3);
+    });
+
+    it('treats a reused idempotency key with a different request as a different request, never a replay', async () => {
+      const req = mutation();
+      const a = await env.svc.createGoal(owner, ws, { title: 'Key A', period: Q4 }, req);
+      const same = await env.svc.createGoal(owner, ws, { title: 'Key A', period: Q4 }, req);
+      expect(same.replayed).toBe(true);
+      expect(same.data.id).toBe(a.data.id);
+      const other = {
+        ...req,
+        fingerprint: createHash('sha256').update('a different request').digest(),
+      };
+      expect(
+        (await rejects(env.svc.createGoal(owner, ws, { title: 'Key B', period: Q4 }, other))).code,
+      ).toBe('idempotency_key_reuse');
     });
   });
 

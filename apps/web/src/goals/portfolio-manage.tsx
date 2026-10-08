@@ -38,7 +38,10 @@ export function PortfolioDialog({
   const explainError = useExplain();
   const idem = useIdempotency();
   const { members } = useMembers(ws);
-  const allProjects = useResource(() => projects.list(ws, { state: 'active' }), `pf-projects:${ws}`);
+  const allProjects = useResource(
+    () => projects.list(ws, { state: 'active' }),
+    `pf-projects:${ws}`,
+  );
   const [initial] = useState(existing);
   const [name, setName] = useState(existing?.name ?? '');
   const [description, setDescription] = useState(existing?.description ?? '');
@@ -118,7 +121,13 @@ export function PortfolioDialog({
       const before = new Set(initial?.projects ?? []);
       const same = before.size === chosen.size && [...chosen].every((id) => before.has(id));
       if (!same)
-        current = await portfolios.setProjects(ws, current.id, current.version, [...chosen], stepUp);
+        current = await portfolios.setProjects(
+          ws,
+          current.id,
+          current.version,
+          [...chosen],
+          stepUp,
+        );
       onSaved(current);
     } catch (err) {
       if (err instanceof ApiError && err.code === 'cancelled') return;
@@ -146,7 +155,12 @@ export function PortfolioDialog({
       <form onSubmit={(e) => void submit(e)} noValidate>
         <ErrorSummary
           errors={errors}
-          labels={{ 'pf-name': 'Name', 'pf-description': 'Description', 'pf-brand': 'Brand', 'pf-owner': 'Owner' }}
+          labels={{
+            'pf-name': 'Name',
+            'pf-description': 'Description',
+            'pf-brand': 'Brand',
+            'pf-owner': 'Owner',
+          }}
           focusKey={attempt}
         />
         {created && !existing ? (
@@ -253,7 +267,9 @@ export function PortfolioDialog({
                 <label className="choice">
                   <input type="checkbox" checked={chosen.has(p.id)} onChange={() => toggle(p.id)} />{' '}
                   {p.name}
-                  {p.brand.kind === 'brand' ? <span className="hint"> ({p.brand.name})</span> : null}
+                  {p.brand.kind === 'brand' ? (
+                    <span className="hint"> ({p.brand.name})</span>
+                  ) : null}
                 </label>
               </li>
             ))}
@@ -262,7 +278,10 @@ export function PortfolioDialog({
             {chosen.size} selected.
           </p>
         </fieldset>
-        <ProblemLine problem={error && !Object.keys(api).length && !stale ? problem : null} busy={busy} />
+        <ProblemLine
+          problem={error && !Object.keys(api).length && !stale ? problem : null}
+          busy={busy}
+        />
         <p className="actions">
           <button type="submit" className="button button-primary" disabled={busy}>
             {busy ? 'Saving…' : existing ? 'Save portfolio' : 'Create portfolio'}
@@ -320,15 +339,24 @@ export function PortfoliosManager({
     <section className="card" aria-labelledby="pf-saved">
       <h2 id="pf-saved">Saved portfolios</h2>
       <p className="hint">
-        A portfolio is a named set of projects. Its health view covers only the members you can read.
+        A portfolio is a named set of projects. Its health view covers only the members you can
+        read.
       </p>
       <div className="gl-toolbar">
-        <button type="button" className="button button-primary" onClick={() => setDialog({ kind: 'create' })}>
+        <button
+          type="button"
+          className="button button-primary"
+          onClick={() => setDialog({ kind: 'create' })}
+        >
           Create portfolio
         </button>
         <label className="choice">
-          <input type="checkbox" checked={archived} onChange={(e) => setArchived(e.target.checked)} /> Show
-          archived portfolios
+          <input
+            type="checkbox"
+            checked={archived}
+            onChange={(e) => setArchived(e.target.checked)}
+          />{' '}
+          Show archived portfolios
         </label>
       </div>
       <ProblemLine problem={problem} />
@@ -352,7 +380,9 @@ export function PortfoliosManager({
           Try again in a moment.
         </Banner>
       ) : !items.length ? (
-        <p className="empty-state">{archived ? 'No archived portfolios.' : 'No saved portfolios yet.'}</p>
+        <p className="empty-state">
+          {archived ? 'No archived portfolios.' : 'No saved portfolios yet.'}
+        </p>
       ) : (
         <ul className="gl-list">
           {items.map((p) => (
@@ -370,7 +400,11 @@ export function PortfoliosManager({
               </p>
               <div className="actions-compact" role="group" aria-label={`Actions for ${p.name}`}>
                 {p.lifecycle_state === 'active' ? (
-                  <button type="button" className="button button-secondary" onClick={() => onOpen(p.id)}>
+                  <button
+                    type="button"
+                    className="button button-secondary"
+                    onClick={() => onOpen(p.id)}
+                  >
                     View health<span className="visually-hidden"> of {p.name}</span>
                   </button>
                 ) : null}

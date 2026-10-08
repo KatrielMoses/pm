@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { ApiError } from '../api.ts';
 import { CheckinForm, CheckinHistory } from '../goals/checkin.tsx';
 import {
@@ -89,7 +89,11 @@ function GoalBody({
   const [nonce, setNonce] = useState(0);
   const [status, setStatus] = useState<GoalStatus>(g.status);
   // The select follows the goal after a reload or a save; typed choices survive until then.
-  useEffect(() => setStatus(g.status), [g.status]);
+  const [seenStatus, setSeenStatus] = useState(g.status);
+  if (seenStatus !== g.status) {
+    setSeenStatus(g.status);
+    setStatus(g.status);
+  }
   const archived = g.lifecycle_state !== 'active';
   const closed = g.status !== 'draft' && g.status !== 'active';
   const can = g.capabilities;
@@ -106,21 +110,25 @@ function GoalBody({
     try {
       await fn();
     } catch (err) {
-      if (!(err instanceof ApiError && err.code === 'cancelled')) setProblem(explainError(err, what));
+      if (!(err instanceof ApiError && err.code === 'cancelled'))
+        setProblem(explainError(err, what));
     } finally {
       setBusy(false);
     }
   };
   const lifecycle = (verb: 'archive' | 'unarchive' | 'trash') =>
-    act(`${verb === 'unarchive' ? 'restoring' : verb === 'archive' ? 'archiving' : 'deleting'} the goal`, async () => {
-      await goals.verb(ws, g.id, verb, g.version, stepUp);
-      setDialog(null);
-      if (verb === 'trash') navigate(routeHref('goals', { ws }));
-      else {
-        await reload();
-        changed(verb === 'archive' ? 'Goal archived.' : 'Goal restored from the archive.');
-      }
-    });
+    act(
+      `${verb === 'unarchive' ? 'restoring' : verb === 'archive' ? 'archiving' : 'deleting'} the goal`,
+      async () => {
+        await goals.verb(ws, g.id, verb, g.version, stepUp);
+        setDialog(null);
+        if (verb === 'trash') navigate(routeHref('goals', { ws }));
+        else {
+          await reload();
+          changed(verb === 'archive' ? 'Goal archived.' : 'Goal restored from the archive.');
+        }
+      },
+    );
   const changeStatus = () =>
     act('changing the status', async () => {
       set(await goals.update(ws, g.id, g.version, { status }, stepUp));
@@ -173,7 +181,11 @@ function GoalBody({
           </button>
         ) : null}
         {can?.archive && !archived ? (
-          <button type="button" className="button button-secondary" onClick={() => setDialog('archive')}>
+          <button
+            type="button"
+            className="button button-secondary"
+            onClick={() => setDialog('archive')}
+          >
             Archive
           </button>
         ) : null}
@@ -204,12 +216,18 @@ function GoalBody({
           <SelectField
             id="gd-status"
             label="Change status"
-            hint={g.status === 'draft' ? undefined : 'A goal that has left draft cannot return to it.'}
+            hint={
+              g.status === 'draft' ? undefined : 'A goal that has left draft cannot return to it.'
+            }
             value={status}
             onChange={(v) => setStatus(v as GoalStatus)}
             options={statuses.map((s) => ({ value: s, label: GOAL_STATUS_LABEL[s] }))}
           />
-          <button type="submit" className="button button-secondary" disabled={busy || status === g.status}>
+          <button
+            type="submit"
+            className="button button-secondary"
+            disabled={busy || status === g.status}
+          >
             Set status
           </button>
         </form>
@@ -234,7 +252,12 @@ function GoalBody({
         <FreshnessLine fresh={g.freshness} />
         {editable && g.freshness.recalculation.state !== 'current' ? (
           <p className="actions">
-            <button type="button" className="button button-secondary" disabled={busy} onClick={() => void recalc()}>
+            <button
+              type="button"
+              className="button button-secondary"
+              disabled={busy}
+              onClick={() => void recalc()}
+            >
               Recalculate now
             </button>
           </p>
@@ -281,7 +304,9 @@ function GoalBody({
           onClose={() => setDialog(null)}
           onConfirm={() => void lifecycle('archive')}
         >
-          <p>It becomes read-only and leaves the Goals list. You can restore it later from its link.</p>
+          <p>
+            It becomes read-only and leaves the Goals list. You can restore it later from its link.
+          </p>
         </ConfirmDialog>
       ) : null}
       {dialog === 'trash' ? (

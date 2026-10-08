@@ -34,7 +34,12 @@ import {
  * record the update twice.
  */
 
-type Target = { id: string; title: string; basis: 'manual' | 'key_results' | 'linked_work'; metric: Metric };
+type Target = {
+  id: string;
+  title: string;
+  basis: 'manual' | 'key_results' | 'linked_work';
+  metric: Metric;
+};
 
 /** The targets a person may update: the goal and its key results (derived ones take no number). */
 const targetsOf = (goal: GoalDetail): Target[] => [
@@ -129,7 +134,12 @@ export function CheckinForm({
     );
 
   return (
-    <form className="gl-checkin" onSubmit={(e) => void send(e)} noValidate aria-label="Record a check-in">
+    <form
+      className="gl-checkin"
+      onSubmit={(e) => void send(e)}
+      noValidate
+      aria-label="Record a check-in"
+    >
       {note.restored && !done ? (
         <p className="hint" role="status">
           Your unsent note from earlier is back.
@@ -239,8 +249,16 @@ export function CheckinHistory({
   /** Changes when a check-in was recorded, so the list reloads. */
   nonce: number;
 }) {
-  const first = useResource(() => goals.checkins(ws, goal.id, { limit: 25 }), `ci:${ws}:${goal.id}:${nonce}`);
-  const [more, setMore] = useState<{ base: string; items: Checkin[]; cursor: string | null; hasMore: boolean } | null>(null);
+  const first = useResource(
+    () => goals.checkins(ws, goal.id, { limit: 25 }),
+    `ci:${ws}:${goal.id}:${nonce}`,
+  );
+  const [more, setMore] = useState<{
+    base: string;
+    items: Checkin[];
+    cursor: string | null;
+    hasMore: boolean;
+  } | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<Explained | null>(null);
   const explainError = useExplain();
@@ -301,10 +319,13 @@ export function CheckinHistory({
           return (
             <li key={c.id} className="gl-history-item">
               <p className="gl-history-head">
-                <strong>{computed ? 'Computed from key results' : (c.author?.name ?? 'Former member')}</strong>
+                <strong>
+                  {computed ? 'Computed from key results' : (c.author?.name ?? 'Former member')}
+                </strong>
                 <span className="hint">
                   {' '}
-                  · <time dateTime={c.created_at}>{when(c.created_at)}</time> · {krTitle(c.key_result)}
+                  · <time dateTime={c.created_at}>{when(c.created_at)}</time> ·{' '}
+                  {krTitle(c.key_result)}
                 </span>
               </p>
               {describeCheckin(c, goal.key_results, goal.metric) ? (
@@ -320,7 +341,12 @@ export function CheckinHistory({
       <ProblemLine problem={error} />
       {hasMore ? (
         <p className="actions">
-          <button type="button" className="button button-secondary" disabled={loading} onClick={() => void load()}>
+          <button
+            type="button"
+            className="button button-secondary"
+            disabled={loading}
+            onClick={() => void load()}
+          >
             {loading ? 'Loading…' : 'Show older check-ins'}
           </button>
         </p>

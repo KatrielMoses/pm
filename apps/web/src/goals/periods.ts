@@ -17,8 +17,7 @@ export interface PeriodSel {
 
 const pad = (n: number) => String(n).padStart(2, '0');
 const lastDay = (year: number, month: number) => new Date(Date.UTC(year, month, 0)).getUTCDate();
-export const dayOf = (d: Date) =>
-  `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+export const dayOf = (d: Date) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 
 /** The calendar quarter containing the day (the default selection). */
 export function currentQuarter(now = new Date()): PeriodSel {
@@ -85,11 +84,11 @@ export function shiftSel(sel: PeriodSel, by: -1 | 1): PeriodSel {
   if (sel.mode === 'year') return { ...sel, year: sel.year + by };
   if (sel.mode === 'quarter') {
     const n = sel.index - 1 + by;
-    return { ...sel, year: sel.year + Math.floor(n / 4), index: ((n % 4) + 4) % 4 + 1 };
+    return { ...sel, year: sel.year + Math.floor(n / 4), index: (((n % 4) + 4) % 4) + 1 };
   }
   if (sel.mode === 'half') {
     const n = sel.index - 1 + by;
-    return { ...sel, year: sel.year + Math.floor(n / 2), index: ((n % 2) + 2) % 2 + 1 };
+    return { ...sel, year: sel.year + Math.floor(n / 2), index: (((n % 2) + 2) % 2) + 1 };
   }
   return sel;
 }
