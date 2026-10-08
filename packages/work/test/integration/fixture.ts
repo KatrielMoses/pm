@@ -25,7 +25,8 @@ import {
   taskAssigneeHook,
   taskTargets,
   savedViewTargets,
-  CapacityService,
+  ReviewService,
+  reviewDepartureHook,
   departureTimerHook,
   type WorkSettings,
 } from '@pm/work';
@@ -47,7 +48,7 @@ export {
 
 export interface WorkEnv {
   h: Harness;
-  svc: CapacityService;
+  svc: ReviewService;
   stepUp: StubStepUp;
   lifecycle: LifecycleService;
   tokenFor(email: string): Promise<string>;
@@ -61,6 +62,7 @@ export function workEnv(
     work?: Partial<WorkSettings>;
     captureRate?: number;
     intakeRate?: number;
+    commentRate?: number;
   } = {},
 ): WorkEnv {
   const h = createHarness(db);
@@ -93,7 +95,7 @@ export function workEnv(
     createStepUpChallenge: stepUp.createStepUpChallenge,
   };
   const arrayMax = options.arrayMax ?? 10_000;
-  const svc = new CapacityService({
+  const svc = new ReviewService({
     tenant: h.app,
     platform: h.platform,
     writer,
@@ -104,6 +106,7 @@ export function workEnv(
     ownership: defaultOwnershipRegistry()
       .register(projectOwnerHook)
       .register(taskAssigneeHook)
+      .register(reviewDepartureHook(writer))
       .register(departureTimerHook(writer)),
     limiter: new PostgresRateLimiter(h.platform, randomBytes(32), {
       'workspace.create': { limit: 1000, windowMs: 3_600_000 },
@@ -111,6 +114,7 @@ export function workEnv(
       'invitation.send': { limit: 1000, windowMs: 3_600_000 },
       'capture.member': { limit: options.captureRate ?? 10_000, windowMs: 60_000 },
       'intake.submit': { limit: options.intakeRate ?? 10_000, windowMs: 3_600_000 },
+      'comment.member': { limit: options.commentRate ?? 10_000, windowMs: 60_000 },
     }),
     signingKey: randomBytes(32),
     settings: {

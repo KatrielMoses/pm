@@ -99,6 +99,7 @@ Requirements flagged with each decision are listed automatically in [requirement
 - **Affects:** TSK-009, TSK-015, COL-010, PRJ-026, VIEW-012 · phases 2B, 4A.
 - **Safe default:** Use *follower* and *label* in UI and API, and accept the other word in search and import mapping.
 - **If deferred:** No longer applicable (decided).
+- **Status (Phase 4A, 2026-10-07):** *Follower* is implemented as an explicit, per-record subscription: one `relations.follower` row per person and record, written only by that person's own follow command and removed by their unfollow (both immediate and idempotent). Following is never inherited from workspace or project membership, assignment, ownership, or a received share, and it grants no access. A follow the person can no longer read is inert: it is omitted from every list and count, and it is removed when the record is purged or the member leaves. Notification preferences for followers are 4B (ADR-0023 D1).
 
 <a id="od-11"></a>
 ### OD-11 — Formula fields versus calculated fields
@@ -354,6 +355,7 @@ Requirements flagged with each decision are listed automatically in [requirement
 - **Affects:** COL-009, AUD-003, SEC-023 · phases 1F, 4A, 11B.
 - **Safe default:** Earlier values stay visible to admins while the record exists. On purge, content values are removed and structural audit facts remain.
 - **If deferred:** 1F must still support redacting content inside events.
+- **Status (Phase 4A, 2026-10-07):** Decided as the safe default and implemented. An author may edit or delete their own comment only within `COMMENT_EDIT_WINDOW_MINUTES` (default 24 hours); each edit appends the prior body to an append-only revision trail, and deletion is a tombstone that keeps the thread's shape and the prior body in the trail. Nobody can edit another person's comment. A person with manage authority on the record may delete (never edit) someone else's comment, and the tombstone says a moderator removed it. Revisions are readable by the author and by people with moderation authority on the record while the record exists. Audit events carry only content hashes. On purge the comment bodies, revisions, reactions, and mentions are removed and the structural audit facts remain (ADR-0023 D2).
 
 <a id="od-39"></a>
 ### OD-39 — Account deletion and departing members (privacy)

@@ -10,6 +10,7 @@ import {
 } from 'react';
 import { savedViewKey, type ViewKey } from '@pm/contracts/shell';
 import { ApiError } from '../api.ts';
+import { FollowingTab, ReviewsTab } from '../collab/my-work.tsx';
 import { Link, useRouter } from '../router.tsx';
 import { routeHref } from '../shell/registry.ts';
 import { useScrollAnchor, useViewState } from '../shell/view-state.ts';
@@ -2167,7 +2168,7 @@ const MY_WORK: Record<'assigned' | 'delegated', { label: string; filter: Group }
 export function MyWorkPage({ ws }: { ws: string }) {
   const { search, path } = useRouter();
   const raw = search.get('tab');
-  const tab = raw === 'delegated' || raw === 'following' ? raw : 'assigned';
+  const tab = raw === 'delegated' || raw === 'following' || raw === 'reviews' ? raw : 'assigned';
   const tabs = (
     <nav className="tabs" aria-label="My Work">
       <ul>
@@ -2176,6 +2177,7 @@ export function MyWorkPage({ ws }: { ws: string }) {
             ['assigned', 'Assigned to me'],
             ['delegated', 'Assigned by me'],
             ['following', 'Following'],
+            ['reviews', 'Reviews'],
           ] as const
         ).map(([id, label]) => (
           <li key={id}>
@@ -2187,14 +2189,11 @@ export function MyWorkPage({ ws }: { ws: string }) {
       </ul>
     </nav>
   );
-  if (tab === 'following')
+  if (tab === 'following' || tab === 'reviews')
     return (
       <Page title="My Work">
         {tabs}
-        <p className="hint">
-          Following records arrives with comments and following (4A). Until then, use Assigned to
-          me, Assigned by me, or favorites.
-        </p>
+        {tab === 'following' ? <FollowingTab ws={ws} /> : <ReviewsTab ws={ws} />}
       </Page>
     );
   const key = `views.my_work.${tab}` as ViewKey;

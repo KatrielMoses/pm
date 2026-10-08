@@ -28,7 +28,7 @@ import {
   parseRelationship,
   parseTaskCriterion,
 } from './task-validation.ts';
-import { isObject, isPublic, parseAfter } from './validation.ts';
+import { COLLAB_REF, isObject, isPublic, parseAfter } from './validation.ts';
 import { fieldsForRecord } from './workflow/field-access.ts';
 
 const pgCode = (err: unknown) =>
@@ -149,8 +149,8 @@ export class TaskService extends TaskCoreService {
         })),
         links,
         relationships,
-        // Honest absences (later phases); nothing is fabricated.
-        unavailable: ['comments', 'followers', 'files', 'documents', 'external_records', 'agents'],
+        // Honest absences (later phases); nothing is fabricated. Comments and followers are 4A's.
+        unavailable: ['files', 'documents', 'external_records', 'agents'],
       };
     });
   }
@@ -1267,7 +1267,7 @@ export class TaskService extends TaskCoreService {
           if (id.startsWith('mem_')) {
             const name = people.get(id);
             if (name) out.push(part.endsWith('*') ? `${name} (primary)` : name);
-          } else if (readable.has(id)) out.push(id);
+          } else if (readable.has(id) || COLLAB_REF.test(id)) out.push(id);
           else return { ok: false, value: null };
         }
         return { ok: true, value: out.join(', ') || null };

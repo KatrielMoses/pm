@@ -146,6 +146,14 @@ describe('server configuration', () => {
       blockSeriesHorizonDays: 28,
       dayCloseDiscoveryMax: 100,
       dayCloseBatchMax: 200,
+      commentBodyMaxChars: 10000,
+      commentEditWindowMinutes: 1440,
+      commentMentionsMax: 20,
+      commentsPerRecordMax: 5000,
+      commentRatePerMinute: 30,
+      commentRepliesInlineMax: 20,
+      followersListMax: 200,
+      reviewReviewersMax: 10,
     });
     const set = (env: Record<string, string>) =>
       loadServerConfig({ service: 'worker', env: { ...local, ...env } });
@@ -185,6 +193,8 @@ describe('server configuration', () => {
       ['TIME_EXPORT_ROWS_MAX', '99'],
       ['BLOCK_SERIES_HORIZON_DAYS', '181'],
       ['TODAY_LIST_MAX', '4'],
+      ['COMMENT_EDIT_WINDOW_MINUTES', '4'],
+      ['REVIEW_REVIEWERS_MAX', '51'],
     ] as const)
       expect(issues(() => set({ [key]: bad })).join(' '), `${key}=${bad}`).toMatch(
         new RegExp(`^${key}`),

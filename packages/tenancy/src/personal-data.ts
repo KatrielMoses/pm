@@ -59,11 +59,17 @@ const OWNED_PERSONAL_TABLES = [
   'work.undo_entry',
 ] as const;
 
-/** 3E rows about the person keyed by `membership_id` (time off, reservations, then the profile). */
+/**
+ * Rows about the person keyed by `membership_id`: 3E time off, reservations, then the profile; 4A
+ * follows and reactions (a person's subscriptions and reactions leave with them; the comments
+ * they wrote stay, as content of the records they were written on).
+ */
 const MEMBERSHIP_PERSONAL_TABLES = [
   'planning.time_off',
   'planning.capacity_reservation',
   'planning.capacity_profile',
+  'relations.follower',
+  'collab.reaction',
 ] as const;
 
 /** Membership personal-data eraser (departure retention and account deletion). */

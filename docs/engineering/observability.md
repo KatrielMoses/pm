@@ -132,3 +132,8 @@ Counters `planning.today` (action, outcome), `planning.blocks` (action, outcome)
 ## Capacity (3E)
 
 Counters `capacity.reads` (view: `person`, `team`, or `rescheduling`; outcome) and `capacity.changes` (kind: `profile`, `time_off`, `holiday`, or `reservation`; outcome). Events carry identifiers, days, minutes, and kinds, never time-off labels or holiday names.
+
+## Collaboration (4A)
+
+Counters `collab.comments` (action: `create`, `edit`, `delete`, `list`, `replies`; outcome), `collab.reactions` (change: `added` or `removed`; outcome), `collab.follows` (change: `added`, `removed`, or `list`; outcome), `collab.reviews` (action: `request`, `decide`, `withdraw`, `refresh`, `list`, or `queue`; outcome), `collab.delegations` (kind: `delegate`; outcome), and the shared `tenancy.authz_decisions` for every decision. Events carry identifiers, kinds, and flags; never comment bodies, notes, messages, or names.
+

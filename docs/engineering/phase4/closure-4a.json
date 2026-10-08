@@ -1,0 +1,924 @@
+{
+  "schema_version": 1,
+  "phase": "4A",
+  "status": "candidate",
+  "adr": "0023",
+  "accepted_by_kinds": [
+    "catalog:contributing",
+    "roadmap:<sub>",
+    "adr:<nnnn>[#row]",
+    "requirement:<ID>"
+  ],
+  "requirements": [
+    {
+      "id": "NAV-006",
+      "role": "owned",
+      "disposition": "implemented",
+      "evidence": [
+        {
+          "file": "packages/work/src/collab/comment-service.ts",
+          "contains": "async following("
+        },
+        {
+          "file": "packages/work/src/views/compile.ts",
+          "contains": "case 'following'"
+        },
+        {
+          "file": "packages/work/test/integration/collab.test.ts",
+          "contains": "lists followed records the person can read now, and drops a follow after access is lost"
+        },
+        {
+          "file": "packages/work/test/integration/collab.test.ts",
+          "contains": "reuses the query engine: tasks and projects followed by the caller, never by anyone else"
+        },
+        {
+          "file": "apps/web/test/collab.test.tsx",
+          "contains": "Following lists records with links, filters, Load more, and an empty state"
+        }
+      ],
+      "note": "The My Work Following tab lists the records the person follows and can read now (`GET /me/following`), newest follow first.",
+      "enriched_by": [
+        "3B"
+      ],
+      "accepted_by": [
+        "catalog:contributing"
+      ]
+    },
+    {
+      "id": "PRJ-026",
+      "role": "owned",
+      "disposition": "foundation",
+      "evidence": [
+        {
+          "file": "packages/work/src/collab/comment-service.ts",
+          "contains": "async follow("
+        },
+        {
+          "file": "packages/work/test/integration/collab.test.ts",
+          "contains": "follows explicitly and idempotently, never by role, assignment, or share"
+        },
+        {
+          "file": "packages/work/test/integration/collab.test.ts",
+          "contains": "project.id, true"
+        }
+      ],
+      "note": "Project followers are implemented: following is one explicit per-record subscription on tasks and projects. Notification preferences for followers are 4B's.",
+      "deferred_to": [
+        "4B"
+      ],
+      "accepted_by": [
+        "catalog:contributing"
+      ]
+    },
+    {
+      "id": "TSK-009",
+      "role": "owned",
+      "disposition": "implemented",
+      "evidence": [
+        {
+          "file": "packages/work/src/collab/comment-service.ts",
+          "contains": "async follow("
+        },
+        {
+          "file": "packages/work/src/collab/comment-service.ts",
+          "contains": "async followers("
+        },
+        {
+          "file": "packages/work/test/integration/collab.test.ts",
+          "contains": "follows explicitly and idempotently, never by role, assignment, or share"
+        },
+        {
+          "file": "apps/api/test/integration/collab-api.test.ts",
+          "contains": "follows with PUT and DELETE, and lists what the person follows"
+        },
+        {
+          "file": "apps/web/test/collab.test.tsx",
+          "contains": "flips at once, is aria-pressed, and rolls back with a message when it fails"
+        }
+      ],
+      "note": "Followers (the canonical term for watchers, OD-10): explicit, personal, idempotent, never inherited.",
+      "enriched_by": [
+        "2B"
+      ],
+      "accepted_by": [
+        "catalog:contributing"
+      ]
+    },
+    {
+      "id": "TSK-018",
+      "role": "owned",
+      "disposition": "implemented",
+      "evidence": [
+        {
+          "file": "packages/work/src/collab/comment-service.ts",
+          "contains": "async createComment("
+        },
+        {
+          "file": "packages/work/test/integration/collab.test.ts",
+          "contains": "posts comments and threaded replies, listed oldest first with inline replies"
+        },
+        {
+          "file": "packages/work/test/integration/collab.test.ts",
+          "contains": "paginates thread roots with a bound cursor and loads further replies by cursor"
+        },
+        {
+          "file": "apps/api/test/integration/collab-api.test.ts",
+          "contains": "posts, replies, lists, edits with If-Match, and deletes a comment over HTTP"
+        },
+        {
+          "file": "apps/web/test/collab.test.tsx",
+          "contains": "lists oldest first with tombstones, replies, Show more replies, and Load more"
+        },
+        {
+          "file": "e2e/comments.spec.ts",
+          "contains": "comments, replies, mentions, reactions, edit, delete, follow, reviews, and hand-over between two people"
+        }
+      ],
+      "note": "Comments and threaded replies on tasks (and projects) with edit, delete, and cursor-paged lists."
+    },
+    {
+      "id": "TSK-019",
+      "role": "owned",
+      "disposition": "foundation",
+      "evidence": [
+        {
+          "file": "packages/work/src/collab/comment-service.ts",
+          "contains": "protected async resolveMentions("
+        },
+        {
+          "file": "packages/work/test/integration/collab.test.ts",
+          "contains": "resolves mentions only to what the author may name, with one safe refusal for the rest"
+        },
+        {
+          "file": "packages/work/test/integration/collab.test.ts",
+          "contains": "syncs mentions on edit and drops them with the comment, and offers only permitted candidates"
+        },
+        {
+          "file": "apps/web/test/collab.test.tsx",
+          "contains": "searches on @, moves with arrows, chooses with Enter, and sends the mention"
+        }
+      ],
+      "note": "Mentions of people, teams, projects, and tasks are resolved only to what the author may name. Agents (8B) and documents (4C) have no mentionable targets yet; their mention kinds register with their phases.",
+      "deferred_to": [
+        "4C",
+        "8B"
+      ],
+      "accepted_by": [
+        "roadmap:4C",
+        "roadmap:8B"
+      ]
+    },
+    {
+      "id": "TSK-029",
+      "role": "owned",
+      "disposition": "implemented",
+      "evidence": [
+        {
+          "file": "packages/work/src/collab/review-service.ts",
+          "contains": "async requestReview("
+        },
+        {
+          "file": "packages/work/src/collab/review-service.ts",
+          "contains": "async decideReview("
+        },
+        {
+          "file": "packages/work/test/integration/collab-reviews.test.ts",
+          "contains": "settles under the any rule with the first typed decision, immutably"
+        },
+        {
+          "file": "packages/work/test/integration/collab-reviews.test.ts",
+          "contains": "requires every reviewer under the all rule, and any non-approval settles at once"
+        },
+        {
+          "file": "apps/web/test/collab.test.tsx",
+          "contains": "requests a review from chosen people with the version that was looked at"
+        }
+      ],
+      "note": "Task approvals: a review request of kind `approval` with named reviewers and the any or all rule; workflow transition approvals (2C) stay the status gate.",
+      "enriched_by": [
+        "2C"
+      ],
+      "accepted_by": [
+        "catalog:contributing"
+      ]
+    },
+    {
+      "id": "TSK-030",
+      "role": "owned",
+      "disposition": "implemented",
+      "evidence": [
+        {
+          "file": "packages/work/src/collab/review-service.ts",
+          "contains": "settleReview("
+        },
+        {
+          "file": "packages/work/test/unit/collab-semantics.test.ts",
+          "contains": "needs every reviewer under the all rule, and any non-approval settles at once"
+        },
+        {
+          "file": "packages/work/test/integration/collab-reviews.test.ts",
+          "contains": "binds a decision to the version reviewed: a changed record cannot be approved"
+        }
+      ],
+      "note": "Typed review states: requested, changes_requested, approved, rejected (plus withdrawn and superseded), each with an immutable per-reviewer decision.",
+      "enriched_by": [
+        "2C"
+      ],
+      "accepted_by": [
+        "catalog:contributing"
+      ]
+    },
+    {
+      "id": "COL-005",
+      "role": "owned",
+      "disposition": "foundation",
+      "evidence": [
+        {
+          "file": "packages/work/src/collab/comment-service.ts",
+          "contains": "protected async loadHost("
+        },
+        {
+          "file": "packages/work/src/collab/semantics.ts",
+          "contains": "export const COLLAB_HOSTS"
+        },
+        {
+          "file": "packages/work/test/integration/collab.test.ts",
+          "contains": "decides every read and write through the record: owners, members, read-only, guests, and strangers"
+        },
+        {
+          "file": "e2e/comments.spec.ts",
+          "contains": "a read-only member and a share-only guest see only what they may"
+        }
+      ],
+      "note": "Comments on tasks and projects. Documents (4C) and deliverables (4E) register as hosts when their record types exist (`COLLAB_HOSTS`).",
+      "deferred_to": [
+        "4C",
+        "4E"
+      ],
+      "accepted_by": [
+        "roadmap:4C",
+        "roadmap:4E"
+      ]
+    },
+    {
+      "id": "COL-006",
+      "role": "owned",
+      "disposition": "implemented",
+      "evidence": [
+        {
+          "file": "packages/db/migrations/0036_collaboration_reviews.up.sql",
+          "contains": "CREATE FUNCTION collab.comment_thread_guard()"
+        },
+        {
+          "file": "packages/work/test/integration/collab.test.ts",
+          "contains": "holds its invariants in the database: threads stay in their record, identity is pinned, history is append-only"
+        },
+        {
+          "file": "packages/work/test/integration/collab.test.ts",
+          "contains": "posts comments and threaded replies, listed oldest first with inline replies"
+        },
+        {
+          "file": "apps/web/test/collab.test.tsx",
+          "contains": "replies to a comment with reply_to and shows the reply"
+        }
+      ],
+      "note": "Flat threaded replies: a reply names its thread's root and the comment it answers, and stays inside that record."
+    },
+    {
+      "id": "COL-007",
+      "role": "owned",
+      "disposition": "foundation",
+      "evidence": [
+        {
+          "file": "packages/work/src/collab/comment-service.ts",
+          "contains": "protected async resolveMentions("
+        },
+        {
+          "file": "packages/db/migrations/0036_collaboration_reviews.up.sql",
+          "contains": "notified boolean NOT NULL DEFAULT false"
+        },
+        {
+          "file": "packages/work/test/integration/collab.test.ts",
+          "contains": "resolves mentions only to what the author may name, with one safe refusal for the rest"
+        },
+        {
+          "file": "apps/web/test/collab.test.tsx",
+          "contains": "Escape closes the list, and a mention whose text was removed is not sent"
+        }
+      ],
+      "note": "Mentions of people and teams (and records). Agents are mentionable once 8B creates them; delivery is 4B's.",
+      "deferred_to": [
+        "8B",
+        "4B"
+      ],
+      "accepted_by": [
+        "roadmap:8B",
+        "roadmap:4B"
+      ]
+    },
+    {
+      "id": "COL-008",
+      "role": "owned",
+      "disposition": "implemented",
+      "evidence": [
+        {
+          "file": "packages/work/src/collab/comment-service.ts",
+          "contains": "async setReaction("
+        },
+        {
+          "file": "packages/work/test/integration/collab.test.ts",
+          "contains": "lets people with comment authority react from a fixed vocabulary, idempotently"
+        },
+        {
+          "file": "apps/api/test/integration/collab-api.test.ts",
+          "contains": "reacts idempotently from a fixed vocabulary and exposes mention candidates"
+        },
+        {
+          "file": "apps/web/test/collab.test.tsx",
+          "contains": "are toggle buttons with names, counts, and aria-pressed"
+        }
+      ],
+      "note": "Reactions from a fixed vocabulary, one per person, comment, and reaction; counts and the viewer's own only."
+    },
+    {
+      "id": "COL-009",
+      "role": "owned",
+      "disposition": "implemented",
+      "evidence": [
+        {
+          "file": "packages/work/src/collab/comment-service.ts",
+          "contains": "async editComment("
+        },
+        {
+          "file": "packages/work/src/collab/comment-service.ts",
+          "contains": "async deleteComment("
+        },
+        {
+          "file": "packages/work/test/integration/collab.test.ts",
+          "contains": "lets an author edit within the window with a revision trail, and refuses others"
+        },
+        {
+          "file": "packages/work/test/integration/collab.test.ts",
+          "contains": "closes the author window by age, but moderators may still delete"
+        },
+        {
+          "file": "packages/work/test/integration/collab.test.ts",
+          "contains": "deletes as a tombstone that keeps the thread and the prior body, and is idempotent"
+        },
+        {
+          "file": "apps/web/test/collab.test.tsx",
+          "contains": "on a stale version shows the newer text and keeps the draft; saving again uses the new version"
+        },
+        {
+          "file": "apps/web/test/collab.test.tsx",
+          "contains": "asks before deleting, then shows the tombstone while replies stay"
+        }
+      ],
+      "note": "Authors edit and delete their own comments only inside the audit window; edits and deletions keep the prior body in an append-only trail; moderators delete but never edit; audit keeps hashes only (OD-38).",
+      "enriched_by": [
+        "1F"
+      ],
+      "accepted_by": [
+        "catalog:contributing"
+      ]
+    },
+    {
+      "id": "COL-010",
+      "role": "owned",
+      "disposition": "implemented",
+      "evidence": [
+        {
+          "file": "packages/work/src/collab/comment-service.ts",
+          "contains": "async follow("
+        },
+        {
+          "file": "packages/work/test/integration/collab.test.ts",
+          "contains": "follows explicitly and idempotently, never by role, assignment, or share"
+        },
+        {
+          "file": "apps/api/test/integration/collab-api.test.ts",
+          "contains": "follows with PUT and DELETE, and lists what the person follows"
+        },
+        {
+          "file": "apps/web/test/collab.test.tsx",
+          "contains": "unfollows idempotently and reports the server state"
+        }
+      ],
+      "note": "Follow and unfollow records: immediate, idempotent, explicit (OD-10)."
+    },
+    {
+      "id": "COL-012",
+      "role": "owned",
+      "disposition": "implemented",
+      "evidence": [
+        {
+          "file": "packages/work/test/integration/collab.test.ts",
+          "contains": "shows collaboration in activity and history without bodies, and omits what the viewer cannot read"
+        },
+        {
+          "file": "packages/work/test/integration/collab.test.ts",
+          "contains": "gives hidden and unknown comments, records, and reviews the same statements and time"
+        },
+        {
+          "file": "apps/api/test/integration/collab-api.test.ts",
+          "contains": "gives strangers and unknown records the same 404, and never returns an internal identifier"
+        }
+      ],
+      "note": "Collaboration activity without disclosure: authorization through the host on every read, hash-only audit, and activity that drops anything naming what the viewer cannot read."
+    },
+    {
+      "id": "COL-013",
+      "role": "owned",
+      "disposition": "implemented",
+      "evidence": [
+        {
+          "file": "packages/work/src/collab/review-service.ts",
+          "contains": "async requestReview("
+        },
+        {
+          "file": "packages/work/src/collab/review-service.ts",
+          "contains": "async refreshReview("
+        },
+        {
+          "file": "packages/work/test/integration/collab-reviews.test.ts",
+          "contains": "names reviewers who can decide now, with one safe refusal for everyone else"
+        },
+        {
+          "file": "packages/work/test/integration/collab-reviews.test.ts",
+          "contains": "keeps one open request per record and replays an idempotent request"
+        },
+        {
+          "file": "apps/api/test/integration/collab-api.test.ts",
+          "contains": "requests, decides, withdraws, and refreshes reviews through verbs"
+        },
+        {
+          "file": "apps/web/test/collab.test.tsx",
+          "contains": "a named reviewer decides; the decision is sent with the current version"
+        },
+        {
+          "file": "apps/web/test/collab.test.tsx",
+          "contains": "stale review: warning, no Decide, and Ask again for the requester"
+        }
+      ],
+      "note": "Review and approval requests with named reviewers, a rule, current-version binding, typed decisions, withdrawal, and supersession."
+    },
+    {
+      "id": "COL-014",
+      "role": "owned",
+      "disposition": "implemented",
+      "evidence": [
+        {
+          "file": "packages/work/src/collab/review-service.ts",
+          "contains": "async delegateTask("
+        },
+        {
+          "file": "packages/work/test/integration/collab-reviews.test.ts",
+          "contains": "hands an assignment over, keeps the primary flag, and remembers who handed it"
+        },
+        {
+          "file": "apps/api/test/integration/collab-api.test.ts",
+          "contains": "delegates through the task verb and lists assignment history"
+        },
+        {
+          "file": "apps/web/test/collab.test.tsx",
+          "contains": "hands a task over to a chosen person"
+        }
+      ],
+      "note": "Delegation: a current assignee hands their own assignment to another eligible member, who keeps the primary flag; the handover is remembered."
+    },
+    {
+      "id": "COL-015",
+      "role": "owned",
+      "disposition": "implemented",
+      "evidence": [
+        {
+          "file": "packages/work/src/collab/history.ts",
+          "contains": "export async function recordAssignmentChange("
+        },
+        {
+          "file": "packages/work/test/integration/collab-reviews.test.ts",
+          "contains": "records every change of responsibility append-only, readable through ownership only"
+        },
+        {
+          "file": "packages/work/test/integration/collab-reviews.test.ts",
+          "contains": "closes a leaving requester’s requests, drops a leaving reviewer, and records their assignments ending"
+        },
+        {
+          "file": "apps/web/test/collab.test.tsx",
+          "contains": "assignment history treats 404 as not available, not as an error"
+        }
+      ],
+      "note": "Reassignment with history: every change of responsibility (assign, reassign, delegate, departure) is an append-only assignment event."
+    },
+    {
+      "id": "WFL-007",
+      "role": "contributing",
+      "disposition": "contributed",
+      "contribution": "4A",
+      "evidence": [
+        {
+          "file": "docs/engineering/adr/0023-comments-mentions-following-reviews.md",
+          "contains": "Related 2C approvals"
+        },
+        {
+          "file": "packages/work/src/collab/review-service.ts",
+          "contains": "Nothing here changes the"
+        }
+      ],
+      "note": "2C owns approval requirements for status transitions; 4A adds the general review and approval flow without changing status (`kind: approval`)."
+    },
+    {
+      "id": "VIEW-010",
+      "role": "contributing",
+      "disposition": "contributed",
+      "contribution": "4A",
+      "evidence": [
+        {
+          "file": "packages/work/src/validation.ts",
+          "contains": "export const COLLAB_REF"
+        },
+        {
+          "file": "packages/work/test/integration/collab.test.ts",
+          "contains": "shows collaboration in activity and history without bodies, and omits what the viewer cannot read"
+        }
+      ],
+      "note": "The activity view (3B) shows comment, review, and assignment entries without bodies, and drops anything naming what the viewer cannot read."
+    },
+    {
+      "id": "DOC-009",
+      "role": "contributing",
+      "disposition": "contributed",
+      "contribution": "4A",
+      "evidence": [
+        {
+          "file": "packages/db/migrations/0036_collaboration_reviews.up.sql",
+          "contains": "source_kind IN ('comment')"
+        },
+        {
+          "file": "docs/engineering/adr/0023-comments-mentions-following-reviews.md",
+          "contains": "has no mention node before 4C"
+        }
+      ],
+      "note": "Mentions of records are resolved and rendered for comments; documents (4C) reuse the mention table's typed targets and the `COLLAB_HOSTS` registry."
+    },
+    {
+      "id": "DOC-012",
+      "role": "contributing",
+      "disposition": "contributed",
+      "contribution": "4A",
+      "evidence": [
+        {
+          "file": "packages/work/src/collab/semantics.ts",
+          "contains": "export const COLLAB_HOSTS"
+        },
+        {
+          "file": "docs/engineering/adr/0023-comments-mentions-following-reviews.md",
+          "contains": "document comments or suggestions (4C)"
+        }
+      ],
+      "note": "Comments and revisions are host-generic; document comments and suggestions (4C) register `document` as a host."
+    },
+    {
+      "id": "AGT-020",
+      "role": "contributing",
+      "disposition": "contributed",
+      "contribution": "4A",
+      "evidence": [
+        {
+          "file": "packages/db/migrations/0036_collaboration_reviews.up.sql",
+          "contains": "only active internal members can review"
+        },
+        {
+          "file": "packages/work/src/collab/semantics.ts",
+          "contains": "REVIEW_OUTCOMES"
+        }
+      ],
+      "note": "Reviewers and authors are people only (database-checked); the typed outcomes agents' reviewers will reuse exist."
+    },
+    {
+      "id": "TEST-024",
+      "role": "contributing",
+      "disposition": "contributed",
+      "contribution": "4A",
+      "evidence": [
+        {
+          "file": "packages/work/src/collab/review-service.ts",
+          "contains": "async selfDecisionAllowed("
+        },
+        {
+          "file": "packages/work/test/integration/collab-reviews.test.ts",
+          "contains": "applies the workspace self-approval policy to a reviewer who is also the requester"
+        }
+      ],
+      "note": "Go or no-go approvals can use a review request of kind `approval` with the independent-approver policy (OD-20)."
+    }
+  ],
+  "decisions": [
+    {
+      "id": "D1",
+      "title": "Following is an explicit, per-record, idempotent subscription, never inherited (OD-10)",
+      "adr_row": "D1",
+      "sources": [
+        {
+          "file": "docs/product/open-decisions.md",
+          "contains": "Status (Phase 4A, 2026-10-07):** *Follower* is implemented"
+        }
+      ],
+      "evidence": [
+        {
+          "file": "packages/work/test/integration/collab.test.ts",
+          "contains": "follows explicitly and idempotently, never by role, assignment, or share"
+        },
+        {
+          "file": "packages/work/test/integration/collab.test.ts",
+          "contains": "lists followed records the person can read now, and drops a follow after access is lost"
+        },
+        {
+          "file": "packages/work/test/integration/collab.test.ts",
+          "contains": "reuses the query engine: tasks and projects followed by the caller, never by anyone else"
+        },
+        {
+          "file": "apps/api/test/integration/collab-api.test.ts",
+          "contains": "follows with PUT and DELETE, and lists what the person follows"
+        },
+        {
+          "file": "docs/engineering/adr/0023-comments-mentions-following-reviews.md",
+          "contains": "| D1 |"
+        }
+      ]
+    },
+    {
+      "id": "D2",
+      "title": "Authors edit and delete only inside the audit window; edits keep a revision trail; deletion is a tombstone; moderators never edit (OD-38)",
+      "adr_row": "D2",
+      "sources": [
+        {
+          "file": "docs/product/open-decisions.md",
+          "contains": "Decided as the safe default and implemented. An author may edit or delete"
+        }
+      ],
+      "evidence": [
+        {
+          "file": "packages/work/test/integration/collab.test.ts",
+          "contains": "lets an author edit within the window with a revision trail, and refuses others"
+        },
+        {
+          "file": "packages/work/test/integration/collab.test.ts",
+          "contains": "closes the author window by age, but moderators may still delete"
+        },
+        {
+          "file": "packages/work/test/integration/collab.test.ts",
+          "contains": "deletes as a tombstone that keeps the thread and the prior body, and is idempotent"
+        },
+        {
+          "file": "packages/work/test/integration/collab.test.ts",
+          "contains": "removes a purged record’s comments, revisions, reactions, mentions, followers, and reviews, leaving no text in audit"
+        },
+        {
+          "file": "docs/engineering/adr/0023-comments-mentions-following-reviews.md",
+          "contains": "| D2 |"
+        }
+      ]
+    },
+    {
+      "id": "D3",
+      "title": "Flat threads with cursor pages, inline replies, bounded bodies, and per-record limits",
+      "adr_row": "D3",
+      "sources": [
+        {
+          "file": "docs/architecture/data/12-decisions.md",
+          "contains": "## ADR-31"
+        }
+      ],
+      "evidence": [
+        {
+          "file": "packages/work/test/integration/collab.test.ts",
+          "contains": "posts comments and threaded replies, listed oldest first with inline replies"
+        },
+        {
+          "file": "packages/work/test/integration/collab.test.ts",
+          "contains": "paginates thread roots with a bound cursor and loads further replies by cursor"
+        },
+        {
+          "file": "packages/work/test/integration/collab.test.ts",
+          "contains": "refuses empty, oversized, malformed, and unknown input with precise issues"
+        },
+        {
+          "file": "packages/work/test/integration/collab.test.ts",
+          "contains": "holds its invariants in the database: threads stay in their record, identity is pinned, history is append-only"
+        },
+        {
+          "file": "docs/engineering/adr/0023-comments-mentions-following-reviews.md",
+          "contains": "| D3 |"
+        }
+      ]
+    },
+    {
+      "id": "D4",
+      "title": "Mentions resolve only to what the author may name, with one safe refusal; no delivery in 4A",
+      "adr_row": "D4",
+      "sources": [
+        {
+          "file": "docs/architecture/access/15-decisions.md",
+          "contains": "**Mentions.** An author may name only active members"
+        }
+      ],
+      "evidence": [
+        {
+          "file": "packages/work/test/integration/collab.test.ts",
+          "contains": "resolves mentions only to what the author may name, with one safe refusal for the rest"
+        },
+        {
+          "file": "packages/work/test/integration/collab.test.ts",
+          "contains": "syncs mentions on edit and drops them with the comment, and offers only permitted candidates"
+        },
+        {
+          "file": "docs/engineering/adr/0023-comments-mentions-following-reviews.md",
+          "contains": "| D4 |"
+        }
+      ]
+    },
+    {
+      "id": "D5",
+      "title": "Reactions come from a fixed vocabulary and show counts and the viewer's own only",
+      "adr_row": "D5",
+      "sources": [
+        {
+          "file": "docs/architecture/data/12-decisions.md",
+          "contains": "**Reactions.** `collab.reaction`"
+        }
+      ],
+      "evidence": [
+        {
+          "file": "packages/work/test/integration/collab.test.ts",
+          "contains": "lets people with comment authority react from a fixed vocabulary, idempotently"
+        },
+        {
+          "file": "apps/api/test/integration/collab-api.test.ts",
+          "contains": "reacts idempotently from a fixed vocabulary and exposes mention candidates"
+        },
+        {
+          "file": "docs/engineering/adr/0023-comments-mentions-following-reviews.md",
+          "contains": "| D5 |"
+        }
+      ]
+    },
+    {
+      "id": "D6",
+      "title": "Activity and every read are authorized through the host and never disclose inaccessible records, people, fields, or values",
+      "adr_row": "D6",
+      "sources": [
+        {
+          "file": "docs/architecture/access/15-decisions.md",
+          "contains": "**Through the host.**"
+        }
+      ],
+      "evidence": [
+        {
+          "file": "packages/work/test/integration/collab.test.ts",
+          "contains": "decides every read and write through the record: owners, members, read-only, guests, and strangers"
+        },
+        {
+          "file": "packages/work/test/integration/collab.test.ts",
+          "contains": "shows collaboration in activity and history without bodies, and omits what the viewer cannot read"
+        },
+        {
+          "file": "packages/work/test/integration/collab.test.ts",
+          "contains": "gives hidden and unknown comments, records, and reviews the same statements and time"
+        },
+        {
+          "file": "apps/api/test/integration/collab-api.test.ts",
+          "contains": "gives strangers and unknown records the same 404, and never returns an internal identifier"
+        },
+        {
+          "file": "docs/engineering/adr/0023-comments-mentions-following-reviews.md",
+          "contains": "| D6 |"
+        }
+      ]
+    },
+    {
+      "id": "D7",
+      "title": "Reviews: explicit authority, current versions, typed immutable decisions, rules, supersession, self-approval policy",
+      "adr_row": "D7",
+      "sources": [
+        {
+          "file": "docs/architecture/access/15-decisions.md",
+          "contains": "**Reviews.** `review.request` is authority over the record"
+        }
+      ],
+      "evidence": [
+        {
+          "file": "packages/work/test/integration/collab-reviews.test.ts",
+          "contains": "names reviewers who can decide now, with one safe refusal for everyone else"
+        },
+        {
+          "file": "packages/work/test/integration/collab-reviews.test.ts",
+          "contains": "settles under the any rule with the first typed decision, immutably"
+        },
+        {
+          "file": "packages/work/test/integration/collab-reviews.test.ts",
+          "contains": "binds a decision to the version reviewed: a changed record cannot be approved"
+        },
+        {
+          "file": "packages/work/test/integration/collab-reviews.test.ts",
+          "contains": "applies the workspace self-approval policy to a reviewer who is also the requester"
+        },
+        {
+          "file": "packages/work/test/integration/collab-reviews.test.ts",
+          "contains": "shows reviews only to readers of the record through ownership and the people involved"
+        },
+        {
+          "file": "docs/engineering/adr/0023-comments-mentions-following-reviews.md",
+          "contains": "| D7 |"
+        }
+      ]
+    },
+    {
+      "id": "D8",
+      "title": "Delegation and reassignment preserve ownership history and never change access",
+      "adr_row": "D8",
+      "sources": [
+        {
+          "file": "docs/architecture/access/15-decisions.md",
+          "contains": "**Delegation and history.**"
+        }
+      ],
+      "evidence": [
+        {
+          "file": "packages/work/test/integration/collab-reviews.test.ts",
+          "contains": "hands an assignment over, keeps the primary flag, and remembers who handed it"
+        },
+        {
+          "file": "packages/work/test/integration/collab-reviews.test.ts",
+          "contains": "records every change of responsibility append-only, readable through ownership only"
+        },
+        {
+          "file": "packages/work/test/integration/collab-reviews.test.ts",
+          "contains": "closes a leaving requester’s requests, drops a leaving reviewer, and records their assignments ending"
+        },
+        {
+          "file": "docs/engineering/adr/0023-comments-mentions-following-reviews.md",
+          "contains": "| D8 |"
+        }
+      ]
+    },
+    {
+      "id": "D9",
+      "title": "Mutations are idempotent, versioned, serialized where they settle, and rate limited",
+      "adr_row": "D9",
+      "sources": [
+        {
+          "file": "docs/architecture/data/09-concurrency-consistency.md",
+          "contains": "Comments, reviews, and following (Phase 4A)"
+        }
+      ],
+      "evidence": [
+        {
+          "file": "packages/work/test/integration/collab.test.ts",
+          "contains": "replays an idempotent create and conflicts on a reused key with another body"
+        },
+        {
+          "file": "packages/work/test/integration/collab.test.ts",
+          "contains": "serializes concurrent edits of one comment on its version"
+        },
+        {
+          "file": "packages/work/test/integration/collab.test.ts",
+          "contains": "rate limits comment bursts per person and never on an idempotent replay"
+        },
+        {
+          "file": "packages/work/test/integration/collab-reviews.test.ts",
+          "contains": "serializes concurrent deciders: one settles and the rest see a closed review"
+        },
+        {
+          "file": "docs/engineering/adr/0023-comments-mentions-following-reviews.md",
+          "contains": "| D9 |"
+        }
+      ]
+    },
+    {
+      "id": "D10",
+      "title": "Canonical events and contracts only; notification delivery, documents, co-editing, files, and agent review stay with their phases",
+      "adr_row": "D10",
+      "sources": [
+        {
+          "file": "docs/architecture/platform/19-decisions.md",
+          "contains": "### PL-33: Collaboration contracts"
+        }
+      ],
+      "evidence": [
+        {
+          "file": "apps/api/test/integration/collab-api.test.ts",
+          "contains": "requests, decides, withdraws, and refreshes reviews through verbs"
+        },
+        {
+          "file": "packages/work/test/unit/collab-semantics.test.ts",
+          "contains": "has the eight reactions and the supported hosts the database knows"
+        },
+        {
+          "file": "docs/engineering/adr/0023-comments-mentions-following-reviews.md",
+          "contains": "| D10 |"
+        }
+      ]
+    }
+  ]
+}

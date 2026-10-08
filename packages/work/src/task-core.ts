@@ -36,6 +36,7 @@ import {
   type ShareLevel,
 } from '@pm/tenancy';
 import type { ActionKey } from '@pm/contracts';
+import { recordAssignmentChange } from './collab/history.ts';
 import { NIL_ID, toDate, type LoadedProject, type WorkDeps } from './service.ts';
 import { WorkService } from './structures.ts';
 import {
@@ -2517,7 +2518,7 @@ export class TaskCoreService extends WorkService {
         const before = await tx.db
           .selectFrom('work.task_assignee as a')
           .innerJoin('tenancy.membership as m', 'm.id', 'a.membership_id')
-          .select(['m.public_id', 'a.is_primary'])
+          .select(['m.id', 'm.public_id', 'a.is_primary'])
           .where('a.task_id', '=', t.id)
           .orderBy('a.is_primary', 'desc')
           .orderBy('a.rank')
@@ -2538,6 +2539,14 @@ export class TaskCoreService extends WorkService {
               assigned_by_membership_id: p.membershipId,
             })
             .execute();
+        // Who handed responsibility to whom is an append-only fact (COL-015, 4A).
+        await recordAssignmentChange(tx, {
+          taskId: t.id,
+          actorMembershipId: p.membershipId,
+          via: 'assign',
+          before: before.map((b) => b.id),
+          after: members.map((m) => m.id),
+        });
         await this.bumpTask(tx, t, p);
         const fmt = (xs: Array<{ public_id: string; is_primary: boolean }>) =>
           xs.map((x) => (x.is_primary ? `${x.public_id}*` : x.public_id)).join(',') || null;

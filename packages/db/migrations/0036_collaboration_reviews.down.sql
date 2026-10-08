@@ -1,0 +1,19 @@
+-- Reverts 0036 (local/test only). Restores the exact 0035 catalog.
+DROP INDEX work.task_assignee_by_delegator;
+ALTER TABLE work.task_assignee
+  DROP CONSTRAINT task_assignee_delegation_shape,
+  DROP CONSTRAINT task_assignee_delegator_fkey,
+  DROP COLUMN delegated_at,
+  DROP COLUMN delegated_from_membership_id;
+DROP TABLE collab.assignment_event;
+DROP TABLE collab.review_decision;
+DROP TABLE collab.review_reviewer;
+DROP FUNCTION collab.assert_reviewer_eligible();
+DROP TABLE collab.review_request;
+DROP TABLE relations.follower;
+DROP TABLE relations.mention;
+DROP TABLE collab.reaction;
+DROP TABLE collab.comment_revision;
+DROP TABLE collab.comment;
+DROP FUNCTION collab.comment_thread_guard();
+DROP SCHEMA collab;

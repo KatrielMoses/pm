@@ -218,7 +218,7 @@ test('one engine, every core layout, board moves, detail panel, and My Work', as
   await expect(h1(page)).toHaveText('My Work');
   await expect(count(page)).toHaveText('3 tasks');
   await page.getByRole('link', { name: 'Following' }).click();
-  await expect(page.getByText(/Following records arrives/)).toBeVisible();
+  await expect(page.getByText(/You aren't following anything yet/)).toBeVisible();
   await page.goto(`/workspaces/${ws}/calendar`);
   await expect(h1(page)).toHaveText('Calendar');
   await expectAccessible(page, 'calendar destination');

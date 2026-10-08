@@ -7,6 +7,7 @@ import {
   TransitionControl,
   useStatusChoices,
 } from '../workflow/record-workflow.tsx';
+import { CollaborationSections } from '../collab/collaboration.tsx';
 import { Link, useRouter } from '../router.tsx';
 import { BrandMarker } from '../shell/brand-marker.tsx';
 import { routeHref } from '../shell/registry.ts';
@@ -68,8 +69,6 @@ const DELIVERABLE_LABEL: Record<string, string> = {
   other: 'Other',
 };
 const UNAVAILABLE: Record<string, string> = {
-  comments: 'Comments (4A)',
-  followers: 'Followers (4A)',
   files: 'Files (4E)',
   documents: 'Documents (4C)',
   external_records: 'External records (6A)',
@@ -868,6 +867,17 @@ function TaskBody({
       ) : null}
       {task.lifecycle_state !== 'trashed' ? (
         <WorkTimePanel ws={ws} target={task.id} canLog={!!caps.log_time} version={task.version} />
+      ) : null}
+      {task.lifecycle_state !== 'trashed' ? (
+        <CollaborationSections
+          ws={ws}
+          rec={task.id}
+          kind="task"
+          version={task.version}
+          archived={task.lifecycle_state === 'archived'}
+          sharedOnly={task.shared_only}
+          onRecordChanged={reload}
+        />
       ) : null}
       <section className="card" aria-labelledby="later-heading">
         <h2 id="later-heading">Not available yet</h2>

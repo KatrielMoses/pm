@@ -196,6 +196,8 @@ export const NON_RESOURCE_TYPES = [
   'capacity',
   'team_capacity',
   'rescheduling_inputs',
+  // 4A: a record's collaboration summary (follow state, comment count, capabilities, latest review).
+  'collaboration_summary',
 ] as const;
 export type NonResourceType = (typeof NON_RESOURCE_TYPES)[number];
 

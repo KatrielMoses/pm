@@ -20,7 +20,7 @@ Class definitions and rules: [../11-data-classification.md](../11-data-classific
 | Workflows and custom fields | 15 | C2 | R-LIVE, R-PLATFORM | filtered, full | no, yes | no | incidental, no, yes | very-high |
 | Relationship primitives | 4 | C2 | R-LIVE | filtered | yes | no | incidental | high |
 | Files, deliverables, and evidence | 8 | C2 | R-DERIVED, R-EPHEMERAL, R-EVIDENCE, R-LIVE | filtered, never | no, yes | no | incidental | high |
-| Comments and reviews | 5 | C2 | R-AUDIT, R-EVIDENCE, R-LIVE | admin, filtered | yes | no | incidental | very-high |
+| Comments and reviews | 7 | C2 | R-AUDIT, R-EVIDENCE, R-LIVE | admin, filtered | yes | no | incidental | very-high |
 | Notifications | 4 | C2 | R-EXEC, R-PERSONAL | never, self | no | no | incidental | very-high |
 | Projects and tasks | 16 | C2 | R-EPHEMERAL, R-LIVE | filtered, never | no, yes | no | incidental | very-high |
 | Inbox and capture | 6 | C3 | R-LIVE, R-PERSONAL | filtered, self | metadata, no, yes | hash-only | incidental, yes | high |
@@ -133,6 +133,8 @@ Class definitions and rules: [../11-data-classification.md](../11-data-classific
 | [`reaction`](logical-model.md#entity-reaction) | collab | inherited | C1 | low | configuration changes | R-LIVE | filtered | high | yes | no | incidental |
 | [`review_request`](logical-model.md#entity-review-request) | collab | inherited | C2 | standard (per-record) | material changes | R-EVIDENCE | filtered | medium | yes | no | incidental |
 | [`review_decision`](logical-model.md#entity-review-decision) | collab | inherited | C2 | standard (per-record) | is evidence / append-only | R-EVIDENCE | filtered | medium | yes | no | incidental |
+| [`review_reviewer`](logical-model.md#entity-review-reviewer) | collab | inherited | C2 | standard (per-record) | material changes | R-LIVE | filtered | medium | yes | no | incidental |
+| [`assignment_event`](logical-model.md#entity-assignment-event) | collab | inherited | C2 | standard (per-record) | is evidence / append-only | R-LIVE | filtered | high | yes | no | incidental |
 | [`notification`](logical-model.md#entity-notification) | notify | personal | C2 | standard (per-record) | material changes | R-PERSONAL | self | very-high | no | no | incidental |
 | [`notification_delivery`](logical-model.md#entity-notification-delivery) | notify | personal | C1 | low | is evidence / append-only | R-EXEC | never | very-high | no | no | incidental |
 | [`notification_preference`](logical-model.md#entity-notification-preference) | notify | personal | C1 | low | configuration changes | R-PERSONAL | self | medium | no | no | incidental |

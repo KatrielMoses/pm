@@ -232,6 +232,21 @@ All decisions are **proposed (Phase 0C)**, pending solutions-architect acceptanc
   - **No new actions.** The action count stays 120.
 - **Alternatives:** Materialized shared result sets (they would freeze and widen access). Views carrying their creator's authority (a second authority source). Stored export files before 4E (they would need re-authorization on download and storage the platform does not have yet).
 - **Consequences:** Threat T-44 with tests AT-146 to AT-153.
+<a id="az-31"></a>
+### AZ-31: Comments, mentions, following, and reviews (Phase 4A amendment)
+- **Decision:**
+  - **Through the host.** Every comment, reaction, mention, follower, review, and assignment fact is authorized through its host record on each read and write. An unknown and an unreadable comment, record, or review are one `not_found` (AT-185, AT-197). A share carries the record and its comments at the share's level, nothing more (AT-192).
+  - **Commenting.** `record.comment` covers comments, replies, reactions, and mentions. Read-only members and read-level shares are `forbidden` (AT-186). An archived record needs the `comment_on_archived` policy.
+  - **Mentions.** An author may name only active members who can read the host, teams, and records the author can read. Hidden, unknown, ineligible, and agent targets share one `not_mentionable` issue. Guests may not mention people, teams, or records (AT-187). A mention grants nothing and is shown only while its target is visible to the viewer.
+  - **Edit and delete (OD-38).** Only the author edits (`comment.edit_own`), and only inside the window (AT-188, AT-189). A person with manage on the record (`comment.moderate`) deletes, never edits, and reads revision trails together with the author (AT-190).
+  - **Following (OD-10).** `record.follow` needs only the right to read the record. A follow is the person's own, and is never inherited. A follow the person can no longer read is omitted everywhere (AT-191).
+  - **Reviews.** `review.request` is authority over the record through ownership. `review.decide` belongs to a named reviewer who is eligible when deciding, on the version they reviewed, once (AT-193). Deciding one's own request needs the workspace self-approval policy and no `require_independent_for` entry (AT-194). Reviews are visible to readers through ownership and to the people involved.
+  - **Delegation and history.** `record.delegate` is a current assignee handing over to an active member who can read the task (AT-195). The history is outside a share. Neither changes anyone's access.
+  - **Activity.** Collaboration events appear in activity without bodies, and any change naming a record, person, or value the viewer cannot read is dropped (AT-196).
+  - **No new actions.** The action count stays 122.
+- **Alternatives:** Letting administrators edit comments (a silent rewrite of another person's words). Followers derived from assignment (disclosure and noise). Showing reviewers' names to every reader (people are directory facts).
+- **Consequences:** Threat T-49 with tests AT-185 to AT-197.
+
 <a id="az-30"></a>
 ### AZ-30: Capacity and cross-brand conflicts (Phase 3E amendment)
 - **Decision:**
