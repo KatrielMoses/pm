@@ -23,6 +23,40 @@ import {
 } from '../src/search/params.ts';
 import { matchRoute } from '../src/shell/registry.ts';
 
+// The page reads the shell's brand scope; tests set it per case.
+let shellScope: { kind: string; [k: string]: unknown } = {
+  kind: 'all',
+  brand_ids: ['br_00000000000000000000000001'],
+};
+vi.mock('../src/shell/workspace.tsx', () => ({
+  useWorkspaceShell: () => ({
+    ws: 'wsp_A',
+    context: {
+      workspace: { id: 'wsp_A', name: 'Co', capabilities: {} },
+      scope: shellScope,
+      brands: [
+        {
+          id: 'br_00000000000000000000000001',
+          name: 'Harbor',
+          short_name: null,
+          color: '#336699',
+          icon: 'circle',
+          is_sensitive: false,
+        },
+        {
+          id: 'br_00000000000000000000000002',
+          name: 'Summit',
+          short_name: null,
+          color: '#996633',
+          icon: 'circle',
+          is_sensitive: false,
+        },
+      ],
+    },
+    recent: [],
+  }),
+}));
+
 const WS = 'wsp_A';
 const TASK = 'tsk_00000000000000000000000001';
 const BR = 'br_00000000000000000000000001';
@@ -62,6 +96,8 @@ const result = (extra: Partial<SearchResult> = {}): SearchResult => ({
   },
   brand,
   host: null,
+  project: null,
+  owner: null,
   lifecycle_state: 'active',
   updated_at: '2026-10-05T10:00:00.000Z',
   index: 'current',
@@ -107,6 +143,7 @@ const renderPage = () =>
   );
 
 beforeEach(() => {
+  shellScope = { kind: 'all', brand_ids: [BR, 'br_00000000000000000000000002'] };
   viewport(1280);
   vi.spyOn(searchApi, 'recent').mockResolvedValue([]);
   vi.spyOn(searchApi, 'remember').mockResolvedValue({ status: 202, body: {} });
@@ -132,6 +169,7 @@ describe('search URL state (5A)', () => {
       updated: 'week',
       mine: true,
       mentioning_me: true,
+      all_brands: false,
       cursor: 'abc_DEF-123',
     });
     expect(toSearchParams(q).toString()).toBe(
@@ -481,5 +519,94 @@ describe('search page (5A)', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Clear recent searches' }));
     await waitFor(() => expect(forget).toHaveBeenLastCalledWith(WS));
     expect(await screen.findByText(/Nothing is remembered while you type/)).toBeTruthy();
+  });
+
+  it('searches inside the shell scope by default, says so, and widens on request (IA-10)', async () => {
+    shellScope = { kind: 'brand', brand_id: BR };
+    at('?q=invoice');
+    const q = vi.spyOn(searchApi, 'query').mockResolvedValue(response());
+    renderPage();
+    expect(await screen.findByText(/Searching in Harbor\./)).toBeTruthy();
+    await waitFor(() =>
+      expect(q).toHaveBeenLastCalledWith(
+        WS,
+        expect.objectContaining({ brand: [BR] }),
+        expect.anything(),
+      ),
+    );
+    // The address stays short: the scope is a default, not a filter the person chose.
+    expect(window.location.search).toBe('?q=invoice');
+    fireEvent.click(screen.getByRole('button', { name: 'Search all my brands' }));
+    await waitFor(() => expect(window.location.search).toBe('?q=invoice&all_brands=true'));
+    await waitFor(() =>
+      expect(q).toHaveBeenLastCalledWith(
+        WS,
+        expect.objectContaining({ brand: [] }),
+        expect.anything(),
+      ),
+    );
+    expect(screen.queryByText(/Searching in Harbor/)).toBeNull();
+    // A submitted search remembers the brands it was run over.
+    window.history.replaceState({}, '', `/workspaces/${WS}/search?q=invoice`);
+    cleanup();
+    renderPage();
+    await screen.findByText(/Searching in Harbor\./);
+    fireEvent.click(screen.getByRole('button', { name: 'Search' }));
+    await waitFor(() =>
+      expect(searchApi.remember).toHaveBeenCalledWith(
+        WS,
+        expect.objectContaining({ q: 'invoice', brand: [BR] }),
+      ),
+    );
+  });
+
+  it('lets chosen brands replace the scope, and ticking the last one off means every brand', async () => {
+    shellScope = { kind: 'brand', brand_id: BR };
+    at('?q=invoice');
+    vi.spyOn(searchApi, 'query').mockResolvedValue(
+      response({
+        facets: {
+          capped: false,
+          kinds: [],
+          brands: [
+            { brand, count: 3 },
+            { brand: { ...brand, id: 'br_00000000000000000000000002', name: 'Summit' }, count: 2 },
+          ],
+        },
+      }),
+    );
+    renderPage();
+    const filters = await screen.findByRole('complementary', { name: 'Filters' });
+    const harbor = await within(filters).findByRole('checkbox', { name: 'Harbor (3)' });
+    expect((harbor as HTMLInputElement).checked).toBe(true);
+    fireEvent.click(within(filters).getByRole('checkbox', { name: 'Summit (2)' }));
+    await waitFor(() =>
+      expect(window.location.search).toBe(`?q=invoice&brand=${BR}%2Cbr_00000000000000000000000002`),
+    );
+    fireEvent.click(within(filters).getByRole('checkbox', { name: 'Harbor (3)' }));
+    fireEvent.click(within(filters).getByRole('checkbox', { name: 'Summit (2)' }));
+    await waitFor(() => expect(window.location.search).toBe('?q=invoice&all_brands=true'));
+  });
+
+  it('shows the project, the owner, and a removable project filter on results', async () => {
+    at(`?q=invoice&project=${PRJ}`);
+    vi.spyOn(searchApi, 'query').mockResolvedValue(
+      response({
+        query: { ...response().query, project: { id: PRJ, name: 'Launch plan' } },
+        results: [
+          result({
+            project: { id: PRJ, name: 'Launch plan' },
+            owner: { label: 'Created by', name: 'Fay Founder' },
+          }),
+        ],
+      }),
+    );
+    renderPage();
+    const list = await screen.findByRole('list', { name: 'Search results' });
+    expect(within(list).getByText('Project: Launch plan')).toBeTruthy();
+    expect(within(list).getByText('Created by: Fay Founder')).toBeTruthy();
+    expect(screen.getByText('Launch plan', { selector: 'strong' })).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Remove the project filter' }));
+    await waitFor(() => expect(window.location.search).toBe('?q=invoice'));
   });
 });

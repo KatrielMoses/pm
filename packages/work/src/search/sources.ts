@@ -35,6 +35,8 @@ export interface SearchSource {
   readonly kind: string;
   /** Plural, human label for filters ("Tasks"). */
   readonly label: string;
+  /** What the person named on a result is to it ("Owner", "Created by", "Author"). */
+  readonly ownerLabel: string;
   /**
    * The current indexable form of one source row, or null when the row is gone, purged, deleted,
    * or not indexable (the entry is then removed). Throws `SourceContentError` for content that
@@ -106,6 +108,7 @@ const notPurged = sql<boolean>`r.lifecycle_state <> 'purged'`;
 const taskSource: SearchSource = {
   kind: 'task',
   label: 'Tasks',
+  ownerLabel: 'Created by',
   async load(tx, id, limits) {
     const t = await tx.db
       .selectFrom('work.task as t')
@@ -139,6 +142,7 @@ const taskSource: SearchSource = {
 const projectSource: SearchSource = {
   kind: 'project',
   label: 'Projects',
+  ownerLabel: 'Owner',
   async load(tx, id, limits) {
     const p = await tx.db
       .selectFrom('work.project as p')
@@ -166,6 +170,7 @@ const projectSource: SearchSource = {
 const milestoneSource: SearchSource = {
   kind: 'milestone',
   label: 'Milestones',
+  ownerLabel: 'Owner',
   async load(tx, id) {
     const m = await tx.db
       .selectFrom('work.milestone as m')
@@ -201,6 +206,7 @@ const milestoneSource: SearchSource = {
 const decisionSource: SearchSource = {
   kind: 'decision_record',
   label: 'Decisions',
+  ownerLabel: 'Owner',
   async load(tx, id, limits) {
     const d = await tx.db
       .selectFrom('work.decision_record as d')
@@ -249,6 +255,7 @@ const decisionSource: SearchSource = {
 const documentSource: SearchSource = {
   kind: 'document',
   label: 'Documents',
+  ownerLabel: 'Owner',
   async load(tx, id, limits) {
     const d = await tx.db
       .selectFrom('knowledge.document as d')
@@ -291,6 +298,7 @@ const documentSource: SearchSource = {
 const commentSource: SearchSource = {
   kind: 'comment',
   label: 'Comments',
+  ownerLabel: 'Author',
   async load(tx, id, limits) {
     const c = await tx.db
       .selectFrom('collab.comment as c')
@@ -361,6 +369,7 @@ const ownLive = (): NonNullable<SearchSource['live']> => (entry, states) =>
 const fileSource: SearchSource = {
   kind: 'file',
   label: 'Files',
+  ownerLabel: 'Owner',
   async load(tx, id) {
     const f = await tx.db
       .selectFrom('files.file as f')
@@ -412,6 +421,7 @@ const fileSource: SearchSource = {
 const deliverableSource: SearchSource = {
   kind: 'deliverable',
   label: 'Deliverables',
+  ownerLabel: 'Created by',
   async load(tx, id, limits) {
     const d = await tx.db
       .selectFrom('files.deliverable as d')

@@ -200,6 +200,11 @@ describe('search authority equals record authority (5A)', () => {
       // Nothing the matrix did not create can appear (no foreign identifier, no other workspace).
       for (const id of seen) expect(items.map((i) => i.id)).toContain(id);
     }
+    // Guests see no one else's name, on any result.
+    const guestResults = (await env.svc.search(people.guest, ws, { q: 'plover', state: 'any' }))
+      .results;
+    expect(guestResults.length).toBeGreaterThan(0);
+    expect(guestResults.every((r) => r.owner === null)).toBe(true);
     expect(mismatches).toEqual([]);
     // The matrix is not vacuous: someone sees plenty, and the restricted ones see strictly less.
     expect(sizes.owner).toBeGreaterThan(5);
@@ -220,7 +225,10 @@ describe('search authority equals record authority (5A)', () => {
     ).rejects.toEqual(reason('not_found'));
     // Row-level security holds beneath the application: another workspace's context sees no rows.
     await env.h.worker.withWorkspace(other.wsId, { module: 'test' }, async (tx) => {
-      const rows = await tx.db.selectFrom('search.search_document').select('workspace_id').execute();
+      const rows = await tx.db
+        .selectFrom('search.search_document')
+        .select('workspace_id')
+        .execute();
       expect(new Set(rows.map((r) => r.workspace_id))).toEqual(new Set([other.wsId]));
       const queue = await tx.db.selectFrom('search.index_status').select('workspace_id').execute();
       expect(queue.every((r) => r.workspace_id === other.wsId)).toBe(true);

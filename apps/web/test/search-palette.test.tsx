@@ -29,6 +29,8 @@ const hit = (extra: Partial<SearchResult> = {}): SearchResult => ({
   snippet: null,
   brand,
   host: { type: 'task', id: TASK, title: 'Close the books' },
+  project: null,
+  owner: null,
   lifecycle_state: 'active',
   updated_at: '2026-10-05T10:00:00.000Z',
   index: 'current',

@@ -139,12 +139,11 @@ test('finds work from the palette and the search page, with the whole state in t
   await recent.getByRole('button', { name: 'Clear recent searches' }).click();
   await expect(recent.getByText(/Nothing is remembered while you type/)).toBeVisible();
 
-  // The same search through the shortcut and the palette's recent list.
+  // The search page opens with the single `/` key (IA-10) and never while typing.
   await page.goto(`/workspaces/${s.ws}/today`);
   await expect(h1(page)).toHaveText('Today');
   await expect(page.getByRole('navigation', { name: 'Primary' }).first()).toBeVisible();
-  await page.locator('body').press('g');
-  await page.locator('body').press('s');
+  await page.locator('body').press('/');
   await expect(h1(page)).toHaveText('Search');
 });
 

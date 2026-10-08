@@ -125,6 +125,19 @@ export function SearchPage({ ws }: { ws: string }) {
   const compact = useWidthClass() === 'compact';
   const id = useId();
   const query = useMemo(() => parseSearchParams(search), [search]);
+  // IA-10: the default scope is the shell's current brand scope, unless the person chose brands or
+  // asked to search all of them. What is asked of the server (and remembered) is this effective query.
+  const scope = shellState?.context?.scope;
+  const scopeIds = useMemo(
+    () =>
+      scope?.kind === 'brand' ? [scope.brand_id] : scope?.kind === 'brands' ? scope.brand_ids : [],
+    [scope],
+  );
+  const scoped = !query.brand.length && !query.all_brands && scopeIds.length > 0;
+  const effective = useMemo<SearchQuery>(
+    () => (scoped ? { ...query, brand: scopeIds } : query),
+    [query, scoped, scopeIds],
+  );
   const [draft, setDraft] = useState(query.q);
   // The last request that finished (or failed), and which request it answered. Everything shown is
   // derived from it and from the current address, so the page never needs to reset itself.
@@ -137,7 +150,7 @@ export function SearchPage({ ws }: { ws: string }) {
   const [recent, setRecent] = useState<RecentSearch[] | null>(null);
   const [recentError, setRecentError] = useState<unknown>(null);
   const [reload, setReload] = useState(0);
-  const requestKey = `${toSearchParams(parseSearchParams(search)).toString()}#${reload}`;
+  const requestKey = `${toSearchParams(effective).toString()}#${reload}`;
   const input = useRef<HTMLInputElement>(null);
   const resultsHeading = useRef<HTMLHeadingElement>(null);
   const brands = shellState?.context?.brands ?? [];
@@ -151,12 +164,12 @@ export function SearchPage({ ws }: { ws: string }) {
     setDraft(query.q);
   }
 
-  const key = toSearchParams(query).toString();
+  const key = toSearchParams(effective).toString();
   useEffect(() => {
     if (!query.q) return;
     const controller = new AbortController();
     const asked = `${key}#${reload}`;
-    searchApi.query(ws, query, controller.signal).then(
+    searchApi.query(ws, effective, controller.signal).then(
       (data) => {
         if (!controller.signal.aborted) setSettled({ key: asked, q: query.q, data, error: null });
       },
@@ -218,8 +231,9 @@ export function SearchPage({ ws }: { ws: string }) {
     // Submitting the same search again runs it again (the person may be waiting for the index).
     if (searchHref(ws, next) === searchHref(ws, query)) setReload((n) => n + 1);
     else go(next);
-    // Only a submitted search is remembered (never typing, never the palette's live lookups).
-    void searchApi.remember(ws, next).catch(() => undefined);
+    // Only a submitted search is remembered (never typing, never the palette's live lookups), with
+    // the brands it was actually run over.
+    void searchApi.remember(ws, { ...effective, q }).catch(() => undefined);
   };
 
   const open = async (e: MouseEvent<HTMLAnchorElement>, r: SearchResult, href: string) => {
@@ -260,10 +274,10 @@ export function SearchPage({ ws }: { ws: string }) {
     const out = new Map<string, { name: string; count: number }>();
     for (const f of data?.facets.brands ?? [])
       if (f.brand.kind === 'brand') out.set(f.brand.id, { name: f.brand.name, count: f.count });
-    for (const b of query.brand) if (!out.has(b)) out.set(b, { name: brandName(b), count: 0 });
+    for (const b of effective.brand) if (!out.has(b)) out.set(b, { name: brandName(b), count: 0 });
     return [...out.entries()];
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [data, query.brand, brands]);
+  }, [data, effective.brand, brands]);
 
   const toggle = (list: string[], v: string, on: boolean) =>
     on ? [...new Set([...list, v])] : list.filter((x) => x !== v);
@@ -287,17 +301,26 @@ export function SearchPage({ ws }: { ws: string }) {
           ))}
         </fieldset>
       ) : null}
-      {brandOptions.length > 1 || query.brand.length ? (
+      {brandOptions.length > 1 || effective.brand.length ? (
         <fieldset>
           <legend>Brand</legend>
           {brandOptions.map(([b, o]) => (
             <label key={b} className="choice">
               <input
                 type="checkbox"
-                checked={query.brand.includes(b)}
-                onChange={(e) =>
-                  go(withFilters(query, { brand: toggle(query.brand, b, e.target.checked) }))
-                }
+                checked={effective.brand.includes(b)}
+                onChange={(e) => {
+                  const list = toggle(effective.brand, b, e.target.checked);
+                  // No brand ticked means every brand, stated explicitly so the shell scope does not return.
+                  go(
+                    withFilters(
+                      query,
+                      list.length
+                        ? { brand: list, all_brands: false }
+                        : { brand: [], all_brands: true },
+                    ),
+                  );
+                }}
               />
               {`${o.name} (${number.format(o.count)})`}
             </label>
@@ -397,6 +420,31 @@ export function SearchPage({ ws }: { ws: string }) {
           out. Results include only what you can open.
         </p>
       </form>
+      {scoped ? (
+        <p className="search-scope" role="status">
+          Searching in {scopeIds.map((b) => brandName(b)).join(', ')}.{' '}
+          <button
+            type="button"
+            className="button button-ghost"
+            onClick={() => go(withFilters(query, { all_brands: true, brand: [] }))}
+          >
+            Search all my brands
+          </button>
+        </p>
+      ) : null}
+      {data?.query.project ? (
+        <p className="search-chip">
+          Project: <strong>{data.query.project.name ?? 'Project'}</strong>{' '}
+          <button
+            type="button"
+            className="button button-ghost"
+            aria-label="Remove the project filter"
+            onClick={() => go(withFilters(query, { project: '' }))}
+          >
+            Remove
+          </button>
+        </p>
+      ) : null}
 
       {error ? <ProblemBanner error={error} onRetry={() => setReload((n) => n + 1)} /> : null}
       {error && data ? (
@@ -528,6 +576,12 @@ export function SearchPage({ ws }: { ws: string }) {
                           <span>
                             in {kindLabel(r.host.type)}
                             {r.host.title ? ` “${r.host.title}”` : ''}
+                          </span>
+                        ) : null}
+                        {r.project ? <span>Project: {r.project.name}</span> : null}
+                        {r.owner ? (
+                          <span>
+                            {r.owner.label}: {r.owner.name}
                           </span>
                         ) : null}
                         <span>

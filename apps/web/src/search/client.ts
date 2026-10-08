@@ -26,6 +26,9 @@ export interface SearchResult {
   brand: BrandMarkerData;
   /** The record that holds this one (a comment's task, a file's host), only when you can see it. */
   host: { type: string; id: string; title: string | null } | null;
+  /** The project this belongs to, and the person it names (owner, author, creator), when visible. */
+  project: { id: string; name: string } | null;
+  owner: { label: string; name: string } | null;
   lifecycle_state: 'active' | 'archived';
   updated_at: string;
   /** Whether the index still holds the latest text of this record. */
@@ -48,6 +51,8 @@ export interface SearchQuery {
   updated: '' | SearchWindow;
   mine: boolean;
   mentioning_me: boolean;
+  /** Search every brand, not just the ones the shell is scoped to (IA-10). */
+  all_brands: boolean;
   /** Where this page continues, as the server issued it (empty: the first page). */
   cursor: string;
 }
@@ -58,7 +63,7 @@ export interface SearchResponse {
     q: string;
     kind: string[];
     brand: string[];
-    project: string | null;
+    project: { id: string; name: string | null } | null;
     state: SearchState;
     updated: SearchWindow | null;
     mine: boolean;

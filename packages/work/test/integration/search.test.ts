@@ -528,6 +528,14 @@ describe('Permission-aware search (5A)', () => {
     expect(new Set(ids(all))).toEqual(
       new Set([proj.id, inProj.id, outside.id, summitTask.id, c.id]),
     );
+    // Each result names its project and the person it belongs to, when the viewer may see them.
+    const wiring = (await find(owner, 'falcon wiring')).results.find((x) => x.id === inProj.id)!;
+    expect(wiring.project).toEqual({ id: proj.id, name: 'Falcon programme' });
+    expect(wiring.owner).toMatchObject({ label: 'Created by', name: expect.any(String) });
+    expect((await find(owner, 'falcon', { project: proj.id })).query.project).toEqual({
+      id: proj.id,
+      name: 'Falcon programme',
+    });
     expect(ids(await find(owner, 'falcon', { kind: 'task' }))).toHaveLength(3);
     expect(new Set(ids(await find(owner, 'falcon', { kind: 'task,comment' })))).toEqual(
       new Set([inProj.id, outside.id, summitTask.id, c.id]),

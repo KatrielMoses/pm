@@ -18,6 +18,7 @@ export const EMPTY_QUERY: SearchQuery = {
   updated: '',
   mine: false,
   mentioning_me: false,
+  all_brands: false,
   cursor: '',
 };
 
@@ -45,6 +46,7 @@ export function parseSearchParams(p: URLSearchParams, maxChars = 200): SearchQue
     updated: updated && SEARCH_WINDOWS.includes(updated) ? updated : '',
     mine: p.get('mine') === 'true',
     mentioning_me: p.get('mentioning_me') === 'true',
+    all_brands: p.get('all_brands') === 'true',
     cursor: CURSOR.test(p.get('cursor') ?? '') ? p.get('cursor')! : '',
   };
 }
@@ -60,6 +62,7 @@ export function toSearchParams(q: SearchQuery): URLSearchParams {
   if (q.updated) p.set('updated', q.updated);
   if (q.mine) p.set('mine', 'true');
   if (q.mentioning_me) p.set('mentioning_me', 'true');
+  if (q.all_brands) p.set('all_brands', 'true');
   if (q.cursor) p.set('cursor', q.cursor);
   return p;
 }

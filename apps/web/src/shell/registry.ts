@@ -178,7 +178,7 @@ export const ROUTES: readonly RouteDef[] = [
     shell: 'workspace',
     section: 'Search',
     command: 'go.search',
-    shortcut: 'G S',
+    shortcut: '/',
     stateInQuery: true,
     // Guests search what is shared with them; the API decides what each person can read.
   },

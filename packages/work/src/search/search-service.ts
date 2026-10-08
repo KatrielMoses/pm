@@ -61,6 +61,7 @@ interface Parsed {
 interface Resolved {
   brandIds: string[];
   projectId: string | null;
+  projectName: string | null;
 }
 
 interface Hit {
@@ -75,6 +76,8 @@ interface Hit {
   lifecycle_state: 'active' | 'archived';
   rank: number;
   task_state: 'pending' | 'failed' | null;
+  owner_membership_id: string | null;
+  project_id: string | null;
 }
 
 /** Where the next page continues: the last result's rank, time, and key, and how many were shown. */
@@ -275,17 +278,20 @@ export class SearchService extends FileService {
       brandIds = readable.map((b) => b.id);
     }
     let projectId: string | null = null;
+    let projectName: string | null = null;
     if (filters.project) {
-      const r = await sql<{ id: string }>`
-        SELECT r.id FROM core.record r
+      const r = await sql<{ id: string; name: string }>`
+        SELECT r.id, w.name FROM core.record r
+          JOIN work.project w ON w.workspace_id = r.workspace_id AND w.id = r.id
          WHERE r.workspace_id = ${tx.workspaceId} AND r.public_id = ${filters.project}
            AND r.record_type = 'project' AND ${vis.where('r', { project: sql`r.id` })}`.execute(
         tx.db,
       );
       if (!r.rows[0]) throw unavailable('/project', 'project');
       projectId = r.rows[0].id;
+      projectName = r.rows[0].name;
     }
-    return { brandIds, projectId };
+    return { brandIds, projectId, projectName };
   }
 
   // ---------------------------------------------------------------------------------------------
@@ -476,7 +482,8 @@ export class SearchService extends FileService {
               await sql<Hit>`
                 SELECT e.source_kind, e.source_id, e.auth_record_id, e.context_record_id, e.title,
                        left(e.body, ${SNIPPET_SCAN_CHARS}) AS body, e.source_updated_at, r.brand_id,
-                       r.lifecycle_state, 0::float8 AS rank, t.state AS task_state
+                       r.lifecycle_state, 0::float8 AS rank, t.state AS task_state,
+                       e.owner_membership_id, ${governingProject('r')} AS project_id
                   FROM unnest(${pageKeys.map((x) => x.k)}::text[], ${pageKeys.map((x) => x.i)}::uuid[])
                        WITH ORDINALITY AS k(kind, id, o)
                   JOIN search.search_document e ON e.workspace_id = ${tx.workspaceId}
@@ -502,7 +509,7 @@ export class SearchService extends FileService {
             q: input.q,
             kind: f.kinds,
             brand: f.brands,
-            project: f.project,
+            project: f.project ? { id: f.project, name: resolved.projectName } : null,
             state: f.state,
             updated: f.updated,
             mine: f.mine,
@@ -595,12 +602,30 @@ export class SearchService extends FileService {
     }
     const brandIds = [...new Set(hits.flatMap((h) => (h.brand_id ? [h.brand_id] : [])))];
     const brands = new Map((await readableBrandsByIds(tx, p, brandIds)).map((b) => [b.id, b]));
+    // The project a result belongs to and the person it names, each only when this viewer may see it.
+    const projectIds = [...new Set(hits.flatMap((h) => (h.project_id ? [h.project_id] : [])))];
+    const projects = new Map<string, { id: string; name: string }>();
+    if (projectIds.length)
+      for (const r of (
+        await sql<{ id: string; public_id: string; name: string }>`
+          SELECT r.id, r.public_id, w.name FROM core.record r
+            JOIN work.project w ON w.workspace_id = r.workspace_id AND w.id = r.id
+           WHERE r.workspace_id = ${tx.workspaceId} AND r.id = ANY(${projectIds}::uuid[])
+             AND ${vis.where('r', { project: sql`r.id` })}`.execute(tx.db)
+      ).rows)
+        projects.set(r.id, { id: r.public_id, name: r.name });
+    const people = await this.peopleOf(
+      tx,
+      p,
+      hits.flatMap((h) => (h.owner_membership_id ? [h.owner_membership_id] : [])),
+    );
     const out = [];
     for (const h of hits) {
       const id = publicIds.get(h.source_kind)?.get(h.source_id);
       if (!id) continue; // the row left while the page was read; never invent an identifier
       const host = h.context_record_id ? hosts.get(h.context_record_id) : undefined;
       const b = h.brand_id ? brands.get(h.brand_id) : undefined;
+      const owner = h.owner_membership_id ? people.get(h.owner_membership_id) : undefined;
       const title: Snippet | null = makeSnippet(h.title, input.parsed.marks, 200);
       out.push({
         type: h.source_kind,
@@ -612,6 +637,10 @@ export class SearchService extends FileService {
           : null,
         brand: b ? brandMarker(b) : ({ kind: h.brand_id ? 'unbranded' : 'workspace' } as const),
         host: host ? { type: host.record_type, id: host.public_id, title: host.title } : null,
+        project: (h.project_id ? projects.get(h.project_id) : undefined) ?? null,
+        owner: owner
+          ? { label: this.#sources.get(h.source_kind)?.ownerLabel ?? 'Owner', name: owner.name }
+          : null,
         lifecycle_state: h.lifecycle_state,
         updated_at: iso(h.source_updated_at),
         index: (h.task_state === 'failed'
