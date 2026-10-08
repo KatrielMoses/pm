@@ -177,6 +177,28 @@ async function expectNoOverflow(page: Page, label: string) {
   expect(over, `${label}: sideways scroll with no visible offender`).toBeLessThanOrEqual(0);
 }
 
+/**
+ * The 4C journeys below cover the plain editor (a saved version, a newer-version conflict, a draft
+ * kept on this device). Live editing (4D, ADR-0027) is the default for people who can edit, so
+ * these contexts answer the join as the server does when live editing is off (`live_disabled`):
+ * the editor falls back to exactly the 4C flow (C10). live-editing.spec.ts covers the live path.
+ */
+async function withoutLive(ctx: BrowserContext): Promise<void> {
+  await ctx.route(/\/documents\/[^/]+\/live\/session$/, (route) =>
+    route.fulfill({
+      status: 409,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        error: {
+          code: 'conflict',
+          message: 'Live editing is not available.',
+          issues: [{ pointer: '/', code: 'live_disabled', message: 'Live editing is off.' }],
+        },
+      }),
+    }),
+  );
+}
+
 const knowledge = (ws: string) => `/workspaces/${ws}/knowledge`;
 const docId = (page: Page) => /\/documents\/(doc_[0-9A-Z]{26})/.exec(page.url())![1]!;
 
@@ -245,11 +267,16 @@ test('write with every block, conflict, restore, suggest, review, link, export, 
   browser,
 }, info) => {
   test.setTimeout(420_000);
+  await withoutLive(page.context());
   const { ws, base, task, brands } = await setup(page, info, 'docs');
   const secret = await vault(page, ws, base, brands);
   const milo = await person(browser, page, ws, info, 'docs-milo', 'Milo Member', 'Member');
+  await withoutLive(milo.ctx);
   await giveBrand(page, ws, 'Harbor', 'Milo Member', 'edit');
   const rae = await person(browser, page, ws, info, 'docs-rae', 'Rae Commenter', 'Member');
+  // A reader's live view holds a session too, and any live session makes the plain accept of a
+  // suggestion answer `live_edit_in_progress` (see the 4D report): this journey is the plain path.
+  await withoutLive(rae.ctx);
   await giveBrand(page, ws, 'Harbor', 'Rae Commenter', 'comment');
   const mp = milo.page;
   const rp = rae.page;
@@ -699,6 +726,7 @@ test('offline: the draft is kept on this device, restored after a reload, and sa
   context,
 }, info) => {
   test.setTimeout(240_000);
+  await withoutLive(context);
   const s = await setup(page, info, 'docs-off');
   const id = await seedDoc(page, s, 'Offline notes');
   await openDoc(page, s.ws, id, 'Offline notes');

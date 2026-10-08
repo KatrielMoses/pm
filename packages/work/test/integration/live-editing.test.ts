@@ -507,6 +507,8 @@ describe('Live collaborative editing (4D)', () => {
     ).rejects.toEqual(issueCode('live_edit_in_progress'));
     // The editor's connection dies; the session expires with unsaved work in the draft.
     await expire(d.id);
+    // A watcher never blocks a plain save: only editing sessions do.
+    const watcher = await joinLive(reader, d.id, 'view');
     const stale = await env.svc
       .saveContent(
         editor2,
@@ -536,7 +538,7 @@ describe('Live collaborative editing (4D)', () => {
     expect(b.base_version).toBe(4);
     const resync = await poll(editor, d.id, b.session, b.seq + 5);
     expect(resync.resync).toMatchObject({ base_version: 4 });
-    await leaveAll(d.id, [editor, b.session]);
+    await leaveAll(d.id, [editor, b.session], [reader, watcher.session]);
   });
 
   it('saves on the last leave, turns live editing off by configuration, and bounds sessions', async () => {

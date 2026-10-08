@@ -469,11 +469,11 @@ export class DocumentService extends DocumentCore {
     return (lock ? q.forUpdate() : q).executeTakeFirst();
   }
 
-  /** Sessions of anyone that have not expired (stale ones never count). */
+  /** Editing sessions of anyone that have not expired (stale ones and watchers never count). */
   protected async liveSessionCount(tx: WorkspaceTransaction, documentId: string): Promise<number> {
     const r = await sql<{ n: string }>`
       SELECT count(*) AS n FROM knowledge.edit_session
-       WHERE document_id = ${documentId} AND expires_at > now()`.execute(tx.db);
+       WHERE document_id = ${documentId} AND mode = 'edit' AND expires_at > now()`.execute(tx.db);
     return Number(r.rows[0]?.n ?? 0);
   }
 

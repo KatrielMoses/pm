@@ -20,6 +20,7 @@ import {
   VersionHistory,
 } from '../docs/panels.tsx';
 import { DocView } from '../docs/render.tsx';
+import { LiveReadView } from '../docs/live-view.tsx';
 import { DocumentEditor } from '../docs/session.tsx';
 import {
   HonestAbsences,
@@ -234,14 +235,24 @@ function DocumentFrame({
                       : "You can read this document. You can't edit it."}
                 </p>
                 <div className="doc-print">
-                  <DocView
-                    content={doc.content}
-                    refs={doc.references}
-                    idBase="read"
-                    {...(doc.capabilities.suggest && !doc.archived
-                      ? { suggest: (b: Block) => setSuggesting(b) }
-                      : {})}
-                  />
+                  {!doc.archived && doc.lifecycle_state === 'active' ? (
+                    <LiveReadView
+                      ws={ws}
+                      doc={doc}
+                      {...(doc.capabilities.suggest
+                        ? { suggest: (b: Block) => setSuggesting(b) }
+                        : {})}
+                    />
+                  ) : (
+                    <DocView
+                      content={doc.content}
+                      refs={doc.references}
+                      idBase="read"
+                      {...(doc.capabilities.suggest && !doc.archived
+                        ? { suggest: (b: Block) => setSuggesting(b) }
+                        : {})}
+                    />
+                  )}
                 </div>
               </>
             )}

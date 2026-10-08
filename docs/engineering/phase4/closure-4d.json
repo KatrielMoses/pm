@@ -50,6 +50,22 @@
         {
           "file": "apps/api/test/integration/live-editing-api.test.ts",
           "contains": "runs a live session end to end: join, operate, poll, heartbeat, checkpoint, leave"
+        },
+        {
+          "file": "apps/web/test/live-editing.test.tsx",
+          "contains": "sends one batch after a pause, with the base hash the server gave"
+        },
+        {
+          "file": "apps/web/test/live-editing.test.tsx",
+          "contains": "never overwrites unsent text: marks the block, and Keep mine sends it against the new hash"
+        },
+        {
+          "file": "apps/web/test/live-editing.test.tsx",
+          "contains": "Save sends what is pending, then asks for a checkpoint, and shows the new version"
+        },
+        {
+          "file": "e2e/live-editing.spec.ts",
+          "contains": "two editors see each other and the same text; conflicts are settled by choice; offline edits catch up"
         }
       ],
       "note": "Collaborative editing: a server-sequenced block-operation log on a draft, with explicit sessions, ordered operations, per-block conflict detection and refusal with the current block, deterministic convergence, offline and reconnect recovery by position, and a fallback to the versioned non-live editor. Checkpoints are ordinary immutable versions (ADR-0027 C1 to C10)."
@@ -74,6 +90,22 @@
         {
           "file": "docs/engineering/adr/0027-collaborative-editing.md",
           "contains": "| C9 |"
+        },
+        {
+          "file": "apps/web/test/live-editing.test.tsx",
+          "contains": "lists the people the server named, each with a swatch and a text label, and where they are"
+        },
+        {
+          "file": "apps/web/test/live-editing.test.tsx",
+          "contains": "shows just \"Live\" when the server names no one else (a guest or share-only viewer)"
+        },
+        {
+          "file": "e2e/live-editing.spec.ts",
+          "contains": "a read-only guest sees changes and only themselves; a plain save or restore while someone edits live says so"
+        },
+        {
+          "file": "e2e/live-editing.spec.ts",
+          "contains": "the conflict view: axe, 320 px and 200% zoom, forced colours, reduced motion, and the keyboard alone"
         }
       ],
       "note": "Presence of the people editing or watching a document: colour, mode, name, and the block they are in, shown only to members who may see people and only while the session lives; never audited or stored beyond its expiry."
@@ -99,6 +131,10 @@
         {
           "file": "packages/work/test/unit/docs-live.test.ts",
           "contains": "replaces and deletes only a block that still has the hash the client saw"
+        },
+        {
+          "file": "apps/web/test/live-editing.test.tsx",
+          "contains": "a refused operation gets the same choice, with the server block as theirs"
         }
       ],
       "note": "Concurrent edits to a document are handled predictably: an operation names the block hash it was based on, a stale one is refused with the current block, and the same ordered log gives every client the same blocks; a plain save still conflicts on a stale version."
@@ -388,6 +424,22 @@
         {
           "file": "packages/work/test/integration/live-editing.test.ts",
           "contains": "saves on the last leave, turns live editing off by configuration, and bounds sessions"
+        },
+        {
+          "file": "apps/web/test/live-editing.test.tsx",
+          "contains": "keeps edits in the browser draft while offline, says so, and sends them when back online"
+        },
+        {
+          "file": "apps/web/test/live-editing.test.tsx",
+          "contains": "falls back to the plain editor when the live connection keeps failing, keeping the text"
+        },
+        {
+          "file": "apps/web/test/live-editing.test.tsx",
+          "contains": "backs off 1s, 2s, 4s while editing locally, then resumes from the last sequence"
+        },
+        {
+          "file": "e2e/live-editing.spec.ts",
+          "contains": "removing a person's access, or trashing the page, ends live editing and keeps their text"
         },
         {
           "file": "docs/engineering/adr/0027-collaborative-editing.md",

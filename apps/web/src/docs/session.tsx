@@ -20,7 +20,16 @@ import {
   type EditBlock,
 } from './model.ts';
 import { blockSummary, DocView } from './render.tsx';
-import { explainDoc, isArchivedConflict, isVersionConflict } from './shared.tsx';
+import { explainDoc, isArchivedConflict, isLiveInProgress, isVersionConflict } from './shared.tsx';
+import { editKey } from './live-diff.ts';
+import {
+  ConflictPanel,
+  conflictNote,
+  LiveNotice,
+  LiveStatusLine,
+  PresenceList,
+  useLiveEngine,
+} from './live-ui.tsx';
 
 /**
  * Editing one document (4C): the title, the block editor, saving against the version that was
@@ -37,12 +46,14 @@ type Failure =
   | { kind: 'limit'; e: Explained }
   | { kind: 'invalid'; e: Explained }
   | { kind: 'other'; e: Explained };
-type Locked = 'archived' | 'permission' | 'gone' | null;
+type Locked = 'archived' | 'permission' | 'gone' | 'revoked' | null;
 
 interface StoredDraft {
   base: number;
   title: string;
   blocks: Array<Omit<EditBlock, 'key'>>;
+  /** Live editing: fingerprints of the server's blocks this text was last in step with. */
+  live?: { base: Record<string, string> };
 }
 
 const withKeys = (blocks: StoredDraft['blocks']): EditBlock[] =>
@@ -61,6 +72,7 @@ export function readDraft(account: string, ws: string, doc: Doc): StoredDraft | 
     const d = JSON.parse(raw.value) as StoredDraft;
     if (typeof d.base !== 'number' || typeof d.title !== 'string' || !Array.isArray(d.blocks))
       return null;
+    if (d.live && (typeof d.live !== 'object' || typeof d.live.base !== 'object')) delete d.live;
     return d;
   } catch {
     return null;
@@ -105,9 +117,23 @@ export function DocumentEditor({
       if (
         contentFingerprint(blocks, draft.title) !== contentFingerprint(server, doc.title)
       )
-        return { blocks, title: draft.title, base: draft.base, restored: true, server };
+        return {
+          blocks,
+          title: draft.title,
+          base: draft.base,
+          restored: true,
+          server,
+          liveBase: draft.live?.base ?? null,
+        };
     }
-    return { blocks: server, title: doc.title, base: doc.content_version, restored: false, server };
+    return {
+      blocks: server,
+      title: doc.title,
+      base: doc.content_version,
+      restored: false,
+      server,
+      liveBase: null,
+    };
     // Loaded once per mount; the page remounts the editor when the content is replaced from outside.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -126,19 +152,73 @@ export function DocumentEditor({
   const [kept, setKept] = useState(true);
   const [review, setReview] = useState<ReviewState | null>(null);
   const [said, setSaid] = useState('');
+  const [saveNote, setSaveNote] = useState('');
+  const baselineBlocks = useRef<EditBlock[]>(initial.server);
   const attempt = useRef<{ fp: string; key: string; unknown: boolean } | null>(null);
   const titleRef = useRef<HTMLInputElement>(null);
 
   const fp = contentFingerprint(blocks, title);
-  const dirty = fp !== baseline;
+
+  // Live editing (4D): the engine joins in the background. Until it has, and whenever it can't,
+  // this is the plain 4C editor below, unchanged.
+  const live = useRef<{
+    blocks: EditBlock[];
+    title: string;
+    base: number;
+    dirty: boolean;
+    baseKeys: (() => Record<string, string>) | null;
+  }>({ blocks, title, base, dirty: false, baseKeys: null });
+  const loadBase = useCallback(async (): Promise<Map<string, string> | null> => {
+    if (initial.liveBase) return new Map(Object.entries(initial.liveBase));
+    if (initial.restored && initial.base !== doc.content_version && baselineBlocks.current === initial.server) {
+      // The restored text was written against an older version: compare with that one.
+      try {
+        const v = await documents.version(ws, doc.id, initial.base);
+        return new Map(v.content.blocks.flatMap((b) => (b.id ? [[b.id, editKey(toEdit(b, v.references))] as const] : [])));
+      } catch {
+        return null;
+      }
+    }
+    return new Map(baselineBlocks.current.flatMap((b) => (b.id ? [[b.id, editKey(b)] as const] : [])));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ws, doc.id]);
+  const { engine, state: ls } = useLiveEngine({
+    ws,
+    doc: doc.id,
+    mode: 'edit',
+    enabled: true,
+    getBlocks: () => live.current.blocks,
+    onBlocks: (next) => {
+      live.current.blocks = next;
+      setBlocks(next);
+    },
+    loadBase,
+    savedAt: Date.parse(doc.updated_at) || null,
+    contentVersion: doc.content_version,
+  });
+  const liveOn = ls.active && ls.mode === 'edit';
+  const dirty = liveOn ? ls.unsent : fp !== baseline;
   useLeaveGuard(dirty, dirty);
   useEffect(() => onDirty(dirty), [dirty, onDirty]);
 
   // Keep what has been typed on this device until the server has it.
-  const live = useRef({ blocks, title, base, dirty });
   useEffect(() => {
-    live.current = { blocks, title, base, dirty };
+    live.current = {
+      blocks,
+      title,
+      base,
+      dirty,
+      baseKeys: liveOn && engine ? () => engine.baseKeys() : null,
+    };
   });
+  const changeBlocks = useCallback(
+    (next: EditBlock[]) => {
+      const out = engine && engine.getState().active ? engine.local(next) : next;
+      live.current.blocks = out;
+      setBlocks(out);
+    },
+    [engine],
+  );
   const persist = useCallback(() => {
     const l = live.current;
     if (!l.dirty) {
@@ -149,13 +229,18 @@ export function DocumentEditor({
       base: l.base,
       title: l.title,
       blocks: l.blocks.map(({ key: _k, ...rest }) => rest),
+      ...(l.baseKeys ? { live: { base: l.baseKeys() } } : {}),
     };
     setKept(saveDraft(account, key, JSON.stringify(data)));
   }, [account, key]);
   useEffect(() => {
     const t = setTimeout(persist, 250);
     return () => clearTimeout(t);
-  }, [fp, base, persist]);
+  }, [fp, base, dirty, ls.conflicts, persist]);
+  // Access ended: the text is kept on this device before anything else is said.
+  useEffect(() => {
+    if (ls.locked) persist();
+  }, [ls.locked, persist]);
   useEffect(() => {
     window.addEventListener('pagehide', persist);
     return () => {
@@ -203,6 +288,7 @@ export function DocumentEditor({
         });
       setBlocks((now) => withIds(now));
       setBase(d.content_version);
+      baselineBlocks.current = withIds(sentBlocks);
       setBaseline(contentFingerprint(withIds(sentBlocks), sentTitle));
       setConflict(null);
       setRestored(false);
@@ -219,6 +305,17 @@ export function DocumentEditor({
       if (err instanceof ApiError) {
         if (isArchivedConflict(err)) {
           setLocked('archived');
+          return;
+        }
+        if (isLiveInProgress(err)) {
+          setFailure({
+            kind: 'other',
+            e: {
+              ...e,
+              message:
+                "Couldn't save: someone is editing this document live. Your changes are kept on this device. Try live editing again, or save after they finish.",
+            },
+          });
           return;
         }
         if (isVersionConflict(err)) {
@@ -271,7 +368,68 @@ export function DocumentEditor({
     }
   }, [saving, locked, ws, doc.id, stepUp, onSaved, persist, account, key]);
 
+  /** Save while live: ask for a version of what is in the shared document (ADR-0027 C3). */
+  const checkpoint = useCallback(async () => {
+    if (!engine || saving) return;
+    setSaving(true);
+    setFailure(null);
+    setSaveNote('');
+    setSaid('Saving…');
+    try {
+      const r = await engine.checkpoint();
+      if (r.ok) {
+        const cur = live.current;
+        baselineBlocks.current = cur.blocks;
+        setBase(r.version);
+        setBaseline(contentFingerprint(cur.blocks, cur.title));
+        const msg = r.saved
+          ? `Saved as version ${r.version}.`
+          : `Already saved as version ${r.version}; nothing new to add.`;
+        setSaveNote(msg);
+        setSaid(msg);
+        try {
+          onSaved(await documents.get(ws, doc.id));
+        } catch {
+          // The version is saved; the page refreshes its copy the next time it loads.
+        }
+      } else {
+        setSaid('');
+        setFailure({
+          kind: 'other',
+          e: { message: r.reason, kind: 'server', retryable: true },
+        });
+      }
+    } finally {
+      setSaving(false);
+    }
+  }, [engine, saving, ws, doc.id, onSaved]);
+  const saveAny = () => (liveOn ? void checkpoint() : void save());
+
   const label = useCallback((_key: string, _label: string) => undefined, []);
+
+  const marks = useMemo(() => {
+    const m = new Map<string, { note?: string; here?: string }>();
+    for (const c of ls.conflicts) m.set(c.id, { note: conflictNote(c) });
+    for (const [id, names] of ls.here)
+      m.set(id, {
+        ...m.get(id),
+        here: `${names.join(', ')} ${names.length === 1 ? 'is' : 'are'} here`,
+      });
+    return m;
+  }, [ls.conflicts, ls.here]);
+  const liveIssues = useMemo(() => {
+    if (!ls.issues.size) return issueMap;
+    const m = new Map(issueMap);
+    for (const [id, list] of ls.issues) {
+      const i = blocks.findIndex((b) => b.id === id);
+      if (i >= 0) m.set(i, [...(m.get(i) ?? []), ...list]);
+    }
+    return m;
+  }, [ls.issues, issueMap, blocks]);
+  const focusBlock = (id: string) =>
+    document
+      .querySelector<HTMLElement>(`[data-block-id="${id}"] [data-role="primary"]`)
+      ?.focus();
 
   // ---- A newer version exists --------------------------------------------------------------
   const keepMine = (): { name: string; text: string } => {
@@ -286,6 +444,7 @@ export function DocumentEditor({
       keepMine();
       const next = fromDoc(d);
       setBlocks(next);
+      baselineBlocks.current = next;
       setTitle(d.title);
       setBase(d.content_version);
       setBaseline(contentFingerprint(next, d.title));
@@ -335,6 +494,8 @@ export function DocumentEditor({
     );
     keepMine();
     setBlocks(next);
+    live.current.blocks = next;
+    baselineBlocks.current = fromDoc(latest);
     setTitle(review.titleDiffers && review.titlePick === 'mine' ? title : latest.title);
     setBase(latest.content_version);
     setBaseline(contentFingerprint(fromDoc(latest), latest.title));
@@ -348,6 +509,8 @@ export function DocumentEditor({
   const discardRestored = () => {
     const server = fromDoc(doc);
     setBlocks(server);
+    live.current.blocks = server;
+    baselineBlocks.current = server;
     setTitle(doc.title);
     setBase(doc.content_version);
     setBaseline(contentFingerprint(server, doc.title));
@@ -362,25 +525,37 @@ export function DocumentEditor({
       ? "Couldn't save: someone saved a newer version."
       : failure
         ? failure.e.message
-        : dirty
-          ? kept
-            ? 'Unsaved changes (kept on this device)'
-            : "Unsaved changes (too large to keep on this device, so save soon)"
-          : 'Saved';
+        : liveOn
+          ? ls.conflicts.length
+            ? `${ls.conflicts.length} ${ls.conflicts.length === 1 ? 'change' : 'changes'} to review before saving a version`
+            : ls.unsent
+              ? 'Sending your changes…'
+              : saveNote ||
+                (ls.serverDirty
+                  ? 'Your changes are shared live. Save to add a version.'
+                  : 'Saved')
+          : dirty
+            ? kept
+              ? 'Unsaved changes (kept on this device)'
+              : "Unsaved changes (too large to keep on this device, so save soon)"
+            : 'Saved';
   const stateKind = saving ? 'saving' : conflict || failure ? 'failed' : dirty ? 'dirty' : 'saved';
 
-  if (locked) {
+  const lockedNow: Locked = locked ?? (ls.locked === 'gone' ? 'revoked' : ls.locked);
+  if (lockedNow) {
     const text = blocksToPlainText(title, blocks);
     return (
       <div className="doc-locked">
         <Banner
           tone="warning"
           title={
-            locked === 'archived'
+            lockedNow === 'archived'
               ? 'This document is archived, so it is read-only now'
-              : locked === 'gone'
-                ? "This document isn't available to you any more"
-                : "You can't edit this any more"
+              : lockedNow === 'revoked'
+                ? 'You no longer have access to this document'
+                : lockedNow === 'gone'
+                  ? "This document isn't available to you any more"
+                  : "You can't edit this any more"
           }
           action={
             <button
@@ -392,11 +567,13 @@ export function DocumentEditor({
             </button>
           }
         >
-          {locked === 'archived'
+          {lockedNow === 'archived'
             ? 'Unarchive it to make changes. What you had typed is kept on this device.'
-            : locked === 'gone'
-              ? 'It may have been moved to the trash, or your access may have changed. What you had typed is kept on this device.'
-              : 'Your access to edit it changed. What you had typed is kept on this device, and you can still read it below.'}
+            : lockedNow === 'revoked'
+              ? 'Your access changed while you were editing, or the document was moved to the trash or removed. Live editing has stopped. What you had typed is kept on this device: you can read it below or download it.'
+              : lockedNow === 'gone'
+                ? 'It may have been moved to the trash, or your access may have changed. What you had typed is kept on this device.'
+                : 'Your access to edit it changed. What you had typed is kept on this device, and you can still read it below.'}
         </Banner>
         <DocView
           content={{ v: 2, blocks: blocks.map((b) => toBlock(b)) }}
@@ -414,11 +591,19 @@ export function DocumentEditor({
       onKeyDown={(e) => {
         if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's') {
           e.preventDefault();
-          void save();
+          saveAny();
         }
       }}
+      onFocus={(e) => {
+        const id = (e.target as HTMLElement).closest('[data-block-id]')?.getAttribute('data-block-id');
+        engine?.setCaret(id ?? null);
+      }}
+      onBlur={(e) => {
+        if (liveOn) void engine?.flushNow();
+        if (!e.currentTarget.contains(e.relatedTarget as Node | null)) engine?.setCaret(null);
+      }}
     >
-      {restored ? (
+      {restored && !liveOn ? (
         <Banner
           tone="info"
           title="Restored your unsaved changes from this device"
@@ -506,10 +691,32 @@ export function DocumentEditor({
           value={title}
           maxLength={200}
           autoComplete="off"
-          aria-describedby={grouped.general.length ? 'doc-general-issues' : undefined}
+          readOnly={liveOn}
+          aria-describedby={
+            [grouped.general.length ? 'doc-general-issues' : null, liveOn ? 'doc-title-live' : null]
+              .filter(Boolean)
+              .join(' ') || undefined
+          }
           onChange={(e) => setTitle(e.target.value)}
         />
+        {liveOn ? (
+          <p className="hint" id="doc-title-live">
+            The title can be changed when no one is editing live.
+          </p>
+        ) : null}
       </div>
+      <div className="live-bar">
+        <LiveStatusLine state={ls} onRetry={() => engine?.retry()} />
+        {liveOn ? <PresenceList presence={ls.presence} /> : null}
+        <LiveNotice state={ls} />
+      </div>
+      <ConflictPanel
+        conflicts={ls.conflicts}
+        blocks={blocks}
+        refs={ls.references}
+        onResolve={(id, side) => engine?.resolve(id, side)}
+        onFocusBlock={focusBlock}
+      />
       {grouped.general.length ? (
         <ul className="doc-issues" id="doc-general-issues" role="alert">
           {grouped.general.map((i, n) => (
@@ -524,17 +731,18 @@ export function DocumentEditor({
         ws={ws}
         doc={doc.id}
         blocks={blocks}
-        onChange={setBlocks}
-        issues={issueMap}
+        onChange={changeBlocks}
+        issues={liveIssues}
         onLabel={label}
-        onSubmit={() => void save()}
+        onSubmit={saveAny}
         idBase="ed"
+        marks={marks}
       />
       <div className="doc-savebar" data-state={stateKind}>
         <button
           type="button"
           className="button button-primary"
-          onClick={() => void save()}
+          onClick={saveAny}
           disabled={saving}
         >
           {saving ? 'Saving…' : 'Save'}
@@ -550,7 +758,7 @@ export function DocumentEditor({
       {failure ? (
         <Problem
           problem={{ ...failure.e, retryable: failure.kind !== 'invalid' }}
-          onRetry={() => void save()}
+          onRetry={saveAny}
           busy={saving}
         >
           {failure.kind === 'offline' && !online ? (

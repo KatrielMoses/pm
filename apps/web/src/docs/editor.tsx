@@ -107,6 +107,10 @@ export function InlineTextarea({
   const [active, setActive] = useState(0);
   const [dismissed, setDismissed] = useState<string | null>(null);
   const caretAfter = useRef<number | null>(null);
+  // Live editing (4D): a block can be rewritten from outside while someone is in it. The caret
+  // stays where it was (clamped) instead of jumping to the end.
+  const typed = useRef(value);
+  const sel = useRef<[number, number]>([value.length, value.length]);
   const tkey = (t: Trigger) => `${t.start}:${t.query}`;
 
   const update = (text: string, caret: number) => {
@@ -151,6 +155,14 @@ export function InlineTextarea({
   }, [trigger?.start, trigger?.query, dismissed, ws, doc]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useLayoutEffect(() => {
+    const el = ta.current;
+    if (!el || value === typed.current) return;
+    typed.current = value;
+    if (document.activeElement === el)
+      el.setSelectionRange(Math.min(sel.current[0], value.length), Math.min(sel.current[1], value.length));
+  }, [value]);
+
+  useLayoutEffect(() => {
     if (caretAfter.current !== null && ta.current) {
       ta.current.setSelectionRange(caretAfter.current, caretAfter.current);
       caretAfter.current = null;
@@ -163,6 +175,7 @@ export function InlineTextarea({
     if (!trigger) return;
     const insert = `${referenceToken(o.ref.label, o.ref.kind, o.ref.id)} `;
     caretAfter.current = trigger.start + insert.length;
+    typed.current = value.slice(0, trigger.start) + insert + value.slice(trigger.end);
     onLabel(refKey(o.ref.kind, o.ref.id), o.ref.label);
     onChange(value.slice(0, trigger.start) + insert + value.slice(trigger.end));
     setTrigger(null);
@@ -198,10 +211,15 @@ export function InlineTextarea({
         aria-controls={open ? listId : undefined}
         aria-activedescendant={open ? `${listId}-${active}` : undefined}
         onChange={(e) => {
+          typed.current = e.target.value;
+          sel.current = [e.target.selectionStart, e.target.selectionEnd];
           onChange(e.target.value);
           update(e.target.value, e.target.selectionStart);
         }}
-        onSelect={(e) => update(e.currentTarget.value, e.currentTarget.selectionStart)}
+        onSelect={(e) => {
+          sel.current = [e.currentTarget.selectionStart, e.currentTarget.selectionEnd];
+          update(e.currentTarget.value, e.currentTarget.selectionStart);
+        }}
         onBlur={() => setDismissed(trigger ? tkey(trigger) : null)}
         onKeyDown={(e) => {
           if ((e.ctrlKey || e.metaKey) && e.key === 'Enter' && onSubmit) {
@@ -373,6 +391,10 @@ interface BlockProps {
   issues: ApiIssue[];
   single: boolean;
   actions: Actions;
+  /** Live editing: a note on a block that changed under the person (static text, never animated). */
+  note: string;
+  /** Live editing: who else is in this block, by name. */
+  here: string;
 }
 
 interface Actions {
@@ -394,6 +416,8 @@ const BlockCard = memo(BlockCardView, (a, b) =>
   a.ws === b.ws &&
   a.doc === b.doc &&
   a.issues === b.issues &&
+  a.note === b.note &&
+  a.here === b.here &&
   a.actions === b.actions,
 );
 
@@ -424,12 +448,20 @@ function BlockCardView(rawProps: BlockProps) {
   };
   const name = `${BLOCK_LABEL[b.type]}`;
   return (
-    <li className="doc-block" data-block-key={b.key} data-block-type={b.type}>
+    <li
+      className="doc-block"
+      data-block-key={b.key}
+      data-block-id={b.id}
+      data-block-type={b.type}
+      data-live={p.note ? 'review' : p.here ? 'here' : undefined}
+    >
       <div role="group" aria-labelledby={nameId} className="doc-block-box">
         <div className="doc-block-head">
           <p className="doc-block-name" id={nameId}>
             {p.single ? name : `Block ${p.index + 1} of ${p.count}: ${name}`}
           </p>
+          {p.note ? <p className="live-block-note">{p.note}</p> : null}
+          {p.here ? <p className="live-block-here">{p.here}</p> : null}
           {p.single ? null : (
             <div className="doc-block-tools">
               <button
@@ -843,6 +875,8 @@ export interface BlockEditorProps {
   /** One block only: no moving, adding, or deleting (a suggestion edits a single block). */
   single?: boolean;
   idBase?: string;
+  /** Live editing: notes and presence per block identifier. */
+  marks?: ReadonlyMap<string, { note?: string; here?: string }>;
 }
 
 /** A polite line telling what just happened to the blocks (add, move, delete). */
@@ -963,6 +997,8 @@ export function BlockEditor(p: BlockEditorProps) {
             idBase={idBase}
             issues={issues.get(i) ?? EMPTY}
             single={!!p.single}
+            note={(b.id && p.marks?.get(b.id)?.note) || ''}
+            here={(b.id && p.marks?.get(b.id)?.here) || ''}
             actions={actions}
           />
         ))}

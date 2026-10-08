@@ -3618,3 +3618,208 @@ nav.tabs a[aria-current='page'] {
 .deliverable .badge {
   margin-left: 0;
 }
+
+/* Phase 4D: live collaborative editing (ADR-0027, UXD-17, UXD-18). */
+:root {
+  --live-0: #1d5bd6;
+  --live-1: #a8410a;
+  --live-2: #1b7339;
+  --live-3: #8e2bb3;
+  --live-4: #00757a;
+  --live-5: #a8185c;
+  --live-6: #6b5200;
+  --live-7: #4d5bd1;
+}
+:root[data-color-scheme='dark'] {
+  --live-0: #7ea8ff;
+  --live-1: #ff9a5c;
+  --live-2: #5bc882;
+  --live-3: #d79bff;
+  --live-4: #4fd3d8;
+  --live-5: #ff80b3;
+  --live-6: #e0c14d;
+  --live-7: #a9b3ff;
+}
+.live-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1) var(--space-4);
+  align-items: center;
+  margin: var(--space-2) 0;
+  min-width: 0;
+}
+.live-status {
+  margin: 0;
+  font-size: 0.875rem;
+  overflow-wrap: anywhere;
+  color: var(--color-text-secondary);
+}
+.live-status-label {
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+.live-status[data-phase='live'] .live-status-label::before {
+  content: '● ';
+  color: var(--color-status-success-fg);
+}
+.live-status[data-phase='reconnecting'] .live-status-label::before,
+.live-status[data-phase='offline'] .live-status-label::before,
+.live-status[data-phase='fallback'] .live-status-label::before {
+  content: '! ';
+  color: var(--color-status-warning-fg);
+}
+.live-status[data-phase='locked'] .live-status-label::before {
+  content: '! ';
+  color: var(--color-status-danger-fg);
+}
+.live-presence {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1) var(--space-3);
+  align-items: center;
+  min-width: 0;
+}
+.live-presence-summary {
+  margin: 0;
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+.live-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1) var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  min-width: 0;
+}
+.live-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  max-width: 100%;
+  padding: 2px var(--space-2);
+  border: 1px solid var(--live-0);
+  border-radius: 999px;
+  font-size: 0.875rem;
+  overflow-wrap: anywhere;
+}
+.live-swatch {
+  flex: none;
+  width: 0.75rem;
+  height: 0.75rem;
+  border: 1px solid var(--color-text-primary);
+  border-radius: 50%;
+  background: var(--live-0);
+}
+.live-chip[data-color='1'] {
+  border-color: var(--live-1);
+}
+.live-chip[data-color='1'] .live-swatch {
+  background: var(--live-1);
+}
+.live-chip[data-color='2'] {
+  border-color: var(--live-2);
+}
+.live-chip[data-color='2'] .live-swatch {
+  background: var(--live-2);
+}
+.live-chip[data-color='3'] {
+  border-color: var(--live-3);
+}
+.live-chip[data-color='3'] .live-swatch {
+  background: var(--live-3);
+}
+.live-chip[data-color='4'] {
+  border-color: var(--live-4);
+}
+.live-chip[data-color='4'] .live-swatch {
+  background: var(--live-4);
+}
+.live-chip[data-color='5'] {
+  border-color: var(--live-5);
+}
+.live-chip[data-color='5'] .live-swatch {
+  background: var(--live-5);
+}
+.live-chip[data-color='6'] {
+  border-color: var(--live-6);
+}
+.live-chip[data-color='6'] .live-swatch {
+  background: var(--live-6);
+}
+.live-chip[data-color='7'] {
+  border-color: var(--live-7);
+}
+.live-chip[data-color='7'] .live-swatch {
+  background: var(--live-7);
+}
+.live-chip-mode {
+  color: var(--color-text-secondary);
+}
+.live-block-note,
+.live-block-here {
+  margin: 0;
+  font-size: 0.875rem;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+.live-block-note {
+  padding: 0 var(--space-2);
+  border: 1px solid var(--color-status-warning-fg);
+  border-radius: var(--radius);
+  color: var(--color-status-warning-fg);
+  background: var(--color-status-warning-bg);
+}
+.live-block-here {
+  color: var(--color-text-secondary);
+}
+.doc-block[data-live='review'] > .doc-block-box {
+  border: 2px solid var(--color-status-warning-fg);
+}
+.doc-block[data-live='here'] > .doc-block-box {
+  border-style: dashed;
+}
+.live-review {
+  border: 2px solid var(--color-status-warning-fg);
+  margin: var(--space-3) 0;
+}
+.live-review h3 {
+  margin: 0 0 var(--space-2);
+}
+.live-review-row {
+  border-top: 1px solid var(--color-border-subtle);
+  padding: var(--space-3) 0;
+}
+.live-review-title {
+  margin: 0 0 var(--space-2);
+  overflow-wrap: anywhere;
+}
+@media (forced-colors: active) {
+  .live-chip,
+  .live-block-note,
+  .live-review,
+  .doc-block[data-live='review'] > .doc-block-box {
+    border: 1px solid CanvasText;
+    forced-color-adjust: auto;
+  }
+  .doc-block[data-live='review'] > .doc-block-box {
+    border-width: 2px;
+  }
+  .live-swatch {
+    background: CanvasText;
+    border: 1px solid CanvasText;
+    forced-color-adjust: none;
+  }
+  .live-status .live-status-label::before {
+    color: CanvasText;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .live-chip,
+  .live-block-note,
+  .live-review {
+    animation: none;
+    transition: none;
+  }
+}
