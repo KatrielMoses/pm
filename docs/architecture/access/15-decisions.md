@@ -232,6 +232,20 @@ All decisions are **proposed (Phase 0C)**, pending solutions-architect acceptanc
   - **No new actions.** The action count stays 120.
 - **Alternatives:** Materialized shared result sets (they would freeze and widen access). Views carrying their creator's authority (a second authority source). Stored export files before 4E (they would need re-authorization on download and storage the platform does not have yet).
 - **Consequences:** Threat T-44 with tests AT-146 to AT-153.
+<a id="az-33"></a>
+### AZ-33: Documents and knowledge (Phase 4C amendment)
+- **Decision:**
+  - **Through the placement.** A document is authorized by the same compiled level as every record: its brand (or the workspace), the governing project chain of its attachment, and exact-record shares. An unknown and an unreadable document, version, or suggestion are one `not_found` with the same statements and time (AT-208). A share carries the document, never its parent, its subpages, or its tree (AT-209).
+  - **Writes.** Editing content, links, state, and review date is `record.update`; changing the owner is `record.assign` through ownership; creating a page is `record.create` on the parent or container through ownership. Archived documents are read-only with a plain reason (AT-210).
+  - **References.** A reference is re-checked for every viewer when shown. One a viewer cannot read, or whose target is gone, becomes an opaque token with no title, type, brand, or identifier; a save restores what a token stands for, and a token that stands for nothing in the document is refused (AT-211). A person saving may add only references they can read now; hidden, unknown, and unsupported targets share one `not_linkable` issue (AT-212). Backlinks list only documents the viewer can read, and only when the viewer can read the target (AT-213).
+  - **Suggestions.** Anyone who may comment may suggest; `record.update` accepts or rejects. A suggestion never changes content by itself, never grants access, and applies only to an unchanged block (AT-214).
+  - **AI source.** Approving a version as an AI source needs the document's owner with edit authority, or a manager (`record.share` through ownership). It applies to one version and stops when a newer one is saved (AT-215).
+  - **Export.** `record.export` at view level (not read-only members or guests by policy), re-authorizing every reference and subpage, bounded, and audited by format and counts, never content (AT-216, AT-217).
+  - **Departure.** A departing owner's documents move to the member chosen in the departure plan.
+  - **No new actions.** The action count stays 122.
+- **Alternatives:** A document-level role table (a second authority source). Showing a reference's kind when it is restricted (a hint about what exists). Letting any editor change the owner (a way to hand a document to someone who cannot act on it).
+- **Consequences:** Threat T-51 with tests AT-208 to AT-217.
+
 <a id="az-32"></a>
 ### AZ-32: Notifications (Phase 4B amendment)
 - **Decision:**

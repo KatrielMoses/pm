@@ -717,6 +717,46 @@ export const TELEMETRY_SIGNALS = [
       "view",
       "outcome"
     ]
+  },
+  {
+    "name": "knowledge.documents",
+    "type": "counter",
+    "labels": [
+      "action",
+      "outcome"
+    ]
+  },
+  {
+    "name": "knowledge.versions",
+    "type": "counter",
+    "labels": [
+      "action",
+      "outcome"
+    ]
+  },
+  {
+    "name": "knowledge.suggestions",
+    "type": "counter",
+    "labels": [
+      "action",
+      "outcome"
+    ]
+  },
+  {
+    "name": "knowledge.exports",
+    "type": "counter",
+    "labels": [
+      "format",
+      "outcome"
+    ]
+  },
+  {
+    "name": "knowledge.references",
+    "type": "counter",
+    "labels": [
+      "action",
+      "outcome"
+    ]
   }
 ] as const;
 export type TelemetrySignalName = (typeof TELEMETRY_SIGNALS)[number]['name'];
@@ -1742,6 +1782,13 @@ export const ID_PREFIXES = [
     "entity": "notify.notification_delivery",
     "ownerModule": "notify",
     "platformOnly": false
+  },
+  {
+    "prefix": "dsg",
+    "resource": "document_suggestion",
+    "entity": "knowledge.document_suggestion",
+    "ownerModule": "knowledge",
+    "platformOnly": false
   }
 ] as const;
 export type IdPrefix = (typeof ID_PREFIXES)[number]['prefix'];
@@ -2052,7 +2099,8 @@ export const INTERNAL_EVENTS = [
     "schemaVersion": 1,
     "aggregateEntity": "knowledge.source_approval",
     "fields": [
-      "document_version_id"
+      "document_version_id",
+      "kind"
     ],
     "maxClass": "C1"
   },
@@ -3109,6 +3157,68 @@ export const INTERNAL_EVENTS = [
       "failure_class"
     ],
     "maxClass": "C1"
+  },
+  {
+    "type": "knowledge.document.created",
+    "schemaVersion": 1,
+    "aggregateEntity": "knowledge.document",
+    "fields": [
+      "doc_type",
+      "parent_document_id",
+      "attached_kind"
+    ],
+    "maxClass": "C1"
+  },
+  {
+    "type": "knowledge.document.version_saved",
+    "schemaVersion": 1,
+    "aggregateEntity": "knowledge.document",
+    "fields": [
+      "version_number",
+      "kind",
+      "size_bytes"
+    ],
+    "maxClass": "C1"
+  },
+  {
+    "type": "knowledge.document.updated",
+    "schemaVersion": 1,
+    "aggregateEntity": "knowledge.document",
+    "fields": [
+      "change"
+    ],
+    "maxClass": "C1"
+  },
+  {
+    "type": "knowledge.document.mention_added",
+    "schemaVersion": 1,
+    "aggregateEntity": "knowledge.document",
+    "fields": [
+      "reference_id",
+      "block_id"
+    ],
+    "maxClass": "C1"
+  },
+  {
+    "type": "knowledge.document.suggestion_created",
+    "schemaVersion": 1,
+    "aggregateEntity": "knowledge.document_suggestion",
+    "fields": [
+      "document_id",
+      "block_id"
+    ],
+    "maxClass": "C1"
+  },
+  {
+    "type": "knowledge.document.suggestion_decided",
+    "schemaVersion": 1,
+    "aggregateEntity": "knowledge.document_suggestion",
+    "fields": [
+      "document_id",
+      "state",
+      "applied_version"
+    ],
+    "maxClass": "C1"
   }
 ] as const;
 export type InternalEventType = (typeof INTERNAL_EVENTS)[number]['type'];
@@ -3261,7 +3371,22 @@ export const PARAMETER_NAMES = [
   "NOTIFY_DISCOVERY_MAX",
   "NOTIFY_BULK_STATE_MAX",
   "NOTIFY_DEADLINES_BATCH_MAX",
-  "NOTIFY_FACTS_MAX_BYTES"
+  "NOTIFY_FACTS_MAX_BYTES",
+  "DOCUMENT_BODY_MAX_BYTES",
+  "DOCUMENT_BLOCKS_MAX",
+  "DOCUMENT_BLOCK_TEXT_MAX_CHARS",
+  "DOCUMENT_TABLE_CELLS_MAX",
+  "DOCUMENT_DEPTH_MAX",
+  "DOCUMENT_CHILDREN_MAX",
+  "DOCUMENT_TREE_MAX",
+  "DOCUMENT_VERSIONS_MAX",
+  "DOCUMENT_REFERENCES_MAX",
+  "DOCUMENT_SUGGESTIONS_OPEN_MAX",
+  "DOCUMENT_EXPORT_PAGES_MAX",
+  "DOCUMENT_EXPORT_MAX_BYTES",
+  "DOCUMENT_REVIEW_HORIZON_DAYS",
+  "DOCUMENT_SAVE_RATE_PER_MINUTE",
+  "DOCUMENT_EMBED_URL_MAX_CHARS"
 ] as const;
 export type ParameterName = (typeof PARAMETER_NAMES)[number];
 

@@ -3,6 +3,7 @@ import type { LifecycleRegistry, RecordRef, RecordTypeAdapter } from '@pm/lifecy
 import { withPersonalReferenceCleanup } from '@pm/tenancy';
 import { purgeCollabFacts } from './collab/purge.ts';
 import { purgeNotifyFacts } from './notify/purge.ts';
+import { attachedDocuments, documentAdapter, purgeDocumentTargets } from './docs/lifecycle.ts';
 
 /**
  * Project record types for the 1F lifecycle (0B ADR-21). Containment the lifecycle follows:
@@ -38,7 +39,8 @@ export const projectAdapter: RecordTypeAdapter = {
       UNION ALL SELECT id, 'task' FROM work.task WHERE project_id = ANY(${[...parentIds]}::uuid[])
       UNION ALL SELECT id, 'saved_view' FROM views.saved_view WHERE share_project_id = ANY(${[...parentIds]}::uuid[])
       ORDER BY 1`.execute(tx.db);
-    return refs(rows.rows);
+    // Documents attached to the project travel with it (4C); those on its tasks follow their tasks.
+    return [...refs(rows.rows), ...(await attachedDocuments(tx, 'attached_project_id', parentIds))];
   },
   async rootsInBrand(tx, brandIds) {
     if (!brandIds.length) return [];
@@ -75,6 +77,7 @@ export const projectAdapter: RecordTypeAdapter = {
       // Its comments, followers, and reviews go with it (4A, OD-38).
       await purgeCollabFacts(tx, ids);
       await purgeNotifyFacts(tx, ids);
+      await purgeDocumentTargets(tx, ids);
       // Views shared with the project are its content (3A); its defaults go with it.
       await tx.db.deleteFrom('views.view_default').where('project_id', 'in', ids).execute();
       // Time logged on the project itself goes with it (3D; its tasks purge their own).
@@ -213,7 +216,8 @@ export const decisionAdapter: RecordTypeAdapter = {
  */
 export const taskAdapter: RecordTypeAdapter = {
   recordType: 'task',
-  children: () => Promise.resolve([]),
+  // Subtasks are never containment children, but the documents attached to a task are (4C).
+  children: (tx, parentIds) => attachedDocuments(tx, 'attached_task_id', parentIds),
   async rootsInBrand(tx, brandIds) {
     if (!brandIds.length) return [];
     const rows = await tx.db
@@ -253,6 +257,7 @@ export const taskAdapter: RecordTypeAdapter = {
       // the task's content and go with it (4A, OD-38); audit keeps hashes only.
       await purgeCollabFacts(tx, ids);
       await purgeNotifyFacts(tx, ids);
+      await purgeDocumentTargets(tx, ids);
       // Time logged on the task goes with it (3D); approvals keep their own totals and hash.
       await tx.db.deleteFrom('timetrack.time_entry').where('task_id', 'in', ids).execute();
       // Plans go with the task (3C): commitments, blocks, and recurring blocks for it.
@@ -453,6 +458,7 @@ export function registerWorkLifecycle(registry: LifecycleRegistry): LifecycleReg
     noteAdapter,
     intakeFormAdapter,
     savedViewAdapter,
+    documentAdapter,
   ])
     registry.register(withPersonalReferenceCleanup(a));
   return registry;

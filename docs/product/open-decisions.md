@@ -305,6 +305,7 @@ Requirements flagged with each decision are listed automatically in [requirement
 - **Affects:** DOC-020, DATA-011 · phases 4C, 6D.
 - **Safe default:** Markdown, HTML, and PDF at launch.
 - **If deferred:** 4C exports Markdown only.
+- **Status (Phase 4C, 2026-10-08):** Decided and implemented: documents export as Markdown and HTML (a page, or a page with its readable subpages), bounded by `DOCUMENT_EXPORT_PAGES_MAX` and `DOCUMENT_EXPORT_MAX_BYTES`, authorized, and audited by counts. The HTML export carries a print stylesheet, so a browser can save a PDF; generating PDF files belongs to 6D. Embedded images and videos export as links, and references the viewer cannot read export as "Restricted item"; the export says how many (ADR-0025 D9).
 
 <a id="od-33"></a>
 ### OD-33 — Imports from other PM tools

@@ -211,8 +211,9 @@ def check_sharing_registry():
     text = read(P("packages/tenancy/src/sharing.ts"))
     m = re.search(r"SHAREABLE_RECORD_TYPES[^=]*= new Map\(\[(.*?)\]\);", text, re.S)
     types = re.findall(r"\['(\w+)', \[", m.group(1)) if m else []
-    if types != ["project", "task"]:
-        errs.append("the shareability registry must hold exactly 'project' and 'task' (found %r)" % types)
+    # 2A and 2B share projects and tasks; 4C (0C AZ-33) adds the document record type.
+    if types != ["project", "task", "document"]:
+        errs.append("the shareability registry must hold exactly 'project', 'task', and 'document' (found %r)" % types)
     for t in types:
         if m and "['%s', ['read', 'comment', 'edit'] as const]" % t not in m.group(1):
             errs.append("%s share levels must be read (API view), comment, edit" % t)

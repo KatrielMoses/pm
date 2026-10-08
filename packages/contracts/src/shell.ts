@@ -30,7 +30,7 @@ export const DESTINATION_PHASE: Readonly<Record<ShellDestination, string | null>
   my_work: null,
   projects: null,
   calendar: null,
-  knowledge: '4C',
+  knowledge: null,
   goals: '5B',
   reports: '5D',
 };
@@ -565,7 +565,7 @@ export const PROJECT_SECTIONS = [
   { key: 'tasks', label: 'Tasks', phase: null, conditional: false },
   { key: 'timeline', label: 'Timeline', phase: null, conditional: false },
   { key: 'calendar', label: 'Calendar', phase: '3B', conditional: false },
-  { key: 'documents', label: 'Documents', phase: '4C', conditional: false },
+  { key: 'documents', label: 'Documents', phase: null, conditional: false },
   { key: 'files', label: 'Files', phase: '4E', conditional: false },
   { key: 'activity', label: 'Activity', phase: '3B', conditional: false },
   { key: 'time', label: 'Time', phase: null, conditional: false },

@@ -555,7 +555,7 @@
       "requirements": [
         "PERM-004"
       ],
-      "notes": ""
+      "notes": "Phase 4C (AZ-33): also edits a document's content, links, state, and review date; a share at edit level may."
     },
     {
       "key": "record.archive",
@@ -819,7 +819,7 @@
         "TSK-007",
         "COL-015"
       ],
-      "notes": "Phase 4A (AZ-31): every change of responsibility is an append-only assignment event."
+      "notes": "Phase 4A (AZ-31): every change of responsibility is an append-only assignment event. Phase 4C (AZ-33): also changes a document's owner (an active member who can edit it), through ownership only."
     },
     {
       "key": "record.delegate",
@@ -1079,7 +1079,7 @@
         "PERM-010",
         "RPT-022"
       ],
-      "notes": ""
+      "notes": "Phase 4C (AZ-33): also exports a document (Markdown or HTML), re-authorizing every reference and subpage."
     },
     {
       "key": "task.complete",

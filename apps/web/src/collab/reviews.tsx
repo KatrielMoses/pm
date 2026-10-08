@@ -381,7 +381,7 @@ export function RequestDialog({
 }: {
   ws: string;
   rec: string;
-  noun: 'task' | 'project';
+  noun: 'task' | 'project' | 'document';
   subjectVersion: number;
   onClose: () => void;
   onDone: (r: ReviewRequest) => void;
@@ -597,7 +597,7 @@ export function ReviewsPanel({
 }: {
   ws: string;
   rec: string;
-  noun: 'task' | 'project';
+  noun: 'task' | 'project' | 'document';
   subjectVersion: number;
   archived: boolean;
   review: ReviewRequest | null;

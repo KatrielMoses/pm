@@ -29,7 +29,7 @@ describe('non-resource envelope stays confined (ADR-0007 D6, ADR-0008 B3)', () =
     // project overview composite (closed non-resource list, ADR-0008 B3, ADR-0010, ADR-0013 P17),
     // the 2D task interaction views (ADR-0016), the 3A view catalog, field options, and default
     // resolution (ADR-0018), the 3D time views (ADR-0019), the 3B layout reads (ADR-0020), the 3C Today views
-    // (ADR-0021), the 3E capacity reads (ADR-0022), the 4A collaboration summary (ADR-0023), and the 4B notification views (ADR-0024).
+    // (ADR-0021), the 3E capacity reads (ADR-0022), the 4A collaboration summary (ADR-0023), the 4B notification views (ADR-0024), and the 4C document exports (ADR-0025).
     expect([...new Set(uses.filter((f) => !f.endsWith('envelopes.ts')))].sort()).toEqual([
       'apps/api/src/app.ts',
       'apps/api/src/auth/routes.ts',
@@ -37,6 +37,7 @@ describe('non-resource envelope stays confined (ADR-0007 D6, ADR-0008 B3)', () =
       'apps/api/src/work/capacity-routes.ts',
       'apps/api/src/work/capture-routes.ts',
       'apps/api/src/work/collab-routes.ts',
+      'apps/api/src/work/document-routes.ts',
       'apps/api/src/work/interaction-routes.ts',
       'apps/api/src/work/layout-routes.ts',
       'apps/api/src/work/notify-routes.ts',

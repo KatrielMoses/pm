@@ -171,7 +171,7 @@ Rules and algorithm: [../04-effective-permissions.md](../04-effective-permission
 |---|---|---|---|---|
 | `record.read` | Read a record and its own comments/attachments. | none | CAL-001, CAL-002, LA-016, PERM-004, VIEW-001, VIEW-002, VIEW-003, VIEW-004, VIEW-005, VIEW-006, VIEW-007, VIEW-008, VIEW-009, VIEW-010, VIEW-011, VIEW-012, VIEW-013, VIEW-014, VIEW-015, VIEW-022, WSB-019 |  |
 | `record.create` | Create a record in a container. | none | PRJ-001, TSK-001 |  |
-| `record.update` | Edit fields of a record. | none | PERM-004 |  |
+| `record.update` | Edit fields of a record. | none | PERM-004 | Phase 4C (AZ-33): also edits a document's content, links, state, and review date; a share at edit level may. |
 | `record.archive` | Archive a record and its contained subtree. | none | PRJ-001 |  |
 | `record.restore` | Restore from archive or trash using current effective permission. | none | LA-018 |  |
 | `record.trash` | Move a record (and batch) to trash. | none | PERM-004 |  |
@@ -180,7 +180,7 @@ Rules and algorithm: [../04-effective-permissions.md](../04-effective-permission
 | `comment.edit_own` | Edit or delete own comment (revision retained per OD-38). | none | COL-009 | Phase 4A (AZ-31, OD-38): the author only, inside COMMENT_EDIT_WINDOW_MINUTES; every edit appends the prior body to the revision trail; nobody edits another person's comment. |
 | `comment.moderate` | Delete another person's comment. | none | COL-009 | Phase 4A (AZ-31, OD-38): deletes (never edits) another person's comment as a tombstone at any time; reads revision trails. |
 | `record.follow` | Follow or unfollow a readable record. | none | COL-010 | Phase 4A (AZ-31, OD-10): explicit, personal, idempotent; grants nothing and is never derived from role, assignment, ownership, or a share. |
-| `record.assign` | Assign or reassign people (only people who can read the record). | none | TSK-007, COL-015 | Phase 4A (AZ-31): every change of responsibility is an append-only assignment event. |
+| `record.assign` | Assign or reassign people (only people who can read the record). | none | TSK-007, COL-015 | Phase 4A (AZ-31): every change of responsibility is an append-only assignment event. Phase 4C (AZ-33): also changes a document's owner (an active member who can edit it), through ownership only. |
 | `record.delegate` | Delegate own assigned work to another eligible person. | none | COL-014 | Phase 4A (AZ-31): a current assignee hands their own assignment to an active member who can read the task; context a share does not carry. |
 | `record.relate` | Create a dependency/related link; requires edit on source and view on target. | none | TSK-012, TSK-014 |  |
 | `record.upload` | Attach files or links to a record. | none | FILE-001 |  |
@@ -189,7 +189,7 @@ Rules and algorithm: [../04-effective-permissions.md](../04-effective-permission
 | `record.move_brand` | Move a subtree to another brand (ownership change). | none | TSK-001, WSB-009 | Manage on source and create (edit) on target brand. Tasks (2B, AZ-22): manage in both brands, with an exposure preview and confirmation. |
 | `record.share` | Create or change an explicit record grant (share) to a brand, member, team, or guest. | none | WSB-008, PERM-005, PERM-012 | Share level ≤ sharer's level; never onward-sharable; restricted projects disallow record shares unless the project allows them. |
 | `record.share_revoke` | Revoke a share (the original sharer or a manager). | none | WSB-008 |  |
-| `record.export` | Export records or the current filtered view (permission-filtered). | none | VIEW-022, PERM-010, RPT-022 |  |
+| `record.export` | Export records or the current filtered view (permission-filtered). | none | VIEW-022, PERM-010, RPT-022 | Phase 4C (AZ-33): also exports a document (Markdown or HTML), re-authorizing every reference and subpage. |
 | `task.complete` | Move a task to a done-category status; completion gates apply. | none | TSK-031, AGT-022 |  |
 | `task.override_completion` | Complete a task whose required criteria or descendants are incomplete, recording a reason (ADR-22). | none | TSK-020, TSK-021 | Human principals only; the reason and the visible incomplete count are audited (AZ-22). Never satisfied by a share. |
 | `label.manage` | Create, rename, reorder, archive, and restore a brand's labels (OD-10). | none | TSK-015 | Labels never grant authority (AZ-22). |

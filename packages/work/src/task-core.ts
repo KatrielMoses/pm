@@ -1881,6 +1881,24 @@ export class TaskCoreService extends WorkService {
       );
     const subtree = await this.subtreeOf(tx, t.id);
     const ids = [t.id, ...subtree.map((s) => s.id)];
+    // Documents live in the brand of the task they are attached to (4C): they move first.
+    const attached = await tx.db
+      .selectFrom('knowledge.document')
+      .select('id')
+      .where('attached_task_id', 'in', ids)
+      .where('lifecycle_state', '<>', 'purged')
+      .limit(1)
+      .executeTakeFirst();
+    if (attached)
+      throw new TenancyError('conflict', {
+        issues: [
+          issue(
+            '/task',
+            'documents_attached',
+            'This task has documents. Move or remove them before moving the task to another brand.',
+          ),
+        ],
+      });
     const labels = await tx.db
       .selectFrom('work.task_label')
       .select((eb) => eb.fn.countAll<string>().as('n'))

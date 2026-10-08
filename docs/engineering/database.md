@@ -310,3 +310,15 @@ Migration `0037_notifications` (ADR-0024, 0B ADR-32) adds the `notify` schema:
 
 All six tables have `tenant_isolation` RLS and full indexes on every foreign key. The application role can write them; the worker reads, claims, and updates deliveries. The down migration drops the function, the grants, the policy it added on `work.task`, and the tables in key order, restoring the exact 0036 catalog.
 
+## Phase 4C: documents
+
+Migration `0038_documents` (ADR-0025, 0B ADR-33) adds the `knowledge` schema:
+- `knowledge.document` (`doc_`, on the envelope): scope (`brand_id` null for workspace-level, `scope_key = coalesce(brand_id, workspace_id)`), the page tree (`parent_document_id`, `ancestor_ids`, `depth`), the attachment (a project or a task, never both), type, title, state, owner, review date, the current version pointer, `access_mode` (constrained to `inherit`), and `rank`. A deferred constraint trigger checks that a page is in its parent's scope and attachment with ancestry equal to the parent's plus the parent.
+- `knowledge.document_version` (`dcv_`): immutable (a trigger refuses updates; the application role inserts and reads only), with number (unique per document), title, content (checked shape and size ceiling), SHA-256 hash, kind, restore source, starter key, and change summary.
+- `knowledge.document_reference`: inline mentions and explicit links, typed targets (member, team, or record of a registered type), no label.
+- `knowledge.document_suggestion` (`dsg_`): a block replacement against a base version and block hash, with a checked state machine.
+- `knowledge.source_approval`: append-only approvals and revocations of one version as an AI source.
+- `collab.review_request.subject_kind` now accepts `document`.
+
+The keys that relate documents, versions, and their children are deferrable (`NO ACTION`, deferred) so a purge may delete them together. All five tables have `tenant_isolation` RLS and full indexes on every foreign key. The worker may select and delete them to purge a document's content; the down migration restores the exact 0037 catalog.
+

@@ -240,6 +240,21 @@ export interface ServerConfig {
     notifyBulkStateMax: number;
     notifyDeadlinesBatchMax: number;
     notifyFactsMaxBytes: number;
+    documentBodyMaxBytes: number;
+    documentBlocksMax: number;
+    documentBlockTextMaxChars: number;
+    documentTableCellsMax: number;
+    documentDepthMax: number;
+    documentChildrenMax: number;
+    documentTreeMax: number;
+    documentVersionsMax: number;
+    documentReferencesMax: number;
+    documentSuggestionsOpenMax: number;
+    documentExportPagesMax: number;
+    documentExportMaxBytes: number;
+    documentReviewHorizonDays: number;
+    documentSaveRatePerMinute: number;
+    documentEmbedUrlMaxChars: number;
   };
   features: {
     /** Local/test-only component harness route for reusable UI states (refused when deployed). */
@@ -503,6 +518,21 @@ const DEFAULTS = {
   NOTIFY_BULK_STATE_MAX: '200',
   NOTIFY_DEADLINES_BATCH_MAX: '500',
   NOTIFY_FACTS_MAX_BYTES: '1024',
+  DOCUMENT_BODY_MAX_BYTES: '262144',
+  DOCUMENT_BLOCKS_MAX: '2000',
+  DOCUMENT_BLOCK_TEXT_MAX_CHARS: '20000',
+  DOCUMENT_TABLE_CELLS_MAX: '1000',
+  DOCUMENT_DEPTH_MAX: '6',
+  DOCUMENT_CHILDREN_MAX: '200',
+  DOCUMENT_TREE_MAX: '1000',
+  DOCUMENT_VERSIONS_MAX: '1000',
+  DOCUMENT_REFERENCES_MAX: '500',
+  DOCUMENT_SUGGESTIONS_OPEN_MAX: '100',
+  DOCUMENT_EXPORT_PAGES_MAX: '100',
+  DOCUMENT_EXPORT_MAX_BYTES: '5242880',
+  DOCUMENT_REVIEW_HORIZON_DAYS: '730',
+  DOCUMENT_SAVE_RATE_PER_MINUTE: '60',
+  DOCUMENT_EMBED_URL_MAX_CHARS: '2048',
 } as const;
 
 const schema = z.object({
@@ -700,6 +730,21 @@ const schema = z.object({
   NOTIFY_BULK_STATE_MAX: int(1, 1000),
   NOTIFY_DEADLINES_BATCH_MAX: int(10, 5000),
   NOTIFY_FACTS_MAX_BYTES: int(128, 4096),
+  DOCUMENT_BODY_MAX_BYTES: int(4096, 2000000),
+  DOCUMENT_BLOCKS_MAX: int(10, 5000),
+  DOCUMENT_BLOCK_TEXT_MAX_CHARS: int(100, 50000),
+  DOCUMENT_TABLE_CELLS_MAX: int(4, 5000),
+  DOCUMENT_DEPTH_MAX: int(1, 16),
+  DOCUMENT_CHILDREN_MAX: int(1, 1000),
+  DOCUMENT_TREE_MAX: int(10, 5000),
+  DOCUMENT_VERSIONS_MAX: int(10, 10000),
+  DOCUMENT_REFERENCES_MAX: int(10, 2000),
+  DOCUMENT_SUGGESTIONS_OPEN_MAX: int(1, 500),
+  DOCUMENT_EXPORT_PAGES_MAX: int(1, 500),
+  DOCUMENT_EXPORT_MAX_BYTES: int(65536, 52428800),
+  DOCUMENT_REVIEW_HORIZON_DAYS: int(30, 3650),
+  DOCUMENT_SAVE_RATE_PER_MINUTE: int(1, 600),
+  DOCUMENT_EMBED_URL_MAX_CHARS: int(128, 8192),
 });
 
 /** Variables a deployed environment must set explicitly (no silent local defaults). */
@@ -1181,6 +1226,21 @@ export function loadServerConfig(options: LoadOptions): ServerConfig {
       notifyBulkStateMax: c.NOTIFY_BULK_STATE_MAX,
       notifyDeadlinesBatchMax: c.NOTIFY_DEADLINES_BATCH_MAX,
       notifyFactsMaxBytes: c.NOTIFY_FACTS_MAX_BYTES,
+      documentBodyMaxBytes: c.DOCUMENT_BODY_MAX_BYTES,
+      documentBlocksMax: c.DOCUMENT_BLOCKS_MAX,
+      documentBlockTextMaxChars: c.DOCUMENT_BLOCK_TEXT_MAX_CHARS,
+      documentTableCellsMax: c.DOCUMENT_TABLE_CELLS_MAX,
+      documentDepthMax: c.DOCUMENT_DEPTH_MAX,
+      documentChildrenMax: c.DOCUMENT_CHILDREN_MAX,
+      documentTreeMax: c.DOCUMENT_TREE_MAX,
+      documentVersionsMax: c.DOCUMENT_VERSIONS_MAX,
+      documentReferencesMax: c.DOCUMENT_REFERENCES_MAX,
+      documentSuggestionsOpenMax: c.DOCUMENT_SUGGESTIONS_OPEN_MAX,
+      documentExportPagesMax: c.DOCUMENT_EXPORT_PAGES_MAX,
+      documentExportMaxBytes: c.DOCUMENT_EXPORT_MAX_BYTES,
+      documentReviewHorizonDays: c.DOCUMENT_REVIEW_HORIZON_DAYS,
+      documentSaveRatePerMinute: c.DOCUMENT_SAVE_RATE_PER_MINUTE,
+      documentEmbedUrlMaxChars: c.DOCUMENT_EMBED_URL_MAX_CHARS,
     },
     identity: {
       publicOrigin,

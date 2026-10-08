@@ -246,6 +246,36 @@ export interface WorkSettings {
   notifyDeadlinesBatchMax: number;
   /** `NOTIFY_FACTS_MAX_BYTES` */
   notifyFactsMaxBytes: number;
+  /** `DOCUMENT_BODY_MAX_BYTES` */
+  documentBodyMaxBytes: number;
+  /** `DOCUMENT_BLOCKS_MAX` */
+  documentBlocksMax: number;
+  /** `DOCUMENT_BLOCK_TEXT_MAX_CHARS` */
+  documentBlockTextMaxChars: number;
+  /** `DOCUMENT_TABLE_CELLS_MAX` */
+  documentTableCellsMax: number;
+  /** `DOCUMENT_DEPTH_MAX` */
+  documentDepthMax: number;
+  /** `DOCUMENT_CHILDREN_MAX` */
+  documentChildrenMax: number;
+  /** `DOCUMENT_TREE_MAX` */
+  documentTreeMax: number;
+  /** `DOCUMENT_VERSIONS_MAX` */
+  documentVersionsMax: number;
+  /** `DOCUMENT_REFERENCES_MAX` */
+  documentReferencesMax: number;
+  /** `DOCUMENT_SUGGESTIONS_OPEN_MAX` */
+  documentSuggestionsOpenMax: number;
+  /** `DOCUMENT_EXPORT_PAGES_MAX` */
+  documentExportPagesMax: number;
+  /** `DOCUMENT_EXPORT_MAX_BYTES` */
+  documentExportMaxBytes: number;
+  /** `DOCUMENT_REVIEW_HORIZON_DAYS` */
+  documentReviewHorizonDays: number;
+  /** `DOCUMENT_SAVE_RATE_PER_MINUTE` */
+  documentSaveRatePerMinute: number;
+  /** `DOCUMENT_EMBED_URL_MAX_CHARS` */
+  documentEmbedUrlMaxChars: number;
 }
 
 export const DEFAULT_WORK_SETTINGS: WorkSettings = Object.freeze({
@@ -361,6 +391,21 @@ export const DEFAULT_WORK_SETTINGS: WorkSettings = Object.freeze({
   notifyBulkStateMax: 200,
   notifyDeadlinesBatchMax: 500,
   notifyFactsMaxBytes: 1_024,
+  documentBodyMaxBytes: 262_144,
+  documentBlocksMax: 2000,
+  documentBlockTextMaxChars: 20_000,
+  documentTableCellsMax: 1000,
+  documentDepthMax: 6,
+  documentChildrenMax: 200,
+  documentTreeMax: 1000,
+  documentVersionsMax: 1000,
+  documentReferencesMax: 500,
+  documentSuggestionsOpenMax: 100,
+  documentExportPagesMax: 100,
+  documentExportMaxBytes: 5_242_880,
+  documentReviewHorizonDays: 730,
+  documentSaveRatePerMinute: 60,
+  documentEmbedUrlMaxChars: 2048,
 });
 
 /** The database invariant behind `TASK_DEPTH_MAX` (migration 0023). */

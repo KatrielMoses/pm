@@ -14,6 +14,8 @@ export const SHAREABLE_RECORD_TYPES: ReadonlyMap<string, readonly ShareLevel[]> 
   ['project', ['read', 'comment', 'edit'] as const],
   // 2B (0C AZ-22): the task record, its checklist, and its own criteria only.
   ['task', ['read', 'comment', 'edit'] as const],
+  // 4C (0C AZ-33): the document record and its own versions, suggestions, and comments only.
+  ['document', ['read', 'comment', 'edit'] as const],
 ]);
 
 /** Share levels a record type supports, or null when it is not shareable. */

@@ -12,6 +12,8 @@ import {
   VerifyConfirmPage,
   VerifyEmailPage,
 } from './pages/auth-pages.tsx';
+import { DocumentPage } from './pages/document-pages.tsx';
+import { KnowledgePage } from './pages/knowledge-pages.tsx';
 import { NotificationCentrePage, NotificationSettingsPage } from './pages/notify-pages.tsx';
 import { LifecycleHarnessPage } from './pages/harness.tsx';
 import {
@@ -114,7 +116,8 @@ export const ROUTE_COMPONENTS: Record<string, Render> = {
   capacity: (p) => <CapacityPage key={p.ws} ws={p.ws!} />,
   task: (p) => <TaskPage key={p.tsk} ws={p.ws!} tsk={p.tsk!} />,
   calendar: (p) => <CalendarPage key={p.ws} ws={p.ws!} />,
-  knowledge: destination('knowledge'),
+  knowledge: (p) => <KnowledgePage key={p.ws} ws={p.ws!} />,
+  document: (p) => <DocumentPage key={p.doc} ws={p.ws!} doc={p.doc!} />,
   goals: destination('goals'),
   reports: destination('reports'),
   shared: (p) => <SharedWithMePage key={p.ws} ws={p.ws!} />,

@@ -22,7 +22,7 @@ import { day, explain, Problem, when, type Explained } from './shared.tsx';
  * record's version changes so a stale review is noticed. Share-only people see only what they may.
  */
 
-type Kind = 'task' | 'project';
+type Kind = 'task' | 'project' | 'document';
 
 export function CollaborationSections({
   ws,
@@ -32,6 +32,8 @@ export function CollaborationSections({
   archived,
   sharedOnly,
   onRecordChanged,
+  commentsFirst = false,
+  commentsNote,
 }: {
   ws: string;
   rec: string;
@@ -43,6 +45,9 @@ export function CollaborationSections({
   sharedOnly: boolean;
   /** Called after something that changes the record itself (a hand-over). */
   onRecordChanged: () => void;
+  /** Documents (4C): comments, then reviews, then following. */
+  commentsFirst?: boolean;
+  commentsNote?: string;
 }) {
   const [summary, setSummary] = useState<CollaborationSummary | null>(null);
   const [failed, setFailed] = useState<unknown>(null);
@@ -94,22 +99,45 @@ export function CollaborationSections({
   }
   const caps = summary.capabilities;
   const showReviews = caps.request_review || !!summary.review;
+  const follow = (
+    <FollowCard ws={ws} rec={rec} kind={kind} summary={summary} onSummary={setSummary} />
+  );
+  const reviews = showReviews ? (
+    <ReviewsPanel
+      ws={ws}
+      rec={rec}
+      noun={kind}
+      subjectVersion={version}
+      archived={archived}
+      review={summary.review ?? null}
+      canRequest={caps.request_review}
+      onReview={(r: ReviewRequest) => setSummary({ ...summary, review: r })}
+      onStale={() => setNonce((n) => n + 1)}
+    />
+  ) : null;
+  const comments = (
+    <CommentsPanel
+      ws={ws}
+      rec={rec}
+      canComment={caps.comment}
+      archived={archived}
+      canMention={!sharedOnly}
+      noun={kind}
+      {...(commentsNote ? { note: commentsNote } : {})}
+    />
+  );
+  if (commentsFirst)
+    return (
+      <>
+        {comments}
+        {reviews}
+        {follow}
+      </>
+    );
   return (
     <>
-      <FollowCard ws={ws} rec={rec} kind={kind} summary={summary} onSummary={setSummary} />
-      {showReviews ? (
-        <ReviewsPanel
-          ws={ws}
-          rec={rec}
-          noun={kind}
-          subjectVersion={version}
-          archived={archived}
-          review={summary.review ?? null}
-          canRequest={caps.request_review}
-          onReview={(r: ReviewRequest) => setSummary({ ...summary, review: r })}
-          onStale={() => setNonce((n) => n + 1)}
-        />
-      ) : null}
+      {follow}
+      {reviews}
       {kind === 'task' && !sharedOnly ? (
         <AssignmentSection
           ws={ws}
@@ -119,14 +147,7 @@ export function CollaborationSections({
           onRecordChanged={onRecordChanged}
         />
       ) : null}
-      <CommentsPanel
-        ws={ws}
-        rec={rec}
-        canComment={caps.comment}
-        archived={archived}
-        canMention={!sharedOnly}
-        noun={kind}
-      />
+      {comments}
     </>
   );
 }

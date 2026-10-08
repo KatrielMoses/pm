@@ -22,6 +22,7 @@ import { CapacityService } from '../capacity/capacity-service.ts';
 import type { LoadedProject } from '../service.ts';
 import type { LoadedTask } from '../task-core.ts';
 import { isPublic } from '../validation.ts';
+import { recordJoins, recordProject, recordTitle } from './record-sql.ts';
 import { withinEditWindow, type CollabHostKind, type Reaction } from './semantics.ts';
 import {
   parseCommentCreate,
@@ -43,7 +44,8 @@ export interface CollabHost {
   id: string;
   publicId: string;
   title: string;
-  brand: BrandFacts & { publicId: string; name: string };
+  /** Null for a workspace-level record (a document that belongs to no brand). */
+  brand: (BrandFacts & { publicId: string; name: string }) | null;
   chain: ProjectChain;
   lifecycleState: 'active' | 'archived' | 'trashed' | 'purged';
   level: Level;
@@ -56,8 +58,10 @@ export interface CollabHost {
     opts?: { shares?: boolean; excluded?: 'not_found' | 'forbidden' },
   ): void;
   allows(action: ActionKey, opts?: { shares?: boolean }): boolean;
-  /** The SQL that joins the host row's own table, for visibility predicates. */
+  /** The governing project column, for visibility predicates (alias `r` is the envelope). */
   projectOf: ReturnType<typeof sql>;
+  /** The joins that make `projectOf` available after `FROM core.record r`. */
+  joinSql: ReturnType<typeof sql>;
   /** For tasks: the task row (assignees, delegation). */
   task: LoadedTask | null;
 }
@@ -216,6 +220,7 @@ export class CommentService extends CapacityService {
         decide: (action, o = {}) => this.requireTaskAction(p, action, t, o),
         allows: (action, o = {}) => this.taskAllows(p, action, t, o),
         projectOf: sql`t.project_id`,
+        joinSql: sql`JOIN work.task t ON t.workspace_id = r.workspace_id AND t.id = r.id`,
         task: t,
       };
     }
@@ -235,12 +240,25 @@ export class CommentService extends CapacityService {
         decide: (action, o = {}) => this.requireProjectAction(p, action, pr, o),
         allows: (action, o = {}) => this.projectAllows(p, action, pr, o),
         projectOf: sql`w.id`,
+        joinSql: sql`JOIN work.project w ON w.workspace_id = r.workspace_id AND w.id = r.id`,
         task: null,
       };
     }
+    const extra = await this.loadExtraHost(tx, p, rec, opts);
+    if (extra) return extra;
     // Unsupported record types and malformed identifiers: the same statements as a missing task.
     await this.loadTask(tx, p, NIL_TASK).catch(() => undefined);
     throw new TenancyError('not_found');
+  }
+
+  /** Hosts registered by later phases (documents, 4C); null when `rec` is not one of theirs. */
+  protected loadExtraHost(
+    _tx: WorkspaceTransaction,
+    _p: Principal,
+    _rec: unknown,
+    _opts: { lock?: boolean },
+  ): Promise<CollabHost | null> {
+    return Promise.resolve(null);
   }
 
   protected taskAllows(
@@ -286,13 +304,8 @@ export class CommentService extends CapacityService {
       includeArchived: true,
       arrayMax: this.c.settings.principalContextArrayMax,
     });
-    const own = host.kind === 'task' ? sql`work.task t` : sql`work.project w`;
-    const join =
-      host.kind === 'task'
-        ? sql`t.workspace_id = r.workspace_id AND t.id = r.id`
-        : sql`w.workspace_id = r.workspace_id AND w.id = r.id`;
     const res = await sql<{ ok: number }>`
-      SELECT 1 AS ok FROM core.record r JOIN ${own} ON ${join}
+      SELECT 1 AS ok FROM core.record r ${host.joinSql}
        WHERE r.id = ${host.id} AND ${vis.where('r', { project: host.projectOf })}`.execute(tx.db);
     return res.rows.length > 0;
   }
@@ -550,14 +563,11 @@ export class CommentService extends CapacityService {
       vis && recordIds.length
         ? (
             await sql<{ id: string; public_id: string; title: string }>`
-              SELECT r.id, r.public_id, COALESCE(t.title, w.name) AS title
+              SELECT r.id, r.public_id, ${recordTitle} AS title
                 FROM core.record r
-                LEFT JOIN work.task t ON t.workspace_id = r.workspace_id AND t.id = r.id
-                LEFT JOIN work.project w ON w.workspace_id = r.workspace_id AND w.id = r.id
+                ${recordJoins}
                WHERE r.id = ANY(${recordIds}::uuid[])
-                 AND ${vis.where('r', { project: sql`COALESCE(t.project_id, w.id)` })}`.execute(
-              tx.db,
-            )
+                 AND ${vis.where('r', { project: recordProject })}`.execute(tx.db)
           ).rows.map((r) => [r.id, r])
         : [],
     );
@@ -661,10 +671,9 @@ export class CommentService extends CapacityService {
         const rec = (
           await sql<{ id: string; public_id: string }>`
             SELECT r.id, r.public_id FROM core.record r
-              LEFT JOIN work.task t ON t.workspace_id = r.workspace_id AND t.id = r.id
-              LEFT JOIN work.project w ON w.workspace_id = r.workspace_id AND w.id = r.id
-             WHERE r.public_id = ${m.id} AND r.record_type IN ('task', 'project')
-               AND ${vis.where('r', { project: sql`COALESCE(t.project_id, w.id)` })}`.execute(tx.db)
+              ${recordJoins}
+             WHERE r.public_id = ${m.id} AND r.record_type IN ('task', 'project', 'document')
+               AND ${vis.where('r', { project: recordProject })}`.execute(tx.db)
         ).rows[0];
         if (!may || !rec) refuse(i);
         else
@@ -758,7 +767,7 @@ export class CommentService extends CapacityService {
         'relations.mention.created',
         { type: 'relations.mention', id: a.id, sequence: 0 },
         { source_kind: 'comment', target_kind: a.kind, target_id: a.targetId },
-        host.brand.id,
+        host.brand?.id ?? null,
       );
   }
 
@@ -1050,7 +1059,7 @@ export class CommentService extends CapacityService {
               root_comment_id: root?.id ?? null,
               mention_ids: added.map((a) => a.id).join(',') || null,
             },
-            host.brand.id,
+            host.brand?.id ?? null,
           );
           await this.emitMentions(tx, caller, p, host, added);
           return {
@@ -1095,7 +1104,7 @@ export class CommentService extends CapacityService {
       action,
       { recordId: host.id, type: host.kind, publicId: host.publicId },
       changes,
-      host.brand.id,
+      host.brand?.id ?? null,
     );
   }
 
@@ -1176,7 +1185,7 @@ export class CommentService extends CapacityService {
               'collab.comment.edited',
               { type: 'collab.comment', id: row.id, sequence: row.version + 1 },
               { host_record_id: host.id, edit_count: row.edit_count + (changed ? 1 : 0) },
-              host.brand.id,
+              host.brand?.id ?? null,
             );
             await this.emitMentions(tx, caller, p, host, added);
           }
@@ -1288,7 +1297,7 @@ export class CommentService extends CapacityService {
             'collab.comment.deleted',
             { type: 'collab.comment', id: row.id, sequence: row.version + 1 },
             { host_record_id: host.id, deleted_by: kind },
-            host.brand.id,
+            host.brand?.id ?? null,
           );
           return {
             status: 200,
@@ -1362,7 +1371,7 @@ export class CommentService extends CapacityService {
               'collab.comment.reaction_changed',
               { type: 'collab.comment', id: row.id, sequence: row.version },
               { host_record_id: host.id, reaction, change: on ? 'added' : 'removed' },
-              host.brand.id,
+              host.brand?.id ?? null,
             );
           return {
             status: 200,
@@ -1431,15 +1440,12 @@ export class CommentService extends CapacityService {
       if (out.length < max && needle) {
         const vis = await this.taskVisibility(tx, p, false);
         const recs = await sql<{ public_id: string; title: string }>`
-          SELECT r.public_id, COALESCE(t.title, w.name) AS title FROM core.record r
-            LEFT JOIN work.task t ON t.workspace_id = r.workspace_id AND t.id = r.id
-            LEFT JOIN work.project w ON w.workspace_id = r.workspace_id AND w.id = r.id
-           WHERE r.workspace_id = ${tx.workspaceId} AND r.record_type IN ('task', 'project')
-             AND lower(COALESCE(t.title, w.name)) LIKE ${like} ESCAPE '\\'
-             AND ${vis.where('r', { project: sql`COALESCE(t.project_id, w.id)` })}
-           ORDER BY lower(COALESCE(t.title, w.name)), r.id LIMIT ${max - out.length}`.execute(
-          tx.db,
-        );
+          SELECT r.public_id, ${recordTitle} AS title FROM core.record r
+            ${recordJoins}
+           WHERE r.workspace_id = ${tx.workspaceId} AND r.record_type IN ('task', 'project', 'document')
+             AND lower(${recordTitle}) LIKE ${like} ESCAPE '\\'
+             AND ${vis.where('r', { project: recordProject })}
+           ORDER BY lower(${recordTitle}), r.id LIMIT ${max - out.length}`.execute(tx.db);
         for (const r of recs.rows) out.push({ kind: 'record', id: r.public_id, name: r.title });
       }
       return { data: out };
@@ -1542,7 +1548,7 @@ export class CommentService extends CapacityService {
               on ? 'relations.follow.added' : 'relations.follow.removed',
               { type: 'relations.follower', id: host.id, sequence: 0 },
               { record_type: host.kind, membership_id: p.membershipId },
-              host.brand.id,
+              host.brand?.id ?? null,
             );
           return {
             status: 200,
@@ -1596,8 +1602,8 @@ export class CommentService extends CapacityService {
    */
   async following(caller: Caller, ws: unknown, query: Record<string, unknown>) {
     const q = parseCursorQuery(query, ['type']);
-    if (q.type !== undefined && q.type !== 'task' && q.type !== 'project')
-      throw invalid(issue('/type', 'invalid_option', 'Choose tasks or projects.'));
+    if (q.type !== undefined && q.type !== 'task' && q.type !== 'project' && q.type !== 'document')
+      throw invalid(issue('/type', 'invalid_option', 'Choose tasks, projects, or documents.'));
     return this.tracked('collab.follows', 'list', () =>
       this.inWorkspace(caller, ws, { readOnly: true }, async (tx, p) => {
         const limit = this.pageLimit(q.limit);
@@ -1617,18 +1623,17 @@ export class CommentService extends CapacityService {
             followed_at: Date;
             cursor_at: string;
             fid: string;
-          }>`SELECT r.id, r.public_id, r.record_type, COALESCE(t.title, w.name) AS title,
+          }>`SELECT r.id, r.public_id, r.record_type, ${recordTitle} AS title,
                     COALESCE(t.status_category, w.status_category) AS status_category,
-                    COALESCE(t.due_date, w.target_date)::text AS due, r.brand_id, r.lifecycle_state,
+                    COALESCE(t.due_date, w.target_date, kd.review_due_on)::text AS due, r.brand_id, r.lifecycle_state,
                     f.created_at AS followed_at, ${cursorAt('f.created_at')} AS cursor_at, r.id AS fid
                FROM relations.follower f
                JOIN core.record r ON r.workspace_id = f.workspace_id AND r.id = f.record_id
-               LEFT JOIN work.task t ON t.workspace_id = r.workspace_id AND t.id = r.id
-               LEFT JOIN work.project w ON w.workspace_id = r.workspace_id AND w.id = r.id
+               ${recordJoins}
               WHERE f.workspace_id = ${tx.workspaceId} AND f.membership_id = ${p.membershipId}
-                AND r.record_type IN ('task', 'project')
+                AND r.record_type IN ('task', 'project', 'document')
                 ${q.type ? sql`AND r.record_type = ${q.type}` : sql``}
-                AND ${vis.where('r', { project: sql`COALESCE(t.project_id, w.id)` })}
+                AND ${vis.where('r', { project: recordProject })}
                 ${after ? sql`AND (f.created_at, r.id) < (${after.at}::timestamptz, ${after.id}::uuid)` : sql``}
               ORDER BY f.created_at DESC, r.id DESC LIMIT ${limit + 1}`.execute(tx.db)
         ).rows;

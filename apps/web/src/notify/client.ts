@@ -78,7 +78,12 @@ export interface NotificationItem {
   version: number;
   available: boolean;
   summary: string;
-  record: { id: string; type: 'task' | 'project'; title: string; archived: boolean } | null;
+  record: {
+    id: string;
+    type: 'task' | 'project' | 'document';
+    title: string;
+    archived: boolean;
+  } | null;
   brand: {
     id: string;
     name: string;

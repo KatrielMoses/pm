@@ -1,3 +1,4 @@
+import { recordJoins, recordProject } from '../collab/record-sql.ts';
 import { change } from '@pm/audit';
 import { newUuidV7 } from '@pm/contracts';
 import { sql, type WorkspaceTransaction } from '@pm/db';
@@ -493,10 +494,9 @@ export class NotificationService extends ReviewService {
     });
     const r = await sql<{ id: string; record_type: string }>`
       SELECT r.id, r.record_type FROM core.record r
-        LEFT JOIN work.task t ON t.workspace_id = r.workspace_id AND t.id = r.id
-        LEFT JOIN work.project w ON w.workspace_id = r.workspace_id AND w.id = r.id
-       WHERE r.public_id = ${scope} AND r.record_type IN ('brand', 'project', 'task')
-         AND ${vis.where('r', { project: sql`COALESCE(t.project_id, w.id)` })}`.execute(tx.db);
+        ${recordJoins}
+       WHERE r.public_id = ${scope} AND r.record_type IN ('brand', 'project', 'task', 'document')
+         AND ${vis.where('r', { project: recordProject })}`.execute(tx.db);
     const row = r.rows[0];
     // Unknown and unreadable scopes are one answer.
     if (!row)
@@ -504,8 +504,9 @@ export class NotificationService extends ReviewService {
         issue('/scope', 'invalid_reference', 'Choose a brand, project, or task you can open.'),
       );
     return {
-      kind: (row.record_type === 'task' ? 'record' : row.record_type) as
-        'brand' | 'project' | 'record',
+      kind: (row.record_type === 'task' || row.record_type === 'document'
+        ? 'record'
+        : row.record_type) as 'brand' | 'project' | 'record',
       id: row.id,
       brand: null,
     };
@@ -527,11 +528,12 @@ export class NotificationService extends ReviewService {
         expires_at: Date | null;
         version: string;
       }>`SELECT pr.event_type, pr.scope_kind, rr.public_id AS scope_public,
-               COALESCE(t.title, w.name, b.name) AS scope_name, pr.channel, pr.mode, pr.expires_at, pr.version
+               COALESCE(t.title, w.name, kd.title, b.name) AS scope_name, pr.channel, pr.mode, pr.expires_at, pr.version
           FROM notify.preference pr
           LEFT JOIN core.record rr ON rr.workspace_id = pr.workspace_id AND rr.id = pr.scope_record_id
           LEFT JOIN work.task t ON t.workspace_id = rr.workspace_id AND t.id = rr.id
           LEFT JOIN work.project w ON w.workspace_id = rr.workspace_id AND w.id = rr.id
+          LEFT JOIN knowledge.document kd ON kd.workspace_id = rr.workspace_id AND kd.id = rr.id
           LEFT JOIN tenancy.brand b ON b.workspace_id = rr.workspace_id AND b.id = rr.id
          WHERE pr.membership_id = ${p.membershipId}
          ORDER BY pr.scope_kind, pr.event_type, pr.channel, pr.id`.execute(tx.db);
@@ -545,10 +547,9 @@ export class NotificationService extends ReviewService {
         (
           await sql<{ public_id: string }>`
             SELECT r.public_id FROM core.record r
-              LEFT JOIN work.task t ON t.workspace_id = r.workspace_id AND t.id = r.id
-              LEFT JOIN work.project w ON w.workspace_id = r.workspace_id AND w.id = r.id
+              ${recordJoins}
              WHERE r.public_id = ANY(${rows.rows.flatMap((r) => (r.scope_public ? [r.scope_public] : []))}::text[])
-               AND ${vis.where('r', { project: sql`COALESCE(t.project_id, w.id)` })}`.execute(tx.db)
+               AND ${vis.where('r', { project: recordProject })}`.execute(tx.db)
         ).rows.map((r) => r.public_id),
       );
       return {

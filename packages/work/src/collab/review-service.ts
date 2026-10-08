@@ -1,3 +1,4 @@
+import { recordJoins, recordProject, recordTitle } from './record-sql.ts';
 import { change } from '@pm/audit';
 import { newPublicId, newUuidV7 } from '@pm/contracts';
 import { sql, type WorkspaceTransaction } from '@pm/db';
@@ -33,7 +34,7 @@ interface ReviewRow {
   id: string;
   public_id: string;
   subject_record_id: string;
-  subject_kind: 'task' | 'project';
+  subject_kind: 'task' | 'project' | 'document';
   subject_version: number;
   kind: 'review' | 'approval';
   rule: ReviewRule;
@@ -156,9 +157,8 @@ export class ReviewService extends CommentService {
 
   protected async currentVersion(tx: WorkspaceTransaction, subject: string): Promise<number> {
     const r = await sql<{ version: string }>`
-      SELECT COALESCE(t.version, w.version) AS version FROM core.record r
-        LEFT JOIN work.task t ON t.workspace_id = r.workspace_id AND t.id = r.id
-        LEFT JOIN work.project w ON w.workspace_id = r.workspace_id AND w.id = r.id
+      SELECT COALESCE(t.version, w.version, kd.current_version_number) AS version FROM core.record r
+        ${recordJoins}
        WHERE r.id = ${subject}`.execute(tx.db);
     return Number(r.rows[0]?.version ?? 0);
   }
@@ -359,7 +359,7 @@ export class ReviewService extends CommentService {
                    q.rule, q.state, q.requested_by_membership_id, q.message_text, q.previous_request_id,
                    q.closed_reason, q.settled_at, q.created_at, q.version, r.public_id AS subject_public,
                    r.record_type AS subject_record_type, r.brand_id, ${cursorAt('q.created_at')} AS cursor_at,
-                   COALESCE(t.title, w.name) AS title, COALESCE(t.version, w.version) AS current_version,
+                   ${recordTitle} AS title, COALESCE(t.version, w.version, kd.current_version_number) AS current_version,
                    ${
                      role === 'reviewer'
                        ? sql`(SELECT d.outcome FROM collab.review_decision d WHERE d.workspace_id = q.workspace_id
@@ -368,8 +368,7 @@ export class ReviewService extends CommentService {
                    }
               FROM collab.review_request q
               JOIN core.record r ON r.workspace_id = q.workspace_id AND r.id = q.subject_record_id
-              LEFT JOIN work.task t ON t.workspace_id = r.workspace_id AND t.id = r.id
-              LEFT JOIN work.project w ON w.workspace_id = r.workspace_id AND w.id = r.id
+              ${recordJoins}
              WHERE q.workspace_id = ${tx.workspaceId}
                ${
                  role === 'reviewer'
@@ -378,7 +377,7 @@ export class ReviewService extends CommentService {
                    : sql`AND q.requested_by_membership_id = ${p.membershipId}`
                }
                ${state === 'open' ? sql`AND q.state = 'requested'` : state === 'settled' ? sql`AND q.state <> 'requested'` : sql``}
-               AND ${vis.where('r', { project: sql`COALESCE(t.project_id, w.id)` })}
+               AND ${vis.where('r', { project: recordProject })}
                ${after ? sql`AND (q.created_at, q.id) < (${after.at}::timestamptz, ${after.id}::uuid)` : sql``}
              ORDER BY q.created_at DESC, q.id DESC LIMIT ${limit + 1}`.execute(tx.db)
         ).rows;
@@ -582,7 +581,7 @@ export class ReviewService extends CommentService {
         reviewer_rule: input.rule,
         request_kind: input.kind,
       },
-      host.brand.id,
+      host.brand?.id ?? null,
     );
     return { id, publicId };
   }
@@ -755,7 +754,7 @@ export class ReviewService extends CommentService {
               subject_ref: host.id,
               review_state: next,
             },
-            host.brand.id,
+            host.brand?.id ?? null,
           );
           return {
             status: 200,
@@ -812,7 +811,7 @@ export class ReviewService extends CommentService {
             'collab.review.withdrawn',
             { type: 'collab.review_request', id: row.id, sequence: row.version + 1 },
             { subject_kind: host.kind, subject_ref: host.id, reason: 'requester' },
-            host.brand.id,
+            host.brand?.id ?? null,
           );
           return {
             status: 200,
@@ -919,7 +918,7 @@ export class ReviewService extends CommentService {
               'collab.review.superseded',
               { type: 'collab.review_request', id: row.id, sequence: row.version + 1 },
               { subject_kind: host.kind, subject_ref: host.id, successor_ref: made.id },
-              host.brand.id,
+              host.brand?.id ?? null,
             );
           return {
             status: 201,

@@ -25,7 +25,8 @@ import {
   taskAssigneeHook,
   taskTargets,
   savedViewTargets,
-  NotificationService,
+  KnowledgeService,
+  documentOwnerHook,
   reviewDepartureHook,
   departureTimerHook,
   type WorkSettings,
@@ -48,7 +49,7 @@ export {
 
 export interface WorkEnv {
   h: Harness;
-  svc: NotificationService;
+  svc: KnowledgeService;
   stepUp: StubStepUp;
   lifecycle: LifecycleService;
   tokenFor(email: string): Promise<string>;
@@ -63,6 +64,7 @@ export function workEnv(
     captureRate?: number;
     intakeRate?: number;
     commentRate?: number;
+    documentRate?: number;
     emailState?: 'configured' | 'capture' | 'unconfigured';
   } = {},
 ): WorkEnv {
@@ -96,7 +98,7 @@ export function workEnv(
     createStepUpChallenge: stepUp.createStepUpChallenge,
   };
   const arrayMax = options.arrayMax ?? 10_000;
-  const svc = new NotificationService({
+  const svc = new KnowledgeService({
     notify: { emailState: options.emailState ?? 'capture' },
     tenant: h.app,
     platform: h.platform,
@@ -108,6 +110,7 @@ export function workEnv(
     ownership: defaultOwnershipRegistry()
       .register(projectOwnerHook)
       .register(taskAssigneeHook)
+      .register(documentOwnerHook)
       .register(reviewDepartureHook(writer))
       .register(departureTimerHook(writer)),
     limiter: new PostgresRateLimiter(h.platform, randomBytes(32), {
@@ -117,6 +120,7 @@ export function workEnv(
       'capture.member': { limit: options.captureRate ?? 10_000, windowMs: 60_000 },
       'intake.submit': { limit: options.intakeRate ?? 10_000, windowMs: 3_600_000 },
       'comment.member': { limit: options.commentRate ?? 10_000, windowMs: 60_000 },
+      'document.save': { limit: options.documentRate ?? 10_000, windowMs: 60_000 },
     }),
     signingKey: randomBytes(32),
     settings: {

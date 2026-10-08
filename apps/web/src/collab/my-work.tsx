@@ -9,13 +9,18 @@ import { day, explain, Problem, STATUS_CATEGORY_LABEL, type Explained } from './
 /** My Work → Following and Reviews (4A). Both are plain lists over the viewer's own rows. */
 
 const recordHref = (ws: string, type: string, id: string) =>
-  type === 'project' ? routeHref('project', { ws, prj: id }) : routeHref('task', { ws, tsk: id });
+  type === 'project'
+    ? routeHref('project', { ws, prj: id })
+    : type === 'document'
+      ? routeHref('document', { ws, doc: id })
+      : routeHref('task', { ws, tsk: id });
 
-type Filter = 'all' | 'task' | 'project';
+type Filter = 'all' | 'task' | 'project' | 'document';
 const FILTERS: Array<[Filter, string]> = [
   ['all', 'All'],
   ['task', 'Tasks'],
   ['project', 'Projects'],
+  ['document', 'Documents'],
 ];
 
 /** The shared "first page, then Load more by cursor" state of both lists. */
@@ -159,8 +164,8 @@ export function FollowingTab({ ws }: { ws: string }) {
       {list.status === 'ready' && !list.rows.length ? (
         <p>
           {filter === 'all'
-            ? "You aren't following anything yet. Open a task or project and choose Follow to keep it here."
-            : `You aren't following any ${filter === 'task' ? 'tasks' : 'projects'} yet. Open one and choose Follow to keep it here.`}
+            ? "You aren't following anything yet. Open a task, project, or document and choose Follow to keep it here."
+            : `You aren't following any ${filter === 'task' ? 'tasks' : filter === 'project' ? 'projects' : 'documents'} yet. Open one and choose Follow to keep it here.`}
         </p>
       ) : null}
       {list.rows.length ? (
@@ -170,7 +175,9 @@ export function FollowingTab({ ws }: { ws: string }) {
               <Link className="record-link" to={recordHref(ws, r.type, r.id)}>
                 {r.title}
               </Link>{' '}
-              <span className="badge">{r.type === 'project' ? 'Project' : 'Task'}</span>
+              <span className="badge">
+                {r.type === 'project' ? 'Project' : r.type === 'document' ? 'Document' : 'Task'}
+              </span>
               {r.archived ? <span className="badge">Archived</span> : null}
               {r.brand ? <span className="badge">{r.brand.name}</span> : null}
               <span className="hint">

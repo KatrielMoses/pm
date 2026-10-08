@@ -114,6 +114,11 @@ describe('route registry (NAV-001, NAV-012)', () => {
     expect(matchRoute('/workspaces/ws_1/people/mem_X')?.def.id).toBe('person');
     expect(matchRoute('/workspaces/ws_1/my-work')?.def.id).toBe('my_work');
     expect(matchRoute('/workspaces/ws_1/brands/new')?.def.id).toBe('brand_new');
+    expect(matchRoute('/workspaces/ws_1/documents/doc_X')).toMatchObject({
+      def: { id: 'document', section: 'Knowledge' },
+      params: { ws: 'ws_1', doc: 'doc_X' },
+    });
+    expect(matchRoute('/workspaces/ws_1/knowledge')?.def.id).toBe('knowledge');
     expect(matchRoute('/workspaces/ws 1/home')).toBeNull();
     expect(routeHref('today', { ws: 'ws_1' }, { scope: 'all' })).toBe(
       '/workspaces/ws_1/today?scope=all',

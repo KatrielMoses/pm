@@ -133,7 +133,7 @@ export interface CollaborationSummary {
 
 export interface FollowingRow {
   id: string;
-  type: 'task' | 'project';
+  type: 'task' | 'project' | 'document';
   title: string;
   status_category: string;
   due: string | null;
@@ -273,7 +273,7 @@ export const collaboration = {
       )
     ).body.data;
   },
-  async following(ws: string, o: { type?: 'task' | 'project'; cursor?: string } = {}) {
+  async following(ws: string, o: { type?: 'task' | 'project' | 'document'; cursor?: string } = {}) {
     return (await api<Page<FollowingRow>>('GET', `${w(ws)}/me/following${qs({ limit: 25, ...o })}`))
       .body;
   },

@@ -74,7 +74,7 @@ interface AxeViolation {
   id: string;
   help: string;
   impact?: string | null;
-  nodes: unknown[];
+  nodes: Array<{ target?: unknown; any?: Array<{ message?: string }> }>;
 }
 
 /** Zero serious or critical axe violations (0E A11Y testing protocol). */
@@ -86,7 +86,10 @@ export async function expectAccessible(page: Page, label: string): Promise<void>
     (v) => v.impact === 'serious' || v.impact === 'critical',
   );
   expect(
-    blocking.map((v) => `${v.id}: ${v.help} (${v.nodes.length})`),
+    blocking.map(
+      (v) =>
+        `${v.id}: ${v.help} (${v.nodes.length}) first: ${JSON.stringify(v.nodes[0]?.target)} ${v.nodes[0]?.any?.[0]?.message ?? ''}`,
+    ),
     label,
   ).toEqual([]);
 }

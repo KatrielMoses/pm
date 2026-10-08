@@ -751,6 +751,14 @@
       "owner_module": "notify",
       "platform_only": false,
       "note": "Phase 4B (PL-34)."
+    },
+    {
+      "prefix": "dsg",
+      "resource": "document_suggestion",
+      "entity": "knowledge.document_suggestion",
+      "owner_module": "knowledge",
+      "platform_only": false,
+      "note": ""
     }
   ],
   "error_codes": [
@@ -1883,7 +1891,8 @@
       "schema_version": 1,
       "aggregate_entity": "knowledge.source_approval",
       "fields": [
-        "document_version_id"
+        "document_version_id",
+        "kind"
       ],
       "max_class": "C1",
       "consumers": {
@@ -4344,6 +4353,151 @@
       ],
       "allow_list_version": null,
       "delivery_authorization": null
+    },
+    {
+      "type": "knowledge.document.created",
+      "schema_version": 1,
+      "aggregate_entity": "knowledge.document",
+      "fields": [
+        "doc_type",
+        "parent_document_id",
+        "attached_kind"
+      ],
+      "max_class": "C1",
+      "consumers": {
+        "activity": true,
+        "notification": false,
+        "metrics": true,
+        "automation_trigger": false,
+        "search_index": false
+      },
+      "public_webhook": null,
+      "requirements": [
+        "DOC-001",
+        "DOC-002",
+        "DOC-003"
+      ],
+      "allow_list_version": null,
+      "delivery_authorization": null
+    },
+    {
+      "type": "knowledge.document.version_saved",
+      "schema_version": 1,
+      "aggregate_entity": "knowledge.document",
+      "fields": [
+        "version_number",
+        "kind",
+        "size_bytes"
+      ],
+      "max_class": "C1",
+      "consumers": {
+        "activity": true,
+        "notification": false,
+        "metrics": true,
+        "automation_trigger": false,
+        "search_index": false
+      },
+      "public_webhook": null,
+      "requirements": [
+        "DOC-013",
+        "DOC-014"
+      ],
+      "allow_list_version": null,
+      "delivery_authorization": null
+    },
+    {
+      "type": "knowledge.document.updated",
+      "schema_version": 1,
+      "aggregate_entity": "knowledge.document",
+      "fields": [
+        "change"
+      ],
+      "max_class": "C1",
+      "consumers": {
+        "activity": true,
+        "notification": false,
+        "metrics": true,
+        "automation_trigger": false,
+        "search_index": false
+      },
+      "public_webhook": null,
+      "requirements": [
+        "DOC-015",
+        "DOC-016",
+        "DOC-002"
+      ],
+      "allow_list_version": null,
+      "delivery_authorization": null
+    },
+    {
+      "type": "knowledge.document.mention_added",
+      "schema_version": 1,
+      "aggregate_entity": "knowledge.document",
+      "fields": [
+        "reference_id",
+        "block_id"
+      ],
+      "max_class": "C1",
+      "consumers": {
+        "activity": false,
+        "notification": true,
+        "metrics": true,
+        "automation_trigger": false,
+        "search_index": false
+      },
+      "public_webhook": null,
+      "requirements": [
+        "DOC-009"
+      ],
+      "allow_list_version": null,
+      "delivery_authorization": null
+    },
+    {
+      "type": "knowledge.document.suggestion_created",
+      "schema_version": 1,
+      "aggregate_entity": "knowledge.document_suggestion",
+      "fields": [
+        "document_id",
+        "block_id"
+      ],
+      "max_class": "C1",
+      "consumers": {
+        "activity": true,
+        "notification": false,
+        "metrics": true,
+        "automation_trigger": false,
+        "search_index": false
+      },
+      "public_webhook": null,
+      "requirements": [
+        "DOC-012"
+      ],
+      "allow_list_version": null,
+      "delivery_authorization": null
+    },
+    {
+      "type": "knowledge.document.suggestion_decided",
+      "schema_version": 1,
+      "aggregate_entity": "knowledge.document_suggestion",
+      "fields": [
+        "document_id",
+        "state",
+        "applied_version"
+      ],
+      "max_class": "C1",
+      "consumers": {
+        "activity": true,
+        "notification": false,
+        "metrics": true,
+        "automation_trigger": false,
+        "search_index": false
+      },
+      "public_webhook": null,
+      "requirements": [
+        "DOC-012"
+      ],
+      "allow_list_version": null,
+      "delivery_authorization": null
     }
   ],
   "scopes": [
@@ -5460,6 +5614,51 @@
         "outcome"
       ],
       "area": "notify"
+    },
+    {
+      "name": "knowledge.documents",
+      "type": "counter",
+      "labels": [
+        "action",
+        "outcome"
+      ],
+      "area": "knowledge"
+    },
+    {
+      "name": "knowledge.versions",
+      "type": "counter",
+      "labels": [
+        "action",
+        "outcome"
+      ],
+      "area": "knowledge"
+    },
+    {
+      "name": "knowledge.suggestions",
+      "type": "counter",
+      "labels": [
+        "action",
+        "outcome"
+      ],
+      "area": "knowledge"
+    },
+    {
+      "name": "knowledge.exports",
+      "type": "counter",
+      "labels": [
+        "format",
+        "outcome"
+      ],
+      "area": "knowledge"
+    },
+    {
+      "name": "knowledge.references",
+      "type": "counter",
+      "labels": [
+        "action",
+        "outcome"
+      ],
+      "area": "knowledge"
     }
   ],
   "forbidden_metric_labels": [
@@ -6238,6 +6437,81 @@
       "name": "NOTIFY_FACTS_MAX_BYTES",
       "meaning": "Largest facts object a notification stores (scalars only, never titles or text); default 1024, range 128–4096.",
       "owner": "4B"
+    },
+    {
+      "name": "DOCUMENT_BODY_MAX_BYTES",
+      "meaning": "Largest canonical content of one document version, in bytes; default 262144, range 4096–2000000.",
+      "owner": "4C"
+    },
+    {
+      "name": "DOCUMENT_BLOCKS_MAX",
+      "meaning": "Most blocks in one document; default 2000, range 10–5000.",
+      "owner": "4C"
+    },
+    {
+      "name": "DOCUMENT_BLOCK_TEXT_MAX_CHARS",
+      "meaning": "Longest text of one block; default 20000, range 100–50000.",
+      "owner": "4C"
+    },
+    {
+      "name": "DOCUMENT_TABLE_CELLS_MAX",
+      "meaning": "Most cells in one table block; default 1000, range 4–5000.",
+      "owner": "4C"
+    },
+    {
+      "name": "DOCUMENT_DEPTH_MAX",
+      "meaning": "Deepest page nesting (a root is depth 0); default 6, range 1–16.",
+      "owner": "4C"
+    },
+    {
+      "name": "DOCUMENT_CHILDREN_MAX",
+      "meaning": "Most direct subpages of one page; default 200, range 1–1000.",
+      "owner": "4C"
+    },
+    {
+      "name": "DOCUMENT_TREE_MAX",
+      "meaning": "Most pages in one page tree; default 1000, range 10–5000.",
+      "owner": "4C"
+    },
+    {
+      "name": "DOCUMENT_VERSIONS_MAX",
+      "meaning": "Most versions one document keeps; default 1000, range 10–10000.",
+      "owner": "4C"
+    },
+    {
+      "name": "DOCUMENT_REFERENCES_MAX",
+      "meaning": "Most links and mentions in one document; default 500, range 10–2000.",
+      "owner": "4C"
+    },
+    {
+      "name": "DOCUMENT_SUGGESTIONS_OPEN_MAX",
+      "meaning": "Most open suggestions on one document; default 100, range 1–500.",
+      "owner": "4C"
+    },
+    {
+      "name": "DOCUMENT_EXPORT_PAGES_MAX",
+      "meaning": "Most pages one export carries; default 100, range 1–500.",
+      "owner": "4C"
+    },
+    {
+      "name": "DOCUMENT_EXPORT_MAX_BYTES",
+      "meaning": "Largest export, in bytes; default 5242880, range 65536–52428800.",
+      "owner": "4C"
+    },
+    {
+      "name": "DOCUMENT_REVIEW_HORIZON_DAYS",
+      "meaning": "Furthest review date, in days from today; default 730, range 30–3650.",
+      "owner": "4C"
+    },
+    {
+      "name": "DOCUMENT_SAVE_RATE_PER_MINUTE",
+      "meaning": "Most content saves one person makes per minute; default 60, range 1–600.",
+      "owner": "4C"
+    },
+    {
+      "name": "DOCUMENT_EMBED_URL_MAX_CHARS",
+      "meaning": "Longest address of an embedded image, video, or link; default 2048, range 128–8192.",
+      "owner": "4C"
     }
   ],
   "sse_topics": [
