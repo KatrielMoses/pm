@@ -397,7 +397,6 @@ export class PortfolioService extends GoalService {
         async (tx, p) => {
           this.requireMemberKind(p);
           const f = await this.loadPortfolio(tx, p, portfolio, { lock: true });
-          this.requirePortfolioAction(p, 'record.update', f);
           if (f.lifecycleState !== 'active')
             throw new TenancyError('conflict', {
               issues: [
@@ -408,6 +407,7 @@ export class PortfolioService extends GoalService {
                 ),
               ],
             });
+          this.requirePortfolioAction(p, 'record.update', f);
           requireVersion(
             this.expectedVersion(req, input as { version: number | undefined }),
             Number(f.row.version),
@@ -502,7 +502,6 @@ export class PortfolioService extends GoalService {
         async (tx, p) => {
           this.requireMemberKind(p);
           const f = await this.loadPortfolio(tx, p, portfolio, { lock: true });
-          this.requirePortfolioAction(p, 'record.update', f);
           if (f.lifecycleState !== 'active')
             throw new TenancyError('conflict', {
               issues: [
@@ -513,6 +512,7 @@ export class PortfolioService extends GoalService {
                 ),
               ],
             });
+          this.requirePortfolioAction(p, 'record.update', f);
           requireVersion(this.expectedVersion(req, input), Number(f.row.version));
           const vis = await this.workVisibility(tx, p);
           const wanted = input.projects.length

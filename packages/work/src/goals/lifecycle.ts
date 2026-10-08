@@ -78,19 +78,10 @@ export const goalAdapter: RecordTypeAdapter = {
     async deleteContent(tx, recordIds) {
       const ids = [...recordIds];
       // Check-ins and links name the goal or its key results; they are its content. The latest
-      // check-in pointers and the check-ins reference each other, so both sides go here.
+      // check-in pointers and the check-ins reference each other through deferred keys, so both
+      // sides go in this transaction.
       await tx.db.deleteFrom('goals.goal_link').where('goal_id', 'in', ids).execute();
       await tx.db.deleteFrom('goals.goal_state').where('goal_id', 'in', ids).execute();
-      await tx.db
-        .updateTable('goals.key_result')
-        .set({ latest_checkin_id: null, latest_checkin_at: null })
-        .where('goal_id', 'in', ids)
-        .execute();
-      await tx.db
-        .updateTable('goals.goal')
-        .set({ latest_checkin_id: null, latest_checkin_at: null })
-        .where('id', 'in', ids)
-        .execute();
       await tx.db.deleteFrom('goals.goal_checkin').where('goal_id', 'in', ids).execute();
       await tx.db.deleteFrom('goals.key_result').where('goal_id', 'in', ids).execute();
       await tx.db.deleteFrom('goals.goal').where('id', 'in', ids).execute();
@@ -117,12 +108,8 @@ export const keyResultAdapter: RecordTypeAdapter = {
     async deleteContent(tx, recordIds) {
       const ids = [...recordIds];
       await tx.db.deleteFrom('goals.goal_link').where('key_result_id', 'in', ids).execute();
-      // A purge that reaches a key result alone removes its own check-ins (never a goal's).
-      await tx.db
-        .updateTable('goals.key_result')
-        .set({ latest_checkin_id: null, latest_checkin_at: null })
-        .where('id', 'in', ids)
-        .execute();
+      // A purge that reaches a key result alone removes its own check-ins (never a goal's); the
+      // deferred pointer keys are checked at commit, when the key result is gone too.
       await tx.db.deleteFrom('goals.goal_checkin').where('key_result_id', 'in', ids).execute();
       await tx.db.deleteFrom('goals.key_result').where('id', 'in', ids).execute();
     },

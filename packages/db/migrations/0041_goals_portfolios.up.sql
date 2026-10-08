@@ -470,7 +470,8 @@ CREATE POLICY tenant_isolation ON goals.portfolio_project
 REVOKE ALL ON goals.goal, goals.key_result, goals.goal_checkin, goals.goal_link, goals.goal_state,
   goals.portfolio, goals.portfolio_project FROM PUBLIC;
 GRANT SELECT, INSERT, UPDATE ON goals.goal, goals.key_result, goals.portfolio TO app_rw;
-GRANT SELECT, INSERT, DELETE ON goals.goal_link, goals.portfolio_project TO app_rw;
+GRANT SELECT, INSERT, DELETE ON goals.goal_link TO app_rw;
+GRANT SELECT, INSERT, UPDATE, DELETE ON goals.portfolio_project TO app_rw;
 GRANT SELECT, INSERT ON goals.goal_checkin TO app_rw;
 GRANT SELECT, INSERT, UPDATE ON goals.goal_state TO app_rw;
 -- The worker recalculates derived state and appends computed check-ins; purge deletes through it.

@@ -49,6 +49,12 @@ export async function recalcGoal(
   settings: RecalcSettings,
   now: Date,
 ): Promise<RecalcOutcome> {
+  // The goal's state row is the lock: a command that changes the goal marks it dirty through the same
+  // row, so a change that lands while this runs waits, then marks the state dirty again (never lost).
+  await sql`INSERT INTO goals.goal_state (workspace_id, goal_id) VALUES (${tx.workspaceId}, ${goalId})
+            ON CONFLICT (workspace_id, goal_id) DO NOTHING`.execute(tx.db);
+  await sql`SELECT 1 FROM goals.goal_state WHERE workspace_id = ${tx.workspaceId} AND goal_id = ${goalId}
+            FOR UPDATE`.execute(tx.db);
   const g = (
     await sql<{
       public_id: string;
@@ -70,7 +76,7 @@ export async function recalcGoal(
               g.current_value::text AS current_value, g.latest_percent::text AS latest_percent,
               g.latest_checkin_id, g.latest_checkin_at
          FROM goals.goal g JOIN core.record r ON r.workspace_id = g.workspace_id AND r.id = g.id
-        WHERE g.workspace_id = ${tx.workspaceId} AND g.id = ${goalId} FOR UPDATE OF g`.execute(
+        WHERE g.workspace_id = ${tx.workspaceId} AND g.id = ${goalId}`.execute(
       tx.db,
     )
   ).rows[0];
