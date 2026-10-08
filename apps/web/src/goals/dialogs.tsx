@@ -9,7 +9,6 @@ import { Dialog } from '../ui/dialog.tsx';
 import { Banner } from '../ui/feedback.tsx';
 import { ErrorSummary, Field, fieldErrorsFrom, SelectField, TextAreaField } from '../ui/form.tsx';
 import {
-  CONFIDENCE_LABEL,
   GOAL_STATUS_LABEL,
   GOAL_STATUSES,
   BASIS_LABEL,
@@ -23,7 +22,14 @@ import {
   type PeriodKind,
 } from './client.ts';
 import { useIdempotency, useMembers } from './hooks.ts';
-import { fmtNumber, parseNumber, ProblemLine, RadioGroup, useExplain } from './shared.tsx';
+import {
+  fmtNumber,
+  parseNumber,
+  ProblemLine,
+  RadioGroup,
+  useExplain,
+  type Explained,
+} from './shared.tsx';
 
 /** Dialogs for goals, key results, and links. Failed saves never clear what the person typed. */
 
@@ -1074,7 +1080,7 @@ export function ConfirmDialog({
   busy: boolean;
   onConfirm: () => void;
   onClose: () => void;
-  problem?: ReturnType<typeof useExplain> extends (...a: never[]) => infer R ? R | null : never;
+  problem?: Explained | null;
 }) {
   return (
     <Dialog title={title} destructive onClose={onClose}>
@@ -1092,4 +1098,3 @@ export function ConfirmDialog({
   );
 }
 
-export { CONFIDENCE_LABEL };

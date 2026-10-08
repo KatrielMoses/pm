@@ -220,12 +220,11 @@ export function CheckinForm({
 
 // ---- History ----------------------------------------------------------------------------------
 
-function describeCheckin(c: Checkin, krs: KeyResult[], metric: Metric): string {
+function describeCheckin(c: Checkin, krs: KeyResult[], goalMetric: Metric): string {
   const parts: string[] = [];
-  if (c.value !== null) parts.push(`Value ${c.value}${metric.unit ? ` ${metric.unit}` : ''}`);
+  const unit = c.key_result ? krs.find((k) => k.id === c.key_result)?.metric.unit : goalMetric.unit;
+  if (c.value !== null) parts.push(`Value ${c.value}${unit ? ` ${unit}` : ''}`);
   if (c.progress_percent !== null) parts.push(`${c.progress_percent}% progress`);
-  if (c.source === 'computed' && !parts.length) parts.push('Computed progress');
-  void krs;
   return parts.join(' · ');
 }
 
@@ -303,7 +302,6 @@ export function CheckinHistory({
             <li key={c.id} className="gl-history-item">
               <p className="gl-history-head">
                 <strong>{computed ? 'Computed from key results' : (c.author?.name ?? 'Former member')}</strong>
-                {computed && goal.basis === 'linked_work' ? null : null}
                 <span className="hint">
                   {' '}
                   · <time dateTime={c.created_at}>{when(c.created_at)}</time> · {krTitle(c.key_result)}
