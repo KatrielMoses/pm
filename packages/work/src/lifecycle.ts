@@ -3,6 +3,12 @@ import type { LifecycleRegistry, RecordRef, RecordTypeAdapter } from '@pm/lifecy
 import { withPersonalReferenceCleanup } from '@pm/tenancy';
 import { purgeCollabFacts } from './collab/purge.ts';
 import { purgeNotifyFacts } from './notify/purge.ts';
+import {
+  deliverableAdapter,
+  fileAdapter,
+  fileChildren,
+  purgeFileFacts,
+} from './files/lifecycle.ts';
 
 /**
  * Project record types for the 1F lifecycle (0B ADR-21). Containment the lifecycle follows:
@@ -37,6 +43,7 @@ export const projectAdapter: RecordTypeAdapter = {
       UNION ALL SELECT id, 'decision_record' FROM work.decision_record WHERE project_id = ANY(${[...parentIds]}::uuid[])
       UNION ALL SELECT id, 'task' FROM work.task WHERE project_id = ANY(${[...parentIds]}::uuid[])
       UNION ALL SELECT id, 'saved_view' FROM views.saved_view WHERE share_project_id = ANY(${[...parentIds]}::uuid[])
+      UNION ALL SELECT id, 'file' FROM files.file WHERE host_record_id = ANY(${[...parentIds]}::uuid[])
       ORDER BY 1`.execute(tx.db);
     return refs(rows.rows);
   },
@@ -73,6 +80,8 @@ export const projectAdapter: RecordTypeAdapter = {
         .executeTakeFirst();
       if (live) throw new Error('project purge blocked: a live child project references it');
       // Its comments, followers, and reviews go with it (4A, OD-38).
+      // Its files and deliverables first (they reference its comments and rows, 4E).
+      await purgeFileFacts(tx, ids);
       await purgeCollabFacts(tx, ids);
       await purgeNotifyFacts(tx, ids);
       // Views shared with the project are its content (3A); its defaults go with it.
@@ -213,7 +222,8 @@ export const decisionAdapter: RecordTypeAdapter = {
  */
 export const taskAdapter: RecordTypeAdapter = {
   recordType: 'task',
-  children: () => Promise.resolve([]),
+  // No subtasks; its files (and files on its comments) and its deliverables are its content (4E).
+  children: (tx, parentIds) => fileChildren(tx, parentIds),
   async rootsInBrand(tx, brandIds) {
     if (!brandIds.length) return [];
     const rows = await tx.db
@@ -251,6 +261,8 @@ export const taskAdapter: RecordTypeAdapter = {
       if (live) throw new Error('task purge blocked: a live child task references it');
       // Comments, revisions, reactions, mentions, followers, reviews, and assignment history are
       // the task's content and go with it (4A, OD-38); audit keeps hashes only.
+      // Its files and deliverables first (they reference its comments and rows, 4E).
+      await purgeFileFacts(tx, ids);
       await purgeCollabFacts(tx, ids);
       await purgeNotifyFacts(tx, ids);
       // Time logged on the task goes with it (3D); approvals keep their own totals and hash.
@@ -453,6 +465,8 @@ export function registerWorkLifecycle(registry: LifecycleRegistry): LifecycleReg
     noteAdapter,
     intakeFormAdapter,
     savedViewAdapter,
+    fileAdapter,
+    deliverableAdapter,
   ])
     registry.register(withPersonalReferenceCleanup(a));
   return registry;

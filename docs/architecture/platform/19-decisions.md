@@ -255,6 +255,26 @@ All decisions are **proposed (Phase 0D)**, pending solutions-architect acceptanc
   - **Signals.** `views.queries` (entity, outcome), `views.query_duration` (entity), and `views.exports` (entity, format).
 - **Alternatives:** `GET` with the AST in the URL (it would land in logs and the 0D field-selection rule). Offset pages (forbidden for mutable collections).
 - **Consequences:** Payloads carry identifiers, kinds, and counts only, never names or query text. 83 ID prefixes, 104 events, 99 named parameters, 63 telemetry signals.
+<a id="pl-35"></a>
+### PL-35: File and deliverable contracts (Phase 4E amendment)
+- **Decision:**
+  - Prefixes `file`, `fv`, `upl`, `dlv`, and `dv` (registered in Phase 0) are implemented; none is added.
+  - Resources and verbs, all under the workspace:
+    - `storage` (`GET`): whether object storage and malware scanning are configured, whether uploads are accepted, and the workspace's used and reserved bytes against its quota (`storage_status`).
+    - `uploads` (`POST`, `Idempotency-Key`), `uploads/{upl}` (`GET`), and `uploads/{upl}:complete`. The session carries a signed `PUT` (method, URL, required headers, expiry); an idempotent replay signs a fresh URL.
+    - `files?host=` (list), `files/{file}` (`GET`, `PATCH` name with `If-Match`), `files/{file}:download` (`303` to a signed URL or to an external link, `Cache-Control: no-store`), `files/{file}:preview` and `files/{file}:compare` (`file_url`, `file_comparison`), `files/{file}:trash` (`file_trashed`), and `file-links` (`POST`).
+    - `tasks/{tsk}/deliverables` (list with counts, `deliverable_list`; create), `projects/{prj}/deliverables` (list with counts, PRJ-023), `deliverables/{dlv}` (`GET`), and `deliverables/{dlv}:submit`.
+    - The local development adapter serves `/v1/storage/local/{key}` for `PUT` and `GET`, authorized only by its HMAC signature (no session), and refused when deployed.
+  - Object keys are identifier-free: `q.{64 hex}` while quarantined and `o.{same}` once promoted (this replaces §15.1's `ws/{workspace}/{random}`). Download is `files/{file}:download` on the file's current or a named version, not a separate `file-versions` route.
+  - Events: `files.file.added`, `files.file.version_added`, and `files.deliverable.state_changed` are added; `files.file.scanned` and `files.deliverable.version_submitted` are implemented. They carry identifiers, version numbers, sources, and states, never names, URLs, signatures, or keys.
+  - Named bounds (owner 4E): `SIGNED_URL_LIFETIME` (300 seconds) and `UPLOAD_SESSION_LIFETIME` (3600 seconds) gain values; `FILE_UPLOAD_MAX_BYTES` (104857600), `WORKSPACE_STORAGE_QUOTA_BYTES` (10737418240, a technical limit until 10A plans), `FILE_COMPARE_MAX_BYTES` (262144), `FILE_SCAN_MAX_ATTEMPTS` (5), `FILE_VERSIONS_MAX` (100), `FILES_LIST_MAX` (200), `DELIVERABLES_PER_TASK_MAX` (50), `FILE_DISCOVERY_MAX` (100), and `FILE_EXPIRY_BATCH_MAX` (200) are added.
+  - Signals: `files.requests` (op, outcome) and `files.jobs` (kind, outcome) are added; `upload.completed` and `file.scan.duration` are implemented.
+  - Non-resource envelopes: `storage_status`, `file_url`, `file_comparison`, `file_trashed`, and `deliverable_list`.
+  - Readiness gains `object_storage`: `ok` when the configured store answers, `not_configured` when none is configured, and `fail` when a configured store is unreachable. Without storage or a scanner, upload initiation is `dependency_unavailable` (`storage_not_configured`, `scanner_not_configured`); nothing is ever reported as stored or scanned.
+  - Refusals: `file_not_ready` (scan pending, or `missing_object` when the bytes have not arrived, retryable), `file_blocked` (infected or scan failed), `checksum_mismatch` (the session is rejected), `evidence_locked`, `usage_limit_reached` (quota), `conflict` with `upload_expired`; `validation_failed` issues `unsupported_type`, `type_mismatch`, `size_mismatch`, `too_large`, `too_many_files`, `too_many_versions`, `too_many`, `invalid_option`, and `invalid`; `forbidden` with `not_author` for a comment attachment by someone else.
+- **Alternatives:** Proxying every download through the API (bandwidth and timeouts; reserved as a later option for sensitive brands). A provider SDK (the SigV4 presigner needs none). Multipart uploads (deferred until `FILE_UPLOAD_MAX_BYTES` needs them).
+- **Consequences:** 88 ID prefixes, 139 events, 157 named parameters, 86 telemetry signals.
+
 <a id="pl-34"></a>
 ### PL-34: Notification contracts (Phase 4B amendment)
 - **Decision:**

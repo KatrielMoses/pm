@@ -213,6 +213,19 @@ Status of every ADR: **proposed (Phase 0B)**, pending solutions-architect accept
   - A view per share scope: duplicate definitions that drift.
   - Storing query results: they would freeze and widen access.
 - **Consequences:** One migration, `0031_saved_views`, with a down migration to 0030. No 3B layout tables, 3C planning, or 6D export-job tables.
+<a id="adr-33"></a>
+## ADR-33: Files, versions, upload sessions, and deliverables (Phase 4E amendment)
+
+- **Decision:**
+  - **Objects.** `files.file_object` is one stored object per upload: an identifier-free key (`q.{64 hex}` while quarantined, `o.{same}` once promoted; a check constraint ties the prefix to `quarantined`), its SHA-256, size, content type, and scan state (`pending`, `clean`, `infected`, `error`). A clean object is never quarantined. An infected object keeps its signature internally and is never shown it; its bytes are deleted. Rows never hold a URL.
+  - **Files and versions.** `files.file` (`file_`) is addressable and hangs on exactly one host: the workspace (no brand), a brand, a project, a task, or a comment (its record plus `comment_id`); `scope_key` is the brand, else the workspace. `files.file_version` is immutable (a trigger refuses every change except setting, never clearing, the evidence lock and the preview state): it points at an object or at an external `http(s)` URL that is never copied or fetched. Versions are numbered per file up to `FILE_VERSIONS_MAX`.
+  - **Upload sessions.** `files.upload_session` (`upl_`) records the declared name, type, size, checksum, host or target file, its quarantine key, state (`initiated`, `uploaded`, `verifying`, `completed`, `rejected` with a code, `expired`), and expiry (`UPLOAD_SESSION_LIFETIME`). A version exists only on a completed session.
+  - **Deliverables.** `files.deliverable` (`dlv_`) is a task's designated output with an expected type (`any`, `file`, `url`; TSK-022) and a state (`draft`, `ready_for_review`, `changes_requested`, `accepted`, `rejected`). `files.deliverable_version` (`dv_`) is one submission (a file version or a URL), linked to its 4A review request; a later submission supersedes an open one. Acceptance records the deciding `collab.review_decision`, who accepted, and when, and locks the version (a trigger refuses every change to a locked row). `collab.review_request.subject_kind` gains `deliverable`.
+  - **Usage.** `files.storage_usage` holds a workspace's used and reserved bytes and object count, locked (`FOR UPDATE`) while an upload reserves bytes against `WORKSPACE_STORAGE_QUOTA_BYTES`.
+  - **Deletion.** Files and deliverables trash, restore, and purge with their host through the 1F lifecycle. Purge removes rows except evidence-locked versions (R-EVIDENCE) and records each orphaned object as an `object:{key}` external effect that the file sweep deletes. `exec_dispatch.discover_file_work` lists workspaces with expired sessions or pending object deletions, without payloads. Retention periods stay undecided (OD-36).
+  - **Not built.** `files.evidence_item` (9B) and agent artifacts as deliverable sources (8C) are not created; no derived preview, thumbnail, or transcoded copy is generated, and no storage class is recorded.
+- **Alternatives:** Keys carrying workspace or file identifiers (they leak through URLs and provider logs). Mutable versions (lost history and evidence). A deliverable review state separate from 4A reviews (two decisions for one acceptance). Counting usage on the fly (races between concurrent uploads).
+- **Consequences:** Migration `0038_files_deliverables` with an exact 0037 rollback. All seven tables have workspace RLS and indexes on every foreign key.
 <a id="adr-32"></a>
 ## ADR-32: Notification platform (Phase 4B amendment)
 

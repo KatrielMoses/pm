@@ -8,6 +8,8 @@ import {
   useStatusChoices,
 } from '../workflow/record-workflow.tsx';
 import { CollaborationSections } from '../collab/collaboration.tsx';
+import { DeliverablesPanel } from '../files/deliverables.tsx';
+import { FilesPanel } from '../files/files-panel.tsx';
 import { Link, useRouter } from '../router.tsx';
 import { BrandMarker } from '../shell/brand-marker.tsx';
 import { routeHref } from '../shell/registry.ts';
@@ -868,6 +870,7 @@ function TaskBody({
       {task.lifecycle_state !== 'trashed' ? (
         <WorkTimePanel ws={ws} target={task.id} canLog={!!caps.log_time} version={task.version} />
       ) : null}
+      {task.lifecycle_state !== 'trashed' ? <TaskFiles ws={ws} task={task} /> : null}
       {task.lifecycle_state !== 'trashed' ? (
         <CollaborationSections
           ws={ws}
@@ -889,6 +892,27 @@ function TaskBody({
       </section>
       {caps.history ? <HistorySection ws={ws} task={task} /> : null}
       {!task.shared_only ? <TaskManageSection ws={ws} task={task} reload={reload} /> : null}
+    </>
+  );
+}
+
+/** 4E: the task's files and its deliverables (the submit dialog lists this task's ready files). */
+function TaskFiles({ ws, task }: { ws: string; task: Task }) {
+  const [nonce, setNonce] = useState(0);
+  return (
+    <>
+      <FilesPanel
+        ws={ws}
+        host={task.id}
+        noun="on this task"
+        onChanged={() => setNonce((n) => n + 1)}
+      />
+      <DeliverablesPanel
+        ws={ws}
+        tsk={task.id}
+        canCreate={!!task.capabilities.edit && task.lifecycle_state === 'active'}
+        filesNonce={nonce}
+      />
     </>
   );
 }

@@ -1,4 +1,7 @@
 import { randomBytes } from 'node:crypto';
+import { mkdtempSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join as pathJoin } from 'node:path';
 import { AuditSecurityEventSink, AuditWriter } from '@pm/audit';
 import {
   createIdentityService,
@@ -25,7 +28,10 @@ import {
   taskAssigneeHook,
   taskTargets,
   savedViewTargets,
-  NotificationService,
+  FileService,
+  LocalObjectStorage,
+  SignatureTestScanner,
+  type FileDeps,
   reviewDepartureHook,
   departureTimerHook,
   type WorkSettings,
@@ -48,7 +54,9 @@ export {
 
 export interface WorkEnv {
   h: Harness;
-  svc: NotificationService;
+  svc: FileService;
+  /** The test storage and scanner the service uses (null when a test disables them). */
+  files: FileDeps;
   stepUp: StubStepUp;
   lifecycle: LifecycleService;
   tokenFor(email: string): Promise<string>;
@@ -64,6 +72,8 @@ export function workEnv(
     intakeRate?: number;
     commentRate?: number;
     emailState?: 'configured' | 'capture' | 'unconfigured';
+    /** 4E: defaults to local storage in a temp directory and the signature scanner. */
+    files?: Partial<FileDeps>;
   } = {},
 ): WorkEnv {
   const h = createHarness(db);
@@ -96,7 +106,20 @@ export function workEnv(
     createStepUpChallenge: stepUp.createStepUpChallenge,
   };
   const arrayMax = options.arrayMax ?? 10_000;
-  const svc = new NotificationService({
+  const files: FileDeps = {
+    storage:
+      options.files?.storage !== undefined
+        ? options.files.storage
+        : new LocalObjectStorage({
+            dir: mkdtempSync(pathJoin(tmpdir(), 'pm-files-')),
+            secret: randomBytes(32).toString('base64url'),
+            publicBaseUrl: 'http://127.0.0.1:1',
+          }),
+    scanner:
+      options.files?.scanner !== undefined ? options.files.scanner : new SignatureTestScanner(),
+  };
+  const svc = new FileService({
+    files,
     notify: { emailState: options.emailState ?? 'capture' },
     tenant: h.app,
     platform: h.platform,
@@ -138,6 +161,7 @@ export function workEnv(
   return {
     h,
     svc,
+    files,
     stepUp,
     lifecycle,
     async tokenFor(email: string) {

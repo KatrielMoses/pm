@@ -246,6 +246,28 @@ export interface WorkSettings {
   notifyDeadlinesBatchMax: number;
   /** `NOTIFY_FACTS_MAX_BYTES` */
   notifyFactsMaxBytes: number;
+  /** `SIGNED_URL_LIFETIME` (seconds) */
+  signedUrlLifetimeSeconds: number;
+  /** `UPLOAD_SESSION_LIFETIME` (seconds) */
+  uploadSessionLifetimeSeconds: number;
+  /** `FILE_UPLOAD_MAX_BYTES` */
+  fileUploadMaxBytes: number;
+  /** `WORKSPACE_STORAGE_QUOTA_BYTES` */
+  workspaceStorageQuotaBytes: number;
+  /** `FILE_COMPARE_MAX_BYTES` */
+  fileCompareMaxBytes: number;
+  /** `FILE_SCAN_MAX_ATTEMPTS` */
+  fileScanMaxAttempts: number;
+  /** `FILE_VERSIONS_MAX` */
+  fileVersionsMax: number;
+  /** `FILES_LIST_MAX` */
+  filesListMax: number;
+  /** `DELIVERABLES_PER_TASK_MAX` */
+  deliverablesPerTaskMax: number;
+  /** `FILE_DISCOVERY_MAX` */
+  fileDiscoveryMax: number;
+  /** `FILE_EXPIRY_BATCH_MAX` */
+  fileExpiryBatchMax: number;
 }
 
 export const DEFAULT_WORK_SETTINGS: WorkSettings = Object.freeze({
@@ -361,6 +383,17 @@ export const DEFAULT_WORK_SETTINGS: WorkSettings = Object.freeze({
   notifyBulkStateMax: 200,
   notifyDeadlinesBatchMax: 500,
   notifyFactsMaxBytes: 1_024,
+  signedUrlLifetimeSeconds: 300,
+  uploadSessionLifetimeSeconds: 3_600,
+  fileUploadMaxBytes: 104_857_600,
+  workspaceStorageQuotaBytes: 10_737_418_240,
+  fileCompareMaxBytes: 262_144,
+  fileScanMaxAttempts: 5,
+  fileVersionsMax: 100,
+  filesListMax: 200,
+  deliverablesPerTaskMax: 50,
+  fileDiscoveryMax: 100,
+  fileExpiryBatchMax: 200,
 });
 
 /** The database invariant behind `TASK_DEPTH_MAX` (migration 0023). */

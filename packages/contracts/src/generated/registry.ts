@@ -717,6 +717,22 @@ export const TELEMETRY_SIGNALS = [
       "view",
       "outcome"
     ]
+  },
+  {
+    "name": "files.requests",
+    "type": "counter",
+    "labels": [
+      "op",
+      "outcome"
+    ]
+  },
+  {
+    "name": "files.jobs",
+    "type": "counter",
+    "labels": [
+      "kind",
+      "outcome"
+    ]
   }
 ] as const;
 export type TelemetrySignalName = (typeof TELEMETRY_SIGNALS)[number]['name'];
@@ -3109,6 +3125,36 @@ export const INTERNAL_EVENTS = [
       "failure_class"
     ],
     "maxClass": "C1"
+  },
+  {
+    "type": "files.file.added",
+    "schemaVersion": 1,
+    "aggregateEntity": "files.file",
+    "fields": [
+      "version_number",
+      "source"
+    ],
+    "maxClass": "C1"
+  },
+  {
+    "type": "files.file.version_added",
+    "schemaVersion": 1,
+    "aggregateEntity": "files.file",
+    "fields": [
+      "version_number",
+      "source"
+    ],
+    "maxClass": "C1"
+  },
+  {
+    "type": "files.deliverable.state_changed",
+    "schemaVersion": 1,
+    "aggregateEntity": "files.deliverable",
+    "fields": [
+      "state",
+      "version_number"
+    ],
+    "maxClass": "C1"
   }
 ] as const;
 export type InternalEventType = (typeof INTERNAL_EVENTS)[number]['type'];
@@ -3261,7 +3307,16 @@ export const PARAMETER_NAMES = [
   "NOTIFY_DISCOVERY_MAX",
   "NOTIFY_BULK_STATE_MAX",
   "NOTIFY_DEADLINES_BATCH_MAX",
-  "NOTIFY_FACTS_MAX_BYTES"
+  "NOTIFY_FACTS_MAX_BYTES",
+  "FILE_UPLOAD_MAX_BYTES",
+  "WORKSPACE_STORAGE_QUOTA_BYTES",
+  "FILE_COMPARE_MAX_BYTES",
+  "FILE_SCAN_MAX_ATTEMPTS",
+  "FILE_VERSIONS_MAX",
+  "FILES_LIST_MAX",
+  "DELIVERABLES_PER_TASK_MAX",
+  "FILE_DISCOVERY_MAX",
+  "FILE_EXPIRY_BATCH_MAX"
 ] as const;
 export type ParameterName = (typeof PARAMETER_NAMES)[number];
 

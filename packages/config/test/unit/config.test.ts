@@ -170,6 +170,17 @@ describe('server configuration', () => {
       notifyBulkStateMax: 200,
       notifyDeadlinesBatchMax: 500,
       notifyFactsMaxBytes: 1024,
+      signedUrlLifetimeSeconds: 300,
+      uploadSessionLifetimeSeconds: 3600,
+      fileUploadMaxBytes: 104857600,
+      workspaceStorageQuotaBytes: 10737418240,
+      fileCompareMaxBytes: 262144,
+      fileScanMaxAttempts: 5,
+      fileVersionsMax: 100,
+      filesListMax: 200,
+      deliverablesPerTaskMax: 50,
+      fileDiscoveryMax: 100,
+      fileExpiryBatchMax: 200,
     });
     const set = (env: Record<string, string>) =>
       loadServerConfig({ service: 'worker', env: { ...local, ...env } });
@@ -528,5 +539,107 @@ describe('lifecycle configuration (1F)', () => {
         loadServerConfig({ service: 'worker', env: { ...local, PURGE_LEDGER: 'local' } }),
       ),
     ).toContain('PURGE_LEDGER_DIR: required with the local purge ledger');
+  });
+
+  it('configures files storage and scanning (4E), refusing dev adapters when deployed', () => {
+    const base = loadServerConfig({ service: 'api', env: local });
+    expect(base.files).toEqual({ storage: { provider: 'none' }, scanner: { provider: 'none' } });
+
+    const l = loadServerConfig({
+      service: 'api',
+      env: {
+        ...local,
+        OBJECT_STORAGE: 'local',
+        OBJECT_STORAGE_LOCAL_DIR: '/tmp/objects',
+        OBJECT_STORAGE_LOCAL_SECRET: devKey,
+        MALWARE_SCANNER: 'test-signature',
+      },
+    });
+    expect(l.files.storage).toMatchObject({
+      provider: 'local',
+      dir: '/tmp/objects',
+      publicBaseUrl: 'http://127.0.0.1:3000',
+    });
+    expect(l.files.scanner).toEqual({ provider: 'test-signature' });
+    expect(JSON.stringify(describeConfig(l))).not.toContain(devKey);
+    expect(
+      issues(() =>
+        loadServerConfig({ service: 'api', env: { ...local, OBJECT_STORAGE: 'local' } }),
+      ),
+    ).toEqual(
+      expect.arrayContaining([
+        'OBJECT_STORAGE_LOCAL_DIR: required with local object storage',
+        'OBJECT_STORAGE_LOCAL_SECRET: required with local object storage',
+      ]),
+    );
+
+    const s3 = loadServerConfig({
+      service: 'api',
+      env: {
+        ...local,
+        OBJECT_STORAGE: 's3',
+        OBJECT_STORAGE_BUCKET: 'pm-staging-files',
+        OBJECT_STORAGE_REGION: 'eu-west-1',
+        OBJECT_STORAGE_ACCESS_KEY_ID: 'AKIDEXAMPLE',
+        OBJECT_STORAGE_SECRET_ACCESS_KEY: 'very-secret-value', // gitleaks:allow (synthetic)
+        MALWARE_SCANNER: 'clamav',
+        CLAMAV_HOST: 'clamd.internal',
+      },
+    });
+    expect(s3.files.storage).toMatchObject({
+      provider: 's3',
+      bucket: 'pm-staging-files',
+      region: 'eu-west-1',
+      endpoint: undefined,
+      forcePathStyle: false,
+    });
+    if (s3.files.storage.provider !== 's3') throw new Error('expected s3');
+    expect(s3.files.storage.secretAccessKey.reveal()).toBe('very-secret-value');
+    expect(JSON.stringify(describeConfig(s3))).not.toContain('very-secret-value');
+    expect(s3.files.scanner).toEqual({
+      provider: 'clamav',
+      host: 'clamd.internal',
+      port: 3310,
+      timeoutMs: 30000,
+    });
+
+    const refused = issues(() =>
+      loadServerConfig({
+        service: 'worker',
+        env: deployed('production', {
+          OBJECT_STORAGE: 'local',
+          OBJECT_STORAGE_LOCAL_DIR: '/tmp/o',
+          OBJECT_STORAGE_LOCAL_SECRET: devKey,
+          MALWARE_SCANNER: 'test-signature',
+        }),
+      }),
+    );
+    expect(refused).toEqual(
+      expect.arrayContaining([
+        'OBJECT_STORAGE: local is a development adapter; refused in deployed environments',
+        'MALWARE_SCANNER: test-signature is a development adapter; refused in deployed environments',
+      ]),
+    );
+    expect(
+      issues(() =>
+        loadServerConfig({
+          service: 'worker',
+          env: deployed('staging', {
+            OBJECT_STORAGE: 's3',
+            OBJECT_STORAGE_ENDPOINT: 'http://minio.internal:9000',
+            MALWARE_SCANNER: 'clamav',
+          }),
+        }),
+      ),
+    ).toEqual(
+      expect.arrayContaining([
+        'OBJECT_STORAGE_BUCKET: required with s3 object storage',
+        'OBJECT_STORAGE_REGION: required with s3 object storage',
+        'OBJECT_STORAGE_ACCESS_KEY_ID: required with s3 object storage',
+        'OBJECT_STORAGE_SECRET_ACCESS_KEY: required with s3 object storage',
+        'OBJECT_STORAGE_ENDPOINT: must use https in deployed environments',
+        'CLAMAV_HOST: required with the clamav malware scanner',
+      ]),
+    );
   });
 });

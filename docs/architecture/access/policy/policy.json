@@ -492,7 +492,8 @@
         "VIEW-014",
         "VIEW-015",
         "VIEW-022",
-        "WSB-019"
+        "WSB-019",
+        "PRJ-023"
       ],
       "notes": ""
     },
@@ -643,9 +644,10 @@
         "guest": "deny"
       },
       "requirements": [
-        "PERM-004"
+        "PERM-004",
+        "FILE-013"
       ],
-      "notes": ""
+      "notes": "Phase 4E (AZ-33): also trashes a file; a file an accepted deliverable uses is evidence-locked and refused."
     },
     {
       "key": "record.purge",
@@ -902,9 +904,13 @@
         "guest": "grant:edit"
       },
       "requirements": [
-        "FILE-001"
+        "FILE-001",
+        "FILE-003",
+        "FILE-004",
+        "FILE-005",
+        "FILE-010"
       ],
-      "notes": ""
+      "notes": "Phase 4E (AZ-33): initiates and completes uploads, adds versions and external links, and renames files on the host (workspace, brand, project, task, or comment). Only a comment's author attaches files to it; an upload session belongs to its creator alone. Workspace-hosted files are for members only."
     },
     {
       "key": "record.download",
@@ -932,9 +938,12 @@
         "guest": "grant:view"
       },
       "requirements": [
-        "FILE-012"
+        "FILE-012",
+        "FILE-002",
+        "FILE-008",
+        "FILE-011"
       ],
-      "notes": ""
+      "notes": "Phase 4E (AZ-33): download, inline preview (allow-listed formats only), and comparison of clean versions through a short-lived signed URL issued per request; pending, infected, and failed scans are refused; external links redirect without being fetched."
     },
     {
       "key": "record.move",
@@ -1268,9 +1277,10 @@
         "guest": "grant:edit"
       },
       "requirements": [
-        "FILE-007"
+        "FILE-007",
+        "FILE-006"
       ],
-      "notes": ""
+      "notes": "Phase 4E (AZ-33): creates a task's deliverables and submits a version (a clean file of the same task or a URL) with a 4A approval request in one transaction, superseding an open one; an accepted deliverable takes no more versions."
     },
     {
       "key": "review.request",
