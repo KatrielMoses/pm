@@ -245,16 +245,22 @@ export function fileSweepHandler(d: FileJobDeps): JobHandler {
           d.metrics.count('files.jobs', expired.length, { kind: 'expire', outcome: 'ok' });
         if (!d.storage) continue;
         const effects = await d.tenant.withWorkspace(ws, { module: 'files' }, (tx) =>
-          sql<{ id: string; effect_key: string }>`SELECT id, effect_key FROM exec.external_effect
+          sql<{
+            id: string;
+            effect_key: string;
+            state: string;
+          }>`SELECT id, effect_key, state FROM exec.external_effect
               WHERE workspace_id = ${ws} AND effect_key LIKE ${OBJECT_EFFECT_PREFIX + '%'}
                 AND state IN ('pending', 'failed')
               ORDER BY created_at, id LIMIT ${s.fileExpiryBatchMax}`.execute(tx.db),
         );
         for (const e of effects.rows) {
           const key = e.effect_key.slice(OBJECT_EFFECT_PREFIX.length);
-          await d.tenant.withWorkspace(ws, { module: 'files' }, (tx) =>
-            markEffectAttempt(tx, e.id, undefined),
-          );
+          // A failed deletion is retried (failed → pending); a pending one is attempted as is.
+          if (e.state === 'failed')
+            await d.tenant.withWorkspace(ws, { module: 'files' }, (tx) =>
+              markEffectAttempt(tx, e.id, undefined),
+            );
           let ok = true;
           try {
             await d.storage.delete(key);
@@ -264,9 +270,17 @@ export function fileSweepHandler(d: FileJobDeps): JobHandler {
             ok = false;
             d.logger.warn('files.object_delete_failed', errorFields(err));
           }
-          await d.tenant.withWorkspace(ws, { module: 'files' }, (tx) =>
-            markEffectOutcome(tx, e.id, ok ? 'confirmed' : 'failed'),
-          );
+          // The provider acknowledged the delete: sent, then confirmed (the ledger's only path).
+          await d.tenant.withWorkspace(ws, { module: 'files' }, async (tx) => {
+            if (!ok) return markEffectOutcome(tx, e.id, 'failed');
+            await markEffectOutcome(tx, e.id, 'sent');
+            await markEffectOutcome(tx, e.id, 'confirmed');
+            // The bytes are gone: the orphan row goes too (never one a version still uses).
+            await sql`DELETE FROM files.file_object o WHERE o.workspace_id = ${ws}
+                AND o.storage_key IN (${key}, ${`q.${key.slice(2)}`})
+                AND NOT EXISTS (SELECT 1 FROM files.file_version v WHERE v.workspace_id = o.workspace_id
+                                AND v.file_object_id = o.id)`.execute(tx.db);
+          });
           d.metrics.count('files.jobs', 1, {
             kind: 'delete_object',
             outcome: ok ? 'ok' : 'failed',

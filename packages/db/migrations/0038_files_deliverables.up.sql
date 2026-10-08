@@ -194,7 +194,8 @@ CREATE TABLE files.upload_session (
   CONSTRAINT upload_session_rejection_known CHECK (rejection_code IS NULL OR rejection_code IN
     ('checksum_mismatch', 'size_mismatch', 'type_mismatch', 'missing_object', 'infected', 'scan_failed',
      'quota_exceeded', 'host_gone')),
-  CONSTRAINT upload_session_completed_shape CHECK ((state = 'completed') = (file_version_id IS NOT NULL)),
+  -- A version only on a completed session (purge may later remove the version it produced).
+  CONSTRAINT upload_session_completed_shape CHECK (state = 'completed' OR file_version_id IS NULL),
   CONSTRAINT upload_session_key_shape CHECK (quarantine_object_key ~ '^q\.[0-9a-f]{64}$'),
   CONSTRAINT upload_session_sha256_length CHECK (octet_length(sha256) = 32),
   CONSTRAINT upload_session_size CHECK (byte_size >= 0),
