@@ -91,6 +91,7 @@ export const documentAdapter: RecordTypeAdapter = {
       await tx.db.deleteFrom('knowledge.document_suggestion').where('document_id', 'in', ids).execute();
       await tx.db.deleteFrom('knowledge.source_approval').where('document_id', 'in', ids).execute();
       await tx.db.deleteFrom('knowledge.document_reference').where('document_id', 'in', ids).execute();
+      await purgeDocumentTargets(tx, ids);
       // The version pointer and the versions reference each other; both sides go in this transaction.
       await tx.db.deleteFrom('knowledge.document').where('id', 'in', ids).execute();
       await tx.db.deleteFrom('knowledge.document_version').where('document_id', 'in', ids).execute();

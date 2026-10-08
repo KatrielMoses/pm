@@ -88,8 +88,8 @@ export class DocumentService extends DocumentCore {
   ): Promise<Placement> {
     if (input.parent) {
       const parent = await this.loadDocument(tx, p, input.parent, { lock: true });
-      this.requireDocAction(p, 'record.create', parent, { shares: false });
       this.requireDocActive(parent);
+      this.requireDocAction(p, 'record.create', parent, { shares: false });
       if (parent.row.depth + 1 > this.ws.documentDepthMax)
         throw invalid(
           issue('/parent', 'depth_exceeded', `Pages can be nested at most ${this.ws.documentDepthMax} levels deep.`),
@@ -797,14 +797,14 @@ export class DocumentService extends DocumentCore {
           const root = peek.row.ancestor_ids[0] ?? peek.id;
           await sql`SELECT pg_advisory_xact_lock(hashtextextended(${root}::text, 43))`.execute(tx.db);
           const d = await this.loadDocument(tx, p, doc, { lock: true });
-          this.requireDocAction(p, 'record.update', d, { shares: false, excluded: 'forbidden' });
           this.requireDocActive(d);
+          this.requireDocAction(p, 'record.update', d, { shares: false, excluded: 'forbidden' });
           if (req.ifMatch !== undefined) requireVersion(parseIfMatch(req.ifMatch), d.row.version);
           let parent: LoadedDocument | null = null;
           if (input.parent) {
             parent = await this.loadDocument(tx, p, input.parent, { lock: true });
-            this.requireDocAction(p, 'record.create', parent, { shares: false });
             this.requireDocActive(parent);
+            this.requireDocAction(p, 'record.create', parent, { shares: false });
             if (
               parent.row.scope_key !== d.row.scope_key ||
               parent.row.attached_project_id !== d.row.attached_project_id ||

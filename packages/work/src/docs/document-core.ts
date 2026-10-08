@@ -348,8 +348,8 @@ export class DocumentCore extends NotificationService {
 
   /** Editing content, title, links: `record.update` through the document's own level. */
   protected editableDoc(p: Principal, d: LoadedDocument): void {
-    this.requireDocAction(p, 'record.update', d);
     this.requireDocActive(d);
+    this.requireDocAction(p, 'record.update', d);
   }
 
   /** The 4A host for comments, following, and reviews (ADR-0025 D6). */

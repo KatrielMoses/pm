@@ -57,11 +57,11 @@ CREATE TABLE knowledge.document (
     REFERENCES tenancy.brand (workspace_id, id) ON DELETE RESTRICT,
   -- Same workspace and scope as the parent; RESTRICT blocks purging a parent a live page still uses.
   CONSTRAINT document_parent_fkey FOREIGN KEY (workspace_id, scope_key, parent_document_id)
-    REFERENCES knowledge.document (workspace_id, scope_key, id) ON DELETE RESTRICT DEFERRABLE INITIALLY DEFERRED,
+    REFERENCES knowledge.document (workspace_id, scope_key, id) DEFERRABLE INITIALLY DEFERRED,
   CONSTRAINT document_project_fkey FOREIGN KEY (workspace_id, brand_id, attached_project_id)
-    REFERENCES work.project (workspace_id, brand_id, id) ON DELETE RESTRICT DEFERRABLE INITIALLY DEFERRED,
+    REFERENCES work.project (workspace_id, brand_id, id) DEFERRABLE INITIALLY DEFERRED,
   CONSTRAINT document_task_fkey FOREIGN KEY (workspace_id, brand_id, attached_task_id)
-    REFERENCES work.task (workspace_id, brand_id, id) ON DELETE RESTRICT DEFERRABLE INITIALLY DEFERRED,
+    REFERENCES work.task (workspace_id, brand_id, id) DEFERRABLE INITIALLY DEFERRED,
   CONSTRAINT document_owner_fkey FOREIGN KEY (workspace_id, owner_membership_id)
     REFERENCES tenancy.membership (workspace_id, id) ON DELETE RESTRICT,
   CONSTRAINT document_creator_fkey FOREIGN KEY (workspace_id, created_by_membership_id)
@@ -159,7 +159,7 @@ CREATE TABLE knowledge.document_version (
   CONSTRAINT document_version_workspace_key UNIQUE (workspace_id, id),
   CONSTRAINT document_version_number_key UNIQUE (workspace_id, document_id, number),
   CONSTRAINT document_version_document_fkey FOREIGN KEY (workspace_id, document_id)
-    REFERENCES knowledge.document (workspace_id, id) ON DELETE RESTRICT DEFERRABLE INITIALLY DEFERRED,
+    REFERENCES knowledge.document (workspace_id, id) DEFERRABLE INITIALLY DEFERRED,
   CONSTRAINT document_version_author_fkey FOREIGN KEY (workspace_id, created_by_membership_id)
     REFERENCES tenancy.membership (workspace_id, id) ON DELETE RESTRICT,
   CONSTRAINT document_version_number_positive CHECK (number >= 1),
@@ -176,7 +176,7 @@ CREATE TABLE knowledge.document_version (
 CREATE INDEX document_version_by_author ON knowledge.document_version (workspace_id, created_by_membership_id);
 ALTER TABLE knowledge.document
   ADD CONSTRAINT document_current_version_fkey FOREIGN KEY (workspace_id, current_version_id)
-    REFERENCES knowledge.document_version (workspace_id, id) ON DELETE RESTRICT DEFERRABLE INITIALLY DEFERRED;
+    REFERENCES knowledge.document_version (workspace_id, id) DEFERRABLE INITIALLY DEFERRED;
 
 -- Versions are append-only: the application can insert and read, never change or delete them.
 CREATE FUNCTION knowledge.document_version_immutable() RETURNS trigger
@@ -208,7 +208,7 @@ CREATE TABLE knowledge.document_reference (
   target_record_type text,
   created_at timestamptz NOT NULL DEFAULT now(),
   CONSTRAINT document_reference_document_fkey FOREIGN KEY (workspace_id, document_id)
-    REFERENCES knowledge.document (workspace_id, id) ON DELETE RESTRICT DEFERRABLE INITIALLY DEFERRED,
+    REFERENCES knowledge.document (workspace_id, id) DEFERRABLE INITIALLY DEFERRED,
   CONSTRAINT document_reference_member_fkey FOREIGN KEY (workspace_id, target_membership_id)
     REFERENCES tenancy.membership (workspace_id, id) ON DELETE RESTRICT,
   CONSTRAINT document_reference_team_fkey FOREIGN KEY (workspace_id, target_team_id)
@@ -260,7 +260,7 @@ CREATE TABLE knowledge.document_suggestion (
   CONSTRAINT document_suggestion_workspace_key UNIQUE (workspace_id, id),
   CONSTRAINT document_suggestion_public_id_format CHECK (public_id ~ '^dsg_[0-9A-HJKMNP-TV-Z]{26}$'),
   CONSTRAINT document_suggestion_document_fkey FOREIGN KEY (workspace_id, document_id)
-    REFERENCES knowledge.document (workspace_id, id) ON DELETE RESTRICT DEFERRABLE INITIALLY DEFERRED,
+    REFERENCES knowledge.document (workspace_id, id) DEFERRABLE INITIALLY DEFERRED,
   CONSTRAINT document_suggestion_author_fkey FOREIGN KEY (workspace_id, author_membership_id)
     REFERENCES tenancy.membership (workspace_id, id) ON DELETE RESTRICT,
   CONSTRAINT document_suggestion_decider_fkey FOREIGN KEY (workspace_id, decided_by_membership_id)
@@ -294,7 +294,7 @@ CREATE TABLE knowledge.source_approval (
   note text,
   created_at timestamptz NOT NULL DEFAULT now(),
   CONSTRAINT source_approval_version_fkey FOREIGN KEY (workspace_id, document_id, version_number)
-    REFERENCES knowledge.document_version (workspace_id, document_id, number) ON DELETE RESTRICT DEFERRABLE INITIALLY DEFERRED,
+    REFERENCES knowledge.document_version (workspace_id, document_id, number) DEFERRABLE INITIALLY DEFERRED,
   CONSTRAINT source_approval_actor_fkey FOREIGN KEY (workspace_id, actor_membership_id)
     REFERENCES tenancy.membership (workspace_id, id) ON DELETE RESTRICT,
   CONSTRAINT source_approval_kind_known CHECK (kind IN ('approved', 'revoked')),

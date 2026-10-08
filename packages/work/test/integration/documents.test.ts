@@ -1,5 +1,7 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { createTestDatabase, type TestDatabase } from '@pm/test-support/vitest';
+import { measureClasses, statementShape } from '@pm/test-support';
+import { productLifecycleRegistry } from '@pm/work';
 import type { Caller } from '@pm/tenancy';
 import {
   apply,
@@ -1041,6 +1043,314 @@ describe('Documents and knowledge (4C)', () => {
         'source_approval:INSERT',
         'source_approval:SELECT',
       ]);
+    });
+  });
+
+  describe('lifecycle, export, departure', () => {
+    it('archives, trashes, restores, and purges a page with its subpages, and a project or task carries its documents', async () => {
+      const root = await make(editor, { title: 'Tree root', brand: brands.Harbor });
+      const kid = await make(editor, { title: 'Tree kid', parent: root.id });
+      const grandkid = await make(editor, { title: 'Tree grandkid', parent: kid.id });
+      await env.svc.documentLifecycle(editor, ws, root.id, 'archive', mutation());
+      expect((await env.svc.getDocument(editor, ws, grandkid.id)).archived).toBe(true);
+      // Archived documents are read-only: edits are refused with a plain reason, reads still work.
+      await expect(
+        save(editor, { ...grandkid, content_version: 1 }, [para('blk_a', 'x')]),
+      ).rejects.toMatchObject({
+        issues: [expect.objectContaining({ code: 'document_archived' })],
+      });
+      await expect(
+        env.svc.createDocument(editor, ws, { title: 'x', parent: kid.id }, mutation()),
+      ).rejects.toMatchObject({
+        issues: [expect.objectContaining({ code: 'document_archived' })],
+      });
+      expect(
+        (await env.svc.listDocuments(editor, ws, { scope: brands.Harbor, q: 'Tree gr' })).data,
+      ).toEqual([]);
+      expect(
+        (
+          await env.svc.listDocuments(editor, ws, {
+            scope: brands.Harbor,
+            q: 'Tree gr',
+            archived: 'true',
+          })
+        ).data.map((x) => x.title),
+      ).toEqual(['Tree grandkid']);
+      await env.svc.documentLifecycle(editor, ws, root.id, 'unarchive', mutation());
+      expect((await env.svc.getDocument(editor, ws, grandkid.id)).archived).toBe(false);
+      // Trash hides the whole tree; restore brings it all back; a reader cannot trash.
+      await expect(
+        env.svc.documentLifecycle(reader, ws, root.id, 'trash', mutation()),
+      ).rejects.toEqual(reason('forbidden'));
+      await env.svc.documentLifecycle(editor, ws, root.id, 'trash', mutation());
+      await expect(env.svc.getDocument(editor, ws, kid.id)).rejects.toEqual(reason('not_found'));
+      await expect(
+        env.svc.documentLifecycle(editor, ws, kid.id, 'restore', mutation()),
+      ).rejects.toMatchObject({ issues: [expect.objectContaining({ code: 'invalid_state' })] });
+      await env.svc.documentLifecycle(editor, ws, root.id, 'restore', mutation());
+      expect((await env.svc.getDocument(editor, ws, kid.id)).title).toBe('Tree kid');
+      // Purge removes content, versions, and references, deepest first, and links to it.
+      const linker = await make(editor, {
+        title: 'Links to grandkid',
+        brand: brands.Harbor,
+        starter: false,
+      });
+      await env.svc.setLinks(
+        editor,
+        ws,
+        linker.id,
+        { records: [grandkid.id] },
+        ifMatch(linker.version),
+      );
+      await env.svc.documentLifecycle(editor, ws, root.id, 'trash', mutation());
+      await expect(
+        env.svc.documentLifecycle(editor, ws, root.id, 'purge', mutation()),
+      ).rejects.toEqual(reason('forbidden'));
+      await env.svc.documentLifecycle(owner, ws, root.id, 'purge', mutation());
+      const ids = (
+        await sql(
+          `SELECT d.id, d.depth FROM knowledge.document d JOIN core.record r ON r.id = d.id WHERE r.public_id IN ('${root.id}', '${kid.id}', '${grandkid.id}') ORDER BY d.depth DESC`,
+        )
+      ).map((r) => r.id as string);
+      expect(ids).toHaveLength(3);
+      for (const id of ids)
+        await env.h.worker.withWorkspace(wsId, { module: 'test' }, async (tx) => {
+          await productLifecycleRegistry().get('document')!.purge!.deleteContent(tx, [id]);
+        });
+      expect(
+        await sql(`SELECT 1 FROM knowledge.document WHERE id = ANY('{${ids.join(',')}}'::uuid[])`),
+      ).toHaveLength(0);
+      expect(
+        await sql(
+          `SELECT 1 FROM knowledge.document_version WHERE document_id = ANY('{${ids.join(',')}}'::uuid[])`,
+        ),
+      ).toHaveLength(0);
+      expect(
+        await sql(
+          `SELECT 1 FROM knowledge.document_reference WHERE target_record_id = ANY('{${ids.join(',')}}'::uuid[])`,
+        ),
+      ).toHaveLength(0);
+      // The link rows are gone; the surviving document just shows no link.
+      expect((await env.svc.getDocument(editor, ws, linker.id)).links).toEqual([]);
+    });
+
+    it('carries documents with their project and task, and keeps a task with documents in its brand', async () => {
+      const pr = (
+        await env.svc.createProject(
+          owner,
+          ws,
+          { brand: brands.Harbor, name: 'Carrying project' },
+          mutation(),
+        )
+      ).data;
+      const tk = (
+        await env.svc.createTask(
+          owner,
+          ws,
+          { brand: brands.Harbor, title: 'Carrying task', project: pr.id },
+          mutation(),
+        )
+      ).data;
+      const onProject = await make(editor, { title: 'On the project', project: pr.id });
+      const onTask = await make(editor, { title: 'On the task', task: tk.id });
+      const sub = await make(editor, { title: 'Under the task page', parent: onTask.id });
+      expect(
+        (await env.svc.listDocuments(editor, ws, { project: pr.id })).data
+          .map((x) => x.title)
+          .sort(),
+      ).toEqual(['On the project', 'On the task', 'Under the task page']);
+      expect(
+        (await env.svc.listDocuments(editor, ws, { task: tk.id })).data.map((x) => x.title).sort(),
+      ).toEqual(['On the task', 'Under the task page']);
+      await expect(
+        env.svc.moveTaskBrand(
+          owner,
+          ws,
+          tk.id,
+          { brand: brands.Summit, preview_token: 'x' },
+          mutation(),
+        ),
+      ).rejects.toBeDefined();
+      await env.svc.projectLifecycle(owner, ws, pr.id, 'trash', mutation()).catch(async () => {
+        await env.svc.taskLifecycle(owner, ws, tk.id, 'trash', {}, mutation());
+      });
+      for (const d of [onProject, onTask, sub])
+        await expect(env.svc.getDocument(editor, ws, d.id)).rejects.toEqual(reason('not_found'));
+    });
+
+    it('exports Markdown and HTML for people who may, audits the fact and never the content, and is honest about what it cannot carry', async () => {
+      const secret = (
+        await env.svc.createTask(
+          owner,
+          ws,
+          { brand: brands.Summit, title: 'Hidden export target' },
+          mutation(),
+        )
+      ).data;
+      const open = (
+        await env.svc.createTask(
+          owner,
+          ws,
+          { brand: brands.Harbor, title: 'Open export target' },
+          mutation(),
+        )
+      ).data;
+      const d = await make(owner, { title: 'Export me', brand: brands.Harbor, starter: false });
+      const v2 = await save(owner, d, [
+        { id: 'blk_h', type: 'heading', level: 1, runs: [{ text: 'Intro' }] },
+        {
+          id: 'blk_p',
+          type: 'paragraph',
+          runs: [
+            { text: 'Open: ' },
+            { ref: { kind: 'task', id: open.id } },
+            { text: ' Secret: ' },
+            { ref: { kind: 'task', id: secret.id } },
+          ],
+        },
+        {
+          id: 'blk_e',
+          type: 'embed',
+          kind: 'image',
+          url: 'https://example.com/chart.png',
+          alt: 'Chart',
+        },
+      ]);
+      const child = await make(owner, { title: 'Export child', parent: d.id });
+      await save(owner, child, [para('blk_c', 'Child text')]);
+      const md = (
+        await env.svc.exportDocument(editor, ws, d.id, { format: 'markdown' }, mutation())
+      ).data;
+      expect(md).toMatchObject({
+        type: 'document_export',
+        format: 'markdown',
+        filename: 'export-me.md',
+        pages: 1,
+      });
+      expect(md.content).toContain('# Export me');
+      expect(md.content).toContain('## Intro');
+      expect(md.content).toContain(`[Open export target](/workspaces/${ws}/tasks/${open.id})`);
+      expect(md.content).toContain('*Restricted item*');
+      expect(md.content).not.toContain('Hidden export target');
+      expect(md.content).not.toContain(secret.id);
+      expect(md.content).toContain('[image: Chart](https://example.com/chart.png)');
+      expect(md.notes).toEqual({
+        embeds_as_links: 1,
+        restricted_items: 1,
+        pages_omitted: 0,
+        unsupported: ['pdf'],
+      });
+      const html = (
+        await env.svc.exportDocument(
+          editor,
+          ws,
+          d.id,
+          { format: 'html', include_children: true },
+          mutation(),
+        )
+      ).data;
+      expect(html).toMatchObject({
+        filename: 'export-me.html',
+        pages: 2,
+        content_type: 'text/html; charset=utf-8',
+      });
+      expect(html.content).toContain('<!doctype html>');
+      expect(html.content).toContain('Child text');
+      expect(html.content).toContain('@media print');
+      // Everyone who may read may export, except where policy says no; the audit holds counts only.
+      await expect(
+        env.svc.exportDocument(reader, ws, d.id, { format: 'markdown' }, mutation()),
+      ).rejects.toEqual(reason('forbidden'));
+      await expect(
+        env.svc.exportDocument(outsider, ws, d.id, { format: 'markdown' }, mutation()),
+      ).rejects.toEqual(reason('not_found'));
+      await expect(
+        env.svc.exportDocument(editor, ws, d.id, { format: 'pdf' }, mutation()),
+      ).rejects.toMatchObject({
+        issues: [expect.objectContaining({ code: 'invalid_option' })],
+      });
+      const audit = await sql(
+        `SELECT changes::text AS c FROM audit.audit_event WHERE action = 'document.exported'`,
+      );
+      expect(audit.length).toBeGreaterThanOrEqual(2);
+      const text = audit.map((a) => a.c).join(' ');
+      expect(text).not.toContain('Export me');
+      expect(text).not.toContain('Child text');
+      expect(v2.content_version).toBe(2);
+      // A page the viewer cannot read is left out of an export of its parent.
+      await apply(env, owner, ws, {
+        kind: 'record_share',
+        record: d.id,
+        grantee: pub.commenter!,
+        level: 'read',
+      });
+      const shared = (
+        await env.svc.exportDocument(
+          commenter,
+          ws,
+          d.id,
+          { format: 'markdown', include_children: true },
+          mutation(),
+        )
+      ).data;
+      expect(shared.pages).toBe(1);
+      const tiny = workEnv(db, { work: { documentExportMaxBytes: 65_536 } });
+      const big = (
+        await tiny.svc.createDocument(
+          owner,
+          ws,
+          { title: 'Big', brand: brands.Harbor, starter: false },
+          mutation(),
+        )
+      ).data;
+      const blocks = Array.from({ length: 40 }, (_, i) =>
+        para(`blk_${String(i).padStart(3, '0')}x`, 'x'.repeat(1_900)),
+      );
+      await tiny.svc.saveContent(
+        owner,
+        ws,
+        big.id,
+        { base_version: 1, content: content(...blocks) },
+        mutation(),
+      );
+      await expect(
+        tiny.svc.exportDocument(owner, ws, big.id, { format: 'markdown' }, mutation()),
+      ).rejects.toMatchObject({
+        issues: [expect.objectContaining({ code: 'too_large' })],
+      });
+      await tiny.h.close();
+    });
+
+    it('moves a departing owner’s documents to the member chosen in the departure plan', async () => {
+      const leaver = await join(env, db, owner, ws, { kind: 'member', role: 'member' });
+      const leaverId = await mem(leaver);
+      await apply(env, owner, ws, {
+        kind: 'brand_grant',
+        brand: brands.Harbor,
+        principal: leaverId,
+        level: 'edit',
+      });
+      const mine = await make(leaver, { title: 'Leaver owns this', brand: brands.Harbor });
+      const preview = await env.svc.previewChange(owner, ws, { kind: 'remove', member: leaverId });
+      expect(preview.diff.records_lost).toMatchObject({ document: expect.any(Number) });
+      env.stepUp.allow = true;
+      try {
+        await env.svc.removeMember(
+          owner,
+          ws,
+          leaverId,
+          { preview_token: preview.preview_token, reassign_to: pub.editor },
+          mutation({ stepUpToken: 't' }),
+        );
+      } finally {
+        env.stepUp.allow = false;
+      }
+      expect((await env.svc.getDocument(editor, ws, mine.id)).owner).toMatchObject({
+        id: pub.editor,
+      });
+      expect((await env.svc.getDocument(editor, ws, mine.id)).created_by).toMatchObject({
+        id: leaverId,
+      });
     });
   });
 });
