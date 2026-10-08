@@ -345,6 +345,20 @@ export const ROUTES: readonly RouteDef[] = [
     section: 'Approvals',
     visible: member,
   },
+  // 4B: the notification centre and the person's notification settings. These addresses appear
+  // in email and browser notifications, so they never change.
+  {
+    id: 'notifications',
+    pattern: '/workspaces/:ws/notifications',
+    shell: 'workspace',
+    section: 'Notifications',
+  },
+  {
+    id: 'notification_settings',
+    pattern: '/workspaces/:ws/settings/notifications',
+    shell: 'workspace',
+    section: 'Notification settings',
+  },
   {
     id: 'workspace_root',
     pattern: '/workspaces/:ws',

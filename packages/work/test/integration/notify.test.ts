@@ -1272,6 +1272,20 @@ describe('Notification platform (4B)', () => {
     });
   });
 
+  describe('discovery', () => {
+    it('finds the workspace with due work through the dispatcher, for every kind of work', async () => {
+      const a = await newTask('Needs a digest');
+      await env.svc.follow(editor, ws, a.id, true, mutation());
+      await env.svc.createComment(owner, ws, a.id, { text: 'hello' }, mutation());
+      await drain();
+      expect(
+        (await sql(`SELECT 1 FROM notify.notification WHERE digest_pending`)).length,
+      ).toBeGreaterThan(0);
+      const found = await env.h.discovery.discoverNotificationWork(new Date(), new Date(0), 100);
+      expect(found).toContain(wsId);
+    });
+  });
+
   describe('isolation, idempotency, purge, and departure', () => {
     const own = async (c: Caller, task: string) => (await forTask(c, task))[0]!;
     const assignTo = async (title: string, who: string, brand = 'Harbor') => {

@@ -1,3 +1,4 @@
+import { ScopeDefaultsEditor } from '../notify/defaults.tsx';
 import { useEffect, useMemo, useRef, useState, type FormEvent, type KeyboardEvent } from 'react';
 import {
   DECISION_STATES,
@@ -1641,6 +1642,7 @@ function SettingsSection({ ws, o, reload }: { ws: string; o: Overview; reload: (
     <>
       {p.capabilities.edit ? <ProjectIdentityForm ws={ws} project={p} onSaved={reload} /> : null}
       {p.capabilities.edit ? <RecordFieldsSection ws={ws} rec={p.id} onSaved={reload} /> : null}
+      <ScopeDefaultsEditor ws={ws} kind="projects" id={p.id} name={p.name} />
       <section className="card" aria-labelledby="st-config">
         <h2 id="st-config">Workflows and fields for this project</h2>
         <p>

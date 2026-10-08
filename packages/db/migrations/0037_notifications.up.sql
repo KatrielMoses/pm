@@ -252,7 +252,7 @@ CREATE INDEX scope_default_by_setter ON notify.scope_default (workspace_id, set_
 CREATE POLICY scheduler_discovery ON notify.delivery FOR SELECT TO pm_scheduler USING (true);
 CREATE POLICY scheduler_discovery ON notify.notification FOR SELECT TO pm_scheduler USING (true);
 GRANT SELECT (workspace_id, state, next_attempt_at, lease_until) ON notify.delivery TO pm_scheduler;
-GRANT SELECT (workspace_id, digest_pending, last_occurred_at, state) ON notify.notification TO pm_scheduler;
+GRANT SELECT (workspace_id, digest_pending, created_at, last_occurred_at, state) ON notify.notification TO pm_scheduler;
 CREATE POLICY scheduler_discovery ON work.task FOR SELECT TO pm_scheduler USING (true);
 GRANT SELECT (workspace_id, due_date, status_category) ON work.task TO pm_scheduler;
 GRANT USAGE ON SCHEMA notify TO pm_scheduler;

@@ -28,6 +28,7 @@ import { targetHref, TARGET_TYPE_LABEL } from './targets.ts';
 import { useWidthClass } from './width.ts';
 import { useWorkspaceShell } from './workspace.tsx';
 import { CaptureDialog } from '../pages/capture-pages.tsx';
+import { BellPanel, BrowserNotifier, bellName, capCount, useBellCounts } from '../notify/bell.tsx';
 
 /**
  * The application shell (NAV-001, NAV-014; RS §2): every signed-in page renders inside it.
@@ -295,7 +296,7 @@ function Header({
         )}
       </button>
       {kind === 'workspace' && !compact ? <CreateMenu /> : null}
-      {kind === 'workspace' ? <NotificationsFoundation /> : null}
+      {kind === 'workspace' ? <NotificationsMenu ws={shellState?.ws ?? null} /> : null}
       {!compact ? <HelpButton /> : null}
       {!compact ? <AccountMenu /> : null}
     </header>
@@ -320,11 +321,14 @@ function HelpButton() {
 /** A non-modal disclosure popover (light dismiss, Esc returns focus to its button). */
 function Popover({
   label,
+  name,
   buttonLabel,
   buttonClass = 'icon-button',
   children,
 }: {
   label: string;
+  /** The button's accessible name when it differs from the panel's label (the bell's count). */
+  name?: string;
   buttonLabel: ReactNode;
   buttonClass?: string;
   children: (close: () => void) => ReactNode;
@@ -359,7 +363,7 @@ function Popover({
         className={buttonClass}
         aria-expanded={open}
         aria-controls={id}
-        aria-label={label}
+        aria-label={name ?? label}
         onClick={() => setOpen((o) => !o)}
       >
         {buttonLabel}
@@ -404,16 +408,31 @@ function CreateMenu() {
   );
 }
 
-/** Notifications arrive with their owning phase (4B); until then the bell says so honestly. */
-function NotificationsFoundation() {
+/** The bell (4B): an honest unread count and the five most recent notifications. */
+export function NotificationsMenu({ ws }: { ws: string | null }) {
+  const { counts } = useBellCounts(ws);
+  if (!ws) return null;
   return (
-    <Popover label="Notifications" buttonLabel={<span aria-hidden="true">🔔</span>}>
-      {() => (
-        <p className="popover-text">
-          Notifications aren't available yet. They arrive in a later release.
-        </p>
-      )}
-    </Popover>
+    <>
+      <Popover
+        label="Notifications"
+        name={bellName(counts)}
+        buttonClass="icon-button bell-button"
+        buttonLabel={
+          <>
+            <span aria-hidden="true">🔔</span>
+            {counts && counts.unread > 0 ? (
+              <span className="bell-count" aria-hidden="true">
+                {capCount(counts.unread)}
+              </span>
+            ) : null}
+          </>
+        }
+      >
+        {(close) => <BellPanel ws={ws} close={close} />}
+      </Popover>
+      <BrowserNotifier ws={ws} />
+    </>
   );
 }
 

@@ -12,6 +12,7 @@ import {
   VerifyConfirmPage,
   VerifyEmailPage,
 } from './pages/auth-pages.tsx';
+import { NotificationCentrePage, NotificationSettingsPage } from './pages/notify-pages.tsx';
 import { LifecycleHarnessPage } from './pages/harness.tsx';
 import {
   AcceptInvitationPage,
@@ -105,6 +106,8 @@ export const ROUTE_COMPONENTS: Record<string, Render> = {
   fields: (p) => <FieldsPage ws={p.ws!} />,
   field_sets: (p) => <FieldSetsPage ws={p.ws!} />,
   approvals: (p) => <ApprovalsPage ws={p.ws!} />,
+  notifications: (p) => <NotificationCentrePage key={p.ws} ws={p.ws!} />,
+  notification_settings: (p) => <NotificationSettingsPage key={p.ws} ws={p.ws!} />,
   time: (p) => <TimePage key={p.ws} ws={p.ws!} />,
   time_approvals: (p) => <TimeApprovalsPage key={p.ws} ws={p.ws!} />,
   time_report: (p) => <TimeReportPage key={p.ws} ws={p.ws!} />,
