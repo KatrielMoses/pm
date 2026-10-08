@@ -219,7 +219,7 @@ Rules and algorithm: [../04-effective-permissions.md](../04-effective-permission
 | `api_tokens.personal` | Create, rotate, revoke own personal API tokens (write scopes need step-up). | none | INT-017, INT-018 | Read-only role may only create read scopes. |
 | `workspace.create` | Create a workspace and become its bootstrap owner (verified human account, before any tenant context exists). | none | WSB-001 | Account-level platform command (AZ-18), listed in account_commands. No workspace role cell grants it: no membership exists before the workspace, so every cell is deny and holding any role never confers it. Only the authenticated human account principal may exercise it; tokens, service principals, OAuth clients, integrations, automations, AI, agents, support, and system jobs cannot, and no 0D scope may list it. Gates: verified email, active (not deleted) account, per-account rate limit, Idempotency-Key. It creates authority only by atomically creating the canonical workspace, the active owner membership, and the bootstrap owner assignment. |
 | `workspace.view_settings` | View workspace name, locale, timezone, currency, week start. | none | WSB-002 |  |
-| `workspace.configure` | Edit workspace profile and defaults. | none | WSB-002, ADM-001 |  |
+| `workspace.configure` | Edit workspace profile and defaults. | none | WSB-002, ADM-001 | Phase 4B (AZ-32): also retries a failed or dead-lettered notification delivery (audited). |
 | `workspace.delete` | Request workspace deletion. | none | SEC-021 |  |
 | `ownership.transfer` | Transfer workspace ownership (last-owner protection). | none | ADM-013 |  |
 | `brand.create` | Create a brand. | none | WSB-003 |  |
@@ -245,7 +245,7 @@ Rules and algorithm: [../04-effective-permissions.md](../04-effective-permission
 | `fields.configure` | Configure custom fields and field sets. | none | TSK-016, WFL-008, WFL-009, WFL-010, WFL-011, WFL-012, WFL-013, WFL-014 | Phase 2C (AZ-23): definitions, options, formulas, field policies, and field sets at their own scope. |
 | `views.configure` | Set default views per brand/project and pin shared views to navigation. | none | VIEW-018, VIEW-019 | Phase 3A (AZ-26): sets brand and project default views and pins views into workspace or brand navigation; only a view shared with that exact scope (or the workspace, for defaults) qualifies, so everyone it applies to can read it. |
 | `templates.manage` | Create and manage templates. | none | ONB-013 |  |
-| `notifications.configure_scope` | Configure brand/project notification rules and minimal-content mode. | none | WSB-014 |  |
+| `notifications.configure_scope` | Configure brand/project notification rules and minimal-content mode. | none | WSB-014 | Phase 4B (AZ-32): sets a brand or project default mode per event type and channel; ranks below every personal choice; audited. |
 | `ai.configure_brand` | Configure brand AI profile and approved-source policy. | none | WSB-012 |  |
 | `ai.providers.manage` | Configure AI providers, models, workspace keys, data settings. | none | AI-031, AI-032, ADM-005 |  |
 | `ai.limits.configure` | Configure AI/agent/automation allowances and hard caps. | none | AI-033, BILL-009 |  |
@@ -266,7 +266,7 @@ Rules and algorithm: [../04-effective-permissions.md](../04-effective-permission
 | `billing.view` | View plan, entitlements, invoices. | none | ADM-012 |  |
 | `billing.manage` | Change plan, seats, payment method; approve extra usage purchases. | none | BILL-010, BILL-014 |  |
 | `secrets_metadata.view` | See that credentials exist, scopes, last rotation (never values). | none | SEC-013 |  |
-| `health.view` | View integration, automation, and agent health. | none | ADM-009, ADM-010 |  |
+| `health.view` | View integration, automation, and agent health. | none | ADM-009, ADM-010 | Phase 4B (AZ-32): also reads failed and dead-lettered notification deliveries (recipient, channel, class, code; never content or addresses). |
 | `support_access.grant` | Grant platform support time-boxed, scoped access. | none | SUP-008 |  |
 | `emergency_stop.trigger` | Stop all agent execution in the workspace. | none | AGT-025 | Never blocked by approval; resuming requires owner/admin. |
 | `ai.execute` | Run an AI action over a selected readable context. | none | AI-005, AI-006 |  |

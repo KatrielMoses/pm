@@ -531,6 +531,18 @@
         "I-10",
         "I-18"
       ]
+    },
+    {
+      "id": "T-50",
+      "category": "inference",
+      "description": "Notification leakage and tampering: notifications, digests, email, browser alerts, search, counts, delivery history, or failure messages revealing a record title, person, brand, project, count, or prior value the recipient cannot read now (after revocation, deletion, departure, a sensitive brand, or a guest share ending); another person's notification, state, preference, profile, or delivery read or changed; a notice created for someone who cannot read the record; preferences, mutes, quiet hours, or defaults used to hide a permission or share change from its subject or to widen delivery; delivery health or retry reachable without authority; failure messages carrying content or addresses; a delivery reported as delivered when only queued or when no provider is configured; content surviving the purge of its record or the departure of its recipient.",
+      "mitigated_by": [
+        "I-01",
+        "I-02",
+        "I-07",
+        "I-10",
+        "I-18"
+      ]
     }
   ],
   "tests": [
@@ -4131,6 +4143,180 @@
         "error_message",
         "timing",
         "count_facet"
+      ]
+    },
+    {
+      "id": "AT-198",
+      "threats": [
+        "T-50"
+      ],
+      "principal": "member",
+      "setup": "Notification about a task whose brand access was revoked after the notification was created",
+      "scope": "notification about record later revoked",
+      "action": "record.read",
+      "surface": "notification_inapp",
+      "expected": "deny",
+      "response_shape": "omitted",
+      "silent_surfaces": [
+        "search",
+        "count_facet",
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-199",
+      "threats": [
+        "T-50"
+      ],
+      "principal": "member",
+      "setup": "Search and filters by title, brand, project, or actor over notifications about records no longer readable",
+      "scope": "notifications about unreadable records",
+      "action": "record.read",
+      "surface": "search",
+      "expected": "deny",
+      "response_shape": "omitted",
+      "silent_surfaces": [
+        "search",
+        "count_facet",
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-200",
+      "threats": [
+        "T-50"
+      ],
+      "principal": "member",
+      "setup": "Email and browser delivery for a record whose access was lost between creation and send",
+      "scope": "queued delivery after revocation",
+      "action": "record.read",
+      "surface": "notification_email",
+      "expected": "deny",
+      "response_shape": "omitted",
+      "silent_surfaces": [
+        "notification_email",
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-201",
+      "threats": [
+        "T-50"
+      ],
+      "principal": "member",
+      "setup": "Email for a sensitive brand or a brand set to minimal content",
+      "scope": "notification in a sensitive brand",
+      "action": "record.read",
+      "surface": "notification_email",
+      "expected": "allow",
+      "response_shape": "redacted",
+      "silent_surfaces": [
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-202",
+      "threats": [
+        "T-50"
+      ],
+      "principal": "member",
+      "setup": "Another member of the workspace reads, changes the state of, or bulk-dismisses someone else's notification",
+      "scope": "other person's notification",
+      "action": "record.read",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "not_found",
+      "silent_surfaces": [
+        "error_message",
+        "timing",
+        "count_facet"
+      ]
+    },
+    {
+      "id": "AT-203",
+      "threats": [
+        "T-50"
+      ],
+      "principal": "member",
+      "setup": "Stranger from another workspace calls every notification route",
+      "scope": "workspace",
+      "action": "record.read",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "not_found",
+      "silent_surfaces": [
+        "error_message",
+        "timing",
+        "count_facet"
+      ]
+    },
+    {
+      "id": "AT-204",
+      "threats": [
+        "T-50"
+      ],
+      "principal": "member",
+      "setup": "Mute, quiet hours, digest, or default targeting a scope the person cannot read, or muting a permission or share notice",
+      "scope": "personal preference scope",
+      "action": "record.read",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "validation_generic",
+      "silent_surfaces": [
+        "error_message",
+        "timing"
+      ]
+    },
+    {
+      "id": "AT-205",
+      "threats": [
+        "T-50"
+      ],
+      "principal": "member",
+      "setup": "Member without health or configure authority reads delivery health, retries a delivery, or sets a brand default",
+      "scope": "workspace",
+      "action": "health.view",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "forbidden",
+      "silent_surfaces": [
+        "error_message",
+        "timing"
+      ]
+    },
+    {
+      "id": "AT-206",
+      "threats": [
+        "T-50"
+      ],
+      "principal": "administrator",
+      "setup": "Delivery health, failure messages, and audit for a failed delivery",
+      "scope": "dead-lettered delivery",
+      "action": "health.view",
+      "surface": "audit_display",
+      "expected": "allow",
+      "response_shape": "redacted",
+      "silent_surfaces": [
+        "error_message",
+        "audit_display"
+      ]
+    },
+    {
+      "id": "AT-207",
+      "threats": [
+        "T-50"
+      ],
+      "principal": "member",
+      "setup": "Digest assembled and sent after some of its records became unreadable",
+      "scope": "digest with revoked items",
+      "action": "record.read",
+      "surface": "notification_email",
+      "expected": "deny",
+      "response_shape": "omitted",
+      "silent_surfaces": [
+        "notification_email",
+        "count_facet",
+        "error_message"
       ]
     }
   ]

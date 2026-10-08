@@ -816,7 +816,11 @@ export class NotificationService extends ReviewService {
           .execute();
         await writeOutboxEvent(tx, {
           type: 'notify.delivery.state_changed',
-          aggregate: { type: 'notify.notification_delivery', id: row.id, sequence: Number(row.version) + 1 },
+          aggregate: {
+            type: 'notify.notification_delivery',
+            id: row.id,
+            sequence: Number(row.version) + 1,
+          },
           data: {
             channel: 'browser',
             kind: 'notification',

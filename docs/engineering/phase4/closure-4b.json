@@ -1,0 +1,888 @@
+{
+  "schema_version": 1,
+  "phase": "4B",
+  "status": "candidate",
+  "adr": "0024",
+  "accepted_by_kinds": [
+    "catalog:contributing",
+    "roadmap:<sub>",
+    "adr:<nnnn>[#row]",
+    "requirement:<ID>"
+  ],
+  "requirements": [
+    {
+      "id": "WSB-014",
+      "role": "owned",
+      "disposition": "implemented",
+      "evidence": [
+        {
+          "file": "packages/work/src/notify/notification-service.ts",
+          "contains": "async setScopeDefault("
+        },
+        {
+          "file": "packages/work/src/notify/notification-service.ts",
+          "contains": "notifications.configure_scope"
+        },
+        {
+          "file": "packages/work/test/integration/notify.test.ts",
+          "contains": "lets managers set brand defaults that a person can still override, and no one else"
+        },
+        {
+          "file": "apps/api/test/integration/notify-api.test.ts",
+          "contains": "lets administrators set brand defaults and refuses everyone else"
+        }
+      ],
+      "note": "Brand and project notification defaults per event type and channel, set by those who manage the scope, ranked below every personal choice, and audited."
+    },
+    {
+      "id": "COL-016",
+      "role": "owned",
+      "disposition": "implemented",
+      "evidence": [
+        {
+          "file": "packages/work/src/notify/fanout.ts",
+          "contains": "export const FANOUT_EVENTS"
+        },
+        {
+          "file": "packages/work/test/integration/notify.test.ts",
+          "contains": "notifies on assignment, handover, mention, review request and decision, and sharing"
+        },
+        {
+          "file": "packages/work/test/integration/notify.test.ts",
+          "contains": "turns a comment into notifications for the people it concerns, who can read the record"
+        },
+        {
+          "file": "packages/work/test/integration/notify.test.ts",
+          "contains": "announces due-soon and overdue work once per task and date, only to its assignees"
+        }
+      ],
+      "note": "Assignments, handovers, mentions, comments, review requests and decisions, blockers, access and share changes, reminders, and deadlines notify the people they concern. Failure, spend, and briefing events arrive with their producers (NTF-005)."
+    },
+    {
+      "id": "COL-017",
+      "role": "owned",
+      "disposition": "implemented",
+      "evidence": [
+        {
+          "file": "packages/work/src/notify/notification-service.ts",
+          "contains": "async setNotificationPreference("
+        },
+        {
+          "file": "packages/work/src/notify/semantics.ts",
+          "contains": "export function resolveMode("
+        },
+        {
+          "file": "packages/work/test/integration/notify.test.ts",
+          "contains": "uses explicit defaults: email immediate for a mention and a digest for a comment, browser opt-in"
+        },
+        {
+          "file": "packages/work/test/integration/notify.test.ts",
+          "contains": "lets a more specific scope win, mutes drop notifications, and mutes can end"
+        },
+        {
+          "file": "apps/api/test/integration/notify-api.test.ts",
+          "contains": "sets, lists, and removes preferences and mutes for scopes the caller can open"
+        }
+      ],
+      "note": "Preferences by event, brand, project, record, and channel, with defaults and mutes that can end."
+    },
+    {
+      "id": "COL-018",
+      "role": "owned",
+      "disposition": "implemented",
+      "evidence": [
+        {
+          "file": "packages/work/src/notify/jobs.ts",
+          "contains": "async function assembleDigests("
+        },
+        {
+          "file": "packages/work/test/integration/notify.test.ts",
+          "contains": "assembles one digest per slot, re-authorizes its items, and sends it once"
+        },
+        {
+          "file": "packages/work/test/integration/notify.test.ts",
+          "contains": "rolls email past the hourly limit into the digest instead of dropping it"
+        }
+      ],
+      "note": "Digests assembled per person and slot with re-authorized items and sent by email once."
+    },
+    {
+      "id": "COL-019",
+      "role": "owned",
+      "disposition": "implemented",
+      "evidence": [
+        {
+          "file": "packages/work/src/notify/semantics.ts",
+          "contains": "export function dedupeKey("
+        },
+        {
+          "file": "packages/work/src/notify/semantics.ts",
+          "contains": "export function groupKey("
+        },
+        {
+          "file": "packages/work/test/unit/notify-semantics.test.ts",
+          "contains": "groups only low-value repeats about a record"
+        },
+        {
+          "file": "packages/work/test/integration/notify.test.ts",
+          "contains": "collapses repeats into one notification and reopens it, keeping saved items saved"
+        }
+      ],
+      "note": "Duplicate repeats collapse into one notification with an occurrence count; low-value repeats group in the list."
+    },
+    {
+      "id": "COL-020",
+      "role": "owned",
+      "disposition": "implemented",
+      "evidence": [
+        {
+          "file": "packages/work/src/notify/notification-service.ts",
+          "contains": "async setNotificationState("
+        },
+        {
+          "file": "packages/work/src/notify/notification-service.ts",
+          "contains": "async bulkNotificationState("
+        },
+        {
+          "file": "packages/work/test/integration/notify.test.ts",
+          "contains": "keeps states, tabs, bulk changes, and history for the recipient only"
+        },
+        {
+          "file": "apps/api/test/integration/notify-api.test.ts",
+          "contains": "changes state with If-Match, replays idempotently, and acts in bulk"
+        }
+      ],
+      "note": "Read, unread, saved, and dismissed state, one at a time or in bulk, for the recipient only."
+    },
+    {
+      "id": "NTF-001",
+      "role": "owned",
+      "disposition": "implemented",
+      "evidence": [
+        {
+          "file": "packages/work/src/notify/notification-service.ts",
+          "contains": "async listNotifications("
+        },
+        {
+          "file": "packages/work/src/notify/render.ts",
+          "contains": "export async function viewNotifications("
+        },
+        {
+          "file": "packages/work/test/integration/notify.test.ts",
+          "contains": "turns a comment into notifications for the people it concerns, who can read the record"
+        },
+        {
+          "file": "packages/work/test/integration/notify.test.ts",
+          "contains": "rechecks access, choices, and the address when sending: nothing leaves for what the person lost"
+        },
+        {
+          "file": "apps/api/test/integration/notify-api.test.ts",
+          "contains": "lists, counts, and reads only the caller’s own notifications, hiding others as unknown"
+        }
+      ],
+      "note": "In-app notifications: durable rows, re-authorized at display, counts and tabs."
+    },
+    {
+      "id": "NTF-002",
+      "role": "owned",
+      "disposition": "implemented",
+      "evidence": [
+        {
+          "file": "packages/work/src/notify/transport.ts",
+          "contains": "export function emailProviderFrom("
+        },
+        {
+          "file": "packages/work/src/notify/jobs.ts",
+          "contains": "async function sendOne("
+        },
+        {
+          "file": "packages/work/test/integration/notify.test.ts",
+          "contains": "marks delivered only after the provider acknowledges, with standard content and a stable message id"
+        },
+        {
+          "file": "packages/work/test/integration/notify.test.ts",
+          "contains": "retries transient failures with backoff, then dead-letters; permanent failures stop at once"
+        },
+        {
+          "file": "packages/work/test/integration/notify.test.ts",
+          "contains": "never claims delivery without a provider: unconfigured email is suppressed with the reason"
+        },
+        {
+          "file": "packages/work/test/integration/notify.test.ts",
+          "contains": "reclaims a delivery whose sender crashed, under the same message id"
+        }
+      ],
+      "note": "Email notifications through the provider-neutral mail boundary: delivered only after provider acknowledgement, with classification, bounded retry, dead-letter, and reconciliation."
+    },
+    {
+      "id": "NTF-003",
+      "role": "owned",
+      "disposition": "implemented",
+      "evidence": [
+        {
+          "file": "packages/work/src/notify/notification-service.ts",
+          "contains": "async browserPending("
+        },
+        {
+          "file": "packages/work/src/notify/notification-service.ts",
+          "contains": "async acknowledgeBrowser("
+        },
+        {
+          "file": "packages/work/test/integration/notify.test.ts",
+          "contains": "delivers to the browser only after the page reports it, and expires what nobody shows"
+        },
+        {
+          "file": "apps/api/test/integration/notify-api.test.ts",
+          "contains": "shows the caller’s deliveries and the browser channel, and gives administrators delivery health"
+        }
+      ],
+      "note": "Browser notifications, client-acknowledged while the application is open; permission asked only after a user gesture."
+    },
+    {
+      "id": "NTF-004",
+      "role": "owned",
+      "disposition": "implemented",
+      "evidence": [
+        {
+          "file": "packages/work/src/notify/semantics.ts",
+          "contains": "export function dueDigestSlot("
+        },
+        {
+          "file": "packages/work/test/unit/notify-semantics.test.ts",
+          "contains": "picks the latest slot whose time has passed, in the person’s zone"
+        },
+        {
+          "file": "packages/work/test/integration/notify.test.ts",
+          "contains": "assembles one digest per slot, re-authorizes its items, and sends it once"
+        }
+      ],
+      "note": "Daily and weekly digests at the person's local time, one cadence per person."
+    },
+    {
+      "id": "NTF-005",
+      "role": "owned",
+      "disposition": "foundation",
+      "evidence": [
+        {
+          "file": "packages/work/src/notify/semantics.ts",
+          "contains": "export const NOTIFICATION_TYPES"
+        },
+        {
+          "file": "packages/db/migrations/0037_notifications.up.sql",
+          "contains": "'integration_failure', 'automation_failure', 'agent_failure'"
+        },
+        {
+          "file": "packages/work/test/integration/notify.test.ts",
+          "contains": "notifies on assignment, handover, mention, review request and decision, and sharing"
+        },
+        {
+          "file": "packages/work/test/integration/notify.test.ts",
+          "contains": "announces due-soon and overdue work once per task and date, only to its assignees"
+        }
+      ],
+      "note": "Assignments, mentions, comments, review requests and decisions, blockers, due dates, and overdue work notify now. Integration, automation, and agent failures have their notification types and failure styling and arrive when 6A, 8A, and 8B produce the events.",
+      "deferred_to": [
+        "6A",
+        "8A",
+        "8B"
+      ],
+      "accepted_by": [
+        "roadmap:6A",
+        "roadmap:8A",
+        "roadmap:8B"
+      ]
+    },
+    {
+      "id": "NTF-006",
+      "role": "owned",
+      "disposition": "foundation",
+      "evidence": [
+        {
+          "file": "packages/work/src/notify/semantics.ts",
+          "contains": "spend_threshold"
+        },
+        {
+          "file": "packages/db/migrations/0037_notifications.up.sql",
+          "contains": "'spend_threshold'"
+        },
+        {
+          "file": "packages/work/test/integration/notify.test.ts",
+          "contains": "uses explicit defaults: email immediate for a mention and a digest for a comment, browser opt-in"
+        }
+      ],
+      "note": "The spend-threshold notification type, its email-immediate default, and its delivery path exist; the spend producer arrives with the AI gateway budgets (7A).",
+      "deferred_to": [
+        "7A"
+      ],
+      "accepted_by": [
+        "roadmap:7A"
+      ]
+    },
+    {
+      "id": "NTF-007",
+      "role": "owned",
+      "disposition": "implemented",
+      "evidence": [
+        {
+          "file": "packages/work/src/notify/fanout.ts",
+          "contains": "'access.grant.created'"
+        },
+        {
+          "file": "packages/work/src/notify/semantics.ts",
+          "contains": "export const SECURITY_TYPES"
+        },
+        {
+          "file": "packages/work/test/integration/notify.test.ts",
+          "contains": "notifies on assignment, handover, mention, review request and decision, and sharing"
+        },
+        {
+          "file": "packages/work/test/integration/notify.test.ts",
+          "contains": "holds non-security email in quiet hours but never the notification centre or a security notice"
+        }
+      ],
+      "note": "Permission and external-sharing changes notify the person affected, cannot be muted or held by quiet hours, and say nothing about the record when access is gone."
+    },
+    {
+      "id": "NTF-008",
+      "role": "owned",
+      "disposition": "implemented",
+      "evidence": [
+        {
+          "file": "packages/work/src/notify/notification-service.ts",
+          "contains": "async setNotificationPreference("
+        },
+        {
+          "file": "packages/work/test/integration/notify.test.ts",
+          "contains": "uses explicit defaults: email immediate for a mention and a digest for a comment, browser opt-in"
+        },
+        {
+          "file": "packages/work/test/integration/notify.test.ts",
+          "contains": "lets a more specific scope win, mutes drop notifications, and mutes can end"
+        },
+        {
+          "file": "apps/api/test/integration/notify-api.test.ts",
+          "contains": "sets, lists, and removes preferences and mutes for scopes the caller can open"
+        }
+      ],
+      "note": "Immediate, digest, or muted delivery chosen per event, scope, and channel."
+    },
+    {
+      "id": "NTF-009",
+      "role": "owned",
+      "disposition": "implemented",
+      "evidence": [
+        {
+          "file": "packages/work/src/notify/semantics.ts",
+          "contains": "export function inQuietWindow("
+        },
+        {
+          "file": "packages/work/src/notify/notification-service.ts",
+          "contains": "async setNotificationProfile("
+        },
+        {
+          "file": "packages/work/test/integration/notify.test.ts",
+          "contains": "holds non-security email in quiet hours but never the notification centre or a security notice"
+        },
+        {
+          "file": "packages/work/test/integration/notify.test.ts",
+          "contains": "validates the profile and reports what each channel can truthfully do"
+        },
+        {
+          "file": "apps/api/test/integration/notify-api.test.ts",
+          "contains": "reads and replaces the profile with If-Match and reports channels truthfully"
+        }
+      ],
+      "note": "Quiet hours and time zone: a person's window in their own zone holds non-security email and browser delivery."
+    },
+    {
+      "id": "NTF-010",
+      "role": "owned",
+      "disposition": "implemented",
+      "evidence": [
+        {
+          "file": "packages/work/test/integration/notify.test.ts",
+          "contains": "lets a more specific scope win, mutes drop notifications, and mutes can end"
+        },
+        {
+          "file": "packages/work/test/integration/notify.test.ts",
+          "contains": "refuses invalid choices and scopes the person cannot open, with one answer"
+        },
+        {
+          "file": "apps/api/test/integration/notify-api.test.ts",
+          "contains": "sets, lists, and removes preferences and mutes for scopes the caller can open"
+        }
+      ],
+      "note": "Mute a task, project, brand, or notification type, optionally until a date; refused for scopes the person cannot read."
+    },
+    {
+      "id": "NTF-011",
+      "role": "owned",
+      "disposition": "implemented",
+      "evidence": [
+        {
+          "file": "packages/work/src/notify/semantics.ts",
+          "contains": "export function dedupeKey("
+        },
+        {
+          "file": "packages/work/test/integration/notify.test.ts",
+          "contains": "collapses repeats into one notification and reopens it, keeping saved items saved"
+        },
+        {
+          "file": "packages/work/test/integration/notify.test.ts",
+          "contains": "applies an event once however often it is delivered, and an occasion fires once"
+        }
+      ],
+      "note": "Deduplicate repeated notifications in a time bucket; occasions fire once."
+    },
+    {
+      "id": "NTF-012",
+      "role": "owned",
+      "disposition": "implemented",
+      "evidence": [
+        {
+          "file": "packages/work/src/notify/notification-service.ts",
+          "contains": "async listNotifications("
+        },
+        {
+          "file": "packages/work/src/notify/jobs.ts",
+          "contains": "async function ageOut("
+        },
+        {
+          "file": "packages/work/test/integration/notify.test.ts",
+          "contains": "keeps states, tabs, bulk changes, and history for the recipient only"
+        },
+        {
+          "file": "packages/work/test/integration/notify.test.ts",
+          "contains": "ages out old notifications but keeps saved ones, and erases a departed person"
+        },
+        {
+          "file": "apps/api/test/integration/notify-api.test.ts",
+          "contains": "lists, counts, and reads only the caller’s own notifications, hiding others as unknown"
+        }
+      ],
+      "note": "Searchable notification history by text, type, brand, project, and state, authorized at read time, aged out after the retention bound unless saved."
+    },
+    {
+      "id": "WSB-015",
+      "role": "contributing",
+      "disposition": "contributed",
+      "contribution": "4B",
+      "evidence": [
+        {
+          "file": "packages/work/src/notify/render.ts",
+          "contains": "export async function externalLine("
+        },
+        {
+          "file": "packages/work/test/integration/notify.test.ts",
+          "contains": "names only the brand and the kind in email for a sensitive brand or a minimal-content brand (UXD-10)"
+        }
+      ],
+      "note": "Notification rows carry the brand marker, and external content for a sensitive or minimal brand names only the brand and the kind."
+    },
+    {
+      "id": "PRJ-026",
+      "role": "contributing",
+      "disposition": "contributed",
+      "contribution": "4B",
+      "evidence": [
+        {
+          "file": "packages/work/src/notify/fanout.ts",
+          "contains": "collab.comment.created"
+        },
+        {
+          "file": "packages/work/test/integration/notify.test.ts",
+          "contains": "lets a more specific scope win, mutes drop notifications, and mutes can end"
+        }
+      ],
+      "note": "Following decides who hears about comments: a follower's notification preferences are the same per-event, per-scope choices as everyone's."
+    },
+    {
+      "id": "TSK-032",
+      "role": "contributing",
+      "disposition": "contributed",
+      "contribution": "4B",
+      "evidence": [
+        {
+          "file": "packages/work/src/notify/fanout.ts",
+          "contains": "planning.task_reminder.fired"
+        },
+        {
+          "file": "packages/work/test/integration/notify.test.ts",
+          "contains": "applies an event once however often it is delivered, and an occasion fires once"
+        }
+      ],
+      "note": "A fired task reminder becomes a notification once per reminder, through the same pipeline."
+    },
+    {
+      "id": "BRF-018",
+      "role": "contributing",
+      "disposition": "contributed",
+      "contribution": "4B",
+      "evidence": [
+        {
+          "file": "packages/work/src/notify/semantics.ts",
+          "contains": "briefing_ready"
+        },
+        {
+          "file": "packages/db/migrations/0037_notifications.up.sql",
+          "contains": "'briefing_ready'"
+        }
+      ],
+      "note": "Briefing delivery has its notification type, channels, and quiet-hours behaviour; the briefing producer arrives with 7E."
+    },
+    {
+      "id": "AUTO-016",
+      "role": "contributing",
+      "disposition": "contributed",
+      "contribution": "4B",
+      "evidence": [
+        {
+          "file": "packages/work/src/notify/semantics.ts",
+          "contains": "FAILURE_TYPES"
+        },
+        {
+          "file": "packages/work/test/unit/notify-semantics.test.ts",
+          "contains": "groups only low-value repeats about a record"
+        }
+      ],
+      "note": "Failure notification types are never grouped away with low-value ones and email immediately; automation producers arrive with 8A."
+    },
+    {
+      "id": "RPT-021",
+      "role": "contributing",
+      "disposition": "contributed",
+      "contribution": "4B",
+      "evidence": [
+        {
+          "file": "packages/work/src/notify/semantics.ts",
+          "contains": "export_ready"
+        },
+        {
+          "file": "packages/db/migrations/0037_notifications.up.sql",
+          "contains": "'export_ready'"
+        }
+      ],
+      "note": "Report and export delivery has its notification type and the same email and browser boundary; the report producer arrives with 5D."
+    }
+  ],
+  "decisions": [
+    {
+      "id": "D1",
+      "title": "A notification stores identifiers and small facts only and is rendered from what the recipient can read at display",
+      "adr_row": "D1",
+      "sources": [
+        {
+          "file": "docs/architecture/data/12-decisions.md",
+          "contains": "## ADR-32"
+        }
+      ],
+      "evidence": [
+        {
+          "file": "packages/work/test/integration/notify.test.ts",
+          "contains": "turns a comment into notifications for the people it concerns, who can read the record"
+        },
+        {
+          "file": "packages/work/test/integration/notify.test.ts",
+          "contains": "rechecks access, choices, and the address when sending: nothing leaves for what the person lost"
+        },
+        {
+          "file": "packages/work/src/notify/render.ts",
+          "contains": "You no longer have access to this item"
+        },
+        {
+          "file": "docs/engineering/adr/0024-notification-platform.md",
+          "contains": "| D1 |"
+        }
+      ]
+    },
+    {
+      "id": "D2",
+      "title": "One outbox consumer creates notifications for active recipients who can read the record, authorized again at display and send",
+      "adr_row": "D2",
+      "sources": [
+        {
+          "file": "docs/architecture/access/15-decisions.md",
+          "contains": "**Authorized twice.**"
+        }
+      ],
+      "evidence": [
+        {
+          "file": "packages/work/src/notify/fanout.ts",
+          "contains": "export class NotificationFanOut"
+        },
+        {
+          "file": "packages/work/test/integration/notify.test.ts",
+          "contains": "turns a comment into notifications for the people it concerns, who can read the record"
+        },
+        {
+          "file": "packages/work/test/integration/notify.test.ts",
+          "contains": "notifies on assignment, handover, mention, review request and decision, and sharing"
+        },
+        {
+          "file": "packages/work/test/integration/notify.test.ts",
+          "contains": "applies an event once however often it is delivered, and an occasion fires once"
+        },
+        {
+          "file": "docs/engineering/adr/0024-notification-platform.md",
+          "contains": "| D2 |"
+        }
+      ]
+    },
+    {
+      "id": "D3",
+      "title": "Preferences by scope, type, and channel with explicit privacy-safe defaults; security notices cannot be muted; defaults rank below personal choices",
+      "adr_row": "D3",
+      "sources": [
+        {
+          "file": "docs/architecture/access/15-decisions.md",
+          "contains": "**Preferences never widen.**"
+        }
+      ],
+      "evidence": [
+        {
+          "file": "packages/work/test/unit/notify-semantics.test.ts",
+          "contains": "lets a more specific scope win whatever its mode, then an exact type, then an exact channel"
+        },
+        {
+          "file": "packages/work/test/integration/notify.test.ts",
+          "contains": "uses explicit defaults: email immediate for a mention and a digest for a comment, browser opt-in"
+        },
+        {
+          "file": "packages/work/test/integration/notify.test.ts",
+          "contains": "lets a more specific scope win, mutes drop notifications, and mutes can end"
+        },
+        {
+          "file": "packages/work/test/integration/notify.test.ts",
+          "contains": "refuses invalid choices and scopes the person cannot open, with one answer"
+        },
+        {
+          "file": "packages/work/test/integration/notify.test.ts",
+          "contains": "lets managers set brand defaults that a person can still override, and no one else"
+        },
+        {
+          "file": "docs/engineering/adr/0024-notification-platform.md",
+          "contains": "| D3 |"
+        }
+      ]
+    },
+    {
+      "id": "D4",
+      "title": "Quiet hours in the person's zone hold non-security email and browser delivery, never the in-app centre or security notices",
+      "adr_row": "D4",
+      "sources": [
+        {
+          "file": "docs/architecture/data/12-decisions.md",
+          "contains": "`notify.profile` holds the person's time zone source"
+        }
+      ],
+      "evidence": [
+        {
+          "file": "packages/work/test/unit/notify-semantics.test.ts",
+          "contains": "handles windows that wrap midnight and ends them on time"
+        },
+        {
+          "file": "packages/work/test/integration/notify.test.ts",
+          "contains": "holds non-security email in quiet hours but never the notification centre or a security notice"
+        },
+        {
+          "file": "docs/engineering/adr/0024-notification-platform.md",
+          "contains": "| D4 |"
+        }
+      ]
+    },
+    {
+      "id": "D5",
+      "title": "Repeats collapse in a time bucket and reopen read or dismissed rows; occasions fire once; only low-value types group",
+      "adr_row": "D5",
+      "sources": [
+        {
+          "file": "docs/architecture/data/12-decisions.md",
+          "contains": "Repeats inside `NOTIFY_DEDUPE_WINDOW_MINUTES` collapse"
+        }
+      ],
+      "evidence": [
+        {
+          "file": "packages/work/test/unit/notify-semantics.test.ts",
+          "contains": "collapses repeats in one bucket and separates other people, records, and buckets"
+        },
+        {
+          "file": "packages/work/test/unit/notify-semantics.test.ts",
+          "contains": "groups only low-value repeats about a record"
+        },
+        {
+          "file": "packages/work/test/integration/notify.test.ts",
+          "contains": "collapses repeats into one notification and reopens it, keeping saved items saved"
+        },
+        {
+          "file": "packages/work/test/integration/notify.test.ts",
+          "contains": "applies an event once however often it is delivered, and an occasion fires once"
+        },
+        {
+          "file": "docs/engineering/adr/0024-notification-platform.md",
+          "contains": "| D5 |"
+        }
+      ]
+    },
+    {
+      "id": "D6",
+      "title": "One digest cadence per person, keyed slots, items re-authorized at assembly and at send; over-limit email rolls into a digest",
+      "adr_row": "D6",
+      "sources": [
+        {
+          "file": "docs/architecture/data/12-decisions.md",
+          "contains": "`notify.digest` is one bundle per person, cadence, and period"
+        }
+      ],
+      "evidence": [
+        {
+          "file": "packages/work/test/unit/notify-semantics.test.ts",
+          "contains": "picks the latest slot whose time has passed, in the person’s zone"
+        },
+        {
+          "file": "packages/work/test/integration/notify.test.ts",
+          "contains": "assembles one digest per slot, re-authorizes its items, and sends it once"
+        },
+        {
+          "file": "packages/work/test/integration/notify.test.ts",
+          "contains": "rolls email past the hourly limit into the digest instead of dropping it"
+        },
+        {
+          "file": "docs/engineering/adr/0024-notification-platform.md",
+          "contains": "| D6 |"
+        }
+      ]
+    },
+    {
+      "id": "D7",
+      "title": "Delivered only after acknowledgement; classified failures, bounded backoff, dead-letter, leases, and administrator reconciliation",
+      "adr_row": "D7",
+      "sources": [
+        {
+          "file": "docs/architecture/platform/19-decisions.md",
+          "contains": "### PL-34: Notification contracts"
+        }
+      ],
+      "evidence": [
+        {
+          "file": "packages/work/test/unit/notify-semantics.test.ts",
+          "contains": "doubles the delay up to a cap and decides what a failure leads to"
+        },
+        {
+          "file": "packages/work/test/integration/notify.test.ts",
+          "contains": "marks delivered only after the provider acknowledges, with standard content and a stable message id"
+        },
+        {
+          "file": "packages/work/test/integration/notify.test.ts",
+          "contains": "retries transient failures with backoff, then dead-letters; permanent failures stop at once"
+        },
+        {
+          "file": "packages/work/test/integration/notify.test.ts",
+          "contains": "never claims delivery without a provider: unconfigured email is suppressed with the reason"
+        },
+        {
+          "file": "packages/work/test/integration/notify.test.ts",
+          "contains": "reclaims a delivery whose sender crashed, under the same message id"
+        },
+        {
+          "file": "apps/api/test/integration/notify-api.test.ts",
+          "contains": "shows the caller’s deliveries and the browser channel, and gives administrators delivery health"
+        },
+        {
+          "file": "docs/engineering/adr/0024-notification-platform.md",
+          "contains": "| D7 |"
+        }
+      ]
+    },
+    {
+      "id": "D8",
+      "title": "The browser channel is client-acknowledged, opt-in after a user gesture, and expires what nobody shows",
+      "adr_row": "D8",
+      "sources": [
+        {
+          "file": "docs/architecture/platform/19-decisions.md",
+          "contains": "`brands/{id}` or `projects/{id}` `/notification-defaults`"
+        }
+      ],
+      "evidence": [
+        {
+          "file": "packages/work/test/integration/notify.test.ts",
+          "contains": "delivers to the browser only after the page reports it, and expires what nobody shows"
+        },
+        {
+          "file": "apps/api/test/integration/notify-api.test.ts",
+          "contains": "shows the caller’s deliveries and the browser channel, and gives administrators delivery health"
+        },
+        {
+          "file": "docs/engineering/adr/0024-notification-platform.md",
+          "contains": "| D8 |"
+        }
+      ]
+    },
+    {
+      "id": "D9",
+      "title": "Minimal external content for sensitive brands; no content in failures, events, or audit; retention, purge, and erasure",
+      "adr_row": "D9",
+      "sources": [
+        {
+          "file": "docs/product/open-decisions.md",
+          "contains": "Status (Phase 4B, 2026-10-08):** Notification retention stays open"
+        }
+      ],
+      "evidence": [
+        {
+          "file": "packages/work/test/unit/notify-semantics.test.ts",
+          "contains": "names only the brand and the kind in minimal content"
+        },
+        {
+          "file": "packages/work/test/integration/notify.test.ts",
+          "contains": "names only the brand and the kind in email for a sensitive brand or a minimal-content brand (UXD-10)"
+        },
+        {
+          "file": "packages/work/test/integration/notify.test.ts",
+          "contains": "ages out old notifications but keeps saved ones, and erases a departed person"
+        },
+        {
+          "file": "packages/work/test/integration/notify.test.ts",
+          "contains": "removes notifications, deliveries, and choices about a purged record, keeping no title anywhere"
+        },
+        {
+          "file": "packages/work/test/integration/notify.test.ts",
+          "contains": "erases a departed person’s notifications, deliveries, choices, and profile, and nobody else’s"
+        },
+        {
+          "file": "docs/engineering/adr/0024-notification-platform.md",
+          "contains": "| D9 |"
+        }
+      ]
+    },
+    {
+      "id": "D10",
+      "title": "Registered contracts and bounds; truthful readiness; later-phase producers and 4C-4E, 8B, and connectors stay out",
+      "adr_row": "D10",
+      "sources": [
+        {
+          "file": "docs/architecture/platform/19-decisions.md",
+          "contains": "Readiness gains `email_delivery`"
+        }
+      ],
+      "evidence": [
+        {
+          "file": "packages/work/test/integration/notify.test.ts",
+          "contains": "gives strangers, other people, and unknown notifications one answer, with the same statements and time"
+        },
+        {
+          "file": "apps/api/test/integration/notify-api.test.ts",
+          "contains": "lists, counts, and reads only the caller’s own notifications, hiding others as unknown"
+        },
+        {
+          "file": "apps/api/src/readiness.ts",
+          "contains": "email_delivery"
+        },
+        {
+          "file": "docs/engineering/adr/0024-notification-platform.md",
+          "contains": "| D10 |"
+        }
+      ]
+    }
+  ]
+}

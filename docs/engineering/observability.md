@@ -137,3 +137,7 @@ Counters `capacity.reads` (view: `person`, `team`, or `rescheduling`; outcome) a
 
 Counters `collab.comments` (action: `create`, `edit`, `delete`, `list`, `replies`; outcome), `collab.reactions` (change: `added` or `removed`; outcome), `collab.follows` (change: `added`, `removed`, or `list`; outcome), `collab.reviews` (action: `request`, `decide`, `withdraw`, `refresh`, `list`, or `queue`; outcome), `collab.delegations` (kind: `delegate`; outcome), and the shared `tenancy.authz_decisions` for every decision. Events carry identifiers, kinds, and flags; never comment bodies, notes, messages, or names.
 
+## Notifications (4B)
+
+Counters `notify.fanout` (type; outcome: `created`, `collapsed`, `muted`, `skipped_record`, `skipped_recipient`, or `skipped_access`), `notify.deliveries` (channel: `email` or `browser`; outcome: `delivered`, `retry`, `failed`, `dead`, `suppressed`, `unconfigured`, `expired`, `deferred`, or `sweep_error`), `notify.digests` (kind: `daily` or `weekly`; outcome: `assembled` or `empty`), and `notify.reads` (view: `list`, `counts`, and the other reads; outcome: `ok` or an error code), plus the shared `tenancy.authz_decisions`. The readiness check `email_delivery` is `ok` with a configured mail transport and `not_configured` without one; it is never `fail`, and a missing provider is never reported as delivery. Events and logs carry identifiers, types, channels, states, and failure classes and codes; never titles, names, addresses, or bodies.
+

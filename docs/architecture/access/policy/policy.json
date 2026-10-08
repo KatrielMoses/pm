@@ -1922,7 +1922,7 @@
         "WSB-002",
         "ADM-001"
       ],
-      "notes": ""
+      "notes": "Phase 4B (AZ-32): also retries a failed or dead-lettered notification delivery (audited)."
     },
     {
       "key": "workspace.delete",
@@ -2663,7 +2663,7 @@
       "requirements": [
         "WSB-014"
       ],
-      "notes": ""
+      "notes": "Phase 4B (AZ-32): sets a brand or project default mode per event type and channel; ranks below every personal choice; audited."
     },
     {
       "key": "ai.configure_brand",
@@ -3254,7 +3254,7 @@
         "ADM-009",
         "ADM-010"
       ],
-      "notes": ""
+      "notes": "Phase 4B (AZ-32): also reads failed and dead-lettered notification deliveries (recipient, channel, class, code; never content or addresses)."
     },
     {
       "key": "support_access.grant",

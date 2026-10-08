@@ -571,3 +571,10 @@ These rules apply to every surface: lists, search, palette, notifications, dashb
 - **Honest states:** a deleted comment shows "This comment was deleted" (or removed by a moderator) and keeps its replies. A review made stale by a later change says so and offers Ask again. Read-only and share-only readers see only what they may do, with a plain reason.
 - **Honest absences:** notifications and delivery preferences for mentions, replies, and reviews (4B), comments and suggestions in documents (4C), live co-editing and presence (4D), file attachments on comments (4E), and agent reviewers (8D).
 
+**Phase 4B implementation note.** Notifications:
+- **Bell and centre:** the shell bell shows the unread count in its name and opens the five newest with *Mark all read*. The centre is a full page at `/workspaces/{ws}/notifications` (tabs All · Mentions · Reviews · Saved; filters for type, brand, project, and unread; search; grouping; bulk actions). Opening an item marks it read. Dismissed items stay findable under *Show dismissed*.
+- **Settings:** `/workspaces/{ws}/settings/notifications` holds time zone, quiet hours, the digest (off, daily, or weekly), the email and browser switches, per-event choices (immediate, digest, or muted) and mutes by brand, project, or task with an optional end, and recent deliveries. Security notices are marked always on.
+- **Honest states:** when email is not configured the page says nothing is sent by email. The browser opt-in asks permission only after a click, explains a refusal, and says when the browser cannot show notifications. A row whose record you can no longer read says "You no longer have access to this item" and offers only its time and state. Quiet hours say what they hold and what they never hold.
+- **Administrators:** a delivery-health section lists failed and dead-lettered deliveries (who, channel, reason, attempts, never content) with Retry, and brand and project defaults.
+- **Honest absences:** integration, automation, agent, spend, and briefing events arrive with the phases that produce them (6A, 8A, 8B, 7A, 7E); files, documents, and co-editing notices arrive with 4C to 4E.
+
