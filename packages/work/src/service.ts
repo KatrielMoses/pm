@@ -369,7 +369,7 @@ export class ProjectService extends NavigationService {
     action: string,
     target: { recordId: string | null; type: string; publicId: string | null },
     changes: ReturnType<typeof change.plain>[],
-    brandId: string,
+    brandId: string | null,
   ): Promise<string> {
     return this.workWriter.write(tx, this.cmd(caller, p, brandId), { action, target, changes });
   }
@@ -381,7 +381,7 @@ export class ProjectService extends NavigationService {
     type: Parameters<typeof writeOutboxEvent>[1]['type'],
     aggregate: { type: string; id: string; sequence: number },
     data: Record<string, string | number | boolean | null>,
-    brandId: string,
+    brandId: string | null,
   ): Promise<void> {
     await writeOutboxEvent(tx, {
       type,
@@ -389,7 +389,7 @@ export class ProjectService extends NavigationService {
       data,
       actor: { type: 'human', id: p.membershipId },
       context: this.exec(caller, p),
-      brandId,
+      ...(brandId ? { brandId } : {}),
     });
   }
 

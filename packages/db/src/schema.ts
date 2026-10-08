@@ -2124,7 +2124,7 @@ export interface ReviewRequestTable {
   public_id: string;
   workspace_id: string;
   subject_record_id: string;
-  subject_kind: 'task' | 'project';
+  subject_kind: 'task' | 'project' | 'document';
   subject_version: number;
   kind: 'review' | 'approval';
   rule: 'any' | 'all';

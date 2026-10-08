@@ -84,7 +84,7 @@ function parseMentions(v: unknown, max: number, issues: Issues): MentionInput[] 
     const ok =
       (kind === 'member' && isPublic(id, 'mem')) ||
       (kind === 'team' && isPublic(id, 'team')) ||
-      (kind === 'record' && (isPublic(id, 'tsk') || isPublic(id, 'prj')));
+      (kind === 'record' && (isPublic(id, 'tsk') || isPublic(id, 'prj') || isPublic(id, 'doc')));
     if (!ok) {
       issues.add(at, 'invalid_reference', 'Choose who or what to mention.');
       continue;

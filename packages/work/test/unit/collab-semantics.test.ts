@@ -78,7 +78,7 @@ describe('vocabularies', () => {
     expect(parseReaction('heart')).toBe('heart');
     expect(parseReaction('skull')).toBeNull();
     expect(parseReaction(5)).toBeNull();
-    expect([...COLLAB_HOSTS]).toEqual(['task', 'project']);
+    expect([...COLLAB_HOSTS]).toEqual(['task', 'project', 'document']);
     expect(mentionKey({ kind: 'team', id: 'x' })).toBe('team:x');
   });
 });

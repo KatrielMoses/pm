@@ -26,7 +26,7 @@ export type ReviewOutcome = (typeof REVIEW_OUTCOMES)[number];
 export type ReviewState = 'requested' | ReviewOutcome | 'withdrawn' | 'superseded';
 
 /** Record types that can host comments, followers, and reviews until later phases register more. */
-export const COLLAB_HOSTS = ['task', 'project'] as const;
+export const COLLAB_HOSTS = ['task', 'project', 'document'] as const;
 export type CollabHostKind = (typeof COLLAB_HOSTS)[number];
 
 /** Whether an author may still edit or delete their own comment (OD-38 audit window). */
