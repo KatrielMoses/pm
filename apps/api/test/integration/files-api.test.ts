@@ -178,6 +178,42 @@ describe('files API (4E)', () => {
     expect(renamed.json().data.name).toBe('release.txt');
   });
 
+  it('accepts the signed PUT from a signed-in browser (ambient cookie, no CSRF token; JSON body)', async () => {
+    // A same-origin XHR carries the session cookie and Origin but no CSRF token; the signature is
+    // the authorization. A JSON or text body must arrive as raw bytes, not a parsed value.
+    const bytes = Buffer.from('{"a": 1}\n');
+    const init = keep(
+      await owner.post(
+        `${base()}/uploads`,
+        {
+          host: task,
+          name: 'data.json',
+          content_type: 'application/json',
+          byte_size: bytes.length,
+          sha256: sha(bytes),
+        },
+        { headers: key() },
+      ),
+    );
+    expect(init.statusCode, init.body).toBe(201);
+    const s = init.json().data;
+    const put = await env.app.inject({
+      method: 'PUT',
+      url: path(s.upload.url),
+      payload: bytes,
+      headers: {
+        ...s.upload.headers,
+        origin: owner.origin,
+        cookie: [...owner.cookies].map(([k, v]) => `${k}=${v}`).join('; '),
+      },
+    });
+    expect(put.statusCode, put.body).toBe(200);
+    const done = keep(
+      await owner.post(`${base()}/uploads/${s.id}:complete`, {}, { headers: key() }),
+    );
+    expect(done.json().data.state).toBe('completed');
+  });
+
   it('links external files and runs a deliverable through review to acceptance', async () => {
     const link = keep(
       await owner.post(

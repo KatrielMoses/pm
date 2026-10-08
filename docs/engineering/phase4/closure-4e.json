@@ -93,6 +93,10 @@
         {
           "file": "apps/api/test/integration/files-api.test.ts",
           "contains": "reports storage truthfully, uploads through a signed PUT, and downloads through a 303"
+        },
+        {
+          "file": "e2e/files.spec.ts",
+          "contains": "upload, scan, preview, download, version, compare, link, deliverable, and blocked files"
         }
       ],
       "note": "Inline previews for raster images, video, audio, PDF, and text and code (as text/plain); SVG, HTML, office, and archive formats download as attachments (ADR-0025 F5: no server-side conversion of untrusted content)."
@@ -253,6 +257,10 @@
         {
           "file": "packages/work/test/integration/files.test.ts",
           "contains": "reviews deliverables through 4A and evidence-locks the accepted version"
+        },
+        {
+          "file": "e2e/files.spec.ts",
+          "contains": "a second person accepts a deliverable through review, then loses the files with access"
         }
       ],
       "note": "Acceptance records the 4A decision, who accepted, and when, and evidence-locks the version and its file version."
@@ -305,6 +313,10 @@
         {
           "file": "packages/work/test/integration/files.test.ts",
           "contains": "is honest when storage or scanning is not configured"
+        },
+        {
+          "file": "e2e/files.spec.ts",
+          "contains": "upload, scan, preview, download, version, compare, link, deliverable, and blocked files"
         }
       ],
       "note": "Every upload is scanned in quarantine (ClamAV); infected and failed scans are blocked and their bytes deleted; nothing is downloadable before a clean verdict; without a scanner, uploads are refused."
@@ -341,6 +353,10 @@
         {
           "file": "packages/work/test/unit/files-storage.test.ts",
           "contains": "rejects tampering, op mismatch, wrong key, wrong secret and expiry"
+        },
+        {
+          "file": "e2e/files.spec.ts",
+          "contains": "a second person accepts a deliverable through review, then loses the files with access"
         }
       ],
       "note": "Host-derived authorization on every request, hidden equals unknown, short-lived signed URLs bound to key, operation, and expiry, and revocation effective on the next request."

@@ -18,6 +18,9 @@ export interface LocalStorageRouteDeps {
  */
 export function registerLocalStorage(app: FastifyInstance, deps: LocalStorageRouteDeps): void {
   void app.register(async (scope) => {
+    // Every declared type arrives as raw bytes: Fastify's built-in JSON and text parsers would
+    // otherwise turn a `.json` or `.txt` upload into an object or string and refuse it.
+    scope.removeAllContentTypeParsers();
     scope.addContentTypeParser(
       '*',
       { parseAs: 'buffer', bodyLimit: deps.maxBytes },
