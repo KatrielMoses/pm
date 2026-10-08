@@ -345,6 +345,14 @@ export const ROUTES: readonly RouteDef[] = [
     section: 'Approvals',
     visible: member,
   },
+  // 4C: a document page (the Knowledge destination is the tree of pages).
+  {
+    id: 'document',
+    pattern: '/workspaces/:ws/documents/:doc',
+    shell: 'workspace',
+    section: 'Knowledge',
+    // Guests open shared documents from Shared with me; the API decides what each person can read.
+  },
   // 4B: the notification centre and the person's notification settings. These addresses appear
   // in email and browser notifications, so they never change.
   {

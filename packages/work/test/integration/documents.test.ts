@@ -1162,18 +1162,26 @@ describe('Documents and knowledge (4C)', () => {
       expect(
         (await env.svc.listDocuments(editor, ws, { task: tk.id })).data.map((x) => x.title).sort(),
       ).toEqual(['On the task', 'Under the task page']);
-      await expect(
-        env.svc.moveTaskBrand(
+      // The task's documents live in its brand: it cannot move away until they do.
+      const loose = (
+        await env.svc.createTask(
           owner,
           ws,
-          tk.id,
-          { brand: brands.Summit, preview_token: 'x' },
+          { brand: brands.Harbor, title: 'Projectless' },
           mutation(),
-        ),
-      ).rejects.toBeDefined();
-      await env.svc.projectLifecycle(owner, ws, pr.id, 'trash', mutation()).catch(async () => {
-        await env.svc.taskLifecycle(owner, ws, tk.id, 'trash', {}, mutation());
+        )
+      ).data;
+      await expect(
+        env.svc.previewTaskBrandMove(owner, ws, loose.id, { brand: brands.Summit }),
+      ).resolves.toBeDefined();
+      await make(editor, { title: 'Pins the brand', task: loose.id });
+      await expect(
+        env.svc.previewTaskBrandMove(owner, ws, loose.id, { brand: brands.Summit }),
+      ).rejects.toMatchObject({
+        issues: [expect.objectContaining({ code: 'documents_attached' })],
       });
+      // Trashing the project carries its documents, and the ones on its tasks.
+      await env.svc.projectLifecycle(owner, ws, pr.id, 'trash', mutation());
       for (const d of [onProject, onTask, sub])
         await expect(env.svc.getDocument(editor, ws, d.id)).rejects.toEqual(reason('not_found'));
     });

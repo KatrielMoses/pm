@@ -696,6 +696,7 @@ export function CommentsPanel({
   archived,
   canMention,
   noun,
+  note,
 }: {
   ws: string;
   rec: string;
@@ -703,7 +704,9 @@ export function CommentsPanel({
   canComment: boolean;
   archived: boolean;
   canMention: boolean;
-  noun: 'task' | 'project';
+  noun: 'task' | 'project' | 'document';
+  /** An honest line about what comments cover (shown under the heading). */
+  note?: string;
 }) {
   const [threads, setThreads] = useState<ThreadState[]>([]);
   const [load, setLoad] = useState<
@@ -824,6 +827,7 @@ export function CommentsPanel({
   return (
     <section className="card collab-card" aria-labelledby={`comments-h-${rec}`}>
       <h2 id={`comments-h-${rec}`}>Comments</h2>
+      {note ? <p className="hint">{note}</p> : null}
       {canComment ? (
         <Composer
           ws={ws}

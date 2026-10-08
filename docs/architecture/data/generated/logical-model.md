@@ -2934,9 +2934,31 @@ Rich-text document or page; workspace or brand scope, optionally attached to a p
 | Volume / export / search-AI | `high` / `filtered` / `yes` |
 | Secrets / personal data | `no` / `incidental` |
 | Uniqueness | — |
-| Key typed columns | `parent_document_id null`; `ancestor_ids uuid[]`; `depth smallint`; `attached_project_id null`; `attached_task_id null`; `doc_type`; `title`; `state doc_state (draft\|current\|stale)`; `owner_id`; `review_due_on date`; `current_version_id`; `rank text`; `access_mode (inherit\|restricted)`; `allow_record_shares boolean (default false when restricted)` |
+| Key typed columns | `public_id text (doc_, on the envelope)`; `brand_id null (workspace-level when null)`; `scope_key`; `parent_document_id null`; `ancestor_ids uuid[]`; `depth smallint`; `attached_project_id null`; `attached_task_id null`; `doc_type (page\|brand_brief\|project_brief\|sop\|specification\|meeting_notes\|decision\|release_notes)`; `title`; `state (draft\|current\|stale)`; `owner_membership_id`; `review_due_on null`; `current_version_id`; `current_version_number`; `access_mode (inherit; restricted trees are reserved, ADR-33)`; `allow_record_shares boolean (reserved with restricted trees)`; `rank`; `created_by_membership_id`; `updated_by_membership_id`; `version` |
 | Sensitive fields | — |
-| Requirements | DOC-001, DOC-002, DOC-003, DOC-015, DOC-016 |
+| Requirements | DOC-001, DOC-002, DOC-003, DOC-004, DOC-005, DOC-006, DOC-015, DOC-016 |
+| Notes | Phase 4C (ADR-33): authority is the placement's (brand or workspace level, the governing project chain of its attachment, exact-record shares); a page lives in its parent's scope and attachment, checked at commit. Restricted document trees are not built in 4C: `access_mode` is constrained to `inherit` and `allow_record_shares` is reserved, because restriction changes the shared visibility compiler and arrives with the sharing and permissions administration phases. `effective_state` reports stale when a current document's review date has passed; the stored state is never rewritten. A task with attached documents cannot change brand. |
+
+<a id="entity-document-reference"></a>
+### `document_reference`
+
+A link or mention in a document: the current content's inline mentions (rebuilt on every save) and the explicit record links; re-authorized for every viewer when shown.
+
+| Property | Value |
+|---|---|
+| Scope | `inherited` |
+| Contained by | [`document`](logical-model.md#entity-document) |
+| Extends (1:1) | — |
+| Associations | [`record`](logical-model.md#entity-record) |
+| Lifecycle / concurrency | `mutable` / `locked` |
+| Retention / confidentiality | `R-LIVE` / `C2` |
+| Volume / export / search-AI | `high` / `filtered` / `no` |
+| Secrets / personal data | `no` / `incidental` |
+| Uniqueness | `(document_id, kind, target)` |
+| Key typed columns | `document_id`; `block_id ('-' for an explicit link)`; `position`; `kind (mention\|link)`; `target_kind (member\|team\|record)`; `target_membership_id \| target_team_id \| target_record_id`; `target_record_type (task\|project\|brand\|document)` |
+| Sensitive fields | — |
+| Requirements | DOC-008, DOC-009 |
+| Notes | Phase 4C (ADR-33): carries no label, so nothing a viewer may not read is stored in or leaves with the content. A viewer who cannot read a target receives an opaque restricted token (IA-46) that a save restores. Backlinks list only documents the viewer can read, and only when the viewer can read the target. |
 
 <a id="entity-document-version"></a>
 ### `document_version`
@@ -2954,9 +2976,10 @@ Immutable content snapshot with hash.
 | Volume / export / search-AI | `high` / `filtered` / `yes` |
 | Secrets / personal data | `no` / `incidental` |
 | Uniqueness | `(document_id, version_number)` |
-| Key typed columns | standard columns only |
+| Key typed columns | `public_id text (dcv_)`; `document_id`; `number (unique per document)`; `title`; `content jsonb (rich-text v2 blocks)`; `content_hash sha256 of the canonical form`; `size_bytes`; `kind (save\|restore\|suggestion\|template)`; `restored_from_number null`; `template_key null (type@version)`; `change_summary (blocks added, changed, removed)`; `created_by_membership_id`; `created_at` |
 | Sensitive fields | — |
-| Requirements | DOC-013, DOC-014 |
+| Requirements | DOC-007, DOC-013, DOC-014 |
+| Notes | Phase 4C (ADR-33): immutable (a trigger refuses updates; the application role can insert and read only). A save names its base version; a stale base is a conflict; equal content is a no-op. Restoring appends a new version with the chosen content. |
 
 <a id="entity-source-approval"></a>
 ### `source_approval`
@@ -2974,9 +2997,10 @@ Verification that a specific document version is an approved AI source.
 | Volume / export / search-AI | `low` / `filtered` / `yes` |
 | Secrets / personal data | `no` / `incidental` |
 | Uniqueness | — |
-| Key typed columns | standard columns only |
+| Key typed columns | `document_id`; `version_number`; `kind (approved\|revoked)`; `actor_membership_id`; `note null`; `created_at` |
 | Sensitive fields | — |
-| Requirements | DOC-017, DOC-018 |
+| Requirements | DOC-017 |
+| Notes | Phase 4C (ADR-33): append-only. Only the latest row for a document counts, and only for the version it names; it stops applying when a newer version is saved. Search and AI behavior built on it belong to 5A and 7B. |
 
 <a id="entity-document-suggestion"></a>
 ### `document_suggestion`
@@ -2994,9 +3018,10 @@ Proposed edit on a document version; accepted or rejected by owner.
 | Volume / export / search-AI | `medium` / `filtered` / `yes` |
 | Secrets / personal data | `no` / `incidental` |
 | Uniqueness | — |
-| Key typed columns | standard columns only |
+| Key typed columns | `public_id text (dsg_)`; `document_id`; `block_id`; `base_version`; `base_block_hash`; `proposed block jsonb`; `note null`; `state (open\|accepted\|rejected\|withdrawn\|stale)`; `author_membership_id`; `decided_by_membership_id null`; `decided_at null`; `applied_version null`; `version` |
 | Sensitive fields | — |
 | Requirements | DOC-012 |
+| Notes | Phase 4C (ADR-33): proposes replacing one block against the version and block it saw; applied only to an unchanged block (same hash), otherwise stale with nothing applied. Never grants access. |
 
 ## Goals and portfolios (`goals`, schema `goals`)
 

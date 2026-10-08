@@ -41,6 +41,8 @@ CREATE TABLE knowledge.document (
   review_due_on date,
   current_version_id uuid,
   current_version_number integer NOT NULL DEFAULT 0,
+  access_mode text NOT NULL DEFAULT 'inherit',
+  allow_record_shares boolean NOT NULL DEFAULT true,
   rank text COLLATE "C" NOT NULL,
   created_by_membership_id uuid NOT NULL,
   created_at timestamptz NOT NULL DEFAULT now(),
@@ -77,6 +79,9 @@ CREATE TABLE knowledge.document (
     (doc_type <> 'brand_brief' OR (brand_id IS NOT NULL AND attached_project_id IS NULL AND attached_task_id IS NULL))
     AND (doc_type <> 'project_brief' OR attached_project_id IS NOT NULL)),
   CONSTRAINT document_state_known CHECK (state IN ('draft', 'current', 'stale')),
+  -- Restricted document trees (0B, 0C) are reserved: until the sharing and permissions administration
+  -- phases build them, every document inherits its placement's access (ADR-0025 D1).
+  CONSTRAINT document_access_mode_known CHECK (access_mode = 'inherit'),
   CONSTRAINT document_title_text CHECK (char_length(btrim(title)) BETWEEN 1 AND 200 AND title = btrim(title)
     AND tenancy.valid_plain_text(title, 200)),
   CONSTRAINT document_depth_ceiling CHECK (depth BETWEEN 0 AND 16),

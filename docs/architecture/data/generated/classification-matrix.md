@@ -26,7 +26,7 @@ Class definitions and rules: [../11-data-classification.md](../11-data-classific
 | Inbox and capture | 6 | C3 | R-LIVE, R-PERSONAL | filtered, self | metadata, no, yes | hash-only | incidental, yes | high |
 | Today, scheduling, and capacity | 14 | C3 | R-LIVE, R-PERSONAL | filtered, self | no, yes | no | incidental, yes | high |
 | Time tracking | 6 | C2 | R-EVIDENCE, R-LIVE | filtered | no, yes | no | incidental | very-high |
-| Documents and knowledge | 4 | C2 | R-EVIDENCE, R-LIVE | filtered | yes | no | incidental | high |
+| Documents and knowledge | 5 | C2 | R-EVIDENCE, R-LIVE | filtered | no, yes | no | incidental | high |
 | Goals and portfolios | 5 | C2 | R-LIVE | filtered | yes | no | incidental | medium |
 | Views and navigation state | 6 | C1 | R-LIVE, R-PERSONAL | filtered, never, self | no, yes | no | incidental, no | high |
 | Search | 3 | C2 | R-DERIVED, R-PERSONAL | never, self | no, yes | no | incidental | very-high |
@@ -176,6 +176,7 @@ Class definitions and rules: [../11-data-classification.md](../11-data-classific
 | [`timesheet_approval`](logical-model.md#entity-timesheet-approval) | time | brand | C2 | standard (per-record) | is evidence / append-only | R-EVIDENCE | filtered | medium | yes | no | incidental |
 | [`period_lock`](logical-model.md#entity-period-lock) | time | brand | C2 | standard (per-record) | is evidence / append-only | R-EVIDENCE | filtered | low | yes | no | incidental |
 | [`document`](logical-model.md#entity-document) | knowledge | workspace_or_brand | C2 | standard (per-record) | material changes | R-LIVE | filtered | high | yes | no | incidental |
+| [`document_reference`](logical-model.md#entity-document-reference) | knowledge | inherited | C2 | standard (per-record) | material changes | R-LIVE | filtered | high | no | no | incidental |
 | [`document_version`](logical-model.md#entity-document-version) | knowledge | inherited | C2 | standard (per-record) | is evidence / append-only | R-LIVE | filtered | high | yes | no | incidental |
 | [`source_approval`](logical-model.md#entity-source-approval) | knowledge | inherited | C2 | standard (per-record) | is evidence / append-only | R-EVIDENCE | filtered | low | yes | no | incidental |
 | [`document_suggestion`](logical-model.md#entity-document-suggestion) | knowledge | inherited | C2 | standard (per-record) | material changes | R-LIVE | filtered | medium | yes | no | incidental |

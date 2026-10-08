@@ -96,6 +96,7 @@ Source: `contracts/registry.json`.
 | `hol_` | holiday | planning.holiday | planning |  |
 | `rsv_` | capacity_reservation | planning.capacity_reservation | planning |  |
 | `ndl_` | notification_delivery | notify.notification_delivery | notify | Phase 4B (PL-34). |
+| `dsg_` | document_suggestion | knowledge.document_suggestion | knowledge |  |
 
 ## Error codes
 
@@ -226,7 +227,7 @@ Source: `contracts/registry.json`.
 | `planning.occurrence.generated` v1 | planning.recurrence_series | occurrence_key, record_id | C1 |  |  |  | yes |  | — |
 | `time.time_entry.recorded` v1 | time.time_entry | duration_seconds, billable, source | C1 | yes |  | yes |  |  | — |
 | `time.timesheet.approved` v1 | time.timesheet_approval | period_start, brand_id | C1 | yes | yes | yes | yes |  | — |
-| `knowledge.document.source_approved` v1 | knowledge.source_approval | document_version_id | C1 | yes |  |  | yes | yes | — |
+| `knowledge.document.source_approved` v1 | knowledge.source_approval | document_version_id, kind | C1 | yes |  |  | yes | yes | — |
 | `access.grant.created` v1 | access.record_grant | record_id, grantee_type, level, expires_at | C1 | yes | yes |  |  |  | — |
 | `access.grant.revoked` v1 | access.record_grant | record_id, grantee_type | C1 | yes | yes |  |  |  | — |
 | `access.role.assigned` v1 | access.role_assignment | scope_type, role_id | C1 | yes | yes |  |  |  | — |
@@ -333,6 +334,12 @@ Source: `contracts/registry.json`.
 | `work.task.delegated` v1 | work.task | from_membership_id, to_membership_id | C1 | yes | yes | yes |  |  | — |
 | `notify.notification.created` v1 | notify.notification | type, record_id | C1 |  |  | yes |  |  | — |
 | `notify.delivery.state_changed` v1 | notify.notification_delivery | channel, kind, state, failure_class | C1 |  |  | yes |  |  | — |
+| `knowledge.document.created` v1 | knowledge.document | doc_type, parent_document_id, attached_kind | C1 | yes |  | yes |  |  | — |
+| `knowledge.document.version_saved` v1 | knowledge.document | version_number, kind, size_bytes | C1 | yes |  | yes |  |  | — |
+| `knowledge.document.updated` v1 | knowledge.document | change | C1 | yes |  | yes |  |  | — |
+| `knowledge.document.mention_added` v1 | knowledge.document | reference_id, block_id | C1 |  | yes | yes |  |  | — |
+| `knowledge.document.suggestion_created` v1 | knowledge.document_suggestion | document_id, block_id | C1 | yes |  | yes |  |  | — |
+| `knowledge.document.suggestion_decided` v1 | knowledge.document_suggestion | document_id, state, applied_version | C1 | yes |  | yes |  |  | — |
 
 ## SSE topics
 
@@ -500,6 +507,11 @@ Forbidden metric labels: `workspace_id`, `brand_id`, `record_id`, `public_id`, `
 | `notify.deliveries` | counter | channel, outcome | notify |
 | `notify.digests` | counter | kind, outcome | notify |
 | `notify.reads` | counter | view, outcome | notify |
+| `knowledge.documents` | counter | action, outcome | knowledge |
+| `knowledge.versions` | counter | action, outcome | knowledge |
+| `knowledge.suggestions` | counter | action, outcome | knowledge |
+| `knowledge.exports` | counter | format, outcome | knowledge |
+| `knowledge.references` | counter | action, outcome | knowledge |
 
 ## Named parameters (values are configuration, not promises)
 
@@ -653,3 +665,18 @@ Forbidden metric labels: `workspace_id`, `brand_id`, `record_id`, `public_id`, `
 | `NOTIFY_BULK_STATE_MAX` | Most notifications one bulk state change names; default 200, range 1–1000. | 4B |
 | `NOTIFY_DEADLINES_BATCH_MAX` | Most due-soon and overdue tasks one sweep considers per workspace; default 500, range 10–5000. | 4B |
 | `NOTIFY_FACTS_MAX_BYTES` | Largest facts object a notification stores (scalars only, never titles or text); default 1024, range 128–4096. | 4B |
+| `DOCUMENT_BODY_MAX_BYTES` | Largest canonical content of one document version, in bytes; default 262144, range 4096–2000000. | 4C |
+| `DOCUMENT_BLOCKS_MAX` | Most blocks in one document; default 2000, range 10–5000. | 4C |
+| `DOCUMENT_BLOCK_TEXT_MAX_CHARS` | Longest text of one block; default 20000, range 100–50000. | 4C |
+| `DOCUMENT_TABLE_CELLS_MAX` | Most cells in one table block; default 1000, range 4–5000. | 4C |
+| `DOCUMENT_DEPTH_MAX` | Deepest page nesting (a root is depth 0); default 6, range 1–16. | 4C |
+| `DOCUMENT_CHILDREN_MAX` | Most direct subpages of one page; default 200, range 1–1000. | 4C |
+| `DOCUMENT_TREE_MAX` | Most pages in one page tree; default 1000, range 10–5000. | 4C |
+| `DOCUMENT_VERSIONS_MAX` | Most versions one document keeps; default 1000, range 10–10000. | 4C |
+| `DOCUMENT_REFERENCES_MAX` | Most links and mentions in one document; default 500, range 10–2000. | 4C |
+| `DOCUMENT_SUGGESTIONS_OPEN_MAX` | Most open suggestions on one document; default 100, range 1–500. | 4C |
+| `DOCUMENT_EXPORT_PAGES_MAX` | Most pages one export carries; default 100, range 1–500. | 4C |
+| `DOCUMENT_EXPORT_MAX_BYTES` | Largest export, in bytes; default 5242880, range 65536–52428800. | 4C |
+| `DOCUMENT_REVIEW_HORIZON_DAYS` | Furthest review date, in days from today; default 730, range 30–3650. | 4C |
+| `DOCUMENT_SAVE_RATE_PER_MINUTE` | Most content saves one person makes per minute; default 60, range 1–600. | 4C |
+| `DOCUMENT_EMBED_URL_MAX_CHARS` | Longest address of an embedded image, video, or link; default 2048, range 128–8192. | 4C |

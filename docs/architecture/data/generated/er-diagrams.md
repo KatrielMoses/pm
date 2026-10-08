@@ -258,6 +258,8 @@ erDiagram
   task ||--o{ document : "contains"
   document ||--o{ document : "contains"
   record ||--|| document : "envelope"
+  document ||--o{ document_reference : "contains"
+  document_reference }o..o{ record : "references"
   document ||--o{ document_version : "contains"
   document_version ||--o{ source_approval : "contains"
   document ||--o{ document_suggestion : "contains"

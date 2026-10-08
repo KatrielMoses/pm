@@ -213,6 +213,18 @@ Status of every ADR: **proposed (Phase 0B)**, pending solutions-architect accept
   - A view per share scope: duplicate definitions that drift.
   - Storing query results: they would freeze and widen access.
 - **Consequences:** One migration, `0031_saved_views`, with a down migration to 0030. No 3B layout tables, 3C planning, or 6D export-job tables.
+<a id="adr-33"></a>
+## ADR-33: Documents and knowledge (Phase 4C amendment)
+
+- **Decision:**
+  - **Documents.** `knowledge.document` (`doc_`) is a record in the core envelope: workspace-scoped (no brand) or brand-scoped, optionally attached to one project or one task, and nested under at most one parent page. A page lives in its parent's scope and attachment (checked at commit), the tree is bounded by `DOCUMENT_DEPTH_MAX`, `DOCUMENT_CHILDREN_MAX`, and `DOCUMENT_TREE_MAX`, and a move never enters the page's own subtree. Authority is the placement's; restricted document trees are not built in 4C.
+  - **Content and versions.** Content is rich-text version 2: ordered blocks with stable identifiers (paragraph, heading, lists, checklist, quote, code, table, divider, callout, embed), validated and normalized by the server, and hashed in a canonical form so equal content has an equal hash. `knowledge.document_version` (`dcv_`) is immutable (a trigger refuses updates; the application role inserts and reads only). A save names its base version, a stale base conflicts, equal content is a no-op, and a restore appends a new version holding the chosen content.
+  - **State, owner, review.** A document is draft, current, or stale (stored) and may be archived through the record lifecycle. `effective_state` reports stale when a current document's review date has passed; the stored state is never rewritten. The owner is an active member who can edit it.
+  - **References.** `knowledge.document_reference` holds the content's inline mentions (rebuilt on every save) and the document's explicit record links, with no label. A viewer who cannot read a target receives an opaque restricted token, never an identifier, and a save restores what the token stands for.
+  - **Suggestions and approvals.** `knowledge.document_suggestion` (`dsg_`) proposes replacing one block against the version and block hash it saw; it is applied only to an unchanged block. `knowledge.source_approval` is an append-only fact that one version is (or is no longer) an approved AI source.
+  - **Starters.** Built-in typed starters are versioned constants recorded on the first version; there is no template catalog (10B).
+- **Alternatives:** Titles or labels stored beside references (stale and leaky after revocation). Overwriting the current content with a history table beside it (a silent overwrite window). Restricted document trees in the shared visibility compiler now (a change to every record query). A stored `stale` state rewritten by a job (a fabricated history).
+- **Consequences:** Migration `0038_documents` with an exact 0037 rollback. All new tables have workspace RLS; versions and approvals are append-only to the application; purge removes a document's versions, references, suggestions, approvals, comments, and notifications.
 <a id="adr-32"></a>
 ## ADR-32: Notification platform (Phase 4B amendment)
 

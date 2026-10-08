@@ -255,6 +255,23 @@ All decisions are **proposed (Phase 0D)**, pending solutions-architect acceptanc
   - **Signals.** `views.queries` (entity, outcome), `views.query_duration` (entity), and `views.exports` (entity, format).
 - **Alternatives:** `GET` with the AST in the URL (it would land in logs and the 0D field-selection rule). Offset pages (forbidden for mutable collections).
 - **Consequences:** Payloads carry identifiers, kinds, and counts only, never names or query text. 83 ID prefixes, 104 events, 99 named parameters, 63 telemetry signals.
+<a id="pl-35"></a>
+### PL-35: Document contracts (Phase 4C amendment)
+- **Decision:**
+  - Prefixes `doc` (document), `dcv` (document version), and `dsg` (document suggestion) are implemented; `dsg` is added.
+  - Resources and verbs, all under the workspace:
+    - `documents`: list (tree and filters, by cursor) and create; `documents/{id}`: read and `PATCH` (state, owner, review date, `If-Match`); `{id}:archive`, `:unarchive`, `:trash`, `:restore`, `:purge`, `:export`, `:approve_source`, and `:revoke_source`.
+    - `documents/{id}/content` (`PUT`, naming the version loaded), `documents/{id}/restore-version`, `documents/{id}/location` (move and reorder), `documents/{id}/links`, `documents/{id}/versions` and `…/versions/{number}`.
+    - `documents/{id}/suggestions` and `suggestions/{id}` with `:decide` and `:withdraw`; `records/{id}/documents` (backlinks).
+    - Comments, following, reviews, and mention candidates reach a document through the existing record routes.
+  - Events: `knowledge.document.created`, `.version_saved`, `.updated`, `.mention_added`, `.suggestion_created`, `.suggestion_decided`, and `.source_approved` (existing, with a `kind` field). Payloads carry identifiers, kinds, and counts, never a title, text, or address.
+  - Named bounds (owner 4C): `DOCUMENT_BODY_MAX_BYTES` (262144), `DOCUMENT_BLOCKS_MAX` (2000), `DOCUMENT_BLOCK_TEXT_MAX_CHARS` (20000), `DOCUMENT_TABLE_CELLS_MAX` (1000), `DOCUMENT_DEPTH_MAX` (6), `DOCUMENT_CHILDREN_MAX` (200), `DOCUMENT_TREE_MAX` (1000), `DOCUMENT_VERSIONS_MAX` (1000), `DOCUMENT_REFERENCES_MAX` (500), `DOCUMENT_SUGGESTIONS_OPEN_MAX` (100), `DOCUMENT_EXPORT_PAGES_MAX` (100), `DOCUMENT_EXPORT_MAX_BYTES` (5242880), `DOCUMENT_REVIEW_HORIZON_DAYS` (730), `DOCUMENT_SAVE_RATE_PER_MINUTE` (60), and `DOCUMENT_EMBED_URL_MAX_CHARS` (2048).
+  - Five signals: `knowledge.documents`, `knowledge.versions`, `knowledge.suggestions`, `knowledge.exports`, and `knowledge.references`.
+  - Non-resource envelope: `document_export`.
+  - Refusals: `conflict` issues `document_archived`, `already_current`, `already_decided`, `version_changed`, `invalid_state`, `too_large`, and `documents_attached` (a task with documents cannot change brand), with `conflict.current_version` on a stale content save; `validation_failed` issues `not_linkable`, `invalid_placement`, `different_place`, `cycle`, `depth_exceeded`, `too_many`, `too_long`, `too_far`, `invalid_date`, `invalid_url`, `unsupported_embed`, `unsupported_block`, `duplicate_block_id`, and `ragged_table`; `rate_limited` for save bursts.
+- **Alternatives:** Per-host document routes (`/tasks/{id}/documents`) would multiply one contract; placement is a field of the document. A PDF export now (6D owns file generation); the HTML export carries a print stylesheet.
+- **Consequences:** 89 ID prefixes, 142 events, 163 named parameters, 89 telemetry signals.
+
 <a id="pl-34"></a>
 ### PL-34: Notification contracts (Phase 4B amendment)
 - **Decision:**

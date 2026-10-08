@@ -141,3 +141,7 @@ Counters `collab.comments` (action: `create`, `edit`, `delete`, `list`, `replies
 
 Counters `notify.fanout` (type; outcome: `created`, `collapsed`, `muted`, `skipped_record`, `skipped_recipient`, or `skipped_access`), `notify.deliveries` (channel: `email` or `browser`; outcome: `delivered`, `retry`, `failed`, `dead`, `suppressed`, `unconfigured`, `expired`, `deferred`, or `sweep_error`), `notify.digests` (kind: `daily` or `weekly`; outcome: `assembled` or `empty`), and `notify.reads` (view: `list`, `counts`, and the other reads; outcome: `ok` or an error code), plus the shared `tenancy.authz_decisions`. The readiness check `email_delivery` is `ok` with a configured mail transport and `not_configured` without one; it is never `fail`, and a missing provider is never reported as delivery. Events and logs carry identifiers, types, channels, states, and failure classes and codes; never titles, names, addresses, or bodies.
 
+## Documents (4C)
+
+Counters `knowledge.documents` (action: `create`, `read`, `list`, `update`, `move`, `archive`, `unarchive`, `trash`, `restore`, `purge`, `approve`, `revoke`; outcome), `knowledge.versions` (action: `save`, `restore`, `list`, `read`; outcome), `knowledge.suggestions` (action: `create`, `accept`, `reject`, `withdraw`, `list`, `read`; outcome), `knowledge.exports` (format: `markdown` or `html`; outcome), `knowledge.references` (action: `links` or `backlinks`; outcome), plus the shared `tenancy.authz_decisions`. Events carry identifiers, kinds, and counts; never titles, text, or addresses.
+

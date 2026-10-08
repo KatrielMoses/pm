@@ -2320,6 +2320,8 @@ export interface DocumentTable {
   doc_type: Defaulted<DocumentTypeKey>;
   title: string;
   state: Defaulted<'draft' | 'current' | 'stale'>;
+  access_mode: Defaulted<'inherit'>;
+  allow_record_shares: Defaulted<boolean>;
   owner_membership_id: string;
   review_due_on: ColumnType<string | null, string | null | undefined, string | null>;
   current_version_id: string | null;
@@ -3558,6 +3560,8 @@ export const TABLE_COLUMNS: Readonly<Record<keyof Database, readonly string[]>> 
     'review_due_on',
     'current_version_id',
     'current_version_number',
+    'access_mode',
+    'allow_record_shares',
     'rank',
     'created_by_membership_id',
     'created_at',
