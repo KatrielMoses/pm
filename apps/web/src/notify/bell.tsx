@@ -258,11 +258,14 @@ export function BrowserNotifier({ ws }: { ws: string }) {
   const [armed, setArmed] = useState(false);
   useEffect(() => {
     let active = true;
+    // Without the browser's own permission nothing can be shown, so the page asks the server nothing.
     const load = () =>
-      notifications.profile(ws).then(
-        (p) => active && setArmed(p.browser_enabled && p.browser_permission === 'granted'),
-        () => undefined,
-      );
+      !browserSupported() || Notification.permission !== 'granted'
+        ? void setArmed(false)
+        : notifications.profile(ws).then(
+            (p) => active && setArmed(p.browser_enabled && p.browser_permission === 'granted'),
+            () => undefined,
+          );
     void load();
     window.addEventListener(PROFILE_CHANGED, load);
     return () => {

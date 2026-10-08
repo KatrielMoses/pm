@@ -137,23 +137,38 @@ export function NotificationCentre({ ws }: { ws: string }) {
     [key],
   );
 
+  // A change still on its way to the server must land before the list is read again, or a quick
+  // filter change would show the row as it was before the change.
+  const inflight = useRef(new Set<Promise<unknown>>());
+  const track = <T,>(p: Promise<T>): Promise<T> => {
+    const done = p.then(
+      () => undefined,
+      () => undefined,
+    );
+    inflight.current.add(done);
+    void done.then(() => inflight.current.delete(done));
+    return p;
+  };
+
   useEffect(() => {
     let active = true;
-    notifications.list(ws, query).then(
-      (r) => {
-        if (!active) return;
-        setEntry({
-          key,
-          rows: r.data,
-          cursor: r.page.has_more ? (r.page.next_cursor ?? null) : null,
-          status: 'ready',
-          error: null,
-        });
-        setMore({ busy: false, e: null });
-      },
-      (error: unknown) =>
-        active && setEntry({ key, rows: [], cursor: null, status: 'failed', error }),
-    );
+    void Promise.allSettled([...inflight.current])
+      .then(() => notifications.list(ws, query))
+      .then(
+        (r) => {
+          if (!active) return;
+          setEntry({
+            key,
+            rows: r.data,
+            cursor: r.page.has_more ? (r.page.next_cursor ?? null) : null,
+            status: 'ready',
+            error: null,
+          });
+          setMore({ busy: false, e: null });
+        },
+        (error: unknown) =>
+          active && setEntry({ key, rows: [], cursor: null, status: 'failed', error }),
+      );
     return () => {
       active = false;
     };
@@ -238,12 +253,15 @@ export function NotificationCentre({ ws }: { ws: string }) {
     setSelected((s) => new Set([...s].filter((id) => !ids.has(id))));
     try {
       const wide = targets.some((t) => t.group_ids?.length);
-      if (targets.length === 1 && !wide) await notifications.setState(ws, targets[0]!.id, next);
+      if (targets.length === 1 && !wide)
+        await track(notifications.setState(ws, targets[0]!.id, next));
       else
-        await notifications.bulk(
-          ws,
-          { ids: targets.flatMap((t) => (t.group_ids?.length ? t.group_ids : [t.id])) },
-          next,
+        await track(
+          notifications.bulk(
+            ws,
+            { ids: targets.flatMap((t) => (t.group_ids?.length ? t.group_ids : [t.id])) },
+            next,
+          ),
         );
       announceNotificationsChanged();
       setSaid(
