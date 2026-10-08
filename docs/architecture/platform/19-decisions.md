@@ -255,6 +255,24 @@ All decisions are **proposed (Phase 0D)**, pending solutions-architect acceptanc
   - **Signals.** `views.queries` (entity, outcome), `views.query_duration` (entity), and `views.exports` (entity, format).
 - **Alternatives:** `GET` with the AST in the URL (it would land in logs and the 0D field-selection rule). Offset pages (forbidden for mutable collections).
 - **Consequences:** Payloads carry identifiers, kinds, and counts only, never names or query text. 83 ID prefixes, 104 events, 99 named parameters, 63 telemetry signals.
+<a id="pl-34"></a>
+### PL-34: Notification contracts (Phase 4B amendment)
+- **Decision:**
+  - Prefix `ndl` (notification delivery) is added; `ntf` (notification) is implemented.
+  - Resources and verbs, all under the workspace and the caller's own unless noted:
+    - `me/notifications`: list (tabs, filters, search, grouping, cursor), `counts`, `{id}` read and `PATCH` of state, `browser-pending`; `me/notification-bulk` for several at once.
+    - `me/notification-profile` (`GET`, `PUT` with `If-Match`), `me/notification-preferences` (`GET`, `PUT`, `DELETE`).
+    - `me/notification-deliveries` (history) and `…/{id}/ack` (the browser reports shown or declined).
+    - Administration: `notification-deliveries` (failed and dead-lettered, `health.view`), `…/{id}/retry` (`workspace.configure`), and `brands/{id}` or `projects/{id}` `/notification-defaults`.
+  - Events: `notify.notification.created` and `notify.delivery.state_changed`, carrying identifiers, types, channels, states, and classes, never a title, name, address, or body. The fan-out consumes the existing 4A and earlier events.
+  - Named bounds (owner 4B): `NOTIFY_FANOUT_RECIPIENTS_MAX` (500), `NOTIFY_DEDUPE_WINDOW_MINUTES` (60), `NOTIFY_DELIVERY_BATCH_MAX` (100), `NOTIFY_DELIVERY_MAX_ATTEMPTS` (6), `NOTIFY_RETRY_BASE_SECONDS` (60), `NOTIFY_RETRY_MAX_SECONDS` (3600), `NOTIFY_DIGEST_ITEMS_MAX` (50), `NOTIFY_EMAIL_PER_HOUR_MAX` (20), `NOTIFY_RETENTION_DAYS` (365), `NOTIFY_PREFERENCES_MAX` (200), `NOTIFY_BROWSER_ACK_TTL_MINUTES` (30), `NOTIFY_SEARCH_QUERY_MAX` (100), `NOTIFY_DISCOVERY_MAX` (100), `NOTIFY_BULK_STATE_MAX` (200), `NOTIFY_DEADLINES_BATCH_MAX` (500), and `NOTIFY_FACTS_MAX_BYTES` (1024).
+  - Four signals: `notify.fanout`, `notify.deliveries`, `notify.digests`, and `notify.reads`.
+  - Non-resource envelopes: `notification_counts`, `notification_profile`, `notification_preference`, `notification_update`, and `notification_default`.
+  - Readiness gains `email_delivery`: `ok` when a mail transport is configured, `not_configured` (never `fail`) when none is, so a missing provider is stated and never presented as delivery.
+  - Refusals: `conflict` issues `not_pending` and `not_retryable`; `validation_failed` issues `invalid_option`, `invalid_reference`, `invalid_timezone`, `too_long`, `too_many`, and `required`; `forbidden` for delivery health, retry, and defaults without the permission.
+- **Alternatives:** A webhook or SSE feed for notifications (6B decides what leaves the system). Per-channel routes (one preference resource serves every channel).
+- **Consequences:** 88 ID prefixes, 136 events, 148 named parameters, 84 telemetry signals.
+
 <a id="pl-33"></a>
 ### PL-33: Collaboration contracts (Phase 4A amendment)
 - **Decision:**

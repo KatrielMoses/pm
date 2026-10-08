@@ -25,7 +25,7 @@ import {
   taskAssigneeHook,
   taskTargets,
   savedViewTargets,
-  ReviewService,
+  NotificationService,
   reviewDepartureHook,
   departureTimerHook,
   type WorkSettings,
@@ -48,7 +48,7 @@ export {
 
 export interface WorkEnv {
   h: Harness;
-  svc: ReviewService;
+  svc: NotificationService;
   stepUp: StubStepUp;
   lifecycle: LifecycleService;
   tokenFor(email: string): Promise<string>;
@@ -63,6 +63,7 @@ export function workEnv(
     captureRate?: number;
     intakeRate?: number;
     commentRate?: number;
+    emailState?: 'configured' | 'capture' | 'unconfigured';
   } = {},
 ): WorkEnv {
   const h = createHarness(db);
@@ -95,7 +96,8 @@ export function workEnv(
     createStepUpChallenge: stepUp.createStepUpChallenge,
   };
   const arrayMax = options.arrayMax ?? 10_000;
-  const svc = new ReviewService({
+  const svc = new NotificationService({
+    notify: { emailState: options.emailState ?? 'capture' },
     tenant: h.app,
     platform: h.platform,
     writer,

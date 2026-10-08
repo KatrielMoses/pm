@@ -30,6 +30,7 @@
     "validate:phase3c": "python3 docs/engineering/tools/phase3c.py",
     "validate:phase3e": "python3 docs/engineering/tools/phase3e.py",
     "validate:phase4a": "python3 docs/engineering/tools/phase4a.py",
+    "validate:phase4b": "python3 docs/engineering/tools/phase4b.py",
     "contracts:generate": "node packages/contracts/scripts/generate.mjs",
     "contracts:generate:check": "node packages/contracts/scripts/generate.mjs --check",
     "migrate": "node packages/db/dist/cli/migrate.js",

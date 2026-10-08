@@ -121,6 +121,7 @@ export async function identityEnv(overrides: Record<string, string> = {}): Promi
         migrations: 'ok',
         dispatcher: 'ok',
         object_storage: 'not_configured',
+        email_delivery: 'ok',
         recovery_gate: 'ok',
         tenant_isolation: 'ok',
       },

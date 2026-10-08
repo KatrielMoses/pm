@@ -95,6 +95,7 @@ Source: `contracts/registry.json`.
 | `tof_` | time_off | planning.time_off | planning |  |
 | `hol_` | holiday | planning.holiday | planning |  |
 | `rsv_` | capacity_reservation | planning.capacity_reservation | planning |  |
+| `ndl_` | notification_delivery | notify.notification_delivery | notify | Phase 4B (PL-34). |
 
 ## Error codes
 
@@ -330,6 +331,8 @@ Source: `contracts/registry.json`.
 | `collab.review.withdrawn` v1 | collab.review_request | subject_kind, subject_ref, reason | C1 | yes | yes | yes |  |  | — |
 | `collab.review.superseded` v1 | collab.review_request | subject_kind, subject_ref, successor_ref | C1 | yes |  | yes |  |  | — |
 | `work.task.delegated` v1 | work.task | from_membership_id, to_membership_id | C1 | yes | yes | yes |  |  | — |
+| `notify.notification.created` v1 | notify.notification | type, record_id | C1 |  |  | yes |  |  | — |
+| `notify.delivery.state_changed` v1 | notify.notification_delivery | channel, kind, state, failure_class | C1 |  |  | yes |  |  | — |
 
 ## SSE topics
 
@@ -493,6 +496,10 @@ Forbidden metric labels: `workspace_id`, `brand_id`, `record_id`, `public_id`, `
 | `collab.follows` | counter | change, outcome | collab |
 | `collab.reviews` | counter | action, outcome | collab |
 | `collab.delegations` | counter | kind, outcome | collab |
+| `notify.fanout` | counter | type, outcome | notify |
+| `notify.deliveries` | counter | channel, outcome | notify |
+| `notify.digests` | counter | kind, outcome | notify |
+| `notify.reads` | counter | view, outcome | notify |
 
 ## Named parameters (values are configuration, not promises)
 
@@ -630,3 +637,19 @@ Forbidden metric labels: `workspace_id`, `brand_id`, `record_id`, `public_id`, `
 | `COMMENT_REPLIES_INLINE_MAX` | Most replies a comment list returns inline under each thread (more are fetched by cursor); default 20, range 1–100. | 4A |
 | `FOLLOWERS_LIST_MAX` | Most followers one record's follower list returns; default 200, range 10–1000. | 4A |
 | `REVIEW_REVIEWERS_MAX` | Most reviewers one review request may name; default 10, range 1–50. | 4A |
+| `NOTIFY_FANOUT_RECIPIENTS_MAX` | Most recipients one event fans out to (team mentions and follower lists are cut here); default 500, range 1–5000. | 4B |
+| `NOTIFY_DEDUPE_WINDOW_MINUTES` | Width of the time bucket in which repeated notifications of one kind about one record from one actor collapse into one; default 60, range 1–1440. | 4B |
+| `NOTIFY_DELIVERY_BATCH_MAX` | Most deliveries one sweep claims per workspace; default 100, range 1–1000. | 4B |
+| `NOTIFY_DELIVERY_MAX_ATTEMPTS` | Attempts before a transient delivery failure is dead-lettered; default 6, range 1–20. | 4B |
+| `NOTIFY_RETRY_BASE_SECONDS` | First retry delay; each later attempt doubles it; default 60, range 5–3600. | 4B |
+| `NOTIFY_RETRY_MAX_SECONDS` | Longest retry delay; default 3600, range 60–86400. | 4B |
+| `NOTIFY_DIGEST_ITEMS_MAX` | Most items one digest lists (the rest stay in the notification centre); default 50, range 5–200. | 4B |
+| `NOTIFY_EMAIL_PER_HOUR_MAX` | Most immediate emails one person receives per hour; more roll into their next digest; default 20, range 1–200. | 4B |
+| `NOTIFY_RETENTION_DAYS` | Age after which a notification that is not saved is removed with its deliveries (a technical bound, not a published retention period: OD-36); default 365, range 30–3650. | 4B |
+| `NOTIFY_PREFERENCES_MAX` | Most preference and mute rows one person may keep; default 200, range 10–1000. | 4B |
+| `NOTIFY_BROWSER_ACK_TTL_MINUTES` | How long a browser delivery waits for the person's open browser to acknowledge it before it expires; default 30, range 1–1440. | 4B |
+| `NOTIFY_SEARCH_QUERY_MAX` | Longest notification history search text; default 100, range 10–200. | 4B |
+| `NOTIFY_DISCOVERY_MAX` | Most workspaces one notification sweep examines; default 100, range 1–1000. | 4B |
+| `NOTIFY_BULK_STATE_MAX` | Most notifications one bulk state change names; default 200, range 1–1000. | 4B |
+| `NOTIFY_DEADLINES_BATCH_MAX` | Most due-soon and overdue tasks one sweep considers per workspace; default 500, range 10–5000. | 4B |
+| `NOTIFY_FACTS_MAX_BYTES` | Largest facts object a notification stores (scalars only, never titles or text); default 1024, range 128–4096. | 4B |

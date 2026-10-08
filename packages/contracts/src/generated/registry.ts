@@ -685,6 +685,38 @@ export const TELEMETRY_SIGNALS = [
       "kind",
       "outcome"
     ]
+  },
+  {
+    "name": "notify.fanout",
+    "type": "counter",
+    "labels": [
+      "type",
+      "outcome"
+    ]
+  },
+  {
+    "name": "notify.deliveries",
+    "type": "counter",
+    "labels": [
+      "channel",
+      "outcome"
+    ]
+  },
+  {
+    "name": "notify.digests",
+    "type": "counter",
+    "labels": [
+      "kind",
+      "outcome"
+    ]
+  },
+  {
+    "name": "notify.reads",
+    "type": "counter",
+    "labels": [
+      "view",
+      "outcome"
+    ]
   }
 ] as const;
 export type TelemetrySignalName = (typeof TELEMETRY_SIGNALS)[number]['name'];
@@ -1702,6 +1734,13 @@ export const ID_PREFIXES = [
     "resource": "capacity_reservation",
     "entity": "planning.capacity_reservation",
     "ownerModule": "planning",
+    "platformOnly": false
+  },
+  {
+    "prefix": "ndl",
+    "resource": "notification_delivery",
+    "entity": "notify.notification_delivery",
+    "ownerModule": "notify",
     "platformOnly": false
   }
 ] as const;
@@ -3048,6 +3087,28 @@ export const INTERNAL_EVENTS = [
       "to_membership_id"
     ],
     "maxClass": "C1"
+  },
+  {
+    "type": "notify.notification.created",
+    "schemaVersion": 1,
+    "aggregateEntity": "notify.notification",
+    "fields": [
+      "type",
+      "record_id"
+    ],
+    "maxClass": "C1"
+  },
+  {
+    "type": "notify.delivery.state_changed",
+    "schemaVersion": 1,
+    "aggregateEntity": "notify.notification_delivery",
+    "fields": [
+      "channel",
+      "kind",
+      "state",
+      "failure_class"
+    ],
+    "maxClass": "C1"
   }
 ] as const;
 export type InternalEventType = (typeof INTERNAL_EVENTS)[number]['type'];
@@ -3184,7 +3245,23 @@ export const PARAMETER_NAMES = [
   "COMMENT_RATE_PER_MINUTE",
   "COMMENT_REPLIES_INLINE_MAX",
   "FOLLOWERS_LIST_MAX",
-  "REVIEW_REVIEWERS_MAX"
+  "REVIEW_REVIEWERS_MAX",
+  "NOTIFY_FANOUT_RECIPIENTS_MAX",
+  "NOTIFY_DEDUPE_WINDOW_MINUTES",
+  "NOTIFY_DELIVERY_BATCH_MAX",
+  "NOTIFY_DELIVERY_MAX_ATTEMPTS",
+  "NOTIFY_RETRY_BASE_SECONDS",
+  "NOTIFY_RETRY_MAX_SECONDS",
+  "NOTIFY_DIGEST_ITEMS_MAX",
+  "NOTIFY_EMAIL_PER_HOUR_MAX",
+  "NOTIFY_RETENTION_DAYS",
+  "NOTIFY_PREFERENCES_MAX",
+  "NOTIFY_BROWSER_ACK_TTL_MINUTES",
+  "NOTIFY_SEARCH_QUERY_MAX",
+  "NOTIFY_DISCOVERY_MAX",
+  "NOTIFY_BULK_STATE_MAX",
+  "NOTIFY_DEADLINES_BATCH_MAX",
+  "NOTIFY_FACTS_MAX_BYTES"
 ] as const;
 export type ParameterName = (typeof PARAMETER_NAMES)[number];
 

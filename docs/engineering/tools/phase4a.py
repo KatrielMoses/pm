@@ -197,22 +197,20 @@ def check_invariants():
 
 
 def check_boundaries_kept():
-    """4A creates no notification, preference, document, file, or agent-review structure."""
+    """4A's migration creates no notification, preference, document, file, or agent-review structure."""
     errs = []
     up = read(P(MIGRATION + ".up.sql"))
     for schema in ["notify", "knowledge", "files", "agents"]:
         if re.search(r"CREATE (SCHEMA|TABLE) %s\b" % schema, up):
             errs.append("0036 creates %s structures (a later phase owns them)" % schema)
-    members = read(P("packages/db/src/schema.ts"))
-    if "'notify." in members and "notify.notification'" in members and "'notify.notification':" in members:
-        errs.append("a notification table exists before 4B")
+    # Phase 4B (migration 0037, ADR-0024) owns the notification tables; 4A's own migration creates none.
     web = P("apps/web/src/pages/view-pages.tsx")
     if os.path.isfile(web) and "arrives with comments and following (4A)" in read(web):
         errs.append("My Work still shows the Following placeholder")
     task_page = P("apps/web/src/pages/task-pages.tsx")
     if os.path.isfile(task_page) and "Comments (4A)" in read(task_page):
         errs.append("the task page still lists comments as unavailable")
-    return errs, "no notify, knowledge, files, or agent structures; placeholders replaced"
+    return errs, "0036 creates no notify, knowledge, files, or agent structures; placeholders replaced"
 
 
 def check_adr(closure):

@@ -1,3 +1,4 @@
+import { ScopeDefaultsEditor } from '../notify/defaults.tsx';
 import { useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react';
 import { ApiError, type ApiIssue } from '../api.ts';
 import { useAuth } from '../auth.tsx';
@@ -1027,6 +1028,9 @@ function BrandSettingsBody({
       />
       {!archived && brand.capabilities.mark_sensitive ? (
         <SensitivitySection ws={ws} brand={brand} onSaved={onBrand} />
+      ) : null}
+      {!archived ? (
+        <ScopeDefaultsEditor ws={ws} kind="brands" id={brand.id} name={brand.name} />
       ) : null}
       {!archived && brand.capabilities.grant_access ? (
         <BrandAccessPanel ws={ws} brand={brand.id} />

@@ -297,3 +297,16 @@ Migration `0036_collaboration_reviews` (ADR-0023, 0B ADR-31) adds the `collab` s
 
 All nine new tables have `tenant_isolation` RLS and full indexes on every foreign key. The worker may select and delete them to purge a host's content; the down migration restores the exact 0035 catalog.
 
+## Phase 4B: notifications
+
+Migration `0037_notifications` (ADR-0024, 0B ADR-32) adds the `notify` schema:
+- `notify.notification` (`ntf_`): one row per recipient and event with a deduplication key (unique per recipient), a group key, small scalar facts, an occurrence count, and the person's state (unread, read, saved, dismissed). Foreign keys to the recipient, actor, and record are composite on the workspace.
+- `notify.delivery` (`ndl_`): one email or browser delivery of a notification or a digest, with a checked state machine, attempts, `next_attempt_at`, a lease, failure class and code, suppression reason, provider message id, and acknowledgement source.
+- `notify.digest`: one bundle per recipient, cadence, and period (unique).
+- `notify.preference`: a person's choice per event type, channel, and scope (unique on the whole key), optionally expiring.
+- `notify.profile`: one row per person (time zone, quiet window, digest cadence and times, channel switches, browser permission).
+- `notify.scope_default`: a brand or project default per event type and channel.
+- `exec_dispatch.discover_notification_work(now, retention_before, limit)`: a payload-free `SECURITY DEFINER` discovery of the workspaces with due work (owner `pm_scheduler`, executable by the dispatcher), with narrow read grants for `pm_scheduler` on the delivery, notification, and task columns it needs.
+
+All six tables have `tenant_isolation` RLS and full indexes on every foreign key. The application role can write them; the worker reads, claims, and updates deliveries. The down migration drops the function, the grants, the policy it added on `work.task`, and the tables in key order, restoring the exact 0036 catalog.
+

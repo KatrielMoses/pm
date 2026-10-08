@@ -22,7 +22,7 @@ import {
 } from '@pm/lifecycle';
 import { SYSTEM_PRINCIPAL, WorkerRuntime } from '@pm/platform';
 import { tenancyBrandPort } from '@pm/tenancy';
-import { productLifecycleRegistry } from '@pm/work';
+import { emailProviderFrom, productLifecycleRegistry } from '@pm/work';
 import { HEALTH_FILE } from './health-file.ts';
 import { registeredConsumers, registeredHandlers, registeredSchedules } from './registry.ts';
 
@@ -122,8 +122,21 @@ async function main(): Promise<void> {
         logger,
         settings: config.work,
       },
+      notify: {
+        tenant: tenantDb,
+        discovery,
+        email: emailProviderFrom(identityDeps.transport, config.identity.mailFrom),
+        origin: config.identity.publicOrigin,
+        metrics: telemetry.metrics,
+        logger,
+        settings: config.work,
+        arrayMax: config.tenancy.principalContextArrayMax,
+      },
     }),
-    consumers: registeredConsumers(),
+    consumers: registeredConsumers(config.work, {
+      arrayMax: config.tenancy.principalContextArrayMax,
+      metrics: telemetry.metrics,
+    }),
     schedules: registeredSchedules(),
     params: { ...config.jobs, outboxReplayWindowMs: config.retention.outboxReplayWindowMs },
     buildId: config.build.id,

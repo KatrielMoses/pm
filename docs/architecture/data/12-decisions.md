@@ -213,6 +213,17 @@ Status of every ADR: **proposed (Phase 0B)**, pending solutions-architect accept
   - A view per share scope: duplicate definitions that drift.
   - Storing query results: they would freeze and widen access.
 - **Consequences:** One migration, `0031_saved_views`, with a down migration to 0030. No 3B layout tables, 3C planning, or 6D export-job tables.
+<a id="adr-32"></a>
+## ADR-32: Notification platform (Phase 4B amendment)
+
+- **Decision:**
+  - **Notifications.** `notify.notification` (`ntf_`) is one row per recipient and event: type, record, actor, a deduplication key, and small scalar facts (identifiers and counts, bounded by `NOTIFY_FACTS_MAX_BYTES`), never a title or body. The summary is rendered when it is shown, from what the recipient can read then. Repeats inside `NOTIFY_DEDUPE_WINDOW_MINUTES` collapse into one row with an occurrence count and reopen a read or dismissed row; a saved row stays saved. Rows age out after `NOTIFY_RETENTION_DAYS` except saved ones.
+  - **Deliveries.** `notify.delivery` (`ndl_`) is one email or browser delivery of a notification or a digest, with a state machine: pending, sending (leased), delivered, failed, dead, suppressed (with a reason), deferred for quiet hours, and expired. Delivered means the provider (or the person's own browser) acknowledged it. Failures have a class (transient, permanent, unconfigured, rate limited) and a bounded code; retries back off exponentially up to `NOTIFY_DELIVERY_MAX_ATTEMPTS` and then dead-letter. Retries reuse the delivery's own id as the provider message id.
+  - **Preferences.** `notify.preference` is a person's choice per event type (or all), channel (or all), and scope (workspace, brand, project, or record), as immediate, digest, or muted, optionally expiring. `notify.scope_default` is a brand or project default, ranked below every personal choice. `notify.profile` holds the person's time zone source, quiet hours, digest cadence and times, channel switches, and browser permission.
+  - **Digests.** `notify.digest` is one bundle per person, cadence, and period (unique), assembled with items re-authorized at assembly and again when sent. A person has one cadence (off, daily, or weekly), so one digest carries each item.
+  - **Discovery.** `exec_dispatch.discover_notification_work` lists the workspaces with due work without payloads, like the other schedulers.
+- **Alternatives:** Titles on the row (stale, leaky). One delivery row per attempt (unbounded growth; attempts are a counter and the audit trail). A separate muted-scope table (mutes are preferences with mode `muted`). Two digest cadences at once (a duplicate of every item).
+- **Consequences:** Migration `0037_notifications` with an exact 0036 rollback. All new tables have workspace RLS; deliveries and notifications of a purged record or a departed person are removed with them.
 <a id="adr-31"></a>
 ## ADR-31: Comments, mentions, followers, reviews, and assignment history (Phase 4A amendment)
 

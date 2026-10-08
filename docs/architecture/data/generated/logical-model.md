@@ -1910,15 +1910,16 @@ One notification for one recipient about one event; content re-authorized at del
 | Retention / confidentiality | `R-PERSONAL` / `C2` |
 | Volume / export / search-AI | `very-high` / `self` / `no` |
 | Secrets / personal data | `no` / `incidental` |
-| Uniqueness | `(recipient_id, dedupe_key)` |
-| Key typed columns | `recipient_membership_id`; `event_type`; `record_id`; `brand_id`; `dedupe_key`; `group_key`; `state (unread\|read\|saved\|dismissed)`; `created_at` |
+| Uniqueness | `(recipient_membership_id, dedupe_key)` |
+| Key typed columns | `public_id text (ntf_)`; `recipient_membership_id`; `type (18 notification types)`; `record_id null`; `actor_membership_id null`; `source_event_id null`; `dedupe_key`; `group_key null`; `facts jsonb (IDs and small scalars only, never titles; NOTIFY_FACTS_MAX_BYTES)`; `occurrences`; `state (unread\|read\|saved\|dismissed)`; `digest_pending`; `digest_id null`; `created_at`; `last_occurred_at`; `state_changed_at`; `version` |
 | Sensitive fields | — |
 | Requirements | NTF-001, NTF-011, NTF-012, COL-020 |
+| Notes | Phase 4B (ADR-32): the row stores identifiers and small facts, never titles or bodies; the summary is rendered at display from what the recipient can read now and an unreadable record shows only that access is gone. Created only for an active recipient who can read the record (security notices excepted); repeats inside NOTIFY_DEDUPE_WINDOW_MINUTES collapse and reopen read or dismissed rows, while saved stays saved. Ages out after NOTIFY_RETENTION_DAYS except saved; erased with the person. |
 
 <a id="entity-notification-delivery"></a>
 ### `notification_delivery`
 
-Delivery attempt per channel (email, browser, digest) with outcome.
+Delivery per channel (email, browser, digest email) with outcome, bounded retry, and reconciliation state.
 
 | Property | Value |
 |---|---|
@@ -1926,14 +1927,15 @@ Delivery attempt per channel (email, browser, digest) with outcome.
 | Contained by | [`notification`](logical-model.md#entity-notification) |
 | Extends (1:1) | — |
 | Associations | — |
-| Lifecycle / concurrency | `append-only` / `append-only` |
+| Lifecycle / concurrency | `mutable` / `row-version` |
 | Retention / confidentiality | `R-EXEC` / `C1` |
 | Volume / export / search-AI | `very-high` / `never` / `no` |
 | Secrets / personal data | `no` / `incidental` |
 | Uniqueness | — |
-| Key typed columns | standard columns only |
+| Key typed columns | `public_id text (ndl_)`; `recipient_membership_id`; `channel (email\|browser)`; `kind (notification\|digest)`; `notification_id null`; `digest_id null`; `state (pending\|sending\|delivered\|failed\|dead\|suppressed\|deferred_quiet_hours\|expired)`; `attempts`; `next_attempt_at`; `lease_until null`; `failure_class null (transient\|permanent\|unconfigured\|rate_limited)`; `failure_code null`; `suppress_reason null`; `provider_message_id null`; `ack_source null (provider\|client)`; `version` |
 | Sensitive fields | — |
 | Requirements | NTF-002, NTF-003 |
+| Notes | Phase 4B (ADR-32): delivered only after the provider (or the person's own browser) acknowledges; an unconfigured provider is suppressed with a reason, never delivered. Failures carry a class and a bounded code, never content or addresses; retries back off exponentially up to NOTIFY_DELIVERY_MAX_ATTEMPTS and then dead-letter for administrator review. Content is re-authorized at send time. |
 
 <a id="entity-notification-preference"></a>
 ### `notification_preference`
@@ -1950,10 +1952,11 @@ Per person: event x scope x channel mode (immediate, digest, muted), quiet hours
 | Retention / confidentiality | `R-PERSONAL` / `C1` |
 | Volume / export / search-AI | `medium` / `self` / `no` |
 | Secrets / personal data | `no` / `incidental` |
-| Uniqueness | — |
-| Key typed columns | standard columns only |
+| Uniqueness | `(membership_id, event_type, channel, scope_kind, scope_record_id)` |
+| Key typed columns | `membership_id`; `event_type (type or *)`; `channel (all\|in_app\|email\|browser)`; `scope_kind (workspace\|brand\|project\|record)`; `scope_record_id null`; `mode (immediate\|digest\|muted)`; `expires_at null`; `version` |
 | Sensitive fields | — |
 | Requirements | COL-017, NTF-008, NTF-009, NTF-010 |
+| Notes | Phase 4B (ADR-32): the most specific scope wins (record, project, brand, workspace), then an exact type over *, then an exact channel over all; security notices cannot be muted; a mute can expire. |
 
 <a id="entity-digest"></a>
 ### `digest`
@@ -1971,9 +1974,52 @@ Generated digest bundle for a recipient and period.
 | Volume / export / search-AI | `high` / `self` / `no` |
 | Secrets / personal data | `no` / `incidental` |
 | Uniqueness | `(recipient_id, period_kind, period_start)` |
-| Key typed columns | standard columns only |
+| Key typed columns | `recipient_membership_id`; `period_kind (daily\|weekly)`; `period_start`; `period_end`; `item_count`; `state (assembled\|empty)`; `created_at` |
 | Sensitive fields | — |
 | Requirements | NTF-004 |
+| Notes | Phase 4B (ADR-32): one cadence per person, so one digest carries each item; its items are re-authorized at assembly and again when sent, and unreadable items are left out. |
+
+<a id="entity-notification-profile"></a>
+### `notification_profile`
+
+Per person: time zone source, quiet hours, digest cadence and times, email and browser switches, browser permission.
+
+| Property | Value |
+|---|---|
+| Scope | `personal` |
+| Contained by | — |
+| Extends (1:1) | — |
+| Associations | — |
+| Lifecycle / concurrency | `mutable` / `row-version` |
+| Retention / confidentiality | `R-PERSONAL` / `C1` |
+| Volume / export / search-AI | `medium` / `self` / `no` |
+| Secrets / personal data | `no` / `incidental` |
+| Uniqueness | `(membership_id)` |
+| Key typed columns | `membership_id`; `timezone null`; `quiet_start_minute null`; `quiet_end_minute null`; `email_enabled`; `browser_enabled`; `browser_permission (unknown\|granted\|denied)`; `digest_cadence (off\|daily\|weekly)`; `daily_digest_minute`; `weekly_digest_weekday`; `weekly_digest_minute`; `version` |
+| Sensitive fields | — |
+| Requirements | NTF-004, NTF-009, COL-017 |
+| Notes | Phase 4B (ADR-32): quiet hours hold non-security email and browser delivery only, never the in-app centre or a permission or share notice. |
+
+<a id="entity-notification-scope-default"></a>
+### `notification_scope_default`
+
+Brand or project default mode for an event type and channel, set by those who manage the scope; a person's own choice overrides it.
+
+| Property | Value |
+|---|---|
+| Scope | `personal` |
+| Contained by | — |
+| Extends (1:1) | — |
+| Associations | — |
+| Lifecycle / concurrency | `mutable` / `row-version` |
+| Retention / confidentiality | `R-PERSONAL` / `C1` |
+| Volume / export / search-AI | `medium` / `self` / `no` |
+| Secrets / personal data | `no` / `incidental` |
+| Uniqueness | `(scope_record_id, event_type, channel)` |
+| Key typed columns | `scope_record_id`; `event_type`; `channel (in_app\|email\|browser)`; `mode (immediate\|digest\|muted)`; `version` |
+| Sensitive fields | — |
+| Requirements | NTF-008, COL-017 |
+| Notes | Phase 4B (ADR-32): ranks below every personal preference and above the system default; changes are audited. |
 
 ## Projects and tasks (`work`, schema `work`)
 

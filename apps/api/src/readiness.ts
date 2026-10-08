@@ -10,6 +10,7 @@ export interface Readiness {
     | 'migrations'
     | 'dispatcher'
     | 'object_storage'
+    | 'email_delivery'
     | 'recovery_gate'
     | 'tenant_isolation',
     CheckResult
@@ -23,6 +24,8 @@ export interface ReadinessDeps {
   logger: Logger;
   metrics: Metrics;
   isDraining: () => boolean;
+  /** The configured mail transport: `none` means email is not delivered, and says so. */
+  emailTransport: 'capture' | 'none';
 }
 
 const withTimeout = <T>(p: Promise<T>, ms: number): Promise<T> =>
@@ -36,7 +39,7 @@ const withTimeout = <T>(p: Promise<T>, ms: number): Promise<T> =>
 /**
  * Readiness (0D §17.4): database reachable, migrations at (or beyond, during expand/contract
  * rollouts) the version bundled in this artifact, dispatcher alive, object storage reachable
- * (not part of 1A), the post-restore recovery gate open (1F), and the tenant-isolation policy
+ * (not part of 1A), email delivery configured (4B: `not_configured` is truthful, never `fail`), the post-restore recovery gate open (1F), and the tenant-isolation policy
  * state intact (1C). Reasons are logged internally; responses carry only check names and states.
  */
 export async function checkReadiness(deps: ReadinessDeps): Promise<Readiness> {
@@ -45,6 +48,7 @@ export async function checkReadiness(deps: ReadinessDeps): Promise<Readiness> {
     migrations: 'fail',
     dispatcher: 'fail',
     object_storage: 'not_configured',
+    email_delivery: deps.emailTransport === 'none' ? 'not_configured' : 'ok',
     recovery_gate: 'fail',
     tenant_isolation: 'fail',
   };

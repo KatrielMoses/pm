@@ -232,6 +232,19 @@ All decisions are **proposed (Phase 0C)**, pending solutions-architect acceptanc
   - **No new actions.** The action count stays 120.
 - **Alternatives:** Materialized shared result sets (they would freeze and widen access). Views carrying their creator's authority (a second authority source). Stored export files before 4E (they would need re-authorization on download and storage the platform does not have yet).
 - **Consequences:** Threat T-44 with tests AT-146 to AT-153.
+<a id="az-32"></a>
+### AZ-32: Notifications (Phase 4B amendment)
+- **Decision:**
+  - **Authorized twice.** A notification is created only for an active member who can read the record now (security notices about access excepted), and its summary, record, brand, project, and actor are rendered at display from what that person can read at that moment. A row about something no longer readable shows only "You no longer have access to this item" with its time and state (AT-198, AT-199).
+  - **Delivery.** Email and browser content is re-authorized when sent. A delivery whose recipient lost access, left, or switched the channel off is suppressed with a reason and carries nothing. Brands set to minimal content, and every sensitive brand, send only the brand name and the kind of event (AT-200, AT-201).
+  - **Own state only.** Reading, saving, dismissing, preferences, quiet hours, digests, and delivery history are the person's own. Another person's notification, delivery, preference, or profile is `not_found`, the same as an unknown one (AT-202, AT-203).
+  - **Preferences never widen.** A preference only quiets or defers delivery of what authorization already allows. Security notices (`permission_changed`, `share_changed`) cannot be muted or held by quiet hours. A mute scope the person cannot read is refused with the same issue as an unknown one (AT-204).
+  - **Defaults.** Brand and project defaults need `notifications.configure_scope`, rank below every personal choice, and are audited. Delivery health (failed and dead-lettered deliveries) needs `health.view` and shows recipient, channel, class, and code, never content or addresses; a retry needs `workspace.configure` and is audited (AT-205, AT-206).
+  - **Digests.** A digest is assembled and sent only with items the recipient can still read; hidden items are omitted, not redacted, and carry no count (AT-207).
+  - **No new actions.** The action count stays 122.
+- **Alternatives:** Storing titles in notification rows (stale and leaky after revocation). Delivering email before rechecking access (cannot be recalled). A per-brand switch for security notices (a way to hide a permission change from its subject).
+- **Consequences:** Threat T-50 with tests AT-198 to AT-207.
+
 <a id="az-31"></a>
 ### AZ-31: Comments, mentions, following, and reviews (Phase 4A amendment)
 - **Decision:**

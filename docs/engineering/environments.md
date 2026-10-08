@@ -168,6 +168,22 @@ worker process is a startup error. All identities of one process must target the
 | `COMMENT_REPLIES_INLINE_MAX` | optional | optional | default 20 (1–100); most replies a comment list returns inline under each thread; more are fetched by cursor (0D `COMMENT_REPLIES_INLINE_MAX`) |
 | `FOLLOWERS_LIST_MAX` | optional | optional | default 200 (10–1000); most followers one record's follower list returns (0D `FOLLOWERS_LIST_MAX`) |
 | `REVIEW_REVIEWERS_MAX` | optional | optional | default 10 (1–50); most reviewers one review request may name (0D `REVIEW_REVIEWERS_MAX`) |
+| `NOTIFY_FANOUT_RECIPIENTS_MAX` | optional | optional | default 500 (1–5000); most recipients one event fans out to (team mentions and follower lists are cut here) (0D `NOTIFY_FANOUT_RECIPIENTS_MAX`) |
+| `NOTIFY_DEDUPE_WINDOW_MINUTES` | optional | optional | default 60 (1–1440); width of the time bucket in which repeated notifications of one kind about one record from one actor collapse into one (0D `NOTIFY_DEDUPE_WINDOW_MINUTES`) |
+| `NOTIFY_DELIVERY_BATCH_MAX` | optional | optional | default 100 (1–1000); most deliveries one sweep claims per workspace (0D `NOTIFY_DELIVERY_BATCH_MAX`) |
+| `NOTIFY_DELIVERY_MAX_ATTEMPTS` | optional | optional | default 6 (1–20); attempts before a transient delivery failure is dead-lettered (0D `NOTIFY_DELIVERY_MAX_ATTEMPTS`) |
+| `NOTIFY_RETRY_BASE_SECONDS` | optional | optional | default 60 (5–3600); first retry delay; each later attempt doubles it (0D `NOTIFY_RETRY_BASE_SECONDS`) |
+| `NOTIFY_RETRY_MAX_SECONDS` | optional | optional | default 3600 (60–86400); longest retry delay (0D `NOTIFY_RETRY_MAX_SECONDS`) |
+| `NOTIFY_DIGEST_ITEMS_MAX` | optional | optional | default 50 (5–200); most items one digest lists (the rest stay in the notification centre) (0D `NOTIFY_DIGEST_ITEMS_MAX`) |
+| `NOTIFY_EMAIL_PER_HOUR_MAX` | optional | optional | default 20 (1–200); most immediate emails one person receives per hour; more roll into their next digest (0D `NOTIFY_EMAIL_PER_HOUR_MAX`) |
+| `NOTIFY_RETENTION_DAYS` | optional | optional | default 365 (30–3650); age after which a notification that is not saved is removed with its deliveries (a technical bound, not a published retention period: OD-36) (0D `NOTIFY_RETENTION_DAYS`) |
+| `NOTIFY_PREFERENCES_MAX` | optional | optional | default 200 (10–1000); most preference and mute rows one person may keep (0D `NOTIFY_PREFERENCES_MAX`) |
+| `NOTIFY_BROWSER_ACK_TTL_MINUTES` | optional | optional | default 30 (1–1440); how long a browser delivery waits for the person's open browser to acknowledge it before it expires (0D `NOTIFY_BROWSER_ACK_TTL_MINUTES`) |
+| `NOTIFY_SEARCH_QUERY_MAX` | optional | optional | default 100 (10–200); longest notification history search text (0D `NOTIFY_SEARCH_QUERY_MAX`) |
+| `NOTIFY_DISCOVERY_MAX` | optional | optional | default 100 (1–1000); most workspaces one notification sweep examines (0D `NOTIFY_DISCOVERY_MAX`) |
+| `NOTIFY_BULK_STATE_MAX` | optional | optional | default 200 (1–1000); most notifications one bulk state change names (0D `NOTIFY_BULK_STATE_MAX`) |
+| `NOTIFY_DEADLINES_BATCH_MAX` | optional | optional | default 500 (10–5000); most due-soon and overdue tasks one sweep considers per workspace (0D `NOTIFY_DEADLINES_BATCH_MAX`) |
+| `NOTIFY_FACTS_MAX_BYTES` | optional | optional | default 1024 (128–4096); largest facts object a notification stores (scalars only, never titles or text) (0D `NOTIFY_FACTS_MAX_BYTES`) |
 | `VIEW_STATE_TTL_MS` | optional | optional | default 90 days; stored view state not written for this long is removed (0D `VIEW_STATE_TTL`) |
 
 Values are configuration, not customer promises (PQ-05). The 0D parameter values above are

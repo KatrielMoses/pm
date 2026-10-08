@@ -85,6 +85,7 @@ async function main(): Promise<void> {
         logger,
         metrics: telemetry.metrics,
         isDraining: () => draining,
+        emailTransport: config.identity.mailTransport,
       }),
   });
   const saturation = setInterval(() => pool.recordSaturation(), 15_000);
