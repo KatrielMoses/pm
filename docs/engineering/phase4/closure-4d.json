@@ -174,7 +174,7 @@
       "sources": [
         {
           "file": "docs/architecture/data/09-concurrency-consistency.md",
-          "contains": "Phase 4D (ADR-0027"
+          "contains": "Phase 4D ([ADR-35]"
         }
       ],
       "evidence": [

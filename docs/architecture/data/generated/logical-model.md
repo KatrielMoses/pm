@@ -3049,7 +3049,7 @@ One live editing connection of one member to one document: presence and an expir
 | Key typed columns | `document_id`; `membership_id`; `session_key text (unguessable handle)`; `mode (edit\|view)`; `color 0..15`; `caret_block null`; `expires_at` |
 | Sensitive fields | — |
 | Requirements | DOC-011, COL-011 |
-| Notes | Phase 4D (ADR-35): renewed by heartbeats, polls, and operations; deleted on leave, expiry, and purge; never audited; shown only to members who may see people. |
+| Notes | Phase 4D (ADR-35): renewed by heartbeats, polls, and operations; ignored once expired and deleted on leave, the next join, and purge; never audited; shown only to members who may see people. |
 
 <a id="entity-edit-op"></a>
 ### `edit_op`
