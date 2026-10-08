@@ -470,6 +470,8 @@ test('a read-only member and a share-only guest see only what they may', async (
   await verify(gp, guestEmail);
   await signedIn(gp, guestEmail);
   await gp.getByRole('button', { name: 'Accept invitation' }).click();
+  // The button is replaced by "Working…" while the request runs, so wait for where acceptance lands.
+  await expect(gp).toHaveURL(/\/workspaces\/ws_/);
   await expect(gp.getByRole('button', { name: 'Accept invitation' })).toHaveCount(0);
   await expect(gp.getByText(/^Loading/)).toHaveCount(0);
   await openTask(gp, url);
