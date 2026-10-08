@@ -1,4 +1,4 @@
-import { useEffect, type ReactElement } from 'react';
+import { lazy, Suspense, useEffect, type ReactElement } from 'react';
 import type { ShellDestination } from '@pm/contracts/shell';
 import { App } from './App.tsx';
 import { useAuth } from './auth.tsx';
@@ -30,9 +30,21 @@ import { ProjectlessTasksPage, TaskPage } from './pages/task-pages.tsx';
 import { TimeApprovalsPage, TimePage, TimeReportPage } from './pages/time-pages.tsx';
 import { TodayPage } from './pages/today-pages.tsx';
 import { CapacityPage } from './pages/capacity-pages.tsx';
-import { GoalsPage } from './pages/goal-pages.tsx';
-import { GoalPage } from './pages/goal-detail-pages.tsx';
-import { PortfolioPage } from './pages/portfolio-pages.tsx';
+// 5B pages load on first use, so every other page keeps its startup cost.
+const GoalsPage = lazy(() =>
+  import('./pages/goal-pages.tsx').then((m) => ({ default: m.GoalsPage })),
+);
+const GoalPage = lazy(() =>
+  import('./pages/goal-detail-pages.tsx').then((m) => ({ default: m.GoalPage })),
+);
+const PortfolioPage = lazy(() =>
+  import('./pages/portfolio-pages.tsx').then((m) => ({ default: m.PortfolioPage })),
+);
+const loadingGoals = (
+  <p className="loading" role="status">
+    Loading…
+  </p>
+);
 import {
   ApprovalsPage,
   FieldSetsPage,
@@ -121,9 +133,21 @@ export const ROUTE_COMPONENTS: Record<string, Render> = {
   calendar: (p) => <CalendarPage key={p.ws} ws={p.ws!} />,
   knowledge: (p) => <KnowledgePage key={p.ws} ws={p.ws!} />,
   document: (p) => <DocumentPage key={p.doc} ws={p.ws!} doc={p.doc!} />,
-  goals: (p) => <GoalsPage key={p.ws} ws={p.ws!} />,
-  goal: (p) => <GoalPage key={p.goal} ws={p.ws!} goal={p.goal!} />,
-  portfolio: (p) => <PortfolioPage key={p.ws} ws={p.ws!} />,
+  goals: (p) => (
+    <Suspense fallback={loadingGoals}>
+      <GoalsPage key={p.ws} ws={p.ws!} />
+    </Suspense>
+  ),
+  goal: (p) => (
+    <Suspense fallback={loadingGoals}>
+      <GoalPage key={p.goal} ws={p.ws!} goal={p.goal!} />
+    </Suspense>
+  ),
+  portfolio: (p) => (
+    <Suspense fallback={loadingGoals}>
+      <PortfolioPage key={p.ws} ws={p.ws!} />
+    </Suspense>
+  ),
   reports: destination('reports'),
   shared: (p) => <SharedWithMePage key={p.ws} ws={p.ws!} />,
   views: (p) => <SavedViewsPage key={p.ws} ws={p.ws!} />,
