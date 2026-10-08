@@ -546,7 +546,7 @@ describe('search page (5A)', () => {
       ),
     );
     expect(screen.queryByText(/Searching in Harbor/)).toBeNull();
-    // A submitted search remembers the brands it was run over.
+    // A submitted search is remembered as asked: the scope is a default, not part of the search.
     window.history.replaceState({}, '', `/workspaces/${WS}/search?q=invoice`);
     cleanup();
     renderPage();
@@ -555,7 +555,7 @@ describe('search page (5A)', () => {
     await waitFor(() =>
       expect(searchApi.remember).toHaveBeenCalledWith(
         WS,
-        expect.objectContaining({ q: 'invoice', brand: [BR] }),
+        expect.objectContaining({ q: 'invoice', brand: [] }),
       ),
     );
   });

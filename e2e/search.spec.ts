@@ -180,7 +180,7 @@ test('reflows at 320 px and 200% zoom, with forced colours and reduced motion, a
     await page.setViewportSize({ width, height: size.height });
     await page.goto(`/workspaces/${s.ws}/search?q=osprey`);
     await expect(results(page)).toBeVisible();
-    await expect(page.getByText(/^Searching/)).toHaveCount(0);
+    await expect(page.getByText('Searching…', { exact: true })).toHaveCount(0);
     expect(await noHorizontalOverflow(page), `search at ${width}px`).toBeLessThanOrEqual(0);
     await expectNoOverflow(page, `search at ${width}px`);
   }
@@ -230,8 +230,24 @@ test('follows access: results are the person’s own, vanish when access is remo
 
   // Access is given: the same person finds the work at once (no re-indexing involved).
   await giveBrand(page, s.ws, 'Harbor', 'Lee Lead', 'edit');
+  // A restricted project is hidden from everyone without an explicit grant, even inside a brand the
+  // person can edit: its project and its task match the word but never reach Lee's results.
+  const board = await api(page, 'POST', `${s.base}/projects`, {
+    brand: s.harbor,
+    name: 'Kestrel board',
+  });
+  await api(page, 'POST', `${s.base}/projects/${board.id}:access`, { access_mode: 'restricted' });
+  await api(page, 'POST', `${s.base}/tasks`, {
+    brand: s.harbor,
+    project: board.id,
+    title: 'Kestrel board minutes',
+  });
+  await indexed(page, s.base);
+  const founderView = await (await page.request.get(`${s.base}/search?q=kestrel`)).json();
+  expect(founderView.data.total).toBe(5);
   await p.goto(`/workspaces/${s.ws}/search?q=kestrel`);
   await expect(count(p)).toContainText('3 results for “kestrel”');
+  await expect(p.getByRole('main')).not.toContainText('Kestrel board');
   const link = results(p).getByRole('link', { name: 'Reconcile kestrel invoices' });
   await expect(link).toBeVisible();
   // A search that names the brand is remembered when it is submitted (the brand filter appears

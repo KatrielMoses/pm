@@ -232,9 +232,9 @@ export function SearchPage({ ws }: { ws: string }) {
     // Submitting the same search again runs it again (the person may be waiting for the index).
     if (searchHref(ws, next) === searchHref(ws, query)) setReload((n) => n + 1);
     else go(next);
-    // Only a submitted search is remembered (never typing, never the palette's live lookups), with
-    // the brands it was actually run over.
-    void searchApi.remember(ws, { ...effective, q }).catch(() => undefined);
+    // Only a submitted search is remembered (never typing, never the palette's live lookups), as the
+    // person asked it: the shell scope is a default that applies again whenever it is run.
+    void searchApi.remember(ws, next).catch(() => undefined);
   };
 
   const open = async (e: MouseEvent<HTMLAnchorElement>, r: SearchResult, href: string) => {
