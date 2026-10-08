@@ -143,6 +143,7 @@ CREATE CONSTRAINT TRIGGER document_placement
 -- ---------------------------------------------------------------------------------------------
 CREATE TABLE knowledge.document_version (
   id uuid PRIMARY KEY,
+  public_id text NOT NULL UNIQUE,
   workspace_id uuid NOT NULL REFERENCES tenancy.workspace (id) ON DELETE RESTRICT,
   document_id uuid NOT NULL,
   number integer NOT NULL,
@@ -158,6 +159,7 @@ CREATE TABLE knowledge.document_version (
   created_at timestamptz NOT NULL DEFAULT now(),
   CONSTRAINT document_version_workspace_key UNIQUE (workspace_id, id),
   CONSTRAINT document_version_number_key UNIQUE (workspace_id, document_id, number),
+  CONSTRAINT document_version_public_id_format CHECK (public_id ~ '^dcv_[0-9A-HJKMNP-TV-Z]{26}$'),
   CONSTRAINT document_version_document_fkey FOREIGN KEY (workspace_id, document_id)
     REFERENCES knowledge.document (workspace_id, id) DEFERRABLE INITIALLY DEFERRED,
   CONSTRAINT document_version_author_fkey FOREIGN KEY (workspace_id, created_by_membership_id)

@@ -99,6 +99,7 @@ interface RankPos {
 
 export interface VersionRow {
   id: string;
+  public_id: string;
   number: number;
   title: string;
   content: unknown;
@@ -993,6 +994,7 @@ export class DocumentCore extends NotificationService {
           .selectFrom('knowledge.document_version')
           .select([
             'id',
+            'public_id',
             'number',
             'title',
             'content_hash',
@@ -1015,6 +1017,7 @@ export class DocumentCore extends NotificationService {
         const last = page.at(-1);
         return {
           data: page.map((r) => ({
+            id: r.public_id,
             number: Number(r.number),
             type: 'document_version' as const,
             title: r.title,
@@ -1068,6 +1071,7 @@ export class DocumentCore extends NotificationService {
         const references = await this.docRefs(tx, p, ws0, wanted.all);
         return {
           number: row.number,
+          id: row.public_id,
           type: 'document_version' as const,
           document: d.publicId,
           title: row.title,

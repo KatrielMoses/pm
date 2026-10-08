@@ -2333,6 +2333,7 @@ export interface DocumentTable {
 }
 export interface DocumentVersionTable {
   id: string;
+  public_id: string;
   workspace_id: string;
   document_id: string;
   number: number;
@@ -3566,6 +3567,7 @@ export const TABLE_COLUMNS: Readonly<Record<keyof Database, readonly string[]>> 
   ],
   'knowledge.document_version': [
     'id',
+    'public_id',
     'workspace_id',
     'document_id',
     'number',

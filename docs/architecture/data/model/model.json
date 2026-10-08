@@ -5993,7 +5993,7 @@
       "purpose": "Immutable content snapshot with hash.",
       "scope": "inherited",
       "addressable": false,
-      "public_id_prefix": null,
+      "public_id_prefix": "dcv",
       "extends": null,
       "containment_parents": [
         "document"

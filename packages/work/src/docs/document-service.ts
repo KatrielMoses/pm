@@ -413,6 +413,7 @@ export class DocumentService extends DocumentCore {
       .insertInto('knowledge.document_version')
       .values({
         id,
+        public_id: newPublicId('dcv'),
         workspace_id: tx.workspaceId,
         document_id: d.id,
         number,

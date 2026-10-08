@@ -204,6 +204,8 @@ export const NON_RESOURCE_TYPES = [
   'notification_preference',
   'notification_update',
   'notification_default',
+  // 4C: an export's file (it has no public identifier of its own).
+  'document_export',
 ] as const;
 export type NonResourceType = (typeof NON_RESOURCE_TYPES)[number];
 
