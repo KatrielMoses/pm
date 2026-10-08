@@ -218,7 +218,7 @@ Source: `contracts/registry.json`.
 | `collab.review.decided` v1 | collab.review_decision | decision, self_approval, subject_ref, review_state | C1 | yes | yes | yes | yes |  | `review.decided` |
 | `relations.relationship.created` v1 | relations.record_relationship | kind, from_record_id, to_record_id | C1 | yes | yes |  | yes |  | — |
 | `relations.mention.created` v1 | relations.mention | source_kind, target_kind, target_id | C1 | yes | yes |  |  |  | — |
-| `files.file.scanned` v1 | files.file_version | scan_state | C1 |  |  |  |  |  | — |
+| `files.file.scanned` v1 | files.file_version | scan_state | C1 |  |  | yes |  |  | — |
 | `files.deliverable.version_submitted` v1 | files.deliverable_version | deliverable_id, version_number | C1 | yes | yes |  | yes |  | `deliverable.submitted` |
 | `capture.inbox.captured` v1 | capture.inbox_item | source_kind, intent | C1 |  |  |  |  |  | — |
 | `capture.inbox.triaged` v1 | capture.inbox_item | outcome, converted_record_id | C1 |  |  |  |  |  | — |
@@ -333,6 +333,9 @@ Source: `contracts/registry.json`.
 | `work.task.delegated` v1 | work.task | from_membership_id, to_membership_id | C1 | yes | yes | yes |  |  | — |
 | `notify.notification.created` v1 | notify.notification | type, record_id | C1 |  |  | yes |  |  | — |
 | `notify.delivery.state_changed` v1 | notify.notification_delivery | channel, kind, state, failure_class | C1 |  |  | yes |  |  | — |
+| `files.file.added` v1 | files.file | version_number, source | C1 | yes |  | yes | yes |  | — |
+| `files.file.version_added` v1 | files.file | version_number, source | C1 | yes |  | yes | yes |  | — |
+| `files.deliverable.state_changed` v1 | files.deliverable | state, version_number | C1 | yes |  | yes | yes |  | — |
 
 ## SSE topics
 
@@ -500,6 +503,8 @@ Forbidden metric labels: `workspace_id`, `brand_id`, `record_id`, `public_id`, `
 | `notify.deliveries` | counter | channel, outcome | notify |
 | `notify.digests` | counter | kind, outcome | notify |
 | `notify.reads` | counter | view, outcome | notify |
+| `files.requests` | counter | op, outcome | files |
+| `files.jobs` | counter | kind, outcome | files |
 
 ## Named parameters (values are configuration, not promises)
 
@@ -520,8 +525,8 @@ Forbidden metric labels: `workspace_id`, `brand_id`, `record_id`, `public_id`, `
 | `SSE_HEARTBEAT_INTERVAL` | Heartbeat comment interval. | 1E |
 | `SSE_BUFFER_LIMIT` | Notices buffered per stream for Last-Event-ID resume. | 1E |
 | `SSE_MAX_STREAMS_PER_PRINCIPAL` | Concurrent streams per principal. | 1E |
-| `SIGNED_URL_LIFETIME` | Lifetime of signed upload/download URLs. | 4E |
-| `UPLOAD_SESSION_LIFETIME` | Lifetime of an upload session. | 4E |
+| `SIGNED_URL_LIFETIME` | Lifetime of signed upload and download URLs in seconds; never stored, logged, or sent in notifications or exports; default 300, range 30–3600. | 4E |
+| `UPLOAD_SESSION_LIFETIME` | Lifetime of an upload session in seconds; an expired, unfinished session releases its reserved bytes and quarantined object; default 3600, range 300–86400. | 4E |
 | `STEP_UP_WINDOW` | Validity of a verified step-up token. | 1B |
 | `STEP_UP_CHALLENGE_LIFETIME` | Validity of an unverified challenge. | 1B |
 | `STEP_UP_MAX_ATTEMPTS` | Failed verifications after which a challenge is stored as locked (terminal). | 1B |
@@ -653,3 +658,12 @@ Forbidden metric labels: `workspace_id`, `brand_id`, `record_id`, `public_id`, `
 | `NOTIFY_BULK_STATE_MAX` | Most notifications one bulk state change names; default 200, range 1–1000. | 4B |
 | `NOTIFY_DEADLINES_BATCH_MAX` | Most due-soon and overdue tasks one sweep considers per workspace; default 500, range 10–5000. | 4B |
 | `NOTIFY_FACTS_MAX_BYTES` | Largest facts object a notification stores (scalars only, never titles or text); default 1024, range 128–4096. | 4B |
+| `FILE_UPLOAD_MAX_BYTES` | Largest single upload in bytes; default 104857600 (100 MiB), range 1024–5368709120. | 4E |
+| `WORKSPACE_STORAGE_QUOTA_BYTES` | Stored bytes one workspace may hold, counting bytes reserved by open upload sessions (a technical limit until plans set it, 10A); default 10737418240 (10 GiB), range 1048576–10995116277760. | 4E |
+| `FILE_COMPARE_MAX_BYTES` | Largest text or code version compared line by line (larger versions compare by metadata); default 262144, range 1024–2097152. | 4E |
+| `FILE_SCAN_MAX_ATTEMPTS` | Scan attempts before a failing scan marks the object scan_failed (downloads stay blocked); default 5, range 1–20. | 4E |
+| `FILE_VERSIONS_MAX` | Most versions one file keeps; default 100, range 1–1000. | 4E |
+| `FILES_LIST_MAX` | Most files one record holds and lists; default 200, range 10–1000. | 4E |
+| `DELIVERABLES_PER_TASK_MAX` | Most deliverables one task holds; default 50, range 1–500. | 4E |
+| `FILE_DISCOVERY_MAX` | Most workspaces one file sweep examines; default 100, range 1–1000. | 4E |
+| `FILE_EXPIRY_BATCH_MAX` | Most expired upload sessions and object deletions one sweep handles per workspace; default 200, range 10–5000. | 4E |
