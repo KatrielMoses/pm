@@ -250,9 +250,17 @@ test('upload, scan, preview, download, version, compare, link, deliverable, and 
   // Workspace settings show storage usage.
   await page.goto(`/workspaces/${ws}/settings`);
   await expect(card(page, 'File storage')).toContainText(/ of 10\.0 GB used/);
+});
 
-  // Appearance and reflow on the task page.
+test('files on the task page: forced colours, reduced motion, and reflow at every width', async ({
+  page,
+}, info) => {
+  const { ws, tsk } = await setup(page, info, 'files-reflow');
   await page.goto(`/workspaces/${ws}/tasks/${tsk}`);
+  await expect(h1(page)).toHaveText('Write launch copy');
+  await uploadNotes(page);
+  await page.keyboard.press('Escape');
+
   await page.emulateMedia({ reducedMotion: 'reduce', forcedColors: 'active' });
   await page.reload();
   await expect(row(page, 'notes.txt')).toBeVisible();

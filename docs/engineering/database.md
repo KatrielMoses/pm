@@ -360,3 +360,15 @@ All three tables have `tenant_isolation` RLS (enabled and forced) and indexes on
 
 `SearchService` (AZ-36) is the last class of the service chain. Every search is one workspace transaction: it compiles the person's visibility once (`need: view`), then reads the projection through a single statement that joins each row to its governing `core.record` and applies the predicate before matching, ranking, counting, faceting, or paging; the page's excerpts, brands, projects, and owners are then read for those keys only. A source adapter (`SearchSource`) may add a live check on the row itself (a comment's `deleted_at`, a file's or deliverable's own lifecycle), so a deletion is visible before the index catches up. The index job (`searchIndexHandler`) claims keys with `FOR UPDATE SKIP LOCKED`, rebuilds each row under a savepoint, and records failures on the key.
 
+## Phase 5B: goals and portfolios
+
+Migration `0042_goals_portfolios` (ADR-0029, 0B ADR-37) adds the `goals` schema:
+- `goals.goal`, `goals.key_result`, and `goals.portfolio`: records in the core envelope (`goal_`, `kr_`, `pf_`) with a row `version`, bounded text and decimals, a period of at most 3660 days, a measurement that needs its baseline, and a basis that allows a measurement only when it is manual. `latest_*` columns mirror the newest manual check-in.
+- `goals.goal_checkin`: append-only. A `BEFORE UPDATE` trigger refuses any change, the application role has no update or delete, and a unique index on `(workspace_id, goal_id, inputs_hash)` makes a computed check-in idempotent.
+- `goals.goal_link`: links a goal or key result to a project or task (unique per goal, key result, and target); a trigger keeps a brand goal's links in its brand and a project goal's task links in its project.
+- `goals.portfolio_project`: an explicit member list; a trigger keeps a brand portfolio to its brand's projects.
+- `goals.goal_state`: one row per goal with viewer-neutral derived facts and the dirty, due, lease, attempt, and error bookkeeping, and `exec_dispatch.discover_goal_work(now, limit)`, a payload-free `SECURITY DEFINER` discovery of workspaces with goals due for recalculation (owner `pm_scheduler`, executable by the dispatcher, with column-level read grants).
+
+All seven tables have `tenant_isolation` RLS and indexes on every foreign key. The worker may read and delete (purge), append computed check-ins, and maintain state. The down migration drops the function, grants, policy, triggers, and tables in key order and the `goals` schema, restoring the exact 0040 catalog.
+
+**Migration number.** This branch and Phase 5A (`0041_permission_aware_search`) were built in parallel and both use `0041`; the integrator renumbers one of them, as 4C and 4E did with `0038`.

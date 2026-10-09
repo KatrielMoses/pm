@@ -16,6 +16,8 @@ Default: **optimistic concurrency.** Locks are used only for the named invariant
 
 **Rich text and documents:** until realtime editing exists (UXD-01, OD-30), a save that sets `current_version_id` checks `base_version_id`. On mismatch, the client receives the newer version for a per-section conflict view (ST-06), and the user's content is always saved as a new `document_version` (never lost) before resolution. Phase 4D ([ADR-35](12-decisions.md#adr-35)) adds a live mode on top: the server sequences block-level operations on a draft, refuses an operation that no longer fits with the current block, and appends a version only at a checkpoint; this save path remains the fallback and the durable history. While a live session is open, a plain save is refused (`live_edit_in_progress`), and unsaved live work with nobody editing is saved as a version first.
 
+**Goals and portfolios (Phase 5B, [ADR-37](12-decisions.md#adr-37)):** goals, key results, and portfolios are `row-version` records edited with the loaded version (a stale version is a conflict, a missing one is refused). Check-ins are append-only, and the goal's and key result's latest pointers move with the check-in in the same transaction. A background recalculation claims a goal through its state row (`FOR UPDATE SKIP LOCKED`, a lease), recomputes it in its own transaction, and appends a computed check-in only when the inputs hash changed, so an overlapping sweep or a retry appends nothing twice, and a change made while a sweep runs is never lost. Nothing derived from linked work is stored, so no figure can be older than the work it summarizes.
+
 ## 9.2 Inline, bulk, and offline edits
 
 - **Inline edits** are single-field requests (§9.1).

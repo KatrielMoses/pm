@@ -277,6 +277,19 @@ export interface ServerConfig {
     searchRecentMax: number;
     searchRecentRetentionDays: number;
     searchRatePerMinute: number;
+    goalsPerScopeMax: number;
+    goalKeyResultsMax: number;
+    goalLinksMax: number;
+    goalUpdateStaleDays: number;
+    goalCheckinRatePerMinute: number;
+    portfoliosMax: number;
+    portfolioProjectsMax: number;
+    portfolioReadProjectsMax: number;
+    goalsExportRowsMax: number;
+    goalsRecalcBatchMax: number;
+    goalsRecalcLeaseSeconds: number;
+    goalsRecalcIntervalMinutes: number;
+    goalsRecalcMaxAttempts: number;
     documentEmbedUrlMaxChars: number;
     signedUrlLifetimeSeconds: number;
     uploadSessionLifetimeSeconds: number;
@@ -630,6 +643,19 @@ const DEFAULTS = {
   SEARCH_RECENT_MAX: '25',
   SEARCH_RECENT_RETENTION_DAYS: '90',
   SEARCH_RATE_PER_MINUTE: '120',
+  GOALS_PER_SCOPE_MAX: '500',
+  GOAL_KEY_RESULTS_MAX: '20',
+  GOAL_LINKS_MAX: '200',
+  GOAL_UPDATE_STALE_DAYS: '14',
+  GOAL_CHECKIN_RATE_PER_MINUTE: '30',
+  PORTFOLIOS_MAX: '100',
+  PORTFOLIO_PROJECTS_MAX: '200',
+  PORTFOLIO_READ_PROJECTS_MAX: '500',
+  GOALS_EXPORT_ROWS_MAX: '5000',
+  GOALS_RECALC_BATCH_MAX: '200',
+  GOALS_RECALC_LEASE_SECONDS: '300',
+  GOALS_RECALC_INTERVAL_MINUTES: '360',
+  GOALS_RECALC_MAX_ATTEMPTS: '5',
   DOCUMENT_EMBED_URL_MAX_CHARS: '2048',
   SIGNED_URL_LIFETIME: '300',
   UPLOAD_SESSION_LIFETIME: '3600',
@@ -896,6 +922,19 @@ const schema = z.object({
   SEARCH_RECENT_MAX: int(5, 100),
   SEARCH_RECENT_RETENTION_DAYS: int(1, 365),
   SEARCH_RATE_PER_MINUTE: int(10, 1200),
+  GOALS_PER_SCOPE_MAX: int(10, 5000),
+  GOAL_KEY_RESULTS_MAX: int(1, 50),
+  GOAL_LINKS_MAX: int(10, 1000),
+  GOAL_UPDATE_STALE_DAYS: int(1, 90),
+  GOAL_CHECKIN_RATE_PER_MINUTE: int(1, 600),
+  PORTFOLIOS_MAX: int(1, 1000),
+  PORTFOLIO_PROJECTS_MAX: int(10, 1000),
+  PORTFOLIO_READ_PROJECTS_MAX: int(50, 2000),
+  GOALS_EXPORT_ROWS_MAX: int(100, 50000),
+  GOALS_RECALC_BATCH_MAX: int(10, 2000),
+  GOALS_RECALC_LEASE_SECONDS: int(30, 3600),
+  GOALS_RECALC_INTERVAL_MINUTES: int(15, 1440),
+  GOALS_RECALC_MAX_ATTEMPTS: int(1, 20),
   DOCUMENT_EMBED_URL_MAX_CHARS: int(128, 8192),
   SIGNED_URL_LIFETIME: int(30, 3600),
   UPLOAD_SESSION_LIFETIME: int(300, 86400),
@@ -1491,6 +1530,19 @@ export function loadServerConfig(options: LoadOptions): ServerConfig {
       searchRecentMax: c.SEARCH_RECENT_MAX,
       searchRecentRetentionDays: c.SEARCH_RECENT_RETENTION_DAYS,
       searchRatePerMinute: c.SEARCH_RATE_PER_MINUTE,
+      goalsPerScopeMax: c.GOALS_PER_SCOPE_MAX,
+      goalKeyResultsMax: c.GOAL_KEY_RESULTS_MAX,
+      goalLinksMax: c.GOAL_LINKS_MAX,
+      goalUpdateStaleDays: c.GOAL_UPDATE_STALE_DAYS,
+      goalCheckinRatePerMinute: c.GOAL_CHECKIN_RATE_PER_MINUTE,
+      portfoliosMax: c.PORTFOLIOS_MAX,
+      portfolioProjectsMax: c.PORTFOLIO_PROJECTS_MAX,
+      portfolioReadProjectsMax: c.PORTFOLIO_READ_PROJECTS_MAX,
+      goalsExportRowsMax: c.GOALS_EXPORT_ROWS_MAX,
+      goalsRecalcBatchMax: c.GOALS_RECALC_BATCH_MAX,
+      goalsRecalcLeaseSeconds: c.GOALS_RECALC_LEASE_SECONDS,
+      goalsRecalcIntervalMinutes: c.GOALS_RECALC_INTERVAL_MINUTES,
+      goalsRecalcMaxAttempts: c.GOALS_RECALC_MAX_ATTEMPTS,
       documentEmbedUrlMaxChars: c.DOCUMENT_EMBED_URL_MAX_CHARS,
       signedUrlLifetimeSeconds: c.SIGNED_URL_LIFETIME,
       uploadSessionLifetimeSeconds: c.UPLOAD_SESSION_LIFETIME,

@@ -142,3 +142,5 @@ Each question records the assumption this set makes now and the reversible exten
 | <a id="dq-36"></a>DQ-36 | Automatic workspace deletion after the read-only period ends | OD-35 | No automatic deletion request |
 | <a id="dq-37"></a>DQ-37 | Deleting data previously pushed to external systems on disconnect | 0A deletion §6 | Per-integration user choice; default **do not** delete remotely |
 | <a id="dq-38"></a>DQ-38 | Retention of AI prompts and outputs versus provider retention | OD-36, OD-41 | Kept as R-EXEC; provider retention governed by provider contracts |
+| <a id="dq-39"></a>DQ-39 | Fiscal calendars for goal periods | later (needs a 1C workspace setting) | Calendar quarters, halves, years, or a custom range of at most 3660 days ([ADR-37](12-decisions.md#adr-37)) |
+| <a id="dq-40"></a>DQ-40 | Weighted goal rollups and metric-backed key results | 5C (OD-13) | Key-result rollup is an equal-weight mean of measured key results; linked-work progress is done over non-cancelled leaf tasks, with no estimate weighting |

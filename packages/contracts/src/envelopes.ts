@@ -223,6 +223,13 @@ export const NON_RESOURCE_TYPES = [
   'search_status',
   'search_open',
   'search_recent',
+  // 5B: a portfolio's health overview, cross-project dependencies, and orphan findings; each is
+  // computed for the viewer and has no public identifier of its own.
+  'portfolio_overview',
+  'portfolio_dependencies',
+  'portfolio_orphans',
+  // 5B: the readable work behind a goal's linked-work progress (the drill-down for its figure).
+  'goal_work',
 ] as const;
 export type NonResourceType = (typeof NON_RESOURCE_TYPES)[number];
 

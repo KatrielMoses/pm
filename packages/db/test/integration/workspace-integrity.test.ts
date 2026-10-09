@@ -257,6 +257,14 @@ describe('database-enforced workspace existence (1A review 01, correction 2)', (
       'files.file',
       'files.file_version',
       'files.upload_session',
+      // Phase 5B goals, key results, check-ins, links, derived state, and portfolios.
+      'goals.goal',
+      'goals.goal_checkin',
+      'goals.goal_link',
+      'goals.goal_state',
+      'goals.key_result',
+      'goals.portfolio',
+      'goals.portfolio_project',
       'files.deliverable',
       'files.deliverable_version',
       'files.storage_usage',
@@ -293,7 +301,7 @@ describe('database-enforced workspace existence (1A review 01, correction 2)', (
             AND i.indkey::int2[] @> c.confkey AND i.indkey::int2[] <@ c.confkey
         ) AS referenced_unique
       FROM pg_constraint c JOIN pg_namespace n ON n.oid = c.connamespace
-      WHERE c.contype = 'f' AND n.nspname IN ('exec', 'tenancy', 'access', 'ops', 'views', 'workflow', 'work', 'relations', 'templates', 'planning', 'capture', 'timetrack', 'collab', 'notify', 'knowledge', 'files', 'search')
+      WHERE c.contype = 'f' AND n.nspname IN ('exec', 'tenancy', 'access', 'ops', 'views', 'workflow', 'work', 'relations', 'templates', 'planning', 'capture', 'timetrack', 'collab', 'notify', 'knowledge', 'files', 'search', 'goals')
       ORDER BY 1`);
     // exec: 7 workspace keys + 6 composite same-workspace keys; 1C tenancy/access: 20 keys;
     // 1D collaboration (teams, invitations, policy, shares, ownership transfer): 38 keys;
@@ -315,8 +323,10 @@ describe('database-enforced workspace existence (1A review 01, correction 2)', (
     // 4E objects (1), files (6), versions (4), upload sessions (9), deliverables (7), deliverable
     // versions (7), and storage usage (1): +35;
     // 4D live edit drafts (3), sessions (3), and operations (4): +10;
-    // 5A search entries (4), indexing tasks (2), and recent searches (2): +8.
-    expect(res.rows.length).toBe(457);
+    // 5A search entries (4), indexing tasks (2), and recent searches (2): +8;
+    // 5B goals (8), key results (7), check-ins (4), links (6), derived state (2), portfolios (6),
+    // and portfolio projects (4): +37.
+    expect(res.rows.length).toBe(494);
     for (const r of res.rows)
       expect(r, `${r.tbl}.${r.conname}`).toMatchObject({
         referencing_indexed: true,

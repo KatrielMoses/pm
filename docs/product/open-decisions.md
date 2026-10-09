@@ -59,6 +59,7 @@ Requirements flagged with each decision are listed automatically in [requirement
 - **Affects:** TSK-012, TSK-013, TSK-014, GOAL-010, PRJ-011 · phases 0B, 0C, 2A, 2B.
 - **Approved contract:** Apply the decision above. In-text author-created mentions may still render as a neutral "Restricted item" token because the surrounding authored text already discloses that a reference exists; system-generated relationship metadata may not.
 - **If deferred:** Allow only same-brand links initially. This is cheap to relax later and expensive to tighten.
+- **Status (Phase 5B, 2026-10-08):** Applied. Cross-project dependencies in portfolio views are `blocks` edges between tasks of different projects where the viewer can read both ends. An edge to unreadable work is omitted along with every condition derived solely from it (for example a blocked count), so a hidden dependency leaves no trace in a total or a health reason (ADR-0029 G10).
 
 <a id="od-06"></a>
 ### OD-06 — Workspace-scoped records
@@ -67,6 +68,7 @@ Requirements flagged with each decision are listed automatically in [requirement
 - **Affects:** WSB-007, DOC-003, FILE-001, GOAL-001, INT-004 · phases 0B, 0C, 4C, 4E, 5B, 6A.
 - **Safe default:** Workspace-scoped records are readable by members holding workspace-level read grants, never by guests unless shared, and carry a "Workspace" marker.
 - **If deferred:** 0B must still model an optional brand on these records, and authorization rules for them stay undefined.
+- **Status (Phase 5B, 2026-10-08):** Applied. Workspace-level goals and portfolios are readable by members who hold workspace-level read, never by guests, and are never shareable; brand and project goals follow their placement (ADR-0029 G1).
 
 <a id="od-07"></a>
 ### OD-07 — Restricted brands in aggregated views
@@ -75,6 +77,7 @@ Requirements flagged with each decision are listed automatically in [requirement
 - **Affects:** WSB-016, PERM-006, RPT-001 · phases 0C, 1C, 5D.
 - **Safe default:** No disclosure. Aggregates cover visible brands only and are labeled as such.
 - **If deferred:** The safe default applies, and nothing needs rework if it is later relaxed.
+- **Status (Phase 5B, 2026-10-08):** Applied to goals and portfolios. Linked-work progress, project health, dependencies, budgets, effort, time totals, and orphan findings are computed for each viewer from only the work that viewer may read, say what they cover, and report what is incomplete or truncated. Nothing derived from linked work is stored, so no cached figure can outlive a revocation (ADR-0029 G3).
 
 <a id="od-08"></a>
 ### OD-08 — Subtask nesting depth
@@ -133,6 +136,7 @@ Requirements flagged with each decision are listed automatically in [requirement
 - **Why it matters:** It is shown on every project and portfolio, and it must never be mistaken for completion ([lifecycle §3](lifecycle-and-states.md#project-completion-versus-completion-percentage)).
 - **Affects:** PRJ-020, RPT-005, GOAL-005 · phases 2A, 2B, 5C.
 - **If deferred:** No longer applicable (decided). 5C versions the metric if it changes the basis.
+- **Status (Phase 5B, 2026-10-08):** Applied to linked-work goal progress. A project link covers that project's own tasks (sub-projects are linked separately) and a task link covers the task and its subtasks; progress is done leaf tasks over non-cancelled leaf tasks the viewer may read, in whole percent, with no estimate weighting. Weighted rollups and metric definitions wait for 5C (ADR-0029 G3, G4).
 
 <a id="od-14"></a>
 ### OD-14 — Recurring projects

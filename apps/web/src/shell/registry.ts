@@ -52,6 +52,11 @@ export interface RouteDef {
   /** Content belongs to a later phase: the page is an honest unavailable state (no data). */
   phase?: string | null;
   command?: ShellCommandId;
+  /**
+   * A Go to command for a route outside the closed `ShellCommandId` set (5B Portfolio): listed in
+   * the palette under the same permission predicate, not counted by shell telemetry.
+   */
+  extraCommand?: string;
   shortcut?: string;
   /** Permission predicate shared by every surface. Absent means everyone in the shell kind. */
   visible?: (a: Access) => boolean;
@@ -101,7 +106,8 @@ const destinations: RouteDef[] = SHELL_DESTINATIONS.map((d, i) => ({
   section: DEST_LABEL[d],
   destination: d,
   scopeSensitive: true,
-  phase: DESTINATION_PHASE[d],
+  // 5B ships the Goals destination; the contract's phase table still names it as upcoming.
+  phase: d === 'goals' ? null : DESTINATION_PHASE[d],
   command: `go.${d}` as ShellCommandId,
   ...(DEST_SHORTCUT[d] ? { shortcut: DEST_SHORTCUT[d] } : {}),
   nav: {
@@ -361,6 +367,24 @@ export const ROUTES: readonly RouteDef[] = [
     shell: 'workspace',
     section: 'Approvals',
     visible: member,
+  },
+  // 5B: a goal, and the project portfolio (health, dependencies, goal coverage). Goals and
+  // portfolios are for members; the API refuses guests, so the routes are absent for them.
+  {
+    id: 'goal',
+    pattern: '/workspaces/:ws/goals/:goal',
+    shell: 'workspace',
+    section: 'Goals',
+    visible: member,
+  },
+  {
+    id: 'portfolio',
+    pattern: '/workspaces/:ws/projects/portfolio',
+    shell: 'workspace',
+    section: 'Projects',
+    extraCommand: 'go.portfolio',
+    nav: { placement: 'workspace', label: 'Portfolio', short: 'Portfolio', icon: '▥', order: 4 },
+    visible: (a) => member(a) && !a.hidden.includes('projects'),
   },
   // 4C: a document page (the Knowledge destination is the tree of pages).
   {

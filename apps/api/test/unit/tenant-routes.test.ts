@@ -88,6 +88,8 @@ describe('tenant lifecycle and audit endpoints are reachable only through policy
       'apps/api/src/work/document-routes.ts',
       // 4E (0C AZ-34): `{file}:trash`, decided through the same tenancy-exported issuer.
       'apps/api/src/work/files-routes.ts',
+      // 5B (0C AZ-37): goal, key-result, and portfolio lifecycle verbs, decided through the same issuer.
+      'apps/api/src/work/goal-routes.ts',
       'apps/api/src/work/routes.ts',
       // 2B (0C AZ-22): task lifecycle verbs, decided through the same tenancy-exported issuer.
       'apps/api/src/work/task-routes.ts',

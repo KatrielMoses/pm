@@ -96,8 +96,9 @@ def check_contracts(registry, policy):
     events = {e["type"] for e in registry["events"]}
     if any(e.startswith("search.") for e in events):
         errs.append("search emits no events: indexing is driven by database keys")
-    if len(registry["id_prefixes"]) != 89:
-        errs.append("search adds no identifier prefix: expected 89, found %d" % len(registry["id_prefixes"]))
+    prefixes = {p["prefix"] for p in registry["id_prefixes"]}
+    if any(p in prefixes for p in ("srch", "sdoc", "rsrch")):
+        errs.append("search adds no identifier prefix")
     od = read(P("docs/product/open-decisions.md"))
     seg = od[od.find("### OD-31"):od.find('<a id="od-32">')]
     if "**Status (Phase 5A" not in seg:
@@ -234,8 +235,10 @@ def check_invariants():
     if "export class SearchService extends FileService" not in svc:
         errs.append("SearchService must extend FileService")
     factory = read(P("packages/work/src/factory.ts"))
-    if "}): SearchService {" not in factory or "return new SearchService(" not in factory:
-        errs.append("createWorkService must build and return the SearchService")
+    # 5B's goal services extend the SearchService, and the factory returns the top of that chain.
+    if not re.search(r"\}\): (SearchService|PortfolioService) \{", factory) or not re.search(
+            r"return new (SearchService|PortfolioService)\(", factory):
+        errs.append("createWorkService must build and return the SearchService (or the 5B chain on top of it)")
     for path, needles in {
         "packages/work/test/integration/search.test.ts": [
             "treats a hidden record exactly like one that does not exist: no result, count, facet, excerpt, or ranking",

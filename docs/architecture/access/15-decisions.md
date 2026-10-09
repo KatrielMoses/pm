@@ -259,6 +259,19 @@ All decisions are **proposed (Phase 0C)**, pending solutions-architect acceptanc
 - **Alternatives:** Permission keys copied into the index (stale after every change, the denormalized-authority failure T-54 describes). Filtering a fetched page in the application (counts, ranks, and paging then reflect hidden records). Hiding results with a placeholder (it discloses existence, IA-40). A definer function that reads the index outside row-level security for speed (a new privileged read path).
 - **Consequences:** Threat T-54 with tests AT-238 to AT-245.
 
+<a id="az-37"></a>
+### AZ-37: Goals and portfolios (Phase 5B amendment)
+- **Decision:**
+  - **The placement decides.** A goal or portfolio is read and written through the level of its placement at that moment: the workspace level for a workspace goal or portfolio (OD-06: members with workspace-level read), the brand level for a brand one, and the governing project chain for a project goal. A key result is decided through its goal. `record.create`, `record.update`, `record.archive`, `record.restore`, `record.trash`, `record.purge`, and `record.read` are reused, and a check-in is an update of the goal. An unreadable and an unknown goal or portfolio are one `not_found` (AT-252).
+  - **Never shareable, never for guests.** Goals and portfolios are not shareable record types. Guests and share-only readers have no access: collections answer `forbidden` and a record answers `not_found`, whatever they hold elsewhere (AT-254, AT-255).
+  - **Computed for the viewer, from what the viewer may read.** Progress from linked work, health, dependencies, budgets, deadlines, effort, logged-time totals, and orphan findings are computed on each read from only the work the viewer may read (OD-07, OD-13). Hidden brands, projects, tasks, links, and time change no count, total, label, reason, or truncation notice, and every aggregate says what it covers. An edge to unreadable work is omitted along with every condition derived solely from it (OD-05). Nothing derived from linked work is stored or cached beyond the request, so a revocation applies to the next read (AT-246 to AT-248, AT-256, AT-267, AT-268).
+  - **Links and members need read.** Linking a project or task and naming a project in a portfolio require that the editor can read the target; an unreadable, unknown, or wrongly placed one gets the same refusal. A link grants no access. A portfolio edit preserves the members the editor cannot read and never lists or counts them (AT-249 to AT-251, AT-253).
+  - **Tamper and replay.** Check-ins are append-only and cannot be set by hand for a derived goal; a retried request records once and the rate is limited per member (AT-257 to AT-260).
+  - **Exports.** Goal and portfolio exports contain only what the exporter may read, are bounded (larger is refused), neutralize formula cells, and are audited with a security event; nothing is kept (AT-261, AT-262).
+  - **Background recalculation.** The worker acts for a workspace only through that workspace's transaction, discovers work through workspace identifiers, stores no viewer-dependent number, and appends a computed check-in once per distinct input (AT-263 to AT-266).
+  - **No new actions.** The action count stays 122.
+- **Alternatives:** Sharing goals or portfolios (a second access path to the work they summarize). A goal-level role table (a second authority). Storing a portfolio's health, progress, or counts (one viewer's view served to the next). Showing the number of hidden linked items so a total adds up (existence disclosure).
+- **Consequences:** Threats T-55 to T-62 with tests AT-246 to AT-268.
 <a id="az-35"></a>
 ### AZ-35: Live collaborative editing (Phase 4D amendment)
 - **Decision:**

@@ -320,6 +320,32 @@ export interface WorkSettings {
   searchRecentRetentionDays: number;
   /** `SEARCH_RATE_PER_MINUTE` */
   searchRatePerMinute: number;
+  /** `GOALS_PER_SCOPE_MAX` */
+  goalsPerScopeMax: number;
+  /** `GOAL_KEY_RESULTS_MAX` */
+  goalKeyResultsMax: number;
+  /** `GOAL_LINKS_MAX` */
+  goalLinksMax: number;
+  /** `GOAL_UPDATE_STALE_DAYS` */
+  goalUpdateStaleDays: number;
+  /** `GOAL_CHECKIN_RATE_PER_MINUTE` */
+  goalCheckinRatePerMinute: number;
+  /** `PORTFOLIOS_MAX` */
+  portfoliosMax: number;
+  /** `PORTFOLIO_PROJECTS_MAX` */
+  portfolioProjectsMax: number;
+  /** `PORTFOLIO_READ_PROJECTS_MAX` */
+  portfolioReadProjectsMax: number;
+  /** `GOALS_EXPORT_ROWS_MAX` */
+  goalsExportRowsMax: number;
+  /** `GOALS_RECALC_BATCH_MAX` */
+  goalsRecalcBatchMax: number;
+  /** `GOALS_RECALC_LEASE_SECONDS` */
+  goalsRecalcLeaseSeconds: number;
+  /** `GOALS_RECALC_INTERVAL_MINUTES` */
+  goalsRecalcIntervalMinutes: number;
+  /** `GOALS_RECALC_MAX_ATTEMPTS` */
+  goalsRecalcMaxAttempts: number;
   /** `DOCUMENT_EMBED_URL_MAX_CHARS` */
   documentEmbedUrlMaxChars: number;
   /** `SIGNED_URL_LIFETIME` (seconds) */
@@ -496,6 +522,19 @@ export const DEFAULT_WORK_SETTINGS: WorkSettings = Object.freeze({
   searchRecentMax: 25,
   searchRecentRetentionDays: 90,
   searchRatePerMinute: 120,
+  goalsPerScopeMax: 500,
+  goalKeyResultsMax: 20,
+  goalLinksMax: 200,
+  goalUpdateStaleDays: 14,
+  goalCheckinRatePerMinute: 30,
+  portfoliosMax: 100,
+  portfolioProjectsMax: 200,
+  portfolioReadProjectsMax: 500,
+  goalsExportRowsMax: 5000,
+  goalsRecalcBatchMax: 200,
+  goalsRecalcLeaseSeconds: 300,
+  goalsRecalcIntervalMinutes: 360,
+  goalsRecalcMaxAttempts: 5,
   documentEmbedUrlMaxChars: 2048,
   signedUrlLifetimeSeconds: 300,
   uploadSessionLifetimeSeconds: 3_600,
