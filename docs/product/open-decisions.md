@@ -78,6 +78,7 @@ Requirements flagged with each decision are listed automatically in [requirement
 - **Safe default:** No disclosure. Aggregates cover visible brands only and are labeled as such.
 - **If deferred:** The safe default applies, and nothing needs rework if it is later relaxed.
 - **Status (Phase 5B, 2026-10-08):** Applied to goals and portfolios. Linked-work progress, project health, dependencies, budgets, effort, time totals, and orphan findings are computed for each viewer from only the work that viewer may read, say what they cover, and report what is incomplete or truncated. Nothing derived from linked work is stored, so no cached figure can outlive a revocation (ADR-0029 G3).
+- **Status (Phase 5D, 2026-10-09):** Applied to dashboards, reports, exports, and scheduled delivery. Every widget, drill-through, export, and email is computed for the person receiving it from only what they may read, over the report's own scope; hidden brands and projects change no count, group, total, label, or empty state, and a widget whose source a person cannot see is absent. A report share grants the saved definition and never data (ADR-0030 D3, D8).
 
 <a id="od-08"></a>
 ### OD-08 — Subtask nesting depth

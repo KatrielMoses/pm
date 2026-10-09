@@ -719,14 +719,12 @@ describe('Home and project overviews (5D)', () => {
   });
 
   it('groups a single brand by project', async () => {
-    const widget = vi
-      .spyOn(insights, 'widget')
-      .mockResolvedValue({
-        type: 'widget_result',
-        widget: meta(),
-        filters: NO_FILTERS,
-        outcome: value(),
-      });
+    const widget = vi.spyOn(insights, 'widget').mockResolvedValue({
+      type: 'widget_result',
+      widget: meta(),
+      filters: NO_FILTERS,
+      outcome: value(),
+    });
     wrap(<HomeOverview ws={WS} brandIds={['br_1']} single />);
     expect(await screen.findByRole('heading', { name: 'This brand at a glance' })).toBeTruthy();
     await waitFor(() =>
@@ -750,14 +748,12 @@ describe('Home and project overviews (5D)', () => {
       disconnect() {}
     }
     vi.stubGlobal('IntersectionObserver', FakeObserver);
-    const widget = vi
-      .spyOn(insights, 'widget')
-      .mockResolvedValue({
-        type: 'widget_result',
-        widget: meta(),
-        filters: NO_FILTERS,
-        outcome: value(),
-      });
+    const widget = vi.spyOn(insights, 'widget').mockResolvedValue({
+      type: 'widget_result',
+      widget: meta(),
+      filters: NO_FILTERS,
+      outcome: value(),
+    });
     wrap(<HomeOverview ws={WS} brandIds={[]} single={false} />);
     await waitFor(() => expect(widget).toHaveBeenCalledTimes(2));
     expect(callbacks.length).toBe(3);
