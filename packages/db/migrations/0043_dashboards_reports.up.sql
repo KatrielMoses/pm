@@ -203,6 +203,7 @@ CREATE TABLE insights.report_share (
 CREATE UNIQUE INDEX report_share_active ON insights.report_share (workspace_id, report_id, grantee_membership_id)
   WHERE revoked_at IS NULL;
 CREATE INDEX report_share_by_report ON insights.report_share (workspace_id, report_id);
+CREATE INDEX report_share_by_scope_report ON insights.report_share (workspace_id, scope_key, report_id);
 CREATE INDEX report_share_by_grantee ON insights.report_share (workspace_id, grantee_membership_id);
 CREATE INDEX report_share_by_creator ON insights.report_share (workspace_id, created_by_membership_id);
 CREATE INDEX report_share_by_revoker ON insights.report_share (workspace_id, revoked_by_membership_id);
