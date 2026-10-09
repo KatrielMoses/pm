@@ -597,6 +597,26 @@
         {
           "file": "packages/work/test/unit/insights-semantics.test.ts",
           "contains": "keeps the local clock across a DST change"
+        },
+        {
+          "file": "packages/work/test/integration/insights-jobs.test.ts",
+          "contains": "sends once when two sweeps overlap"
+        },
+        {
+          "file": "packages/work/test/integration/insights-jobs.test.ts",
+          "contains": "leaves a leased report alone and reclaims it once the lease lapses (a crashed worker)"
+        },
+        {
+          "file": "packages/work/test/integration/insights-jobs.test.ts",
+          "contains": "finishes a delivery a crashed worker left half done without sending it twice"
+        },
+        {
+          "file": "packages/work/test/integration/insights-jobs.test.ts",
+          "contains": "owes one delivery after a long outage and moves on"
+        },
+        {
+          "file": "packages/work/test/integration/insights-jobs.test.ts",
+          "contains": "sends nothing for a trashed report, and carries on after it is restored"
         }
       ]
     },
@@ -806,6 +826,10 @@
         {
           "file": "packages/work/test/unit/insights-semantics.test.ts",
           "contains": "refuses unknown fields, too many widgets, and duplicate ids with pointer-precise issues"
+        },
+        {
+          "file": "packages/work/test/integration/insights-jobs.test.ts",
+          "contains": "still produces an export when one widget cannot be loaded, and says so"
         }
       ]
     },
@@ -977,6 +1001,22 @@
         {
           "file": "packages/db/migrations/0043_dashboards_reports.up.sql",
           "contains": "report_run_occurrence"
+        },
+        {
+          "file": "packages/work/test/integration/insights-jobs.test.ts",
+          "contains": "sends once when two sweeps overlap"
+        },
+        {
+          "file": "packages/work/test/integration/insights-jobs.test.ts",
+          "contains": "finishes a delivery a crashed worker left half done without sending it twice"
+        },
+        {
+          "file": "packages/work/test/integration/insights-jobs.test.ts",
+          "contains": "owes one delivery after a long outage and moves on"
+        },
+        {
+          "file": "packages/work/test/integration/insights-jobs.test.ts",
+          "contains": "never reads or sends another workspace’s reports"
         }
       ]
     },
@@ -998,6 +1038,10 @@
         {
           "file": "packages/work/src/insights/ownership.ts",
           "contains": "export const insightsOwnerHook"
+        },
+        {
+          "file": "packages/work/test/integration/insights-jobs.test.ts",
+          "contains": "hands a departed member’s reports on, pauses their schedule, and drops their recipient row"
         }
       ]
     },
@@ -1019,6 +1063,18 @@
         {
           "file": "packages/work/src/insights/lifecycle.ts",
           "contains": "export const reportAdapter"
+        },
+        {
+          "file": "packages/work/test/integration/insights-jobs.test.ts",
+          "contains": "removes a report’s runs, shares, and recipients with it, and a project carries its own"
+        },
+        {
+          "file": "packages/work/test/integration/insights-jobs.test.ts",
+          "contains": "ages out finished runs past retention and keeps what is pending"
+        },
+        {
+          "file": "packages/work/test/integration/insights-jobs.test.ts",
+          "contains": "sends nothing for a trashed report, and carries on after it is restored"
         }
       ]
     },
