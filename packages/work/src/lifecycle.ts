@@ -11,6 +11,7 @@ import {
   portfolioAdapter,
   purgeGoalTargets,
 } from './goals/lifecycle.ts';
+import { attachedInsights, dashboardAdapter, reportAdapter } from './insights/lifecycle.ts';
 import {
   deliverableAdapter,
   fileAdapter,
@@ -59,6 +60,8 @@ export const projectAdapter: RecordTypeAdapter = {
       ...(await attachedDocuments(tx, 'attached_project_id', parentIds)),
       // Goals scoped to the project travel with it (5B).
       ...(await attachedGoals(tx, parentIds)),
+      // Dashboards and reports scoped to the project travel with it (5D).
+      ...(await attachedInsights(tx, parentIds)),
     ];
   },
   async rootsInBrand(tx, brandIds) {
@@ -491,6 +494,8 @@ export function registerWorkLifecycle(registry: LifecycleRegistry): LifecycleReg
     goalAdapter,
     keyResultAdapter,
     portfolioAdapter,
+    dashboardAdapter,
+    reportAdapter,
     fileAdapter,
     deliverableAdapter,
   ])

@@ -14,8 +14,9 @@ import {
 import { registerWorkLifecycle } from './lifecycle.ts';
 import { projectTargets, savedViewTargets, taskTargets } from './navigation.ts';
 import { projectOwnerHook, taskAssigneeHook } from './ownership.ts';
-import { PortfolioService } from './goals/portfolio-service.ts';
+import { ReportService } from './insights/report-service.ts';
 import { goalOwnerHook } from './goals/ownership.ts';
+import { insightsOwnerHook } from './insights/ownership.ts';
 import { createMalwareScanner } from './files/scanner.ts';
 import { createObjectStorage } from './files/storage.ts';
 import { reviewDepartureHook } from './collab/departure.ts';
@@ -29,7 +30,7 @@ export function productLifecycleRegistry(): LifecycleRegistry {
 }
 
 /**
- * Wires the full 1C–5A service (with 3B layouts, 3C planning, 4A collaboration, 4B notifications, 4E files, and 5A search) (tenancy, collaboration, navigation, projects, tasks) from validated
+ * Wires the full 1C–5D service (with 3B layouts, 3C planning, 4A collaboration, 4B notifications, 4E files, 5A search, 5B goals, and 5D reports) (tenancy, collaboration, navigation, projects, tasks) from validated
  * configuration. Work plugs into tenancy by injection only: its lifecycle adapters, its navigation
  * target, and its departure hook.
  */
@@ -43,7 +44,7 @@ export function createWorkService(deps: {
     };
   logger: Logger;
   metrics: Metrics;
-}): PortfolioService {
+}): ReportService {
   const { config } = deps;
   if (!config.identity.signingKey) throw new Error('AUTH_SIGNING_KEY is required');
   const writer = new AuditWriter({
@@ -63,7 +64,7 @@ export function createWorkService(deps: {
   const signingKey = Buffer.from(config.identity.signingKey.reveal(), 'base64url');
   const arrayMax = config.tenancy.principalContextArrayMax;
   const work = config.work ?? DEFAULT_WORK_SETTINGS;
-  return new PortfolioService({
+  return new ReportService({
     // 4E: object storage and malware scanning, each absent until configured (never claimed).
     files: {
       storage: config.files ? createObjectStorage(config.files.storage) : null,
@@ -84,6 +85,7 @@ export function createWorkService(deps: {
       .register(taskAssigneeHook)
       .register(documentOwnerHook)
       .register(goalOwnerHook)
+      .register(insightsOwnerHook)
       .register(reviewDepartureHook(writer))
       .register(departureTimerHook(writer)),
     settings: {
@@ -107,6 +109,7 @@ export function createWorkService(deps: {
       'document.live': { limit: work.liveRatePerMinute, windowMs: 60_000 },
       'search.member': { limit: work.searchRatePerMinute, windowMs: 60_000 },
       'goal.checkin': { limit: work.goalCheckinRatePerMinute, windowMs: 60_000 },
+      'report.export': { limit: work.reportExportRatePerMinute, windowMs: 60_000 },
     }),
     signingKey,
     metrics: deps.metrics,
