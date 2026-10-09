@@ -1,6 +1,6 @@
 import type { FastifyInstance, FastifyRequest } from 'fastify';
 import { nonResourceEnvelope } from '@pm/contracts';
-import type { MetricService } from '@pm/work';
+import type { ReportService } from '@pm/work';
 import { routeKit } from '../route-kit.ts';
 import { registerFiles } from './files-routes.ts';
 import { registerSearch } from './search-routes.ts';
@@ -16,11 +16,12 @@ import { registerNotifications } from './notify-routes.ts';
 import { registerDocuments } from './document-routes.ts';
 import { registerGoals } from './goal-routes.ts';
 import { registerMetrics } from './metric-routes.ts';
+import { registerInsights } from './insight-routes.ts';
 import { registerViews } from './view-routes.ts';
 import { registerWorkflows } from './workflow-routes.ts';
 
 export interface WorkRouteDeps {
-  work: MetricService;
+  work: ReportService;
 }
 
 type Params = {
@@ -69,6 +70,7 @@ export function registerWork(app: FastifyInstance, deps: WorkRouteDeps): void {
   registerSearch(app, work);
   registerGoals(app, work);
   registerMetrics(app, work);
+  registerInsights(app, work);
 
   app.get(
     base,

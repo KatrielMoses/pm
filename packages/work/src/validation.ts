@@ -372,6 +372,34 @@ export interface WorkSettings {
   goalsRecalcIntervalMinutes: number;
   /** `GOALS_RECALC_MAX_ATTEMPTS` */
   goalsRecalcMaxAttempts: number;
+  /** `DASHBOARDS_PER_SCOPE_MAX` */
+  dashboardsPerScopeMax: number;
+  /** `DASHBOARD_PERSONAL_MAX` */
+  dashboardPersonalMax: number;
+  /** `DASHBOARD_WIDGETS_MAX` */
+  dashboardWidgetsMax: number;
+  /** `REPORTS_PER_SCOPE_MAX` */
+  reportsPerScopeMax: number;
+  /** `REPORT_RECIPIENTS_MAX` */
+  reportRecipientsMax: number;
+  /** `REPORT_SHARES_MAX` */
+  reportSharesMax: number;
+  /** `REPORT_EXPORT_ROWS_MAX` */
+  reportExportRowsMax: number;
+  /** `REPORT_EMAIL_ROWS_MAX` */
+  reportEmailRowsMax: number;
+  /** `REPORT_EXPORT_RATE_PER_MINUTE` */
+  reportExportRatePerMinute: number;
+  /** `REPORT_RUN_RETENTION_DAYS` */
+  reportRunRetentionDays: number;
+  /** `REPORT_BATCH_MAX` */
+  reportBatchMax: number;
+  /** `REPORT_LEASE_SECONDS` */
+  reportLeaseSeconds: number;
+  /** `REPORT_MAX_ATTEMPTS` */
+  reportMaxAttempts: number;
+  /** `REPORT_FRESHNESS_MINUTES` */
+  reportFreshnessMinutes: number;
   /** `DOCUMENT_EMBED_URL_MAX_CHARS` */
   documentEmbedUrlMaxChars: number;
   /** `SIGNED_URL_LIFETIME` (seconds) */
@@ -574,6 +602,20 @@ export const DEFAULT_WORK_SETTINGS: WorkSettings = Object.freeze({
   goalsRecalcLeaseSeconds: 300,
   goalsRecalcIntervalMinutes: 360,
   goalsRecalcMaxAttempts: 5,
+  dashboardsPerScopeMax: 100,
+  dashboardPersonalMax: 20,
+  dashboardWidgetsMax: 24,
+  reportsPerScopeMax: 200,
+  reportRecipientsMax: 50,
+  reportSharesMax: 100,
+  reportExportRowsMax: 5000,
+  reportEmailRowsMax: 25,
+  reportExportRatePerMinute: 20,
+  reportRunRetentionDays: 90,
+  reportBatchMax: 25,
+  reportLeaseSeconds: 300,
+  reportMaxAttempts: 5,
+  reportFreshnessMinutes: 720,
   documentEmbedUrlMaxChars: 2048,
   signedUrlLifetimeSeconds: 300,
   uploadSessionLifetimeSeconds: 3_600,

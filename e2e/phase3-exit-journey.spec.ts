@@ -62,6 +62,8 @@ async function pickLayout(page: Page, label: string) {
 test('Phase 3 exit: one founder plans a week across brands, and every planning surface agrees', async ({
   page,
 }, info) => {
+  // A long journey that ran within 3 s of the default budget; it has its own, like the other exit journeys.
+  test.setTimeout(150_000);
   const mobile = info.project.name === 'mobile';
   // Sign in; a workspace with two brands.
   await owner(page, info, 'p3-exit', 'Fran Founder');

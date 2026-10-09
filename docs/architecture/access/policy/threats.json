@@ -715,6 +715,89 @@
         "I-10",
         "I-18"
       ]
+    },
+    {
+      "id": "T-65",
+      "category": "inference",
+      "description": "Dashboard aggregate disclosure: a widget figure, group, breakdown, total, label, truncation or capped-count notice, empty state, or drill-through that includes, counts, or hints at brands, projects, or tasks the viewer cannot read, or a widget whose mere presence or absence reveals a hidden source.",
+      "mitigated_by": [
+        "I-01",
+        "I-06",
+        "I-07",
+        "I-08",
+        "I-18"
+      ]
+    },
+    {
+      "id": "T-66",
+      "category": "revocation",
+      "description": "Stale reporting after revocation: a stored or cached metric, a saved dashboard, or a report share that keeps showing figures or records after a grant, share, membership, or role is revoked or expires.",
+      "mitigated_by": [
+        "I-04",
+        "I-08",
+        "I-12"
+      ]
+    },
+    {
+      "id": "T-67",
+      "category": "guest_escalation",
+      "description": "Report share escalation: a share that grants data instead of the saved definition, widens a grantee's access beyond their own, reaches another scope, can be shared onward, lets a guest or share-only reader see workspace or brand totals, or lets a person with only view access create or revoke shares.",
+      "mitigated_by": [
+        "I-03",
+        "I-05",
+        "I-11",
+        "I-14"
+      ]
+    },
+    {
+      "id": "T-68",
+      "category": "cross_brand_traversal",
+      "description": "Scheduled delivery leak: a report email or run that carries figures computed for another person (the owner or the sender), reaches a recipient who can no longer read it, is sent again or as a backlog, or is sent after its accountable owner lost the authority to schedule it or left.",
+      "mitigated_by": [
+        "I-07",
+        "I-08",
+        "I-12",
+        "I-14",
+        "I-17"
+      ]
+    },
+    {
+      "id": "T-69",
+      "category": "cross_brand_traversal",
+      "description": "Export leak: a CSV or PDF export that includes rows, fields, groups, or notes the requester cannot read, executes a formula in a cell, is unbounded, is not audited, or is produced for a person who may not export.",
+      "mitigated_by": [
+        "I-07",
+        "I-08",
+        "I-18"
+      ]
+    },
+    {
+      "id": "T-70",
+      "category": "departure",
+      "description": "Personal dashboard exposure: an administrator, owner, another member, or a departing member's successor reading, listing, restoring, or counting a personal dashboard that is not theirs; or a personal dashboard whose existence differs from an unknown identifier in status, body, headers, or timing.",
+      "mitigated_by": [
+        "I-01",
+        "I-07",
+        "I-10"
+      ]
+    },
+    {
+      "id": "T-71",
+      "category": "rls_leak",
+      "description": "Replay and race: a repeated or concurrent create, edit, share, schedule, or delivery that applies twice, loses an edit, sends the same occurrence twice, or lets a second writer overwrite the first without a version conflict.",
+      "mitigated_by": [
+        "I-01",
+        "I-09"
+      ]
+    },
+    {
+      "id": "T-72",
+      "category": "staleness",
+      "description": "Misleading or unavailable source: a figure from an unavailable or out-of-date source shown as current or complete, a provider that is not configured reported as a delivered email, or an estimated or incomplete figure shown without saying so.",
+      "mitigated_by": [
+        "I-08",
+        "I-12"
+      ]
     }
   ],
   "tests": [
@@ -5763,6 +5846,339 @@
         "export",
         "error_message",
         "timing"
+      ]
+    },
+    {
+      "id": "AT-280",
+      "threats": [
+        "T-65"
+      ],
+      "principal": "member",
+      "setup": "Member reads a dashboard widget for all brands while two of three brands, and a restricted project in the third, are outside their access",
+      "scope": "workspace dashboard widget over hidden brands",
+      "action": "record.read",
+      "surface": "ui_record",
+      "expected": "allow",
+      "response_shape": "ok_filtered",
+      "silent_surfaces": [
+        "count_facet",
+        "error_message",
+        "export",
+        "search"
+      ]
+    },
+    {
+      "id": "AT-281",
+      "threats": [
+        "T-65"
+      ],
+      "principal": "member",
+      "setup": "Member opens the records behind a widget figure and pages through them",
+      "scope": "drill-through of a widget with hidden work",
+      "action": "record.read",
+      "surface": "api",
+      "expected": "allow",
+      "response_shape": "ok_filtered",
+      "silent_surfaces": [
+        "count_facet",
+        "error_message",
+        "export"
+      ]
+    },
+    {
+      "id": "AT-282",
+      "threats": [
+        "T-65"
+      ],
+      "principal": "member",
+      "setup": "Member reads a grouped widget, an ad hoc filtered widget, and a forged cursor for the records behind one",
+      "scope": "grouped widget and cursor",
+      "action": "record.read",
+      "surface": "api",
+      "expected": "allow",
+      "response_shape": "ok_filtered",
+      "silent_surfaces": [
+        "count_facet",
+        "error_message",
+        "timing"
+      ]
+    },
+    {
+      "id": "AT-283",
+      "threats": [
+        "T-66"
+      ],
+      "principal": "member",
+      "setup": "Member's brand grant is revoked after they read a dashboard; they read it again",
+      "scope": "revoked brand grant",
+      "action": "record.read",
+      "surface": "ui_record",
+      "expected": "deny",
+      "response_shape": "omitted",
+      "silent_surfaces": [
+        "count_facet",
+        "error_message",
+        "export",
+        "report"
+      ]
+    },
+    {
+      "id": "AT-284",
+      "threats": [
+        "T-66"
+      ],
+      "principal": "member",
+      "setup": "Member opens a report only through a share; the share is revoked; they open it again",
+      "scope": "revoked report share",
+      "action": "record.read",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "not_found",
+      "silent_surfaces": [
+        "count_facet",
+        "error_message",
+        "export",
+        "ui_list"
+      ]
+    },
+    {
+      "id": "AT-285",
+      "threats": [
+        "T-67"
+      ],
+      "principal": "guest",
+      "setup": "Guest with one task grant opens a report shared with them and reads its widgets",
+      "scope": "report share for a guest",
+      "action": "record.read",
+      "surface": "report",
+      "expected": "allow",
+      "response_shape": "ok_filtered",
+      "silent_surfaces": [
+        "count_facet",
+        "error_message",
+        "export",
+        "ui_list"
+      ]
+    },
+    {
+      "id": "AT-286",
+      "threats": [
+        "T-67"
+      ],
+      "principal": "read_only",
+      "setup": "Read-only member tries to share a report and a manager shares and lists shares",
+      "scope": "report share authority",
+      "action": "record.share",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "forbidden",
+      "silent_surfaces": [
+        "count_facet",
+        "error_message",
+        "export"
+      ]
+    },
+    {
+      "id": "AT-287",
+      "threats": [
+        "T-68"
+      ],
+      "principal": "member",
+      "setup": "Scheduled report is delivered to three recipients who each have different access",
+      "scope": "scheduled report delivery per recipient",
+      "action": "report.schedule",
+      "surface": "notification_email",
+      "expected": "allow",
+      "response_shape": "ok_filtered",
+      "silent_surfaces": [
+        "search",
+        "count_facet",
+        "error_message",
+        "export"
+      ]
+    },
+    {
+      "id": "AT-288",
+      "threats": [
+        "T-68"
+      ],
+      "principal": "member",
+      "setup": "A recipient's access to the report is revoked before the next scheduled send",
+      "scope": "recipient who lost access",
+      "action": "report.schedule",
+      "surface": "notification_email",
+      "expected": "deny",
+      "response_shape": "omitted",
+      "silent_surfaces": [
+        "search",
+        "count_facet",
+        "error_message",
+        "export",
+        "digest"
+      ]
+    },
+    {
+      "id": "AT-289",
+      "threats": [
+        "T-68"
+      ],
+      "principal": "member",
+      "setup": "The member accountable for a scheduled report loses their brand access before the next send",
+      "scope": "schedule owner who lost authority",
+      "action": "report.schedule",
+      "surface": "report",
+      "expected": "deny",
+      "response_shape": "suspended",
+      "silent_surfaces": [
+        "notification_email",
+        "search",
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-290",
+      "threats": [
+        "T-69"
+      ],
+      "principal": "member",
+      "setup": "Member exports CSV and PDF of a dashboard over brands they partly cannot read",
+      "scope": "dashboard export",
+      "action": "record.export",
+      "surface": "export",
+      "expected": "allow",
+      "response_shape": "ok_filtered",
+      "silent_surfaces": [
+        "search",
+        "count_facet",
+        "error_message",
+        "report"
+      ]
+    },
+    {
+      "id": "AT-291",
+      "threats": [
+        "T-69"
+      ],
+      "principal": "member",
+      "setup": "Member with narrower access exports a dashboard and reads a shared report",
+      "scope": "narrower export through the browser",
+      "action": "record.export",
+      "surface": "export",
+      "expected": "allow",
+      "response_shape": "ok_filtered",
+      "silent_surfaces": [
+        "search",
+        "count_facet",
+        "error_message",
+        "ui_list"
+      ]
+    },
+    {
+      "id": "AT-292",
+      "threats": [
+        "T-70"
+      ],
+      "principal": "member",
+      "setup": "Another member and the workspace owner list and open a member's personal dashboard",
+      "scope": "personal dashboard of another member",
+      "action": "personal.manage_own",
+      "surface": "ui_list",
+      "expected": "deny",
+      "response_shape": "not_found",
+      "silent_surfaces": [
+        "count_facet",
+        "error_message",
+        "search",
+        "breadcrumb"
+      ]
+    },
+    {
+      "id": "AT-293",
+      "threats": [
+        "T-70"
+      ],
+      "principal": "member",
+      "setup": "Request for a personal dashboard of another member and for an unknown identifier",
+      "scope": "personal dashboard versus unknown identifier",
+      "action": "record.read",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "not_found",
+      "silent_surfaces": [
+        "timing",
+        "error_message",
+        "count_facet"
+      ]
+    },
+    {
+      "id": "AT-294",
+      "threats": [
+        "T-71"
+      ],
+      "principal": "member",
+      "setup": "Two edits to the same dashboard from the same version, then a stale third",
+      "scope": "concurrent dashboard edits",
+      "action": "record.update",
+      "surface": "api",
+      "expected": "allow",
+      "response_shape": "conflict_filtered",
+      "silent_surfaces": [
+        "count_facet",
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-295",
+      "threats": [
+        "T-71"
+      ],
+      "principal": "member",
+      "setup": "The same create request is sent twice with one idempotency key",
+      "scope": "replayed dashboard create",
+      "action": "record.create",
+      "surface": "api",
+      "expected": "allow",
+      "response_shape": "ok",
+      "silent_surfaces": [
+        "count_facet",
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-296",
+      "threats": [
+        "T-72"
+      ],
+      "principal": "system_job",
+      "setup": "The mail provider is down, rejects the message, or is not configured when a report is due",
+      "scope": "unavailable provider at delivery",
+      "action": "report.schedule",
+      "surface": "notification_email",
+      "expected": "deny",
+      "response_shape": "omitted",
+      "silent_surfaces": [
+        "search",
+        "count_facet",
+        "error_message",
+        "export"
+      ]
+    },
+    {
+      "id": "AT-297",
+      "threats": [
+        "T-72"
+      ],
+      "principal": "member",
+      "setup": "Member reads a widget built from a source that has not refreshed recently, and one from estimates",
+      "scope": "stale and estimated figures",
+      "action": "record.read",
+      "surface": "ui_record",
+      "expected": "allow",
+      "response_shape": "ok",
+      "silent_surfaces": [
+        "count_facet",
+        "error_message",
+        "export"
       ]
     }
   ]

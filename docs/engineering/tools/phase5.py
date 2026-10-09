@@ -103,10 +103,11 @@ def check_composition():
     if "export class SearchService extends FileService" not in read(P("packages/work/src/search/search-service.ts")):
         errs.append("SearchService must extend FileService")
     factory = read(P("packages/work/src/factory.ts"))
-    # 5C's MetricService extends the PortfolioService and is the top of the chain from 5C on.
-    if not re.search(r"\}\): (PortfolioService|MetricService) \{", factory) or not re.search(
-            r"return new (PortfolioService|MetricService)\(", factory):
-        errs.append("createWorkService must return the top of the chain (PortfolioService, or MetricService from 5C)")
+    # 5C's MetricService extends the PortfolioService and 5D's ReportService extends the MetricService: the
+    # ReportService is the top of the chain from 5D on.
+    if not re.search(r"\}\): (PortfolioService|MetricService|ReportService) \{", factory) or not re.search(
+            r"return new (PortfolioService|MetricService|ReportService)\(", factory):
+        errs.append("createWorkService must return the top of the chain (PortfolioService, MetricService from 5C, or ReportService from 5D)")
     for rate in ("'search.member'", "'goal.checkin'"):
         if rate not in factory:
             errs.append("the factory must register the %s rate policy" % rate)

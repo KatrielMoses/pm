@@ -1680,15 +1680,30 @@ export class MetricService extends PortfolioService {
   }
 
   async getMetric(caller: Caller, ws: unknown, metric: unknown, query: Record<string, unknown>) {
-    const q = this.#params(query, false);
-    const def = this.#definition(metric, q.version);
+    this.#params(query, false); // refuse a malformed request before any connection is taken
     return this.trackMetric('compute', () =>
       this.inWorkspace(caller, ws, { readOnly: true }, async (tx, p) => {
         await this.metricsLimit(p);
-        const c = await this.#context(tx, p, def, q);
-        return this.#result(c);
+        return this.figureIn(tx, p, metric, query);
       }),
     );
+  }
+
+  /**
+   * The same figure inside a transaction the caller already holds, for the person it names (used by
+   * the dashboards and reports of 5D, which read every figure through this one authority and apply
+   * their own request limit). It parses, authorizes, and computes exactly as `getMetric` does.
+   */
+  async figureIn(
+    tx: WorkspaceTransaction,
+    p: Principal,
+    metric: unknown,
+    query: Record<string, unknown>,
+  ) {
+    const q = this.#params(query, false);
+    const def = this.#definition(metric, q.version);
+    const c = await this.#context(tx, p, def, q);
+    return this.#result(c);
   }
 
   #definition(metric: unknown, version: number | undefined): MetricDefinition {
@@ -1925,49 +1940,59 @@ export class MetricService extends PortfolioService {
     metric: unknown,
     query: Record<string, unknown>,
   ) {
-    const q = this.#params(query, true);
-    const def = this.#definition(metric, q.version);
+    this.#params(query, true);
     return this.trackMetric('records', () =>
       this.inWorkspace(caller, ws, { readOnly: true }, async (tx, p) => {
         await this.metricsLimit(p);
-        const c = await this.#context(tx, p, def, q);
-        const role = q.member;
-        const spec = role ? def.drill.find((d) => d.role === role) : undefined;
-        if (!spec || (role === 'unassigned' && p.kind !== 'member'))
-          throw invalid(issue('/member', 'invalid_option', 'Choose which records to list.'));
-        const limit = q.limit ?? Math.min(20, this.ws.metricsDrillPageMax);
-        const fp = this.#fingerprint(c, spec.role);
-        const cur = q.cursor ? this.#open(p, fp, q.cursor) : { after: null, n: 0 };
-        const reach = Math.max(this.ws.metricsDrillResultsMax - cur.n, 0);
-        const take = Math.min(limit, reach);
-        const total = await this.#recordTotal(c, spec.role);
-        const page =
-          spec.records === 'project'
-            ? await this.#projectPage(c, spec.role, cur, take)
-            : spec.records === 'deliverable'
-              ? await this.#deliverablePage(c, spec.role, cur, take)
-              : await this.#taskPage(c, spec.role, cur, take);
-        const shown = cur.n + page.items.length;
-        const more = page.more && shown < this.ws.metricsDrillResultsMax;
-        return {
-          definition: this.#definitionView(def),
-          member: { role: spec.role, label: spec.label, records: spec.records },
-          scope: this.#scopeView(c),
-          window: c.window
-            ? { from: c.window.local.from, to: c.window.local.to, days: c.window.local.days }
-            : null,
-          as_of: iso(c.asOf),
-          total,
-          items: page.items,
-          page: {
-            limit: take,
-            next_cursor:
-              more && page.last ? this.#seal(p, fp, { after: page.last, n: shown }) : null,
-            truncated: page.more && !more,
-          },
-        };
+        return this.recordsIn(tx, p, metric, query);
       }),
     );
+  }
+
+  /** The records behind a figure, inside a transaction the caller already holds (see `figureIn`). */
+  async recordsIn(
+    tx: WorkspaceTransaction,
+    p: Principal,
+    metric: unknown,
+    query: Record<string, unknown>,
+  ) {
+    const q = this.#params(query, true);
+    const def = this.#definition(metric, q.version);
+    const c = await this.#context(tx, p, def, q);
+    const role = q.member;
+    const spec = role ? def.drill.find((d) => d.role === role) : undefined;
+    if (!spec || (role === 'unassigned' && p.kind !== 'member'))
+      throw invalid(issue('/member', 'invalid_option', 'Choose which records to list.'));
+    const limit = q.limit ?? Math.min(20, this.ws.metricsDrillPageMax);
+    const fp = this.#fingerprint(c, spec.role);
+    const cur = q.cursor ? this.#open(p, fp, q.cursor) : { after: null, n: 0 };
+    const reach = Math.max(this.ws.metricsDrillResultsMax - cur.n, 0);
+    const take = Math.min(limit, reach);
+    const total = await this.#recordTotal(c, spec.role);
+    const page =
+      spec.records === 'project'
+        ? await this.#projectPage(c, spec.role, cur, take)
+        : spec.records === 'deliverable'
+          ? await this.#deliverablePage(c, spec.role, cur, take)
+          : await this.#taskPage(c, spec.role, cur, take);
+    const shown = cur.n + page.items.length;
+    const more = page.more && shown < this.ws.metricsDrillResultsMax;
+    return {
+      definition: this.#definitionView(def),
+      member: { role: spec.role, label: spec.label, records: spec.records },
+      scope: this.#scopeView(c),
+      window: c.window
+        ? { from: c.window.local.from, to: c.window.local.to, days: c.window.local.days }
+        : null,
+      as_of: iso(c.asOf),
+      total,
+      items: page.items,
+      page: {
+        limit: take,
+        next_cursor: more && page.last ? this.#seal(p, fp, { after: page.last, n: shown }) : null,
+        truncated: page.more && !more,
+      },
+    };
   }
 
   async #recordTotal(c: Ctx, role: string): Promise<number> {

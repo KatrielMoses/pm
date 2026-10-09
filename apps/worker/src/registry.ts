@@ -40,6 +40,9 @@ import {
   METRICS_SCHEDULES,
   metricsReconcileHandler,
   type MetricsJobDeps,
+  REPORT_SCHEDULES,
+  reportDeliveryHandler,
+  type ReportJobDeps,
 } from '@pm/work';
 
 /**
@@ -57,6 +60,7 @@ import {
  * 5A: the search index worker (queued source keys, bounded and retryable) and recent-search retention.
  * 5B: the goal recalculation sweep (staleness, period state, and manual key-result rollups).
  * 5C: the metrics reconciliation step (the task status ledger checked against the tasks, bounded and resumable).
+ * 5D: scheduled report delivery (rendered per recipient at send time) and run retention.
  */
 export interface WorkerModules {
   identity: IdentityJobDeps;
@@ -69,6 +73,7 @@ export interface WorkerModules {
   search: SearchJobDeps;
   goals: GoalJobDeps;
   metrics: MetricsJobDeps;
+  reports: ReportJobDeps;
 }
 
 export function registeredHandlers(m: WorkerModules): JobHandler[] {
@@ -90,6 +95,7 @@ export function registeredHandlers(m: WorkerModules): JobHandler[] {
     searchIndexHandler(m.search),
     goalRecalcHandler(m.goals),
     metricsReconcileHandler(m.metrics),
+    reportDeliveryHandler(m.reports),
   ];
 }
 
@@ -126,5 +132,6 @@ export function registeredSchedules(): RecurringJob[] {
     ...SEARCH_SCHEDULES,
     ...GOAL_SCHEDULES,
     ...METRICS_SCHEDULES,
+    ...REPORT_SCHEDULES,
   ];
 }

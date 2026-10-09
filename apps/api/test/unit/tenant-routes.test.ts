@@ -90,6 +90,8 @@ describe('tenant lifecycle and audit endpoints are reachable only through policy
       'apps/api/src/work/files-routes.ts',
       // 5B (0C AZ-37): goal, key-result, and portfolio lifecycle verbs, decided through the same issuer.
       'apps/api/src/work/goal-routes.ts',
+      // 5D (0C AZ-39): dashboard and report lifecycle verbs, decided through the same issuer.
+      'apps/api/src/work/insight-routes.ts',
       'apps/api/src/work/routes.ts',
       // 2B (0C AZ-22): task lifecycle verbs, decided through the same tenancy-exported issuer.
       'apps/api/src/work/task-routes.ts',
@@ -112,8 +114,11 @@ describe('tenant lifecycle and audit endpoints are reachable only through policy
         ...text.matchAll(/lifecycle\.(archive|unarchive|trash|restore|requestPurge)\(/g),
       ].length;
       // 3A: saved views use tenancy's saved-view issuer (AZ-26) through the same confinement.
-      const issued = [...text.matchAll(/issueLifecycle\(|issueSavedViewLifecycleDecision\(/g)]
-        .length;
+      // 5D: dashboards and reports route every call through `lifeDecision` (record issuer, or the
+      // personal issuer for a personal dashboard).
+      const issued = [
+        ...text.matchAll(/issueLifecycle\(|issueSavedViewLifecycleDecision\(|lifeDecision\(/g),
+      ].length;
       expect(issued, f).toBeGreaterThanOrEqual(calls);
     }
     expect(readFileSync(join(ROOT, 'packages/work/src/service.ts'), 'utf8')).toContain(

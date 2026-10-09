@@ -82,7 +82,7 @@ Guests get a reduced shell:
 - **Notifications** and **Search**, both restricted to shared content.
 - **Settings** (personal only).
 
-Guests do not see the scope switcher, Home dashboards, Today, Calendar, Goals, Reports, Administration, workspace member directories, or any workspace or brand totals. A guest can see the people participating in shared records and nobody else ([IA-47](#ia-47)).
+Guests do not see the scope switcher, Home dashboards, Today, Calendar, Goals, the Reports destination, Administration, workspace member directories, or any workspace or brand totals. A guest can see the people participating in shared records and nobody else ([IA-47](#ia-47)).
 
 Limited members see the standard shell, reduced to what their grants allow. This follows the same rule: absent, not disabled.
 
@@ -278,7 +278,7 @@ Section navigation is a tab row on expanded and medium layouts, and a section me
 
 **Phase 2A implementation note.** These rules apply until each section's owning phase delivers it:
 - **Timeline:** works in 2A, as accessible lists of phases, milestones, and dependencies.
-- **Tasks, Calendar, Documents, Files, Activity, Time, Costs, and Reports:** each keeps its place and its URL, but shows an honest "isn't available yet" state rather than an empty collection that would suggest there is nothing to show.
+- **Tasks, Calendar, Documents, Files, Activity, Time, Costs, and Reports:** each keeps its place and its URL (Reports is live from 5D), but where it is not yet built shows an honest "isn't available yet" state rather than an empty collection that would suggest there is nothing to show.
 - **Tests and Releases:** their routes exist, but their tabs stay absent until a software template or setting enables them ([UXD-14](09-decisions-and-risks.md#uxd-14)).
 - **Overview:** shows only project-native facts. Task-derived counts are labelled as arriving with tasks.
 
@@ -615,3 +615,9 @@ These rules apply to every surface: lists, search, palette, notifications, dashb
 - **Honest states:** a source that does not exist yet ("Not available until phase 9B"), a scope with nothing to measure ("Nothing to measure yet"), partial figures with the reason, a lagging or failing history, and a refused or unavailable scope shown as a problem and never as an empty figure.
 - **Honest absences:** charts, dashboards and scheduled reports (5D), comparing scopes, and any per-person performance view.
 
+**Phase 5D implementation note.** Reports, Home, and the project Reports section:
+- **Reports (`/{ws}/reports`):** dashboards (owner, brand, project, release, personal), saved reports with their schedules, and a trash. A dashboard (`/{ws}/dashboards/{id}`) and a report (`/{ws}/reports/{id}`) show a filter bar (date, brand, project, person, status), a grid of widgets that stacks in the saved order on a narrow screen, and exports. Layout editing is by buttons (Up, Down, Remove) and announces each change; there is no dragging.
+- **Every widget** loads and fails on its own, states what it covers ("Work you can read in …"), its source, when it was computed, which filters did not apply, and what is estimated (hatched and labelled) or incomplete. "View data" gives the same figures as a table; "Show records" lists the records behind the figure with links for the records that have a page. A widget whose source the person cannot see is absent.
+- **Home** shows a situation overview for the brands in the shell's scope (grouped by brand across brands, by project for one brand); widgets below the fold load when they come near the screen. **A project's Reports section** shows its own figures and its dashboards and reports.
+- **Reports shared with someone** open for a person who has no access to the report's scope: the saved definition, with figures that are still their own, no scope name, and no edit, schedule, or share controls. **Guests and share-only readers** open only reports shared with them, see guest-safe record counts labelled "The records shared with you", and have no dashboards, Home overview, or export (this refines IA-47: a share-only reader sees no aggregate wider than the records they hold).
+- **Honest absences:** cycle time, time in status, aging, created versus completed, blocked and stale work (5C); AI usage (7A); automation and agent rates (8); tests, defects, and release blockers (9B to 9D). They are listed in the widget editor with their reason and cannot be placed.

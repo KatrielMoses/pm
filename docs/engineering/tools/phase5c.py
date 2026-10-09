@@ -219,8 +219,17 @@ def check_invariants():
     factory = read(P("packages/work/src/factory.ts"))
     if "export class MetricService extends PortfolioService" not in svc:
         errs.append("MetricService must extend PortfolioService (the 5B chain)")
-    if not re.search(r"\}\): MetricService \{", factory) or "return new MetricService(" not in factory:
-        errs.append("createWorkService must build and return the MetricService")
+    # 5D's ReportService extends the MetricService and is the top of the chain from 5D on.
+    if not re.search(r"\}\): (MetricService|ReportService) \{", factory) or not re.search(
+            r"return new (MetricService|ReportService)\(", factory):
+        errs.append("createWorkService must build and return the MetricService (or the 5D ReportService on it)")
+    core = P("packages/work/src/insights/report-core.ts")
+    if os.path.isfile(core):
+        if "export class InsightsCore extends MetricService" not in read(core):
+            errs.append("5D's InsightsCore must extend the MetricService (the 5C authority is the one the dashboards read)")
+        port = read(P("packages/work/src/insights/metrics-5c.ts"))
+        if "ctx.host.metricFigure(" not in port or "ctx.host.metricRecords(" not in port:
+            errs.append("5C metrics must reach dashboards through the metric port, answered by the metric service")
     for path, needles in {
         "packages/work/test/integration/metrics.test.ts": [
             "lets hidden work contribute nothing to any figure, label, ranking, or digest",

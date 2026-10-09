@@ -25,6 +25,7 @@ import { tenancyBrandPort } from '@pm/tenancy';
 import {
   createMalwareScanner,
   createObjectStorage,
+  createWorkService,
   emailProviderFrom,
   productLifecycleRegistry,
 } from '@pm/work';
@@ -91,6 +92,25 @@ async function main(): Promise<void> {
     retention: new RetentionPolicy(config.lifecycle),
     metrics: telemetry.metrics,
     logger,
+  });
+  // 5D: the same service the API runs renders scheduled reports as each recipient. The worker
+  // never signs anyone in, so every identity capability it is handed refuses.
+  const noIdentity = new Proxy(
+    {},
+    {
+      get: (_t, name) => () => {
+        throw new Error(`identity.${String(name)} is not available in the worker`);
+      },
+    },
+  ) as Parameters<typeof createWorkService>[0]['identity'];
+  const reportService = createWorkService({
+    tenant: tenantDb,
+    platform: platformDb,
+    identity: noIdentity,
+    config,
+    logger,
+    metrics: telemetry.metrics,
+    ephemeralSigningKey: true,
   });
   const runtime = new WorkerRuntime({
     db: tenantDb,
@@ -163,6 +183,16 @@ async function main(): Promise<void> {
       metrics: {
         tenant: tenantDb,
         discovery,
+        metrics: telemetry.metrics,
+        logger,
+        settings: config.work,
+      },
+      reports: {
+        tenant: tenantDb,
+        discovery,
+        service: reportService,
+        email: emailProviderFrom(identityDeps.transport, config.identity.mailFrom),
+        origin: config.identity.publicOrigin,
         metrics: telemetry.metrics,
         logger,
         settings: config.work,

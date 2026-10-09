@@ -385,3 +385,16 @@ Triggers: `metrics.task_changed()` (after insert, and after update of `status_id
 Both tables have `tenant_isolation` RLS (enabled and forced) and indexes on every foreign key. The API role reads them and may only update `next_run_at` of the state row; the worker reads, inserts, updates, and deletes both. The down migration drops the triggers, functions, tables, and schema, restoring the exact 0042 catalog.
 
 Every figure is one workspace transaction that joins each counted record to its governing `core.record` and applies the compiled visibility predicate before counting; nothing aggregate is stored (ADR-0030 M1, M3).
+**Migration number.** This branch and Phase 5C were built in parallel and both first used `0043`; Phase 5C was accepted first, so the Phase 5 final integration renumbered this migration to `0044` (a number-only change).
+
+## Phase 5D: dashboards and reports
+
+Migration `0044_dashboards_reports` (ADR-0031, 0B ADR-39) adds the `insights` schema:
+- `insights.dashboard` and `insights.report_definition`: records in the core envelope (`dash_`, `rpt_`) with a row `version`. A dashboard holds a bounded `layout` (widgets) and `filters`; a report holds a bounded `config` and an optional schedule (frequency, weekday or month day 1 to 28, minute of day, IANA zone, next and last run, lease, attempts, suspension). A check constraint keeps a schedule all-or-nothing and the placement of each dashboard kind exact. No column holds a figure.
+- `insights.report_recipient`: the members who receive a scheduled report (primary key on report and member).
+- `insights.report_share`: an explicit, revocable grant to open and run one report. Its composite key names the report's own scope key, so a share cannot name another scope; one active share per grantee (partial unique index); an optional expiry.
+- `insights.report_run`: one row per scheduled occurrence and recipient, unique on (report, recipient, occurrence), so delivery is idempotent. It stores a state, a short code, a row count, an incomplete flag, a content hash, and a failure class; the application role may only read it and the worker writes and ages it out.
+
+All five tables have `tenant_isolation` RLS and indexes on every foreign key. A payload-free `SECURITY DEFINER` function `exec_dispatch.discover_report_work(now, retention_before, limit)` (owned by `pm_scheduler`, executable only by the dispatcher) returns workspace identifiers with a report due or runs past retention. The down migration restores the exact 0042 catalog.
+
+**Migration number.** This branch and Phase 5C were built in parallel and both first used `0043`; Phase 5C was accepted first, so the Phase 5 final integration renumbered this migration to `0044` (a number-only change).

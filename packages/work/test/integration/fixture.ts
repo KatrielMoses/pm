@@ -28,10 +28,11 @@ import {
   taskAssigneeHook,
   taskTargets,
   savedViewTargets,
-  MetricService,
+  ReportService,
   type SearchSourceRegistry,
   documentOwnerHook,
   goalOwnerHook,
+  insightsOwnerHook,
   LocalObjectStorage,
   SignatureTestScanner,
   type FileDeps,
@@ -57,7 +58,7 @@ export {
 
 export interface WorkEnv {
   h: Harness;
-  svc: MetricService;
+  svc: ReportService;
   /** The test storage and scanner the service uses (null when a test disables them). */
   files: FileDeps;
   stepUp: StubStepUp;
@@ -128,7 +129,7 @@ export function workEnv(
     scanner:
       options.files?.scanner !== undefined ? options.files.scanner : new SignatureTestScanner(),
   };
-  const svc = new MetricService({
+  const svc = new ReportService({
     files,
     ...(options.searchSources ? { search: { sources: options.searchSources } } : {}),
     notify: { emailState: options.emailState ?? 'capture' },
@@ -144,6 +145,7 @@ export function workEnv(
       .register(taskAssigneeHook)
       .register(documentOwnerHook)
       .register(goalOwnerHook)
+      .register(insightsOwnerHook)
       .register(reviewDepartureHook(writer))
       .register(departureTimerHook(writer)),
     limiter: new PostgresRateLimiter(h.platform, randomBytes(32), {
@@ -158,6 +160,7 @@ export function workEnv(
       'search.member': { limit: options.searchRate ?? 100_000, windowMs: 60_000 },
       'goal.checkin': { limit: options.goalRate ?? 100_000, windowMs: 60_000 },
       'metrics.member': { limit: options.metricsRate ?? 100_000, windowMs: 60_000 },
+      'report.export': { limit: 100_000, windowMs: 60_000 },
     }),
     signingKey: randomBytes(32),
     settings: {

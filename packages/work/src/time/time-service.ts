@@ -2337,7 +2337,19 @@ export class TimeService extends ViewService {
       throw invalid(
         issue('/group', 'invalid', 'Group by member, brand, project, task, day, week, or month.'),
       );
-    return this.inWorkspace(caller, ws, { readOnly: true }, async (tx, p) => {
+    return this.inWorkspace(caller, ws, { readOnly: true }, (tx, p) =>
+      this.timeReportIn(tx, p, query, group),
+    );
+  }
+
+  /** The time report for a person inside an open transaction (also used by 5D reports). */
+  protected async timeReportIn(
+    tx: WorkspaceTransaction,
+    p: Principal,
+    query: Record<string, unknown>,
+    group: 'member' | 'brand' | 'project' | 'task' | 'day' | 'week' | 'month',
+  ) {
+    {
       const zone = await this.personZone(tx, p.membershipId);
       const cal = await this.workspaceCalendar(tx);
       const range = this.parseRange(query, localDay(new Date(), zone));
@@ -2500,7 +2512,7 @@ export class TimeService extends ViewService {
           non_billable_seconds: totals.actual_seconds - totals.billable_seconds,
         },
       };
-    });
+    }
   }
 
   /** Brand and member filters re-expressed over planned tasks (aliases t, pa). */

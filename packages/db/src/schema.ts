@@ -2558,6 +2558,95 @@ export interface PortfolioProjectTable {
   added_at: DTs;
 }
 
+// Phase 5D: dashboards, saved reports, report shares, recipients, and scheduled runs (ADR-0031).
+export type DashboardKind = 'owner' | 'brand' | 'project' | 'release' | 'personal';
+export type ReportFrequency = 'daily' | 'weekly' | 'monthly';
+export type ReportRunState = 'pending' | 'delivered' | 'empty' | 'skipped' | 'failed';
+export interface DashboardTable {
+  id: string;
+  workspace_id: string;
+  brand_id: string | null;
+  scope_key: string;
+  lifecycle_state: Defaulted<'active' | 'archived' | 'trashed' | 'purged'>;
+  project_id: string | null;
+  kind: DashboardKind;
+  title: string;
+  description: string | null;
+  owner_membership_id: string;
+  layout: Json<Record<string, unknown>>;
+  filters: Json<Record<string, unknown>>;
+  created_by_membership_id: string;
+  created_at: DTs;
+  updated_at: DTs;
+  updated_by_membership_id: string | null;
+  version: Defaulted<number>;
+}
+export interface ReportDefinitionTable {
+  id: string;
+  workspace_id: string;
+  brand_id: string | null;
+  scope_key: string;
+  lifecycle_state: Defaulted<'active' | 'archived' | 'trashed' | 'purged'>;
+  project_id: string | null;
+  title: string;
+  description: string | null;
+  owner_membership_id: string;
+  config: Json<Record<string, unknown>>;
+  schedule_frequency: ReportFrequency | null;
+  schedule_weekday: number | null;
+  schedule_monthday: number | null;
+  schedule_minute: number | null;
+  schedule_timezone: string | null;
+  next_run_at: Ts | null;
+  last_run_at: Ts | null;
+  claimed_until: Ts | null;
+  attempts: Defaulted<number>;
+  last_error: string | null;
+  suspended_reason: 'owner_authority' | 'owner_departed' | 'admin' | null;
+  suspended_at: Ts | null;
+  created_by_membership_id: string;
+  created_at: DTs;
+  updated_at: DTs;
+  updated_by_membership_id: string | null;
+  version: Defaulted<number>;
+}
+export interface ReportRecipientTable {
+  workspace_id: string;
+  report_id: string;
+  membership_id: string;
+  added_by_membership_id: string;
+  added_at: DTs;
+}
+export interface ReportShareTable {
+  id: string;
+  public_id: string;
+  workspace_id: string;
+  scope_key: string;
+  report_id: string;
+  grantee_membership_id: string;
+  created_by_membership_id: string;
+  created_at: DTs;
+  expires_at: Ts | null;
+  revoked_at: Ts | null;
+  revoked_by_membership_id: string | null;
+}
+export interface ReportRunTable {
+  id: string;
+  workspace_id: string;
+  report_id: string;
+  recipient_membership_id: string;
+  occurrence_at: Ts;
+  state: Defaulted<ReportRunState>;
+  detail: string | null;
+  row_count: number | null;
+  incomplete: Defaulted<boolean>;
+  content_hash: string | null;
+  failure_class: 'transient' | 'permanent' | 'rate_limited' | 'unconfigured' | null;
+  attempts: Defaulted<number>;
+  created_at: DTs;
+  finished_at: Ts | null;
+}
+
 // Phase 4E: files, immutable versions, upload sessions, deliverables, and storage usage (ADR-0026).
 export type FileScanState = 'pending' | 'clean' | 'infected' | 'error';
 export type FileHostKind = 'workspace' | 'brand' | 'project' | 'task' | 'comment' | 'document';
@@ -2773,6 +2862,11 @@ export interface Database {
   'goals.goal_state': GoalStateTable;
   'goals.portfolio': PortfolioTable;
   'goals.portfolio_project': PortfolioProjectTable;
+  'insights.dashboard': DashboardTable;
+  'insights.report_definition': ReportDefinitionTable;
+  'insights.report_recipient': ReportRecipientTable;
+  'insights.report_share': ReportShareTable;
+  'insights.report_run': ReportRunTable;
   'notify.digest': DigestTable;
   'notify.delivery': DeliveryTable;
   'notify.preference': NotificationPreferenceTable;
@@ -4316,6 +4410,90 @@ export const TABLE_COLUMNS: Readonly<Record<keyof Database, readonly string[]>> 
     'position',
     'added_by_membership_id',
     'added_at',
+  ],
+  'insights.dashboard': [
+    'id',
+    'workspace_id',
+    'brand_id',
+    'scope_key',
+    'lifecycle_state',
+    'project_id',
+    'kind',
+    'title',
+    'description',
+    'owner_membership_id',
+    'layout',
+    'filters',
+    'created_by_membership_id',
+    'created_at',
+    'updated_at',
+    'updated_by_membership_id',
+    'version',
+  ],
+  'insights.report_definition': [
+    'id',
+    'workspace_id',
+    'brand_id',
+    'scope_key',
+    'lifecycle_state',
+    'project_id',
+    'title',
+    'description',
+    'owner_membership_id',
+    'config',
+    'schedule_frequency',
+    'schedule_weekday',
+    'schedule_monthday',
+    'schedule_minute',
+    'schedule_timezone',
+    'next_run_at',
+    'last_run_at',
+    'claimed_until',
+    'attempts',
+    'last_error',
+    'suspended_reason',
+    'suspended_at',
+    'created_by_membership_id',
+    'created_at',
+    'updated_at',
+    'updated_by_membership_id',
+    'version',
+  ],
+  'insights.report_recipient': [
+    'workspace_id',
+    'report_id',
+    'membership_id',
+    'added_by_membership_id',
+    'added_at',
+  ],
+  'insights.report_share': [
+    'id',
+    'public_id',
+    'workspace_id',
+    'scope_key',
+    'report_id',
+    'grantee_membership_id',
+    'created_by_membership_id',
+    'created_at',
+    'expires_at',
+    'revoked_at',
+    'revoked_by_membership_id',
+  ],
+  'insights.report_run': [
+    'id',
+    'workspace_id',
+    'report_id',
+    'recipient_membership_id',
+    'occurrence_at',
+    'state',
+    'detail',
+    'row_count',
+    'incomplete',
+    'content_hash',
+    'failure_class',
+    'attempts',
+    'created_at',
+    'finished_at',
   ],
   'knowledge.source_approval': [
     'id',

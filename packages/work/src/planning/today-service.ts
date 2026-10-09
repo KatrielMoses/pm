@@ -1105,7 +1105,18 @@ export class PlanningService extends TimeService {
 
   /** Planned versus completed per day (PLAN-019), newest first, over a bounded range. */
   async dailyRecords(caller: Caller, ws: unknown, query: Record<string, unknown>) {
-    return this.inWorkspace(caller, ws, { readOnly: true }, async (tx, p) => {
+    return this.inWorkspace(caller, ws, { readOnly: true }, (tx, p) =>
+      this.dailyRecordsIn(tx, p, query),
+    );
+  }
+
+  /** Planned versus completed per day inside an open transaction (also used by 5D reports). */
+  protected async dailyRecordsIn(
+    tx: WorkspaceTransaction,
+    p: Principal,
+    query: Record<string, unknown>,
+  ) {
+    {
       const { today } = await this.todayFor(tx, p);
       const to = query.to === undefined ? today : this.parseDay(query.to, '/to');
       const from = query.from === undefined ? addDays(to, -13) : this.parseDay(query.from, '/from');
@@ -1120,7 +1131,7 @@ export class PlanningService extends TimeService {
         .orderBy('day', 'desc')
         .execute();
       return { from, to, records: rows.map((r) => this.recordView(r)) };
-    });
+    }
   }
 
   async dailyRecord(caller: Caller, ws: unknown, day: unknown) {

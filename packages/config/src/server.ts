@@ -303,6 +303,20 @@ export interface ServerConfig {
     goalsRecalcLeaseSeconds: number;
     goalsRecalcIntervalMinutes: number;
     goalsRecalcMaxAttempts: number;
+    dashboardsPerScopeMax: number;
+    dashboardPersonalMax: number;
+    dashboardWidgetsMax: number;
+    reportsPerScopeMax: number;
+    reportRecipientsMax: number;
+    reportSharesMax: number;
+    reportExportRowsMax: number;
+    reportEmailRowsMax: number;
+    reportExportRatePerMinute: number;
+    reportRunRetentionDays: number;
+    reportBatchMax: number;
+    reportLeaseSeconds: number;
+    reportMaxAttempts: number;
+    reportFreshnessMinutes: number;
     documentEmbedUrlMaxChars: number;
     signedUrlLifetimeSeconds: number;
     uploadSessionLifetimeSeconds: number;
@@ -682,6 +696,20 @@ const DEFAULTS = {
   GOALS_RECALC_LEASE_SECONDS: '300',
   GOALS_RECALC_INTERVAL_MINUTES: '360',
   GOALS_RECALC_MAX_ATTEMPTS: '5',
+  DASHBOARDS_PER_SCOPE_MAX: '100',
+  DASHBOARD_PERSONAL_MAX: '20',
+  DASHBOARD_WIDGETS_MAX: '24',
+  REPORTS_PER_SCOPE_MAX: '200',
+  REPORT_RECIPIENTS_MAX: '50',
+  REPORT_SHARES_MAX: '100',
+  REPORT_EXPORT_ROWS_MAX: '5000',
+  REPORT_EMAIL_ROWS_MAX: '25',
+  REPORT_EXPORT_RATE_PER_MINUTE: '20',
+  REPORT_RUN_RETENTION_DAYS: '90',
+  REPORT_BATCH_MAX: '25',
+  REPORT_LEASE_SECONDS: '300',
+  REPORT_MAX_ATTEMPTS: '5',
+  REPORT_FRESHNESS_MINUTES: '720',
   DOCUMENT_EMBED_URL_MAX_CHARS: '2048',
   SIGNED_URL_LIFETIME: '300',
   UPLOAD_SESSION_LIFETIME: '3600',
@@ -974,6 +1002,20 @@ const schema = z.object({
   GOALS_RECALC_LEASE_SECONDS: int(30, 3600),
   GOALS_RECALC_INTERVAL_MINUTES: int(15, 1440),
   GOALS_RECALC_MAX_ATTEMPTS: int(1, 20),
+  DASHBOARDS_PER_SCOPE_MAX: int(1, 1000),
+  DASHBOARD_PERSONAL_MAX: int(1, 200),
+  DASHBOARD_WIDGETS_MAX: int(1, 60),
+  REPORTS_PER_SCOPE_MAX: int(1, 2000),
+  REPORT_RECIPIENTS_MAX: int(1, 500),
+  REPORT_SHARES_MAX: int(1, 1000),
+  REPORT_EXPORT_ROWS_MAX: int(100, 50000),
+  REPORT_EMAIL_ROWS_MAX: int(5, 200),
+  REPORT_EXPORT_RATE_PER_MINUTE: int(1, 600),
+  REPORT_RUN_RETENTION_DAYS: int(7, 730),
+  REPORT_BATCH_MAX: int(1, 500),
+  REPORT_LEASE_SECONDS: int(30, 3600),
+  REPORT_MAX_ATTEMPTS: int(1, 20),
+  REPORT_FRESHNESS_MINUTES: int(15, 10080),
   DOCUMENT_EMBED_URL_MAX_CHARS: int(128, 8192),
   SIGNED_URL_LIFETIME: int(30, 3600),
   UPLOAD_SESSION_LIFETIME: int(300, 86400),
@@ -1595,6 +1637,20 @@ export function loadServerConfig(options: LoadOptions): ServerConfig {
       goalsRecalcLeaseSeconds: c.GOALS_RECALC_LEASE_SECONDS,
       goalsRecalcIntervalMinutes: c.GOALS_RECALC_INTERVAL_MINUTES,
       goalsRecalcMaxAttempts: c.GOALS_RECALC_MAX_ATTEMPTS,
+      dashboardsPerScopeMax: c.DASHBOARDS_PER_SCOPE_MAX,
+      dashboardPersonalMax: c.DASHBOARD_PERSONAL_MAX,
+      dashboardWidgetsMax: c.DASHBOARD_WIDGETS_MAX,
+      reportsPerScopeMax: c.REPORTS_PER_SCOPE_MAX,
+      reportRecipientsMax: c.REPORT_RECIPIENTS_MAX,
+      reportSharesMax: c.REPORT_SHARES_MAX,
+      reportExportRowsMax: c.REPORT_EXPORT_ROWS_MAX,
+      reportEmailRowsMax: c.REPORT_EMAIL_ROWS_MAX,
+      reportExportRatePerMinute: c.REPORT_EXPORT_RATE_PER_MINUTE,
+      reportRunRetentionDays: c.REPORT_RUN_RETENTION_DAYS,
+      reportBatchMax: c.REPORT_BATCH_MAX,
+      reportLeaseSeconds: c.REPORT_LEASE_SECONDS,
+      reportMaxAttempts: c.REPORT_MAX_ATTEMPTS,
+      reportFreshnessMinutes: c.REPORT_FRESHNESS_MINUTES,
       documentEmbedUrlMaxChars: c.DOCUMENT_EMBED_URL_MAX_CHARS,
       signedUrlLifetimeSeconds: c.SIGNED_URL_LIFETIME,
       uploadSessionLifetimeSeconds: c.UPLOAD_SESSION_LIFETIME,

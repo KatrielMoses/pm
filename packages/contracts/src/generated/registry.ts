@@ -850,6 +850,38 @@ export const TELEMETRY_SIGNALS = [
     "labels": [
       "outcome"
     ]
+  },
+  {
+    "name": "insights.reads",
+    "type": "counter",
+    "labels": [
+      "view",
+      "outcome"
+    ]
+  },
+  {
+    "name": "insights.changes",
+    "type": "counter",
+    "labels": [
+      "kind",
+      "outcome"
+    ]
+  },
+  {
+    "name": "insights.jobs",
+    "type": "counter",
+    "labels": [
+      "kind",
+      "outcome"
+    ]
+  },
+  {
+    "name": "insights.widgets",
+    "type": "counter",
+    "labels": [
+      "metric",
+      "outcome"
+    ]
   }
 ] as const;
 export type TelemetrySignalName = (typeof TELEMETRY_SIGNALS)[number]['name'];
@@ -1888,6 +1920,13 @@ export const ID_PREFIXES = [
     "resource": "goal_checkin",
     "entity": "goals.goal_checkin",
     "ownerModule": "goals",
+    "platformOnly": false
+  },
+  {
+    "prefix": "rsh",
+    "resource": "report_share",
+    "entity": "insights.report_share",
+    "ownerModule": "insights",
     "platformOnly": false
   }
 ] as const;
@@ -3453,6 +3492,89 @@ export const INTERNAL_EVENTS = [
       "count"
     ],
     "maxClass": "C1"
+  },
+  {
+    "type": "insights.dashboard.created",
+    "schemaVersion": 1,
+    "aggregateEntity": "insights.dashboard",
+    "fields": [
+      "kind",
+      "scope"
+    ],
+    "maxClass": "C1"
+  },
+  {
+    "type": "insights.dashboard.updated",
+    "schemaVersion": 1,
+    "aggregateEntity": "insights.dashboard",
+    "fields": [
+      "change"
+    ],
+    "maxClass": "C1"
+  },
+  {
+    "type": "insights.report.created",
+    "schemaVersion": 1,
+    "aggregateEntity": "insights.report_definition",
+    "fields": [
+      "scope"
+    ],
+    "maxClass": "C1"
+  },
+  {
+    "type": "insights.report.updated",
+    "schemaVersion": 1,
+    "aggregateEntity": "insights.report_definition",
+    "fields": [
+      "change"
+    ],
+    "maxClass": "C1"
+  },
+  {
+    "type": "insights.report.shared",
+    "schemaVersion": 1,
+    "aggregateEntity": "insights.report_definition",
+    "fields": [
+      "scope"
+    ],
+    "maxClass": "C1"
+  },
+  {
+    "type": "insights.report.share_revoked",
+    "schemaVersion": 1,
+    "aggregateEntity": "insights.report_definition",
+    "fields": [
+      "scope"
+    ],
+    "maxClass": "C1"
+  },
+  {
+    "type": "insights.report.schedule_changed",
+    "schemaVersion": 1,
+    "aggregateEntity": "insights.report_definition",
+    "fields": [
+      "frequency",
+      "recipients"
+    ],
+    "maxClass": "C1"
+  },
+  {
+    "type": "insights.report.suspended",
+    "schemaVersion": 1,
+    "aggregateEntity": "insights.report_definition",
+    "fields": [
+      "reason"
+    ],
+    "maxClass": "C1"
+  },
+  {
+    "type": "insights.report.resumed",
+    "schemaVersion": 1,
+    "aggregateEntity": "insights.report_definition",
+    "fields": [
+      "reason"
+    ],
+    "maxClass": "C1"
   }
 ] as const;
 export type InternalEventType = (typeof INTERNAL_EVENTS)[number]['type'];
@@ -3678,7 +3800,21 @@ export const PARAMETER_NAMES = [
   "METRICS_RECONCILE_INTERVAL_MINUTES",
   "METRICS_RECONCILE_LEASE_SECONDS",
   "METRICS_RECONCILE_MAX_ATTEMPTS",
-  "METRICS_RECONCILE_BACKOFF_SECONDS"
+  "METRICS_RECONCILE_BACKOFF_SECONDS",
+  "DASHBOARDS_PER_SCOPE_MAX",
+  "DASHBOARD_PERSONAL_MAX",
+  "DASHBOARD_WIDGETS_MAX",
+  "REPORTS_PER_SCOPE_MAX",
+  "REPORT_RECIPIENTS_MAX",
+  "REPORT_SHARES_MAX",
+  "REPORT_EXPORT_ROWS_MAX",
+  "REPORT_EMAIL_ROWS_MAX",
+  "REPORT_EXPORT_RATE_PER_MINUTE",
+  "REPORT_RUN_RETENTION_DAYS",
+  "REPORT_BATCH_MAX",
+  "REPORT_LEASE_SECONDS",
+  "REPORT_MAX_ATTEMPTS",
+  "REPORT_FRESHNESS_MINUTES"
 ] as const;
 export type ParameterName = (typeof PARAMETER_NAMES)[number];
 

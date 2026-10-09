@@ -257,6 +257,20 @@ worker process is a startup error. All identities of one process must target the
 | `GOALS_RECALC_LEASE_SECONDS` | optional | optional | default 300 (30–3600); how long a claimed goal stays leased before another sweep may reclaim it (0D `GOALS_RECALC_LEASE_SECONDS`) |
 | `GOALS_RECALC_INTERVAL_MINUTES` | optional | optional | default 360 (15–1440); how often an unchanged goal's time-driven state is rechecked, and the longest retry delay (0D `GOALS_RECALC_INTERVAL_MINUTES`) |
 | `GOALS_RECALC_MAX_ATTEMPTS` | optional | optional | default 5 (1–20); failed recalculations before a goal is reported as failing (0D `GOALS_RECALC_MAX_ATTEMPTS`) |
+| `DASHBOARDS_PER_SCOPE_MAX` | optional | optional | default 100 (1–1000); most dashboards one workspace, brand, or project scope holds (0D `DASHBOARDS_PER_SCOPE_MAX`) |
+| `DASHBOARD_PERSONAL_MAX` | optional | optional | default 20 (1–200); most personal dashboards one member holds (0D `DASHBOARD_PERSONAL_MAX`) |
+| `DASHBOARD_WIDGETS_MAX` | optional | optional | default 24 (1–60); most widgets one dashboard or report holds (0D `DASHBOARD_WIDGETS_MAX`) |
+| `REPORTS_PER_SCOPE_MAX` | optional | optional | default 200 (1–2000); most saved reports one scope holds (0D `REPORTS_PER_SCOPE_MAX`) |
+| `REPORT_RECIPIENTS_MAX` | optional | optional | default 50 (1–500); most recipients one scheduled report names (0D `REPORT_RECIPIENTS_MAX`) |
+| `REPORT_SHARES_MAX` | optional | optional | default 100 (1–1000); most active shares one report holds (0D `REPORT_SHARES_MAX`) |
+| `REPORT_EXPORT_ROWS_MAX` | optional | optional | default 5000 (100–50000); most rows one report or widget export returns (0D `REPORT_EXPORT_ROWS_MAX`) |
+| `REPORT_EMAIL_ROWS_MAX` | optional | optional | default 25 (5–200); most rows per widget in a scheduled report email (0D `REPORT_EMAIL_ROWS_MAX`) |
+| `REPORT_EXPORT_RATE_PER_MINUTE` | optional | optional | default 20 (1–600); most report exports one member makes per minute (0D `REPORT_EXPORT_RATE_PER_MINUTE`) |
+| `REPORT_RUN_RETENTION_DAYS` | optional | optional | default 90 (7–730); how long delivery run records are kept (0D `REPORT_RUN_RETENTION_DAYS`) |
+| `REPORT_BATCH_MAX` | optional | optional | default 25 (1–500); most scheduled reports one sweep claims per workspace (0D `REPORT_BATCH_MAX`) |
+| `REPORT_LEASE_SECONDS` | optional | optional | default 300 (30–3600); how long a claimed scheduled report stays leased before another sweep may reclaim it (0D `REPORT_LEASE_SECONDS`) |
+| `REPORT_MAX_ATTEMPTS` | optional | optional | default 5 (1–20); failed delivery attempts before a scheduled occurrence is recorded as failed (0D `REPORT_MAX_ATTEMPTS`) |
+| `REPORT_FRESHNESS_MINUTES` | optional | optional | default 720 (15–10080); age after which a derived source (a goal recalculation) is labelled stale on a dashboard (0D `REPORT_FRESHNESS_MINUTES`) |
 | `DOCUMENT_EMBED_URL_MAX_CHARS` | optional | optional | default 2048 (128–8192); longest address of an embedded image, video, or link (0D `DOCUMENT_EMBED_URL_MAX_CHARS`) |
 | `SIGNED_URL_LIFETIME` | optional | optional | default 300 (30–3600); lifetime in seconds of signed upload and download URLs; never stored, logged, or sent in notifications or exports (0D `SIGNED_URL_LIFETIME`) |
 | `UPLOAD_SESSION_LIFETIME` | optional | optional | default 3600 (300–86400); lifetime in seconds of an upload session; an expired, unfinished session releases its reserved bytes and its quarantined object (0D `UPLOAD_SESSION_LIFETIME`) |

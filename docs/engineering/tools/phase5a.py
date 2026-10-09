@@ -247,9 +247,9 @@ def check_invariants():
         errs.append("SearchService must extend FileService")
     factory = read(P("packages/work/src/factory.ts"))
     # 5B's goal services extend the SearchService, and the factory returns the top of that chain.
-    if not re.search(r"\}\): (SearchService|PortfolioService|MetricService) \{", factory) or not re.search(
-            r"return new (SearchService|PortfolioService|MetricService)\(", factory):
-        errs.append("createWorkService must build and return the SearchService (or the 5B chain on top of it)")
+    if not re.search(r"\}\): (SearchService|PortfolioService|MetricService|ReportService) \{", factory) or not re.search(
+            r"return new (SearchService|PortfolioService|MetricService|ReportService)\(", factory):
+        errs.append("createWorkService must build and return the SearchService (or the 5B/5D chain on top of it)")
     for path, needles in {
         "packages/work/test/integration/search.test.ts": [
             "treats a hidden record exactly like one that does not exist: no result, count, facet, excerpt, or ranking",

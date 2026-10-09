@@ -106,8 +106,9 @@ const destinations: RouteDef[] = SHELL_DESTINATIONS.map((d, i) => ({
   section: DEST_LABEL[d],
   destination: d,
   scopeSensitive: true,
-  // 5B ships the Goals destination; the contract's phase table still names it as upcoming.
-  phase: d === 'goals' ? null : DESTINATION_PHASE[d],
+  // 5B ships the Goals destination and 5D the Reports destination; the contract's phase table still
+  // names them as upcoming.
+  phase: d === 'goals' || d === 'reports' ? null : DESTINATION_PHASE[d],
   command: `go.${d}` as ShellCommandId,
   ...(DEST_SHORTCUT[d] ? { shortcut: DEST_SHORTCUT[d] } : {}),
   nav: {
@@ -397,6 +398,21 @@ export const ROUTES: readonly RouteDef[] = [
     extraCommand: 'go.portfolio',
     nav: { placement: 'workspace', label: 'Portfolio', short: 'Portfolio', icon: '▥', order: 4 },
     visible: (a) => member(a) && !a.hidden.includes('projects'),
+  },
+  // 5D: a dashboard and a saved report. Dashboards are for members; a report may also be opened by
+  // someone it was explicitly shared with (the API decides what each person may read).
+  {
+    id: 'dashboard',
+    pattern: '/workspaces/:ws/dashboards/:dash',
+    shell: 'workspace',
+    section: 'Reports',
+    visible: member,
+  },
+  {
+    id: 'report',
+    pattern: '/workspaces/:ws/reports/:rpt',
+    shell: 'workspace',
+    section: 'Reports',
   },
   // 4C: a document page (the Knowledge destination is the tree of pages).
   {
