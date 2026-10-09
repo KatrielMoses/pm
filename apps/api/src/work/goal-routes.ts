@@ -6,7 +6,7 @@ import { routeKit } from '../route-kit.ts';
 type Params = { ws?: string; goal?: string; kr?: string; pf?: string; prj?: string };
 
 /**
- * Goals, key results, links, check-ins, and portfolios (5B, ADR-0028; 0D PL-38). Everything is
+ * Goals, key results, links, check-ins, and portfolios (5B, ADR-0029; 0D PL-39). Everything is
  * addressed by public identifiers under the workspace. The caller is the session; the service
  * decides every read and write through the record's own placement at the time of the request, and
  * computes every figure that depends on linked work for the caller, so a route never reveals more

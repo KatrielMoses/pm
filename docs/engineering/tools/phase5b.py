@@ -6,13 +6,13 @@ Usage (from the repository root):
 
 Phase 5B (docs/engineering/phase5/closure-5b.json) is checked by the Phase 2 closure rules (every
 owned and contributed catalog requirement closed with existing evidence, decisions D1..D19 tied to
-ADR-0028 rows G1..G19) plus drift checks: the goal and portfolio bounds are registered (owner 5B),
+ADR-0029 rows G1..G19) plus drift checks: the goal and portfolio bounds are registered (owner 5B),
 configured, and documented; the events, signals, prefix, and envelopes are registered, and no
-action is added; migration 0041 keeps its tenant isolation, its append-only check-ins, its
+action is added; migration 0042 keeps its tenant isolation, its append-only check-ins, its
 integrity triggers, and its exact rollback to 0040; nothing derived from linked work is stored;
 goals and portfolios are never shareable; the health, dependency, and orphan rules stay pure;
 recalculation claims goals with a lease; exports are bounded and audited; lifecycle and departure
-carry goals; every acceptance test AT-238..AT-260 names a test that exists; and the later-phase
+carry goals; every acceptance test AT-246..AT-268 names a test that exists; and the later-phase
 boundaries (search, dashboards, metrics, integrations, AI planning) are not crossed. The ADR stays
 proposed until acceptance.
 """
@@ -59,8 +59,8 @@ TABLES = ["goals.goal", "goals.key_result", "goals.goal_checkin", "goals.goal_li
 ENTITIES = ["goal", "key_result", "goal_link", "goal_checkin", "goal_state", "portfolio", "portfolio_project"]
 THREATS = ["T-%d" % i for i in range(54, 62)]
 TESTS = ["AT-%d" % i for i in range(238, 261)]
-ADR = "docs/engineering/adr/0028-goals-portfolios.md"
-MIGRATION = "packages/db/migrations/0041_goals_portfolios"
+ADR = "docs/engineering/adr/0029-goals-portfolios.md"
+MIGRATION = "packages/db/migrations/0042_goals_portfolios"
 GOALS = "packages/work/src/goals/"
 SEM = GOALS + "semantics.ts"
 CORE = GOALS + "goal-core.ts"
@@ -140,24 +140,24 @@ def check_migration():
     schema = read(P("packages/db/src/schema.ts"))
     for table in TABLES:
         if "CREATE POLICY tenant_isolation ON %s" % table not in up:
-            errs.append("0041: %s has no tenant_isolation policy" % table)
+            errs.append("0042: %s has no tenant_isolation policy" % table)
         if "ALTER TABLE %s ENABLE ROW LEVEL SECURITY" % table not in up or \
                 "ALTER TABLE %s FORCE ROW LEVEL SECURITY" % table not in up:
-            errs.append("0041: %s must enable and force RLS" % table)
+            errs.append("0042: %s must enable and force RLS" % table)
         if "'%s':" % table not in schema:
             errs.append("schema.ts lacks %s" % table)
         if not re.search(r"DROP TABLE %s;" % re.escape(table), down):
-            errs.append("0041 down must drop %s" % table)
+            errs.append("0042 down must drop %s" % table)
     for needle in ["goal_checkin_immutable", "goal_checkin_computed_unique", "goal_link_integrity",
                    "portfolio_member_integrity", "goal_metric_manual_only", "goal_period_ordered",
                    "goal_status_known", "goal_basis_known", "goal_state_basis_known",
                    "discover_goal_work", "SECURITY DEFINER"]:
         if needle not in up:
-            errs.append("0041 lacks %s" % needle)
+            errs.append("0042 lacks %s" % needle)
     for needle in ["DROP FUNCTION exec_dispatch.discover_goal_work", "DROP SCHEMA goals",
                    "Restores the exact 0040 catalog"]:
         if needle not in down:
-            errs.append("0041 down lacks %s" % needle)
+            errs.append("0042 down lacks %s" % needle)
     if "DISABLE ROW LEVEL SECURITY" in up:
         errs.append("RLS must stay enabled")
     for m in re.finditer(r"GRANT ([A-Z, ()a-z_]+) ON ([^;]*?) TO (app_rw|app_worker)", up):
@@ -178,9 +178,9 @@ def check_migration():
         errs.append("a goal that depends on linked work must store no number (viewer_dependent)")
     for schema_name in ["search", "reporting", "metrics", "agents", "integrations"]:
         if re.search(r"CREATE (SCHEMA|TABLE) %s\b" % schema_name, up):
-            errs.append("0041 creates %s structures (a later phase owns them)" % schema_name)
+            errs.append("0042 creates %s structures (a later phase owns them)" % schema_name)
     if len(re.findall(r"^CREATE SCHEMA ", up, re.M)) != 1:
-        errs.append("0041 must create only the goals schema")
+        errs.append("0042 must create only the goals schema")
     errs += phase1.check_boundaries([9, 12, 16] + list(range(18, 42)))
     return errs, "tenant isolation, append-only check-ins, integrity triggers, viewer-neutral state, rollback to 0040"
 
@@ -292,9 +292,9 @@ def check_invariants():
     for e in ENTITIES:
         if e not in names:
             errs.append("model.json lacks %s" % e)
-    for rel, anchors in {"docs/architecture/data/12-decisions.md": ["adr-36"],
-                         "docs/architecture/access/15-decisions.md": ["az-36"],
-                         "docs/architecture/platform/19-decisions.md": ["pl-38"]}.items():
+    for rel, anchors in {"docs/architecture/data/12-decisions.md": ["adr-37"],
+                         "docs/architecture/access/15-decisions.md": ["az-37"],
+                         "docs/architecture/platform/19-decisions.md": ["pl-39"]}.items():
         text = read(P(rel))
         for a in anchors:
             if '<a id="%s"></a>' % a not in text:
@@ -303,7 +303,7 @@ def check_invariants():
                 "docs/architecture/data/13-open-questions.md", "docs/architecture/access/15-decisions.md",
                 "docs/architecture/platform/19-decisions.md", "docs/architecture/platform/04-concurrency.md",
                 "docs/architecture/data/model/model.json"]:
-        if "ADR-0028" in read(P(rel)):
+        if "ADR-0029" in read(P(rel)):
             errs.append("%s must not reference the engineering ADR (0B, 0C, and 0D records stay free of it)" % rel)
     threats = load(P("docs/architecture/access/policy/threats.json"))
     have_t = {t["id"] for t in threats["threats"]}
@@ -317,7 +317,7 @@ def check_invariants():
     covered = {th for a in TESTS if a in have_a for th in have_a[a]["threats"]}
     for t in THREATS:
         if t not in covered:
-            errs.append("threat %s has no acceptance test in AT-238..AT-260" % t)
+            errs.append("threat %s has no acceptance test in AT-246..AT-268" % t)
     # Every acceptance test names a test that exists (the ADR table).
     adr = read(P(ADR))
     rows = re.findall(r"^\| (AT-\d+) \| ([^|]+?) \| ([^|]+?) \|$", adr, re.M)
@@ -377,22 +377,22 @@ def check_adr(closure):
     errs = []
     path = phase1.adr_path("0028")
     if not path:
-        return ["no ADR-0028"], ""
+        return ["no ADR-0029"], ""
     text = read(path)
     m = phase2.ADR_STATUS.search(text)
     if not m:
-        errs.append("ADR-0028 status must be accepted and implemented or proposed")
+        errs.append("ADR-0029 status must be accepted and implemented or proposed")
     elif m.group(1) == "proposed" and closure.get("status") != "candidate":
-        errs.append("ADR-0028 is proposed but the closure is not a candidate")
+        errs.append("ADR-0029 is proposed but the closure is not a candidate")
     for d in closure.get("decisions", []):
         if not re.search(r"^\| %s \|" % re.escape(d.get("adr_row", "")), text, re.M):
-            errs.append("%s: ADR-0028 has no row %s" % (d["id"], d.get("adr_row")))
+            errs.append("%s: ADR-0029 has no row %s" % (d["id"], d.get("adr_row")))
     if "**Numbering.**" not in text or "0041_permission_aware_search" not in text:
-        errs.append("ADR-0028 must record the shared migration number 0041 and its identifiers")
+        errs.append("ADR-0029 must record the shared migration number 0042 and its identifiers")
     for needle in ["reverses each boundary step", "reverses completely with down migrations and re-applies cleanly"]:
         if needle not in text or needle not in read(P("packages/db/test/integration/migrations.test.ts")):
-            errs.append("ADR-0028 must cite the migration test %r and it must exist" % needle)
-    return errs, "ADR-0028 %s" % (m.group(1) if m else "?")
+            errs.append("ADR-0029 must cite the migration test %r and it must exist" % needle)
+    return errs, "ADR-0029 %s" % (m.group(1) if m else "?")
 
 
 def check_wiring():
@@ -420,7 +420,7 @@ def main():
          phase2.check_closure(catalog, closure, subphases, "5B", ["D%d" % i for i in range(1, 20)])),
         ("phase 5B: closure limitations and contributions", check_closure_extras(closure)),
         ("phase 5B: bounds, events, signals, envelopes, no new actions", check_contracts(registry, policy)),
-        ("phase 5B: migration 0041 and its rollback", check_migration()),
+        ("phase 5B: migration 0042 and its rollback", check_migration()),
         ("phase 5B: authorization, viewer-computed, and recalculation invariants", check_invariants()),
         ("phase 5B: later-phase and provider boundaries kept", check_boundaries_kept()),
         ("phase 5B: migrations contiguous and reversible", phase1.check_migrations()),

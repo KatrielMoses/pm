@@ -136,7 +136,7 @@ interface RankPos {
 }
 
 /**
- * Phase 5B goals, part one (ADR-0028; 0B ADR-36, 0C AZ-36): resolution, authorization, progress,
+ * Phase 5B goals, part one (ADR-0029; 0B ADR-37, 0C AZ-37): resolution, authorization, progress,
  * and views. A goal is authorized through its placement (workspace or brand level and the
  * governing project chain) by the one compiled level; goals are never shareable, so a guest or a
  * share-only reader has no access to any of them. Every figure a viewer receives that depends on

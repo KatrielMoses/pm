@@ -25,7 +25,7 @@ const rejects = async (p: Promise<unknown>) => {
 };
 
 /**
- * 5B goals (ADR-0028): placement and authorization through the compiled level, key results,
+ * 5B goals (ADR-0029): placement and authorization through the compiled level, key results,
  * append-only check-ins, links, and linked-work progress that is computed for each viewer from the
  * work that viewer may read.
  */

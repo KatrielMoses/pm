@@ -581,7 +581,7 @@
       ]
     },
     {
-      "id": "T-54",
+      "id": "T-55",
       "category": "inference",
       "description": "Hidden work disclosed through a goal or portfolio aggregate: a count, percentage, progress, health, reason, dependency, budget, effort, deadline, logged-time total, label, or truncation notice that changes with, or names, a brand, project, task, link, or time entry the viewer cannot read (or tells a hidden project from an absent one); progress or health presented as covering work the viewer cannot see; a total that sums across currencies or presents untracked spend or AI usage as measured.",
       "mitigated_by": [
@@ -593,7 +593,7 @@
       ]
     },
     {
-      "id": "T-55",
+      "id": "T-56",
       "category": "cross_brand_traversal",
       "description": "Existence disclosure through links, targets, and portfolio members: a project, task, goal, or portfolio told apart from an unknown one by a different answer when linking, listing, reading, or editing; a link or portfolio member to work the editor cannot read, or in the wrong brand or project, accepted; a hidden member listed, counted, or dropped when an editor saves a portfolio; a link or membership surviving the purge of the work it names.",
       "mitigated_by": [
@@ -605,7 +605,7 @@
       ]
     },
     {
-      "id": "T-56",
+      "id": "T-57",
       "category": "guest_escalation",
       "description": "Goals and portfolios reached by guests and share-only readers: a guest, a share-only reader, or a member without workspace-level read listing, reading, or counting workspace-level or brand goals and portfolios, or obtaining them through a share, a favorite, a recent item, or an error; a goal or portfolio made shareable.",
       "mitigated_by": [
@@ -617,7 +617,7 @@
       ]
     },
     {
-      "id": "T-57",
+      "id": "T-58",
       "category": "staleness",
       "description": "Stale or cached aggregates after access narrows: a figure, label, or link target computed for one viewer shown to another or kept after a grant is revoked, a role changes, a brand is archived, or work is moved or trashed; a stored number derived from linked work that is older than the work; a response that a shared cache or browser may keep.",
       "mitigated_by": [
@@ -629,7 +629,7 @@
       ]
     },
     {
-      "id": "T-58",
+      "id": "T-59",
       "category": "spoofing",
       "description": "Forged, tampered, replayed, or flooded progress: a goal whose progress comes from linked work or key results set by hand; a check-in changed or deleted after it was recorded, written by someone who cannot update the goal, on a closed or archived goal, or attributed to someone else; a retried request recorded twice; a flood of check-ins from one member; a stale edit overwriting a newer one.",
       "mitigated_by": [
@@ -641,7 +641,7 @@
       ]
     },
     {
-      "id": "T-59",
+      "id": "T-60",
       "category": "rls_leak",
       "description": "Goal and portfolio export exfiltration and injection: an export that contains a goal, key result, portfolio, project, or total the exporter cannot read, is unbounded, silently truncated, unaudited, or kept after it is served; a spreadsheet formula, command, or link planted through a title, unit, note, owner name, or project name.",
       "mitigated_by": [
@@ -653,7 +653,7 @@
       ]
     },
     {
-      "id": "T-60",
+      "id": "T-61",
       "category": "cross_workspace",
       "description": "Recalculation poisoning, lease abuse, and cross-workspace job reads: a background sweep that reads or writes another workspace's goals, appends the same computed check-in twice, stores a number that depends on one viewer's access, lets a crashed or slow worker block a goal for ever, lets one failing goal block the others, stores goal text or a free-form error in its state, or discovers work through anything but workspace identifiers; a row that breaks the placement, period, or measurement rules because a command was bypassed.",
       "mitigated_by": [
@@ -665,7 +665,7 @@
       ]
     },
     {
-      "id": "T-61",
+      "id": "T-62",
       "category": "restricted_project",
       "description": "Orphan findings revealing hidden links: a project reported as unlinked, or a goal as without active work, because of links or work the viewer cannot read (or reported as linked through a goal they cannot see); a finding that names, counts, or hints at a hidden goal, link, project, or task; a finding not labelled as relative to the viewer.",
       "mitigated_by": [
@@ -4963,9 +4963,9 @@
       ]
     },
     {
-      "id": "AT-238",
+      "id": "AT-246",
       "threats": [
-        "T-54"
+        "T-55"
       ],
       "principal": "member",
       "setup": "Member who may read one of two linked projects reads a goal linked to both, and its linked-work progress, links, and labels",
@@ -4981,9 +4981,9 @@
       ]
     },
     {
-      "id": "AT-239",
+      "id": "AT-247",
       "threats": [
-        "T-54"
+        "T-55"
       ],
       "principal": "member",
       "setup": "Member reads portfolio health, deadlines, budgets, effort, and time totals when projects, brands, time entries, and budgets exist that they cannot read",
@@ -5000,9 +5000,9 @@
       ]
     },
     {
-      "id": "AT-240",
+      "id": "AT-248",
       "threats": [
-        "T-54"
+        "T-55"
       ],
       "principal": "member",
       "setup": "Member reads cross-project dependencies where the other end of an edge is work they cannot read",
@@ -5018,9 +5018,9 @@
       ]
     },
     {
-      "id": "AT-241",
+      "id": "AT-249",
       "threats": [
-        "T-55"
+        "T-56"
       ],
       "principal": "member",
       "setup": "Member links a goal to a project or task that is unreadable, unknown, in another brand, or outside the goal's project",
@@ -5035,9 +5035,9 @@
       ]
     },
     {
-      "id": "AT-242",
+      "id": "AT-250",
       "threats": [
-        "T-55"
+        "T-56"
       ],
       "principal": "member",
       "setup": "Editor saves a portfolio that holds projects they cannot read, or names one they cannot read",
@@ -5053,9 +5053,9 @@
       ]
     },
     {
-      "id": "AT-243",
+      "id": "AT-251",
       "threats": [
-        "T-55"
+        "T-56"
       ],
       "principal": "member",
       "setup": "Member reads a portfolio whose other members sit in a brand they cannot access",
@@ -5071,9 +5071,9 @@
       ]
     },
     {
-      "id": "AT-244",
+      "id": "AT-252",
       "threats": [
-        "T-55"
+        "T-56"
       ],
       "principal": "member",
       "setup": "Member reads an unreadable goal, an unknown goal, and a malformed goal identifier",
@@ -5089,9 +5089,9 @@
       ]
     },
     {
-      "id": "AT-245",
+      "id": "AT-253",
       "threats": [
-        "T-55"
+        "T-56"
       ],
       "principal": "member",
       "setup": "Project or task is purged while goals link it and portfolios name it",
@@ -5106,9 +5106,9 @@
       ]
     },
     {
-      "id": "AT-246",
+      "id": "AT-254",
       "threats": [
-        "T-56"
+        "T-57"
       ],
       "principal": "guest",
       "setup": "Guest lists goals or portfolios, or asks for the portfolio overview",
@@ -5123,9 +5123,9 @@
       ]
     },
     {
-      "id": "AT-247",
+      "id": "AT-255",
       "threats": [
-        "T-56"
+        "T-57"
       ],
       "principal": "guest",
       "setup": "Guest reads one goal by its identifier, or one named in a share, and a person outside the workspace calls the goal routes",
@@ -5141,9 +5141,9 @@
       ]
     },
     {
-      "id": "AT-248",
+      "id": "AT-256",
       "threats": [
-        "T-57"
+        "T-58"
       ],
       "principal": "member",
       "setup": "Member whose access narrowed reads a goal and a portfolio again, and a goal whose progress depends on linked work is read from the stored state",
@@ -5159,9 +5159,9 @@
       ]
     },
     {
-      "id": "AT-249",
+      "id": "AT-257",
       "threats": [
-        "T-58"
+        "T-59"
       ],
       "principal": "member",
       "setup": "Owner sets the progress of a goal that derives it from linked work or key results, or tries to change or delete a recorded check-in",
@@ -5175,9 +5175,9 @@
       ]
     },
     {
-      "id": "AT-250",
+      "id": "AT-258",
       "threats": [
-        "T-58"
+        "T-59"
       ],
       "principal": "member",
       "setup": "Member retries one check-in request with the same key, and sends check-ins faster than the per-member limit",
@@ -5192,9 +5192,9 @@
       ]
     },
     {
-      "id": "AT-251",
+      "id": "AT-259",
       "threats": [
-        "T-58"
+        "T-59"
       ],
       "principal": "member",
       "setup": "Reader, stranger, or owner of a closed goal records a check-in",
@@ -5209,9 +5209,9 @@
       ]
     },
     {
-      "id": "AT-252",
+      "id": "AT-260",
       "threats": [
-        "T-58"
+        "T-59"
       ],
       "principal": "member",
       "setup": "Two editors update one goal with the same loaded version, and an edit arrives with a stale or missing version",
@@ -5225,9 +5225,9 @@
       ]
     },
     {
-      "id": "AT-253",
+      "id": "AT-261",
       "threats": [
-        "T-59"
+        "T-60"
       ],
       "principal": "member",
       "setup": "Member exports goals and key results as CSV and JSON, with titles that begin with formula characters and more rows than the limit",
@@ -5243,9 +5243,9 @@
       ]
     },
     {
-      "id": "AT-254",
+      "id": "AT-262",
       "threats": [
-        "T-59"
+        "T-60"
       ],
       "principal": "member",
       "setup": "Member exports portfolio rows including projects and totals in brands they cannot read",
@@ -5261,9 +5261,9 @@
       ]
     },
     {
-      "id": "AT-255",
+      "id": "AT-263",
       "threats": [
-        "T-60"
+        "T-61"
       ],
       "principal": "system_job",
       "setup": "Recalculation sweep for workspace A attempts to read or write a goal of workspace B",
@@ -5280,9 +5280,9 @@
       ]
     },
     {
-      "id": "AT-256",
+      "id": "AT-264",
       "threats": [
-        "T-60"
+        "T-61"
       ],
       "principal": "system_job",
       "setup": "Two recalculation sweeps overlap on one goal, and a worker crashes while it holds a goal's lease",
@@ -5297,9 +5297,9 @@
       ]
     },
     {
-      "id": "AT-257",
+      "id": "AT-265",
       "threats": [
-        "T-60"
+        "T-61"
       ],
       "principal": "system_job",
       "setup": "One goal's recalculation fails repeatedly while others are due",
@@ -5315,9 +5315,9 @@
       ]
     },
     {
-      "id": "AT-258",
+      "id": "AT-266",
       "threats": [
-        "T-60"
+        "T-61"
       ],
       "principal": "member",
       "setup": "A row that breaks the placement, period, measurement, link, or immutability rules is written directly to the database",
@@ -5331,9 +5331,9 @@
       ]
     },
     {
-      "id": "AT-259",
+      "id": "AT-267",
       "threats": [
-        "T-61"
+        "T-62"
       ],
       "principal": "member",
       "setup": "Member reads projects without a linked goal and goals without active work, where linked goals, links, and work exist that they cannot read",
@@ -5349,9 +5349,9 @@
       ]
     },
     {
-      "id": "AT-260",
+      "id": "AT-268",
       "threats": [
-        "T-61"
+        "T-62"
       ],
       "principal": "member",
       "setup": "Member reads orphan findings for a goal whose linked work is finished or sits in a project reached through a parent project",

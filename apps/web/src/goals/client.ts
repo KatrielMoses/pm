@@ -2,7 +2,7 @@ import { api, ApiError, protectedRequest, type StepUpResolver } from '../api.ts'
 import type { BrandMarkerData } from '../shell/client.ts';
 
 /**
- * Typed client for the 5B goals and portfolio API (ADR-0028). Every identifier is a public ID.
+ * Typed client for the 5B goals and portfolio API (ADR-0029). Every identifier is a public ID.
  * Every figure that depends on linked work is computed by the server for the viewer; nothing here
  * recomputes, infers, or hints at work the viewer cannot read.
  */

@@ -1,7 +1,7 @@
 import { addDays, daysBetween, validDay } from '../time/semantics.ts';
 
 /**
- * Phase 5B goal and portfolio rules (ADR-0028). Everything here is a pure, deterministic function
+ * Phase 5B goal and portfolio rules (ADR-0029). Everything here is a pure, deterministic function
  * of its inputs, so every figure can be explained with the rule that produced it. The inputs a
  * caller passes are only the work the viewer may read (OD-07, OD-13); nothing here weights by
  * estimate, invents a business outcome, or defines a metric (5C).
@@ -38,7 +38,7 @@ const lastDayOf = (year: number, month: number) => new Date(Date.UTC(year, month
 /**
  * A calendar period from its parts, or null when they do not name one. `quarter` takes
  * `index` 1–4, `half` 1–2, `year` needs none, and `custom` takes explicit days (at most ten
- * years). Fiscal calendars are not modelled: a quarter is a calendar quarter (ADR-0028 G2).
+ * years). Fiscal calendars are not modelled: a quarter is a calendar quarter (ADR-0029 G2).
  */
 export function goalPeriodOf(input: {
   kind: unknown;

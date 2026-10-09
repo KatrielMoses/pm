@@ -225,8 +225,8 @@ Status of every ADR: **proposed (Phase 0B)**, pending solutions-architect accept
   - **Starters.** Built-in typed starters are versioned constants recorded on the first version; there is no template catalog (10B).
 - **Alternatives:** Titles or labels stored beside references (stale and leaky after revocation). Overwriting the current content with a history table beside it (a silent overwrite window). Restricted document trees in the shared visibility compiler now (a change to every record query). A stored `stale` state rewritten by a job (a fabricated history).
 - **Consequences:** Migration `0038_documents` with an exact 0037 rollback. All new tables have workspace RLS; versions and approvals are append-only to the application; purge removes a document's versions, references, suggestions, approvals, comments, and notifications.
-<a id="adr-36"></a>
-## ADR-36: Goals, key results, check-ins, links, and portfolios (Phase 5B amendment)
+<a id="adr-37"></a>
+## ADR-37: Goals, key results, check-ins, links, and portfolios (Phase 5B amendment)
 
 - **Decision:**
   - **Records.** `goals.goal` (`goal_`), `goals.key_result` (`kr_`), and `goals.portfolio` (`pf_`) are records in the core envelope. A goal is workspace-, brand-, or project-scoped (a project goal names a project of its brand), a key result lives in its goal's scope, and a portfolio is workspace- or brand-scoped. Access is the placement's: the workspace or brand level, and the governing project chain for a project goal. A goal or portfolio is never shareable, and a guest or share-only reader has no access to either. No row copies anyone's access.
@@ -237,7 +237,7 @@ Status of every ADR: **proposed (Phase 0B)**, pending solutions-architect accept
   - **Portfolios.** `goals.portfolio_project` is an explicit, bounded list of project identities. A brand portfolio holds only its brand's projects (checked by a trigger). Members an editor cannot read are preserved by an edit but never listed or counted for them.
   - **Deletion.** Archive, trash, and restore of a goal carry its key results. Purge of a goal deletes its key results, links, check-ins, and state; purge of a project or task removes the links and portfolio memberships that name it.
 - **Alternatives:** Storing progress, health, or counts per goal or portfolio (they would freeze one viewer's view and disclose hidden work to the next). A shared goal or portfolio (a second access path to the work it summarizes). Mutable check-ins (a rewritable history). A separate access table for goals (a second source of authority). Weighting progress by estimates (5C's metric decision).
-- **Consequences:** Migration `0041_goals_portfolios` with an exact 0040 rollback. All seven tables have workspace RLS and indexes on every foreign key; the worker may recalculate state and append computed check-ins, and a payload-free `SECURITY DEFINER` discovery lists only the workspaces with goals due for recalculation.
+- **Consequences:** Migration `0042_goals_portfolios` with an exact 0040 rollback. All seven tables have workspace RLS and indexes on every foreign key; the worker may recalculate state and append computed check-ins, and a payload-free `SECURITY DEFINER` discovery lists only the workspaces with goals due for recalculation.
 <a id="adr-35"></a>
 ## ADR-35: Live editing drafts, sessions, and operations (Phase 4D amendment)
 

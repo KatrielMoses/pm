@@ -1,5 +1,5 @@
 /**
- * Period selection for the Goals list (5B). Periods are calendar periods (ADR-0028 G2: fiscal
+ * Period selection for the Goals list (5B). Periods are calendar periods (ADR-0029 G2: fiscal
  * calendars are not modelled). The selector maps to the list's `from`/`to` days, which return the
  * goals whose period overlaps the chosen range.
  */

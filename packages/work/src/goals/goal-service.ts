@@ -68,7 +68,7 @@ type GoalEvent =
   | 'goals.key_result.updated';
 
 /**
- * Phase 5B goals, part two (ADR-0028): goals, key results, links, and check-ins. Goals are
+ * Phase 5B goals, part two (ADR-0029): goals, key results, links, and check-ins. Goals are
  * records in the core envelope; their access is the placement's and is never widened by a link.
  * Every figure that depends on linked work is computed for the viewer, from the work they may
  * read, at the moment it is read (nothing about linked work is stored).

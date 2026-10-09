@@ -33,7 +33,7 @@ export function recalcBackoffMs(attempts: number, intervalMinutes: number): numb
 }
 
 /**
- * The recalculation sweep (ADR-0028 G14). Discovery is payload-free and bounded; each workspace
+ * The recalculation sweep (ADR-0029 G14). Discovery is payload-free and bounded; each workspace
  * claims at most `GOALS_RECALC_BATCH_MAX` due goals with a lease (`FOR UPDATE SKIP LOCKED`), then
  * recomputes each in its own transaction. A crashed worker's goals come back when the lease lapses;
  * a failing goal backs off, is reported as failing once it reaches `GOALS_RECALC_MAX_ATTEMPTS`, and

@@ -12,7 +12,7 @@ import { mutation, workEnv, workspaceIdOf, workspaceWith, type WorkEnv } from '.
 const Q = { kind: 'year', year: 2026 };
 
 /**
- * 5B background recalculation (ADR-0028 G14): bounded discovery, leased claims, idempotent
+ * 5B background recalculation (ADR-0029 G14): bounded discovery, leased claims, idempotent
  * recomputation, backoff and truthful failure state, and recovery of a crashed worker's claims.
  */
 describe('Goal recalculation job (5B)', () => {

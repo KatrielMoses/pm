@@ -346,7 +346,7 @@ All three have `tenant_isolation` RLS, deferrable composite foreign keys to the 
 
 ## Phase 5B: goals and portfolios
 
-Migration `0041_goals_portfolios` (ADR-0028, 0B ADR-36) adds the `goals` schema:
+Migration `0042_goals_portfolios` (ADR-0029, 0B ADR-37) adds the `goals` schema:
 - `goals.goal`, `goals.key_result`, and `goals.portfolio`: records in the core envelope (`goal_`, `kr_`, `pf_`) with a row `version`, bounded text and decimals, a period of at most 3660 days, a measurement that needs its baseline, and a basis that allows a measurement only when it is manual. `latest_*` columns mirror the newest manual check-in.
 - `goals.goal_checkin`: append-only. A `BEFORE UPDATE` trigger refuses any change, the application role has no update or delete, and a unique index on `(workspace_id, goal_id, inputs_hash)` makes a computed check-in idempotent.
 - `goals.goal_link`: links a goal or key result to a project or task (unique per goal, key result, and target); a trigger keeps a brand goal's links in its brand and a project goal's task links in its project.

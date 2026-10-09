@@ -13,7 +13,7 @@ import {
 } from './semantics.ts';
 
 /**
- * Phase 5B inputs (ADR-0028). Every parser refuses unknown fields, reports pointer-precise safe
+ * Phase 5B inputs (ADR-0029). Every parser refuses unknown fields, reports pointer-precise safe
  * issues, and never echoes input. Nothing here consults the database or authorization.
  */
 

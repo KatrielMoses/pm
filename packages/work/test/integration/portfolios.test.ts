@@ -26,7 +26,7 @@ const rejects = async (p: Promise<unknown>) => {
 };
 
 /**
- * 5B portfolios and portfolio insight (ADR-0028): explainable health, dependencies, budgets,
+ * 5B portfolios and portfolio insight (ADR-0029): explainable health, dependencies, budgets,
  * deadlines, effort, and orphan findings, all computed for the viewer from authorized records only.
  */
 describe('Portfolios and portfolio insight (5B)', () => {

@@ -5,7 +5,7 @@ const refs = (rows: Array<{ id: string }>, recordType: string): RecordRef[] =>
   rows.map((r) => ({ id: r.id, recordType }));
 
 /**
- * Links and portfolio memberships that name a purged project or task leave with it (ADR-0028 G17),
+ * Links and portfolio memberships that name a purged project or task leave with it (ADR-0029 G17),
  * so no goal or portfolio keeps a reference to something that no longer exists. The goals,
  * key results, and portfolios themselves stay.
  */
@@ -36,7 +36,7 @@ export async function attachedGoals(
 }
 
 /**
- * Goals (ADR-0028 G17). A goal's lifecycle carries its key results; a project's carries the goals
+ * Goals (ADR-0029 G17). A goal's lifecycle carries its key results; a project's carries the goals
  * scoped to it; brand-level goals are brand roots, and workspace-level goals belong to no brand.
  */
 export const goalAdapter: RecordTypeAdapter = {

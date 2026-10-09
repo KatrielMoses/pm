@@ -85,7 +85,7 @@ interface TaskFacts {
 }
 
 /**
- * Phase 5B portfolios and portfolio insight (ADR-0028): saved lists of projects, and the
+ * Phase 5B portfolios and portfolio insight (ADR-0029): saved lists of projects, and the
  * explainable health, dependency, budget, deadline, effort, and orphan reads over the projects a
  * viewer may read. Every figure is computed live for the viewer from authorized records only; a
  * hidden brand, project, or task changes no count and appears in no label (OD-07, IA-42), and each

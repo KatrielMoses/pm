@@ -26,7 +26,7 @@ const issues = (fn: () => unknown) => {
   throw new Error('expected the parser to refuse');
 };
 
-/** ADR-0028: every parser refuses unknown fields and says exactly where, without echoing input. */
+/** ADR-0029: every parser refuses unknown fields and says exactly where, without echoing input. */
 describe('goal inputs (5B)', () => {
   it('accepts a minimal goal and trims text', () => {
     const g = parseGoalCreate({ title: '  Grow  ', period: Q4 });

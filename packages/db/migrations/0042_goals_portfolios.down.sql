@@ -1,4 +1,4 @@
--- Reverts 0041 (local/test only). Restores the exact 0040 catalog.
+-- Reverts 0042 (local/test only). Restores the exact 0041 catalog.
 DROP FUNCTION exec_dispatch.discover_goal_work(timestamptz, integer);
 DROP POLICY scheduler_discovery ON goals.goal_state;
 REVOKE SELECT (workspace_id, dirty, next_check_at, claimed_until) ON goals.goal_state FROM pm_scheduler;

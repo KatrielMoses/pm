@@ -60,7 +60,7 @@ The `conflict` error with the `conflict` payload (schema `conflict`):
 
 ## 4.4a Goals and portfolios
 
-- Goals, key results, and portfolios are `row-version` records: a stale `If-Match` is a `conflict` and a missing one `precondition_required` (Phase 5B, [PL-38](19-decisions.md#pl-38)). Check-ins are append-only and take an `Idempotency-Key`, so a retry records once. Nothing derived from linked work is stored, so there is no derived value to conflict with. A background recalculation claims a goal with a lease and appends a computed check-in once per distinct input.
+- Goals, key results, and portfolios are `row-version` records: a stale `If-Match` is a `conflict` and a missing one `precondition_required` (Phase 5B, [PL-39](19-decisions.md#pl-39)). Check-ins are append-only and take an `Idempotency-Key`, so a retry records once. Nothing derived from linked work is stored, so there is no derived value to conflict with. A background recalculation claims a goal with a lease and appends a computed check-in once per distinct input.
 
 ## 4.5 Bulk and per-item boundaries
 

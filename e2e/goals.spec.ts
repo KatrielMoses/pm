@@ -24,7 +24,7 @@ import {
 } from './goals-support.ts';
 
 /**
- * Phase 5B on desktop and tablet (ADR-0028): a founder creates a goal, key results, links, and
+ * Phase 5B on desktop and tablet (ADR-0029): a founder creates a goal, key results, links, and
  * check-ins and sees progress with its rule; a second member with narrower access sees a smaller
  * progress figure and no hidden project names; a guest sees no Goals navigation; the portfolio
  * overview, dependencies, and goal coverage render and pass axe at desktop width, 320 px, and 200%

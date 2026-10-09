@@ -64,7 +64,7 @@
           "contains": "access revoked mid-session: the next write switches the page to the standard state"
         }
       ],
-      "note": "Workspace, brand, and project goals, each placed through the level of its placement; never shareable (ADR-0028 G1)."
+      "note": "Workspace, brand, and project goals, each placed through the level of its placement; never shareable (ADR-0029 G1)."
     },
     {
       "id": "GOAL-002",
@@ -533,7 +533,7 @@
           "contains": "the portfolio shows health with its rules, dependencies, and goal coverage, accessibly and by keyboard"
         }
       ],
-      "note": "The 3B portfolio view is completed with saved portfolios, health, dependencies, goal coverage, and exports (ADR-0028 G8, G9)."
+      "note": "The 3B portfolio view is completed with saved portfolios, health, dependencies, goal coverage, and exports (ADR-0029 G8, G9)."
     },
     {
       "id": "WSB-011",
@@ -590,11 +590,11 @@
       "sources": [
         {
           "file": "docs/architecture/data/12-decisions.md",
-          "contains": "## ADR-36: Goals, key results, check-ins, links, and portfolios"
+          "contains": "## ADR-37: Goals, key results, check-ins, links, and portfolios"
         },
         {
           "file": "docs/architecture/access/15-decisions.md",
-          "contains": "### AZ-36: Goals and portfolios"
+          "contains": "### AZ-37: Goals and portfolios"
         }
       ],
       "evidence": [
@@ -611,7 +611,7 @@
           "contains": "answers strangers, readers, and guests as documented, and never lists what it hides"
         },
         {
-          "file": "docs/engineering/adr/0028-goals-portfolios.md",
+          "file": "docs/engineering/adr/0029-goals-portfolios.md",
           "contains": "| G1 |"
         }
       ]
@@ -640,7 +640,7 @@
           "contains": "export function goalPeriodOf("
         },
         {
-          "file": "docs/engineering/adr/0028-goals-portfolios.md",
+          "file": "docs/engineering/adr/0029-goals-portfolios.md",
           "contains": "| G2 |"
         }
       ]
@@ -673,7 +673,7 @@
           "contains": "counts linked work as done over non-cancelled readable leaf tasks (OD-13)"
         },
         {
-          "file": "docs/engineering/adr/0028-goals-portfolios.md",
+          "file": "docs/engineering/adr/0029-goals-portfolios.md",
           "contains": "| G3 |"
         }
       ]
@@ -706,7 +706,7 @@
           "contains": "never lets a derived goal be set by hand, and never changes a check-in"
         },
         {
-          "file": "docs/engineering/adr/0028-goals-portfolios.md",
+          "file": "docs/engineering/adr/0029-goals-portfolios.md",
           "contains": "| G4 |"
         }
       ]
@@ -717,7 +717,7 @@
       "adr_row": "G5",
       "sources": [
         {
-          "file": "packages/db/migrations/0041_goals_portfolios.up.sql",
+          "file": "packages/db/migrations/0042_goals_portfolios.up.sql",
           "contains": "goal_checkin_immutable"
         }
       ],
@@ -739,7 +739,7 @@
           "contains": "enforces its integrity in the database, not only in commands"
         },
         {
-          "file": "docs/engineering/adr/0028-goals-portfolios.md",
+          "file": "docs/engineering/adr/0029-goals-portfolios.md",
           "contains": "| G5 |"
         }
       ]
@@ -751,7 +751,7 @@
       "sources": [
         {
           "file": "docs/architecture/platform/19-decisions.md",
-          "contains": "### PL-38: Goal and portfolio contracts"
+          "contains": "### PL-39: Goal and portfolio contracts"
         }
       ],
       "evidence": [
@@ -772,7 +772,7 @@
           "contains": "serializes two concurrent updates: one wins, one is told the goal changed"
         },
         {
-          "file": "docs/engineering/adr/0028-goals-portfolios.md",
+          "file": "docs/engineering/adr/0029-goals-portfolios.md",
           "contains": "| G6 |"
         }
       ]
@@ -801,7 +801,7 @@
           "contains": "removes links and memberships that name a purged project or task, and a goal with its history"
         },
         {
-          "file": "docs/engineering/adr/0028-goals-portfolios.md",
+          "file": "docs/engineering/adr/0029-goals-portfolios.md",
           "contains": "| G7 |"
         }
       ]
@@ -830,7 +830,7 @@
           "contains": "keeps hidden brands out of a portfolio the editor reads, without a hint that members were left out"
         },
         {
-          "file": "docs/engineering/adr/0028-goals-portfolios.md",
+          "file": "docs/engineering/adr/0029-goals-portfolios.md",
           "contains": "| G8 |"
         }
       ]
@@ -867,7 +867,7 @@
           "contains": "evaluates every project by the same explainable rules and says what is missing"
         },
         {
-          "file": "docs/engineering/adr/0028-goals-portfolios.md",
+          "file": "docs/engineering/adr/0029-goals-portfolios.md",
           "contains": "| G9 |"
         }
       ]
@@ -896,7 +896,7 @@
           "contains": "resolves once the blocker is finished"
         },
         {
-          "file": "docs/engineering/adr/0028-goals-portfolios.md",
+          "file": "docs/engineering/adr/0029-goals-portfolios.md",
           "contains": "| G10 |"
         }
       ]
@@ -917,7 +917,7 @@
           "contains": "summarizes budgets by currency without inventing spend, deadlines, and effort"
         },
         {
-          "file": "docs/engineering/adr/0028-goals-portfolios.md",
+          "file": "docs/engineering/adr/0029-goals-portfolios.md",
           "contains": "| G11 |"
         }
       ]
@@ -929,7 +929,7 @@
       "sources": [
         {
           "file": "docs/architecture/data/12-decisions.md",
-          "contains": "## ADR-36: Goals, key results, check-ins, links, and portfolios"
+          "contains": "## ADR-37: Goals, key results, check-ins, links, and portfolios"
         }
       ],
       "evidence": [
@@ -942,7 +942,7 @@
           "contains": "protected async taskFacts("
         },
         {
-          "file": "docs/engineering/adr/0028-goals-portfolios.md",
+          "file": "docs/engineering/adr/0029-goals-portfolios.md",
           "contains": "| G12 |"
         }
       ]
@@ -975,7 +975,7 @@
           "contains": "says \"no active work\" when linked work is finished, and counts only work the viewer can read"
         },
         {
-          "file": "docs/engineering/adr/0028-goals-portfolios.md",
+          "file": "docs/engineering/adr/0029-goals-portfolios.md",
           "contains": "| G13 |"
         }
       ]
@@ -1020,7 +1020,7 @@
           "contains": "is invisible across workspaces: a sweep never reads or writes another workspace's goals"
         },
         {
-          "file": "docs/engineering/adr/0028-goals-portfolios.md",
+          "file": "docs/engineering/adr/0029-goals-portfolios.md",
           "contains": "| G14 |"
         }
       ]
@@ -1053,7 +1053,7 @@
           "contains": "exports the portfolio rows the viewer may read, audited and formula-safe"
         },
         {
-          "file": "docs/engineering/adr/0028-goals-portfolios.md",
+          "file": "docs/engineering/adr/0029-goals-portfolios.md",
           "contains": "| G15 |"
         }
       ]
@@ -1078,7 +1078,7 @@
           "contains": "moves a departing member's goals to the chosen member and keeps their check-ins"
         },
         {
-          "file": "docs/engineering/adr/0028-goals-portfolios.md",
+          "file": "docs/engineering/adr/0029-goals-portfolios.md",
           "contains": "| G16 |"
         }
       ]
@@ -1111,7 +1111,7 @@
           "contains": "removes links and memberships that name a purged project or task, and a goal with its history"
         },
         {
-          "file": "docs/engineering/adr/0028-goals-portfolios.md",
+          "file": "docs/engineering/adr/0029-goals-portfolios.md",
           "contains": "| G17 |"
         }
       ]
@@ -1136,7 +1136,7 @@
           "contains": "goals.goal.update_stale"
         },
         {
-          "file": "docs/engineering/adr/0028-goals-portfolios.md",
+          "file": "docs/engineering/adr/0029-goals-portfolios.md",
           "contains": "| G18 |"
         }
       ]
@@ -1161,7 +1161,7 @@
           "contains": "records goal changes in the audit trail without content"
         },
         {
-          "file": "docs/engineering/adr/0028-goals-portfolios.md",
+          "file": "docs/engineering/adr/0029-goals-portfolios.md",
           "contains": "| G19 |"
         }
       ]
@@ -1206,7 +1206,7 @@
     {
       "item": "A test that narrows a grant between two reads of one goal",
       "owner": "5B",
-      "note": "AT-248 is evidenced by construction (nothing derived is stored; reads are no-store), not by a revocation test."
+      "note": "AT-256 is evidenced by construction (nothing derived is stored; reads are no-store), not by a revocation test."
     },
     {
       "item": "Playwright journeys for trash and restore of goals",

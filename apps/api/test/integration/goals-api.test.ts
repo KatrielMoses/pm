@@ -15,7 +15,7 @@ const UUID = /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i;
 const Q4 = { kind: 'quarter', year: 2026, index: 4 };
 
 /**
- * 5B HTTP surface (ADR-0028; 0D PL-38): goals, key results, links, check-ins, and portfolios.
+ * 5B HTTP surface (ADR-0029; 0D PL-39): goals, key results, links, check-ins, and portfolios.
  * Every request re-checks the record's level, strangers and guests see the documented answers,
  * linked-work figures are computed for the caller, and no internal identifier appears in any body.
  */

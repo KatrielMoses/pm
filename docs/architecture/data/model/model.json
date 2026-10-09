@@ -6323,7 +6323,7 @@
         "GOAL-005",
         "GOAL-006"
       ],
-      "notes": "Phase 5B (ADR-36): placement decides access (workspace level, brand level, or the governing project chain); never shareable. No number derived from linked work is stored here: it is computed for each viewer from the work they may read. latest_* mirror the newest manual check-in and move with it in one transaction."
+      "notes": "Phase 5B (ADR-37): placement decides access (workspace level, brand level, or the governing project chain); never shareable. No number derived from linked work is stored here: it is computed for each viewer from the work they may read. latest_* mirror the newest manual check-in and move with it in one transaction."
     },
     {
       "name": "key_result",
@@ -6363,7 +6363,7 @@
         "GOAL-004",
         "GOAL-005"
       ],
-      "notes": "Phase 5B (ADR-36): lives in the scope of its goal and archives, trashes, restores, and purges with it. Key-result progress is a measurement the owner records; the goal's key-result rollup is a plain equal-weight mean of the measured ones (not a 5C metric)."
+      "notes": "Phase 5B (ADR-37): lives in the scope of its goal and archives, trashes, restores, and purges with it. Key-result progress is a measurement the owner records; the goal's key-result rollup is a plain equal-weight mean of the measured ones (not a 5C metric)."
     },
     {
       "name": "goal_link",
@@ -6405,7 +6405,7 @@
         "GOAL-012",
         "GOAL-013"
       ],
-      "notes": "Phase 5B (ADR-36): a database trigger keeps a brand goal's links inside its brand and a project goal's task links inside its project. Purge of a project or task removes the links that name it."
+      "notes": "Phase 5B (ADR-37): a database trigger keeps a brand goal's links inside its brand and a project goal's task links inside its project. Purge of a project or task removes the links that name it."
     },
     {
       "name": "goal_checkin",
@@ -6448,7 +6448,7 @@
         "GOAL-005",
         "GOAL-006"
       ],
-      "notes": "Phase 5B (ADR-36): immutable by trigger; the application role cannot update or delete a row. A check-in that states no confidence keeps the last stated one. Author stays on the row after departure (shown as a former member). Purge of the goal removes its history."
+      "notes": "Phase 5B (ADR-37): immutable by trigger; the application role cannot update or delete a row. A check-in that states no confidence keeps the last stated one. Author stays on the row after departure (shown as a former member). Purge of the goal removes its history."
     },
     {
       "name": "goal_state",
@@ -6488,7 +6488,7 @@
         "GOAL-005",
         "GOAL-006"
       ],
-      "notes": "Phase 5B (ADR-36): stores nothing derived from linked work (a goal that depends on it is viewer_dependent with no number). The row is the lock for a recalculation; the scheduler role reads only workspace, dirty, due, and lease columns. Removed with the goal."
+      "notes": "Phase 5B (ADR-37): stores nothing derived from linked work (a goal that depends on it is viewer_dependent with no number). The row is the lock for a recalculation; the scheduler role reads only workspace, dirty, due, and lease columns. Removed with the goal."
     },
     {
       "name": "portfolio",
@@ -6527,7 +6527,7 @@
         "GOAL-009",
         "VIEW-009"
       ],
-      "notes": "Phase 5B (ADR-36): never shareable. Health, dependencies, budgets, deadlines, effort, and orphan findings over its members are computed per viewer and never stored."
+      "notes": "Phase 5B (ADR-37): never shareable. Health, dependencies, budgets, deadlines, effort, and orphan findings over its members are computed per viewer and never stored."
     },
     {
       "name": "portfolio_project",
@@ -6567,7 +6567,7 @@
         "GOAL-008",
         "VIEW-009"
       ],
-      "notes": "Phase 5B (ADR-36): an explicit, bounded list of project identities (no copy of any project's data or access). A trigger keeps a brand portfolio to its brand's projects. Members an editor cannot read are preserved by an edit but never listed or counted for them. Purge of a project removes the rows that name it."
+      "notes": "Phase 5B (ADR-37): an explicit, bounded list of project identities (no copy of any project's data or access). A trigger keeps a brand portfolio to its brand's projects. Members an editor cannot read are preserved by an edit but never listed or counted for them. Purge of a project removes the rows that name it."
     },
     {
       "name": "saved_view",

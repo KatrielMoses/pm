@@ -28,7 +28,7 @@ const base: HealthInput = {
   loggedMinutes: 0,
 };
 
-/** ADR-0028 G2–G6: periods, progress, freshness, health, dependencies. */
+/** ADR-0029 G2–G6: periods, progress, freshness, health, dependencies. */
 describe('goal periods (5B)', () => {
   it('names calendar quarters, halves, and years, with their real last days', () => {
     expect(goalPeriodOf({ kind: 'quarter', year: 2026, index: 4 })).toEqual({
