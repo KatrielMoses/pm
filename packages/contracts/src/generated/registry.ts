@@ -1899,6 +1899,13 @@ export const ID_PREFIXES = [
     "entity": "goals.goal_checkin",
     "ownerModule": "goals",
     "platformOnly": false
+  },
+  {
+    "prefix": "rsh",
+    "resource": "report_share",
+    "entity": "insights.report_share",
+    "ownerModule": "insights",
+    "platformOnly": false
   }
 ] as const;
 export type IdPrefix = (typeof ID_PREFIXES)[number]['prefix'];

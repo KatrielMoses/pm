@@ -64,7 +64,13 @@ export interface MetricValue {
   covers: string;
   range: ResolvedRange | null;
   /** Which filters changed this figure; the others are shown as not applying (RPT-018). */
-  applied: { range: boolean; brands: boolean; projects: boolean; people: boolean; statuses: boolean };
+  applied: {
+    range: boolean;
+    brands: boolean;
+    projects: boolean;
+    people: boolean;
+    statuses: boolean;
+  };
   source: { kind: string; label: string };
   freshness: Freshness;
   drill: boolean;
@@ -82,6 +88,10 @@ export interface ReportScope {
   kind: 'workspace' | 'brand' | 'project' | 'personal';
   brand: { id: string; name: string } | null;
   project: { id: string; name: string } | null;
+  /** The viewer reaches this through a share, not through the placement: names stay out. */
+  shared?: boolean;
+  /** A guest or share-only reader: figures cover only the records they were given. */
+  guest?: boolean;
 }
 
 export interface MetricHost {
@@ -187,6 +197,8 @@ export function cell(v: unknown): Cell {
 }
 
 export function coversText(scope: ReportScope): string {
+  if (scope.guest) return 'The records shared with you';
+  if (scope.shared) return 'Work you can read within the scope of this shared report';
   switch (scope.kind) {
     case 'project':
       return `Work you can read in the project ${scope.project?.name ?? ''}`.trim();
@@ -281,7 +293,14 @@ const PRESENTATION = {
   project: { columns: ['name', 'brand', 'status', 'health', 'target_date', 'owner'] },
 };
 
-const TASK_GROUPS = ['none', 'project', 'brand', 'assignee', 'priority', 'status_category'] as const;
+const TASK_GROUPS = [
+  'none',
+  'project',
+  'brand',
+  'assignee',
+  'priority',
+  'status_category',
+] as const;
 const PROJECT_GROUPS = ['none', 'health', 'brand', 'owner'] as const;
 
 function parseGroup(
@@ -377,7 +396,11 @@ function countMetric(s: CountSpec): MetricProvider {
       const incomplete: IncompleteReason[] = [];
       if (total.capped) incomplete.push('count_capped');
       if (r.groups_truncated) incomplete.push('groups_truncated');
-      const breakdown = (r.groups ?? []).map((g) => ({ key: g.key, label: g.label, value: g.count }));
+      const breakdown = (r.groups ?? []).map((g) => ({
+        key: g.key,
+        label: g.label,
+        value: g.count,
+      }));
       return {
         value: total.value,
         breakdown,
@@ -585,7 +608,11 @@ const milestones: MetricProvider = {
         link: { type: 'milestone' as const, id: r.public_id },
       })),
       incomplete: rows.length > shown.length ? ['rows_truncated' as const] : [],
-      applied: { ...NONE, brands: ctx.filters.brands.length > 0, projects: ctx.filters.projects.length > 0 },
+      applied: {
+        ...NONE,
+        brands: ctx.filters.brands.length > 0,
+        projects: ctx.filters.projects.length > 0,
+      },
     };
   },
   async drill(ctx, params, page) {
@@ -624,8 +651,8 @@ const GOAL_COLUMNS: MetricColumn[] = [
   { key: 'update', label: 'Update' },
 ];
 
-function goalQuery(ctx: MetricContext, limit: number, cursor: string | null): GoalListQuery {
-  const brand = ctx.scope.brand?.id ?? (ctx.filters.brands[0] ?? null);
+function goalQuery(ctx: MetricContext, limit: number | null, cursor: string | null): GoalListQuery {
+  const brand = ctx.scope.brand?.id ?? ctx.filters.brands[0] ?? null;
   return {
     brand,
     project: ctx.scope.project?.id ?? ctx.filters.projects[0] ?? null,
@@ -644,10 +671,14 @@ function goalQuery(ctx: MetricContext, limit: number, cursor: string | null): Go
   };
 }
 
-const goalRow = (g: Record<string, any>): MetricRow => ({ // eslint-disable-line @typescript-eslint/no-explicit-any
+const goalRow = (g: Record<string, any>): MetricRow => ({
+  // eslint-disable-line @typescript-eslint/no-explicit-any
   cells: {
     title: g.title,
-    scope: g.scope?.kind === 'workspace' ? 'Workspace' : cell(g.scope?.brand) ?? cell(g.scope?.project),
+    scope:
+      g.scope?.kind === 'workspace'
+        ? 'Workspace'
+        : (cell(g.scope?.brand) ?? cell(g.scope?.project)),
     status: g.status,
     progress: g.progress?.percent ?? null,
     confidence: g.latest?.confidence ?? null,
@@ -669,14 +700,14 @@ const goalsMetric: MetricProvider = {
   parse: (raw, pointer, issues) => parseGroup(raw, pointer, ['none'], issues),
   async compute(ctx) {
     const max = Math.min(ctx.host.settings.reportExportRowsMax, 200);
-    const page = await ctx.host.goals(ctx.tx, ctx.p, goalQuery(ctx, null as never, null), max);
+    const page = await ctx.host.goals(ctx.tx, ctx.p, goalQuery(ctx, null, null), max);
     const rows = page.data.map(goalRow);
-    const missing = page.data.filter((g) => g.progress?.percent === null || g.progress?.percent === undefined);
+    const missing = page.data.filter(
+      (g) => g.progress?.percent === null || g.progress?.percent === undefined,
+    );
     const known = page.data.length - missing.length;
     const avg = known
-      ? closeEnough(
-          page.data.reduce((a, g) => a + (Number(g.progress?.percent) || 0), 0) / known,
-        )
+      ? closeEnough(page.data.reduce((a, g) => a + (Number(g.progress?.percent) || 0), 0) / known)
       : null;
     const incomplete: IncompleteReason[] = [];
     if (page.page.has_more) incomplete.push('rows_truncated');
@@ -699,7 +730,12 @@ const goalsMetric: MetricProvider = {
     };
   },
   async drill(ctx, _params, page) {
-    const r = await ctx.host.goals(ctx.tx, ctx.p, goalQuery(ctx, page.limit, page.cursor), page.limit);
+    const r = await ctx.host.goals(
+      ctx.tx,
+      ctx.p,
+      goalQuery(ctx, page.limit, page.cursor),
+      page.limit,
+    );
     return {
       columns: GOAL_COLUMNS,
       rows: r.data.map(goalRow),
@@ -741,17 +777,25 @@ function timeMetric(
   planned: boolean,
 ): MetricProvider {
   const columns: MetricColumn[] = [
-    { key: 'label', label: group === 'brand' ? 'Brand' : group === 'project' ? 'Project' : 'Person' },
+    {
+      key: 'label',
+      label: group === 'brand' ? 'Brand' : group === 'project' ? 'Project' : 'Person',
+    },
     ...(planned ? [{ key: 'planned_hours', label: 'Planned hours (estimate)' }] : []),
     { key: 'actual_hours', label: 'Actual hours' },
     { key: 'billable_hours', label: 'Billable hours' },
   ];
-  const rowsOf = (rep: Record<string, any>): MetricRow[] => // eslint-disable-line @typescript-eslint/no-explicit-any
-    (rep.rows as Array<Record<string, any>>).map((r) => ({ // eslint-disable-line @typescript-eslint/no-explicit-any
+  const rowsOf = (rep: Record<string, any>): MetricRow[] =>
+    // eslint-disable-line @typescript-eslint/no-explicit-any
+    (rep.rows as Array<Record<string, any>>).map((r) => ({
+      // eslint-disable-line @typescript-eslint/no-explicit-any
       cells: {
         label: r.key.label,
         ...(planned
-          ? { planned_hours: r.planned_minutes === null ? null : closeEnough(r.planned_minutes / 60) }
+          ? {
+              planned_hours:
+                r.planned_minutes === null ? null : closeEnough(r.planned_minutes / 60),
+            }
           : {}),
         actual_hours: hours(r.actual_seconds),
         billable_hours: hours(r.billable_seconds),
@@ -781,7 +825,8 @@ function timeMetric(
       const rows = rowsOf(rep);
       return {
         value: rep.totals.actual_seconds,
-        breakdown: (rep.rows as Array<Record<string, any>>).map((r) => ({ // eslint-disable-line @typescript-eslint/no-explicit-any
+        breakdown: (rep.rows as Array<Record<string, any>>).map((r) => ({
+          // eslint-disable-line @typescript-eslint/no-explicit-any
           key: r.key.id,
           label: r.key.label,
           value: r.actual_seconds,
@@ -791,9 +836,15 @@ function timeMetric(
         incomplete: rep.truncated ? ['rows_truncated'] : [],
         estimated: planned,
         notes: planned
-          ? ['Planned time is the sum of task estimates, not a measurement; tasks without an estimate add nothing to it.']
+          ? [
+              'Planned time is the sum of task estimates, not a measurement; tasks without an estimate add nothing to it.',
+            ]
           : [],
-        range: { from: rep.range.from, to: rep.range.to, label: `${rep.range.from} to ${rep.range.to}` },
+        range: {
+          from: rep.range.from,
+          to: rep.range.to,
+          label: `${rep.range.from} to ${rep.range.to}`,
+        },
         applied: {
           ...NONE,
           range: true,
@@ -806,7 +857,11 @@ function timeMetric(
     async drill(ctx, _params, page) {
       const rep = await ctx.host.timeReport(ctx.tx, ctx.p, timeQuery(ctx, group), group);
       const rows = rowsOf(rep);
-      return { columns, rows: rows.slice(0, page.limit), page: { limit: page.limit, has_more: false } };
+      return {
+        columns,
+        rows: rows.slice(0, page.limit),
+        page: { limit: page.limit, has_more: false },
+      };
     },
   };
 }
@@ -847,19 +902,31 @@ const capacityMetric: MetricProvider = {
       breakdown: [],
       columns,
       rows: people.map((x) => ({
-        cells: { person: x.member?.name ?? null, over: Number(x.totals?.over ?? 0), conflicts: Number(x.conflicts ?? 0) },
+        cells: {
+          person: x.member?.name ?? null,
+          over: Number(x.totals?.over ?? 0),
+          conflicts: Number(x.conflicts ?? 0),
+        },
         link: null,
       })),
       incomplete: rep.truncated ? ['rows_truncated'] : [],
       estimated: true,
       notes: ['Scheduled and estimated use is built from task estimates and work blocks.'],
       range: { from: r.from, to: r.to, label: r.label },
-      applied: { ...NONE, range: ctx.filters.range !== null, brands: ctx.filters.brands.length > 0 },
+      applied: {
+        ...NONE,
+        range: ctx.filters.range !== null,
+        brands: ctx.filters.brands.length > 0,
+      },
     };
   },
   async drill(ctx, params, page) {
     const c = await this.compute(ctx, params);
-    return { columns: c.columns, rows: c.rows.slice(0, page.limit), page: { limit: page.limit, has_more: false } };
+    return {
+      columns: c.columns,
+      rows: c.rows.slice(0, page.limit),
+      page: { limit: page.limit, has_more: false },
+    };
   },
 };
 
@@ -887,8 +954,8 @@ const planningMetric: MetricProvider = {
       { key: 'planned', label: 'Planned' },
       { key: 'completed', label: 'Completed' },
     ];
-    const planned = recs.reduce((a, x) => a + Number(x.planned_count ?? x.planned ?? 0), 0);
-    const completed = recs.reduce((a, x) => a + Number(x.completed_count ?? x.completed ?? 0), 0);
+    const planned = recs.reduce((a, x) => a + Number(x.committed ?? 0), 0);
+    const completed = recs.reduce((a, x) => a + Number(x.completed ?? 0), 0);
     return {
       value: planned ? closeEnough((completed / planned) * 100) : null,
       breakdown: [],
@@ -896,8 +963,8 @@ const planningMetric: MetricProvider = {
       rows: recs.map((x) => ({
         cells: {
           day: x.day,
-          planned: Number(x.planned_count ?? x.planned ?? 0),
-          completed: Number(x.completed_count ?? x.completed ?? 0),
+          planned: Number(x.committed ?? 0),
+          completed: Number(x.completed ?? 0),
         },
         link: null,
       })),
@@ -909,7 +976,11 @@ const planningMetric: MetricProvider = {
   },
   async drill(ctx, params, page) {
     const c = await this.compute(ctx, params);
-    return { columns: c.columns, rows: c.rows.slice(0, page.limit), page: { limit: page.limit, has_more: false } };
+    return {
+      columns: c.columns,
+      rows: c.rows.slice(0, page.limit),
+      page: { limit: page.limit, has_more: false },
+    };
   },
 };
 
@@ -963,7 +1034,9 @@ const deliverablesMetric: MetricProvider = {
   async compute(ctx) {
     const from = await deliverableScope(ctx);
     const rows = await sql<{ state: string; n: string }>`
-      SELECT d.state, count(*)::text AS n ${from} GROUP BY d.state ORDER BY d.state`.execute(ctx.tx.db);
+      SELECT d.state, count(*)::text AS n ${from} GROUP BY d.state ORDER BY d.state`.execute(
+      ctx.tx.db,
+    );
     const breakdown = rows.rows.map((r) => ({
       key: r.state,
       label: STATE_LABEL[r.state] ?? r.state,
@@ -1078,14 +1151,62 @@ export const DEFERRED_METRICS: ReadonlyArray<{
   owner: string;
   reason: string;
 }> = [
-  { key: 'work.blocked', label: 'Blocked work', requirement: 'RPT-003', owner: '5C', reason: 'The blocked and stale definitions arrive with the metrics model.' },
-  { key: 'work.stale', label: 'Stale work', requirement: 'RPT-003', owner: '5C', reason: 'The blocked and stale definitions arrive with the metrics model.' },
-  { key: 'work.cycle_time', label: 'Cycle time and time in status', requirement: 'RPT-007', owner: '5C', reason: 'Cycle time needs the metrics model definition.' },
-  { key: 'work.created_vs_completed', label: 'Created versus completed', requirement: 'RPT-008', owner: '5C', reason: 'The combined trend needs the metrics model definition.' },
-  { key: 'work.aging', label: 'Task aging', requirement: 'RPT-009', owner: '5C', reason: 'Aging needs the metrics model definition.' },
-  { key: 'ai.usage', label: 'AI usage and cost', requirement: 'RPT-012', owner: '7A', reason: 'AI usage is not tracked yet.' },
-  { key: 'automation.rates', label: 'Automation and agent success rates', requirement: 'RPT-013', owner: '8A/8C', reason: 'Automations and agents do not exist yet.' },
-  { key: 'quality.release', label: 'Test pass rate, flaky tests, defects, and release blockers', requirement: 'RPT-015', owner: '9B/9C/9D', reason: 'Testing and release management do not exist yet.' },
+  {
+    key: 'work.blocked',
+    label: 'Blocked work',
+    requirement: 'RPT-003',
+    owner: '5C',
+    reason: 'The blocked and stale definitions arrive with the metrics model.',
+  },
+  {
+    key: 'work.stale',
+    label: 'Stale work',
+    requirement: 'RPT-003',
+    owner: '5C',
+    reason: 'The blocked and stale definitions arrive with the metrics model.',
+  },
+  {
+    key: 'work.cycle_time',
+    label: 'Cycle time and time in status',
+    requirement: 'RPT-007',
+    owner: '5C',
+    reason: 'Cycle time needs the metrics model definition.',
+  },
+  {
+    key: 'work.created_vs_completed',
+    label: 'Created versus completed',
+    requirement: 'RPT-008',
+    owner: '5C',
+    reason: 'The combined trend needs the metrics model definition.',
+  },
+  {
+    key: 'work.aging',
+    label: 'Task aging',
+    requirement: 'RPT-009',
+    owner: '5C',
+    reason: 'Aging needs the metrics model definition.',
+  },
+  {
+    key: 'ai.usage',
+    label: 'AI usage and cost',
+    requirement: 'RPT-012',
+    owner: '7A',
+    reason: 'AI usage is not tracked yet.',
+  },
+  {
+    key: 'automation.rates',
+    label: 'Automation and agent success rates',
+    requirement: 'RPT-013',
+    owner: '8A/8C',
+    reason: 'Automations and agents do not exist yet.',
+  },
+  {
+    key: 'quality.release',
+    label: 'Test pass rate, flaky tests, defects, and release blockers',
+    requirement: 'RPT-015',
+    owner: '9B/9C/9D',
+    reason: 'Testing and release management do not exist yet.',
+  },
 ];
 
 const BY_KEY = new Map(PROVIDERS.map((p) => [p.key, p]));

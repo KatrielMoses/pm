@@ -767,6 +767,14 @@
       "owner_module": "goals",
       "platform_only": false,
       "note": ""
+    },
+    {
+      "prefix": "rsh",
+      "resource": "report_share",
+      "entity": "insights.report_share",
+      "owner_module": "insights",
+      "platform_only": false,
+      "note": ""
     }
   ],
   "error_codes": [
