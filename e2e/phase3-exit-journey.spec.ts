@@ -358,6 +358,35 @@ test('Phase 3 exit: one founder plans a week across brands, and every planning s
     await expectAccessible(page, `${path}, forced colours`);
   }
   await page.emulateMedia({ reducedMotion: null, forcedColors: null });
+});
+
+// The reflow section is its own test (as the files journey's is): each stays well inside its time
+// budget on a loaded runner, and both keep every assertion.
+test('Phase 3 exit: the planning pages reflow at 320 px, the width-class edges, and 200% zoom', async ({
+  page,
+}, info) => {
+  await owner(page, info, 'p3-reflow', 'Fran Founder');
+  const ws = await createWorkspace(page, 'Plan Co');
+  await createBrand(page, 'Harbor');
+  const prj = await api(page, 'POST', `/v1/workspaces/${ws}/projects`, {
+    brand: (
+      (await (await page.request.get(`/v1/workspaces/${ws}/brands`)).json()).data as Array<{
+        id: string;
+        name: string;
+      }>
+    ).find((b) => b.name === 'Harbor')!.id,
+    name: 'Launch',
+  });
+  await api(page, 'POST', `/v1/workspaces/${ws}/tasks`, { project: prj.id, title: 'Harbor copy' });
+  // A saved view to reflow (the journey above saves a filtered, grouped one).
+  await page.goto(`/workspaces/${ws}/views/new?entity=task`);
+  await expect(h1(page)).toHaveText('New task view');
+  await page.getByRole('button', { name: 'Save view…' }).click();
+  const save = page.getByRole('dialog', { name: 'Save view' });
+  await save.getByLabel('Name').fill('Founder week');
+  await save.getByRole('button', { name: 'Save view' }).click();
+  await expect(h1(page)).toHaveText('Founder week');
+  const viewUrl = page.url();
 
   // Reflow at 320 px, the width-class edges, and 200% zoom (half the CSS width).
   const size = page.viewportSize()!;

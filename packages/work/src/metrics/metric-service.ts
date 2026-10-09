@@ -1188,11 +1188,12 @@ export class MetricService extends PortfolioService {
   #ageBase(c: Ctx): RawBuilder<unknown> {
     const cat = this.#cat(c);
     return sql`FROM ${this.#taskFrom()} ${this.#statusJoin(c)}
-      WHERE ${this.#taskCond(c)} AND ${cat} IN ('planned', 'active', 'paused') AND t.created_at <= ${c.asOf}`;
+      WHERE ${this.#taskCond(c)} AND ${cat} IN ('planned', 'active', 'paused')
+        ${c.live ? sql`` : sql`AND t.created_at <= ${c.asOf}`}`;
   }
 
   #ageIds(c: Ctx, role: string): RawBuilder<unknown> | null {
-    const days = sql`floor(extract(epoch FROM (${c.asOf}::timestamptz - t.created_at)) / 86400)`;
+    const days = sql`floor(GREATEST(extract(epoch FROM (${c.asOf}::timestamptz - t.created_at)), 0) / 86400)`;
     if (role === 'open') return sql`SELECT t.id ${this.#ageBase(c)}`;
     const band = AGE_BANDS.find((b) => b.role === role);
     if (!band) return null;
@@ -1202,7 +1203,7 @@ export class MetricService extends PortfolioService {
   async #ageFigures(c: Ctx): Promise<Computed> {
     const rows = (
       await sql<{ days: number; assumed: boolean }>`
-        SELECT floor(extract(epoch FROM (${c.asOf}::timestamptz - t.created_at)) / 86400)::int AS days,
+        SELECT floor(GREATEST(extract(epoch FROM (${c.asOf}::timestamptz - t.created_at)), 0) / 86400)::int AS days,
                       ${c.live ? sql`false` : sql`COALESCE(st.basis = 'assumed', false)`} AS assumed
           ${this.#ageBase(c)}`.execute(c.tx.db)
     ).rows;
