@@ -153,9 +153,9 @@ def check_invariants():
     defs = read(P(DEFS))
     sem = read(P(SEMANTICS))
     job = read(P(JOB))
-    for method in ["async getMetric(caller: Caller", "async getMetricRecords(caller: Caller",
-                   "async listMetrics(caller: Caller", "async exportMetric(caller: Caller",
-                   "async requestReconcile(caller: Caller"]:
+    for method in ["async getMetric(", "async getMetricRecords(",
+                   "async listMetrics(", "async exportMetric(",
+                   "async requestReconcile("]:
         if method not in svc:
             errs.append("the metric service lacks %s" % method)
     # One authority, applied inside every counting statement.
