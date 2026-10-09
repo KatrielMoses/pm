@@ -7150,6 +7150,76 @@
       "name": "GOALS_RECALC_MAX_ATTEMPTS",
       "meaning": "Failed recalculations before a goal is reported as failing and backed off to the recheck interval; default 5, range 1–20.",
       "owner": "5B"
+    },
+    {
+      "name": "DASHBOARDS_PER_SCOPE_MAX",
+      "meaning": "Most dashboards one workspace, brand, or project scope holds; default 100, range 1–1000.",
+      "owner": "5D"
+    },
+    {
+      "name": "DASHBOARD_PERSONAL_MAX",
+      "meaning": "Most personal dashboards one member holds; default 20, range 1–200.",
+      "owner": "5D"
+    },
+    {
+      "name": "DASHBOARD_WIDGETS_MAX",
+      "meaning": "Most widgets one dashboard or report holds; default 24, range 1–60.",
+      "owner": "5D"
+    },
+    {
+      "name": "REPORTS_PER_SCOPE_MAX",
+      "meaning": "Most saved reports one scope holds; default 200, range 1–2000.",
+      "owner": "5D"
+    },
+    {
+      "name": "REPORT_RECIPIENTS_MAX",
+      "meaning": "Most recipients one scheduled report names; default 50, range 1–500.",
+      "owner": "5D"
+    },
+    {
+      "name": "REPORT_SHARES_MAX",
+      "meaning": "Most active shares one report holds; default 100, range 1–1000.",
+      "owner": "5D"
+    },
+    {
+      "name": "REPORT_EXPORT_ROWS_MAX",
+      "meaning": "Most rows one report or widget export returns; larger exports are refused; default 5000, range 100–50000.",
+      "owner": "5D"
+    },
+    {
+      "name": "REPORT_EMAIL_ROWS_MAX",
+      "meaning": "Most rows per widget in a scheduled report email; default 25, range 5–200.",
+      "owner": "5D"
+    },
+    {
+      "name": "REPORT_EXPORT_RATE_PER_MINUTE",
+      "meaning": "Most report exports one member makes per minute; default 20, range 1–600.",
+      "owner": "5D"
+    },
+    {
+      "name": "REPORT_RUN_RETENTION_DAYS",
+      "meaning": "How long delivery run records are kept; default 90, range 7–730.",
+      "owner": "5D"
+    },
+    {
+      "name": "REPORT_BATCH_MAX",
+      "meaning": "Most scheduled reports one sweep claims per workspace; default 25, range 1–500.",
+      "owner": "5D"
+    },
+    {
+      "name": "REPORT_LEASE_SECONDS",
+      "meaning": "How long a claimed scheduled report stays leased before another sweep may reclaim it; default 300, range 30–3600.",
+      "owner": "5D"
+    },
+    {
+      "name": "REPORT_MAX_ATTEMPTS",
+      "meaning": "Failed delivery attempts before a scheduled occurrence is recorded as failed; default 5, range 1–20.",
+      "owner": "5D"
+    },
+    {
+      "name": "REPORT_FRESHNESS_MINUTES",
+      "meaning": "Age after which a derived source (a goal recalculation) is labelled stale on a dashboard; default 720, range 15–10080.",
+      "owner": "5D"
     }
   ],
   "sse_topics": [
