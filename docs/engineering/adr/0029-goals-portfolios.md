@@ -1,15 +1,15 @@
-# ADR-0028: Goals, key results, and portfolios (Phase 5B)
+# ADR-0029: Goals, key results, and portfolios (Phase 5B)
 
 Status: **proposed** (decisions recorded before code; implemented; awaiting one clean current-head no-skip CI run on the draft PR).
 Extends ADR-0026 (files and deliverables, 4E) and ADR-0027 (collaborative editing, 4D) in the work service chain, and reuses the time (3D), audit, lifecycle, ownership, and job-runtime foundations.
 
-**Numbering.** 5B branches from the accepted Phase 4D head and builds in parallel with Phase 5A. Both use migration `0041` (5B: `0041_goals_portfolios`, 5A: `0041_permission_aware_search`); the integrator renumbers one of them, exactly as 4C and 4E did with `0038`, and 5B keeps its file name. 5B uses ADR-0028, 0B ADR-36, 0C AZ-36, threats T-54 to T-61, tests AT-238 to AT-260, and 0D PL-38. Phase 5A allocates its own identifiers; the integrator renumbers whichever collides.
+**Numbering.** 5B was built from the accepted Phase 4D head in parallel with Phase 5A, and both first used migration `0041`, ADR-0028, 0B ADR-36, 0C AZ-36, 0D PL-38, and threat and test identifiers from T-54 and AT-238. The Phase 5 integration review keeps 5A's identifiers (it was accepted first) and renumbers 5B deterministically: migration `0042_goals_portfolios` (its file name suffix unchanged), ADR-0029, 0B ADR-37, 0C AZ-37, 0D PL-39, threats T-55 to T-62, and tests AT-246 to AT-268 (each old number plus 1 for threats and plus 8 for tests). Historical evidence is renumbered, not rewritten.
 
 Accepted sources (recorded before code):
 - 0A: GOAL-001 to GOAL-010, GOAL-012, and GOAL-013 (owned); VIEW-009 and WSB-011 (contributions); RPT-016 (contribution); GOAL-011 is 5D's. OD-05 (cross-brand relationships), OD-06 (workspace-scoped records), OD-07 (restricted brands in aggregates), and OD-13 (completion percentage) are **applied here**, and each carries a Phase 5B status line.
-- 0B: ADR-36. `goals.goal`, `goals.key_result`, `goals.goal_link`, `goals.goal_checkin`, `goals.goal_state`, `goals.portfolio`, and `goals.portfolio_project` (migration 0041).
-- 0C: AZ-36 (no new actions: the `record.*` actions of the placement are reused); T-54 to T-61.
-- 0D: PL-38 (routes, envelopes, events, bounds, signals); 0E: the Goals and Portfolio implementation note.
+- 0B: ADR-37. `goals.goal`, `goals.key_result`, `goals.goal_link`, `goals.goal_checkin`, `goals.goal_state`, `goals.portfolio`, and `goals.portfolio_project` (migration 0042).
+- 0C: AZ-37 (no new actions: the `record.*` actions of the placement are reused); T-55 to T-62.
+- 0D: PL-39 (routes, envelopes, events, bounds, signals); 0E: the Goals and Portfolio implementation note.
 
 ## Decisions
 
@@ -39,49 +39,49 @@ Accepted sources (recorded before code):
 
 5B owns GOAL-001 to GOAL-010, GOAL-012, and GOAL-013 (the catalog lists GOAL-008 and GOAL-010 as 5B-owned with a 2A contribution). It completes VIEW-009 (the portfolio view, a 3B contribution) and contributes the goals side of WSB-011 (the brand setting for goals and priorities stays with 1C) and the goal-progress source of RPT-016 (the report is 5D's). GOAL-011 (brand time and AI investment) is a 5D requirement: 5B provides only the foundation (readable time and effort figures per project) and does not claim it. The closure record (`docs/engineering/phase5/closure-5b.json`) names the executable evidence of each, including the web component tests (`apps/web/test/goals.test.tsx`) and the Playwright journeys (`e2e/goals.spec.ts`: creation and check-ins, narrower access and guests, and the portfolio at 320 px and 640 px (200% zoom), with forced colours, reduced motion, and keyboard-only operation). Recovery is tested in the web suite: a version conflict keeps the typed text, and a failed check-in is retried with the same `Idempotency-Key`.
 
-## Acceptance tests (0C AZ-36)
+## Acceptance tests (0C AZ-37)
 
 | Test | Test file | Test title |
 |---|---|---|
-| AT-238 | packages/work/test/integration/goals.test.ts | computes progress only from the work the viewer may read and never discloses the rest |
-| AT-239 | packages/work/test/integration/portfolios.test.ts | never lets work, projects, brands, time, or budgets the viewer cannot read change a figure or a label |
-| AT-240 | packages/work/test/integration/portfolios.test.ts | omits a dependency whose other end the viewer cannot read, and everything derived from it |
-| AT-241 | packages/work/test/integration/goals.test.ts | refuses targets the caller cannot read, in the wrong scope, past the bound, and is idempotent |
-| AT-242 | packages/work/test/integration/portfolios.test.ts | names only readable projects, holds a brand portfolio to its brand, and keeps members the editor cannot read |
-| AT-243 | packages/work/test/integration/portfolios.test.ts | keeps hidden brands out of a portfolio the editor reads, without a hint that members were left out |
-| AT-244 | packages/work/test/integration/goals.test.ts | reads through the same level and gives unreadable and unknown goals one answer |
-| AT-245 | packages/work/test/integration/portfolios.test.ts | removes links and memberships that name a purged project or task, and a goal with its history |
-| AT-246 | packages/work/test/integration/goals.test.ts | never shows goals to guests, whether listed, read, or shared |
-| AT-247 | apps/api/test/integration/goals-api.test.ts | answers strangers, readers, and guests as documented, and never lists what it hides |
-| AT-248 | packages/work/test/integration/goals.test.ts | stores no number for a goal whose progress depends on linked work |
-| AT-248 | apps/api/test/integration/goals-api.test.ts | serves portfolios, health, dependencies, orphans, and exports |
-| AT-249 | packages/work/test/integration/goals.test.ts | never lets a derived goal be set by hand, and never changes a check-in |
-| AT-250 | packages/work/test/integration/goals.test.ts | replays one request as one check-in and limits the rate |
-| AT-251 | packages/work/test/integration/goals.test.ts | refuses a check-in on a closed goal, from a reader, and for a stranger |
-| AT-252 | packages/work/test/integration/goals.test.ts | updates with the loaded version and refuses a stale or missing one |
-| AT-252 | packages/work/test/integration/goals.test.ts | serializes two concurrent updates: one wins, one is told the goal changed |
-| AT-253 | packages/work/test/integration/goals.test.ts | exports what the viewer may read as bounded, audited CSV and JSON with neutralized formulas |
-| AT-254 | packages/work/test/integration/portfolios.test.ts | exports the portfolio rows the viewer may read, audited and formula-safe |
-| AT-255 | packages/work/test/integration/goal-jobs.test.ts | is invisible across workspaces: a sweep never reads or writes another workspace's goals |
-| AT-256 | packages/work/test/integration/goal-jobs.test.ts | does not double-append when two sweeps overlap |
-| AT-256 | packages/work/test/integration/goal-jobs.test.ts | leaves a leased goal alone and reclaims it once the lease lapses (a crashed worker) |
-| AT-257 | packages/work/test/integration/goal-jobs.test.ts | backs a failing goal off, reports it failing, never blocks the others, and recovers |
-| AT-258 | packages/work/test/integration/portfolios.test.ts | enforces its integrity in the database, not only in commands |
-| AT-259 | packages/work/test/integration/portfolios.test.ts | lists projects without a goal the viewer can read and goals without active work they can read |
-| AT-260 | packages/work/test/integration/portfolios.test.ts | says "no active work" when linked work is finished, and counts only work the viewer can read |
+| AT-246 | packages/work/test/integration/goals.test.ts | computes progress only from the work the viewer may read and never discloses the rest |
+| AT-247 | packages/work/test/integration/portfolios.test.ts | never lets work, projects, brands, time, or budgets the viewer cannot read change a figure or a label |
+| AT-248 | packages/work/test/integration/portfolios.test.ts | omits a dependency whose other end the viewer cannot read, and everything derived from it |
+| AT-249 | packages/work/test/integration/goals.test.ts | refuses targets the caller cannot read, in the wrong scope, past the bound, and is idempotent |
+| AT-250 | packages/work/test/integration/portfolios.test.ts | names only readable projects, holds a brand portfolio to its brand, and keeps members the editor cannot read |
+| AT-251 | packages/work/test/integration/portfolios.test.ts | keeps hidden brands out of a portfolio the editor reads, without a hint that members were left out |
+| AT-252 | packages/work/test/integration/goals.test.ts | reads through the same level and gives unreadable and unknown goals one answer |
+| AT-253 | packages/work/test/integration/portfolios.test.ts | removes links and memberships that name a purged project or task, and a goal with its history |
+| AT-254 | packages/work/test/integration/goals.test.ts | never shows goals to guests, whether listed, read, or shared |
+| AT-255 | apps/api/test/integration/goals-api.test.ts | answers strangers, readers, and guests as documented, and never lists what it hides |
+| AT-256 | packages/work/test/integration/goals.test.ts | stores no number for a goal whose progress depends on linked work |
+| AT-256 | apps/api/test/integration/goals-api.test.ts | serves portfolios, health, dependencies, orphans, and exports |
+| AT-257 | packages/work/test/integration/goals.test.ts | never lets a derived goal be set by hand, and never changes a check-in |
+| AT-258 | packages/work/test/integration/goals.test.ts | replays one request as one check-in and limits the rate |
+| AT-259 | packages/work/test/integration/goals.test.ts | refuses a check-in on a closed goal, from a reader, and for a stranger |
+| AT-260 | packages/work/test/integration/goals.test.ts | updates with the loaded version and refuses a stale or missing one |
+| AT-260 | packages/work/test/integration/goals.test.ts | serializes two concurrent updates: one wins, one is told the goal changed |
+| AT-261 | packages/work/test/integration/goals.test.ts | exports what the viewer may read as bounded, audited CSV and JSON with neutralized formulas |
+| AT-262 | packages/work/test/integration/portfolios.test.ts | exports the portfolio rows the viewer may read, audited and formula-safe |
+| AT-263 | packages/work/test/integration/goal-jobs.test.ts | is invisible across workspaces: a sweep never reads or writes another workspace's goals |
+| AT-264 | packages/work/test/integration/goal-jobs.test.ts | does not double-append when two sweeps overlap |
+| AT-264 | packages/work/test/integration/goal-jobs.test.ts | leaves a leased goal alone and reclaims it once the lease lapses (a crashed worker) |
+| AT-265 | packages/work/test/integration/goal-jobs.test.ts | backs a failing goal off, reports it failing, never blocks the others, and recovers |
+| AT-266 | packages/work/test/integration/portfolios.test.ts | enforces its integrity in the database, not only in commands |
+| AT-267 | packages/work/test/integration/portfolios.test.ts | lists projects without a goal the viewer can read and goals without active work they can read |
+| AT-268 | packages/work/test/integration/portfolios.test.ts | says "no active work" when linked work is finished, and counts only work the viewer can read |
 
-AT-248 (a revocation applies to the next read) is evidenced by construction, not by a test that revokes a grant between two reads: nothing derived from linked work is stored (the first test), and every computed read is sent `private, no-store` (the second). A test that narrows a grant between two reads of the same goal is not yet written.
+AT-256 (a revocation applies to the next read) is evidenced by construction, not by a test that revokes a grant between two reads: nothing derived from linked work is stored (the first test), and every computed read is sent `private, no-store` (the second). A test that narrows a grant between two reads of the same goal is not yet written.
 
 ## Migration and rollback evidence
 
-Migration `0041_goals_portfolios` creates the `goals` schema, the `goals.valid_value` function, seven tables (`goal`, `key_result`, `goal_checkin`, `goal_link`, `goal_state`, `portfolio`, `portfolio_project`), the check-in immutability trigger, the link and portfolio-member integrity triggers, the scheduler's column grants and discovery policy, and `exec_dispatch.discover_goal_work`. Its down migration (`0041_goals_portfolios.down.sql`) drops everything the up migration created, in key order, and restores the exact 0040 catalog. The numbered migrations 0001 to 0040 are untouched and none is reused.
+Migration `0042_goals_portfolios` creates the `goals` schema, the `goals.valid_value` function, seven tables (`goal`, `key_result`, `goal_checkin`, `goal_link`, `goal_state`, `portfolio`, `portfolio_project`), the check-in immutability trigger, the link and portfolio-member integrity triggers, the scheduler's column grants and discovery policy, and `exec_dispatch.discover_goal_work`. Its down migration (`0042_goals_portfolios.down.sql`) drops everything the up migration created, in key order, and restores the exact 0040 catalog. The numbered migrations 0001 to 0040 are untouched and none is reused.
 
 Executable evidence, in `packages/db/test/integration/migrations.test.ts`:
-- "upgrades through every accepted boundary (0009–0041) to the candidate and reverses each boundary step": for each accepted boundary it fingerprints objects, constraints, grants, and policies, steps up, steps down to the previous boundary and compares the exact catalog, steps up again and compares, then reaches the one-shot candidate catalog. The 0041 boundary is the last step (`down` to 40 equals the 0040 catalog and `up` to 41 equals the 0041 catalog).
+- "upgrades through every accepted boundary (0009–0042) to the candidate and reverses each boundary step": for each accepted boundary it fingerprints objects, constraints, grants, and policies, steps up, steps down to the previous boundary and compares the exact catalog, steps up again and compares, then reaches the one-shot candidate catalog. The 0042 boundary is the last step (`down` to 40 equals the 0040 catalog and `up` to 41 equals the 0042 catalog).
 - "reverses completely with down migrations and re-applies cleanly": every down migration runs to version 0 and the full catalog fingerprint after re-applying equals the first.
 
 Related catalog tests: `packages/db/test/integration/workspace-integrity.test.ts` (the seven `goals.*` tables carry the database-enforced workspace key, and the 37 foreign keys of the 5B tables are counted) and `packages/platform/test/integration/rls.test.ts` (all seven tables have `tenant_isolation` RLS and `discover_goal_work` is one of the 18 discovery functions).
 
 ## Consequences
 
-The API gains the goal and portfolio routes (PL-38) and the worker gains the `goals.recalculate` job (every minute); 13 named parameters (owner 5B), 11 events, 3 telemetry signals, the identifier prefix `gci`, and four non-resource envelopes (`portfolio_overview`, `portfolio_dependencies`, `portfolio_orphans`, and `goal_work`) are registered. No action, role, or setting of 1C is added. Because nothing derived from linked work is stored, a portfolio read costs a bounded evaluation (`PORTFOLIO_READ_PROJECTS_MAX`) on every request, and it says when it truncated; if that cost matters, a later phase may add viewer-keyed caching with explicit invalidation, which this ADR does not do. Phase 5D builds dashboards and reports on these reads, 5C may replace the key-result mean and the completion basis, 7A supplies spend and AI usage, and 4B may consume `goals.goal.update_stale`.
+The API gains the goal and portfolio routes (PL-39) and the worker gains the `goals.recalculate` job (every minute); 13 named parameters (owner 5B), 11 events, 3 telemetry signals, the identifier prefix `gci`, and four non-resource envelopes (`portfolio_overview`, `portfolio_dependencies`, `portfolio_orphans`, and `goal_work`) are registered. No action, role, or setting of 1C is added. Because nothing derived from linked work is stored, a portfolio read costs a bounded evaluation (`PORTFOLIO_READ_PROJECTS_MAX`) on every request, and it says when it truncated; if that cost matters, a later phase may add viewer-keyed caching with explicit invalidation, which this ADR does not do. Phase 5D builds dashboards and reports on these reads, 5C may replace the key-result mean and the completion basis, 7A supplies spend and AI usage, and 4B may consume `goals.goal.update_stale`.

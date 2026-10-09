@@ -1,11 +1,11 @@
 -- migrate:phase expand
--- Phase 5B (0B ADR-36, 0C AZ-36, 0D PL-38; ADR-0028; OD-06, OD-07, OD-13): goals, key results,
+-- Phase 5B (0B ADR-37, 0C AZ-37, 0D PL-39; ADR-0029; OD-06, OD-07, OD-13): goals, key results,
 -- links to projects and tasks, append-only check-ins, derived recalculation state, and portfolios.
 -- Goals and portfolios are records in the core envelope (workspace-, brand-, or project-scoped).
 -- Access is the placement's (workspace or brand level, the governing project chain); a goal or a
 -- portfolio is never shareable and no row here copies anyone's access. Nothing stored here is a
 -- number derived from linked work: progress, health, dependencies, budgets, and orphan findings
--- over work are computed for each viewer from the work that viewer may read (ADR-0028 G3).
+-- over work are computed for each viewer from the work that viewer may read (ADR-0029 G3).
 
 CREATE SCHEMA goals;
 REVOKE ALL ON SCHEMA goals FROM PUBLIC;
