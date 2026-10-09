@@ -14,7 +14,6 @@ import {
 import { registerWorkLifecycle } from './lifecycle.ts';
 import { projectTargets, savedViewTargets, taskTargets } from './navigation.ts';
 import { projectOwnerHook, taskAssigneeHook } from './ownership.ts';
-import { SearchService } from './search/search-service.ts';
 import { PortfolioService } from './goals/portfolio-service.ts';
 import { goalOwnerHook } from './goals/ownership.ts';
 import { createMalwareScanner } from './files/scanner.ts';

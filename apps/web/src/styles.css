@@ -3901,6 +3901,84 @@ nav.tabs a[aria-current='page'] {
   color: var(--color-text-secondary);
 }
 .search-results {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0;
+}
+.search-result {
+  padding: var(--space-3) 0;
+  border-bottom: 1px solid var(--color-border-subtle);
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.search-title {
+  margin: 0 0 var(--space-1);
+  font-size: 1.0625rem;
+}
+.search-title a {
+  display: inline-block;
+  min-height: 24px;
+}
+.search-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-1) var(--space-3);
+  margin: 0 0 var(--space-1);
+  font-size: 0.875rem;
+  color: var(--color-text-secondary);
+}
+.search-meta .badge {
+  margin-left: 0;
+}
+.search-snippet {
+  margin: 0;
+  color: var(--color-text-primary);
+}
+.search-result mark,
+.palette mark {
+  background: var(--color-status-warning-bg);
+  color: inherit;
+  font-weight: 700;
+  border-radius: 2px;
+  padding: 0 1px;
+}
+.search-recent h2 {
+  margin-top: 0;
+}
+@media (min-width: 1024px) {
+  .search-layout {
+    grid-template-columns: 16rem minmax(0, 1fr);
+    align-items: start;
+  }
+  .search-filters {
+    position: sticky;
+    top: var(--space-4);
+  }
+}
+@media (max-width: 599px) {
+  .search-row {
+    flex-direction: column;
+  }
+  .search-row .button {
+    width: 100%;
+  }
+}
+@media (forced-colors: active) {
+  .search-result mark,
+  .palette mark {
+    background: Mark;
+    color: MarkText;
+    forced-color-adjust: none;
+  }
+  .search-filters-body fieldset,
+  .search-result {
+    border-color: CanvasText;
+  }
+}
+
 /* ---- Phase 5B goals and portfolio ------------------------------------------------------------
    Status, health, and confidence are always text plus a shape (never colour alone); progress bars
    carry their number beside them; tables become stacked cards on narrow screens; borders and focus
@@ -4059,77 +4137,6 @@ nav.tabs a[aria-current='page'] {
   margin: 0;
   padding: 0;
   display: grid;
-  gap: 0;
-}
-.search-result {
-  padding: var(--space-3) 0;
-  border-bottom: 1px solid var(--color-border-subtle);
-  min-width: 0;
-  overflow-wrap: anywhere;
-}
-.search-title {
-  margin: 0 0 var(--space-1);
-  font-size: 1.0625rem;
-}
-.search-title a {
-  display: inline-block;
-  min-height: 24px;
-}
-.search-meta {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--space-1) var(--space-3);
-  margin: 0 0 var(--space-1);
-  font-size: 0.875rem;
-  color: var(--color-text-secondary);
-}
-.search-meta .badge {
-  margin-left: 0;
-}
-.search-snippet {
-  margin: 0;
-  color: var(--color-text-primary);
-}
-.search-result mark,
-.palette mark {
-  background: var(--color-status-warning-bg);
-  color: inherit;
-  font-weight: 700;
-  border-radius: 2px;
-  padding: 0 1px;
-}
-.search-recent h2 {
-  margin-top: 0;
-}
-@media (min-width: 1024px) {
-  .search-layout {
-    grid-template-columns: 16rem minmax(0, 1fr);
-    align-items: start;
-  }
-  .search-filters {
-    position: sticky;
-    top: var(--space-4);
-  }
-}
-@media (max-width: 599px) {
-  .search-row {
-    flex-direction: column;
-  }
-  .search-row .button {
-    width: 100%;
-  }
-}
-@media (forced-colors: active) {
-  .search-result mark,
-  .palette mark {
-    background: Mark;
-    color: MarkText;
-    forced-color-adjust: none;
-  }
-  .search-filters-body fieldset,
-  .search-result {
-    border-color: CanvasText;
   gap: var(--space-3);
 }
 .gl-row {

@@ -170,7 +170,7 @@ let exitCodeGuarded = false;
  * `process.exit(0)` and so discards the failing exit code a test runner has already set: a run
  * with failed tests would exit 0. Remember the code at `beforeExit` and restore it on `exit`.
  */
-function keepFailureExitCode(): void {
+export function keepFailureExitCode(): void {
   if (exitCodeGuarded) return;
   exitCodeGuarded = true;
   let pending: number | undefined;

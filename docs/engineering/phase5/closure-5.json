@@ -1,0 +1,55 @@
+{
+  "schema_version": 1,
+  "phase": "5",
+  "status": "candidate",
+  "members": {
+    "5A": "docs/engineering/phase5/closure-5a.json",
+    "5B": "docs/engineering/phase5/closure-5b.json"
+  },
+  "reconciliation": {
+    "kept": "5A (accepted first): migration 0041_permission_aware_search, ADR-0028, 0B ADR-36, 0C AZ-36, 0D PL-38, threat T-54, tests AT-238..AT-245",
+    "renumbered": "5B: migration 0042_goals_portfolios, ADR-0029, 0B ADR-37, 0C AZ-37, 0D PL-39, threats T-55..T-62 (old +1), tests AT-246..AT-268 (old +8)"
+  },
+  "deferred": [
+    "semantic or concept search",
+    "attachment content search",
+    "goals, people, and integration search sources",
+    "weighted rollups (5C)",
+    "dashboards and reports (5D)",
+    "later adapters (registered sources only)"
+  ],
+  "evidence": [
+    {
+      "file": "packages/work/test/integration/phase5-matrix.test.ts",
+      "contains": "keeps hidden work out of search, goals, key results, portfolios, drill-downs, and exports alike"
+    },
+    {
+      "file": "packages/work/test/integration/phase5-matrix.test.ts",
+      "contains": "shows trash, restore, purge, and revocation on every surface at once, and keeps both indexes convergent"
+    },
+    {
+      "file": "packages/work/test/integration/phase5-matrix.test.ts",
+      "contains": "converges when indexing, recalculation, and edits overlap, and repeats change nothing"
+    },
+    {
+      "file": "packages/work/test/integration/phase5-matrix.test.ts",
+      "contains": "removes a departed member from search and hands their goals on, and never searches across workspaces"
+    },
+    {
+      "file": "e2e/phase5-exit-journey.spec.ts",
+      "contains": "search, goals, and portfolios agree on what each person may read, and change together"
+    },
+    {
+      "file": "packages/test-infra/test/unit/exit-code.test.ts",
+      "contains": "keeps a failing exit code that an exit hook would discard"
+    },
+    {
+      "file": "packages/db/test/integration/migrations.test.ts",
+      "contains": "upgrades through every accepted boundary (0009–0042) to the candidate and reverses each boundary step"
+    },
+    {
+      "file": "docs/engineering/adr/0029-goals-portfolios.md",
+      "contains": "renumbers 5B deterministically"
+    }
+  ]
+}
