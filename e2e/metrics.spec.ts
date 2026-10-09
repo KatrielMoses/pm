@@ -65,7 +65,9 @@ test('reads a figure with its rule, the records behind it, and an export, with t
   await expectAccessible(page, 'metrics, records');
 
   // The weighted version is a different, labelled figure; unestimated work is named, not guessed.
-  await page.locator('#metric-version').selectOption({ label: 'Completion (weighted by estimate)' });
+  await page
+    .locator('#metric-version')
+    .selectOption({ label: 'Completion (weighted by estimate)' });
   await expect(page).toHaveURL(/version=2/);
   await expect(headline(page)).toHaveText('29%');
   // A source that does not exist yet is unavailable, never zero.

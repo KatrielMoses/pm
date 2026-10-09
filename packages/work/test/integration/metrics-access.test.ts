@@ -31,10 +31,8 @@ describe('Metrics authorization and delivery (5C)', () => {
   const proj: Record<string, string> = {};
   const tsk: string[] = [];
   const mem = async (c: Caller) => (await membershipOf(db, wsId, c.auth.account.id))!.public_id;
-  const sql = async (text: string, params: unknown[] = []) =>
-    (await db.admin(text, params)).rows as Array<Record<string, any>>;
   const completion = (as: Caller, q: Record<string, unknown> = {}) =>
-    env.svc.getMetric(as, ws, 'project.completion', q) as Promise<any>; // eslint-disable-line @typescript-eslint/no-explicit-any
+    env.svc.getMetric(as, ws, 'project.completion', q) as Promise<any>;
 
   beforeAll(async () => {
     db = await createTestDatabase();

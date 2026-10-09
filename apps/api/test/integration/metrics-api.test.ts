@@ -52,24 +52,47 @@ describe('metrics API (5C)', () => {
     anonymous.ip = '203.0.113.212';
     const created = await owner.post(
       '/v1/workspaces',
-      { name: 'Metrics', timezone: 'UTC', locale: 'en', currency: 'USD', week_start: 1, first_brand: { name: 'Main' } },
+      {
+        name: 'Metrics',
+        timezone: 'UTC',
+        locale: 'en',
+        currency: 'USD',
+        week_start: 1,
+        first_brand: { name: 'Main' },
+      },
       { headers: key() },
     );
     ws = created.json().data.id;
     brand = created.json().data.first_brand.id;
     const inv = keep(
-      await owner.post(`${base()}/invitations`, { email: 'metrics-member@example.test', kind: 'member', role: 'member' }, { headers: key() }),
+      await owner.post(
+        `${base()}/invitations`,
+        { email: 'metrics-member@example.test', kind: 'member', role: 'member' },
+        { headers: key() },
+      ),
     );
     expect(inv.statusCode, inv.body).toBe(201);
     await env.deliverMail();
     const token = tokenFrom(mailTo(env, 'metrics-member@example.test', 'invited').at(-1));
     member = await person('metrics-member@example.test', '203.0.113.213');
-    expect(keep(await member.post('/v1/invitations:accept', { token }, { headers: key() })).statusCode).toBe(200);
-    const p = keep(await owner.post(`${base()}/projects`, { brand, name: 'Gannet' }, { headers: key() }));
+    expect(
+      keep(await member.post('/v1/invitations:accept', { token }, { headers: key() })).statusCode,
+    ).toBe(200);
+    const p = keep(
+      await owner.post(`${base()}/projects`, { brand, name: 'Gannet' }, { headers: key() }),
+    );
     expect(p.statusCode, p.body).toBe(201);
     project = p.json().data.id;
     for (const title of ['One', 'Two', 'Three'])
-      expect(keep(await owner.post(`${base()}/tasks`, { project, title, estimate_minutes: 30 }, { headers: key() })).statusCode).toBe(201);
+      expect(
+        keep(
+          await owner.post(
+            `${base()}/tasks`,
+            { project, title, estimate_minutes: 30 },
+            { headers: key() },
+          ),
+        ).statusCode,
+      ).toBe(201);
   });
   afterAll(async () => {
     expect(bodies.some((b) => UUID.test(b))).toBe(false);
@@ -83,8 +106,19 @@ describe('metrics API (5C)', () => {
     const d = r.json().data;
     expect(d.type).toBe('metric_catalog');
     const ids = d.data.map((x: { id: string }) => x.id);
-    expect(ids).toEqual(expect.arrayContaining(['project.completion', 'work.cycle_time', 'data.freshness', 'quality.tests']));
-    expect(d.data.find((x: { id: string; version: number }) => x.id === 'project.completion' && x.version === 2)).toMatchObject({ current: false });
+    expect(ids).toEqual(
+      expect.arrayContaining([
+        'project.completion',
+        'work.cycle_time',
+        'data.freshness',
+        'quality.tests',
+      ]),
+    );
+    expect(
+      d.data.find(
+        (x: { id: string; version: number }) => x.id === 'project.completion' && x.version === 2,
+      ),
+    ).toMatchObject({ current: false });
     expect(d.limits).toMatchObject({ window_days_max: 366, default_window_days: 30 });
   });
 
@@ -107,24 +141,44 @@ describe('metrics API (5C)', () => {
       { role: 'denominator', label: 'Counted tasks', count: 3 },
     ]);
     expect(m.limits.join(' ')).toMatch(/can read/);
-    const weighted = (await get(owner, `/project.completion?project=${project}&version=2`)).json().data;
-    expect(weighted).toMatchObject({ definition: { version: 2 }, parts: { numerator: 0, denominator: 90 } });
+    const weighted = (await get(owner, `/project.completion?project=${project}&version=2`)).json()
+      .data;
+    expect(weighted).toMatchObject({
+      definition: { version: 2 },
+      parts: { numerator: 0, denominator: 90 },
+    });
     const t = await get(owner, '/work.cycle_time?from=2026-01-01&to=2026-01-31');
-    expect(t.json().data).toMatchObject({ state: 'empty', timezone: 'UTC', window: { from: '2026-01-01', to: '2026-01-31', days: 31 } });
+    expect(t.json().data).toMatchObject({
+      state: 'empty',
+      timezone: 'UTC',
+      window: { from: '2026-01-01', to: '2026-01-31', days: 31 },
+    });
     const u = await get(owner, '/quality.tests');
     expect(u.json().data).toMatchObject({ state: 'unavailable', unavailable: { phase: '9B' } });
   });
 
   it('lists the records behind a figure, paged, and exports it as CSV', async () => {
-    const r = await get(owner, `/project.completion/records?project=${project}&member=denominator&limit=2`);
+    const r = await get(
+      owner,
+      `/project.completion/records?project=${project}&member=denominator&limit=2`,
+    );
     expect(r.statusCode, r.body).toBe(200);
     const d = r.json().data;
-    expect(d).toMatchObject({ type: 'metric_records', total: 3, member: { role: 'denominator', records: 'task' } });
+    expect(d).toMatchObject({
+      type: 'metric_records',
+      total: 3,
+      member: { role: 'denominator', records: 'task' },
+    });
     expect(d.items.length).toBe(2);
     expect(d.items[0]).toMatchObject({ record: { type: 'task' }, status: { category: 'planned' } });
-    const next = await get(owner, `/project.completion/records?project=${project}&member=denominator&limit=2&cursor=${encodeURIComponent(d.page.next_cursor)}`);
+    const next = await get(
+      owner,
+      `/project.completion/records?project=${project}&member=denominator&limit=2&cursor=${encodeURIComponent(d.page.next_cursor)}`,
+    );
     expect(next.json().data.items.length).toBe(1);
-    const csv = keep(await owner.get(`${base()}/metrics/project.completion/export?project=${project}`) as never);
+    const csv = keep(
+      (await owner.get(`${base()}/metrics/project.completion/export?project=${project}`)) as never,
+    );
     expect(csv.statusCode).toBe(200);
     expect(csv.headers['content-type']).toContain('text/csv');
     expect(csv.headers['content-disposition']).toContain('project.completion-v1.csv');
@@ -138,10 +192,16 @@ describe('metrics API (5C)', () => {
     // The member holds no grant on the brand yet: the project is unavailable, exactly as an unknown one.
     const unknown = await get(member, `/project.completion?project=prj_00000000000000000000000000`);
     expect(hidden.statusCode).toBe(unknown.statusCode);
-    expect(JSON.stringify(hidden.json().error.issues)).toBe(JSON.stringify(unknown.json().error.issues));
+    expect(JSON.stringify(hidden.json().error.issues)).toBe(
+      JSON.stringify(unknown.json().error.issues),
+    );
     expect((await get(member, '/project.completion')).json().data.state).toBe('empty');
     const gone = keep(await stranger.get(`${base()}/metrics/project.completion`));
-    const gone2 = keep(await stranger.get(`/v1/workspaces/wsp_00000000000000000000000000/metrics/project.completion`));
+    const gone2 = keep(
+      await stranger.get(
+        `/v1/workspaces/wsp_00000000000000000000000000/metrics/project.completion`,
+      ),
+    );
     expect(gone.statusCode).toBe(404);
     expect(gone2.statusCode).toBe(404);
     expect((await get(owner, '/nope.nothing')).statusCode).toBe(404);

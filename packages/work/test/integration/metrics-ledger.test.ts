@@ -41,7 +41,7 @@ describe('Metrics status ledger and reconciliation (5C)', () => {
   const sql = async (text: string, params: unknown[] = []) =>
     (await db.admin(text, params)).rows as Array<Record<string, any>>;
   const getMetric = (...a: Parameters<WorkEnv['svc']['getMetric']>) =>
-    env.svc.getMetric(...a) as Promise<any>; // eslint-disable-line @typescript-eslint/no-explicit-any
+    env.svc.getMetric(...a) as Promise<any>;
   const mem = async (c: Caller) => (await membershipOf(db, wsId, c.auth.account.id))!.public_id;
   const idOf = async (key: string) =>
     (await sql(`SELECT id FROM core.record WHERE public_id = $1`, [tsk[key]]))[0]!.id as string;
@@ -453,7 +453,7 @@ describe('Metrics ledger backfill (5C migration 0043)', () => {
   let project: string;
   const tsk: Record<string, string> = {};
   const getMetric = (...a: Parameters<WorkEnv['svc']['getMetric']>) =>
-    env.svc.getMetric(...a) as Promise<any>; // eslint-disable-line @typescript-eslint/no-explicit-any
+    env.svc.getMetric(...a) as Promise<any>;
   const sql = async (text: string, params: unknown[] = []) =>
     (await db.admin(text, params)).rows as Array<Record<string, any>>;
 

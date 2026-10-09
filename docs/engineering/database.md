@@ -15,6 +15,7 @@ extensions are needed in 1A: UUIDv7 keys are application-generated, and `gen_ran
 | `views` | views | `favorite`, `recent_item`, `view_state`, `view_pin` (0020); personal rows (workspace + owner membership), RLS-forced, cleaned by the `views.cleanup` job |
 | `identity` (1E) | identity | `account_preference` (0020): typed per-account preferences |
 | `search` (5A) | search | `search_document`, `index_status`, `recent_search` (0041): a rebuildable search projection, its key queue, and personal recent searches; see the Phase 5A section |
+| `metrics` (5C) | metrics | `task_status_span`, `reconcile_state` (0043): the append-only task status history and the reconciliation job's state; see the Phase 5C section |
 | `ops` | operational | `schema_migration`, `environment_binding`, `worker_heartbeat`, `rate_limit_bucket`, `dev_secret_vault`, `recovery_gate` (no tenant data) |
 | `audit` | audit (1F) | audit_event, audit_redaction, security_event, chain_checkpoint, activity_item, buffer_verification (0013, 0015); `redact_purged_values` (0014). Append-only by grants **and** triggers; see [audit.md](audit.md) |
 | `core` | core (1F) | record_type, record, archive_batch(+member), deletion_batch(+member) (0014); residual-batch lineage and membership invariants (0016); see [lifecycle.md](lifecycle.md) |
@@ -372,3 +373,15 @@ Migration `0042_goals_portfolios` (ADR-0029, 0B ADR-37) adds the `goals` schema:
 All seven tables have `tenant_isolation` RLS and indexes on every foreign key. The worker may read and delete (purge), append computed check-ins, and maintain state. The down migration drops the function, grants, policy, triggers, and tables in key order and the `goals` schema, restoring the exact 0040 catalog.
 
 **Migration number.** This branch and Phase 5A (`0041_permission_aware_search`) were built in parallel and both use `0041`; the integrator renumbers one of them, as 4C and 4E did with `0038`.
+
+## Phase 5C: the metrics ledger
+
+Migration `0043_metrics_model` (ADR-0030, 0B ADR-38) adds the `metrics` schema:
+- `metrics.task_status_span`: one row per span of a task's status (primary key `(workspace_id, task_id, seq)`; a composite foreign key to `core.record`, deferrable, cascading; a partial unique index allows one open span per task). `basis` is `recorded`, `assumed`, or `repaired`. It holds no brand, project, lifecycle, or permission key.
+- `metrics.reconcile_state`: one row per workspace with tasks (due time, lease, keyset position, repair counts, attempts, last success and failure, a short failure code).
+
+Triggers: `metrics.task_changed()` (after insert, and after update of `status_id` or `status_category` on `work.task`) opens, closes, and opens spans in the task's transaction; `metrics.task_removed()` (after delete) and `metrics.record_purged()` (after a record becomes `purged`) delete spans. They run as the owner and only write and delete spans. The migration writes one `assumed` span per existing task; because the task table forces tenant row-level security even on its owner, the force is lifted for that one read inside the migration transaction and set again straight after (the catalog comparison in the migration test proves it is restored). `exec_dispatch.discover_metrics_work(now, limit)` is a payload-free `SECURITY DEFINER` discovery of workspaces whose pass is due and not leased (owner `pm_scheduler`, executable by the dispatcher, with column-level read grants).
+
+Both tables have `tenant_isolation` RLS (enabled and forced) and indexes on every foreign key. The API role reads them and may only update `next_run_at` of the state row; the worker reads, inserts, updates, and deletes both. The down migration drops the triggers, functions, tables, and schema, restoring the exact 0042 catalog.
+
+Every figure is one workspace transaction that joins each counted record to its governing `core.record` and applies the compiled visibility predicate before counting; nothing aggregate is stored (ADR-0030 M1, M3).

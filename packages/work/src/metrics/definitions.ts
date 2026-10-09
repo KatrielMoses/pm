@@ -58,11 +58,16 @@ export interface MetricDefinition {
   rollup: { kind: 'ratio_of_sums' | 'sum' | 'pooled_distribution' | 'none'; note: string };
   incomplete: readonly IncompleteCode[];
   authorization: string;
-  drill: ReadonlyArray<{ role: string; label: string; records: 'task' | 'project' | 'deliverable' }>;
+  drill: ReadonlyArray<{
+    role: string;
+    label: string;
+    records: 'task' | 'project' | 'deliverable';
+  }>;
   /** What the figure does not claim (RPT-025): activity is never presented as a business outcome. */
   doesNotClaim: string;
   /** Whether the source exists yet; an unavailable metric returns that state and never a guess. */
-  availability: { state: 'available' } | { state: 'source_unavailable'; phase: string; reason: string };
+  availability:
+    { state: 'available' } | { state: 'source_unavailable'; phase: string; reason: string };
   changelog: string;
 }
 
@@ -137,9 +142,13 @@ export const METRIC_DEFINITIONS: readonly MetricDefinition[] = [
     incomplete: [
       {
         code: 'unestimated_tasks',
-        meaning: 'Some counted tasks have no estimate and carry no weight; the figure covers only the estimated work.',
+        meaning:
+          'Some counted tasks have no estimate and carry no weight; the figure covers only the estimated work.',
       },
-      { code: 'no_estimates', meaning: 'No counted task has an estimate, so there is no weighted figure.' },
+      {
+        code: 'no_estimates',
+        meaning: 'No counted task has an estimate, so there is no weighted figure.',
+      },
       { code: 'no_tasks', meaning: 'There are no countable tasks.' },
       {
         code: 'current_structure',
@@ -180,9 +189,15 @@ export const METRIC_DEFINITIONS: readonly MetricDefinition[] = [
       { code: 'no_tasks', meaning: 'The project has no countable tasks.' },
       { code: 'no_time_budget', meaning: 'The project has no time budget.' },
       { code: 'paused', meaning: 'The project is paused and is judged against its dates only.' },
-      { code: 'not_started', meaning: 'The project is planned and is judged against its dates only.' },
+      {
+        code: 'not_started',
+        meaning: 'The project is planned and is judged against its dates only.',
+      },
       { code: 'cancelled', meaning: 'The project is cancelled.' },
-      { code: 'truncated', meaning: 'More projects matched than one request evaluates; narrow the scope.' },
+      {
+        code: 'truncated',
+        meaning: 'More projects matched than one request evaluates; narrow the scope.',
+      },
     ],
     drill: [
       { role: 'on_track', label: 'On track', records: 'project' },
@@ -209,11 +224,15 @@ export const METRIC_DEFINITIONS: readonly MetricDefinition[] = [
     sources: ['task', 'relationship', 'assignment'],
     timezone: 'workspace',
     freshness: 'live',
-    rollup: { kind: 'sum', note: 'Counts add across brands and projects; the signals overlap, so they are not added to each other.' },
+    rollup: {
+      kind: 'sum',
+      note: 'Counts add across brands and projects; the signals overlap, so they are not added to each other.',
+    },
     incomplete: [
       {
         code: 'owner_unknown',
-        meaning: 'Who owns a task is not shown to every viewer, so the unassigned count is not given to them.',
+        meaning:
+          'Who owns a task is not shown to every viewer, so the unassigned count is not given to them.',
       },
     ],
     drill: [
@@ -224,7 +243,8 @@ export const METRIC_DEFINITIONS: readonly MetricDefinition[] = [
       { role: 'stale', label: 'Stale', records: 'task' },
       { role: 'unassigned', label: 'Without an owner', records: 'task' },
     ],
-    doesNotClaim: 'These are signals to look at, not judgements that a task or a person is failing.',
+    doesNotClaim:
+      'These are signals to look at, not judgements that a task or a person is failing.',
     changelog:
       'Overdue as in 5B; blocked and stale as the 2D task signals (OD-17); due soon is the next 7 local days.',
   },
@@ -242,11 +262,15 @@ export const METRIC_DEFINITIONS: readonly MetricDefinition[] = [
     sources: ['task'],
     timezone: 'workspace',
     freshness: 'live',
-    rollup: { kind: 'ratio_of_sums', note: 'Done and planned counts are added across the scope before dividing.' },
+    rollup: {
+      kind: 'ratio_of_sums',
+      note: 'Done and planned counts are added across the scope before dividing.',
+    },
     incomplete: [
       {
         code: 'undated_tasks',
-        meaning: 'Open tasks with no due date or deadline cannot be planned into a window and are counted separately.',
+        meaning:
+          'Open tasks with no due date or deadline cannot be planned into a window and are counted separately.',
       },
     ],
     drill: [
@@ -272,18 +296,23 @@ export const METRIC_DEFINITIONS: readonly MetricDefinition[] = [
     sources: ['task', 'status history'],
     timezone: 'workspace',
     freshness: 'ledger',
-    rollup: { kind: 'sum', note: 'Daily counts add across the scope and the window; a completion is each entry into a done status, so a reopened task finished again counts again.' },
+    rollup: {
+      kind: 'sum',
+      note: 'Daily counts add across the scope and the window; a completion is each entry into a done status, so a reopened task finished again counts again.',
+    },
     incomplete: [
       {
         code: 'assumed_history',
-        meaning: 'Some completions in the window come from tasks whose earlier history was not recorded; their completion time is known, not their earlier path.',
+        meaning:
+          'Some completions in the window come from tasks whose earlier history was not recorded; their completion time is known, not their earlier path.',
       },
     ],
     drill: [
       { role: 'created', label: 'Created', records: 'task' },
       { role: 'completed', label: 'Completed', records: 'task' },
     ],
-    doesNotClaim: 'Throughput is a count of tasks, not of effort or value; a task is as large as its author made it.',
+    doesNotClaim:
+      'Throughput is a count of tasks, not of effort or value; a task is as large as its author made it.',
     changelog: 'First version.',
   },
   {
@@ -295,22 +324,35 @@ export const METRIC_DEFINITIONS: readonly MetricDefinition[] = [
     unit: 'seconds',
     window: 'window',
     historical: true,
-    numerator: 'Completions in the window with a recorded start: time from first entering an active status to entering done.',
+    numerator:
+      'Completions in the window with a recorded start: time from first entering an active status to entering done.',
     denominator: null,
     sources: ['status history'],
     timezone: 'workspace',
     freshness: 'ledger',
-    rollup: { kind: 'pooled_distribution', note: 'The completions of every task in scope are pooled and the median and 85th percentile taken over the pool; medians of groups are never averaged.' },
+    rollup: {
+      kind: 'pooled_distribution',
+      note: 'The completions of every task in scope are pooled and the median and 85th percentile taken over the pool; medians of groups are never averaged.',
+    },
     incomplete: [
       STATUS_HISTORY,
-      { code: 'no_start', meaning: 'Some tasks were finished without ever being active, so they have no start and are left out.' },
-      { code: 'small_sample', meaning: 'Fewer completions than the small-sample threshold; the figure is shown but is not stable.' },
+      {
+        code: 'no_start',
+        meaning:
+          'Some tasks were finished without ever being active, so they have no start and are left out.',
+      },
+      {
+        code: 'small_sample',
+        meaning:
+          'Fewer completions than the small-sample threshold; the figure is shown but is not stable.',
+      },
     ],
     drill: [
       { role: 'included', label: 'Completions measured', records: 'task' },
       { role: 'excluded', label: 'Completions left out', records: 'task' },
     ],
-    doesNotClaim: 'Elapsed time is not effort (a task can wait); it is not a measure of a person’s speed.',
+    doesNotClaim:
+      'Elapsed time is not effort (a task can wait); it is not a measure of a person’s speed.',
     changelog: 'First version.',
   },
   {
@@ -322,12 +364,16 @@ export const METRIC_DEFINITIONS: readonly MetricDefinition[] = [
     unit: 'seconds',
     window: 'window',
     historical: true,
-    numerator: 'Seconds spent in each status category inside the window (the part of each span that overlaps it).',
+    numerator:
+      'Seconds spent in each status category inside the window (the part of each span that overlaps it).',
     denominator: null,
     sources: ['status history'],
     timezone: 'workspace',
     freshness: 'ledger',
-    rollup: { kind: 'sum', note: 'Seconds add across tasks; shares are of the total seconds counted.' },
+    rollup: {
+      kind: 'sum',
+      note: 'Seconds add across tasks; shares are of the total seconds counted.',
+    },
     incomplete: [STATUS_HISTORY],
     drill: [
       { role: 'planned', label: 'Tasks that spent time planned', records: 'task' },
@@ -353,9 +399,16 @@ export const METRIC_DEFINITIONS: readonly MetricDefinition[] = [
     sources: ['task', 'status history'],
     timezone: 'none',
     freshness: 'mixed',
-    rollup: { kind: 'pooled_distribution', note: 'Band counts add; the median and 85th percentile are taken over all open tasks pooled.' },
+    rollup: {
+      kind: 'pooled_distribution',
+      note: 'Band counts add; the median and 85th percentile are taken over all open tasks pooled.',
+    },
     incomplete: [
-      { code: 'assumed_history', meaning: 'For a past instant, some tasks’ status then is assumed because their history was not recorded.' },
+      {
+        code: 'assumed_history',
+        meaning:
+          'For a past instant, some tasks’ status then is assumed because their history was not recorded.',
+      },
     ],
     drill: [
       { role: 'open', label: 'Open tasks', records: 'task' },
@@ -365,7 +418,8 @@ export const METRIC_DEFINITIONS: readonly MetricDefinition[] = [
       { role: 'band_31_60', label: '31 to 60 days', records: 'task' },
       { role: 'band_61_plus', label: 'Over 60 days', records: 'task' },
     ],
-    doesNotClaim: 'An old task is not necessarily neglected; age says when it was created, not whether it matters.',
+    doesNotClaim:
+      'An old task is not necessarily neglected; age says when it was created, not whether it matters.',
     changelog: 'First version.',
   },
   {
@@ -377,18 +431,26 @@ export const METRIC_DEFINITIONS: readonly MetricDefinition[] = [
     unit: 'minutes',
     window: 'none',
     historical: false,
-    numerator: 'Remaining estimate minutes of each person’s open tasks (the task’s remaining estimate, else its estimate less time logged).',
+    numerator:
+      'Remaining estimate minutes of each person’s open tasks (the task’s remaining estimate, else its estimate less time logged).',
     denominator: null,
     sources: ['task', 'assignment', 'time_entry'],
     timezone: 'none',
     freshness: 'live',
-    rollup: { kind: 'sum', note: 'A task with several assignees counts for each; person totals therefore do not add to the scope total, which counts each task once.' },
+    rollup: {
+      kind: 'sum',
+      note: 'A task with several assignees counts for each; person totals therefore do not add to the scope total, which counts each task once.',
+    },
     incomplete: [
-      { code: 'unestimated_tasks', meaning: 'Some open tasks have no estimate and add no minutes; they are counted.' },
+      {
+        code: 'unestimated_tasks',
+        meaning: 'Some open tasks have no estimate and add no minutes; they are counted.',
+      },
       { code: 'people_hidden', meaning: 'People are named only for viewers who may see members.' },
     ],
     drill: [{ role: 'open', label: 'Open tasks', records: 'task' }],
-    doesNotClaim: 'Workload from estimates is not capacity (3E) and says nothing about whether the person is over- or under-used.',
+    doesNotClaim:
+      'Workload from estimates is not capacity (3E) and says nothing about whether the person is over- or under-used.',
     changelog: 'First version.',
   },
   {
@@ -405,16 +467,26 @@ export const METRIC_DEFINITIONS: readonly MetricDefinition[] = [
     sources: ['task', 'time_entry', 'status history'],
     timezone: 'workspace',
     freshness: 'ledger',
-    rollup: { kind: 'ratio_of_sums', note: 'Logged and estimate minutes are added across the scope before comparing.' },
+    rollup: {
+      kind: 'ratio_of_sums',
+      note: 'Logged and estimate minutes are added across the scope before comparing.',
+    },
     incomplete: [
-      { code: 'unestimated_tasks', meaning: 'Tasks finished in the window with no estimate are counted and not compared.' },
-      { code: 'no_time_logged', meaning: 'Some estimated tasks have no time logged, so the actual is a floor.' },
+      {
+        code: 'unestimated_tasks',
+        meaning: 'Tasks finished in the window with no estimate are counted and not compared.',
+      },
+      {
+        code: 'no_time_logged',
+        meaning: 'Some estimated tasks have no time logged, so the actual is a floor.',
+      },
     ],
     drill: [
       { role: 'compared', label: 'Tasks compared', records: 'task' },
       { role: 'unestimated', label: 'Finished without an estimate', records: 'task' },
     ],
-    doesNotClaim: 'Over or under the estimate is not good or bad in itself; unlogged work is invisible here.',
+    doesNotClaim:
+      'Over or under the estimate is not good or bad in itself; unlogged work is invisible here.',
     changelog: 'First version.',
   },
   {
@@ -431,17 +503,24 @@ export const METRIC_DEFINITIONS: readonly MetricDefinition[] = [
     sources: ['project', 'time_entry'],
     timezone: 'none',
     freshness: 'live',
-    rollup: { kind: 'ratio_of_sums', note: 'Logged and budget minutes are added over the projects that have a budget; projects without one are counted and left out.' },
+    rollup: {
+      kind: 'ratio_of_sums',
+      note: 'Logged and budget minutes are added over the projects that have a budget; projects without one are counted and left out.',
+    },
     incomplete: [
       { code: 'no_time_budget', meaning: 'Projects with no time budget are left out and counted.' },
-      { code: 'truncated', meaning: 'More projects matched than one request evaluates; narrow the scope.' },
+      {
+        code: 'truncated',
+        meaning: 'More projects matched than one request evaluates; narrow the scope.',
+      },
     ],
     drill: [
       { role: 'over_budget', label: 'Over budget', records: 'project' },
       { role: 'within_budget', label: 'Within budget', records: 'project' },
       { role: 'no_budget', label: 'No time budget', records: 'project' },
     ],
-    doesNotClaim: 'Time is the only cost measured here; money spend and AI cost are not tracked yet (see cost.spend).',
+    doesNotClaim:
+      'Time is the only cost measured here; money spend and AI cost are not tracked yet (see cost.spend).',
     changelog: 'First version.',
   },
   {
@@ -459,7 +538,9 @@ export const METRIC_DEFINITIONS: readonly MetricDefinition[] = [
     timezone: 'none',
     freshness: 'live',
     rollup: { kind: 'none', note: 'Not available.' },
-    incomplete: [{ code: 'source_not_available', meaning: 'Spend and AI usage are not recorded yet.' }],
+    incomplete: [
+      { code: 'source_not_available', meaning: 'Spend and AI usage are not recorded yet.' },
+    ],
     drill: [],
     doesNotClaim: 'No figure is estimated or inferred from other activity.',
     availability: {
@@ -479,12 +560,21 @@ export const METRIC_DEFINITIONS: readonly MetricDefinition[] = [
     window: 'none',
     historical: false,
     numerator: 'Deliverables that are accepted.',
-    denominator: 'Submitted deliverables: ready for review, changes requested, accepted, or rejected (drafts are not submitted).',
+    denominator:
+      'Submitted deliverables: ready for review, changes requested, accepted, or rejected (drafts are not submitted).',
     sources: ['deliverable', 'task'],
     timezone: 'none',
     freshness: 'live',
-    rollup: { kind: 'ratio_of_sums', note: 'State counts add across the scope before the share is taken.' },
-    incomplete: [{ code: 'drafts_excluded', meaning: 'Drafts are counted separately and are not in the share.' }],
+    rollup: {
+      kind: 'ratio_of_sums',
+      note: 'State counts add across the scope before the share is taken.',
+    },
+    incomplete: [
+      {
+        code: 'drafts_excluded',
+        meaning: 'Drafts are counted separately and are not in the share.',
+      },
+    ],
     drill: [
       { role: 'draft', label: 'Drafts', records: 'deliverable' },
       { role: 'ready_for_review', label: 'Ready for review', records: 'deliverable' },
@@ -492,7 +582,8 @@ export const METRIC_DEFINITIONS: readonly MetricDefinition[] = [
       { role: 'accepted', label: 'Accepted', records: 'deliverable' },
       { role: 'rejected', label: 'Rejected', records: 'deliverable' },
     ],
-    doesNotClaim: 'Acceptance records a reviewer’s decision on a deliverable, not that it achieved a business goal.',
+    doesNotClaim:
+      'Acceptance records a reviewer’s decision on a deliverable, not that it achieved a business goal.',
     changelog: 'First version.',
   },
   {
@@ -510,13 +601,16 @@ export const METRIC_DEFINITIONS: readonly MetricDefinition[] = [
     timezone: 'none',
     freshness: 'live',
     rollup: { kind: 'none', note: 'Not available.' },
-    incomplete: [{ code: 'source_not_available', meaning: 'Test runs and defects are not recorded yet.' }],
+    incomplete: [
+      { code: 'source_not_available', meaning: 'Test runs and defects are not recorded yet.' },
+    ],
     drill: [],
     doesNotClaim: 'No figure is estimated or inferred from other activity.',
     availability: {
       state: 'source_unavailable',
       phase: '9B',
-      reason: 'Test runs, defects, and release blockers are recorded from Phase 9B; until then there is no figure.',
+      reason:
+        'Test runs, defects, and release blockers are recorded from Phase 9B; until then there is no figure.',
     },
     changelog: 'Definition reserved; the source arrives in 9B.',
   },
@@ -535,10 +629,19 @@ export const METRIC_DEFINITIONS: readonly MetricDefinition[] = [
     sources: ['search index', 'status history', 'goal recalculation'],
     timezone: 'none',
     freshness: 'live',
-    rollup: { kind: 'sum', note: 'Pending and failed counts add across sources only as a state; the overall state is the worst source state.' },
-    incomplete: [{ code: 'catching_up', meaning: 'A source has work waiting; its figures may lag the records.' }],
+    rollup: {
+      kind: 'sum',
+      note: 'Pending and failed counts add across sources only as a state; the overall state is the worst source state.',
+    },
+    incomplete: [
+      {
+        code: 'catching_up',
+        meaning: 'A source has work waiting; its figures may lag the records.',
+      },
+    ],
     drill: [],
-    doesNotClaim: 'Freshness describes when derived data was last brought up to date, not whether its content is right.',
+    doesNotClaim:
+      'Freshness describes when derived data was last brought up to date, not whether its content is right.',
     changelog: 'First version.',
   },
 ];

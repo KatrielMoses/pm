@@ -44,7 +44,13 @@ export interface LeafTask {
 
 /** Counts the figures of both completion versions from leaf tasks (the SQL aggregates the same). */
 export function completionCounts(tasks: readonly LeafTask[]): CompletionCounts {
-  const out: CompletionCounts = { total: 0, done: 0, weightTotal: 0, weightDone: 0, unestimated: 0 };
+  const out: CompletionCounts = {
+    total: 0,
+    done: 0,
+    weightTotal: 0,
+    weightDone: 0,
+    unestimated: 0,
+  };
   for (const t of tasks) {
     if (t.category === 'cancelled') continue;
     out.total++;
@@ -218,7 +224,11 @@ export { localDay, validDay, validZone, addDays, daysBetween };
 // ---------------------------------------------------------------------------------------------
 
 /** The state of a result: unavailable is decided by the source; otherwise empty, partial, or complete. */
-export function stateOf(args: { empty: boolean; incomplete: ReadonlyArray<{ code: string }>; estimated?: boolean }): MetricState {
+export function stateOf(args: {
+  empty: boolean;
+  incomplete: ReadonlyArray<{ code: string }>;
+  estimated?: boolean;
+}): MetricState {
   if (args.empty) return 'empty';
   if (args.estimated) return 'estimated';
   return args.incomplete.length ? 'partial' : 'complete';

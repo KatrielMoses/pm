@@ -80,8 +80,8 @@ def check_numbering():
     aids = [x["id"] for x in t["tests"]]
     if len(set(tids)) != len(tids) or len(set(aids)) != len(aids):
         errs.append("threat and test identifiers must be unique")
-    for want, got, label in ((["T-%d" % i for i in range(54, 63)], [i for i in tids if int(i[2:]) >= 54], "threats T-54..T-62"),
-                             (["AT-%d" % i for i in range(238, 269)], [i for i in aids if int(i[3:]) >= 238], "tests AT-238..AT-268")):
+    for want, got, label in ((["T-%d" % i for i in range(54, 63)], [i for i in tids if 54 <= int(i[2:]) <= 62], "threats T-54..T-62"),
+                             (["AT-%d" % i for i in range(238, 269)], [i for i in aids if 238 <= int(i[3:]) <= 268], "tests AT-238..AT-268")):
         if got != want:
             errs.append("%s must be contiguous and in order" % label)
     known = set(tids)
@@ -103,8 +103,10 @@ def check_composition():
     if "export class SearchService extends FileService" not in read(P("packages/work/src/search/search-service.ts")):
         errs.append("SearchService must extend FileService")
     factory = read(P("packages/work/src/factory.ts"))
-    if "}): PortfolioService {" not in factory or "return new PortfolioService(" not in factory:
-        errs.append("createWorkService must return the top of the chain (PortfolioService)")
+    # 5C's MetricService extends the PortfolioService and is the top of the chain from 5C on.
+    if not re.search(r"\}\): (PortfolioService|MetricService) \{", factory) or not re.search(
+            r"return new (PortfolioService|MetricService)\(", factory):
+        errs.append("createWorkService must return the top of the chain (PortfolioService, or MetricService from 5C)")
     for rate in ("'search.member'", "'goal.checkin'"):
         if rate not in factory:
             errs.append("the factory must register the %s rate policy" % rate)

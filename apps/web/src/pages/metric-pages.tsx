@@ -345,7 +345,6 @@ export function MetricsPage({ ws }: { ws: string }) {
     error: unknown;
   } | null>(null);
   const [said, setSaid] = useState('');
-  const [reload, setReload] = useState(0);
   const brands = shell?.context?.brands ?? [];
   const canRepair = Boolean(shell?.context?.workspace.capabilities.configure);
 
@@ -368,7 +367,7 @@ export function MetricsPage({ ws }: { ws: string }) {
   const def =
     defs.find((d) => (q.version ? String(d.version) === q.version : d.current)) ?? defs[0];
   const effective = useMemo<MetricQuery>(() => ({ ...q, metric: metricId }), [q, metricId]);
-  const requestKey = `${JSON.stringify(effective)}#${reload}`;
+  const requestKey = JSON.stringify(effective);
 
   useEffect(() => {
     if (!metricId) return;

@@ -2737,7 +2737,11 @@ export interface MetricsReconcileStateTable {
   last_success_at: Ts | null;
   last_failure_at: Ts | null;
   failure_code: 'source_error' | 'timeout' | null;
-  repaired_total: ColumnType<string, string | number | bigint | undefined, string | number | bigint>;
+  repaired_total: ColumnType<
+    string,
+    string | number | bigint | undefined,
+    string | number | bigint
+  >;
 }
 
 export interface Database {

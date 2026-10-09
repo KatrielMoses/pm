@@ -176,8 +176,7 @@ export class MetricService extends PortfolioService {
 
   #one(v: unknown, pointer: string): string | null {
     if (v === undefined || v === '') return null;
-    if (typeof v !== 'string')
-      throw invalid(issue(pointer, 'invalid_option', 'Give one value.'));
+    if (typeof v !== 'string') throw invalid(issue(pointer, 'invalid_option', 'Give one value.'));
     return v;
   }
 
@@ -200,7 +199,11 @@ export class MetricService extends PortfolioService {
       asOf = parseInstant(input.as_of);
       if (!asOf)
         throw invalid(
-          issue('/as_of', 'invalid_date', 'Use a date and time with an offset, such as 2026-10-01T09:00:00Z.'),
+          issue(
+            '/as_of',
+            'invalid_date',
+            'Use a date and time with an offset, such as 2026-10-01T09:00:00Z.',
+          ),
         );
     }
     const person = this.#one(input.person, '/person');
@@ -219,7 +222,11 @@ export class MetricService extends PortfolioService {
         const n = Number(input.limit);
         if (!Number.isInteger(n) || n < 1 || n > this.ws.metricsDrillPageMax)
           throw invalid(
-            issue('/limit', 'invalid_option', `Use a page size from 1 to ${this.ws.metricsDrillPageMax}.`),
+            issue(
+              '/limit',
+              'invalid_option',
+              `Use a page size from 1 to ${this.ws.metricsDrillPageMax}.`,
+            ),
           );
         limit = n;
       }
@@ -298,7 +305,9 @@ export class MetricService extends PortfolioService {
         SELECT r.id, w.name, w.brand_id FROM core.record r
           JOIN work.project w ON w.workspace_id = r.workspace_id AND w.id = r.id
          WHERE r.workspace_id = ${tx.workspaceId} AND r.public_id = ${q.project}
-           AND r.record_type = 'project' AND ${vis.where('r', { project: sql`r.id` })}`.execute(tx.db);
+           AND r.record_type = 'project' AND ${vis.where('r', { project: sql`r.id` })}`.execute(
+        tx.db,
+      );
       const row = r.rows[0];
       if (!row || (brandId && row.brand_id !== brandId)) throw unavailable('/project', 'project');
       projectId = row.id;
@@ -471,7 +480,9 @@ export class MetricService extends PortfolioService {
     if (role === 'numerator')
       return v2 ? sql<boolean>`${cat} = 'done' AND ${w} > 0` : sql<boolean>`${cat} = 'done'`;
     if (role === 'denominator')
-      return v2 ? sql<boolean>`${cat} <> 'cancelled' AND ${w} > 0` : sql<boolean>`${cat} <> 'cancelled'`;
+      return v2
+        ? sql<boolean>`${cat} <> 'cancelled' AND ${w} > 0`
+        : sql<boolean>`${cat} <> 'cancelled'`;
     if (role === 'unestimated' && v2) return sql<boolean>`${cat} <> 'cancelled' AND ${w} = 0`;
     return null;
   }
@@ -512,7 +523,10 @@ export class MetricService extends PortfolioService {
       weightDone: Number(r.weight_done),
       unestimated: Number(r.unestimated),
     });
-    const all = rows.reduce<CompletionCounts>((a, r) => addCounts(a, toCounts(r)), completionCounts([]));
+    const all = rows.reduce<CompletionCounts>(
+      (a, r) => addCounts(a, toCounts(r)),
+      completionCounts([]),
+    );
     const fig = completionFigure(all, version);
     const assumed = rows.reduce((a, r) => a + Number(r.assumed), 0);
     const incomplete: Incomplete[] = fig.incomplete.map((i) => ({
@@ -530,10 +544,14 @@ export class MetricService extends PortfolioService {
         incomplete.push({
           code: 'assumed_history',
           count: assumed,
-          message: 'For some tasks the status at that time is assumed because their earlier history was not recorded.',
+          message:
+            'For some tasks the status at that time is assumed because their earlier history was not recorded.',
         });
     }
-    const names = await this.#projectNames(c, rows.map((r) => r.project_id));
+    const names = await this.#projectNames(
+      c,
+      rows.map((r) => r.project_id),
+    );
     const groups = rows
       .map((r) => ({
         r,
@@ -560,7 +578,9 @@ export class MetricService extends PortfolioService {
         unit_of_parts: version === 2 ? 'estimate_minutes' : 'tasks',
         ...(version === 2
           ? {
-              estimated_task_share: all.total ? percentOf(all.total - all.unestimated, all.total) : null,
+              estimated_task_share: all.total
+                ? percentOf(all.total - all.unestimated, all.total)
+                : null,
             }
           : {}),
         tasks: { counted: all.total, done: all.done, unestimated: all.unestimated },
@@ -665,15 +685,29 @@ export class MetricService extends PortfolioService {
       .sort(([a], [b]) => a.localeCompare(b))
       .map(([code, count]) => ({ code, count, message: this.#message(c.def, code) }));
     if (truncated)
-      incomplete.push({ code: 'truncated', count: null, message: this.#message(c.def, 'truncated') });
+      incomplete.push({
+        code: 'truncated',
+        count: null,
+        message: this.#message(c.def, 'truncated'),
+      });
     const groups = rows.slice(0, GROUP_MAX).map(({ pr, result }) => ({
       project: { id: pr.public_id, name: pr.name },
       health: result.health,
-      reasons: result.reasons.map((r) => ({ code: r.code, severity: r.severity, message: r.message })),
+      reasons: result.reasons.map((r) => ({
+        code: r.code,
+        severity: r.severity,
+        message: r.message,
+      })),
       incomplete: result.incomplete,
     }));
     return {
-      value: { projects: rows.length, classes: counts, incomplete_projects: Object.fromEntries([...codes.entries()].sort(([a], [b]) => a.localeCompare(b))) },
+      value: {
+        projects: rows.length,
+        classes: counts,
+        incomplete_projects: Object.fromEntries(
+          [...codes.entries()].sort(([a], [b]) => a.localeCompare(b)),
+        ),
+      },
       parts: { numerator: null, denominator: rows.length },
       // Not-enough-information is a result, not a defect, so it does not mark the figure partial
       // unless the list was cut short.
@@ -687,7 +721,11 @@ export class MetricService extends PortfolioService {
 
   async #timeBudget(c: Ctx): Promise<Computed> {
     const { projects, truncated } = await this.#projects(c);
-    const logged = await this.loggedMinutes(c.tx, c.p, projects.map((x) => x.id));
+    const logged = await this.loggedMinutes(
+      c.tx,
+      c.p,
+      projects.map((x) => x.id),
+    );
     const budgeted = projects.filter((x) => (x.time_budget_minutes ?? 0) > 0);
     const rows = budgeted.map((x) => ({ x, logged: logged.get(x.id) ?? 0 }));
     const budget = rows.reduce((a, r) => a + (r.x.time_budget_minutes ?? 0), 0);
@@ -696,9 +734,17 @@ export class MetricService extends PortfolioService {
     const none = projects.length - budgeted.length;
     const incomplete: Incomplete[] = [];
     if (none > 0)
-      incomplete.push({ code: 'no_time_budget', count: none, message: this.#message(c.def, 'no_time_budget') });
+      incomplete.push({
+        code: 'no_time_budget',
+        count: none,
+        message: this.#message(c.def, 'no_time_budget'),
+      });
     if (truncated)
-      incomplete.push({ code: 'truncated', count: null, message: this.#message(c.def, 'truncated') });
+      incomplete.push({
+        code: 'truncated',
+        count: null,
+        message: this.#message(c.def, 'truncated'),
+      });
     return {
       value: {
         percent: percentOf(used, budget),
@@ -720,15 +766,27 @@ export class MetricService extends PortfolioService {
   }
 
   /** The projects behind a project-level drill role. */
-  async #projectRole(c: Ctx, role: string): Promise<Array<{ public_id: string; name: string; brand_id: string; status: string }>> {
+  async #projectRole(
+    c: Ctx,
+    role: string,
+  ): Promise<Array<{ public_id: string; name: string; brand_id: string; status: string }>> {
     if (c.def.id === 'project.health') {
       const { rows } = await this.#healthRows(c);
       return rows
         .filter((r) => r.result.health === role)
-        .map((r) => ({ public_id: r.pr.public_id, name: r.pr.name, brand_id: r.pr.brand_id, status: r.pr.status_category }));
+        .map((r) => ({
+          public_id: r.pr.public_id,
+          name: r.pr.name,
+          brand_id: r.pr.brand_id,
+          status: r.pr.status_category,
+        }));
     }
     const { projects } = await this.#projects(c);
-    const logged = await this.loggedMinutes(c.tx, c.p, projects.map((x) => x.id));
+    const logged = await this.loggedMinutes(
+      c.tx,
+      c.p,
+      projects.map((x) => x.id),
+    );
     return projects
       .filter((x) => {
         const budget = x.time_budget_minutes ?? 0;
@@ -737,7 +795,12 @@ export class MetricService extends PortfolioService {
         const over = (logged.get(x.id) ?? 0) > budget;
         return role === 'over_budget' ? over : !over;
       })
-      .map((x) => ({ public_id: x.public_id, name: x.name, brand_id: x.brand_id, status: x.status_category }));
+      .map((x) => ({
+        public_id: x.public_id,
+        name: x.name,
+        brand_id: x.brand_id,
+        status: x.status_category,
+      }));
   }
 
   // ---------------------------------------------------------------------------------------------
@@ -770,7 +833,9 @@ export class MetricService extends PortfolioService {
   #attentionIds(c: Ctx, role: string): RawBuilder<unknown> | null {
     if (role === 'unassigned' && c.p.kind !== 'member') return null;
     const pred = this.#attention(c)[role];
-    return pred ? sql`SELECT t.id FROM ${this.#taskFrom()} WHERE ${this.#taskCond(c)} AND ${pred}` : null;
+    return pred
+      ? sql`SELECT t.id FROM ${this.#taskFrom()} WHERE ${this.#taskCond(c)} AND ${pred}`
+      : null;
   }
 
   async #attentionFigures(c: Ctx): Promise<Computed> {
@@ -837,7 +902,9 @@ export class MetricService extends PortfolioService {
 
   #plannedIds(c: Ctx, role: string): RawBuilder<unknown> | null {
     const pred = this.#planned(c)[role];
-    return pred ? sql`SELECT t.id FROM ${this.#taskFrom()} WHERE ${this.#taskCond(c)} AND ${pred}` : null;
+    return pred
+      ? sql`SELECT t.id FROM ${this.#taskFrom()} WHERE ${this.#taskCond(c)} AND ${pred}`
+      : null;
   }
 
   async #plannedFigures(c: Ctx): Promise<Computed> {
@@ -855,7 +922,13 @@ export class MetricService extends PortfolioService {
     const n = (k: string) => Number(r[k]);
     const incomplete: Incomplete[] =
       n('undated') > 0
-        ? [{ code: 'undated_tasks', count: n('undated'), message: this.#message(c.def, 'undated_tasks') }]
+        ? [
+            {
+              code: 'undated_tasks',
+              count: n('undated'),
+              message: this.#message(c.def, 'undated_tasks'),
+            },
+          ]
         : [];
     return {
       value: {
@@ -925,7 +998,13 @@ export class MetricService extends PortfolioService {
     const assumed = done.reduce((a, r) => a + r.assumed, 0);
     const incomplete: Incomplete[] =
       assumed > 0
-        ? [{ code: 'assumed_history', count: assumed, message: this.#message(c.def, 'assumed_history') }]
+        ? [
+            {
+              code: 'assumed_history',
+              count: assumed,
+              message: this.#message(c.def, 'assumed_history'),
+            },
+          ]
         : [];
     return {
       value: { created: createdN, completed: completedN, net: completedN - createdN, series },
@@ -973,8 +1052,10 @@ export class MetricService extends PortfolioService {
   }
 
   #cycleIds(c: Ctx, role: string): RawBuilder<unknown> | null {
-    if (role === 'included') return sql`SELECT DISTINCT x.id FROM (${this.#cycleEvents(c)}) x WHERE x.cls = 'measured'`;
-    if (role === 'excluded') return sql`SELECT DISTINCT x.id FROM (${this.#cycleEvents(c)}) x WHERE x.cls <> 'measured'`;
+    if (role === 'included')
+      return sql`SELECT DISTINCT x.id FROM (${this.#cycleEvents(c)}) x WHERE x.cls = 'measured'`;
+    if (role === 'excluded')
+      return sql`SELECT DISTINCT x.id FROM (${this.#cycleEvents(c)}) x WHERE x.cls <> 'measured'`;
     return null;
   }
 
@@ -989,10 +1070,24 @@ export class MetricService extends PortfolioService {
     const noStart = rows.filter((r) => r.cls === 'no_start').length;
     const d = distribution(measured);
     const incomplete: Incomplete[] = [];
-    if (unavailable) incomplete.push({ code: 'history_unavailable', count: unavailable, message: this.#message(c.def, 'history_unavailable') });
-    if (noStart) incomplete.push({ code: 'no_start', count: noStart, message: this.#message(c.def, 'no_start') });
+    if (unavailable)
+      incomplete.push({
+        code: 'history_unavailable',
+        count: unavailable,
+        message: this.#message(c.def, 'history_unavailable'),
+      });
+    if (noStart)
+      incomplete.push({
+        code: 'no_start',
+        count: noStart,
+        message: this.#message(c.def, 'no_start'),
+      });
     if (d.n > 0 && d.n < this.ws.metricsSampleMin)
-      incomplete.push({ code: 'small_sample', count: d.n, message: this.#message(c.def, 'small_sample') });
+      incomplete.push({
+        code: 'small_sample',
+        count: d.n,
+        message: this.#message(c.def, 'small_sample'),
+      });
     return {
       value: {
         completions: rows.length,
@@ -1050,7 +1145,9 @@ export class MetricService extends PortfolioService {
           FROM metrics.task_status_span s JOIN ${this.#taskFrom()}
             ON t.workspace_id = s.workspace_id AND t.id = s.task_id
          WHERE ${this.#taskCond(c)} AND s.basis = 'assumed'
-           AND s.entered_at < ${o.end} AND COALESCE(s.left_at, ${c.asOf}) > ${o.start}`.execute(c.tx.db)
+           AND s.entered_at < ${o.end} AND COALESCE(s.left_at, ${c.asOf}) > ${o.start}`.execute(
+        c.tx.db,
+      )
     ).rows[0]!.n;
     const total = rows.reduce((a, r) => a + Number(r.secs), 0);
     const byCat = new Map(rows.map((r) => [r.cat, r]));
@@ -1058,11 +1155,22 @@ export class MetricService extends PortfolioService {
     const categories = cats.map((k) => {
       const r = byCat.get(k);
       const secs = Math.round(Number(r?.secs ?? 0));
-      return { category: k, seconds: secs, share_percent: percentOf(secs, Math.round(total)), tasks: r?.tasks ?? 0 };
+      return {
+        category: k,
+        seconds: secs,
+        share_percent: percentOf(secs, Math.round(total)),
+        tasks: r?.tasks ?? 0,
+      };
     });
     const incomplete: Incomplete[] =
       assumed > 0
-        ? [{ code: 'history_unavailable', count: assumed, message: this.#message(c.def, 'history_unavailable') }]
+        ? [
+            {
+              code: 'history_unavailable',
+              count: assumed,
+              message: this.#message(c.def, 'history_unavailable'),
+            },
+          ]
         : [];
     return {
       value: { total_seconds: Math.round(total), categories },
@@ -1107,7 +1215,13 @@ export class MetricService extends PortfolioService {
     const assumed = rows.filter((r) => r.assumed).length;
     const incomplete: Incomplete[] =
       assumed > 0
-        ? [{ code: 'assumed_history', count: assumed, message: this.#message(c.def, 'assumed_history') }]
+        ? [
+            {
+              code: 'assumed_history',
+              count: assumed,
+              message: this.#message(c.def, 'assumed_history'),
+            },
+          ]
         : [];
     return {
       value: {
@@ -1157,7 +1271,13 @@ export class MetricService extends PortfolioService {
     const member = c.p.kind === 'member';
     const per = member
       ? (
-          await sql<{ membership_id: string; open: number; rem: string; unest: number; overdue: number }>`
+          await sql<{
+            membership_id: string;
+            open: number;
+            rem: string;
+            unest: number;
+            overdue: number;
+          }>`
             SELECT a.membership_id, count(*)::int AS open, COALESCE(sum(o.rem), 0)::text AS rem,
                    count(*) FILTER (WHERE o.unest)::int AS unest, count(*) FILTER (WHERE o.overdue)::int AS overdue
               FROM (${this.#workloadOpen(c)}) o
@@ -1172,10 +1292,16 @@ export class MetricService extends PortfolioService {
             SELECT count(*)::int AS open, COALESCE(sum(o.rem), 0)::text AS rem
               FROM (${this.#workloadOpen(c)}) o
              WHERE NOT EXISTS (SELECT 1 FROM work.task_assignee a JOIN tenancy.membership m ON m.id = a.membership_id
-                    WHERE a.workspace_id = ${c.ws} AND a.task_id = o.id AND m.state = 'active')`.execute(c.tx.db)
+                    WHERE a.workspace_id = ${c.ws} AND a.task_id = o.id AND m.state = 'active')`.execute(
+            c.tx.db,
+          )
         ).rows[0]!
       : null;
-    const people = await this.goalPeople(c.tx, c.p, per.map((r) => r.membership_id));
+    const people = await this.goalPeople(
+      c.tx,
+      c.p,
+      per.map((r) => r.membership_id),
+    );
     const groups = per
       .map((r) => ({
         person: people.get(r.membership_id) ?? null,
@@ -1192,16 +1318,26 @@ export class MetricService extends PortfolioService {
       );
     const incomplete: Incomplete[] = [];
     if (total.unest > 0)
-      incomplete.push({ code: 'unestimated_tasks', count: total.unest, message: this.#message(c.def, 'unestimated_tasks') });
+      incomplete.push({
+        code: 'unestimated_tasks',
+        count: total.unest,
+        message: this.#message(c.def, 'unestimated_tasks'),
+      });
     if (!member)
-      incomplete.push({ code: 'people_hidden', count: null, message: this.#message(c.def, 'people_hidden') });
+      incomplete.push({
+        code: 'people_hidden',
+        count: null,
+        message: this.#message(c.def, 'people_hidden'),
+      });
     return {
       value: {
         open: total.open,
         remaining_minutes: Number(total.rem),
         unestimated: total.unest,
         overdue: total.overdue,
-        unassigned: unassigned ? { open: unassigned.open, remaining_minutes: Number(unassigned.rem) } : null,
+        unassigned: unassigned
+          ? { open: unassigned.open, remaining_minutes: Number(unassigned.rem) }
+          : null,
       },
       parts: { numerator: Number(total.rem), denominator: null },
       incomplete,
@@ -1229,14 +1365,22 @@ export class MetricService extends PortfolioService {
   }
 
   #actualIds(c: Ctx, role: string): RawBuilder<unknown> | null {
-    if (role === 'compared') return sql`SELECT a.id FROM (${this.#actualTasks(c)}) a WHERE a.est > 0`;
-    if (role === 'unestimated') return sql`SELECT a.id FROM (${this.#actualTasks(c)}) a WHERE a.est IS NULL OR a.est <= 0`;
+    if (role === 'compared')
+      return sql`SELECT a.id FROM (${this.#actualTasks(c)}) a WHERE a.est > 0`;
+    if (role === 'unestimated')
+      return sql`SELECT a.id FROM (${this.#actualTasks(c)}) a WHERE a.est IS NULL OR a.est <= 0`;
     return null;
   }
 
   async #actualFigures(c: Ctx): Promise<Computed> {
     const r = (
-      await sql<{ compared: number; unest: number; planned: string; secs: string; no_time: number }>`
+      await sql<{
+        compared: number;
+        unest: number;
+        planned: string;
+        secs: string;
+        no_time: number;
+      }>`
         SELECT count(*) FILTER (WHERE a.est > 0)::int AS compared,
                count(*) FILTER (WHERE a.est IS NULL OR a.est <= 0)::int AS unest,
                COALESCE(sum(a.est) FILTER (WHERE a.est > 0), 0)::text AS planned,
@@ -1248,16 +1392,25 @@ export class MetricService extends PortfolioService {
     const actual = Math.round(Number(r.secs) / 60);
     const incomplete: Incomplete[] = [];
     if (r.unest > 0)
-      incomplete.push({ code: 'unestimated_tasks', count: r.unest, message: this.#message(c.def, 'unestimated_tasks') });
+      incomplete.push({
+        code: 'unestimated_tasks',
+        count: r.unest,
+        message: this.#message(c.def, 'unestimated_tasks'),
+      });
     if (r.no_time > 0)
-      incomplete.push({ code: 'no_time_logged', count: r.no_time, message: this.#message(c.def, 'no_time_logged') });
+      incomplete.push({
+        code: 'no_time_logged',
+        count: r.no_time,
+        message: this.#message(c.def, 'no_time_logged'),
+      });
     return {
       value: {
         tasks_compared: r.compared,
         planned_minutes: planned,
         actual_minutes: actual,
         variance_minutes: actual - planned,
-        variance_percent: planned > 0 ? Math.floor(((actual - planned) * 100) / planned + 0.5) : null,
+        variance_percent:
+          planned > 0 ? Math.floor(((actual - planned) * 100) / planned + 0.5) : null,
       },
       parts: { numerator: actual, denominator: planned },
       incomplete,
@@ -1278,7 +1431,8 @@ export class MetricService extends PortfolioService {
       c.vis.where('r', { project: sql`t.project_id` }),
     ];
     if (c.scope.kind === 'brand') parts.push(sql`t.brand_id = ${c.scope.brandId}`);
-    if (c.scope.kind === 'project') parts.push(sql`t.project_id = ANY(${c.scope.projectIds}::uuid[])`);
+    if (c.scope.kind === 'project')
+      parts.push(sql`t.project_id = ANY(${c.scope.projectIds}::uuid[])`);
     return sql`files.deliverable d
       JOIN core.record dr ON dr.workspace_id = d.workspace_id AND dr.id = d.id AND dr.record_type = 'deliverable'
       JOIN work.task t ON t.workspace_id = d.workspace_id AND t.id = d.task_id
@@ -1289,11 +1443,14 @@ export class MetricService extends PortfolioService {
   async #deliverableFigures(c: Ctx): Promise<Computed> {
     const rows = (
       await sql<{ state: string; n: number }>`
-        SELECT d.state, count(*)::int AS n FROM ${this.#deliverableFrom(c)} GROUP BY d.state`.execute(c.tx.db)
+        SELECT d.state, count(*)::int AS n FROM ${this.#deliverableFrom(c)} GROUP BY d.state`.execute(
+        c.tx.db,
+      )
     ).rows;
     const by = new Map(rows.map((r) => [r.state, r.n]));
     const n = (k: string) => by.get(k) ?? 0;
-    const submitted = n('ready_for_review') + n('changes_requested') + n('accepted') + n('rejected');
+    const submitted =
+      n('ready_for_review') + n('changes_requested') + n('accepted') + n('rejected');
     const total = submitted + n('draft');
     return {
       value: {
@@ -1308,7 +1465,13 @@ export class MetricService extends PortfolioService {
       parts: { numerator: n('accepted'), denominator: submitted },
       incomplete:
         n('draft') > 0
-          ? [{ code: 'drafts_excluded', count: n('draft'), message: this.#message(c.def, 'drafts_excluded') }]
+          ? [
+              {
+                code: 'drafts_excluded',
+                count: n('draft'),
+                message: this.#message(c.def, 'drafts_excluded'),
+              },
+            ]
           : [],
       empty: total === 0,
       counts: {
@@ -1331,7 +1494,8 @@ export class MetricService extends PortfolioService {
       .select(['next_run_at', 'last_success_at', 'last_failure_at', 'attempts', 'failure_code'])
       .where('workspace_id', '=', c.ws)
       .executeTakeFirst();
-    const failing = !!row && row.attempts >= this.ws.metricsReconcileMaxAttempts && !!row.failure_code;
+    const failing =
+      !!row && row.attempts >= this.ws.metricsReconcileMaxAttempts && !!row.failure_code;
     const intervalMs = this.ws.metricsReconcileIntervalMinutes * 60_000;
     const state: 'current' | 'pending' | 'overdue' | 'failing' = !row
       ? 'current'
@@ -1376,7 +1540,9 @@ export class MetricService extends PortfolioService {
                count(*) FILTER (WHERE s.attempts >= ${this.ws.goalsRecalcMaxAttempts} AND s.last_error IS NOT NULL)::int AS failed
           FROM goals.goal_state s JOIN goals.goal g ON g.workspace_id = s.workspace_id AND g.id = s.goal_id
           JOIN core.record gr ON gr.workspace_id = g.workspace_id AND gr.id = g.id
-         WHERE s.workspace_id = ${c.ws} AND ${gvis.where('gr', { project: sql`g.project_id` })}`.execute(c.tx.db)
+         WHERE s.workspace_id = ${c.ws} AND ${gvis.where('gr', { project: sql`g.project_id` })}`.execute(
+        c.tx.db,
+      )
     ).rows[0]!;
     const sources = [
       {
@@ -1413,7 +1579,13 @@ export class MetricService extends PortfolioService {
       incomplete:
         overall === 'current'
           ? []
-          : [{ code: 'catching_up', count: sources.filter((s) => s.state !== 'current').length, message: this.#message(c.def, 'catching_up') }],
+          : [
+              {
+                code: 'catching_up',
+                count: sources.filter((s) => s.state !== 'current').length,
+                message: this.#message(c.def, 'catching_up'),
+              },
+            ],
       state: overall === 'current' ? 'complete' : 'partial',
     };
   }
@@ -1470,7 +1642,8 @@ export class MetricService extends PortfolioService {
       return { state: overall, data_as_of: iso(c.now), basis: 'live' as const };
     }
     const ledger = computed.ledger ?? c.def.freshness === 'ledger';
-    if (!ledger) return { state: 'current' as FreshnessState, data_as_of: iso(c.now), basis: 'live' as const };
+    if (!ledger)
+      return { state: 'current' as FreshnessState, data_as_of: iso(c.now), basis: 'live' as const };
     const rec = await this.#reconcile(c);
     const counts = await this.#ledgerCounts(c);
     return {
@@ -1521,7 +1694,9 @@ export class MetricService extends PortfolioService {
     const def = isMetricId(metric) ? findDefinition(metric, version) : undefined;
     if (!def) {
       if (isMetricId(metric) && version !== undefined)
-        throw invalid(issue('/version', 'unavailable', 'That version of the metric does not exist.'));
+        throw invalid(
+          issue('/version', 'unavailable', 'That version of the metric does not exist.'),
+        );
       throw new TenancyError('not_found');
     }
     return def;
@@ -1549,9 +1724,17 @@ export class MetricService extends PortfolioService {
         state: 'unavailable' as MetricState,
         value: null,
         parts: null,
-        incomplete: c.def.incomplete.map((i) => ({ code: i.code, message: i.meaning, count: null })),
+        incomplete: c.def.incomplete.map((i) => ({
+          code: i.code,
+          message: i.meaning,
+          count: null,
+        })),
         groups: [] as unknown[],
-        freshness: { state: 'current' as FreshnessState, data_as_of: iso(c.now), basis: 'live' as const },
+        freshness: {
+          state: 'current' as FreshnessState,
+          data_as_of: iso(c.now),
+          basis: 'live' as const,
+        },
         unavailable: {
           phase: c.def.availability.phase,
           reason: c.def.availability.reason,
@@ -1563,7 +1746,12 @@ export class MetricService extends PortfolioService {
     const computed = await this.#compute(c);
     const members = await this.#memberCounts(c, computed);
     const state =
-      computed.state ?? stateOf({ empty: !!computed.empty, incomplete: computed.incomplete, estimated: computed.estimated });
+      computed.state ??
+      stateOf({
+        empty: !!computed.empty,
+        incomplete: computed.incomplete,
+        estimated: computed.estimated,
+      });
     const out = {
       ...base,
       state,
@@ -1585,7 +1773,14 @@ export class MetricService extends PortfolioService {
    */
   #reproducibility(
     c: Ctx,
-    out: { value: unknown; parts: unknown; incomplete: unknown; state: unknown; groups: unknown; drill: unknown },
+    out: {
+      value: unknown;
+      parts: unknown;
+      incomplete: unknown;
+      state: unknown;
+      groups: unknown;
+      drill: unknown;
+    },
   ) {
     return {
       definition_digest: definitionDigest(c.def),
@@ -1606,7 +1801,10 @@ export class MetricService extends PortfolioService {
     };
   }
 
-  async #memberCounts(c: Ctx, computed: Computed): Promise<Array<{ role: string; label: string; count: number }>> {
+  async #memberCounts(
+    c: Ctx,
+    computed: Computed,
+  ): Promise<Array<{ role: string; label: string; count: number }>> {
     const out: Array<{ role: string; label: string; count: number }> = [];
     for (const d of c.def.drill) {
       if (d.role === 'unassigned' && c.p.kind !== 'member') continue;
@@ -1616,7 +1814,9 @@ export class MetricService extends PortfolioService {
       }
       const ids = this.#ids(c, d.role);
       if (!ids) continue;
-      const n = (await sql<{ n: string }>`SELECT count(*)::text AS n FROM (${ids}) m`.execute(c.tx.db)).rows[0]!.n;
+      const n = (
+        await sql<{ n: string }>`SELECT count(*)::text AS n FROM (${ids}) m`.execute(c.tx.db)
+      ).rows[0]!.n;
       out.push({ role: d.role, label: d.label, count: Number(n) });
     }
     return out;
@@ -1694,7 +1894,10 @@ export class MetricService extends PortfolioService {
 
   #open(p: Principal, fp: string, raw: string): { after: string | null; n: number } {
     try {
-      const o = JSON.parse(Buffer.from(raw, 'base64url').toString('utf8')) as { p: string; m: string };
+      const o = JSON.parse(Buffer.from(raw, 'base64url').toString('utf8')) as {
+        p: string;
+        m: string;
+      };
       const want = createHmac('sha256', this.#cursorKey)
         .update(`${p.workspaceId}|${p.membershipId}|${fp}|${o.p}`)
         .digest()
@@ -1715,7 +1918,12 @@ export class MetricService extends PortfolioService {
     }
   }
 
-  async getMetricRecords(caller: Caller, ws: unknown, metric: unknown, query: Record<string, unknown>) {
+  async getMetricRecords(
+    caller: Caller,
+    ws: unknown,
+    metric: unknown,
+    query: Record<string, unknown>,
+  ) {
     const q = this.#params(query, true);
     const def = this.#definition(metric, q.version);
     return this.trackMetric('records', () =>
@@ -1744,13 +1952,16 @@ export class MetricService extends PortfolioService {
           definition: this.#definitionView(def),
           member: { role: spec.role, label: spec.label, records: spec.records },
           scope: this.#scopeView(c),
-          window: c.window ? { from: c.window.local.from, to: c.window.local.to, days: c.window.local.days } : null,
+          window: c.window
+            ? { from: c.window.local.from, to: c.window.local.to, days: c.window.local.days }
+            : null,
           as_of: iso(c.asOf),
           total,
           items: page.items,
           page: {
             limit: take,
-            next_cursor: more && page.last ? this.#seal(p, fp, { after: page.last, n: shown }) : null,
+            next_cursor:
+              more && page.last ? this.#seal(p, fp, { after: page.last, n: shown }) : null,
             truncated: page.more && !more,
           },
         };
@@ -1762,7 +1973,11 @@ export class MetricService extends PortfolioService {
     const spec = c.def.drill.find((d) => d.role === role)!;
     if (spec.records === 'project') return (await this.#projectRole(c, role)).length;
     if (spec.records === 'deliverable') {
-      const n = await sql<{ n: string }>`SELECT count(*)::text AS n FROM ${this.#deliverableFrom(c)} AND d.state = ${role}`.execute(c.tx.db);
+      const n = await sql<{
+        n: string;
+      }>`SELECT count(*)::text AS n FROM ${this.#deliverableFrom(c)} AND d.state = ${role}`.execute(
+        c.tx.db,
+      );
       return Number(n.rows[0]!.n);
     }
     const ids = this.#ids(c, role);
@@ -1803,13 +2018,19 @@ export class MetricService extends PortfolioService {
     ).rows;
     const more = rows.length > take;
     const shown = rows.slice(0, take);
-    const marks = await this.#markers(c, shown.map((r) => r.brand_id));
+    const marks = await this.#markers(
+      c,
+      shown.map((r) => r.brand_id),
+    );
     return {
       items: shown.map((r) => ({
         record: { type: 'task' as const, id: r.public_id },
         title: r.title,
         brand: marks.get(r.brand_id) ?? null,
-        project: r.project_public && r.project_name ? { id: r.project_public, name: r.project_name } : null,
+        project:
+          r.project_public && r.project_name
+            ? { id: r.project_public, name: r.project_name }
+            : null,
         status: { category: r.status_category },
         due: r.due,
       })),
@@ -1821,14 +2042,25 @@ export class MetricService extends PortfolioService {
   async #deliverablePage(c: Ctx, role: string, cur: { after: string | null }, take: number) {
     if (take <= 0) return { items: [], more: false, last: null as string | null };
     const rows = (
-      await sql<{ id: string; public_id: string; title: string; state: string; brand_id: string; task_public: string; task_title: string }>`
+      await sql<{
+        id: string;
+        public_id: string;
+        title: string;
+        state: string;
+        brand_id: string;
+        task_public: string;
+        task_title: string;
+      }>`
         SELECT d.id, dr.public_id, d.title, d.state, t.brand_id, r.public_id AS task_public, t.title AS task_title
           FROM ${this.#deliverableFrom(c)} AND d.state = ${role} ${cur.after ? sql`AND d.id > ${cur.after}::uuid` : sql``}
          ORDER BY d.id LIMIT ${take + 1}`.execute(c.tx.db)
     ).rows;
     const more = rows.length > take;
     const shown = rows.slice(0, take);
-    const marks = await this.#markers(c, shown.map((r) => r.brand_id));
+    const marks = await this.#markers(
+      c,
+      shown.map((r) => r.brand_id),
+    );
     return {
       items: shown.map((r) => ({
         record: { type: 'deliverable' as const, id: r.public_id },
@@ -1846,10 +2078,15 @@ export class MetricService extends PortfolioService {
 
   async #projectPage(c: Ctx, role: string, cur: { after: string | null; n: number }, take: number) {
     if (take <= 0) return { items: [], more: false, last: null as string | null };
-    const all = (await this.#projectRole(c, role)).sort((a, b) => a.name.localeCompare(b.name) || a.public_id.localeCompare(b.public_id));
+    const all = (await this.#projectRole(c, role)).sort(
+      (a, b) => a.name.localeCompare(b.name) || a.public_id.localeCompare(b.public_id),
+    );
     const from = cur.n;
     const slice = all.slice(from, from + take);
-    const marks = await this.#markers(c, slice.map((r) => r.brand_id));
+    const marks = await this.#markers(
+      c,
+      slice.map((r) => r.brand_id),
+    );
     return {
       items: slice.map((r) => ({
         record: { type: 'project' as const, id: r.public_id },
@@ -1895,12 +2132,18 @@ export class MetricService extends PortfolioService {
     const flat = (prefix: string, v: unknown) => {
       if (v === null || v === undefined) rows.push([prefix, '']);
       else if (Array.isArray(v)) v.forEach((x, i) => flat(`${prefix}.${i}`, x));
-      else if (typeof v === 'object') for (const [k, x] of Object.entries(v)) flat(`${prefix}.${k}`, x);
+      else if (typeof v === 'object')
+        for (const [k, x] of Object.entries(v)) flat(`${prefix}.${k}`, x);
       else rows.push([prefix, v]);
     };
     flat('value', r.value);
     if (r.parts) flat('parts', r.parts);
-    r.incomplete.forEach((i, n) => rows.push([`incomplete.${n}`, `${i.code}${i.count === null ? '' : ` (${i.count})`}: ${i.message}`]));
+    r.incomplete.forEach((i, n) =>
+      rows.push([
+        `incomplete.${n}`,
+        `${i.code}${i.count === null ? '' : ` (${i.count})`}: ${i.message}`,
+      ]),
+    );
     flat('groups', r.groups);
     r.drill.members.forEach((m) => rows.push([`records.${m.role}`, m.count]));
     return csv(['field', 'value'], rows);

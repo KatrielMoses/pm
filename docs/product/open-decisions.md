@@ -137,6 +137,7 @@ Requirements flagged with each decision are listed automatically in [requirement
 - **Affects:** PRJ-020, RPT-005, GOAL-005 · phases 2A, 2B, 5C.
 - **If deferred:** No longer applicable (decided). 5C versions the metric if it changes the basis.
 - **Status (Phase 5B, 2026-10-08):** Applied to linked-work goal progress. A project link covers that project's own tasks (sub-projects are linked separately) and a task link covers the task and its subtasks; progress is done leaf tasks over non-cancelled leaf tasks the viewer may read, in whole percent, with no estimate weighting. Weighted rollups and metric definitions wait for 5C (ADR-0029 G3, G4).
+- **Status (Phase 5C, 2026-10-09):** Versioned. Version 1 (count of leaf tasks, as above) stays the default and is what goals and portfolios show. Version 2 weights each counted leaf task by its estimate and rolls up as a ratio of sums; a task without an estimate carries no weight, is counted and named, and makes the figure partial (never a guessed estimate, and no silent fall back to version 1). Changing the default is a later explicit decision (ADR-0030 M6).
 
 <a id="od-14"></a>
 ### OD-14 — Recurring projects
@@ -181,6 +182,7 @@ Requirements flagged with each decision are listed automatically in [requirement
 - **Affects:** TSK-041, TSK-044, RPT-003, SRCH-011, DOC-015, BRF-008 · phases 2D, 4C, 5A, 5C.
 - **Safe default:** A meaningful update is a change to status, assignee, dates, description, or deliverable, or a comment, by a non-system actor. Thresholds are configurable per workspace with conservative product defaults. Passing a review date warns but does not change document state.
 - **If deferred:** Each phase invents its own threshold, and metrics become inconsistent.
+- **Status (Phase 5C, 2026-10-09):** The task thresholds above are reused unchanged by the attention metric (stale after `TASK_STALE_ACTIVE_DAYS` for an active task and `TASK_STALE_PLANNED_DAYS` for a planned one); the metrics model has no freshness threshold of its own: derived data reports how current it is (current, catching up, or degraded) from what is waiting or failed (ADR-0030 M11, M13).
 
 <a id="od-18"></a>
 ### OD-18 — "Scheduled for today" and Today's timezone

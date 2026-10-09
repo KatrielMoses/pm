@@ -756,6 +756,23 @@
       "feature_sections": [
         "SUP"
       ]
+    },
+    {
+      "id": "metrics",
+      "name": "Metrics ledger",
+      "layer": 4,
+      "schema": "metrics",
+      "responsibilities": "Append-only task status history and the reconciliation state that proves and repairs it; the figures themselves are computed from records at request time (ADR-38).",
+      "depends_on": [
+        "core",
+        "tenancy",
+        "work",
+        "execution"
+      ],
+      "publishes": [],
+      "feature_sections": [
+        "RPT"
+      ]
     }
   ],
   "entities": [
@@ -6932,9 +6949,10 @@
       "key_columns": [],
       "requirements": [
         "RPT-023",
-        "RPT-024"
+        "RPT-024",
+        "RPT-025"
       ],
-      "notes": ""
+      "notes": "Phase 5C (ADR-38): a versioned code registry (METRIC_DEFINITIONS), not a table; every result carries the version and the SHA-256 digest of its definition and a test pins each released digest."
     },
     {
       "name": "metric_snapshot",
@@ -6974,7 +6992,7 @@
         "RPT-024",
         "RPT-019"
       ],
-      "notes": ""
+      "notes": "Phase 5C (ADR-38): not built. A pre-aggregated value per scope cannot be shared between viewers without disclosing, and a per-viewer copy would be a stale authority; figures are computed at request time and a frozen report stores the result computed as its recipient."
     },
     {
       "name": "dashboard",
@@ -9617,6 +9635,91 @@
         "TIME-001"
       ],
       "notes": "Phase 3E (ADR-30): the zone is the person's own (identity.account.timezone)."
+    },
+    {
+      "name": "task_status_span",
+      "module": "metrics",
+      "purpose": "Append-only history of a task's status: one span per status the task was in, with a basis saying how it is known. No brand, project, lifecycle, or permission copy.",
+      "scope": "inherited",
+      "addressable": false,
+      "public_id_prefix": null,
+      "extends": null,
+      "containment_parents": [],
+      "associations": [
+        "record"
+      ],
+      "lifecycle": "append-only",
+      "concurrency": "append-only",
+      "retention_class": "R-DERIVED",
+      "confidentiality": "C1",
+      "volume": "high",
+      "export": "never",
+      "search_ai": "no",
+      "may_contain_secrets": "no",
+      "personal_data": "no",
+      "uniqueness": [
+        "(task_id, seq)",
+        "one open span per task"
+      ],
+      "sensitive_fields": [],
+      "key_columns": [
+        "task_id",
+        "seq",
+        "status_id",
+        "status_category",
+        "entered_at",
+        "left_at null",
+        "basis (recorded|assumed|repaired)"
+      ],
+      "requirements": [
+        "RPT-007",
+        "RPT-008",
+        "RPT-009",
+        "RPT-023",
+        "RPT-024"
+      ],
+      "notes": "Phase 5C (ADR-38): written by triggers in the task's own transaction; read only through a join to the task's core.record and the compiled visibility predicate; removed with the task and with a purged record; assumed spans are written once for tasks that predate the ledger."
+    },
+    {
+      "name": "reconcile_state",
+      "module": "metrics",
+      "purpose": "The metrics reconciliation job's state for one workspace: when the next bounded pass is due, its lease and position, and its last success and failure.",
+      "scope": "workspace",
+      "addressable": false,
+      "public_id_prefix": null,
+      "extends": null,
+      "containment_parents": [],
+      "associations": [],
+      "lifecycle": "mutable",
+      "concurrency": "locked",
+      "retention_class": "R-DERIVED",
+      "confidentiality": "C1",
+      "volume": "low",
+      "export": "never",
+      "search_ai": "no",
+      "may_contain_secrets": "no",
+      "personal_data": "no",
+      "uniqueness": [
+        "(workspace_id)"
+      ],
+      "sensitive_fields": [],
+      "key_columns": [
+        "next_run_at",
+        "lease_until null",
+        "scan_after null",
+        "pass_started_at null",
+        "pass_repaired",
+        "attempts",
+        "last_success_at null",
+        "last_failure_at null",
+        "failure_code null (source_error|timeout)",
+        "repaired_total"
+      ],
+      "requirements": [
+        "RPT-023",
+        "RPT-024"
+      ],
+      "notes": "Phase 5C (ADR-38): times, counts, and a short code only; shown to every workspace member as the freshness of the status history and to administrators as an action to check now."
     }
   ]
 }

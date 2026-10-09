@@ -3463,7 +3463,8 @@ Versioned metric semantics with provenance and formula reference.
 | Uniqueness | — |
 | Key typed columns | standard columns only |
 | Sensitive fields | — |
-| Requirements | RPT-023, RPT-024 |
+| Requirements | RPT-023, RPT-024, RPT-025 |
+| Notes | Phase 5C (ADR-38): a versioned code registry (METRIC_DEFINITIONS), not a table; every result carries the version and the SHA-256 digest of its definition and a test pins each released digest. |
 
 <a id="entity-metric-snapshot"></a>
 ### `metric_snapshot`
@@ -3484,6 +3485,7 @@ Pre-aggregated metric values per scope and period with freshness and completenes
 | Key typed columns | `metric_key`; `metric_version`; `scope_key`; `project_id null`; `period`; `value`; `is_estimated`; `is_incomplete`; `computed_at`; `source_watermark` |
 | Sensitive fields | — |
 | Requirements | RPT-023, RPT-024, RPT-019 |
+| Notes | Phase 5C (ADR-38): not built. A pre-aggregated value per scope cannot be shared between viewers without disclosing, and a per-viewer copy would be a stale authority; figures are computed at request time and a frozen report stores the result computed as its recipient. |
 
 <a id="entity-dashboard"></a>
 ### `dashboard`
@@ -4943,3 +4945,49 @@ Help articles, changelog entries, roadmap items, status incidents (platform-owne
 | Key typed columns | standard columns only |
 | Sensitive fields | — |
 | Requirements | SUP-001, SUP-011, SUP-012, REL-015 |
+
+## Metrics ledger (`metrics`, schema `metrics`)
+
+Append-only task status history and the reconciliation state that proves and repairs it; the figures themselves are computed from records at request time (ADR-38).
+
+<a id="entity-task-status-span"></a>
+### `task_status_span`
+
+Append-only history of a task's status: one span per status the task was in, with a basis saying how it is known. No brand, project, lifecycle, or permission copy.
+
+| Property | Value |
+|---|---|
+| Scope | `inherited` |
+| Contained by | — |
+| Extends (1:1) | — |
+| Associations | [`record`](logical-model.md#entity-record) |
+| Lifecycle / concurrency | `append-only` / `append-only` |
+| Retention / confidentiality | `R-DERIVED` / `C1` |
+| Volume / export / search-AI | `high` / `never` / `no` |
+| Secrets / personal data | `no` / `no` |
+| Uniqueness | `(task_id, seq)`; `one open span per task` |
+| Key typed columns | `task_id`; `seq`; `status_id`; `status_category`; `entered_at`; `left_at null`; `basis (recorded\|assumed\|repaired)` |
+| Sensitive fields | — |
+| Requirements | RPT-007, RPT-008, RPT-009, RPT-023, RPT-024 |
+| Notes | Phase 5C (ADR-38): written by triggers in the task's own transaction; read only through a join to the task's core.record and the compiled visibility predicate; removed with the task and with a purged record; assumed spans are written once for tasks that predate the ledger. |
+
+<a id="entity-reconcile-state"></a>
+### `reconcile_state`
+
+The metrics reconciliation job's state for one workspace: when the next bounded pass is due, its lease and position, and its last success and failure.
+
+| Property | Value |
+|---|---|
+| Scope | `workspace` |
+| Contained by | — |
+| Extends (1:1) | — |
+| Associations | — |
+| Lifecycle / concurrency | `mutable` / `locked` |
+| Retention / confidentiality | `R-DERIVED` / `C1` |
+| Volume / export / search-AI | `low` / `never` / `no` |
+| Secrets / personal data | `no` / `no` |
+| Uniqueness | `(workspace_id)` |
+| Key typed columns | `next_run_at`; `lease_until null`; `scan_after null`; `pass_started_at null`; `pass_repaired`; `attempts`; `last_success_at null`; `last_failure_at null`; `failure_code null (source_error\|timeout)`; `repaired_total` |
+| Sensitive fields | — |
+| Requirements | RPT-023, RPT-024 |
+| Notes | Phase 5C (ADR-38): times, counts, and a short code only; shown to every workspace member as the freshness of the status history and to administrators as an action to check now. |

@@ -40,11 +40,9 @@ describe('Metric figures (5C)', () => {
     (await db.admin(text, params)).rows as Array<Record<string, any>>;
   const mem = async (c: Caller) => (await membershipOf(db, wsId, c.auth.account.id))!.public_id;
   const metric = (as: Caller, id: string, q: Record<string, unknown> = {}) =>
-    env.svc.getMetric(as, ws, id, q) as Promise<any>; // eslint-disable-line @typescript-eslint/no-explicit-any
+    env.svc.getMetric(as, ws, id, q) as Promise<any>;
   const records = (as: Caller, id: string, member: string, q: Record<string, unknown> = {}) =>
-    env.svc.getMetricRecords(as, ws, id, { member, limit: 100, ...q }) as Promise<any>; // eslint-disable-line @typescript-eslint/no-explicit-any
-  const members = (r: { drill: { members: Array<{ role: string; count: number }> } }) =>
-    Object.fromEntries(r.drill.members.map((m) => [m.role, m.count]));
+    env.svc.getMetricRecords(as, ws, id, { member, limit: 100, ...q }) as Promise<any>;
   const titles = async (as: Caller, id: string, member: string, q: Record<string, unknown> = {}) =>
     (await records(as, id, member, q)).items.map((i: { title: string }) => i.title).sort();
   const drillsAgree = async (as: Caller, id: string, q: Record<string, unknown> = {}) => {

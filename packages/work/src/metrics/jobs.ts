@@ -88,7 +88,9 @@ export async function reconcileWorkspace(
               ON o.workspace_id = t.workspace_id AND o.task_id = t.id AND o.left_at IS NULL
            WHERE t.workspace_id = ${workspaceId} AND t.id = ANY(${[...ids]}::uuid[])
              AND (o.task_id IS NULL OR o.status_id <> t.status_id OR o.status_category <> t.status_category)`;
-        const candidates = (await drift(batch).execute(tx.db)).rows.map((x) => (x as { id: string }).id);
+        const candidates = (await drift(batch).execute(tx.db)).rows.map(
+          (x) => (x as { id: string }).id,
+        );
         let drifted: string[] = [];
         if (candidates.length) {
           // Lock the candidates' open spans (a status change takes the same lock until it commits,
@@ -100,14 +102,18 @@ export async function reconcileWorkspace(
           await sql`SELECT s.task_id FROM metrics.task_status_span s WHERE s.workspace_id = ${workspaceId}
                      AND s.task_id = ANY(${candidates}::uuid[]) AND s.left_at IS NULL
                      ORDER BY s.task_id FOR UPDATE`.execute(tx.db);
-          drifted = (await drift(candidates).execute(tx.db)).rows.map((x) => (x as { id: string }).id);
+          drifted = (await drift(candidates).execute(tx.db)).rows.map(
+            (x) => (x as { id: string }).id,
+          );
         }
         // Two statements, not one: the unique index allows a single open span per task, and a
         // data-modifying CTE does not promise that the close lands before the insert.
         if (drifted.length) {
           await sql`
             UPDATE metrics.task_status_span s SET left_at = greatest(${now}::timestamptz, s.entered_at)
-             WHERE s.workspace_id = ${workspaceId} AND s.task_id = ANY(${drifted}::uuid[]) AND s.left_at IS NULL`.execute(tx.db);
+             WHERE s.workspace_id = ${workspaceId} AND s.task_id = ANY(${drifted}::uuid[]) AND s.left_at IS NULL`.execute(
+            tx.db,
+          );
           await sql`
             INSERT INTO metrics.task_status_span (workspace_id, task_id, seq, status_id, status_category, entered_at, basis)
             SELECT ${workspaceId}, t.id,
@@ -117,7 +123,9 @@ export async function reconcileWorkspace(
                    greatest(${now}::timestamptz, COALESCE((SELECT max(x.left_at) FROM metrics.task_status_span x
                               WHERE x.workspace_id = ${workspaceId} AND x.task_id = t.id), ${now}::timestamptz)),
                    'repaired'
-              FROM work.task t WHERE t.workspace_id = ${workspaceId} AND t.id = ANY(${drifted}::uuid[])`.execute(tx.db);
+              FROM work.task t WHERE t.workspace_id = ${workspaceId} AND t.id = ANY(${drifted}::uuid[])`.execute(
+            tx.db,
+          );
         }
         repaired = drifted.length;
       }
@@ -146,17 +154,25 @@ export async function reconcileWorkspace(
       .withWorkspace(workspaceId, { module: 'metrics' }, async (tx) => {
         const row = (
           await sql<{ attempts: number }>`
-            SELECT attempts FROM metrics.reconcile_state WHERE workspace_id = ${workspaceId}`.execute(tx.db)
+            SELECT attempts FROM metrics.reconcile_state WHERE workspace_id = ${workspaceId}`.execute(
+            tx.db,
+          )
         ).rows[0];
         const attempts = Number(row?.attempts ?? 0) + 1;
-        const timeout = /timeout|canceling statement/i.test(err instanceof Error ? err.message : '');
+        const timeout = /timeout|canceling statement/i.test(
+          err instanceof Error ? err.message : '',
+        );
         await sql`
           UPDATE metrics.reconcile_state
              SET attempts = ${attempts}, last_failure_at = ${now}, lease_until = NULL,
                  failure_code = ${timeout ? 'timeout' : 'source_error'},
                  next_run_at = ${new Date(
                    now.getTime() +
-                     reconcileBackoffMs(attempts, s.metricsReconcileBackoffSeconds, s.metricsReconcileIntervalMinutes),
+                     reconcileBackoffMs(
+                       attempts,
+                       s.metricsReconcileBackoffSeconds,
+                       s.metricsReconcileIntervalMinutes,
+                     ),
                  )}
            WHERE workspace_id = ${workspaceId}`.execute(tx.db);
       })
@@ -174,7 +190,10 @@ export function metricsReconcileHandler(d: MetricsJobDeps): JobHandler {
     maxAttempts: 3,
     timeoutMs: 240_000,
     async handle() {
-      const workspaces = await d.discovery.discoverMetricsWork(new Date(), s.metricsReconcileDiscoveryMax);
+      const workspaces = await d.discovery.discoverMetricsWork(
+        new Date(),
+        s.metricsReconcileDiscoveryMax,
+      );
       for (const ws of workspaces) await reconcileWorkspace(d, ws);
     },
   };

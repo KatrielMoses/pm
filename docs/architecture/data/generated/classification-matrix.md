@@ -40,6 +40,7 @@ Class definitions and rules: [../11-data-classification.md](../11-data-classific
 | Automations | 4 | C2 | R-EXEC, R-LIVE | filtered | no, yes | no | incidental | very-high |
 | Agents and execution control | 10 | C4 | R-AUDIT, R-EVIDENCE, R-EXEC, R-LIVE | filtered, never | no, yes | secret-ref | incidental | very-high |
 | Support and feedback | 4 | C3 | R-EPHEMERAL, R-LIVE, R-PLATFORM | never, self | no, yes | possible | incidental, yes | medium |
+| Metrics ledger | 2 | C1 | R-DERIVED | never | no | no | no | high |
 
 ## All entities
 
@@ -279,3 +280,5 @@ Class definitions and rules: [../11-data-classification.md](../11-data-classific
 | [`undo_entry`](logical-model.md#entity-undo-entry) | work | workspace | C2 | standard (per-record) | material changes | R-EPHEMERAL | never | high | no | no | incidental |
 | [`capture_conversion`](logical-model.md#entity-capture-conversion) | capture | workspace | C1 | low | is evidence / append-only | R-LIVE | filtered | medium | metadata | no | incidental |
 | [`capacity_profile`](logical-model.md#entity-capacity-profile) | planning | personal | C2 | standard (per-record) | material changes | R-PERSONAL | self | low | yes | no | incidental |
+| [`task_status_span`](logical-model.md#entity-task-status-span) | metrics | inherited | C1 | low | is evidence / append-only | R-DERIVED | never | high | no | no | no |
+| [`reconcile_state`](logical-model.md#entity-reconcile-state) | metrics | workspace | C1 | low | configuration changes | R-DERIVED | never | low | no | no | no |

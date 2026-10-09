@@ -38,6 +38,7 @@ flowchart BT
   automation["Automations (L5)"]
   agents["Agents and execution control (L5)"]
   support["Support and feedback (L4)"]
+  metrics["Metrics ledger (L4)"]
   audit --> execution
   core --> execution
   core --> audit
@@ -188,6 +189,10 @@ flowchart BT
   support --> files
   support --> execution
   support --> audit
+  metrics --> core
+  metrics --> tenancy
+  metrics --> work
+  metrics --> execution
 ```
 
 | Module | Layer | Schema | Responsibilities | Depends on | Publishes | FEATURES sections | Entities |
@@ -224,3 +229,4 @@ flowchart BT
 | **Automations** (`automation`) | 5 | `automation` | Automation definitions with immutable versions, runs and step runs. | core, tenancy, metering, execution, audit | `automation_run.*` | AUTO | 4 |
 | **Agents and execution control** (`agents`) | 5 | `agents` | Agent profiles, scope and tool grants, connectors, assignments, runs, tool calls, artifacts, action approvals, emergency stop. | core, tenancy, access, work, collab, files, metering, integrations, execution, audit | `agent_run.*`, `action_approval.*` | AGT | 10 |
 | **Support and feedback** (`support`) | 4 | `support` | Support requests, consented diagnostics bundles, feedback, platform content (help, changelog, roadmap, status). | identity, tenancy, files, execution, audit | `support.request_created` | SUP | 4 |
+| **Metrics ledger** (`metrics`) | 4 | `metrics` | Append-only task status history and the reconciliation state that proves and repairs it; the figures themselves are computed from records at request time (ADR-38). | core, tenancy, work, execution |  | RPT | 2 |

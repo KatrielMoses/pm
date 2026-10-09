@@ -88,6 +88,7 @@
 | [UXD-27](#uxd-27) | Live-update mechanism for lists and records | Server push of change notices; "updates" chip, no auto-reflow | 1E / 3A | SA |
 | [UXD-28](#uxd-28) | Relationships to records the viewer cannot read | **Decided:** omit relationship metadata and derived conditions caused solely by hidden records; notify owner | **Resolved in Phase 0 review** | **Approved** |
 | [UXD-29](#uxd-29) | Search scope, results, and an honest index | Shell scope by default with "Search all my brands"; state in the address; marks as text; a banner whenever the index lags or has failed; nothing remembered while typing | 5A | SA |
+| [UXD-30](#uxd-30) | A figure with its rule, its state, and its records | One figure at a time; state in words; what is missing, how fresh, and how it is counted always shown; the records behind it one step away; unavailable is never zero | 5C | SA |
 
 ### Detail
 
@@ -291,6 +292,18 @@
 - **Consequence.** A person never has to wonder whether a missing result is hidden, deleted, or merely not indexed yet; the first two look identical by design, the third is stated.
 - **Not built.** Scrolling to and highlighting the match inside the destination (no destination can address one comment or passage yet), an owner filter for other people (needs a people picker), concept search (OD-31), and attachment text.
 - **Affected.** J-07, Search, the command palette, Home.
+
+<a id="uxd-30"></a>
+#### UXD-30 — A figure with its rule, its state, and its records
+
+- **Default.** Metrics opens at `/workspaces/{ws}/metrics` with one figure at a time: the metric, its version when there is more than one, a brand, and (for a windowed metric) the local dates it covers. The whole state, including which records are listed, is in the address, so a link is a figure and Back restores it. The headline is the number the definition calls the figure (a percentage, or "2 of 5"), under a state said **in words** (Complete; Partial: some data is missing; Estimated; Nothing to measure yet; Not available yet), never by colour alone.
+- **The rule is always one step away.** "How this is counted" opens what is counted and out of what, how it is rolled up, the zone, what it is computed from, who sees it, and what it does **not** claim (a figure of work finished is not value delivered). What is missing is a list above the figure ("3: some counted tasks have no estimate"), not a footnote. A figure that cannot be measured says "Nothing to measure yet", never 0% or 100%; a source that does not exist yet says which phase provides it and shows no number.
+- **Freshness.** When derived data is behind or failing the page says so with the reconciliation state and when it was last checked, and offers administrators "Check status history now"; when some tasks' history was rebuilt rather than recorded it says how many. A lagging source is never presented as current.
+- **Records.** Each figure lists the groups of records it is made of with their counts ("Done tasks (2)"); choosing one lists them (paged, "Show more") as links to the task or project. A person never sees a count they cannot open, and a list never has a different length from its count.
+- **Layout.** Breakdowns are tables that become stacked cards at 320 px with each cell labelled; controls are labelled and 44 px tall; borders and state text survive forced colours; nothing animates, so reduced motion changes nothing.
+- **Consequence.** A person never has to wonder whether a number is complete, how it was made, or whether work they cannot see is inside it: the first two are stated, the third is true by construction and tested.
+- **Not built.** Dashboard layout, widgets, saved and scheduled reports (5D); charts; comparing two scopes side by side; a per-person performance view.
+- **Affected.** Metrics, Projects (the portfolio keeps 5B's figures), Home.
 
 ## 4. UX risk register
 

@@ -55,7 +55,12 @@ export function registerMetrics(app: FastifyInstance, work: MetricService): void
   app.get(
     `${base}/:metric/export`,
     wrap(async (request, reply) => {
-      const out = await work.exportMetric(caller(request), p(request).ws, p(request).metric, q(request));
+      const out = await work.exportMetric(
+        caller(request),
+        p(request).ws,
+        p(request).metric,
+        q(request),
+      );
       return reply
         .header('cache-control', 'private, no-store')
         .header('content-type', 'text/csv; charset=utf-8')
