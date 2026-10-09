@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useMembers } from '../goals/hooks.ts';
 import { projects, type ProjectSummary } from '../projects/client.ts';
-import { useWorkspaceShell } from '../shell/workspace.tsx';
+import { useBrands } from './hooks.ts';
 import { Field, SelectField } from '../ui/form.tsx';
 import {
   NO_FILTERS,
@@ -31,8 +31,7 @@ export function FilterBar({
   /** Scopes the dashboard already carries are not offered again. */
   fixed?: { brand?: boolean; project?: boolean };
 }) {
-  const shell = useWorkspaceShell();
-  const brands = shell?.context?.brands ?? [];
+  const brands = useBrands(ws);
   const { members } = useMembers(ws);
   const [projectList, setProjectList] = useState<ProjectSummary[]>([]);
   useEffect(() => {

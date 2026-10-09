@@ -23,7 +23,7 @@ import { projects } from '../src/projects/client.ts';
 import { Router } from '../src/router.tsx';
 import { canSee, matchRoute, ROUTE_INDEX, routeHref, type Access } from '../src/shell/registry.ts';
 import { StepUpProvider } from '../src/stepup.tsx';
-import { collab as people } from '../src/tenancy/client.ts';
+import { collab as people, tenancy } from '../src/tenancy/client.ts';
 
 /**
  * Phase 5D web (dashboards and reports): every figure renders with its scope, source, freshness,
@@ -44,6 +44,10 @@ beforeEach(() => {
   window.history.replaceState(null, '', '/');
   vi.spyOn(people, 'people').mockResolvedValue([]);
   vi.spyOn(projects, 'list').mockResolvedValue({ data: [], total: null } as never);
+  vi.spyOn(tenancy, 'listBrands').mockResolvedValue({
+    data: [],
+    page: { has_more: false },
+  } as never);
 });
 afterEach(() => {
   cleanup();
@@ -557,13 +561,11 @@ describe('pages (5D)', () => {
       filters: NO_FILTERS,
       outcome: value(),
     });
-    const exp = vi
-      .spyOn(dashboards, 'export')
-      .mockResolvedValue({
-        blob: new Blob(['x']),
-        filename: 'overview.csv',
-        contentType: 'text/csv',
-      });
+    const exp = vi.spyOn(dashboards, 'export').mockResolvedValue({
+      blob: new Blob(['x']),
+      filename: 'overview.csv',
+      contentType: 'text/csv',
+    });
     URL.createObjectURL = vi.fn(() => 'blob:x');
     URL.revokeObjectURL = vi.fn();
     wrap(<DashboardPage ws={WS} dash="dash_1" />);

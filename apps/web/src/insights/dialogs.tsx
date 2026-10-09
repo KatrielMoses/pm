@@ -3,7 +3,7 @@ import { ApiError } from '../api.ts';
 import { useIdempotency, useMembers } from '../goals/hooks.ts';
 import { ProblemLine, useExplain, type Explained } from '../goals/shared.tsx';
 import { projects, type ProjectSummary } from '../projects/client.ts';
-import { useWorkspaceShell } from '../shell/workspace.tsx';
+import { useBrands } from './hooks.ts';
 import { useStepUp } from '../stepup.tsx';
 import { Dialog } from '../ui/dialog.tsx';
 import { Field, SelectField } from '../ui/form.tsx';
@@ -70,8 +70,7 @@ export const STARTERS: Record<DashboardKind | 'report', WidgetInput[]> = {
 };
 
 function useScopeOptions(ws: string) {
-  const shell = useWorkspaceShell();
-  const brands = shell?.context?.brands ?? [];
+  const brands = useBrands(ws);
   const [list, setList] = useState<ProjectSummary[]>([]);
   useEffect(() => {
     let active = true;
