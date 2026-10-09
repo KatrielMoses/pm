@@ -97,6 +97,7 @@ Source: `contracts/registry.json`.
 | `rsv_` | capacity_reservation | planning.capacity_reservation | planning |  |
 | `ndl_` | notification_delivery | notify.notification_delivery | notify | Phase 4B (PL-34). |
 | `dsg_` | document_suggestion | knowledge.document_suggestion | knowledge |  |
+| `gci_` | goal_checkin | goals.goal_checkin | goals |  |
 
 ## Error codes
 
@@ -343,6 +344,17 @@ Source: `contracts/registry.json`.
 | `files.file.added` v1 | files.file | version_number, source | C1 | yes |  | yes | yes |  | — |
 | `files.file.version_added` v1 | files.file | version_number, source | C1 | yes |  | yes | yes |  | — |
 | `files.deliverable.state_changed` v1 | files.deliverable | state, version_number | C1 | yes |  | yes | yes |  | — |
+| `goals.goal.created` v1 | goals.goal | scope, period_kind, progress_basis | C1 | yes |  | yes |  |  | — |
+| `goals.goal.updated` v1 | goals.goal | change | C1 | yes |  | yes |  |  | — |
+| `goals.goal.status_changed` v1 | goals.goal | status | C1 | yes |  | yes |  |  | — |
+| `goals.goal.checkin_recorded` v1 | goals.goal_checkin | source, confidence, has_value | C1 | yes |  | yes |  |  | — |
+| `goals.goal.link_changed` v1 | goals.goal_link | change, target_kind | C1 | yes |  | yes |  |  | — |
+| `goals.goal.update_stale` v1 | goals.goal | days_stale | C1 |  |  | yes |  |  | — |
+| `goals.key_result.created` v1 | goals.key_result | progress_basis | C1 | yes |  | yes |  |  | — |
+| `goals.key_result.updated` v1 | goals.key_result | change | C1 | yes |  | yes |  |  | — |
+| `goals.portfolio.created` v1 | goals.portfolio | scope | C1 | yes |  | yes |  |  | — |
+| `goals.portfolio.updated` v1 | goals.portfolio | change | C1 | yes |  | yes |  |  | — |
+| `goals.portfolio.members_changed` v1 | goals.portfolio | count | C1 | yes |  | yes |  |  | — |
 
 ## SSE topics
 
@@ -518,6 +530,9 @@ Forbidden metric labels: `workspace_id`, `brand_id`, `record_id`, `public_id`, `
 | `knowledge.live` | counter | action, outcome | knowledge |
 | `files.requests` | counter | op, outcome | files |
 | `files.jobs` | counter | kind, outcome | files |
+| `goals.reads` | counter | view, outcome | goals |
+| `goals.changes` | counter | kind, outcome | goals |
+| `goals.jobs` | counter | kind, outcome | goals |
 
 ## Named parameters (values are configuration, not promises)
 
@@ -703,3 +718,16 @@ Forbidden metric labels: `workspace_id`, `brand_id`, `record_id`, `public_id`, `
 | `DELIVERABLES_PER_TASK_MAX` | Most deliverables one task holds; default 50, range 1–500. | 4E |
 | `FILE_DISCOVERY_MAX` | Most workspaces one file sweep examines; default 100, range 1–1000. | 4E |
 | `FILE_EXPIRY_BATCH_MAX` | Most expired upload sessions and object deletions one sweep handles per workspace; default 200, range 10–5000. | 4E |
+| `GOALS_PER_SCOPE_MAX` | Most live goals one workspace, brand, or project scope holds; default 500, range 10–5000. | 5B |
+| `GOAL_KEY_RESULTS_MAX` | Most key results one goal holds; default 20, range 1–50. | 5B |
+| `GOAL_LINKS_MAX` | Most projects and tasks one goal (with its key results) links; default 200, range 10–1000. | 5B |
+| `GOAL_UPDATE_STALE_DAYS` | Days without a manual check-in after which an active goal's update is stale; default 14, range 1–90. | 5B |
+| `GOAL_CHECKIN_RATE_PER_MINUTE` | Check-ins one member may record per minute; default 30, range 1–600. | 5B |
+| `PORTFOLIOS_MAX` | Most live portfolios one workspace holds; default 100, range 1–1000. | 5B |
+| `PORTFOLIO_PROJECTS_MAX` | Most projects one portfolio names; default 200, range 10–1000. | 5B |
+| `PORTFOLIO_READ_PROJECTS_MAX` | Most projects one health, dependency, or orphan read evaluates before it reports itself truncated; default 500, range 50–2000. | 5B |
+| `GOALS_EXPORT_ROWS_MAX` | Most rows one goal or portfolio export returns; larger exports are refused; default 5000, range 100–50000. | 5B |
+| `GOALS_RECALC_BATCH_MAX` | Most goals one recalculation sweep claims per workspace; default 200, range 10–2000. | 5B |
+| `GOALS_RECALC_LEASE_SECONDS` | How long a claimed goal stays leased before another sweep may reclaim it; default 300, range 30–3600. | 5B |
+| `GOALS_RECALC_INTERVAL_MINUTES` | How often an unchanged goal's time-driven state (staleness, period) is rechecked; default 360, range 15–1440. | 5B |
+| `GOALS_RECALC_MAX_ATTEMPTS` | Failed recalculations before a goal is reported as failing and backed off to the recheck interval; default 5, range 1–20. | 5B |

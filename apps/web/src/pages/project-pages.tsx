@@ -31,6 +31,7 @@ import { BrandMarker } from '../shell/brand-marker.tsx';
 import { useRegisterCommands } from '../shell/commands.tsx';
 import { routeHref } from '../shell/registry.ts';
 import { useRecordVisit, useWorkspaceShell } from '../shell/workspace.tsx';
+import { ProjectGoalsCard } from '../goals/project-goals.tsx';
 import { useStepUp } from '../stepup.tsx';
 import { collab, tenancy, type Member } from '../tenancy/client.ts';
 import { ResourceView, useResource } from '../tenancy/resource.tsx';
@@ -189,11 +190,22 @@ export function ProjectsPage({ ws }: { ws: string }) {
       title="Projects"
       wide
       actions={
-        canCreate ? (
-          <button type="button" className="button button-primary" onClick={() => setCreating(true)}>
-            Create project
-          </button>
-        ) : null
+        <>
+          {member ? (
+            <Link className="button button-secondary" to={routeHref('portfolio', { ws })}>
+              Portfolio health
+            </Link>
+          ) : null}
+          {canCreate ? (
+            <button
+              type="button"
+              className="button button-primary"
+              onClick={() => setCreating(true)}
+            >
+              Create project
+            </button>
+          ) : null}
+        </>
       }
     >
       <div className="toolbar" role="group" aria-label="Project view">
@@ -888,6 +900,8 @@ function SectionUnavailable({ label, phase }: { label: string; phase: string | n
 function OverviewSection({ ws, o, reload }: { ws: string; o: Overview; reload: () => void }) {
   const p = o.project;
   const stepUp = useStepUp();
+  // 5B: goals are for members; a guest's project page has no Goals card.
+  const isMember = useWorkspaceShell()?.access?.principal === 'member';
   const cmd = useCommand(reload);
   // Criteria and scope entries are intrinsic facts (a share may edit them); updates and decisions
   // need the caller's own authority (ADR-0013 P5).
@@ -1226,6 +1240,14 @@ function OverviewSection({ ws, o, reload }: { ws: string; o: Overview; reload: (
         <h2 id="ov-deps">Dependencies</h2>
         <DependencyList o={o} ws={ws} />
       </section>
+
+      {isMember && p.lifecycle_state !== 'trashed' ? (
+        <ProjectGoalsCard
+          ws={ws}
+          project={{ id: p.id, name: p.name, brand: p.brand }}
+          canEdit={p.capabilities.edit && p.lifecycle_state === 'active'}
+        />
+      ) : null}
 
       {o.children.length ? (
         <section className="card" aria-labelledby="ov-children">

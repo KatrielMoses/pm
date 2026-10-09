@@ -1,0 +1,1217 @@
+{
+  "schema_version": 1,
+  "phase": "5B",
+  "status": "candidate",
+  "adr": "0028",
+  "accepted_by_kinds": [
+    "catalog:contributing",
+    "roadmap:<sub>",
+    "adr:<nnnn>[#row]",
+    "requirement:<ID>"
+  ],
+  "requirements": [
+    {
+      "id": "GOAL-001",
+      "role": "owned",
+      "disposition": "implemented",
+      "evidence": [
+        {
+          "file": "packages/work/src/goals/goal-service.ts",
+          "contains": "async createGoal("
+        },
+        {
+          "file": "packages/work/test/integration/goals.test.ts",
+          "contains": "creates workspace, brand, and project goals at the right level"
+        },
+        {
+          "file": "packages/work/test/integration/goals.test.ts",
+          "contains": "refuses what the caller cannot place: view-only, no access, workspace level for a member without it"
+        },
+        {
+          "file": "apps/api/test/integration/goals-api.test.ts",
+          "contains": "creates, reads, and edits a goal with ETags, idempotency, and validation errors"
+        },
+        {
+          "file": "apps/web/test/goals.test.tsx",
+          "contains": "shows workspace goals first, then per brand, each with progress, rule, confidence, freshness, and linked work"
+        },
+        {
+          "file": "apps/web/test/goals.test.tsx",
+          "contains": "a brand goal needs an explicit brand choice; nothing is sent until one is made"
+        },
+        {
+          "file": "apps/web/test/goals.test.tsx",
+          "contains": "validation errors from the API point at the field and keep what was typed"
+        },
+        {
+          "file": "e2e/goals.spec.ts",
+          "contains": "a founder creates a goal with key results, links, and check-ins and sees how progress is made"
+        },
+        {
+          "file": "e2e/goals.spec.ts",
+          "contains": "a member with narrower access sees a smaller figure and no hidden names; a guest sees no Goals @desktop-only"
+        },
+        {
+          "file": "packages/work/test/integration/goals.test.ts",
+          "contains": "lets an editor restore an archived or trashed goal, and lists trashed goals only to those who may restore them"
+        },
+        {
+          "file": "apps/web/test/goals.test.tsx",
+          "contains": "lists what can be restored, restores it, and reports it"
+        },
+        {
+          "file": "apps/web/test/goals.test.tsx",
+          "contains": "access revoked mid-session: the next write switches the page to the standard state"
+        }
+      ],
+      "note": "Workspace, brand, and project goals, each placed through the level of its placement; never shareable (ADR-0028 G1)."
+    },
+    {
+      "id": "GOAL-002",
+      "role": "owned",
+      "disposition": "implemented",
+      "evidence": [
+        {
+          "file": "packages/work/src/goals/semantics.ts",
+          "contains": "export function goalPeriodOf("
+        },
+        {
+          "file": "packages/work/test/unit/goals-semantics.test.ts",
+          "contains": "names calendar quarters, halves, and years, with their real last days"
+        },
+        {
+          "file": "packages/work/test/unit/goals-semantics.test.ts",
+          "contains": "measures movement from the baseline toward the target, either direction"
+        },
+        {
+          "file": "packages/work/test/integration/goals.test.ts",
+          "contains": "refuses unknown fields, bad periods, and inconsistent measurements with exact pointers"
+        },
+        {
+          "file": "packages/work/test/integration/goals.test.ts",
+          "contains": "changes status, never back to draft, and refuses changes to an archived goal"
+        },
+        {
+          "file": "packages/work/test/integration/goals.test.ts",
+          "contains": "updates with the loaded version and refuses a stale or missing one"
+        },
+        {
+          "file": "apps/web/test/goals.test.tsx",
+          "contains": "asks for a value when there is a target, and a percentage when there is not"
+        },
+        {
+          "file": "apps/web/test/goals.test.tsx",
+          "contains": "the default is the current quarter and moves by quarter across years"
+        },
+        {
+          "file": "apps/web/test/goals.test.tsx",
+          "contains": "keeps what was typed, offers the latest version, and then saves against it"
+        }
+      ],
+      "note": "Owner, calendar or custom period, status, baseline, target, current value, and unit, with row-version concurrency (G2, G4, G6)."
+    },
+    {
+      "id": "GOAL-003",
+      "role": "owned",
+      "disposition": "implemented",
+      "evidence": [
+        {
+          "file": "packages/work/src/goals/goal-service.ts",
+          "contains": "async addGoalLink("
+        },
+        {
+          "file": "packages/work/test/integration/goals.test.ts",
+          "contains": "refuses targets the caller cannot read, in the wrong scope, past the bound, and is idempotent"
+        },
+        {
+          "file": "packages/work/test/integration/goals.test.ts",
+          "contains": "counts a linked task and its subtasks, and a project's tasks only"
+        },
+        {
+          "file": "packages/work/test/integration/goals.test.ts",
+          "contains": "lists the goals a project sees: scoped to it, or linked to it or its tasks"
+        },
+        {
+          "file": "packages/work/test/integration/portfolios.test.ts",
+          "contains": "enforces its integrity in the database, not only in commands"
+        },
+        {
+          "file": "apps/web/test/goals.test.tsx",
+          "contains": "lists the tasks behind a linked-work figure from the server, with its coverage note"
+        },
+        {
+          "file": "apps/web/test/goals.test.tsx",
+          "contains": "removing a link is a labelled action that names the work"
+        },
+        {
+          "file": "apps/web/test/goals.test.tsx",
+          "contains": "links the project to a chosen goal"
+        }
+      ],
+      "note": "Goals and key results link projects and tasks the linker can read; a link grants no access and implies no progress for unreadable work (G7)."
+    },
+    {
+      "id": "GOAL-004",
+      "role": "owned",
+      "disposition": "implemented",
+      "evidence": [
+        {
+          "file": "packages/work/src/goals/goal-service.ts",
+          "contains": "async createKeyResult("
+        },
+        {
+          "file": "packages/work/test/integration/goals.test.ts",
+          "contains": "rolls manual key results up as a plain mean and says how complete it is"
+        },
+        {
+          "file": "packages/work/test/integration/goals.test.ts",
+          "contains": "orders, edits, archives, and bounds key results"
+        },
+        {
+          "file": "packages/work/test/unit/goals-semantics.test.ts",
+          "contains": "rolls key results up as a plain mean of the measured ones, and says how complete it is"
+        },
+        {
+          "file": "apps/web/test/goals.test.tsx",
+          "contains": "shows progress with its rule, key results, only the links returned, and the freshness state"
+        },
+        {
+          "file": "apps/web/test/goals.test.tsx",
+          "contains": "moving a key result sends the one it should follow"
+        },
+        {
+          "file": "apps/web/test/goals.test.tsx",
+          "contains": "records a key result check-in from a dialog that closes with Escape"
+        }
+      ],
+      "note": "Measurable key results with their own owner, measurement, and check-ins; the rollup is an equal-weight mean, not a 5C metric (G4)."
+    },
+    {
+      "id": "GOAL-005",
+      "role": "owned",
+      "disposition": "implemented",
+      "evidence": [
+        {
+          "file": "packages/work/src/goals/goal-service.ts",
+          "contains": "async recordCheckin("
+        },
+        {
+          "file": "packages/work/test/integration/goals.test.ts",
+          "contains": "measures a goal with a target from the value, and a goal without one from a percentage"
+        },
+        {
+          "file": "packages/work/test/integration/goals.test.ts",
+          "contains": "counts done leaf tasks over non-cancelled readable ones, for each viewer"
+        },
+        {
+          "file": "packages/work/test/integration/goals.test.ts",
+          "contains": "moves from manual to derived progress without keeping a stale measurement"
+        },
+        {
+          "file": "packages/work/test/integration/goals.test.ts",
+          "contains": "never lets a derived goal be set by hand, and never changes a check-in"
+        },
+        {
+          "file": "packages/work/test/integration/goals.test.ts",
+          "contains": "appends one computed check-in per distinct set of manual key results, idempotently"
+        },
+        {
+          "file": "packages/work/test/integration/goal-jobs.test.ts",
+          "contains": "computes due goals once, appends one rollup, and leaves nothing due"
+        },
+        {
+          "file": "packages/work/src/goals/goal-service.ts",
+          "contains": "async goalWork("
+        },
+        {
+          "file": "packages/work/test/integration/goals.test.ts",
+          "contains": "drills every figure down to the readable tasks behind it, and only those"
+        },
+        {
+          "file": "apps/api/test/integration/goals-api.test.ts",
+          "contains": "manages key results, links, and linked-work progress through the verbs"
+        },
+        {
+          "file": "packages/work/test/unit/goals-semantics.test.ts",
+          "contains": "counts linked work as done over non-cancelled readable leaf tasks (OD-13)"
+        },
+        {
+          "file": "apps/web/test/goals.test.tsx",
+          "contains": "a progress bar has a value and text; the rule is in a disclosure with incompleteness"
+        },
+        {
+          "file": "apps/web/test/goals.test.tsx",
+          "contains": "Recalculate now calls the endpoint and says it is done"
+        },
+        {
+          "file": "e2e/goals.spec.ts",
+          "contains": "a founder creates a goal with key results, links, and check-ins and sees how progress is made"
+        }
+      ],
+      "note": "Progress is set manually (value or percentage) or derived from key results or linked work for the viewer (OD-13); derived progress is never settable by hand (G3, G4, G5)."
+    },
+    {
+      "id": "GOAL-006",
+      "role": "owned",
+      "disposition": "implemented",
+      "evidence": [
+        {
+          "file": "packages/work/test/integration/goals.test.ts",
+          "contains": "keeps the last stated confidence when a later check-in states none, and appends history"
+        },
+        {
+          "file": "packages/work/test/integration/goals.test.ts",
+          "contains": "reports freshness from the goal itself and the recalculation state truthfully"
+        },
+        {
+          "file": "packages/work/test/unit/goals-semantics.test.ts",
+          "contains": "is never before any check-in, fresh within the window, and stale after it"
+        },
+        {
+          "file": "packages/work/test/integration/goal-jobs.test.ts",
+          "contains": "announces a stale update once, and only for an active goal"
+        },
+        {
+          "file": "apps/api/test/integration/goals-api.test.ts",
+          "contains": "records check-ins and lists the append-only history with a cursor"
+        },
+        {
+          "file": "apps/web/test/goals.test.tsx",
+          "contains": "history is newest first and labels computed roll-ups"
+        },
+        {
+          "file": "apps/web/test/goals.test.tsx",
+          "contains": "keeps the draft and reuses the same Idempotency-Key when a failed send is retried"
+        },
+        {
+          "file": "apps/web/test/goals.test.tsx",
+          "contains": "a changed draft is a new request with a new key"
+        },
+        {
+          "file": "apps/web/test/goals.test.tsx",
+          "contains": "an unsent note survives a reload"
+        }
+      ],
+      "note": "Confidence and the latest update with its freshness (never, fresh, stale), computed from the goal on every read; the stale-update event is emitted for 4B to consume later (G5)."
+    },
+    {
+      "id": "GOAL-007",
+      "role": "owned",
+      "disposition": "implemented",
+      "evidence": [
+        {
+          "file": "packages/work/src/goals/portfolio-service.ts",
+          "contains": "async portfolioOverview("
+        },
+        {
+          "file": "packages/work/test/integration/portfolios.test.ts",
+          "contains": "evaluates every project by the same explainable rules and says what is missing"
+        },
+        {
+          "file": "packages/work/test/integration/portfolios.test.ts",
+          "contains": "creates, edits, and lists portfolios at workspace or brand level"
+        },
+        {
+          "file": "packages/work/test/integration/portfolios.test.ts",
+          "contains": "filters by portfolio, brand, status, health, and owner, and reports a truncated read"
+        },
+        {
+          "file": "packages/work/test/unit/goals-semantics.test.ts",
+          "contains": "is off track once the deadline has passed, with the days late"
+        },
+        {
+          "file": "packages/work/test/unit/goals-semantics.test.ts",
+          "contains": "compares completion with the share of time elapsed"
+        },
+        {
+          "file": "apps/api/test/integration/goals-api.test.ts",
+          "contains": "serves portfolios, health, dependencies, orphans, and exports"
+        },
+        {
+          "file": "apps/web/test/goals.test.tsx",
+          "contains": "shows coverage, the summary, and what is not tracked; health carries its rules and declared value"
+        },
+        {
+          "file": "apps/web/test/goals.test.tsx",
+          "contains": "creates a portfolio, then saves its projects with the new version; hidden members are explained"
+        },
+        {
+          "file": "e2e/goals.spec.ts",
+          "contains": "the portfolio shows health with its rules, dependencies, and goal coverage, accessibly and by keyboard"
+        },
+        {
+          "file": "e2e/goals.spec.ts",
+          "contains": "a member with narrower access sees a smaller figure and no hidden names; a guest sees no Goals @desktop-only"
+        }
+      ],
+      "note": "Project portfolio health across the brands the viewer may read, from deterministic rules that give their reasons and never overwrite the declared health (G8, G9)."
+    },
+    {
+      "id": "GOAL-008",
+      "role": "owned",
+      "disposition": "implemented",
+      "evidence": [
+        {
+          "file": "packages/work/src/goals/portfolio-service.ts",
+          "contains": "async scopeProjects("
+        },
+        {
+          "file": "packages/work/test/integration/portfolios.test.ts",
+          "contains": "filters by portfolio, brand, status, health, and owner, and reports a truncated read"
+        },
+        {
+          "file": "packages/work/test/integration/portfolios.test.ts",
+          "contains": "bounds portfolios and their projects, and archives, trashes, and restores"
+        }
+      ],
+      "note": "Projects by status category (planned, active, paused, completed, cancelled) and archived, through the same permission filter (G8). The 2A contribution is the project list."
+    },
+    {
+      "id": "GOAL-009",
+      "role": "owned",
+      "disposition": "implemented",
+      "evidence": [
+        {
+          "file": "packages/work/src/goals/portfolio-service.ts",
+          "contains": "protected async overviewBody("
+        },
+        {
+          "file": "packages/work/test/integration/portfolios.test.ts",
+          "contains": "summarizes budgets by currency without inventing spend, deadlines, and effort"
+        },
+        {
+          "file": "packages/work/test/integration/portfolios.test.ts",
+          "contains": "never lets work, projects, brands, time, or budgets the viewer cannot read change a figure or a label"
+        },
+        {
+          "file": "packages/work/test/unit/goals-semantics.test.ts",
+          "contains": "reads the time budget: exceeded is off track, nearly used with little done is at risk"
+        },
+        {
+          "file": "packages/work/test/unit/goals-semantics.test.ts",
+          "contains": "reads the share of open tasks that are past due or blocked"
+        },
+        {
+          "file": "apps/web/test/goals.test.tsx",
+          "contains": "a row expands by keyboard-operable button to the rules, what was not evaluated, and budgets"
+        },
+        {
+          "file": "apps/web/test/goals.test.tsx",
+          "contains": "a truncated result is announced as incomplete"
+        },
+        {
+          "file": "e2e/goals.spec.ts",
+          "contains": "the portfolio shows health with its rules, dependencies, and goal coverage, accessibly and by keyboard"
+        }
+      ],
+      "note": "Deadlines, risks, dependencies, effort, and budgets. Money and AI budgets are shown as set and spend and AI usage are reported not_tracked (7A); money is grouped by currency (G11, G12)."
+    },
+    {
+      "id": "GOAL-010",
+      "role": "owned",
+      "disposition": "implemented",
+      "evidence": [
+        {
+          "file": "packages/work/src/goals/portfolio-service.ts",
+          "contains": "async portfolioDependencies("
+        },
+        {
+          "file": "packages/work/test/integration/portfolios.test.ts",
+          "contains": "shows cross-project dependencies between readable work, with state and drill-down"
+        },
+        {
+          "file": "packages/work/test/integration/portfolios.test.ts",
+          "contains": "omits a dependency whose other end the viewer cannot read, and everything derived from it"
+        },
+        {
+          "file": "packages/work/test/integration/portfolios.test.ts",
+          "contains": "marks a dependency resolved once the blocker is done"
+        },
+        {
+          "file": "packages/work/test/unit/goals-semantics.test.ts",
+          "contains": "is overdue, late, or open while the blocker is unfinished"
+        },
+        {
+          "file": "apps/web/test/goals.test.tsx",
+          "contains": "dependencies show pairs with state counts as text and drill into the edges"
+        },
+        {
+          "file": "e2e/goals.spec.ts",
+          "contains": "the portfolio shows health with its rules, dependencies, and goal coverage, accessibly and by keyboard"
+        }
+      ],
+      "note": "Cross-project dependencies between tasks the viewer can read at both ends, with state and drill-down; an edge to unreadable work is omitted with everything derived solely from it (OD-05, G10)."
+    },
+    {
+      "id": "GOAL-012",
+      "role": "owned",
+      "disposition": "implemented",
+      "evidence": [
+        {
+          "file": "packages/work/src/goals/portfolio-service.ts",
+          "contains": "async portfolioOrphans("
+        },
+        {
+          "file": "packages/work/test/integration/portfolios.test.ts",
+          "contains": "lists projects without a goal the viewer can read and goals without active work they can read"
+        },
+        {
+          "file": "packages/work/test/integration/portfolios.test.ts",
+          "contains": "counts a project as linked through a parent project"
+        },
+        {
+          "file": "apps/web/test/goals.test.tsx",
+          "contains": "orphan findings are labelled as relative to the viewer"
+        },
+        {
+          "file": "e2e/goals.spec.ts",
+          "contains": "the portfolio shows health with its rules, dependencies, and goal coverage, accessibly and by keyboard"
+        }
+      ],
+      "note": "Projects without a linked goal, relative to the viewer and labelled so (G13)."
+    },
+    {
+      "id": "GOAL-013",
+      "role": "owned",
+      "disposition": "implemented",
+      "evidence": [
+        {
+          "file": "packages/work/src/goals/portfolio-service.ts",
+          "contains": "async portfolioOrphans("
+        },
+        {
+          "file": "packages/work/test/integration/portfolios.test.ts",
+          "contains": "says \"no active work\" when linked work is finished, and counts only work the viewer can read"
+        },
+        {
+          "file": "packages/work/test/integration/portfolios.test.ts",
+          "contains": "lists projects without a goal the viewer can read and goals without active work they can read"
+        },
+        {
+          "file": "apps/web/test/goals.test.tsx",
+          "contains": "with nothing found, orphans say so without implying anything hidden"
+        },
+        {
+          "file": "apps/web/test/goals.test.tsx",
+          "contains": "orphan findings are labelled as relative to the viewer"
+        }
+      ],
+      "note": "Goals without active work, relative to the viewer, with the reason (no_visible_work, no_active_work) (G13)."
+    },
+    {
+      "id": "VIEW-009",
+      "role": "contributing",
+      "disposition": "contributed",
+      "contribution": "5B",
+      "evidence": [
+        {
+          "file": "packages/work/src/goals/portfolio-service.ts",
+          "contains": "async createPortfolio("
+        },
+        {
+          "file": "packages/work/test/integration/portfolios.test.ts",
+          "contains": "creates, edits, and lists portfolios at workspace or brand level"
+        },
+        {
+          "file": "packages/work/test/integration/portfolios.test.ts",
+          "contains": "names only readable projects, holds a brand portfolio to its brand, and keeps members the editor cannot read"
+        },
+        {
+          "file": "apps/api/test/integration/goals-api.test.ts",
+          "contains": "serves portfolios, health, dependencies, orphans, and exports"
+        },
+        {
+          "file": "apps/web/test/goals.test.tsx",
+          "contains": "lists saved portfolios with the count of members the person can read"
+        },
+        {
+          "file": "apps/web/test/goals.test.tsx",
+          "contains": "a stale edit keeps the typed name and offers the latest version"
+        },
+        {
+          "file": "e2e/goals.spec.ts",
+          "contains": "the portfolio shows health with its rules, dependencies, and goal coverage, accessibly and by keyboard"
+        }
+      ],
+      "note": "The 3B portfolio view is completed with saved portfolios, health, dependencies, goal coverage, and exports (ADR-0028 G8, G9)."
+    },
+    {
+      "id": "WSB-011",
+      "role": "contributing",
+      "disposition": "contributed",
+      "contribution": "5B",
+      "evidence": [
+        {
+          "file": "packages/work/test/integration/goals.test.ts",
+          "contains": "creates workspace, brand, and project goals at the right level"
+        },
+        {
+          "file": "packages/work/test/integration/goals.test.ts",
+          "contains": "filters and pages through only the goals the viewer may read"
+        },
+        {
+          "file": "packages/work/test/integration/goals.test.ts",
+          "contains": "reads through the same level and gives unreadable and unknown goals one answer"
+        }
+      ],
+      "note": "The goals side of the brand's goals and priorities: brand-scoped goals, listed and read through the brand's level. The brand priorities setting stays with 1C."
+    },
+    {
+      "id": "RPT-016",
+      "role": "contributing",
+      "disposition": "contributed",
+      "contribution": "5B",
+      "evidence": [
+        {
+          "file": "packages/work/src/goals/goal-service.ts",
+          "contains": "async getGoal("
+        },
+        {
+          "file": "packages/work/test/integration/goals.test.ts",
+          "contains": "computes progress only from the work the viewer may read and never discloses the rest"
+        },
+        {
+          "file": "packages/work/test/integration/goals.test.ts",
+          "contains": "counts done leaf tasks over non-cancelled readable ones, for each viewer"
+        },
+        {
+          "file": "packages/work/test/integration/goals.test.ts",
+          "contains": "exports what the viewer may read as bounded, audited CSV and JSON with neutralized formulas"
+        }
+      ],
+      "note": "The viewer-computed goal progress, coverage, and freshness that the 5D goal-progress report will read, plus bounded exports. The report itself is 5D's."
+    }
+  ],
+  "decisions": [
+    {
+      "id": "D1",
+      "title": "Goals, key results, and portfolios are core records placed at workspace, brand, or project level; never shareable; guests have none; no new action",
+      "adr_row": "G1",
+      "sources": [
+        {
+          "file": "docs/architecture/data/12-decisions.md",
+          "contains": "## ADR-36: Goals, key results, check-ins, links, and portfolios"
+        },
+        {
+          "file": "docs/architecture/access/15-decisions.md",
+          "contains": "### AZ-36: Goals and portfolios"
+        }
+      ],
+      "evidence": [
+        {
+          "file": "packages/work/test/integration/goals.test.ts",
+          "contains": "never shows goals to guests, whether listed, read, or shared"
+        },
+        {
+          "file": "packages/work/test/integration/goals.test.ts",
+          "contains": "reads through the same level and gives unreadable and unknown goals one answer"
+        },
+        {
+          "file": "apps/api/test/integration/goals-api.test.ts",
+          "contains": "answers strangers, readers, and guests as documented, and never lists what it hides"
+        },
+        {
+          "file": "docs/engineering/adr/0028-goals-portfolios.md",
+          "contains": "| G1 |"
+        }
+      ]
+    },
+    {
+      "id": "D2",
+      "title": "Calendar quarter, half, year, or custom (at most ten years) periods; fiscal calendars deferred",
+      "adr_row": "G2",
+      "sources": [
+        {
+          "file": "docs/architecture/data/13-open-questions.md",
+          "contains": "DQ-39"
+        }
+      ],
+      "evidence": [
+        {
+          "file": "packages/work/test/unit/goals-semantics.test.ts",
+          "contains": "names calendar quarters, halves, and years, with their real last days"
+        },
+        {
+          "file": "packages/work/test/unit/goals-semantics.test.ts",
+          "contains": "refuses periods it cannot name"
+        },
+        {
+          "file": "packages/work/src/goals/semantics.ts",
+          "contains": "export function goalPeriodOf("
+        },
+        {
+          "file": "docs/engineering/adr/0028-goals-portfolios.md",
+          "contains": "| G2 |"
+        }
+      ]
+    },
+    {
+      "id": "D3",
+      "title": "Nothing derived from linked work is stored; progress, health, and aggregates are computed for the viewer from the work the viewer may read and say what they cover",
+      "adr_row": "G3",
+      "sources": [
+        {
+          "file": "docs/product/open-decisions.md",
+          "contains": "**Status (Phase 5B, 2026-10-08):** Applied to goals and portfolios."
+        }
+      ],
+      "evidence": [
+        {
+          "file": "packages/work/test/integration/goals.test.ts",
+          "contains": "computes progress only from the work the viewer may read and never discloses the rest"
+        },
+        {
+          "file": "packages/work/test/integration/goals.test.ts",
+          "contains": "stores no number for a goal whose progress depends on linked work"
+        },
+        {
+          "file": "packages/work/test/integration/portfolios.test.ts",
+          "contains": "never lets work, projects, brands, time, or budgets the viewer cannot read change a figure or a label"
+        },
+        {
+          "file": "packages/work/test/unit/goals-semantics.test.ts",
+          "contains": "counts linked work as done over non-cancelled readable leaf tasks (OD-13)"
+        },
+        {
+          "file": "docs/engineering/adr/0028-goals-portfolios.md",
+          "contains": "| G3 |"
+        }
+      ]
+    },
+    {
+      "id": "D4",
+      "title": "Progress sources: manual measurement, manual percentage, key-result mean, linked work; derived progress is never set by hand",
+      "adr_row": "G4",
+      "sources": [
+        {
+          "file": "docs/architecture/data/13-open-questions.md",
+          "contains": "DQ-40"
+        }
+      ],
+      "evidence": [
+        {
+          "file": "packages/work/test/unit/goals-semantics.test.ts",
+          "contains": "measures movement from the baseline toward the target, either direction"
+        },
+        {
+          "file": "packages/work/test/unit/goals-semantics.test.ts",
+          "contains": "clamps to 0–100 and returns null without a measurement"
+        },
+        {
+          "file": "packages/work/test/unit/goals-semantics.test.ts",
+          "contains": "rolls key results up as a plain mean of the measured ones, and says how complete it is"
+        },
+        {
+          "file": "packages/work/test/integration/goals.test.ts",
+          "contains": "never lets a derived goal be set by hand, and never changes a check-in"
+        },
+        {
+          "file": "docs/engineering/adr/0028-goals-portfolios.md",
+          "contains": "| G4 |"
+        }
+      ]
+    },
+    {
+      "id": "D5",
+      "title": "Check-ins are append-only; latest pointers move with them; confidence is kept; freshness is computed from the goal; check-ins are idempotent and rate limited",
+      "adr_row": "G5",
+      "sources": [
+        {
+          "file": "packages/db/migrations/0041_goals_portfolios.up.sql",
+          "contains": "goal_checkin_immutable"
+        }
+      ],
+      "evidence": [
+        {
+          "file": "packages/work/test/integration/goals.test.ts",
+          "contains": "keeps the last stated confidence when a later check-in states none, and appends history"
+        },
+        {
+          "file": "packages/work/test/integration/goals.test.ts",
+          "contains": "replays one request as one check-in and limits the rate"
+        },
+        {
+          "file": "packages/work/test/unit/goals-semantics.test.ts",
+          "contains": "is never before any check-in, fresh within the window, and stale after it"
+        },
+        {
+          "file": "packages/work/test/integration/portfolios.test.ts",
+          "contains": "enforces its integrity in the database, not only in commands"
+        },
+        {
+          "file": "docs/engineering/adr/0028-goals-portfolios.md",
+          "contains": "| G5 |"
+        }
+      ]
+    },
+    {
+      "id": "D6",
+      "title": "Status never returns to draft; closed goals refuse check-ins; archived goals are read-only; edits use the row version",
+      "adr_row": "G6",
+      "sources": [
+        {
+          "file": "docs/architecture/platform/19-decisions.md",
+          "contains": "### PL-38: Goal and portfolio contracts"
+        }
+      ],
+      "evidence": [
+        {
+          "file": "packages/work/test/unit/goals-semantics.test.ts",
+          "contains": "never returns a goal to draft"
+        },
+        {
+          "file": "packages/work/test/integration/goals.test.ts",
+          "contains": "refuses a check-in on a closed goal, from a reader, and for a stranger"
+        },
+        {
+          "file": "packages/work/test/integration/goals.test.ts",
+          "contains": "updates with the loaded version and refuses a stale or missing one"
+        },
+        {
+          "file": "packages/work/test/integration/goals.test.ts",
+          "contains": "serializes two concurrent updates: one wins, one is told the goal changed"
+        },
+        {
+          "file": "docs/engineering/adr/0028-goals-portfolios.md",
+          "contains": "| G6 |"
+        }
+      ]
+    },
+    {
+      "id": "D7",
+      "title": "Links need a readable, correctly placed target and give one refusal otherwise; a link grants nothing; purge removes links",
+      "adr_row": "G7",
+      "sources": [
+        {
+          "file": "docs/architecture/access/15-decisions.md",
+          "contains": "Links and members need read."
+        }
+      ],
+      "evidence": [
+        {
+          "file": "packages/work/test/integration/goals.test.ts",
+          "contains": "refuses targets the caller cannot read, in the wrong scope, past the bound, and is idempotent"
+        },
+        {
+          "file": "packages/work/test/integration/goals.test.ts",
+          "contains": "bounds the links a goal holds"
+        },
+        {
+          "file": "packages/work/test/integration/portfolios.test.ts",
+          "contains": "removes links and memberships that name a purged project or task, and a goal with its history"
+        },
+        {
+          "file": "docs/engineering/adr/0028-goals-portfolios.md",
+          "contains": "| G7 |"
+        }
+      ]
+    },
+    {
+      "id": "D8",
+      "title": "Portfolios are an explicit bounded project list; brand portfolios hold their brand's projects; unreadable members are preserved and never shown",
+      "adr_row": "G8",
+      "sources": [
+        {
+          "file": "docs/architecture/data/12-decisions.md",
+          "contains": "`goals.portfolio_project` is an explicit, bounded list of project identities"
+        }
+      ],
+      "evidence": [
+        {
+          "file": "packages/work/test/integration/portfolios.test.ts",
+          "contains": "names only readable projects, holds a brand portfolio to its brand, and keeps members the editor cannot read"
+        },
+        {
+          "file": "packages/work/test/integration/portfolios.test.ts",
+          "contains": "bounds portfolios and their projects, and archives, trashes, and restores"
+        },
+        {
+          "file": "packages/work/test/integration/portfolios.test.ts",
+          "contains": "keeps hidden brands out of a portfolio the editor reads, without a hint that members were left out"
+        },
+        {
+          "file": "docs/engineering/adr/0028-goals-portfolios.md",
+          "contains": "| G8 |"
+        }
+      ]
+    },
+    {
+      "id": "D9",
+      "title": "Deterministic, explainable project health rules; the worst severity wins; no evidence is unknown; declared health is never overwritten",
+      "adr_row": "G9",
+      "sources": [
+        {
+          "file": "docs/ux/02-information-architecture.md",
+          "contains": "computed health sits beside the project's declared health"
+        }
+      ],
+      "evidence": [
+        {
+          "file": "packages/work/src/goals/semantics.ts",
+          "contains": "export function evaluateHealth("
+        },
+        {
+          "file": "packages/work/test/unit/goals-semantics.test.ts",
+          "contains": "takes the worst severity and keeps every reason"
+        },
+        {
+          "file": "packages/work/test/unit/goals-semantics.test.ts",
+          "contains": "is unknown, not on track, when there is nothing to evaluate"
+        },
+        {
+          "file": "packages/work/test/unit/goals-semantics.test.ts",
+          "contains": "separates a recently missed target (at risk) from a long-missed one (off track)"
+        },
+        {
+          "file": "packages/work/test/integration/portfolios.test.ts",
+          "contains": "evaluates every project by the same explainable rules and says what is missing"
+        },
+        {
+          "file": "docs/engineering/adr/0028-goals-portfolios.md",
+          "contains": "| G9 |"
+        }
+      ]
+    },
+    {
+      "id": "D10",
+      "title": "Dependencies are blocks edges between different projects with both ends readable; hidden edges and what is derived from them are omitted",
+      "adr_row": "G10",
+      "sources": [
+        {
+          "file": "docs/product/open-decisions.md",
+          "contains": "Cross-project dependencies in portfolio views are `blocks` edges"
+        }
+      ],
+      "evidence": [
+        {
+          "file": "packages/work/src/goals/semantics.ts",
+          "contains": "export function dependencyState("
+        },
+        {
+          "file": "packages/work/test/integration/portfolios.test.ts",
+          "contains": "omits a dependency whose other end the viewer cannot read, and everything derived from it"
+        },
+        {
+          "file": "packages/work/test/unit/goals-semantics.test.ts",
+          "contains": "resolves once the blocker is finished"
+        },
+        {
+          "file": "docs/engineering/adr/0028-goals-portfolios.md",
+          "contains": "| G10 |"
+        }
+      ]
+    },
+    {
+      "id": "D11",
+      "title": "Budgets are shown as set; spend and AI usage are not tracked (7A); money is grouped by currency",
+      "adr_row": "G11",
+      "sources": [
+        {
+          "file": "docs/ux/02-information-architecture.md",
+          "contains": "Spend and AI usage are shown as \"not tracked yet\""
+        }
+      ],
+      "evidence": [
+        {
+          "file": "packages/work/test/integration/portfolios.test.ts",
+          "contains": "summarizes budgets by currency without inventing spend, deadlines, and effort"
+        },
+        {
+          "file": "docs/engineering/adr/0028-goals-portfolios.md",
+          "contains": "| G11 |"
+        }
+      ]
+    },
+    {
+      "id": "D12",
+      "title": "Effort is the remaining estimate, else the estimate less readable logged time, never negative; unestimated work is counted",
+      "adr_row": "G12",
+      "sources": [
+        {
+          "file": "docs/architecture/data/12-decisions.md",
+          "contains": "## ADR-36: Goals, key results, check-ins, links, and portfolios"
+        }
+      ],
+      "evidence": [
+        {
+          "file": "packages/work/test/integration/portfolios.test.ts",
+          "contains": "summarizes budgets by currency without inventing spend, deadlines, and effort"
+        },
+        {
+          "file": "packages/work/src/goals/portfolio-service.ts",
+          "contains": "protected async taskFacts("
+        },
+        {
+          "file": "docs/engineering/adr/0028-goals-portfolios.md",
+          "contains": "| G12 |"
+        }
+      ]
+    },
+    {
+      "id": "D13",
+      "title": "Orphans are always relative to the viewer: projects without a readable active goal, goals without readable active work",
+      "adr_row": "G13",
+      "sources": [
+        {
+          "file": "docs/ux/02-information-architecture.md",
+          "contains": "Orphan findings say they are relative to the viewer."
+        }
+      ],
+      "evidence": [
+        {
+          "file": "packages/work/src/goals/portfolio-service.ts",
+          "contains": "async portfolioOrphans("
+        },
+        {
+          "file": "packages/work/test/integration/portfolios.test.ts",
+          "contains": "lists projects without a goal the viewer can read and goals without active work they can read"
+        },
+        {
+          "file": "packages/work/test/integration/portfolios.test.ts",
+          "contains": "counts a project as linked through a parent project"
+        },
+        {
+          "file": "packages/work/test/integration/portfolios.test.ts",
+          "contains": "says \"no active work\" when linked work is finished, and counts only work the viewer can read"
+        },
+        {
+          "file": "docs/engineering/adr/0028-goals-portfolios.md",
+          "contains": "| G13 |"
+        }
+      ]
+    },
+    {
+      "id": "D14",
+      "title": "Background recalculation stores viewer-neutral state, claims goals with a lease, appends a computed check-in once per input, backs off, and recovers",
+      "adr_row": "G14",
+      "sources": [
+        {
+          "file": "docs/engineering/observability.md",
+          "contains": "goals.jobs"
+        }
+      ],
+      "evidence": [
+        {
+          "file": "packages/work/src/goals/jobs.ts",
+          "contains": "export function goalRecalcHandler("
+        },
+        {
+          "file": "packages/work/test/integration/goal-jobs.test.ts",
+          "contains": "does not double-append when two sweeps overlap"
+        },
+        {
+          "file": "packages/work/test/integration/goal-jobs.test.ts",
+          "contains": "leaves a leased goal alone and reclaims it once the lease lapses (a crashed worker)"
+        },
+        {
+          "file": "packages/work/test/integration/goal-jobs.test.ts",
+          "contains": "backs a failing goal off, reports it failing, never blocks the others, and recovers"
+        },
+        {
+          "file": "packages/work/test/integration/goal-jobs.test.ts",
+          "contains": "bounds each sweep and caps the retry delay at the recheck interval"
+        },
+        {
+          "file": "packages/work/test/integration/goal-jobs.test.ts",
+          "contains": "skips archived goals and gives them a later look instead of working on them"
+        },
+        {
+          "file": "packages/work/test/integration/goal-jobs.test.ts",
+          "contains": "is invisible across workspaces: a sweep never reads or writes another workspace's goals"
+        },
+        {
+          "file": "docs/engineering/adr/0028-goals-portfolios.md",
+          "contains": "| G14 |"
+        }
+      ]
+    },
+    {
+      "id": "D15",
+      "title": "Exports are the viewer's own view, bounded, audited, formula-safe, and never stored",
+      "adr_row": "G15",
+      "sources": [
+        {
+          "file": "docs/architecture/access/15-decisions.md",
+          "contains": "**Exports.**"
+        }
+      ],
+      "evidence": [
+        {
+          "file": "packages/work/src/goals/goal-service.ts",
+          "contains": "async exportGoals("
+        },
+        {
+          "file": "packages/work/src/goals/portfolio-service.ts",
+          "contains": "async exportPortfolio("
+        },
+        {
+          "file": "packages/work/test/integration/goals.test.ts",
+          "contains": "exports what the viewer may read as bounded, audited CSV and JSON with neutralized formulas"
+        },
+        {
+          "file": "packages/work/test/integration/portfolios.test.ts",
+          "contains": "exports the portfolio rows the viewer may read, audited and formula-safe"
+        },
+        {
+          "file": "docs/engineering/adr/0028-goals-portfolios.md",
+          "contains": "| G15 |"
+        }
+      ]
+    },
+    {
+      "id": "D16",
+      "title": "A departing member's goals, key results, and portfolios move to the chosen member; check-ins keep their author",
+      "adr_row": "G16",
+      "sources": [
+        {
+          "file": "docs/engineering/lifecycle.md",
+          "contains": "goalOwnerHook"
+        }
+      ],
+      "evidence": [
+        {
+          "file": "packages/work/src/goals/ownership.ts",
+          "contains": "export const goalOwnerHook"
+        },
+        {
+          "file": "packages/work/test/integration/goals.test.ts",
+          "contains": "moves a departing member's goals to the chosen member and keeps their check-ins"
+        },
+        {
+          "file": "docs/engineering/adr/0028-goals-portfolios.md",
+          "contains": "| G16 |"
+        }
+      ]
+    },
+    {
+      "id": "D17",
+      "title": "Goal, key result, and portfolio lifecycle adapters; projects carry their goals; purge removes links, memberships, and a goal's history",
+      "adr_row": "G17",
+      "sources": [
+        {
+          "file": "docs/engineering/lifecycle.md",
+          "contains": "## Phase 5B goals and portfolios"
+        }
+      ],
+      "evidence": [
+        {
+          "file": "packages/work/src/goals/lifecycle.ts",
+          "contains": "export const goalAdapter"
+        },
+        {
+          "file": "packages/work/src/goals/lifecycle.ts",
+          "contains": "export async function purgeGoalTargets("
+        },
+        {
+          "file": "packages/work/test/integration/goals.test.ts",
+          "contains": "archives a goal with its key results, restores them, and trashes and restores"
+        },
+        {
+          "file": "packages/work/test/integration/portfolios.test.ts",
+          "contains": "removes links and memberships that name a purged project or task, and a goal with its history"
+        },
+        {
+          "file": "docs/engineering/adr/0028-goals-portfolios.md",
+          "contains": "| G17 |"
+        }
+      ]
+    },
+    {
+      "id": "D18",
+      "title": "Deliberate deferrals are recorded: comments, notifications, search, dashboards, metrics, spend and AI usage, fiscal calendars, hierarchies, templates, automatic status, capacity comparison",
+      "adr_row": "G18",
+      "sources": [
+        {
+          "file": "docs/ux/02-information-architecture.md",
+          "contains": "**Phase 5B implementation note.**"
+        }
+      ],
+      "evidence": [
+        {
+          "file": "docs/architecture/data/13-open-questions.md",
+          "contains": "DQ-40"
+        },
+        {
+          "file": "docs/architecture/platform/contracts/registry.json",
+          "contains": "goals.goal.update_stale"
+        },
+        {
+          "file": "docs/engineering/adr/0028-goals-portfolios.md",
+          "contains": "| G18 |"
+        }
+      ]
+    },
+    {
+      "id": "D19",
+      "title": "Counters carry only enums; no goal text in metrics, logs, or events; audit stores content hashes",
+      "adr_row": "G19",
+      "sources": [
+        {
+          "file": "docs/engineering/observability.md",
+          "contains": "## Goals and portfolios (5B)"
+        }
+      ],
+      "evidence": [
+        {
+          "file": "docs/architecture/platform/contracts/registry.json",
+          "contains": "goals.reads"
+        },
+        {
+          "file": "packages/work/test/integration/goals.test.ts",
+          "contains": "records goal changes in the audit trail without content"
+        },
+        {
+          "file": "docs/engineering/adr/0028-goals-portfolios.md",
+          "contains": "| G19 |"
+        }
+      ]
+    }
+  ],
+  "limitations": [
+    {
+      "item": "GOAL-011 (brand time and AI investment)",
+      "owner": "5D",
+      "note": "5B does not claim it: it provides readable logged time and effort per project. The brand rollups and AI usage belong to 5D and 7A."
+    },
+    {
+      "item": "Money spend and AI usage against budgets",
+      "owner": "7A",
+      "note": "Reported as not_tracked; budgets are shown as set."
+    },
+    {
+      "item": "Comments, mentions, and following on goals",
+      "owner": "4A",
+      "note": "Not registered as hosts; it would need a collaboration migration."
+    },
+    {
+      "item": "Stale-update notifications",
+      "owner": "4B",
+      "note": "The event goals.goal.update_stale is emitted; no notification consumer exists yet."
+    },
+    {
+      "item": "Goals in search",
+      "owner": "5A",
+      "note": "Not indexed by 5B."
+    },
+    {
+      "item": "Dashboards, reports, metric definitions, and weighted rollups",
+      "owner": "5D, 5C",
+      "note": "Not built; OD-13 allows no estimate weighting until 5C."
+    },
+    {
+      "item": "Fiscal calendars, goal hierarchies, templates, automatic status changes, capacity-versus-effort comparison",
+      "owner": "later",
+      "note": "Not built."
+    },
+    {
+      "item": "A test that narrows a grant between two reads of one goal",
+      "owner": "5B",
+      "note": "AT-248 is evidenced by construction (nothing derived is stored; reads are no-store), not by a revocation test."
+    },
+    {
+      "item": "Playwright journeys for trash and restore of goals",
+      "owner": "5B",
+      "note": "Restore is covered by the service test and the web component test, not by a browser journey."
+    }
+  ]
+}

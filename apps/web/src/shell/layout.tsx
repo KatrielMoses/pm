@@ -138,12 +138,13 @@ function useShellCommands(kind: 'workspace' | 'personal') {
       });
   }
   for (const def of ROUTES) {
-    if (!def.command) continue;
+    const id = def.command ?? def.extraCommand;
+    if (!id) continue;
     if (def.shell === 'workspace' && (kind !== 'workspace' || !canSee(def, access))) continue;
     const href = hrefFor(def, ws, token);
     if (!href) continue;
     list.push({
-      id: def.command,
+      id,
       label: def.nav?.label ?? def.section,
       group: 'Go to',
       href,

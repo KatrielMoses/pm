@@ -343,3 +343,16 @@ Migration `0040_collaborative_editing` (ADR-0027, 0B ADR-35) adds three tables t
 - `knowledge.edit_op`: the ordered log (primary key `(workspace_id, document_id, seq)`); a unique `(document, member, op_id)` makes a retry idempotent; the session reference is `ON DELETE SET NULL (session_id)`.
 
 All three have `tenant_isolation` RLS, deferrable composite foreign keys to the document, and indexes on every foreign key. The application role reads, inserts, and updates drafts, inserts and deletes operations, and manages sessions; the worker may only read and delete (purge). The down migration drops the three tables, restoring the exact 0039 catalog.
+
+## Phase 5B: goals and portfolios
+
+Migration `0041_goals_portfolios` (ADR-0028, 0B ADR-36) adds the `goals` schema:
+- `goals.goal`, `goals.key_result`, and `goals.portfolio`: records in the core envelope (`goal_`, `kr_`, `pf_`) with a row `version`, bounded text and decimals, a period of at most 3660 days, a measurement that needs its baseline, and a basis that allows a measurement only when it is manual. `latest_*` columns mirror the newest manual check-in.
+- `goals.goal_checkin`: append-only. A `BEFORE UPDATE` trigger refuses any change, the application role has no update or delete, and a unique index on `(workspace_id, goal_id, inputs_hash)` makes a computed check-in idempotent.
+- `goals.goal_link`: links a goal or key result to a project or task (unique per goal, key result, and target); a trigger keeps a brand goal's links in its brand and a project goal's task links in its project.
+- `goals.portfolio_project`: an explicit member list; a trigger keeps a brand portfolio to its brand's projects.
+- `goals.goal_state`: one row per goal with viewer-neutral derived facts and the dirty, due, lease, attempt, and error bookkeeping, and `exec_dispatch.discover_goal_work(now, limit)`, a payload-free `SECURITY DEFINER` discovery of workspaces with goals due for recalculation (owner `pm_scheduler`, executable by the dispatcher, with column-level read grants).
+
+All seven tables have `tenant_isolation` RLS and indexes on every foreign key. The worker may read and delete (purge), append computed check-ins, and maintain state. The down migration drops the function, grants, policy, triggers, and tables in key order and the `goals` schema, restoring the exact 0040 catalog.
+
+**Migration number.** This branch and Phase 5A (`0041_permission_aware_search`) were built in parallel and both use `0041`; the integrator renumbers one of them, as 4C and 4E did with `0038`.

@@ -1151,16 +1151,18 @@ describe('Notification platform (4B)', () => {
       expect((await env.svc.browserPending(a.who, ws)).data).toEqual([]);
     });
 
+    // The sweep counts days in the workspace's zone, so the fixture does too (it failed between
+    // 22:00 and 24:00 UTC when that zone was already on the next calendar day).
     it('announces due-soon and overdue work once per task and date, only to its assignees', async () => {
       const a = await fresh();
       const soon = await newTask('Due tomorrow');
       const late = await newTask('Fell overdue');
       for (const x of [soon, late]) await assign(x, a.id);
       await rows(
-        `UPDATE work.task SET due_date = (now() AT TIME ZONE 'UTC')::date + 1 WHERE id = (SELECT id FROM core.record WHERE public_id = '${soon.id}')`,
+        `UPDATE work.task SET due_date = (now() AT TIME ZONE (SELECT timezone FROM tenancy.workspace WHERE id = '${wsId}'))::date + 1 WHERE id = (SELECT id FROM core.record WHERE public_id = '${soon.id}')`,
       );
       await rows(
-        `UPDATE work.task SET due_date = (now() AT TIME ZONE 'UTC')::date - 1 WHERE id = (SELECT id FROM core.record WHERE public_id = '${late.id}')`,
+        `UPDATE work.task SET due_date = (now() AT TIME ZONE (SELECT timezone FROM tenancy.workspace WHERE id = '${wsId}'))::date - 1 WHERE id = (SELECT id FROM core.record WHERE public_id = '${late.id}')`,
       );
       await sweep();
       await sweep();

@@ -781,6 +781,30 @@ export const TELEMETRY_SIGNALS = [
       "kind",
       "outcome"
     ]
+  },
+  {
+    "name": "goals.reads",
+    "type": "counter",
+    "labels": [
+      "view",
+      "outcome"
+    ]
+  },
+  {
+    "name": "goals.changes",
+    "type": "counter",
+    "labels": [
+      "kind",
+      "outcome"
+    ]
+  },
+  {
+    "name": "goals.jobs",
+    "type": "counter",
+    "labels": [
+      "kind",
+      "outcome"
+    ]
   }
 ] as const;
 export type TelemetrySignalName = (typeof TELEMETRY_SIGNALS)[number]['name'];
@@ -1812,6 +1836,13 @@ export const ID_PREFIXES = [
     "resource": "document_suggestion",
     "entity": "knowledge.document_suggestion",
     "ownerModule": "knowledge",
+    "platformOnly": false
+  },
+  {
+    "prefix": "gci",
+    "resource": "goal_checkin",
+    "entity": "goals.goal_checkin",
+    "ownerModule": "goals",
     "platformOnly": false
   }
 ] as const;
@@ -3273,6 +3304,110 @@ export const INTERNAL_EVENTS = [
       "version_number"
     ],
     "maxClass": "C1"
+  },
+  {
+    "type": "goals.goal.created",
+    "schemaVersion": 1,
+    "aggregateEntity": "goals.goal",
+    "fields": [
+      "scope",
+      "period_kind",
+      "progress_basis"
+    ],
+    "maxClass": "C1"
+  },
+  {
+    "type": "goals.goal.updated",
+    "schemaVersion": 1,
+    "aggregateEntity": "goals.goal",
+    "fields": [
+      "change"
+    ],
+    "maxClass": "C1"
+  },
+  {
+    "type": "goals.goal.status_changed",
+    "schemaVersion": 1,
+    "aggregateEntity": "goals.goal",
+    "fields": [
+      "status"
+    ],
+    "maxClass": "C1"
+  },
+  {
+    "type": "goals.goal.checkin_recorded",
+    "schemaVersion": 1,
+    "aggregateEntity": "goals.goal_checkin",
+    "fields": [
+      "source",
+      "confidence",
+      "has_value"
+    ],
+    "maxClass": "C1"
+  },
+  {
+    "type": "goals.goal.link_changed",
+    "schemaVersion": 1,
+    "aggregateEntity": "goals.goal_link",
+    "fields": [
+      "change",
+      "target_kind"
+    ],
+    "maxClass": "C1"
+  },
+  {
+    "type": "goals.goal.update_stale",
+    "schemaVersion": 1,
+    "aggregateEntity": "goals.goal",
+    "fields": [
+      "days_stale"
+    ],
+    "maxClass": "C1"
+  },
+  {
+    "type": "goals.key_result.created",
+    "schemaVersion": 1,
+    "aggregateEntity": "goals.key_result",
+    "fields": [
+      "progress_basis"
+    ],
+    "maxClass": "C1"
+  },
+  {
+    "type": "goals.key_result.updated",
+    "schemaVersion": 1,
+    "aggregateEntity": "goals.key_result",
+    "fields": [
+      "change"
+    ],
+    "maxClass": "C1"
+  },
+  {
+    "type": "goals.portfolio.created",
+    "schemaVersion": 1,
+    "aggregateEntity": "goals.portfolio",
+    "fields": [
+      "scope"
+    ],
+    "maxClass": "C1"
+  },
+  {
+    "type": "goals.portfolio.updated",
+    "schemaVersion": 1,
+    "aggregateEntity": "goals.portfolio",
+    "fields": [
+      "change"
+    ],
+    "maxClass": "C1"
+  },
+  {
+    "type": "goals.portfolio.members_changed",
+    "schemaVersion": 1,
+    "aggregateEntity": "goals.portfolio",
+    "fields": [
+      "count"
+    ],
+    "maxClass": "C1"
   }
 ] as const;
 export type InternalEventType = (typeof INTERNAL_EVENTS)[number]['type'];
@@ -3457,7 +3592,20 @@ export const PARAMETER_NAMES = [
   "FILES_LIST_MAX",
   "DELIVERABLES_PER_TASK_MAX",
   "FILE_DISCOVERY_MAX",
-  "FILE_EXPIRY_BATCH_MAX"
+  "FILE_EXPIRY_BATCH_MAX",
+  "GOALS_PER_SCOPE_MAX",
+  "GOAL_KEY_RESULTS_MAX",
+  "GOAL_LINKS_MAX",
+  "GOAL_UPDATE_STALE_DAYS",
+  "GOAL_CHECKIN_RATE_PER_MINUTE",
+  "PORTFOLIOS_MAX",
+  "PORTFOLIO_PROJECTS_MAX",
+  "PORTFOLIO_READ_PROJECTS_MAX",
+  "GOALS_EXPORT_ROWS_MAX",
+  "GOALS_RECALC_BATCH_MAX",
+  "GOALS_RECALC_LEASE_SECONDS",
+  "GOALS_RECALC_INTERVAL_MINUTES",
+  "GOALS_RECALC_MAX_ATTEMPTS"
 ] as const;
 export type ParameterName = (typeof PARAMETER_NAMES)[number];
 
