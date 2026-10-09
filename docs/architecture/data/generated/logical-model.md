@@ -3463,7 +3463,8 @@ Versioned metric semantics with provenance and formula reference.
 | Uniqueness | — |
 | Key typed columns | standard columns only |
 | Sensitive fields | — |
-| Requirements | RPT-023, RPT-024 |
+| Requirements | RPT-023, RPT-024, RPT-025 |
+| Notes | Phase 5C (ADR-38): a versioned code registry (METRIC_DEFINITIONS), not a table; every result carries the version and the SHA-256 digest of its definition and a test pins each released digest. |
 
 <a id="entity-metric-snapshot"></a>
 ### `metric_snapshot`
@@ -3484,11 +3485,12 @@ Pre-aggregated metric values per scope and period with freshness and completenes
 | Key typed columns | `metric_key`; `metric_version`; `scope_key`; `project_id null`; `period`; `value`; `is_estimated`; `is_incomplete`; `computed_at`; `source_watermark` |
 | Sensitive fields | — |
 | Requirements | RPT-023, RPT-024, RPT-019 |
+| Notes | Phase 5C (ADR-38): not built. A pre-aggregated value per scope cannot be shared between viewers without disclosing, and a per-viewer copy would be a stale authority; figures are computed at request time and a frozen report stores the result computed as its recipient. |
 
 <a id="entity-dashboard"></a>
 ### `dashboard`
 
-Configured widgets over permission-filtered data; personal or shared.
+Owner, brand, project, release, or personal dashboard: a bounded list of widgets and default filters. Holds no figure: every widget is computed for the viewer.
 
 | Property | Value |
 |---|---|
@@ -3501,14 +3503,15 @@ Configured widgets over permission-filtered data; personal or shared.
 | Volume / export / search-AI | `low` / `filtered` / `yes` |
 | Secrets / personal data | `no` / `incidental` |
 | Uniqueness | — |
-| Key typed columns | standard columns only |
+| Key typed columns | `kind (owner\|brand\|project\|release\|personal)`; `project_id null`; `title`; `owner_membership_id`; `layout (bounded widget list)`; `filters (bounded)` |
 | Sensitive fields | — |
-| Requirements | RPT-001, RPT-017 |
+| Requirements | RPT-001, RPT-017, RPT-018, RPT-019 |
+| Notes | Phase 5D (ADR-39): placement decides access; a personal dashboard is its owner's alone (personal.manage_own). Widgets name a metric and its parameters, never a value; every figure is computed for the viewer from what they may read, so nothing stored can outlive a revocation. |
 
 <a id="entity-report-definition"></a>
 ### `report_definition`
 
-Saved report configuration and optional schedule.
+Saved report configuration (widgets and filters) with an optional schedule; the accountable owner's authority is rechecked at each send.
 
 | Property | Value |
 |---|---|
@@ -3521,29 +3524,73 @@ Saved report configuration and optional schedule.
 | Volume / export / search-AI | `low` / `filtered` / `yes` |
 | Secrets / personal data | `no` / `incidental` |
 | Uniqueness | — |
-| Key typed columns | `accountable_owner_membership_id`; `suspended_reason (owner_authority\|owner_departed\|admin) null`; `suspended_at null` |
+| Key typed columns | `title`; `accountable_owner_membership_id (column owner_membership_id)`; `config (bounded widgets and filters)`; `schedule_frequency, schedule_weekday, schedule_monthday, schedule_minute, schedule_timezone null`; `next_run_at null`; `claimed_until, attempts, last_error`; `suspended_reason (owner_authority\|owner_departed\|admin) null`; `suspended_at null` |
 | Sensitive fields | — |
-| Requirements | RPT-020, RPT-021 |
+| Requirements | RPT-020, RPT-021, RPT-022 |
+| Notes | Phase 5D (ADR-39): schedules are local-time occurrences (daily, weekly, or monthly on days 1 to 28); a sweep that was down owes one delivery, never a backlog. Whoever saves a schedule answers for it; if they lose the authority or leave, it is suspended until someone resumes it. |
+
+<a id="entity-report-recipient"></a>
+### `report_recipient`
+
+A member who receives a scheduled report; must be able to read it, and may remove themselves at any time.
+
+| Property | Value |
+|---|---|
+| Scope | `inherited` |
+| Contained by | [`report_definition`](logical-model.md#entity-report-definition) |
+| Extends (1:1) | — |
+| Associations | [`report_definition`](logical-model.md#entity-report-definition) |
+| Lifecycle / concurrency | `mutable` / `row-version` |
+| Retention / confidentiality | `R-LIVE` / `C1` |
+| Volume / export / search-AI | `low` / `never` / `no` |
+| Secrets / personal data | `no` / `incidental` |
+| Uniqueness | `(report_id, membership_id)` |
+| Key typed columns | `report_id`; `membership_id`; `added_by_membership_id`; `added_at` |
+| Sensitive fields | — |
+| Requirements | RPT-021 |
+| Notes | Phase 5D (ADR-39): a recipient who can no longer read the report is skipped at send time and never emailed. A departing member's rows are removed. |
+
+<a id="entity-report-share"></a>
+### `report_share`
+
+An explicit, revocable grant to open and run one saved report, bound to the report's own scope. Grants no data: figures are always the grantee's own.
+
+| Property | Value |
+|---|---|
+| Scope | `inherited` |
+| Contained by | [`report_definition`](logical-model.md#entity-report-definition) |
+| Extends (1:1) | — |
+| Associations | [`report_definition`](logical-model.md#entity-report-definition) |
+| Lifecycle / concurrency | `mutable` / `row-version` |
+| Retention / confidentiality | `R-LIVE` / `C1` |
+| Volume / export / search-AI | `low` / `never` / `no` |
+| Secrets / personal data | `no` / `incidental` |
+| Uniqueness | `(report_id, grantee_membership_id) while active` |
+| Key typed columns | `public_id (rsh_…)`; `report_id`; `scope_key (the report's)`; `grantee_membership_id`; `created_by_membership_id`; `expires_at null`; `revoked_at null`; `revoked_by_membership_id null` |
+| Sensitive fields | — |
+| Requirements | RPT-020 |
+| Notes | Phase 5D (ADR-39): a share can only name the report's own scope (composite key), applies to the grantee's next read after it is created or revoked, and gives a guest or share-only reader only the records they were already given. Not an access grant on any record. |
 
 <a id="entity-report-run"></a>
 ### `report_run`
 
-Generated report output for a recipient and moment, authorized as the recipient.
+One scheduled delivery of one report to one recipient, authorized as that recipient at send time. Records that it happened, never its content.
 
 | Property | Value |
 |---|---|
 | Scope | `personal` |
 | Contained by | — |
-| Extends (1:1) | [`operation`](logical-model.md#entity-operation) |
+| Extends (1:1) | — |
 | Associations | — |
-| Lifecycle / concurrency | `append-only` / `append-only` |
+| Lifecycle / concurrency | `mutable` / `locked` |
 | Retention / confidentiality | `R-EXEC` / `C2` |
 | Volume / export / search-AI | `medium` / `self` / `yes` |
 | Secrets / personal data | `no` / `incidental` |
-| Uniqueness | — |
-| Key typed columns | standard columns only |
+| Uniqueness | `(report_id, recipient_membership_id, occurrence_at)` |
+| Key typed columns | `report_id`; `recipient_membership_id`; `occurrence_at`; `state (pending\|delivered\|empty\|skipped\|failed)`; `detail (code)`; `row_count`; `incomplete`; `content_hash`; `failure_class null`; `attempts`; `finished_at null` |
 | Sensitive fields | — |
 | Requirements | RPT-021, RPT-022 |
+| Notes | Phase 5D (ADR-39): the unique occurrence makes delivery idempotent; content is rendered at send time from the recipient's own access and never stored (only a hash). Aged out by REPORT_RUN_RETENTION_DAYS; leaves with the report on purge. |
 
 ## Integrations, API, and webhooks (`integrations`, schema `integrations`)
 
@@ -4943,3 +4990,49 @@ Help articles, changelog entries, roadmap items, status incidents (platform-owne
 | Key typed columns | standard columns only |
 | Sensitive fields | — |
 | Requirements | SUP-001, SUP-011, SUP-012, REL-015 |
+
+## Metrics ledger (`metrics`, schema `metrics`)
+
+Append-only task status history and the reconciliation state that proves and repairs it; the figures themselves are computed from records at request time (ADR-38).
+
+<a id="entity-task-status-span"></a>
+### `task_status_span`
+
+Append-only history of a task's status: one span per status the task was in, with a basis saying how it is known. No brand, project, lifecycle, or permission copy.
+
+| Property | Value |
+|---|---|
+| Scope | `inherited` |
+| Contained by | — |
+| Extends (1:1) | — |
+| Associations | [`record`](logical-model.md#entity-record) |
+| Lifecycle / concurrency | `append-only` / `append-only` |
+| Retention / confidentiality | `R-DERIVED` / `C1` |
+| Volume / export / search-AI | `high` / `never` / `no` |
+| Secrets / personal data | `no` / `no` |
+| Uniqueness | `(task_id, seq)`; `one open span per task` |
+| Key typed columns | `task_id`; `seq`; `status_id`; `status_category`; `entered_at`; `left_at null`; `basis (recorded\|assumed\|repaired)` |
+| Sensitive fields | — |
+| Requirements | RPT-007, RPT-008, RPT-009, RPT-023, RPT-024 |
+| Notes | Phase 5C (ADR-38): written by triggers in the task's own transaction; read only through a join to the task's core.record and the compiled visibility predicate; removed with the task and with a purged record; assumed spans are written once for tasks that predate the ledger. |
+
+<a id="entity-reconcile-state"></a>
+### `reconcile_state`
+
+The metrics reconciliation job's state for one workspace: when the next bounded pass is due, its lease and position, and its last success and failure.
+
+| Property | Value |
+|---|---|
+| Scope | `workspace` |
+| Contained by | — |
+| Extends (1:1) | — |
+| Associations | — |
+| Lifecycle / concurrency | `mutable` / `locked` |
+| Retention / confidentiality | `R-DERIVED` / `C1` |
+| Volume / export / search-AI | `low` / `never` / `no` |
+| Secrets / personal data | `no` / `no` |
+| Uniqueness | `(workspace_id)` |
+| Key typed columns | `next_run_at`; `lease_until null`; `scan_after null`; `pass_started_at null`; `pass_repaired`; `attempts`; `last_success_at null`; `last_failure_at null`; `failure_code null (source_error\|timeout)`; `repaired_total` |
+| Sensitive fields | — |
+| Requirements | RPT-023, RPT-024 |
+| Notes | Phase 5C (ADR-38): times, counts, and a short code only; shown to every workspace member as the freshness of the status history and to administrators as an action to check now. |

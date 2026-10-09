@@ -216,7 +216,23 @@ CREATE TRIGGER search_purged AFTER UPDATE OF lifecycle_state ON core.record
   FOR EACH ROW WHEN (NEW.lifecycle_state = 'purged' AND OLD.lifecycle_state <> 'purged')
   EXECUTE FUNCTION search.record_purged();
 
--- Existing rows are queued once, so the first worker runs index everything already there.
+-- Existing rows are queued once, so the first worker runs index everything already there. Every
+-- source table forces tenant row-level security even on its owner, and the migration role is
+-- subject to it: without a workspace context it reads no rows, so a plain INSERT ... SELECT would
+-- queue nothing on a database that already holds records. The force is therefore lifted on the
+-- source tables for this one read, inside the migration transaction, and set again straight after
+-- (the catalog comparison in the migration test proves it is restored). Nothing outside this
+-- transaction sees the lifted state; no application role, query, or policy changes. The queue
+-- table has no row-level security yet at this point, and its deferred foreign key is checked
+-- before the tables are altered again. The statement is idempotent (ON CONFLICT DO NOTHING).
+ALTER TABLE work.task NO FORCE ROW LEVEL SECURITY;
+ALTER TABLE work.project NO FORCE ROW LEVEL SECURITY;
+ALTER TABLE work.milestone NO FORCE ROW LEVEL SECURITY;
+ALTER TABLE work.decision_record NO FORCE ROW LEVEL SECURITY;
+ALTER TABLE knowledge.document NO FORCE ROW LEVEL SECURITY;
+ALTER TABLE collab.comment NO FORCE ROW LEVEL SECURITY;
+ALTER TABLE files.file NO FORCE ROW LEVEL SECURITY;
+ALTER TABLE files.deliverable NO FORCE ROW LEVEL SECURITY;
 INSERT INTO search.index_status (workspace_id, source_kind, source_id, auth_record_id)
 SELECT workspace_id, 'task', id, id FROM work.task
 UNION ALL SELECT workspace_id, 'project', id, id FROM work.project
@@ -227,6 +243,15 @@ UNION ALL SELECT workspace_id, 'comment', id, host_record_id FROM collab.comment
 UNION ALL SELECT workspace_id, 'file', id, CASE WHEN host_kind = 'workspace' THEN id ELSE host_record_id END FROM files.file
 UNION ALL SELECT workspace_id, 'deliverable', id, task_id FROM files.deliverable
 ON CONFLICT DO NOTHING;
+SET CONSTRAINTS ALL IMMEDIATE;
+ALTER TABLE files.deliverable FORCE ROW LEVEL SECURITY;
+ALTER TABLE files.file FORCE ROW LEVEL SECURITY;
+ALTER TABLE collab.comment FORCE ROW LEVEL SECURITY;
+ALTER TABLE knowledge.document FORCE ROW LEVEL SECURITY;
+ALTER TABLE work.decision_record FORCE ROW LEVEL SECURITY;
+ALTER TABLE work.milestone FORCE ROW LEVEL SECURITY;
+ALTER TABLE work.project FORCE ROW LEVEL SECURITY;
+ALTER TABLE work.task FORCE ROW LEVEL SECURITY;
 
 -- ---------------------------------------------------------------------------------------------
 -- Worker discovery: workspaces with queued keys that are due, or recent searches past retention.

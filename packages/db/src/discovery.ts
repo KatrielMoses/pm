@@ -225,6 +225,24 @@ export class PlatformDiscovery {
     return rows.map((r) => r.workspace_id);
   }
 
+  /** Workspaces whose metrics ledger reconciliation pass is due and not leased (5C, ids only). */
+  async discoverMetricsWork(now: Date, limit: number): Promise<string[]> {
+    const { rows } = await this.#pool.query<{ workspace_id: string }>(
+      'SELECT workspace_id FROM exec_dispatch.discover_metrics_work($1, $2)',
+      [now, limit],
+    );
+    return rows.map((r) => r.workspace_id);
+  }
+
+  /** Workspaces with a report schedule due or runs past retention (5D, ids only). */
+  async discoverReportWork(now: Date, retentionBefore: Date, limit: number): Promise<string[]> {
+    const { rows } = await this.#pool.query<{ workspace_id: string }>(
+      'SELECT workspace_id FROM exec_dispatch.discover_report_work($1, $2, $3)',
+      [now, retentionBefore, limit],
+    );
+    return rows.map((r) => r.workspace_id);
+  }
+
   /** Worker liveness (platform table, no tenant data). */
   async heartbeat(workerId: string, buildId: string, stopping = false): Promise<void> {
     await this.#pool.query(

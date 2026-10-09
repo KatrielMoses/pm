@@ -98,6 +98,7 @@ Source: `contracts/registry.json`.
 | `ndl_` | notification_delivery | notify.notification_delivery | notify | Phase 4B (PL-34). |
 | `dsg_` | document_suggestion | knowledge.document_suggestion | knowledge |  |
 | `gci_` | goal_checkin | goals.goal_checkin | goals |  |
+| `rsh_` | report_share | insights.report_share | insights |  |
 
 ## Error codes
 
@@ -355,6 +356,15 @@ Source: `contracts/registry.json`.
 | `goals.portfolio.created` v1 | goals.portfolio | scope | C1 | yes |  | yes |  |  | — |
 | `goals.portfolio.updated` v1 | goals.portfolio | change | C1 | yes |  | yes |  |  | — |
 | `goals.portfolio.members_changed` v1 | goals.portfolio | count | C1 | yes |  | yes |  |  | — |
+| `insights.dashboard.created` v1 | insights.dashboard | kind, scope | C1 | yes |  | yes |  |  | — |
+| `insights.dashboard.updated` v1 | insights.dashboard | change | C1 | yes |  | yes |  |  | — |
+| `insights.report.created` v1 | insights.report_definition | scope | C1 | yes |  | yes |  |  | — |
+| `insights.report.updated` v1 | insights.report_definition | change | C1 | yes |  | yes |  |  | — |
+| `insights.report.shared` v1 | insights.report_definition | scope | C1 | yes |  | yes |  |  | — |
+| `insights.report.share_revoked` v1 | insights.report_definition | scope | C1 | yes |  | yes |  |  | — |
+| `insights.report.schedule_changed` v1 | insights.report_definition | frequency, recipients | C1 | yes |  | yes |  |  | — |
+| `insights.report.suspended` v1 | insights.report_definition | reason | C1 | yes |  | yes |  |  | — |
+| `insights.report.resumed` v1 | insights.report_definition | reason | C1 | yes |  | yes |  |  | — |
 
 ## SSE topics
 
@@ -536,6 +546,13 @@ Forbidden metric labels: `workspace_id`, `brand_id`, `record_id`, `public_id`, `
 | `goals.reads` | counter | view, outcome | goals |
 | `goals.changes` | counter | kind, outcome | goals |
 | `goals.jobs` | counter | kind, outcome | goals |
+| `metrics.requests` | counter | op, outcome | metrics |
+| `metrics.query.duration` | histogram | outcome | metrics |
+| `metrics.reconcile.jobs` | counter | outcome | metrics |
+| `insights.reads` | counter | view, outcome | insights |
+| `insights.changes` | counter | kind, outcome | insights |
+| `insights.jobs` | counter | kind, outcome | insights |
+| `insights.widgets` | counter | metric, outcome | insights |
 
 ## Named parameters (values are configuration, not promises)
 
@@ -749,3 +766,30 @@ Forbidden metric labels: `workspace_id`, `brand_id`, `record_id`, `public_id`, `
 | `GOALS_RECALC_LEASE_SECONDS` | How long a claimed goal stays leased before another sweep may reclaim it; default 300, range 30–3600. | 5B |
 | `GOALS_RECALC_INTERVAL_MINUTES` | How often an unchanged goal's time-driven state (staleness, period) is rechecked; default 360, range 15–1440. | 5B |
 | `GOALS_RECALC_MAX_ATTEMPTS` | Failed recalculations before a goal is reported as failing and backed off to the recheck interval; default 5, range 1–20. | 5B |
+| `METRICS_WINDOW_DAYS_MAX` | Longest window a metric may cover, in days; default 366, range 31–1000. | 5C |
+| `METRICS_DEFAULT_WINDOW_DAYS` | Window a metric covers when none is given, in days; default 30, range 7–366. | 5C |
+| `METRICS_DRILL_PAGE_MAX` | Most records on one drill-through page; default 100, range 10–200. | 5C |
+| `METRICS_DRILL_RESULTS_MAX` | Deepest record a drill-through can page to; default 1000, range 100–5000. | 5C |
+| `METRICS_SCOPE_TASKS_MAX` | Most tasks one metric computation reads before it asks for a narrower scope; default 20000, range 1000–200000. | 5C |
+| `METRICS_SAMPLE_MIN` | Fewest records before a distribution metric is shown without a small-sample label; default 5, range 1–100. | 5C |
+| `METRICS_RATE_PER_MINUTE` | Most metric requests one person makes per minute; default 60, range 10–600. | 5C |
+| `METRICS_RECONCILE_BATCH_MAX` | Most tasks one reconciliation step checks per workspace; default 500, range 50–5000. | 5C |
+| `METRICS_RECONCILE_DISCOVERY_MAX` | Most workspaces one reconciliation run visits; default 50, range 1–500. | 5C |
+| `METRICS_RECONCILE_INTERVAL_MINUTES` | Wait between full reconciliation passes of a workspace, in minutes; default 360, range 5–10080. | 5C |
+| `METRICS_RECONCILE_LEASE_SECONDS` | How long a worker holds a workspace's reconciliation before another may take it; default 300, range 30–3600. | 5C |
+| `METRICS_RECONCILE_MAX_ATTEMPTS` | Failed reconciliation attempts before the workspace is reported failing; default 5, range 1–20. | 5C |
+| `METRICS_RECONCILE_BACKOFF_SECONDS` | First wait before a failed reconciliation is retried (it doubles); default 60, range 5–3600. | 5C |
+| `DASHBOARDS_PER_SCOPE_MAX` | Most dashboards one workspace, brand, or project scope holds; default 100, range 1–1000. | 5D |
+| `DASHBOARD_PERSONAL_MAX` | Most personal dashboards one member holds; default 20, range 1–200. | 5D |
+| `DASHBOARD_WIDGETS_MAX` | Most widgets one dashboard or report holds; default 24, range 1–60. | 5D |
+| `REPORTS_PER_SCOPE_MAX` | Most saved reports one scope holds; default 200, range 1–2000. | 5D |
+| `REPORT_RECIPIENTS_MAX` | Most recipients one scheduled report names; default 50, range 1–500. | 5D |
+| `REPORT_SHARES_MAX` | Most active shares one report holds; default 100, range 1–1000. | 5D |
+| `REPORT_EXPORT_ROWS_MAX` | Most rows one report or widget export returns; larger exports are refused; default 5000, range 100–50000. | 5D |
+| `REPORT_EMAIL_ROWS_MAX` | Most rows per widget in a scheduled report email; default 25, range 5–200. | 5D |
+| `REPORT_EXPORT_RATE_PER_MINUTE` | Most report exports one member makes per minute; default 20, range 1–600. | 5D |
+| `REPORT_RUN_RETENTION_DAYS` | How long delivery run records are kept; default 90, range 7–730. | 5D |
+| `REPORT_BATCH_MAX` | Most scheduled reports one sweep claims per workspace; default 25, range 1–500. | 5D |
+| `REPORT_LEASE_SECONDS` | How long a claimed scheduled report stays leased before another sweep may reclaim it; default 300, range 30–3600. | 5D |
+| `REPORT_MAX_ATTEMPTS` | Failed delivery attempts before a scheduled occurrence is recorded as failed; default 5, range 1–20. | 5D |
+| `REPORT_FRESHNESS_MINUTES` | Age after which a derived source (a goal recalculation) is labelled stale on a dashboard; default 720, range 15–10080. | 5D |

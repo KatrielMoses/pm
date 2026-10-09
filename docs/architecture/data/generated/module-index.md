@@ -38,6 +38,7 @@ flowchart BT
   automation["Automations (L5)"]
   agents["Agents and execution control (L5)"]
   support["Support and feedback (L4)"]
+  metrics["Metrics ledger (L4)"]
   audit --> execution
   core --> execution
   core --> audit
@@ -188,6 +189,10 @@ flowchart BT
   support --> files
   support --> execution
   support --> audit
+  metrics --> core
+  metrics --> tenancy
+  metrics --> work
+  metrics --> execution
 ```
 
 | Module | Layer | Schema | Responsibilities | Depends on | Publishes | FEATURES sections | Entities |
@@ -214,7 +219,7 @@ flowchart BT
 | **Goals and portfolios** (`goals`) | 3 | `goals` | Goals, key results, goal links, check-ins, derived recalculation state, portfolios, and portfolio members. | core, tenancy, work, audit, execution | `goal.*` | GOAL | 7 |
 | **Views and navigation state** (`views`) | 3 | `views` | Saved views and query definitions, defaults, pins, favorites, recently viewed, persisted view state. | core, tenancy, audit, execution | `view.*` | A11Y, NAV, VIEW | 6 |
 | **Search** (`search`) | 4 | `search` | Permission-filtered search projection fed by events, indexing status and failures, recent searches. | core, tenancy, execution | `search.index_failed` | SRCH | 3 |
-| **Metrics, dashboards, and reports** (`insights`) | 4 | `insights` | Versioned metric definitions, metric snapshots, dashboards, widgets, reports, schedules, report runs. | core, tenancy, views, execution, audit | `report.delivered` | GOAL, RPT | 5 |
+| **Metrics, dashboards, and reports** (`insights`) | 4 | `insights` | Versioned metric definitions, metric snapshots, dashboards, widgets, reports, schedules, report runs. | core, tenancy, views, execution, audit | `report.delivered` | GOAL, RPT | 7 |
 | **Integrations, API, and webhooks** (`integrations`) | 4 | `integrations` | Connections, resource mappings, external identities, external calendar-event mirrors, sync runs, checkpoints and conflicts, inbound endpoints and messages, outbound webhook subscriptions and deliveries, API tokens, OAuth/MCP clients. | core, tenancy, access, metering, planning, execution, audit | `connection.*`, `sync.*`, `webhook.delivery_failed` | CAL, DEV, INT | 13 |
 | **Import and export** (`transfer`) | 4 | `transfer` | Import jobs, saved mappings, row outcomes and rollback, export jobs and expiring export files. | core, tenancy, files, execution, audit | `import.*`, `export.*` | DATA | 5 |
 | **Test management and defects** (`quality`) | 4 | `quality` | Test cases and immutable versions, suites, runs, results, flaky classification, defect details, verification records. | core, tenancy, work, files, integrations, delivery, execution, audit | `test_result.recorded`, `defect.verified` | TEST | 8 |
@@ -224,3 +229,4 @@ flowchart BT
 | **Automations** (`automation`) | 5 | `automation` | Automation definitions with immutable versions, runs and step runs. | core, tenancy, metering, execution, audit | `automation_run.*` | AUTO | 4 |
 | **Agents and execution control** (`agents`) | 5 | `agents` | Agent profiles, scope and tool grants, connectors, assignments, runs, tool calls, artifacts, action approvals, emergency stop. | core, tenancy, access, work, collab, files, metering, integrations, execution, audit | `agent_run.*`, `action_approval.*` | AGT | 10 |
 | **Support and feedback** (`support`) | 4 | `support` | Support requests, consented diagnostics bundles, feedback, platform content (help, changelog, roadmap, status). | identity, tenancy, files, execution, audit | `support.request_created` | SUP | 4 |
+| **Metrics ledger** (`metrics`) | 4 | `metrics` | Append-only task status history and the reconciliation state that proves and repairs it; the figures themselves are computed from records at request time (ADR-38). | core, tenancy, work, execution |  | RPT | 2 |

@@ -94,7 +94,7 @@ describe('migrations from an empty database', () => {
     expect(await catalogFingerprint(second)).toEqual(await catalogFingerprint(first));
   });
 
-  it('upgrades through every accepted boundary (0009–0042) to the candidate and reverses each boundary step', async () => {
+  it('upgrades through every accepted boundary (0009–0044) to the candidate and reverses each boundary step', async () => {
     // Accepted subphase boundaries: 1A 0009, 1B 0012, 1F 0016, 1C 0018, 1D 0019, 1E 0020; 2A adds
     // 0021 (work) and 0022 (relations, templates, recurrence); 2B–2E add 0023–0030; 3A adds 0031
     // (saved views, defaults, and pin writes); 3D adds 0032 (time entries, timesheets, approvals,
@@ -104,10 +104,12 @@ describe('migrations from an empty database', () => {
     // 4E adds 0039 (files, versions, upload sessions, deliverables, and storage usage); 4D adds 0040
     // (live edit drafts, sessions, and the ordered operation log); 5A adds 0041 (the search
     // projection, its indexing queue, recent searches, and the source triggers); 5B adds 0042 (goals,
-    // key results, links, check-ins, derived state, and portfolios).
+    // key results, links, check-ins, derived state, and portfolios); 5C adds 0043 (the task status ledger
+    // and its reconciliation state); 5D adds 0044 (dashboards, saved reports, report shares,
+    // recipients, and scheduled runs).
     const boundaries = [
       9, 12, 16, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38,
-      39, 40, 41, 42,
+      39, 40, 41, 42, 43, 44,
     ];
     const full = async (db: TestDatabase) => {
       const objects = await db.admin(`
@@ -138,7 +140,7 @@ describe('migrations from an empty database', () => {
         at.set(to, await full(stepped));
       }
       // Stepping through the boundaries reaches exactly the one-shot candidate catalog.
-      expect(at.get(42)).toEqual(await full(reference));
+      expect(at.get(44)).toEqual(await full(reference));
       // Each subphase's step reverses to the prior boundary's exact catalog and re-applies to its
       // own, walking down from the candidate.
       for (let i = boundaries.length - 1; i > 0; i--) {
@@ -296,6 +298,47 @@ describe('tamper evidence', () => {
       },
     ]);
     expect(report.problems.length).toBeGreaterThan(0);
+  });
+});
+
+describe('applied-migration boundary: the 0041 backfill correction (Phase 5C review 01)', () => {
+  let db: TestDatabase;
+  beforeAll(async () => {
+    db = await createEmptyTestDatabase();
+  });
+  afterAll(async () => {
+    await db.drop();
+  });
+
+  // The repository has no accepted deployment, so 0041 was corrected in place (an applied
+  // migration is otherwise immutable). A database that already applied the earlier 0041 is
+  // refused, not silently continued: it must be rebuilt (or, where it holds no data worth keeping,
+  // rolled down with the migration files it was built from and migrated again), after which the
+  // corrected 0041 queues every existing record. This test is that boundary.
+  it('refuses to continue a database that applied the uncorrected 0041, and rebuilds from its own files', async () => {
+    const old = mkdtempSync(join(tmpdir(), 'pm-mig-old-'));
+    cpSync(MIGRATIONS_DIR, old, { recursive: true });
+    writeFileSync(
+      join(old, '0041_permission_aware_search.up.sql'),
+      readFileSync(
+        new URL(
+          '../fixtures/0041_permission_aware_search.pre-backfill-fix.up.sql',
+          import.meta.url,
+        ),
+        'utf8',
+      ),
+    );
+    await migrator(db, old).up({ to: 41 });
+    const report = await migrator(db).verify();
+    expect(report.problems).toContain(
+      'migration 41_permission_aware_search was modified after it was applied',
+    );
+    await expect(migrator(db).up()).rejects.toThrow(/verification failed/);
+    // Rebuild: roll back with the files the database was built from, then migrate with the corrected ones.
+    await migrator(db, old).down(0);
+    const rebuilt = await migrator(db).up();
+    expect(rebuilt.applied.length).toBe(loadMigrations().length);
+    expect((await migrator(db).verify()).problems).toEqual([]);
   });
 });
 

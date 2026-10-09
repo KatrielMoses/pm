@@ -223,6 +223,12 @@ export const NON_RESOURCE_TYPES = [
   'search_status',
   'search_open',
   'search_recent',
+  // 5C: the metric catalog, one metric result, the records behind a result, and a reconciliation
+  // request; none has a public identifier of its own.
+  'metric_catalog',
+  'metric_result',
+  'metric_records',
+  'metric_reconcile',
   // 5B: a portfolio's health overview, cross-project dependencies, and orphan findings; each is
   // computed for the viewer and has no public identifier of its own.
   'portfolio_overview',
@@ -230,6 +236,14 @@ export const NON_RESOURCE_TYPES = [
   'portfolio_orphans',
   // 5B: the readable work behind a goal's linked-work progress (the drill-down for its figure).
   'goal_work',
+  // 5D: one widget's figure for the viewer, the records behind it, the metric catalog, a report's
+  // delivery runs, its recipients, and its shares; each is computed or authorized for the viewer.
+  'widget_result',
+  'widget_records',
+  'insight_metrics',
+  'report_runs',
+  'report_recipients',
+  'report_shares',
 ] as const;
 export type NonResourceType = (typeof NON_RESOURCE_TYPES)[number];
 

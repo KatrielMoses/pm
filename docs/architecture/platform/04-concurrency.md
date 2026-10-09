@@ -62,6 +62,10 @@ The `conflict` error with the `conflict` payload (schema `conflict`):
 
 - Goals, key results, and portfolios are `row-version` records: a stale `If-Match` is a `conflict` and a missing one `precondition_required` (Phase 5B, [PL-39](19-decisions.md#pl-39)). Check-ins are append-only and take an `Idempotency-Key`, so a retry records once. Nothing derived from linked work is stored, so there is no derived value to conflict with. A background recalculation claims a goal with a lease and appends a computed check-in once per distinct input.
 
+## 4.4b Dashboards and reports
+
+- Dashboards and reports are `row-version` records: a stale `If-Match` is a `conflict` and a missing one `precondition_required` (Phase 5D, [PL-41](19-decisions.md#pl-41)); two edits from one version have one winner. A scheduled delivery is idempotent by its occurrence key (report, recipient, scheduled time), so a repeated, overlapping, or crashed sweep sends nothing twice; the sweep claims reports with a lease (`FOR UPDATE SKIP LOCKED`). Nothing derived is stored, so there is no cache to invalidate.
+
 ## 4.5 Bulk and per-item boundaries
 
 | Mode | Boundary | Result |

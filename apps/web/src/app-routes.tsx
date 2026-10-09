@@ -14,6 +14,7 @@ import {
 } from './pages/auth-pages.tsx';
 import { DocumentPage } from './pages/document-pages.tsx';
 import { SearchPage } from './pages/search-pages.tsx';
+import { MetricsPage } from './pages/metric-pages.tsx';
 import { KnowledgePage } from './pages/knowledge-pages.tsx';
 import { NotificationCentrePage, NotificationSettingsPage } from './pages/notify-pages.tsx';
 import { LifecycleHarnessPage } from './pages/harness.tsx';
@@ -40,6 +41,16 @@ const GoalPage = lazy(() =>
 );
 const PortfolioPage = lazy(() =>
   import('./pages/portfolio-pages.tsx').then((m) => ({ default: m.PortfolioPage })),
+);
+// 5D pages load on first use as well.
+const ReportsPage = lazy(() =>
+  import('./pages/insight-pages.tsx').then((m) => ({ default: m.ReportsPage })),
+);
+const DashboardPage = lazy(() =>
+  import('./pages/insight-pages.tsx').then((m) => ({ default: m.DashboardPage })),
+);
+const ReportPage = lazy(() =>
+  import('./pages/insight-pages.tsx').then((m) => ({ default: m.ReportPage })),
 );
 const loadingGoals = (
   <p className="loading" role="status">
@@ -149,9 +160,24 @@ export const ROUTE_COMPONENTS: Record<string, Render> = {
       <PortfolioPage key={p.ws} ws={p.ws!} />
     </Suspense>
   ),
-  reports: destination('reports'),
+  reports: (p) => (
+    <Suspense fallback={loadingGoals}>
+      <ReportsPage key={p.ws} ws={p.ws!} />
+    </Suspense>
+  ),
+  dashboard: (p) => (
+    <Suspense fallback={loadingGoals}>
+      <DashboardPage key={p.dash} ws={p.ws!} dash={p.dash!} />
+    </Suspense>
+  ),
+  report: (p) => (
+    <Suspense fallback={loadingGoals}>
+      <ReportPage key={p.rpt} ws={p.ws!} report={p.rpt!} />
+    </Suspense>
+  ),
   shared: (p) => <SharedWithMePage key={p.ws} ws={p.ws!} />,
   search: (p) => <SearchPage key={p.ws} ws={p.ws!} />,
+  metrics: (p) => <MetricsPage key={p.ws} ws={p.ws!} />,
   views: (p) => <SavedViewsPage key={p.ws} ws={p.ws!} />,
   view: (p) => <SavedViewPage key={p.view} ws={p.ws!} view={p.view!} />,
   favorites: (p) => <FavoritesPage key={p.ws} ws={p.ws!} />,

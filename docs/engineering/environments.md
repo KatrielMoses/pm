@@ -231,6 +231,19 @@ worker process is a startup error. All identities of one process must target the
 | `SEARCH_RECENT_MAX` | optional | optional | default 25 (5–100); recent searches kept per person and workspace (0D `SEARCH_RECENT_MAX`) |
 | `SEARCH_RECENT_RETENTION_DAYS` | optional | optional | default 90 (1–365); how long a recent search is kept, in days (0D `SEARCH_RECENT_RETENTION_DAYS`) |
 | `SEARCH_RATE_PER_MINUTE` | optional | optional | default 120 (10–1200); most searches one person makes per minute (0D `SEARCH_RATE_PER_MINUTE`) |
+| `METRICS_WINDOW_DAYS_MAX` | optional | optional | default 366 (31–1000); longest window a metric may cover, in days (0D `METRICS_WINDOW_DAYS_MAX`) |
+| `METRICS_DEFAULT_WINDOW_DAYS` | optional | optional | default 30 (7–366); window a metric covers when none is given, in days (0D `METRICS_DEFAULT_WINDOW_DAYS`) |
+| `METRICS_DRILL_PAGE_MAX` | optional | optional | default 100 (10–200); most records on one drill-through page (0D `METRICS_DRILL_PAGE_MAX`) |
+| `METRICS_DRILL_RESULTS_MAX` | optional | optional | default 1000 (100–5000); deepest record a drill-through can page to (0D `METRICS_DRILL_RESULTS_MAX`) |
+| `METRICS_SCOPE_TASKS_MAX` | optional | optional | default 20000 (1000–200000); most tasks one metric computation reads before it asks for a narrower scope (0D `METRICS_SCOPE_TASKS_MAX`) |
+| `METRICS_SAMPLE_MIN` | optional | optional | default 5 (1–100); fewest records before a distribution metric is shown without a small-sample label (0D `METRICS_SAMPLE_MIN`) |
+| `METRICS_RATE_PER_MINUTE` | optional | optional | default 60 (10–600); most metric requests one person makes per minute (0D `METRICS_RATE_PER_MINUTE`) |
+| `METRICS_RECONCILE_BATCH_MAX` | optional | optional | default 500 (50–5000); most tasks one reconciliation step checks per workspace (0D `METRICS_RECONCILE_BATCH_MAX`) |
+| `METRICS_RECONCILE_DISCOVERY_MAX` | optional | optional | default 50 (1–500); most workspaces one reconciliation run visits (0D `METRICS_RECONCILE_DISCOVERY_MAX`) |
+| `METRICS_RECONCILE_INTERVAL_MINUTES` | optional | optional | default 360 (5–10080); wait between full reconciliation passes of a workspace, in minutes (0D `METRICS_RECONCILE_INTERVAL_MINUTES`) |
+| `METRICS_RECONCILE_LEASE_SECONDS` | optional | optional | default 300 (30–3600); how long a worker holds a workspace's reconciliation before another may take it (0D `METRICS_RECONCILE_LEASE_SECONDS`) |
+| `METRICS_RECONCILE_MAX_ATTEMPTS` | optional | optional | default 5 (1–20); failed reconciliation attempts before the workspace is reported failing (0D `METRICS_RECONCILE_MAX_ATTEMPTS`) |
+| `METRICS_RECONCILE_BACKOFF_SECONDS` | optional | optional | default 60 (5–3600); first wait before a failed reconciliation is retried (it doubles) (0D `METRICS_RECONCILE_BACKOFF_SECONDS`) |
 | `GOALS_PER_SCOPE_MAX` | optional | optional | default 500 (10–5000); most live goals one workspace, brand, or project scope holds (0D `GOALS_PER_SCOPE_MAX`) |
 | `GOAL_KEY_RESULTS_MAX` | optional | optional | default 20 (1–50); most key results one goal holds (0D `GOAL_KEY_RESULTS_MAX`) |
 | `GOAL_LINKS_MAX` | optional | optional | default 200 (10–1000); most projects and tasks one goal and its key results link (0D `GOAL_LINKS_MAX`) |
@@ -244,6 +257,20 @@ worker process is a startup error. All identities of one process must target the
 | `GOALS_RECALC_LEASE_SECONDS` | optional | optional | default 300 (30–3600); how long a claimed goal stays leased before another sweep may reclaim it (0D `GOALS_RECALC_LEASE_SECONDS`) |
 | `GOALS_RECALC_INTERVAL_MINUTES` | optional | optional | default 360 (15–1440); how often an unchanged goal's time-driven state is rechecked, and the longest retry delay (0D `GOALS_RECALC_INTERVAL_MINUTES`) |
 | `GOALS_RECALC_MAX_ATTEMPTS` | optional | optional | default 5 (1–20); failed recalculations before a goal is reported as failing (0D `GOALS_RECALC_MAX_ATTEMPTS`) |
+| `DASHBOARDS_PER_SCOPE_MAX` | optional | optional | default 100 (1–1000); most dashboards one workspace, brand, or project scope holds (0D `DASHBOARDS_PER_SCOPE_MAX`) |
+| `DASHBOARD_PERSONAL_MAX` | optional | optional | default 20 (1–200); most personal dashboards one member holds (0D `DASHBOARD_PERSONAL_MAX`) |
+| `DASHBOARD_WIDGETS_MAX` | optional | optional | default 24 (1–60); most widgets one dashboard or report holds (0D `DASHBOARD_WIDGETS_MAX`) |
+| `REPORTS_PER_SCOPE_MAX` | optional | optional | default 200 (1–2000); most saved reports one scope holds (0D `REPORTS_PER_SCOPE_MAX`) |
+| `REPORT_RECIPIENTS_MAX` | optional | optional | default 50 (1–500); most recipients one scheduled report names (0D `REPORT_RECIPIENTS_MAX`) |
+| `REPORT_SHARES_MAX` | optional | optional | default 100 (1–1000); most active shares one report holds (0D `REPORT_SHARES_MAX`) |
+| `REPORT_EXPORT_ROWS_MAX` | optional | optional | default 5000 (100–50000); most rows one report or widget export returns (0D `REPORT_EXPORT_ROWS_MAX`) |
+| `REPORT_EMAIL_ROWS_MAX` | optional | optional | default 25 (5–200); most rows per widget in a scheduled report email (0D `REPORT_EMAIL_ROWS_MAX`) |
+| `REPORT_EXPORT_RATE_PER_MINUTE` | optional | optional | default 20 (1–600); most report exports one member makes per minute (0D `REPORT_EXPORT_RATE_PER_MINUTE`) |
+| `REPORT_RUN_RETENTION_DAYS` | optional | optional | default 90 (7–730); how long delivery run records are kept (0D `REPORT_RUN_RETENTION_DAYS`) |
+| `REPORT_BATCH_MAX` | optional | optional | default 25 (1–500); most scheduled reports one sweep claims per workspace (0D `REPORT_BATCH_MAX`) |
+| `REPORT_LEASE_SECONDS` | optional | optional | default 300 (30–3600); how long a claimed scheduled report stays leased before another sweep may reclaim it (0D `REPORT_LEASE_SECONDS`) |
+| `REPORT_MAX_ATTEMPTS` | optional | optional | default 5 (1–20); failed delivery attempts before a scheduled occurrence is recorded as failed (0D `REPORT_MAX_ATTEMPTS`) |
+| `REPORT_FRESHNESS_MINUTES` | optional | optional | default 720 (15–10080); age after which a derived source (a goal recalculation) is labelled stale on a dashboard (0D `REPORT_FRESHNESS_MINUTES`) |
 | `DOCUMENT_EMBED_URL_MAX_CHARS` | optional | optional | default 2048 (128–8192); longest address of an embedded image, video, or link (0D `DOCUMENT_EMBED_URL_MAX_CHARS`) |
 | `SIGNED_URL_LIFETIME` | optional | optional | default 300 (30–3600); lifetime in seconds of signed upload and download URLs; never stored, logged, or sent in notifications or exports (0D `SIGNED_URL_LIFETIME`) |
 | `UPLOAD_SESSION_LIFETIME` | optional | optional | default 3600 (300–86400); lifetime in seconds of an upload session; an expired, unfinished session releases its reserved bytes and its quarantined object (0D `UPLOAD_SESSION_LIFETIME`) |

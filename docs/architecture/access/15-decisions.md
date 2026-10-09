@@ -259,6 +259,20 @@ All decisions are **proposed (Phase 0C)**, pending solutions-architect acceptanc
 - **Alternatives:** Permission keys copied into the index (stale after every change, the denormalized-authority failure T-54 describes). Filtering a fetched page in the application (counts, ranks, and paging then reflect hidden records). Hiding results with a placeholder (it discloses existence, IA-40). A definer function that reads the index outside row-level security for speed (a new privileged read path).
 - **Consequences:** Threat T-54 with tests AT-238 to AT-245.
 
+<a id="az-39"></a>
+### AZ-39: Dashboards, reports, shares, and scheduled delivery (Phase 5D amendment)
+- **Decision:**
+  - **The placement decides, or an explicit share.** A dashboard or report is read and written through the level of its placement at that moment. `record.create`, `record.update`, `record.archive`, `record.restore`, `record.trash`, `record.purge`, `record.read`, and `record.export` are reused. An unreadable and an unknown dashboard or report are one `not_found`.
+  - **Personal dashboards belong to one person.** They are created, changed, and removed through `personal.manage_own` and read by their owner only, whatever role anyone else holds.
+  - **A share grants no data.** Sharing needs `record.share` (manage) on the report and revoking needs `record.share_revoke`. A share lets the grantee open and run the saved definition; every figure and record is still decided by the grantee's own access, within the report's scope. It is never onward-shareable and never reaches dashboards. A guest or share-only reader sees no aggregate wider than the records they were given, only guest-safe widgets, and a label that says so.
+  - **Computed for the viewer, from what the viewer may read.** Every widget, drill-through, export, and email is computed at the moment of the request or send from the recipient's own compiled visibility; a revoked grant, share, or membership applies to the next one. Hidden brands, projects, and tasks change no count, group, total, label, freshness statement, truncation notice, or empty state, and a widget whose source the person cannot see is absent (AT-280 to AT-286).
+  - **Scheduling is accountable.** `report.schedule` is decided at the report's own scope (project, brand, or workspace). Whoever saves a schedule answers for it; at each send the owner's membership and `report.schedule` authority are rechecked and a failure suspends the schedule (`owner_authority`, `owner_departed`) instead of sending. A recipient who can no longer read the report is skipped and never emailed, and one who can see nothing gets no email (AT-016, AT-287 to AT-289).
+  - **Exports.** CSV and PDF are produced for the requester, bounded (`REPORT_EXPORT_ROWS_MAX`), rate limited per member, neutralize formula cells, audited with a security event, and never stored. A read-only member, a limited member without the export policy, and a guest cannot export (AT-290, AT-291).
+  - **Sensitive brands.** A scheduled email for a sensitive brand's report carries no figures, only a pointer back into the product (UXD-10).
+  - **No new actions.** The action count stays 122.
+- **Alternatives:** A share that copies the sharer's view (the share would disclose what the sharer sees and not what the grantee may). Recording a stored visibility in a run. Letting a recipient receive a figure computed for the report's owner.
+- **Consequences:** Threats T-65 to T-72 with tests AT-280 to AT-297.
+
 <a id="az-37"></a>
 ### AZ-37: Goals and portfolios (Phase 5B amendment)
 - **Decision:**
@@ -272,6 +286,21 @@ All decisions are **proposed (Phase 0C)**, pending solutions-architect acceptanc
   - **No new actions.** The action count stays 122.
 - **Alternatives:** Sharing goals or portfolios (a second access path to the work they summarize). A goal-level role table (a second authority). Storing a portfolio's health, progress, or counts (one viewer's view served to the next). Showing the number of hidden linked items so a total adds up (existence disclosure).
 - **Consequences:** Threats T-55 to T-62 with tests AT-246 to AT-268.
+<a id="az-38"></a>
+### AZ-38: Metrics (Phase 5C amendment)
+- **Decision:**
+  - **One authority, first.** A metric is computed for the person asking, from records they may read at that moment. Every counted record (a task, a project, the host task of a deliverable) is joined to the `core.record` that governs it and the compiled record-visibility predicate is applied before the record is counted, grouped, ranked, timed, labelled, remembered, or paged. A hidden record contributes to no count, percentage, sum, distribution (median, percentile, mean, extreme), age band, breakdown row, order, record total, freshness figure, digest, or timing (AT-270). There is no stored aggregate, so there is no second copy that could be stale after a revocation (AT-275).
+  - **Hidden is unknown.** A hidden brand or project named in a request is refused exactly as one that does not exist (`unavailable`, the same issue for both); a hidden workspace is `not_found` (AT-269).
+  - **Drill-through is the same set.** The records behind a figure are selected by the statements that counted it, and are paged by a cursor signed for one person and one request; any other use is `cursor_invalid` (AT-271, AT-272).
+  - **People.** A breakdown by person, the person filter, and the count of tasks without an owner are given to members only; a guest sees tasks they were shared and no people (AT-273).
+  - **History is not a copy of access.** The status ledger holds a status category and two instants and joins the task's record on every read; it is written only by the task's own transaction and by a reconciliation that acts for one workspace through that workspace's transaction (AT-276). A figure that needs history the ledger does not have excludes and names it, and a failing or lagging reconciliation is shown, never hidden (AT-277).
+  - **Time travel does not widen.** `as_of` reads recorded history through today's visibility; a metric that describes the present refuses a past time, and a time in the future is refused (AT-279).
+  - **Exports.** An export is the same figure, bounded, formula-neutralized, and audited-free of content; a hidden scope is refused (AT-274).
+  - **Reconciliation request.** Asking for a pass is `workspace.configure` and moves a schedule only (AT-278).
+  - **No new actions.** The action count stays 122.
+- **Alternatives:** Stored per-scope aggregates (frozen for one viewer, disclosing to the next). Filtering a computed figure in the application (counts and distributions then reflect hidden records). A privileged read of the ledger for speed (a new privileged read path). Counting hidden work and labelling it "other" (it discloses existence, IA-40).
+- **Consequences:** Threats T-63 and T-64 with tests AT-269 to AT-279.
+
 <a id="az-35"></a>
 ### AZ-35: Live collaborative editing (Phase 4D amendment)
 - **Decision:**

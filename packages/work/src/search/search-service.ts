@@ -502,7 +502,7 @@ export class SearchService extends FileService {
           byBrand.flatMap((b) => (b.b ? [b.b] : [])),
         );
         const brandsById = new Map(brandRows.map((b) => [b.id, b]));
-        const index = await this.#indexStatus(tx, vis);
+        const index = await this.indexStatusFor(tx, vis);
         const total = Math.min(n, cap);
         return {
           query: {
@@ -661,7 +661,10 @@ export class SearchService extends FileService {
    * How current the index is *for this person*: queued and failed keys of records they can read.
    * Counting only visible records means the figures cannot reveal that something hidden changed.
    */
-  async #indexStatus(tx: WorkspaceTransaction, vis: Awaited<ReturnType<typeof compileVisibility>>) {
+  protected async indexStatusFor(
+    tx: WorkspaceTransaction,
+    vis: Awaited<ReturnType<typeof compileVisibility>>,
+  ) {
     const rows = (
       await sql<{ state: 'pending' | 'failed'; n: number; oldest: Date | null }>`
         SELECT t.state, count(*)::int AS n, min(t.requested_at) AS oldest
@@ -695,7 +698,7 @@ export class SearchService extends FileService {
           arrayMax: this.c.settings.principalContextArrayMax,
         });
         return {
-          index: await this.#indexStatus(tx, vis),
+          index: await this.indexStatusFor(tx, vis),
           sources: this.#sources.all().map((s) => ({ kind: s.kind, label: s.label })),
           limits: {
             query_max_chars: this.ws.searchQueryMaxChars,
