@@ -2558,7 +2558,7 @@ export interface PortfolioProjectTable {
   added_at: DTs;
 }
 
-// Phase 5D: dashboards, saved reports, report shares, recipients, and scheduled runs (ADR-0030).
+// Phase 5D: dashboards, saved reports, report shares, recipients, and scheduled runs (ADR-0031).
 export type DashboardKind = 'owner' | 'brand' | 'project' | 'release' | 'personal';
 export type ReportFrequency = 'daily' | 'weekly' | 'monthly';
 export type ReportRunState = 'pending' | 'delivered' | 'empty' | 'skipped' | 'failed';

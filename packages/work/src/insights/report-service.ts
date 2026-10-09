@@ -86,7 +86,7 @@ export interface SweepResult {
 }
 
 /**
- * Phase 5D, part two (ADR-0030): dashboards, saved and shared reports, schedules, exports, and the
+ * Phase 5D, part two (ADR-0031): dashboards, saved and shared reports, schedules, exports, and the
  * delivery sweep. Every figure a dashboard, an export, or an email carries is computed as the
  * person receiving it, at that moment, from the records that person may read; nothing computed for
  * one person is ever kept or reused for another.

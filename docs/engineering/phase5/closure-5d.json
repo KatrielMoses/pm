@@ -2,7 +2,7 @@
   "schema_version": 1,
   "phase": "5D",
   "status": "candidate",
-  "adr": "0030",
+  "adr": "0031",
   "accepted_by_kinds": [
     "catalog:contributing",
     "roadmap:<sub>",
@@ -686,7 +686,7 @@
       "contribution": "5D",
       "evidence": [
         {
-          "file": "docs/engineering/adr/0030-dashboards-reports.md",
+          "file": "docs/engineering/adr/0031-dashboards-reports.md",
           "contains": "none attributes business outcomes to project activity (RPT-025)"
         },
         {
@@ -723,11 +723,11 @@
       "sources": [
         {
           "file": "docs/architecture/data/12-decisions.md",
-          "contains": "## ADR-38: Dashboards, saved reports, shares, schedules, and delivery runs"
+          "contains": "## ADR-39: Dashboards, saved reports, shares, schedules, and delivery runs"
         },
         {
           "file": "docs/architecture/access/15-decisions.md",
-          "contains": "### AZ-38: Dashboards, reports, shares, and scheduled delivery"
+          "contains": "### AZ-39: Dashboards, reports, shares, and scheduled delivery"
         }
       ],
       "evidence": [
@@ -747,7 +747,7 @@
       "adr_row": "D2",
       "sources": [
         {
-          "file": "docs/engineering/adr/0030-dashboards-reports.md",
+          "file": "docs/engineering/adr/0031-dashboards-reports.md",
           "contains": "| D2 | Release dashboards |"
         }
       ],
@@ -789,7 +789,7 @@
       "adr_row": "D4",
       "sources": [
         {
-          "file": "docs/engineering/adr/0030-dashboards-reports.md",
+          "file": "docs/engineering/adr/0031-dashboards-reports.md",
           "contains": "| D4 | The metric port |"
         }
       ],
@@ -814,7 +814,7 @@
       "adr_row": "D5",
       "sources": [
         {
-          "file": "docs/engineering/adr/0030-dashboards-reports.md",
+          "file": "docs/engineering/adr/0031-dashboards-reports.md",
           "contains": "| D5 | Widgets and layouts |"
         }
       ],
@@ -839,7 +839,7 @@
       "adr_row": "D6",
       "sources": [
         {
-          "file": "docs/engineering/adr/0030-dashboards-reports.md",
+          "file": "docs/engineering/adr/0031-dashboards-reports.md",
           "contains": "| D6 | Filters |"
         }
       ],
@@ -864,7 +864,7 @@
       "adr_row": "D7",
       "sources": [
         {
-          "file": "docs/engineering/adr/0030-dashboards-reports.md",
+          "file": "docs/engineering/adr/0031-dashboards-reports.md",
           "contains": "| D7 | Drill-through |"
         }
       ],
@@ -899,7 +899,7 @@
           "contains": "is invisible to someone without access until it is shared, and a share grants no data"
         },
         {
-          "file": "packages/db/migrations/0043_dashboards_reports.up.sql",
+          "file": "packages/db/migrations/0044_dashboards_reports.up.sql",
           "contains": "report_share_report_fkey"
         }
       ]
@@ -935,7 +935,7 @@
       "adr_row": "D10",
       "sources": [
         {
-          "file": "docs/engineering/adr/0030-dashboards-reports.md",
+          "file": "docs/engineering/adr/0031-dashboards-reports.md",
           "contains": "| D10 | Labels and attribution |"
         }
       ],
@@ -956,7 +956,7 @@
       "adr_row": "D11",
       "sources": [
         {
-          "file": "docs/engineering/adr/0030-dashboards-reports.md",
+          "file": "docs/engineering/adr/0031-dashboards-reports.md",
           "contains": "| D11 | Exports |"
         }
       ],
@@ -982,7 +982,7 @@
       "sources": [
         {
           "file": "docs/architecture/platform/19-decisions.md",
-          "contains": "### PL-40: Dashboard and report contracts"
+          "contains": "### PL-41: Dashboard and report contracts"
         }
       ],
       "evidence": [
@@ -999,7 +999,7 @@
           "contains": "the next occurrence is strictly later, at the scheduled local time, and nothing is skipped (property)"
         },
         {
-          "file": "packages/db/migrations/0043_dashboards_reports.up.sql",
+          "file": "packages/db/migrations/0044_dashboards_reports.up.sql",
           "contains": "report_run_occurrence"
         },
         {
@@ -1026,7 +1026,7 @@
       "adr_row": "D13",
       "sources": [
         {
-          "file": "docs/engineering/adr/0030-dashboards-reports.md",
+          "file": "docs/engineering/adr/0031-dashboards-reports.md",
           "contains": "| D13 | Accountability and departure |"
         }
       ],
@@ -1051,7 +1051,7 @@
       "adr_row": "D14",
       "sources": [
         {
-          "file": "docs/engineering/adr/0030-dashboards-reports.md",
+          "file": "docs/engineering/adr/0031-dashboards-reports.md",
           "contains": "| D14 | Lifecycle and retention |"
         }
       ],
@@ -1084,7 +1084,7 @@
       "adr_row": "D15",
       "sources": [
         {
-          "file": "docs/engineering/adr/0030-dashboards-reports.md",
+          "file": "docs/engineering/adr/0031-dashboards-reports.md",
           "contains": "| D15 | Where it appears |"
         }
       ],

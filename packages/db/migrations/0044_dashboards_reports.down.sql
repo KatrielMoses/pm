@@ -1,4 +1,4 @@
--- Reverts 0043 (local/test only). Restores the exact 0042 catalog.
+-- Reverts 0044 (local/test only). Restores the exact 0043 catalog.
 DROP FUNCTION exec_dispatch.discover_report_work(timestamptz, timestamptz, integer);
 DROP POLICY scheduler_discovery ON insights.report_run;
 REVOKE SELECT (workspace_id, created_at) ON insights.report_run FROM pm_scheduler;

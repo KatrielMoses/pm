@@ -64,7 +64,7 @@ The `conflict` error with the `conflict` payload (schema `conflict`):
 
 ## 4.4b Dashboards and reports
 
-- Dashboards and reports are `row-version` records: a stale `If-Match` is a `conflict` and a missing one `precondition_required` (Phase 5D, [PL-40](19-decisions.md#pl-40)); two edits from one version have one winner. A scheduled delivery is idempotent by its occurrence key (report, recipient, scheduled time), so a repeated, overlapping, or crashed sweep sends nothing twice; the sweep claims reports with a lease (`FOR UPDATE SKIP LOCKED`). Nothing derived is stored, so there is no cache to invalidate.
+- Dashboards and reports are `row-version` records: a stale `If-Match` is a `conflict` and a missing one `precondition_required` (Phase 5D, [PL-41](19-decisions.md#pl-41)); two edits from one version have one winner. A scheduled delivery is idempotent by its occurrence key (report, recipient, scheduled time), so a repeated, overlapping, or crashed sweep sends nothing twice; the sweep claims reports with a lease (`FOR UPDATE SKIP LOCKED`). Nothing derived is stored, so there is no cache to invalidate.
 
 ## 4.5 Bulk and per-item boundaries
 

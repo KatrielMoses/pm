@@ -1,9 +1,9 @@
 -- migrate:phase expand
--- Phase 5D (0B ADR-38, 0C AZ-38, 0D PL-40; ADR-0030): dashboards, saved reports, explicit scope-bound
+-- Phase 5D (0B ADR-39, 0C AZ-39, 0D PL-41; ADR-0031): dashboards, saved reports, explicit scope-bound
 -- report shares, scheduled delivery with per-recipient runs. Dashboards and report definitions are
 -- records in the core envelope (placement: workspace, brand, or project). Nothing stored here is a
 -- metric value: every figure is computed per viewer, from what that viewer may read, at request or
--- delivery time (ADR-0030 D3). A run row records that a delivery happened, never its content.
+-- delivery time (ADR-0031 D3). A run row records that a delivery happened, never its content.
 
 CREATE SCHEMA insights;
 REVOKE ALL ON SCHEMA insights FROM PUBLIC;

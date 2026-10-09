@@ -29,7 +29,7 @@ export async function attachedInsights(
 }
 
 /**
- * Dashboards (ADR-0030 D14): a project's lifecycle carries the dashboards scoped to it; brand
+ * Dashboards (ADR-0031 D14): a project's lifecycle carries the dashboards scoped to it; brand
  * dashboards are brand roots; workspace and personal dashboards belong to no brand.
  */
 export const dashboardAdapter: RecordTypeAdapter = {
@@ -68,7 +68,7 @@ export const dashboardAdapter: RecordTypeAdapter = {
 };
 
 /**
- * Report definitions (ADR-0030 D14). Their recipients, shares, and delivery runs are their content
+ * Report definitions (ADR-0031 D14). Their recipients, shares, and delivery runs are their content
  * and leave with them: a purge leaves no record that someone received a report.
  */
 export const reportAdapter: RecordTypeAdapter = {

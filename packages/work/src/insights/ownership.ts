@@ -2,7 +2,7 @@ import { sql } from '@pm/db';
 import type { OwnershipHook } from '@pm/tenancy';
 
 /**
- * Departure (ADR-0030 D13): a departing member's shared dashboards and reports move to the member
+ * Departure (ADR-0031 D13): a departing member's shared dashboards and reports move to the member
  * chosen in the departure plan. A scheduled report stops (suspended as `owner_departed`) instead of
  * passing to someone who never agreed to answer for what it sends; they resume it when they choose.
  * Their reports' recipient rows, report shares, and personal dashboards are theirs and stay as

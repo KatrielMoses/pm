@@ -45,7 +45,7 @@ const ZONES = [
 const params = (_m: string, raw: unknown) =>
   raw && typeof raw === 'object' ? (raw as Record<string, unknown>) : {};
 
-/** ADR-0030 D12: schedules are local-time occurrences, DST-safe, never a backlog. */
+/** ADR-0031 D12: schedules are local-time occurrences, DST-safe, never a backlog. */
 describe('schedules (5D)', () => {
   const daily = (tz: string, minute: number): Schedule => ({
     frequency: 'daily',

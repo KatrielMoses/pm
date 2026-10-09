@@ -3,7 +3,7 @@ import { goTo, noHorizontalOverflow } from './support.ts';
 import { accessible, api, get, giveBrand, h1, person, seed } from './goals-support.ts';
 
 /**
- * Phase 5D on desktop (ADR-0030): a founder builds a dashboard, reads figures with their scope,
+ * Phase 5D on desktop (ADR-0031): a founder builds a dashboard, reads figures with their scope,
  * source, and freshness, opens the records behind one, filters, edits the layout by keyboard,
  * exports, and trashes and restores it; a member with narrower access sees smaller figures and no
  * hidden names; a report shared with someone opens for them and stops opening when revoked; scheduling

@@ -138,7 +138,7 @@ const INCOMPLETE_WORDS: Record<string, string> = {
 };
 
 /**
- * Phase 5D, part one (ADR-0030): resolution, authorization, and the evaluation of widgets.
+ * Phase 5D, part one (ADR-0031): resolution, authorization, and the evaluation of widgets.
  * Dashboards and reports are records in the core envelope; their access is the placement's, and a
  * report may also be opened through an explicit, revocable share. No stored value is ever a figure:
  * every widget is computed for the caller, from what the caller may read, when it is requested.

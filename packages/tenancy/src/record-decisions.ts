@@ -106,7 +106,7 @@ export function issueSavedViewLifecycleDecision(
 }
 
 /**
- * Personal dashboards (Phase 5D, 0C AZ-38): like a personal saved view, a personal dashboard is
+ * Personal dashboards (Phase 5D, 0C AZ-39): like a personal saved view, a personal dashboard is
  * its owner's alone and is managed through `personal.manage_own`, never through a placement.
  */
 export function issuePersonalRecordLifecycleDecision<A extends RecordLifecycleAction>(

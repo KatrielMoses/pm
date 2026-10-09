@@ -18,7 +18,7 @@ const widgets = [
 ];
 
 /**
- * 5D HTTP surface (ADR-0030; 0D PL-40): dashboards, saved reports, widget reads, drill-through,
+ * 5D HTTP surface (ADR-0031; 0D PL-41): dashboards, saved reports, widget reads, drill-through,
  * exports, shares, schedules, and recipients. Every request re-checks the placement or the share,
  * every figure is computed for the caller, unknown and hidden are one answer, nothing is cached for
  * another person, and no internal identifier appears in any body.

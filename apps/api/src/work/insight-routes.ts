@@ -8,7 +8,7 @@ type Verb = 'archive' | 'unarchive' | 'trash' | 'restore' | 'purge';
 const VERBS: readonly string[] = ['archive', 'unarchive', 'trash', 'restore', 'purge'];
 
 /**
- * Dashboards, saved reports, shares, schedules, and exports (5D, ADR-0030; 0D PL-40). Everything is
+ * Dashboards, saved reports, shares, schedules, and exports (5D, ADR-0031; 0D PL-41). Everything is
  * addressed by public identifiers under the workspace. The caller is the session; the service
  * decides every read and write through the record's own placement (or a share) at the time of the
  * request, and computes every figure for the caller, so a route never reveals more than the caller

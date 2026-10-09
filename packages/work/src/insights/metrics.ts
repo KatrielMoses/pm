@@ -14,7 +14,7 @@ import {
 } from './semantics.ts';
 
 /**
- * The metric port of Phase 5D (ADR-0030 D4). A dashboard or report never calculates anything: a
+ * The metric port of Phase 5D (ADR-0031 D4). A dashboard or report never calculates anything: a
  * widget names a metric, and the metric is answered by the service that already owns the data
  * (the 3A query engine for work counts, 5B goals, 3D time, 3E capacity, 3C daily records, 4E
  * deliverables), for the viewer, from what the viewer may read. Metric definitions owned by 5C
@@ -165,7 +165,7 @@ export interface MetricProvider {
   unit: MetricValue['unit'];
   category: 'work' | 'projects' | 'time' | 'capacity' | 'planning' | 'deliverables' | 'goals';
   source: { kind: string; label: string };
-  /** Guests and share-only readers may place and read only record-level metrics (ADR-0030 D8). */
+  /** Guests and share-only readers may place and read only record-level metrics (ADR-0031 D8). */
   guestSafe: boolean;
   applies: Applies;
   /** The dashboard kinds this metric makes sense on (a personal metric is not for a brand). */

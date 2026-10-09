@@ -20,7 +20,7 @@ import {
 import { validZone } from '../time/semantics.ts';
 
 /**
- * Phase 5D inputs (ADR-0030). Every parser refuses unknown fields, reports pointer-precise safe
+ * Phase 5D inputs (ADR-0031). Every parser refuses unknown fields, reports pointer-precise safe
  * issues, and never echoes input. Nothing here consults the database or authorization; a widget's
  * parameters are checked by the metric that owns them.
  */

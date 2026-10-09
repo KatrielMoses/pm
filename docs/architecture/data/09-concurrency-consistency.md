@@ -18,7 +18,7 @@ Default: **optimistic concurrency.** Locks are used only for the named invariant
 
 **Goals and portfolios (Phase 5B, [ADR-37](12-decisions.md#adr-37)):** goals, key results, and portfolios are `row-version` records edited with the loaded version (a stale version is a conflict, a missing one is refused). Check-ins are append-only, and the goal's and key result's latest pointers move with the check-in in the same transaction. A background recalculation claims a goal through its state row (`FOR UPDATE SKIP LOCKED`, a lease), recomputes it in its own transaction, and appends a computed check-in only when the inputs hash changed, so an overlapping sweep or a retry appends nothing twice, and a change made while a sweep runs is never lost. Nothing derived from linked work is stored, so no figure can be older than the work it summarizes.
 
-**Dashboards and reports (Phase 5D, [ADR-38](12-decisions.md#adr-38)):** dashboards and report definitions are `row-version` records. A delivery run is unique per occurrence and recipient, so a retried or overlapping sweep finds the existing run; a figure is never stored, so there is no read-after-write window for permission changes.
+**Dashboards and reports (Phase 5D, [ADR-39](12-decisions.md#adr-39)):** dashboards and report definitions are `row-version` records. A delivery run is unique per occurrence and recipient, so a retried or overlapping sweep finds the existing run; a figure is never stored, so there is no read-after-write window for permission changes.
 
 ## 9.2 Inline, bulk, and offline edits
 

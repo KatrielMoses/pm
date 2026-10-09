@@ -90,7 +90,7 @@ describe('tenant lifecycle and audit endpoints are reachable only through policy
       'apps/api/src/work/files-routes.ts',
       // 5B (0C AZ-37): goal, key-result, and portfolio lifecycle verbs, decided through the same issuer.
       'apps/api/src/work/goal-routes.ts',
-      // 5D (0C AZ-38): dashboard and report lifecycle verbs, decided through the same issuer.
+      // 5D (0C AZ-39): dashboard and report lifecycle verbs, decided through the same issuer.
       'apps/api/src/work/insight-routes.ts',
       'apps/api/src/work/routes.ts',
       // 2B (0C AZ-22): task lifecycle verbs, decided through the same tenancy-exported issuer.

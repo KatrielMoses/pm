@@ -30,7 +30,7 @@ class Outbox implements EmailProvider {
 }
 
 /**
- * 5D scheduled delivery and its recovery (ADR-0030 D12 to D14): overlapping and crashed sweeps,
+ * 5D scheduled delivery and its recovery (ADR-0031 D12 to D14): overlapping and crashed sweeps,
  * leases, outages, trash, retention, departure, workspace isolation, purge, and a widget that
  * fails while the rest of a document is still produced.
  */

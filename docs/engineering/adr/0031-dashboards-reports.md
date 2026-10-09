@@ -1,17 +1,17 @@
-# ADR-0030: Dashboards, saved reports, shares, schedules, and exports (Phase 5D)
+# ADR-0031: Dashboards, saved reports, shares, schedules, and exports (Phase 5D)
 
 Status: **proposed** (decisions recorded before code; implemented; awaiting one clean current-head no-skip CI run on the draft PR).
 Extends ADR-0029 (goals and portfolios, 5B) at the top of the work service chain, and reuses the saved-view query engine (3A, ADR-0018), time (3D), capacity (3E), daily records (3C), deliverables (4E), notifications' email provider boundary (4B, ADR-0024), audit, lifecycle, ownership, and job-runtime foundations.
 
-**Numbering.** 5D was built from the accepted Phase 5 integration head in parallel with Phase 5C, so both are expected to use migration `0043`, ADR-0030, 0B ADR-38, 0C AZ-38, 0D PL-40, and threat and test identifiers from T-63 and AT-269. The Phase 5 integration review renumbers whichever is accepted second, as it did for 4C/4E (`0038`) and 5A/5B (`0041`): it changes the numbers and nothing else, and keeps every threat, test, decision, validator, and closure record.
+**Numbering.** 5D was built from the accepted Phase 5 integration head in parallel with Phase 5C, so both first used migration `0043`, ADR-0030, 0B ADR-38, 0C AZ-38, 0D PL-40, and threat and test identifiers from T-63 and AT-269. Phase 5C was accepted first and keeps those numbers; the Phase 5 final integration review renumbered 5D deterministically (as it did for 4C/4E and 5A/5B): migration `0044`, ADR-0031, 0B ADR-39, 0C AZ-39, 0D PL-41, threats T-65 to T-72 (each old number plus 2), and tests AT-280 to AT-297 (each old number plus 11). It changed the numbers and nothing else and kept every threat, test, decision, validator, and closure record.
 
 **Dependency on 5C.** 5C defines the canonical metric model (blocked and stale work, cycle time, time in status, aging, created versus completed, and the metric definition and snapshot structures). It was not available when 5D was built, so 5D does not calculate those: it consumes the owners' existing services through one port (D4), lists the metrics that 5C will define as "not yet available" with their owner phase, and registers 5C's definitions through the same port when they exist. Nothing dashboard-specific is calculated here.
 
 Accepted sources (recorded before code):
 - 0A: RPT-001 to RPT-022, WSB-016, NAV-002, NAV-003, GOAL-011, and REL-012 (owned); RPT-023 to RPT-025, PRJ-019, and TIME-005 (contributions). OD-06 (workspace-scoped records), OD-07 (restricted brands in aggregates), OD-17 (staleness thresholds, for 5C), and UXD-10 (minimal content for sensitive brands).
-- 0B: ADR-38. `insights.dashboard`, `insights.report_definition`, `insights.report_recipient`, `insights.report_share`, and `insights.report_run` (migration 0043).
-- 0C: AZ-38 (no new actions: `record.*`, `report.schedule`, and `personal.manage_own` are reused); T-63 to T-70.
-- 0D: PL-40 (routes, envelopes, events, bounds, signals); 0E: the dashboard grid (RS-56), the widget states, and the chart requirements (UX design system §Data display).
+- 0B: ADR-39. `insights.dashboard`, `insights.report_definition`, `insights.report_recipient`, `insights.report_share`, and `insights.report_run` (migration 0044).
+- 0C: AZ-39 (no new actions: `record.*`, `report.schedule`, and `personal.manage_own` are reused); T-65 to T-72.
+- 0D: PL-41 (routes, envelopes, events, bounds, signals); 0E: the dashboard grid (RS-56), the widget states, and the chart requirements (UX design system §Data display).
 
 ## Decisions
 
@@ -38,41 +38,41 @@ Accepted sources (recorded before code):
 
 5D owns RPT-001 to RPT-022, WSB-016, NAV-002, NAV-003, GOAL-011, and REL-012, and contributes RPT-023 to RPT-025, PRJ-019, and TIME-005. Where a requirement names a metric that a later phase defines (blocked and stale work, cycle time, time in status, aging, and created versus completed in 5C; AI usage in 7A; automation and agent rates in 8A and 8C; tests, defects, and release blockers in 9B to 9D) 5D records a foundation: the metric is in the catalog as "not yet available" with its owner and reason, and it joins the same port when defined. `closure-5d.json` records the disposition and evidence of every requirement and decision.
 
-## Acceptance tests (0C AZ-38)
+## Acceptance tests (0C AZ-39)
 
 | Test | Test file | Test title |
 |---|---|---|
-| AT-269 | packages/work/test/integration/insights.test.ts | differs by what each person may read, and hidden work changes no number or label |
-| AT-270 | packages/work/test/integration/insights.test.ts | drills into only the records the viewer may read |
-| AT-271 | apps/api/test/integration/insights-api.test.ts | computes each widget for the caller and never caches it for anyone else |
-| AT-272 | packages/work/test/integration/insights.test.ts | a revoked grant applies to the next read |
-| AT-273 | packages/work/test/integration/insights.test.ts | is invisible to someone without access until it is shared, and a share grants no data |
-| AT-274 | packages/work/test/integration/insights.test.ts | limits a guest to the records granted to them, and to guest-safe widgets |
-| AT-275 | packages/work/test/integration/insights.test.ts | only managers share, and a share is bound to the report and listed to managers |
-| AT-276 | packages/work/test/integration/insights.test.ts | delivers once per recipient, as that recipient, and a repeat sends nothing more |
-| AT-277 | packages/work/test/integration/insights.test.ts | removes a recipient who lost access and never emails them |
-| AT-278 | packages/work/test/integration/insights.test.ts | suspends the schedule when its accountable owner loses authority or leaves |
-| AT-279 | packages/work/test/integration/insights.test.ts | exports CSV and PDF with only what the requester may read, and audits them |
-| AT-280 | e2e/insights.spec.ts | narrower access gives smaller figures and no hidden names; shares open and close reports; scheduling needs recipients |
-| AT-281 | packages/work/test/integration/insights.test.ts | requires placement authority, and keeps personal dashboards personal |
-| AT-282 | apps/api/test/integration/insights-api.test.ts | answers unknown and hidden identically, and keeps personal dashboards personal |
-| AT-283 | packages/work/test/integration/insights.test.ts | updates with optimistic concurrency and one winner under a race |
-| AT-284 | packages/work/test/integration/insights.test.ts | replays an idempotent create once |
-| AT-285 | packages/work/test/integration/insights.test.ts | records an unconfigured or rejecting provider honestly and retries a transient failure |
-| AT-286 | apps/web/test/insights.test.tsx | warns when a derived source is out of date and says which filters do not apply |
+| AT-280 | packages/work/test/integration/insights.test.ts | differs by what each person may read, and hidden work changes no number or label |
+| AT-281 | packages/work/test/integration/insights.test.ts | drills into only the records the viewer may read |
+| AT-282 | apps/api/test/integration/insights-api.test.ts | computes each widget for the caller and never caches it for anyone else |
+| AT-283 | packages/work/test/integration/insights.test.ts | a revoked grant applies to the next read |
+| AT-284 | packages/work/test/integration/insights.test.ts | is invisible to someone without access until it is shared, and a share grants no data |
+| AT-285 | packages/work/test/integration/insights.test.ts | limits a guest to the records granted to them, and to guest-safe widgets |
+| AT-286 | packages/work/test/integration/insights.test.ts | only managers share, and a share is bound to the report and listed to managers |
+| AT-287 | packages/work/test/integration/insights.test.ts | delivers once per recipient, as that recipient, and a repeat sends nothing more |
+| AT-288 | packages/work/test/integration/insights.test.ts | removes a recipient who lost access and never emails them |
+| AT-289 | packages/work/test/integration/insights.test.ts | suspends the schedule when its accountable owner loses authority or leaves |
+| AT-290 | packages/work/test/integration/insights.test.ts | exports CSV and PDF with only what the requester may read, and audits them |
+| AT-291 | e2e/insights.spec.ts | narrower access gives smaller figures and no hidden names; shares open and close reports; scheduling needs recipients |
+| AT-292 | packages/work/test/integration/insights.test.ts | requires placement authority, and keeps personal dashboards personal |
+| AT-293 | apps/api/test/integration/insights-api.test.ts | answers unknown and hidden identically, and keeps personal dashboards personal |
+| AT-294 | packages/work/test/integration/insights.test.ts | updates with optimistic concurrency and one winner under a race |
+| AT-295 | packages/work/test/integration/insights.test.ts | replays an idempotent create once |
+| AT-296 | packages/work/test/integration/insights.test.ts | records an unconfigured or rejecting provider honestly and retries a transient failure |
+| AT-297 | apps/web/test/insights.test.tsx | warns when a derived source is out of date and says which filters do not apply |
 
-Revocation (AT-272, AT-273) is evidenced by tests that revoke between two reads, and by construction: nothing derived is stored (D3).
+Revocation (AT-283, AT-284) is evidenced by tests that revoke between two reads, and by construction: nothing derived is stored (D3).
 
 ## Migration and rollback evidence
 
-Migration `0043_dashboards_reports` creates the `insights` schema and five tables (`dashboard`, `report_definition`, `report_recipient`, `report_share`, `report_run`), each with workspace row-level security and an index on every foreign key, the payload-free `exec_dispatch.discover_report_work` function (workspace identifiers only, owned by `pm_scheduler`), and the worker's grants. Its down migration restores the exact 0042 catalog.
+Migration `0044_dashboards_reports` creates the `insights` schema and five tables (`dashboard`, `report_definition`, `report_recipient`, `report_share`, `report_run`), each with workspace row-level security and an index on every foreign key, the payload-free `exec_dispatch.discover_report_work` function (workspace identifiers only, owned by `pm_scheduler`), and the worker's grants. Its down migration restores the exact 0042 catalog.
 
 Executable evidence, in `packages/db/test/integration/migrations.test.ts`:
-- "upgrades through every accepted boundary (0009–0043) to the candidate and reverses each boundary step": for each accepted boundary it fingerprints objects, constraints, grants, and policies, steps up, and reverses down to the previous boundary's exact catalog and up again.
+- "upgrades through every accepted boundary (0009–0044) to the candidate and reverses each boundary step": for each accepted boundary it fingerprints objects, constraints, grants, and policies, steps up, and reverses down to the previous boundary's exact catalog and up again.
 - "reverses completely with down migrations and re-applies cleanly": every down migration runs to version 0 and the full catalog fingerprint after re-applying equals the first.
 
 Related catalog tests: `packages/db/test/integration/workspace-integrity.test.ts` (the five `insights.*` tables carry the database-enforced workspace key; 26 foreign keys, all indexed) and `packages/platform/test/integration/rls.test.ts` (row-level security on every tenant table, and 20 discovery functions).
 
 ## Consequences
 
-The API gains the dashboard, report, share, schedule, recipient, run, export, and ad hoc widget routes (PL-40), the worker gains the `insights.deliver` job (every minute) and a service instance that renders as each recipient, and the work service chain ends in `ReportService`. 14 named parameters (owner 5D), nine events, four telemetry signals, three identifier prefixes (`dash`, `rpt`, `rsh`), and six non-resource envelopes are registered. Residual risks and limitations are in `closure-5d.json`.
+The API gains the dashboard, report, share, schedule, recipient, run, export, and ad hoc widget routes (PL-41), the worker gains the `insights.deliver` job (every minute) and a service instance that renders as each recipient, and the work service chain ends in `ReportService`. 14 named parameters (owner 5D), nine events, four telemetry signals, three identifier prefixes (`dash`, `rpt`, `rsh`), and six non-resource envelopes are registered. Residual risks and limitations are in `closure-5d.json`.

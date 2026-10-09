@@ -6,16 +6,16 @@ Usage (from the repository root):
 
 Phase 5D (docs/engineering/phase5/closure-5d.json) is checked by the Phase 2 closure rules (every
 owned and contributed catalog requirement closed with existing evidence, decisions D1..D16 tied to
-ADR-0030 rows D1..D16) plus drift checks: the dashboard and report bounds are registered (owner 5D),
+ADR-0031 rows D1..D16) plus drift checks: the dashboard and report bounds are registered (owner 5D),
 configured, and documented; the events, signals, prefixes, and envelopes are registered, and no
-action is added; migration 0043 keeps its tenant isolation, its unique delivery occurrence, its
-scope-bound shares, its payload-free discovery, and its exact rollback to 0042; nothing is stored
+action is added; migration 0044 keeps its tenant isolation, its unique delivery occurrence, its
+scope-bound shares, its payload-free discovery, and its exact rollback to 0043; nothing is stored
 that a viewer could be shown (no figure, no metric snapshot, no rendered content); every figure,
 drill-through, export, and email is computed for the person receiving it; scheduled delivery claims
 reports with a lease, is idempotent by occurrence, goes through the 4B email provider boundary, and
 suspends when its accountable owner loses authority; exports are bounded, audited, and formula-safe;
 personal dashboards are their owner's alone; lifecycle and departure carry the records; every
-acceptance test AT-269..AT-286 names a test that exists; and the later-phase boundaries (metric
+acceptance test AT-280..AT-297 names a test that exists; and the later-phase boundaries (metric
 definitions, AI, external connectors) are not crossed. The ADR stays proposed until acceptance.
 """
 import json
@@ -62,8 +62,8 @@ TABLES = ["insights.dashboard", "insights.report_definition", "insights.report_r
 ENTITIES = ["dashboard", "report_definition", "report_recipient", "report_share", "report_run"]
 THREATS = ["T-%d" % i for i in range(63, 71)]
 TESTS = ["AT-%d" % i for i in range(269, 287)]
-ADR = "docs/engineering/adr/0030-dashboards-reports.md"
-MIGRATION = "packages/db/migrations/0043_dashboards_reports"
+ADR = "docs/engineering/adr/0031-dashboards-reports.md"
+MIGRATION = "packages/db/migrations/0044_dashboards_reports"
 INS = "packages/work/src/insights/"
 SEM = INS + "semantics.ts"
 VAL = INS + "validation.ts"
@@ -143,25 +143,25 @@ def check_migration():
     schema = read(P("packages/db/src/schema.ts"))
     for table in TABLES:
         if "CREATE POLICY tenant_isolation ON %s" % table not in up:
-            errs.append("0043: %s has no tenant_isolation policy" % table)
+            errs.append("0044: %s has no tenant_isolation policy" % table)
         if "ALTER TABLE %s ENABLE ROW LEVEL SECURITY" % table not in up or \
                 "ALTER TABLE %s FORCE ROW LEVEL SECURITY" % table not in up:
-            errs.append("0043: %s must enable and force RLS" % table)
+            errs.append("0044: %s must enable and force RLS" % table)
         if "'%s':" % table not in schema:
             errs.append("schema.ts lacks %s" % table)
         if not re.search(r"DROP TABLE %s;" % re.escape(table), down):
-            errs.append("0043 down must drop %s" % table)
+            errs.append("0044 down must drop %s" % table)
     for needle in ["report_run_occurrence", "report_share_report_fkey", "report_schedule_shape",
                    "report_suspended_known", "report_suspended_shape", "dashboard_placement_shape",
                    "dashboard_layout_bounded", "report_config_bounded", "report_share_active",
                    "report_share_revoked_shape", "discover_report_work", "SECURITY DEFINER",
                    "report_run_state_known", "report_run_hash_format"]:
         if needle not in up:
-            errs.append("0043 lacks %s" % needle)
+            errs.append("0044 lacks %s" % needle)
     for needle in ["DROP FUNCTION exec_dispatch.discover_report_work", "DROP SCHEMA insights",
-                   "Restores the exact 0042 catalog"]:
+                   "Restores the exact 0043 catalog"]:
         if needle not in down:
-            errs.append("0043 down lacks %s" % needle)
+            errs.append("0044 down lacks %s" % needle)
     if "DISABLE ROW LEVEL SECURITY" in up:
         errs.append("RLS must stay enabled")
     # A delivery run is written by the worker only; the application role reads it.
@@ -181,14 +181,14 @@ def check_migration():
             errs.append("insights.report_run column %s could hold what a viewer was shown" % c)
     for forbidden in ["metric_snapshot", "metric_definition", "rendered", "body", "snapshot"]:
         if re.search(r"\b%s\b" % forbidden, re.sub(r"--.*", "", up)):
-            errs.append("0043 must not store %s (nothing derived is stored; 5C owns metric structures)" % forbidden)
+            errs.append("0044 must not store %s (nothing derived is stored; 5C owns metric structures)" % forbidden)
     for schema_name in ["search", "reporting", "metrics", "agents", "integrations", "goals"]:
         if re.search(r"CREATE (SCHEMA|TABLE) %s\b" % schema_name, up):
-            errs.append("0043 creates %s structures" % schema_name)
+            errs.append("0044 creates %s structures" % schema_name)
     if len(re.findall(r"^CREATE SCHEMA ", up, re.M)) != 1:
-        errs.append("0043 must create only the insights schema")
+        errs.append("0044 must create only the insights schema")
     errs += phase1.check_boundaries([9, 12, 16] + list(range(18, 44)))
-    return errs, "tenant isolation, scope-bound shares, unique occurrence, no stored content, rollback to 0042"
+    return errs, "tenant isolation, scope-bound shares, unique occurrence, no stored content, rollback to 0043"
 
 
 def check_invariants():
@@ -310,9 +310,9 @@ def check_invariants():
     for e in ENTITIES:
         if e not in names:
             errs.append("model.json lacks %s" % e)
-    for rel, anchors in {"docs/architecture/data/12-decisions.md": ["adr-38"],
-                         "docs/architecture/access/15-decisions.md": ["az-38"],
-                         "docs/architecture/platform/19-decisions.md": ["pl-40"]}.items():
+    for rel, anchors in {"docs/architecture/data/12-decisions.md": ["adr-39"],
+                         "docs/architecture/access/15-decisions.md": ["az-39"],
+                         "docs/architecture/platform/19-decisions.md": ["pl-41"]}.items():
         text = read(P(rel))
         for a in anchors:
             if '<a id="%s"></a>' % a not in text:
@@ -321,7 +321,7 @@ def check_invariants():
                 "docs/architecture/data/13-open-questions.md", "docs/architecture/access/15-decisions.md",
                 "docs/architecture/platform/19-decisions.md", "docs/architecture/platform/04-concurrency.md",
                 "docs/architecture/data/model/model.json"]:
-        if "ADR-0030" in read(P(rel)):
+        if "ADR-0031" in read(P(rel)):
             errs.append("%s must not reference the engineering ADR (0B, 0C, and 0D records stay free of it)" % rel)
     threats = load(P("docs/architecture/access/policy/threats.json"))
     have_t = {t["id"] for t in threats["threats"]}
@@ -335,7 +335,7 @@ def check_invariants():
     covered = {th for a in TESTS if a in have_a for th in have_a[a]["threats"]}
     for t in THREATS:
         if t not in covered:
-            errs.append("threat %s has no acceptance test in AT-269..AT-286" % t)
+            errs.append("threat %s has no acceptance test in AT-280..AT-297" % t)
     # Every acceptance test names a test that exists (the ADR table).
     adr = read(P(ADR))
     rows = re.findall(r"^\| (AT-\d+) \| ([^|]+?) \| ([^|]+?) \|$", adr, re.M)
@@ -393,24 +393,24 @@ def check_closure_extras(closure):
 
 def check_adr(closure):
     errs = []
-    path = phase1.adr_path("0030")
+    path = phase1.adr_path("0031")
     if not path:
-        return ["no ADR-0030"], ""
+        return ["no ADR-0031"], ""
     text = read(path)
     m = phase2.ADR_STATUS.search(text)
     if not m:
-        errs.append("ADR-0030 status must be accepted and implemented or proposed")
+        errs.append("ADR-0031 status must be accepted and implemented or proposed")
     elif m.group(1) == "proposed" and closure.get("status") != "candidate":
-        errs.append("ADR-0030 is proposed but the closure is not a candidate")
+        errs.append("ADR-0031 is proposed but the closure is not a candidate")
     for d in closure.get("decisions", []):
         if not re.search(r"^\| %s \|" % re.escape(d.get("adr_row", "")), text, re.M):
-            errs.append("%s: ADR-0030 has no row %s" % (d["id"], d.get("adr_row")))
-    if "**Numbering.**" not in text or "0043" not in text or "**Dependency on 5C.**" not in text:
-        errs.append("ADR-0030 must record the shared migration number 0043, its identifiers, and the 5C dependency")
+            errs.append("%s: ADR-0031 has no row %s" % (d["id"], d.get("adr_row")))
+    if "**Numbering.**" not in text or "0044" not in text or "**Dependency on 5C.**" not in text:
+        errs.append("ADR-0031 must record the shared migration number 0044, its identifiers, and the 5C dependency")
     for needle in ["reverses each boundary step", "reverses completely with down migrations and re-applies cleanly"]:
         if needle not in text or needle not in read(P("packages/db/test/integration/migrations.test.ts")):
-            errs.append("ADR-0030 must cite the migration test %r and it must exist" % needle)
-    return errs, "ADR-0030 %s" % (m.group(1) if m else "?")
+            errs.append("ADR-0031 must cite the migration test %r and it must exist" % needle)
+    return errs, "ADR-0031 %s" % (m.group(1) if m else "?")
 
 
 def check_wiring():
@@ -438,7 +438,7 @@ def main():
          phase2.check_closure(catalog, closure, subphases, "5D", ["D%d" % i for i in range(1, 17)])),
         ("phase 5D: closure limitations and contributions", check_closure_extras(closure)),
         ("phase 5D: bounds, events, signals, envelopes, no new actions", check_contracts(registry, policy)),
-        ("phase 5D: migration 0043 and its rollback", check_migration()),
+        ("phase 5D: migration 0044 and its rollback", check_migration()),
         ("phase 5D: authorization, viewer-computed, and delivery invariants", check_invariants()),
         ("phase 5D: later-phase and provider boundaries kept", check_boundaries_kept()),
         ("phase 5D: migrations contiguous and reversible", phase1.check_migrations()),

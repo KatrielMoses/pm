@@ -2,7 +2,7 @@ import { api, ApiError, protectedRequest, type StepUpResolver } from '../api.ts'
 import type { BrandMarkerData } from '../shell/client.ts';
 
 /**
- * Typed client for the 5D dashboards and reports API (ADR-0030). Every identifier is a public ID.
+ * Typed client for the 5D dashboards and reports API (ADR-0031). Every identifier is a public ID.
  * Every figure is computed by the server for the viewer; nothing here recalculates, infers, or
  * hints at records the viewer cannot read.
  */

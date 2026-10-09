@@ -29,7 +29,7 @@ export interface ReportJobDeps extends DeliveryDeps {
 }
 
 /**
- * The scheduled-delivery sweep (ADR-0030 D12). Discovery is payload-free (workspace identifiers);
+ * The scheduled-delivery sweep (ADR-0031 D12). Discovery is payload-free (workspace identifiers);
  * each workspace is swept in its own transactions. A failing workspace never holds up the others,
  * and a repeated or overlapping sweep changes nothing (the occurrence is a unique key).
  */

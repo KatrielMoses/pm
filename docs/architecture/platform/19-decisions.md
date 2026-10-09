@@ -284,8 +284,8 @@ All decisions are **proposed (Phase 0D)**, pending solutions-architect acceptanc
   - The worker job `search.index` (every ten seconds) discovers workspaces through the payload-free `exec_dispatch.discover_search_work(now, retention_before, limit)`, which returns workspace identifiers only.
 - **Alternatives:** Offset paging (0B §10.5). Server-sent search suggestions per keystroke (the palette's debounced lookup is the same request). Public identifiers for recent searches (a prefix for a personal hint). An event per indexed change (content-free events cannot drive an index).
 - **Consequences:** 89 ID prefixes, 145 events, 195 named parameters, 95 telemetry signals.
-<a id="pl-40"></a>
-### PL-40: Dashboard and report contracts (Phase 5D amendment)
+<a id="pl-41"></a>
+### PL-41: Dashboard and report contracts (Phase 5D amendment)
 - **Decision:**
   - Identifier prefixes: `dash` (dashboard) and `rpt` (report definition) are records in the core envelope; `rsh` (report share) is a child with its own public identifier. Recipients and delivery runs have none.
   - Routes under `/v1/workspaces/{ws}`: `insights/metrics` (`GET` the catalog, with the metrics not yet available and why), `insights/trash` (`GET`), `dashboards` (`GET` list, `POST`), `dashboards/{dash}` (`GET`, `PATCH` with `If-Match`; verbs `:archive`, `:unarchive`, `:trash`, `:restore`, `:purge`), `dashboards/{dash}/widgets/{widget}` and `.../records` (`GET`; `filters`, `cursor`, `limit`), `dashboards/{dash}/export` (`GET`; `format=csv|pdf`, `widget`, `filters`), and for reports `reports`, `reports/{rpt}` (verbs as above plus `:resume` and `:leave`), `reports/{rpt}/widgets/{widget}`, `.../records`, `reports/{rpt}/export`, `reports/{rpt}/schedule` (`PUT`), `reports/{rpt}/recipients` (`GET`, `PUT`), `reports/{rpt}/runs` (`GET`), and `reports/{rpt}/shares` (`GET`, `POST`) with `DELETE reports/{rpt}/shares/{rsh}`.

@@ -3504,7 +3504,7 @@ Owner, brand, project, release, or personal dashboard: a bounded list of widgets
 | Key typed columns | `kind (owner\|brand\|project\|release\|personal)`; `project_id null`; `title`; `owner_membership_id`; `layout (bounded widget list)`; `filters (bounded)` |
 | Sensitive fields | — |
 | Requirements | RPT-001, RPT-017, RPT-018, RPT-019 |
-| Notes | Phase 5D (ADR-38): placement decides access; a personal dashboard is its owner's alone (personal.manage_own). Widgets name a metric and its parameters, never a value; every figure is computed for the viewer from what they may read, so nothing stored can outlive a revocation. |
+| Notes | Phase 5D (ADR-39): placement decides access; a personal dashboard is its owner's alone (personal.manage_own). Widgets name a metric and its parameters, never a value; every figure is computed for the viewer from what they may read, so nothing stored can outlive a revocation. |
 
 <a id="entity-report-definition"></a>
 ### `report_definition`
@@ -3525,7 +3525,7 @@ Saved report configuration (widgets and filters) with an optional schedule; the 
 | Key typed columns | `title`; `accountable_owner_membership_id (column owner_membership_id)`; `config (bounded widgets and filters)`; `schedule_frequency, schedule_weekday, schedule_monthday, schedule_minute, schedule_timezone null`; `next_run_at null`; `claimed_until, attempts, last_error`; `suspended_reason (owner_authority\|owner_departed\|admin) null`; `suspended_at null` |
 | Sensitive fields | — |
 | Requirements | RPT-020, RPT-021, RPT-022 |
-| Notes | Phase 5D (ADR-38): schedules are local-time occurrences (daily, weekly, or monthly on days 1 to 28); a sweep that was down owes one delivery, never a backlog. Whoever saves a schedule answers for it; if they lose the authority or leave, it is suspended until someone resumes it. |
+| Notes | Phase 5D (ADR-39): schedules are local-time occurrences (daily, weekly, or monthly on days 1 to 28); a sweep that was down owes one delivery, never a backlog. Whoever saves a schedule answers for it; if they lose the authority or leave, it is suspended until someone resumes it. |
 
 <a id="entity-report-recipient"></a>
 ### `report_recipient`
@@ -3546,7 +3546,7 @@ A member who receives a scheduled report; must be able to read it, and may remov
 | Key typed columns | `report_id`; `membership_id`; `added_by_membership_id`; `added_at` |
 | Sensitive fields | — |
 | Requirements | RPT-021 |
-| Notes | Phase 5D (ADR-38): a recipient who can no longer read the report is skipped at send time and never emailed. A departing member's rows are removed. |
+| Notes | Phase 5D (ADR-39): a recipient who can no longer read the report is skipped at send time and never emailed. A departing member's rows are removed. |
 
 <a id="entity-report-share"></a>
 ### `report_share`
@@ -3567,7 +3567,7 @@ An explicit, revocable grant to open and run one saved report, bound to the repo
 | Key typed columns | `public_id (rsh_…)`; `report_id`; `scope_key (the report's)`; `grantee_membership_id`; `created_by_membership_id`; `expires_at null`; `revoked_at null`; `revoked_by_membership_id null` |
 | Sensitive fields | — |
 | Requirements | RPT-020 |
-| Notes | Phase 5D (ADR-38): a share can only name the report's own scope (composite key), applies to the grantee's next read after it is created or revoked, and gives a guest or share-only reader only the records they were already given. Not an access grant on any record. |
+| Notes | Phase 5D (ADR-39): a share can only name the report's own scope (composite key), applies to the grantee's next read after it is created or revoked, and gives a guest or share-only reader only the records they were already given. Not an access grant on any record. |
 
 <a id="entity-report-run"></a>
 ### `report_run`
@@ -3588,7 +3588,7 @@ One scheduled delivery of one report to one recipient, authorized as that recipi
 | Key typed columns | `report_id`; `recipient_membership_id`; `occurrence_at`; `state (pending\|delivered\|empty\|skipped\|failed)`; `detail (code)`; `row_count`; `incomplete`; `content_hash`; `failure_class null`; `attempts`; `finished_at null` |
 | Sensitive fields | — |
 | Requirements | RPT-021, RPT-022 |
-| Notes | Phase 5D (ADR-38): the unique occurrence makes delivery idempotent; content is rendered at send time from the recipient's own access and never stored (only a hash). Aged out by REPORT_RUN_RETENTION_DAYS; leaves with the report on purge. |
+| Notes | Phase 5D (ADR-39): the unique occurrence makes delivery idempotent; content is rendered at send time from the recipient's own access and never stored (only a hash). Aged out by REPORT_RUN_RETENTION_DAYS; leaves with the report on purge. |
 
 ## Integrations, API, and webhooks (`integrations`, schema `integrations`)
 

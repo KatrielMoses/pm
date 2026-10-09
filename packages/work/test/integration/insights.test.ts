@@ -42,7 +42,7 @@ class Outbox implements EmailProvider {
 }
 
 /**
- * 5D dashboards and reports (ADR-0030): every figure is computed for the person reading it, from
+ * 5D dashboards and reports (ADR-0031): every figure is computed for the person reading it, from
  * what that person may read; shares are explicit and revocable; delivery renders per recipient.
  */
 describe('Dashboards and reports (5D)', () => {

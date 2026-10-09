@@ -3,7 +3,7 @@ import { addDays, daysBetween, isoWeekday, validDay, validZone } from '../time/s
 import { localToUtc, utcToLocal } from '../recurrence.ts';
 
 /**
- * Pure rules of Phase 5D (ADR-0030): dashboard kinds and sizes, filters and their date ranges,
+ * Pure rules of Phase 5D (ADR-0031): dashboard kinds and sizes, filters and their date ranges,
  * schedule arithmetic, the report PDF, and the plain-text email. Nothing here reads data; every
  * number a dashboard shows is computed per viewer elsewhere, from what that viewer may read.
  */
@@ -181,7 +181,7 @@ export function nextRun(s: Schedule, after: Date): Date {
 
 /**
  * The latest occurrence at or before `now`: what a sweep that was down for a while owes. A schedule
- * delivers once for the most recent missed occurrence, never a backlog (ADR-0030 D12).
+ * delivers once for the most recent missed occurrence, never a backlog (ADR-0031 D12).
  */
 export function dueOccurrence(s: Schedule, nextAt: Date, now: Date): Date {
   let at = nextAt;

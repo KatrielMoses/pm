@@ -7011,7 +7011,7 @@
         "RPT-018",
         "RPT-019"
       ],
-      "notes": "Phase 5D (ADR-38): placement decides access; a personal dashboard is its owner's alone (personal.manage_own). Widgets name a metric and its parameters, never a value; every figure is computed for the viewer from what they may read, so nothing stored can outlive a revocation."
+      "notes": "Phase 5D (ADR-39): placement decides access; a personal dashboard is its owner's alone (personal.manage_own). Widgets name a metric and its parameters, never a value; every figure is computed for the viewer from what they may read, so nothing stored can outlive a revocation."
     },
     {
       "name": "report_definition",
@@ -7049,7 +7049,7 @@
         "RPT-021",
         "RPT-022"
       ],
-      "notes": "Phase 5D (ADR-38): schedules are local-time occurrences (daily, weekly, or monthly on days 1 to 28); a sweep that was down owes one delivery, never a backlog. Whoever saves a schedule answers for it; if they lose the authority or leave, it is suspended until someone resumes it."
+      "notes": "Phase 5D (ADR-39): schedules are local-time occurrences (daily, weekly, or monthly on days 1 to 28); a sweep that was down owes one delivery, never a backlog. Whoever saves a schedule answers for it; if they lose the authority or leave, it is suspended until someone resumes it."
     },
     {
       "name": "report_recipient",
@@ -7087,7 +7087,7 @@
       "requirements": [
         "RPT-021"
       ],
-      "notes": "Phase 5D (ADR-38): a recipient who can no longer read the report is skipped at send time and never emailed. A departing member's rows are removed."
+      "notes": "Phase 5D (ADR-39): a recipient who can no longer read the report is skipped at send time and never emailed. A departing member's rows are removed."
     },
     {
       "name": "report_share",
@@ -7129,7 +7129,7 @@
       "requirements": [
         "RPT-020"
       ],
-      "notes": "Phase 5D (ADR-38): a share can only name the report's own scope (composite key), applies to the grantee's next read after it is created or revoked, and gives a guest or share-only reader only the records they were already given. Not an access grant on any record."
+      "notes": "Phase 5D (ADR-39): a share can only name the report's own scope (composite key), applies to the grantee's next read after it is created or revoked, and gives a guest or share-only reader only the records they were already given. Not an access grant on any record."
     },
     {
       "name": "report_run",
@@ -7171,7 +7171,7 @@
         "RPT-021",
         "RPT-022"
       ],
-      "notes": "Phase 5D (ADR-38): the unique occurrence makes delivery idempotent; content is rendered at send time from the recipient's own access and never stored (only a hash). Aged out by REPORT_RUN_RETENTION_DAYS; leaves with the report on purge."
+      "notes": "Phase 5D (ADR-39): the unique occurrence makes delivery idempotent; content is rendered at send time from the recipient's own access and never stored (only a hash). Aged out by REPORT_RUN_RETENTION_DAYS; leaves with the report on purge."
     },
     {
       "name": "connection",

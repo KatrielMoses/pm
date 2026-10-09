@@ -371,11 +371,11 @@ Migration `0042_goals_portfolios` (ADR-0029, 0B ADR-37) adds the `goals` schema:
 
 All seven tables have `tenant_isolation` RLS and indexes on every foreign key. The worker may read and delete (purge), append computed check-ins, and maintain state. The down migration drops the function, grants, policy, triggers, and tables in key order and the `goals` schema, restoring the exact 0040 catalog.
 
-**Migration number.** This branch and Phase 5A (`0041_permission_aware_search`) were built in parallel and both use `0041`; the integrator renumbers one of them, as 4C and 4E did with `0038`.
+**Migration number.** This branch and Phase 5C were built in parallel and both first used `0043`; Phase 5C was accepted first, so the Phase 5 final integration renumbered this migration to `0044` (a number-only change).
 
 ## Phase 5D: dashboards and reports
 
-Migration `0043_dashboards_reports` (ADR-0030, 0B ADR-38) adds the `insights` schema:
+Migration `0044_dashboards_reports` (ADR-0031, 0B ADR-39) adds the `insights` schema:
 - `insights.dashboard` and `insights.report_definition`: records in the core envelope (`dash_`, `rpt_`) with a row `version`. A dashboard holds a bounded `layout` (widgets) and `filters`; a report holds a bounded `config` and an optional schedule (frequency, weekday or month day 1 to 28, minute of day, IANA zone, next and last run, lease, attempts, suspension). A check constraint keeps a schedule all-or-nothing and the placement of each dashboard kind exact. No column holds a figure.
 - `insights.report_recipient`: the members who receive a scheduled report (primary key on report and member).
 - `insights.report_share`: an explicit, revocable grant to open and run one report. Its composite key names the report's own scope key, so a share cannot name another scope; one active share per grantee (partial unique index); an optional expiry.
@@ -383,4 +383,4 @@ Migration `0043_dashboards_reports` (ADR-0030, 0B ADR-38) adds the `insights` sc
 
 All five tables have `tenant_isolation` RLS and indexes on every foreign key. A payload-free `SECURITY DEFINER` function `exec_dispatch.discover_report_work(now, retention_before, limit)` (owned by `pm_scheduler`, executable only by the dispatcher) returns workspace identifiers with a report due or runs past retention. The down migration restores the exact 0042 catalog.
 
-**Migration number.** This branch and Phase 5C were built in parallel and are expected to use `0043`; the Phase 5 integration review renumbers whichever is accepted second.
+**Migration number.** This branch and Phase 5C were built in parallel and both first used `0043`; Phase 5C was accepted first, so the Phase 5 final integration renumbered this migration to `0044` (a number-only change).

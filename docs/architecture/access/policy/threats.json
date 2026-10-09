@@ -691,7 +691,7 @@
       ]
     },
     {
-      "id": "T-63",
+      "id": "T-65",
       "category": "inference",
       "description": "Dashboard aggregate disclosure: a widget figure, group, breakdown, total, label, truncation or capped-count notice, empty state, or drill-through that includes, counts, or hints at brands, projects, or tasks the viewer cannot read, or a widget whose mere presence or absence reveals a hidden source.",
       "mitigated_by": [
@@ -703,7 +703,7 @@
       ]
     },
     {
-      "id": "T-64",
+      "id": "T-66",
       "category": "revocation",
       "description": "Stale reporting after revocation: a stored or cached metric, a saved dashboard, or a report share that keeps showing figures or records after a grant, share, membership, or role is revoked or expires.",
       "mitigated_by": [
@@ -713,7 +713,7 @@
       ]
     },
     {
-      "id": "T-65",
+      "id": "T-67",
       "category": "guest_escalation",
       "description": "Report share escalation: a share that grants data instead of the saved definition, widens a grantee's access beyond their own, reaches another scope, can be shared onward, lets a guest or share-only reader see workspace or brand totals, or lets a person with only view access create or revoke shares.",
       "mitigated_by": [
@@ -724,7 +724,7 @@
       ]
     },
     {
-      "id": "T-66",
+      "id": "T-68",
       "category": "cross_brand_traversal",
       "description": "Scheduled delivery leak: a report email or run that carries figures computed for another person (the owner or the sender), reaches a recipient who can no longer read it, is sent again or as a backlog, or is sent after its accountable owner lost the authority to schedule it or left.",
       "mitigated_by": [
@@ -736,7 +736,7 @@
       ]
     },
     {
-      "id": "T-67",
+      "id": "T-69",
       "category": "cross_brand_traversal",
       "description": "Export leak: a CSV or PDF export that includes rows, fields, groups, or notes the requester cannot read, executes a formula in a cell, is unbounded, is not audited, or is produced for a person who may not export.",
       "mitigated_by": [
@@ -746,7 +746,7 @@
       ]
     },
     {
-      "id": "T-68",
+      "id": "T-70",
       "category": "departure",
       "description": "Personal dashboard exposure: an administrator, owner, another member, or a departing member's successor reading, listing, restoring, or counting a personal dashboard that is not theirs; or a personal dashboard whose existence differs from an unknown identifier in status, body, headers, or timing.",
       "mitigated_by": [
@@ -756,7 +756,7 @@
       ]
     },
     {
-      "id": "T-69",
+      "id": "T-71",
       "category": "rls_leak",
       "description": "Replay and race: a repeated or concurrent create, edit, share, schedule, or delivery that applies twice, loses an edit, sends the same occurrence twice, or lets a second writer overwrite the first without a version conflict.",
       "mitigated_by": [
@@ -765,7 +765,7 @@
       ]
     },
     {
-      "id": "T-70",
+      "id": "T-72",
       "category": "staleness",
       "description": "Misleading or unavailable source: a figure from an unavailable or out-of-date source shown as current or complete, a provider that is not configured reported as a delivered email, or an estimated or incomplete figure shown without saying so.",
       "mitigated_by": [
@@ -5612,9 +5612,9 @@
       ]
     },
     {
-      "id": "AT-269",
+      "id": "AT-280",
       "threats": [
-        "T-63"
+        "T-65"
       ],
       "principal": "member",
       "setup": "Member reads a dashboard widget for all brands while two of three brands, and a restricted project in the third, are outside their access",
@@ -5631,9 +5631,9 @@
       ]
     },
     {
-      "id": "AT-270",
+      "id": "AT-281",
       "threats": [
-        "T-63"
+        "T-65"
       ],
       "principal": "member",
       "setup": "Member opens the records behind a widget figure and pages through them",
@@ -5649,9 +5649,9 @@
       ]
     },
     {
-      "id": "AT-271",
+      "id": "AT-282",
       "threats": [
-        "T-63"
+        "T-65"
       ],
       "principal": "member",
       "setup": "Member reads a grouped widget, an ad hoc filtered widget, and a forged cursor for the records behind one",
@@ -5667,9 +5667,9 @@
       ]
     },
     {
-      "id": "AT-272",
+      "id": "AT-283",
       "threats": [
-        "T-64"
+        "T-66"
       ],
       "principal": "member",
       "setup": "Member's brand grant is revoked after they read a dashboard; they read it again",
@@ -5686,9 +5686,9 @@
       ]
     },
     {
-      "id": "AT-273",
+      "id": "AT-284",
       "threats": [
-        "T-64"
+        "T-66"
       ],
       "principal": "member",
       "setup": "Member opens a report only through a share; the share is revoked; they open it again",
@@ -5705,9 +5705,9 @@
       ]
     },
     {
-      "id": "AT-274",
+      "id": "AT-285",
       "threats": [
-        "T-65"
+        "T-67"
       ],
       "principal": "guest",
       "setup": "Guest with one task grant opens a report shared with them and reads its widgets",
@@ -5724,9 +5724,9 @@
       ]
     },
     {
-      "id": "AT-275",
+      "id": "AT-286",
       "threats": [
-        "T-65"
+        "T-67"
       ],
       "principal": "read_only",
       "setup": "Read-only member tries to share a report and a manager shares and lists shares",
@@ -5742,9 +5742,9 @@
       ]
     },
     {
-      "id": "AT-276",
+      "id": "AT-287",
       "threats": [
-        "T-66"
+        "T-68"
       ],
       "principal": "member",
       "setup": "Scheduled report is delivered to three recipients who each have different access",
@@ -5761,9 +5761,9 @@
       ]
     },
     {
-      "id": "AT-277",
+      "id": "AT-288",
       "threats": [
-        "T-66"
+        "T-68"
       ],
       "principal": "member",
       "setup": "A recipient's access to the report is revoked before the next scheduled send",
@@ -5781,9 +5781,9 @@
       ]
     },
     {
-      "id": "AT-278",
+      "id": "AT-289",
       "threats": [
-        "T-66"
+        "T-68"
       ],
       "principal": "member",
       "setup": "The member accountable for a scheduled report loses their brand access before the next send",
@@ -5799,9 +5799,9 @@
       ]
     },
     {
-      "id": "AT-279",
+      "id": "AT-290",
       "threats": [
-        "T-67"
+        "T-69"
       ],
       "principal": "member",
       "setup": "Member exports CSV and PDF of a dashboard over brands they partly cannot read",
@@ -5818,9 +5818,9 @@
       ]
     },
     {
-      "id": "AT-280",
+      "id": "AT-291",
       "threats": [
-        "T-67"
+        "T-69"
       ],
       "principal": "member",
       "setup": "Member with narrower access exports a dashboard and reads a shared report",
@@ -5837,9 +5837,9 @@
       ]
     },
     {
-      "id": "AT-281",
+      "id": "AT-292",
       "threats": [
-        "T-68"
+        "T-70"
       ],
       "principal": "member",
       "setup": "Another member and the workspace owner list and open a member's personal dashboard",
@@ -5856,9 +5856,9 @@
       ]
     },
     {
-      "id": "AT-282",
+      "id": "AT-293",
       "threats": [
-        "T-68"
+        "T-70"
       ],
       "principal": "member",
       "setup": "Request for a personal dashboard of another member and for an unknown identifier",
@@ -5874,9 +5874,9 @@
       ]
     },
     {
-      "id": "AT-283",
+      "id": "AT-294",
       "threats": [
-        "T-69"
+        "T-71"
       ],
       "principal": "member",
       "setup": "Two edits to the same dashboard from the same version, then a stale third",
@@ -5891,9 +5891,9 @@
       ]
     },
     {
-      "id": "AT-284",
+      "id": "AT-295",
       "threats": [
-        "T-69"
+        "T-71"
       ],
       "principal": "member",
       "setup": "The same create request is sent twice with one idempotency key",
@@ -5908,9 +5908,9 @@
       ]
     },
     {
-      "id": "AT-285",
+      "id": "AT-296",
       "threats": [
-        "T-70"
+        "T-72"
       ],
       "principal": "system_job",
       "setup": "The mail provider is down, rejects the message, or is not configured when a report is due",
@@ -5927,9 +5927,9 @@
       ]
     },
     {
-      "id": "AT-286",
+      "id": "AT-297",
       "threats": [
-        "T-70"
+        "T-72"
       ],
       "principal": "member",
       "setup": "Member reads a widget built from a source that has not refreshed recently, and one from estimates",

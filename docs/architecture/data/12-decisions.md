@@ -237,8 +237,8 @@ Status of every ADR: **proposed (Phase 0B)**, pending solutions-architect accept
   - **No GIN index.** Under forced row-level security the full-text operator cannot use one (it is not leakproof, and no role may mark it so), so none is created; see engineering decision S14 of Phase 5A for the bound and the upgrade path.
 - **Alternatives:** Permission keys copied into the projection (stale after every share, move, and role change). An outbox consumer (misses edits that emit no event, and cannot backfill). A definer function that reads the projection outside row-level security to regain the index (a new privileged read path). Offset paging (§10.5 forbids it for user lists).
 - **Consequences:** Migration `0041_permission_aware_search` with an exact 0040 rollback. All three tables have workspace RLS and indexes on every foreign key; the worker holds write grants, the API read grants (and write grants on recent searches only).
-<a id="adr-38"></a>
-## ADR-38: Dashboards, saved reports, shares, schedules, and delivery runs (Phase 5D amendment)
+<a id="adr-39"></a>
+## ADR-39: Dashboards, saved reports, shares, schedules, and delivery runs (Phase 5D amendment)
 
 - **Decision:**
   - **Records.** `insights.dashboard` (`dash_`) and `insights.report_definition` (`rpt_`) are records in the core envelope. A dashboard is `owner` (workspace), `brand`, `release` (brand), `project`, or `personal`; a report is workspace-, brand-, or project-scoped. Access is the placement's. A dashboard or report holds a bounded list of widgets (a metric name, its parameters, a size) and default filters, and never a figure.
@@ -249,7 +249,7 @@ Status of every ADR: **proposed (Phase 0B)**, pending solutions-architect accept
   - **Delivery runs.** `insights.report_run` has one row per scheduled occurrence and recipient, unique on (report, recipient, occurrence), so delivery is idempotent. It records state, a short reason code, row count, whether data was incomplete, a content hash, and the failure class. It never stores what was sent.
   - **Deletion.** Archive, trash, and restore carry the record; a project's lifecycle carries its dashboards and reports. Purge deletes a report's runs, shares, and recipients with it. A departing member's shared dashboards and reports move to the member chosen in the departure plan, their scheduled reports are suspended (not handed a schedule they never accepted), and their recipient rows are removed.
 - **Alternatives:** Pre-aggregated snapshots per scope with subtraction of hidden parts (a stored number can outlive a revocation, and a partial subtraction discloses what it hides). A share that carries its own filter or fields (a second source of authority). Storing the rendered report per run (viewer data at rest, retention and recall problems). A queue row per widget (more state than a per-occurrence run needs).
-- **Consequences:** Migration `0043_dashboards_reports` with an exact 0042 rollback. All five tables have workspace RLS and an index on every foreign key; the worker advances schedules, writes and ages out runs, and deletes content on purge; a payload-free `SECURITY DEFINER` discovery lists only the workspaces with a report due or runs past retention.
+- **Consequences:** Migration `0044_dashboards_reports` with an exact 0043 rollback. All five tables have workspace RLS and an index on every foreign key; the worker advances schedules, writes and ages out runs, and deletes content on purge; a payload-free `SECURITY DEFINER` discovery lists only the workspaces with a report due or runs past retention.
 <a id="adr-37"></a>
 ## ADR-37: Goals, key results, check-ins, links, and portfolios (Phase 5B amendment)
 
