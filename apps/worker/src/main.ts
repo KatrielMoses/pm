@@ -110,6 +110,7 @@ async function main(): Promise<void> {
     config,
     logger,
     metrics: telemetry.metrics,
+    ephemeralSigningKey: true,
   });
   const runtime = new WorkerRuntime({
     db: tenantDb,

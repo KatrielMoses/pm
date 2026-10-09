@@ -1,3 +1,4 @@
+import { randomBytes } from 'node:crypto';
 import { AuditSecurityEventSink, AuditWriter } from '@pm/audit';
 import type { ServerConfig } from '@pm/config';
 import type { PlatformDatabase, TenantDatabase } from '@pm/db';
@@ -44,9 +45,16 @@ export function createWorkService(deps: {
     };
   logger: Logger;
   metrics: Metrics;
+  /**
+   * The worker renders reports but never issues or reads a client cursor, so it may run without
+   * AUTH_SIGNING_KEY: a throwaway in-memory key stands in. The API never sets this and still fails
+   * closed when the key is missing.
+   */
+  ephemeralSigningKey?: boolean;
 }): ReportService {
   const { config } = deps;
-  if (!config.identity.signingKey) throw new Error('AUTH_SIGNING_KEY is required');
+  if (!config.identity.signingKey && !deps.ephemeralSigningKey)
+    throw new Error('AUTH_SIGNING_KEY is required');
   const writer = new AuditWriter({
     module: 'tenancy',
     logger: deps.logger,
@@ -61,7 +69,9 @@ export function createWorkService(deps: {
     metrics: deps.metrics,
     logger: deps.logger,
   });
-  const signingKey = Buffer.from(config.identity.signingKey.reveal(), 'base64url');
+  const signingKey = config.identity.signingKey
+    ? Buffer.from(config.identity.signingKey.reveal(), 'base64url')
+    : randomBytes(32);
   const arrayMax = config.tenancy.principalContextArrayMax;
   const work = config.work ?? DEFAULT_WORK_SETTINGS;
   return new ReportService({
