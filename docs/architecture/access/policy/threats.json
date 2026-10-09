@@ -579,6 +579,116 @@
         "I-10",
         "I-18"
       ]
+    },
+    {
+      "id": "T-54",
+      "category": "inference",
+      "description": "Search leakage and bypass: a hidden record's existence, title, text, rank, order, count, facet, excerpt, index state, or timing reached through a query, a page, a cursor, a filter, the palette, a recent search, or opening a result (or told apart from an unknown record); a share, role, brand, project, or lifecycle change that still shows results until the index is rebuilt; a deleted comment or a trashed file found while the index lags; text the owning module would not show (custom field values, live drafts, restricted reference labels) reaching the index; a person's name shown to a viewer who may not see people; a filter naming a hidden brand or project told apart from an unknown one; a cursor, recent search, or index status used by or revealing something to someone else; another workspace searched or opened; a poison record blocking the index, or an incomplete index presented as complete.",
+      "mitigated_by": [
+        "I-01",
+        "I-02",
+        "I-04",
+        "I-07",
+        "I-08",
+        "I-12",
+        "I-18"
+      ]
+    },
+    {
+      "id": "T-55",
+      "category": "inference",
+      "description": "Hidden work disclosed through a goal or portfolio aggregate: a count, percentage, progress, health, reason, dependency, budget, effort, deadline, logged-time total, label, or truncation notice that changes with, or names, a brand, project, task, link, or time entry the viewer cannot read (or tells a hidden project from an absent one); progress or health presented as covering work the viewer cannot see; a total that sums across currencies or presents untracked spend or AI usage as measured.",
+      "mitigated_by": [
+        "I-01",
+        "I-02",
+        "I-07",
+        "I-10",
+        "I-18"
+      ]
+    },
+    {
+      "id": "T-56",
+      "category": "cross_brand_traversal",
+      "description": "Existence disclosure through links, targets, and portfolio members: a project, task, goal, or portfolio told apart from an unknown one by a different answer when linking, listing, reading, or editing; a link or portfolio member to work the editor cannot read, or in the wrong brand or project, accepted; a hidden member listed, counted, or dropped when an editor saves a portfolio; a link or membership surviving the purge of the work it names.",
+      "mitigated_by": [
+        "I-01",
+        "I-02",
+        "I-07",
+        "I-10",
+        "I-18"
+      ]
+    },
+    {
+      "id": "T-57",
+      "category": "guest_escalation",
+      "description": "Goals and portfolios reached by guests and share-only readers: a guest, a share-only reader, or a member without workspace-level read listing, reading, or counting workspace-level or brand goals and portfolios, or obtaining them through a share, a favorite, a recent item, or an error; a goal or portfolio made shareable.",
+      "mitigated_by": [
+        "I-01",
+        "I-02",
+        "I-07",
+        "I-10",
+        "I-18"
+      ]
+    },
+    {
+      "id": "T-58",
+      "category": "staleness",
+      "description": "Stale or cached aggregates after access narrows: a figure, label, or link target computed for one viewer shown to another or kept after a grant is revoked, a role changes, a brand is archived, or work is moved or trashed; a stored number derived from linked work that is older than the work; a response that a shared cache or browser may keep.",
+      "mitigated_by": [
+        "I-01",
+        "I-02",
+        "I-07",
+        "I-10",
+        "I-18"
+      ]
+    },
+    {
+      "id": "T-59",
+      "category": "spoofing",
+      "description": "Forged, tampered, replayed, or flooded progress: a goal whose progress comes from linked work or key results set by hand; a check-in changed or deleted after it was recorded, written by someone who cannot update the goal, on a closed or archived goal, or attributed to someone else; a retried request recorded twice; a flood of check-ins from one member; a stale edit overwriting a newer one.",
+      "mitigated_by": [
+        "I-01",
+        "I-02",
+        "I-07",
+        "I-10",
+        "I-18"
+      ]
+    },
+    {
+      "id": "T-60",
+      "category": "rls_leak",
+      "description": "Goal and portfolio export exfiltration and injection: an export that contains a goal, key result, portfolio, project, or total the exporter cannot read, is unbounded, silently truncated, unaudited, or kept after it is served; a spreadsheet formula, command, or link planted through a title, unit, note, owner name, or project name.",
+      "mitigated_by": [
+        "I-01",
+        "I-02",
+        "I-07",
+        "I-10",
+        "I-18"
+      ]
+    },
+    {
+      "id": "T-61",
+      "category": "cross_workspace",
+      "description": "Recalculation poisoning, lease abuse, and cross-workspace job reads: a background sweep that reads or writes another workspace's goals, appends the same computed check-in twice, stores a number that depends on one viewer's access, lets a crashed or slow worker block a goal for ever, lets one failing goal block the others, stores goal text or a free-form error in its state, or discovers work through anything but workspace identifiers; a row that breaks the placement, period, or measurement rules because a command was bypassed.",
+      "mitigated_by": [
+        "I-01",
+        "I-02",
+        "I-07",
+        "I-10",
+        "I-18"
+      ]
+    },
+    {
+      "id": "T-62",
+      "category": "restricted_project",
+      "description": "Orphan findings revealing hidden links: a project reported as unlinked, or a goal as without active work, because of links or work the viewer cannot read (or reported as linked through a goal they cannot see); a finding that names, counts, or hints at a hidden goal, link, project, or task; a finding not labelled as relative to the viewer.",
+      "mitigated_by": [
+        "I-01",
+        "I-02",
+        "I-07",
+        "I-10",
+        "I-18"
+      ]
     }
   ],
   "tests": [
@@ -4863,6 +4973,558 @@
       "expected": "deny",
       "response_shape": "error_generic",
       "silent_surfaces": [
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-238",
+      "threats": [
+        "T-54"
+      ],
+      "principal": "member",
+      "setup": "Member without access searches for a word that appears only in a record they cannot read (title, body, comment, and document text)",
+      "scope": "hidden record text",
+      "action": "record.read",
+      "surface": "search",
+      "expected": "deny",
+      "response_shape": "omitted",
+      "silent_surfaces": [
+        "search_snippet",
+        "count_facet",
+        "timing",
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-239",
+      "threats": [
+        "T-54"
+      ],
+      "principal": "member",
+      "setup": "A share or brand grant is given and then revoked while the search index is not rebuilt",
+      "scope": "revocation without re-indexing",
+      "action": "record.read",
+      "surface": "search",
+      "expected": "deny",
+      "response_shape": "omitted",
+      "silent_surfaces": [
+        "search_snippet",
+        "count_facet",
+        "timing"
+      ]
+    },
+    {
+      "id": "AT-240",
+      "threats": [
+        "T-54"
+      ],
+      "principal": "guest",
+      "setup": "People of every role, a guest with an exact share, and a member of a restricted project or a sensitive brand search the same word",
+      "scope": "role, share, project, and brand matrix",
+      "action": "record.read",
+      "surface": "search",
+      "expected": "deny",
+      "response_shape": "omitted",
+      "silent_surfaces": [
+        "search_snippet",
+        "count_facet",
+        "timing"
+      ]
+    },
+    {
+      "id": "AT-241",
+      "threats": [
+        "T-54"
+      ],
+      "principal": "member",
+      "setup": "A comment is deleted, or a file or deliverable is trashed, or a record is archived, trashed, or purged, before the index has caught up",
+      "scope": "source state ahead of the index",
+      "action": "record.read",
+      "surface": "search",
+      "expected": "deny",
+      "response_shape": "omitted",
+      "silent_surfaces": [
+        "search_snippet",
+        "count_facet",
+        "timing"
+      ]
+    },
+    {
+      "id": "AT-242",
+      "threats": [
+        "T-54"
+      ],
+      "principal": "member",
+      "setup": "Search filtered by a brand or project the person cannot see, and by one that does not exist",
+      "scope": "filter naming a hidden brand or project",
+      "action": "record.read",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "validation_generic",
+      "silent_surfaces": [
+        "search",
+        "count_facet",
+        "timing",
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-243",
+      "threats": [
+        "T-54"
+      ],
+      "principal": "member",
+      "setup": "The index lags or a record fails to index; a person who cannot read that record requests the search and the index status",
+      "scope": "index state of hidden records",
+      "action": "record.read",
+      "surface": "count_facet",
+      "expected": "deny",
+      "response_shape": "omitted",
+      "silent_surfaces": [
+        "search",
+        "search_snippet",
+        "timing"
+      ]
+    },
+    {
+      "id": "AT-244",
+      "threats": [
+        "T-54"
+      ],
+      "principal": "member",
+      "setup": "A person opens a search result that is hidden, deleted, trashed, purged, in another workspace, or unknown",
+      "scope": "opening a result",
+      "action": "record.read",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "not_found",
+      "silent_surfaces": [
+        "search",
+        "search_snippet",
+        "count_facet",
+        "timing",
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-245",
+      "threats": [
+        "T-54"
+      ],
+      "principal": "member",
+      "setup": "A person reuses another person's cursor, changes the search under a cursor, or lists recent searches that name a place access has since removed",
+      "scope": "cursors and recent searches",
+      "action": "personal.manage_own",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "error_generic",
+      "silent_surfaces": [
+        "search",
+        "search_snippet",
+        "count_facet",
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-246",
+      "threats": [
+        "T-55"
+      ],
+      "principal": "member",
+      "setup": "Member who may read one of two linked projects reads a goal linked to both, and its linked-work progress, links, and labels",
+      "scope": "goal linked to a restricted project",
+      "action": "record.read",
+      "surface": "api",
+      "expected": "allow",
+      "response_shape": "ok_filtered",
+      "silent_surfaces": [
+        "count_facet",
+        "error_message",
+        "export"
+      ]
+    },
+    {
+      "id": "AT-247",
+      "threats": [
+        "T-55"
+      ],
+      "principal": "member",
+      "setup": "Member reads portfolio health, deadlines, budgets, effort, and time totals when projects, brands, time entries, and budgets exist that they cannot read",
+      "scope": "portfolio with restricted members and work",
+      "action": "record.read",
+      "surface": "report",
+      "expected": "allow",
+      "response_shape": "ok_filtered",
+      "silent_surfaces": [
+        "count_facet",
+        "error_message",
+        "export",
+        "timing"
+      ]
+    },
+    {
+      "id": "AT-248",
+      "threats": [
+        "T-55"
+      ],
+      "principal": "member",
+      "setup": "Member reads cross-project dependencies where the other end of an edge is work they cannot read",
+      "scope": "dependency to restricted work",
+      "action": "record.read",
+      "surface": "api",
+      "expected": "allow",
+      "response_shape": "omitted",
+      "silent_surfaces": [
+        "count_facet",
+        "error_message",
+        "report"
+      ]
+    },
+    {
+      "id": "AT-249",
+      "threats": [
+        "T-56"
+      ],
+      "principal": "member",
+      "setup": "Member links a goal to a project or task that is unreadable, unknown, in another brand, or outside the goal's project",
+      "scope": "unreadable, unknown, or misplaced link target",
+      "action": "record.update",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "validation_generic",
+      "silent_surfaces": [
+        "error_message",
+        "timing"
+      ]
+    },
+    {
+      "id": "AT-250",
+      "threats": [
+        "T-56"
+      ],
+      "principal": "member",
+      "setup": "Editor saves a portfolio that holds projects they cannot read, or names one they cannot read",
+      "scope": "portfolio members",
+      "action": "record.update",
+      "surface": "api",
+      "expected": "allow",
+      "response_shape": "ok_filtered",
+      "silent_surfaces": [
+        "count_facet",
+        "error_message",
+        "picker"
+      ]
+    },
+    {
+      "id": "AT-251",
+      "threats": [
+        "T-56"
+      ],
+      "principal": "member",
+      "setup": "Member reads a portfolio whose other members sit in a brand they cannot access",
+      "scope": "portfolio with a hidden brand",
+      "action": "record.read",
+      "surface": "api",
+      "expected": "allow",
+      "response_shape": "omitted",
+      "silent_surfaces": [
+        "count_facet",
+        "error_message",
+        "report"
+      ]
+    },
+    {
+      "id": "AT-252",
+      "threats": [
+        "T-56"
+      ],
+      "principal": "member",
+      "setup": "Member reads an unreadable goal, an unknown goal, and a malformed goal identifier",
+      "scope": "goal in an unreadable brand",
+      "action": "record.read",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "not_found",
+      "silent_surfaces": [
+        "error_message",
+        "timing",
+        "count_facet"
+      ]
+    },
+    {
+      "id": "AT-253",
+      "threats": [
+        "T-56"
+      ],
+      "principal": "member",
+      "setup": "Project or task is purged while goals link it and portfolios name it",
+      "scope": "links and memberships of purged work",
+      "action": "record.purge",
+      "surface": "api",
+      "expected": "allow",
+      "response_shape": "omitted",
+      "silent_surfaces": [
+        "count_facet",
+        "export"
+      ]
+    },
+    {
+      "id": "AT-254",
+      "threats": [
+        "T-57"
+      ],
+      "principal": "guest",
+      "setup": "Guest lists goals or portfolios, or asks for the portfolio overview",
+      "scope": "goal and portfolio collections",
+      "action": "record.read",
+      "surface": "ui_list",
+      "expected": "deny",
+      "response_shape": "forbidden",
+      "silent_surfaces": [
+        "count_facet",
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-255",
+      "threats": [
+        "T-57"
+      ],
+      "principal": "guest",
+      "setup": "Guest reads one goal by its identifier, or one named in a share, and a person outside the workspace calls the goal routes",
+      "scope": "goal records",
+      "action": "record.read",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "not_found",
+      "silent_surfaces": [
+        "error_message",
+        "count_facet",
+        "timing"
+      ]
+    },
+    {
+      "id": "AT-256",
+      "threats": [
+        "T-58"
+      ],
+      "principal": "member",
+      "setup": "Member whose access narrowed reads a goal and a portfolio again, and a goal whose progress depends on linked work is read from the stored state",
+      "scope": "goal and portfolio figures after access narrowed",
+      "action": "record.read",
+      "surface": "api",
+      "expected": "allow",
+      "response_shape": "ok_filtered",
+      "silent_surfaces": [
+        "count_facet",
+        "error_message",
+        "export"
+      ]
+    },
+    {
+      "id": "AT-257",
+      "threats": [
+        "T-59"
+      ],
+      "principal": "member",
+      "setup": "Owner sets the progress of a goal that derives it from linked work or key results, or tries to change or delete a recorded check-in",
+      "scope": "derived goal progress and recorded check-ins",
+      "action": "record.update",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "validation_generic",
+      "silent_surfaces": [
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-258",
+      "threats": [
+        "T-59"
+      ],
+      "principal": "member",
+      "setup": "Member retries one check-in request with the same key, and sends check-ins faster than the per-member limit",
+      "scope": "check-in replay and flood",
+      "action": "record.update",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "error_generic",
+      "silent_surfaces": [
+        "error_message",
+        "activity"
+      ]
+    },
+    {
+      "id": "AT-259",
+      "threats": [
+        "T-59"
+      ],
+      "principal": "member",
+      "setup": "Reader, stranger, or owner of a closed goal records a check-in",
+      "scope": "check-in on a goal the caller cannot update",
+      "action": "record.update",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "forbidden",
+      "silent_surfaces": [
+        "error_message",
+        "activity"
+      ]
+    },
+    {
+      "id": "AT-260",
+      "threats": [
+        "T-59"
+      ],
+      "principal": "member",
+      "setup": "Two editors update one goal with the same loaded version, and an edit arrives with a stale or missing version",
+      "scope": "goal edit race",
+      "action": "record.update",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "conflict_filtered",
+      "silent_surfaces": [
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-261",
+      "threats": [
+        "T-60"
+      ],
+      "principal": "member",
+      "setup": "Member exports goals and key results as CSV and JSON, with titles that begin with formula characters and more rows than the limit",
+      "scope": "goal export",
+      "action": "record.export",
+      "surface": "export",
+      "expected": "allow",
+      "response_shape": "ok_filtered",
+      "silent_surfaces": [
+        "count_facet",
+        "error_message",
+        "activity"
+      ]
+    },
+    {
+      "id": "AT-262",
+      "threats": [
+        "T-60"
+      ],
+      "principal": "member",
+      "setup": "Member exports portfolio rows including projects and totals in brands they cannot read",
+      "scope": "portfolio export",
+      "action": "record.export",
+      "surface": "export",
+      "expected": "allow",
+      "response_shape": "ok_filtered",
+      "silent_surfaces": [
+        "count_facet",
+        "error_message",
+        "activity"
+      ]
+    },
+    {
+      "id": "AT-263",
+      "threats": [
+        "T-61"
+      ],
+      "principal": "system_job",
+      "setup": "Recalculation sweep for workspace A attempts to read or write a goal of workspace B",
+      "scope": "goal recalculation in another workspace",
+      "action": "record.read",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "not_found",
+      "silent_surfaces": [
+        "error_message",
+        "count_facet",
+        "activity",
+        "sse_notice"
+      ]
+    },
+    {
+      "id": "AT-264",
+      "threats": [
+        "T-61"
+      ],
+      "principal": "system_job",
+      "setup": "Two recalculation sweeps overlap on one goal, and a worker crashes while it holds a goal's lease",
+      "scope": "overlapping and crashed recalculation",
+      "action": "record.update",
+      "surface": "api",
+      "expected": "allow",
+      "response_shape": "ok",
+      "silent_surfaces": [
+        "activity",
+        "notification_inapp"
+      ]
+    },
+    {
+      "id": "AT-265",
+      "threats": [
+        "T-61"
+      ],
+      "principal": "system_job",
+      "setup": "One goal's recalculation fails repeatedly while others are due",
+      "scope": "failing goal recalculation",
+      "action": "record.update",
+      "surface": "api",
+      "expected": "allow",
+      "response_shape": "ok",
+      "silent_surfaces": [
+        "error_message",
+        "activity",
+        "notification_inapp"
+      ]
+    },
+    {
+      "id": "AT-266",
+      "threats": [
+        "T-61"
+      ],
+      "principal": "member",
+      "setup": "A row that breaks the placement, period, measurement, link, or immutability rules is written directly to the database",
+      "scope": "goal and portfolio constraints",
+      "action": "record.update",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "error_generic",
+      "silent_surfaces": [
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-267",
+      "threats": [
+        "T-62"
+      ],
+      "principal": "member",
+      "setup": "Member reads projects without a linked goal and goals without active work, where linked goals, links, and work exist that they cannot read",
+      "scope": "orphan findings",
+      "action": "record.read",
+      "surface": "report",
+      "expected": "allow",
+      "response_shape": "ok_filtered",
+      "silent_surfaces": [
+        "count_facet",
+        "error_message",
+        "export"
+      ]
+    },
+    {
+      "id": "AT-268",
+      "threats": [
+        "T-62"
+      ],
+      "principal": "member",
+      "setup": "Member reads orphan findings for a goal whose linked work is finished or sits in a project reached through a parent project",
+      "scope": "orphan findings by linked work",
+      "action": "record.read",
+      "surface": "report",
+      "expected": "allow",
+      "response_shape": "ok_filtered",
+      "silent_surfaces": [
+        "count_facet",
         "error_message"
       ]
     }

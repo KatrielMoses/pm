@@ -122,7 +122,7 @@ Each question records the assumption this set makes now and the reversible exten
 | <a id="dq-21"></a>DQ-21 | Rank alphabet, maximum key length, rebalance trigger | 2D | Base-62, rebalance above a length threshold |
 | <a id="dq-22"></a>DQ-22 | Calculated-field expression language and limits | 2C (OD-11) | Sandboxed AST interpreter, no SQL evaluation |
 | <a id="dq-23"></a>DQ-23 | Supported RRULE subset and generation horizon | 2D | Subset listed in [06 §6.4](06-temporal-model.md#64-recurrence) |
-| <a id="dq-24"></a>DQ-24 | Search language configurations, attachment text extraction, OCR | 5A (OD-31) | `simple` + English configurations, text formats only |
+| <a id="dq-24"></a>DQ-24 | Search language configurations, attachment text extraction, OCR | 5A (OD-31) | `simple` + English configurations, indexed together (decided by 5A, engineering decision S8). Attachment text and OCR remain later work (OD-31) |
 | <a id="dq-25"></a>DQ-25 | Document content format and realtime engine | 4C/4D (OD-30) | Versioned rich-text JSON documents, optimistic saves; realtime engine decided by 4D ([ADR-35](12-decisions.md#adr-35): a server-sequenced block-operation log, no CRDT). The rich-text envelope and version 1 (plain-text subset, used by `work.project.description_rich`) are fixed by 0D PL-23; 4C extends them |
 | <a id="dq-26"></a>DQ-26 | Product depth cap value | 2B (OD-08) | Technical ceiling 32, product cap 10. Projects closed by [ADR-21](12-decisions.md#adr-21) (`PROJECT_DEPTH_MAX`); task depth stays with 2B |
 | <a id="dq-27"></a>DQ-27 | Size threshold where bulk edits, archives, and brand moves switch to locked background jobs | 1F/2D | Implementation-measured |
@@ -142,3 +142,5 @@ Each question records the assumption this set makes now and the reversible exten
 | <a id="dq-36"></a>DQ-36 | Automatic workspace deletion after the read-only period ends | OD-35 | No automatic deletion request |
 | <a id="dq-37"></a>DQ-37 | Deleting data previously pushed to external systems on disconnect | 0A deletion §6 | Per-integration user choice; default **do not** delete remotely |
 | <a id="dq-38"></a>DQ-38 | Retention of AI prompts and outputs versus provider retention | OD-36, OD-41 | Kept as R-EXEC; provider retention governed by provider contracts |
+| <a id="dq-39"></a>DQ-39 | Fiscal calendars for goal periods | later (needs a 1C workspace setting) | Calendar quarters, halves, years, or a custom range of at most 3660 days ([ADR-37](12-decisions.md#adr-37)) |
+| <a id="dq-40"></a>DQ-40 | Weighted goal rollups and metric-backed key results | 5C (OD-13) | Key-result rollup is an equal-weight mean of measured key results; linked-work progress is done over non-cancelled leaf tasks, with no estimate weighting |

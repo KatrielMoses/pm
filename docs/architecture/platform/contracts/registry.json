@@ -759,6 +759,14 @@
       "owner_module": "knowledge",
       "platform_only": false,
       "note": ""
+    },
+    {
+      "prefix": "gci",
+      "resource": "goal_checkin",
+      "entity": "goals.goal_checkin",
+      "owner_module": "goals",
+      "platform_only": false,
+      "note": ""
     }
   ],
   "error_codes": [
@@ -4572,6 +4580,257 @@
       ],
       "allow_list_version": null,
       "delivery_authorization": null
+    },
+    {
+      "type": "goals.goal.created",
+      "schema_version": 1,
+      "aggregate_entity": "goals.goal",
+      "fields": [
+        "scope",
+        "period_kind",
+        "progress_basis"
+      ],
+      "max_class": "C1",
+      "consumers": {
+        "activity": true,
+        "notification": false,
+        "metrics": true,
+        "automation_trigger": false,
+        "search_index": false
+      },
+      "public_webhook": null,
+      "requirements": [
+        "GOAL-001",
+        "GOAL-002"
+      ],
+      "allow_list_version": null,
+      "delivery_authorization": null
+    },
+    {
+      "type": "goals.goal.updated",
+      "schema_version": 1,
+      "aggregate_entity": "goals.goal",
+      "fields": [
+        "change"
+      ],
+      "max_class": "C1",
+      "consumers": {
+        "activity": true,
+        "notification": false,
+        "metrics": true,
+        "automation_trigger": false,
+        "search_index": false
+      },
+      "public_webhook": null,
+      "requirements": [
+        "GOAL-001",
+        "GOAL-002"
+      ],
+      "allow_list_version": null,
+      "delivery_authorization": null
+    },
+    {
+      "type": "goals.goal.status_changed",
+      "schema_version": 1,
+      "aggregate_entity": "goals.goal",
+      "fields": [
+        "status"
+      ],
+      "max_class": "C1",
+      "consumers": {
+        "activity": true,
+        "notification": false,
+        "metrics": true,
+        "automation_trigger": false,
+        "search_index": false
+      },
+      "public_webhook": null,
+      "requirements": [
+        "GOAL-002"
+      ],
+      "allow_list_version": null,
+      "delivery_authorization": null
+    },
+    {
+      "type": "goals.goal.checkin_recorded",
+      "schema_version": 1,
+      "aggregate_entity": "goals.goal_checkin",
+      "fields": [
+        "source",
+        "confidence",
+        "has_value"
+      ],
+      "max_class": "C1",
+      "consumers": {
+        "activity": true,
+        "notification": false,
+        "metrics": true,
+        "automation_trigger": false,
+        "search_index": false
+      },
+      "public_webhook": null,
+      "requirements": [
+        "GOAL-005",
+        "GOAL-006"
+      ],
+      "allow_list_version": null,
+      "delivery_authorization": null
+    },
+    {
+      "type": "goals.goal.link_changed",
+      "schema_version": 1,
+      "aggregate_entity": "goals.goal_link",
+      "fields": [
+        "change",
+        "target_kind"
+      ],
+      "max_class": "C1",
+      "consumers": {
+        "activity": true,
+        "notification": false,
+        "metrics": true,
+        "automation_trigger": false,
+        "search_index": false
+      },
+      "public_webhook": null,
+      "requirements": [
+        "GOAL-003"
+      ],
+      "allow_list_version": null,
+      "delivery_authorization": null
+    },
+    {
+      "type": "goals.goal.update_stale",
+      "schema_version": 1,
+      "aggregate_entity": "goals.goal",
+      "fields": [
+        "days_stale"
+      ],
+      "max_class": "C1",
+      "consumers": {
+        "activity": false,
+        "notification": false,
+        "metrics": true,
+        "automation_trigger": false,
+        "search_index": false
+      },
+      "public_webhook": null,
+      "requirements": [
+        "GOAL-006"
+      ],
+      "allow_list_version": null,
+      "delivery_authorization": null
+    },
+    {
+      "type": "goals.key_result.created",
+      "schema_version": 1,
+      "aggregate_entity": "goals.key_result",
+      "fields": [
+        "progress_basis"
+      ],
+      "max_class": "C1",
+      "consumers": {
+        "activity": true,
+        "notification": false,
+        "metrics": true,
+        "automation_trigger": false,
+        "search_index": false
+      },
+      "public_webhook": null,
+      "requirements": [
+        "GOAL-004"
+      ],
+      "allow_list_version": null,
+      "delivery_authorization": null
+    },
+    {
+      "type": "goals.key_result.updated",
+      "schema_version": 1,
+      "aggregate_entity": "goals.key_result",
+      "fields": [
+        "change"
+      ],
+      "max_class": "C1",
+      "consumers": {
+        "activity": true,
+        "notification": false,
+        "metrics": true,
+        "automation_trigger": false,
+        "search_index": false
+      },
+      "public_webhook": null,
+      "requirements": [
+        "GOAL-004"
+      ],
+      "allow_list_version": null,
+      "delivery_authorization": null
+    },
+    {
+      "type": "goals.portfolio.created",
+      "schema_version": 1,
+      "aggregate_entity": "goals.portfolio",
+      "fields": [
+        "scope"
+      ],
+      "max_class": "C1",
+      "consumers": {
+        "activity": true,
+        "notification": false,
+        "metrics": true,
+        "automation_trigger": false,
+        "search_index": false
+      },
+      "public_webhook": null,
+      "requirements": [
+        "GOAL-007"
+      ],
+      "allow_list_version": null,
+      "delivery_authorization": null
+    },
+    {
+      "type": "goals.portfolio.updated",
+      "schema_version": 1,
+      "aggregate_entity": "goals.portfolio",
+      "fields": [
+        "change"
+      ],
+      "max_class": "C1",
+      "consumers": {
+        "activity": true,
+        "notification": false,
+        "metrics": true,
+        "automation_trigger": false,
+        "search_index": false
+      },
+      "public_webhook": null,
+      "requirements": [
+        "GOAL-007"
+      ],
+      "allow_list_version": null,
+      "delivery_authorization": null
+    },
+    {
+      "type": "goals.portfolio.members_changed",
+      "schema_version": 1,
+      "aggregate_entity": "goals.portfolio",
+      "fields": [
+        "count"
+      ],
+      "max_class": "C1",
+      "consumers": {
+        "activity": true,
+        "notification": false,
+        "metrics": true,
+        "automation_trigger": false,
+        "search_index": false
+      },
+      "public_webhook": null,
+      "requirements": [
+        "GOAL-007",
+        "GOAL-008"
+      ],
+      "allow_list_version": null,
+      "delivery_authorization": null
     }
   ],
   "scopes": [
@@ -5744,6 +6003,32 @@
       "area": "knowledge"
     },
     {
+      "name": "search.requests",
+      "type": "counter",
+      "labels": [
+        "op",
+        "outcome"
+      ],
+      "area": "search"
+    },
+    {
+      "name": "search.index.jobs",
+      "type": "counter",
+      "labels": [
+        "kind",
+        "outcome"
+      ],
+      "area": "search"
+    },
+    {
+      "name": "search.query.duration",
+      "type": "histogram",
+      "labels": [
+        "outcome"
+      ],
+      "area": "search"
+    },
+    {
       "name": "files.requests",
       "type": "counter",
       "labels": [
@@ -5760,6 +6045,33 @@
         "outcome"
       ],
       "area": "files"
+    },
+    {
+      "name": "goals.reads",
+      "type": "counter",
+      "labels": [
+        "view",
+        "outcome"
+      ],
+      "area": "goals"
+    },
+    {
+      "name": "goals.changes",
+      "type": "counter",
+      "labels": [
+        "kind",
+        "outcome"
+      ],
+      "area": "goals"
+    },
+    {
+      "name": "goals.jobs",
+      "type": "counter",
+      "labels": [
+        "kind",
+        "outcome"
+      ],
+      "area": "goals"
     }
   ],
   "forbidden_metric_labels": [
@@ -6650,6 +6962,81 @@
       "owner": "4D"
     },
     {
+      "name": "SEARCH_QUERY_MAX_CHARS",
+      "meaning": "Longest search query; default 200, range 20–500.",
+      "owner": "5A"
+    },
+    {
+      "name": "SEARCH_TERMS_MAX",
+      "meaning": "Most words and phrases in one search query; default 12, range 2–30.",
+      "owner": "5A"
+    },
+    {
+      "name": "SEARCH_PAGE_SIZE_MAX",
+      "meaning": "Most results one search page returns; default 50, range 10–100.",
+      "owner": "5A"
+    },
+    {
+      "name": "SEARCH_RESULTS_MAX",
+      "meaning": "Deepest result a search can page to; default 200, range 50–1000.",
+      "owner": "5A"
+    },
+    {
+      "name": "SEARCH_COUNT_MAX",
+      "meaning": "Where result counts and facets stop and say \"at least\"; default 1000, range 100–10000.",
+      "owner": "5A"
+    },
+    {
+      "name": "SEARCH_SNIPPET_CHARS",
+      "meaning": "Longest result snippet; default 220, range 80–500.",
+      "owner": "5A"
+    },
+    {
+      "name": "SEARCH_BODY_MAX_CHARS",
+      "meaning": "Most text indexed per record; default 100000, range 10000–100000.",
+      "owner": "5A"
+    },
+    {
+      "name": "SEARCH_INDEX_BATCH_MAX",
+      "meaning": "Most records one worker run indexes per workspace; default 200, range 10–1000.",
+      "owner": "5A"
+    },
+    {
+      "name": "SEARCH_INDEX_DISCOVERY_MAX",
+      "meaning": "Most workspaces one indexing run visits; default 50, range 1–500.",
+      "owner": "5A"
+    },
+    {
+      "name": "SEARCH_INDEX_MAX_ATTEMPTS",
+      "meaning": "Attempts to index a record before it is shown as failed; default 5, range 1–20.",
+      "owner": "5A"
+    },
+    {
+      "name": "SEARCH_INDEX_BACKOFF_SECONDS",
+      "meaning": "First wait before a failed indexing attempt is retried (it doubles); default 30, range 5–3600.",
+      "owner": "5A"
+    },
+    {
+      "name": "SEARCH_FAILED_RETRY_MINUTES",
+      "meaning": "How long a failed record waits between slow retries; default 360, range 10–10080.",
+      "owner": "5A"
+    },
+    {
+      "name": "SEARCH_RECENT_MAX",
+      "meaning": "Recent searches kept per person and workspace; default 25, range 5–100.",
+      "owner": "5A"
+    },
+    {
+      "name": "SEARCH_RECENT_RETENTION_DAYS",
+      "meaning": "How long a recent search is kept; default 90, range 1–365.",
+      "owner": "5A"
+    },
+    {
+      "name": "SEARCH_RATE_PER_MINUTE",
+      "meaning": "Most searches one person makes per minute; default 120, range 10–1200.",
+      "owner": "5A"
+    },
+    {
       "name": "DOCUMENT_EMBED_URL_MAX_CHARS",
       "meaning": "Longest address of an embedded image, video, or link; default 2048, range 128–8192.",
       "owner": "4C"
@@ -6698,6 +7085,71 @@
       "name": "FILE_EXPIRY_BATCH_MAX",
       "meaning": "Most expired upload sessions and object deletions one sweep handles per workspace; default 200, range 10–5000.",
       "owner": "4E"
+    },
+    {
+      "name": "GOALS_PER_SCOPE_MAX",
+      "meaning": "Most live goals one workspace, brand, or project scope holds; default 500, range 10–5000.",
+      "owner": "5B"
+    },
+    {
+      "name": "GOAL_KEY_RESULTS_MAX",
+      "meaning": "Most key results one goal holds; default 20, range 1–50.",
+      "owner": "5B"
+    },
+    {
+      "name": "GOAL_LINKS_MAX",
+      "meaning": "Most projects and tasks one goal (with its key results) links; default 200, range 10–1000.",
+      "owner": "5B"
+    },
+    {
+      "name": "GOAL_UPDATE_STALE_DAYS",
+      "meaning": "Days without a manual check-in after which an active goal's update is stale; default 14, range 1–90.",
+      "owner": "5B"
+    },
+    {
+      "name": "GOAL_CHECKIN_RATE_PER_MINUTE",
+      "meaning": "Check-ins one member may record per minute; default 30, range 1–600.",
+      "owner": "5B"
+    },
+    {
+      "name": "PORTFOLIOS_MAX",
+      "meaning": "Most live portfolios one workspace holds; default 100, range 1–1000.",
+      "owner": "5B"
+    },
+    {
+      "name": "PORTFOLIO_PROJECTS_MAX",
+      "meaning": "Most projects one portfolio names; default 200, range 10–1000.",
+      "owner": "5B"
+    },
+    {
+      "name": "PORTFOLIO_READ_PROJECTS_MAX",
+      "meaning": "Most projects one health, dependency, or orphan read evaluates before it reports itself truncated; default 500, range 50–2000.",
+      "owner": "5B"
+    },
+    {
+      "name": "GOALS_EXPORT_ROWS_MAX",
+      "meaning": "Most rows one goal or portfolio export returns; larger exports are refused; default 5000, range 100–50000.",
+      "owner": "5B"
+    },
+    {
+      "name": "GOALS_RECALC_BATCH_MAX",
+      "meaning": "Most goals one recalculation sweep claims per workspace; default 200, range 10–2000.",
+      "owner": "5B"
+    },
+    {
+      "name": "GOALS_RECALC_LEASE_SECONDS",
+      "meaning": "How long a claimed goal stays leased before another sweep may reclaim it; default 300, range 30–3600.",
+      "owner": "5B"
+    },
+    {
+      "name": "GOALS_RECALC_INTERVAL_MINUTES",
+      "meaning": "How often an unchanged goal's time-driven state (staleness, period) is rechecked; default 360, range 15–1440.",
+      "owner": "5B"
+    },
+    {
+      "name": "GOALS_RECALC_MAX_ATTEMPTS",
+      "meaning": "Failed recalculations before a goal is reported as failing and backed off to the recheck interval; default 5, range 1–20.",
+      "owner": "5B"
     }
   ],
   "sse_topics": [

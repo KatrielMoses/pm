@@ -290,6 +290,62 @@ export interface WorkSettings {
   liveOpLogMax: number;
   /** `LIVE_RATE_PER_MINUTE` */
   liveRatePerMinute: number;
+  /** `SEARCH_QUERY_MAX_CHARS` */
+  searchQueryMaxChars: number;
+  /** `SEARCH_TERMS_MAX` */
+  searchTermsMax: number;
+  /** `SEARCH_PAGE_SIZE_MAX` */
+  searchPageSizeMax: number;
+  /** `SEARCH_RESULTS_MAX` */
+  searchResultsMax: number;
+  /** `SEARCH_COUNT_MAX` */
+  searchCountMax: number;
+  /** `SEARCH_SNIPPET_CHARS` */
+  searchSnippetChars: number;
+  /** `SEARCH_BODY_MAX_CHARS` */
+  searchBodyMaxChars: number;
+  /** `SEARCH_INDEX_BATCH_MAX` */
+  searchIndexBatchMax: number;
+  /** `SEARCH_INDEX_DISCOVERY_MAX` */
+  searchIndexDiscoveryMax: number;
+  /** `SEARCH_INDEX_MAX_ATTEMPTS` */
+  searchIndexMaxAttempts: number;
+  /** `SEARCH_INDEX_BACKOFF_SECONDS` */
+  searchIndexBackoffSeconds: number;
+  /** `SEARCH_FAILED_RETRY_MINUTES` */
+  searchFailedRetryMinutes: number;
+  /** `SEARCH_RECENT_MAX` */
+  searchRecentMax: number;
+  /** `SEARCH_RECENT_RETENTION_DAYS` */
+  searchRecentRetentionDays: number;
+  /** `SEARCH_RATE_PER_MINUTE` */
+  searchRatePerMinute: number;
+  /** `GOALS_PER_SCOPE_MAX` */
+  goalsPerScopeMax: number;
+  /** `GOAL_KEY_RESULTS_MAX` */
+  goalKeyResultsMax: number;
+  /** `GOAL_LINKS_MAX` */
+  goalLinksMax: number;
+  /** `GOAL_UPDATE_STALE_DAYS` */
+  goalUpdateStaleDays: number;
+  /** `GOAL_CHECKIN_RATE_PER_MINUTE` */
+  goalCheckinRatePerMinute: number;
+  /** `PORTFOLIOS_MAX` */
+  portfoliosMax: number;
+  /** `PORTFOLIO_PROJECTS_MAX` */
+  portfolioProjectsMax: number;
+  /** `PORTFOLIO_READ_PROJECTS_MAX` */
+  portfolioReadProjectsMax: number;
+  /** `GOALS_EXPORT_ROWS_MAX` */
+  goalsExportRowsMax: number;
+  /** `GOALS_RECALC_BATCH_MAX` */
+  goalsRecalcBatchMax: number;
+  /** `GOALS_RECALC_LEASE_SECONDS` */
+  goalsRecalcLeaseSeconds: number;
+  /** `GOALS_RECALC_INTERVAL_MINUTES` */
+  goalsRecalcIntervalMinutes: number;
+  /** `GOALS_RECALC_MAX_ATTEMPTS` */
+  goalsRecalcMaxAttempts: number;
   /** `DOCUMENT_EMBED_URL_MAX_CHARS` */
   documentEmbedUrlMaxChars: number;
   /** `SIGNED_URL_LIFETIME` (seconds) */
@@ -451,6 +507,34 @@ export const DEFAULT_WORK_SETTINGS: WorkSettings = Object.freeze({
   livePollWaitSeconds: 20,
   liveOpLogMax: 2000,
   liveRatePerMinute: 1200,
+  searchQueryMaxChars: 200,
+  searchTermsMax: 12,
+  searchPageSizeMax: 50,
+  searchResultsMax: 200,
+  searchCountMax: 1_000,
+  searchSnippetChars: 220,
+  searchBodyMaxChars: 100_000,
+  searchIndexBatchMax: 200,
+  searchIndexDiscoveryMax: 50,
+  searchIndexMaxAttempts: 5,
+  searchIndexBackoffSeconds: 30,
+  searchFailedRetryMinutes: 360,
+  searchRecentMax: 25,
+  searchRecentRetentionDays: 90,
+  searchRatePerMinute: 120,
+  goalsPerScopeMax: 500,
+  goalKeyResultsMax: 20,
+  goalLinksMax: 200,
+  goalUpdateStaleDays: 14,
+  goalCheckinRatePerMinute: 30,
+  portfoliosMax: 100,
+  portfolioProjectsMax: 200,
+  portfolioReadProjectsMax: 500,
+  goalsExportRowsMax: 5000,
+  goalsRecalcBatchMax: 200,
+  goalsRecalcLeaseSeconds: 300,
+  goalsRecalcIntervalMinutes: 360,
+  goalsRecalcMaxAttempts: 5,
   documentEmbedUrlMaxChars: 2048,
   signedUrlLifetimeSeconds: 300,
   uploadSessionLifetimeSeconds: 3_600,

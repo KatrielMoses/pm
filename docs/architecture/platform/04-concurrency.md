@@ -58,6 +58,10 @@ The `conflict` error with the `conflict` payload (schema `conflict`):
   2. returns the `conflict` error with `saved_as_version_id` and `current_version`, so the client can open the per-section conflict view.
 - Realtime collaborative editing (4D, OD-30, [PL-37](19-decisions.md#pl-37)) is a server-sequenced block-operation log on a draft inside the document: an operation names the block hash it was based on and is refused with the current block when it no longer fits. The version contract above remains the durable boundary, and a checkpoint is an ordinary version.
 
+## 4.4a Goals and portfolios
+
+- Goals, key results, and portfolios are `row-version` records: a stale `If-Match` is a `conflict` and a missing one `precondition_required` (Phase 5B, [PL-39](19-decisions.md#pl-39)). Check-ins are append-only and take an `Idempotency-Key`, so a retry records once. Nothing derived from linked work is stored, so there is no derived value to conflict with. A background recalculation claims a goal with a lease and appends a computed check-in once per distinct input.
+
 ## 4.5 Bulk and per-item boundaries
 
 | Mode | Boundary | Result |

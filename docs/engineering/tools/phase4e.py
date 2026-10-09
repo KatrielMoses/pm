@@ -160,8 +160,16 @@ def check_invariants():
     if "export class FileService extends LiveService" not in svc:
         errs.append("FileService must extend LiveService (4C, then 4D, then 4E, in the service chain)")
     factory = read(P("packages/work/src/factory.ts"))
-    if "}): FileService {" not in factory or "return new FileService(" not in factory:
-        errs.append("createWorkService must build and return the FileService")
+    # The factory builds the top of the service chain: the FileService itself, the SearchService (5A)
+    # that extends it, or the PortfolioService (5B) whose chain (GoalCore) extends the SearchService.
+    if not re.search(r"\}\): (FileService|SearchService|PortfolioService) \{", factory) or not re.search(
+            r"return new (FileService|SearchService|PortfolioService)\(", factory):
+        errs.append("createWorkService must build and return the FileService (or the 5A/5B service chain on top of it)")
+    elif "PortfolioService" in factory and "export class GoalCore extends SearchService" not in read(
+            P("packages/work/src/goals/goal-core.ts")):
+        errs.append("the 5B goal services must extend the SearchService (4C, 4D, 4E, 5A, then 5B in the service chain)")
+    if "export class SearchService extends FileService" not in read(P("packages/work/src/search/search-service.ts")):
+        errs.append("the SearchService must extend the FileService")
     for method in ["async storageStatus(", "async initiateUpload(", "async getUpload(", "async completeUpload(",
                    "async addFileLink(", "async listFiles(", "async getFile(", "async renameFile(",
                    "async trashFile(", "async fileUrl(", "async compareVersions(", "async createDeliverable(",

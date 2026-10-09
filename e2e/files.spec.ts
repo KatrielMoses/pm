@@ -106,10 +106,16 @@ async function uploadNotes(page: Page) {
     (u) => u.pathname.endsWith('/files') && u.searchParams.has('host'),
   );
   const input = files.getByLabel('Upload a file');
-  await input.focus();
-  const chooser = page.waitForEvent('filechooser');
-  await page.keyboard.press('Space');
-  await (await chooser).setFiles(text('notes.txt', 'line one\nline two\n'));
+  // Focus can be taken back by a late re-render of the page, and a key press that lands in that
+  // gap opens no chooser. Each attempt re-takes focus and waits briefly for the chooser; the whole
+  // is bounded, and the keyboard path (Space on the focused input) is what is exercised.
+  await expect(async () => {
+    await input.focus();
+    await expect(input).toBeFocused({ timeout: 500 });
+    const chooser = page.waitForEvent('filechooser', { timeout: 4_000 });
+    await page.keyboard.press('Space');
+    await (await chooser).setFiles(text('notes.txt', 'line one\nline two\n'));
+  }).toPass({ timeout: 30_000, intervals: [250, 1_000] });
   const progress = files.getByRole('list', { name: 'Uploads in progress' });
   await expect(progress).toContainText(/notes\.txt\s*Uploading \d+%/);
   await releasePut();
@@ -246,9 +252,17 @@ test('upload, scan, preview, download, version, compare, link, deliverable, and 
   // Workspace settings show storage usage.
   await page.goto(`/workspaces/${ws}/settings`);
   await expect(card(page, 'File storage')).toContainText(/ of 10\.0 GB used/);
+});
 
-  // Appearance and reflow on the task page.
+test('files on the task page: forced colours, reduced motion, and reflow at every width', async ({
+  page,
+}, info) => {
+  const { ws, tsk } = await setup(page, info, 'files-reflow');
   await page.goto(`/workspaces/${ws}/tasks/${tsk}`);
+  await expect(h1(page)).toHaveText('Write launch copy');
+  await uploadNotes(page);
+  await page.keyboard.press('Escape');
+
   await page.emulateMedia({ reducedMotion: 'reduce', forcedColors: 'active' });
   await page.reload();
   await expect(row(page, 'notes.txt')).toBeVisible();

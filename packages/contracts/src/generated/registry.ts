@@ -767,6 +767,29 @@ export const TELEMETRY_SIGNALS = [
     ]
   },
   {
+    "name": "search.requests",
+    "type": "counter",
+    "labels": [
+      "op",
+      "outcome"
+    ]
+  },
+  {
+    "name": "search.index.jobs",
+    "type": "counter",
+    "labels": [
+      "kind",
+      "outcome"
+    ]
+  },
+  {
+    "name": "search.query.duration",
+    "type": "histogram",
+    "labels": [
+      "outcome"
+    ]
+  },
+  {
     "name": "files.requests",
     "type": "counter",
     "labels": [
@@ -776,6 +799,30 @@ export const TELEMETRY_SIGNALS = [
   },
   {
     "name": "files.jobs",
+    "type": "counter",
+    "labels": [
+      "kind",
+      "outcome"
+    ]
+  },
+  {
+    "name": "goals.reads",
+    "type": "counter",
+    "labels": [
+      "view",
+      "outcome"
+    ]
+  },
+  {
+    "name": "goals.changes",
+    "type": "counter",
+    "labels": [
+      "kind",
+      "outcome"
+    ]
+  },
+  {
+    "name": "goals.jobs",
     "type": "counter",
     "labels": [
       "kind",
@@ -1812,6 +1859,13 @@ export const ID_PREFIXES = [
     "resource": "document_suggestion",
     "entity": "knowledge.document_suggestion",
     "ownerModule": "knowledge",
+    "platformOnly": false
+  },
+  {
+    "prefix": "gci",
+    "resource": "goal_checkin",
+    "entity": "goals.goal_checkin",
+    "ownerModule": "goals",
     "platformOnly": false
   }
 ] as const;
@@ -3273,6 +3327,110 @@ export const INTERNAL_EVENTS = [
       "version_number"
     ],
     "maxClass": "C1"
+  },
+  {
+    "type": "goals.goal.created",
+    "schemaVersion": 1,
+    "aggregateEntity": "goals.goal",
+    "fields": [
+      "scope",
+      "period_kind",
+      "progress_basis"
+    ],
+    "maxClass": "C1"
+  },
+  {
+    "type": "goals.goal.updated",
+    "schemaVersion": 1,
+    "aggregateEntity": "goals.goal",
+    "fields": [
+      "change"
+    ],
+    "maxClass": "C1"
+  },
+  {
+    "type": "goals.goal.status_changed",
+    "schemaVersion": 1,
+    "aggregateEntity": "goals.goal",
+    "fields": [
+      "status"
+    ],
+    "maxClass": "C1"
+  },
+  {
+    "type": "goals.goal.checkin_recorded",
+    "schemaVersion": 1,
+    "aggregateEntity": "goals.goal_checkin",
+    "fields": [
+      "source",
+      "confidence",
+      "has_value"
+    ],
+    "maxClass": "C1"
+  },
+  {
+    "type": "goals.goal.link_changed",
+    "schemaVersion": 1,
+    "aggregateEntity": "goals.goal_link",
+    "fields": [
+      "change",
+      "target_kind"
+    ],
+    "maxClass": "C1"
+  },
+  {
+    "type": "goals.goal.update_stale",
+    "schemaVersion": 1,
+    "aggregateEntity": "goals.goal",
+    "fields": [
+      "days_stale"
+    ],
+    "maxClass": "C1"
+  },
+  {
+    "type": "goals.key_result.created",
+    "schemaVersion": 1,
+    "aggregateEntity": "goals.key_result",
+    "fields": [
+      "progress_basis"
+    ],
+    "maxClass": "C1"
+  },
+  {
+    "type": "goals.key_result.updated",
+    "schemaVersion": 1,
+    "aggregateEntity": "goals.key_result",
+    "fields": [
+      "change"
+    ],
+    "maxClass": "C1"
+  },
+  {
+    "type": "goals.portfolio.created",
+    "schemaVersion": 1,
+    "aggregateEntity": "goals.portfolio",
+    "fields": [
+      "scope"
+    ],
+    "maxClass": "C1"
+  },
+  {
+    "type": "goals.portfolio.updated",
+    "schemaVersion": 1,
+    "aggregateEntity": "goals.portfolio",
+    "fields": [
+      "change"
+    ],
+    "maxClass": "C1"
+  },
+  {
+    "type": "goals.portfolio.members_changed",
+    "schemaVersion": 1,
+    "aggregateEntity": "goals.portfolio",
+    "fields": [
+      "count"
+    ],
+    "maxClass": "C1"
   }
 ] as const;
 export type InternalEventType = (typeof INTERNAL_EVENTS)[number]['type'];
@@ -3448,6 +3606,21 @@ export const PARAMETER_NAMES = [
   "LIVE_POLL_WAIT_SECONDS",
   "LIVE_OP_LOG_MAX",
   "LIVE_RATE_PER_MINUTE",
+  "SEARCH_QUERY_MAX_CHARS",
+  "SEARCH_TERMS_MAX",
+  "SEARCH_PAGE_SIZE_MAX",
+  "SEARCH_RESULTS_MAX",
+  "SEARCH_COUNT_MAX",
+  "SEARCH_SNIPPET_CHARS",
+  "SEARCH_BODY_MAX_CHARS",
+  "SEARCH_INDEX_BATCH_MAX",
+  "SEARCH_INDEX_DISCOVERY_MAX",
+  "SEARCH_INDEX_MAX_ATTEMPTS",
+  "SEARCH_INDEX_BACKOFF_SECONDS",
+  "SEARCH_FAILED_RETRY_MINUTES",
+  "SEARCH_RECENT_MAX",
+  "SEARCH_RECENT_RETENTION_DAYS",
+  "SEARCH_RATE_PER_MINUTE",
   "DOCUMENT_EMBED_URL_MAX_CHARS",
   "FILE_UPLOAD_MAX_BYTES",
   "WORKSPACE_STORAGE_QUOTA_BYTES",
@@ -3457,7 +3630,20 @@ export const PARAMETER_NAMES = [
   "FILES_LIST_MAX",
   "DELIVERABLES_PER_TASK_MAX",
   "FILE_DISCOVERY_MAX",
-  "FILE_EXPIRY_BATCH_MAX"
+  "FILE_EXPIRY_BATCH_MAX",
+  "GOALS_PER_SCOPE_MAX",
+  "GOAL_KEY_RESULTS_MAX",
+  "GOAL_LINKS_MAX",
+  "GOAL_UPDATE_STALE_DAYS",
+  "GOAL_CHECKIN_RATE_PER_MINUTE",
+  "PORTFOLIOS_MAX",
+  "PORTFOLIO_PROJECTS_MAX",
+  "PORTFOLIO_READ_PROJECTS_MAX",
+  "GOALS_EXPORT_ROWS_MAX",
+  "GOALS_RECALC_BATCH_MAX",
+  "GOALS_RECALC_LEASE_SECONDS",
+  "GOALS_RECALC_INTERVAL_MINUTES",
+  "GOALS_RECALC_MAX_ATTEMPTS"
 ] as const;
 export type ParameterName = (typeof PARAMETER_NAMES)[number];
 

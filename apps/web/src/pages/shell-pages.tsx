@@ -21,6 +21,7 @@ import { collab, tenancy, type Brand } from '../tenancy/client.ts';
 import { ResourceView, useResource } from '../tenancy/resource.tsx';
 import { Announce, Banner, ProblemBanner } from '../ui/feedback.tsx';
 import { NotAvailableBody, Page } from '../ui/layout.tsx';
+import { SearchHealthNotice } from './search-pages.tsx';
 
 // -------------------------------------------------------------------------------------------------
 // ST-41: not available (not found and not authorized are identical)
@@ -161,6 +162,7 @@ export function HomePage({ ws }: { ws: string }) {
               {createdBrand && !said ? <Announce>{createdBrand.name} was created.</Announce> : null}
               {said ? <Announce>{said}</Announce> : null}
               <ProblemBanner error={problem} />
+              {ctx.workspace.capabilities.configure ? <SearchHealthNotice ws={ws} /> : null}
               <section aria-labelledby="active-h">
                 <div className="section-head">
                   <h2 id="active-h">Active brands ({shown.length})</h2>

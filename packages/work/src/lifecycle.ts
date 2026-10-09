@@ -5,6 +5,13 @@ import { purgeCollabFacts } from './collab/purge.ts';
 import { purgeNotifyFacts } from './notify/purge.ts';
 import { attachedDocuments, documentAdapter, purgeDocumentTargets } from './docs/lifecycle.ts';
 import {
+  attachedGoals,
+  goalAdapter,
+  keyResultAdapter,
+  portfolioAdapter,
+  purgeGoalTargets,
+} from './goals/lifecycle.ts';
+import {
   deliverableAdapter,
   fileAdapter,
   fileChildren,
@@ -47,7 +54,12 @@ export const projectAdapter: RecordTypeAdapter = {
       UNION ALL SELECT id, 'file' FROM files.file WHERE host_record_id = ANY(${[...parentIds]}::uuid[])
       ORDER BY 1`.execute(tx.db);
     // Documents attached to the project travel with it (4C); those on its tasks follow their tasks.
-    return [...refs(rows.rows), ...(await attachedDocuments(tx, 'attached_project_id', parentIds))];
+    return [
+      ...refs(rows.rows),
+      ...(await attachedDocuments(tx, 'attached_project_id', parentIds)),
+      // Goals scoped to the project travel with it (5B).
+      ...(await attachedGoals(tx, parentIds)),
+    ];
   },
   async rootsInBrand(tx, brandIds) {
     if (!brandIds.length) return [];
@@ -87,6 +99,7 @@ export const projectAdapter: RecordTypeAdapter = {
       await purgeCollabFacts(tx, ids);
       await purgeNotifyFacts(tx, ids);
       await purgeDocumentTargets(tx, ids);
+      await purgeGoalTargets(tx, ids);
       // Views shared with the project are its content (3A); its defaults go with it.
       await tx.db.deleteFrom('views.view_default').where('project_id', 'in', ids).execute();
       // Time logged on the project itself goes with it (3D; its tasks purge their own).
@@ -273,6 +286,7 @@ export const taskAdapter: RecordTypeAdapter = {
       await purgeCollabFacts(tx, ids);
       await purgeNotifyFacts(tx, ids);
       await purgeDocumentTargets(tx, ids);
+      await purgeGoalTargets(tx, ids);
       // Time logged on the task goes with it (3D); approvals keep their own totals and hash.
       await tx.db.deleteFrom('timetrack.time_entry').where('task_id', 'in', ids).execute();
       // Plans go with the task (3C): commitments, blocks, and recurring blocks for it.
@@ -474,6 +488,9 @@ export function registerWorkLifecycle(registry: LifecycleRegistry): LifecycleReg
     intakeFormAdapter,
     savedViewAdapter,
     documentAdapter,
+    goalAdapter,
+    keyResultAdapter,
+    portfolioAdapter,
     fileAdapter,
     deliverableAdapter,
   ])

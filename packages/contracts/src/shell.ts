@@ -116,6 +116,7 @@ export const SHELL_COMMAND_IDS = [
   'go.reports',
   'go.shared',
   'go.recent',
+  'go.search',
   'go.views',
   'go.people',
   'go.teams',

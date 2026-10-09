@@ -31,6 +31,12 @@ import {
   fileScanHandler,
   fileSweepHandler,
   type FileJobDeps,
+  SEARCH_SCHEDULES,
+  searchIndexHandler,
+  type SearchJobDeps,
+  GOAL_SCHEDULES,
+  goalRecalcHandler,
+  type GoalJobDeps,
 } from '@pm/work';
 
 /**
@@ -45,6 +51,8 @@ import {
  * 3C: day close (records for ended days) and recurring work blocks.
  * 4B: the notification fan-out consumer and the dispatcher (deliveries, digests, deadlines, retention).
  * 4E: the malware scan of uploads (fail closed) and the file sweep (expired uploads, object deletion).
+ * 5A: the search index worker (queued source keys, bounded and retryable) and recent-search retention.
+ * 5B: the goal recalculation sweep (staleness, period state, and manual key-result rollups).
  */
 export interface WorkerModules {
   identity: IdentityJobDeps;
@@ -54,6 +62,8 @@ export interface WorkerModules {
   work: RecurrenceJobDeps;
   notify: NotifyJobDeps;
   files: FileJobDeps;
+  search: SearchJobDeps;
+  goals: GoalJobDeps;
 }
 
 export function registeredHandlers(m: WorkerModules): JobHandler[] {
@@ -72,6 +82,8 @@ export function registeredHandlers(m: WorkerModules): JobHandler[] {
     notifyDispatchHandler(m.notify),
     fileScanHandler(m.files),
     fileSweepHandler(m.files),
+    searchIndexHandler(m.search),
+    goalRecalcHandler(m.goals),
   ];
 }
 
@@ -105,5 +117,7 @@ export function registeredSchedules(): RecurringJob[] {
     ...PLANNING_SCHEDULES,
     ...NOTIFY_SCHEDULES,
     ...FILE_SCHEDULES,
+    ...SEARCH_SCHEDULES,
+    ...GOAL_SCHEDULES,
   ];
 }

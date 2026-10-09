@@ -1,0 +1,973 @@
+{
+  "schema_version": 1,
+  "phase": "5A",
+  "status": "candidate",
+  "adr": "0028",
+  "accepted_by_kinds": [
+    "catalog:contributing",
+    "roadmap:<sub>",
+    "adr:<nnnn>[#row]",
+    "requirement:<ID>"
+  ],
+  "requirements": [
+    {
+      "id": "SRCH-001",
+      "role": "owned",
+      "disposition": "foundation",
+      "evidence": [
+        {
+          "file": "packages/work/src/search/sources.ts",
+          "contains": "export function defaultSearchSources("
+        },
+        {
+          "file": "packages/work/src/search/sources.ts",
+          "contains": "export class SearchSourceRegistry"
+        },
+        {
+          "file": "packages/work/test/integration/search.test.ts",
+          "contains": "finds tasks, projects, documents, and comments with excerpts, marks, and facets, after indexing"
+        },
+        {
+          "file": "packages/work/test/integration/search-access.test.ts",
+          "contains": "shows each person exactly the records their own reads allow, for every role and a guest"
+        },
+        {
+          "file": "packages/work/test/integration/search.test.ts",
+          "contains": "filters by kind, brand, project, state, recency, ownership, and mentions, each applied after authorization"
+        },
+        {
+          "file": "packages/work/test/integration/search.test.ts",
+          "contains": "indexes the saved text of a document, never a restricted reference label or anything unsaved"
+        }
+      ],
+      "note": "Search across projects, tasks (and subtasks, which are tasks), comments, documents (saved text), files (names), deliverables, milestones, and decisions, through registered sources with the one visibility predicate. Goals and integration records register when their phases build them (5B, 6A); people are a later registered source with no phase named yet (the directory page filters members itself), flagged for the architect.",
+      "deferred_to": [
+        "5B",
+        "6A"
+      ],
+      "accepted_by": [
+        "roadmap:5B",
+        "roadmap:6A"
+      ]
+    },
+    {
+      "id": "SRCH-002",
+      "role": "owned",
+      "disposition": "implemented",
+      "evidence": [
+        {
+          "file": "packages/work/src/search/search-service.ts",
+          "contains": "async search(caller: Caller"
+        },
+        {
+          "file": "apps/web/src/pages/search-pages.tsx",
+          "contains": "Search all my brands"
+        },
+        {
+          "file": "apps/web/test/search.test.tsx",
+          "contains": "searches inside the shell scope by default, says so, and widens on request (IA-10)"
+        },
+        {
+          "file": "packages/work/test/integration/search.test.ts",
+          "contains": "filters by kind, brand, project, state, recency, ownership, and mentions, each applied after authorization"
+        },
+        {
+          "file": "packages/work/test/integration/search-access.test.ts",
+          "contains": "shows each person exactly the records their own reads allow, for every role and a guest"
+        }
+      ],
+      "note": "Search covers every brand the person can read, the shell scope is the default with one click to all brands, and counts and facets are of the authorized set only."
+    },
+    {
+      "id": "SRCH-003",
+      "role": "owned",
+      "disposition": "implemented",
+      "evidence": [
+        {
+          "file": "packages/work/src/search/search-service.ts",
+          "contains": "#filters(input: Record<string, unknown>)"
+        },
+        {
+          "file": "packages/work/test/integration/search.test.ts",
+          "contains": "filters by kind, brand, project, state, recency, ownership, and mentions, each applied after authorization"
+        },
+        {
+          "file": "packages/work/test/integration/search.test.ts",
+          "contains": "refuses malformed, empty, and unbounded searches with one set of issues, and resolves hidden filters like unknown ones"
+        },
+        {
+          "file": "apps/web/test/search.test.tsx",
+          "contains": "changes filters through the address, back to the first result, and clears them together"
+        }
+      ],
+      "note": "Filters by type, brand, project, status, recency, ownership, and mentions; a hidden brand or project is refused exactly like an unknown one; facets count what choosing another value would give."
+    },
+    {
+      "id": "SRCH-004",
+      "role": "owned",
+      "disposition": "foundation",
+      "evidence": [
+        {
+          "file": "packages/work/src/search/semantics.ts",
+          "contains": "export function parseSearchQuery("
+        },
+        {
+          "file": "packages/work/test/integration/search.test.ts",
+          "contains": "speaks a small query language: words, phrases, exclusions, prefixes, stems, and punctuation"
+        },
+        {
+          "file": "packages/work/test/unit/search-semantics.test.ts",
+          "contains": "parses words, phrases, exclusions, and a word with punctuation as a phrase of its parts"
+        }
+      ],
+      "note": "Exact terms: words, phrases, exclusions, prefixes, and stemmed matches (DQ-24) are built. Natural-language concepts need AI-assisted interpretation or semantic retrieval, which OD-31 and 7B own and which is not built here.",
+      "deferred_to": [
+        "7B"
+      ],
+      "accepted_by": [
+        "catalog:contributing"
+      ]
+    },
+    {
+      "id": "SRCH-005",
+      "role": "owned",
+      "disposition": "implemented",
+      "evidence": [
+        {
+          "file": "packages/work/src/search/semantics.ts",
+          "contains": "export function makeSnippet("
+        },
+        {
+          "file": "packages/work/test/unit/search-semantics.test.ts",
+          "contains": "marks every matching word, case-insensitively and by prefix, as plain text parts"
+        },
+        {
+          "file": "apps/web/test/search.test.tsx",
+          "contains": "shows results with marked matches, a type, brand, holder, date, and a polite count"
+        },
+        {
+          "file": "apps/web/test/search.test.tsx",
+          "contains": "renders text as text: a title that looks like markup is not interpreted"
+        },
+        {
+          "file": "packages/work/test/integration/search.test.ts",
+          "contains": "finds tasks, projects, documents, and comments with excerpts, marks, and facets, after indexing"
+        }
+      ],
+      "note": "Matches are marked in titles and excerpts as structured parts rendered as text, never markup, computed only for rows that passed authorization."
+    },
+    {
+      "id": "SRCH-006",
+      "role": "owned",
+      "disposition": "implemented",
+      "evidence": [
+        {
+          "file": "packages/work/src/search/search-service.ts",
+          "contains": "ownerLabel"
+        },
+        {
+          "file": "apps/web/test/search.test.tsx",
+          "contains": "shows the project, the owner, and a removable project filter on results"
+        },
+        {
+          "file": "apps/web/test/search.test.tsx",
+          "contains": "shows results with marked matches, a type, brand, holder, date, and a polite count"
+        },
+        {
+          "file": "packages/work/test/integration/search.test.ts",
+          "contains": "filters by kind, brand, project, state, recency, ownership, and mentions, each applied after authorization"
+        }
+      ],
+      "note": "Every result shows its type (source), brand, project, owner or author (members only), last update, and the record that holds it when visible."
+    },
+    {
+      "id": "SRCH-007",
+      "role": "owned",
+      "disposition": "implemented",
+      "evidence": [
+        {
+          "file": "packages/work/src/search/search-service.ts",
+          "contains": "vis.where('r')"
+        },
+        {
+          "file": "packages/work/test/integration/search.test.ts",
+          "contains": "treats a hidden record exactly like one that does not exist: no result, count, facet, excerpt, or ranking"
+        },
+        {
+          "file": "packages/work/test/integration/search.test.ts",
+          "contains": "checks access at request time: a share grants and a revoked share removes, with no reindex"
+        },
+        {
+          "file": "packages/work/test/integration/search.test.ts",
+          "contains": "hides trashed and archived records at once, and brings them back on restore without reindexing"
+        },
+        {
+          "file": "packages/work/test/integration/search-access.test.ts",
+          "contains": "shows each person exactly the records their own reads allow, for every role and a guest"
+        },
+        {
+          "file": "packages/work/test/integration/search-access.test.ts",
+          "contains": "never lets a person search, count, or open another workspace"
+        },
+        {
+          "file": "packages/work/test/integration/search-access.test.ts",
+          "contains": "follows access changes at once: a removed member has nothing left to search"
+        },
+        {
+          "file": "apps/api/test/integration/search-api.test.ts",
+          "contains": "gives a hidden record and an unknown one the same answer"
+        },
+        {
+          "file": "e2e/search.spec.ts",
+          "contains": "follows access: results are the person’s own, vanish when access is removed, and hidden looks like unknown"
+        }
+      ],
+      "note": "One authority: the compiled visibility predicate is applied inside the query before matching, ranking, counting, faceting, excerpting, or remembering; hidden equals unknown; the matrix test equals single-record reads for every role and a guest."
+    },
+    {
+      "id": "SRCH-008",
+      "role": "owned",
+      "disposition": "foundation",
+      "evidence": [
+        {
+          "file": "packages/work/src/search/search-service.ts",
+          "contains": "async openResult(caller: Caller"
+        },
+        {
+          "file": "packages/work/test/integration/search.test.ts",
+          "contains": "opens a result only after checking access again, and never widens it"
+        },
+        {
+          "file": "apps/web/test/search.test.tsx",
+          "contains": "opens a result in context: records open themselves, held items open what holds them"
+        },
+        {
+          "file": "apps/web/test/search.test.tsx",
+          "contains": "checks access again when a result is opened, and removes one that is no longer available"
+        },
+        {
+          "file": "apps/api/test/integration/search-api.test.ts",
+          "contains": "reports the index state alone, and opens a result only after checking access again"
+        }
+      ],
+      "note": "Results open through an access re-check into the record that holds them. Scrolling to and highlighting the match inside the destination is not built: no destination can address one comment or a passage (ADR-0027 C13).",
+      "deferred_to": [
+        "11E"
+      ],
+      "accepted_by": [
+        "roadmap:11E"
+      ]
+    },
+    {
+      "id": "SRCH-009",
+      "role": "owned",
+      "disposition": "implemented",
+      "evidence": [
+        {
+          "file": "packages/work/src/search/search-service.ts",
+          "contains": "async recordRecentSearch(caller: Caller"
+        },
+        {
+          "file": "packages/tenancy/src/personal-data.ts",
+          "contains": "'search.recent_search'"
+        },
+        {
+          "file": "packages/work/test/integration/search.test.ts",
+          "contains": "keeps recent searches personal, bounded, deduplicated, and free of places access has removed"
+        },
+        {
+          "file": "packages/work/test/integration/search.test.ts",
+          "contains": "erases a person’s recent searches with their other personal data"
+        },
+        {
+          "file": "apps/api/test/integration/search-api.test.ts",
+          "contains": "remembers submitted searches for the person only, and forgets them on request"
+        },
+        {
+          "file": "apps/web/test/search.test.tsx",
+          "contains": "lists recent searches only before a search, forgets one or all, and links each back"
+        }
+      ],
+      "note": "Only submitted searches are remembered, per person and workspace, bounded and swept, erased with personal data, forgotten one by one or all, and re-validated on every read."
+    },
+    {
+      "id": "SRCH-010",
+      "role": "owned",
+      "disposition": "implemented",
+      "evidence": [
+        {
+          "file": "apps/web/src/shell/palette.tsx",
+          "contains": "Search everywhere for"
+        },
+        {
+          "file": "apps/web/src/shell/registry.ts",
+          "contains": "shortcut: '/'"
+        },
+        {
+          "file": "apps/web/test/search-palette.test.tsx",
+          "contains": "adds permission-aware results after the typed term, with a way into the full search"
+        },
+        {
+          "file": "apps/web/test/search-palette.test.tsx",
+          "contains": "offers recent searches before anything is typed, and looks nothing up"
+        },
+        {
+          "file": "apps/web/test/search-palette.test.tsx",
+          "contains": "choosing the full search by keyboard submits it: opens the page and remembers it once"
+        },
+        {
+          "file": "e2e/search.spec.ts",
+          "contains": "finds work from the palette and the search page, with the whole state in the address"
+        }
+      ],
+      "note": "The command palette adds Search everywhere, permission-aware results, and recent searches; `/` and the registered command open the page."
+    },
+    {
+      "id": "SRCH-011",
+      "role": "owned",
+      "disposition": "implemented",
+      "evidence": [
+        {
+          "file": "packages/work/src/search/index-job.ts",
+          "contains": "export function searchIndexHandler("
+        },
+        {
+          "file": "packages/db/migrations/0041_permission_aware_search.up.sql",
+          "contains": "CREATE FUNCTION search.source_changed()"
+        },
+        {
+          "file": "packages/work/test/integration/search.test.ts",
+          "contains": "indexes concurrently without loss or duplication, and re-queues a change that lands mid-index"
+        },
+        {
+          "file": "packages/work/test/integration/search.test.ts",
+          "contains": "reindexes a document from its newest saved version, and caps what it indexes and counts"
+        },
+        {
+          "file": "packages/work/test/integration/search.test.ts",
+          "contains": "retries a failing source with backoff, shows it as failed, isolates it, and recovers"
+        },
+        {
+          "file": "packages/work/test/integration/search.test.ts",
+          "contains": "finds tasks, projects, documents, and comments with excerpts, marks, and facets, after indexing"
+        }
+      ],
+      "note": "Changes queue a key in their own transaction and the worker indexes within seconds, in bounded, retryable, concurrent-safe steps; a change that lands mid-index converges."
+    },
+    {
+      "id": "SRCH-012",
+      "role": "owned",
+      "disposition": "implemented",
+      "evidence": [
+        {
+          "file": "packages/work/src/search/semantics.ts",
+          "contains": "export function indexState("
+        },
+        {
+          "file": "packages/work/test/integration/search.test.ts",
+          "contains": "reports a lagging index per result and for the workspace, never as complete"
+        },
+        {
+          "file": "packages/work/test/integration/search.test.ts",
+          "contains": "retries a failing source with backoff, shows it as failed, isolates it, and recovers"
+        },
+        {
+          "file": "apps/web/test/search.test.tsx",
+          "contains": "says when the index is catching up or has failed, and marks results that are not current"
+        },
+        {
+          "file": "apps/web/test/search.test.tsx",
+          "contains": "tells administrators on Home about failed indexing, and stays silent when healthy or unreadable"
+        },
+        {
+          "file": "apps/api/test/integration/search-api.test.ts",
+          "contains": "reports the index state alone, and opens a result only after checking access again"
+        }
+      ],
+      "note": "The workspace index state (complete, catching up, degraded) is counted only over what the person can read, per-result states say updating or failed, and administrators see persistent failures on Home."
+    },
+    {
+      "id": "DOC-019",
+      "role": "owned",
+      "disposition": "foundation",
+      "evidence": [
+        {
+          "file": "packages/work/src/search/sources.ts",
+          "contains": "const documentSource: SearchSource"
+        },
+        {
+          "file": "packages/work/test/integration/search.test.ts",
+          "contains": "indexes the saved text of a document, never a restricted reference label or anything unsaved"
+        },
+        {
+          "file": "packages/work/test/integration/search.test.ts",
+          "contains": "reindexes a document from its newest saved version, and caps what it indexes and counts"
+        },
+        {
+          "file": "packages/work/test/integration/search.test.ts",
+          "contains": "finds tasks, projects, documents, and comments with excerpts, marks, and facets, after indexing"
+        }
+      ],
+      "note": "Documents are searched by their saved text (never a live draft or a restricted reference label). Attachments are searched by name and deliverables by title and note only: the brief scopes files to metadata, and file content would need the viewer's download authority (a per-action predicate) and a bounded extraction service, so extracted attachment text (OD-31) is not built.",
+      "deferred_to": [
+        "7B"
+      ],
+      "accepted_by": [
+        "roadmap:7B"
+      ]
+    },
+    {
+      "id": "WSB-015",
+      "role": "contributing",
+      "disposition": "contributed",
+      "evidence": [
+        {
+          "file": "apps/web/src/pages/search-pages.tsx",
+          "contains": "<BrandMarker marker={r.brand}"
+        },
+        {
+          "file": "apps/web/test/search.test.tsx",
+          "contains": "shows results with marked matches, a type, brand, holder, date, and a polite count"
+        },
+        {
+          "file": "apps/web/test/search-palette.test.tsx",
+          "contains": "adds permission-aware results after the typed term, with a way into the full search"
+        }
+      ],
+      "note": "Every search result and palette result carries the owning brand marker, with the same marker component as everywhere else.",
+      "contribution": "5A"
+    },
+    {
+      "id": "NAV-009",
+      "role": "contributing",
+      "disposition": "contributed",
+      "evidence": [
+        {
+          "file": "apps/web/src/shell/palette.tsx",
+          "contains": "searchApi.query("
+        },
+        {
+          "file": "apps/web/test/search-palette.test.tsx",
+          "contains": "adds permission-aware results after the typed term, with a way into the full search"
+        },
+        {
+          "file": "apps/web/test/search-palette.test.tsx",
+          "contains": "choosing the full search by keyboard submits it: opens the page and remembers it once"
+        }
+      ],
+      "note": "The palette now searches records through the permission-aware search and offers recent searches and the full search page.",
+      "contribution": "5A"
+    },
+    {
+      "id": "LA-016",
+      "role": "contributing",
+      "disposition": "contributed",
+      "evidence": [
+        {
+          "file": "packages/work/src/search/search-service.ts",
+          "contains": "export class SearchService extends FileService"
+        },
+        {
+          "file": "packages/work/test/integration/search-access.test.ts",
+          "contains": "shows each person exactly the records their own reads allow, for every role and a guest"
+        },
+        {
+          "file": "packages/work/test/integration/search-access.test.ts",
+          "contains": "never lets a person search, count, or open another workspace"
+        },
+        {
+          "file": "packages/work/test/integration/search.test.ts",
+          "contains": "checks access at request time: a share grants and a revoked share removes, with no reindex"
+        },
+        {
+          "file": "packages/work/test/integration/search-access.test.ts",
+          "contains": "follows access changes at once: a removed member has nothing left to search"
+        }
+      ],
+      "note": "Search never returns a record the current person cannot access, and it holds that for every role, a guest, sensitive brands, restricted projects, shares, revocation, and other workspaces.",
+      "contribution": "5A"
+    }
+  ],
+  "decisions": [
+    {
+      "id": "D1",
+      "title": "One authority: the compiled visibility predicate joined to the governing record, applied before anything is matched, ranked, counted, faceted, excerpted, or remembered",
+      "adr_row": "S1",
+      "sources": [
+        {
+          "file": "docs/architecture/access/15-decisions.md",
+          "contains": "### AZ-36: Permission-aware search"
+        }
+      ],
+      "evidence": [
+        {
+          "file": "packages/work/src/search/search-service.ts",
+          "contains": "vis.where('r')"
+        },
+        {
+          "file": "packages/work/test/integration/search.test.ts",
+          "contains": "treats a hidden record exactly like one that does not exist: no result, count, facet, excerpt, or ranking"
+        },
+        {
+          "file": "packages/work/test/integration/search-access.test.ts",
+          "contains": "shows each person exactly the records their own reads allow, for every role and a guest"
+        },
+        {
+          "file": "packages/work/test/integration/search-access.test.ts",
+          "contains": "never lets a person search, count, or open another workspace"
+        }
+      ]
+    },
+    {
+      "id": "D2",
+      "title": "The index is a projection of text and a governing-record pointer, never a source of access (no brand, project, lifecycle, or permission copy)",
+      "adr_row": "S2",
+      "sources": [
+        {
+          "file": "docs/architecture/data/12-decisions.md",
+          "contains": "## ADR-36: Search projection, indexing queue, and recent searches"
+        }
+      ],
+      "evidence": [
+        {
+          "file": "packages/db/migrations/0041_permission_aware_search.up.sql",
+          "contains": "CREATE TABLE search.search_document"
+        },
+        {
+          "file": "packages/work/test/integration/search.test.ts",
+          "contains": "checks access at request time: a share grants and a revoked share removes, with no reindex"
+        },
+        {
+          "file": "packages/work/test/integration/search.test.ts",
+          "contains": "hides trashed and archived records at once, and brings them back on restore without reindexing"
+        }
+      ]
+    },
+    {
+      "id": "D3",
+      "title": "Registered sources only, each adapter owning what its text may include; nothing unsaved, restricted, or field-policed is indexed",
+      "adr_row": "S3",
+      "sources": [
+        {
+          "file": "docs/architecture/platform/19-decisions.md",
+          "contains": "### PL-38: Search contracts"
+        }
+      ],
+      "evidence": [
+        {
+          "file": "packages/work/src/search/sources.ts",
+          "contains": "export interface SearchSource"
+        },
+        {
+          "file": "packages/work/test/integration/search.test.ts",
+          "contains": "indexes the saved text of a document, never a restricted reference label or anything unsaved"
+        },
+        {
+          "file": "packages/work/test/integration/search.test.ts",
+          "contains": "finds tasks, projects, documents, and comments with excerpts, marks, and facets, after indexing"
+        }
+      ]
+    },
+    {
+      "id": "D4",
+      "title": "Live checks beside the lag: lifecycle from the governing record, deleted comments and trashed files read live, purge and delete remove rows by trigger",
+      "adr_row": "S4",
+      "sources": [
+        {
+          "file": "docs/architecture/access/15-decisions.md",
+          "contains": "### AZ-36: Permission-aware search"
+        }
+      ],
+      "evidence": [
+        {
+          "file": "packages/db/migrations/0041_permission_aware_search.up.sql",
+          "contains": "CREATE FUNCTION search.record_purged()"
+        },
+        {
+          "file": "packages/work/test/integration/search.test.ts",
+          "contains": "removes a deleted comment and a trashed file at once, before the index catches up"
+        },
+        {
+          "file": "packages/work/test/integration/search.test.ts",
+          "contains": "removes entries when a record is purged, and a source that no longer exists is removed, not kept"
+        },
+        {
+          "file": "packages/work/test/integration/search.test.ts",
+          "contains": "hides trashed and archived records at once, and brings them back on restore without reindexing"
+        }
+      ]
+    },
+    {
+      "id": "D5",
+      "title": "Triggers write keys in the source's transaction; the worker rebuilds rows from the source of truth",
+      "adr_row": "S5",
+      "sources": [
+        {
+          "file": "docs/architecture/data/12-decisions.md",
+          "contains": "## ADR-36: Search projection, indexing queue, and recent searches"
+        }
+      ],
+      "evidence": [
+        {
+          "file": "packages/db/migrations/0041_permission_aware_search.up.sql",
+          "contains": "CREATE FUNCTION search.source_changed()"
+        },
+        {
+          "file": "packages/work/src/search/index-job.ts",
+          "contains": "FOR UPDATE SKIP LOCKED"
+        },
+        {
+          "file": "packages/work/test/integration/search.test.ts",
+          "contains": "indexes concurrently without loss or duplication, and re-queues a change that lands mid-index"
+        },
+        {
+          "file": "packages/work/test/integration/search.test.ts",
+          "contains": "finds tasks, projects, documents, and comments with excerpts, marks, and facets, after indexing"
+        }
+      ]
+    },
+    {
+      "id": "D6",
+      "title": "Indexing is bounded, retryable, observable, and isolated per key",
+      "adr_row": "S6",
+      "sources": [
+        {
+          "file": "docs/architecture/platform/19-decisions.md",
+          "contains": "### PL-38: Search contracts"
+        }
+      ],
+      "evidence": [
+        {
+          "file": "packages/work/src/search/index-job.ts",
+          "contains": "export async function indexWorkspace("
+        },
+        {
+          "file": "packages/work/test/integration/search.test.ts",
+          "contains": "retries a failing source with backoff, shows it as failed, isolates it, and recovers"
+        },
+        {
+          "file": "packages/work/test/integration/search.test.ts",
+          "contains": "indexes concurrently without loss or duplication, and re-queues a change that lands mid-index"
+        },
+        {
+          "file": "packages/work/test/unit/search-semantics.test.ts",
+          "contains": "doubles the wait per attempt up to an hour"
+        }
+      ]
+    },
+    {
+      "id": "D7",
+      "title": "Truthful state: complete, catching up, or degraded, counted only over what the person can read, per result and for the workspace",
+      "adr_row": "S7",
+      "sources": [
+        {
+          "file": "docs/architecture/platform/19-decisions.md",
+          "contains": "### PL-38: Search contracts"
+        }
+      ],
+      "evidence": [
+        {
+          "file": "packages/work/src/search/semantics.ts",
+          "contains": "export function indexState("
+        },
+        {
+          "file": "packages/work/test/integration/search.test.ts",
+          "contains": "reports a lagging index per result and for the workspace, never as complete"
+        },
+        {
+          "file": "packages/work/test/integration/search.test.ts",
+          "contains": "retries a failing source with backoff, shows it as failed, isolates it, and recovers"
+        },
+        {
+          "file": "apps/web/test/search.test.tsx",
+          "contains": "says when the index is catching up or has failed, and marks results that are not current"
+        },
+        {
+          "file": "apps/web/test/search.test.tsx",
+          "contains": "tells administrators on Home about failed indexing, and stays silent when healthy or unreadable"
+        }
+      ]
+    },
+    {
+      "id": "D8",
+      "title": "The query language, the shared separator rule, and the two text configurations (DQ-24)",
+      "adr_row": "S8",
+      "sources": [
+        {
+          "file": "docs/architecture/platform/19-decisions.md",
+          "contains": "### PL-38: Search contracts"
+        }
+      ],
+      "evidence": [
+        {
+          "file": "packages/work/src/search/semantics.ts",
+          "contains": "export function tsqueryText("
+        },
+        {
+          "file": "packages/work/test/integration/search.test.ts",
+          "contains": "speaks a small query language: words, phrases, exclusions, prefixes, stems, and punctuation"
+        },
+        {
+          "file": "packages/work/test/unit/search-semantics.test.ts",
+          "contains": "parses words, phrases, exclusions, and a word with punctuation as a phrase of its parts"
+        },
+        {
+          "file": "packages/work/test/unit/search-semantics.test.ts",
+          "contains": "completes only the last positive word by prefix, never a quoted word or a phrase"
+        },
+        {
+          "file": "packages/work/test/unit/search-semantics.test.ts",
+          "contains": "writes tsquery text that quotes every token, so no input can inject operators"
+        }
+      ]
+    },
+    {
+      "id": "D9",
+      "title": "Ranking, counts, facets, and keyset paging read from one authorized set in one pass",
+      "adr_row": "S9",
+      "sources": [
+        {
+          "file": "docs/architecture/platform/19-decisions.md",
+          "contains": "### PL-38: Search contracts"
+        }
+      ],
+      "evidence": [
+        {
+          "file": "packages/work/src/search/search-service.ts",
+          "contains": "WITH m AS MATERIALIZED"
+        },
+        {
+          "file": "packages/work/test/integration/search.test.ts",
+          "contains": "filters by kind, brand, project, state, recency, ownership, and mentions, each applied after authorization"
+        },
+        {
+          "file": "packages/work/test/integration/search.test.ts",
+          "contains": "reindexes a document from its newest saved version, and caps what it indexes and counts"
+        },
+        {
+          "file": "packages/work/test/integration/search.test.ts",
+          "contains": "refuses malformed, empty, and unbounded searches with one set of issues, and resolves hidden filters like unknown ones"
+        }
+      ]
+    },
+    {
+      "id": "D10",
+      "title": "Excerpts and marks are data, computed after authorization, rendered as text",
+      "adr_row": "S10",
+      "sources": [
+        {
+          "file": "docs/architecture/platform/19-decisions.md",
+          "contains": "### PL-38: Search contracts"
+        }
+      ],
+      "evidence": [
+        {
+          "file": "packages/work/src/search/semantics.ts",
+          "contains": "export function makeSnippet("
+        },
+        {
+          "file": "packages/work/test/unit/search-semantics.test.ts",
+          "contains": "marks every matching word, case-insensitively and by prefix, as plain text parts"
+        },
+        {
+          "file": "apps/web/test/search.test.tsx",
+          "contains": "renders text as text: a title that looks like markup is not interpreted"
+        },
+        {
+          "file": "apps/web/test/search.test.tsx",
+          "contains": "shows results with marked matches, a type, brand, holder, date, and a polite count"
+        }
+      ]
+    },
+    {
+      "id": "D11",
+      "title": "Filters resolve against what the person can see; a hidden name is an unknown name",
+      "adr_row": "S11",
+      "sources": [
+        {
+          "file": "docs/architecture/access/15-decisions.md",
+          "contains": "### AZ-36: Permission-aware search"
+        }
+      ],
+      "evidence": [
+        {
+          "file": "packages/work/src/search/search-service.ts",
+          "contains": "async #resolve("
+        },
+        {
+          "file": "packages/work/test/integration/search.test.ts",
+          "contains": "filters by kind, brand, project, state, recency, ownership, and mentions, each applied after authorization"
+        },
+        {
+          "file": "packages/work/test/integration/search.test.ts",
+          "contains": "refuses malformed, empty, and unbounded searches with one set of issues, and resolves hidden filters like unknown ones"
+        },
+        {
+          "file": "apps/api/test/integration/search-api.test.ts",
+          "contains": "refuses malformed searches with stable issues and unauthenticated callers with 401"
+        }
+      ]
+    },
+    {
+      "id": "D12",
+      "title": "Opening re-checks and never widens access, and shows the holder only when visible",
+      "adr_row": "S12",
+      "sources": [
+        {
+          "file": "docs/architecture/access/15-decisions.md",
+          "contains": "### AZ-36: Permission-aware search"
+        }
+      ],
+      "evidence": [
+        {
+          "file": "packages/work/src/search/search-service.ts",
+          "contains": "async openResult(caller: Caller"
+        },
+        {
+          "file": "packages/work/test/integration/search.test.ts",
+          "contains": "opens a result only after checking access again, and never widens it"
+        },
+        {
+          "file": "apps/web/test/search.test.tsx",
+          "contains": "checks access again when a result is opened, and removes one that is no longer available"
+        },
+        {
+          "file": "apps/api/test/integration/search-api.test.ts",
+          "contains": "reports the index state alone, and opens a result only after checking access again"
+        },
+        {
+          "file": "e2e/search.spec.ts",
+          "contains": "follows access: results are the person’s own, vanish when access is removed, and hidden looks like unknown"
+        }
+      ]
+    },
+    {
+      "id": "D13",
+      "title": "Recent searches are personal, submitted-only, bounded, swept, erased, and re-validated on read",
+      "adr_row": "S13",
+      "sources": [
+        {
+          "file": "docs/architecture/platform/19-decisions.md",
+          "contains": "### PL-38: Search contracts"
+        }
+      ],
+      "evidence": [
+        {
+          "file": "packages/work/src/search/search-service.ts",
+          "contains": "async listRecentSearches(caller: Caller"
+        },
+        {
+          "file": "packages/work/test/integration/search.test.ts",
+          "contains": "keeps recent searches personal, bounded, deduplicated, and free of places access has removed"
+        },
+        {
+          "file": "packages/work/test/integration/search.test.ts",
+          "contains": "erases a person’s recent searches with their other personal data"
+        },
+        {
+          "file": "apps/api/test/integration/search-api.test.ts",
+          "contains": "remembers submitted searches for the person only, and forgets them on request"
+        },
+        {
+          "file": "apps/web/test/search.test.tsx",
+          "contains": "lists recent searches only before a search, forgets one or all, and links each back"
+        }
+      ]
+    },
+    {
+      "id": "D14",
+      "title": "No GIN index under forced row-level security; one pass; a stated bound and upgrade path",
+      "adr_row": "S14",
+      "sources": [
+        {
+          "file": "docs/architecture/data/12-decisions.md",
+          "contains": "## ADR-36: Search projection, indexing queue, and recent searches"
+        }
+      ],
+      "evidence": [
+        {
+          "file": "packages/db/migrations/0041_permission_aware_search.up.sql",
+          "contains": "No GIN index on `tsv`"
+        },
+        {
+          "file": "packages/work/test/integration/search.test.ts",
+          "contains": "reindexes a document from its newest saved version, and caps what it indexes and counts"
+        },
+        {
+          "file": "packages/work/test/integration/search.test.ts",
+          "contains": "finds tasks, projects, documents, and comments with excerpts, marks, and facets, after indexing"
+        }
+      ]
+    },
+    {
+      "id": "D15",
+      "title": "The page keeps its state in the address, follows the shell scope, and joins the palette, with keyboard, reflow, forced-colour, reduced-motion, and offline coverage",
+      "adr_row": "S15",
+      "sources": [
+        {
+          "file": "docs/architecture/platform/19-decisions.md",
+          "contains": "### PL-38: Search contracts"
+        }
+      ],
+      "evidence": [
+        {
+          "file": "apps/web/src/pages/search-pages.tsx",
+          "contains": "export function SearchPage("
+        },
+        {
+          "file": "e2e/search.spec.ts",
+          "contains": "finds work from the palette and the search page, with the whole state in the address"
+        },
+        {
+          "file": "e2e/search.spec.ts",
+          "contains": "reflows at 320 px and 200% zoom, with forced colours and reduced motion, and stays accessible"
+        },
+        {
+          "file": "e2e/search.spec.ts",
+          "contains": "keeps results through a dropped connection and searches again when it returns"
+        },
+        {
+          "file": "e2e/search.spec.ts",
+          "contains": "reaches the search field and every filter with the keyboard alone"
+        },
+        {
+          "file": "apps/web/test/search.test.tsx",
+          "contains": "searches inside the shell scope by default, says so, and widens on request (IA-10)"
+        },
+        {
+          "file": "apps/web/test/search.test.tsx",
+          "contains": "keeps filters in a collapsed disclosure on Compact, with the number in use"
+        },
+        {
+          "file": "apps/web/test/search.test.tsx",
+          "contains": "keeps earlier results and says so when the connection fails, and searches again when it returns"
+        }
+      ]
+    },
+    {
+      "id": "D16",
+      "title": "Honest absences stated, not implied",
+      "adr_row": "S16",
+      "sources": [
+        {
+          "file": "docs/architecture/platform/19-decisions.md",
+          "contains": "### PL-38: Search contracts"
+        }
+      ],
+      "evidence": [
+        {
+          "file": "docs/engineering/adr/0028-permission-aware-search.md",
+          "contains": "| S16 |"
+        },
+        {
+          "file": "apps/web/test/search.test.tsx",
+          "contains": "explains an empty result and a result cap, and pages with real links"
+        },
+        {
+          "file": "apps/api/test/integration/search-api.test.ts",
+          "contains": "reports the index state alone, and opens a result only after checking access again"
+        }
+      ]
+    }
+  ]
+}

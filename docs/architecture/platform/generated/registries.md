@@ -97,6 +97,7 @@ Source: `contracts/registry.json`.
 | `rsv_` | capacity_reservation | planning.capacity_reservation | planning |  |
 | `ndl_` | notification_delivery | notify.notification_delivery | notify | Phase 4B (PL-34). |
 | `dsg_` | document_suggestion | knowledge.document_suggestion | knowledge |  |
+| `gci_` | goal_checkin | goals.goal_checkin | goals |  |
 
 ## Error codes
 
@@ -343,6 +344,17 @@ Source: `contracts/registry.json`.
 | `files.file.added` v1 | files.file | version_number, source | C1 | yes |  | yes | yes |  | — |
 | `files.file.version_added` v1 | files.file | version_number, source | C1 | yes |  | yes | yes |  | — |
 | `files.deliverable.state_changed` v1 | files.deliverable | state, version_number | C1 | yes |  | yes | yes |  | — |
+| `goals.goal.created` v1 | goals.goal | scope, period_kind, progress_basis | C1 | yes |  | yes |  |  | — |
+| `goals.goal.updated` v1 | goals.goal | change | C1 | yes |  | yes |  |  | — |
+| `goals.goal.status_changed` v1 | goals.goal | status | C1 | yes |  | yes |  |  | — |
+| `goals.goal.checkin_recorded` v1 | goals.goal_checkin | source, confidence, has_value | C1 | yes |  | yes |  |  | — |
+| `goals.goal.link_changed` v1 | goals.goal_link | change, target_kind | C1 | yes |  | yes |  |  | — |
+| `goals.goal.update_stale` v1 | goals.goal | days_stale | C1 |  |  | yes |  |  | — |
+| `goals.key_result.created` v1 | goals.key_result | progress_basis | C1 | yes |  | yes |  |  | — |
+| `goals.key_result.updated` v1 | goals.key_result | change | C1 | yes |  | yes |  |  | — |
+| `goals.portfolio.created` v1 | goals.portfolio | scope | C1 | yes |  | yes |  |  | — |
+| `goals.portfolio.updated` v1 | goals.portfolio | change | C1 | yes |  | yes |  |  | — |
+| `goals.portfolio.members_changed` v1 | goals.portfolio | count | C1 | yes |  | yes |  |  | — |
 
 ## SSE topics
 
@@ -516,8 +528,14 @@ Forbidden metric labels: `workspace_id`, `brand_id`, `record_id`, `public_id`, `
 | `knowledge.exports` | counter | format, outcome | knowledge |
 | `knowledge.references` | counter | action, outcome | knowledge |
 | `knowledge.live` | counter | action, outcome | knowledge |
+| `search.requests` | counter | op, outcome | search |
+| `search.index.jobs` | counter | kind, outcome | search |
+| `search.query.duration` | histogram | outcome | search |
 | `files.requests` | counter | op, outcome | files |
 | `files.jobs` | counter | kind, outcome | files |
+| `goals.reads` | counter | view, outcome | goals |
+| `goals.changes` | counter | kind, outcome | goals |
+| `goals.jobs` | counter | kind, outcome | goals |
 
 ## Named parameters (values are configuration, not promises)
 
@@ -693,6 +711,21 @@ Forbidden metric labels: `workspace_id`, `brand_id`, `record_id`, `public_id`, `
 | `LIVE_POLL_WAIT_SECONDS` | Longest a live poll waits for news before answering; default 20, range 0–30. | 4D |
 | `LIVE_OP_LOG_MAX` | Operations kept so reconnecting editors can catch up; default 2000, range 100–10000. | 4D |
 | `LIVE_RATE_PER_MINUTE` | Most live editing requests one person makes per minute; default 1200, range 10–6000. | 4D |
+| `SEARCH_QUERY_MAX_CHARS` | Longest search query; default 200, range 20–500. | 5A |
+| `SEARCH_TERMS_MAX` | Most words and phrases in one search query; default 12, range 2–30. | 5A |
+| `SEARCH_PAGE_SIZE_MAX` | Most results one search page returns; default 50, range 10–100. | 5A |
+| `SEARCH_RESULTS_MAX` | Deepest result a search can page to; default 200, range 50–1000. | 5A |
+| `SEARCH_COUNT_MAX` | Where result counts and facets stop and say "at least"; default 1000, range 100–10000. | 5A |
+| `SEARCH_SNIPPET_CHARS` | Longest result snippet; default 220, range 80–500. | 5A |
+| `SEARCH_BODY_MAX_CHARS` | Most text indexed per record; default 100000, range 10000–100000. | 5A |
+| `SEARCH_INDEX_BATCH_MAX` | Most records one worker run indexes per workspace; default 200, range 10–1000. | 5A |
+| `SEARCH_INDEX_DISCOVERY_MAX` | Most workspaces one indexing run visits; default 50, range 1–500. | 5A |
+| `SEARCH_INDEX_MAX_ATTEMPTS` | Attempts to index a record before it is shown as failed; default 5, range 1–20. | 5A |
+| `SEARCH_INDEX_BACKOFF_SECONDS` | First wait before a failed indexing attempt is retried (it doubles); default 30, range 5–3600. | 5A |
+| `SEARCH_FAILED_RETRY_MINUTES` | How long a failed record waits between slow retries; default 360, range 10–10080. | 5A |
+| `SEARCH_RECENT_MAX` | Recent searches kept per person and workspace; default 25, range 5–100. | 5A |
+| `SEARCH_RECENT_RETENTION_DAYS` | How long a recent search is kept; default 90, range 1–365. | 5A |
+| `SEARCH_RATE_PER_MINUTE` | Most searches one person makes per minute; default 120, range 10–1200. | 5A |
 | `DOCUMENT_EMBED_URL_MAX_CHARS` | Longest address of an embedded image, video, or link; default 2048, range 128–8192. | 4C |
 | `FILE_UPLOAD_MAX_BYTES` | Largest single upload in bytes; default 104857600 (100 MiB), range 1024–5368709120. | 4E |
 | `WORKSPACE_STORAGE_QUOTA_BYTES` | Stored bytes one workspace may hold, counting bytes reserved by open upload sessions (a technical limit until plans set it, 10A); default 10737418240 (10 GiB), range 1048576–10995116277760. | 4E |
@@ -703,3 +736,16 @@ Forbidden metric labels: `workspace_id`, `brand_id`, `record_id`, `public_id`, `
 | `DELIVERABLES_PER_TASK_MAX` | Most deliverables one task holds; default 50, range 1–500. | 4E |
 | `FILE_DISCOVERY_MAX` | Most workspaces one file sweep examines; default 100, range 1–1000. | 4E |
 | `FILE_EXPIRY_BATCH_MAX` | Most expired upload sessions and object deletions one sweep handles per workspace; default 200, range 10–5000. | 4E |
+| `GOALS_PER_SCOPE_MAX` | Most live goals one workspace, brand, or project scope holds; default 500, range 10–5000. | 5B |
+| `GOAL_KEY_RESULTS_MAX` | Most key results one goal holds; default 20, range 1–50. | 5B |
+| `GOAL_LINKS_MAX` | Most projects and tasks one goal (with its key results) links; default 200, range 10–1000. | 5B |
+| `GOAL_UPDATE_STALE_DAYS` | Days without a manual check-in after which an active goal's update is stale; default 14, range 1–90. | 5B |
+| `GOAL_CHECKIN_RATE_PER_MINUTE` | Check-ins one member may record per minute; default 30, range 1–600. | 5B |
+| `PORTFOLIOS_MAX` | Most live portfolios one workspace holds; default 100, range 1–1000. | 5B |
+| `PORTFOLIO_PROJECTS_MAX` | Most projects one portfolio names; default 200, range 10–1000. | 5B |
+| `PORTFOLIO_READ_PROJECTS_MAX` | Most projects one health, dependency, or orphan read evaluates before it reports itself truncated; default 500, range 50–2000. | 5B |
+| `GOALS_EXPORT_ROWS_MAX` | Most rows one goal or portfolio export returns; larger exports are refused; default 5000, range 100–50000. | 5B |
+| `GOALS_RECALC_BATCH_MAX` | Most goals one recalculation sweep claims per workspace; default 200, range 10–2000. | 5B |
+| `GOALS_RECALC_LEASE_SECONDS` | How long a claimed goal stays leased before another sweep may reclaim it; default 300, range 30–3600. | 5B |
+| `GOALS_RECALC_INTERVAL_MINUTES` | How often an unchanged goal's time-driven state (staleness, period) is rechecked; default 360, range 15–1440. | 5B |
+| `GOALS_RECALC_MAX_ATTEMPTS` | Failed recalculations before a goal is reported as failing and backed off to the recheck interval; default 5, range 1–20. | 5B |

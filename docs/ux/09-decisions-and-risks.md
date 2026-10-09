@@ -87,6 +87,7 @@
 | [UXD-26](#uxd-26) | Complex-table behavior | Grid on Medium+, card list on Compact; cell editing on Medium+ | 3B | SA |
 | [UXD-27](#uxd-27) | Live-update mechanism for lists and records | Server push of change notices; "updates" chip, no auto-reflow | 1E / 3A | SA |
 | [UXD-28](#uxd-28) | Relationships to records the viewer cannot read | **Decided:** omit relationship metadata and derived conditions caused solely by hidden records; notify owner | **Resolved in Phase 0 review** | **Approved** |
+| [UXD-29](#uxd-29) | Search scope, results, and an honest index | Shell scope by default with "Search all my brands"; state in the address; marks as text; a banner whenever the index lags or has failed; nothing remembered while typing | 5A | SA |
 
 ### Detail
 
@@ -281,6 +282,15 @@
 - **Operational mitigation.** Notify the responsible owner when a hidden dependency affects assigned work. The owner can supply a manual, permission-safe status or reason without naming the restricted record. Authorized viewers continue to see the full relationship.
 - **Status.** Approved during the Phase 0A/0E architecture review. The product hierarchy contract and IA-42 were reconciled at the same time; Phase 0C must preserve the rule in the authorization threat model.
 - **Affected.** J-04, J-06, boards, timelines, the Blocked condition everywhere.
+
+<a id="uxd-29"></a>
+#### UXD-29 — Search scope, results, and an honest index
+
+- **Default.** Search opens at `/workspaces/{ws}/search` (and with `/` when single-key shortcuts are on, and from the command palette). It searches the brands in the shell's current scope, says so, and offers **Search all my brands** ([IA-10](02-information-architecture.md#ia-10)). The whole search (words, filters, position) is in the address, so a link is a search and Back restores it. Results show type, brand, title and excerpt with matches marked as text (also bold, and the system mark colours in forced colours), the project, the person it belongs to (members only), the last update, and the record that holds it. Counts and facets are of what the person can open ([IA-41](02-information-architecture.md#ia-41)); nothing about a hidden record is hinted ([IA-40](02-information-architecture.md#ia-40)). Only a submitted search is remembered (never typing or the palette's live lookups), and recent searches are personal, listed before anything is typed, and can be forgotten one by one or all at once.
+- **Honest index.** When recent changes are not searchable yet, or some records failed to index, the page says so, with how many (of what the person can read) and how long the oldest has waited, and marks the affected results "Updating" or "May be out of date"; it never presents an incomplete index as complete. Administrators see persistent failures on Home.
+- **Consequence.** A person never has to wonder whether a missing result is hidden, deleted, or merely not indexed yet; the first two look identical by design, the third is stated.
+- **Not built.** Scrolling to and highlighting the match inside the destination (no destination can address one comment or passage yet), an owner filter for other people (needs a people picker), concept search (OD-31), and attachment text.
+- **Affected.** J-07, Search, the command palette, Home.
 
 ## 4. UX risk register
 

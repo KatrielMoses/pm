@@ -217,6 +217,19 @@ export const NON_RESOURCE_TYPES = [
   // events, heartbeat, checkpoint, leave); neither has a public identifier of its own.
   'live_session',
   'live_update',
+  // 5A: search results (with facets and index state), the index state alone, an open check, and
+  // the person's recent searches; none has a public identifier of its own.
+  'search_results',
+  'search_status',
+  'search_open',
+  'search_recent',
+  // 5B: a portfolio's health overview, cross-project dependencies, and orphan findings; each is
+  // computed for the viewer and has no public identifier of its own.
+  'portfolio_overview',
+  'portfolio_dependencies',
+  'portfolio_orphans',
+  // 5B: the readable work behind a goal's linked-work progress (the drill-down for its figure).
+  'goal_work',
 ] as const;
 export type NonResourceType = (typeof NON_RESOURCE_TYPES)[number];
 

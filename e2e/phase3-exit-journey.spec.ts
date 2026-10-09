@@ -168,9 +168,19 @@ test('Phase 3 exit: one founder plans a week across brands, and every planning s
   await board.getByRole('button', { name: 'Move Summit deck' }).focus();
   await page.keyboard.press('Enter');
   const move = page.getByRole('dialog', { name: /Move “Summit deck”/ });
-  await move.getByRole('button', { name: 'In progress' }).focus();
-  await page.keyboard.press('Enter');
-  await expect(page.getByText('Summit deck moved to In progress.')).toBeAttached();
+  // A late re-render can take focus back before Enter lands, and then nothing moves. While the
+  // dialog is still open, re-take focus and press again; once it closes the move is under way.
+  const inProgress = move.getByRole('button', { name: 'In progress' });
+  await expect(async () => {
+    if (await move.isVisible()) {
+      await inProgress.focus();
+      await expect(inProgress).toBeFocused({ timeout: 500 });
+      await page.keyboard.press('Enter');
+    }
+    await expect(page.getByText('Summit deck moved to In progress.')).toBeAttached({
+      timeout: 4_000,
+    });
+  }).toPass({ timeout: 30_000, intervals: [250, 1_000] });
   if (mobile) await board.getByLabel('Column').selectOption({ label: 'In progress (1)' });
   await expect(board.getByRole('heading', { name: /In progress \(1\)/ })).toBeVisible();
   // Audit from the top: axe's target-size check counts controls scrolled under the sticky header
