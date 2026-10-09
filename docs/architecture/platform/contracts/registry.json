@@ -6072,6 +6072,31 @@
         "outcome"
       ],
       "area": "goals"
+    },
+    {
+      "name": "metrics.requests",
+      "type": "counter",
+      "labels": [
+        "op",
+        "outcome"
+      ],
+      "area": "metrics"
+    },
+    {
+      "name": "metrics.query.duration",
+      "type": "histogram",
+      "labels": [
+        "outcome"
+      ],
+      "area": "metrics"
+    },
+    {
+      "name": "metrics.reconcile.jobs",
+      "type": "counter",
+      "labels": [
+        "outcome"
+      ],
+      "area": "metrics"
     }
   ],
   "forbidden_metric_labels": [
@@ -7150,6 +7175,71 @@
       "name": "GOALS_RECALC_MAX_ATTEMPTS",
       "meaning": "Failed recalculations before a goal is reported as failing and backed off to the recheck interval; default 5, range 1–20.",
       "owner": "5B"
+    },
+    {
+      "name": "METRICS_WINDOW_DAYS_MAX",
+      "meaning": "Longest window a metric may cover, in days; default 366, range 31–1000.",
+      "owner": "5C"
+    },
+    {
+      "name": "METRICS_DEFAULT_WINDOW_DAYS",
+      "meaning": "Window a metric covers when none is given, in days; default 30, range 7–366.",
+      "owner": "5C"
+    },
+    {
+      "name": "METRICS_DRILL_PAGE_MAX",
+      "meaning": "Most records on one drill-through page; default 100, range 10–200.",
+      "owner": "5C"
+    },
+    {
+      "name": "METRICS_DRILL_RESULTS_MAX",
+      "meaning": "Deepest record a drill-through can page to; default 1000, range 100–5000.",
+      "owner": "5C"
+    },
+    {
+      "name": "METRICS_SCOPE_TASKS_MAX",
+      "meaning": "Most tasks one metric computation reads before it asks for a narrower scope; default 20000, range 1000–200000.",
+      "owner": "5C"
+    },
+    {
+      "name": "METRICS_SAMPLE_MIN",
+      "meaning": "Fewest records before a distribution metric is shown without a small-sample label; default 5, range 1–100.",
+      "owner": "5C"
+    },
+    {
+      "name": "METRICS_RATE_PER_MINUTE",
+      "meaning": "Most metric requests one person makes per minute; default 60, range 10–600.",
+      "owner": "5C"
+    },
+    {
+      "name": "METRICS_RECONCILE_BATCH_MAX",
+      "meaning": "Most tasks one reconciliation step checks per workspace; default 500, range 50–5000.",
+      "owner": "5C"
+    },
+    {
+      "name": "METRICS_RECONCILE_DISCOVERY_MAX",
+      "meaning": "Most workspaces one reconciliation run visits; default 50, range 1–500.",
+      "owner": "5C"
+    },
+    {
+      "name": "METRICS_RECONCILE_INTERVAL_MINUTES",
+      "meaning": "Wait between full reconciliation passes of a workspace, in minutes; default 360, range 5–10080.",
+      "owner": "5C"
+    },
+    {
+      "name": "METRICS_RECONCILE_LEASE_SECONDS",
+      "meaning": "How long a worker holds a workspace's reconciliation before another may take it; default 300, range 30–3600.",
+      "owner": "5C"
+    },
+    {
+      "name": "METRICS_RECONCILE_MAX_ATTEMPTS",
+      "meaning": "Failed reconciliation attempts before the workspace is reported failing; default 5, range 1–20.",
+      "owner": "5C"
+    },
+    {
+      "name": "METRICS_RECONCILE_BACKOFF_SECONDS",
+      "meaning": "First wait before a failed reconciliation is retried (it doubles); default 60, range 5–3600.",
+      "owner": "5C"
     }
   ],
   "sse_topics": [

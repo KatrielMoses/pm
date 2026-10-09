@@ -828,6 +828,28 @@ export const TELEMETRY_SIGNALS = [
       "kind",
       "outcome"
     ]
+  },
+  {
+    "name": "metrics.requests",
+    "type": "counter",
+    "labels": [
+      "op",
+      "outcome"
+    ]
+  },
+  {
+    "name": "metrics.query.duration",
+    "type": "histogram",
+    "labels": [
+      "outcome"
+    ]
+  },
+  {
+    "name": "metrics.reconcile.jobs",
+    "type": "counter",
+    "labels": [
+      "outcome"
+    ]
   }
 ] as const;
 export type TelemetrySignalName = (typeof TELEMETRY_SIGNALS)[number]['name'];
@@ -3643,7 +3665,20 @@ export const PARAMETER_NAMES = [
   "GOALS_RECALC_BATCH_MAX",
   "GOALS_RECALC_LEASE_SECONDS",
   "GOALS_RECALC_INTERVAL_MINUTES",
-  "GOALS_RECALC_MAX_ATTEMPTS"
+  "GOALS_RECALC_MAX_ATTEMPTS",
+  "METRICS_WINDOW_DAYS_MAX",
+  "METRICS_DEFAULT_WINDOW_DAYS",
+  "METRICS_DRILL_PAGE_MAX",
+  "METRICS_DRILL_RESULTS_MAX",
+  "METRICS_SCOPE_TASKS_MAX",
+  "METRICS_SAMPLE_MIN",
+  "METRICS_RATE_PER_MINUTE",
+  "METRICS_RECONCILE_BATCH_MAX",
+  "METRICS_RECONCILE_DISCOVERY_MAX",
+  "METRICS_RECONCILE_INTERVAL_MINUTES",
+  "METRICS_RECONCILE_LEASE_SECONDS",
+  "METRICS_RECONCILE_MAX_ATTEMPTS",
+  "METRICS_RECONCILE_BACKOFF_SECONDS"
 ] as const;
 export type ParameterName = (typeof PARAMETER_NAMES)[number];
 
