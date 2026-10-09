@@ -661,7 +661,7 @@ export function RunsDialog({
       ) : runs.length ? (
         <div className="ins-table-wrap" tabIndex={0} role="region" aria-label="Delivery history">
           <table className="ins-table">
-            <caption className="sr-only">Delivery history</caption>
+            <caption className="visually-hidden">Delivery history</caption>
             <thead>
               <tr>
                 <th scope="col">Scheduled for</th>

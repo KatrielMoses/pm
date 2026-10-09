@@ -64,7 +64,7 @@ export function RecordTable({
   return (
     <div className="ins-table-wrap" tabIndex={0} role="region" aria-label={caption}>
       <table className="ins-table">
-        <caption className="sr-only">{caption}</caption>
+        <caption className="visually-hidden">{caption}</caption>
         <thead>
           <tr>
             {columns.map((c) => (
@@ -261,7 +261,7 @@ export function WidgetCard({
       </h3>
       {state.status === 'loading' ? (
         <div className="ins-skeleton" role="status">
-          <span className="sr-only">Loading {meta.title}…</span>
+          <span className="visually-hidden">Loading {meta.title}…</span>
         </div>
       ) : state.status === 'failed' || state.outcome.state === 'error' ? (
         <div className="gl-problem" role="alert">

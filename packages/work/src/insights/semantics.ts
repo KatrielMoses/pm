@@ -144,14 +144,35 @@ export function scheduleValid(s: Schedule): boolean {
 const clock = (minute: number) =>
   `${String(Math.floor(minute / 60)).padStart(2, '0')}:${String(minute % 60).padStart(2, '0')}`;
 
-/** The first occurrence strictly after `after`, as an instant. Local gaps resolve forward. */
+/**
+ * The instant of a local date-time. A time that does not exist (inside a spring-forward gap) is
+ * sent forward by the length of the gap, so the report goes out right after the clock jumps,
+ * never an hour early; an ambiguous time (a fall-back overlap) is the first one.
+ */
+function atLocal(local: string, tz: string): Date {
+  const at = localToUtc(local, tz);
+  const got = utcToLocal(at, tz);
+  if (got === local) return at;
+  const ms = (l: string) =>
+    Date.UTC(
+      +l.slice(0, 4),
+      +l.slice(5, 7) - 1,
+      +l.slice(8, 10),
+      +l.slice(11, 13),
+      +l.slice(14, 16),
+    );
+  const gap = ms(local) - ms(got);
+  return gap > 0 && gap <= 2 * 3_600_000 ? new Date(at.getTime() + gap) : at;
+}
+
+/** The first occurrence strictly after `after`, as an instant. */
 export function nextRun(s: Schedule, after: Date): Date {
   const startDay = utcToLocal(after, s.timezone).slice(0, 10);
   for (let i = -1; i <= 62; i++) {
     const day = addDays(startDay, i);
     if (s.frequency === 'weekly' && isoWeekday(day) !== s.weekday) continue;
     if (s.frequency === 'monthly' && Number(day.slice(8, 10)) !== s.monthday) continue;
-    const at = localToUtc(`${day}T${clock(s.minute)}`, s.timezone);
+    const at = atLocal(`${day}T${clock(s.minute)}`, s.timezone);
     if (at.getTime() > after.getTime()) return at;
   }
   // Unreachable for a valid schedule: a daily, weekly, or monthly day always occurs within 62 days.
@@ -164,6 +185,9 @@ export function nextRun(s: Schedule, after: Date): Date {
  */
 export function dueOccurrence(s: Schedule, nextAt: Date, now: Date): Date {
   let at = nextAt;
+  // Every schedule fires at least monthly, so a long outage can start close to now.
+  if (now.getTime() - nextAt.getTime() > 40 * 86_400_000)
+    at = nextRun(s, new Date(now.getTime() - 33 * 86_400_000));
   for (let i = 0; i < 400; i++) {
     const n = nextRun(s, at);
     if (n.getTime() > now.getTime()) break;
