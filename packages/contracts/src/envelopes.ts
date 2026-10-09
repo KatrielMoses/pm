@@ -230,6 +230,14 @@ export const NON_RESOURCE_TYPES = [
   'portfolio_orphans',
   // 5B: the readable work behind a goal's linked-work progress (the drill-down for its figure).
   'goal_work',
+  // 5D: one widget's figure for the viewer, the records behind it, the metric catalog, a report's
+  // delivery runs, its recipients, and its shares; each is computed or authorized for the viewer.
+  'widget_result',
+  'widget_records',
+  'insight_metrics',
+  'report_runs',
+  'report_recipients',
+  'report_shares',
 ] as const;
 export type NonResourceType = (typeof NON_RESOURCE_TYPES)[number];
 

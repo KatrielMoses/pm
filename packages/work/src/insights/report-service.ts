@@ -311,7 +311,7 @@ export class ReportService extends InsightsCore {
       );
     return {
       id: g.publicId,
-      type: 'report' as const,
+      type: 'report_definition' as const,
       title: r.title,
       description: r.description,
       scope:
@@ -495,7 +495,14 @@ export class ReportService extends InsightsCore {
     ctx: MetricContext,
     spec: WidgetSpec,
     q: { cursor: string | null; limit: number | null },
-  ): Promise<DrillPage & { widget: ReturnType<ReportService['widgetMeta']>; as_of: string }> {
+  ): Promise<{
+    columns: DrillPage['columns'];
+    rows: DrillPage['rows'];
+    page: DrillPage['page'];
+    covers: string;
+    widget: ReturnType<ReportService['widgetMeta']>;
+    as_of: string;
+  }> {
     const provider = providerOf(spec.metric);
     if (!provider) throw new TenancyError('not_found');
     if (ctx.p.kind === 'guest' && !provider.guestSafe) throw new TenancyError('not_found');
@@ -812,11 +819,10 @@ export class ReportService extends InsightsCore {
             .select('lifecycle_state')
             .where('id', '=', g.id)
             .executeTakeFirstOrThrow();
-          void type;
           return {
             status: verb === 'purge' ? 202 : 200,
-            ref: { id: g.publicId, type: kind },
-            data: { id: g.publicId, type: kind, lifecycle_state: after.lifecycle_state },
+            ref: { id: g.publicId, type },
+            data: { id: g.publicId, type, lifecycle_state: after.lifecycle_state },
           };
         },
         async (tx, _p, ref) => {
@@ -825,7 +831,7 @@ export class ReportService extends InsightsCore {
             .select(['public_id', 'lifecycle_state'])
             .where('public_id', '=', ref.id)
             .executeTakeFirstOrThrow();
-          return { id: r.public_id, type: kind, lifecycle_state: r.lifecycle_state };
+          return { id: r.public_id, type, lifecycle_state: r.lifecycle_state };
         },
       ),
     );
@@ -978,6 +984,52 @@ export class ReportService extends InsightsCore {
     );
   }
 
+  /** Trashed dashboards and reports the viewer may restore (edit access on the live record). */
+  async listTrashedInsights(caller: Caller, ws: unknown) {
+    return this.iTrack('insights.reads', 'trash', () =>
+      this.inWorkspace(caller, ws, { readOnly: true }, async (tx, p) => {
+        this.requireInsightsMember(p);
+        const out: Array<
+          | Awaited<ReturnType<ReportService['dashboardView']>>
+          | Awaited<ReturnType<ReportService['reportView']>>
+        > = [];
+        const dash = await sql<{ public_id: string }>`
+          SELECT r.public_id FROM insights.dashboard d JOIN core.record r ON r.workspace_id = d.workspace_id AND r.id = d.id
+           WHERE d.workspace_id = ${tx.workspaceId} AND d.lifecycle_state = 'trashed'
+           ORDER BY d.updated_at DESC, d.id DESC LIMIT ${this.ws.pageLimitMax}`.execute(tx.db);
+        for (const r of dash.rows)
+          try {
+            out.push(
+              await this.dashboardView(
+                tx,
+                p,
+                await this.loadDashboard(tx, p, r.public_id, { allowTrashed: true }),
+              ),
+            );
+          } catch (err) {
+            if (!(err instanceof TenancyError)) throw err;
+          }
+        const reps = await sql<{ public_id: string }>`
+          SELECT r.public_id FROM insights.report_definition d JOIN core.record r ON r.workspace_id = d.workspace_id AND r.id = d.id
+           WHERE d.workspace_id = ${tx.workspaceId} AND d.lifecycle_state = 'trashed'
+           ORDER BY d.updated_at DESC, d.id DESC LIMIT ${this.ws.pageLimitMax}`.execute(tx.db);
+        for (const r of reps.rows)
+          try {
+            out.push(
+              await this.reportView(
+                tx,
+                p,
+                await this.loadReport(tx, p, r.public_id, { allowTrashed: true }),
+              ),
+            );
+          } catch (err) {
+            if (!(err instanceof TenancyError)) throw err;
+          }
+        return { data: out };
+      }),
+    );
+  }
+
   async listReportRuns(caller: Caller, ws: unknown, report: unknown) {
     return this.iTrack('insights.reads', 'runs', () =>
       this.inWorkspace(caller, ws, { readOnly: true }, async (tx, p) => {
@@ -1109,7 +1161,7 @@ export class ReportService extends InsightsCore {
           );
           return {
             status: 201,
-            ref: { id: publicId, type: 'report' },
+            ref: { id: publicId, type: 'report_definition' },
             data: await this.reportView(tx, p, await this.loadReport(tx, p, publicId)),
           };
         },
@@ -1192,7 +1244,7 @@ export class ReportService extends InsightsCore {
           }
           return {
             status: 200,
-            ref: { id: g.publicId, type: 'report' },
+            ref: { id: g.publicId, type: 'report_definition' },
             data: await this.reportView(tx, p, await this.loadReport(tx, p, g.publicId)),
           };
         },
@@ -1311,7 +1363,7 @@ export class ReportService extends InsightsCore {
           );
           return {
             status: 200,
-            ref: { id: g.publicId, type: 'report' },
+            ref: { id: g.publicId, type: 'report_definition' },
             data: await this.reportView(tx, p, await this.loadReport(tx, p, g.publicId)),
           };
         },
@@ -1374,7 +1426,7 @@ export class ReportService extends InsightsCore {
           );
           return {
             status: 200,
-            ref: { id: g.publicId, type: 'report' },
+            ref: { id: g.publicId, type: 'report_definition' },
             data: await this.reportView(tx, p, await this.loadReport(tx, p, g.publicId)),
           };
         },
@@ -1513,7 +1565,7 @@ export class ReportService extends InsightsCore {
           );
           return {
             status: 200,
-            ref: { id: g.publicId, type: 'report' },
+            ref: { id: g.publicId, type: 'report_definition' },
             data: await this.reportView(tx, p, await this.loadReport(tx, p, g.publicId)),
           };
         },
@@ -1567,7 +1619,7 @@ export class ReportService extends InsightsCore {
           }
           return {
             status: 200,
-            ref: { id: g.publicId, type: 'report' },
+            ref: { id: g.publicId, type: 'report_definition' },
             data: await this.reportView(tx, p, await this.loadReport(tx, p, g.publicId)),
           };
         },
