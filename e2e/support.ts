@@ -30,7 +30,13 @@ export async function waitForMail(to: string, subjectIncludes: string, after = 0
       // not created yet
     }
     const matches = files
-      .map((f) => JSON.parse(readFileSync(join(dir, f), 'utf8')) as Mail)
+      .flatMap((f) => {
+        try {
+          return [JSON.parse(readFileSync(join(dir, f), 'utf8')) as Mail];
+        } catch {
+          return []; // still being written; the next poll reads it whole
+        }
+      })
       .filter(
         (m) =>
           m.to.toLowerCase() === to.toLowerCase() &&
