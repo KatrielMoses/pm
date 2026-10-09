@@ -246,27 +246,37 @@ CREATE INDEX report_run_by_recipient ON insights.report_run (workspace_id, recip
 CREATE INDEX report_run_retention ON insights.report_run (workspace_id, created_at);
 
 -- ---------------------------------------------------------------------------------------------
--- Worker discovery (payload-free): workspaces with a report whose schedule is due.
+-- Worker discovery (payload-free): workspaces with a report whose schedule is due, or with runs
+-- older than the retention cutoff.
 -- ---------------------------------------------------------------------------------------------
 CREATE POLICY scheduler_discovery ON insights.report_definition FOR SELECT TO pm_scheduler USING (true);
 GRANT SELECT (workspace_id, next_run_at, claimed_until, suspended_at) ON insights.report_definition TO pm_scheduler;
+ALTER TABLE insights.report_run ENABLE ROW LEVEL SECURITY;
+ALTER TABLE insights.report_run FORCE ROW LEVEL SECURITY;
+CREATE POLICY scheduler_discovery ON insights.report_run FOR SELECT TO pm_scheduler USING (true);
+GRANT SELECT (workspace_id, created_at) ON insights.report_run TO pm_scheduler;
 GRANT USAGE ON SCHEMA insights TO pm_scheduler;
 
-CREATE FUNCTION exec_dispatch.discover_report_work(p_now timestamptz, p_limit integer)
+CREATE FUNCTION exec_dispatch.discover_report_work(p_now timestamptz, p_retention_before timestamptz, p_limit integer)
   RETURNS TABLE (workspace_id uuid)
   LANGUAGE sql STABLE SECURITY DEFINER
   SET search_path = pg_catalog, pg_temp
   AS $$
-  SELECT r.workspace_id FROM insights.report_definition r
-   WHERE r.next_run_at IS NOT NULL AND r.next_run_at <= p_now AND r.suspended_at IS NULL
-     AND (r.claimed_until IS NULL OR r.claimed_until <= p_now)
-   GROUP BY r.workspace_id
-   ORDER BY min(r.next_run_at), r.workspace_id
+  SELECT w.workspace_id FROM (
+    SELECT r.workspace_id, r.next_run_at AS due FROM insights.report_definition r
+     WHERE r.next_run_at IS NOT NULL AND r.next_run_at <= p_now AND r.suspended_at IS NULL
+       AND (r.claimed_until IS NULL OR r.claimed_until <= p_now)
+    UNION ALL
+    SELECT x.workspace_id, min(x.created_at) FROM insights.report_run x
+     WHERE x.created_at < p_retention_before GROUP BY x.workspace_id
+  ) w
+   GROUP BY w.workspace_id
+   ORDER BY min(w.due), w.workspace_id
    LIMIT least(greatest(p_limit, 1), 1000)
 $$;
-REVOKE ALL ON FUNCTION exec_dispatch.discover_report_work(timestamptz, integer) FROM PUBLIC;
-GRANT EXECUTE ON FUNCTION exec_dispatch.discover_report_work(timestamptz, integer) TO dispatcher;
-ALTER FUNCTION exec_dispatch.discover_report_work(timestamptz, integer) OWNER TO pm_scheduler;
+REVOKE ALL ON FUNCTION exec_dispatch.discover_report_work(timestamptz, timestamptz, integer) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION exec_dispatch.discover_report_work(timestamptz, timestamptz, integer) TO dispatcher;
+ALTER FUNCTION exec_dispatch.discover_report_work(timestamptz, timestamptz, integer) OWNER TO pm_scheduler;
 
 -- ---------------------------------------------------------------------------------------------
 -- Row-level security and grants
@@ -287,8 +297,6 @@ ALTER TABLE insights.report_share ENABLE ROW LEVEL SECURITY;
 ALTER TABLE insights.report_share FORCE ROW LEVEL SECURITY;
 CREATE POLICY tenant_isolation ON insights.report_share
   USING (workspace_id = exec.current_workspace_id()) WITH CHECK (workspace_id = exec.current_workspace_id());
-ALTER TABLE insights.report_run ENABLE ROW LEVEL SECURITY;
-ALTER TABLE insights.report_run FORCE ROW LEVEL SECURITY;
 CREATE POLICY tenant_isolation ON insights.report_run
   USING (workspace_id = exec.current_workspace_id()) WITH CHECK (workspace_id = exec.current_workspace_id());
 
