@@ -100,6 +100,25 @@ test('a founder builds a dashboard, reads figures with their labels, and works i
   await page.getByRole('link', { name: 'Everything' }).click();
   await expect(h1(page)).toHaveText('Everything');
 
+  const url0 = page.url();
+  // Home carries the situation overview for the brands in scope, and a project has its own
+  // Reports section with its figures and saved dashboards.
+  await page.goto(`/workspaces/${s.ws}/home`);
+  const overview = page.getByRole('region', { name: /at a glance|Across your brands/ });
+  await expect(overview).toBeVisible();
+  await expect(overview.getByRole('region', { name: 'Open tasks', exact: true })).toContainText(
+    'Computed from current records',
+  );
+  await accessible(page, 'home overview');
+  await page.goto(`/workspaces/${s.ws}/projects/${s.site.id}/reports`);
+  await expect(page.getByRole('heading', { name: 'This project at a glance' })).toBeVisible();
+  await expect(
+    page.getByRole('region', { name: 'Open tasks', exact: true }).locator('.ins-value'),
+  ).toHaveAttribute('aria-label', 'Open tasks: 1');
+  await expect(page.getByText('Nothing saved for this project yet.')).toBeVisible();
+  await accessible(page, 'project reports');
+  await page.goto(url0);
+
   // Appearance and reflow.
   await page.emulateMedia({ reducedMotion: 'reduce', forcedColors: 'active' });
   await accessible(page, 'dashboard, forced colours and reduced motion');

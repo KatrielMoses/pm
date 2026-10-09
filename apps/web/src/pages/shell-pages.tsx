@@ -20,6 +20,7 @@ import { useWorkspaceShell } from '../shell/workspace.tsx';
 import { collab, tenancy, type Brand } from '../tenancy/client.ts';
 import { ResourceView, useResource } from '../tenancy/resource.tsx';
 import { Announce, Banner, ProblemBanner } from '../ui/feedback.tsx';
+import { HomeOverview } from '../insights/overview.tsx';
 import { NotAvailableBody, Page } from '../ui/layout.tsx';
 import { SearchHealthNotice } from './search-pages.tsx';
 
@@ -163,6 +164,13 @@ export function HomePage({ ws }: { ws: string }) {
               {said ? <Announce>{said}</Announce> : null}
               <ProblemBanner error={problem} />
               {ctx.workspace.capabilities.configure ? <SearchHealthNotice ws={ws} /> : null}
+              {ctx.principal === 'member' ? (
+                <HomeOverview
+                  ws={ws}
+                  brandIds={ctx.scope.kind === 'all' ? [] : inScope}
+                  single={ctx.scope.kind === 'brand'}
+                />
+              ) : null}
               <section aria-labelledby="active-h">
                 <div className="section-head">
                   <h2 id="active-h">Active brands ({shown.length})</h2>

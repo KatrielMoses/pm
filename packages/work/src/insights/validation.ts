@@ -584,3 +584,87 @@ export function parseExportQuery(q: Record<string, unknown>): ExportQuery {
   issues.throwIfAny();
   return { format: format as 'csv' | 'pdf', widget: widget as string | null, filters };
 }
+
+export interface AdhocQuery {
+  metric: string;
+  params: Record<string, unknown>;
+  filters: DashboardFilters;
+  brand: string | null;
+  project: string | null;
+  cursor: string | null;
+  limit: number | null;
+}
+
+/**
+ * An ad hoc widget read (Home and the project Reports section): a metric, its parameters, filters,
+ * and optionally one brand or project to cover. Nothing is saved; the caller's own access decides
+ * every figure exactly as for a saved widget.
+ */
+export function parseAdhocQuery(
+  q: Record<string, unknown>,
+  params: ParamsParser,
+  pageMax: number,
+): AdhocQuery {
+  const issues = new Issues();
+  for (const k of Object.keys(q))
+    if (!['metric', 'params', 'filters', 'brand', 'project', 'cursor', 'limit'].includes(k))
+      issues.add(`/${k}`, 'unsupported_field', 'This option is not supported.');
+  const json = (key: string): unknown => {
+    if (q[key] === undefined) return undefined;
+    try {
+      return typeof q[key] === 'string' && (q[key] as string).length <= 4096
+        ? JSON.parse(q[key] as string)
+        : undefined;
+    } catch {
+      return undefined;
+    }
+  };
+  const metric = typeof q.metric === 'string' ? q.metric : '';
+  if (!metric) issues.add('/metric', 'required', 'Choose a metric.');
+  let p: Record<string, unknown> = {};
+  if (q.params !== undefined) {
+    const raw = json('params');
+    if (raw === undefined) issues.add('/params', 'invalid', 'Send the parameters as JSON.');
+    else if (metric) p = params(metric, raw, '/params', issues) ?? {};
+  } else if (metric) p = params(metric, {}, '/params', issues) ?? {};
+  let filters: DashboardFilters = {
+    range: null,
+    brands: [],
+    projects: [],
+    people: [],
+    statuses: [],
+  };
+  if (q.filters !== undefined) {
+    const raw = json('filters');
+    if (raw === undefined) issues.add('/filters', 'invalid', 'Send the filters as JSON.');
+    else filters = parseFilters(raw, '/filters', issues).value;
+  }
+  const brand = q.brand === undefined ? null : q.brand;
+  if (brand !== null && !isPublic(brand, 'br'))
+    issues.add('/brand', 'invalid_reference', 'Choose from the list.');
+  const project = q.project === undefined ? null : q.project;
+  if (project !== null && !isPublic(project, 'prj'))
+    issues.add('/project', 'invalid_reference', 'Choose from the list.');
+  if (brand && project)
+    issues.add('/project', 'conflicting', 'Choose a brand or a project, not both.');
+  let limit: number | null = null;
+  if (q.limit !== undefined) {
+    const n = Number(q.limit);
+    if (!Number.isInteger(n) || n < 1)
+      issues.add('/limit', 'invalid_number', 'Choose a page size of at least 1.');
+    else limit = Math.min(n, pageMax);
+  }
+  const cursor = typeof q.cursor === 'string' && q.cursor.length <= 2048 ? q.cursor : null;
+  if (q.cursor !== undefined && cursor === null)
+    issues.add('/cursor', 'invalid', 'This cursor is not valid.');
+  issues.throwIfAny();
+  return {
+    metric,
+    params: p,
+    filters,
+    brand: brand as string | null,
+    project: project as string | null,
+    cursor,
+    limit,
+  };
+}

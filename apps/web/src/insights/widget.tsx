@@ -1,4 +1,4 @@
-import { useEffect, useId, useState } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 import { ApiError } from '../api.ts';
 import { Chip } from '../goals/shared.tsx';
 import { Link } from '../router.tsx';
@@ -206,6 +206,7 @@ export function WidgetCard({
   filters,
   reloadKey,
   onExport,
+  lazy = false,
 }: {
   ws: string;
   meta: WidgetMeta;
@@ -214,6 +215,8 @@ export function WidgetCard({
   /** Changing it (a Refresh, a saved edit) loads the widget again. */
   reloadKey: number;
   onExport?: ((widget: string, format: 'csv' | 'pdf') => void) | undefined;
+  /** Load only once the widget is near the screen (large dashboards load progressively, REL-012). */
+  lazy?: boolean;
 }) {
   const [entry, setEntry] = useState<Keyed | null>(null);
   const [attempt, setAttempt] = useState(0);
@@ -221,7 +224,24 @@ export function WidgetCard({
   const titleId = useId();
   const filterKey = JSON.stringify(filters);
   const key = `${meta.id}|${meta.metric}|${filterKey}|${reloadKey}|${attempt}`;
+  const box = useRef<HTMLElement>(null);
+  const [near, setNear] = useState(!lazy || typeof IntersectionObserver === 'undefined');
   useEffect(() => {
+    if (near || !box.current) return;
+    const io = new IntersectionObserver(
+      (hits) => {
+        if (hits.some((h) => h.isIntersecting)) {
+          setNear(true);
+          io.disconnect();
+        }
+      },
+      { rootMargin: '300px' },
+    );
+    io.observe(box.current);
+    return () => io.disconnect();
+  }, [near]);
+  useEffect(() => {
+    if (!near) return;
     const ctl = new AbortController();
     api.widget(filters, ctl.signal).then(
       (r) => {
@@ -233,7 +253,7 @@ export function WidgetCard({
     );
     return () => ctl.abort();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [key]);
+  }, [key, near]);
   const state: State = entry && entry.key === key ? entry.state : { status: 'loading' };
 
   // A widget the person cannot see at all is absent, not an empty box (ST widget table).
@@ -252,6 +272,7 @@ export function WidgetCard({
 
   return (
     <section
+      ref={box}
       className={`ins-widget ins-${meta.size}`}
       aria-labelledby={titleId}
       aria-busy={state.status === 'loading'}

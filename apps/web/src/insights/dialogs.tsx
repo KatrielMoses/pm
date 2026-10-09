@@ -119,19 +119,22 @@ function Actions({ onClose, busy, label }: { onClose: () => void; busy: boolean;
 
 export function CreateDashboardDialog({
   ws,
+  preset,
   onCreate,
   onClose,
 }: {
   ws: string;
+  /** A kind (and project) chosen by the page that opened the dialog. */
+  preset?: { kind: DashboardKind; project?: string };
   onCreate: (body: DashboardCreate, key: string) => Promise<unknown>;
   onClose: () => void;
 }) {
   const scope = useScopeOptions(ws);
   const idem = useIdempotency();
   const [title, setTitle] = useState('');
-  const [kind, setKind] = useState<DashboardKind>('personal');
+  const [kind, setKind] = useState<DashboardKind>(preset?.kind ?? 'personal');
   const [brand, setBrand] = useState('');
-  const [project, setProject] = useState('');
+  const [project, setProject] = useState(preset?.project ?? '');
   const [starter, setStarter] = useState(true);
   const [error, setError] = useState('');
   const { busy, problem, run } = useSave<unknown>(onClose);
@@ -214,19 +217,23 @@ export function CreateDashboardDialog({
 
 export function CreateReportDialog({
   ws,
+  preset,
   onCreate,
   onClose,
 }: {
   ws: string;
+  preset?: { project?: string };
   onCreate: (body: ReportCreate, key: string) => Promise<unknown>;
   onClose: () => void;
 }) {
   const scope = useScopeOptions(ws);
   const idem = useIdempotency();
   const [title, setTitle] = useState('');
-  const [where, setWhere] = useState<'workspace' | 'brand' | 'project'>('workspace');
+  const [where, setWhere] = useState<'workspace' | 'brand' | 'project'>(
+    preset?.project ? 'project' : 'workspace',
+  );
   const [brand, setBrand] = useState('');
-  const [project, setProject] = useState('');
+  const [project, setProject] = useState(preset?.project ?? '');
   const [error, setError] = useState('');
   const { busy, problem, run } = useSave<unknown>(onClose);
   const submit = (e: FormEvent) => {

@@ -45,7 +45,7 @@
     },
     {
       "file": "packages/db/test/integration/migrations.test.ts",
-      "contains": "upgrades through every accepted boundary (0009–0042) to the candidate and reverses each boundary step"
+      "contains": "upgrades through every accepted boundary (0009–0043) to the candidate and reverses each boundary step"
     },
     {
       "file": "docs/engineering/adr/0029-goals-portfolios.md",

@@ -40,6 +40,7 @@ import {
   type WidgetSpec,
 } from './semantics.ts';
 import {
+  parseAdhocQuery,
   parseDashboardCreate,
   parseDashboardUpdate,
   parseExportQuery,
@@ -563,6 +564,73 @@ export class ReportService extends InsightsCore {
           await this.dashboardScope(tx, p, g),
           q.filters ?? g.row.filters,
         );
+        return this.drillOf(ctx, spec, q);
+      }),
+    );
+  }
+
+  /** The scope an ad hoc read covers: one project, one brand, or every brand the caller may read. */
+  protected async adhocScope(
+    tx: WorkspaceTransaction,
+    p: Principal,
+    q: { brand: string | null; project: string | null },
+  ) {
+    if (q.project) {
+      const pr = await this.loadProject(tx, p, q.project);
+      return this.insightScope(tx, p, { brand_id: pr.brand.id, project_id: pr.id }, 'project', {
+        shared: false,
+      });
+    }
+    if (q.brand) {
+      const b = await findBrand(tx, p, q.brand);
+      return this.insightScope(tx, p, { brand_id: b.id, project_id: null }, 'brand', {
+        shared: false,
+      });
+    }
+    return this.insightScope(tx, p, { brand_id: null, project_id: null }, 'workspace', {
+      shared: false,
+    });
+  }
+
+  /**
+   * One widget for a view that is not a saved dashboard (the Home overview, a project's Reports
+   * section). Members only; every figure is the caller's own, exactly as for a saved widget.
+   */
+  async adhocWidget(caller: Caller, ws: unknown, query: Record<string, unknown>) {
+    const q = parseAdhocQuery(query, this.paramsParser, this.ws.pageLimitMax);
+    return this.iTrack('insights.reads', 'adhoc', () =>
+      this.inWorkspace(caller, ws, { readOnly: true }, async (tx, p) => {
+        this.requireInsightsMember(p);
+        const spec: WidgetSpec = {
+          id: 'adhoc',
+          metric: q.metric,
+          title: null,
+          size: 'medium',
+          params: q.params,
+        };
+        const ctx = await this.metricContext(tx, p, await this.adhocScope(tx, p, q), q.filters);
+        return {
+          widget: this.widgetMeta(spec),
+          filters: q.filters,
+          outcome: await this.evaluateWidget(ctx, spec),
+        };
+      }),
+    );
+  }
+
+  async adhocDrill(caller: Caller, ws: unknown, query: Record<string, unknown>) {
+    const q = parseAdhocQuery(query, this.paramsParser, this.ws.pageLimitMax);
+    return this.iTrack('insights.reads', 'adhoc_drill', () =>
+      this.inWorkspace(caller, ws, { readOnly: true }, async (tx, p) => {
+        this.requireInsightsMember(p);
+        const spec: WidgetSpec = {
+          id: 'adhoc',
+          metric: q.metric,
+          title: null,
+          size: 'medium',
+          params: q.params,
+        };
+        const ctx = await this.metricContext(tx, p, await this.adhocScope(tx, p, q), q.filters);
         return this.drillOf(ctx, spec, q);
       }),
     );

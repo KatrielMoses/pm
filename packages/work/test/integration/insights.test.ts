@@ -383,6 +383,65 @@ describe('Dashboards and reports (5D)', () => {
     });
   });
 
+  describe('ad hoc widgets (Home and project pages)', () => {
+    const adhoc = async (as: Caller, q: Record<string, unknown>) =>
+      (await env.svc.adhocWidget(as, ws, { metric: 'tasks.open', ...q })) as {
+        outcome: { state: string; value: number; covers: string };
+      };
+    it('computes the same figures a saved widget would, for the caller, over a brand or a project', async () => {
+      expect((await adhoc(owner, {})).outcome.value).toBe(7);
+      expect((await adhoc(editor, {})).outcome.value).toBe(3);
+      expect((await adhoc(owner, { brand: brands.Harbor })).outcome.value).toBe(5);
+      expect((await adhoc(owner, { project: proj.vault })).outcome.value).toBe(2);
+      const covers = (await adhoc(owner, { project: proj.launch })).outcome.covers;
+      expect(covers).toContain('Launch');
+    });
+
+    it('refuses what the caller cannot read exactly as it refuses what does not exist', async () => {
+      const hidden = await rejects(
+        env.svc.adhocWidget(editor, ws, { metric: 'tasks.open', project: proj.vault }),
+      );
+      const unknown = await rejects(
+        env.svc.adhocWidget(editor, ws, {
+          metric: 'tasks.open',
+          project: 'prj_00000000000000000000000000',
+        }),
+      );
+      expect(hidden.code).toBe('not_found');
+      expect(unknown.code).toBe('not_found');
+      const brand = await rejects(
+        env.svc.adhocWidget(outsider, ws, { metric: 'tasks.open', brand: brands.Harbor }),
+      );
+      expect(brand.code).toBe('not_found');
+    });
+
+    it('is for members, validates its inputs, and pages its records', async () => {
+      expect((await rejects(env.svc.adhocWidget(guest, ws, { metric: 'tasks.open' }))).code).toBe(
+        'forbidden',
+      );
+      expect((await rejects(env.svc.adhocWidget(owner, ws, { metric: 'nope.nothing' }))).code).toBe(
+        'validation_failed',
+      );
+      expect(
+        (
+          await rejects(
+            env.svc.adhocWidget(owner, ws, {
+              metric: 'tasks.open',
+              brand: brands.Harbor,
+              project: proj.launch,
+            }),
+          )
+        ).code,
+      ).toBe('validation_failed');
+      const page = (await env.svc.adhocDrill(owner, ws, { metric: 'tasks.open', limit: '2' })) as {
+        rows: unknown[];
+        page: { has_more: boolean; next_cursor?: string };
+      };
+      expect(page.rows).toHaveLength(2);
+      expect(page.page.has_more).toBe(true);
+    });
+  });
+
   describe('reports and shares', () => {
     let rpt: string;
     beforeAll(async () => {

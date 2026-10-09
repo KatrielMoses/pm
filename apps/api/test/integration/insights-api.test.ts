@@ -217,6 +217,35 @@ describe('dashboards and reports API (5D)', () => {
     expect((await get(owner, `/dashboards/${ids.dash}/widgets/nothere`)).statusCode).toBe(404);
   });
 
+  it('serves ad hoc widgets for Home and project pages, as the caller', async () => {
+    const all = await get(owner, '/insights/widget?metric=tasks.open');
+    expect(all.statusCode, all.body).toBe(200);
+    expect(all.json().data).toMatchObject({
+      type: 'widget_result',
+      outcome: { state: 'ok', value: 3 },
+    });
+    expect(all.headers['cache-control']).toContain('no-store');
+    const one = await get(owner, `/insights/widget?metric=tasks.open&project=${ids.project}`);
+    expect(one.json().data.outcome.value).toBe(2);
+    const theirs = await get(editor, '/insights/widget?metric=tasks.open');
+    expect(theirs.json().data.outcome.value).toBe(0);
+    const hidden = await get(editor, `/insights/widget?metric=tasks.open&project=${ids.hidden}`);
+    const unknown = await get(
+      editor,
+      '/insights/widget?metric=tasks.open&project=prj_00000000000000000000000000',
+    );
+    expect(hidden.statusCode).toBe(404);
+    expect(unknown.statusCode).toBe(404);
+    expect(hidden.json().error.code).toBe(unknown.json().error.code);
+    expect((await get(guest, '/insights/widget?metric=tasks.open')).statusCode).toBe(403);
+    expect((await get(owner, '/insights/widget?metric=nope')).statusCode).toBe(422);
+    const rec = await get(owner, '/insights/widget/records?metric=tasks.open&limit=1');
+    expect(rec.json().data).toMatchObject({
+      type: 'widget_records',
+      page: { limit: 1, has_more: true },
+    });
+  });
+
   it('drills into only the records the caller may read, page by page', async () => {
     const r = await get(owner, `/dashboards/${ids.dash}/widgets/open/records?limit=1`);
     expect(r.statusCode, r.body).toBe(200);

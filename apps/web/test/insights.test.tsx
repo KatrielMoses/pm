@@ -18,6 +18,7 @@ import { LayoutEditor } from '../src/insights/editor.tsx';
 import { FilterBar } from '../src/insights/filters.tsx';
 import { formatValue, freshnessText } from '../src/insights/format.ts';
 import { DashboardPage, ReportPage, ReportsPage } from '../src/pages/insight-pages.tsx';
+import { HomeOverview, ProjectReports } from '../src/insights/overview.tsx';
 import { WidgetCard, type WidgetApi } from '../src/insights/widget.tsx';
 import { projects } from '../src/projects/client.ts';
 import { Router } from '../src/router.tsx';
@@ -698,4 +699,113 @@ describe('routes (5D)', () => {
   });
 });
 
-void act;
+describe('Home and project overviews (5D)', () => {
+  it('asks for each Home figure with the brands in scope and groups by brand across brands', async () => {
+    const widget = vi.spyOn(insights, 'widget').mockImplementation(async (_ws, q) => ({
+      type: 'widget_result',
+      widget: meta({ id: q.metric, metric: q.metric, title: q.metric }),
+      filters: NO_FILTERS,
+      outcome: value({ metric: q.metric, label: q.metric }),
+    }));
+    wrap(<HomeOverview ws={WS} brandIds={['br_1', 'br_2']} single={false} />);
+    expect(await screen.findByRole('heading', { name: 'Across your brands' })).toBeTruthy();
+    await waitFor(() => expect(widget).toHaveBeenCalled());
+    const open = widget.mock.calls.find((c) => c[1].metric === 'tasks.open')!;
+    expect(open[1].params).toEqual({ group_by: 'brand' });
+    expect(open[2]).toEqual({ ...NO_FILTERS, brands: ['br_1', 'br_2'] });
+    expect(screen.getByRole('link', { name: 'Dashboards and reports' }).getAttribute('href')).toBe(
+      '/workspaces/ws_A/reports',
+    );
+  });
+
+  it('groups a single brand by project', async () => {
+    const widget = vi
+      .spyOn(insights, 'widget')
+      .mockResolvedValue({
+        type: 'widget_result',
+        widget: meta(),
+        filters: NO_FILTERS,
+        outcome: value(),
+      });
+    wrap(<HomeOverview ws={WS} brandIds={['br_1']} single />);
+    expect(await screen.findByRole('heading', { name: 'This brand at a glance' })).toBeTruthy();
+    await waitFor(() =>
+      expect(
+        widget.mock.calls.some(
+          (c) =>
+            c[1].metric === 'tasks.open' &&
+            (c[1].params as { group_by: string }).group_by === 'project',
+        ),
+      ).toBe(true),
+    );
+  });
+
+  it('loads widgets below the fold only when they come near the screen', async () => {
+    const callbacks: Array<(e: Array<{ isIntersecting: boolean }>) => void> = [];
+    class FakeObserver {
+      constructor(cb: (e: Array<{ isIntersecting: boolean }>) => void) {
+        callbacks.push(cb);
+      }
+      observe() {}
+      disconnect() {}
+    }
+    vi.stubGlobal('IntersectionObserver', FakeObserver);
+    const widget = vi
+      .spyOn(insights, 'widget')
+      .mockResolvedValue({
+        type: 'widget_result',
+        widget: meta(),
+        filters: NO_FILTERS,
+        outcome: value(),
+      });
+    wrap(<HomeOverview ws={WS} brandIds={[]} single={false} />);
+    await waitFor(() => expect(widget).toHaveBeenCalledTimes(2));
+    expect(callbacks.length).toBe(3);
+    act(() => callbacks.forEach((cb) => cb([{ isIntersecting: true }])));
+    await waitFor(() => expect(widget).toHaveBeenCalledTimes(5));
+    vi.unstubAllGlobals();
+  });
+
+  it("lists a project's dashboards and reports and its own figures", async () => {
+    vi.spyOn(insights, 'widget').mockResolvedValue({
+      type: 'widget_result',
+      widget: meta(),
+      filters: NO_FILTERS,
+      outcome: value(),
+    });
+    vi.spyOn(dashboards, 'list').mockResolvedValue({
+      data: [dash({ id: 'dash_p', title: 'Launch board', kind: 'project' })],
+      page: { limit: 25, has_more: false },
+    });
+    vi.spyOn(reports, 'list').mockResolvedValue({
+      data: [rep({ id: 'rpt_p', title: 'Launch weekly' })],
+      page: { limit: 25, has_more: false },
+    });
+    wrap(<ProjectReports ws={WS} project="prj_1" canCreate />);
+    expect(await screen.findByRole('link', { name: 'Launch board' })).toBeTruthy();
+    expect(screen.getByRole('link', { name: 'Launch weekly' }).getAttribute('href')).toBe(
+      '/workspaces/ws_A/reports/rpt_p',
+    );
+    expect(screen.getByRole('button', { name: 'New project dashboard' })).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'New project report' }));
+    const dlg = await screen.findByRole('dialog', { name: 'New report' });
+    expect((within(dlg).getByLabelText('Covers') as HTMLSelectElement).value).toBe('project');
+  });
+
+  it('hides creation from someone who cannot create in an archived project', async () => {
+    vi.spyOn(insights, 'widget').mockResolvedValue({
+      type: 'widget_result',
+      widget: meta(),
+      filters: NO_FILTERS,
+      outcome: value(),
+    });
+    vi.spyOn(dashboards, 'list').mockResolvedValue({
+      data: [],
+      page: { limit: 25, has_more: false },
+    });
+    vi.spyOn(reports, 'list').mockResolvedValue({ data: [], page: { limit: 25, has_more: false } });
+    wrap(<ProjectReports ws={WS} project="prj_1" canCreate={false} />);
+    expect(await screen.findByText('Nothing saved for this project yet.')).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'New project dashboard' })).toBeNull();
+  });
+});

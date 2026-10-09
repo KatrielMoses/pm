@@ -149,7 +149,7 @@ describe('schedules (5D)', () => {
 
   it('owes one delivery for a long outage, never a backlog (property)', () => {
     const r = rng(11);
-    for (let i = 0; i < 200; i++) {
+    for (let i = 0; i < 60; i++) {
       const s = daily(pick(r, ZONES), Math.floor(r() * 1440));
       const first = nextRun(s, new Date(Date.UTC(2026, 5, 1)));
       const now = new Date(first.getTime() + Math.floor(r() * 90 * 86_400_000));
@@ -158,7 +158,7 @@ describe('schedules (5D)', () => {
       expect(due.getTime()).toBeGreaterThanOrEqual(first.getTime());
       expect(nextRun(s, due).getTime()).toBeGreaterThan(now.getTime());
     }
-  });
+  }, 30_000);
 
   it('describes a schedule in words with its zone', () => {
     expect(

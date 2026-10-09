@@ -74,6 +74,30 @@ export function registerInsights(app: FastifyInstance, work: ReportService): voi
     ),
   );
 
+  // An ad hoc widget for a view that is not a saved dashboard (Home, a project's Reports section).
+  app.get(
+    `${ws}/insights/widget`,
+    wrap(async (request, reply) =>
+      flat(
+        request,
+        reply,
+        'widget_result',
+        await work.adhocWidget(caller(request), p(request).ws, q(request)),
+      ),
+    ),
+  );
+  app.get(
+    `${ws}/insights/widget/records`,
+    wrap(async (request, reply) =>
+      flat(
+        request,
+        reply,
+        'widget_records',
+        await work.adhocDrill(caller(request), p(request).ws, q(request)),
+      ),
+    ),
+  );
+
   // ---- Dashboards --------------------------------------------------------------------------------
   app.get(
     `${ws}/dashboards`,

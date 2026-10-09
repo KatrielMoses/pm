@@ -599,14 +599,57 @@ export const reports = {
       await protectedRequest<{ data: { id: string } }>(
         'DELETE',
         `${w(ws)}/reports/${id}/shares/${share}`,
-        undefined,
+        {},
         stepUp,
       )
     ).body.data;
   },
 };
 
+export interface AdhocQuery {
+  metric: string;
+  params?: Record<string, unknown>;
+  brand?: string;
+  project?: string;
+}
+
 export const insights = {
+  /** A widget for a view that is not a saved dashboard (Home, a project's Reports section). */
+  async widget(ws: string, q: AdhocQuery, filters?: Filters | null, signal?: AbortSignal) {
+    return (
+      await api<{ data: WidgetResult }>(
+        'GET',
+        `${w(ws)}/insights/widget${qs({
+          metric: q.metric,
+          params: q.params && Object.keys(q.params).length ? JSON.stringify(q.params) : undefined,
+          brand: q.brand,
+          project: q.project,
+          ...filtersParam(filters),
+        })}`,
+        signal ? { signal } : {},
+      )
+    ).body.data;
+  },
+  async records(
+    ws: string,
+    q: AdhocQuery,
+    o: { filters?: Filters | null; cursor?: string; limit?: number } = {},
+  ) {
+    return (
+      await api<{ data: WidgetRecords }>(
+        'GET',
+        `${w(ws)}/insights/widget/records${qs({
+          metric: q.metric,
+          params: q.params && Object.keys(q.params).length ? JSON.stringify(q.params) : undefined,
+          brand: q.brand,
+          project: q.project,
+          ...filtersParam(o.filters),
+          cursor: o.cursor,
+          limit: o.limit,
+        })}`,
+      )
+    ).body.data;
+  },
   async catalog(ws: string) {
     return (await api<{ data: Catalog }>('GET', `${w(ws)}/insights/metrics`)).body.data;
   },
