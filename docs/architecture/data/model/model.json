@@ -6979,7 +6979,7 @@
     {
       "name": "dashboard",
       "module": "insights",
-      "purpose": "Configured widgets over permission-filtered data; personal or shared.",
+      "purpose": "Owner, brand, project, release, or personal dashboard: a bounded list of widgets and default filters. Holds no figure: every widget is computed for the viewer.",
       "scope": "workspace_or_brand",
       "addressable": true,
       "public_id_prefix": "dash",
@@ -6997,17 +6997,26 @@
       "personal_data": "incidental",
       "uniqueness": [],
       "sensitive_fields": [],
-      "key_columns": [],
+      "key_columns": [
+        "kind (owner|brand|project|release|personal)",
+        "project_id null",
+        "title",
+        "owner_membership_id",
+        "layout (bounded widget list)",
+        "filters (bounded)"
+      ],
       "requirements": [
         "RPT-001",
-        "RPT-017"
+        "RPT-017",
+        "RPT-018",
+        "RPT-019"
       ],
-      "notes": ""
+      "notes": "Phase 5D (ADR-38): placement decides access; a personal dashboard is its owner's alone (personal.manage_own). Widgets name a metric and its parameters, never a value; every figure is computed for the viewer from what they may read, so nothing stored can outlive a revocation."
     },
     {
       "name": "report_definition",
       "module": "insights",
-      "purpose": "Saved report configuration and optional schedule.",
+      "purpose": "Saved report configuration (widgets and filters) with an optional schedule; the accountable owner's authority is rechecked at each send.",
       "scope": "workspace_or_brand",
       "addressable": true,
       "public_id_prefix": "rpt",
@@ -7026,28 +7035,114 @@
       "uniqueness": [],
       "sensitive_fields": [],
       "key_columns": [
-        "accountable_owner_membership_id",
+        "title",
+        "accountable_owner_membership_id (column owner_membership_id)",
+        "config (bounded widgets and filters)",
+        "schedule_frequency, schedule_weekday, schedule_monthday, schedule_minute, schedule_timezone null",
+        "next_run_at null",
+        "claimed_until, attempts, last_error",
         "suspended_reason (owner_authority|owner_departed|admin) null",
         "suspended_at null"
       ],
       "requirements": [
         "RPT-020",
+        "RPT-021",
+        "RPT-022"
+      ],
+      "notes": "Phase 5D (ADR-38): schedules are local-time occurrences (daily, weekly, or monthly on days 1 to 28); a sweep that was down owes one delivery, never a backlog. Whoever saves a schedule answers for it; if they lose the authority or leave, it is suspended until someone resumes it."
+    },
+    {
+      "name": "report_recipient",
+      "module": "insights",
+      "purpose": "A member who receives a scheduled report; must be able to read it, and may remove themselves at any time.",
+      "scope": "inherited",
+      "addressable": false,
+      "public_id_prefix": null,
+      "extends": null,
+      "containment_parents": [
+        "report_definition"
+      ],
+      "associations": [
+        "report_definition"
+      ],
+      "lifecycle": "mutable",
+      "concurrency": "row-version",
+      "retention_class": "R-LIVE",
+      "confidentiality": "C1",
+      "volume": "low",
+      "export": "never",
+      "search_ai": "no",
+      "may_contain_secrets": "no",
+      "personal_data": "incidental",
+      "uniqueness": [
+        "(report_id, membership_id)"
+      ],
+      "sensitive_fields": [],
+      "key_columns": [
+        "report_id",
+        "membership_id",
+        "added_by_membership_id",
+        "added_at"
+      ],
+      "requirements": [
         "RPT-021"
       ],
-      "notes": ""
+      "notes": "Phase 5D (ADR-38): a recipient who can no longer read the report is skipped at send time and never emailed. A departing member's rows are removed."
+    },
+    {
+      "name": "report_share",
+      "module": "insights",
+      "purpose": "An explicit, revocable grant to open and run one saved report, bound to the report's own scope. Grants no data: figures are always the grantee's own.",
+      "scope": "inherited",
+      "addressable": false,
+      "public_id_prefix": null,
+      "extends": null,
+      "containment_parents": [
+        "report_definition"
+      ],
+      "associations": [
+        "report_definition"
+      ],
+      "lifecycle": "mutable",
+      "concurrency": "row-version",
+      "retention_class": "R-LIVE",
+      "confidentiality": "C1",
+      "volume": "low",
+      "export": "never",
+      "search_ai": "no",
+      "may_contain_secrets": "no",
+      "personal_data": "incidental",
+      "uniqueness": [
+        "(report_id, grantee_membership_id) while active"
+      ],
+      "sensitive_fields": [],
+      "key_columns": [
+        "public_id (rsh_…)",
+        "report_id",
+        "scope_key (the report's)",
+        "grantee_membership_id",
+        "created_by_membership_id",
+        "expires_at null",
+        "revoked_at null",
+        "revoked_by_membership_id null"
+      ],
+      "requirements": [
+        "RPT-020"
+      ],
+      "notes": "Phase 5D (ADR-38): a share can only name the report's own scope (composite key), applies to the grantee's next read after it is created or revoked, and gives a guest or share-only reader only the records they were already given. Not an access grant on any record."
     },
     {
       "name": "report_run",
       "module": "insights",
-      "purpose": "Generated report output for a recipient and moment, authorized as the recipient.",
+      "purpose": "One scheduled delivery of one report to one recipient, authorized as that recipient at send time. Records that it happened, never its content.",
       "scope": "personal",
       "addressable": false,
       "public_id_prefix": null,
-      "extends": "operation",
+      "extends": null,
       "containment_parents": [],
       "associations": [],
-      "lifecycle": "append-only",
-      "concurrency": "append-only",
+      "lifecycle": "mutable",
+      "concurrency": "locked",
       "retention_class": "R-EXEC",
       "confidentiality": "C2",
       "volume": "medium",
@@ -7055,14 +7150,28 @@
       "search_ai": "yes",
       "may_contain_secrets": "no",
       "personal_data": "incidental",
-      "uniqueness": [],
+      "uniqueness": [
+        "(report_id, recipient_membership_id, occurrence_at)"
+      ],
       "sensitive_fields": [],
-      "key_columns": [],
+      "key_columns": [
+        "report_id",
+        "recipient_membership_id",
+        "occurrence_at",
+        "state (pending|delivered|empty|skipped|failed)",
+        "detail (code)",
+        "row_count",
+        "incomplete",
+        "content_hash",
+        "failure_class null",
+        "attempts",
+        "finished_at null"
+      ],
       "requirements": [
         "RPT-021",
         "RPT-022"
       ],
-      "notes": ""
+      "notes": "Phase 5D (ADR-38): the unique occurrence makes delivery idempotent; content is rendered at send time from the recipient's own access and never stored (only a hash). Aged out by REPORT_RUN_RETENTION_DAYS; leaves with the report on purge."
     },
     {
       "name": "connection",
