@@ -170,7 +170,10 @@ test('Phase 3 exit: one founder plans a week across brands, and every planning s
   const move = page.getByRole('dialog', { name: /Move “Summit deck”/ });
   await move.getByRole('button', { name: 'In progress' }).focus();
   await page.keyboard.press('Enter');
-  await expect(page.getByText('Summit deck moved to In progress.')).toBeAttached();
+  // Preview then apply: two server round trips, slow on a loaded runner.
+  await expect(page.getByText('Summit deck moved to In progress.')).toBeAttached({
+    timeout: 15_000,
+  });
   if (mobile) await board.getByLabel('Column').selectOption({ label: 'In progress (1)' });
   await expect(board.getByRole('heading', { name: /In progress \(1\)/ })).toBeVisible();
   // Audit from the top: axe's target-size check counts controls scrolled under the sticky header
