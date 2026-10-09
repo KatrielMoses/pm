@@ -79,6 +79,7 @@ export * from './goals/goal-service.ts';
 export * from './goals/portfolio-service.ts';
 export * from './insights/report-service.ts';
 export * from './insights/jobs.ts';
+export * from './insights/ownership.ts';
 export * from './goals/jobs.ts';
 export { recalcGoal, markGoalDirty } from './goals/recalc.ts';
 export { goalOwnerHook } from './goals/ownership.ts';

@@ -1,6 +1,10 @@
 import { randomBytes } from 'node:crypto';
 import { sql, type WorkspaceTransaction } from '@pm/db';
 import {
+  decideBrand,
+  decidePersonal,
+  decideProject,
+  decideWorkspace,
   decideRecord,
   levelRank,
   recordLevel,
@@ -436,6 +440,49 @@ export class InsightsCore extends PortfolioService {
     if (!o.allowed) throw new TenancyError(o.code);
   }
 
+  /** `report.schedule` is decided at the report's own scope: project, brand, or workspace. */
+  protected requireScheduleAction(
+    p: Principal,
+    g: Pick<LoadedInsight<{ project_id: string | null }>, 'brand' | 'chain' | 'level' | 'row'>,
+  ): void {
+    if (g.level === null) throw new TenancyError('not_found');
+    const o = g.row.project_id
+      ? decideProject(p, 'report.schedule', {
+          brand: g.brand!,
+          lifecycleState: 'active',
+          chain: g.chain,
+        })
+      : g.brand
+        ? decideBrand(p, 'report.schedule', { ...g.brand, lifecycleState: 'active' })
+        : decideWorkspace(p, 'report.schedule');
+    this.decision('report.schedule', o);
+    if (!o.allowed) throw new TenancyError(o.code);
+  }
+
+  protected scheduleAllows(
+    p: Principal,
+    g: Pick<LoadedInsight<{ project_id: string | null }>, 'brand' | 'chain' | 'level' | 'row'>,
+  ): boolean {
+    try {
+      this.requireScheduleAction(p, g);
+      return true;
+    } catch (err) {
+      if (err instanceof TenancyError) return false;
+      throw err;
+    }
+  }
+
+  protected personalAllowed(p: Principal): boolean {
+    return decidePersonal(p, 'personal.manage_own').allowed;
+  }
+
+  /** A person manages their own personal dashboards (`personal.manage_own`). */
+  protected requirePersonalDashboard(p: Principal): void {
+    const o = decidePersonal(p, 'personal.manage_own');
+    this.decision('personal.manage_own', o);
+    if (!o.allowed) throw new TenancyError(o.code);
+  }
+
   protected insightAllows(
     p: Principal,
     action: ActionKey,
@@ -580,6 +627,7 @@ export class InsightsCore extends PortfolioService {
       this.d.logger.warn('insights.widget_failed', {
         component: 'insights',
         error_class: err instanceof Error ? err.name : 'Error',
+        ...(err instanceof TenancyError ? { error_code: err.code } : {}),
       });
       return {
         state: 'error',

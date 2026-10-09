@@ -104,3 +104,21 @@ export function issueSavedViewLifecycleDecision(
   if (!outcome.allowed) throw new TenancyError(outcome.code);
   return issueLifecycleDecision('record.trash', tx.workspaceId, [view.id], p.membershipId);
 }
+
+/**
+ * Personal dashboards (Phase 5D, 0C AZ-38): like a personal saved view, a personal dashboard is
+ * its owner's alone and is managed through `personal.manage_own`, never through a placement.
+ */
+export function issuePersonalRecordLifecycleDecision<A extends RecordLifecycleAction>(
+  tx: WorkspaceTransaction,
+  p: Principal,
+  action: A,
+  record: { id: string; ownerMembershipId: string },
+): PolicyDecision<A> {
+  const outcome =
+    record.ownerMembershipId === p.membershipId
+      ? decidePersonal(p, 'personal.manage_own')
+      : ({ allowed: false, code: 'not_found' } as const);
+  if (!outcome.allowed) throw new TenancyError(outcome.code);
+  return issueLifecycleDecision(action, tx.workspaceId, [record.id], p.membershipId);
+}

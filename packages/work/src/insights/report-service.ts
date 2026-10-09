@@ -12,6 +12,7 @@ import {
   findBrand,
   invalid,
   issue,
+  issuePersonalRecordLifecycleDecision,
   parseIfMatch,
   requireVersion,
   TenancyError,
@@ -227,6 +228,23 @@ export class ReportService extends InsightsCore {
     return { kind: 'workspace' as const };
   }
 
+  protected lifeDecision<
+    A extends 'record.archive' | 'record.restore' | 'record.trash' | 'record.purge',
+  >(
+    tx: WorkspaceTransaction,
+    p: Principal,
+    action: A,
+    facts: Parameters<ReportService['issueLifecycle']>[3],
+    g: LoadedDashboard | LoadedReport,
+  ) {
+    if ('kind' in g.row && g.row.kind === 'personal')
+      return issuePersonalRecordLifecycleDecision(tx, p, action, {
+        id: g.id,
+        ownerMembershipId: g.row.owner_membership_id,
+      });
+    return this.issueLifecycle(tx, p, action, facts);
+  }
+
   protected async dashboardView(tx: WorkspaceTransaction, p: Principal, g: LoadedDashboard) {
     const r = g.row;
     const project = r.project_id ? await this.publicProject(tx, r.project_id) : null;
@@ -247,11 +265,18 @@ export class ReportService extends InsightsCore {
       lifecycle_state: r.lifecycle_state,
       capabilities: {
         update:
-          g.lifecycleState === 'active' && (personal || this.insightAllows(p, 'record.update', g)),
-        archive: this.insightAllows(p, 'record.archive', g, { lifecycleState: 'active' }),
-        restore: this.insightAllows(p, 'record.restore', g, { lifecycleState: 'active' }),
-        trash: this.insightAllows(p, 'record.trash', g, { lifecycleState: 'active' }),
-        export: this.insightAllows(p, 'record.export', g),
+          g.lifecycleState === 'active' &&
+          (personal ? this.personalAllowed(p) : this.insightAllows(p, 'record.update', g)),
+        archive: personal
+          ? this.personalAllowed(p)
+          : this.insightAllows(p, 'record.archive', g, { lifecycleState: 'active' }),
+        restore: personal
+          ? this.personalAllowed(p)
+          : this.insightAllows(p, 'record.restore', g, { lifecycleState: 'active' }),
+        trash: personal
+          ? this.personalAllowed(p)
+          : this.insightAllows(p, 'record.trash', g, { lifecycleState: 'active' }),
+        export: personal ? true : this.insightAllows(p, 'record.export', g),
       },
       created_at: iso(r.created_at),
       updated_at: iso(r.updated_at),
@@ -275,7 +300,7 @@ export class ReportService extends InsightsCore {
     const r = g.row;
     const project = r.project_id ? await this.publicProject(tx, r.project_id) : null;
     const people = await this.goalPeople(tx, p, [r.owner_membership_id]);
-    const canSchedule = this.insightAllows(p, 'report.schedule', g);
+    const canSchedule = this.scheduleAllows(p, g);
     const canShare = this.insightAllows(p, 'record.share', g);
     const sched = this.scheduleOf(r);
     const reached = g.level === null ? 'share' : 'placement';
@@ -559,10 +584,17 @@ export class ReportService extends InsightsCore {
         async (tx, p) => {
           this.requireInsightsMember(p);
           const personal = input.kind === 'personal';
-          const place = await this.insightPlacement(tx, p, {
-            brand: input.kind === 'brand' || input.kind === 'release' ? input.brand : null,
-            project: input.kind === 'project' ? input.project : null,
-          });
+          if (personal) this.requirePersonalDashboard(p);
+          const place = personal
+            ? {
+                brandId: null as string | null,
+                projectId: null as string | null,
+                scopeKey: tx.workspaceId,
+              }
+            : await this.insightPlacement(tx, p, {
+                brand: input.kind === 'brand' || input.kind === 'release' ? input.brand : null,
+                project: input.kind === 'project' ? input.project : null,
+              });
           await this.requireDashboardRoom(
             tx,
             place.scopeKey,
@@ -645,7 +677,8 @@ export class ReportService extends InsightsCore {
           this.requireInsightsMember(p);
           const g = await this.loadDashboard(tx, p, dash, { lock: true });
           this.requireInsightActive(g, 'dashboard');
-          this.requireInsightAction(p, 'record.update', g);
+          if (g.row.kind === 'personal') this.requirePersonalDashboard(p);
+          else this.requireInsightAction(p, 'record.update', g);
           requireVersion(this.expectedInsightVersion(req, input), g.row.version);
           const set: Record<string, unknown> = {};
           const changes: ReturnType<typeof change.plain>[] = [];
@@ -764,7 +797,7 @@ export class ReportService extends InsightsCore {
             if (state.lifecycle_state !== 'active') throw conflict();
             await this.d.lifecycle.archive(
               tx,
-              this.issueLifecycle(tx, p, 'record.archive', facts),
+              this.lifeDecision(tx, p, 'record.archive', facts, g),
               input,
               g.id,
             );
@@ -772,7 +805,7 @@ export class ReportService extends InsightsCore {
             if (state.lifecycle_state !== 'archived') throw conflict();
             await this.d.lifecycle.unarchive(
               tx,
-              this.issueLifecycle(tx, p, 'record.restore', facts),
+              this.lifeDecision(tx, p, 'record.restore', facts, g),
               input,
               g.id,
             );
@@ -781,7 +814,7 @@ export class ReportService extends InsightsCore {
               throw conflict();
             await this.d.lifecycle.trash(
               tx,
-              this.issueLifecycle(tx, p, 'record.trash', facts),
+              this.lifeDecision(tx, p, 'record.trash', facts, g),
               input,
               g.id,
             );
@@ -801,14 +834,14 @@ export class ReportService extends InsightsCore {
             if (verb === 'restore')
               await this.d.lifecycle.restore(
                 tx,
-                this.issueLifecycle(tx, p, 'record.restore', facts),
+                this.lifeDecision(tx, p, 'record.restore', facts, g),
                 input,
                 own.id,
               );
             else
               await this.d.lifecycle.requestPurge(
                 tx,
-                this.issueLifecycle(tx, p, 'record.purge', facts),
+                this.lifeDecision(tx, p, 'record.purge', facts, g),
                 input,
                 own.id,
               );
@@ -1035,7 +1068,7 @@ export class ReportService extends InsightsCore {
       this.inWorkspace(caller, ws, { readOnly: true }, async (tx, p) => {
         this.requireInsightsMember(p);
         const g = await this.loadReport(tx, p, report);
-        this.requireInsightAction(p, 'report.schedule', g);
+        this.requireScheduleAction(p, g);
         const rows = await sql<{
           id: string;
           occurrence_at: Date;
@@ -1301,7 +1334,7 @@ export class ReportService extends InsightsCore {
           this.requireInsightsMember(p);
           const g = await this.loadReport(tx, p, report, { lock: true });
           this.requireInsightActive(g, 'report');
-          this.requireInsightAction(p, 'report.schedule', g);
+          this.requireScheduleAction(p, g);
           requireVersion(this.expectedInsightVersion(req, input), g.row.version);
           if (input.schedule && (await this.recipientCount(tx, g.id)) === 0)
             throw invalid(
@@ -1384,7 +1417,7 @@ export class ReportService extends InsightsCore {
           this.requireInsightsMember(p);
           const g = await this.loadReport(tx, p, report, { lock: true });
           this.requireInsightActive(g, 'report');
-          this.requireInsightAction(p, 'report.schedule', g);
+          this.requireScheduleAction(p, g);
           const s = this.scheduleOf(g.row);
           if (!s || !g.row.suspended_reason)
             throw new TenancyError('conflict', {
@@ -1440,7 +1473,7 @@ export class ReportService extends InsightsCore {
       this.inWorkspace(caller, ws, { readOnly: true }, async (tx, p) => {
         this.requireInsightsMember(p);
         const g = await this.loadReport(tx, p, report);
-        this.requireInsightAction(p, 'report.schedule', g);
+        this.requireScheduleAction(p, g);
         const rows = await sql<{ id: string }>`
           SELECT m.id FROM insights.report_recipient x JOIN tenancy.membership m
             ON m.workspace_id = x.workspace_id AND m.id = x.membership_id
@@ -1480,7 +1513,7 @@ export class ReportService extends InsightsCore {
           this.requireInsightsMember(p);
           const g = await this.loadReport(tx, p, report, { lock: true });
           this.requireInsightActive(g, 'report');
-          this.requireInsightAction(p, 'report.schedule', g);
+          this.requireScheduleAction(p, g);
           requireVersion(this.expectedInsightVersion(req, input), g.row.version);
           if (!input.members.length && g.row.schedule_frequency)
             throw invalid(
@@ -1850,7 +1883,8 @@ export class ReportService extends InsightsCore {
         this.requireInsightsMember(p);
         const x = await load(tx, p);
         if (x.g.level === null) throw new TenancyError('not_found');
-        this.requireInsightAction(p, 'record.export', x.g);
+        if (!('kind' in x.g.row && x.g.row.kind === 'personal'))
+          this.requireInsightAction(p, 'record.export', x.g);
         const rl = await this.c.limiter.consume('report.export' as never, p.membershipId);
         if (!rl.allowed)
           throw new TenancyError('rate_limited', { retryAfterSeconds: rl.retryAfterSeconds });
@@ -2128,13 +2162,13 @@ export class ReportService extends InsightsCore {
       }
       const op = await principalOf(tx, owner);
       const place = await this.placementOf(tx, row.brand_id, row.project_id);
-      const decided = decideRecord(op, 'report.schedule', {
+      const decided = this.scheduleAllows(op, {
         brand: place.brand,
-        lifecycleState: 'active',
-        shareLevel: null,
-        projectChain: place.chain,
+        chain: place.chain,
+        level: 'view',
+        row: { project_id: row.project_id },
       });
-      if (!decided.allowed) {
+      if (!decided) {
         await this.suspend(tx, row, 'owner_authority');
         out.suspended++;
         return null;

@@ -288,9 +288,13 @@ function queryRow(entity: 'task' | 'project', r: Record<string, unknown>): Metri
   return { cells, link: typeof r.id === 'string' ? { type: entity, id: r.id } : null };
 }
 
-const PRESENTATION = {
-  task: { columns: ['title', 'project', 'brand', 'status', 'due_date', 'owner'] },
-  project: { columns: ['name', 'brand', 'status', 'health', 'target_date', 'owner'] },
+const presentation = (entity: 'task' | 'project', p: Principal, counting: boolean) => {
+  if (counting) return { columns: [entity === 'task' ? 'title' : 'name'] };
+  // A guest may not choose people columns (the query engine refuses them).
+  const people = p.kind === 'member' ? ['owner'] : [];
+  return entity === 'task'
+    ? { columns: ['title', 'project', 'brand', 'status', 'due_date', ...people] }
+    : { columns: ['name', 'brand', 'status', 'health', 'target_date', ...people] };
 };
 
 const TASK_GROUPS = [
@@ -387,7 +391,7 @@ function countMetric(s: CountSpec): MetricProvider {
         ctx.p,
         {
           query: b.query,
-          presentation: PRESENTATION[s.entity],
+          presentation: presentation(s.entity, ctx.p, true),
           today: ctx.today,
         },
         { entity: s.entity, limit: 1, groups: group !== 'none' },
@@ -421,7 +425,7 @@ function countMetric(s: CountSpec): MetricProvider {
       const r = await ctx.host.query(
         ctx.tx,
         ctx.p,
-        { query: b.query, presentation: PRESENTATION[s.entity], today: ctx.today },
+        { query: b.query, presentation: presentation(s.entity, ctx.p, false), today: ctx.today },
         { entity: s.entity, limit: page.limit, cursor: page.cursor ?? undefined, groups: false },
       );
       return {
