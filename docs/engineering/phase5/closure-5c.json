@@ -884,11 +884,6 @@
       "item": "History before the ledger",
       "owner": "5C",
       "note": "Existing tasks receive one assumed span; cycle time and time in status exclude and name them until new history accumulates."
-    },
-    {
-      "item": "Migration 0041 backfill on a database that already holds records",
-      "owner": "architect",
-      "note": "Records created before 5A are not queued for search until next edited (the migration role reads no rows under forced row-level security); 0043 does not have this gap and 0041 is unchanged (ADR-0030, engineering finding)."
     }
   ]
 }

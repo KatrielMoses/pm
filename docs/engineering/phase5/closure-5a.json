@@ -350,9 +350,13 @@
         {
           "file": "packages/work/test/integration/search.test.ts",
           "contains": "finds tasks, projects, documents, and comments with excerpts, marks, and facets, after indexing"
+        },
+        {
+          "file": "packages/work/test/integration/search-backfill.test.ts",
+          "contains": "says catching up until the backlog is indexed, then finds every record without any edit"
         }
       ],
-      "note": "Changes queue a key in their own transaction and the worker indexes within seconds, in bounded, retryable, concurrent-safe steps; a change that lands mid-index converges."
+      "note": "Changes queue a key in their own transaction and the worker indexes within seconds, in bounded, retryable, concurrent-safe steps; a change that lands mid-index converges. Records that predate migration 0041 are queued by the migration itself (review 01) and found without being edited."
     },
     {
       "id": "SRCH-012",

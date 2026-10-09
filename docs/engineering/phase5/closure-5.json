@@ -50,6 +50,10 @@
     {
       "file": "docs/engineering/adr/0029-goals-portfolios.md",
       "contains": "renumbers 5B deterministically"
+    },
+    {
+      "file": "packages/work/test/integration/search-backfill.test.ts",
+      "contains": "queues every supported record that existed before the migration, exactly once, and no purged or deleted one"
     }
   ]
 }
