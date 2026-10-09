@@ -201,7 +201,7 @@ describe('Dashboards and reports (5D)', () => {
         env.svc.createDashboard(
           owner,
           ws,
-          { title: 'X', kind: 'owner', layout: { widgets: [widget('a', 'work.cycle_time')] } },
+          { title: 'X', kind: 'owner', layout: { widgets: [widget('a', 'ai.usage')] } },
           mutation(),
         ),
       );
@@ -216,7 +216,7 @@ describe('Dashboards and reports (5D)', () => {
       );
       expect(e2.issues?.[0]).toMatchObject({ code: 'unknown_metric' });
       const cat = await env.svc.insightMetrics(owner, ws);
-      expect(cat.not_available.map((m) => m.key)).toContain('work.cycle_time');
+      expect(cat.not_available.map((m) => m.key)).toContain('ai.usage');
     });
 
     it('requires placement authority, and keeps personal dashboards personal', async () => {

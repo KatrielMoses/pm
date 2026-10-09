@@ -301,6 +301,47 @@ describe('tamper evidence', () => {
   });
 });
 
+describe('applied-migration boundary: the 0041 backfill correction (Phase 5C review 01)', () => {
+  let db: TestDatabase;
+  beforeAll(async () => {
+    db = await createEmptyTestDatabase();
+  });
+  afterAll(async () => {
+    await db.drop();
+  });
+
+  // The repository has no accepted deployment, so 0041 was corrected in place (an applied
+  // migration is otherwise immutable). A database that already applied the earlier 0041 is
+  // refused, not silently continued: it must be rebuilt (or, where it holds no data worth keeping,
+  // rolled down with the migration files it was built from and migrated again), after which the
+  // corrected 0041 queues every existing record. This test is that boundary.
+  it('refuses to continue a database that applied the uncorrected 0041, and rebuilds from its own files', async () => {
+    const old = mkdtempSync(join(tmpdir(), 'pm-mig-old-'));
+    cpSync(MIGRATIONS_DIR, old, { recursive: true });
+    writeFileSync(
+      join(old, '0041_permission_aware_search.up.sql'),
+      readFileSync(
+        new URL(
+          '../fixtures/0041_permission_aware_search.pre-backfill-fix.up.sql',
+          import.meta.url,
+        ),
+        'utf8',
+      ),
+    );
+    await migrator(db, old).up({ to: 41 });
+    const report = await migrator(db).verify();
+    expect(report.problems).toContain(
+      'migration 41_permission_aware_search was modified after it was applied',
+    );
+    await expect(migrator(db).up()).rejects.toThrow(/verification failed/);
+    // Rebuild: roll back with the files the database was built from, then migrate with the corrected ones.
+    await migrator(db, old).down(0);
+    const rebuilt = await migrator(db).up();
+    expect(rebuilt.applied.length).toBe(loadMigrations().length);
+    expect((await migrator(db).verify()).problems).toEqual([]);
+  });
+});
+
 describe('expand/contract gating', () => {
   let db: TestDatabase;
   beforeAll(async () => {

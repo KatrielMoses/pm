@@ -4525,6 +4525,35 @@ nav.tabs a[aria-current='page'] {
 }
 @media (max-width: 720px) {
   .metric-table thead {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+  }
+  .metric-table tr {
+    display: block;
+    border: 1px solid CanvasText;
+    border-radius: 6px;
+    margin-bottom: 8px;
+    padding: 6px 8px;
+  }
+  .metric-table td {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    border: 0;
+    padding: 2px 0;
+  }
+  .metric-table td::before {
+    content: attr(data-label);
+    font-weight: 600;
+  }
+  .metric-headline {
+    font-size: 1.5rem;
+  }
+}
+
 /* ---- Phase 5D dashboards and reports ---------------------------------------------------------
    Widgets adapt to the width of their own container, not the viewport (RS-56): one column on a
    narrow screen in the saved order, two on a medium one, a grid on a wide one. Every figure has a
@@ -4706,26 +4735,6 @@ nav.tabs a[aria-current='page'] {
     overflow: hidden;
     clip: rect(0 0 0 0);
   }
-  .metric-table tr {
-    display: block;
-    border: 1px solid CanvasText;
-    border-radius: 6px;
-    margin-bottom: 8px;
-    padding: 6px 8px;
-  }
-  .metric-table td {
-    display: flex;
-    justify-content: space-between;
-    gap: 12px;
-    border: 0;
-    padding: 2px 0;
-  }
-  .metric-table td::before {
-    content: attr(data-label);
-    font-weight: 600;
-  }
-  .metric-headline {
-    font-size: 1.5rem;
   .ins-table tr {
     display: block;
     padding: var(--space-2) 0;

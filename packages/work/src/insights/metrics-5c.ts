@@ -317,7 +317,8 @@ function provider(spec: Spec): MetricProvider {
       if (r.freshness.state !== 'current' && !incomplete.includes('source_stale'))
         incomplete.push('source_stale');
       return {
-        value: r.state === 'empty' ? null : spec.headline(v, role),
+        // Nothing to count is a true zero; nothing to measure (a duration with no completions) has no value.
+        value: r.state === 'empty' && spec.unit !== 'count' ? null : spec.headline(v, role),
         breakdown: r.state === 'empty' ? [] : spec.breakdown(v),
         columns: spec.columns,
         rows: r.state === 'empty' ? [] : spec.rows(v),
