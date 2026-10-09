@@ -1502,7 +1502,16 @@ export class CapacityService extends LayoutService {
    * a brand where the viewer has capacity.view (or every member, with workspace capacity.view).
    */
   async teamCapacity(caller: Caller, ws: unknown, query: Record<string, unknown>) {
-    return this.capacityRead('team', caller, ws, async (tx, p) => {
+    return this.capacityRead('team', caller, ws, (tx, p) => this.teamCapacityIn(tx, p, query));
+  }
+
+  /** The team capacity read inside an open transaction (also used by 5D reports). */
+  protected async teamCapacityIn(
+    tx: WorkspaceTransaction,
+    p: Principal,
+    query: Record<string, unknown>,
+  ) {
+    {
       const cap = await this.capacityBrands(tx, p);
       if (!cap.workspace && !cap.ids.length) throw new TenancyError('forbidden');
       const tz = await this.personZone(tx, p.membershipId);
@@ -1538,7 +1547,7 @@ export class CapacityService extends LayoutService {
         (a, b) => b.totals.over - a.totals.over || a.member.name.localeCompare(b.member.name),
       );
       return { from, to, people: out, truncated };
-    });
+    }
   }
 
   /**

@@ -828,6 +828,38 @@ export const TELEMETRY_SIGNALS = [
       "kind",
       "outcome"
     ]
+  },
+  {
+    "name": "insights.reads",
+    "type": "counter",
+    "labels": [
+      "view",
+      "outcome"
+    ]
+  },
+  {
+    "name": "insights.changes",
+    "type": "counter",
+    "labels": [
+      "kind",
+      "outcome"
+    ]
+  },
+  {
+    "name": "insights.jobs",
+    "type": "counter",
+    "labels": [
+      "kind",
+      "outcome"
+    ]
+  },
+  {
+    "name": "insights.widgets",
+    "type": "counter",
+    "labels": [
+      "metric",
+      "outcome"
+    ]
   }
 ] as const;
 export type TelemetrySignalName = (typeof TELEMETRY_SIGNALS)[number]['name'];
@@ -3429,6 +3461,89 @@ export const INTERNAL_EVENTS = [
     "aggregateEntity": "goals.portfolio",
     "fields": [
       "count"
+    ],
+    "maxClass": "C1"
+  },
+  {
+    "type": "insights.dashboard.created",
+    "schemaVersion": 1,
+    "aggregateEntity": "insights.dashboard",
+    "fields": [
+      "kind",
+      "scope"
+    ],
+    "maxClass": "C1"
+  },
+  {
+    "type": "insights.dashboard.updated",
+    "schemaVersion": 1,
+    "aggregateEntity": "insights.dashboard",
+    "fields": [
+      "change"
+    ],
+    "maxClass": "C1"
+  },
+  {
+    "type": "insights.report.created",
+    "schemaVersion": 1,
+    "aggregateEntity": "insights.report_definition",
+    "fields": [
+      "scope"
+    ],
+    "maxClass": "C1"
+  },
+  {
+    "type": "insights.report.updated",
+    "schemaVersion": 1,
+    "aggregateEntity": "insights.report_definition",
+    "fields": [
+      "change"
+    ],
+    "maxClass": "C1"
+  },
+  {
+    "type": "insights.report.shared",
+    "schemaVersion": 1,
+    "aggregateEntity": "insights.report_definition",
+    "fields": [
+      "scope"
+    ],
+    "maxClass": "C1"
+  },
+  {
+    "type": "insights.report.share_revoked",
+    "schemaVersion": 1,
+    "aggregateEntity": "insights.report_definition",
+    "fields": [
+      "scope"
+    ],
+    "maxClass": "C1"
+  },
+  {
+    "type": "insights.report.schedule_changed",
+    "schemaVersion": 1,
+    "aggregateEntity": "insights.report_definition",
+    "fields": [
+      "frequency",
+      "recipients"
+    ],
+    "maxClass": "C1"
+  },
+  {
+    "type": "insights.report.suspended",
+    "schemaVersion": 1,
+    "aggregateEntity": "insights.report_definition",
+    "fields": [
+      "reason"
+    ],
+    "maxClass": "C1"
+  },
+  {
+    "type": "insights.report.resumed",
+    "schemaVersion": 1,
+    "aggregateEntity": "insights.report_definition",
+    "fields": [
+      "reason"
     ],
     "maxClass": "C1"
   }
