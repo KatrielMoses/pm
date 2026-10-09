@@ -657,7 +657,10 @@ describe('Documents and knowledge (4C)', () => {
           {
             id: 'blk_a',
             type: 'paragraph',
-            runs: [run(secret.id, 'task'), run(secret.id.replace(/.$/, '0'), 'task')],
+            runs: [
+              run(secret.id, 'task'),
+              run(secret.id.replace(/.$/, secret.id.endsWith('0') ? '1' : '0'), 'task'),
+            ],
           },
         ]),
       ).rejects.toMatchObject({ issues: [expect.objectContaining({ code: 'not_linkable' })] });
