@@ -106,14 +106,16 @@ async function uploadNotes(page: Page) {
     (u) => u.pathname.endsWith('/files') && u.searchParams.has('host'),
   );
   const input = files.getByLabel('Upload a file');
-  // Focus can be taken back by a late re-render of the page; keep it until it holds, then press.
+  // Focus can be taken back by a late re-render of the page, and a key press that lands in that
+  // gap opens no chooser. Each attempt re-takes focus and waits briefly for the chooser; the whole
+  // is bounded, and the keyboard path (Space on the focused input) is what is exercised.
   await expect(async () => {
     await input.focus();
     await expect(input).toBeFocused({ timeout: 500 });
-  }).toPass();
-  const chooser = page.waitForEvent('filechooser');
-  await page.keyboard.press('Space');
-  await (await chooser).setFiles(text('notes.txt', 'line one\nline two\n'));
+    const chooser = page.waitForEvent('filechooser', { timeout: 4_000 });
+    await page.keyboard.press('Space');
+    await (await chooser).setFiles(text('notes.txt', 'line one\nline two\n'));
+  }).toPass({ timeout: 30_000, intervals: [250, 1_000] });
   const progress = files.getByRole('list', { name: 'Uploads in progress' });
   await expect(progress).toContainText(/notes\.txt\s*Uploading \d+%/);
   await releasePut();
