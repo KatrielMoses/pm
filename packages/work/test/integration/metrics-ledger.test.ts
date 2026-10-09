@@ -40,6 +40,8 @@ describe('Metrics status ledger and reconciliation (5C)', () => {
   const tsk: Record<string, string> = {};
   const sql = async (text: string, params: unknown[] = []) =>
     (await db.admin(text, params)).rows as Array<Record<string, any>>;
+  const getMetric = (...a: Parameters<WorkEnv['svc']['getMetric']>) =>
+    env.svc.getMetric(...a) as Promise<any>; // eslint-disable-line @typescript-eslint/no-explicit-any
   const mem = async (c: Caller) => (await membershipOf(db, wsId, c.auth.account.id))!.public_id;
   const idOf = async (key: string) =>
     (await sql(`SELECT id FROM core.record WHERE public_id = $1`, [tsk[key]]))[0]!.id as string;
@@ -54,7 +56,10 @@ describe('Metrics status ledger and reconciliation (5C)', () => {
   const step = (settings: Partial<WorkSettings> = {}, now = new Date()) =>
     reconcileWorkspace(jobDeps(settings), wsId, now);
   const due = () =>
-    sql(`UPDATE metrics.reconcile_state SET next_run_at = now() - interval '1 minute', lease_until = NULL WHERE workspace_id = $1`, [wsId]);
+    sql(
+      `UPDATE metrics.reconcile_state SET next_run_at = now() - interval '1 minute', lease_until = NULL WHERE workspace_id = $1`,
+      [wsId],
+    );
   const state = async () =>
     (await sql(`SELECT * FROM metrics.reconcile_state WHERE workspace_id = $1`, [wsId]))[0]!;
   const mk = async (key: string, body: Record<string, unknown> = {}) =>
@@ -75,13 +80,17 @@ describe('Metrics status ledger and reconciliation (5C)', () => {
     const v = (await env.svc.getTask(as, ws, tsk[key]!)).version;
     await env.svc.completeTask(as, ws, tsk[key]!, {}, mutation({ ifMatch: `"${v}"` }));
   };
-  const history = async (key: string) =>
+  const history = async (
+    key: string,
+  ): Promise<
+    Array<{ seq: number; cat: string; basis: string; entered_at: string; left_at: string | null }>
+  > =>
     (
       await sql(
         `SELECT seq, status_category AS cat, basis, entered_at, left_at FROM metrics.task_status_span WHERE task_id = $1 ORDER BY seq`,
         [await idOf(key)],
       )
-    ).map((r) => ({ ...r, seq: Number(r.seq) }));
+    ).map((r) => ({ ...r, seq: Number(r.seq) })) as never;
   /** Every task has exactly one open span, in the task's own status, and spans never overlap or leave gaps. */
   const invariant = async () => {
     const bad = await sql(`
@@ -118,7 +127,9 @@ describe('Metrics status ledger and reconciliation (5C)', () => {
 
   it('records a task’s status history in its own transaction as it is created, moved, finished, and reopened', async () => {
     await mk('l1');
-    expect((await history('l1')).map((h) => [h.seq, h.cat, h.basis, h.left_at === null])).toEqual([[1, 'planned', 'recorded', true]]);
+    expect((await history('l1')).map((h) => [h.seq, h.cat, h.basis, h.left_at === null])).toEqual([
+      [1, 'planned', 'recorded', true],
+    ]);
     await setStatus('l1', 'in_progress');
     await done('l1');
     await env.svc.reopenTask(owner, ws, tsk.l1!, mutation());
@@ -129,14 +140,34 @@ describe('Metrics status ledger and reconciliation (5C)', () => {
       [3, 'done', 'recorded'],
       [4, 'active', 'recorded'],
     ]);
-    expect(h.slice(0, -1).every((x, i) => new Date(x.left_at).getTime() === new Date(h[i + 1]!.entered_at).getTime())).toBe(true);
+    expect(
+      h
+        .slice(0, -1)
+        .every(
+          (x, i) => new Date(x.left_at!).getTime() === new Date(h[i + 1]!.entered_at).getTime(),
+        ),
+    ).toBe(true);
     expect(h.at(-1)!.left_at).toBeNull();
     await invariant();
     // A change that is not a status change writes nothing; an edit that fails writes nothing.
     const cur = await env.svc.getTask(owner, ws, tsk.l1!);
-    await env.svc.updateTask(owner, ws, tsk.l1!, { version: cur.version, changes: { title: { base: cur.title, value: 'renamed' } } }, mutation({ ifMatch: `"${cur.version}"` }));
+    await env.svc.updateTask(
+      owner,
+      ws,
+      tsk.l1!,
+      { version: cur.version, changes: { title: { base: cur.title, value: 'renamed' } } },
+      mutation({ ifMatch: `"${cur.version}"` }),
+    );
     expect((await history('l1')).length).toBe(4);
-    await expect(env.svc.updateTask(owner, ws, tsk.l1!, { version: cur.version, changes: { status: { base: 'wrong', value: 'done' } } }, mutation({ ifMatch: `"${cur.version}"` }))).rejects.toBeDefined();
+    await expect(
+      env.svc.updateTask(
+        owner,
+        ws,
+        tsk.l1!,
+        { version: cur.version, changes: { status: { base: 'wrong', value: 'done' } } },
+        mutation({ ifMatch: `"${cur.version}"` }),
+      ),
+    ).rejects.toBeDefined();
     expect((await history('l1')).length).toBe(4);
   });
 
@@ -145,10 +176,12 @@ describe('Metrics status ledger and reconciliation (5C)', () => {
     await setStatus('l2', 'in_progress');
     await new Promise((r) => setTimeout(r, 1100));
     await done('l2');
-    const r = await env.svc.getMetric(owner, ws, 'work.cycle_time', { project });
+    const r = await getMetric(owner, ws, 'work.cycle_time', { project });
     expect(r.value.measured).toBeGreaterThanOrEqual(1);
     expect(r.value.max_seconds).toBeGreaterThanOrEqual(1);
-    const ids = (await env.svc.getMetricRecords(owner, ws, 'work.cycle_time', { project, member: 'included' })).items.map((i: { title: string }) => i.title);
+    const ids = (
+      await env.svc.getMetricRecords(owner, ws, 'work.cycle_time', { project, member: 'included' })
+    ).items.map((i: { title: string }) => i.title);
     expect(ids).toContain('l2');
   });
 
@@ -156,7 +189,7 @@ describe('Metrics status ledger and reconciliation (5C)', () => {
     await mk('l3');
     await setStatus('l3', 'in_progress');
     expect((await history('l3')).length).toBe(2);
-    const open = async () => (await env.svc.getMetric(owner, ws, 'work.age', { project })).value.open;
+    const open = async () => (await getMetric(owner, ws, 'work.age', { project })).value.open;
     const before = await open();
     await env.svc.taskLifecycle(owner, ws, tsk.l3!, 'trash', {}, mutation());
     expect(await open()).toBe(before - 1);
@@ -175,14 +208,26 @@ describe('Metrics status ledger and reconciliation (5C)', () => {
           archive_batch_id = NULL, archived_at = NULL, archived_by_type = NULL, archived_by_id = NULL, version = version + 1
         WHERE id = ${id}`.execute(tx.db);
     });
-    expect((await sql(`SELECT count(*)::int AS n FROM metrics.task_status_span WHERE task_id = $1`, [id]))[0]!.n).toBe(0);
+    expect(
+      (
+        await sql(`SELECT count(*)::int AS n FROM metrics.task_status_span WHERE task_id = $1`, [
+          id,
+        ])
+      )[0]!.n,
+    ).toBe(0);
     // Deleting the source row (the content hook of a purge) removes the history the same way.
     await mk('l4');
     const id4 = await idOf('l4');
     await env.h.worker.withWorkspace(wsId, { module: 'test' }, async (tx) => {
       await ksql`DELETE FROM work.task WHERE id = ${id4}`.execute(tx.db);
     });
-    expect((await sql(`SELECT count(*)::int AS n FROM metrics.task_status_span WHERE task_id = $1`, [id4]))[0]!.n).toBe(0);
+    expect(
+      (
+        await sql(`SELECT count(*)::int AS n FROM metrics.task_status_span WHERE task_id = $1`, [
+          id4,
+        ])
+      )[0]!.n,
+    ).toBe(0);
   });
 
   it('repairs a task whose history disagrees with its status, once, without backdating, and repeats change nothing', async () => {
@@ -190,12 +235,19 @@ describe('Metrics status ledger and reconciliation (5C)', () => {
     await mk('d2');
     await mk('d3');
     await done('d3');
-    const doneStatus = (await sql(`SELECT status_id, status_category FROM work.task WHERE id = $1`, [await idOf('d3')]))[0]!;
+    const doneStatus = (
+      await sql(`SELECT status_id, status_category FROM work.task WHERE id = $1`, [
+        await idOf('d3'),
+      ])
+    )[0]!;
     await due();
     // A write path that bypassed the trigger: the task changed, the history did not.
     await sql(`ALTER TABLE work.task DISABLE TRIGGER metrics_status`);
     try {
-      await sql(`UPDATE work.task SET status_id = $2, status_category = $3, completed_at = now() WHERE id = $1`, [await idOf('d1'), doneStatus.status_id, doneStatus.status_category]);
+      await sql(
+        `UPDATE work.task SET status_id = $2, status_category = $3, completed_at = now() WHERE id = $1`,
+        [await idOf('d1'), doneStatus.status_id, doneStatus.status_category],
+      );
       await sql(`DELETE FROM metrics.task_status_span WHERE task_id = $1`, [await idOf('d2')]);
     } finally {
       await sql(`ALTER TABLE work.task ENABLE TRIGGER metrics_status`);
@@ -205,10 +257,15 @@ describe('Metrics status ledger and reconciliation (5C)', () => {
     const r = await step({ metricsReconcileBatchMax: 500 }, started);
     expect(warnings).toEqual([]);
     expect(r).toMatchObject({ claimed: true, repaired: 2, passComplete: true });
-    expect((await history('d1')).map((h) => [h.cat, h.basis])).toEqual([['planned', 'recorded'], ['done', 'repaired']]);
+    expect((await history('d1')).map((h) => [h.cat, h.basis])).toEqual([
+      ['planned', 'recorded'],
+      ['done', 'repaired'],
+    ]);
     expect((await history('d2')).map((h) => [h.cat, h.basis])).toEqual([['planned', 'repaired']]);
     // The repair starts at the moment it was found, never earlier.
-    expect(new Date((await history('d1'))[1]!.entered_at).getTime()).toBeGreaterThanOrEqual(started.getTime() - 1000);
+    expect(new Date((await history('d1'))[1]!.entered_at).getTime()).toBeGreaterThanOrEqual(
+      started.getTime() - 1000,
+    );
     await invariant();
     const st = await state();
     expect(Number(st.repaired_total)).toBe(2);
@@ -221,18 +278,20 @@ describe('Metrics status ledger and reconciliation (5C)', () => {
     expect(await step()).toMatchObject({ claimed: true, repaired: 0, passComplete: true });
     expect((await history('d1')).length).toBe(2);
     // The repaired task is labelled in the figures that depend on history.
-    const f = await env.svc.getMetric(owner, ws, 'data.freshness', {});
+    const f = await getMetric(owner, ws, 'data.freshness', {});
     const h = f.value.sources.find((s: { source: string }) => s.source === 'status_history');
     expect(h.detail).toMatchObject({ reconciliation: 'current' });
     expect(h.pending).toBeGreaterThanOrEqual(2);
-    const cvc = await env.svc.getMetric(owner, ws, 'work.created_vs_completed', { project });
+    const cvc = await getMetric(owner, ws, 'work.created_vs_completed', { project });
     expect(cvc.freshness.ledger).toMatchObject({ reconciliation: 'current' });
     expect(cvc.freshness.ledger.tasks_with_repaired_history).toBeGreaterThanOrEqual(2);
   });
 
   it('takes a large workspace in bounded steps that resume where they stopped', async () => {
     for (const k of ['b1', 'b2', 'b3', 'b4', 'b5']) await mk(k);
-    await sql(`DELETE FROM metrics.task_status_span WHERE task_id IN (SELECT id FROM work.task WHERE title IN ('b1','b2','b3','b4','b5'))`);
+    await sql(
+      `DELETE FROM metrics.task_status_span WHERE task_id IN (SELECT id FROM work.task WHERE title IN ('b1','b2','b3','b4','b5'))`,
+    );
     await due();
     const total = Number((await sql(`SELECT count(*) AS n FROM work.task`))[0]!.n);
     const small = { metricsReconcileBatchMax: 50 };
@@ -254,7 +313,9 @@ describe('Metrics status ledger and reconciliation (5C)', () => {
     expect(steps).toBeGreaterThanOrEqual(1);
     await invariant();
     // The same, in steps of two: the position is saved between steps, and a pass finishes once.
-    await sql(`DELETE FROM metrics.task_status_span WHERE task_id IN (SELECT id FROM work.task WHERE title IN ('b1','b2','b3'))`);
+    await sql(
+      `DELETE FROM metrics.task_status_span WHERE task_id IN (SELECT id FROM work.task WHERE title IN ('b1','b2','b3'))`,
+    );
     await due();
     const seen: number[] = [];
     let last = await step({ metricsReconcileBatchMax: 2 });
@@ -278,10 +339,16 @@ describe('Metrics status ledger and reconciliation (5C)', () => {
     const [a, b] = await Promise.all([step(), step()]);
     expect([a.claimed, b.claimed].filter(Boolean).length).toBe(1);
     // A held lease keeps others out; a lapsed one (a crashed worker) is taken over.
-    await sql(`UPDATE metrics.reconcile_state SET next_run_at = now() - interval '1 minute', lease_until = now() + interval '10 minutes' WHERE workspace_id = $1`, [wsId]);
+    await sql(
+      `UPDATE metrics.reconcile_state SET next_run_at = now() - interval '1 minute', lease_until = now() + interval '10 minutes' WHERE workspace_id = $1`,
+      [wsId],
+    );
     expect(await step()).toMatchObject({ claimed: false });
     expect(await env.h.discovery.discoverMetricsWork(new Date(), 10)).toEqual([]);
-    await sql(`UPDATE metrics.reconcile_state SET lease_until = now() - interval '1 second' WHERE workspace_id = $1`, [wsId]);
+    await sql(
+      `UPDATE metrics.reconcile_state SET lease_until = now() - interval '1 second' WHERE workspace_id = $1`,
+      [wsId],
+    );
     expect(await env.h.discovery.discoverMetricsWork(new Date(), 10)).toEqual([wsId]);
     expect(await step()).toMatchObject({ claimed: true, passComplete: true });
     // The worker handler discovers and processes the same way.
@@ -312,14 +379,22 @@ describe('Metrics status ledger and reconciliation (5C)', () => {
     } finally {
       await sql(`ALTER TABLE metrics.task_status_span_gone RENAME TO task_status_span`);
     }
-    const f = await env.svc.getMetric(owner, ws, 'data.freshness', {});
+    const f = await getMetric(owner, ws, 'data.freshness', {});
     const h = f.value.sources.find((s: { source: string }) => s.source === 'status_history');
-    expect(h).toMatchObject({ state: 'degraded', failed: 1, detail: { reconciliation: 'failing' } });
+    expect(h).toMatchObject({
+      state: 'degraded',
+      failed: 1,
+      detail: { reconciliation: 'failing' },
+    });
     expect(f.value.overall).toBe('degraded');
     expect(f.state).toBe('partial');
     // Every ledger figure carries the same warning, and a person who cannot configure cannot clear it.
-    const cvc = await env.svc.getMetric(editor, ws, 'work.cycle_time', { project });
-    expect(cvc.freshness).toMatchObject({ state: 'degraded', basis: 'ledger', ledger: { reconciliation: 'failing' } });
+    const cvc = await getMetric(editor, ws, 'work.cycle_time', { project });
+    expect(cvc.freshness).toMatchObject({
+      state: 'degraded',
+      basis: 'ledger',
+      ledger: { reconciliation: 'failing' },
+    });
     await expect(env.svc.requestReconcile(editor, ws)).rejects.toEqual(reason('forbidden'));
     expect(await env.svc.requestReconcile(owner, ws)).toEqual({ requested: true });
     expect(await env.h.discovery.discoverMetricsWork(new Date(), 10)).toEqual([wsId]);
@@ -327,12 +402,19 @@ describe('Metrics status ledger and reconciliation (5C)', () => {
     const ok = await state();
     expect(Number(ok.attempts)).toBe(0);
     expect(ok.failure_code).toBeNull();
-    const after = await env.svc.getMetric(owner, ws, 'data.freshness', {});
-    expect(after.value.sources.find((s: { source: string }) => s.source === 'status_history')).toMatchObject({ state: 'current' });
+    const after = await getMetric(owner, ws, 'data.freshness', {});
+    expect(
+      after.value.sources.find((s: { source: string }) => s.source === 'status_history'),
+    ).toMatchObject({ state: 'current' });
     // A pass that has not completed for a long time is reported as overdue, not as current.
-    await sql(`UPDATE metrics.reconcile_state SET last_success_at = now() - interval '3 days' WHERE workspace_id = $1`, [wsId]);
-    const late = await env.svc.getMetric(owner, ws, 'data.freshness', {});
-    expect(late.value.sources.find((s: { source: string }) => s.source === 'status_history')).toMatchObject({ state: 'catching_up', detail: { reconciliation: 'overdue' } });
+    await sql(
+      `UPDATE metrics.reconcile_state SET last_success_at = now() - interval '3 days' WHERE workspace_id = $1`,
+      [wsId],
+    );
+    const late = await getMetric(owner, ws, 'data.freshness', {});
+    expect(
+      late.value.sources.find((s: { source: string }) => s.source === 'status_history'),
+    ).toMatchObject({ state: 'catching_up', detail: { reconciliation: 'overdue' } });
   });
 
   it('converges when status changes, reconciliation, and reads overlap', async () => {
@@ -345,13 +427,13 @@ describe('Metrics status ledger and reconciliation (5C)', () => {
         await done(k);
       }),
       step(),
-      env.svc.getMetric(owner, ws, 'work.created_vs_completed', { project }),
+      getMetric(owner, ws, 'work.created_vs_completed', { project }),
       step(),
-      env.svc.getMetric(editor, ws, 'work.cycle_time', { project }),
+      getMetric(editor, ws, 'work.cycle_time', { project }),
     ]);
     await invariant();
     for (const k of keys) expect((await history(k)).map((h) => h.cat).slice(-1)[0]).toBe('done');
-    const r = await env.svc.getMetric(owner, ws, 'work.cycle_time', { project });
+    const r = await getMetric(owner, ws, 'work.cycle_time', { project });
     expect(r.value.measured).toBeGreaterThanOrEqual(keys.length);
   });
 });
@@ -370,6 +452,8 @@ describe('Metrics ledger backfill (5C migration 0043)', () => {
   let wsId: string;
   let project: string;
   const tsk: Record<string, string> = {};
+  const getMetric = (...a: Parameters<WorkEnv['svc']['getMetric']>) =>
+    env.svc.getMetric(...a) as Promise<any>; // eslint-disable-line @typescript-eslint/no-explicit-any
   const sql = async (text: string, params: unknown[] = []) =>
     (await db.admin(text, params)).rows as Array<Record<string, any>>;
 
@@ -379,11 +463,19 @@ describe('Metrics ledger backfill (5C migration 0043)', () => {
     let brands: Record<string, string>;
     ({ owner, ws, brands } = await workspaceWith(env, db, ['Harbor']));
     wsId = await workspaceIdOf(db, ws);
-    project = (await env.svc.createProject(owner, ws, { brand: brands.Harbor, name: 'Old' }, mutation())).data.id;
+    project = (
+      await env.svc.createProject(owner, ws, { brand: brands.Harbor, name: 'Old' }, mutation())
+    ).data.id;
     for (const k of ['open', 'active', 'finished'])
       tsk[k] = (await env.svc.createTask(owner, ws, { project, title: k }, mutation())).data.id;
     const cur = await env.svc.getTask(owner, ws, tsk.active!);
-    await env.svc.updateTask(owner, ws, tsk.active!, { version: cur.version, changes: { status: { base: cur.status.key, value: 'in_progress' } } }, mutation({ ifMatch: `"${cur.version}"` }));
+    await env.svc.updateTask(
+      owner,
+      ws,
+      tsk.active!,
+      { version: cur.version, changes: { status: { base: cur.status.key, value: 'in_progress' } } },
+      mutation({ ifMatch: `"${cur.version}"` }),
+    );
     const v = (await env.svc.getTask(owner, ws, tsk.finished!)).version;
     await env.svc.completeTask(owner, ws, tsk.finished!, {}, mutation({ ifMatch: `"${v}"` }));
   }, 240_000);
@@ -412,23 +504,53 @@ describe('Metrics ledger backfill (5C migration 0043)', () => {
     }
     const by = Object.fromEntries(rows.map((r) => [r.public_id, r]));
     expect(by[tsk.open!]).toMatchObject({ cat: 'planned' });
-    expect(new Date(by[tsk.open!]!.entered_at).getTime()).toBe(new Date(by[tsk.open!]!.created_at).getTime());
+    expect(new Date(by[tsk.open!]!.entered_at).getTime()).toBe(
+      new Date(by[tsk.open!]!.created_at).getTime(),
+    );
     expect(by[tsk.active!]).toMatchObject({ cat: 'active' });
     expect(by[tsk.finished!]).toMatchObject({ cat: 'done' });
-    expect(new Date(by[tsk.finished!]!.entered_at).getTime()).toBe(new Date(by[tsk.finished!]!.completed_at).getTime());
-    expect((await sql(`SELECT count(*)::int AS n FROM metrics.reconcile_state WHERE workspace_id = $1`, [wsId]))[0]!.n).toBe(1);
+    expect(new Date(by[tsk.finished!]!.entered_at).getTime()).toBe(
+      new Date(by[tsk.finished!]!.completed_at).getTime(),
+    );
+    expect(
+      (
+        await sql(
+          `SELECT count(*)::int AS n FROM metrics.reconcile_state WHERE workspace_id = $1`,
+          [wsId],
+        )
+      )[0]!.n,
+    ).toBe(1);
     // Figures that need earlier history exclude and name those tasks instead of guessing.
     const q = { project };
-    const cyc = await env.svc.getMetric(owner, ws, 'work.cycle_time', q);
+    const cyc = await getMetric(owner, ws, 'work.cycle_time', q);
     expect(cyc.value).toMatchObject({ completions: 1, measured: 0 });
-    expect(cyc.incomplete).toEqual([expect.objectContaining({ code: 'history_unavailable', count: 1 })]);
-    expect((await env.svc.getMetric(owner, ws, 'work.created_vs_completed', q)).incomplete).toEqual([expect.objectContaining({ code: 'assumed_history', count: 1 })]);
-    expect((await env.svc.getMetric(owner, ws, 'work.cycle_time', q)).freshness.ledger.tasks_with_assumed_history).toBe(3);
+    expect(cyc.incomplete).toEqual([
+      expect.objectContaining({ code: 'history_unavailable', count: 1 }),
+    ]);
+    expect((await getMetric(owner, ws, 'work.created_vs_completed', q)).incomplete).toEqual([
+      expect.objectContaining({ code: 'assumed_history', count: 1 }),
+    ]);
+    expect(
+      (await getMetric(owner, ws, 'work.cycle_time', q)).freshness.ledger
+        .tasks_with_assumed_history,
+    ).toBe(3);
     // From here on history is recorded exactly.
     const cur = await env.svc.getTask(owner, ws, tsk.open!);
-    await env.svc.updateTask(owner, ws, tsk.open!, { version: cur.version, changes: { status: { base: cur.status.key, value: 'in_progress' } } }, mutation({ ifMatch: `"${cur.version}"` }));
-    const after = await sql(`SELECT seq, status_category AS cat, basis FROM metrics.task_status_span WHERE task_id = (SELECT id FROM core.record WHERE public_id = $1) ORDER BY seq`, [tsk.open]);
-    expect(after.map((r) => [Number(r.seq), r.cat, r.basis])).toEqual([[1, 'planned', 'assumed'], [2, 'active', 'recorded']]);
+    await env.svc.updateTask(
+      owner,
+      ws,
+      tsk.open!,
+      { version: cur.version, changes: { status: { base: cur.status.key, value: 'in_progress' } } },
+      mutation({ ifMatch: `"${cur.version}"` }),
+    );
+    const after = await sql(
+      `SELECT seq, status_category AS cat, basis FROM metrics.task_status_span WHERE task_id = (SELECT id FROM core.record WHERE public_id = $1) ORDER BY seq`,
+      [tsk.open],
+    );
+    expect(after.map((r) => [Number(r.seq), r.cat, r.basis])).toEqual([
+      [1, 'planned', 'assumed'],
+      [2, 'active', 'recorded'],
+    ]);
     // The rolled-back and re-applied schema is the one the migration test compares.
     await m.down(42);
     await m.up();

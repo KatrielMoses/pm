@@ -41,7 +41,7 @@ describe('Metrics model (5C)', () => {
     (await db.admin(text, params)).rows as Array<Record<string, any>>;
   const mem = async (c: Caller) => (await membershipOf(db, wsId, c.auth.account.id))!.public_id;
   const metric = (as: Caller, id: string, q: Record<string, unknown> = {}) =>
-    env.svc.getMetric(as, ws, id, q);
+    env.svc.getMetric(as, ws, id, q) as Promise<any>; // eslint-disable-line @typescript-eslint/no-explicit-any
   const records = (as: Caller, id: string, member: string, q: Record<string, unknown> = {}) =>
     env.svc.getMetricRecords(as, ws, id, { member, limit: 100, ...q });
   const members = (r: { drill: { members: Array<{ role: string; count: number }> } }) =>
@@ -139,11 +139,15 @@ describe('Metrics model (5C)', () => {
       expect(d.digest).toMatch(/^[0-9a-f]{64}$/);
     }
     const completion = cat.data.filter((d: { id: string }) => d.id === 'project.completion');
-    expect(completion.map((d: { version: number; current: boolean }) => [d.version, d.current])).toEqual([
+    expect(
+      completion.map((d: { version: number; current: boolean }) => [d.version, d.current]),
+    ).toEqual([
       [1, true],
       [2, false],
     ]);
-    await expect(env.svc.getMetric(editor, ws, 'nope.nothing', {})).rejects.toEqual(reason('not_found'));
+    await expect(env.svc.getMetric(editor, ws, 'nope.nothing', {})).rejects.toEqual(
+      reason('not_found'),
+    );
     await expect(metric(editor, 'project.completion', { version: 9 })).rejects.toEqual(
       invalid('/version', 'unavailable'),
     );
@@ -153,7 +157,10 @@ describe('Metrics model (5C)', () => {
     // Visible to the editor: alpha (a1 done, a2 done, a3, a4 cancelled, p1 parent, p1c leaf) + sub s1.
     const r = await drillsAgree(editor, 'project.completion');
     expect(r.definition).toMatchObject({ id: 'project.completion', version: 1 });
-    expect(r.value).toMatchObject({ basis: 'task_count', tasks: { counted: 5, done: 2, unestimated: 1 } });
+    expect(r.value).toMatchObject({
+      basis: 'task_count',
+      tasks: { counted: 5, done: 2, unestimated: 1 },
+    });
     expect(r.parts).toEqual({ numerator: 2, denominator: 5 });
     expect(r.value.percent).toBe(40);
     expect(r.state).toBe('complete');
@@ -178,7 +185,10 @@ describe('Metrics model (5C)', () => {
     // Estimated counted leaves: a1 60 (done), a2 120 (done), s1 30, p1c 40; a3 has none.
     expect(r.parts).toEqual({ numerator: 180, denominator: 250 });
     expect(r.value.percent).toBe(72);
-    expect(r.value).toMatchObject({ basis: 'estimate_weighted', unit_of_parts: 'estimate_minutes' });
+    expect(r.value).toMatchObject({
+      basis: 'estimate_weighted',
+      unit_of_parts: 'estimate_minutes',
+    });
     expect(r.state).toBe('partial');
     expect(r.incomplete).toEqual([
       expect.objectContaining({ code: 'unestimated_tasks', count: 1 }),
@@ -198,7 +208,11 @@ describe('Metrics model (5C)', () => {
   it('flags a scope with no estimates or no tasks instead of inventing a percentage', async () => {
     const none = await metric(owner, 'project.completion', { version: 2, project: proj.sub });
     expect(none.parts).toEqual({ numerator: 0, denominator: 30 });
-    const empty = await metric(editor, 'project.completion', { brand: brands.Harbor, project: proj.alpha, version: 2 });
+    const empty = await metric(editor, 'project.completion', {
+      brand: brands.Harbor,
+      project: proj.alpha,
+      version: 2,
+    });
     expect(empty.value.percent).not.toBeNull();
     await expect(metric(editor, 'project.completion', { project: proj.vault })).rejects.toEqual(
       invalid('/project', 'unavailable'),
@@ -210,8 +224,12 @@ describe('Metrics model (5C)', () => {
 
   it('answers a hidden project and an unknown one in exactly the same way', async () => {
     const unknown = proj.vault!.replace(/.$/, proj.vault!.endsWith('0') ? '1' : '0');
-    const hidden = await metric(editor, 'project.completion', { project: proj.vault }).catch((e) => e);
-    const missing = await metric(editor, 'project.completion', { project: unknown }).catch((e) => e);
+    const hidden = await metric(editor, 'project.completion', { project: proj.vault }).catch(
+      (e) => e,
+    );
+    const missing = await metric(editor, 'project.completion', { project: unknown }).catch(
+      (e) => e,
+    );
     expect(hidden.code).toBe(missing.code);
     expect(JSON.stringify(hidden.issues)).toBe(JSON.stringify(missing.issues));
   });
@@ -221,18 +239,35 @@ describe('Metrics model (5C)', () => {
       (i) => i !== 'cost.spend' && i !== 'quality.tests' && i !== 'data.freshness',
     );
     // Hidden work of every kind, created before the time the figures are read at.
-    await mk('v3', { project: proj.vault, title: 'V3 late', due_date: '2026-01-02', estimate_minutes: 700 });
+    await mk('v3', {
+      project: proj.vault,
+      title: 'V3 late',
+      due_date: '2026-01-02',
+      estimate_minutes: 700,
+    });
     await mk('v4', { project: proj.vault, title: 'V4', parent: tsk.v3, estimate_minutes: 5 });
     await mk('m2', { project: proj.summit, title: 'M2 late', due_date: '2026-01-03' });
     await done('m2');
-    await env.svc.addRelationship(owner, ws, tsk.v3!, { kind: 'blocks', target: tsk.a3! }, mutation());
+    await env.svc.addRelationship(
+      owner,
+      ws,
+      tsk.v3!,
+      { kind: 'blocks', target: tsk.a3! },
+      mutation(),
+    );
     await sql(
       `UPDATE work.project SET time_budget_minutes = 10 WHERE id = (SELECT id FROM core.record WHERE public_id = '${proj.vault}')`,
     );
     const at = new Date().toISOString();
     const q = (id: string): Record<string, unknown> => ({
       as_of: at,
-      ...(['work.planned_vs_completed', 'work.created_vs_completed', 'work.cycle_time', 'work.time_in_status', 'time.planned_vs_actual'].includes(id)
+      ...([
+        'work.planned_vs_completed',
+        'work.created_vs_completed',
+        'work.cycle_time',
+        'work.time_in_status',
+        'time.planned_vs_actual',
+      ].includes(id)
         ? { from: '2026-01-01', to: '2026-12-31' }
         : {}),
     });
@@ -249,10 +284,23 @@ describe('Metrics model (5C)', () => {
     // Showing the vault to the editor changes the figures that count its work …
     await env.svc.setAccess(owner, ws, proj.vault!, { access_mode: 'inherit' }, mutation());
     const shown = await read(editor);
-    for (const id of ['project.completion', 'project.health', 'work.attention', 'work.workload', 'work.age', 'cost.time_budget'])
+    for (const id of [
+      'project.completion',
+      'project.health',
+      'work.attention',
+      'work.workload',
+      'work.age',
+      'cost.time_budget',
+    ])
       expect(shown[id], `${id} sees the vault once it is shared`).not.toBe(editorBefore[id]);
     // … and hiding it again restores exactly the figures it had: hidden work was never in them.
-    await env.svc.setAccess(owner, ws, proj.vault!, { access_mode: 'restricted', allow_record_shares: false }, mutation());
+    await env.svc.setAccess(
+      owner,
+      ws,
+      proj.vault!,
+      { access_mode: 'restricted', allow_record_shares: false },
+      mutation(),
+    );
     expect(await read(editor)).toEqual(editorBefore);
     expect(await read(reader)).toEqual(readerBefore);
   });

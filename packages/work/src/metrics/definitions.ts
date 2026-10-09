@@ -524,6 +524,7 @@ export const METRIC_DEFINITIONS: readonly MetricDefinition[] = [
     ...BASE,
     id: 'data.freshness',
     version: 1,
+    scopes: ['workspace'],
     name: 'Data freshness',
     summary: 'How current each derived source is, for the records the viewer can read.',
     unit: 'state',
