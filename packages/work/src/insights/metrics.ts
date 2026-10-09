@@ -23,6 +23,9 @@ import {
  * placed on a dashboard.
  */
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type Obj = Record<string, any>;
+
 export type Cell = string | number | null;
 
 export interface MetricColumn {
@@ -110,7 +113,7 @@ export interface MetricHost {
     q: GoalListQuery,
     limit: number,
   ): Promise<{
-    data: Array<Record<string, any>>; // eslint-disable-line @typescript-eslint/no-explicit-any
+    data: Array<Obj>;
     page: Record<string, unknown>;
   }>;
   timeReport(
@@ -118,17 +121,17 @@ export interface MetricHost {
     p: Principal,
     query: Record<string, unknown>,
     group: 'member' | 'brand' | 'project' | 'task' | 'day' | 'week' | 'month',
-  ): Promise<Record<string, any>>; // eslint-disable-line @typescript-eslint/no-explicit-any
+  ): Promise<Obj>;
   teamCapacity(
     tx: WorkspaceTransaction,
     p: Principal,
     query: Record<string, unknown>,
-  ): Promise<Record<string, any>>; // eslint-disable-line @typescript-eslint/no-explicit-any
+  ): Promise<Obj>;
   dailyRecords(
     tx: WorkspaceTransaction,
     p: Principal,
     query: Record<string, unknown>,
-  ): Promise<Record<string, any>>; // eslint-disable-line @typescript-eslint/no-explicit-any
+  ): Promise<Obj>;
   /** The predicate for tasks and projects the viewer may read (archived excluded). */
   workVisibility(
     tx: WorkspaceTransaction,
@@ -675,8 +678,7 @@ function goalQuery(ctx: MetricContext, limit: number | null, cursor: string | nu
   };
 }
 
-const goalRow = (g: Record<string, any>): MetricRow => ({
-  // eslint-disable-line @typescript-eslint/no-explicit-any
+const goalRow = (g: Obj): MetricRow => ({
   cells: {
     title: g.title,
     scope:
@@ -789,10 +791,8 @@ function timeMetric(
     { key: 'actual_hours', label: 'Actual hours' },
     { key: 'billable_hours', label: 'Billable hours' },
   ];
-  const rowsOf = (rep: Record<string, any>): MetricRow[] =>
-    // eslint-disable-line @typescript-eslint/no-explicit-any
-    (rep.rows as Array<Record<string, any>>).map((r) => ({
-      // eslint-disable-line @typescript-eslint/no-explicit-any
+  const rowsOf = (rep: Obj): MetricRow[] =>
+    (rep.rows as Array<Obj>).map((r) => ({
       cells: {
         label: r.key.label,
         ...(planned
@@ -818,7 +818,7 @@ function timeMetric(
     applies: { range: true, brands: true, projects: true, people: true, statuses: false },
     parse: (raw, pointer, issues) => parseGroup(raw, pointer, ['none'], issues),
     async compute(ctx) {
-      let rep: Record<string, any>; // eslint-disable-line @typescript-eslint/no-explicit-any
+      let rep: Obj;
       try {
         rep = await ctx.host.timeReport(ctx.tx, ctx.p, timeQuery(ctx, group), group);
       } catch (err) {
@@ -829,8 +829,7 @@ function timeMetric(
       const rows = rowsOf(rep);
       return {
         value: rep.totals.actual_seconds,
-        breakdown: (rep.rows as Array<Record<string, any>>).map((r) => ({
-          // eslint-disable-line @typescript-eslint/no-explicit-any
+        breakdown: (rep.rows as Array<Obj>).map((r) => ({
           key: r.key.id,
           label: r.key.label,
           value: r.actual_seconds,
@@ -895,7 +894,7 @@ const capacityMetric: MetricProvider = {
     const brand = ctx.scope.brand?.id ?? ctx.filters.brands[0];
     if (brand) q.brand = brand;
     const rep = await ctx.host.teamCapacity(ctx.tx, ctx.p, q);
-    const people = rep.people as Array<Record<string, any>>; // eslint-disable-line @typescript-eslint/no-explicit-any
+    const people = rep.people as Array<Obj>;
     const columns: MetricColumn[] = [
       { key: 'person', label: 'Person' },
       { key: 'over', label: 'Over capacity (min)' },
@@ -952,7 +951,7 @@ const planningMetric: MetricProvider = {
       label: 'Last 14 days',
     };
     const rep = await ctx.host.dailyRecords(ctx.tx, ctx.p, { from: r.from, to: r.to });
-    const recs = rep.records as Array<Record<string, any>>; // eslint-disable-line @typescript-eslint/no-explicit-any
+    const recs = rep.records as Array<Obj>;
     const columns: MetricColumn[] = [
       { key: 'day', label: 'Day' },
       { key: 'planned', label: 'Planned' },

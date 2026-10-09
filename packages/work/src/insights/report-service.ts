@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto';
-import { AuditWriter, change, CommandContext } from '@pm/audit';
+import { change, CommandContext } from '@pm/audit';
 import { newPublicId, newUuidV7 } from '@pm/contracts';
 import { sql, type TenantDatabase, type WorkspaceTransaction } from '@pm/db';
 import { writeOutboxEvent } from '@pm/platform';
@@ -7,7 +7,6 @@ import {
   bumpEpoch,
   compilePrincipal,
   decideBrand,
-  decideRecord,
   decideWorkspace,
   findBrand,
   invalid,
