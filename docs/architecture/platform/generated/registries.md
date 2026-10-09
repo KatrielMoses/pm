@@ -536,6 +536,9 @@ Forbidden metric labels: `workspace_id`, `brand_id`, `record_id`, `public_id`, `
 | `goals.reads` | counter | view, outcome | goals |
 | `goals.changes` | counter | kind, outcome | goals |
 | `goals.jobs` | counter | kind, outcome | goals |
+| `metrics.requests` | counter | op, outcome | metrics |
+| `metrics.query.duration` | histogram | outcome | metrics |
+| `metrics.reconcile.jobs` | counter | outcome | metrics |
 
 ## Named parameters (values are configuration, not promises)
 
@@ -749,3 +752,16 @@ Forbidden metric labels: `workspace_id`, `brand_id`, `record_id`, `public_id`, `
 | `GOALS_RECALC_LEASE_SECONDS` | How long a claimed goal stays leased before another sweep may reclaim it; default 300, range 30–3600. | 5B |
 | `GOALS_RECALC_INTERVAL_MINUTES` | How often an unchanged goal's time-driven state (staleness, period) is rechecked; default 360, range 15–1440. | 5B |
 | `GOALS_RECALC_MAX_ATTEMPTS` | Failed recalculations before a goal is reported as failing and backed off to the recheck interval; default 5, range 1–20. | 5B |
+| `METRICS_WINDOW_DAYS_MAX` | Longest window a metric may cover, in days; default 366, range 31–1000. | 5C |
+| `METRICS_DEFAULT_WINDOW_DAYS` | Window a metric covers when none is given, in days; default 30, range 7–366. | 5C |
+| `METRICS_DRILL_PAGE_MAX` | Most records on one drill-through page; default 100, range 10–200. | 5C |
+| `METRICS_DRILL_RESULTS_MAX` | Deepest record a drill-through can page to; default 1000, range 100–5000. | 5C |
+| `METRICS_SCOPE_TASKS_MAX` | Most tasks one metric computation reads before it asks for a narrower scope; default 20000, range 1000–200000. | 5C |
+| `METRICS_SAMPLE_MIN` | Fewest records before a distribution metric is shown without a small-sample label; default 5, range 1–100. | 5C |
+| `METRICS_RATE_PER_MINUTE` | Most metric requests one person makes per minute; default 60, range 10–600. | 5C |
+| `METRICS_RECONCILE_BATCH_MAX` | Most tasks one reconciliation step checks per workspace; default 500, range 50–5000. | 5C |
+| `METRICS_RECONCILE_DISCOVERY_MAX` | Most workspaces one reconciliation run visits; default 50, range 1–500. | 5C |
+| `METRICS_RECONCILE_INTERVAL_MINUTES` | Wait between full reconciliation passes of a workspace, in minutes; default 360, range 5–10080. | 5C |
+| `METRICS_RECONCILE_LEASE_SECONDS` | How long a worker holds a workspace's reconciliation before another may take it; default 300, range 30–3600. | 5C |
+| `METRICS_RECONCILE_MAX_ATTEMPTS` | Failed reconciliation attempts before the workspace is reported failing; default 5, range 1–20. | 5C |
+| `METRICS_RECONCILE_BACKOFF_SECONDS` | First wait before a failed reconciliation is retried (it doubles); default 60, range 5–3600. | 5C |

@@ -46,7 +46,7 @@ install_log=$(mktemp)
 pnpm install --frozen-lockfile 2>&1 | tee "$install_log"
 if grep -qi "cyclic workspace dependencies" "$install_log"; then die "pnpm reported cyclic workspace dependencies"; fi
 if gate_in core; then
-  step "2. Phase 0 integration validator and Phase 1, 2, 3A, 3B, 3C, 3D, 3E, 4A, 4B, 4C, 4D, 4E, 5A, 5B, and the Phase 5 aggregate closure checks"
+  step "2. Phase 0 integration validator and Phase 1, 2, 3A, 3B, 3C, 3D, 3E, 4A, 4B, 4C, 4D, 4E, 5A, 5B, 5C, and the Phase 5 aggregate closure checks"
   python3 docs/architecture/tools/phase0.py
   python3 docs/engineering/tools/phase1.py
   python3 docs/engineering/tools/phase2.py
@@ -62,6 +62,7 @@ if gate_in core; then
   python3 docs/engineering/tools/phase4e.py
   python3 docs/engineering/tools/phase5a.py
   python3 docs/engineering/tools/phase5b.py
+  python3 docs/engineering/tools/phase5c.py
   python3 docs/engineering/tools/phase5.py
   step "3. formatting and lint (incl. SQL safety and the complete workspace graph)"
   pnpm format:check

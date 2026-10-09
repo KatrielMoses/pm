@@ -377,6 +377,18 @@ export const ROUTES: readonly RouteDef[] = [
     section: 'Goals',
     visible: member,
   },
+  // 5C: the metrics model (figures with their definitions and the records behind them). The page
+  // state is in the URL; the API decides what each person can read.
+  {
+    id: 'metrics',
+    pattern: '/workspaces/:ws/metrics',
+    shell: 'workspace',
+    section: 'Metrics',
+    extraCommand: 'go.metrics',
+    stateInQuery: true,
+    nav: { placement: 'workspace', label: 'Metrics', short: 'Metrics', icon: '∑', order: 5 },
+    visible: member,
+  },
   {
     id: 'portfolio',
     pattern: '/workspaces/:ws/projects/portfolio',

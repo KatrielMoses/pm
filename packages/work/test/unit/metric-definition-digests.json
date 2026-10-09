@@ -1,0 +1,18 @@
+{
+  "project.completion@1": "9c055f5c736aeae76177e6e5b95cf67fc2a93e097ace179760ce23bd89934e5f",
+  "project.completion@2": "1ed1538f302d4671d9dcb7cd0154526ec57fa5441962159784806ae004d8c7d3",
+  "project.health@1": "67b90617ac4b4a8af91a0f0c4c8db98407fde872132f5b25760649a4b8f7145f",
+  "work.attention@1": "1b0471f4eb73a5eb3a3769a4112c7482f56046bd045ff6bb52dacfd16146d7f4",
+  "work.planned_vs_completed@1": "f76d674c2df76869e44275e64a8870b2c859d30d9e73f27a6de0b7dea16607ff",
+  "work.created_vs_completed@1": "0e3af326ffed5e6e94373869f7a1011fa9b95894b929332820354e3dac550599",
+  "work.cycle_time@1": "2a89c2c160232f00e24a8755e1b087d6dd21ff6aeafac1674fce0836cef75103",
+  "work.time_in_status@1": "88f56fb1a4577e64f22dba9257855ad06f37d3c35b501e9d55d403eb1a9a850a",
+  "work.age@1": "45d49e8d68949b1ff015132edfb2d70aa45b43e8123eb75e1e08d3477f13a02f",
+  "work.workload@1": "8578b47b00a717b00af05f8749f29935c9e8d292bab5834660bb910cf1b36f24",
+  "time.planned_vs_actual@1": "63dd4d87d2ffd996c2df1d54ffac4e6586073d683a4ce3007ecf0b0c82921fd8",
+  "cost.time_budget@1": "e7bf3cb404bb450f972f1bc6ed5361e739ed9d56538e8e4af6bfef04a14ceb69",
+  "cost.spend@1": "49914d40f305c3758a307cb0fdc67f71c85ad518eef09e528858d6d4ec135c95",
+  "deliverable.acceptance@1": "3a1dcdab4c3a23685cafa426b291c6dfc55fe7708172f81c9b5c191ae21a85aa",
+  "quality.tests@1": "dbcd148fe4e767220d8636641241254a2c584c29a0a2bbf9f8ffa427dee0f98c",
+  "data.freshness@1": "d6e33b9f8e7d8056cbfa8d2c52045dd2111c51c806862e26bdca22f0efb6e6c6"
+}

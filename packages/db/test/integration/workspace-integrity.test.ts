@@ -272,6 +272,9 @@ describe('database-enforced workspace existence (1A review 01, correction 2)', (
       'search.search_document',
       'search.index_status',
       'search.recent_search',
+      // Phase 5C task status history and its reconciliation state.
+      'metrics.task_status_span',
+      'metrics.reconcile_state',
     ];
     expect(res.rows.map((r) => r.tbl).sort()).toEqual(
       [...TENANT_TABLES.map((t) => `exec.${t}`), ...phase1f, ...phase1c].sort(),
@@ -301,7 +304,7 @@ describe('database-enforced workspace existence (1A review 01, correction 2)', (
             AND i.indkey::int2[] @> c.confkey AND i.indkey::int2[] <@ c.confkey
         ) AS referenced_unique
       FROM pg_constraint c JOIN pg_namespace n ON n.oid = c.connamespace
-      WHERE c.contype = 'f' AND n.nspname IN ('exec', 'tenancy', 'access', 'ops', 'views', 'workflow', 'work', 'relations', 'templates', 'planning', 'capture', 'timetrack', 'collab', 'notify', 'knowledge', 'files', 'search', 'goals')
+      WHERE c.contype = 'f' AND n.nspname IN ('exec', 'tenancy', 'access', 'ops', 'views', 'workflow', 'work', 'relations', 'templates', 'planning', 'capture', 'timetrack', 'collab', 'notify', 'knowledge', 'files', 'search', 'goals', 'metrics')
       ORDER BY 1`);
     // exec: 7 workspace keys + 6 composite same-workspace keys; 1C tenancy/access: 20 keys;
     // 1D collaboration (teams, invitations, policy, shares, ownership transfer): 38 keys;
@@ -325,8 +328,9 @@ describe('database-enforced workspace existence (1A review 01, correction 2)', (
     // 4D live edit drafts (3), sessions (3), and operations (4): +10;
     // 5A search entries (4), indexing tasks (2), and recent searches (2): +8;
     // 5B goals (8), key results (7), check-ins (4), links (6), derived state (2), portfolios (6),
-    // and portfolio projects (4): +37.
-    expect(res.rows.length).toBe(494);
+    // and portfolio projects (4): +37;
+    // 5C status spans (2) and reconciliation state (1): +3.
+    expect(res.rows.length).toBe(497);
     for (const r of res.rows)
       expect(r, `${r.tbl}.${r.conname}`).toMatchObject({
         referencing_indexed: true,

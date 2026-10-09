@@ -172,6 +172,9 @@ const PHASE_1C_TENANT_TABLES = [
   'search.search_document',
   'search.index_status',
   'search.recent_search',
+  // Phase 5C task status history and its reconciliation state.
+  'metrics.task_status_span',
+  'metrics.reconcile_state',
 ] as const;
 
 /** Seeds one row in every tenant execution table for a workspace. */
@@ -478,8 +481,8 @@ describe('tenant RLS foundation (0C §12.7)', () => {
     // 1A–1F: 9 functions; 1E adds discover_views_cleanup and 2A discover_recurrence_due
     // (workspace ids only); 2D discover_reminders_due; 3D discover_runaway_timers; 3C
     // discover_days_to_close and discover_block_series_due; 4B discover_notification_work; 4E
-    // discover_file_work; 5A discover_search_work; 5B discover_goal_work.
-    expect(fns.rows.length).toBe(19);
+    // discover_file_work; 5A discover_search_work; 5B discover_goal_work; 5C discover_metrics_work.
+    expect(fns.rows.length).toBe(20);
     const allowed = new Set([
       'job_id',
       'workspace_id',

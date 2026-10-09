@@ -689,6 +689,32 @@
         "I-10",
         "I-18"
       ]
+    },
+    {
+      "id": "T-63",
+      "category": "inference",
+      "description": "Hidden work disclosed through a metric: a count, percentage, estimate sum, median, percentile, mean, extreme, age band, workload total, breakdown row, order, rank, record total, drill-through item or position, export row, result digest, freshness figure, or timing that changes with, or names, a brand, project, task, deliverable, assignment, time entry, or status history the viewer cannot read (or tells a hidden brand or project from an absent one); a person named to a viewer who may not see people, or an unowned-task count given to one who may not see owners; a cursor used by or revealing something to someone else; another workspace's figures; a figure stored for one viewer and served to another; a revocation, trash, or departure that still shows work until a recomputation.",
+      "mitigated_by": [
+        "I-01",
+        "I-02",
+        "I-04",
+        "I-07",
+        "I-10",
+        "I-12",
+        "I-18"
+      ]
+    },
+    {
+      "id": "T-64",
+      "category": "staleness",
+      "description": "Forged, concealed, or stale derived history and freshness: a status span written, changed, backdated, or removed outside the task's own transaction to alter cycle time or time in status; a reconciliation that backdates or double-closes a span, runs overlapping on one workspace, acts on another workspace, repairs a purged record, or hides its failure; a figure that presents assumed, repaired, lagging, or failing history as complete, or an unavailable source as zero; a past or future `as_of` that reveals what the viewer could not see then or now or describes the present as the past; an export or digest that differs from the figure it names or carries formula content; unbounded computation by scope or window; an unprivileged person moving the reconciliation schedule.",
+      "mitigated_by": [
+        "I-01",
+        "I-02",
+        "I-07",
+        "I-10",
+        "I-18"
+      ]
     }
   ],
   "tests": [
@@ -5526,6 +5552,217 @@
       "silent_surfaces": [
         "count_facet",
         "error_message"
+      ]
+    },
+    {
+      "id": "AT-269",
+      "threats": [
+        "T-63"
+      ],
+      "principal": "member",
+      "setup": "Member who cannot read a restricted project asks for a metric scoped to it, to a brand they cannot see, and to a project that does not exist",
+      "scope": "scope naming a hidden project or brand",
+      "action": "record.read",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "validation_generic",
+      "silent_surfaces": [
+        "search",
+        "count_facet",
+        "export",
+        "error_message",
+        "timing"
+      ]
+    },
+    {
+      "id": "AT-270",
+      "threats": [
+        "T-63"
+      ],
+      "principal": "member",
+      "setup": "Member reads completion, attention, workload, age, health, time budget, and acceptance in a workspace with a restricted project, hidden estimates, hidden blockers, and a hidden assignee",
+      "scope": "every metric in a workspace with hidden work",
+      "action": "record.read",
+      "surface": "api",
+      "expected": "allow",
+      "response_shape": "ok_filtered",
+      "silent_surfaces": [
+        "count_facet",
+        "export",
+        "timing",
+        "error_message",
+        "activity"
+      ]
+    },
+    {
+      "id": "AT-271",
+      "threats": [
+        "T-63"
+      ],
+      "principal": "member",
+      "setup": "Member reads the records behind each role of a figure; each list is exactly as long as its count says and names nothing hidden",
+      "scope": "drill-through lists",
+      "action": "record.read",
+      "surface": "api",
+      "expected": "allow",
+      "response_shape": "ok_filtered",
+      "silent_surfaces": [
+        "count_facet",
+        "export",
+        "timing",
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-272",
+      "threats": [
+        "T-63"
+      ],
+      "principal": "member",
+      "setup": "A person reuses another person's drill-through cursor, changes the role under a cursor, or tampers with one",
+      "scope": "drill-through cursors",
+      "action": "record.read",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "error_generic",
+      "silent_surfaces": [
+        "count_facet",
+        "export",
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-273",
+      "threats": [
+        "T-63"
+      ],
+      "principal": "guest",
+      "setup": "Guest holding one shared task reads workload, attention, completion, and the records behind them: no person is named, no unowned count is given, only the shared task is counted",
+      "scope": "guest with one share",
+      "action": "record.read",
+      "surface": "api",
+      "expected": "allow",
+      "response_shape": "ok_filtered",
+      "silent_surfaces": [
+        "count_facet",
+        "export",
+        "timing",
+        "error_message",
+        "picker"
+      ]
+    },
+    {
+      "id": "AT-274",
+      "threats": [
+        "T-63"
+      ],
+      "principal": "member",
+      "setup": "Member exports a figure: the rows equal the figure, a project named like a formula is neutralized, and a hidden scope is refused like an unknown one",
+      "scope": "metric export",
+      "action": "record.export",
+      "surface": "export",
+      "expected": "allow",
+      "response_shape": "ok_filtered",
+      "silent_surfaces": [
+        "count_facet",
+        "timing",
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-275",
+      "threats": [
+        "T-63"
+      ],
+      "principal": "member",
+      "setup": "Member's brand access is revoked, a task is trashed and restored, and another member leaves: the next request shows the change in every figure, list, and export with no recomputation",
+      "scope": "revocation, trash, and departure",
+      "action": "record.read",
+      "surface": "api",
+      "expected": "allow",
+      "response_shape": "empty",
+      "silent_surfaces": [
+        "count_facet",
+        "export",
+        "timing",
+        "error_message",
+        "activity"
+      ]
+    },
+    {
+      "id": "AT-276",
+      "threats": [
+        "T-64"
+      ],
+      "principal": "system_job",
+      "setup": "Reconciliation for workspace A claims its lease, reads one batch of its tasks, and never reads or writes workspace B's history; two workers never hold one workspace; a lapsed lease is taken over",
+      "scope": "reconciliation job for one workspace",
+      "action": "record.read",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "not_found",
+      "silent_surfaces": [
+        "search",
+        "export",
+        "count_facet",
+        "activity",
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-277",
+      "threats": [
+        "T-64"
+      ],
+      "principal": "member",
+      "setup": "Member reads cycle time, time in status, and created versus completed where some history is assumed or repaired and the reconciliation is failing: those tasks are excluded and named, and the freshness says degraded",
+      "scope": "assumed, repaired, and failing history",
+      "action": "record.read",
+      "surface": "api",
+      "expected": "allow",
+      "response_shape": "ok_filtered",
+      "silent_surfaces": [
+        "count_facet",
+        "export",
+        "timing",
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-278",
+      "threats": [
+        "T-64"
+      ],
+      "principal": "member",
+      "setup": "Member without workspace configuration asks for a reconciliation pass; an administrator's request moves the schedule only",
+      "scope": "reconciliation request",
+      "action": "workspace.configure",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "forbidden",
+      "silent_surfaces": [
+        "count_facet",
+        "error_message",
+        "activity"
+      ]
+    },
+    {
+      "id": "AT-279",
+      "threats": [
+        "T-64"
+      ],
+      "principal": "member",
+      "setup": "Member asks for a past time on a metric that describes the present, for a time in the future, for a window longer than the bound, and for a scope above the size bound",
+      "scope": "as_of, window, and scope bounds",
+      "action": "record.read",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "validation_generic",
+      "silent_surfaces": [
+        "count_facet",
+        "export",
+        "error_message",
+        "timing"
       ]
     }
   ]

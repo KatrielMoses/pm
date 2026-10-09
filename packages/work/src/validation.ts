@@ -320,6 +320,32 @@ export interface WorkSettings {
   searchRecentRetentionDays: number;
   /** `SEARCH_RATE_PER_MINUTE` */
   searchRatePerMinute: number;
+  /** `METRICS_WINDOW_DAYS_MAX` */
+  metricsWindowDaysMax: number;
+  /** `METRICS_DEFAULT_WINDOW_DAYS` */
+  metricsDefaultWindowDays: number;
+  /** `METRICS_DRILL_PAGE_MAX` */
+  metricsDrillPageMax: number;
+  /** `METRICS_DRILL_RESULTS_MAX` */
+  metricsDrillResultsMax: number;
+  /** `METRICS_SCOPE_TASKS_MAX` */
+  metricsScopeTasksMax: number;
+  /** `METRICS_SAMPLE_MIN` */
+  metricsSampleMin: number;
+  /** `METRICS_RATE_PER_MINUTE` */
+  metricsRatePerMinute: number;
+  /** `METRICS_RECONCILE_BATCH_MAX` */
+  metricsReconcileBatchMax: number;
+  /** `METRICS_RECONCILE_DISCOVERY_MAX` */
+  metricsReconcileDiscoveryMax: number;
+  /** `METRICS_RECONCILE_INTERVAL_MINUTES` */
+  metricsReconcileIntervalMinutes: number;
+  /** `METRICS_RECONCILE_LEASE_SECONDS` */
+  metricsReconcileLeaseSeconds: number;
+  /** `METRICS_RECONCILE_MAX_ATTEMPTS` */
+  metricsReconcileMaxAttempts: number;
+  /** `METRICS_RECONCILE_BACKOFF_SECONDS` */
+  metricsReconcileBackoffSeconds: number;
   /** `GOALS_PER_SCOPE_MAX` */
   goalsPerScopeMax: number;
   /** `GOAL_KEY_RESULTS_MAX` */
@@ -522,6 +548,19 @@ export const DEFAULT_WORK_SETTINGS: WorkSettings = Object.freeze({
   searchRecentMax: 25,
   searchRecentRetentionDays: 90,
   searchRatePerMinute: 120,
+  metricsWindowDaysMax: 366,
+  metricsDefaultWindowDays: 30,
+  metricsDrillPageMax: 100,
+  metricsDrillResultsMax: 1_000,
+  metricsScopeTasksMax: 20_000,
+  metricsSampleMin: 5,
+  metricsRatePerMinute: 60,
+  metricsReconcileBatchMax: 500,
+  metricsReconcileDiscoveryMax: 50,
+  metricsReconcileIntervalMinutes: 360,
+  metricsReconcileLeaseSeconds: 300,
+  metricsReconcileMaxAttempts: 5,
+  metricsReconcileBackoffSeconds: 60,
   goalsPerScopeMax: 500,
   goalKeyResultsMax: 20,
   goalLinksMax: 200,

@@ -28,7 +28,7 @@ import {
   taskAssigneeHook,
   taskTargets,
   savedViewTargets,
-  PortfolioService,
+  MetricService,
   type SearchSourceRegistry,
   documentOwnerHook,
   goalOwnerHook,
@@ -57,7 +57,7 @@ export {
 
 export interface WorkEnv {
   h: Harness;
-  svc: PortfolioService;
+  svc: MetricService;
   /** The test storage and scanner the service uses (null when a test disables them). */
   files: FileDeps;
   stepUp: StubStepUp;
@@ -80,6 +80,7 @@ export function workEnv(
     /** 5A: the registered search sources (default: the 5A registrations). */
     searchSources?: SearchSourceRegistry;
     goalRate?: number;
+    metricsRate?: number;
     emailState?: 'configured' | 'capture' | 'unconfigured';
     /** 4E: defaults to local storage in a temp directory and the signature scanner. */
     files?: Partial<FileDeps>;
@@ -127,7 +128,7 @@ export function workEnv(
     scanner:
       options.files?.scanner !== undefined ? options.files.scanner : new SignatureTestScanner(),
   };
-  const svc = new PortfolioService({
+  const svc = new MetricService({
     files,
     ...(options.searchSources ? { search: { sources: options.searchSources } } : {}),
     notify: { emailState: options.emailState ?? 'capture' },
@@ -156,6 +157,7 @@ export function workEnv(
       'document.live': { limit: options.liveRate ?? 100_000, windowMs: 60_000 },
       'search.member': { limit: options.searchRate ?? 100_000, windowMs: 60_000 },
       'goal.checkin': { limit: options.goalRate ?? 100_000, windowMs: 60_000 },
+      'metrics.member': { limit: options.metricsRate ?? 100_000, windowMs: 60_000 },
     }),
     signingKey: randomBytes(32),
     settings: {

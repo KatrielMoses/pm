@@ -120,6 +120,17 @@ def check_invariants():
                    "search.record_purged()", "exec_dispatch.discover_search_work"]:
         if needle not in up:
             errs.append("0041 lacks %s" % needle)
+    # The backfill of records that predate the migration must really read them: the source tables force
+    # row-level security even on the migration role, so each is un-forced for that one read and forced
+    # again in the same migration; the deferred queue keys are checked before the tables are altered.
+    for table in SOURCE_TABLES[:-2] + ["files.deliverable"]:
+        if up.count("ALTER TABLE %s NO FORCE ROW LEVEL SECURITY;" % table) != 1 or up.count(
+                "ALTER TABLE %s FORCE ROW LEVEL SECURITY;" % table) != 1:
+            errs.append("0041 must lift and restore the forced row-level security of %s exactly once for the backfill" % table)
+    if "SET CONSTRAINTS ALL IMMEDIATE" not in up or "ON CONFLICT DO NOTHING" not in up:
+        errs.append("0041 backfill must be idempotent and check its deferred keys before the tables are altered")
+    if up.find("NO FORCE ROW LEVEL SECURITY") > up.find("INSERT INTO search.index_status (workspace_id, source_kind, source_id, auth_record_id)\nSELECT"):
+        errs.append("0041 must lift the force before it reads the source tables")
     schema = read(P("packages/db/src/schema.ts"))
     for table in TABLES:
         if "CREATE POLICY tenant_isolation ON %s" % table not in up:
@@ -236,8 +247,8 @@ def check_invariants():
         errs.append("SearchService must extend FileService")
     factory = read(P("packages/work/src/factory.ts"))
     # 5B's goal services extend the SearchService, and the factory returns the top of that chain.
-    if not re.search(r"\}\): (SearchService|PortfolioService) \{", factory) or not re.search(
-            r"return new (SearchService|PortfolioService)\(", factory):
+    if not re.search(r"\}\): (SearchService|PortfolioService|MetricService) \{", factory) or not re.search(
+            r"return new (SearchService|PortfolioService|MetricService)\(", factory):
         errs.append("createWorkService must build and return the SearchService (or the 5B chain on top of it)")
     for path, needles in {
         "packages/work/test/integration/search.test.ts": [
@@ -248,6 +259,10 @@ def check_invariants():
             "retries a failing source with backoff, shows it as failed, isolates it, and recovers",
             "indexes concurrently without loss or duplication, and re-queues a change that lands mid-index",
             "opens a result only after checking access again, and never widens it"],
+        "packages/work/test/integration/search-backfill.test.ts": [
+            "queues every supported record that existed before the migration, exactly once, and no purged or deleted one",
+            "says catching up until the backlog is indexed, then finds every record without any edit",
+            "is idempotent: applying the migration again over an indexed database changes nothing, and a failure is shown and recovers"],
         "packages/work/test/integration/search-access.test.ts": [
             "shows each person exactly the records their own reads allow, for every role and a guest"],
         "apps/api/test/integration/search-api.test.ts": [

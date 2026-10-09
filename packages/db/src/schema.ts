@@ -2715,6 +2715,35 @@ export interface SearchRecentSearchTable {
   searched_at: DTs;
 }
 
+export type StatusSpanBasis = 'recorded' | 'assumed' | 'repaired';
+export interface MetricsTaskStatusSpanTable {
+  workspace_id: string;
+  task_id: string;
+  seq: number;
+  status_id: string;
+  status_category: 'planned' | 'active' | 'paused' | 'done' | 'cancelled';
+  entered_at: Ts;
+  left_at: Ts | null;
+  basis: Defaulted<StatusSpanBasis>;
+}
+export interface MetricsReconcileStateTable {
+  workspace_id: string;
+  next_run_at: DTs;
+  lease_until: Ts | null;
+  scan_after: string | null;
+  pass_started_at: Ts | null;
+  pass_repaired: Defaulted<number>;
+  attempts: Defaulted<number>;
+  last_success_at: Ts | null;
+  last_failure_at: Ts | null;
+  failure_code: 'source_error' | 'timeout' | null;
+  repaired_total: ColumnType<
+    string,
+    string | number | bigint | undefined,
+    string | number | bigint
+  >;
+}
+
 export interface Database {
   'files.file_object': FileObjectTable;
   'files.file': FileTable;
@@ -2726,6 +2755,8 @@ export interface Database {
   'search.search_document': SearchDocumentTable;
   'search.index_status': SearchIndexStatusTable;
   'search.recent_search': SearchRecentSearchTable;
+  'metrics.task_status_span': MetricsTaskStatusSpanTable;
+  'metrics.reconcile_state': MetricsReconcileStateTable;
   'notify.notification': NotificationTable;
   'knowledge.document': DocumentTable;
   'knowledge.document_version': DocumentVersionTable;
@@ -4096,6 +4127,29 @@ export const TABLE_COLUMNS: Readonly<Record<keyof Database, readonly string[]>> 
     'next_attempt_at',
     'last_attempt_at',
     'failure_code',
+  ],
+  'metrics.task_status_span': [
+    'workspace_id',
+    'task_id',
+    'seq',
+    'status_id',
+    'status_category',
+    'entered_at',
+    'left_at',
+    'basis',
+  ],
+  'metrics.reconcile_state': [
+    'workspace_id',
+    'next_run_at',
+    'lease_until',
+    'scan_after',
+    'pass_started_at',
+    'pass_repaired',
+    'attempts',
+    'last_success_at',
+    'last_failure_at',
+    'failure_code',
+    'repaired_total',
   ],
   'search.recent_search': [
     'id',

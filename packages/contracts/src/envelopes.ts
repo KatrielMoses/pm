@@ -223,6 +223,12 @@ export const NON_RESOURCE_TYPES = [
   'search_status',
   'search_open',
   'search_recent',
+  // 5C: the metric catalog, one metric result, the records behind a result, and a reconciliation
+  // request; none has a public identifier of its own.
+  'metric_catalog',
+  'metric_result',
+  'metric_records',
+  'metric_reconcile',
   // 5B: a portfolio's health overview, cross-project dependencies, and orphan findings; each is
   // computed for the viewer and has no public identifier of its own.
   'portfolio_overview',

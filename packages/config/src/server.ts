@@ -277,6 +277,19 @@ export interface ServerConfig {
     searchRecentMax: number;
     searchRecentRetentionDays: number;
     searchRatePerMinute: number;
+    metricsWindowDaysMax: number;
+    metricsDefaultWindowDays: number;
+    metricsDrillPageMax: number;
+    metricsDrillResultsMax: number;
+    metricsScopeTasksMax: number;
+    metricsSampleMin: number;
+    metricsRatePerMinute: number;
+    metricsReconcileBatchMax: number;
+    metricsReconcileDiscoveryMax: number;
+    metricsReconcileIntervalMinutes: number;
+    metricsReconcileLeaseSeconds: number;
+    metricsReconcileMaxAttempts: number;
+    metricsReconcileBackoffSeconds: number;
     goalsPerScopeMax: number;
     goalKeyResultsMax: number;
     goalLinksMax: number;
@@ -643,6 +656,19 @@ const DEFAULTS = {
   SEARCH_RECENT_MAX: '25',
   SEARCH_RECENT_RETENTION_DAYS: '90',
   SEARCH_RATE_PER_MINUTE: '120',
+  METRICS_WINDOW_DAYS_MAX: '366',
+  METRICS_DEFAULT_WINDOW_DAYS: '30',
+  METRICS_DRILL_PAGE_MAX: '100',
+  METRICS_DRILL_RESULTS_MAX: '1000',
+  METRICS_SCOPE_TASKS_MAX: '20000',
+  METRICS_SAMPLE_MIN: '5',
+  METRICS_RATE_PER_MINUTE: '60',
+  METRICS_RECONCILE_BATCH_MAX: '500',
+  METRICS_RECONCILE_DISCOVERY_MAX: '50',
+  METRICS_RECONCILE_INTERVAL_MINUTES: '360',
+  METRICS_RECONCILE_LEASE_SECONDS: '300',
+  METRICS_RECONCILE_MAX_ATTEMPTS: '5',
+  METRICS_RECONCILE_BACKOFF_SECONDS: '60',
   GOALS_PER_SCOPE_MAX: '500',
   GOAL_KEY_RESULTS_MAX: '20',
   GOAL_LINKS_MAX: '200',
@@ -922,6 +948,19 @@ const schema = z.object({
   SEARCH_RECENT_MAX: int(5, 100),
   SEARCH_RECENT_RETENTION_DAYS: int(1, 365),
   SEARCH_RATE_PER_MINUTE: int(10, 1200),
+  METRICS_WINDOW_DAYS_MAX: int(31, 1000),
+  METRICS_DEFAULT_WINDOW_DAYS: int(7, 366),
+  METRICS_DRILL_PAGE_MAX: int(10, 200),
+  METRICS_DRILL_RESULTS_MAX: int(100, 5000),
+  METRICS_SCOPE_TASKS_MAX: int(1000, 200000),
+  METRICS_SAMPLE_MIN: int(1, 100),
+  METRICS_RATE_PER_MINUTE: int(10, 600),
+  METRICS_RECONCILE_BATCH_MAX: int(50, 5000),
+  METRICS_RECONCILE_DISCOVERY_MAX: int(1, 500),
+  METRICS_RECONCILE_INTERVAL_MINUTES: int(5, 10080),
+  METRICS_RECONCILE_LEASE_SECONDS: int(30, 3600),
+  METRICS_RECONCILE_MAX_ATTEMPTS: int(1, 20),
+  METRICS_RECONCILE_BACKOFF_SECONDS: int(5, 3600),
   GOALS_PER_SCOPE_MAX: int(10, 5000),
   GOAL_KEY_RESULTS_MAX: int(1, 50),
   GOAL_LINKS_MAX: int(10, 1000),
@@ -1530,6 +1569,19 @@ export function loadServerConfig(options: LoadOptions): ServerConfig {
       searchRecentMax: c.SEARCH_RECENT_MAX,
       searchRecentRetentionDays: c.SEARCH_RECENT_RETENTION_DAYS,
       searchRatePerMinute: c.SEARCH_RATE_PER_MINUTE,
+      metricsWindowDaysMax: c.METRICS_WINDOW_DAYS_MAX,
+      metricsDefaultWindowDays: c.METRICS_DEFAULT_WINDOW_DAYS,
+      metricsDrillPageMax: c.METRICS_DRILL_PAGE_MAX,
+      metricsDrillResultsMax: c.METRICS_DRILL_RESULTS_MAX,
+      metricsScopeTasksMax: c.METRICS_SCOPE_TASKS_MAX,
+      metricsSampleMin: c.METRICS_SAMPLE_MIN,
+      metricsRatePerMinute: c.METRICS_RATE_PER_MINUTE,
+      metricsReconcileBatchMax: c.METRICS_RECONCILE_BATCH_MAX,
+      metricsReconcileDiscoveryMax: c.METRICS_RECONCILE_DISCOVERY_MAX,
+      metricsReconcileIntervalMinutes: c.METRICS_RECONCILE_INTERVAL_MINUTES,
+      metricsReconcileLeaseSeconds: c.METRICS_RECONCILE_LEASE_SECONDS,
+      metricsReconcileMaxAttempts: c.METRICS_RECONCILE_MAX_ATTEMPTS,
+      metricsReconcileBackoffSeconds: c.METRICS_RECONCILE_BACKOFF_SECONDS,
       goalsPerScopeMax: c.GOALS_PER_SCOPE_MAX,
       goalKeyResultsMax: c.GOAL_KEY_RESULTS_MAX,
       goalLinksMax: c.GOAL_LINKS_MAX,

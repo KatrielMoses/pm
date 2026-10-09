@@ -272,6 +272,21 @@ All decisions are **proposed (Phase 0C)**, pending solutions-architect acceptanc
   - **No new actions.** The action count stays 122.
 - **Alternatives:** Sharing goals or portfolios (a second access path to the work they summarize). A goal-level role table (a second authority). Storing a portfolio's health, progress, or counts (one viewer's view served to the next). Showing the number of hidden linked items so a total adds up (existence disclosure).
 - **Consequences:** Threats T-55 to T-62 with tests AT-246 to AT-268.
+<a id="az-38"></a>
+### AZ-38: Metrics (Phase 5C amendment)
+- **Decision:**
+  - **One authority, first.** A metric is computed for the person asking, from records they may read at that moment. Every counted record (a task, a project, the host task of a deliverable) is joined to the `core.record` that governs it and the compiled record-visibility predicate is applied before the record is counted, grouped, ranked, timed, labelled, remembered, or paged. A hidden record contributes to no count, percentage, sum, distribution (median, percentile, mean, extreme), age band, breakdown row, order, record total, freshness figure, digest, or timing (AT-270). There is no stored aggregate, so there is no second copy that could be stale after a revocation (AT-275).
+  - **Hidden is unknown.** A hidden brand or project named in a request is refused exactly as one that does not exist (`unavailable`, the same issue for both); a hidden workspace is `not_found` (AT-269).
+  - **Drill-through is the same set.** The records behind a figure are selected by the statements that counted it, and are paged by a cursor signed for one person and one request; any other use is `cursor_invalid` (AT-271, AT-272).
+  - **People.** A breakdown by person, the person filter, and the count of tasks without an owner are given to members only; a guest sees tasks they were shared and no people (AT-273).
+  - **History is not a copy of access.** The status ledger holds a status category and two instants and joins the task's record on every read; it is written only by the task's own transaction and by a reconciliation that acts for one workspace through that workspace's transaction (AT-276). A figure that needs history the ledger does not have excludes and names it, and a failing or lagging reconciliation is shown, never hidden (AT-277).
+  - **Time travel does not widen.** `as_of` reads recorded history through today's visibility; a metric that describes the present refuses a past time, and a time in the future is refused (AT-279).
+  - **Exports.** An export is the same figure, bounded, formula-neutralized, and audited-free of content; a hidden scope is refused (AT-274).
+  - **Reconciliation request.** Asking for a pass is `workspace.configure` and moves a schedule only (AT-278).
+  - **No new actions.** The action count stays 122.
+- **Alternatives:** Stored per-scope aggregates (frozen for one viewer, disclosing to the next). Filtering a computed figure in the application (counts and distributions then reflect hidden records). A privileged read of the ledger for speed (a new privileged read path). Counting hidden work and labelling it "other" (it discloses existence, IA-40).
+- **Consequences:** Threats T-63 and T-64 with tests AT-269 to AT-279.
+
 <a id="az-35"></a>
 ### AZ-35: Live collaborative editing (Phase 4D amendment)
 - **Decision:**

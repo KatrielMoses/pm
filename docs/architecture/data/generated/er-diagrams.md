@@ -465,3 +465,10 @@ erDiagram
 erDiagram
   support_request ||--o{ diagnostics_bundle : "contains"
 ```
+
+## Metrics ledger
+
+```mermaid
+erDiagram
+  task_status_span }o..o{ record : "references"
+```
