@@ -259,6 +259,20 @@ All decisions are **proposed (Phase 0C)**, pending solutions-architect acceptanc
 - **Alternatives:** Permission keys copied into the index (stale after every change, the denormalized-authority failure T-54 describes). Filtering a fetched page in the application (counts, ranks, and paging then reflect hidden records). Hiding results with a placeholder (it discloses existence, IA-40). A definer function that reads the index outside row-level security for speed (a new privileged read path).
 - **Consequences:** Threat T-54 with tests AT-238 to AT-245.
 
+<a id="az-38"></a>
+### AZ-38: Dashboards, reports, shares, and scheduled delivery (Phase 5D amendment)
+- **Decision:**
+  - **The placement decides, or an explicit share.** A dashboard or report is read and written through the level of its placement at that moment. `record.create`, `record.update`, `record.archive`, `record.restore`, `record.trash`, `record.purge`, `record.read`, and `record.export` are reused. An unreadable and an unknown dashboard or report are one `not_found`.
+  - **Personal dashboards belong to one person.** They are created, changed, and removed through `personal.manage_own` and read by their owner only, whatever role anyone else holds.
+  - **A share grants no data.** Sharing needs `record.share` (manage) on the report and revoking needs `record.share_revoke`. A share lets the grantee open and run the saved definition; every figure and record is still decided by the grantee's own access, within the report's scope. It is never onward-shareable and never reaches dashboards. A guest or share-only reader sees no aggregate wider than the records they were given, only guest-safe widgets, and a label that says so.
+  - **Computed for the viewer, from what the viewer may read.** Every widget, drill-through, export, and email is computed at the moment of the request or send from the recipient's own compiled visibility; a revoked grant, share, or membership applies to the next one. Hidden brands, projects, and tasks change no count, group, total, label, freshness statement, truncation notice, or empty state, and a widget whose source the person cannot see is absent (AT-269 to AT-275).
+  - **Scheduling is accountable.** `report.schedule` is decided at the report's own scope (project, brand, or workspace). Whoever saves a schedule answers for it; at each send the owner's membership and `report.schedule` authority are rechecked and a failure suspends the schedule (`owner_authority`, `owner_departed`) instead of sending. A recipient who can no longer read the report is skipped and never emailed, and one who can see nothing gets no email (AT-016, AT-276 to AT-278).
+  - **Exports.** CSV and PDF are produced for the requester, bounded (`REPORT_EXPORT_ROWS_MAX`), rate limited per member, neutralize formula cells, audited with a security event, and never stored. A read-only member, a limited member without the export policy, and a guest cannot export (AT-279, AT-280).
+  - **Sensitive brands.** A scheduled email for a sensitive brand's report carries no figures, only a pointer back into the product (UXD-10).
+  - **No new actions.** The action count stays 122.
+- **Alternatives:** A share that copies the sharer's view (the share would disclose what the sharer sees and not what the grantee may). Recording a stored visibility in a run. Letting a recipient receive a figure computed for the report's owner.
+- **Consequences:** Threats T-63 to T-70 with tests AT-269 to AT-286.
+
 <a id="az-37"></a>
 ### AZ-37: Goals and portfolios (Phase 5B amendment)
 - **Decision:**

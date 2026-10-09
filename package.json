@@ -36,6 +36,7 @@
     "validate:phase4e": "python3 docs/engineering/tools/phase4e.py",
     "validate:phase5a": "python3 docs/engineering/tools/phase5a.py",
     "validate:phase5b": "python3 docs/engineering/tools/phase5b.py",
+    "validate:phase5d": "python3 docs/engineering/tools/phase5d.py",
     "validate:phase5": "python3 docs/engineering/tools/phase5.py",
     "contracts:generate": "node packages/contracts/scripts/generate.mjs",
     "contracts:generate:check": "node packages/contracts/scripts/generate.mjs --check",

@@ -20,7 +20,7 @@
 - Pre-aggregated `insights.metric_snapshot` rows are keyed by `scope_key` (and project). A viewer's value is the sum over authorized keys, with restricted projects subtracted using per-project snapshot rows. A snapshot spanning hidden scopes is never shown.
 - Capacity and availability: only commitments the viewer can read (approved: no anonymous free/busy). A person always sees all of their **own** availability and commitments. Colleagues see only commitments they can read.
 - Portfolio rollups, goal progress from linked work, and project completion are computed over readable records, with a "covers visible scope" label where the view is partial.
-- **Scheduled reports** (`report.schedule`) are rendered **per recipient at send time**, as that recipient. A recipient who can see nothing gets an empty report or no email (AT-016).
+- **Scheduled reports** (`report.schedule`) are rendered **per recipient at send time**, as that recipient. A recipient who can see nothing gets an empty report or no email (AT-016). Phase 5D ([AZ-38](15-decisions.md#az-38)) implements this without `metric_snapshot` rows: every figure is computed at the request or send from the recipient's own access, a run stores only that it happened, and a share grants the saved definition, never data.
 
 ## 8.3 Activity, recent, favorites
 

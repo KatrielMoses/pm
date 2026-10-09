@@ -265,6 +265,12 @@ describe('database-enforced workspace existence (1A review 01, correction 2)', (
       'goals.key_result',
       'goals.portfolio',
       'goals.portfolio_project',
+      // Phase 5D dashboards, reports, recipients, shares, and delivery runs.
+      'insights.dashboard',
+      'insights.report_definition',
+      'insights.report_recipient',
+      'insights.report_share',
+      'insights.report_run',
       'files.deliverable',
       'files.deliverable_version',
       'files.storage_usage',
@@ -301,7 +307,7 @@ describe('database-enforced workspace existence (1A review 01, correction 2)', (
             AND i.indkey::int2[] @> c.confkey AND i.indkey::int2[] <@ c.confkey
         ) AS referenced_unique
       FROM pg_constraint c JOIN pg_namespace n ON n.oid = c.connamespace
-      WHERE c.contype = 'f' AND n.nspname IN ('exec', 'tenancy', 'access', 'ops', 'views', 'workflow', 'work', 'relations', 'templates', 'planning', 'capture', 'timetrack', 'collab', 'notify', 'knowledge', 'files', 'search', 'goals')
+      WHERE c.contype = 'f' AND n.nspname IN ('exec', 'tenancy', 'access', 'ops', 'views', 'workflow', 'work', 'relations', 'templates', 'planning', 'capture', 'timetrack', 'collab', 'notify', 'knowledge', 'files', 'search', 'goals', 'insights')
       ORDER BY 1`);
     // exec: 7 workspace keys + 6 composite same-workspace keys; 1C tenancy/access: 20 keys;
     // 1D collaboration (teams, invitations, policy, shares, ownership transfer): 38 keys;
@@ -325,8 +331,9 @@ describe('database-enforced workspace existence (1A review 01, correction 2)', (
     // 4D live edit drafts (3), sessions (3), and operations (4): +10;
     // 5A search entries (4), indexing tasks (2), and recent searches (2): +8;
     // 5B goals (8), key results (7), check-ins (4), links (6), derived state (2), portfolios (6),
-    // and portfolio projects (4): +37.
-    expect(res.rows.length).toBe(494);
+    // and portfolio projects (4): +37;
+    // 5D dashboards (7), report definitions (7), recipients (4), shares (5), and runs (3): +26.
+    expect(res.rows.length).toBe(520);
     for (const r of res.rows)
       expect(r, `${r.tbl}.${r.conname}`).toMatchObject({
         referencing_indexed: true,

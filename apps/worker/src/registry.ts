@@ -37,6 +37,9 @@ import {
   GOAL_SCHEDULES,
   goalRecalcHandler,
   type GoalJobDeps,
+  REPORT_SCHEDULES,
+  reportDeliveryHandler,
+  type ReportJobDeps,
 } from '@pm/work';
 
 /**
@@ -53,6 +56,7 @@ import {
  * 4E: the malware scan of uploads (fail closed) and the file sweep (expired uploads, object deletion).
  * 5A: the search index worker (queued source keys, bounded and retryable) and recent-search retention.
  * 5B: the goal recalculation sweep (staleness, period state, and manual key-result rollups).
+ * 5D: scheduled report delivery (rendered per recipient at send time) and run retention.
  */
 export interface WorkerModules {
   identity: IdentityJobDeps;
@@ -64,6 +68,7 @@ export interface WorkerModules {
   files: FileJobDeps;
   search: SearchJobDeps;
   goals: GoalJobDeps;
+  reports: ReportJobDeps;
 }
 
 export function registeredHandlers(m: WorkerModules): JobHandler[] {
@@ -84,6 +89,7 @@ export function registeredHandlers(m: WorkerModules): JobHandler[] {
     fileSweepHandler(m.files),
     searchIndexHandler(m.search),
     goalRecalcHandler(m.goals),
+    reportDeliveryHandler(m.reports),
   ];
 }
 
@@ -119,5 +125,6 @@ export function registeredSchedules(): RecurringJob[] {
     ...FILE_SCHEDULES,
     ...SEARCH_SCHEDULES,
     ...GOAL_SCHEDULES,
+    ...REPORT_SCHEDULES,
   ];
 }

@@ -160,6 +160,12 @@ const PHASE_1C_TENANT_TABLES = [
   'goals.goal_state',
   'goals.portfolio',
   'goals.portfolio_project',
+  // Phase 5D dashboards, reports, recipients, shares, and delivery runs.
+  'insights.dashboard',
+  'insights.report_definition',
+  'insights.report_recipient',
+  'insights.report_share',
+  'insights.report_run',
   // Phase 4E files, versions, upload sessions, deliverables, and storage usage.
   'files.file_object',
   'files.file',
@@ -478,8 +484,8 @@ describe('tenant RLS foundation (0C §12.7)', () => {
     // 1A–1F: 9 functions; 1E adds discover_views_cleanup and 2A discover_recurrence_due
     // (workspace ids only); 2D discover_reminders_due; 3D discover_runaway_timers; 3C
     // discover_days_to_close and discover_block_series_due; 4B discover_notification_work; 4E
-    // discover_file_work; 5A discover_search_work; 5B discover_goal_work.
-    expect(fns.rows.length).toBe(19);
+    // discover_file_work; 5A discover_search_work; 5B discover_goal_work; 5D discover_report_work.
+    expect(fns.rows.length).toBe(20);
     const allowed = new Set([
       'job_id',
       'workspace_id',

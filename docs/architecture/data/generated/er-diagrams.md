@@ -315,7 +315,10 @@ erDiagram
 erDiagram
   record ||--|| dashboard : "envelope"
   record ||--|| report_definition : "envelope"
-  operation ||--|| report_run : "extends"
+  report_definition ||--o{ report_recipient : "contains"
+  report_recipient }o..o{ report_definition : "references"
+  report_definition ||--o{ report_share : "contains"
+  report_share }o..o{ report_definition : "references"
 ```
 
 ## Integrations, API, and webhooks

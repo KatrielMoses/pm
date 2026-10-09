@@ -87,8 +87,8 @@ test('one registry drives every navigation surface; destinations are honest and 
     ])
       await expect(nav.getByRole('link', { name, exact: true })).toBeAttached();
   }
-  // Today is live (3C); later destinations are real routes with an honest unavailable state, and
-  // both keep the scope in the URL.
+  // Today (3C) and Reports (5D) are live; every destination is a real route that keeps the scope in
+  // the URL.
   await goTo(page, 'Today');
   await expect(page).toHaveURL(new RegExp(`/workspaces/${ws}/today\\?scope=`));
   await expect(page.getByRole('heading', { level: 1 })).toHaveText('Today');
@@ -98,10 +98,10 @@ test('one registry drives every navigation surface; destinations are honest and 
     await goTo(page, name);
     await expect(page).toHaveURL(new RegExp(`/workspaces/${ws}/${path}\\?scope=`));
     await expect(page.getByRole('heading', { level: 1 })).toHaveText(name);
-    await expect(page.getByText(`${name} isn't available yet`)).toBeVisible();
+    await expect(page.getByText(`${name} isn't available yet`)).toHaveCount(0);
     await expect(page).toHaveTitle(`${name} · PM`);
   }
-  await expectAccessible(page, 'unavailable destination');
+  await expectAccessible(page, 'reports destination');
   // Every navigation element is a real link (new-tab capable).
   const href = await page
     .getByRole('navigation', { name: 'Primary' })
@@ -176,7 +176,7 @@ test('palette, shortcuts, favorites, recents, breadcrumbs, and titles', async ({
   const box = await openPalette(page);
   await expectAccessible(page, 'palette');
   await box.fill('>');
-  await expect(page.getByRole('group').first()).toContainText('Actions');
+  await expect(page.getByRole('dialog').getByRole('group').first()).toContainText('Actions');
   await expect(page.getByRole('option', { name: /Today/ })).toHaveCount(0);
   await box.fill('birch');
   const record = page.getByRole('option', { name: /Birch/ });

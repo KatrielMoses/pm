@@ -4416,3 +4416,246 @@ nav.tabs a[aria-current='page'] {
     transition: none;
   }
 }
+
+/* ---- Phase 5D dashboards and reports ---------------------------------------------------------
+   Widgets adapt to the width of their own container, not the viewport (RS-56): one column on a
+   narrow screen in the saved order, two on a medium one, a grid on a wide one. Every figure has a
+   text label for scope, source, and freshness; estimated segments are hatched and labelled;
+   status is never colour alone. Tables become stacked cards at 320px and at 200% zoom; borders and
+   focus stay visible in forced-colours mode; nothing animates under reduced motion. */
+.ins-grid {
+  display: grid;
+  gap: var(--space-4);
+  grid-template-columns: 1fr;
+  container-type: inline-size;
+  margin-top: var(--space-4);
+}
+@container (min-width: 40rem) {
+  .ins-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .ins-large {
+    grid-column: 1 / -1;
+  }
+}
+@container (min-width: 64rem) {
+  .ins-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+  .ins-small {
+    grid-column: span 1;
+  }
+  .ins-medium {
+    grid-column: span 2;
+  }
+  .ins-large {
+    grid-column: 1 / -1;
+  }
+}
+.ins-widget {
+  min-width: 0;
+  padding: var(--space-4);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: 8px;
+  background: var(--color-bg-surface);
+  overflow-wrap: anywhere;
+}
+.ins-widget-title {
+  font-size: 1rem;
+  margin: 0 0 var(--space-2);
+}
+.ins-value {
+  margin: var(--space-2) 0;
+}
+.ins-value .display {
+  font-size: 1.875rem;
+  line-height: 1.25;
+  font-weight: 600;
+}
+.ins-skeleton {
+  min-height: 6rem;
+  border-radius: 6px;
+  background: linear-gradient(
+    90deg,
+    var(--color-bg-sunken),
+    var(--color-bg-hover),
+    var(--color-bg-sunken)
+  );
+  background-size: 200% 100%;
+  animation: ins-pulse 1.4s ease-in-out infinite;
+}
+@keyframes ins-pulse {
+  from {
+    background-position: 200% 0;
+  }
+  to {
+    background-position: -200% 0;
+  }
+}
+.ins-breakdown {
+  list-style: none;
+  padding: 0;
+  margin: var(--space-2) 0;
+  display: grid;
+  gap: var(--space-2);
+}
+.ins-breakdown li {
+  display: grid;
+  grid-template-columns: minmax(5rem, 1fr) minmax(3rem, 2fr) auto;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: 0.875rem;
+}
+.ins-b-bar {
+  height: 10px;
+  border: 1px solid var(--color-border-strong);
+  border-radius: 6px;
+  background: var(--color-bg-sunken);
+  overflow: hidden;
+}
+.ins-b-fill {
+  display: block;
+  height: 100%;
+  background: var(--color-action-primary);
+}
+.ins-estimated {
+  background: repeating-linear-gradient(
+    45deg,
+    var(--color-action-primary) 0,
+    var(--color-action-primary) 4px,
+    var(--color-bg-surface) 4px,
+    var(--color-bg-surface) 8px
+  );
+}
+.ins-b-value {
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+}
+.ins-notes {
+  margin: var(--space-2) 0;
+  padding-left: var(--space-4);
+  font-size: 0.875rem;
+  color: var(--color-text-secondary);
+}
+.ins-na {
+  font-size: 0.8125rem;
+}
+.ins-data summary {
+  cursor: pointer;
+  min-height: 24px;
+  font-weight: 600;
+}
+.ins-table-wrap {
+  overflow-x: auto;
+  margin: var(--space-2) 0;
+}
+.ins-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.875rem;
+}
+.ins-table th,
+.ins-table td {
+  text-align: left;
+  padding: var(--space-2);
+  border-bottom: 1px solid var(--color-border-subtle);
+  vertical-align: top;
+}
+.ins-filters {
+  display: grid;
+  gap: var(--space-3);
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 14rem), 1fr));
+  margin: var(--space-3) 0;
+}
+.ins-filter-disclosure > summary {
+  cursor: pointer;
+  min-height: 24px;
+  font-weight: 600;
+}
+.ins-editor-list {
+  list-style: none;
+  padding: 0;
+  display: grid;
+  gap: var(--space-3);
+}
+.ins-editor-row {
+  padding: var(--space-3);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: 6px;
+}
+.ins-editor-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+@media (max-width: 599px) {
+  .ins-table thead {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+  }
+  .ins-table tr {
+    display: block;
+    padding: var(--space-2) 0;
+    border-bottom: 1px solid var(--color-border-strong);
+  }
+  .ins-table td {
+    display: grid;
+    grid-template-columns: minmax(6rem, 40%) 1fr;
+    gap: var(--space-2);
+    border-bottom: 0;
+  }
+  .ins-table td::before {
+    content: attr(data-label);
+    font-weight: 600;
+    color: var(--color-text-secondary);
+  }
+  .ins-breakdown li {
+    grid-template-columns: 1fr auto;
+  }
+  .ins-b-bar {
+    grid-column: 1 / -1;
+    order: 3;
+  }
+}
+@media (forced-colors: active) {
+  .ins-widget,
+  .ins-editor-row {
+    border: 1px solid CanvasText;
+  }
+  .ins-b-bar {
+    border: 1px solid CanvasText;
+    background: Canvas;
+  }
+  .ins-b-fill {
+    background: Highlight;
+    forced-color-adjust: none;
+  }
+  .ins-estimated {
+    background: repeating-linear-gradient(
+      45deg,
+      Highlight 0,
+      Highlight 4px,
+      Canvas 4px,
+      Canvas 8px
+    );
+    forced-color-adjust: none;
+  }
+  .ins-table-wrap:focus-visible,
+  .ins-data summary:focus-visible {
+    outline-color: Highlight;
+  }
+  .ins-table th,
+  .ins-table td {
+    border-bottom: 1px solid CanvasText;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .ins-skeleton {
+    animation: none;
+  }
+}

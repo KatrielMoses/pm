@@ -48,6 +48,7 @@ import {
 import { Page } from '../ui/layout.tsx';
 import { MentionedInDocuments } from '../docs/panels.tsx';
 import { DocumentsSection } from '../docs/sections.tsx';
+import { ProjectReports } from '../insights/overview.tsx';
 import { WorkTimePanel } from './time-pages.tsx';
 import { ReviewedChange } from './people-pages.tsx';
 import { OtherIssues, SaveProblem, splitIssues } from './workspace-pages.tsx';
@@ -814,6 +815,12 @@ export function ProjectPage({
                 />
                 <MentionedInDocuments ws={ws} rec={o.project.id} headingId="project-mentioned-h" />
               </>
+            ) : section === 'reports' ? (
+              <ProjectReports
+                ws={ws}
+                project={o.project.id}
+                canCreate={o.project.lifecycle_state === 'active'}
+              />
             ) : def.phase !== null ? (
               <SectionUnavailable label={def.label} phase={def.phase} />
             ) : section === 'overview' ? (
