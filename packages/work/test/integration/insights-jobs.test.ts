@@ -48,7 +48,7 @@ describe('Dashboard and report jobs, recovery, and lifecycle (5D)', () => {
   const outbox = new Outbox();
 
   const mem = async (c: Caller) => (await membershipOf(db, wsId, c.auth.account.id))!.public_id;
-  const sql = async (text: string) => (await db.admin(text)).rows as Array<Record<string, any>>; // eslint-disable-line @typescript-eslint/no-explicit-any
+  const sql = async (text: string) => (await db.admin(text)).rows as Array<Record<string, any>>;
   const sweep = (now = new Date(), e = env, id = wsId) =>
     e.svc.runReportSweep(e.h.worker, id, now, { email: outbox, origin: 'https://pm.test' });
   const daily = { frequency: 'daily', time: '06:00', timezone: 'UTC' };
@@ -284,7 +284,7 @@ describe('Dashboard and report jobs, recovery, and lifecycle (5D)', () => {
     const projectInternal = await internal(proj.launch!);
     const registry = productLifecycleRegistry();
     await env.h.worker.withWorkspace(wsId, { module: 'test' }, async (tx) => {
-      const carried = await registry.get('project')!.children(tx, [projectInternal]);
+      const carried = await registry.get('project')!.children!(tx, [projectInternal]);
       expect(
         carried
           .map((c) => c.recordType)
@@ -317,7 +317,9 @@ describe('Dashboard and report jobs, recovery, and lifecycle (5D)', () => {
         mutation(),
       )
     ).data;
-    const spy = vi.spyOn(env.svc as never, 'timeReportIn').mockRejectedValue(new Error('boom'));
+    const spy = vi
+      .spyOn(env.svc as unknown as Record<string, (...a: never[]) => unknown>, 'timeReportIn')
+      .mockRejectedValue(new Error('boom'));
     try {
       const w = (await env.svc.dashboardWidget(owner, ws, d.id, 'time', {})) as {
         outcome: { state: string };
