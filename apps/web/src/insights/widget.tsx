@@ -281,8 +281,8 @@ export function WidgetCard({
         {meta.title}
       </h3>
       {state.status === 'loading' ? (
-        <div className="ins-skeleton" role="status">
-          <span className="visually-hidden">Loading {meta.title}…</span>
+        <div className="ins-skeleton" role={near ? 'status' : undefined}>
+          {near ? <span className="visually-hidden">Loading {meta.title}…</span> : null}
         </div>
       ) : state.status === 'failed' || state.outcome.state === 'error' ? (
         <div className="gl-problem" role="alert">

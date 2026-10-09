@@ -275,7 +275,7 @@ describe('Dashboards and reports (5D)', () => {
     });
 
     it('replays an idempotent create once', async () => {
-      const key = mutation({ idempotencyKey: 'k_0123456789abcdef01234567' });
+      const key = mutation();
       const a = await env.svc.createDashboard(owner, ws, { title: 'Once', kind: 'owner' }, key);
       const b = await env.svc.createDashboard(owner, ws, { title: 'Once', kind: 'owner' }, key);
       expect(b.data.id).toBe(a.data.id);
