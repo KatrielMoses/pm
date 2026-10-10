@@ -280,6 +280,7 @@ worker process is a startup error. All identities of one process must target the
 | `SYNC_HISTORY_RETENTION_DAYS` | optional | optional | default 90 (7–730); how long sync run history is kept (0D `SYNC_HISTORY_RETENTION_DAYS`) |
 | `SYNC_RATE_PER_MINUTE` | optional | optional | default 30 (1–600); most connection creates and syncs one member starts per minute (0D `SYNC_RATE_PER_MINUTE`) |
 | `INTEGRATION_LOOPBACK_ENABLED` | optional | optional | `auto` (also `0` or `1`); the in-process loopback provider is on for local and test when `auto`, and off for every other environment unless set to `1` |
+| `GOOGLE_CALENDAR_LOOPBACK_ENABLED` | optional | optional | `0` or `1`; default `0`. When `1`, the in-process Google Calendar double may be connected (local and test only) |
 | `API_TOKENS_PERSONAL_MAX` | optional | optional | default 25 (1–500); active personal API tokens one member may hold |
 | `API_TOKENS_SERVICE_MAX` | optional | optional | default 50 (1–500); active service tokens one accountable owner may hold |
 | `API_READ_RATE_PER_MINUTE` | optional | optional | default 600 (1–10000); public API reads per principal |
