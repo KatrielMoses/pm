@@ -237,6 +237,19 @@ Status of every ADR: **proposed (Phase 0B)**, pending solutions-architect accept
   - **No GIN index.** Under forced row-level security the full-text operator cannot use one (it is not leakproof, and no role may mark it so), so none is created; see engineering decision S14 of Phase 5A for the bound and the upgrade path.
 - **Alternatives:** Permission keys copied into the projection (stale after every share, move, and role change). An outbox consumer (misses edits that emit no event, and cannot backfill). A definer function that reads the projection outside row-level security to regain the index (a new privileged read path). Offset paging (§10.5 forbids it for user lists).
 - **Consequences:** Migration `0041_permission_aware_search` with an exact 0040 rollback. All three tables have workspace RLS and indexes on every foreign key; the worker holds write grants, the API read grants (and write grants on recent searches only).
+<a id="adr-40"></a>
+## ADR-40: Connections, checkpoints, identities, sync runs, deliveries, and conflicts (Phase 6A amendment)
+
+- **Decision:**
+  - **Connection.** `integrations.connection` (`conn_`) is a core record, workspace- or brand-scoped, with an owner, granted scopes, health (`connected`, `needs_reauthorization`, `error`, `disconnected`, `provider_unconfigured`, `degraded`), and `credential_secret_ref`. The reference is the only credential column. Disconnect always clears it. Retention is `retain` or `remove`; remove deletes synchronized rows in this product and does not delete them at the provider (DQ-37).
+  - **Checkpoint.** `integrations.sync_checkpoint` is one cursor per connection and resource, advanced by compare-and-set on `version`.
+  - **Identity.** `integrations.external_identity` (`ext_`) links an external object to a connection and optionally a record. It stores versions and a label, never a secret.
+  - **Run and delivery.** `integrations.sync_run` is append-only history (kept when synchronized data is removed). `integrations.sync_delivery` is unique on `(connection, dedupe key)` so a repeated sync does not apply twice; exhausted attempts are `dead`.
+  - **Conflict.** `integrations.sync_conflict` (`cnf_`) records an open field conflict as versions only. Resolution is `kept_local`, `kept_remote`, or `dismissed`.
+  - **Vault key.** `ops.dev_secret_vault.key_id` names the key that wrapped a secret so a previous key can still decrypt during rotation.
+  - **Deletion.** Purge removes a connection's children and its vault secret. A departing owner's secret is destroyed and the connection requires reauthorization.
+- **Alternatives:** Storing tokens in the connection row (they would leak through exports, logs, and backups of application tables). Deleting remote data on disconnect by default (DQ-37 says not to). Treating an unconfigured provider as a failed process check (core work must stay ready).
+- **Consequences:** Migration `0045_integration_framework` with an exact 0044 rollback. All six tables have workspace RLS and an index on every foreign key. A payload-free discovery lists workspaces with a delivery due or history past retention.
 <a id="adr-39"></a>
 ## ADR-39: Dashboards, saved reports, shares, schedules, and delivery runs (Phase 5D amendment)
 

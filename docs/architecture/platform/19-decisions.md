@@ -284,6 +284,21 @@ All decisions are **proposed (Phase 0D)**, pending solutions-architect acceptanc
   - The worker job `search.index` (every ten seconds) discovers workspaces through the payload-free `exec_dispatch.discover_search_work(now, retention_before, limit)`, which returns workspace identifiers only.
 - **Alternatives:** Offset paging (0B §10.5). Server-sent search suggestions per keystroke (the palette's debounced lookup is the same request). Public identifiers for recent searches (a prefix for a personal hint). An event per indexed change (content-free events cannot drive an index).
 - **Consequences:** 89 ID prefixes, 145 events, 195 named parameters, 95 telemetry signals.
+<a id="pl-42"></a>
+### PL-42: Integration connection contracts (Phase 6A amendment)
+- **Decision:**
+  - Prefixes `ext` (external identity) and `cnf` (sync conflict) are added. `conn` was already registered.
+  - Routes under `/v1/workspaces/{ws}`: `integrations/providers` (`GET`), `integrations/connections` (`GET`, `POST`), `integrations/connections:rotate` (`POST`), `integrations/connections/{conn}` (`GET`), and `{conn}/oauth:complete`, `{conn}:test`, `{conn}:reauthorize`, `{conn}:disconnect`, `{conn}:sync`, `{conn}/runs`, `{conn}/conflicts`, `{conn}/conflicts/{cnf}:resolve`, `{conn}/identities/{ext}:local`. Unsafe requests take `Idempotency-Key`. Responses are `private, no-store`.
+  - A connection resource never includes a credential, only `credential_configured`. Provider, owner, scopes, health, and last success are included (INT-005).
+  - Non-resource envelopes: `integration_providers`, `integration_connections`, `integration_rotation`, `sync_runs`, `sync_conflicts`.
+  - Refusals: `validation_failed` issues `provider_unconfigured`, `insufficient_scope`, `invalid_option`, and `too_many`; `not_found` for unknown and hidden connections; `forbidden` for guests; `conflict` when a checkpoint loses a compare-and-set.
+  - Events (class C1): `integrations.connection.created`, `.reauthorized`, `.disconnected`, `.health_changed`, `integrations.sync.completed`, `integrations.sync.failed`, `integrations.conflict.detected`, `integrations.conflict.resolved`, `integrations.credential.rotated`. Fields are enums, counts, and identifiers.
+  - Named bounds (owner 6A): `CONNECTIONS_PER_SCOPE_MAX` (50), `CONNECTION_SCOPES_MAX` (16), `SYNC_BATCH_MAX` (100), `SYNC_MAX_ATTEMPTS` (5), `SYNC_BACKOFF_SECONDS` (30), `SYNC_LEASE_SECONDS` (120), `SYNC_HISTORY_RETENTION_DAYS` (90), `SYNC_RATE_PER_MINUTE` (30).
+  - Signals: `integrations.requests` (op, outcome) and `integrations.jobs` (kind, outcome). `integration.sync.duration` was already registered.
+  - Job: `integrations.sync`, every minute, through `exec_dispatch.discover_integration_work` (workspace identifiers only).
+  - Loopback is configured for local and test when `INTEGRATION_LOOPBACK_ENABLED` is `auto`, and nowhere else unless the value is `1`. An unconfigured provider is a property of the connection catalog, not a process readiness failure, so core work stays ready (LA-020).
+- **Alternatives:** A readiness check that fails when no provider is configured (it would make the product unusable without an integration). Storing the one-time API key in the idempotency response (idempotency stores references only).
+- **Consequences:** Two new identifier prefixes, the events and bounds above, and two signals.
 <a id="pl-41"></a>
 ### PL-41: Dashboard and report contracts (Phase 5D amendment)
 - **Decision:**

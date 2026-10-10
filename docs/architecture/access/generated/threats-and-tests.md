@@ -80,6 +80,14 @@ Narrative: [../14-threat-model.md](../14-threat-model.md).
 | T-70 | departure | Personal dashboard exposure: an administrator, owner, another member, or a departing member's successor reading, listing, restoring, or counting a personal dashboard that is not theirs; or a personal dashboard whose existence differs from an unknown identifier in status, body, headers, or timing. | I-01, I-07, I-10 | AT-292, AT-293 |
 | T-71 | rls_leak | Replay and race: a repeated or concurrent create, edit, share, schedule, or delivery that applies twice, loses an edit, sends the same occurrence twice, or lets a second writer overwrite the first without a version conflict. | I-01, I-09 | AT-294, AT-295 |
 | T-72 | staleness | Misleading or unavailable source: a figure from an unavailable or out-of-date source shown as current or complete, a provider that is not configured reported as a delivered email, or an estimated or incomplete figure shown without saying so. | I-08, I-12 | AT-296, AT-297 |
+| T-73 | field_leak | Credential disclosure: an OAuth token or API key returned, logged, audited, indexed, or left in a row after disconnect or departure. | I-08, I-11 | AT-299, AT-300, AT-307, AT-308 |
+| T-74 | cross_brand_traversal | Connection leak: a connection, sync, or conflict from another brand or workspace is listed or read. | I-01, I-07 | AT-298, AT-306 |
+| T-75 | guest_escalation | Unauthorized configuration: a guest, read-only member, or member without manage connects, tests, syncs, or disconnects. | I-04, I-07 | AT-298, AT-307 |
+| T-76 | departure | Secret survives disconnect or departure: the vault reference remains usable after disconnect, retention removal, or the owner leaving. | I-10, I-11 | AT-301, AT-305 |
+| T-77 | rls_leak | Sync applied twice: a repeated idempotency key or delivery advances the checkpoint again or writes the same external identity twice. | I-09 | AT-302, AT-309 |
+| T-78 | revocation | Conflict hidden or resolved twice: both sides changed and the conflict is missing, or a resolution applies again. | I-09, I-12 | AT-303 |
+| T-79 | staleness | Unconfigured or degraded provider reported as healthy: a provider that is not configured, or a degraded provider, is shown as connected and its writes are applied. | I-08, I-12 | AT-304 |
+| T-80 | agent_scope | Scope wider than granted: a connection is stored with a scope the provider does not offer, or a sync writes without the write scope. | I-04, I-07 | AT-304, AT-309 |
 
 ## Test matrix
 
@@ -382,6 +390,18 @@ Narrative: [../14-threat-model.md](../14-threat-model.md).
 | AT-295 | T-71 | member | The same create request is sent twice with one idempotency key — replayed dashboard create | `record.create` | api | **allow** | ok | count_facet, error_message |
 | AT-296 | T-72 | system_job | The mail provider is down, rejects the message, or is not configured when a report is due — unavailable provider at delivery | `report.schedule` | notification_email | **deny** | omitted | search, count_facet, error_message, export |
 | AT-297 | T-72 | member | Member reads a widget built from a source that has not refreshed recently, and one from estimates — stale and estimated figures | `record.read` | ui_record | **allow** | ok | count_facet, error_message, export |
+| AT-298 | T-74, T-75 | guest | A guest and a member without the brand try to list or open a brand connection — connection visibility | `integrations.configure` | api | **deny** | not_found | error_message |
+| AT-299 | T-73 | member | An owner connects with an API key — credential storage | `integrations.configure` | api | **allow** | ok | search, error_message, export |
+| AT-300 | T-73 | owner | An owner rotates connection credentials — key rotation | `integrations.configure` | api | **allow** | ok | search, error_message |
+| AT-301 | T-76 | owner | An owner tests, reauthorizes, and disconnects, choosing to keep or remove synchronized data — disconnect retention | `integrations.configure` | api | **allow** | ok | search |
+| AT-302 | T-77 | owner | A sync is repeated with the same idempotency key, and a provider that errors is retried to the attempt bound — checkpoint and dead letter | `integration.sync_now` | api | **allow** | ok | error_message |
+| AT-303 | T-78 | owner | Local and remote versions both change — sync conflict | `integrations.configure` | api | **allow** | ok | — |
+| AT-304 | T-79, T-80 | owner | A provider that is not configured is requested, and a degraded provider is synced — provider state | `integrations.configure` | api | **deny** | omitted | error_message |
+| AT-305 | T-76 | administrator | The connection owner leaves the workspace — departure | `integrations.configure` | api | **allow** | ok | search |
+| AT-306 | T-74 | member | An unknown connection and a hidden brand connection are requested over HTTP — connection read | `record.read` | api | **deny** | not_found | error_message |
+| AT-307 | T-73, T-75 | owner | An owner connects with an API key in the browser and disconnects — integrations page | `integrations.configure` | ui_record | **allow** | ok | search |
+| AT-308 | T-73 | member | The connection list is rendered — connection list | `record.read` | ui_record | **allow** | ok | search, export |
+| AT-309 | T-77, T-80 | system_job | Backoff is computed for successive attempts and a scope outside the provider is refused — sync backoff | `integration.sync_now` | api | **deny** | omitted | error_message |
 
 ## Response shapes
 

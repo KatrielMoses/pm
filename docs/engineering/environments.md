@@ -271,6 +271,15 @@ worker process is a startup error. All identities of one process must target the
 | `REPORT_LEASE_SECONDS` | optional | optional | default 300 (30–3600); how long a claimed scheduled report stays leased before another sweep may reclaim it (0D `REPORT_LEASE_SECONDS`) |
 | `REPORT_MAX_ATTEMPTS` | optional | optional | default 5 (1–20); failed delivery attempts before a scheduled occurrence is recorded as failed (0D `REPORT_MAX_ATTEMPTS`) |
 | `REPORT_FRESHNESS_MINUTES` | optional | optional | default 720 (15–10080); age after which a derived source (a goal recalculation) is labelled stale on a dashboard (0D `REPORT_FRESHNESS_MINUTES`) |
+| `CONNECTIONS_PER_SCOPE_MAX` | optional | optional | default 50 (1–500); most connections one workspace or brand scope holds (0D `CONNECTIONS_PER_SCOPE_MAX`) |
+| `CONNECTION_SCOPES_MAX` | optional | optional | default 16 (1–32); most scopes one connection may be granted (0D `CONNECTION_SCOPES_MAX`) |
+| `SYNC_BATCH_MAX` | optional | optional | default 100 (1–500); most sync deliveries one sweep claims per workspace (0D `SYNC_BATCH_MAX`) |
+| `SYNC_MAX_ATTEMPTS` | optional | optional | default 5 (1–20); transient sync attempts before a delivery is dead-lettered (0D `SYNC_MAX_ATTEMPTS`) |
+| `SYNC_BACKOFF_SECONDS` | optional | optional | default 30 (1–3600); base delay before a transient sync is tried again (0D `SYNC_BACKOFF_SECONDS`) |
+| `SYNC_LEASE_SECONDS` | optional | optional | default 120 (30–3600); how long a claimed sync delivery stays leased (0D `SYNC_LEASE_SECONDS`) |
+| `SYNC_HISTORY_RETENTION_DAYS` | optional | optional | default 90 (7–730); how long sync run history is kept (0D `SYNC_HISTORY_RETENTION_DAYS`) |
+| `SYNC_RATE_PER_MINUTE` | optional | optional | default 30 (1–600); most connection creates and syncs one member starts per minute (0D `SYNC_RATE_PER_MINUTE`) |
+| `INTEGRATION_LOOPBACK_ENABLED` | optional | optional | `auto` (also `0` or `1`); the in-process loopback provider is on for local and test when `auto`, and off for every other environment unless set to `1` |
 | `DOCUMENT_EMBED_URL_MAX_CHARS` | optional | optional | default 2048 (128–8192); longest address of an embedded image, video, or link (0D `DOCUMENT_EMBED_URL_MAX_CHARS`) |
 | `SIGNED_URL_LIFETIME` | optional | optional | default 300 (30–3600); lifetime in seconds of signed upload and download URLs; never stored, logged, or sent in notifications or exports (0D `SIGNED_URL_LIFETIME`) |
 | `UPLOAD_SESSION_LIFETIME` | optional | optional | default 3600 (300–86400); lifetime in seconds of an upload session; an expired, unfinished session releases its reserved bytes and its quarantined object (0D `UPLOAD_SESSION_LIFETIME`) |

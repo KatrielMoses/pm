@@ -798,6 +798,54 @@
         "I-08",
         "I-12"
       ]
+    },
+    {
+      "id": "T-73",
+      "category": "field_leak",
+      "description": "Credential disclosure: an OAuth token or API key returned, logged, audited, indexed, or left in a row after disconnect or departure.",
+      "mitigated_by": ["I-08", "I-11"]
+    },
+    {
+      "id": "T-74",
+      "category": "cross_brand_traversal",
+      "description": "Connection leak: a connection, sync, or conflict from another brand or workspace is listed or read.",
+      "mitigated_by": ["I-01", "I-07"]
+    },
+    {
+      "id": "T-75",
+      "category": "guest_escalation",
+      "description": "Unauthorized configuration: a guest, read-only member, or member without manage connects, tests, syncs, or disconnects.",
+      "mitigated_by": ["I-04", "I-07"]
+    },
+    {
+      "id": "T-76",
+      "category": "departure",
+      "description": "Secret survives disconnect or departure: the vault reference remains usable after disconnect, retention removal, or the owner leaving.",
+      "mitigated_by": ["I-10", "I-11"]
+    },
+    {
+      "id": "T-77",
+      "category": "rls_leak",
+      "description": "Sync applied twice: a repeated idempotency key or delivery advances the checkpoint again or writes the same external identity twice.",
+      "mitigated_by": ["I-09"]
+    },
+    {
+      "id": "T-78",
+      "category": "revocation",
+      "description": "Conflict hidden or resolved twice: both sides changed and the conflict is missing, or a resolution applies again.",
+      "mitigated_by": ["I-09", "I-12"]
+    },
+    {
+      "id": "T-79",
+      "category": "staleness",
+      "description": "Unconfigured or degraded provider reported as healthy: a provider that is not configured, or a degraded provider, is shown as connected and its writes are applied.",
+      "mitigated_by": ["I-08", "I-12"]
+    },
+    {
+      "id": "T-80",
+      "category": "agent_scope",
+      "description": "Scope wider than granted: a connection is stored with a scope the provider does not offer, or a sync writes without the write scope.",
+      "mitigated_by": ["I-04", "I-07"]
     }
   ],
   "tests": [
@@ -6180,6 +6228,150 @@
         "error_message",
         "export"
       ]
+    },
+    {
+      "id": "AT-298",
+      "threats": ["T-74", "T-75"],
+      "principal": "guest",
+      "setup": "A guest and a member without the brand try to list or open a brand connection",
+      "scope": "connection visibility",
+      "action": "integrations.configure",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "not_found",
+      "silent_surfaces": ["error_message"]
+    },
+    {
+      "id": "AT-299",
+      "threats": ["T-73"],
+      "principal": "member",
+      "setup": "An owner connects with an API key",
+      "scope": "credential storage",
+      "action": "integrations.configure",
+      "surface": "api",
+      "expected": "allow",
+      "response_shape": "ok",
+      "silent_surfaces": ["search", "error_message", "export"]
+    },
+    {
+      "id": "AT-300",
+      "threats": ["T-73"],
+      "principal": "owner",
+      "setup": "An owner rotates connection credentials",
+      "scope": "key rotation",
+      "action": "integrations.configure",
+      "surface": "api",
+      "expected": "allow",
+      "response_shape": "ok",
+      "silent_surfaces": ["search", "error_message"]
+    },
+    {
+      "id": "AT-301",
+      "threats": ["T-76"],
+      "principal": "owner",
+      "setup": "An owner tests, reauthorizes, and disconnects, choosing to keep or remove synchronized data",
+      "scope": "disconnect retention",
+      "action": "integrations.configure",
+      "surface": "api",
+      "expected": "allow",
+      "response_shape": "ok",
+      "silent_surfaces": ["search"]
+    },
+    {
+      "id": "AT-302",
+      "threats": ["T-77"],
+      "principal": "owner",
+      "setup": "A sync is repeated with the same idempotency key, and a provider that errors is retried to the attempt bound",
+      "scope": "checkpoint and dead letter",
+      "action": "integration.sync_now",
+      "surface": "api",
+      "expected": "allow",
+      "response_shape": "ok",
+      "silent_surfaces": ["error_message"]
+    },
+    {
+      "id": "AT-303",
+      "threats": ["T-78"],
+      "principal": "owner",
+      "setup": "Local and remote versions both change",
+      "scope": "sync conflict",
+      "action": "integrations.configure",
+      "surface": "api",
+      "expected": "allow",
+      "response_shape": "ok",
+      "silent_surfaces": []
+    },
+    {
+      "id": "AT-304",
+      "threats": ["T-79", "T-80"],
+      "principal": "owner",
+      "setup": "A provider that is not configured is requested, and a degraded provider is synced",
+      "scope": "provider state",
+      "action": "integrations.configure",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "omitted",
+      "silent_surfaces": ["error_message"]
+    },
+    {
+      "id": "AT-305",
+      "threats": ["T-76"],
+      "principal": "administrator",
+      "setup": "The connection owner leaves the workspace",
+      "scope": "departure",
+      "action": "integrations.configure",
+      "surface": "api",
+      "expected": "allow",
+      "response_shape": "ok",
+      "silent_surfaces": ["search"]
+    },
+    {
+      "id": "AT-306",
+      "threats": ["T-74"],
+      "principal": "member",
+      "setup": "An unknown connection and a hidden brand connection are requested over HTTP",
+      "scope": "connection read",
+      "action": "record.read",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "not_found",
+      "silent_surfaces": ["error_message"]
+    },
+    {
+      "id": "AT-307",
+      "threats": ["T-73", "T-75"],
+      "principal": "owner",
+      "setup": "An owner connects with an API key in the browser and disconnects",
+      "scope": "integrations page",
+      "action": "integrations.configure",
+      "surface": "ui_record",
+      "expected": "allow",
+      "response_shape": "ok",
+      "silent_surfaces": ["search"]
+    },
+    {
+      "id": "AT-308",
+      "threats": ["T-73"],
+      "principal": "member",
+      "setup": "The connection list is rendered",
+      "scope": "connection list",
+      "action": "record.read",
+      "surface": "ui_record",
+      "expected": "allow",
+      "response_shape": "ok",
+      "silent_surfaces": ["search", "export"]
+    },
+    {
+      "id": "AT-309",
+      "threats": ["T-77", "T-80"],
+      "principal": "system_job",
+      "setup": "Backoff is computed for successive attempts and a scope outside the provider is refused",
+      "scope": "sync backoff",
+      "action": "integration.sync_now",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "omitted",
+      "silent_surfaces": ["error_message"]
     }
   ]
 }

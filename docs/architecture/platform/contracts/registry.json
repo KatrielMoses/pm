@@ -217,6 +217,14 @@
       "note": ""
     },
     {
+      "prefix": "cnf",
+      "resource": "sync_conflict",
+      "entity": "integrations.sync_conflict",
+      "owner_module": "integrations",
+      "platform_only": false,
+      "note": ""
+    },
+    {
       "prefix": "whk",
       "resource": "webhook_subscription",
       "entity": "integrations.webhook_subscription",
@@ -2111,6 +2119,78 @@
       "delivery_authorization": null
     },
     {
+      "type": "integrations.sync.completed",
+      "schema_version": 1,
+      "aggregate_entity": "integrations.connection",
+      "fields": ["outcome", "conflicts"],
+      "max_class": "C1",
+      "consumers": {
+        "activity": true,
+        "notification": false,
+        "metrics": true,
+        "automation_trigger": false,
+        "search_index": false
+      },
+      "public_webhook": null,
+      "requirements": ["INT-023"],
+      "allow_list_version": null,
+      "delivery_authorization": null
+    },
+    {
+      "type": "integrations.conflict.detected",
+      "schema_version": 1,
+      "aggregate_entity": "integrations.connection",
+      "fields": ["field"],
+      "max_class": "C1",
+      "consumers": {
+        "activity": true,
+        "notification": false,
+        "metrics": true,
+        "automation_trigger": false,
+        "search_index": false
+      },
+      "public_webhook": null,
+      "requirements": ["INT-024"],
+      "allow_list_version": null,
+      "delivery_authorization": null
+    },
+    {
+      "type": "integrations.conflict.resolved",
+      "schema_version": 1,
+      "aggregate_entity": "integrations.connection",
+      "fields": ["resolution"],
+      "max_class": "C1",
+      "consumers": {
+        "activity": true,
+        "notification": false,
+        "metrics": true,
+        "automation_trigger": false,
+        "search_index": false
+      },
+      "public_webhook": null,
+      "requirements": ["INT-025"],
+      "allow_list_version": null,
+      "delivery_authorization": null
+    },
+    {
+      "type": "integrations.credential.rotated",
+      "schema_version": 1,
+      "aggregate_entity": "integrations.connection",
+      "fields": ["key_version"],
+      "max_class": "C1",
+      "consumers": {
+        "activity": true,
+        "notification": false,
+        "metrics": true,
+        "automation_trigger": false,
+        "search_index": false
+      },
+      "public_webhook": null,
+      "requirements": ["INT-003"],
+      "allow_list_version": null,
+      "delivery_authorization": null
+    },
+    {
       "type": "integrations.sync.failed",
       "schema_version": 1,
       "aggregate_entity": "integrations.sync_run",
@@ -2130,6 +2210,60 @@
       "requirements": [
         "NTF-005"
       ],
+      "allow_list_version": null,
+      "delivery_authorization": null
+    },
+    {
+      "type": "integrations.connection.created",
+      "schema_version": 1,
+      "aggregate_entity": "integrations.connection",
+      "fields": ["provider", "auth_kind", "scope"],
+      "max_class": "C1",
+      "consumers": {
+        "activity": true,
+        "notification": false,
+        "metrics": true,
+        "automation_trigger": false,
+        "search_index": false
+      },
+      "public_webhook": null,
+      "requirements": ["INT-001"],
+      "allow_list_version": null,
+      "delivery_authorization": null
+    },
+    {
+      "type": "integrations.connection.reauthorized",
+      "schema_version": 1,
+      "aggregate_entity": "integrations.connection",
+      "fields": ["auth_kind"],
+      "max_class": "C1",
+      "consumers": {
+        "activity": true,
+        "notification": false,
+        "metrics": true,
+        "automation_trigger": false,
+        "search_index": false
+      },
+      "public_webhook": null,
+      "requirements": ["INT-007"],
+      "allow_list_version": null,
+      "delivery_authorization": null
+    },
+    {
+      "type": "integrations.connection.disconnected",
+      "schema_version": 1,
+      "aggregate_entity": "integrations.connection",
+      "fields": ["retention"],
+      "max_class": "C1",
+      "consumers": {
+        "activity": true,
+        "notification": true,
+        "metrics": true,
+        "automation_trigger": false,
+        "search_index": false
+      },
+      "public_webhook": null,
+      "requirements": ["INT-008", "INT-009"],
       "allow_list_version": null,
       "delivery_authorization": null
     },
@@ -6342,6 +6476,18 @@
         "outcome"
       ],
       "area": "insights"
+    },
+    {
+      "name": "integrations.requests",
+      "type": "counter",
+      "labels": ["op", "outcome"],
+      "area": "integrations"
+    },
+    {
+      "name": "integrations.jobs",
+      "type": "counter",
+      "labels": ["kind", "outcome"],
+      "area": "integrations"
     }
   ],
   "forbidden_metric_labels": [
@@ -7555,6 +7701,51 @@
       "name": "REPORT_FRESHNESS_MINUTES",
       "meaning": "Age after which a derived source (a goal recalculation) is labelled stale on a dashboard; default 720, range 15–10080.",
       "owner": "5D"
+    },
+    {
+      "name": "CONNECTIONS_PER_SCOPE_MAX",
+      "meaning": "Most connections one workspace or brand scope holds; default 50, range 1–500.",
+      "owner": "6A"
+    },
+    {
+      "name": "CONNECTION_SCOPES_MAX",
+      "meaning": "Most scopes one connection may be granted; default 16, range 1–32.",
+      "owner": "6A"
+    },
+    {
+      "name": "SYNC_BATCH_MAX",
+      "meaning": "Most sync deliveries one sweep claims per workspace; default 100, range 1–500.",
+      "owner": "6A"
+    },
+    {
+      "name": "SYNC_MAX_ATTEMPTS",
+      "meaning": "Transient sync attempts before a delivery is dead-lettered; default 5, range 1–20.",
+      "owner": "6A"
+    },
+    {
+      "name": "SYNC_BACKOFF_SECONDS",
+      "meaning": "Base delay before a transient sync is tried again; default 30, range 1–3600.",
+      "owner": "6A"
+    },
+    {
+      "name": "SYNC_LEASE_SECONDS",
+      "meaning": "How long a claimed sync delivery stays leased; default 120, range 30–3600.",
+      "owner": "6A"
+    },
+    {
+      "name": "SYNC_HISTORY_RETENTION_DAYS",
+      "meaning": "How long sync run history is kept; default 90, range 7–730.",
+      "owner": "6A"
+    },
+    {
+      "name": "SYNC_RATE_PER_MINUTE",
+      "meaning": "Most connection creates and syncs one member starts per minute; default 30, range 1–600.",
+      "owner": "6A"
+    },
+    {
+      "name": "INTEGRATION_LOOPBACK_ENABLED",
+      "meaning": "Whether the in-process loopback provider is configured: auto (on for local and test), 0, or 1.",
+      "owner": "6A"
     }
   ],
   "sse_topics": [
