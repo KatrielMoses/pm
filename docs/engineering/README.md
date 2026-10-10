@@ -28,4 +28,5 @@ recorded in [ADR-0007](adr/0007-deviations.md).
 | [phase4/](phase4/closure-4e.json) | Phase 4E requirement and decision closure (`closure-4e.json`, checked by `tools/phase4e.py`) |
 | [phase5/](phase5/closure-5b.json) | Phase 5B requirement and decision closure (`closure-5b.json`, checked by `tools/phase5b.py`) |
 | [phase5/](phase5/closure-5d.json) | Phase 5D requirement and decision closure (`closure-5d.json`, checked by `tools/phase5d.py`) |
+| [phase6/](phase6/closure-6b.json) | Phase 6B requirement and decision closure (`closure-6b.json`, checked by `tools/phase6b.py`) |
 | [adr/](adr/) | Implementation ADRs 0001–0028 |

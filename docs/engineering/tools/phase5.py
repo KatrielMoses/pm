@@ -112,9 +112,12 @@ def check_composition():
         errs.append("SearchService must extend FileService")
     factory = read(P("packages/work/src/factory.ts"))
     # 5C's MetricService extends the PortfolioService and 5D's InsightsCore extends the MetricService: the
-    # ReportService is the top of the chain.
-    if "}): ReportService {" not in factory or "return new ReportService(" not in factory:
-        errs.append("createWorkService must return the top of the chain (ReportService)")
+    # ReportService was the top of the chain through Phase 5. Phase 6B extends it.
+    extends = "export class PublicApiService extends ReportService" in read(
+        P("packages/work/src/integrations/public-api-service.ts")
+    )
+    if not extends or "}): PublicApiService {" not in factory or "return new PublicApiService(" not in factory:
+        errs.append("createWorkService must return the top of the chain (PublicApiService extends ReportService)")
     chain = (("packages/work/src/goals/portfolio-service.ts", "export class PortfolioService extends GoalService"),
              ("packages/work/src/metrics/metric-service.ts", "export class MetricService extends PortfolioService"),
              ("packages/work/src/insights/report-core.ts", "export class InsightsCore extends MetricService"),

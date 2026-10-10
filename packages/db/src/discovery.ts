@@ -235,6 +235,14 @@ export class PlatformDiscovery {
   }
 
   /** Workspaces with a report schedule due or runs past retention (5D, ids only). */
+  async discoverWebhookWork(now: Date, retentionBefore: Date, limit: number): Promise<string[]> {
+    const { rows } = await this.#pool.query<{ workspace_id: string }>(
+      'SELECT workspace_id FROM exec_dispatch.discover_webhook_work($1, $2, $3)',
+      [now, retentionBefore, limit],
+    );
+    return rows.map((r) => r.workspace_id);
+  }
+
   async discoverReportWork(now: Date, retentionBefore: Date, limit: number): Promise<string[]> {
     const { rows } = await this.#pool.query<{ workspace_id: string }>(
       'SELECT workspace_id FROM exec_dispatch.discover_report_work($1, $2, $3)',

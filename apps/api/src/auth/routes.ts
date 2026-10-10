@@ -26,12 +26,23 @@ import { cookieNames, parseCookies, serializeCookie } from './cookies.ts';
 declare module 'fastify' {
   interface FastifyRequest {
     auth: AuthContext | undefined;
+    /** Present when the request authenticated with an API token. */
+    delegation?: import('@pm/tenancy').TokenDelegation;
   }
 }
 
 export interface AuthRouteDeps {
   identity: IdentityService;
   logger: Logger;
+  /** Resolves a `pm_` bearer token. Absent in processes that do not serve the public API. */
+  resolveBearer?: (
+    secret: string,
+  ) => Promise<{ auth: AuthContext; delegation: import('@pm/tenancy').TokenDelegation } | null>;
+  /** Per-token rate limit. A refusal carries retry-after seconds. */
+  limitBearer?: (
+    tokenId: string,
+    write: boolean,
+  ) => Promise<{ allowed: boolean; retryAfterSeconds: number }>;
   /** Present only when the local/test OAuth provider is configured (never in deployed envs). */
   localOAuth?: LocalOAuthProvider | undefined;
   /** Local/test-only component harness flag (configuration refuses it when deployed). */
@@ -181,6 +192,57 @@ export function registerAuth(app: FastifyInstance, deps: AuthRouteDeps): void {
     // 4E dev/test object store: the URL signature is the whole authorization (as for a provider's
     // presigned URL). It reads no session, so an ambient cookie must not demand a CSRF token.
     if (request.url.startsWith(LOCAL_STORAGE_ROUTE_PREFIX)) return;
+    const authorization = request.headers.authorization;
+    if (typeof authorization === 'string' && authorization.toLowerCase().startsWith('bearer ')) {
+      if (request.url.startsWith('/v1/hooks/')) return;
+      const cookies = parseCookies(request.headers.cookie);
+      if (cookies.get(names.session) !== undefined) return fail(request, reply, 'forbidden');
+      const secret = authorization.slice(authorization.indexOf(' ') + 1).trim();
+      const resolved = await deps.resolveBearer?.(secret);
+      if (!resolved) return fail(request, reply, 'unauthenticated');
+      const path = request.url.split('?')[0] ?? '';
+      if (
+        path.includes('/api-tokens') ||
+        path.includes('/webhook-subscriptions') ||
+        path.includes('/inbound-endpoints') ||
+        path.startsWith('/v1/auth') ||
+        path.startsWith('/v1/account')
+      ) {
+        return fail(request, reply, 'forbidden');
+      }
+      const write = !['GET', 'HEAD'].includes(request.method);
+      if (path.includes('/export')) {
+        const exportLimit = await deps.limitBearer?.(resolved.delegation.tokenId, true);
+        if (exportLimit && !exportLimit.allowed)
+          return fail(request, reply, 'rate_limited', {
+            retryAfterSeconds: exportLimit.retryAfterSeconds,
+          });
+      }
+      const limited = await deps.limitBearer?.(resolved.delegation.tokenId, write);
+      if (limited && !limited.allowed)
+        return fail(request, reply, 'rate_limited', {
+          retryAfterSeconds: limited.retryAfterSeconds,
+        });
+      const need = path.includes('/capture')
+        ? write
+          ? 'capture:write'
+          : 'records:read'
+        : path.includes('/export')
+          ? 'exports:create'
+          : write
+            ? 'records:write'
+            : 'records:read';
+      const held = resolved.delegation.scopes;
+      const ok =
+        held.includes(need) ||
+        (need === 'records:read' &&
+          (held.includes('records:write') || held.includes('views:read'))) ||
+        (need === 'capture:write' && held.includes('records:write'));
+      if (!ok) return fail(request, reply, 'forbidden');
+      request.auth = resolved.auth;
+      request.delegation = resolved.delegation;
+      return;
+    }
     const cookies = parseCookies(request.headers.cookie);
     const raw = cookies.get(names.session);
     const origin = request.headers.origin;

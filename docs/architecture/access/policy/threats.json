@@ -346,7 +346,7 @@
     {
       "id": "T-33",
       "category": "inference",
-      "description": "Not-found versus forbidden difference reveals that a readable record exists but an action is forbidden — acceptable only for readable records.",
+      "description": "Not-found versus forbidden difference reveals that a readable record exists but an action is forbidden \u2014 acceptable only for readable records.",
       "mitigated_by": [
         "I-07"
       ]
@@ -797,6 +797,51 @@
       "mitigated_by": [
         "I-08",
         "I-12"
+      ]
+    },
+    {
+      "id": "T-73",
+      "category": "spoofing",
+      "description": "A stolen, revoked, expired, or narrowed API token is accepted as the member, or the token secret is returned after it was shown.",
+      "mitigated_by": [
+        "I-01",
+        "I-08"
+      ]
+    },
+    {
+      "id": "T-74",
+      "category": "cross_brand_traversal",
+      "description": "A token limited to one brand reads or writes another brand.",
+      "mitigated_by": [
+        "I-01",
+        "I-08"
+      ]
+    },
+    {
+      "id": "T-75",
+      "category": "spoofing",
+      "description": "An inbound webhook with a bad signature, stale timestamp, or unknown endpoint is treated as authentic or discloses whether the endpoint exists.",
+      "mitigated_by": [
+        "I-01",
+        "I-08"
+      ]
+    },
+    {
+      "id": "T-76",
+      "category": "rls_leak",
+      "description": "An outbound webhook delivers a record the subscription owner can no longer read, or stores a response body.",
+      "mitigated_by": [
+        "I-01",
+        "I-08"
+      ]
+    },
+    {
+      "id": "T-77",
+      "category": "revocation",
+      "description": "A replayed write applies twice, or a delivery is dropped instead of retried.",
+      "mitigated_by": [
+        "I-01",
+        "I-08"
       ]
     }
   ],
@@ -2110,7 +2155,7 @@
         "T-23"
       ],
       "principal": "member",
-      "setup": "Run scope = profile ∩ assigner ∩ assignment",
+      "setup": "Run scope = profile \u2229 assigner \u2229 assignment",
       "scope": "assign to agent whose profile scope exceeds assigner",
       "action": "agent.assign",
       "surface": "ai_context",
@@ -2492,7 +2537,7 @@
         "T-24"
       ],
       "principal": "member",
-      "setup": "Auto policy: off when ≥2 approval-capable humans",
+      "setup": "Auto policy: off when \u22652 approval-capable humans",
       "scope": "self-approval with two approval-capable humans",
       "action": "review.self_approve",
       "surface": "api",
@@ -6179,6 +6224,87 @@
         "count_facet",
         "error_message",
         "export"
+      ]
+    },
+    {
+      "id": "AT-298",
+      "threats": [
+        "T-73"
+      ],
+      "principal": "api_token_personal",
+      "setup": "Token secret shown once",
+      "scope": "own token",
+      "action": "api_tokens.personal",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "unauthenticated",
+      "silent_surfaces": [
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-299",
+      "threats": [
+        "T-73"
+      ],
+      "principal": "api_token_personal",
+      "setup": "Read token attempts a write",
+      "scope": "task",
+      "action": "record.create",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "forbidden",
+      "silent_surfaces": [
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-300",
+      "threats": [
+        "T-74"
+      ],
+      "principal": "api_token_personal",
+      "setup": "Brand-scoped token writes another brand",
+      "scope": "task in another brand",
+      "action": "record.create",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "not_found",
+      "silent_surfaces": [
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-301",
+      "threats": [
+        "T-75"
+      ],
+      "principal": "inbound_webhook",
+      "setup": "Bad signature and unknown endpoint",
+      "scope": "inbound capture",
+      "action": "record.create",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "unauthenticated",
+      "silent_surfaces": [
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-302",
+      "threats": [
+        "T-76",
+        "T-77"
+      ],
+      "principal": "member",
+      "setup": "Signed delivery retried after a server error",
+      "scope": "webhook",
+      "action": "webhook.test_send",
+      "surface": "webhook_payload",
+      "expected": "allow",
+      "response_shape": "ok",
+      "silent_surfaces": [
+        "error_message"
       ]
     }
   ]

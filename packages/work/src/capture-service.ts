@@ -338,7 +338,14 @@ export class CaptureService extends TaskInteractionService {
         record_type: 'inbox_item',
         workspace_id: tx.workspaceId,
         brand_id: input.brandId,
-        source_kind: input.source === 'typed' ? 'ui' : input.source === 'paste' ? 'paste' : 'form',
+        source_kind:
+          input.source === 'typed'
+            ? 'ui'
+            : input.source === 'paste'
+              ? 'paste'
+              : input.source === 'api' || input.source === 'webhook'
+                ? input.source
+                : 'form',
         source_ref: null,
         created_by_actor_type: cmd.actor.type,
         created_by_actor_id: cmd.actor.id,
@@ -471,11 +478,18 @@ export class CaptureService extends TaskInteractionService {
    * candidate is saved or reported: never silently dropped.
    */
   async capture(caller: Caller, ws: unknown, body: unknown, req: Mutation) {
+    if (
+      caller.delegation &&
+      !caller.delegation.scopes.some((s) => s === 'capture:write' || s === 'records:write')
+    )
+      throw new TenancyError('forbidden');
     const b = isObj(body) ? body : {};
     const intent =
       b.intent === 'note' ? 'note' : b.intent === undefined || b.intent === 'task' ? 'task' : null;
     if (!intent) throw invalid(issue('/intent', 'invalid_option', 'Capture a task or a note.'));
-    const { source, lines } = this.candidateTexts(b);
+    const parsedTexts = this.candidateTexts(b);
+    const source = caller.delegation?.sourceKind ?? parsedTexts.source;
+    const lines = parsedTexts.lines;
     const links = Array.isArray(b.links) ? b.links : [];
     const files = Array.isArray(b.files) ? b.files : [];
     if (links.length > this.ws.captureLinksMax)

@@ -271,6 +271,12 @@ describe('database-enforced workspace existence (1A review 01, correction 2)', (
       'insights.report_recipient',
       'insights.report_share',
       'insights.report_run',
+      // Phase 6B API tokens, outbound webhooks, and inbound endpoints.
+      'integrations.api_token',
+      'integrations.webhook_subscription',
+      'integrations.webhook_delivery',
+      'integrations.inbound_endpoint',
+      'integrations.inbound_message',
       'files.deliverable',
       'files.deliverable_version',
       'files.storage_usage',

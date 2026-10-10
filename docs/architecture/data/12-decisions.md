@@ -418,3 +418,10 @@ Status of every ADR: **proposed (Phase 0B)**, pending solutions-architect accept
 - **Alternatives:** A JSON blob of transitions per revision (it cannot carry foreign keys to statuses, fields, or approvers). A column per custom field (unbounded schema churn). A separate calculated-field entity (two engines).
 - **Consequences:** Two migrations, `0025_workflow_configuration` and `0026_custom_fields`, with down migrations to 0024. Imports and exports (6D) serialize through the canonical field schema (WFL-014).
 - **Corrective review 01 (2C):** configuration mutations record deterministic before/after snapshots in the audit ledger (07 §7.3.1). Values of hidden fields are never projected to readers who cannot read them.
+
+<a id="adr-40"></a>
+## ADR-40: API tokens and webhooks (Phase 6B amendment)
+
+- **Decision:** `integrations.api_token` stores a prefix and a SHA-256 hash, scopes, an optional brand list, expiry, and state (`active`, `revoked`, `suspended`). `integrations.webhook_subscription` is a `core.record` (`whk_`) with the destination, public event types, allow-list version, and vault references for the current and previous signing secrets. `integrations.webhook_delivery` records attempts without response bodies. `integrations.inbound_endpoint` stores only a hash of the path token. `integrations.inbound_message` dedupes on `(endpoint_id, provider_event_id)`. Provider connections are not created here.
+- **Alternatives:** Storing the token secret encrypted in the row (it would be recoverable by anyone who can read the table). Promising a single delivery.
+- **Consequences:** Migration `0045_public_api_webhooks` with an exact rollback to 0044. Every table forces workspace row-level security.

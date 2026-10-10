@@ -400,6 +400,40 @@ export interface WorkSettings {
   reportMaxAttempts: number;
   /** `REPORT_FRESHNESS_MINUTES` */
   reportFreshnessMinutes: number;
+  /** `API_TOKENS_PERSONAL_MAX` */
+  apiTokensPersonalMax: number;
+  /** `API_TOKENS_SERVICE_MAX` */
+  apiTokensServiceMax: number;
+  /** `API_READ_RATE_PER_MINUTE` */
+  apiReadRatePerMinute: number;
+  /** `API_WRITE_RATE_PER_MINUTE` */
+  apiWriteRatePerMinute: number;
+  /** `API_EXPORT_RATE_PER_MINUTE` */
+  apiExportRatePerMinute: number;
+  /** `WEBHOOK_SUBSCRIPTIONS_MAX` */
+  webhookSubscriptionsMax: number;
+  /** `WEBHOOK_INBOUND_MAX` */
+  webhookInboundMax: number;
+  /** `WEBHOOK_MAX_ATTEMPTS` */
+  webhookMaxAttempts: number;
+  /** `WEBHOOK_CONCURRENCY_PER_DESTINATION` */
+  webhookConcurrencyPerDestination: number;
+  /** `WEBHOOK_BODY_MAX_BYTES` */
+  webhookBodyMaxBytes: number;
+  /** `WEBHOOK_DELIVERY_RETENTION_DAYS` */
+  webhookDeliveryRetentionDays: number;
+  /** `WEBHOOK_EVENT_TYPES_MAX` */
+  webhookEventTypesMax: number;
+  /** `WEBHOOK_TIMESTAMP_TOLERANCE` seconds */
+  webhookTimestampToleranceSeconds: number;
+  /** `WEBHOOK_DISABLE_THRESHOLD` */
+  webhookDisableThreshold: number;
+  /** `WEBHOOK_RESPONSE_TIMEOUT` milliseconds */
+  webhookResponseTimeoutMs: number;
+  /** `WEBHOOK_SWEEP_BATCH_MAX` */
+  webhookSweepBatchMax: number;
+  /** Allow loopback webhook destinations in local and test. */
+  webhookAllowLoopback: boolean;
   /** `DOCUMENT_EMBED_URL_MAX_CHARS` */
   documentEmbedUrlMaxChars: number;
   /** `SIGNED_URL_LIFETIME` (seconds) */
@@ -616,6 +650,23 @@ export const DEFAULT_WORK_SETTINGS: WorkSettings = Object.freeze({
   reportLeaseSeconds: 300,
   reportMaxAttempts: 5,
   reportFreshnessMinutes: 720,
+  apiTokensPersonalMax: 25,
+  apiTokensServiceMax: 50,
+  apiReadRatePerMinute: 600,
+  apiWriteRatePerMinute: 120,
+  apiExportRatePerMinute: 20,
+  webhookSubscriptionsMax: 50,
+  webhookInboundMax: 20,
+  webhookMaxAttempts: 8,
+  webhookConcurrencyPerDestination: 4,
+  webhookBodyMaxBytes: 262144,
+  webhookDeliveryRetentionDays: 30,
+  webhookEventTypesMax: 20,
+  webhookTimestampToleranceSeconds: 300,
+  webhookDisableThreshold: 10,
+  webhookResponseTimeoutMs: 10_000,
+  webhookSweepBatchMax: 25,
+  webhookAllowLoopback: false,
   documentEmbedUrlMaxChars: 2048,
   signedUrlLifetimeSeconds: 300,
   uploadSessionLifetimeSeconds: 3_600,

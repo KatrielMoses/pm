@@ -271,6 +271,23 @@ worker process is a startup error. All identities of one process must target the
 | `REPORT_LEASE_SECONDS` | optional | optional | default 300 (30–3600); how long a claimed scheduled report stays leased before another sweep may reclaim it (0D `REPORT_LEASE_SECONDS`) |
 | `REPORT_MAX_ATTEMPTS` | optional | optional | default 5 (1–20); failed delivery attempts before a scheduled occurrence is recorded as failed (0D `REPORT_MAX_ATTEMPTS`) |
 | `REPORT_FRESHNESS_MINUTES` | optional | optional | default 720 (15–10080); age after which a derived source (a goal recalculation) is labelled stale on a dashboard (0D `REPORT_FRESHNESS_MINUTES`) |
+| `API_TOKENS_PERSONAL_MAX` | optional | optional | default 25 (1–500); active personal API tokens one member may hold |
+| `API_TOKENS_SERVICE_MAX` | optional | optional | default 50 (1–500); active service tokens one accountable owner may hold |
+| `API_READ_RATE_PER_MINUTE` | optional | optional | default 600 (1–10000); public API reads per principal |
+| `API_WRITE_RATE_PER_MINUTE` | optional | optional | default 120 (1–5000); public API writes per principal |
+| `API_EXPORT_RATE_PER_MINUTE` | optional | optional | default 20 (1–1000); public API exports per principal |
+| `WEBHOOK_SUBSCRIPTIONS_MAX` | optional | optional | default 50 (1–500); outbound subscriptions in one scope |
+| `WEBHOOK_INBOUND_MAX` | optional | optional | default 20 (1–200); inbound endpoints in one workspace |
+| `WEBHOOK_MAX_ATTEMPTS` | optional | optional | default 8 (1–20); delivery attempts before a webhook is dead-lettered |
+| `WEBHOOK_CONCURRENCY_PER_DESTINATION` | optional | optional | default 4 (1–50); in-flight deliveries to one host |
+| `WEBHOOK_BODY_MAX_BYTES` | optional | optional | default 262144 (1024–1048576); largest accepted inbound body |
+| `WEBHOOK_DELIVERY_RETENTION_DAYS` | optional | optional | default 30 (1–365); how long delivery history is kept |
+| `WEBHOOK_EVENT_TYPES_MAX` | optional | optional | default 20 (1–20); event types on one subscription |
+| `WEBHOOK_TIMESTAMP_TOLERANCE` | optional | optional | default 300 seconds (30–900); accepted clock skew for signed webhooks |
+| `WEBHOOK_DISABLE_THRESHOLD` | optional | optional | default 10 (1–100); consecutive failures before an endpoint is disabled |
+| `WEBHOOK_RESPONSE_TIMEOUT` | optional | optional | default 10000 ms (1000–30000); outbound response timeout |
+| `WEBHOOK_SWEEP_BATCH_MAX` | optional | optional | default 25 (1–200); deliveries one sweep sends in one workspace |
+| `WEBHOOK_ALLOW_LOOPBACK` | optional | optional | `auto` (local and test), `0`, or `1`; loopback destinations are refused unless this is on |
 | `DOCUMENT_EMBED_URL_MAX_CHARS` | optional | optional | default 2048 (128–8192); longest address of an embedded image, video, or link (0D `DOCUMENT_EMBED_URL_MAX_CHARS`) |
 | `SIGNED_URL_LIFETIME` | optional | optional | default 300 (30–3600); lifetime in seconds of signed upload and download URLs; never stored, logged, or sent in notifications or exports (0D `SIGNED_URL_LIFETIME`) |
 | `UPLOAD_SESSION_LIFETIME` | optional | optional | default 3600 (300–86400); lifetime in seconds of an upload session; an expired, unfinished session releases its reserved bytes and its quarantined object (0D `UPLOAD_SESSION_LIFETIME`) |

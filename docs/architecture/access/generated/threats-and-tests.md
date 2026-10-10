@@ -80,6 +80,11 @@ Narrative: [../14-threat-model.md](../14-threat-model.md).
 | T-70 | departure | Personal dashboard exposure: an administrator, owner, another member, or a departing member's successor reading, listing, restoring, or counting a personal dashboard that is not theirs; or a personal dashboard whose existence differs from an unknown identifier in status, body, headers, or timing. | I-01, I-07, I-10 | AT-292, AT-293 |
 | T-71 | rls_leak | Replay and race: a repeated or concurrent create, edit, share, schedule, or delivery that applies twice, loses an edit, sends the same occurrence twice, or lets a second writer overwrite the first without a version conflict. | I-01, I-09 | AT-294, AT-295 |
 | T-72 | staleness | Misleading or unavailable source: a figure from an unavailable or out-of-date source shown as current or complete, a provider that is not configured reported as a delivered email, or an estimated or incomplete figure shown without saying so. | I-08, I-12 | AT-296, AT-297 |
+| T-73 | spoofing | A stolen, revoked, expired, or narrowed API token is accepted as the member, or the token secret is returned after it was shown. | I-01, I-08 | AT-298, AT-299 |
+| T-74 | cross_brand_traversal | A token limited to one brand reads or writes another brand. | I-01, I-08 | AT-300 |
+| T-75 | spoofing | An inbound webhook with a bad signature, stale timestamp, or unknown endpoint is treated as authentic or discloses whether the endpoint exists. | I-01, I-08 | AT-301 |
+| T-76 | rls_leak | An outbound webhook delivers a record the subscription owner can no longer read, or stores a response body. | I-01, I-08 | AT-302 |
+| T-77 | revocation | A replayed write applies twice, or a delivery is dropped instead of retried. | I-01, I-08 | AT-302 |
 
 ## Test matrix
 
@@ -382,6 +387,11 @@ Narrative: [../14-threat-model.md](../14-threat-model.md).
 | AT-295 | T-71 | member | The same create request is sent twice with one idempotency key — replayed dashboard create | `record.create` | api | **allow** | ok | count_facet, error_message |
 | AT-296 | T-72 | system_job | The mail provider is down, rejects the message, or is not configured when a report is due — unavailable provider at delivery | `report.schedule` | notification_email | **deny** | omitted | search, count_facet, error_message, export |
 | AT-297 | T-72 | member | Member reads a widget built from a source that has not refreshed recently, and one from estimates — stale and estimated figures | `record.read` | ui_record | **allow** | ok | count_facet, error_message, export |
+| AT-298 | T-73 | api_token_personal | Token secret shown once — own token | `api_tokens.personal` | api | **deny** | unauthenticated | error_message |
+| AT-299 | T-73 | api_token_personal | Read token attempts a write — task | `record.create` | api | **deny** | forbidden | error_message |
+| AT-300 | T-74 | api_token_personal | Brand-scoped token writes another brand — task in another brand | `record.create` | api | **deny** | not_found | error_message |
+| AT-301 | T-75 | inbound_webhook | Bad signature and unknown endpoint — inbound capture | `record.create` | api | **deny** | unauthenticated | error_message |
+| AT-302 | T-76, T-77 | member | Signed delivery retried after a server error — webhook | `webhook.test_send` | webhook_payload | **allow** | ok | error_message |
 
 ## Response shapes
 

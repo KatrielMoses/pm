@@ -28,7 +28,8 @@ import {
   taskAssigneeHook,
   taskTargets,
   savedViewTargets,
-  ReportService,
+  PublicApiService,
+  type WebhookTransport,
   type SearchSourceRegistry,
   documentOwnerHook,
   goalOwnerHook,
@@ -58,7 +59,7 @@ export {
 
 export interface WorkEnv {
   h: Harness;
-  svc: ReportService;
+  svc: PublicApiService;
   /** The test storage and scanner the service uses (null when a test disables them). */
   files: FileDeps;
   stepUp: StubStepUp;
@@ -85,6 +86,7 @@ export function workEnv(
     emailState?: 'configured' | 'capture' | 'unconfigured';
     /** 4E: defaults to local storage in a temp directory and the signature scanner. */
     files?: Partial<FileDeps>;
+    deliver?: WebhookTransport;
   } = {},
 ): WorkEnv {
   const h = createHarness(db);
@@ -129,7 +131,9 @@ export function workEnv(
     scanner:
       options.files?.scanner !== undefined ? options.files.scanner : new SignatureTestScanner(),
   };
-  const svc = new ReportService({
+  const svc = new PublicApiService({
+    vault: createVault(h.config.identity),
+    deliver: options.deliver,
     files,
     ...(options.searchSources ? { search: { sources: options.searchSources } } : {}),
     notify: { emailState: options.emailState ?? 'capture' },
@@ -174,7 +178,7 @@ export function workEnv(
       .register(projectTargets(arrayMax))
       .register(taskTargets(arrayMax))
       .register(savedViewTargets(arrayMax)),
-    work: { ...DEFAULT_WORK_SETTINGS, ...options.work },
+    work: { ...DEFAULT_WORK_SETTINGS, webhookAllowLoopback: true, ...options.work },
     metrics,
     logger: h.logger,
   });

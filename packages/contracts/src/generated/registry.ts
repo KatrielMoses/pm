@@ -3575,6 +3575,34 @@ export const INTERNAL_EVENTS = [
       "reason"
     ],
     "maxClass": "C1"
+  },
+  {
+    "type": "integrations.api_token.created",
+    "schemaVersion": 1,
+    "aggregateEntity": "integrations.api_token",
+    "fields": [
+      "kind",
+      "scope_count"
+    ],
+    "maxClass": "C1"
+  },
+  {
+    "type": "integrations.api_token.rotated",
+    "schemaVersion": 1,
+    "aggregateEntity": "integrations.api_token",
+    "fields": [
+      "kind"
+    ],
+    "maxClass": "C1"
+  },
+  {
+    "type": "integrations.api_token.revoked",
+    "schemaVersion": 1,
+    "aggregateEntity": "integrations.api_token",
+    "fields": [
+      "kind"
+    ],
+    "maxClass": "C1"
   }
 ] as const;
 export type InternalEventType = (typeof INTERNAL_EVENTS)[number]['type'];
@@ -3814,7 +3842,20 @@ export const PARAMETER_NAMES = [
   "REPORT_BATCH_MAX",
   "REPORT_LEASE_SECONDS",
   "REPORT_MAX_ATTEMPTS",
-  "REPORT_FRESHNESS_MINUTES"
+  "REPORT_FRESHNESS_MINUTES",
+  "API_TOKENS_PERSONAL_MAX",
+  "API_TOKENS_SERVICE_MAX",
+  "API_READ_RATE_PER_MINUTE",
+  "API_WRITE_RATE_PER_MINUTE",
+  "API_EXPORT_RATE_PER_MINUTE",
+  "WEBHOOK_SUBSCRIPTIONS_MAX",
+  "WEBHOOK_INBOUND_MAX",
+  "WEBHOOK_MAX_ATTEMPTS",
+  "WEBHOOK_CONCURRENCY_PER_DESTINATION",
+  "WEBHOOK_BODY_MAX_BYTES",
+  "WEBHOOK_DELIVERY_RETENTION_DAYS",
+  "WEBHOOK_EVENT_TYPES_MAX",
+  "WEBHOOK_SWEEP_BATCH_MAX"
 ] as const;
 export type ParameterName = (typeof PARAMETER_NAMES)[number];
 
