@@ -2658,13 +2658,7 @@ export type ConnectionHealth =
   | 'degraded';
 export type ConnectionAuthKind = 'oauth' | 'api_key';
 export type SyncRunState =
-  | 'pending'
-  | 'running'
-  | 'succeeded'
-  | 'partial'
-  | 'failed'
-  | 'dead'
-  | 'skipped';
+  'pending' | 'running' | 'succeeded' | 'partial' | 'failed' | 'dead' | 'skipped';
 export type SyncDeliveryState = 'pending' | 'delivered' | 'retry_scheduled' | 'dead';
 export type SyncConflictState = 'open' | 'kept_local' | 'kept_remote' | 'dismissed';
 export interface ConnectionTable {
