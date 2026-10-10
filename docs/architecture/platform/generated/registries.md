@@ -29,7 +29,6 @@ Source: `contracts/registry.json`.
 | `dash_` | dashboard | insights.dashboard | insights |  |
 | `rpt_` | report_definition | insights.report_definition | insights |  |
 | `conn_` | connection | integrations.connection | integrations |  |
-| `cnf_` | sync_conflict | integrations.sync_conflict | integrations |  |
 | `whk_` | webhook_subscription | integrations.webhook_subscription | integrations |  |
 | `tc_` | test_case | quality.test_case | quality |  |
 | `ts_` | test_suite | quality.test_suite | quality |  |
@@ -239,14 +238,7 @@ Source: `contracts/registry.json`.
 | `agents.agent_run.output_returned` v1 | agents.agent_run | deliverable_version_id | C1 | yes | yes |  | yes |  | `agent_run.output_returned` |
 | `agents.action_approval.requested` v1 | agents.action_approval | action_class, risk_class | C1 | yes | yes |  |  |  | — |
 | `automation.automation_run.failed` v1 | automation.automation_run | automation_id, terminal_reason | C1 | yes | yes | yes |  |  | — |
-| `integrations.sync.completed` v1 | integrations.connection | outcome, conflicts | C1 | yes |  | yes |  |  | — |
-| `integrations.conflict.detected` v1 | integrations.connection | field | C1 | yes |  | yes |  |  | — |
-| `integrations.conflict.resolved` v1 | integrations.connection | resolution | C1 | yes |  | yes |  |  | — |
-| `integrations.credential.rotated` v1 | integrations.connection | key_version | C1 | yes |  | yes |  |  | — |
 | `integrations.sync.failed` v1 | integrations.sync_run | connection_id, terminal_reason | C1 | yes | yes | yes |  |  | — |
-| `integrations.connection.created` v1 | integrations.connection | provider, auth_kind, scope | C1 | yes |  | yes |  |  | — |
-| `integrations.connection.reauthorized` v1 | integrations.connection | auth_kind | C1 | yes |  | yes |  |  | — |
-| `integrations.connection.disconnected` v1 | integrations.connection | retention | C1 | yes | yes | yes |  |  | — |
 | `integrations.connection.health_changed` v1 | integrations.connection | health | C1 | yes | yes |  |  |  | — |
 | `integrations.webhook.delivery_failed` v1 | integrations.webhook_delivery | subscription_id, attempt | C1 |  | yes | yes |  |  | — |
 | `quality.test_result.recorded` v1 | quality.test_result | test_run_id, outcome | C1 | yes |  | yes | yes |  | `test_result.recorded` |
@@ -373,6 +365,9 @@ Source: `contracts/registry.json`.
 | `insights.report.schedule_changed` v1 | insights.report_definition | frequency, recipients | C1 | yes |  | yes |  |  | — |
 | `insights.report.suspended` v1 | insights.report_definition | reason | C1 | yes |  | yes |  |  | — |
 | `insights.report.resumed` v1 | insights.report_definition | reason | C1 | yes |  | yes |  |  | — |
+| `integrations.api_token.created` v1 | integrations.api_token | kind, scope_count | C1 | yes |  |  |  |  | — |
+| `integrations.api_token.rotated` v1 | integrations.api_token | kind | C1 | yes |  |  |  |  | — |
+| `integrations.api_token.revoked` v1 | integrations.api_token | kind | C1 | yes |  |  |  |  | — |
 
 ## SSE topics
 
@@ -561,8 +556,6 @@ Forbidden metric labels: `workspace_id`, `brand_id`, `record_id`, `public_id`, `
 | `insights.changes` | counter | kind, outcome | insights |
 | `insights.jobs` | counter | kind, outcome | insights |
 | `insights.widgets` | counter | metric, outcome | insights |
-| `integrations.requests` | counter | op, outcome | integrations |
-| `integrations.jobs` | counter | kind, outcome | integrations |
 
 ## Named parameters (values are configuration, not promises)
 
@@ -577,9 +570,9 @@ Forbidden metric labels: `workspace_id`, `brand_id`, `record_id`, `public_id`, `
 | `JOB_MAX_ATTEMPTS` | Retry cap per job kind. | 1A |
 | `JOB_TIMEOUT` | Execution timeout per job kind. | 1A |
 | `WORKSPACE_CONCURRENCY_CAP` | Per-workspace concurrent job cap per queue (fairness). | 11C |
-| `WEBHOOK_TIMESTAMP_TOLERANCE` | Accepted clock skew for signed webhooks. | 6B |
-| `WEBHOOK_DISABLE_THRESHOLD` | Consecutive-failure policy that disables an endpoint. | 6B |
-| `WEBHOOK_RESPONSE_TIMEOUT` | Outbound delivery response timeout. | 6B |
+| `WEBHOOK_TIMESTAMP_TOLERANCE` | Accepted clock skew for signed webhooks. Default 300 seconds. | 6B |
+| `WEBHOOK_DISABLE_THRESHOLD` | Consecutive-failure policy that disables an endpoint. Default 10 consecutive failures. | 6B |
+| `WEBHOOK_RESPONSE_TIMEOUT` | Outbound delivery response timeout. Default 10000 milliseconds. | 6B |
 | `SSE_HEARTBEAT_INTERVAL` | Heartbeat comment interval. | 1E |
 | `SSE_BUFFER_LIMIT` | Notices buffered per stream for Last-Event-ID resume. | 1E |
 | `SSE_MAX_STREAMS_PER_PRINCIPAL` | Concurrent streams per principal. | 1E |
@@ -803,12 +796,16 @@ Forbidden metric labels: `workspace_id`, `brand_id`, `record_id`, `public_id`, `
 | `REPORT_LEASE_SECONDS` | How long a claimed scheduled report stays leased before another sweep may reclaim it; default 300, range 30–3600. | 5D |
 | `REPORT_MAX_ATTEMPTS` | Failed delivery attempts before a scheduled occurrence is recorded as failed; default 5, range 1–20. | 5D |
 | `REPORT_FRESHNESS_MINUTES` | Age after which a derived source (a goal recalculation) is labelled stale on a dashboard; default 720, range 15–10080. | 5D |
-| `CONNECTIONS_PER_SCOPE_MAX` | Most connections one workspace or brand scope holds; default 50, range 1–500. | 6A |
-| `CONNECTION_SCOPES_MAX` | Most scopes one connection may be granted; default 16, range 1–32. | 6A |
-| `SYNC_BATCH_MAX` | Most sync deliveries one sweep claims per workspace; default 100, range 1–500. | 6A |
-| `SYNC_MAX_ATTEMPTS` | Transient sync attempts before a delivery is dead-lettered; default 5, range 1–20. | 6A |
-| `SYNC_BACKOFF_SECONDS` | Base delay before a transient sync is tried again; default 30, range 1–3600. | 6A |
-| `SYNC_LEASE_SECONDS` | How long a claimed sync delivery stays leased; default 120, range 30–3600. | 6A |
-| `SYNC_HISTORY_RETENTION_DAYS` | How long sync run history is kept; default 90, range 7–730. | 6A |
-| `SYNC_RATE_PER_MINUTE` | Most connection creates and syncs one member starts per minute; default 30, range 1–600. | 6A |
-| `INTEGRATION_LOOPBACK_ENABLED` | Whether the in-process loopback provider is configured: auto (on for local and test), 0, or 1. | 6A |
+| `API_TOKENS_PERSONAL_MAX` | Active personal API tokens one member may hold; default 25. | 6B |
+| `API_TOKENS_SERVICE_MAX` | Active service tokens one accountable owner may hold; default 50. | 6B |
+| `API_READ_RATE_PER_MINUTE` | Public API reads per principal per minute; default 600. | 6B |
+| `API_WRITE_RATE_PER_MINUTE` | Public API writes per principal per minute; default 120. | 6B |
+| `API_EXPORT_RATE_PER_MINUTE` | Public API exports per principal per minute; default 20. | 6B |
+| `WEBHOOK_SUBSCRIPTIONS_MAX` | Outbound subscriptions in one scope; default 50. | 6B |
+| `WEBHOOK_INBOUND_MAX` | Inbound endpoints in one workspace; default 20. | 6B |
+| `WEBHOOK_MAX_ATTEMPTS` | Delivery attempts before a webhook is dead-lettered; default 8. | 6B |
+| `WEBHOOK_CONCURRENCY_PER_DESTINATION` | In-flight deliveries to one host; default 4. | 6B |
+| `WEBHOOK_BODY_MAX_BYTES` | Largest accepted inbound webhook body; default 262144. | 6B |
+| `WEBHOOK_DELIVERY_RETENTION_DAYS` | How long delivery history is kept; default 30. | 6B |
+| `WEBHOOK_EVENT_TYPES_MAX` | Event types on one subscription; default 20. | 6B |
+| `WEBHOOK_SWEEP_BATCH_MAX` | Deliveries one sweep sends in one workspace; default 25. | 6B |

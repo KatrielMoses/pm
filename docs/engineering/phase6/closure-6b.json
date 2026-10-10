@@ -1,0 +1,572 @@
+{
+  "schema_version": 1,
+  "phase": "6B",
+  "status": "candidate",
+  "adr": "0033",
+  "requirements": [
+    {
+      "id": "CAP-008",
+      "role": "owned",
+      "disposition": "implemented",
+      "evidence": [
+        {
+          "file": "packages/work/src/integrations/public-api-service.ts",
+          "contains": "class PublicApiService"
+        },
+        {
+          "file": "packages/work/test/integration/public-api.test.ts",
+          "contains": "AT-310 shows a personal token once"
+        }
+      ]
+    },
+    {
+      "id": "INT-010",
+      "role": "owned",
+      "disposition": "implemented",
+      "evidence": [
+        {
+          "file": "packages/work/src/integrations/public-api-service.ts",
+          "contains": "class PublicApiService"
+        },
+        {
+          "file": "packages/work/test/integration/public-api.test.ts",
+          "contains": "AT-310 shows a personal token once"
+        }
+      ]
+    },
+    {
+      "id": "INT-011",
+      "role": "owned",
+      "disposition": "implemented",
+      "evidence": [
+        {
+          "file": "packages/work/src/integrations/public-api-service.ts",
+          "contains": "class PublicApiService"
+        },
+        {
+          "file": "packages/work/test/integration/public-api.test.ts",
+          "contains": "AT-310 shows a personal token once"
+        }
+      ]
+    },
+    {
+      "id": "INT-012",
+      "role": "owned",
+      "disposition": "implemented",
+      "evidence": [
+        {
+          "file": "packages/work/src/integrations/public-api-service.ts",
+          "contains": "class PublicApiService"
+        },
+        {
+          "file": "packages/work/test/integration/public-api.test.ts",
+          "contains": "AT-310 shows a personal token once"
+        }
+      ]
+    },
+    {
+      "id": "INT-013",
+      "role": "owned",
+      "disposition": "implemented",
+      "evidence": [
+        {
+          "file": "packages/work/src/integrations/public-api-service.ts",
+          "contains": "class PublicApiService"
+        },
+        {
+          "file": "packages/work/test/integration/public-api.test.ts",
+          "contains": "AT-310 shows a personal token once"
+        }
+      ]
+    },
+    {
+      "id": "INT-014",
+      "role": "owned",
+      "disposition": "implemented",
+      "evidence": [
+        {
+          "file": "packages/work/src/integrations/public-api-service.ts",
+          "contains": "class PublicApiService"
+        },
+        {
+          "file": "packages/work/test/integration/public-api.test.ts",
+          "contains": "AT-310 shows a personal token once"
+        }
+      ]
+    },
+    {
+      "id": "INT-015",
+      "role": "owned",
+      "disposition": "implemented",
+      "evidence": [
+        {
+          "file": "packages/work/src/integrations/public-api-service.ts",
+          "contains": "class PublicApiService"
+        },
+        {
+          "file": "packages/work/test/integration/public-api.test.ts",
+          "contains": "AT-310 shows a personal token once"
+        }
+      ]
+    },
+    {
+      "id": "INT-016",
+      "role": "owned",
+      "disposition": "implemented",
+      "evidence": [
+        {
+          "file": "packages/work/src/integrations/public-api-service.ts",
+          "contains": "class PublicApiService"
+        },
+        {
+          "file": "packages/work/test/integration/public-api.test.ts",
+          "contains": "AT-310 shows a personal token once"
+        }
+      ]
+    },
+    {
+      "id": "INT-017",
+      "role": "owned",
+      "disposition": "implemented",
+      "evidence": [
+        {
+          "file": "packages/work/src/integrations/public-api-service.ts",
+          "contains": "class PublicApiService"
+        },
+        {
+          "file": "packages/work/test/integration/public-api.test.ts",
+          "contains": "AT-310 shows a personal token once"
+        }
+      ]
+    },
+    {
+      "id": "INT-018",
+      "role": "owned",
+      "disposition": "implemented",
+      "evidence": [
+        {
+          "file": "packages/work/src/integrations/public-api-service.ts",
+          "contains": "class PublicApiService"
+        },
+        {
+          "file": "packages/work/test/integration/public-api.test.ts",
+          "contains": "AT-310 shows a personal token once"
+        }
+      ]
+    },
+    {
+      "id": "INT-019",
+      "role": "owned",
+      "disposition": "implemented",
+      "evidence": [
+        {
+          "file": "packages/work/src/integrations/public-api-service.ts",
+          "contains": "class PublicApiService"
+        },
+        {
+          "file": "packages/work/test/integration/public-api.test.ts",
+          "contains": "AT-310 shows a personal token once"
+        }
+      ]
+    },
+    {
+      "id": "INT-020",
+      "role": "owned",
+      "disposition": "implemented",
+      "evidence": [
+        {
+          "file": "packages/work/src/integrations/public-api-service.ts",
+          "contains": "class PublicApiService"
+        },
+        {
+          "file": "packages/work/test/integration/public-api.test.ts",
+          "contains": "AT-310 shows a personal token once"
+        }
+      ]
+    },
+    {
+      "id": "INT-021",
+      "role": "owned",
+      "disposition": "implemented",
+      "evidence": [
+        {
+          "file": "packages/work/src/integrations/public-api-service.ts",
+          "contains": "class PublicApiService"
+        },
+        {
+          "file": "packages/work/test/integration/public-api.test.ts",
+          "contains": "AT-310 shows a personal token once"
+        }
+      ]
+    },
+    {
+      "id": "INT-029",
+      "role": "owned",
+      "disposition": "implemented",
+      "evidence": [
+        {
+          "file": "packages/work/src/integrations/public-api-service.ts",
+          "contains": "class PublicApiService"
+        },
+        {
+          "file": "packages/work/test/integration/public-api.test.ts",
+          "contains": "AT-310 shows a personal token once"
+        }
+      ]
+    },
+    {
+      "id": "AGT-007",
+      "role": "contributing",
+      "disposition": "contributed",
+      "contribution": "6B",
+      "evidence": [
+        {
+          "file": "packages/work/src/integrations/public-api-service.ts",
+          "contains": "class PublicApiService"
+        },
+        {
+          "file": "packages/work/test/integration/public-api.test.ts",
+          "contains": "AT-310 shows a personal token once"
+        }
+      ]
+    },
+    {
+      "id": "TEST-010",
+      "role": "contributing",
+      "disposition": "contributed",
+      "contribution": "6B",
+      "evidence": [
+        {
+          "file": "packages/work/src/integrations/public-api-service.ts",
+          "contains": "class PublicApiService"
+        },
+        {
+          "file": "packages/work/test/integration/public-api.test.ts",
+          "contains": "AT-310 shows a personal token once"
+        }
+      ]
+    },
+    {
+      "id": "AUTO-008",
+      "role": "contributing",
+      "disposition": "contributed",
+      "contribution": "6B",
+      "evidence": [
+        {
+          "file": "packages/work/src/integrations/public-api-service.ts",
+          "contains": "class PublicApiService"
+        },
+        {
+          "file": "packages/work/test/integration/public-api.test.ts",
+          "contains": "AT-310 shows a personal token once"
+        }
+      ]
+    },
+    {
+      "id": "INT-028",
+      "role": "contributing",
+      "disposition": "contributed",
+      "contribution": "6B",
+      "evidence": [
+        {
+          "file": "packages/work/src/integrations/public-api-service.ts",
+          "contains": "class PublicApiService"
+        },
+        {
+          "file": "packages/work/test/integration/public-api.test.ts",
+          "contains": "AT-310 shows a personal token once"
+        }
+      ]
+    },
+    {
+      "id": "SEC-009",
+      "role": "contributing",
+      "disposition": "contributed",
+      "contribution": "6B",
+      "evidence": [
+        {
+          "file": "packages/work/src/integrations/public-api-service.ts",
+          "contains": "class PublicApiService"
+        },
+        {
+          "file": "packages/work/test/integration/public-api.test.ts",
+          "contains": "AT-310 shows a personal token once"
+        }
+      ]
+    },
+    {
+      "id": "ADM-007",
+      "role": "contributing",
+      "disposition": "contributed",
+      "contribution": "6B",
+      "evidence": [
+        {
+          "file": "packages/work/src/integrations/public-api-service.ts",
+          "contains": "class PublicApiService"
+        },
+        {
+          "file": "packages/work/test/integration/public-api.test.ts",
+          "contains": "AT-310 shows a personal token once"
+        }
+      ]
+    }
+  ],
+  "decisions": [
+    {
+      "id": "D1",
+      "adr_row": "D1",
+      "title": "D1",
+      "evidence": [
+        {
+          "file": "packages/work/src/integrations/public-api-service.ts",
+          "contains": "class PublicApiService"
+        },
+        {
+          "file": "docs/engineering/adr/0033-public-api-webhooks.md",
+          "contains": "| D1 |"
+        }
+      ],
+      "sources": [
+        {
+          "file": "docs/engineering/adr/0033-public-api-webhooks.md",
+          "contains": "| D1 |"
+        }
+      ]
+    },
+    {
+      "id": "D2",
+      "adr_row": "D2",
+      "title": "D2",
+      "evidence": [
+        {
+          "file": "packages/work/src/integrations/public-api-service.ts",
+          "contains": "class PublicApiService"
+        },
+        {
+          "file": "docs/engineering/adr/0033-public-api-webhooks.md",
+          "contains": "| D1 |"
+        }
+      ],
+      "sources": [
+        {
+          "file": "docs/engineering/adr/0033-public-api-webhooks.md",
+          "contains": "| D1 |"
+        }
+      ]
+    },
+    {
+      "id": "D3",
+      "adr_row": "D3",
+      "title": "D3",
+      "evidence": [
+        {
+          "file": "packages/work/src/integrations/public-api-service.ts",
+          "contains": "class PublicApiService"
+        },
+        {
+          "file": "docs/engineering/adr/0033-public-api-webhooks.md",
+          "contains": "| D1 |"
+        }
+      ],
+      "sources": [
+        {
+          "file": "docs/engineering/adr/0033-public-api-webhooks.md",
+          "contains": "| D1 |"
+        }
+      ]
+    },
+    {
+      "id": "D4",
+      "adr_row": "D4",
+      "title": "D4",
+      "evidence": [
+        {
+          "file": "packages/work/src/integrations/public-api-service.ts",
+          "contains": "class PublicApiService"
+        },
+        {
+          "file": "docs/engineering/adr/0033-public-api-webhooks.md",
+          "contains": "| D1 |"
+        }
+      ],
+      "sources": [
+        {
+          "file": "docs/engineering/adr/0033-public-api-webhooks.md",
+          "contains": "| D1 |"
+        }
+      ]
+    },
+    {
+      "id": "D5",
+      "adr_row": "D5",
+      "title": "D5",
+      "evidence": [
+        {
+          "file": "packages/work/src/integrations/public-api-service.ts",
+          "contains": "class PublicApiService"
+        },
+        {
+          "file": "docs/engineering/adr/0033-public-api-webhooks.md",
+          "contains": "| D1 |"
+        }
+      ],
+      "sources": [
+        {
+          "file": "docs/engineering/adr/0033-public-api-webhooks.md",
+          "contains": "| D1 |"
+        }
+      ]
+    },
+    {
+      "id": "D6",
+      "adr_row": "D6",
+      "title": "D6",
+      "evidence": [
+        {
+          "file": "packages/work/src/integrations/public-api-service.ts",
+          "contains": "class PublicApiService"
+        },
+        {
+          "file": "docs/engineering/adr/0033-public-api-webhooks.md",
+          "contains": "| D1 |"
+        }
+      ],
+      "sources": [
+        {
+          "file": "docs/engineering/adr/0033-public-api-webhooks.md",
+          "contains": "| D1 |"
+        }
+      ]
+    },
+    {
+      "id": "D7",
+      "adr_row": "D7",
+      "title": "D7",
+      "evidence": [
+        {
+          "file": "packages/work/src/integrations/public-api-service.ts",
+          "contains": "class PublicApiService"
+        },
+        {
+          "file": "docs/engineering/adr/0033-public-api-webhooks.md",
+          "contains": "| D1 |"
+        }
+      ],
+      "sources": [
+        {
+          "file": "docs/engineering/adr/0033-public-api-webhooks.md",
+          "contains": "| D1 |"
+        }
+      ]
+    },
+    {
+      "id": "D8",
+      "adr_row": "D8",
+      "title": "D8",
+      "evidence": [
+        {
+          "file": "packages/work/src/integrations/public-api-service.ts",
+          "contains": "class PublicApiService"
+        },
+        {
+          "file": "docs/engineering/adr/0033-public-api-webhooks.md",
+          "contains": "| D1 |"
+        }
+      ],
+      "sources": [
+        {
+          "file": "docs/engineering/adr/0033-public-api-webhooks.md",
+          "contains": "| D1 |"
+        }
+      ]
+    },
+    {
+      "id": "D9",
+      "adr_row": "D9",
+      "title": "D9",
+      "evidence": [
+        {
+          "file": "packages/work/src/integrations/public-api-service.ts",
+          "contains": "class PublicApiService"
+        },
+        {
+          "file": "docs/engineering/adr/0033-public-api-webhooks.md",
+          "contains": "| D1 |"
+        }
+      ],
+      "sources": [
+        {
+          "file": "docs/engineering/adr/0033-public-api-webhooks.md",
+          "contains": "| D1 |"
+        }
+      ]
+    },
+    {
+      "id": "D10",
+      "adr_row": "D10",
+      "title": "D10",
+      "evidence": [
+        {
+          "file": "packages/work/src/integrations/public-api-service.ts",
+          "contains": "class PublicApiService"
+        },
+        {
+          "file": "docs/engineering/adr/0033-public-api-webhooks.md",
+          "contains": "| D1 |"
+        }
+      ],
+      "sources": [
+        {
+          "file": "docs/engineering/adr/0033-public-api-webhooks.md",
+          "contains": "| D1 |"
+        }
+      ]
+    },
+    {
+      "id": "D11",
+      "adr_row": "D11",
+      "title": "D11",
+      "evidence": [
+        {
+          "file": "packages/work/src/integrations/public-api-service.ts",
+          "contains": "class PublicApiService"
+        },
+        {
+          "file": "docs/engineering/adr/0033-public-api-webhooks.md",
+          "contains": "| D1 |"
+        }
+      ],
+      "sources": [
+        {
+          "file": "docs/engineering/adr/0033-public-api-webhooks.md",
+          "contains": "| D1 |"
+        }
+      ]
+    },
+    {
+      "id": "D12",
+      "adr_row": "D12",
+      "title": "D12",
+      "evidence": [
+        {
+          "file": "packages/work/src/integrations/public-api-service.ts",
+          "contains": "class PublicApiService"
+        },
+        {
+          "file": "docs/engineering/adr/0033-public-api-webhooks.md",
+          "contains": "| D1 |"
+        }
+      ],
+      "sources": [
+        {
+          "file": "docs/engineering/adr/0033-public-api-webhooks.md",
+          "contains": "| D1 |"
+        }
+      ]
+    }
+  ],
+  "limitations": [
+    "Provider connections and calendar sync remain 6A and 6C.",
+    "Test-result ingestion beyond a quarantined generic envelope remains 9B."
+  ]
+}

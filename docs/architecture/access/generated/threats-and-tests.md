@@ -88,6 +88,11 @@ Narrative: [../14-threat-model.md](../14-threat-model.md).
 | T-78 | revocation | Conflict hidden or resolved twice: both sides changed and the conflict is missing, or a resolution applies again. | I-09, I-12 | AT-303 |
 | T-79 | staleness | Unconfigured or degraded provider reported as healthy: a provider that is not configured, or a degraded provider, is shown as connected and its writes are applied. | I-08, I-12 | AT-304 |
 | T-80 | agent_scope | Scope wider than granted: a connection is stored with a scope the provider does not offer, or a sync writes without the write scope. | I-04, I-07 | AT-304, AT-309 |
+| T-81 | spoofing | A stolen, revoked, expired, or narrowed API token is accepted as the member, or the token secret is returned after it was shown. | I-01, I-08 | AT-310, AT-311 |
+| T-82 | cross_brand_traversal | A token limited to one brand reads or writes another brand. | I-01, I-08 | AT-312 |
+| T-83 | spoofing | An inbound webhook with a bad signature, stale timestamp, or unknown endpoint is treated as authentic or discloses whether the endpoint exists. | I-01, I-08 | AT-313 |
+| T-84 | rls_leak | An outbound webhook delivers a record the subscription owner can no longer read, or stores a response body. | I-01, I-08 | AT-314 |
+| T-85 | revocation | A replayed write applies twice, or a delivery is dropped instead of retried. | I-01, I-08 | AT-314 |
 
 ## Test matrix
 
@@ -402,22 +407,8 @@ Narrative: [../14-threat-model.md](../14-threat-model.md).
 | AT-307 | T-73, T-75 | owner | An owner connects with an API key in the browser and disconnects — integrations page | `integrations.configure` | ui_record | **allow** | ok | search |
 | AT-308 | T-73 | member | The connection list is rendered — connection list | `record.read` | ui_record | **allow** | ok | search, export |
 | AT-309 | T-77, T-80 | system_job | Backoff is computed for successive attempts and a scope outside the provider is refused — sync backoff | `integration.sync_now` | api | **deny** | omitted | error_message |
-
-## Response shapes
-
-| Shape | Meaning |
-|---|---|
-| `ok` | Full authorized response |
-| `ok_filtered` | Authorized response with hidden elements omitted |
-| `omitted` | Item absent; no placeholder, count, or hint |
-| `not_found` | Indistinguishable not-found (same status, body shape, headers, and timing envelope as nonexistent) |
-| `forbidden` | Known-limited permission on a readable resource (ST-42) |
-| `unauthenticated` | Credential invalid; no resource information |
-| `approval_required` | Action held pending approval |
-| `suspended` | Principal suspended; nothing executed |
-| `redacted` | Value replaced by redaction marker |
-| `conflict_filtered` | Conflict response without unreadable current values |
-| `validation_generic` | Generic validation error naming only the caller's own input |
-| `empty` | Zero rows |
-| `error_generic` | Generic error without tenant data |
-| `step_up_required` | Fresh step-up proof required; nothing executed and no resource information beyond the challenge |
+| AT-310 | T-81 | api_token_personal | Token secret shown once — own token | `api_tokens.personal` | api | **deny** | unauthenticated | error_message |
+| AT-311 | T-81 | api_token_personal | Read token attempts a write — task | `record.create` | api | **deny** | forbidden | error_message |
+| AT-312 | T-82 | api_token_personal | Brand-scoped token writes another brand — task in another brand | `record.create` | api | **deny** | not_found | error_message |
+| AT-313 | T-83 | inbound_webhook | Bad signature and unknown endpoint — inbound capture | `record.create` | api | **deny** | unauthenticated | error_message |
+| AT-314 | T-84, T-85 | member | Signed delivery retried after a server error — webhook | `webhook.test_send` | webhook_payload | **allow** | ok | error_message |

@@ -15,8 +15,8 @@ import {
 import { registerWorkLifecycle } from './lifecycle.ts';
 import { projectTargets, savedViewTargets, taskTargets } from './navigation.ts';
 import { projectOwnerHook, taskAssigneeHook } from './ownership.ts';
-import { IntegrationService } from './integrations/service.ts';
-import { connectionOwnerHook } from './integrations/ownership.ts';
+import { PublicApiService } from './integrations/public-api-service.ts';
+import { connectionOwnerHook, webhookOwnerHook } from './integrations/ownership.ts';
 import { goalOwnerHook } from './goals/ownership.ts';
 import { insightsOwnerHook } from './insights/ownership.ts';
 import { createMalwareScanner } from './files/scanner.ts';
@@ -52,7 +52,7 @@ export function createWorkService(deps: {
    * closed when the key is missing.
    */
   ephemeralSigningKey?: boolean;
-}): IntegrationService {
+}): PublicApiService {
   const { config } = deps;
   if (!config.identity.signingKey && !deps.ephemeralSigningKey)
     throw new Error('AUTH_SIGNING_KEY is required');
@@ -75,8 +75,12 @@ export function createWorkService(deps: {
     : randomBytes(32);
   const arrayMax = config.tenancy.principalContextArrayMax;
   const work = config.work ?? DEFAULT_WORK_SETTINGS;
-  return new IntegrationService({
-    vault: createVault(config.identity),
+  const vault =
+    config.identity.vault === 'dev-database' && config.identity.devVaultKey
+      ? createVault(config.identity)
+      : null;
+  return new PublicApiService({
+    vault,
     // 4E: object storage and malware scanning, each absent until configured (never claimed).
     files: {
       storage: config.files ? createObjectStorage(config.files.storage) : null,
@@ -99,6 +103,7 @@ export function createWorkService(deps: {
       .register(goalOwnerHook)
       .register(insightsOwnerHook)
       .register(connectionOwnerHook)
+      .register(webhookOwnerHook)
       .register(reviewDepartureHook(writer))
       .register(departureTimerHook(writer)),
     settings: {
@@ -125,6 +130,10 @@ export function createWorkService(deps: {
       'metrics.member': { limit: work.metricsRatePerMinute, windowMs: 60_000 },
       'report.export': { limit: work.reportExportRatePerMinute, windowMs: 60_000 },
       'integration.member': { limit: work.syncRatePerMinute, windowMs: 60_000 },
+      'api.read': { limit: work.apiReadRatePerMinute, windowMs: 60_000 },
+      'api.write': { limit: work.apiWriteRatePerMinute, windowMs: 60_000 },
+      'api.export': { limit: work.apiExportRatePerMinute, windowMs: 60_000 },
+      'webhook.inbound': { limit: work.apiWriteRatePerMinute, windowMs: 60_000 },
     }),
     signingKey,
     metrics: deps.metrics,

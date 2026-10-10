@@ -53,9 +53,7 @@ export const FANOUT_EVENTS = [
   'access.role.revoked',
   'planning.task_reminder.fired',
   'relations.relationship.created',
-  'integrations.sync.failed',
-  'integrations.connection.health_changed',
-  'integrations.connection.disconnected',
+  'integrations.webhook.delivery_failed',
 ] as const satisfies readonly InternalEventType[];
 
 const NIL_UUID = '00000000-0000-7000-8000-000000000000';
@@ -105,6 +103,24 @@ export class NotificationFanOut implements OutboxConsumer {
     const actor = str(e.actor.id);
     const data = e.data;
     switch (e.type) {
+      case 'integrations.webhook.delivery_failed': {
+        const owner = await tx.db
+          .selectFrom('integrations.webhook_subscription')
+          .select('accountable_owner_membership_id')
+          .where('id', '=', e.aggregate.id)
+          .executeTakeFirst();
+        return owner
+          ? [
+              {
+                type: 'integration_failure' as const,
+                recordId: e.aggregate.id,
+                actorId: null,
+                recipients: [owner.accountable_owner_membership_id],
+                facts: { attempt: Number(data.attempt ?? 0) },
+              },
+            ]
+          : [];
+      }
       case 'work.task.assigned':
         return [
           {
@@ -310,28 +326,6 @@ export class NotificationFanOut implements OutboxConsumer {
                 recipients: await this.assignees(tx, to),
                 facts: {},
                 occasion: `${e.aggregate.id}`,
-              },
-            ]
-          : [];
-      }
-      case 'integrations.sync.failed':
-      case 'integrations.connection.health_changed':
-      case 'integrations.connection.disconnected': {
-        const owner = await tx.db
-          .selectFrom('integrations.connection')
-          .select('owner_membership_id')
-          .where('id', '=', e.aggregate.id)
-          .executeTakeFirst();
-        return owner
-          ? [
-              {
-                type: 'integration_failure',
-                recordId: e.aggregate.id,
-                actorId: null,
-                recipients: [owner.owner_membership_id],
-                facts: {
-                  health: str(data.health) ?? str(data.terminal_reason) ?? str(data.retention),
-                },
               },
             ]
           : [];

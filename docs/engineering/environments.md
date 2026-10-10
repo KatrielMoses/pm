@@ -272,7 +272,7 @@ worker process is a startup error. All identities of one process must target the
 | `REPORT_MAX_ATTEMPTS` | optional | optional | default 5 (1–20); failed delivery attempts before a scheduled occurrence is recorded as failed (0D `REPORT_MAX_ATTEMPTS`) |
 | `REPORT_FRESHNESS_MINUTES` | optional | optional | default 720 (15–10080); age after which a derived source (a goal recalculation) is labelled stale on a dashboard (0D `REPORT_FRESHNESS_MINUTES`) |
 | `CONNECTIONS_PER_SCOPE_MAX` | optional | optional | default 50 (1–500); most connections one workspace or brand scope holds (0D `CONNECTIONS_PER_SCOPE_MAX`) |
-| `CONNECTION_SCOPES_MAX` | optional | optional | default 16 (1–32); most scopes one connection may be granted (0D `CONNECTION_SCOPES_MAX`) |
+| `CONNECTION_SCOPES_MAX` | optional | optional | default 16 (1–32); granted scopes stored on a connection (0D `CONNECTION_SCOPES_MAX`) |
 | `SYNC_BATCH_MAX` | optional | optional | default 100 (1–500); most sync deliveries one sweep claims per workspace (0D `SYNC_BATCH_MAX`) |
 | `SYNC_MAX_ATTEMPTS` | optional | optional | default 5 (1–20); transient sync attempts before a delivery is dead-lettered (0D `SYNC_MAX_ATTEMPTS`) |
 | `SYNC_BACKOFF_SECONDS` | optional | optional | default 30 (1–3600); base delay before a transient sync is tried again (0D `SYNC_BACKOFF_SECONDS`) |
@@ -280,6 +280,23 @@ worker process is a startup error. All identities of one process must target the
 | `SYNC_HISTORY_RETENTION_DAYS` | optional | optional | default 90 (7–730); how long sync run history is kept (0D `SYNC_HISTORY_RETENTION_DAYS`) |
 | `SYNC_RATE_PER_MINUTE` | optional | optional | default 30 (1–600); most connection creates and syncs one member starts per minute (0D `SYNC_RATE_PER_MINUTE`) |
 | `INTEGRATION_LOOPBACK_ENABLED` | optional | optional | `auto` (also `0` or `1`); the in-process loopback provider is on for local and test when `auto`, and off for every other environment unless set to `1` |
+| `API_TOKENS_PERSONAL_MAX` | optional | optional | default 25 (1–500); active personal API tokens one member may hold |
+| `API_TOKENS_SERVICE_MAX` | optional | optional | default 50 (1–500); active service tokens one accountable owner may hold |
+| `API_READ_RATE_PER_MINUTE` | optional | optional | default 600 (1–10000); public API reads per principal |
+| `API_WRITE_RATE_PER_MINUTE` | optional | optional | default 120 (1–5000); public API writes per principal |
+| `API_EXPORT_RATE_PER_MINUTE` | optional | optional | default 20 (1–1000); public API exports per principal |
+| `WEBHOOK_SUBSCRIPTIONS_MAX` | optional | optional | default 50 (1–500); outbound subscriptions in one scope |
+| `WEBHOOK_INBOUND_MAX` | optional | optional | default 20 (1–200); inbound endpoints in one workspace |
+| `WEBHOOK_MAX_ATTEMPTS` | optional | optional | default 8 (1–20); delivery attempts before a webhook is dead-lettered |
+| `WEBHOOK_CONCURRENCY_PER_DESTINATION` | optional | optional | default 4 (1–50); in-flight deliveries to one host |
+| `WEBHOOK_BODY_MAX_BYTES` | optional | optional | default 262144 (1024–1048576); largest accepted inbound body |
+| `WEBHOOK_DELIVERY_RETENTION_DAYS` | optional | optional | default 30 (1–365); how long delivery history is kept |
+| `WEBHOOK_EVENT_TYPES_MAX` | optional | optional | default 20 (1–20); event types on one subscription |
+| `WEBHOOK_TIMESTAMP_TOLERANCE` | optional | optional | default 300 seconds (30–900); accepted clock skew for signed webhooks |
+| `WEBHOOK_DISABLE_THRESHOLD` | optional | optional | default 10 (1–100); consecutive failures before an endpoint is disabled |
+| `WEBHOOK_RESPONSE_TIMEOUT` | optional | optional | default 10000 ms (1000–30000); outbound response timeout |
+| `WEBHOOK_SWEEP_BATCH_MAX` | optional | optional | default 25 (1–200); deliveries one sweep sends in one workspace |
+| `WEBHOOK_ALLOW_LOOPBACK` | optional | optional | `auto` (local and test), `0`, or `1`; loopback destinations are refused unless this is on |
 | `DOCUMENT_EMBED_URL_MAX_CHARS` | optional | optional | default 2048 (128–8192); longest address of an embedded image, video, or link (0D `DOCUMENT_EMBED_URL_MAX_CHARS`) |
 | `SIGNED_URL_LIFETIME` | optional | optional | default 300 (30–3600); lifetime in seconds of signed upload and download URLs; never stored, logged, or sent in notifications or exports (0D `SIGNED_URL_LIFETIME`) |
 | `UPLOAD_SESSION_LIFETIME` | optional | optional | default 3600 (300–86400); lifetime in seconds of an upload session; an expired, unfinished session releases its reserved bytes and its quarantined object (0D `UPLOAD_SESSION_LIFETIME`) |

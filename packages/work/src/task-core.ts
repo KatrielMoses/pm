@@ -650,6 +650,13 @@ export class TaskCoreService extends WorkService {
    * total (authorized records only, OD-07). Cursors are bound to the list they came from.
    */
   async listTasks(caller: Caller, ws: unknown, query: Record<string, unknown>) {
+    if (
+      caller.delegation &&
+      !caller.delegation.scopes.some(
+        (s) => s === 'records:read' || s === 'records:write' || s === 'views:read',
+      )
+    )
+      throw new TenancyError('forbidden');
     const q = parseTaskListQuery(query, this.ws);
     return this.inWorkspace(caller, ws, { readOnly: true }, async (tx, p) => {
       const vis = await this.taskVisibility(tx, p, q.state === 'archived');
@@ -993,7 +1000,7 @@ export class TaskCoreService extends WorkService {
     fields: Record<string, unknown>,
     opts: {
       after?: string | 'last';
-      source?: 'ui' | 'template' | 'paste' | 'form';
+      source?: 'ui' | 'template' | 'paste' | 'form' | 'api' | 'webhook';
       lenientStatus?: boolean;
       /** 2E: origin for tasks made from captured input (default manual). */
       origin?: { kind: 'intake'; ref: Record<string, string> };
@@ -1094,6 +1101,8 @@ export class TaskCoreService extends WorkService {
   }
 
   async createTask(caller: Caller, ws: unknown, body: unknown, req: Mutation) {
+    if (caller.delegation && !caller.delegation.scopes.includes('records:write'))
+      throw new TenancyError('forbidden');
     const input = parseTaskCreate(body, this.ws.taskEstimateMinutesMax);
     return this.mutate(
       caller,
@@ -1115,7 +1124,9 @@ export class TaskCoreService extends WorkService {
         else this.requireCreateIn(p, c);
         if (input.fields.status === 'cancelled')
           throw invalid(issue('/status', 'invalid_option', 'A new task starts open.'));
-        const created = await this.insertTask(tx, caller, p, c, input.fields);
+        const created = await this.insertTask(tx, caller, p, c, input.fields, {
+          ...(caller.delegation ? { source: caller.delegation.sourceKind } : {}),
+        });
         return {
           status: 201,
           ref: { id: created.publicId, type: 'task' },

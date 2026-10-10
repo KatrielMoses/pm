@@ -28,6 +28,11 @@ export const DEFAULT_POLICIES = {
   // membership and form (INTAKE_SUBMISSIONS_PER_HOUR); the work settings override both.
   'capture.member': { limit: 60, windowMs: 60_000 },
   'intake.submit': { limit: 20, windowMs: 60 * 60_000 },
+  // 6B public API (per principal). Quotas are operational, not a published promise.
+  'api.read': { limit: 600, windowMs: 60_000 },
+  'api.write': { limit: 120, windowMs: 60_000 },
+  'api.export': { limit: 20, windowMs: 60_000 },
+  'webhook.inbound': { limit: 120, windowMs: 60_000 },
 } as const satisfies Record<string, { limit: number; windowMs: number }>;
 export type RateLimitPolicy = keyof typeof DEFAULT_POLICIES;
 

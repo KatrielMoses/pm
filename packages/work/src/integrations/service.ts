@@ -31,7 +31,7 @@ import {
   scopesAllowed,
   sealCredential,
   syncBackoffMs,
-  tokenMatches,
+  connectionTokenMatches,
   type CredentialSecret,
   type ProviderId,
 } from './semantics.ts';
@@ -131,6 +131,10 @@ export class IntegrationService extends ReportService {
   constructor(deps: ConstructorParameters<typeof ReportService>[0] & { vault: SecretVault }) {
     super(deps);
     this.#vault = deps.vault;
+  }
+
+  protected integrationVault(): SecretVault {
+    return this.#vault;
   }
 
   async listProviders(caller: Caller, ws: unknown) {
@@ -309,7 +313,11 @@ export class IntegrationService extends ReportService {
         const row = await this.#locked(tx, p, id);
         this.#require(p, 'integrations.configure', row.facts);
         const secret = await this.#readSecret(tx, row);
-        if (!secret || secret.kind !== 'oauth_pending' || !tokenMatches(secret.token, input.code))
+        if (
+          !secret ||
+          secret.kind !== 'oauth_pending' ||
+          !connectionTokenMatches(secret.token, input.code)
+        )
           throw invalid(issue('/code', 'invalid', 'The authorization code is not usable.'));
         await this.#replaceSecret(tx, row, { ...secret, kind: 'oauth' });
         await this.#setHealth(tx, row, 'connected', null);

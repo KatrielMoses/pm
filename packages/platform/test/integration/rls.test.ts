@@ -166,13 +166,12 @@ const PHASE_1C_TENANT_TABLES = [
   'insights.report_recipient',
   'insights.report_share',
   'insights.report_run',
-  // Phase 6A connections, checkpoints, identities, sync runs, deliveries, and conflicts.
-  'integrations.connection',
-  'integrations.sync_checkpoint',
-  'integrations.external_identity',
-  'integrations.sync_run',
-  'integrations.sync_delivery',
-  'integrations.sync_conflict',
+  // Phase 6B API tokens, outbound webhooks, and inbound endpoints.
+  'integrations.api_token',
+  'integrations.webhook_subscription',
+  'integrations.webhook_delivery',
+  'integrations.inbound_endpoint',
+  'integrations.inbound_message',
   // Phase 4E files, versions, upload sessions, deliverables, and storage usage.
   'files.file_object',
   'files.file',
@@ -495,7 +494,7 @@ describe('tenant RLS foundation (0C §12.7)', () => {
     // (workspace ids only); 2D discover_reminders_due; 3D discover_runaway_timers; 3C
     // discover_days_to_close and discover_block_series_due; 4B discover_notification_work; 4E
     // discover_file_work; 5A discover_search_work; 5B discover_goal_work; 5C discover_metrics_work;
-    // 5D discover_report_work; 6A discover_integration_work.
+    // 5D discover_report_work; 6B discover_webhook_work.
     expect(fns.rows.length).toBe(22);
     const allowed = new Set([
       'job_id',

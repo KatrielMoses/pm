@@ -3,6 +3,7 @@ import type { ShellDestination } from '@pm/contracts/shell';
 import { App } from './App.tsx';
 import { useAuth } from './auth.tsx';
 import { AccountSecurityPage } from './pages/account-security.tsx';
+import { ApiAccessPage } from './pages/api-pages.tsx';
 import {
   ForgotPasswordPage,
   RegisterPage,
@@ -98,7 +99,6 @@ import {
   NotesPage,
 } from './pages/capture-pages.tsx';
 import { CalendarPage, MyWorkPage, SavedViewPage, SavedViewsPage } from './pages/view-pages.tsx';
-import { IntegrationsPage } from './pages/integration-pages.tsx';
 import { Page } from './ui/layout.tsx';
 
 type Params = Record<string, string>;
@@ -192,7 +192,7 @@ export const ROUTE_COMPONENTS: Record<string, Render> = {
   brand: (p) => <BrandSettingsPage key={p.brand} ws={p.ws!} brand={p.brand!} />,
   first_brand: (p) => <FirstBrandPage ws={p.ws!} />,
   workspace_settings: (p) => <WorkspaceSettingsPage ws={p.ws!} />,
-  integrations: (p) => <IntegrationsPage ws={p.ws!} />,
+  api_access: (p) => <ApiAccessPage ws={p.ws!} />,
   access_settings: (p) => <AccessSettingsPage ws={p.ws!} />,
   workspace_root: (p) => <WorkspaceRootPage key={p.ws} ws={p.ws!} />,
   preferences: () => <PreferencesPage />,

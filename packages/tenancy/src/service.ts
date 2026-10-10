@@ -33,6 +33,7 @@ import type {
   RequestMeta,
   StepUpChallengeView,
 } from '@pm/identity';
+import type { TokenDelegation } from './delegation.ts';
 import {
   createRecord,
   LifecycleError,
@@ -117,6 +118,11 @@ export interface TenancyDeps {
 export interface Caller {
   auth: AuthContext;
   meta: RequestMeta;
+  /**
+   * Set when the caller authenticated with an API token or inbound webhook. Absent for a session.
+   * The membership is still loaded and checked; this only narrows it.
+   */
+  delegation?: TokenDelegation;
 }
 
 /** Unsafe-request controls taken from headers by the API layer. */
@@ -295,17 +301,26 @@ export class TenancyService {
       ...(m.requestId ? { requestId: m.requestId } : {}),
       correlationId: m.correlationId,
       ...(m.traceparent ? { traceparent: m.traceparent } : {}),
-      authenticatedPrincipal: principal,
+      authenticatedPrincipal: caller.delegation
+        ? { type: caller.delegation.principalType, id: caller.delegation.tokenId }
+        : principal,
       effectivePrincipal: principal,
       initiatingMembershipId: p.membershipId,
-      delegationChain: [{ type: 'member', id: p.membershipId }],
+      delegationChain: caller.delegation
+        ? [
+            { type: caller.delegation.principalType, id: caller.delegation.tokenId },
+            { type: 'member', id: p.membershipId },
+          ]
+        : [{ type: 'member', id: p.membershipId }],
       epochs: { workspace: p.epochs.workspace, principal: p.epochs.principal },
       dataClassLimit: 'C3',
     };
   }
 
   protected cmd(caller: Caller, p: Principal, brandId: string | null = null): CommandContext {
-    const source: CommandSource = { kind: 'ui' };
+    const source: CommandSource = caller.delegation
+      ? { kind: caller.delegation.sourceKind, ref: caller.delegation.tokenPublicId }
+      : { kind: 'ui' };
     return CommandContext.fromExecution(this.exec(caller, p), source, { brandId });
   }
 
@@ -348,7 +363,35 @@ export class TenancyService {
       return await this.d.tenant.withWorkspace(
         resolved.workspaceId,
         { module: 'tenancy', ...(options.readOnly ? { readOnly: true } : {}) },
-        async (tx) => fn(tx, await loadPrincipal(tx, accountId, resolved.membershipId)),
+        async (tx) => {
+          const loaded = await loadPrincipal(tx, accountId, resolved.membershipId);
+          const delegation = caller.delegation;
+          if (
+            delegation &&
+            (delegation.accountId !== accountId || delegation.membershipId !== loaded.membershipId)
+          )
+            throw new TenancyError('not_found');
+          if (!delegation?.brandIds) return fn(tx, loaded);
+          const allow = new Set(delegation.brandIds);
+          const projects = allow.size
+            ? await tx.db
+                .selectFrom('work.project')
+                .select(['id', 'brand_id'])
+                .where('brand_id', 'in', [...allow])
+                .execute()
+            : [];
+          const projectIds = new Set(projects.map((r) => r.id));
+          return fn(tx, {
+            ...loaded,
+            brandAllowlist: allow,
+            grants: new Map([...loaded.grants].filter(([id]) => allow.has(id))),
+            grantSources: loaded.grantSources.filter((s) => allow.has(s.brandId)),
+            projectGrants: new Map([...loaded.projectGrants].filter(([id]) => projectIds.has(id))),
+            projectGrantSources: loaded.projectGrantSources.filter((s) =>
+              projectIds.has(s.projectId),
+            ),
+          });
+        },
       );
     } catch (err) {
       if (err instanceof TenantContextError) {
