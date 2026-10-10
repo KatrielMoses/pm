@@ -4,18 +4,17 @@ Bearer tokens use `Authorization: Bearer pm_…`. The secret is shown once when 
 
 ```bash
 curl -sS https://example.com/v1/workspaces/wsp_EXAMPLE/tasks \
-  -H "authorization: Bearer pm_EXAMPLE" \
-  -H "content-type: application/json" \
-  -H "idempotency-key: 0123456789abcdef"
+  -H "authorization: Bearer <token>" \
+  -H "content-type: application/json"
 ```
 
 Create a task:
 
 ```bash
 curl -sS -X POST https://example.com/v1/workspaces/wsp_EXAMPLE/tasks \
-  -H "authorization: Bearer pm_EXAMPLE" \
+  -H "authorization: Bearer <token>" \
   -H "content-type: application/json" \
-  -H "idempotency-key: 0123456789abcdef" \
+  -H "idempotency-key: example-write-0001" \
   -d '{"title":"Ship the notes","brand":"br_EXAMPLE"}'
 ```
 
