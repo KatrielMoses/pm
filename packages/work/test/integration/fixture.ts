@@ -31,7 +31,6 @@ import {
   CalendarService,
   connectionOwnerHook,
   webhookOwnerHook,
-  type PublicApiService,
   type WebhookTransport,
   type SearchSourceRegistry,
   documentOwnerHook,
