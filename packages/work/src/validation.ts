@@ -400,6 +400,24 @@ export interface WorkSettings {
   reportMaxAttempts: number;
   /** `REPORT_FRESHNESS_MINUTES` */
   reportFreshnessMinutes: number;
+  /** `CONNECTIONS_PER_SCOPE_MAX` */
+  connectionsPerScopeMax: number;
+  /** `CONNECTION_SCOPES_MAX` */
+  connectionScopesMax: number;
+  /** `SYNC_BATCH_MAX` */
+  syncBatchMax: number;
+  /** `SYNC_MAX_ATTEMPTS` */
+  syncMaxAttempts: number;
+  /** `SYNC_BACKOFF_SECONDS` */
+  syncBackoffSeconds: number;
+  /** `SYNC_LEASE_SECONDS` */
+  syncLeaseSeconds: number;
+  /** `SYNC_HISTORY_RETENTION_DAYS` */
+  syncHistoryRetentionDays: number;
+  /** `SYNC_RATE_PER_MINUTE` */
+  syncRatePerMinute: number;
+  /** Loopback provider (local and test unless turned off). */
+  integrationLoopbackEnabled: boolean;
   /** `DOCUMENT_EMBED_URL_MAX_CHARS` */
   documentEmbedUrlMaxChars: number;
   /** `SIGNED_URL_LIFETIME` (seconds) */
@@ -616,6 +634,15 @@ export const DEFAULT_WORK_SETTINGS: WorkSettings = Object.freeze({
   reportLeaseSeconds: 300,
   reportMaxAttempts: 5,
   reportFreshnessMinutes: 720,
+  connectionsPerScopeMax: 50,
+  connectionScopesMax: 16,
+  syncBatchMax: 100,
+  syncMaxAttempts: 5,
+  syncBackoffSeconds: 30,
+  syncLeaseSeconds: 120,
+  syncHistoryRetentionDays: 90,
+  syncRatePerMinute: 30,
+  integrationLoopbackEnabled: false,
   documentEmbedUrlMaxChars: 2048,
   signedUrlLifetimeSeconds: 300,
   uploadSessionLifetimeSeconds: 3_600,

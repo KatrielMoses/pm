@@ -259,6 +259,17 @@ All decisions are **proposed (Phase 0C)**, pending solutions-architect acceptanc
 - **Alternatives:** Permission keys copied into the index (stale after every change, the denormalized-authority failure T-54 describes). Filtering a fetched page in the application (counts, ranks, and paging then reflect hidden records). Hiding results with a placeholder (it discloses existence, IA-40). A definer function that reads the index outside row-level security for speed (a new privileged read path).
 - **Consequences:** Threat T-54 with tests AT-238 to AT-245.
 
+<a id="az-40"></a>
+### AZ-40: Integration connections (Phase 6A amendment)
+- **Decision:**
+  - **Placement.** Connecting, testing, syncing, reauthorizing, and disconnecting are decided at the connection's workspace or brand with `integrations.configure` or `integration.sync_now`. The role cell is applied there. Guests are forbidden. An unknown connection and a hidden brand connection are one `not_found` (AT-298, AT-306).
+  - **Sensitive brands.** An implicit manager needs an explicit manage grant on a sensitive brand, the same rule as other brand administration.
+  - **Scopes.** A connection cannot be stored with a scope the provider does not offer, and a sync cannot write without `write` (AT-304, AT-309).
+  - **Secrets.** No response, event, audit change, search document, or log contains a credential. Disconnect, removal, rotation, and departure destroy the vault entry (AT-299, AT-300, AT-301, AT-305).
+  - **Owner.** Sync re-checks that the accountable owner is still an active member who may sync. If not, the secret is destroyed and the connection is suspended.
+  - **No new actions.** The action count stays 122.
+- **Alternatives:** A connection-specific role (a second authority). Showing a hidden connection as forbidden (it would confirm that it exists).
+- **Consequences:** Threats T-73 to T-80 with tests AT-298 to AT-309.
 <a id="az-39"></a>
 ### AZ-39: Dashboards, reports, shares, and scheduled delivery (Phase 5D amendment)
 - **Decision:**

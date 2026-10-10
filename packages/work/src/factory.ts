@@ -2,7 +2,7 @@ import { randomBytes } from 'node:crypto';
 import { AuditSecurityEventSink, AuditWriter } from '@pm/audit';
 import type { ServerConfig } from '@pm/config';
 import type { PlatformDatabase, TenantDatabase } from '@pm/db';
-import { PostgresRateLimiter } from '@pm/identity';
+import { createVault, PostgresRateLimiter } from '@pm/identity';
 import { LifecycleRegistry, LifecycleService, RetentionPolicy } from '@pm/lifecycle';
 import type { Logger, Metrics } from '@pm/observability';
 import {
@@ -15,7 +15,8 @@ import {
 import { registerWorkLifecycle } from './lifecycle.ts';
 import { projectTargets, savedViewTargets, taskTargets } from './navigation.ts';
 import { projectOwnerHook, taskAssigneeHook } from './ownership.ts';
-import { ReportService } from './insights/report-service.ts';
+import { IntegrationService } from './integrations/service.ts';
+import { connectionOwnerHook } from './integrations/ownership.ts';
 import { goalOwnerHook } from './goals/ownership.ts';
 import { insightsOwnerHook } from './insights/ownership.ts';
 import { createMalwareScanner } from './files/scanner.ts';
@@ -51,7 +52,7 @@ export function createWorkService(deps: {
    * closed when the key is missing.
    */
   ephemeralSigningKey?: boolean;
-}): ReportService {
+}): IntegrationService {
   const { config } = deps;
   if (!config.identity.signingKey && !deps.ephemeralSigningKey)
     throw new Error('AUTH_SIGNING_KEY is required');
@@ -74,7 +75,8 @@ export function createWorkService(deps: {
     : randomBytes(32);
   const arrayMax = config.tenancy.principalContextArrayMax;
   const work = config.work ?? DEFAULT_WORK_SETTINGS;
-  return new ReportService({
+  return new IntegrationService({
+    vault: createVault(config.identity),
     // 4E: object storage and malware scanning, each absent until configured (never claimed).
     files: {
       storage: config.files ? createObjectStorage(config.files.storage) : null,
@@ -96,6 +98,7 @@ export function createWorkService(deps: {
       .register(documentOwnerHook)
       .register(goalOwnerHook)
       .register(insightsOwnerHook)
+      .register(connectionOwnerHook)
       .register(reviewDepartureHook(writer))
       .register(departureTimerHook(writer)),
     settings: {
@@ -121,6 +124,7 @@ export function createWorkService(deps: {
       'goal.checkin': { limit: work.goalCheckinRatePerMinute, windowMs: 60_000 },
       'metrics.member': { limit: work.metricsRatePerMinute, windowMs: 60_000 },
       'report.export': { limit: work.reportExportRatePerMinute, windowMs: 60_000 },
+      'integration.member': { limit: work.syncRatePerMinute, windowMs: 60_000 },
     }),
     signingKey,
     metrics: deps.metrics,

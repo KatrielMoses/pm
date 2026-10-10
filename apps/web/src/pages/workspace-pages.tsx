@@ -753,6 +753,8 @@ export function WorkspaceSettingsPage({ ws }: { ws: string }) {
       </ResourceView>
       <p>
         <Link to={`/workspaces/${ws}/settings/access`}>Sharing, guests, and ownership</Link>
+        {' · '}
+        <Link to={`/workspaces/${ws}/settings/integrations`}>Integrations</Link>
       </p>
     </Page>
   );

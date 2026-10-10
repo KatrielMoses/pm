@@ -288,6 +288,7 @@ Requirements flagged with each decision are listed automatically in [requirement
 - **Safe default:** A personal forwarding address that lands in the owner's Inbox, accepts only verified sender addresses, and scans attachments. The architect should assign an owning sub-phase.
 - **If deferred:** CAP-006 slips past 2E.
 - **Status (Phase 2E, 2026-10-06):** Still open. Email forwarding is owned by 6A; 2E keeps the adapter-ready `email` source kind on Inbox items and creates no address, inbound mail, or sender verification (CAP-006 is a foundation deferred to 6A).
+- **Status (Phase 6A, 2026-10-10):** Still open. 6A lists `email_inbound` as not configured and does not create an address, inbound mail, or sender verification. CAP-006 stays deferred until OD-29 is decided.
 
 <a id="od-30"></a>
 ### OD-30 — Realtime collaborative editing at launch

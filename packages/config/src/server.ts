@@ -317,6 +317,15 @@ export interface ServerConfig {
     reportLeaseSeconds: number;
     reportMaxAttempts: number;
     reportFreshnessMinutes: number;
+    connectionsPerScopeMax: number;
+    connectionScopesMax: number;
+    syncBatchMax: number;
+    syncMaxAttempts: number;
+    syncBackoffSeconds: number;
+    syncLeaseSeconds: number;
+    syncHistoryRetentionDays: number;
+    syncRatePerMinute: number;
+    integrationLoopbackEnabled: boolean;
     documentEmbedUrlMaxChars: number;
     signedUrlLifetimeSeconds: number;
     uploadSessionLifetimeSeconds: number;
@@ -710,6 +719,15 @@ const DEFAULTS = {
   REPORT_LEASE_SECONDS: '300',
   REPORT_MAX_ATTEMPTS: '5',
   REPORT_FRESHNESS_MINUTES: '720',
+  CONNECTIONS_PER_SCOPE_MAX: '50',
+  CONNECTION_SCOPES_MAX: '16',
+  SYNC_BATCH_MAX: '100',
+  SYNC_MAX_ATTEMPTS: '5',
+  SYNC_BACKOFF_SECONDS: '30',
+  SYNC_LEASE_SECONDS: '120',
+  SYNC_HISTORY_RETENTION_DAYS: '90',
+  SYNC_RATE_PER_MINUTE: '30',
+  INTEGRATION_LOOPBACK_ENABLED: 'auto',
   DOCUMENT_EMBED_URL_MAX_CHARS: '2048',
   SIGNED_URL_LIFETIME: '300',
   UPLOAD_SESSION_LIFETIME: '3600',
@@ -1016,6 +1034,15 @@ const schema = z.object({
   REPORT_LEASE_SECONDS: int(30, 3600),
   REPORT_MAX_ATTEMPTS: int(1, 20),
   REPORT_FRESHNESS_MINUTES: int(15, 10080),
+  CONNECTIONS_PER_SCOPE_MAX: int(1, 500),
+  CONNECTION_SCOPES_MAX: int(1, 32),
+  SYNC_BATCH_MAX: int(1, 500),
+  SYNC_MAX_ATTEMPTS: int(1, 20),
+  SYNC_BACKOFF_SECONDS: int(1, 3600),
+  SYNC_LEASE_SECONDS: int(30, 3600),
+  SYNC_HISTORY_RETENTION_DAYS: int(7, 730),
+  SYNC_RATE_PER_MINUTE: int(1, 600),
+  INTEGRATION_LOOPBACK_ENABLED: z.enum(['auto', '0', '1']),
   DOCUMENT_EMBED_URL_MAX_CHARS: int(128, 8192),
   SIGNED_URL_LIFETIME: int(30, 3600),
   UPLOAD_SESSION_LIFETIME: int(300, 86400),
@@ -1651,6 +1678,17 @@ export function loadServerConfig(options: LoadOptions): ServerConfig {
       reportLeaseSeconds: c.REPORT_LEASE_SECONDS,
       reportMaxAttempts: c.REPORT_MAX_ATTEMPTS,
       reportFreshnessMinutes: c.REPORT_FRESHNESS_MINUTES,
+      connectionsPerScopeMax: c.CONNECTIONS_PER_SCOPE_MAX,
+      connectionScopesMax: c.CONNECTION_SCOPES_MAX,
+      syncBatchMax: c.SYNC_BATCH_MAX,
+      syncMaxAttempts: c.SYNC_MAX_ATTEMPTS,
+      syncBackoffSeconds: c.SYNC_BACKOFF_SECONDS,
+      syncLeaseSeconds: c.SYNC_LEASE_SECONDS,
+      syncHistoryRetentionDays: c.SYNC_HISTORY_RETENTION_DAYS,
+      syncRatePerMinute: c.SYNC_RATE_PER_MINUTE,
+      integrationLoopbackEnabled:
+        c.INTEGRATION_LOOPBACK_ENABLED === '1' ||
+        (c.INTEGRATION_LOOPBACK_ENABLED === 'auto' && (env === 'local' || env === 'test')),
       documentEmbedUrlMaxChars: c.DOCUMENT_EMBED_URL_MAX_CHARS,
       signedUrlLifetimeSeconds: c.SIGNED_URL_LIFETIME,
       uploadSessionLifetimeSeconds: c.UPLOAD_SESSION_LIFETIME,

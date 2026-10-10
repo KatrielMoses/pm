@@ -48,7 +48,7 @@ export async function readableRecords(
   const rows = await sql<{ id: string }>`
     SELECT r.id FROM core.record r
       ${recordJoins}
-     WHERE r.id = ANY(${[...ids]}::uuid[]) AND r.record_type IN ('task', 'project', 'document')
+     WHERE r.id = ANY(${[...ids]}::uuid[]) AND r.record_type IN ('task', 'project', 'document', 'connection')
        AND ${vis.where('r', { project: recordProject })}`.execute(tx.db);
   return new Set(rows.rows.map((r) => r.id));
 }

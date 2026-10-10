@@ -271,6 +271,13 @@ describe('database-enforced workspace existence (1A review 01, correction 2)', (
       'insights.report_recipient',
       'insights.report_share',
       'insights.report_run',
+      // Phase 6A connections, checkpoints, identities, sync runs, deliveries, and conflicts.
+      'integrations.connection',
+      'integrations.external_identity',
+      'integrations.sync_checkpoint',
+      'integrations.sync_conflict',
+      'integrations.sync_delivery',
+      'integrations.sync_run',
       'files.deliverable',
       'files.deliverable_version',
       'files.storage_usage',
@@ -310,7 +317,7 @@ describe('database-enforced workspace existence (1A review 01, correction 2)', (
             AND i.indkey::int2[] @> c.confkey AND i.indkey::int2[] <@ c.confkey
         ) AS referenced_unique
       FROM pg_constraint c JOIN pg_namespace n ON n.oid = c.connamespace
-      WHERE c.contype = 'f' AND n.nspname IN ('exec', 'tenancy', 'access', 'ops', 'views', 'workflow', 'work', 'relations', 'templates', 'planning', 'capture', 'timetrack', 'collab', 'notify', 'knowledge', 'files', 'search', 'goals', 'metrics', 'insights')
+      WHERE c.contype = 'f' AND n.nspname IN ('exec', 'tenancy', 'access', 'ops', 'views', 'workflow', 'work', 'relations', 'templates', 'planning', 'capture', 'timetrack', 'collab', 'notify', 'knowledge', 'files', 'search', 'goals', 'metrics', 'insights', 'integrations')
       ORDER BY 1`);
     // exec: 7 workspace keys + 6 composite same-workspace keys; 1C tenancy/access: 20 keys;
     // 1D collaboration (teams, invitations, policy, shares, ownership transfer): 38 keys;
@@ -336,8 +343,9 @@ describe('database-enforced workspace existence (1A review 01, correction 2)', (
     // 5B goals (8), key results (7), check-ins (4), links (6), derived state (2), portfolios (6),
     // and portfolio projects (4): +37;
     // 5C status spans (2) and reconciliation state (1): +3;
-    // 5D dashboards (7), report definitions (7), recipients (4), shares (5), and runs (3): +26.
-    expect(res.rows.length).toBe(523);
+    // 5D dashboards (7), report definitions (7), recipients (4), shares (5), and runs (3): +26;
+    // 6A connections (6), checkpoints (2), identities (3), runs (2), deliveries (2), conflicts (4): +19.
+    expect(res.rows.length).toBe(542);
     for (const r of res.rows)
       expect(r, `${r.tbl}.${r.conname}`).toMatchObject({
         referencing_indexed: true,

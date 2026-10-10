@@ -244,6 +244,13 @@ export const NON_RESOURCE_TYPES = [
   'report_runs',
   'report_recipients',
   'report_shares',
+  // 6A: provider catalog, connection list, sync history, conflicts, and key rotation. None of
+  // these carries a credential.
+  'integration_providers',
+  'integration_connections',
+  'integration_rotation',
+  'sync_runs',
+  'sync_conflicts',
 ] as const;
 export type NonResourceType = (typeof NON_RESOURCE_TYPES)[number];
 

@@ -122,6 +122,7 @@ export const SHELL_COMMAND_IDS = [
   'go.teams',
   'go.workspace_settings',
   'go.access_settings',
+  'go.integrations',
   'go.preferences',
   'go.account_security',
   'go.workspaces',

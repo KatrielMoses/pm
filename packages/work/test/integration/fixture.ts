@@ -28,7 +28,8 @@ import {
   taskAssigneeHook,
   taskTargets,
   savedViewTargets,
-  ReportService,
+  IntegrationService,
+  connectionOwnerHook,
   type SearchSourceRegistry,
   documentOwnerHook,
   goalOwnerHook,
@@ -58,7 +59,7 @@ export {
 
 export interface WorkEnv {
   h: Harness;
-  svc: ReportService;
+  svc: IntegrationService;
   /** The test storage and scanner the service uses (null when a test disables them). */
   files: FileDeps;
   stepUp: StubStepUp;
@@ -117,6 +118,7 @@ export function workEnv(
     createStepUpChallenge: stepUp.createStepUpChallenge,
   };
   const arrayMax = options.arrayMax ?? 10_000;
+  const vault = createVault(h.config.identity);
   const files: FileDeps = {
     storage:
       options.files?.storage !== undefined
@@ -129,7 +131,8 @@ export function workEnv(
     scanner:
       options.files?.scanner !== undefined ? options.files.scanner : new SignatureTestScanner(),
   };
-  const svc = new ReportService({
+  const svc = new IntegrationService({
+    vault,
     files,
     ...(options.searchSources ? { search: { sources: options.searchSources } } : {}),
     notify: { emailState: options.emailState ?? 'capture' },
@@ -146,6 +149,7 @@ export function workEnv(
       .register(documentOwnerHook)
       .register(goalOwnerHook)
       .register(insightsOwnerHook)
+      .register(connectionOwnerHook)
       .register(reviewDepartureHook(writer))
       .register(departureTimerHook(writer)),
     limiter: new PostgresRateLimiter(h.platform, randomBytes(32), {
@@ -161,6 +165,7 @@ export function workEnv(
       'goal.checkin': { limit: options.goalRate ?? 100_000, windowMs: 60_000 },
       'metrics.member': { limit: options.metricsRate ?? 100_000, windowMs: 60_000 },
       'report.export': { limit: 100_000, windowMs: 60_000 },
+      'integration.member': { limit: 10_000, windowMs: 60_000 },
     }),
     signingKey: randomBytes(32),
     settings: {
@@ -174,11 +179,10 @@ export function workEnv(
       .register(projectTargets(arrayMax))
       .register(taskTargets(arrayMax))
       .register(savedViewTargets(arrayMax)),
-    work: { ...DEFAULT_WORK_SETTINGS, ...options.work },
+    work: { ...DEFAULT_WORK_SETTINGS, integrationLoopbackEnabled: true, ...options.work },
     metrics,
     logger: h.logger,
   });
-  const vault = createVault(h.config.identity);
   return {
     h,
     svc,

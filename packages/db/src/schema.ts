@@ -446,6 +446,7 @@ export interface DevSecretVaultTable {
   auth_tag: Bytes;
   created_at: DTs;
   expires_at: Ts | null;
+  key_id: Defaulted<number>;
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -2647,6 +2648,118 @@ export interface ReportRunTable {
   finished_at: Ts | null;
 }
 
+// Phase 6A: connections, checkpoints, external identities, sync runs, deliveries, and conflicts.
+export type ConnectionHealth =
+  | 'connected'
+  | 'needs_reauthorization'
+  | 'error'
+  | 'disconnected'
+  | 'provider_unconfigured'
+  | 'degraded';
+export type ConnectionAuthKind = 'oauth' | 'api_key';
+export type SyncRunState =
+  'pending' | 'running' | 'succeeded' | 'partial' | 'failed' | 'dead' | 'skipped';
+export type SyncDeliveryState = 'pending' | 'delivered' | 'retry_scheduled' | 'dead';
+export type SyncConflictState = 'open' | 'kept_local' | 'kept_remote' | 'dismissed';
+export interface ConnectionTable {
+  id: string;
+  workspace_id: string;
+  brand_id: string | null;
+  scope_key: string;
+  lifecycle_state: Defaulted<'active' | 'archived' | 'trashed' | 'purged'>;
+  provider: 'loopback' | 'google_calendar' | 'github' | 'email_inbound';
+  auth_kind: ConnectionAuthKind;
+  display_name: string;
+  owner_membership_id: string;
+  granted_scopes: string[];
+  health: Defaulted<ConnectionHealth>;
+  credential_secret_ref: string | null;
+  credential_key_version: Defaulted<number>;
+  last_success_at: Ts | null;
+  last_error: string | null;
+  suspended_reason: 'owner_authority' | 'owner_departed' | 'admin' | null;
+  suspended_at: Ts | null;
+  outbound_paused: Defaulted<boolean>;
+  retention_choice: 'retain' | 'remove' | null;
+  disconnected_at: Ts | null;
+  created_by_membership_id: string;
+  created_at: DTs;
+  updated_at: DTs;
+  updated_by_membership_id: string | null;
+  version: Defaulted<number>;
+}
+export interface SyncCheckpointTable {
+  workspace_id: string;
+  connection_id: string;
+  resource_key: string;
+  cursor: string;
+  version: Defaulted<number>;
+  updated_at: DTs;
+}
+export interface ExternalIdentityTable {
+  id: string;
+  public_id: string;
+  workspace_id: string;
+  connection_id: string;
+  external_type: string;
+  external_id: string;
+  label: string;
+  record_id: string | null;
+  remote_version: string;
+  local_version: string;
+  base_version: string;
+  detached: Defaulted<boolean>;
+  last_synced_at: Ts | null;
+  created_at: DTs;
+  updated_at: DTs;
+}
+export interface SyncRunTable {
+  id: string;
+  workspace_id: string;
+  connection_id: string;
+  idempotency_key: string | null;
+  direction: 'inbound' | 'outbound' | 'test';
+  state: SyncRunState;
+  attempt: Defaulted<number>;
+  failure_class: 'transient' | 'permanent' | 'unconfigured' | 'degraded' | null;
+  error_code: string | null;
+  read_count: Defaulted<number>;
+  write_count: Defaulted<number>;
+  conflict_count: Defaulted<number>;
+  started_at: DTs;
+  finished_at: Ts | null;
+}
+export interface SyncDeliveryTable {
+  id: string;
+  workspace_id: string;
+  connection_id: string;
+  dedupe_key: string;
+  state: Defaulted<SyncDeliveryState>;
+  attempts: Defaulted<number>;
+  next_attempt_at: DTs;
+  failure_class: 'transient' | 'permanent' | 'unconfigured' | 'degraded' | null;
+  error_code: string | null;
+  payload_hash: string | null;
+  claimed_until: Ts | null;
+  created_at: DTs;
+  updated_at: DTs;
+}
+export interface SyncConflictTable {
+  id: string;
+  public_id: string;
+  workspace_id: string;
+  connection_id: string;
+  external_identity_id: string;
+  field_key: string;
+  local_version: string;
+  remote_version: string;
+  state: Defaulted<SyncConflictState>;
+  resolved_by_membership_id: string | null;
+  resolved_at: Ts | null;
+  created_at: DTs;
+  version: Defaulted<number>;
+}
+
 // Phase 4E: files, immutable versions, upload sessions, deliverables, and storage usage (ADR-0026).
 export type FileScanState = 'pending' | 'clean' | 'infected' | 'error';
 export type FileHostKind = 'workspace' | 'brand' | 'project' | 'task' | 'comment' | 'document';
@@ -2867,6 +2980,12 @@ export interface Database {
   'insights.report_recipient': ReportRecipientTable;
   'insights.report_share': ReportShareTable;
   'insights.report_run': ReportRunTable;
+  'integrations.connection': ConnectionTable;
+  'integrations.sync_checkpoint': SyncCheckpointTable;
+  'integrations.external_identity': ExternalIdentityTable;
+  'integrations.sync_run': SyncRunTable;
+  'integrations.sync_delivery': SyncDeliveryTable;
+  'integrations.sync_conflict': SyncConflictTable;
   'notify.digest': DigestTable;
   'notify.delivery': DeliveryTable;
   'notify.preference': NotificationPreferenceTable;
@@ -3347,6 +3466,7 @@ export const TABLE_COLUMNS: Readonly<Record<keyof Database, readonly string[]>> 
     'auth_tag',
     'created_at',
     'expires_at',
+    'key_id',
   ],
   'identity.account': [
     'id',
@@ -4494,6 +4614,104 @@ export const TABLE_COLUMNS: Readonly<Record<keyof Database, readonly string[]>> 
     'attempts',
     'created_at',
     'finished_at',
+  ],
+  'integrations.connection': [
+    'id',
+    'workspace_id',
+    'brand_id',
+    'scope_key',
+    'lifecycle_state',
+    'provider',
+    'auth_kind',
+    'display_name',
+    'owner_membership_id',
+    'granted_scopes',
+    'health',
+    'credential_secret_ref',
+    'credential_key_version',
+    'last_success_at',
+    'last_error',
+    'suspended_reason',
+    'suspended_at',
+    'outbound_paused',
+    'retention_choice',
+    'disconnected_at',
+    'created_by_membership_id',
+    'created_at',
+    'updated_at',
+    'updated_by_membership_id',
+    'version',
+  ],
+  'integrations.sync_checkpoint': [
+    'workspace_id',
+    'connection_id',
+    'resource_key',
+    'cursor',
+    'version',
+    'updated_at',
+  ],
+  'integrations.external_identity': [
+    'id',
+    'public_id',
+    'workspace_id',
+    'connection_id',
+    'external_type',
+    'external_id',
+    'label',
+    'record_id',
+    'remote_version',
+    'local_version',
+    'base_version',
+    'detached',
+    'last_synced_at',
+    'created_at',
+    'updated_at',
+  ],
+  'integrations.sync_run': [
+    'id',
+    'workspace_id',
+    'connection_id',
+    'idempotency_key',
+    'direction',
+    'state',
+    'attempt',
+    'failure_class',
+    'error_code',
+    'read_count',
+    'write_count',
+    'conflict_count',
+    'started_at',
+    'finished_at',
+  ],
+  'integrations.sync_delivery': [
+    'id',
+    'workspace_id',
+    'connection_id',
+    'dedupe_key',
+    'state',
+    'attempts',
+    'next_attempt_at',
+    'failure_class',
+    'error_code',
+    'payload_hash',
+    'claimed_until',
+    'created_at',
+    'updated_at',
+  ],
+  'integrations.sync_conflict': [
+    'id',
+    'public_id',
+    'workspace_id',
+    'connection_id',
+    'external_identity_id',
+    'field_key',
+    'local_version',
+    'remote_version',
+    'state',
+    'resolved_by_membership_id',
+    'resolved_at',
+    'created_at',
+    'version',
   ],
   'knowledge.source_approval': [
     'id',
