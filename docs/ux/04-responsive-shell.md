@@ -154,7 +154,7 @@ Proposed initial map (the final key map belongs to 1E and must pass the conflict
 | Open item | <kbd>Enter</kbd>; full page <kbd>Shift</kbd>+<kbd>Enter</kbd> | — |
 | Select item | <kbd>X</kbd> or <kbd>Space</kbd> (in list) | Single key |
 | Close panel or dialog | <kbd>Esc</kbd> | — |
-| Move focus between regions (nav, list, panel) | <kbd>F6</kbd> / <kbd>Shift</kbd>+<kbd>F6</kbd> | — |
+| Move focus between regions (nav, list, panel) | Skip links and the palette's region actions; no key binding ([A11Y-KB-04](07-accessibility.md#a11y-kb-04)) | — (browser function keys stay native, [A11Y-KB-07](07-accessibility.md#a11y-kb-07)) |
 | Shortcut reference | <kbd>?</kbd> | Single key (setting-controlled) |
 
 Single-key and sequence shortcuts can be turned off in Settings › Preferences. They are on by default for new users on fine-pointer devices ([UXD-04](09-decisions-and-risks.md#uxd-04)). Every shortcut has a visible equivalent control or palette action.
@@ -261,7 +261,7 @@ The default can be changed per user to "always open full page" ([UXD-12](09-deci
 <a id="rs-33"></a>
 ### RS-33 — Side-panel behavior
 
-- **Non-modal.** It does not trap focus. Focus moves to the panel heading when it opens. <kbd>Esc</kbd> closes it and returns focus to the originating row. <kbd>F6</kbd> moves between the list and the panel.
+- **Non-modal.** It does not trap focus. Focus moves to the panel heading when it opens. <kbd>Esc</kbd> closes it and returns focus to the originating row. The "Skip to details panel" link and the palette's region actions move focus between the list and the panel ([A11Y-KB-04](07-accessibility.md#a11y-kb-04)).
 - <kbd>J</kbd>/<kbd>K</kbd> (or panel previous/next buttons) move to the adjacent item in the underlying list and keep the panel open. The list highlights the current item and keeps it scrolled into view.
 - If the current item leaves the list because of an edit (for example its status changed and it no longer matches the filter), the panel stays open on that item. A notice in the panel says "No longer matches this view's filters". Previous/next continue from its former position.
 - The panel shows the record's own brand marker even when the list is single-brand.

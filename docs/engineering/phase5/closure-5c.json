@@ -1,0 +1,889 @@
+{
+  "schema_version": 1,
+  "phase": "5C",
+  "status": "candidate",
+  "adr": "0030",
+  "accepted_by_kinds": [
+    "catalog:contributing",
+    "roadmap:<sub>",
+    "adr:<nnnn>[#row]",
+    "requirement:<ID>"
+  ],
+  "requirements": [
+    {
+      "id": "RPT-023",
+      "role": "owned",
+      "disposition": "implemented",
+      "evidence": [
+        {
+          "file": "packages/work/src/metrics/metric-service.ts",
+          "contains": "async #freshnessFigures("
+        },
+        {
+          "file": "packages/work/src/metrics/definitions.ts",
+          "contains": "STATUS_HISTORY: IncompleteCode"
+        },
+        {
+          "file": "packages/work/test/integration/metrics.test.ts",
+          "contains": "weights by estimate in version 2, names tasks without one, and rolls up as a ratio of sums"
+        },
+        {
+          "file": "packages/work/test/integration/metrics-figures.test.ts",
+          "contains": "measures cycle time from the first recorded active status to each completion, and says what it left out"
+        },
+        {
+          "file": "apps/web/test/metrics.test.tsx",
+          "contains": "says what is missing instead of presenting a partial figure as complete"
+        },
+        {
+          "file": "apps/web/test/metrics.test.tsx",
+          "contains": "shows an unavailable source as unavailable, never as a number"
+        }
+      ],
+      "note": "Every result carries its state (complete, partial, estimated, empty, unavailable) and named incomplete reasons with counts; assumed and repaired history, unestimated tasks, small samples, and unavailable sources are labelled, never presented as complete or as zero."
+    },
+    {
+      "id": "RPT-024",
+      "role": "owned",
+      "disposition": "implemented",
+      "evidence": [
+        {
+          "file": "packages/work/src/metrics/metric-service.ts",
+          "contains": "async #freshnessFigures("
+        },
+        {
+          "file": "packages/work/src/metrics/jobs.ts",
+          "contains": "export async function reconcileWorkspace("
+        },
+        {
+          "file": "packages/work/test/integration/metrics-ledger.test.ts",
+          "contains": "backs off a failing pass, reports it as failing, and recovers when asked after the fault is gone"
+        },
+        {
+          "file": "packages/work/test/integration/metrics-ledger.test.ts",
+          "contains": "repairs a task whose history disagrees with its status, once, without backdating, and repeats change nothing"
+        },
+        {
+          "file": "apps/web/test/metrics.test.tsx",
+          "contains": "warns when derived data is behind or failing, and offers the repair only to people who can configure"
+        },
+        {
+          "file": "apps/api/test/integration/metrics-api.test.ts",
+          "contains": "computes a figure with its definition, scope, freshness, provenance, limits, and drill-through"
+        }
+      ],
+      "note": "Every result carries its freshness (current, catching up, degraded), the time of the data, and the source basis; the data.freshness metric reports each derived source over the viewer's records only, and a failing reconciliation is shown to everyone and repairable by administrators."
+    },
+    {
+      "id": "RPT-025",
+      "role": "owned",
+      "disposition": "implemented",
+      "evidence": [
+        {
+          "file": "packages/work/src/metrics/definitions.ts",
+          "contains": "doesNotClaim:"
+        },
+        {
+          "file": "packages/work/test/unit/metrics-semantics.test.ts",
+          "contains": "resolve the current version, keep earlier versions computable, and never invent a business outcome"
+        },
+        {
+          "file": "packages/work/test/integration/metrics.test.ts",
+          "contains": "publishes every definition with its version, rollup rule, authorization rule, and drill roles"
+        },
+        {
+          "file": "packages/work/src/metrics/metric-service.ts",
+          "contains": "limits: [c.def.doesNotClaim, c.def.authorization]"
+        }
+      ],
+      "note": "Every definition states what it does not claim and every result carries it; no figure is estimated or attributed from other activity, and sources that do not exist (tests, spend) are unavailable."
+    },
+    {
+      "id": "PRJ-008",
+      "role": "contributing",
+      "disposition": "contributed",
+      "evidence": [
+        {
+          "file": "packages/work/test/integration/metrics-figures.test.ts",
+          "contains": "judges project health by the 5B rules, with the reasons, and counts the classes"
+        },
+        {
+          "file": "packages/work/src/metrics/metric-service.ts",
+          "contains": "async #health("
+        }
+      ],
+      "note": "The suggested health: the 5B rules pinned as project.health v1, with reasons; the declared health is never overwritten.",
+      "contribution": "5C"
+    },
+    {
+      "id": "PRJ-020",
+      "role": "contributing",
+      "disposition": "contributed",
+      "evidence": [
+        {
+          "file": "packages/work/test/integration/metrics.test.ts",
+          "contains": "counts completion by leaf tasks the viewer may read, never hidden ones (v1)"
+        },
+        {
+          "file": "packages/work/test/integration/metrics.test.ts",
+          "contains": "weights by estimate in version 2, names tasks without one, and rolls up as a ratio of sums"
+        },
+        {
+          "file": "packages/work/src/metrics/definitions.ts",
+          "contains": "name: 'Completion (weighted by estimate)'"
+        }
+      ],
+      "note": "Completion as a versioned metric: v1 by leaf-task count (the default, OD-13) and v2 weighted by estimate.",
+      "contribution": "5C"
+    },
+    {
+      "id": "PRJ-021",
+      "role": "contributing",
+      "disposition": "contributed",
+      "evidence": [
+        {
+          "file": "packages/work/test/integration/metrics-figures.test.ts",
+          "contains": "flags overdue, due soon, blocked, stale, and unowned open work, and drills to the same tasks"
+        },
+        {
+          "file": "packages/work/test/integration/metrics-figures.test.ts",
+          "contains": "judges project health by the 5B rules, with the reasons, and counts the classes"
+        }
+      ],
+      "note": "Overdue, blocked, unassigned, and at-risk work as the attention and health metrics, with drill-through.",
+      "contribution": "5C"
+    },
+    {
+      "id": "PRJ-022",
+      "role": "contributing",
+      "disposition": "contributed",
+      "evidence": [
+        {
+          "file": "packages/work/test/integration/metrics-figures.test.ts",
+          "contains": "compares estimates with logged time for tasks finished in a window"
+        },
+        {
+          "file": "packages/work/src/metrics/metric-service.ts",
+          "contains": "async #actualFigures("
+        }
+      ],
+      "note": "Planned versus actual time for tasks finished in a window, with the unestimated and unlogged named.",
+      "contribution": "5C"
+    },
+    {
+      "id": "PRJ-023",
+      "role": "contributing",
+      "disposition": "contributed",
+      "evidence": [
+        {
+          "file": "packages/work/test/integration/metrics-figures.test.ts",
+          "contains": "measures time-budget use per project and acceptance by review state"
+        },
+        {
+          "file": "packages/work/src/metrics/metric-service.ts",
+          "contains": "async #deliverableFigures("
+        }
+      ],
+      "note": "Accepted versus pending deliverables by review state, with the accepted share of those submitted.",
+      "contribution": "5C"
+    },
+    {
+      "id": "TSK-044",
+      "role": "contributing",
+      "disposition": "contributed",
+      "evidence": [
+        {
+          "file": "packages/work/test/integration/metrics-figures.test.ts",
+          "contains": "flags overdue, due soon, blocked, stale, and unowned open work, and drills to the same tasks"
+        },
+        {
+          "file": "packages/work/src/metrics/metric-service.ts",
+          "contains": "stale: sql<boolean>`((t.status_category = 'active'"
+        }
+      ],
+      "note": "Stale and blocked work counted by the OD-17 and 2D signals; repeated rescheduling stays a per-task signal.",
+      "contribution": "5C"
+    },
+    {
+      "id": "PLAN-019",
+      "role": "contributing",
+      "disposition": "contributed",
+      "evidence": [
+        {
+          "file": "packages/work/test/integration/metrics-figures.test.ts",
+          "contains": "compares planned and completed work for tasks due in a window, by local date"
+        },
+        {
+          "file": "packages/work/src/metrics/metric-service.ts",
+          "contains": "async #plannedFigures("
+        }
+      ],
+      "note": "Planned versus completed work for tasks due in a window, by local date.",
+      "contribution": "5C"
+    },
+    {
+      "id": "RPT-002",
+      "role": "contributing",
+      "disposition": "contributed",
+      "evidence": [
+        {
+          "file": "packages/work/test/integration/metrics-figures.test.ts",
+          "contains": "judges project health by the 5B rules, with the reasons, and counts the classes"
+        },
+        {
+          "file": "apps/api/test/integration/metrics-api.test.ts",
+          "contains": "computes a figure with its definition, scope, freshness, provenance, limits, and drill-through"
+        }
+      ],
+      "note": "Active projects and their health as the project.health metric.",
+      "contribution": "5C"
+    },
+    {
+      "id": "RPT-003",
+      "role": "contributing",
+      "disposition": "contributed",
+      "evidence": [
+        {
+          "file": "packages/work/test/integration/metrics-figures.test.ts",
+          "contains": "flags overdue, due soon, blocked, stale, and unowned open work, and drills to the same tasks"
+        },
+        {
+          "file": "apps/api/test/integration/metrics-api.test.ts",
+          "contains": "refuses malformed requests with stable issues and unauthenticated callers with 401"
+        }
+      ],
+      "note": "Due, overdue, blocked, stale, and unassigned work as the work.attention metric.",
+      "contribution": "5C"
+    },
+    {
+      "id": "RPT-005",
+      "role": "contributing",
+      "disposition": "contributed",
+      "evidence": [
+        {
+          "file": "packages/work/test/integration/metrics-figures.test.ts",
+          "contains": "compares planned and completed work for tasks due in a window, by local date"
+        }
+      ],
+      "note": "Planned versus completed work as the work.planned_vs_completed metric.",
+      "contribution": "5C"
+    },
+    {
+      "id": "RPT-006",
+      "role": "contributing",
+      "disposition": "contributed",
+      "evidence": [
+        {
+          "file": "packages/work/test/integration/metrics-figures.test.ts",
+          "contains": "compares estimates with logged time for tasks finished in a window"
+        }
+      ],
+      "note": "Planned versus actual time as the time.planned_vs_actual metric.",
+      "contribution": "5C"
+    },
+    {
+      "id": "RPT-007",
+      "role": "contributing",
+      "disposition": "contributed",
+      "evidence": [
+        {
+          "file": "packages/work/test/integration/metrics-figures.test.ts",
+          "contains": "measures cycle time from the first recorded active status to each completion, and says what it left out"
+        },
+        {
+          "file": "packages/work/test/integration/metrics-figures.test.ts",
+          "contains": "adds up time in each status inside a window, in the workspace zone, leaving assumed history out"
+        },
+        {
+          "file": "packages/work/test/integration/metrics-ledger.test.ts",
+          "contains": "measures a real task’s cycle time from the history it wrote"
+        }
+      ],
+      "note": "Cycle time and time in status from the status ledger, with the history that is not known excluded and named.",
+      "contribution": "5C"
+    },
+    {
+      "id": "RPT-008",
+      "role": "contributing",
+      "disposition": "contributed",
+      "evidence": [
+        {
+          "file": "packages/work/test/integration/metrics-figures.test.ts",
+          "contains": "buckets created and completed by local day, across midnight and the spring clock change"
+        }
+      ],
+      "note": "Work created versus completed per local day, across midnight and a clock change.",
+      "contribution": "5C"
+    },
+    {
+      "id": "RPT-009",
+      "role": "contributing",
+      "disposition": "contributed",
+      "evidence": [
+        {
+          "file": "packages/work/test/integration/metrics-figures.test.ts",
+          "contains": "bands the age of open tasks and reproduces it for a past instant"
+        }
+      ],
+      "note": "Task aging as bands and percentiles of whole days, reproducible for a past instant.",
+      "contribution": "5C"
+    },
+    {
+      "id": "RPT-019",
+      "role": "contributing",
+      "disposition": "contributed",
+      "evidence": [
+        {
+          "file": "packages/work/test/integration/metrics-access.test.ts",
+          "contains": "pages a drill-through by a signed cursor that works for one person and one request only"
+        },
+        {
+          "file": "packages/work/test/integration/metrics-figures.test.ts",
+          "contains": "flags overdue, due soon, blocked, stale, and unowned open work, and drills to the same tasks"
+        },
+        {
+          "file": "apps/api/test/integration/metrics-api.test.ts",
+          "contains": "lists the records behind a figure, paged, and exports it as CSV"
+        },
+        {
+          "file": "apps/web/test/metrics.test.tsx",
+          "contains": "lists the records behind a figure, loads more by the server’s cursor, and keeps the choice in the address"
+        }
+      ],
+      "note": "Every metric drills into the records it is made of, through the statements that counted them; each list is exactly as long as its count.",
+      "contribution": "5C"
+    }
+  ],
+  "decisions": [
+    {
+      "id": "D1",
+      "title": "One authority: every figure joins each counted record to its governing record and applies the compiled visibility predicate first; hidden and unknown are one absence",
+      "adr_row": "M1",
+      "sources": [
+        {
+          "file": "docs/architecture/access/15-decisions.md",
+          "contains": "### AZ-38: Metrics (Phase 5C amendment)"
+        },
+        {
+          "file": "docs/engineering/adr/0030-metrics-model.md",
+          "contains": "| M1 |"
+        }
+      ],
+      "evidence": [
+        {
+          "file": "packages/work/test/integration/metrics.test.ts",
+          "contains": "lets hidden work contribute nothing to any figure, label, ranking, or digest"
+        },
+        {
+          "file": "packages/work/test/integration/metrics.test.ts",
+          "contains": "answers a hidden project and an unknown one in exactly the same way"
+        },
+        {
+          "file": "packages/work/test/integration/metrics-access.test.ts",
+          "contains": "follows revocation, trash and restore, and departure on the very next request"
+        }
+      ]
+    },
+    {
+      "id": "D2",
+      "title": "Definitions are versioned, immutable contracts carried as a registry with pinned digests; a change of meaning is a new version",
+      "adr_row": "M2",
+      "sources": [
+        {
+          "file": "docs/architecture/data/12-decisions.md",
+          "contains": "## ADR-38: Task status history and its reconciliation state; metric definitions and snapshots (Phase 5C amendment)"
+        },
+        {
+          "file": "docs/engineering/adr/0030-metrics-model.md",
+          "contains": "| M2 |"
+        }
+      ],
+      "evidence": [
+        {
+          "file": "packages/work/test/unit/metrics-semantics.test.ts",
+          "contains": "are unique, complete, and immutable once released: the pinned digest of each must not change"
+        },
+        {
+          "file": "packages/work/test/integration/metrics.test.ts",
+          "contains": "publishes every definition with its version, rollup rule, authorization rule, and drill roles"
+        }
+      ]
+    },
+    {
+      "id": "D3",
+      "title": "Figures are computed live with no stored aggregate, so a drill-through lists exactly what was counted; no metric snapshot is built",
+      "adr_row": "M3",
+      "sources": [
+        {
+          "file": "docs/engineering/adr/0030-metrics-model.md",
+          "contains": "| M3 |"
+        }
+      ],
+      "evidence": [
+        {
+          "file": "packages/work/test/integration/metrics-access.test.ts",
+          "contains": "pages a drill-through by a signed cursor that works for one person and one request only"
+        },
+        {
+          "file": "packages/work/test/integration/metrics-figures.test.ts",
+          "contains": "flags overdue, due soon, blocked, stale, and unowned open work, and drills to the same tasks"
+        }
+      ]
+    },
+    {
+      "id": "D4",
+      "title": "A result states its definition, scope, window, zone, state, incomplete reasons, freshness, provenance, limits, drill roles, and reproducibility",
+      "adr_row": "M4",
+      "sources": [
+        {
+          "file": "docs/architecture/platform/19-decisions.md",
+          "contains": "### PL-40: Metric contracts (Phase 5C amendment)"
+        },
+        {
+          "file": "docs/engineering/adr/0030-metrics-model.md",
+          "contains": "| M4 |"
+        }
+      ],
+      "evidence": [
+        {
+          "file": "apps/api/test/integration/metrics-api.test.ts",
+          "contains": "computes a figure with its definition, scope, freshness, provenance, limits, and drill-through"
+        },
+        {
+          "file": "apps/web/test/metrics.test.tsx",
+          "contains": "shows the figure, its state, what is counted, the records behind it, and an export"
+        }
+      ]
+    },
+    {
+      "id": "D5",
+      "title": "Scope and rollup: workspace, brand, or project with sub-projects; ratio of sums, sums, pooled distributions, and counts of classes",
+      "adr_row": "M5",
+      "sources": [
+        {
+          "file": "docs/engineering/adr/0030-metrics-model.md",
+          "contains": "| M5 |"
+        }
+      ],
+      "evidence": [
+        {
+          "file": "packages/work/test/integration/metrics.test.ts",
+          "contains": "counts completion by leaf tasks the viewer may read, never hidden ones (v1)"
+        },
+        {
+          "file": "packages/work/test/unit/metrics-semantics.test.ts",
+          "contains": "property: counts of a partition add up to the counts of the whole, in any order (ratio of sums)"
+        }
+      ]
+    },
+    {
+      "id": "D6",
+      "title": "Weighted completion is version 2 by estimate; unestimated work carries no weight and is named; version 1 stays the default",
+      "adr_row": "M6",
+      "sources": [
+        {
+          "file": "docs/product/open-decisions.md",
+          "contains": "**Status (Phase 5C, 2026-10-09):** Versioned."
+        },
+        {
+          "file": "docs/engineering/adr/0030-metrics-model.md",
+          "contains": "| M6 |"
+        }
+      ],
+      "evidence": [
+        {
+          "file": "packages/work/test/integration/metrics.test.ts",
+          "contains": "weights by estimate in version 2, names tasks without one, and rolls up as a ratio of sums"
+        },
+        {
+          "file": "packages/work/test/integration/metrics.test.ts",
+          "contains": "flags a scope with no estimates or no tasks instead of inventing a percentage"
+        },
+        {
+          "file": "packages/work/test/unit/metrics-semantics.test.ts",
+          "contains": "property: version 1 is the done share of the counted tasks, version 2 the done share of the estimate"
+        }
+      ]
+    },
+    {
+      "id": "D7",
+      "title": "Windows are local dates in the workspace zone converted in the database; daylight-saving changes keep the right local days",
+      "adr_row": "M7",
+      "sources": [
+        {
+          "file": "docs/engineering/adr/0030-metrics-model.md",
+          "contains": "| M7 |"
+        }
+      ],
+      "evidence": [
+        {
+          "file": "packages/work/test/integration/metrics-figures.test.ts",
+          "contains": "buckets created and completed by local day, across midnight and the spring clock change"
+        },
+        {
+          "file": "packages/work/test/integration/metrics-figures.test.ts",
+          "contains": "adds up time in each status inside a window, in the workspace zone, leaving assumed history out"
+        },
+        {
+          "file": "packages/work/test/unit/metrics-semantics.test.ts",
+          "contains": "resolves a window of local days: defaults, derived ends, and bounds"
+        }
+      ]
+    },
+    {
+      "id": "D8",
+      "title": "Historical reproducibility by as_of for ledger metrics, refusal for the present-only ones, and digests of the definition and the figure",
+      "adr_row": "M8",
+      "sources": [
+        {
+          "file": "docs/engineering/adr/0030-metrics-model.md",
+          "contains": "| M8 |"
+        }
+      ],
+      "evidence": [
+        {
+          "file": "packages/work/test/integration/metrics-figures.test.ts",
+          "contains": "bands the age of open tasks and reproduces it for a past instant"
+        },
+        {
+          "file": "packages/work/test/integration/metrics.test.ts",
+          "contains": "lets hidden work contribute nothing to any figure, label, ranking, or digest"
+        },
+        {
+          "file": "packages/work/test/integration/metrics-figures.test.ts",
+          "contains": "measures cycle time from the first recorded active status to each completion, and says what it left out"
+        }
+      ]
+    },
+    {
+      "id": "D9",
+      "title": "The status ledger is append-only, written by triggers in the task's transaction, holds no permission copy, and labels assumed and repaired history",
+      "adr_row": "M9",
+      "sources": [
+        {
+          "file": "docs/architecture/data/12-decisions.md",
+          "contains": "**Status ledger.** `metrics.task_status_span`"
+        },
+        {
+          "file": "docs/engineering/adr/0030-metrics-model.md",
+          "contains": "| M9 |"
+        }
+      ],
+      "evidence": [
+        {
+          "file": "packages/work/test/integration/metrics-ledger.test.ts",
+          "contains": "records a task’s status history in its own transaction as it is created, moved, finished, and reopened"
+        },
+        {
+          "file": "packages/work/test/integration/metrics-ledger.test.ts",
+          "contains": "removes a task’s history with the task, and keeps it through trash and restore"
+        },
+        {
+          "file": "packages/work/test/integration/metrics-ledger.test.ts",
+          "contains": "rolls down and up again over existing tasks, assuming history it never saw and labelling it"
+        }
+      ]
+    },
+    {
+      "id": "D10",
+      "title": "Reconciliation is bounded, resumable, leased, backed off, repairs without backdating, and shows its failure",
+      "adr_row": "M10",
+      "sources": [
+        {
+          "file": "docs/engineering/adr/0030-metrics-model.md",
+          "contains": "| M10 |"
+        }
+      ],
+      "evidence": [
+        {
+          "file": "packages/work/test/integration/metrics-ledger.test.ts",
+          "contains": "repairs a task whose history disagrees with its status, once, without backdating, and repeats change nothing"
+        },
+        {
+          "file": "packages/work/test/integration/metrics-ledger.test.ts",
+          "contains": "takes a large workspace in bounded steps that resume where they stopped"
+        },
+        {
+          "file": "packages/work/test/integration/metrics-ledger.test.ts",
+          "contains": "does not let two workers hold one workspace, and recovers one that was lost"
+        },
+        {
+          "file": "packages/work/test/integration/metrics-ledger.test.ts",
+          "contains": "backs off a failing pass, reports it as failing, and recovers when asked after the fault is gone"
+        },
+        {
+          "file": "packages/work/test/integration/metrics-ledger.test.ts",
+          "contains": "converges when status changes, reconciliation, and reads overlap"
+        }
+      ]
+    },
+    {
+      "id": "D11",
+      "title": "Freshness is stated per result and per derived source, counted only over what the person can read",
+      "adr_row": "M11",
+      "sources": [
+        {
+          "file": "docs/engineering/adr/0030-metrics-model.md",
+          "contains": "| M11 |"
+        }
+      ],
+      "evidence": [
+        {
+          "file": "packages/work/test/integration/metrics-ledger.test.ts",
+          "contains": "backs off a failing pass, reports it as failing, and recovers when asked after the fault is gone"
+        },
+        {
+          "file": "apps/web/test/metrics.test.tsx",
+          "contains": "warns when derived data is behind or failing, and offers the repair only to people who can configure"
+        }
+      ]
+    },
+    {
+      "id": "D12",
+      "title": "Incomplete, estimated, and unavailable are explicit states; tests and spend are unavailable, never zero; oversize scopes are refused",
+      "adr_row": "M12",
+      "sources": [
+        {
+          "file": "docs/engineering/adr/0030-metrics-model.md",
+          "contains": "| M12 |"
+        }
+      ],
+      "evidence": [
+        {
+          "file": "packages/work/test/integration/metrics-figures.test.ts",
+          "contains": "reports sources that do not exist yet as unavailable, never as zero"
+        },
+        {
+          "file": "apps/web/test/metrics.test.tsx",
+          "contains": "shows an unavailable source as unavailable, never as a number"
+        },
+        {
+          "file": "packages/work/test/integration/metrics-figures.test.ts",
+          "contains": "measures cycle time from the first recorded active status to each completion, and says what it left out"
+        }
+      ]
+    },
+    {
+      "id": "D13",
+      "title": "The metric set and its definitions: completion, health, attention, planned versus completed, created versus completed, cycle time, time in status, age, workload, planned versus actual, time budget, acceptance, freshness",
+      "adr_row": "M13",
+      "sources": [
+        {
+          "file": "docs/engineering/adr/0030-metrics-model.md",
+          "contains": "| M13 |"
+        }
+      ],
+      "evidence": [
+        {
+          "file": "packages/work/test/integration/metrics-figures.test.ts",
+          "contains": "measures cycle time from the first recorded active status to each completion, and says what it left out"
+        },
+        {
+          "file": "packages/work/test/integration/metrics-figures.test.ts",
+          "contains": "flags overdue, due soon, blocked, stale, and unowned open work, and drills to the same tasks"
+        },
+        {
+          "file": "packages/work/test/integration/metrics-figures.test.ts",
+          "contains": "ranks workload by what the viewer can read, counting each task once and naming people only to members"
+        },
+        {
+          "file": "packages/work/test/integration/metrics-figures.test.ts",
+          "contains": "measures time-budget use per project and acceptance by review state"
+        },
+        {
+          "file": "packages/work/test/integration/metrics-figures.test.ts",
+          "contains": "judges project health by the 5B rules, with the reasons, and counts the classes"
+        }
+      ]
+    },
+    {
+      "id": "D14",
+      "title": "No business outcome is inferred from activity: every definition and result states what it does not claim",
+      "adr_row": "M14",
+      "sources": [
+        {
+          "file": "docs/engineering/adr/0030-metrics-model.md",
+          "contains": "| M14 |"
+        }
+      ],
+      "evidence": [
+        {
+          "file": "packages/work/test/unit/metrics-semantics.test.ts",
+          "contains": "resolve the current version, keep earlier versions computable, and never invent a business outcome"
+        },
+        {
+          "file": "packages/work/test/unit/metrics-semantics.test.ts",
+          "contains": "state scope, numerator, rollup, timezone, freshness, authorization, drill path, and what they do not claim"
+        }
+      ]
+    },
+    {
+      "id": "D15",
+      "title": "Drill-through is the same selection as the count, paged by a signed cursor",
+      "adr_row": "M15",
+      "sources": [
+        {
+          "file": "docs/engineering/adr/0030-metrics-model.md",
+          "contains": "| M15 |"
+        }
+      ],
+      "evidence": [
+        {
+          "file": "packages/work/test/integration/metrics-access.test.ts",
+          "contains": "pages a drill-through by a signed cursor that works for one person and one request only"
+        },
+        {
+          "file": "apps/api/test/integration/metrics-api.test.ts",
+          "contains": "lists the records behind a figure, paged, and exports it as CSV"
+        },
+        {
+          "file": "packages/work/test/integration/metrics-figures.test.ts",
+          "contains": "flags overdue, due soon, blocked, stale, and unowned open work, and drills to the same tasks"
+        }
+      ]
+    },
+    {
+      "id": "D16",
+      "title": "Exports and dashboards share the one authority; CSV is formula-safe and equals the figure",
+      "adr_row": "M16",
+      "sources": [
+        {
+          "file": "docs/engineering/adr/0030-metrics-model.md",
+          "contains": "| M16 |"
+        }
+      ],
+      "evidence": [
+        {
+          "file": "packages/work/test/integration/metrics-access.test.ts",
+          "contains": "exports the same figure as formula-safe CSV, with its definition, window, state, and digest"
+        }
+      ]
+    },
+    {
+      "id": "D17",
+      "title": "Routes, bounds, one rate policy, signals, and envelopes; no action, prefix, or event is added",
+      "adr_row": "M17",
+      "sources": [
+        {
+          "file": "docs/architecture/platform/19-decisions.md",
+          "contains": "### PL-40: Metric contracts (Phase 5C amendment)"
+        },
+        {
+          "file": "docs/engineering/adr/0030-metrics-model.md",
+          "contains": "| M17 |"
+        }
+      ],
+      "evidence": [
+        {
+          "file": "apps/api/test/integration/metrics-api.test.ts",
+          "contains": "lists the definitions with versions, rules, and drill roles, privately and uncached"
+        },
+        {
+          "file": "apps/api/test/integration/metrics-api.test.ts",
+          "contains": "refuses malformed requests with stable issues and unauthenticated callers with 401"
+        },
+        {
+          "file": "packages/work/test/integration/metrics-access.test.ts",
+          "contains": "limits how fast one person may ask, per person and not for everyone"
+        }
+      ]
+    },
+    {
+      "id": "D18",
+      "title": "The Metrics page: one figure with its rule, state in words, missing data, freshness, records, and export; state in the address; accessible at every width",
+      "adr_row": "M18",
+      "sources": [
+        {
+          "file": "docs/ux/09-decisions-and-risks.md",
+          "contains": "#### UXD-30 — A figure with its rule, its state, and its records"
+        },
+        {
+          "file": "docs/engineering/adr/0030-metrics-model.md",
+          "contains": "| M18 |"
+        }
+      ],
+      "evidence": [
+        {
+          "file": "apps/web/test/metrics.test.tsx",
+          "contains": "shows the figure, its state, what is counted, the records behind it, and an export"
+        },
+        {
+          "file": "apps/web/test/metrics.test.tsx",
+          "contains": "works at a 320 px width: every control is labelled, and tables carry their headers as data labels"
+        },
+        {
+          "file": "e2e/metrics.spec.ts",
+          "contains": "reads a figure with its rule, the records behind it, and an export, with the state in the address"
+        },
+        {
+          "file": "e2e/metrics.spec.ts",
+          "contains": "reflows at 320 px and 200% zoom, with forced colours and reduced motion, and stays accessible"
+        }
+      ]
+    },
+    {
+      "id": "D19",
+      "title": "Cost is bounded: computed per request from one workspace, refused above a size, with only a bounded reconciliation running in the background",
+      "adr_row": "M19",
+      "sources": [
+        {
+          "file": "docs/engineering/adr/0030-metrics-model.md",
+          "contains": "| M19 |"
+        }
+      ],
+      "evidence": [
+        {
+          "file": "packages/work/test/integration/metrics-figures.test.ts",
+          "contains": "refuses scopes a metric cannot take and bad parameters, with one stable code each"
+        },
+        {
+          "file": "packages/work/test/integration/metrics-ledger.test.ts",
+          "contains": "takes a large workspace in bounded steps that resume where they stopped"
+        }
+      ]
+    },
+    {
+      "id": "D20",
+      "title": "Honest absences: dashboards and reports (5D), adapters, AI analytics, test and spend sources, snapshots, and performance views are not built",
+      "adr_row": "M20",
+      "sources": [
+        {
+          "file": "docs/engineering/adr/0030-metrics-model.md",
+          "contains": "| M20 |"
+        }
+      ],
+      "evidence": [
+        {
+          "file": "packages/work/test/integration/metrics-figures.test.ts",
+          "contains": "reports sources that do not exist yet as unavailable, never as zero"
+        },
+        {
+          "file": "e2e/metrics.spec.ts",
+          "contains": "shows a person only the work they may read, and the same page says nothing of the rest"
+        }
+      ]
+    }
+  ],
+  "limitations": [
+    {
+      "item": "Dashboards, widgets, saved and scheduled reports, PDF export",
+      "owner": "5D",
+      "note": "5C provides the metric authority and the CSV of one figure; arranging figures and delivering reports belongs to 5D, which must call MetricService."
+    },
+    {
+      "item": "Test results and money or AI spend",
+      "owner": "9B / 7A",
+      "note": "Defined and reported as unavailable with the phase that provides the source; never zero and never inferred."
+    },
+    {
+      "item": "Metric snapshots and historical estimates, hierarchy, or assignments",
+      "owner": "architect",
+      "note": "Figures are computed at request time; status is reproduced from the ledger and every other attribute is read as it is now, which the result says."
+    },
+    {
+      "item": "History before the ledger",
+      "owner": "5C",
+      "note": "Existing tasks receive one assumed span; cycle time and time in status exclude and name them until new history accumulates."
+    }
+  ]
+}

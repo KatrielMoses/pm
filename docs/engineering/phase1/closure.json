@@ -1,0 +1,1736 @@
+{
+  "schema_version": 1,
+  "phase": "1",
+  "candidate_head": "5f636c8",
+  "dispositions": {
+    "implemented": "Delivered and tested for the scope Phase 1 owns.",
+    "foundation": "Phase 1 delivered the foundation; the remainder belongs to deferred_to under the cited accepted source; pending_decisions are open product decisions.",
+    "contributed": "Phase 1 contributed the cited piece; the owner phase completes it."
+  },
+  "accepted_by_kinds": {
+    "catalog:contributing": "deferred_to subphases are contributing_subphases of the requirement in the accepted 0A catalog",
+    "roadmap:<sub>": "the BUILD_ROADMAP subphase scope",
+    "adr:<nnnn>[#row]": "an accepted engineering ADR row",
+    "requirement:<ID>": "the requirement that owns the deferred capability (its owner_subphase)"
+  },
+  "requirements": [
+    {
+      "id": "SEC-001",
+      "role": "owned",
+      "disposition": "foundation",
+      "evidence": [
+        {
+          "file": "packages/config/test/unit/config.test.ts",
+          "contains": "rejects unsafe production defaults"
+        },
+        {
+          "file": "apps/api/test/unit/cookies.test.ts",
+          "contains": "uses __Secure- names and Secure outside explicit local HTTP"
+        },
+        {
+          "file": "docs/engineering/environments.md",
+          "contains": "load balancer (TLS termination)"
+        }
+      ],
+      "note": "Deployed configurations require TLS to PostgreSQL and an https public URL; cookies are Secure. Production in-transit verification completes in 11B once hosting exists (OD-43). Deferral approved by the architect (2026-10-04, Phase 1 integration review); not implemented in Phase 1.",
+      "deferred_to": [
+        "11B"
+      ],
+      "accepted_by": [
+        "roadmap:1A",
+        "roadmap:11B",
+        "adr:0005"
+      ],
+      "pending_decisions": [
+        "OD-43"
+      ]
+    },
+    {
+      "id": "SEC-002",
+      "role": "owned",
+      "disposition": "foundation",
+      "evidence": [
+        {
+          "file": "packages/identity/test/unit/identity.test.ts",
+          "contains": "stored only as SHA-256"
+        },
+        {
+          "file": "apps/api/test/integration/identity-security.test.ts",
+          "contains": "stores no plaintext seed"
+        },
+        {
+          "file": "docs/engineering/backup-and-recovery.md",
+          "contains": "encrypted at rest by the provider"
+        }
+      ],
+      "note": "Credentials, tokens, and MFA seeds are hashed or encrypted by the application. Production at-rest verification completes in 11B once hosting exists (OD-43). Deferral approved by the architect (2026-10-04, Phase 1 integration review); not implemented in Phase 1.",
+      "deferred_to": [
+        "11B"
+      ],
+      "accepted_by": [
+        "roadmap:1A",
+        "roadmap:11B",
+        "adr:0005"
+      ],
+      "pending_decisions": [
+        "OD-43"
+      ]
+    },
+    {
+      "id": "SEC-010",
+      "role": "owned",
+      "disposition": "implemented",
+      "evidence": [
+        {
+          "file": "apps/api/test/integration/api.test.ts",
+          "contains": "maps body parsing failures to registry codes"
+        },
+        {
+          "file": "apps/api/test/integration/identity-accounts.test.ts",
+          "contains": "validates input with field-level issues"
+        },
+        {
+          "file": "packages/tenancy/test/unit/policy-validation.test.ts",
+          "contains": "trims and bounds text, refusing control characters"
+        }
+      ],
+      "note": "Schema validation at every route; typed field issues."
+    },
+    {
+      "id": "SEC-011",
+      "role": "owned",
+      "disposition": "implemented",
+      "evidence": [
+        {
+          "file": "apps/api/test/integration/identity-accounts.test.ts",
+          "contains": "enforces origin and CSRF checks"
+        },
+        {
+          "file": "apps/api/test/integration/api.test.ts",
+          "contains": "never exposes stack traces, SQL, hosts, or secrets"
+        },
+        {
+          "file": "apps/api/test/unit/cookies.test.ts",
+          "contains": "refuses values that are not opaque tokens"
+        },
+        {
+          "file": "e2e/exit-journey.spec.ts",
+          "contains": "Deep links (how most pages load) and API responses carry the security headers"
+        }
+      ],
+      "note": "Origin/CSRF, opaque cookies, safe errors, CSP and security headers; 11B completes verification."
+    },
+    {
+      "id": "SEC-012",
+      "role": "owned",
+      "disposition": "foundation",
+      "evidence": [
+        {
+          "file": "scripts/verify.sh",
+          "contains": "pnpm scan:deps"
+        },
+        {
+          "file": "scripts/verify.sh",
+          "contains": "pnpm scan:secrets"
+        }
+      ],
+      "note": "Dependency (osv-scanner, pnpm audit), licence, and secret scanning gate every CI run. Infrastructure scanning waits for provisioned infrastructure.",
+      "deferred_to": [
+        "11B"
+      ],
+      "accepted_by": [
+        "roadmap:1A",
+        "roadmap:11B"
+      ]
+    },
+    {
+      "id": "SEC-013",
+      "role": "owned",
+      "disposition": "implemented",
+      "evidence": [
+        {
+          "file": "packages/config/test/unit/config.test.ts",
+          "contains": "redacts secrets in dumps, JSON, string conversion, and inspection"
+        },
+        {
+          "file": "apps/api/test/integration/identity-oauth-ops.test.ts",
+          "contains": "never writes passwords, tokens, MFA seeds"
+        },
+        {
+          "file": "packages/config/test/unit/config.test.ts",
+          "contains": "rejects secret-store references until a provider is selected"
+        }
+      ],
+      "note": "Secrets come only from configuration, are wrapped and redacted, and never reach records or logs. The secret-store vendor is DQ-28."
+    },
+    {
+      "id": "SEC-017",
+      "role": "owned",
+      "disposition": "foundation",
+      "evidence": [
+        {
+          "file": "docs/engineering/backup-and-recovery.md",
+          "contains": "No backups exist yet"
+        }
+      ],
+      "note": "Phase 1A delivered the backup policy only. Real backup creation, restoration testing, and recovery evidence complete in 11C (OD-42, OD-43). Deferral approved by the architect (2026-10-04, Phase 1 integration review); not implemented in Phase 1.",
+      "deferred_to": [
+        "11C"
+      ],
+      "accepted_by": [
+        "roadmap:1A",
+        "roadmap:11C"
+      ],
+      "pending_decisions": [
+        "OD-42",
+        "OD-43"
+      ]
+    },
+    {
+      "id": "REL-007",
+      "role": "owned",
+      "disposition": "foundation",
+      "evidence": [
+        {
+          "file": "apps/api/test/integration/api.test.ts",
+          "contains": "GET /readyz is actionable but minimal"
+        },
+        {
+          "file": "apps/api/test/integration/api.test.ts",
+          "contains": "GET /healthz reports liveness only"
+        },
+        {
+          "file": "apps/api/test/integration/api.test.ts",
+          "contains": "records HTTP metrics with bounded labels only"
+        }
+      ],
+      "note": "Liveness, truthful readiness, and bounded OTLP metrics exist. A real monitoring backend, alert rules, escalation, and operational procedures complete across 11C and 11F. Deferral approved by the architect (2026-10-04, Phase 1 integration review); not implemented in Phase 1.",
+      "deferred_to": [
+        "11C",
+        "11F"
+      ],
+      "accepted_by": [
+        "roadmap:1A",
+        "roadmap:11C",
+        "roadmap:11F",
+        "catalog:contributing"
+      ]
+    },
+    {
+      "id": "REL-008",
+      "role": "owned",
+      "disposition": "implemented",
+      "evidence": [
+        {
+          "file": "apps/api/test/integration/api.test.ts",
+          "contains": "continues an incoming W3C trace"
+        },
+        {
+          "file": "packages/observability/test/unit/observability.test.ts",
+          "contains": "logs error class and code, never the message"
+        }
+      ],
+      "note": "W3C tracing and correlation IDs; error reporting is a vendor-neutral interface (ADR-0005)."
+    },
+    {
+      "id": "SEC-003",
+      "role": "owned",
+      "disposition": "implemented",
+      "evidence": [
+        {
+          "file": "packages/identity/test/unit/identity.test.ts",
+          "contains": "hashes with recorded parameters, verifies, and flags weaker parameters"
+        }
+      ],
+      "note": "Argon2id with recorded parameters and rehash."
+    },
+    {
+      "id": "SEC-004",
+      "role": "owned",
+      "disposition": "implemented",
+      "evidence": [
+        {
+          "file": "apps/api/test/integration/identity-accounts.test.ts",
+          "contains": "registers, emails a single-use verification link"
+        },
+        {
+          "file": "e2e/identity.spec.ts",
+          "contains": "registration, email verification, sign-in, and sign-out"
+        }
+      ],
+      "note": ""
+    },
+    {
+      "id": "SEC-005",
+      "role": "owned",
+      "disposition": "implemented",
+      "evidence": [
+        {
+          "file": "apps/api/test/integration/identity-security.test.ts",
+          "contains": "is enumeration-safe, single-use, revokes every session"
+        },
+        {
+          "file": "e2e/identity.spec.ts",
+          "contains": "password reset is single-use"
+        }
+      ],
+      "note": ""
+    },
+    {
+      "id": "SEC-006",
+      "role": "owned",
+      "disposition": "implemented",
+      "evidence": [
+        {
+          "file": "apps/api/test/integration/identity-security.test.ts",
+          "contains": "enrolls with step-up, stores no plaintext seed"
+        },
+        {
+          "file": "e2e/identity.spec.ts",
+          "contains": "TOTP enrollment through step-up"
+        }
+      ],
+      "note": "TOTP and recovery codes; WebAuthn is reserved, not claimed (ADR-0008 B10)."
+    },
+    {
+      "id": "SEC-007",
+      "role": "owned",
+      "disposition": "implemented",
+      "evidence": [
+        {
+          "file": "apps/api/test/integration/identity-oauth-ops.test.ts",
+          "contains": "rejects state mismatch, replayed callbacks"
+        },
+        {
+          "file": "apps/api/test/integration/identity-oauth-ops.test.ts",
+          "contains": "never links by matching email"
+        }
+      ],
+      "note": "OAuth sign-in for linked identities only (ADR-0008 B9)."
+    },
+    {
+      "id": "SEC-008",
+      "role": "owned",
+      "disposition": "implemented",
+      "evidence": [
+        {
+          "file": "apps/api/test/integration/identity-accounts.test.ts",
+          "contains": "lists own sessions and revokes another session"
+        },
+        {
+          "file": "e2e/identity.spec.ts",
+          "contains": "remote sign-out takes effect on the other device next request"
+        },
+        {
+          "file": "e2e/exit-journey.spec.ts",
+          "contains": "10. sign out: per-tab state and drafts go, device and appearance stay"
+        }
+      ],
+      "note": ""
+    },
+    {
+      "id": "SEC-009",
+      "role": "owned",
+      "disposition": "implemented",
+      "evidence": [
+        {
+          "file": "apps/api/test/integration/identity-oauth-ops.test.ts",
+          "contains": "rate-limits per email key with escalating, bounded blocks"
+        }
+      ],
+      "note": "Identity abuse protection; API-wide and integration limits are 6B and 11C."
+    },
+    {
+      "id": "PERM-013",
+      "role": "owned",
+      "disposition": "implemented",
+      "evidence": [
+        {
+          "file": "apps/api/test/integration/identity-accounts.test.ts",
+          "contains": "revokes another session effective on its next request"
+        },
+        {
+          "file": "packages/tenancy/test/integration/collaboration.test.ts",
+          "contains": "removal: ownership plan, sessions, jobs, grants, and next-check revocation"
+        },
+        {
+          "file": "packages/tenancy/test/integration/phase1-matrix.test.ts",
+          "contains": "revoke, suspend, and remove take effect on the next check"
+        },
+        {
+          "file": "e2e/exit-journey.spec.ts",
+          "contains": "8. revoke, suspend, and remove take effect on the next check everywhere"
+        }
+      ],
+      "note": ""
+    },
+    {
+      "id": "WSB-001",
+      "role": "owned",
+      "disposition": "implemented",
+      "evidence": [
+        {
+          "file": "packages/tenancy/test/integration/tenancy.test.ts",
+          "contains": "creates workspace, canonical membership, owner authority"
+        },
+        {
+          "file": "e2e/tenancy.spec.ts",
+          "contains": "owner journey: workspace, three brands"
+        }
+      ],
+      "note": ""
+    },
+    {
+      "id": "WSB-002",
+      "role": "owned",
+      "disposition": "implemented",
+      "evidence": [
+        {
+          "file": "packages/tenancy/test/integration/tenancy.test.ts",
+          "contains": "updates workspace defaults by field merge"
+        },
+        {
+          "file": "packages/tenancy/test/unit/policy-validation.test.ts",
+          "contains": "validates IANA time zones, BCP 47 locales, ISO 4217 currencies"
+        }
+      ],
+      "note": ""
+    },
+    {
+      "id": "WSB-003",
+      "role": "owned",
+      "disposition": "implemented",
+      "evidence": [
+        {
+          "file": "packages/tenancy/test/integration/tenancy.test.ts",
+          "contains": "creates brands with race-safe case-insensitive name uniqueness"
+        }
+      ],
+      "note": ""
+    },
+    {
+      "id": "WSB-004",
+      "role": "owned",
+      "disposition": "implemented",
+      "evidence": [
+        {
+          "file": "apps/api/test/integration/tenancy-api.test.ts",
+          "contains": "brands: create, merge-edit with ETag"
+        },
+        {
+          "file": "packages/tenancy/test/unit/policy-validation.test.ts",
+          "contains": "brand presentation fields: closed icon set, statuses"
+        }
+      ],
+      "note": ""
+    },
+    {
+      "id": "WSB-005",
+      "role": "owned",
+      "disposition": "implemented",
+      "evidence": [
+        {
+          "file": "packages/tenancy/test/integration/lifecycle-context.test.ts",
+          "contains": "archive and restore go through Phase 1F"
+        },
+        {
+          "file": "e2e/tenancy.spec.ts",
+          "contains": "sensitivity, archive and restore"
+        },
+        {
+          "file": "e2e/exit-journey.spec.ts",
+          "contains": "3. three brands (one sensitive) with archive and restore"
+        }
+      ],
+      "note": ""
+    },
+    {
+      "id": "WSB-006",
+      "role": "owned",
+      "disposition": "implemented",
+      "evidence": [
+        {
+          "file": "apps/api/test/integration/navigation-api.test.ts",
+          "contains": "context: URL scope tokens are validated and normalized"
+        },
+        {
+          "file": "e2e/navigation.spec.ts",
+          "contains": "scope lives in the URL"
+        },
+        {
+          "file": "e2e/exit-journey.spec.ts",
+          "contains": "4. scope: one brand, several brands, and All survive reload and Back/Forward"
+        }
+      ],
+      "note": ""
+    },
+    {
+      "id": "WSB-007",
+      "role": "owned",
+      "disposition": "foundation",
+      "evidence": [
+        {
+          "file": "packages/tenancy/test/integration/isolation.test.ts",
+          "contains": "brand-scoped and workspace-scoped records are distinct"
+        },
+        {
+          "file": "packages/platform/test/integration/rls.test.ts",
+          "contains": "unset context: every tenant table returns zero rows"
+        }
+      ],
+      "note": "Brand and workspace scope, RLS, and brand-aware permissions exist; projects, tasks, documents, and files arrive with their owning phases.",
+      "deferred_to": [
+        "2A",
+        "2B",
+        "4C",
+        "4E"
+      ],
+      "accepted_by": [
+        "catalog:contributing"
+      ],
+      "pending_decisions": [
+        "OD-06"
+      ]
+    },
+    {
+      "id": "WSB-008",
+      "role": "contributing",
+      "contribution": "1D",
+      "disposition": "contributed",
+      "evidence": [
+        {
+          "file": "packages/tenancy/test/integration/collaboration.test.ts",
+          "contains": "guests see exactly their shared records"
+        },
+        {
+          "file": "packages/tenancy/test/integration/collab-isolation.test.ts",
+          "contains": "expired and revoked grants never count"
+        }
+      ],
+      "note": "Generic exact-record grants (one grant per selected record, revocable, expiring, no onward sharing). Owner 2A delivers the first user-facing sharing (OD-04, decided)."
+    },
+    {
+      "id": "WSB-009",
+      "role": "owned",
+      "disposition": "implemented",
+      "evidence": [
+        {
+          "file": "packages/tenancy/test/integration/isolation.test.ts",
+          "contains": "all-brands union excludes sensitive-without-grant"
+        },
+        {
+          "file": "packages/tenancy/test/integration/collaboration.test.ts",
+          "contains": "workspace policy: governing actions, owner-only billing toggle, exposure confirmation"
+        }
+      ],
+      "note": ""
+    },
+    {
+      "id": "WSB-010",
+      "role": "owned",
+      "disposition": "implemented",
+      "evidence": [
+        {
+          "file": "packages/tenancy/test/unit/policy-validation.test.ts",
+          "contains": "accepts closed days, multiple sorted ranges"
+        },
+        {
+          "file": "apps/web/test/tenancy.test.tsx",
+          "contains": "closed days are omitted; ranges are sorted"
+        }
+      ],
+      "note": "Brand working hours and calendar settings; calendar sync is 6C."
+    },
+    {
+      "id": "WSB-011",
+      "role": "owned",
+      "disposition": "implemented",
+      "evidence": [
+        {
+          "file": "packages/tenancy/test/unit/policy-validation.test.ts",
+          "contains": "calendar and priorities are bounded and closed"
+        },
+        {
+          "file": "apps/web/test/tenancy.test.tsx",
+          "contains": "is bounded to 10, reorderable"
+        }
+      ],
+      "note": "Brand priorities; goal records are 5B."
+    },
+    {
+      "id": "SEC-015",
+      "role": "owned",
+      "disposition": "implemented",
+      "evidence": [
+        {
+          "file": "packages/platform/test/integration/rls.test.ts",
+          "contains": "unset context: every tenant table returns zero rows"
+        },
+        {
+          "file": "packages/tenancy/test/integration/isolation.test.ts",
+          "contains": "direct app_rw: unset context sees nothing"
+        },
+        {
+          "file": "packages/tenancy/test/integration/phase1-matrix.test.ts",
+          "contains": "direct app_rw and app_worker see one workspace per context"
+        }
+      ],
+      "note": ""
+    },
+    {
+      "id": "SEC-016",
+      "role": "owned",
+      "disposition": "implemented",
+      "evidence": [
+        {
+          "file": "packages/tenancy/test/integration/collab-isolation.test.ts",
+          "contains": "preview equals enforcement for all six roles"
+        },
+        {
+          "file": "packages/tenancy/test/integration/isolation.test.ts",
+          "contains": "direct app_rw cannot write into another workspace"
+        },
+        {
+          "file": "packages/tenancy/test/integration/phase1-matrix.test.ts",
+          "contains": "every surface agrees for every principal in all three workspaces"
+        },
+        {
+          "file": "packages/tenancy/test/integration/phase1-matrix.test.ts",
+          "contains": "forged identifiers and other workspaces are the same not_found"
+        }
+      ],
+      "note": ""
+    },
+    {
+      "id": "PRJ-027",
+      "role": "owned",
+      "disposition": "foundation",
+      "evidence": [
+        {
+          "file": "packages/tenancy/test/integration/collaboration.test.ts",
+          "contains": "brand grants and teams through preview/apply"
+        }
+      ],
+      "note": "Scope assignments and the permission compiler have project-scope extension points; projects are 2A.",
+      "deferred_to": [
+        "2A"
+      ],
+      "accepted_by": [
+        "catalog:contributing",
+        "adr:0011#F4"
+      ]
+    },
+    {
+      "id": "PRJ-028",
+      "role": "owned",
+      "disposition": "foundation",
+      "evidence": [
+        {
+          "file": "packages/tenancy/test/integration/collaboration.test.ts",
+          "contains": "guests see exactly their shared records"
+        }
+      ],
+      "note": "Guests see exactly their shared records; public or guest project views need projects and the view engine (3A).",
+      "deferred_to": [
+        "3A"
+      ],
+      "accepted_by": [
+        "catalog:contributing",
+        "adr:0011#F4"
+      ],
+      "pending_decisions": [
+        "OD-27"
+      ]
+    },
+    {
+      "id": "COL-001",
+      "role": "owned",
+      "disposition": "implemented",
+      "evidence": [
+        {
+          "file": "packages/tenancy/test/integration/collaboration.test.ts",
+          "contains": "invitations create canonical memberships"
+        },
+        {
+          "file": "apps/api/test/integration/collaboration-api.test.ts",
+          "contains": "invitation journey"
+        },
+        {
+          "file": "e2e/collaboration.spec.ts",
+          "contains": "invite, accept, change role"
+        }
+      ],
+      "note": ""
+    },
+    {
+      "id": "COL-002",
+      "role": "owned",
+      "disposition": "implemented",
+      "evidence": [
+        {
+          "file": "packages/tenancy/test/integration/collaboration.test.ts",
+          "contains": "guests see exactly their shared records"
+        },
+        {
+          "file": "apps/api/test/integration/collaboration-api.test.ts",
+          "contains": "guests: exact shared records only"
+        }
+      ],
+      "note": "Seat accounting is OD-44 (ADR-0011 F5)."
+    },
+    {
+      "id": "COL-003",
+      "role": "owned",
+      "disposition": "implemented",
+      "evidence": [
+        {
+          "file": "packages/tenancy/test/integration/collab-isolation.test.ts",
+          "contains": "teams add only their current grants"
+        },
+        {
+          "file": "e2e/collaboration.spec.ts",
+          "contains": "teams, sharing settings"
+        }
+      ],
+      "note": ""
+    },
+    {
+      "id": "COL-004",
+      "role": "owned",
+      "disposition": "foundation",
+      "evidence": [
+        {
+          "file": "apps/api/test/integration/collaboration-api.test.ts",
+          "contains": "role changes and brand access go through preview"
+        },
+        {
+          "file": "packages/tenancy/test/integration/collaboration.test.ts",
+          "contains": "brand grants and teams through preview/apply"
+        }
+      ],
+      "note": "Workspace roles and brand scope assignments are implemented; project and task scopes are extension points.",
+      "deferred_to": [
+        "2B",
+        "4C",
+        "6A"
+      ],
+      "accepted_by": [
+        "adr:0011#F4"
+      ]
+    },
+    {
+      "id": "PERM-001",
+      "role": "owned",
+      "disposition": "implemented",
+      "evidence": [
+        {
+          "file": "packages/tenancy/test/integration/collab-isolation.test.ts",
+          "contains": "preview equals enforcement for all six roles"
+        }
+      ],
+      "note": ""
+    },
+    {
+      "id": "PERM-003",
+      "role": "owned",
+      "disposition": "foundation",
+      "evidence": [
+        {
+          "file": "packages/tenancy/test/unit/policy-validation.test.ts",
+          "contains": "owners hold implicit manage on non-sensitive brands only"
+        },
+        {
+          "file": "packages/tenancy/test/integration/collab-isolation.test.ts",
+          "contains": "preview equals enforcement for all six roles"
+        }
+      ],
+      "note": "Workspace and brand levels are enforced; project, document, field, and integration levels are compiler extension points.",
+      "deferred_to": [
+        "2B",
+        "4C",
+        "6A"
+      ],
+      "accepted_by": [
+        "adr:0011#F4"
+      ]
+    },
+    {
+      "id": "PERM-004",
+      "role": "owned",
+      "disposition": "implemented",
+      "evidence": [
+        {
+          "file": "packages/tenancy/test/unit/policy-validation.test.ts",
+          "contains": "reads role cells from the generated 0C action catalog"
+        },
+        {
+          "file": "packages/tenancy/test/unit/policy-validation.test.ts",
+          "contains": "refuses actions outside their declared scope"
+        }
+      ],
+      "note": "The 0C action catalog (all verbs) drives the compiler; later modules register their actions."
+    },
+    {
+      "id": "PERM-005",
+      "role": "owned",
+      "disposition": "implemented",
+      "evidence": [
+        {
+          "file": "packages/tenancy/test/integration/collaboration.test.ts",
+          "contains": "guests see exactly their shared records"
+        },
+        {
+          "file": "packages/tenancy/test/integration/navigation.test.ts",
+          "contains": "guests: no brands, teams, or directory targets"
+        },
+        {
+          "file": "e2e/exit-journey.spec.ts",
+          "contains": "6. invite a guest with exactly one shared record and nothing else"
+        }
+      ],
+      "note": ""
+    },
+    {
+      "id": "PERM-006",
+      "role": "owned",
+      "disposition": "implemented",
+      "evidence": [
+        {
+          "file": "packages/tenancy/test/integration/tenancy.test.ts",
+          "contains": "sensitive brands need the explicit grant"
+        },
+        {
+          "file": "packages/tenancy/test/integration/isolation.test.ts",
+          "contains": "all-brands union excludes sensitive-without-grant"
+        }
+      ],
+      "note": "Sensitive brands; sensitive projects follow 2A via the same compiler (ADR-0011 F4)."
+    },
+    {
+      "id": "PERM-011",
+      "role": "owned",
+      "disposition": "implemented",
+      "evidence": [
+        {
+          "file": "packages/tenancy/test/integration/collaboration.test.ts",
+          "contains": "preview matches enforcement"
+        },
+        {
+          "file": "apps/api/test/integration/collaboration-api.test.ts",
+          "contains": "role changes and brand access go through preview"
+        },
+        {
+          "file": "e2e/exit-journey.spec.ts",
+          "contains": "7. both accept; what the review previews is exactly what is enforced"
+        }
+      ],
+      "note": ""
+    },
+    {
+      "id": "PERM-012",
+      "role": "owned",
+      "disposition": "implemented",
+      "evidence": [
+        {
+          "file": "packages/tenancy/test/integration/collaboration.test.ts",
+          "contains": "exposure confirmation"
+        }
+      ],
+      "note": ""
+    },
+    {
+      "id": "PERM-014",
+      "role": "owned",
+      "disposition": "implemented",
+      "evidence": [
+        {
+          "file": "packages/tenancy/test/integration/collaboration.test.ts",
+          "contains": "removal: ownership plan"
+        },
+        {
+          "file": "packages/tenancy/test/integration/tenancy.test.ts",
+          "contains": "the last owner cannot be removed, suspended, or demoted"
+        },
+        {
+          "file": "e2e/exit-journey.spec.ts",
+          "contains": "9. last-owner protection, audit trail, and navigation cleanup"
+        }
+      ],
+      "note": ""
+    },
+    {
+      "id": "WSB-015",
+      "role": "owned",
+      "disposition": "foundation",
+      "evidence": [
+        {
+          "file": "apps/web/test/shell.test.tsx",
+          "contains": "renders brand, workspace, and no-brand markers with text names"
+        },
+        {
+          "file": "apps/web/test/shell.test.tsx",
+          "contains": "the glyph is black or white"
+        }
+      ],
+      "note": "One brand_marker shape and component on every existing surface; projects, tasks, documents, notifications, search, and AI adopt it in their phases.",
+      "deferred_to": [
+        "4B",
+        "5A",
+        "7B"
+      ],
+      "accepted_by": [
+        "catalog:contributing",
+        "adr:0010#D12"
+      ]
+    },
+    {
+      "id": "NAV-001",
+      "role": "owned",
+      "disposition": "implemented",
+      "evidence": [
+        {
+          "file": "apps/web/test/shell.test.tsx",
+          "contains": "every registry route has exactly one page component"
+        },
+        {
+          "file": "e2e/navigation.spec.ts",
+          "contains": "one registry drives every navigation surface"
+        }
+      ],
+      "note": "Later destinations are real routes that say honestly that content arrives later (ADR-0012 E12)."
+    },
+    {
+      "id": "NAV-007",
+      "role": "owned",
+      "disposition": "implemented",
+      "evidence": [
+        {
+          "file": "packages/tenancy/test/integration/navigation.test.ts",
+          "contains": "recents: recorded per visit, coalesced"
+        }
+      ],
+      "note": ""
+    },
+    {
+      "id": "NAV-008",
+      "role": "owned",
+      "disposition": "foundation",
+      "evidence": [
+        {
+          "file": "packages/tenancy/test/integration/navigation.test.ts",
+          "contains": "favorites: idempotent add, stable order"
+        },
+        {
+          "file": "packages/tenancy/test/integration/navigation.test.ts",
+          "contains": "shared-view pins: only a view shared at the pin scope can be pinned"
+        }
+      ],
+      "note": "Favorites are implemented; admin view pins have schema and read path only until saved views exist. Phase 3A (ADR-0018 Q9) completes the pin write path under views.configure.",
+      "deferred_to": [
+        "3A"
+      ],
+      "accepted_by": [
+        "adr:0012#F4",
+        "requirement:VIEW-019"
+      ]
+    },
+    {
+      "id": "NAV-009",
+      "role": "owned",
+      "disposition": "implemented",
+      "evidence": [
+        {
+          "file": "apps/web/test/shell.test.tsx",
+          "contains": "palette groups Actions before Go to"
+        },
+        {
+          "file": "e2e/navigation.spec.ts",
+          "contains": "palette, shortcuts, favorites, recents"
+        }
+      ],
+      "note": "Search proper is 5A (ADR-0012 F5)."
+    },
+    {
+      "id": "NAV-010",
+      "role": "owned",
+      "disposition": "implemented",
+      "evidence": [
+        {
+          "file": "apps/web/test/shell.test.tsx",
+          "contains": "the shipped key map passes the conflict rules"
+        },
+        {
+          "file": "apps/web/test/shell.test.tsx",
+          "contains": "sequences run the command"
+        }
+      ],
+      "note": ""
+    },
+    {
+      "id": "NAV-011",
+      "role": "owned",
+      "disposition": "implemented",
+      "evidence": [
+        {
+          "file": "packages/tenancy/test/integration/navigation.test.ts",
+          "contains": "view state: allow-listed, versioned, bounded"
+        },
+        {
+          "file": "packages/contracts/test/unit/shell.test.ts",
+          "contains": "URL round trip keeps only URL-owned fields"
+        }
+      ],
+      "note": ""
+    },
+    {
+      "id": "NAV-012",
+      "role": "owned",
+      "disposition": "implemented",
+      "evidence": [
+        {
+          "file": "apps/web/test/shell.test.tsx",
+          "contains": "Expanded shows the full trail"
+        },
+        {
+          "file": "e2e/navigation.spec.ts",
+          "contains": "Back and reload restore it"
+        }
+      ],
+      "note": ""
+    },
+    {
+      "id": "NAV-013",
+      "role": "owned",
+      "disposition": "implemented",
+      "evidence": [
+        {
+          "file": "apps/web/test/shell.test.tsx",
+          "contains": "applies theme, density, and motion"
+        },
+        {
+          "file": "e2e/navigation.spec.ts",
+          "contains": "theme before first paint"
+        }
+      ],
+      "note": ""
+    },
+    {
+      "id": "NAV-014",
+      "role": "owned",
+      "disposition": "implemented",
+      "evidence": [
+        {
+          "file": "apps/web/test/shell.test.tsx",
+          "contains": "switches exactly at 600, 1024, and 1440"
+        },
+        {
+          "file": "e2e/navigation.spec.ts",
+          "contains": "responsive boundaries, reflow, zoom"
+        },
+        {
+          "file": "e2e/exit-journey.spec.ts",
+          "contains": "expectAccessible(op, 'scope switching')"
+        }
+      ],
+      "note": "Manual screen-reader passes are 11E (ADR-0012 F6)."
+    },
+    {
+      "id": "AUD-001",
+      "role": "owned",
+      "disposition": "implemented",
+      "evidence": [
+        {
+          "file": "packages/audit/test/integration/audit.test.ts",
+          "contains": "writes inside the caller transaction"
+        },
+        {
+          "file": "packages/audit/test/unit/audit.test.ts",
+          "contains": "derives actor, delegation, and correlation"
+        },
+        {
+          "file": "e2e/exit-journey.spec.ts",
+          "contains": "'membership.removed',"
+        }
+      ],
+      "note": ""
+    },
+    {
+      "id": "AUD-002",
+      "role": "owned",
+      "disposition": "implemented",
+      "evidence": [
+        {
+          "file": "packages/audit/test/unit/audit.test.ts",
+          "contains": "derives actor, delegation, and correlation from the execution context"
+        }
+      ],
+      "note": ""
+    },
+    {
+      "id": "AUD-003",
+      "role": "owned",
+      "disposition": "implemented",
+      "evidence": [
+        {
+          "file": "packages/audit/test/unit/audit.test.ts",
+          "contains": "captures values per class and never a secret value"
+        },
+        {
+          "file": "apps/web/test/lifecycle.test.tsx",
+          "contains": "shows values per class"
+        }
+      ],
+      "note": ""
+    },
+    {
+      "id": "AUD-004",
+      "role": "owned",
+      "disposition": "implemented",
+      "evidence": [
+        {
+          "file": "packages/audit/test/unit/audit.test.ts",
+          "contains": "refuses platform contexts, malformed brands, and unsafe source refs"
+        }
+      ],
+      "note": ""
+    },
+    {
+      "id": "AUD-005",
+      "role": "owned",
+      "disposition": "foundation",
+      "evidence": [
+        {
+          "file": "packages/audit/test/integration/audit.test.ts",
+          "contains": "projects activity with display-safe values only"
+        }
+      ],
+      "note": "Events carry brand, record, actor, and action; the filterable activity view is 3B.",
+      "deferred_to": [
+        "3B"
+      ],
+      "accepted_by": [
+        "catalog:contributing"
+      ]
+    },
+    {
+      "id": "AUD-006",
+      "role": "owned",
+      "disposition": "implemented",
+      "evidence": [
+        {
+          "file": "packages/audit/test/integration/audit.test.ts",
+          "contains": "projects activity with display-safe values only"
+        },
+        {
+          "file": "apps/web/test/lifecycle.test.tsx",
+          "contains": "renders one generic deleted item"
+        }
+      ],
+      "note": ""
+    },
+    {
+      "id": "AUD-007",
+      "role": "owned",
+      "disposition": "implemented",
+      "evidence": [
+        {
+          "file": "packages/audit/test/integration/audit.test.ts",
+          "contains": "append-only for application, worker, misgranted support, maintainer, and owner paths"
+        },
+        {
+          "file": "packages/audit/test/integration/audit.test.ts",
+          "contains": "detects tampering outside the application"
+        }
+      ],
+      "note": ""
+    },
+    {
+      "id": "AUD-008",
+      "role": "owned",
+      "disposition": "foundation",
+      "evidence": [
+        {
+          "file": "packages/audit/test/unit/audit.test.ts",
+          "contains": "derives actor, delegation, and correlation"
+        },
+        {
+          "file": "packages/lifecycle/test/integration/purge.test.ts",
+          "contains": "retention: an undecided period purges nothing"
+        }
+      ],
+      "note": "Agent and AI actor kinds and retention hooks exist; AI and agent runs are 7A and 8C; durations are OD-36.",
+      "deferred_to": [
+        "7A",
+        "8C"
+      ],
+      "accepted_by": [
+        "catalog:contributing"
+      ],
+      "pending_decisions": [
+        "OD-36"
+      ]
+    },
+    {
+      "id": "AUD-010",
+      "role": "owned",
+      "disposition": "implemented",
+      "evidence": [
+        {
+          "file": "packages/audit/test/integration/audit.test.ts",
+          "contains": "append-only for application, worker"
+        }
+      ],
+      "note": ""
+    },
+    {
+      "id": "SEC-020",
+      "role": "owned",
+      "disposition": "foundation",
+      "evidence": [
+        {
+          "file": "packages/lifecycle/test/integration/purge.test.ts",
+          "contains": "retention: an undecided period purges nothing; a decided one schedules the system purge"
+        },
+        {
+          "file": "packages/lifecycle/test/integration/lifecycle.test.ts",
+          "contains": "trash preserves prior states"
+        }
+      ],
+      "note": "Soft deletion, restore windows, purge, and retention hooks exist; controls and durations need OD-36 and OD-37 (10C, 11B).",
+      "deferred_to": [
+        "10C",
+        "11B"
+      ],
+      "accepted_by": [
+        "catalog:contributing",
+        "roadmap:1F"
+      ],
+      "pending_decisions": [
+        "OD-36",
+        "OD-37"
+      ]
+    },
+    {
+      "id": "SEC-024",
+      "role": "owned",
+      "disposition": "implemented",
+      "evidence": [
+        {
+          "file": "packages/audit/test/integration/audit.test.ts",
+          "contains": "keeps account and workspace security events in separate contexts"
+        },
+        {
+          "file": "apps/api/test/integration/identity-activity.test.ts",
+          "contains": "shows only the signed-in account"
+        }
+      ],
+      "note": ""
+    },
+    {
+      "id": "WSB-012",
+      "role": "contributing",
+      "contribution": "1C",
+      "disposition": "contributed",
+      "evidence": [
+        {
+          "file": "packages/tenancy/test/integration/lifecycle-context.test.ts",
+          "contains": "reserved namespaces untouched"
+        }
+      ],
+      "note": "Reserved brand-setting namespaces."
+    },
+    {
+      "id": "WSB-013",
+      "role": "contributing",
+      "contribution": "1C",
+      "disposition": "contributed",
+      "evidence": [
+        {
+          "file": "packages/tenancy/test/integration/lifecycle-context.test.ts",
+          "contains": "reserved namespaces untouched"
+        }
+      ],
+      "note": "Reserved brand-setting namespaces."
+    },
+    {
+      "id": "WSB-014",
+      "role": "contributing",
+      "contribution": "1C",
+      "disposition": "contributed",
+      "evidence": [
+        {
+          "file": "packages/tenancy/test/integration/lifecycle-context.test.ts",
+          "contains": "reserved namespaces untouched"
+        }
+      ],
+      "note": "Reserved notification_settings namespace."
+    },
+    {
+      "id": "WSB-016",
+      "role": "contributing",
+      "contribution": "1C",
+      "disposition": "contributed",
+      "evidence": [
+        {
+          "file": "packages/tenancy/test/integration/isolation.test.ts",
+          "contains": "all-brands union excludes"
+        }
+      ],
+      "note": "Authorized all-brands union."
+    },
+    {
+      "id": "WSB-017",
+      "role": "contributing",
+      "contribution": "1C",
+      "disposition": "contributed",
+      "evidence": [
+        {
+          "file": "apps/web/test/tenancy.test.tsx",
+          "contains": "closed days are omitted"
+        }
+      ],
+      "note": "Brand working hours."
+    },
+    {
+      "id": "WSB-019",
+      "role": "contributing",
+      "contribution": "1C",
+      "disposition": "contributed",
+      "evidence": [
+        {
+          "file": "apps/api/test/integration/navigation-api.test.ts",
+          "contains": "context: URL scope tokens"
+        }
+      ],
+      "note": "Multi-brand scope tokens."
+    },
+    {
+      "id": "NAV-002",
+      "role": "contributing",
+      "contribution": "1E",
+      "disposition": "contributed",
+      "evidence": [
+        {
+          "file": "e2e/navigation.spec.ts",
+          "contains": "destinations are honest and addressable"
+        }
+      ],
+      "note": "Home route and scope."
+    },
+    {
+      "id": "NAV-003",
+      "role": "contributing",
+      "contribution": "1E",
+      "disposition": "contributed",
+      "evidence": [
+        {
+          "file": "e2e/navigation.spec.ts",
+          "contains": "destinations are honest and addressable"
+        }
+      ],
+      "note": "Home route and scope."
+    },
+    {
+      "id": "CAP-007",
+      "role": "contributing",
+      "contribution": "1D",
+      "disposition": "contributed",
+      "evidence": [
+        {
+          "file": "packages/tenancy/test/integration/collaboration.test.ts",
+          "contains": "workspace policy: governing actions"
+        }
+      ],
+      "note": "Workspace sharing and guest policy."
+    },
+    {
+      "id": "PRJ-001",
+      "role": "contributing",
+      "contribution": "1F",
+      "disposition": "contributed",
+      "evidence": [
+        {
+          "file": "packages/lifecycle/test/integration/lifecycle.test.ts",
+          "contains": "archive cascades through containment only"
+        }
+      ],
+      "note": "Archive, trash, restore, purge primitives."
+    },
+    {
+      "id": "TSK-001",
+      "role": "contributing",
+      "contribution": "1F",
+      "disposition": "contributed",
+      "evidence": [
+        {
+          "file": "packages/lifecycle/test/integration/lifecycle.test.ts",
+          "contains": "trash preserves prior states and restore returns them"
+        }
+      ],
+      "note": "Lifecycle primitives."
+    },
+    {
+      "id": "TSK-039",
+      "role": "contributing",
+      "contribution": "1F",
+      "disposition": "contributed",
+      "evidence": [
+        {
+          "file": "packages/audit/test/unit/audit.test.ts",
+          "contains": "captures values per class"
+        }
+      ],
+      "note": "Previous and new values."
+    },
+    {
+      "id": "VIEW-010",
+      "role": "contributing",
+      "contribution": "1F",
+      "disposition": "contributed",
+      "evidence": [
+        {
+          "file": "packages/audit/test/integration/audit.test.ts",
+          "contains": "projects activity"
+        }
+      ],
+      "note": "Activity projection."
+    },
+    {
+      "id": "VIEW-019",
+      "role": "contributing",
+      "contribution": "1E",
+      "disposition": "contributed",
+      "evidence": [
+        {
+          "file": "packages/tenancy/test/integration/navigation.test.ts",
+          "contains": "shared-view pins"
+        }
+      ],
+      "note": "Pin schema and read path."
+    },
+    {
+      "id": "VIEW-023",
+      "role": "contributing",
+      "contribution": "1E",
+      "disposition": "contributed",
+      "evidence": [
+        {
+          "file": "packages/contracts/test/unit/shell.test.ts",
+          "contains": "URL round trip keeps only URL-owned fields"
+        }
+      ],
+      "note": "View-state ownership."
+    },
+    {
+      "id": "FILE-009",
+      "role": "contributing",
+      "contribution": "1F",
+      "disposition": "contributed",
+      "evidence": [
+        {
+          "file": "packages/audit/test/unit/audit.test.ts",
+          "contains": "derives actor"
+        }
+      ],
+      "note": "Actor attribution."
+    },
+    {
+      "id": "FILE-013",
+      "role": "contributing",
+      "contribution": "1F",
+      "disposition": "contributed",
+      "evidence": [
+        {
+          "file": "packages/lifecycle/test/integration/purge.test.ts",
+          "contains": "enqueues object effects"
+        }
+      ],
+      "note": "Purge object effects."
+    },
+    {
+      "id": "SRCH-010",
+      "role": "contributing",
+      "contribution": "1E",
+      "disposition": "contributed",
+      "evidence": [
+        {
+          "file": "packages/tenancy/test/integration/navigation.test.ts",
+          "contains": "palette record lookup is permission-safe"
+        }
+      ],
+      "note": "Palette lookup."
+    },
+    {
+      "id": "AGT-026",
+      "role": "contributing",
+      "contribution": "1F",
+      "disposition": "contributed",
+      "evidence": [
+        {
+          "file": "packages/audit/test/unit/audit.test.ts",
+          "contains": "derives actor, delegation"
+        }
+      ],
+      "note": "Agent actor kind and delegation."
+    },
+    {
+      "id": "TEST-025",
+      "role": "contributing",
+      "contribution": "1F",
+      "disposition": "contributed",
+      "evidence": [
+        {
+          "file": "packages/audit/test/integration/audit.test.ts",
+          "contains": "append-only"
+        }
+      ],
+      "note": "Immutable audit."
+    },
+    {
+      "id": "INT-023",
+      "role": "contributing",
+      "contribution": "1F",
+      "disposition": "contributed",
+      "evidence": [
+        {
+          "file": "packages/audit/test/unit/audit.test.ts",
+          "contains": "derives actor"
+        }
+      ],
+      "note": "Integration actor kind."
+    },
+    {
+      "id": "COL-009",
+      "role": "contributing",
+      "contribution": "1F",
+      "disposition": "contributed",
+      "evidence": [
+        {
+          "file": "packages/audit/test/integration/audit.test.ts",
+          "contains": "guarded redaction procedure"
+        }
+      ],
+      "note": "Guarded redaction."
+    },
+    {
+      "id": "NTF-007",
+      "role": "contributing",
+      "contribution": "1D",
+      "disposition": "contributed",
+      "evidence": [
+        {
+          "file": "packages/platform/test/integration/outbox-idempotency-effects.test.ts",
+          "contains": "builds 0D internal-event envelopes"
+        }
+      ],
+      "note": "Permission and sharing outbox events (ADR-0011 F6)."
+    },
+    {
+      "id": "SEC-014",
+      "role": "contributing",
+      "contribution": "1A",
+      "disposition": "contributed",
+      "evidence": [
+        {
+          "file": "packages/observability/test/unit/observability.test.ts",
+          "contains": "redacts secrets inside allow-listed string fields"
+        }
+      ],
+      "note": "Log and error redaction."
+    },
+    {
+      "id": "SEC-021",
+      "role": "contributing",
+      "contribution": "1F",
+      "disposition": "contributed",
+      "evidence": [
+        {
+          "file": "packages/lifecycle/test/integration/purge.test.ts",
+          "contains": "purges bottom-up through hooks"
+        }
+      ],
+      "note": "Purge machinery; deletion command is 11B (ADR-0009 G7)."
+    },
+    {
+      "id": "REL-004",
+      "role": "contributing",
+      "contribution": "1A",
+      "disposition": "contributed",
+      "evidence": [
+        {
+          "file": "packages/platform/test/integration/jobs.test.ts",
+          "contains": "absorbs duplicate enqueues"
+        },
+        {
+          "file": "packages/platform/test/integration/outbox-idempotency-effects.test.ts",
+          "contains": "reserves, reports in-progress, replays"
+        }
+      ],
+      "note": "Idempotent jobs."
+    },
+    {
+      "id": "REL-005",
+      "role": "contributing",
+      "contribution": "1A",
+      "disposition": "contributed",
+      "evidence": [
+        {
+          "file": "packages/platform/test/integration/jobs.test.ts",
+          "contains": "dead-letters after the attempt cap"
+        }
+      ],
+      "note": "Retry and dead letters."
+    },
+    {
+      "id": "REL-009",
+      "role": "contributing",
+      "contribution": "1A",
+      "disposition": "contributed",
+      "evidence": [
+        {
+          "file": "apps/api/test/integration/api.test.ts",
+          "contains": "records HTTP metrics with bounded labels only"
+        }
+      ],
+      "note": "HTTP duration metrics."
+    },
+    {
+      "id": "A11Y-011",
+      "role": "contributing",
+      "contribution": "1E",
+      "disposition": "contributed",
+      "evidence": [
+        {
+          "file": "apps/web/test/tenancy.test.tsx",
+          "contains": "states the time zone"
+        }
+      ],
+      "note": "Time-zone settings."
+    },
+    {
+      "id": "ADM-002",
+      "role": "contributing",
+      "contribution": "1C",
+      "disposition": "contributed",
+      "evidence": [
+        {
+          "file": "apps/api/test/integration/tenancy-api.test.ts",
+          "contains": "brands: create, merge-edit"
+        }
+      ],
+      "note": "Brand management API."
+    },
+    {
+      "id": "ADM-003",
+      "role": "contributing",
+      "contribution": "1D",
+      "disposition": "contributed",
+      "evidence": [
+        {
+          "file": "apps/api/test/integration/collaboration-api.test.ts",
+          "contains": "role changes and brand access"
+        }
+      ],
+      "note": "Member management API."
+    },
+    {
+      "id": "ADM-011",
+      "role": "contributing",
+      "contribution": "1F",
+      "disposition": "contributed",
+      "evidence": [
+        {
+          "file": "packages/audit/test/integration/audit.test.ts",
+          "contains": "projects activity"
+        }
+      ],
+      "note": "Audit projection."
+    },
+    {
+      "id": "ADM-013",
+      "role": "contributing",
+      "contribution": "1D",
+      "disposition": "contributed",
+      "evidence": [
+        {
+          "file": "packages/tenancy/test/integration/collaboration.test.ts",
+          "contains": "ownership transfer: owner-only with step-up"
+        }
+      ],
+      "note": "Ownership transfer."
+    },
+    {
+      "id": "SUP-003",
+      "role": "contributing",
+      "contribution": "1E",
+      "disposition": "contributed",
+      "evidence": [
+        {
+          "file": "e2e/navigation.spec.ts",
+          "contains": "palette, shortcuts"
+        }
+      ],
+      "note": "Shortcut reference."
+    },
+    {
+      "id": "LA-001",
+      "role": "contributing",
+      "contribution": "1C",
+      "disposition": "contributed",
+      "evidence": [
+        {
+          "file": "e2e/tenancy.spec.ts",
+          "contains": "owner journey: workspace, three brands"
+        },
+        {
+          "file": "e2e/exit-journey.spec.ts",
+          "contains": "3. three brands (one sensitive) with archive and restore"
+        }
+      ],
+      "note": "Three brands, separate and together."
+    },
+    {
+      "id": "LA-003",
+      "role": "contributing",
+      "contribution": "1E",
+      "disposition": "contributed",
+      "evidence": [
+        {
+          "file": "apps/web/test/shell.test.tsx",
+          "contains": "switches exactly at 600, 1024, and 1440"
+        }
+      ],
+      "note": "Responsive shell."
+    },
+    {
+      "id": "LA-015",
+      "role": "contributing",
+      "contribution": "1D",
+      "disposition": "contributed",
+      "evidence": [
+        {
+          "file": "packages/tenancy/test/integration/collaboration.test.ts",
+          "contains": "guests see exactly their shared records"
+        },
+        {
+          "file": "packages/tenancy/test/integration/phase1-matrix.test.ts",
+          "contains": "expect((await surfaces(ws, 'guest')).records).toEqual([ws.records.main]);"
+        }
+      ],
+      "note": "Guest scope."
+    },
+    {
+      "id": "LA-018",
+      "role": "contributing",
+      "contribution": "1F",
+      "disposition": "contributed",
+      "evidence": [
+        {
+          "file": "packages/lifecycle/test/integration/lifecycle.test.ts",
+          "contains": "trash preserves prior states and restore"
+        }
+      ],
+      "note": "Recovery window primitives."
+    }
+  ]
+}

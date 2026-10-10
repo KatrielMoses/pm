@@ -10,6 +10,12 @@ export default defineConfig({
       '@pm/config/public': fileURLToPath(
         new URL('../../packages/config/src/public.ts', import.meta.url),
       ),
+      '@pm/contracts/shell': fileURLToPath(
+        new URL('../../packages/contracts/src/shell.ts', import.meta.url),
+      ),
+      '@pm/contracts/rich-text': fileURLToPath(
+        new URL('../../packages/contracts/src/rich-text.ts', import.meta.url),
+      ),
     },
   },
   build: { outDir: 'dist', sourcemap: false, assetsInlineLimit: 0 },

@@ -1,6 +1,6 @@
 # Lifecycle and state semantics
 
-Status: proposed (Phase 0A), awaiting architect review. See the [glossary](glossary.md) for terms and [hierarchy-and-scope.md](hierarchy-and-scope.md) for cascade rules.
+Status: accepted (Phase 0A, P0-W1; Phase 0 exit gate P0-IR1). See the [glossary](glossary.md) for terms and [hierarchy-and-scope.md](hierarchy-and-scope.md) for cascade rules.
 
 ## 1. One vocabulary, several independent axes
 
@@ -39,11 +39,36 @@ Project status categories map to the portfolio states that FEATURES requires (GO
 
 | Status | Category | Allowed next (default) | Notes |
 |---|---|---|---|
-| To do | planned | In progress, Cancelled | |
-| In progress | active | To do, In review, Done, Cancelled | |
-| In review | active | In progress, Done | Entering creates a review request if the task has a reviewer or an expected deliverable |
-| Done | done | In progress (reopen) | Gated by required fields and approval rules when configured (WFL-006/007) |
-| Cancelled | cancelled | To do (reopen) | Reason required |
+| Backlog | planned | Any non-terminal status; Cancel | |
+| To do | planned | Any non-terminal status; Cancel | |
+| In progress | active | Any non-terminal status; Complete; Cancel | |
+| Blocked | paused | Any non-terminal status; Cancel | A manual state; a `blocks` dependency is shown, never a status change |
+| Done | done | Reopen | Only through *Complete*: required acceptance and definition-of-done items must be met, or an authorized override records a reason |
+| Cancelled | cancelled | Reopen | Only through *Cancel* (a status change into a cancelled status) |
+
+These six statuses are the immutable platform defaults seeded in Phase 2B. The default project workflow is the five 2A statuses (Planned, Active, On hold, Completed, Cancelled) with the same rules. Reopening returns to the prior non-terminal status when it is still valid, otherwise the first planned status. Completing a parent never completes its descendants, and completing a child never changes its parent's or project's status.
+
+### Configurable workflows (Phase 2C, WFL-002–007)
+
+- **One workflow system.** A workflow targets one record kind (project or task) and one scope (workspace, brand, or project). The most specific applicable workflow wins: project → brand → workspace → platform default. A project-scoped task workflow applies only to that project's tasks; projectless tasks use their brand's, then the workspace's, then the default. Changing a workflow never changes who can see a record.
+- **Statuses.** A custom status has a stable identity, a name, description, color, icon, and order, and exactly one category from the table above. The category is fixed. Renaming, recoloring, and reordering keep identity and history. A status in use cannot be deleted: archiving removes it from new choices, and records keep it until they are migrated.
+- **Transitions.** Without transition rules a workflow behaves like the default. Once a workflow has any active transition, only its registered edges are allowed. Complete, Cancel, and Reopen still apply, and a generic edit can never skip a rule.
+- **Required fields and approvals.** A transition can require built-in or custom fields (checked on the final record, before the change) and an approval (`one_manager` or `all_named_approvers`). Approval requests are bound to the record version. Any change makes a pending request stale, and nobody approves their own request unless the transition allows it and the workspace's self-approval policy permits it ([OD-20](open-decisions.md#od-20)). Review requested and changes requested states are Phase 4A.
+
+### Task signals (Phase 2D, OD-17)
+
+Signals are independent, derived only from facts the viewer may read, and never change the task.
+
+| Signal | Meaning |
+|---|---|
+| Stale | No meaningful update for 7 days (active category, including blocked) or 14 days (planned); paused, done, and cancelled tasks are never stale |
+| Blocked | An incoming `blocks` relationship from a readable task that is not done or cancelled |
+| Repeatedly rescheduled | 3 material due-date or deadline edits within 14 days |
+| Missing owner | An open task with no active assignee |
+| Missing date | An open task with neither a due date nor a deadline |
+| Missing criteria | An open task with no acceptance criteria of its own and none inherited from its project |
+| Missing dependency | A readable incoming blocker was cancelled, archived, or trashed, so the task waits on work that will not finish |
+| Possible duplicate | Another readable open task in the same workspace and brand (and a compatible project) has the same normalized title within the recent window (advisory only) |
 
 ## 3. Completion, review, and acceptance are different facts
 
@@ -68,7 +93,7 @@ Project status categories map to the portfolio states that FEATURES requires (GO
 
 ### Project completion versus completion percentage
 
-- **Completion percentage** is a derived progress metric. The default formula is the share of non-cancelled tasks in `done`, displayed with its method ([OD-13](open-decisions.md#od-13)). It is informational and **never** completes a project.
+- **Completion percentage** is a derived progress metric. It is status-based (0% or 100%) until tasks exist; from 2B it is the share of non-cancelled leaf tasks in `done` that the viewer may read, displayed with its method ([OD-13](open-decisions.md#od-13)). It is informational and **never** completes a project.
 - **Project completion** is a human decision (setting a `done` project status). It may be gated by the project's definition of done and success criteria checklist (PRJ-005). A project can be completed below 100% (descoped work is cancelled), and a project at 100% is not complete until someone completes it.
 - Completing a project with open tasks requires a confirmation listing them ([hierarchy §3.1](hierarchy-and-scope.md#31-lifecycle-effects-on-children)).
 

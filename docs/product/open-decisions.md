@@ -1,6 +1,6 @@
 # Open product decisions register
 
-Status: proposed (Phase 0A). Every entry needs a product-owner decision, and entries marked **legal** or **commercial** also need that review. A **safe default** is what engineering may build *for now*: it keeps the decision reversible and makes no customer-facing promise. No default here may be published as a commitment until approved.
+Status: register accepted with Phase 0A (P0-W1). Each entry stays open until it is marked decided. Open entries need a product-owner decision, and entries marked **legal** or **commercial** also need that review. A **safe default** is what engineering may build *for now*: it keeps the decision reversible and makes no customer-facing promise. No default here may be published as a commitment until approved.
 
 Requirements flagged with each decision are listed automatically in [requirements/summary.md](requirements/summary.md#open-decisions-referenced-by-requirements). When a decision is approved, the solutions architect records it in `ROADMAP_CHECKLIST.md` → *Decisions and scope changes*, and this entry is marked **Decided (date)**.
 
@@ -17,19 +17,19 @@ Requirements flagged with each decision are listed automatically in [requirement
 
 <a id="od-01"></a>
 ### OD-01 — Due date versus deadline
-- **Decision:** Confirm *due date* = internal target that drives overdue, and *deadline* = hard external commitment that is never changed implicitly.
+- **Decided (2026-10-05, architect, Phase 2B brief):** *Start date* is the planned earliest start. *Due date* is the internal desired completion date and may change during planning. *Deadline* is an external or hard commitment, stored as a date or as an instant with its time zone, and never changed implicitly: completing, moving, or recurring never rewrites it. *Scheduled time* is a separate planning work block (3C); tasks store no schedule fields. *Duration* in TSK-005 means the task estimate (`estimate_minutes`); work-block duration belongs to 3C.
 - **Why it matters:** FEATURES uses both terms (TSK-005, PLAN-003, CAL-013). Without a distinction, "prevent deadline changes when moving work" is either meaningless or blocks every reschedule.
 - **Affects:** TSK-005, PLAN-002, PLAN-003, CAL-013, RPT-003 · phases 2B, 3C, 5C, 6C.
 - **Safe default:** As in [time-and-scheduling.md §1](time-and-scheduling.md#1-the-date-and-time-fields). Both fields are optional, and most tasks will only have a due date.
-- **If deferred:** The model carries both fields regardless, but overdue and at-risk reporting may be mislabeled and rework the 3C Today rules.
+- **If deferred:** No longer applicable (decided).
 
 <a id="od-02"></a>
 ### OD-02 — Is a project required for every task?
-- **Decision (approved for architecture):** TSK-002 ("assign every task to a brand and project") conflicts with TSK-003 ("support tasks without a project"). A brand is required and a project is optional.
+- **Decided (2026-10-05, architect, Phase 2B brief):** Every task has exactly one workspace and one brand; the project is optional and, when present, in the same workspace and brand. A task may move between same-brand projects or become projectless. A cross-brand move is an explicit command, allowed only for a projectless task or together with a valid destination project in the target brand. It requires manage authority in both brands, an exposure preview, confirmation, and atomic revalidation.
 - **Why it matters:** It determines whether projectless tasks exist, where triaged Inbox items land, and whether a task can be restored without its project.
 - **Affects:** TSK-002, TSK-003, CAP-012 · phases 0B, 2B, 2E.
 - **Safe default:** Brand mandatory, project optional ([hierarchy §2](hierarchy-and-scope.md#2-scope-of-every-major-record)).
-- **If deferred:** 2B cannot finalize task validation, and 0B cannot set the project reference's nullability.
+- **If deferred:** No longer applicable (decided).
 
 <a id="od-03"></a>
 ### OD-03 — Unbranded Inbox items
@@ -41,11 +41,16 @@ Requirements flagged with each decision are listed automatically in [requirement
 
 <a id="od-04"></a>
 ### OD-04 — Cross-brand sharing model
-- **Decision (approved for architecture):** Projects, tasks, documents, files, goals, and saved views may be shared explicitly across brands. Shares are read-only by default, may optionally grant comment or edit, never include children unless individually selected, may expire, are revocable, and never grant onward sharing, moving, deletion, or configuration rights.
-- **Why it matters:** WSB-008 requires sharing and WSB-009 requires preventing exposure. No implementation sub-phase owns sharing explicitly (a roadmap gap). 1C is the provisional owner.
-- **Affects:** WSB-008, WSB-009, PERM-012, PRJ-028, COL-002 · phases 0B, 0C, 1C, 1D.
-- **Safe default:** Projects, tasks, documents, files, goals, and saved views are shareable. Shares are read-only by default, with comment/edit optional. Children are excluded unless selected, and expiry is optional ([hierarchy §5.2](hierarchy-and-scope.md#52-explicit-sharing)).
-- **If deferred:** No cross-brand visibility exists except through workspace-scoped records, so WSB-008 cannot pass.
+- **Decided (2026-10-04, architect, Phase 1 integration review):** WSB-008 is owned by **2A**. 1D remains the generic exact-record-grant foundation, and 2A delivers the first user-facing sharing, for projects.
+  - **Shareable types:** Record types are **non-shareable by default**. Every record-owning phase must register whether its type is shareable and which levels it supports. Projects, tasks, documents, files, goals, and saved views are candidates, but each is shareable only once its phase registers it.
+  - **Levels:** Shares grant only `view`, `comment`, or `edit` (read-only by default). A share is further capped by what the target module implements and by what the sharer may grant. Guests are capped at `edit`.
+  - **No onward sharing:** Access received through a share never permits sharing onward, moving, deletion, or configuration.
+  - **Exactly the selected records:** A share covers only explicitly selected records, with one grant per selected record. It never covers descendants, related records, future children, or inferred content. A child is shared only when it is itself selected.
+  - **Expiry and revocation:** Shares may expire and are revocable.
+- **Why it matters:** WSB-008 requires sharing and WSB-009 requires preventing exposure. No implementation sub-phase named sharing (a roadmap gap). 1C was the provisional owner until this decision.
+- **Affects:** WSB-008, WSB-009, PERM-012, PRJ-028, COL-002 · phases 0B, 0C, 1D, 2A, and every later record-owning phase.
+- **Contract:** [hierarchy §5.2](hierarchy-and-scope.md#52-explicit-sharing), plus the decision above.
+- **If deferred:** No longer applicable (decided).
 
 <a id="od-05"></a>
 ### OD-05 — Cross-brand relationships
@@ -54,6 +59,7 @@ Requirements flagged with each decision are listed automatically in [requirement
 - **Affects:** TSK-012, TSK-013, TSK-014, GOAL-010, PRJ-011 · phases 0B, 0C, 2A, 2B.
 - **Approved contract:** Apply the decision above. In-text author-created mentions may still render as a neutral "Restricted item" token because the surrounding authored text already discloses that a reference exists; system-generated relationship metadata may not.
 - **If deferred:** Allow only same-brand links initially. This is cheap to relax later and expensive to tighten.
+- **Status (Phase 5B, 2026-10-08):** Applied. Cross-project dependencies in portfolio views are `blocks` edges between tasks of different projects where the viewer can read both ends. An edge to unreadable work is omitted along with every condition derived solely from it (for example a blocked count), so a hidden dependency leaves no trace in a total or a health reason (ADR-0029 G10).
 
 <a id="od-06"></a>
 ### OD-06 — Workspace-scoped records
@@ -62,6 +68,7 @@ Requirements flagged with each decision are listed automatically in [requirement
 - **Affects:** WSB-007, DOC-003, FILE-001, GOAL-001, INT-004 · phases 0B, 0C, 4C, 4E, 5B, 6A.
 - **Safe default:** Workspace-scoped records are readable by members holding workspace-level read grants, never by guests unless shared, and carry a "Workspace" marker.
 - **If deferred:** 0B must still model an optional brand on these records, and authorization rules for them stay undefined.
+- **Status (Phase 5B, 2026-10-08):** Applied. Workspace-level goals and portfolios are readable by members who hold workspace-level read, never by guests, and are never shareable; brand and project goals follow their placement (ADR-0029 G1).
 
 <a id="od-07"></a>
 ### OD-07 — Restricted brands in aggregated views
@@ -70,38 +77,42 @@ Requirements flagged with each decision are listed automatically in [requirement
 - **Affects:** WSB-016, PERM-006, RPT-001 · phases 0C, 1C, 5D.
 - **Safe default:** No disclosure. Aggregates cover visible brands only and are labeled as such.
 - **If deferred:** The safe default applies, and nothing needs rework if it is later relaxed.
+- **Status (Phase 5B, 2026-10-08):** Applied to goals and portfolios. Linked-work progress, project health, dependencies, budgets, effort, time totals, and orphan findings are computed for each viewer from only the work that viewer may read, say what they cover, and report what is incomplete or truncated. Nothing derived from linked work is stored, so no cached figure can outlive a revocation (ADR-0029 G3).
+- **Status (Phase 5D, 2026-10-09):** Applied to dashboards, reports, exports, and scheduled delivery. Every widget, drill-through, export, and email is computed for the person receiving it from only what they may read, over the report's own scope; hidden brands and projects change no count, group, total, label, or empty state, and a widget whose source a person cannot see is absent. A report share grants the saved definition and never data (ADR-0031 D3, D8).
 
 <a id="od-08"></a>
 ### OD-08 — Subtask nesting depth
-- **Decision:** "Unlimited nesting safeguards" (TSK-010) means either unlimited depth with cycle prevention, or a capped depth.
+- **Decided (2026-10-05, architect, Phase 2B brief):** Subtasks form a same-workspace, same-brand tree whose parent and child share project identity (both may be projectless). The application bound is `TASK_DEPTH_MAX` = 20 (root = 0) with a database corruption ceiling of 64. Reparenting is lock-ordered, cycle-safe, and rewrites ancestry atomically. "Unlimited nesting safeguards" is met by this generous explicit bound, not literal infinity.
 - **Why it matters:** Depth affects query cost, UI layout on mobile, rollups, and import/export.
 - **Affects:** TSK-010, DATA-001, VIEW-001 · phases 0B, 2B, 3B.
 - **Safe default:** A system cap (recommended 10 levels, configurable lower per workspace), cycle prevention, and depth checks on move and import.
-- **If deferred:** A cap must exist anyway. Raising it later is cheap, and lowering it after customers exceed it is not.
+- **If deferred:** No longer applicable (decided).
 
 <a id="od-09"></a>
 ### OD-09 — Dependencies versus blocking relationships
-- **Decision:** Are TSK-012 (dependencies) and TSK-013 (blocking/blocked-by) one relationship family?
+- **Decided (2026-10-05, architect, Phase 2B brief):** One family. `blocks` is the single directed dependency edge and *blocked by* is its inverse presentation. A task cannot block itself, duplicate an edge, or create a cycle. `related` is a separate symmetric relationship stored once. Relationships never grant access; cross-brand edges follow [OD-05](#od-05).
 - **Why it matters:** Two parallel models produce inconsistent "blocked" calculations across views, Gantt, and briefings.
 - **Affects:** TSK-012, TSK-013, PRJ-011, GOAL-010, VIEW-005 · phases 0B, 2A, 2B, 3B.
 - **Safe default:** One family, with *blocks/blocked by* as the default dependency type. Finish-to-start style types may be added later, and *related* is non-blocking.
-- **If deferred:** There is a risk of building two models in 2A and 2B.
+- **If deferred:** No longer applicable (decided).
 
 <a id="od-10"></a>
 ### OD-10 — Synonyms: watchers/followers, labels/tags
-- **Decision:** Confirm each pair is a single concept (TSK-009, TSK-015).
+- **Decided (2026-10-05, architect, Phase 2B brief):** Each pair is one concept. *Label* is the canonical name: one brand-scoped `work.label` with a normalized unique name, colour or icon, lifecycle, and order, joined to tasks of the same brand. Labels never grant authority; renames keep identity; archived labels stay on tasks but leave default pickers. *Follower* is canonical and belongs entirely to 4A.
 - **Why it matters:** Duplicate concepts double the notification and filter logic.
 - **Affects:** TSK-009, TSK-015, COL-010, PRJ-026, VIEW-012 · phases 2B, 4A.
 - **Safe default:** Use *follower* and *label* in UI and API, and accept the other word in search and import mapping.
-- **If deferred:** Low risk, as long as no second implementation is started.
+- **If deferred:** No longer applicable (decided).
+- **Status (Phase 4A, 2026-10-07):** *Follower* is implemented as an explicit, per-record subscription: one `relations.follower` row per person and record, written only by that person's own follow command and removed by their unfollow (both immediate and idempotent). Following is never inherited from workspace or project membership, assignment, ownership, or a received share, and it grants no access. A follow the person can no longer read is inert: it is omitted from every list and count, and it is removed when the record is purged or the member leaves. Notification preferences for followers are 4B (ADR-0023 D1).
 
 <a id="od-11"></a>
 ### OD-11 — Formula fields versus calculated fields
-- **Decision:** Are WFL-008's "formula" type and WFL-011's "calculated fields" the same capability?
+- **Decided (2026-10-05, architect, Phase 2C brief):** One capability. *Formula* is a custom-field type, and WFL-011's calculated fields are formula fields. A formula compiles to a versioned typed AST (never `eval`, JavaScript, SQL, templates, or user code). It may use field references on the same record, literals, arithmetic, comparison, boolean conditionals, null handling, and a small deterministic function registry. It has no network, current time, randomness, secrets, context, cross-record queries, or side effects. Results are read-only, errors are typed (`missing`, `invalid`, `divide_by_zero`, `cycle`, `overflow`), and a result is visible only where every input is visible.
+- **Original question:** Are WFL-008's "formula" type and WFL-011's "calculated fields" the same capability?
 - **Why it matters:** Each expression engine is a security and performance surface.
 - **Affects:** WFL-008, WFL-011 · phases 0D, 2C.
 - **Safe default:** One calculated-field type with a sandboxed, side-effect-free expression language, with limits defined in 0B/0D.
-- **If deferred:** 2C may build one engine and later need a second.
+- **If deferred:** No longer applicable (decided).
 
 <a id="od-12"></a>
 ### OD-12 — Timeline versus Gantt
@@ -110,46 +121,69 @@ Requirements flagged with each decision are listed automatically in [requirement
 - **Affects:** VIEW-004, VIEW-005 · phase 3B.
 - **Safe default:** *Timeline* shows date bars grouped by brand, project, or milestone, with no dependency arrows. *Gantt* adds dependency arrows, dependency-aware rescheduling, and baseline versus actual.
 - **If deferred:** 3B acceptance criteria for these two views stay ambiguous.
+- **Decided (Phase 3B, 2026-10-07, under the brief's authority to resolve outstanding view decisions; ADR-0020 B4):** the safe default.
+  - *Timeline* shows date bars (start to due or target) over a day, week, month, or quarter zoom, with no dependency arrows.
+  - *Gantt* adds the `blocks` dependencies between shown items and dependency-aware rescheduling. Moving a bar offers, never silently applies, the same shift to the items it blocks, reported item by item.
+  - Neither ever changes a deadline.
+  - Baseline versus actual needs stored baselines and is deferred to reporting (5C).
 
 <a id="od-13"></a>
 ### OD-13 — Project completion percentage formula
-- **Decision:** Count-based, estimate-weighted, or milestone-weighted. Are paused tasks and subtasks included?
+- **Decided (2026-10-04, architect, Phase 2A brief):** The basis is count-based on **leaf** tasks.
+  - Until tasks exist (2A), a completed project shows 100% and any other project 0%, labelled *Status-based*.
+  - From 2B, completion is done leaf tasks divided by all non-cancelled leaf tasks the viewer may read. Paused tasks count in the denominator.
+  - There is no estimate weighting until 5C explicitly replaces the basis.
+  - Hidden work never affects a visible numerator, denominator, count, or explanation in a way that discloses existence.
 - **Why it matters:** It is shown on every project and portfolio, and it must never be mistaken for completion ([lifecycle §3](lifecycle-and-states.md#project-completion-versus-completion-percentage)).
-- **Affects:** PRJ-020, RPT-005, GOAL-005 · phases 2A, 5C.
-- **Safe default:** Share of non-cancelled **top-level** tasks in the `done` category (paused tasks included in the denominator), with the method displayed.
-- **If deferred:** 5C must version the metric, so a later formula change would alter historical displays.
+- **Affects:** PRJ-020, RPT-005, GOAL-005 · phases 2A, 2B, 5C.
+- **If deferred:** No longer applicable (decided). 5C versions the metric if it changes the basis.
+- **Status (Phase 5B, 2026-10-08):** Applied to linked-work goal progress. A project link covers that project's own tasks (sub-projects are linked separately) and a task link covers the task and its subtasks; progress is done leaf tasks over non-cancelled leaf tasks the viewer may read, in whole percent, with no estimate weighting. Weighted rollups and metric definitions wait for 5C (ADR-0029 G3, G4).
+- **Status (Phase 5C, 2026-10-09):** Versioned. Version 1 (count of leaf tasks, as above) stays the default and is what goals and portfolios show. Version 2 weights each counted leaf task by its estimate and rolls up as a ratio of sums; a task without an estimate carries no weight, is counted and named, and makes the figure partial (never a guessed estimate, and no silent fall back to version 1). Changing the default is a later explicit decision (ADR-0030 M6).
 
 <a id="od-14"></a>
 ### OD-14 — Recurring projects
-- **Decision:** What a recurring project is (PRJ-013).
+- **Decided (2026-10-04, architect, Phase 2A brief):** A recurring project is a schedule that creates a new, independent project for each occurrence from an **immutable snapshot**.
+  - **Snapshot:** frozen once, when the series is defined, from an approved template or project serialization, and stored in the planning-owned series.
+  - **Copied:** phases and milestones (with the project's own fields).
+  - **Never copied:** activity, audit, shares, collaborators, personal data, secrets, and cross-brand references.
+  - **Idempotency:** each occurrence has a stable occurrence key, unique per series.
+  - **Missed occurrences:** catch-up is bounded by `RECURRENCE_CATCHUP_MAX`.
+  - **Phase split:** 2A delivers definition, pause and resume, manual next occurrence, and worker generation. 2D may improve the interaction but not these semantics.
 - **Why it matters:** It could mean template instantiation, repeating phases, or a reopened project, and each has a different data model.
 - **Affects:** PRJ-013, PRJ-014 · phases 2A, 2D.
-- **Safe default:** A schedule on a project template that creates a new, independent project for each occurrence.
-- **If deferred:** PRJ-013 remains unimplementable as written.
+- **If deferred:** No longer applicable (decided).
 
 <a id="od-15"></a>
 ### OD-15 — "Decision" as a record type
-- **Decision:** Are decisions (PRJ-024, SRCH-001, DOC-006, AI-013) a document type, or a structured record (proposed / decided / superseded, owner, date)?
+- **Decided (2026-10-04, architect, Phase 2A brief):** Decisions and open questions are one structured record type, the decision record (`dec_`), with a kind of *decision* or *open question*.
+  - **Fields:** statement, outcome or resolution, owner, and applicable dates.
+  - **Decision states:** proposed → decided → superseded.
+  - **Question states:** open → resolved.
+  - **Rejected:** cross-kind states.
+  - **Documents:** may link to decision records later, but they are not the authority.
 - **Why it matters:** AI extraction (AI-013), project display (PRJ-024), and briefings (BRF-009) need somewhere structured to put decisions.
 - **Affects:** PRJ-024, SRCH-001, DOC-006, AI-013, BRF-009 · phases 0B, 2A, 4C, 7C.
-- **Safe default:** A lightweight structured record that can be embedded in documents and is searchable as its own type.
-- **If deferred:** Decisions remain free text, and PRJ-024 can only list documents tagged "decision".
+- **If deferred:** No longer applicable (decided).
 
 <a id="od-16"></a>
 ### OD-16 — "Latest verified project update"
-- **Decision:** Who or what verifies a project update (PRJ-025)?
+- **Decided (2026-10-04, architect, Phase 2A brief):** An update is verified only by an explicit verification action by an authorized human project owner or collaborator.
+  - **Authoring alone never verifies.** AI-drafted, imported, and system updates stay unverified until that action.
+  - **Updates stay append-only.** Verification is a separate fact recording the verifier and time.
+  - **Latest verified update:** the newest update that has a verification fact.
 - **Why it matters:** Unverified AI drafts could otherwise be presented as the project's status.
 - **Affects:** PRJ-025, AI-016, BRF-004 · phases 2A, 7C, 7E.
-- **Safe default:** An update is *verified* when authored or explicitly approved by the project owner or their delegate. AI-drafted updates stay unverified until approved.
-- **If deferred:** PRJ-025 has no testable meaning.
+- **If deferred:** No longer applicable (decided).
 
 <a id="od-17"></a>
 ### OD-17 — Staleness and freshness thresholds
-- **Decision:** The definition of a "meaningful update" (TSK-041), thresholds for stale tasks and documents and for repeated rescheduling (TSK-044, RPT-003, DOC-015), and the indexing freshness target (SRCH-011).
+- **Decided (2026-10-06, architect, Phase 2D brief) for tasks:** A *meaningful update* is a change to the title or description, status, assignees, start or due date or deadline, estimate, criteria or checklist, labels, relationships, custom field values, links, lifecycle, or a manual update. Reads, view state, favorites, recents, reminders, and snoozes are not meaningful. An *active* or *blocked* task is stale after 7 calendar days without a meaningful update, a *planned* task after 14; paused, cancelled, and done tasks are never stale. A task is *repeatedly rescheduled* after 3 material due-date or deadline edits within 14 days. The thresholds are registered, bounded parameters (`TASK_STALE_ACTIVE_DAYS`, `TASK_STALE_PLANNED_DAYS`, `TASK_RESCHEDULE_COUNT`, `TASK_RESCHEDULE_WINDOW_DAYS`). Documents, search freshness, and briefings (4C, 5A, 5C) decide their own thresholds against this definition.
+- **Original question:** The definition of a "meaningful update" (TSK-041), thresholds for stale tasks and documents and for repeated rescheduling (TSK-044, RPT-003, DOC-015), and the indexing freshness target (SRCH-011).
 - **Why it matters:** Too-sensitive thresholds create noise in briefings, and too-lax ones hide neglected work.
 - **Affects:** TSK-041, TSK-044, RPT-003, SRCH-011, DOC-015, BRF-008 · phases 2D, 4C, 5A, 5C.
 - **Safe default:** A meaningful update is a change to status, assignee, dates, description, or deliverable, or a comment, by a non-system actor. Thresholds are configurable per workspace with conservative product defaults. Passing a review date warns but does not change document state.
 - **If deferred:** Each phase invents its own threshold, and metrics become inconsistent.
+- **Status (Phase 5C, 2026-10-09):** The task thresholds above are reused unchanged by the attention metric (stale after `TASK_STALE_ACTIVE_DAYS` for an active task and `TASK_STALE_PLANNED_DAYS` for a planned one); the metrics model has no freshness threshold of its own: derived data reports how current it is (current, catching up, or degraded) from what is waiting or failed (ADR-0030 M11, M13).
 
 <a id="od-18"></a>
 ### OD-18 — "Scheduled for today" and Today's timezone
@@ -158,6 +192,7 @@ Requirements flagged with each decision are listed automatically in [requirement
 - **Affects:** PLAN-001, PLAN-002, PLAN-003 · phase 3C.
 - **Safe default:** As in [time-and-scheduling.md §6](time-and-scheduling.md#6-today).
 - **If deferred:** 3C cannot finalize acceptance tests.
+- **Status (Phase 3C, 2026-10-07):** Decided as the safe default at the Phase 0 exit gate and implemented: Today uses the viewer's profile zone; committed and block-scheduled work are shown, with overdue, due-today, and upcoming-deadline items in separate sections (ADR-0021 P1–P2).
 
 <a id="od-19"></a>
 ### OD-19 — Holiday calendars
@@ -166,6 +201,7 @@ Requirements flagged with each decision are listed automatically in [requirement
 - **Affects:** CAL-010, WSB-010, TIME-010 · phases 3E, 6C.
 - **Safe default:** Manual holiday entries per brand and per person at launch, plus whatever the connected calendar provides.
 - **If deferred:** Capacity ignores public holidays unless entered manually.
+- **Status (Phase 3E, 2026-10-07):** Decided as the safe default for launch and implemented: holidays are manual brand holidays set under `brand.configure`, and individual holidays are personal time off of kind `holiday`. A brand holiday removes a person's day only if the person observes brand holidays and holds a reservation in that brand covering the day. External holiday feeds and connected-calendar holidays stay with 6C (ADR-0022 C4).
 
 <a id="od-20"></a>
 ### OD-20 — Human self-approval
@@ -174,6 +210,7 @@ Requirements flagged with each decision are listed automatically in [requirement
 - **Affects:** AGT-018, TSK-029, TEST-024, TIME-012, FILE-009 · phases 4A, 8D, 9D, 3D.
 - **Safe default:** Allowed when workspace policy permits it. The default is **on** for workspaces with one member who has approval rights and **off** once there are two. Self-approval is always recorded and visibly labeled, and agents can never approve.
 - **If deferred:** The launch acceptance flows LA-009 and LA-012 cannot be completed by a solo founder.
+- **Status (Phase 3D, 2026-10-07):** Timesheet approval (TIME-012) applies the workspace `self_approval_mode` exactly as workflow approvals do (2C): under `auto`, a person may approve their own brand line only while the workspace has one active member; every decision records `self_approval`, and the timesheet shows it as self-approved.
 
 <a id="od-21"></a>
 ### OD-21 — Defect verification and flaky-result policy
@@ -222,6 +259,7 @@ Requirements flagged with each decision are listed automatically in [requirement
 - **Affects:** TIME-012, TIME-013 · phase 3D.
 - **Safe default:** Workspace admins only, with a reason. The unlock is audited, and re-approval is required.
 - **If deferred:** The safe default applies.
+- **Status (Phase 3D, 2026-10-07):** Decided as the safe default (Phase 0 exit gate, admin-only unlock) and implemented: `timesheet.unlock` is limited to workspace owners and administrators, needs step-up and a reason (3–500 characters), appends an audited `unlock` row and a security event, and returns the brand line to the person, who must submit it again for a fresh approval (ADR-0019 T11).
 
 ## B. Launch scope boundaries
 
@@ -240,6 +278,7 @@ Requirements flagged with each decision are listed automatically in [requirement
 - **Affects:** CAP-007, PRJ-017 · phases 2E, 0C, 11B.
 - **Safe default:** Each form belongs to one brand. Submissions land in that brand's intake queue, with rate limits, bot protection, and attachment scanning.
 - **If deferred:** Forms are limited to authenticated members.
+- **Status (Phase 2E, 2026-10-06):** Still open; recorded as a blocker. 2E implements only the deferred rule: a form belongs to one brand and accepts submissions from signed-in members who can read that brand, rate-limited per person and form (`INTAKE_SUBMISSIONS_PER_HOUR`), into the form owner's Inbox as brand intake items. No anonymous access, bot protection, or attachment scanning is implemented until OD-28 is decided (11B).
 
 <a id="od-29"></a>
 ### OD-29 — Capture by forwarding email
@@ -248,6 +287,8 @@ Requirements flagged with each decision are listed automatically in [requirement
 - **Affects:** CAP-006 · phases 2E (provisional), 6A.
 - **Safe default:** A personal forwarding address that lands in the owner's Inbox, accepts only verified sender addresses, and scans attachments. The architect should assign an owning sub-phase.
 - **If deferred:** CAP-006 slips past 2E.
+- **Status (Phase 2E, 2026-10-06):** Still open. Email forwarding is owned by 6A; 2E keeps the adapter-ready `email` source kind on Inbox items and creates no address, inbound mail, or sender verification (CAP-006 is a foundation deferred to 6A).
+- **Status (Phase 6A, 2026-10-10):** Still open. 6A lists `email_inbound` as not configured and does not create an address, inbound mail, or sender verification. CAP-006 stays deferred until OD-29 is decided.
 
 <a id="od-30"></a>
 ### OD-30 — Realtime collaborative editing at launch
@@ -256,6 +297,7 @@ Requirements flagged with each decision are listed automatically in [requirement
 - **Affects:** DOC-011, COL-011 · phase 4D.
 - **Safe default:** Optimistic concurrency, version history, and conflict prompts at launch, with realtime later.
 - **If deferred:** 4D builds the safe default.
+- **Status (Phase 4D, 2026-10-08):** Decided and implemented: live editing ships as an optional mode with the safe default as its fallback. The engine is a server-sequenced block-operation log with presence (ADR-0027); there is no CRDT or external provider, every operation re-checks the document's access, and a live session ends in an ordinary version. Live editing can be turned off (`LIVE_EDITING_ENABLED=0`), in which case documents use optimistic saves and conflict prompts exactly as in 4C.
 
 <a id="od-31"></a>
 ### OD-31 — Semantic search and attachment content
@@ -264,6 +306,7 @@ Requirements flagged with each decision are listed automatically in [requirement
 - **Affects:** SRCH-004, DOC-019 · phases 5A, 7B.
 - **Safe default:** Keyword full-text search plus AI-assisted query interpretation at launch. Text is extracted from common text formats, and OCR comes later.
 - **If deferred:** 5A builds the safe default.
+- **Status (Phase 5A, 2026-10-09):** The safe default is built: keyword full-text search (the `simple` and `english` configurations together, DQ-24) over records, comments, saved document text, file names, and deliverables, with permission applied inside the query. Concept search and AI query interpretation (SRCH-004, 7B) and attachment text and OCR (DOC-019) are **not** built and remain open for later phases; search and documents say so rather than imply them (ADR-0028 S16).
 
 <a id="od-32"></a>
 ### OD-32 — Document export formats
@@ -272,6 +315,7 @@ Requirements flagged with each decision are listed automatically in [requirement
 - **Affects:** DOC-020, DATA-011 · phases 4C, 6D.
 - **Safe default:** Markdown, HTML, and PDF at launch.
 - **If deferred:** 4C exports Markdown only.
+- **Status (Phase 4C, 2026-10-08):** Decided and implemented: documents export as Markdown and HTML (a page, or a page with its readable subpages), bounded by `DOCUMENT_EXPORT_PAGES_MAX` and `DOCUMENT_EXPORT_MAX_BYTES`, authorized, and audited by counts. The HTML export carries a print stylesheet, so a browser can save a PDF; generating PDF files belongs to 6D. Embedded images and videos export as links, and references the viewer cannot read export as "Restricted item"; the export says how many (ADR-0025 D9).
 
 <a id="od-33"></a>
 ### OD-33 — Imports from other PM tools
@@ -306,6 +350,8 @@ Requirements flagged with each decision are listed automatically in [requirement
 - **Affects:** FILE-013, AUD-008, SEC-020, NTF-012, AI-026, AGT-026 · phases 1F, 11B.
 - **Safe default:** Retain until the record or workspace is deleted, except backups and export files, whose lifetimes are technical settings. Every value is configurable, and none is published.
 - **If deferred:** Unbounded growth, plus potential non-compliance with data minimization.
+- **Status (Phase 4B, 2026-10-08):** Notification retention stays open as a legal question and no value is published. The technical bound is `NOTIFY_RETENTION_DAYS` (default 365, configurable): notifications and their deliveries older than that age out unless the person saved them; digests age with their deliveries; a purged record's notifications and a departed person's notifications are removed with them (ADR-0024 D9).
+- **Status (Phase 4E, 2026-10-08):** File retention stays open as a legal question and no period is invented or published. Files and their versions live until their host or workspace is deleted: they trash, restore, and purge with their host through the 1F lifecycle, purge deletes the bytes through idempotent `object:{key}` effects, and evidence-locked versions (accepted deliverables, R-EVIDENCE) are skipped by purge. Expired upload sessions release their quarantined bytes after `UPLOAD_SESSION_LIFETIME`, a technical setting (ADR-0026 F9).
 
 <a id="od-37"></a>
 ### OD-37 — Legal and retention holds
@@ -322,6 +368,7 @@ Requirements flagged with each decision are listed automatically in [requirement
 - **Affects:** COL-009, AUD-003, SEC-023 · phases 1F, 4A, 11B.
 - **Safe default:** Earlier values stay visible to admins while the record exists. On purge, content values are removed and structural audit facts remain.
 - **If deferred:** 1F must still support redacting content inside events.
+- **Status (Phase 4A, 2026-10-07):** Decided as the safe default and implemented. An author may edit or delete their own comment only within `COMMENT_EDIT_WINDOW_MINUTES` (default 24 hours); each edit appends the prior body to an append-only revision trail, and deletion is a tombstone that keeps the thread's shape and the prior body in the trail. Nobody can edit another person's comment. A person with manage authority on the record may delete (never edit) someone else's comment, and the tombstone says a moderator removed it. Revisions are readable by the author and by people with moderation authority on the record while the record exists. Audit events carry only content hashes. On purge the comment bodies, revisions, reactions, and mentions are removed and the structural audit facts remain (ADR-0023 D2).
 
 <a id="od-39"></a>
 ### OD-39 — Account deletion and departing members (privacy)

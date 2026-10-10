@@ -127,6 +127,58 @@ def validate(policy, threats, quiet=False):
         if a["entitlement"] is not None and not re.match(r"^[a-z_]+$", a["entitlement"]):
             errors.append("%s: malformed entitlement key" % k)
 
+    # account-level commands (AZ-18): performed by a human account before any tenant context exists
+    commands = policy.get("account_commands", [])
+    command_actions = set()
+    for c in commands:
+        k = c["action"]
+        command_actions.add(k)
+        a = actions.get(k)
+        if a is None:
+            errors.append("account command %s is not a 0C action" % k)
+            continue
+        if a["kind"] != "personal" or a["scopes"] != ["personal"]:
+            errors.append("%s: account commands are personal-kind and scoped to personal only" % k)
+        if set(a["roles"].values()) != {"deny"}:
+            errors.append("%s: no workspace role cell may grant an account command (no membership exists yet)" % k)
+        if c["principals"] != ["account"]:
+            errors.append("%s: account commands are exercisable only by the human account principal" % k)
+        if a["non_delegable"] or a["second_approval"] or a["entitlement"]:
+            errors.append("%s: account commands carry no delegation, approval, or entitlement semantics" % k)
+        for gate in ("email_verified", "account_active", "rate_limit", "idempotency_key"):
+            if gate not in c["gates"]:
+                errors.append("%s: account command lacks mandatory gate %s" % (k, gate))
+        if sorted(c["requirements"]) != sorted(a["requirements"]):
+            errors.append("%s: account command requirements differ from the action row" % k)
+        if not any(x["action"] == k and x["expected"] == "deny" and x["principal"] != "account" for x in threats["tests"]):
+            errors.append("%s: account command needs denial tests for non-human principals" % k)
+    for a in actions.values():
+        if a["kind"] == "personal" and set(a["roles"].values()) == {"deny"} and a["key"] not in command_actions:
+            errors.append("%s: an all-deny personal action must be a registered account command" % a["key"])
+
+    # workspace policy fields (AZ-19): every 0B workspace_policy column has a type, a safe default, and
+    # a governing action; no role can configure a policy field that gates its own matrix cells
+    model_cols = None
+    for e in load(MODEL)["entities"]:
+        if e["module"] == "access" and e["name"] == "workspace_policy":
+            model_cols = [c.split(" ", 1)[0] for c in e["key_columns"]]
+    fields = policy.get("workspace_policy", [])
+    if model_cols is not None and [f["field"] for f in fields] != model_cols:
+        errors.append("workspace_policy fields %s differ from 0B access.workspace_policy %s" % ([f["field"] for f in fields], model_cols))
+    for f in fields:
+        g = actions.get(f["governed_by"])
+        if g is None:
+            errors.append("workspace_policy %s: unknown governing action %s" % (f["field"], f["governed_by"]))
+            continue
+        if f["field"] == "public_links_enabled" and f["default"] is not False:
+            errors.append("workspace_policy public_links_enabled must default to false (OD-27)")
+        gated = [r for r in ROLES if any(a["roles"][r] == "policy:%s" % f["field"] for a in actions.values())]
+        for r in gated:
+            if g["roles"][r] not in ("deny",) and not (f["owner_only"] and r != "owner"):
+                errors.append("workspace_policy %s: role %s could configure the policy that gates its own cells" % (f["field"], r))
+        if f["owner_only"] and g["roles"]["owner"] == "deny":
+            errors.append("workspace_policy %s: owner-only field needs an owner-capable governing action" % f["field"])
+
     # required action vocabulary coverage
     blob = " ".join(actions)
     for w in REQUIRED_ACTION_WORDS:

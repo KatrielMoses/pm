@@ -15,6 +15,11 @@ function parseInt8(value: string): number {
 const typeParsers = {
   getTypeParser(oid: number, format?: 'text' | 'binary') {
     if (oid === 20 && format !== 'binary') return parseInt8;
+    // interval: keep PostgreSQL's text form ("04:00:00"); callers treat it as an opaque value.
+    if (oid === 1186 && format !== 'binary') return (value: string) => value;
+    // date and timestamp without time zone (2A planning dates, anchor-local recurrence times): keep
+    // the exact text so no process time zone can shift a calendar date or a local time.
+    if ((oid === 1082 || oid === 1114) && format !== 'binary') return (value: string) => value;
     return pgTypes.getTypeParser(oid, format);
   },
 };

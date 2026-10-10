@@ -1,6 +1,6 @@
 # UX Foundation (Phase 0E)
 
-Status: **Developer complete — awaiting solutions-architect review.** Nothing in this set is approved until review is recorded in `ROADMAP_CHECKLIST.md`.
+Status: **accepted** (Phase 0E, P0-W1); accepted at the Phase 0 exit gate (P0-IR1; [exit-gate report](../architecture/PHASE_0_EXIT_GATE.md)).
 
 This folder is the product-design contract for the multi-brand work-management application described in [`FEATURES.md`](../../FEATURES.md). Later phases implement against it. It defines *how the product behaves* — structure, navigation, states, accessibility, responsive behavior and design-system foundations. It does not define final visual polish, the product name, data schemas, APIs or authorization algorithms.
 
@@ -18,6 +18,8 @@ This folder is the product-design contract for the multi-brand work-management a
 | 8 | [Internationalization and time](08-i18n-and-time.md) | Timezones, locale formatting, relative time, text expansion | 1E, 3C, 6C, 11E |
 | 9 | [Decision and risk register](09-decisions-and-risks.md) | Open UX decisions with defaults, 0A dependencies, risks | Product owner, solutions architect |
 | — | [`tools/`](tools/) | Repeatable checks: token contrast and documentation links | Reviewers, 1E |
+
+Phase 1E implementation notes: the shell, the route registry, the key map, view-state ownership, and the accepted deviations are recorded in [ADR-0012](../engineering/adr/0012-application-shell-navigation.md). Region navigation is by skip links and permission-filtered palette actions; F6 is not bound ([A11Y-KB-04](07-accessibility.md#a11y-kb-04), with [A11Y-KB-07](07-accessibility.md#a11y-kb-07) controlling; reconciled in RS-12, RS-33, and A11Y-PA-11). The token contrast gate (DS-21) also runs as `scripts/test/web-design-tokens.test.mjs` against the stylesheet.
 
 Suggested reading order: 1 → 2 → 4 → 6 → 5 → 7 → 8 → 3 → 9. Journeys (3) are the most useful once the rules they apply are familiar.
 
@@ -41,7 +43,7 @@ Suggested reading order: 1 → 2 → 4 → 6 → 5 → 7 → 8 → 3 → 9. Jour
 | `DEP-0A-nn` | Dependency on Phase 0A vocabulary | [09](09-decisions-and-risks.md#2-dependencies-on-phase-0a) |
 | `UXR-nn` | UX risk | [09](09-decisions-and-risks.md#4-ux-risk-register) |
 
-**Requirement references.** Phase 0A's requirement catalog ([`docs/product/requirements/`](../product/requirements/README.md)) arrived during this work and is still awaiting review. Until it is accepted, this set cites `FEATURES.md` by section name, for example *FEATURES › Today and planning*. Replacing those citations with catalog IDs is a mechanical follow-up and changes no meaning (tracked as [UXD-24](09-decisions-and-risks.md#uxd-24)).
+**Requirement references.** Phase 0A's requirement catalog ([`docs/product/requirements/`](../product/requirements/README.md)) arrived during this work and is now accepted (P0-W1). This set still cites `FEATURES.md` by section name, for example *FEATURES › Today and planning*. Replacing those citations with catalog IDs is a mechanical follow-up and changes no meaning (tracked as [UXD-24](09-decisions-and-risks.md#uxd-24)).
 
 **Provisional vocabulary.** Terms such as *brand*, *Inbox item*, *Today commitment*, *scheduled work block*, *deliverable*, *acceptance* and *agent run* follow their plain reading in `FEATURES.md`. Where 0A could reasonably define a term differently, the text marks it with its `DEP-0A-nn` ID. If 0A resolves a term differently, the UX rule follows 0A; the interaction rule itself does not change. This set has been reconciled against 0A's proposal in [`docs/product/`](../product/README.md). The status of each dependency, and the one conflict left for review ([UXD-28](09-decisions-and-risks.md#uxd-28)), are in [09 §2.1](09-decisions-and-risks.md#21-reconciliation-with-the-0a-proposal).
 

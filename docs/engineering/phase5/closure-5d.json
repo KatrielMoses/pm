@@ -1,0 +1,1183 @@
+{
+  "schema_version": 1,
+  "phase": "5D",
+  "status": "candidate",
+  "adr": "0031",
+  "accepted_by_kinds": [
+    "catalog:contributing",
+    "roadmap:<sub>",
+    "adr:<nnnn>[#row]",
+    "requirement:<ID>"
+  ],
+  "requirements": [
+    {
+      "id": "WSB-016",
+      "role": "owned",
+      "disposition": "implemented",
+      "evidence": [
+        {
+          "file": "packages/work/src/insights/report-service.ts",
+          "contains": "async createDashboard("
+        },
+        {
+          "file": "packages/work/test/integration/insights.test.ts",
+          "contains": "creates owner, brand, project, release, and personal dashboards with bounded widgets"
+        },
+        {
+          "file": "apps/web/src/insights/overview.tsx",
+          "contains": "Across your brands"
+        },
+        {
+          "file": "apps/web/test/insights.test.tsx",
+          "contains": "asks for each Home figure with the brands in scope and groups by brand across brands"
+        },
+        {
+          "file": "e2e/insights.spec.ts",
+          "contains": "a founder builds a dashboard, reads figures with their labels, and works it by keyboard"
+        }
+      ]
+    },
+    {
+      "id": "NAV-002",
+      "role": "owned",
+      "disposition": "implemented",
+      "evidence": [
+        {
+          "file": "apps/web/src/insights/overview.tsx",
+          "contains": "Across your brands"
+        },
+        {
+          "file": "apps/web/test/insights.test.tsx",
+          "contains": "asks for each Home figure with the brands in scope and groups by brand across brands"
+        },
+        {
+          "file": "e2e/insights.spec.ts",
+          "contains": "a founder builds a dashboard, reads figures with their labels, and works it by keyboard"
+        }
+      ]
+    },
+    {
+      "id": "NAV-003",
+      "role": "owned",
+      "disposition": "implemented",
+      "evidence": [
+        {
+          "file": "apps/web/src/insights/overview.tsx",
+          "contains": "This brand at a glance"
+        },
+        {
+          "file": "apps/web/test/insights.test.tsx",
+          "contains": "groups a single brand by project"
+        }
+      ]
+    },
+    {
+      "id": "GOAL-011",
+      "role": "owned",
+      "disposition": "foundation",
+      "deferred_to": [
+        "7A"
+      ],
+      "accepted_by": [
+        "catalog:contributing"
+      ],
+      "evidence": [
+        {
+          "file": "packages/work/src/insights/metrics.ts",
+          "contains": "'time.by_brand'"
+        },
+        {
+          "file": "packages/work/src/insights/metrics.ts",
+          "contains": "key: 'ai.usage'"
+        },
+        {
+          "file": "apps/api/test/integration/insights-api.test.ts",
+          "contains": "computes each widget for the caller and never caches it for anyone else"
+        },
+        {
+          "file": "packages/work/test/integration/insights.test.ts",
+          "contains": "differs by what each person may read, and hidden work changes no number or label"
+        }
+      ]
+    },
+    {
+      "id": "PRJ-019",
+      "role": "contributing",
+      "disposition": "contributed",
+      "contribution": "5D",
+      "evidence": [
+        {
+          "file": "apps/web/src/insights/overview.tsx",
+          "contains": "This project at a glance"
+        },
+        {
+          "file": "apps/web/test/insights.test.tsx",
+          "contains": "lists a project's dashboards and reports and its own figures"
+        },
+        {
+          "file": "e2e/insights.spec.ts",
+          "contains": "a founder builds a dashboard, reads figures with their labels, and works it by keyboard"
+        }
+      ]
+    },
+    {
+      "id": "TIME-005",
+      "role": "contributing",
+      "disposition": "contributed",
+      "contribution": "5D",
+      "evidence": [
+        {
+          "file": "packages/work/src/insights/metrics.ts",
+          "contains": "'time.planned_vs_actual'"
+        },
+        {
+          "file": "packages/work/src/insights/metrics.ts",
+          "contains": "Planned time is the sum of task estimates"
+        }
+      ]
+    },
+    {
+      "id": "RPT-001",
+      "role": "owned",
+      "disposition": "implemented",
+      "evidence": [
+        {
+          "file": "packages/work/test/integration/insights.test.ts",
+          "contains": "creates owner, brand, project, release, and personal dashboards with bounded widgets"
+        },
+        {
+          "file": "packages/work/test/integration/insights.test.ts",
+          "contains": "requires placement authority, and keeps personal dashboards personal"
+        },
+        {
+          "file": "apps/api/test/integration/insights-api.test.ts",
+          "contains": "creates and edits a dashboard with ETags, idempotency, and validation errors"
+        },
+        {
+          "file": "apps/web/test/insights.test.tsx",
+          "contains": "lists dashboards and reports and creates one with suggested widgets"
+        }
+      ]
+    },
+    {
+      "id": "RPT-002",
+      "role": "owned",
+      "disposition": "implemented",
+      "enriched_by": [
+        "5C"
+      ],
+      "accepted_by": [
+        "catalog:contributing"
+      ],
+      "evidence": [
+        {
+          "file": "packages/work/src/insights/metrics.ts",
+          "contains": "key: 'projects.active'"
+        },
+        {
+          "file": "packages/work/test/integration/insights.test.ts",
+          "contains": "differs by what each person may read, and hidden work changes no number or label"
+        }
+      ]
+    },
+    {
+      "id": "RPT-003",
+      "role": "owned",
+      "disposition": "implemented",
+      "accepted_by": [
+        "catalog:contributing"
+      ],
+      "evidence": [
+        {
+          "file": "packages/work/src/insights/metrics.ts",
+          "contains": "key: 'tasks.overdue'"
+        },
+        {
+          "file": "packages/work/src/insights/metrics.ts",
+          "contains": "key: 'tasks.unassigned'"
+        },
+        {
+          "file": "packages/work/src/insights/metrics.ts",
+          "contains": "key: 'tasks.due_soon'"
+        },
+        {
+          "file": "packages/work/src/insights/metrics-5c.ts",
+          "contains": "key: 'work.blocked'"
+        },
+        {
+          "file": "packages/work/test/integration/insights.test.ts",
+          "contains": "refuses unknown and not-yet-available metrics with an honest reason"
+        },
+        {
+          "file": "packages/work/test/integration/phase5-final.test.ts",
+          "contains": "serves the 5C metrics to dashboards through the metric port, for each viewer, with figure and records from one authority"
+        }
+      ],
+      "note": "Answered by the 5C metric service through the metric port (Phase 5 final integration)."
+    },
+    {
+      "id": "RPT-004",
+      "role": "owned",
+      "disposition": "implemented",
+      "evidence": [
+        {
+          "file": "packages/work/src/insights/metrics.ts",
+          "contains": "key: 'milestones.upcoming'"
+        },
+        {
+          "file": "packages/work/src/insights/metrics.ts",
+          "contains": "async function milestoneRows("
+        }
+      ]
+    },
+    {
+      "id": "RPT-005",
+      "role": "owned",
+      "disposition": "implemented",
+      "enriched_by": [
+        "5C"
+      ],
+      "accepted_by": [
+        "catalog:contributing"
+      ],
+      "evidence": [
+        {
+          "file": "packages/work/src/insights/metrics.ts",
+          "contains": "key: 'planning.planned_vs_completed'"
+        },
+        {
+          "file": "packages/work/src/insights/metrics.ts",
+          "contains": "key: 'tasks.completed'"
+        }
+      ]
+    },
+    {
+      "id": "RPT-006",
+      "role": "owned",
+      "disposition": "implemented",
+      "enriched_by": [
+        "5C"
+      ],
+      "accepted_by": [
+        "catalog:contributing"
+      ],
+      "evidence": [
+        {
+          "file": "packages/work/src/insights/metrics.ts",
+          "contains": "'time.planned_vs_actual'"
+        },
+        {
+          "file": "packages/work/src/time/time-service.ts",
+          "contains": "protected async timeReportIn("
+        }
+      ]
+    },
+    {
+      "id": "RPT-007",
+      "role": "owned",
+      "disposition": "implemented",
+      "accepted_by": [
+        "catalog:contributing"
+      ],
+      "evidence": [
+        {
+          "file": "packages/work/src/insights/metrics-5c.ts",
+          "contains": "key: 'work.cycle_time'"
+        },
+        {
+          "file": "packages/work/test/integration/insights.test.ts",
+          "contains": "refuses unknown and not-yet-available metrics with an honest reason"
+        },
+        {
+          "file": "apps/api/test/integration/insights-api.test.ts",
+          "contains": "serves the metric catalog, with what is not yet available and why"
+        },
+        {
+          "file": "packages/work/test/integration/phase5-final.test.ts",
+          "contains": "serves the 5C metrics to dashboards through the metric port, for each viewer, with figure and records from one authority"
+        }
+      ],
+      "note": "Answered by the 5C metric service through the metric port (Phase 5 final integration)."
+    },
+    {
+      "id": "RPT-008",
+      "role": "owned",
+      "disposition": "implemented",
+      "accepted_by": [
+        "catalog:contributing"
+      ],
+      "evidence": [
+        {
+          "file": "packages/work/src/insights/metrics-5c.ts",
+          "contains": "key: 'work.created_vs_completed'"
+        },
+        {
+          "file": "packages/work/test/integration/insights.test.ts",
+          "contains": "refuses unknown and not-yet-available metrics with an honest reason"
+        },
+        {
+          "file": "apps/api/test/integration/insights-api.test.ts",
+          "contains": "serves the metric catalog, with what is not yet available and why"
+        },
+        {
+          "file": "packages/work/test/integration/phase5-final.test.ts",
+          "contains": "serves the 5C metrics to dashboards through the metric port, for each viewer, with figure and records from one authority"
+        }
+      ],
+      "note": "Answered by the 5C metric service through the metric port (Phase 5 final integration)."
+    },
+    {
+      "id": "RPT-009",
+      "role": "owned",
+      "disposition": "implemented",
+      "accepted_by": [
+        "catalog:contributing"
+      ],
+      "evidence": [
+        {
+          "file": "packages/work/src/insights/metrics-5c.ts",
+          "contains": "key: 'work.aging'"
+        },
+        {
+          "file": "packages/work/test/integration/insights.test.ts",
+          "contains": "refuses unknown and not-yet-available metrics with an honest reason"
+        },
+        {
+          "file": "apps/api/test/integration/insights-api.test.ts",
+          "contains": "serves the metric catalog, with what is not yet available and why"
+        },
+        {
+          "file": "packages/work/test/integration/phase5-final.test.ts",
+          "contains": "serves the 5C metrics to dashboards through the metric port, for each viewer, with figure and records from one authority"
+        }
+      ],
+      "note": "Answered by the 5C metric service through the metric port (Phase 5 final integration)."
+    },
+    {
+      "id": "RPT-010",
+      "role": "owned",
+      "disposition": "implemented",
+      "evidence": [
+        {
+          "file": "packages/work/src/insights/metrics.ts",
+          "contains": "key: 'capacity.workload'"
+        },
+        {
+          "file": "packages/work/src/capacity/capacity-service.ts",
+          "contains": "protected async teamCapacityIn("
+        },
+        {
+          "file": "packages/work/test/integration/insights.test.ts",
+          "contains": "one widget that cannot be shown does not hide the others"
+        }
+      ]
+    },
+    {
+      "id": "RPT-011",
+      "role": "owned",
+      "disposition": "implemented",
+      "evidence": [
+        {
+          "file": "packages/work/src/insights/metrics.ts",
+          "contains": "'time.by_project'"
+        },
+        {
+          "file": "packages/work/src/insights/metrics.ts",
+          "contains": "'time.by_brand'"
+        }
+      ]
+    },
+    {
+      "id": "RPT-012",
+      "role": "owned",
+      "disposition": "foundation",
+      "deferred_to": [
+        "7A"
+      ],
+      "accepted_by": [
+        "catalog:contributing"
+      ],
+      "evidence": [
+        {
+          "file": "packages/work/src/insights/metrics.ts",
+          "contains": "key: 'ai.usage'"
+        },
+        {
+          "file": "apps/api/test/integration/insights-api.test.ts",
+          "contains": "serves the metric catalog, with what is not yet available and why"
+        }
+      ]
+    },
+    {
+      "id": "RPT-013",
+      "role": "owned",
+      "disposition": "foundation",
+      "deferred_to": [
+        "8A",
+        "8C"
+      ],
+      "accepted_by": [
+        "catalog:contributing"
+      ],
+      "evidence": [
+        {
+          "file": "packages/work/src/insights/metrics.ts",
+          "contains": "key: 'automation.rates'"
+        },
+        {
+          "file": "apps/api/test/integration/insights-api.test.ts",
+          "contains": "serves the metric catalog, with what is not yet available and why"
+        }
+      ]
+    },
+    {
+      "id": "RPT-014",
+      "role": "owned",
+      "disposition": "implemented",
+      "evidence": [
+        {
+          "file": "packages/work/src/insights/metrics.ts",
+          "contains": "key: 'deliverables.status'"
+        },
+        {
+          "file": "packages/work/src/insights/metrics.ts",
+          "contains": "async function deliverableScope("
+        }
+      ]
+    },
+    {
+      "id": "RPT-015",
+      "role": "owned",
+      "disposition": "foundation",
+      "deferred_to": [
+        "9B",
+        "9C",
+        "9D"
+      ],
+      "accepted_by": [
+        "catalog:contributing"
+      ],
+      "evidence": [
+        {
+          "file": "packages/work/src/insights/metrics.ts",
+          "contains": "key: 'quality.release'"
+        },
+        {
+          "file": "apps/api/test/integration/insights-api.test.ts",
+          "contains": "serves the metric catalog, with what is not yet available and why"
+        }
+      ]
+    },
+    {
+      "id": "RPT-016",
+      "role": "owned",
+      "disposition": "implemented",
+      "evidence": [
+        {
+          "file": "packages/work/src/insights/metrics.ts",
+          "contains": "key: 'goals.progress'"
+        },
+        {
+          "file": "packages/work/src/insights/metrics.ts",
+          "contains": "goalQuery("
+        }
+      ]
+    },
+    {
+      "id": "RPT-017",
+      "role": "owned",
+      "disposition": "implemented",
+      "evidence": [
+        {
+          "file": "apps/web/src/insights/editor.tsx",
+          "contains": "export function LayoutEditor("
+        },
+        {
+          "file": "apps/web/test/insights.test.tsx",
+          "contains": "reorders, removes, and adds widgets from the keyboard and announces each change"
+        },
+        {
+          "file": "e2e/insights.spec.ts",
+          "contains": "a founder builds a dashboard, reads figures with their labels, and works it by keyboard"
+        }
+      ]
+    },
+    {
+      "id": "RPT-018",
+      "role": "owned",
+      "disposition": "implemented",
+      "evidence": [
+        {
+          "file": "apps/web/src/insights/filters.tsx",
+          "contains": "export function FilterBar("
+        },
+        {
+          "file": "apps/web/test/insights.test.tsx",
+          "contains": "narrows by date, person, and status and can be cleared"
+        },
+        {
+          "file": "packages/work/test/integration/insights.test.ts",
+          "contains": "carries covers, freshness, source, and applied filters on every figure"
+        }
+      ]
+    },
+    {
+      "id": "RPT-019",
+      "role": "owned",
+      "disposition": "implemented",
+      "enriched_by": [
+        "5C"
+      ],
+      "accepted_by": [
+        "catalog:contributing"
+      ],
+      "evidence": [
+        {
+          "file": "packages/work/test/integration/insights.test.ts",
+          "contains": "drills into only the records the viewer may read"
+        },
+        {
+          "file": "apps/api/test/integration/insights-api.test.ts",
+          "contains": "drills into only the records the caller may read, page by page"
+        },
+        {
+          "file": "apps/web/test/insights.test.tsx",
+          "contains": "drills into records page by page, with links only for records that have a page"
+        }
+      ]
+    },
+    {
+      "id": "RPT-020",
+      "role": "owned",
+      "disposition": "implemented",
+      "evidence": [
+        {
+          "file": "packages/work/src/insights/report-service.ts",
+          "contains": "async shareReport("
+        },
+        {
+          "file": "packages/work/test/integration/insights.test.ts",
+          "contains": "is invisible to someone without access until it is shared, and a share grants no data"
+        },
+        {
+          "file": "packages/work/test/integration/insights.test.ts",
+          "contains": "only managers share, and a share is bound to the report and listed to managers"
+        },
+        {
+          "file": "apps/api/test/integration/insights-api.test.ts",
+          "contains": "creates a report, shares it explicitly, runs it for the grantee, and revokes the share"
+        },
+        {
+          "file": "e2e/insights.spec.ts",
+          "contains": "narrower access gives smaller figures and no hidden names; shares open and close reports; scheduling needs recipients"
+        }
+      ]
+    },
+    {
+      "id": "RPT-021",
+      "role": "owned",
+      "disposition": "implemented",
+      "evidence": [
+        {
+          "file": "packages/work/src/insights/report-service.ts",
+          "contains": "async runReportSweep("
+        },
+        {
+          "file": "packages/work/test/integration/insights.test.ts",
+          "contains": "delivers once per recipient, as that recipient, and a repeat sends nothing more"
+        },
+        {
+          "file": "packages/work/test/integration/insights.test.ts",
+          "contains": "removes a recipient who lost access and never emails them"
+        },
+        {
+          "file": "packages/work/test/integration/insights.test.ts",
+          "contains": "suspends the schedule when its accountable owner loses authority or leaves"
+        },
+        {
+          "file": "packages/work/test/integration/insights.test.ts",
+          "contains": "records an unconfigured or rejecting provider honestly and retries a transient failure"
+        },
+        {
+          "file": "packages/work/test/unit/insights-semantics.test.ts",
+          "contains": "owes one delivery for a long outage, never a backlog (property)"
+        },
+        {
+          "file": "packages/work/test/unit/insights-semantics.test.ts",
+          "contains": "keeps the local clock across a DST change"
+        },
+        {
+          "file": "packages/work/test/integration/insights-jobs.test.ts",
+          "contains": "sends once when two sweeps overlap"
+        },
+        {
+          "file": "packages/work/test/integration/insights-jobs.test.ts",
+          "contains": "leaves a leased report alone and reclaims it once the lease lapses (a crashed worker)"
+        },
+        {
+          "file": "packages/work/test/integration/insights-jobs.test.ts",
+          "contains": "finishes a delivery a crashed worker left half done without sending it twice"
+        },
+        {
+          "file": "packages/work/test/integration/insights-jobs.test.ts",
+          "contains": "owes one delivery after a long outage and moves on"
+        },
+        {
+          "file": "packages/work/test/integration/insights-jobs.test.ts",
+          "contains": "sends nothing for a trashed report, and carries on after it is restored"
+        }
+      ]
+    },
+    {
+      "id": "RPT-022",
+      "role": "owned",
+      "disposition": "implemented",
+      "evidence": [
+        {
+          "file": "packages/work/src/insights/report-service.ts",
+          "contains": "async exportReport("
+        },
+        {
+          "file": "packages/work/test/integration/insights.test.ts",
+          "contains": "exports CSV and PDF with only what the requester may read, and audits them"
+        },
+        {
+          "file": "apps/api/test/integration/insights-api.test.ts",
+          "contains": "exports CSV and PDF as the requester, with safe headers"
+        },
+        {
+          "file": "packages/work/test/unit/insights-semantics.test.ts",
+          "contains": "writes a valid, paginated PDF that contains only the lines it was given"
+        }
+      ]
+    },
+    {
+      "id": "RPT-023",
+      "role": "contributing",
+      "disposition": "contributed",
+      "contribution": "5D",
+      "evidence": [
+        {
+          "file": "packages/work/src/insights/report-core.ts",
+          "contains": "count_capped: 'The count stopped at its limit; the true number is higher.'"
+        },
+        {
+          "file": "apps/web/test/insights.test.tsx",
+          "contains": "labels estimated and incomplete figures in words, never by colour alone"
+        }
+      ]
+    },
+    {
+      "id": "RPT-024",
+      "role": "contributing",
+      "disposition": "contributed",
+      "contribution": "5D",
+      "evidence": [
+        {
+          "file": "packages/work/src/insights/semantics.ts",
+          "contains": "export function freshness("
+        },
+        {
+          "file": "apps/web/test/insights.test.tsx",
+          "contains": "warns when a derived source is out of date and says which filters do not apply"
+        },
+        {
+          "file": "packages/work/test/unit/insights-semantics.test.ts",
+          "contains": "labels derived data stale only past the threshold"
+        }
+      ]
+    },
+    {
+      "id": "RPT-025",
+      "role": "contributing",
+      "disposition": "contributed",
+      "contribution": "5D",
+      "evidence": [
+        {
+          "file": "docs/engineering/adr/0031-dashboards-reports.md",
+          "contains": "none attributes business outcomes to project activity (RPT-025)"
+        },
+        {
+          "file": "packages/work/src/insights/metrics.ts",
+          "contains": "export const PROVIDERS"
+        }
+      ]
+    },
+    {
+      "id": "REL-012",
+      "role": "owned",
+      "disposition": "implemented",
+      "evidence": [
+        {
+          "file": "apps/web/src/insights/widget.tsx",
+          "contains": "Load only once the widget is near the screen"
+        },
+        {
+          "file": "apps/web/test/insights.test.tsx",
+          "contains": "loads widgets below the fold only when they come near the screen"
+        },
+        {
+          "file": "apps/web/test/insights.test.tsx",
+          "contains": "fails on its own with a retry, and offline reads as offline"
+        }
+      ]
+    }
+  ],
+  "decisions": [
+    {
+      "id": "D1",
+      "title": "Dashboards and reports are core records placed at workspace, brand, or project level; no new action",
+      "adr_row": "D1",
+      "sources": [
+        {
+          "file": "docs/architecture/data/12-decisions.md",
+          "contains": "## ADR-39: Dashboards, saved reports, shares, schedules, and delivery runs"
+        },
+        {
+          "file": "docs/architecture/access/15-decisions.md",
+          "contains": "### AZ-39: Dashboards, reports, shares, and scheduled delivery"
+        }
+      ],
+      "evidence": [
+        {
+          "file": "packages/work/test/integration/insights.test.ts",
+          "contains": "creates owner, brand, project, release, and personal dashboards with bounded widgets"
+        },
+        {
+          "file": "packages/work/test/integration/insights.test.ts",
+          "contains": "requires placement authority, and keeps personal dashboards personal"
+        }
+      ]
+    },
+    {
+      "id": "D2",
+      "title": "A release dashboard is a brand dashboard until 9D defines releases",
+      "adr_row": "D2",
+      "sources": [
+        {
+          "file": "docs/engineering/adr/0031-dashboards-reports.md",
+          "contains": "| D2 | Release dashboards |"
+        }
+      ],
+      "evidence": [
+        {
+          "file": "packages/work/src/insights/semantics.ts",
+          "contains": "'release'"
+        },
+        {
+          "file": "packages/work/test/integration/insights.test.ts",
+          "contains": "creates owner, brand, project, release, and personal dashboards with bounded widgets"
+        }
+      ]
+    },
+    {
+      "id": "D3",
+      "title": "Nothing derived is stored; every figure is computed for the viewer",
+      "adr_row": "D3",
+      "sources": [
+        {
+          "file": "docs/architecture/data/12-decisions.md",
+          "contains": "**Nothing derived is stored.**"
+        }
+      ],
+      "evidence": [
+        {
+          "file": "packages/work/test/integration/insights.test.ts",
+          "contains": "differs by what each person may read, and hidden work changes no number or label"
+        },
+        {
+          "file": "packages/work/test/integration/insights.test.ts",
+          "contains": "a revoked grant applies to the next read"
+        }
+      ]
+    },
+    {
+      "id": "D4",
+      "title": "One metric port over the owners' services; later definitions register through it",
+      "adr_row": "D4",
+      "sources": [
+        {
+          "file": "docs/engineering/adr/0031-dashboards-reports.md",
+          "contains": "| D4 | The metric port |"
+        }
+      ],
+      "evidence": [
+        {
+          "file": "packages/work/src/insights/metrics.ts",
+          "contains": "export interface MetricProvider"
+        },
+        {
+          "file": "packages/work/src/insights/metrics.ts",
+          "contains": "export const DEFERRED_METRICS"
+        },
+        {
+          "file": "apps/api/test/integration/insights-api.test.ts",
+          "contains": "serves the metric catalog, with what is not yet available and why"
+        }
+      ]
+    },
+    {
+      "id": "D5",
+      "title": "Bounded widget layouts, parameters validated by their metric, reordered by buttons",
+      "adr_row": "D5",
+      "sources": [
+        {
+          "file": "docs/engineering/adr/0031-dashboards-reports.md",
+          "contains": "| D5 | Widgets and layouts |"
+        }
+      ],
+      "evidence": [
+        {
+          "file": "packages/work/src/insights/validation.ts",
+          "contains": "export function parseLayout("
+        },
+        {
+          "file": "packages/work/test/unit/insights-semantics.test.ts",
+          "contains": "refuses unknown fields, too many widgets, and duplicate ids with pointer-precise issues"
+        },
+        {
+          "file": "packages/work/test/integration/insights-jobs.test.ts",
+          "contains": "still produces an export when one widget cannot be loaded, and says so"
+        }
+      ]
+    },
+    {
+      "id": "D6",
+      "title": "Filters only narrow; each figure says which did not apply; ranges are real, bounded days",
+      "adr_row": "D6",
+      "sources": [
+        {
+          "file": "docs/engineering/adr/0031-dashboards-reports.md",
+          "contains": "| D6 | Filters |"
+        }
+      ],
+      "evidence": [
+        {
+          "file": "packages/work/test/unit/insights-semantics.test.ts",
+          "contains": "accepts only real, ordered, bounded custom ranges"
+        },
+        {
+          "file": "packages/work/test/unit/insights-semantics.test.ts",
+          "contains": "parses filters strictly"
+        },
+        {
+          "file": "packages/work/test/integration/insights.test.ts",
+          "contains": "carries covers, freshness, source, and applied filters on every figure"
+        }
+      ]
+    },
+    {
+      "id": "D7",
+      "title": "Drill-through through the same authorized path with person-bound cursors",
+      "adr_row": "D7",
+      "sources": [
+        {
+          "file": "docs/engineering/adr/0031-dashboards-reports.md",
+          "contains": "| D7 | Drill-through |"
+        }
+      ],
+      "evidence": [
+        {
+          "file": "apps/api/test/integration/insights-api.test.ts",
+          "contains": "drills into only the records the caller may read, page by page"
+        },
+        {
+          "file": "packages/work/test/integration/insights.test.ts",
+          "contains": "drills into only the records the viewer may read"
+        }
+      ]
+    },
+    {
+      "id": "D8",
+      "title": "Shares grant the saved definition, never data; guests get guest-safe metrics over their own records",
+      "adr_row": "D8",
+      "sources": [
+        {
+          "file": "docs/architecture/access/15-decisions.md",
+          "contains": "**A share grants no data.**"
+        }
+      ],
+      "evidence": [
+        {
+          "file": "packages/work/test/integration/insights.test.ts",
+          "contains": "limits a guest to the records granted to them, and to guest-safe widgets"
+        },
+        {
+          "file": "packages/work/test/integration/insights.test.ts",
+          "contains": "is invisible to someone without access until it is shared, and a share grants no data"
+        },
+        {
+          "file": "packages/db/migrations/0044_dashboards_reports.up.sql",
+          "contains": "report_share_report_fkey"
+        }
+      ]
+    },
+    {
+      "id": "D9",
+      "title": "Personal dashboards belong to one person through personal.manage_own",
+      "adr_row": "D9",
+      "sources": [
+        {
+          "file": "docs/architecture/access/15-decisions.md",
+          "contains": "**Personal dashboards belong to one person.**"
+        }
+      ],
+      "evidence": [
+        {
+          "file": "packages/work/test/integration/insights.test.ts",
+          "contains": "requires placement authority, and keeps personal dashboards personal"
+        },
+        {
+          "file": "apps/api/test/integration/insights-api.test.ts",
+          "contains": "answers unknown and hidden identically, and keeps personal dashboards personal"
+        },
+        {
+          "file": "packages/tenancy/src/record-decisions.ts",
+          "contains": "export function issuePersonalRecordLifecycleDecision"
+        }
+      ]
+    },
+    {
+      "id": "D10",
+      "title": "Every figure says what it covers, its source, freshness, and what is estimated or incomplete",
+      "adr_row": "D10",
+      "sources": [
+        {
+          "file": "docs/engineering/adr/0031-dashboards-reports.md",
+          "contains": "| D10 | Labels and attribution |"
+        }
+      ],
+      "evidence": [
+        {
+          "file": "apps/web/test/insights.test.tsx",
+          "contains": "labels estimated and incomplete figures in words, never by colour alone"
+        },
+        {
+          "file": "apps/web/test/insights.test.tsx",
+          "contains": "shows the figure with what it covers, where it came from, and how fresh it is"
+        }
+      ]
+    },
+    {
+      "id": "D11",
+      "title": "Bounded, audited, rate-limited, formula-safe CSV and dependency-free PDF",
+      "adr_row": "D11",
+      "sources": [
+        {
+          "file": "docs/engineering/adr/0031-dashboards-reports.md",
+          "contains": "| D11 | Exports |"
+        }
+      ],
+      "evidence": [
+        {
+          "file": "packages/work/test/integration/insights.test.ts",
+          "contains": "exports CSV and PDF with only what the requester may read, and audits them"
+        },
+        {
+          "file": "packages/work/test/unit/insights-semantics.test.ts",
+          "contains": "escapes parentheses and maps what a base font cannot show"
+        },
+        {
+          "file": "packages/work/src/insights/report-service.ts",
+          "contains": "'report.export'"
+        }
+      ]
+    },
+    {
+      "id": "D12",
+      "title": "Per-recipient delivery at send time, idempotent by occurrence, honest about the provider",
+      "adr_row": "D12",
+      "sources": [
+        {
+          "file": "docs/architecture/platform/19-decisions.md",
+          "contains": "### PL-41: Dashboard and report contracts"
+        }
+      ],
+      "evidence": [
+        {
+          "file": "packages/work/test/integration/insights.test.ts",
+          "contains": "delivers once per recipient, as that recipient, and a repeat sends nothing more"
+        },
+        {
+          "file": "packages/work/test/integration/insights.test.ts",
+          "contains": "records an unconfigured or rejecting provider honestly and retries a transient failure"
+        },
+        {
+          "file": "packages/work/test/unit/insights-semantics.test.ts",
+          "contains": "the next occurrence is strictly later, at the scheduled local time, and nothing is skipped (property)"
+        },
+        {
+          "file": "packages/db/migrations/0044_dashboards_reports.up.sql",
+          "contains": "report_run_occurrence"
+        },
+        {
+          "file": "packages/work/test/integration/insights-jobs.test.ts",
+          "contains": "sends once when two sweeps overlap"
+        },
+        {
+          "file": "packages/work/test/integration/insights-jobs.test.ts",
+          "contains": "finishes a delivery a crashed worker left half done without sending it twice"
+        },
+        {
+          "file": "packages/work/test/integration/insights-jobs.test.ts",
+          "contains": "owes one delivery after a long outage and moves on"
+        },
+        {
+          "file": "packages/work/test/integration/insights-jobs.test.ts",
+          "contains": "never reads or sends another workspace’s reports"
+        }
+      ]
+    },
+    {
+      "id": "D13",
+      "title": "The accountable owner's authority is rechecked at each send; departure suspends; resume takes over",
+      "adr_row": "D13",
+      "sources": [
+        {
+          "file": "docs/engineering/adr/0031-dashboards-reports.md",
+          "contains": "| D13 | Accountability and departure |"
+        }
+      ],
+      "evidence": [
+        {
+          "file": "packages/work/test/integration/insights.test.ts",
+          "contains": "suspends the schedule when its accountable owner loses authority or leaves"
+        },
+        {
+          "file": "packages/work/src/insights/ownership.ts",
+          "contains": "export const insightsOwnerHook"
+        },
+        {
+          "file": "packages/work/test/integration/insights-jobs.test.ts",
+          "contains": "hands a departed member’s reports on, pauses their schedule, and drops their recipient row"
+        }
+      ]
+    },
+    {
+      "id": "D14",
+      "title": "Lifecycle carries the records, runs age out, and purge removes recipients, shares, and runs",
+      "adr_row": "D14",
+      "sources": [
+        {
+          "file": "docs/engineering/adr/0031-dashboards-reports.md",
+          "contains": "| D14 | Lifecycle and retention |"
+        }
+      ],
+      "evidence": [
+        {
+          "file": "packages/work/test/integration/insights.test.ts",
+          "contains": "trash hides, restore returns, and purge removes recipients, shares, and runs"
+        },
+        {
+          "file": "packages/work/src/insights/lifecycle.ts",
+          "contains": "export const reportAdapter"
+        },
+        {
+          "file": "packages/work/test/integration/insights-jobs.test.ts",
+          "contains": "removes a report’s runs, shares, and recipients with it, and a project carries its own"
+        },
+        {
+          "file": "packages/work/test/integration/insights-jobs.test.ts",
+          "contains": "ages out finished runs past retention and keeps what is pending"
+        },
+        {
+          "file": "packages/work/test/integration/insights-jobs.test.ts",
+          "contains": "sends nothing for a trashed report, and carries on after it is restored"
+        }
+      ]
+    },
+    {
+      "id": "D15",
+      "title": "Reports destination, Home overview, project Reports section, and progressive loading",
+      "adr_row": "D15",
+      "sources": [
+        {
+          "file": "docs/engineering/adr/0031-dashboards-reports.md",
+          "contains": "| D15 | Where it appears |"
+        }
+      ],
+      "evidence": [
+        {
+          "file": "apps/web/test/insights.test.tsx",
+          "contains": "registers the Reports destination, the dashboard, and the report routes"
+        },
+        {
+          "file": "apps/web/test/insights.test.tsx",
+          "contains": "lists dashboards and reports and creates one with suggested widgets"
+        },
+        {
+          "file": "e2e/insights.spec.ts",
+          "contains": "a founder builds a dashboard, reads figures with their labels, and works it by keyboard"
+        }
+      ]
+    },
+    {
+      "id": "D16",
+      "title": "Bounds, events, signals, and one job are registered; no connectors, AI, or charting library",
+      "adr_row": "D16",
+      "sources": [
+        {
+          "file": "docs/architecture/platform/19-decisions.md",
+          "contains": "`insights.deliver`"
+        }
+      ],
+      "evidence": [
+        {
+          "file": "packages/work/src/insights/jobs.ts",
+          "contains": "export function reportDeliveryHandler("
+        },
+        {
+          "file": "apps/worker/src/registry.ts",
+          "contains": "reportDeliveryHandler"
+        }
+      ]
+    }
+  ],
+  "limitations": [
+    {
+      "item": "Metrics defined by 5C",
+      "owner": "5C",
+      "note": "Blocked and stale work, cycle time, time in status, aging, and created versus completed are listed as not yet available and cannot be placed; they join the same metric port when 5C defines them. The integrator reconciles the service chain, migration, and identifier ranges with 5C."
+    },
+    {
+      "item": "AI usage and cost, automation and agent rates, test and release metrics",
+      "owner": "7A, 8A, 8C, 9B, 9C, 9D",
+      "note": "RPT-012, RPT-013, and RPT-015 are foundations: listed as not yet available with their owner phase."
+    },
+    {
+      "item": "Release dashboards",
+      "owner": "9D",
+      "note": "A release dashboard is a brand dashboard until releases exist."
+    },
+    {
+      "item": "PDF text",
+      "owner": "5D",
+      "note": "The dependency-free PDF writer uses a base font: characters outside Latin letters become a question mark in the PDF (CSV keeps them)."
+    },
+    {
+      "item": "Email content",
+      "owner": "5D",
+      "note": "A scheduled email carries the recipient's figures (bounded rows) and a link; attachments and in-email charts are not sent. Recipients are not notified when a report is shared with them (4B share notices are a later refinement)."
+    },
+    {
+      "item": "Personal dashboards of a departed member",
+      "owner": "5D",
+      "note": "They stay unreadable to everyone and are removed with the workspace; they hold layout only."
+    },
+    {
+      "item": "Fiscal calendars and per-brand report zones",
+      "owner": "later",
+      "note": "Ranges use the workspace calendar day and week start (DQ-41)."
+    },
+    {
+      "item": "External connectors and AI-written reports",
+      "owner": "6 and 7",
+      "note": "Not implemented, by the brief."
+    },
+    {
+      "item": "Guests and dashboards",
+      "owner": "5D",
+      "note": "A guest or share-only reader opens only a report shared with them and sees guest-safe record counts over the records they hold; they have no dashboards, Home overview, or export."
+    }
+  ]
+}

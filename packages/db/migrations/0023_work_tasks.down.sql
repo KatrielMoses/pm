@@ -1,0 +1,24 @@
+-- Reverts 0023 (local/test only). Restores the exact 0022 catalog.
+DROP TABLE work.task_label;
+DROP TABLE work.label;
+DROP TABLE work.task_inherited_criterion;
+DROP FUNCTION work.assert_inherited_criterion();
+DELETE FROM work.criteria_item WHERE owner_kind = 'task';
+DROP INDEX work.criteria_item_by_brand_task;
+DROP INDEX work.criteria_item_by_task;
+ALTER TABLE work.criteria_item DROP CONSTRAINT criteria_item_task_fkey;
+ALTER TABLE work.criteria_item DROP CONSTRAINT criteria_item_kind_known;
+ALTER TABLE work.criteria_item DROP CONSTRAINT criteria_item_owner_kind;
+ALTER TABLE work.criteria_item DROP COLUMN required;
+ALTER TABLE work.criteria_item DROP COLUMN task_id;
+ALTER TABLE work.criteria_item ALTER COLUMN project_id SET NOT NULL;
+ALTER TABLE work.criteria_item ADD CONSTRAINT criteria_item_owner_kind CHECK (owner_kind = 'project');
+ALTER TABLE work.criteria_item ADD CONSTRAINT criteria_item_kind_known CHECK (kind IN ('success', 'definition_of_done'));
+DROP TABLE work.checklist_item;
+DROP TABLE work.task_assignee;
+DROP FUNCTION work.assert_assignee_eligible();
+DROP TABLE work.task;
+DROP FUNCTION work.assert_task_ancestry();
+DROP FUNCTION work.task_status_category();
+DELETE FROM core.record WHERE record_type = 'task';
+DELETE FROM workflow.platform_status WHERE record_type = 'task';

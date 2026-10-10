@@ -1,6 +1,6 @@
 # Time and scheduling semantics
 
-Status: proposed (Phase 0A), awaiting architect review. Terms are defined in the [glossary](glossary.md).
+Status: accepted (Phase 0A, P0-W1; Phase 0 exit gate P0-IR1). Terms are defined in the [glossary](glossary.md).
 
 ## 1. The date and time fields
 
@@ -37,7 +37,8 @@ TSK-005 lists both "scheduled time" and "duration". They map to the task's **wor
 | Calendar event moved in Google (CAL-012) | Linked block start/end | Due date, deadline |
 | Commit item to Today | Creates a Today commitment | Any date on the item (PLAN-008) |
 | Remove from Today / carry over at shutdown | Commitment for that day | Any date on the item |
-| "Reschedule" (snooze or move) | Due date **or** block, as the dialog states explicitly | Deadline |
+| "Reschedule" | The due date **or** (separately, explicitly) the deadline, through the ordinary edit commands with audit (Phase 2D) | Everything else |
+| "Snooze" | Nothing on the item: a personal snooze hides it from that person's reminder and Today surfaces until an instant (Phase 2D) | Every date, status, and other person's view |
 | Accept an AI-proposed daily plan (PLAN-013) | Commitments and work blocks listed in the proposal | Due dates and deadlines, unless an individual proposed change says so and the user keeps it selected |
 | Bulk "schedule" (TSK-035) | The field named in the bulk dialog | Everything else |
 | Edit deadline | Deadline (with audit; notifies followers) | Blocks, due date |
@@ -67,7 +68,8 @@ When a block is moved after the due date or deadline, the UI shows the warning a
 | **Generation** | Idempotent per (series, occurrence date). A retried generation job never creates two occurrences for the same date ([lifecycle §8](lifecycle-and-states.md#8-retries-reruns-and-idempotency)). |
 | **DST** | Rules are evaluated in their anchor timezone: "Fridays 16:00 Europe/Lisbon" stays at 16:00 local when the UTC offset changes. |
 | **Recurring calendar work** (CAL-005) | Recurring **work blocks** (e.g., "Mon/Wed 09:00–11:00 deep work on Optestra"), which is different from recurring **tasks**. A recurring block can be attached to one ongoing task or to none (a capacity reservation). |
-| **Recurring projects** (PRJ-013) | Recommended: a project series that instantiates a project from a template on a schedule ([OD-14](open-decisions.md#od-14)). |
+| **Recurring tasks** (TSK-027, Phase 2D) | A task series (the planning series, `target_kind = task`) that instantiates an independent task from an immutable snapshot: fields, own criteria, checklist text (reset), labels, and URL links. Never assignees, shares, history, comments, relationships, approvals, private context, or field values the series owner could not read. Authority to create in the brand or project is re-checked per occurrence; a series pauses when its owner loses it. The project RRULE subset, anchor zone, catch-up bound, and idempotent keys apply unchanged. |
+| **Recurring projects** (PRJ-013) | A project series that instantiates an independent project from an immutable snapshot on a schedule ([OD-14](open-decisions.md#od-14), decided). |
 
 ## 5. Availability and capacity
 
@@ -86,6 +88,8 @@ When a block is moved after the due date or deadline, the UI shows the warning a
 | **Overcommitment** | Committed or scheduled estimates exceed available time for the period (PLAN-007, TIME-015) | Computed warning |
 | **Cross-brand conflict** | Overlapping blocks or events across brands, or a brand reservation that cannot be met because of another brand's commitments (WSB-018, CAL-009) | Computed warning |
 
+- **As implemented (Phase 3E, ADR-0022).** Working hours are local windows per weekday in the person's zone, converted for each date, so a 09:00–17:00 window stays 8 hours on a DST day. A weekly capacity override scales each day's working minutes. Time off and observed brand holidays are then subtracted. A brand holiday counts for a person who observes brand holidays and holds a reservation in that brand ([OD-19](open-decisions.md#od-19)). Use is the larger of scheduled blocks (with preparation and buffer) and open estimates due in the period. Over-allocation means use exceeds availability, and under-allocation means use is below half of it. Reservations are pro-rated by days. Conflicts are overlapping blocks in different brands and reservations that cannot be met. Others see time off only as unavailable minutes, and never see work or brands they cannot read. All capacity warnings inform and never block.
+
 Capacity and availability shown to a viewer are computed only from commitments the viewer may read. Time occupied by commitments the viewer cannot read is not shown. Anonymous free/busy disclosure to colleagues requires a separate explicit policy and is off by default ([hierarchy §4](hierarchy-and-scope.md#4-the-all-brands-view)). A person may always see their own authorized connected-calendar availability.
 
 ## 6. Today
@@ -95,6 +99,7 @@ Capacity and availability shown to a viewer are computed only from commitments t
 - **"Scheduled for today"** means committed for today or having a work block today. An item merely *due* today appears under "Due today" until it is committed or scheduled ([OD-18](open-decisions.md#od-18)).
 - **Shutdown** (PLAN-018): unfinished commitments are offered **carry to tomorrow**, **pick a day**, **return to backlog**, or **leave**. None of these choices changes the due date or deadline unless the user explicitly selects it.
 - **Daily record** (PLAN-019): a snapshot at end of day of what was committed, completed, carried over, and dropped, plus planned versus actual time. Snapshots are not rewritten by later edits.
+- **As implemented (Phase 3C, ADR-0021).** The day runs from local midnight to local midnight in the person's zone, so DST days are 23 or 25 hours. Commitments are ordered by hand and can be locked; locked items are never moved, carried, or removed until unlocked. Blocks are whole minutes with optional preparation and buffer; nothing may overlap a focus block. A block moved after the due date or deadline is flagged, and changing the due date is a separate, explicit edit. Recurring blocks keep their local time across DST. A day without a shutdown is closed automatically after it ends, recording open items as done or not finished.
 
 ## 7. Time tracking
 
@@ -102,6 +107,7 @@ Capacity and availability shown to a viewer are computed only from commitments t
 - A **timer** is a running time entry. Only one timer per person runs at a time. Stopping it finalizes the entry.
 - A **timesheet** is a person's entries for a period. Submission locks editing for that person. Approval is per brand line by authorized approvers. An **approved, locked period** (TIME-013) blocks edits. Corrections require an unlock action by an authorized role ([OD-26](open-decisions.md#od-26)), and that action is audited.
 - Planned versus actual: *planned* = estimates (or scheduled block durations, labeled as such); *actual* = time entries. Reports must say which planned measure they use.
+- **As implemented (Phase 3D, ADR-0019).** An entry is either timed (start and end instants, stored in UTC with the zone they were entered in) or a duration on a date. It counts towards the local date it started in its own zone, so a late-evening entry in Lisbon belongs to Lisbon's day. Durations are differences of UTC instants: a day that gains or loses an hour counts the hours that actually passed. A person's timed entries never overlap, and a duration-only entry may not take a day past 24 hours. Totals are sums of exact seconds, rounded once, half-up, to hundredths of an hour for display and export. A timesheet period is seven days from the workspace's week start. A running timer stops automatically at `TIME_TIMER_MAX_HOURS` and is marked for review. Remaining effort for a task is its remaining estimate, or else its estimate less its logged time; for a project it is the sum over its open tasks the viewer can read, with unestimated tasks counted separately.
 
 ## 8. Worked examples (multiple brands, multiple timezones)
 

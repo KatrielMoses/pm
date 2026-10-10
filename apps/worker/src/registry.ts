@@ -1,13 +1,154 @@
-import type { JobHandler, OutboxConsumer } from '@pm/platform';
+import type { JobHandler, OutboxConsumer, RecurringJob } from '@pm/platform';
+import type { Metrics } from '@pm/observability';
+import { ActivityProjector, AUDIT_SCHEDULES, auditJobHandlers, type AuditJobDeps } from '@pm/audit';
+import { IDENTITY_SCHEDULES, identityJobHandlers, type IdentityJobDeps } from '@pm/identity';
+import {
+  LIFECYCLE_SCHEDULES,
+  purgeJobHandler,
+  purgeSchedulerHandler,
+  tombstoneSweepHandler,
+  type PurgeExecutor,
+  type SchedulerDeps,
+} from '@pm/lifecycle';
+import { VIEWS_SCHEDULES, viewsCleanupHandler, type ViewsCleanupDeps } from '@pm/tenancy';
+import {
+  recurrenceHandler,
+  NotificationFanOut,
+  NOTIFY_SCHEDULES,
+  notifyDispatchHandler,
+  type NotifyJobDeps,
+  DEFAULT_WORK_SETTINGS,
+  type WorkSettings,
+  remindersHandler,
+  PLANNING_SCHEDULES,
+  blockSeriesHandler,
+  dayCloseHandler,
+  TIME_SCHEDULES,
+  timerGuardHandler,
+  WORK_SCHEDULES,
+  type RecurrenceJobDeps,
+  FILE_SCHEDULES,
+  fileScanHandler,
+  fileSweepHandler,
+  type FileJobDeps,
+  SEARCH_SCHEDULES,
+  searchIndexHandler,
+  type SearchJobDeps,
+  GOAL_SCHEDULES,
+  goalRecalcHandler,
+  type GoalJobDeps,
+  METRICS_SCHEDULES,
+  metricsReconcileHandler,
+  type MetricsJobDeps,
+  REPORT_SCHEDULES,
+  reportDeliveryHandler,
+  type ReportJobDeps,
+  webhookDeliveryHandler,
+  WebhookProjector,
+  integrationSyncHandler,
+  INTEGRATION_SCHEDULES,
+  type IntegrationJobDeps,
+  type PublicApiService,
+} from '@pm/work';
 
 /**
- * Job handlers and outbox consumers registered by product modules. Phase 1A ships the execution
- * engine only; feature handlers (exports, digests, purge, ...) register here in their own phases.
+ * Job handlers, outbox consumers, and recurring jobs registered by product modules.
+ * 1B: identity mail delivery and retention sweeps (platform-scoped).
+ * 1F: audit chain verification, the 1B security-event buffer drain, activity projection, durable
+ * purge, the retention purge scheduler, and the (disabled until decided) tombstone sweep.
+ * 1E: views cleanup (expired per-device view state, departed members' personal navigation).
+ * 2A: recurring project generation (bounded catch-up, owner authority rechecked per series).
+ * 2D: recurring task generation (same job) and personal task reminders (deduplicated firing).
+ * 3D: the timer guard (runaway timers stop at TIME_TIMER_MAX_HOURS, once).
+ * 3C: day close (records for ended days) and recurring work blocks.
+ * 4B: the notification fan-out consumer and the dispatcher (deliveries, digests, deadlines, retention).
+ * 4E: the malware scan of uploads (fail closed) and the file sweep (expired uploads, object deletion).
+ * 5A: the search index worker (queued source keys, bounded and retryable) and recent-search retention.
+ * 5B: the goal recalculation sweep (staleness, period state, and manual key-result rollups).
+ * 5C: the metrics reconciliation step (the task status ledger checked against the tasks, bounded and resumable).
+ * 5D: scheduled report delivery (rendered per recipient at send time) and run retention.
  */
-export function registeredHandlers(): JobHandler[] {
-  return [];
+export interface WorkerModules {
+  identity: IdentityJobDeps;
+  audit: AuditJobDeps;
+  lifecycle: { executor: PurgeExecutor; scheduler: SchedulerDeps };
+  views: ViewsCleanupDeps;
+  work: RecurrenceJobDeps;
+  notify: NotifyJobDeps;
+  files: FileJobDeps;
+  search: SearchJobDeps;
+  goals: GoalJobDeps;
+  metrics: MetricsJobDeps;
+  reports: ReportJobDeps;
+  integrations: IntegrationJobDeps;
 }
 
-export function registeredConsumers(): OutboxConsumer[] {
-  return [];
+export function registeredHandlers(m: WorkerModules): JobHandler[] {
+  return [
+    ...identityJobHandlers(m.identity),
+    ...auditJobHandlers(m.audit),
+    purgeJobHandler(m.lifecycle.executor),
+    purgeSchedulerHandler(m.lifecycle.scheduler),
+    tombstoneSweepHandler(m.lifecycle.scheduler),
+    viewsCleanupHandler(m.views),
+    recurrenceHandler(m.work),
+    remindersHandler(m.work),
+    timerGuardHandler(m.work),
+    dayCloseHandler(m.work),
+    blockSeriesHandler(m.work),
+    notifyDispatchHandler(m.notify),
+    fileScanHandler(m.files),
+    fileSweepHandler(m.files),
+    searchIndexHandler(m.search),
+    goalRecalcHandler(m.goals),
+    metricsReconcileHandler(m.metrics),
+    reportDeliveryHandler(m.reports),
+    integrationSyncHandler(m.integrations),
+    webhookDeliveryHandler(m.integrations),
+  ];
+}
+
+export function registeredConsumers(
+  settings: WorkSettings = DEFAULT_WORK_SETTINGS,
+  deps: {
+    arrayMax: number;
+    metrics?: Metrics;
+    webhooks?: Pick<PublicApiService, 'projectWebhook'>;
+  } = {
+    arrayMax: 10_000,
+  },
+): OutboxConsumer[] {
+  return [
+    new ActivityProjector(),
+    ...(deps.webhooks ? [new WebhookProjector(deps.webhooks)] : []),
+    new NotificationFanOut(
+      {
+        notifyFanoutRecipientsMax: settings.notifyFanoutRecipientsMax,
+        notifyDedupeWindowMinutes: settings.notifyDedupeWindowMinutes,
+        notifyEmailPerHourMax: settings.notifyEmailPerHourMax,
+        notifyFactsMaxBytes: settings.notifyFactsMaxBytes,
+        principalContextArrayMax: deps.arrayMax,
+      },
+      deps.metrics,
+    ),
+  ];
+}
+
+export function registeredSchedules(): RecurringJob[] {
+  return [
+    ...IDENTITY_SCHEDULES,
+    ...AUDIT_SCHEDULES,
+    ...LIFECYCLE_SCHEDULES,
+    ...VIEWS_SCHEDULES,
+    ...WORK_SCHEDULES,
+    ...TIME_SCHEDULES,
+    ...PLANNING_SCHEDULES,
+    ...NOTIFY_SCHEDULES,
+    ...FILE_SCHEDULES,
+    ...SEARCH_SCHEDULES,
+    ...GOAL_SCHEDULES,
+    ...METRICS_SCHEDULES,
+    ...REPORT_SCHEDULES,
+    ...INTEGRATION_SCHEDULES,
+  ];
 }

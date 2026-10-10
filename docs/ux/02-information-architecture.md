@@ -82,7 +82,7 @@ Guests get a reduced shell:
 - **Notifications** and **Search**, both restricted to shared content.
 - **Settings** (personal only).
 
-Guests do not see the scope switcher, Home dashboards, Today, Calendar, Goals, Reports, Administration, workspace member directories, or any workspace or brand totals. A guest can see the people participating in shared records and nobody else ([IA-47](#ia-47)).
+Guests do not see the scope switcher, Home dashboards, Today, Calendar, Goals, the Reports destination, Administration, workspace member directories, or any workspace or brand totals. A guest can see the people participating in shared records and nobody else ([IA-47](#ia-47)).
 
 Limited members see the standard shell, reduced to what their grants allow. This follows the same rule: absent, not disabled.
 
@@ -276,6 +276,28 @@ Every project uses the same section set, in this order. Sections with no content
 
 Section navigation is a tab row on expanded and medium layouts, and a section menu on compact ([RS-41](04-responsive-shell.md#rs-41)). Each section is a URL.
 
+**Phase 2A implementation note.** These rules apply until each section's owning phase delivers it:
+- **Timeline:** works in 2A, as accessible lists of phases, milestones, and dependencies.
+- **Tasks, Calendar, Documents, Files, Activity, Time, Costs, and Reports:** each keeps its place and its URL (Reports is live from 5D), but where it is not yet built shows an honest "isn't available yet" state rather than an empty collection that would suggest there is nothing to show.
+- **Tests and Releases:** their routes exist, but their tabs stay absent until a software template or setting enables them ([UXD-14](09-decisions-and-risks.md#uxd-14)).
+- **Overview:** shows only project-native facts. Task-derived counts are labelled as arriving with tasks.
+
+**Phase 2B implementation note.** Tasks replace the Tasks section placeholder:
+- **Project Tasks section:** an accessible paged list and hierarchy (status, priority, assignees, dates, estimates, brand marker, authorized totals) with visible Move up, Move down, Indent, and Outdent controls. Drag and drop, inline and bulk editing, and undo arrive in 2D.
+- **Task page:** the canonical `/{ws}/tasks/{taskId}` page holds every task field and section. The list-preserving side panel (`item=`) arrives with list views (3A); until then a task opens its page and Back restores the list.
+- **Projectless tasks:** `/{ws}/tasks` lists tasks without a project in the current scope; it is an entry path, not a saved view (My Work is 3B, Inbox 2E).
+- **Creation:** inside a project, the brand is the project's and read-only; elsewhere in aggregate scope the brand is chosen explicitly.
+- **Honest absences:** comments and followers (4A), files and documents (4C/4E), external records (6A), agents (8B), reminders and recurrence (2D) show an "isn't available yet" state; scheduled time shows the empty work-block state (3C).
+
+**Phase 2C implementation note.** Workflows and custom fields are configured in settings and appear on existing project and task pages:
+- **Administration:** `/{ws}/settings/workflows`, `/{ws}/settings/fields`, and `/{ws}/settings/field-sets`. Each opens at workspace scope; a scope selector picks a brand or project, and project settings link there with that project preselected. Every reorder, connection, and option change has a button or menu alternative; there are no drag-only builders.
+- **Workflows:** record kind, statuses (name, category, color, order, archive), transitions as a list (from → to) with required fields, confirmation, and approval policy.
+- **Fields:** type-specific configuration, applicability (project, task), visibility (field policy), validation, options, a formula builder with dependencies and a safe preview, primary or advanced presentation, and stored view-visibility metadata (applied by views in 3A).
+- **Field sets:** ordered composition, scope, versions, and an explicit upgrade preview per record.
+- **Approvals:** `/{ws}/approvals` lists pending transition approvals the person may decide (before → after, requester, expiry, stale or expired state) with Approve and Reject. The requester applies an approved transition from the record.
+- **Records:** project and task pages resolve their workflow's statuses. A status change that needs fields or an approval opens a transition dialog. Custom fields appear in key fields, with advanced fields under "More fields": keyboard reachable, searchable by label, and expanded and focused when they hold an error.
+- **Honest absences:** review requested and changes requested states, comments, and notifications (4A), deliverable reviews (4E), saved-view application of field visibility (3A), and import and export jobs (6D).
+
 ## 6. Record page anatomy
 
 All record pages (task, project overview, document, goal, deliverable, test run, defect, release, agent run) share one anatomy. That way review, provenance and state appear in the same place everywhere.
@@ -461,3 +483,141 @@ These rules apply to every surface: lists, search, palette, notifications, dashb
 
 <a id="ia-48"></a>
 - **IA-48 — AI and agents inherit the viewer's lens.** AI answers, briefings and citations shown to a user contain only records that user may access ([J-08](03-journeys.md#j-08-ai-proposes-record-changes-for-selective-approval)). Agent output shown to a reviewer is subject to the same rules, so an agent with broader scope cannot show a reviewer what the reviewer may not see ([UXD-11](09-decisions-and-risks.md#uxd-11)).
+
+**Phase 2D implementation note.** Task interaction quality lives on existing task surfaces; there are no new top-level destinations:
+- **Lists:** inline edits of title, status, assignee, due date, and priority show a save state (saving, saved, conflict, offline, failed). A conflict offers Keep mine, Use latest, or Cancel. Selection checkboxes open a bulk bar with a preview before any change and a per-item report after. A status change lists the selected tasks' own statuses, custom ones included, marks those only some tasks offer, and the preview shows each task's proposed status and any refusal.
+- **Ordering:** every row has a Move menu (up, down, top, bottom, move to position) and keyboard shortcuts with a live-region announcement. Drag is an optional pointer convenience over the same commands, and compact layouts never require it.
+- **Undo:** reversible changes show an Undo toast for 30 seconds. It is keyboard reachable and announced, and it explains when a later change makes undo unavailable.
+- **Task page:** signal badges (stale, blocked, rescheduled, missing owner, date, criteria, or dependency) with a Missing information panel; possible duplicates while creating; Remind me and Snooze (personal); Reschedule with an explicit due-date or deadline choice; Repeat (recurrence) and Save as template; the task's origin (including the template and version it came from).
+- **Honest absences:** reminder delivery by email, push, or chat (4B), AI similarity (7C), rollups (5C), work blocks (3C), and the template catalog (10B).
+
+**Phase 2E implementation note.** Capture and the Inbox:
+- **Capture anywhere:** every signed-in screen has a Capture button and the `c` shortcut. It opens one dialog that saves a task or a note with no brand, project, or status needed. Typed tokens (dates, `due …`, `!high`, `30m`, `every week`, `#label`, `+project`, `brand:Name`, `@person`) are shown as detected values before saving, and ambiguous ones need a choice. Parsing is rule-based and is never described as AI.
+- **Paste:** pasting several lines previews one candidate per line. Each can be edited, removed, or split, and the save reports every candidate.
+- **Inbox:** `/{ws}/inbox` is the person's own daily Inbox (untriaged first). Each item shows its original text and source. Triage into a task, note, or project, or discard it, after a permission-checked preview. Merge duplicates through a preview that names the item kept.
+- **Notes:** `/{ws}/notes` lists the person's notes; a note converts into a task or project after confirmation and stays in place.
+- **Intake forms:** brand settings list forms (members-only while OD-28 is open); `/{ws}/forms/{form}` lets members submit.
+- **Honest absences:** voice (7F), email forwarding (6A), API and webhook capture (6B), file storage (4E), and anonymous forms (OD-28).
+
+
+**Phase 3A implementation note.** Saved views:
+- **One builder.** `/{ws}/views/new?entity=task|project` and every saved view share one builder:
+  - filters combined with "all" (and) or "any" (or), with nested groups;
+  - multi-sort with Up and Down reordering;
+  - grouping, with dates by day, week, or month;
+  - shown columns in order, plus comfortable or compact density.
+  Value pickers list only what the person can see. Unfinished conditions wait for a value instead of erroring.
+- **Results.** A table in a focusable scroll region, with group header rows and counts, "Show more" keyset pages, and a live result count. A view never shows anyone more than they can already see.
+- **Deep links and state.** The URL carries the view (`q`), so links, reload, and Back reproduce it. Changes replace the history entry. The last state and scroll anchor are kept per person, device, and view.
+- **Saving and sharing.**
+  - Views save as personal.
+  - Sharing names exactly one scope: the workspace, a brand, or a project.
+  - A shared view the person changed shows **Modified** with Save (when they may), Save as new view, and Reset.
+  - Shared views can be pinned to workspace or brand navigation (a "Pinned views" sidebar section) and made the default for a brand or project. Each person can choose their own default.
+- **Export and links.** Export CSV or JSON of exactly what the person sees, up to the export bound. Copy link.
+- **Honest absences:** board, calendar, timeline, and the other 3B renderings; stored export files and scheduled exports (4E, 6D); public or link-shared views (disabled by decision).
+**Phase 3D implementation note.** Time tracking and timesheets:
+- **Time:** `/{ws}/time` (Workspace section of the navigation, members) shows the live timer, the person's week (per-day totals, billable and non-billable), the timesheet with each brand's state, entries with Edit, and Log time. Previous week, This week, and Next week move the period.
+- **Timer:** started from a task or project; it survives a refresh and runs on the server's clock. Pause, Resume, and Stop and save are buttons; elapsed time is not announced every second, state changes are. Pause and stop pressed offline are kept on the device and sent when the connection returns. A timer whose work became unavailable shows no title and can still be stopped.
+- **Task and project:** a Time panel (the task page; the project's Time section) shows estimate or time budget and task estimates, logged time (billable and yours), and remaining effort, with Start timer and Log time where the person may log time. Durations are typed as `1:30`, `90`, `1.5h`, or `45m`, shown as h:mm, and spoken in words.
+- **Approvals:** `/{ws}/time/approvals` lists waiting (or decided) weeks for brands the person manages: Approve per brand, Return with a note, and, for workspace admins, Unlock with a reason after confirming it is them. Self-approval appears only where policy allows it and is labelled.
+- **Reports:** `/{ws}/time/report` compares planned and actual time by brand, project, task, person, day, week, or month, says which planned measure it uses, and exports CSV or JSON of the entries the person can see.
+- **Honest absences:** work blocks (3C), capacity and allocation (3E), rollups (5C), stored and scheduled exports and accounting adapters (6D).
+
+
+**Phase 3B implementation note.** Core views:
+- **Layouts.** Every saved view, My Work, and the Calendar destination choose a layout over the one query engine:
+  - for tasks: list, board, table, calendar, timeline, Gantt, workload, activity, and timesheet;
+  - for projects: list, board, table, calendar, timeline, Gantt, milestones, portfolio, and activity.
+  The layout and its options are part of the view and its link.
+- **Board.** "Move to…" lists the moves the workflow allows. Moves that need fields or approval change nothing and say why on the card. Compact shows one column with a switcher.
+- **Calendar.** Day, week, month, and agenda, with layers for dates, deadlines, and milestones.
+- **Timeline and Gantt.** "Change dates…" shifts start and due dates and never the deadline. Gantt shows what blocks what and can move blocked tasks too when chosen.
+- **Workload.** Hours of open work by person and period, without capacity.
+- **Portfolio and Milestones.** Portfolio shows health, progress, and target date; Milestones lists each project's milestones.
+- **Activity and Timesheet.** Activity is filterable by person, actor type, and action. Timesheet shows your own time on the view's tasks.
+- **Detail panel.** Opening a record keeps the view: a panel on wider screens, the full page on Compact.
+- **Honest absences:**
+  - scheduling and resizing work blocks on the calendar (3C);
+  - external calendar events (6C);
+  - capacity and over-allocation (3E);
+  - baseline versus actual (5C);
+  - Following (4A).
+
+**Phase 3C implementation note.** Today and manual planning:
+- **Today:** the `today` destination shows the day in the person's zone: Plan (committed estimate, scheduled and focus minutes; available time and meetings named as later capabilities), Committed (manual order with Move up, Move down, Lock, Next day, Remove), Scheduled (blocks with time, focus, repeats, preparation and buffer, and warnings when a block ends after the due date or deadline), then Overdue, Due today, and Upcoming deadlines, each with Add to day. Previous day, Today, and Next day change the day.
+- **Plan and shutdown:** Shut down the day asks, for each unfinished item, carry to tomorrow, pick a day, return to backlog, or leave it; locked items stay. A closed day shows its record.
+- **Blocks:** Schedule a block (for a committed task or a named block; start, minutes, preparation, buffer, focus). Overlapping a focus block is refused. Recurring blocks are added by day of week and time and can be ended.
+- **Task page:** a Plan panel with Add to today and Schedule focus time from the estimate. Nothing here changes a due date or deadline.
+- **Honest absences:** working hours and capacity (3E), calendar events (6C), drag on the calendar (3B), AI plans (7F).
+
+**Phase 3E implementation note.** Capacity and cross-brand conflicts:
+- **Capacity:** the `capacity` destination shows the week by day (available, unavailable, planned, and over or under), capacity by brand (reserved, scheduled, and estimated), and conflicts (overlapping blocks in different brands and unmet reservations). Previous week and Next week change the range.
+- **Settings:**
+  - My working hours: windows per weekday, an optional weekly capacity, and whether brand holidays apply.
+  - My time off: kind, first and last day, and an optional note.
+  - These are personal. Others see time off only as unavailable time.
+- **Team and brands:**
+  - Team allocation shows each person's over and under allocation to people with capacity access.
+  - Brand reservations and holidays are shown to people who may set them.
+  - Brands the viewer cannot read are never named.
+- **Today and workload:** Today's plan shows available time and a warning when the plan exceeds it. The warning never blocks. Without working hours, Today asks the person to set them. The workload layout shows availability per person and period.
+- **Honest absences:** suggested reschedules (7F), calendar events and holiday feeds (6C), capacity notifications (4B), and rollups (5C).
+
+**Phase 4A implementation note.** Comments, following, and reviews:
+- **Task and project pages:** a Comments region (composer, threads with replies, reactions, edit, delete, and history), a Follow button with a followers list for people who read the record through ownership, and a Reviews region (request, decide, withdraw, ask again). Tasks also have Hand over and Assignment history. Comments and reviews sit with the page's existing content and keep its section order.
+- **Mentions:** typing `@` opens a list of people who can read the record, teams, and readable records. Keyboard and screen-reader operable. Someone who can't be mentioned is never explained: the refusal is the same for every case.
+- **My Work:** Following lists the records you follow and can read now, newest first. Reviews shows reviews to do and reviews you asked for, with a toggle for settled ones. A follow you can no longer read is not listed.
+- **Honest states:** a deleted comment shows "This comment was deleted" (or removed by a moderator) and keeps its replies. A review made stale by a later change says so and offers Ask again. Read-only and share-only readers see only what they may do, with a plain reason.
+- **Honest absences:** comments and suggestions in documents (4C), live co-editing and presence (4D), file attachments on comments (4E), and agent reviewers (8D).
+
+**Phase 4B implementation note.** Notifications:
+- **Bell and centre:** the shell bell shows the unread count in its name and opens the five newest with *Mark all read*. The centre is a full page at `/workspaces/{ws}/notifications` (tabs All · Mentions · Reviews · Saved; filters for type, brand, project, and unread; search; grouping; bulk actions). Opening an item marks it read. Dismissed items stay findable under *Show dismissed*.
+- **Settings:** `/workspaces/{ws}/settings/notifications` holds time zone, quiet hours, the digest (off, daily, or weekly), the email and browser switches, per-event choices (immediate, digest, or muted) and mutes by brand, project, or task with an optional end, and recent deliveries. Security notices are marked always on.
+- **Honest states:** when email is not configured the page says nothing is sent by email. The browser opt-in asks permission only after a click, explains a refusal, and says when the browser cannot show notifications. A row whose record you can no longer read says "You no longer have access to this item" and offers only its time and state. Quiet hours say what they hold and what they never hold.
+- **Administrators:** a delivery-health section lists failed and dead-lettered deliveries (who, channel, reason, attempts, never content) with Retry, and brand and project defaults.
+- **Honest absences:** integration, automation, agent, spend, and briefing events arrive with the phases that produce them (6A, 8A, 8B, 7A, 7E); file and co-editing notices arrive with 4D and 4E.
+
+**Phase 4C implementation note.** Documents and knowledge:
+- **Knowledge:** a tree grouped as Workspace and then one group per brand in scope, with filters (type, state including *Review overdue*, owner) and title search. Project and task documents appear under their project and task, and in Knowledge through the filters, not as duplicate tree nodes. The tree is a full page on compact layouts.
+- **Document page:** title, type, state (Draft, Current, Stale, in words), owner and review date, *Approved AI source* as a separate badge, the block editor, subpages, version history, suggestions, comments, reviews, and linked records. A document past its review date says it is overdue and shows as stale; nothing claims to be current.
+- **Editing:** a block editor (paragraphs, headings, lists, checklists, quotes, callouts, code, tables, dividers, and image, video, and link embeds) with a small written inline syntax. Saving names the version loaded; when someone saved a newer one, your text is kept and you choose what to keep. Unsaved text survives going offline and is restored with a clear message.
+- **References:** a link or mention you cannot read is a neutral *Restricted item* token with no title, type, or icon (IA-46). Backlinks appear on task and project pages and list only documents you can read.
+- **Honest absences:** live co-editing and presence (4D), file upload and previews (4E), comments anchored to a passage (4D), PDF files (6D; the HTML export prints to PDF from a browser), search inside documents (5A), and custom templates (10B).
+
+**Phase 4E implementation note.** Files and deliverables:
+- **Task page:** a Files section lists the task's files and links with their state, size, and version, with Upload, Add link, Download, Preview, Versions (with a comparison), Rename, and Move to trash, offered only when the server says the person may. A Deliverables section lists the task's deliverables with their state and versions, adds one with an expected type (any, file, or link), and submits a ready file of this task or a link for review to named reviewers; accepted versions show who accepted and when.
+- **Project page:** a deliverables summary counts accepted versus pending (with changes requested, rejected, and draft) across the project's tasks (PRJ-023). My Work › Reviews lists deliverables waiting for the person's decision, decided through the shared review pattern.
+- **Workspace settings:** storage usage (used and reserved against the limit) for people who configure the workspace.
+- **Honest states:** a file still being scanned says so and cannot be downloaded; a blocked file says it did not pass its scan and never names the signature. When storage or scanning is not set up the page says uploads are unavailable and still offers links. SVG, HTML, office, and archive files download instead of previewing. An accepted deliverable is final.
+- **Honest absences:** collaborative editing (4D), documents and document embeds (4C), connector files (6A, 6C), file content in search (OD-31, 5A), evidence items (9B), agent artifacts (8C), attachments during capture (CAP-015 stays refused by 2E), plan-based storage limits (10A), and legal holds (OD-37).
+
+**Phase 4D implementation note.** Live editing and presence in documents:
+- **Editing:** a person who can edit joins a live session when the document opens; changes to different blocks arrive as others make them, and the status line says whether the document is live, reconnecting, offline, or editing without live updates (with the reason). A block both people changed is never merged: the later change is kept and the person chooses between keeping their text or taking the other. *Save* makes a version at once; leaving saves what the session left behind.
+- **Presence:** names with a colour swatch and a text label, and the block each person is in, shown to members only (UXD-17). Guests and share-only readers see themselves only. Presence is announced on demand rather than continuously (A11Y-PA-09).
+- **Fallback:** if live editing is off, full, or unreachable, the 4C editor and its conflict review work unchanged, and text typed offline is kept on the device and sent when the connection returns.
+- **Honest absences:** comments anchored to a passage (comments stay on the whole document), text-level cursors and selections of others, intra-block merging, and presence outside documents.
+
+**Phase 5A implementation note.** Search ([UXD-29](09-decisions-and-risks.md#uxd-29)):
+- **Page and palette:** `/workspaces/{ws}/search` has one search field, filters (type, brand, status, updated, created or owned by me, comments that mention me, and a project chip) and the results; on Compact the filters collapse into a disclosure that shows how many are in use. The palette adds "Search everywhere for …", up to six permission-aware results beside its record list, and recent searches before anything is typed. `/` and the registered command open the page.
+- **Results:** each shows its type, brand, title and excerpt (matches marked), project, owner, last update, and the record that holds it; a comment, file, deliverable, milestone, or decision opens that record. Opening checks access again. The count says "at least" at its limit, results stop at a stated depth, and paging is by "Next results" and "First results" links.
+- **Honest states:** "Search is catching up" and "Some items couldn't be searched" banners; per-result "Updating" and "May be out of date"; an offline search keeps earlier results of the same words, marked as from before the problem, and runs again when the connection returns; a result that is no longer available is removed with an explanation.
+- **Honest absences:** scrolling to the match in the destination, concept search and attachment content (OD-31), an owner filter for other people, saved searches, and people, goals, and integration records as sources (they register with their phases).
+**Phase 5B implementation note.** Goals and Portfolio:
+- **Goals:** a period selector (calendar quarter, half, year, or a custom range), then workspace goals, then goals per brand, with filters. A goal shows its owner, period, status, progress with the basis it comes from (a measurement, key results, or linked work), the latest confidence, and whether its update is fresh or stale. Its page lists key results, linked projects and tasks that open the source record, a drill-down from each linked-work figure to the readable tasks behind it, and the check-in history (append-only, newest first). A project page lists the goals scoped to it or linked to it or its tasks.
+- **Portfolio (Projects › Portfolio):** projects with health and the rules behind it, deadlines, effort, budgets, cross-project dependencies, and the orphan findings (projects without a goal, goals without active work), for all readable projects or for one saved portfolio. Every count and label drills into records the person may open (IA-42).
+- **Honest states:** each figure says what it covers ("work you can read"), when it was computed, and what is missing: some key results unmeasured, tasks without estimates, no dates, a truncated read. Spend and AI usage are shown as "not tracked yet", money is never summed across currencies, and computed health sits beside the project's declared health instead of replacing it. Orphan findings say they are relative to the viewer. A viewer who cannot read some linked work is never told that any exists.
+- **Guests and share-only readers** see no Goals or Portfolio destination and no goal anywhere; a person without workspace-level read does not see workspace goals.
+- **Honest absences:** comments, mentions, and following on goals; reminders when an update is stale (the event exists, delivery is 4B's); goals in search (5A); dashboards, reports, and brand time and AI investment (5D); metric definitions and weighted rollups (5C); money spend and AI usage tracking (7A); fiscal calendars; goal hierarchies and templates; capacity-versus-effort comparison.
+
+**Phase 5C implementation note.** Metrics ([UXD-30](09-decisions-and-risks.md#uxd-30)):
+- **Page:** `/workspaces/{ws}/metrics` (members) shows one figure: the metric and version, a brand, and a window, then its state in words, what is missing, a freshness banner, the headline, the facts and breakdown tables, the records behind it by role, "How this is counted", and a CSV export. The page appears under the workspace destinations as Metrics and in the palette's Go to list; dashboards that arrange many figures are 5D.
+- **Honest states:** a source that does not exist yet ("Not available until phase 9B"), a scope with nothing to measure ("Nothing to measure yet"), partial figures with the reason, a lagging or failing history, and a refused or unavailable scope shown as a problem and never as an empty figure.
+- **Honest absences:** charts, dashboards and scheduled reports (5D), comparing scopes, and any per-person performance view.
+
+**Phase 5D implementation note.** Reports, Home, and the project Reports section:
+- **Reports (`/{ws}/reports`):** dashboards (owner, brand, project, release, personal), saved reports with their schedules, and a trash. A dashboard (`/{ws}/dashboards/{id}`) and a report (`/{ws}/reports/{id}`) show a filter bar (date, brand, project, person, status), a grid of widgets that stacks in the saved order on a narrow screen, and exports. Layout editing is by buttons (Up, Down, Remove) and announces each change; there is no dragging.
+- **Every widget** loads and fails on its own, states what it covers ("Work you can read in …"), its source, when it was computed, which filters did not apply, and what is estimated (hatched and labelled) or incomplete. "View data" gives the same figures as a table; "Show records" lists the records behind the figure with links for the records that have a page. A widget whose source the person cannot see is absent.
+- **Home** shows a situation overview for the brands in the shell's scope (grouped by brand across brands, by project for one brand); widgets below the fold load when they come near the screen. **A project's Reports section** shows its own figures and its dashboards and reports.
+- **Reports shared with someone** open for a person who has no access to the report's scope: the saved definition, with figures that are still their own, no scope name, and no edit, schedule, or share controls. **Guests and share-only readers** open only reports shared with them, see guest-safe record counts labelled "The records shared with you", and have no dashboards, Home overview, or export (this refines IA-47: a share-only reader sees no aggregate wider than the records they hold).
+- **Honest absences:** cycle time, time in status, aging, created versus completed, blocked and stale work (5C); AI usage (7A); automation and agent rates (8); tests, defects, and release blockers (9B to 9D). They are listed in the widget editor with their reason and cannot be placed.

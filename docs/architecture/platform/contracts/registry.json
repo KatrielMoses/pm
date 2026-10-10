@@ -217,6 +217,14 @@
       "note": ""
     },
     {
+      "prefix": "cnf",
+      "resource": "sync_conflict",
+      "entity": "integrations.sync_conflict",
+      "owner_module": "integrations",
+      "platform_only": false,
+      "note": ""
+    },
+    {
       "prefix": "whk",
       "resource": "webhook_subscription",
       "entity": "integrations.webhook_subscription",
@@ -481,6 +489,30 @@
       "note": ""
     },
     {
+      "prefix": "ses",
+      "resource": "session",
+      "entity": "identity.session",
+      "owner_module": "identity",
+      "platform_only": false,
+      "note": ""
+    },
+    {
+      "prefix": "mfa",
+      "resource": "mfa_factor",
+      "entity": "identity.mfa_factor",
+      "owner_module": "identity",
+      "platform_only": false,
+      "note": ""
+    },
+    {
+      "prefix": "oid",
+      "resource": "oauth_identity",
+      "entity": "identity.oauth_identity",
+      "owner_module": "identity",
+      "platform_only": false,
+      "note": ""
+    },
+    {
       "prefix": "exf",
       "resource": "export_file",
       "entity": "transfer.export_file",
@@ -533,6 +565,222 @@
       "resource": "field_policy",
       "entity": "access.field_policy",
       "owner_module": "access",
+      "platform_only": false,
+      "note": ""
+    },
+    {
+      "prefix": "inv",
+      "resource": "invitation",
+      "entity": "tenancy.invitation",
+      "owner_module": "tenancy",
+      "platform_only": false,
+      "note": ""
+    },
+    {
+      "prefix": "otr",
+      "resource": "ownership_transfer",
+      "entity": "tenancy.ownership_transfer",
+      "owner_module": "tenancy",
+      "platform_only": false,
+      "note": ""
+    },
+    {
+      "prefix": "phs",
+      "resource": "phase",
+      "entity": "work.phase",
+      "owner_module": "work",
+      "platform_only": false,
+      "note": "Phase 2A (PL-22)."
+    },
+    {
+      "prefix": "sco",
+      "resource": "scope_item",
+      "entity": "work.scope_item",
+      "owner_module": "work",
+      "platform_only": false,
+      "note": "Phase 2A (PL-22)."
+    },
+    {
+      "prefix": "cri",
+      "resource": "criteria_item",
+      "entity": "work.criteria_item",
+      "owner_module": "work",
+      "platform_only": false,
+      "note": "Phase 2A (PL-22)."
+    },
+    {
+      "prefix": "pup",
+      "resource": "project_update",
+      "entity": "work.project_update",
+      "owner_module": "work",
+      "platform_only": false,
+      "note": "Phase 2A (PL-22)."
+    },
+    {
+      "prefix": "rcs",
+      "resource": "recurrence_series",
+      "entity": "planning.recurrence_series",
+      "owner_module": "planning",
+      "platform_only": false,
+      "note": "Phase 2A (PL-22)."
+    },
+    {
+      "prefix": "chk",
+      "resource": "checklist_item",
+      "entity": "work.checklist_item",
+      "owner_module": "work",
+      "platform_only": false,
+      "note": "Phase 2B (PL-24)."
+    },
+    {
+      "prefix": "lbl",
+      "resource": "label",
+      "entity": "work.label",
+      "owner_module": "work",
+      "platform_only": false,
+      "note": "Phase 2B (PL-24)."
+    },
+    {
+      "prefix": "lnk",
+      "resource": "record_link",
+      "entity": "relations.record_link",
+      "owner_module": "relations",
+      "platform_only": false,
+      "note": "Phase 2B (PL-24)."
+    },
+    {
+      "prefix": "sts",
+      "resource": "workflow_status",
+      "entity": "workflow.workflow_status",
+      "owner_module": "workflow",
+      "platform_only": false,
+      "note": "Phase 2C (PL-25)."
+    },
+    {
+      "prefix": "trn",
+      "resource": "transition",
+      "entity": "workflow.transition",
+      "owner_module": "workflow",
+      "platform_only": false,
+      "note": "Phase 2C (PL-25)."
+    },
+    {
+      "prefix": "wap",
+      "resource": "workflow_approval",
+      "entity": "workflow.approval_request",
+      "owner_module": "workflow",
+      "platform_only": false,
+      "note": "Phase 2C (PL-25)."
+    },
+    {
+      "prefix": "fld",
+      "resource": "field_definition",
+      "entity": "workflow.field_definition",
+      "owner_module": "workflow",
+      "platform_only": false,
+      "note": "Phase 2C (PL-25)."
+    },
+    {
+      "prefix": "fop",
+      "resource": "field_option",
+      "entity": "workflow.field_option",
+      "owner_module": "workflow",
+      "platform_only": false,
+      "note": "Phase 2C (PL-25)."
+    },
+    {
+      "prefix": "fst",
+      "resource": "field_set",
+      "entity": "workflow.field_set",
+      "owner_module": "workflow",
+      "platform_only": false,
+      "note": "Phase 2C (PL-25)."
+    },
+    {
+      "prefix": "rem",
+      "resource": "task_reminder",
+      "entity": "planning.task_reminder",
+      "owner_module": "planning",
+      "platform_only": false,
+      "note": "Phase 2D (PL-26)."
+    },
+    {
+      "prefix": "bop",
+      "resource": "bulk_operation",
+      "entity": "work.bulk_operation",
+      "owner_module": "work",
+      "platform_only": false,
+      "note": "Phase 2D (PL-26)."
+    },
+    {
+      "prefix": "und",
+      "resource": "undo_entry",
+      "entity": "work.undo_entry",
+      "owner_module": "work",
+      "platform_only": false,
+      "note": "Phase 2D (PL-26)."
+    },
+    {
+      "prefix": "bls",
+      "resource": "block_series",
+      "entity": "planning.block_series",
+      "owner_module": "planning",
+      "platform_only": false,
+      "note": "Phase 3C (PL-31)."
+    },
+    {
+      "prefix": "tof",
+      "resource": "time_off",
+      "entity": "planning.time_off",
+      "owner_module": "planning",
+      "platform_only": false,
+      "note": ""
+    },
+    {
+      "prefix": "hol",
+      "resource": "holiday",
+      "entity": "planning.holiday",
+      "owner_module": "planning",
+      "platform_only": false,
+      "note": ""
+    },
+    {
+      "prefix": "rsv",
+      "resource": "capacity_reservation",
+      "entity": "planning.capacity_reservation",
+      "owner_module": "planning",
+      "platform_only": false,
+      "note": ""
+    },
+    {
+      "prefix": "ndl",
+      "resource": "notification_delivery",
+      "entity": "notify.notification_delivery",
+      "owner_module": "notify",
+      "platform_only": false,
+      "note": "Phase 4B (PL-34)."
+    },
+    {
+      "prefix": "dsg",
+      "resource": "document_suggestion",
+      "entity": "knowledge.document_suggestion",
+      "owner_module": "knowledge",
+      "platform_only": false,
+      "note": ""
+    },
+    {
+      "prefix": "gci",
+      "resource": "goal_checkin",
+      "entity": "goals.goal_checkin",
+      "owner_module": "goals",
+      "platform_only": false,
+      "note": ""
+    },
+    {
+      "prefix": "rsh",
+      "resource": "report_share",
+      "entity": "insights.report_share",
+      "owner_module": "insights",
       "platform_only": false,
       "note": ""
     }
@@ -991,581 +1239,6 @@
   ],
   "events": [
     {
-      "type": "core.record.archived",
-      "schema_version": 1,
-      "aggregate_entity": "core.record",
-      "fields": [
-        "record_type",
-        "archive_cause",
-        "batch_id"
-      ],
-      "max_class": "C1",
-      "consumers": {
-        "activity": true,
-        "notification": false,
-        "metrics": false,
-        "automation_trigger": true,
-        "search_index": true
-      },
-      "public_webhook": "record.archived",
-      "requirements": [],
-      "allow_list_version": 1,
-      "delivery_authorization": "subscription_owner_at_delivery"
-    },
-    {
-      "type": "core.record.trashed",
-      "schema_version": 1,
-      "aggregate_entity": "core.record",
-      "fields": [
-        "record_type",
-        "deletion_batch_id"
-      ],
-      "max_class": "C1",
-      "consumers": {
-        "activity": true,
-        "notification": false,
-        "metrics": false,
-        "automation_trigger": true,
-        "search_index": true
-      },
-      "public_webhook": "record.trashed",
-      "requirements": [],
-      "allow_list_version": 1,
-      "delivery_authorization": "subscription_owner_at_delivery"
-    },
-    {
-      "type": "core.record.restored",
-      "schema_version": 1,
-      "aggregate_entity": "core.record",
-      "fields": [
-        "record_type",
-        "batch_id"
-      ],
-      "max_class": "C1",
-      "consumers": {
-        "activity": true,
-        "notification": false,
-        "metrics": false,
-        "automation_trigger": true,
-        "search_index": true
-      },
-      "public_webhook": "record.restored",
-      "requirements": [
-        "LA-018"
-      ],
-      "allow_list_version": 1,
-      "delivery_authorization": "subscription_owner_at_delivery"
-    },
-    {
-      "type": "core.record.purged",
-      "schema_version": 1,
-      "aggregate_entity": "core.record",
-      "fields": [
-        "record_type"
-      ],
-      "max_class": "C1",
-      "consumers": {
-        "activity": false,
-        "notification": false,
-        "metrics": false,
-        "automation_trigger": false,
-        "search_index": true
-      },
-      "public_webhook": null,
-      "requirements": [],
-      "allow_list_version": null,
-      "delivery_authorization": null
-    },
-    {
-      "type": "core.record.moved_brand",
-      "schema_version": 1,
-      "aggregate_entity": "core.record",
-      "fields": [
-        "from_brand_id",
-        "to_brand_id"
-      ],
-      "max_class": "C1",
-      "consumers": {
-        "activity": true,
-        "notification": true,
-        "metrics": false,
-        "automation_trigger": true,
-        "search_index": true
-      },
-      "public_webhook": null,
-      "requirements": [
-        "WSB-009"
-      ],
-      "allow_list_version": null,
-      "delivery_authorization": null
-    },
-    {
-      "type": "work.task.created",
-      "schema_version": 1,
-      "aggregate_entity": "work.task",
-      "fields": [
-        "project_id",
-        "parent_task_id",
-        "status_id",
-        "source_kind"
-      ],
-      "max_class": "C1",
-      "consumers": {
-        "activity": true,
-        "notification": false,
-        "metrics": true,
-        "automation_trigger": true,
-        "search_index": true
-      },
-      "public_webhook": "task.created",
-      "requirements": [
-        "TSK-001"
-      ],
-      "allow_list_version": 1,
-      "delivery_authorization": "subscription_owner_at_delivery"
-    },
-    {
-      "type": "work.task.updated",
-      "schema_version": 1,
-      "aggregate_entity": "work.task",
-      "fields": [
-        "changed_fields"
-      ],
-      "max_class": "C1",
-      "consumers": {
-        "activity": true,
-        "notification": false,
-        "metrics": false,
-        "automation_trigger": true,
-        "search_index": true
-      },
-      "public_webhook": "task.updated",
-      "requirements": [],
-      "allow_list_version": 1,
-      "delivery_authorization": "subscription_owner_at_delivery"
-    },
-    {
-      "type": "work.task.status_changed",
-      "schema_version": 1,
-      "aggregate_entity": "work.task",
-      "fields": [
-        "from_status_id",
-        "to_status_id",
-        "to_category"
-      ],
-      "max_class": "C1",
-      "consumers": {
-        "activity": true,
-        "notification": true,
-        "metrics": true,
-        "automation_trigger": true,
-        "search_index": false
-      },
-      "public_webhook": "task.status_changed",
-      "requirements": [],
-      "allow_list_version": 1,
-      "delivery_authorization": "subscription_owner_at_delivery"
-    },
-    {
-      "type": "work.task.completed",
-      "schema_version": 1,
-      "aggregate_entity": "work.task",
-      "fields": [
-        "completed_at",
-        "status_category",
-        "project_id"
-      ],
-      "max_class": "C1",
-      "consumers": {
-        "activity": true,
-        "notification": true,
-        "metrics": true,
-        "automation_trigger": true,
-        "search_index": false
-      },
-      "public_webhook": "task.completed",
-      "requirements": [
-        "TSK-031"
-      ],
-      "allow_list_version": 1,
-      "delivery_authorization": "subscription_owner_at_delivery"
-    },
-    {
-      "type": "work.task.assigned",
-      "schema_version": 1,
-      "aggregate_entity": "work.task",
-      "fields": [
-        "assignee_membership_ids"
-      ],
-      "max_class": "C1",
-      "consumers": {
-        "activity": true,
-        "notification": true,
-        "metrics": false,
-        "automation_trigger": true,
-        "search_index": false
-      },
-      "public_webhook": "task.assigned",
-      "requirements": [
-        "NTF-005"
-      ],
-      "allow_list_version": 1,
-      "delivery_authorization": "subscription_owner_at_delivery"
-    },
-    {
-      "type": "work.project.created",
-      "schema_version": 1,
-      "aggregate_entity": "work.project",
-      "fields": [
-        "parent_project_id",
-        "status_id"
-      ],
-      "max_class": "C1",
-      "consumers": {
-        "activity": true,
-        "notification": false,
-        "metrics": true,
-        "automation_trigger": true,
-        "search_index": true
-      },
-      "public_webhook": "project.created",
-      "requirements": [],
-      "allow_list_version": 1,
-      "delivery_authorization": "subscription_owner_at_delivery"
-    },
-    {
-      "type": "work.project.status_changed",
-      "schema_version": 1,
-      "aggregate_entity": "work.project",
-      "fields": [
-        "to_category",
-        "health"
-      ],
-      "max_class": "C1",
-      "consumers": {
-        "activity": true,
-        "notification": true,
-        "metrics": true,
-        "automation_trigger": true,
-        "search_index": false
-      },
-      "public_webhook": "project.status_changed",
-      "requirements": [],
-      "allow_list_version": 1,
-      "delivery_authorization": "subscription_owner_at_delivery"
-    },
-    {
-      "type": "collab.comment.created",
-      "schema_version": 1,
-      "aggregate_entity": "collab.comment",
-      "fields": [
-        "host_record_id",
-        "root_comment_id",
-        "mention_ids"
-      ],
-      "max_class": "C1",
-      "consumers": {
-        "activity": true,
-        "notification": true,
-        "metrics": false,
-        "automation_trigger": true,
-        "search_index": true
-      },
-      "public_webhook": "comment.created",
-      "requirements": [
-        "COL-005"
-      ],
-      "allow_list_version": 1,
-      "delivery_authorization": "subscription_owner_at_delivery"
-    },
-    {
-      "type": "collab.review.requested",
-      "schema_version": 1,
-      "aggregate_entity": "collab.review_request",
-      "fields": [
-        "subject_kind",
-        "subject_ref",
-        "reviewer_rule"
-      ],
-      "max_class": "C1",
-      "consumers": {
-        "activity": true,
-        "notification": true,
-        "metrics": false,
-        "automation_trigger": true,
-        "search_index": false
-      },
-      "public_webhook": "review.requested",
-      "requirements": [
-        "COL-013"
-      ],
-      "allow_list_version": 1,
-      "delivery_authorization": "subscription_owner_at_delivery"
-    },
-    {
-      "type": "collab.review.decided",
-      "schema_version": 1,
-      "aggregate_entity": "collab.review_decision",
-      "fields": [
-        "decision",
-        "self_approval",
-        "subject_ref"
-      ],
-      "max_class": "C1",
-      "consumers": {
-        "activity": true,
-        "notification": true,
-        "metrics": true,
-        "automation_trigger": true,
-        "search_index": false
-      },
-      "public_webhook": "review.decided",
-      "requirements": [
-        "FILE-009"
-      ],
-      "allow_list_version": 1,
-      "delivery_authorization": "subscription_owner_at_delivery"
-    },
-    {
-      "type": "relations.relationship.created",
-      "schema_version": 1,
-      "aggregate_entity": "relations.record_relationship",
-      "fields": [
-        "kind",
-        "from_record_id",
-        "to_record_id"
-      ],
-      "max_class": "C1",
-      "consumers": {
-        "activity": true,
-        "notification": true,
-        "metrics": false,
-        "automation_trigger": true,
-        "search_index": false
-      },
-      "public_webhook": null,
-      "requirements": [],
-      "allow_list_version": null,
-      "delivery_authorization": null
-    },
-    {
-      "type": "relations.mention.created",
-      "schema_version": 1,
-      "aggregate_entity": "relations.mention",
-      "fields": [
-        "source_kind",
-        "target_kind",
-        "target_id"
-      ],
-      "max_class": "C1",
-      "consumers": {
-        "activity": true,
-        "notification": true,
-        "metrics": false,
-        "automation_trigger": false,
-        "search_index": false
-      },
-      "public_webhook": null,
-      "requirements": [],
-      "allow_list_version": null,
-      "delivery_authorization": null
-    },
-    {
-      "type": "files.file.scanned",
-      "schema_version": 1,
-      "aggregate_entity": "files.file_version",
-      "fields": [
-        "scan_state"
-      ],
-      "max_class": "C1",
-      "consumers": {
-        "activity": false,
-        "notification": false,
-        "metrics": false,
-        "automation_trigger": false,
-        "search_index": false
-      },
-      "public_webhook": null,
-      "requirements": [],
-      "allow_list_version": null,
-      "delivery_authorization": null
-    },
-    {
-      "type": "files.deliverable.version_submitted",
-      "schema_version": 1,
-      "aggregate_entity": "files.deliverable_version",
-      "fields": [
-        "deliverable_id",
-        "version_number"
-      ],
-      "max_class": "C1",
-      "consumers": {
-        "activity": true,
-        "notification": true,
-        "metrics": false,
-        "automation_trigger": true,
-        "search_index": false
-      },
-      "public_webhook": "deliverable.submitted",
-      "requirements": [
-        "FILE-007"
-      ],
-      "allow_list_version": 1,
-      "delivery_authorization": "subscription_owner_at_delivery"
-    },
-    {
-      "type": "capture.inbox.captured",
-      "schema_version": 1,
-      "aggregate_entity": "capture.inbox_item",
-      "fields": [
-        "source_kind"
-      ],
-      "max_class": "C1",
-      "consumers": {
-        "activity": false,
-        "notification": false,
-        "metrics": false,
-        "automation_trigger": false,
-        "search_index": false
-      },
-      "public_webhook": null,
-      "requirements": [
-        "CAP-016"
-      ],
-      "allow_list_version": null,
-      "delivery_authorization": null
-    },
-    {
-      "type": "capture.inbox.triaged",
-      "schema_version": 1,
-      "aggregate_entity": "capture.inbox_item",
-      "fields": [
-        "outcome",
-        "converted_record_id"
-      ],
-      "max_class": "C1",
-      "consumers": {
-        "activity": false,
-        "notification": false,
-        "metrics": false,
-        "automation_trigger": false,
-        "search_index": false
-      },
-      "public_webhook": null,
-      "requirements": [],
-      "allow_list_version": null,
-      "delivery_authorization": null
-    },
-    {
-      "type": "planning.work_block.moved",
-      "schema_version": 1,
-      "aggregate_entity": "planning.work_block",
-      "fields": [
-        "starts_at",
-        "ends_at",
-        "source"
-      ],
-      "max_class": "C1",
-      "consumers": {
-        "activity": false,
-        "notification": false,
-        "metrics": true,
-        "automation_trigger": true,
-        "search_index": false
-      },
-      "public_webhook": null,
-      "requirements": [
-        "CAL-013"
-      ],
-      "allow_list_version": null,
-      "delivery_authorization": null
-    },
-    {
-      "type": "planning.occurrence.generated",
-      "schema_version": 1,
-      "aggregate_entity": "planning.recurrence_series",
-      "fields": [
-        "occurrence_key",
-        "record_id"
-      ],
-      "max_class": "C1",
-      "consumers": {
-        "activity": false,
-        "notification": false,
-        "metrics": false,
-        "automation_trigger": true,
-        "search_index": false
-      },
-      "public_webhook": null,
-      "requirements": [],
-      "allow_list_version": null,
-      "delivery_authorization": null
-    },
-    {
-      "type": "time.time_entry.recorded",
-      "schema_version": 1,
-      "aggregate_entity": "time.time_entry",
-      "fields": [
-        "duration_seconds",
-        "billable"
-      ],
-      "max_class": "C1",
-      "consumers": {
-        "activity": true,
-        "notification": false,
-        "metrics": true,
-        "automation_trigger": false,
-        "search_index": false
-      },
-      "public_webhook": null,
-      "requirements": [],
-      "allow_list_version": null,
-      "delivery_authorization": null
-    },
-    {
-      "type": "time.timesheet.approved",
-      "schema_version": 1,
-      "aggregate_entity": "time.timesheet_approval",
-      "fields": [
-        "period_start",
-        "brand_id"
-      ],
-      "max_class": "C1",
-      "consumers": {
-        "activity": true,
-        "notification": true,
-        "metrics": true,
-        "automation_trigger": true,
-        "search_index": false
-      },
-      "public_webhook": null,
-      "requirements": [],
-      "allow_list_version": null,
-      "delivery_authorization": null
-    },
-    {
-      "type": "knowledge.document.source_approved",
-      "schema_version": 1,
-      "aggregate_entity": "knowledge.source_approval",
-      "fields": [
-        "document_version_id"
-      ],
-      "max_class": "C1",
-      "consumers": {
-        "activity": true,
-        "notification": false,
-        "metrics": false,
-        "automation_trigger": true,
-        "search_index": true
-      },
-      "public_webhook": null,
-      "requirements": [
-        "DOC-017"
-      ],
-      "allow_list_version": null,
-      "delivery_authorization": null
-    },
-    {
       "type": "access.grant.created",
       "schema_version": 1,
       "aggregate_entity": "access.record_grant",
@@ -1635,72 +1308,26 @@
       "delivery_authorization": null
     },
     {
-      "type": "tenancy.membership.removed",
+      "type": "access.role.revoked",
       "schema_version": 1,
-      "aggregate_entity": "tenancy.membership",
+      "aggregate_entity": "access.role_assignment",
       "fields": [
-        "reason"
+        "scope_type"
       ],
       "max_class": "C1",
       "consumers": {
         "activity": true,
-        "notification": false,
+        "notification": true,
         "metrics": false,
         "automation_trigger": false,
         "search_index": false
       },
       "public_webhook": null,
-      "requirements": [],
+      "requirements": [
+        "PERM-013"
+      ],
       "allow_list_version": null,
       "delivery_authorization": null
-    },
-    {
-      "type": "execution.operation.state_changed",
-      "schema_version": 1,
-      "aggregate_entity": "execution.operation",
-      "fields": [
-        "kind",
-        "state",
-        "terminal_reason",
-        "waiting_reason"
-      ],
-      "max_class": "C1",
-      "consumers": {
-        "activity": false,
-        "notification": true,
-        "metrics": true,
-        "automation_trigger": true,
-        "search_index": false
-      },
-      "public_webhook": "operation.finished",
-      "requirements": [
-        "LA-017",
-        "REL-006"
-      ],
-      "allow_list_version": 1,
-      "delivery_authorization": "subscription_owner_at_delivery"
-    },
-    {
-      "type": "agents.agent_run.output_returned",
-      "schema_version": 1,
-      "aggregate_entity": "agents.agent_run",
-      "fields": [
-        "deliverable_version_id"
-      ],
-      "max_class": "C1",
-      "consumers": {
-        "activity": true,
-        "notification": true,
-        "metrics": false,
-        "automation_trigger": true,
-        "search_index": false
-      },
-      "public_webhook": "agent_run.output_returned",
-      "requirements": [
-        "AGT-013"
-      ],
-      "allow_list_version": 1,
-      "delivery_authorization": "subscription_owner_at_delivery"
     },
     {
       "type": "agents.action_approval.requested",
@@ -1726,190 +1353,34 @@
       "delivery_authorization": null
     },
     {
-      "type": "automation.automation_run.failed",
+      "type": "agents.agent_run.output_returned",
       "schema_version": 1,
-      "aggregate_entity": "automation.automation_run",
+      "aggregate_entity": "agents.agent_run",
       "fields": [
-        "automation_id",
-        "terminal_reason"
-      ],
-      "max_class": "C1",
-      "consumers": {
-        "activity": true,
-        "notification": true,
-        "metrics": true,
-        "automation_trigger": false,
-        "search_index": false
-      },
-      "public_webhook": null,
-      "requirements": [
-        "AUTO-016"
-      ],
-      "allow_list_version": null,
-      "delivery_authorization": null
-    },
-    {
-      "type": "integrations.sync.failed",
-      "schema_version": 1,
-      "aggregate_entity": "integrations.sync_run",
-      "fields": [
-        "connection_id",
-        "terminal_reason"
-      ],
-      "max_class": "C1",
-      "consumers": {
-        "activity": true,
-        "notification": true,
-        "metrics": true,
-        "automation_trigger": false,
-        "search_index": false
-      },
-      "public_webhook": null,
-      "requirements": [
-        "NTF-005"
-      ],
-      "allow_list_version": null,
-      "delivery_authorization": null
-    },
-    {
-      "type": "integrations.connection.health_changed",
-      "schema_version": 1,
-      "aggregate_entity": "integrations.connection",
-      "fields": [
-        "health"
+        "deliverable_version_id"
       ],
       "max_class": "C1",
       "consumers": {
         "activity": true,
         "notification": true,
         "metrics": false,
-        "automation_trigger": false,
-        "search_index": false
-      },
-      "public_webhook": null,
-      "requirements": [],
-      "allow_list_version": null,
-      "delivery_authorization": null
-    },
-    {
-      "type": "integrations.webhook.delivery_failed",
-      "schema_version": 1,
-      "aggregate_entity": "integrations.webhook_delivery",
-      "fields": [
-        "subscription_id",
-        "attempt"
-      ],
-      "max_class": "C1",
-      "consumers": {
-        "activity": false,
-        "notification": true,
-        "metrics": true,
-        "automation_trigger": false,
-        "search_index": false
-      },
-      "public_webhook": null,
-      "requirements": [],
-      "allow_list_version": null,
-      "delivery_authorization": null
-    },
-    {
-      "type": "quality.test_result.recorded",
-      "schema_version": 1,
-      "aggregate_entity": "quality.test_result",
-      "fields": [
-        "test_run_id",
-        "outcome"
-      ],
-      "max_class": "C1",
-      "consumers": {
-        "activity": true,
-        "notification": false,
-        "metrics": true,
         "automation_trigger": true,
         "search_index": false
       },
-      "public_webhook": "test_result.recorded",
+      "public_webhook": "agent_run.output_returned",
       "requirements": [
-        "TEST-008"
+        "AGT-013"
       ],
       "allow_list_version": 1,
       "delivery_authorization": "subscription_owner_at_delivery"
     },
     {
-      "type": "quality.defect.verified",
+      "type": "ai.briefing.generated",
       "schema_version": 1,
-      "aggregate_entity": "quality.verification_record",
+      "aggregate_entity": "ai.briefing",
       "fields": [
-        "defect_task_id",
-        "method"
-      ],
-      "max_class": "C1",
-      "consumers": {
-        "activity": true,
-        "notification": true,
-        "metrics": true,
-        "automation_trigger": true,
-        "search_index": false
-      },
-      "public_webhook": "defect.verified",
-      "requirements": [
-        "TEST-017"
-      ],
-      "allow_list_version": 1,
-      "delivery_authorization": "subscription_owner_at_delivery"
-    },
-    {
-      "type": "delivery.release.decided",
-      "schema_version": 1,
-      "aggregate_entity": "delivery.release_decision",
-      "fields": [
-        "release_id",
-        "decision",
-        "sequence"
-      ],
-      "max_class": "C1",
-      "consumers": {
-        "activity": true,
-        "notification": true,
-        "metrics": true,
-        "automation_trigger": true,
-        "search_index": false
-      },
-      "public_webhook": "release.decided",
-      "requirements": [
-        "TEST-025"
-      ],
-      "allow_list_version": 1,
-      "delivery_authorization": "subscription_owner_at_delivery"
-    },
-    {
-      "type": "delivery.deployment.recorded",
-      "schema_version": 1,
-      "aggregate_entity": "delivery.deployment",
-      "fields": [
-        "environment_id",
-        "version_label"
-      ],
-      "max_class": "C1",
-      "consumers": {
-        "activity": true,
-        "notification": false,
-        "metrics": true,
-        "automation_trigger": true,
-        "search_index": false
-      },
-      "public_webhook": "deployment.recorded",
-      "requirements": [],
-      "allow_list_version": 1,
-      "delivery_authorization": "subscription_owner_at_delivery"
-    },
-    {
-      "type": "metering.usage.threshold_reached",
-      "schema_version": 1,
-      "aggregate_entity": "metering.usage_balance",
-      "fields": [
-        "meter",
-        "threshold_bp"
+        "kind",
+        "period_key"
       ],
       "max_class": "C1",
       "consumers": {
@@ -1921,29 +1392,7 @@
       },
       "public_webhook": null,
       "requirements": [
-        "NTF-006"
-      ],
-      "allow_list_version": null,
-      "delivery_authorization": null
-    },
-    {
-      "type": "metering.usage.limit_reached",
-      "schema_version": 1,
-      "aggregate_entity": "metering.usage_balance",
-      "fields": [
-        "meter"
-      ],
-      "max_class": "C1",
-      "consumers": {
-        "activity": false,
-        "notification": true,
-        "metrics": false,
-        "automation_trigger": false,
-        "search_index": false
-      },
-      "public_webhook": null,
-      "requirements": [
-        "AI-035"
+        "BRF-018"
       ],
       "allow_list_version": null,
       "delivery_authorization": null
@@ -1972,12 +1421,1622 @@
       "delivery_authorization": null
     },
     {
-      "type": "ai.briefing.generated",
+      "type": "automation.automation_run.failed",
       "schema_version": 1,
-      "aggregate_entity": "ai.briefing",
+      "aggregate_entity": "automation.automation_run",
+      "fields": [
+        "automation_id",
+        "terminal_reason"
+      ],
+      "max_class": "C1",
+      "consumers": {
+        "activity": true,
+        "notification": true,
+        "metrics": true,
+        "automation_trigger": false,
+        "search_index": false
+      },
+      "public_webhook": null,
+      "requirements": [
+        "AUTO-016"
+      ],
+      "allow_list_version": null,
+      "delivery_authorization": null
+    },
+    {
+      "type": "capture.inbox.captured",
+      "schema_version": 1,
+      "aggregate_entity": "capture.inbox_item",
+      "fields": [
+        "source_kind",
+        "intent"
+      ],
+      "max_class": "C1",
+      "consumers": {
+        "activity": false,
+        "notification": false,
+        "metrics": false,
+        "automation_trigger": false,
+        "search_index": false
+      },
+      "public_webhook": null,
+      "requirements": [
+        "CAP-001",
+        "CAP-002",
+        "CAP-016"
+      ],
+      "allow_list_version": null,
+      "delivery_authorization": null
+    },
+    {
+      "type": "capture.inbox.merged",
+      "schema_version": 1,
+      "aggregate_entity": "capture.inbox_item",
+      "fields": [
+        "merged_count"
+      ],
+      "max_class": "C1",
+      "consumers": {
+        "activity": false,
+        "notification": false,
+        "metrics": true,
+        "automation_trigger": false,
+        "search_index": false
+      },
+      "public_webhook": null,
+      "requirements": [
+        "CAP-013"
+      ],
+      "allow_list_version": null,
+      "delivery_authorization": null
+    },
+    {
+      "type": "capture.inbox.triaged",
+      "schema_version": 1,
+      "aggregate_entity": "capture.inbox_item",
+      "fields": [
+        "outcome",
+        "converted_record_id"
+      ],
+      "max_class": "C1",
+      "consumers": {
+        "activity": false,
+        "notification": false,
+        "metrics": false,
+        "automation_trigger": false,
+        "search_index": false
+      },
+      "public_webhook": null,
+      "requirements": [
+        "CAP-012"
+      ],
+      "allow_list_version": null,
+      "delivery_authorization": null
+    },
+    {
+      "type": "capture.intake.submitted",
+      "schema_version": 1,
+      "aggregate_entity": "capture.intake_form",
+      "fields": [
+        "inbox_item_id"
+      ],
+      "max_class": "C1",
+      "consumers": {
+        "activity": false,
+        "notification": false,
+        "metrics": true,
+        "automation_trigger": false,
+        "search_index": false
+      },
+      "public_webhook": null,
+      "requirements": [
+        "CAP-007"
+      ],
+      "allow_list_version": null,
+      "delivery_authorization": null
+    },
+    {
+      "type": "capture.intake_form.created",
+      "schema_version": 1,
+      "aggregate_entity": "capture.intake_form",
+      "fields": [
+        "target_kind"
+      ],
+      "max_class": "C1",
+      "consumers": {
+        "activity": false,
+        "notification": false,
+        "metrics": true,
+        "automation_trigger": false,
+        "search_index": false
+      },
+      "public_webhook": null,
+      "requirements": [
+        "CAP-007"
+      ],
+      "allow_list_version": null,
+      "delivery_authorization": null
+    },
+    {
+      "type": "capture.intake_form.updated",
+      "schema_version": 1,
+      "aggregate_entity": "capture.intake_form",
+      "fields": [
+        "state"
+      ],
+      "max_class": "C1",
+      "consumers": {
+        "activity": false,
+        "notification": false,
+        "metrics": true,
+        "automation_trigger": false,
+        "search_index": false
+      },
+      "public_webhook": null,
+      "requirements": [
+        "CAP-007"
+      ],
+      "allow_list_version": null,
+      "delivery_authorization": null
+    },
+    {
+      "type": "capture.note.converted",
+      "schema_version": 1,
+      "aggregate_entity": "capture.note",
+      "fields": [
+        "target_kind",
+        "target_record_id"
+      ],
+      "max_class": "C1",
+      "consumers": {
+        "activity": false,
+        "notification": false,
+        "metrics": true,
+        "automation_trigger": false,
+        "search_index": false
+      },
+      "public_webhook": null,
+      "requirements": [
+        "CAP-014"
+      ],
+      "allow_list_version": null,
+      "delivery_authorization": null
+    },
+    {
+      "type": "capture.note.created",
+      "schema_version": 1,
+      "aggregate_entity": "capture.note",
+      "fields": [
+        "source_kind"
+      ],
+      "max_class": "C1",
+      "consumers": {
+        "activity": false,
+        "notification": false,
+        "metrics": true,
+        "automation_trigger": false,
+        "search_index": false
+      },
+      "public_webhook": null,
+      "requirements": [
+        "CAP-002"
+      ],
+      "allow_list_version": null,
+      "delivery_authorization": null
+    },
+    {
+      "type": "collab.comment.created",
+      "schema_version": 1,
+      "aggregate_entity": "collab.comment",
+      "fields": [
+        "host_record_id",
+        "root_comment_id",
+        "mention_ids"
+      ],
+      "max_class": "C1",
+      "consumers": {
+        "activity": true,
+        "notification": true,
+        "metrics": false,
+        "automation_trigger": true,
+        "search_index": true
+      },
+      "public_webhook": "comment.created",
+      "requirements": [
+        "COL-005",
+        "COL-006",
+        "TSK-018"
+      ],
+      "allow_list_version": 1,
+      "delivery_authorization": "subscription_owner_at_delivery"
+    },
+    {
+      "type": "collab.comment.deleted",
+      "schema_version": 1,
+      "aggregate_entity": "collab.comment",
+      "fields": [
+        "host_record_id",
+        "deleted_by"
+      ],
+      "max_class": "C1",
+      "consumers": {
+        "activity": true,
+        "notification": false,
+        "metrics": true,
+        "automation_trigger": false,
+        "search_index": true
+      },
+      "public_webhook": null,
+      "requirements": [
+        "COL-009"
+      ],
+      "allow_list_version": null,
+      "delivery_authorization": null
+    },
+    {
+      "type": "collab.comment.edited",
+      "schema_version": 1,
+      "aggregate_entity": "collab.comment",
+      "fields": [
+        "host_record_id",
+        "edit_count"
+      ],
+      "max_class": "C1",
+      "consumers": {
+        "activity": true,
+        "notification": false,
+        "metrics": true,
+        "automation_trigger": false,
+        "search_index": true
+      },
+      "public_webhook": null,
+      "requirements": [
+        "COL-009"
+      ],
+      "allow_list_version": null,
+      "delivery_authorization": null
+    },
+    {
+      "type": "collab.comment.reaction_changed",
+      "schema_version": 1,
+      "aggregate_entity": "collab.comment",
+      "fields": [
+        "host_record_id",
+        "reaction",
+        "change"
+      ],
+      "max_class": "C1",
+      "consumers": {
+        "activity": false,
+        "notification": false,
+        "metrics": true,
+        "automation_trigger": false,
+        "search_index": false
+      },
+      "public_webhook": null,
+      "requirements": [
+        "COL-008"
+      ],
+      "allow_list_version": null,
+      "delivery_authorization": null
+    },
+    {
+      "type": "collab.review.decided",
+      "schema_version": 1,
+      "aggregate_entity": "collab.review_decision",
+      "fields": [
+        "decision",
+        "self_approval",
+        "subject_ref",
+        "review_state"
+      ],
+      "max_class": "C1",
+      "consumers": {
+        "activity": true,
+        "notification": true,
+        "metrics": true,
+        "automation_trigger": true,
+        "search_index": false
+      },
+      "public_webhook": "review.decided",
+      "requirements": [
+        "FILE-009",
+        "TSK-029",
+        "TSK-030"
+      ],
+      "allow_list_version": 1,
+      "delivery_authorization": "subscription_owner_at_delivery"
+    },
+    {
+      "type": "collab.review.requested",
+      "schema_version": 1,
+      "aggregate_entity": "collab.review_request",
+      "fields": [
+        "subject_kind",
+        "subject_ref",
+        "reviewer_rule",
+        "request_kind"
+      ],
+      "max_class": "C1",
+      "consumers": {
+        "activity": true,
+        "notification": true,
+        "metrics": false,
+        "automation_trigger": true,
+        "search_index": false
+      },
+      "public_webhook": "review.requested",
+      "requirements": [
+        "COL-013",
+        "TSK-029",
+        "TSK-030"
+      ],
+      "allow_list_version": 1,
+      "delivery_authorization": "subscription_owner_at_delivery"
+    },
+    {
+      "type": "collab.review.superseded",
+      "schema_version": 1,
+      "aggregate_entity": "collab.review_request",
+      "fields": [
+        "subject_kind",
+        "subject_ref",
+        "successor_ref"
+      ],
+      "max_class": "C1",
+      "consumers": {
+        "activity": true,
+        "notification": false,
+        "metrics": true,
+        "automation_trigger": false,
+        "search_index": false
+      },
+      "public_webhook": null,
+      "requirements": [
+        "COL-013"
+      ],
+      "allow_list_version": null,
+      "delivery_authorization": null
+    },
+    {
+      "type": "collab.review.withdrawn",
+      "schema_version": 1,
+      "aggregate_entity": "collab.review_request",
+      "fields": [
+        "subject_kind",
+        "subject_ref",
+        "reason"
+      ],
+      "max_class": "C1",
+      "consumers": {
+        "activity": true,
+        "notification": true,
+        "metrics": true,
+        "automation_trigger": false,
+        "search_index": false
+      },
+      "public_webhook": null,
+      "requirements": [
+        "COL-013"
+      ],
+      "allow_list_version": null,
+      "delivery_authorization": null
+    },
+    {
+      "type": "core.record.archived",
+      "schema_version": 1,
+      "aggregate_entity": "core.record",
+      "fields": [
+        "record_type",
+        "archive_cause",
+        "batch_id"
+      ],
+      "max_class": "C1",
+      "consumers": {
+        "activity": true,
+        "notification": false,
+        "metrics": false,
+        "automation_trigger": true,
+        "search_index": true
+      },
+      "public_webhook": "record.archived",
+      "requirements": [],
+      "allow_list_version": 1,
+      "delivery_authorization": "subscription_owner_at_delivery"
+    },
+    {
+      "type": "core.record.moved_brand",
+      "schema_version": 1,
+      "aggregate_entity": "core.record",
+      "fields": [
+        "from_brand_id",
+        "to_brand_id"
+      ],
+      "max_class": "C1",
+      "consumers": {
+        "activity": true,
+        "notification": true,
+        "metrics": false,
+        "automation_trigger": true,
+        "search_index": true
+      },
+      "public_webhook": null,
+      "requirements": [
+        "WSB-009"
+      ],
+      "allow_list_version": null,
+      "delivery_authorization": null
+    },
+    {
+      "type": "core.record.purged",
+      "schema_version": 1,
+      "aggregate_entity": "core.record",
+      "fields": [
+        "record_type"
+      ],
+      "max_class": "C1",
+      "consumers": {
+        "activity": false,
+        "notification": false,
+        "metrics": false,
+        "automation_trigger": false,
+        "search_index": true
+      },
+      "public_webhook": null,
+      "requirements": [],
+      "allow_list_version": null,
+      "delivery_authorization": null
+    },
+    {
+      "type": "core.record.restored",
+      "schema_version": 1,
+      "aggregate_entity": "core.record",
+      "fields": [
+        "record_type",
+        "batch_id"
+      ],
+      "max_class": "C1",
+      "consumers": {
+        "activity": true,
+        "notification": false,
+        "metrics": false,
+        "automation_trigger": true,
+        "search_index": true
+      },
+      "public_webhook": "record.restored",
+      "requirements": [
+        "LA-018"
+      ],
+      "allow_list_version": 1,
+      "delivery_authorization": "subscription_owner_at_delivery"
+    },
+    {
+      "type": "core.record.trashed",
+      "schema_version": 1,
+      "aggregate_entity": "core.record",
+      "fields": [
+        "record_type",
+        "deletion_batch_id"
+      ],
+      "max_class": "C1",
+      "consumers": {
+        "activity": true,
+        "notification": false,
+        "metrics": false,
+        "automation_trigger": true,
+        "search_index": true
+      },
+      "public_webhook": "record.trashed",
+      "requirements": [],
+      "allow_list_version": 1,
+      "delivery_authorization": "subscription_owner_at_delivery"
+    },
+    {
+      "type": "delivery.deployment.recorded",
+      "schema_version": 1,
+      "aggregate_entity": "delivery.deployment",
+      "fields": [
+        "environment_id",
+        "version_label"
+      ],
+      "max_class": "C1",
+      "consumers": {
+        "activity": true,
+        "notification": false,
+        "metrics": true,
+        "automation_trigger": true,
+        "search_index": false
+      },
+      "public_webhook": "deployment.recorded",
+      "requirements": [],
+      "allow_list_version": 1,
+      "delivery_authorization": "subscription_owner_at_delivery"
+    },
+    {
+      "type": "delivery.release.decided",
+      "schema_version": 1,
+      "aggregate_entity": "delivery.release_decision",
+      "fields": [
+        "release_id",
+        "decision",
+        "sequence"
+      ],
+      "max_class": "C1",
+      "consumers": {
+        "activity": true,
+        "notification": true,
+        "metrics": true,
+        "automation_trigger": true,
+        "search_index": false
+      },
+      "public_webhook": "release.decided",
+      "requirements": [
+        "TEST-025"
+      ],
+      "allow_list_version": 1,
+      "delivery_authorization": "subscription_owner_at_delivery"
+    },
+    {
+      "type": "execution.operation.state_changed",
+      "schema_version": 1,
+      "aggregate_entity": "execution.operation",
       "fields": [
         "kind",
-        "period_key"
+        "state",
+        "terminal_reason",
+        "waiting_reason"
+      ],
+      "max_class": "C1",
+      "consumers": {
+        "activity": false,
+        "notification": true,
+        "metrics": true,
+        "automation_trigger": true,
+        "search_index": false
+      },
+      "public_webhook": "operation.finished",
+      "requirements": [
+        "LA-017",
+        "REL-006"
+      ],
+      "allow_list_version": 1,
+      "delivery_authorization": "subscription_owner_at_delivery"
+    },
+    {
+      "type": "files.deliverable.state_changed",
+      "schema_version": 1,
+      "aggregate_entity": "files.deliverable",
+      "fields": [
+        "state",
+        "version_number"
+      ],
+      "max_class": "C1",
+      "consumers": {
+        "activity": true,
+        "notification": false,
+        "metrics": true,
+        "automation_trigger": true,
+        "search_index": false
+      },
+      "public_webhook": null,
+      "requirements": [
+        "FILE-007",
+        "FILE-009",
+        "PRJ-023"
+      ],
+      "allow_list_version": null,
+      "delivery_authorization": null
+    },
+    {
+      "type": "files.deliverable.version_submitted",
+      "schema_version": 1,
+      "aggregate_entity": "files.deliverable_version",
+      "fields": [
+        "deliverable_id",
+        "version_number"
+      ],
+      "max_class": "C1",
+      "consumers": {
+        "activity": true,
+        "notification": true,
+        "metrics": false,
+        "automation_trigger": true,
+        "search_index": false
+      },
+      "public_webhook": "deliverable.submitted",
+      "requirements": [
+        "FILE-007"
+      ],
+      "allow_list_version": 1,
+      "delivery_authorization": "subscription_owner_at_delivery"
+    },
+    {
+      "type": "files.file.added",
+      "schema_version": 1,
+      "aggregate_entity": "files.file",
+      "fields": [
+        "version_number",
+        "source"
+      ],
+      "max_class": "C1",
+      "consumers": {
+        "activity": true,
+        "notification": false,
+        "metrics": true,
+        "automation_trigger": true,
+        "search_index": false
+      },
+      "public_webhook": null,
+      "requirements": [
+        "FILE-001",
+        "FILE-005"
+      ],
+      "allow_list_version": null,
+      "delivery_authorization": null
+    },
+    {
+      "type": "files.file.scanned",
+      "schema_version": 1,
+      "aggregate_entity": "files.file_version",
+      "fields": [
+        "scan_state"
+      ],
+      "max_class": "C1",
+      "consumers": {
+        "activity": false,
+        "notification": false,
+        "metrics": true,
+        "automation_trigger": false,
+        "search_index": false
+      },
+      "public_webhook": null,
+      "requirements": [
+        "FILE-011"
+      ],
+      "allow_list_version": null,
+      "delivery_authorization": null
+    },
+    {
+      "type": "files.file.version_added",
+      "schema_version": 1,
+      "aggregate_entity": "files.file",
+      "fields": [
+        "version_number",
+        "source"
+      ],
+      "max_class": "C1",
+      "consumers": {
+        "activity": true,
+        "notification": false,
+        "metrics": true,
+        "automation_trigger": true,
+        "search_index": false
+      },
+      "public_webhook": null,
+      "requirements": [
+        "FILE-004"
+      ],
+      "allow_list_version": null,
+      "delivery_authorization": null
+    },
+    {
+      "type": "goals.goal.checkin_recorded",
+      "schema_version": 1,
+      "aggregate_entity": "goals.goal_checkin",
+      "fields": [
+        "source",
+        "confidence",
+        "has_value"
+      ],
+      "max_class": "C1",
+      "consumers": {
+        "activity": true,
+        "notification": false,
+        "metrics": true,
+        "automation_trigger": false,
+        "search_index": false
+      },
+      "public_webhook": null,
+      "requirements": [
+        "GOAL-005",
+        "GOAL-006"
+      ],
+      "allow_list_version": null,
+      "delivery_authorization": null
+    },
+    {
+      "type": "goals.goal.created",
+      "schema_version": 1,
+      "aggregate_entity": "goals.goal",
+      "fields": [
+        "scope",
+        "period_kind",
+        "progress_basis"
+      ],
+      "max_class": "C1",
+      "consumers": {
+        "activity": true,
+        "notification": false,
+        "metrics": true,
+        "automation_trigger": false,
+        "search_index": false
+      },
+      "public_webhook": null,
+      "requirements": [
+        "GOAL-001",
+        "GOAL-002"
+      ],
+      "allow_list_version": null,
+      "delivery_authorization": null
+    },
+    {
+      "type": "goals.goal.link_changed",
+      "schema_version": 1,
+      "aggregate_entity": "goals.goal_link",
+      "fields": [
+        "change",
+        "target_kind"
+      ],
+      "max_class": "C1",
+      "consumers": {
+        "activity": true,
+        "notification": false,
+        "metrics": true,
+        "automation_trigger": false,
+        "search_index": false
+      },
+      "public_webhook": null,
+      "requirements": [
+        "GOAL-003"
+      ],
+      "allow_list_version": null,
+      "delivery_authorization": null
+    },
+    {
+      "type": "goals.goal.status_changed",
+      "schema_version": 1,
+      "aggregate_entity": "goals.goal",
+      "fields": [
+        "status"
+      ],
+      "max_class": "C1",
+      "consumers": {
+        "activity": true,
+        "notification": false,
+        "metrics": true,
+        "automation_trigger": false,
+        "search_index": false
+      },
+      "public_webhook": null,
+      "requirements": [
+        "GOAL-002"
+      ],
+      "allow_list_version": null,
+      "delivery_authorization": null
+    },
+    {
+      "type": "goals.goal.update_stale",
+      "schema_version": 1,
+      "aggregate_entity": "goals.goal",
+      "fields": [
+        "days_stale"
+      ],
+      "max_class": "C1",
+      "consumers": {
+        "activity": false,
+        "notification": false,
+        "metrics": true,
+        "automation_trigger": false,
+        "search_index": false
+      },
+      "public_webhook": null,
+      "requirements": [
+        "GOAL-006"
+      ],
+      "allow_list_version": null,
+      "delivery_authorization": null
+    },
+    {
+      "type": "goals.goal.updated",
+      "schema_version": 1,
+      "aggregate_entity": "goals.goal",
+      "fields": [
+        "change"
+      ],
+      "max_class": "C1",
+      "consumers": {
+        "activity": true,
+        "notification": false,
+        "metrics": true,
+        "automation_trigger": false,
+        "search_index": false
+      },
+      "public_webhook": null,
+      "requirements": [
+        "GOAL-001",
+        "GOAL-002"
+      ],
+      "allow_list_version": null,
+      "delivery_authorization": null
+    },
+    {
+      "type": "goals.key_result.created",
+      "schema_version": 1,
+      "aggregate_entity": "goals.key_result",
+      "fields": [
+        "progress_basis"
+      ],
+      "max_class": "C1",
+      "consumers": {
+        "activity": true,
+        "notification": false,
+        "metrics": true,
+        "automation_trigger": false,
+        "search_index": false
+      },
+      "public_webhook": null,
+      "requirements": [
+        "GOAL-004"
+      ],
+      "allow_list_version": null,
+      "delivery_authorization": null
+    },
+    {
+      "type": "goals.key_result.updated",
+      "schema_version": 1,
+      "aggregate_entity": "goals.key_result",
+      "fields": [
+        "change"
+      ],
+      "max_class": "C1",
+      "consumers": {
+        "activity": true,
+        "notification": false,
+        "metrics": true,
+        "automation_trigger": false,
+        "search_index": false
+      },
+      "public_webhook": null,
+      "requirements": [
+        "GOAL-004"
+      ],
+      "allow_list_version": null,
+      "delivery_authorization": null
+    },
+    {
+      "type": "goals.portfolio.created",
+      "schema_version": 1,
+      "aggregate_entity": "goals.portfolio",
+      "fields": [
+        "scope"
+      ],
+      "max_class": "C1",
+      "consumers": {
+        "activity": true,
+        "notification": false,
+        "metrics": true,
+        "automation_trigger": false,
+        "search_index": false
+      },
+      "public_webhook": null,
+      "requirements": [
+        "GOAL-007"
+      ],
+      "allow_list_version": null,
+      "delivery_authorization": null
+    },
+    {
+      "type": "goals.portfolio.members_changed",
+      "schema_version": 1,
+      "aggregate_entity": "goals.portfolio",
+      "fields": [
+        "count"
+      ],
+      "max_class": "C1",
+      "consumers": {
+        "activity": true,
+        "notification": false,
+        "metrics": true,
+        "automation_trigger": false,
+        "search_index": false
+      },
+      "public_webhook": null,
+      "requirements": [
+        "GOAL-007",
+        "GOAL-008"
+      ],
+      "allow_list_version": null,
+      "delivery_authorization": null
+    },
+    {
+      "type": "goals.portfolio.updated",
+      "schema_version": 1,
+      "aggregate_entity": "goals.portfolio",
+      "fields": [
+        "change"
+      ],
+      "max_class": "C1",
+      "consumers": {
+        "activity": true,
+        "notification": false,
+        "metrics": true,
+        "automation_trigger": false,
+        "search_index": false
+      },
+      "public_webhook": null,
+      "requirements": [
+        "GOAL-007"
+      ],
+      "allow_list_version": null,
+      "delivery_authorization": null
+    },
+    {
+      "type": "insights.dashboard.created",
+      "schema_version": 1,
+      "aggregate_entity": "insights.dashboard",
+      "fields": [
+        "kind",
+        "scope"
+      ],
+      "max_class": "C1",
+      "consumers": {
+        "activity": true,
+        "notification": false,
+        "metrics": true,
+        "automation_trigger": false,
+        "search_index": false
+      },
+      "public_webhook": null,
+      "requirements": [
+        "RPT-001"
+      ],
+      "allow_list_version": null,
+      "delivery_authorization": null
+    },
+    {
+      "type": "insights.dashboard.updated",
+      "schema_version": 1,
+      "aggregate_entity": "insights.dashboard",
+      "fields": [
+        "change"
+      ],
+      "max_class": "C1",
+      "consumers": {
+        "activity": true,
+        "notification": false,
+        "metrics": true,
+        "automation_trigger": false,
+        "search_index": false
+      },
+      "public_webhook": null,
+      "requirements": [
+        "RPT-001",
+        "RPT-017"
+      ],
+      "allow_list_version": null,
+      "delivery_authorization": null
+    },
+    {
+      "type": "insights.report.created",
+      "schema_version": 1,
+      "aggregate_entity": "insights.report_definition",
+      "fields": [
+        "scope"
+      ],
+      "max_class": "C1",
+      "consumers": {
+        "activity": true,
+        "notification": false,
+        "metrics": true,
+        "automation_trigger": false,
+        "search_index": false
+      },
+      "public_webhook": null,
+      "requirements": [
+        "RPT-020"
+      ],
+      "allow_list_version": null,
+      "delivery_authorization": null
+    },
+    {
+      "type": "insights.report.resumed",
+      "schema_version": 1,
+      "aggregate_entity": "insights.report_definition",
+      "fields": [
+        "reason"
+      ],
+      "max_class": "C1",
+      "consumers": {
+        "activity": true,
+        "notification": false,
+        "metrics": true,
+        "automation_trigger": false,
+        "search_index": false
+      },
+      "public_webhook": null,
+      "requirements": [
+        "RPT-021"
+      ],
+      "allow_list_version": null,
+      "delivery_authorization": null
+    },
+    {
+      "type": "insights.report.schedule_changed",
+      "schema_version": 1,
+      "aggregate_entity": "insights.report_definition",
+      "fields": [
+        "frequency",
+        "recipients"
+      ],
+      "max_class": "C1",
+      "consumers": {
+        "activity": true,
+        "notification": false,
+        "metrics": true,
+        "automation_trigger": false,
+        "search_index": false
+      },
+      "public_webhook": null,
+      "requirements": [
+        "RPT-021"
+      ],
+      "allow_list_version": null,
+      "delivery_authorization": null
+    },
+    {
+      "type": "insights.report.share_revoked",
+      "schema_version": 1,
+      "aggregate_entity": "insights.report_definition",
+      "fields": [
+        "scope"
+      ],
+      "max_class": "C1",
+      "consumers": {
+        "activity": true,
+        "notification": false,
+        "metrics": true,
+        "automation_trigger": false,
+        "search_index": false
+      },
+      "public_webhook": null,
+      "requirements": [
+        "RPT-020"
+      ],
+      "allow_list_version": null,
+      "delivery_authorization": null
+    },
+    {
+      "type": "insights.report.shared",
+      "schema_version": 1,
+      "aggregate_entity": "insights.report_definition",
+      "fields": [
+        "scope"
+      ],
+      "max_class": "C1",
+      "consumers": {
+        "activity": true,
+        "notification": false,
+        "metrics": true,
+        "automation_trigger": false,
+        "search_index": false
+      },
+      "public_webhook": null,
+      "requirements": [
+        "RPT-020"
+      ],
+      "allow_list_version": null,
+      "delivery_authorization": null
+    },
+    {
+      "type": "insights.report.suspended",
+      "schema_version": 1,
+      "aggregate_entity": "insights.report_definition",
+      "fields": [
+        "reason"
+      ],
+      "max_class": "C1",
+      "consumers": {
+        "activity": true,
+        "notification": false,
+        "metrics": true,
+        "automation_trigger": false,
+        "search_index": false
+      },
+      "public_webhook": null,
+      "requirements": [
+        "RPT-021"
+      ],
+      "allow_list_version": null,
+      "delivery_authorization": null
+    },
+    {
+      "type": "insights.report.updated",
+      "schema_version": 1,
+      "aggregate_entity": "insights.report_definition",
+      "fields": [
+        "change"
+      ],
+      "max_class": "C1",
+      "consumers": {
+        "activity": true,
+        "notification": false,
+        "metrics": true,
+        "automation_trigger": false,
+        "search_index": false
+      },
+      "public_webhook": null,
+      "requirements": [
+        "RPT-020"
+      ],
+      "allow_list_version": null,
+      "delivery_authorization": null
+    },
+    {
+      "type": "integrations.api_token.created",
+      "schema_version": 1,
+      "aggregate_entity": "integrations.api_token",
+      "fields": [
+        "kind",
+        "scope_count"
+      ],
+      "max_class": "C1",
+      "consumers": {
+        "activity": true,
+        "notification": false,
+        "metrics": false,
+        "automation_trigger": false,
+        "search_index": false
+      },
+      "public_webhook": null,
+      "requirements": [
+        "INT-017",
+        "INT-018"
+      ],
+      "allow_list_version": null,
+      "delivery_authorization": null
+    },
+    {
+      "type": "integrations.api_token.revoked",
+      "schema_version": 1,
+      "aggregate_entity": "integrations.api_token",
+      "fields": [
+        "kind"
+      ],
+      "max_class": "C1",
+      "consumers": {
+        "activity": true,
+        "notification": false,
+        "metrics": false,
+        "automation_trigger": false,
+        "search_index": false
+      },
+      "public_webhook": null,
+      "requirements": [
+        "INT-017",
+        "INT-018"
+      ],
+      "allow_list_version": null,
+      "delivery_authorization": null
+    },
+    {
+      "type": "integrations.api_token.rotated",
+      "schema_version": 1,
+      "aggregate_entity": "integrations.api_token",
+      "fields": [
+        "kind"
+      ],
+      "max_class": "C1",
+      "consumers": {
+        "activity": true,
+        "notification": false,
+        "metrics": false,
+        "automation_trigger": false,
+        "search_index": false
+      },
+      "public_webhook": null,
+      "requirements": [
+        "INT-017",
+        "INT-018"
+      ],
+      "allow_list_version": null,
+      "delivery_authorization": null
+    },
+    {
+      "type": "integrations.conflict.detected",
+      "schema_version": 1,
+      "aggregate_entity": "integrations.connection",
+      "fields": [
+        "field"
+      ],
+      "max_class": "C1",
+      "consumers": {
+        "activity": true,
+        "notification": false,
+        "metrics": true,
+        "automation_trigger": false,
+        "search_index": false
+      },
+      "public_webhook": null,
+      "requirements": [
+        "INT-024"
+      ],
+      "allow_list_version": null,
+      "delivery_authorization": null
+    },
+    {
+      "type": "integrations.conflict.resolved",
+      "schema_version": 1,
+      "aggregate_entity": "integrations.connection",
+      "fields": [
+        "resolution"
+      ],
+      "max_class": "C1",
+      "consumers": {
+        "activity": true,
+        "notification": false,
+        "metrics": true,
+        "automation_trigger": false,
+        "search_index": false
+      },
+      "public_webhook": null,
+      "requirements": [
+        "INT-025"
+      ],
+      "allow_list_version": null,
+      "delivery_authorization": null
+    },
+    {
+      "type": "integrations.connection.created",
+      "schema_version": 1,
+      "aggregate_entity": "integrations.connection",
+      "fields": [
+        "provider",
+        "auth_kind",
+        "scope"
+      ],
+      "max_class": "C1",
+      "consumers": {
+        "activity": true,
+        "notification": false,
+        "metrics": true,
+        "automation_trigger": false,
+        "search_index": false
+      },
+      "public_webhook": null,
+      "requirements": [
+        "INT-001"
+      ],
+      "allow_list_version": null,
+      "delivery_authorization": null
+    },
+    {
+      "type": "integrations.connection.disconnected",
+      "schema_version": 1,
+      "aggregate_entity": "integrations.connection",
+      "fields": [
+        "retention"
+      ],
+      "max_class": "C1",
+      "consumers": {
+        "activity": true,
+        "notification": true,
+        "metrics": true,
+        "automation_trigger": false,
+        "search_index": false
+      },
+      "public_webhook": null,
+      "requirements": [
+        "INT-008",
+        "INT-009"
+      ],
+      "allow_list_version": null,
+      "delivery_authorization": null
+    },
+    {
+      "type": "integrations.connection.health_changed",
+      "schema_version": 1,
+      "aggregate_entity": "integrations.connection",
+      "fields": [
+        "health"
+      ],
+      "max_class": "C1",
+      "consumers": {
+        "activity": true,
+        "notification": true,
+        "metrics": false,
+        "automation_trigger": false,
+        "search_index": false
+      },
+      "public_webhook": null,
+      "requirements": [],
+      "allow_list_version": null,
+      "delivery_authorization": null
+    },
+    {
+      "type": "integrations.connection.reauthorized",
+      "schema_version": 1,
+      "aggregate_entity": "integrations.connection",
+      "fields": [
+        "auth_kind"
+      ],
+      "max_class": "C1",
+      "consumers": {
+        "activity": true,
+        "notification": false,
+        "metrics": true,
+        "automation_trigger": false,
+        "search_index": false
+      },
+      "public_webhook": null,
+      "requirements": [
+        "INT-007"
+      ],
+      "allow_list_version": null,
+      "delivery_authorization": null
+    },
+    {
+      "type": "integrations.credential.rotated",
+      "schema_version": 1,
+      "aggregate_entity": "integrations.connection",
+      "fields": [
+        "key_version"
+      ],
+      "max_class": "C1",
+      "consumers": {
+        "activity": true,
+        "notification": false,
+        "metrics": true,
+        "automation_trigger": false,
+        "search_index": false
+      },
+      "public_webhook": null,
+      "requirements": [
+        "INT-003"
+      ],
+      "allow_list_version": null,
+      "delivery_authorization": null
+    },
+    {
+      "type": "integrations.sync.completed",
+      "schema_version": 1,
+      "aggregate_entity": "integrations.connection",
+      "fields": [
+        "outcome",
+        "conflicts"
+      ],
+      "max_class": "C1",
+      "consumers": {
+        "activity": true,
+        "notification": false,
+        "metrics": true,
+        "automation_trigger": false,
+        "search_index": false
+      },
+      "public_webhook": null,
+      "requirements": [
+        "INT-023"
+      ],
+      "allow_list_version": null,
+      "delivery_authorization": null
+    },
+    {
+      "type": "integrations.sync.failed",
+      "schema_version": 1,
+      "aggregate_entity": "integrations.sync_run",
+      "fields": [
+        "connection_id",
+        "terminal_reason"
+      ],
+      "max_class": "C1",
+      "consumers": {
+        "activity": true,
+        "notification": true,
+        "metrics": true,
+        "automation_trigger": false,
+        "search_index": false
+      },
+      "public_webhook": null,
+      "requirements": [
+        "NTF-005"
+      ],
+      "allow_list_version": null,
+      "delivery_authorization": null
+    },
+    {
+      "type": "integrations.webhook.delivery_failed",
+      "schema_version": 1,
+      "aggregate_entity": "integrations.webhook_delivery",
+      "fields": [
+        "subscription_id",
+        "attempt"
+      ],
+      "max_class": "C1",
+      "consumers": {
+        "activity": false,
+        "notification": true,
+        "metrics": true,
+        "automation_trigger": false,
+        "search_index": false
+      },
+      "public_webhook": null,
+      "requirements": [],
+      "allow_list_version": null,
+      "delivery_authorization": null
+    },
+    {
+      "type": "knowledge.document.created",
+      "schema_version": 1,
+      "aggregate_entity": "knowledge.document",
+      "fields": [
+        "doc_type",
+        "parent_document_id",
+        "attached_kind"
+      ],
+      "max_class": "C1",
+      "consumers": {
+        "activity": true,
+        "notification": false,
+        "metrics": true,
+        "automation_trigger": false,
+        "search_index": false
+      },
+      "public_webhook": null,
+      "requirements": [
+        "DOC-001",
+        "DOC-002",
+        "DOC-003"
+      ],
+      "allow_list_version": null,
+      "delivery_authorization": null
+    },
+    {
+      "type": "knowledge.document.mention_added",
+      "schema_version": 1,
+      "aggregate_entity": "knowledge.document",
+      "fields": [
+        "reference_id",
+        "block_id"
+      ],
+      "max_class": "C1",
+      "consumers": {
+        "activity": false,
+        "notification": true,
+        "metrics": true,
+        "automation_trigger": false,
+        "search_index": false
+      },
+      "public_webhook": null,
+      "requirements": [
+        "DOC-009"
+      ],
+      "allow_list_version": null,
+      "delivery_authorization": null
+    },
+    {
+      "type": "knowledge.document.source_approved",
+      "schema_version": 1,
+      "aggregate_entity": "knowledge.source_approval",
+      "fields": [
+        "document_version_id",
+        "kind"
+      ],
+      "max_class": "C1",
+      "consumers": {
+        "activity": true,
+        "notification": false,
+        "metrics": false,
+        "automation_trigger": true,
+        "search_index": true
+      },
+      "public_webhook": null,
+      "requirements": [
+        "DOC-017"
+      ],
+      "allow_list_version": null,
+      "delivery_authorization": null
+    },
+    {
+      "type": "knowledge.document.suggestion_created",
+      "schema_version": 1,
+      "aggregate_entity": "knowledge.document_suggestion",
+      "fields": [
+        "document_id",
+        "block_id"
+      ],
+      "max_class": "C1",
+      "consumers": {
+        "activity": true,
+        "notification": false,
+        "metrics": true,
+        "automation_trigger": false,
+        "search_index": false
+      },
+      "public_webhook": null,
+      "requirements": [
+        "DOC-012"
+      ],
+      "allow_list_version": null,
+      "delivery_authorization": null
+    },
+    {
+      "type": "knowledge.document.suggestion_decided",
+      "schema_version": 1,
+      "aggregate_entity": "knowledge.document_suggestion",
+      "fields": [
+        "document_id",
+        "state",
+        "applied_version"
+      ],
+      "max_class": "C1",
+      "consumers": {
+        "activity": true,
+        "notification": false,
+        "metrics": true,
+        "automation_trigger": false,
+        "search_index": false
+      },
+      "public_webhook": null,
+      "requirements": [
+        "DOC-012"
+      ],
+      "allow_list_version": null,
+      "delivery_authorization": null
+    },
+    {
+      "type": "knowledge.document.updated",
+      "schema_version": 1,
+      "aggregate_entity": "knowledge.document",
+      "fields": [
+        "change"
+      ],
+      "max_class": "C1",
+      "consumers": {
+        "activity": true,
+        "notification": false,
+        "metrics": true,
+        "automation_trigger": false,
+        "search_index": false
+      },
+      "public_webhook": null,
+      "requirements": [
+        "DOC-015",
+        "DOC-016",
+        "DOC-002"
+      ],
+      "allow_list_version": null,
+      "delivery_authorization": null
+    },
+    {
+      "type": "knowledge.document.version_saved",
+      "schema_version": 1,
+      "aggregate_entity": "knowledge.document",
+      "fields": [
+        "version_number",
+        "kind",
+        "size_bytes"
+      ],
+      "max_class": "C1",
+      "consumers": {
+        "activity": true,
+        "notification": false,
+        "metrics": true,
+        "automation_trigger": false,
+        "search_index": false
+      },
+      "public_webhook": null,
+      "requirements": [
+        "DOC-013",
+        "DOC-014"
+      ],
+      "allow_list_version": null,
+      "delivery_authorization": null
+    },
+    {
+      "type": "metering.usage.limit_reached",
+      "schema_version": 1,
+      "aggregate_entity": "metering.usage_balance",
+      "fields": [
+        "meter"
       ],
       "max_class": "C1",
       "consumers": {
@@ -1989,7 +3048,1144 @@
       },
       "public_webhook": null,
       "requirements": [
-        "BRF-018"
+        "AI-035"
+      ],
+      "allow_list_version": null,
+      "delivery_authorization": null
+    },
+    {
+      "type": "metering.usage.threshold_reached",
+      "schema_version": 1,
+      "aggregate_entity": "metering.usage_balance",
+      "fields": [
+        "meter",
+        "threshold_bp"
+      ],
+      "max_class": "C1",
+      "consumers": {
+        "activity": false,
+        "notification": true,
+        "metrics": false,
+        "automation_trigger": false,
+        "search_index": false
+      },
+      "public_webhook": null,
+      "requirements": [
+        "NTF-006"
+      ],
+      "allow_list_version": null,
+      "delivery_authorization": null
+    },
+    {
+      "type": "notify.delivery.state_changed",
+      "schema_version": 1,
+      "aggregate_entity": "notify.notification_delivery",
+      "fields": [
+        "channel",
+        "kind",
+        "state",
+        "failure_class"
+      ],
+      "max_class": "C1",
+      "consumers": {
+        "activity": false,
+        "notification": false,
+        "metrics": true,
+        "automation_trigger": false,
+        "search_index": false
+      },
+      "public_webhook": null,
+      "requirements": [
+        "NTF-002",
+        "NTF-003"
+      ],
+      "allow_list_version": null,
+      "delivery_authorization": null
+    },
+    {
+      "type": "notify.notification.created",
+      "schema_version": 1,
+      "aggregate_entity": "notify.notification",
+      "fields": [
+        "type",
+        "record_id"
+      ],
+      "max_class": "C1",
+      "consumers": {
+        "activity": false,
+        "notification": false,
+        "metrics": true,
+        "automation_trigger": false,
+        "search_index": false
+      },
+      "public_webhook": null,
+      "requirements": [
+        "NTF-001",
+        "COL-016"
+      ],
+      "allow_list_version": null,
+      "delivery_authorization": null
+    },
+    {
+      "type": "planning.block_series.defined",
+      "schema_version": 1,
+      "aggregate_entity": "planning.block_series",
+      "fields": [
+        "occurrences"
+      ],
+      "max_class": "C1",
+      "consumers": {
+        "activity": false,
+        "notification": false,
+        "metrics": true,
+        "automation_trigger": false,
+        "search_index": false
+      },
+      "public_webhook": null,
+      "requirements": [
+        "CAL-005"
+      ],
+      "allow_list_version": null,
+      "delivery_authorization": null
+    },
+    {
+      "type": "planning.block_series.ended",
+      "schema_version": 1,
+      "aggregate_entity": "planning.block_series",
+      "fields": [
+        "removed"
+      ],
+      "max_class": "C1",
+      "consumers": {
+        "activity": false,
+        "notification": false,
+        "metrics": true,
+        "automation_trigger": false,
+        "search_index": false
+      },
+      "public_webhook": null,
+      "requirements": [
+        "CAL-005"
+      ],
+      "allow_list_version": null,
+      "delivery_authorization": null
+    },
+    {
+      "type": "planning.capacity_profile.updated",
+      "schema_version": 1,
+      "aggregate_entity": "planning.capacity_profile",
+      "fields": [
+        "windows",
+        "weekly_capacity_minutes",
+        "observe_brand_holidays"
+      ],
+      "max_class": "C1",
+      "consumers": {
+        "activity": false,
+        "notification": false,
+        "metrics": true,
+        "automation_trigger": false,
+        "search_index": false
+      },
+      "public_webhook": null,
+      "requirements": [
+        "TIME-001"
+      ],
+      "allow_list_version": null,
+      "delivery_authorization": null
+    },
+    {
+      "type": "planning.capacity_reservation.removed",
+      "schema_version": 1,
+      "aggregate_entity": "planning.capacity_reservation",
+      "fields": [
+        "effective_from"
+      ],
+      "max_class": "C1",
+      "consumers": {
+        "activity": false,
+        "notification": false,
+        "metrics": true,
+        "automation_trigger": false,
+        "search_index": false
+      },
+      "public_webhook": null,
+      "requirements": [
+        "TIME-002"
+      ],
+      "allow_list_version": null,
+      "delivery_authorization": null
+    },
+    {
+      "type": "planning.capacity_reservation.set",
+      "schema_version": 1,
+      "aggregate_entity": "planning.capacity_reservation",
+      "fields": [
+        "minutes_per_week",
+        "effective_from",
+        "effective_to"
+      ],
+      "max_class": "C1",
+      "consumers": {
+        "activity": false,
+        "notification": false,
+        "metrics": true,
+        "automation_trigger": false,
+        "search_index": false
+      },
+      "public_webhook": null,
+      "requirements": [
+        "TIME-002"
+      ],
+      "allow_list_version": null,
+      "delivery_authorization": null
+    },
+    {
+      "type": "planning.day.closed",
+      "schema_version": 1,
+      "aggregate_entity": "planning.daily_record",
+      "fields": [
+        "day",
+        "closed_by",
+        "committed",
+        "completed"
+      ],
+      "max_class": "C1",
+      "consumers": {
+        "activity": false,
+        "notification": false,
+        "metrics": true,
+        "automation_trigger": false,
+        "search_index": false
+      },
+      "public_webhook": null,
+      "requirements": [
+        "PLAN-018",
+        "PLAN-019"
+      ],
+      "allow_list_version": null,
+      "delivery_authorization": null
+    },
+    {
+      "type": "planning.holiday.created",
+      "schema_version": 1,
+      "aggregate_entity": "planning.holiday",
+      "fields": [
+        "day"
+      ],
+      "max_class": "C1",
+      "consumers": {
+        "activity": false,
+        "notification": false,
+        "metrics": true,
+        "automation_trigger": false,
+        "search_index": false
+      },
+      "public_webhook": null,
+      "requirements": [
+        "CAL-010"
+      ],
+      "allow_list_version": null,
+      "delivery_authorization": null
+    },
+    {
+      "type": "planning.holiday.deleted",
+      "schema_version": 1,
+      "aggregate_entity": "planning.holiday",
+      "fields": [
+        "day"
+      ],
+      "max_class": "C1",
+      "consumers": {
+        "activity": false,
+        "notification": false,
+        "metrics": true,
+        "automation_trigger": false,
+        "search_index": false
+      },
+      "public_webhook": null,
+      "requirements": [
+        "CAL-010"
+      ],
+      "allow_list_version": null,
+      "delivery_authorization": null
+    },
+    {
+      "type": "planning.occurrence.generated",
+      "schema_version": 1,
+      "aggregate_entity": "planning.recurrence_series",
+      "fields": [
+        "occurrence_key",
+        "record_id"
+      ],
+      "max_class": "C1",
+      "consumers": {
+        "activity": false,
+        "notification": false,
+        "metrics": false,
+        "automation_trigger": true,
+        "search_index": false
+      },
+      "public_webhook": null,
+      "requirements": [],
+      "allow_list_version": null,
+      "delivery_authorization": null
+    },
+    {
+      "type": "planning.recurrence_series.defined",
+      "schema_version": 1,
+      "aggregate_entity": "planning.recurrence_series",
+      "fields": [
+        "target_kind"
+      ],
+      "max_class": "C1",
+      "consumers": {
+        "activity": true,
+        "notification": false,
+        "metrics": false,
+        "automation_trigger": false,
+        "search_index": false
+      },
+      "public_webhook": null,
+      "requirements": [
+        "PRJ-013"
+      ],
+      "allow_list_version": null,
+      "delivery_authorization": null
+    },
+    {
+      "type": "planning.recurrence_series.state_changed",
+      "schema_version": 1,
+      "aggregate_entity": "planning.recurrence_series",
+      "fields": [
+        "state"
+      ],
+      "max_class": "C1",
+      "consumers": {
+        "activity": true,
+        "notification": false,
+        "metrics": false,
+        "automation_trigger": false,
+        "search_index": false
+      },
+      "public_webhook": null,
+      "requirements": [
+        "PRJ-013"
+      ],
+      "allow_list_version": null,
+      "delivery_authorization": null
+    },
+    {
+      "type": "planning.task_reminder.fired",
+      "schema_version": 1,
+      "aggregate_entity": "planning.task_reminder",
+      "fields": [
+        "task_id",
+        "account_id"
+      ],
+      "max_class": "C1",
+      "consumers": {
+        "activity": false,
+        "notification": true,
+        "metrics": true,
+        "automation_trigger": false,
+        "search_index": false
+      },
+      "public_webhook": null,
+      "requirements": [
+        "TSK-032"
+      ],
+      "allow_list_version": null,
+      "delivery_authorization": null
+    },
+    {
+      "type": "planning.task_reminder.scheduled",
+      "schema_version": 1,
+      "aggregate_entity": "planning.task_reminder",
+      "fields": [
+        "task_id",
+        "state"
+      ],
+      "max_class": "C1",
+      "consumers": {
+        "activity": false,
+        "notification": false,
+        "metrics": true,
+        "automation_trigger": false,
+        "search_index": false
+      },
+      "public_webhook": null,
+      "requirements": [
+        "TSK-032"
+      ],
+      "allow_list_version": null,
+      "delivery_authorization": null
+    },
+    {
+      "type": "planning.time_off.created",
+      "schema_version": 1,
+      "aggregate_entity": "planning.time_off",
+      "fields": [
+        "kind",
+        "all_day",
+        "days"
+      ],
+      "max_class": "C1",
+      "consumers": {
+        "activity": false,
+        "notification": false,
+        "metrics": true,
+        "automation_trigger": false,
+        "search_index": false
+      },
+      "public_webhook": null,
+      "requirements": [
+        "TIME-010"
+      ],
+      "allow_list_version": null,
+      "delivery_authorization": null
+    },
+    {
+      "type": "planning.time_off.deleted",
+      "schema_version": 1,
+      "aggregate_entity": "planning.time_off",
+      "fields": [
+        "kind"
+      ],
+      "max_class": "C1",
+      "consumers": {
+        "activity": false,
+        "notification": false,
+        "metrics": true,
+        "automation_trigger": false,
+        "search_index": false
+      },
+      "public_webhook": null,
+      "requirements": [
+        "TIME-010"
+      ],
+      "allow_list_version": null,
+      "delivery_authorization": null
+    },
+    {
+      "type": "planning.time_off.updated",
+      "schema_version": 1,
+      "aggregate_entity": "planning.time_off",
+      "fields": [
+        "kind",
+        "all_day",
+        "days"
+      ],
+      "max_class": "C1",
+      "consumers": {
+        "activity": false,
+        "notification": false,
+        "metrics": true,
+        "automation_trigger": false,
+        "search_index": false
+      },
+      "public_webhook": null,
+      "requirements": [
+        "TIME-010"
+      ],
+      "allow_list_version": null,
+      "delivery_authorization": null
+    },
+    {
+      "type": "planning.today.changed",
+      "schema_version": 1,
+      "aggregate_entity": "planning.today_commitment",
+      "fields": [
+        "day",
+        "change"
+      ],
+      "max_class": "C1",
+      "consumers": {
+        "activity": false,
+        "notification": false,
+        "metrics": true,
+        "automation_trigger": false,
+        "search_index": false
+      },
+      "public_webhook": null,
+      "requirements": [
+        "PLAN-009",
+        "PLAN-016",
+        "PLAN-017"
+      ],
+      "allow_list_version": null,
+      "delivery_authorization": null
+    },
+    {
+      "type": "planning.today.committed",
+      "schema_version": 1,
+      "aggregate_entity": "planning.today_commitment",
+      "fields": [
+        "day",
+        "source"
+      ],
+      "max_class": "C1",
+      "consumers": {
+        "activity": false,
+        "notification": false,
+        "metrics": true,
+        "automation_trigger": false,
+        "search_index": false
+      },
+      "public_webhook": null,
+      "requirements": [
+        "PLAN-008"
+      ],
+      "allow_list_version": null,
+      "delivery_authorization": null
+    },
+    {
+      "type": "planning.work_block.created",
+      "schema_version": 1,
+      "aggregate_entity": "planning.work_block",
+      "fields": [
+        "source",
+        "focus"
+      ],
+      "max_class": "C1",
+      "consumers": {
+        "activity": false,
+        "notification": false,
+        "metrics": true,
+        "automation_trigger": false,
+        "search_index": false
+      },
+      "public_webhook": null,
+      "requirements": [
+        "TSK-006",
+        "PLAN-014",
+        "CAL-011"
+      ],
+      "allow_list_version": null,
+      "delivery_authorization": null
+    },
+    {
+      "type": "planning.work_block.deleted",
+      "schema_version": 1,
+      "aggregate_entity": "planning.work_block",
+      "fields": [
+        "source"
+      ],
+      "max_class": "C1",
+      "consumers": {
+        "activity": false,
+        "notification": false,
+        "metrics": true,
+        "automation_trigger": false,
+        "search_index": false
+      },
+      "public_webhook": null,
+      "requirements": [
+        "TSK-006"
+      ],
+      "allow_list_version": null,
+      "delivery_authorization": null
+    },
+    {
+      "type": "planning.work_block.moved",
+      "schema_version": 1,
+      "aggregate_entity": "planning.work_block",
+      "fields": [
+        "starts_at",
+        "ends_at",
+        "source"
+      ],
+      "max_class": "C1",
+      "consumers": {
+        "activity": false,
+        "notification": false,
+        "metrics": true,
+        "automation_trigger": true,
+        "search_index": false
+      },
+      "public_webhook": null,
+      "requirements": [
+        "CAL-013",
+        "PLAN-016",
+        "TSK-006"
+      ],
+      "allow_list_version": null,
+      "delivery_authorization": null
+    },
+    {
+      "type": "quality.defect.verified",
+      "schema_version": 1,
+      "aggregate_entity": "quality.verification_record",
+      "fields": [
+        "defect_task_id",
+        "method"
+      ],
+      "max_class": "C1",
+      "consumers": {
+        "activity": true,
+        "notification": true,
+        "metrics": true,
+        "automation_trigger": true,
+        "search_index": false
+      },
+      "public_webhook": "defect.verified",
+      "requirements": [
+        "TEST-017"
+      ],
+      "allow_list_version": 1,
+      "delivery_authorization": "subscription_owner_at_delivery"
+    },
+    {
+      "type": "quality.test_result.recorded",
+      "schema_version": 1,
+      "aggregate_entity": "quality.test_result",
+      "fields": [
+        "test_run_id",
+        "outcome"
+      ],
+      "max_class": "C1",
+      "consumers": {
+        "activity": true,
+        "notification": false,
+        "metrics": true,
+        "automation_trigger": true,
+        "search_index": false
+      },
+      "public_webhook": "test_result.recorded",
+      "requirements": [
+        "TEST-008"
+      ],
+      "allow_list_version": 1,
+      "delivery_authorization": "subscription_owner_at_delivery"
+    },
+    {
+      "type": "relations.follow.added",
+      "schema_version": 1,
+      "aggregate_entity": "relations.follower",
+      "fields": [
+        "record_type",
+        "membership_id"
+      ],
+      "max_class": "C1",
+      "consumers": {
+        "activity": false,
+        "notification": false,
+        "metrics": true,
+        "automation_trigger": false,
+        "search_index": false
+      },
+      "public_webhook": null,
+      "requirements": [
+        "COL-010",
+        "TSK-009",
+        "PRJ-026"
+      ],
+      "allow_list_version": null,
+      "delivery_authorization": null
+    },
+    {
+      "type": "relations.follow.removed",
+      "schema_version": 1,
+      "aggregate_entity": "relations.follower",
+      "fields": [
+        "record_type",
+        "membership_id"
+      ],
+      "max_class": "C1",
+      "consumers": {
+        "activity": false,
+        "notification": false,
+        "metrics": true,
+        "automation_trigger": false,
+        "search_index": false
+      },
+      "public_webhook": null,
+      "requirements": [
+        "COL-010",
+        "TSK-009",
+        "PRJ-026"
+      ],
+      "allow_list_version": null,
+      "delivery_authorization": null
+    },
+    {
+      "type": "relations.mention.created",
+      "schema_version": 1,
+      "aggregate_entity": "relations.mention",
+      "fields": [
+        "source_kind",
+        "target_kind",
+        "target_id"
+      ],
+      "max_class": "C1",
+      "consumers": {
+        "activity": true,
+        "notification": true,
+        "metrics": false,
+        "automation_trigger": false,
+        "search_index": false
+      },
+      "public_webhook": null,
+      "requirements": [
+        "COL-007",
+        "TSK-019"
+      ],
+      "allow_list_version": null,
+      "delivery_authorization": null
+    },
+    {
+      "type": "relations.relationship.created",
+      "schema_version": 1,
+      "aggregate_entity": "relations.record_relationship",
+      "fields": [
+        "kind",
+        "from_record_id",
+        "to_record_id"
+      ],
+      "max_class": "C1",
+      "consumers": {
+        "activity": true,
+        "notification": true,
+        "metrics": false,
+        "automation_trigger": true,
+        "search_index": false
+      },
+      "public_webhook": null,
+      "requirements": [],
+      "allow_list_version": null,
+      "delivery_authorization": null
+    },
+    {
+      "type": "relations.relationship.removed",
+      "schema_version": 1,
+      "aggregate_entity": "relations.record_relationship",
+      "fields": [
+        "kind",
+        "from_record_id",
+        "to_record_id"
+      ],
+      "max_class": "C1",
+      "consumers": {
+        "activity": true,
+        "notification": false,
+        "metrics": false,
+        "automation_trigger": true,
+        "search_index": false
+      },
+      "public_webhook": null,
+      "requirements": [
+        "PRJ-011"
+      ],
+      "allow_list_version": null,
+      "delivery_authorization": null
+    },
+    {
+      "type": "templates.template.applied",
+      "schema_version": 1,
+      "aggregate_entity": "templates.template",
+      "fields": [
+        "template_version_id",
+        "record_id"
+      ],
+      "max_class": "C1",
+      "consumers": {
+        "activity": true,
+        "notification": false,
+        "metrics": false,
+        "automation_trigger": true,
+        "search_index": false
+      },
+      "public_webhook": null,
+      "requirements": [
+        "PRJ-014"
+      ],
+      "allow_list_version": null,
+      "delivery_authorization": null
+    },
+    {
+      "type": "templates.template.created",
+      "schema_version": 1,
+      "aggregate_entity": "templates.template",
+      "fields": [
+        "target_record_type",
+        "item_count"
+      ],
+      "max_class": "C1",
+      "consumers": {
+        "activity": true,
+        "notification": false,
+        "metrics": false,
+        "automation_trigger": false,
+        "search_index": true
+      },
+      "public_webhook": null,
+      "requirements": [
+        "PRJ-015",
+        "PRJ-014"
+      ],
+      "allow_list_version": null,
+      "delivery_authorization": null
+    },
+    {
+      "type": "templates.template.installed",
+      "schema_version": 1,
+      "aggregate_entity": "templates.template_installation",
+      "fields": [
+        "template_version_id",
+        "sample"
+      ],
+      "max_class": "C1",
+      "consumers": {
+        "activity": true,
+        "notification": false,
+        "metrics": false,
+        "automation_trigger": false,
+        "search_index": false
+      },
+      "public_webhook": null,
+      "requirements": [],
+      "allow_list_version": null,
+      "delivery_authorization": null
+    },
+    {
+      "type": "templates.template.versioned",
+      "schema_version": 1,
+      "aggregate_entity": "templates.template",
+      "fields": [
+        "target_record_type",
+        "version",
+        "item_count"
+      ],
+      "max_class": "C1",
+      "consumers": {
+        "activity": true,
+        "notification": false,
+        "metrics": false,
+        "automation_trigger": false,
+        "search_index": true
+      },
+      "public_webhook": null,
+      "requirements": [
+        "TSK-028"
+      ],
+      "allow_list_version": null,
+      "delivery_authorization": null
+    },
+    {
+      "type": "tenancy.membership.activated",
+      "schema_version": 1,
+      "aggregate_entity": "tenancy.membership",
+      "fields": [
+        "kind",
+        "reason"
+      ],
+      "max_class": "C1",
+      "consumers": {
+        "activity": true,
+        "notification": true,
+        "metrics": false,
+        "automation_trigger": false,
+        "search_index": false
+      },
+      "public_webhook": null,
+      "requirements": [
+        "COL-001",
+        "COL-002"
+      ],
+      "allow_list_version": null,
+      "delivery_authorization": null
+    },
+    {
+      "type": "tenancy.membership.removed",
+      "schema_version": 1,
+      "aggregate_entity": "tenancy.membership",
+      "fields": [
+        "reason"
+      ],
+      "max_class": "C1",
+      "consumers": {
+        "activity": true,
+        "notification": false,
+        "metrics": false,
+        "automation_trigger": false,
+        "search_index": false
+      },
+      "public_webhook": null,
+      "requirements": [],
+      "allow_list_version": null,
+      "delivery_authorization": null
+    },
+    {
+      "type": "tenancy.membership.suspended",
+      "schema_version": 1,
+      "aggregate_entity": "tenancy.membership",
+      "fields": [
+        "reason"
+      ],
+      "max_class": "C1",
+      "consumers": {
+        "activity": true,
+        "notification": false,
+        "metrics": false,
+        "automation_trigger": false,
+        "search_index": false
+      },
+      "public_webhook": null,
+      "requirements": [
+        "PERM-013"
+      ],
+      "allow_list_version": null,
+      "delivery_authorization": null
+    },
+    {
+      "type": "tenancy.ownership.transferred",
+      "schema_version": 1,
+      "aggregate_entity": "tenancy.ownership_transfer",
+      "fields": [
+        "demoted_previous"
+      ],
+      "max_class": "C1",
+      "consumers": {
+        "activity": true,
+        "notification": true,
+        "metrics": false,
+        "automation_trigger": false,
+        "search_index": false
+      },
+      "public_webhook": null,
+      "requirements": [
+        "ADM-013"
+      ],
+      "allow_list_version": null,
+      "delivery_authorization": null
+    },
+    {
+      "type": "tenancy.team.membership_changed",
+      "schema_version": 1,
+      "aggregate_entity": "tenancy.team_member",
+      "fields": [
+        "change"
+      ],
+      "max_class": "C1",
+      "consumers": {
+        "activity": true,
+        "notification": false,
+        "metrics": false,
+        "automation_trigger": false,
+        "search_index": false
+      },
+      "public_webhook": null,
+      "requirements": [
+        "COL-003"
+      ],
+      "allow_list_version": null,
+      "delivery_authorization": null
+    },
+    {
+      "type": "time.time_entry.deleted",
+      "schema_version": 1,
+      "aggregate_entity": "time.time_entry",
+      "fields": [
+        "duration_seconds"
+      ],
+      "max_class": "C1",
+      "consumers": {
+        "activity": true,
+        "notification": false,
+        "metrics": true,
+        "automation_trigger": false,
+        "search_index": false
+      },
+      "public_webhook": null,
+      "requirements": [
+        "TSK-024"
+      ],
+      "allow_list_version": null,
+      "delivery_authorization": null
+    },
+    {
+      "type": "time.time_entry.recorded",
+      "schema_version": 1,
+      "aggregate_entity": "time.time_entry",
+      "fields": [
+        "duration_seconds",
+        "billable",
+        "source"
+      ],
+      "max_class": "C1",
+      "consumers": {
+        "activity": true,
+        "notification": false,
+        "metrics": true,
+        "automation_trigger": false,
+        "search_index": false
+      },
+      "public_webhook": null,
+      "requirements": [
+        "TSK-024",
+        "TSK-025",
+        "TIME-004"
+      ],
+      "allow_list_version": null,
+      "delivery_authorization": null
+    },
+    {
+      "type": "time.time_entry.updated",
+      "schema_version": 1,
+      "aggregate_entity": "time.time_entry",
+      "fields": [
+        "duration_seconds",
+        "billable"
+      ],
+      "max_class": "C1",
+      "consumers": {
+        "activity": true,
+        "notification": false,
+        "metrics": true,
+        "automation_trigger": false,
+        "search_index": false
+      },
+      "public_webhook": null,
+      "requirements": [
+        "TSK-024",
+        "TSK-026"
+      ],
+      "allow_list_version": null,
+      "delivery_authorization": null
+    },
+    {
+      "type": "time.timer.auto_stopped",
+      "schema_version": 1,
+      "aggregate_entity": "time.time_entry",
+      "fields": [
+        "duration_seconds"
+      ],
+      "max_class": "C1",
+      "consumers": {
+        "activity": true,
+        "notification": false,
+        "metrics": true,
+        "automation_trigger": false,
+        "search_index": false
+      },
+      "public_webhook": null,
+      "requirements": [
+        "TSK-025"
+      ],
+      "allow_list_version": null,
+      "delivery_authorization": null
+    },
+    {
+      "type": "time.timesheet.approved",
+      "schema_version": 1,
+      "aggregate_entity": "time.timesheet_approval",
+      "fields": [
+        "period_start",
+        "brand_id"
+      ],
+      "max_class": "C1",
+      "consumers": {
+        "activity": true,
+        "notification": true,
+        "metrics": true,
+        "automation_trigger": true,
+        "search_index": false
+      },
+      "public_webhook": null,
+      "requirements": [
+        "TIME-012",
+        "TIME-013"
+      ],
+      "allow_list_version": null,
+      "delivery_authorization": null
+    },
+    {
+      "type": "time.timesheet.rejected",
+      "schema_version": 1,
+      "aggregate_entity": "time.timesheet_approval",
+      "fields": [
+        "period_start",
+        "brand_id"
+      ],
+      "max_class": "C1",
+      "consumers": {
+        "activity": true,
+        "notification": true,
+        "metrics": true,
+        "automation_trigger": false,
+        "search_index": false
+      },
+      "public_webhook": null,
+      "requirements": [
+        "TIME-012"
+      ],
+      "allow_list_version": null,
+      "delivery_authorization": null
+    },
+    {
+      "type": "time.timesheet.submitted",
+      "schema_version": 1,
+      "aggregate_entity": "time.timesheet",
+      "fields": [
+        "period_start",
+        "lines"
+      ],
+      "max_class": "C1",
+      "consumers": {
+        "activity": true,
+        "notification": false,
+        "metrics": true,
+        "automation_trigger": false,
+        "search_index": false
+      },
+      "public_webhook": null,
+      "requirements": [
+        "TIME-012"
+      ],
+      "allow_list_version": null,
+      "delivery_authorization": null
+    },
+    {
+      "type": "time.timesheet.unlocked",
+      "schema_version": 1,
+      "aggregate_entity": "time.period_lock",
+      "fields": [
+        "period_start",
+        "brand_id"
+      ],
+      "max_class": "C1",
+      "consumers": {
+        "activity": true,
+        "notification": true,
+        "metrics": true,
+        "automation_trigger": false,
+        "search_index": false
+      },
+      "public_webhook": null,
+      "requirements": [
+        "TIME-013"
+      ],
+      "allow_list_version": null,
+      "delivery_authorization": null
+    },
+    {
+      "type": "time.timesheet.withdrawn",
+      "schema_version": 1,
+      "aggregate_entity": "time.timesheet",
+      "fields": [
+        "period_start"
+      ],
+      "max_class": "C1",
+      "consumers": {
+        "activity": true,
+        "notification": false,
+        "metrics": true,
+        "automation_trigger": false,
+        "search_index": false
+      },
+      "public_webhook": null,
+      "requirements": [
+        "TIME-012"
       ],
       "allow_list_version": null,
       "delivery_authorization": null
@@ -2017,12 +4213,746 @@
       "delivery_authorization": null
     },
     {
-      "type": "templates.template.installed",
+      "type": "views.default.changed",
       "schema_version": 1,
-      "aggregate_entity": "templates.template_installation",
+      "aggregate_entity": "views.view_default",
       "fields": [
-        "template_version_id",
-        "sample"
+        "target",
+        "entity",
+        "cleared"
+      ],
+      "max_class": "C1",
+      "consumers": {
+        "activity": false,
+        "notification": false,
+        "metrics": true,
+        "automation_trigger": false,
+        "search_index": false
+      },
+      "public_webhook": null,
+      "requirements": [
+        "VIEW-018"
+      ],
+      "allow_list_version": null,
+      "delivery_authorization": null
+    },
+    {
+      "type": "views.pin.changed",
+      "schema_version": 1,
+      "aggregate_entity": "views.view_pin",
+      "fields": [
+        "scope",
+        "pinned"
+      ],
+      "max_class": "C1",
+      "consumers": {
+        "activity": false,
+        "notification": false,
+        "metrics": true,
+        "automation_trigger": false,
+        "search_index": false
+      },
+      "public_webhook": null,
+      "requirements": [
+        "VIEW-019"
+      ],
+      "allow_list_version": null,
+      "delivery_authorization": null
+    },
+    {
+      "type": "views.saved_view.created",
+      "schema_version": 1,
+      "aggregate_entity": "views.saved_view",
+      "fields": [
+        "entity",
+        "visibility"
+      ],
+      "max_class": "C1",
+      "consumers": {
+        "activity": false,
+        "notification": false,
+        "metrics": true,
+        "automation_trigger": false,
+        "search_index": false
+      },
+      "public_webhook": null,
+      "requirements": [
+        "VIEW-016"
+      ],
+      "allow_list_version": null,
+      "delivery_authorization": null
+    },
+    {
+      "type": "views.saved_view.deleted",
+      "schema_version": 1,
+      "aggregate_entity": "views.saved_view",
+      "fields": [
+        "entity"
+      ],
+      "max_class": "C1",
+      "consumers": {
+        "activity": false,
+        "notification": false,
+        "metrics": true,
+        "automation_trigger": false,
+        "search_index": false
+      },
+      "public_webhook": null,
+      "requirements": [
+        "VIEW-016"
+      ],
+      "allow_list_version": null,
+      "delivery_authorization": null
+    },
+    {
+      "type": "views.saved_view.shared",
+      "schema_version": 1,
+      "aggregate_entity": "views.saved_view",
+      "fields": [
+        "entity",
+        "scope"
+      ],
+      "max_class": "C1",
+      "consumers": {
+        "activity": false,
+        "notification": false,
+        "metrics": true,
+        "automation_trigger": false,
+        "search_index": false
+      },
+      "public_webhook": null,
+      "requirements": [
+        "VIEW-017"
+      ],
+      "allow_list_version": null,
+      "delivery_authorization": null
+    },
+    {
+      "type": "views.saved_view.unshared",
+      "schema_version": 1,
+      "aggregate_entity": "views.saved_view",
+      "fields": [
+        "entity"
+      ],
+      "max_class": "C1",
+      "consumers": {
+        "activity": false,
+        "notification": false,
+        "metrics": true,
+        "automation_trigger": false,
+        "search_index": false
+      },
+      "public_webhook": null,
+      "requirements": [
+        "VIEW-017"
+      ],
+      "allow_list_version": null,
+      "delivery_authorization": null
+    },
+    {
+      "type": "views.saved_view.updated",
+      "schema_version": 1,
+      "aggregate_entity": "views.saved_view",
+      "fields": [
+        "entity",
+        "visibility"
+      ],
+      "max_class": "C1",
+      "consumers": {
+        "activity": false,
+        "notification": false,
+        "metrics": true,
+        "automation_trigger": false,
+        "search_index": false
+      },
+      "public_webhook": null,
+      "requirements": [
+        "VIEW-016",
+        "VIEW-020"
+      ],
+      "allow_list_version": null,
+      "delivery_authorization": null
+    },
+    {
+      "type": "work.bulk_operation.executed",
+      "schema_version": 1,
+      "aggregate_entity": "work.bulk_operation",
+      "fields": [
+        "operation",
+        "mode",
+        "item_count",
+        "succeeded",
+        "failed"
+      ],
+      "max_class": "C1",
+      "consumers": {
+        "activity": true,
+        "notification": false,
+        "metrics": true,
+        "automation_trigger": false,
+        "search_index": false
+      },
+      "public_webhook": null,
+      "requirements": [
+        "TSK-035"
+      ],
+      "allow_list_version": null,
+      "delivery_authorization": null
+    },
+    {
+      "type": "work.decision_record.created",
+      "schema_version": 1,
+      "aggregate_entity": "work.decision_record",
+      "fields": [
+        "project_id",
+        "kind",
+        "state"
+      ],
+      "max_class": "C1",
+      "consumers": {
+        "activity": true,
+        "notification": false,
+        "metrics": false,
+        "automation_trigger": true,
+        "search_index": true
+      },
+      "public_webhook": null,
+      "requirements": [
+        "PRJ-024"
+      ],
+      "allow_list_version": null,
+      "delivery_authorization": null
+    },
+    {
+      "type": "work.decision_record.state_changed",
+      "schema_version": 1,
+      "aggregate_entity": "work.decision_record",
+      "fields": [
+        "kind",
+        "state"
+      ],
+      "max_class": "C1",
+      "consumers": {
+        "activity": true,
+        "notification": false,
+        "metrics": false,
+        "automation_trigger": true,
+        "search_index": true
+      },
+      "public_webhook": null,
+      "requirements": [
+        "PRJ-024"
+      ],
+      "allow_list_version": null,
+      "delivery_authorization": null
+    },
+    {
+      "type": "work.label.created",
+      "schema_version": 1,
+      "aggregate_entity": "work.label",
+      "fields": [
+        "label_id"
+      ],
+      "max_class": "C1",
+      "consumers": {
+        "activity": false,
+        "notification": false,
+        "metrics": false,
+        "automation_trigger": false,
+        "search_index": true
+      },
+      "public_webhook": null,
+      "requirements": [
+        "TSK-015"
+      ],
+      "allow_list_version": null,
+      "delivery_authorization": null
+    },
+    {
+      "type": "work.label.updated",
+      "schema_version": 1,
+      "aggregate_entity": "work.label",
+      "fields": [
+        "label_id",
+        "lifecycle_state"
+      ],
+      "max_class": "C1",
+      "consumers": {
+        "activity": false,
+        "notification": false,
+        "metrics": false,
+        "automation_trigger": false,
+        "search_index": true
+      },
+      "public_webhook": null,
+      "requirements": [
+        "TSK-015"
+      ],
+      "allow_list_version": null,
+      "delivery_authorization": null
+    },
+    {
+      "type": "work.milestone.created",
+      "schema_version": 1,
+      "aggregate_entity": "work.milestone",
+      "fields": [
+        "project_id",
+        "phase_id"
+      ],
+      "max_class": "C1",
+      "consumers": {
+        "activity": true,
+        "notification": false,
+        "metrics": false,
+        "automation_trigger": true,
+        "search_index": true
+      },
+      "public_webhook": null,
+      "requirements": [
+        "PRJ-010"
+      ],
+      "allow_list_version": null,
+      "delivery_authorization": null
+    },
+    {
+      "type": "work.milestone.updated",
+      "schema_version": 1,
+      "aggregate_entity": "work.milestone",
+      "fields": [
+        "project_id",
+        "status",
+        "changed_fields"
+      ],
+      "max_class": "C1",
+      "consumers": {
+        "activity": true,
+        "notification": false,
+        "metrics": false,
+        "automation_trigger": true,
+        "search_index": true
+      },
+      "public_webhook": null,
+      "requirements": [
+        "PRJ-010"
+      ],
+      "allow_list_version": null,
+      "delivery_authorization": null
+    },
+    {
+      "type": "work.phase.created",
+      "schema_version": 1,
+      "aggregate_entity": "work.phase",
+      "fields": [
+        "project_id"
+      ],
+      "max_class": "C1",
+      "consumers": {
+        "activity": true,
+        "notification": false,
+        "metrics": false,
+        "automation_trigger": true,
+        "search_index": true
+      },
+      "public_webhook": null,
+      "requirements": [
+        "PRJ-010"
+      ],
+      "allow_list_version": null,
+      "delivery_authorization": null
+    },
+    {
+      "type": "work.phase.updated",
+      "schema_version": 1,
+      "aggregate_entity": "work.phase",
+      "fields": [
+        "project_id",
+        "changed_fields"
+      ],
+      "max_class": "C1",
+      "consumers": {
+        "activity": true,
+        "notification": false,
+        "metrics": false,
+        "automation_trigger": true,
+        "search_index": true
+      },
+      "public_webhook": null,
+      "requirements": [
+        "PRJ-010"
+      ],
+      "allow_list_version": null,
+      "delivery_authorization": null
+    },
+    {
+      "type": "work.project.created",
+      "schema_version": 1,
+      "aggregate_entity": "work.project",
+      "fields": [
+        "parent_project_id",
+        "status_id"
+      ],
+      "max_class": "C1",
+      "consumers": {
+        "activity": true,
+        "notification": false,
+        "metrics": true,
+        "automation_trigger": true,
+        "search_index": true
+      },
+      "public_webhook": "project.created",
+      "requirements": [],
+      "allow_list_version": 1,
+      "delivery_authorization": "subscription_owner_at_delivery"
+    },
+    {
+      "type": "work.project.moved",
+      "schema_version": 1,
+      "aggregate_entity": "work.project",
+      "fields": [
+        "parent_project_id",
+        "depth"
+      ],
+      "max_class": "C1",
+      "consumers": {
+        "activity": true,
+        "notification": false,
+        "metrics": false,
+        "automation_trigger": true,
+        "search_index": true
+      },
+      "public_webhook": null,
+      "requirements": [
+        "PRJ-012"
+      ],
+      "allow_list_version": null,
+      "delivery_authorization": null
+    },
+    {
+      "type": "work.project.owner_changed",
+      "schema_version": 1,
+      "aggregate_entity": "work.project",
+      "fields": [
+        "owner_membership_id"
+      ],
+      "max_class": "C1",
+      "consumers": {
+        "activity": true,
+        "notification": true,
+        "metrics": false,
+        "automation_trigger": true,
+        "search_index": false
+      },
+      "public_webhook": null,
+      "requirements": [
+        "PRJ-003"
+      ],
+      "allow_list_version": null,
+      "delivery_authorization": null
+    },
+    {
+      "type": "work.project.status_changed",
+      "schema_version": 1,
+      "aggregate_entity": "work.project",
+      "fields": [
+        "to_category",
+        "health"
+      ],
+      "max_class": "C1",
+      "consumers": {
+        "activity": true,
+        "notification": true,
+        "metrics": true,
+        "automation_trigger": true,
+        "search_index": false
+      },
+      "public_webhook": "project.status_changed",
+      "requirements": [],
+      "allow_list_version": 1,
+      "delivery_authorization": "subscription_owner_at_delivery"
+    },
+    {
+      "type": "work.project.updated",
+      "schema_version": 1,
+      "aggregate_entity": "work.project",
+      "fields": [
+        "changed_fields"
+      ],
+      "max_class": "C1",
+      "consumers": {
+        "activity": true,
+        "notification": false,
+        "metrics": false,
+        "automation_trigger": true,
+        "search_index": true
+      },
+      "public_webhook": null,
+      "requirements": [
+        "PRJ-001",
+        "PRJ-004"
+      ],
+      "allow_list_version": null,
+      "delivery_authorization": null
+    },
+    {
+      "type": "work.project_update.posted",
+      "schema_version": 1,
+      "aggregate_entity": "work.project_update",
+      "fields": [
+        "project_id",
+        "source_kind",
+        "health"
+      ],
+      "max_class": "C1",
+      "consumers": {
+        "activity": true,
+        "notification": false,
+        "metrics": false,
+        "automation_trigger": true,
+        "search_index": false
+      },
+      "public_webhook": null,
+      "requirements": [
+        "PRJ-025"
+      ],
+      "allow_list_version": null,
+      "delivery_authorization": null
+    },
+    {
+      "type": "work.project_update.verified",
+      "schema_version": 1,
+      "aggregate_entity": "work.project_update",
+      "fields": [
+        "project_id"
+      ],
+      "max_class": "C1",
+      "consumers": {
+        "activity": true,
+        "notification": false,
+        "metrics": false,
+        "automation_trigger": true,
+        "search_index": false
+      },
+      "public_webhook": null,
+      "requirements": [
+        "PRJ-025"
+      ],
+      "allow_list_version": null,
+      "delivery_authorization": null
+    },
+    {
+      "type": "work.task.assigned",
+      "schema_version": 1,
+      "aggregate_entity": "work.task",
+      "fields": [
+        "assignee_membership_ids"
+      ],
+      "max_class": "C1",
+      "consumers": {
+        "activity": true,
+        "notification": true,
+        "metrics": false,
+        "automation_trigger": true,
+        "search_index": false
+      },
+      "public_webhook": "task.assigned",
+      "requirements": [
+        "NTF-005"
+      ],
+      "allow_list_version": 1,
+      "delivery_authorization": "subscription_owner_at_delivery"
+    },
+    {
+      "type": "work.task.completed",
+      "schema_version": 1,
+      "aggregate_entity": "work.task",
+      "fields": [
+        "completed_at",
+        "status_category",
+        "project_id"
+      ],
+      "max_class": "C1",
+      "consumers": {
+        "activity": true,
+        "notification": true,
+        "metrics": true,
+        "automation_trigger": true,
+        "search_index": false
+      },
+      "public_webhook": "task.completed",
+      "requirements": [
+        "TSK-031"
+      ],
+      "allow_list_version": 1,
+      "delivery_authorization": "subscription_owner_at_delivery"
+    },
+    {
+      "type": "work.task.created",
+      "schema_version": 1,
+      "aggregate_entity": "work.task",
+      "fields": [
+        "project_id",
+        "parent_task_id",
+        "status_id",
+        "source_kind"
+      ],
+      "max_class": "C1",
+      "consumers": {
+        "activity": true,
+        "notification": false,
+        "metrics": true,
+        "automation_trigger": true,
+        "search_index": true
+      },
+      "public_webhook": "task.created",
+      "requirements": [
+        "TSK-001"
+      ],
+      "allow_list_version": 1,
+      "delivery_authorization": "subscription_owner_at_delivery"
+    },
+    {
+      "type": "work.task.delegated",
+      "schema_version": 1,
+      "aggregate_entity": "work.task",
+      "fields": [
+        "from_membership_id",
+        "to_membership_id"
+      ],
+      "max_class": "C1",
+      "consumers": {
+        "activity": true,
+        "notification": true,
+        "metrics": true,
+        "automation_trigger": false,
+        "search_index": false
+      },
+      "public_webhook": null,
+      "requirements": [
+        "COL-014",
+        "COL-015"
+      ],
+      "allow_list_version": null,
+      "delivery_authorization": null
+    },
+    {
+      "type": "work.task.moved",
+      "schema_version": 1,
+      "aggregate_entity": "work.task",
+      "fields": [
+        "project_id",
+        "parent_task_id",
+        "depth"
+      ],
+      "max_class": "C1",
+      "consumers": {
+        "activity": true,
+        "notification": false,
+        "metrics": false,
+        "automation_trigger": true,
+        "search_index": true
+      },
+      "public_webhook": null,
+      "requirements": [
+        "TSK-001",
+        "TSK-010"
+      ],
+      "allow_list_version": null,
+      "delivery_authorization": null
+    },
+    {
+      "type": "work.task.reopened",
+      "schema_version": 1,
+      "aggregate_entity": "work.task",
+      "fields": [
+        "status_id",
+        "status_category"
+      ],
+      "max_class": "C1",
+      "consumers": {
+        "activity": true,
+        "notification": false,
+        "metrics": false,
+        "automation_trigger": true,
+        "search_index": true
+      },
+      "public_webhook": null,
+      "requirements": [
+        "TSK-005"
+      ],
+      "allow_list_version": null,
+      "delivery_authorization": null
+    },
+    {
+      "type": "work.task.status_changed",
+      "schema_version": 1,
+      "aggregate_entity": "work.task",
+      "fields": [
+        "from_status_id",
+        "to_status_id",
+        "to_category"
+      ],
+      "max_class": "C1",
+      "consumers": {
+        "activity": true,
+        "notification": true,
+        "metrics": true,
+        "automation_trigger": true,
+        "search_index": false
+      },
+      "public_webhook": "task.status_changed",
+      "requirements": [],
+      "allow_list_version": 1,
+      "delivery_authorization": "subscription_owner_at_delivery"
+    },
+    {
+      "type": "work.task.undone",
+      "schema_version": 1,
+      "aggregate_entity": "work.task",
+      "fields": [
+        "task_id",
+        "command"
+      ],
+      "max_class": "C1",
+      "consumers": {
+        "activity": true,
+        "notification": false,
+        "metrics": true,
+        "automation_trigger": false,
+        "search_index": false
+      },
+      "public_webhook": null,
+      "requirements": [
+        "TSK-038"
+      ],
+      "allow_list_version": null,
+      "delivery_authorization": null
+    },
+    {
+      "type": "work.task.updated",
+      "schema_version": 1,
+      "aggregate_entity": "work.task",
+      "fields": [
+        "changed_fields"
+      ],
+      "max_class": "C1",
+      "consumers": {
+        "activity": true,
+        "notification": false,
+        "metrics": false,
+        "automation_trigger": true,
+        "search_index": true
+      },
+      "public_webhook": "task.updated",
+      "requirements": [],
+      "allow_list_version": 1,
+      "delivery_authorization": "subscription_owner_at_delivery"
+    },
+    {
+      "type": "workflow.approval_request.closed",
+      "schema_version": 1,
+      "aggregate_entity": "workflow.approval_request",
+      "fields": [
+        "closed_reason"
       ],
       "max_class": "C1",
       "consumers": {
@@ -2033,7 +4963,317 @@
         "search_index": false
       },
       "public_webhook": null,
-      "requirements": [],
+      "requirements": [
+        "WFL-007"
+      ],
+      "allow_list_version": null,
+      "delivery_authorization": null
+    },
+    {
+      "type": "workflow.approval_request.created",
+      "schema_version": 1,
+      "aggregate_entity": "workflow.approval_request",
+      "fields": [
+        "transition_id",
+        "policy",
+        "record_type"
+      ],
+      "max_class": "C1",
+      "consumers": {
+        "activity": true,
+        "notification": false,
+        "metrics": false,
+        "automation_trigger": false,
+        "search_index": false
+      },
+      "public_webhook": null,
+      "requirements": [
+        "WFL-007"
+      ],
+      "allow_list_version": null,
+      "delivery_authorization": null
+    },
+    {
+      "type": "workflow.approval_request.decided",
+      "schema_version": 1,
+      "aggregate_entity": "workflow.approval_request",
+      "fields": [
+        "decision",
+        "state"
+      ],
+      "max_class": "C1",
+      "consumers": {
+        "activity": true,
+        "notification": false,
+        "metrics": false,
+        "automation_trigger": false,
+        "search_index": false
+      },
+      "public_webhook": null,
+      "requirements": [
+        "WFL-007"
+      ],
+      "allow_list_version": null,
+      "delivery_authorization": null
+    },
+    {
+      "type": "workflow.field_definition.created",
+      "schema_version": 1,
+      "aggregate_entity": "workflow.field_definition",
+      "fields": [
+        "field_type",
+        "scope_kind"
+      ],
+      "max_class": "C1",
+      "consumers": {
+        "activity": true,
+        "notification": false,
+        "metrics": false,
+        "automation_trigger": false,
+        "search_index": false
+      },
+      "public_webhook": null,
+      "requirements": [
+        "WFL-008"
+      ],
+      "allow_list_version": null,
+      "delivery_authorization": null
+    },
+    {
+      "type": "workflow.field_definition.updated",
+      "schema_version": 1,
+      "aggregate_entity": "workflow.field_definition",
+      "fields": [
+        "changed_fields",
+        "lifecycle_state"
+      ],
+      "max_class": "C1",
+      "consumers": {
+        "activity": true,
+        "notification": false,
+        "metrics": false,
+        "automation_trigger": false,
+        "search_index": false
+      },
+      "public_webhook": null,
+      "requirements": [
+        "WFL-008",
+        "WFL-012"
+      ],
+      "allow_list_version": null,
+      "delivery_authorization": null
+    },
+    {
+      "type": "workflow.field_set.applied",
+      "schema_version": 1,
+      "aggregate_entity": "workflow.field_set",
+      "fields": [
+        "record_type",
+        "version"
+      ],
+      "max_class": "C1",
+      "consumers": {
+        "activity": true,
+        "notification": false,
+        "metrics": false,
+        "automation_trigger": false,
+        "search_index": false
+      },
+      "public_webhook": null,
+      "requirements": [
+        "WFL-010"
+      ],
+      "allow_list_version": null,
+      "delivery_authorization": null
+    },
+    {
+      "type": "workflow.field_set.versioned",
+      "schema_version": 1,
+      "aggregate_entity": "workflow.field_set",
+      "fields": [
+        "version"
+      ],
+      "max_class": "C1",
+      "consumers": {
+        "activity": true,
+        "notification": false,
+        "metrics": false,
+        "automation_trigger": false,
+        "search_index": false
+      },
+      "public_webhook": null,
+      "requirements": [
+        "WFL-010"
+      ],
+      "allow_list_version": null,
+      "delivery_authorization": null
+    },
+    {
+      "type": "workflow.field_value.changed",
+      "schema_version": 1,
+      "aggregate_entity": "workflow.field_value",
+      "fields": [
+        "record_type",
+        "definition_ids"
+      ],
+      "max_class": "C1",
+      "consumers": {
+        "activity": true,
+        "notification": false,
+        "metrics": false,
+        "automation_trigger": false,
+        "search_index": false
+      },
+      "public_webhook": null,
+      "requirements": [
+        "TSK-016",
+        "WFL-012"
+      ],
+      "allow_list_version": null,
+      "delivery_authorization": null
+    },
+    {
+      "type": "workflow.status.created",
+      "schema_version": 1,
+      "aggregate_entity": "workflow.workflow_status",
+      "fields": [
+        "workflow_id",
+        "category"
+      ],
+      "max_class": "C1",
+      "consumers": {
+        "activity": true,
+        "notification": false,
+        "metrics": false,
+        "automation_trigger": false,
+        "search_index": false
+      },
+      "public_webhook": null,
+      "requirements": [
+        "WFL-002",
+        "WFL-004"
+      ],
+      "allow_list_version": null,
+      "delivery_authorization": null
+    },
+    {
+      "type": "workflow.status.updated",
+      "schema_version": 1,
+      "aggregate_entity": "workflow.workflow_status",
+      "fields": [
+        "workflow_id",
+        "changed_fields",
+        "lifecycle_state"
+      ],
+      "max_class": "C1",
+      "consumers": {
+        "activity": true,
+        "notification": false,
+        "metrics": false,
+        "automation_trigger": false,
+        "search_index": false
+      },
+      "public_webhook": null,
+      "requirements": [
+        "WFL-004"
+      ],
+      "allow_list_version": null,
+      "delivery_authorization": null
+    },
+    {
+      "type": "workflow.transition.created",
+      "schema_version": 1,
+      "aggregate_entity": "workflow.transition",
+      "fields": [
+        "workflow_id",
+        "approval_policy"
+      ],
+      "max_class": "C1",
+      "consumers": {
+        "activity": true,
+        "notification": false,
+        "metrics": false,
+        "automation_trigger": false,
+        "search_index": false
+      },
+      "public_webhook": null,
+      "requirements": [
+        "WFL-005"
+      ],
+      "allow_list_version": null,
+      "delivery_authorization": null
+    },
+    {
+      "type": "workflow.transition.updated",
+      "schema_version": 1,
+      "aggregate_entity": "workflow.transition",
+      "fields": [
+        "workflow_id",
+        "changed_fields",
+        "lifecycle_state"
+      ],
+      "max_class": "C1",
+      "consumers": {
+        "activity": true,
+        "notification": false,
+        "metrics": false,
+        "automation_trigger": false,
+        "search_index": false
+      },
+      "public_webhook": null,
+      "requirements": [
+        "WFL-005",
+        "WFL-006",
+        "WFL-007"
+      ],
+      "allow_list_version": null,
+      "delivery_authorization": null
+    },
+    {
+      "type": "workflow.workflow.created",
+      "schema_version": 1,
+      "aggregate_entity": "workflow.workflow",
+      "fields": [
+        "record_kind",
+        "scope_kind"
+      ],
+      "max_class": "C1",
+      "consumers": {
+        "activity": true,
+        "notification": false,
+        "metrics": false,
+        "automation_trigger": false,
+        "search_index": false
+      },
+      "public_webhook": null,
+      "requirements": [
+        "WFL-002",
+        "WFL-003"
+      ],
+      "allow_list_version": null,
+      "delivery_authorization": null
+    },
+    {
+      "type": "workflow.workflow.updated",
+      "schema_version": 1,
+      "aggregate_entity": "workflow.workflow",
+      "fields": [
+        "changed_fields",
+        "lifecycle_state"
+      ],
+      "max_class": "C1",
+      "consumers": {
+        "activity": true,
+        "notification": false,
+        "metrics": false,
+        "automation_trigger": false,
+        "search_index": false
+      },
+      "public_webhook": null,
+      "requirements": [
+        "WFL-002",
+        "WFL-003"
+      ],
       "allow_list_version": null,
       "delivery_authorization": null
     }
@@ -2612,6 +5852,24 @@
       "area": "files"
     },
     {
+      "name": "integrations.requests",
+      "type": "counter",
+      "labels": [
+        "op",
+        "outcome"
+      ],
+      "area": "integrations"
+    },
+    {
+      "name": "integrations.jobs",
+      "type": "counter",
+      "labels": [
+        "kind",
+        "outcome"
+      ],
+      "area": "integrations"
+    },
+    {
       "name": "integration.sync.duration",
       "type": "histogram",
       "labels": [
@@ -2685,6 +5943,659 @@
         "outcome"
       ],
       "area": "auth"
+    },
+    {
+      "name": "tenancy.commands",
+      "type": "counter",
+      "labels": [
+        "command",
+        "outcome"
+      ],
+      "area": "tenancy"
+    },
+    {
+      "name": "tenancy.authz_decisions",
+      "type": "counter",
+      "labels": [
+        "action_key",
+        "outcome"
+      ],
+      "area": "tenancy"
+    },
+    {
+      "name": "tenancy.context_failures",
+      "type": "counter",
+      "labels": [
+        "reason"
+      ],
+      "area": "tenancy"
+    },
+    {
+      "name": "tenancy.context_fallbacks",
+      "type": "counter",
+      "labels": [
+        "reason"
+      ],
+      "area": "tenancy"
+    },
+    {
+      "name": "tenancy.rls_denials",
+      "type": "counter",
+      "labels": [
+        "module"
+      ],
+      "area": "tenancy"
+    },
+    {
+      "name": "tenancy.invitation_outcomes",
+      "type": "counter",
+      "labels": [
+        "stage",
+        "outcome"
+      ],
+      "area": "tenancy"
+    },
+    {
+      "name": "tenancy.revocations",
+      "type": "counter",
+      "labels": [
+        "kind",
+        "outcome"
+      ],
+      "area": "tenancy"
+    },
+    {
+      "name": "tenancy.epoch_stale",
+      "type": "counter",
+      "labels": [
+        "consumer"
+      ],
+      "area": "tenancy"
+    },
+    {
+      "name": "tenancy.ownership_hook_failures",
+      "type": "counter",
+      "labels": [
+        "hook"
+      ],
+      "area": "tenancy"
+    },
+    {
+      "name": "tenancy.context_strategy",
+      "type": "counter",
+      "labels": [
+        "strategy"
+      ],
+      "area": "tenancy"
+    },
+    {
+      "name": "views.recent_writes",
+      "type": "counter",
+      "labels": [
+        "outcome"
+      ],
+      "area": "views"
+    },
+    {
+      "name": "views.favorite_changes",
+      "type": "counter",
+      "labels": [
+        "op",
+        "outcome"
+      ],
+      "area": "views"
+    },
+    {
+      "name": "views.state_ops",
+      "type": "counter",
+      "labels": [
+        "op",
+        "outcome"
+      ],
+      "area": "views"
+    },
+    {
+      "name": "views.state_decode_failures",
+      "type": "counter",
+      "labels": [
+        "source",
+        "reason"
+      ],
+      "area": "views"
+    },
+    {
+      "name": "views.omitted_targets",
+      "type": "counter",
+      "labels": [
+        "list"
+      ],
+      "area": "views"
+    },
+    {
+      "name": "views.cleanup",
+      "type": "counter",
+      "labels": [
+        "kind"
+      ],
+      "area": "views"
+    },
+    {
+      "name": "shell.commands",
+      "type": "counter",
+      "labels": [
+        "command",
+        "trigger"
+      ],
+      "area": "shell"
+    },
+    {
+      "name": "identity.preference_updates",
+      "type": "counter",
+      "labels": [
+        "outcome"
+      ],
+      "area": "identity"
+    },
+    {
+      "name": "work.recurrence.occurrences",
+      "type": "counter",
+      "labels": [
+        "outcome"
+      ],
+      "area": "work"
+    },
+    {
+      "name": "work.hierarchy.moves",
+      "type": "counter",
+      "labels": [
+        "outcome"
+      ],
+      "area": "work"
+    },
+    {
+      "name": "work.task.moves",
+      "type": "counter",
+      "labels": [
+        "outcome"
+      ],
+      "area": "work"
+    },
+    {
+      "name": "work.task.completions",
+      "type": "counter",
+      "labels": [
+        "outcome"
+      ],
+      "area": "work"
+    },
+    {
+      "name": "workflow.transitions",
+      "type": "counter",
+      "labels": [
+        "outcome"
+      ],
+      "area": "workflow"
+    },
+    {
+      "name": "workflow.transition.duration",
+      "type": "histogram",
+      "labels": [
+        "outcome"
+      ],
+      "area": "workflow"
+    },
+    {
+      "name": "workflow.formula.evaluations",
+      "type": "counter",
+      "labels": [
+        "outcome"
+      ],
+      "area": "workflow"
+    },
+    {
+      "name": "work.reminders.fired",
+      "type": "counter",
+      "labels": [
+        "outcome"
+      ],
+      "area": "work"
+    },
+    {
+      "name": "work.bulk.items",
+      "type": "counter",
+      "labels": [
+        "outcome"
+      ],
+      "area": "work"
+    },
+    {
+      "name": "work.undo.applied",
+      "type": "counter",
+      "labels": [
+        "outcome"
+      ],
+      "area": "work"
+    },
+    {
+      "name": "capture.items",
+      "type": "counter",
+      "labels": [
+        "outcome"
+      ],
+      "area": "capture"
+    },
+    {
+      "name": "capture.parse",
+      "type": "counter",
+      "labels": [
+        "outcome"
+      ],
+      "area": "capture"
+    },
+    {
+      "name": "capture.triage",
+      "type": "counter",
+      "labels": [
+        "outcome"
+      ],
+      "area": "capture"
+    },
+    {
+      "name": "views.queries",
+      "type": "counter",
+      "labels": [
+        "entity",
+        "outcome"
+      ],
+      "area": "views"
+    },
+    {
+      "name": "views.query_duration",
+      "type": "histogram",
+      "labels": [
+        "entity"
+      ],
+      "area": "views"
+    },
+    {
+      "name": "views.exports",
+      "type": "counter",
+      "labels": [
+        "entity",
+        "format"
+      ],
+      "area": "views"
+    },
+    {
+      "name": "time.entries",
+      "type": "counter",
+      "labels": [
+        "source",
+        "outcome"
+      ],
+      "area": "time"
+    },
+    {
+      "name": "time.timers",
+      "type": "counter",
+      "labels": [
+        "action",
+        "outcome"
+      ],
+      "area": "time"
+    },
+    {
+      "name": "time.timesheets",
+      "type": "counter",
+      "labels": [
+        "action",
+        "outcome"
+      ],
+      "area": "time"
+    },
+    {
+      "name": "time.exports",
+      "type": "counter",
+      "labels": [
+        "format"
+      ],
+      "area": "time"
+    },
+    {
+      "name": "time.timer_guard",
+      "type": "counter",
+      "labels": [
+        "outcome"
+      ],
+      "area": "time"
+    },
+    {
+      "name": "views.layout_reads",
+      "type": "counter",
+      "labels": [
+        "layout",
+        "outcome"
+      ],
+      "area": "views"
+    },
+    {
+      "name": "planning.today",
+      "type": "counter",
+      "labels": [
+        "action",
+        "outcome"
+      ],
+      "area": "planning"
+    },
+    {
+      "name": "planning.blocks",
+      "type": "counter",
+      "labels": [
+        "action",
+        "outcome"
+      ],
+      "area": "planning"
+    },
+    {
+      "name": "planning.block_series",
+      "type": "counter",
+      "labels": [
+        "outcome"
+      ],
+      "area": "planning"
+    },
+    {
+      "name": "planning.day_close",
+      "type": "counter",
+      "labels": [
+        "outcome"
+      ],
+      "area": "planning"
+    },
+    {
+      "name": "capacity.reads",
+      "type": "counter",
+      "labels": [
+        "view",
+        "outcome"
+      ],
+      "area": "planning"
+    },
+    {
+      "name": "capacity.changes",
+      "type": "counter",
+      "labels": [
+        "kind",
+        "outcome"
+      ],
+      "area": "planning"
+    },
+    {
+      "name": "collab.comments",
+      "type": "counter",
+      "labels": [
+        "action",
+        "outcome"
+      ],
+      "area": "collab"
+    },
+    {
+      "name": "collab.reactions",
+      "type": "counter",
+      "labels": [
+        "change",
+        "outcome"
+      ],
+      "area": "collab"
+    },
+    {
+      "name": "collab.follows",
+      "type": "counter",
+      "labels": [
+        "change",
+        "outcome"
+      ],
+      "area": "collab"
+    },
+    {
+      "name": "collab.reviews",
+      "type": "counter",
+      "labels": [
+        "action",
+        "outcome"
+      ],
+      "area": "collab"
+    },
+    {
+      "name": "collab.delegations",
+      "type": "counter",
+      "labels": [
+        "kind",
+        "outcome"
+      ],
+      "area": "collab"
+    },
+    {
+      "name": "notify.fanout",
+      "type": "counter",
+      "labels": [
+        "type",
+        "outcome"
+      ],
+      "area": "notify"
+    },
+    {
+      "name": "notify.deliveries",
+      "type": "counter",
+      "labels": [
+        "channel",
+        "outcome"
+      ],
+      "area": "notify"
+    },
+    {
+      "name": "notify.digests",
+      "type": "counter",
+      "labels": [
+        "kind",
+        "outcome"
+      ],
+      "area": "notify"
+    },
+    {
+      "name": "notify.reads",
+      "type": "counter",
+      "labels": [
+        "view",
+        "outcome"
+      ],
+      "area": "notify"
+    },
+    {
+      "name": "knowledge.documents",
+      "type": "counter",
+      "labels": [
+        "action",
+        "outcome"
+      ],
+      "area": "knowledge"
+    },
+    {
+      "name": "knowledge.versions",
+      "type": "counter",
+      "labels": [
+        "action",
+        "outcome"
+      ],
+      "area": "knowledge"
+    },
+    {
+      "name": "knowledge.suggestions",
+      "type": "counter",
+      "labels": [
+        "action",
+        "outcome"
+      ],
+      "area": "knowledge"
+    },
+    {
+      "name": "knowledge.exports",
+      "type": "counter",
+      "labels": [
+        "format",
+        "outcome"
+      ],
+      "area": "knowledge"
+    },
+    {
+      "name": "knowledge.references",
+      "type": "counter",
+      "labels": [
+        "action",
+        "outcome"
+      ],
+      "area": "knowledge"
+    },
+    {
+      "name": "knowledge.live",
+      "type": "counter",
+      "labels": [
+        "action",
+        "outcome"
+      ],
+      "area": "knowledge"
+    },
+    {
+      "name": "search.requests",
+      "type": "counter",
+      "labels": [
+        "op",
+        "outcome"
+      ],
+      "area": "search"
+    },
+    {
+      "name": "search.index.jobs",
+      "type": "counter",
+      "labels": [
+        "kind",
+        "outcome"
+      ],
+      "area": "search"
+    },
+    {
+      "name": "search.query.duration",
+      "type": "histogram",
+      "labels": [
+        "outcome"
+      ],
+      "area": "search"
+    },
+    {
+      "name": "files.requests",
+      "type": "counter",
+      "labels": [
+        "op",
+        "outcome"
+      ],
+      "area": "files"
+    },
+    {
+      "name": "files.jobs",
+      "type": "counter",
+      "labels": [
+        "kind",
+        "outcome"
+      ],
+      "area": "files"
+    },
+    {
+      "name": "goals.reads",
+      "type": "counter",
+      "labels": [
+        "view",
+        "outcome"
+      ],
+      "area": "goals"
+    },
+    {
+      "name": "goals.changes",
+      "type": "counter",
+      "labels": [
+        "kind",
+        "outcome"
+      ],
+      "area": "goals"
+    },
+    {
+      "name": "goals.jobs",
+      "type": "counter",
+      "labels": [
+        "kind",
+        "outcome"
+      ],
+      "area": "goals"
+    },
+    {
+      "name": "metrics.requests",
+      "type": "counter",
+      "labels": [
+        "op",
+        "outcome"
+      ],
+      "area": "metrics"
+    },
+    {
+      "name": "metrics.query.duration",
+      "type": "histogram",
+      "labels": [
+        "outcome"
+      ],
+      "area": "metrics"
+    },
+    {
+      "name": "metrics.reconcile.jobs",
+      "type": "counter",
+      "labels": [
+        "outcome"
+      ],
+      "area": "metrics"
+    },
+    {
+      "name": "insights.reads",
+      "type": "counter",
+      "labels": [
+        "view",
+        "outcome"
+      ],
+      "area": "insights"
+    },
+    {
+      "name": "insights.changes",
+      "type": "counter",
+      "labels": [
+        "kind",
+        "outcome"
+      ],
+      "area": "insights"
+    },
+    {
+      "name": "insights.jobs",
+      "type": "counter",
+      "labels": [
+        "kind",
+        "outcome"
+      ],
+      "area": "insights"
+    },
+    {
+      "name": "insights.widgets",
+      "type": "counter",
+      "labels": [
+        "metric",
+        "outcome"
+      ],
+      "area": "insights"
     }
   ],
   "forbidden_metric_labels": [
@@ -2697,7 +6608,15 @@
     "name",
     "query",
     "ip",
-    "user_agent"
+    "user_agent",
+    "workspace",
+    "brand",
+    "membership",
+    "membership_id",
+    "account",
+    "account_id",
+    "timezone",
+    "content"
   ],
   "authz_response_shapes": {
     "ok": "success:200",
@@ -2712,28 +6631,484 @@
     "conflict_filtered": "error:conflict",
     "validation_generic": "error:validation_failed",
     "empty": "success:200 (empty page)",
-    "error_generic": "error:internal_error"
+    "error_generic": "error:internal_error",
+    "step_up_required": "error:step_up_required"
   },
   "parameters": [
+    {
+      "name": "ACTIVITY_RECORDS_MAX",
+      "meaning": "Most records whose activity one activity view reads (more are reported as truncated); default 500, range 10\u20135000.",
+      "owner": "3B"
+    },
+    {
+      "name": "API_EXPORT_RATE_PER_MINUTE",
+      "meaning": "Public API exports per principal per minute; default 20.",
+      "owner": "6B"
+    },
+    {
+      "name": "API_READ_RATE_PER_MINUTE",
+      "meaning": "Public API reads per principal per minute; default 600.",
+      "owner": "6B"
+    },
+    {
+      "name": "API_TOKENS_PERSONAL_MAX",
+      "meaning": "Active personal API tokens one member may hold; default 25.",
+      "owner": "6B"
+    },
+    {
+      "name": "API_TOKENS_SERVICE_MAX",
+      "meaning": "Active service tokens one accountable owner may hold; default 50.",
+      "owner": "6B"
+    },
+    {
+      "name": "API_WRITE_RATE_PER_MINUTE",
+      "meaning": "Public API writes per principal per minute; default 120.",
+      "owner": "6B"
+    },
+    {
+      "name": "APPROVAL_EXPIRY_HOURS",
+      "meaning": "How long an approval request stays valid; default 168, range 1\u20132160.",
+      "owner": "2C"
+    },
+    {
+      "name": "ATOMIC_BULK_LIMIT",
+      "meaning": "Max items in an atomic bulk request.",
+      "owner": "2D"
+    },
+    {
+      "name": "AVAILABILITY_WINDOWS_MAX",
+      "meaning": "Most working windows one person may define per week; default 28, range 7\u201356.",
+      "owner": "3E"
+    },
+    {
+      "name": "BLOCK_SERIES_HORIZON_DAYS",
+      "meaning": "How many days ahead recurring work blocks are generated; default 28, range 1\u2013180.",
+      "owner": "3C"
+    },
+    {
+      "name": "BLOCK_SERIES_MAX",
+      "meaning": "Most active recurring block series one person may have; default 50, range 1\u2013500.",
+      "owner": "3C"
+    },
+    {
+      "name": "BRAND_HOLIDAYS_MAX",
+      "meaning": "Most holidays one brand may keep; default 1000, range 10\u201310000.",
+      "owner": "3E"
+    },
+    {
+      "name": "BRAND_LABELS_MAX",
+      "meaning": "Most active and archived labels in one brand; default 1000, range 1\u201310000.",
+      "owner": "2B"
+    },
+    {
+      "name": "BULK_ITEMS_MAX",
+      "meaning": "Most tasks in one bulk command's explicit set; default 200, range 1\u20131000.",
+      "owner": "2D"
+    },
+    {
+      "name": "BULK_PREVIEW_TTL_SECONDS",
+      "meaning": "How long a bulk preview may be executed; default 600, range 60\u20133600.",
+      "owner": "2D"
+    },
+    {
+      "name": "BULK_SYNC_LIMIT",
+      "meaning": "Max items processed synchronously before a bulk request becomes a background operation.",
+      "owner": "2D"
+    },
+    {
+      "name": "CAPACITY_PEOPLE_MAX",
+      "meaning": "Most people one team capacity read may include; default 100, range 1\u20131000.",
+      "owner": "3E"
+    },
+    {
+      "name": "CAPACITY_RANGE_DAYS_MAX",
+      "meaning": "Longest date range one capacity read may cover; default 93, range 7\u2013366.",
+      "owner": "3E"
+    },
+    {
+      "name": "CAPTURE_FILES_MAX",
+      "meaning": "Most file references attached to one capture (refused until 4E storage); default 10, range 0\u201350.",
+      "owner": "2E"
+    },
+    {
+      "name": "CAPTURE_LINKS_MAX",
+      "meaning": "Most links attached to one capture; default 10, range 0\u201350.",
+      "owner": "2E"
+    },
+    {
+      "name": "CAPTURE_PARSE_TOKENS_MAX",
+      "meaning": "Most tokens the deterministic parser examines per line; default 64, range 8\u2013256.",
+      "owner": "2E"
+    },
+    {
+      "name": "CAPTURE_PASTE_LINES_MAX",
+      "meaning": "Most candidate items one paste may create; default 100, range 1\u2013500.",
+      "owner": "2E"
+    },
+    {
+      "name": "CAPTURE_RATE_PER_MINUTE",
+      "meaning": "Most capture commands one person may run per minute; default 60, range 1\u2013600.",
+      "owner": "2E"
+    },
+    {
+      "name": "CAPTURE_TEXT_MAX",
+      "meaning": "Most characters in one capture or note body; default 10000, range 100\u201350000.",
+      "owner": "2E"
+    },
+    {
+      "name": "COMMENTS_PER_RECORD_MAX",
+      "meaning": "Most comments (roots and replies, deleted ones included) one record may hold; default 5000, range 100\u201350000.",
+      "owner": "4A"
+    },
+    {
+      "name": "COMMENT_BODY_MAX_CHARS",
+      "meaning": "Longest comment body, in characters of extracted text; default 10000, range 100\u201350000.",
+      "owner": "4A"
+    },
+    {
+      "name": "COMMENT_EDIT_WINDOW_MINUTES",
+      "meaning": "How long after posting an author may edit or delete their own comment (the OD-38 audit window); default 1440, range 5\u201310080. Moderators are not bound by it.",
+      "owner": "4A"
+    },
+    {
+      "name": "COMMENT_MENTIONS_MAX",
+      "meaning": "Most mentions one comment may carry; default 20, range 1\u2013100.",
+      "owner": "4A"
+    },
+    {
+      "name": "COMMENT_RATE_PER_MINUTE",
+      "meaning": "Most comments, replies, and edits one person may post per minute; default 30, range 1\u2013600.",
+      "owner": "4A"
+    },
+    {
+      "name": "COMMENT_REPLIES_INLINE_MAX",
+      "meaning": "Most replies a comment list returns inline under each thread (more are fetched by cursor); default 20, range 1\u2013100.",
+      "owner": "4A"
+    },
+    {
+      "name": "CONNECTIONS_PER_SCOPE_MAX",
+      "meaning": "Most connections one workspace or brand scope holds; default 50, range 1\u2013500.",
+      "owner": "6A"
+    },
+    {
+      "name": "CONNECTION_SCOPES_MAX",
+      "meaning": "Most scopes one connection may be granted; default 16, range 1\u201332.",
+      "owner": "6A"
+    },
+    {
+      "name": "DASHBOARDS_PER_SCOPE_MAX",
+      "meaning": "Most dashboards one workspace, brand, or project scope holds; default 100, range 1\u20131000.",
+      "owner": "5D"
+    },
+    {
+      "name": "DASHBOARD_PERSONAL_MAX",
+      "meaning": "Most personal dashboards one member holds; default 20, range 1\u2013200.",
+      "owner": "5D"
+    },
+    {
+      "name": "DASHBOARD_WIDGETS_MAX",
+      "meaning": "Most widgets one dashboard or report holds; default 24, range 1\u201360.",
+      "owner": "5D"
+    },
+    {
+      "name": "DAY_CLOSE_BATCH_MAX",
+      "meaning": "Most person-days one day-close run records per workspace; default 200, range 1\u20131000.",
+      "owner": "3C"
+    },
+    {
+      "name": "DAY_CLOSE_DISCOVERY_MAX",
+      "meaning": "Most workspaces one day-close or block-series run examines; default 100, range 1\u20131000.",
+      "owner": "3C"
+    },
+    {
+      "name": "DELIVERABLES_PER_TASK_MAX",
+      "meaning": "Most deliverables one task holds; default 50, range 1\u2013500.",
+      "owner": "4E"
+    },
+    {
+      "name": "DEPRECATION_NOTICE_PERIOD",
+      "meaning": "Minimum notice before removing a deprecated public contract (product-owner decision).",
+      "owner": "PO"
+    },
+    {
+      "name": "DOCUMENT_BLOCKS_MAX",
+      "meaning": "Most blocks in one document; default 2000, range 10\u20135000.",
+      "owner": "4C"
+    },
+    {
+      "name": "DOCUMENT_BLOCK_TEXT_MAX_CHARS",
+      "meaning": "Longest text of one block; default 20000, range 100\u201350000.",
+      "owner": "4C"
+    },
+    {
+      "name": "DOCUMENT_BODY_MAX_BYTES",
+      "meaning": "Largest canonical content of one document version, in bytes; default 262144, range 4096\u20132000000.",
+      "owner": "4C"
+    },
+    {
+      "name": "DOCUMENT_CHILDREN_MAX",
+      "meaning": "Most direct subpages of one page; default 200, range 1\u20131000.",
+      "owner": "4C"
+    },
+    {
+      "name": "DOCUMENT_DEPTH_MAX",
+      "meaning": "Deepest page nesting (a root is depth 0); default 6, range 1\u201316.",
+      "owner": "4C"
+    },
+    {
+      "name": "DOCUMENT_EMBED_URL_MAX_CHARS",
+      "meaning": "Longest address of an embedded image, video, or link; default 2048, range 128\u20138192.",
+      "owner": "4C"
+    },
+    {
+      "name": "DOCUMENT_EXPORT_MAX_BYTES",
+      "meaning": "Largest export, in bytes; default 5242880, range 65536\u201352428800.",
+      "owner": "4C"
+    },
+    {
+      "name": "DOCUMENT_EXPORT_PAGES_MAX",
+      "meaning": "Most pages one export carries; default 100, range 1\u2013500.",
+      "owner": "4C"
+    },
+    {
+      "name": "DOCUMENT_REFERENCES_MAX",
+      "meaning": "Most links and mentions in one document; default 500, range 10\u20132000.",
+      "owner": "4C"
+    },
+    {
+      "name": "DOCUMENT_REVIEW_HORIZON_DAYS",
+      "meaning": "Furthest review date, in days from today; default 730, range 30\u20133650.",
+      "owner": "4C"
+    },
+    {
+      "name": "DOCUMENT_SAVE_RATE_PER_MINUTE",
+      "meaning": "Most content saves one person makes per minute; default 60, range 1\u2013600.",
+      "owner": "4C"
+    },
+    {
+      "name": "DOCUMENT_SUGGESTIONS_OPEN_MAX",
+      "meaning": "Most open suggestions on one document; default 100, range 1\u2013500.",
+      "owner": "4C"
+    },
+    {
+      "name": "DOCUMENT_TABLE_CELLS_MAX",
+      "meaning": "Most cells in one table block; default 1000, range 4\u20135000.",
+      "owner": "4C"
+    },
+    {
+      "name": "DOCUMENT_TREE_MAX",
+      "meaning": "Most pages in one page tree; default 1000, range 10\u20135000.",
+      "owner": "4C"
+    },
+    {
+      "name": "DOCUMENT_VERSIONS_MAX",
+      "meaning": "Most versions one document keeps; default 1000, range 10\u201310000.",
+      "owner": "4C"
+    },
+    {
+      "name": "DUPLICATE_CANDIDATES_MAX",
+      "meaning": "Most duplicate candidates returned; default 5, range 1\u201320.",
+      "owner": "2D"
+    },
+    {
+      "name": "DUPLICATE_WINDOW_DAYS",
+      "meaning": "How far back deterministic duplicate matching looks; default 90, range 1\u2013365.",
+      "owner": "2D"
+    },
+    {
+      "name": "EXPORT_LINK_LIFETIME",
+      "meaning": "Export file download lifetime (0A parameter, OD-36).",
+      "owner": "PO"
+    },
+    {
+      "name": "EXPORT_ROWS_MAX",
+      "meaning": "Most rows one direct export of the current view may contain; larger views must be narrowed; default 5000, range 1\u201350000.",
+      "owner": "3A"
+    },
+    {
+      "name": "FAVORITES_MAX",
+      "meaning": "Most favorites one person may keep in one workspace; adding beyond it is refused with a limit error, never silently dropped.",
+      "owner": "1E"
+    },
+    {
+      "name": "FIELD_DEFINITIONS_MAX",
+      "meaning": "Most active field definitions at one scope; default 200, range 1\u20131000.",
+      "owner": "2C"
+    },
+    {
+      "name": "FIELD_OPTIONS_MAX",
+      "meaning": "Most options on one select field; default 200, range 2\u20131000.",
+      "owner": "2C"
+    },
+    {
+      "name": "FIELD_PATTERN_MAX",
+      "meaning": "Longest validation pattern in characters; default 200, range 1\u20131000.",
+      "owner": "2C"
+    },
+    {
+      "name": "FIELD_SETS_MAX",
+      "meaning": "Most active field sets at one scope; default 100, range 1\u2013500.",
+      "owner": "2C"
+    },
+    {
+      "name": "FIELD_SET_ITEMS_MAX",
+      "meaning": "Most definitions in one field set version; default 100, range 1\u2013500.",
+      "owner": "2C"
+    },
+    {
+      "name": "FIELD_TEXT_MAX",
+      "meaning": "Longest custom text value in characters; default 5000, range 1\u201320000.",
+      "owner": "2C"
+    },
+    {
+      "name": "FIELD_VALUE_BULK_MAX",
+      "meaning": "Most records migrated by one status or option replacement command; default 500, range 1\u20135000.",
+      "owner": "2C"
+    },
+    {
+      "name": "FILES_LIST_MAX",
+      "meaning": "Most files one record holds and lists; default 200, range 10\u20131000.",
+      "owner": "4E"
+    },
+    {
+      "name": "FILE_COMPARE_MAX_BYTES",
+      "meaning": "Largest text or code version compared line by line (larger versions compare by metadata); default 262144, range 1024\u20132097152.",
+      "owner": "4E"
+    },
+    {
+      "name": "FILE_DISCOVERY_MAX",
+      "meaning": "Most workspaces one file sweep examines; default 100, range 1\u20131000.",
+      "owner": "4E"
+    },
+    {
+      "name": "FILE_EXPIRY_BATCH_MAX",
+      "meaning": "Most expired upload sessions and object deletions one sweep handles per workspace; default 200, range 10\u20135000.",
+      "owner": "4E"
+    },
+    {
+      "name": "FILE_SCAN_MAX_ATTEMPTS",
+      "meaning": "Scan attempts before a failing scan marks the object scan_failed (downloads stay blocked); default 5, range 1\u201320.",
+      "owner": "4E"
+    },
+    {
+      "name": "FILE_UPLOAD_MAX_BYTES",
+      "meaning": "Largest single upload in bytes; default 104857600 (100 MiB), range 1024\u20135368709120.",
+      "owner": "4E"
+    },
+    {
+      "name": "FILE_VERSIONS_MAX",
+      "meaning": "Most versions one file keeps; default 100, range 1\u20131000.",
+      "owner": "4E"
+    },
+    {
+      "name": "FOLLOWERS_LIST_MAX",
+      "meaning": "Most followers one record's follower list returns; default 200, range 10\u20131000.",
+      "owner": "4A"
+    },
+    {
+      "name": "FORMULA_AST_NODES_MAX",
+      "meaning": "Most nodes in a compiled formula; default 200, range 10\u20132000.",
+      "owner": "2C"
+    },
+    {
+      "name": "FORMULA_DEPTH_MAX",
+      "meaning": "Deepest formula dependency chain; default 8, range 1\u201332.",
+      "owner": "2C"
+    },
+    {
+      "name": "FORMULA_REFS_MAX",
+      "meaning": "Most field references in one formula; default 20, range 1\u2013100.",
+      "owner": "2C"
+    },
+    {
+      "name": "FORMULA_SOURCE_MAX",
+      "meaning": "Longest formula source in characters; default 2000, range 10\u201310000.",
+      "owner": "2C"
+    },
+    {
+      "name": "GOALS_EXPORT_ROWS_MAX",
+      "meaning": "Most rows one goal or portfolio export returns; larger exports are refused; default 5000, range 100\u201350000.",
+      "owner": "5B"
+    },
+    {
+      "name": "GOALS_PER_SCOPE_MAX",
+      "meaning": "Most live goals one workspace, brand, or project scope holds; default 500, range 10\u20135000.",
+      "owner": "5B"
+    },
+    {
+      "name": "GOALS_RECALC_BATCH_MAX",
+      "meaning": "Most goals one recalculation sweep claims per workspace; default 200, range 10\u20132000.",
+      "owner": "5B"
+    },
+    {
+      "name": "GOALS_RECALC_INTERVAL_MINUTES",
+      "meaning": "How often an unchanged goal's time-driven state (staleness, period) is rechecked; default 360, range 15\u20131440.",
+      "owner": "5B"
+    },
+    {
+      "name": "GOALS_RECALC_LEASE_SECONDS",
+      "meaning": "How long a claimed goal stays leased before another sweep may reclaim it; default 300, range 30\u20133600.",
+      "owner": "5B"
+    },
+    {
+      "name": "GOALS_RECALC_MAX_ATTEMPTS",
+      "meaning": "Failed recalculations before a goal is reported as failing and backed off to the recheck interval; default 5, range 1\u201320.",
+      "owner": "5B"
+    },
+    {
+      "name": "GOAL_CHECKIN_RATE_PER_MINUTE",
+      "meaning": "Check-ins one member may record per minute; default 30, range 1\u2013600.",
+      "owner": "5B"
+    },
+    {
+      "name": "GOAL_KEY_RESULTS_MAX",
+      "meaning": "Most key results one goal holds; default 20, range 1\u201350.",
+      "owner": "5B"
+    },
+    {
+      "name": "GOAL_LINKS_MAX",
+      "meaning": "Most projects and tasks one goal (with its key results) links; default 200, range 10\u20131000.",
+      "owner": "5B"
+    },
+    {
+      "name": "GOAL_UPDATE_STALE_DAYS",
+      "meaning": "Days without a manual check-in after which an active goal's update is stale; default 14, range 1\u201390.",
+      "owner": "5B"
+    },
     {
       "name": "IDEMPOTENCY_RETENTION",
       "meaning": "Minimum retention of idempotency records; must cover the offline replay window.",
       "owner": "1A/2D"
     },
     {
-      "name": "OUTBOX_REPLAY_WINDOW",
-      "meaning": "How long dispatched outbox rows remain for replay.",
-      "owner": "1A"
+      "name": "IMPORT_ROLLBACK_PERIOD",
+      "meaning": "Import rollback window (0A parameter, OD-40).",
+      "owner": "PO"
     },
     {
-      "name": "JOB_LEASE_DURATION",
-      "meaning": "Lease length per queue.",
-      "owner": "1A"
+      "name": "INBOX_MERGE_MAX",
+      "meaning": "Most Inbox items one merge may combine; default 20, range 2\u2013100.",
+      "owner": "2E"
     },
     {
-      "name": "JOB_HEARTBEAT_INTERVAL",
-      "meaning": "Heartbeat interval; < lease duration / 3.",
-      "owner": "1A"
+      "name": "INTAKE_FORMS_MAX",
+      "meaning": "Most intake forms per brand; default 50, range 1\u2013500.",
+      "owner": "2E"
+    },
+    {
+      "name": "INTAKE_SUBMISSIONS_PER_HOUR",
+      "meaning": "Most submissions one person may make to one form per hour; default 20, range 1\u20131000.",
+      "owner": "2E"
+    },
+    {
+      "name": "INTEGRATION_LOOPBACK_ENABLED",
+      "meaning": "Whether the in-process loopback provider is configured: auto (on for local and test), 0, or 1.",
+      "owner": "6A"
+    },
+    {
+      "name": "INVITATION_LIFETIME",
+      "meaning": "How long an invitation token stays acceptable before the invitation expires.",
+      "owner": "1D"
     },
     {
       "name": "JOB_BACKOFF_BASE",
@@ -2743,6 +7118,16 @@
     {
       "name": "JOB_BACKOFF_CAP",
       "meaning": "Maximum backoff delay per queue.",
+      "owner": "1A"
+    },
+    {
+      "name": "JOB_HEARTBEAT_INTERVAL",
+      "meaning": "Heartbeat interval; < lease duration / 3.",
+      "owner": "1A"
+    },
+    {
+      "name": "JOB_LEASE_DURATION",
+      "meaning": "Lease length per queue.",
       "owner": "1A"
     },
     {
@@ -2756,59 +7141,204 @@
       "owner": "1A"
     },
     {
-      "name": "WORKSPACE_CONCURRENCY_CAP",
-      "meaning": "Per-workspace concurrent job cap per queue (fairness).",
-      "owner": "11C"
+      "name": "LAYOUT_ITEMS_MAX",
+      "meaning": "Most records one layout read (Gantt dependencies, milestones, portfolio progress, timesheet time) may name; default 200, range 10\u20131000.",
+      "owner": "3B"
     },
     {
-      "name": "WEBHOOK_TIMESTAMP_TOLERANCE",
-      "meaning": "Accepted clock skew for signed webhooks.",
-      "owner": "6B"
+      "name": "LIVE_EDITING_ENABLED",
+      "meaning": "Whether live collaborative editing is offered; 0 falls back to versioned non-live editing; default 1.",
+      "owner": "4D"
     },
     {
-      "name": "WEBHOOK_DISABLE_THRESHOLD",
-      "meaning": "Consecutive-failure policy that disables an endpoint.",
-      "owner": "6B"
+      "name": "LIVE_OPS_BATCH_MAX",
+      "meaning": "Most operations in one live request; default 50, range 1\u2013200.",
+      "owner": "4D"
     },
     {
-      "name": "WEBHOOK_RESPONSE_TIMEOUT",
-      "meaning": "Outbound delivery response timeout.",
-      "owner": "6B"
+      "name": "LIVE_OP_LOG_MAX",
+      "meaning": "Operations kept so reconnecting editors can catch up; default 2000, range 100\u201310000.",
+      "owner": "4D"
     },
     {
-      "name": "SSE_HEARTBEAT_INTERVAL",
-      "meaning": "Heartbeat comment interval.",
-      "owner": "1E"
+      "name": "LIVE_POLL_WAIT_SECONDS",
+      "meaning": "Longest a live poll waits for news before answering; default 20, range 0\u201330.",
+      "owner": "4D"
     },
     {
-      "name": "SSE_BUFFER_LIMIT",
-      "meaning": "Notices buffered per stream for Last-Event-ID resume.",
-      "owner": "1E"
+      "name": "LIVE_RATE_PER_MINUTE",
+      "meaning": "Most live editing requests one person makes per minute; default 1200, range 10\u20136000.",
+      "owner": "4D"
     },
     {
-      "name": "SSE_MAX_STREAMS_PER_PRINCIPAL",
-      "meaning": "Concurrent streams per principal.",
-      "owner": "1E"
+      "name": "LIVE_SESSIONS_MAX",
+      "meaning": "Most live editing sessions on one document; default 20, range 2\u2013100.",
+      "owner": "4D"
     },
     {
-      "name": "SIGNED_URL_LIFETIME",
-      "meaning": "Lifetime of signed upload/download URLs.",
-      "owner": "4E"
+      "name": "LIVE_SESSIONS_PER_MEMBER_MAX",
+      "meaning": "Most live sessions one person holds at once; default 5, range 1\u201320.",
+      "owner": "4D"
     },
     {
-      "name": "UPLOAD_SESSION_LIFETIME",
-      "meaning": "Lifetime of an upload session.",
-      "owner": "4E"
+      "name": "LIVE_SESSION_TTL_SECONDS",
+      "meaning": "How long a live editing session lasts without a heartbeat, poll, or operation; default 45, range 15\u2013300.",
+      "owner": "4D"
     },
     {
-      "name": "STEP_UP_WINDOW",
-      "meaning": "Validity of a verified step-up token.",
-      "owner": "1B"
+      "name": "METRICS_DEFAULT_WINDOW_DAYS",
+      "meaning": "Window a metric covers when none is given, in days; default 30, range 7\u2013366.",
+      "owner": "5C"
     },
     {
-      "name": "STEP_UP_CHALLENGE_LIFETIME",
-      "meaning": "Validity of an unverified challenge.",
-      "owner": "1B"
+      "name": "METRICS_DRILL_PAGE_MAX",
+      "meaning": "Most records on one drill-through page; default 100, range 10\u2013200.",
+      "owner": "5C"
+    },
+    {
+      "name": "METRICS_DRILL_RESULTS_MAX",
+      "meaning": "Deepest record a drill-through can page to; default 1000, range 100\u20135000.",
+      "owner": "5C"
+    },
+    {
+      "name": "METRICS_RATE_PER_MINUTE",
+      "meaning": "Most metric requests one person makes per minute; default 60, range 10\u2013600.",
+      "owner": "5C"
+    },
+    {
+      "name": "METRICS_RECONCILE_BACKOFF_SECONDS",
+      "meaning": "First wait before a failed reconciliation is retried (it doubles); default 60, range 5\u20133600.",
+      "owner": "5C"
+    },
+    {
+      "name": "METRICS_RECONCILE_BATCH_MAX",
+      "meaning": "Most tasks one reconciliation step checks per workspace; default 500, range 50\u20135000.",
+      "owner": "5C"
+    },
+    {
+      "name": "METRICS_RECONCILE_DISCOVERY_MAX",
+      "meaning": "Most workspaces one reconciliation run visits; default 50, range 1\u2013500.",
+      "owner": "5C"
+    },
+    {
+      "name": "METRICS_RECONCILE_INTERVAL_MINUTES",
+      "meaning": "Wait between full reconciliation passes of a workspace, in minutes; default 360, range 5\u201310080.",
+      "owner": "5C"
+    },
+    {
+      "name": "METRICS_RECONCILE_LEASE_SECONDS",
+      "meaning": "How long a worker holds a workspace's reconciliation before another may take it; default 300, range 30\u20133600.",
+      "owner": "5C"
+    },
+    {
+      "name": "METRICS_RECONCILE_MAX_ATTEMPTS",
+      "meaning": "Failed reconciliation attempts before the workspace is reported failing; default 5, range 1\u201320.",
+      "owner": "5C"
+    },
+    {
+      "name": "METRICS_SAMPLE_MIN",
+      "meaning": "Fewest records before a distribution metric is shown without a small-sample label; default 5, range 1\u2013100.",
+      "owner": "5C"
+    },
+    {
+      "name": "METRICS_SCOPE_TASKS_MAX",
+      "meaning": "Most tasks one metric computation reads before it asks for a narrower scope; default 20000, range 1000\u2013200000.",
+      "owner": "5C"
+    },
+    {
+      "name": "METRICS_WINDOW_DAYS_MAX",
+      "meaning": "Longest window a metric may cover, in days; default 366, range 31\u20131000.",
+      "owner": "5C"
+    },
+    {
+      "name": "NOTIFY_BROWSER_ACK_TTL_MINUTES",
+      "meaning": "How long a browser delivery waits for the person's open browser to acknowledge it before it expires; default 30, range 1\u20131440.",
+      "owner": "4B"
+    },
+    {
+      "name": "NOTIFY_BULK_STATE_MAX",
+      "meaning": "Most notifications one bulk state change names; default 200, range 1\u20131000.",
+      "owner": "4B"
+    },
+    {
+      "name": "NOTIFY_DEADLINES_BATCH_MAX",
+      "meaning": "Most due-soon and overdue tasks one sweep considers per workspace; default 500, range 10\u20135000.",
+      "owner": "4B"
+    },
+    {
+      "name": "NOTIFY_DEDUPE_WINDOW_MINUTES",
+      "meaning": "Width of the time bucket in which repeated notifications of one kind about one record from one actor collapse into one; default 60, range 1\u20131440.",
+      "owner": "4B"
+    },
+    {
+      "name": "NOTIFY_DELIVERY_BATCH_MAX",
+      "meaning": "Most deliveries one sweep claims per workspace; default 100, range 1\u20131000.",
+      "owner": "4B"
+    },
+    {
+      "name": "NOTIFY_DELIVERY_MAX_ATTEMPTS",
+      "meaning": "Attempts before a transient delivery failure is dead-lettered; default 6, range 1\u201320.",
+      "owner": "4B"
+    },
+    {
+      "name": "NOTIFY_DIGEST_ITEMS_MAX",
+      "meaning": "Most items one digest lists (the rest stay in the notification centre); default 50, range 5\u2013200.",
+      "owner": "4B"
+    },
+    {
+      "name": "NOTIFY_DISCOVERY_MAX",
+      "meaning": "Most workspaces one notification sweep examines; default 100, range 1\u20131000.",
+      "owner": "4B"
+    },
+    {
+      "name": "NOTIFY_EMAIL_PER_HOUR_MAX",
+      "meaning": "Most immediate emails one person receives per hour; more roll into their next digest; default 20, range 1\u2013200.",
+      "owner": "4B"
+    },
+    {
+      "name": "NOTIFY_FACTS_MAX_BYTES",
+      "meaning": "Largest facts object a notification stores (scalars only, never titles or text); default 1024, range 128\u20134096.",
+      "owner": "4B"
+    },
+    {
+      "name": "NOTIFY_FANOUT_RECIPIENTS_MAX",
+      "meaning": "Most recipients one event fans out to (team mentions and follower lists are cut here); default 500, range 1\u20135000.",
+      "owner": "4B"
+    },
+    {
+      "name": "NOTIFY_PREFERENCES_MAX",
+      "meaning": "Most preference and mute rows one person may keep; default 200, range 10\u20131000.",
+      "owner": "4B"
+    },
+    {
+      "name": "NOTIFY_RETENTION_DAYS",
+      "meaning": "Age after which a notification that is not saved is removed with its deliveries (a technical bound, not a published retention period: OD-36); default 365, range 30\u20133650.",
+      "owner": "4B"
+    },
+    {
+      "name": "NOTIFY_RETRY_BASE_SECONDS",
+      "meaning": "First retry delay; each later attempt doubles it; default 60, range 5\u20133600.",
+      "owner": "4B"
+    },
+    {
+      "name": "NOTIFY_RETRY_MAX_SECONDS",
+      "meaning": "Longest retry delay; default 3600, range 60\u201386400.",
+      "owner": "4B"
+    },
+    {
+      "name": "NOTIFY_SEARCH_QUERY_MAX",
+      "meaning": "Longest notification history search text; default 100, range 10\u2013200.",
+      "owner": "4B"
+    },
+    {
+      "name": "OUTBOX_REPLAY_WINDOW",
+      "meaning": "How long dispatched outbox rows remain for replay.",
+      "owner": "1A"
+    },
+    {
+      "name": "OWNERSHIP_TRANSFER_LIFETIME",
+      "meaning": "How long a pending ownership transfer waits for the recipient before it expires.",
+      "owner": "1D"
     },
     {
       "name": "PAGE_LIMIT_DEFAULT",
@@ -2821,19 +7351,54 @@
       "owner": "3A"
     },
     {
-      "name": "TOTAL_COUNT_CAP",
-      "meaning": "Above this, totals are capped/estimated.",
+      "name": "PORTFOLIOS_MAX",
+      "meaning": "Most live portfolios one workspace holds; default 100, range 1\u20131000.",
+      "owner": "5B"
+    },
+    {
+      "name": "PORTFOLIO_PROJECTS_MAX",
+      "meaning": "Most projects one portfolio names; default 200, range 10\u20131000.",
+      "owner": "5B"
+    },
+    {
+      "name": "PORTFOLIO_READ_PROJECTS_MAX",
+      "meaning": "Most projects one health, dependency, or orphan read evaluates before it reports itself truncated; default 500, range 50\u20132000.",
+      "owner": "5B"
+    },
+    {
+      "name": "PRINCIPAL_CONTEXT_ARRAY_MAX",
+      "meaning": "Largest visibility-context array bound as a query parameter before the compiler switches to a transaction-scoped temporary table (0C \u00a74.5).",
+      "owner": "1D/11D"
+    },
+    {
+      "name": "PROJECT_DEPTH_MAX",
+      "meaning": "Deepest project level a command accepts (root = 0) when creating, moving, duplicating, or generating projects. The database separately enforces an invariant ceiling of 32 that is not a runtime parameter.",
+      "owner": "2A"
+    },
+    {
+      "name": "QUERY_CONDITIONS_MAX",
+      "meaning": "Most conditions one view query may combine; default 40, range 1\u2013200.",
       "owner": "3A"
     },
     {
-      "name": "BULK_SYNC_LIMIT",
-      "meaning": "Max items processed synchronously before a bulk request becomes a background operation.",
-      "owner": "2D"
+      "name": "QUERY_DEPTH_MAX",
+      "meaning": "Deepest nesting of AND/OR filter groups; default 3, range 1\u20136.",
+      "owner": "3A"
     },
     {
-      "name": "ATOMIC_BULK_LIMIT",
-      "meaning": "Max items in an atomic bulk request.",
-      "owner": "2D"
+      "name": "QUERY_GROUPS_MAX",
+      "meaning": "Most groups one grouped query returns (more are reported as truncated); default 200, range 10\u20131000.",
+      "owner": "3A"
+    },
+    {
+      "name": "QUERY_SORTS_MAX",
+      "meaning": "Most sort keys in one view query; default 5, range 1\u201310.",
+      "owner": "3A"
+    },
+    {
+      "name": "QUERY_VALUES_MAX",
+      "meaning": "Most values one filter condition may list; default 100, range 1\u2013500.",
+      "owner": "3A"
     },
     {
       "name": "RATE_LIMIT_POLICIES",
@@ -2841,19 +7406,404 @@
       "owner": "6B/11C"
     },
     {
-      "name": "DEPRECATION_NOTICE_PERIOD",
-      "meaning": "Minimum notice before removing a deprecated public contract (product-owner decision).",
-      "owner": "PO"
+      "name": "RECENT_ITEMS_MAX",
+      "meaning": "Recently viewed entries kept per person per workspace (the full Recently Viewed list); older visits are trimmed in the recording transaction.",
+      "owner": "1E"
     },
     {
-      "name": "EXPORT_LINK_LIFETIME",
-      "meaning": "Export file download lifetime (0A parameter, OD-36).",
-      "owner": "PO"
+      "name": "RECENT_VISIT_COALESCE",
+      "meaning": "Window in which a repeat visit to the same target is coalesced into the existing recent entry without another write.",
+      "owner": "1E"
     },
     {
-      "name": "IMPORT_ROLLBACK_PERIOD",
-      "meaning": "Import rollback window (0A parameter, OD-40).",
-      "owner": "PO"
+      "name": "RECURRENCE_CATCHUP_MAX",
+      "meaning": "Most missed occurrences one recurrence series may generate in a single catch-up run; later ones wait for the next run.",
+      "owner": "2A"
+    },
+    {
+      "name": "RECURRENCE_SERIES_DISCOVERY_MAX",
+      "meaning": "Most due recurrence series one job run processes in one workspace (default 50, range 1\u2013500). Series are taken oldest-waiting first (last run, then id), so later series are never starved.",
+      "owner": "2A"
+    },
+    {
+      "name": "RECURRENCE_WORKSPACE_DISCOVERY_MAX",
+      "meaning": "Most workspaces with due recurrence work one recurrence job run visits (default 200, range 1\u20131000). Workspaces are taken oldest-waiting first, so remaining work stays eligible for the next run.",
+      "owner": "2A"
+    },
+    {
+      "name": "REMINDER_FIRE_BATCH_MAX",
+      "meaning": "Most due reminders one worker run fires per workspace; later ones wait for the next run; default 500, range 1\u20135000.",
+      "owner": "2D"
+    },
+    {
+      "name": "REPORTS_PER_SCOPE_MAX",
+      "meaning": "Most saved reports one scope holds; default 200, range 1\u20132000.",
+      "owner": "5D"
+    },
+    {
+      "name": "REPORT_BATCH_MAX",
+      "meaning": "Most scheduled reports one sweep claims per workspace; default 25, range 1\u2013500.",
+      "owner": "5D"
+    },
+    {
+      "name": "REPORT_EMAIL_ROWS_MAX",
+      "meaning": "Most rows per widget in a scheduled report email; default 25, range 5\u2013200.",
+      "owner": "5D"
+    },
+    {
+      "name": "REPORT_EXPORT_RATE_PER_MINUTE",
+      "meaning": "Most report exports one member makes per minute; default 20, range 1\u2013600.",
+      "owner": "5D"
+    },
+    {
+      "name": "REPORT_EXPORT_ROWS_MAX",
+      "meaning": "Most rows one report or widget export returns; larger exports are refused; default 5000, range 100\u201350000.",
+      "owner": "5D"
+    },
+    {
+      "name": "REPORT_FRESHNESS_MINUTES",
+      "meaning": "Age after which a derived source (a goal recalculation) is labelled stale on a dashboard; default 720, range 15\u201310080.",
+      "owner": "5D"
+    },
+    {
+      "name": "REPORT_LEASE_SECONDS",
+      "meaning": "How long a claimed scheduled report stays leased before another sweep may reclaim it; default 300, range 30\u20133600.",
+      "owner": "5D"
+    },
+    {
+      "name": "REPORT_MAX_ATTEMPTS",
+      "meaning": "Failed delivery attempts before a scheduled occurrence is recorded as failed; default 5, range 1\u201320.",
+      "owner": "5D"
+    },
+    {
+      "name": "REPORT_RECIPIENTS_MAX",
+      "meaning": "Most recipients one scheduled report names; default 50, range 1\u2013500.",
+      "owner": "5D"
+    },
+    {
+      "name": "REPORT_RUN_RETENTION_DAYS",
+      "meaning": "How long delivery run records are kept; default 90, range 7\u2013730.",
+      "owner": "5D"
+    },
+    {
+      "name": "REPORT_SHARES_MAX",
+      "meaning": "Most active shares one report holds; default 100, range 1\u20131000.",
+      "owner": "5D"
+    },
+    {
+      "name": "REVIEW_REVIEWERS_MAX",
+      "meaning": "Most reviewers one review request may name; default 10, range 1\u201350.",
+      "owner": "4A"
+    },
+    {
+      "name": "SAVED_VIEWS_MAX",
+      "meaning": "Most active saved views one person may own in a workspace; default 200, range 1\u20132000.",
+      "owner": "3A"
+    },
+    {
+      "name": "SEARCH_BODY_MAX_CHARS",
+      "meaning": "Most text indexed per record; default 100000, range 10000\u2013100000.",
+      "owner": "5A"
+    },
+    {
+      "name": "SEARCH_COUNT_MAX",
+      "meaning": "Where result counts and facets stop and say \"at least\"; default 1000, range 100\u201310000.",
+      "owner": "5A"
+    },
+    {
+      "name": "SEARCH_FAILED_RETRY_MINUTES",
+      "meaning": "How long a failed record waits between slow retries; default 360, range 10\u201310080.",
+      "owner": "5A"
+    },
+    {
+      "name": "SEARCH_INDEX_BACKOFF_SECONDS",
+      "meaning": "First wait before a failed indexing attempt is retried (it doubles); default 30, range 5\u20133600.",
+      "owner": "5A"
+    },
+    {
+      "name": "SEARCH_INDEX_BATCH_MAX",
+      "meaning": "Most records one worker run indexes per workspace; default 200, range 10\u20131000.",
+      "owner": "5A"
+    },
+    {
+      "name": "SEARCH_INDEX_DISCOVERY_MAX",
+      "meaning": "Most workspaces one indexing run visits; default 50, range 1\u2013500.",
+      "owner": "5A"
+    },
+    {
+      "name": "SEARCH_INDEX_MAX_ATTEMPTS",
+      "meaning": "Attempts to index a record before it is shown as failed; default 5, range 1\u201320.",
+      "owner": "5A"
+    },
+    {
+      "name": "SEARCH_PAGE_SIZE_MAX",
+      "meaning": "Most results one search page returns; default 50, range 10\u2013100.",
+      "owner": "5A"
+    },
+    {
+      "name": "SEARCH_QUERY_MAX_CHARS",
+      "meaning": "Longest search query; default 200, range 20\u2013500.",
+      "owner": "5A"
+    },
+    {
+      "name": "SEARCH_RATE_PER_MINUTE",
+      "meaning": "Most searches one person makes per minute; default 120, range 10\u20131200.",
+      "owner": "5A"
+    },
+    {
+      "name": "SEARCH_RECENT_MAX",
+      "meaning": "Recent searches kept per person and workspace; default 25, range 5\u2013100.",
+      "owner": "5A"
+    },
+    {
+      "name": "SEARCH_RECENT_RETENTION_DAYS",
+      "meaning": "How long a recent search is kept; default 90, range 1\u2013365.",
+      "owner": "5A"
+    },
+    {
+      "name": "SEARCH_RESULTS_MAX",
+      "meaning": "Deepest result a search can page to; default 200, range 50\u20131000.",
+      "owner": "5A"
+    },
+    {
+      "name": "SEARCH_SNIPPET_CHARS",
+      "meaning": "Longest result snippet; default 220, range 80\u2013500.",
+      "owner": "5A"
+    },
+    {
+      "name": "SEARCH_TERMS_MAX",
+      "meaning": "Most words and phrases in one search query; default 12, range 2\u201330.",
+      "owner": "5A"
+    },
+    {
+      "name": "SIGNED_URL_LIFETIME",
+      "meaning": "Lifetime of signed upload and download URLs in seconds; never stored, logged, or sent in notifications or exports; default 300, range 30\u20133600.",
+      "owner": "4E"
+    },
+    {
+      "name": "SSE_BUFFER_LIMIT",
+      "meaning": "Notices buffered per stream for Last-Event-ID resume.",
+      "owner": "1E"
+    },
+    {
+      "name": "SSE_HEARTBEAT_INTERVAL",
+      "meaning": "Heartbeat comment interval.",
+      "owner": "1E"
+    },
+    {
+      "name": "SSE_MAX_STREAMS_PER_PRINCIPAL",
+      "meaning": "Concurrent streams per principal.",
+      "owner": "1E"
+    },
+    {
+      "name": "STEP_UP_CHALLENGE_LIFETIME",
+      "meaning": "Validity of an unverified challenge.",
+      "owner": "1B"
+    },
+    {
+      "name": "STEP_UP_MAX_ATTEMPTS",
+      "meaning": "Failed verifications after which a challenge is stored as locked (terminal).",
+      "owner": "1B"
+    },
+    {
+      "name": "STEP_UP_WINDOW",
+      "meaning": "Validity of a verified step-up token.",
+      "owner": "1B"
+    },
+    {
+      "name": "SYNC_BACKOFF_SECONDS",
+      "meaning": "Base delay before a transient sync is tried again; default 30, range 1\u20133600.",
+      "owner": "6A"
+    },
+    {
+      "name": "SYNC_BATCH_MAX",
+      "meaning": "Most sync deliveries one sweep claims per workspace; default 100, range 1\u2013500.",
+      "owner": "6A"
+    },
+    {
+      "name": "SYNC_HISTORY_RETENTION_DAYS",
+      "meaning": "How long sync run history is kept; default 90, range 7\u2013730.",
+      "owner": "6A"
+    },
+    {
+      "name": "SYNC_LEASE_SECONDS",
+      "meaning": "How long a claimed sync delivery stays leased; default 120, range 30\u20133600.",
+      "owner": "6A"
+    },
+    {
+      "name": "SYNC_MAX_ATTEMPTS",
+      "meaning": "Transient sync attempts before a delivery is dead-lettered; default 5, range 1\u201320.",
+      "owner": "6A"
+    },
+    {
+      "name": "SYNC_RATE_PER_MINUTE",
+      "meaning": "Most connection creates and syncs one member starts per minute; default 30, range 1\u2013600.",
+      "owner": "6A"
+    },
+    {
+      "name": "TASK_ASSIGNEES_MAX",
+      "meaning": "Most active assignees on one task; default 20, range 1\u2013100.",
+      "owner": "2B"
+    },
+    {
+      "name": "TASK_DEPTH_MAX",
+      "meaning": "Deepest subtask level a command accepts (root = 0) when creating, reparenting, moving, or duplicating tasks; default 20, range 1\u201364. The database separately enforces an invariant ceiling of 64 that is not a runtime parameter.",
+      "owner": "2B"
+    },
+    {
+      "name": "TASK_ESTIMATE_MINUTES_MAX",
+      "meaning": "Largest estimate or remaining estimate, in minutes; default 100000, range 60\u20131000000.",
+      "owner": "2B"
+    },
+    {
+      "name": "TASK_ITEMS_MAX",
+      "meaning": "Most checklist items, criteria items, and links each task holds (each kind counted separately); default 200, range 1\u20131000.",
+      "owner": "2B"
+    },
+    {
+      "name": "TASK_LABELS_MAX",
+      "meaning": "Most labels on one task; default 50, range 1\u2013200.",
+      "owner": "2B"
+    },
+    {
+      "name": "TASK_REMINDERS_MAX",
+      "meaning": "Most scheduled reminders one person may hold on one task; default 10, range 1\u201350.",
+      "owner": "2D"
+    },
+    {
+      "name": "TASK_RESCHEDULE_COUNT",
+      "meaning": "Material due-date or deadline edits within the window that mark a task repeatedly rescheduled (OD-17); default 3, range 2\u201320.",
+      "owner": "2D"
+    },
+    {
+      "name": "TASK_RESCHEDULE_WINDOW_DAYS",
+      "meaning": "Window for counting reschedules (OD-17); default 14, range 1\u201390.",
+      "owner": "2D"
+    },
+    {
+      "name": "TASK_SNOOZE_MAX_DAYS",
+      "meaning": "Furthest a snooze may reach; default 365, range 1\u20133650.",
+      "owner": "2D"
+    },
+    {
+      "name": "TASK_STALE_ACTIVE_DAYS",
+      "meaning": "Days without a meaningful update after which an active or blocked task is stale (OD-17); default 7, range 1\u201390.",
+      "owner": "2D"
+    },
+    {
+      "name": "TASK_STALE_PLANNED_DAYS",
+      "meaning": "Days without a meaningful update after which a planned task is stale (OD-17); default 14, range 1\u2013180.",
+      "owner": "2D"
+    },
+    {
+      "name": "TASK_SUBTREE_MAX",
+      "meaning": "Most tasks one subtree operation touches (a move or a lifecycle command with include_subtasks, or a duplicate with include_subtasks); default 500, range 1\u20135000. Larger subtrees are refused before any change.",
+      "owner": "2B"
+    },
+    {
+      "name": "TEMPLATE_ITEMS_MAX",
+      "meaning": "Most structural items (project, phases, milestones, criteria, scope items) one template version or recurrence snapshot may contain.",
+      "owner": "2A"
+    },
+    {
+      "name": "TIME_ENTRY_MAX_HOURS",
+      "meaning": "Longest single time entry or timer run, in hours; default 24, range 1\u201324.",
+      "owner": "3D"
+    },
+    {
+      "name": "TIME_EXPORT_ROWS_MAX",
+      "meaning": "Most time entries one direct export may contain; default 10000, range 100\u201350000.",
+      "owner": "3D"
+    },
+    {
+      "name": "TIME_OFF_ENTRIES_MAX",
+      "meaning": "Most time-off entries one person may keep; default 500, range 10\u20135000.",
+      "owner": "3E"
+    },
+    {
+      "name": "TIME_REPORT_RANGE_DAYS_MAX",
+      "meaning": "Widest date range one time report, timesheet list, or export may cover, in days; default 366, range 7\u20131830.",
+      "owner": "3D"
+    },
+    {
+      "name": "TIME_REPORT_ROWS_MAX",
+      "meaning": "Most rows (groups) one planned-versus-actual report returns; default 500, range 10\u20135000.",
+      "owner": "3D"
+    },
+    {
+      "name": "TIME_RUNAWAY_BATCH_MAX",
+      "meaning": "Most runaway timers one timer-guard run stops per workspace; default 200, range 1\u20131000.",
+      "owner": "3D"
+    },
+    {
+      "name": "TIME_RUNAWAY_DISCOVERY_MAX",
+      "meaning": "Most workspaces one timer-guard run examines; default 100, range 1\u20131000.",
+      "owner": "3D"
+    },
+    {
+      "name": "TIME_TIMER_MAX_HOURS",
+      "meaning": "Hours after which a still-running timer is stopped automatically by the timer guard; default 12, range 1\u201324.",
+      "owner": "3D"
+    },
+    {
+      "name": "TIME_TIMESHEET_ENTRIES_MAX",
+      "meaning": "Most time entries one person may have in one timesheet period; default 2000, range 10\u201310000.",
+      "owner": "3D"
+    },
+    {
+      "name": "TODAY_ITEMS_MAX",
+      "meaning": "Most Today commitments one person may have on one day; default 100, range 1\u2013500.",
+      "owner": "3C"
+    },
+    {
+      "name": "TODAY_LIST_MAX",
+      "meaning": "Most tasks one Today section (overdue, due today, upcoming deadlines) returns; default 50, range 5\u2013200.",
+      "owner": "3C"
+    },
+    {
+      "name": "TOTAL_COUNT_CAP",
+      "meaning": "Above this, totals are capped/estimated.",
+      "owner": "3A"
+    },
+    {
+      "name": "TRANSITION_APPROVERS_MAX",
+      "meaning": "Most named approvers on one transition; default 10, range 1\u201350.",
+      "owner": "2C"
+    },
+    {
+      "name": "TRANSITION_PREVIEW_TTL_SECONDS",
+      "meaning": "Lifetime of a signed transition preview fingerprint; default 600, range 60\u20133600.",
+      "owner": "2C"
+    },
+    {
+      "name": "TRANSITION_REQUIREMENTS_MAX",
+      "meaning": "Most required fields on one transition; default 30, range 1\u2013100.",
+      "owner": "2C"
+    },
+    {
+      "name": "TRIAGE_BATCH_MAX",
+      "meaning": "Most Inbox items one triage command may change; default 50, range 1\u2013200.",
+      "owner": "2E"
+    },
+    {
+      "name": "UNDO_RETENTION",
+      "meaning": "How long an operation remains undoable server-side.",
+      "owner": "2D"
+    },
+    {
+      "name": "UNDO_WINDOW_SECONDS",
+      "meaning": "How long a reversible mutation can be undone; default 30, range 5\u2013300.",
+      "owner": "2D"
+    },
+    {
+      "name": "UPCOMING_DEADLINE_DAYS",
+      "meaning": "How many days ahead Today lists upcoming deadlines; default 14, range 1\u201390.",
+      "owner": "3C"
+    },
+    {
+      "name": "UPLOAD_SESSION_LIFETIME",
+      "meaning": "Lifetime of an upload session in seconds; an expired, unfinished session releases its reserved bytes and quarantined object; default 3600, range 300\u201386400.",
+      "owner": "4E"
     },
     {
       "name": "USAGE_WARNING_THRESHOLDS",
@@ -2861,9 +7811,114 @@
       "owner": "7A"
     },
     {
-      "name": "UNDO_RETENTION",
-      "meaning": "How long an operation remains undoable server-side.",
-      "owner": "2D"
+      "name": "VIEW_COLUMNS_MAX",
+      "meaning": "Most visible columns in one view; default 20, range 1\u201350.",
+      "owner": "3A"
+    },
+    {
+      "name": "VIEW_PINS_MAX",
+      "meaning": "Most views pinned into one workspace or brand navigation; default 20, range 1\u2013100.",
+      "owner": "3A"
+    },
+    {
+      "name": "VIEW_STATE_MAX_BYTES",
+      "meaning": "Largest stored view-state document (serialized) accepted per view and device.",
+      "owner": "1E"
+    },
+    {
+      "name": "VIEW_STATE_TTL",
+      "meaning": "How long stored per-device view state survives without being written before cleanup removes it.",
+      "owner": "1E"
+    },
+    {
+      "name": "WEBHOOK_BODY_MAX_BYTES",
+      "meaning": "Largest accepted inbound webhook body; default 262144.",
+      "owner": "6B"
+    },
+    {
+      "name": "WEBHOOK_CONCURRENCY_PER_DESTINATION",
+      "meaning": "In-flight deliveries to one host; default 4.",
+      "owner": "6B"
+    },
+    {
+      "name": "WEBHOOK_DELIVERY_RETENTION_DAYS",
+      "meaning": "How long delivery history is kept; default 30.",
+      "owner": "6B"
+    },
+    {
+      "name": "WEBHOOK_DISABLE_THRESHOLD",
+      "meaning": "Consecutive-failure policy that disables an endpoint. Default 10 consecutive failures.",
+      "owner": "6B"
+    },
+    {
+      "name": "WEBHOOK_EVENT_TYPES_MAX",
+      "meaning": "Event types on one subscription; default 20.",
+      "owner": "6B"
+    },
+    {
+      "name": "WEBHOOK_INBOUND_MAX",
+      "meaning": "Inbound endpoints in one workspace; default 20.",
+      "owner": "6B"
+    },
+    {
+      "name": "WEBHOOK_MAX_ATTEMPTS",
+      "meaning": "Delivery attempts before a webhook is dead-lettered; default 8.",
+      "owner": "6B"
+    },
+    {
+      "name": "WEBHOOK_RESPONSE_TIMEOUT",
+      "meaning": "Outbound delivery response timeout. Default 10000 milliseconds.",
+      "owner": "6B"
+    },
+    {
+      "name": "WEBHOOK_SUBSCRIPTIONS_MAX",
+      "meaning": "Outbound subscriptions in one scope; default 50.",
+      "owner": "6B"
+    },
+    {
+      "name": "WEBHOOK_SWEEP_BATCH_MAX",
+      "meaning": "Deliveries one sweep sends in one workspace; default 25.",
+      "owner": "6B"
+    },
+    {
+      "name": "WEBHOOK_TIMESTAMP_TOLERANCE",
+      "meaning": "Accepted clock skew for signed webhooks. Default 300 seconds.",
+      "owner": "6B"
+    },
+    {
+      "name": "WORKFLOW_STATUSES_MAX",
+      "meaning": "Most statuses in one workflow; default 50, range 2\u2013200.",
+      "owner": "2C"
+    },
+    {
+      "name": "WORKFLOW_TRANSITIONS_MAX",
+      "meaning": "Most transitions in one workflow; default 400, range 1\u20132000.",
+      "owner": "2C"
+    },
+    {
+      "name": "WORKLOAD_DAYS_MAX",
+      "meaning": "Longest date range one workload grid may cover; default 366, range 7\u2013731.",
+      "owner": "3B"
+    },
+    {
+      "name": "WORKSPACE_CONCURRENCY_CAP",
+      "meaning": "Per-workspace concurrent job cap per queue (fairness).",
+      "owner": "11C"
+    },
+    {
+      "name": "WORKSPACE_STORAGE_QUOTA_BYTES",
+      "meaning": "Stored bytes one workspace may hold, counting bytes reserved by open upload sessions (a technical limit until plans set it, 10A); default 10737418240 (10 GiB), range 1048576\u201310995116277760.",
+      "owner": "4E"
+    },
+    {
+      "name": "WORK_BLOCKS_PER_DAY_MAX",
+      "meaning": "Most work blocks one person may have starting on one local day; default 50, range 1\u2013200.",
+      "owner": "3C"
+    },
+    {
+      "name": "WORK_BLOCKS_RANGE_DAYS_MAX",
+      "meaning": "Widest range of days one work-block listing may cover; default 42, range 1\u2013366.",
+      "owner": "3C"
     }
   ],
   "sse_topics": [

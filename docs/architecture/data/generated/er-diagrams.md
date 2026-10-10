@@ -43,6 +43,8 @@ erDiagram
   team_member }o..o{ membership : "references"
   workspace ||--o{ invitation : "contains"
   brand ||--o{ brand_setting : "contains"
+  scope_preference }o..o{ membership : "references"
+  scope_preference }o..o{ brand : "references"
 ```
 
 ## Grants and policy storage
@@ -93,10 +95,17 @@ erDiagram
 erDiagram
   record ||--|| workflow : "envelope"
   workflow ||--o{ workflow_status : "contains"
-  workflow ||--o{ workflow_revision : "contains"
+  workflow ||--o{ transition : "contains"
+  transition ||--o{ transition_requirement : "contains"
+  transition ||--o{ transition_approver : "contains"
+  workflow ||--o{ approval_request : "contains"
+  approval_request ||--o{ approval_decision : "contains"
+  field_definition ||--o{ formula_dependency : "contains"
   field_definition ||--o{ field_option : "contains"
   field_set }o..o{ field_definition : "references"
-  field_definition ||--o{ calculated_field_definition : "contains"
+  field_set ||--o{ field_set_version : "contains"
+  field_set_attachment }o..o{ record : "references"
+  field_set_attachment }o..o{ field_set : "references"
   field_value }o..o{ record : "references"
   field_value }o..o{ field_definition : "references"
 ```
@@ -106,8 +115,6 @@ erDiagram
 ```mermaid
 erDiagram
   record_relationship }o..o{ record : "references"
-  label_assignment }o..o{ label : "references"
-  label_assignment }o..o{ record : "references"
   mention }o..o{ record : "references"
   mention }o..o{ membership : "references"
   mention }o..o{ team : "references"
@@ -142,6 +149,10 @@ erDiagram
   review_request }o..o{ record : "references"
   review_request }o..o{ membership : "references"
   review_request ||--o{ review_decision : "contains"
+  review_request ||--o{ review_reviewer : "contains"
+  review_reviewer }o..o{ membership : "references"
+  record ||--o{ assignment_event : "contains"
+  assignment_event }o..o{ membership : "references"
 ```
 
 ## Notifications
@@ -156,13 +167,14 @@ erDiagram
 
 ```mermaid
 erDiagram
+  task_label }o..o{ label : "references"
+  task_label }o..o{ task : "references"
   brand ||--o{ project : "contains"
   project ||--o{ project : "contains"
   project }o..o{ record_relationship : "references"
   record ||--|| project : "envelope"
-  project ||--o{ project_member : "contains"
-  project_member }o..o{ membership : "references"
   project ||--o{ phase : "contains"
+  record ||--|| phase : "envelope"
   project ||--o{ milestone : "contains"
   record ||--|| milestone : "envelope"
   brand ||--o{ task : "contains"
@@ -177,11 +189,16 @@ erDiagram
   task ||--o{ checklist_item : "contains"
   task ||--o{ criteria_item : "contains"
   project ||--o{ criteria_item : "contains"
+  task ||--o{ task_inherited_criterion : "contains"
+  task_inherited_criterion }o..o{ criteria_item : "references"
+  project ||--o{ scope_item : "contains"
   project ||--o{ project_update : "contains"
+  project_update ||--o{ project_update_verification : "contains"
   project ||--o{ decision_record : "contains"
   brand ||--o{ decision_record : "contains"
   record ||--|| decision_record : "envelope"
-  reminder }o..o{ task : "references"
+  bulk_operation }o..o{ task : "references"
+  undo_entry }o..o{ task : "references"
 ```
 
 ## Inbox and capture
@@ -189,13 +206,14 @@ erDiagram
 ```mermaid
 erDiagram
   record ||--|| inbox_item : "envelope"
-  brand ||--o{ note : "contains"
-  project ||--o{ note : "contains"
-  task ||--o{ note : "contains"
   record ||--|| note : "envelope"
   brand ||--o{ intake_form : "contains"
   record ||--|| intake_form : "envelope"
   intake_form ||--o{ intake_submission : "contains"
+  capture_conversion }o..o{ inbox_item : "references"
+  capture_conversion }o..o{ note : "references"
+  capture_conversion }o..o{ task : "references"
+  capture_conversion }o..o{ project : "references"
 ```
 
 ## Today, scheduling, and capacity
@@ -207,12 +225,15 @@ erDiagram
   work_block }o..o{ task : "references"
   work_block }o..o{ brand : "references"
   record ||--|| work_block : "envelope"
+  block_series }o..o{ task : "references"
   recurrence_series }o..o{ task : "references"
   recurrence_series }o..o{ project : "references"
   recurrence_series }o..o{ work_block : "references"
   recurrence_series ||--o{ recurrence_exception : "contains"
   brand ||--o{ brand_calendar : "contains"
   capacity_reservation }o..o{ membership : "references"
+  task_reminder }o..o{ task : "references"
+  task_snooze }o..o{ task : "references"
 ```
 
 ## Time tracking
@@ -222,6 +243,9 @@ erDiagram
   time_entry }o..o{ task : "references"
   time_entry }o..o{ project : "references"
   time_entry }o..o{ membership : "references"
+  time_entry ||--o{ time_segment : "contains"
+  time_segment }o..o{ membership : "references"
+  timesheet_line }o..o{ timesheet : "references"
   timesheet_approval }o..o{ timesheet : "references"
 ```
 
@@ -234,8 +258,13 @@ erDiagram
   task ||--o{ document : "contains"
   document ||--o{ document : "contains"
   record ||--|| document : "envelope"
+  document ||--o{ document_reference : "contains"
+  document_reference }o..o{ record : "references"
   document ||--o{ document_version : "contains"
   document_version ||--o{ source_approval : "contains"
+  document ||--o{ edit_draft : "contains"
+  document ||--o{ edit_session : "contains"
+  document ||--o{ edit_op : "contains"
   document ||--o{ document_suggestion : "contains"
 ```
 
@@ -253,8 +282,11 @@ erDiagram
   goal_link }o..o{ task : "references"
   goal ||--o{ goal_checkin : "contains"
   key_result ||--o{ goal_checkin : "contains"
+  goal ||--o{ goal_state : "contains"
   portfolio }o..o{ project : "references"
   record ||--|| portfolio : "envelope"
+  portfolio ||--o{ portfolio_project : "contains"
+  portfolio_project }o..o{ project : "references"
 ```
 
 ## Views and navigation state
@@ -266,6 +298,7 @@ erDiagram
   favorite }o..o{ record : "references"
   recent_item }o..o{ record : "references"
   view_state }o..o{ saved_view : "references"
+  view_pin }o..o{ saved_view : "references"
 ```
 
 ## Search
@@ -282,7 +315,10 @@ erDiagram
 erDiagram
   record ||--|| dashboard : "envelope"
   record ||--|| report_definition : "envelope"
-  operation ||--|| report_run : "extends"
+  report_definition ||--o{ report_recipient : "contains"
+  report_recipient }o..o{ report_definition : "references"
+  report_definition ||--o{ report_share : "contains"
+  report_share }o..o{ report_definition : "references"
 ```
 
 ## Integrations, API, and webhooks
@@ -431,4 +467,11 @@ erDiagram
 ```mermaid
 erDiagram
   support_request ||--o{ diagnostics_bundle : "contains"
+```
+
+## Metrics ledger
+
+```mermaid
+erDiagram
+  task_status_span }o..o{ record : "references"
 ```

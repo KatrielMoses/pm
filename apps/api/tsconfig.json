@@ -7,6 +7,11 @@
     { "path": "../../packages/config" },
     { "path": "../../packages/observability" },
     { "path": "../../packages/db" },
-    { "path": "../../packages/platform" }
+    { "path": "../../packages/platform" },
+    { "path": "../../packages/audit" },
+    { "path": "../../packages/lifecycle" },
+    { "path": "../../packages/tenancy" },
+    { "path": "../../packages/work" },
+    { "path": "../../packages/identity" }
   ]
 }

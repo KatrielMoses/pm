@@ -150,6 +150,7 @@ Collection page · visibility **public** · max class **C2**
 | `data` | array of object | yes |  |
 | `page` | object | yes |  |
 | `meta` | `meta` | yes |  |
+| `view` | object |  |  |
 
 <details><summary>Example collection-page.1.json</summary>
 
@@ -1089,6 +1090,55 @@ Partial result · visibility **public** · max class **C2**
 ```
 </details>
 
+## `urn:pm:schema:rich-text`
+
+Rich text (version 1) · visibility **public** · max class **C2**
+
+| Field | Type | Required | Class |
+|---|---|---|---|
+| `type` | const `doc` | yes |  |
+| `version` | const `1` | yes |  |
+| `content` | array of `rich-text#paragraph` | yes |  |
+
+| Definition | Type | Notes |
+|---|---|---|
+| `paragraph` | object |  |
+| `text` | object |  |
+
+<details><summary>Example rich-text.1.json</summary>
+
+```json
+{
+  "type": "doc",
+  "version": 1,
+  "content": [
+    {
+      "type": "paragraph",
+      "content": [
+        {
+          "type": "text",
+          "text": "Relaunch the website for the spring campaign."
+        }
+      ]
+    },
+    {
+      "type": "paragraph",
+      "content": []
+    },
+    {
+      "type": "paragraph",
+      "content": [
+        {
+          "type": "text",
+          "text": "Out of scope: the blog."
+        }
+      ]
+    }
+  ]
+}
+```
+</details>
+
 ## `urn:pm:schema:security-event`
 
 Security event · visibility **internal** · max class **C3**
@@ -1192,7 +1242,7 @@ Step up challenge · visibility **public** · max class **C2**
 | `target` | `common#record_ref` |  |  |
 | `methods` | array of string enum: `password`, `totp`, `webauthn`, `recovery_code` | yes |  |
 | `expires_at` | `common#timestamp` | yes |  |
-| `state` | string enum: `pending`, `verified`, `consumed`, `expired`, `cancelled` | yes |  |
+| `state` | string enum: `pending`, `verified`, `consumed`, `expired`, `cancelled`, `locked` | yes |  |
 | `verify` | string |  |  |
 | `cancel` | string |  |  |
 

@@ -11,26 +11,26 @@ Class definitions and rules: [../11-data-classification.md](../11-data-classific
 | Execution platform | 7 | C2 | R-EPHEMERAL, R-EXEC | filtered, never | no | no | incidental | very-high |
 | Audit and activity | 4 | C3 | R-AUDIT, R-DERIVED | admin, filtered | metadata, no | no | incidental, yes | very-high |
 | Record envelope and lifecycle | 4 | C2 | R-AUDIT, R-LIVE | filtered, full | metadata, no | no | incidental | very-high |
-| Identity and accounts | 7 | C4 | R-EPHEMERAL, R-PERSONAL | never, self | no | hash-only, secret-ref | incidental, yes | high |
-| Workspaces and brands | 8 | C3 | R-AUDIT, R-EPHEMERAL, R-LIVE | admin, filtered, full | metadata, no, yes | no | incidental, yes | medium |
+| Identity and accounts | 8 | C4 | R-EPHEMERAL, R-PERSONAL | never, self | no | hash-only, secret-ref | incidental, yes | high |
+| Workspaces and brands | 9 | C3 | R-AUDIT, R-EPHEMERAL, R-LIVE, R-PERSONAL | admin, filtered, full, self | metadata, no, yes | no | incidental, yes | medium |
 | Grants and policy storage | 9 | C2 | R-AUDIT, R-EPHEMERAL, R-LIVE | admin, filtered, never | no | no | incidental | medium |
 | Retention and governance | 3 | C3 | R-AUDIT, R-LIVE | filtered | no | no | incidental, yes | low |
 | Usage metering and limits | 4 | C2 | R-BILLING, R-EXEC, R-LIVE | admin, filtered | no | no | incidental | very-high |
 | Billing and entitlements | 7 | C3 | R-BILLING, R-LIVE, R-PLATFORM | admin, filtered, never | no | no | incidental, yes | medium |
-| Workflows and custom fields | 8 | C2 | R-LIVE | filtered | yes | no | incidental | very-high |
-| Relationship primitives | 6 | C2 | R-LIVE | filtered | yes | no | incidental | high |
+| Workflows and custom fields | 15 | C2 | R-LIVE, R-PLATFORM | filtered, full | no, yes | no | incidental, no, yes | very-high |
+| Relationship primitives | 4 | C2 | R-LIVE | filtered | yes | no | incidental | high |
 | Files, deliverables, and evidence | 8 | C2 | R-DERIVED, R-EPHEMERAL, R-EVIDENCE, R-LIVE | filtered, never | no, yes | no | incidental | high |
-| Comments and reviews | 5 | C2 | R-AUDIT, R-EVIDENCE, R-LIVE | admin, filtered | yes | no | incidental | very-high |
-| Notifications | 4 | C2 | R-EXEC, R-PERSONAL | never, self | no | no | incidental | very-high |
-| Projects and tasks | 11 | C2 | R-LIVE, R-PERSONAL | filtered, self | yes | no | incidental | very-high |
-| Inbox and capture | 5 | C3 | R-LIVE, R-PERSONAL | filtered, self | metadata, no, yes | hash-only | incidental, yes | high |
-| Today, scheduling, and capacity | 10 | C3 | R-LIVE, R-PERSONAL | filtered, self | no, yes | no | incidental, yes | high |
-| Time tracking | 4 | C2 | R-EVIDENCE, R-LIVE | filtered | yes | no | incidental | very-high |
-| Documents and knowledge | 4 | C2 | R-EVIDENCE, R-LIVE | filtered | yes | no | incidental | high |
-| Goals and portfolios | 5 | C2 | R-LIVE | filtered | yes | no | incidental | medium |
-| Views and navigation state | 5 | C1 | R-LIVE, R-PERSONAL | filtered, never, self | no, yes | no | incidental | high |
+| Comments and reviews | 7 | C2 | R-AUDIT, R-EVIDENCE, R-LIVE | admin, filtered | yes | no | incidental | very-high |
+| Notifications | 6 | C2 | R-EXEC, R-PERSONAL | never, self | no | no | incidental | very-high |
+| Projects and tasks | 16 | C2 | R-EPHEMERAL, R-LIVE | filtered, never | no, yes | no | incidental | very-high |
+| Inbox and capture | 6 | C3 | R-LIVE, R-PERSONAL | filtered, self | metadata, no, yes | hash-only | incidental, yes | high |
+| Today, scheduling, and capacity | 14 | C3 | R-LIVE, R-PERSONAL | filtered, self | no, yes | no | incidental, yes | high |
+| Time tracking | 6 | C2 | R-EVIDENCE, R-LIVE | filtered | no, yes | no | incidental | very-high |
+| Documents and knowledge | 8 | C2 | R-DERIVED, R-EPHEMERAL, R-EVIDENCE, R-LIVE | filtered, never | no, yes | no | incidental | high |
+| Goals and portfolios | 7 | C2 | R-DERIVED, R-LIVE | filtered, never | no, yes | no | incidental | medium |
+| Views and navigation state | 6 | C1 | R-LIVE, R-PERSONAL | filtered, never, self | no, yes | no | incidental, no | high |
 | Search | 3 | C2 | R-DERIVED, R-PERSONAL | never, self | no, yes | no | incidental | very-high |
-| Metrics, dashboards, and reports | 5 | C2 | R-DERIVED, R-EXEC, R-LIVE, R-PLATFORM | filtered, never, self | metadata, no, yes | no | incidental | high |
+| Metrics, dashboards, and reports | 7 | C2 | R-DERIVED, R-EXEC, R-LIVE, R-PLATFORM | filtered, never, self | metadata, no, yes | no | incidental | high |
 | Integrations, API, and webhooks | 13 | C4 | R-AUDIT, R-EXEC, R-LIVE, R-PERSONAL | admin, filtered, never, self | metadata, no, yes | hash-only, possible, secret-ref | incidental, yes | very-high |
 | Import and export | 5 | C2 | R-EPHEMERAL, R-EXEC, R-LIVE | admin, filtered, never | no, yes | no | incidental | very-high |
 | Test management and defects | 8 | C2 | R-DERIVED, R-EVIDENCE, R-LIVE | filtered | yes | no | incidental | very-high |
@@ -40,6 +40,7 @@ Class definitions and rules: [../11-data-classification.md](../11-data-classific
 | Automations | 4 | C2 | R-EXEC, R-LIVE | filtered | no, yes | no | incidental | very-high |
 | Agents and execution control | 10 | C4 | R-AUDIT, R-EVIDENCE, R-EXEC, R-LIVE | filtered, never | no, yes | secret-ref | incidental | very-high |
 | Support and feedback | 4 | C3 | R-EPHEMERAL, R-LIVE, R-PLATFORM | never, self | no, yes | possible | incidental, yes | medium |
+| Metrics ledger | 2 | C1 | R-DERIVED | never | no | no | no | high |
 
 ## All entities
 
@@ -75,6 +76,7 @@ Class definitions and rules: [../11-data-classification.md](../11-data-classific
 | [`invitation`](logical-model.md#entity-invitation) | tenancy | workspace | C3 | high | all changes + access | R-EPHEMERAL | admin | low | no | no | yes |
 | [`ownership_transfer`](logical-model.md#entity-ownership-transfer) | tenancy | workspace | C2 | standard (per-record) | material changes | R-AUDIT | filtered | low | no | no | incidental |
 | [`brand_setting`](logical-model.md#entity-brand-setting) | tenancy | brand | C2 | standard (per-record) | material changes | R-LIVE | filtered | low | yes | no | incidental |
+| [`scope_preference`](logical-model.md#entity-scope-preference) | tenancy | personal | C1 | low | configuration changes | R-PERSONAL | self | medium | no | no | incidental |
 | [`role`](logical-model.md#entity-role) | access | workspace | C1 | low | configuration changes | R-LIVE | filtered | low | no | no | incidental |
 | [`role_assignment`](logical-model.md#entity-role-assignment) | access | workspace_or_brand | C2 | high | material changes | R-LIVE | admin | medium | no | no | incidental |
 | [`share_group`](logical-model.md#entity-share-group) | access | workspace | C2 | standard (per-record) | material changes | R-AUDIT | admin | medium | no | no | incidental |
@@ -100,15 +102,22 @@ Class definitions and rules: [../11-data-classification.md](../11-data-classific
 | [`coupon_redemption`](logical-model.md#entity-coupon-redemption) | billing | workspace | C2 | standard (per-record) | is evidence / append-only | R-BILLING | filtered | low | no | no | incidental |
 | [`workflow`](logical-model.md#entity-workflow) | workflow | workspace_or_brand | C1 | low | configuration changes | R-LIVE | filtered | low | yes | no | incidental |
 | [`workflow_status`](logical-model.md#entity-workflow-status) | workflow | inherited | C1 | low | configuration changes | R-LIVE | filtered | low | yes | no | incidental |
-| [`workflow_revision`](logical-model.md#entity-workflow-revision) | workflow | inherited | C1 | low | is evidence / append-only | R-LIVE | filtered | low | yes | no | incidental |
+| [`platform_status`](logical-model.md#entity-platform-status) | workflow | platform | C1 | low | is evidence / append-only | R-PLATFORM | full | low | no | no | no |
+| [`transition`](logical-model.md#entity-transition) | workflow | inherited | C1 | low | configuration changes | R-LIVE | filtered | low | yes | no | incidental |
+| [`transition_requirement`](logical-model.md#entity-transition-requirement) | workflow | inherited | C1 | low | configuration changes | R-LIVE | filtered | low | yes | no | incidental |
+| [`transition_approver`](logical-model.md#entity-transition-approver) | workflow | inherited | C1 | low | configuration changes | R-LIVE | filtered | low | yes | no | yes |
+| [`approval_request`](logical-model.md#entity-approval-request) | workflow | inherited | C1 | low | is evidence / append-only | R-LIVE | filtered | medium | yes | no | yes |
+| [`approval_decision`](logical-model.md#entity-approval-decision) | workflow | inherited | C1 | low | is evidence / append-only | R-LIVE | filtered | medium | yes | no | yes |
+| [`formula_dependency`](logical-model.md#entity-formula-dependency) | workflow | inherited | C1 | low | configuration changes | R-LIVE | filtered | low | yes | no | incidental |
 | [`field_definition`](logical-model.md#entity-field-definition) | workflow | workspace_or_brand | C1 | low | configuration changes | R-LIVE | filtered | low | yes | no | incidental |
 | [`field_option`](logical-model.md#entity-field-option) | workflow | inherited | C1 | low | configuration changes | R-LIVE | filtered | medium | yes | no | incidental |
 | [`field_set`](logical-model.md#entity-field-set) | workflow | workspace_or_brand | C1 | low | configuration changes | R-LIVE | filtered | low | yes | no | incidental |
-| [`calculated_field_definition`](logical-model.md#entity-calculated-field-definition) | workflow | inherited | C1 | low | is evidence / append-only | R-LIVE | filtered | low | yes | no | incidental |
+| [`field_set_version`](logical-model.md#entity-field-set-version) | workflow | inherited | C1 | low | is evidence / append-only | R-LIVE | filtered | low | yes | no | incidental |
+| [`field_set_attachment`](logical-model.md#entity-field-set-attachment) | workflow | inherited | C1 | low | configuration changes | R-LIVE | filtered | high | yes | no | incidental |
 | [`field_value`](logical-model.md#entity-field-value) | workflow | inherited | C2 | standard (per-record) | material changes | R-LIVE | filtered | very-high | yes | no | incidental |
 | [`record_relationship`](logical-model.md#entity-record-relationship) | relations | workspace | C2 | standard (per-record) | material changes | R-LIVE | filtered | high | yes | no | incidental |
-| [`label`](logical-model.md#entity-label) | relations | workspace_or_brand | C1 | low | configuration changes | R-LIVE | filtered | medium | yes | no | incidental |
-| [`label_assignment`](logical-model.md#entity-label-assignment) | relations | inherited | C1 | low | configuration changes | R-LIVE | filtered | high | yes | no | incidental |
+| [`label`](logical-model.md#entity-label) | work | brand | C1 | low | configuration changes | R-LIVE | filtered | medium | yes | no | incidental |
+| [`task_label`](logical-model.md#entity-task-label) | work | inherited | C1 | low | configuration changes | R-LIVE | filtered | high | yes | no | incidental |
 | [`mention`](logical-model.md#entity-mention) | relations | inherited | C2 | standard (per-record) | material changes | R-LIVE | filtered | high | yes | no | incidental |
 | [`record_link`](logical-model.md#entity-record-link) | relations | inherited | C2 | standard (per-record) | material changes | R-LIVE | filtered | high | yes | no | incidental |
 | [`follower`](logical-model.md#entity-follower) | relations | inherited | C2 | standard (per-record) | material changes | R-LIVE | filtered | high | yes | no | incidental |
@@ -125,21 +134,26 @@ Class definitions and rules: [../11-data-classification.md](../11-data-classific
 | [`reaction`](logical-model.md#entity-reaction) | collab | inherited | C1 | low | configuration changes | R-LIVE | filtered | high | yes | no | incidental |
 | [`review_request`](logical-model.md#entity-review-request) | collab | inherited | C2 | standard (per-record) | material changes | R-EVIDENCE | filtered | medium | yes | no | incidental |
 | [`review_decision`](logical-model.md#entity-review-decision) | collab | inherited | C2 | standard (per-record) | is evidence / append-only | R-EVIDENCE | filtered | medium | yes | no | incidental |
+| [`review_reviewer`](logical-model.md#entity-review-reviewer) | collab | inherited | C2 | standard (per-record) | material changes | R-LIVE | filtered | medium | yes | no | incidental |
+| [`assignment_event`](logical-model.md#entity-assignment-event) | collab | inherited | C2 | standard (per-record) | is evidence / append-only | R-LIVE | filtered | high | yes | no | incidental |
 | [`notification`](logical-model.md#entity-notification) | notify | personal | C2 | standard (per-record) | material changes | R-PERSONAL | self | very-high | no | no | incidental |
-| [`notification_delivery`](logical-model.md#entity-notification-delivery) | notify | personal | C1 | low | is evidence / append-only | R-EXEC | never | very-high | no | no | incidental |
+| [`notification_delivery`](logical-model.md#entity-notification-delivery) | notify | personal | C1 | low | configuration changes | R-EXEC | never | very-high | no | no | incidental |
 | [`notification_preference`](logical-model.md#entity-notification-preference) | notify | personal | C1 | low | configuration changes | R-PERSONAL | self | medium | no | no | incidental |
 | [`digest`](logical-model.md#entity-digest) | notify | personal | C2 | standard (per-record) | is evidence / append-only | R-PERSONAL | self | high | no | no | incidental |
+| [`notification_profile`](logical-model.md#entity-notification-profile) | notify | personal | C1 | low | configuration changes | R-PERSONAL | self | medium | no | no | incidental |
+| [`notification_scope_default`](logical-model.md#entity-notification-scope-default) | notify | personal | C1 | low | configuration changes | R-PERSONAL | self | medium | no | no | incidental |
 | [`project`](logical-model.md#entity-project) | work | brand | C2 | standard (per-record) | material changes | R-LIVE | filtered | medium | yes | no | incidental |
-| [`project_member`](logical-model.md#entity-project-member) | work | inherited | C2 | standard (per-record) | material changes | R-LIVE | filtered | medium | yes | no | incidental |
-| [`phase`](logical-model.md#entity-phase) | work | inherited | C2 | standard (per-record) | material changes | R-LIVE | filtered | medium | yes | no | incidental |
+| [`phase`](logical-model.md#entity-phase) | work | brand | C2 | standard (per-record) | material changes | R-LIVE | filtered | medium | yes | no | incidental |
 | [`milestone`](logical-model.md#entity-milestone) | work | brand | C2 | standard (per-record) | material changes | R-LIVE | filtered | medium | yes | no | incidental |
 | [`task`](logical-model.md#entity-task) | work | brand | C2 | standard (per-record) | material changes | R-LIVE | filtered | very-high | yes | no | incidental |
 | [`task_assignee`](logical-model.md#entity-task-assignee) | work | inherited | C2 | standard (per-record) | material changes | R-LIVE | filtered | very-high | yes | no | incidental |
 | [`checklist_item`](logical-model.md#entity-checklist-item) | work | inherited | C2 | standard (per-record) | material changes | R-LIVE | filtered | high | yes | no | incidental |
 | [`criteria_item`](logical-model.md#entity-criteria-item) | work | inherited | C2 | standard (per-record) | material changes | R-LIVE | filtered | high | yes | no | incidental |
+| [`task_inherited_criterion`](logical-model.md#entity-task-inherited-criterion) | work | inherited | C1 | low | configuration changes | R-LIVE | filtered | medium | no | no | incidental |
+| [`scope_item`](logical-model.md#entity-scope-item) | work | inherited | C2 | standard (per-record) | material changes | R-LIVE | filtered | medium | yes | no | incidental |
 | [`project_update`](logical-model.md#entity-project-update) | work | inherited | C2 | standard (per-record) | is evidence / append-only | R-LIVE | filtered | medium | yes | no | incidental |
+| [`project_update_verification`](logical-model.md#entity-project-update-verification) | work | inherited | C2 | standard (per-record) | is evidence / append-only | R-LIVE | filtered | medium | yes | no | incidental |
 | [`decision_record`](logical-model.md#entity-decision-record) | work | brand | C2 | standard (per-record) | material changes | R-LIVE | filtered | medium | yes | no | incidental |
-| [`reminder`](logical-model.md#entity-reminder) | work | personal | C2 | standard (per-record) | material changes | R-PERSONAL | self | high | yes | no | incidental |
 | [`inbox_item`](logical-model.md#entity-inbox-item) | capture | personal_brand_optional | C2 | standard (per-record) | material changes | R-LIVE | self | high | yes | no | incidental |
 | [`note`](logical-model.md#entity-note) | capture | personal_brand_optional | C2 | standard (per-record) | material changes | R-LIVE | filtered | medium | yes | no | incidental |
 | [`intake_form`](logical-model.md#entity-intake-form) | capture | brand | C2 | standard (per-record) | material changes | R-LIVE | filtered | low | yes | no | incidental |
@@ -148,39 +162,50 @@ Class definitions and rules: [../11-data-classification.md](../11-data-classific
 | [`today_commitment`](logical-model.md#entity-today-commitment) | planning | personal | C2 | standard (per-record) | material changes | R-PERSONAL | self | high | yes | no | incidental |
 | [`daily_record`](logical-model.md#entity-daily-record) | planning | personal | C2 | standard (per-record) | is evidence / append-only | R-PERSONAL | self | medium | yes | no | incidental |
 | [`work_block`](logical-model.md#entity-work-block) | planning | personal | C2 | standard (per-record) | material changes | R-PERSONAL | self | high | yes | no | incidental |
+| [`block_series`](logical-model.md#entity-block-series) | planning | personal | C1 | low | configuration changes | R-PERSONAL | self | low | no | no | incidental |
 | [`recurrence_series`](logical-model.md#entity-recurrence-series) | planning | workspace_or_brand | C2 | standard (per-record) | material changes | R-LIVE | filtered | medium | yes | no | incidental |
 | [`recurrence_exception`](logical-model.md#entity-recurrence-exception) | planning | inherited | C2 | standard (per-record) | material changes | R-LIVE | filtered | medium | yes | no | incidental |
 | [`availability_rule`](logical-model.md#entity-availability-rule) | planning | personal | C2 | standard (per-record) | material changes | R-PERSONAL | self | low | yes | no | incidental |
 | [`brand_calendar`](logical-model.md#entity-brand-calendar) | planning | brand | C1 | low | configuration changes | R-LIVE | filtered | low | yes | no | incidental |
-| [`holiday`](logical-model.md#entity-holiday) | planning | workspace_or_brand | C1 | low | configuration changes | R-LIVE | filtered | low | yes | no | incidental |
+| [`holiday`](logical-model.md#entity-holiday) | planning | brand | C1 | low | configuration changes | R-LIVE | filtered | low | yes | no | incidental |
 | [`time_off`](logical-model.md#entity-time-off) | planning | personal | C3 | high | all changes + access | R-PERSONAL | self | low | no | no | yes |
 | [`capacity_reservation`](logical-model.md#entity-capacity-reservation) | planning | brand | C2 | standard (per-record) | material changes | R-LIVE | filtered | low | yes | no | incidental |
 | [`time_entry`](logical-model.md#entity-time-entry) | time | brand | C2 | standard (per-record) | material changes | R-LIVE | filtered | very-high | yes | no | incidental |
+| [`time_segment`](logical-model.md#entity-time-segment) | time | inherited | C2 | standard (per-record) | material changes | R-LIVE | filtered | very-high | no | no | incidental |
 | [`timesheet`](logical-model.md#entity-timesheet) | time | personal | C2 | standard (per-record) | material changes | R-LIVE | filtered | medium | yes | no | incidental |
+| [`timesheet_line`](logical-model.md#entity-timesheet-line) | time | brand | C2 | standard (per-record) | material changes | R-LIVE | filtered | medium | no | no | incidental |
 | [`timesheet_approval`](logical-model.md#entity-timesheet-approval) | time | brand | C2 | standard (per-record) | is evidence / append-only | R-EVIDENCE | filtered | medium | yes | no | incidental |
 | [`period_lock`](logical-model.md#entity-period-lock) | time | brand | C2 | standard (per-record) | is evidence / append-only | R-EVIDENCE | filtered | low | yes | no | incidental |
 | [`document`](logical-model.md#entity-document) | knowledge | workspace_or_brand | C2 | standard (per-record) | material changes | R-LIVE | filtered | high | yes | no | incidental |
+| [`document_reference`](logical-model.md#entity-document-reference) | knowledge | inherited | C2 | standard (per-record) | material changes | R-LIVE | filtered | high | no | no | incidental |
 | [`document_version`](logical-model.md#entity-document-version) | knowledge | inherited | C2 | standard (per-record) | is evidence / append-only | R-LIVE | filtered | high | yes | no | incidental |
 | [`source_approval`](logical-model.md#entity-source-approval) | knowledge | inherited | C2 | standard (per-record) | is evidence / append-only | R-EVIDENCE | filtered | low | yes | no | incidental |
+| [`edit_draft`](logical-model.md#entity-edit-draft) | knowledge | inherited | C2 | standard (per-record) | material changes | R-DERIVED | never | medium | no | no | incidental |
+| [`edit_session`](logical-model.md#entity-edit-session) | knowledge | inherited | C2 | standard (per-record) | none (technical) | R-EPHEMERAL | never | medium | no | no | incidental |
+| [`edit_op`](logical-model.md#entity-edit-op) | knowledge | inherited | C2 | standard (per-record) | is evidence / append-only | R-DERIVED | never | high | no | no | incidental |
 | [`document_suggestion`](logical-model.md#entity-document-suggestion) | knowledge | inherited | C2 | standard (per-record) | material changes | R-LIVE | filtered | medium | yes | no | incidental |
 | [`goal`](logical-model.md#entity-goal) | goals | workspace_or_brand | C2 | standard (per-record) | material changes | R-LIVE | filtered | low | yes | no | incidental |
 | [`key_result`](logical-model.md#entity-key-result) | goals | inherited | C2 | standard (per-record) | material changes | R-LIVE | filtered | low | yes | no | incidental |
 | [`goal_link`](logical-model.md#entity-goal-link) | goals | inherited | C2 | standard (per-record) | material changes | R-LIVE | filtered | medium | yes | no | incidental |
 | [`goal_checkin`](logical-model.md#entity-goal-checkin) | goals | inherited | C2 | standard (per-record) | is evidence / append-only | R-LIVE | filtered | medium | yes | no | incidental |
+| [`goal_state`](logical-model.md#entity-goal-state) | goals | inherited | C2 | standard (per-record) | material changes | R-DERIVED | never | low | no | no | incidental |
 | [`portfolio`](logical-model.md#entity-portfolio) | goals | workspace_or_brand | C2 | standard (per-record) | material changes | R-LIVE | filtered | low | yes | no | incidental |
+| [`portfolio_project`](logical-model.md#entity-portfolio-project) | goals | inherited | C2 | standard (per-record) | material changes | R-LIVE | filtered | medium | yes | no | incidental |
 | [`saved_view`](logical-model.md#entity-saved-view) | views | workspace_or_brand | C1 | low | configuration changes | R-LIVE | filtered | medium | yes | no | incidental |
 | [`view_default`](logical-model.md#entity-view-default) | views | workspace_or_brand | C1 | low | configuration changes | R-LIVE | filtered | low | yes | no | incidental |
 | [`favorite`](logical-model.md#entity-favorite) | views | personal | C1 | low | configuration changes | R-PERSONAL | self | medium | yes | no | incidental |
 | [`recent_item`](logical-model.md#entity-recent-item) | views | personal | C1 | low | none (technical) | R-PERSONAL | self | high | no | no | incidental |
 | [`view_state`](logical-model.md#entity-view-state) | views | personal | C1 | low | configuration changes | R-PERSONAL | never | high | no | no | incidental |
-| [`search_document`](logical-model.md#entity-search-document) | search | inherited | C2 | standard (per-record) | none (technical) | R-DERIVED | never | very-high | yes | no | incidental |
-| [`index_status`](logical-model.md#entity-index-status) | search | inherited | C1 | low | configuration changes | R-DERIVED | never | high | no | no | incidental |
+| [`search_document`](logical-model.md#entity-search-document) | search | inherited | C2 | standard (per-record) | material changes | R-DERIVED | never | very-high | yes | no | incidental |
+| [`index_status`](logical-model.md#entity-index-status) | search | inherited | C1 | low | none (technical) | R-DERIVED | never | high | no | no | incidental |
 | [`recent_search`](logical-model.md#entity-recent-search) | search | personal | C2 | standard (per-record) | none (technical) | R-PERSONAL | self | medium | no | no | incidental |
 | [`metric_definition`](logical-model.md#entity-metric-definition) | insights | platform | C0 | low | is evidence / append-only | R-PLATFORM | never | low | no | no | incidental |
 | [`metric_snapshot`](logical-model.md#entity-metric-snapshot) | insights | workspace_or_brand | C2 | standard (per-record) | none (technical) | R-DERIVED | filtered | high | metadata | no | incidental |
 | [`dashboard`](logical-model.md#entity-dashboard) | insights | workspace_or_brand | C1 | low | configuration changes | R-LIVE | filtered | low | yes | no | incidental |
 | [`report_definition`](logical-model.md#entity-report-definition) | insights | workspace_or_brand | C1 | low | configuration changes | R-LIVE | filtered | low | yes | no | incidental |
-| [`report_run`](logical-model.md#entity-report-run) | insights | personal | C2 | standard (per-record) | is evidence / append-only | R-EXEC | self | medium | yes | no | incidental |
+| [`report_recipient`](logical-model.md#entity-report-recipient) | insights | inherited | C1 | low | configuration changes | R-LIVE | never | low | no | no | incidental |
+| [`report_share`](logical-model.md#entity-report-share) | insights | inherited | C1 | low | configuration changes | R-LIVE | never | low | no | no | incidental |
+| [`report_run`](logical-model.md#entity-report-run) | insights | personal | C2 | standard (per-record) | material changes | R-EXEC | self | medium | yes | no | incidental |
 | [`connection`](logical-model.md#entity-connection) | integrations | workspace_or_brand | C2 | standard (per-record) | material changes | R-LIVE | filtered | low | yes | secret-ref | incidental |
 | [`calendar_event`](logical-model.md#entity-calendar-event) | integrations | personal | C3 | high | all changes + access | R-PERSONAL | self | high | metadata | no | yes |
 | [`connection_mapping`](logical-model.md#entity-connection-mapping) | integrations | brand | C1 | low | configuration changes | R-LIVE | filtered | low | yes | no | incidental |
@@ -249,3 +274,13 @@ Class definitions and rules: [../11-data-classification.md](../11-data-classific
 | [`diagnostics_bundle`](logical-model.md#entity-diagnostics-bundle) | support | workspace | C3 | high | none (technical) | R-EPHEMERAL | never | low | no | possible | incidental |
 | [`feedback_item`](logical-model.md#entity-feedback-item) | support | workspace | C2 | standard (per-record) | material changes | R-LIVE | self | medium | no | no | incidental |
 | [`platform_content`](logical-model.md#entity-platform-content) | support | platform | C0 | low | configuration changes | R-PLATFORM | never | low | yes | no | incidental |
+| [`account_preference`](logical-model.md#entity-account-preference) | identity | platform | C1 | low | configuration changes | R-PERSONAL | self | low | no | no | incidental |
+| [`view_pin`](logical-model.md#entity-view-pin) | views | workspace_or_brand | C1 | low | configuration changes | R-LIVE | filtered | low | no | no | no |
+| [`task_reminder`](logical-model.md#entity-task-reminder) | planning | personal | C1 | low | configuration changes | R-PERSONAL | self | high | no | no | yes |
+| [`task_snooze`](logical-model.md#entity-task-snooze) | planning | personal | C1 | low | configuration changes | R-PERSONAL | self | medium | no | no | yes |
+| [`bulk_operation`](logical-model.md#entity-bulk-operation) | work | workspace | C1 | low | configuration changes | R-EPHEMERAL | never | medium | no | no | incidental |
+| [`undo_entry`](logical-model.md#entity-undo-entry) | work | workspace | C2 | standard (per-record) | material changes | R-EPHEMERAL | never | high | no | no | incidental |
+| [`capture_conversion`](logical-model.md#entity-capture-conversion) | capture | workspace | C1 | low | is evidence / append-only | R-LIVE | filtered | medium | metadata | no | incidental |
+| [`capacity_profile`](logical-model.md#entity-capacity-profile) | planning | personal | C2 | standard (per-record) | material changes | R-PERSONAL | self | low | yes | no | incidental |
+| [`task_status_span`](logical-model.md#entity-task-status-span) | metrics | inherited | C1 | low | is evidence / append-only | R-DERIVED | never | high | no | no | no |
+| [`reconcile_state`](logical-model.md#entity-reconcile-state) | metrics | workspace | C1 | low | configuration changes | R-DERIVED | never | low | no | no | no |

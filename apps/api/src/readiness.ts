@@ -5,7 +5,16 @@ import { errorFields, type Logger, type Metrics } from '@pm/observability';
 export type CheckResult = 'ok' | 'fail' | 'not_configured';
 export interface Readiness {
   ready: boolean;
-  checks: Record<'database' | 'migrations' | 'dispatcher' | 'object_storage', CheckResult>;
+  checks: Record<
+    | 'database'
+    | 'migrations'
+    | 'dispatcher'
+    | 'object_storage'
+    | 'email_delivery'
+    | 'recovery_gate'
+    | 'tenant_isolation',
+    CheckResult
+  >;
 }
 
 export interface ReadinessDeps {
@@ -15,6 +24,10 @@ export interface ReadinessDeps {
   logger: Logger;
   metrics: Metrics;
   isDraining: () => boolean;
+  /** The configured mail transport: `none` means email is not delivered, and says so. */
+  emailTransport: 'capture' | 'none';
+  /** 4E: the configured object store's probe (absent: not configured, which is truthful). */
+  objectStorage?: (() => Promise<'ok' | 'not_configured' | 'unavailable'>) | undefined;
 }
 
 const withTimeout = <T>(p: Promise<T>, ms: number): Promise<T> =>
@@ -27,8 +40,9 @@ const withTimeout = <T>(p: Promise<T>, ms: number): Promise<T> =>
 
 /**
  * Readiness (0D §17.4): database reachable, migrations at (or beyond, during expand/contract
- * rollouts) the version bundled in this artifact, dispatcher alive, object storage reachable
- * (not part of 1A). Reasons are logged internally; responses carry only check names and states.
+ * rollouts) the version bundled in this artifact, dispatcher alive, object storage reachable when
+ * configured (4E: `not_configured` is truthful, never `fail`), email delivery configured (4B: `not_configured` is truthful, never `fail`), the post-restore recovery gate open (1F), and the tenant-isolation policy
+ * state intact (1C). Reasons are logged internally; responses carry only check names and states.
  */
 export async function checkReadiness(deps: ReadinessDeps): Promise<Readiness> {
   const checks: Readiness['checks'] = {
@@ -36,6 +50,9 @@ export async function checkReadiness(deps: ReadinessDeps): Promise<Readiness> {
     migrations: 'fail',
     dispatcher: 'fail',
     object_storage: 'not_configured',
+    email_delivery: deps.emailTransport === 'none' ? 'not_configured' : 'ok',
+    recovery_gate: 'fail',
+    tenant_isolation: 'fail',
   };
   const fail = (check: string, reason: string, err?: unknown) =>
     deps.logger.warn('readiness.check_failed', { check, reason, ...(err ? errorFields(err) : {}) });
@@ -58,6 +75,21 @@ export async function checkReadiness(deps: ReadinessDeps): Promise<Readiness> {
     } catch (err) {
       fail('migrations', 'unreadable', err);
     }
+    // A restored environment stays closed until purge-ledger replay completes (0B §8.11).
+    try {
+      if (await withTimeout(deps.health.recoveryGateOpen(), 2_000)) checks.recovery_gate = 'ok';
+      else fail('recovery_gate', 'purge-ledger replay required');
+    } catch (err) {
+      fail('recovery_gate', 'unreadable', err);
+    }
+    // Required tenant RLS and directory ownership (1C); names and states only, never counts.
+    try {
+      if (await withTimeout(deps.health.tenantIsolationIntact(), 2_000))
+        checks.tenant_isolation = 'ok';
+      else fail('tenant_isolation', 'tenant isolation policy state is incomplete');
+    } catch (err) {
+      fail('tenant_isolation', 'unreadable', err);
+    }
     if (!deps.config.requireDispatcher) {
       checks.dispatcher = 'not_configured';
     } else {
@@ -68,6 +100,17 @@ export async function checkReadiness(deps: ReadinessDeps): Promise<Readiness> {
       } catch (err) {
         fail('dispatcher', 'unreadable', err);
       }
+    }
+  }
+  if (deps.objectStorage) {
+    try {
+      const s = await withTimeout(deps.objectStorage(), 2_000);
+      checks.object_storage =
+        s === 'ok' ? 'ok' : s === 'not_configured' ? 'not_configured' : 'fail';
+      if (s === 'unavailable') fail('object_storage', 'unreachable');
+    } catch (err) {
+      checks.object_storage = 'fail';
+      fail('object_storage', 'unreachable', err);
     }
   }
   for (const [check, result] of Object.entries(checks)) {

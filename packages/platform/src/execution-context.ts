@@ -19,7 +19,8 @@ export class ExecutionContextError extends Error {
 const TRACEPARENT = /^00-[0-9a-f]{32}-[0-9a-f]{16}-[0-9a-f]{2}$/;
 
 export function validateExecutionContext(ctx: ExecutionContext): void {
-  if (!isUuidV7(ctx.workspaceId)) throw new ExecutionContextError('workspace_id');
+  if (ctx.workspaceId !== null && !isUuidV7(ctx.workspaceId))
+    throw new ExecutionContextError('workspace_id');
   if (!/^[0-9a-f]{32}$/.test(ctx.correlationId)) throw new ExecutionContextError('correlation_id');
   for (const p of [ctx.authenticatedPrincipal, ctx.effectivePrincipal]) {
     if (!isUuidV7(p.id)) throw new ExecutionContextError('principal');
@@ -67,7 +68,7 @@ export function contextColumns(ctx: ExecutionContext): ContextInsert {
 }
 
 type ContextRow = {
-  workspace_id: string;
+  workspace_id: string | null;
   authenticated_principal_type: string;
   authenticated_principal_id: string;
   effective_principal_type: string;

@@ -1,0 +1,538 @@
+{
+  "schema_version": 1,
+  "phase": "4D",
+  "status": "candidate",
+  "adr": "0027",
+  "accepted_by_kinds": [
+    "catalog:contributing",
+    "roadmap:<sub>",
+    "adr:<nnnn>[#row]",
+    "requirement:<ID>"
+  ],
+  "requirements": [
+    {
+      "id": "DOC-011",
+      "role": "owned",
+      "disposition": "implemented",
+      "evidence": [
+        {
+          "file": "packages/work/src/docs/live-service.ts",
+          "contains": "async liveOps("
+        },
+        {
+          "file": "packages/work/src/docs/live.ts",
+          "contains": "export function applyOp("
+        },
+        {
+          "file": "packages/work/src/docs/document-service.ts",
+          "contains": "protected async checkpointDraft("
+        },
+        {
+          "file": "packages/work/test/integration/live-editing.test.ts",
+          "contains": "opens a draft from the current version and converges two editors on the server order"
+        },
+        {
+          "file": "packages/work/test/integration/live-editing.test.ts",
+          "contains": "refuses a conflicting operation with the current block and never merges or drops it silently"
+        },
+        {
+          "file": "packages/work/test/integration/live-editing.test.ts",
+          "contains": "sequences concurrent editors without gaps, and the replayed log equals the draft"
+        },
+        {
+          "file": "packages/work/test/integration/live-editing.test.ts",
+          "contains": "keeps versioned non-live editing safe: a live session blocks it, unsaved work is saved first, nothing is overwritten"
+        },
+        {
+          "file": "packages/work/test/unit/docs-live.test.ts",
+          "contains": "converges: any order of independent edits to different blocks gives one result"
+        },
+        {
+          "file": "apps/api/test/integration/live-editing-api.test.ts",
+          "contains": "runs a live session end to end: join, operate, poll, heartbeat, checkpoint, leave"
+        },
+        {
+          "file": "apps/web/test/live-editing.test.tsx",
+          "contains": "sends one batch after a pause, with the base hash the server gave"
+        },
+        {
+          "file": "apps/web/test/live-editing.test.tsx",
+          "contains": "never overwrites unsent text: marks the block, and Keep mine sends it against the new hash"
+        },
+        {
+          "file": "apps/web/test/live-editing.test.tsx",
+          "contains": "Save sends what is pending, then asks for a checkpoint, and shows the new version"
+        },
+        {
+          "file": "e2e/live-editing.spec.ts",
+          "contains": "two editors see each other and the same text; conflicts are settled by choice; offline edits catch up"
+        }
+      ],
+      "note": "Collaborative editing: a server-sequenced block-operation log on a draft, with explicit sessions, ordered operations, per-block conflict detection and refusal with the current block, deterministic convergence, offline and reconnect recovery by position, and a fallback to the versioned non-live editor. Checkpoints are ordinary immutable versions (ADR-0027 C1 to C10)."
+    },
+    {
+      "id": "COL-011",
+      "role": "owned",
+      "disposition": "implemented",
+      "evidence": [
+        {
+          "file": "packages/work/src/docs/live-service.ts",
+          "contains": "protected async presence("
+        },
+        {
+          "file": "packages/work/test/integration/live-editing.test.ts",
+          "contains": "shows presence only to people who may see people, and never after it expires"
+        },
+        {
+          "file": "apps/api/test/integration/live-editing-api.test.ts",
+          "contains": "lets a member only watch, and gives unreadable-document callers, strangers, and the signed-out the same 404/401"
+        },
+        {
+          "file": "docs/engineering/adr/0027-collaborative-editing.md",
+          "contains": "| C9 |"
+        },
+        {
+          "file": "apps/web/test/live-editing.test.tsx",
+          "contains": "lists the people the server named, each with a swatch and a text label, and where they are"
+        },
+        {
+          "file": "apps/web/test/live-editing.test.tsx",
+          "contains": "shows just \"Live\" when the server names no one else (a guest or share-only viewer)"
+        },
+        {
+          "file": "e2e/live-editing.spec.ts",
+          "contains": "a read-only guest sees changes and only themselves; a plain save or restore while someone edits live says so"
+        },
+        {
+          "file": "e2e/live-editing.spec.ts",
+          "contains": "the conflict view: axe, 320 px and 200% zoom, forced colours, reduced motion, and the keyboard alone"
+        }
+      ],
+      "note": "Presence of the people editing or watching a document: colour, mode, name, and the block they are in, shown only to members who may see people and only while the session lives; never audited or stored beyond its expiry."
+    },
+    {
+      "id": "REL-003",
+      "role": "contributing",
+      "disposition": "contributed",
+      "contribution": "4D",
+      "evidence": [
+        {
+          "file": "packages/work/src/docs/live.ts",
+          "contains": "export const CONFLICT_CODES"
+        },
+        {
+          "file": "packages/work/test/integration/live-editing.test.ts",
+          "contains": "refuses a conflicting operation with the current block and never merges or drops it silently"
+        },
+        {
+          "file": "packages/work/test/integration/live-editing.test.ts",
+          "contains": "sequences concurrent editors without gaps, and the replayed log equals the draft"
+        },
+        {
+          "file": "packages/work/test/unit/docs-live.test.ts",
+          "contains": "replaces and deletes only a block that still has the hash the client saw"
+        },
+        {
+          "file": "apps/web/test/live-editing.test.tsx",
+          "contains": "a refused operation gets the same choice, with the server block as theirs"
+        }
+      ],
+      "note": "Concurrent edits to a document are handled predictably: an operation names the block hash it was based on, a stale one is refused with the current block, and the same ordered log gives every client the same blocks; a plain save still conflicts on a stale version."
+    }
+  ],
+  "decisions": [
+    {
+      "id": "D1",
+      "title": "Server-sequenced block operations (a central sequencer), not a CRDT, a provider, or hand-written text OT",
+      "adr_row": "C1",
+      "sources": [
+        {
+          "file": "docs/architecture/data/12-decisions.md",
+          "contains": "## ADR-35: Live editing drafts, sessions, and operations"
+        }
+      ],
+      "evidence": [
+        {
+          "file": "packages/work/src/docs/live.ts",
+          "contains": "export function applyOp("
+        },
+        {
+          "file": "packages/work/test/unit/docs-live.test.ts",
+          "contains": "never changes its input, and the same log always gives the same blocks"
+        },
+        {
+          "file": "packages/work/test/integration/live-editing.test.ts",
+          "contains": "sequences concurrent editors without gaps, and the replayed log equals the draft"
+        },
+        {
+          "file": "docs/engineering/adr/0027-collaborative-editing.md",
+          "contains": "| C1 |"
+        }
+      ]
+    },
+    {
+      "id": "D2",
+      "title": "Operations name the block hash they were based on; a stale one is refused with the current block; the replayed log converges",
+      "adr_row": "C2",
+      "sources": [
+        {
+          "file": "docs/architecture/platform/04-concurrency.md",
+          "contains": "server-sequenced block-operation log"
+        }
+      ],
+      "evidence": [
+        {
+          "file": "packages/work/test/integration/live-editing.test.ts",
+          "contains": "refuses a conflicting operation with the current block and never merges or drops it silently"
+        },
+        {
+          "file": "packages/work/test/unit/docs-live.test.ts",
+          "contains": "replaces and deletes only a block that still has the hash the client saw"
+        },
+        {
+          "file": "packages/work/test/unit/docs-live.test.ts",
+          "contains": "refuses what no longer fits and says why"
+        },
+        {
+          "file": "packages/work/test/unit/docs-live.test.ts",
+          "contains": "converges: any order of independent edits to different blocks gives one result"
+        },
+        {
+          "file": "docs/engineering/adr/0027-collaborative-editing.md",
+          "contains": "| C2 |"
+        }
+      ]
+    },
+    {
+      "id": "D3",
+      "title": "Operations edit a draft; a checkpoint is an ordinary immutable version",
+      "adr_row": "C3",
+      "sources": [
+        {
+          "file": "docs/architecture/data/09-concurrency-consistency.md",
+          "contains": "Phase 4D ([ADR-35]"
+        }
+      ],
+      "evidence": [
+        {
+          "file": "packages/work/src/docs/document-service.ts",
+          "contains": "protected async checkpointDraft("
+        },
+        {
+          "file": "packages/work/test/integration/live-editing.test.ts",
+          "contains": "opens a draft from the current version and converges two editors on the server order"
+        },
+        {
+          "file": "packages/work/test/integration/live-editing.test.ts",
+          "contains": "saves on the last leave, turns live editing off by configuration, and bounds sessions"
+        },
+        {
+          "file": "docs/engineering/adr/0027-collaborative-editing.md",
+          "contains": "| C3 |"
+        }
+      ]
+    },
+    {
+      "id": "D4",
+      "title": "The version and permission evaluator decides every call; a plain save cannot overwrite live work",
+      "adr_row": "C4",
+      "sources": [
+        {
+          "file": "docs/architecture/access/15-decisions.md",
+          "contains": "### AZ-35: Live collaborative editing"
+        }
+      ],
+      "evidence": [
+        {
+          "file": "packages/work/test/integration/live-editing.test.ts",
+          "contains": "decides every call through the document level: viewers watch, outsiders and revoked editors are refused"
+        },
+        {
+          "file": "packages/work/test/integration/live-editing.test.ts",
+          "contains": "keeps versioned non-live editing safe: a live session blocks it, unsaved work is saved first, nothing is overwritten"
+        },
+        {
+          "file": "packages/work/test/integration/live-editing.test.ts",
+          "contains": "refuses archived documents, trashes sessions out, and purges drafts, sessions, and the log"
+        },
+        {
+          "file": "apps/api/test/integration/live-editing-api.test.ts",
+          "contains": "lets a member only watch, and gives unreadable-document callers, strangers, and the signed-out the same 404/401"
+        },
+        {
+          "file": "docs/engineering/adr/0027-collaborative-editing.md",
+          "contains": "| C4 |"
+        }
+      ]
+    },
+    {
+      "id": "D5",
+      "title": "Restricted references stay opaque in every response and are restored only against the draft's own references",
+      "adr_row": "C5",
+      "sources": [
+        {
+          "file": "docs/architecture/access/15-decisions.md",
+          "contains": "**Redacted for each viewer.**"
+        }
+      ],
+      "evidence": [
+        {
+          "file": "packages/work/test/integration/live-editing.test.ts",
+          "contains": "keeps hidden references opaque in snapshots and events, and restores them when a block is edited"
+        },
+        {
+          "file": "packages/work/test/unit/docs-live.test.ts",
+          "contains": "validates, normalizes blocks, and keeps restricted tokens for the server to restore"
+        },
+        {
+          "file": "docs/engineering/adr/0027-collaborative-editing.md",
+          "contains": "| C5 |"
+        }
+      ]
+    },
+    {
+      "id": "D6",
+      "title": "Transport is HTTP commands and a bounded long poll that re-authorizes each call",
+      "adr_row": "C6",
+      "sources": [
+        {
+          "file": "docs/architecture/platform/19-decisions.md",
+          "contains": "### PL-37: Live editing contracts"
+        }
+      ],
+      "evidence": [
+        {
+          "file": "apps/api/test/integration/live-editing-api.test.ts",
+          "contains": "runs a live session end to end: join, operate, poll, heartbeat, checkpoint, leave"
+        },
+        {
+          "file": "apps/api/test/integration/live-editing-api.test.ts",
+          "contains": "refuses malformed input with pointer-precise issues and never echoes it"
+        },
+        {
+          "file": "packages/work/test/integration/live-editing.test.ts",
+          "contains": "makes a retried operation idempotent and bounds a batch"
+        },
+        {
+          "file": "docs/engineering/adr/0027-collaborative-editing.md",
+          "contains": "| C6 |"
+        }
+      ]
+    },
+    {
+      "id": "D7",
+      "title": "Operations are idempotent by op_id and bounded per batch",
+      "adr_row": "C7",
+      "sources": [
+        {
+          "file": "docs/architecture/platform/19-decisions.md",
+          "contains": "`op_id` makes a retry idempotent"
+        }
+      ],
+      "evidence": [
+        {
+          "file": "packages/work/test/integration/live-editing.test.ts",
+          "contains": "makes a retried operation idempotent and bounds a batch"
+        },
+        {
+          "file": "packages/work/test/unit/docs-live.test.ts",
+          "contains": "bounds the batch and refuses unknown fields, bad handles, duplicates, and bad hashes without echoing input"
+        },
+        {
+          "file": "apps/api/test/integration/live-editing-api.test.ts",
+          "contains": "refuses malformed input with pointer-precise issues and never echoes it"
+        },
+        {
+          "file": "docs/engineering/adr/0027-collaborative-editing.md",
+          "contains": "| C7 |"
+        }
+      ]
+    },
+    {
+      "id": "D8",
+      "title": "Sessions have an explicit lifecycle, an expiry, and bounds",
+      "adr_row": "C8",
+      "sources": [
+        {
+          "file": "docs/architecture/data/12-decisions.md",
+          "contains": "**Sessions.**"
+        }
+      ],
+      "evidence": [
+        {
+          "file": "packages/work/test/integration/live-editing.test.ts",
+          "contains": "saves on the last leave, turns live editing off by configuration, and bounds sessions"
+        },
+        {
+          "file": "packages/work/test/integration/live-editing.test.ts",
+          "contains": "shows presence only to people who may see people, and never after it expires"
+        },
+        {
+          "file": "packages/db/migrations/0040_collaborative_editing.up.sql",
+          "contains": "CREATE TABLE knowledge.edit_session"
+        },
+        {
+          "file": "docs/engineering/adr/0027-collaborative-editing.md",
+          "contains": "| C8 |"
+        }
+      ]
+    },
+    {
+      "id": "D9",
+      "title": "Presence is permission-safe and ephemeral: members only, active memberships only, never audited",
+      "adr_row": "C9",
+      "sources": [
+        {
+          "file": "docs/architecture/access/15-decisions.md",
+          "contains": "**Presence.**"
+        }
+      ],
+      "evidence": [
+        {
+          "file": "packages/work/test/integration/live-editing.test.ts",
+          "contains": "shows presence only to people who may see people, and never after it expires"
+        },
+        {
+          "file": "apps/api/test/integration/live-editing-api.test.ts",
+          "contains": "lets a member only watch, and gives unreadable-document callers, strangers, and the signed-out the same 404/401"
+        },
+        {
+          "file": "packages/work/src/docs/live-service.ts",
+          "contains": "protected async presence("
+        },
+        {
+          "file": "docs/engineering/adr/0027-collaborative-editing.md",
+          "contains": "| C9 |"
+        }
+      ]
+    },
+    {
+      "id": "D10",
+      "title": "Fallback to versioned non-live editing, offline recovery, and a switch to turn live editing off",
+      "adr_row": "C10",
+      "sources": [
+        {
+          "file": "docs/product/open-decisions.md",
+          "contains": "Status (Phase 4D, 2026-10-08)"
+        }
+      ],
+      "evidence": [
+        {
+          "file": "packages/work/test/integration/live-editing.test.ts",
+          "contains": "keeps versioned non-live editing safe: a live session blocks it, unsaved work is saved first, nothing is overwritten"
+        },
+        {
+          "file": "packages/work/test/integration/live-editing.test.ts",
+          "contains": "saves on the last leave, turns live editing off by configuration, and bounds sessions"
+        },
+        {
+          "file": "apps/web/test/live-editing.test.tsx",
+          "contains": "keeps edits in the browser draft while offline, says so, and sends them when back online"
+        },
+        {
+          "file": "apps/web/test/live-editing.test.tsx",
+          "contains": "falls back to the plain editor when the live connection keeps failing, keeping the text"
+        },
+        {
+          "file": "apps/web/test/live-editing.test.tsx",
+          "contains": "backs off 1s, 2s, 4s while editing locally, then resumes from the last sequence"
+        },
+        {
+          "file": "e2e/live-editing.spec.ts",
+          "contains": "removing a person's access, or trashing the page, ends live editing and keeps their text"
+        },
+        {
+          "file": "docs/engineering/adr/0027-collaborative-editing.md",
+          "contains": "| C10 |"
+        }
+      ]
+    },
+    {
+      "id": "D11",
+      "title": "Comments, suggestions, mentions, reviews, and notification delivery stay on versions and block identifiers",
+      "adr_row": "C11",
+      "sources": [
+        {
+          "file": "docs/engineering/adr/0027-collaborative-editing.md",
+          "contains": "mention events fire once, from the saved version"
+        }
+      ],
+      "evidence": [
+        {
+          "file": "packages/work/test/integration/live-editing.test.ts",
+          "contains": "opens a draft from the current version and converges two editors on the server order"
+        },
+        {
+          "file": "packages/work/test/integration/live-editing.test.ts",
+          "contains": "keeps versioned non-live editing safe: a live session blocks it, unsaved work is saved first, nothing is overwritten"
+        },
+        {
+          "file": "docs/engineering/adr/0027-collaborative-editing.md",
+          "contains": "| C11 |"
+        }
+      ]
+    },
+    {
+      "id": "D12",
+      "title": "The 4C and 4E join: documents host files, files embed by identifier, and lifecycle and purge carry them",
+      "adr_row": "C12",
+      "sources": [
+        {
+          "file": "docs/engineering/lifecycle.md",
+          "contains": "## Phase 4D collaborative editing"
+        }
+      ],
+      "evidence": [
+        {
+          "file": "packages/work/test/integration/documents-files.test.ts",
+          "contains": "attaches files to a brand document and to a workspace document through the document level"
+        },
+        {
+          "file": "packages/work/test/integration/documents-files.test.ts",
+          "contains": "embeds only files attached to the document, shows them by what the viewer may read, and exports honestly"
+        },
+        {
+          "file": "packages/work/test/integration/documents-files.test.ts",
+          "contains": "lets live editing embed an attached file and refuses one that is not"
+        },
+        {
+          "file": "packages/work/test/integration/documents-files.test.ts",
+          "contains": "carries files with their document through trash, restore, and purge"
+        },
+        {
+          "file": "packages/work/test/integration/documents-files.test.ts",
+          "contains": "lets a comment on a workspace document carry files"
+        },
+        {
+          "file": "packages/work/src/docs/lifecycle.ts",
+          "contains": "purgeFileFacts(tx, ids)"
+        },
+        {
+          "file": "docs/engineering/adr/0027-collaborative-editing.md",
+          "contains": "| C12 |"
+        }
+      ]
+    },
+    {
+      "id": "D13",
+      "title": "Honest absences: no search, provider, agent editing, text cursors, or anchored comments",
+      "adr_row": "C13",
+      "sources": [
+        {
+          "file": "docs/ux/02-information-architecture.md",
+          "contains": "Phase 4D implementation note"
+        }
+      ],
+      "evidence": [
+        {
+          "file": "packages/work/test/integration/live-editing.test.ts",
+          "contains": "refuses archived documents, trashes sessions out, and purges drafts, sessions, and the log"
+        },
+        {
+          "file": "docs/engineering/adr/0027-collaborative-editing.md",
+          "contains": "| C13 |"
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,94 @@
+{
+  "schema_version": 1,
+  "phase": "5",
+  "status": "candidate",
+  "members": {
+    "5A": "docs/engineering/phase5/closure-5a.json",
+    "5B": "docs/engineering/phase5/closure-5b.json",
+    "5C": "docs/engineering/phase5/closure-5c.json",
+    "5D": "docs/engineering/phase5/closure-5d.json"
+  },
+  "reconciliation": {
+    "kept": "5A (accepted first): migration 0041_permission_aware_search, ADR-0028, 0B ADR-36, 0C AZ-36, 0D PL-38, threat T-54, tests AT-238..AT-245; 5C (accepted before 5D): migration 0043_metrics_model, ADR-0030, 0B ADR-38, 0C AZ-38, 0D PL-40, threats T-63..T-64, tests AT-269..AT-279, UXD-30",
+    "renumbered": "5B: migration 0042_goals_portfolios, ADR-0029, 0B ADR-37, 0C AZ-37, 0D PL-39, threats T-55..T-62 (old +1), tests AT-246..AT-268 (old +8); 5D: migration 0044_dashboards_reports, ADR-0031, 0B ADR-39, 0C AZ-39, 0D PL-41, threats T-65..T-72 (old +2), tests AT-280..AT-297 (old +11)"
+  },
+  "deferred": [
+    "semantic or concept search",
+    "attachment content search",
+    "goals, people, and integration search sources",
+    "external adapters",
+    "AI analytics",
+    "metric snapshots",
+    "later-phase metrics (tests, spend, AI usage, automation)"
+  ],
+  "evidence": [
+    {
+      "file": "packages/work/test/integration/phase5-matrix.test.ts",
+      "contains": "keeps hidden work out of search, goals, key results, portfolios, drill-downs, and exports alike"
+    },
+    {
+      "file": "packages/work/test/integration/phase5-matrix.test.ts",
+      "contains": "shows trash, restore, purge, and revocation on every surface at once, and keeps both indexes convergent"
+    },
+    {
+      "file": "packages/work/test/integration/phase5-matrix.test.ts",
+      "contains": "converges when indexing, recalculation, and edits overlap, and repeats change nothing"
+    },
+    {
+      "file": "packages/work/test/integration/phase5-matrix.test.ts",
+      "contains": "removes a departed member from search and hands their goals on, and never searches across workspaces"
+    },
+    {
+      "file": "e2e/phase5-exit-journey.spec.ts",
+      "contains": "search, goals, and portfolios agree on what each person may read, and change together"
+    },
+    {
+      "file": "packages/test-infra/test/unit/exit-code.test.ts",
+      "contains": "keeps a failing exit code that an exit hook would discard"
+    },
+    {
+      "file": "packages/db/test/integration/migrations.test.ts",
+      "contains": "to the candidate and reverses each boundary step"
+    },
+    {
+      "file": "docs/engineering/adr/0029-goals-portfolios.md",
+      "contains": "renumbers 5B deterministically"
+    },
+    {
+      "file": "packages/work/test/integration/search-backfill.test.ts",
+      "contains": "queues every supported record that existed before the migration, exactly once, and no purged or deleted one"
+    },
+    {
+      "file": "packages/work/test/integration/phase5-final.test.ts",
+      "contains": "serves the 5C metrics to dashboards through the metric port, for each viewer, with figure and records from one authority"
+    },
+    {
+      "file": "packages/work/test/integration/phase5-final.test.ts",
+      "contains": "keeps search, goals, portfolios, metrics, dashboards, and exports in step as access, lifecycle, and membership change"
+    },
+    {
+      "file": "packages/work/test/integration/phase5-final.test.ts",
+      "contains": "delivers scheduled reports as each recipient, never beyond what they may read, and recovers from an unconfigured provider"
+    },
+    {
+      "file": "packages/work/test/integration/phase5-final.test.ts",
+      "contains": "converges when indexing, recalculation, reconciliation, delivery, and edits overlap, and repeats change nothing"
+    },
+    {
+      "file": "packages/work/test/integration/phase5-final.test.ts",
+      "contains": "shows a stale permission nowhere: a cursor, a share, and a schedule outlive nothing"
+    },
+    {
+      "file": "e2e/phase5-final-journey.spec.ts",
+      "contains": "search, goals, metrics, and dashboards agree on what each person may read, and change together"
+    },
+    {
+      "file": "packages/db/test/integration/migrations.test.ts",
+      "contains": "refuses to continue a database that applied the uncorrected 0041, and rebuilds from its own files"
+    },
+    {
+      "file": "docs/engineering/adr/0031-dashboards-reports.md",
+      "contains": "renumbered 5D deterministically"
+    }
+  ]
+}

@@ -14,13 +14,22 @@ concurrency:
 
 jobs:
   verify:
-    # Runs the exact acceptance gate (scripts/verify.sh): containerized PostgreSQL via
-    # Testcontainers and the production image gate on the runner's Docker. Skips are refused in CI.
+    # Runs the exact acceptance gate (scripts/verify.sh) as parallel shards, so every shard fits the
+    # same 45-minute limit: `core` (validators, lint, types, unit, integration, build, worker smoke,
+    # scanners, production image) and one browser-smoke job per Playwright project. Containerized
+    # PostgreSQL via Testcontainers and the image gate use the runner's Docker. Skips are refused
+    # in CI. Acceptance needs every shard green on one head.
+    name: verify (${{ matrix.shard }})
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [core, e2e-desktop, e2e-tablet, e2e-mobile]
     runs-on: ubuntu-24.04
     timeout-minutes: 45
     env:
       CI: 'true'
       BUILD_ID: ${{ github.sha }}
+      PM_VERIFY_SHARD: ${{ matrix.shard }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0 (version from packageManager)
@@ -31,8 +40,9 @@ jobs:
       - name: Install pinned, checksum-verified scanners
         run: bash scripts/install-scanners.sh
       - name: Install Playwright browser
+        if: startsWith(matrix.shard, 'e2e-')
         run: pnpm install --frozen-lockfile && pnpm exec playwright install --with-deps chromium
-      - name: Acceptance verification (all gates)
+      - name: Acceptance verification (${{ matrix.shard }})
         run: |
           mkdir -p reports
           set -o pipefail
@@ -41,10 +51,9 @@ jobs:
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: verify-${{ github.run_id }}-${{ github.run_attempt }}
+          name: verify-${{ matrix.shard }}-${{ github.run_id }}-${{ github.run_attempt }}
           # Logs are allow-listed and redacted at source; no env dumps, .env files, or database files.
           path: |
             reports/
-            playwright-report/
           retention-days: 30
           if-no-files-found: warn

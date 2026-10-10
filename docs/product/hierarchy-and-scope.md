@@ -1,6 +1,6 @@
 # Record hierarchy and scope contract
 
-Status: proposed (Phase 0A), awaiting architect review. Terms are defined in the [glossary](glossary.md). Lifecycle effects referenced here are specified in [lifecycle-and-states.md](lifecycle-and-states.md) and [deletion-retention-history.md](deletion-retention-history.md).
+Status: accepted (Phase 0A, P0-W1; Phase 0 exit gate P0-IR1). Terms are defined in the [glossary](glossary.md). Lifecycle effects referenced here are specified in [lifecycle-and-states.md](lifecycle-and-states.md) and [deletion-retention-history.md](deletion-retention-history.md).
 
 This document defines **what owns what, what merely links to what, and who can see it**. Physical tables, keys, and indexes are Phase 0B; permission roles and evaluation order are Phase 0C. The rules here are the semantics those phases must implement.
 

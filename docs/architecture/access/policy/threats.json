@@ -54,7 +54,8 @@
     "conflict_filtered": "Conflict response without unreadable current values",
     "validation_generic": "Generic validation error naming only the caller's own input",
     "empty": "Zero rows",
-    "error_generic": "Generic error without tenant data"
+    "error_generic": "Generic error without tenant data",
+    "step_up_required": "Fresh step-up proof required; nothing executed and no resource information beyond the challenge"
   },
   "threats": [
     {
@@ -345,7 +346,7 @@
     {
       "id": "T-33",
       "category": "inference",
-      "description": "Not-found versus forbidden difference reveals that a readable record exists but an action is forbidden — acceptable only for readable records.",
+      "description": "Not-found versus forbidden difference reveals that a readable record exists but an action is forbidden \u2014 acceptable only for readable records.",
       "mitigated_by": [
         "I-07"
       ]
@@ -357,6 +358,561 @@
       "mitigated_by": [
         "I-09",
         "I-13"
+      ]
+    },
+    {
+      "id": "T-35",
+      "category": "spoofing",
+      "description": "Account takeover through account security: a stolen or unattended session, or a delegated credential, enrolls or disables a second factor or regenerates recovery codes.",
+      "mitigated_by": [
+        "I-01",
+        "I-09",
+        "I-14",
+        "I-17"
+      ]
+    },
+    {
+      "id": "T-36",
+      "category": "spoofing",
+      "description": "Tenant-creation abuse: a delegated or non-human principal, an unverified or deleted account, a flood of requests, or a replayed request creates workspaces or gains tenant authority through creation, or a body claim names an existing workspace, role, or membership.",
+      "mitigated_by": [
+        "I-01",
+        "I-02",
+        "I-09",
+        "I-11",
+        "I-14",
+        "I-17"
+      ]
+    },
+    {
+      "id": "T-37",
+      "category": "spoofing",
+      "description": "Invitation abuse: replaying, forwarding, or racing an invitation token; accepting with a different account; enumerating accounts or memberships through invite outcomes; a guest invitation conferring workspace, brand, or inherited access; an administrator inviting an owner.",
+      "mitigated_by": [
+        "I-01",
+        "I-04",
+        "I-07",
+        "I-09",
+        "I-11",
+        "I-17"
+      ]
+    },
+    {
+      "id": "T-38",
+      "category": "departure",
+      "description": "Ownership or departure failure: a workspace left without an active owner, an ownership transfer accepted by the wrong principal or without step-up, a removed or suspended member keeping access through sessions, cached contexts, teams, grants, queued jobs, or pooled connections, or owned resources left without an accountable owner.",
+      "mitigated_by": [
+        "I-01",
+        "I-11",
+        "I-12",
+        "I-17"
+      ]
+    },
+    {
+      "id": "T-39",
+      "category": "inference",
+      "description": "Personal navigation leakage: favorites, recents, view state, URL scope, breadcrumbs, page titles, palette results, shortcuts, or navigation entries revealing or re-opening a record, brand, person, or destination the viewer can no longer (or never could) access, including through forged identifiers, stale client caches, stored state, or another workspace's identifiers.",
+      "mitigated_by": [
+        "I-01",
+        "I-02",
+        "I-11",
+        "I-12"
+      ]
+    },
+    {
+      "id": "T-40",
+      "category": "inference",
+      "description": "Task exposure through responsibility or sharing: assignees, creators, or labels gaining access; a task share exposing its parent, project, children, relationships, links to inaccessible records, history, or brand aggregates; hidden relationship endpoints or descendants affecting counts, completion overrides, or rollups.",
+      "mitigated_by": [
+        "I-01",
+        "I-02",
+        "I-10",
+        "I-11"
+      ]
+    },
+    {
+      "id": "T-41",
+      "category": "inference",
+      "description": "Workflow and field exposure: custom statuses, transitions, or approvals bypassing category, Complete/Reopen, or required-field rules; approvers or person/label field values gaining access; hidden fields, options, or formula inputs leaking through payloads, errors, counts, sorting, serialization, audit, or formula results; stale approvals or previews replayed.",
+      "mitigated_by": [
+        "I-01",
+        "I-02",
+        "I-10",
+        "I-18"
+      ]
+    },
+    {
+      "id": "T-42",
+      "category": "inference",
+      "description": "Task interaction exposure: freshness, blocked, missing-data, or duplicate signals, bulk previews and reports, undo entries, reminders, snoozes, template applications, or recurring occurrences revealing unreadable tasks, hidden fields, or other people's personal state, by content, count, error, or timing; recurrence or bulk acting beyond current authority.",
+      "mitigated_by": [
+        "I-01",
+        "I-02",
+        "I-10",
+        "I-18"
+      ]
+    },
+    {
+      "id": "T-43",
+      "category": "inference",
+      "description": "Capture exposure: another person's Inbox items or notes visible to anyone (including owners and administrators); parsing, previews, counts, errors, or timing revealing hidden brands, projects, members, or labels; triage or note conversion creating work where the person lacks record.create; intake forms leaking the queue or accepting submissions from people who cannot read the brand; rate and size bounds bypassed.",
+      "mitigated_by": [
+        "I-01",
+        "I-02",
+        "I-10",
+        "I-18"
+      ]
+    },
+    {
+      "id": "T-44",
+      "category": "inference",
+      "description": "Saved-view exposure: a shared, pinned, or default view widening record access; rows, totals, group counts, group labels, cursors, filter-value labels, exports, or timing revealing hidden records, brands, projects, members, labels, or fields; personal views visible to others (including owners and administrators); sharing, pinning, or defaults set without authority at the exact scope; a cursor or export reused by another person or after revocation.",
+      "mitigated_by": [
+        "I-01",
+        "I-02",
+        "I-07",
+        "I-10",
+        "I-18"
+      ]
+    },
+    {
+      "id": "T-45",
+      "category": "inference",
+      "description": "Time exposure and tampering: entries, totals, reports, timesheets, approval views, or exports naming or counting work the viewer cannot read; logging, editing, or moving time without time.log_own on the work; changing another person's entries; approving a brand line without manage now, without seeing all of it, or as a self-approval the policy forbids; unlocking an approved period without workspace admin authority, a reason, or step-up; editing or moving submitted or approved time through any path.",
+      "mitigated_by": [
+        "I-01",
+        "I-02",
+        "I-10",
+        "I-18"
+      ]
+    },
+    {
+      "id": "T-46",
+      "category": "inference",
+      "description": "Core view exposure: a board column count, calendar event, timeline or Gantt bar, dependency arrow, workload total, milestone, portfolio percentage, timesheet cell, or activity entry revealing a record, endpoint, field, or person the viewer cannot read; board moves or date changes bypassing workflow gates, permissions, or versions, or silently changing deadlines; activity readable through a share; another person's time shown.",
+      "mitigated_by": [
+        "I-01",
+        "I-02",
+        "I-07",
+        "I-10",
+        "I-18"
+      ]
+    },
+    {
+      "id": "T-47",
+      "category": "inference",
+      "description": "Planning exposure and drift: another person's Today, blocks, series, or records visible to anyone; commitments or blocks revealing or granting access to tasks the owner cannot read (including after revocation); Today lists counting hidden work; planning commands changing due dates or deadlines; locked items or focus blocks moved or overlapped; daily records rewritten.",
+      "mitigated_by": [
+        "I-01",
+        "I-02",
+        "I-10",
+        "I-18"
+      ]
+    },
+    {
+      "id": "T-48",
+      "category": "inference",
+      "description": "Cross-brand capacity leakage: another person's capacity, reservations, or conflicts visible without capacity.view; time-off kinds, labels, or entries visible to anyone but their owner; blocks, estimates, holidays, or conflicts revealing work or brands the viewer cannot read; reservations set without capacity.reserve; visibility outliving a revoked grant.",
+      "mitigated_by": [
+        "I-01",
+        "I-02",
+        "I-10",
+        "I-18"
+      ]
+    },
+    {
+      "id": "T-49",
+      "category": "inference",
+      "description": "Collaboration leakage and tampering: comments, replies, reactions, mentions, followers, review requests and decisions, delegation, or assignment history revealing a record, person, team, field, or prior value the viewer cannot read, through lists, counts, chips, mention pickers, the Following view, queues, or activity; mentions or reviewer lists confirming hidden people; another person's comment edited or rewritten (administrators included); edits or deletions outside the author's window; decisions made by non-reviewers, on a changed version, twice, or by the requester against the self-approval policy; following inherited from role, assignment, or share; a delegation that grants access or names hidden people; comment text surviving in audit or after purge.",
+      "mitigated_by": [
+        "I-01",
+        "I-02",
+        "I-07",
+        "I-10",
+        "I-18"
+      ]
+    },
+    {
+      "id": "T-50",
+      "category": "inference",
+      "description": "Notification leakage and tampering: notifications, digests, email, browser alerts, search, counts, delivery history, or failure messages revealing a record title, person, brand, project, count, or prior value the recipient cannot read now (after revocation, deletion, departure, a sensitive brand, or a guest share ending); another person's notification, state, preference, profile, or delivery read or changed; a notice created for someone who cannot read the record; preferences, mutes, quiet hours, or defaults used to hide a permission or share change from its subject or to widen delivery; delivery health or retry reachable without authority; failure messages carrying content or addresses; a delivery reported as delivered when only queued or when no provider is configured; content surviving the purge of its record or the departure of its recipient.",
+      "mitigated_by": [
+        "I-01",
+        "I-02",
+        "I-07",
+        "I-10",
+        "I-18"
+      ]
+    },
+    {
+      "id": "T-51",
+      "category": "inference",
+      "description": "Document leakage and tampering: a document, version, suggestion, reference, backlink, export, notification, or search hit revealing a title, identifier, brand, project, person, embed, comment, or prior value the viewer cannot read now (after revocation, a sensitive brand, a share ending, or a record leaving the viewer's reach); a share reaching the tree, ancestors, or subpages around a document; a stale or forged restricted token restoring or exposing a reference; a content save overwriting a newer version, or an old version rewritten or deleted; a suggestion applied to a block that changed, or made to change access; a link to a record the author could not read; backlinks naming documents or targets the viewer cannot read; export carrying more than the viewer may read, or content in audit; an AI-source approval outliving the version it names; documents surviving the purge of their placement or the departure of their owner.",
+      "mitigated_by": [
+        "I-01",
+        "I-02",
+        "I-07",
+        "I-10",
+        "I-18"
+      ]
+    },
+    {
+      "id": "T-52",
+      "category": "cross_brand_traversal",
+      "description": "File and deliverable leakage and malicious content: a file, version, name, size, preview, comparison, signed URL, upload session, deliverable, or storage figure of a workspace, brand, project, task, or comment the caller cannot read reached through metadata, list, download, preview, compare, deliverable, review queue, or error responses (or told apart from an unknown one); access surviving a revocation beyond the next request; a signed URL that was tampered with, reused for another object or operation, or replayed after its lifetime, or one stored, logged, emitted, or exported; another person's upload session completed or read; a comment attachment added by someone other than its author; a guest reaching workspace-level files; the storage quota bypassed by concurrent uploads; infected, unscanned, or failed-scan bytes downloaded; active content (SVG, HTML, scripts) rendered inline from the application's storage; the server fetching an external link (SSRF); an accepted deliverable's evidence changed, replaced, or purged.",
+      "mitigated_by": [
+        "I-01",
+        "I-02",
+        "I-07",
+        "I-10",
+        "I-18"
+      ]
+    },
+    {
+      "id": "T-53",
+      "category": "revocation",
+      "description": "Live editing leakage and bypass: a hidden editor, caret, name, record, reference, or content reached through presence, a snapshot, an operation, an event, or an error (or told apart from an unknown document); a revoked, removed, archived, trashed, or purged document still readable or writable beyond the next request through a session that was already open; a session handle used by someone else; a read-only or guest session that writes; a live operation that appends content outside the document version history, adds a link to a record the editor cannot read, restores a restricted token it never held, or exceeds the document bounds; a plain save, restore, or suggestion that overwrites or discards unsaved live work; presence or cursor traffic that is audited, stored beyond its expiry, or copied into events; a stale session that keeps editing.",
+      "mitigated_by": [
+        "I-01",
+        "I-02",
+        "I-07",
+        "I-10",
+        "I-18"
+      ]
+    },
+    {
+      "id": "T-54",
+      "category": "inference",
+      "description": "Search leakage and bypass: a hidden record's existence, title, text, rank, order, count, facet, excerpt, index state, or timing reached through a query, a page, a cursor, a filter, the palette, a recent search, or opening a result (or told apart from an unknown record); a share, role, brand, project, or lifecycle change that still shows results until the index is rebuilt; a deleted comment or a trashed file found while the index lags; text the owning module would not show (custom field values, live drafts, restricted reference labels) reaching the index; a person's name shown to a viewer who may not see people; a filter naming a hidden brand or project told apart from an unknown one; a cursor, recent search, or index status used by or revealing something to someone else; another workspace searched or opened; a poison record blocking the index, or an incomplete index presented as complete.",
+      "mitigated_by": [
+        "I-01",
+        "I-02",
+        "I-04",
+        "I-07",
+        "I-08",
+        "I-12",
+        "I-18"
+      ]
+    },
+    {
+      "id": "T-55",
+      "category": "inference",
+      "description": "Hidden work disclosed through a goal or portfolio aggregate: a count, percentage, progress, health, reason, dependency, budget, effort, deadline, logged-time total, label, or truncation notice that changes with, or names, a brand, project, task, link, or time entry the viewer cannot read (or tells a hidden project from an absent one); progress or health presented as covering work the viewer cannot see; a total that sums across currencies or presents untracked spend or AI usage as measured.",
+      "mitigated_by": [
+        "I-01",
+        "I-02",
+        "I-07",
+        "I-10",
+        "I-18"
+      ]
+    },
+    {
+      "id": "T-56",
+      "category": "cross_brand_traversal",
+      "description": "Existence disclosure through links, targets, and portfolio members: a project, task, goal, or portfolio told apart from an unknown one by a different answer when linking, listing, reading, or editing; a link or portfolio member to work the editor cannot read, or in the wrong brand or project, accepted; a hidden member listed, counted, or dropped when an editor saves a portfolio; a link or membership surviving the purge of the work it names.",
+      "mitigated_by": [
+        "I-01",
+        "I-02",
+        "I-07",
+        "I-10",
+        "I-18"
+      ]
+    },
+    {
+      "id": "T-57",
+      "category": "guest_escalation",
+      "description": "Goals and portfolios reached by guests and share-only readers: a guest, a share-only reader, or a member without workspace-level read listing, reading, or counting workspace-level or brand goals and portfolios, or obtaining them through a share, a favorite, a recent item, or an error; a goal or portfolio made shareable.",
+      "mitigated_by": [
+        "I-01",
+        "I-02",
+        "I-07",
+        "I-10",
+        "I-18"
+      ]
+    },
+    {
+      "id": "T-58",
+      "category": "staleness",
+      "description": "Stale or cached aggregates after access narrows: a figure, label, or link target computed for one viewer shown to another or kept after a grant is revoked, a role changes, a brand is archived, or work is moved or trashed; a stored number derived from linked work that is older than the work; a response that a shared cache or browser may keep.",
+      "mitigated_by": [
+        "I-01",
+        "I-02",
+        "I-07",
+        "I-10",
+        "I-18"
+      ]
+    },
+    {
+      "id": "T-59",
+      "category": "spoofing",
+      "description": "Forged, tampered, replayed, or flooded progress: a goal whose progress comes from linked work or key results set by hand; a check-in changed or deleted after it was recorded, written by someone who cannot update the goal, on a closed or archived goal, or attributed to someone else; a retried request recorded twice; a flood of check-ins from one member; a stale edit overwriting a newer one.",
+      "mitigated_by": [
+        "I-01",
+        "I-02",
+        "I-07",
+        "I-10",
+        "I-18"
+      ]
+    },
+    {
+      "id": "T-60",
+      "category": "rls_leak",
+      "description": "Goal and portfolio export exfiltration and injection: an export that contains a goal, key result, portfolio, project, or total the exporter cannot read, is unbounded, silently truncated, unaudited, or kept after it is served; a spreadsheet formula, command, or link planted through a title, unit, note, owner name, or project name.",
+      "mitigated_by": [
+        "I-01",
+        "I-02",
+        "I-07",
+        "I-10",
+        "I-18"
+      ]
+    },
+    {
+      "id": "T-61",
+      "category": "cross_workspace",
+      "description": "Recalculation poisoning, lease abuse, and cross-workspace job reads: a background sweep that reads or writes another workspace's goals, appends the same computed check-in twice, stores a number that depends on one viewer's access, lets a crashed or slow worker block a goal for ever, lets one failing goal block the others, stores goal text or a free-form error in its state, or discovers work through anything but workspace identifiers; a row that breaks the placement, period, or measurement rules because a command was bypassed.",
+      "mitigated_by": [
+        "I-01",
+        "I-02",
+        "I-07",
+        "I-10",
+        "I-18"
+      ]
+    },
+    {
+      "id": "T-62",
+      "category": "restricted_project",
+      "description": "Orphan findings revealing hidden links: a project reported as unlinked, or a goal as without active work, because of links or work the viewer cannot read (or reported as linked through a goal they cannot see); a finding that names, counts, or hints at a hidden goal, link, project, or task; a finding not labelled as relative to the viewer.",
+      "mitigated_by": [
+        "I-01",
+        "I-02",
+        "I-07",
+        "I-10",
+        "I-18"
+      ]
+    },
+    {
+      "id": "T-63",
+      "category": "inference",
+      "description": "Hidden work disclosed through a metric: a count, percentage, estimate sum, median, percentile, mean, extreme, age band, workload total, breakdown row, order, rank, record total, drill-through item or position, export row, result digest, freshness figure, or timing that changes with, or names, a brand, project, task, deliverable, assignment, time entry, or status history the viewer cannot read (or tells a hidden brand or project from an absent one); a person named to a viewer who may not see people, or an unowned-task count given to one who may not see owners; a cursor used by or revealing something to someone else; another workspace's figures; a figure stored for one viewer and served to another; a revocation, trash, or departure that still shows work until a recomputation.",
+      "mitigated_by": [
+        "I-01",
+        "I-02",
+        "I-04",
+        "I-07",
+        "I-10",
+        "I-12",
+        "I-18"
+      ]
+    },
+    {
+      "id": "T-64",
+      "category": "staleness",
+      "description": "Forged, concealed, or stale derived history and freshness: a status span written, changed, backdated, or removed outside the task's own transaction to alter cycle time or time in status; a reconciliation that backdates or double-closes a span, runs overlapping on one workspace, acts on another workspace, repairs a purged record, or hides its failure; a figure that presents assumed, repaired, lagging, or failing history as complete, or an unavailable source as zero; a past or future `as_of` that reveals what the viewer could not see then or now or describes the present as the past; an export or digest that differs from the figure it names or carries formula content; unbounded computation by scope or window; an unprivileged person moving the reconciliation schedule.",
+      "mitigated_by": [
+        "I-01",
+        "I-02",
+        "I-07",
+        "I-10",
+        "I-18"
+      ]
+    },
+    {
+      "id": "T-65",
+      "category": "inference",
+      "description": "Dashboard aggregate disclosure: a widget figure, group, breakdown, total, label, truncation or capped-count notice, empty state, or drill-through that includes, counts, or hints at brands, projects, or tasks the viewer cannot read, or a widget whose mere presence or absence reveals a hidden source.",
+      "mitigated_by": [
+        "I-01",
+        "I-06",
+        "I-07",
+        "I-08",
+        "I-18"
+      ]
+    },
+    {
+      "id": "T-66",
+      "category": "revocation",
+      "description": "Stale reporting after revocation: a stored or cached metric, a saved dashboard, or a report share that keeps showing figures or records after a grant, share, membership, or role is revoked or expires.",
+      "mitigated_by": [
+        "I-04",
+        "I-08",
+        "I-12"
+      ]
+    },
+    {
+      "id": "T-67",
+      "category": "guest_escalation",
+      "description": "Report share escalation: a share that grants data instead of the saved definition, widens a grantee's access beyond their own, reaches another scope, can be shared onward, lets a guest or share-only reader see workspace or brand totals, or lets a person with only view access create or revoke shares.",
+      "mitigated_by": [
+        "I-03",
+        "I-05",
+        "I-11",
+        "I-14"
+      ]
+    },
+    {
+      "id": "T-68",
+      "category": "cross_brand_traversal",
+      "description": "Scheduled delivery leak: a report email or run that carries figures computed for another person (the owner or the sender), reaches a recipient who can no longer read it, is sent again or as a backlog, or is sent after its accountable owner lost the authority to schedule it or left.",
+      "mitigated_by": [
+        "I-07",
+        "I-08",
+        "I-12",
+        "I-14",
+        "I-17"
+      ]
+    },
+    {
+      "id": "T-69",
+      "category": "cross_brand_traversal",
+      "description": "Export leak: a CSV or PDF export that includes rows, fields, groups, or notes the requester cannot read, executes a formula in a cell, is unbounded, is not audited, or is produced for a person who may not export.",
+      "mitigated_by": [
+        "I-07",
+        "I-08",
+        "I-18"
+      ]
+    },
+    {
+      "id": "T-70",
+      "category": "departure",
+      "description": "Personal dashboard exposure: an administrator, owner, another member, or a departing member's successor reading, listing, restoring, or counting a personal dashboard that is not theirs; or a personal dashboard whose existence differs from an unknown identifier in status, body, headers, or timing.",
+      "mitigated_by": [
+        "I-01",
+        "I-07",
+        "I-10"
+      ]
+    },
+    {
+      "id": "T-71",
+      "category": "rls_leak",
+      "description": "Replay and race: a repeated or concurrent create, edit, share, schedule, or delivery that applies twice, loses an edit, sends the same occurrence twice, or lets a second writer overwrite the first without a version conflict.",
+      "mitigated_by": [
+        "I-01",
+        "I-09"
+      ]
+    },
+    {
+      "id": "T-72",
+      "category": "staleness",
+      "description": "Misleading or unavailable source: a figure from an unavailable or out-of-date source shown as current or complete, a provider that is not configured reported as a delivered email, or an estimated or incomplete figure shown without saying so.",
+      "mitigated_by": [
+        "I-08",
+        "I-12"
+      ]
+    },
+    {
+      "id": "T-73",
+      "category": "field_leak",
+      "description": "Credential disclosure: an OAuth token or API key returned, logged, audited, indexed, or left in a row after disconnect or departure.",
+      "mitigated_by": [
+        "I-08",
+        "I-11"
+      ]
+    },
+    {
+      "id": "T-74",
+      "category": "cross_brand_traversal",
+      "description": "Connection leak: a connection, sync, or conflict from another brand or workspace is listed or read.",
+      "mitigated_by": [
+        "I-01",
+        "I-07"
+      ]
+    },
+    {
+      "id": "T-75",
+      "category": "guest_escalation",
+      "description": "Unauthorized configuration: a guest, read-only member, or member without manage connects, tests, syncs, or disconnects.",
+      "mitigated_by": [
+        "I-04",
+        "I-07"
+      ]
+    },
+    {
+      "id": "T-76",
+      "category": "departure",
+      "description": "Secret survives disconnect or departure: the vault reference remains usable after disconnect, retention removal, or the owner leaving.",
+      "mitigated_by": [
+        "I-10",
+        "I-11"
+      ]
+    },
+    {
+      "id": "T-77",
+      "category": "rls_leak",
+      "description": "Sync applied twice: a repeated idempotency key or delivery advances the checkpoint again or writes the same external identity twice.",
+      "mitigated_by": [
+        "I-09"
+      ]
+    },
+    {
+      "id": "T-78",
+      "category": "revocation",
+      "description": "Conflict hidden or resolved twice: both sides changed and the conflict is missing, or a resolution applies again.",
+      "mitigated_by": [
+        "I-09",
+        "I-12"
+      ]
+    },
+    {
+      "id": "T-79",
+      "category": "staleness",
+      "description": "Unconfigured or degraded provider reported as healthy: a provider that is not configured, or a degraded provider, is shown as connected and its writes are applied.",
+      "mitigated_by": [
+        "I-08",
+        "I-12"
+      ]
+    },
+    {
+      "id": "T-80",
+      "category": "agent_scope",
+      "description": "Scope wider than granted: a connection is stored with a scope the provider does not offer, or a sync writes without the write scope.",
+      "mitigated_by": [
+        "I-04",
+        "I-07"
+      ]
+    },
+    {
+      "id": "T-81",
+      "category": "spoofing",
+      "description": "A stolen, revoked, expired, or narrowed API token is accepted as the member, or the token secret is returned after it was shown.",
+      "mitigated_by": [
+        "I-01",
+        "I-08"
+      ]
+    },
+    {
+      "id": "T-82",
+      "category": "cross_brand_traversal",
+      "description": "A token limited to one brand reads or writes another brand.",
+      "mitigated_by": [
+        "I-01",
+        "I-08"
+      ]
+    },
+    {
+      "id": "T-83",
+      "category": "spoofing",
+      "description": "An inbound webhook with a bad signature, stale timestamp, or unknown endpoint is treated as authentic or discloses whether the endpoint exists.",
+      "mitigated_by": [
+        "I-01",
+        "I-08"
+      ]
+    },
+    {
+      "id": "T-84",
+      "category": "rls_leak",
+      "description": "An outbound webhook delivers a record the subscription owner can no longer read, or stores a response body.",
+      "mitigated_by": [
+        "I-01",
+        "I-08"
+      ]
+    },
+    {
+      "id": "T-85",
+      "category": "revocation",
+      "description": "A replayed write applies twice, or a delivery is dropped instead of retried.",
+      "mitigated_by": [
+        "I-01",
+        "I-08"
       ]
     }
   ],
@@ -1670,7 +2226,7 @@
         "T-23"
       ],
       "principal": "member",
-      "setup": "Run scope = profile ∩ assigner ∩ assignment",
+      "setup": "Run scope = profile \u2229 assigner \u2229 assignment",
       "scope": "assign to agent whose profile scope exceeds assigner",
       "action": "agent.assign",
       "surface": "ai_context",
@@ -2052,13 +2608,3973 @@
         "T-24"
       ],
       "principal": "member",
-      "setup": "Auto policy: off when ≥2 approval-capable humans",
+      "setup": "Auto policy: off when \u22652 approval-capable humans",
       "scope": "self-approval with two approval-capable humans",
       "action": "review.self_approve",
       "surface": "api",
       "expected": "deny",
       "response_shape": "forbidden",
       "silent_surfaces": []
+    },
+    {
+      "id": "AT-081",
+      "threats": [
+        "T-35"
+      ],
+      "principal": "account",
+      "setup": "Signed-in session, no fresh step-up token",
+      "scope": "own account",
+      "action": "account.mfa_disable",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "step_up_required",
+      "silent_surfaces": []
+    },
+    {
+      "id": "AT-082",
+      "threats": [
+        "T-35"
+      ],
+      "principal": "account",
+      "setup": "Step-up token verified in another session of the same account",
+      "scope": "own account",
+      "action": "account.recovery_codes_regenerate",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "step_up_required",
+      "silent_surfaces": []
+    },
+    {
+      "id": "AT-083",
+      "threats": [
+        "T-35"
+      ],
+      "principal": "account",
+      "setup": "Challenge stored as locked after STEP_UP_MAX_ATTEMPTS failures, then the correct proof",
+      "scope": "own account",
+      "action": "account.mfa_disable",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "step_up_required",
+      "silent_surfaces": []
+    },
+    {
+      "id": "AT-084",
+      "threats": [
+        "T-35"
+      ],
+      "principal": "api_token_personal",
+      "setup": "Personal API token calls an account-security endpoint",
+      "scope": "own account",
+      "action": "account.mfa_disable",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "unauthenticated",
+      "silent_surfaces": []
+    },
+    {
+      "id": "AT-085",
+      "threats": [
+        "T-35"
+      ],
+      "principal": "agent_run",
+      "setup": "Agent run attempts recovery-code regeneration for the run owner",
+      "scope": "run owner account",
+      "action": "account.recovery_codes_regenerate",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "unauthenticated",
+      "silent_surfaces": []
+    },
+    {
+      "id": "AT-086",
+      "threats": [
+        "T-35"
+      ],
+      "principal": "account",
+      "setup": "No factor enrolled; fresh password step-up",
+      "scope": "own account",
+      "action": "account.mfa_enroll",
+      "surface": "api",
+      "expected": "allow",
+      "response_shape": "ok",
+      "silent_surfaces": []
+    },
+    {
+      "id": "AT-087",
+      "threats": [
+        "T-36"
+      ],
+      "principal": "account",
+      "setup": "Verified, active human account with a session; Idempotency-Key",
+      "scope": "no workspace yet",
+      "action": "workspace.create",
+      "surface": "api",
+      "expected": "allow",
+      "response_shape": "ok",
+      "silent_surfaces": []
+    },
+    {
+      "id": "AT-088",
+      "threats": [
+        "T-36"
+      ],
+      "principal": "account",
+      "setup": "Account whose email is not verified",
+      "scope": "no workspace yet",
+      "action": "workspace.create",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "forbidden",
+      "silent_surfaces": []
+    },
+    {
+      "id": "AT-089",
+      "threats": [
+        "T-36"
+      ],
+      "principal": "api_token_personal",
+      "setup": "Personal API token calls workspace creation",
+      "scope": "token owner account",
+      "action": "workspace.create",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "unauthenticated",
+      "silent_surfaces": []
+    },
+    {
+      "id": "AT-090",
+      "threats": [
+        "T-36"
+      ],
+      "principal": "agent_run",
+      "setup": "Agent run attempts to create a workspace for its owner",
+      "scope": "run owner account",
+      "action": "workspace.create",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "unauthenticated",
+      "silent_surfaces": []
+    },
+    {
+      "id": "AT-091",
+      "threats": [
+        "T-36"
+      ],
+      "principal": "automation",
+      "setup": "Automation attempts to create a workspace",
+      "scope": "automation owner account",
+      "action": "workspace.create",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "unauthenticated",
+      "silent_surfaces": []
+    },
+    {
+      "id": "AT-092",
+      "threats": [
+        "T-36"
+      ],
+      "principal": "account",
+      "setup": "Same Idempotency-Key replayed concurrently; then reused with a different body",
+      "scope": "own account",
+      "action": "workspace.create",
+      "surface": "api",
+      "expected": "allow",
+      "response_shape": "ok",
+      "silent_surfaces": []
+    },
+    {
+      "id": "AT-093",
+      "threats": [
+        "T-36"
+      ],
+      "principal": "account",
+      "setup": "Body names an existing workspace, role, or membership",
+      "scope": "own account",
+      "action": "workspace.create",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "validation_generic",
+      "silent_surfaces": []
+    },
+    {
+      "id": "AT-094",
+      "threats": [
+        "T-36"
+      ],
+      "principal": "account",
+      "setup": "Requests beyond the per-account workspace-creation limit",
+      "scope": "own account",
+      "action": "workspace.create",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "error_generic",
+      "silent_surfaces": []
+    },
+    {
+      "id": "AT-095",
+      "threats": [
+        "T-37"
+      ],
+      "principal": "account",
+      "setup": "Invitation token used a second time after acceptance",
+      "scope": "own account",
+      "action": "invitation.accept",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "not_found",
+      "silent_surfaces": [
+        "error_message",
+        "timing"
+      ]
+    },
+    {
+      "id": "AT-096",
+      "threats": [
+        "T-37"
+      ],
+      "principal": "account",
+      "setup": "Signed-in account's verified email differs from the invited email",
+      "scope": "own account",
+      "action": "invitation.accept",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "not_found",
+      "silent_surfaces": [
+        "error_message",
+        "timing"
+      ]
+    },
+    {
+      "id": "AT-097",
+      "threats": [
+        "T-37"
+      ],
+      "principal": "account",
+      "setup": "Two concurrent acceptances of the same invitation",
+      "scope": "own account",
+      "action": "invitation.accept",
+      "surface": "api",
+      "expected": "allow",
+      "response_shape": "ok",
+      "silent_surfaces": []
+    },
+    {
+      "id": "AT-098",
+      "threats": [
+        "T-37"
+      ],
+      "principal": "agent_run",
+      "setup": "Agent run attempts to accept an invitation for its owner",
+      "scope": "run owner account",
+      "action": "invitation.accept",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "unauthenticated",
+      "silent_surfaces": []
+    },
+    {
+      "id": "AT-099",
+      "threats": [
+        "T-37"
+      ],
+      "principal": "administrator",
+      "setup": "Administrator invites someone as owner",
+      "scope": "workspace",
+      "action": "membership.invite_member",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "forbidden",
+      "silent_surfaces": []
+    },
+    {
+      "id": "AT-100",
+      "threats": [
+        "T-37"
+      ],
+      "principal": "member",
+      "setup": "Member invites a guest while members_invite_guests is off",
+      "scope": "shared record",
+      "action": "membership.invite_guest",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "forbidden",
+      "silent_surfaces": []
+    },
+    {
+      "id": "AT-101",
+      "threats": [
+        "T-37"
+      ],
+      "principal": "guest",
+      "setup": "Guest accepts an invitation and lists brands, people, and trash",
+      "scope": "workspace",
+      "action": "record.read",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "omitted",
+      "silent_surfaces": [
+        "search",
+        "count_facet",
+        "picker",
+        "ui_list",
+        "trash",
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-102",
+      "threats": [
+        "T-37"
+      ],
+      "principal": "administrator",
+      "setup": "Invite an email that already belongs to an active member or an unknown account",
+      "scope": "workspace",
+      "action": "membership.invite_member",
+      "surface": "api",
+      "expected": "allow",
+      "response_shape": "ok",
+      "silent_surfaces": []
+    },
+    {
+      "id": "AT-103",
+      "threats": [
+        "T-38"
+      ],
+      "principal": "owner",
+      "setup": "Last active owner removes, suspends, demotes, or leaves",
+      "scope": "workspace",
+      "action": "membership.manage",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "conflict_filtered",
+      "silent_surfaces": []
+    },
+    {
+      "id": "AT-104",
+      "threats": [
+        "T-38"
+      ],
+      "principal": "administrator",
+      "setup": "Ownership transfer accepted by a principal other than the recipient",
+      "scope": "workspace",
+      "action": "ownership.accept",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "not_found",
+      "silent_surfaces": [
+        "error_message",
+        "timing"
+      ]
+    },
+    {
+      "id": "AT-105",
+      "threats": [
+        "T-38"
+      ],
+      "principal": "member",
+      "setup": "Recipient accepts an ownership transfer without a fresh step-up",
+      "scope": "workspace",
+      "action": "ownership.accept",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "step_up_required",
+      "silent_surfaces": []
+    },
+    {
+      "id": "AT-106",
+      "threats": [
+        "T-38"
+      ],
+      "principal": "member",
+      "setup": "Removed member reuses an old session, a cached context, a team grant, and a queued job",
+      "scope": "workspace",
+      "action": "record.read",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "unauthenticated",
+      "silent_surfaces": []
+    },
+    {
+      "id": "AT-107",
+      "threats": [
+        "T-38"
+      ],
+      "principal": "owner",
+      "setup": "Removing a member who owns registered resources that cannot be reassigned",
+      "scope": "workspace",
+      "action": "membership.manage",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "conflict_filtered",
+      "silent_surfaces": []
+    },
+    {
+      "id": "AT-108",
+      "threats": [
+        "T-39"
+      ],
+      "principal": "member",
+      "setup": "A favorite or recent entry whose target became unreadable: grant or team access removed, sensitive-brand grant removed, brand archived without archive visibility, or record purged",
+      "scope": "record",
+      "action": "record.read",
+      "surface": "ui_list",
+      "expected": "deny",
+      "response_shape": "omitted",
+      "silent_surfaces": [
+        "count_facet",
+        "breadcrumb",
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-109",
+      "threats": [
+        "T-39"
+      ],
+      "principal": "member",
+      "setup": "Favoriting, reordering, or recording a visit to a forged identifier or another workspace's public ID",
+      "scope": "record",
+      "action": "personal.manage_own",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "not_found",
+      "silent_surfaces": [
+        "error_message",
+        "timing"
+      ]
+    },
+    {
+      "id": "AT-110",
+      "threats": [
+        "T-39"
+      ],
+      "principal": "guest",
+      "setup": "Guest shell: navigation, command palette, breadcrumbs, and recents",
+      "scope": "workspace",
+      "action": "record.read",
+      "surface": "picker",
+      "expected": "deny",
+      "response_shape": "omitted",
+      "silent_surfaces": [
+        "count_facet",
+        "ui_list"
+      ]
+    },
+    {
+      "id": "AT-111",
+      "threats": [
+        "T-39"
+      ],
+      "principal": "member",
+      "setup": "Malformed, oversized, wrong-version, or prototype-polluting view state or URL state",
+      "scope": "personal",
+      "action": "personal.manage_own",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "validation_generic",
+      "silent_surfaces": [
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-112",
+      "threats": [
+        "T-39"
+      ],
+      "principal": "member",
+      "setup": "URL or stored scope naming a brand the viewer cannot access, an archived brand, or another workspace's brand",
+      "scope": "brand",
+      "action": "record.read",
+      "surface": "ui_list",
+      "expected": "deny",
+      "response_shape": "omitted",
+      "silent_surfaces": [
+        "error_message",
+        "count_facet"
+      ]
+    },
+    {
+      "id": "AT-113",
+      "threats": [
+        "T-39"
+      ],
+      "principal": "limited_member",
+      "setup": "Command palette, shortcuts, and navigation offer actions and destinations the principal cannot use",
+      "scope": "workspace",
+      "action": "workspace.configure",
+      "surface": "picker",
+      "expected": "deny",
+      "response_shape": "omitted",
+      "silent_surfaces": [
+        "count_facet"
+      ]
+    },
+    {
+      "id": "AT-114",
+      "threats": [
+        "T-39"
+      ],
+      "principal": "member",
+      "setup": "Removed or suspended member's favorites, recents, view state, and shell entries on the next request",
+      "scope": "workspace",
+      "action": "record.read",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "unauthenticated",
+      "silent_surfaces": []
+    },
+    {
+      "id": "AT-115",
+      "threats": [
+        "T-20"
+      ],
+      "principal": "member",
+      "setup": "Share attempt on a record the caller cannot read (other brand, restricted project, or unknown id)",
+      "scope": "unreadable record",
+      "action": "record.share",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "not_found",
+      "silent_surfaces": [
+        "error_message",
+        "activity",
+        "count_facet"
+      ]
+    },
+    {
+      "id": "AT-116",
+      "threats": [
+        "T-20"
+      ],
+      "principal": "member",
+      "setup": "Share attempt on a phase, milestone, decision, update, scope item, or other type not registered as shareable",
+      "scope": "record of an unshareable type",
+      "action": "record.share",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "forbidden",
+      "silent_surfaces": []
+    },
+    {
+      "id": "AT-117",
+      "threats": [
+        "T-40"
+      ],
+      "principal": "member",
+      "setup": "Assignee of a task in a project or brand the member cannot read",
+      "scope": "assigned task",
+      "action": "record.read",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "not_found",
+      "silent_surfaces": [
+        "ui_list",
+        "count_facet",
+        "notification_inapp"
+      ]
+    },
+    {
+      "id": "AT-118",
+      "threats": [
+        "T-40"
+      ],
+      "principal": "guest",
+      "setup": "Task share only: request the parent, project, subtasks, relationships, links, or history",
+      "scope": "shared task's context",
+      "action": "record.read",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "not_found",
+      "silent_surfaces": [
+        "breadcrumb",
+        "count_facet",
+        "activity"
+      ]
+    },
+    {
+      "id": "AT-119",
+      "threats": [
+        "T-40"
+      ],
+      "principal": "member",
+      "setup": "Task with a blocks or related edge to a task the viewer cannot read",
+      "scope": "hidden relationship endpoint",
+      "action": "record.read",
+      "surface": "ui_record",
+      "expected": "deny",
+      "response_shape": "omitted",
+      "silent_surfaces": [
+        "count_facet",
+        "activity",
+        "breadcrumb"
+      ]
+    },
+    {
+      "id": "AT-120",
+      "threats": [
+        "T-40"
+      ],
+      "principal": "member",
+      "setup": "Complete a parent whose hidden descendants are incomplete",
+      "scope": "parent task",
+      "action": "task.override_completion",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "ok_filtered",
+      "silent_surfaces": [
+        "error_message",
+        "count_facet"
+      ]
+    },
+    {
+      "id": "AT-121",
+      "threats": [
+        "T-40"
+      ],
+      "principal": "member",
+      "setup": "Cross-brand move without manage in the destination brand",
+      "scope": "task",
+      "action": "record.move_brand",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "forbidden",
+      "silent_surfaces": []
+    },
+    {
+      "id": "AT-122",
+      "threats": [
+        "T-41"
+      ],
+      "principal": "member",
+      "setup": "Status edit that skips a registered transition, or patches into done without Complete",
+      "scope": "task",
+      "action": "workflow.transition",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "validation_generic",
+      "silent_surfaces": []
+    },
+    {
+      "id": "AT-123",
+      "threats": [
+        "T-41"
+      ],
+      "principal": "member",
+      "setup": "Transition with a missing required field; the record is unchanged",
+      "scope": "task",
+      "action": "workflow.transition",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "validation_generic",
+      "silent_surfaces": []
+    },
+    {
+      "id": "AT-124",
+      "threats": [
+        "T-41"
+      ],
+      "principal": "member",
+      "setup": "Named approver without read access to the record",
+      "scope": "task",
+      "action": "workflow.approval_decide",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "not_found",
+      "silent_surfaces": [
+        "ui_list",
+        "count_facet",
+        "notification_inapp"
+      ]
+    },
+    {
+      "id": "AT-125",
+      "threats": [
+        "T-41"
+      ],
+      "principal": "member",
+      "setup": "Apply with a stale approval or fingerprint after any record change",
+      "scope": "task",
+      "action": "workflow.transition",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "conflict_filtered",
+      "silent_surfaces": []
+    },
+    {
+      "id": "AT-126",
+      "threats": [
+        "T-41"
+      ],
+      "principal": "limited_member",
+      "setup": "Custom field hidden by field policy",
+      "scope": "task",
+      "action": "field.value_read",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "omitted",
+      "silent_surfaces": [
+        "export",
+        "audit_display",
+        "error_message",
+        "count_facet",
+        "search"
+      ]
+    },
+    {
+      "id": "AT-127",
+      "threats": [
+        "T-41"
+      ],
+      "principal": "limited_member",
+      "setup": "Formula over a hidden input",
+      "scope": "task",
+      "action": "field.value_read",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "omitted",
+      "silent_surfaces": [
+        "error_message",
+        "export",
+        "audit_display"
+      ]
+    },
+    {
+      "id": "AT-128",
+      "threats": [
+        "T-41"
+      ],
+      "principal": "member",
+      "setup": "Person or label field value naming someone who cannot read the record",
+      "scope": "task",
+      "action": "record.read",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "not_found",
+      "silent_surfaces": [
+        "ui_list",
+        "search",
+        "notification_inapp"
+      ]
+    },
+    {
+      "id": "AT-129",
+      "threats": [
+        "T-41"
+      ],
+      "principal": "member",
+      "setup": "Configure a workflow at a restricted project without explicit manage",
+      "scope": "project",
+      "action": "workflow.configure",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "not_found",
+      "silent_surfaces": [
+        "ui_list",
+        "breadcrumb",
+        "picker"
+      ]
+    },
+    {
+      "id": "AT-130",
+      "threats": [
+        "T-42"
+      ],
+      "principal": "member",
+      "setup": "Duplicate candidates where the only match is in an unreadable brand or restricted project",
+      "scope": "task",
+      "action": "record.create",
+      "surface": "api",
+      "expected": "allow",
+      "response_shape": "ok_filtered",
+      "silent_surfaces": [
+        "count_facet",
+        "timing"
+      ]
+    },
+    {
+      "id": "AT-131",
+      "threats": [
+        "T-42"
+      ],
+      "principal": "member",
+      "setup": "Missing-dependency and blocked signals whose blocker is unreadable",
+      "scope": "task",
+      "action": "record.read",
+      "surface": "api",
+      "expected": "allow",
+      "response_shape": "ok_filtered",
+      "silent_surfaces": [
+        "error_message",
+        "timing"
+      ]
+    },
+    {
+      "id": "AT-132",
+      "threats": [
+        "T-42"
+      ],
+      "principal": "member",
+      "setup": "Bulk preview over an explicit set containing an unreadable task",
+      "scope": "task",
+      "action": "record.update",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "not_found",
+      "silent_surfaces": [
+        "count_facet",
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-133",
+      "threats": [
+        "T-42"
+      ],
+      "principal": "member",
+      "setup": "Undo of an entry created by another person",
+      "scope": "task",
+      "action": "record.update",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "not_found",
+      "silent_surfaces": [
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-134",
+      "threats": [
+        "T-42"
+      ],
+      "principal": "guest",
+      "setup": "Set a reminder on a task not shared with the guest",
+      "scope": "task",
+      "action": "task.remind",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "not_found",
+      "silent_surfaces": [
+        "notification_inapp",
+        "timing"
+      ]
+    },
+    {
+      "id": "AT-135",
+      "threats": [
+        "T-42"
+      ],
+      "principal": "member",
+      "setup": "Read another person's snooze or reminder on a shared task",
+      "scope": "task",
+      "action": "task.snooze",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "omitted",
+      "silent_surfaces": [
+        "ui_record",
+        "activity",
+        "audit_display"
+      ]
+    },
+    {
+      "id": "AT-136",
+      "threats": [
+        "T-42"
+      ],
+      "principal": "member",
+      "setup": "Recurring series whose owner lost record.create in the brand",
+      "scope": "task",
+      "action": "task.manage_recurrence",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "omitted",
+      "silent_surfaces": [
+        "activity"
+      ]
+    },
+    {
+      "id": "AT-137",
+      "threats": [
+        "T-42"
+      ],
+      "principal": "limited_member",
+      "setup": "Apply a task template whose content includes a field hidden from the applier",
+      "scope": "task",
+      "action": "record.create",
+      "surface": "api",
+      "expected": "allow",
+      "response_shape": "ok_filtered",
+      "silent_surfaces": [
+        "error_message",
+        "audit_display"
+      ]
+    },
+    {
+      "id": "AT-138",
+      "threats": [
+        "T-43"
+      ],
+      "principal": "administrator",
+      "setup": "Read another member's Inbox item or note",
+      "scope": "personal",
+      "action": "personal.manage_own",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "not_found",
+      "silent_surfaces": [
+        "ui_list",
+        "search",
+        "count_facet"
+      ]
+    },
+    {
+      "id": "AT-139",
+      "threats": [
+        "T-43"
+      ],
+      "principal": "member",
+      "setup": "Parse text naming a brand, project, or member the person cannot read",
+      "scope": "personal",
+      "action": "personal.manage_own",
+      "surface": "api",
+      "expected": "allow",
+      "response_shape": "ok_filtered",
+      "silent_surfaces": [
+        "error_message",
+        "timing"
+      ]
+    },
+    {
+      "id": "AT-140",
+      "threats": [
+        "T-43"
+      ],
+      "principal": "limited_member",
+      "setup": "Triage an Inbox item into a brand without record.create",
+      "scope": "brand",
+      "action": "record.create",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "forbidden",
+      "silent_surfaces": [
+        "ui_list"
+      ]
+    },
+    {
+      "id": "AT-141",
+      "threats": [
+        "T-43"
+      ],
+      "principal": "member",
+      "setup": "Triage into a restricted project without access",
+      "scope": "project",
+      "action": "record.create",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "not_found",
+      "silent_surfaces": [
+        "error_message",
+        "timing"
+      ]
+    },
+    {
+      "id": "AT-142",
+      "threats": [
+        "T-43"
+      ],
+      "principal": "member",
+      "setup": "Merge an Inbox item owned by someone else",
+      "scope": "personal",
+      "action": "personal.manage_own",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "not_found",
+      "silent_surfaces": [
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-143",
+      "threats": [
+        "T-43"
+      ],
+      "principal": "guest",
+      "setup": "Submit an intake form",
+      "scope": "brand",
+      "action": "intake.submit",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "not_found",
+      "silent_surfaces": [
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-144",
+      "threats": [
+        "T-43"
+      ],
+      "principal": "member",
+      "setup": "Submit an intake form of a brand the person cannot read",
+      "scope": "brand",
+      "action": "intake.submit",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "not_found",
+      "silent_surfaces": [
+        "error_message",
+        "timing"
+      ]
+    },
+    {
+      "id": "AT-145",
+      "threats": [
+        "T-43"
+      ],
+      "principal": "member",
+      "setup": "Configure intake forms without brand manage",
+      "scope": "brand",
+      "action": "intake.manage",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "forbidden",
+      "silent_surfaces": [
+        "ui_list"
+      ]
+    },
+    {
+      "id": "AT-146",
+      "threats": [
+        "T-44"
+      ],
+      "principal": "member",
+      "setup": "Run a view shared by an owner that matches records in a brand and restricted project the member cannot read",
+      "scope": "brand",
+      "action": "record.read",
+      "surface": "api",
+      "expected": "allow",
+      "response_shape": "ok_filtered",
+      "silent_surfaces": [
+        "count_facet",
+        "export",
+        "timing"
+      ]
+    },
+    {
+      "id": "AT-147",
+      "threats": [
+        "T-44"
+      ],
+      "principal": "member",
+      "setup": "Filter a query by a hidden brand, project, or label versus an unknown one",
+      "scope": "brand",
+      "action": "record.read",
+      "surface": "api",
+      "expected": "allow",
+      "response_shape": "empty",
+      "silent_surfaces": [
+        "error_message",
+        "timing",
+        "picker"
+      ]
+    },
+    {
+      "id": "AT-148",
+      "threats": [
+        "T-44"
+      ],
+      "principal": "administrator",
+      "setup": "Read another member's personal saved view",
+      "scope": "personal",
+      "action": "personal.manage_own",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "not_found",
+      "silent_surfaces": [
+        "ui_list",
+        "picker"
+      ]
+    },
+    {
+      "id": "AT-149",
+      "threats": [
+        "T-44"
+      ],
+      "principal": "limited_member",
+      "setup": "Share a saved view with a brand the member can only view",
+      "scope": "brand",
+      "action": "view.share",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "forbidden",
+      "silent_surfaces": [
+        "ui_list"
+      ]
+    },
+    {
+      "id": "AT-150",
+      "threats": [
+        "T-44"
+      ],
+      "principal": "member",
+      "setup": "Pin a view to navigation or set a brand default without views.configure",
+      "scope": "brand",
+      "action": "views.configure",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "forbidden",
+      "silent_surfaces": [
+        "ui_list"
+      ]
+    },
+    {
+      "id": "AT-151",
+      "threats": [
+        "T-44"
+      ],
+      "principal": "guest",
+      "setup": "Filter, sort, group, or show columns by owner, assignee, or a non-guest-visible field",
+      "scope": "record",
+      "action": "record.read",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "validation_generic",
+      "silent_surfaces": [
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-152",
+      "threats": [
+        "T-44"
+      ],
+      "principal": "member",
+      "setup": "Use another person's or another query's page cursor",
+      "scope": "workspace",
+      "action": "record.read",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "validation_generic",
+      "silent_surfaces": [
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-153",
+      "threats": [
+        "T-44"
+      ],
+      "principal": "member",
+      "setup": "Export the current view after losing access to some of its records",
+      "scope": "brand",
+      "action": "record.read",
+      "surface": "export",
+      "expected": "allow",
+      "response_shape": "ok_filtered",
+      "silent_surfaces": [
+        "export",
+        "count_facet"
+      ]
+    },
+    {
+      "id": "AT-154",
+      "threats": [
+        "T-45"
+      ],
+      "principal": "member",
+      "setup": "Log time on a task with only view access (read-only role or view grant)",
+      "scope": "task",
+      "action": "time.log_own",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "forbidden",
+      "silent_surfaces": [
+        "ui_record"
+      ]
+    },
+    {
+      "id": "AT-155",
+      "threats": [
+        "T-45"
+      ],
+      "principal": "member",
+      "setup": "Report, summarize, or export time where some entries are on a restricted project the viewer cannot read",
+      "scope": "workspace",
+      "action": "record.read",
+      "surface": "report",
+      "expected": "deny",
+      "response_shape": "omitted",
+      "silent_surfaces": [
+        "export",
+        "count_facet",
+        "ui_list"
+      ]
+    },
+    {
+      "id": "AT-156",
+      "threats": [
+        "T-45"
+      ],
+      "principal": "member",
+      "setup": "Change or delete another person's time entry on readable work",
+      "scope": "task",
+      "action": "time.log_own",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "not_found",
+      "silent_surfaces": [
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-157",
+      "threats": [
+        "T-45"
+      ],
+      "principal": "member",
+      "setup": "Approve a brand line containing time on work the approver cannot read",
+      "scope": "brand",
+      "action": "timesheet.approve",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "forbidden",
+      "silent_surfaces": [
+        "ui_list"
+      ]
+    },
+    {
+      "id": "AT-158",
+      "threats": [
+        "T-45"
+      ],
+      "principal": "member",
+      "setup": "Approve own timesheet line while another approval-capable member exists",
+      "scope": "brand",
+      "action": "timesheet.approve",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "forbidden",
+      "silent_surfaces": [
+        "ui_record"
+      ]
+    },
+    {
+      "id": "AT-159",
+      "threats": [
+        "T-45"
+      ],
+      "principal": "member",
+      "setup": "Unlock an approved period as a brand manager who is not a workspace admin",
+      "scope": "brand",
+      "action": "timesheet.unlock",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "not_found",
+      "silent_surfaces": [
+        "ui_record",
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-160",
+      "threats": [
+        "T-45"
+      ],
+      "principal": "member",
+      "setup": "Edit, delete, or move to another brand time in a submitted or approved period",
+      "scope": "task",
+      "action": "time.log_own",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "conflict_filtered",
+      "silent_surfaces": [
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-161",
+      "threats": [
+        "T-45"
+      ],
+      "principal": "guest",
+      "setup": "List or export time on a shared task logged by other people",
+      "scope": "shared record",
+      "action": "record.read",
+      "surface": "export",
+      "expected": "deny",
+      "response_shape": "omitted",
+      "silent_surfaces": [
+        "ui_list",
+        "report"
+      ]
+    },
+    {
+      "id": "AT-162",
+      "threats": [
+        "T-46"
+      ],
+      "principal": "member",
+      "setup": "Workload over a brand that holds tasks in a restricted project and a sensitive brand",
+      "scope": "brand",
+      "action": "record.read",
+      "surface": "capacity",
+      "expected": "allow",
+      "response_shape": "ok_filtered",
+      "silent_surfaces": [
+        "count_facet",
+        "timing"
+      ]
+    },
+    {
+      "id": "AT-163",
+      "threats": [
+        "T-46"
+      ],
+      "principal": "member",
+      "setup": "Gantt dependencies between a readable task and one in a restricted project",
+      "scope": "record",
+      "action": "record.read",
+      "surface": "ui_record",
+      "expected": "allow",
+      "response_shape": "ok_filtered",
+      "silent_surfaces": [
+        "timing"
+      ]
+    },
+    {
+      "id": "AT-164",
+      "threats": [
+        "T-46"
+      ],
+      "principal": "member",
+      "setup": "Portfolio progress of a project holding tasks the member cannot read",
+      "scope": "project",
+      "action": "record.read",
+      "surface": "report",
+      "expected": "allow",
+      "response_shape": "ok_filtered",
+      "silent_surfaces": [
+        "count_facet"
+      ]
+    },
+    {
+      "id": "AT-165",
+      "threats": [
+        "T-46"
+      ],
+      "principal": "member",
+      "setup": "Read activity of a task readable only through a record share",
+      "scope": "record",
+      "action": "record.read",
+      "surface": "activity",
+      "expected": "deny",
+      "response_shape": "omitted",
+      "silent_surfaces": [
+        "count_facet"
+      ]
+    },
+    {
+      "id": "AT-166",
+      "threats": [
+        "T-46"
+      ],
+      "principal": "member",
+      "setup": "Move a task on a board into a status whose transition needs fields or approval",
+      "scope": "record",
+      "action": "record.update",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "forbidden",
+      "silent_surfaces": [
+        "ui_list"
+      ]
+    },
+    {
+      "id": "AT-167",
+      "threats": [
+        "T-46"
+      ],
+      "principal": "member",
+      "setup": "Timesheet layout over tasks other people logged time on",
+      "scope": "personal",
+      "action": "personal.manage_own",
+      "surface": "ui_list",
+      "expected": "allow",
+      "response_shape": "ok_filtered",
+      "silent_surfaces": [
+        "count_facet"
+      ]
+    },
+    {
+      "id": "AT-168",
+      "threats": [
+        "T-46"
+      ],
+      "principal": "read_only",
+      "setup": "Shift a timeline bar or move a board card without edit",
+      "scope": "record",
+      "action": "record.update",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "forbidden",
+      "silent_surfaces": [
+        "ui_list"
+      ]
+    },
+    {
+      "id": "AT-169",
+      "threats": [
+        "T-47"
+      ],
+      "principal": "administrator",
+      "setup": "Read or change another person's Today, blocks, or daily records",
+      "scope": "personal",
+      "action": "personal.manage_own",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "not_found",
+      "silent_surfaces": [
+        "ui_list",
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-170",
+      "threats": [
+        "T-47"
+      ],
+      "principal": "member",
+      "setup": "Commit or schedule a task the person cannot read",
+      "scope": "task",
+      "action": "record.read",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "not_found",
+      "silent_surfaces": [
+        "error_message",
+        "timing"
+      ]
+    },
+    {
+      "id": "AT-171",
+      "threats": [
+        "T-47"
+      ],
+      "principal": "member",
+      "setup": "Today after losing access to a committed and scheduled task",
+      "scope": "personal",
+      "action": "record.read",
+      "surface": "ui_list",
+      "expected": "deny",
+      "response_shape": "omitted",
+      "silent_surfaces": [
+        "count_facet",
+        "report"
+      ]
+    },
+    {
+      "id": "AT-172",
+      "threats": [
+        "T-47"
+      ],
+      "principal": "member",
+      "setup": "Overdue and upcoming-deadline sections with hidden tasks assigned to the person",
+      "scope": "personal",
+      "action": "record.read",
+      "surface": "ui_list",
+      "expected": "deny",
+      "response_shape": "omitted",
+      "silent_surfaces": [
+        "count_facet"
+      ]
+    },
+    {
+      "id": "AT-173",
+      "threats": [
+        "T-47"
+      ],
+      "principal": "member",
+      "setup": "Move a block after the task's deadline",
+      "scope": "task",
+      "action": "record.update",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "ok_filtered",
+      "silent_surfaces": [
+        "activity"
+      ]
+    },
+    {
+      "id": "AT-174",
+      "threats": [
+        "T-47"
+      ],
+      "principal": "member",
+      "setup": "Reorder, carry, or remove a locked commitment or block",
+      "scope": "personal",
+      "action": "personal.manage_own",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "conflict_filtered",
+      "silent_surfaces": [
+        "ui_record"
+      ]
+    },
+    {
+      "id": "AT-175",
+      "threats": [
+        "T-47"
+      ],
+      "principal": "member",
+      "setup": "Schedule a block over a focus block",
+      "scope": "personal",
+      "action": "personal.manage_own",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "conflict_filtered",
+      "silent_surfaces": [
+        "ui_record"
+      ]
+    },
+    {
+      "id": "AT-176",
+      "threats": [
+        "T-47"
+      ],
+      "principal": "member",
+      "setup": "Rewrite a closed day's record",
+      "scope": "personal",
+      "action": "personal.manage_own",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "conflict_filtered",
+      "silent_surfaces": [
+        "report"
+      ]
+    },
+    {
+      "id": "AT-177",
+      "threats": [
+        "T-48"
+      ],
+      "principal": "member",
+      "setup": "Read another person's capacity without capacity.view",
+      "scope": "personal",
+      "action": "capacity.view",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "not_found",
+      "silent_surfaces": [
+        "error_message",
+        "timing"
+      ]
+    },
+    {
+      "id": "AT-178",
+      "threats": [
+        "T-48"
+      ],
+      "principal": "member",
+      "setup": "Read team capacity without capacity.view",
+      "scope": "workspace",
+      "action": "capacity.view",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "forbidden",
+      "silent_surfaces": [
+        "count_facet"
+      ]
+    },
+    {
+      "id": "AT-179",
+      "threats": [
+        "T-48"
+      ],
+      "principal": "member",
+      "setup": "Lead with a Harbor manage grant reads a person who also works in Summit",
+      "scope": "brand",
+      "action": "capacity.view",
+      "surface": "capacity",
+      "expected": "allow",
+      "response_shape": "ok_filtered",
+      "silent_surfaces": [
+        "count_facet",
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-180",
+      "threats": [
+        "T-48"
+      ],
+      "principal": "member",
+      "setup": "Another person's time off seen with capacity.view",
+      "scope": "personal",
+      "action": "personal.manage_own",
+      "surface": "capacity",
+      "expected": "deny",
+      "response_shape": "redacted",
+      "silent_surfaces": [
+        "ui_record",
+        "activity"
+      ]
+    },
+    {
+      "id": "AT-181",
+      "threats": [
+        "T-48"
+      ],
+      "principal": "member",
+      "setup": "Conflicts, holidays, and reservations in a brand the viewer cannot read",
+      "scope": "brand",
+      "action": "record.read",
+      "surface": "capacity",
+      "expected": "deny",
+      "response_shape": "omitted",
+      "silent_surfaces": [
+        "count_facet",
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-182",
+      "threats": [
+        "T-48"
+      ],
+      "principal": "member",
+      "setup": "Set a reservation without capacity.reserve, or in an unreadable brand",
+      "scope": "brand",
+      "action": "capacity.reserve",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "forbidden",
+      "silent_surfaces": [
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-183",
+      "threats": [
+        "T-48"
+      ],
+      "principal": "member",
+      "setup": "Capacity read after the capacity.view grant is revoked",
+      "scope": "brand",
+      "action": "capacity.view",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "forbidden",
+      "silent_surfaces": [
+        "count_facet"
+      ]
+    },
+    {
+      "id": "AT-184",
+      "threats": [
+        "T-48"
+      ],
+      "principal": "member",
+      "setup": "Stranger from another workspace calls every capacity route",
+      "scope": "workspace",
+      "action": "capacity.view",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "not_found",
+      "silent_surfaces": [
+        "error_message",
+        "timing"
+      ]
+    },
+    {
+      "id": "AT-185",
+      "threats": [
+        "T-49"
+      ],
+      "principal": "member",
+      "setup": "Member without access lists, reads, edits, deletes, reacts to, and reads revisions of comments on a task in a restricted project",
+      "scope": "task",
+      "action": "record.read",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "not_found",
+      "silent_surfaces": [
+        "error_message",
+        "timing"
+      ]
+    },
+    {
+      "id": "AT-186",
+      "threats": [
+        "T-49"
+      ],
+      "principal": "member",
+      "setup": "Read-only member and read-level guest post a comment, reply, or reaction on a readable task",
+      "scope": "task",
+      "action": "record.comment",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "forbidden",
+      "silent_surfaces": [
+        "error_message",
+        "timing"
+      ]
+    },
+    {
+      "id": "AT-187",
+      "threats": [
+        "T-49"
+      ],
+      "principal": "member",
+      "setup": "Member mentions a hidden member, an unknown member, a hidden record, and an agent in a comment",
+      "scope": "task",
+      "action": "record.comment",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "validation_generic",
+      "silent_surfaces": [
+        "error_message",
+        "timing",
+        "picker"
+      ]
+    },
+    {
+      "id": "AT-188",
+      "threats": [
+        "T-49"
+      ],
+      "principal": "member",
+      "setup": "Owner or administrator edits another person's comment, and a member without manage deletes it",
+      "scope": "task",
+      "action": "comment.edit_own",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "forbidden",
+      "silent_surfaces": [
+        "error_message",
+        "timing"
+      ]
+    },
+    {
+      "id": "AT-189",
+      "threats": [
+        "T-49"
+      ],
+      "principal": "member",
+      "setup": "Author edits or deletes their own comment after the audit window has closed",
+      "scope": "task",
+      "action": "comment.edit_own",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "forbidden",
+      "silent_surfaces": [
+        "error_message",
+        "timing"
+      ]
+    },
+    {
+      "id": "AT-190",
+      "threats": [
+        "T-49"
+      ],
+      "principal": "member",
+      "setup": "A person who neither wrote a comment nor holds comment.moderate reads its revision trail",
+      "scope": "task",
+      "action": "comment.moderate",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "forbidden",
+      "silent_surfaces": [
+        "error_message",
+        "timing"
+      ]
+    },
+    {
+      "id": "AT-191",
+      "threats": [
+        "T-49"
+      ],
+      "principal": "member",
+      "setup": "Member follows a record they cannot read, and a follow outlives a revoked grant",
+      "scope": "task",
+      "action": "record.follow",
+      "surface": "ui_list",
+      "expected": "deny",
+      "response_shape": "omitted",
+      "silent_surfaces": [
+        "error_message",
+        "timing",
+        "count_facet",
+        "notification_inapp"
+      ]
+    },
+    {
+      "id": "AT-192",
+      "threats": [
+        "T-49"
+      ],
+      "principal": "guest",
+      "setup": "Guest or share-only member asks for followers, reviews, delegation, and assignment history of the shared task",
+      "scope": "shared record",
+      "action": "record.read",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "not_found",
+      "silent_surfaces": [
+        "error_message",
+        "timing",
+        "count_facet"
+      ]
+    },
+    {
+      "id": "AT-193",
+      "threats": [
+        "T-49"
+      ],
+      "principal": "member",
+      "setup": "Non-reviewer, a reviewer after the version changed, a second decision, and a decision on a settled review",
+      "scope": "task",
+      "action": "review.decide",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "conflict_filtered",
+      "silent_surfaces": [
+        "error_message",
+        "timing"
+      ]
+    },
+    {
+      "id": "AT-194",
+      "threats": [
+        "T-49"
+      ],
+      "principal": "member",
+      "setup": "Requester decides their own review while the workspace forbids self-approval",
+      "scope": "task",
+      "action": "review.decide",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "forbidden",
+      "silent_surfaces": [
+        "error_message",
+        "timing"
+      ]
+    },
+    {
+      "id": "AT-195",
+      "threats": [
+        "T-49"
+      ],
+      "principal": "member",
+      "setup": "Delegation by a non-assignee, to a hidden or unknown person, or to oneself",
+      "scope": "task",
+      "action": "record.delegate",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "validation_generic",
+      "silent_surfaces": [
+        "error_message",
+        "timing"
+      ]
+    },
+    {
+      "id": "AT-196",
+      "threats": [
+        "T-49"
+      ],
+      "principal": "member",
+      "setup": "Activity of a task shows comments, reviews, delegation, and reassignment naming records, people, or values the viewer cannot read",
+      "scope": "task",
+      "action": "record.read",
+      "surface": "activity",
+      "expected": "allow",
+      "response_shape": "ok_filtered",
+      "silent_surfaces": [
+        "error_message",
+        "count_facet",
+        "notification_inapp",
+        "search",
+        "export"
+      ]
+    },
+    {
+      "id": "AT-197",
+      "threats": [
+        "T-49"
+      ],
+      "principal": "member",
+      "setup": "Stranger from another workspace calls every collaboration route",
+      "scope": "workspace",
+      "action": "record.comment",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "not_found",
+      "silent_surfaces": [
+        "error_message",
+        "timing",
+        "count_facet"
+      ]
+    },
+    {
+      "id": "AT-198",
+      "threats": [
+        "T-50"
+      ],
+      "principal": "member",
+      "setup": "Notification about a task whose brand access was revoked after the notification was created",
+      "scope": "notification about record later revoked",
+      "action": "record.read",
+      "surface": "notification_inapp",
+      "expected": "deny",
+      "response_shape": "omitted",
+      "silent_surfaces": [
+        "search",
+        "count_facet",
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-199",
+      "threats": [
+        "T-50"
+      ],
+      "principal": "member",
+      "setup": "Search and filters by title, brand, project, or actor over notifications about records no longer readable",
+      "scope": "notifications about unreadable records",
+      "action": "record.read",
+      "surface": "search",
+      "expected": "deny",
+      "response_shape": "omitted",
+      "silent_surfaces": [
+        "search",
+        "count_facet",
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-200",
+      "threats": [
+        "T-50"
+      ],
+      "principal": "member",
+      "setup": "Email and browser delivery for a record whose access was lost between creation and send",
+      "scope": "queued delivery after revocation",
+      "action": "record.read",
+      "surface": "notification_email",
+      "expected": "deny",
+      "response_shape": "omitted",
+      "silent_surfaces": [
+        "notification_email",
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-201",
+      "threats": [
+        "T-50"
+      ],
+      "principal": "member",
+      "setup": "Email for a sensitive brand or a brand set to minimal content",
+      "scope": "notification in a sensitive brand",
+      "action": "record.read",
+      "surface": "notification_email",
+      "expected": "allow",
+      "response_shape": "redacted",
+      "silent_surfaces": [
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-202",
+      "threats": [
+        "T-50"
+      ],
+      "principal": "member",
+      "setup": "Another member of the workspace reads, changes the state of, or bulk-dismisses someone else's notification",
+      "scope": "other person's notification",
+      "action": "record.read",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "not_found",
+      "silent_surfaces": [
+        "error_message",
+        "timing",
+        "count_facet"
+      ]
+    },
+    {
+      "id": "AT-203",
+      "threats": [
+        "T-50"
+      ],
+      "principal": "member",
+      "setup": "Stranger from another workspace calls every notification route",
+      "scope": "workspace",
+      "action": "record.read",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "not_found",
+      "silent_surfaces": [
+        "error_message",
+        "timing",
+        "count_facet"
+      ]
+    },
+    {
+      "id": "AT-204",
+      "threats": [
+        "T-50"
+      ],
+      "principal": "member",
+      "setup": "Mute, quiet hours, digest, or default targeting a scope the person cannot read, or muting a permission or share notice",
+      "scope": "personal preference scope",
+      "action": "record.read",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "validation_generic",
+      "silent_surfaces": [
+        "error_message",
+        "timing"
+      ]
+    },
+    {
+      "id": "AT-205",
+      "threats": [
+        "T-50"
+      ],
+      "principal": "member",
+      "setup": "Member without health or configure authority reads delivery health, retries a delivery, or sets a brand default",
+      "scope": "workspace",
+      "action": "health.view",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "forbidden",
+      "silent_surfaces": [
+        "error_message",
+        "timing"
+      ]
+    },
+    {
+      "id": "AT-206",
+      "threats": [
+        "T-50"
+      ],
+      "principal": "administrator",
+      "setup": "Delivery health, failure messages, and audit for a failed delivery",
+      "scope": "dead-lettered delivery",
+      "action": "health.view",
+      "surface": "audit_display",
+      "expected": "allow",
+      "response_shape": "redacted",
+      "silent_surfaces": [
+        "error_message",
+        "audit_display"
+      ]
+    },
+    {
+      "id": "AT-207",
+      "threats": [
+        "T-50"
+      ],
+      "principal": "member",
+      "setup": "Digest assembled and sent after some of its records became unreadable",
+      "scope": "digest with revoked items",
+      "action": "record.read",
+      "surface": "notification_email",
+      "expected": "deny",
+      "response_shape": "omitted",
+      "silent_surfaces": [
+        "notification_email",
+        "count_facet",
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-208",
+      "threats": [
+        "T-51"
+      ],
+      "principal": "member",
+      "setup": "Member without access reads, lists, saves, restores, and suggests on documents, versions, and suggestions in a brand they cannot read, and unknown identifiers",
+      "scope": "document in a restricted brand",
+      "action": "record.read",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "not_found",
+      "silent_surfaces": [
+        "error_message",
+        "timing",
+        "count_facet"
+      ]
+    },
+    {
+      "id": "AT-209",
+      "threats": [
+        "T-51"
+      ],
+      "principal": "guest",
+      "setup": "Guest or member with a share on one document reads its parent, subpages, ancestors, tree, and attachment details",
+      "scope": "document shared by exact record",
+      "action": "record.read",
+      "surface": "ui_record",
+      "expected": "deny",
+      "response_shape": "omitted",
+      "silent_surfaces": [
+        "search",
+        "count_facet",
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-210",
+      "threats": [
+        "T-51"
+      ],
+      "principal": "member",
+      "setup": "Read-only member, read-level share, and archived document: edit content, metadata, links, placement, or lifecycle",
+      "scope": "document",
+      "action": "record.update",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "forbidden",
+      "silent_surfaces": [
+        "error_message",
+        "timing"
+      ]
+    },
+    {
+      "id": "AT-211",
+      "threats": [
+        "T-51"
+      ],
+      "principal": "member",
+      "setup": "Viewer without access to a linked task or person reads a document that mentions them, and sends the restricted token back on save",
+      "scope": "reference to an unreadable record",
+      "action": "record.read",
+      "surface": "ui_record",
+      "expected": "deny",
+      "response_shape": "redacted",
+      "silent_surfaces": [
+        "search",
+        "export",
+        "notification_inapp",
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-212",
+      "threats": [
+        "T-51"
+      ],
+      "principal": "member",
+      "setup": "Author adds a link to a hidden, unknown, or unsupported record",
+      "scope": "new reference in a document",
+      "action": "record.relate",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "validation_generic",
+      "silent_surfaces": [
+        "error_message",
+        "timing"
+      ]
+    },
+    {
+      "id": "AT-213",
+      "threats": [
+        "T-51"
+      ],
+      "principal": "member",
+      "setup": "Backlinks of a record the viewer cannot read, and of a readable record from documents the viewer cannot read",
+      "scope": "backlinks",
+      "action": "record.read",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "not_found",
+      "silent_surfaces": [
+        "error_message",
+        "timing",
+        "count_facet"
+      ]
+    },
+    {
+      "id": "AT-214",
+      "threats": [
+        "T-51"
+      ],
+      "principal": "member",
+      "setup": "Suggestion on a block that changed since it was made, and a suggestion by someone who may only read",
+      "scope": "suggestion",
+      "action": "record.comment",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "validation_generic",
+      "silent_surfaces": [
+        "error_message",
+        "timing"
+      ]
+    },
+    {
+      "id": "AT-215",
+      "threats": [
+        "T-51"
+      ],
+      "principal": "member",
+      "setup": "Non-owner without manage authority, and read-only member, approve a document version as an AI source",
+      "scope": "document version",
+      "action": "record.update",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "forbidden",
+      "silent_surfaces": [
+        "error_message",
+        "timing"
+      ]
+    },
+    {
+      "id": "AT-216",
+      "threats": [
+        "T-51"
+      ],
+      "principal": "read_only",
+      "setup": "Read-only member and guest export a document",
+      "scope": "export",
+      "action": "record.export",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "forbidden",
+      "silent_surfaces": [
+        "error_message",
+        "timing"
+      ]
+    },
+    {
+      "id": "AT-217",
+      "threats": [
+        "T-51"
+      ],
+      "principal": "member",
+      "setup": "Export with references and subpages the viewer cannot read, and audit of the export",
+      "scope": "export of a mixed document",
+      "action": "record.export",
+      "surface": "export",
+      "expected": "allow",
+      "response_shape": "redacted",
+      "silent_surfaces": [
+        "export",
+        "audit_display",
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-218",
+      "threats": [
+        "T-52"
+      ],
+      "principal": "member",
+      "setup": "Member without access to a brand reads metadata, lists, downloads, previews, or compares a file hosted there, with the same calls made for an unknown and a malformed file id",
+      "scope": "file in an unreadable brand",
+      "action": "record.download",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "not_found",
+      "silent_surfaces": [
+        "error_message",
+        "timing",
+        "count_facet"
+      ]
+    },
+    {
+      "id": "AT-219",
+      "threats": [
+        "T-52"
+      ],
+      "principal": "member",
+      "setup": "Stranger from another workspace calls every file, upload, link, storage, and deliverable route",
+      "scope": "workspace",
+      "action": "record.read",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "not_found",
+      "silent_surfaces": [
+        "error_message",
+        "timing",
+        "count_facet"
+      ]
+    },
+    {
+      "id": "AT-220",
+      "threats": [
+        "T-52"
+      ],
+      "principal": "member",
+      "setup": "Brand access revoked after the member listed a file and was issued a download URL",
+      "scope": "file after revocation",
+      "action": "record.download",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "not_found",
+      "silent_surfaces": [
+        "error_message",
+        "count_facet"
+      ]
+    },
+    {
+      "id": "AT-221",
+      "threats": [
+        "T-52"
+      ],
+      "principal": "member",
+      "setup": "Signed upload or download URL with a tampered signature, another key or operation, a wrong length or checksum, or past SIGNED_URL_LIFETIME",
+      "scope": "signed object URL",
+      "action": "record.download",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "unauthenticated",
+      "silent_surfaces": [
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-222",
+      "threats": [
+        "T-52"
+      ],
+      "principal": "member",
+      "setup": "Download, preview, or compare of a version whose scan is pending, infected, or failed after the last attempt",
+      "scope": "quarantined or blocked version",
+      "action": "record.download",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "error_generic",
+      "silent_surfaces": [
+        "error_message",
+        "activity"
+      ]
+    },
+    {
+      "id": "AT-223",
+      "threats": [
+        "T-52"
+      ],
+      "principal": "member",
+      "setup": "Inline preview requested for SVG, HTML, office, or archive content",
+      "scope": "active or unrenderable content",
+      "action": "record.download",
+      "surface": "api",
+      "expected": "allow",
+      "response_shape": "ok",
+      "silent_surfaces": [
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-224",
+      "threats": [
+        "T-52"
+      ],
+      "principal": "member",
+      "setup": "Another member reads or completes someone else's upload session",
+      "scope": "other person's upload session",
+      "action": "record.upload",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "not_found",
+      "silent_surfaces": [
+        "error_message",
+        "timing"
+      ]
+    },
+    {
+      "id": "AT-225",
+      "threats": [
+        "T-52"
+      ],
+      "principal": "member",
+      "setup": "Member who can upload to the host attaches a file to a comment they did not write",
+      "scope": "comment by another person",
+      "action": "record.upload",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "forbidden",
+      "silent_surfaces": [
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-226",
+      "threats": [
+        "T-52"
+      ],
+      "principal": "member",
+      "setup": "Concurrent upload initiations that together exceed WORKSPACE_STORAGE_QUOTA_BYTES",
+      "scope": "workspace storage quota",
+      "action": "record.upload",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "error_generic",
+      "silent_surfaces": [
+        "error_message",
+        "count_facet"
+      ]
+    },
+    {
+      "id": "AT-227",
+      "threats": [
+        "T-52"
+      ],
+      "principal": "guest",
+      "setup": "Guest lists, reads, or uploads workspace-level files",
+      "scope": "workspace-hosted files",
+      "action": "record.read",
+      "surface": "ui_list",
+      "expected": "deny",
+      "response_shape": "not_found",
+      "silent_surfaces": [
+        "count_facet",
+        "error_message",
+        "search"
+      ]
+    },
+    {
+      "id": "AT-228",
+      "threats": [
+        "T-52"
+      ],
+      "principal": "member",
+      "setup": "External link with a script or data scheme, embedded credentials, or more than 2048 characters; an accepted link is never fetched by the server",
+      "scope": "external link",
+      "action": "record.upload",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "validation_generic",
+      "silent_surfaces": [
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-229",
+      "threats": [
+        "T-52"
+      ],
+      "principal": "member",
+      "setup": "Change, resubmit, trash, or purge the accepted version of a deliverable or the file version it points at",
+      "scope": "evidence-locked deliverable version",
+      "action": "deliverable.submit",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "error_generic",
+      "silent_surfaces": [
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-230",
+      "threats": [
+        "T-53"
+      ],
+      "principal": "member",
+      "setup": "Member without access to a document starts a live session, sends operations, polls, heartbeats, or leaves, with the same calls made for an unknown and a malformed document id",
+      "scope": "document in an unreadable brand",
+      "action": "record.read",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "not_found",
+      "silent_surfaces": [
+        "error_message",
+        "timing",
+        "count_facet"
+      ]
+    },
+    {
+      "id": "AT-231",
+      "threats": [
+        "T-53"
+      ],
+      "principal": "member",
+      "setup": "Member who can only read a document asks for an editing session, or sends operations on a watching session",
+      "scope": "read-only live session",
+      "action": "record.update",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "forbidden",
+      "silent_surfaces": [
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-232",
+      "threats": [
+        "T-53"
+      ],
+      "principal": "member",
+      "setup": "Editor whose brand grant is revoked after the session opened sends an operation, polls, or heartbeats; the same after the document is archived, trashed, or purged",
+      "scope": "document after revocation",
+      "action": "record.update",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "not_found",
+      "silent_surfaces": [
+        "error_message",
+        "timing"
+      ]
+    },
+    {
+      "id": "AT-233",
+      "threats": [
+        "T-53"
+      ],
+      "principal": "member",
+      "setup": "Editor receives a snapshot, an operation response, an event, or a rejection for a block that links a record they cannot read",
+      "scope": "restricted reference in a live document",
+      "action": "record.read",
+      "surface": "api",
+      "expected": "allow",
+      "response_shape": "redacted",
+      "silent_surfaces": [
+        "error_message",
+        "count_facet"
+      ]
+    },
+    {
+      "id": "AT-234",
+      "threats": [
+        "T-53"
+      ],
+      "principal": "guest",
+      "setup": "Guest with a read share on one document joins live and lists presence",
+      "scope": "guest presence",
+      "action": "record.read",
+      "surface": "api",
+      "expected": "allow",
+      "response_shape": "ok_filtered",
+      "silent_surfaces": [
+        "count_facet",
+        "sse_notice"
+      ]
+    },
+    {
+      "id": "AT-235",
+      "threats": [
+        "T-53"
+      ],
+      "principal": "member",
+      "setup": "Another member uses a live session handle they did not create, or one that has expired",
+      "scope": "someone else's or a stale session",
+      "action": "record.update",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "error_generic",
+      "silent_surfaces": [
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-236",
+      "threats": [
+        "T-53"
+      ],
+      "principal": "member",
+      "setup": "Editor sends an operation that links a record they cannot read, restores a restricted token the draft never held, or exceeds the document bounds",
+      "scope": "live operation content",
+      "action": "record.update",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "validation_generic",
+      "silent_surfaces": [
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-237",
+      "threats": [
+        "T-53"
+      ],
+      "principal": "member",
+      "setup": "Member saves, restores, or accepts a suggestion while a live session is open or while unsaved live work is waiting",
+      "scope": "non-live write beside live editing",
+      "action": "record.update",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "error_generic",
+      "silent_surfaces": [
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-238",
+      "threats": [
+        "T-54"
+      ],
+      "principal": "member",
+      "setup": "Member without access searches for a word that appears only in a record they cannot read (title, body, comment, and document text)",
+      "scope": "hidden record text",
+      "action": "record.read",
+      "surface": "search",
+      "expected": "deny",
+      "response_shape": "omitted",
+      "silent_surfaces": [
+        "search_snippet",
+        "count_facet",
+        "timing",
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-239",
+      "threats": [
+        "T-54"
+      ],
+      "principal": "member",
+      "setup": "A share or brand grant is given and then revoked while the search index is not rebuilt",
+      "scope": "revocation without re-indexing",
+      "action": "record.read",
+      "surface": "search",
+      "expected": "deny",
+      "response_shape": "omitted",
+      "silent_surfaces": [
+        "search_snippet",
+        "count_facet",
+        "timing"
+      ]
+    },
+    {
+      "id": "AT-240",
+      "threats": [
+        "T-54"
+      ],
+      "principal": "guest",
+      "setup": "People of every role, a guest with an exact share, and a member of a restricted project or a sensitive brand search the same word",
+      "scope": "role, share, project, and brand matrix",
+      "action": "record.read",
+      "surface": "search",
+      "expected": "deny",
+      "response_shape": "omitted",
+      "silent_surfaces": [
+        "search_snippet",
+        "count_facet",
+        "timing"
+      ]
+    },
+    {
+      "id": "AT-241",
+      "threats": [
+        "T-54"
+      ],
+      "principal": "member",
+      "setup": "A comment is deleted, or a file or deliverable is trashed, or a record is archived, trashed, or purged, before the index has caught up",
+      "scope": "source state ahead of the index",
+      "action": "record.read",
+      "surface": "search",
+      "expected": "deny",
+      "response_shape": "omitted",
+      "silent_surfaces": [
+        "search_snippet",
+        "count_facet",
+        "timing"
+      ]
+    },
+    {
+      "id": "AT-242",
+      "threats": [
+        "T-54"
+      ],
+      "principal": "member",
+      "setup": "Search filtered by a brand or project the person cannot see, and by one that does not exist",
+      "scope": "filter naming a hidden brand or project",
+      "action": "record.read",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "validation_generic",
+      "silent_surfaces": [
+        "search",
+        "count_facet",
+        "timing",
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-243",
+      "threats": [
+        "T-54"
+      ],
+      "principal": "member",
+      "setup": "The index lags or a record fails to index; a person who cannot read that record requests the search and the index status",
+      "scope": "index state of hidden records",
+      "action": "record.read",
+      "surface": "count_facet",
+      "expected": "deny",
+      "response_shape": "omitted",
+      "silent_surfaces": [
+        "search",
+        "search_snippet",
+        "timing"
+      ]
+    },
+    {
+      "id": "AT-244",
+      "threats": [
+        "T-54"
+      ],
+      "principal": "member",
+      "setup": "A person opens a search result that is hidden, deleted, trashed, purged, in another workspace, or unknown",
+      "scope": "opening a result",
+      "action": "record.read",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "not_found",
+      "silent_surfaces": [
+        "search",
+        "search_snippet",
+        "count_facet",
+        "timing",
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-245",
+      "threats": [
+        "T-54"
+      ],
+      "principal": "member",
+      "setup": "A person reuses another person's cursor, changes the search under a cursor, or lists recent searches that name a place access has since removed",
+      "scope": "cursors and recent searches",
+      "action": "personal.manage_own",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "error_generic",
+      "silent_surfaces": [
+        "search",
+        "search_snippet",
+        "count_facet",
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-246",
+      "threats": [
+        "T-55"
+      ],
+      "principal": "member",
+      "setup": "Member who may read one of two linked projects reads a goal linked to both, and its linked-work progress, links, and labels",
+      "scope": "goal linked to a restricted project",
+      "action": "record.read",
+      "surface": "api",
+      "expected": "allow",
+      "response_shape": "ok_filtered",
+      "silent_surfaces": [
+        "count_facet",
+        "error_message",
+        "export"
+      ]
+    },
+    {
+      "id": "AT-247",
+      "threats": [
+        "T-55"
+      ],
+      "principal": "member",
+      "setup": "Member reads portfolio health, deadlines, budgets, effort, and time totals when projects, brands, time entries, and budgets exist that they cannot read",
+      "scope": "portfolio with restricted members and work",
+      "action": "record.read",
+      "surface": "report",
+      "expected": "allow",
+      "response_shape": "ok_filtered",
+      "silent_surfaces": [
+        "count_facet",
+        "error_message",
+        "export",
+        "timing"
+      ]
+    },
+    {
+      "id": "AT-248",
+      "threats": [
+        "T-55"
+      ],
+      "principal": "member",
+      "setup": "Member reads cross-project dependencies where the other end of an edge is work they cannot read",
+      "scope": "dependency to restricted work",
+      "action": "record.read",
+      "surface": "api",
+      "expected": "allow",
+      "response_shape": "omitted",
+      "silent_surfaces": [
+        "count_facet",
+        "error_message",
+        "report"
+      ]
+    },
+    {
+      "id": "AT-249",
+      "threats": [
+        "T-56"
+      ],
+      "principal": "member",
+      "setup": "Member links a goal to a project or task that is unreadable, unknown, in another brand, or outside the goal's project",
+      "scope": "unreadable, unknown, or misplaced link target",
+      "action": "record.update",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "validation_generic",
+      "silent_surfaces": [
+        "error_message",
+        "timing"
+      ]
+    },
+    {
+      "id": "AT-250",
+      "threats": [
+        "T-56"
+      ],
+      "principal": "member",
+      "setup": "Editor saves a portfolio that holds projects they cannot read, or names one they cannot read",
+      "scope": "portfolio members",
+      "action": "record.update",
+      "surface": "api",
+      "expected": "allow",
+      "response_shape": "ok_filtered",
+      "silent_surfaces": [
+        "count_facet",
+        "error_message",
+        "picker"
+      ]
+    },
+    {
+      "id": "AT-251",
+      "threats": [
+        "T-56"
+      ],
+      "principal": "member",
+      "setup": "Member reads a portfolio whose other members sit in a brand they cannot access",
+      "scope": "portfolio with a hidden brand",
+      "action": "record.read",
+      "surface": "api",
+      "expected": "allow",
+      "response_shape": "omitted",
+      "silent_surfaces": [
+        "count_facet",
+        "error_message",
+        "report"
+      ]
+    },
+    {
+      "id": "AT-252",
+      "threats": [
+        "T-56"
+      ],
+      "principal": "member",
+      "setup": "Member reads an unreadable goal, an unknown goal, and a malformed goal identifier",
+      "scope": "goal in an unreadable brand",
+      "action": "record.read",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "not_found",
+      "silent_surfaces": [
+        "error_message",
+        "timing",
+        "count_facet"
+      ]
+    },
+    {
+      "id": "AT-253",
+      "threats": [
+        "T-56"
+      ],
+      "principal": "member",
+      "setup": "Project or task is purged while goals link it and portfolios name it",
+      "scope": "links and memberships of purged work",
+      "action": "record.purge",
+      "surface": "api",
+      "expected": "allow",
+      "response_shape": "omitted",
+      "silent_surfaces": [
+        "count_facet",
+        "export"
+      ]
+    },
+    {
+      "id": "AT-254",
+      "threats": [
+        "T-57"
+      ],
+      "principal": "guest",
+      "setup": "Guest lists goals or portfolios, or asks for the portfolio overview",
+      "scope": "goal and portfolio collections",
+      "action": "record.read",
+      "surface": "ui_list",
+      "expected": "deny",
+      "response_shape": "forbidden",
+      "silent_surfaces": [
+        "count_facet",
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-255",
+      "threats": [
+        "T-57"
+      ],
+      "principal": "guest",
+      "setup": "Guest reads one goal by its identifier, or one named in a share, and a person outside the workspace calls the goal routes",
+      "scope": "goal records",
+      "action": "record.read",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "not_found",
+      "silent_surfaces": [
+        "error_message",
+        "count_facet",
+        "timing"
+      ]
+    },
+    {
+      "id": "AT-256",
+      "threats": [
+        "T-58"
+      ],
+      "principal": "member",
+      "setup": "Member whose access narrowed reads a goal and a portfolio again, and a goal whose progress depends on linked work is read from the stored state",
+      "scope": "goal and portfolio figures after access narrowed",
+      "action": "record.read",
+      "surface": "api",
+      "expected": "allow",
+      "response_shape": "ok_filtered",
+      "silent_surfaces": [
+        "count_facet",
+        "error_message",
+        "export"
+      ]
+    },
+    {
+      "id": "AT-257",
+      "threats": [
+        "T-59"
+      ],
+      "principal": "member",
+      "setup": "Owner sets the progress of a goal that derives it from linked work or key results, or tries to change or delete a recorded check-in",
+      "scope": "derived goal progress and recorded check-ins",
+      "action": "record.update",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "validation_generic",
+      "silent_surfaces": [
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-258",
+      "threats": [
+        "T-59"
+      ],
+      "principal": "member",
+      "setup": "Member retries one check-in request with the same key, and sends check-ins faster than the per-member limit",
+      "scope": "check-in replay and flood",
+      "action": "record.update",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "error_generic",
+      "silent_surfaces": [
+        "error_message",
+        "activity"
+      ]
+    },
+    {
+      "id": "AT-259",
+      "threats": [
+        "T-59"
+      ],
+      "principal": "member",
+      "setup": "Reader, stranger, or owner of a closed goal records a check-in",
+      "scope": "check-in on a goal the caller cannot update",
+      "action": "record.update",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "forbidden",
+      "silent_surfaces": [
+        "error_message",
+        "activity"
+      ]
+    },
+    {
+      "id": "AT-260",
+      "threats": [
+        "T-59"
+      ],
+      "principal": "member",
+      "setup": "Two editors update one goal with the same loaded version, and an edit arrives with a stale or missing version",
+      "scope": "goal edit race",
+      "action": "record.update",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "conflict_filtered",
+      "silent_surfaces": [
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-261",
+      "threats": [
+        "T-60"
+      ],
+      "principal": "member",
+      "setup": "Member exports goals and key results as CSV and JSON, with titles that begin with formula characters and more rows than the limit",
+      "scope": "goal export",
+      "action": "record.export",
+      "surface": "export",
+      "expected": "allow",
+      "response_shape": "ok_filtered",
+      "silent_surfaces": [
+        "count_facet",
+        "error_message",
+        "activity"
+      ]
+    },
+    {
+      "id": "AT-262",
+      "threats": [
+        "T-60"
+      ],
+      "principal": "member",
+      "setup": "Member exports portfolio rows including projects and totals in brands they cannot read",
+      "scope": "portfolio export",
+      "action": "record.export",
+      "surface": "export",
+      "expected": "allow",
+      "response_shape": "ok_filtered",
+      "silent_surfaces": [
+        "count_facet",
+        "error_message",
+        "activity"
+      ]
+    },
+    {
+      "id": "AT-263",
+      "threats": [
+        "T-61"
+      ],
+      "principal": "system_job",
+      "setup": "Recalculation sweep for workspace A attempts to read or write a goal of workspace B",
+      "scope": "goal recalculation in another workspace",
+      "action": "record.read",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "not_found",
+      "silent_surfaces": [
+        "error_message",
+        "count_facet",
+        "activity",
+        "sse_notice"
+      ]
+    },
+    {
+      "id": "AT-264",
+      "threats": [
+        "T-61"
+      ],
+      "principal": "system_job",
+      "setup": "Two recalculation sweeps overlap on one goal, and a worker crashes while it holds a goal's lease",
+      "scope": "overlapping and crashed recalculation",
+      "action": "record.update",
+      "surface": "api",
+      "expected": "allow",
+      "response_shape": "ok",
+      "silent_surfaces": [
+        "activity",
+        "notification_inapp"
+      ]
+    },
+    {
+      "id": "AT-265",
+      "threats": [
+        "T-61"
+      ],
+      "principal": "system_job",
+      "setup": "One goal's recalculation fails repeatedly while others are due",
+      "scope": "failing goal recalculation",
+      "action": "record.update",
+      "surface": "api",
+      "expected": "allow",
+      "response_shape": "ok",
+      "silent_surfaces": [
+        "error_message",
+        "activity",
+        "notification_inapp"
+      ]
+    },
+    {
+      "id": "AT-266",
+      "threats": [
+        "T-61"
+      ],
+      "principal": "member",
+      "setup": "A row that breaks the placement, period, measurement, link, or immutability rules is written directly to the database",
+      "scope": "goal and portfolio constraints",
+      "action": "record.update",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "error_generic",
+      "silent_surfaces": [
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-267",
+      "threats": [
+        "T-62"
+      ],
+      "principal": "member",
+      "setup": "Member reads projects without a linked goal and goals without active work, where linked goals, links, and work exist that they cannot read",
+      "scope": "orphan findings",
+      "action": "record.read",
+      "surface": "report",
+      "expected": "allow",
+      "response_shape": "ok_filtered",
+      "silent_surfaces": [
+        "count_facet",
+        "error_message",
+        "export"
+      ]
+    },
+    {
+      "id": "AT-268",
+      "threats": [
+        "T-62"
+      ],
+      "principal": "member",
+      "setup": "Member reads orphan findings for a goal whose linked work is finished or sits in a project reached through a parent project",
+      "scope": "orphan findings by linked work",
+      "action": "record.read",
+      "surface": "report",
+      "expected": "allow",
+      "response_shape": "ok_filtered",
+      "silent_surfaces": [
+        "count_facet",
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-269",
+      "threats": [
+        "T-63"
+      ],
+      "principal": "member",
+      "setup": "Member who cannot read a restricted project asks for a metric scoped to it, to a brand they cannot see, and to a project that does not exist",
+      "scope": "scope naming a hidden project or brand",
+      "action": "record.read",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "validation_generic",
+      "silent_surfaces": [
+        "search",
+        "count_facet",
+        "export",
+        "error_message",
+        "timing"
+      ]
+    },
+    {
+      "id": "AT-270",
+      "threats": [
+        "T-63"
+      ],
+      "principal": "member",
+      "setup": "Member reads completion, attention, workload, age, health, time budget, and acceptance in a workspace with a restricted project, hidden estimates, hidden blockers, and a hidden assignee",
+      "scope": "every metric in a workspace with hidden work",
+      "action": "record.read",
+      "surface": "api",
+      "expected": "allow",
+      "response_shape": "ok_filtered",
+      "silent_surfaces": [
+        "count_facet",
+        "export",
+        "timing",
+        "error_message",
+        "activity"
+      ]
+    },
+    {
+      "id": "AT-271",
+      "threats": [
+        "T-63"
+      ],
+      "principal": "member",
+      "setup": "Member reads the records behind each role of a figure; each list is exactly as long as its count says and names nothing hidden",
+      "scope": "drill-through lists",
+      "action": "record.read",
+      "surface": "api",
+      "expected": "allow",
+      "response_shape": "ok_filtered",
+      "silent_surfaces": [
+        "count_facet",
+        "export",
+        "timing",
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-272",
+      "threats": [
+        "T-63"
+      ],
+      "principal": "member",
+      "setup": "A person reuses another person's drill-through cursor, changes the role under a cursor, or tampers with one",
+      "scope": "drill-through cursors",
+      "action": "record.read",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "error_generic",
+      "silent_surfaces": [
+        "count_facet",
+        "export",
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-273",
+      "threats": [
+        "T-63"
+      ],
+      "principal": "guest",
+      "setup": "Guest holding one shared task reads workload, attention, completion, and the records behind them: no person is named, no unowned count is given, only the shared task is counted",
+      "scope": "guest with one share",
+      "action": "record.read",
+      "surface": "api",
+      "expected": "allow",
+      "response_shape": "ok_filtered",
+      "silent_surfaces": [
+        "count_facet",
+        "export",
+        "timing",
+        "error_message",
+        "picker"
+      ]
+    },
+    {
+      "id": "AT-274",
+      "threats": [
+        "T-63"
+      ],
+      "principal": "member",
+      "setup": "Member exports a figure: the rows equal the figure, a project named like a formula is neutralized, and a hidden scope is refused like an unknown one",
+      "scope": "metric export",
+      "action": "record.export",
+      "surface": "export",
+      "expected": "allow",
+      "response_shape": "ok_filtered",
+      "silent_surfaces": [
+        "count_facet",
+        "timing",
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-275",
+      "threats": [
+        "T-63"
+      ],
+      "principal": "member",
+      "setup": "Member's brand access is revoked, a task is trashed and restored, and another member leaves: the next request shows the change in every figure, list, and export with no recomputation",
+      "scope": "revocation, trash, and departure",
+      "action": "record.read",
+      "surface": "api",
+      "expected": "allow",
+      "response_shape": "empty",
+      "silent_surfaces": [
+        "count_facet",
+        "export",
+        "timing",
+        "error_message",
+        "activity"
+      ]
+    },
+    {
+      "id": "AT-276",
+      "threats": [
+        "T-64"
+      ],
+      "principal": "system_job",
+      "setup": "Reconciliation for workspace A claims its lease, reads one batch of its tasks, and never reads or writes workspace B's history; two workers never hold one workspace; a lapsed lease is taken over",
+      "scope": "reconciliation job for one workspace",
+      "action": "record.read",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "not_found",
+      "silent_surfaces": [
+        "search",
+        "export",
+        "count_facet",
+        "activity",
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-277",
+      "threats": [
+        "T-64"
+      ],
+      "principal": "member",
+      "setup": "Member reads cycle time, time in status, and created versus completed where some history is assumed or repaired and the reconciliation is failing: those tasks are excluded and named, and the freshness says degraded",
+      "scope": "assumed, repaired, and failing history",
+      "action": "record.read",
+      "surface": "api",
+      "expected": "allow",
+      "response_shape": "ok_filtered",
+      "silent_surfaces": [
+        "count_facet",
+        "export",
+        "timing",
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-278",
+      "threats": [
+        "T-64"
+      ],
+      "principal": "member",
+      "setup": "Member without workspace configuration asks for a reconciliation pass; an administrator's request moves the schedule only",
+      "scope": "reconciliation request",
+      "action": "workspace.configure",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "forbidden",
+      "silent_surfaces": [
+        "count_facet",
+        "error_message",
+        "activity"
+      ]
+    },
+    {
+      "id": "AT-279",
+      "threats": [
+        "T-64"
+      ],
+      "principal": "member",
+      "setup": "Member asks for a past time on a metric that describes the present, for a time in the future, for a window longer than the bound, and for a scope above the size bound",
+      "scope": "as_of, window, and scope bounds",
+      "action": "record.read",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "validation_generic",
+      "silent_surfaces": [
+        "count_facet",
+        "export",
+        "error_message",
+        "timing"
+      ]
+    },
+    {
+      "id": "AT-280",
+      "threats": [
+        "T-65"
+      ],
+      "principal": "member",
+      "setup": "Member reads a dashboard widget for all brands while two of three brands, and a restricted project in the third, are outside their access",
+      "scope": "workspace dashboard widget over hidden brands",
+      "action": "record.read",
+      "surface": "ui_record",
+      "expected": "allow",
+      "response_shape": "ok_filtered",
+      "silent_surfaces": [
+        "count_facet",
+        "error_message",
+        "export",
+        "search"
+      ]
+    },
+    {
+      "id": "AT-281",
+      "threats": [
+        "T-65"
+      ],
+      "principal": "member",
+      "setup": "Member opens the records behind a widget figure and pages through them",
+      "scope": "drill-through of a widget with hidden work",
+      "action": "record.read",
+      "surface": "api",
+      "expected": "allow",
+      "response_shape": "ok_filtered",
+      "silent_surfaces": [
+        "count_facet",
+        "error_message",
+        "export"
+      ]
+    },
+    {
+      "id": "AT-282",
+      "threats": [
+        "T-65"
+      ],
+      "principal": "member",
+      "setup": "Member reads a grouped widget, an ad hoc filtered widget, and a forged cursor for the records behind one",
+      "scope": "grouped widget and cursor",
+      "action": "record.read",
+      "surface": "api",
+      "expected": "allow",
+      "response_shape": "ok_filtered",
+      "silent_surfaces": [
+        "count_facet",
+        "error_message",
+        "timing"
+      ]
+    },
+    {
+      "id": "AT-283",
+      "threats": [
+        "T-66"
+      ],
+      "principal": "member",
+      "setup": "Member's brand grant is revoked after they read a dashboard; they read it again",
+      "scope": "revoked brand grant",
+      "action": "record.read",
+      "surface": "ui_record",
+      "expected": "deny",
+      "response_shape": "omitted",
+      "silent_surfaces": [
+        "count_facet",
+        "error_message",
+        "export",
+        "report"
+      ]
+    },
+    {
+      "id": "AT-284",
+      "threats": [
+        "T-66"
+      ],
+      "principal": "member",
+      "setup": "Member opens a report only through a share; the share is revoked; they open it again",
+      "scope": "revoked report share",
+      "action": "record.read",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "not_found",
+      "silent_surfaces": [
+        "count_facet",
+        "error_message",
+        "export",
+        "ui_list"
+      ]
+    },
+    {
+      "id": "AT-285",
+      "threats": [
+        "T-67"
+      ],
+      "principal": "guest",
+      "setup": "Guest with one task grant opens a report shared with them and reads its widgets",
+      "scope": "report share for a guest",
+      "action": "record.read",
+      "surface": "report",
+      "expected": "allow",
+      "response_shape": "ok_filtered",
+      "silent_surfaces": [
+        "count_facet",
+        "error_message",
+        "export",
+        "ui_list"
+      ]
+    },
+    {
+      "id": "AT-286",
+      "threats": [
+        "T-67"
+      ],
+      "principal": "read_only",
+      "setup": "Read-only member tries to share a report and a manager shares and lists shares",
+      "scope": "report share authority",
+      "action": "record.share",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "forbidden",
+      "silent_surfaces": [
+        "count_facet",
+        "error_message",
+        "export"
+      ]
+    },
+    {
+      "id": "AT-287",
+      "threats": [
+        "T-68"
+      ],
+      "principal": "member",
+      "setup": "Scheduled report is delivered to three recipients who each have different access",
+      "scope": "scheduled report delivery per recipient",
+      "action": "report.schedule",
+      "surface": "notification_email",
+      "expected": "allow",
+      "response_shape": "ok_filtered",
+      "silent_surfaces": [
+        "search",
+        "count_facet",
+        "error_message",
+        "export"
+      ]
+    },
+    {
+      "id": "AT-288",
+      "threats": [
+        "T-68"
+      ],
+      "principal": "member",
+      "setup": "A recipient's access to the report is revoked before the next scheduled send",
+      "scope": "recipient who lost access",
+      "action": "report.schedule",
+      "surface": "notification_email",
+      "expected": "deny",
+      "response_shape": "omitted",
+      "silent_surfaces": [
+        "search",
+        "count_facet",
+        "error_message",
+        "export",
+        "digest"
+      ]
+    },
+    {
+      "id": "AT-289",
+      "threats": [
+        "T-68"
+      ],
+      "principal": "member",
+      "setup": "The member accountable for a scheduled report loses their brand access before the next send",
+      "scope": "schedule owner who lost authority",
+      "action": "report.schedule",
+      "surface": "report",
+      "expected": "deny",
+      "response_shape": "suspended",
+      "silent_surfaces": [
+        "notification_email",
+        "search",
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-290",
+      "threats": [
+        "T-69"
+      ],
+      "principal": "member",
+      "setup": "Member exports CSV and PDF of a dashboard over brands they partly cannot read",
+      "scope": "dashboard export",
+      "action": "record.export",
+      "surface": "export",
+      "expected": "allow",
+      "response_shape": "ok_filtered",
+      "silent_surfaces": [
+        "search",
+        "count_facet",
+        "error_message",
+        "report"
+      ]
+    },
+    {
+      "id": "AT-291",
+      "threats": [
+        "T-69"
+      ],
+      "principal": "member",
+      "setup": "Member with narrower access exports a dashboard and reads a shared report",
+      "scope": "narrower export through the browser",
+      "action": "record.export",
+      "surface": "export",
+      "expected": "allow",
+      "response_shape": "ok_filtered",
+      "silent_surfaces": [
+        "search",
+        "count_facet",
+        "error_message",
+        "ui_list"
+      ]
+    },
+    {
+      "id": "AT-292",
+      "threats": [
+        "T-70"
+      ],
+      "principal": "member",
+      "setup": "Another member and the workspace owner list and open a member's personal dashboard",
+      "scope": "personal dashboard of another member",
+      "action": "personal.manage_own",
+      "surface": "ui_list",
+      "expected": "deny",
+      "response_shape": "not_found",
+      "silent_surfaces": [
+        "count_facet",
+        "error_message",
+        "search",
+        "breadcrumb"
+      ]
+    },
+    {
+      "id": "AT-293",
+      "threats": [
+        "T-70"
+      ],
+      "principal": "member",
+      "setup": "Request for a personal dashboard of another member and for an unknown identifier",
+      "scope": "personal dashboard versus unknown identifier",
+      "action": "record.read",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "not_found",
+      "silent_surfaces": [
+        "timing",
+        "error_message",
+        "count_facet"
+      ]
+    },
+    {
+      "id": "AT-294",
+      "threats": [
+        "T-71"
+      ],
+      "principal": "member",
+      "setup": "Two edits to the same dashboard from the same version, then a stale third",
+      "scope": "concurrent dashboard edits",
+      "action": "record.update",
+      "surface": "api",
+      "expected": "allow",
+      "response_shape": "conflict_filtered",
+      "silent_surfaces": [
+        "count_facet",
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-295",
+      "threats": [
+        "T-71"
+      ],
+      "principal": "member",
+      "setup": "The same create request is sent twice with one idempotency key",
+      "scope": "replayed dashboard create",
+      "action": "record.create",
+      "surface": "api",
+      "expected": "allow",
+      "response_shape": "ok",
+      "silent_surfaces": [
+        "count_facet",
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-296",
+      "threats": [
+        "T-72"
+      ],
+      "principal": "system_job",
+      "setup": "The mail provider is down, rejects the message, or is not configured when a report is due",
+      "scope": "unavailable provider at delivery",
+      "action": "report.schedule",
+      "surface": "notification_email",
+      "expected": "deny",
+      "response_shape": "omitted",
+      "silent_surfaces": [
+        "search",
+        "count_facet",
+        "error_message",
+        "export"
+      ]
+    },
+    {
+      "id": "AT-297",
+      "threats": [
+        "T-72"
+      ],
+      "principal": "member",
+      "setup": "Member reads a widget built from a source that has not refreshed recently, and one from estimates",
+      "scope": "stale and estimated figures",
+      "action": "record.read",
+      "surface": "ui_record",
+      "expected": "allow",
+      "response_shape": "ok",
+      "silent_surfaces": [
+        "count_facet",
+        "error_message",
+        "export"
+      ]
+    },
+    {
+      "id": "AT-298",
+      "threats": [
+        "T-74",
+        "T-75"
+      ],
+      "principal": "guest",
+      "setup": "A guest and a member without the brand try to list or open a brand connection",
+      "scope": "connection visibility",
+      "action": "integrations.configure",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "not_found",
+      "silent_surfaces": [
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-299",
+      "threats": [
+        "T-73"
+      ],
+      "principal": "member",
+      "setup": "An owner connects with an API key",
+      "scope": "credential storage",
+      "action": "integrations.configure",
+      "surface": "api",
+      "expected": "allow",
+      "response_shape": "ok",
+      "silent_surfaces": [
+        "search",
+        "error_message",
+        "export"
+      ]
+    },
+    {
+      "id": "AT-300",
+      "threats": [
+        "T-73"
+      ],
+      "principal": "owner",
+      "setup": "An owner rotates connection credentials",
+      "scope": "key rotation",
+      "action": "integrations.configure",
+      "surface": "api",
+      "expected": "allow",
+      "response_shape": "ok",
+      "silent_surfaces": [
+        "search",
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-301",
+      "threats": [
+        "T-76"
+      ],
+      "principal": "owner",
+      "setup": "An owner tests, reauthorizes, and disconnects, choosing to keep or remove synchronized data",
+      "scope": "disconnect retention",
+      "action": "integrations.configure",
+      "surface": "api",
+      "expected": "allow",
+      "response_shape": "ok",
+      "silent_surfaces": [
+        "search"
+      ]
+    },
+    {
+      "id": "AT-302",
+      "threats": [
+        "T-77"
+      ],
+      "principal": "owner",
+      "setup": "A sync is repeated with the same idempotency key, and a provider that errors is retried to the attempt bound",
+      "scope": "checkpoint and dead letter",
+      "action": "integration.sync_now",
+      "surface": "api",
+      "expected": "allow",
+      "response_shape": "ok",
+      "silent_surfaces": [
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-303",
+      "threats": [
+        "T-78"
+      ],
+      "principal": "owner",
+      "setup": "Local and remote versions both change",
+      "scope": "sync conflict",
+      "action": "integrations.configure",
+      "surface": "api",
+      "expected": "allow",
+      "response_shape": "ok",
+      "silent_surfaces": []
+    },
+    {
+      "id": "AT-304",
+      "threats": [
+        "T-79",
+        "T-80"
+      ],
+      "principal": "owner",
+      "setup": "A provider that is not configured is requested, and a degraded provider is synced",
+      "scope": "provider state",
+      "action": "integrations.configure",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "omitted",
+      "silent_surfaces": [
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-305",
+      "threats": [
+        "T-76"
+      ],
+      "principal": "administrator",
+      "setup": "The connection owner leaves the workspace",
+      "scope": "departure",
+      "action": "integrations.configure",
+      "surface": "api",
+      "expected": "allow",
+      "response_shape": "ok",
+      "silent_surfaces": [
+        "search"
+      ]
+    },
+    {
+      "id": "AT-306",
+      "threats": [
+        "T-74"
+      ],
+      "principal": "member",
+      "setup": "An unknown connection and a hidden brand connection are requested over HTTP",
+      "scope": "connection read",
+      "action": "record.read",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "not_found",
+      "silent_surfaces": [
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-307",
+      "threats": [
+        "T-73",
+        "T-75"
+      ],
+      "principal": "owner",
+      "setup": "An owner connects with an API key in the browser and disconnects",
+      "scope": "integrations page",
+      "action": "integrations.configure",
+      "surface": "ui_record",
+      "expected": "allow",
+      "response_shape": "ok",
+      "silent_surfaces": [
+        "search"
+      ]
+    },
+    {
+      "id": "AT-308",
+      "threats": [
+        "T-73"
+      ],
+      "principal": "member",
+      "setup": "The connection list is rendered",
+      "scope": "connection list",
+      "action": "record.read",
+      "surface": "ui_record",
+      "expected": "allow",
+      "response_shape": "ok",
+      "silent_surfaces": [
+        "search",
+        "export"
+      ]
+    },
+    {
+      "id": "AT-309",
+      "threats": [
+        "T-77",
+        "T-80"
+      ],
+      "principal": "system_job",
+      "setup": "Backoff is computed for successive attempts and a scope outside the provider is refused",
+      "scope": "sync backoff",
+      "action": "integration.sync_now",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "omitted",
+      "silent_surfaces": [
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-310",
+      "threats": [
+        "T-81"
+      ],
+      "principal": "api_token_personal",
+      "setup": "Token secret shown once",
+      "scope": "own token",
+      "action": "api_tokens.personal",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "unauthenticated",
+      "silent_surfaces": [
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-311",
+      "threats": [
+        "T-81"
+      ],
+      "principal": "api_token_personal",
+      "setup": "Read token attempts a write",
+      "scope": "task",
+      "action": "record.create",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "forbidden",
+      "silent_surfaces": [
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-312",
+      "threats": [
+        "T-82"
+      ],
+      "principal": "api_token_personal",
+      "setup": "Brand-scoped token writes another brand",
+      "scope": "task in another brand",
+      "action": "record.create",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "not_found",
+      "silent_surfaces": [
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-313",
+      "threats": [
+        "T-83"
+      ],
+      "principal": "inbound_webhook",
+      "setup": "Bad signature and unknown endpoint",
+      "scope": "inbound capture",
+      "action": "record.create",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "unauthenticated",
+      "silent_surfaces": [
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-314",
+      "threats": [
+        "T-84",
+        "T-85"
+      ],
+      "principal": "member",
+      "setup": "Signed delivery retried after a server error",
+      "scope": "webhook",
+      "action": "webhook.test_send",
+      "surface": "webhook_payload",
+      "expected": "allow",
+      "response_shape": "ok",
+      "silent_surfaces": [
+        "error_message"
+      ]
     }
   ]
 }

@@ -5,13 +5,18 @@ import { ConfigError, describeConfig, loadServerConfig, Secret } from '@pm/confi
 const url = (role: string, db = 'pm_dev', extra = '') =>
   `postgres://${role}:pw_${role}@db.local:5432/${db}${extra}`;
 const strong = (role: string, env: string) =>
-  `postgres://${role}:Zq8vN3kL0pW2xR7t_${role}@db.internal:5432/pm_${env}?sslmode=verify-full`;
+  `postgres://${role}:Zq8vN3kL0pW2xR7t_${role}@db.internal:5432/pm_${env}?sslmode=verify-full`; // gitleaks:allow (synthetic)
 
+const devKey = Buffer.alloc(32, 3).toString('base64url');
 const local = {
   APP_ENV: 'local',
   DATABASE_APP_URL: url('app_rw'),
   DATABASE_WORKER_URL: url('app_worker'),
   DATABASE_DISPATCHER_URL: url('dispatcher'),
+  AUTH_SIGNING_KEY: devKey,
+  SECRET_VAULT: 'dev-database',
+  DEV_VAULT_KEY: devKey,
+  MAIL_TRANSPORT: 'capture',
 };
 const deployed = (env: string, overrides: Record<string, string> = {}) => ({
   APP_ENV: env,
@@ -51,6 +56,285 @@ describe('server configuration', () => {
     expect(Object.keys(w.database.connections).sort()).toEqual(['dispatcher', 'worker']);
   });
 
+  it('project bounds (0D PL-22): defaults, ranges, and three distinct recurrence layers', () => {
+    expect(loadServerConfig({ service: 'worker', env: local }).work).toEqual({
+      projectDepthMax: 10,
+      templateItemsMax: 500,
+      recurrenceCatchupMax: 12,
+      recurrenceWorkspaceDiscoveryMax: 200,
+      recurrenceSeriesDiscoveryMax: 50,
+      taskDepthMax: 20,
+      taskSubtreeMax: 500,
+      taskItemsMax: 200,
+      taskAssigneesMax: 20,
+      taskLabelsMax: 50,
+      brandLabelsMax: 1000,
+      taskEstimateMinutesMax: 100000,
+      pageLimitDefault: 50,
+      pageLimitMax: 200,
+      workflowStatusesMax: 50,
+      workflowTransitionsMax: 400,
+      transitionRequirementsMax: 30,
+      transitionApproversMax: 10,
+      approvalExpiryHours: 168,
+      transitionPreviewTtlSeconds: 600,
+      fieldDefinitionsMax: 200,
+      fieldOptionsMax: 200,
+      fieldSetsMax: 100,
+      fieldSetItemsMax: 100,
+      fieldTextMax: 5000,
+      fieldPatternMax: 200,
+      formulaSourceMax: 2000,
+      formulaAstNodesMax: 200,
+      formulaDepthMax: 8,
+      formulaRefsMax: 20,
+      fieldValueBulkMax: 500,
+      taskStaleActiveDays: 7,
+      taskStalePlannedDays: 14,
+      taskRescheduleCount: 3,
+      taskRescheduleWindowDays: 14,
+      taskRemindersMax: 10,
+      reminderFireBatchMax: 500,
+      taskSnoozeMaxDays: 365,
+      bulkItemsMax: 200,
+      bulkPreviewTtlSeconds: 600,
+      undoWindowSeconds: 30,
+      duplicateWindowDays: 90,
+      duplicateCandidatesMax: 5,
+      captureTextMax: 10000,
+      capturePasteLinesMax: 100,
+      captureLinksMax: 10,
+      captureFilesMax: 10,
+      captureParseTokensMax: 64,
+      captureRatePerMinute: 60,
+      triageBatchMax: 50,
+      inboxMergeMax: 20,
+      intakeFormsMax: 50,
+      intakeSubmissionsPerHour: 20,
+      queryConditionsMax: 40,
+      queryDepthMax: 3,
+      querySortsMax: 5,
+      queryValuesMax: 100,
+      queryGroupsMax: 200,
+      viewColumnsMax: 20,
+      savedViewsMax: 200,
+      viewPinsMax: 20,
+      exportRowsMax: 5000,
+      totalCountCap: 10000,
+      layoutItemsMax: 200,
+      workloadDaysMax: 366,
+      activityRecordsMax: 500,
+      availabilityWindowsMax: 28,
+      timeOffEntriesMax: 500,
+      brandHolidaysMax: 1000,
+      capacityRangeDaysMax: 93,
+      capacityPeopleMax: 100,
+      timeEntryMaxHours: 24,
+      timeTimerMaxHours: 12,
+      timeReportRangeDaysMax: 366,
+      timeReportRowsMax: 500,
+      timeExportRowsMax: 10_000,
+      timeTimesheetEntriesMax: 2000,
+      timeRunawayDiscoveryMax: 100,
+      timeRunawayBatchMax: 200,
+      todayItemsMax: 100,
+      todayListMax: 50,
+      upcomingDeadlineDays: 14,
+      workBlocksPerDayMax: 50,
+      workBlocksRangeDaysMax: 42,
+      blockSeriesMax: 50,
+      blockSeriesHorizonDays: 28,
+      dayCloseDiscoveryMax: 100,
+      dayCloseBatchMax: 200,
+      commentBodyMaxChars: 10000,
+      commentEditWindowMinutes: 1440,
+      commentMentionsMax: 20,
+      commentsPerRecordMax: 5000,
+      commentRatePerMinute: 30,
+      commentRepliesInlineMax: 20,
+      connectionsPerScopeMax: 50,
+      connectionScopesMax: 16,
+      syncBatchMax: 100,
+      syncMaxAttempts: 5,
+      syncBackoffSeconds: 30,
+      syncLeaseSeconds: 120,
+      syncHistoryRetentionDays: 90,
+      syncRatePerMinute: 30,
+      integrationLoopbackEnabled: true,
+      googleCalendarLoopbackEnabled: false,
+      followersListMax: 200,
+      reviewReviewersMax: 10,
+      notifyFanoutRecipientsMax: 500,
+      notifyDedupeWindowMinutes: 60,
+      notifyDeliveryBatchMax: 100,
+      notifyDeliveryMaxAttempts: 6,
+      notifyRetryBaseSeconds: 60,
+      notifyRetryMaxSeconds: 3600,
+      notifyDigestItemsMax: 50,
+      notifyEmailPerHourMax: 20,
+      notifyRetentionDays: 365,
+      notifyPreferencesMax: 200,
+      notifyBrowserAckTtlMinutes: 30,
+      notifySearchQueryMax: 100,
+      notifyDiscoveryMax: 100,
+      notifyBulkStateMax: 200,
+      notifyDeadlinesBatchMax: 500,
+      notifyFactsMaxBytes: 1024,
+      documentBodyMaxBytes: 262144,
+      documentBlocksMax: 2000,
+      documentBlockTextMaxChars: 20000,
+      documentTableCellsMax: 1000,
+      documentDepthMax: 6,
+      documentChildrenMax: 200,
+      documentTreeMax: 1000,
+      documentVersionsMax: 1000,
+      documentReferencesMax: 500,
+      documentSuggestionsOpenMax: 100,
+      documentExportPagesMax: 100,
+      documentExportMaxBytes: 5242880,
+      documentReviewHorizonDays: 730,
+      documentSaveRatePerMinute: 60,
+      liveEditingEnabled: 1,
+      liveSessionTtlSeconds: 45,
+      liveSessionsMax: 20,
+      liveSessionsPerMemberMax: 5,
+      liveOpsBatchMax: 50,
+      livePollWaitSeconds: 20,
+      liveOpLogMax: 2000,
+      liveRatePerMinute: 1200,
+      searchQueryMaxChars: 200,
+      searchTermsMax: 12,
+      searchPageSizeMax: 50,
+      searchResultsMax: 200,
+      searchCountMax: 1000,
+      searchSnippetChars: 220,
+      searchBodyMaxChars: 100000,
+      searchIndexBatchMax: 200,
+      searchIndexDiscoveryMax: 50,
+      searchIndexMaxAttempts: 5,
+      searchIndexBackoffSeconds: 30,
+      searchFailedRetryMinutes: 360,
+      searchRecentMax: 25,
+      searchRecentRetentionDays: 90,
+      searchRatePerMinute: 120,
+      metricsWindowDaysMax: 366,
+      metricsDefaultWindowDays: 30,
+      metricsDrillPageMax: 100,
+      metricsDrillResultsMax: 1000,
+      metricsScopeTasksMax: 20000,
+      metricsSampleMin: 5,
+      metricsRatePerMinute: 60,
+      metricsReconcileBatchMax: 500,
+      metricsReconcileDiscoveryMax: 50,
+      metricsReconcileIntervalMinutes: 360,
+      metricsReconcileLeaseSeconds: 300,
+      metricsReconcileMaxAttempts: 5,
+      metricsReconcileBackoffSeconds: 60,
+      goalsPerScopeMax: 500,
+      goalKeyResultsMax: 20,
+      goalLinksMax: 200,
+      goalUpdateStaleDays: 14,
+      goalCheckinRatePerMinute: 30,
+      portfoliosMax: 100,
+      portfolioProjectsMax: 200,
+      portfolioReadProjectsMax: 500,
+      goalsExportRowsMax: 5000,
+      goalsRecalcBatchMax: 200,
+      goalsRecalcLeaseSeconds: 300,
+      goalsRecalcIntervalMinutes: 360,
+      goalsRecalcMaxAttempts: 5,
+      dashboardsPerScopeMax: 100,
+      dashboardPersonalMax: 20,
+      dashboardWidgetsMax: 24,
+      reportsPerScopeMax: 200,
+      reportRecipientsMax: 50,
+      reportSharesMax: 100,
+      reportExportRowsMax: 5000,
+      reportEmailRowsMax: 25,
+      reportExportRatePerMinute: 20,
+      reportRunRetentionDays: 90,
+      reportBatchMax: 25,
+      reportLeaseSeconds: 300,
+      reportMaxAttempts: 5,
+      reportFreshnessMinutes: 720,
+      apiTokensPersonalMax: 25,
+      apiTokensServiceMax: 50,
+      apiReadRatePerMinute: 600,
+      apiWriteRatePerMinute: 120,
+      apiExportRatePerMinute: 20,
+      webhookSubscriptionsMax: 50,
+      webhookInboundMax: 20,
+      webhookMaxAttempts: 8,
+      webhookConcurrencyPerDestination: 4,
+      webhookBodyMaxBytes: 262144,
+      webhookDeliveryRetentionDays: 30,
+      webhookEventTypesMax: 20,
+      webhookTimestampToleranceSeconds: 300,
+      webhookDisableThreshold: 10,
+      webhookResponseTimeoutMs: 10000,
+      webhookSweepBatchMax: 25,
+      webhookAllowLoopback: true,
+      documentEmbedUrlMaxChars: 2048,
+      signedUrlLifetimeSeconds: 300,
+      uploadSessionLifetimeSeconds: 3600,
+      fileUploadMaxBytes: 104857600,
+      workspaceStorageQuotaBytes: 10737418240,
+      fileCompareMaxBytes: 262144,
+      fileScanMaxAttempts: 5,
+      fileVersionsMax: 100,
+      filesListMax: 200,
+      deliverablesPerTaskMax: 50,
+      fileDiscoveryMax: 100,
+      fileExpiryBatchMax: 200,
+    });
+    const set = (env: Record<string, string>) =>
+      loadServerConfig({ service: 'worker', env: { ...local, ...env } });
+    expect(
+      set({ RECURRENCE_WORKSPACE_DISCOVERY_MAX: '1', RECURRENCE_SERIES_DISCOVERY_MAX: '1' }).work,
+    ).toMatchObject({
+      recurrenceWorkspaceDiscoveryMax: 1,
+      recurrenceSeriesDiscoveryMax: 1,
+    });
+    expect(
+      set({ RECURRENCE_WORKSPACE_DISCOVERY_MAX: '1000', RECURRENCE_SERIES_DISCOVERY_MAX: '500' })
+        .work,
+    ).toMatchObject({
+      recurrenceWorkspaceDiscoveryMax: 1000,
+      recurrenceSeriesDiscoveryMax: 500,
+    });
+    for (const [key, bad] of [
+      ['RECURRENCE_WORKSPACE_DISCOVERY_MAX', '0'],
+      ['RECURRENCE_WORKSPACE_DISCOVERY_MAX', '1001'],
+      ['RECURRENCE_SERIES_DISCOVERY_MAX', '0'],
+      ['RECURRENCE_SERIES_DISCOVERY_MAX', '501'],
+      ['RECURRENCE_SERIES_DISCOVERY_MAX', '2.5'],
+      // 2C bounds (0D PL-25): every range edge is refused outside its registered range.
+      ['WORKFLOW_STATUSES_MAX', '1'],
+      ['APPROVAL_EXPIRY_HOURS', '2161'],
+      ['TRANSITION_PREVIEW_TTL_SECONDS', '59'],
+      ['FIELD_TEXT_MAX', '20001'],
+      ['FORMULA_DEPTH_MAX', '33'],
+      ['FORMULA_AST_NODES_MAX', '9'],
+      ['FIELD_VALUE_BULK_MAX', '0'],
+      ['UNDO_WINDOW_SECONDS', '301'],
+      ['BULK_ITEMS_MAX', '0'],
+      ['TASK_STALE_ACTIVE_DAYS', '91'],
+      ['CAPTURE_PASTE_LINES_MAX', '501'],
+      ['INBOX_MERGE_MAX', '1'],
+      ['TIME_TIMER_MAX_HOURS', '25'],
+      ['TIME_EXPORT_ROWS_MAX', '99'],
+      ['BLOCK_SERIES_HORIZON_DAYS', '181'],
+      ['TODAY_LIST_MAX', '4'],
+      ['COMMENT_EDIT_WINDOW_MINUTES', '4'],
+      ['REVIEW_REVIEWERS_MAX', '51'],
+      ['NOTIFY_RETENTION_DAYS', '29'],
+      ['NOTIFY_DELIVERY_MAX_ATTEMPTS', '21'],
+    ] as const)
+      expect(issues(() => set({ [key]: bad })).join(' '), `${key}=${bad}`).toMatch(
+        new RegExp(`^${key}`),
+      );
+  });
+
   it('rejects missing secrets and wrong identities', () => {
     expect(issues(() => loadServerConfig({ service: 'api', env: { APP_ENV: 'local' } }))).toContain(
       'DATABASE_APP_URL: required for the api process',
@@ -70,9 +354,21 @@ describe('server configuration', () => {
     ).toContain('DATABASE_WORKER_URL: must authenticate as role app_worker');
   });
 
-  it('accepts a complete production configuration', () => {
-    const c = loadServerConfig({ service: 'worker', env: deployed('production') });
-    expect(c.env).toBe('production');
+  it('a complete production configuration fails only on the identity vendors not yet approved', () => {
+    // No production secret store/KMS or mail provider is approved (DQ-28, roadmap): production
+    // must refuse to start rather than fall back to development adapters.
+    expect(
+      issues(() => loadServerConfig({ service: 'worker', env: deployed('production') })),
+    ).toEqual([
+      'SECRET_VAULT: a secret store is required for the worker process (identity secrets)',
+      'MAIL_TRANSPORT: a mail transport is required for the worker process',
+    ]);
+    expect(
+      loadServerConfig({
+        service: 'migrate',
+        env: { ...deployed('production'), DATABASE_MIGRATOR_URL: strong('migrator', 'production') },
+      }).env,
+    ).toBe('production');
   });
 
   it('rejects unsafe production defaults', () => {
@@ -185,10 +481,270 @@ describe('server configuration', () => {
     try {
       loadServerConfig({
         service: 'api',
-        env: { ...local, DATABASE_APP_URL: 'postgres://migrator:SuperSecret@h/db' },
+        env: { ...local, DATABASE_APP_URL: 'postgres://migrator:SuperSecret@h/db' }, // gitleaks:allow (synthetic)
       });
     } catch (e) {
       expect(String(e)).not.toContain('SuperSecret');
     }
+  });
+});
+
+describe('identity configuration (1B)', () => {
+  const key = Buffer.alloc(32, 9).toString('base64url');
+  const idLocal = {
+    ...local,
+    AUTH_SIGNING_KEY: key,
+    SECRET_VAULT: 'dev-database',
+    DEV_VAULT_KEY: key,
+    MAIL_TRANSPORT: 'capture',
+  };
+
+  it('requires a signing key and a secret store for identity processes', () => {
+    const { AUTH_SIGNING_KEY: _k, SECRET_VAULT: _v, ...bare } = local;
+    expect(issues(() => loadServerConfig({ service: 'api', env: bare }))).toEqual(
+      expect.arrayContaining([
+        'AUTH_SIGNING_KEY: required for the api process',
+        'SECRET_VAULT: a secret store is required for the api process (identity secrets)',
+      ]),
+    );
+    expect(loadServerConfig({ service: 'api', env: idLocal }).identity.cookieSecure).toBe(true);
+    expect(
+      issues(() =>
+        loadServerConfig({ service: 'api', env: { ...idLocal, AUTH_SIGNING_KEY: 'short' } }),
+      )[0],
+    ).toMatch(/AUTH_SIGNING_KEY: must be base64url/);
+  });
+
+  it('refuses development adapters and insecure cookies in deployed environments', () => {
+    const found = issues(() =>
+      loadServerConfig({
+        service: 'api',
+        env: deployed('production', {
+          AUTH_SIGNING_KEY: key,
+          SECRET_VAULT: 'dev-database',
+          DEV_VAULT_KEY: key,
+          MAIL_TRANSPORT: 'capture',
+          OAUTH_PROVIDERS: 'local',
+          BOT_PROTECTION: 'test',
+          COOKIE_SECURE: 'false',
+        }),
+      }),
+    );
+    expect(found).toEqual(
+      expect.arrayContaining([
+        'COOKIE_SECURE: insecure cookies are allowed only in local and test',
+        'OAUTH_PROVIDERS: the local test provider is not allowed in deployed environments',
+        'MAIL_TRANSPORT: capture is a development transport; no production mail provider is approved',
+        'SECRET_VAULT: dev-database is a development store; no secret store/KMS is approved (DQ-28)',
+        'BOT_PROTECTION: the test adapter is not allowed in deployed environments',
+      ]),
+    );
+  });
+
+  it('validates session timing and rate-limit overrides', () => {
+    expect(
+      issues(() =>
+        loadServerConfig({
+          service: 'api',
+          env: {
+            ...idLocal,
+            SESSION_IDLE_TIMEOUT_MS: '7200000',
+            SESSION_ABSOLUTE_TIMEOUT_MS: '3600000',
+          },
+        }),
+      ),
+    ).toEqual(
+      expect.arrayContaining([
+        'SESSION_IDLE_TIMEOUT_MS: must not exceed SESSION_ABSOLUTE_TIMEOUT_MS',
+      ]),
+    );
+    expect(
+      issues(() =>
+        loadServerConfig({ service: 'api', env: { ...idLocal, RATE_LIMIT_POLICIES: '{"x": 1}' } }),
+      )[0],
+    ).toMatch(/RATE_LIMIT_POLICIES/);
+    const ok = loadServerConfig({
+      service: 'api',
+      env: { ...idLocal, RATE_LIMIT_POLICIES: '{"sign_in.email":{"limit":3,"windowMs":60000}}' },
+    });
+    expect(ok.identity.rateLimitOverrides).toEqual({
+      'sign_in.email': { limit: 3, windowMs: 60000 },
+    });
+    expect(ok.identity.argon2).toEqual({
+      memoryKiB: 65536,
+      passes: 3,
+      parallelism: 1,
+      maxConcurrency: 4,
+    });
+  });
+});
+
+describe('lifecycle configuration (1F)', () => {
+  it('leaves every retention period undecided by default and validates explicit values', () => {
+    const cfg = loadServerConfig({ service: 'worker', env: local });
+    expect(cfg.lifecycle).toEqual({
+      retentionPeriodsMs: {},
+      purgeLedger: 'none',
+      purgeLedgerDir: undefined,
+    });
+    expect(cfg.features.componentHarness).toBe(false);
+    expect(cfg.audit.chainLockWaitWarnMs).toBe(250);
+    expect(
+      loadServerConfig({
+        service: 'worker',
+        env: { ...local, AUDIT_CHAIN_LOCK_WAIT_WARN_MS: '50' },
+      }).audit.chainLockWaitWarnMs,
+    ).toBe(50);
+    expect(
+      issues(() =>
+        loadServerConfig({
+          service: 'worker',
+          env: { ...local, AUDIT_CHAIN_LOCK_WAIT_WARN_MS: '0' },
+        }),
+      )[0],
+    ).toMatch(/AUDIT_CHAIN_LOCK_WAIT_WARN_MS/);
+    const set = loadServerConfig({
+      service: 'worker',
+      env: { ...local, RETENTION_PERIODS: '{"R-LIVE": 3600000}' },
+    });
+    expect(set.lifecycle.retentionPeriodsMs).toEqual({ 'R-LIVE': 3600000 });
+    for (const bad of [
+      '{"R-UNKNOWN": 3600000}',
+      '{"R-LIVE": 5}',
+      '{"R-LIVE": "30 days"}',
+      'not json',
+    ])
+      expect(
+        issues(() =>
+          loadServerConfig({ service: 'worker', env: { ...local, RETENTION_PERIODS: bad } }),
+        )[0],
+        bad,
+      ).toMatch(/RETENTION_PERIODS/);
+  });
+
+  it('refuses the local purge ledger and the component harness in deployed environments', () => {
+    const found = issues(() =>
+      loadServerConfig({
+        service: 'worker',
+        env: deployed('staging', {
+          PURGE_LEDGER: 'local',
+          PURGE_LEDGER_DIR: '/tmp/l',
+          COMPONENT_HARNESS: 'true',
+        }),
+      }),
+    );
+    expect(found).toEqual(
+      expect.arrayContaining([
+        'PURGE_LEDGER: the local ledger is a development adapter; no ledger store is approved',
+        'COMPONENT_HARNESS: the component harness is allowed only in local and test',
+      ]),
+    );
+    expect(
+      issues(() =>
+        loadServerConfig({ service: 'worker', env: { ...local, PURGE_LEDGER: 'local' } }),
+      ),
+    ).toContain('PURGE_LEDGER_DIR: required with the local purge ledger');
+  });
+
+  it('configures files storage and scanning (4E), refusing dev adapters when deployed', () => {
+    const base = loadServerConfig({ service: 'api', env: local });
+    expect(base.files).toEqual({ storage: { provider: 'none' }, scanner: { provider: 'none' } });
+
+    const l = loadServerConfig({
+      service: 'api',
+      env: {
+        ...local,
+        OBJECT_STORAGE: 'local',
+        OBJECT_STORAGE_LOCAL_DIR: '/tmp/objects',
+        OBJECT_STORAGE_LOCAL_SECRET: devKey,
+        MALWARE_SCANNER: 'test-signature',
+      },
+    });
+    expect(l.files.storage).toMatchObject({
+      provider: 'local',
+      dir: '/tmp/objects',
+      publicBaseUrl: 'http://127.0.0.1:3000',
+    });
+    expect(l.files.scanner).toEqual({ provider: 'test-signature' });
+    expect(JSON.stringify(describeConfig(l))).not.toContain(devKey);
+    expect(
+      issues(() =>
+        loadServerConfig({ service: 'api', env: { ...local, OBJECT_STORAGE: 'local' } }),
+      ),
+    ).toEqual(
+      expect.arrayContaining([
+        'OBJECT_STORAGE_LOCAL_DIR: required with local object storage',
+        'OBJECT_STORAGE_LOCAL_SECRET: required with local object storage',
+      ]),
+    );
+
+    const s3 = loadServerConfig({
+      service: 'api',
+      env: {
+        ...local,
+        OBJECT_STORAGE: 's3',
+        OBJECT_STORAGE_BUCKET: 'pm-staging-files',
+        OBJECT_STORAGE_REGION: 'eu-west-1',
+        OBJECT_STORAGE_ACCESS_KEY_ID: 'AKIDEXAMPLE',
+        OBJECT_STORAGE_SECRET_ACCESS_KEY: 'very-secret-value', // gitleaks:allow (synthetic)
+        MALWARE_SCANNER: 'clamav',
+        CLAMAV_HOST: 'clamd.internal',
+      },
+    });
+    expect(s3.files.storage).toMatchObject({
+      provider: 's3',
+      bucket: 'pm-staging-files',
+      region: 'eu-west-1',
+      endpoint: undefined,
+      forcePathStyle: false,
+    });
+    if (s3.files.storage.provider !== 's3') throw new Error('expected s3');
+    expect(s3.files.storage.secretAccessKey.reveal()).toBe('very-secret-value');
+    expect(JSON.stringify(describeConfig(s3))).not.toContain('very-secret-value');
+    expect(s3.files.scanner).toEqual({
+      provider: 'clamav',
+      host: 'clamd.internal',
+      port: 3310,
+      timeoutMs: 30000,
+    });
+
+    const refused = issues(() =>
+      loadServerConfig({
+        service: 'worker',
+        env: deployed('production', {
+          OBJECT_STORAGE: 'local',
+          OBJECT_STORAGE_LOCAL_DIR: '/tmp/o',
+          OBJECT_STORAGE_LOCAL_SECRET: devKey,
+          MALWARE_SCANNER: 'test-signature',
+        }),
+      }),
+    );
+    expect(refused).toEqual(
+      expect.arrayContaining([
+        'OBJECT_STORAGE: local is a development adapter; refused in deployed environments',
+        'MALWARE_SCANNER: test-signature is a development adapter; refused in deployed environments',
+      ]),
+    );
+    expect(
+      issues(() =>
+        loadServerConfig({
+          service: 'worker',
+          env: deployed('staging', {
+            OBJECT_STORAGE: 's3',
+            OBJECT_STORAGE_ENDPOINT: 'http://minio.internal:9000',
+            MALWARE_SCANNER: 'clamav',
+          }),
+        }),
+      ),
+    ).toEqual(
+      expect.arrayContaining([
+        'OBJECT_STORAGE_BUCKET: required with s3 object storage',
+        'OBJECT_STORAGE_REGION: required with s3 object storage',
+        'OBJECT_STORAGE_ACCESS_KEY_ID: required with s3 object storage',
+        'OBJECT_STORAGE_SECRET_ACCESS_KEY: required with s3 object storage',
+        'OBJECT_STORAGE_ENDPOINT: must use https in deployed environments',
+        'CLAMAV_HOST: required with the clamav malware scanner',
+      ]),
+    );
   });
 });

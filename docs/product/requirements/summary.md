@@ -15,7 +15,7 @@
 
 | Prefix | Section | Count | Owning sub-phases |
 |---|---|---|---|
-| WSB | Workspace and brands | 19 | 1C (11), 3E (2), 1E (1), 3A (1), 4B (1), 5D (1), 6A (1), 7A (1) |
+| WSB | Workspace and brands | 19 | 1C (10), 3E (2), 1E (1), 2A (1), 3A (1), 4B (1), 5D (1), 6A (1), 7A (1) |
 | NAV | Navigation and personal workspace | 14 | 1E (9), 3B (2), 5D (2), 4A (1) |
 | CAP | Inbox and capture | 16 | 2E (14), 6B (1), 7F (1) |
 | PRJ | Projects | 28 | 2A (19), 1D (2), 2C (1), 2E (1), 3D (1), 4A (1), 4E (1), 6D (1), 7C (1) |
@@ -64,11 +64,11 @@ Owned = requirements whose owning sub-phase this is. Contributing = requirements
 | 0E | UX foundation | 1 | 19 |
 | 1A | Repository, environments, and delivery pipeline | 9 | 4 |
 | 1B | Identity and sessions | 8 | 0 |
-| 1C | Workspaces, brands, and tenant isolation | 13 | 8 |
-| 1D | Membership, roles, and invitations | 14 | 6 |
+| 1C | Workspaces, brands, and tenant isolation | 12 | 8 |
+| 1D | Membership, roles, and invitations | 14 | 7 |
 | 1E | Application shell and personal navigation | 10 | 9 |
 | 1F | Audit, deletion, and recovery primitives | 11 | 14 |
-| 2A | Projects and hierarchy | 19 | 8 |
+| 2A | Projects and hierarchy | 20 | 8 |
 | 2B | Tasks and relationships | 19 | 5 |
 | 2C | Configurable workflows and fields | 17 | 3 |
 | 2D | Task interaction quality | 15 | 2 |
@@ -113,7 +113,7 @@ Owned = requirements whose owning sub-phase this is. Contributing = requirements
 | 10D | Support and public information | 15 | 5 |
 | 11A | Requirements closure audit | 0 | 0 |
 | 11B | Security and privacy verification | 4 | 18 |
-| 11C | Reliability and recovery | 8 | 11 |
+| 11C | Reliability and recovery | 8 | 12 |
 | 11D | Performance and scale | 3 | 1 |
 | 11E | Accessibility and internationalization | 13 | 4 |
 | 11F | Operational readiness | 3 | 1 |
@@ -245,7 +245,7 @@ Concern tags were seeded by keyword and section rules, then reviewed; they mark 
 
 | ID | Requirement | Note | Decision |
 |---|---|---|---|
-| WSB-008 | Share selected records across brands | Which record types are shareable and which access levels a share can grant. | [OD-04](../open-decisions.md#od-04) |
+| WSB-008 | Share selected records across brands | Resolved by OD-04: record types are non-shareable unless their owning phase registers them; levels are view, comment, or edit, capped by the module and the sharer; shares never permit onward sharing and cover only explicitly selected records. | [OD-04](../open-decisions.md#od-04) |
 | WSB-016 | Show an owner dashboard across all authorized brands | How restricted/sensitive brands appear in all-brands aggregation for users with partial access. | [OD-07](../open-decisions.md#od-07) |
 | CAP-007 | Capture tasks through a shareable intake form | Intake forms may accept submissions from unauthenticated people; identity, abuse, and brand routing rules are undefined. | [OD-28](../open-decisions.md#od-28) |
 | CAP-011 | Save incomplete items to Inbox without requiring configuration | Inbox items are personal and may lack a brand until triage; confirm that unbranded Inbox items are acceptable under WSB-007. | [OD-03](../open-decisions.md#od-03) |
@@ -303,7 +303,7 @@ Concern tags were seeded by keyword and section rules, then reviewed; they mark 
 
 | ID | Requirement | Note | Decision |
 |---|---|---|---|
-| WSB-008 | Share selected records across brands | Cross-brand sharing is defined by 0B/0C but no implementation sub-phase names it; provisionally owned by 1C. | [OD-04](../open-decisions.md#od-04) |
+| WSB-008 | Share selected records across brands | Resolved by OD-04 (architect decision, Phase 1 integration review): owned by 2A, the first user-facing sharing (projects); 1D provides the generic exact-record-grant foundation. Previously provisional in 1C. | [OD-04](../open-decisions.md#od-04) |
 | WSB-012 | Configure brand-specific AI instructions, terminology, audience, voice, and approved sources | Brand AI configuration is not named in 1C; provisionally owned by 7A. |  |
 | CAP-005 | Capture tasks from voice transcription | Voice transcription is needed by 7F and 9B; no sub-phase owns the shared transcription capability. |  |
 | CAP-006 | Capture tasks by forwarding email | Inbound email capture is not named in 2E or 6A; owner assigned provisionally to 2E. | [OD-29](../open-decisions.md#od-29) |

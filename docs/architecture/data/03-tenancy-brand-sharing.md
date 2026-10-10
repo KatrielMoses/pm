@@ -114,9 +114,13 @@ A move is a `core.brand_move` operation (extends `execution.operation`) that run
 4. Re-validate associations. Links the actor could not create in the target are recorded in `dropped_associations` and removed (with audit), or kept if still valid. Grants stay, with `source_brand_id` updated, and their audit records the change.
 5. Emit `record.moved_brand` with old and new brand. Search, metrics, and notification projections re-key. Audit events written **before** the move keep the old `brand_id` (history is not rewritten).
 
+Brand status is not lifecycle: a brand's `operational_status` (`operating`, `paused`, `planned`) is business metadata. Archiving, trashing, and purging a brand use the envelope's `lifecycle_state` like every other record ([ADR-19](12-decisions.md#adr-19)).
+
 ## 3.8 Personal records
 
 Personal rows (`today_commitment`, `notification`, `view_state`, `favorite`, `recent_item`, `work_block`, `availability_rule`, `time_off`, `reminder`, `briefing`, `inbox_item`) are filtered by `owner_membership_id = :me` in addition to workspace. When they reference brand-owned records, the reference never grants access, and lists drop referenced records the owner can no longer read. A Today commitment to a task whose access was revoked disappears from Today, and the row stays for the daily record.
+
+Phase 1E makes this concrete for `favorite`, `recent_item`, and `view_state` ([ADR-20](12-decisions.md#adr-20)). Entries are re-authorized at display and activation and dropped silently when unreadable. A URL or stored scope naming a brand the viewer cannot access is normalized server-side to an accessible scope, never broadened.
 
 ## 3.9 Guests
 

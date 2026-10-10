@@ -135,6 +135,30 @@ describe('process smoke: web/API and worker entrypoints', () => {
     expect(hc.status).toBe(0);
   });
 
+  it('starts the worker without a signing key, which only the web/API process needs', async () => {
+    const { AUTH_SIGNING_KEY: _omitted, ...rest } = env;
+    const bare = {
+      ...rest,
+      WORKER_HEALTH_FILE: join(mkdtempSync(join(tmpdir(), 'pm-smoke-nokey-')), 'health'),
+    };
+    const p = run('worker', bare);
+    try {
+      // Healthy means the runtime started: the report service is built at startup, so a missing
+      // key must not stop it (the image runs the worker without one).
+      await waitFor(async () =>
+        spawnSync(process.execPath, entry('worker', 'healthcheck'), { env: bare, cwd: ROOT })
+          .status === 0
+          ? true
+          : undefined,
+      );
+      expect(p.out.some((l) => l.includes('worker.start_failed'))).toBe(false);
+      expect(p.child.exitCode).toBeNull();
+    } finally {
+      p.child.kill('SIGTERM');
+      await p.exited;
+    }
+  });
+
   it('starts the web/API process and becomes ready once the dispatcher is alive', async () => {
     api = run('api', env);
     const live = await waitFor(async () => {
@@ -151,6 +175,9 @@ describe('process smoke: web/API and worker entrypoints', () => {
       migrations: 'ok',
       dispatcher: 'ok',
       object_storage: 'not_configured',
+      email_delivery: 'ok',
+      recovery_gate: 'ok',
+      tenant_isolation: 'ok',
     });
     const status = (await (await fetch(`${base}/v1/status`)).json()) as { data: unknown };
     expect(status.data).toMatchObject({

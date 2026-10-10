@@ -1,0 +1,551 @@
+{
+  "schema_version": 1,
+  "phase": "3B",
+  "status": "candidate",
+  "adr": "0020",
+  "accepted_by_kinds": {
+    "catalog:contributing": "the subphase is a contributing_subphase of the requirement in the accepted 0A catalog",
+    "roadmap:<sub>": "the BUILD_ROADMAP subphase scope",
+    "adr:<nnnn>[#row]": "an engineering ADR row naming the subphase (proposed ADRs are allowed only while the closure status is candidate)",
+    "requirement:<ID>": "the requirement that owns the capability (its owner_subphase)"
+  },
+  "requirements": [
+    {
+      "id": "NAV-004",
+      "role": "owned",
+      "disposition": "implemented",
+      "evidence": [
+        {
+          "file": "apps/web/src/pages/view-pages.tsx",
+          "contains": "export function MyWorkPage("
+        },
+        {
+          "file": "e2e/core-views.spec.ts",
+          "contains": "My Work"
+        }
+      ],
+      "note": "My Work: open tasks assigned to me, over the engine, in any task layout."
+    },
+    {
+      "id": "NAV-005",
+      "role": "owned",
+      "disposition": "implemented",
+      "evidence": [
+        {
+          "file": "apps/web/src/pages/view-pages.tsx",
+          "contains": "label: 'Assigned by me'"
+        },
+        {
+          "file": "packages/work/src/views/compile.ts",
+          "contains": "a.membership_id <> a.assigned_by_membership_id"
+        }
+      ],
+      "note": "Assigned by Me tab: tasks I assigned to others."
+    },
+    {
+      "id": "VIEW-001",
+      "role": "owned",
+      "disposition": "implemented",
+      "evidence": [
+        {
+          "file": "apps/web/src/views/layouts.tsx",
+          "contains": "export function ListLayout("
+        },
+        {
+          "file": "e2e/core-views.spec.ts",
+          "contains": "list layout"
+        }
+      ],
+      "note": "List (RS-50)."
+    },
+    {
+      "id": "VIEW-002",
+      "role": "owned",
+      "disposition": "implemented",
+      "evidence": [
+        {
+          "file": "apps/web/src/views/layouts.tsx",
+          "contains": "export function BoardLayout("
+        },
+        {
+          "file": "e2e/core-views.spec.ts",
+          "contains": "Book venue moved to In progress."
+        }
+      ],
+      "note": "Board with workflow-gated moves and Move to… (RS-51)."
+    },
+    {
+      "id": "VIEW-003",
+      "role": "owned",
+      "disposition": "implemented",
+      "evidence": [
+        {
+          "file": "apps/web/src/views/layouts.tsx",
+          "contains": "export function CalendarLayout("
+        },
+        {
+          "file": "e2e/core-views.spec.ts",
+          "contains": "calendar agenda"
+        }
+      ],
+      "enriched_by": [
+        "6C"
+      ],
+      "accepted_by": [
+        "catalog:contributing"
+      ],
+      "note": "Calendar of tasks, deadlines, and milestones; external events enrich it in 6C."
+    },
+    {
+      "id": "VIEW-004",
+      "role": "owned",
+      "disposition": "implemented",
+      "evidence": [
+        {
+          "file": "apps/web/src/views/layouts.tsx",
+          "contains": "export function TimelineLayout("
+        },
+        {
+          "file": "e2e/core-views.spec.ts",
+          "contains": "timeline layout"
+        }
+      ],
+      "note": "Timeline per OD-12 (bars, zoom, no arrows)."
+    },
+    {
+      "id": "VIEW-005",
+      "role": "owned",
+      "disposition": "implemented",
+      "evidence": [
+        {
+          "file": "apps/web/src/views/layouts.tsx",
+          "contains": "Dependency-aware rescheduling (OD-12)"
+        },
+        {
+          "file": "packages/work/test/integration/layouts.test.ts",
+          "contains": "Gantt arrows connect only tasks both returned by the view"
+        }
+      ],
+      "enriched_by": [
+        "5C"
+      ],
+      "accepted_by": [
+        "adr:0020#B4"
+      ],
+      "note": "Gantt: dependency arrows and explicit dependency-aware rescheduling; baseline versus actual in 5C."
+    },
+    {
+      "id": "VIEW-006",
+      "role": "owned",
+      "disposition": "implemented",
+      "evidence": [
+        {
+          "file": "apps/web/src/pages/view-pages.tsx",
+          "contains": "frozen-first"
+        },
+        {
+          "file": "e2e/core-views.spec.ts",
+          "contains": "columnheader', { name: 'Title' }"
+        }
+      ],
+      "note": "Table with a frozen first column."
+    },
+    {
+      "id": "VIEW-007",
+      "role": "owned",
+      "disposition": "implemented",
+      "evidence": [
+        {
+          "file": "packages/work/src/views/layout-service.ts",
+          "contains": "async workload("
+        },
+        {
+          "file": "packages/work/test/integration/layouts.test.ts",
+          "contains": "workload sums only the tasks the person can read"
+        }
+      ],
+      "enriched_by": [
+        "3E"
+      ],
+      "accepted_by": [
+        "catalog:contributing"
+      ],
+      "note": "Workload by person and period; capacity in 3E."
+    },
+    {
+      "id": "VIEW-008",
+      "role": "owned",
+      "disposition": "implemented",
+      "evidence": [
+        {
+          "file": "apps/web/src/views/layouts.tsx",
+          "contains": "export function MilestonesLayout("
+        },
+        {
+          "file": "packages/work/src/views/layout-service.ts",
+          "contains": "async milestones("
+        }
+      ],
+      "note": "Milestone view of returned projects."
+    },
+    {
+      "id": "VIEW-009",
+      "role": "owned",
+      "disposition": "implemented",
+      "evidence": [
+        {
+          "file": "apps/web/src/views/layouts.tsx",
+          "contains": "export function PortfolioLayout("
+        },
+        {
+          "file": "packages/work/src/views/layout-service.ts",
+          "contains": "async progress("
+        }
+      ],
+      "enriched_by": [
+        "5B"
+      ],
+      "accepted_by": [
+        "catalog:contributing"
+      ],
+      "note": "Portfolio with health and OD-13 progress; goals and portfolios enrich it in 5B."
+    },
+    {
+      "id": "VIEW-010",
+      "role": "owned",
+      "disposition": "implemented",
+      "evidence": [
+        {
+          "file": "packages/work/src/views/layout-service.ts",
+          "contains": "async activity("
+        },
+        {
+          "file": "packages/work/test/integration/layouts.test.ts",
+          "contains": "activity: records the view returns, outside shares"
+        }
+      ],
+      "enriched_by": [
+        "4A"
+      ],
+      "accepted_by": [
+        "catalog:contributing"
+      ],
+      "note": "Activity of returned records with filters; comments and following enrich it in 4A."
+    },
+    {
+      "id": "VIEW-011",
+      "role": "owned",
+      "disposition": "implemented",
+      "evidence": [
+        {
+          "file": "apps/web/src/views/layouts.tsx",
+          "contains": "export function TimesheetLayout("
+        },
+        {
+          "file": "packages/work/test/integration/layouts.test.ts",
+          "contains": "the timesheet layout shows only the caller"
+        }
+      ],
+      "note": "Timesheet layout over 3D entries."
+    },
+    {
+      "id": "VIEW-021",
+      "role": "owned",
+      "disposition": "implemented",
+      "evidence": [
+        {
+          "file": "apps/web/src/styles.css",
+          "contains": ".density-compact .board-card"
+        },
+        {
+          "file": "e2e/core-views.spec.ts",
+          "contains": "Board"
+        }
+      ],
+      "note": "Comfortable and compact density across layouts."
+    },
+    {
+      "id": "VIEW-023",
+      "role": "owned",
+      "disposition": "implemented",
+      "evidence": [
+        {
+          "file": "apps/web/src/views/layouts.tsx",
+          "contains": "export function DetailPanel("
+        },
+        {
+          "file": "e2e/core-views.spec.ts",
+          "contains": "detail panel"
+        }
+      ],
+      "note": "Detail panel over the view (item=), full page on Compact."
+    },
+    {
+      "id": "CAL-001",
+      "role": "owned",
+      "disposition": "implemented",
+      "evidence": [
+        {
+          "file": "apps/web/src/views/layouts.tsx",
+          "contains": "export function calendarWindow("
+        },
+        {
+          "file": "e2e/core-views.spec.ts",
+          "contains": "selectOption('agenda')"
+        }
+      ],
+      "note": "Day, week, month, agenda."
+    },
+    {
+      "id": "CAL-002",
+      "role": "owned",
+      "disposition": "implemented",
+      "evidence": [
+        {
+          "file": "apps/web/src/views/layouts.tsx",
+          "contains": "kind: 'Milestone'"
+        },
+        {
+          "file": "e2e/core-views.spec.ts",
+          "contains": "Design banner, deadline"
+        }
+      ],
+      "enriched_by": [
+        "6C"
+      ],
+      "accepted_by": [
+        "catalog:contributing"
+      ],
+      "note": "Tasks, milestones, and deadlines; external calendar events in 6C."
+    },
+    {
+      "id": "CAL-003",
+      "role": "owned",
+      "disposition": "implemented",
+      "evidence": [
+        {
+          "file": "apps/web/src/views/layouts.tsx",
+          "contains": "CAL-003: schedule a task as a 3C work block without dragging"
+        },
+        {
+          "file": "apps/web/test/calendar.test.tsx",
+          "contains": "schedules a task from its calendar day by keyboard, without changing its dates"
+        }
+      ],
+      "note": "Completed at the Phase 3 integration review: Schedule… on a calendar task creates a 3C work block (the keyboard equivalent of dragging); no date mutation."
+    },
+    {
+      "id": "CAL-004",
+      "role": "owned",
+      "disposition": "implemented",
+      "evidence": [
+        {
+          "file": "apps/web/src/pages/today-pages.tsx",
+          "contains": "CAL-004: change the length without dragging"
+        },
+        {
+          "file": "apps/web/test/today.test.tsx",
+          "contains": "resizes a block by keyboard in 15-minute steps without changing its start (CAL-004)"
+        },
+        {
+          "file": "packages/work/src/planning/today-service.ts",
+          "contains": "Moves or resizes a block"
+        }
+      ],
+      "note": "Completed at the Phase 3 integration review: Today resizes a scheduled block in 15-minute steps (Shorter/Longer) through the 3C block update; no date mutation."
+    },
+    {
+      "id": "NAV-006",
+      "role": "contributing",
+      "disposition": "contributed",
+      "contribution": "3B",
+      "evidence": [
+        {
+          "file": "apps/web/src/collab/my-work.tsx",
+          "contains": "Following"
+        }
+      ],
+      "note": "My Work's Following tab was reserved in 3B and is implemented by 4A (ADR-0023 D1)."
+    },
+    {
+      "id": "PRJ-019",
+      "role": "contributing",
+      "disposition": "contributed",
+      "contribution": "3B",
+      "evidence": [
+        {
+          "file": "apps/web/src/pages/view-pages.tsx",
+          "contains": "export function CalendarPage("
+        }
+      ],
+      "note": "Timeline, calendar, and board renderings any project filter can use."
+    },
+    {
+      "id": "TSK-036",
+      "role": "contributing",
+      "disposition": "contributed",
+      "contribution": "3B",
+      "evidence": [
+        {
+          "file": "apps/web/src/views/layouts.tsx",
+          "contains": "transitions.apply("
+        }
+      ],
+      "note": "Board status changes through canonical transitions (drag and Move to…)."
+    },
+    {
+      "id": "TIME-009",
+      "role": "contributing",
+      "disposition": "contributed",
+      "contribution": "3B",
+      "evidence": [
+        {
+          "file": "packages/work/src/views/layout-service.ts",
+          "contains": "bucket !== 'day' && bucket !== 'week' && bucket !== 'month'"
+        }
+      ],
+      "note": "Workload by day, week, and month."
+    },
+    {
+      "id": "AUD-005",
+      "role": "contributing",
+      "disposition": "contributed",
+      "contribution": "3B",
+      "evidence": [
+        {
+          "file": "packages/work/src/views/layout-service.ts",
+          "contains": "ACTOR_TYPES"
+        }
+      ],
+      "note": "Activity filters by record set (brand, project, record via the query), person, actor type, and action family."
+    }
+  ],
+  "decisions": [
+    {
+      "id": "D1",
+      "title": "Use the canonical 3A engine; no per-view rules",
+      "adr_row": "B1",
+      "sources": [
+        {
+          "file": "docs/architecture/access/15-decisions.md",
+          "contains": "AZ-28"
+        }
+      ],
+      "evidence": [
+        {
+          "file": "packages/work/src/views/layout-service.ts",
+          "contains": "compileQuery"
+        },
+        {
+          "file": "docs/engineering/adr/0020-core-views.md",
+          "contains": "| B1 |"
+        }
+      ]
+    },
+    {
+      "id": "D2",
+      "title": "Accessible responsive views, state, deep links, keyboard, zoom, forced colours, reduced motion, axe",
+      "adr_row": "B9",
+      "sources": [
+        {
+          "file": "docs/ux/04-responsive-shell.md",
+          "contains": "RS-20"
+        }
+      ],
+      "evidence": [
+        {
+          "file": "e2e/core-views.spec.ts",
+          "contains": "board, forced colours"
+        },
+        {
+          "file": "docs/engineering/adr/0020-core-views.md",
+          "contains": "| B9 |"
+        }
+      ]
+    },
+    {
+      "id": "D3",
+      "title": "3C time semantics and 3D time data without building 3C/3E; honest deferrals",
+      "adr_row": "B3",
+      "sources": [
+        {
+          "file": "docs/product/open-decisions.md",
+          "contains": "Scheduled time"
+        }
+      ],
+      "evidence": [
+        {
+          "file": "packages/work/src/views/layout-service.ts",
+          "contains": "capacity: null as 'per_person' | null"
+        },
+        {
+          "file": "docs/engineering/adr/0020-core-views.md",
+          "contains": "| B3 |"
+        }
+      ]
+    },
+    {
+      "id": "D4",
+      "title": "Board moves through transitions, gates, versions, audit; per-item failures; no deadline mutation",
+      "adr_row": "B2",
+      "sources": [
+        {
+          "file": "docs/architecture/access/15-decisions.md",
+          "contains": "Board status moves preview and apply"
+        }
+      ],
+      "evidence": [
+        {
+          "file": "apps/web/src/views/layouts.tsx",
+          "contains": "Not moved: this change"
+        },
+        {
+          "file": "docs/engineering/adr/0020-core-views.md",
+          "contains": "| B2 |"
+        }
+      ]
+    },
+    {
+      "id": "D5",
+      "title": "Resolve open view decisions; update 0B/0C/0D/0E, ADR, contracts, closure, validators; migration 0033",
+      "adr_row": "B4",
+      "sources": [
+        {
+          "file": "docs/product/open-decisions.md",
+          "contains": "Decided (Phase 3B"
+        }
+      ],
+      "evidence": [
+        {
+          "file": "packages/db/migrations/0033_core_view_layouts.down.sql",
+          "contains": "Restores the exact 0032 catalog"
+        },
+        {
+          "file": "docs/engineering/adr/0020-core-views.md",
+          "contains": "| B4 |"
+        }
+      ]
+    },
+    {
+      "id": "D6",
+      "title": "Unit, integration, authorization, concurrency, API, and browser tests; public identifiers",
+      "adr_row": "B10",
+      "sources": [
+        {
+          "file": "docs/architecture/access/policy/threats.json",
+          "contains": "T-46"
+        }
+      ],
+      "evidence": [
+        {
+          "file": "packages/work/test/integration/layouts.test.ts",
+          "contains": "group keys and every layout read carry public identifiers only"
+        },
+        {
+          "file": "docs/engineering/adr/0020-core-views.md",
+          "contains": "| B10 |"
+        }
+      ]
+    }
+  ]
+}

@@ -1,6 +1,6 @@
 # Canonical glossary
 
-Status: proposed (Phase 0A), awaiting architect review.
+Status: accepted (Phase 0A, P0-W1; Phase 0 exit gate P0-IR1).
 
 These are the canonical product terms for UI copy, API names, documentation, briefs, and tests. Where a FEATURES.md phrase uses a synonym, the canonical term is listed and the synonym is mapped. Scope rules are specified in [hierarchy-and-scope.md](hierarchy-and-scope.md), states in [lifecycle-and-states.md](lifecycle-and-states.md), time terms in [time-and-scheduling.md](time-and-scheduling.md), and removal terms in [deletion-retention-history.md](deletion-retention-history.md).
 

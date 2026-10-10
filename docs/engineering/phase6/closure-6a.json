@@ -1,0 +1,13 @@
+{
+  "phase": "6A",
+  "title": "Integration framework",
+  "adr": "docs/engineering/adr/0032-integration-framework.md",
+  "migration": "0045_integration_framework",
+  "owned": ["INT-001", "INT-002", "INT-003", "INT-004", "INT-005", "INT-006", "INT-007", "INT-008", "INT-009", "INT-023", "INT-024", "INT-025", "WSB-013", "PERM-009"],
+  "deferred": [
+    {"id": "CAP-006", "reason": "OD-29 email forwarding is still open; email_inbound is listed as not configured"},
+    {"id": "INT-010", "reason": "6B inbound webhooks"},
+    {"id": "INT-026", "reason": "6C Google Calendar"}
+  ],
+  "decisions": ["D1", "D2", "D3", "D4", "D5", "D6", "D7", "D8", "D9", "D10", "D11", "D12"]
+}

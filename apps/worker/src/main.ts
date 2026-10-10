@@ -2,11 +2,35 @@
 // Same artifact as the web/API process; no public ingress.
 import { writeFileSync } from 'node:fs';
 import { loadLocalDotEnv, loadServerConfig } from '@pm/config';
-import { assertApplicationIdentity, createPool, PlatformDiscovery, TenantDatabase } from '@pm/db';
+import {
+  assertApplicationIdentity,
+  createPool,
+  PlatformDatabase,
+  PlatformDiscovery,
+  TenantDatabase,
+} from '@pm/db';
+import { CaptureTransport, createVault } from '@pm/identity';
+import { PUBLIC_CONFIG } from '@pm/config/public';
 import { createLogger, errorFields, initTelemetry, LogErrorReporter } from '@pm/observability';
-import { WorkerRuntime } from '@pm/platform';
+import { AuditWriter } from '@pm/audit';
+import {
+  createPurgeLedger,
+  LifecycleService,
+  PurgeExecutor,
+  readRecoveryGate,
+  RetentionPolicy,
+} from '@pm/lifecycle';
+import { SYSTEM_PRINCIPAL, WorkerRuntime } from '@pm/platform';
+import { tenancyBrandPort } from '@pm/tenancy';
+import {
+  createMalwareScanner,
+  createObjectStorage,
+  createWorkService,
+  emailProviderFrom,
+  productLifecycleRegistry,
+} from '@pm/work';
 import { HEALTH_FILE } from './health-file.ts';
-import { registeredConsumers, registeredHandlers } from './registry.ts';
+import { registeredConsumers, registeredHandlers, registeredSchedules } from './registry.ts';
 
 async function main(): Promise<void> {
   loadLocalDotEnv();
@@ -38,11 +62,156 @@ async function main(): Promise<void> {
   await assertApplicationIdentity(dispatcherPool, config.env);
 
   const errors = new LogErrorReporter(logger);
+  const platformDb = new PlatformDatabase(workerPool, deps);
+  // A restored environment stays closed until purge-ledger replay completes (0B §8.11).
+  const gate = await readRecoveryGate(platformDb);
+  if (gate.state !== 'open') throw new Error('recovery gate closed: purge-ledger replay required');
+  if (config.identity.mailTransport !== 'capture') throw new Error('no mail transport configured');
+  const identityDeps = {
+    db: platformDb,
+    config: config.identity,
+    vault: createVault(config.identity),
+    transport: new CaptureTransport(config.identity.mailCaptureDir),
+    appName: PUBLIC_CONFIG.appName,
+    logger,
+    metrics: telemetry.metrics,
+  };
+  const tenantDb = new TenantDatabase(workerPool, deps);
+  const discovery = new PlatformDiscovery(dispatcherPool);
+  // Record types register their containment and purge hooks in their owning phases: brands (1C)
+  // containment only (a brand purge blocks safely), projects and their structures (2A) with hooks.
+  const lifecycle = new LifecycleService({
+    registry: productLifecycleRegistry(),
+    brands: tenancyBrandPort,
+    writer: new AuditWriter({
+      module: 'lifecycle',
+      logger,
+      metrics: telemetry.metrics,
+      lockWaitWarnMs: config.audit.chainLockWaitWarnMs,
+    }),
+    retention: new RetentionPolicy(config.lifecycle),
+    metrics: telemetry.metrics,
+    logger,
+  });
+  // 5D: the same service the API runs renders scheduled reports as each recipient. The worker
+  // never signs anyone in, so every identity capability it is handed refuses.
+  const noIdentity = new Proxy(
+    {},
+    {
+      get: (_t, name) => () => {
+        throw new Error(`identity.${String(name)} is not available in the worker`);
+      },
+    },
+  ) as Parameters<typeof createWorkService>[0]['identity'];
+  const reportService = createWorkService({
+    tenant: tenantDb,
+    platform: platformDb,
+    identity: noIdentity,
+    config,
+    logger,
+    metrics: telemetry.metrics,
+    ephemeralSigningKey: true,
+  });
   const runtime = new WorkerRuntime({
-    db: new TenantDatabase(workerPool, deps),
-    discovery: new PlatformDiscovery(dispatcherPool),
-    handlers: registeredHandlers(),
-    consumers: registeredConsumers(),
+    db: tenantDb,
+    discovery,
+    platformDb,
+    handlers: registeredHandlers({
+      identity: identityDeps,
+      audit: {
+        tenant: tenantDb,
+        platform: platformDb,
+        discovery,
+        metrics: telemetry.metrics,
+        logger,
+      },
+      lifecycle: {
+        executor: new PurgeExecutor(lifecycle, createPurgeLedger(config.lifecycle)),
+        scheduler: {
+          svc: lifecycle,
+          tenant: tenantDb,
+          discovery,
+          systemPrincipalId: SYSTEM_PRINCIPAL.id,
+        },
+      },
+      views: {
+        tenant: tenantDb,
+        discovery,
+        retention: lifecycle.deps.retention,
+        metrics: telemetry.metrics,
+      },
+      work: {
+        tenant: tenantDb,
+        discovery,
+        metrics: telemetry.metrics,
+        logger,
+        settings: config.work,
+      },
+      notify: {
+        tenant: tenantDb,
+        discovery,
+        email: emailProviderFrom(identityDeps.transport, config.identity.mailFrom),
+        origin: config.identity.publicOrigin,
+        metrics: telemetry.metrics,
+        logger,
+        settings: config.work,
+        arrayMax: config.tenancy.principalContextArrayMax,
+      },
+      files: {
+        tenant: tenantDb,
+        discovery,
+        storage: createObjectStorage(config.files.storage),
+        scanner: createMalwareScanner(config.files.scanner),
+        metrics: telemetry.metrics,
+        logger,
+        settings: config.work,
+      },
+      search: {
+        tenant: tenantDb,
+        discovery,
+        metrics: telemetry.metrics,
+        logger,
+        settings: config.work,
+      },
+      goals: {
+        tenant: tenantDb,
+        discovery,
+        metrics: telemetry.metrics,
+        logger,
+        settings: config.work,
+      },
+      metrics: {
+        tenant: tenantDb,
+        discovery,
+        metrics: telemetry.metrics,
+        logger,
+        settings: config.work,
+      },
+      integrations: {
+        tenant: tenantDb,
+        discovery,
+        service: reportService,
+        metrics: telemetry.metrics,
+        logger,
+        settings: config.work,
+      },
+      reports: {
+        tenant: tenantDb,
+        discovery,
+        service: reportService,
+        email: emailProviderFrom(identityDeps.transport, config.identity.mailFrom),
+        origin: config.identity.publicOrigin,
+        metrics: telemetry.metrics,
+        logger,
+        settings: config.work,
+      },
+    }),
+    consumers: registeredConsumers(config.work, {
+      arrayMax: config.tenancy.principalContextArrayMax,
+      metrics: telemetry.metrics,
+      webhooks: reportService,
+    }),
+    schedules: registeredSchedules(),
     params: { ...config.jobs, outboxReplayWindowMs: config.retention.outboxReplayWindowMs },
     buildId: config.build.id,
     pools: [workerPool, dispatcherPool],

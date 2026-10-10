@@ -12,6 +12,16 @@
       "@pm/source": "./src/index.ts",
       "types": "./dist/index.d.ts",
       "default": "./dist/index.js"
+    },
+    "./shell": {
+      "@pm/source": "./src/shell.ts",
+      "types": "./dist/shell.d.ts",
+      "default": "./dist/shell.js"
+    },
+    "./rich-text": {
+      "@pm/source": "./src/rich-text.ts",
+      "types": "./dist/rich-text.d.ts",
+      "default": "./dist/rich-text.js"
     }
   },
   "devDependencies": {

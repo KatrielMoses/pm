@@ -472,8 +472,28 @@
         "guest": "grant:view"
       },
       "requirements": [
+        "CAL-001",
+        "CAL-002",
+        "LA-016",
         "PERM-004",
-        "LA-016"
+        "VIEW-001",
+        "VIEW-002",
+        "VIEW-003",
+        "VIEW-004",
+        "VIEW-005",
+        "VIEW-006",
+        "VIEW-007",
+        "VIEW-008",
+        "VIEW-009",
+        "VIEW-010",
+        "VIEW-011",
+        "VIEW-012",
+        "VIEW-013",
+        "VIEW-014",
+        "VIEW-015",
+        "VIEW-022",
+        "WSB-019",
+        "PRJ-023"
       ],
       "notes": ""
     },
@@ -536,7 +556,7 @@
       "requirements": [
         "PERM-004"
       ],
-      "notes": ""
+      "notes": "Phase 4C (AZ-33): also edits a document's content, links, state, and review date; a share at edit level may."
     },
     {
       "key": "record.archive",
@@ -624,9 +644,10 @@
         "guest": "deny"
       },
       "requirements": [
-        "PERM-004"
+        "PERM-004",
+        "FILE-013"
       ],
-      "notes": ""
+      "notes": "Phase 4E (AZ-34): also trashes a file; a file an accepted deliverable uses is evidence-locked and refused."
     },
     {
       "key": "record.purge",
@@ -685,7 +706,7 @@
         "COL-005",
         "COL-008"
       ],
-      "notes": ""
+      "notes": "Phase 4A (AZ-31): also gates replies, reactions, and mentions; read-only members and read-level shares cannot; an archived record needs the comment_on_archived policy."
     },
     {
       "key": "comment.edit_own",
@@ -712,7 +733,7 @@
       "requirements": [
         "COL-009"
       ],
-      "notes": ""
+      "notes": "Phase 4A (AZ-31, OD-38): the author only, inside COMMENT_EDIT_WINDOW_MINUTES; every edit appends the prior body to the revision trail; nobody edits another person's comment."
     },
     {
       "key": "comment.moderate",
@@ -741,7 +762,7 @@
       "requirements": [
         "COL-009"
       ],
-      "notes": ""
+      "notes": "Phase 4A (AZ-31, OD-38): deletes (never edits) another person's comment as a tombstone at any time; reads revision trails."
     },
     {
       "key": "record.follow",
@@ -771,7 +792,7 @@
       "requirements": [
         "COL-010"
       ],
-      "notes": ""
+      "notes": "Phase 4A (AZ-31, OD-10): explicit, personal, idempotent; grants nothing and is never derived from role, assignment, ownership, or a share."
     },
     {
       "key": "record.assign",
@@ -800,7 +821,7 @@
         "TSK-007",
         "COL-015"
       ],
-      "notes": ""
+      "notes": "Phase 4A (AZ-31): every change of responsibility is an append-only assignment event. Phase 4C (AZ-33): also changes a document's owner (an active member who can edit it), through ownership only."
     },
     {
       "key": "record.delegate",
@@ -827,7 +848,7 @@
       "requirements": [
         "COL-014"
       ],
-      "notes": ""
+      "notes": "Phase 4A (AZ-31): a current assignee hands their own assignment to an active member who can read the task; context a share does not carry."
     },
     {
       "key": "record.relate",
@@ -883,9 +904,13 @@
         "guest": "grant:edit"
       },
       "requirements": [
-        "FILE-001"
+        "FILE-001",
+        "FILE-003",
+        "FILE-004",
+        "FILE-005",
+        "FILE-010"
       ],
-      "notes": ""
+      "notes": "Phase 4E (AZ-34): initiates and completes uploads, adds versions and external links, and renames files on the host (workspace, brand, project, task, or comment). Only a comment's author attaches files to it; an upload session belongs to its creator alone. Workspace-hosted files are for members only."
     },
     {
       "key": "record.download",
@@ -913,9 +938,12 @@
         "guest": "grant:view"
       },
       "requirements": [
-        "FILE-012"
+        "FILE-012",
+        "FILE-002",
+        "FILE-008",
+        "FILE-011"
       ],
-      "notes": ""
+      "notes": "Phase 4E (AZ-34): download, inline preview (allow-listed formats only), and comparison of clean versions through a short-lived signed URL issued per request; pending, infected, and failed scans are refused; external links redirect without being fetched."
     },
     {
       "key": "record.move",
@@ -969,9 +997,10 @@
         "guest": "deny"
       },
       "requirements": [
+        "TSK-001",
         "WSB-009"
       ],
-      "notes": "Manage on source and create (edit) on target brand."
+      "notes": "Manage on source and create (edit) on target brand. Tasks (2B, AZ-22): manage in both brands, with an exposure preview and confirmation."
     },
     {
       "key": "record.share",
@@ -1059,7 +1088,7 @@
         "PERM-010",
         "RPT-022"
       ],
-      "notes": ""
+      "notes": "Phase 4C (AZ-33): also exports a document (Markdown or HTML), re-authorizing every reference and subpage."
     },
     {
       "key": "task.complete",
@@ -1090,6 +1119,61 @@
       "notes": ""
     },
     {
+      "key": "task.override_completion",
+      "kind": "record",
+      "scopes": [
+        "record"
+      ],
+      "description": "Complete a task whose required criteria or descendants are incomplete, recording a reason (ADR-22).",
+      "required_level": "manage",
+      "risk_class": "R2",
+      "approval_class": "none",
+      "step_up": false,
+      "second_approval": false,
+      "non_delegable": false,
+      "entitlement": null,
+      "roles": {
+        "owner": "implicit",
+        "administrator": "implicit",
+        "member": "grant:manage",
+        "limited_member": "deny",
+        "read_only": "deny",
+        "guest": "deny"
+      },
+      "requirements": [
+        "TSK-020",
+        "TSK-021"
+      ],
+      "notes": "Human principals only; the reason and the visible incomplete count are audited (AZ-22). Never satisfied by a share."
+    },
+    {
+      "key": "label.manage",
+      "kind": "admin",
+      "scopes": [
+        "brand"
+      ],
+      "description": "Create, rename, reorder, archive, and restore a brand's labels (OD-10).",
+      "required_level": "edit",
+      "risk_class": "R1",
+      "approval_class": "none",
+      "step_up": false,
+      "second_approval": false,
+      "non_delegable": false,
+      "entitlement": null,
+      "roles": {
+        "owner": "implicit",
+        "administrator": "implicit",
+        "member": "grant:edit",
+        "limited_member": "deny",
+        "read_only": "deny",
+        "guest": "deny"
+      },
+      "requirements": [
+        "TSK-015"
+      ],
+      "notes": "Labels never grant authority (AZ-22)."
+    },
+    {
       "key": "project.complete",
       "kind": "record",
       "scopes": [
@@ -1117,6 +1201,60 @@
       "notes": ""
     },
     {
+      "key": "project.verify_update",
+      "kind": "record",
+      "scopes": [
+        "record"
+      ],
+      "description": "Verify a project update as an accountable human (OD-16).",
+      "required_level": "edit",
+      "risk_class": "R1",
+      "approval_class": "none",
+      "step_up": false,
+      "second_approval": false,
+      "non_delegable": false,
+      "entitlement": null,
+      "roles": {
+        "owner": "implicit",
+        "administrator": "implicit",
+        "member": "grant:edit",
+        "limited_member": "grant:edit",
+        "read_only": "deny",
+        "guest": "deny"
+      },
+      "requirements": [
+        "PRJ-025"
+      ],
+      "notes": "Human principals only; authoring never verifies; AI, imported, and system drafts stay unverified until this action (AZ-21)."
+    },
+    {
+      "key": "project.manage_recurrence",
+      "kind": "record",
+      "scopes": [
+        "record"
+      ],
+      "description": "Define, pause, or resume a project recurrence, or generate its next occurrence (OD-14).",
+      "required_level": "manage",
+      "risk_class": "R2",
+      "approval_class": "none",
+      "step_up": false,
+      "second_approval": false,
+      "non_delegable": false,
+      "entitlement": null,
+      "roles": {
+        "owner": "implicit",
+        "administrator": "implicit",
+        "member": "grant:manage",
+        "limited_member": "deny",
+        "read_only": "deny",
+        "guest": "deny"
+      },
+      "requirements": [
+        "PRJ-013"
+      ],
+      "notes": "Each generated occurrence also requires record.create in the project's brand, rechecked by the worker before each step (AZ-21)."
+    },
+    {
       "key": "deliverable.submit",
       "kind": "record",
       "scopes": [
@@ -1139,9 +1277,10 @@
         "guest": "grant:edit"
       },
       "requirements": [
-        "FILE-007"
+        "FILE-007",
+        "FILE-006"
       ],
-      "notes": ""
+      "notes": "Phase 4E (AZ-34): creates a task's deliverables and submits a version (a clean file of the same task or a URL) with a 4A approval request in one transaction, superseding an open one; an accepted deliverable takes no more versions."
     },
     {
       "key": "review.request",
@@ -1168,7 +1307,7 @@
       "requirements": [
         "COL-013"
       ],
-      "notes": ""
+      "notes": "Phase 4A (AZ-31): names reviewers who can decide now; through ownership only (a share does not carry it); at most one open request per record."
     },
     {
       "key": "review.decide",
@@ -1197,7 +1336,7 @@
         "AGT-020",
         "FILE-009"
       ],
-      "notes": "Reviewer must be designated by the reviewer rule, be human, and be able to read the whole subject scope (UXD-11)."
+      "notes": "Phase 4A (AZ-31): a named, still-eligible reviewer, on the version reviewed; evaluated when deciding. Reviewer must be designated by the reviewer rule, be human, and be able to read the whole subject scope (UXD-11)."
     },
     {
       "key": "review.self_approve",
@@ -1224,7 +1363,7 @@
       "requirements": [
         "AGT-018"
       ],
-      "notes": "Default on only while exactly one approval-capable human exists; always labelled and audited (OD-20)."
+      "notes": "Phase 4A (AZ-31, OD-20): evaluated through the workspace self_approval_mode exactly as workflow approvals are, and refused when require_independent_for names review.decide; always labelled and audited. Default on only while exactly one approval-capable human exists (OD-20)."
     },
     {
       "key": "defect.verify",
@@ -1390,7 +1529,7 @@
         "VIEW-017",
         "RPT-020"
       ],
-      "notes": ""
+      "notes": "Phase 3A (AZ-26): shares a saved view with exactly one scope (workspace, brand, or project); decided at that scope (grant:edit for members, never satisfied by record shares). Running a shared view compiles each viewer's own predicate and field allow-list. The same decision lets a person change, unshare, or delete the shared definition."
     },
     {
       "key": "report.schedule",
@@ -1556,11 +1695,25 @@
         "guest": "own"
       },
       "requirements": [
+        "CAP-001",
+        "CAP-002",
+        "CAP-004",
         "CAP-011",
+        "CAP-012",
+        "CAP-013",
+        "CAP-014",
+        "CAP-016",
+        "NAV-011",
+        "NTF-007",
         "PLAN-008",
-        "NTF-007"
+        "TIME-001",
+        "TIME-010",
+        "TIME-015",
+        "TIME-016",
+        "VIEW-016",
+        "VIEW-018"
       ],
-      "notes": ""
+      "notes": "Phase 2E (AZ-25): capture, Inbox, notes, merge, and triage previews are personal; turning an item into operational work also needs record.create at the destination. Phase 3A (AZ-26): personal saved views, a person's own default view, and per-view state are personal; no owner or administrator bypass. Phase 3E (AZ-30): working hours, weekly capacity, time off, and one's own capacity and conflicts are personal."
     },
     {
       "key": "sessions.manage_own",
@@ -1590,6 +1743,88 @@
       "notes": ""
     },
     {
+      "key": "account.mfa_enroll",
+      "kind": "personal",
+      "scopes": [
+        "personal"
+      ],
+      "description": "Enroll an authenticator (TOTP) factor on own account.",
+      "required_level": null,
+      "risk_class": "R3",
+      "approval_class": "none",
+      "step_up": true,
+      "second_approval": false,
+      "non_delegable": false,
+      "entitlement": null,
+      "roles": {
+        "owner": "own",
+        "administrator": "own",
+        "member": "own",
+        "limited_member": "own",
+        "read_only": "own",
+        "guest": "own"
+      },
+      "requirements": [
+        "SEC-006"
+      ],
+      "notes": "Account-level (platform scope, no workspace or membership): 'own' means the authenticated account's own factors only; it is never a tenant capability. Human-only and not delegable to tokens, agents, automations, integrations, or support: step-up is human-only (0D §11.2) and no 0D scope may list this action. Step-up accepts the password when no factor exists yet, so enrollment never requires MFA before the first MFA."
+    },
+    {
+      "key": "account.mfa_disable",
+      "kind": "personal",
+      "scopes": [
+        "personal"
+      ],
+      "description": "Turn off own two-step verification and remove its factor and recovery codes.",
+      "required_level": null,
+      "risk_class": "R4",
+      "approval_class": "none",
+      "step_up": true,
+      "second_approval": false,
+      "non_delegable": false,
+      "entitlement": null,
+      "roles": {
+        "owner": "own",
+        "administrator": "own",
+        "member": "own",
+        "limited_member": "own",
+        "read_only": "own",
+        "guest": "own"
+      },
+      "requirements": [
+        "SEC-006"
+      ],
+      "notes": "Account-level (platform scope, no workspace or membership): 'own' means the authenticated account's own factors only; it is never a tenant capability. Human-only and not delegable to tokens, agents, automations, integrations, or support: step-up is human-only (0D §11.2) and no 0D scope may list this action."
+    },
+    {
+      "key": "account.recovery_codes_regenerate",
+      "kind": "personal",
+      "scopes": [
+        "personal"
+      ],
+      "description": "Replace own recovery codes; the previous set stops working immediately.",
+      "required_level": null,
+      "risk_class": "R3",
+      "approval_class": "none",
+      "step_up": true,
+      "second_approval": false,
+      "non_delegable": false,
+      "entitlement": null,
+      "roles": {
+        "owner": "own",
+        "administrator": "own",
+        "member": "own",
+        "limited_member": "own",
+        "read_only": "own",
+        "guest": "own"
+      },
+      "requirements": [
+        "SEC-006",
+        "SEC-005"
+      ],
+      "notes": "Account-level (platform scope, no workspace or membership): 'own' means the authenticated account's own factors only; it is never a tenant capability. Human-only and not delegable to tokens, agents, automations, integrations, or support: step-up is human-only (0D §11.2) and no 0D scope may list this action."
+    },
+    {
       "key": "api_tokens.personal",
       "kind": "personal",
       "scopes": [
@@ -1616,6 +1851,33 @@
         "INT-018"
       ],
       "notes": "Read-only role may only create read scopes."
+    },
+    {
+      "key": "workspace.create",
+      "kind": "personal",
+      "scopes": [
+        "personal"
+      ],
+      "description": "Create a workspace and become its bootstrap owner (verified human account, before any tenant context exists).",
+      "required_level": null,
+      "risk_class": "R2",
+      "approval_class": "none",
+      "step_up": false,
+      "second_approval": false,
+      "non_delegable": false,
+      "entitlement": null,
+      "roles": {
+        "owner": "deny",
+        "administrator": "deny",
+        "member": "deny",
+        "limited_member": "deny",
+        "read_only": "deny",
+        "guest": "deny"
+      },
+      "requirements": [
+        "WSB-001"
+      ],
+      "notes": "Account-level platform command (AZ-18), listed in account_commands. No workspace role cell grants it: no membership exists before the workspace, so every cell is deny and holding any role never confers it. Only the authenticated human account principal may exercise it; tokens, service principals, OAuth clients, integrations, automations, AI, agents, support, and system jobs cannot, and no 0D scope may list it. Gates: verified email, active (not deleted) account, per-account rate limit, Idempotency-Key. It creates authority only by atomically creating the canonical workspace, the active owner membership, and the bootstrap owner assignment."
     },
     {
       "key": "workspace.view_settings",
@@ -1670,7 +1932,7 @@
         "WSB-002",
         "ADM-001"
       ],
-      "notes": ""
+      "notes": "Phase 4B (AZ-32): also retries a failed or dead-lettered notification delivery (audited)."
     },
     {
       "key": "workspace.delete",
@@ -1776,6 +2038,7 @@
         "guest": "deny"
       },
       "requirements": [
+        "CAL-010",
         "WSB-004",
         "WSB-010",
         "WSB-012"
@@ -1945,6 +2208,88 @@
         "PERM-014"
       ],
       "notes": ""
+    },
+    {
+      "key": "invitation.accept",
+      "kind": "personal",
+      "scopes": [
+        "personal"
+      ],
+      "description": "Accept a workspace invitation addressed to the authenticated account's verified email.",
+      "required_level": null,
+      "risk_class": "R2",
+      "approval_class": "none",
+      "step_up": false,
+      "second_approval": false,
+      "non_delegable": false,
+      "entitlement": null,
+      "roles": {
+        "owner": "deny",
+        "administrator": "deny",
+        "member": "deny",
+        "limited_member": "deny",
+        "read_only": "deny",
+        "guest": "deny"
+      },
+      "requirements": [
+        "COL-001",
+        "COL-002"
+      ],
+      "notes": "Account command (AZ-19): performed before any membership exists, so every workspace role cell is deny. Only the human account principal may exercise it and no 0D scope may list it. Gates: verified email equal to the invitation's normalized email, active account, single-use unexpired token, per-account rate limit, Idempotency-Key. It creates authority only by atomically activating the membership and exactly the role assignment or record grants the invitation proposed."
+    },
+    {
+      "key": "ownership.accept",
+      "kind": "admin",
+      "scopes": [
+        "workspace"
+      ],
+      "description": "Accept an ownership transfer addressed to one's own active internal membership.",
+      "required_level": null,
+      "risk_class": "R4",
+      "approval_class": "none",
+      "step_up": true,
+      "second_approval": false,
+      "non_delegable": false,
+      "entitlement": null,
+      "roles": {
+        "owner": "own",
+        "administrator": "own",
+        "member": "own",
+        "limited_member": "own",
+        "read_only": "own",
+        "guest": "deny"
+      },
+      "requirements": [
+        "ADM-013"
+      ],
+      "notes": "Recipient side of ownership.transfer (AZ-19): 'own' means only a pending transfer addressed to the caller's own membership. Human-only (step-up); never delegable to tokens, agents, automations, or integrations, and no 0D scope may list it. Guests can never become owners."
+    },
+    {
+      "key": "membership.leave",
+      "kind": "personal",
+      "scopes": [
+        "personal"
+      ],
+      "description": "Leave a workspace (end one's own membership).",
+      "required_level": null,
+      "risk_class": "R2",
+      "approval_class": "none",
+      "step_up": false,
+      "second_approval": false,
+      "non_delegable": false,
+      "entitlement": null,
+      "roles": {
+        "owner": "own",
+        "administrator": "own",
+        "member": "own",
+        "limited_member": "own",
+        "read_only": "own",
+        "guest": "own"
+      },
+      "requirements": [
+        "PERM-014"
+      ],
+      "notes": "Own membership only. Refused while the caller is the last active owner or while registered owned resources cannot be reassigned or suspended (AZ-19). Human-only; no 0D scope may list it."
     },
     {
       "key": "team.manage",
@@ -2180,7 +2525,7 @@
         "brand",
         "project"
       ],
-      "description": "Configure statuses, transitions, rules.",
+      "description": "Configure workflows, statuses, transitions, required fields, and approval policies.",
       "required_level": null,
       "risk_class": "R2",
       "approval_class": "none",
@@ -2197,10 +2542,16 @@
         "guest": "deny"
       },
       "requirements": [
+        "PRJ-009",
+        "WFL-001",
         "WFL-002",
-        "WFL-005"
+        "WFL-003",
+        "WFL-004",
+        "WFL-005",
+        "WFL-006",
+        "WFL-007"
       ],
-      "notes": ""
+      "notes": "Phase 2C (AZ-23): at the workflow's own scope (workspace, brand, or project), within grantable authority; no owner/admin bypass on sensitive brands or restricted projects."
     },
     {
       "key": "fields.configure",
@@ -2227,9 +2578,16 @@
         "guest": "deny"
       },
       "requirements": [
-        "WFL-008"
+        "TSK-016",
+        "WFL-008",
+        "WFL-009",
+        "WFL-010",
+        "WFL-011",
+        "WFL-012",
+        "WFL-013",
+        "WFL-014"
       ],
-      "notes": ""
+      "notes": "Phase 2C (AZ-23): definitions, options, formulas, field policies, and field sets at their own scope."
     },
     {
       "key": "views.configure",
@@ -2259,7 +2617,7 @@
         "VIEW-018",
         "VIEW-019"
       ],
-      "notes": ""
+      "notes": "Phase 3A (AZ-26): sets brand and project default views and pins views into workspace or brand navigation; only a view shared with that exact scope (or the workspace, for defaults) qualifies, so everyone it applies to can read it."
     },
     {
       "key": "templates.manage",
@@ -2315,7 +2673,7 @@
       "requirements": [
         "WSB-014"
       ],
-      "notes": ""
+      "notes": "Phase 4B (AZ-32): sets a brand or project default mode per event type and channel; ranks below every personal choice; audited."
     },
     {
       "key": "ai.configure_brand",
@@ -2906,7 +3264,7 @@
         "ADM-009",
         "ADM-010"
       ],
-      "notes": ""
+      "notes": "Phase 4B (AZ-32): also reads failed and dead-lettered notification deliveries (recipient, channel, class, code; never content or addresses)."
     },
     {
       "key": "support_access.grant",
@@ -3215,6 +3573,543 @@
         "INT-011"
       ],
       "notes": ""
+    },
+    {
+      "key": "workflow.transition",
+      "kind": "record",
+      "scopes": [
+        "record"
+      ],
+      "description": "Preview and apply a workflow status transition (including Complete, Cancel, and Reopen).",
+      "required_level": "edit",
+      "risk_class": "R1",
+      "approval_class": "none",
+      "step_up": false,
+      "second_approval": false,
+      "non_delegable": false,
+      "entitlement": null,
+      "roles": {
+        "owner": "implicit",
+        "administrator": "implicit",
+        "member": "grant:edit",
+        "limited_member": "grant:edit",
+        "read_only": "deny",
+        "guest": "grant:edit"
+      },
+      "requirements": [
+        "WFL-005",
+        "WFL-006",
+        "TSK-031"
+      ],
+      "notes": "Phase 2C (AZ-23). Preview and apply share one evaluator; a generic edit that changes status is evaluated the same way."
+    },
+    {
+      "key": "workflow.approval_request",
+      "kind": "record",
+      "scopes": [
+        "record"
+      ],
+      "description": "Request approval for a gated transition.",
+      "required_level": "edit",
+      "risk_class": "R1",
+      "approval_class": "none",
+      "step_up": false,
+      "second_approval": false,
+      "non_delegable": false,
+      "entitlement": null,
+      "roles": {
+        "owner": "implicit",
+        "administrator": "implicit",
+        "member": "grant:edit",
+        "limited_member": "grant:edit",
+        "read_only": "deny",
+        "guest": "grant:edit"
+      },
+      "requirements": [
+        "WFL-007",
+        "TSK-029"
+      ],
+      "notes": "Phase 2C (AZ-23). The request is bound to the record version; any change makes it stale."
+    },
+    {
+      "key": "workflow.approval_decide",
+      "kind": "record",
+      "scopes": [
+        "record"
+      ],
+      "description": "Approve or reject a pending transition approval.",
+      "required_level": "view",
+      "risk_class": "R2",
+      "approval_class": "none",
+      "step_up": false,
+      "second_approval": false,
+      "non_delegable": false,
+      "entitlement": null,
+      "roles": {
+        "owner": "implicit",
+        "administrator": "implicit",
+        "member": "grant:view",
+        "limited_member": "grant:view",
+        "read_only": "deny",
+        "guest": "deny"
+      },
+      "requirements": [
+        "WFL-007",
+        "TSK-029"
+      ],
+      "notes": "Phase 2C (AZ-23). Also requires eligibility by the transition policy: manage on the record (one_manager) or being a named approver (all_named_approvers). Being an approver grants no access. Self-approval needs both the transition flag and the workspace self_approval policy (OD-20). Human principals only."
+    },
+    {
+      "key": "field.value_read",
+      "kind": "record",
+      "scopes": [
+        "record"
+      ],
+      "description": "Read custom field values on a record, subject to field policy.",
+      "required_level": "view",
+      "risk_class": "R0",
+      "approval_class": "none",
+      "step_up": false,
+      "second_approval": false,
+      "non_delegable": false,
+      "entitlement": null,
+      "roles": {
+        "owner": "implicit",
+        "administrator": "implicit",
+        "member": "grant:view",
+        "limited_member": "grant:view",
+        "read_only": "grant:view",
+        "guest": "grant:view"
+      },
+      "requirements": [
+        "TSK-016",
+        "WFL-009"
+      ],
+      "notes": "Phase 2C (AZ-23). Intersected with access.field_policy and definition applicability; hidden fields are absent everywhere (0C §7.2)."
+    },
+    {
+      "key": "field.value_edit",
+      "kind": "record",
+      "scopes": [
+        "record"
+      ],
+      "description": "Edit custom field values on a record, subject to field policy.",
+      "required_level": "edit",
+      "risk_class": "R1",
+      "approval_class": "none",
+      "step_up": false,
+      "second_approval": false,
+      "non_delegable": false,
+      "entitlement": null,
+      "roles": {
+        "owner": "implicit",
+        "administrator": "implicit",
+        "member": "grant:edit",
+        "limited_member": "grant:edit",
+        "read_only": "deny",
+        "guest": "grant:edit"
+      },
+      "requirements": [
+        "TSK-016",
+        "WFL-012"
+      ],
+      "notes": "Phase 2C (AZ-23). Formula results are never editable. Person and label values grant no access."
+    },
+    {
+      "key": "field.formula_inspect",
+      "kind": "record",
+      "scopes": [
+        "record"
+      ],
+      "description": "Inspect a formula's inputs, dependencies, and error on a record.",
+      "required_level": "view",
+      "risk_class": "R0",
+      "approval_class": "none",
+      "step_up": false,
+      "second_approval": false,
+      "non_delegable": false,
+      "entitlement": null,
+      "roles": {
+        "owner": "implicit",
+        "administrator": "implicit",
+        "member": "grant:view",
+        "limited_member": "grant:view",
+        "read_only": "grant:view",
+        "guest": "deny"
+      },
+      "requirements": [
+        "WFL-011"
+      ],
+      "notes": "Phase 2C (AZ-23). Only when every input is readable; never reveals hidden input values or names."
+    },
+    {
+      "key": "task.remind",
+      "kind": "record",
+      "scopes": [
+        "record"
+      ],
+      "description": "Set, change, or dismiss one's own reminder on a readable task.",
+      "required_level": "view",
+      "risk_class": "R0",
+      "approval_class": "none",
+      "step_up": false,
+      "second_approval": false,
+      "non_delegable": false,
+      "entitlement": null,
+      "roles": {
+        "owner": "implicit",
+        "administrator": "implicit",
+        "member": "grant:view",
+        "limited_member": "grant:view",
+        "read_only": "grant:view",
+        "guest": "grant:view"
+      },
+      "requirements": [
+        "TSK-032"
+      ],
+      "notes": "Phase 2D (AZ-24): personal; grants nothing and changes nothing on the task. The worker rechecks record.read before firing; a reminder whose task became unreadable is cancelled silently."
+    },
+    {
+      "key": "task.snooze",
+      "kind": "record",
+      "scopes": [
+        "record"
+      ],
+      "description": "Snooze or unsnooze a readable task for oneself.",
+      "required_level": "view",
+      "risk_class": "R0",
+      "approval_class": "none",
+      "step_up": false,
+      "second_approval": false,
+      "non_delegable": false,
+      "entitlement": null,
+      "roles": {
+        "owner": "implicit",
+        "administrator": "implicit",
+        "member": "grant:view",
+        "limited_member": "grant:view",
+        "read_only": "grant:view",
+        "guest": "grant:view"
+      },
+      "requirements": [
+        "TSK-033"
+      ],
+      "notes": "Phase 2D (AZ-24): personal; never edits dates, status, or access, and is invisible to others."
+    },
+    {
+      "key": "task.manage_recurrence",
+      "kind": "record",
+      "scopes": [
+        "record"
+      ],
+      "description": "Define, pause, resume, or end a task recurrence, or generate its next occurrence.",
+      "required_level": "manage",
+      "risk_class": "R2",
+      "approval_class": "none",
+      "step_up": false,
+      "second_approval": false,
+      "non_delegable": false,
+      "entitlement": null,
+      "roles": {
+        "owner": "implicit",
+        "administrator": "implicit",
+        "member": "grant:manage",
+        "limited_member": "deny",
+        "read_only": "deny",
+        "guest": "deny"
+      },
+      "requirements": [
+        "TSK-027"
+      ],
+      "notes": "Phase 2D (AZ-24): each occurrence also requires record.create in the series' brand (and project), rechecked by the worker before each step; a series whose owner lost it pauses."
+    },
+    {
+      "key": "intake.manage",
+      "kind": "admin",
+      "scopes": [
+        "brand"
+      ],
+      "description": "Create, edit, archive, and route a brand's intake forms.",
+      "required_level": null,
+      "risk_class": "R2",
+      "approval_class": "none",
+      "step_up": false,
+      "second_approval": false,
+      "non_delegable": false,
+      "entitlement": null,
+      "roles": {
+        "owner": "implicit",
+        "administrator": "implicit",
+        "member": "grant:manage",
+        "limited_member": "deny",
+        "read_only": "deny",
+        "guest": "deny"
+      },
+      "requirements": [
+        "CAP-007",
+        "PRJ-017"
+      ],
+      "notes": "Phase 2E (AZ-25): decided at the brand (decideBrand); sensitive brands need an explicit manage grant. The queue owner must be an active member who can read the brand."
+    },
+    {
+      "key": "intake.submit",
+      "kind": "record",
+      "scopes": [
+        "brand"
+      ],
+      "description": "Submit an intake form of a brand one can read.",
+      "required_level": "view",
+      "risk_class": "R1",
+      "approval_class": "none",
+      "step_up": false,
+      "second_approval": false,
+      "non_delegable": false,
+      "entitlement": null,
+      "roles": {
+        "owner": "implicit",
+        "administrator": "implicit",
+        "member": "grant:view",
+        "limited_member": "grant:view",
+        "read_only": "grant:view",
+        "guest": "deny"
+      },
+      "requirements": [
+        "CAP-007"
+      ],
+      "notes": "Phase 2E (AZ-25): members-only while OD-28 is open; rate-limited per person and form. Submitting grants nothing and never reveals the queue."
+    },
+    {
+      "key": "capacity.view",
+      "kind": "admin",
+      "scopes": [
+        "workspace",
+        "brand"
+      ],
+      "description": "See other people's availability, allocation, reservations, and conflicts for a brand or the workspace (never what the viewer cannot read).",
+      "required_level": null,
+      "risk_class": "R1",
+      "approval_class": "none",
+      "step_up": false,
+      "second_approval": false,
+      "non_delegable": false,
+      "entitlement": null,
+      "roles": {
+        "owner": "implicit",
+        "administrator": "implicit",
+        "member": "grant:manage",
+        "limited_member": "deny",
+        "read_only": "deny",
+        "guest": "deny"
+      },
+      "requirements": [
+        "TIME-007",
+        "TIME-008",
+        "WSB-017",
+        "WSB-018"
+      ],
+      "notes": "Phase 3E (AZ-30): time off shows only as unavailable minutes; kinds and labels stay personal."
+    },
+    {
+      "key": "capacity.reserve",
+      "kind": "admin",
+      "scopes": [
+        "brand"
+      ],
+      "description": "Set brand capacity reservations (weekly planning targets) for people.",
+      "required_level": null,
+      "risk_class": "R1",
+      "approval_class": "none",
+      "step_up": false,
+      "second_approval": false,
+      "non_delegable": false,
+      "entitlement": null,
+      "roles": {
+        "owner": "implicit",
+        "administrator": "implicit",
+        "member": "grant:manage",
+        "limited_member": "deny",
+        "read_only": "deny",
+        "guest": "deny"
+      },
+      "requirements": [
+        "TIME-002"
+      ],
+      "notes": "Phase 3E (AZ-30): a target, never a block; the person must be an active member."
+    }
+  ],
+  "account_commands": [
+    {
+      "action": "workspace.create",
+      "principals": [
+        "account"
+      ],
+      "gates": [
+        "email_verified",
+        "account_active",
+        "rate_limit",
+        "idempotency_key"
+      ],
+      "creates": [
+        "tenancy.workspace",
+        "tenancy.membership",
+        "access.role_assignment"
+      ],
+      "grants": "bootstrap owner (workspace role owner) to the creating account's new membership only",
+      "requirements": [
+        "WSB-001"
+      ]
+    },
+    {
+      "action": "invitation.accept",
+      "principals": [
+        "account"
+      ],
+      "gates": [
+        "email_verified",
+        "account_active",
+        "rate_limit",
+        "idempotency_key",
+        "email_match",
+        "single_use_token"
+      ],
+      "creates": [
+        "tenancy.membership",
+        "access.role_assignment",
+        "access.record_grant"
+      ],
+      "grants": "exactly the role assignment (internal) or record grants (guest) the invitation proposed",
+      "requirements": [
+        "COL-001",
+        "COL-002"
+      ]
+    }
+  ],
+  "workspace_policy": [
+    {
+      "field": "self_approval_mode",
+      "type": "enum(auto|allowed|forbidden)",
+      "default": "auto",
+      "governed_by": "sharing.policy.configure",
+      "owner_only": false
+    },
+    {
+      "field": "require_independent_for",
+      "type": "text[]",
+      "default": [],
+      "governed_by": "sharing.policy.configure",
+      "owner_only": false
+    },
+    {
+      "field": "members_invite_guests",
+      "type": "boolean",
+      "default": false,
+      "governed_by": "sharing.policy.configure",
+      "owner_only": false
+    },
+    {
+      "field": "limited_members_can_export",
+      "type": "boolean",
+      "default": false,
+      "governed_by": "sharing.policy.configure",
+      "owner_only": false
+    },
+    {
+      "field": "limited_members_tokens",
+      "type": "boolean",
+      "default": false,
+      "governed_by": "workspace.configure",
+      "owner_only": false
+    },
+    {
+      "field": "limited_members_ai",
+      "type": "boolean",
+      "default": false,
+      "governed_by": "workspace.configure",
+      "owner_only": false
+    },
+    {
+      "field": "limited_members_agents",
+      "type": "boolean",
+      "default": false,
+      "governed_by": "workspace.configure",
+      "owner_only": false
+    },
+    {
+      "field": "read_only_ai",
+      "type": "boolean",
+      "default": false,
+      "governed_by": "workspace.configure",
+      "owner_only": false
+    },
+    {
+      "field": "members_configure_agents",
+      "type": "boolean",
+      "default": false,
+      "governed_by": "workspace.configure",
+      "owner_only": false
+    },
+    {
+      "field": "admins_manage_billing",
+      "type": "boolean",
+      "default": false,
+      "governed_by": "billing.manage",
+      "owner_only": true
+    },
+    {
+      "field": "comment_on_archived",
+      "type": "boolean",
+      "default": false,
+      "governed_by": "workspace.configure",
+      "owner_only": false
+    },
+    {
+      "field": "workspace_records_default_level",
+      "type": "enum(none|view|comment|edit)",
+      "default": "view",
+      "governed_by": "workspace.configure",
+      "owner_only": false
+    },
+    {
+      "field": "cross_brand_sharing_enabled",
+      "type": "boolean",
+      "default": false,
+      "governed_by": "sharing.policy.configure",
+      "owner_only": false
+    },
+    {
+      "field": "guest_invitations_enabled",
+      "type": "boolean",
+      "default": true,
+      "governed_by": "sharing.policy.configure",
+      "owner_only": false
+    },
+    {
+      "field": "public_links_enabled",
+      "type": "boolean (fixed false; OD-27)",
+      "default": false,
+      "governed_by": "sharing.policy.configure",
+      "owner_only": false
+    },
+    {
+      "field": "share_max_expiry",
+      "type": "interval null",
+      "default": null,
+      "governed_by": "sharing.policy.configure",
+      "owner_only": false
+    },
+    {
+      "field": "token_max_lifetime",
+      "type": "interval null",
+      "default": null,
+      "governed_by": "workspace.configure",
+      "owner_only": false
+    },
+    {
+      "field": "low_impact_agent_actions",
+      "type": "text[] (agent tool classes, OD-23)",
+      "default": [],
+      "governed_by": "workspace.configure",
+      "owner_only": false
     }
   ]
 }

@@ -28,7 +28,7 @@ Everything else comes from grants.
 | member | guest only, and only through sharing when the policy allows it |
 | limited member, read-only, guest | none |
 
-The validator proves that each assignable role never exceeds its assigner on any of the 98 actions.
+The validator proves that each assignable role never exceeds its assigner on any of the 122 actions.
 
 **Last-owner protection:** removing, demoting, or suspending the last active owner is rejected (AT-071).
 
@@ -45,14 +45,14 @@ Levels are ordered. A requirement "≥ edit" is satisfied by edit or manage.
 
 ## 3.3 Action vocabulary
 
-There are 98 actions in four kinds. The authoritative list is [policy/policy.json](policy/policy.json), rendered in [generated/permission-matrix.md](generated/permission-matrix.md).
+There are 122 actions in four kinds. The authoritative list is [policy/policy.json](policy/policy.json), rendered in [generated/permission-matrix.md](generated/permission-matrix.md).
 
 | Kind | Count | What it governs | Evaluated against |
 |---|---|---|---|
 | Record permissions | 33 | Operations on records in a scope (create, read, update, archive, restore, trash, comment, follow, assign, delegate, relate, upload, download, move, move between brands, share, revoke share, export, complete, submit, review decide, self-approve, verify, release decide, time, timesheets, views, reports, environments, tests) | Effective access level on the target **and** the role's matrix cell |
-| Administrative capabilities | 50 | Workspace and brand administration, membership, teams, roles, grants, restrictions, previews, elevation, policies, workflows, fields, views, templates, notifications, AI, agents, automations, integrations, API tokens, webhooks, security, sessions, retention, legal holds, trash, purge, audit, export, usage, billing, secrets metadata, health, support access, emergency stop | Role capability, plus the scope level for scope-bound capabilities (cells `≥manage`) |
+| Administrative capabilities | 51 | Workspace and brand administration, membership, teams, roles, grants, restrictions, previews, elevation, policies, workflows, fields, views, templates, notifications, AI, agents, automations, integrations, API tokens, webhooks, security, sessions, retention, legal holds, trash, purge, audit, export, usage, billing, secrets metadata, health, support access, emergency stop | Role capability, plus the scope level for scope-bound capabilities (cells `≥manage`) |
 | Execution permissions | 11 | Running things: AI, applying proposals, agents, run control, gated agent actions, automations, syncs, imports, webhook tests, tests, production actions | Role capability + level on the target + the execution layer's own scope ([09](09-execution-delegation.md)) |
-| Personal | 4 | Own Inbox, Today, notifications, views, availability, sessions, personal tokens, timesheet submission | Ownership of the personal record |
+| Personal | 10 | Own Inbox, Today, notifications, views, availability, sessions, personal tokens, timesheet submission; own-account security (AZ-17); workspace creation (AZ-18); invitation acceptance and leaving a workspace (AZ-19) | Ownership of the personal record; account commands are evaluated against the authenticated human account only |
 
 **Agent tool classes** (14, separate from all of the above) govern what an agent may invoke. They have their own risk and approval classes ([09 §9.3](09-execution-delegation.md#93-agents)).
 

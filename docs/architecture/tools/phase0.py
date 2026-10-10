@@ -440,6 +440,194 @@ def check_summary_docs():
     return errs
 
 
+RUNTIME_DIRS = ["apps", "packages"]
+RUNTIME_SKIP_DIRS = {"node_modules", "dist", "test", "generated"}
+
+
+def runtime_sources():
+    for base in RUNTIME_DIRS:
+        for dirpath, dirs, files in os.walk(P(base)):
+            dirs[:] = sorted(d for d in dirs if d not in RUNTIME_SKIP_DIRS)
+            for f in sorted(files):
+                if f.endswith((".ts", ".tsx")) and not f.endswith(".d.ts"):
+                    yield os.path.join(dirpath, f)
+
+
+def migrated_check_values(table, constraint, column="state"):
+    """Last definition of `constraint` across the ordered up-migrations: the values of its IN (...) list."""
+    values = None
+    mig = P("packages/db/migrations")
+    if not os.path.isdir(mig):
+        return None
+    pat = re.compile(r"CONSTRAINT %s\s+CHECK\s*\(\s*%s IN\s*\(([^)]*)\)" % (re.escape(constraint), re.escape(column)))
+    for f in sorted(x for x in os.listdir(mig) if x.endswith(".up.sql")):
+        text = read(os.path.join(mig, f))
+        if table not in text:
+            continue
+        for m in pat.finditer(text):
+            values = re.findall(r"'([a-z_]+)'", m.group(1))
+    return values
+
+
+def check_step_up(policy, registry):
+    """Step-up invariants across 0C/0D and the runtime (Phase 1B review 01): every runtime step-up
+    action is a step-up action in 0C; own-account step-up actions are personal, human-only (no scope
+    lists them), R3/R4, and implemented; the stored challenge states agree across 0D and the DB."""
+    errs = []
+    A = {a["key"]: a for a in policy["actions"]}
+    scoped = {x for s in registry["scopes"] for x in s["actions"]}
+    for a in A.values():
+        if a["risk_class"] == "R4" and not a["step_up"] and a["key"] != "emergency_stop.trigger":
+            errs.append("0C %s is R4 without step-up" % a["key"])
+    personal = {k: a for k, a in A.items() if k.startswith("account.")}
+    for k, a in personal.items():
+        if a["kind"] != "personal" or not a["step_up"]:
+            errs.append("0C own-account action %s must be personal and step-up protected" % k)
+        if a["scopes"] != ["personal"]:
+            errs.append("0C %s must be scoped to personal only" % k)
+        if set(a["roles"].values()) != {"own"}:
+            errs.append("0C %s must be 'own' for every role (never a tenant capability)" % k)
+        if a["risk_class"] not in ("R3", "R4"):
+            errs.append("0C %s: own-account security actions are R3 or R4" % k)
+        if a["second_approval"] or a["entitlement"]:
+            errs.append("0C %s: own-account security needs no approver or entitlement" % k)
+        if k in scoped:
+            errs.append("0D scope lists human-only step-up action %s" % k)
+    # Runtime: #protected(...) action arguments and explicit step-up action keys.
+    protected = re.compile(r"#protected\(\s*\w+\s*,\s*'([a-z_]+(?:\.[a-z_]+)+)'")
+    account_literal = re.compile(r"(?:actionKey|action_key|stepUpAction)\s*[:=(]\s*'([a-z_]+(?:\.[a-z_]+)+)'")
+    used = set()
+    for f in runtime_sources():
+        rel = os.path.relpath(f, ROOT)
+        text = read(f)
+        for m in protected.finditer(text):
+            used.add(m.group(1))
+            if m.group(1) not in A or not A[m.group(1)]["step_up"]:
+                errs.append("%s: step-up protected action %s is not a 0C step-up action" % (rel, m.group(1)))
+        for m in account_literal.finditer(text):
+            if m.group(1) not in A or not A[m.group(1)]["step_up"]:
+                errs.append("%s: step-up action key %s is not a 0C step-up action" % (rel, m.group(1)))
+    if os.path.isdir(P("packages/identity/src")):
+        for k in sorted(set(personal) - used):
+            errs.append("0C step-up action %s has no runtime #protected(...) use" % k)
+    # Challenge states: 0D schema ↔ last migrated DB constraint.
+    schema = load(P("docs/architecture/platform/contracts/schemas/step-up-challenge.schema.json"))
+    states = schema["properties"]["state"]["enum"]
+    if "locked" not in states:
+        errs.append("0D step-up challenge states lack the stored terminal state 'locked'")
+    if not any(p["name"] == "STEP_UP_MAX_ATTEMPTS" for p in registry["parameters"]):
+        errs.append("0D parameter STEP_UP_MAX_ATTEMPTS is not registered")
+    db = migrated_check_values("identity.step_up_challenge", "step_up_challenge_state_known")
+    if db is not None and sorted(db) != sorted(states):
+        errs.append("DB step_up_challenge states %s differ from 0D %s" % (db, states))
+    return errs
+
+
+# Authorization call sites whose first quoted argument is a 0C action key.
+AUTHZ_CALL = re.compile(
+    r"((?:#|\.)requireWorkspace|(?:#|\.)requireBrand|(?:#|\.)requirePersonal|decideWorkspace|decideBrand|decidePersonal|decideRecord|issueLifecycleDecision|requireDecision|"
+    r"testDecision|systemDecision|authorizeAccountCommand|(?:#|\.)stepUp)\([^'`)]*?'([a-z_]+\.[a-z_]+)'"
+)
+
+
+def check_runtime_actions(policy, registry):
+    """Every runtime authorization action exists in the 0C catalog; account commands (AZ-18) are
+    human-only, all-deny, unscoped, used through authorizeAccountCommand, and never reach tenant,
+    lifecycle, step-up, or delegated evaluation."""
+    errs = []
+    A = {a["key"]: a for a in policy["actions"]}
+    commands = {c["action"]: c for c in policy.get("account_commands", [])}
+    scoped = {x for s in registry["scopes"] for x in s["actions"]}
+    for k, c in commands.items():
+        a = A.get(k)
+        if a is None:
+            errs.append("0C account command %s is not an action" % k)
+            continue
+        if set(a["roles"].values()) != {"deny"} or a["kind"] != "personal" or a["scopes"] != ["personal"]:
+            errs.append("0C account command %s must be personal, personal-scoped, and deny for every role" % k)
+        if c["principals"] != ["account"]:
+            errs.append("0C account command %s must be human-account only" % k)
+        if k in scoped:
+            errs.append("0D scope lists account command %s (delegated principals cannot create tenants)" % k)
+    used_commands = set()
+    for f in runtime_sources():
+        rel = os.path.relpath(f, ROOT)
+        text = read(f)
+        for m in AUTHZ_CALL.finditer(text):
+            fn, key = m.group(1), m.group(2)
+            if key not in A:
+                errs.append("%s: %s uses %s, which is not a 0C action" % (rel, fn, key))
+            elif key in commands and fn != "authorizeAccountCommand":
+                errs.append("%s: account command %s reaches tenant/delegated evaluation via %s" % (rel, key, fn))
+            elif fn == "authorizeAccountCommand":
+                if key not in commands:
+                    errs.append("%s: authorizeAccountCommand(%s) is not a registered account command" % (rel, key))
+                used_commands.add(key)
+    if os.path.isdir(P("packages/tenancy/src")):
+        for k in sorted(set(commands) - used_commands):
+            errs.append("0C account command %s has no runtime authorizeAccountCommand(...) use" % k)
+    return errs
+
+
+def check_brand_vocabulary(model):
+    """0B brand vocabularies (ADR-19) == the migrated CHECK constraints == the runtime sources."""
+    errs = []
+    brand = next((e for e in model["entities"] if e["name"] == "brand"), None)
+    if brand is None:
+        return ["0B has no brand entity"]
+    def vocab(column):
+        for c in brand["key_columns"]:
+            m = re.match(r"%s\b.*\(([a-z_|]+)\)\s*$" % re.escape(column), c)
+            if m:
+                return m.group(1).split("|")
+        return None
+    status = vocab("operational_status")
+    modes = vocab("notification_content_mode")
+    if status is None:
+        errs.append("0B brand lacks the operational_status vocabulary (ADR-19)")
+    if any(c.startswith("status ") for c in brand["key_columns"]):
+        errs.append("0B brand still declares an undefined generic status column")
+    if not os.path.isdir(P("packages/db/migrations")):
+        return errs
+    db_status = migrated_check_values("tenancy.brand", "brand_status_known", "operational_status")
+    db_modes = migrated_check_values("tenancy.brand", "brand_notification_mode_known", "notification_content_mode")
+    if status is not None and db_status != status:
+        errs.append("DB brand operational_status %s differs from 0B %s" % (db_status, status))
+    if modes is not None and db_modes != modes:
+        errs.append("DB brand notification_content_mode %s differs from 0B %s" % (db_modes, modes))
+    server = P("packages/tenancy/src/validation.ts")
+    if os.path.exists(server) and "BRAND_OPERATIONAL_STATUSES" not in read(server):
+        errs.append("packages/tenancy/src/validation.ts must take operational statuses from the generated 0B vocabulary")
+    web = P("apps/web/src/tenancy/client.ts")
+    if os.path.exists(web):
+        m = re.search(r"export const OPERATIONAL_STATUSES = \[([^\]]*)\]", read(web))
+        listed = re.findall(r"'([a-z_]+)'", m.group(1)) if m else None
+        if listed != status:
+            errs.append("apps/web/src/tenancy/client.ts OPERATIONAL_STATUSES %s differs from 0B %s" % (listed, status))
+    return errs
+
+
+def check_record_types(model):
+    """The migrated core.record_type seed equals the 0B addressable entities (type, prefix, module)."""
+    errs = []
+    mig = P("packages/db/migrations")
+    if not os.path.isdir(mig):
+        return errs
+    seeded = None
+    for f in sorted(x for x in os.listdir(mig) if x.endswith(".up.sql")):
+        m = re.search(r"INSERT INTO core\.record_type \(record_type, public_id_prefix, owner_module\) VALUES(.*?);", read(os.path.join(mig, f)), re.S)
+        if m:
+            seeded = set(re.findall(r"\('([a-z_]+)', '([a-z]+)', '([a-z_]+)'\)", m.group(1)))
+    if seeded is None:
+        return errs
+    expected = {(e["name"], e["public_id_prefix"], e["module"]) for e in model["entities"] if e["addressable"]}
+    for x in sorted(expected - seeded):
+        errs.append("record type %s (%s_, %s) is addressable in 0B but not seeded in core.record_type" % x)
+    for x in sorted(seeded - expected):
+        errs.append("core.record_type seeds %s (%s_, %s), which is not an addressable 0B entity" % x)
+    return errs
+
+
 def main():
     rep = Report()
     run_packages(rep)
@@ -455,6 +643,10 @@ def main():
     rep.add("cross: approved amendments present at source", check_required_statements())
     rep.add("cross: cross-phase blockers resolved", check_blockers())
     rep.add("cross: Phase 0 summary documents (links, references)", check_summary_docs())
+    rep.add("cross: step-up actions and challenge states (0C/0D/runtime)", check_step_up(policy, registry))
+    rep.add("cross: record types seeded from the 0B addressable entities", check_record_types(model))
+    rep.add("cross: runtime authorization actions and account commands (0C)", check_runtime_actions(policy, registry))
+    rep.add("cross: brand vocabularies (0B/DB/runtime)", check_brand_vocabulary(model))
     failed = 0
     for name, (errs, detail) in rep.sections.items():
         status = "PASS" if not errs else "FAIL (%d)" % len(errs)

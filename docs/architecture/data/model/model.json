@@ -275,7 +275,7 @@
       "name": "Relationship primitives",
       "layer": 2,
       "schema": "relations",
-      "responsibilities": "Typed record relationships (dependency, related), labels, mentions and record links, followers.",
+      "responsibilities": "Typed record relationships (dependency, related), mentions and record links, followers.",
       "depends_on": [
         "core",
         "tenancy",
@@ -319,7 +319,7 @@
       "name": "Comments and reviews",
       "layer": 2,
       "schema": "collab",
-      "responsibilities": "Comments, threads, revisions, reactions, review requests and immutable review decisions.",
+      "responsibilities": "Comments, threads, revisions, reactions, review requests with named reviewers, immutable per-reviewer decisions, and the append-only assignment history behind delegation and reassignment.",
       "depends_on": [
         "core",
         "tenancy",
@@ -329,7 +329,9 @@
       "publishes": [
         "comment.*",
         "review.requested",
-        "review.decided"
+        "review.decided",
+        "review.withdrawn",
+        "review.superseded"
       ],
       "feature_sections": [
         "COL",
@@ -361,7 +363,7 @@
       "name": "Projects and tasks",
       "layer": 3,
       "schema": "work",
-      "responsibilities": "Projects (trees), phases, milestones, tasks (trees), assignees, checklists, criteria items, project updates, decisions, reminders.",
+      "responsibilities": "Projects (trees), phases, milestones, tasks (trees), assignees, checklists, criteria items, labels, project updates, decisions, reminders.",
       "depends_on": [
         "core",
         "tenancy",
@@ -477,7 +479,7 @@
       "name": "Goals and portfolios",
       "layer": 3,
       "schema": "goals",
-      "responsibilities": "Goals, key results, goal links, check-ins, portfolios.",
+      "responsibilities": "Goals, key results, goal links, check-ins, derived recalculation state, portfolios, and portfolio members.",
       "depends_on": [
         "core",
         "tenancy",
@@ -656,7 +658,8 @@
         "core",
         "tenancy",
         "execution",
-        "audit"
+        "audit",
+        "work"
       ],
       "publishes": [
         "template.installed"
@@ -752,6 +755,23 @@
       ],
       "feature_sections": [
         "SUP"
+      ]
+    },
+    {
+      "id": "metrics",
+      "name": "Metrics ledger",
+      "layer": 4,
+      "schema": "metrics",
+      "responsibilities": "Append-only task status history and the reconciliation state that proves and repairs it; the figures themselves are computed from records at request time (ADR-38).",
+      "depends_on": [
+        "core",
+        "tenancy",
+        "work",
+        "execution"
+      ],
+      "publishes": [],
+      "feature_sections": [
+        "RPT"
       ]
     }
   ],
@@ -1466,7 +1486,7 @@
       "purpose": "MFA factor (TOTP secret reference, WebAuthn credential), recovery-code hashes.",
       "scope": "platform",
       "addressable": false,
-      "public_id_prefix": null,
+      "public_id_prefix": "mfa",
       "extends": null,
       "containment_parents": [
         "account"
@@ -1483,7 +1503,9 @@
       "personal_data": "incidental",
       "uniqueness": [],
       "sensitive_fields": [],
-      "key_columns": [],
+      "key_columns": [
+        "public_id text (mfa_)"
+      ],
       "requirements": [
         "SEC-006"
       ],
@@ -1495,7 +1517,7 @@
       "purpose": "Authenticated session with device metadata; revocable remotely.",
       "scope": "platform",
       "addressable": false,
-      "public_id_prefix": null,
+      "public_id_prefix": "ses",
       "extends": null,
       "containment_parents": [
         "account"
@@ -1514,7 +1536,9 @@
         "token_hash"
       ],
       "sensitive_fields": [],
-      "key_columns": [],
+      "key_columns": [
+        "public_id text (ses_)"
+      ],
       "requirements": [
         "SEC-008",
         "PERM-013"
@@ -1527,7 +1551,7 @@
       "purpose": "Link between an account and an external identity provider subject.",
       "scope": "platform",
       "addressable": false,
-      "public_id_prefix": null,
+      "public_id_prefix": "oid",
       "extends": null,
       "containment_parents": [
         "account"
@@ -1546,7 +1570,9 @@
         "(provider, subject)"
       ],
       "sensitive_fields": [],
-      "key_columns": [],
+      "key_columns": [
+        "public_id text (oid_)"
+      ],
       "requirements": [
         "SEC-007"
       ],
@@ -1610,20 +1636,21 @@
         "action_key text (0C)",
         "target_hash bytea",
         "methods text[]",
-        "state (pending|verified|consumed|expired|cancelled)",
+        "state (pending|verified|consumed|expired|cancelled|locked)",
         "challenge_nonce_hash bytea",
         "token_hash bytea null",
         "expires_at",
         "verified_at null",
         "consumed_at null",
         "failed_attempts int",
+        "locked_at null",
         "public_id text (stp_)"
       ],
       "requirements": [
         "SEC-006",
         "ADM-013"
       ],
-      "notes": "0D §11.2. Tokens are stored only as hashes."
+      "notes": "0D §11.2. Tokens are stored only as hashes. `locked` is a stored terminal state, set atomically by the failed attempt that reaches STEP_UP_MAX_ATTEMPTS."
     },
     {
       "name": "workspace",
@@ -1693,7 +1720,7 @@
         "color",
         "icon",
         "description",
-        "status brand_status",
+        "operational_status brand_operational_status (operating|paused|planned)",
         "timezone text",
         "is_sensitive boolean",
         "notification_content_mode (standard|minimal)"
@@ -1704,7 +1731,7 @@
         "WSB-005",
         "WSB-010"
       ],
-      "notes": "For the brand row, brand_id = id."
+      "notes": "For the brand row, brand_id = id. operational_status is business metadata only (ADR-19): archive, trash, and purge are core.record.lifecycle_state and are never represented by operational_status."
     },
     {
       "name": "membership",
@@ -1738,14 +1765,19 @@
         "kind membership_kind (member|guest)",
         "state (invited|active|suspended|removed)",
         "display_name_override",
-        "removed_at"
+        "invited_at",
+        "joined_at",
+        "suspended_at",
+        "removed_at",
+        "departure_reason membership_departure (removed|left|account_deleted) null",
+        "state_changed_by_membership_id null"
       ],
       "requirements": [
         "COL-001",
         "COL-002",
         "PERM-014"
       ],
-      "notes": ""
+      "notes": "Phase 1D: state transitions invited→active, active→suspended→active, active|suspended→removed (terminal). A removed membership keeps its row for audit and ownership history; it never regains authority (a new invitation reactivates it as a fresh active state only through invitation.accept). Guests never hold role assignments."
     },
     {
       "name": "team",
@@ -1768,11 +1800,15 @@
       "personal_data": "incidental",
       "uniqueness": [],
       "sensitive_fields": [],
-      "key_columns": [],
+      "key_columns": [
+        "name text",
+        "description text null",
+        "created_by_membership_id"
+      ],
       "requirements": [
         "COL-003"
       ],
-      "notes": ""
+      "notes": "Addressable core.record extension (brand_id NULL, workspace scope). Teams may span brands but are never a scope; they are grantees of role assignments and record grants. Phase 1D."
     },
     {
       "name": "team_member",
@@ -1801,11 +1837,16 @@
         "(team_id, membership_id)"
       ],
       "sensitive_fields": [],
-      "key_columns": [],
+      "key_columns": [
+        "team_id",
+        "membership_id",
+        "added_by_membership_id",
+        "created_at"
+      ],
       "requirements": [
         "COL-003"
       ],
-      "notes": ""
+      "notes": "Internal memberships only (guests may not join teams that hold scope grants). Removed with team membership changes and on departure; a removal bumps the member's principal epoch."
     },
     {
       "name": "invitation",
@@ -1813,7 +1854,7 @@
       "purpose": "Pending invitation by email with intended role and scope.",
       "scope": "workspace",
       "addressable": false,
-      "public_id_prefix": null,
+      "public_id_prefix": "inv",
       "extends": null,
       "containment_parents": [
         "workspace"
@@ -1828,14 +1869,31 @@
       "search_ai": "no",
       "may_contain_secrets": "no",
       "personal_data": "yes",
-      "uniqueness": [],
+      "uniqueness": [
+        "(workspace_id, email_key) where state = pending"
+      ],
       "sensitive_fields": [],
-      "key_columns": [],
+      "key_columns": [
+        "email_key text (normalized invited email)",
+        "kind membership_kind (member|guest)",
+        "role_key text (built-in workspace role for members; null for guests)",
+        "scope_proposal jsonb (brand access levels for members; fixed record shares for guests)",
+        "invited_by_membership_id",
+        "state invitation_state (pending|accepted|revoked|expired)",
+        "expires_at",
+        "send_count int",
+        "last_sent_at",
+        "token_id uuid (identity.verification_token; the raw token is never stored)",
+        "accepted_account_id null",
+        "accepted_membership_id null",
+        "revoked_by_membership_id null",
+        "decided_at null"
+      ],
       "requirements": [
         "COL-001",
         "COL-002"
       ],
-      "notes": ""
+      "notes": "Phase 1D. One pending invitation per (workspace, email_key). Resend issues a new single-use token that supersedes the previous one (identity token lineage); the invitation row keeps its ID. Acceptance requires the authenticated verified account's normalized email to equal email_key (0C AZ-19)."
     },
     {
       "name": "ownership_transfer",
@@ -1843,7 +1901,7 @@
       "purpose": "Workspace ownership transfer request and acceptance.",
       "scope": "workspace",
       "addressable": false,
-      "public_id_prefix": null,
+      "public_id_prefix": "otr",
       "extends": null,
       "containment_parents": [],
       "associations": [],
@@ -1856,13 +1914,25 @@
       "search_ai": "no",
       "may_contain_secrets": "no",
       "personal_data": "incidental",
-      "uniqueness": [],
+      "uniqueness": [
+        "(workspace_id) where state = pending"
+      ],
       "sensitive_fields": [],
-      "key_columns": [],
+      "key_columns": [
+        "from_membership_id",
+        "to_membership_id",
+        "state ownership_transfer_state (pending|accepted|cancelled|expired)",
+        "demote_previous boolean",
+        "expires_at",
+        "requested_step_up_id",
+        "accepted_step_up_id null",
+        "decided_at null",
+        "decided_by_membership_id null"
+      ],
       "requirements": [
         "ADM-013"
       ],
-      "notes": ""
+      "notes": "Phase 1D. At most one pending transfer per workspace. Acceptance by the recipient (ownership.accept, step-up) atomically adds the owner role and optionally demotes the previous owner to administrator; last-owner protection holds throughout. Immutable after a terminal state."
     },
     {
       "name": "brand_setting",
@@ -1894,6 +1964,43 @@
         "WSB-014"
       ],
       "notes": ""
+    },
+    {
+      "name": "scope_preference",
+      "module": "tenancy",
+      "purpose": "Per person per workspace: the last selected brand or all-brands context. Revalidated against current authorization on every use; never grants access.",
+      "scope": "personal",
+      "addressable": false,
+      "public_id_prefix": null,
+      "extends": null,
+      "containment_parents": [],
+      "associations": [
+        "membership",
+        "brand"
+      ],
+      "lifecycle": "mutable",
+      "concurrency": "locked",
+      "retention_class": "R-PERSONAL",
+      "confidentiality": "C1",
+      "volume": "medium",
+      "export": "self",
+      "search_ai": "no",
+      "may_contain_secrets": "no",
+      "personal_data": "incidental",
+      "uniqueness": [
+        "(workspace_id, owner_membership_id)"
+      ],
+      "sensitive_fields": [],
+      "key_columns": [
+        "owner_membership_id",
+        "scope_kind (brand|all)",
+        "brand_id"
+      ],
+      "requirements": [
+        "WSB-006",
+        "WSB-009"
+      ],
+      "notes": "Phase 1C. Upserted on its primary key (row lock); the latest selection wins. A stale or unauthorized brand falls back to the first authorized active brand; it never broadens to all brands. Phase 1E: the URL scope (`scope=all|brand:{id}|brands:{id},…`) is authoritative on scope-sensitive pages and is validated and normalized server-side on every request; the per-device default lives in view_state (`shell.scope`), and this row remains the cross-device fallback and the directory's most-recent-workspace signal."
     },
     {
       "name": "role",
@@ -2104,7 +2211,7 @@
         "PERM-003",
         "WFL-009"
       ],
-      "notes": "0C §7.1. Public ID prefix fpol (0D registry). Calculated-field visibility is derived from its dependencies' policies, never stored separately. Field keys are validated by the access command against the core field catalog and workflow.field_definition (no cross-layer foreign key; retired field IDs remain valid)."
+      "notes": "0C §7.1. Public ID prefix fpol (0D registry). Calculated-field visibility is derived from its dependencies' policies, never stored separately. Field keys are validated by the access command against the core field catalog and workflow.field_definition (no cross-layer foreign key; retired field IDs remain valid). Phase 2C implements it for custom field definitions (field_key = definition id): read and edit minimum levels and guest visibility. Formula visibility is the intersection of its inputs."
     },
     {
       "name": "permission_epoch",
@@ -2729,7 +2836,7 @@
       "extends": null,
       "containment_parents": [],
       "associations": [],
-      "lifecycle": "full",
+      "lifecycle": "mutable",
       "concurrency": "row-version",
       "retention_class": "R-LIVE",
       "confidentiality": "C1",
@@ -2738,20 +2845,27 @@
       "search_ai": "yes",
       "may_contain_secrets": "no",
       "personal_data": "incidental",
-      "uniqueness": [],
+      "uniqueness": [
+        "one active workflow per (workspace, scope_kind, brand_id, project_id, record_kind)"
+      ],
       "sensitive_fields": [],
       "key_columns": [
-        "record_type",
-        "scope_type (workspace|brand|project)",
+        "public_id text (wf_)",
+        "record_kind (project|task)",
+        "scope_kind (workspace|brand|project)",
+        "brand_id null",
         "project_id null",
-        "current_revision_id"
+        "name",
+        "lifecycle_state (active|archived)",
+        "version bigint"
       ],
       "requirements": [
         "WFL-001",
         "WFL-002",
-        "WFL-003"
+        "WFL-003",
+        "PRJ-009"
       ],
-      "notes": ""
+      "notes": "Phase 2C (ADR-23). Resolution is the most specific applicable scope: project → brand → workspace → platform default. Changing scope never changes record authority. Archive is reversible; purge is refused while records use its statuses."
     },
     {
       "name": "workflow_status",
@@ -2766,7 +2880,7 @@
       ],
       "associations": [],
       "lifecycle": "mutable",
-      "concurrency": "ordered",
+      "concurrency": "row-version",
       "retention_class": "R-LIVE",
       "confidentiality": "C1",
       "volume": "low",
@@ -2775,26 +2889,69 @@
       "may_contain_secrets": "no",
       "personal_data": "incidental",
       "uniqueness": [
-        "(workflow_id, lower(name)) among non-retired"
+        "(workflow_id, normalized_name) among active statuses"
       ],
       "sensitive_fields": [],
       "key_columns": [
+        "public_id text (sts_)",
+        "workflow_id",
         "name",
+        "description null",
         "category status_category (immutable)",
         "color",
+        "icon null",
         "rank text",
-        "retired_at"
+        "lifecycle_state (active|archived)",
+        "version bigint"
       ],
       "requirements": [
+        "WFL-002",
+        "WFL-003",
         "WFL-004",
-        "WFL-001"
+        "PRJ-009"
       ],
-      "notes": ""
+      "notes": "Phase 2C (ADR-23). A record's status_id references a platform status or a workflow status (trigger-checked, delete-guarded). The category is fixed; a status in use is archived, never deleted, until records are migrated."
     },
     {
-      "name": "workflow_revision",
+      "name": "platform_status",
       "module": "workflow",
-      "purpose": "Immutable snapshot of allowed transitions, required fields, and approval rules.",
+      "purpose": "Immutable platform-default statuses per record type (projects in 2A: Planned, Active, On hold, Completed, Cancelled).",
+      "scope": "platform",
+      "addressable": false,
+      "public_id_prefix": null,
+      "extends": null,
+      "containment_parents": [],
+      "associations": [],
+      "lifecycle": "append-only",
+      "concurrency": "append-only",
+      "retention_class": "R-PLATFORM",
+      "confidentiality": "C1",
+      "volume": "low",
+      "export": "full",
+      "search_ai": "no",
+      "may_contain_secrets": "no",
+      "personal_data": "no",
+      "uniqueness": [
+        "(record_type, key)"
+      ],
+      "sensitive_fields": [],
+      "key_columns": [
+        "record_type",
+        "key",
+        "name",
+        "category status_category (immutable)",
+        "rank"
+      ],
+      "requirements": [
+        "PRJ-009",
+        "PRJ-004"
+      ],
+      "notes": "Phase 2A (ADR-21): seeded by migration only; Phase 2C adds workspace workflows and custom statuses. Phase 2C: unchanged immutable seeds; never copied into workflow_status."
+    },
+    {
+      "name": "transition",
+      "module": "workflow",
+      "purpose": "A directed from-status → to-status rule of a workflow, with required fields, confirmation, and approval policy.",
       "scope": "inherited",
       "addressable": false,
       "public_id_prefix": null,
@@ -2803,8 +2960,8 @@
         "workflow"
       ],
       "associations": [],
-      "lifecycle": "versioned-immutable",
-      "concurrency": "append-only",
+      "lifecycle": "mutable",
+      "concurrency": "row-version",
       "retention_class": "R-LIVE",
       "confidentiality": "C1",
       "volume": "low",
@@ -2813,21 +2970,209 @@
       "may_contain_secrets": "no",
       "personal_data": "incidental",
       "uniqueness": [
-        "(workflow_id, revision_number)"
+        "(workflow_id, from_status_id, to_status_id) among active transitions"
       ],
       "sensitive_fields": [],
       "key_columns": [
-        "transitions jsonb (validated schema)",
-        "required_fields jsonb",
-        "approval_rules jsonb",
-        "created_by"
+        "public_id text (trn_)",
+        "workflow_id",
+        "from_status_id",
+        "to_status_id",
+        "description null",
+        "rank text",
+        "confirmation_tier (none|confirm|step_up)",
+        "approval_policy (none|one_manager|all_named_approvers)",
+        "allow_self_approval boolean",
+        "lifecycle_state (active|archived)",
+        "version bigint"
       ],
       "requirements": [
         "WFL-005",
         "WFL-006",
         "WFL-007"
       ],
-      "notes": ""
+      "notes": "Phase 2C (ADR-23). Once a workflow has an active transition, only registered edges are allowed. Replaces the planned workflow_revision snapshot: transitions are versioned rows and approval requests bind to the transition version."
+    },
+    {
+      "name": "transition_requirement",
+      "module": "workflow",
+      "purpose": "A field that must be present for a transition (built-in key or custom field definition).",
+      "scope": "inherited",
+      "addressable": false,
+      "public_id_prefix": null,
+      "extends": null,
+      "containment_parents": [
+        "transition"
+      ],
+      "associations": [],
+      "lifecycle": "mutable",
+      "concurrency": "ordered",
+      "retention_class": "R-LIVE",
+      "confidentiality": "C1",
+      "volume": "low",
+      "export": "filtered",
+      "search_ai": "yes",
+      "may_contain_secrets": "no",
+      "personal_data": "incidental",
+      "uniqueness": [],
+      "sensitive_fields": [],
+      "key_columns": [
+        "transition_id",
+        "field_kind (builtin|custom)",
+        "builtin_key null",
+        "definition_id null",
+        "allow_manager_override boolean"
+      ],
+      "requirements": [
+        "WFL-006",
+        "TSK-031"
+      ],
+      "notes": "Phase 2C (ADR-23). Checked on the final merged record under lock, before any mutation."
+    },
+    {
+      "name": "transition_approver",
+      "module": "workflow",
+      "purpose": "A named approver of a transition (all_named_approvers).",
+      "scope": "inherited",
+      "addressable": false,
+      "public_id_prefix": null,
+      "extends": null,
+      "containment_parents": [
+        "transition"
+      ],
+      "associations": [],
+      "lifecycle": "mutable",
+      "concurrency": "ordered",
+      "retention_class": "R-LIVE",
+      "confidentiality": "C1",
+      "volume": "low",
+      "export": "filtered",
+      "search_ai": "yes",
+      "may_contain_secrets": "no",
+      "personal_data": "yes",
+      "uniqueness": [],
+      "sensitive_fields": [],
+      "key_columns": [
+        "transition_id",
+        "membership_id"
+      ],
+      "requirements": [
+        "WFL-007"
+      ],
+      "notes": "Phase 2C (ADR-23). Naming an approver grants no record access."
+    },
+    {
+      "name": "approval_request",
+      "module": "workflow",
+      "purpose": "An immutable request to apply one transition to one record version.",
+      "scope": "inherited",
+      "addressable": false,
+      "public_id_prefix": null,
+      "extends": null,
+      "containment_parents": [
+        "workflow"
+      ],
+      "associations": [],
+      "lifecycle": "append-only",
+      "concurrency": "append-only",
+      "retention_class": "R-LIVE",
+      "confidentiality": "C1",
+      "volume": "medium",
+      "export": "filtered",
+      "search_ai": "yes",
+      "may_contain_secrets": "no",
+      "personal_data": "yes",
+      "uniqueness": [],
+      "sensitive_fields": [],
+      "key_columns": [
+        "public_id text (wap_)",
+        "workflow_id",
+        "transition_id",
+        "transition_version",
+        "record_id",
+        "record_kind",
+        "record_version",
+        "fingerprint",
+        "requester_membership_id",
+        "policy",
+        "approver_membership_ids uuid[]",
+        "expires_at",
+        "closed_at null",
+        "closed_reason (applied|withdrawn) null"
+      ],
+      "requirements": [
+        "WFL-007",
+        "TSK-029"
+      ],
+      "notes": "Phase 2C (ADR-23). Facts are immutable except a one-time close. State (pending, approved, rejected, stale, expired, applied, withdrawn) is derived from decisions, the record version, and time."
+    },
+    {
+      "name": "approval_decision",
+      "module": "workflow",
+      "purpose": "An immutable approve or reject decision on an approval request.",
+      "scope": "inherited",
+      "addressable": false,
+      "public_id_prefix": null,
+      "extends": null,
+      "containment_parents": [
+        "approval_request"
+      ],
+      "associations": [],
+      "lifecycle": "append-only",
+      "concurrency": "append-only",
+      "retention_class": "R-LIVE",
+      "confidentiality": "C1",
+      "volume": "medium",
+      "export": "filtered",
+      "search_ai": "yes",
+      "may_contain_secrets": "no",
+      "personal_data": "yes",
+      "uniqueness": [],
+      "sensitive_fields": [],
+      "key_columns": [
+        "approval_request_id",
+        "approver_membership_id",
+        "decision (approve|reject)",
+        "note_hash null",
+        "decided_at"
+      ],
+      "requirements": [
+        "WFL-007",
+        "TSK-029"
+      ],
+      "notes": "Phase 2C (ADR-23). One decision per approver per request; never updated or deleted by application roles."
+    },
+    {
+      "name": "formula_dependency",
+      "module": "workflow",
+      "purpose": "An explicit edge from a formula field definition to a field it reads.",
+      "scope": "inherited",
+      "addressable": false,
+      "public_id_prefix": null,
+      "extends": null,
+      "containment_parents": [
+        "field_definition"
+      ],
+      "associations": [],
+      "lifecycle": "mutable",
+      "concurrency": "append-only",
+      "retention_class": "R-LIVE",
+      "confidentiality": "C1",
+      "volume": "low",
+      "export": "filtered",
+      "search_ai": "yes",
+      "may_contain_secrets": "no",
+      "personal_data": "incidental",
+      "uniqueness": [],
+      "sensitive_fields": [],
+      "key_columns": [
+        "definition_id",
+        "depends_on_definition_id"
+      ],
+      "requirements": [
+        "WFL-011"
+      ],
+      "notes": "Phase 2C (ADR-23). Cycle-checked at save (service plus deferred database guard); bounded by FORMULA_DEPTH_MAX and FORMULA_REFS_MAX."
     },
     {
       "name": "field_definition",
@@ -2853,22 +3198,37 @@
       ],
       "sensitive_fields": [],
       "key_columns": [
-        "record_type",
+        "public_id text (fld_)",
+        "lineage_id uuid",
+        "scope_kind (workspace|brand|project)",
+        "brand_id null",
         "project_id null",
-        "field_type field_type (immutable)",
-        "validation jsonb",
-        "options via field_option",
-        "visibility jsonb",
-        "advanced boolean",
-        "retired_at"
+        "applies_to_project boolean",
+        "applies_to_task boolean",
+        "name",
+        "description null",
+        "field_type (immutable: text|number|currency|percentage|date|person|label|checkbox|url|email|select|formula)",
+        "config jsonb (validated per type)",
+        "required boolean",
+        "presentation (primary|advanced)",
+        "applicability (always|via_set)",
+        "view_visibility jsonb",
+        "formula_ast jsonb null",
+        "formula_version int",
+        "result_type null",
+        "rank text",
+        "lifecycle_state (active|archived)",
+        "version bigint"
       ],
       "requirements": [
+        "TSK-016",
         "WFL-008",
         "WFL-009",
+        "WFL-011",
         "WFL-012",
         "WFL-013"
       ],
-      "notes": ""
+      "notes": "Phase 2C (ADR-23). Formula is a field type (OD-11), not a second system. Fields from broader scopes accumulate unless shadowed by a narrower definition with the same lineage_id; names are not identity. Purge is refused while values or references exist."
     },
     {
       "name": "field_option",
@@ -2893,11 +3253,19 @@
       "personal_data": "incidental",
       "uniqueness": [],
       "sensitive_fields": [],
-      "key_columns": [],
+      "key_columns": [
+        "public_id text (fop_)",
+        "definition_id",
+        "label",
+        "color",
+        "rank text",
+        "lifecycle_state (active|archived)",
+        "version bigint"
+      ],
       "requirements": [
         "WFL-008"
       ],
-      "notes": ""
+      "notes": "Phase 2C (ADR-23). Stable identity; renaming keeps stored meaning. Removing an in-use option needs a replacement (bounded migration) or archival."
     },
     {
       "name": "field_set",
@@ -2922,22 +3290,33 @@
       "personal_data": "incidental",
       "uniqueness": [],
       "sensitive_fields": [],
-      "key_columns": [],
+      "key_columns": [
+        "public_id text (fst_)",
+        "scope_kind",
+        "brand_id null",
+        "project_id null",
+        "applies_to_project boolean",
+        "applies_to_task boolean",
+        "name",
+        "current_version int",
+        "lifecycle_state (active|archived)",
+        "version bigint"
+      ],
       "requirements": [
         "WFL-010"
       ],
-      "notes": ""
+      "notes": "Phase 2C (ADR-23). Versioned; applying attaches a version snapshot without copying definitions or values."
     },
     {
-      "name": "calculated_field_definition",
+      "name": "field_set_version",
       "module": "workflow",
-      "purpose": "Sandboxed expression (validated AST), declared dependencies, version; values materialized.",
+      "purpose": "An immutable ordered snapshot of a field set's definitions and presentation overrides.",
       "scope": "inherited",
       "addressable": false,
       "public_id_prefix": null,
       "extends": null,
       "containment_parents": [
-        "field_definition"
+        "field_set"
       ],
       "associations": [],
       "lifecycle": "versioned-immutable",
@@ -2951,12 +3330,51 @@
       "personal_data": "incidental",
       "uniqueness": [],
       "sensitive_fields": [],
-      "key_columns": [],
-      "requirements": [
-        "WFL-011",
-        "WFL-008"
+      "key_columns": [
+        "field_set_id",
+        "version int",
+        "items jsonb (definition_id, presentation, rank)",
+        "created_by_membership_id"
       ],
-      "notes": ""
+      "requirements": [
+        "WFL-010"
+      ],
+      "notes": "Phase 2C (ADR-23)."
+    },
+    {
+      "name": "field_set_attachment",
+      "module": "workflow",
+      "purpose": "A record's attachment to one field set version (lineage, not a copy).",
+      "scope": "inherited",
+      "addressable": false,
+      "public_id_prefix": null,
+      "extends": null,
+      "containment_parents": [],
+      "associations": [
+        "record",
+        "field_set"
+      ],
+      "lifecycle": "mutable",
+      "concurrency": "row-version",
+      "retention_class": "R-LIVE",
+      "confidentiality": "C1",
+      "volume": "high",
+      "export": "filtered",
+      "search_ai": "yes",
+      "may_contain_secrets": "no",
+      "personal_data": "incidental",
+      "uniqueness": [],
+      "sensitive_fields": [],
+      "key_columns": [
+        "record_id",
+        "field_set_id",
+        "version int",
+        "attached_by_membership_id"
+      ],
+      "requirements": [
+        "WFL-010"
+      ],
+      "notes": "Phase 2C (ADR-23). Later set versions never change attached records until a manager explicitly upgrades them with a preview."
     },
     {
       "name": "field_value",
@@ -2981,27 +3399,37 @@
       "may_contain_secrets": "no",
       "personal_data": "incidental",
       "uniqueness": [
-        "(record_id, field_id)"
+        "(definition_id, record_id)"
       ],
       "sensitive_fields": [],
       "key_columns": [
+        "workspace_id",
+        "brand_id",
+        "definition_id",
         "record_id",
-        "field_id",
-        "value_text",
-        "value_numeric numeric",
-        "value_date date",
-        "value_ts timestamptz",
-        "value_bool",
-        "value_ref uuid",
-        "value_option_ids uuid[]",
-        "computed_at/calc_version (calculated only)"
+        "value jsonb (validated typed JSON)",
+        "value_text null",
+        "value_numeric numeric null",
+        "value_date date null",
+        "value_bool null",
+        "value_ref uuid null",
+        "currency_code char(3) null",
+        "computed boolean",
+        "formula_version int null",
+        "error_code (missing|invalid|divide_by_zero|cycle|overflow) null",
+        "extensions jsonb",
+        "updated_by_membership_id null",
+        "updated_at",
+        "version bigint"
       ],
       "requirements": [
         "TSK-016",
+        "WFL-008",
+        "WFL-011",
         "WFL-012",
         "WFL-014"
       ],
-      "notes": ""
+      "notes": "Phase 2C (ADR-23). One canonical relation, never a column per field. Typed columns are normalized copies for filtering and sorting. Formula results are computed rows (read-only). Person and label values reference identities but grant no access."
     },
     {
       "name": "record_relationship",
@@ -3049,9 +3477,9 @@
     },
     {
       "name": "label",
-      "module": "relations",
+      "module": "work",
       "purpose": "Free-form classifier at workspace or brand scope.",
-      "scope": "workspace_or_brand",
+      "scope": "brand",
       "addressable": false,
       "public_id_prefix": null,
       "extends": null,
@@ -3067,18 +3495,28 @@
       "may_contain_secrets": "no",
       "personal_data": "incidental",
       "uniqueness": [
-        "(scope_key, lower(name))"
+        "(brand_id, normalized_name)"
       ],
       "sensitive_fields": [],
-      "key_columns": [],
+      "key_columns": [
+        "public_id text (lbl_)",
+        "brand_id",
+        "name",
+        "normalized_name (lower, trimmed, collapsed spaces)",
+        "color",
+        "icon null",
+        "rank text",
+        "lifecycle_state (active|archived)",
+        "version bigint"
+      ],
       "requirements": [
         "TSK-015"
       ],
-      "notes": ""
+      "notes": "Phase 2B (ADR-22, OD-10): one concept for labels and tags, scoped to exactly one brand. Renames keep identity; archived labels stay on tasks and leave default pickers. Labels never grant authority."
     },
     {
-      "name": "label_assignment",
-      "module": "relations",
+      "name": "task_label",
+      "module": "work",
       "purpose": "Label applied to a record.",
       "scope": "inherited",
       "addressable": false,
@@ -3087,7 +3525,7 @@
       "containment_parents": [],
       "associations": [
         "label",
-        "record"
+        "task"
       ],
       "lifecycle": "mutable",
       "concurrency": "row-version",
@@ -3099,15 +3537,19 @@
       "may_contain_secrets": "no",
       "personal_data": "incidental",
       "uniqueness": [
-        "(record_id, label_id)"
+        "(task_id, label_id)"
       ],
       "sensitive_fields": [],
-      "key_columns": [],
-      "requirements": [
-        "TSK-015",
-        "TSK-035"
+      "key_columns": [
+        "task_id",
+        "label_id (same workspace and brand)",
+        "added_by_membership_id",
+        "added_at"
       ],
-      "notes": ""
+      "requirements": [
+        "TSK-015"
+      ],
+      "notes": "Phase 2B (ADR-22): replaces the generic label_assignment; labels apply to tasks only until another record type registers them."
     },
     {
       "name": "mention",
@@ -3132,13 +3574,16 @@
       "search_ai": "yes",
       "may_contain_secrets": "no",
       "personal_data": "incidental",
-      "uniqueness": [],
+      "uniqueness": [
+        "(source_id, target) per kind"
+      ],
       "sensitive_fields": [],
       "key_columns": [
-        "source_kind (comment|document_version|record_field)",
+        "source_kind (comment)",
         "source_id",
-        "target_kind",
-        "target_id",
+        "target_kind (member|team|record)",
+        "target_membership_id | target_team_id | target_record_id (exactly one)",
+        "position",
         "notified boolean"
       ],
       "requirements": [
@@ -3146,7 +3591,7 @@
         "DOC-009",
         "COL-007"
       ],
-      "notes": ""
+      "notes": "Phase 4A (ADR-31): resolved only to what the author may name in the host record's scope; shown only while the viewer can see the target; `notified` is 4B's flag. Document and record-field sources arrive with 4C."
     },
     {
       "name": "record_link",
@@ -3171,12 +3616,22 @@
       "personal_data": "incidental",
       "uniqueness": [],
       "sensitive_fields": [],
-      "key_columns": [],
+      "key_columns": [
+        "public_id text (lnk_)",
+        "source_record_id",
+        "target_kind (url|record)",
+        "url text null (https only, normalized)",
+        "target_record_id null (a registered, independently readable record type)",
+        "title text null",
+        "rank text",
+        "created_by_membership_id",
+        "version bigint"
+      ],
       "requirements": [
         "DOC-008",
         "TSK-017"
       ],
-      "notes": "Target is a record or a URL. Links to synced external objects use the target record that integrations.external_identity maps."
+      "notes": "Target is a record or a URL. Phase 2B implements safe https URL links on tasks; record targets (documents, files, external records) are offered only once their owning record type exists and is independently readable. Links to synced external objects use the target record that integrations.external_identity maps."
     },
     {
       "name": "follower",
@@ -3204,13 +3659,18 @@
         "(record_id, membership_id)"
       ],
       "sensitive_fields": [],
-      "key_columns": [],
+      "key_columns": [
+        "record_id",
+        "membership_id",
+        "source (explicit)",
+        "created_at"
+      ],
       "requirements": [
         "TSK-009",
         "COL-010",
         "PRJ-026"
       ],
-      "notes": ""
+      "notes": "Phase 4A (ADR-31, OD-10): one explicit subscription per person and record; never inherited from membership, assignment, ownership, or a share; an unreadable follow is inert and never reported. Notification preferences are 4B."
     },
     {
       "name": "file_object",
@@ -3248,7 +3708,7 @@
         "FILE-012",
         "FILE-013"
       ],
-      "notes": ""
+      "notes": "Phase 4E (ADR-34): keys carry no identifiers (`q.{64 hex}` quarantined, `o.{same}` promoted); a clean object is never quarantined; an infected object's signature is internal and its bytes are deleted; orphaned objects are deleted by the file sweep through `object:{key}` external effects. No storage class or encryption column is stored (provider-side)."
     },
     {
       "name": "file",
@@ -3286,7 +3746,7 @@
         "FILE-003",
         "FILE-004"
       ],
-      "notes": ""
+      "notes": "Phase 4E (ADR-34): hosts are the workspace (members only), a brand, a project, a task, or a comment (its record plus comment_id; only the comment's author attaches). Authority is the host's on every read; hidden and unknown files are one not_found. Trash, restore, and purge follow the host."
     },
     {
       "name": "file_version",
@@ -3321,7 +3781,7 @@
         "FILE-004",
         "FILE-005"
       ],
-      "notes": ""
+      "notes": "Phase 4E (ADR-34): immutable by trigger (only the evidence lock may be set, never cleared, and the preview state); an object or an external http(s) URL that is never copied or fetched; at most FILE_VERSIONS_MAX per file. Downloads need a clean scan and go through a short-lived signed URL that is never stored."
     },
     {
       "name": "upload_session",
@@ -3363,7 +3823,7 @@
         "FILE-001",
         "FILE-011"
       ],
-      "notes": "0D §15.1. Signed URLs are not stored."
+      "notes": "0D §15.1. Signed URLs are not stored. Phase 4E (ADR-34): the creator's alone; reserves bytes against the workspace quota at initiation; completion re-checks authority and verifies presence, size, SHA-256, and type; a version exists only on a completed session; expiry (UPLOAD_SESSION_LIFETIME) releases the reservation and the quarantined object."
     },
     {
       "name": "deliverable",
@@ -3393,7 +3853,7 @@
         "FILE-006",
         "TSK-022"
       ],
-      "notes": ""
+      "notes": "Phase 4E (ADR-34): contained by its task (authority and visibility through the task); expected type any, file, or url (TSK-022); state follows the 4A review of the current version and accepted is final. Lists count accepted versus pending per task and project (PRJ-023)."
     },
     {
       "name": "deliverable_version",
@@ -3435,7 +3895,7 @@
         "FILE-009",
         "AGT-013"
       ],
-      "notes": ""
+      "notes": "Phase 4E (ADR-34): source is a clean file version of the same task or a URL (agent artifacts arrive with 8C); submitted with a 4A approval request in one transaction, superseding an open one; acceptance stores the decision, who accepted, and when, and evidence-locks the row and its file version (trigger). Locked versions are skipped by purge."
     },
     {
       "name": "evidence_item",
@@ -3474,7 +3934,7 @@
         "TEST-012",
         "DEV-016"
       ],
-      "notes": ""
+      "notes": "Phase 4E (ADR-34): not created in 4E; arrives with 9B."
     },
     {
       "name": "storage_usage",
@@ -3501,15 +3961,15 @@
       "requirements": [
         "FILE-010"
       ],
-      "notes": ""
+      "notes": "Phase 4E (ADR-34): used and reserved bytes and object count, locked while an upload reserves bytes against WORKSPACE_STORAGE_QUOTA_BYTES (a technical limit until 10A plans)."
     },
     {
       "name": "comment",
       "module": "collab",
-      "purpose": "Comment or threaded reply on exactly one host record.",
+      "purpose": "Comment or threaded reply on exactly one host record (a task or a project until later phases register more); a deleted comment is a tombstone.",
       "scope": "inherited",
       "addressable": false,
-      "public_id_prefix": null,
+      "public_id_prefix": "cmt",
       "extends": null,
       "containment_parents": [
         "record"
@@ -3527,14 +3987,21 @@
       "uniqueness": [],
       "sensitive_fields": [],
       "key_columns": [
+        "public_id text (cmt_)",
         "host_record_id",
-        "root_comment_id null",
-        "body_rich jsonb",
-        "body_text text",
-        "author_actor_type",
-        "author_id",
-        "edited_at",
-        "deleted_at"
+        "root_comment_id null (thread root; replies never nest deeper)",
+        "in_reply_to_comment_id null",
+        "body_rich jsonb null (rich-text v1; null once deleted)",
+        "body_text text null",
+        "author_membership_id",
+        "author_actor_type (member)",
+        "created_at",
+        "edited_at null",
+        "edit_count",
+        "deleted_at null",
+        "deleted_by_membership_id null",
+        "deleted_by_kind (author|moderator) null",
+        "version"
       ],
       "requirements": [
         "TSK-018",
@@ -3542,7 +4009,7 @@
         "COL-006",
         "COL-009"
       ],
-      "notes": ""
+      "notes": "Phase 4A (ADR-31): flat threads; the author edits or deletes only inside COMMENT_EDIT_WINDOW_MINUTES (OD-38), moderators (manage) delete but never edit; deletion clears the body and keeps the prior body in comment_revision. Authorized through the host record on every read. Purge removes the content; audit keeps hashes only."
     },
     {
       "name": "comment_revision",
@@ -3565,18 +4032,28 @@
       "search_ai": "yes",
       "may_contain_secrets": "no",
       "personal_data": "incidental",
-      "uniqueness": [],
+      "uniqueness": [
+        "(comment_id, revision_no)"
+      ],
       "sensitive_fields": [],
-      "key_columns": [],
+      "key_columns": [
+        "comment_id",
+        "revision_no",
+        "kind (edited|deleted)",
+        "body_rich jsonb",
+        "body_text",
+        "actor_membership_id",
+        "created_at"
+      ],
       "requirements": [
         "COL-009"
       ],
-      "notes": ""
+      "notes": "Phase 4A (ADR-31, OD-38): append-only prior bodies; readable by the author and by people with comment.moderate on the host; removed with the host on purge."
     },
     {
       "name": "reaction",
       "module": "collab",
-      "purpose": "Reaction on a comment.",
+      "purpose": "Reaction on a comment from a fixed vocabulary (thumbs_up, heart, celebrate, eyes, check, question, thanks, laugh).",
       "scope": "inherited",
       "addressable": false,
       "public_id_prefix": null,
@@ -3595,22 +4072,27 @@
       "may_contain_secrets": "no",
       "personal_data": "incidental",
       "uniqueness": [
-        "(comment_id, membership_id, emoji)"
+        "(comment_id, membership_id, reaction)"
       ],
       "sensitive_fields": [],
-      "key_columns": [],
+      "key_columns": [
+        "comment_id",
+        "membership_id",
+        "reaction (fixed vocabulary)",
+        "created_at"
+      ],
       "requirements": [
         "COL-008"
       ],
-      "notes": ""
+      "notes": "Phase 4A (ADR-31): set or cleared only by the person themselves; lists show counts and the viewer's own reactions, never who else reacted."
     },
     {
       "name": "review_request",
       "module": "collab",
-      "purpose": "Request to review a subject version (task, deliverable version, document version, proposal, action, timesheet, release).",
+      "purpose": "Request to review or approve one version of a record (a task or a project until later phases register more), with named reviewers and a rule.",
       "scope": "inherited",
       "addressable": false,
-      "public_id_prefix": null,
+      "public_id_prefix": "rvw",
       "extends": null,
       "containment_parents": [],
       "associations": [
@@ -3626,16 +4108,24 @@
       "search_ai": "yes",
       "may_contain_secrets": "no",
       "personal_data": "incidental",
-      "uniqueness": [],
+      "uniqueness": [
+        "(subject_record_id) where state = requested (one open request per record)"
+      ],
       "sensitive_fields": [],
       "key_columns": [
-        "subject_kind",
-        "subject_id",
-        "subject_version_ref",
-        "requested_by",
-        "reviewer_rule jsonb",
-        "state review_state",
-        "previous_request_id"
+        "public_id text (rvw_)",
+        "subject_record_id",
+        "subject_kind (task|project)",
+        "subject_version",
+        "kind (review|approval)",
+        "rule (any|all)",
+        "state (requested|changes_requested|approved|rejected|withdrawn|superseded)",
+        "requested_by_membership_id",
+        "message_text null",
+        "previous_request_id null",
+        "closed_reason null",
+        "settled_at null",
+        "version"
       ],
       "requirements": [
         "TSK-029",
@@ -3643,12 +4133,12 @@
         "COL-013",
         "AGT-020"
       ],
-      "notes": ""
+      "notes": "Phase 4A (ADR-31): decisions are bound to the version reviewed; the request settles at most once; refresh supersedes an open request. Does not change the record's status (workflow approvals, 2C, stay the status gate)."
     },
     {
       "name": "review_decision",
       "module": "collab",
-      "purpose": "Immutable decision on a review request (approved/accepted, changes_requested, rejected) with self-approval flag.",
+      "purpose": "Immutable decision by one named reviewer on a review request (approved, changes_requested, or rejected) with a self-approval flag.",
       "scope": "inherited",
       "addressable": false,
       "public_id_prefix": null,
@@ -3667,24 +4157,106 @@
       "may_contain_secrets": "no",
       "personal_data": "incidental",
       "uniqueness": [
-        "(review_request_id) one terminal decision"
+        "(review_request_id, reviewer_membership_id) one decision per named reviewer"
       ],
       "sensitive_fields": [],
       "key_columns": [
-        "decision review_outcome",
-        "reviewer_id",
-        "reviewer_actor_type (human only)",
-        "subject_version_ref",
-        "comment",
+        "review_request_id",
+        "reviewer_membership_id (human only)",
+        "outcome (approved|changes_requested|rejected)",
+        "subject_version",
+        "note_text null",
         "self_approval boolean",
         "decided_at"
       ],
       "requirements": [
+        "COL-013",
+        "TSK-029",
+        "TSK-030",
         "FILE-009",
         "AGT-018",
         "AUD-007"
       ],
-      "notes": ""
+      "notes": "Phase 4A (ADR-31): replaces the single terminal decision of the Phase 0 sketch; with the `all` rule several reviewers decide and the request settles once."
+    },
+    {
+      "name": "review_reviewer",
+      "module": "collab",
+      "purpose": "A reviewer named on a review request (an active internal member who could decide at request time).",
+      "scope": "inherited",
+      "addressable": false,
+      "public_id_prefix": null,
+      "extends": null,
+      "containment_parents": [
+        "review_request"
+      ],
+      "associations": [
+        "membership"
+      ],
+      "lifecycle": "mutable",
+      "concurrency": "row-version",
+      "retention_class": "R-LIVE",
+      "confidentiality": "C2",
+      "volume": "medium",
+      "export": "filtered",
+      "search_ai": "yes",
+      "may_contain_secrets": "no",
+      "personal_data": "incidental",
+      "uniqueness": [
+        "(review_request_id, membership_id)"
+      ],
+      "sensitive_fields": [],
+      "key_columns": [
+        "review_request_id",
+        "membership_id (active internal member)",
+        "rank"
+      ],
+      "requirements": [
+        "COL-013",
+        "TSK-029"
+      ],
+      "notes": "Phase 4A (ADR-31): a departing reviewer who has not decided is removed from open requests; decided reviewers stay as history."
+    },
+    {
+      "name": "assignment_event",
+      "module": "collab",
+      "purpose": "Append-only fact that responsibility for a task was assigned, removed, reassigned, or delegated.",
+      "scope": "inherited",
+      "addressable": false,
+      "public_id_prefix": null,
+      "extends": null,
+      "containment_parents": [
+        "record"
+      ],
+      "associations": [
+        "membership"
+      ],
+      "lifecycle": "append-only",
+      "concurrency": "append-only",
+      "retention_class": "R-LIVE",
+      "confidentiality": "C2",
+      "volume": "high",
+      "export": "filtered",
+      "search_ai": "yes",
+      "may_contain_secrets": "no",
+      "personal_data": "incidental",
+      "uniqueness": [],
+      "sensitive_fields": [],
+      "key_columns": [
+        "task_id",
+        "kind (assigned|unassigned|reassigned|delegated)",
+        "via (assign|delegate|departure)",
+        "from_membership_id null",
+        "to_membership_id null",
+        "actor_membership_id",
+        "note_text null",
+        "occurred_at"
+      ],
+      "requirements": [
+        "COL-014",
+        "COL-015"
+      ],
+      "notes": "Phase 4A (ADR-31): readable only through ownership of the task (history is outside a share); people are named only to members. Removed with the task on purge."
     },
     {
       "name": "notification",
@@ -3692,7 +4264,7 @@
       "purpose": "One notification for one recipient about one event; content re-authorized at delivery and display.",
       "scope": "personal",
       "addressable": false,
-      "public_id_prefix": null,
+      "public_id_prefix": "ntf",
       "extends": null,
       "containment_parents": [],
       "associations": [
@@ -3708,18 +4280,27 @@
       "may_contain_secrets": "no",
       "personal_data": "incidental",
       "uniqueness": [
-        "(recipient_id, dedupe_key)"
+        "(recipient_membership_id, dedupe_key)"
       ],
       "sensitive_fields": [],
       "key_columns": [
+        "public_id text (ntf_)",
         "recipient_membership_id",
-        "event_type",
-        "record_id",
-        "brand_id",
+        "type (18 notification types)",
+        "record_id null",
+        "actor_membership_id null",
+        "source_event_id null",
         "dedupe_key",
-        "group_key",
+        "group_key null",
+        "facts jsonb (IDs and small scalars only, never titles; NOTIFY_FACTS_MAX_BYTES)",
+        "occurrences",
         "state (unread|read|saved|dismissed)",
-        "created_at"
+        "digest_pending",
+        "digest_id null",
+        "created_at",
+        "last_occurred_at",
+        "state_changed_at",
+        "version"
       ],
       "requirements": [
         "NTF-001",
@@ -3727,22 +4308,22 @@
         "NTF-012",
         "COL-020"
       ],
-      "notes": ""
+      "notes": "Phase 4B (ADR-32): the row stores identifiers and small facts, never titles or bodies; the summary is rendered at display from what the recipient can read now and an unreadable record shows only that access is gone. Created only for an active recipient who can read the record (security notices excepted); repeats inside NOTIFY_DEDUPE_WINDOW_MINUTES collapse and reopen read or dismissed rows, while saved stays saved. Ages out after NOTIFY_RETENTION_DAYS except saved; erased with the person."
     },
     {
       "name": "notification_delivery",
       "module": "notify",
-      "purpose": "Delivery attempt per channel (email, browser, digest) with outcome.",
+      "purpose": "Delivery per channel (email, browser, digest email) with outcome, bounded retry, and reconciliation state.",
       "scope": "personal",
       "addressable": false,
-      "public_id_prefix": null,
+      "public_id_prefix": "ndl",
       "extends": null,
       "containment_parents": [
         "notification"
       ],
       "associations": [],
-      "lifecycle": "append-only",
-      "concurrency": "append-only",
+      "lifecycle": "mutable",
+      "concurrency": "row-version",
       "retention_class": "R-EXEC",
       "confidentiality": "C1",
       "volume": "very-high",
@@ -3752,12 +4333,29 @@
       "personal_data": "incidental",
       "uniqueness": [],
       "sensitive_fields": [],
-      "key_columns": [],
+      "key_columns": [
+        "public_id text (ndl_)",
+        "recipient_membership_id",
+        "channel (email|browser)",
+        "kind (notification|digest)",
+        "notification_id null",
+        "digest_id null",
+        "state (pending|sending|delivered|failed|dead|suppressed|deferred_quiet_hours|expired)",
+        "attempts",
+        "next_attempt_at",
+        "lease_until null",
+        "failure_class null (transient|permanent|unconfigured|rate_limited)",
+        "failure_code null",
+        "suppress_reason null",
+        "provider_message_id null",
+        "ack_source null (provider|client)",
+        "version"
+      ],
       "requirements": [
         "NTF-002",
         "NTF-003"
       ],
-      "notes": ""
+      "notes": "Phase 4B (ADR-32): delivered only after the provider (or the person's own browser) acknowledges; an unconfigured provider is suppressed with a reason, never delivered. Failures carry a class and a bounded code, never content or addresses; retries back off exponentially up to NOTIFY_DELIVERY_MAX_ATTEMPTS and then dead-letter for administrator review. Content is re-authorized at send time."
     },
     {
       "name": "notification_preference",
@@ -3778,16 +4376,27 @@
       "search_ai": "no",
       "may_contain_secrets": "no",
       "personal_data": "incidental",
-      "uniqueness": [],
+      "uniqueness": [
+        "(membership_id, event_type, channel, scope_kind, scope_record_id)"
+      ],
       "sensitive_fields": [],
-      "key_columns": [],
+      "key_columns": [
+        "membership_id",
+        "event_type (type or *)",
+        "channel (all|in_app|email|browser)",
+        "scope_kind (workspace|brand|project|record)",
+        "scope_record_id null",
+        "mode (immediate|digest|muted)",
+        "expires_at null",
+        "version"
+      ],
       "requirements": [
         "COL-017",
         "NTF-008",
         "NTF-009",
         "NTF-010"
       ],
-      "notes": ""
+      "notes": "Phase 4B (ADR-32): the most specific scope wins (record, project, brand, workspace), then an exact type over *, then an exact channel over all; security notices cannot be muted; a mute can expire."
     },
     {
       "name": "digest",
@@ -3812,11 +4421,99 @@
         "(recipient_id, period_kind, period_start)"
       ],
       "sensitive_fields": [],
-      "key_columns": [],
+      "key_columns": [
+        "recipient_membership_id",
+        "period_kind (daily|weekly)",
+        "period_start",
+        "period_end",
+        "item_count",
+        "state (assembled|empty)",
+        "created_at"
+      ],
       "requirements": [
         "NTF-004"
       ],
-      "notes": ""
+      "notes": "Phase 4B (ADR-32): one cadence per person, so one digest carries each item; its items are re-authorized at assembly and again when sent, and unreadable items are left out."
+    },
+    {
+      "name": "notification_profile",
+      "module": "notify",
+      "purpose": "Per person: time zone source, quiet hours, digest cadence and times, email and browser switches, browser permission.",
+      "scope": "personal",
+      "addressable": false,
+      "public_id_prefix": null,
+      "extends": null,
+      "containment_parents": [],
+      "associations": [],
+      "lifecycle": "mutable",
+      "concurrency": "row-version",
+      "retention_class": "R-PERSONAL",
+      "confidentiality": "C1",
+      "volume": "medium",
+      "export": "self",
+      "search_ai": "no",
+      "may_contain_secrets": "no",
+      "personal_data": "incidental",
+      "uniqueness": [
+        "(membership_id)"
+      ],
+      "sensitive_fields": [],
+      "key_columns": [
+        "membership_id",
+        "timezone null",
+        "quiet_start_minute null",
+        "quiet_end_minute null",
+        "email_enabled",
+        "browser_enabled",
+        "browser_permission (unknown|granted|denied)",
+        "digest_cadence (off|daily|weekly)",
+        "daily_digest_minute",
+        "weekly_digest_weekday",
+        "weekly_digest_minute",
+        "version"
+      ],
+      "requirements": [
+        "NTF-004",
+        "NTF-009",
+        "COL-017"
+      ],
+      "notes": "Phase 4B (ADR-32): quiet hours hold non-security email and browser delivery only, never the in-app centre or a permission or share notice."
+    },
+    {
+      "name": "notification_scope_default",
+      "module": "notify",
+      "purpose": "Brand or project default mode for an event type and channel, set by those who manage the scope; a person's own choice overrides it.",
+      "scope": "personal",
+      "addressable": false,
+      "public_id_prefix": null,
+      "extends": null,
+      "containment_parents": [],
+      "associations": [],
+      "lifecycle": "mutable",
+      "concurrency": "row-version",
+      "retention_class": "R-PERSONAL",
+      "confidentiality": "C1",
+      "volume": "medium",
+      "export": "self",
+      "search_ai": "no",
+      "may_contain_secrets": "no",
+      "personal_data": "incidental",
+      "uniqueness": [
+        "(scope_record_id, event_type, channel)"
+      ],
+      "sensitive_fields": [],
+      "key_columns": [
+        "scope_record_id",
+        "event_type",
+        "channel (in_app|email|browser)",
+        "mode (immediate|digest|muted)",
+        "version"
+      ],
+      "requirements": [
+        "NTF-008",
+        "COL-017"
+      ],
+      "notes": "Phase 4B (ADR-32): ranks below every personal preference and above the system default; changes are audited."
     },
     {
       "name": "project",
@@ -3842,86 +4539,73 @@
       "search_ai": "yes",
       "may_contain_secrets": "no",
       "personal_data": "incidental",
-      "uniqueness": [],
+      "uniqueness": [
+        "(recurrence_series_id, occurrence_key) where recurrence_series_id is not null"
+      ],
       "sensitive_fields": [],
       "key_columns": [
-        "parent_project_id null",
-        "ancestor_ids uuid[]",
-        "depth smallint",
+        "parent_project_id null (same workspace and brand)",
+        "ancestor_ids uuid[] (root first, excluding self)",
+        "depth smallint (root = 0; PROJECT_DEPTH_MAX enforced by commands, hard ceiling 32 in the database)",
         "name",
         "description_rich jsonb",
-        "status_id",
-        "status_category (denormalized)",
-        "priority",
+        "icon",
+        "color",
+        "status_id (workflow.platform_status until 2C)",
+        "status_category (denormalized, guarded)",
+        "priority (none|low|medium|high|urgent)",
         "start_date date",
         "target_date date",
         "deadline_date date | deadline_at timestamptz + deadline_tz",
         "completed_at",
-        "health health_value",
+        "health health_value (on_track|at_risk|off_track) null",
         "health_source (manual|suggested)",
-        "owner_id",
+        "owner_membership_id (accountable responsibility, not authority)",
         "budget_amount numeric + currency",
         "time_budget_minutes",
         "ai_budget_micros",
         "rank text",
         "access_mode (inherit|restricted)",
-        "allow_record_shares boolean (default false when restricted)"
+        "allow_record_shares boolean (default false when restricted)",
+        "recurrence_series_id null (validated by planning)",
+        "occurrence_key text null",
+        "intake_source_id null (validated intake_form record; provenance, PRJ-017)",
+        "version bigint"
       ],
       "requirements": [
         "PRJ-001",
         "PRJ-002",
+        "PRJ-003",
         "PRJ-004",
+        "PRJ-007",
+        "PRJ-008",
         "PRJ-012",
-        "PRJ-020"
+        "PRJ-013",
+        "PRJ-019",
+        "PRJ-020",
+        "PRJ-021",
+        "PRJ-027",
+        "PRJ-017",
+        "WSB-007",
+        "WSB-008",
+        "GOAL-008",
+        "LA-002"
       ],
-      "notes": ""
-    },
-    {
-      "name": "project_member",
-      "module": "work",
-      "purpose": "Collaborator role on a project.",
-      "scope": "inherited",
-      "addressable": false,
-      "public_id_prefix": null,
-      "extends": null,
-      "containment_parents": [
-        "project"
-      ],
-      "associations": [
-        "membership"
-      ],
-      "lifecycle": "mutable",
-      "concurrency": "row-version",
-      "retention_class": "R-LIVE",
-      "confidentiality": "C2",
-      "volume": "medium",
-      "export": "filtered",
-      "search_ai": "yes",
-      "may_contain_secrets": "no",
-      "personal_data": "incidental",
-      "uniqueness": [
-        "(project_id, membership_id)"
-      ],
-      "sensitive_fields": [],
-      "key_columns": [],
-      "requirements": [
-        "PRJ-003"
-      ],
-      "notes": ""
+      "notes": "Phase 2A (ADR-21): collaborator authority is project-scoped access.role_assignment only (no project_member table); owner_membership_id is responsibility and is paired with an explicit project manage grant; a deferred guard keeps one eligible manager on every active project. Completion is derived (OD-13), never stored as authorization."
     },
     {
       "name": "phase",
       "module": "work",
-      "purpose": "Ordered stage of a project.",
-      "scope": "inherited",
-      "addressable": false,
-      "public_id_prefix": null,
+      "purpose": "Ordered stage of a project; reversible archive distinct from trash (ADR-21).",
+      "scope": "brand",
+      "addressable": true,
+      "public_id_prefix": "phs",
       "extends": null,
       "containment_parents": [
         "project"
       ],
       "associations": [],
-      "lifecycle": "trash",
+      "lifecycle": "full",
       "concurrency": "ordered",
       "retention_class": "R-LIVE",
       "confidentiality": "C2",
@@ -3932,11 +4616,20 @@
       "personal_data": "incidental",
       "uniqueness": [],
       "sensitive_fields": [],
-      "key_columns": [],
+      "key_columns": [
+        "project_id",
+        "name",
+        "rank text",
+        "start_date date null",
+        "end_date date null",
+        "status (planned|active|completed)",
+        "owner_membership_id null",
+        "version bigint"
+      ],
       "requirements": [
         "PRJ-010"
       ],
-      "notes": ""
+      "notes": "Phase 2A (ADR-21): archive and restore use the canonical core.record lifecycle; archived phases keep their rank and history."
     },
     {
       "name": "milestone",
@@ -3961,7 +4654,17 @@
       "personal_data": "incidental",
       "uniqueness": [],
       "sensitive_fields": [],
-      "key_columns": [],
+      "key_columns": [
+        "project_id",
+        "phase_id null (same project)",
+        "name",
+        "rank text",
+        "due_date date null",
+        "status (planned|reached|missed|cancelled)",
+        "reached_at null",
+        "owner_membership_id null",
+        "version bigint"
+      ],
       "requirements": [
         "PRJ-010",
         "VIEW-008"
@@ -3998,44 +4701,61 @@
       "uniqueness": [],
       "sensitive_fields": [],
       "key_columns": [
-        "task_type (task|defect)",
-        "project_id null",
-        "parent_task_id null",
-        "ancestor_ids uuid[]",
-        "depth smallint",
-        "phase_id null",
-        "milestone_id null",
+        "project_id null (same workspace and brand; subtasks share their parent's project identity)",
+        "parent_task_id null (same workspace, brand, and project identity)",
+        "ancestor_ids uuid[] (root first, excluding self)",
+        "depth smallint (root = 0; TASK_DEPTH_MAX enforced by commands, hard ceiling 64 in the database)",
         "title",
-        "description_rich jsonb",
-        "status_id",
-        "status_category (denormalized)",
-        "priority",
+        "description_rich jsonb (rich text version 1, 0D PL-23)",
+        "status_id (workflow.platform_status until 2C)",
+        "status_category (denormalized, guarded)",
+        "prior_status_id null (reopen target)",
+        "priority (none|low|medium|high|urgent)",
         "start_date date",
         "due_date date",
-        "due_time time null + due_tz",
-        "deadline_date date | deadline_at timestamptz + deadline_tz",
-        "estimate_minutes int",
-        "remaining_estimate_minutes int",
+        "deadline_date date | deadline_at timestamptz + deadline_tz (never changed implicitly)",
+        "estimate_minutes int null",
+        "remaining_estimate_minutes int null",
         "completed_at",
-        "manual_blocked_reason text null",
-        "expected_deliverable_type",
+        "completion_override_reason text null",
+        "expected_deliverable_type (document|file|url|pull_request|test_report|other) null",
+        "expected_deliverable_detail text null",
         "requires_acceptance boolean",
-        "rank_in_parent text",
-        "last_meaningful_update_at",
-        "recurrence_series_id null",
-        "occurrence_key text null",
-        "version bigint"
+        "rank text",
+        "created_by_membership_id",
+        "version bigint",
+        "origin_kind (manual|recurring|template|intake|import|integration|ai_draft; immutable)",
+        "origin_ref jsonb (safe identifiers only: series, occurrence, template, version; immutable)",
+        "recurrence_series_id null + occurrence_key null (unique together)",
+        "last_meaningful_update_at timestamptz (OD-17 freshness; maintained by triggers)"
       ],
       "requirements": [
+        "CAP-001",
+        "CAP-003",
         "TSK-001",
         "TSK-002",
         "TSK-003",
+        "TSK-004",
         "TSK-005",
+        "TSK-006",
         "TSK-010",
+        "TSK-022",
+        "TSK-023",
+        "TSK-027",
         "TSK-031",
-        "TSK-041"
+        "TSK-033",
+        "TSK-035",
+        "TSK-036",
+        "TSK-037",
+        "TSK-038",
+        "TSK-039",
+        "TSK-040",
+        "TSK-041",
+        "TSK-042",
+        "TSK-043",
+        "TSK-044"
       ],
-      "notes": ""
+      "notes": "Phase 2B (ADR-22): phase/milestone association, task types, manual blocked reasons, due times, recurrence, and freshness fields are not part of 2B; they arrive with their owning phases. Scheduled time is a planning work block (3C), never a task column. Phase 2D (ADR-24): task origin is a closed kind with safe metadata, immutable except through a registered migration; freshness is a trigger-maintained column; repeated rescheduling is derived from the audit ledger."
     },
     {
       "name": "task_assignee",
@@ -4064,12 +4784,21 @@
         "(task_id, membership_id)"
       ],
       "sensitive_fields": [],
-      "key_columns": [],
+      "key_columns": [
+        "task_id",
+        "membership_id (active internal member; never a guest)",
+        "is_primary boolean (at most one per task)",
+        "rank text",
+        "assigned_by_membership_id",
+        "assigned_at",
+        "delegated_from_membership_id null (set when the assignment was handed over, 4A)",
+        "delegated_at null"
+      ],
       "requirements": [
         "TSK-007",
         "COL-015"
       ],
-      "notes": ""
+      "notes": "Responsibility only, never authority (0C AZ-22). Removed or suspended members' assignments end on departure. Phase 4A: delegation records who handed the assignment over; every change is also an append-only collab.assignment_event."
     },
     {
       "name": "checklist_item",
@@ -4094,11 +4823,20 @@
       "personal_data": "incidental",
       "uniqueness": [],
       "sensitive_fields": [],
-      "key_columns": [],
+      "key_columns": [
+        "public_id text (chk_)",
+        "task_id",
+        "text",
+        "rank text",
+        "done boolean",
+        "done_by_membership_id null",
+        "done_at null",
+        "version bigint"
+      ],
       "requirements": [
         "TSK-011"
       ],
-      "notes": ""
+      "notes": "Ordered facts of a task, not tasks: no assignees, dates, or dependencies, and no effect on task status."
     },
     {
       "name": "criteria_item",
@@ -4125,23 +4863,103 @@
       "uniqueness": [],
       "sensitive_fields": [],
       "key_columns": [
+        "public_id text (cri_)",
         "owner_kind (task|project)",
-        "kind (acceptance|definition_of_done|success)",
+        "project_id null / task_id null (exactly one, per owner_kind)",
+        "kind (success|definition_of_done for projects; acceptance|definition_of_done for tasks)",
         "text",
+        "rank text",
         "met boolean",
-        "met_by/at"
+        "met_by/at",
+        "required boolean (task items)",
+        "version bigint"
       ],
       "requirements": [
         "TSK-020",
         "TSK-021",
         "PRJ-005"
       ],
+      "notes": "Phase 2B (ADR-22): project definition-of-done items apply to the project's tasks as read-only inherited defaults, evaluated at read time and never copied; a task records whether each inherited item is met or dismissed (work.task_inherited_criterion)."
+    },
+    {
+      "name": "task_inherited_criterion",
+      "module": "work",
+      "purpose": "A task's response to an inherited project definition-of-done item: met or explicitly dismissed (ADR-22).",
+      "scope": "inherited",
+      "addressable": false,
+      "public_id_prefix": null,
+      "extends": null,
+      "containment_parents": [
+        "task"
+      ],
+      "associations": [
+        "criteria_item"
+      ],
+      "lifecycle": "mutable",
+      "concurrency": "row-version",
+      "retention_class": "R-LIVE",
+      "confidentiality": "C1",
+      "volume": "medium",
+      "export": "filtered",
+      "search_ai": "no",
+      "may_contain_secrets": "no",
+      "personal_data": "incidental",
+      "uniqueness": [
+        "(task_id, criteria_item_id)"
+      ],
+      "sensitive_fields": [],
+      "key_columns": [
+        "task_id",
+        "criteria_item_id (a definition-of-done item of the task's project)",
+        "state (met|dismissed)",
+        "by_membership_id",
+        "at"
+      ],
+      "requirements": [
+        "TSK-021"
+      ],
       "notes": ""
+    },
+    {
+      "name": "scope_item",
+      "module": "work",
+      "purpose": "Project scope statement, exclusion, risk, assumption, or constraint (PRJ-006).",
+      "scope": "inherited",
+      "addressable": false,
+      "public_id_prefix": null,
+      "extends": null,
+      "containment_parents": [
+        "project"
+      ],
+      "associations": [],
+      "lifecycle": "mutable",
+      "concurrency": "ordered",
+      "retention_class": "R-LIVE",
+      "confidentiality": "C2",
+      "volume": "medium",
+      "export": "filtered",
+      "search_ai": "yes",
+      "may_contain_secrets": "no",
+      "personal_data": "incidental",
+      "uniqueness": [],
+      "sensitive_fields": [],
+      "key_columns": [
+        "public_id text (sco_)",
+        "project_id",
+        "kind (scope|exclusion|risk|assumption|constraint)",
+        "text (content-classified)",
+        "rank text",
+        "version bigint"
+      ],
+      "requirements": [
+        "PRJ-006"
+      ],
+      "notes": "Phase 2A (ADR-21): ordered and mutable; text is audited as content (hash only)."
     },
     {
       "name": "project_update",
       "module": "work",
-      "purpose": "Status update for a project; verified when authored or approved by the owner (OD-16 assumption).",
+      "purpose": "Status update for a project; append-only. Verified only by a separate human verification fact (OD-16, decided).",
       "scope": "inherited",
       "addressable": false,
       "public_id_prefix": null,
@@ -4162,10 +4980,12 @@
       "uniqueness": [],
       "sensitive_fields": [],
       "key_columns": [
+        "public_id text (pup_)",
+        "project_id",
         "body",
-        "health",
-        "verified_by/at null",
-        "source_kind (human|ai_draft)"
+        "health null",
+        "source_kind (human|ai_draft|import|system)",
+        "author_membership_id null"
       ],
       "requirements": [
         "PRJ-025",
@@ -4174,9 +4994,45 @@
       "notes": ""
     },
     {
+      "name": "project_update_verification",
+      "module": "work",
+      "purpose": "Append-only fact that an authorized human verified a project update (OD-16).",
+      "scope": "inherited",
+      "addressable": false,
+      "public_id_prefix": null,
+      "extends": null,
+      "containment_parents": [
+        "project_update"
+      ],
+      "associations": [],
+      "lifecycle": "append-only",
+      "concurrency": "append-only",
+      "retention_class": "R-LIVE",
+      "confidentiality": "C2",
+      "volume": "medium",
+      "export": "filtered",
+      "search_ai": "yes",
+      "may_contain_secrets": "no",
+      "personal_data": "incidental",
+      "uniqueness": [
+        "(update_id)"
+      ],
+      "sensitive_fields": [],
+      "key_columns": [
+        "update_id",
+        "verifier_membership_id",
+        "verified_at",
+        "audit_event_id"
+      ],
+      "requirements": [
+        "PRJ-025"
+      ],
+      "notes": "Phase 2A (ADR-21): authoring alone never verifies; AI, imported, and system drafts stay unverified until this fact exists."
+    },
+    {
       "name": "decision_record",
       "module": "work",
-      "purpose": "Structured decision (proposed, decided, superseded); extension point pending OD-15.",
+      "purpose": "Structured decision or open question in a project or brand (OD-15, decided).",
       "scope": "brand",
       "addressable": true,
       "public_id_prefix": "dec",
@@ -4197,41 +5053,23 @@
       "personal_data": "incidental",
       "uniqueness": [],
       "sensitive_fields": [],
-      "key_columns": [],
+      "key_columns": [
+        "project_id null",
+        "kind (decision|open_question)",
+        "state (decision: proposed|decided|superseded; question: open|resolved)",
+        "statement",
+        "outcome text null (decision outcome or question resolution)",
+        "owner_membership_id null",
+        "due_date date null",
+        "decided_at/resolved_at null",
+        "superseded_by_id null",
+        "version bigint"
+      ],
       "requirements": [
         "PRJ-024",
         "AI-013"
       ],
-      "notes": ""
-    },
-    {
-      "name": "reminder",
-      "module": "work",
-      "purpose": "Personal reminder for a task at an instant.",
-      "scope": "personal",
-      "addressable": false,
-      "public_id_prefix": null,
-      "extends": null,
-      "containment_parents": [],
-      "associations": [
-        "task"
-      ],
-      "lifecycle": "state-machine",
-      "concurrency": "row-version",
-      "retention_class": "R-PERSONAL",
-      "confidentiality": "C2",
-      "volume": "high",
-      "export": "self",
-      "search_ai": "yes",
-      "may_contain_secrets": "no",
-      "personal_data": "incidental",
-      "uniqueness": [],
-      "sensitive_fields": [],
-      "key_columns": [],
-      "requirements": [
-        "TSK-032"
-      ],
-      "notes": ""
+      "notes": "Phase 2A (ADR-21): cross-kind states are rejected by the database and the service; documents may link later but are not the authority."
     },
     {
       "name": "inbox_item",
@@ -4256,15 +5094,19 @@
       "sensitive_fields": [],
       "key_columns": [
         "owner_membership_id",
-        "brand_id null",
-        "raw_text text",
-        "source_kind (typed|paste|voice|email|form|api|webhook)",
-        "source_ref text",
-        "parsed_suggestions jsonb (versioned schema)",
+        "brand_id null (until triage; OD-03)",
+        "intent (task|note)",
+        "raw_text text (immutable original)",
+        "source_kind (typed|paste|form|voice|email|api|webhook; 2E produces typed, paste, form)",
+        "source_ref text null (safe public ID: batch, form)",
+        "correlation_id",
+        "parse_version int",
+        "parsed jsonb (versioned, deterministic)",
+        "capture_batch_id null",
         "triage_state (untriaged|converted|merged|discarded)",
-        "converted_record_id null",
+        "converted_kind null + converted_record_id null",
         "merged_into_id null",
-        "snoozed_until"
+        "version bigint"
       ],
       "requirements": [
         "CAP-011",
@@ -4272,7 +5114,7 @@
         "CAP-013",
         "CAP-016"
       ],
-      "notes": ""
+      "notes": "Phase 2E (ADR-25): personal; visible only to its owner (OD-03), brand optional until triage. raw_text, source, and correlation are immutable (trigger). Merged and discarded items are kept; nothing is deleted by triage."
     },
     {
       "name": "note",
@@ -4282,11 +5124,7 @@
       "addressable": true,
       "public_id_prefix": "note",
       "extends": null,
-      "containment_parents": [
-        "brand",
-        "project",
-        "task"
-      ],
+      "containment_parents": [],
       "associations": [],
       "lifecycle": "full",
       "concurrency": "row-version",
@@ -4299,12 +5137,19 @@
       "personal_data": "incidental",
       "uniqueness": [],
       "sensitive_fields": [],
-      "key_columns": [],
+      "key_columns": [
+        "owner_membership_id",
+        "brand_id null",
+        "title",
+        "body text",
+        "source_inbox_item_id null",
+        "version bigint"
+      ],
       "requirements": [
         "CAP-002",
         "CAP-014"
       ],
-      "notes": ""
+      "notes": "Phase 2E (ADR-25): personal until filed (OD-03 rule). Converting a note to a task or project keeps the note and records the conversion."
     },
     {
       "name": "intake_form",
@@ -4329,12 +5174,20 @@
       "personal_data": "incidental",
       "uniqueness": [],
       "sensitive_fields": [],
-      "key_columns": [],
+      "key_columns": [
+        "brand_id",
+        "name",
+        "description",
+        "target_kind (task|project)",
+        "queue_owner_membership_id",
+        "state (active|archived)",
+        "version bigint"
+      ],
       "requirements": [
         "CAP-007",
         "PRJ-017"
       ],
-      "notes": ""
+      "notes": "Phase 2E (ADR-25): members-only while OD-28 is open; submissions land in the queue owner's Inbox with the form's brand."
     },
     {
       "name": "intake_submission",
@@ -4359,11 +5212,16 @@
       "personal_data": "yes",
       "uniqueness": [],
       "sensitive_fields": [],
-      "key_columns": [],
+      "key_columns": [
+        "form_id",
+        "submitter_membership_id",
+        "inbox_item_id",
+        "submitted_at"
+      ],
       "requirements": [
         "CAP-007"
       ],
-      "notes": ""
+      "notes": "Phase 2E (ADR-25): append-only receipt linking a submission to the Inbox item it created; the text lives on the item."
     },
     {
       "name": "email_capture_address",
@@ -4415,23 +5273,30 @@
       "may_contain_secrets": "no",
       "personal_data": "incidental",
       "uniqueness": [
-        "(membership_id, day, record_id)"
+        "(owner_membership_id, day, task_id)"
       ],
       "sensitive_fields": [],
       "key_columns": [
-        "membership_id",
-        "day date",
-        "record_id",
+        "owner_membership_id",
+        "day date (viewer's zone)",
+        "task_id",
+        "brand_id (cascades with the task)",
         "rank text",
         "locked boolean",
-        "outcome (open|done|carried|returned|dropped)"
+        "outcome (open|done|carried|returned|dropped)",
+        "carried_to date null",
+        "source (manual|plan|carry)",
+        "closed_at null",
+        "version"
       ],
       "requirements": [
+        "PLAN-001",
         "PLAN-008",
         "PLAN-009",
+        "PLAN-016",
         "PLAN-017"
       ],
-      "notes": ""
+      "notes": "Phase 3C (ADR-29): never changes the task's dates; closed commitments are final."
     },
     {
       "name": "daily_record",
@@ -4456,12 +5321,29 @@
         "(membership_id, day)"
       ],
       "sensitive_fields": [],
-      "key_columns": [],
+      "key_columns": [
+        "owner_membership_id",
+        "day",
+        "tz",
+        "closed_by (shutdown|auto)",
+        "committed",
+        "completed",
+        "carried",
+        "returned",
+        "dropped",
+        "planned_minutes",
+        "unestimated",
+        "block_minutes",
+        "focus_minutes",
+        "actual_seconds",
+        "items jsonb"
+      ],
       "requirements": [
+        "PLAN-018",
         "PLAN-019",
         "RPT-005"
       ],
-      "notes": ""
+      "notes": "Phase 3C (ADR-29): written once at shutdown or by the day-close job; never rewritten."
     },
     {
       "name": "work_block",
@@ -4476,7 +5358,7 @@
         "task",
         "brand"
       ],
-      "lifecycle": "full",
+      "lifecycle": "mutable",
       "concurrency": "row-version",
       "retention_class": "R-PERSONAL",
       "confidentiality": "C2",
@@ -4485,30 +5367,84 @@
       "search_ai": "yes",
       "may_contain_secrets": "no",
       "personal_data": "incidental",
-      "uniqueness": [],
+      "uniqueness": [
+        "(series_id, occurrence_key)",
+        "public_id"
+      ],
       "sensitive_fields": [],
       "key_columns": [
-        "membership_id",
+        "public_id text (blk_)",
+        "owner_membership_id",
         "task_id null",
-        "brand_id (of task or reservation)",
+        "brand_id null (= the task's brand; cascades with the task)",
+        "title null (blocks without a task)",
         "starts_at timestamptz",
         "ends_at timestamptz",
         "source_tz text",
         "focus boolean",
         "locked boolean",
-        "buffer_kind null",
-        "source (manual|calendar|ai_plan|recurrence)",
-        "recurrence_series_id null",
-        "occurrence_key null"
+        "prep_minutes",
+        "buffer_minutes",
+        "source (manual|estimate|recurrence)",
+        "series_id null",
+        "occurrence_key null",
+        "version"
       ],
       "requirements": [
         "TSK-006",
-        "CAL-003",
-        "CAL-004",
+        "CAL-005",
+        "CAL-011",
         "CAL-013",
-        "PLAN-014"
+        "PLAN-014",
+        "PLAN-015",
+        "PLAN-017"
       ],
-      "notes": ""
+      "notes": "Phase 3C (ADR-29): personal. The seeded core record type stays reserved: 3C blocks carry their own public ID and are deleted with audit (no trash), and removed with their task. Focus blocks are protected against overlap by a guard under the person's lock. Calendar and AI sources are 6C and 7F."
+    },
+    {
+      "name": "block_series",
+      "module": "planning",
+      "purpose": "A person's recurring work block (CAL-005): a rule in an anchor zone, a duration, and block settings.",
+      "scope": "personal",
+      "addressable": false,
+      "public_id_prefix": "bls",
+      "extends": null,
+      "containment_parents": [],
+      "associations": [
+        "task"
+      ],
+      "lifecycle": "state-machine",
+      "concurrency": "row-version",
+      "retention_class": "R-PERSONAL",
+      "confidentiality": "C1",
+      "volume": "low",
+      "export": "self",
+      "search_ai": "no",
+      "may_contain_secrets": "no",
+      "personal_data": "incidental",
+      "uniqueness": [
+        "public_id"
+      ],
+      "sensitive_fields": [],
+      "key_columns": [
+        "public_id text (bls_)",
+        "owner_membership_id",
+        "task_id null",
+        "title null",
+        "rrule (2A subset)",
+        "anchor_tz",
+        "dtstart_local",
+        "duration_minutes",
+        "focus",
+        "prep_minutes",
+        "buffer_minutes",
+        "state (active|ended)",
+        "generated_through"
+      ],
+      "requirements": [
+        "CAL-005"
+      ],
+      "notes": "Phase 3C (ADR-29): occurrences are work blocks keyed (series_id, occurrence_key), generated idempotently through BLOCK_SERIES_HORIZON_DAYS."
     },
     {
       "name": "recurrence_series",
@@ -4536,22 +5472,28 @@
       "uniqueness": [],
       "sensitive_fields": [],
       "key_columns": [
+        "public_id text (rcs_)",
         "target_kind (task|project|work_block)",
+        "project_id null (task series: the project generated tasks join; same brand)",
+        "source_record_id null",
+        "state (active|paused)",
         "rrule text (RFC 5545 subset)",
         "anchor_tz text",
         "dtstart_local timestamp",
         "mode (schedule|after_completion)",
-        "template_payload jsonb (typed per target)",
+        "template_payload jsonb (typed per target; frozen at definition, immutable)",
         "generated_through date",
         "ends_at_occurrence text null",
-        "split_from_series_id null"
+        "split_from_series_id null",
+        "version bigint",
+        "last_run_at timestamptz (discovery fairness: oldest-waiting first; operational, not versioned)"
       ],
       "requirements": [
         "TSK-027",
         "PRJ-013",
         "CAL-005"
       ],
-      "notes": ""
+      "notes": "Phase 2A (ADR-21): template_payload is copied once from an approved template or project serialization and never updated; occurrences carry (recurrence_series_id, occurrence_key), unique per target table; catch-up is bounded by RECURRENCE_CATCHUP_MAX. Phase 2D (ADR-24): target_kind task is implemented; occurrences are work.task rows."
     },
     {
       "name": "recurrence_exception",
@@ -4603,13 +5545,19 @@
       "search_ai": "yes",
       "may_contain_secrets": "no",
       "personal_data": "incidental",
-      "uniqueness": [],
+      "uniqueness": [
+        "(workspace_id, membership_id, weekday, start_minute)"
+      ],
       "sensitive_fields": [],
-      "key_columns": [],
+      "key_columns": [
+        "membership_id",
+        "weekday (1 Monday … 7 Sunday)",
+        "start_minute, end_minute (local, [start, end))"
+      ],
       "requirements": [
         "TIME-001"
       ],
-      "notes": ""
+      "notes": "Phase 3E (ADR-30): non-overlapping windows (guard trigger); evaluated per date in the person's zone, so DST days have their real length."
     },
     {
       "name": "brand_calendar",
@@ -4639,15 +5587,15 @@
         "WSB-010",
         "CAL-010"
       ],
-      "notes": ""
+      "notes": " Phase 3E (ADR-30): the brand zone (tenancy.brand.timezone) and planning.holiday serve as the brand calendar; brand working hours stay with 1C/6C."
     },
     {
       "name": "holiday",
       "module": "planning",
       "purpose": "Holiday date for a person or brand calendar (manual at launch, OD-19).",
-      "scope": "workspace_or_brand",
+      "scope": "brand",
       "addressable": false,
-      "public_id_prefix": null,
+      "public_id_prefix": "hol",
       "extends": null,
       "containment_parents": [],
       "associations": [],
@@ -4660,13 +5608,19 @@
       "search_ai": "yes",
       "may_contain_secrets": "no",
       "personal_data": "incidental",
-      "uniqueness": [],
+      "uniqueness": [
+        "(workspace_id, brand_id, day)"
+      ],
       "sensitive_fields": [],
-      "key_columns": [],
+      "key_columns": [
+        "brand_id",
+        "day date",
+        "name"
+      ],
       "requirements": [
         "CAL-010"
       ],
-      "notes": ""
+      "notes": "Phase 3E (ADR-30, OD-19): manual brand holidays; they reduce a person's availability when the person observes brand holidays and holds a reservation in that brand."
     },
     {
       "name": "time_off",
@@ -4674,7 +5628,7 @@
       "purpose": "Typed unavailable period for a person.",
       "scope": "personal",
       "addressable": false,
-      "public_id_prefix": null,
+      "public_id_prefix": "tof",
       "extends": null,
       "containment_parents": [],
       "associations": [],
@@ -4691,11 +5645,18 @@
       "sensitive_fields": [
         "kind (e.g., sick)"
       ],
-      "key_columns": [],
+      "key_columns": [
+        "membership_id",
+        "kind (vacation|sick|personal|holiday|unavailable)",
+        "all_day + starts_on/ends_on (inclusive local dates) | starts_at/ends_at (instants)",
+        "source_tz",
+        "label null",
+        "version"
+      ],
       "requirements": [
         "TIME-010"
       ],
-      "notes": ""
+      "notes": "Phase 3E (ADR-30): personal; others with capacity.view see only unavailable minutes, never kinds or labels."
     },
     {
       "name": "capacity_reservation",
@@ -4703,7 +5664,7 @@
       "purpose": "Planned share or minutes of a person's capacity for one brand per period (soft target).",
       "scope": "brand",
       "addressable": false,
-      "public_id_prefix": null,
+      "public_id_prefix": "rsv",
       "extends": null,
       "containment_parents": [],
       "associations": [
@@ -4719,23 +5680,31 @@
       "may_contain_secrets": "no",
       "personal_data": "incidental",
       "uniqueness": [
-        "(brand_id, membership_id, period_kind, period_start)"
+        "(workspace_id, brand_id, membership_id, effective_from)"
       ],
       "sensitive_fields": [],
-      "key_columns": [],
+      "key_columns": [
+        "brand_id",
+        "membership_id",
+        "minutes_per_week",
+        "effective_from date",
+        "effective_to date null",
+        "set_by_membership_id",
+        "version"
+      ],
       "requirements": [
         "TIME-002",
         "WSB-017"
       ],
-      "notes": ""
+      "notes": "Phase 3E (ADR-30): a weekly planning target; exceeding it warns and never blocks."
     },
     {
       "name": "time_entry",
       "module": "time",
-      "purpose": "Actual time on a task or project in its brand; a running timer is an entry with ended_at null.",
+      "purpose": "Actual time on one task or one project in that work's brand: manual (timed or duration-only) or a timer (running, paused, stopped).",
       "scope": "brand",
       "addressable": false,
-      "public_id_prefix": null,
+      "public_id_prefix": "te",
       "extends": null,
       "containment_parents": [],
       "associations": [
@@ -4753,28 +5722,74 @@
       "may_contain_secrets": "no",
       "personal_data": "incidental",
       "uniqueness": [
-        "one running timer per membership: unique (membership_id) where ended_at is null"
+        "one live timer per membership: unique (workspace_id, membership_id) where state in (running, paused)",
+        "public_id"
       ],
       "sensitive_fields": [],
       "key_columns": [
+        "public_id text (te_)",
         "membership_id",
         "task_id null",
-        "project_id null",
-        "started_at",
+        "project_id null (exactly one target)",
+        "source (manual|timer)",
+        "state (running|paused|stopped)",
+        "started_at null",
         "ended_at null",
-        "duration_seconds int",
+        "work_date date (local day in tz)",
+        "tz text (IANA)",
+        "duration_seconds int (sum of closed segments)",
         "billable boolean",
-        "note",
-        "timesheet_id null",
-        "locked boolean (derived from period lock)"
+        "note text <= 1000",
+        "auto_stopped boolean",
+        "version bigint"
       ],
       "requirements": [
         "TSK-024",
         "TSK-025",
         "TSK-026",
+        "TIME-004",
+        "TIME-011"
+      ],
+      "notes": "Phase 3D (ADR-27). The brand is part of the target foreign key (ON UPDATE CASCADE), so a task moved to another brand carries its entries; the lock guard refuses the move while any is submitted or approved. Submitted/locked state is derived from timesheet and period_lock rows (not stored)."
+    },
+    {
+      "name": "time_segment",
+      "module": "time",
+      "purpose": "One UTC interval of a timed entry (half-open; an open segment is a running timer).",
+      "scope": "inherited",
+      "addressable": false,
+      "public_id_prefix": null,
+      "extends": null,
+      "containment_parents": [
+        "time_entry"
+      ],
+      "associations": [
+        "membership"
+      ],
+      "lifecycle": "mutable",
+      "concurrency": "locked",
+      "retention_class": "R-LIVE",
+      "confidentiality": "C2",
+      "volume": "very-high",
+      "export": "filtered",
+      "search_ai": "no",
+      "may_contain_secrets": "no",
+      "personal_data": "incidental",
+      "uniqueness": [
+        "one open segment per membership"
+      ],
+      "sensitive_fields": [],
+      "key_columns": [
+        "entry_id",
+        "membership_id",
+        "started_at",
+        "ended_at null"
+      ],
+      "requirements": [
+        "TSK-025",
         "TIME-004"
       ],
-      "notes": ""
+      "notes": "Phase 3D (ADR-27): segments of one person never overlap (database guard under the person lock)."
     },
     {
       "name": "timesheet",
@@ -4782,7 +5797,7 @@
       "purpose": "Person and period container spanning brands; submitted and approved per brand line.",
       "scope": "personal",
       "addressable": false,
-      "public_id_prefix": null,
+      "public_id_prefix": "tsh",
       "extends": null,
       "containment_parents": [],
       "associations": [],
@@ -4796,14 +5811,64 @@
       "may_contain_secrets": "no",
       "personal_data": "incidental",
       "uniqueness": [
-        "(membership_id, period_start)"
+        "(workspace_id, membership_id, period_start)",
+        "public_id"
       ],
       "sensitive_fields": [],
-      "key_columns": [],
+      "key_columns": [
+        "public_id text (tsh_)",
+        "membership_id",
+        "period_start date",
+        "period_end date (= start + 6)",
+        "state (open|submitted|approved)",
+        "submitted_at null",
+        "version bigint"
+      ],
       "requirements": [
         "TIME-012"
       ],
-      "notes": ""
+      "notes": "Phase 3D (ADR-27): seven-day periods starting on the workspace week start; per-brand lines in timesheet_line."
+    },
+    {
+      "name": "timesheet_line",
+      "module": "time",
+      "purpose": "One brand's part of a submitted timesheet: its state and the submitted totals and hash.",
+      "scope": "brand",
+      "addressable": false,
+      "public_id_prefix": null,
+      "extends": null,
+      "containment_parents": [],
+      "associations": [
+        "timesheet"
+      ],
+      "lifecycle": "state-machine",
+      "concurrency": "locked",
+      "retention_class": "R-LIVE",
+      "confidentiality": "C2",
+      "volume": "medium",
+      "export": "filtered",
+      "search_ai": "no",
+      "may_contain_secrets": "no",
+      "personal_data": "incidental",
+      "uniqueness": [
+        "(timesheet_id, brand_id)"
+      ],
+      "sensitive_fields": [],
+      "key_columns": [
+        "timesheet_id",
+        "brand_id",
+        "state (pending|approved|rejected|withdrawn|unlocked)",
+        "submitted_seconds",
+        "submitted_billable_seconds",
+        "submitted_entries",
+        "submitted_hash",
+        "version"
+      ],
+      "requirements": [
+        "TIME-012",
+        "TIME-013"
+      ],
+      "notes": "Phase 3D (ADR-27)."
     },
     {
       "name": "timesheet_approval",
@@ -4828,12 +5893,28 @@
       "personal_data": "incidental",
       "uniqueness": [],
       "sensitive_fields": [],
-      "key_columns": [],
+      "key_columns": [
+        "timesheet_id",
+        "line_id",
+        "brand_id",
+        "membership_id (subject)",
+        "period_start",
+        "period_end",
+        "decided_by_membership_id",
+        "decision (approve|reject)",
+        "self_approval boolean (OD-20)",
+        "note_hash null",
+        "total_seconds",
+        "billable_seconds",
+        "entry_count",
+        "entries_hash",
+        "timesheet_version"
+      ],
       "requirements": [
         "TIME-012",
         "TIME-013"
       ],
-      "notes": ""
+      "notes": "Phase 3D (ADR-27): immutable evidence of exactly which entries were decided."
     },
     {
       "name": "period_lock",
@@ -4856,11 +5937,21 @@
       "personal_data": "incidental",
       "uniqueness": [],
       "sensitive_fields": [],
-      "key_columns": [],
+      "key_columns": [
+        "brand_id",
+        "membership_id",
+        "period_start",
+        "period_end",
+        "action (lock|unlock)",
+        "approval_id null (lock)",
+        "reason null (unlock, OD-26)",
+        "by_membership_id",
+        "step_up_id null"
+      ],
       "requirements": [
         "TIME-013"
       ],
-      "notes": ""
+      "notes": "Phase 3D (ADR-27): the latest row per (person, brand, period) decides; unlock needs a reason and step-up (OD-26)."
     },
     {
       "name": "document",
@@ -4889,29 +5980,81 @@
       "uniqueness": [],
       "sensitive_fields": [],
       "key_columns": [
+        "public_id text (doc_, on the envelope)",
+        "brand_id null (workspace-level when null)",
+        "scope_key",
         "parent_document_id null",
         "ancestor_ids uuid[]",
         "depth smallint",
         "attached_project_id null",
         "attached_task_id null",
-        "doc_type",
+        "doc_type (page|brand_brief|project_brief|sop|specification|meeting_notes|decision|release_notes)",
         "title",
-        "state doc_state (draft|current|stale)",
-        "owner_id",
-        "review_due_on date",
+        "state (draft|current|stale)",
+        "owner_membership_id",
+        "review_due_on null",
         "current_version_id",
-        "rank text",
-        "access_mode (inherit|restricted)",
-        "allow_record_shares boolean (default false when restricted)"
+        "current_version_number",
+        "access_mode (inherit; restricted trees are reserved, ADR-33)",
+        "allow_record_shares boolean (reserved with restricted trees)",
+        "rank",
+        "created_by_membership_id",
+        "updated_by_membership_id",
+        "version"
       ],
       "requirements": [
         "DOC-001",
         "DOC-002",
         "DOC-003",
+        "DOC-004",
+        "DOC-005",
+        "DOC-006",
         "DOC-015",
         "DOC-016"
       ],
-      "notes": ""
+      "notes": "Phase 4C (ADR-33): authority is the placement's (brand or workspace level, the governing project chain of its attachment, exact-record shares); a page lives in its parent's scope and attachment, checked at commit. Restricted document trees are not built in 4C: `access_mode` is constrained to `inherit` and `allow_record_shares` is reserved, because restriction changes the shared visibility compiler and arrives with the sharing and permissions administration phases. `effective_state` reports stale when a current document's review date has passed; the stored state is never rewritten. A task with attached documents cannot change brand."
+    },
+    {
+      "name": "document_reference",
+      "module": "knowledge",
+      "purpose": "A link or mention in a document: the current content's inline mentions (rebuilt on every save) and the explicit record links; re-authorized for every viewer when shown.",
+      "scope": "inherited",
+      "addressable": false,
+      "public_id_prefix": null,
+      "extends": null,
+      "containment_parents": [
+        "document"
+      ],
+      "associations": [
+        "record"
+      ],
+      "lifecycle": "mutable",
+      "concurrency": "locked",
+      "retention_class": "R-LIVE",
+      "confidentiality": "C2",
+      "volume": "high",
+      "export": "filtered",
+      "search_ai": "no",
+      "may_contain_secrets": "no",
+      "personal_data": "incidental",
+      "uniqueness": [
+        "(document_id, kind, target)"
+      ],
+      "sensitive_fields": [],
+      "key_columns": [
+        "document_id",
+        "block_id ('-' for an explicit link)",
+        "position",
+        "kind (mention|link)",
+        "target_kind (member|team|record)",
+        "target_membership_id | target_team_id | target_record_id",
+        "target_record_type (task|project|brand|document)"
+      ],
+      "requirements": [
+        "DOC-008",
+        "DOC-009"
+      ],
+      "notes": "Phase 4C (ADR-33): carries no label, so nothing a viewer may not read is stored in or leaves with the content. A viewer who cannot read a target receives an opaque restricted token (IA-46) that a save restores. Backlinks list only documents the viewer can read, and only when the viewer can read the target."
     },
     {
       "name": "document_version",
@@ -4919,7 +6062,7 @@
       "purpose": "Immutable content snapshot with hash.",
       "scope": "inherited",
       "addressable": false,
-      "public_id_prefix": null,
+      "public_id_prefix": "dcv",
       "extends": null,
       "containment_parents": [
         "document"
@@ -4938,12 +6081,27 @@
         "(document_id, version_number)"
       ],
       "sensitive_fields": [],
-      "key_columns": [],
+      "key_columns": [
+        "public_id text (dcv_)",
+        "document_id",
+        "number (unique per document)",
+        "title",
+        "content jsonb (rich-text v2 blocks)",
+        "content_hash sha256 of the canonical form",
+        "size_bytes",
+        "kind (save|restore|suggestion|template)",
+        "restored_from_number null",
+        "template_key null (type@version)",
+        "change_summary (blocks added, changed, removed)",
+        "created_by_membership_id",
+        "created_at"
+      ],
       "requirements": [
+        "DOC-007",
         "DOC-013",
         "DOC-014"
       ],
-      "notes": ""
+      "notes": "Phase 4C (ADR-33): immutable (a trigger refuses updates; the application role can insert and read only). A save names its base version; a stale base is a conflict; equal content is a no-op. Restoring appends a new version with the chosen content."
     },
     {
       "name": "source_approval",
@@ -4968,12 +6126,134 @@
       "personal_data": "incidental",
       "uniqueness": [],
       "sensitive_fields": [],
-      "key_columns": [],
-      "requirements": [
-        "DOC-017",
-        "DOC-018"
+      "key_columns": [
+        "document_id",
+        "version_number",
+        "kind (approved|revoked)",
+        "actor_membership_id",
+        "note null",
+        "created_at"
       ],
-      "notes": ""
+      "requirements": [
+        "DOC-017"
+      ],
+      "notes": "Phase 4C (ADR-33): append-only. Only the latest row for a document counts, and only for the version it names; it stops applying when a newer version is saved. Search and AI behavior built on it belong to 5A and 7B."
+    },
+    {
+      "module": "knowledge",
+      "scope": "inherited",
+      "addressable": false,
+      "public_id_prefix": null,
+      "extends": null,
+      "containment_parents": [
+        "document"
+      ],
+      "associations": [],
+      "concurrency": "locked",
+      "confidentiality": "C2",
+      "export": "never",
+      "search_ai": "no",
+      "may_contain_secrets": "no",
+      "personal_data": "incidental",
+      "uniqueness": [],
+      "sensitive_fields": [],
+      "requirements": [
+        "DOC-011",
+        "COL-011"
+      ],
+      "name": "edit_draft",
+      "purpose": "The live working block list of one document, opened from its current version; never a version.",
+      "lifecycle": "mutable",
+      "retention_class": "R-DERIVED",
+      "volume": "medium",
+      "key_columns": [
+        "document_id (one per document)",
+        "base_version",
+        "content jsonb (block document v2)",
+        "content_hash",
+        "seq bigint",
+        "checkpoint_seq bigint",
+        "dirty boolean",
+        "last_editor_membership_id null"
+      ],
+      "notes": "Phase 4D (ADR-35): edited only through ordered block operations; a checkpoint appends one ordinary document version. Removed with the document."
+    },
+    {
+      "module": "knowledge",
+      "scope": "inherited",
+      "addressable": false,
+      "public_id_prefix": null,
+      "extends": null,
+      "containment_parents": [
+        "document"
+      ],
+      "associations": [],
+      "concurrency": "locked",
+      "confidentiality": "C2",
+      "export": "never",
+      "search_ai": "no",
+      "may_contain_secrets": "no",
+      "personal_data": "incidental",
+      "uniqueness": [],
+      "sensitive_fields": [],
+      "requirements": [
+        "DOC-011",
+        "COL-011"
+      ],
+      "name": "edit_session",
+      "purpose": "One live editing connection of one member to one document: presence and an expiry.",
+      "lifecycle": "ephemeral",
+      "retention_class": "R-EPHEMERAL",
+      "volume": "medium",
+      "key_columns": [
+        "document_id",
+        "membership_id",
+        "session_key text (unguessable handle)",
+        "mode (edit|view)",
+        "color 0..15",
+        "caret_block null",
+        "expires_at"
+      ],
+      "notes": "Phase 4D (ADR-35): renewed by heartbeats, polls, and operations; ignored once expired and deleted on leave, the next join, and purge; never audited; shown only to members who may see people."
+    },
+    {
+      "module": "knowledge",
+      "scope": "inherited",
+      "addressable": false,
+      "public_id_prefix": null,
+      "extends": null,
+      "containment_parents": [
+        "document"
+      ],
+      "associations": [],
+      "concurrency": "append-only",
+      "confidentiality": "C2",
+      "export": "never",
+      "search_ai": "no",
+      "may_contain_secrets": "no",
+      "personal_data": "incidental",
+      "uniqueness": [],
+      "sensitive_fields": [],
+      "requirements": [
+        "DOC-011",
+        "COL-011"
+      ],
+      "name": "edit_op",
+      "purpose": "The ordered, gapless log of accepted live block operations between checkpoints.",
+      "lifecycle": "append-only",
+      "retention_class": "R-DERIVED",
+      "volume": "high",
+      "key_columns": [
+        "document_id",
+        "seq bigint",
+        "session_id null",
+        "membership_id",
+        "op_id",
+        "kind (insert|replace|delete|move)",
+        "block_id",
+        "payload jsonb"
+      ],
+      "notes": "Phase 4D (ADR-35): rejected operations are not stored; a retry with the same op_id returns the original result; pruned beyond LIVE_OP_LOG_MAX at a checkpoint."
     },
     {
       "name": "document_suggestion",
@@ -4981,7 +6261,7 @@
       "purpose": "Proposed edit on a document version; accepted or rejected by owner.",
       "scope": "inherited",
       "addressable": false,
-      "public_id_prefix": null,
+      "public_id_prefix": "dsg",
       "extends": null,
       "containment_parents": [
         "document"
@@ -4998,16 +6278,30 @@
       "personal_data": "incidental",
       "uniqueness": [],
       "sensitive_fields": [],
-      "key_columns": [],
+      "key_columns": [
+        "public_id text (dsg_)",
+        "document_id",
+        "block_id",
+        "base_version",
+        "base_block_hash",
+        "proposed block jsonb",
+        "note null",
+        "state (open|accepted|rejected|withdrawn|stale)",
+        "author_membership_id",
+        "decided_by_membership_id null",
+        "decided_at null",
+        "applied_version null",
+        "version"
+      ],
       "requirements": [
         "DOC-012"
       ],
-      "notes": ""
+      "notes": "Phase 4C (ADR-33): proposes replacing one block against the version and block it saw; applied only to an unchanged block (same hash), otherwise stale with nothing applied. Never grants access."
     },
     {
       "name": "goal",
       "module": "goals",
-      "purpose": "Desired outcome at workspace, brand, or project scope with owner, period, baseline, target, unit.",
+      "purpose": "Desired outcome at workspace, brand, or project scope with owner, period, status, and a manual, key-result, or linked-work basis; a core.record envelope that is never shareable.",
       "scope": "workspace_or_brand",
       "addressable": true,
       "public_id_prefix": "goal",
@@ -5027,17 +6321,31 @@
       "personal_data": "incidental",
       "uniqueness": [],
       "sensitive_fields": [],
-      "key_columns": [],
+      "key_columns": [
+        "id (core.record envelope, prefix goal)",
+        "brand_id null (workspace goal)",
+        "project_id null (project goal, needs brand)",
+        "title",
+        "owner_membership_id",
+        "status (draft|active|achieved|missed|cancelled)",
+        "period_kind (quarter|half|year|custom), period_start, period_end (at most 3660 days)",
+        "progress_basis (manual|key_results|linked_work)",
+        "unit, baseline_value, target_value, current_value (numeric(20,4), bounded)",
+        "latest_checkin_id, latest_checkin_at, latest_percent, latest_confidence",
+        "version"
+      ],
       "requirements": [
         "GOAL-001",
-        "GOAL-002"
+        "GOAL-002",
+        "GOAL-005",
+        "GOAL-006"
       ],
-      "notes": ""
+      "notes": "Phase 5B (ADR-37): placement decides access (workspace level, brand level, or the governing project chain); never shareable. No number derived from linked work is stored here: it is computed for each viewer from the work they may read. latest_* mirror the newest manual check-in and move with it in one transaction."
     },
     {
       "name": "key_result",
       "module": "goals",
-      "purpose": "Measurable target within a goal.",
+      "purpose": "Measurable target within a goal; manual measurement or a manual percentage.",
       "scope": "inherited",
       "addressable": true,
       "public_id_prefix": "kr",
@@ -5057,16 +6365,27 @@
       "personal_data": "incidental",
       "uniqueness": [],
       "sensitive_fields": [],
-      "key_columns": [],
-      "requirements": [
-        "GOAL-004"
+      "key_columns": [
+        "id (core.record envelope, prefix kr)",
+        "goal_id",
+        "title",
+        "owner_membership_id",
+        "progress_basis (manual)",
+        "unit, baseline_value, target_value, current_value",
+        "position",
+        "latest_checkin_id, latest_percent, latest_confidence",
+        "version"
       ],
-      "notes": ""
+      "requirements": [
+        "GOAL-004",
+        "GOAL-005"
+      ],
+      "notes": "Phase 5B (ADR-37): lives in the scope of its goal and archives, trashes, restores, and purges with it. Key-result progress is a measurement the owner records; the goal's key-result rollup is a plain equal-weight mean of the measured ones (not a 5C metric)."
     },
     {
       "name": "goal_link",
       "module": "goals",
-      "purpose": "Association from goal or key result to project or task (brand goals link within their brand).",
+      "purpose": "Link from a goal or one of its key results to a project or task; grants no access and implies no progress for work the viewer cannot read.",
       "scope": "inherited",
       "addressable": false,
       "public_id_prefix": null,
@@ -5088,19 +6407,27 @@
       "may_contain_secrets": "no",
       "personal_data": "incidental",
       "uniqueness": [
-        "(goal_or_kr_id, record_id)"
+        "(goal_id, key_result_id, target_id)"
       ],
       "sensitive_fields": [],
-      "key_columns": [],
-      "requirements": [
-        "GOAL-003"
+      "key_columns": [
+        "goal_id",
+        "key_result_id null",
+        "target_kind (project|task)",
+        "target_id",
+        "created_by_membership_id"
       ],
-      "notes": ""
+      "requirements": [
+        "GOAL-003",
+        "GOAL-012",
+        "GOAL-013"
+      ],
+      "notes": "Phase 5B (ADR-37): a database trigger keeps a brand goal's links inside its brand and a project goal's task links inside its project. Purge of a project or task removes the links that name it."
     },
     {
       "name": "goal_checkin",
       "module": "goals",
-      "purpose": "Append-only progress update with confidence and source (manual or computed).",
+      "purpose": "Append-only progress update with confidence, note, and source (manual or computed).",
       "scope": "inherited",
       "addressable": false,
       "public_id_prefix": null,
@@ -5119,19 +6446,71 @@
       "search_ai": "yes",
       "may_contain_secrets": "no",
       "personal_data": "incidental",
-      "uniqueness": [],
+      "uniqueness": [
+        "(goal_id, inputs_hash) for computed rows"
+      ],
       "sensitive_fields": [],
-      "key_columns": [],
+      "key_columns": [
+        "id",
+        "goal_id",
+        "key_result_id null",
+        "source (manual|computed)",
+        "value, percent, confidence null",
+        "note",
+        "author_membership_id null (computed)",
+        "inputs_hash (computed rows; unique per goal and hash)",
+        "created_at"
+      ],
       "requirements": [
         "GOAL-005",
         "GOAL-006"
       ],
-      "notes": ""
+      "notes": "Phase 5B (ADR-37): immutable by trigger; the application role cannot update or delete a row. A check-in that states no confidence keeps the last stated one. Author stays on the row after departure (shown as a former member). Purge of the goal removes its history."
+    },
+    {
+      "name": "goal_state",
+      "module": "goals",
+      "purpose": "Viewer-neutral derived facts of one goal for background recalculation: update and period state, manual key-result rollup, inputs hash, and the dirty, due, lease, attempt, and error bookkeeping.",
+      "scope": "inherited",
+      "addressable": false,
+      "public_id_prefix": null,
+      "extends": null,
+      "containment_parents": [
+        "goal"
+      ],
+      "associations": [],
+      "lifecycle": "mutable",
+      "concurrency": "locked",
+      "retention_class": "R-DERIVED",
+      "confidentiality": "C2",
+      "volume": "low",
+      "export": "never",
+      "search_ai": "no",
+      "may_contain_secrets": "no",
+      "personal_data": "incidental",
+      "uniqueness": [
+        "(workspace_id, goal_id)"
+      ],
+      "sensitive_fields": [],
+      "key_columns": [
+        "goal_id (one per goal)",
+        "rollup_percent, rollup_basis (none|manual|key_results|viewer_dependent)",
+        "inputs_hash",
+        "update_state (never|fresh|stale)",
+        "period_state (upcoming|current|ended)",
+        "dirty, next_check_at, claimed_until, attempts, last_error (a code)",
+        "computed_at"
+      ],
+      "requirements": [
+        "GOAL-005",
+        "GOAL-006"
+      ],
+      "notes": "Phase 5B (ADR-37): stores nothing derived from linked work (a goal that depends on it is viewer_dependent with no number). The row is the lock for a recalculation; the scheduler role reads only workspace, dirty, due, and lease columns. Removed with the goal."
     },
     {
       "name": "portfolio",
       "module": "goals",
-      "purpose": "Saved, permission-filtered collection of projects.",
+      "purpose": "Saved, named list of projects at workspace or brand scope; what a viewer sees of it is the members they may read.",
       "scope": "workspace_or_brand",
       "addressable": true,
       "public_id_prefix": "pf",
@@ -5151,12 +6530,61 @@
       "personal_data": "incidental",
       "uniqueness": [],
       "sensitive_fields": [],
-      "key_columns": [],
+      "key_columns": [
+        "id (core.record envelope, prefix pf)",
+        "brand_id null (workspace portfolio)",
+        "name",
+        "description",
+        "owner_membership_id",
+        "version"
+      ],
       "requirements": [
         "GOAL-007",
+        "GOAL-008",
+        "GOAL-009",
         "VIEW-009"
       ],
-      "notes": ""
+      "notes": "Phase 5B (ADR-37): never shareable. Health, dependencies, budgets, deadlines, effort, and orphan findings over its members are computed per viewer and never stored."
+    },
+    {
+      "name": "portfolio_project",
+      "module": "goals",
+      "purpose": "One project named by a portfolio.",
+      "scope": "inherited",
+      "addressable": false,
+      "public_id_prefix": null,
+      "extends": null,
+      "containment_parents": [
+        "portfolio"
+      ],
+      "associations": [
+        "project"
+      ],
+      "lifecycle": "mutable",
+      "concurrency": "locked",
+      "retention_class": "R-LIVE",
+      "confidentiality": "C2",
+      "volume": "medium",
+      "export": "filtered",
+      "search_ai": "yes",
+      "may_contain_secrets": "no",
+      "personal_data": "incidental",
+      "uniqueness": [
+        "(portfolio_id, project_id)"
+      ],
+      "sensitive_fields": [],
+      "key_columns": [
+        "portfolio_id",
+        "project_id",
+        "position",
+        "added_by_membership_id"
+      ],
+      "requirements": [
+        "GOAL-007",
+        "GOAL-008",
+        "VIEW-009"
+      ],
+      "notes": "Phase 5B (ADR-37): an explicit, bounded list of project identities (no copy of any project's data or access). A trigger keeps a brand portfolio to its brand's projects. Members an editor cannot read are preserved by an edit but never listed or counted for them. Purge of a project removes the rows that name it."
     },
     {
       "name": "saved_view",
@@ -5180,18 +6608,45 @@
       "uniqueness": [],
       "sensitive_fields": [],
       "key_columns": [
-        "owner_membership_id null (personal)",
-        "shared_scope_type null",
-        "query jsonb (versioned AST)",
-        "presentation jsonb",
-        "layout view_layout"
+        "entity (task|project)",
+        "name",
+        "description",
+        "owner_membership_id (creator; a personal view is visible to its owner only)",
+        "visibility (personal|shared)",
+        "share_scope (workspace|brand|project) null + share_brand_id + share_project_id (exactly one scope when shared)",
+        "schema_version",
+        "query jsonb (versioned AST, canonical serialization; at most 32 KiB)",
+        "presentation jsonb (columns in order, density; at most 8 KiB)",
+        "layout (list|board|table|calendar|timeline|gantt|workload|activity|timesheet for tasks; list|board|table|calendar|timeline|gantt|milestones|portfolio|activity for projects)",
+        "shared_at, shared_by_membership_id",
+        "version bigint"
       ],
       "requirements": [
+        "TSK-034",
+        "VIEW-001",
+        "VIEW-002",
+        "VIEW-003",
+        "VIEW-004",
+        "VIEW-005",
+        "VIEW-006",
+        "VIEW-007",
+        "VIEW-008",
+        "VIEW-009",
+        "VIEW-010",
+        "VIEW-011",
+        "VIEW-012",
+        "VIEW-013",
+        "VIEW-014",
+        "VIEW-015",
         "VIEW-016",
         "VIEW-017",
-        "VIEW-013"
+        "VIEW-020",
+        "VIEW-021",
+        "VIEW-022",
+        "VIEW-023",
+        "WSB-019"
       ],
-      "notes": ""
+      "notes": "Phase 3A (ADR-26): a workspace-level record (core.record brand NULL; record scope is immutable) whose share names exactly one scope through share_brand_id/share_project_id. Running a view compiles the viewer's own predicate and field allow-list (0C AZ-26); a definition never grants access and a shared view returns each viewer's own rows. Lifecycle: delete is trash through the lifecycle service; views shared with a brand purge with the brand; views shared with a project are that project's content (trash, restore, purge). Pins and scope defaults are removed when the share changes. Phase 3B (ADR-28): the layout chooses how the one query result is rendered; layout options (board field, calendar date field and mode, timeline zoom, workload bucket) live in presentation. Every layout reads the same authorized record set."
     },
     {
       "name": "view_default",
@@ -5214,13 +6669,23 @@
       "search_ai": "yes",
       "may_contain_secrets": "no",
       "personal_data": "incidental",
-      "uniqueness": [],
+      "uniqueness": [
+        "(workspace_id, target_kind, target_key, entity)"
+      ],
       "sensitive_fields": [],
-      "key_columns": [],
+      "key_columns": [
+        "target_kind (member|brand|project)",
+        "target_key (the member, brand, or project id)",
+        "entity (task|project)",
+        "member_id | brand_id | project_id (exactly one, matching target_kind)",
+        "saved_view_id",
+        "set_by_membership_id",
+        "version bigint"
+      ],
       "requirements": [
         "VIEW-018"
       ],
-      "notes": ""
+      "notes": "Phase 3A (ADR-26): resolution order is the person's own default, then the project's, then the brand's; a candidate the person cannot read is skipped silently. Brand and project defaults need views.configure and a view shared with the workspace or that brand or project. Project purge deletes its defaults."
     },
     {
       "name": "favorite",
@@ -5243,14 +6708,22 @@
       "search_ai": "yes",
       "may_contain_secrets": "no",
       "personal_data": "incidental",
-      "uniqueness": [],
+      "uniqueness": [
+        "(workspace_id, owner_membership_id, record_id)"
+      ],
       "sensitive_fields": [],
-      "key_columns": [],
+      "key_columns": [
+        "owner_membership_id",
+        "record_id (core.record: a readable record or saved view)",
+        "target kind = the referenced core.record's registered record_type (joined, not copied)",
+        "rank text (fractional key, ≤ 64 chars; ties broken by record_id)",
+        "created_at"
+      ],
       "requirements": [
         "NAV-008",
         "VIEW-019"
       ],
-      "notes": ""
+      "notes": "Phase 1E. A personal hint, never authority: every entry is re-authorized against the owner's current principal at display and activation, and unreadable, purged, or hidden-brand targets are omitted silently and removed opportunistically. At most FAVORITES_MAX per owner. Add and remove are idempotent; reorder moves one entry between two neighbours with a bounded fractional rank (rebalanced when a key would exceed its length)."
     },
     {
       "name": "recent_item",
@@ -5273,13 +6746,21 @@
       "search_ai": "no",
       "may_contain_secrets": "no",
       "personal_data": "incidental",
-      "uniqueness": [],
+      "uniqueness": [
+        "(workspace_id, owner_membership_id, record_id)"
+      ],
       "sensitive_fields": [],
-      "key_columns": [],
+      "key_columns": [
+        "owner_membership_id",
+        "record_id (core.record)",
+        "target kind = the referenced core.record's registered record_type (joined, not copied)",
+        "visited_at timestamptz",
+        "visit_count integer"
+      ],
       "requirements": [
         "NAV-007"
       ],
-      "notes": ""
+      "notes": "Phase 1E. One row per owner and target holding the latest authorized visit; recorded only after a successful authorized render, coalesced within RECENT_VISIT_COALESCE, and trimmed to RECENT_ITEMS_MAX per owner in the same transaction. Re-authorized at display; clearable. Churn is not audited."
     },
     {
       "name": "view_state",
@@ -5302,62 +6783,28 @@
       "search_ai": "no",
       "may_contain_secrets": "no",
       "personal_data": "incidental",
-      "uniqueness": [],
+      "uniqueness": [
+        "(workspace_id, owner_membership_id, device_key_hash, view_key)"
+      ],
       "sensitive_fields": [],
-      "key_columns": [],
+      "key_columns": [
+        "owner_membership_id",
+        "device_key_hash bytea (SHA-256 of an opaque per-device key; never the key itself)",
+        "view_key text (registered route or view identity)",
+        "schema_version integer",
+        "state jsonb (versioned, allow-listed fields; at most VIEW_STATE_MAX_BYTES)",
+        "expires_at timestamptz (VIEW_STATE_TTL after the last write)",
+        "version integer"
+      ],
       "requirements": [
         "NAV-011"
       ],
-      "notes": ""
+      "notes": "Phase 1E. Durable per-device view state (RS-20): filters, sort, grouping, columns, density override, and the scroll anchor. Selection and open item are session-only and never stored here. Upserts are last-write-wins per device with an optional row-version precondition; expired rows are deleted on write and by the views cleanup job. Record identifiers inside the state are hints re-authorized on use. Phase 3A: keyed families `views.saved.<view id>` and `views.draft.task|project` share one schema (the current query and presentation as base64url JSON, plus the scroll anchor); the engine re-validates the query on every run."
     },
     {
       "name": "search_document",
       "module": "search",
-      "purpose": "Search projection per addressable record (and comment): text vectors plus scope and permission keys.",
-      "scope": "inherited",
-      "addressable": false,
-      "public_id_prefix": null,
-      "extends": null,
-      "containment_parents": [],
-      "associations": [
-        "record"
-      ],
-      "lifecycle": "ephemeral",
-      "concurrency": "row-version",
-      "retention_class": "R-DERIVED",
-      "confidentiality": "C2",
-      "volume": "very-high",
-      "export": "never",
-      "search_ai": "yes",
-      "may_contain_secrets": "no",
-      "personal_data": "incidental",
-      "uniqueness": [
-        "(record_id, part_kind, part_id)"
-      ],
-      "sensitive_fields": [],
-      "key_columns": [
-        "record_id",
-        "part_kind (record|comment|attachment_text)",
-        "brand_id",
-        "project_id",
-        "record_type",
-        "lifecycle_state",
-        "title",
-        "tsv tsvector",
-        "source_version bigint",
-        "indexed_at"
-      ],
-      "requirements": [
-        "SRCH-001",
-        "SRCH-007",
-        "SRCH-011"
-      ],
-      "notes": ""
-    },
-    {
-      "name": "index_status",
-      "module": "search",
-      "purpose": "Per-record indexing state and last failure, visible to admins.",
+      "purpose": "Search projection per searchable source row (a record, a comment, a file, a deliverable): title and body text and the record whose access governs it; no permission, brand, project, or lifecycle copy.",
       "scope": "inherited",
       "addressable": false,
       "public_id_prefix": null,
@@ -5367,7 +6814,53 @@
         "record"
       ],
       "lifecycle": "mutable",
-      "concurrency": "row-version",
+      "concurrency": "locked",
+      "retention_class": "R-DERIVED",
+      "confidentiality": "C2",
+      "volume": "very-high",
+      "export": "never",
+      "search_ai": "yes",
+      "may_contain_secrets": "no",
+      "personal_data": "incidental",
+      "uniqueness": [
+        "(source_kind, source_id)"
+      ],
+      "sensitive_fields": [],
+      "key_columns": [
+        "source_kind (registered adapter: project|task|milestone|decision_record|document|comment|file|deliverable)",
+        "source_id",
+        "auth_record_id (the record whose access governs the row)",
+        "context_record_id null (the record that opens it in context)",
+        "title",
+        "body (at most 100000 characters)",
+        "owner_membership_id null",
+        "source_updated_at",
+        "tsv tsvector (generated: simple and english, title A and body B)",
+        "indexed_at"
+      ],
+      "requirements": [
+        "SRCH-001",
+        "SRCH-005",
+        "SRCH-007",
+        "SRCH-011",
+        "DOC-019"
+      ],
+      "notes": "Phase 5A (ADR-36): rebuilt by the worker from the source of truth; every read joins auth_record_id to core.record and applies the compiled visibility predicate first, so a change of brand, project, share, role, or lifecycle needs no re-index. No GIN index (the match operator is not leakproof under forced RLS); removed with its source row and with a purged record."
+    },
+    {
+      "name": "index_status",
+      "module": "search",
+      "purpose": "The indexing queue: one key per source row whose search row is stale, with its attempts and last failure class. Keys only, never content.",
+      "scope": "inherited",
+      "addressable": false,
+      "public_id_prefix": null,
+      "extends": null,
+      "containment_parents": [],
+      "associations": [
+        "record"
+      ],
+      "lifecycle": "ephemeral",
+      "concurrency": "locked",
       "retention_class": "R-DERIVED",
       "confidentiality": "C1",
       "volume": "high",
@@ -5375,18 +6868,31 @@
       "search_ai": "no",
       "may_contain_secrets": "no",
       "personal_data": "incidental",
-      "uniqueness": [],
+      "uniqueness": [
+        "(source_kind, source_id)"
+      ],
       "sensitive_fields": [],
-      "key_columns": [],
+      "key_columns": [
+        "source_kind",
+        "source_id",
+        "auth_record_id",
+        "state (pending|failed)",
+        "attempts",
+        "requested_at",
+        "next_attempt_at",
+        "last_attempt_at null",
+        "failure_code null (source_error|invalid_content|timeout|unknown_source)"
+      ],
       "requirements": [
+        "SRCH-011",
         "SRCH-012"
       ],
-      "notes": ""
+      "notes": "Phase 5A (ADR-36): written by database triggers in the source's own transaction and drained by the worker; a failed key is retried slowly and is reported to every person who can read its record (counts only over what they can see), and to administrators on Home."
     },
     {
       "name": "recent_search",
       "module": "search",
-      "purpose": "Personal recent searches.",
+      "purpose": "Personal recent searches: the person's own submitted words and filters, never results.",
       "scope": "personal",
       "addressable": false,
       "public_id_prefix": null,
@@ -5394,7 +6900,7 @@
       "containment_parents": [],
       "associations": [],
       "lifecycle": "ephemeral",
-      "concurrency": "row-version",
+      "concurrency": "locked",
       "retention_class": "R-PERSONAL",
       "confidentiality": "C2",
       "volume": "medium",
@@ -5402,13 +6908,22 @@
       "search_ai": "no",
       "may_contain_secrets": "no",
       "personal_data": "incidental",
-      "uniqueness": [],
+      "uniqueness": [
+        "(workspace_id, owner_membership_id, query_key)"
+      ],
       "sensitive_fields": [],
-      "key_columns": [],
+      "key_columns": [
+        "owner_membership_id",
+        "query (at most 200 characters)",
+        "filters jsonb (kind, brand, project, state, updated, mine, mentioning_me)",
+        "query_key",
+        "search_count",
+        "searched_at"
+      ],
       "requirements": [
         "SRCH-009"
       ],
-      "notes": ""
+      "notes": "Phase 5A (ADR-36): only a submitted search is stored; at most SEARCH_RECENT_MAX per person, SEARCH_RECENT_RETENTION_DAYS, erased with the person's other personal data, and checked again on every read (a search naming a brand or project the person can no longer see is left out). Never audited."
     },
     {
       "name": "metric_definition",
@@ -5434,9 +6949,10 @@
       "key_columns": [],
       "requirements": [
         "RPT-023",
-        "RPT-024"
+        "RPT-024",
+        "RPT-025"
       ],
-      "notes": ""
+      "notes": "Phase 5C (ADR-38): a versioned code registry (METRIC_DEFINITIONS), not a table; every result carries the version and the SHA-256 digest of its definition and a test pins each released digest."
     },
     {
       "name": "metric_snapshot",
@@ -5476,12 +6992,12 @@
         "RPT-024",
         "RPT-019"
       ],
-      "notes": ""
+      "notes": "Phase 5C (ADR-38): not built. A pre-aggregated value per scope cannot be shared between viewers without disclosing, and a per-viewer copy would be a stale authority; figures are computed at request time and a frozen report stores the result computed as its recipient."
     },
     {
       "name": "dashboard",
       "module": "insights",
-      "purpose": "Configured widgets over permission-filtered data; personal or shared.",
+      "purpose": "Owner, brand, project, release, or personal dashboard: a bounded list of widgets and default filters. Holds no figure: every widget is computed for the viewer.",
       "scope": "workspace_or_brand",
       "addressable": true,
       "public_id_prefix": "dash",
@@ -5499,17 +7015,26 @@
       "personal_data": "incidental",
       "uniqueness": [],
       "sensitive_fields": [],
-      "key_columns": [],
+      "key_columns": [
+        "kind (owner|brand|project|release|personal)",
+        "project_id null",
+        "title",
+        "owner_membership_id",
+        "layout (bounded widget list)",
+        "filters (bounded)"
+      ],
       "requirements": [
         "RPT-001",
-        "RPT-017"
+        "RPT-017",
+        "RPT-018",
+        "RPT-019"
       ],
-      "notes": ""
+      "notes": "Phase 5D (ADR-39): placement decides access; a personal dashboard is its owner's alone (personal.manage_own). Widgets name a metric and its parameters, never a value; every figure is computed for the viewer from what they may read, so nothing stored can outlive a revocation."
     },
     {
       "name": "report_definition",
       "module": "insights",
-      "purpose": "Saved report configuration and optional schedule.",
+      "purpose": "Saved report configuration (widgets and filters) with an optional schedule; the accountable owner's authority is rechecked at each send.",
       "scope": "workspace_or_brand",
       "addressable": true,
       "public_id_prefix": "rpt",
@@ -5528,28 +7053,114 @@
       "uniqueness": [],
       "sensitive_fields": [],
       "key_columns": [
-        "accountable_owner_membership_id",
+        "title",
+        "accountable_owner_membership_id (column owner_membership_id)",
+        "config (bounded widgets and filters)",
+        "schedule_frequency, schedule_weekday, schedule_monthday, schedule_minute, schedule_timezone null",
+        "next_run_at null",
+        "claimed_until, attempts, last_error",
         "suspended_reason (owner_authority|owner_departed|admin) null",
         "suspended_at null"
       ],
       "requirements": [
         "RPT-020",
+        "RPT-021",
+        "RPT-022"
+      ],
+      "notes": "Phase 5D (ADR-39): schedules are local-time occurrences (daily, weekly, or monthly on days 1 to 28); a sweep that was down owes one delivery, never a backlog. Whoever saves a schedule answers for it; if they lose the authority or leave, it is suspended until someone resumes it."
+    },
+    {
+      "name": "report_recipient",
+      "module": "insights",
+      "purpose": "A member who receives a scheduled report; must be able to read it, and may remove themselves at any time.",
+      "scope": "inherited",
+      "addressable": false,
+      "public_id_prefix": null,
+      "extends": null,
+      "containment_parents": [
+        "report_definition"
+      ],
+      "associations": [
+        "report_definition"
+      ],
+      "lifecycle": "mutable",
+      "concurrency": "row-version",
+      "retention_class": "R-LIVE",
+      "confidentiality": "C1",
+      "volume": "low",
+      "export": "never",
+      "search_ai": "no",
+      "may_contain_secrets": "no",
+      "personal_data": "incidental",
+      "uniqueness": [
+        "(report_id, membership_id)"
+      ],
+      "sensitive_fields": [],
+      "key_columns": [
+        "report_id",
+        "membership_id",
+        "added_by_membership_id",
+        "added_at"
+      ],
+      "requirements": [
         "RPT-021"
       ],
-      "notes": ""
+      "notes": "Phase 5D (ADR-39): a recipient who can no longer read the report is skipped at send time and never emailed. A departing member's rows are removed."
+    },
+    {
+      "name": "report_share",
+      "module": "insights",
+      "purpose": "An explicit, revocable grant to open and run one saved report, bound to the report's own scope. Grants no data: figures are always the grantee's own.",
+      "scope": "inherited",
+      "addressable": false,
+      "public_id_prefix": null,
+      "extends": null,
+      "containment_parents": [
+        "report_definition"
+      ],
+      "associations": [
+        "report_definition"
+      ],
+      "lifecycle": "mutable",
+      "concurrency": "row-version",
+      "retention_class": "R-LIVE",
+      "confidentiality": "C1",
+      "volume": "low",
+      "export": "never",
+      "search_ai": "no",
+      "may_contain_secrets": "no",
+      "personal_data": "incidental",
+      "uniqueness": [
+        "(report_id, grantee_membership_id) while active"
+      ],
+      "sensitive_fields": [],
+      "key_columns": [
+        "public_id (rsh_…)",
+        "report_id",
+        "scope_key (the report's)",
+        "grantee_membership_id",
+        "created_by_membership_id",
+        "expires_at null",
+        "revoked_at null",
+        "revoked_by_membership_id null"
+      ],
+      "requirements": [
+        "RPT-020"
+      ],
+      "notes": "Phase 5D (ADR-39): a share can only name the report's own scope (composite key), applies to the grantee's next read after it is created or revoked, and gives a guest or share-only reader only the records they were already given. Not an access grant on any record."
     },
     {
       "name": "report_run",
       "module": "insights",
-      "purpose": "Generated report output for a recipient and moment, authorized as the recipient.",
+      "purpose": "One scheduled delivery of one report to one recipient, authorized as that recipient at send time. Records that it happened, never its content.",
       "scope": "personal",
       "addressable": false,
       "public_id_prefix": null,
-      "extends": "operation",
+      "extends": null,
       "containment_parents": [],
       "associations": [],
-      "lifecycle": "append-only",
-      "concurrency": "append-only",
+      "lifecycle": "mutable",
+      "concurrency": "locked",
       "retention_class": "R-EXEC",
       "confidentiality": "C2",
       "volume": "medium",
@@ -5557,14 +7168,28 @@
       "search_ai": "yes",
       "may_contain_secrets": "no",
       "personal_data": "incidental",
-      "uniqueness": [],
+      "uniqueness": [
+        "(report_id, recipient_membership_id, occurrence_at)"
+      ],
       "sensitive_fields": [],
-      "key_columns": [],
+      "key_columns": [
+        "report_id",
+        "recipient_membership_id",
+        "occurrence_at",
+        "state (pending|delivered|empty|skipped|failed)",
+        "detail (code)",
+        "row_count",
+        "incomplete",
+        "content_hash",
+        "failure_class null",
+        "attempts",
+        "finished_at null"
+      ],
       "requirements": [
         "RPT-021",
         "RPT-022"
       ],
-      "notes": ""
+      "notes": "Phase 5D (ADR-39): the unique occurrence makes delivery idempotent; content is rendered at send time from the recipient's own access and never stored (only a hash). Aged out by REPORT_RUN_RETENTION_DAYS; leaves with the report on purge."
     },
     {
       "name": "connection",
@@ -6778,14 +8403,19 @@
       "personal_data": "incidental",
       "uniqueness": [],
       "sensitive_fields": [],
-      "key_columns": [],
+      "key_columns": [
+        "name",
+        "target_record_type (project|task)",
+        "current_version_id",
+        "version bigint"
+      ],
       "requirements": [
         "ONB-006",
         "ONB-013",
         "PRJ-014",
         "TSK-028"
       ],
-      "notes": "Platform templates live in a platform table with the same shape and no workspace_id."
+      "notes": "Platform templates live in a platform table with the same shape and no workspace_id. Phase 2D (ADR-24): task templates use the same immutable version rows; applying one needs an explicit brand (and optional project) and reports omissions."
     },
     {
       "name": "template_version",
@@ -6810,11 +8440,18 @@
       "personal_data": "incidental",
       "uniqueness": [],
       "sensitive_fields": [],
-      "key_columns": [],
+      "key_columns": [
+        "template_id",
+        "version_number",
+        "schema_version",
+        "content jsonb (typed package; at most TEMPLATE_ITEMS_MAX items)",
+        "item_count",
+        "created_from_record_type null"
+      ],
       "requirements": [
         "ONB-014"
       ],
-      "notes": ""
+      "notes": "Phase 2A (ADR-21): serializations from projects strip personal data, collaborators, shares, activity/audit, secrets, unsupported later-module data, and cross-brand references."
     },
     {
       "name": "template_installation",
@@ -7801,6 +9438,397 @@
         "REL-015"
       ],
       "notes": ""
+    },
+    {
+      "addressable": false,
+      "public_id_prefix": null,
+      "extends": null,
+      "containment_parents": [],
+      "associations": [],
+      "uniqueness": [
+        "(account_id)"
+      ],
+      "sensitive_fields": [],
+      "name": "account_preference",
+      "module": "identity",
+      "purpose": "Typed personal preferences that follow the account across workspaces and devices: theme, density, motion, shortcuts, start destination, record opening, hidden destinations.",
+      "scope": "platform",
+      "lifecycle": "mutable",
+      "concurrency": "row-version",
+      "retention_class": "R-PERSONAL",
+      "confidentiality": "C1",
+      "volume": "low",
+      "export": "self",
+      "search_ai": "no",
+      "may_contain_secrets": "no",
+      "personal_data": "incidental",
+      "key_columns": [
+        "account_id",
+        "theme (system|light|dark)",
+        "density (comfortable|compact)",
+        "motion (system|reduce)",
+        "shortcuts (auto|on|off)",
+        "start_destination text null (registered destination)",
+        "record_open (panel|full_page)",
+        "hidden_destinations text[] (registered destinations)",
+        "version integer"
+      ],
+      "requirements": [
+        "NAV-010",
+        "NAV-013",
+        "NAV-001"
+      ],
+      "notes": "Phase 1E. One row per account; a missing row means the defaults. Account-scoped (not workspace-personal) because appearance and input preferences apply before a workspace is chosen and on every device; device-local state (sidebar collapse, per-device scope default, scroll anchors) is not stored here. Deleted with the account. No field changes authority or exposure, so changes are not material audit events."
+    },
+    {
+      "addressable": false,
+      "public_id_prefix": null,
+      "extends": null,
+      "containment_parents": [],
+      "associations": [
+        "saved_view"
+      ],
+      "uniqueness": [
+        "(workspace_id, scope_key, saved_view_id)"
+      ],
+      "sensitive_fields": [],
+      "name": "view_pin",
+      "module": "views",
+      "purpose": "A shared saved view pinned into workspace or brand navigation by someone allowed to configure views. Never grants access.",
+      "scope": "workspace_or_brand",
+      "lifecycle": "mutable",
+      "concurrency": "ordered",
+      "retention_class": "R-LIVE",
+      "confidentiality": "C1",
+      "volume": "low",
+      "export": "filtered",
+      "search_ai": "no",
+      "may_contain_secrets": "no",
+      "personal_data": "no",
+      "key_columns": [
+        "scope_key (workspace or brand)",
+        "saved_view_id (core.record of type saved_view)",
+        "rank text",
+        "pinned_by_membership_id"
+      ],
+      "requirements": [
+        "NAV-008"
+      ],
+      "notes": "Phase 1E foundation; Phase 3A write path (ADR-26): pins are created and removed under views.configure at the pin's scope, and only for a view shared with that exact scope (workspace pin: workspace share; brand pin: that brand's share; a trigger repeats the rule). Unsharing or deleting a view removes its pins. Each pin is re-authorized at display."
+    },
+    {
+      "extends": null,
+      "containment_parents": [],
+      "may_contain_secrets": "no",
+      "uniqueness": [
+        "(workspace_id, owner_membership_id, task_id, remind_at)"
+      ],
+      "sensitive_fields": [],
+      "name": "task_reminder",
+      "module": "planning",
+      "purpose": "A person's reminder about one task at one instant (personal; never changes the task).",
+      "scope": "personal",
+      "addressable": false,
+      "public_id_prefix": "rem",
+      "associations": [
+        "task"
+      ],
+      "lifecycle": "state-machine",
+      "concurrency": "row-version",
+      "retention_class": "R-PERSONAL",
+      "confidentiality": "C1",
+      "volume": "high",
+      "export": "self",
+      "search_ai": "no",
+      "personal_data": "yes",
+      "key_columns": [
+        "public_id text (rem_)",
+        "owner_membership_id",
+        "task_id",
+        "remind_at timestamptz",
+        "state (scheduled|fired|dismissed|cancelled)",
+        "fired_at null",
+        "version bigint"
+      ],
+      "requirements": [
+        "TSK-032"
+      ],
+      "notes": "Phase 2D (ADR-24): replaces the planned work.reminder. Firing is deduplicated by the state transition and writes a content-free outbox fact; delivery channels are 4B."
+    },
+    {
+      "extends": null,
+      "containment_parents": [],
+      "may_contain_secrets": "no",
+      "uniqueness": [
+        "(workspace_id, owner_membership_id, task_id)"
+      ],
+      "sensitive_fields": [],
+      "name": "task_snooze",
+      "module": "planning",
+      "purpose": "A person's snooze of one task until an instant (hides it from that person's reminder and Today surfaces; never changes dates).",
+      "scope": "personal",
+      "addressable": false,
+      "public_id_prefix": null,
+      "associations": [
+        "task"
+      ],
+      "lifecycle": "mutable",
+      "concurrency": "row-version",
+      "retention_class": "R-PERSONAL",
+      "confidentiality": "C1",
+      "volume": "medium",
+      "export": "self",
+      "search_ai": "no",
+      "personal_data": "yes",
+      "key_columns": [
+        "owner_membership_id",
+        "task_id",
+        "until_at timestamptz",
+        "version bigint"
+      ],
+      "requirements": [
+        "TSK-033"
+      ],
+      "notes": "Phase 2D (ADR-24). Not a meaningful update (OD-17)."
+    },
+    {
+      "extends": null,
+      "containment_parents": [],
+      "may_contain_secrets": "no",
+      "uniqueness": [],
+      "sensitive_fields": [],
+      "name": "bulk_operation",
+      "module": "work",
+      "purpose": "A previewed then executed bulk command over a bounded explicit set of tasks, with a per-item report.",
+      "scope": "workspace",
+      "addressable": false,
+      "public_id_prefix": "bop",
+      "associations": [
+        "task"
+      ],
+      "lifecycle": "state-machine",
+      "concurrency": "row-version",
+      "retention_class": "R-EPHEMERAL",
+      "confidentiality": "C1",
+      "volume": "medium",
+      "export": "never",
+      "search_ai": "no",
+      "personal_data": "incidental",
+      "key_columns": [
+        "public_id text (bop_)",
+        "owner_membership_id",
+        "operation text",
+        "mode (atomic|partial)",
+        "state (previewed|executed|expired)",
+        "item_ids uuid[] (at most BULK_ITEMS_MAX)",
+        "fingerprint bytea",
+        "results jsonb (per item: id, outcome, code)",
+        "expires_at"
+      ],
+      "requirements": [
+        "TSK-035"
+      ],
+      "notes": "Phase 2D (ADR-24). Results carry identifiers and outcome codes only; unreadable items are reported as not_found without detail."
+    },
+    {
+      "extends": null,
+      "containment_parents": [],
+      "may_contain_secrets": "no",
+      "uniqueness": [],
+      "sensitive_fields": [],
+      "name": "undo_entry",
+      "module": "work",
+      "purpose": "The inverse of one reversible task mutation, available to its actor for UNDO_WINDOW_SECONDS or until a conflicting change.",
+      "scope": "workspace",
+      "addressable": false,
+      "public_id_prefix": "und",
+      "associations": [
+        "task"
+      ],
+      "lifecycle": "state-machine",
+      "concurrency": "row-version",
+      "retention_class": "R-EPHEMERAL",
+      "confidentiality": "C2",
+      "volume": "high",
+      "export": "never",
+      "search_ai": "no",
+      "personal_data": "incidental",
+      "key_columns": [
+        "public_id text (und_)",
+        "owner_membership_id",
+        "command text",
+        "targets jsonb (task id and expected version per target)",
+        "inverse jsonb (prior values of the changed fields only)",
+        "state (available|applied|expired|conflicted)",
+        "expires_at"
+      ],
+      "requirements": [
+        "TSK-038"
+      ],
+      "notes": "Phase 2D (ADR-24). Applying an undo is an audited inverse command with a new idempotency key and a version check; it never bypasses current authorization."
+    },
+    {
+      "name": "capture_conversion",
+      "module": "capture",
+      "purpose": "Lineage of one triage or note conversion: the source Inbox item or note and the record it became.",
+      "scope": "workspace",
+      "addressable": false,
+      "public_id_prefix": null,
+      "extends": null,
+      "containment_parents": [],
+      "associations": [
+        "inbox_item",
+        "note",
+        "task",
+        "project"
+      ],
+      "lifecycle": "append-only",
+      "concurrency": "append-only",
+      "retention_class": "R-LIVE",
+      "confidentiality": "C1",
+      "volume": "medium",
+      "export": "filtered",
+      "search_ai": "metadata",
+      "may_contain_secrets": "no",
+      "personal_data": "incidental",
+      "uniqueness": [
+        "(source_record_id, target_record_id)"
+      ],
+      "sensitive_fields": [],
+      "key_columns": [
+        "source_record_id",
+        "source_kind (inbox_item|note)",
+        "target_record_id",
+        "target_kind (task|note|project)",
+        "by_membership_id",
+        "created_at"
+      ],
+      "requirements": [
+        "CAP-012",
+        "CAP-014",
+        "CAP-016",
+        "PRJ-017"
+      ],
+      "notes": "Phase 2E (ADR-25)."
+    },
+    {
+      "name": "capacity_profile",
+      "module": "planning",
+      "purpose": "Per person: weekly capacity override and whether brand holidays reduce their availability.",
+      "scope": "personal",
+      "addressable": false,
+      "public_id_prefix": null,
+      "extends": null,
+      "containment_parents": [],
+      "associations": [],
+      "lifecycle": "mutable",
+      "concurrency": "row-version",
+      "retention_class": "R-PERSONAL",
+      "confidentiality": "C2",
+      "volume": "low",
+      "export": "self",
+      "search_ai": "yes",
+      "may_contain_secrets": "no",
+      "personal_data": "incidental",
+      "uniqueness": [
+        "(workspace_id, membership_id)"
+      ],
+      "sensitive_fields": [],
+      "key_columns": [
+        "membership_id",
+        "weekly_capacity_minutes null (override; else the working windows)",
+        "observe_brand_holidays boolean",
+        "version"
+      ],
+      "requirements": [
+        "TIME-001"
+      ],
+      "notes": "Phase 3E (ADR-30): the zone is the person's own (identity.account.timezone)."
+    },
+    {
+      "name": "task_status_span",
+      "module": "metrics",
+      "purpose": "Append-only history of a task's status: one span per status the task was in, with a basis saying how it is known. No brand, project, lifecycle, or permission copy.",
+      "scope": "inherited",
+      "addressable": false,
+      "public_id_prefix": null,
+      "extends": null,
+      "containment_parents": [],
+      "associations": [
+        "record"
+      ],
+      "lifecycle": "append-only",
+      "concurrency": "append-only",
+      "retention_class": "R-DERIVED",
+      "confidentiality": "C1",
+      "volume": "high",
+      "export": "never",
+      "search_ai": "no",
+      "may_contain_secrets": "no",
+      "personal_data": "no",
+      "uniqueness": [
+        "(task_id, seq)",
+        "one open span per task"
+      ],
+      "sensitive_fields": [],
+      "key_columns": [
+        "task_id",
+        "seq",
+        "status_id",
+        "status_category",
+        "entered_at",
+        "left_at null",
+        "basis (recorded|assumed|repaired)"
+      ],
+      "requirements": [
+        "RPT-007",
+        "RPT-008",
+        "RPT-009",
+        "RPT-023",
+        "RPT-024"
+      ],
+      "notes": "Phase 5C (ADR-38): written by triggers in the task's own transaction; read only through a join to the task's core.record and the compiled visibility predicate; removed with the task and with a purged record; assumed spans are written once for tasks that predate the ledger."
+    },
+    {
+      "name": "reconcile_state",
+      "module": "metrics",
+      "purpose": "The metrics reconciliation job's state for one workspace: when the next bounded pass is due, its lease and position, and its last success and failure.",
+      "scope": "workspace",
+      "addressable": false,
+      "public_id_prefix": null,
+      "extends": null,
+      "containment_parents": [],
+      "associations": [],
+      "lifecycle": "mutable",
+      "concurrency": "locked",
+      "retention_class": "R-DERIVED",
+      "confidentiality": "C1",
+      "volume": "low",
+      "export": "never",
+      "search_ai": "no",
+      "may_contain_secrets": "no",
+      "personal_data": "no",
+      "uniqueness": [
+        "(workspace_id)"
+      ],
+      "sensitive_fields": [],
+      "key_columns": [
+        "next_run_at",
+        "lease_until null",
+        "scan_after null",
+        "pass_started_at null",
+        "pass_repaired",
+        "attempts",
+        "last_success_at null",
+        "last_failure_at null",
+        "failure_code null (source_error|timeout)",
+        "repaired_total"
+      ],
+      "requirements": [
+        "RPT-023",
+        "RPT-024"
+      ],
+      "notes": "Phase 5C (ADR-38): times, counts, and a short code only; shown to every workspace member as the freshness of the status history and to administrators as an action to check now."
     }
   ]
 }

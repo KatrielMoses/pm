@@ -1,3 +1,4 @@
+import { registerLocalStorage, type LocalStorageRouteDeps } from './storage-routes.ts';
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 import fastifyStatic from '@fastify/static';
@@ -10,7 +11,7 @@ import Fastify, {
 import {
   errorEnvelope,
   meta,
-  platformSingletonEnvelope,
+  nonResourceEnvelope,
   newRequestId,
   parseTraceparent,
   type ErrorCode,
@@ -31,6 +32,10 @@ import {
   type Tracer,
 } from '@pm/observability';
 import type { Readiness } from './readiness.ts';
+import { registerAuth, type AuthRouteDeps } from './auth/routes.ts';
+import { registerShell } from './shell/routes.ts';
+import { registerTenancy, type TenancyRouteDeps } from './tenancy/routes.ts';
+import { registerWork, type WorkRouteDeps } from './work/routes.ts';
 
 declare module 'fastify' {
   interface FastifyRequest {
@@ -49,6 +54,14 @@ export interface AppDeps {
   webDistDir?: string | undefined;
   /** Public status is cached briefly so the unauthenticated endpoint cannot hammer the database. */
   statusCacheMs?: number;
+  /** Identity routes and request authentication (1B). */
+  auth?: Omit<AuthRouteDeps, 'logger'> | undefined;
+  /** Workspace, brand, settings, and context routes (1C); require `auth`. */
+  tenancy?: TenancyRouteDeps | undefined;
+  /** Projects and project structures (2A); require `auth`. */
+  work?: WorkRouteDeps | undefined;
+  /** The dev/test object store's signed URLs (4E); only with `OBJECT_STORAGE=local`. */
+  localStorage?: LocalStorageRouteDeps | undefined;
 }
 
 const STATUS_CLASS = (status: number) => `${Math.floor(status / 100)}xx`;
@@ -214,6 +227,12 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
     );
   }
 
+  if (deps.auth) registerAuth(app, { ...deps.auth, logger: deps.logger });
+  if (deps.auth && deps.tenancy) registerTenancy(app, deps.tenancy);
+  if (deps.auth && deps.work) registerWork(app, deps.work);
+  if (deps.auth) registerShell(app, { metrics: deps.metrics });
+  if (deps.localStorage) registerLocalStorage(app, deps.localStorage);
+
   // Liveness: the process responds. Nothing else (0D §17.4).
   app.get('/healthz', () => ({ status: 'ok' }));
 
@@ -234,8 +253,8 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
     if (!cached || performance.now() - cached.at > statusCacheMs) {
       cached = { at: performance.now(), available: (await deps.readiness()).ready };
     }
-    // Accepted specialization (ADR-0007 D6): a non-record singleton without `data.id`.
-    return platformSingletonEnvelope(
+    // Non-resource response (ADR-0007 D6, ADR-0008 B3): no `data.id`.
+    return nonResourceEnvelope(
       'platform_status',
       {
         status: cached.available ? 'available' : 'degraded',

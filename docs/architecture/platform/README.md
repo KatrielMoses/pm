@@ -1,6 +1,6 @@
 # Platform contracts (Phase 0D)
 
-Status: **proposed: developer complete, awaiting solutions-architect review.** Nothing here marks a roadmap item complete.
+Status: **accepted** (Phase 0D, P0-W4); accepted at the Phase 0 exit gate (P0-IR1; [exit-gate report](../PHASE_0_EXIT_GATE.md)). Later approved amendments are recorded at their sources.
 
 This set defines the shared technical language that every implementation phase uses: identifiers, encodings, HTTP conventions, errors, concurrency, idempotency, operations, jobs, events, webhooks, live updates, scopes, step-up, audit, notifications, usage, entitlements, files, imports/exports, and observability. It builds on [0A](../../product/README.md), [0E](../../ux/README.md), [0B](../data/README.md), [0C](../access/README.md), and the decisions in `ROADMAP_CHECKLIST.md`.
 
@@ -33,9 +33,9 @@ This set defines the shared technical language that every implementation phase u
 
 | Artifact | Contents |
 |---|---|
-| `contracts/schemas/*.schema.json` | 29 JSON Schemas (draft 2020-12): 22 public, 7 internal |
-| `contracts/examples/*.json` | 37 examples, each validated against its schema |
-| `contracts/registry.json` | 61 public ID prefixes (each mapped to a 0B entity or a documented platform-only owner), 32 error codes, 0C response-shape mapping, states, 19 operation kinds, 47 internal events (20 public webhook types), 19 scopes, 14 meters, 18 notification types, 29 telemetry signals, 30 named parameters |
+| `contracts/schemas/*.schema.json` | 30 JSON Schemas (draft 2020-12): 23 public, 7 internal |
+| `contracts/examples/*.json` | 38 examples, each validated against its schema |
+| `contracts/registry.json` | 89 public ID prefixes (each mapped to a 0B entity or a documented platform-only owner), 32 error codes, 0C response-shape mapping, states, 19 operation kinds, 145 internal events (20 public webhook types), 19 scopes, 14 meters, 18 notification types, 91 telemetry signals, 172 named parameters |
 | [generated/schema-reference.md](generated/schema-reference.md) | Field tables and examples for every schema |
 | [generated/registries.md](generated/registries.md) | All registries rendered |
 | `tools/platformcontracts.py` | Validator and renderer |

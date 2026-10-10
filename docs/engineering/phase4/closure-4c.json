@@ -1,0 +1,897 @@
+{
+  "schema_version": 1,
+  "phase": "4C",
+  "status": "candidate",
+  "adr": "0025",
+  "accepted_by_kinds": [
+    "catalog:contributing",
+    "roadmap:<sub>",
+    "adr:<nnnn>[#row]",
+    "requirement:<ID>"
+  ],
+  "requirements": [
+    {
+      "id": "DOC-001",
+      "role": "owned",
+      "disposition": "implemented",
+      "evidence": [
+        {
+          "file": "packages/work/src/docs/document-service.ts",
+          "contains": "async createDocument("
+        },
+        {
+          "file": "packages/work/src/docs/content.ts",
+          "contains": "export function parseContent("
+        },
+        {
+          "file": "packages/work/test/integration/documents.test.ts",
+          "contains": "creates pages in a brand, a project, a task, a parent page, or the workspace, with typed starters"
+        },
+        {
+          "file": "packages/work/test/unit/docs-content.test.ts",
+          "contains": "normalizes into one canonical form with a stable hash"
+        },
+        {
+          "file": "apps/api/test/integration/documents-api.test.ts",
+          "contains": "creates, reads, edits metadata with If-Match, and replays idempotently"
+        },
+        {
+          "file": "apps/web/test/documents.test.tsx",
+          "contains": "renders every block semantically, with text labels and safe links"
+        },
+        {
+          "file": "e2e/documents.spec.ts",
+          "contains": "write with every block, conflict, restore, suggest, review, link, export, archive, and trash"
+        }
+      ],
+      "note": "Rich-text documents: blocks with stable identifiers, validated, normalized, and hashed; created, read, and edited through the compiled level."
+    },
+    {
+      "id": "DOC-002",
+      "role": "owned",
+      "disposition": "implemented",
+      "evidence": [
+        {
+          "file": "packages/db/migrations/0038_documents.up.sql",
+          "contains": "assert_document_placement"
+        },
+        {
+          "file": "packages/work/src/docs/document-service.ts",
+          "contains": "async moveDocument("
+        },
+        {
+          "file": "packages/work/test/integration/documents.test.ts",
+          "contains": "nests pages, moves and reorders them, and refuses cycles, depth, and moves between places"
+        },
+        {
+          "file": "apps/web/test/documents.test.tsx",
+          "contains": "lists children in order and moves one up or down with the location call"
+        },
+        {
+          "file": "apps/web/test/documents.test.tsx",
+          "contains": "shows the Workspace group, loads children only when a page is opened, and is a real tree"
+        }
+      ],
+      "note": "Nested pages: a tree with bounded depth, breadth, and size, no cycles, and a page that lives in its parent's scope and attachment."
+    },
+    {
+      "id": "DOC-003",
+      "role": "owned",
+      "disposition": "implemented",
+      "evidence": [
+        {
+          "file": "packages/work/src/docs/document-service.ts",
+          "contains": "protected async resolvePlacement("
+        },
+        {
+          "file": "packages/work/src/docs/document-core.ts",
+          "contains": "protected async loadDocument("
+        },
+        {
+          "file": "packages/work/test/integration/documents.test.ts",
+          "contains": "places documents by brand, project, task, parent, or workspace and refuses what does not fit"
+        },
+        {
+          "file": "packages/work/test/integration/documents.test.ts",
+          "contains": "decides every read and write through the placement: owners, members, read-only, outsiders, shares, and strangers"
+        },
+        {
+          "file": "apps/web/test/documents.test.tsx",
+          "contains": "asks which brand owns a new page when there is more than one, and never guesses"
+        },
+        {
+          "file": "apps/web/test/documents.test.tsx",
+          "contains": "lists the documents of a project and creates one attached to it"
+        }
+      ],
+      "note": "Documents belong to the workspace, a brand, a project, or a task, and inherit that placement's access."
+    },
+    {
+      "id": "DOC-004",
+      "role": "owned",
+      "disposition": "implemented",
+      "evidence": [
+        {
+          "file": "packages/work/src/docs/semantics.ts",
+          "contains": "export function placementError("
+        },
+        {
+          "file": "packages/work/src/docs/semantics.ts",
+          "contains": "brand_brief"
+        },
+        {
+          "file": "packages/work/test/integration/documents.test.ts",
+          "contains": "places documents by brand, project, task, parent, or workspace and refuses what does not fit"
+        },
+        {
+          "file": "packages/work/test/integration/documents.test.ts",
+          "contains": "starts typed documents from built-in starters and records the starter version"
+        }
+      ],
+      "note": "Brand briefs: a typed document that belongs to a brand, with a starter."
+    },
+    {
+      "id": "DOC-005",
+      "role": "owned",
+      "disposition": "implemented",
+      "evidence": [
+        {
+          "file": "packages/work/src/docs/semantics.ts",
+          "contains": "project_brief"
+        },
+        {
+          "file": "packages/work/test/integration/documents.test.ts",
+          "contains": "places documents by brand, project, task, parent, or workspace and refuses what does not fit"
+        },
+        {
+          "file": "packages/work/test/unit/docs-content.test.ts",
+          "contains": "constrains where each type may live"
+        }
+      ],
+      "note": "Project briefs: a typed document that belongs to a project, with a starter."
+    },
+    {
+      "id": "DOC-006",
+      "role": "owned",
+      "disposition": "implemented",
+      "evidence": [
+        {
+          "file": "packages/work/src/docs/semantics.ts",
+          "contains": "export function starterContent("
+        },
+        {
+          "file": "packages/work/src/docs/semantics.ts",
+          "contains": "export const TEMPLATE_VERSIONS"
+        },
+        {
+          "file": "packages/work/test/unit/docs-content.test.ts",
+          "contains": "has a valid built-in starter for every type, versioned"
+        },
+        {
+          "file": "packages/work/test/integration/documents.test.ts",
+          "contains": "starts typed documents from built-in starters and records the starter version"
+        }
+      ],
+      "note": "SOPs, specifications, meeting notes, decisions, and release notes as typed documents with versioned starters."
+    },
+    {
+      "id": "DOC-007",
+      "role": "owned",
+      "disposition": "implemented",
+      "evidence": [
+        {
+          "file": "packages/work/src/docs/semantics.ts",
+          "contains": "export const templateKey"
+        },
+        {
+          "file": "packages/db/migrations/0038_documents.up.sql",
+          "contains": "document_version_template_shape"
+        },
+        {
+          "file": "packages/work/test/integration/documents.test.ts",
+          "contains": "starts typed documents from built-in starters and records the starter version"
+        }
+      ],
+      "note": "Document templates: built-in typed starters, versioned and recorded on the first version. No template catalog (10B owns custom templates)."
+    },
+    {
+      "id": "DOC-008",
+      "role": "owned",
+      "disposition": "foundation",
+      "evidence": [
+        {
+          "file": "packages/work/src/docs/document-service.ts",
+          "contains": "async setLinks("
+        },
+        {
+          "file": "packages/work/src/docs/document-core.ts",
+          "contains": "async backlinks("
+        },
+        {
+          "file": "packages/work/test/integration/documents.test.ts",
+          "contains": "lists backlinks only for documents and targets the viewer can read"
+        },
+        {
+          "file": "apps/api/test/integration/documents-api.test.ts",
+          "contains": "saves content against the version loaded, conflicts on a stale one, lists versions, and restores"
+        },
+        {
+          "file": "apps/web/test/documents.test.tsx",
+          "contains": "Mentioned in documents shows title and type only, and an empty state that says nothing is linked"
+        }
+      ],
+      "note": "Documents link to tasks, projects, brands, and documents through registered references, with backlinks that list only what the viewer can read. Goals, agents, and external records register when 5B, 8B, and 6A create them.",
+      "deferred_to": [
+        "5B",
+        "8B",
+        "6A"
+      ],
+      "accepted_by": [
+        "roadmap:5B",
+        "roadmap:8B",
+        "roadmap:6A"
+      ]
+    },
+    {
+      "id": "DOC-009",
+      "role": "owned",
+      "disposition": "implemented",
+      "evidence": [
+        {
+          "file": "packages/work/src/docs/document-service.ts",
+          "contains": "protected async syncReferences("
+        },
+        {
+          "file": "packages/work/src/docs/document-service.ts",
+          "contains": "protected async checkNewRefs("
+        },
+        {
+          "file": "packages/work/test/integration/documents.test.ts",
+          "contains": "links records by registered reference, re-checks every viewer, and shows no title they cannot read"
+        },
+        {
+          "file": "packages/work/test/integration/documents-notify.test.ts",
+          "contains": "notifies a person named in a document only if they can read it, once, and never the author"
+        },
+        {
+          "file": "packages/work/test/unit/docs-content.test.ts",
+          "contains": "carries references without any label and lists each target once"
+        },
+        {
+          "file": "apps/web/test/documents.test.tsx",
+          "contains": "shows restricted and unresolved references as a neutral token with no identifier in the page"
+        },
+        {
+          "file": "apps/web/test/documents.test.tsx",
+          "contains": "searches, moves with the arrow keys, and writes the reference token on Enter"
+        }
+      ],
+      "note": "Mentions of people, teams, tasks, projects, brands, and documents inside documents, checked when saved and re-checked for every viewer when shown."
+    },
+    {
+      "id": "DOC-010",
+      "role": "owned",
+      "disposition": "foundation",
+      "evidence": [
+        {
+          "file": "packages/work/src/docs/content.ts",
+          "contains": "unsupported_embed"
+        },
+        {
+          "file": "packages/work/test/unit/docs-content.test.ts",
+          "contains": "accepts only safe addresses and refuses file embeds until 4E"
+        },
+        {
+          "file": "packages/work/test/unit/docs-content.test.ts",
+          "contains": "writes Markdown, escapes markup, and says what it could not carry"
+        },
+        {
+          "file": "apps/web/test/documents.test.tsx",
+          "contains": "edits a checklist, a table, code and a link card with native controls"
+        }
+      ],
+      "note": "Code blocks, tables, checklists, callouts, links, and image and video embeds (as link cards: nothing is fetched). Files, uploads, and previews belong to 4E, so a file embed is refused with `unsupported_embed`.",
+      "deferred_to": [
+        "4E"
+      ],
+      "accepted_by": [
+        "roadmap:4E"
+      ]
+    },
+    {
+      "id": "DOC-012",
+      "role": "owned",
+      "disposition": "implemented",
+      "evidence": [
+        {
+          "file": "packages/work/src/docs/document-core.ts",
+          "contains": "protected override async loadExtraHost("
+        },
+        {
+          "file": "packages/work/src/docs/suggestion-service.ts",
+          "contains": "async decideSuggestion("
+        },
+        {
+          "file": "packages/work/test/integration/documents.test.ts",
+          "contains": "comments, follows, and reviews work on a document through the collaboration host"
+        },
+        {
+          "file": "packages/work/test/integration/documents.test.ts",
+          "contains": "applies a suggestion to an unchanged block as a new version, and only an editor decides"
+        },
+        {
+          "file": "packages/work/test/integration/documents.test.ts",
+          "contains": "goes stale, with nothing applied, when the block changed since; rejects and withdraws without touching content"
+        },
+        {
+          "file": "apps/web/test/documents.test.tsx",
+          "contains": "a commenter suggests a change to a block from the read-only page"
+        },
+        {
+          "file": "apps/web/test/documents.test.tsx",
+          "contains": "says a stale suggestion changed nothing, and withdraw is only for the author"
+        }
+      ],
+      "note": "Comments through the 4A host (document-level; anchored comments arrive with 4D) and block suggestions that apply only to an unchanged block."
+    },
+    {
+      "id": "DOC-013",
+      "role": "owned",
+      "disposition": "implemented",
+      "evidence": [
+        {
+          "file": "packages/work/src/docs/document-core.ts",
+          "contains": "async listVersions("
+        },
+        {
+          "file": "packages/db/migrations/0038_documents.up.sql",
+          "contains": "document_version_immutable"
+        },
+        {
+          "file": "packages/work/test/integration/documents.test.ts",
+          "contains": "saves versions that never overwrite: a stale base conflicts, equal content is a no-op"
+        },
+        {
+          "file": "apps/api/test/integration/documents-api.test.ts",
+          "contains": "saves content against the version loaded, conflicts on a stale one, lists versions, and restores"
+        },
+        {
+          "file": "apps/web/test/documents.test.tsx",
+          "contains": "lists versions with who, kind, summary, and the Current and AI source markers, and loads more"
+        }
+      ],
+      "note": "Version history: immutable versions with author, kind, change summary, and hash; any version can be read."
+    },
+    {
+      "id": "DOC-014",
+      "role": "owned",
+      "disposition": "implemented",
+      "evidence": [
+        {
+          "file": "packages/work/src/docs/document-service.ts",
+          "contains": "async restoreVersion("
+        },
+        {
+          "file": "packages/work/test/integration/documents.test.ts",
+          "contains": "restores an earlier version as a new one and keeps the whole history"
+        },
+        {
+          "file": "apps/api/test/integration/documents-api.test.ts",
+          "contains": "saves content against the version loaded, conflicts on a stale one, lists versions, and restores"
+        },
+        {
+          "file": "apps/web/test/documents.test.tsx",
+          "contains": "opens a version read-only and restores it: a new version, nothing deleted"
+        }
+      ],
+      "note": "Restoration appends a new version holding the chosen content; history is never rewritten."
+    },
+    {
+      "id": "DOC-015",
+      "role": "owned",
+      "disposition": "implemented",
+      "evidence": [
+        {
+          "file": "packages/work/src/docs/semantics.ts",
+          "contains": "export function effectiveState("
+        },
+        {
+          "file": "packages/work/src/docs/document-service.ts",
+          "contains": "async updateDocument("
+        },
+        {
+          "file": "packages/work/test/integration/documents.test.ts",
+          "contains": "keeps state, owner, and review date with versions of their own, and never claims current past the review date"
+        },
+        {
+          "file": "packages/work/test/unit/docs-content.test.ts",
+          "contains": "derives staleness from the review date without rewriting the state"
+        },
+        {
+          "file": "apps/web/test/documents.test.tsx",
+          "contains": "shows state, review overdue and approved AI source as separate text badges"
+        }
+      ],
+      "note": "Draft, current, and stale (stored), archived through the lifecycle; a current document past its review date is reported stale, never silently rewritten."
+    },
+    {
+      "id": "DOC-016",
+      "role": "owned",
+      "disposition": "implemented",
+      "evidence": [
+        {
+          "file": "packages/work/src/docs/ownership.ts",
+          "contains": "export const documentOwnerHook"
+        },
+        {
+          "file": "packages/work/test/integration/documents.test.ts",
+          "contains": "keeps state, owner, and review date with versions of their own, and never claims current past the review date"
+        },
+        {
+          "file": "packages/work/test/integration/documents.test.ts",
+          "contains": "moves a departing owner’s documents to the member chosen in the departure plan"
+        },
+        {
+          "file": "apps/web/test/documents.test.tsx",
+          "contains": "sends only what changed with the row version as If-Match"
+        }
+      ],
+      "note": "An owner (an active member who can edit) and a review date, changed with optimistic concurrency; a departing owner's documents move to the chosen member."
+    },
+    {
+      "id": "DOC-017",
+      "role": "owned",
+      "disposition": "implemented",
+      "evidence": [
+        {
+          "file": "packages/work/src/docs/suggestion-service.ts",
+          "contains": "protected async setSource("
+        },
+        {
+          "file": "packages/db/migrations/0038_documents.up.sql",
+          "contains": "CREATE TABLE knowledge.source_approval"
+        },
+        {
+          "file": "packages/work/test/integration/documents.test.ts",
+          "contains": "approves the current version as an AI source, stops applying on the next save, and is append-only"
+        }
+      ],
+      "note": "Approving one version as an AI source is an append-only fact by the owner or a manager; it stops applying when a newer version is saved."
+    },
+    {
+      "id": "DOC-020",
+      "role": "owned",
+      "disposition": "foundation",
+      "evidence": [
+        {
+          "file": "packages/work/src/docs/document-service.ts",
+          "contains": "async exportDocument("
+        },
+        {
+          "file": "packages/work/src/docs/content.ts",
+          "contains": "export function toMarkdown("
+        },
+        {
+          "file": "packages/work/test/integration/documents.test.ts",
+          "contains": "exports Markdown and HTML for people who may, audits the fact and never the content, and is honest about what it cannot carry"
+        },
+        {
+          "file": "apps/api/test/integration/documents-api.test.ts",
+          "contains": "suggests, decides, and approves an AI source, and exports"
+        },
+        {
+          "file": "apps/web/test/documents.test.tsx",
+          "contains": "exports Markdown and downloads exactly what the server returned, with the notes"
+        }
+      ],
+      "note": "Export to Markdown and HTML (OD-32): bounded, authorized, audited by counts, honest about embeds and restricted references. PDF files belong to 6D; the HTML export prints to PDF from a browser.",
+      "deferred_to": [
+        "6D"
+      ],
+      "accepted_by": [
+        "roadmap:6D"
+      ]
+    },
+    {
+      "id": "WSB-007",
+      "role": "contributing",
+      "disposition": "contributed",
+      "contribution": "4C",
+      "evidence": [
+        {
+          "file": "packages/work/test/integration/documents.test.ts",
+          "contains": "decides every read and write through the placement: owners, members, read-only, outsiders, shares, and strangers"
+        },
+        {
+          "file": "packages/work/test/integration/documents-notify.test.ts",
+          "contains": "gives hidden and unknown documents, versions, suggestions, and backlinks the same statements and time"
+        }
+      ],
+      "note": "Documents are separated by brand: a brand document is invisible outside the brand, and a document keeps its placement's access."
+    },
+    {
+      "id": "PRJ-019",
+      "role": "contributing",
+      "disposition": "contributed",
+      "contribution": "4C",
+      "evidence": [
+        {
+          "file": "packages/work/src/docs/document-core.ts",
+          "contains": "async listDocuments("
+        },
+        {
+          "file": "packages/work/test/integration/documents.test.ts",
+          "contains": "carries documents with their project and task, and keeps a task with documents in its brand"
+        }
+      ],
+      "note": "A project's Documents section lists the documents attached to it and to its tasks."
+    },
+    {
+      "id": "PRJ-024",
+      "role": "contributing",
+      "disposition": "contributed",
+      "contribution": "4C",
+      "evidence": [
+        {
+          "file": "packages/work/src/docs/semantics.ts",
+          "contains": "decision"
+        },
+        {
+          "file": "packages/work/test/integration/documents.test.ts",
+          "contains": "places documents by brand, project, task, parent, or workspace and refuses what does not fit"
+        }
+      ],
+      "note": "Decision documents attach to a project like any document, with a starter for what was decided and why."
+    },
+    {
+      "id": "TSK-017",
+      "role": "contributing",
+      "disposition": "contributed",
+      "contribution": "4C",
+      "evidence": [
+        {
+          "file": "packages/work/src/docs/lifecycle.ts",
+          "contains": "export async function attachedDocuments("
+        },
+        {
+          "file": "packages/work/test/integration/documents.test.ts",
+          "contains": "carries documents with their project and task, and keeps a task with documents in its brand"
+        }
+      ],
+      "note": "A task's documents are attached to it, travel with its lifecycle, and keep it in its brand."
+    },
+    {
+      "id": "ONB-013",
+      "role": "contributing",
+      "disposition": "contributed",
+      "contribution": "4C",
+      "evidence": [
+        {
+          "file": "packages/work/src/docs/semantics.ts",
+          "contains": "export const templateKey"
+        },
+        {
+          "file": "docs/engineering/adr/0025-documents-and-knowledge.md",
+          "contains": "no template catalog"
+        }
+      ],
+      "note": "Document starters are built in and versioned; the template catalog and installation records are 10B's."
+    }
+  ],
+  "decisions": [
+    {
+      "id": "D1",
+      "title": "A document is a record placed in the workspace, a brand, a project, or a task, nested as pages, with the placement's access",
+      "adr_row": "D1",
+      "sources": [
+        {
+          "file": "docs/architecture/data/12-decisions.md",
+          "contains": "## ADR-33"
+        }
+      ],
+      "evidence": [
+        {
+          "file": "packages/work/test/integration/documents.test.ts",
+          "contains": "places documents by brand, project, task, parent, or workspace and refuses what does not fit"
+        },
+        {
+          "file": "packages/work/test/integration/documents.test.ts",
+          "contains": "nests pages, moves and reorders them, and refuses cycles, depth, and moves between places"
+        },
+        {
+          "file": "packages/work/test/integration/documents.test.ts",
+          "contains": "decides every read and write through the placement: owners, members, read-only, outsiders, shares, and strangers"
+        },
+        {
+          "file": "docs/engineering/adr/0025-documents-and-knowledge.md",
+          "contains": "| D1 |"
+        }
+      ]
+    },
+    {
+      "id": "D2",
+      "title": "Content is validated, normalized blocks with stable identifiers and a canonical hash",
+      "adr_row": "D2",
+      "sources": [
+        {
+          "file": "docs/architecture/data/12-decisions.md",
+          "contains": "Content is rich-text version 2"
+        }
+      ],
+      "evidence": [
+        {
+          "file": "packages/work/test/unit/docs-content.test.ts",
+          "contains": "normalizes into one canonical form with a stable hash"
+        },
+        {
+          "file": "packages/work/test/unit/docs-content.test.ts",
+          "contains": "bounds blocks, text, tables, and total size"
+        },
+        {
+          "file": "packages/work/test/unit/docs-content.test.ts",
+          "contains": "accepts only safe addresses and refuses file embeds until 4E"
+        },
+        {
+          "file": "docs/engineering/adr/0025-documents-and-knowledge.md",
+          "contains": "| D2 |"
+        }
+      ]
+    },
+    {
+      "id": "D3",
+      "title": "Versions are immutable; a save names its base; restoring appends",
+      "adr_row": "D3",
+      "sources": [
+        {
+          "file": "docs/architecture/data/09-concurrency-consistency.md",
+          "contains": "Documents and versions (Phase 4C)"
+        }
+      ],
+      "evidence": [
+        {
+          "file": "packages/work/test/integration/documents.test.ts",
+          "contains": "saves versions that never overwrite: a stale base conflicts, equal content is a no-op"
+        },
+        {
+          "file": "packages/work/test/integration/documents.test.ts",
+          "contains": "restores an earlier version as a new one and keeps the whole history"
+        },
+        {
+          "file": "packages/work/test/integration/documents-notify.test.ts",
+          "contains": "serializes concurrent saves on one base version: one wins, the other conflicts, nothing is lost"
+        },
+        {
+          "file": "apps/api/test/integration/documents-api.test.ts",
+          "contains": "saves content against the version loaded, conflicts on a stale one, lists versions, and restores"
+        },
+        {
+          "file": "docs/engineering/adr/0025-documents-and-knowledge.md",
+          "contains": "| D3 |"
+        }
+      ]
+    },
+    {
+      "id": "D4",
+      "title": "State, owner, and review date with their own versions; nothing claims current past the review date",
+      "adr_row": "D4",
+      "sources": [
+        {
+          "file": "docs/architecture/access/15-decisions.md",
+          "contains": "**Writes.** Editing content"
+        }
+      ],
+      "evidence": [
+        {
+          "file": "packages/work/test/integration/documents.test.ts",
+          "contains": "keeps state, owner, and review date with versions of their own, and never claims current past the review date"
+        },
+        {
+          "file": "packages/work/test/unit/docs-content.test.ts",
+          "contains": "derives staleness from the review date without rewriting the state"
+        },
+        {
+          "file": "packages/work/test/integration/documents.test.ts",
+          "contains": "moves a departing owner’s documents to the member chosen in the departure plan"
+        },
+        {
+          "file": "docs/engineering/adr/0025-documents-and-knowledge.md",
+          "contains": "| D4 |"
+        }
+      ]
+    },
+    {
+      "id": "D5",
+      "title": "References are registered, re-checked for every viewer, and a viewer who cannot read one receives an opaque token",
+      "adr_row": "D5",
+      "sources": [
+        {
+          "file": "docs/architecture/access/15-decisions.md",
+          "contains": "**References.** A reference is re-checked"
+        }
+      ],
+      "evidence": [
+        {
+          "file": "packages/work/test/integration/documents.test.ts",
+          "contains": "links records by registered reference, re-checks every viewer, and shows no title they cannot read"
+        },
+        {
+          "file": "packages/work/test/integration/documents.test.ts",
+          "contains": "lists backlinks only for documents and targets the viewer can read"
+        },
+        {
+          "file": "packages/work/test/unit/docs-content.test.ts",
+          "contains": "carries references without any label and lists each target once"
+        },
+        {
+          "file": "packages/work/test/integration/documents-notify.test.ts",
+          "contains": "notifies a person named in a document only if they can read it, once, and never the author"
+        },
+        {
+          "file": "docs/engineering/adr/0025-documents-and-knowledge.md",
+          "contains": "| D5 |"
+        }
+      ]
+    },
+    {
+      "id": "D6",
+      "title": "Comments and reviews through the 4A host; suggestions apply only to an unchanged block",
+      "adr_row": "D6",
+      "sources": [
+        {
+          "file": "docs/architecture/access/15-decisions.md",
+          "contains": "**Suggestions.** Anyone who may comment may suggest"
+        }
+      ],
+      "evidence": [
+        {
+          "file": "packages/work/test/integration/documents.test.ts",
+          "contains": "comments, follows, and reviews work on a document through the collaboration host"
+        },
+        {
+          "file": "packages/work/test/integration/documents.test.ts",
+          "contains": "applies a suggestion to an unchanged block as a new version, and only an editor decides"
+        },
+        {
+          "file": "packages/work/test/integration/documents.test.ts",
+          "contains": "goes stale, with nothing applied, when the block changed since; rejects and withdraws without touching content"
+        },
+        {
+          "file": "packages/work/test/integration/documents-notify.test.ts",
+          "contains": "notifies followers of a document about a new comment"
+        },
+        {
+          "file": "docs/engineering/adr/0025-documents-and-knowledge.md",
+          "contains": "| D6 |"
+        }
+      ]
+    },
+    {
+      "id": "D7",
+      "title": "Built-in typed starters; no template catalog",
+      "adr_row": "D7",
+      "sources": [
+        {
+          "file": "docs/engineering/adr/0025-documents-and-knowledge.md",
+          "contains": "Typed starter content is built into the product"
+        }
+      ],
+      "evidence": [
+        {
+          "file": "packages/work/test/unit/docs-content.test.ts",
+          "contains": "has a valid built-in starter for every type, versioned"
+        },
+        {
+          "file": "packages/work/test/unit/docs-content.test.ts",
+          "contains": "constrains where each type may live"
+        },
+        {
+          "file": "packages/work/test/integration/documents.test.ts",
+          "contains": "starts typed documents from built-in starters and records the starter version"
+        },
+        {
+          "file": "docs/engineering/adr/0025-documents-and-knowledge.md",
+          "contains": "| D7 |"
+        }
+      ]
+    },
+    {
+      "id": "D8",
+      "title": "Embeds: native blocks, image and video as link cards, files refused until 4E",
+      "adr_row": "D8",
+      "sources": [
+        {
+          "file": "docs/engineering/adr/0025-documents-and-knowledge.md",
+          "contains": "nothing is fetched or loaded automatically"
+        }
+      ],
+      "evidence": [
+        {
+          "file": "packages/work/test/unit/docs-content.test.ts",
+          "contains": "accepts only safe addresses and refuses file embeds until 4E"
+        },
+        {
+          "file": "packages/work/test/unit/docs-content.test.ts",
+          "contains": "writes Markdown, escapes markup, and says what it could not carry"
+        },
+        {
+          "file": "docs/engineering/adr/0025-documents-and-knowledge.md",
+          "contains": "| D8 |"
+        }
+      ]
+    },
+    {
+      "id": "D9",
+      "title": "Export: Markdown and HTML, bounded, authorized, audited by counts, honest (OD-32)",
+      "adr_row": "D9",
+      "sources": [
+        {
+          "file": "docs/product/open-decisions.md",
+          "contains": "Status (Phase 4C, 2026-10-08):** Decided and implemented: documents export as Markdown"
+        }
+      ],
+      "evidence": [
+        {
+          "file": "packages/work/test/integration/documents.test.ts",
+          "contains": "exports Markdown and HTML for people who may, audits the fact and never the content, and is honest about what it cannot carry"
+        },
+        {
+          "file": "packages/work/test/unit/docs-content.test.ts",
+          "contains": "writes Markdown, escapes markup, and says what it could not carry"
+        },
+        {
+          "file": "packages/work/test/unit/docs-content.test.ts",
+          "contains": "writes HTML that escapes everything and prints cleanly"
+        },
+        {
+          "file": "apps/api/test/integration/documents-api.test.ts",
+          "contains": "suggests, decides, and approves an AI source, and exports"
+        },
+        {
+          "file": "packages/work/test/integration/documents-notify.test.ts",
+          "contains": "keeps titles, text, and addresses out of audit and events"
+        },
+        {
+          "file": "docs/engineering/adr/0025-documents-and-knowledge.md",
+          "contains": "| D9 |"
+        }
+      ]
+    },
+    {
+      "id": "D10",
+      "title": "Registered contracts; lifecycle and purge carry documents; later-phase work stays out; a source approval is append-only",
+      "adr_row": "D10",
+      "sources": [
+        {
+          "file": "docs/architecture/platform/19-decisions.md",
+          "contains": "### PL-35: Document contracts"
+        }
+      ],
+      "evidence": [
+        {
+          "file": "packages/work/test/integration/documents.test.ts",
+          "contains": "archives, trashes, restores, and purges a page with its subpages, and a project or task carries its documents"
+        },
+        {
+          "file": "packages/work/test/integration/documents.test.ts",
+          "contains": "carries documents with their project and task, and keeps a task with documents in its brand"
+        },
+        {
+          "file": "packages/work/test/integration/documents.test.ts",
+          "contains": "approves the current version as an AI source, stops applying on the next save, and is append-only"
+        },
+        {
+          "file": "packages/work/test/integration/documents-notify.test.ts",
+          "contains": "applies an idempotent create and save once, and conflicts on a reused key with another body"
+        },
+        {
+          "file": "apps/api/test/integration/documents-api.test.ts",
+          "contains": "archives, trashes, and restores through verbs, and hides everything from strangers"
+        },
+        {
+          "file": "docs/engineering/adr/0025-documents-and-knowledge.md",
+          "contains": "| D10 |"
+        }
+      ]
+    }
+  ]
+}

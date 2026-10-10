@@ -4,7 +4,7 @@
 
 Rules and algorithm: [../04-effective-permissions.md](../04-effective-permissions.md). Legend: **all** = implicit across non-sensitive scopes (sensitive brands and restricted projects still require explicit grants or audited elevation); ≥level = allowed where the principal's effective access level on the target is at least that level; own = own personal items only; if X = only when workspace policy X is enabled; — = never. Flags: ND non-delegable (owner only, excluded from custom roles), SU step-up authentication, 2A second/independent approval when available, E plan entitlement required.
 
-## Record permissions (33)
+## Record permissions (46)
 
 | Action | Scopes | Level | Risk | Flags | owner | administrator | member | limited_member | read_only | guest |
 |---|---|---|---|---|---|---|---|---|---|---|
@@ -29,7 +29,10 @@ Rules and algorithm: [../04-effective-permissions.md](../04-effective-permission
 | `record.share_revoke` | record | manage | R2 |  | **all** | **all** | ≥manage | — | — | — |
 | `record.export` | brand, project, record, workspace | view | R2 |  | **all** | **all** | ≥view | if limited_members_can_export | — | — |
 | `task.complete` | record | edit | R1 |  | **all** | **all** | ≥edit | ≥edit | — | ≥edit |
+| `task.override_completion` | record | manage | R2 |  | **all** | **all** | ≥manage | — | — | — |
 | `project.complete` | record | manage | R2 |  | **all** | **all** | ≥manage | ≥manage | — | — |
+| `project.verify_update` | record | edit | R1 |  | **all** | **all** | ≥edit | ≥edit | — | — |
+| `project.manage_recurrence` | record | manage | R2 |  | **all** | **all** | ≥manage | — | — | — |
 | `deliverable.submit` | record | edit | R1 |  | **all** | **all** | ≥edit | ≥edit | — | ≥edit |
 | `review.request` | record | edit | R1 |  | **all** | **all** | ≥edit | ≥edit | — | ≥edit |
 | `review.decide` | record | comment | R2 |  | **all** | **all** | ≥comment | ≥comment | — | ≥comment |
@@ -41,6 +44,16 @@ Rules and algorithm: [../04-effective-permissions.md](../04-effective-permission
 | `report.schedule` | brand, project, workspace | edit | R2 |  | **all** | **all** | ≥edit | — | — | — |
 | `release.decide` | record | manage | R4 | SU 2A | **all** | **all** | ≥manage | — | — | — |
 | `environment.configure` | brand | manage | R2 |  | **all** | **all** | ≥manage | — | — | — |
+| `workflow.transition` | record | edit | R1 |  | **all** | **all** | ≥edit | ≥edit | — | ≥edit |
+| `workflow.approval_request` | record | edit | R1 |  | **all** | **all** | ≥edit | ≥edit | — | ≥edit |
+| `workflow.approval_decide` | record | view | R2 |  | **all** | **all** | ≥view | ≥view | — | — |
+| `field.value_read` | record | view | R0 |  | **all** | **all** | ≥view | ≥view | ≥view | ≥view |
+| `field.value_edit` | record | edit | R1 |  | **all** | **all** | ≥edit | ≥edit | — | ≥edit |
+| `field.formula_inspect` | record | view | R0 |  | **all** | **all** | ≥view | ≥view | ≥view | — |
+| `task.remind` | record | view | R0 |  | **all** | **all** | ≥view | ≥view | ≥view | ≥view |
+| `task.snooze` | record | view | R0 |  | **all** | **all** | ≥view | ≥view | ≥view | ≥view |
+| `task.manage_recurrence` | record | manage | R2 |  | **all** | **all** | ≥manage | — | — | — |
+| `intake.submit` | brand | view | R1 |  | **all** | **all** | ≥view | ≥view | ≥view | — |
 
 ## Execution permissions (11)
 
@@ -58,11 +71,12 @@ Rules and algorithm: [../04-effective-permissions.md](../04-effective-permission
 | `import.execute` | workspace, brand | — | R2 |  | **all** | **all** | ≥edit | — | — | — |
 | `webhook.test_send` | workspace, brand | — | R2 |  | **all** | **all** | ≥manage | — | — | — |
 
-## Administrative capabilities (50)
+## Administrative capabilities (55)
 
 | Action | Scopes | Level | Risk | Flags | owner | administrator | member | limited_member | read_only | guest |
 |---|---|---|---|---|---|---|---|---|---|---|
 | `record.purge` | workspace, brand | — | R4 | SU 2A | **all** | **all** | — | — | — | — |
+| `label.manage` | brand | edit | R1 |  | **all** | **all** | ≥edit | — | — | — |
 | `timesheet.unlock` | brand | — | R3 | SU | **all** | **all** | — | — | — | — |
 | `workspace.view_settings` | workspace | — | R0 |  | **all** | **all** | **all** | **all** | **all** | — |
 | `workspace.configure` | workspace | — | R2 |  | **all** | **all** | — | — | — | — |
@@ -76,6 +90,7 @@ Rules and algorithm: [../04-effective-permissions.md](../04-effective-permission
 | `membership.invite_member` | workspace | — | R2 |  | **all** | **all** | — | — | — | — |
 | `membership.invite_guest` | record | — | R3 |  | **all** | **all** | if members_invite_guests | — | — | — |
 | `membership.manage` | workspace | — | R3 | SU | **all** | **all** | — | — | — | — |
+| `ownership.accept` | workspace | — | R4 | SU | own | own | own | own | own | — |
 | `team.manage` | workspace | — | R2 |  | **all** | **all** | — | — | — | — |
 | `access.grant_scope` | workspace, brand, project | — | R3 |  | **all** | **all** | ≥manage | ≥manage | — | — |
 | `access.restrict_scope` | brand, project, record, field | — | R3 |  | **all** | **all** | ≥manage | ≥manage | — | — |
@@ -112,15 +127,24 @@ Rules and algorithm: [../04-effective-permissions.md](../04-effective-permission
 | `health.view` | workspace, brand | — | R0 |  | **all** | **all** | ≥manage | — | — | — |
 | `support_access.grant` | workspace | — | R4 | SU | **all** | **all** | — | — | — | — |
 | `emergency_stop.trigger` | workspace | — | R1 |  | **all** | **all** | — | — | — | — |
+| `intake.manage` | brand | — | R2 |  | **all** | **all** | ≥manage | — | — | — |
+| `capacity.view` | workspace, brand | — | R1 |  | **all** | **all** | ≥manage | — | — | — |
+| `capacity.reserve` | brand | — | R1 |  | **all** | **all** | ≥manage | — | — | — |
 
-## Personal (4)
+## Personal (10)
 
 | Action | Scopes | Level | Risk | Flags | owner | administrator | member | limited_member | read_only | guest |
 |---|---|---|---|---|---|---|---|---|---|---|
 | `timesheet.submit_own` | personal | — | R0 |  | own | own | own | own | own | — |
 | `personal.manage_own` | personal | — | R0 |  | own | own | own | own | own | own |
 | `sessions.manage_own` | personal | — | R1 |  | own | own | own | own | own | own |
+| `account.mfa_enroll` | personal | — | R3 | SU | own | own | own | own | own | own |
+| `account.mfa_disable` | personal | — | R4 | SU | own | own | own | own | own | own |
+| `account.recovery_codes_regenerate` | personal | — | R3 | SU | own | own | own | own | own | own |
 | `api_tokens.personal` | personal | — | R3 | SU | own | own | own | if limited_members_tokens | own | — |
+| `workspace.create` | personal | — | R2 |  | — | — | — | — | — | — |
+| `invitation.accept` | personal | — | R2 |  | — | — | — | — | — | — |
+| `membership.leave` | personal | — | R2 |  | own | own | own | own | own | own |
 
 ## Agent tool classes
 
@@ -145,59 +169,70 @@ Rules and algorithm: [../04-effective-permissions.md](../04-effective-permission
 
 | Action | Description | Approval class | Requirements | Notes |
 |---|---|---|---|---|
-| `record.read` | Read a record and its own comments/attachments. | none | PERM-004, LA-016 |  |
+| `record.read` | Read a record and its own comments/attachments. | none | CAL-001, CAL-002, LA-016, PERM-004, VIEW-001, VIEW-002, VIEW-003, VIEW-004, VIEW-005, VIEW-006, VIEW-007, VIEW-008, VIEW-009, VIEW-010, VIEW-011, VIEW-012, VIEW-013, VIEW-014, VIEW-015, VIEW-022, WSB-019, PRJ-023 |  |
 | `record.create` | Create a record in a container. | none | PRJ-001, TSK-001 |  |
-| `record.update` | Edit fields of a record. | none | PERM-004 |  |
+| `record.update` | Edit fields of a record. | none | PERM-004 | Phase 4C (AZ-33): also edits a document's content, links, state, and review date; a share at edit level may. |
 | `record.archive` | Archive a record and its contained subtree. | none | PRJ-001 |  |
 | `record.restore` | Restore from archive or trash using current effective permission. | none | LA-018 |  |
-| `record.trash` | Move a record (and batch) to trash. | none | PERM-004 |  |
+| `record.trash` | Move a record (and batch) to trash. | none | PERM-004, FILE-013 | Phase 4E (AZ-34): also trashes a file; a file an accepted deliverable uses is evidence-locked and refused. |
 | `record.purge` | Irreversibly delete a trash batch before its scheduled purge. | none | SEC-020 | Requires trash.manage authority over the scope; independent approver when policy enabled. |
-| `record.comment` | Comment, reply, react, mention in comments. | none | COL-005, COL-008 |  |
-| `comment.edit_own` | Edit or delete own comment (revision retained per OD-38). | none | COL-009 |  |
-| `comment.moderate` | Delete another person's comment. | none | COL-009 |  |
-| `record.follow` | Follow or unfollow a readable record. | none | COL-010 |  |
-| `record.assign` | Assign or reassign people (only people who can read the record). | none | TSK-007, COL-015 |  |
-| `record.delegate` | Delegate own assigned work to another eligible person. | none | COL-014 |  |
+| `record.comment` | Comment, reply, react, mention in comments. | none | COL-005, COL-008 | Phase 4A (AZ-31): also gates replies, reactions, and mentions; read-only members and read-level shares cannot; an archived record needs the comment_on_archived policy. |
+| `comment.edit_own` | Edit or delete own comment (revision retained per OD-38). | none | COL-009 | Phase 4A (AZ-31, OD-38): the author only, inside COMMENT_EDIT_WINDOW_MINUTES; every edit appends the prior body to the revision trail; nobody edits another person's comment. |
+| `comment.moderate` | Delete another person's comment. | none | COL-009 | Phase 4A (AZ-31, OD-38): deletes (never edits) another person's comment as a tombstone at any time; reads revision trails. |
+| `record.follow` | Follow or unfollow a readable record. | none | COL-010 | Phase 4A (AZ-31, OD-10): explicit, personal, idempotent; grants nothing and is never derived from role, assignment, ownership, or a share. |
+| `record.assign` | Assign or reassign people (only people who can read the record). | none | TSK-007, COL-015 | Phase 4A (AZ-31): every change of responsibility is an append-only assignment event. Phase 4C (AZ-33): also changes a document's owner (an active member who can edit it), through ownership only. |
+| `record.delegate` | Delegate own assigned work to another eligible person. | none | COL-014 | Phase 4A (AZ-31): a current assignee hands their own assignment to an active member who can read the task; context a share does not carry. |
 | `record.relate` | Create a dependency/related link; requires edit on source and view on target. | none | TSK-012, TSK-014 |  |
-| `record.upload` | Attach files or links to a record. | none | FILE-001 |  |
-| `record.download` | Download a file version (clean scan state only). | none | FILE-012 |  |
+| `record.upload` | Attach files or links to a record. | none | FILE-001, FILE-003, FILE-004, FILE-005, FILE-010 | Phase 4E (AZ-34): initiates and completes uploads, adds versions and external links, and renames files on the host (workspace, brand, project, task, or comment). Only a comment's author attaches files to it; an upload session belongs to its creator alone. Workspace-hosted files are for members only. |
+| `record.download` | Download a file version (clean scan state only). | none | FILE-012, FILE-002, FILE-008, FILE-011 | Phase 4E (AZ-34): download, inline preview (allow-listed formats only), and comparison of clean versions through a short-lived signed URL issued per request; pending, infected, and failed scans are refused; external links redirect without being fetched. |
 | `record.move` | Move within a brand (change container); needs edit on source and destination. | none | TSK-001 |  |
-| `record.move_brand` | Move a subtree to another brand (ownership change). | none | WSB-009 | Manage on source and create (edit) on target brand. |
+| `record.move_brand` | Move a subtree to another brand (ownership change). | none | TSK-001, WSB-009 | Manage on source and create (edit) on target brand. Tasks (2B, AZ-22): manage in both brands, with an exposure preview and confirmation. |
 | `record.share` | Create or change an explicit record grant (share) to a brand, member, team, or guest. | none | WSB-008, PERM-005, PERM-012 | Share level ≤ sharer's level; never onward-sharable; restricted projects disallow record shares unless the project allows them. |
 | `record.share_revoke` | Revoke a share (the original sharer or a manager). | none | WSB-008 |  |
-| `record.export` | Export records or the current filtered view (permission-filtered). | none | VIEW-022, PERM-010, RPT-022 |  |
+| `record.export` | Export records or the current filtered view (permission-filtered). | none | VIEW-022, PERM-010, RPT-022 | Phase 4C (AZ-33): also exports a document (Markdown or HTML), re-authorizing every reference and subpage. |
 | `task.complete` | Move a task to a done-category status; completion gates apply. | none | TSK-031, AGT-022 |  |
+| `task.override_completion` | Complete a task whose required criteria or descendants are incomplete, recording a reason (ADR-22). | none | TSK-020, TSK-021 | Human principals only; the reason and the visible incomplete count are audited (AZ-22). Never satisfied by a share. |
+| `label.manage` | Create, rename, reorder, archive, and restore a brand's labels (OD-10). | none | TSK-015 | Labels never grant authority (AZ-22). |
 | `project.complete` | Complete a project (human decision). | none | PRJ-005 |  |
-| `deliverable.submit` | Submit a deliverable version for review. | none | FILE-007 |  |
-| `review.request` | Request a review or approval. | none | COL-013 |  |
-| `review.decide` | Approve/accept, request changes, or reject as an eligible reviewer; evaluated at decision time. | none | TSK-029, AGT-020, FILE-009 | Reviewer must be designated by the reviewer rule, be human, and be able to read the whole subject scope (UXD-11). |
-| `review.self_approve` | Decide a review on one's own submission. | none | AGT-018 | Default on only while exactly one approval-capable human exists; always labelled and audited (OD-20). |
+| `project.verify_update` | Verify a project update as an accountable human (OD-16). | none | PRJ-025 | Human principals only; authoring never verifies; AI, imported, and system drafts stay unverified until this action (AZ-21). |
+| `project.manage_recurrence` | Define, pause, or resume a project recurrence, or generate its next occurrence (OD-14). | none | PRJ-013 | Each generated occurrence also requires record.create in the project's brand, rechecked by the worker before each step (AZ-21). |
+| `deliverable.submit` | Submit a deliverable version for review. | none | FILE-007, FILE-006 | Phase 4E (AZ-34): creates a task's deliverables and submits a version (a clean file of the same task or a URL) with a 4A approval request in one transaction, superseding an open one; an accepted deliverable takes no more versions. |
+| `review.request` | Request a review or approval. | none | COL-013 | Phase 4A (AZ-31): names reviewers who can decide now; through ownership only (a share does not carry it); at most one open request per record. |
+| `review.decide` | Approve/accept, request changes, or reject as an eligible reviewer; evaluated at decision time. | none | TSK-029, AGT-020, FILE-009 | Phase 4A (AZ-31): a named, still-eligible reviewer, on the version reviewed; evaluated when deciding. Reviewer must be designated by the reviewer rule, be human, and be able to read the whole subject scope (UXD-11). |
+| `review.self_approve` | Decide a review on one's own submission. | none | AGT-018 | Phase 4A (AZ-31, OD-20): evaluated through the workspace self_approval_mode exactly as workflow approvals are, and refused when require_independent_for names review.decide; always labelled and audited. Default on only while exactly one approval-capable human exists (OD-20). |
 | `defect.verify` | Record a manual verification of a defect fix. | none | TEST-017 | Verifier must not be the fixer when policy requires independence. |
 | `time.log_own` | Create/edit own time entries and timers on readable work. | none | TSK-024, TSK-025 |  |
 | `timesheet.submit_own` | Submit own timesheet. | none | TIME-012 |  |
 | `timesheet.approve` | Approve a timesheet's brand line. | none | TIME-012 |  |
 | `timesheet.unlock` | Unlock an approved period with reason. | none | TIME-013 |  |
-| `view.share` | Share a saved view, dashboard, or report to a scope (never grants record access). | none | VIEW-017, RPT-020 |  |
+| `view.share` | Share a saved view, dashboard, or report to a scope (never grants record access). | none | VIEW-017, RPT-020 | Phase 3A (AZ-26): shares a saved view with exactly one scope (workspace, brand, or project); decided at that scope (grant:edit for members, never satisfied by record shares). Running a shared view compiles each viewer's own predicate and field allow-list. The same decision lets a person change, unshare, or delete the shared definition. |
 | `report.schedule` | Schedule report delivery to recipients (rendered per recipient). | none | RPT-021 |  |
 | `release.decide` | Record a go/no-go decision as an eligible approver. | independent_if_available | TEST-024, TEST-025 |  |
 | `release.production_action` | Trigger or record a production deployment or rollback. | independent_if_available | DEV-009, AGT-016 |  |
 | `environment.configure` | Configure environments and their URLs/evidence. | none | DEV-015 |  |
 | `tests.execute` | Start or rerun test runs. | none | TEST-015 |  |
-| `personal.manage_own` | Inbox, Today, notifications, personal views, favorites, reminders, availability, profile. | none | CAP-011, PLAN-008, NTF-007 |  |
+| `personal.manage_own` | Inbox, Today, notifications, personal views, favorites, reminders, availability, profile. | none | CAP-001, CAP-002, CAP-004, CAP-011, CAP-012, CAP-013, CAP-014, CAP-016, NAV-011, NTF-007, PLAN-008, TIME-001, TIME-010, TIME-015, TIME-016, VIEW-016, VIEW-018 | Phase 2E (AZ-25): capture, Inbox, notes, merge, and triage previews are personal; turning an item into operational work also needs record.create at the destination. Phase 3A (AZ-26): personal saved views, a person's own default view, and per-view state are personal; no owner or administrator bypass. Phase 3E (AZ-30): working hours, weekly capacity, time off, and one's own capacity and conflicts are personal. |
 | `sessions.manage_own` | List and revoke own sessions. | none | SEC-008 |  |
+| `account.mfa_enroll` | Enroll an authenticator (TOTP) factor on own account. | none | SEC-006 | Account-level (platform scope, no workspace or membership): 'own' means the authenticated account's own factors only; it is never a tenant capability. Human-only and not delegable to tokens, agents, automations, integrations, or support: step-up is human-only (0D §11.2) and no 0D scope may list this action. Step-up accepts the password when no factor exists yet, so enrollment never requires MFA before the first MFA. |
+| `account.mfa_disable` | Turn off own two-step verification and remove its factor and recovery codes. | none | SEC-006 | Account-level (platform scope, no workspace or membership): 'own' means the authenticated account's own factors only; it is never a tenant capability. Human-only and not delegable to tokens, agents, automations, integrations, or support: step-up is human-only (0D §11.2) and no 0D scope may list this action. |
+| `account.recovery_codes_regenerate` | Replace own recovery codes; the previous set stops working immediately. | none | SEC-006, SEC-005 | Account-level (platform scope, no workspace or membership): 'own' means the authenticated account's own factors only; it is never a tenant capability. Human-only and not delegable to tokens, agents, automations, integrations, or support: step-up is human-only (0D §11.2) and no 0D scope may list this action. |
 | `api_tokens.personal` | Create, rotate, revoke own personal API tokens (write scopes need step-up). | none | INT-017, INT-018 | Read-only role may only create read scopes. |
+| `workspace.create` | Create a workspace and become its bootstrap owner (verified human account, before any tenant context exists). | none | WSB-001 | Account-level platform command (AZ-18), listed in account_commands. No workspace role cell grants it: no membership exists before the workspace, so every cell is deny and holding any role never confers it. Only the authenticated human account principal may exercise it; tokens, service principals, OAuth clients, integrations, automations, AI, agents, support, and system jobs cannot, and no 0D scope may list it. Gates: verified email, active (not deleted) account, per-account rate limit, Idempotency-Key. It creates authority only by atomically creating the canonical workspace, the active owner membership, and the bootstrap owner assignment. |
 | `workspace.view_settings` | View workspace name, locale, timezone, currency, week start. | none | WSB-002 |  |
-| `workspace.configure` | Edit workspace profile and defaults. | none | WSB-002, ADM-001 |  |
+| `workspace.configure` | Edit workspace profile and defaults. | none | WSB-002, ADM-001 | Phase 4B (AZ-32): also retries a failed or dead-lettered notification delivery (audited). |
 | `workspace.delete` | Request workspace deletion. | none | SEC-021 |  |
 | `ownership.transfer` | Transfer workspace ownership (last-owner protection). | none | ADM-013 |  |
 | `brand.create` | Create a brand. | none | WSB-003 |  |
-| `brand.configure` | Edit brand identity, settings, calendars, goals, notification rules, AI profile. | none | WSB-004, WSB-010, WSB-012 |  |
+| `brand.configure` | Edit brand identity, settings, calendars, goals, notification rules, AI profile. | none | CAL-010, WSB-004, WSB-010, WSB-012 |  |
 | `brand.archive` | Archive or restore a brand. | none | WSB-005 |  |
 | `brand.delete` | Trash a brand. | none | WSB-005 |  |
 | `brand.mark_sensitive` | Mark or unmark a brand sensitive (removes implicit role access). | none | PERM-006 |  |
 | `membership.invite_member` | Invite members (role ≤ inviter's grantable roles). | none | COL-001 |  |
 | `membership.invite_guest` | Invite a guest by sharing a record with an email. | none | COL-002, PERM-005 | Also requires record.share on each record shared. |
 | `membership.manage` | Change workspace roles, suspend, or remove memberships (owners managed only by owners). | none | ADM-003, PERM-014 |  |
+| `invitation.accept` | Accept a workspace invitation addressed to the authenticated account's verified email. | none | COL-001, COL-002 | Account command (AZ-19): performed before any membership exists, so every workspace role cell is deny. Only the human account principal may exercise it and no 0D scope may list it. Gates: verified email equal to the invitation's normalized email, active account, single-use unexpired token, per-account rate limit, Idempotency-Key. It creates authority only by atomically activating the membership and exactly the role assignment or record grants the invitation proposed. |
+| `ownership.accept` | Accept an ownership transfer addressed to one's own active internal membership. | none | ADM-013 | Recipient side of ownership.transfer (AZ-19): 'own' means only a pending transfer addressed to the caller's own membership. Human-only (step-up); never delegable to tokens, agents, automations, or integrations, and no 0D scope may list it. Guests can never become owners. |
+| `membership.leave` | Leave a workspace (end one's own membership). | none | PERM-014 | Own membership only. Refused while the caller is the last active owner or while registered owned resources cannot be reassigned or suspended (AZ-19). Human-only; no 0D scope may list it. |
 | `team.manage` | Create teams and change team membership (actor needs authority over every scope the team holds grants in). | none | COL-003 |  |
 | `access.grant_scope` | Assign scope roles (access levels) at workspace, brand, or project. | none | COL-004, PERM-003 |  |
 | `access.restrict_scope` | Mark a project/document restricted or set field visibility. | none | PERM-006, PERM-003 |  |
@@ -206,11 +241,11 @@ Rules and algorithm: [../04-effective-permissions.md](../04-effective-permission
 | `sharing.policy.configure` | Configure sharing, guest, export, self-approval, and public-link policy. | none | ADM-014 |  |
 | `feature_availability.configure` | Configure feature availability by role. | none | ADM-015 |  |
 | `custom_roles.manage` | Create custom roles from allowed capabilities. | none | PERM-002 |  |
-| `workflow.configure` | Configure statuses, transitions, rules. | none | WFL-002, WFL-005 |  |
-| `fields.configure` | Configure custom fields and field sets. | none | WFL-008 |  |
-| `views.configure` | Set default views per brand/project and pin shared views to navigation. | none | VIEW-018, VIEW-019 |  |
+| `workflow.configure` | Configure workflows, statuses, transitions, required fields, and approval policies. | none | PRJ-009, WFL-001, WFL-002, WFL-003, WFL-004, WFL-005, WFL-006, WFL-007 | Phase 2C (AZ-23): at the workflow's own scope (workspace, brand, or project), within grantable authority; no owner/admin bypass on sensitive brands or restricted projects. |
+| `fields.configure` | Configure custom fields and field sets. | none | TSK-016, WFL-008, WFL-009, WFL-010, WFL-011, WFL-012, WFL-013, WFL-014 | Phase 2C (AZ-23): definitions, options, formulas, field policies, and field sets at their own scope. |
+| `views.configure` | Set default views per brand/project and pin shared views to navigation. | none | VIEW-018, VIEW-019 | Phase 3A (AZ-26): sets brand and project default views and pins views into workspace or brand navigation; only a view shared with that exact scope (or the workspace, for defaults) qualifies, so everyone it applies to can read it. |
 | `templates.manage` | Create and manage templates. | none | ONB-013 |  |
-| `notifications.configure_scope` | Configure brand/project notification rules and minimal-content mode. | none | WSB-014 |  |
+| `notifications.configure_scope` | Configure brand/project notification rules and minimal-content mode. | none | WSB-014 | Phase 4B (AZ-32): sets a brand or project default mode per event type and channel; ranks below every personal choice; audited. |
 | `ai.configure_brand` | Configure brand AI profile and approved-source policy. | none | WSB-012 |  |
 | `ai.providers.manage` | Configure AI providers, models, workspace keys, data settings. | none | AI-031, AI-032, ADM-005 |  |
 | `ai.limits.configure` | Configure AI/agent/automation allowances and hard caps. | none | AI-033, BILL-009 |  |
@@ -231,7 +266,7 @@ Rules and algorithm: [../04-effective-permissions.md](../04-effective-permission
 | `billing.view` | View plan, entitlements, invoices. | none | ADM-012 |  |
 | `billing.manage` | Change plan, seats, payment method; approve extra usage purchases. | none | BILL-010, BILL-014 |  |
 | `secrets_metadata.view` | See that credentials exist, scopes, last rotation (never values). | none | SEC-013 |  |
-| `health.view` | View integration, automation, and agent health. | none | ADM-009, ADM-010 |  |
+| `health.view` | View integration, automation, and agent health. | none | ADM-009, ADM-010 | Phase 4B (AZ-32): also reads failed and dead-lettered notification deliveries (recipient, channel, class, code; never content or addresses). |
 | `support_access.grant` | Grant platform support time-boxed, scoped access. | none | SUP-008 |  |
 | `emergency_stop.trigger` | Stop all agent execution in the workspace. | none | AGT-025 | Never blocked by approval; resuming requires owner/admin. |
 | `ai.execute` | Run an AI action over a selected readable context. | none | AI-005, AI-006 |  |
@@ -243,3 +278,16 @@ Rules and algorithm: [../04-effective-permissions.md](../04-effective-permission
 | `integration.sync_now` | Trigger a sync on a connection. | none | INT-006 |  |
 | `import.execute` | Run an import into a scope. | none | DATA-001, LA-005 |  |
 | `webhook.test_send` | Send a test delivery to an outbound webhook. | none | INT-011 |  |
+| `workflow.transition` | Preview and apply a workflow status transition (including Complete, Cancel, and Reopen). | none | WFL-005, WFL-006, TSK-031 | Phase 2C (AZ-23). Preview and apply share one evaluator; a generic edit that changes status is evaluated the same way. |
+| `workflow.approval_request` | Request approval for a gated transition. | none | WFL-007, TSK-029 | Phase 2C (AZ-23). The request is bound to the record version; any change makes it stale. |
+| `workflow.approval_decide` | Approve or reject a pending transition approval. | none | WFL-007, TSK-029 | Phase 2C (AZ-23). Also requires eligibility by the transition policy: manage on the record (one_manager) or being a named approver (all_named_approvers). Being an approver grants no access. Self-approval needs both the transition flag and the workspace self_approval policy (OD-20). Human principals only. |
+| `field.value_read` | Read custom field values on a record, subject to field policy. | none | TSK-016, WFL-009 | Phase 2C (AZ-23). Intersected with access.field_policy and definition applicability; hidden fields are absent everywhere (0C §7.2). |
+| `field.value_edit` | Edit custom field values on a record, subject to field policy. | none | TSK-016, WFL-012 | Phase 2C (AZ-23). Formula results are never editable. Person and label values grant no access. |
+| `field.formula_inspect` | Inspect a formula's inputs, dependencies, and error on a record. | none | WFL-011 | Phase 2C (AZ-23). Only when every input is readable; never reveals hidden input values or names. |
+| `task.remind` | Set, change, or dismiss one's own reminder on a readable task. | none | TSK-032 | Phase 2D (AZ-24): personal; grants nothing and changes nothing on the task. The worker rechecks record.read before firing; a reminder whose task became unreadable is cancelled silently. |
+| `task.snooze` | Snooze or unsnooze a readable task for oneself. | none | TSK-033 | Phase 2D (AZ-24): personal; never edits dates, status, or access, and is invisible to others. |
+| `task.manage_recurrence` | Define, pause, resume, or end a task recurrence, or generate its next occurrence. | none | TSK-027 | Phase 2D (AZ-24): each occurrence also requires record.create in the series' brand (and project), rechecked by the worker before each step; a series whose owner lost it pauses. |
+| `intake.manage` | Create, edit, archive, and route a brand's intake forms. | none | CAP-007, PRJ-017 | Phase 2E (AZ-25): decided at the brand (decideBrand); sensitive brands need an explicit manage grant. The queue owner must be an active member who can read the brand. |
+| `intake.submit` | Submit an intake form of a brand one can read. | none | CAP-007 | Phase 2E (AZ-25): members-only while OD-28 is open; rate-limited per person and form. Submitting grants nothing and never reveals the queue. |
+| `capacity.view` | See other people's availability, allocation, reservations, and conflicts for a brand or the workspace (never what the viewer cannot read). | none | TIME-007, TIME-008, WSB-017, WSB-018 | Phase 3E (AZ-30): time off shows only as unavailable minutes; kinds and labels stay personal. |
+| `capacity.reserve` | Set brand capacity reservations (weekly planning targets) for people. | none | TIME-002 | Phase 3E (AZ-30): a target, never a block; the person must be an active member. |

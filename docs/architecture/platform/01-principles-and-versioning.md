@@ -26,7 +26,7 @@
 | Durations | Integer fields with an explicit unit suffix: `estimate_minutes`, `duration_seconds`, `timeout_seconds`. ISO 8601 durations are not used in fields. | — |
 | Enums | Lowercase `snake_case` strings. Clients **must tolerate unknown values** (additive evolution) and treat them as "other". | — |
 | Booleans and nulls | `null` means "known empty". An **absent** field means "not selected, not applicable, or not readable by this caller". Clients must not infer anything from absence ([07 of 0C](../access/07-field-secret-derived-data.md)). | — |
-| Rich text | A versioned JSON document (format owned by 4C, DQ-25). It is never HTML in contracts. | — |
+| Rich text | A versioned JSON document `{type: "doc", version, content}`. Version 1 (plain-text subset) is fixed by PL-23; 4C extends node and mark types (DQ-25). It is never HTML in contracts. | `rich-text` |
 
 ## 1.3 Identifiers for correlation and reliability
 

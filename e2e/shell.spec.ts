@@ -4,12 +4,13 @@ test('renders the application foundation shell connected to the API', async ({ p
   const errors: string[] = [];
   page.on('console', (m) => m.type() === 'error' && errors.push(m.text()));
   page.on('pageerror', (e) => errors.push(e.message));
-  const response = await page.goto('/');
+  const response = await page.goto('/status');
   expect(response?.headers()['content-security-policy']).toContain("default-src 'self'");
   await expect(page.getByRole('heading', { level: 1 })).toHaveText('PM');
   await expect(page.getByTestId('status')).toContainText('Connected');
   await expect(page.getByTestId('build')).toHaveText('Version 0.1.0 · build e2e');
-  expect(errors).toEqual([]);
+  // The anonymous session probe (GET /v1/auth/me -> 401) is expected; anything else is a defect.
+  expect(errors.filter((e) => !/401 \(Unauthorized\)/.test(e))).toEqual([]);
 });
 
 test('shows the degraded state with a retry action', async ({ page }) => {
@@ -25,7 +26,7 @@ test('shows the degraded state with a retry action', async ({ page }) => {
       },
     }),
   );
-  await page.goto('/');
+  await page.goto('/status');
   await expect(page.getByTestId('status')).toContainText('Limited service');
   await expect(page.getByRole('button', { name: 'Try again' })).toBeVisible();
 });
@@ -46,7 +47,7 @@ test('shows the unavailable state when the API fails', async ({ page }) => {
       },
     }),
   );
-  await page.goto('/');
+  await page.goto('/status');
   await expect(page.getByTestId('status')).toContainText('Service unavailable');
   await expect(page.getByTestId('build')).toHaveCount(0);
 });
@@ -56,7 +57,9 @@ test('serves the shell for client routes and JSON envelopes for unknown API rout
   request,
 }) => {
   await page.goto('/some/client/route');
-  await expect(page.getByRole('heading', { level: 1 })).toHaveText('PM');
+  // ST-41: one not-available state for unknown and unauthorized addresses.
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText("This page isn't available");
+  await expect(page).toHaveTitle('Not available · PM');
   const api = await request.get('/v1/unknown');
   expect(api.status()).toBe(404);
   expect((await api.json()).error.code).toBe('not_found');

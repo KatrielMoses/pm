@@ -6,12 +6,21 @@ import { fileURLToPath } from 'node:url';
 // output. Each entry mirrors a package.json `exports` entry's `@pm/source` condition.
 const src = (path: string) => fileURLToPath(new URL(path, import.meta.url));
 const ENTRIES: Record<string, string> = {
+  '@pm/contracts/shell': 'packages/contracts/src/shell.ts',
+  '@pm/contracts/rich-text': 'packages/contracts/src/rich-text.ts',
   '@pm/contracts': 'packages/contracts/src/index.ts',
   '@pm/config/public': 'packages/config/src/public.ts',
   '@pm/config': 'packages/config/src/index.ts',
   '@pm/observability': 'packages/observability/src/index.ts',
   '@pm/db': 'packages/db/src/index.ts',
   '@pm/platform': 'packages/platform/src/index.ts',
+  '@pm/audit': 'packages/audit/src/index.ts',
+  '@pm/lifecycle/testing': 'packages/lifecycle/src/testing.ts',
+  '@pm/lifecycle/policy-issuer': 'packages/lifecycle/src/policy-issuer.ts',
+  '@pm/lifecycle': 'packages/lifecycle/src/index.ts',
+  '@pm/identity': 'packages/identity/src/index.ts',
+  '@pm/tenancy': 'packages/tenancy/src/index.ts',
+  '@pm/work': 'packages/work/src/index.ts',
   '@pm/test-support/vitest': 'packages/test-support/src/test-database.ts',
   '@pm/test-support/global-setup': 'packages/test-support/src/vitest-global-setup.ts',
   '@pm/test-support': 'packages/test-support/src/index.ts',

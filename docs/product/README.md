@@ -1,6 +1,6 @@
 # Product vocabulary and scope contract (Phase 0A)
 
-Status: **proposed — awaiting solutions-architect review.** Nothing here marks any roadmap item complete.
+Status: **accepted** (Phase 0A, P0-W1); accepted at the Phase 0 exit gate (P0-IR1; [exit-gate report](../architecture/PHASE_0_EXIT_GATE.md)). Open product decisions remain open until each is marked decided in [open-decisions.md](open-decisions.md).
 
 This folder is the canonical product-language and requirement-traceability foundation for the application described in [`FEATURES.md`](../../FEATURES.md). It fixes the meaning of records, scopes, states, dates, and deletion, so that Phases 0B (data), 0C (authorization), 0D (platform contracts), and 0E (UX) build on one vocabulary.
 

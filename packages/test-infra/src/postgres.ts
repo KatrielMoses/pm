@@ -118,6 +118,7 @@ export async function startPostgres(options: StartOptions = {}): Promise<Postgre
   }
 
   const { default: EmbeddedPostgres } = await import('embedded-postgres');
+  keepFailureExitCode();
   const port = options.port ?? (await freePort());
   const persistent = options.dataDir !== undefined;
   const databaseDir = options.dataDir ?? (await mkdtemp(join(tmpdir(), 'pm-pg-')));
@@ -162,3 +163,22 @@ export async function adminQuery(
 }
 
 export { makeUrl };
+
+let exitCodeGuarded = false;
+/**
+ * `embedded-postgres` installs `async-exit-hook`, which answers `beforeExit` with an explicit
+ * `process.exit(0)` and so discards the failing exit code a test runner has already set: a run
+ * with failed tests would exit 0. Remember the code at `beforeExit` and restore it on `exit`.
+ */
+export function keepFailureExitCode(): void {
+  if (exitCodeGuarded) return;
+  exitCodeGuarded = true;
+  let pending: number | undefined;
+  process.on('beforeExit', () => {
+    const code = Number(process.exitCode ?? 0);
+    if (code) pending = code;
+  });
+  process.on('exit', (code) => {
+    if (code === 0 && pending) process.exitCode = pending;
+  });
+}

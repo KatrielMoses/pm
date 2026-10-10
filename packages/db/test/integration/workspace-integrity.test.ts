@@ -121,7 +121,186 @@ describe('database-enforced workspace existence (1A review 01, correction 2)', (
       FROM pg_constraint c
       WHERE c.contype = 'f' AND c.confrelid = 'tenancy.workspace'::regclass
       ORDER BY 1`);
-    expect(res.rows.map((r) => r.tbl).sort()).toEqual(TENANT_TABLES.map((t) => `exec.${t}`).sort());
+    // Phase 1F tenant tables (audit, core, governance) carry the same database-enforced root key.
+    const phase1f = [
+      'audit.activity_item',
+      'audit.audit_event',
+      'audit.audit_redaction',
+      'audit.chain_checkpoint',
+      'audit.security_event',
+      'core.archive_batch',
+      'core.archive_batch_member',
+      'core.deletion_batch',
+      'core.deletion_batch_member',
+      'core.record',
+      'governance.retention_policy',
+    ];
+    // Phase 1C tenancy and access tables.
+    const phase1c = [
+      'access.permission_epoch',
+      'access.role',
+      'access.role_assignment',
+      'tenancy.brand',
+      'tenancy.brand_setting',
+      'tenancy.membership',
+      'tenancy.scope_preference',
+      // Phase 1D collaboration tables.
+      'access.record_grant',
+      'access.share_group',
+      'access.workspace_policy',
+      'tenancy.invitation',
+      'tenancy.ownership_transfer',
+      'tenancy.team',
+      'tenancy.team_member',
+      // Phase 1E personal navigation tables.
+      'views.favorite',
+      'views.recent_item',
+      'views.saved_view',
+      'views.view_default',
+      'views.view_pin',
+      'views.view_state',
+      // Phase 2A projects, relationships, templates, and recurrence.
+      'planning.recurrence_series',
+      'relations.record_relationship',
+      'templates.template',
+      'templates.template_version',
+      'work.criteria_item',
+      'work.decision_record',
+      'work.milestone',
+      'work.phase',
+      'work.project',
+      'work.project_update',
+      'work.project_update_verification',
+      'work.scope_item',
+      // Phase 2B tasks, labels, and record links.
+      'relations.record_link',
+      'work.checklist_item',
+      'work.label',
+      'work.task',
+      'work.task_assignee',
+      'work.task_inherited_criterion',
+      'work.task_label',
+      // Phase 2C workflows, approvals, custom fields, field sets, and field policy.
+      'access.field_policy',
+      'workflow.approval_decision',
+      'workflow.approval_request',
+      'workflow.field_definition',
+      'workflow.field_option',
+      'workflow.field_set',
+      'workflow.field_set_attachment',
+      'workflow.field_set_version',
+      'workflow.field_value',
+      'workflow.formula_dependency',
+      'workflow.transition',
+      'workflow.transition_approver',
+      'workflow.transition_requirement',
+      'workflow.workflow',
+      'workflow.workflow_status',
+      // Phase 2D reminders, snoozes, bulk operations, and undo entries.
+      'planning.task_reminder',
+      'planning.task_snooze',
+      'work.bulk_operation',
+      'work.undo_entry',
+      // Phase 2E Inbox items, notes, conversion lineage, intake forms, and submissions.
+      'capture.capture_conversion',
+      'capture.inbox_item',
+      'capture.intake_form',
+      'capture.intake_submission',
+      'capture.note',
+      // Phase 3D time entries, segments, timesheets, lines, approvals, and period locks.
+      'timetrack.period_lock',
+      'timetrack.time_entry',
+      'timetrack.time_segment',
+      'timetrack.timesheet',
+      'timetrack.timesheet_approval',
+      'timetrack.timesheet_line',
+      // Phase 3C work blocks, block series, Today commitments, and daily records.
+      'planning.block_series',
+      'planning.daily_record',
+      'planning.today_commitment',
+      'planning.work_block',
+      // Phase 3E capacity profiles, time off, holidays, and reservations (working windows reach
+      // the workspace through their profile's composite key).
+      'planning.capacity_profile',
+      'planning.capacity_reservation',
+      'planning.holiday',
+      'planning.time_off',
+      // Phase 4A comments, revisions, reactions, mentions, followers, reviews, and assignment
+      // history.
+      'collab.assignment_event',
+      'collab.comment',
+      'collab.comment_revision',
+      'collab.reaction',
+      'collab.review_decision',
+      'collab.review_request',
+      'collab.review_reviewer',
+      'relations.follower',
+      'relations.mention',
+      // Phase 4B notifications, digests, deliveries, preferences, profiles, and scope defaults.
+      'notify.delivery',
+      'notify.digest',
+      'notify.notification',
+      'notify.preference',
+      'notify.profile',
+      'notify.scope_default',
+      // Phase 4C documents, versions, references, suggestions, and source approvals.
+      'knowledge.document',
+      'knowledge.document_reference',
+      'knowledge.document_suggestion',
+      'knowledge.document_version',
+      'knowledge.edit_draft',
+      'knowledge.edit_op',
+      'knowledge.edit_session',
+      'knowledge.source_approval',
+      // Phase 4E files, versions, upload sessions, deliverables, and storage usage.
+      'files.file_object',
+      'files.file',
+      'files.file_version',
+      'files.upload_session',
+      // Phase 5B goals, key results, check-ins, links, derived state, and portfolios.
+      'goals.goal',
+      'goals.goal_checkin',
+      'goals.goal_link',
+      'goals.goal_state',
+      'goals.key_result',
+      'goals.portfolio',
+      'goals.portfolio_project',
+      // Phase 5D dashboards, reports, recipients, shares, and delivery runs.
+      'insights.dashboard',
+      'insights.report_definition',
+      'insights.report_recipient',
+      'insights.report_share',
+      'insights.report_run',
+      // Phase 6A connections, sync history, and conflicts.
+      'integrations.connection',
+      'integrations.sync_checkpoint',
+      'integrations.external_identity',
+      'integrations.sync_run',
+      'integrations.sync_delivery',
+      'integrations.sync_conflict',
+      // Phase 6B API tokens, outbound webhooks, and inbound endpoints.
+      'integrations.api_token',
+      'integrations.webhook_subscription',
+      'integrations.webhook_delivery',
+      'integrations.inbound_endpoint',
+      'integrations.inbound_message',
+      // Phase 6C calendar mirror and brand calendar mappings.
+      'integrations.connection_mapping',
+      'integrations.calendar_event',
+      'files.deliverable',
+      'files.deliverable_version',
+      'files.storage_usage',
+      // Phase 5A search entries, the indexing queue, and recent searches.
+      'search.search_document',
+      'search.index_status',
+      'search.recent_search',
+      // Phase 5C task status history and its reconciliation state.
+      'metrics.task_status_span',
+      'metrics.reconcile_state',
+    ];
+    expect(res.rows.map((r) => r.tbl).sort()).toEqual(
+      [...TENANT_TABLES.map((t) => `exec.${t}`), ...phase1f, ...phase1c].sort(),
+    );
     for (const r of res.rows) {
       expect(r, r.tbl).toMatchObject({
         confdeltype: 'r',
@@ -147,10 +326,34 @@ describe('database-enforced workspace existence (1A review 01, correction 2)', (
             AND i.indkey::int2[] @> c.confkey AND i.indkey::int2[] <@ c.confkey
         ) AS referenced_unique
       FROM pg_constraint c JOIN pg_namespace n ON n.oid = c.connamespace
-      WHERE c.contype = 'f' AND n.nspname IN ('exec', 'tenancy', 'access', 'ops')
+      WHERE c.contype = 'f' AND n.nspname IN ('exec', 'tenancy', 'access', 'ops', 'views', 'workflow', 'work', 'relations', 'templates', 'planning', 'capture', 'timetrack', 'collab', 'notify', 'knowledge', 'files', 'search', 'goals', 'metrics', 'insights')
       ORDER BY 1`);
-    // 7 workspace keys + 6 composite same-workspace keys inside exec.
-    expect(res.rows.length).toBe(13);
+    // exec: 7 workspace keys + 6 composite same-workspace keys; 1C tenancy/access: 20 keys;
+    // 1D collaboration (teams, invitations, policy, shares, ownership transfer): 38 keys;
+    // 1E personal navigation (favorites, recents, view state, view pins): 12 keys;
+    // 2A projects, structures, relationships, templates, recurrence, project role scope: 60 keys;
+    // 2B tasks, assignees, checklists, task criteria, inherited criteria, labels, links: 33 keys;
+    // 2C workflows, statuses, transitions, approvals (24) and fields, values, sets, field policy (30),
+    // less the three platform-status keys that became trigger-checked status references: +51;
+    // 2D task occurrences, task series projects, reminders, snoozes, bulk operations, undo: +12;
+    // 2E Inbox items, notes, lineage (13) and intake forms and submissions (9): +22;
+    // 3A saved views (7) and view defaults (6): +13;
+    // 3D entries (5), segments (3), timesheets (2), lines (3), approvals (6), period locks (5): +24;
+    // 3C work blocks (5), block series (4), Today commitments (4), daily records (2): +15;
+    // 3E capacity profiles (2), working windows (1), time off (2), holidays (3), reservations (4): +12;
+    // 4A comments (6), revisions (3), reactions (3), mentions (5), followers (3), review requests (4),
+    // reviewers (3), decisions (2), assignment events (5), and the delegated assignee (1): +35;
+    // 4B notifications, digests, deliveries, preferences, profiles, and scope defaults: +19;
+    // 4C documents (10), versions (3), references (5), suggestions (4), source approvals (3): +25;
+    // 4E objects (1), files (6), versions (4), upload sessions (9), deliverables (7), deliverable
+    // versions (7), and storage usage (1): +35;
+    // 4D live edit drafts (3), sessions (3), and operations (4): +10;
+    // 5A search entries (4), indexing tasks (2), and recent searches (2): +8;
+    // 5B goals (8), key results (7), check-ins (4), links (6), derived state (2), portfolios (6),
+    // and portfolio projects (4): +37;
+    // 5C status spans (2) and reconciliation state (1): +3;
+    // 5D dashboards (7), report definitions (7), recipients (4), shares (5), and runs (3): +26.
+    expect(res.rows.length).toBe(523);
     for (const r of res.rows)
       expect(r, `${r.tbl}.${r.conname}`).toMatchObject({
         referencing_indexed: true,

@@ -59,3 +59,23 @@ export class EnvironmentSecretProvider implements SecretProvider {
 }
 
 export const SECRET_REFERENCE_PREFIX = 'secretref:';
+
+/**
+ * Secret store / KMS adapter boundary for C4 material that must be recoverable (TOTP seeds,
+ * one-time tokens awaiting mail delivery, OAuth PKCE verifiers). Application tables hold only the
+ * returned reference. No production vendor is selected (DQ-28); the only implementation is the
+ * development store, which configuration refuses outside local and test.
+ *
+ * `scope` lets a database-backed implementation join the caller's transaction so a secret and the
+ * row referencing it commit together; external stores ignore it and rely on expiry for orphans.
+ */
+export interface SecretVault {
+  readonly name: string;
+  put(
+    purpose: string,
+    plaintext: string,
+    options: { expiresAt?: Date; scope?: unknown },
+  ): Promise<string>;
+  get(ref: string, options: { scope?: unknown }): Promise<string | undefined>;
+  destroy(ref: string, options: { scope?: unknown }): Promise<void>;
+}

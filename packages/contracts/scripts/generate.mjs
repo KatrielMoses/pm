@@ -1,5 +1,5 @@
 // Generates TypeScript constants from the accepted Phase 0 machine-readable contracts.
-// Sources (never edited here): 0D registry.json and 0C policy.json.
+// Sources (never edited here): 0D registry.json, 0D step-up-challenge schema, and 0C policy.json.
 // Usage: node generate.mjs          -> writes src/generated/registry.ts
 //        node generate.mjs --check  -> exits 1 when the committed file is stale
 import { readFileSync, writeFileSync } from 'node:fs';
@@ -13,6 +13,15 @@ const registry = JSON.parse(
 );
 const policy = JSON.parse(
   readFileSync(resolve(root, 'docs/architecture/access/policy/policy.json'), 'utf8'),
+);
+const model = JSON.parse(
+  readFileSync(resolve(root, 'docs/architecture/data/model/model.json'), 'utf8'),
+);
+const stepUpSchema = JSON.parse(
+  readFileSync(
+    resolve(root, 'docs/architecture/platform/contracts/schemas/step-up-challenge.schema.json'),
+    'utf8',
+  ),
 );
 const out = resolve(here, '../src/generated/registry.ts');
 
@@ -38,6 +47,7 @@ const events = registry.events.map((e) => ({
 }));
 const prefixes = registry.id_prefixes.map((p) => ({
   prefix: p.prefix,
+  resource: p.resource,
   entity: p.entity,
   ownerModule: p.owner_module,
   platformOnly: p.platform_only,
@@ -51,10 +61,50 @@ const principals = policy.principals.map((p) => ({
   id: p.id,
   platformOnly: Boolean(p.platform_only),
 }));
+const actions = policy.actions.map((a) => ({
+  key: a.key,
+  kind: a.kind,
+  scopes: a.scopes,
+  stepUp: Boolean(a.step_up),
+  riskClass: a.risk_class,
+  requiredLevel: a.required_level,
+  // Role matrix cells: implicit | deny | grant:<level> (0C §5); the 1C/1D compiler reads these.
+  roles: a.roles,
+}));
+
+const accountCommands = (policy.account_commands ?? []).map((c) => ({
+  action: c.action,
+  principals: c.principals,
+  gates: c.gates,
+}));
+
+const roleDefinitions = policy.roles.map((r) => ({
+  id: r.id,
+  membershipKind: r.membership_kind,
+  levelCap: r.level_cap,
+  canAssign: r.can_assign_roles,
+}));
+const workspacePolicyFields = (policy.workspace_policy ?? []).map((f) => ({
+  field: f.field,
+  default: f.default,
+  governedBy: f.governed_by,
+  ownerOnly: f.owner_only,
+}));
+
+/** `name kind (a|b|c)` key column of a 0B entity → its closed vocabulary. */
+function vocabulary(entity, column) {
+  const e = model.entities.find((x) => x.name === entity);
+  const col = e?.key_columns.find((c) => c.startsWith(`${column} `));
+  const m = col && /\(([a-z_|]+)\)\s*$/.exec(col);
+  if (!m) throw new Error(`0B ${entity}.${column} has no closed vocabulary`);
+  return m[1].split('|');
+}
 
 const body = `// GENERATED FILE - do not edit by hand.
 // Source: docs/architecture/platform/contracts/registry.json (schema_version ${registry.schema_version})
 //         docs/architecture/access/policy/policy.json (schema_version ${policy.schema_version})
+//         docs/architecture/data/model/model.json (schema_version ${model.schema_version})
+//         docs/architecture/platform/contracts/schemas/step-up-challenge.schema.json
 // Regenerate: pnpm contracts:generate
 
 ${constArray('ACTOR_TYPES', registry.actor_types, 'ActorType')}
@@ -88,7 +138,29 @@ ${constArray(
 )}
 export const PRINCIPALS = ${lit(principals)} as const;
 export type PrincipalType = (typeof PRINCIPALS)[number]['id'];
-`;
+
+/** 0C actions: workspace-scoped kinds plus personal (own-account) actions. */
+export const ACTIONS = ${lit(actions)} as const;
+export type ActionKey = (typeof ACTIONS)[number]['key'];
+
+/** 0C account commands (AZ-18): account-level actions performed before any tenant context. */
+export const ACCOUNT_COMMANDS = ${lit(accountCommands)} as const;
+export type AccountCommand = (typeof ACCOUNT_COMMANDS)[number]['action'];
+
+/** 0C §3.1 default roles: membership kind, level cap, and grantable authority (I-11). */
+export const ROLE_DEFINITIONS = ${lit(roleDefinitions)} as const;
+export type RoleId = (typeof ROLE_DEFINITIONS)[number]['id'];
+
+/** 0C AZ-19 workspace policy fields: safe defaults and governing actions. */
+export const WORKSPACE_POLICY_FIELDS = ${lit(workspacePolicyFields)} as const;
+export type WorkspacePolicyField = (typeof WORKSPACE_POLICY_FIELDS)[number]['field'];
+
+/** 0B brand operational status (ADR-19): business metadata, never lifecycle. */
+${constArray('BRAND_OPERATIONAL_STATUSES', vocabulary('brand', 'operational_status'), 'BrandOperationalStatus')}
+/** 0B brand notification content mode. */
+${constArray('BRAND_NOTIFICATION_CONTENT_MODES', vocabulary('brand', 'notification_content_mode'), 'BrandNotificationContentMode')}
+/** 0D §11.2 step-up challenge states (\`locked\` is stored and terminal). */
+${constArray('STEP_UP_CHALLENGE_STATES', stepUpSchema.properties.state.enum, 'StepUpChallengeState')}`;
 
 if (process.argv.includes('--check')) {
   let current = '';

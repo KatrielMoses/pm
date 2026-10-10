@@ -50,7 +50,8 @@
         "verified",
         "consumed",
         "expired",
-        "cancelled"
+        "cancelled",
+        "locked"
       ]
     },
     "verify": {

@@ -23,6 +23,182 @@ const TENANT_TABLES = [
   'exec.external_effect',
 ] as const;
 
+/** Phase 1F tenant tables (audit, core, governance); behavior covered in their own suites. */
+const PHASE_1F_TENANT_TABLES = [
+  'audit.audit_event',
+  'audit.audit_redaction',
+  'audit.security_event',
+  'audit.chain_checkpoint',
+  'audit.activity_item',
+  'core.record',
+  'core.archive_batch',
+  'core.archive_batch_member',
+  'core.deletion_batch',
+  'core.deletion_batch_member',
+  'governance.retention_policy',
+] as const;
+const PHASE_1C_TENANT_TABLES = [
+  'tenancy.membership',
+  'access.role',
+  'access.role_assignment',
+  'access.permission_epoch',
+  'tenancy.brand',
+  'tenancy.brand_setting',
+  'tenancy.scope_preference',
+  // Phase 1D
+  'tenancy.team',
+  'tenancy.team_member',
+  'access.workspace_policy',
+  'tenancy.invitation',
+  'access.share_group',
+  'access.record_grant',
+  'tenancy.ownership_transfer',
+  // Phase 1E
+  'views.favorite',
+  'views.recent_item',
+  'views.view_state',
+  'views.view_pin',
+  'views.saved_view',
+  'views.view_default',
+  // Phase 2A
+  'planning.recurrence_series',
+  'relations.record_relationship',
+  'templates.template',
+  'templates.template_version',
+  'work.criteria_item',
+  'work.decision_record',
+  'work.milestone',
+  'work.phase',
+  'work.project',
+  'work.project_update',
+  'work.project_update_verification',
+  'work.scope_item',
+  // Phase 2B
+  'relations.record_link',
+  'work.checklist_item',
+  'work.label',
+  'work.task',
+  'work.task_assignee',
+  'work.task_inherited_criterion',
+  'work.task_label',
+  // Phase 2C workflows, approvals, custom fields, field sets, and field policy.
+  'access.field_policy',
+  'workflow.approval_decision',
+  'workflow.approval_request',
+  'workflow.field_definition',
+  'workflow.field_option',
+  'workflow.field_set',
+  'workflow.field_set_attachment',
+  'workflow.field_set_version',
+  'workflow.field_value',
+  'workflow.formula_dependency',
+  'workflow.transition',
+  'workflow.transition_approver',
+  'workflow.transition_requirement',
+  'workflow.workflow',
+  'workflow.workflow_status',
+  // Phase 2D reminders, snoozes, bulk operations, and undo entries.
+  'planning.task_reminder',
+  'planning.task_snooze',
+  'work.bulk_operation',
+  'work.undo_entry',
+  // Phase 2E Inbox items, notes, conversion lineage, intake forms, and submissions.
+  'capture.inbox_item',
+  'capture.note',
+  'capture.capture_conversion',
+  'capture.intake_form',
+  'capture.intake_submission',
+  // Phase 3D time entries, segments, timesheets, lines, approvals, and period locks.
+  'timetrack.time_entry',
+  'timetrack.time_segment',
+  'timetrack.timesheet',
+  'timetrack.timesheet_line',
+  'timetrack.timesheet_approval',
+  'timetrack.period_lock',
+  // Phase 3C work blocks, block series, Today commitments, and daily records.
+  'planning.block_series',
+  'planning.daily_record',
+  'planning.today_commitment',
+  'planning.work_block',
+  // Phase 3E capacity profiles, working windows, time off, holidays, and reservations.
+  'planning.capacity_profile',
+  'planning.availability_rule',
+  'planning.time_off',
+  'planning.holiday',
+  'planning.capacity_reservation',
+  // Phase 4A comments, revisions, reactions, mentions, followers, reviews, and assignment history.
+  'collab.comment',
+  'collab.comment_revision',
+  'collab.reaction',
+  'relations.mention',
+  'relations.follower',
+  'collab.review_request',
+  'collab.review_reviewer',
+  'collab.review_decision',
+  'collab.assignment_event',
+  // Phase 4B notifications, digests, deliveries, preferences, profiles, and scope defaults.
+  'notify.notification',
+  'notify.digest',
+  'notify.delivery',
+  'notify.preference',
+  'notify.profile',
+  'notify.scope_default',
+  // Phase 4C documents, versions, references, suggestions, and source approvals.
+  'knowledge.document',
+  'knowledge.document_version',
+  'knowledge.edit_draft',
+  'knowledge.edit_op',
+  'knowledge.edit_session',
+  'knowledge.document_reference',
+  'knowledge.document_suggestion',
+  'knowledge.source_approval',
+  // Phase 5B goals, key results, check-ins, links, derived state, and portfolios.
+  'goals.goal',
+  'goals.key_result',
+  'goals.goal_checkin',
+  'goals.goal_link',
+  'goals.goal_state',
+  'goals.portfolio',
+  'goals.portfolio_project',
+  // Phase 5D dashboards, reports, recipients, shares, and delivery runs.
+  'insights.dashboard',
+  'insights.report_definition',
+  'insights.report_recipient',
+  'insights.report_share',
+  'insights.report_run',
+  // Phase 6A connections, sync history, and conflicts.
+  'integrations.connection',
+  'integrations.sync_checkpoint',
+  'integrations.external_identity',
+  'integrations.sync_run',
+  'integrations.sync_delivery',
+  'integrations.sync_conflict',
+  // Phase 6B API tokens, outbound webhooks, and inbound endpoints.
+  'integrations.api_token',
+  'integrations.webhook_subscription',
+  'integrations.webhook_delivery',
+  'integrations.inbound_endpoint',
+  'integrations.inbound_message',
+  // Phase 6C calendar mirror and brand calendar mappings.
+  'integrations.connection_mapping',
+  'integrations.calendar_event',
+  // Phase 4E files, versions, upload sessions, deliverables, and storage usage.
+  'files.file_object',
+  'files.file',
+  'files.file_version',
+  'files.upload_session',
+  'files.deliverable',
+  'files.deliverable_version',
+  'files.storage_usage',
+  // Phase 5A search entries, the indexing queue, and recent searches.
+  'search.search_document',
+  'search.index_status',
+  'search.recent_search',
+  // Phase 5C task status history and its reconciliation state.
+  'metrics.task_status_span',
+  'metrics.reconcile_state',
+] as const;
+
 /** Seeds one row in every tenant execution table for a workspace. */
 async function seedExecutionRows(
   h: Harness,
@@ -115,7 +291,19 @@ describe('tenant RLS foundation (0C §12.7)', () => {
         AND (EXISTS (SELECT 1 FROM pg_attribute a WHERE a.attrelid = c.oid AND a.attname = 'workspace_id' AND NOT a.attisdropped)
              OR (n.nspname = 'tenancy' AND c.relname = 'workspace'))
       ORDER BY 1`);
-    expect(res.rows.map((r) => r.t).sort()).toEqual([...TENANT_TABLES, 'tenancy.workspace'].sort());
+    // Platform-scoped tables (0B scope "platform") keep workspace_id only as a plain reference and
+    // carry no tenant RLS by design. The list is exact: any new table must be classified here.
+    const PLATFORM_SCOPED = ['identity.security_event_buffer', 'identity.step_up_challenge'];
+    expect(res.rows.map((r) => r.t).sort()).toEqual(
+      [
+        ...TENANT_TABLES,
+        ...PHASE_1F_TENANT_TABLES,
+        ...PHASE_1C_TENANT_TABLES,
+        'tenancy.workspace',
+        ...PLATFORM_SCOPED,
+      ].sort(),
+    );
+    res.rows = res.rows.filter((r) => !PLATFORM_SCOPED.includes(r.t));
     for (const row of res.rows) {
       expect(row, row.t).toMatchObject({
         relrowsecurity: true,
@@ -312,7 +500,12 @@ describe('tenant RLS foundation (0C §12.7)', () => {
              has_function_privilege('app_rw', p.oid, 'EXECUTE') AS app_exec,
              has_function_privilege('app_worker', p.oid, 'EXECUTE') AS worker_exec
       FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace WHERE n.nspname = 'exec_dispatch' ORDER BY 1`);
-    expect(fns.rows.length).toBe(6);
+    // 1A–1F: 9 functions; 1E adds discover_views_cleanup and 2A discover_recurrence_due
+    // (workspace ids only); 2D discover_reminders_due; 3D discover_runaway_timers; 3C
+    // discover_days_to_close and discover_block_series_due; 4B discover_notification_work; 4E
+    // discover_file_work; 5A discover_search_work; 5B discover_goal_work; 5C discover_metrics_work;
+    // 5D discover_report_work; 6A discover_integration_work; 6B discover_webhook_work.
+    expect(fns.rows.length).toBe(23);
     const allowed = new Set([
       'job_id',
       'workspace_id',
@@ -324,6 +517,8 @@ describe('tenant RLS foundation (0C §12.7)', () => {
       'event_id',
       'pending',
       'oldest_age_ms',
+      'batch_id',
+      'batches',
     ]);
     for (const fn of fns.rows) {
       expect(fn, fn.proname).toMatchObject({

@@ -1,0 +1,31 @@
+-- Reverts 0021 (local/test only). Restores the exact 0020 catalog.
+DROP TRIGGER project_manager_on_membership ON tenancy.membership;
+DROP TRIGGER project_manager_on_assignment ON access.role_assignment;
+DROP TRIGGER project_manager_on_project ON work.project;
+DROP FUNCTION work.assert_departing_manager();
+DROP FUNCTION work.assert_project_manager();
+DROP FUNCTION work.project_has_manager(uuid, uuid);
+DELETE FROM access.role_assignment WHERE scope_type = 'project' OR grant_source = 'project_manager';
+ALTER TABLE access.role_assignment DROP CONSTRAINT role_assignment_source_known;
+ALTER TABLE access.role_assignment ADD CONSTRAINT role_assignment_source_known CHECK (grant_source IN
+  ('bootstrap_owner', 'brand_creator', 'sensitivity_creator', 'assigned', 'elevation'));
+DROP INDEX access.role_assignment_by_project;
+ALTER TABLE access.role_assignment DROP CONSTRAINT role_assignment_project_fkey;
+ALTER TABLE access.role_assignment DROP COLUMN project_scope_id;
+DROP TABLE work.decision_record;
+DROP FUNCTION work.decision_record_guard();
+DROP TABLE work.project_update_verification;
+DROP TABLE work.project_update;
+DROP TABLE work.scope_item;
+DROP TABLE work.criteria_item;
+DROP TABLE work.milestone;
+DROP TABLE work.phase;
+DROP TABLE work.project;
+DROP FUNCTION work.assert_project_ancestry();
+DROP FUNCTION work.project_status_category();
+DROP TABLE workflow.platform_status;
+DELETE FROM core.record WHERE record_type IN ('project', 'phase', 'milestone', 'decision_record');
+DELETE FROM core.record_type WHERE record_type = 'phase';
+DROP SCHEMA work;
+DROP SCHEMA workflow;
+DROP FUNCTION tenancy.valid_rich_text(jsonb, integer);

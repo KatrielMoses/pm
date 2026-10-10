@@ -18,7 +18,7 @@ describe('redaction', () => {
     ['token=abc123secret&x=1', 'abc123secret'],
     ['api_key: "k-live-123"', 'k-live-123'],
     ['contact person@example.com', 'person@example.com'],
-    ['-----BEGIN PRIVATE KEY-----\nMIIE\n-----END PRIVATE KEY-----', 'MIIE'],
+    ['-----BEGIN PRIVATE KEY-----\nMIIE\n-----END PRIVATE KEY-----', 'MIIE'], // gitleaks:allow (synthetic)
   ])('scrubs %s', (input, secret) => {
     expect(redactString(input)).not.toContain(secret);
   });
