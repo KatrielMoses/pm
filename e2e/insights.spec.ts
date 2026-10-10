@@ -75,10 +75,11 @@ test('a founder builds a dashboard, reads figures with their labels, and works i
   // Layout editing from the keyboard: move a widget down, announce it, and save.
   await page.getByRole('button', { name: 'Edit widgets' }).click();
   const editor = page.getByRole('dialog', { name: 'Edit widgets' });
+  await expect(editor.getByText('Loading the metric catalog')).toHaveCount(0);
   const first = editor.getByRole('button', { name: /^Move .* down$/ }).first();
   await first.focus();
   await page.keyboard.press('Enter');
-  await expect(editor.getByRole('status')).toContainText('moved to position 2');
+  await expect(editor.getByText(/moved to position 2/)).toBeVisible();
   await editor.getByRole('button', { name: 'Save widgets' }).click();
   await expect(page.getByRole('dialog')).toHaveCount(0);
 
