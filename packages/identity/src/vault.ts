@@ -11,11 +11,23 @@ const PURPOSE = /^[a-z_]{1,32}$/;
  */
 export class DevDatabaseVault implements SecretVault {
   readonly name = 'dev-database';
-  readonly #key: Buffer;
+  readonly #keys = new Map<number, Buffer>();
+  readonly #currentId: number;
 
-  constructor(key: Secret) {
-    const bytes = Buffer.from(key.reveal(), 'base64url');
-    this.#key = bytes.subarray(0, 32);
+  constructor(key: Secret, ring?: { currentId?: number; previous?: { id: number; key: Secret } }) {
+    const currentId = ring?.currentId ?? 1;
+    this.#currentId = currentId;
+    this.#keys.set(currentId, Buffer.from(key.reveal(), 'base64url').subarray(0, 32));
+    if (ring?.previous)
+      this.#keys.set(
+        ring.previous.id,
+        Buffer.from(ring.previous.key.reveal(), 'base64url').subarray(0, 32),
+      );
+  }
+
+  /** The key id newly stored secrets are wrapped with. */
+  get currentKeyId(): number {
+    return this.#currentId;
   }
 
   #scope(scope: unknown): ScopedTransaction {
@@ -32,7 +44,7 @@ export class DevDatabaseVault implements SecretVault {
     if (!PURPOSE.test(purpose)) throw new Error('invalid vault purpose');
     const ref = `dev:${purpose}:${randomBytes(16).toString('hex')}`;
     const nonce = randomBytes(12);
-    const cipher = createCipheriv('aes-256-gcm', this.#key, nonce);
+    const cipher = createCipheriv('aes-256-gcm', this.#keys.get(this.#currentId)!, nonce);
     cipher.setAAD(Buffer.from(ref));
     const ciphertext = Buffer.concat([cipher.update(plaintext, 'utf8'), cipher.final()]);
     await this.#scope(options.scope)
@@ -43,6 +55,7 @@ export class DevDatabaseVault implements SecretVault {
         nonce,
         ciphertext,
         auth_tag: cipher.getAuthTag(),
+        key_id: this.#currentId,
         expires_at: options.expiresAt ?? null,
       })
       .execute();
@@ -52,11 +65,13 @@ export class DevDatabaseVault implements SecretVault {
   async get(ref: string, options: { scope?: unknown }): Promise<string | undefined> {
     const row = await this.#scope(options.scope)
       .db.selectFrom('ops.dev_secret_vault')
-      .select(['nonce', 'ciphertext', 'auth_tag', 'expires_at'])
+      .select(['nonce', 'ciphertext', 'auth_tag', 'expires_at', 'key_id'])
       .where('ref', '=', ref)
       .executeTakeFirst();
     if (!row || (row.expires_at && row.expires_at.getTime() <= Date.now())) return undefined;
-    const decipher = createDecipheriv('aes-256-gcm', this.#key, row.nonce);
+    const key = this.#keys.get(row.key_id);
+    if (!key) return undefined;
+    const decipher = createDecipheriv('aes-256-gcm', key, row.nonce);
     decipher.setAAD(Buffer.from(ref));
     decipher.setAuthTag(row.auth_tag);
     return Buffer.concat([decipher.update(row.ciphertext), decipher.final()]).toString('utf8');

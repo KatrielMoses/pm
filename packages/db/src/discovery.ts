@@ -234,6 +234,19 @@ export class PlatformDiscovery {
     return rows.map((r) => r.workspace_id);
   }
 
+  /** Workspaces with a sync delivery due or sync history past retention (6A, ids only). */
+  async discoverIntegrationWork(
+    now: Date,
+    retentionBefore: Date,
+    limit: number,
+  ): Promise<string[]> {
+    const { rows } = await this.#pool.query<{ workspace_id: string }>(
+      'SELECT workspace_id FROM exec_dispatch.discover_integration_work($1, $2, $3)',
+      [now, retentionBefore, limit],
+    );
+    return rows.map((r) => r.workspace_id);
+  }
+
   /** Workspaces with a report schedule due or runs past retention (5D, ids only). */
   async discoverReportWork(now: Date, retentionBefore: Date, limit: number): Promise<string[]> {
     const { rows } = await this.#pool.query<{ workspace_id: string }>(

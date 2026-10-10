@@ -882,6 +882,22 @@ export const TELEMETRY_SIGNALS = [
       "metric",
       "outcome"
     ]
+  },
+  {
+    "name": "integrations.requests",
+    "type": "counter",
+    "labels": [
+      "op",
+      "outcome"
+    ]
+  },
+  {
+    "name": "integrations.jobs",
+    "type": "counter",
+    "labels": [
+      "kind",
+      "outcome"
+    ]
   }
 ] as const;
 export type TelemetrySignalName = (typeof TELEMETRY_SIGNALS)[number]['name'];
@@ -1436,6 +1452,13 @@ export const ID_PREFIXES = [
     "prefix": "conn",
     "resource": "connection",
     "entity": "integrations.connection",
+    "ownerModule": "integrations",
+    "platformOnly": false
+  },
+  {
+    "prefix": "cnf",
+    "resource": "sync_conflict",
+    "entity": "integrations.sync_conflict",
     "ownerModule": "integrations",
     "platformOnly": false
   },
@@ -2326,12 +2349,78 @@ export const INTERNAL_EVENTS = [
     "maxClass": "C1"
   },
   {
+    "type": "integrations.sync.completed",
+    "schemaVersion": 1,
+    "aggregateEntity": "integrations.connection",
+    "fields": [
+      "outcome",
+      "conflicts"
+    ],
+    "maxClass": "C1"
+  },
+  {
+    "type": "integrations.conflict.detected",
+    "schemaVersion": 1,
+    "aggregateEntity": "integrations.connection",
+    "fields": [
+      "field"
+    ],
+    "maxClass": "C1"
+  },
+  {
+    "type": "integrations.conflict.resolved",
+    "schemaVersion": 1,
+    "aggregateEntity": "integrations.connection",
+    "fields": [
+      "resolution"
+    ],
+    "maxClass": "C1"
+  },
+  {
+    "type": "integrations.credential.rotated",
+    "schemaVersion": 1,
+    "aggregateEntity": "integrations.connection",
+    "fields": [
+      "key_version"
+    ],
+    "maxClass": "C1"
+  },
+  {
     "type": "integrations.sync.failed",
     "schemaVersion": 1,
     "aggregateEntity": "integrations.sync_run",
     "fields": [
       "connection_id",
       "terminal_reason"
+    ],
+    "maxClass": "C1"
+  },
+  {
+    "type": "integrations.connection.created",
+    "schemaVersion": 1,
+    "aggregateEntity": "integrations.connection",
+    "fields": [
+      "provider",
+      "auth_kind",
+      "scope"
+    ],
+    "maxClass": "C1"
+  },
+  {
+    "type": "integrations.connection.reauthorized",
+    "schemaVersion": 1,
+    "aggregateEntity": "integrations.connection",
+    "fields": [
+      "auth_kind"
+    ],
+    "maxClass": "C1"
+  },
+  {
+    "type": "integrations.connection.disconnected",
+    "schemaVersion": 1,
+    "aggregateEntity": "integrations.connection",
+    "fields": [
+      "retention"
     ],
     "maxClass": "C1"
   },
@@ -3814,7 +3903,16 @@ export const PARAMETER_NAMES = [
   "REPORT_BATCH_MAX",
   "REPORT_LEASE_SECONDS",
   "REPORT_MAX_ATTEMPTS",
-  "REPORT_FRESHNESS_MINUTES"
+  "REPORT_FRESHNESS_MINUTES",
+  "CONNECTIONS_PER_SCOPE_MAX",
+  "CONNECTION_SCOPES_MAX",
+  "SYNC_BATCH_MAX",
+  "SYNC_MAX_ATTEMPTS",
+  "SYNC_BACKOFF_SECONDS",
+  "SYNC_LEASE_SECONDS",
+  "SYNC_HISTORY_RETENTION_DAYS",
+  "SYNC_RATE_PER_MINUTE",
+  "INTEGRATION_LOOPBACK_ENABLED"
 ] as const;
 export type ParameterName = (typeof PARAMETER_NAMES)[number];
 

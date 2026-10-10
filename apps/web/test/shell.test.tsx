@@ -133,6 +133,7 @@ describe('route registry (NAV-001, NAV-012)', () => {
     expect(ids(owner, 'admin')).toEqual([
       'workspace_settings',
       'access_settings',
+      'integrations',
       'workflows',
       'fields',
     ]);

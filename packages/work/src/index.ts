@@ -88,3 +88,8 @@ export * from './metrics/metric-service.ts';
 export * from './metrics/jobs.ts';
 export { goalOwnerHook } from './goals/ownership.ts';
 export { purgeGoalTargets, attachedGoals } from './goals/lifecycle.ts';
+export * from './integrations/service.ts';
+export * from './integrations/jobs.ts';
+export * from './integrations/semantics.ts';
+export { connectionOwnerHook } from './integrations/ownership.ts';
+export { connectionAdapter } from './integrations/lifecycle.ts';

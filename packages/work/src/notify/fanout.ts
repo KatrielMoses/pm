@@ -53,6 +53,9 @@ export const FANOUT_EVENTS = [
   'access.role.revoked',
   'planning.task_reminder.fired',
   'relations.relationship.created',
+  'integrations.sync.failed',
+  'integrations.connection.health_changed',
+  'integrations.connection.disconnected',
 ] as const satisfies readonly InternalEventType[];
 
 const NIL_UUID = '00000000-0000-7000-8000-000000000000';
@@ -307,6 +310,28 @@ export class NotificationFanOut implements OutboxConsumer {
                 recipients: await this.assignees(tx, to),
                 facts: {},
                 occasion: `${e.aggregate.id}`,
+              },
+            ]
+          : [];
+      }
+      case 'integrations.sync.failed':
+      case 'integrations.connection.health_changed':
+      case 'integrations.connection.disconnected': {
+        const owner = await tx.db
+          .selectFrom('integrations.connection')
+          .select('owner_membership_id')
+          .where('id', '=', e.aggregate.id)
+          .executeTakeFirst();
+        return owner
+          ? [
+              {
+                type: 'integration_failure',
+                recordId: e.aggregate.id,
+                actorId: null,
+                recipients: [owner.owner_membership_id],
+                facts: {
+                  health: str(data.health) ?? str(data.terminal_reason) ?? str(data.retention),
+                },
               },
             ]
           : [];

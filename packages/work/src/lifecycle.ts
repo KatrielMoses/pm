@@ -12,6 +12,7 @@ import {
   purgeGoalTargets,
 } from './goals/lifecycle.ts';
 import { attachedInsights, dashboardAdapter, reportAdapter } from './insights/lifecycle.ts';
+import { connectionAdapter } from './integrations/lifecycle.ts';
 import {
   deliverableAdapter,
   fileAdapter,
@@ -496,6 +497,7 @@ export function registerWorkLifecycle(registry: LifecycleRegistry): LifecycleReg
     portfolioAdapter,
     dashboardAdapter,
     reportAdapter,
+    connectionAdapter,
     fileAdapter,
     deliverableAdapter,
   ])

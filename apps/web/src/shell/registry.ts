@@ -305,6 +305,21 @@ export const ROUTES: readonly RouteDef[] = [
     },
     visible: (a) => member(a) && a.capabilities.view_directory,
   },
+  {
+    id: 'integrations',
+    pattern: '/workspaces/:ws/settings/integrations',
+    shell: 'workspace',
+    section: 'Integrations',
+    command: 'go.integrations',
+    nav: {
+      placement: 'admin',
+      label: 'Integrations',
+      short: 'Integrations',
+      icon: '⇄',
+      order: 2,
+    },
+    visible: (a) => member(a) && a.capabilities.configure,
+  },
   // 2C (0E Phase 2C note): workflow and field administration at a chosen scope, and the
   // approvals queue. Pages decide authority per scope; members see the entry points.
   {

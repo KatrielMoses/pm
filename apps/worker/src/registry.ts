@@ -43,6 +43,9 @@ import {
   REPORT_SCHEDULES,
   reportDeliveryHandler,
   type ReportJobDeps,
+  INTEGRATION_SCHEDULES,
+  integrationSyncHandler,
+  type IntegrationJobDeps,
 } from '@pm/work';
 
 /**
@@ -74,6 +77,7 @@ export interface WorkerModules {
   goals: GoalJobDeps;
   metrics: MetricsJobDeps;
   reports: ReportJobDeps;
+  integrations: IntegrationJobDeps;
 }
 
 export function registeredHandlers(m: WorkerModules): JobHandler[] {
@@ -96,6 +100,7 @@ export function registeredHandlers(m: WorkerModules): JobHandler[] {
     goalRecalcHandler(m.goals),
     metricsReconcileHandler(m.metrics),
     reportDeliveryHandler(m.reports),
+    integrationSyncHandler(m.integrations),
   ];
 }
 
@@ -133,5 +138,6 @@ export function registeredSchedules(): RecurringJob[] {
     ...GOAL_SCHEDULES,
     ...METRICS_SCHEDULES,
     ...REPORT_SCHEDULES,
+    ...INTEGRATION_SCHEDULES,
   ];
 }

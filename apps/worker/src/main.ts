@@ -187,6 +187,14 @@ async function main(): Promise<void> {
         logger,
         settings: config.work,
       },
+      integrations: {
+        tenant: tenantDb,
+        discovery,
+        service: reportService,
+        metrics: telemetry.metrics,
+        logger,
+        settings: config.work,
+      },
       reports: {
         tenant: tenantDb,
         discovery,

@@ -468,6 +468,34 @@ const deliverableSource: SearchSource = {
   },
 };
 
+const connectionSource: SearchSource = {
+  kind: 'connection',
+  label: 'Connections',
+  ownerLabel: 'Owner',
+  async load(tx, id) {
+    const c = await tx.db
+      .selectFrom('integrations.connection as c')
+      .innerJoin('core.record as r', (j) =>
+        j.onRef('r.workspace_id', '=', 'c.workspace_id').onRef('r.id', '=', 'c.id'),
+      )
+      .select(['c.id', 'c.display_name', 'c.provider', 'c.owner_membership_id', 'c.updated_at'])
+      .where('c.id', '=', id)
+      .where(notPurged)
+      .executeTakeFirst();
+    if (!c) return null;
+    return {
+      authRecordId: c.id,
+      contextRecordId: null,
+      title: c.display_name,
+      body: c.provider,
+      ownerMembershipId: c.owner_membership_id,
+      updatedAt: c.updated_at,
+    };
+  },
+  publicIds: recordPublicIds,
+  resolve: (tx, publicId) => recordResolve(tx, 'connection', publicId),
+};
+
 /** The registry of search sources: a lookup by kind, in the order filters list them. */
 export class SearchSourceRegistry {
   readonly #sources = new Map<string, SearchSource>();
@@ -504,5 +532,6 @@ export function defaultSearchSources(): SearchSourceRegistry {
     .register(documentSource)
     .register(commentSource)
     .register(fileSource)
-    .register(deliverableSource);
+    .register(deliverableSource)
+    .register(connectionSource);
 }

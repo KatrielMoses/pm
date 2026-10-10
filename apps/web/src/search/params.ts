@@ -103,7 +103,7 @@ type Ref = { type: string; id: string };
  * is not visible has no page, and the list says so instead of linking somewhere else.
  */
 export function openRef(r: Pick<SearchResult, 'type' | 'id' | 'host'>): Ref | null {
-  if (r.type === 'task' || r.type === 'project' || r.type === 'document')
+  if (r.type === 'task' || r.type === 'project' || r.type === 'document' || r.type === 'connection')
     return { type: r.type, id: r.id };
   return r.host ? { type: r.host.type, id: r.host.id } : null;
 }
@@ -119,6 +119,8 @@ export function refHref(ws: string, ref: Ref | null): string | null {
       return routeHref('document', { ws, doc: ref.id });
     case 'brand':
       return routeHref('brand', { ws, brand: ref.id });
+    case 'connection':
+      return `${routeHref('integrations', { ws })}?connection=${encodeURIComponent(ref.id)}`;
     default:
       return null;
   }
@@ -136,6 +138,7 @@ export const KIND_LABEL: Record<string, string> = {
   comment: 'Comment',
   file: 'File',
   deliverable: 'Deliverable',
+  connection: 'Connection',
 };
 export const kindLabel = (kind: string) => KIND_LABEL[kind] ?? 'Item';
 

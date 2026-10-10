@@ -94,7 +94,7 @@ describe('migrations from an empty database', () => {
     expect(await catalogFingerprint(second)).toEqual(await catalogFingerprint(first));
   });
 
-  it('upgrades through every accepted boundary (0009–0044) to the candidate and reverses each boundary step', async () => {
+  it('upgrades through every accepted boundary (0009–0045) to the candidate and reverses each boundary step', async () => {
     // Accepted subphase boundaries: 1A 0009, 1B 0012, 1F 0016, 1C 0018, 1D 0019, 1E 0020; 2A adds
     // 0021 (work) and 0022 (relations, templates, recurrence); 2B–2E add 0023–0030; 3A adds 0031
     // (saved views, defaults, and pin writes); 3D adds 0032 (time entries, timesheets, approvals,
@@ -106,10 +106,11 @@ describe('migrations from an empty database', () => {
     // projection, its indexing queue, recent searches, and the source triggers); 5B adds 0042 (goals,
     // key results, links, check-ins, derived state, and portfolios); 5C adds 0043 (the task status ledger
     // and its reconciliation state); 5D adds 0044 (dashboards, saved reports, report shares,
-    // recipients, and scheduled runs).
+    // recipients, and scheduled runs); 6A adds 0045 (connections, checkpoints, identities, sync
+    // runs, deliveries, and conflicts).
     const boundaries = [
       9, 12, 16, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38,
-      39, 40, 41, 42, 43, 44,
+      39, 40, 41, 42, 43, 44, 45,
     ];
     const full = async (db: TestDatabase) => {
       const objects = await db.admin(`
@@ -140,7 +141,7 @@ describe('migrations from an empty database', () => {
         at.set(to, await full(stepped));
       }
       // Stepping through the boundaries reaches exactly the one-shot candidate catalog.
-      expect(at.get(44)).toEqual(await full(reference));
+      expect(at.get(45)).toEqual(await full(reference));
       // Each subphase's step reverses to the prior boundary's exact catalog and re-applies to its
       // own, walking down from the candidate.
       for (let i = boundaries.length - 1; i > 0; i--) {
