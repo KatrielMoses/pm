@@ -53,6 +53,7 @@ export const FANOUT_EVENTS = [
   'access.role.revoked',
   'planning.task_reminder.fired',
   'relations.relationship.created',
+  'integrations.webhook.delivery_failed',
 ] as const satisfies readonly InternalEventType[];
 
 const NIL_UUID = '00000000-0000-7000-8000-000000000000';
@@ -102,6 +103,24 @@ export class NotificationFanOut implements OutboxConsumer {
     const actor = str(e.actor.id);
     const data = e.data;
     switch (e.type) {
+      case 'integrations.webhook.delivery_failed': {
+        const owner = await tx.db
+          .selectFrom('integrations.webhook_subscription')
+          .select('accountable_owner_membership_id')
+          .where('id', '=', e.aggregate.id)
+          .executeTakeFirst();
+        return owner
+          ? [
+              {
+                type: 'integration_failure' as const,
+                recordId: e.aggregate.id,
+                actorId: null,
+                recipients: [owner.accountable_owner_membership_id],
+                facts: { attempt: Number(data.attempt ?? 0) },
+              },
+            ]
+          : [];
+      }
       case 'work.task.assigned':
         return [
           {

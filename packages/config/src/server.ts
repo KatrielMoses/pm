@@ -317,6 +317,23 @@ export interface ServerConfig {
     reportLeaseSeconds: number;
     reportMaxAttempts: number;
     reportFreshnessMinutes: number;
+    apiTokensPersonalMax: number;
+    apiTokensServiceMax: number;
+    apiReadRatePerMinute: number;
+    apiWriteRatePerMinute: number;
+    apiExportRatePerMinute: number;
+    webhookSubscriptionsMax: number;
+    webhookInboundMax: number;
+    webhookMaxAttempts: number;
+    webhookConcurrencyPerDestination: number;
+    webhookBodyMaxBytes: number;
+    webhookDeliveryRetentionDays: number;
+    webhookEventTypesMax: number;
+    webhookTimestampToleranceSeconds: number;
+    webhookDisableThreshold: number;
+    webhookResponseTimeoutMs: number;
+    webhookSweepBatchMax: number;
+    webhookAllowLoopback: boolean;
     documentEmbedUrlMaxChars: number;
     signedUrlLifetimeSeconds: number;
     uploadSessionLifetimeSeconds: number;
@@ -710,6 +727,23 @@ const DEFAULTS = {
   REPORT_LEASE_SECONDS: '300',
   REPORT_MAX_ATTEMPTS: '5',
   REPORT_FRESHNESS_MINUTES: '720',
+  API_TOKENS_PERSONAL_MAX: '25',
+  API_TOKENS_SERVICE_MAX: '50',
+  API_READ_RATE_PER_MINUTE: '600',
+  API_WRITE_RATE_PER_MINUTE: '120',
+  API_EXPORT_RATE_PER_MINUTE: '20',
+  WEBHOOK_SUBSCRIPTIONS_MAX: '50',
+  WEBHOOK_INBOUND_MAX: '20',
+  WEBHOOK_MAX_ATTEMPTS: '8',
+  WEBHOOK_CONCURRENCY_PER_DESTINATION: '4',
+  WEBHOOK_BODY_MAX_BYTES: '262144',
+  WEBHOOK_DELIVERY_RETENTION_DAYS: '30',
+  WEBHOOK_EVENT_TYPES_MAX: '20',
+  WEBHOOK_TIMESTAMP_TOLERANCE: '300',
+  WEBHOOK_DISABLE_THRESHOLD: '10',
+  WEBHOOK_RESPONSE_TIMEOUT: '10000',
+  WEBHOOK_SWEEP_BATCH_MAX: '25',
+  WEBHOOK_ALLOW_LOOPBACK: 'auto',
   DOCUMENT_EMBED_URL_MAX_CHARS: '2048',
   SIGNED_URL_LIFETIME: '300',
   UPLOAD_SESSION_LIFETIME: '3600',
@@ -1016,6 +1050,23 @@ const schema = z.object({
   REPORT_LEASE_SECONDS: int(30, 3600),
   REPORT_MAX_ATTEMPTS: int(1, 20),
   REPORT_FRESHNESS_MINUTES: int(15, 10080),
+  API_TOKENS_PERSONAL_MAX: int(1, 500),
+  API_TOKENS_SERVICE_MAX: int(1, 500),
+  API_READ_RATE_PER_MINUTE: int(1, 10000),
+  API_WRITE_RATE_PER_MINUTE: int(1, 5000),
+  API_EXPORT_RATE_PER_MINUTE: int(1, 1000),
+  WEBHOOK_SUBSCRIPTIONS_MAX: int(1, 500),
+  WEBHOOK_INBOUND_MAX: int(1, 200),
+  WEBHOOK_MAX_ATTEMPTS: int(1, 20),
+  WEBHOOK_CONCURRENCY_PER_DESTINATION: int(1, 50),
+  WEBHOOK_BODY_MAX_BYTES: int(1024, 1048576),
+  WEBHOOK_DELIVERY_RETENTION_DAYS: int(1, 365),
+  WEBHOOK_EVENT_TYPES_MAX: int(1, 20),
+  WEBHOOK_TIMESTAMP_TOLERANCE: int(30, 900),
+  WEBHOOK_DISABLE_THRESHOLD: int(1, 100),
+  WEBHOOK_RESPONSE_TIMEOUT: int(1000, 30000),
+  WEBHOOK_SWEEP_BATCH_MAX: int(1, 200),
+  WEBHOOK_ALLOW_LOOPBACK: z.enum(['auto', '0', '1']),
   DOCUMENT_EMBED_URL_MAX_CHARS: int(128, 8192),
   SIGNED_URL_LIFETIME: int(30, 3600),
   UPLOAD_SESSION_LIFETIME: int(300, 86400),
@@ -1651,6 +1702,25 @@ export function loadServerConfig(options: LoadOptions): ServerConfig {
       reportLeaseSeconds: c.REPORT_LEASE_SECONDS,
       reportMaxAttempts: c.REPORT_MAX_ATTEMPTS,
       reportFreshnessMinutes: c.REPORT_FRESHNESS_MINUTES,
+      apiTokensPersonalMax: c.API_TOKENS_PERSONAL_MAX,
+      apiTokensServiceMax: c.API_TOKENS_SERVICE_MAX,
+      apiReadRatePerMinute: c.API_READ_RATE_PER_MINUTE,
+      apiWriteRatePerMinute: c.API_WRITE_RATE_PER_MINUTE,
+      apiExportRatePerMinute: c.API_EXPORT_RATE_PER_MINUTE,
+      webhookSubscriptionsMax: c.WEBHOOK_SUBSCRIPTIONS_MAX,
+      webhookInboundMax: c.WEBHOOK_INBOUND_MAX,
+      webhookMaxAttempts: c.WEBHOOK_MAX_ATTEMPTS,
+      webhookConcurrencyPerDestination: c.WEBHOOK_CONCURRENCY_PER_DESTINATION,
+      webhookBodyMaxBytes: c.WEBHOOK_BODY_MAX_BYTES,
+      webhookDeliveryRetentionDays: c.WEBHOOK_DELIVERY_RETENTION_DAYS,
+      webhookEventTypesMax: c.WEBHOOK_EVENT_TYPES_MAX,
+      webhookTimestampToleranceSeconds: c.WEBHOOK_TIMESTAMP_TOLERANCE,
+      webhookDisableThreshold: c.WEBHOOK_DISABLE_THRESHOLD,
+      webhookResponseTimeoutMs: c.WEBHOOK_RESPONSE_TIMEOUT,
+      webhookSweepBatchMax: c.WEBHOOK_SWEEP_BATCH_MAX,
+      webhookAllowLoopback:
+        c.WEBHOOK_ALLOW_LOOPBACK === '1' ||
+        (c.WEBHOOK_ALLOW_LOOPBACK === 'auto' && (env === 'local' || env === 'test')),
       documentEmbedUrlMaxChars: c.DOCUMENT_EMBED_URL_MAX_CHARS,
       signedUrlLifetimeSeconds: c.SIGNED_URL_LIFETIME,
       uploadSessionLifetimeSeconds: c.UPLOAD_SESSION_LIFETIME,

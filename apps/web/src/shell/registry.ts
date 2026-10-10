@@ -308,6 +308,13 @@ export const ROUTES: readonly RouteDef[] = [
   // 2C (0E Phase 2C note): workflow and field administration at a chosen scope, and the
   // approvals queue. Pages decide authority per scope; members see the entry points.
   {
+    id: 'api_access',
+    pattern: '/workspaces/:ws/settings/api',
+    shell: 'workspace',
+    section: 'API and webhooks',
+    visible: member,
+  },
+  {
     id: 'workflows',
     pattern: '/workspaces/:ws/settings/workflows',
     shell: 'workspace',

@@ -11,7 +11,12 @@ import {
   TenantDatabase,
 } from '@pm/db';
 import { createIdentityService } from '@pm/identity';
-import { createObjectStorage, createWorkService, LocalObjectStorage } from '@pm/work';
+import {
+  createObjectStorage,
+  createWorkService,
+  LocalObjectStorage,
+  syntheticCaller,
+} from '@pm/work';
 import { PUBLIC_CONFIG } from '@pm/config/public';
 import { createLogger, errorFields, initTelemetry, LogErrorReporter } from '@pm/observability';
 import { buildApp } from './app.ts';
@@ -76,6 +81,15 @@ async function main(): Promise<void> {
       identity: identity.service,
       localOAuth: identity.localOAuth,
       componentHarness: config.features.componentHarness,
+      resolveBearer: async (secret) => {
+        const found = await tenancy.authenticateApiToken(secret);
+        if (!found) return null;
+        const caller = syntheticCaller(found.accountId, found.delegation, {
+          correlationId: '0'.repeat(32),
+        });
+        return { auth: caller.auth, delegation: found.delegation };
+      },
+      limitBearer: (tokenId, write) => tenancy.limitApi(tokenId, write),
     },
     tenancy: { tenancy },
     work: { work: tenancy },

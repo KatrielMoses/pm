@@ -43,6 +43,11 @@ import {
   REPORT_SCHEDULES,
   reportDeliveryHandler,
   type ReportJobDeps,
+  webhookDeliveryHandler,
+  WebhookProjector,
+  WEBHOOK_SCHEDULES,
+  type WebhookJobDeps,
+  type PublicApiService,
 } from '@pm/work';
 
 /**
@@ -74,6 +79,7 @@ export interface WorkerModules {
   goals: GoalJobDeps;
   metrics: MetricsJobDeps;
   reports: ReportJobDeps;
+  webhooks: WebhookJobDeps;
 }
 
 export function registeredHandlers(m: WorkerModules): JobHandler[] {
@@ -96,15 +102,23 @@ export function registeredHandlers(m: WorkerModules): JobHandler[] {
     goalRecalcHandler(m.goals),
     metricsReconcileHandler(m.metrics),
     reportDeliveryHandler(m.reports),
+    webhookDeliveryHandler(m.webhooks),
   ];
 }
 
 export function registeredConsumers(
   settings: WorkSettings = DEFAULT_WORK_SETTINGS,
-  deps: { arrayMax: number; metrics?: Metrics } = { arrayMax: 10_000 },
+  deps: {
+    arrayMax: number;
+    metrics?: Metrics;
+    webhooks?: Pick<PublicApiService, 'projectWebhook'>;
+  } = {
+    arrayMax: 10_000,
+  },
 ): OutboxConsumer[] {
   return [
     new ActivityProjector(),
+    ...(deps.webhooks ? [new WebhookProjector(deps.webhooks)] : []),
     new NotificationFanOut(
       {
         notifyFanoutRecipientsMax: settings.notifyFanoutRecipientsMax,
@@ -133,5 +147,6 @@ export function registeredSchedules(): RecurringJob[] {
     ...GOAL_SCHEDULES,
     ...METRICS_SCHEDULES,
     ...REPORT_SCHEDULES,
+    ...WEBHOOK_SCHEDULES,
   ];
 }

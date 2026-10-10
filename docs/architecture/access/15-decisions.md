@@ -445,3 +445,9 @@ All decisions are **proposed (Phase 0C)**, pending solutions-architect acceptanc
   - **New actions.** `workflow.transition`, `workflow.approval_request`, `workflow.approval_decide`, `field.value_read`, `field.value_edit`, `field.formula_inspect`. The action count becomes 115.
 - **Alternatives:** Approval rights as an access grant (contradicts I-10). UI-only field hiding (contradicts I-18). A separate approval permission table (a second authority source).
 - **Consequences:** The compiled context gains readable and editable custom field keys per (record kind, scope). Preview and enforcement stay one evaluator.
+
+<a id="az-40"></a>
+### AZ-40: API tokens and webhooks (Phase 6B amendment)
+- **Decision:** A personal token's effective access is the creator's current access intersected with the token scopes and optional brand list (AT-298, AT-299, AT-300). A service token is the same intersection for its accountable owner and is suspended when that owner leaves. An inbound webhook may perform only its configured capture into its configured brand, and a failed verification is indistinguishable from an unknown endpoint (AT-301). Outbound payloads are rebuilt at delivery for the subscription owner; a record they can no longer read is not sent (AT-302). No new actions. The action count stays 122.
+- **Alternatives:** A token that keeps the access it had when it was minted. A webhook that sends the owner's view of a record the owner has since lost.
+- **Consequences:** Threats T-73 to T-77 with tests AT-298 to AT-302.

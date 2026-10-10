@@ -2647,6 +2647,107 @@ export interface ReportRunTable {
   finished_at: Ts | null;
 }
 
+// Phase 6B: API tokens, outbound webhooks, and inbound endpoints (ADR-0032).
+export type ApiTokenKind = 'personal' | 'service';
+export type ApiTokenState = 'active' | 'revoked' | 'suspended';
+export type WebhookSubscriptionState = 'active' | 'disabled_endpoint' | 'suspended';
+export type WebhookDeliveryState =
+  'pending' | 'delivered' | 'retry_scheduled' | 'failed' | 'unknown' | 'disabled_endpoint';
+export interface ApiTokenTable {
+  id: string;
+  workspace_id: string;
+  public_id: string;
+  kind: ApiTokenKind;
+  principal_type: string;
+  principal_id: string;
+  accountable_owner_membership_id: string;
+  name: string;
+  token_prefix: string;
+  token_hash: Bytes;
+  scopes: string[];
+  brand_ids: string[] | null;
+  expires_at: Timestamp | null;
+  last_used_at: Timestamp | null;
+  state: ApiTokenState;
+  revoked_at: Timestamp | null;
+  created_by_membership_id: string;
+  created_at: DTs;
+  updated_at: DTs;
+  version: Defaulted<number>;
+}
+export interface WebhookSubscriptionTable {
+  id: string;
+  workspace_id: string;
+  brand_id: string | null;
+  scope_key: string;
+  lifecycle_state: Defaulted<LifecycleState>;
+  api_version: string;
+  event_types: string[];
+  field_allowlist_version: number;
+  destination_url: string;
+  state: WebhookSubscriptionState;
+  signing_secret_ref: string;
+  previous_secret_ref: string | null;
+  previous_secret_until: Timestamp | null;
+  consecutive_failures: Defaulted<number>;
+  accountable_owner_membership_id: string;
+  suspended_reason: string | null;
+  suspended_at: Timestamp | null;
+  created_by_membership_id: string;
+  created_at: DTs;
+  updated_at: DTs;
+  updated_by_membership_id: string | null;
+  version: Defaulted<number>;
+}
+export interface WebhookDeliveryTable {
+  id: string;
+  workspace_id: string;
+  subscription_id: string;
+  public_id: string;
+  event_public_id: string;
+  event_type: string;
+  aggregate_id: string | null;
+  facts: Json<Record<string, string | number | boolean | null>>;
+  state: WebhookDeliveryState;
+  attempt: Defaulted<number>;
+  response_status: number | null;
+  duration_ms: number | null;
+  detail: string | null;
+  next_attempt_at: Timestamp | null;
+  claimed_until: Timestamp | null;
+  created_at: DTs;
+  updated_at: DTs;
+}
+export interface InboundEndpointTable {
+  id: string;
+  workspace_id: string;
+  brand_id: string | null;
+  public_id: string;
+  path_prefix: string;
+  path_hash: Bytes;
+  action: string;
+  signing_secret_ref: string;
+  previous_secret_ref: string | null;
+  previous_secret_until: Timestamp | null;
+  state: 'active' | 'suspended';
+  accountable_owner_membership_id: string;
+  suspended_reason: string | null;
+  suspended_at: Timestamp | null;
+  created_by_membership_id: string;
+  created_at: DTs;
+  updated_at: DTs;
+  version: Defaulted<number>;
+}
+export interface InboundMessageTable {
+  id: string;
+  workspace_id: string;
+  endpoint_id: string;
+  provider_event_id: string;
+  state: 'accepted' | 'processed' | 'quarantined' | 'rejected';
+  detail: string | null;
+  received_at: DTs;
+}
+
 // Phase 4E: files, immutable versions, upload sessions, deliverables, and storage usage (ADR-0026).
 export type FileScanState = 'pending' | 'clean' | 'infected' | 'error';
 export type FileHostKind = 'workspace' | 'brand' | 'project' | 'task' | 'comment' | 'document';
@@ -2867,6 +2968,11 @@ export interface Database {
   'insights.report_recipient': ReportRecipientTable;
   'insights.report_share': ReportShareTable;
   'insights.report_run': ReportRunTable;
+  'integrations.api_token': ApiTokenTable;
+  'integrations.webhook_subscription': WebhookSubscriptionTable;
+  'integrations.webhook_delivery': WebhookDeliveryTable;
+  'integrations.inbound_endpoint': InboundEndpointTable;
+  'integrations.inbound_message': InboundMessageTable;
   'notify.digest': DigestTable;
   'notify.delivery': DeliveryTable;
   'notify.preference': NotificationPreferenceTable;
@@ -4494,6 +4600,100 @@ export const TABLE_COLUMNS: Readonly<Record<keyof Database, readonly string[]>> 
     'attempts',
     'created_at',
     'finished_at',
+  ],
+  'integrations.api_token': [
+    'id',
+    'workspace_id',
+    'public_id',
+    'kind',
+    'principal_type',
+    'principal_id',
+    'accountable_owner_membership_id',
+    'name',
+    'token_prefix',
+    'token_hash',
+    'scopes',
+    'brand_ids',
+    'expires_at',
+    'last_used_at',
+    'state',
+    'revoked_at',
+    'created_by_membership_id',
+    'created_at',
+    'updated_at',
+    'version',
+  ],
+  'integrations.webhook_subscription': [
+    'id',
+    'workspace_id',
+    'brand_id',
+    'scope_key',
+    'lifecycle_state',
+    'api_version',
+    'event_types',
+    'field_allowlist_version',
+    'destination_url',
+    'state',
+    'signing_secret_ref',
+    'previous_secret_ref',
+    'previous_secret_until',
+    'consecutive_failures',
+    'accountable_owner_membership_id',
+    'suspended_reason',
+    'suspended_at',
+    'created_by_membership_id',
+    'created_at',
+    'updated_at',
+    'updated_by_membership_id',
+    'version',
+  ],
+  'integrations.webhook_delivery': [
+    'id',
+    'workspace_id',
+    'subscription_id',
+    'public_id',
+    'event_public_id',
+    'event_type',
+    'aggregate_id',
+    'facts',
+    'state',
+    'attempt',
+    'response_status',
+    'duration_ms',
+    'detail',
+    'next_attempt_at',
+    'claimed_until',
+    'created_at',
+    'updated_at',
+  ],
+  'integrations.inbound_endpoint': [
+    'id',
+    'workspace_id',
+    'brand_id',
+    'public_id',
+    'path_prefix',
+    'path_hash',
+    'action',
+    'signing_secret_ref',
+    'previous_secret_ref',
+    'previous_secret_until',
+    'state',
+    'accountable_owner_membership_id',
+    'suspended_reason',
+    'suspended_at',
+    'created_by_membership_id',
+    'created_at',
+    'updated_at',
+    'version',
+  ],
+  'integrations.inbound_message': [
+    'id',
+    'workspace_id',
+    'endpoint_id',
+    'provider_event_id',
+    'state',
+    'detail',
+    'received_at',
   ],
   'knowledge.source_approval': [
     'id',

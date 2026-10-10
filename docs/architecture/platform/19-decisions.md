@@ -506,3 +506,9 @@ All decisions are **proposed (Phase 0D)**, pending solutions-architect acceptanc
     - Formula problems are `validation_failed` issues (`cycle`, `depth_exceeded`, `formula_invalid`).
 - **Alternatives:** A dedicated error code per workflow refusal (the 0D set is closed; issue codes carry the detail). Unbounded formula graphs.
 - **Consequences:** Event payloads carry identifiers, kinds, categories, and states only, never names, values, formulas, option labels, or emails. 80 ID prefixes, 86 events, 68 named parameters, 54 telemetry signals.
+
+<a id="pl-42"></a>
+### PL-42: Public API and webhook contracts (Phase 6B amendment)
+- **Decision:** Bearer tokens authenticate `Authorization: Bearer pm_…` on existing `/v1` record routes. Token and webhook management stays on the session. Inbound intake is `POST /v1/hooks/{token}` and answers 202 with an empty body after the message is stored. Outbound signatures are `v1,` HMAC-SHA256 over `id.timestamp.body`. Named bounds added for 6B include `API_TOKENS_PERSONAL_MAX` (25), `API_TOKENS_SERVICE_MAX` (50), `API_READ_RATE_PER_MINUTE` (600), `API_WRITE_RATE_PER_MINUTE` (120), `API_EXPORT_RATE_PER_MINUTE` (20), `WEBHOOK_SUBSCRIPTIONS_MAX` (50), `WEBHOOK_INBOUND_MAX` (20), `WEBHOOK_MAX_ATTEMPTS` (8), `WEBHOOK_CONCURRENCY_PER_DESTINATION` (4), `WEBHOOK_BODY_MAX_BYTES` (262144), `WEBHOOK_DELIVERY_RETENTION_DAYS` (30), `WEBHOOK_EVENT_TYPES_MAX` (20), and `WEBHOOK_SWEEP_BATCH_MAX` (25). `WEBHOOK_TIMESTAMP_TOLERANCE` defaults to 300 seconds, `WEBHOOK_DISABLE_THRESHOLD` to 10, and `WEBHOOK_RESPONSE_TIMEOUT` to 10000 milliseconds.
+- **Alternatives:** A second public resource tree that bypasses the session routes. Storing webhook response bodies for debugging.
+- **Consequences:** Events `integrations.api_token.created`, `integrations.api_token.rotated`, and `integrations.api_token.revoked`.

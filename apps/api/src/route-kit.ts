@@ -34,6 +34,7 @@ export function routeKit() {
     if (!request.auth) throw new IdentityError('unauthenticated');
     return {
       auth: request.auth,
+      ...(request.delegation ? { delegation: request.delegation } : {}),
       meta: {
         ip: request.ip,
         userAgent:

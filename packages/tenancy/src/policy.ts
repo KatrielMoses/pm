@@ -119,6 +119,11 @@ export interface Principal {
   readonly teams: readonly string[];
   readonly policy: WorkspacePolicyValues;
   readonly epochs: { readonly workspace: number; readonly principal: number };
+  /**
+   * When set, brand authority exists only inside this set (a token's brand list). Absent means
+   * the membership's own brands. Never widens access.
+   */
+  readonly brandAllowlist?: ReadonlySet<string> | null;
 }
 
 export interface BrandFacts {
@@ -136,6 +141,7 @@ export function roleCap(role: WorkspaceRole | null): Level | null {
 
 /** Level on workspace-scoped records (`brand_id IS NULL`); never flows into brands. */
 export function workspaceLevel(p: Principal): Level | null {
+  if (p.brandAllowlist) return null;
   if (p.kind === 'guest' || p.role === null) return null;
   if (IMPLICIT_MANAGERS.has(p.role)) return 'manage';
   if (p.role === 'limited_member') return null;
@@ -146,6 +152,7 @@ export function workspaceLevel(p: Principal): Level | null {
 /** Effective level on a brand; null = the brand does not exist for this principal. */
 export function brandLevel(p: Principal, brand: BrandFacts): Level | null {
   if (brand.lifecycleState === 'trashed' || brand.lifecycleState === 'purged') return null;
+  if (p.brandAllowlist && !p.brandAllowlist.has(brand.id)) return null;
   if (p.kind === 'guest') return null;
   const explicit = p.grants.get(brand.id) ?? null;
   const implicit: Level | null =

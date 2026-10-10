@@ -5040,6 +5040,76 @@
       ],
       "allow_list_version": null,
       "delivery_authorization": null
+    },
+    {
+      "type": "integrations.api_token.created",
+      "schema_version": 1,
+      "aggregate_entity": "integrations.api_token",
+      "fields": [
+        "kind",
+        "scope_count"
+      ],
+      "max_class": "C1",
+      "consumers": {
+        "activity": true,
+        "notification": false,
+        "metrics": false,
+        "automation_trigger": false,
+        "search_index": false
+      },
+      "public_webhook": null,
+      "requirements": [
+        "INT-017",
+        "INT-018"
+      ],
+      "allow_list_version": null,
+      "delivery_authorization": null
+    },
+    {
+      "type": "integrations.api_token.rotated",
+      "schema_version": 1,
+      "aggregate_entity": "integrations.api_token",
+      "fields": [
+        "kind"
+      ],
+      "max_class": "C1",
+      "consumers": {
+        "activity": true,
+        "notification": false,
+        "metrics": false,
+        "automation_trigger": false,
+        "search_index": false
+      },
+      "public_webhook": null,
+      "requirements": [
+        "INT-017",
+        "INT-018"
+      ],
+      "allow_list_version": null,
+      "delivery_authorization": null
+    },
+    {
+      "type": "integrations.api_token.revoked",
+      "schema_version": 1,
+      "aggregate_entity": "integrations.api_token",
+      "fields": [
+        "kind"
+      ],
+      "max_class": "C1",
+      "consumers": {
+        "activity": true,
+        "notification": false,
+        "metrics": false,
+        "automation_trigger": false,
+        "search_index": false
+      },
+      "public_webhook": null,
+      "requirements": [
+        "INT-017",
+        "INT-018"
+      ],
+      "allow_list_version": null,
+      "delivery_authorization": null
     }
   ],
   "scopes": [
@@ -6428,17 +6498,17 @@
     },
     {
       "name": "WEBHOOK_TIMESTAMP_TOLERANCE",
-      "meaning": "Accepted clock skew for signed webhooks.",
+      "meaning": "Accepted clock skew for signed webhooks. Default 300 seconds.",
       "owner": "6B"
     },
     {
       "name": "WEBHOOK_DISABLE_THRESHOLD",
-      "meaning": "Consecutive-failure policy that disables an endpoint.",
+      "meaning": "Consecutive-failure policy that disables an endpoint. Default 10 consecutive failures.",
       "owner": "6B"
     },
     {
       "name": "WEBHOOK_RESPONSE_TIMEOUT",
-      "meaning": "Outbound delivery response timeout.",
+      "meaning": "Outbound delivery response timeout. Default 10000 milliseconds.",
       "owner": "6B"
     },
     {
@@ -6458,12 +6528,12 @@
     },
     {
       "name": "SIGNED_URL_LIFETIME",
-      "meaning": "Lifetime of signed upload and download URLs in seconds; never stored, logged, or sent in notifications or exports; default 300, range 30–3600.",
+      "meaning": "Lifetime of signed upload and download URLs in seconds; never stored, logged, or sent in notifications or exports; default 300, range 30\u20133600.",
       "owner": "4E"
     },
     {
       "name": "UPLOAD_SESSION_LIFETIME",
-      "meaning": "Lifetime of an upload session in seconds; an expired, unfinished session releases its reserved bytes and quarantined object; default 3600, range 300–86400.",
+      "meaning": "Lifetime of an upload session in seconds; an expired, unfinished session releases its reserved bytes and quarantined object; default 3600, range 300\u201386400.",
       "owner": "4E"
     },
     {
@@ -6538,7 +6608,7 @@
     },
     {
       "name": "PRINCIPAL_CONTEXT_ARRAY_MAX",
-      "meaning": "Largest visibility-context array bound as a query parameter before the compiler switches to a transaction-scoped temporary table (0C §4.5).",
+      "meaning": "Largest visibility-context array bound as a query parameter before the compiler switches to a transaction-scoped temporary table (0C \u00a74.5).",
       "owner": "1D/11D"
     },
     {
@@ -6593,602 +6663,602 @@
     },
     {
       "name": "RECURRENCE_WORKSPACE_DISCOVERY_MAX",
-      "meaning": "Most workspaces with due recurrence work one recurrence job run visits (default 200, range 1–1000). Workspaces are taken oldest-waiting first, so remaining work stays eligible for the next run.",
+      "meaning": "Most workspaces with due recurrence work one recurrence job run visits (default 200, range 1\u20131000). Workspaces are taken oldest-waiting first, so remaining work stays eligible for the next run.",
       "owner": "2A"
     },
     {
       "name": "RECURRENCE_SERIES_DISCOVERY_MAX",
-      "meaning": "Most due recurrence series one job run processes in one workspace (default 50, range 1–500). Series are taken oldest-waiting first (last run, then id), so later series are never starved.",
+      "meaning": "Most due recurrence series one job run processes in one workspace (default 50, range 1\u2013500). Series are taken oldest-waiting first (last run, then id), so later series are never starved.",
       "owner": "2A"
     },
     {
       "name": "TASK_DEPTH_MAX",
-      "meaning": "Deepest subtask level a command accepts (root = 0) when creating, reparenting, moving, or duplicating tasks; default 20, range 1–64. The database separately enforces an invariant ceiling of 64 that is not a runtime parameter.",
+      "meaning": "Deepest subtask level a command accepts (root = 0) when creating, reparenting, moving, or duplicating tasks; default 20, range 1\u201364. The database separately enforces an invariant ceiling of 64 that is not a runtime parameter.",
       "owner": "2B"
     },
     {
       "name": "TASK_SUBTREE_MAX",
-      "meaning": "Most tasks one subtree operation touches (a move or a lifecycle command with include_subtasks, or a duplicate with include_subtasks); default 500, range 1–5000. Larger subtrees are refused before any change.",
+      "meaning": "Most tasks one subtree operation touches (a move or a lifecycle command with include_subtasks, or a duplicate with include_subtasks); default 500, range 1\u20135000. Larger subtrees are refused before any change.",
       "owner": "2B"
     },
     {
       "name": "TASK_ITEMS_MAX",
-      "meaning": "Most checklist items, criteria items, and links each task holds (each kind counted separately); default 200, range 1–1000.",
+      "meaning": "Most checklist items, criteria items, and links each task holds (each kind counted separately); default 200, range 1\u20131000.",
       "owner": "2B"
     },
     {
       "name": "TASK_ASSIGNEES_MAX",
-      "meaning": "Most active assignees on one task; default 20, range 1–100.",
+      "meaning": "Most active assignees on one task; default 20, range 1\u2013100.",
       "owner": "2B"
     },
     {
       "name": "TASK_LABELS_MAX",
-      "meaning": "Most labels on one task; default 50, range 1–200.",
+      "meaning": "Most labels on one task; default 50, range 1\u2013200.",
       "owner": "2B"
     },
     {
       "name": "BRAND_LABELS_MAX",
-      "meaning": "Most active and archived labels in one brand; default 1000, range 1–10000.",
+      "meaning": "Most active and archived labels in one brand; default 1000, range 1\u201310000.",
       "owner": "2B"
     },
     {
       "name": "TASK_ESTIMATE_MINUTES_MAX",
-      "meaning": "Largest estimate or remaining estimate, in minutes; default 100000, range 60–1000000.",
+      "meaning": "Largest estimate or remaining estimate, in minutes; default 100000, range 60\u20131000000.",
       "owner": "2B"
     },
     {
       "name": "WORKFLOW_STATUSES_MAX",
-      "meaning": "Most statuses in one workflow; default 50, range 2–200.",
+      "meaning": "Most statuses in one workflow; default 50, range 2\u2013200.",
       "owner": "2C"
     },
     {
       "name": "WORKFLOW_TRANSITIONS_MAX",
-      "meaning": "Most transitions in one workflow; default 400, range 1–2000.",
+      "meaning": "Most transitions in one workflow; default 400, range 1\u20132000.",
       "owner": "2C"
     },
     {
       "name": "TRANSITION_REQUIREMENTS_MAX",
-      "meaning": "Most required fields on one transition; default 30, range 1–100.",
+      "meaning": "Most required fields on one transition; default 30, range 1\u2013100.",
       "owner": "2C"
     },
     {
       "name": "TRANSITION_APPROVERS_MAX",
-      "meaning": "Most named approvers on one transition; default 10, range 1–50.",
+      "meaning": "Most named approvers on one transition; default 10, range 1\u201350.",
       "owner": "2C"
     },
     {
       "name": "APPROVAL_EXPIRY_HOURS",
-      "meaning": "How long an approval request stays valid; default 168, range 1–2160.",
+      "meaning": "How long an approval request stays valid; default 168, range 1\u20132160.",
       "owner": "2C"
     },
     {
       "name": "TRANSITION_PREVIEW_TTL_SECONDS",
-      "meaning": "Lifetime of a signed transition preview fingerprint; default 600, range 60–3600.",
+      "meaning": "Lifetime of a signed transition preview fingerprint; default 600, range 60\u20133600.",
       "owner": "2C"
     },
     {
       "name": "FIELD_DEFINITIONS_MAX",
-      "meaning": "Most active field definitions at one scope; default 200, range 1–1000.",
+      "meaning": "Most active field definitions at one scope; default 200, range 1\u20131000.",
       "owner": "2C"
     },
     {
       "name": "FIELD_OPTIONS_MAX",
-      "meaning": "Most options on one select field; default 200, range 2–1000.",
+      "meaning": "Most options on one select field; default 200, range 2\u20131000.",
       "owner": "2C"
     },
     {
       "name": "FIELD_SETS_MAX",
-      "meaning": "Most active field sets at one scope; default 100, range 1–500.",
+      "meaning": "Most active field sets at one scope; default 100, range 1\u2013500.",
       "owner": "2C"
     },
     {
       "name": "FIELD_SET_ITEMS_MAX",
-      "meaning": "Most definitions in one field set version; default 100, range 1–500.",
+      "meaning": "Most definitions in one field set version; default 100, range 1\u2013500.",
       "owner": "2C"
     },
     {
       "name": "FIELD_TEXT_MAX",
-      "meaning": "Longest custom text value in characters; default 5000, range 1–20000.",
+      "meaning": "Longest custom text value in characters; default 5000, range 1\u201320000.",
       "owner": "2C"
     },
     {
       "name": "FIELD_PATTERN_MAX",
-      "meaning": "Longest validation pattern in characters; default 200, range 1–1000.",
+      "meaning": "Longest validation pattern in characters; default 200, range 1\u20131000.",
       "owner": "2C"
     },
     {
       "name": "FORMULA_SOURCE_MAX",
-      "meaning": "Longest formula source in characters; default 2000, range 10–10000.",
+      "meaning": "Longest formula source in characters; default 2000, range 10\u201310000.",
       "owner": "2C"
     },
     {
       "name": "FORMULA_AST_NODES_MAX",
-      "meaning": "Most nodes in a compiled formula; default 200, range 10–2000.",
+      "meaning": "Most nodes in a compiled formula; default 200, range 10\u20132000.",
       "owner": "2C"
     },
     {
       "name": "FORMULA_DEPTH_MAX",
-      "meaning": "Deepest formula dependency chain; default 8, range 1–32.",
+      "meaning": "Deepest formula dependency chain; default 8, range 1\u201332.",
       "owner": "2C"
     },
     {
       "name": "FORMULA_REFS_MAX",
-      "meaning": "Most field references in one formula; default 20, range 1–100.",
+      "meaning": "Most field references in one formula; default 20, range 1\u2013100.",
       "owner": "2C"
     },
     {
       "name": "FIELD_VALUE_BULK_MAX",
-      "meaning": "Most records migrated by one status or option replacement command; default 500, range 1–5000.",
+      "meaning": "Most records migrated by one status or option replacement command; default 500, range 1\u20135000.",
       "owner": "2C"
     },
     {
       "name": "TASK_STALE_ACTIVE_DAYS",
-      "meaning": "Days without a meaningful update after which an active or blocked task is stale (OD-17); default 7, range 1–90.",
+      "meaning": "Days without a meaningful update after which an active or blocked task is stale (OD-17); default 7, range 1\u201390.",
       "owner": "2D"
     },
     {
       "name": "TASK_STALE_PLANNED_DAYS",
-      "meaning": "Days without a meaningful update after which a planned task is stale (OD-17); default 14, range 1–180.",
+      "meaning": "Days without a meaningful update after which a planned task is stale (OD-17); default 14, range 1\u2013180.",
       "owner": "2D"
     },
     {
       "name": "TASK_RESCHEDULE_COUNT",
-      "meaning": "Material due-date or deadline edits within the window that mark a task repeatedly rescheduled (OD-17); default 3, range 2–20.",
+      "meaning": "Material due-date or deadline edits within the window that mark a task repeatedly rescheduled (OD-17); default 3, range 2\u201320.",
       "owner": "2D"
     },
     {
       "name": "TASK_RESCHEDULE_WINDOW_DAYS",
-      "meaning": "Window for counting reschedules (OD-17); default 14, range 1–90.",
+      "meaning": "Window for counting reschedules (OD-17); default 14, range 1\u201390.",
       "owner": "2D"
     },
     {
       "name": "TASK_REMINDERS_MAX",
-      "meaning": "Most scheduled reminders one person may hold on one task; default 10, range 1–50.",
+      "meaning": "Most scheduled reminders one person may hold on one task; default 10, range 1\u201350.",
       "owner": "2D"
     },
     {
       "name": "REMINDER_FIRE_BATCH_MAX",
-      "meaning": "Most due reminders one worker run fires per workspace; later ones wait for the next run; default 500, range 1–5000.",
+      "meaning": "Most due reminders one worker run fires per workspace; later ones wait for the next run; default 500, range 1\u20135000.",
       "owner": "2D"
     },
     {
       "name": "TASK_SNOOZE_MAX_DAYS",
-      "meaning": "Furthest a snooze may reach; default 365, range 1–3650.",
+      "meaning": "Furthest a snooze may reach; default 365, range 1\u20133650.",
       "owner": "2D"
     },
     {
       "name": "BULK_ITEMS_MAX",
-      "meaning": "Most tasks in one bulk command's explicit set; default 200, range 1–1000.",
+      "meaning": "Most tasks in one bulk command's explicit set; default 200, range 1\u20131000.",
       "owner": "2D"
     },
     {
       "name": "BULK_PREVIEW_TTL_SECONDS",
-      "meaning": "How long a bulk preview may be executed; default 600, range 60–3600.",
+      "meaning": "How long a bulk preview may be executed; default 600, range 60\u20133600.",
       "owner": "2D"
     },
     {
       "name": "UNDO_WINDOW_SECONDS",
-      "meaning": "How long a reversible mutation can be undone; default 30, range 5–300.",
+      "meaning": "How long a reversible mutation can be undone; default 30, range 5\u2013300.",
       "owner": "2D"
     },
     {
       "name": "DUPLICATE_WINDOW_DAYS",
-      "meaning": "How far back deterministic duplicate matching looks; default 90, range 1–365.",
+      "meaning": "How far back deterministic duplicate matching looks; default 90, range 1\u2013365.",
       "owner": "2D"
     },
     {
       "name": "DUPLICATE_CANDIDATES_MAX",
-      "meaning": "Most duplicate candidates returned; default 5, range 1–20.",
+      "meaning": "Most duplicate candidates returned; default 5, range 1\u201320.",
       "owner": "2D"
     },
     {
       "name": "CAPTURE_TEXT_MAX",
-      "meaning": "Most characters in one capture or note body; default 10000, range 100–50000.",
+      "meaning": "Most characters in one capture or note body; default 10000, range 100\u201350000.",
       "owner": "2E"
     },
     {
       "name": "CAPTURE_PASTE_LINES_MAX",
-      "meaning": "Most candidate items one paste may create; default 100, range 1–500.",
+      "meaning": "Most candidate items one paste may create; default 100, range 1\u2013500.",
       "owner": "2E"
     },
     {
       "name": "CAPTURE_LINKS_MAX",
-      "meaning": "Most links attached to one capture; default 10, range 0–50.",
+      "meaning": "Most links attached to one capture; default 10, range 0\u201350.",
       "owner": "2E"
     },
     {
       "name": "CAPTURE_FILES_MAX",
-      "meaning": "Most file references attached to one capture (refused until 4E storage); default 10, range 0–50.",
+      "meaning": "Most file references attached to one capture (refused until 4E storage); default 10, range 0\u201350.",
       "owner": "2E"
     },
     {
       "name": "CAPTURE_PARSE_TOKENS_MAX",
-      "meaning": "Most tokens the deterministic parser examines per line; default 64, range 8–256.",
+      "meaning": "Most tokens the deterministic parser examines per line; default 64, range 8\u2013256.",
       "owner": "2E"
     },
     {
       "name": "CAPTURE_RATE_PER_MINUTE",
-      "meaning": "Most capture commands one person may run per minute; default 60, range 1–600.",
+      "meaning": "Most capture commands one person may run per minute; default 60, range 1\u2013600.",
       "owner": "2E"
     },
     {
       "name": "TRIAGE_BATCH_MAX",
-      "meaning": "Most Inbox items one triage command may change; default 50, range 1–200.",
+      "meaning": "Most Inbox items one triage command may change; default 50, range 1\u2013200.",
       "owner": "2E"
     },
     {
       "name": "INBOX_MERGE_MAX",
-      "meaning": "Most Inbox items one merge may combine; default 20, range 2–100.",
+      "meaning": "Most Inbox items one merge may combine; default 20, range 2\u2013100.",
       "owner": "2E"
     },
     {
       "name": "INTAKE_FORMS_MAX",
-      "meaning": "Most intake forms per brand; default 50, range 1–500.",
+      "meaning": "Most intake forms per brand; default 50, range 1\u2013500.",
       "owner": "2E"
     },
     {
       "name": "INTAKE_SUBMISSIONS_PER_HOUR",
-      "meaning": "Most submissions one person may make to one form per hour; default 20, range 1–1000.",
+      "meaning": "Most submissions one person may make to one form per hour; default 20, range 1\u20131000.",
       "owner": "2E"
     },
     {
       "name": "QUERY_CONDITIONS_MAX",
-      "meaning": "Most conditions one view query may combine; default 40, range 1–200.",
+      "meaning": "Most conditions one view query may combine; default 40, range 1\u2013200.",
       "owner": "3A"
     },
     {
       "name": "QUERY_DEPTH_MAX",
-      "meaning": "Deepest nesting of AND/OR filter groups; default 3, range 1–6.",
+      "meaning": "Deepest nesting of AND/OR filter groups; default 3, range 1\u20136.",
       "owner": "3A"
     },
     {
       "name": "QUERY_SORTS_MAX",
-      "meaning": "Most sort keys in one view query; default 5, range 1–10.",
+      "meaning": "Most sort keys in one view query; default 5, range 1\u201310.",
       "owner": "3A"
     },
     {
       "name": "QUERY_VALUES_MAX",
-      "meaning": "Most values one filter condition may list; default 100, range 1–500.",
+      "meaning": "Most values one filter condition may list; default 100, range 1\u2013500.",
       "owner": "3A"
     },
     {
       "name": "QUERY_GROUPS_MAX",
-      "meaning": "Most groups one grouped query returns (more are reported as truncated); default 200, range 10–1000.",
+      "meaning": "Most groups one grouped query returns (more are reported as truncated); default 200, range 10\u20131000.",
       "owner": "3A"
     },
     {
       "name": "VIEW_COLUMNS_MAX",
-      "meaning": "Most visible columns in one view; default 20, range 1–50.",
+      "meaning": "Most visible columns in one view; default 20, range 1\u201350.",
       "owner": "3A"
     },
     {
       "name": "SAVED_VIEWS_MAX",
-      "meaning": "Most active saved views one person may own in a workspace; default 200, range 1–2000.",
+      "meaning": "Most active saved views one person may own in a workspace; default 200, range 1\u20132000.",
       "owner": "3A"
     },
     {
       "name": "VIEW_PINS_MAX",
-      "meaning": "Most views pinned into one workspace or brand navigation; default 20, range 1–100.",
+      "meaning": "Most views pinned into one workspace or brand navigation; default 20, range 1\u2013100.",
       "owner": "3A"
     },
     {
       "name": "EXPORT_ROWS_MAX",
-      "meaning": "Most rows one direct export of the current view may contain; larger views must be narrowed; default 5000, range 1–50000.",
+      "meaning": "Most rows one direct export of the current view may contain; larger views must be narrowed; default 5000, range 1\u201350000.",
       "owner": "3A"
     },
     {
       "name": "TIME_ENTRY_MAX_HOURS",
-      "meaning": "Longest single time entry or timer run, in hours; default 24, range 1–24.",
+      "meaning": "Longest single time entry or timer run, in hours; default 24, range 1\u201324.",
       "owner": "3D"
     },
     {
       "name": "TIME_TIMER_MAX_HOURS",
-      "meaning": "Hours after which a still-running timer is stopped automatically by the timer guard; default 12, range 1–24.",
+      "meaning": "Hours after which a still-running timer is stopped automatically by the timer guard; default 12, range 1\u201324.",
       "owner": "3D"
     },
     {
       "name": "TIME_REPORT_RANGE_DAYS_MAX",
-      "meaning": "Widest date range one time report, timesheet list, or export may cover, in days; default 366, range 7–1830.",
+      "meaning": "Widest date range one time report, timesheet list, or export may cover, in days; default 366, range 7\u20131830.",
       "owner": "3D"
     },
     {
       "name": "TIME_REPORT_ROWS_MAX",
-      "meaning": "Most rows (groups) one planned-versus-actual report returns; default 500, range 10–5000.",
+      "meaning": "Most rows (groups) one planned-versus-actual report returns; default 500, range 10\u20135000.",
       "owner": "3D"
     },
     {
       "name": "TIME_EXPORT_ROWS_MAX",
-      "meaning": "Most time entries one direct export may contain; default 10000, range 100–50000.",
+      "meaning": "Most time entries one direct export may contain; default 10000, range 100\u201350000.",
       "owner": "3D"
     },
     {
       "name": "TIME_TIMESHEET_ENTRIES_MAX",
-      "meaning": "Most time entries one person may have in one timesheet period; default 2000, range 10–10000.",
+      "meaning": "Most time entries one person may have in one timesheet period; default 2000, range 10\u201310000.",
       "owner": "3D"
     },
     {
       "name": "TIME_RUNAWAY_DISCOVERY_MAX",
-      "meaning": "Most workspaces one timer-guard run examines; default 100, range 1–1000.",
+      "meaning": "Most workspaces one timer-guard run examines; default 100, range 1\u20131000.",
       "owner": "3D"
     },
     {
       "name": "TIME_RUNAWAY_BATCH_MAX",
-      "meaning": "Most runaway timers one timer-guard run stops per workspace; default 200, range 1–1000.",
+      "meaning": "Most runaway timers one timer-guard run stops per workspace; default 200, range 1\u20131000.",
       "owner": "3D"
     },
     {
       "name": "LAYOUT_ITEMS_MAX",
-      "meaning": "Most records one layout read (Gantt dependencies, milestones, portfolio progress, timesheet time) may name; default 200, range 10–1000.",
+      "meaning": "Most records one layout read (Gantt dependencies, milestones, portfolio progress, timesheet time) may name; default 200, range 10\u20131000.",
       "owner": "3B"
     },
     {
       "name": "WORKLOAD_DAYS_MAX",
-      "meaning": "Longest date range one workload grid may cover; default 366, range 7–731.",
+      "meaning": "Longest date range one workload grid may cover; default 366, range 7\u2013731.",
       "owner": "3B"
     },
     {
       "name": "ACTIVITY_RECORDS_MAX",
-      "meaning": "Most records whose activity one activity view reads (more are reported as truncated); default 500, range 10–5000.",
+      "meaning": "Most records whose activity one activity view reads (more are reported as truncated); default 500, range 10\u20135000.",
       "owner": "3B"
     },
     {
       "name": "TODAY_ITEMS_MAX",
-      "meaning": "Most Today commitments one person may have on one day; default 100, range 1–500.",
+      "meaning": "Most Today commitments one person may have on one day; default 100, range 1\u2013500.",
       "owner": "3C"
     },
     {
       "name": "TODAY_LIST_MAX",
-      "meaning": "Most tasks one Today section (overdue, due today, upcoming deadlines) returns; default 50, range 5–200.",
+      "meaning": "Most tasks one Today section (overdue, due today, upcoming deadlines) returns; default 50, range 5\u2013200.",
       "owner": "3C"
     },
     {
       "name": "UPCOMING_DEADLINE_DAYS",
-      "meaning": "How many days ahead Today lists upcoming deadlines; default 14, range 1–90.",
+      "meaning": "How many days ahead Today lists upcoming deadlines; default 14, range 1\u201390.",
       "owner": "3C"
     },
     {
       "name": "WORK_BLOCKS_PER_DAY_MAX",
-      "meaning": "Most work blocks one person may have starting on one local day; default 50, range 1–200.",
+      "meaning": "Most work blocks one person may have starting on one local day; default 50, range 1\u2013200.",
       "owner": "3C"
     },
     {
       "name": "WORK_BLOCKS_RANGE_DAYS_MAX",
-      "meaning": "Widest range of days one work-block listing may cover; default 42, range 1–366.",
+      "meaning": "Widest range of days one work-block listing may cover; default 42, range 1\u2013366.",
       "owner": "3C"
     },
     {
       "name": "BLOCK_SERIES_MAX",
-      "meaning": "Most active recurring block series one person may have; default 50, range 1–500.",
+      "meaning": "Most active recurring block series one person may have; default 50, range 1\u2013500.",
       "owner": "3C"
     },
     {
       "name": "BLOCK_SERIES_HORIZON_DAYS",
-      "meaning": "How many days ahead recurring work blocks are generated; default 28, range 1–180.",
+      "meaning": "How many days ahead recurring work blocks are generated; default 28, range 1\u2013180.",
       "owner": "3C"
     },
     {
       "name": "DAY_CLOSE_DISCOVERY_MAX",
-      "meaning": "Most workspaces one day-close or block-series run examines; default 100, range 1–1000.",
+      "meaning": "Most workspaces one day-close or block-series run examines; default 100, range 1\u20131000.",
       "owner": "3C"
     },
     {
       "name": "DAY_CLOSE_BATCH_MAX",
-      "meaning": "Most person-days one day-close run records per workspace; default 200, range 1–1000.",
+      "meaning": "Most person-days one day-close run records per workspace; default 200, range 1\u20131000.",
       "owner": "3C"
     },
     {
       "name": "AVAILABILITY_WINDOWS_MAX",
-      "meaning": "Most working windows one person may define per week; default 28, range 7–56.",
+      "meaning": "Most working windows one person may define per week; default 28, range 7\u201356.",
       "owner": "3E"
     },
     {
       "name": "TIME_OFF_ENTRIES_MAX",
-      "meaning": "Most time-off entries one person may keep; default 500, range 10–5000.",
+      "meaning": "Most time-off entries one person may keep; default 500, range 10\u20135000.",
       "owner": "3E"
     },
     {
       "name": "BRAND_HOLIDAYS_MAX",
-      "meaning": "Most holidays one brand may keep; default 1000, range 10–10000.",
+      "meaning": "Most holidays one brand may keep; default 1000, range 10\u201310000.",
       "owner": "3E"
     },
     {
       "name": "CAPACITY_RANGE_DAYS_MAX",
-      "meaning": "Longest date range one capacity read may cover; default 93, range 7–366.",
+      "meaning": "Longest date range one capacity read may cover; default 93, range 7\u2013366.",
       "owner": "3E"
     },
     {
       "name": "CAPACITY_PEOPLE_MAX",
-      "meaning": "Most people one team capacity read may include; default 100, range 1–1000.",
+      "meaning": "Most people one team capacity read may include; default 100, range 1\u20131000.",
       "owner": "3E"
     },
     {
       "name": "COMMENT_BODY_MAX_CHARS",
-      "meaning": "Longest comment body, in characters of extracted text; default 10000, range 100–50000.",
+      "meaning": "Longest comment body, in characters of extracted text; default 10000, range 100\u201350000.",
       "owner": "4A"
     },
     {
       "name": "COMMENT_EDIT_WINDOW_MINUTES",
-      "meaning": "How long after posting an author may edit or delete their own comment (the OD-38 audit window); default 1440, range 5–10080. Moderators are not bound by it.",
+      "meaning": "How long after posting an author may edit or delete their own comment (the OD-38 audit window); default 1440, range 5\u201310080. Moderators are not bound by it.",
       "owner": "4A"
     },
     {
       "name": "COMMENT_MENTIONS_MAX",
-      "meaning": "Most mentions one comment may carry; default 20, range 1–100.",
+      "meaning": "Most mentions one comment may carry; default 20, range 1\u2013100.",
       "owner": "4A"
     },
     {
       "name": "COMMENTS_PER_RECORD_MAX",
-      "meaning": "Most comments (roots and replies, deleted ones included) one record may hold; default 5000, range 100–50000.",
+      "meaning": "Most comments (roots and replies, deleted ones included) one record may hold; default 5000, range 100\u201350000.",
       "owner": "4A"
     },
     {
       "name": "COMMENT_RATE_PER_MINUTE",
-      "meaning": "Most comments, replies, and edits one person may post per minute; default 30, range 1–600.",
+      "meaning": "Most comments, replies, and edits one person may post per minute; default 30, range 1\u2013600.",
       "owner": "4A"
     },
     {
       "name": "COMMENT_REPLIES_INLINE_MAX",
-      "meaning": "Most replies a comment list returns inline under each thread (more are fetched by cursor); default 20, range 1–100.",
+      "meaning": "Most replies a comment list returns inline under each thread (more are fetched by cursor); default 20, range 1\u2013100.",
       "owner": "4A"
     },
     {
       "name": "FOLLOWERS_LIST_MAX",
-      "meaning": "Most followers one record's follower list returns; default 200, range 10–1000.",
+      "meaning": "Most followers one record's follower list returns; default 200, range 10\u20131000.",
       "owner": "4A"
     },
     {
       "name": "REVIEW_REVIEWERS_MAX",
-      "meaning": "Most reviewers one review request may name; default 10, range 1–50.",
+      "meaning": "Most reviewers one review request may name; default 10, range 1\u201350.",
       "owner": "4A"
     },
     {
       "name": "NOTIFY_FANOUT_RECIPIENTS_MAX",
-      "meaning": "Most recipients one event fans out to (team mentions and follower lists are cut here); default 500, range 1–5000.",
+      "meaning": "Most recipients one event fans out to (team mentions and follower lists are cut here); default 500, range 1\u20135000.",
       "owner": "4B"
     },
     {
       "name": "NOTIFY_DEDUPE_WINDOW_MINUTES",
-      "meaning": "Width of the time bucket in which repeated notifications of one kind about one record from one actor collapse into one; default 60, range 1–1440.",
+      "meaning": "Width of the time bucket in which repeated notifications of one kind about one record from one actor collapse into one; default 60, range 1\u20131440.",
       "owner": "4B"
     },
     {
       "name": "NOTIFY_DELIVERY_BATCH_MAX",
-      "meaning": "Most deliveries one sweep claims per workspace; default 100, range 1–1000.",
+      "meaning": "Most deliveries one sweep claims per workspace; default 100, range 1\u20131000.",
       "owner": "4B"
     },
     {
       "name": "NOTIFY_DELIVERY_MAX_ATTEMPTS",
-      "meaning": "Attempts before a transient delivery failure is dead-lettered; default 6, range 1–20.",
+      "meaning": "Attempts before a transient delivery failure is dead-lettered; default 6, range 1\u201320.",
       "owner": "4B"
     },
     {
       "name": "NOTIFY_RETRY_BASE_SECONDS",
-      "meaning": "First retry delay; each later attempt doubles it; default 60, range 5–3600.",
+      "meaning": "First retry delay; each later attempt doubles it; default 60, range 5\u20133600.",
       "owner": "4B"
     },
     {
       "name": "NOTIFY_RETRY_MAX_SECONDS",
-      "meaning": "Longest retry delay; default 3600, range 60–86400.",
+      "meaning": "Longest retry delay; default 3600, range 60\u201386400.",
       "owner": "4B"
     },
     {
       "name": "NOTIFY_DIGEST_ITEMS_MAX",
-      "meaning": "Most items one digest lists (the rest stay in the notification centre); default 50, range 5–200.",
+      "meaning": "Most items one digest lists (the rest stay in the notification centre); default 50, range 5\u2013200.",
       "owner": "4B"
     },
     {
       "name": "NOTIFY_EMAIL_PER_HOUR_MAX",
-      "meaning": "Most immediate emails one person receives per hour; more roll into their next digest; default 20, range 1–200.",
+      "meaning": "Most immediate emails one person receives per hour; more roll into their next digest; default 20, range 1\u2013200.",
       "owner": "4B"
     },
     {
       "name": "NOTIFY_RETENTION_DAYS",
-      "meaning": "Age after which a notification that is not saved is removed with its deliveries (a technical bound, not a published retention period: OD-36); default 365, range 30–3650.",
+      "meaning": "Age after which a notification that is not saved is removed with its deliveries (a technical bound, not a published retention period: OD-36); default 365, range 30\u20133650.",
       "owner": "4B"
     },
     {
       "name": "NOTIFY_PREFERENCES_MAX",
-      "meaning": "Most preference and mute rows one person may keep; default 200, range 10–1000.",
+      "meaning": "Most preference and mute rows one person may keep; default 200, range 10\u20131000.",
       "owner": "4B"
     },
     {
       "name": "NOTIFY_BROWSER_ACK_TTL_MINUTES",
-      "meaning": "How long a browser delivery waits for the person's open browser to acknowledge it before it expires; default 30, range 1–1440.",
+      "meaning": "How long a browser delivery waits for the person's open browser to acknowledge it before it expires; default 30, range 1\u20131440.",
       "owner": "4B"
     },
     {
       "name": "NOTIFY_SEARCH_QUERY_MAX",
-      "meaning": "Longest notification history search text; default 100, range 10–200.",
+      "meaning": "Longest notification history search text; default 100, range 10\u2013200.",
       "owner": "4B"
     },
     {
       "name": "NOTIFY_DISCOVERY_MAX",
-      "meaning": "Most workspaces one notification sweep examines; default 100, range 1–1000.",
+      "meaning": "Most workspaces one notification sweep examines; default 100, range 1\u20131000.",
       "owner": "4B"
     },
     {
       "name": "NOTIFY_BULK_STATE_MAX",
-      "meaning": "Most notifications one bulk state change names; default 200, range 1–1000.",
+      "meaning": "Most notifications one bulk state change names; default 200, range 1\u20131000.",
       "owner": "4B"
     },
     {
       "name": "NOTIFY_DEADLINES_BATCH_MAX",
-      "meaning": "Most due-soon and overdue tasks one sweep considers per workspace; default 500, range 10–5000.",
+      "meaning": "Most due-soon and overdue tasks one sweep considers per workspace; default 500, range 10\u20135000.",
       "owner": "4B"
     },
     {
       "name": "NOTIFY_FACTS_MAX_BYTES",
-      "meaning": "Largest facts object a notification stores (scalars only, never titles or text); default 1024, range 128–4096.",
+      "meaning": "Largest facts object a notification stores (scalars only, never titles or text); default 1024, range 128\u20134096.",
       "owner": "4B"
     },
     {
       "name": "DOCUMENT_BODY_MAX_BYTES",
-      "meaning": "Largest canonical content of one document version, in bytes; default 262144, range 4096–2000000.",
+      "meaning": "Largest canonical content of one document version, in bytes; default 262144, range 4096\u20132000000.",
       "owner": "4C"
     },
     {
       "name": "DOCUMENT_BLOCKS_MAX",
-      "meaning": "Most blocks in one document; default 2000, range 10–5000.",
+      "meaning": "Most blocks in one document; default 2000, range 10\u20135000.",
       "owner": "4C"
     },
     {
       "name": "DOCUMENT_BLOCK_TEXT_MAX_CHARS",
-      "meaning": "Longest text of one block; default 20000, range 100–50000.",
+      "meaning": "Longest text of one block; default 20000, range 100\u201350000.",
       "owner": "4C"
     },
     {
       "name": "DOCUMENT_TABLE_CELLS_MAX",
-      "meaning": "Most cells in one table block; default 1000, range 4–5000.",
+      "meaning": "Most cells in one table block; default 1000, range 4\u20135000.",
       "owner": "4C"
     },
     {
       "name": "DOCUMENT_DEPTH_MAX",
-      "meaning": "Deepest page nesting (a root is depth 0); default 6, range 1–16.",
+      "meaning": "Deepest page nesting (a root is depth 0); default 6, range 1\u201316.",
       "owner": "4C"
     },
     {
       "name": "DOCUMENT_CHILDREN_MAX",
-      "meaning": "Most direct subpages of one page; default 200, range 1–1000.",
+      "meaning": "Most direct subpages of one page; default 200, range 1\u20131000.",
       "owner": "4C"
     },
     {
       "name": "DOCUMENT_TREE_MAX",
-      "meaning": "Most pages in one page tree; default 1000, range 10–5000.",
+      "meaning": "Most pages in one page tree; default 1000, range 10\u20135000.",
       "owner": "4C"
     },
     {
       "name": "DOCUMENT_VERSIONS_MAX",
-      "meaning": "Most versions one document keeps; default 1000, range 10–10000.",
+      "meaning": "Most versions one document keeps; default 1000, range 10\u201310000.",
       "owner": "4C"
     },
     {
       "name": "DOCUMENT_REFERENCES_MAX",
-      "meaning": "Most links and mentions in one document; default 500, range 10–2000.",
+      "meaning": "Most links and mentions in one document; default 500, range 10\u20132000.",
       "owner": "4C"
     },
     {
       "name": "DOCUMENT_SUGGESTIONS_OPEN_MAX",
-      "meaning": "Most open suggestions on one document; default 100, range 1–500.",
+      "meaning": "Most open suggestions on one document; default 100, range 1\u2013500.",
       "owner": "4C"
     },
     {
       "name": "DOCUMENT_EXPORT_PAGES_MAX",
-      "meaning": "Most pages one export carries; default 100, range 1–500.",
+      "meaning": "Most pages one export carries; default 100, range 1\u2013500.",
       "owner": "4C"
     },
     {
       "name": "DOCUMENT_EXPORT_MAX_BYTES",
-      "meaning": "Largest export, in bytes; default 5242880, range 65536–52428800.",
+      "meaning": "Largest export, in bytes; default 5242880, range 65536\u201352428800.",
       "owner": "4C"
     },
     {
       "name": "DOCUMENT_REVIEW_HORIZON_DAYS",
-      "meaning": "Furthest review date, in days from today; default 730, range 30–3650.",
+      "meaning": "Furthest review date, in days from today; default 730, range 30\u20133650.",
       "owner": "4C"
     },
     {
       "name": "DOCUMENT_SAVE_RATE_PER_MINUTE",
-      "meaning": "Most content saves one person makes per minute; default 60, range 1–600.",
+      "meaning": "Most content saves one person makes per minute; default 60, range 1\u2013600.",
       "owner": "4C"
     },
     {
@@ -7198,363 +7268,428 @@
     },
     {
       "name": "LIVE_SESSION_TTL_SECONDS",
-      "meaning": "How long a live editing session lasts without a heartbeat, poll, or operation; default 45, range 15–300.",
+      "meaning": "How long a live editing session lasts without a heartbeat, poll, or operation; default 45, range 15\u2013300.",
       "owner": "4D"
     },
     {
       "name": "LIVE_SESSIONS_MAX",
-      "meaning": "Most live editing sessions on one document; default 20, range 2–100.",
+      "meaning": "Most live editing sessions on one document; default 20, range 2\u2013100.",
       "owner": "4D"
     },
     {
       "name": "LIVE_SESSIONS_PER_MEMBER_MAX",
-      "meaning": "Most live sessions one person holds at once; default 5, range 1–20.",
+      "meaning": "Most live sessions one person holds at once; default 5, range 1\u201320.",
       "owner": "4D"
     },
     {
       "name": "LIVE_OPS_BATCH_MAX",
-      "meaning": "Most operations in one live request; default 50, range 1–200.",
+      "meaning": "Most operations in one live request; default 50, range 1\u2013200.",
       "owner": "4D"
     },
     {
       "name": "LIVE_POLL_WAIT_SECONDS",
-      "meaning": "Longest a live poll waits for news before answering; default 20, range 0–30.",
+      "meaning": "Longest a live poll waits for news before answering; default 20, range 0\u201330.",
       "owner": "4D"
     },
     {
       "name": "LIVE_OP_LOG_MAX",
-      "meaning": "Operations kept so reconnecting editors can catch up; default 2000, range 100–10000.",
+      "meaning": "Operations kept so reconnecting editors can catch up; default 2000, range 100\u201310000.",
       "owner": "4D"
     },
     {
       "name": "LIVE_RATE_PER_MINUTE",
-      "meaning": "Most live editing requests one person makes per minute; default 1200, range 10–6000.",
+      "meaning": "Most live editing requests one person makes per minute; default 1200, range 10\u20136000.",
       "owner": "4D"
     },
     {
       "name": "SEARCH_QUERY_MAX_CHARS",
-      "meaning": "Longest search query; default 200, range 20–500.",
+      "meaning": "Longest search query; default 200, range 20\u2013500.",
       "owner": "5A"
     },
     {
       "name": "SEARCH_TERMS_MAX",
-      "meaning": "Most words and phrases in one search query; default 12, range 2–30.",
+      "meaning": "Most words and phrases in one search query; default 12, range 2\u201330.",
       "owner": "5A"
     },
     {
       "name": "SEARCH_PAGE_SIZE_MAX",
-      "meaning": "Most results one search page returns; default 50, range 10–100.",
+      "meaning": "Most results one search page returns; default 50, range 10\u2013100.",
       "owner": "5A"
     },
     {
       "name": "SEARCH_RESULTS_MAX",
-      "meaning": "Deepest result a search can page to; default 200, range 50–1000.",
+      "meaning": "Deepest result a search can page to; default 200, range 50\u20131000.",
       "owner": "5A"
     },
     {
       "name": "SEARCH_COUNT_MAX",
-      "meaning": "Where result counts and facets stop and say \"at least\"; default 1000, range 100–10000.",
+      "meaning": "Where result counts and facets stop and say \"at least\"; default 1000, range 100\u201310000.",
       "owner": "5A"
     },
     {
       "name": "SEARCH_SNIPPET_CHARS",
-      "meaning": "Longest result snippet; default 220, range 80–500.",
+      "meaning": "Longest result snippet; default 220, range 80\u2013500.",
       "owner": "5A"
     },
     {
       "name": "SEARCH_BODY_MAX_CHARS",
-      "meaning": "Most text indexed per record; default 100000, range 10000–100000.",
+      "meaning": "Most text indexed per record; default 100000, range 10000\u2013100000.",
       "owner": "5A"
     },
     {
       "name": "SEARCH_INDEX_BATCH_MAX",
-      "meaning": "Most records one worker run indexes per workspace; default 200, range 10–1000.",
+      "meaning": "Most records one worker run indexes per workspace; default 200, range 10\u20131000.",
       "owner": "5A"
     },
     {
       "name": "SEARCH_INDEX_DISCOVERY_MAX",
-      "meaning": "Most workspaces one indexing run visits; default 50, range 1–500.",
+      "meaning": "Most workspaces one indexing run visits; default 50, range 1\u2013500.",
       "owner": "5A"
     },
     {
       "name": "SEARCH_INDEX_MAX_ATTEMPTS",
-      "meaning": "Attempts to index a record before it is shown as failed; default 5, range 1–20.",
+      "meaning": "Attempts to index a record before it is shown as failed; default 5, range 1\u201320.",
       "owner": "5A"
     },
     {
       "name": "SEARCH_INDEX_BACKOFF_SECONDS",
-      "meaning": "First wait before a failed indexing attempt is retried (it doubles); default 30, range 5–3600.",
+      "meaning": "First wait before a failed indexing attempt is retried (it doubles); default 30, range 5\u20133600.",
       "owner": "5A"
     },
     {
       "name": "SEARCH_FAILED_RETRY_MINUTES",
-      "meaning": "How long a failed record waits between slow retries; default 360, range 10–10080.",
+      "meaning": "How long a failed record waits between slow retries; default 360, range 10\u201310080.",
       "owner": "5A"
     },
     {
       "name": "SEARCH_RECENT_MAX",
-      "meaning": "Recent searches kept per person and workspace; default 25, range 5–100.",
+      "meaning": "Recent searches kept per person and workspace; default 25, range 5\u2013100.",
       "owner": "5A"
     },
     {
       "name": "SEARCH_RECENT_RETENTION_DAYS",
-      "meaning": "How long a recent search is kept; default 90, range 1–365.",
+      "meaning": "How long a recent search is kept; default 90, range 1\u2013365.",
       "owner": "5A"
     },
     {
       "name": "SEARCH_RATE_PER_MINUTE",
-      "meaning": "Most searches one person makes per minute; default 120, range 10–1200.",
+      "meaning": "Most searches one person makes per minute; default 120, range 10\u20131200.",
       "owner": "5A"
     },
     {
       "name": "DOCUMENT_EMBED_URL_MAX_CHARS",
-      "meaning": "Longest address of an embedded image, video, or link; default 2048, range 128–8192.",
+      "meaning": "Longest address of an embedded image, video, or link; default 2048, range 128\u20138192.",
       "owner": "4C"
     },
     {
       "name": "FILE_UPLOAD_MAX_BYTES",
-      "meaning": "Largest single upload in bytes; default 104857600 (100 MiB), range 1024–5368709120.",
+      "meaning": "Largest single upload in bytes; default 104857600 (100 MiB), range 1024\u20135368709120.",
       "owner": "4E"
     },
     {
       "name": "WORKSPACE_STORAGE_QUOTA_BYTES",
-      "meaning": "Stored bytes one workspace may hold, counting bytes reserved by open upload sessions (a technical limit until plans set it, 10A); default 10737418240 (10 GiB), range 1048576–10995116277760.",
+      "meaning": "Stored bytes one workspace may hold, counting bytes reserved by open upload sessions (a technical limit until plans set it, 10A); default 10737418240 (10 GiB), range 1048576\u201310995116277760.",
       "owner": "4E"
     },
     {
       "name": "FILE_COMPARE_MAX_BYTES",
-      "meaning": "Largest text or code version compared line by line (larger versions compare by metadata); default 262144, range 1024–2097152.",
+      "meaning": "Largest text or code version compared line by line (larger versions compare by metadata); default 262144, range 1024\u20132097152.",
       "owner": "4E"
     },
     {
       "name": "FILE_SCAN_MAX_ATTEMPTS",
-      "meaning": "Scan attempts before a failing scan marks the object scan_failed (downloads stay blocked); default 5, range 1–20.",
+      "meaning": "Scan attempts before a failing scan marks the object scan_failed (downloads stay blocked); default 5, range 1\u201320.",
       "owner": "4E"
     },
     {
       "name": "FILE_VERSIONS_MAX",
-      "meaning": "Most versions one file keeps; default 100, range 1–1000.",
+      "meaning": "Most versions one file keeps; default 100, range 1\u20131000.",
       "owner": "4E"
     },
     {
       "name": "FILES_LIST_MAX",
-      "meaning": "Most files one record holds and lists; default 200, range 10–1000.",
+      "meaning": "Most files one record holds and lists; default 200, range 10\u20131000.",
       "owner": "4E"
     },
     {
       "name": "DELIVERABLES_PER_TASK_MAX",
-      "meaning": "Most deliverables one task holds; default 50, range 1–500.",
+      "meaning": "Most deliverables one task holds; default 50, range 1\u2013500.",
       "owner": "4E"
     },
     {
       "name": "FILE_DISCOVERY_MAX",
-      "meaning": "Most workspaces one file sweep examines; default 100, range 1–1000.",
+      "meaning": "Most workspaces one file sweep examines; default 100, range 1\u20131000.",
       "owner": "4E"
     },
     {
       "name": "FILE_EXPIRY_BATCH_MAX",
-      "meaning": "Most expired upload sessions and object deletions one sweep handles per workspace; default 200, range 10–5000.",
+      "meaning": "Most expired upload sessions and object deletions one sweep handles per workspace; default 200, range 10\u20135000.",
       "owner": "4E"
     },
     {
       "name": "GOALS_PER_SCOPE_MAX",
-      "meaning": "Most live goals one workspace, brand, or project scope holds; default 500, range 10–5000.",
+      "meaning": "Most live goals one workspace, brand, or project scope holds; default 500, range 10\u20135000.",
       "owner": "5B"
     },
     {
       "name": "GOAL_KEY_RESULTS_MAX",
-      "meaning": "Most key results one goal holds; default 20, range 1–50.",
+      "meaning": "Most key results one goal holds; default 20, range 1\u201350.",
       "owner": "5B"
     },
     {
       "name": "GOAL_LINKS_MAX",
-      "meaning": "Most projects and tasks one goal (with its key results) links; default 200, range 10–1000.",
+      "meaning": "Most projects and tasks one goal (with its key results) links; default 200, range 10\u20131000.",
       "owner": "5B"
     },
     {
       "name": "GOAL_UPDATE_STALE_DAYS",
-      "meaning": "Days without a manual check-in after which an active goal's update is stale; default 14, range 1–90.",
+      "meaning": "Days without a manual check-in after which an active goal's update is stale; default 14, range 1\u201390.",
       "owner": "5B"
     },
     {
       "name": "GOAL_CHECKIN_RATE_PER_MINUTE",
-      "meaning": "Check-ins one member may record per minute; default 30, range 1–600.",
+      "meaning": "Check-ins one member may record per minute; default 30, range 1\u2013600.",
       "owner": "5B"
     },
     {
       "name": "PORTFOLIOS_MAX",
-      "meaning": "Most live portfolios one workspace holds; default 100, range 1–1000.",
+      "meaning": "Most live portfolios one workspace holds; default 100, range 1\u20131000.",
       "owner": "5B"
     },
     {
       "name": "PORTFOLIO_PROJECTS_MAX",
-      "meaning": "Most projects one portfolio names; default 200, range 10–1000.",
+      "meaning": "Most projects one portfolio names; default 200, range 10\u20131000.",
       "owner": "5B"
     },
     {
       "name": "PORTFOLIO_READ_PROJECTS_MAX",
-      "meaning": "Most projects one health, dependency, or orphan read evaluates before it reports itself truncated; default 500, range 50–2000.",
+      "meaning": "Most projects one health, dependency, or orphan read evaluates before it reports itself truncated; default 500, range 50\u20132000.",
       "owner": "5B"
     },
     {
       "name": "GOALS_EXPORT_ROWS_MAX",
-      "meaning": "Most rows one goal or portfolio export returns; larger exports are refused; default 5000, range 100–50000.",
+      "meaning": "Most rows one goal or portfolio export returns; larger exports are refused; default 5000, range 100\u201350000.",
       "owner": "5B"
     },
     {
       "name": "GOALS_RECALC_BATCH_MAX",
-      "meaning": "Most goals one recalculation sweep claims per workspace; default 200, range 10–2000.",
+      "meaning": "Most goals one recalculation sweep claims per workspace; default 200, range 10\u20132000.",
       "owner": "5B"
     },
     {
       "name": "GOALS_RECALC_LEASE_SECONDS",
-      "meaning": "How long a claimed goal stays leased before another sweep may reclaim it; default 300, range 30–3600.",
+      "meaning": "How long a claimed goal stays leased before another sweep may reclaim it; default 300, range 30\u20133600.",
       "owner": "5B"
     },
     {
       "name": "GOALS_RECALC_INTERVAL_MINUTES",
-      "meaning": "How often an unchanged goal's time-driven state (staleness, period) is rechecked; default 360, range 15–1440.",
+      "meaning": "How often an unchanged goal's time-driven state (staleness, period) is rechecked; default 360, range 15\u20131440.",
       "owner": "5B"
     },
     {
       "name": "GOALS_RECALC_MAX_ATTEMPTS",
-      "meaning": "Failed recalculations before a goal is reported as failing and backed off to the recheck interval; default 5, range 1–20.",
+      "meaning": "Failed recalculations before a goal is reported as failing and backed off to the recheck interval; default 5, range 1\u201320.",
       "owner": "5B"
     },
     {
       "name": "METRICS_WINDOW_DAYS_MAX",
-      "meaning": "Longest window a metric may cover, in days; default 366, range 31–1000.",
+      "meaning": "Longest window a metric may cover, in days; default 366, range 31\u20131000.",
       "owner": "5C"
     },
     {
       "name": "METRICS_DEFAULT_WINDOW_DAYS",
-      "meaning": "Window a metric covers when none is given, in days; default 30, range 7–366.",
+      "meaning": "Window a metric covers when none is given, in days; default 30, range 7\u2013366.",
       "owner": "5C"
     },
     {
       "name": "METRICS_DRILL_PAGE_MAX",
-      "meaning": "Most records on one drill-through page; default 100, range 10–200.",
+      "meaning": "Most records on one drill-through page; default 100, range 10\u2013200.",
       "owner": "5C"
     },
     {
       "name": "METRICS_DRILL_RESULTS_MAX",
-      "meaning": "Deepest record a drill-through can page to; default 1000, range 100–5000.",
+      "meaning": "Deepest record a drill-through can page to; default 1000, range 100\u20135000.",
       "owner": "5C"
     },
     {
       "name": "METRICS_SCOPE_TASKS_MAX",
-      "meaning": "Most tasks one metric computation reads before it asks for a narrower scope; default 20000, range 1000–200000.",
+      "meaning": "Most tasks one metric computation reads before it asks for a narrower scope; default 20000, range 1000\u2013200000.",
       "owner": "5C"
     },
     {
       "name": "METRICS_SAMPLE_MIN",
-      "meaning": "Fewest records before a distribution metric is shown without a small-sample label; default 5, range 1–100.",
+      "meaning": "Fewest records before a distribution metric is shown without a small-sample label; default 5, range 1\u2013100.",
       "owner": "5C"
     },
     {
       "name": "METRICS_RATE_PER_MINUTE",
-      "meaning": "Most metric requests one person makes per minute; default 60, range 10–600.",
+      "meaning": "Most metric requests one person makes per minute; default 60, range 10\u2013600.",
       "owner": "5C"
     },
     {
       "name": "METRICS_RECONCILE_BATCH_MAX",
-      "meaning": "Most tasks one reconciliation step checks per workspace; default 500, range 50–5000.",
+      "meaning": "Most tasks one reconciliation step checks per workspace; default 500, range 50\u20135000.",
       "owner": "5C"
     },
     {
       "name": "METRICS_RECONCILE_DISCOVERY_MAX",
-      "meaning": "Most workspaces one reconciliation run visits; default 50, range 1–500.",
+      "meaning": "Most workspaces one reconciliation run visits; default 50, range 1\u2013500.",
       "owner": "5C"
     },
     {
       "name": "METRICS_RECONCILE_INTERVAL_MINUTES",
-      "meaning": "Wait between full reconciliation passes of a workspace, in minutes; default 360, range 5–10080.",
+      "meaning": "Wait between full reconciliation passes of a workspace, in minutes; default 360, range 5\u201310080.",
       "owner": "5C"
     },
     {
       "name": "METRICS_RECONCILE_LEASE_SECONDS",
-      "meaning": "How long a worker holds a workspace's reconciliation before another may take it; default 300, range 30–3600.",
+      "meaning": "How long a worker holds a workspace's reconciliation before another may take it; default 300, range 30\u20133600.",
       "owner": "5C"
     },
     {
       "name": "METRICS_RECONCILE_MAX_ATTEMPTS",
-      "meaning": "Failed reconciliation attempts before the workspace is reported failing; default 5, range 1–20.",
+      "meaning": "Failed reconciliation attempts before the workspace is reported failing; default 5, range 1\u201320.",
       "owner": "5C"
     },
     {
       "name": "METRICS_RECONCILE_BACKOFF_SECONDS",
-      "meaning": "First wait before a failed reconciliation is retried (it doubles); default 60, range 5–3600.",
+      "meaning": "First wait before a failed reconciliation is retried (it doubles); default 60, range 5\u20133600.",
       "owner": "5C"
     },
     {
       "name": "DASHBOARDS_PER_SCOPE_MAX",
-      "meaning": "Most dashboards one workspace, brand, or project scope holds; default 100, range 1–1000.",
+      "meaning": "Most dashboards one workspace, brand, or project scope holds; default 100, range 1\u20131000.",
       "owner": "5D"
     },
     {
       "name": "DASHBOARD_PERSONAL_MAX",
-      "meaning": "Most personal dashboards one member holds; default 20, range 1–200.",
+      "meaning": "Most personal dashboards one member holds; default 20, range 1\u2013200.",
       "owner": "5D"
     },
     {
       "name": "DASHBOARD_WIDGETS_MAX",
-      "meaning": "Most widgets one dashboard or report holds; default 24, range 1–60.",
+      "meaning": "Most widgets one dashboard or report holds; default 24, range 1\u201360.",
       "owner": "5D"
     },
     {
       "name": "REPORTS_PER_SCOPE_MAX",
-      "meaning": "Most saved reports one scope holds; default 200, range 1–2000.",
+      "meaning": "Most saved reports one scope holds; default 200, range 1\u20132000.",
       "owner": "5D"
     },
     {
       "name": "REPORT_RECIPIENTS_MAX",
-      "meaning": "Most recipients one scheduled report names; default 50, range 1–500.",
+      "meaning": "Most recipients one scheduled report names; default 50, range 1\u2013500.",
       "owner": "5D"
     },
     {
       "name": "REPORT_SHARES_MAX",
-      "meaning": "Most active shares one report holds; default 100, range 1–1000.",
+      "meaning": "Most active shares one report holds; default 100, range 1\u20131000.",
       "owner": "5D"
     },
     {
       "name": "REPORT_EXPORT_ROWS_MAX",
-      "meaning": "Most rows one report or widget export returns; larger exports are refused; default 5000, range 100–50000.",
+      "meaning": "Most rows one report or widget export returns; larger exports are refused; default 5000, range 100\u201350000.",
       "owner": "5D"
     },
     {
       "name": "REPORT_EMAIL_ROWS_MAX",
-      "meaning": "Most rows per widget in a scheduled report email; default 25, range 5–200.",
+      "meaning": "Most rows per widget in a scheduled report email; default 25, range 5\u2013200.",
       "owner": "5D"
     },
     {
       "name": "REPORT_EXPORT_RATE_PER_MINUTE",
-      "meaning": "Most report exports one member makes per minute; default 20, range 1–600.",
+      "meaning": "Most report exports one member makes per minute; default 20, range 1\u2013600.",
       "owner": "5D"
     },
     {
       "name": "REPORT_RUN_RETENTION_DAYS",
-      "meaning": "How long delivery run records are kept; default 90, range 7–730.",
+      "meaning": "How long delivery run records are kept; default 90, range 7\u2013730.",
       "owner": "5D"
     },
     {
       "name": "REPORT_BATCH_MAX",
-      "meaning": "Most scheduled reports one sweep claims per workspace; default 25, range 1–500.",
+      "meaning": "Most scheduled reports one sweep claims per workspace; default 25, range 1\u2013500.",
       "owner": "5D"
     },
     {
       "name": "REPORT_LEASE_SECONDS",
-      "meaning": "How long a claimed scheduled report stays leased before another sweep may reclaim it; default 300, range 30–3600.",
+      "meaning": "How long a claimed scheduled report stays leased before another sweep may reclaim it; default 300, range 30\u20133600.",
       "owner": "5D"
     },
     {
       "name": "REPORT_MAX_ATTEMPTS",
-      "meaning": "Failed delivery attempts before a scheduled occurrence is recorded as failed; default 5, range 1–20.",
+      "meaning": "Failed delivery attempts before a scheduled occurrence is recorded as failed; default 5, range 1\u201320.",
       "owner": "5D"
     },
     {
       "name": "REPORT_FRESHNESS_MINUTES",
-      "meaning": "Age after which a derived source (a goal recalculation) is labelled stale on a dashboard; default 720, range 15–10080.",
+      "meaning": "Age after which a derived source (a goal recalculation) is labelled stale on a dashboard; default 720, range 15\u201310080.",
       "owner": "5D"
+    },
+    {
+      "name": "API_TOKENS_PERSONAL_MAX",
+      "meaning": "Active personal API tokens one member may hold; default 25.",
+      "owner": "6B"
+    },
+    {
+      "name": "API_TOKENS_SERVICE_MAX",
+      "meaning": "Active service tokens one accountable owner may hold; default 50.",
+      "owner": "6B"
+    },
+    {
+      "name": "API_READ_RATE_PER_MINUTE",
+      "meaning": "Public API reads per principal per minute; default 600.",
+      "owner": "6B"
+    },
+    {
+      "name": "API_WRITE_RATE_PER_MINUTE",
+      "meaning": "Public API writes per principal per minute; default 120.",
+      "owner": "6B"
+    },
+    {
+      "name": "API_EXPORT_RATE_PER_MINUTE",
+      "meaning": "Public API exports per principal per minute; default 20.",
+      "owner": "6B"
+    },
+    {
+      "name": "WEBHOOK_SUBSCRIPTIONS_MAX",
+      "meaning": "Outbound subscriptions in one scope; default 50.",
+      "owner": "6B"
+    },
+    {
+      "name": "WEBHOOK_INBOUND_MAX",
+      "meaning": "Inbound endpoints in one workspace; default 20.",
+      "owner": "6B"
+    },
+    {
+      "name": "WEBHOOK_MAX_ATTEMPTS",
+      "meaning": "Delivery attempts before a webhook is dead-lettered; default 8.",
+      "owner": "6B"
+    },
+    {
+      "name": "WEBHOOK_CONCURRENCY_PER_DESTINATION",
+      "meaning": "In-flight deliveries to one host; default 4.",
+      "owner": "6B"
+    },
+    {
+      "name": "WEBHOOK_BODY_MAX_BYTES",
+      "meaning": "Largest accepted inbound webhook body; default 262144.",
+      "owner": "6B"
+    },
+    {
+      "name": "WEBHOOK_DELIVERY_RETENTION_DAYS",
+      "meaning": "How long delivery history is kept; default 30.",
+      "owner": "6B"
+    },
+    {
+      "name": "WEBHOOK_EVENT_TYPES_MAX",
+      "meaning": "Event types on one subscription; default 20.",
+      "owner": "6B"
+    },
+    {
+      "name": "WEBHOOK_SWEEP_BATCH_MAX",
+      "meaning": "Deliveries one sweep sends in one workspace; default 25.",
+      "owner": "6B"
     }
   ],
   "sse_topics": [
