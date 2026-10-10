@@ -666,7 +666,15 @@ export class PublicApiService extends ReportService {
 
   async createInbound(caller: Caller, ws: unknown, body: unknown, req: Mutation) {
     const brandRef = isObj(body) && typeof body.brand === 'string' ? body.brand : null;
-    return this.mutate(
+    type InboundView = {
+      id: string;
+      type: 'inbound_endpoint';
+      version: number;
+      action: string;
+      path_token?: string;
+      secret?: string;
+    };
+    return this.mutate<InboundView>(
       caller,
       'inbound_endpoint.create',
       ws,
