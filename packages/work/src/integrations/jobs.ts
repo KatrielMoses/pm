@@ -54,8 +54,7 @@ export class WebhookProjector implements OutboxConsumer {
 export interface IntegrationJobDeps {
   tenant: TenantDatabase;
   discovery: PlatformDiscovery;
-  service: Pick<IntegrationService, 'runSyncSweep'> &
-    Pick<PublicApiService, 'runWebhookSweep'>;
+  service: Pick<IntegrationService, 'runSyncSweep'> & Pick<PublicApiService, 'runWebhookSweep'>;
   metrics: Metrics;
   logger: Logger;
   settings?: WorkSettings;
@@ -94,9 +93,7 @@ export function webhookDeliveryHandler(d: IntegrationJobDeps): JobHandler {
     timeoutMs: 120_000,
     async handle() {
       const now = new Date();
-      const retentionBefore = new Date(
-        now.getTime() - s.webhookDeliveryRetentionDays * 86_400_000,
-      );
+      const retentionBefore = new Date(now.getTime() - s.webhookDeliveryRetentionDays * 86_400_000);
       const workspaces = await d.discovery.discoverWebhookWork(now, retentionBefore, 100);
       for (const ws of workspaces) {
         try {
