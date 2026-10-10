@@ -297,6 +297,7 @@ GRANT EXECUTE ON FUNCTION integrations.resolve_inbound_endpoint(text, bytea) TO 
 ALTER FUNCTION integrations.resolve_api_token(text, bytea) OWNER TO pm_directory;
 ALTER FUNCTION integrations.resolve_inbound_endpoint(text, bytea) OWNER TO pm_directory;
 REVOKE CREATE ON SCHEMA integrations FROM pm_directory;
+GRANT USAGE ON SCHEMA integrations TO pm_directory;
 
 CREATE POLICY token_lookup ON integrations.api_token FOR SELECT TO pm_directory USING (true);
 CREATE POLICY endpoint_lookup ON integrations.inbound_endpoint FOR SELECT TO pm_directory USING (true);
