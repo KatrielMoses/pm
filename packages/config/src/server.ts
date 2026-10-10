@@ -317,6 +317,16 @@ export interface ServerConfig {
     reportLeaseSeconds: number;
     reportMaxAttempts: number;
     reportFreshnessMinutes: number;
+    connectionsPerScopeMax: number;
+    connectionScopesMax: number;
+    syncBatchMax: number;
+    syncMaxAttempts: number;
+    syncBackoffSeconds: number;
+    syncLeaseSeconds: number;
+    syncHistoryRetentionDays: number;
+    syncRatePerMinute: number;
+    integrationLoopbackEnabled: boolean;
+    googleCalendarLoopbackEnabled: boolean;
     apiTokensPersonalMax: number;
     apiTokensServiceMax: number;
     apiReadRatePerMinute: number;
@@ -736,6 +746,7 @@ const DEFAULTS = {
   SYNC_HISTORY_RETENTION_DAYS: '90',
   SYNC_RATE_PER_MINUTE: '30',
   INTEGRATION_LOOPBACK_ENABLED: 'auto',
+  GOOGLE_CALENDAR_LOOPBACK_ENABLED: '0',
   API_TOKENS_PERSONAL_MAX: '25',
   API_TOKENS_SERVICE_MAX: '50',
   API_READ_RATE_PER_MINUTE: '600',
@@ -1068,6 +1079,7 @@ const schema = z.object({
   SYNC_HISTORY_RETENTION_DAYS: int(7, 730),
   SYNC_RATE_PER_MINUTE: int(1, 600),
   INTEGRATION_LOOPBACK_ENABLED: z.enum(['auto', '0', '1']),
+  GOOGLE_CALENDAR_LOOPBACK_ENABLED: z.enum(['0', '1']),
   API_TOKENS_PERSONAL_MAX: int(1, 500),
   API_TOKENS_SERVICE_MAX: int(1, 500),
   API_READ_RATE_PER_MINUTE: int(1, 10000),
@@ -1730,8 +1742,8 @@ export function loadServerConfig(options: LoadOptions): ServerConfig {
       syncRatePerMinute: c.SYNC_RATE_PER_MINUTE,
       integrationLoopbackEnabled:
         c.INTEGRATION_LOOPBACK_ENABLED === '1' ||
-        (c.INTEGRATION_LOOPBACK_ENABLED === 'auto' &&
-          (c.ENV === 'local' || c.ENV === 'test')),
+        (c.INTEGRATION_LOOPBACK_ENABLED === 'auto' && (env === 'local' || env === 'test')),
+      googleCalendarLoopbackEnabled: c.GOOGLE_CALENDAR_LOOPBACK_ENABLED === '1',
       apiTokensPersonalMax: c.API_TOKENS_PERSONAL_MAX,
       apiTokensServiceMax: c.API_TOKENS_SERVICE_MAX,
       apiReadRatePerMinute: c.API_READ_RATE_PER_MINUTE,

@@ -161,6 +161,7 @@ describe('server configuration', () => {
       syncHistoryRetentionDays: 90,
       syncRatePerMinute: 30,
       integrationLoopbackEnabled: true,
+      googleCalendarLoopbackEnabled: false,
       followersListMax: 200,
       reviewReviewersMax: 10,
       notifyFanoutRecipientsMax: 500,

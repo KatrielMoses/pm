@@ -116,8 +116,11 @@ def check_composition():
     extends = "export class PublicApiService extends IntegrationService" in read(
         P("packages/work/src/integrations/public-api-service.ts")
     )
-    if not extends or "}): PublicApiService {" not in factory or "return new PublicApiService(" not in factory:
-        errs.append("createWorkService must return the top of the chain (PublicApiService extends IntegrationService)")
+    top = "return new CalendarService(" in factory or "return new PublicApiService(" in factory
+    if not extends or top is False:
+        errs.append(
+            "createWorkService must return the top of the chain (CalendarService or PublicApiService extends IntegrationService)"
+        )
     chain = (("packages/work/src/goals/portfolio-service.ts", "export class PortfolioService extends GoalService"),
              ("packages/work/src/metrics/metric-service.ts", "export class MetricService extends PortfolioService"),
              ("packages/work/src/insights/report-core.ts", "export class InsightsCore extends MetricService"),

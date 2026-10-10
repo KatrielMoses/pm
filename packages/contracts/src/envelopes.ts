@@ -244,6 +244,12 @@ export const NON_RESOURCE_TYPES = [
   'report_runs',
   'report_recipients',
   'report_shares',
+  // 6A: integration catalog, connections, rotation, sync history, and conflicts (no credentials).
+  'integration_providers',
+  'integration_connections',
+  'integration_rotation',
+  'sync_runs',
+  'sync_conflicts',
   // 6B: token and webhook collections. The secret is never part of these lists.
   'api_tokens',
   'webhook_subscriptions',

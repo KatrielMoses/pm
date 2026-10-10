@@ -217,6 +217,14 @@
       "note": ""
     },
     {
+      "prefix": "cnf",
+      "resource": "sync_conflict",
+      "entity": "integrations.sync_conflict",
+      "owner_module": "integrations",
+      "platform_only": false,
+      "note": ""
+    },
+    {
       "prefix": "whk",
       "resource": "webhook_subscription",
       "entity": "integrations.webhook_subscription",
@@ -5842,6 +5850,24 @@
         "outcome"
       ],
       "area": "files"
+    },
+    {
+      "name": "integrations.requests",
+      "type": "counter",
+      "labels": [
+        "op",
+        "outcome"
+      ],
+      "area": "integrations"
+    },
+    {
+      "name": "integrations.jobs",
+      "type": "counter",
+      "labels": [
+        "kind",
+        "outcome"
+      ],
+      "area": "integrations"
     },
     {
       "name": "integration.sync.duration",

@@ -42,6 +42,7 @@ describe('non-resource envelope stays confined (ADR-0007 D6, ADR-0008 B3)', () =
       'apps/api/src/work/files-routes.ts',
       'apps/api/src/work/goal-routes.ts',
       'apps/api/src/work/insight-routes.ts',
+      'apps/api/src/work/integration-routes.ts',
       'apps/api/src/work/interaction-routes.ts',
       'apps/api/src/work/layout-routes.ts',
       'apps/api/src/work/metric-routes.ts',

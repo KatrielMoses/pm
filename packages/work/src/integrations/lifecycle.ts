@@ -53,6 +53,14 @@ export const connectionAdapter: RecordTypeAdapter = {
         .deleteFrom('integrations.sync_checkpoint')
         .where('connection_id', 'in', ids)
         .execute();
+      await tx.db
+        .deleteFrom('integrations.calendar_event')
+        .where('connection_id', 'in', ids)
+        .execute();
+      await tx.db
+        .deleteFrom('integrations.connection_mapping')
+        .where('connection_id', 'in', ids)
+        .execute();
       await tx.db.deleteFrom('integrations.connection').where('id', 'in', ids).execute();
       for (const row of secretRefs) {
         if (!row.credential_secret_ref) continue;

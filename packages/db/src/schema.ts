@@ -446,6 +446,7 @@ export interface DevSecretVaultTable {
   auth_tag: Bytes;
   created_at: DTs;
   expires_at: Ts | null;
+  key_id: Defaulted<number>;
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -2759,6 +2760,40 @@ export interface SyncConflictTable {
   version: Defaulted<number>;
 }
 
+export interface ConnectionMappingTable {
+  id: string;
+  workspace_id: string;
+  connection_id: string;
+  brand_id: string;
+  project_id: string | null;
+  external_resource_id: string;
+  resource_kind: Defaulted<'calendar'>;
+  version: Defaulted<number>;
+  created_at: DTs;
+  updated_at: DTs;
+}
+
+export interface CalendarEventTable {
+  id: string;
+  public_id: string;
+  workspace_id: string;
+  connection_id: string;
+  owner_membership_id: string;
+  calendar_id: string;
+  external_event_id: string;
+  starts_at: Ts;
+  ends_at: Ts;
+  event_tz: string;
+  all_day: Defaulted<boolean>;
+  title: string;
+  busy: Defaulted<boolean>;
+  linked_work_block_id: string | null;
+  remote_version: string;
+  version: Defaulted<number>;
+  created_at: DTs;
+  updated_at: DTs;
+}
+
 // Phase 6B: API tokens, outbound webhooks, and inbound endpoints (ADR-0032).
 export type ApiTokenKind = 'personal' | 'service';
 export type ApiTokenState = 'active' | 'revoked' | 'suspended';
@@ -3086,6 +3121,8 @@ export interface Database {
   'integrations.sync_run': SyncRunTable;
   'integrations.sync_delivery': SyncDeliveryTable;
   'integrations.sync_conflict': SyncConflictTable;
+  'integrations.connection_mapping': ConnectionMappingTable;
+  'integrations.calendar_event': CalendarEventTable;
   'integrations.api_token': ApiTokenTable;
   'integrations.webhook_subscription': WebhookSubscriptionTable;
   'integrations.webhook_delivery': WebhookDeliveryTable;
@@ -3571,6 +3608,7 @@ export const TABLE_COLUMNS: Readonly<Record<keyof Database, readonly string[]>> 
     'auth_tag',
     'created_at',
     'expires_at',
+    'key_id',
   ],
   'identity.account': [
     'id',
@@ -4816,6 +4854,38 @@ export const TABLE_COLUMNS: Readonly<Record<keyof Database, readonly string[]>> 
     'resolved_at',
     'created_at',
     'version',
+  ],
+  'integrations.connection_mapping': [
+    'id',
+    'workspace_id',
+    'connection_id',
+    'brand_id',
+    'project_id',
+    'external_resource_id',
+    'resource_kind',
+    'version',
+    'created_at',
+    'updated_at',
+  ],
+  'integrations.calendar_event': [
+    'id',
+    'public_id',
+    'workspace_id',
+    'connection_id',
+    'owner_membership_id',
+    'calendar_id',
+    'external_event_id',
+    'starts_at',
+    'ends_at',
+    'event_tz',
+    'all_day',
+    'title',
+    'busy',
+    'linked_work_block_id',
+    'remote_version',
+    'version',
+    'created_at',
+    'updated_at',
   ],
   'integrations.api_token': [
     'id',

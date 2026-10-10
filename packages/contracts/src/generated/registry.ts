@@ -241,6 +241,22 @@ export const TELEMETRY_SIGNALS = [
     ]
   },
   {
+    "name": "integrations.requests",
+    "type": "counter",
+    "labels": [
+      "op",
+      "outcome"
+    ]
+  },
+  {
+    "name": "integrations.jobs",
+    "type": "counter",
+    "labels": [
+      "kind",
+      "outcome"
+    ]
+  },
+  {
     "name": "integration.sync.duration",
     "type": "histogram",
     "labels": [
@@ -1440,6 +1456,13 @@ export const ID_PREFIXES = [
     "platformOnly": false
   },
   {
+    "prefix": "cnf",
+    "resource": "sync_conflict",
+    "entity": "integrations.sync_conflict",
+    "ownerModule": "integrations",
+    "platformOnly": false
+  },
+  {
     "prefix": "whk",
     "resource": "webhook_subscription",
     "entity": "integrations.webhook_subscription",
@@ -1934,316 +1957,6 @@ export type IdPrefix = (typeof ID_PREFIXES)[number]['prefix'];
 
 export const INTERNAL_EVENTS = [
   {
-    "type": "core.record.archived",
-    "schemaVersion": 1,
-    "aggregateEntity": "core.record",
-    "fields": [
-      "record_type",
-      "archive_cause",
-      "batch_id"
-    ],
-    "maxClass": "C1"
-  },
-  {
-    "type": "core.record.trashed",
-    "schemaVersion": 1,
-    "aggregateEntity": "core.record",
-    "fields": [
-      "record_type",
-      "deletion_batch_id"
-    ],
-    "maxClass": "C1"
-  },
-  {
-    "type": "core.record.restored",
-    "schemaVersion": 1,
-    "aggregateEntity": "core.record",
-    "fields": [
-      "record_type",
-      "batch_id"
-    ],
-    "maxClass": "C1"
-  },
-  {
-    "type": "core.record.purged",
-    "schemaVersion": 1,
-    "aggregateEntity": "core.record",
-    "fields": [
-      "record_type"
-    ],
-    "maxClass": "C1"
-  },
-  {
-    "type": "core.record.moved_brand",
-    "schemaVersion": 1,
-    "aggregateEntity": "core.record",
-    "fields": [
-      "from_brand_id",
-      "to_brand_id"
-    ],
-    "maxClass": "C1"
-  },
-  {
-    "type": "work.task.created",
-    "schemaVersion": 1,
-    "aggregateEntity": "work.task",
-    "fields": [
-      "project_id",
-      "parent_task_id",
-      "status_id",
-      "source_kind"
-    ],
-    "maxClass": "C1"
-  },
-  {
-    "type": "work.task.updated",
-    "schemaVersion": 1,
-    "aggregateEntity": "work.task",
-    "fields": [
-      "changed_fields"
-    ],
-    "maxClass": "C1"
-  },
-  {
-    "type": "work.task.status_changed",
-    "schemaVersion": 1,
-    "aggregateEntity": "work.task",
-    "fields": [
-      "from_status_id",
-      "to_status_id",
-      "to_category"
-    ],
-    "maxClass": "C1"
-  },
-  {
-    "type": "work.task.completed",
-    "schemaVersion": 1,
-    "aggregateEntity": "work.task",
-    "fields": [
-      "completed_at",
-      "status_category",
-      "project_id"
-    ],
-    "maxClass": "C1"
-  },
-  {
-    "type": "work.task.assigned",
-    "schemaVersion": 1,
-    "aggregateEntity": "work.task",
-    "fields": [
-      "assignee_membership_ids"
-    ],
-    "maxClass": "C1"
-  },
-  {
-    "type": "work.task.moved",
-    "schemaVersion": 1,
-    "aggregateEntity": "work.task",
-    "fields": [
-      "project_id",
-      "parent_task_id",
-      "depth"
-    ],
-    "maxClass": "C1"
-  },
-  {
-    "type": "work.task.reopened",
-    "schemaVersion": 1,
-    "aggregateEntity": "work.task",
-    "fields": [
-      "status_id",
-      "status_category"
-    ],
-    "maxClass": "C1"
-  },
-  {
-    "type": "work.label.created",
-    "schemaVersion": 1,
-    "aggregateEntity": "work.label",
-    "fields": [
-      "label_id"
-    ],
-    "maxClass": "C1"
-  },
-  {
-    "type": "work.label.updated",
-    "schemaVersion": 1,
-    "aggregateEntity": "work.label",
-    "fields": [
-      "label_id",
-      "lifecycle_state"
-    ],
-    "maxClass": "C1"
-  },
-  {
-    "type": "work.project.created",
-    "schemaVersion": 1,
-    "aggregateEntity": "work.project",
-    "fields": [
-      "parent_project_id",
-      "status_id"
-    ],
-    "maxClass": "C1"
-  },
-  {
-    "type": "work.project.status_changed",
-    "schemaVersion": 1,
-    "aggregateEntity": "work.project",
-    "fields": [
-      "to_category",
-      "health"
-    ],
-    "maxClass": "C1"
-  },
-  {
-    "type": "collab.comment.created",
-    "schemaVersion": 1,
-    "aggregateEntity": "collab.comment",
-    "fields": [
-      "host_record_id",
-      "root_comment_id",
-      "mention_ids"
-    ],
-    "maxClass": "C1"
-  },
-  {
-    "type": "collab.review.requested",
-    "schemaVersion": 1,
-    "aggregateEntity": "collab.review_request",
-    "fields": [
-      "subject_kind",
-      "subject_ref",
-      "reviewer_rule",
-      "request_kind"
-    ],
-    "maxClass": "C1"
-  },
-  {
-    "type": "collab.review.decided",
-    "schemaVersion": 1,
-    "aggregateEntity": "collab.review_decision",
-    "fields": [
-      "decision",
-      "self_approval",
-      "subject_ref",
-      "review_state"
-    ],
-    "maxClass": "C1"
-  },
-  {
-    "type": "relations.relationship.created",
-    "schemaVersion": 1,
-    "aggregateEntity": "relations.record_relationship",
-    "fields": [
-      "kind",
-      "from_record_id",
-      "to_record_id"
-    ],
-    "maxClass": "C1"
-  },
-  {
-    "type": "relations.mention.created",
-    "schemaVersion": 1,
-    "aggregateEntity": "relations.mention",
-    "fields": [
-      "source_kind",
-      "target_kind",
-      "target_id"
-    ],
-    "maxClass": "C1"
-  },
-  {
-    "type": "files.file.scanned",
-    "schemaVersion": 1,
-    "aggregateEntity": "files.file_version",
-    "fields": [
-      "scan_state"
-    ],
-    "maxClass": "C1"
-  },
-  {
-    "type": "files.deliverable.version_submitted",
-    "schemaVersion": 1,
-    "aggregateEntity": "files.deliverable_version",
-    "fields": [
-      "deliverable_id",
-      "version_number"
-    ],
-    "maxClass": "C1"
-  },
-  {
-    "type": "capture.inbox.captured",
-    "schemaVersion": 1,
-    "aggregateEntity": "capture.inbox_item",
-    "fields": [
-      "source_kind",
-      "intent"
-    ],
-    "maxClass": "C1"
-  },
-  {
-    "type": "capture.inbox.triaged",
-    "schemaVersion": 1,
-    "aggregateEntity": "capture.inbox_item",
-    "fields": [
-      "outcome",
-      "converted_record_id"
-    ],
-    "maxClass": "C1"
-  },
-  {
-    "type": "planning.work_block.moved",
-    "schemaVersion": 1,
-    "aggregateEntity": "planning.work_block",
-    "fields": [
-      "starts_at",
-      "ends_at",
-      "source"
-    ],
-    "maxClass": "C1"
-  },
-  {
-    "type": "planning.occurrence.generated",
-    "schemaVersion": 1,
-    "aggregateEntity": "planning.recurrence_series",
-    "fields": [
-      "occurrence_key",
-      "record_id"
-    ],
-    "maxClass": "C1"
-  },
-  {
-    "type": "time.time_entry.recorded",
-    "schemaVersion": 1,
-    "aggregateEntity": "time.time_entry",
-    "fields": [
-      "duration_seconds",
-      "billable",
-      "source"
-    ],
-    "maxClass": "C1"
-  },
-  {
-    "type": "time.timesheet.approved",
-    "schemaVersion": 1,
-    "aggregateEntity": "time.timesheet_approval",
-    "fields": [
-      "period_start",
-      "brand_id"
-    ],
-    "maxClass": "C1"
-  },
-  {
-    "type": "knowledge.document.source_approved",
-    "schemaVersion": 1,
-    "aggregateEntity": "knowledge.source_approval",
-    "fields": [
-      "document_version_id",
-      "kind"
-    ],
-    "maxClass": "C1"
-  },
-  {
     "type": "access.grant.created",
     "schemaVersion": 1,
     "aggregateEntity": "access.record_grant",
@@ -2276,11 +1989,294 @@ export const INTERNAL_EVENTS = [
     "maxClass": "C1"
   },
   {
-    "type": "tenancy.membership.removed",
+    "type": "access.role.revoked",
     "schemaVersion": 1,
-    "aggregateEntity": "tenancy.membership",
+    "aggregateEntity": "access.role_assignment",
     "fields": [
+      "scope_type"
+    ],
+    "maxClass": "C1"
+  },
+  {
+    "type": "agents.action_approval.requested",
+    "schemaVersion": 1,
+    "aggregateEntity": "agents.action_approval",
+    "fields": [
+      "action_class",
+      "risk_class"
+    ],
+    "maxClass": "C1"
+  },
+  {
+    "type": "agents.agent_run.output_returned",
+    "schemaVersion": 1,
+    "aggregateEntity": "agents.agent_run",
+    "fields": [
+      "deliverable_version_id"
+    ],
+    "maxClass": "C1"
+  },
+  {
+    "type": "ai.briefing.generated",
+    "schemaVersion": 1,
+    "aggregateEntity": "ai.briefing",
+    "fields": [
+      "kind",
+      "period_key"
+    ],
+    "maxClass": "C1"
+  },
+  {
+    "type": "ai.proposal.applied",
+    "schemaVersion": 1,
+    "aggregateEntity": "ai.change_proposal",
+    "fields": [
+      "applied_count",
+      "failed_count"
+    ],
+    "maxClass": "C1"
+  },
+  {
+    "type": "automation.automation_run.failed",
+    "schemaVersion": 1,
+    "aggregateEntity": "automation.automation_run",
+    "fields": [
+      "automation_id",
+      "terminal_reason"
+    ],
+    "maxClass": "C1"
+  },
+  {
+    "type": "capture.inbox.captured",
+    "schemaVersion": 1,
+    "aggregateEntity": "capture.inbox_item",
+    "fields": [
+      "source_kind",
+      "intent"
+    ],
+    "maxClass": "C1"
+  },
+  {
+    "type": "capture.inbox.merged",
+    "schemaVersion": 1,
+    "aggregateEntity": "capture.inbox_item",
+    "fields": [
+      "merged_count"
+    ],
+    "maxClass": "C1"
+  },
+  {
+    "type": "capture.inbox.triaged",
+    "schemaVersion": 1,
+    "aggregateEntity": "capture.inbox_item",
+    "fields": [
+      "outcome",
+      "converted_record_id"
+    ],
+    "maxClass": "C1"
+  },
+  {
+    "type": "capture.intake.submitted",
+    "schemaVersion": 1,
+    "aggregateEntity": "capture.intake_form",
+    "fields": [
+      "inbox_item_id"
+    ],
+    "maxClass": "C1"
+  },
+  {
+    "type": "capture.intake_form.created",
+    "schemaVersion": 1,
+    "aggregateEntity": "capture.intake_form",
+    "fields": [
+      "target_kind"
+    ],
+    "maxClass": "C1"
+  },
+  {
+    "type": "capture.intake_form.updated",
+    "schemaVersion": 1,
+    "aggregateEntity": "capture.intake_form",
+    "fields": [
+      "state"
+    ],
+    "maxClass": "C1"
+  },
+  {
+    "type": "capture.note.converted",
+    "schemaVersion": 1,
+    "aggregateEntity": "capture.note",
+    "fields": [
+      "target_kind",
+      "target_record_id"
+    ],
+    "maxClass": "C1"
+  },
+  {
+    "type": "capture.note.created",
+    "schemaVersion": 1,
+    "aggregateEntity": "capture.note",
+    "fields": [
+      "source_kind"
+    ],
+    "maxClass": "C1"
+  },
+  {
+    "type": "collab.comment.created",
+    "schemaVersion": 1,
+    "aggregateEntity": "collab.comment",
+    "fields": [
+      "host_record_id",
+      "root_comment_id",
+      "mention_ids"
+    ],
+    "maxClass": "C1"
+  },
+  {
+    "type": "collab.comment.deleted",
+    "schemaVersion": 1,
+    "aggregateEntity": "collab.comment",
+    "fields": [
+      "host_record_id",
+      "deleted_by"
+    ],
+    "maxClass": "C1"
+  },
+  {
+    "type": "collab.comment.edited",
+    "schemaVersion": 1,
+    "aggregateEntity": "collab.comment",
+    "fields": [
+      "host_record_id",
+      "edit_count"
+    ],
+    "maxClass": "C1"
+  },
+  {
+    "type": "collab.comment.reaction_changed",
+    "schemaVersion": 1,
+    "aggregateEntity": "collab.comment",
+    "fields": [
+      "host_record_id",
+      "reaction",
+      "change"
+    ],
+    "maxClass": "C1"
+  },
+  {
+    "type": "collab.review.decided",
+    "schemaVersion": 1,
+    "aggregateEntity": "collab.review_decision",
+    "fields": [
+      "decision",
+      "self_approval",
+      "subject_ref",
+      "review_state"
+    ],
+    "maxClass": "C1"
+  },
+  {
+    "type": "collab.review.requested",
+    "schemaVersion": 1,
+    "aggregateEntity": "collab.review_request",
+    "fields": [
+      "subject_kind",
+      "subject_ref",
+      "reviewer_rule",
+      "request_kind"
+    ],
+    "maxClass": "C1"
+  },
+  {
+    "type": "collab.review.superseded",
+    "schemaVersion": 1,
+    "aggregateEntity": "collab.review_request",
+    "fields": [
+      "subject_kind",
+      "subject_ref",
+      "successor_ref"
+    ],
+    "maxClass": "C1"
+  },
+  {
+    "type": "collab.review.withdrawn",
+    "schemaVersion": 1,
+    "aggregateEntity": "collab.review_request",
+    "fields": [
+      "subject_kind",
+      "subject_ref",
       "reason"
+    ],
+    "maxClass": "C1"
+  },
+  {
+    "type": "core.record.archived",
+    "schemaVersion": 1,
+    "aggregateEntity": "core.record",
+    "fields": [
+      "record_type",
+      "archive_cause",
+      "batch_id"
+    ],
+    "maxClass": "C1"
+  },
+  {
+    "type": "core.record.moved_brand",
+    "schemaVersion": 1,
+    "aggregateEntity": "core.record",
+    "fields": [
+      "from_brand_id",
+      "to_brand_id"
+    ],
+    "maxClass": "C1"
+  },
+  {
+    "type": "core.record.purged",
+    "schemaVersion": 1,
+    "aggregateEntity": "core.record",
+    "fields": [
+      "record_type"
+    ],
+    "maxClass": "C1"
+  },
+  {
+    "type": "core.record.restored",
+    "schemaVersion": 1,
+    "aggregateEntity": "core.record",
+    "fields": [
+      "record_type",
+      "batch_id"
+    ],
+    "maxClass": "C1"
+  },
+  {
+    "type": "core.record.trashed",
+    "schemaVersion": 1,
+    "aggregateEntity": "core.record",
+    "fields": [
+      "record_type",
+      "deletion_batch_id"
+    ],
+    "maxClass": "C1"
+  },
+  {
+    "type": "delivery.deployment.recorded",
+    "schemaVersion": 1,
+    "aggregateEntity": "delivery.deployment",
+    "fields": [
+      "environment_id",
+      "version_label"
+    ],
+    "maxClass": "C1"
+  },
+  {
+    "type": "delivery.release.decided",
+    "schemaVersion": 1,
+    "aggregateEntity": "delivery.release_decision",
+    "fields": [
+      "release_id",
+      "decision",
+      "sequence"
     ],
     "maxClass": "C1"
   },
@@ -2297,31 +2293,341 @@ export const INTERNAL_EVENTS = [
     "maxClass": "C1"
   },
   {
-    "type": "agents.agent_run.output_returned",
+    "type": "files.deliverable.state_changed",
     "schemaVersion": 1,
-    "aggregateEntity": "agents.agent_run",
+    "aggregateEntity": "files.deliverable",
     "fields": [
-      "deliverable_version_id"
+      "state",
+      "version_number"
     ],
     "maxClass": "C1"
   },
   {
-    "type": "agents.action_approval.requested",
+    "type": "files.deliverable.version_submitted",
     "schemaVersion": 1,
-    "aggregateEntity": "agents.action_approval",
+    "aggregateEntity": "files.deliverable_version",
     "fields": [
-      "action_class",
-      "risk_class"
+      "deliverable_id",
+      "version_number"
     ],
     "maxClass": "C1"
   },
   {
-    "type": "automation.automation_run.failed",
+    "type": "files.file.added",
     "schemaVersion": 1,
-    "aggregateEntity": "automation.automation_run",
+    "aggregateEntity": "files.file",
     "fields": [
-      "automation_id",
-      "terminal_reason"
+      "version_number",
+      "source"
+    ],
+    "maxClass": "C1"
+  },
+  {
+    "type": "files.file.scanned",
+    "schemaVersion": 1,
+    "aggregateEntity": "files.file_version",
+    "fields": [
+      "scan_state"
+    ],
+    "maxClass": "C1"
+  },
+  {
+    "type": "files.file.version_added",
+    "schemaVersion": 1,
+    "aggregateEntity": "files.file",
+    "fields": [
+      "version_number",
+      "source"
+    ],
+    "maxClass": "C1"
+  },
+  {
+    "type": "goals.goal.checkin_recorded",
+    "schemaVersion": 1,
+    "aggregateEntity": "goals.goal_checkin",
+    "fields": [
+      "source",
+      "confidence",
+      "has_value"
+    ],
+    "maxClass": "C1"
+  },
+  {
+    "type": "goals.goal.created",
+    "schemaVersion": 1,
+    "aggregateEntity": "goals.goal",
+    "fields": [
+      "scope",
+      "period_kind",
+      "progress_basis"
+    ],
+    "maxClass": "C1"
+  },
+  {
+    "type": "goals.goal.link_changed",
+    "schemaVersion": 1,
+    "aggregateEntity": "goals.goal_link",
+    "fields": [
+      "change",
+      "target_kind"
+    ],
+    "maxClass": "C1"
+  },
+  {
+    "type": "goals.goal.status_changed",
+    "schemaVersion": 1,
+    "aggregateEntity": "goals.goal",
+    "fields": [
+      "status"
+    ],
+    "maxClass": "C1"
+  },
+  {
+    "type": "goals.goal.update_stale",
+    "schemaVersion": 1,
+    "aggregateEntity": "goals.goal",
+    "fields": [
+      "days_stale"
+    ],
+    "maxClass": "C1"
+  },
+  {
+    "type": "goals.goal.updated",
+    "schemaVersion": 1,
+    "aggregateEntity": "goals.goal",
+    "fields": [
+      "change"
+    ],
+    "maxClass": "C1"
+  },
+  {
+    "type": "goals.key_result.created",
+    "schemaVersion": 1,
+    "aggregateEntity": "goals.key_result",
+    "fields": [
+      "progress_basis"
+    ],
+    "maxClass": "C1"
+  },
+  {
+    "type": "goals.key_result.updated",
+    "schemaVersion": 1,
+    "aggregateEntity": "goals.key_result",
+    "fields": [
+      "change"
+    ],
+    "maxClass": "C1"
+  },
+  {
+    "type": "goals.portfolio.created",
+    "schemaVersion": 1,
+    "aggregateEntity": "goals.portfolio",
+    "fields": [
+      "scope"
+    ],
+    "maxClass": "C1"
+  },
+  {
+    "type": "goals.portfolio.members_changed",
+    "schemaVersion": 1,
+    "aggregateEntity": "goals.portfolio",
+    "fields": [
+      "count"
+    ],
+    "maxClass": "C1"
+  },
+  {
+    "type": "goals.portfolio.updated",
+    "schemaVersion": 1,
+    "aggregateEntity": "goals.portfolio",
+    "fields": [
+      "change"
+    ],
+    "maxClass": "C1"
+  },
+  {
+    "type": "insights.dashboard.created",
+    "schemaVersion": 1,
+    "aggregateEntity": "insights.dashboard",
+    "fields": [
+      "kind",
+      "scope"
+    ],
+    "maxClass": "C1"
+  },
+  {
+    "type": "insights.dashboard.updated",
+    "schemaVersion": 1,
+    "aggregateEntity": "insights.dashboard",
+    "fields": [
+      "change"
+    ],
+    "maxClass": "C1"
+  },
+  {
+    "type": "insights.report.created",
+    "schemaVersion": 1,
+    "aggregateEntity": "insights.report_definition",
+    "fields": [
+      "scope"
+    ],
+    "maxClass": "C1"
+  },
+  {
+    "type": "insights.report.resumed",
+    "schemaVersion": 1,
+    "aggregateEntity": "insights.report_definition",
+    "fields": [
+      "reason"
+    ],
+    "maxClass": "C1"
+  },
+  {
+    "type": "insights.report.schedule_changed",
+    "schemaVersion": 1,
+    "aggregateEntity": "insights.report_definition",
+    "fields": [
+      "frequency",
+      "recipients"
+    ],
+    "maxClass": "C1"
+  },
+  {
+    "type": "insights.report.share_revoked",
+    "schemaVersion": 1,
+    "aggregateEntity": "insights.report_definition",
+    "fields": [
+      "scope"
+    ],
+    "maxClass": "C1"
+  },
+  {
+    "type": "insights.report.shared",
+    "schemaVersion": 1,
+    "aggregateEntity": "insights.report_definition",
+    "fields": [
+      "scope"
+    ],
+    "maxClass": "C1"
+  },
+  {
+    "type": "insights.report.suspended",
+    "schemaVersion": 1,
+    "aggregateEntity": "insights.report_definition",
+    "fields": [
+      "reason"
+    ],
+    "maxClass": "C1"
+  },
+  {
+    "type": "insights.report.updated",
+    "schemaVersion": 1,
+    "aggregateEntity": "insights.report_definition",
+    "fields": [
+      "change"
+    ],
+    "maxClass": "C1"
+  },
+  {
+    "type": "integrations.api_token.created",
+    "schemaVersion": 1,
+    "aggregateEntity": "integrations.api_token",
+    "fields": [
+      "kind",
+      "scope_count"
+    ],
+    "maxClass": "C1"
+  },
+  {
+    "type": "integrations.api_token.revoked",
+    "schemaVersion": 1,
+    "aggregateEntity": "integrations.api_token",
+    "fields": [
+      "kind"
+    ],
+    "maxClass": "C1"
+  },
+  {
+    "type": "integrations.api_token.rotated",
+    "schemaVersion": 1,
+    "aggregateEntity": "integrations.api_token",
+    "fields": [
+      "kind"
+    ],
+    "maxClass": "C1"
+  },
+  {
+    "type": "integrations.conflict.detected",
+    "schemaVersion": 1,
+    "aggregateEntity": "integrations.connection",
+    "fields": [
+      "field"
+    ],
+    "maxClass": "C1"
+  },
+  {
+    "type": "integrations.conflict.resolved",
+    "schemaVersion": 1,
+    "aggregateEntity": "integrations.connection",
+    "fields": [
+      "resolution"
+    ],
+    "maxClass": "C1"
+  },
+  {
+    "type": "integrations.connection.created",
+    "schemaVersion": 1,
+    "aggregateEntity": "integrations.connection",
+    "fields": [
+      "provider",
+      "auth_kind",
+      "scope"
+    ],
+    "maxClass": "C1"
+  },
+  {
+    "type": "integrations.connection.disconnected",
+    "schemaVersion": 1,
+    "aggregateEntity": "integrations.connection",
+    "fields": [
+      "retention"
+    ],
+    "maxClass": "C1"
+  },
+  {
+    "type": "integrations.connection.health_changed",
+    "schemaVersion": 1,
+    "aggregateEntity": "integrations.connection",
+    "fields": [
+      "health"
+    ],
+    "maxClass": "C1"
+  },
+  {
+    "type": "integrations.connection.reauthorized",
+    "schemaVersion": 1,
+    "aggregateEntity": "integrations.connection",
+    "fields": [
+      "auth_kind"
+    ],
+    "maxClass": "C1"
+  },
+  {
+    "type": "integrations.credential.rotated",
+    "schemaVersion": 1,
+    "aggregateEntity": "integrations.connection",
+    "fields": [
+      "key_version"
+    ],
+    "maxClass": "C1"
+  },
+  {
+    "type": "integrations.sync.completed",
+    "schemaVersion": 1,
+    "aggregateEntity": "integrations.connection",
+    "fields": [
+      "outcome",
+      "conflicts"
     ],
     "maxClass": "C1"
   },
@@ -2336,15 +2642,6 @@ export const INTERNAL_EVENTS = [
     "maxClass": "C1"
   },
   {
-    "type": "integrations.connection.health_changed",
-    "schemaVersion": 1,
-    "aggregateEntity": "integrations.connection",
-    "fields": [
-      "health"
-    ],
-    "maxClass": "C1"
-  },
-  {
     "type": "integrations.webhook.delivery_failed",
     "schemaVersion": 1,
     "aggregateEntity": "integrations.webhook_delivery",
@@ -2355,43 +2652,83 @@ export const INTERNAL_EVENTS = [
     "maxClass": "C1"
   },
   {
-    "type": "quality.test_result.recorded",
+    "type": "knowledge.document.created",
     "schemaVersion": 1,
-    "aggregateEntity": "quality.test_result",
+    "aggregateEntity": "knowledge.document",
     "fields": [
-      "test_run_id",
-      "outcome"
+      "doc_type",
+      "parent_document_id",
+      "attached_kind"
     ],
     "maxClass": "C1"
   },
   {
-    "type": "quality.defect.verified",
+    "type": "knowledge.document.mention_added",
     "schemaVersion": 1,
-    "aggregateEntity": "quality.verification_record",
+    "aggregateEntity": "knowledge.document",
     "fields": [
-      "defect_task_id",
-      "method"
+      "reference_id",
+      "block_id"
     ],
     "maxClass": "C1"
   },
   {
-    "type": "delivery.release.decided",
+    "type": "knowledge.document.source_approved",
     "schemaVersion": 1,
-    "aggregateEntity": "delivery.release_decision",
+    "aggregateEntity": "knowledge.source_approval",
     "fields": [
-      "release_id",
-      "decision",
-      "sequence"
+      "document_version_id",
+      "kind"
     ],
     "maxClass": "C1"
   },
   {
-    "type": "delivery.deployment.recorded",
+    "type": "knowledge.document.suggestion_created",
     "schemaVersion": 1,
-    "aggregateEntity": "delivery.deployment",
+    "aggregateEntity": "knowledge.document_suggestion",
     "fields": [
-      "environment_id",
-      "version_label"
+      "document_id",
+      "block_id"
+    ],
+    "maxClass": "C1"
+  },
+  {
+    "type": "knowledge.document.suggestion_decided",
+    "schemaVersion": 1,
+    "aggregateEntity": "knowledge.document_suggestion",
+    "fields": [
+      "document_id",
+      "state",
+      "applied_version"
+    ],
+    "maxClass": "C1"
+  },
+  {
+    "type": "knowledge.document.updated",
+    "schemaVersion": 1,
+    "aggregateEntity": "knowledge.document",
+    "fields": [
+      "change"
+    ],
+    "maxClass": "C1"
+  },
+  {
+    "type": "knowledge.document.version_saved",
+    "schemaVersion": 1,
+    "aggregateEntity": "knowledge.document",
+    "fields": [
+      "version_number",
+      "kind",
+      "size_bytes"
+    ],
+    "maxClass": "C1"
+  },
+  {
+    "type": "metering.usage.limit_reached",
+    "schemaVersion": 1,
+    "aggregateEntity": "metering.usage_balance",
+    "fields": [
+      "meter"
     ],
     "maxClass": "C1"
   },
@@ -2406,40 +2743,325 @@ export const INTERNAL_EVENTS = [
     "maxClass": "C1"
   },
   {
-    "type": "metering.usage.limit_reached",
+    "type": "notify.delivery.state_changed",
     "schemaVersion": 1,
-    "aggregateEntity": "metering.usage_balance",
+    "aggregateEntity": "notify.notification_delivery",
     "fields": [
-      "meter"
+      "channel",
+      "kind",
+      "state",
+      "failure_class"
     ],
     "maxClass": "C1"
   },
   {
-    "type": "ai.proposal.applied",
+    "type": "notify.notification.created",
     "schemaVersion": 1,
-    "aggregateEntity": "ai.change_proposal",
+    "aggregateEntity": "notify.notification",
     "fields": [
-      "applied_count",
-      "failed_count"
+      "type",
+      "record_id"
     ],
     "maxClass": "C1"
   },
   {
-    "type": "ai.briefing.generated",
+    "type": "planning.block_series.defined",
     "schemaVersion": 1,
-    "aggregateEntity": "ai.briefing",
+    "aggregateEntity": "planning.block_series",
+    "fields": [
+      "occurrences"
+    ],
+    "maxClass": "C1"
+  },
+  {
+    "type": "planning.block_series.ended",
+    "schemaVersion": 1,
+    "aggregateEntity": "planning.block_series",
+    "fields": [
+      "removed"
+    ],
+    "maxClass": "C1"
+  },
+  {
+    "type": "planning.capacity_profile.updated",
+    "schemaVersion": 1,
+    "aggregateEntity": "planning.capacity_profile",
+    "fields": [
+      "windows",
+      "weekly_capacity_minutes",
+      "observe_brand_holidays"
+    ],
+    "maxClass": "C1"
+  },
+  {
+    "type": "planning.capacity_reservation.removed",
+    "schemaVersion": 1,
+    "aggregateEntity": "planning.capacity_reservation",
+    "fields": [
+      "effective_from"
+    ],
+    "maxClass": "C1"
+  },
+  {
+    "type": "planning.capacity_reservation.set",
+    "schemaVersion": 1,
+    "aggregateEntity": "planning.capacity_reservation",
+    "fields": [
+      "minutes_per_week",
+      "effective_from",
+      "effective_to"
+    ],
+    "maxClass": "C1"
+  },
+  {
+    "type": "planning.day.closed",
+    "schemaVersion": 1,
+    "aggregateEntity": "planning.daily_record",
+    "fields": [
+      "day",
+      "closed_by",
+      "committed",
+      "completed"
+    ],
+    "maxClass": "C1"
+  },
+  {
+    "type": "planning.holiday.created",
+    "schemaVersion": 1,
+    "aggregateEntity": "planning.holiday",
+    "fields": [
+      "day"
+    ],
+    "maxClass": "C1"
+  },
+  {
+    "type": "planning.holiday.deleted",
+    "schemaVersion": 1,
+    "aggregateEntity": "planning.holiday",
+    "fields": [
+      "day"
+    ],
+    "maxClass": "C1"
+  },
+  {
+    "type": "planning.occurrence.generated",
+    "schemaVersion": 1,
+    "aggregateEntity": "planning.recurrence_series",
+    "fields": [
+      "occurrence_key",
+      "record_id"
+    ],
+    "maxClass": "C1"
+  },
+  {
+    "type": "planning.recurrence_series.defined",
+    "schemaVersion": 1,
+    "aggregateEntity": "planning.recurrence_series",
+    "fields": [
+      "target_kind"
+    ],
+    "maxClass": "C1"
+  },
+  {
+    "type": "planning.recurrence_series.state_changed",
+    "schemaVersion": 1,
+    "aggregateEntity": "planning.recurrence_series",
+    "fields": [
+      "state"
+    ],
+    "maxClass": "C1"
+  },
+  {
+    "type": "planning.task_reminder.fired",
+    "schemaVersion": 1,
+    "aggregateEntity": "planning.task_reminder",
+    "fields": [
+      "task_id",
+      "account_id"
+    ],
+    "maxClass": "C1"
+  },
+  {
+    "type": "planning.task_reminder.scheduled",
+    "schemaVersion": 1,
+    "aggregateEntity": "planning.task_reminder",
+    "fields": [
+      "task_id",
+      "state"
+    ],
+    "maxClass": "C1"
+  },
+  {
+    "type": "planning.time_off.created",
+    "schemaVersion": 1,
+    "aggregateEntity": "planning.time_off",
     "fields": [
       "kind",
-      "period_key"
+      "all_day",
+      "days"
     ],
     "maxClass": "C1"
   },
   {
-    "type": "transfer.export.ready",
+    "type": "planning.time_off.deleted",
     "schemaVersion": 1,
-    "aggregateEntity": "transfer.export_job",
+    "aggregateEntity": "planning.time_off",
     "fields": [
-      "format"
+      "kind"
+    ],
+    "maxClass": "C1"
+  },
+  {
+    "type": "planning.time_off.updated",
+    "schemaVersion": 1,
+    "aggregateEntity": "planning.time_off",
+    "fields": [
+      "kind",
+      "all_day",
+      "days"
+    ],
+    "maxClass": "C1"
+  },
+  {
+    "type": "planning.today.changed",
+    "schemaVersion": 1,
+    "aggregateEntity": "planning.today_commitment",
+    "fields": [
+      "day",
+      "change"
+    ],
+    "maxClass": "C1"
+  },
+  {
+    "type": "planning.today.committed",
+    "schemaVersion": 1,
+    "aggregateEntity": "planning.today_commitment",
+    "fields": [
+      "day",
+      "source"
+    ],
+    "maxClass": "C1"
+  },
+  {
+    "type": "planning.work_block.created",
+    "schemaVersion": 1,
+    "aggregateEntity": "planning.work_block",
+    "fields": [
+      "source",
+      "focus"
+    ],
+    "maxClass": "C1"
+  },
+  {
+    "type": "planning.work_block.deleted",
+    "schemaVersion": 1,
+    "aggregateEntity": "planning.work_block",
+    "fields": [
+      "source"
+    ],
+    "maxClass": "C1"
+  },
+  {
+    "type": "planning.work_block.moved",
+    "schemaVersion": 1,
+    "aggregateEntity": "planning.work_block",
+    "fields": [
+      "starts_at",
+      "ends_at",
+      "source"
+    ],
+    "maxClass": "C1"
+  },
+  {
+    "type": "quality.defect.verified",
+    "schemaVersion": 1,
+    "aggregateEntity": "quality.verification_record",
+    "fields": [
+      "defect_task_id",
+      "method"
+    ],
+    "maxClass": "C1"
+  },
+  {
+    "type": "quality.test_result.recorded",
+    "schemaVersion": 1,
+    "aggregateEntity": "quality.test_result",
+    "fields": [
+      "test_run_id",
+      "outcome"
+    ],
+    "maxClass": "C1"
+  },
+  {
+    "type": "relations.follow.added",
+    "schemaVersion": 1,
+    "aggregateEntity": "relations.follower",
+    "fields": [
+      "record_type",
+      "membership_id"
+    ],
+    "maxClass": "C1"
+  },
+  {
+    "type": "relations.follow.removed",
+    "schemaVersion": 1,
+    "aggregateEntity": "relations.follower",
+    "fields": [
+      "record_type",
+      "membership_id"
+    ],
+    "maxClass": "C1"
+  },
+  {
+    "type": "relations.mention.created",
+    "schemaVersion": 1,
+    "aggregateEntity": "relations.mention",
+    "fields": [
+      "source_kind",
+      "target_kind",
+      "target_id"
+    ],
+    "maxClass": "C1"
+  },
+  {
+    "type": "relations.relationship.created",
+    "schemaVersion": 1,
+    "aggregateEntity": "relations.record_relationship",
+    "fields": [
+      "kind",
+      "from_record_id",
+      "to_record_id"
+    ],
+    "maxClass": "C1"
+  },
+  {
+    "type": "relations.relationship.removed",
+    "schemaVersion": 1,
+    "aggregateEntity": "relations.record_relationship",
+    "fields": [
+      "kind",
+      "from_record_id",
+      "to_record_id"
+    ],
+    "maxClass": "C1"
+  },
+  {
+    "type": "templates.template.applied",
+    "schemaVersion": 1,
+    "aggregateEntity": "templates.template",
+    "fields": [
+      "template_version_id",
+      "record_id"
+    ],
+    "maxClass": "C1"
+  },
+  {
+    "type": "templates.template.created",
+    "schemaVersion": 1,
+    "aggregateEntity": "templates.template",
+    "fields": [
+      "target_record_type",
+      "item_count"
     ],
     "maxClass": "C1"
   },
@@ -2454,11 +3076,31 @@ export const INTERNAL_EVENTS = [
     "maxClass": "C1"
   },
   {
+    "type": "templates.template.versioned",
+    "schemaVersion": 1,
+    "aggregateEntity": "templates.template",
+    "fields": [
+      "target_record_type",
+      "version",
+      "item_count"
+    ],
+    "maxClass": "C1"
+  },
+  {
     "type": "tenancy.membership.activated",
     "schemaVersion": 1,
     "aggregateEntity": "tenancy.membership",
     "fields": [
       "kind",
+      "reason"
+    ],
+    "maxClass": "C1"
+  },
+  {
+    "type": "tenancy.membership.removed",
+    "schemaVersion": 1,
+    "aggregateEntity": "tenancy.membership",
+    "fields": [
       "reason"
     ],
     "maxClass": "C1"
@@ -2473,11 +3115,11 @@ export const INTERNAL_EVENTS = [
     "maxClass": "C1"
   },
   {
-    "type": "access.role.revoked",
+    "type": "tenancy.ownership.transferred",
     "schemaVersion": 1,
-    "aggregateEntity": "access.role_assignment",
+    "aggregateEntity": "tenancy.ownership_transfer",
     "fields": [
-      "scope_type"
+      "demoted_previous"
     ],
     "maxClass": "C1"
   },
@@ -2491,79 +3133,181 @@ export const INTERNAL_EVENTS = [
     "maxClass": "C1"
   },
   {
-    "type": "tenancy.ownership.transferred",
+    "type": "time.time_entry.deleted",
     "schemaVersion": 1,
-    "aggregateEntity": "tenancy.ownership_transfer",
+    "aggregateEntity": "time.time_entry",
     "fields": [
-      "demoted_previous"
+      "duration_seconds"
     ],
     "maxClass": "C1"
   },
   {
-    "type": "work.project.updated",
+    "type": "time.time_entry.recorded",
     "schemaVersion": 1,
-    "aggregateEntity": "work.project",
+    "aggregateEntity": "time.time_entry",
     "fields": [
-      "changed_fields"
+      "duration_seconds",
+      "billable",
+      "source"
     ],
     "maxClass": "C1"
   },
   {
-    "type": "work.project.moved",
+    "type": "time.time_entry.updated",
     "schemaVersion": 1,
-    "aggregateEntity": "work.project",
+    "aggregateEntity": "time.time_entry",
     "fields": [
-      "parent_project_id",
-      "depth"
+      "duration_seconds",
+      "billable"
     ],
     "maxClass": "C1"
   },
   {
-    "type": "work.project.owner_changed",
+    "type": "time.timer.auto_stopped",
     "schemaVersion": 1,
-    "aggregateEntity": "work.project",
+    "aggregateEntity": "time.time_entry",
     "fields": [
-      "owner_membership_id"
+      "duration_seconds"
     ],
     "maxClass": "C1"
   },
   {
-    "type": "work.phase.created",
+    "type": "time.timesheet.approved",
     "schemaVersion": 1,
-    "aggregateEntity": "work.phase",
+    "aggregateEntity": "time.timesheet_approval",
     "fields": [
-      "project_id"
+      "period_start",
+      "brand_id"
     ],
     "maxClass": "C1"
   },
   {
-    "type": "work.phase.updated",
+    "type": "time.timesheet.rejected",
     "schemaVersion": 1,
-    "aggregateEntity": "work.phase",
+    "aggregateEntity": "time.timesheet_approval",
     "fields": [
-      "project_id",
-      "changed_fields"
+      "period_start",
+      "brand_id"
     ],
     "maxClass": "C1"
   },
   {
-    "type": "work.milestone.created",
+    "type": "time.timesheet.submitted",
     "schemaVersion": 1,
-    "aggregateEntity": "work.milestone",
+    "aggregateEntity": "time.timesheet",
     "fields": [
-      "project_id",
-      "phase_id"
+      "period_start",
+      "lines"
     ],
     "maxClass": "C1"
   },
   {
-    "type": "work.milestone.updated",
+    "type": "time.timesheet.unlocked",
     "schemaVersion": 1,
-    "aggregateEntity": "work.milestone",
+    "aggregateEntity": "time.period_lock",
     "fields": [
-      "project_id",
-      "status",
-      "changed_fields"
+      "period_start",
+      "brand_id"
+    ],
+    "maxClass": "C1"
+  },
+  {
+    "type": "time.timesheet.withdrawn",
+    "schemaVersion": 1,
+    "aggregateEntity": "time.timesheet",
+    "fields": [
+      "period_start"
+    ],
+    "maxClass": "C1"
+  },
+  {
+    "type": "transfer.export.ready",
+    "schemaVersion": 1,
+    "aggregateEntity": "transfer.export_job",
+    "fields": [
+      "format"
+    ],
+    "maxClass": "C1"
+  },
+  {
+    "type": "views.default.changed",
+    "schemaVersion": 1,
+    "aggregateEntity": "views.view_default",
+    "fields": [
+      "target",
+      "entity",
+      "cleared"
+    ],
+    "maxClass": "C1"
+  },
+  {
+    "type": "views.pin.changed",
+    "schemaVersion": 1,
+    "aggregateEntity": "views.view_pin",
+    "fields": [
+      "scope",
+      "pinned"
+    ],
+    "maxClass": "C1"
+  },
+  {
+    "type": "views.saved_view.created",
+    "schemaVersion": 1,
+    "aggregateEntity": "views.saved_view",
+    "fields": [
+      "entity",
+      "visibility"
+    ],
+    "maxClass": "C1"
+  },
+  {
+    "type": "views.saved_view.deleted",
+    "schemaVersion": 1,
+    "aggregateEntity": "views.saved_view",
+    "fields": [
+      "entity"
+    ],
+    "maxClass": "C1"
+  },
+  {
+    "type": "views.saved_view.shared",
+    "schemaVersion": 1,
+    "aggregateEntity": "views.saved_view",
+    "fields": [
+      "entity",
+      "scope"
+    ],
+    "maxClass": "C1"
+  },
+  {
+    "type": "views.saved_view.unshared",
+    "schemaVersion": 1,
+    "aggregateEntity": "views.saved_view",
+    "fields": [
+      "entity"
+    ],
+    "maxClass": "C1"
+  },
+  {
+    "type": "views.saved_view.updated",
+    "schemaVersion": 1,
+    "aggregateEntity": "views.saved_view",
+    "fields": [
+      "entity",
+      "visibility"
+    ],
+    "maxClass": "C1"
+  },
+  {
+    "type": "work.bulk_operation.executed",
+    "schemaVersion": 1,
+    "aggregateEntity": "work.bulk_operation",
+    "fields": [
+      "operation",
+      "mode",
+      "item_count",
+      "succeeded",
+      "failed"
     ],
     "maxClass": "C1"
   },
@@ -2589,6 +3333,113 @@ export const INTERNAL_EVENTS = [
     "maxClass": "C1"
   },
   {
+    "type": "work.label.created",
+    "schemaVersion": 1,
+    "aggregateEntity": "work.label",
+    "fields": [
+      "label_id"
+    ],
+    "maxClass": "C1"
+  },
+  {
+    "type": "work.label.updated",
+    "schemaVersion": 1,
+    "aggregateEntity": "work.label",
+    "fields": [
+      "label_id",
+      "lifecycle_state"
+    ],
+    "maxClass": "C1"
+  },
+  {
+    "type": "work.milestone.created",
+    "schemaVersion": 1,
+    "aggregateEntity": "work.milestone",
+    "fields": [
+      "project_id",
+      "phase_id"
+    ],
+    "maxClass": "C1"
+  },
+  {
+    "type": "work.milestone.updated",
+    "schemaVersion": 1,
+    "aggregateEntity": "work.milestone",
+    "fields": [
+      "project_id",
+      "status",
+      "changed_fields"
+    ],
+    "maxClass": "C1"
+  },
+  {
+    "type": "work.phase.created",
+    "schemaVersion": 1,
+    "aggregateEntity": "work.phase",
+    "fields": [
+      "project_id"
+    ],
+    "maxClass": "C1"
+  },
+  {
+    "type": "work.phase.updated",
+    "schemaVersion": 1,
+    "aggregateEntity": "work.phase",
+    "fields": [
+      "project_id",
+      "changed_fields"
+    ],
+    "maxClass": "C1"
+  },
+  {
+    "type": "work.project.created",
+    "schemaVersion": 1,
+    "aggregateEntity": "work.project",
+    "fields": [
+      "parent_project_id",
+      "status_id"
+    ],
+    "maxClass": "C1"
+  },
+  {
+    "type": "work.project.moved",
+    "schemaVersion": 1,
+    "aggregateEntity": "work.project",
+    "fields": [
+      "parent_project_id",
+      "depth"
+    ],
+    "maxClass": "C1"
+  },
+  {
+    "type": "work.project.owner_changed",
+    "schemaVersion": 1,
+    "aggregateEntity": "work.project",
+    "fields": [
+      "owner_membership_id"
+    ],
+    "maxClass": "C1"
+  },
+  {
+    "type": "work.project.status_changed",
+    "schemaVersion": 1,
+    "aggregateEntity": "work.project",
+    "fields": [
+      "to_category",
+      "health"
+    ],
+    "maxClass": "C1"
+  },
+  {
+    "type": "work.project.updated",
+    "schemaVersion": 1,
+    "aggregateEntity": "work.project",
+    "fields": [
+      "changed_fields"
+    ],
+    "maxClass": "C1"
+  },
+  {
     "type": "work.project_update.posted",
     "schemaVersion": 1,
     "aggregateEntity": "work.project_update",
@@ -2609,82 +3460,174 @@ export const INTERNAL_EVENTS = [
     "maxClass": "C1"
   },
   {
-    "type": "relations.relationship.removed",
+    "type": "work.task.assigned",
     "schemaVersion": 1,
-    "aggregateEntity": "relations.record_relationship",
+    "aggregateEntity": "work.task",
     "fields": [
-      "kind",
-      "from_record_id",
-      "to_record_id"
+      "assignee_membership_ids"
     ],
     "maxClass": "C1"
   },
   {
-    "type": "templates.template.created",
+    "type": "work.task.completed",
     "schemaVersion": 1,
-    "aggregateEntity": "templates.template",
+    "aggregateEntity": "work.task",
     "fields": [
-      "target_record_type",
-      "item_count"
+      "completed_at",
+      "status_category",
+      "project_id"
     ],
     "maxClass": "C1"
   },
   {
-    "type": "templates.template.versioned",
+    "type": "work.task.created",
     "schemaVersion": 1,
-    "aggregateEntity": "templates.template",
+    "aggregateEntity": "work.task",
     "fields": [
-      "target_record_type",
-      "version",
-      "item_count"
+      "project_id",
+      "parent_task_id",
+      "status_id",
+      "source_kind"
     ],
     "maxClass": "C1"
   },
   {
-    "type": "templates.template.applied",
+    "type": "work.task.delegated",
     "schemaVersion": 1,
-    "aggregateEntity": "templates.template",
+    "aggregateEntity": "work.task",
     "fields": [
-      "template_version_id",
-      "record_id"
+      "from_membership_id",
+      "to_membership_id"
     ],
     "maxClass": "C1"
   },
   {
-    "type": "planning.recurrence_series.defined",
+    "type": "work.task.moved",
     "schemaVersion": 1,
-    "aggregateEntity": "planning.recurrence_series",
+    "aggregateEntity": "work.task",
     "fields": [
-      "target_kind"
+      "project_id",
+      "parent_task_id",
+      "depth"
     ],
     "maxClass": "C1"
   },
   {
-    "type": "planning.recurrence_series.state_changed",
+    "type": "work.task.reopened",
     "schemaVersion": 1,
-    "aggregateEntity": "planning.recurrence_series",
+    "aggregateEntity": "work.task",
     "fields": [
+      "status_id",
+      "status_category"
+    ],
+    "maxClass": "C1"
+  },
+  {
+    "type": "work.task.status_changed",
+    "schemaVersion": 1,
+    "aggregateEntity": "work.task",
+    "fields": [
+      "from_status_id",
+      "to_status_id",
+      "to_category"
+    ],
+    "maxClass": "C1"
+  },
+  {
+    "type": "work.task.undone",
+    "schemaVersion": 1,
+    "aggregateEntity": "work.task",
+    "fields": [
+      "task_id",
+      "command"
+    ],
+    "maxClass": "C1"
+  },
+  {
+    "type": "work.task.updated",
+    "schemaVersion": 1,
+    "aggregateEntity": "work.task",
+    "fields": [
+      "changed_fields"
+    ],
+    "maxClass": "C1"
+  },
+  {
+    "type": "workflow.approval_request.closed",
+    "schemaVersion": 1,
+    "aggregateEntity": "workflow.approval_request",
+    "fields": [
+      "closed_reason"
+    ],
+    "maxClass": "C1"
+  },
+  {
+    "type": "workflow.approval_request.created",
+    "schemaVersion": 1,
+    "aggregateEntity": "workflow.approval_request",
+    "fields": [
+      "transition_id",
+      "policy",
+      "record_type"
+    ],
+    "maxClass": "C1"
+  },
+  {
+    "type": "workflow.approval_request.decided",
+    "schemaVersion": 1,
+    "aggregateEntity": "workflow.approval_request",
+    "fields": [
+      "decision",
       "state"
     ],
     "maxClass": "C1"
   },
   {
-    "type": "workflow.workflow.created",
+    "type": "workflow.field_definition.created",
     "schemaVersion": 1,
-    "aggregateEntity": "workflow.workflow",
+    "aggregateEntity": "workflow.field_definition",
     "fields": [
-      "record_kind",
+      "field_type",
       "scope_kind"
     ],
     "maxClass": "C1"
   },
   {
-    "type": "workflow.workflow.updated",
+    "type": "workflow.field_definition.updated",
     "schemaVersion": 1,
-    "aggregateEntity": "workflow.workflow",
+    "aggregateEntity": "workflow.field_definition",
     "fields": [
       "changed_fields",
       "lifecycle_state"
+    ],
+    "maxClass": "C1"
+  },
+  {
+    "type": "workflow.field_set.applied",
+    "schemaVersion": 1,
+    "aggregateEntity": "workflow.field_set",
+    "fields": [
+      "record_type",
+      "version"
+    ],
+    "maxClass": "C1"
+  },
+  {
+    "type": "workflow.field_set.versioned",
+    "schemaVersion": 1,
+    "aggregateEntity": "workflow.field_set",
+    "fields": [
+      "version"
+    ],
+    "maxClass": "C1"
+  },
+  {
+    "type": "workflow.field_value.changed",
+    "schemaVersion": 1,
+    "aggregateEntity": "workflow.field_value",
+    "fields": [
+      "record_type",
+      "definition_ids"
     ],
     "maxClass": "C1"
   },
@@ -2731,876 +3674,22 @@ export const INTERNAL_EVENTS = [
     "maxClass": "C1"
   },
   {
-    "type": "workflow.approval_request.created",
+    "type": "workflow.workflow.created",
     "schemaVersion": 1,
-    "aggregateEntity": "workflow.approval_request",
+    "aggregateEntity": "workflow.workflow",
     "fields": [
-      "transition_id",
-      "policy",
-      "record_type"
-    ],
-    "maxClass": "C1"
-  },
-  {
-    "type": "workflow.approval_request.decided",
-    "schemaVersion": 1,
-    "aggregateEntity": "workflow.approval_request",
-    "fields": [
-      "decision",
-      "state"
-    ],
-    "maxClass": "C1"
-  },
-  {
-    "type": "workflow.approval_request.closed",
-    "schemaVersion": 1,
-    "aggregateEntity": "workflow.approval_request",
-    "fields": [
-      "closed_reason"
-    ],
-    "maxClass": "C1"
-  },
-  {
-    "type": "workflow.field_definition.created",
-    "schemaVersion": 1,
-    "aggregateEntity": "workflow.field_definition",
-    "fields": [
-      "field_type",
+      "record_kind",
       "scope_kind"
     ],
     "maxClass": "C1"
   },
   {
-    "type": "workflow.field_definition.updated",
+    "type": "workflow.workflow.updated",
     "schemaVersion": 1,
-    "aggregateEntity": "workflow.field_definition",
+    "aggregateEntity": "workflow.workflow",
     "fields": [
       "changed_fields",
       "lifecycle_state"
-    ],
-    "maxClass": "C1"
-  },
-  {
-    "type": "workflow.field_set.versioned",
-    "schemaVersion": 1,
-    "aggregateEntity": "workflow.field_set",
-    "fields": [
-      "version"
-    ],
-    "maxClass": "C1"
-  },
-  {
-    "type": "workflow.field_set.applied",
-    "schemaVersion": 1,
-    "aggregateEntity": "workflow.field_set",
-    "fields": [
-      "record_type",
-      "version"
-    ],
-    "maxClass": "C1"
-  },
-  {
-    "type": "workflow.field_value.changed",
-    "schemaVersion": 1,
-    "aggregateEntity": "workflow.field_value",
-    "fields": [
-      "record_type",
-      "definition_ids"
-    ],
-    "maxClass": "C1"
-  },
-  {
-    "type": "planning.task_reminder.scheduled",
-    "schemaVersion": 1,
-    "aggregateEntity": "planning.task_reminder",
-    "fields": [
-      "task_id",
-      "state"
-    ],
-    "maxClass": "C1"
-  },
-  {
-    "type": "planning.task_reminder.fired",
-    "schemaVersion": 1,
-    "aggregateEntity": "planning.task_reminder",
-    "fields": [
-      "task_id",
-      "account_id"
-    ],
-    "maxClass": "C1"
-  },
-  {
-    "type": "work.bulk_operation.executed",
-    "schemaVersion": 1,
-    "aggregateEntity": "work.bulk_operation",
-    "fields": [
-      "operation",
-      "mode",
-      "item_count",
-      "succeeded",
-      "failed"
-    ],
-    "maxClass": "C1"
-  },
-  {
-    "type": "work.task.undone",
-    "schemaVersion": 1,
-    "aggregateEntity": "work.task",
-    "fields": [
-      "task_id",
-      "command"
-    ],
-    "maxClass": "C1"
-  },
-  {
-    "type": "capture.inbox.merged",
-    "schemaVersion": 1,
-    "aggregateEntity": "capture.inbox_item",
-    "fields": [
-      "merged_count"
-    ],
-    "maxClass": "C1"
-  },
-  {
-    "type": "capture.note.created",
-    "schemaVersion": 1,
-    "aggregateEntity": "capture.note",
-    "fields": [
-      "source_kind"
-    ],
-    "maxClass": "C1"
-  },
-  {
-    "type": "capture.note.converted",
-    "schemaVersion": 1,
-    "aggregateEntity": "capture.note",
-    "fields": [
-      "target_kind",
-      "target_record_id"
-    ],
-    "maxClass": "C1"
-  },
-  {
-    "type": "capture.intake_form.created",
-    "schemaVersion": 1,
-    "aggregateEntity": "capture.intake_form",
-    "fields": [
-      "target_kind"
-    ],
-    "maxClass": "C1"
-  },
-  {
-    "type": "capture.intake_form.updated",
-    "schemaVersion": 1,
-    "aggregateEntity": "capture.intake_form",
-    "fields": [
-      "state"
-    ],
-    "maxClass": "C1"
-  },
-  {
-    "type": "capture.intake.submitted",
-    "schemaVersion": 1,
-    "aggregateEntity": "capture.intake_form",
-    "fields": [
-      "inbox_item_id"
-    ],
-    "maxClass": "C1"
-  },
-  {
-    "type": "views.saved_view.created",
-    "schemaVersion": 1,
-    "aggregateEntity": "views.saved_view",
-    "fields": [
-      "entity",
-      "visibility"
-    ],
-    "maxClass": "C1"
-  },
-  {
-    "type": "views.saved_view.updated",
-    "schemaVersion": 1,
-    "aggregateEntity": "views.saved_view",
-    "fields": [
-      "entity",
-      "visibility"
-    ],
-    "maxClass": "C1"
-  },
-  {
-    "type": "views.saved_view.shared",
-    "schemaVersion": 1,
-    "aggregateEntity": "views.saved_view",
-    "fields": [
-      "entity",
-      "scope"
-    ],
-    "maxClass": "C1"
-  },
-  {
-    "type": "views.saved_view.unshared",
-    "schemaVersion": 1,
-    "aggregateEntity": "views.saved_view",
-    "fields": [
-      "entity"
-    ],
-    "maxClass": "C1"
-  },
-  {
-    "type": "views.saved_view.deleted",
-    "schemaVersion": 1,
-    "aggregateEntity": "views.saved_view",
-    "fields": [
-      "entity"
-    ],
-    "maxClass": "C1"
-  },
-  {
-    "type": "views.default.changed",
-    "schemaVersion": 1,
-    "aggregateEntity": "views.view_default",
-    "fields": [
-      "target",
-      "entity",
-      "cleared"
-    ],
-    "maxClass": "C1"
-  },
-  {
-    "type": "views.pin.changed",
-    "schemaVersion": 1,
-    "aggregateEntity": "views.view_pin",
-    "fields": [
-      "scope",
-      "pinned"
-    ],
-    "maxClass": "C1"
-  },
-  {
-    "type": "time.time_entry.updated",
-    "schemaVersion": 1,
-    "aggregateEntity": "time.time_entry",
-    "fields": [
-      "duration_seconds",
-      "billable"
-    ],
-    "maxClass": "C1"
-  },
-  {
-    "type": "time.time_entry.deleted",
-    "schemaVersion": 1,
-    "aggregateEntity": "time.time_entry",
-    "fields": [
-      "duration_seconds"
-    ],
-    "maxClass": "C1"
-  },
-  {
-    "type": "time.timer.auto_stopped",
-    "schemaVersion": 1,
-    "aggregateEntity": "time.time_entry",
-    "fields": [
-      "duration_seconds"
-    ],
-    "maxClass": "C1"
-  },
-  {
-    "type": "time.timesheet.submitted",
-    "schemaVersion": 1,
-    "aggregateEntity": "time.timesheet",
-    "fields": [
-      "period_start",
-      "lines"
-    ],
-    "maxClass": "C1"
-  },
-  {
-    "type": "time.timesheet.withdrawn",
-    "schemaVersion": 1,
-    "aggregateEntity": "time.timesheet",
-    "fields": [
-      "period_start"
-    ],
-    "maxClass": "C1"
-  },
-  {
-    "type": "time.timesheet.rejected",
-    "schemaVersion": 1,
-    "aggregateEntity": "time.timesheet_approval",
-    "fields": [
-      "period_start",
-      "brand_id"
-    ],
-    "maxClass": "C1"
-  },
-  {
-    "type": "time.timesheet.unlocked",
-    "schemaVersion": 1,
-    "aggregateEntity": "time.period_lock",
-    "fields": [
-      "period_start",
-      "brand_id"
-    ],
-    "maxClass": "C1"
-  },
-  {
-    "type": "planning.work_block.created",
-    "schemaVersion": 1,
-    "aggregateEntity": "planning.work_block",
-    "fields": [
-      "source",
-      "focus"
-    ],
-    "maxClass": "C1"
-  },
-  {
-    "type": "planning.work_block.deleted",
-    "schemaVersion": 1,
-    "aggregateEntity": "planning.work_block",
-    "fields": [
-      "source"
-    ],
-    "maxClass": "C1"
-  },
-  {
-    "type": "planning.block_series.defined",
-    "schemaVersion": 1,
-    "aggregateEntity": "planning.block_series",
-    "fields": [
-      "occurrences"
-    ],
-    "maxClass": "C1"
-  },
-  {
-    "type": "planning.block_series.ended",
-    "schemaVersion": 1,
-    "aggregateEntity": "planning.block_series",
-    "fields": [
-      "removed"
-    ],
-    "maxClass": "C1"
-  },
-  {
-    "type": "planning.today.committed",
-    "schemaVersion": 1,
-    "aggregateEntity": "planning.today_commitment",
-    "fields": [
-      "day",
-      "source"
-    ],
-    "maxClass": "C1"
-  },
-  {
-    "type": "planning.today.changed",
-    "schemaVersion": 1,
-    "aggregateEntity": "planning.today_commitment",
-    "fields": [
-      "day",
-      "change"
-    ],
-    "maxClass": "C1"
-  },
-  {
-    "type": "planning.day.closed",
-    "schemaVersion": 1,
-    "aggregateEntity": "planning.daily_record",
-    "fields": [
-      "day",
-      "closed_by",
-      "committed",
-      "completed"
-    ],
-    "maxClass": "C1"
-  },
-  {
-    "type": "planning.capacity_profile.updated",
-    "schemaVersion": 1,
-    "aggregateEntity": "planning.capacity_profile",
-    "fields": [
-      "windows",
-      "weekly_capacity_minutes",
-      "observe_brand_holidays"
-    ],
-    "maxClass": "C1"
-  },
-  {
-    "type": "planning.time_off.created",
-    "schemaVersion": 1,
-    "aggregateEntity": "planning.time_off",
-    "fields": [
-      "kind",
-      "all_day",
-      "days"
-    ],
-    "maxClass": "C1"
-  },
-  {
-    "type": "planning.time_off.updated",
-    "schemaVersion": 1,
-    "aggregateEntity": "planning.time_off",
-    "fields": [
-      "kind",
-      "all_day",
-      "days"
-    ],
-    "maxClass": "C1"
-  },
-  {
-    "type": "planning.time_off.deleted",
-    "schemaVersion": 1,
-    "aggregateEntity": "planning.time_off",
-    "fields": [
-      "kind"
-    ],
-    "maxClass": "C1"
-  },
-  {
-    "type": "planning.holiday.created",
-    "schemaVersion": 1,
-    "aggregateEntity": "planning.holiday",
-    "fields": [
-      "day"
-    ],
-    "maxClass": "C1"
-  },
-  {
-    "type": "planning.holiday.deleted",
-    "schemaVersion": 1,
-    "aggregateEntity": "planning.holiday",
-    "fields": [
-      "day"
-    ],
-    "maxClass": "C1"
-  },
-  {
-    "type": "planning.capacity_reservation.set",
-    "schemaVersion": 1,
-    "aggregateEntity": "planning.capacity_reservation",
-    "fields": [
-      "minutes_per_week",
-      "effective_from",
-      "effective_to"
-    ],
-    "maxClass": "C1"
-  },
-  {
-    "type": "planning.capacity_reservation.removed",
-    "schemaVersion": 1,
-    "aggregateEntity": "planning.capacity_reservation",
-    "fields": [
-      "effective_from"
-    ],
-    "maxClass": "C1"
-  },
-  {
-    "type": "collab.comment.edited",
-    "schemaVersion": 1,
-    "aggregateEntity": "collab.comment",
-    "fields": [
-      "host_record_id",
-      "edit_count"
-    ],
-    "maxClass": "C1"
-  },
-  {
-    "type": "collab.comment.deleted",
-    "schemaVersion": 1,
-    "aggregateEntity": "collab.comment",
-    "fields": [
-      "host_record_id",
-      "deleted_by"
-    ],
-    "maxClass": "C1"
-  },
-  {
-    "type": "collab.comment.reaction_changed",
-    "schemaVersion": 1,
-    "aggregateEntity": "collab.comment",
-    "fields": [
-      "host_record_id",
-      "reaction",
-      "change"
-    ],
-    "maxClass": "C1"
-  },
-  {
-    "type": "relations.follow.added",
-    "schemaVersion": 1,
-    "aggregateEntity": "relations.follower",
-    "fields": [
-      "record_type",
-      "membership_id"
-    ],
-    "maxClass": "C1"
-  },
-  {
-    "type": "relations.follow.removed",
-    "schemaVersion": 1,
-    "aggregateEntity": "relations.follower",
-    "fields": [
-      "record_type",
-      "membership_id"
-    ],
-    "maxClass": "C1"
-  },
-  {
-    "type": "collab.review.withdrawn",
-    "schemaVersion": 1,
-    "aggregateEntity": "collab.review_request",
-    "fields": [
-      "subject_kind",
-      "subject_ref",
-      "reason"
-    ],
-    "maxClass": "C1"
-  },
-  {
-    "type": "collab.review.superseded",
-    "schemaVersion": 1,
-    "aggregateEntity": "collab.review_request",
-    "fields": [
-      "subject_kind",
-      "subject_ref",
-      "successor_ref"
-    ],
-    "maxClass": "C1"
-  },
-  {
-    "type": "work.task.delegated",
-    "schemaVersion": 1,
-    "aggregateEntity": "work.task",
-    "fields": [
-      "from_membership_id",
-      "to_membership_id"
-    ],
-    "maxClass": "C1"
-  },
-  {
-    "type": "notify.notification.created",
-    "schemaVersion": 1,
-    "aggregateEntity": "notify.notification",
-    "fields": [
-      "type",
-      "record_id"
-    ],
-    "maxClass": "C1"
-  },
-  {
-    "type": "notify.delivery.state_changed",
-    "schemaVersion": 1,
-    "aggregateEntity": "notify.notification_delivery",
-    "fields": [
-      "channel",
-      "kind",
-      "state",
-      "failure_class"
-    ],
-    "maxClass": "C1"
-  },
-  {
-    "type": "knowledge.document.created",
-    "schemaVersion": 1,
-    "aggregateEntity": "knowledge.document",
-    "fields": [
-      "doc_type",
-      "parent_document_id",
-      "attached_kind"
-    ],
-    "maxClass": "C1"
-  },
-  {
-    "type": "knowledge.document.version_saved",
-    "schemaVersion": 1,
-    "aggregateEntity": "knowledge.document",
-    "fields": [
-      "version_number",
-      "kind",
-      "size_bytes"
-    ],
-    "maxClass": "C1"
-  },
-  {
-    "type": "knowledge.document.updated",
-    "schemaVersion": 1,
-    "aggregateEntity": "knowledge.document",
-    "fields": [
-      "change"
-    ],
-    "maxClass": "C1"
-  },
-  {
-    "type": "knowledge.document.mention_added",
-    "schemaVersion": 1,
-    "aggregateEntity": "knowledge.document",
-    "fields": [
-      "reference_id",
-      "block_id"
-    ],
-    "maxClass": "C1"
-  },
-  {
-    "type": "knowledge.document.suggestion_created",
-    "schemaVersion": 1,
-    "aggregateEntity": "knowledge.document_suggestion",
-    "fields": [
-      "document_id",
-      "block_id"
-    ],
-    "maxClass": "C1"
-  },
-  {
-    "type": "knowledge.document.suggestion_decided",
-    "schemaVersion": 1,
-    "aggregateEntity": "knowledge.document_suggestion",
-    "fields": [
-      "document_id",
-      "state",
-      "applied_version"
-    ],
-    "maxClass": "C1"
-  },
-  {
-    "type": "files.file.added",
-    "schemaVersion": 1,
-    "aggregateEntity": "files.file",
-    "fields": [
-      "version_number",
-      "source"
-    ],
-    "maxClass": "C1"
-  },
-  {
-    "type": "files.file.version_added",
-    "schemaVersion": 1,
-    "aggregateEntity": "files.file",
-    "fields": [
-      "version_number",
-      "source"
-    ],
-    "maxClass": "C1"
-  },
-  {
-    "type": "files.deliverable.state_changed",
-    "schemaVersion": 1,
-    "aggregateEntity": "files.deliverable",
-    "fields": [
-      "state",
-      "version_number"
-    ],
-    "maxClass": "C1"
-  },
-  {
-    "type": "goals.goal.created",
-    "schemaVersion": 1,
-    "aggregateEntity": "goals.goal",
-    "fields": [
-      "scope",
-      "period_kind",
-      "progress_basis"
-    ],
-    "maxClass": "C1"
-  },
-  {
-    "type": "goals.goal.updated",
-    "schemaVersion": 1,
-    "aggregateEntity": "goals.goal",
-    "fields": [
-      "change"
-    ],
-    "maxClass": "C1"
-  },
-  {
-    "type": "goals.goal.status_changed",
-    "schemaVersion": 1,
-    "aggregateEntity": "goals.goal",
-    "fields": [
-      "status"
-    ],
-    "maxClass": "C1"
-  },
-  {
-    "type": "goals.goal.checkin_recorded",
-    "schemaVersion": 1,
-    "aggregateEntity": "goals.goal_checkin",
-    "fields": [
-      "source",
-      "confidence",
-      "has_value"
-    ],
-    "maxClass": "C1"
-  },
-  {
-    "type": "goals.goal.link_changed",
-    "schemaVersion": 1,
-    "aggregateEntity": "goals.goal_link",
-    "fields": [
-      "change",
-      "target_kind"
-    ],
-    "maxClass": "C1"
-  },
-  {
-    "type": "goals.goal.update_stale",
-    "schemaVersion": 1,
-    "aggregateEntity": "goals.goal",
-    "fields": [
-      "days_stale"
-    ],
-    "maxClass": "C1"
-  },
-  {
-    "type": "goals.key_result.created",
-    "schemaVersion": 1,
-    "aggregateEntity": "goals.key_result",
-    "fields": [
-      "progress_basis"
-    ],
-    "maxClass": "C1"
-  },
-  {
-    "type": "goals.key_result.updated",
-    "schemaVersion": 1,
-    "aggregateEntity": "goals.key_result",
-    "fields": [
-      "change"
-    ],
-    "maxClass": "C1"
-  },
-  {
-    "type": "goals.portfolio.created",
-    "schemaVersion": 1,
-    "aggregateEntity": "goals.portfolio",
-    "fields": [
-      "scope"
-    ],
-    "maxClass": "C1"
-  },
-  {
-    "type": "goals.portfolio.updated",
-    "schemaVersion": 1,
-    "aggregateEntity": "goals.portfolio",
-    "fields": [
-      "change"
-    ],
-    "maxClass": "C1"
-  },
-  {
-    "type": "goals.portfolio.members_changed",
-    "schemaVersion": 1,
-    "aggregateEntity": "goals.portfolio",
-    "fields": [
-      "count"
-    ],
-    "maxClass": "C1"
-  },
-  {
-    "type": "insights.dashboard.created",
-    "schemaVersion": 1,
-    "aggregateEntity": "insights.dashboard",
-    "fields": [
-      "kind",
-      "scope"
-    ],
-    "maxClass": "C1"
-  },
-  {
-    "type": "insights.dashboard.updated",
-    "schemaVersion": 1,
-    "aggregateEntity": "insights.dashboard",
-    "fields": [
-      "change"
-    ],
-    "maxClass": "C1"
-  },
-  {
-    "type": "insights.report.created",
-    "schemaVersion": 1,
-    "aggregateEntity": "insights.report_definition",
-    "fields": [
-      "scope"
-    ],
-    "maxClass": "C1"
-  },
-  {
-    "type": "insights.report.updated",
-    "schemaVersion": 1,
-    "aggregateEntity": "insights.report_definition",
-    "fields": [
-      "change"
-    ],
-    "maxClass": "C1"
-  },
-  {
-    "type": "insights.report.shared",
-    "schemaVersion": 1,
-    "aggregateEntity": "insights.report_definition",
-    "fields": [
-      "scope"
-    ],
-    "maxClass": "C1"
-  },
-  {
-    "type": "insights.report.share_revoked",
-    "schemaVersion": 1,
-    "aggregateEntity": "insights.report_definition",
-    "fields": [
-      "scope"
-    ],
-    "maxClass": "C1"
-  },
-  {
-    "type": "insights.report.schedule_changed",
-    "schemaVersion": 1,
-    "aggregateEntity": "insights.report_definition",
-    "fields": [
-      "frequency",
-      "recipients"
-    ],
-    "maxClass": "C1"
-  },
-  {
-    "type": "insights.report.suspended",
-    "schemaVersion": 1,
-    "aggregateEntity": "insights.report_definition",
-    "fields": [
-      "reason"
-    ],
-    "maxClass": "C1"
-  },
-  {
-    "type": "insights.report.resumed",
-    "schemaVersion": 1,
-    "aggregateEntity": "insights.report_definition",
-    "fields": [
-      "reason"
-    ],
-    "maxClass": "C1"
-  },
-  {
-    "type": "integrations.api_token.created",
-    "schemaVersion": 1,
-    "aggregateEntity": "integrations.api_token",
-    "fields": [
-      "kind",
-      "scope_count"
-    ],
-    "maxClass": "C1"
-  },
-  {
-    "type": "integrations.api_token.rotated",
-    "schemaVersion": 1,
-    "aggregateEntity": "integrations.api_token",
-    "fields": [
-      "kind"
-    ],
-    "maxClass": "C1"
-  },
-  {
-    "type": "integrations.api_token.revoked",
-    "schemaVersion": 1,
-    "aggregateEntity": "integrations.api_token",
-    "fields": [
-      "kind"
     ],
     "maxClass": "C1"
   }
@@ -3608,254 +3697,263 @@ export const INTERNAL_EVENTS = [
 export type InternalEventType = (typeof INTERNAL_EVENTS)[number]['type'];
 
 export const PARAMETER_NAMES = [
-  "IDEMPOTENCY_RETENTION",
-  "OUTBOX_REPLAY_WINDOW",
-  "JOB_LEASE_DURATION",
-  "JOB_HEARTBEAT_INTERVAL",
-  "JOB_BACKOFF_BASE",
-  "JOB_BACKOFF_CAP",
-  "JOB_MAX_ATTEMPTS",
-  "JOB_TIMEOUT",
-  "WORKSPACE_CONCURRENCY_CAP",
-  "WEBHOOK_TIMESTAMP_TOLERANCE",
-  "WEBHOOK_DISABLE_THRESHOLD",
-  "WEBHOOK_RESPONSE_TIMEOUT",
-  "SSE_HEARTBEAT_INTERVAL",
-  "SSE_BUFFER_LIMIT",
-  "SSE_MAX_STREAMS_PER_PRINCIPAL",
-  "SIGNED_URL_LIFETIME",
-  "UPLOAD_SESSION_LIFETIME",
-  "STEP_UP_WINDOW",
-  "STEP_UP_CHALLENGE_LIFETIME",
-  "STEP_UP_MAX_ATTEMPTS",
-  "PAGE_LIMIT_DEFAULT",
-  "PAGE_LIMIT_MAX",
-  "TOTAL_COUNT_CAP",
-  "BULK_SYNC_LIMIT",
-  "ATOMIC_BULK_LIMIT",
-  "RATE_LIMIT_POLICIES",
-  "DEPRECATION_NOTICE_PERIOD",
-  "EXPORT_LINK_LIFETIME",
-  "IMPORT_ROLLBACK_PERIOD",
-  "USAGE_WARNING_THRESHOLDS",
-  "UNDO_RETENTION",
-  "PRINCIPAL_CONTEXT_ARRAY_MAX",
-  "INVITATION_LIFETIME",
-  "OWNERSHIP_TRANSFER_LIFETIME",
-  "FAVORITES_MAX",
-  "RECENT_ITEMS_MAX",
-  "RECENT_VISIT_COALESCE",
-  "VIEW_STATE_MAX_BYTES",
-  "VIEW_STATE_TTL",
-  "PROJECT_DEPTH_MAX",
-  "TEMPLATE_ITEMS_MAX",
-  "RECURRENCE_CATCHUP_MAX",
-  "RECURRENCE_WORKSPACE_DISCOVERY_MAX",
-  "RECURRENCE_SERIES_DISCOVERY_MAX",
-  "TASK_DEPTH_MAX",
-  "TASK_SUBTREE_MAX",
-  "TASK_ITEMS_MAX",
-  "TASK_ASSIGNEES_MAX",
-  "TASK_LABELS_MAX",
-  "BRAND_LABELS_MAX",
-  "TASK_ESTIMATE_MINUTES_MAX",
-  "WORKFLOW_STATUSES_MAX",
-  "WORKFLOW_TRANSITIONS_MAX",
-  "TRANSITION_REQUIREMENTS_MAX",
-  "TRANSITION_APPROVERS_MAX",
+  "ACTIVITY_RECORDS_MAX",
+  "API_EXPORT_RATE_PER_MINUTE",
+  "API_READ_RATE_PER_MINUTE",
+  "API_TOKENS_PERSONAL_MAX",
+  "API_TOKENS_SERVICE_MAX",
+  "API_WRITE_RATE_PER_MINUTE",
   "APPROVAL_EXPIRY_HOURS",
-  "TRANSITION_PREVIEW_TTL_SECONDS",
-  "FIELD_DEFINITIONS_MAX",
-  "FIELD_OPTIONS_MAX",
-  "FIELD_SETS_MAX",
-  "FIELD_SET_ITEMS_MAX",
-  "FIELD_TEXT_MAX",
-  "FIELD_PATTERN_MAX",
-  "FORMULA_SOURCE_MAX",
-  "FORMULA_AST_NODES_MAX",
-  "FORMULA_DEPTH_MAX",
-  "FORMULA_REFS_MAX",
-  "FIELD_VALUE_BULK_MAX",
-  "TASK_STALE_ACTIVE_DAYS",
-  "TASK_STALE_PLANNED_DAYS",
-  "TASK_RESCHEDULE_COUNT",
-  "TASK_RESCHEDULE_WINDOW_DAYS",
-  "TASK_REMINDERS_MAX",
-  "REMINDER_FIRE_BATCH_MAX",
-  "TASK_SNOOZE_MAX_DAYS",
+  "ATOMIC_BULK_LIMIT",
+  "AVAILABILITY_WINDOWS_MAX",
+  "BLOCK_SERIES_HORIZON_DAYS",
+  "BLOCK_SERIES_MAX",
+  "BRAND_HOLIDAYS_MAX",
+  "BRAND_LABELS_MAX",
   "BULK_ITEMS_MAX",
   "BULK_PREVIEW_TTL_SECONDS",
-  "UNDO_WINDOW_SECONDS",
-  "DUPLICATE_WINDOW_DAYS",
-  "DUPLICATE_CANDIDATES_MAX",
-  "CAPTURE_TEXT_MAX",
-  "CAPTURE_PASTE_LINES_MAX",
-  "CAPTURE_LINKS_MAX",
-  "CAPTURE_FILES_MAX",
-  "CAPTURE_PARSE_TOKENS_MAX",
-  "CAPTURE_RATE_PER_MINUTE",
-  "TRIAGE_BATCH_MAX",
-  "INBOX_MERGE_MAX",
-  "INTAKE_FORMS_MAX",
-  "INTAKE_SUBMISSIONS_PER_HOUR",
-  "QUERY_CONDITIONS_MAX",
-  "QUERY_DEPTH_MAX",
-  "QUERY_SORTS_MAX",
-  "QUERY_VALUES_MAX",
-  "QUERY_GROUPS_MAX",
-  "VIEW_COLUMNS_MAX",
-  "SAVED_VIEWS_MAX",
-  "VIEW_PINS_MAX",
-  "EXPORT_ROWS_MAX",
-  "TIME_ENTRY_MAX_HOURS",
-  "TIME_TIMER_MAX_HOURS",
-  "TIME_REPORT_RANGE_DAYS_MAX",
-  "TIME_REPORT_ROWS_MAX",
-  "TIME_EXPORT_ROWS_MAX",
-  "TIME_TIMESHEET_ENTRIES_MAX",
-  "TIME_RUNAWAY_DISCOVERY_MAX",
-  "TIME_RUNAWAY_BATCH_MAX",
-  "LAYOUT_ITEMS_MAX",
-  "WORKLOAD_DAYS_MAX",
-  "ACTIVITY_RECORDS_MAX",
-  "TODAY_ITEMS_MAX",
-  "TODAY_LIST_MAX",
-  "UPCOMING_DEADLINE_DAYS",
-  "WORK_BLOCKS_PER_DAY_MAX",
-  "WORK_BLOCKS_RANGE_DAYS_MAX",
-  "BLOCK_SERIES_MAX",
-  "BLOCK_SERIES_HORIZON_DAYS",
-  "DAY_CLOSE_DISCOVERY_MAX",
-  "DAY_CLOSE_BATCH_MAX",
-  "AVAILABILITY_WINDOWS_MAX",
-  "TIME_OFF_ENTRIES_MAX",
-  "BRAND_HOLIDAYS_MAX",
-  "CAPACITY_RANGE_DAYS_MAX",
+  "BULK_SYNC_LIMIT",
   "CAPACITY_PEOPLE_MAX",
+  "CAPACITY_RANGE_DAYS_MAX",
+  "CAPTURE_FILES_MAX",
+  "CAPTURE_LINKS_MAX",
+  "CAPTURE_PARSE_TOKENS_MAX",
+  "CAPTURE_PASTE_LINES_MAX",
+  "CAPTURE_RATE_PER_MINUTE",
+  "CAPTURE_TEXT_MAX",
+  "COMMENTS_PER_RECORD_MAX",
   "COMMENT_BODY_MAX_CHARS",
   "COMMENT_EDIT_WINDOW_MINUTES",
   "COMMENT_MENTIONS_MAX",
-  "COMMENTS_PER_RECORD_MAX",
   "COMMENT_RATE_PER_MINUTE",
   "COMMENT_REPLIES_INLINE_MAX",
-  "FOLLOWERS_LIST_MAX",
-  "REVIEW_REVIEWERS_MAX",
-  "NOTIFY_FANOUT_RECIPIENTS_MAX",
-  "NOTIFY_DEDUPE_WINDOW_MINUTES",
-  "NOTIFY_DELIVERY_BATCH_MAX",
-  "NOTIFY_DELIVERY_MAX_ATTEMPTS",
-  "NOTIFY_RETRY_BASE_SECONDS",
-  "NOTIFY_RETRY_MAX_SECONDS",
-  "NOTIFY_DIGEST_ITEMS_MAX",
-  "NOTIFY_EMAIL_PER_HOUR_MAX",
-  "NOTIFY_RETENTION_DAYS",
-  "NOTIFY_PREFERENCES_MAX",
-  "NOTIFY_BROWSER_ACK_TTL_MINUTES",
-  "NOTIFY_SEARCH_QUERY_MAX",
-  "NOTIFY_DISCOVERY_MAX",
-  "NOTIFY_BULK_STATE_MAX",
-  "NOTIFY_DEADLINES_BATCH_MAX",
-  "NOTIFY_FACTS_MAX_BYTES",
-  "DOCUMENT_BODY_MAX_BYTES",
+  "CONNECTIONS_PER_SCOPE_MAX",
+  "CONNECTION_SCOPES_MAX",
+  "DASHBOARDS_PER_SCOPE_MAX",
+  "DASHBOARD_PERSONAL_MAX",
+  "DASHBOARD_WIDGETS_MAX",
+  "DAY_CLOSE_BATCH_MAX",
+  "DAY_CLOSE_DISCOVERY_MAX",
+  "DELIVERABLES_PER_TASK_MAX",
+  "DEPRECATION_NOTICE_PERIOD",
   "DOCUMENT_BLOCKS_MAX",
   "DOCUMENT_BLOCK_TEXT_MAX_CHARS",
-  "DOCUMENT_TABLE_CELLS_MAX",
-  "DOCUMENT_DEPTH_MAX",
+  "DOCUMENT_BODY_MAX_BYTES",
   "DOCUMENT_CHILDREN_MAX",
-  "DOCUMENT_TREE_MAX",
-  "DOCUMENT_VERSIONS_MAX",
-  "DOCUMENT_REFERENCES_MAX",
-  "DOCUMENT_SUGGESTIONS_OPEN_MAX",
-  "DOCUMENT_EXPORT_PAGES_MAX",
+  "DOCUMENT_DEPTH_MAX",
+  "DOCUMENT_EMBED_URL_MAX_CHARS",
   "DOCUMENT_EXPORT_MAX_BYTES",
+  "DOCUMENT_EXPORT_PAGES_MAX",
+  "DOCUMENT_REFERENCES_MAX",
   "DOCUMENT_REVIEW_HORIZON_DAYS",
   "DOCUMENT_SAVE_RATE_PER_MINUTE",
-  "LIVE_EDITING_ENABLED",
-  "LIVE_SESSION_TTL_SECONDS",
-  "LIVE_SESSIONS_MAX",
-  "LIVE_SESSIONS_PER_MEMBER_MAX",
-  "LIVE_OPS_BATCH_MAX",
-  "LIVE_POLL_WAIT_SECONDS",
-  "LIVE_OP_LOG_MAX",
-  "LIVE_RATE_PER_MINUTE",
-  "SEARCH_QUERY_MAX_CHARS",
-  "SEARCH_TERMS_MAX",
-  "SEARCH_PAGE_SIZE_MAX",
-  "SEARCH_RESULTS_MAX",
-  "SEARCH_COUNT_MAX",
-  "SEARCH_SNIPPET_CHARS",
-  "SEARCH_BODY_MAX_CHARS",
-  "SEARCH_INDEX_BATCH_MAX",
-  "SEARCH_INDEX_DISCOVERY_MAX",
-  "SEARCH_INDEX_MAX_ATTEMPTS",
-  "SEARCH_INDEX_BACKOFF_SECONDS",
-  "SEARCH_FAILED_RETRY_MINUTES",
-  "SEARCH_RECENT_MAX",
-  "SEARCH_RECENT_RETENTION_DAYS",
-  "SEARCH_RATE_PER_MINUTE",
-  "DOCUMENT_EMBED_URL_MAX_CHARS",
-  "FILE_UPLOAD_MAX_BYTES",
-  "WORKSPACE_STORAGE_QUOTA_BYTES",
-  "FILE_COMPARE_MAX_BYTES",
-  "FILE_SCAN_MAX_ATTEMPTS",
-  "FILE_VERSIONS_MAX",
+  "DOCUMENT_SUGGESTIONS_OPEN_MAX",
+  "DOCUMENT_TABLE_CELLS_MAX",
+  "DOCUMENT_TREE_MAX",
+  "DOCUMENT_VERSIONS_MAX",
+  "DUPLICATE_CANDIDATES_MAX",
+  "DUPLICATE_WINDOW_DAYS",
+  "EXPORT_LINK_LIFETIME",
+  "EXPORT_ROWS_MAX",
+  "FAVORITES_MAX",
+  "FIELD_DEFINITIONS_MAX",
+  "FIELD_OPTIONS_MAX",
+  "FIELD_PATTERN_MAX",
+  "FIELD_SETS_MAX",
+  "FIELD_SET_ITEMS_MAX",
+  "FIELD_TEXT_MAX",
+  "FIELD_VALUE_BULK_MAX",
   "FILES_LIST_MAX",
-  "DELIVERABLES_PER_TASK_MAX",
+  "FILE_COMPARE_MAX_BYTES",
   "FILE_DISCOVERY_MAX",
   "FILE_EXPIRY_BATCH_MAX",
+  "FILE_SCAN_MAX_ATTEMPTS",
+  "FILE_UPLOAD_MAX_BYTES",
+  "FILE_VERSIONS_MAX",
+  "FOLLOWERS_LIST_MAX",
+  "FORMULA_AST_NODES_MAX",
+  "FORMULA_DEPTH_MAX",
+  "FORMULA_REFS_MAX",
+  "FORMULA_SOURCE_MAX",
+  "GOALS_EXPORT_ROWS_MAX",
   "GOALS_PER_SCOPE_MAX",
+  "GOALS_RECALC_BATCH_MAX",
+  "GOALS_RECALC_INTERVAL_MINUTES",
+  "GOALS_RECALC_LEASE_SECONDS",
+  "GOALS_RECALC_MAX_ATTEMPTS",
+  "GOAL_CHECKIN_RATE_PER_MINUTE",
   "GOAL_KEY_RESULTS_MAX",
   "GOAL_LINKS_MAX",
   "GOAL_UPDATE_STALE_DAYS",
-  "GOAL_CHECKIN_RATE_PER_MINUTE",
-  "PORTFOLIOS_MAX",
-  "PORTFOLIO_PROJECTS_MAX",
-  "PORTFOLIO_READ_PROJECTS_MAX",
-  "GOALS_EXPORT_ROWS_MAX",
-  "GOALS_RECALC_BATCH_MAX",
-  "GOALS_RECALC_LEASE_SECONDS",
-  "GOALS_RECALC_INTERVAL_MINUTES",
-  "GOALS_RECALC_MAX_ATTEMPTS",
-  "METRICS_WINDOW_DAYS_MAX",
+  "IDEMPOTENCY_RETENTION",
+  "IMPORT_ROLLBACK_PERIOD",
+  "INBOX_MERGE_MAX",
+  "INTAKE_FORMS_MAX",
+  "INTAKE_SUBMISSIONS_PER_HOUR",
+  "INTEGRATION_LOOPBACK_ENABLED",
+  "INVITATION_LIFETIME",
+  "JOB_BACKOFF_BASE",
+  "JOB_BACKOFF_CAP",
+  "JOB_HEARTBEAT_INTERVAL",
+  "JOB_LEASE_DURATION",
+  "JOB_MAX_ATTEMPTS",
+  "JOB_TIMEOUT",
+  "LAYOUT_ITEMS_MAX",
+  "LIVE_EDITING_ENABLED",
+  "LIVE_OPS_BATCH_MAX",
+  "LIVE_OP_LOG_MAX",
+  "LIVE_POLL_WAIT_SECONDS",
+  "LIVE_RATE_PER_MINUTE",
+  "LIVE_SESSIONS_MAX",
+  "LIVE_SESSIONS_PER_MEMBER_MAX",
+  "LIVE_SESSION_TTL_SECONDS",
   "METRICS_DEFAULT_WINDOW_DAYS",
   "METRICS_DRILL_PAGE_MAX",
   "METRICS_DRILL_RESULTS_MAX",
-  "METRICS_SCOPE_TASKS_MAX",
-  "METRICS_SAMPLE_MIN",
   "METRICS_RATE_PER_MINUTE",
+  "METRICS_RECONCILE_BACKOFF_SECONDS",
   "METRICS_RECONCILE_BATCH_MAX",
   "METRICS_RECONCILE_DISCOVERY_MAX",
   "METRICS_RECONCILE_INTERVAL_MINUTES",
   "METRICS_RECONCILE_LEASE_SECONDS",
   "METRICS_RECONCILE_MAX_ATTEMPTS",
-  "METRICS_RECONCILE_BACKOFF_SECONDS",
-  "DASHBOARDS_PER_SCOPE_MAX",
-  "DASHBOARD_PERSONAL_MAX",
-  "DASHBOARD_WIDGETS_MAX",
+  "METRICS_SAMPLE_MIN",
+  "METRICS_SCOPE_TASKS_MAX",
+  "METRICS_WINDOW_DAYS_MAX",
+  "NOTIFY_BROWSER_ACK_TTL_MINUTES",
+  "NOTIFY_BULK_STATE_MAX",
+  "NOTIFY_DEADLINES_BATCH_MAX",
+  "NOTIFY_DEDUPE_WINDOW_MINUTES",
+  "NOTIFY_DELIVERY_BATCH_MAX",
+  "NOTIFY_DELIVERY_MAX_ATTEMPTS",
+  "NOTIFY_DIGEST_ITEMS_MAX",
+  "NOTIFY_DISCOVERY_MAX",
+  "NOTIFY_EMAIL_PER_HOUR_MAX",
+  "NOTIFY_FACTS_MAX_BYTES",
+  "NOTIFY_FANOUT_RECIPIENTS_MAX",
+  "NOTIFY_PREFERENCES_MAX",
+  "NOTIFY_RETENTION_DAYS",
+  "NOTIFY_RETRY_BASE_SECONDS",
+  "NOTIFY_RETRY_MAX_SECONDS",
+  "NOTIFY_SEARCH_QUERY_MAX",
+  "OUTBOX_REPLAY_WINDOW",
+  "OWNERSHIP_TRANSFER_LIFETIME",
+  "PAGE_LIMIT_DEFAULT",
+  "PAGE_LIMIT_MAX",
+  "PORTFOLIOS_MAX",
+  "PORTFOLIO_PROJECTS_MAX",
+  "PORTFOLIO_READ_PROJECTS_MAX",
+  "PRINCIPAL_CONTEXT_ARRAY_MAX",
+  "PROJECT_DEPTH_MAX",
+  "QUERY_CONDITIONS_MAX",
+  "QUERY_DEPTH_MAX",
+  "QUERY_GROUPS_MAX",
+  "QUERY_SORTS_MAX",
+  "QUERY_VALUES_MAX",
+  "RATE_LIMIT_POLICIES",
+  "RECENT_ITEMS_MAX",
+  "RECENT_VISIT_COALESCE",
+  "RECURRENCE_CATCHUP_MAX",
+  "RECURRENCE_SERIES_DISCOVERY_MAX",
+  "RECURRENCE_WORKSPACE_DISCOVERY_MAX",
+  "REMINDER_FIRE_BATCH_MAX",
   "REPORTS_PER_SCOPE_MAX",
-  "REPORT_RECIPIENTS_MAX",
-  "REPORT_SHARES_MAX",
-  "REPORT_EXPORT_ROWS_MAX",
+  "REPORT_BATCH_MAX",
   "REPORT_EMAIL_ROWS_MAX",
   "REPORT_EXPORT_RATE_PER_MINUTE",
-  "REPORT_RUN_RETENTION_DAYS",
-  "REPORT_BATCH_MAX",
+  "REPORT_EXPORT_ROWS_MAX",
+  "REPORT_FRESHNESS_MINUTES",
   "REPORT_LEASE_SECONDS",
   "REPORT_MAX_ATTEMPTS",
-  "REPORT_FRESHNESS_MINUTES",
-  "API_TOKENS_PERSONAL_MAX",
-  "API_TOKENS_SERVICE_MAX",
-  "API_READ_RATE_PER_MINUTE",
-  "API_WRITE_RATE_PER_MINUTE",
-  "API_EXPORT_RATE_PER_MINUTE",
-  "WEBHOOK_SUBSCRIPTIONS_MAX",
+  "REPORT_RECIPIENTS_MAX",
+  "REPORT_RUN_RETENTION_DAYS",
+  "REPORT_SHARES_MAX",
+  "REVIEW_REVIEWERS_MAX",
+  "SAVED_VIEWS_MAX",
+  "SEARCH_BODY_MAX_CHARS",
+  "SEARCH_COUNT_MAX",
+  "SEARCH_FAILED_RETRY_MINUTES",
+  "SEARCH_INDEX_BACKOFF_SECONDS",
+  "SEARCH_INDEX_BATCH_MAX",
+  "SEARCH_INDEX_DISCOVERY_MAX",
+  "SEARCH_INDEX_MAX_ATTEMPTS",
+  "SEARCH_PAGE_SIZE_MAX",
+  "SEARCH_QUERY_MAX_CHARS",
+  "SEARCH_RATE_PER_MINUTE",
+  "SEARCH_RECENT_MAX",
+  "SEARCH_RECENT_RETENTION_DAYS",
+  "SEARCH_RESULTS_MAX",
+  "SEARCH_SNIPPET_CHARS",
+  "SEARCH_TERMS_MAX",
+  "SIGNED_URL_LIFETIME",
+  "SSE_BUFFER_LIMIT",
+  "SSE_HEARTBEAT_INTERVAL",
+  "SSE_MAX_STREAMS_PER_PRINCIPAL",
+  "STEP_UP_CHALLENGE_LIFETIME",
+  "STEP_UP_MAX_ATTEMPTS",
+  "STEP_UP_WINDOW",
+  "SYNC_BACKOFF_SECONDS",
+  "SYNC_BATCH_MAX",
+  "SYNC_HISTORY_RETENTION_DAYS",
+  "SYNC_LEASE_SECONDS",
+  "SYNC_MAX_ATTEMPTS",
+  "SYNC_RATE_PER_MINUTE",
+  "TASK_ASSIGNEES_MAX",
+  "TASK_DEPTH_MAX",
+  "TASK_ESTIMATE_MINUTES_MAX",
+  "TASK_ITEMS_MAX",
+  "TASK_LABELS_MAX",
+  "TASK_REMINDERS_MAX",
+  "TASK_RESCHEDULE_COUNT",
+  "TASK_RESCHEDULE_WINDOW_DAYS",
+  "TASK_SNOOZE_MAX_DAYS",
+  "TASK_STALE_ACTIVE_DAYS",
+  "TASK_STALE_PLANNED_DAYS",
+  "TASK_SUBTREE_MAX",
+  "TEMPLATE_ITEMS_MAX",
+  "TIME_ENTRY_MAX_HOURS",
+  "TIME_EXPORT_ROWS_MAX",
+  "TIME_OFF_ENTRIES_MAX",
+  "TIME_REPORT_RANGE_DAYS_MAX",
+  "TIME_REPORT_ROWS_MAX",
+  "TIME_RUNAWAY_BATCH_MAX",
+  "TIME_RUNAWAY_DISCOVERY_MAX",
+  "TIME_TIMER_MAX_HOURS",
+  "TIME_TIMESHEET_ENTRIES_MAX",
+  "TODAY_ITEMS_MAX",
+  "TODAY_LIST_MAX",
+  "TOTAL_COUNT_CAP",
+  "TRANSITION_APPROVERS_MAX",
+  "TRANSITION_PREVIEW_TTL_SECONDS",
+  "TRANSITION_REQUIREMENTS_MAX",
+  "TRIAGE_BATCH_MAX",
+  "UNDO_RETENTION",
+  "UNDO_WINDOW_SECONDS",
+  "UPCOMING_DEADLINE_DAYS",
+  "UPLOAD_SESSION_LIFETIME",
+  "USAGE_WARNING_THRESHOLDS",
+  "VIEW_COLUMNS_MAX",
+  "VIEW_PINS_MAX",
+  "VIEW_STATE_MAX_BYTES",
+  "VIEW_STATE_TTL",
+  "WEBHOOK_BODY_MAX_BYTES",
+  "WEBHOOK_CONCURRENCY_PER_DESTINATION",
+  "WEBHOOK_DELIVERY_RETENTION_DAYS",
+  "WEBHOOK_DISABLE_THRESHOLD",
+  "WEBHOOK_EVENT_TYPES_MAX",
   "WEBHOOK_INBOUND_MAX",
   "WEBHOOK_MAX_ATTEMPTS",
-  "WEBHOOK_CONCURRENCY_PER_DESTINATION",
-  "WEBHOOK_BODY_MAX_BYTES",
-  "WEBHOOK_DELIVERY_RETENTION_DAYS",
-  "WEBHOOK_EVENT_TYPES_MAX",
-  "WEBHOOK_SWEEP_BATCH_MAX"
+  "WEBHOOK_RESPONSE_TIMEOUT",
+  "WEBHOOK_SUBSCRIPTIONS_MAX",
+  "WEBHOOK_SWEEP_BATCH_MAX",
+  "WEBHOOK_TIMESTAMP_TOLERANCE",
+  "WORKFLOW_STATUSES_MAX",
+  "WORKFLOW_TRANSITIONS_MAX",
+  "WORKLOAD_DAYS_MAX",
+  "WORKSPACE_CONCURRENCY_CAP",
+  "WORKSPACE_STORAGE_QUOTA_BYTES",
+  "WORK_BLOCKS_PER_DAY_MAX",
+  "WORK_BLOCKS_RANGE_DAYS_MAX"
 ] as const;
 export type ParameterName = (typeof PARAMETER_NAMES)[number];
 

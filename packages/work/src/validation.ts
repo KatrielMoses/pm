@@ -416,6 +416,10 @@ export interface WorkSettings {
   syncHistoryRetentionDays: number;
   /** `SYNC_RATE_PER_MINUTE` */
   syncRatePerMinute: number;
+  /** `INTEGRATION_LOOPBACK_ENABLED` (local/test loopback provider). */
+  integrationLoopbackEnabled: boolean;
+  /** `GOOGLE_CALENDAR_LOOPBACK_ENABLED` (in-process Google Calendar double). */
+  googleCalendarLoopbackEnabled: boolean;
   /** `API_TOKENS_PERSONAL_MAX` */
   apiTokensPersonalMax: number;
   /** `API_TOKENS_SERVICE_MAX` */
@@ -675,6 +679,7 @@ export const DEFAULT_WORK_SETTINGS: WorkSettings = Object.freeze({
   syncHistoryRetentionDays: 90,
   syncRatePerMinute: 30,
   integrationLoopbackEnabled: true,
+  googleCalendarLoopbackEnabled: false,
   apiTokensPersonalMax: 25,
   apiTokensServiceMax: 50,
   apiReadRatePerMinute: 600,

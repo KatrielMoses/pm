@@ -28,7 +28,10 @@ import {
   taskAssigneeHook,
   taskTargets,
   savedViewTargets,
-  PublicApiService,
+  CalendarService,
+  connectionOwnerHook,
+  webhookOwnerHook,
+  type PublicApiService,
   type WebhookTransport,
   type SearchSourceRegistry,
   documentOwnerHook,
@@ -59,7 +62,7 @@ export {
 
 export interface WorkEnv {
   h: Harness;
-  svc: PublicApiService;
+  svc: CalendarService;
   /** The test storage and scanner the service uses (null when a test disables them). */
   files: FileDeps;
   stepUp: StubStepUp;
@@ -131,7 +134,7 @@ export function workEnv(
     scanner:
       options.files?.scanner !== undefined ? options.files.scanner : new SignatureTestScanner(),
   };
-  const svc = new PublicApiService({
+  const svc = new CalendarService({
     vault: createVault(h.config.identity),
     deliver: options.deliver,
     files,
@@ -150,6 +153,8 @@ export function workEnv(
       .register(documentOwnerHook)
       .register(goalOwnerHook)
       .register(insightsOwnerHook)
+      .register(connectionOwnerHook)
+      .register(webhookOwnerHook)
       .register(reviewDepartureHook(writer))
       .register(departureTimerHook(writer)),
     limiter: new PostgresRateLimiter(h.platform, randomBytes(32), {
@@ -165,6 +170,9 @@ export function workEnv(
       'goal.checkin': { limit: options.goalRate ?? 100_000, windowMs: 60_000 },
       'metrics.member': { limit: options.metricsRate ?? 100_000, windowMs: 60_000 },
       'report.export': { limit: 100_000, windowMs: 60_000 },
+      'integration.member': { limit: 10_000, windowMs: 60_000 },
+      'api.read': { limit: 100_000, windowMs: 60_000 },
+      'api.write': { limit: 100_000, windowMs: 60_000 },
     }),
     signingKey: randomBytes(32),
     settings: {

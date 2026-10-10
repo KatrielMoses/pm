@@ -45,7 +45,6 @@ import {
   type ReportJobDeps,
   webhookDeliveryHandler,
   WebhookProjector,
-  WEBHOOK_SCHEDULES,
   integrationSyncHandler,
   INTEGRATION_SCHEDULES,
   type IntegrationJobDeps,

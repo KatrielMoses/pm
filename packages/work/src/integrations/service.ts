@@ -29,12 +29,16 @@ import {
   providerById,
   PROVIDERS,
   scopesAllowed,
+  syncScopeAllowsRead,
+  syncScopeAllowsWrite,
   sealCredential,
   syncBackoffMs,
   connectionTokenMatches,
+  DEFAULT_CALENDAR_EVENTS,
   type CredentialSecret,
   type ProviderId,
 } from './semantics.ts';
+import { deleteCalendarEventsForConnection, upsertCalendarEvents } from './calendar-sync.ts';
 import {
   parseComplete,
   parseConnect,
@@ -146,8 +150,8 @@ export class IntegrationService extends ReportService {
           label: def.label,
           phase: def.phase,
           scopes: [...def.scopes],
-          configured: this.#configured(def.id),
-          unavailable: this.#configured(def.id) ? null : def.unavailable,
+          configured: this.configured(def.id),
+          unavailable: this.configured(def.id) ? null : def.unavailable,
         })),
       };
     });
@@ -181,7 +185,7 @@ export class IntegrationService extends ReportService {
         this.#member(p);
         await this.#limit(p);
         const def = providerById(input.provider);
-        if (!def || !this.#configured(def.id))
+        if (!def || !this.configured(def.id))
           throw invalid(
             issue(
               '/provider',
@@ -193,9 +197,17 @@ export class IntegrationService extends ReportService {
           throw invalid(
             issue('/scopes', 'insufficient_scope', 'Ask only for scopes this provider offers.'),
           );
-        if ((input.mode || input.remoteVersion) && input.provider !== 'loopback')
+        if (
+          (input.mode || input.remoteVersion) &&
+          input.provider !== 'loopback' &&
+          input.provider !== 'google_calendar'
+        )
           throw invalid(
-            issue('/mode', 'invalid_option', 'Only the loopback provider accepts a mode.'),
+            issue(
+              '/mode',
+              'invalid_option',
+              'Only the loopback and Google Calendar test providers accept a mode.',
+            ),
           );
         const place = await this.#placement(tx, p, input.brand);
         this.#require(p, 'integrations.configure', place.facts);
@@ -221,6 +233,7 @@ export class IntegrationService extends ReportService {
                 ],
               }
             : {}),
+          ...(input.provider === 'google_calendar' ? { events: DEFAULT_CALENDAR_EVENTS } : {}),
         });
         const ref = await this.#vault.put('integration_credential', secret, { scope: tx });
         const health = this.#healthFor(
@@ -740,7 +753,7 @@ export class IntegrationService extends ReportService {
         this.#member(p);
         const row = await this.#locked(tx, p, id);
         this.#require(p, 'integrations.configure', row.facts);
-        if (!row.scopes.includes('write'))
+        if (!syncScopeAllowsWrite(row.scopes))
           throw invalid(issue('/scopes', 'insufficient_scope', 'This connection cannot write.'));
         const ident = await tx.db
           .selectFrom('integrations.external_identity')
@@ -859,7 +872,7 @@ export class IntegrationService extends ReportService {
 
   // ---------------------------------------------------------------------------------------------
 
-  #configured(id: ProviderId): boolean {
+  protected configured(id: ProviderId): boolean {
     return id === 'loopback' && this.ws.integrationLoopbackEnabled;
   }
 
@@ -1075,7 +1088,7 @@ export class IntegrationService extends ReportService {
       suspended_reason: row.suspendedReason,
       outbound_paused: row.outboundPaused,
       retention_choice: row.retention,
-      provider_configured: this.#configured(row.provider),
+      provider_configured: this.configured(row.provider),
     };
   }
 
@@ -1161,7 +1174,7 @@ export class IntegrationService extends ReportService {
     tx: WorkspaceTransaction,
     row: Loaded,
   ): Promise<{ health: string; error: string | null }> {
-    if (!this.#configured(row.provider))
+    if (!this.configured(row.provider))
       return { health: 'provider_unconfigured', error: 'provider_unconfigured' };
     const secret = await this.#readSecret(tx, row);
     if (!secret || secret.kind === 'oauth_pending')
@@ -1188,6 +1201,7 @@ export class IntegrationService extends ReportService {
       .deleteFrom('integrations.sync_checkpoint')
       .where('connection_id', '=', connectionId)
       .execute();
+    await deleteCalendarEventsForConnection(tx, connectionId);
   }
 
   async #runRow(
@@ -1360,7 +1374,7 @@ export class IntegrationService extends ReportService {
       );
       return 'dead';
     }
-    if (!this.#configured(row.provider)) {
+    if (!this.configured(row.provider)) {
       await this.#setHealth(tx, row, 'provider_unconfigured', 'provider_unconfigured');
       await this.#finishDelivery(tx, delivery, 'dead', 'unconfigured', 'provider_unconfigured');
       await this.#runRow(
@@ -1403,7 +1417,7 @@ export class IntegrationService extends ReportService {
       if (dead) await this.#failed(tx, row, 'provider_rejected');
       return dead ? 'dead' : 'retry';
     }
-    if (!row.scopes.includes('read')) {
+    if (!syncScopeAllowsRead(row.scopes)) {
       await this.#finishDelivery(tx, delivery, 'dead', 'permanent', 'insufficient_scope');
       await this.#runRow(
         tx,
@@ -1419,7 +1433,7 @@ export class IntegrationService extends ReportService {
       return 'dead';
     }
     const degraded = secret.mode === 'degraded';
-    const canWrite = row.scopes.includes('write') && !degraded;
+    const canWrite = syncScopeAllowsWrite(row.scopes) && !degraded;
     let reads = 0;
     let writes = 0;
     let conflicts = 0;
@@ -1428,6 +1442,16 @@ export class IntegrationService extends ReportService {
       const outcome = await this.#upsertIdentity(tx, row, item, canWrite);
       if (outcome === 'write') writes += 1;
       if (outcome === 'conflict') conflicts += 1;
+    }
+    if (row.provider === 'google_calendar' && secret.events?.length) {
+      const cal = await upsertCalendarEvents(tx, {
+        connectionId: row.id,
+        ownerMembershipId: row.ownerId,
+        events: secret.events,
+        canWrite,
+      });
+      reads += cal.reads;
+      writes += cal.writes;
     }
     await this.#advanceCheckpoint(
       tx,

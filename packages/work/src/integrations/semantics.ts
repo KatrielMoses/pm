@@ -29,7 +29,7 @@ export const PROVIDERS: readonly ProviderDef[] = [
     label: 'Google Calendar',
     phase: '6C',
     scopes: ['calendar.read', 'calendar.write'],
-    unavailable: 'Google Calendar is connected in a later phase.',
+    unavailable: 'Google Calendar is not configured in this environment.',
   },
   {
     id: 'github',
@@ -54,12 +54,25 @@ export type SecretMode = 'ok' | 'degraded' | 'error';
 export type SecretKind = 'api_key' | 'oauth' | 'oauth_pending';
 
 /** What the vault holds. Callers must not log, return, or index this value. */
+export interface CalendarEventSecret {
+  calendar_id: string;
+  external_event_id: string;
+  version: string;
+  title: string;
+  starts_at: string;
+  ends_at: string;
+  event_tz: string;
+  all_day?: boolean;
+  busy?: boolean;
+}
+
 export interface CredentialSecret {
   v: 1;
   kind: SecretKind;
   token: string;
   mode: SecretMode;
   remote: Array<{ type: string; id: string; version: string; title: string }>;
+  events?: CalendarEventSecret[];
 }
 
 const REMOTE_DEFAULT: CredentialSecret['remote'] = [
@@ -71,6 +84,7 @@ export function sealCredential(input: {
   token: string;
   mode?: SecretMode;
   remote?: CredentialSecret['remote'];
+  events?: CalendarEventSecret[];
 }): string {
   const body: CredentialSecret = {
     v: 1,
@@ -78,9 +92,23 @@ export function sealCredential(input: {
     token: input.token,
     mode: input.mode ?? 'ok',
     remote: input.remote ?? REMOTE_DEFAULT,
+    ...(input.events?.length ? { events: input.events } : {}),
   };
   return JSON.stringify(body);
 }
+
+const DEFAULT_CALENDAR_EVENTS: CalendarEventSecret[] = [
+  {
+    calendar_id: 'primary',
+    external_event_id: 'gcal-demo-1',
+    version: '1',
+    title: 'Focus time',
+    starts_at: '2030-01-15T14:00:00.000Z',
+    ends_at: '2030-01-15T15:00:00.000Z',
+    event_tz: 'UTC',
+    busy: true,
+  },
+];
 
 export function openCredential(raw: string | undefined): CredentialSecret | null {
   if (!raw) return null;
@@ -104,11 +132,42 @@ export function openCredential(raw: string | undefined): CredentialSecret | null
           return [{ type: row.type, id: row.id, version: row.version, title: row.title }];
         })
       : REMOTE_DEFAULT;
-    return { v: 1, kind: v.kind, token: v.token, mode, remote };
+    const events = Array.isArray(v.events)
+      ? v.events.flatMap((item) => {
+          if (!item || typeof item !== 'object') return [];
+          const row = item as Record<string, unknown>;
+          if (
+            typeof row.calendar_id !== 'string' ||
+            typeof row.external_event_id !== 'string' ||
+            typeof row.version !== 'string' ||
+            typeof row.title !== 'string' ||
+            typeof row.starts_at !== 'string' ||
+            typeof row.ends_at !== 'string' ||
+            typeof row.event_tz !== 'string'
+          )
+            return [];
+          return [
+            {
+              calendar_id: row.calendar_id,
+              external_event_id: row.external_event_id,
+              version: row.version,
+              title: row.title,
+              starts_at: row.starts_at,
+              ends_at: row.ends_at,
+              event_tz: row.event_tz,
+              all_day: row.all_day === true,
+              busy: row.busy !== false,
+            },
+          ];
+        })
+      : undefined;
+    return { v: 1, kind: v.kind, token: v.token, mode, remote, events };
   } catch {
     return null;
   }
 }
+
+export { DEFAULT_CALENDAR_EVENTS };
 
 export function connectionTokenDigest(token: string): string {
   return createHash('sha256').update(token).digest('hex');
@@ -124,6 +183,14 @@ export function connectionTokenMatches(stored: string, presented: string): boole
 export function syncBackoffMs(attempt: number, baseSeconds: number): number {
   const step = Math.min(Math.max(attempt, 1), 8);
   return baseSeconds * 1000 * 2 ** (step - 1);
+}
+
+export function syncScopeAllowsRead(scopes: readonly string[]): boolean {
+  return scopes.includes('read') || scopes.includes('calendar.read');
+}
+
+export function syncScopeAllowsWrite(scopes: readonly string[]): boolean {
+  return scopes.includes('write') || scopes.includes('calendar.write');
 }
 
 export function scopesAllowed(provider: ProviderDef, requested: readonly string[]): boolean {
