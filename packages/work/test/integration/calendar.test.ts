@@ -28,7 +28,7 @@ describe('Google Calendar (6C)', () => {
         auth_kind: 'api_key',
         display_name: 'My Google',
         scopes: ['calendar.read', 'calendar.write'],
-        api_key: 'gcal-test-key-12345678',
+        api_key: 'gcal-loopback-fixture-a', // gitleaks:allow (synthetic loopback credential)
       },
       mutation(),
     );
@@ -47,7 +47,7 @@ describe('Google Calendar (6C)', () => {
         auth_kind: 'api_key',
         display_name: 'Remove me',
         scopes: ['calendar.read', 'calendar.write'],
-        api_key: 'gcal-test-key-87654321',
+        api_key: 'gcal-loopback-fixture-b', // gitleaks:allow (synthetic loopback credential)
       },
       mutation(),
     );
