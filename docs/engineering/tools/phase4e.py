@@ -162,8 +162,8 @@ def check_invariants():
     factory = read(P("packages/work/src/factory.ts"))
     # The factory builds the top of the service chain: the FileService itself, the SearchService (5A)
     # that extends it, the PortfolioService (5B) whose chain (GoalCore) extends the SearchService, or the ReportService (5D) on top of it.
-    if not re.search(r"\}\): (FileService|SearchService|PortfolioService|MetricService|ReportService|PublicApiService) \{", factory) or not re.search(
-            r"return new (FileService|SearchService|PortfolioService|MetricService|ReportService|PublicApiService)\(", factory):
+    if not re.search(r"\}\): (FileService|SearchService|PortfolioService|MetricService|ReportService|PublicApiService|CalendarService) \{", factory) or not re.search(
+            r"return new (FileService|SearchService|PortfolioService|MetricService|ReportService|PublicApiService|CalendarService)\(", factory):
         errs.append("createWorkService must build and return the FileService (or the 5A/5B/5D service chain on top of it)")
     elif ("PortfolioService" in factory or "MetricService" in factory or "ReportService" in factory) and "export class GoalCore extends SearchService" not in read(
             P("packages/work/src/goals/goal-core.ts")):
