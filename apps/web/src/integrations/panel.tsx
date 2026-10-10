@@ -186,7 +186,7 @@ export function IntegrationsPanel({ ws }: { ws: string }) {
                 className="button"
                 disabled={busy}
                 onClick={() =>
-                  void post(`/v1/workspaces/${ws}/integrations/connections/${c.id}:test`, {})
+                  void post(`/v1/workspaces/${ws}/integrations/connections/${c.id}/test`, {})
                 }
               >
                 Test connection
@@ -195,7 +195,7 @@ export function IntegrationsPanel({ ws }: { ws: string }) {
             <form
               onSubmit={(e) => {
                 e.preventDefault();
-                void post(`/v1/workspaces/${ws}/integrations/connections/${c.id}:disconnect`, {
+                void post(`/v1/workspaces/${ws}/integrations/connections/${c.id}/disconnect`, {
                   retention,
                 });
               }}

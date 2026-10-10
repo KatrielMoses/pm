@@ -73,7 +73,7 @@ export function registerIntegrations(app: FastifyInstance, work: IntegrationServ
     ),
   );
   app.post(
-    `${ws}/integrations/connections:rotate`,
+    `${ws}/integrations/connections/rotate`,
     wrap(async (request, reply) => {
       const r = await work.rotateCredentials(caller(request), p(request).ws, mutation(request));
       return flat(request, reply, 'integration_rotation', r.data as Record<string, unknown>);
@@ -90,7 +90,7 @@ export function registerIntegrations(app: FastifyInstance, work: IntegrationServ
     ),
   );
   app.post(
-    `${ws}/integrations/connections/:conn/oauth:complete`,
+    `${ws}/integrations/connections/:conn/oauth/complete`,
     wrap(async (request, reply) =>
       done(
         request,
@@ -106,7 +106,7 @@ export function registerIntegrations(app: FastifyInstance, work: IntegrationServ
     ),
   );
   app.post(
-    `${ws}/integrations/connections/:conn:test`,
+    `${ws}/integrations/connections/:conn/test`,
     wrap(async (request, reply) =>
       done(
         request,
@@ -121,7 +121,7 @@ export function registerIntegrations(app: FastifyInstance, work: IntegrationServ
     ),
   );
   app.post(
-    `${ws}/integrations/connections/:conn:reauthorize`,
+    `${ws}/integrations/connections/:conn/reauthorize`,
     wrap(async (request, reply) =>
       done(
         request,
@@ -137,7 +137,7 @@ export function registerIntegrations(app: FastifyInstance, work: IntegrationServ
     ),
   );
   app.post(
-    `${ws}/integrations/connections/:conn:disconnect`,
+    `${ws}/integrations/connections/:conn/disconnect`,
     wrap(async (request, reply) =>
       done(
         request,
@@ -153,7 +153,7 @@ export function registerIntegrations(app: FastifyInstance, work: IntegrationServ
     ),
   );
   app.post(
-    `${ws}/integrations/connections/:conn:sync`,
+    `${ws}/integrations/connections/:conn/sync`,
     wrap(async (request, reply) => {
       const r = await work.syncNow(
         caller(request),
@@ -194,7 +194,7 @@ export function registerIntegrations(app: FastifyInstance, work: IntegrationServ
     ),
   );
   app.post(
-    `${ws}/integrations/connections/:conn/conflicts/:cnf:resolve`,
+    `${ws}/integrations/connections/:conn/conflicts/:cnf/resolve`,
     wrap(async (request, reply) => {
       const r = await work.resolveConflict(
         caller(request),
@@ -208,7 +208,7 @@ export function registerIntegrations(app: FastifyInstance, work: IntegrationServ
     }),
   );
   app.post(
-    `${ws}/integrations/connections/:conn/identities/:ext:local`,
+    `${ws}/integrations/connections/:conn/identities/:ext/local`,
     wrap(async (request, reply) => {
       const r = await work.editLocal(
         caller(request),
