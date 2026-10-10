@@ -29,6 +29,7 @@ Source: `contracts/registry.json`.
 | `dash_` | dashboard | insights.dashboard | insights |  |
 | `rpt_` | report_definition | insights.report_definition | insights |  |
 | `conn_` | connection | integrations.connection | integrations |  |
+| `cnf_` | sync_conflict | integrations.sync_conflict | integrations |  |
 | `whk_` | webhook_subscription | integrations.webhook_subscription | integrations |  |
 | `tc_` | test_case | quality.test_case | quality |  |
 | `ts_` | test_suite | quality.test_suite | quality |  |
@@ -200,174 +201,181 @@ Source: `contracts/registry.json`.
 
 | Type | Aggregate | Fields | Max class | Activity | Notify | Metrics | Automation | Index | Public webhook |
 |---|---|---|---|---|---|---|---|---|---|
-| `core.record.archived` v1 | core.record | record_type, archive_cause, batch_id | C1 | yes |  |  | yes | yes | `record.archived` |
-| `core.record.trashed` v1 | core.record | record_type, deletion_batch_id | C1 | yes |  |  | yes | yes | `record.trashed` |
-| `core.record.restored` v1 | core.record | record_type, batch_id | C1 | yes |  |  | yes | yes | `record.restored` |
-| `core.record.purged` v1 | core.record | record_type | C1 |  |  |  |  | yes | — |
-| `core.record.moved_brand` v1 | core.record | from_brand_id, to_brand_id | C1 | yes | yes |  | yes | yes | — |
-| `work.task.created` v1 | work.task | project_id, parent_task_id, status_id, source_kind | C1 | yes |  | yes | yes | yes | `task.created` |
-| `work.task.updated` v1 | work.task | changed_fields | C1 | yes |  |  | yes | yes | `task.updated` |
-| `work.task.status_changed` v1 | work.task | from_status_id, to_status_id, to_category | C1 | yes | yes | yes | yes |  | `task.status_changed` |
-| `work.task.completed` v1 | work.task | completed_at, status_category, project_id | C1 | yes | yes | yes | yes |  | `task.completed` |
-| `work.task.assigned` v1 | work.task | assignee_membership_ids | C1 | yes | yes |  | yes |  | `task.assigned` |
-| `work.task.moved` v1 | work.task | project_id, parent_task_id, depth | C1 | yes |  |  | yes | yes | — |
-| `work.task.reopened` v1 | work.task | status_id, status_category | C1 | yes |  |  | yes | yes | — |
-| `work.label.created` v1 | work.label | label_id | C1 |  |  |  |  | yes | — |
-| `work.label.updated` v1 | work.label | label_id, lifecycle_state | C1 |  |  |  |  | yes | — |
-| `work.project.created` v1 | work.project | parent_project_id, status_id | C1 | yes |  | yes | yes | yes | `project.created` |
-| `work.project.status_changed` v1 | work.project | to_category, health | C1 | yes | yes | yes | yes |  | `project.status_changed` |
-| `collab.comment.created` v1 | collab.comment | host_record_id, root_comment_id, mention_ids | C1 | yes | yes |  | yes | yes | `comment.created` |
-| `collab.review.requested` v1 | collab.review_request | subject_kind, subject_ref, reviewer_rule, request_kind | C1 | yes | yes |  | yes |  | `review.requested` |
-| `collab.review.decided` v1 | collab.review_decision | decision, self_approval, subject_ref, review_state | C1 | yes | yes | yes | yes |  | `review.decided` |
-| `relations.relationship.created` v1 | relations.record_relationship | kind, from_record_id, to_record_id | C1 | yes | yes |  | yes |  | — |
-| `relations.mention.created` v1 | relations.mention | source_kind, target_kind, target_id | C1 | yes | yes |  |  |  | — |
-| `files.file.scanned` v1 | files.file_version | scan_state | C1 |  |  | yes |  |  | — |
-| `files.deliverable.version_submitted` v1 | files.deliverable_version | deliverable_id, version_number | C1 | yes | yes |  | yes |  | `deliverable.submitted` |
-| `capture.inbox.captured` v1 | capture.inbox_item | source_kind, intent | C1 |  |  |  |  |  | — |
-| `capture.inbox.triaged` v1 | capture.inbox_item | outcome, converted_record_id | C1 |  |  |  |  |  | — |
-| `planning.work_block.moved` v1 | planning.work_block | starts_at, ends_at, source | C1 |  |  | yes | yes |  | — |
-| `planning.occurrence.generated` v1 | planning.recurrence_series | occurrence_key, record_id | C1 |  |  |  | yes |  | — |
-| `time.time_entry.recorded` v1 | time.time_entry | duration_seconds, billable, source | C1 | yes |  | yes |  |  | — |
-| `time.timesheet.approved` v1 | time.timesheet_approval | period_start, brand_id | C1 | yes | yes | yes | yes |  | — |
-| `knowledge.document.source_approved` v1 | knowledge.source_approval | document_version_id, kind | C1 | yes |  |  | yes | yes | — |
 | `access.grant.created` v1 | access.record_grant | record_id, grantee_type, level, expires_at | C1 | yes | yes |  |  |  | — |
 | `access.grant.revoked` v1 | access.record_grant | record_id, grantee_type | C1 | yes | yes |  |  |  | — |
 | `access.role.assigned` v1 | access.role_assignment | scope_type, role_id | C1 | yes | yes |  |  |  | — |
-| `tenancy.membership.removed` v1 | tenancy.membership | reason | C1 | yes |  |  |  |  | — |
-| `execution.operation.state_changed` v1 | execution.operation | kind, state, terminal_reason, waiting_reason | C1 |  | yes | yes | yes |  | `operation.finished` |
-| `agents.agent_run.output_returned` v1 | agents.agent_run | deliverable_version_id | C1 | yes | yes |  | yes |  | `agent_run.output_returned` |
-| `agents.action_approval.requested` v1 | agents.action_approval | action_class, risk_class | C1 | yes | yes |  |  |  | — |
-| `automation.automation_run.failed` v1 | automation.automation_run | automation_id, terminal_reason | C1 | yes | yes | yes |  |  | — |
-| `integrations.sync.failed` v1 | integrations.sync_run | connection_id, terminal_reason | C1 | yes | yes | yes |  |  | — |
-| `integrations.connection.health_changed` v1 | integrations.connection | health | C1 | yes | yes |  |  |  | — |
-| `integrations.webhook.delivery_failed` v1 | integrations.webhook_delivery | subscription_id, attempt | C1 |  | yes | yes |  |  | — |
-| `quality.test_result.recorded` v1 | quality.test_result | test_run_id, outcome | C1 | yes |  | yes | yes |  | `test_result.recorded` |
-| `quality.defect.verified` v1 | quality.verification_record | defect_task_id, method | C1 | yes | yes | yes | yes |  | `defect.verified` |
-| `delivery.release.decided` v1 | delivery.release_decision | release_id, decision, sequence | C1 | yes | yes | yes | yes |  | `release.decided` |
-| `delivery.deployment.recorded` v1 | delivery.deployment | environment_id, version_label | C1 | yes |  | yes | yes |  | `deployment.recorded` |
-| `metering.usage.threshold_reached` v1 | metering.usage_balance | meter, threshold_bp | C1 |  | yes |  |  |  | — |
-| `metering.usage.limit_reached` v1 | metering.usage_balance | meter | C1 |  | yes |  |  |  | — |
-| `ai.proposal.applied` v1 | ai.change_proposal | applied_count, failed_count | C1 | yes |  |  | yes |  | — |
-| `ai.briefing.generated` v1 | ai.briefing | kind, period_key | C1 |  | yes |  |  |  | — |
-| `transfer.export.ready` v1 | transfer.export_job | format | C1 |  | yes |  |  |  | — |
-| `templates.template.installed` v1 | templates.template_installation | template_version_id, sample | C1 | yes |  |  |  |  | — |
-| `tenancy.membership.activated` v1 | tenancy.membership | kind, reason | C1 | yes | yes |  |  |  | — |
-| `tenancy.membership.suspended` v1 | tenancy.membership | reason | C1 | yes |  |  |  |  | — |
 | `access.role.revoked` v1 | access.role_assignment | scope_type | C1 | yes | yes |  |  |  | — |
-| `tenancy.team.membership_changed` v1 | tenancy.team_member | change | C1 | yes |  |  |  |  | — |
-| `tenancy.ownership.transferred` v1 | tenancy.ownership_transfer | demoted_previous | C1 | yes | yes |  |  |  | — |
-| `work.project.updated` v1 | work.project | changed_fields | C1 | yes |  |  | yes | yes | — |
-| `work.project.moved` v1 | work.project | parent_project_id, depth | C1 | yes |  |  | yes | yes | — |
-| `work.project.owner_changed` v1 | work.project | owner_membership_id | C1 | yes | yes |  | yes |  | — |
-| `work.phase.created` v1 | work.phase | project_id | C1 | yes |  |  | yes | yes | — |
-| `work.phase.updated` v1 | work.phase | project_id, changed_fields | C1 | yes |  |  | yes | yes | — |
-| `work.milestone.created` v1 | work.milestone | project_id, phase_id | C1 | yes |  |  | yes | yes | — |
-| `work.milestone.updated` v1 | work.milestone | project_id, status, changed_fields | C1 | yes |  |  | yes | yes | — |
-| `work.decision_record.created` v1 | work.decision_record | project_id, kind, state | C1 | yes |  |  | yes | yes | — |
-| `work.decision_record.state_changed` v1 | work.decision_record | kind, state | C1 | yes |  |  | yes | yes | — |
-| `work.project_update.posted` v1 | work.project_update | project_id, source_kind, health | C1 | yes |  |  | yes |  | — |
-| `work.project_update.verified` v1 | work.project_update | project_id | C1 | yes |  |  | yes |  | — |
-| `relations.relationship.removed` v1 | relations.record_relationship | kind, from_record_id, to_record_id | C1 | yes |  |  | yes |  | — |
-| `templates.template.created` v1 | templates.template | target_record_type, item_count | C1 | yes |  |  |  | yes | — |
-| `templates.template.versioned` v1 | templates.template | target_record_type, version, item_count | C1 | yes |  |  |  | yes | — |
-| `templates.template.applied` v1 | templates.template | template_version_id, record_id | C1 | yes |  |  | yes |  | — |
+| `agents.action_approval.requested` v1 | agents.action_approval | action_class, risk_class | C1 | yes | yes |  |  |  | — |
+| `agents.agent_run.output_returned` v1 | agents.agent_run | deliverable_version_id | C1 | yes | yes |  | yes |  | `agent_run.output_returned` |
+| `ai.briefing.generated` v1 | ai.briefing | kind, period_key | C1 |  | yes |  |  |  | — |
+| `ai.proposal.applied` v1 | ai.change_proposal | applied_count, failed_count | C1 | yes |  |  | yes |  | — |
+| `automation.automation_run.failed` v1 | automation.automation_run | automation_id, terminal_reason | C1 | yes | yes | yes |  |  | — |
+| `capture.inbox.captured` v1 | capture.inbox_item | source_kind, intent | C1 |  |  |  |  |  | — |
+| `capture.inbox.merged` v1 | capture.inbox_item | merged_count | C1 |  |  | yes |  |  | — |
+| `capture.inbox.triaged` v1 | capture.inbox_item | outcome, converted_record_id | C1 |  |  |  |  |  | — |
+| `capture.intake.submitted` v1 | capture.intake_form | inbox_item_id | C1 |  |  | yes |  |  | — |
+| `capture.intake_form.created` v1 | capture.intake_form | target_kind | C1 |  |  | yes |  |  | — |
+| `capture.intake_form.updated` v1 | capture.intake_form | state | C1 |  |  | yes |  |  | — |
+| `capture.note.converted` v1 | capture.note | target_kind, target_record_id | C1 |  |  | yes |  |  | — |
+| `capture.note.created` v1 | capture.note | source_kind | C1 |  |  | yes |  |  | — |
+| `collab.comment.created` v1 | collab.comment | host_record_id, root_comment_id, mention_ids | C1 | yes | yes |  | yes | yes | `comment.created` |
+| `collab.comment.deleted` v1 | collab.comment | host_record_id, deleted_by | C1 | yes |  | yes |  | yes | — |
+| `collab.comment.edited` v1 | collab.comment | host_record_id, edit_count | C1 | yes |  | yes |  | yes | — |
+| `collab.comment.reaction_changed` v1 | collab.comment | host_record_id, reaction, change | C1 |  |  | yes |  |  | — |
+| `collab.review.decided` v1 | collab.review_decision | decision, self_approval, subject_ref, review_state | C1 | yes | yes | yes | yes |  | `review.decided` |
+| `collab.review.requested` v1 | collab.review_request | subject_kind, subject_ref, reviewer_rule, request_kind | C1 | yes | yes |  | yes |  | `review.requested` |
+| `collab.review.superseded` v1 | collab.review_request | subject_kind, subject_ref, successor_ref | C1 | yes |  | yes |  |  | — |
+| `collab.review.withdrawn` v1 | collab.review_request | subject_kind, subject_ref, reason | C1 | yes | yes | yes |  |  | — |
+| `core.record.archived` v1 | core.record | record_type, archive_cause, batch_id | C1 | yes |  |  | yes | yes | `record.archived` |
+| `core.record.moved_brand` v1 | core.record | from_brand_id, to_brand_id | C1 | yes | yes |  | yes | yes | — |
+| `core.record.purged` v1 | core.record | record_type | C1 |  |  |  |  | yes | — |
+| `core.record.restored` v1 | core.record | record_type, batch_id | C1 | yes |  |  | yes | yes | `record.restored` |
+| `core.record.trashed` v1 | core.record | record_type, deletion_batch_id | C1 | yes |  |  | yes | yes | `record.trashed` |
+| `delivery.deployment.recorded` v1 | delivery.deployment | environment_id, version_label | C1 | yes |  | yes | yes |  | `deployment.recorded` |
+| `delivery.release.decided` v1 | delivery.release_decision | release_id, decision, sequence | C1 | yes | yes | yes | yes |  | `release.decided` |
+| `execution.operation.state_changed` v1 | execution.operation | kind, state, terminal_reason, waiting_reason | C1 |  | yes | yes | yes |  | `operation.finished` |
+| `files.deliverable.state_changed` v1 | files.deliverable | state, version_number | C1 | yes |  | yes | yes |  | — |
+| `files.deliverable.version_submitted` v1 | files.deliverable_version | deliverable_id, version_number | C1 | yes | yes |  | yes |  | `deliverable.submitted` |
+| `files.file.added` v1 | files.file | version_number, source | C1 | yes |  | yes | yes |  | — |
+| `files.file.scanned` v1 | files.file_version | scan_state | C1 |  |  | yes |  |  | — |
+| `files.file.version_added` v1 | files.file | version_number, source | C1 | yes |  | yes | yes |  | — |
+| `goals.goal.checkin_recorded` v1 | goals.goal_checkin | source, confidence, has_value | C1 | yes |  | yes |  |  | — |
+| `goals.goal.created` v1 | goals.goal | scope, period_kind, progress_basis | C1 | yes |  | yes |  |  | — |
+| `goals.goal.link_changed` v1 | goals.goal_link | change, target_kind | C1 | yes |  | yes |  |  | — |
+| `goals.goal.status_changed` v1 | goals.goal | status | C1 | yes |  | yes |  |  | — |
+| `goals.goal.update_stale` v1 | goals.goal | days_stale | C1 |  |  | yes |  |  | — |
+| `goals.goal.updated` v1 | goals.goal | change | C1 | yes |  | yes |  |  | — |
+| `goals.key_result.created` v1 | goals.key_result | progress_basis | C1 | yes |  | yes |  |  | — |
+| `goals.key_result.updated` v1 | goals.key_result | change | C1 | yes |  | yes |  |  | — |
+| `goals.portfolio.created` v1 | goals.portfolio | scope | C1 | yes |  | yes |  |  | — |
+| `goals.portfolio.members_changed` v1 | goals.portfolio | count | C1 | yes |  | yes |  |  | — |
+| `goals.portfolio.updated` v1 | goals.portfolio | change | C1 | yes |  | yes |  |  | — |
+| `insights.dashboard.created` v1 | insights.dashboard | kind, scope | C1 | yes |  | yes |  |  | — |
+| `insights.dashboard.updated` v1 | insights.dashboard | change | C1 | yes |  | yes |  |  | — |
+| `insights.report.created` v1 | insights.report_definition | scope | C1 | yes |  | yes |  |  | — |
+| `insights.report.resumed` v1 | insights.report_definition | reason | C1 | yes |  | yes |  |  | — |
+| `insights.report.schedule_changed` v1 | insights.report_definition | frequency, recipients | C1 | yes |  | yes |  |  | — |
+| `insights.report.share_revoked` v1 | insights.report_definition | scope | C1 | yes |  | yes |  |  | — |
+| `insights.report.shared` v1 | insights.report_definition | scope | C1 | yes |  | yes |  |  | — |
+| `insights.report.suspended` v1 | insights.report_definition | reason | C1 | yes |  | yes |  |  | — |
+| `insights.report.updated` v1 | insights.report_definition | change | C1 | yes |  | yes |  |  | — |
+| `integrations.api_token.created` v1 | integrations.api_token | kind, scope_count | C1 | yes |  |  |  |  | — |
+| `integrations.api_token.revoked` v1 | integrations.api_token | kind | C1 | yes |  |  |  |  | — |
+| `integrations.api_token.rotated` v1 | integrations.api_token | kind | C1 | yes |  |  |  |  | — |
+| `integrations.conflict.detected` v1 | integrations.connection | field | C1 | yes |  | yes |  |  | — |
+| `integrations.conflict.resolved` v1 | integrations.connection | resolution | C1 | yes |  | yes |  |  | — |
+| `integrations.connection.created` v1 | integrations.connection | provider, auth_kind, scope | C1 | yes |  | yes |  |  | — |
+| `integrations.connection.disconnected` v1 | integrations.connection | retention | C1 | yes | yes | yes |  |  | — |
+| `integrations.connection.health_changed` v1 | integrations.connection | health | C1 | yes | yes |  |  |  | — |
+| `integrations.connection.reauthorized` v1 | integrations.connection | auth_kind | C1 | yes |  | yes |  |  | — |
+| `integrations.credential.rotated` v1 | integrations.connection | key_version | C1 | yes |  | yes |  |  | — |
+| `integrations.sync.completed` v1 | integrations.connection | outcome, conflicts | C1 | yes |  | yes |  |  | — |
+| `integrations.sync.failed` v1 | integrations.sync_run | connection_id, terminal_reason | C1 | yes | yes | yes |  |  | — |
+| `integrations.webhook.delivery_failed` v1 | integrations.webhook_delivery | subscription_id, attempt | C1 |  | yes | yes |  |  | — |
+| `knowledge.document.created` v1 | knowledge.document | doc_type, parent_document_id, attached_kind | C1 | yes |  | yes |  |  | — |
+| `knowledge.document.mention_added` v1 | knowledge.document | reference_id, block_id | C1 |  | yes | yes |  |  | — |
+| `knowledge.document.source_approved` v1 | knowledge.source_approval | document_version_id, kind | C1 | yes |  |  | yes | yes | — |
+| `knowledge.document.suggestion_created` v1 | knowledge.document_suggestion | document_id, block_id | C1 | yes |  | yes |  |  | — |
+| `knowledge.document.suggestion_decided` v1 | knowledge.document_suggestion | document_id, state, applied_version | C1 | yes |  | yes |  |  | — |
+| `knowledge.document.updated` v1 | knowledge.document | change | C1 | yes |  | yes |  |  | — |
+| `knowledge.document.version_saved` v1 | knowledge.document | version_number, kind, size_bytes | C1 | yes |  | yes |  |  | — |
+| `metering.usage.limit_reached` v1 | metering.usage_balance | meter | C1 |  | yes |  |  |  | — |
+| `metering.usage.threshold_reached` v1 | metering.usage_balance | meter, threshold_bp | C1 |  | yes |  |  |  | — |
+| `notify.delivery.state_changed` v1 | notify.notification_delivery | channel, kind, state, failure_class | C1 |  |  | yes |  |  | — |
+| `notify.notification.created` v1 | notify.notification | type, record_id | C1 |  |  | yes |  |  | — |
+| `planning.block_series.defined` v1 | planning.block_series | occurrences | C1 |  |  | yes |  |  | — |
+| `planning.block_series.ended` v1 | planning.block_series | removed | C1 |  |  | yes |  |  | — |
+| `planning.capacity_profile.updated` v1 | planning.capacity_profile | windows, weekly_capacity_minutes, observe_brand_holidays | C1 |  |  | yes |  |  | — |
+| `planning.capacity_reservation.removed` v1 | planning.capacity_reservation | effective_from | C1 |  |  | yes |  |  | — |
+| `planning.capacity_reservation.set` v1 | planning.capacity_reservation | minutes_per_week, effective_from, effective_to | C1 |  |  | yes |  |  | — |
+| `planning.day.closed` v1 | planning.daily_record | day, closed_by, committed, completed | C1 |  |  | yes |  |  | — |
+| `planning.holiday.created` v1 | planning.holiday | day | C1 |  |  | yes |  |  | — |
+| `planning.holiday.deleted` v1 | planning.holiday | day | C1 |  |  | yes |  |  | — |
+| `planning.occurrence.generated` v1 | planning.recurrence_series | occurrence_key, record_id | C1 |  |  |  | yes |  | — |
 | `planning.recurrence_series.defined` v1 | planning.recurrence_series | target_kind | C1 | yes |  |  |  |  | — |
 | `planning.recurrence_series.state_changed` v1 | planning.recurrence_series | state | C1 | yes |  |  |  |  | — |
-| `workflow.workflow.created` v1 | workflow.workflow | record_kind, scope_kind | C1 | yes |  |  |  |  | — |
-| `workflow.workflow.updated` v1 | workflow.workflow | changed_fields, lifecycle_state | C1 | yes |  |  |  |  | — |
+| `planning.task_reminder.fired` v1 | planning.task_reminder | task_id, account_id | C1 |  | yes | yes |  |  | — |
+| `planning.task_reminder.scheduled` v1 | planning.task_reminder | task_id, state | C1 |  |  | yes |  |  | — |
+| `planning.time_off.created` v1 | planning.time_off | kind, all_day, days | C1 |  |  | yes |  |  | — |
+| `planning.time_off.deleted` v1 | planning.time_off | kind | C1 |  |  | yes |  |  | — |
+| `planning.time_off.updated` v1 | planning.time_off | kind, all_day, days | C1 |  |  | yes |  |  | — |
+| `planning.today.changed` v1 | planning.today_commitment | day, change | C1 |  |  | yes |  |  | — |
+| `planning.today.committed` v1 | planning.today_commitment | day, source | C1 |  |  | yes |  |  | — |
+| `planning.work_block.created` v1 | planning.work_block | source, focus | C1 |  |  | yes |  |  | — |
+| `planning.work_block.deleted` v1 | planning.work_block | source | C1 |  |  | yes |  |  | — |
+| `planning.work_block.moved` v1 | planning.work_block | starts_at, ends_at, source | C1 |  |  | yes | yes |  | — |
+| `quality.defect.verified` v1 | quality.verification_record | defect_task_id, method | C1 | yes | yes | yes | yes |  | `defect.verified` |
+| `quality.test_result.recorded` v1 | quality.test_result | test_run_id, outcome | C1 | yes |  | yes | yes |  | `test_result.recorded` |
+| `relations.follow.added` v1 | relations.follower | record_type, membership_id | C1 |  |  | yes |  |  | — |
+| `relations.follow.removed` v1 | relations.follower | record_type, membership_id | C1 |  |  | yes |  |  | — |
+| `relations.mention.created` v1 | relations.mention | source_kind, target_kind, target_id | C1 | yes | yes |  |  |  | — |
+| `relations.relationship.created` v1 | relations.record_relationship | kind, from_record_id, to_record_id | C1 | yes | yes |  | yes |  | — |
+| `relations.relationship.removed` v1 | relations.record_relationship | kind, from_record_id, to_record_id | C1 | yes |  |  | yes |  | — |
+| `templates.template.applied` v1 | templates.template | template_version_id, record_id | C1 | yes |  |  | yes |  | — |
+| `templates.template.created` v1 | templates.template | target_record_type, item_count | C1 | yes |  |  |  | yes | — |
+| `templates.template.installed` v1 | templates.template_installation | template_version_id, sample | C1 | yes |  |  |  |  | — |
+| `templates.template.versioned` v1 | templates.template | target_record_type, version, item_count | C1 | yes |  |  |  | yes | — |
+| `tenancy.membership.activated` v1 | tenancy.membership | kind, reason | C1 | yes | yes |  |  |  | — |
+| `tenancy.membership.removed` v1 | tenancy.membership | reason | C1 | yes |  |  |  |  | — |
+| `tenancy.membership.suspended` v1 | tenancy.membership | reason | C1 | yes |  |  |  |  | — |
+| `tenancy.ownership.transferred` v1 | tenancy.ownership_transfer | demoted_previous | C1 | yes | yes |  |  |  | — |
+| `tenancy.team.membership_changed` v1 | tenancy.team_member | change | C1 | yes |  |  |  |  | — |
+| `time.time_entry.deleted` v1 | time.time_entry | duration_seconds | C1 | yes |  | yes |  |  | — |
+| `time.time_entry.recorded` v1 | time.time_entry | duration_seconds, billable, source | C1 | yes |  | yes |  |  | — |
+| `time.time_entry.updated` v1 | time.time_entry | duration_seconds, billable | C1 | yes |  | yes |  |  | — |
+| `time.timer.auto_stopped` v1 | time.time_entry | duration_seconds | C1 | yes |  | yes |  |  | — |
+| `time.timesheet.approved` v1 | time.timesheet_approval | period_start, brand_id | C1 | yes | yes | yes | yes |  | — |
+| `time.timesheet.rejected` v1 | time.timesheet_approval | period_start, brand_id | C1 | yes | yes | yes |  |  | — |
+| `time.timesheet.submitted` v1 | time.timesheet | period_start, lines | C1 | yes |  | yes |  |  | — |
+| `time.timesheet.unlocked` v1 | time.period_lock | period_start, brand_id | C1 | yes | yes | yes |  |  | — |
+| `time.timesheet.withdrawn` v1 | time.timesheet | period_start | C1 | yes |  | yes |  |  | — |
+| `transfer.export.ready` v1 | transfer.export_job | format | C1 |  | yes |  |  |  | — |
+| `views.default.changed` v1 | views.view_default | target, entity, cleared | C1 |  |  | yes |  |  | — |
+| `views.pin.changed` v1 | views.view_pin | scope, pinned | C1 |  |  | yes |  |  | — |
+| `views.saved_view.created` v1 | views.saved_view | entity, visibility | C1 |  |  | yes |  |  | — |
+| `views.saved_view.deleted` v1 | views.saved_view | entity | C1 |  |  | yes |  |  | — |
+| `views.saved_view.shared` v1 | views.saved_view | entity, scope | C1 |  |  | yes |  |  | — |
+| `views.saved_view.unshared` v1 | views.saved_view | entity | C1 |  |  | yes |  |  | — |
+| `views.saved_view.updated` v1 | views.saved_view | entity, visibility | C1 |  |  | yes |  |  | — |
+| `work.bulk_operation.executed` v1 | work.bulk_operation | operation, mode, item_count, succeeded, failed | C1 | yes |  | yes |  |  | — |
+| `work.decision_record.created` v1 | work.decision_record | project_id, kind, state | C1 | yes |  |  | yes | yes | — |
+| `work.decision_record.state_changed` v1 | work.decision_record | kind, state | C1 | yes |  |  | yes | yes | — |
+| `work.label.created` v1 | work.label | label_id | C1 |  |  |  |  | yes | — |
+| `work.label.updated` v1 | work.label | label_id, lifecycle_state | C1 |  |  |  |  | yes | — |
+| `work.milestone.created` v1 | work.milestone | project_id, phase_id | C1 | yes |  |  | yes | yes | — |
+| `work.milestone.updated` v1 | work.milestone | project_id, status, changed_fields | C1 | yes |  |  | yes | yes | — |
+| `work.phase.created` v1 | work.phase | project_id | C1 | yes |  |  | yes | yes | — |
+| `work.phase.updated` v1 | work.phase | project_id, changed_fields | C1 | yes |  |  | yes | yes | — |
+| `work.project.created` v1 | work.project | parent_project_id, status_id | C1 | yes |  | yes | yes | yes | `project.created` |
+| `work.project.moved` v1 | work.project | parent_project_id, depth | C1 | yes |  |  | yes | yes | — |
+| `work.project.owner_changed` v1 | work.project | owner_membership_id | C1 | yes | yes |  | yes |  | — |
+| `work.project.status_changed` v1 | work.project | to_category, health | C1 | yes | yes | yes | yes |  | `project.status_changed` |
+| `work.project.updated` v1 | work.project | changed_fields | C1 | yes |  |  | yes | yes | — |
+| `work.project_update.posted` v1 | work.project_update | project_id, source_kind, health | C1 | yes |  |  | yes |  | — |
+| `work.project_update.verified` v1 | work.project_update | project_id | C1 | yes |  |  | yes |  | — |
+| `work.task.assigned` v1 | work.task | assignee_membership_ids | C1 | yes | yes |  | yes |  | `task.assigned` |
+| `work.task.completed` v1 | work.task | completed_at, status_category, project_id | C1 | yes | yes | yes | yes |  | `task.completed` |
+| `work.task.created` v1 | work.task | project_id, parent_task_id, status_id, source_kind | C1 | yes |  | yes | yes | yes | `task.created` |
+| `work.task.delegated` v1 | work.task | from_membership_id, to_membership_id | C1 | yes | yes | yes |  |  | — |
+| `work.task.moved` v1 | work.task | project_id, parent_task_id, depth | C1 | yes |  |  | yes | yes | — |
+| `work.task.reopened` v1 | work.task | status_id, status_category | C1 | yes |  |  | yes | yes | — |
+| `work.task.status_changed` v1 | work.task | from_status_id, to_status_id, to_category | C1 | yes | yes | yes | yes |  | `task.status_changed` |
+| `work.task.undone` v1 | work.task | task_id, command | C1 | yes |  | yes |  |  | — |
+| `work.task.updated` v1 | work.task | changed_fields | C1 | yes |  |  | yes | yes | `task.updated` |
+| `workflow.approval_request.closed` v1 | workflow.approval_request | closed_reason | C1 | yes |  |  |  |  | — |
+| `workflow.approval_request.created` v1 | workflow.approval_request | transition_id, policy, record_type | C1 | yes |  |  |  |  | — |
+| `workflow.approval_request.decided` v1 | workflow.approval_request | decision, state | C1 | yes |  |  |  |  | — |
+| `workflow.field_definition.created` v1 | workflow.field_definition | field_type, scope_kind | C1 | yes |  |  |  |  | — |
+| `workflow.field_definition.updated` v1 | workflow.field_definition | changed_fields, lifecycle_state | C1 | yes |  |  |  |  | — |
+| `workflow.field_set.applied` v1 | workflow.field_set | record_type, version | C1 | yes |  |  |  |  | — |
+| `workflow.field_set.versioned` v1 | workflow.field_set | version | C1 | yes |  |  |  |  | — |
+| `workflow.field_value.changed` v1 | workflow.field_value | record_type, definition_ids | C1 | yes |  |  |  |  | — |
 | `workflow.status.created` v1 | workflow.workflow_status | workflow_id, category | C1 | yes |  |  |  |  | — |
 | `workflow.status.updated` v1 | workflow.workflow_status | workflow_id, changed_fields, lifecycle_state | C1 | yes |  |  |  |  | — |
 | `workflow.transition.created` v1 | workflow.transition | workflow_id, approval_policy | C1 | yes |  |  |  |  | — |
 | `workflow.transition.updated` v1 | workflow.transition | workflow_id, changed_fields, lifecycle_state | C1 | yes |  |  |  |  | — |
-| `workflow.approval_request.created` v1 | workflow.approval_request | transition_id, policy, record_type | C1 | yes |  |  |  |  | — |
-| `workflow.approval_request.decided` v1 | workflow.approval_request | decision, state | C1 | yes |  |  |  |  | — |
-| `workflow.approval_request.closed` v1 | workflow.approval_request | closed_reason | C1 | yes |  |  |  |  | — |
-| `workflow.field_definition.created` v1 | workflow.field_definition | field_type, scope_kind | C1 | yes |  |  |  |  | — |
-| `workflow.field_definition.updated` v1 | workflow.field_definition | changed_fields, lifecycle_state | C1 | yes |  |  |  |  | — |
-| `workflow.field_set.versioned` v1 | workflow.field_set | version | C1 | yes |  |  |  |  | — |
-| `workflow.field_set.applied` v1 | workflow.field_set | record_type, version | C1 | yes |  |  |  |  | — |
-| `workflow.field_value.changed` v1 | workflow.field_value | record_type, definition_ids | C1 | yes |  |  |  |  | — |
-| `planning.task_reminder.scheduled` v1 | planning.task_reminder | task_id, state | C1 |  |  | yes |  |  | — |
-| `planning.task_reminder.fired` v1 | planning.task_reminder | task_id, account_id | C1 |  | yes | yes |  |  | — |
-| `work.bulk_operation.executed` v1 | work.bulk_operation | operation, mode, item_count, succeeded, failed | C1 | yes |  | yes |  |  | — |
-| `work.task.undone` v1 | work.task | task_id, command | C1 | yes |  | yes |  |  | — |
-| `capture.inbox.merged` v1 | capture.inbox_item | merged_count | C1 |  |  | yes |  |  | — |
-| `capture.note.created` v1 | capture.note | source_kind | C1 |  |  | yes |  |  | — |
-| `capture.note.converted` v1 | capture.note | target_kind, target_record_id | C1 |  |  | yes |  |  | — |
-| `capture.intake_form.created` v1 | capture.intake_form | target_kind | C1 |  |  | yes |  |  | — |
-| `capture.intake_form.updated` v1 | capture.intake_form | state | C1 |  |  | yes |  |  | — |
-| `capture.intake.submitted` v1 | capture.intake_form | inbox_item_id | C1 |  |  | yes |  |  | — |
-| `views.saved_view.created` v1 | views.saved_view | entity, visibility | C1 |  |  | yes |  |  | — |
-| `views.saved_view.updated` v1 | views.saved_view | entity, visibility | C1 |  |  | yes |  |  | — |
-| `views.saved_view.shared` v1 | views.saved_view | entity, scope | C1 |  |  | yes |  |  | — |
-| `views.saved_view.unshared` v1 | views.saved_view | entity | C1 |  |  | yes |  |  | — |
-| `views.saved_view.deleted` v1 | views.saved_view | entity | C1 |  |  | yes |  |  | — |
-| `views.default.changed` v1 | views.view_default | target, entity, cleared | C1 |  |  | yes |  |  | — |
-| `views.pin.changed` v1 | views.view_pin | scope, pinned | C1 |  |  | yes |  |  | — |
-| `time.time_entry.updated` v1 | time.time_entry | duration_seconds, billable | C1 | yes |  | yes |  |  | — |
-| `time.time_entry.deleted` v1 | time.time_entry | duration_seconds | C1 | yes |  | yes |  |  | — |
-| `time.timer.auto_stopped` v1 | time.time_entry | duration_seconds | C1 | yes |  | yes |  |  | — |
-| `time.timesheet.submitted` v1 | time.timesheet | period_start, lines | C1 | yes |  | yes |  |  | — |
-| `time.timesheet.withdrawn` v1 | time.timesheet | period_start | C1 | yes |  | yes |  |  | — |
-| `time.timesheet.rejected` v1 | time.timesheet_approval | period_start, brand_id | C1 | yes | yes | yes |  |  | — |
-| `time.timesheet.unlocked` v1 | time.period_lock | period_start, brand_id | C1 | yes | yes | yes |  |  | — |
-| `planning.work_block.created` v1 | planning.work_block | source, focus | C1 |  |  | yes |  |  | — |
-| `planning.work_block.deleted` v1 | planning.work_block | source | C1 |  |  | yes |  |  | — |
-| `planning.block_series.defined` v1 | planning.block_series | occurrences | C1 |  |  | yes |  |  | — |
-| `planning.block_series.ended` v1 | planning.block_series | removed | C1 |  |  | yes |  |  | — |
-| `planning.today.committed` v1 | planning.today_commitment | day, source | C1 |  |  | yes |  |  | — |
-| `planning.today.changed` v1 | planning.today_commitment | day, change | C1 |  |  | yes |  |  | — |
-| `planning.day.closed` v1 | planning.daily_record | day, closed_by, committed, completed | C1 |  |  | yes |  |  | — |
-| `planning.capacity_profile.updated` v1 | planning.capacity_profile | windows, weekly_capacity_minutes, observe_brand_holidays | C1 |  |  | yes |  |  | — |
-| `planning.time_off.created` v1 | planning.time_off | kind, all_day, days | C1 |  |  | yes |  |  | — |
-| `planning.time_off.updated` v1 | planning.time_off | kind, all_day, days | C1 |  |  | yes |  |  | — |
-| `planning.time_off.deleted` v1 | planning.time_off | kind | C1 |  |  | yes |  |  | — |
-| `planning.holiday.created` v1 | planning.holiday | day | C1 |  |  | yes |  |  | — |
-| `planning.holiday.deleted` v1 | planning.holiday | day | C1 |  |  | yes |  |  | — |
-| `planning.capacity_reservation.set` v1 | planning.capacity_reservation | minutes_per_week, effective_from, effective_to | C1 |  |  | yes |  |  | — |
-| `planning.capacity_reservation.removed` v1 | planning.capacity_reservation | effective_from | C1 |  |  | yes |  |  | — |
-| `collab.comment.edited` v1 | collab.comment | host_record_id, edit_count | C1 | yes |  | yes |  | yes | — |
-| `collab.comment.deleted` v1 | collab.comment | host_record_id, deleted_by | C1 | yes |  | yes |  | yes | — |
-| `collab.comment.reaction_changed` v1 | collab.comment | host_record_id, reaction, change | C1 |  |  | yes |  |  | — |
-| `relations.follow.added` v1 | relations.follower | record_type, membership_id | C1 |  |  | yes |  |  | — |
-| `relations.follow.removed` v1 | relations.follower | record_type, membership_id | C1 |  |  | yes |  |  | — |
-| `collab.review.withdrawn` v1 | collab.review_request | subject_kind, subject_ref, reason | C1 | yes | yes | yes |  |  | — |
-| `collab.review.superseded` v1 | collab.review_request | subject_kind, subject_ref, successor_ref | C1 | yes |  | yes |  |  | — |
-| `work.task.delegated` v1 | work.task | from_membership_id, to_membership_id | C1 | yes | yes | yes |  |  | — |
-| `notify.notification.created` v1 | notify.notification | type, record_id | C1 |  |  | yes |  |  | — |
-| `notify.delivery.state_changed` v1 | notify.notification_delivery | channel, kind, state, failure_class | C1 |  |  | yes |  |  | — |
-| `knowledge.document.created` v1 | knowledge.document | doc_type, parent_document_id, attached_kind | C1 | yes |  | yes |  |  | — |
-| `knowledge.document.version_saved` v1 | knowledge.document | version_number, kind, size_bytes | C1 | yes |  | yes |  |  | — |
-| `knowledge.document.updated` v1 | knowledge.document | change | C1 | yes |  | yes |  |  | — |
-| `knowledge.document.mention_added` v1 | knowledge.document | reference_id, block_id | C1 |  | yes | yes |  |  | — |
-| `knowledge.document.suggestion_created` v1 | knowledge.document_suggestion | document_id, block_id | C1 | yes |  | yes |  |  | — |
-| `knowledge.document.suggestion_decided` v1 | knowledge.document_suggestion | document_id, state, applied_version | C1 | yes |  | yes |  |  | — |
-| `files.file.added` v1 | files.file | version_number, source | C1 | yes |  | yes | yes |  | — |
-| `files.file.version_added` v1 | files.file | version_number, source | C1 | yes |  | yes | yes |  | — |
-| `files.deliverable.state_changed` v1 | files.deliverable | state, version_number | C1 | yes |  | yes | yes |  | — |
-| `goals.goal.created` v1 | goals.goal | scope, period_kind, progress_basis | C1 | yes |  | yes |  |  | — |
-| `goals.goal.updated` v1 | goals.goal | change | C1 | yes |  | yes |  |  | — |
-| `goals.goal.status_changed` v1 | goals.goal | status | C1 | yes |  | yes |  |  | — |
-| `goals.goal.checkin_recorded` v1 | goals.goal_checkin | source, confidence, has_value | C1 | yes |  | yes |  |  | — |
-| `goals.goal.link_changed` v1 | goals.goal_link | change, target_kind | C1 | yes |  | yes |  |  | — |
-| `goals.goal.update_stale` v1 | goals.goal | days_stale | C1 |  |  | yes |  |  | — |
-| `goals.key_result.created` v1 | goals.key_result | progress_basis | C1 | yes |  | yes |  |  | — |
-| `goals.key_result.updated` v1 | goals.key_result | change | C1 | yes |  | yes |  |  | — |
-| `goals.portfolio.created` v1 | goals.portfolio | scope | C1 | yes |  | yes |  |  | — |
-| `goals.portfolio.updated` v1 | goals.portfolio | change | C1 | yes |  | yes |  |  | — |
-| `goals.portfolio.members_changed` v1 | goals.portfolio | count | C1 | yes |  | yes |  |  | — |
-| `insights.dashboard.created` v1 | insights.dashboard | kind, scope | C1 | yes |  | yes |  |  | — |
-| `insights.dashboard.updated` v1 | insights.dashboard | change | C1 | yes |  | yes |  |  | — |
-| `insights.report.created` v1 | insights.report_definition | scope | C1 | yes |  | yes |  |  | — |
-| `insights.report.updated` v1 | insights.report_definition | change | C1 | yes |  | yes |  |  | — |
-| `insights.report.shared` v1 | insights.report_definition | scope | C1 | yes |  | yes |  |  | — |
-| `insights.report.share_revoked` v1 | insights.report_definition | scope | C1 | yes |  | yes |  |  | — |
-| `insights.report.schedule_changed` v1 | insights.report_definition | frequency, recipients | C1 | yes |  | yes |  |  | — |
-| `insights.report.suspended` v1 | insights.report_definition | reason | C1 | yes |  | yes |  |  | — |
-| `insights.report.resumed` v1 | insights.report_definition | reason | C1 | yes |  | yes |  |  | — |
-| `integrations.api_token.created` v1 | integrations.api_token | kind, scope_count | C1 | yes |  |  |  |  | — |
-| `integrations.api_token.rotated` v1 | integrations.api_token | kind | C1 | yes |  |  |  |  | — |
-| `integrations.api_token.revoked` v1 | integrations.api_token | kind | C1 | yes |  |  |  |  | — |
+| `workflow.workflow.created` v1 | workflow.workflow | record_kind, scope_kind | C1 | yes |  |  |  |  | — |
+| `workflow.workflow.updated` v1 | workflow.workflow | changed_fields, lifecycle_state | C1 | yes |  |  |  |  | — |
 
 ## SSE topics
 
@@ -471,6 +479,8 @@ Forbidden metric labels: `workspace_id`, `brand_id`, `record_id`, `public_id`, `
 | `sse.resets` | counter | reason | sse |
 | `upload.completed` | counter | outcome | files |
 | `file.scan.duration` | histogram | outcome | files |
+| `integrations.requests` | counter | op, outcome | integrations |
+| `integrations.jobs` | counter | kind, outcome | integrations |
 | `integration.sync.duration` | histogram | provider, outcome | integrations |
 | `ai.request.duration` | histogram | provider_class, outcome | ai |
 | `agent.tool_calls` | counter | tool_class, outcome | agents |
@@ -561,251 +571,260 @@ Forbidden metric labels: `workspace_id`, `brand_id`, `record_id`, `public_id`, `
 
 | Parameter | Meaning | Owner |
 |---|---|---|
-| `IDEMPOTENCY_RETENTION` | Minimum retention of idempotency records; must cover the offline replay window. | 1A/2D |
-| `OUTBOX_REPLAY_WINDOW` | How long dispatched outbox rows remain for replay. | 1A |
-| `JOB_LEASE_DURATION` | Lease length per queue. | 1A |
-| `JOB_HEARTBEAT_INTERVAL` | Heartbeat interval; < lease duration / 3. | 1A |
-| `JOB_BACKOFF_BASE` | Backoff base delay per queue. | 1A |
-| `JOB_BACKOFF_CAP` | Maximum backoff delay per queue. | 1A |
-| `JOB_MAX_ATTEMPTS` | Retry cap per job kind. | 1A |
-| `JOB_TIMEOUT` | Execution timeout per job kind. | 1A |
-| `WORKSPACE_CONCURRENCY_CAP` | Per-workspace concurrent job cap per queue (fairness). | 11C |
-| `WEBHOOK_TIMESTAMP_TOLERANCE` | Accepted clock skew for signed webhooks. Default 300 seconds. | 6B |
-| `WEBHOOK_DISABLE_THRESHOLD` | Consecutive-failure policy that disables an endpoint. Default 10 consecutive failures. | 6B |
-| `WEBHOOK_RESPONSE_TIMEOUT` | Outbound delivery response timeout. Default 10000 milliseconds. | 6B |
-| `SSE_HEARTBEAT_INTERVAL` | Heartbeat comment interval. | 1E |
-| `SSE_BUFFER_LIMIT` | Notices buffered per stream for Last-Event-ID resume. | 1E |
-| `SSE_MAX_STREAMS_PER_PRINCIPAL` | Concurrent streams per principal. | 1E |
-| `SIGNED_URL_LIFETIME` | Lifetime of signed upload and download URLs in seconds; never stored, logged, or sent in notifications or exports; default 300, range 30–3600. | 4E |
-| `UPLOAD_SESSION_LIFETIME` | Lifetime of an upload session in seconds; an expired, unfinished session releases its reserved bytes and quarantined object; default 3600, range 300–86400. | 4E |
-| `STEP_UP_WINDOW` | Validity of a verified step-up token. | 1B |
-| `STEP_UP_CHALLENGE_LIFETIME` | Validity of an unverified challenge. | 1B |
-| `STEP_UP_MAX_ATTEMPTS` | Failed verifications after which a challenge is stored as locked (terminal). | 1B |
-| `PAGE_LIMIT_DEFAULT` | Default page size. | 3A |
-| `PAGE_LIMIT_MAX` | Maximum page size (schema cap 200). | 3A |
-| `TOTAL_COUNT_CAP` | Above this, totals are capped/estimated. | 3A |
-| `BULK_SYNC_LIMIT` | Max items processed synchronously before a bulk request becomes a background operation. | 2D |
-| `ATOMIC_BULK_LIMIT` | Max items in an atomic bulk request. | 2D |
-| `RATE_LIMIT_POLICIES` | Request quotas per principal class. | 6B/11C |
-| `DEPRECATION_NOTICE_PERIOD` | Minimum notice before removing a deprecated public contract (product-owner decision). | PO |
-| `EXPORT_LINK_LIFETIME` | Export file download lifetime (0A parameter, OD-36). | PO |
-| `IMPORT_ROLLBACK_PERIOD` | Import rollback window (0A parameter, OD-40). | PO |
-| `USAGE_WARNING_THRESHOLDS` | Default warning thresholds as basis points of allowance. | 7A |
-| `UNDO_RETENTION` | How long an operation remains undoable server-side. | 2D |
-| `PRINCIPAL_CONTEXT_ARRAY_MAX` | Largest visibility-context array bound as a query parameter before the compiler switches to a transaction-scoped temporary table (0C §4.5). | 1D/11D |
-| `INVITATION_LIFETIME` | How long an invitation token stays acceptable before the invitation expires. | 1D |
-| `OWNERSHIP_TRANSFER_LIFETIME` | How long a pending ownership transfer waits for the recipient before it expires. | 1D |
-| `FAVORITES_MAX` | Most favorites one person may keep in one workspace; adding beyond it is refused with a limit error, never silently dropped. | 1E |
-| `RECENT_ITEMS_MAX` | Recently viewed entries kept per person per workspace (the full Recently Viewed list); older visits are trimmed in the recording transaction. | 1E |
-| `RECENT_VISIT_COALESCE` | Window in which a repeat visit to the same target is coalesced into the existing recent entry without another write. | 1E |
-| `VIEW_STATE_MAX_BYTES` | Largest stored view-state document (serialized) accepted per view and device. | 1E |
-| `VIEW_STATE_TTL` | How long stored per-device view state survives without being written before cleanup removes it. | 1E |
-| `PROJECT_DEPTH_MAX` | Deepest project level a command accepts (root = 0) when creating, moving, duplicating, or generating projects. The database separately enforces an invariant ceiling of 32 that is not a runtime parameter. | 2A |
-| `TEMPLATE_ITEMS_MAX` | Most structural items (project, phases, milestones, criteria, scope items) one template version or recurrence snapshot may contain. | 2A |
-| `RECURRENCE_CATCHUP_MAX` | Most missed occurrences one recurrence series may generate in a single catch-up run; later ones wait for the next run. | 2A |
-| `RECURRENCE_WORKSPACE_DISCOVERY_MAX` | Most workspaces with due recurrence work one recurrence job run visits (default 200, range 1–1000). Workspaces are taken oldest-waiting first, so remaining work stays eligible for the next run. | 2A |
-| `RECURRENCE_SERIES_DISCOVERY_MAX` | Most due recurrence series one job run processes in one workspace (default 50, range 1–500). Series are taken oldest-waiting first (last run, then id), so later series are never starved. | 2A |
-| `TASK_DEPTH_MAX` | Deepest subtask level a command accepts (root = 0) when creating, reparenting, moving, or duplicating tasks; default 20, range 1–64. The database separately enforces an invariant ceiling of 64 that is not a runtime parameter. | 2B |
-| `TASK_SUBTREE_MAX` | Most tasks one subtree operation touches (a move or a lifecycle command with include_subtasks, or a duplicate with include_subtasks); default 500, range 1–5000. Larger subtrees are refused before any change. | 2B |
-| `TASK_ITEMS_MAX` | Most checklist items, criteria items, and links each task holds (each kind counted separately); default 200, range 1–1000. | 2B |
-| `TASK_ASSIGNEES_MAX` | Most active assignees on one task; default 20, range 1–100. | 2B |
-| `TASK_LABELS_MAX` | Most labels on one task; default 50, range 1–200. | 2B |
-| `BRAND_LABELS_MAX` | Most active and archived labels in one brand; default 1000, range 1–10000. | 2B |
-| `TASK_ESTIMATE_MINUTES_MAX` | Largest estimate or remaining estimate, in minutes; default 100000, range 60–1000000. | 2B |
-| `WORKFLOW_STATUSES_MAX` | Most statuses in one workflow; default 50, range 2–200. | 2C |
-| `WORKFLOW_TRANSITIONS_MAX` | Most transitions in one workflow; default 400, range 1–2000. | 2C |
-| `TRANSITION_REQUIREMENTS_MAX` | Most required fields on one transition; default 30, range 1–100. | 2C |
-| `TRANSITION_APPROVERS_MAX` | Most named approvers on one transition; default 10, range 1–50. | 2C |
+| `ACTIVITY_RECORDS_MAX` | Most records whose activity one activity view reads (more are reported as truncated); default 500, range 10–5000. | 3B |
+| `API_EXPORT_RATE_PER_MINUTE` | Public API exports per principal per minute; default 20. | 6B |
+| `API_READ_RATE_PER_MINUTE` | Public API reads per principal per minute; default 600. | 6B |
+| `API_TOKENS_PERSONAL_MAX` | Active personal API tokens one member may hold; default 25. | 6B |
+| `API_TOKENS_SERVICE_MAX` | Active service tokens one accountable owner may hold; default 50. | 6B |
+| `API_WRITE_RATE_PER_MINUTE` | Public API writes per principal per minute; default 120. | 6B |
 | `APPROVAL_EXPIRY_HOURS` | How long an approval request stays valid; default 168, range 1–2160. | 2C |
-| `TRANSITION_PREVIEW_TTL_SECONDS` | Lifetime of a signed transition preview fingerprint; default 600, range 60–3600. | 2C |
-| `FIELD_DEFINITIONS_MAX` | Most active field definitions at one scope; default 200, range 1–1000. | 2C |
-| `FIELD_OPTIONS_MAX` | Most options on one select field; default 200, range 2–1000. | 2C |
-| `FIELD_SETS_MAX` | Most active field sets at one scope; default 100, range 1–500. | 2C |
-| `FIELD_SET_ITEMS_MAX` | Most definitions in one field set version; default 100, range 1–500. | 2C |
-| `FIELD_TEXT_MAX` | Longest custom text value in characters; default 5000, range 1–20000. | 2C |
-| `FIELD_PATTERN_MAX` | Longest validation pattern in characters; default 200, range 1–1000. | 2C |
-| `FORMULA_SOURCE_MAX` | Longest formula source in characters; default 2000, range 10–10000. | 2C |
-| `FORMULA_AST_NODES_MAX` | Most nodes in a compiled formula; default 200, range 10–2000. | 2C |
-| `FORMULA_DEPTH_MAX` | Deepest formula dependency chain; default 8, range 1–32. | 2C |
-| `FORMULA_REFS_MAX` | Most field references in one formula; default 20, range 1–100. | 2C |
-| `FIELD_VALUE_BULK_MAX` | Most records migrated by one status or option replacement command; default 500, range 1–5000. | 2C |
-| `TASK_STALE_ACTIVE_DAYS` | Days without a meaningful update after which an active or blocked task is stale (OD-17); default 7, range 1–90. | 2D |
-| `TASK_STALE_PLANNED_DAYS` | Days without a meaningful update after which a planned task is stale (OD-17); default 14, range 1–180. | 2D |
-| `TASK_RESCHEDULE_COUNT` | Material due-date or deadline edits within the window that mark a task repeatedly rescheduled (OD-17); default 3, range 2–20. | 2D |
-| `TASK_RESCHEDULE_WINDOW_DAYS` | Window for counting reschedules (OD-17); default 14, range 1–90. | 2D |
-| `TASK_REMINDERS_MAX` | Most scheduled reminders one person may hold on one task; default 10, range 1–50. | 2D |
-| `REMINDER_FIRE_BATCH_MAX` | Most due reminders one worker run fires per workspace; later ones wait for the next run; default 500, range 1–5000. | 2D |
-| `TASK_SNOOZE_MAX_DAYS` | Furthest a snooze may reach; default 365, range 1–3650. | 2D |
+| `ATOMIC_BULK_LIMIT` | Max items in an atomic bulk request. | 2D |
+| `AVAILABILITY_WINDOWS_MAX` | Most working windows one person may define per week; default 28, range 7–56. | 3E |
+| `BLOCK_SERIES_HORIZON_DAYS` | How many days ahead recurring work blocks are generated; default 28, range 1–180. | 3C |
+| `BLOCK_SERIES_MAX` | Most active recurring block series one person may have; default 50, range 1–500. | 3C |
+| `BRAND_HOLIDAYS_MAX` | Most holidays one brand may keep; default 1000, range 10–10000. | 3E |
+| `BRAND_LABELS_MAX` | Most active and archived labels in one brand; default 1000, range 1–10000. | 2B |
 | `BULK_ITEMS_MAX` | Most tasks in one bulk command's explicit set; default 200, range 1–1000. | 2D |
 | `BULK_PREVIEW_TTL_SECONDS` | How long a bulk preview may be executed; default 600, range 60–3600. | 2D |
-| `UNDO_WINDOW_SECONDS` | How long a reversible mutation can be undone; default 30, range 5–300. | 2D |
-| `DUPLICATE_WINDOW_DAYS` | How far back deterministic duplicate matching looks; default 90, range 1–365. | 2D |
-| `DUPLICATE_CANDIDATES_MAX` | Most duplicate candidates returned; default 5, range 1–20. | 2D |
-| `CAPTURE_TEXT_MAX` | Most characters in one capture or note body; default 10000, range 100–50000. | 2E |
-| `CAPTURE_PASTE_LINES_MAX` | Most candidate items one paste may create; default 100, range 1–500. | 2E |
-| `CAPTURE_LINKS_MAX` | Most links attached to one capture; default 10, range 0–50. | 2E |
-| `CAPTURE_FILES_MAX` | Most file references attached to one capture (refused until 4E storage); default 10, range 0–50. | 2E |
-| `CAPTURE_PARSE_TOKENS_MAX` | Most tokens the deterministic parser examines per line; default 64, range 8–256. | 2E |
-| `CAPTURE_RATE_PER_MINUTE` | Most capture commands one person may run per minute; default 60, range 1–600. | 2E |
-| `TRIAGE_BATCH_MAX` | Most Inbox items one triage command may change; default 50, range 1–200. | 2E |
-| `INBOX_MERGE_MAX` | Most Inbox items one merge may combine; default 20, range 2–100. | 2E |
-| `INTAKE_FORMS_MAX` | Most intake forms per brand; default 50, range 1–500. | 2E |
-| `INTAKE_SUBMISSIONS_PER_HOUR` | Most submissions one person may make to one form per hour; default 20, range 1–1000. | 2E |
-| `QUERY_CONDITIONS_MAX` | Most conditions one view query may combine; default 40, range 1–200. | 3A |
-| `QUERY_DEPTH_MAX` | Deepest nesting of AND/OR filter groups; default 3, range 1–6. | 3A |
-| `QUERY_SORTS_MAX` | Most sort keys in one view query; default 5, range 1–10. | 3A |
-| `QUERY_VALUES_MAX` | Most values one filter condition may list; default 100, range 1–500. | 3A |
-| `QUERY_GROUPS_MAX` | Most groups one grouped query returns (more are reported as truncated); default 200, range 10–1000. | 3A |
-| `VIEW_COLUMNS_MAX` | Most visible columns in one view; default 20, range 1–50. | 3A |
-| `SAVED_VIEWS_MAX` | Most active saved views one person may own in a workspace; default 200, range 1–2000. | 3A |
-| `VIEW_PINS_MAX` | Most views pinned into one workspace or brand navigation; default 20, range 1–100. | 3A |
-| `EXPORT_ROWS_MAX` | Most rows one direct export of the current view may contain; larger views must be narrowed; default 5000, range 1–50000. | 3A |
-| `TIME_ENTRY_MAX_HOURS` | Longest single time entry or timer run, in hours; default 24, range 1–24. | 3D |
-| `TIME_TIMER_MAX_HOURS` | Hours after which a still-running timer is stopped automatically by the timer guard; default 12, range 1–24. | 3D |
-| `TIME_REPORT_RANGE_DAYS_MAX` | Widest date range one time report, timesheet list, or export may cover, in days; default 366, range 7–1830. | 3D |
-| `TIME_REPORT_ROWS_MAX` | Most rows (groups) one planned-versus-actual report returns; default 500, range 10–5000. | 3D |
-| `TIME_EXPORT_ROWS_MAX` | Most time entries one direct export may contain; default 10000, range 100–50000. | 3D |
-| `TIME_TIMESHEET_ENTRIES_MAX` | Most time entries one person may have in one timesheet period; default 2000, range 10–10000. | 3D |
-| `TIME_RUNAWAY_DISCOVERY_MAX` | Most workspaces one timer-guard run examines; default 100, range 1–1000. | 3D |
-| `TIME_RUNAWAY_BATCH_MAX` | Most runaway timers one timer-guard run stops per workspace; default 200, range 1–1000. | 3D |
-| `LAYOUT_ITEMS_MAX` | Most records one layout read (Gantt dependencies, milestones, portfolio progress, timesheet time) may name; default 200, range 10–1000. | 3B |
-| `WORKLOAD_DAYS_MAX` | Longest date range one workload grid may cover; default 366, range 7–731. | 3B |
-| `ACTIVITY_RECORDS_MAX` | Most records whose activity one activity view reads (more are reported as truncated); default 500, range 10–5000. | 3B |
-| `TODAY_ITEMS_MAX` | Most Today commitments one person may have on one day; default 100, range 1–500. | 3C |
-| `TODAY_LIST_MAX` | Most tasks one Today section (overdue, due today, upcoming deadlines) returns; default 50, range 5–200. | 3C |
-| `UPCOMING_DEADLINE_DAYS` | How many days ahead Today lists upcoming deadlines; default 14, range 1–90. | 3C |
-| `WORK_BLOCKS_PER_DAY_MAX` | Most work blocks one person may have starting on one local day; default 50, range 1–200. | 3C |
-| `WORK_BLOCKS_RANGE_DAYS_MAX` | Widest range of days one work-block listing may cover; default 42, range 1–366. | 3C |
-| `BLOCK_SERIES_MAX` | Most active recurring block series one person may have; default 50, range 1–500. | 3C |
-| `BLOCK_SERIES_HORIZON_DAYS` | How many days ahead recurring work blocks are generated; default 28, range 1–180. | 3C |
-| `DAY_CLOSE_DISCOVERY_MAX` | Most workspaces one day-close or block-series run examines; default 100, range 1–1000. | 3C |
-| `DAY_CLOSE_BATCH_MAX` | Most person-days one day-close run records per workspace; default 200, range 1–1000. | 3C |
-| `AVAILABILITY_WINDOWS_MAX` | Most working windows one person may define per week; default 28, range 7–56. | 3E |
-| `TIME_OFF_ENTRIES_MAX` | Most time-off entries one person may keep; default 500, range 10–5000. | 3E |
-| `BRAND_HOLIDAYS_MAX` | Most holidays one brand may keep; default 1000, range 10–10000. | 3E |
-| `CAPACITY_RANGE_DAYS_MAX` | Longest date range one capacity read may cover; default 93, range 7–366. | 3E |
+| `BULK_SYNC_LIMIT` | Max items processed synchronously before a bulk request becomes a background operation. | 2D |
 | `CAPACITY_PEOPLE_MAX` | Most people one team capacity read may include; default 100, range 1–1000. | 3E |
+| `CAPACITY_RANGE_DAYS_MAX` | Longest date range one capacity read may cover; default 93, range 7–366. | 3E |
+| `CAPTURE_FILES_MAX` | Most file references attached to one capture (refused until 4E storage); default 10, range 0–50. | 2E |
+| `CAPTURE_LINKS_MAX` | Most links attached to one capture; default 10, range 0–50. | 2E |
+| `CAPTURE_PARSE_TOKENS_MAX` | Most tokens the deterministic parser examines per line; default 64, range 8–256. | 2E |
+| `CAPTURE_PASTE_LINES_MAX` | Most candidate items one paste may create; default 100, range 1–500. | 2E |
+| `CAPTURE_RATE_PER_MINUTE` | Most capture commands one person may run per minute; default 60, range 1–600. | 2E |
+| `CAPTURE_TEXT_MAX` | Most characters in one capture or note body; default 10000, range 100–50000. | 2E |
+| `COMMENTS_PER_RECORD_MAX` | Most comments (roots and replies, deleted ones included) one record may hold; default 5000, range 100–50000. | 4A |
 | `COMMENT_BODY_MAX_CHARS` | Longest comment body, in characters of extracted text; default 10000, range 100–50000. | 4A |
 | `COMMENT_EDIT_WINDOW_MINUTES` | How long after posting an author may edit or delete their own comment (the OD-38 audit window); default 1440, range 5–10080. Moderators are not bound by it. | 4A |
 | `COMMENT_MENTIONS_MAX` | Most mentions one comment may carry; default 20, range 1–100. | 4A |
-| `COMMENTS_PER_RECORD_MAX` | Most comments (roots and replies, deleted ones included) one record may hold; default 5000, range 100–50000. | 4A |
 | `COMMENT_RATE_PER_MINUTE` | Most comments, replies, and edits one person may post per minute; default 30, range 1–600. | 4A |
 | `COMMENT_REPLIES_INLINE_MAX` | Most replies a comment list returns inline under each thread (more are fetched by cursor); default 20, range 1–100. | 4A |
-| `FOLLOWERS_LIST_MAX` | Most followers one record's follower list returns; default 200, range 10–1000. | 4A |
-| `REVIEW_REVIEWERS_MAX` | Most reviewers one review request may name; default 10, range 1–50. | 4A |
-| `NOTIFY_FANOUT_RECIPIENTS_MAX` | Most recipients one event fans out to (team mentions and follower lists are cut here); default 500, range 1–5000. | 4B |
-| `NOTIFY_DEDUPE_WINDOW_MINUTES` | Width of the time bucket in which repeated notifications of one kind about one record from one actor collapse into one; default 60, range 1–1440. | 4B |
-| `NOTIFY_DELIVERY_BATCH_MAX` | Most deliveries one sweep claims per workspace; default 100, range 1–1000. | 4B |
-| `NOTIFY_DELIVERY_MAX_ATTEMPTS` | Attempts before a transient delivery failure is dead-lettered; default 6, range 1–20. | 4B |
-| `NOTIFY_RETRY_BASE_SECONDS` | First retry delay; each later attempt doubles it; default 60, range 5–3600. | 4B |
-| `NOTIFY_RETRY_MAX_SECONDS` | Longest retry delay; default 3600, range 60–86400. | 4B |
-| `NOTIFY_DIGEST_ITEMS_MAX` | Most items one digest lists (the rest stay in the notification centre); default 50, range 5–200. | 4B |
-| `NOTIFY_EMAIL_PER_HOUR_MAX` | Most immediate emails one person receives per hour; more roll into their next digest; default 20, range 1–200. | 4B |
-| `NOTIFY_RETENTION_DAYS` | Age after which a notification that is not saved is removed with its deliveries (a technical bound, not a published retention period: OD-36); default 365, range 30–3650. | 4B |
-| `NOTIFY_PREFERENCES_MAX` | Most preference and mute rows one person may keep; default 200, range 10–1000. | 4B |
-| `NOTIFY_BROWSER_ACK_TTL_MINUTES` | How long a browser delivery waits for the person's open browser to acknowledge it before it expires; default 30, range 1–1440. | 4B |
-| `NOTIFY_SEARCH_QUERY_MAX` | Longest notification history search text; default 100, range 10–200. | 4B |
-| `NOTIFY_DISCOVERY_MAX` | Most workspaces one notification sweep examines; default 100, range 1–1000. | 4B |
-| `NOTIFY_BULK_STATE_MAX` | Most notifications one bulk state change names; default 200, range 1–1000. | 4B |
-| `NOTIFY_DEADLINES_BATCH_MAX` | Most due-soon and overdue tasks one sweep considers per workspace; default 500, range 10–5000. | 4B |
-| `NOTIFY_FACTS_MAX_BYTES` | Largest facts object a notification stores (scalars only, never titles or text); default 1024, range 128–4096. | 4B |
-| `DOCUMENT_BODY_MAX_BYTES` | Largest canonical content of one document version, in bytes; default 262144, range 4096–2000000. | 4C |
+| `CONNECTIONS_PER_SCOPE_MAX` | Most connections one workspace or brand scope holds; default 50, range 1–500. | 6A |
+| `CONNECTION_SCOPES_MAX` | Most scopes one connection may be granted; default 16, range 1–32. | 6A |
+| `DASHBOARDS_PER_SCOPE_MAX` | Most dashboards one workspace, brand, or project scope holds; default 100, range 1–1000. | 5D |
+| `DASHBOARD_PERSONAL_MAX` | Most personal dashboards one member holds; default 20, range 1–200. | 5D |
+| `DASHBOARD_WIDGETS_MAX` | Most widgets one dashboard or report holds; default 24, range 1–60. | 5D |
+| `DAY_CLOSE_BATCH_MAX` | Most person-days one day-close run records per workspace; default 200, range 1–1000. | 3C |
+| `DAY_CLOSE_DISCOVERY_MAX` | Most workspaces one day-close or block-series run examines; default 100, range 1–1000. | 3C |
+| `DELIVERABLES_PER_TASK_MAX` | Most deliverables one task holds; default 50, range 1–500. | 4E |
+| `DEPRECATION_NOTICE_PERIOD` | Minimum notice before removing a deprecated public contract (product-owner decision). | PO |
 | `DOCUMENT_BLOCKS_MAX` | Most blocks in one document; default 2000, range 10–5000. | 4C |
 | `DOCUMENT_BLOCK_TEXT_MAX_CHARS` | Longest text of one block; default 20000, range 100–50000. | 4C |
-| `DOCUMENT_TABLE_CELLS_MAX` | Most cells in one table block; default 1000, range 4–5000. | 4C |
-| `DOCUMENT_DEPTH_MAX` | Deepest page nesting (a root is depth 0); default 6, range 1–16. | 4C |
+| `DOCUMENT_BODY_MAX_BYTES` | Largest canonical content of one document version, in bytes; default 262144, range 4096–2000000. | 4C |
 | `DOCUMENT_CHILDREN_MAX` | Most direct subpages of one page; default 200, range 1–1000. | 4C |
-| `DOCUMENT_TREE_MAX` | Most pages in one page tree; default 1000, range 10–5000. | 4C |
-| `DOCUMENT_VERSIONS_MAX` | Most versions one document keeps; default 1000, range 10–10000. | 4C |
-| `DOCUMENT_REFERENCES_MAX` | Most links and mentions in one document; default 500, range 10–2000. | 4C |
-| `DOCUMENT_SUGGESTIONS_OPEN_MAX` | Most open suggestions on one document; default 100, range 1–500. | 4C |
-| `DOCUMENT_EXPORT_PAGES_MAX` | Most pages one export carries; default 100, range 1–500. | 4C |
+| `DOCUMENT_DEPTH_MAX` | Deepest page nesting (a root is depth 0); default 6, range 1–16. | 4C |
+| `DOCUMENT_EMBED_URL_MAX_CHARS` | Longest address of an embedded image, video, or link; default 2048, range 128–8192. | 4C |
 | `DOCUMENT_EXPORT_MAX_BYTES` | Largest export, in bytes; default 5242880, range 65536–52428800. | 4C |
+| `DOCUMENT_EXPORT_PAGES_MAX` | Most pages one export carries; default 100, range 1–500. | 4C |
+| `DOCUMENT_REFERENCES_MAX` | Most links and mentions in one document; default 500, range 10–2000. | 4C |
 | `DOCUMENT_REVIEW_HORIZON_DAYS` | Furthest review date, in days from today; default 730, range 30–3650. | 4C |
 | `DOCUMENT_SAVE_RATE_PER_MINUTE` | Most content saves one person makes per minute; default 60, range 1–600. | 4C |
-| `LIVE_EDITING_ENABLED` | Whether live collaborative editing is offered; 0 falls back to versioned non-live editing; default 1. | 4D |
-| `LIVE_SESSION_TTL_SECONDS` | How long a live editing session lasts without a heartbeat, poll, or operation; default 45, range 15–300. | 4D |
-| `LIVE_SESSIONS_MAX` | Most live editing sessions on one document; default 20, range 2–100. | 4D |
-| `LIVE_SESSIONS_PER_MEMBER_MAX` | Most live sessions one person holds at once; default 5, range 1–20. | 4D |
-| `LIVE_OPS_BATCH_MAX` | Most operations in one live request; default 50, range 1–200. | 4D |
-| `LIVE_POLL_WAIT_SECONDS` | Longest a live poll waits for news before answering; default 20, range 0–30. | 4D |
-| `LIVE_OP_LOG_MAX` | Operations kept so reconnecting editors can catch up; default 2000, range 100–10000. | 4D |
-| `LIVE_RATE_PER_MINUTE` | Most live editing requests one person makes per minute; default 1200, range 10–6000. | 4D |
-| `SEARCH_QUERY_MAX_CHARS` | Longest search query; default 200, range 20–500. | 5A |
-| `SEARCH_TERMS_MAX` | Most words and phrases in one search query; default 12, range 2–30. | 5A |
-| `SEARCH_PAGE_SIZE_MAX` | Most results one search page returns; default 50, range 10–100. | 5A |
-| `SEARCH_RESULTS_MAX` | Deepest result a search can page to; default 200, range 50–1000. | 5A |
-| `SEARCH_COUNT_MAX` | Where result counts and facets stop and say "at least"; default 1000, range 100–10000. | 5A |
-| `SEARCH_SNIPPET_CHARS` | Longest result snippet; default 220, range 80–500. | 5A |
-| `SEARCH_BODY_MAX_CHARS` | Most text indexed per record; default 100000, range 10000–100000. | 5A |
-| `SEARCH_INDEX_BATCH_MAX` | Most records one worker run indexes per workspace; default 200, range 10–1000. | 5A |
-| `SEARCH_INDEX_DISCOVERY_MAX` | Most workspaces one indexing run visits; default 50, range 1–500. | 5A |
-| `SEARCH_INDEX_MAX_ATTEMPTS` | Attempts to index a record before it is shown as failed; default 5, range 1–20. | 5A |
-| `SEARCH_INDEX_BACKOFF_SECONDS` | First wait before a failed indexing attempt is retried (it doubles); default 30, range 5–3600. | 5A |
-| `SEARCH_FAILED_RETRY_MINUTES` | How long a failed record waits between slow retries; default 360, range 10–10080. | 5A |
-| `SEARCH_RECENT_MAX` | Recent searches kept per person and workspace; default 25, range 5–100. | 5A |
-| `SEARCH_RECENT_RETENTION_DAYS` | How long a recent search is kept; default 90, range 1–365. | 5A |
-| `SEARCH_RATE_PER_MINUTE` | Most searches one person makes per minute; default 120, range 10–1200. | 5A |
-| `DOCUMENT_EMBED_URL_MAX_CHARS` | Longest address of an embedded image, video, or link; default 2048, range 128–8192. | 4C |
-| `FILE_UPLOAD_MAX_BYTES` | Largest single upload in bytes; default 104857600 (100 MiB), range 1024–5368709120. | 4E |
-| `WORKSPACE_STORAGE_QUOTA_BYTES` | Stored bytes one workspace may hold, counting bytes reserved by open upload sessions (a technical limit until plans set it, 10A); default 10737418240 (10 GiB), range 1048576–10995116277760. | 4E |
-| `FILE_COMPARE_MAX_BYTES` | Largest text or code version compared line by line (larger versions compare by metadata); default 262144, range 1024–2097152. | 4E |
-| `FILE_SCAN_MAX_ATTEMPTS` | Scan attempts before a failing scan marks the object scan_failed (downloads stay blocked); default 5, range 1–20. | 4E |
-| `FILE_VERSIONS_MAX` | Most versions one file keeps; default 100, range 1–1000. | 4E |
+| `DOCUMENT_SUGGESTIONS_OPEN_MAX` | Most open suggestions on one document; default 100, range 1–500. | 4C |
+| `DOCUMENT_TABLE_CELLS_MAX` | Most cells in one table block; default 1000, range 4–5000. | 4C |
+| `DOCUMENT_TREE_MAX` | Most pages in one page tree; default 1000, range 10–5000. | 4C |
+| `DOCUMENT_VERSIONS_MAX` | Most versions one document keeps; default 1000, range 10–10000. | 4C |
+| `DUPLICATE_CANDIDATES_MAX` | Most duplicate candidates returned; default 5, range 1–20. | 2D |
+| `DUPLICATE_WINDOW_DAYS` | How far back deterministic duplicate matching looks; default 90, range 1–365. | 2D |
+| `EXPORT_LINK_LIFETIME` | Export file download lifetime (0A parameter, OD-36). | PO |
+| `EXPORT_ROWS_MAX` | Most rows one direct export of the current view may contain; larger views must be narrowed; default 5000, range 1–50000. | 3A |
+| `FAVORITES_MAX` | Most favorites one person may keep in one workspace; adding beyond it is refused with a limit error, never silently dropped. | 1E |
+| `FIELD_DEFINITIONS_MAX` | Most active field definitions at one scope; default 200, range 1–1000. | 2C |
+| `FIELD_OPTIONS_MAX` | Most options on one select field; default 200, range 2–1000. | 2C |
+| `FIELD_PATTERN_MAX` | Longest validation pattern in characters; default 200, range 1–1000. | 2C |
+| `FIELD_SETS_MAX` | Most active field sets at one scope; default 100, range 1–500. | 2C |
+| `FIELD_SET_ITEMS_MAX` | Most definitions in one field set version; default 100, range 1–500. | 2C |
+| `FIELD_TEXT_MAX` | Longest custom text value in characters; default 5000, range 1–20000. | 2C |
+| `FIELD_VALUE_BULK_MAX` | Most records migrated by one status or option replacement command; default 500, range 1–5000. | 2C |
 | `FILES_LIST_MAX` | Most files one record holds and lists; default 200, range 10–1000. | 4E |
-| `DELIVERABLES_PER_TASK_MAX` | Most deliverables one task holds; default 50, range 1–500. | 4E |
+| `FILE_COMPARE_MAX_BYTES` | Largest text or code version compared line by line (larger versions compare by metadata); default 262144, range 1024–2097152. | 4E |
 | `FILE_DISCOVERY_MAX` | Most workspaces one file sweep examines; default 100, range 1–1000. | 4E |
 | `FILE_EXPIRY_BATCH_MAX` | Most expired upload sessions and object deletions one sweep handles per workspace; default 200, range 10–5000. | 4E |
+| `FILE_SCAN_MAX_ATTEMPTS` | Scan attempts before a failing scan marks the object scan_failed (downloads stay blocked); default 5, range 1–20. | 4E |
+| `FILE_UPLOAD_MAX_BYTES` | Largest single upload in bytes; default 104857600 (100 MiB), range 1024–5368709120. | 4E |
+| `FILE_VERSIONS_MAX` | Most versions one file keeps; default 100, range 1–1000. | 4E |
+| `FOLLOWERS_LIST_MAX` | Most followers one record's follower list returns; default 200, range 10–1000. | 4A |
+| `FORMULA_AST_NODES_MAX` | Most nodes in a compiled formula; default 200, range 10–2000. | 2C |
+| `FORMULA_DEPTH_MAX` | Deepest formula dependency chain; default 8, range 1–32. | 2C |
+| `FORMULA_REFS_MAX` | Most field references in one formula; default 20, range 1–100. | 2C |
+| `FORMULA_SOURCE_MAX` | Longest formula source in characters; default 2000, range 10–10000. | 2C |
+| `GOALS_EXPORT_ROWS_MAX` | Most rows one goal or portfolio export returns; larger exports are refused; default 5000, range 100–50000. | 5B |
 | `GOALS_PER_SCOPE_MAX` | Most live goals one workspace, brand, or project scope holds; default 500, range 10–5000. | 5B |
+| `GOALS_RECALC_BATCH_MAX` | Most goals one recalculation sweep claims per workspace; default 200, range 10–2000. | 5B |
+| `GOALS_RECALC_INTERVAL_MINUTES` | How often an unchanged goal's time-driven state (staleness, period) is rechecked; default 360, range 15–1440. | 5B |
+| `GOALS_RECALC_LEASE_SECONDS` | How long a claimed goal stays leased before another sweep may reclaim it; default 300, range 30–3600. | 5B |
+| `GOALS_RECALC_MAX_ATTEMPTS` | Failed recalculations before a goal is reported as failing and backed off to the recheck interval; default 5, range 1–20. | 5B |
+| `GOAL_CHECKIN_RATE_PER_MINUTE` | Check-ins one member may record per minute; default 30, range 1–600. | 5B |
 | `GOAL_KEY_RESULTS_MAX` | Most key results one goal holds; default 20, range 1–50. | 5B |
 | `GOAL_LINKS_MAX` | Most projects and tasks one goal (with its key results) links; default 200, range 10–1000. | 5B |
 | `GOAL_UPDATE_STALE_DAYS` | Days without a manual check-in after which an active goal's update is stale; default 14, range 1–90. | 5B |
-| `GOAL_CHECKIN_RATE_PER_MINUTE` | Check-ins one member may record per minute; default 30, range 1–600. | 5B |
-| `PORTFOLIOS_MAX` | Most live portfolios one workspace holds; default 100, range 1–1000. | 5B |
-| `PORTFOLIO_PROJECTS_MAX` | Most projects one portfolio names; default 200, range 10–1000. | 5B |
-| `PORTFOLIO_READ_PROJECTS_MAX` | Most projects one health, dependency, or orphan read evaluates before it reports itself truncated; default 500, range 50–2000. | 5B |
-| `GOALS_EXPORT_ROWS_MAX` | Most rows one goal or portfolio export returns; larger exports are refused; default 5000, range 100–50000. | 5B |
-| `GOALS_RECALC_BATCH_MAX` | Most goals one recalculation sweep claims per workspace; default 200, range 10–2000. | 5B |
-| `GOALS_RECALC_LEASE_SECONDS` | How long a claimed goal stays leased before another sweep may reclaim it; default 300, range 30–3600. | 5B |
-| `GOALS_RECALC_INTERVAL_MINUTES` | How often an unchanged goal's time-driven state (staleness, period) is rechecked; default 360, range 15–1440. | 5B |
-| `GOALS_RECALC_MAX_ATTEMPTS` | Failed recalculations before a goal is reported as failing and backed off to the recheck interval; default 5, range 1–20. | 5B |
-| `METRICS_WINDOW_DAYS_MAX` | Longest window a metric may cover, in days; default 366, range 31–1000. | 5C |
+| `IDEMPOTENCY_RETENTION` | Minimum retention of idempotency records; must cover the offline replay window. | 1A/2D |
+| `IMPORT_ROLLBACK_PERIOD` | Import rollback window (0A parameter, OD-40). | PO |
+| `INBOX_MERGE_MAX` | Most Inbox items one merge may combine; default 20, range 2–100. | 2E |
+| `INTAKE_FORMS_MAX` | Most intake forms per brand; default 50, range 1–500. | 2E |
+| `INTAKE_SUBMISSIONS_PER_HOUR` | Most submissions one person may make to one form per hour; default 20, range 1–1000. | 2E |
+| `INTEGRATION_LOOPBACK_ENABLED` | Whether the in-process loopback provider is configured: auto (on for local and test), 0, or 1. | 6A |
+| `INVITATION_LIFETIME` | How long an invitation token stays acceptable before the invitation expires. | 1D |
+| `JOB_BACKOFF_BASE` | Backoff base delay per queue. | 1A |
+| `JOB_BACKOFF_CAP` | Maximum backoff delay per queue. | 1A |
+| `JOB_HEARTBEAT_INTERVAL` | Heartbeat interval; < lease duration / 3. | 1A |
+| `JOB_LEASE_DURATION` | Lease length per queue. | 1A |
+| `JOB_MAX_ATTEMPTS` | Retry cap per job kind. | 1A |
+| `JOB_TIMEOUT` | Execution timeout per job kind. | 1A |
+| `LAYOUT_ITEMS_MAX` | Most records one layout read (Gantt dependencies, milestones, portfolio progress, timesheet time) may name; default 200, range 10–1000. | 3B |
+| `LIVE_EDITING_ENABLED` | Whether live collaborative editing is offered; 0 falls back to versioned non-live editing; default 1. | 4D |
+| `LIVE_OPS_BATCH_MAX` | Most operations in one live request; default 50, range 1–200. | 4D |
+| `LIVE_OP_LOG_MAX` | Operations kept so reconnecting editors can catch up; default 2000, range 100–10000. | 4D |
+| `LIVE_POLL_WAIT_SECONDS` | Longest a live poll waits for news before answering; default 20, range 0–30. | 4D |
+| `LIVE_RATE_PER_MINUTE` | Most live editing requests one person makes per minute; default 1200, range 10–6000. | 4D |
+| `LIVE_SESSIONS_MAX` | Most live editing sessions on one document; default 20, range 2–100. | 4D |
+| `LIVE_SESSIONS_PER_MEMBER_MAX` | Most live sessions one person holds at once; default 5, range 1–20. | 4D |
+| `LIVE_SESSION_TTL_SECONDS` | How long a live editing session lasts without a heartbeat, poll, or operation; default 45, range 15–300. | 4D |
 | `METRICS_DEFAULT_WINDOW_DAYS` | Window a metric covers when none is given, in days; default 30, range 7–366. | 5C |
 | `METRICS_DRILL_PAGE_MAX` | Most records on one drill-through page; default 100, range 10–200. | 5C |
 | `METRICS_DRILL_RESULTS_MAX` | Deepest record a drill-through can page to; default 1000, range 100–5000. | 5C |
-| `METRICS_SCOPE_TASKS_MAX` | Most tasks one metric computation reads before it asks for a narrower scope; default 20000, range 1000–200000. | 5C |
-| `METRICS_SAMPLE_MIN` | Fewest records before a distribution metric is shown without a small-sample label; default 5, range 1–100. | 5C |
 | `METRICS_RATE_PER_MINUTE` | Most metric requests one person makes per minute; default 60, range 10–600. | 5C |
+| `METRICS_RECONCILE_BACKOFF_SECONDS` | First wait before a failed reconciliation is retried (it doubles); default 60, range 5–3600. | 5C |
 | `METRICS_RECONCILE_BATCH_MAX` | Most tasks one reconciliation step checks per workspace; default 500, range 50–5000. | 5C |
 | `METRICS_RECONCILE_DISCOVERY_MAX` | Most workspaces one reconciliation run visits; default 50, range 1–500. | 5C |
 | `METRICS_RECONCILE_INTERVAL_MINUTES` | Wait between full reconciliation passes of a workspace, in minutes; default 360, range 5–10080. | 5C |
 | `METRICS_RECONCILE_LEASE_SECONDS` | How long a worker holds a workspace's reconciliation before another may take it; default 300, range 30–3600. | 5C |
 | `METRICS_RECONCILE_MAX_ATTEMPTS` | Failed reconciliation attempts before the workspace is reported failing; default 5, range 1–20. | 5C |
-| `METRICS_RECONCILE_BACKOFF_SECONDS` | First wait before a failed reconciliation is retried (it doubles); default 60, range 5–3600. | 5C |
-| `DASHBOARDS_PER_SCOPE_MAX` | Most dashboards one workspace, brand, or project scope holds; default 100, range 1–1000. | 5D |
-| `DASHBOARD_PERSONAL_MAX` | Most personal dashboards one member holds; default 20, range 1–200. | 5D |
-| `DASHBOARD_WIDGETS_MAX` | Most widgets one dashboard or report holds; default 24, range 1–60. | 5D |
+| `METRICS_SAMPLE_MIN` | Fewest records before a distribution metric is shown without a small-sample label; default 5, range 1–100. | 5C |
+| `METRICS_SCOPE_TASKS_MAX` | Most tasks one metric computation reads before it asks for a narrower scope; default 20000, range 1000–200000. | 5C |
+| `METRICS_WINDOW_DAYS_MAX` | Longest window a metric may cover, in days; default 366, range 31–1000. | 5C |
+| `NOTIFY_BROWSER_ACK_TTL_MINUTES` | How long a browser delivery waits for the person's open browser to acknowledge it before it expires; default 30, range 1–1440. | 4B |
+| `NOTIFY_BULK_STATE_MAX` | Most notifications one bulk state change names; default 200, range 1–1000. | 4B |
+| `NOTIFY_DEADLINES_BATCH_MAX` | Most due-soon and overdue tasks one sweep considers per workspace; default 500, range 10–5000. | 4B |
+| `NOTIFY_DEDUPE_WINDOW_MINUTES` | Width of the time bucket in which repeated notifications of one kind about one record from one actor collapse into one; default 60, range 1–1440. | 4B |
+| `NOTIFY_DELIVERY_BATCH_MAX` | Most deliveries one sweep claims per workspace; default 100, range 1–1000. | 4B |
+| `NOTIFY_DELIVERY_MAX_ATTEMPTS` | Attempts before a transient delivery failure is dead-lettered; default 6, range 1–20. | 4B |
+| `NOTIFY_DIGEST_ITEMS_MAX` | Most items one digest lists (the rest stay in the notification centre); default 50, range 5–200. | 4B |
+| `NOTIFY_DISCOVERY_MAX` | Most workspaces one notification sweep examines; default 100, range 1–1000. | 4B |
+| `NOTIFY_EMAIL_PER_HOUR_MAX` | Most immediate emails one person receives per hour; more roll into their next digest; default 20, range 1–200. | 4B |
+| `NOTIFY_FACTS_MAX_BYTES` | Largest facts object a notification stores (scalars only, never titles or text); default 1024, range 128–4096. | 4B |
+| `NOTIFY_FANOUT_RECIPIENTS_MAX` | Most recipients one event fans out to (team mentions and follower lists are cut here); default 500, range 1–5000. | 4B |
+| `NOTIFY_PREFERENCES_MAX` | Most preference and mute rows one person may keep; default 200, range 10–1000. | 4B |
+| `NOTIFY_RETENTION_DAYS` | Age after which a notification that is not saved is removed with its deliveries (a technical bound, not a published retention period: OD-36); default 365, range 30–3650. | 4B |
+| `NOTIFY_RETRY_BASE_SECONDS` | First retry delay; each later attempt doubles it; default 60, range 5–3600. | 4B |
+| `NOTIFY_RETRY_MAX_SECONDS` | Longest retry delay; default 3600, range 60–86400. | 4B |
+| `NOTIFY_SEARCH_QUERY_MAX` | Longest notification history search text; default 100, range 10–200. | 4B |
+| `OUTBOX_REPLAY_WINDOW` | How long dispatched outbox rows remain for replay. | 1A |
+| `OWNERSHIP_TRANSFER_LIFETIME` | How long a pending ownership transfer waits for the recipient before it expires. | 1D |
+| `PAGE_LIMIT_DEFAULT` | Default page size. | 3A |
+| `PAGE_LIMIT_MAX` | Maximum page size (schema cap 200). | 3A |
+| `PORTFOLIOS_MAX` | Most live portfolios one workspace holds; default 100, range 1–1000. | 5B |
+| `PORTFOLIO_PROJECTS_MAX` | Most projects one portfolio names; default 200, range 10–1000. | 5B |
+| `PORTFOLIO_READ_PROJECTS_MAX` | Most projects one health, dependency, or orphan read evaluates before it reports itself truncated; default 500, range 50–2000. | 5B |
+| `PRINCIPAL_CONTEXT_ARRAY_MAX` | Largest visibility-context array bound as a query parameter before the compiler switches to a transaction-scoped temporary table (0C §4.5). | 1D/11D |
+| `PROJECT_DEPTH_MAX` | Deepest project level a command accepts (root = 0) when creating, moving, duplicating, or generating projects. The database separately enforces an invariant ceiling of 32 that is not a runtime parameter. | 2A |
+| `QUERY_CONDITIONS_MAX` | Most conditions one view query may combine; default 40, range 1–200. | 3A |
+| `QUERY_DEPTH_MAX` | Deepest nesting of AND/OR filter groups; default 3, range 1–6. | 3A |
+| `QUERY_GROUPS_MAX` | Most groups one grouped query returns (more are reported as truncated); default 200, range 10–1000. | 3A |
+| `QUERY_SORTS_MAX` | Most sort keys in one view query; default 5, range 1–10. | 3A |
+| `QUERY_VALUES_MAX` | Most values one filter condition may list; default 100, range 1–500. | 3A |
+| `RATE_LIMIT_POLICIES` | Request quotas per principal class. | 6B/11C |
+| `RECENT_ITEMS_MAX` | Recently viewed entries kept per person per workspace (the full Recently Viewed list); older visits are trimmed in the recording transaction. | 1E |
+| `RECENT_VISIT_COALESCE` | Window in which a repeat visit to the same target is coalesced into the existing recent entry without another write. | 1E |
+| `RECURRENCE_CATCHUP_MAX` | Most missed occurrences one recurrence series may generate in a single catch-up run; later ones wait for the next run. | 2A |
+| `RECURRENCE_SERIES_DISCOVERY_MAX` | Most due recurrence series one job run processes in one workspace (default 50, range 1–500). Series are taken oldest-waiting first (last run, then id), so later series are never starved. | 2A |
+| `RECURRENCE_WORKSPACE_DISCOVERY_MAX` | Most workspaces with due recurrence work one recurrence job run visits (default 200, range 1–1000). Workspaces are taken oldest-waiting first, so remaining work stays eligible for the next run. | 2A |
+| `REMINDER_FIRE_BATCH_MAX` | Most due reminders one worker run fires per workspace; later ones wait for the next run; default 500, range 1–5000. | 2D |
 | `REPORTS_PER_SCOPE_MAX` | Most saved reports one scope holds; default 200, range 1–2000. | 5D |
-| `REPORT_RECIPIENTS_MAX` | Most recipients one scheduled report names; default 50, range 1–500. | 5D |
-| `REPORT_SHARES_MAX` | Most active shares one report holds; default 100, range 1–1000. | 5D |
-| `REPORT_EXPORT_ROWS_MAX` | Most rows one report or widget export returns; larger exports are refused; default 5000, range 100–50000. | 5D |
+| `REPORT_BATCH_MAX` | Most scheduled reports one sweep claims per workspace; default 25, range 1–500. | 5D |
 | `REPORT_EMAIL_ROWS_MAX` | Most rows per widget in a scheduled report email; default 25, range 5–200. | 5D |
 | `REPORT_EXPORT_RATE_PER_MINUTE` | Most report exports one member makes per minute; default 20, range 1–600. | 5D |
-| `REPORT_RUN_RETENTION_DAYS` | How long delivery run records are kept; default 90, range 7–730. | 5D |
-| `REPORT_BATCH_MAX` | Most scheduled reports one sweep claims per workspace; default 25, range 1–500. | 5D |
+| `REPORT_EXPORT_ROWS_MAX` | Most rows one report or widget export returns; larger exports are refused; default 5000, range 100–50000. | 5D |
+| `REPORT_FRESHNESS_MINUTES` | Age after which a derived source (a goal recalculation) is labelled stale on a dashboard; default 720, range 15–10080. | 5D |
 | `REPORT_LEASE_SECONDS` | How long a claimed scheduled report stays leased before another sweep may reclaim it; default 300, range 30–3600. | 5D |
 | `REPORT_MAX_ATTEMPTS` | Failed delivery attempts before a scheduled occurrence is recorded as failed; default 5, range 1–20. | 5D |
-| `REPORT_FRESHNESS_MINUTES` | Age after which a derived source (a goal recalculation) is labelled stale on a dashboard; default 720, range 15–10080. | 5D |
-| `API_TOKENS_PERSONAL_MAX` | Active personal API tokens one member may hold; default 25. | 6B |
-| `API_TOKENS_SERVICE_MAX` | Active service tokens one accountable owner may hold; default 50. | 6B |
-| `API_READ_RATE_PER_MINUTE` | Public API reads per principal per minute; default 600. | 6B |
-| `API_WRITE_RATE_PER_MINUTE` | Public API writes per principal per minute; default 120. | 6B |
-| `API_EXPORT_RATE_PER_MINUTE` | Public API exports per principal per minute; default 20. | 6B |
-| `WEBHOOK_SUBSCRIPTIONS_MAX` | Outbound subscriptions in one scope; default 50. | 6B |
+| `REPORT_RECIPIENTS_MAX` | Most recipients one scheduled report names; default 50, range 1–500. | 5D |
+| `REPORT_RUN_RETENTION_DAYS` | How long delivery run records are kept; default 90, range 7–730. | 5D |
+| `REPORT_SHARES_MAX` | Most active shares one report holds; default 100, range 1–1000. | 5D |
+| `REVIEW_REVIEWERS_MAX` | Most reviewers one review request may name; default 10, range 1–50. | 4A |
+| `SAVED_VIEWS_MAX` | Most active saved views one person may own in a workspace; default 200, range 1–2000. | 3A |
+| `SEARCH_BODY_MAX_CHARS` | Most text indexed per record; default 100000, range 10000–100000. | 5A |
+| `SEARCH_COUNT_MAX` | Where result counts and facets stop and say "at least"; default 1000, range 100–10000. | 5A |
+| `SEARCH_FAILED_RETRY_MINUTES` | How long a failed record waits between slow retries; default 360, range 10–10080. | 5A |
+| `SEARCH_INDEX_BACKOFF_SECONDS` | First wait before a failed indexing attempt is retried (it doubles); default 30, range 5–3600. | 5A |
+| `SEARCH_INDEX_BATCH_MAX` | Most records one worker run indexes per workspace; default 200, range 10–1000. | 5A |
+| `SEARCH_INDEX_DISCOVERY_MAX` | Most workspaces one indexing run visits; default 50, range 1–500. | 5A |
+| `SEARCH_INDEX_MAX_ATTEMPTS` | Attempts to index a record before it is shown as failed; default 5, range 1–20. | 5A |
+| `SEARCH_PAGE_SIZE_MAX` | Most results one search page returns; default 50, range 10–100. | 5A |
+| `SEARCH_QUERY_MAX_CHARS` | Longest search query; default 200, range 20–500. | 5A |
+| `SEARCH_RATE_PER_MINUTE` | Most searches one person makes per minute; default 120, range 10–1200. | 5A |
+| `SEARCH_RECENT_MAX` | Recent searches kept per person and workspace; default 25, range 5–100. | 5A |
+| `SEARCH_RECENT_RETENTION_DAYS` | How long a recent search is kept; default 90, range 1–365. | 5A |
+| `SEARCH_RESULTS_MAX` | Deepest result a search can page to; default 200, range 50–1000. | 5A |
+| `SEARCH_SNIPPET_CHARS` | Longest result snippet; default 220, range 80–500. | 5A |
+| `SEARCH_TERMS_MAX` | Most words and phrases in one search query; default 12, range 2–30. | 5A |
+| `SIGNED_URL_LIFETIME` | Lifetime of signed upload and download URLs in seconds; never stored, logged, or sent in notifications or exports; default 300, range 30–3600. | 4E |
+| `SSE_BUFFER_LIMIT` | Notices buffered per stream for Last-Event-ID resume. | 1E |
+| `SSE_HEARTBEAT_INTERVAL` | Heartbeat comment interval. | 1E |
+| `SSE_MAX_STREAMS_PER_PRINCIPAL` | Concurrent streams per principal. | 1E |
+| `STEP_UP_CHALLENGE_LIFETIME` | Validity of an unverified challenge. | 1B |
+| `STEP_UP_MAX_ATTEMPTS` | Failed verifications after which a challenge is stored as locked (terminal). | 1B |
+| `STEP_UP_WINDOW` | Validity of a verified step-up token. | 1B |
+| `SYNC_BACKOFF_SECONDS` | Base delay before a transient sync is tried again; default 30, range 1–3600. | 6A |
+| `SYNC_BATCH_MAX` | Most sync deliveries one sweep claims per workspace; default 100, range 1–500. | 6A |
+| `SYNC_HISTORY_RETENTION_DAYS` | How long sync run history is kept; default 90, range 7–730. | 6A |
+| `SYNC_LEASE_SECONDS` | How long a claimed sync delivery stays leased; default 120, range 30–3600. | 6A |
+| `SYNC_MAX_ATTEMPTS` | Transient sync attempts before a delivery is dead-lettered; default 5, range 1–20. | 6A |
+| `SYNC_RATE_PER_MINUTE` | Most connection creates and syncs one member starts per minute; default 30, range 1–600. | 6A |
+| `TASK_ASSIGNEES_MAX` | Most active assignees on one task; default 20, range 1–100. | 2B |
+| `TASK_DEPTH_MAX` | Deepest subtask level a command accepts (root = 0) when creating, reparenting, moving, or duplicating tasks; default 20, range 1–64. The database separately enforces an invariant ceiling of 64 that is not a runtime parameter. | 2B |
+| `TASK_ESTIMATE_MINUTES_MAX` | Largest estimate or remaining estimate, in minutes; default 100000, range 60–1000000. | 2B |
+| `TASK_ITEMS_MAX` | Most checklist items, criteria items, and links each task holds (each kind counted separately); default 200, range 1–1000. | 2B |
+| `TASK_LABELS_MAX` | Most labels on one task; default 50, range 1–200. | 2B |
+| `TASK_REMINDERS_MAX` | Most scheduled reminders one person may hold on one task; default 10, range 1–50. | 2D |
+| `TASK_RESCHEDULE_COUNT` | Material due-date or deadline edits within the window that mark a task repeatedly rescheduled (OD-17); default 3, range 2–20. | 2D |
+| `TASK_RESCHEDULE_WINDOW_DAYS` | Window for counting reschedules (OD-17); default 14, range 1–90. | 2D |
+| `TASK_SNOOZE_MAX_DAYS` | Furthest a snooze may reach; default 365, range 1–3650. | 2D |
+| `TASK_STALE_ACTIVE_DAYS` | Days without a meaningful update after which an active or blocked task is stale (OD-17); default 7, range 1–90. | 2D |
+| `TASK_STALE_PLANNED_DAYS` | Days without a meaningful update after which a planned task is stale (OD-17); default 14, range 1–180. | 2D |
+| `TASK_SUBTREE_MAX` | Most tasks one subtree operation touches (a move or a lifecycle command with include_subtasks, or a duplicate with include_subtasks); default 500, range 1–5000. Larger subtrees are refused before any change. | 2B |
+| `TEMPLATE_ITEMS_MAX` | Most structural items (project, phases, milestones, criteria, scope items) one template version or recurrence snapshot may contain. | 2A |
+| `TIME_ENTRY_MAX_HOURS` | Longest single time entry or timer run, in hours; default 24, range 1–24. | 3D |
+| `TIME_EXPORT_ROWS_MAX` | Most time entries one direct export may contain; default 10000, range 100–50000. | 3D |
+| `TIME_OFF_ENTRIES_MAX` | Most time-off entries one person may keep; default 500, range 10–5000. | 3E |
+| `TIME_REPORT_RANGE_DAYS_MAX` | Widest date range one time report, timesheet list, or export may cover, in days; default 366, range 7–1830. | 3D |
+| `TIME_REPORT_ROWS_MAX` | Most rows (groups) one planned-versus-actual report returns; default 500, range 10–5000. | 3D |
+| `TIME_RUNAWAY_BATCH_MAX` | Most runaway timers one timer-guard run stops per workspace; default 200, range 1–1000. | 3D |
+| `TIME_RUNAWAY_DISCOVERY_MAX` | Most workspaces one timer-guard run examines; default 100, range 1–1000. | 3D |
+| `TIME_TIMER_MAX_HOURS` | Hours after which a still-running timer is stopped automatically by the timer guard; default 12, range 1–24. | 3D |
+| `TIME_TIMESHEET_ENTRIES_MAX` | Most time entries one person may have in one timesheet period; default 2000, range 10–10000. | 3D |
+| `TODAY_ITEMS_MAX` | Most Today commitments one person may have on one day; default 100, range 1–500. | 3C |
+| `TODAY_LIST_MAX` | Most tasks one Today section (overdue, due today, upcoming deadlines) returns; default 50, range 5–200. | 3C |
+| `TOTAL_COUNT_CAP` | Above this, totals are capped/estimated. | 3A |
+| `TRANSITION_APPROVERS_MAX` | Most named approvers on one transition; default 10, range 1–50. | 2C |
+| `TRANSITION_PREVIEW_TTL_SECONDS` | Lifetime of a signed transition preview fingerprint; default 600, range 60–3600. | 2C |
+| `TRANSITION_REQUIREMENTS_MAX` | Most required fields on one transition; default 30, range 1–100. | 2C |
+| `TRIAGE_BATCH_MAX` | Most Inbox items one triage command may change; default 50, range 1–200. | 2E |
+| `UNDO_RETENTION` | How long an operation remains undoable server-side. | 2D |
+| `UNDO_WINDOW_SECONDS` | How long a reversible mutation can be undone; default 30, range 5–300. | 2D |
+| `UPCOMING_DEADLINE_DAYS` | How many days ahead Today lists upcoming deadlines; default 14, range 1–90. | 3C |
+| `UPLOAD_SESSION_LIFETIME` | Lifetime of an upload session in seconds; an expired, unfinished session releases its reserved bytes and quarantined object; default 3600, range 300–86400. | 4E |
+| `USAGE_WARNING_THRESHOLDS` | Default warning thresholds as basis points of allowance. | 7A |
+| `VIEW_COLUMNS_MAX` | Most visible columns in one view; default 20, range 1–50. | 3A |
+| `VIEW_PINS_MAX` | Most views pinned into one workspace or brand navigation; default 20, range 1–100. | 3A |
+| `VIEW_STATE_MAX_BYTES` | Largest stored view-state document (serialized) accepted per view and device. | 1E |
+| `VIEW_STATE_TTL` | How long stored per-device view state survives without being written before cleanup removes it. | 1E |
+| `WEBHOOK_BODY_MAX_BYTES` | Largest accepted inbound webhook body; default 262144. | 6B |
+| `WEBHOOK_CONCURRENCY_PER_DESTINATION` | In-flight deliveries to one host; default 4. | 6B |
+| `WEBHOOK_DELIVERY_RETENTION_DAYS` | How long delivery history is kept; default 30. | 6B |
+| `WEBHOOK_DISABLE_THRESHOLD` | Consecutive-failure policy that disables an endpoint. Default 10 consecutive failures. | 6B |
+| `WEBHOOK_EVENT_TYPES_MAX` | Event types on one subscription; default 20. | 6B |
 | `WEBHOOK_INBOUND_MAX` | Inbound endpoints in one workspace; default 20. | 6B |
 | `WEBHOOK_MAX_ATTEMPTS` | Delivery attempts before a webhook is dead-lettered; default 8. | 6B |
-| `WEBHOOK_CONCURRENCY_PER_DESTINATION` | In-flight deliveries to one host; default 4. | 6B |
-| `WEBHOOK_BODY_MAX_BYTES` | Largest accepted inbound webhook body; default 262144. | 6B |
-| `WEBHOOK_DELIVERY_RETENTION_DAYS` | How long delivery history is kept; default 30. | 6B |
-| `WEBHOOK_EVENT_TYPES_MAX` | Event types on one subscription; default 20. | 6B |
+| `WEBHOOK_RESPONSE_TIMEOUT` | Outbound delivery response timeout. Default 10000 milliseconds. | 6B |
+| `WEBHOOK_SUBSCRIPTIONS_MAX` | Outbound subscriptions in one scope; default 50. | 6B |
 | `WEBHOOK_SWEEP_BATCH_MAX` | Deliveries one sweep sends in one workspace; default 25. | 6B |
+| `WEBHOOK_TIMESTAMP_TOLERANCE` | Accepted clock skew for signed webhooks. Default 300 seconds. | 6B |
+| `WORKFLOW_STATUSES_MAX` | Most statuses in one workflow; default 50, range 2–200. | 2C |
+| `WORKFLOW_TRANSITIONS_MAX` | Most transitions in one workflow; default 400, range 1–2000. | 2C |
+| `WORKLOAD_DAYS_MAX` | Longest date range one workload grid may cover; default 366, range 7–731. | 3B |
+| `WORKSPACE_CONCURRENCY_CAP` | Per-workspace concurrent job cap per queue (fairness). | 11C |
+| `WORKSPACE_STORAGE_QUOTA_BYTES` | Stored bytes one workspace may hold, counting bytes reserved by open upload sessions (a technical limit until plans set it, 10A); default 10737418240 (10 GiB), range 1048576–10995116277760. | 4E |
+| `WORK_BLOCKS_PER_DAY_MAX` | Most work blocks one person may have starting on one local day; default 50, range 1–200. | 3C |
+| `WORK_BLOCKS_RANGE_DAYS_MAX` | Widest range of days one work-block listing may cover; default 42, range 1–366. | 3C |

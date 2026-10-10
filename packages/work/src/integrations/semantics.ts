@@ -121,7 +121,7 @@ export function openCredential(raw: string | undefined): CredentialSecret | null
     const remote = Array.isArray(v.remote)
       ? v.remote.flatMap((item) => {
           if (!item || typeof item !== 'object') return [];
-          const row = item as Record<string, unknown>;
+          const row = item as unknown as Record<string, unknown>;
           if (
             typeof row.type !== 'string' ||
             typeof row.id !== 'string' ||
@@ -135,7 +135,7 @@ export function openCredential(raw: string | undefined): CredentialSecret | null
     const events = Array.isArray(v.events)
       ? v.events.flatMap((item) => {
           if (!item || typeof item !== 'object') return [];
-          const row = item as Record<string, unknown>;
+          const row = item as unknown as Record<string, unknown>;
           if (
             typeof row.calendar_id !== 'string' ||
             typeof row.external_event_id !== 'string' ||

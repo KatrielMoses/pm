@@ -412,3 +412,22 @@ Narrative: [../14-threat-model.md](../14-threat-model.md).
 | AT-312 | T-82 | api_token_personal | Brand-scoped token writes another brand — task in another brand | `record.create` | api | **deny** | not_found | error_message |
 | AT-313 | T-83 | inbound_webhook | Bad signature and unknown endpoint — inbound capture | `record.create` | api | **deny** | unauthenticated | error_message |
 | AT-314 | T-84, T-85 | member | Signed delivery retried after a server error — webhook | `webhook.test_send` | webhook_payload | **allow** | ok | error_message |
+
+## Response shapes
+
+| Shape | Meaning |
+|---|---|
+| `ok` | Full authorized response |
+| `ok_filtered` | Authorized response with hidden elements omitted |
+| `omitted` | Item absent; no placeholder, count, or hint |
+| `not_found` | Indistinguishable not-found (same status, body shape, headers, and timing envelope as nonexistent) |
+| `forbidden` | Known-limited permission on a readable resource (ST-42) |
+| `unauthenticated` | Credential invalid; no resource information |
+| `approval_required` | Action held pending approval |
+| `suspended` | Principal suspended; nothing executed |
+| `redacted` | Value replaced by redaction marker |
+| `conflict_filtered` | Conflict response without unreadable current values |
+| `validation_generic` | Generic validation error naming only the caller's own input |
+| `empty` | Zero rows |
+| `error_generic` | Generic error without tenant data |
+| `step_up_required` | Fresh step-up proof required; nothing executed and no resource information beyond the challenge |
