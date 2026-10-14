@@ -70,11 +70,11 @@ if (process.argv.includes('--check')) {
     // Missing output is stale.
   }
   if (current !== formatted) {
-    console.error('MCP registry output is stale. Run: pnpm mcp:contracts:generate');
+    process.stderr.write('MCP registry output is stale. Run: pnpm mcp:contracts:generate\n');
     process.exit(1);
   }
-  console.log('MCP registry: generated contract is up to date');
+  process.stdout.write('MCP registry: generated contract is up to date\n');
 } else {
   writeFileSync(outputPath, formatted);
-  console.log(`MCP registry: wrote ${outputPath}`);
+  process.stdout.write(`MCP registry: wrote ${outputPath}\n`);
 }
