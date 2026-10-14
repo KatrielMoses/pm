@@ -149,6 +149,11 @@ export const PORTABLE_FIELDS = Object.freeze({
     'description',
     'config',
     'scope',
+    'applies_to',
+    'required',
+    'presentation',
+    'applicability',
+    'view_visibility',
     'created_at',
     'updated_at',
   ],
@@ -189,6 +194,7 @@ export const PORTABLE_FIELDS = Object.freeze({
     'media_type',
     'size_bytes',
     'checksum_sha256',
+    'link_url',
     'host_kind',
     'host_public_id',
     'scan_state',
@@ -249,6 +255,19 @@ export function previewCsv(
         errors.push('invalid_config');
       }
     }
+    if (entity === 'field' && values.applies_to) {
+      try {
+        const applies = JSON.parse(values.applies_to) as unknown;
+        if (
+          !Array.isArray(applies) ||
+          !applies.length ||
+          applies.some((x) => x !== 'task' && x !== 'project')
+        )
+          errors.push('invalid_applies_to');
+      } catch {
+        errors.push('invalid_applies_to');
+      }
+    }
     if (entity === 'goal') {
       try {
         const period = JSON.parse(values.period ?? '') as Record<string, unknown>;
@@ -277,7 +296,25 @@ export function previewCsv(
       ].includes(values.document_type)
     )
       errors.push('invalid_document_type');
-    if (entity === 'file') errors.push('file_payload_required');
+    if (entity === 'file') {
+      if (!values.link_url) errors.push('file_payload_required');
+      else {
+        try {
+          const url = new URL(values.link_url);
+          if (
+            !['http:', 'https:'].includes(url.protocol) ||
+            url.username ||
+            url.password ||
+            values.link_url.length > 2_048 ||
+            // eslint-disable-next-line no-control-regex -- Reject control characters in imported URLs.
+            /[\s\u0000-\u001f]/.test(values.link_url)
+          )
+            errors.push('invalid_file_link');
+        } catch {
+          errors.push('invalid_file_link');
+        }
+      }
+    }
     const required =
       entity === 'task' || entity === 'goal' || entity === 'document' ? values.title : values.name;
     if (!required) errors.push('required_title');

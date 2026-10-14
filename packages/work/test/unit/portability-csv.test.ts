@@ -46,6 +46,16 @@ describe('CSV portability boundaries', () => {
     expect(previewCsv('schema_version,name\n1,Image\n', 'file').rows[0]?.errors).toContain(
       'file_payload_required',
     );
+    expect(
+      previewCsv('schema_version,name,link_url\n1,Reference,https://example.test/file\n', 'file')
+        .valid,
+    ).toBe(1);
+    expect(
+      previewCsv(
+        'schema_version,name,link_url\n1,Reference,https://user:pass@example.test/file\n',
+        'file',
+      ).rows[0]?.errors,
+    ).toContain('invalid_file_link');
     expect(() => previewCsv('schema_version,tenant_id\n1,secret\n', 'task')).toThrow(
       'csv_invalid_mapping',
     );

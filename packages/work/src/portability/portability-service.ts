@@ -297,6 +297,18 @@ export class PortabilityService extends CalendarService {
       const data = (result as { data: unknown[] }).data;
       for (const value of data.slice(0, limit)) {
         const w = value as Record<string, unknown>;
+        const statuses = Array.isArray(w.statuses)
+          ? w.statuses.map((value) => {
+              const status = value as Record<string, unknown>;
+              return {
+                name: status.name,
+                category: status.category,
+                color: status.color,
+                icon: status.icon,
+                description: status.description,
+              };
+            })
+          : [];
         rows.push({
           schema_version: '1',
           public_id: w.id,
@@ -304,7 +316,7 @@ export class PortabilityService extends CalendarService {
           record_kind: w.record_kind,
           description: w.description,
           scope: w.scope,
-          statuses: w.statuses,
+          statuses,
         });
       }
       truncated = data.length > limit;
@@ -321,6 +333,14 @@ export class PortabilityService extends CalendarService {
           description: f.description,
           config: f.config,
           scope: f.scope,
+          applies_to: [
+            ...(f.applies_to_project ? ['project'] : []),
+            ...(f.applies_to_task ? ['task'] : []),
+          ],
+          required: f.required,
+          presentation: f.presentation,
+          applicability: f.applicability,
+          view_visibility: f.view_visibility,
         });
       }
       truncated = data.length > limit;
@@ -373,6 +393,7 @@ export class PortabilityService extends CalendarService {
           checksum_sha256: version.sha256,
           host_kind: host.kind,
           host_public_id: host.id,
+          link_url: version.url,
           scan_state: version.scan_state,
           created_at: f.created_at,
           updated_at: f.updated_at,
@@ -680,12 +701,32 @@ export class PortabilityService extends CalendarService {
                             field_type: v.field_type,
                             ...(v.scope ? { scope: JSON.parse(v.scope) as unknown } : {}),
                             ...(v.config ? { config: JSON.parse(v.config) as unknown } : {}),
+                            ...(v.applies_to
+                              ? { applies_to: JSON.parse(v.applies_to) as unknown }
+                              : {}),
+                            ...(v.required ? { required: v.required === 'true' } : {}),
+                            ...(v.presentation ? { presentation: v.presentation } : {}),
+                            ...(v.applicability ? { applicability: v.applicability } : {}),
+                            ...(v.view_visibility
+                              ? { view_visibility: JSON.parse(v.view_visibility) as unknown }
+                              : {}),
                           },
                           rowReq,
                         )
-                      : (() => {
-                          throw new TenancyError('validation_failed');
-                        })();
+                      : preview.entity === 'file'
+                        ? await this.addFileLink(
+                            caller,
+                            ws,
+                            {
+                              host: v.host_public_id || 'workspace',
+                              url: v.link_url,
+                              name: v.name,
+                            },
+                            rowReq,
+                          )
+                        : (() => {
+                            throw new TenancyError('validation_failed');
+                          })();
         const createdData = (created as { data: { id: string; version?: number } }).data;
         results.push({ row: item.row, id: createdData.id });
         applied++;
@@ -817,7 +858,7 @@ export class PortabilityService extends CalendarService {
         .where('import_job_id', '=', jobId)
         .orderBy('row_number')
         .execute();
-      if (job.entity_kind !== 'task' && job.entity_kind !== 'project')
+      if (job.entity_kind !== 'task' && job.entity_kind !== 'project' && job.entity_kind !== 'file')
         throw new TenancyError('validation_failed');
       for (const row of rows.filter((item) => item.state === 'applied')) {
         if (!row.record_public_id || row.applied_version === null)
@@ -853,7 +894,9 @@ export class PortabilityService extends CalendarService {
       };
       if (snapshot.job.entity_kind === 'task')
         await this.taskLifecycle(caller, ws, row.record_public_id, 'trash', {}, mutation);
-      else await this.projectLifecycle(caller, ws, row.record_public_id, 'trash', mutation);
+      else if (snapshot.job.entity_kind === 'project')
+        await this.projectLifecycle(caller, ws, row.record_public_id, 'trash', mutation);
+      else await this.trashFile(caller, ws, row.record_public_id, mutation);
       await this.saveImportCheckpoint(caller, ws, jobId, row.row_number, 'rolled_back');
       rolled.push(row.row_number);
     }
