@@ -3052,6 +3052,39 @@ export interface SearchRecentSearchTable {
   searched_at: DTs;
 }
 
+// Phase 6D: resumable CSV import operation and provenance rows.
+export interface ImportJobTable {
+  id: string;
+  workspace_id: string;
+  owner_membership_id: string;
+  content_sha256: Bytes;
+  entity_kind: 'task' | 'project';
+  state: 'previewed' | 'running' | 'partial' | 'completed' | 'failed' | 'rolled_back';
+  apply_mode: 'partial' | 'all_or_nothing';
+  row_count: number;
+  applied_count: number;
+  error_count: number;
+  checkpoint_row: number;
+  rollback_until: Timestamp | null;
+  created_at: DTs;
+  updated_at: DTs;
+}
+export interface ImportRowTable {
+  workspace_id: string;
+  import_job_id: string;
+  row_number: number;
+  source_row_key: string | null;
+  source_values: Json<Record<string, unknown>>;
+  state: 'pending' | 'applied' | 'error' | 'rolled_back' | 'conflict';
+  issues: Json<unknown[]>;
+  record_type: string | null;
+  record_id: string | null;
+  record_public_id: string | null;
+  applied_version: number | null;
+  created_at: DTs;
+  updated_at: DTs;
+}
+
 export type StatusSpanBasis = 'recorded' | 'assumed' | 'repaired';
 export interface MetricsTaskStatusSpanTable {
   workspace_id: string;
@@ -3258,6 +3291,8 @@ export interface Database {
   'planning.block_series': BlockSeriesTable;
   'planning.today_commitment': TodayCommitmentTable;
   'planning.daily_record': DailyRecordTable;
+  'transfer.import_job': ImportJobTable;
+  'transfer.import_row': ImportRowTable;
 }
 
 /** Column inventory per table, compared with the migrated catalog by the schema-drift test. */
@@ -5911,5 +5946,36 @@ export const TABLE_COLUMNS: Readonly<Record<keyof Database, readonly string[]>> 
     'actual_seconds',
     'items',
     'created_at',
+  ],
+  'transfer.import_job': [
+    'id',
+    'workspace_id',
+    'owner_membership_id',
+    'content_sha256',
+    'entity_kind',
+    'state',
+    'apply_mode',
+    'row_count',
+    'applied_count',
+    'error_count',
+    'checkpoint_row',
+    'rollback_until',
+    'created_at',
+    'updated_at',
+  ],
+  'transfer.import_row': [
+    'workspace_id',
+    'import_job_id',
+    'row_number',
+    'source_row_key',
+    'source_values',
+    'state',
+    'issues',
+    'record_type',
+    'record_id',
+    'record_public_id',
+    'applied_version',
+    'created_at',
+    'updated_at',
   ],
 };

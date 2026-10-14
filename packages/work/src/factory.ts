@@ -15,7 +15,7 @@ import {
 import { registerWorkLifecycle } from './lifecycle.ts';
 import { projectTargets, savedViewTargets, taskTargets } from './navigation.ts';
 import { projectOwnerHook, taskAssigneeHook } from './ownership.ts';
-import { CalendarService } from './integrations/calendar-service.ts';
+import { PortabilityService } from './portability/portability-service.ts';
 import { connectionOwnerHook, webhookOwnerHook } from './integrations/ownership.ts';
 import { goalOwnerHook } from './goals/ownership.ts';
 import { insightsOwnerHook } from './insights/ownership.ts';
@@ -52,7 +52,7 @@ export function createWorkService(deps: {
    * closed when the key is missing.
    */
   ephemeralSigningKey?: boolean;
-}): CalendarService {
+}): PortabilityService {
   const { config } = deps;
   if (!config.identity.signingKey && !deps.ephemeralSigningKey)
     throw new Error('AUTH_SIGNING_KEY is required');
@@ -80,7 +80,7 @@ export function createWorkService(deps: {
       ? createVault(config.identity)
       : null;
   if (!vault) throw new Error('Secret vault is required for integrations');
-  return new CalendarService({
+  return new PortabilityService({
     vault,
     // 4E: object storage and malware scanning, each absent until configured (never claimed).
     files: {

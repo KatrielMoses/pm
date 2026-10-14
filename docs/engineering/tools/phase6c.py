@@ -31,12 +31,15 @@ def check_migration():
 def check_chain():
     errs = []
     factory = read(P("packages/work/src/factory.ts"))
-    if "return new CalendarService(" not in factory:
-        errs.append("factory must return CalendarService")
+    if "return new CalendarService(" not in factory and "return new PortabilityService(" not in factory:
+        errs.append("factory must return CalendarService or a Phase 6D service layered above it")
     if "export class CalendarService extends PublicApiService" not in read(
         P("packages/work/src/integrations/calendar-service.ts")
     ):
         errs.append("CalendarService must extend PublicApiService")
+    portability = read(P("packages/work/src/portability/portability-service.ts"))
+    if "export class PortabilityService extends CalendarService" not in portability:
+        errs.append("when present, PortabilityService must extend CalendarService")
     return errs, "service chain"
 
 

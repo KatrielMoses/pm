@@ -1,0 +1,71 @@
+-- migrate:phase expand
+-- Phase 6D: bounded, tenant-isolated import provenance and resumable row checkpoints.
+CREATE SCHEMA transfer;
+REVOKE ALL ON SCHEMA transfer FROM PUBLIC;
+GRANT USAGE ON SCHEMA transfer TO app_rw;
+GRANT USAGE ON SCHEMA transfer TO app_worker;
+
+CREATE TABLE transfer.import_job (
+  id uuid PRIMARY KEY,
+  workspace_id uuid NOT NULL REFERENCES tenancy.workspace (id) ON DELETE RESTRICT,
+  owner_membership_id uuid NOT NULL,
+  content_sha256 bytea NOT NULL,
+  entity_kind text NOT NULL,
+  state text NOT NULL DEFAULT 'previewed',
+  apply_mode text NOT NULL,
+  row_count integer NOT NULL DEFAULT 0,
+  applied_count integer NOT NULL DEFAULT 0,
+  error_count integer NOT NULL DEFAULT 0,
+  checkpoint_row integer NOT NULL DEFAULT 0,
+  rollback_until timestamptz,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  updated_at timestamptz NOT NULL DEFAULT now(),
+  CONSTRAINT import_job_workspace_key UNIQUE (workspace_id, id),
+  CONSTRAINT import_job_owner_fkey FOREIGN KEY (workspace_id, owner_membership_id)
+    REFERENCES tenancy.membership (workspace_id, id) ON DELETE RESTRICT,
+  CONSTRAINT import_job_digest_length CHECK (octet_length(content_sha256) = 32),
+  CONSTRAINT import_job_entity CHECK (entity_kind IN ('task', 'project')),
+  CONSTRAINT import_job_state CHECK (state IN ('previewed', 'running', 'partial', 'completed', 'failed', 'rolled_back')),
+  CONSTRAINT import_job_mode CHECK (apply_mode IN ('partial', 'all_or_nothing')),
+  CONSTRAINT import_job_counts CHECK (row_count BETWEEN 0 AND 2000 AND applied_count BETWEEN 0 AND row_count AND error_count BETWEEN 0 AND row_count AND checkpoint_row BETWEEN 0 AND row_count)
+);
+CREATE UNIQUE INDEX import_job_dedupe ON transfer.import_job (workspace_id, owner_membership_id, content_sha256, entity_kind, apply_mode)
+  WHERE state IN ('previewed', 'running', 'partial', 'completed');
+CREATE INDEX import_job_recovery ON transfer.import_job (workspace_id, state, updated_at);
+
+CREATE TABLE transfer.import_row (
+  workspace_id uuid NOT NULL,
+  import_job_id uuid NOT NULL,
+  row_number integer NOT NULL,
+  source_row_key text,
+  source_values jsonb NOT NULL,
+  state text NOT NULL DEFAULT 'pending',
+  issues jsonb NOT NULL DEFAULT '[]'::jsonb,
+  record_type text,
+  record_id uuid,
+  record_public_id text,
+  applied_version bigint,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  updated_at timestamptz NOT NULL DEFAULT now(),
+  PRIMARY KEY (workspace_id, import_job_id, row_number),
+  CONSTRAINT import_row_job_fkey FOREIGN KEY (workspace_id, import_job_id)
+    REFERENCES transfer.import_job (workspace_id, id) ON DELETE CASCADE,
+  CONSTRAINT import_row_number CHECK (row_number BETWEEN 2 AND 2001),
+  CONSTRAINT import_row_state CHECK (state IN ('pending', 'applied', 'error', 'rolled_back', 'conflict')),
+  CONSTRAINT import_row_source_size CHECK (octet_length(source_values::text) <= 131072),
+  CONSTRAINT import_row_record_pair CHECK ((record_type IS NULL) = (record_public_id IS NULL))
+);
+CREATE UNIQUE INDEX import_row_source_key ON transfer.import_row (workspace_id, import_job_id, source_row_key)
+  WHERE source_row_key IS NOT NULL;
+
+ALTER TABLE transfer.import_job ENABLE ROW LEVEL SECURITY;
+ALTER TABLE transfer.import_job FORCE ROW LEVEL SECURITY;
+CREATE POLICY tenant_isolation ON transfer.import_job
+  USING (workspace_id = current_setting('app.workspace_id', true)::uuid);
+ALTER TABLE transfer.import_row ENABLE ROW LEVEL SECURITY;
+ALTER TABLE transfer.import_row FORCE ROW LEVEL SECURITY;
+CREATE POLICY tenant_isolation ON transfer.import_row
+  USING (workspace_id = current_setting('app.workspace_id', true)::uuid);
+REVOKE ALL ON transfer.import_job, transfer.import_row FROM PUBLIC;
+GRANT SELECT, INSERT, UPDATE, DELETE ON transfer.import_job, transfer.import_row TO app_rw;
+GRANT SELECT, INSERT, UPDATE, DELETE ON transfer.import_job, transfer.import_row TO app_worker;

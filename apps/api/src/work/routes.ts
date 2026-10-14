@@ -1,6 +1,6 @@
 import type { FastifyInstance, FastifyRequest } from 'fastify';
 import { nonResourceEnvelope } from '@pm/contracts';
-import type { PublicApiService } from '@pm/work';
+import type { PortabilityService } from '@pm/work';
 import { routeKit } from '../route-kit.ts';
 import { registerFiles } from './files-routes.ts';
 import { registerSearch } from './search-routes.ts';
@@ -21,9 +21,10 @@ import { registerPublicApi } from '../public/routes.ts';
 import { registerIntegrations } from './integration-routes.ts';
 import { registerViews } from './view-routes.ts';
 import { registerWorkflows } from './workflow-routes.ts';
+import { registerPortability } from './portability-routes.ts';
 
 export interface WorkRouteDeps {
-  work: PublicApiService;
+  work: PortabilityService;
 }
 
 type Params = {
@@ -75,6 +76,7 @@ export function registerWork(app: FastifyInstance, deps: WorkRouteDeps): void {
   registerInsights(app, work);
   registerPublicApi(app, work);
   registerIntegrations(app, work);
+  registerPortability(app, work);
 
   app.get(
     base,
