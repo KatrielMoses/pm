@@ -2385,7 +2385,7 @@ Raw captured input owned by one person; brand optional until triage; preserves o
 | Volume / export / search-AI | `high` / `self` / `yes` |
 | Secrets / personal data | `no` / `incidental` |
 | Uniqueness | — |
-| Key typed columns | `owner_membership_id`; `brand_id null (until triage; OD-03)`; `intent (task\|note)`; `raw_text text (immutable original)`; `source_kind (typed\|paste\|form\|voice\|email\|api\|webhook; 2E produces typed, paste, form)`; `source_ref text null (safe public ID: batch, form)`; `correlation_id`; `parse_version int`; `parsed jsonb (versioned, deterministic)`; `capture_batch_id null`; `triage_state (untriaged\|converted\|merged\|discarded)`; `converted_kind null + converted_record_id null`; `merged_into_id null`; `version bigint` |
+| Key typed columns | `owner_membership_id`; `brand_id null (until triage; OD-03)`; `intent (task\|note)`; `raw_text text (immutable original)`; `source_kind (typed\|paste\|form\|voice\|email\|api\|webhook\|mcp; 2E/6E produce typed, paste, form)`; `source_ref text null (safe public ID: batch, form)`; `correlation_id`; `parse_version int`; `parsed jsonb (versioned, deterministic)`; `capture_batch_id null`; `triage_state (untriaged\|converted\|merged\|discarded)`; `converted_kind null + converted_record_id null`; `merged_into_id null`; `version bigint` |
 | Sensitive fields | — |
 | Requirements | CAP-011, CAP-012, CAP-013, CAP-016 |
 | Notes | Phase 2E (ADR-25): personal; visible only to its owner (OD-03), brand optional until triage. raw_text, source, and correlation are immutable (trigger). Merged and discarded items are kept; nothing is deleted by triage. |
@@ -3843,7 +3843,7 @@ OAuth/MCP client registration for external assistants with granted scopes.
 
 | Property | Value |
 |---|---|
-| Scope | `workspace` |
+| Scope | `workspace` · addressable (`core.record`, public prefix `oac_`) |
 | Contained by | — |
 | Extends (1:1) | — |
 | Associations | — |
@@ -3851,10 +3851,73 @@ OAuth/MCP client registration for external assistants with granted scopes.
 | Retention / confidentiality | `R-LIVE` / `C4` |
 | Volume / export / search-AI | `low` / `never` / `no` |
 | Secrets / personal data | `hash-only` / `incidental` |
-| Uniqueness | — |
+| Uniqueness | `workspace, public_id` |
 | Key typed columns | standard columns only |
 | Sensitive fields | — |
 | Requirements | INT-022 |
+
+<a id="entity-oauth-consent"></a>
+### `oauth_consent`
+
+Membership grant narrowing one registered OAuth client to scopes and optional brand limits.
+
+| Property | Value |
+|---|---|
+| Scope | `workspace` · addressable (`core.record`, public prefix `ocs_`) |
+| Contained by | — |
+| Extends (1:1) | — |
+| Associations | [`oauth_client`](logical-model.md#entity-oauth-client), [`membership`](logical-model.md#entity-membership) |
+| Lifecycle / concurrency | `state-machine` / `row-version` |
+| Retention / confidentiality | `R-AUDIT` / `C2` |
+| Volume / export / search-AI | `low` / `never` / `no` |
+| Secrets / personal data | `no` / `membership reference` |
+| Uniqueness | `workspace, client, membership`; `workspace, public_id` |
+| Key typed columns | `scopes text[]`; `brand_ids uuid[] null`; `state (active\|revoked)` |
+| Sensitive fields | — |
+| Requirements | INT-022 |
+| Notes | Revocation invalidates every associated bearer token immediately. |
+
+<a id="entity-oauth-access-token"></a>
+### `oauth_access_token`
+
+Short-lived hash-only bearer credential for a live member consent grant.
+
+| Property | Value |
+|---|---|
+| Scope | `workspace` · addressable (`core.record`, public prefix `oat_`) |
+| Contained by | — |
+| Extends (1:1) | — |
+| Associations | [`oauth_client`](logical-model.md#entity-oauth-client), [`oauth_consent`](logical-model.md#entity-oauth-consent) |
+| Lifecycle / concurrency | `state-machine` / `immutable` |
+| Retention / confidentiality | `R-AUDIT` / `C4` |
+| Volume / export / search-AI | `low` / `never` / `no` |
+| Secrets / personal data | `hash-only` / `no` |
+| Uniqueness | `token_prefix`; `workspace, public_id` |
+| Key typed columns | `public_id`; `expires_at`; `state (active\|revoked)` |
+| Sensitive fields | `token_hash` |
+| Requirements | INT-022 |
+| Notes | The secret is returned once; revocation is enforced at authentication. |
+
+<a id="entity-mcp-invocation"></a>
+### `mcp_invocation`
+
+Bounded audit record for registered MCP tool and resource requests; contains actor provenance but no request payload or secret.
+
+| Property | Value |
+|---|---|
+| Scope | `workspace` · addressable (`core.record`, public prefix `mci_`) |
+| Contained by | — |
+| Extends (1:1) | — |
+| Associations | [`oauth_client`](logical-model.md#entity-oauth-client), [`oauth_consent`](logical-model.md#entity-oauth-consent), [`api_token`](logical-model.md#entity-api-token), [`membership`](logical-model.md#entity-membership) |
+| Lifecycle / concurrency | `append-only` / `append-only` |
+| Retention / confidentiality | `R-AUDIT` / `C1` |
+| Volume / export / search-AI | `medium` / `never` / `no` |
+| Secrets / personal data | `no` / `actor reference` |
+| Uniqueness | — |
+| Key typed columns | `public_id`; `actor membership and principal`; `tool name and registered version`; `outcome and duration`; `created_at` |
+| Sensitive fields | — |
+| Requirements | INT-022 |
+| Notes | Request arguments and response data are never stored. |
 
 ## Import and export (`transfer`, schema `transfer`)
 

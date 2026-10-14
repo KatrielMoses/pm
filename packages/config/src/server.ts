@@ -344,6 +344,12 @@ export interface ServerConfig {
     webhookResponseTimeoutMs: number;
     webhookSweepBatchMax: number;
     webhookAllowLoopback: boolean;
+    mcpEnabled: boolean;
+    mcpReadRatePerMinute: number;
+    mcpWriteRatePerMinute: number;
+    oauthClientsMax: number;
+    mcpToolCallTimeoutMs: number;
+    mcpToolResultMaxBytes: number;
     documentEmbedUrlMaxChars: number;
     signedUrlLifetimeSeconds: number;
     uploadSessionLifetimeSeconds: number;
@@ -764,6 +770,12 @@ const DEFAULTS = {
   WEBHOOK_RESPONSE_TIMEOUT: '10000',
   WEBHOOK_SWEEP_BATCH_MAX: '25',
   WEBHOOK_ALLOW_LOOPBACK: 'auto',
+  MCP_ENABLED: '1',
+  MCP_READ_RATE_PER_MINUTE: '120',
+  MCP_WRITE_RATE_PER_MINUTE: '60',
+  OAUTH_CLIENTS_MAX: '20',
+  MCP_TOOL_CALL_TIMEOUT_MS: '30000',
+  MCP_TOOL_RESULT_MAX_BYTES: '65536',
   DOCUMENT_EMBED_URL_MAX_CHARS: '2048',
   SIGNED_URL_LIFETIME: '300',
   UPLOAD_SESSION_LIFETIME: '3600',
@@ -1097,6 +1109,12 @@ const schema = z.object({
   WEBHOOK_RESPONSE_TIMEOUT: int(1000, 30000),
   WEBHOOK_SWEEP_BATCH_MAX: int(1, 200),
   WEBHOOK_ALLOW_LOOPBACK: z.enum(['auto', '0', '1']),
+  MCP_ENABLED: z.enum(['0', '1']),
+  MCP_READ_RATE_PER_MINUTE: int(1, 10_000),
+  MCP_WRITE_RATE_PER_MINUTE: int(1, 10_000),
+  OAUTH_CLIENTS_MAX: int(1, 500),
+  MCP_TOOL_CALL_TIMEOUT_MS: int(1000, 120_000),
+  MCP_TOOL_RESULT_MAX_BYTES: int(1024, 1_048_576),
   DOCUMENT_EMBED_URL_MAX_CHARS: int(128, 8192),
   SIGNED_URL_LIFETIME: int(30, 3600),
   UPLOAD_SESSION_LIFETIME: int(300, 86400),
@@ -1763,6 +1781,12 @@ export function loadServerConfig(options: LoadOptions): ServerConfig {
       webhookAllowLoopback:
         c.WEBHOOK_ALLOW_LOOPBACK === '1' ||
         (c.WEBHOOK_ALLOW_LOOPBACK === 'auto' && (env === 'local' || env === 'test')),
+      mcpEnabled: c.MCP_ENABLED === '1',
+      mcpReadRatePerMinute: c.MCP_READ_RATE_PER_MINUTE,
+      mcpWriteRatePerMinute: c.MCP_WRITE_RATE_PER_MINUTE,
+      oauthClientsMax: c.OAUTH_CLIENTS_MAX,
+      mcpToolCallTimeoutMs: c.MCP_TOOL_CALL_TIMEOUT_MS,
+      mcpToolResultMaxBytes: c.MCP_TOOL_RESULT_MAX_BYTES,
       documentEmbedUrlMaxChars: c.DOCUMENT_EMBED_URL_MAX_CHARS,
       signedUrlLifetimeSeconds: c.SIGNED_URL_LIFETIME,
       uploadSessionLifetimeSeconds: c.UPLOAD_SESSION_LIFETIME,

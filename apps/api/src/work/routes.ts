@@ -1,6 +1,6 @@
 import type { FastifyInstance, FastifyRequest } from 'fastify';
 import { nonResourceEnvelope } from '@pm/contracts';
-import type { PublicApiService } from '@pm/work';
+import type { McpAccessService } from '@pm/work';
 import { routeKit } from '../route-kit.ts';
 import { registerFiles } from './files-routes.ts';
 import { registerSearch } from './search-routes.ts';
@@ -19,11 +19,12 @@ import { registerMetrics } from './metric-routes.ts';
 import { registerInsights } from './insight-routes.ts';
 import { registerPublicApi } from '../public/routes.ts';
 import { registerIntegrations } from './integration-routes.ts';
+import { registerMcp } from '../mcp/routes.ts';
 import { registerViews } from './view-routes.ts';
 import { registerWorkflows } from './workflow-routes.ts';
 
 export interface WorkRouteDeps {
-  work: PublicApiService;
+  work: McpAccessService;
 }
 
 type Params = {
@@ -75,6 +76,7 @@ export function registerWork(app: FastifyInstance, deps: WorkRouteDeps): void {
   registerInsights(app, work);
   registerPublicApi(app, work);
   registerIntegrations(app, work);
+  registerMcp(app, work);
 
   app.get(
     base,

@@ -365,6 +365,22 @@ export function newHookSecret(): { token: string; prefix: string } {
   return { token, prefix: token.slice(0, 11) };
 }
 
+export function newOAuthClientSecret(): { secret: string; prefix: string } {
+  const bytes = randomBytes(32);
+  let body = '';
+  for (const b of bytes) body += TOKEN_ALPHABET[b % TOKEN_ALPHABET.length];
+  const secret = `oac_${body}`;
+  return { secret, prefix: secret.slice(0, 12) };
+}
+
+export function newOAuthAccessSecret(): { secret: string; prefix: string } {
+  const bytes = randomBytes(32);
+  let body = '';
+  for (const b of bytes) body += TOKEN_ALPHABET[b % TOKEN_ALPHABET.length];
+  const secret = `pma_${body}`;
+  return { secret, prefix: secret.slice(0, 12) };
+}
+
 export function signPayload(secret: string, id: string, timestamp: string, body: string): string {
   return createHmac('sha256', secret).update(`${id}.${timestamp}.${body}`).digest('base64');
 }

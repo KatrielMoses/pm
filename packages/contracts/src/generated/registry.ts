@@ -1951,6 +1951,27 @@ export const ID_PREFIXES = [
     "entity": "insights.report_share",
     "ownerModule": "insights",
     "platformOnly": false
+  },
+  {
+    "prefix": "mci",
+    "resource": "mcp_invocation",
+    "entity": "integrations.mcp_invocation",
+    "ownerModule": "integrations",
+    "platformOnly": false
+  },
+  {
+    "prefix": "oat",
+    "resource": "oauth_access_token",
+    "entity": "integrations.oauth_access_token",
+    "ownerModule": "integrations",
+    "platformOnly": false
+  },
+  {
+    "prefix": "ocs",
+    "resource": "oauth_consent",
+    "entity": "integrations.oauth_consent",
+    "ownerModule": "integrations",
+    "platformOnly": false
   }
 ] as const;
 export type IdPrefix = (typeof ID_PREFIXES)[number]['prefix'];
@@ -3692,6 +3713,48 @@ export const INTERNAL_EVENTS = [
       "lifecycle_state"
     ],
     "maxClass": "C1"
+  },
+  {
+    "type": "integrations.oauth_client.created",
+    "schemaVersion": 1,
+    "aggregateEntity": "integrations.oauth_client",
+    "fields": [
+      "scope_count"
+    ],
+    "maxClass": "C1"
+  },
+  {
+    "type": "integrations.oauth_client.revoked",
+    "schemaVersion": 1,
+    "aggregateEntity": "integrations.oauth_client",
+    "fields": [],
+    "maxClass": "C1"
+  },
+  {
+    "type": "integrations.oauth_consent.granted",
+    "schemaVersion": 1,
+    "aggregateEntity": "integrations.oauth_consent",
+    "fields": [
+      "scope_count",
+      "brand_count"
+    ],
+    "maxClass": "C1"
+  },
+  {
+    "type": "integrations.oauth_consent.revoked",
+    "schemaVersion": 1,
+    "aggregateEntity": "integrations.oauth_consent",
+    "fields": [],
+    "maxClass": "C1"
+  },
+  {
+    "type": "integrations.oauth_access_token.issued",
+    "schemaVersion": 1,
+    "aggregateEntity": "integrations.oauth_access_token",
+    "fields": [
+      "expires_in"
+    ],
+    "maxClass": "C1"
   }
 ] as const;
 export type InternalEventType = (typeof INTERNAL_EVENTS)[number]['type'];
@@ -3807,6 +3870,11 @@ export const PARAMETER_NAMES = [
   "LIVE_SESSIONS_MAX",
   "LIVE_SESSIONS_PER_MEMBER_MAX",
   "LIVE_SESSION_TTL_SECONDS",
+  "MCP_ENABLED",
+  "MCP_READ_RATE_PER_MINUTE",
+  "MCP_TOOL_CALL_TIMEOUT_MS",
+  "MCP_TOOL_RESULT_MAX_BYTES",
+  "MCP_WRITE_RATE_PER_MINUTE",
   "METRICS_DEFAULT_WINDOW_DAYS",
   "METRICS_DRILL_PAGE_MAX",
   "METRICS_DRILL_RESULTS_MAX",
@@ -3836,6 +3904,7 @@ export const PARAMETER_NAMES = [
   "NOTIFY_RETRY_BASE_SECONDS",
   "NOTIFY_RETRY_MAX_SECONDS",
   "NOTIFY_SEARCH_QUERY_MAX",
+  "OAUTH_CLIENTS_MAX",
   "OUTBOX_REPLAY_WINDOW",
   "OWNERSHIP_TRANSFER_LIFETIME",
   "PAGE_LIMIT_DEFAULT",

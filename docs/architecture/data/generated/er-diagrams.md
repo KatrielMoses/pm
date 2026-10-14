@@ -340,6 +340,18 @@ erDiagram
   webhook_subscription ||--o{ webhook_delivery : "contains"
   api_token }o..o{ service_principal : "references"
   api_token }o..o{ membership : "references"
+  record ||--|| oauth_client : "envelope"
+  oauth_consent }o..o{ oauth_client : "references"
+  oauth_consent }o..o{ membership : "references"
+  record ||--|| oauth_consent : "envelope"
+  oauth_access_token }o..o{ oauth_client : "references"
+  oauth_access_token }o..o{ oauth_consent : "references"
+  record ||--|| oauth_access_token : "envelope"
+  mcp_invocation }o..o{ oauth_client : "references"
+  mcp_invocation }o..o{ oauth_consent : "references"
+  mcp_invocation }o..o{ api_token : "references"
+  mcp_invocation }o..o{ membership : "references"
+  record ||--|| mcp_invocation : "envelope"
 ```
 
 ## Import and export

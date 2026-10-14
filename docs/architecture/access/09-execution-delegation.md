@@ -42,6 +42,14 @@
 | Emergency stop | `emergency_stop.trigger` (owner, administrator) moves all runs to `paused`/`cancelled` and blocks new tool calls immediately via an epoch bump on the agent principal class |
 | External agents | The connector credential authenticates the external system as the run principal. The external agent can call the API or MCP tools only with a run-bound token whose scope equals the live run scope. The token expires when the run reaches a terminal state. |
 
+## 9.5 OAuth and MCP clients (6E)
+
+- A workspace registration declares the maximum 6B token scopes. A human member grants a subset and an optional brand allow-list; the resulting short-lived bearer token is workspace-bound and stored hash-only.
+- Every MCP request resolves the active client, token, consent, and membership again. Existing workspace and record policy decisions still run at command execution, so revocation or lost access takes effect on the next call.
+- Only the static versioned registry is discoverable. Tool descriptions, schemas, and resource names are metadata; they never add authority. Unregistered tools, resources, and inaccessible records return bounded opaque errors.
+- Mutations require an idempotency key; destructive calls require explicit confirmation. Invocation records keep the tenant, actor label, consent/token references, registered name/version, outcome, and bounded duration, never request arguments or credentials.
+- The 6E HTTP transport is stateless JSON request/response. It has no SSE stream or MCP task store. A timed-out or disconnected mutation may finish; clients use the same idempotency key to resolve its outcome.
+
 ## 9.4 Automations
 
 - **Service principal:** each automation has an accountable owner, a declared scope (brands/projects; workspace automations list brands explicitly), and a declared action set.

@@ -33,6 +33,7 @@ describe('non-resource envelope stays confined (ADR-0007 D6, ADR-0008 B3)', () =
     expect([...new Set(uses.filter((f) => !f.endsWith('envelopes.ts')))].sort()).toEqual([
       'apps/api/src/app.ts',
       'apps/api/src/auth/routes.ts',
+      'apps/api/src/mcp/routes.ts',
       'apps/api/src/public/routes.ts',
       'apps/api/src/tenancy/routes.ts',
       'apps/api/src/work/capacity-routes.ts',

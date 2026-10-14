@@ -16,5 +16,7 @@ test('connects with an API key, sees status, and disconnects', async ({ page }, 
   await page.getByRole('button', { name: 'Disconnect' }).click();
   await expect(page.getByText('Status: Disconnected')).toBeVisible();
   await expect(page.getByText('loopback-token')).toHaveCount(0);
+  await expect(page.getByRole('heading', { level: 2, name: 'MCP access' })).toBeVisible();
+  await expect(page.getByText(/Workspace endpoint:/)).toBeVisible();
   await expectAccessible(page, 'integrations');
 });

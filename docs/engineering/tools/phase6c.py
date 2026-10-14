@@ -31,8 +31,11 @@ def check_migration():
 def check_chain():
     errs = []
     factory = read(P("packages/work/src/factory.ts"))
-    if "return new CalendarService(" not in factory:
-        errs.append("factory must return CalendarService")
+    if not any(
+        "return new %s(" % service in factory
+        for service in ("CalendarService", "McpAccessService")
+    ):
+        errs.append("factory must return CalendarService or a later service-chain extension")
     if "export class CalendarService extends PublicApiService" not in read(
         P("packages/work/src/integrations/calendar-service.ts")
     ):
