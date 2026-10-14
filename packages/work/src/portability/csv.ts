@@ -37,7 +37,7 @@ export function parseCsv(input: string, limits = CSV_LIMITS): CsvRow[] {
       if (rows.length > limits.rows + 1) throw new Error('csv_too_many_rows');
     } else cell += ch;
     if (cell.length > limits.cell) throw new Error('csv_cell_too_large');
-    if (row.length >= limits.columns) throw new Error('csv_too_many_columns');
+    if (row.length > limits.columns) throw new Error('csv_too_many_columns');
   }
   if (quoted) throw new Error('csv_unclosed_quote');
   if (cell.length || row.length) {
@@ -68,15 +68,32 @@ export function serializeCsv(
   headers: readonly string[],
   rows: readonly Record<string, unknown>[],
 ): string {
-  return (
-    [
-      headers.map(quoteCell).join(','),
-      ...rows.map((r) => headers.map((h) => quoteCell(r[h])).join(',')),
-    ].join('\r\n') + '\r\n'
-  );
+  if (headers.length > CSV_LIMITS.columns || rows.length > CSV_LIMITS.rows)
+    throw new Error('csv_export_limit');
+  const chunks: string[] = [];
+  let bytes = 0;
+  const append = (line: string) => {
+    const chunk = `${line}\r\n`;
+    bytes += Buffer.byteLength(chunk, 'utf8');
+    if (bytes > CSV_LIMITS.bytes) throw new Error('csv_export_too_large');
+    chunks.push(chunk);
+  };
+  append(headers.map(quoteCell).join(','));
+  for (const row of rows) append(headers.map((h) => quoteCell(row[h])).join(','));
+  return chunks.join('');
 }
 
 export const PORTABILITY_SCHEMA_VERSION = '1';
+export const PORTABLE_ENTITIES = [
+  'task',
+  'project',
+  'workflow',
+  'field',
+  'goal',
+  'document',
+  'file',
+] as const;
+export type PortableEntity = (typeof PORTABLE_ENTITIES)[number];
 export const PORTABLE_FIELDS = Object.freeze({
   task: [
     'schema_version',
@@ -111,10 +128,77 @@ export const PORTABLE_FIELDS = Object.freeze({
     'created_at',
     'updated_at',
   ],
+  workflow: [
+    'schema_version',
+    'source_row_key',
+    'public_id',
+    'name',
+    'record_kind',
+    'description',
+    'scope',
+    'statuses',
+    'created_at',
+    'updated_at',
+  ],
+  field: [
+    'schema_version',
+    'source_row_key',
+    'public_id',
+    'name',
+    'field_type',
+    'description',
+    'config',
+    'scope',
+    'created_at',
+    'updated_at',
+  ],
+  goal: [
+    'schema_version',
+    'source_row_key',
+    'public_id',
+    'title',
+    'status',
+    'basis',
+    'period',
+    'unit',
+    'baseline',
+    'target',
+    'current',
+    'project_id',
+    'source_actor',
+    'created_at',
+    'updated_at',
+  ],
+  document: [
+    'schema_version',
+    'source_row_key',
+    'public_id',
+    'title',
+    'document_type',
+    'project_id',
+    'parent_id',
+    'source_actor',
+    'created_at',
+    'updated_at',
+  ],
+  file: [
+    'schema_version',
+    'source_row_key',
+    'public_id',
+    'name',
+    'media_type',
+    'size_bytes',
+    'checksum_sha256',
+    'host_kind',
+    'host_public_id',
+    'scan_state',
+    'created_at',
+    'updated_at',
+  ],
 });
 
 export interface ImportPreview {
-  entity: 'task' | 'project';
+  entity: PortableEntity;
   headers: string[];
   rows: Array<{ row: number; values: Record<string, string>; errors: string[] }>;
   valid: number;
@@ -127,24 +211,82 @@ export function previewCsv(
   entity: string,
   mapping?: Record<string, string>,
 ): ImportPreview {
-  if (entity !== 'task' && entity !== 'project') throw new Error('unsupported_entity');
+  if (!PORTABLE_ENTITIES.includes(entity as PortableEntity)) throw new Error('unsupported_entity');
   const matrix = parseCsv(input);
   const headers = matrix[0]!.map((h, index) => (index === 0 ? h.replace(/^\uFEFF/, '') : h).trim());
   if (new Set(headers).size !== headers.length || headers.some((h) => !h || h.startsWith('_pm_')))
     throw new Error('csv_invalid_headers');
-  const allowed = new Set(PORTABLE_FIELDS[entity]);
+  const allowed = new Set(PORTABLE_FIELDS[entity as PortableEntity]);
   const mapped = headers.map((h) => mapping?.[h] ?? h);
   if (mapped.some((h) => !allowed.has(h)) || new Set(mapped).size !== mapped.length)
     throw new Error('csv_invalid_mapping');
+  const seenSourceKeys = new Set<string>();
   const rows = matrix.slice(1).map((cells, index) => {
     const values = Object.fromEntries(mapped.map((field, i) => [field, cells[i]!]));
     const errors: string[] = [];
+    if (Buffer.byteLength(JSON.stringify(values), 'utf8') > 128 * 1024)
+      errors.push('row_too_large');
+    if (values.source_row_key) {
+      if (seenSourceKeys.has(values.source_row_key)) errors.push('duplicate_source_row_key');
+      seenSourceKeys.add(values.source_row_key);
+    }
     if (values.schema_version !== PORTABILITY_SCHEMA_VERSION)
       errors.push('unsupported_schema_version');
-    if (!values.title && !values.name) errors.push('required_title');
-    if ((values.title ?? values.name ?? '').length > 500) errors.push('title_too_long');
-    const prefix = entity === 'task' ? 'tsk' : 'prj';
+    if (entity === 'workflow') {
+      if (!['task', 'project'].includes(values.record_kind ?? ''))
+        errors.push('invalid_record_kind');
+      try {
+        const statuses = JSON.parse(values.statuses ?? '[]') as unknown;
+        if (!Array.isArray(statuses) || statuses.length < 2) errors.push('invalid_statuses');
+      } catch {
+        errors.push('invalid_statuses');
+      }
+    }
+    if (entity === 'field' && values.config) {
+      try {
+        if (!JSON.parse(values.config)) errors.push('invalid_config');
+      } catch {
+        errors.push('invalid_config');
+      }
+    }
+    if (entity === 'goal') {
+      try {
+        const period = JSON.parse(values.period ?? '') as Record<string, unknown>;
+        if (
+          !period ||
+          typeof period !== 'object' ||
+          !['quarter', 'half', 'year', 'custom'].includes(String(period.kind))
+        )
+          errors.push('invalid_period');
+      } catch {
+        errors.push('invalid_period');
+      }
+    }
     if (
+      entity === 'document' &&
+      values.document_type &&
+      ![
+        'page',
+        'brand_brief',
+        'project_brief',
+        'sop',
+        'specification',
+        'meeting_notes',
+        'decision',
+        'release_notes',
+      ].includes(values.document_type)
+    )
+      errors.push('invalid_document_type');
+    if (entity === 'file') errors.push('file_payload_required');
+    const required =
+      entity === 'task' || entity === 'goal' || entity === 'document' ? values.title : values.name;
+    if (!required) errors.push('required_title');
+    if ((required ?? '').length > 500) errors.push('title_too_long');
+    const prefix = (
+      { task: 'tsk', project: 'prj', goal: 'goal', document: 'doc', file: 'file' } as const
+    )[entity as 'task' | 'project' | 'goal' | 'document' | 'file'];
+    if (
+      prefix &&
       values.public_id &&
       !new RegExp(`^${prefix}_[0-9A-HJKMNP-TV-Z]{26}$`).test(values.public_id)
     )
@@ -156,7 +298,7 @@ export function previewCsv(
   );
   const digest = createHash('sha256').update(`${entity}\0${mappingKey}\0${input}`).digest('hex');
   return {
-    entity,
+    entity: entity as PortableEntity,
     headers: mapped,
     rows,
     valid: rows.filter((r) => !r.errors.length).length,

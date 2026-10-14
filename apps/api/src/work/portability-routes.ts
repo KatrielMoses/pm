@@ -10,6 +10,43 @@ export function registerPortability(app: FastifyInstance, work: PortabilityServi
   const p = (request: FastifyRequest) => request.params as Params;
   const base = '/v1/workspaces/:ws/portability';
   app.get(
+    `${base}/imports/mappings`,
+    wrap(async (request, reply) => {
+      const data = await work.listImportMappings(caller(request), p(request).ws);
+      return reply
+        .code(200)
+        .header('cache-control', 'private, no-store')
+        .send(nonResourceEnvelope('portability_import_mappings', { mappings: data }, m(request)));
+    }),
+  );
+  app.post(
+    `${base}/imports/mappings`,
+    wrap(async (request, reply) => {
+      const data = await work.saveImportMapping(caller(request), p(request).ws, request.body);
+      return reply
+        .code(201)
+        .header('cache-control', 'private, no-store')
+        .send(
+          nonResourceEnvelope(
+            'portability_import_mapping',
+            data as unknown as Record<string, unknown>,
+            m(request),
+          ),
+        );
+    }),
+  );
+  app.delete(
+    `${base}/imports/mappings/:mapping`,
+    wrap(async (request, reply) => {
+      const mapping = (request.params as { mapping?: string }).mapping;
+      const data = await work.deleteImportMapping(caller(request), p(request).ws, mapping);
+      return reply
+        .code(200)
+        .header('cache-control', 'private, no-store')
+        .send(nonResourceEnvelope('portability_import_mapping', data, m(request)));
+    }),
+  );
+  app.get(
     `${base}/exports/:entity.csv`,
     wrap(async (request, reply) => {
       const entity = (request.params as { entity?: string }).entity ?? '';
@@ -24,8 +61,13 @@ export function registerPortability(app: FastifyInstance, work: PortabilityServi
   );
   app.post(
     `${base}/imports/preview`,
+    { bodyLimit: 5 * 1024 * 1024 },
     wrap(async (request, reply) => {
-      const data = work.previewPortabilityImport(request.body);
+      const data = await work.previewPortabilityImportFor(
+        caller(request),
+        p(request).ws,
+        request.body,
+      );
       return reply
         .code(200)
         .header('cache-control', 'private, no-store')
@@ -40,6 +82,7 @@ export function registerPortability(app: FastifyInstance, work: PortabilityServi
   );
   app.post(
     `${base}/imports`,
+    { bodyLimit: 5 * 1024 * 1024 },
     wrap(async (request, reply) => {
       const data = await work.applyPortabilityImport(
         caller(request),
@@ -57,6 +100,22 @@ export function registerPortability(app: FastifyInstance, work: PortabilityServi
             m(request),
           ),
         );
+    }),
+  );
+  app.post(
+    `${base}/imports/:job/rollback`,
+    wrap(async (request, reply) => {
+      const job = (request.params as { job?: string }).job;
+      const result = await work.rollbackPortabilityImport(
+        caller(request),
+        p(request).ws,
+        job,
+        mutation(request),
+      );
+      return reply
+        .code(200)
+        .header('cache-control', 'private, no-store')
+        .send(nonResourceEnvelope('portability_import', result, m(request)));
     }),
   );
 }

@@ -30,4 +30,36 @@ describe('CSV portability boundaries', () => {
       'csv_too_large',
     );
   });
+
+  it('validates every portable metadata schema without trusting authority columns', () => {
+    expect(
+      previewCsv('schema_version,name,record_kind,statuses\n1,Flow,task,"[]"\n', 'workflow').rows[0]
+        ?.errors,
+    ).toContain('invalid_statuses');
+    expect(previewCsv('schema_version,name,field_type\n1,Label,text\n', 'field').valid).toBe(1);
+    expect(
+      previewCsv('schema_version,title,period\n1,Goal,"{}"\n', 'goal').rows[0]?.errors,
+    ).toContain('invalid_period');
+    expect(previewCsv('schema_version,title,document_type\n1,Page,page\n', 'document').valid).toBe(
+      1,
+    );
+    expect(previewCsv('schema_version,name\n1,Image\n', 'file').rows[0]?.errors).toContain(
+      'file_payload_required',
+    );
+    expect(() => previewCsv('schema_version,tenant_id\n1,secret\n', 'task')).toThrow(
+      'csv_invalid_mapping',
+    );
+  });
+
+  it('rejects invalid schemas and deterministic duplicate destination mappings', () => {
+    expect(
+      () => previewCsv('schema_version,title\n2,Task\n', 'task').rows[0]?.errors,
+    ).not.toThrow();
+    expect(previewCsv('schema_version,title\n2,Task\n', 'task').rows[0]?.errors).toContain(
+      'unsupported_schema_version',
+    );
+    expect(() =>
+      previewCsv('Name,Title\nAlpha,Beta\n', 'task', { Name: 'title', Title: 'title' }),
+    ).toThrow('csv_invalid_mapping');
+  });
 });

@@ -1,0 +1,328 @@
+{
+  "schema_version": 1,
+  "phase": "6D",
+  "status": "candidate",
+  "adr": "0035",
+  "requirements": [
+    {
+      "id": "PRJ-018",
+      "role": "owned",
+      "disposition": "in_progress",
+      "note": "Phase 6D candidate: current implementation does not yet close this complete requirement."
+    },
+    {
+      "id": "INT-030",
+      "role": "owned",
+      "disposition": "in_progress",
+      "note": "Phase 6D candidate: current implementation does not yet close this complete requirement."
+    },
+    {
+      "id": "PERM-010",
+      "role": "owned",
+      "disposition": "in_progress",
+      "note": "Phase 6D candidate: current implementation does not yet close this complete requirement."
+    },
+    {
+      "id": "DATA-001",
+      "role": "owned",
+      "disposition": "in_progress",
+      "note": "Phase 6D candidate: current implementation does not yet close this complete requirement."
+    },
+    {
+      "id": "DATA-002",
+      "role": "owned",
+      "disposition": "in_progress",
+      "note": "Phase 6D candidate: current implementation does not yet close this complete requirement."
+    },
+    {
+      "id": "DATA-003",
+      "role": "owned",
+      "disposition": "in_progress",
+      "note": "Phase 6D candidate: current implementation does not yet close this complete requirement."
+    },
+    {
+      "id": "DATA-004",
+      "role": "owned",
+      "disposition": "in_progress",
+      "note": "Phase 6D candidate: current implementation does not yet close this complete requirement."
+    },
+    {
+      "id": "DATA-005",
+      "role": "owned",
+      "disposition": "in_progress",
+      "note": "Phase 6D candidate: current implementation does not yet close this complete requirement."
+    },
+    {
+      "id": "DATA-006",
+      "role": "owned",
+      "disposition": "in_progress",
+      "note": "Phase 6D candidate: current implementation does not yet close this complete requirement."
+    },
+    {
+      "id": "DATA-007",
+      "role": "owned",
+      "disposition": "in_progress",
+      "note": "Phase 6D candidate: current implementation does not yet close this complete requirement."
+    },
+    {
+      "id": "DATA-008",
+      "role": "owned",
+      "disposition": "in_progress",
+      "note": "Phase 6D candidate: current implementation does not yet close this complete requirement."
+    },
+    {
+      "id": "DATA-009",
+      "role": "owned",
+      "disposition": "in_progress",
+      "note": "Phase 6D candidate: current implementation does not yet close this complete requirement."
+    },
+    {
+      "id": "DATA-010",
+      "role": "owned",
+      "disposition": "in_progress",
+      "note": "Phase 6D candidate: current implementation does not yet close this complete requirement."
+    },
+    {
+      "id": "DATA-011",
+      "role": "owned",
+      "disposition": "in_progress",
+      "note": "Phase 6D candidate: current implementation does not yet close this complete requirement."
+    },
+    {
+      "id": "DATA-012",
+      "role": "owned",
+      "disposition": "in_progress",
+      "note": "Phase 6D candidate: current implementation does not yet close this complete requirement."
+    },
+    {
+      "id": "DATA-013",
+      "role": "owned",
+      "disposition": "in_progress",
+      "note": "Phase 6D candidate: current implementation does not yet close this complete requirement."
+    },
+    {
+      "id": "DATA-014",
+      "role": "owned",
+      "disposition": "in_progress",
+      "note": "Phase 6D candidate: current implementation does not yet close this complete requirement."
+    },
+    {
+      "id": "DATA-015",
+      "role": "owned",
+      "disposition": "in_progress",
+      "note": "Phase 6D candidate: current implementation does not yet close this complete requirement."
+    },
+    {
+      "id": "DATA-016",
+      "role": "owned",
+      "disposition": "in_progress",
+      "note": "Phase 6D candidate: current implementation does not yet close this complete requirement."
+    },
+    {
+      "id": "AUD-009",
+      "role": "owned",
+      "disposition": "in_progress",
+      "note": "Phase 6D candidate: current implementation does not yet close this complete requirement."
+    },
+    {
+      "id": "WFL-014",
+      "role": "contributing",
+      "disposition": "contributed",
+      "contribution": "6D",
+      "note": "Existing authority is reused; phase-wide regression evidence remains pending."
+    },
+    {
+      "id": "VIEW-022",
+      "role": "contributing",
+      "disposition": "contributed",
+      "contribution": "6D",
+      "note": "Existing authority is reused; phase-wide regression evidence remains pending."
+    },
+    {
+      "id": "DOC-020",
+      "role": "contributing",
+      "disposition": "contributed",
+      "contribution": "6D",
+      "note": "Existing authority is reused; phase-wide regression evidence remains pending."
+    },
+    {
+      "id": "TIME-014",
+      "role": "contributing",
+      "disposition": "contributed",
+      "contribution": "6D",
+      "note": "Existing authority is reused; phase-wide regression evidence remains pending."
+    },
+    {
+      "id": "SEC-014",
+      "role": "contributing",
+      "disposition": "contributed",
+      "contribution": "6D",
+      "note": "Existing authority is reused; phase-wide regression evidence remains pending."
+    },
+    {
+      "id": "BILL-016",
+      "role": "contributing",
+      "disposition": "contributed",
+      "contribution": "6D",
+      "note": "Existing authority is reused; phase-wide regression evidence remains pending."
+    },
+    {
+      "id": "SUP-013",
+      "role": "contributing",
+      "disposition": "contributed",
+      "contribution": "6D",
+      "note": "Existing authority is reused; phase-wide regression evidence remains pending."
+    },
+    {
+      "id": "LA-005",
+      "role": "contributing",
+      "disposition": "contributed",
+      "contribution": "6D",
+      "note": "Existing authority is reused; phase-wide regression evidence remains pending."
+    },
+    {
+      "id": "LA-019",
+      "role": "contributing",
+      "disposition": "contributed",
+      "contribution": "6D",
+      "note": "Existing authority is reused; phase-wide regression evidence remains pending."
+    }
+  ],
+  "decisions": [
+    {
+      "id": "P1",
+      "evidence": [
+        {
+          "file": "docs/engineering/adr/0035-data-portability.md",
+          "contains": "| P1 |"
+        }
+      ],
+      "sources": [
+        {
+          "file": "docs/engineering/adr/0035-data-portability.md",
+          "contains": "| P1 |"
+        }
+      ]
+    },
+    {
+      "id": "P2",
+      "evidence": [
+        {
+          "file": "docs/engineering/adr/0035-data-portability.md",
+          "contains": "| P2 |"
+        }
+      ],
+      "sources": [
+        {
+          "file": "docs/engineering/adr/0035-data-portability.md",
+          "contains": "| P2 |"
+        }
+      ]
+    },
+    {
+      "id": "P3",
+      "evidence": [
+        {
+          "file": "docs/engineering/adr/0035-data-portability.md",
+          "contains": "| P3 |"
+        }
+      ],
+      "sources": [
+        {
+          "file": "docs/engineering/adr/0035-data-portability.md",
+          "contains": "| P3 |"
+        }
+      ]
+    },
+    {
+      "id": "P4",
+      "evidence": [
+        {
+          "file": "docs/engineering/adr/0035-data-portability.md",
+          "contains": "| P4 |"
+        }
+      ],
+      "sources": [
+        {
+          "file": "docs/engineering/adr/0035-data-portability.md",
+          "contains": "| P4 |"
+        }
+      ]
+    },
+    {
+      "id": "P5",
+      "evidence": [
+        {
+          "file": "docs/engineering/adr/0035-data-portability.md",
+          "contains": "| P5 |"
+        }
+      ],
+      "sources": [
+        {
+          "file": "docs/engineering/adr/0035-data-portability.md",
+          "contains": "| P5 |"
+        }
+      ]
+    },
+    {
+      "id": "P6",
+      "evidence": [
+        {
+          "file": "docs/engineering/adr/0035-data-portability.md",
+          "contains": "| P6 |"
+        }
+      ],
+      "sources": [
+        {
+          "file": "docs/engineering/adr/0035-data-portability.md",
+          "contains": "| P6 |"
+        }
+      ]
+    },
+    {
+      "id": "P7",
+      "evidence": [
+        {
+          "file": "docs/engineering/adr/0035-data-portability.md",
+          "contains": "| P7 |"
+        }
+      ],
+      "sources": [
+        {
+          "file": "docs/engineering/adr/0035-data-portability.md",
+          "contains": "| P7 |"
+        }
+      ]
+    },
+    {
+      "id": "P8",
+      "evidence": [
+        {
+          "file": "docs/engineering/adr/0035-data-portability.md",
+          "contains": "| P8 |"
+        }
+      ],
+      "sources": [
+        {
+          "file": "docs/engineering/adr/0035-data-portability.md",
+          "contains": "| P8 |"
+        }
+      ]
+    },
+    {
+      "id": "P9",
+      "evidence": [
+        {
+          "file": "docs/engineering/adr/0035-data-portability.md",
+          "contains": "| P9 |"
+        }
+      ],
+      "sources": [
+        {
+          "file": "docs/engineering/adr/0035-data-portability.md",
+          "contains": "| P9 |"
+        }
+      ]
+    }
+  ]
+}

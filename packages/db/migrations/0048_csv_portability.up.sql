@@ -32,6 +32,31 @@ CREATE TABLE transfer.import_job (
 CREATE UNIQUE INDEX import_job_dedupe ON transfer.import_job (workspace_id, owner_membership_id, content_sha256, entity_kind, apply_mode)
   WHERE state IN ('previewed', 'running', 'partial', 'completed');
 CREATE INDEX import_job_recovery ON transfer.import_job (workspace_id, state, updated_at);
+CREATE UNIQUE INDEX import_job_one_running_per_owner ON transfer.import_job (workspace_id, owner_membership_id)
+  WHERE state = 'running';
+
+-- A saved mapping is a private convenience owned by one membership. It contains only a
+-- source-column to allowlisted portable-field map; it never carries authorization context.
+CREATE TABLE transfer.import_mapping (
+  id uuid PRIMARY KEY,
+  workspace_id uuid NOT NULL REFERENCES tenancy.workspace (id) ON DELETE RESTRICT,
+  owner_membership_id uuid NOT NULL,
+  name text NOT NULL,
+  entity_kind text NOT NULL,
+  schema_version text NOT NULL DEFAULT '1',
+  column_mapping jsonb NOT NULL,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  updated_at timestamptz NOT NULL DEFAULT now(),
+  CONSTRAINT import_mapping_workspace_key UNIQUE (workspace_id, id),
+  CONSTRAINT import_mapping_owner_fkey FOREIGN KEY (workspace_id, owner_membership_id)
+    REFERENCES tenancy.membership (workspace_id, id) ON DELETE CASCADE,
+  CONSTRAINT import_mapping_entity CHECK (entity_kind IN ('task', 'project', 'workflow', 'field', 'goal', 'document', 'file')),
+  CONSTRAINT import_mapping_name CHECK (length(name) BETWEEN 1 AND 80),
+  CONSTRAINT import_mapping_schema CHECK (schema_version = '1'),
+  CONSTRAINT import_mapping_size CHECK (octet_length(column_mapping::text) <= 16384)
+);
+CREATE UNIQUE INDEX import_mapping_owner_name ON transfer.import_mapping
+  (workspace_id, owner_membership_id, lower(name));
 
 CREATE TABLE transfer.import_row (
   workspace_id uuid NOT NULL,
@@ -66,6 +91,10 @@ ALTER TABLE transfer.import_row ENABLE ROW LEVEL SECURITY;
 ALTER TABLE transfer.import_row FORCE ROW LEVEL SECURITY;
 CREATE POLICY tenant_isolation ON transfer.import_row
   USING (workspace_id = current_setting('app.workspace_id', true)::uuid);
-REVOKE ALL ON transfer.import_job, transfer.import_row FROM PUBLIC;
-GRANT SELECT, INSERT, UPDATE, DELETE ON transfer.import_job, transfer.import_row TO app_rw;
+ALTER TABLE transfer.import_mapping ENABLE ROW LEVEL SECURITY;
+ALTER TABLE transfer.import_mapping FORCE ROW LEVEL SECURITY;
+CREATE POLICY tenant_isolation ON transfer.import_mapping
+  USING (workspace_id = current_setting('app.workspace_id', true)::uuid);
+REVOKE ALL ON transfer.import_job, transfer.import_row, transfer.import_mapping FROM PUBLIC;
+GRANT SELECT, INSERT, UPDATE, DELETE ON transfer.import_job, transfer.import_row, transfer.import_mapping TO app_rw;
 GRANT SELECT, INSERT, UPDATE, DELETE ON transfer.import_job, transfer.import_row TO app_worker;

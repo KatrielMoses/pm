@@ -3058,7 +3058,7 @@ export interface ImportJobTable {
   workspace_id: string;
   owner_membership_id: string;
   content_sha256: Bytes;
-  entity_kind: 'task' | 'project';
+  entity_kind: 'task' | 'project' | 'workflow' | 'field' | 'goal' | 'document' | 'file';
   state: 'previewed' | 'running' | 'partial' | 'completed' | 'failed' | 'rolled_back';
   apply_mode: 'partial' | 'all_or_nothing';
   row_count: number;
@@ -3081,6 +3081,17 @@ export interface ImportRowTable {
   record_id: string | null;
   record_public_id: string | null;
   applied_version: number | null;
+  created_at: DTs;
+  updated_at: DTs;
+}
+export interface ImportMappingTable {
+  id: string;
+  workspace_id: string;
+  owner_membership_id: string;
+  name: string;
+  entity_kind: 'task' | 'project' | 'workflow' | 'field' | 'goal' | 'document' | 'file';
+  schema_version: string;
+  column_mapping: Json<Record<string, string>>;
   created_at: DTs;
   updated_at: DTs;
 }
@@ -3293,6 +3304,7 @@ export interface Database {
   'planning.daily_record': DailyRecordTable;
   'transfer.import_job': ImportJobTable;
   'transfer.import_row': ImportRowTable;
+  'transfer.import_mapping': ImportMappingTable;
 }
 
 /** Column inventory per table, compared with the migrated catalog by the schema-drift test. */
@@ -5975,6 +5987,17 @@ export const TABLE_COLUMNS: Readonly<Record<keyof Database, readonly string[]>> 
     'record_id',
     'record_public_id',
     'applied_version',
+    'created_at',
+    'updated_at',
+  ],
+  'transfer.import_mapping': [
+    'id',
+    'workspace_id',
+    'owner_membership_id',
+    'name',
+    'entity_kind',
+    'schema_version',
+    'column_mapping',
     'created_at',
     'updated_at',
   ],

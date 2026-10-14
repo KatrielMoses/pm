@@ -4796,3 +4796,32 @@ nav.tabs a[aria-current='page'] {
     animation: none;
   }
 }
+
+.portability-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  gap: 0.75rem;
+  margin-block: 1rem;
+  max-width: 100%;
+}
+.portability-controls > label,
+.portability-controls > p {
+  flex-basis: 100%;
+}
+.portability-controls input,
+.portability-controls select,
+.portability-controls textarea,
+.portability-controls button {
+  box-sizing: border-box;
+  max-width: 100%;
+}
+.portability-controls textarea {
+  flex-basis: min(34rem, 100%);
+}
+@media (max-width: 20rem) {
+  .portability-controls > * {
+    flex-basis: 100%;
+    min-width: 0;
+  }
+}
