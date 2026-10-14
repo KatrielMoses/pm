@@ -28,7 +28,7 @@ import {
   taskAssigneeHook,
   taskTargets,
   savedViewTargets,
-  CalendarService,
+  McpAccessService,
   connectionOwnerHook,
   webhookOwnerHook,
   type WebhookTransport,
@@ -61,7 +61,7 @@ export {
 
 export interface WorkEnv {
   h: Harness;
-  svc: CalendarService;
+  svc: McpAccessService;
   /** The test storage and scanner the service uses (null when a test disables them). */
   files: FileDeps;
   stepUp: StubStepUp;
@@ -133,7 +133,7 @@ export function workEnv(
     scanner:
       options.files?.scanner !== undefined ? options.files.scanner : new SignatureTestScanner(),
   };
-  const svc = new CalendarService({
+  const svc = new McpAccessService({
     vault: createVault(h.config.identity),
     deliver: options.deliver,
     files,
@@ -172,6 +172,8 @@ export function workEnv(
       'integration.member': { limit: 10_000, windowMs: 60_000 },
       'api.read': { limit: 100_000, windowMs: 60_000 },
       'api.write': { limit: 100_000, windowMs: 60_000 },
+      'mcp.read': { limit: 100_000, windowMs: 60_000 },
+      'mcp.write': { limit: 100_000, windowMs: 60_000 },
     }),
     signingKey: randomBytes(32),
     settings: {

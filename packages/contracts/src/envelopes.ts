@@ -252,6 +252,8 @@ export const NON_RESOURCE_TYPES = [
   'sync_conflicts',
   // 6B: token and webhook collections. The secret is never part of these lists.
   'api_tokens',
+  'oauth_clients',
+  'mcp_capabilities',
   'webhook_subscriptions',
   'webhook_deliveries',
   'api_reference',

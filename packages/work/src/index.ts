@@ -82,6 +82,8 @@ export * from './integrations/public-api-service.ts';
 export * from './integrations/calendar-service.ts';
 export * from './portability/csv.ts';
 export * from './portability/portability-service.ts';
+export * from './integrations/mcp-access-service.ts';
+export * from './integrations/mcp/registry.ts';
 export * from './insights/jobs.ts';
 export * from './insights/ownership.ts';
 export * from './goals/jobs.ts';

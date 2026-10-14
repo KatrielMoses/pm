@@ -236,6 +236,7 @@ test('bulk status offers the project workflow’s custom statuses and previews e
   await expect(status.locator('option', { hasText: 'Polishing (custom)' })).toHaveCount(1);
   await expect(status.locator('option', { hasText: 'In progress' })).toHaveCount(0);
   await status.selectOption({ label: 'Polishing (custom)' });
+  await page.locator('body').evaluate((element) => element.scrollIntoView({ block: 'start' }));
   await expectAccessible(page, 'bulk status with custom statuses');
   await bulk.getByRole('button', { name: 'Preview change' }).click();
   const dialog = page.getByRole('dialog', { name: 'Set status: preview' });

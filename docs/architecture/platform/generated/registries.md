@@ -100,6 +100,9 @@ Source: `contracts/registry.json`.
 | `dsg_` | document_suggestion | knowledge.document_suggestion | knowledge |  |
 | `gci_` | goal_checkin | goals.goal_checkin | goals |  |
 | `rsh_` | report_share | insights.report_share | insights |  |
+| `mci_` | mcp_invocation | integrations.mcp_invocation | integrations | Phase 6E (INT-022), bounded workspace audit record. |
+| `oat_` | oauth_access_token | integrations.oauth_access_token | integrations | Phase 6E; identifier is not a credential and the bearer secret is never returned on replay. |
+| `ocs_` | oauth_consent | integrations.oauth_consent | integrations | Phase 6E; opaque audit aggregate identifier, not an authorization token. |
 
 ## Error codes
 
@@ -376,6 +379,11 @@ Source: `contracts/registry.json`.
 | `workflow.transition.updated` v1 | workflow.transition | workflow_id, changed_fields, lifecycle_state | C1 | yes |  |  |  |  | — |
 | `workflow.workflow.created` v1 | workflow.workflow | record_kind, scope_kind | C1 | yes |  |  |  |  | — |
 | `workflow.workflow.updated` v1 | workflow.workflow | changed_fields, lifecycle_state | C1 | yes |  |  |  |  | — |
+| `integrations.oauth_client.created` v1 | integrations.oauth_client | scope_count | C1 | yes |  |  |  |  | — |
+| `integrations.oauth_client.revoked` v1 | integrations.oauth_client |  | C1 | yes |  |  |  |  | — |
+| `integrations.oauth_consent.granted` v1 | integrations.oauth_consent | scope_count, brand_count | C1 | yes |  |  |  |  | — |
+| `integrations.oauth_consent.revoked` v1 | integrations.oauth_consent |  | C1 | yes |  |  |  |  | — |
+| `integrations.oauth_access_token.issued` v1 | integrations.oauth_access_token | expires_in | C1 | yes |  |  |  |  | — |
 
 ## SSE topics
 
@@ -681,6 +689,11 @@ Forbidden metric labels: `workspace_id`, `brand_id`, `record_id`, `public_id`, `
 | `LIVE_SESSIONS_MAX` | Most live editing sessions on one document; default 20, range 2–100. | 4D |
 | `LIVE_SESSIONS_PER_MEMBER_MAX` | Most live sessions one person holds at once; default 5, range 1–20. | 4D |
 | `LIVE_SESSION_TTL_SECONDS` | How long a live editing session lasts without a heartbeat, poll, or operation; default 45, range 15–300. | 4D |
+| `MCP_ENABLED` | Whether MCP-compatible requests are accepted; capability discovery remains truthful when disabled. | 6E |
+| `MCP_READ_RATE_PER_MINUTE` | MCP reads per token per minute; default 120, range 1–10000. | 6E |
+| `MCP_TOOL_CALL_TIMEOUT_MS` | Maximum MCP request execution window; default 30000 ms, range 1000–120000. | 6E |
+| `MCP_TOOL_RESULT_MAX_BYTES` | Maximum serialized MCP tool/resource result; default 65536 bytes, range 1024–1048576. | 6E |
+| `MCP_WRITE_RATE_PER_MINUTE` | MCP mutations per token per minute; default 60, range 1–10000. | 6E |
 | `METRICS_DEFAULT_WINDOW_DAYS` | Window a metric covers when none is given, in days; default 30, range 7–366. | 5C |
 | `METRICS_DRILL_PAGE_MAX` | Most records on one drill-through page; default 100, range 10–200. | 5C |
 | `METRICS_DRILL_RESULTS_MAX` | Deepest record a drill-through can page to; default 1000, range 100–5000. | 5C |
@@ -710,6 +723,7 @@ Forbidden metric labels: `workspace_id`, `brand_id`, `record_id`, `public_id`, `
 | `NOTIFY_RETRY_BASE_SECONDS` | First retry delay; each later attempt doubles it; default 60, range 5–3600. | 4B |
 | `NOTIFY_RETRY_MAX_SECONDS` | Longest retry delay; default 3600, range 60–86400. | 4B |
 | `NOTIFY_SEARCH_QUERY_MAX` | Longest notification history search text; default 100, range 10–200. | 4B |
+| `OAUTH_CLIENTS_MAX` | Active OAuth/MCP clients per workspace; default 100, range 1–1000. | 6E |
 | `OUTBOX_REPLAY_WINDOW` | How long dispatched outbox rows remain for replay. | 1A |
 | `OWNERSHIP_TRANSFER_LIFETIME` | How long a pending ownership transfer waits for the recipient before it expires. | 1D |
 | `PAGE_LIMIT_DEFAULT` | Default page size. | 3A |

@@ -454,6 +454,18 @@ export interface WorkSettings {
   webhookSweepBatchMax: number;
   /** Allow loopback webhook destinations in local and test. */
   webhookAllowLoopback: boolean;
+  /** `MCP_ENABLED` */
+  mcpEnabled: boolean;
+  /** `MCP_READ_RATE_PER_MINUTE` */
+  mcpReadRatePerMinute: number;
+  /** `MCP_WRITE_RATE_PER_MINUTE` */
+  mcpWriteRatePerMinute: number;
+  /** `OAUTH_CLIENTS_MAX` */
+  oauthClientsMax: number;
+  /** `MCP_TOOL_CALL_TIMEOUT_MS` */
+  mcpToolCallTimeoutMs: number;
+  /** `MCP_TOOL_RESULT_MAX_BYTES` */
+  mcpToolResultMaxBytes: number;
   /** `DOCUMENT_EMBED_URL_MAX_CHARS` */
   documentEmbedUrlMaxChars: number;
   /** `SIGNED_URL_LIFETIME` (seconds) */
@@ -697,6 +709,12 @@ export const DEFAULT_WORK_SETTINGS: WorkSettings = Object.freeze({
   webhookResponseTimeoutMs: 10_000,
   webhookSweepBatchMax: 25,
   webhookAllowLoopback: false,
+  mcpEnabled: true,
+  mcpReadRatePerMinute: 120,
+  mcpWriteRatePerMinute: 60,
+  oauthClientsMax: 20,
+  mcpToolCallTimeoutMs: 30_000,
+  mcpToolResultMaxBytes: 65_536,
   documentEmbedUrlMaxChars: 2048,
   signedUrlLifetimeSeconds: 300,
   uploadSessionLifetimeSeconds: 3_600,

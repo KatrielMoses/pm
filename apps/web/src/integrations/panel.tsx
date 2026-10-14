@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type FormEvent } from 'react';
 import { api, ApiError, newIdempotencyKey } from '../api.ts';
 
 export interface ConnectionView {
@@ -24,6 +24,24 @@ export interface ProviderView {
   unavailable: string | null;
   scopes: string[];
 }
+
+interface McpCapabilitiesView {
+  protocol_version: string;
+  registry_version: string;
+  mcp_enabled: boolean;
+  tools: Array<{ name: string; version: string }>;
+  resources: Array<{ uri: string; name: string }>;
+}
+
+interface OAuthClientView {
+  id: string;
+  name: string;
+  allowed_scopes: string[];
+  redirect_uris: string[];
+  consent: { scopes: string[]; state: 'active' | 'revoked' } | null;
+}
+
+const MCP_SCOPES = ['records:read', 'records:write', 'views:read'] as const;
 
 const HEALTH: Record<string, string> = {
   connected: 'Connected',
@@ -69,6 +87,14 @@ export function ConnectionList({ connections }: { connections: ConnectionView[] 
 export function IntegrationsPanel({ ws }: { ws: string }) {
   const [providers, setProviders] = useState<ProviderView[]>([]);
   const [connections, setConnections] = useState<ConnectionView[]>([]);
+  const [mcp, setMcp] = useState<McpCapabilitiesView | null>(null);
+  const [oauthClients, setOauthClients] = useState<OAuthClientView[]>([]);
+  const [canConfigureMcp, setCanConfigureMcp] = useState(false);
+  const [clientName, setClientName] = useState('');
+  const [redirectUri, setRedirectUri] = useState('https://');
+  const [clientSecret, setClientSecret] = useState<{ id: string; value: string } | null>(null);
+  const [accessToken, setAccessToken] = useState<string | null>(null);
+  const [selectedScopes, setSelectedScopes] = useState<Record<string, string[]>>({});
   const [error, setError] = useState<string | null>(null);
   const [name, setName] = useState('Loopback');
   const [apiKey, setApiKey] = useState('');
@@ -76,7 +102,7 @@ export function IntegrationsPanel({ ws }: { ws: string }) {
   const [busy, setBusy] = useState(false);
 
   const load = async () => {
-    const [prov, list] = await Promise.all([
+    const [prov, list, capabilities, clients] = await Promise.all([
       api<{ data: { providers: ProviderView[] } }>(
         'GET',
         `/v1/workspaces/${ws}/integrations/providers`,
@@ -85,9 +111,17 @@ export function IntegrationsPanel({ ws }: { ws: string }) {
         'GET',
         `/v1/workspaces/${ws}/integrations/connections`,
       ),
+      api<{ data: McpCapabilitiesView }>('GET', `/v1/workspaces/${ws}/mcp/capabilities`),
+      api<{ data: { clients: OAuthClientView[]; can_configure: boolean } }>(
+        'GET',
+        `/v1/workspaces/${ws}/oauth-clients`,
+      ),
     ]);
     setProviders(prov.body.data.providers);
     setConnections(list.body.data.connections);
+    setMcp(capabilities.body.data);
+    setOauthClients(clients.body.data.clients);
+    setCanConfigureMcp(clients.body.data.can_configure);
   };
 
   useEffect(() => {
@@ -117,6 +151,66 @@ export function IntegrationsPanel({ ws }: { ws: string }) {
       await load();
     } catch (e) {
       setError(e instanceof ApiError ? e.message : 'That did not work.');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const createMcpClient = async (e: FormEvent) => {
+    e.preventDefault();
+    setBusy(true);
+    setError(null);
+    setClientSecret(null);
+    setAccessToken(null);
+    try {
+      const result = await api<{ data: { id: string; client_secret: string } }>(
+        'POST',
+        `/v1/workspaces/${ws}/oauth-clients`,
+        {
+          body: { name: clientName, redirect_uris: [redirectUri], scopes: ['records:read'] },
+          headers: { 'idempotency-key': newIdempotencyKey() },
+        },
+      );
+      setClientSecret({ id: result.body.data.id, value: result.body.data.client_secret });
+      setClientName('');
+      await load();
+    } catch (e) {
+      setError(e instanceof ApiError ? e.message : 'Could not register the MCP client.');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const grantConsent = async (client: OAuthClientView) => {
+    const scopes = selectedScopes[client.id] ?? [];
+    if (!scopes.length) return;
+    await post(`/v1/workspaces/${ws}/oauth-clients/${client.id}/consent`, { scopes });
+  };
+
+  const revokeConsent = async (client: OAuthClientView) => {
+    await post(`/v1/workspaces/${ws}/oauth-clients/${client.id}/consent/revoke`, {});
+  };
+
+  const revokeMcpClient = async (client: OAuthClientView) => {
+    await post(`/v1/workspaces/${ws}/oauth-clients/${client.id}:revoke`, {});
+  };
+
+  const issueMcpToken = async () => {
+    if (!clientSecret) return;
+    setBusy(true);
+    setError(null);
+    try {
+      const result = await api<{ access_token: string }>(
+        'POST',
+        `/v1/workspaces/${ws}/oauth-clients/${clientSecret.id}/token`,
+        {
+          body: { client_id: clientSecret.id, client_secret: clientSecret.value },
+          headers: { 'idempotency-key': newIdempotencyKey() },
+        },
+      );
+      setAccessToken(result.body.access_token);
+    } catch (e) {
+      setError(e instanceof ApiError ? e.message : 'Could not issue an access token.');
     } finally {
       setBusy(false);
     }
@@ -227,6 +321,165 @@ export function IntegrationsPanel({ ws }: { ws: string }) {
             </form>
           </section>
         ))}
+      <section aria-labelledby="mcp-heading">
+        <h2 id="mcp-heading">MCP access</h2>
+        <p>
+          {mcp?.mcp_enabled
+            ? `Available · protocol ${mcp.protocol_version} · registry ${mcp.registry_version}`
+            : 'MCP access is not configured in this environment.'}
+        </p>
+        <p>
+          Workspace endpoint: <code>/v1/workspaces/{ws}/mcp</code>
+        </p>
+        <p>
+          Registered tools use this workspace’s current access policies. Each client receives only
+          the scopes granted by a member and may be revoked from these settings.
+        </p>
+        {mcp?.tools.length ? (
+          <ul aria-label="Available MCP tools">
+            {mcp.tools.map((tool) => (
+              <li key={tool.name}>
+                {tool.name} · v{tool.version}
+              </li>
+            ))}
+          </ul>
+        ) : null}
+        {mcp ? (
+          <p>
+            Help resource: <code>pm://workspace/mcp/help</code>
+          </p>
+        ) : null}
+        {canConfigureMcp ? (
+          <form onSubmit={(e) => void createMcpClient(e)}>
+            <h3>Register a client</h3>
+            <p>
+              <label htmlFor="mcp-client-name">Client name</label>
+              <input
+                id="mcp-client-name"
+                value={clientName}
+                maxLength={80}
+                onChange={(e) => setClientName(e.target.value)}
+                required
+              />
+            </p>
+            <p>
+              <label htmlFor="mcp-redirect-uri">HTTPS redirect URI</label>
+              <input
+                id="mcp-redirect-uri"
+                type="url"
+                value={redirectUri}
+                onChange={(e) => setRedirectUri(e.target.value)}
+                required
+              />
+            </p>
+            <p>
+              New clients start with read-only task access. A member can grant additional scopes.
+            </p>
+            <button
+              className="button button-primary"
+              type="submit"
+              disabled={busy || !clientName.trim()}
+            >
+              Register client
+            </button>
+          </form>
+        ) : null}
+        {clientSecret ? (
+          <section aria-labelledby="mcp-secret-heading" aria-live="polite">
+            <h3 id="mcp-secret-heading">Client secret · shown once</h3>
+            <p>Save this secret in the client now. It cannot be viewed again.</p>
+            <output>{clientSecret.value}</output>
+            {oauthClients.find((client) => client.id === clientSecret.id)?.consent?.state ===
+            'active' ? (
+              <button
+                type="button"
+                className="button"
+                disabled={busy}
+                onClick={() => void issueMcpToken()}
+              >
+                Generate access token
+              </button>
+            ) : (
+              <p>Grant this client consent below before generating an access token.</p>
+            )}
+            {accessToken ? (
+              <p role="status">
+                Access token · copy now: <output>{accessToken}</output>
+              </p>
+            ) : null}
+          </section>
+        ) : null}
+        {oauthClients.length ? (
+          <section aria-labelledby="mcp-clients-heading">
+            <h3 id="mcp-clients-heading">Registered clients</h3>
+            <ul>
+              {oauthClients.map((client) => (
+                <li key={client.id}>
+                  <h4>{client.name}</h4>
+                  <p>Allowed scopes: {client.allowed_scopes.join(', ')}</p>
+                  <p>Consent: {client.consent?.state ?? 'not granted'}</p>
+                  <fieldset>
+                    <legend>Scopes to grant this client</legend>
+                    {client.allowed_scopes
+                      .filter((scope) => MCP_SCOPES.includes(scope as (typeof MCP_SCOPES)[number]))
+                      .map((scope) => (
+                        <label key={scope}>
+                          <input
+                            type="checkbox"
+                            checked={(
+                              selectedScopes[client.id] ??
+                              client.consent?.scopes ??
+                              []
+                            ).includes(scope)}
+                            onChange={(e) =>
+                              setSelectedScopes((current) => {
+                                const selected = new Set(
+                                  current[client.id] ?? client.consent?.scopes ?? [],
+                                );
+                                if (e.target.checked) selected.add(scope);
+                                else selected.delete(scope);
+                                return { ...current, [client.id]: [...selected] };
+                              })
+                            }
+                          />
+                          {scope}
+                        </label>
+                      ))}
+                  </fieldset>
+                  <button
+                    type="button"
+                    className="button"
+                    disabled={busy || !(selectedScopes[client.id] ?? []).length}
+                    onClick={() => void grantConsent(client)}
+                  >
+                    Grant selected scopes
+                  </button>
+                  {client.consent?.state === 'active' ? (
+                    <button
+                      type="button"
+                      className="button"
+                      disabled={busy}
+                      onClick={() => void revokeConsent(client)}
+                    >
+                      Revoke my consent
+                    </button>
+                  ) : null}
+                  {canConfigureMcp ? (
+                    <button
+                      type="button"
+                      className="button"
+                      disabled={busy}
+                      onClick={() => void revokeMcpClient(client)}
+                    >
+                      Revoke client for workspace
+                    </button>
+                  ) : null}
+                </li>
+              ))}
+            </ul>
+          </section>
+        ) : null}
+      </section>
     </div>
   );
 }

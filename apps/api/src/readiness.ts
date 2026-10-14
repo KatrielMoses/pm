@@ -12,7 +12,8 @@ export interface Readiness {
     | 'object_storage'
     | 'email_delivery'
     | 'recovery_gate'
-    | 'tenant_isolation',
+    | 'tenant_isolation'
+    | 'mcp_access',
     CheckResult
   >;
 }
@@ -26,6 +27,7 @@ export interface ReadinessDeps {
   isDraining: () => boolean;
   /** The configured mail transport: `none` means email is not delivered, and says so. */
   emailTransport: 'capture' | 'none';
+  mcpEnabled?: boolean;
   /** 4E: the configured object store's probe (absent: not configured, which is truthful). */
   objectStorage?: (() => Promise<'ok' | 'not_configured' | 'unavailable'>) | undefined;
 }
@@ -53,6 +55,7 @@ export async function checkReadiness(deps: ReadinessDeps): Promise<Readiness> {
     email_delivery: deps.emailTransport === 'none' ? 'not_configured' : 'ok',
     recovery_gate: 'fail',
     tenant_isolation: 'fail',
+    mcp_access: deps.mcpEnabled === false ? 'not_configured' : 'ok',
   };
   const fail = (check: string, reason: string, err?: unknown) =>
     deps.logger.warn('readiness.check_failed', { check, reason, ...(err ? errorFields(err) : {}) });

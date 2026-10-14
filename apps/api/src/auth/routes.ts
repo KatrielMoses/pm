@@ -35,11 +35,17 @@ export interface AuthRouteDeps {
   identity: IdentityService;
   logger: Logger;
   /** Resolves a `pm_` bearer token. Absent in processes that do not serve the public API. */
-  resolveBearer?: (
-    secret: string,
-  ) => Promise<{ auth: AuthContext; delegation: import('@pm/tenancy').TokenDelegation } | null>;
+  resolveBearer?: (secret: string) => Promise<{
+    auth: AuthContext;
+    delegation: import('@pm/tenancy').TokenDelegation;
+    workspacePublicId?: string;
+  } | null>;
   /** Per-token rate limit. A refusal carries retry-after seconds. */
   limitBearer?: (
+    tokenId: string,
+    write: boolean,
+  ) => Promise<{ allowed: boolean; retryAfterSeconds: number }>;
+  limitMcp?: (
     tokenId: string,
     write: boolean,
   ) => Promise<{ allowed: boolean; retryAfterSeconds: number }>;
@@ -193,6 +199,11 @@ export function registerAuth(app: FastifyInstance, deps: AuthRouteDeps): void {
     // presigned URL). It reads no session, so an ambient cookie must not demand a CSRF token.
     if (request.url.startsWith(LOCAL_STORAGE_ROUTE_PREFIX)) return;
     const authorization = request.headers.authorization;
+    if (request.url.includes('/mcp')) {
+      const originHeader = request.headers.origin;
+      if (typeof originHeader === 'string' && !allowed.has(originHeader))
+        return fail(request, reply, 'forbidden');
+    }
     if (typeof authorization === 'string' && authorization.toLowerCase().startsWith('bearer ')) {
       if (request.url.startsWith('/v1/hooks/')) return;
       const cookies = parseCookies(request.headers.cookie);
@@ -201,16 +212,23 @@ export function registerAuth(app: FastifyInstance, deps: AuthRouteDeps): void {
       const resolved = await deps.resolveBearer?.(secret);
       if (!resolved) return fail(request, reply, 'unauthenticated');
       const path = request.url.split('?')[0] ?? '';
+      if (resolved.workspacePublicId) {
+        const workspacePath = /^\/v1\/workspaces\/([^/]+)\//.exec(path)?.[1];
+        if (workspacePath !== resolved.workspacePublicId)
+          return fail(request, reply, 'unauthenticated');
+      }
       if (
         path.includes('/api-tokens') ||
         path.includes('/webhook-subscriptions') ||
         path.includes('/inbound-endpoints') ||
+        path.includes('/oauth-clients') ||
         path.startsWith('/v1/auth') ||
         path.startsWith('/v1/account')
       ) {
         return fail(request, reply, 'forbidden');
       }
       const write = !['GET', 'HEAD'].includes(request.method);
+      const mcpPath = path.includes('/mcp');
       if (path.includes('/export')) {
         const exportLimit = await deps.limitBearer?.(resolved.delegation.tokenId, true);
         if (exportLimit && !exportLimit.allowed)
@@ -218,27 +236,34 @@ export function registerAuth(app: FastifyInstance, deps: AuthRouteDeps): void {
             retryAfterSeconds: exportLimit.retryAfterSeconds,
           });
       }
-      const limited = await deps.limitBearer?.(resolved.delegation.tokenId, write);
+      // MCP routes classify JSON-RPC operations after parsing; rate-limit exactly once there.
+      const limited = mcpPath
+        ? undefined
+        : await deps.limitBearer?.(resolved.delegation.tokenId, write);
       if (limited && !limited.allowed)
         return fail(request, reply, 'rate_limited', {
           retryAfterSeconds: limited.retryAfterSeconds,
         });
-      const need = path.includes('/capture')
-        ? write
-          ? 'capture:write'
-          : 'records:read'
-        : path.includes('/export')
-          ? 'exports:create'
-          : write
-            ? 'records:write'
-            : 'records:read';
       const held = resolved.delegation.scopes;
-      const ok =
-        held.includes(need) ||
-        (need === 'records:read' &&
-          (held.includes('records:write') || held.includes('views:read'))) ||
-        (need === 'capture:write' && held.includes('records:write'));
-      if (!ok) return fail(request, reply, 'forbidden');
+      if (!mcpPath) {
+        const need = path.includes('/capture')
+          ? write
+            ? 'capture:write'
+            : 'records:read'
+          : path.includes('/export')
+            ? 'exports:create'
+            : write
+              ? 'records:write'
+              : 'records:read';
+        const ok =
+          held.includes(need) ||
+          (need === 'records:read' &&
+            (held.includes('records:write') || held.includes('views:read'))) ||
+          (need === 'capture:write' && held.includes('records:write'));
+        if (!ok) return fail(request, reply, 'forbidden');
+      } else if (!held.length) {
+        return fail(request, reply, 'forbidden');
+      }
       request.auth = resolved.auth;
       request.delegation = resolved.delegation;
       return;

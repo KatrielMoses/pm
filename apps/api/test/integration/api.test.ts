@@ -39,6 +39,7 @@ describe('web/API process', () => {
           metrics: h.telemetry.metrics,
           isDraining: () => draining,
           emailTransport: 'none',
+          mcpEnabled: false,
         }),
     });
     // Test-only routes to exercise body parsing and unexpected failures.
@@ -83,6 +84,7 @@ describe('web/API process', () => {
         email_delivery: 'not_configured',
         recovery_gate: 'ok',
         tenant_isolation: 'ok',
+        mcp_access: 'not_configured',
       },
       build: 'abc1234',
     });
@@ -121,6 +123,7 @@ describe('web/API process', () => {
   });
 
   it('GET /v1/status returns build info and availability inside the meta envelope', async () => {
+    await h.discovery.heartbeat('wrk_00000000000000aa', 'test');
     const res = await app.inject('/v1/status');
     expect(res.statusCode).toBe(200);
     const body = res.json();
@@ -221,7 +224,7 @@ describe('web/API process', () => {
     const log = h.sink
       .records()
       .find((r) => r.event === 'http.request' && r.correlation_id === traceId);
-    expect(log).toMatchObject({ route: '/readyz', method: 'GET', status: 200, trace_id: traceId });
+    expect(log).toMatchObject({ route: '/readyz', method: 'GET', status: 503, trace_id: traceId });
   });
 
   it('keeps headers, cookies, query strings, and bodies out of logs', async () => {

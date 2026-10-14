@@ -1,0 +1,39 @@
+{
+  "schema_version": 1,
+  "phase": "6E",
+  "status": "candidate",
+  "adr": "0035",
+  "requirements": [
+    {
+      "id": "INT-022",
+      "role": "owned",
+      "disposition": "implemented",
+      "evidence": [
+        { "file": "packages/work/src/integrations/mcp/registry.ts", "contains": "MCP_TOOLS" },
+        { "file": "packages/work/src/integrations/mcp-access-service.ts", "contains": "handleMcpRpc" },
+        { "file": "apps/api/src/mcp/routes.ts", "contains": "/mcp" },
+        { "file": "packages/db/migrations/0048_mcp_access_foundation.up.sql", "contains": "mcp_invocation" },
+        { "file": "docs/engineering/adr/0035-mcp-access-foundation.md", "contains": "D2" }
+      ]
+    },
+    {
+      "id": "AGT-007",
+      "role": "contributing",
+      "disposition": "contributed",
+      "contribution": "6E",
+      "note": "MCP tool access uses the existing public API commands and live membership/consent policy boundary; agent execution is deferred to 8B.",
+      "evidence": [
+        { "file": "docs/engineering/adr/0035-mcp-access-foundation.md", "contains": "does not create a second authorization policy" }
+      ]
+    }
+  ],
+  "decisions": [
+    { "id": "D1", "adr_row": "D1", "title": "Protocol", "evidence": [{ "file": "docs/engineering/adr/0035-mcp-access-foundation.md", "contains": "| D1 |" }], "sources": [{ "file": "docs/engineering/adr/0035-mcp-access-foundation.md", "contains": "| D1 |" }] },
+    { "id": "D2", "adr_row": "D2", "title": "Authority", "evidence": [{ "file": "docs/engineering/adr/0035-mcp-access-foundation.md", "contains": "| D2 |" }], "sources": [{ "file": "docs/engineering/adr/0035-mcp-access-foundation.md", "contains": "| D2 |" }] },
+    { "id": "D3", "adr_row": "D3", "title": "Registry", "evidence": [{ "file": "docs/engineering/adr/0035-mcp-access-foundation.md", "contains": "| D3 |" }], "sources": [{ "file": "docs/engineering/adr/0035-mcp-access-foundation.md", "contains": "| D3 |" }] },
+    { "id": "D4", "adr_row": "D4", "title": "Mutations", "evidence": [{ "file": "docs/engineering/adr/0035-mcp-access-foundation.md", "contains": "| D4 |" }], "sources": [{ "file": "docs/engineering/adr/0035-mcp-access-foundation.md", "contains": "| D4 |" }] },
+    { "id": "D5", "adr_row": "D5", "title": "Audit", "evidence": [{ "file": "docs/engineering/adr/0035-mcp-access-foundation.md", "contains": "| D5 |" }], "sources": [{ "file": "docs/engineering/adr/0035-mcp-access-foundation.md", "contains": "| D5 |" }] },
+    { "id": "D6", "adr_row": "D6", "title": "Transport limits", "evidence": [{ "file": "docs/engineering/adr/0035-mcp-access-foundation.md", "contains": "| D6 |" }], "sources": [{ "file": "docs/engineering/adr/0035-mcp-access-foundation.md", "contains": "| D6 |" }] },
+    { "id": "D7", "adr_row": "D7", "title": "Degraded mode", "evidence": [{ "file": "docs/engineering/adr/0035-mcp-access-foundation.md", "contains": "| D7 |" }], "sources": [{ "file": "docs/engineering/adr/0035-mcp-access-foundation.md", "contains": "| D7 |" }] }
+  ]
+}

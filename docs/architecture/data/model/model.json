@@ -1650,7 +1650,7 @@
         "SEC-006",
         "ADM-013"
       ],
-      "notes": "0D §11.2. Tokens are stored only as hashes. `locked` is a stored terminal state, set atomically by the failed attempt that reaches STEP_UP_MAX_ATTEMPTS."
+      "notes": "0D \u00a711.2. Tokens are stored only as hashes. `locked` is a stored terminal state, set atomically by the failed attempt that reaches STEP_UP_MAX_ATTEMPTS."
     },
     {
       "name": "workspace",
@@ -1777,7 +1777,7 @@
         "COL-002",
         "PERM-014"
       ],
-      "notes": "Phase 1D: state transitions invited→active, active→suspended→active, active|suspended→removed (terminal). A removed membership keeps its row for audit and ownership history; it never regains authority (a new invitation reactivates it as a fresh active state only through invitation.accept). Guests never hold role assignments."
+      "notes": "Phase 1D: state transitions invited\u2192active, active\u2192suspended\u2192active, active|suspended\u2192removed (terminal). A removed membership keeps its row for audit and ownership history; it never regains authority (a new invitation reactivates it as a fresh active state only through invitation.accept). Guests never hold role assignments."
     },
     {
       "name": "team",
@@ -2000,7 +2000,7 @@
         "WSB-006",
         "WSB-009"
       ],
-      "notes": "Phase 1C. Upserted on its primary key (row lock); the latest selection wins. A stale or unauthorized brand falls back to the first authorized active brand; it never broadens to all brands. Phase 1E: the URL scope (`scope=all|brand:{id}|brands:{id},…`) is authoritative on scope-sensitive pages and is validated and normalized server-side on every request; the per-device default lives in view_state (`shell.scope`), and this row remains the cross-device fallback and the directory's most-recent-workspace signal."
+      "notes": "Phase 1C. Upserted on its primary key (row lock); the latest selection wins. A stale or unauthorized brand falls back to the first authorized active brand; it never broadens to all brands. Phase 1E: the URL scope (`scope=all|brand:{id}|brands:{id},\u2026`) is authoritative on scope-sensitive pages and is validated and normalized server-side on every request; the per-device default lives in view_state (`shell.scope`), and this row remains the cross-device fallback and the directory's most-recent-workspace signal."
     },
     {
       "name": "role",
@@ -2211,7 +2211,7 @@
         "PERM-003",
         "WFL-009"
       ],
-      "notes": "0C §7.1. Public ID prefix fpol (0D registry). Calculated-field visibility is derived from its dependencies' policies, never stored separately. Field keys are validated by the access command against the core field catalog and workflow.field_definition (no cross-layer foreign key; retired field IDs remain valid). Phase 2C implements it for custom field definitions (field_key = definition id): read and edit minimum levels and guest visibility. Formula visibility is the intersection of its inputs."
+      "notes": "0C \u00a77.1. Public ID prefix fpol (0D registry). Calculated-field visibility is derived from its dependencies' policies, never stored separately. Field keys are validated by the access command against the core field catalog and workflow.field_definition (no cross-layer foreign key; retired field IDs remain valid). Phase 2C implements it for custom field definitions (field_key = definition id): read and edit minimum levels and guest visibility. Formula visibility is the intersection of its inputs."
     },
     {
       "name": "permission_epoch",
@@ -2246,7 +2246,7 @@
         "PERM-013",
         "AGT-025"
       ],
-      "notes": "0C §13.5. Epochs never decrease. Internal only (no public ID)."
+      "notes": "0C \u00a713.5. Epochs never decrease. Internal only (no public ID)."
     },
     {
       "name": "service_principal",
@@ -2287,12 +2287,12 @@
         "INT-017",
         "ADM-007"
       ],
-      "notes": "0C §9.6. Public ID prefix svc (0D registry). Grants are role_assignment rows whose principal is this service principal."
+      "notes": "0C \u00a79.6. Public ID prefix svc (0D registry). Grants are role_assignment rows whose principal is this service principal."
     },
     {
       "name": "support_access_grant",
       "module": "access",
-      "purpose": "Customer-issued, time-boxed, read-only-by-default access for platform support; every support action is evaluated as support_operator ∩ this grant.",
+      "purpose": "Customer-issued, time-boxed, read-only-by-default access for platform support; every support action is evaluated as support_operator \u2229 this grant.",
       "scope": "workspace",
       "addressable": false,
       "public_id_prefix": null,
@@ -2329,7 +2329,7 @@
         "SUP-008",
         "PERM-013"
       ],
-      "notes": "0C §2.5. Never covers personal records or secrets. Public ID prefix sag (0D registry)."
+      "notes": "0C \u00a72.5. Never covers personal records or secrets. Public ID prefix sag (0D registry)."
     },
     {
       "name": "workspace_policy",
@@ -2865,7 +2865,7 @@
         "WFL-003",
         "PRJ-009"
       ],
-      "notes": "Phase 2C (ADR-23). Resolution is the most specific applicable scope: project → brand → workspace → platform default. Changing scope never changes record authority. Archive is reversible; purge is refused while records use its statuses."
+      "notes": "Phase 2C (ADR-23). Resolution is the most specific applicable scope: project \u2192 brand \u2192 workspace \u2192 platform default. Changing scope never changes record authority. Archive is reversible; purge is refused while records use its statuses."
     },
     {
       "name": "workflow_status",
@@ -2951,7 +2951,7 @@
     {
       "name": "transition",
       "module": "workflow",
-      "purpose": "A directed from-status → to-status rule of a workflow, with required fields, confirmation, and approval policy.",
+      "purpose": "A directed from-status \u2192 to-status rule of a workflow, with required fields, confirmation, and approval policy.",
       "scope": "inherited",
       "addressable": false,
       "public_id_prefix": null,
@@ -3823,7 +3823,7 @@
         "FILE-001",
         "FILE-011"
       ],
-      "notes": "0D §15.1. Signed URLs are not stored. Phase 4E (ADR-34): the creator's alone; reserves bytes against the workspace quota at initiation; completion re-checks authority and verifies presence, size, SHA-256, and type; a version exists only on a completed session; expiry (UPLOAD_SESSION_LIFETIME) releases the reservation and the quarantined object."
+      "notes": "0D \u00a715.1. Signed URLs are not stored. Phase 4E (ADR-34): the creator's alone; reserves bytes against the workspace quota at initiation; completion re-checks authority and verifies presence, size, SHA-256, and type; a version exists only on a completed session; expiry (UPLOAD_SESSION_LIFETIME) releases the reservation and the quarantined object."
     },
     {
       "name": "deliverable",
@@ -5097,7 +5097,7 @@
         "brand_id null (until triage; OD-03)",
         "intent (task|note)",
         "raw_text text (immutable original)",
-        "source_kind (typed|paste|form|voice|email|api|webhook; 2E produces typed, paste, form)",
+        "source_kind (typed|paste|form|voice|email|api|webhook|mcp; 2E/6E produce typed, paste, form)",
         "source_ref text null (safe public ID: batch, form)",
         "correlation_id",
         "parse_version int",
@@ -5551,7 +5551,7 @@
       "sensitive_fields": [],
       "key_columns": [
         "membership_id",
-        "weekday (1 Monday … 7 Sunday)",
+        "weekday (1 Monday \u2026 7 Sunday)",
         "start_minute, end_minute (local, [start, end))"
       ],
       "requirements": [
@@ -6716,7 +6716,7 @@
         "owner_membership_id",
         "record_id (core.record: a readable record or saved view)",
         "target kind = the referenced core.record's registered record_type (joined, not copied)",
-        "rank text (fractional key, ≤ 64 chars; ties broken by record_id)",
+        "rank text (fractional key, \u2264 64 chars; ties broken by record_id)",
         "created_at"
       ],
       "requirements": [
@@ -7135,7 +7135,7 @@
       ],
       "sensitive_fields": [],
       "key_columns": [
-        "public_id (rsh_…)",
+        "public_id (rsh_\u2026)",
         "report_id",
         "scope_key (the report's)",
         "grantee_membership_id",
@@ -7618,8 +7618,8 @@
       "module": "integrations",
       "purpose": "OAuth/MCP client registration for external assistants with granted scopes.",
       "scope": "workspace",
-      "addressable": false,
-      "public_id_prefix": null,
+      "addressable": true,
+      "public_id_prefix": "oac",
       "extends": null,
       "containment_parents": [],
       "associations": [],
@@ -7632,13 +7632,91 @@
       "search_ai": "no",
       "may_contain_secrets": "hash-only",
       "personal_data": "incidental",
-      "uniqueness": [],
+      "uniqueness": [
+        "workspace, public_id"
+      ],
       "sensitive_fields": [],
       "key_columns": [],
       "requirements": [
         "INT-022"
       ],
       "notes": ""
+    },
+    {
+      "name": "oauth_consent",
+      "module": "integrations",
+      "purpose": "Membership grant narrowing one registered OAuth client to scopes and optional brand limits.",
+      "scope": "workspace",
+      "addressable": true,
+      "public_id_prefix": "ocs",
+      "extends": null,
+      "containment_parents": [],
+      "associations": [
+        "oauth_client",
+        "membership"
+      ],
+      "lifecycle": "state-machine",
+      "concurrency": "row-version",
+      "retention_class": "R-AUDIT",
+      "confidentiality": "C2",
+      "volume": "low",
+      "export": "never",
+      "search_ai": "no",
+      "may_contain_secrets": "no",
+      "personal_data": "yes",
+      "uniqueness": [
+        "workspace, client, membership",
+        "workspace, public_id"
+      ],
+      "sensitive_fields": [],
+      "key_columns": [
+        "scopes text[]",
+        "brand_ids uuid[] null",
+        "state (active|revoked)"
+      ],
+      "requirements": [
+        "INT-022"
+      ],
+      "notes": "Revocation invalidates every associated bearer token immediately."
+    },
+    {
+      "name": "oauth_access_token",
+      "module": "integrations",
+      "purpose": "Short-lived hash-only bearer credential for a live member consent grant.",
+      "scope": "workspace",
+      "addressable": true,
+      "public_id_prefix": "oat",
+      "extends": null,
+      "containment_parents": [],
+      "associations": [
+        "oauth_client",
+        "oauth_consent"
+      ],
+      "lifecycle": "state-machine",
+      "concurrency": "locked",
+      "retention_class": "R-AUDIT",
+      "confidentiality": "C4",
+      "volume": "low",
+      "export": "never",
+      "search_ai": "no",
+      "may_contain_secrets": "hash-only",
+      "personal_data": "no",
+      "uniqueness": [
+        "token_prefix",
+        "workspace, public_id"
+      ],
+      "sensitive_fields": [
+        "token_hash"
+      ],
+      "key_columns": [
+        "public_id",
+        "expires_at",
+        "state (active|revoked)"
+      ],
+      "requirements": [
+        "INT-022"
+      ],
+      "notes": "The secret is returned once; revocation is enforced at authentication."
     },
     {
       "name": "import_job",
@@ -7804,7 +7882,7 @@
         "DATA-014",
         "DATA-015"
       ],
-      "notes": "0D §16.2: downloads re-authorize; an epoch change marks the export stale."
+      "notes": "0D \u00a716.2: downloads re-authorize; an epoch change marks the export stale."
     },
     {
       "name": "test_case",
@@ -9121,7 +9199,7 @@
     {
       "name": "agent_assignment",
       "module": "agents",
-      "purpose": "Assignment of a task to an agent with structured context snapshot and run scope (agent scope ∩ assigner access).",
+      "purpose": "Assignment of a task to an agent with structured context snapshot and run scope (agent scope \u2229 assigner access).",
       "scope": "brand",
       "addressable": false,
       "public_id_prefix": null,
@@ -9829,6 +9907,44 @@
         "RPT-024"
       ],
       "notes": "Phase 5C (ADR-38): times, counts, and a short code only; shown to every workspace member as the freshness of the status history and to administrators as an action to check now."
+    },
+    {
+      "name": "mcp_invocation",
+      "module": "integrations",
+      "purpose": "Bounded audit record for registered MCP tool and resource requests; contains actor provenance but no request payload or secret.",
+      "scope": "workspace",
+      "addressable": true,
+      "public_id_prefix": "mci",
+      "extends": null,
+      "containment_parents": [],
+      "associations": [
+        "oauth_client",
+        "oauth_consent",
+        "api_token",
+        "membership"
+      ],
+      "lifecycle": "append-only",
+      "concurrency": "append-only",
+      "retention_class": "R-AUDIT",
+      "confidentiality": "C1",
+      "volume": "medium",
+      "export": "never",
+      "search_ai": "no",
+      "may_contain_secrets": "no",
+      "personal_data": "yes",
+      "uniqueness": [],
+      "sensitive_fields": [],
+      "key_columns": [
+        "public_id",
+        "actor membership and principal",
+        "tool name and registered version",
+        "outcome and duration",
+        "created_at"
+      ],
+      "requirements": [
+        "INT-022"
+      ],
+      "notes": "Request arguments and response data are never stored."
     }
   ]
 }

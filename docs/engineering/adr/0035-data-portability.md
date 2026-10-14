@@ -20,7 +20,7 @@ Phase 6D adds CSV portability to a system whose record readers, file handling, a
 | P6 | CSV may create external file links only through the existing `addFileLink` command, which validates the URL and never fetches it. File bytes must use the existing upload, malware-scan, and storage-provider lifecycle. Without a configured scanner/storage provider, binary imports remain unavailable. |
 | P7 | Imports are sequential and bounded to 2,000 rows per operation; at most one import job per membership may be running. API callers require the existing `records:read` or `records:write` scope and existing rate limits. |
 | P8 | Import/export actions produce work audit entries and export/import security events. Error responses contain stable row codes and do not echo source values or inaccessible record facts. |
-| P9 | Migration 0048 is reserved for 6D after accepted 6C migration 0047. When the parallel 6E branch is stacked after 6D, its currently named 0048 migration must be renumbered to 0049 and its rollback must restore 0048. Neither branch may ship with two migration 0048 files. |
+| P9 | The accepted 6E chain retains migrations 0048 (MCP access) and 0049 (MCP provenance). The parallel 6D migration is deterministically numbered 0050 and rolls back to the exact 0049 catalog. Both phase migrations and their rollback evidence remain intact. |
 
 ## Remaining implementation work
 

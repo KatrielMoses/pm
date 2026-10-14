@@ -82,3 +82,13 @@ Machine fields (codes, enums, IDs, timestamps, numbers) are never localized. `me
 - No JSONP and no CORS wildcard with credentials.
 - Request size limits, giving the `payload_too_large` error.
 - Unknown JSON properties in requests produce `validation_failed` (issue `unknown_field`), so typos never silently drop.
+
+## 2.11 MCP-compatible transport (6E)
+
+- `/v1/workspaces/{ws}/mcp` accepts one JSON-RPC request per authenticated JSON POST using the stable protocol version negotiated at `initialize`. Stream GET and session DELETE return 405; SSE and MCP task extensions are not advertised.
+- The client must send `Accept: application/json, text/event-stream`. The server returns a single bounded JSON response. A present `Origin` is validated against the configured origin allow-list.
+- `MCP-Protocol-Version` supports `2025-11-25` and the compatible `2025-03-26` request form. Unknown versions return HTTP 400. Capability discovery is available at `/mcp/capabilities` and `pm://workspace/mcp/capabilities`.
+- Input schemas and cursor/limit rules come from the static registered MCP contract. Reads and writes use per-token rate limits; responses are capped by `MCP_TOOL_RESULT_MAX_BYTES`; every call re-enters existing workspace and record authorization.
+- Tool mutations require `params._meta.idempotencyKey`; destructive tools require `confirm: true`. The server bounds execution time. Disconnect is not interpreted as cancellation: a timed-out mutation can finish and is safe to resolve by replaying the same key.
+- Notifications are acknowledged with HTTP 202 and no body. `notifications/cancelled` is recorded as a notification; the stateless 6E endpoint does not interrupt work already executing. Clients resolve uncertain mutation outcomes with the same idempotency key.
+- Only registered tool/resource names are returned. Unknown or inaccessible records use opaque not-found errors, and invocation logs omit request arguments and credentials. `MCP_ENABLED=0` reports a truthful unconfigured state and rejects calls safely.

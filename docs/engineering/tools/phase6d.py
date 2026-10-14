@@ -11,7 +11,7 @@ import phase1  # noqa: E402
 P = phase1.P
 read = phase1.read
 load = phase1.load
-MIGRATION = "packages/db/migrations/0048_csv_portability"
+MIGRATION = "packages/db/migrations/0050_csv_portability"
 
 
 def check_migration():
@@ -19,15 +19,15 @@ def check_migration():
     errors = []
     for table in ("transfer.import_job", "transfer.import_row", "transfer.import_mapping"):
         if "CREATE TABLE %s" % table not in up:
-            errors.append("0048 is missing %s" % table)
+            errors.append("0050 is missing %s" % table)
         if "ALTER TABLE %s ENABLE ROW LEVEL SECURITY" % table not in up:
             errors.append("%s has no RLS" % table)
         if "ALTER TABLE %s FORCE ROW LEVEL SECURITY" % table not in up:
             errors.append("%s does not force RLS" % table)
-    if "Restores the exact 0047 catalog" not in down:
-        errors.append("0048 rollback must restore the exact 0047 catalog")
+    if "Restores the exact 0049 catalog" not in down:
+        errors.append("0050 rollback must restore the exact 0049 catalog")
     if "DROP TABLE transfer.import_mapping" not in down:
-        errors.append("0048 rollback does not drop saved mappings")
+        errors.append("0050 rollback does not drop saved mappings")
     return errors
 
 
