@@ -1,8 +1,12 @@
 import { cleanup, render, screen } from '@testing-library/react';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { ConnectionList, type ConnectionView } from '../src/integrations/panel.tsx';
+import { PortabilityPanel } from '../src/pages/integration-pages.tsx';
 
-afterEach(() => cleanup());
+afterEach(() => {
+  cleanup();
+  vi.unstubAllGlobals();
+});
 
 const row: ConnectionView = {
   id: 'conn_1',
@@ -27,5 +31,25 @@ describe('connection list', () => {
     expect(screen.getByText(/Scopes: read, write/)).toBeTruthy();
     expect(screen.getByText(/Last successful synchronization:/)).toBeTruthy();
     expect(container.textContent).not.toMatch(/api_key|secret|token/i);
+  });
+});
+
+describe('CSV portability panel', () => {
+  it('provides labelled import controls that are keyboard discoverable', () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(
+        new Response(JSON.stringify({ data: { mappings: [] } }), {
+          status: 200,
+          headers: { 'content-type': 'application/json' },
+        }),
+      ),
+    );
+    render(<PortabilityPanel ws="wsp_01ARZ3NDEKTSV4RRFFQ69G5FAV" />);
+    expect(screen.getByLabelText('Record type')).toBeTruthy();
+    expect(screen.getByLabelText(/CSV file/)).toBeTruthy();
+    expect(screen.getByLabelText('Import behavior')).toBeTruthy();
+    expect(screen.getByLabelText(/Column mapping/)).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Preview' })).toBeTruthy();
   });
 });

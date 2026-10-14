@@ -6,7 +6,7 @@ import { Page } from '../ui/layout.tsx';
 
 const ENTITIES = ['task', 'project', 'workflow', 'field', 'goal', 'document', 'file'] as const;
 
-function PortabilityPanel({ ws }: { ws: string }) {
+export function PortabilityPanel({ ws }: { ws: string }) {
   const [entity, setEntity] = useState<(typeof ENTITIES)[number]>('task');
   const [csv, setCsv] = useState('');
   const [preview, setPreview] = useState<Record<string, unknown> | null>(null);
