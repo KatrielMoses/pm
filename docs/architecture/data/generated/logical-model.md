@@ -3870,7 +3870,7 @@ Membership grant narrowing one registered OAuth client to scopes and optional br
 | Lifecycle / concurrency | `state-machine` / `row-version` |
 | Retention / confidentiality | `R-AUDIT` / `C2` |
 | Volume / export / search-AI | `low` / `never` / `no` |
-| Secrets / personal data | `no` / `membership reference` |
+| Secrets / personal data | `no` / `yes` |
 | Uniqueness | `workspace, client, membership`; `workspace, public_id` |
 | Key typed columns | `scopes text[]`; `brand_ids uuid[] null`; `state (active\|revoked)` |
 | Sensitive fields | — |
@@ -3888,7 +3888,7 @@ Short-lived hash-only bearer credential for a live member consent grant.
 | Contained by | — |
 | Extends (1:1) | — |
 | Associations | [`oauth_client`](logical-model.md#entity-oauth-client), [`oauth_consent`](logical-model.md#entity-oauth-consent) |
-| Lifecycle / concurrency | `state-machine` / `immutable` |
+| Lifecycle / concurrency | `state-machine` / `locked` |
 | Retention / confidentiality | `R-AUDIT` / `C4` |
 | Volume / export / search-AI | `low` / `never` / `no` |
 | Secrets / personal data | `hash-only` / `no` |
@@ -3912,7 +3912,7 @@ Bounded audit record for registered MCP tool and resource requests; contains act
 | Lifecycle / concurrency | `append-only` / `append-only` |
 | Retention / confidentiality | `R-AUDIT` / `C1` |
 | Volume / export / search-AI | `medium` / `never` / `no` |
-| Secrets / personal data | `no` / `actor reference` |
+| Secrets / personal data | `no` / `yes` |
 | Uniqueness | — |
 | Key typed columns | `public_id`; `actor membership and principal`; `tool name and registered version`; `outcome and duration`; `created_at` |
 | Sensitive fields | — |

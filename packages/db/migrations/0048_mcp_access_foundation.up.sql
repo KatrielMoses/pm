@@ -2,6 +2,45 @@
 -- Phase 6E (INT-022): OAuth/MCP client registration, member consent grants, bounded invocation audit,
 -- and platform-scoped access-token lookup. Builds on migration 0047_google_calendar.
 
+-- Repeat the full 0B addressable set so migration history remains self-describing.
+INSERT INTO core.record_type (record_type, public_id_prefix, owner_module) VALUES
+  ('brand', 'br', 'tenancy'),
+  ('team', 'team', 'tenancy'),
+  ('workflow', 'wf', 'workflow'),
+  ('file', 'file', 'files'),
+  ('deliverable', 'dlv', 'files'),
+  ('project', 'prj', 'work'),
+  ('phase', 'phs', 'work'),
+  ('milestone', 'ms', 'work'),
+  ('task', 'tsk', 'work'),
+  ('decision_record', 'dec', 'work'),
+  ('inbox_item', 'inb', 'capture'),
+  ('note', 'note', 'capture'),
+  ('intake_form', 'form', 'capture'),
+  ('work_block', 'blk', 'planning'),
+  ('document', 'doc', 'knowledge'),
+  ('goal', 'goal', 'goals'),
+  ('key_result', 'kr', 'goals'),
+  ('portfolio', 'pf', 'goals'),
+  ('saved_view', 'view', 'views'),
+  ('dashboard', 'dash', 'insights'),
+  ('report_definition', 'rpt', 'insights'),
+  ('connection', 'conn', 'integrations'),
+  ('webhook_subscription', 'whk', 'integrations'),
+  ('test_case', 'tc', 'quality'),
+  ('test_suite', 'ts', 'quality'),
+  ('test_run', 'tr', 'quality'),
+  ('environment', 'env', 'delivery'),
+  ('release', 'rel', 'delivery'),
+  ('template', 'tpl', 'templates'),
+  ('automation', 'auto', 'automation'),
+  ('agent_profile', 'agt', 'agents'),
+  ('mcp_invocation', 'mci', 'integrations'),
+  ('oauth_access_token', 'oat', 'integrations'),
+  ('oauth_client', 'oac', 'integrations'),
+  ('oauth_consent', 'ocs', 'integrations')
+ON CONFLICT (record_type) DO NOTHING;
+
 -- ---------------------------------------------------------------------------------------------
 -- OAuth / MCP client registration (workspace-scoped, hash-only secret).
 -- ---------------------------------------------------------------------------------------------

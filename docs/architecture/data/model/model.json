@@ -7663,7 +7663,7 @@
       "export": "never",
       "search_ai": "no",
       "may_contain_secrets": "no",
-      "personal_data": "membership reference",
+      "personal_data": "yes",
       "uniqueness": [
         "workspace, client, membership",
         "workspace, public_id"
@@ -7693,7 +7693,7 @@
         "oauth_consent"
       ],
       "lifecycle": "state-machine",
-      "concurrency": "immutable",
+      "concurrency": "locked",
       "retention_class": "R-AUDIT",
       "confidentiality": "C4",
       "volume": "low",
@@ -9931,7 +9931,7 @@
       "export": "never",
       "search_ai": "no",
       "may_contain_secrets": "no",
-      "personal_data": "actor reference",
+      "personal_data": "yes",
       "uniqueness": [],
       "sensitive_fields": [],
       "key_columns": [
