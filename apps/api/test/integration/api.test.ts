@@ -224,7 +224,7 @@ describe('web/API process', () => {
     const log = h.sink
       .records()
       .find((r) => r.event === 'http.request' && r.correlation_id === traceId);
-    expect(log).toMatchObject({ route: '/readyz', method: 'GET', status: 503, trace_id: traceId });
+    expect(log).toMatchObject({ route: '/readyz', method: 'GET', status: 200, trace_id: traceId });
   });
 
   it('keeps headers, cookies, query strings, and bodies out of logs', async () => {

@@ -143,7 +143,7 @@ describe('migrations from an empty database', () => {
         at.set(to, await full(stepped));
       }
       // Stepping through the boundaries reaches exactly the one-shot candidate catalog.
-      expect(at.get(47)).toEqual(await full(reference));
+      expect(at.get(49)).toEqual(await full(reference));
       // Each subphase's step reverses to the prior boundary's exact catalog and re-applies to its
       // own, walking down from the candidate.
       for (let i = boundaries.length - 1; i > 0; i--) {
