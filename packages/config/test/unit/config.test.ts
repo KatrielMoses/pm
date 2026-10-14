@@ -202,6 +202,7 @@ describe('server configuration', () => {
       mcpReadRatePerMinute: 120,
       mcpToolCallTimeoutMs: 30000,
       mcpToolResultMaxBytes: 65536,
+      importRollbackPeriodMs: 604800000,
       mcpWriteRatePerMinute: 60,
       oauthClientsMax: 20,
       liveOpsBatchMax: 50,

@@ -82,6 +82,11 @@ dedicated purge identity) deletes in this order, in the workspace's context:
 Audit rows are append-only for every role, so workspace deletion (SEC-021) must first add its own
 guarded, audited `audit_maintainer` deletion path (ADR-0009 G7); none exists yet.
 
+Phase 6D transfer rows are deleted before the workspace: `transfer.import_row`, then
+`transfer.import_job`, `transfer.import_preview`, and `transfer.import_mapping`. A membership
+departure cascades its mapping, previews, import jobs, and source-row provenance so stored source
+values and source actor identifiers do not outlive the owner. Workspace scope remains `RESTRICT`.
+
 Attempts are append-only; their guard permits `DELETE` only when the transaction-local marker
 `app.purge_workspace_id` equals the attempt's workspace. No application role holds `DELETE` on
 `exec.attempt`, so the marker alone grants nothing. Later modules insert their tables before

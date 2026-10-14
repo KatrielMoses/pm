@@ -3939,9 +3939,10 @@ Operation detail of an import: mapping, preview, validation, progress, rollback 
 | Volume / export / search-AI | `low` / `filtered` / `yes` |
 | Secrets / personal data | `no` / `incidental` |
 | Uniqueness | — |
-| Key typed columns | `source_file_id`; `mapping_id`; `state`; `rows_total/ok/failed`; `rollback_state`; `content_fingerprint` |
+| Key typed columns | `preview_id`; `mapping_id`; `mapping_version`; `schema_version`; `request_key_sha256`; `state`; `row_count/applied_count/error_count/checkpoint_row`; `rollback_state`; `content_sha256`; `rollback_until` |
 | Sensitive fields | — |
 | Requirements | DATA-001, DATA-002, DATA-007, DATA-008, DATA-009 |
+| Notes | Bounded CSV operations store only a digest for idempotency; preview and mapping versions are immutable operation inputs. RLS is forced by workspace. |
 
 <a id="entity-import-mapping"></a>
 ### `import_mapping`
@@ -3982,6 +3983,27 @@ Per-row outcome with created/updated record and pre-import values for rollback.
 | Key typed columns | standard columns only |
 | Sensitive fields | — |
 | Requirements | DATA-006, DATA-009 |
+
+<a id="entity-import-preview"></a>
+### `import_preview`
+
+Short-lived preview binding the exact CSV digest, schema version, and saved mapping version before apply.
+
+| Property | Value |
+|---|---|
+| Scope | `workspace` |
+| Contained by | — |
+| Extends (1:1) | — |
+| Associations | [`import_mapping`](logical-model.md#entity-import-mapping), [`membership`](logical-model.md#entity-membership) |
+| Lifecycle / concurrency | `ephemeral` / `append-only` |
+| Retention / confidentiality | `R-EPHEMERAL` / `C2` |
+| Volume / export / search-AI | `low` / `never` / `no` |
+| Secrets / personal data | `no` / `incidental` |
+| Uniqueness | — |
+| Key typed columns | `id`; `entity_kind`; `content_sha256`; `schema_version`; `mapping_id/mapping_version`; `expires_at` |
+| Sensitive fields | — |
+| Requirements | DATA-002, DATA-003, DATA-005 |
+| Notes | Expires after 30 minutes; previews referenced by import jobs remain as provenance. Forced workspace RLS. |
 
 <a id="entity-export-job"></a>
 ### `export_job`

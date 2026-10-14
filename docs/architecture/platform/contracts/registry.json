@@ -7213,8 +7213,8 @@
     },
     {
       "name": "IMPORT_ROLLBACK_PERIOD",
-      "meaning": "Import rollback window (0A parameter, OD-40).",
-      "owner": "PO"
+      "meaning": "Recovery window for completed CSV imports; default 604800000 ms, range 60000–7776000000.",
+      "owner": "6D"
     },
     {
       "name": "INBOX_MERGE_MAX",

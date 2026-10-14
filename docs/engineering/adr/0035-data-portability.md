@@ -21,6 +21,7 @@ Phase 6D adds CSV portability to a system whose record readers, file handling, a
 | P7 | Imports are sequential and bounded to 2,000 rows per operation; at most one import job per membership may be running. API callers require the existing `records:read` or `records:write` scope and existing rate limits. |
 | P8 | Import/export actions produce work audit entries and export/import security events. Error responses contain stable row codes and do not echo source values or inaccessible record facts. |
 | P9 | The accepted 6E chain retains migrations 0048 (MCP access) and 0049 (MCP provenance). The parallel 6D migration is deterministically numbered 0050 and rolls back to the exact 0049 catalog. Both phase migrations and their rollback evidence remain intact. |
+| P10 | OD-40 is resolved with `IMPORT_ROLLBACK_PERIOD`, default seven days and operator-configurable from one minute through 90 days. The configured value is milliseconds. Its deadline is stored per job and applies to completed and partial imports; it never changes workspace retention policy. |
 
 ## Remaining implementation work
 

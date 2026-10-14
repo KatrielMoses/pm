@@ -5,14 +5,14 @@
 | Stage | Contract |
 |---|---|
 | Source | The CSV file is uploaded as a file ([15](15-files.md)). Its `sha256` identifies the content. |
-| Mapping | `transfer.import_mapping` with a `mapping_version` (saved, reusable; DATA-004). Mappings reference destination fields by key and never by display name. |
-| Preview | `import_preview` operation: parses and validates **without writing**. The result holds per-row `import-row-issue` entries (`row_number`, optional `source_row_key`, column, code, severity, message), counts, and duplicates detected (DATA-008). |
-| Apply | `import_apply` operation (`Idempotency-Key` required) referencing `{preview_operation_id, file sha256, mapping_version}`. If any of these differ from the preview, the result is the `conflict` error. Authorization is snapshotted at start and **rechecked per batch** (edit on target scopes). |
+| Mapping | `transfer.import_mapping` with a monotonically increasing `mapping_version` (saved, reusable; DATA-004). Mappings reference destination fields by key and never by display name. Update uses `expected_version`; stale updates conflict. |
+| Preview | `transfer.import_preview` binds the digest, schema, owner, and saved mapping version for 30 minutes. Parsing and validation do not write records. The result holds per-row stable issue codes, counts, and duplicate source keys (DATA-008). |
+| Apply | `import_apply` operation (`Idempotency-Key` required) references `{preview_id, file sha256, mapping_id, mapping_version, schema_version}`. Any mismatch returns `conflict`. Authorization is rechecked by every existing destination command; one workspace import runs per owner at a time. |
 | Row identity | `(import_job, row_number)` is unique, plus an optional `source_row_key` for cross-file dedupe. Re-applying the same file is detected by fingerprint. |
-| Resumability | Batches commit with a checkpoint. Worker loss resumes from the last committed batch (DATA-007). |
+| Resumability | Each row command and checkpoint is deterministic and committed separately. Worker loss resumes at the last unapplied row without resetting applied rows (DATA-007). |
 | Partial results | Operation `partial` with a `partial-result`. Per-row errors are downloadable as a CSV export of issues (DATA-006). |
 | Source preservation | `transfer.import_row` keeps the original row values and the created or updated record IDs (CAP-016 spirit, 0B §7.5) |
-| Rollback | `import_rollback` operation within `IMPORT_ROLLBACK_PERIOD` (OD-40): created records are trashed as one batch. Updated records revert only if unchanged since the import. Others are listed (0A deletion §6). |
+| Rollback | `import_rollback` operation within the persisted `IMPORT_ROLLBACK_PERIOD` deadline (OD-40): created task/project/goal/document/file records are trashed, workflow/field definitions are archived as compensations, and each action requires the exact applied version. Unsupported binary imports are not accepted. |
 | Stable IDs | Imported records get new public IDs. External keys are recorded as provenance (`source_ref`). Relationships in the file resolve by `source_row_key` within the import. |
 
 ## 16.2 Exports

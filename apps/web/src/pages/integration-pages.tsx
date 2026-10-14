@@ -17,16 +17,24 @@ export function PortabilityPanel({ ws }: { ws: string }) {
   const [mappingName, setMappingName] = useState('');
   const [mappingId, setMappingId] = useState('');
   const [mappings, setMappings] = useState<
-    Array<{ id: string; name: string; entity_kind: string }>
+    Array<{ id: string; name: string; entity_kind: string; mapping_version: number }>
   >([]);
+  const [mappingVersion, setMappingVersion] = useState<number | null>(null);
   const [importJobId, setImportJobId] = useState<string | null>(null);
+  const supportsAtomic = entity === 'task' || entity === 'project';
   const base = `/v1/workspaces/${ws}/portability`;
   useEffect(() => {
     let gone = false;
-    api<{ data: { mappings: Array<{ id: string; name: string; entity_kind: string }> } }>(
-      'GET',
-      `${base}/imports/mappings`,
-    )
+    api<{
+      data: {
+        mappings: Array<{
+          id: string;
+          name: string;
+          entity_kind: string;
+          mapping_version: number;
+        }>;
+      };
+    }>('GET', `${base}/imports/mappings`)
       .then((result) => {
         if (!gone) setMappings(result.body.data.mappings);
       })
@@ -41,6 +49,7 @@ export function PortabilityPanel({ ws }: { ws: string }) {
     const file = event.currentTarget.files?.[0];
     setPreview(null);
     setMappingId('');
+    setMappingVersion(null);
     if (!file) return;
     if (file.size > 5 * 1024 * 1024) {
       setMessage('Choose a CSV file smaller than 5 MB.');
@@ -51,7 +60,24 @@ export function PortabilityPanel({ ws }: { ws: string }) {
       return;
     }
     setMessage('');
-    setCsv(await file.text());
+    const reader = file.stream().getReader();
+    const decoder = new TextDecoder('utf-8', { fatal: true });
+    let decoded = '';
+    let bytes = 0;
+    try {
+      for (;;) {
+        const part = await reader.read();
+        if (part.done) break;
+        bytes += part.value.byteLength;
+        if (bytes > 5 * 1024 * 1024) throw new Error('file_limit');
+        decoded += decoder.decode(part.value, { stream: true });
+      }
+      decoded += decoder.decode();
+      setCsv(decoded);
+    } catch {
+      await reader.cancel();
+      setMessage('The file must be valid UTF-8 CSV smaller than 5 MB.');
+    }
   };
   const download = async () => {
     setBusy(true);
@@ -80,7 +106,7 @@ export function PortabilityPanel({ ws }: { ws: string }) {
     setMessage('');
     try {
       const body = mappingId
-        ? { csv, entity, mapping_id: mappingId }
+        ? { csv, entity, mapping_id: mappingId, mapping_version: mappingVersion }
         : { csv, entity, mapping: JSON.parse(mappingText) as Record<string, string> };
       const result = await api<{ data: Record<string, unknown> }>(
         'POST',
@@ -99,14 +125,28 @@ export function PortabilityPanel({ ws }: { ws: string }) {
     setMessage('');
     try {
       const mapping = JSON.parse(mappingText) as Record<string, string>;
-      const result = await api<{ data: { id: string } }>('POST', `${base}/imports/mappings`, {
-        body: { name: mappingName, entity, mapping },
+      const current = mappings.find((item) => item.id === mappingId);
+      const result = await api<{
+        data: { id: string; mapping_version: number };
+      }>('POST', `${base}/imports/mappings`, {
+        body: {
+          name: mappingName,
+          entity,
+          mapping,
+          ...(current ? { expected_version: current.mapping_version } : {}),
+        },
         headers: { 'idempotency-key': newIdempotencyKey() },
       });
       setMappingId(result.body.data.id);
+      setMappingVersion(result.body.data.mapping_version);
       setMappings((current) => [
         ...current.filter((item) => item.id !== result.body.data.id),
-        { id: result.body.data.id, name: mappingName, entity_kind: entity },
+        {
+          id: result.body.data.id,
+          name: mappingName,
+          entity_kind: entity,
+          mapping_version: result.body.data.mapping_version,
+        },
       ]);
       setMessage('Mapping saved for your account.');
     } catch {
@@ -120,8 +160,21 @@ export function PortabilityPanel({ ws }: { ws: string }) {
     setMessage('');
     try {
       const body = mappingId
-        ? { csv, entity, mode, mapping_id: mappingId }
-        : { csv, entity, mode, mapping: JSON.parse(mappingText) as Record<string, string> };
+        ? {
+            csv,
+            entity,
+            mode,
+            mapping_id: mappingId,
+            mapping_version: mappingVersion,
+            preview_id: summary?.preview_id,
+          }
+        : {
+            csv,
+            entity,
+            mode,
+            mapping: JSON.parse(mappingText) as Record<string, string>,
+            preview_id: summary?.preview_id,
+          };
       const result = await api<{ data: { import_job_id?: string } }>('POST', `${base}/imports`, {
         body,
         headers: { 'idempotency-key': newIdempotencyKey() },
@@ -156,6 +209,7 @@ export function PortabilityPanel({ ws }: { ws: string }) {
     valid?: number;
     invalid?: number;
     rows?: Array<{ row?: number; errors?: string[] }>;
+    preview_id?: string;
   } | null;
   return (
     <section aria-labelledby="portability-heading">
@@ -175,7 +229,9 @@ export function PortabilityPanel({ ws }: { ws: string }) {
           id="portability-entity"
           value={entity}
           onChange={(event) => {
-            setEntity(event.target.value as typeof entity);
+            const next = event.target.value as typeof entity;
+            setEntity(next);
+            if (next !== 'task' && next !== 'project') setMode('partial');
             setPreview(null);
           }}
         >
@@ -196,14 +252,19 @@ export function PortabilityPanel({ ws }: { ws: string }) {
         <select
           id="portability-mapping"
           value={mappingId}
-          onChange={(event) => setMappingId(event.target.value)}
+          onChange={(event) => {
+            const selected = mappings.find((item) => item.id === event.target.value);
+            setMappingId(event.target.value);
+            setMappingVersion(selected?.mapping_version ?? null);
+            setPreview(null);
+          }}
         >
           <option value="">Use the column names or mapping below</option>
           {mappings
             .filter((item) => item.entity_kind === entity)
             .map((item) => (
               <option key={item.id} value={item.id}>
-                {item.name}
+                {item.name} (v{item.mapping_version})
               </option>
             ))}
         </select>
@@ -239,7 +300,9 @@ export function PortabilityPanel({ ws }: { ws: string }) {
           value={mode}
           onChange={(event) => setMode(event.target.value as typeof mode)}
         >
-          <option value="all_or_nothing">All rows or none</option>
+          <option value="all_or_nothing" disabled={!supportsAtomic}>
+            All rows or none
+          </option>
           <option value="partial">Apply valid rows</option>
         </select>
         <button type="button" onClick={inspect} disabled={busy || !csv}>

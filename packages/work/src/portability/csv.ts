@@ -10,7 +10,10 @@ export const CSV_LIMITS = Object.freeze({
 
 export type CsvRow = string[];
 
-export function parseCsv(input: string, limits = CSV_LIMITS): CsvRow[] {
+export function parseCsv(
+  input: string,
+  limits: { bytes: number; rows: number; columns: number; cell: number } = CSV_LIMITS,
+): CsvRow[] {
   if (Buffer.byteLength(input, 'utf8') > limits.bytes) throw new Error('csv_too_large');
   const rows: CsvRow[] = [];
   let row: string[] = [],
@@ -210,6 +213,9 @@ export interface ImportPreview {
   valid: number;
   invalid: number;
   digest: string;
+  preview_id?: string;
+  mapping_id?: string | null;
+  mapping_version?: number | null;
 }
 
 export function previewCsv(
@@ -316,12 +322,28 @@ export function previewCsv(
       }
     }
     const required =
-      entity === 'task' || entity === 'goal' || entity === 'document' ? values.title : values.name;
+      entity === 'task' || entity === 'goal' || entity === 'document'
+        ? values.title
+        : entity === 'member'
+          ? values.email
+          : entity === 'comment'
+            ? values.body
+            : entity === 'time_entry'
+              ? values.target_public_id && values.work_date && values.duration_minutes
+              : values.name;
     if (!required) errors.push('required_title');
     if ((required ?? '').length > 500) errors.push('title_too_long');
     const prefix = (
-      { task: 'tsk', project: 'prj', goal: 'goal', document: 'doc', file: 'file' } as const
-    )[entity as 'task' | 'project' | 'goal' | 'document' | 'file'];
+      {
+        task: 'tsk',
+        project: 'prj',
+        goal: 'goal',
+        document: 'doc',
+        file: 'file',
+        workflow: 'wfl',
+        field: 'fld',
+      } as const
+    )[entity as PortableEntity];
     if (
       prefix &&
       values.public_id &&

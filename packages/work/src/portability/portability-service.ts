@@ -35,41 +35,115 @@ export class PortabilityService extends CalendarService {
     return number;
   }
 
+  private async persistedSourceKeys(
+    caller: Caller,
+    ws: unknown,
+    entity: PortableEntity,
+    keys: string[],
+    exceptDigest?: Buffer,
+  ): Promise<Set<string>> {
+    if (!keys.length) return new Set();
+    return this.inWorkspace(caller, ws, { readOnly: true }, async (tx, p) => {
+      let query = tx.db
+        .selectFrom('transfer.import_row as r')
+        .innerJoin('transfer.import_job as j', 'j.id', 'r.import_job_id')
+        .select('r.source_row_key')
+        .where('j.owner_membership_id', '=', p.membershipId)
+        .where('j.entity_kind', '=', entity)
+        .where('r.state', '=', 'applied')
+        .where('r.source_row_key', 'in', keys);
+      if (exceptDigest) query = query.where('j.content_sha256', '!=', exceptDigest);
+      const rows = await query.execute();
+      return new Set(rows.flatMap((row) => (row.source_row_key ? [row.source_row_key] : [])));
+    });
+  }
+
   private async prepareImportJob(
     caller: Caller,
     ws: unknown,
     preview: ImportPreview,
     mode: 'partial' | 'all_or_nothing',
-  ): Promise<{ id: string; replay: boolean }> {
+    snapshot: {
+      previewId: string;
+      mappingId: string | null;
+      mappingVersion: number | null;
+      idempotencyKey: string;
+    },
+  ): Promise<{ id: string; replay: boolean; resume: boolean }> {
     const candidateId = newUuidV7();
     const digest = Buffer.from(preview.digest, 'hex');
+    const requestKeyDigest = createHash('sha256').update(snapshot.idempotencyKey).digest();
     return this.inWorkspace(caller, ws, {}, async (tx, p) => {
-      const existing = await tx.db
+      await sql`SELECT pg_advisory_xact_lock(hashtextextended(${p.membershipId}::text, 406))`.execute(
+        tx.db,
+      );
+      const byKey = await tx.db
         .selectFrom('transfer.import_job')
-        .select(['id', 'state'])
+        .select(['id', 'state', 'content_sha256', 'entity_kind', 'apply_mode'])
         .where('owner_membership_id', '=', p.membershipId)
-        .where('content_sha256', '=', digest)
-        .where('entity_kind', '=', preview.entity)
-        .where('apply_mode', '=', mode)
+        .where('request_key_sha256', '=', requestKeyDigest)
         .where('state', '!=', 'rolled_back')
         .executeTakeFirst();
+      if (
+        byKey &&
+        (!Buffer.from(byKey.content_sha256).equals(digest) ||
+          byKey.entity_kind !== preview.entity ||
+          byKey.apply_mode !== mode)
+      )
+        throw new TenancyError('conflict');
+      const existing =
+        byKey ??
+        (await tx.db
+          .selectFrom('transfer.import_job')
+          .select(['id', 'state', 'content_sha256', 'entity_kind', 'apply_mode'])
+          .where('owner_membership_id', '=', p.membershipId)
+          .where('content_sha256', '=', digest)
+          .where('entity_kind', '=', preview.entity)
+          .where('apply_mode', '=', mode)
+          .where('state', 'not in', ['rolled_back', 'failed'])
+          .executeTakeFirst());
+      const running = await tx.db
+        .selectFrom('transfer.import_job')
+        .select('id')
+        .where('owner_membership_id', '=', p.membershipId)
+        .where('state', '=', 'running')
+        .executeTakeFirst();
+      if (running && running.id !== existing?.id) throw new TenancyError('conflict');
       const id = existing?.id ?? candidateId;
-      if (existing && (existing.state === 'completed' || existing.state === 'partial'))
-        return { id: existing.id, replay: true };
+      if (existing && ['completed', 'partial', 'failed'].includes(existing.state))
+        return { id: existing.id, replay: true, resume: false };
       if (existing) {
         await tx.db
           .updateTable('transfer.import_job')
-          .set({ state: 'running', updated_at: new Date() })
+          .set({ state: 'running', preview_id: snapshot.previewId, updated_at: new Date() })
           .where('id', '=', id)
           .execute();
       } else {
+        const sourceKeys = preview.rows
+          .map((item) => item.values.source_row_key)
+          .filter((key): key is string => Boolean(key));
+        const duplicates = await tx.db
+          .selectFrom('transfer.import_row as r')
+          .innerJoin('transfer.import_job as j', 'j.id', 'r.import_job_id')
+          .select('r.source_row_key')
+          .where('j.owner_membership_id', '=', p.membershipId)
+          .where('j.entity_kind', '=', preview.entity)
+          .where('r.state', '=', 'applied')
+          .where('r.source_row_key', 'in', sourceKeys.length ? sourceKeys : [''])
+          .execute();
+        if (duplicates.length) throw new TenancyError('conflict');
         await tx.db
           .insertInto('transfer.import_job')
           .values({
             id,
             workspace_id: tx.workspaceId,
             owner_membership_id: p.membershipId,
+            preview_id: snapshot.previewId,
+            mapping_id: snapshot.mappingId,
+            mapping_version: snapshot.mappingVersion,
+            schema_version: PORTABILITY_SCHEMA_VERSION,
             content_sha256: digest,
+            request_key_sha256: requestKeyDigest,
             entity_kind: preview.entity,
             state: 'running',
             apply_mode: mode,
@@ -77,37 +151,31 @@ export class PortabilityService extends CalendarService {
             applied_count: 0,
             error_count: 0,
             checkpoint_row: 0,
-            rollback_until: new Date(Date.now() + IMPORT_ROLLBACK_WINDOW_MS),
+            rollback_until: new Date(Date.now() + this.ws.importRollbackPeriodMs),
           })
           .execute();
       }
-      for (const item of preview.rows) {
-        await tx.db
-          .insertInto('transfer.import_row')
-          .values({
-            workspace_id: tx.workspaceId,
-            import_job_id: id,
-            row_number: item.row,
-            source_row_key: item.values.source_row_key ?? null,
-            source_values: JSON.stringify(item.values),
-            state: item.errors.length ? 'error' : 'pending',
-            issues: JSON.stringify(item.errors.map((code) => ({ code }))),
-            record_type: null,
-            record_id: null,
-            record_public_id: null,
-            applied_version: null,
-          })
-          .onConflict((oc) =>
-            oc.columns(['workspace_id', 'import_job_id', 'row_number']).doUpdateSet({
+      if (!existing) {
+        for (const item of preview.rows) {
+          await tx.db
+            .insertInto('transfer.import_row')
+            .values({
+              workspace_id: tx.workspaceId,
+              import_job_id: id,
+              row_number: item.row,
+              source_row_key: item.values.source_row_key ?? null,
               source_values: JSON.stringify(item.values),
               state: item.errors.length ? 'error' : 'pending',
               issues: JSON.stringify(item.errors.map((code) => ({ code }))),
-              updated_at: new Date(),
-            }),
-          )
-          .execute();
+              record_type: null,
+              record_id: null,
+              record_public_id: null,
+              applied_version: null,
+            })
+            .execute();
+        }
       }
-      return { id, replay: false };
+      return { id, replay: false, resume: Boolean(existing) };
     });
   }
 
@@ -149,6 +217,7 @@ export class PortabilityService extends CalendarService {
           'name',
           'entity_kind',
           'schema_version',
+          'mapping_version',
           'column_mapping',
           'created_at',
           'updated_at',
@@ -168,25 +237,38 @@ export class PortabilityService extends CalendarService {
     const name = typeof b.name === 'string' ? b.name.trim() : '';
     if (!name || name.length > 80) throw new TenancyError('validation_failed');
     const mapping = this.validateMapping(entity, b.mapping);
+    const expectedVersion = b.expected_version;
     return this.inWorkspace(caller, ws, {}, async (tx, p) => {
       const current = await tx.db
         .selectFrom('transfer.import_mapping')
-        .select('id')
+        .select(['id', 'mapping_version'])
         .where('owner_membership_id', '=', p.membershipId)
         .where(sql<boolean>`lower(name) = ${name.toLowerCase()}`)
         .executeTakeFirst();
       const id = current?.id ?? newUuidV7();
+      let mappingVersion: number;
       if (current) {
-        await tx.db
+        if (
+          expectedVersion === undefined ||
+          Number(expectedVersion) !== Number(current.mapping_version)
+        )
+          throw new TenancyError('conflict');
+        const updated = await tx.db
           .updateTable('transfer.import_mapping')
           .set({
+            name,
             entity_kind: entity as PortableEntity,
             schema_version: PORTABILITY_SCHEMA_VERSION,
+            mapping_version: Number(current.mapping_version) + 1,
             column_mapping: JSON.stringify(mapping),
             updated_at: new Date(),
           })
           .where('id', '=', id)
+          .where('mapping_version', '=', Number(current.mapping_version))
+          .returning('mapping_version')
           .execute();
+        if (!updated[0]) throw new TenancyError('conflict');
+        mappingVersion = Number(updated[0].mapping_version);
       } else {
         await tx.db
           .insertInto('transfer.import_mapping')
@@ -197,9 +279,11 @@ export class PortabilityService extends CalendarService {
             name,
             entity_kind: entity as PortableEntity,
             schema_version: PORTABILITY_SCHEMA_VERSION,
+            mapping_version: 1,
             column_mapping: JSON.stringify(mapping),
           })
           .execute();
+        mappingVersion = 1;
       }
       await this.workAudit(
         tx,
@@ -218,7 +302,7 @@ export class PortabilityService extends CalendarService {
         subject: { type: 'workspace', id: tx.workspaceId },
         correlationId: caller.meta.correlationId,
       });
-      return { id, name, entity, mapping };
+      return { id, name, entity, mapping, mapping_version: mappingVersion };
     });
   }
 
@@ -241,6 +325,14 @@ export class PortabilityService extends CalendarService {
         [],
         null,
       );
+      await this.d.security.record(tx, {
+        category: 'export',
+        action: 'portability.mapping.delete',
+        outcome: 'success',
+        actor: { type: 'human', id: p.membershipId },
+        subject: { type: 'workspace', id: tx.workspaceId },
+        correlationId: caller.meta.correlationId,
+      });
       return { deleted: true };
     });
   }
@@ -448,7 +540,7 @@ export class PortabilityService extends CalendarService {
     if (entity === 'project') {
       const batch = await this.listProjects(caller, ws, { limit: Math.min(limit, 200) });
       batch.data.forEach(append);
-      truncated = Number(batch.total.value) > rows.length;
+      truncated = batch.total.value > rows.length;
     } else if (entity === 'task') {
       let cursor: string | undefined;
       while (rows.length < limit) {
@@ -466,6 +558,14 @@ export class PortabilityService extends CalendarService {
       }
     }
     const headers = PORTABLE_FIELDS[entity as PortableEntity];
+    let csv: string;
+    try {
+      csv = suppliedCsv ?? serializeCsv(headers, rows);
+      if (Buffer.byteLength(csv, 'utf8') > CSV_LIMITS.bytes)
+        throw new Error('csv_export_too_large');
+    } catch {
+      throw new TenancyError('limit_exceeded');
+    }
     await this.inWorkspace(caller, ws, {}, async (tx, p) => {
       if (entity !== 'goal')
         await this.workAudit(
@@ -487,14 +587,6 @@ export class PortabilityService extends CalendarService {
           correlationId: caller.meta.correlationId,
         });
     });
-    let csv: string;
-    try {
-      csv = suppliedCsv ?? serializeCsv(headers, rows);
-      if (Buffer.byteLength(csv, 'utf8') > CSV_LIMITS.bytes)
-        throw new Error('csv_export_too_large');
-    } catch {
-      throw new TenancyError('limit_exceeded');
-    }
     return {
       csv,
       rows: suppliedRows ?? rows.length,
@@ -526,13 +618,94 @@ export class PortabilityService extends CalendarService {
     input: unknown,
   ): Promise<ImportPreview> {
     await this.requirePortabilityScope(caller, 'records:read');
+    const resolved = await this.resolveImportPreview(caller, ws, input);
+    const sourceKeys = resolved.preview.rows
+      .map((item) => item.values.source_row_key)
+      .filter((key): key is string => Boolean(key));
+    const duplicates = await this.persistedSourceKeys(
+      caller,
+      ws,
+      resolved.preview.entity,
+      sourceKeys,
+      Buffer.from(resolved.preview.digest, 'hex'),
+    );
+    for (const row of resolved.preview.rows) {
+      if (row.values.source_row_key && duplicates.has(row.values.source_row_key))
+        row.errors.push('duplicate_source_row_key');
+    }
+    resolved.preview.valid = resolved.preview.rows.filter((row) => row.errors.length === 0).length;
+    resolved.preview.invalid = resolved.preview.rows.length - resolved.preview.valid;
+    const previewId = newUuidV7();
+    await this.inWorkspace(caller, ws, {}, async (tx, p) => {
+      await sql`
+        DELETE FROM transfer.import_preview p
+         WHERE p.owner_membership_id = ${p.membershipId}::uuid
+           AND p.expires_at < ${new Date()}
+           AND NOT EXISTS (
+             SELECT 1 FROM transfer.import_job j
+              WHERE j.workspace_id = p.workspace_id AND j.preview_id = p.id
+           )`.execute(tx.db);
+      await tx.db
+        .insertInto('transfer.import_preview')
+        .values({
+          id: previewId,
+          workspace_id: tx.workspaceId,
+          owner_membership_id: p.membershipId,
+          entity_kind: resolved.preview.entity,
+          content_sha256: Buffer.from(resolved.preview.digest, 'hex'),
+          schema_version: PORTABILITY_SCHEMA_VERSION,
+          mapping_id: resolved.mappingId,
+          mapping_version: resolved.mappingVersion,
+          expires_at: new Date(Date.now() + 30 * 60_000),
+        })
+        .execute();
+      await this.workAudit(
+        tx,
+        caller,
+        p,
+        'portability.import_previewed',
+        { recordId: null, type: 'workspace', publicId: null },
+        [],
+        null,
+      );
+      await this.d.security.record(tx, {
+        category: 'export',
+        action: 'portability.import.preview',
+        outcome: resolved.preview.invalid ? 'failure' : 'success',
+        actor: { type: 'human', id: p.membershipId },
+        subject: { type: 'workspace', id: tx.workspaceId },
+        correlationId: caller.meta.correlationId,
+      });
+    });
+    return {
+      ...resolved.preview,
+      preview_id: previewId,
+      mapping_id: resolved.mappingId,
+      mapping_version: resolved.mappingVersion,
+    };
+  }
+
+  private async resolveImportPreview(
+    caller: Caller,
+    ws: unknown,
+    input: unknown,
+  ): Promise<{
+    preview: ImportPreview;
+    mappingId: string | null;
+    mappingVersion: number | null;
+  }> {
     const b = input && typeof input === 'object' ? (input as Record<string, unknown>) : {};
-    if (b.mapping_id === undefined) return this.previewPortabilityImport(input);
+    if (b.mapping_id === undefined)
+      return {
+        preview: this.previewPortabilityImport(input),
+        mappingId: null,
+        mappingVersion: null,
+      };
     const entity = String(b.entity ?? '');
     const mapping = await this.inWorkspace(caller, ws, { readOnly: true }, async (tx, p) =>
       tx.db
         .selectFrom('transfer.import_mapping')
-        .select(['entity_kind', 'schema_version', 'column_mapping'])
+        .select(['id', 'entity_kind', 'schema_version', 'mapping_version', 'column_mapping'])
         .where('id', '=', String(b.mapping_id))
         .where('owner_membership_id', '=', p.membershipId)
         .executeTakeFirst(),
@@ -540,17 +713,46 @@ export class PortabilityService extends CalendarService {
     if (
       !mapping ||
       mapping.entity_kind !== entity ||
-      mapping.schema_version !== PORTABILITY_SCHEMA_VERSION
+      mapping.schema_version !== PORTABILITY_SCHEMA_VERSION ||
+      (b.mapping_version !== undefined &&
+        Number(b.mapping_version) !== Number(mapping.mapping_version))
     )
-      throw new TenancyError('not_found');
-    return this.previewPortabilityImport({ ...b, mapping: mapping.column_mapping });
+      throw new TenancyError('conflict');
+    const preview = this.previewPortabilityImport({ ...b, mapping: mapping.column_mapping });
+    preview.digest = createHash('sha256')
+      .update(`${preview.digest}\0${mapping.id}:${mapping.mapping_version}`)
+      .digest('hex');
+    return {
+      preview,
+      mappingId: mapping.id,
+      mappingVersion: Number(mapping.mapping_version),
+    };
   }
 
   /** Validation-only import endpoint foundation; applying rows is deliberately explicit. */
   async applyPortabilityImport(caller: Caller, ws: unknown, input: unknown, req: Mutation) {
     await this.requirePortabilityScope(caller, 'records:write');
     const b = input && typeof input === 'object' ? (input as Record<string, unknown>) : {};
-    const preview = await this.previewPortabilityImportFor(caller, ws, input);
+    if (typeof b.preview_id !== 'string') throw new TenancyError('validation_failed');
+    const previewSnapshot = await this.inWorkspace(caller, ws, {}, async (tx, p) =>
+      tx.db
+        .selectFrom('transfer.import_preview')
+        .selectAll()
+        .where('id', '=', b.preview_id as string)
+        .where('owner_membership_id', '=', p.membershipId)
+        .where('expires_at', '>', new Date())
+        .executeTakeFirst(),
+    );
+    if (!previewSnapshot) throw new TenancyError('conflict');
+    const resolvedPreview = await this.resolveImportPreview(caller, ws, input);
+    const preview = resolvedPreview.preview;
+    if (
+      preview.entity !== previewSnapshot.entity_kind ||
+      !Buffer.from(previewSnapshot.content_sha256).equals(Buffer.from(preview.digest, 'hex')) ||
+      resolvedPreview.mappingId !== previewSnapshot.mapping_id ||
+      resolvedPreview.mappingVersion !== previewSnapshot.mapping_version
+    )
+      throw new TenancyError('conflict');
     if (b.dry_run === true) return { preview, applied: 0, dry_run: true };
     if (b.mode === 'all_or_nothing' && !['task', 'project'].includes(preview.entity))
       throw new TenancyError('validation_failed');
@@ -567,6 +769,12 @@ export class PortabilityService extends CalendarService {
       ws,
       preview,
       b.mode as 'partial' | 'all_or_nothing',
+      {
+        previewId: previewSnapshot.id,
+        mappingId: previewSnapshot.mapping_id,
+        mappingVersion: previewSnapshot.mapping_version,
+        idempotencyKey: req.idempotencyKey,
+      },
     );
     const jobId = prepared.id;
     if (prepared.replay) {
@@ -592,8 +800,25 @@ export class PortabilityService extends CalendarService {
       });
     }
     const results: Array<{ row: number; id?: string; error?: string }> = [];
-    let applied = 0;
+    const checkpointRows = await this.inWorkspace(caller, ws, { readOnly: true }, async (tx) =>
+      tx.db
+        .selectFrom('transfer.import_row')
+        .select(['row_number', 'state', 'record_public_id'])
+        .where('import_job_id', '=', jobId)
+        .execute(),
+    );
+    const completedRows = new Map(
+      checkpointRows
+        .filter((row) => row.state === 'applied' && row.record_public_id)
+        .map((row) => [row.row_number, row.record_public_id!]),
+    );
+    let applied = completedRows.size;
     for (const item of preview.rows) {
+      const completedId = completedRows.get(item.row);
+      if (completedId) {
+        results.push({ row: item.row, id: completedId });
+        continue;
+      }
       if (item.errors.length) {
         results.push({ row: item.row, error: item.errors[0] });
         await this.saveImportCheckpoint(caller, ws, jobId, item.row, 'error', {
@@ -807,7 +1032,7 @@ export class PortabilityService extends CalendarService {
           applied_count: applied,
           error_count: results.filter((r) => r.error).length,
           checkpoint_row: preview.rows.at(-1)?.row ?? 0,
-          rollback_until: new Date(Date.now() + IMPORT_ROLLBACK_WINDOW_MS),
+          rollback_until: new Date(Date.now() + this.ws.importRollbackPeriodMs),
           updated_at: new Date(),
         })
         .where('id', '=', jobId)
@@ -845,8 +1070,9 @@ export class PortabilityService extends CalendarService {
         .where('id', '=', jobId)
         .where('owner_membership_id', '=', p.membershipId)
         .executeTakeFirst();
+      if (!job) throw new TenancyError('not_found');
+      if (job.state === 'rolled_back') return { job, rows: [], replayed: true };
       if (
-        !job ||
         !job.rollback_until ||
         job.rollback_until.getTime() < Date.now() ||
         !['completed', 'partial'].includes(job.state)
@@ -858,11 +1084,32 @@ export class PortabilityService extends CalendarService {
         .where('import_job_id', '=', jobId)
         .orderBy('row_number')
         .execute();
-      if (job.entity_kind !== 'task' && job.entity_kind !== 'project' && job.entity_kind !== 'file')
+      if (
+        !['task', 'project', 'workflow', 'field', 'goal', 'document', 'file'].includes(
+          job.entity_kind,
+        )
+      )
         throw new TenancyError('validation_failed');
       for (const row of rows.filter((item) => item.state === 'applied')) {
         if (!row.record_public_id || row.applied_version === null)
           throw new TenancyError('conflict');
+        if (job.entity_kind === 'workflow' || job.entity_kind === 'field') {
+          const table =
+            job.entity_kind === 'workflow' ? 'workflow.workflow' : 'workflow.field_definition';
+          const configRecord = await tx.db
+            .selectFrom(table)
+            .select(['version', 'state'])
+            .where('workspace_id', '=', tx.workspaceId)
+            .where('public_id', '=', row.record_public_id)
+            .executeTakeFirst();
+          if (
+            !configRecord ||
+            Number(configRecord.version) !== Number(row.applied_version) ||
+            configRecord.state !== 'active'
+          )
+            throw new TenancyError('conflict');
+          continue;
+        }
         const record = await tx.db
           .selectFrom('core.record')
           .select(['version', 'lifecycle_state'])
@@ -876,8 +1123,9 @@ export class PortabilityService extends CalendarService {
         )
           throw new TenancyError('conflict');
       }
-      return { job, rows };
+      return { job, rows, replayed: false };
     });
+    if (snapshot.replayed) return { import_job_id: jobId, rolled_back: [], replayed: true };
     const rolled: number[] = [];
     for (const row of snapshot.rows.filter((item) => item.state === 'applied')) {
       const key = createHash('sha256')
@@ -896,6 +1144,21 @@ export class PortabilityService extends CalendarService {
         await this.taskLifecycle(caller, ws, row.record_public_id, 'trash', {}, mutation);
       else if (snapshot.job.entity_kind === 'project')
         await this.projectLifecycle(caller, ws, row.record_public_id, 'trash', mutation);
+      else if (snapshot.job.entity_kind === 'goal')
+        await this.goalLifecycle(caller, ws, row.record_public_id, 'trash', mutation);
+      else if (snapshot.job.entity_kind === 'document')
+        await this.documentLifecycle(caller, ws, row.record_public_id, 'trash', mutation);
+      else if (snapshot.job.entity_kind === 'workflow')
+        await this.setWorkflowState(caller, ws, row.record_public_id, {}, mutation, 'archived');
+      else if (snapshot.job.entity_kind === 'field')
+        await this.setFieldDefinitionState(
+          caller,
+          ws,
+          row.record_public_id,
+          {},
+          mutation,
+          'archived',
+        );
       else await this.trashFile(caller, ws, row.record_public_id, mutation);
       await this.saveImportCheckpoint(caller, ws, jobId, row.row_number, 'rolled_back');
       rolled.push(row.row_number);

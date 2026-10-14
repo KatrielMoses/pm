@@ -3119,7 +3119,12 @@ export interface ImportJobTable {
   id: string;
   workspace_id: string;
   owner_membership_id: string;
+  preview_id: string | null;
+  mapping_id: string | null;
+  mapping_version: number | null;
+  schema_version: string;
   content_sha256: Bytes;
+  request_key_sha256: Bytes;
   entity_kind: 'task' | 'project' | 'workflow' | 'field' | 'goal' | 'document' | 'file';
   state: 'previewed' | 'running' | 'partial' | 'completed' | 'failed' | 'rolled_back';
   apply_mode: 'partial' | 'all_or_nothing';
@@ -3153,9 +3158,22 @@ export interface ImportMappingTable {
   name: string;
   entity_kind: 'task' | 'project' | 'workflow' | 'field' | 'goal' | 'document' | 'file';
   schema_version: string;
+  mapping_version: number;
   column_mapping: Json<Record<string, string>>;
   created_at: DTs;
   updated_at: DTs;
+}
+export interface ImportPreviewTable {
+  id: string;
+  workspace_id: string;
+  owner_membership_id: string;
+  entity_kind: 'task' | 'project' | 'workflow' | 'field' | 'goal' | 'document' | 'file';
+  content_sha256: Bytes;
+  schema_version: string;
+  mapping_id: string | null;
+  mapping_version: number | null;
+  expires_at: Timestamp;
+  created_at: DTs;
 }
 
 export type StatusSpanBasis = 'recorded' | 'assumed' | 'repaired';
@@ -3371,6 +3389,7 @@ export interface Database {
   'transfer.import_job': ImportJobTable;
   'transfer.import_row': ImportRowTable;
   'transfer.import_mapping': ImportMappingTable;
+  'transfer.import_preview': ImportPreviewTable;
 }
 
 /** Column inventory per table, compared with the migrated catalog by the schema-drift test. */
@@ -6089,7 +6108,12 @@ export const TABLE_COLUMNS: Readonly<Record<keyof Database, readonly string[]>> 
     'id',
     'workspace_id',
     'owner_membership_id',
+    'preview_id',
+    'mapping_id',
+    'mapping_version',
+    'schema_version',
     'content_sha256',
+    'request_key_sha256',
     'entity_kind',
     'state',
     'apply_mode',
@@ -6123,8 +6147,21 @@ export const TABLE_COLUMNS: Readonly<Record<keyof Database, readonly string[]>> 
     'name',
     'entity_kind',
     'schema_version',
+    'mapping_version',
     'column_mapping',
     'created_at',
     'updated_at',
+  ],
+  'transfer.import_preview': [
+    'id',
+    'workspace_id',
+    'owner_membership_id',
+    'entity_kind',
+    'content_sha256',
+    'schema_version',
+    'mapping_id',
+    'mapping_version',
+    'expires_at',
+    'created_at',
   ],
 };
