@@ -1,6 +1,7 @@
 import { readFileSync, writeFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { format, resolveConfig } from 'prettier';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const root = resolve(here, '../../..');
@@ -58,6 +59,8 @@ export function scopesAllowResource(held: readonly string[], resource: McpResour
   return resource.requiredScopes.some((scope) => held.includes(scope));
 }
 `;
+const prettierOptions = (await resolveConfig(outputPath)) ?? {};
+const formatted = await format(body, { ...prettierOptions, filepath: outputPath });
 
 if (process.argv.includes('--check')) {
   let current = '';
@@ -66,12 +69,12 @@ if (process.argv.includes('--check')) {
   } catch {
     // Missing output is stale.
   }
-  if (current !== body) {
+  if (current !== formatted) {
     console.error('MCP registry output is stale. Run: pnpm mcp:contracts:generate');
     process.exit(1);
   }
   console.log('MCP registry: generated contract is up to date');
 } else {
-  writeFileSync(outputPath, body);
+  writeFileSync(outputPath, formatted);
   console.log(`MCP registry: wrote ${outputPath}`);
 }
