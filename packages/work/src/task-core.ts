@@ -1000,7 +1000,7 @@ export class TaskCoreService extends WorkService {
     fields: Record<string, unknown>,
     opts: {
       after?: string | 'last';
-      source?: 'ui' | 'template' | 'paste' | 'form' | 'api' | 'webhook';
+      source?: 'ui' | 'template' | 'paste' | 'form' | 'api' | 'webhook' | 'mcp';
       lenientStatus?: boolean;
       /** 2E: origin for tasks made from captured input (default manual). */
       origin?: { kind: 'intake'; ref: Record<string, string> };

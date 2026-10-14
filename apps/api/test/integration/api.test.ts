@@ -39,6 +39,7 @@ describe('web/API process', () => {
           metrics: h.telemetry.metrics,
           isDraining: () => draining,
           emailTransport: 'none',
+          mcpEnabled: false,
         }),
     });
     // Test-only routes to exercise body parsing and unexpected failures.
@@ -83,6 +84,7 @@ describe('web/API process', () => {
         email_delivery: 'not_configured',
         recovery_gate: 'ok',
         tenant_isolation: 'ok',
+        mcp_access: 'not_configured',
       },
       build: 'abc1234',
     });
@@ -121,6 +123,7 @@ describe('web/API process', () => {
   });
 
   it('GET /v1/status returns build info and availability inside the meta envelope', async () => {
+    await h.discovery.heartbeat('wrk_00000000000000aa', 'test');
     const res = await app.inject('/v1/status');
     expect(res.statusCode).toBe(200);
     const body = res.json();

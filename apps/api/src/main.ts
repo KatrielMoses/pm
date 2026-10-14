@@ -82,14 +82,21 @@ async function main(): Promise<void> {
       localOAuth: identity.localOAuth,
       componentHarness: config.features.componentHarness,
       resolveBearer: async (secret) => {
-        const found = await tenancy.authenticateApiToken(secret);
+        const apiToken = await tenancy.authenticateApiToken(secret);
+        const oauthToken = apiToken ? null : await tenancy.authenticateOAuthAccessToken(secret);
+        const found = apiToken ?? oauthToken;
         if (!found) return null;
         const caller = syntheticCaller(found.accountId, found.delegation, {
           correlationId: '0'.repeat(32),
         });
-        return { auth: caller.auth, delegation: found.delegation };
+        return {
+          auth: caller.auth,
+          delegation: found.delegation,
+          ...(oauthToken ? { workspacePublicId: oauthToken.workspacePublicId } : {}),
+        };
       },
       limitBearer: (tokenId, write) => tenancy.limitApi(tokenId, write),
+      limitMcp: (tokenId, write) => tenancy.limitMcp(tokenId, write),
     },
     tenancy: { tenancy },
     work: { work: tenancy },
@@ -110,6 +117,7 @@ async function main(): Promise<void> {
         metrics: telemetry.metrics,
         isDraining: () => draining,
         emailTransport: config.identity.mailTransport,
+        mcpEnabled: config.work.mcpEnabled,
         objectStorage: objectStorage ? () => objectStorage.check() : undefined,
       }),
   });

@@ -10,7 +10,7 @@ There are 19 scopes, in the format `<family>:<access>` ([generated/registries.md
 | Brand list | Tokens and OAuth grants may carry `brands: [br_…]`. Requests outside the list behave as if those brands' records do not exist (`not_found` error). |
 | Personal API tokens | Any subset of scopes the creator could use. Write scopes need step-up at creation (0C §9.6). Expiry is bounded by workspace policy. |
 | Service principals | Scopes from the registry for `service_principal`, plus explicit grants. Never scopes for step-up actions (validator rule). |
-| OAuth / MCP clients | The client registration declares the maximum scopes. The consent screen lists them, and the user may narrow them. Tokens are short-lived, with refresh revoked on consent revocation. |
+| OAuth / MCP clients | The client registration declares the maximum scopes. A member grants a subset and optional brand allow-list. Tokens are workspace-bound, short-lived, and hash-only; consent/client revocation invalidates them at the next request. Refresh is not part of the 6E foundation. |
 | Integration connections | Internal capability set derived from configured features (sync directions, mapped scopes). Provider OAuth scopes are separate and recorded on the connection. |
 | Run-bound agent credentials | Issued per agent run for external agents. Scopes are derived from the run's granted tool classes (0C §9.3). Bound to `op_…` and the run scope snapshot. **Expires when the run reaches a terminal state** or on cancel or emergency stop. Never usable for step-up actions. |
 | Inbound webhooks | Fixed to one intake action (for example `tests:ingest` or `capture:write`) |

@@ -32,6 +32,8 @@ export const DEFAULT_POLICIES = {
   'api.read': { limit: 600, windowMs: 60_000 },
   'api.write': { limit: 120, windowMs: 60_000 },
   'api.export': { limit: 20, windowMs: 60_000 },
+  'mcp.read': { limit: 120, windowMs: 60_000 },
+  'mcp.write': { limit: 60, windowMs: 60_000 },
   'webhook.inbound': { limit: 120, windowMs: 60_000 },
 } as const satisfies Record<string, { limit: number; windowMs: number }>;
 export type RateLimitPolicy = keyof typeof DEFAULT_POLICIES;

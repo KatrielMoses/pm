@@ -178,6 +178,7 @@ describe('process smoke: web/API and worker entrypoints', () => {
       email_delivery: 'ok',
       recovery_gate: 'ok',
       tenant_isolation: 'ok',
+      mcp_access: 'ok',
     });
     const status = (await (await fetch(`${base}/v1/status`)).json()) as { data: unknown };
     expect(status.data).toMatchObject({

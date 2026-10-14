@@ -124,6 +124,7 @@ export async function identityEnv(overrides: Record<string, string> = {}): Promi
         email_delivery: 'ok',
         recovery_gate: 'ok',
         tenant_isolation: 'ok',
+        mcp_access: 'ok',
       },
     }),
     auth: { identity: service, localOAuth },

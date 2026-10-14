@@ -339,7 +339,8 @@ test('reaches the search field and every filter with the keyboard alone @desktop
   await page.locator('#main select:focus').selectOption('any');
   await expect(page).toHaveURL(/state=any/);
   // Every result link is reachable in order and opens by Enter.
-  await tabTo(page, `el.closest('.search-result') !== null`);
+  await tabTo(page, `el.matches('.search-result .search-title a[href]')`);
+  await expect(page.locator('.search-result .search-title a:focus')).toHaveCount(1);
   await page.keyboard.press('Enter');
   await expect(page).toHaveURL(/\/(tasks|documents)\//);
 });

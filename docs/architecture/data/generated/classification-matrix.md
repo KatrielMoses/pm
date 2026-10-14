@@ -31,7 +31,7 @@ Class definitions and rules: [../11-data-classification.md](../11-data-classific
 | Views and navigation state | 6 | C1 | R-LIVE, R-PERSONAL | filtered, never, self | no, yes | no | incidental, no | high |
 | Search | 3 | C2 | R-DERIVED, R-PERSONAL | never, self | no, yes | no | incidental | very-high |
 | Metrics, dashboards, and reports | 7 | C2 | R-DERIVED, R-EXEC, R-LIVE, R-PLATFORM | filtered, never, self | metadata, no, yes | no | incidental | high |
-| Integrations, API, and webhooks | 13 | C4 | R-AUDIT, R-EXEC, R-LIVE, R-PERSONAL | admin, filtered, never, self | metadata, no, yes | hash-only, possible, secret-ref | incidental, yes | very-high |
+| Integrations, API, and webhooks | 16 | C4 | R-AUDIT, R-EXEC, R-LIVE, R-PERSONAL | admin, filtered, never, self | metadata, no, yes | hash-only, possible, secret-ref | incidental, no, yes | very-high |
 | Import and export | 5 | C2 | R-EPHEMERAL, R-EXEC, R-LIVE | admin, filtered, never | no, yes | no | incidental | very-high |
 | Test management and defects | 8 | C2 | R-DERIVED, R-EVIDENCE, R-LIVE | filtered | yes | no | incidental | very-high |
 | Development links and releases | 9 | C2 | R-EVIDENCE, R-EXEC, R-LIVE | filtered | yes | no | incidental | very-high |
@@ -219,6 +219,8 @@ Class definitions and rules: [../11-data-classification.md](../11-data-classific
 | [`webhook_delivery`](logical-model.md#entity-webhook-delivery) | integrations | inherited | C1 | low | is evidence / append-only | R-EXEC | admin | very-high | no | no | incidental |
 | [`api_token`](logical-model.md#entity-api-token) | integrations | workspace | C4 | high | all changes + access | R-AUDIT | never | low | no | hash-only | incidental |
 | [`oauth_client`](logical-model.md#entity-oauth-client) | integrations | workspace | C4 | high | all changes + access | R-LIVE | never | low | no | hash-only | incidental |
+| [`oauth_consent`](logical-model.md#entity-oauth-consent) | integrations | workspace | C2 | standard (per-record) | material changes | R-AUDIT | never | low | no | no | yes |
+| [`oauth_access_token`](logical-model.md#entity-oauth-access-token) | integrations | workspace | C4 | high | all changes + access | R-AUDIT | never | low | no | hash-only | no |
 | [`import_job`](logical-model.md#entity-import-job) | transfer | workspace_or_brand | C2 | standard (per-record) | material changes | R-EXEC | filtered | low | yes | no | incidental |
 | [`import_mapping`](logical-model.md#entity-import-mapping) | transfer | workspace_or_brand | C1 | low | configuration changes | R-LIVE | filtered | low | yes | no | incidental |
 | [`import_row`](logical-model.md#entity-import-row) | transfer | inherited | C2 | standard (per-record) | is evidence / append-only | R-EXEC | admin | very-high | yes | no | incidental |
@@ -284,3 +286,4 @@ Class definitions and rules: [../11-data-classification.md](../11-data-classific
 | [`capacity_profile`](logical-model.md#entity-capacity-profile) | planning | personal | C2 | standard (per-record) | material changes | R-PERSONAL | self | low | yes | no | incidental |
 | [`task_status_span`](logical-model.md#entity-task-status-span) | metrics | inherited | C1 | low | is evidence / append-only | R-DERIVED | never | high | no | no | no |
 | [`reconcile_state`](logical-model.md#entity-reconcile-state) | metrics | workspace | C1 | low | configuration changes | R-DERIVED | never | low | no | no | no |
+| [`mcp_invocation`](logical-model.md#entity-mcp-invocation) | integrations | workspace | C1 | low | is evidence / append-only | R-AUDIT | never | medium | no | no | yes |

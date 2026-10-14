@@ -476,6 +476,7 @@ export type SourceKind =
   | 'email'
   | 'form'
   | 'webhook'
+  | 'mcp'
   | 'import'
   | 'integration'
   | 'ai_proposal'
@@ -1532,6 +1533,7 @@ export const CAPTURE_SOURCE_KINDS = [
   'email',
   'api',
   'webhook',
+  'mcp',
 ] as const;
 export type CaptureSourceKind = (typeof CAPTURE_SOURCE_KINDS)[number];
 export interface InboxItemTable {
@@ -2894,6 +2896,66 @@ export interface InboundMessageTable {
   detail: string | null;
   received_at: DTs;
 }
+export interface OauthClientTable {
+  id: string;
+  workspace_id: string;
+  public_id: string;
+  name: string;
+  client_prefix: string;
+  client_hash: Bytes;
+  redirect_uris: string[];
+  allowed_scopes: string[];
+  state: 'active' | 'revoked';
+  revoked_at: Timestamp | null;
+  created_by_membership_id: string;
+  created_at: DTs;
+  updated_at: DTs;
+  version: Defaulted<number>;
+}
+export interface OauthConsentTable {
+  id: string;
+  workspace_id: string;
+  public_id: string;
+  client_id: string;
+  membership_id: string;
+  scopes: string[];
+  brand_ids: string[] | null;
+  state: 'active' | 'revoked';
+  revoked_at: Timestamp | null;
+  created_at: DTs;
+  updated_at: DTs;
+  version: Defaulted<number>;
+}
+export interface OauthAccessTokenTable {
+  id: string;
+  workspace_id: string;
+  public_id: string;
+  consent_id: string;
+  client_id: string;
+  token_prefix: string;
+  token_hash: Bytes;
+  expires_at: Timestamp;
+  last_used_at: Timestamp | null;
+  state: 'active' | 'revoked';
+  revoked_at: Timestamp | null;
+  created_at: DTs;
+}
+export interface McpInvocationTable {
+  id: string;
+  workspace_id: string;
+  public_id: string;
+  consent_id: string | null;
+  token_id: string | null;
+  actor_membership_id: string;
+  actor_principal: string;
+  actor_public_id: string;
+  tool_name: string;
+  tool_version: string;
+  outcome: 'ok' | 'error' | 'timeout' | 'denied';
+  duration_ms: number | null;
+  detail: string | null;
+  created_at: DTs;
+}
 
 // Phase 4E: files, immutable versions, upload sessions, deliverables, and storage usage (ADR-0026).
 export type FileScanState = 'pending' | 'clean' | 'infected' | 'error';
@@ -3128,6 +3190,10 @@ export interface Database {
   'integrations.webhook_delivery': WebhookDeliveryTable;
   'integrations.inbound_endpoint': InboundEndpointTable;
   'integrations.inbound_message': InboundMessageTable;
+  'integrations.oauth_client': OauthClientTable;
+  'integrations.oauth_consent': OauthConsentTable;
+  'integrations.oauth_access_token': OauthAccessTokenTable;
+  'integrations.mcp_invocation': McpInvocationTable;
   'notify.digest': DigestTable;
   'notify.delivery': DeliveryTable;
   'notify.preference': NotificationPreferenceTable;
@@ -4980,6 +5046,66 @@ export const TABLE_COLUMNS: Readonly<Record<keyof Database, readonly string[]>> 
     'state',
     'detail',
     'received_at',
+  ],
+  'integrations.oauth_client': [
+    'id',
+    'workspace_id',
+    'public_id',
+    'name',
+    'client_prefix',
+    'client_hash',
+    'redirect_uris',
+    'allowed_scopes',
+    'state',
+    'revoked_at',
+    'created_by_membership_id',
+    'created_at',
+    'updated_at',
+    'version',
+  ],
+  'integrations.oauth_consent': [
+    'id',
+    'workspace_id',
+    'public_id',
+    'client_id',
+    'membership_id',
+    'scopes',
+    'brand_ids',
+    'state',
+    'revoked_at',
+    'created_at',
+    'updated_at',
+    'version',
+  ],
+  'integrations.oauth_access_token': [
+    'id',
+    'workspace_id',
+    'public_id',
+    'consent_id',
+    'client_id',
+    'token_prefix',
+    'token_hash',
+    'expires_at',
+    'last_used_at',
+    'state',
+    'revoked_at',
+    'created_at',
+  ],
+  'integrations.mcp_invocation': [
+    'id',
+    'workspace_id',
+    'public_id',
+    'consent_id',
+    'token_id',
+    'actor_membership_id',
+    'actor_principal',
+    'actor_public_id',
+    'tool_name',
+    'tool_version',
+    'outcome',
+    'duration_ms',
+    'detail',
+    'created_at',
   ],
   'knowledge.source_approval': [
     'id',

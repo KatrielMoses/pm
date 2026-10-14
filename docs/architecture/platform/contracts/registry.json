@@ -783,6 +783,30 @@
       "owner_module": "insights",
       "platform_only": false,
       "note": ""
+    },
+    {
+      "prefix": "mci",
+      "resource": "mcp_invocation",
+      "entity": "integrations.mcp_invocation",
+      "owner_module": "integrations",
+      "platform_only": false,
+      "note": "Phase 6E (INT-022), bounded workspace audit record."
+    },
+    {
+      "prefix": "oat",
+      "resource": "oauth_access_token",
+      "entity": "integrations.oauth_access_token",
+      "owner_module": "integrations",
+      "platform_only": false,
+      "note": "Phase 6E; identifier is not a credential and the bearer secret is never returned on replay."
+    },
+    {
+      "prefix": "ocs",
+      "resource": "oauth_consent",
+      "entity": "integrations.oauth_consent",
+      "owner_module": "integrations",
+      "platform_only": false,
+      "note": "Phase 6E; opaque audit aggregate identifier, not an authorization token."
     }
   ],
   "error_codes": [
@@ -5276,6 +5300,113 @@
       ],
       "allow_list_version": null,
       "delivery_authorization": null
+    },
+    {
+      "type": "integrations.oauth_client.created",
+      "schema_version": 1,
+      "aggregate_entity": "integrations.oauth_client",
+      "fields": [
+        "scope_count"
+      ],
+      "max_class": "C1",
+      "consumers": {
+        "activity": true,
+        "notification": false,
+        "metrics": false,
+        "automation_trigger": false,
+        "search_index": false
+      },
+      "public_webhook": null,
+      "requirements": [
+        "INT-022"
+      ],
+      "allow_list_version": null,
+      "delivery_authorization": null
+    },
+    {
+      "type": "integrations.oauth_client.revoked",
+      "schema_version": 1,
+      "aggregate_entity": "integrations.oauth_client",
+      "fields": [],
+      "max_class": "C1",
+      "consumers": {
+        "activity": true,
+        "notification": false,
+        "metrics": false,
+        "automation_trigger": false,
+        "search_index": false
+      },
+      "public_webhook": null,
+      "requirements": [
+        "INT-022"
+      ],
+      "allow_list_version": null,
+      "delivery_authorization": null
+    },
+    {
+      "type": "integrations.oauth_consent.granted",
+      "schema_version": 1,
+      "aggregate_entity": "integrations.oauth_consent",
+      "fields": [
+        "scope_count",
+        "brand_count"
+      ],
+      "max_class": "C1",
+      "consumers": {
+        "activity": true,
+        "notification": false,
+        "metrics": false,
+        "automation_trigger": false,
+        "search_index": false
+      },
+      "public_webhook": null,
+      "requirements": [
+        "INT-022"
+      ],
+      "allow_list_version": null,
+      "delivery_authorization": null
+    },
+    {
+      "type": "integrations.oauth_consent.revoked",
+      "schema_version": 1,
+      "aggregate_entity": "integrations.oauth_consent",
+      "fields": [],
+      "max_class": "C1",
+      "consumers": {
+        "activity": true,
+        "notification": false,
+        "metrics": false,
+        "automation_trigger": false,
+        "search_index": false
+      },
+      "public_webhook": null,
+      "requirements": [
+        "INT-022"
+      ],
+      "allow_list_version": null,
+      "delivery_authorization": null
+    },
+    {
+      "type": "integrations.oauth_access_token.issued",
+      "schema_version": 1,
+      "aggregate_entity": "integrations.oauth_access_token",
+      "fields": [
+        "expires_in"
+      ],
+      "max_class": "C1",
+      "consumers": {
+        "activity": true,
+        "notification": false,
+        "metrics": false,
+        "automation_trigger": false,
+        "search_index": false
+      },
+      "public_webhook": null,
+      "requirements": [
+        "INT-022"
+      ],
+      "allow_list_version": null,
+      "delivery_authorization": null
     }
   ],
   "scopes": [
@@ -7186,6 +7317,31 @@
       "owner": "4D"
     },
     {
+      "name": "MCP_ENABLED",
+      "meaning": "Whether MCP-compatible requests are accepted; capability discovery remains truthful when disabled.",
+      "owner": "6E"
+    },
+    {
+      "name": "MCP_READ_RATE_PER_MINUTE",
+      "meaning": "MCP reads per token per minute; default 120, range 1\u201310000.",
+      "owner": "6E"
+    },
+    {
+      "name": "MCP_TOOL_CALL_TIMEOUT_MS",
+      "meaning": "Maximum MCP request execution window; default 30000 ms, range 1000\u2013120000.",
+      "owner": "6E"
+    },
+    {
+      "name": "MCP_TOOL_RESULT_MAX_BYTES",
+      "meaning": "Maximum serialized MCP tool/resource result; default 65536 bytes, range 1024\u20131048576.",
+      "owner": "6E"
+    },
+    {
+      "name": "MCP_WRITE_RATE_PER_MINUTE",
+      "meaning": "MCP mutations per token per minute; default 60, range 1\u201310000.",
+      "owner": "6E"
+    },
+    {
       "name": "METRICS_DEFAULT_WINDOW_DAYS",
       "meaning": "Window a metric covers when none is given, in days; default 30, range 7\u2013366.",
       "owner": "5C"
@@ -7329,6 +7485,11 @@
       "name": "NOTIFY_SEARCH_QUERY_MAX",
       "meaning": "Longest notification history search text; default 100, range 10\u2013200.",
       "owner": "4B"
+    },
+    {
+      "name": "OAUTH_CLIENTS_MAX",
+      "meaning": "Active OAuth/MCP clients per workspace; default 100, range 1\u20131000.",
+      "owner": "6E"
     },
     {
       "name": "OUTBOX_REPLAY_WINDOW",

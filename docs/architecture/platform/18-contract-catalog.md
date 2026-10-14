@@ -25,7 +25,7 @@ Each schema declares `x-visibility` and `x-max-class`. Each sensitive property d
 
 ## 18.2 Registries
 
-`contracts/registry.json`, rendered in [generated/registries.md](generated/registries.md):
+`contracts/registry.json`, rendered in [generated/registries.md](generated/registries.md), and the separately versioned `contracts/mcp-registry.json`:
 
 - public ID prefixes (61), each mapped to a 0B entity or a documented platform-only owner;
 - error codes (32), plus the 0C response-shape mapping;
