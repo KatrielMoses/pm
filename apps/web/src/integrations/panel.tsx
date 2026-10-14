@@ -221,6 +221,106 @@ export function IntegrationsPanel({ ws }: { ws: string }) {
   return (
     <div>
       {error ? <p role="alert">{error}</p> : null}
+      <section aria-labelledby="providers-heading">
+        <h2 id="providers-heading">Providers</h2>
+        <ul>
+          {providers.map((p) => (
+            <li key={p.id}>
+              {p.label}: {p.configured ? 'configured' : 'not configured'}
+              {p.unavailable ? `. ${p.unavailable}` : ''}
+            </li>
+          ))}
+        </ul>
+      </section>
+      <ConnectionList connections={connections} />
+      <form
+        onSubmit={(e) => {
+          e.preventDefault();
+          void post(`/v1/workspaces/${ws}/integrations/connections`, {
+            provider: 'loopback',
+            auth_kind: 'api_key',
+            display_name: name,
+            scopes: ['read', 'write'],
+            api_key: apiKey,
+          });
+        }}
+      >
+        <h2>Connect with an API key</h2>
+        {loopback && !loopback.configured ? (
+          <p>The loopback provider is not configured in this environment.</p>
+        ) : null}
+        <p>
+          <label htmlFor="conn-name">Name</label>
+          <input id="conn-name" value={name} onChange={(e) => setName(e.target.value)} required />
+        </p>
+        <p>
+          <label htmlFor="conn-key">API key</label>
+          <input
+            id="conn-key"
+            type="password"
+            autoComplete="off"
+            value={apiKey}
+            onChange={(e) => setApiKey(e.target.value)}
+            required
+          />
+        </p>
+        <p>The key is stored encrypted and is not shown again.</p>
+        <button className="button button-primary" type="submit" disabled={busy}>
+          Connect
+        </button>
+      </form>
+      {connections
+        .filter((c) => c.health !== 'disconnected')
+        .map((c) => (
+          <section key={c.id} aria-labelledby={`act-${c.id}`}>
+            <h2 id={`act-${c.id}`}>Actions for {c.display_name}</h2>
+            <p>
+              <button
+                type="button"
+                className="button"
+                disabled={busy}
+                onClick={() =>
+                  void post(`/v1/workspaces/${ws}/integrations/connections/${c.id}/test`, {})
+                }
+              >
+                Test connection
+              </button>
+            </p>
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                void post(`/v1/workspaces/${ws}/integrations/connections/${c.id}/disconnect`, {
+                  retention,
+                });
+              }}
+            >
+              <fieldset>
+                <legend>When disconnecting</legend>
+                <label>
+                  <input
+                    type="radio"
+                    name={`ret-${c.id}`}
+                    checked={retention === 'retain'}
+                    onChange={() => setRetention('retain')}
+                  />
+                  Keep synchronized data
+                </label>
+                <label>
+                  <input
+                    type="radio"
+                    name={`ret-${c.id}`}
+                    checked={retention === 'remove'}
+                    onChange={() => setRetention('remove')}
+                  />
+                  Remove synchronized data
+                </label>
+              </fieldset>
+              <button className="button" type="submit" disabled={busy}>
+                Disconnect
+              </button>
+            </form>
+          </section>
+        ))}
       <section aria-labelledby="mcp-heading">
         <h2 id="mcp-heading">MCP access</h2>
         <p>
@@ -380,106 +480,6 @@ export function IntegrationsPanel({ ws }: { ws: string }) {
           </section>
         ) : null}
       </section>
-      <section aria-labelledby="providers-heading">
-        <h2 id="providers-heading">Providers</h2>
-        <ul>
-          {providers.map((p) => (
-            <li key={p.id}>
-              {p.label}: {p.configured ? 'configured' : 'not configured'}
-              {p.unavailable ? `. ${p.unavailable}` : ''}
-            </li>
-          ))}
-        </ul>
-      </section>
-      <ConnectionList connections={connections} />
-      <form
-        onSubmit={(e) => {
-          e.preventDefault();
-          void post(`/v1/workspaces/${ws}/integrations/connections`, {
-            provider: 'loopback',
-            auth_kind: 'api_key',
-            display_name: name,
-            scopes: ['read', 'write'],
-            api_key: apiKey,
-          });
-        }}
-      >
-        <h2>Connect with an API key</h2>
-        {loopback && !loopback.configured ? (
-          <p>The loopback provider is not configured in this environment.</p>
-        ) : null}
-        <p>
-          <label htmlFor="conn-name">Name</label>
-          <input id="conn-name" value={name} onChange={(e) => setName(e.target.value)} required />
-        </p>
-        <p>
-          <label htmlFor="conn-key">API key</label>
-          <input
-            id="conn-key"
-            type="password"
-            autoComplete="off"
-            value={apiKey}
-            onChange={(e) => setApiKey(e.target.value)}
-            required
-          />
-        </p>
-        <p>The key is stored encrypted and is not shown again.</p>
-        <button className="button button-primary" type="submit" disabled={busy}>
-          Connect
-        </button>
-      </form>
-      {connections
-        .filter((c) => c.health !== 'disconnected')
-        .map((c) => (
-          <section key={c.id} aria-labelledby={`act-${c.id}`}>
-            <h2 id={`act-${c.id}`}>Actions for {c.display_name}</h2>
-            <p>
-              <button
-                type="button"
-                className="button"
-                disabled={busy}
-                onClick={() =>
-                  void post(`/v1/workspaces/${ws}/integrations/connections/${c.id}/test`, {})
-                }
-              >
-                Test connection
-              </button>
-            </p>
-            <form
-              onSubmit={(e) => {
-                e.preventDefault();
-                void post(`/v1/workspaces/${ws}/integrations/connections/${c.id}/disconnect`, {
-                  retention,
-                });
-              }}
-            >
-              <fieldset>
-                <legend>When disconnecting</legend>
-                <label>
-                  <input
-                    type="radio"
-                    name={`ret-${c.id}`}
-                    checked={retention === 'retain'}
-                    onChange={() => setRetention('retain')}
-                  />
-                  Keep synchronized data
-                </label>
-                <label>
-                  <input
-                    type="radio"
-                    name={`ret-${c.id}`}
-                    checked={retention === 'remove'}
-                    onChange={() => setRetention('remove')}
-                  />
-                  Remove synchronized data
-                </label>
-              </fieldset>
-              <button className="button" type="submit" disabled={busy}>
-                Disconnect
-              </button>
-            </form>
-          </section>
-        ))}
     </div>
   );
 }
