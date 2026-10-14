@@ -247,8 +247,8 @@ def check_invariants():
         errs.append("SearchService must extend FileService")
     factory = read(P("packages/work/src/factory.ts"))
     # 5B's goal services extend the SearchService, and the factory returns the top of that chain.
-    if not re.search(r"\}\): (SearchService|PortfolioService|MetricService|ReportService|PublicApiService|CalendarService) \{", factory) or not re.search(
-            r"return new (SearchService|PortfolioService|MetricService|ReportService|PublicApiService|CalendarService)\(", factory):
+    if not re.search(r"\}\): (SearchService|PortfolioService|MetricService|ReportService|PublicApiService|CalendarService|McpAccessService) \{", factory) or not re.search(
+            r"return new (SearchService|PortfolioService|MetricService|ReportService|PublicApiService|CalendarService|McpAccessService)\(", factory):
         errs.append("createWorkService must build and return the SearchService (or the 5B/5D chain on top of it)")
     for path, needles in {
         "packages/work/test/integration/search.test.ts": [

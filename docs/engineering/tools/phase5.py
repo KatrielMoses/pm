@@ -116,7 +116,10 @@ def check_composition():
     extends = "export class PublicApiService extends IntegrationService" in read(
         P("packages/work/src/integrations/public-api-service.ts")
     )
-    top = "return new CalendarService(" in factory or "return new PublicApiService(" in factory
+    top = any(
+        f"return new {service}(" in factory
+        for service in ("PublicApiService", "CalendarService", "McpAccessService")
+    )
     if not extends or top is False:
         errs.append(
             "createWorkService must return the top of the chain (CalendarService or PublicApiService extends IntegrationService)"
