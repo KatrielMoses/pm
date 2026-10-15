@@ -1,7 +1,8 @@
 import { createHash } from 'node:crypto';
+import { AsyncLocalStorage } from 'node:async_hooks';
 import { newUuidV7 } from '@pm/contracts';
-import { sql } from '@pm/db';
-import { TenancyError, type Caller, type Mutation } from '@pm/tenancy';
+import { sql, type WorkspaceTransaction } from '@pm/db';
+import { cell, TenancyError, type Caller, type Mutation, type Principal } from '@pm/tenancy';
 import { CalendarService } from '../integrations/calendar-service.ts';
 import {
   PORTABLE_ENTITIES,
@@ -20,6 +21,122 @@ export const IMPORT_ROLLBACK_WINDOW_MS = 7 * 24 * 60 * 60 * 1_000;
 
 /** CSV portability boundary. All reads delegate to the same permission-filtered record lists. */
 export class PortabilityService extends CalendarService {
+  private readonly importTransaction = new AsyncLocalStorage<{
+    caller: Caller;
+    ws: unknown;
+    tx: WorkspaceTransaction;
+    principal: Principal & { workspaceState: string };
+  }>();
+
+  protected override async inWorkspace<T>(
+    caller: Caller,
+    ws: unknown,
+    options: { readOnly?: boolean },
+    fn: (tx: WorkspaceTransaction, p: Principal & { workspaceState: string }) => Promise<T>,
+  ): Promise<T> {
+    const active = this.importTransaction.getStore();
+    if (!active) return super.inWorkspace(caller, ws, options, fn);
+    if (active.caller !== caller || active.ws !== ws) throw new TenancyError('forbidden');
+    return fn(active.tx, active.principal);
+  }
+
+  private async atomicImport<T>(caller: Caller, ws: unknown, fn: () => Promise<T>): Promise<T> {
+    return this.inWorkspace(caller, ws, {}, (tx, principal) =>
+      this.importTransaction.run({ caller, ws, tx, principal }, fn),
+    );
+  }
+  private async requirePortabilityExport(caller: Caller, ws: unknown) {
+    await this.requirePortabilityScope(caller, 'records:read');
+    await this.inWorkspace(caller, ws, { readOnly: true }, async (_tx, p) => {
+      const capability = cell('record.export', p.role);
+      if (
+        capability.kind === 'deny' ||
+        (capability.kind === 'policy' &&
+          (p.policy as Record<string, unknown>)[capability.key] !== true)
+      )
+        throw new TenancyError('forbidden');
+    });
+  }
+  /** Read-only history exports use the same live visibility as their application surfaces. */
+  async exportPortabilityHistory(caller: Caller, ws: unknown, kind: string, input: unknown) {
+    await this.requirePortabilityExport(caller, ws);
+    const q = input && typeof input === 'object' ? (input as Record<string, unknown>) : {};
+    if (kind === 'time') {
+      if (typeof q.from !== 'string' || typeof q.to !== 'string')
+        throw new TenancyError('validation_failed');
+      const result = await this.exportTime(caller, ws, { from: q.from, to: q.to, format: 'csv' });
+      return { csv: result.body, rows: result.rows, truncated: false, filename: result.filename };
+    }
+    const rows: Record<string, unknown>[] = [];
+    if (kind === 'comments') {
+      if (typeof q.record !== 'string') throw new TenancyError('validation_failed');
+      let cursor: string | undefined;
+      do {
+        const page = await this.listComments(caller, ws, q.record, {
+          limit: 100,
+          ...(cursor ? { cursor } : {}),
+        });
+        for (const comment of page.data) {
+          const { replies: _inline, ...root } = comment;
+          rows.push({ public_id: root.id, host_public_id: q.record, data: root });
+          let repliesCursor: string | undefined;
+          do {
+            const replies = await this.listReplies(caller, ws, root.id, {
+              limit: 100,
+              ...(repliesCursor ? { cursor: repliesCursor } : {}),
+            });
+            for (const reply of replies.data)
+              rows.push({ public_id: reply.id, host_public_id: q.record, data: reply });
+            if (rows.length > MAX_EXPORT_ROWS) throw new TenancyError('limit_exceeded');
+            repliesCursor = replies.page.next_cursor;
+          } while (repliesCursor);
+        }
+        if (rows.length > MAX_EXPORT_ROWS) throw new TenancyError('limit_exceeded');
+        cursor = page.page.next_cursor;
+      } while (cursor);
+    } else if (kind === 'task_activity' || kind === 'project_activity') {
+      const entity = kind === 'task_activity' ? 'task' : 'project';
+      let cursor: string | undefined;
+      do {
+        const result = await this.activity(caller, ws, entity, {
+          query: { entity },
+          limit: 100,
+          ...(cursor ? { cursor } : {}),
+        });
+        for (const entry of result.data) rows.push({ data: entry });
+        if (rows.length > MAX_EXPORT_ROWS || result.records_truncated)
+          throw new TenancyError('limit_exceeded');
+        cursor = result.page.next_cursor;
+      } while (cursor);
+    } else throw new TenancyError('not_found');
+    let csv: string;
+    try {
+      csv = serializeCsv(['public_id', 'host_public_id', 'data'], rows);
+    } catch {
+      throw new TenancyError('limit_exceeded');
+    }
+    await this.inWorkspace(caller, ws, {}, async (tx, p) => {
+      await this.workAudit(
+        tx,
+        caller,
+        p,
+        'portability.exported',
+        { recordId: null, type: 'workspace', publicId: null },
+        [],
+        null,
+      );
+      await this.d.security.record(tx, {
+        category: 'export',
+        action: 'portability.history_export',
+        outcome: 'success',
+        actor: { type: 'human', id: p.membershipId },
+        subject: { type: 'workspace', id: tx.workspaceId },
+        correlationId: caller.meta.correlationId,
+      });
+    });
+    return { csv, rows: rows.length, truncated: false, filename: `workspace-${kind}.csv` };
+  }
+
   private async requirePortabilityScope(caller: Caller, scope: 'records:read' | 'records:write') {
     if (!caller.delegation) return;
     if (!caller.delegation.scopes.includes(scope)) throw new TenancyError('forbidden');
@@ -163,7 +280,9 @@ export class PortabilityService extends CalendarService {
               workspace_id: tx.workspaceId,
               import_job_id: id,
               row_number: item.row,
-              source_row_key: item.values.source_row_key ?? null,
+              source_row_key: item.errors.includes('duplicate_source_row_key')
+                ? null
+                : (item.values.source_row_key ?? null),
               source_values: JSON.stringify(item.values),
               state: item.errors.length ? 'error' : 'pending',
               issues: JSON.stringify(item.errors.map((code) => ({ code }))),
@@ -296,7 +415,7 @@ export class PortabilityService extends CalendarService {
       );
       await this.d.security.record(tx, {
         category: 'export',
-        action: 'portability.mapping.save',
+        action: 'portability.mapping_save',
         outcome: 'success',
         actor: { type: 'human', id: p.membershipId },
         subject: { type: 'workspace', id: tx.workspaceId },
@@ -327,7 +446,7 @@ export class PortabilityService extends CalendarService {
       );
       await this.d.security.record(tx, {
         category: 'export',
-        action: 'portability.mapping.delete',
+        action: 'portability.mapping_delete',
         outcome: 'success',
         actor: { type: 'human', id: p.membershipId },
         subject: { type: 'workspace', id: tx.workspaceId },
@@ -373,17 +492,41 @@ export class PortabilityService extends CalendarService {
 
   async exportPortabilityCsv(caller: Caller, ws: unknown, entity: string, cap = MAX_EXPORT_ROWS) {
     if (!PORTABLE_ENTITIES.includes(entity as PortableEntity)) throw new TenancyError('not_found');
-    await this.requirePortabilityScope(caller, 'records:read');
+    await this.requirePortabilityExport(caller, ws);
     const limit = Math.min(Math.max(Math.trunc(cap) || MAX_EXPORT_ROWS, 1), MAX_EXPORT_ROWS);
     const rows: Record<string, unknown>[] = [];
     let truncated = false;
-    let suppliedCsv: string | undefined;
-    let suppliedRows: number | undefined;
     if (entity === 'goal') {
-      const result = await this.exportGoals(caller, ws, { format: 'csv' });
-      suppliedCsv = result.body;
-      suppliedRows = result.rows;
-      truncated = result.rows >= limit;
+      let cursor: string | undefined;
+      do {
+        const result = await this.listGoals(caller, ws, {
+          limit: Math.min(200, limit - rows.length),
+          ...(cursor ? { cursor } : {}),
+        });
+        for (const goal of result.data) {
+          const period = { kind: 'custom', start: goal.period.start, end: goal.period.end };
+          rows.push({
+            schema_version: PORTABILITY_SCHEMA_VERSION,
+            source_row_key: goal.id,
+            public_id: goal.id,
+            title: goal.title,
+            status: goal.status,
+            basis: goal.basis,
+            period,
+            unit: goal.metric.unit,
+            baseline: goal.metric.baseline,
+            target: goal.metric.target,
+            current: goal.metric.current,
+            project_id: goal.scope.kind === 'project' ? goal.scope.project?.id : '',
+            brand_id:
+              goal.scope.kind === 'brand' && goal.scope.brand.kind === 'brand'
+                ? goal.scope.brand.id
+                : '',
+          });
+        }
+        truncated = result.page.has_more;
+        cursor = result.page.next_cursor;
+      } while (cursor && rows.length < limit);
     } else if (entity === 'workflow') {
       const result = await this.listWorkflows(caller, ws, { state: 'all' });
       const data = (result as { data: unknown[] }).data;
@@ -538,9 +681,17 @@ export class PortabilityService extends CalendarService {
       }
     };
     if (entity === 'project') {
-      const batch = await this.listProjects(caller, ws, { limit: Math.min(limit, 200) });
-      batch.data.forEach(append);
-      truncated = batch.total.value > rows.length;
+      let cursor: string | undefined;
+      do {
+        const batch = await this.query(caller, ws, 'project', {
+          query: { entity: 'project' },
+          limit: Math.min(200, limit - rows.length),
+          ...(cursor ? { cursor } : {}),
+        });
+        for (const row of batch.data) append(await this.getProject(caller, ws, row.id));
+        truncated = batch.page.has_more;
+        cursor = batch.page.next_cursor;
+      } while (cursor && rows.length < limit);
     } else if (entity === 'task') {
       let cursor: string | undefined;
       while (rows.length < limit) {
@@ -550,7 +701,7 @@ export class PortabilityService extends CalendarService {
         });
         batch.data.forEach(append);
         if (!batch.page.has_more || rows.length >= limit) {
-          truncated = rows.length >= limit || batch.page.has_more;
+          truncated = batch.page.has_more;
           break;
         }
         cursor = batch.page.next_cursor;
@@ -560,36 +711,34 @@ export class PortabilityService extends CalendarService {
     const headers = PORTABLE_FIELDS[entity as PortableEntity];
     let csv: string;
     try {
-      csv = suppliedCsv ?? serializeCsv(headers, rows);
+      csv = serializeCsv(headers, rows);
       if (Buffer.byteLength(csv, 'utf8') > CSV_LIMITS.bytes)
         throw new Error('csv_export_too_large');
     } catch {
       throw new TenancyError('limit_exceeded');
     }
     await this.inWorkspace(caller, ws, {}, async (tx, p) => {
-      if (entity !== 'goal')
-        await this.workAudit(
-          tx,
-          caller,
-          p,
-          'portability.exported',
-          { recordId: null, type: 'workspace', publicId: null },
-          [],
-          null,
-        );
-      if (entity !== 'goal')
-        await this.d.security.record(tx, {
-          category: 'export',
-          action: `portability.${entity}.export`,
-          outcome: 'success',
-          actor: { type: 'human', id: p.membershipId },
-          subject: { type: 'workspace', id: tx.workspaceId },
-          correlationId: caller.meta.correlationId,
-        });
+      await this.workAudit(
+        tx,
+        caller,
+        p,
+        'portability.exported',
+        { recordId: null, type: 'workspace', publicId: null },
+        [],
+        null,
+      );
+      await this.d.security.record(tx, {
+        category: 'export',
+        action: `portability.${entity}_export`,
+        outcome: 'success',
+        actor: { type: 'human', id: p.membershipId },
+        subject: { type: 'workspace', id: tx.workspaceId },
+        correlationId: caller.meta.correlationId,
+      });
     });
     return {
       csv,
-      rows: suppliedRows ?? rows.length,
+      rows: rows.length,
       truncated,
       filename: `workspace-${entity}s.csv`,
     };
@@ -670,7 +819,7 @@ export class PortabilityService extends CalendarService {
       );
       await this.d.security.record(tx, {
         category: 'export',
-        action: 'portability.import.preview',
+        action: 'portability.import_preview',
         outcome: resolved.preview.invalid ? 'failure' : 'success',
         actor: { type: 'human', id: p.membershipId },
         subject: { type: 'workspace', id: tx.workspaceId },
@@ -729,8 +878,15 @@ export class PortabilityService extends CalendarService {
     };
   }
 
-  /** Validation-only import endpoint foundation; applying rows is deliberately explicit. */
+  /** Canonical commands share one transaction when the user selects all rows or none. */
   async applyPortabilityImport(caller: Caller, ws: unknown, input: unknown, req: Mutation) {
+    const b = input && typeof input === 'object' ? (input as Record<string, unknown>) : {};
+    return b.mode === 'all_or_nothing'
+      ? this.atomicImport(caller, ws, () => this.applyImportRows(caller, ws, input, req))
+      : this.applyImportRows(caller, ws, input, req);
+  }
+
+  private async applyImportRows(caller: Caller, ws: unknown, input: unknown, req: Mutation) {
     await this.requirePortabilityScope(caller, 'records:write');
     const b = input && typeof input === 'object' ? (input as Record<string, unknown>) : {};
     if (typeof b.preview_id !== 'string') throw new TenancyError('validation_failed');
@@ -754,8 +910,6 @@ export class PortabilityService extends CalendarService {
     )
       throw new TenancyError('conflict');
     if (b.dry_run === true) return { preview, applied: 0, dry_run: true };
-    if (b.mode === 'all_or_nothing' && !['task', 'project'].includes(preview.entity))
-      throw new TenancyError('validation_failed');
     if (!req.idempotencyKey || req.idempotencyKey.length < 16)
       throw new TenancyError('validation_failed');
     // Apply only rows whose destinations are explicit existing public IDs; no tenant, role,
@@ -839,7 +993,7 @@ export class PortabilityService extends CalendarService {
       try {
         const created =
           preview.entity === 'task'
-            ? await this.createTask(
+            ? await this.createTaskWithOrigin(
                 caller,
                 ws,
                 {
@@ -857,6 +1011,7 @@ export class PortabilityService extends CalendarService {
                     : {}),
                 },
                 rowReq,
+                { kind: 'import', ref: { import_job: jobId, row: String(item.row) } },
               )
             : preview.entity === 'project'
               ? await this.createProject(
@@ -880,6 +1035,7 @@ export class PortabilityService extends CalendarService {
                     {
                       title: v.title,
                       ...(v.project_id ? { project: v.project_id } : {}),
+                      ...(!v.project_id && v.brand_id ? { brand: v.brand_id } : {}),
                       status: v.status || 'active',
                       basis: v.basis || 'manual',
                       period: JSON.parse(v.period ?? '{}') as unknown,
@@ -961,60 +1117,7 @@ export class PortabilityService extends CalendarService {
           version: createdData.version,
         });
       } catch (error) {
-        if (b.mode === 'all_or_nothing') {
-          for (const done of results.filter((r) => r.id)) {
-            try {
-              const rollbackKey = createHash('sha256')
-                .update(`${req.idempotencyKey}:rollback:${done.row}`)
-                .digest('hex')
-                .slice(0, 48);
-              if (preview.entity === 'task')
-                await this.taskLifecycle(
-                  caller,
-                  ws,
-                  done.id,
-                  'trash',
-                  {},
-                  { ...rowReq, idempotencyKey: `csv_rb_${rollbackKey}` },
-                );
-              else
-                await this.projectLifecycle(caller, ws, done.id, 'trash', {
-                  ...rowReq,
-                  idempotencyKey: `csv_rb_${rollbackKey}`,
-                });
-              await this.saveImportCheckpoint(caller, ws, jobId, done.row, 'rolled_back');
-            } catch {
-              throw new TenancyError('conflict');
-            }
-          }
-          await this.inWorkspace(caller, ws, {}, async (tx) => {
-            await tx.db
-              .updateTable('transfer.import_job')
-              .set({ state: 'failed', updated_at: new Date() })
-              .where('id', '=', jobId)
-              .execute();
-          });
-          await this.inWorkspace(caller, ws, {}, async (tx, p) => {
-            await this.workAudit(
-              tx,
-              caller,
-              p,
-              'portability.import_failed',
-              { recordId: null, type: 'workspace', publicId: null },
-              [],
-              null,
-            );
-            await this.d.security.record(tx, {
-              category: 'export',
-              action: 'portability.import',
-              outcome: 'failure',
-              actor: { type: 'human', id: p.membershipId },
-              subject: { type: 'workspace', id: tx.workspaceId },
-              correlationId: caller.meta.correlationId,
-            });
-          });
-          throw error;
-        }
+        if (b.mode === 'all_or_nothing') throw error;
         results.push({
           row: item.row,
           error: error instanceof TenancyError ? error.code : 'row_rejected',
@@ -1059,6 +1162,10 @@ export class PortabilityService extends CalendarService {
   }
 
   async rollbackPortabilityImport(caller: Caller, ws: unknown, jobValue: unknown, req: Mutation) {
+    return this.atomicImport(caller, ws, () => this.rollbackImportRows(caller, ws, jobValue, req));
+  }
+
+  private async rollbackImportRows(caller: Caller, ws: unknown, jobValue: unknown, req: Mutation) {
     await this.requirePortabilityScope(caller, 'records:write');
     if (!req.idempotencyKey || req.idempotencyKey.length < 16)
       throw new TenancyError('validation_failed');
@@ -1187,7 +1294,7 @@ export class PortabilityService extends CalendarService {
       );
       await this.d.security.record(tx, {
         category: 'export',
-        action: 'portability.import.rollback',
+        action: 'portability.import_rollback',
         outcome: 'success',
         actor: { type: 'human', id: p.membershipId },
         subject: { type: 'workspace', id: tx.workspaceId },

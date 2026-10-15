@@ -1,4 +1,4 @@
-# ADR-0035: CSV data portability
+# ADR-0036: CSV data portability
 
 Status: **candidate; implementation evidence is incomplete**
 
@@ -16,12 +16,13 @@ Phase 6D adds CSV portability to a system whose record readers, file handling, a
 | P2 | Export reads delegate to existing permission-filtered services. Export columns and filenames are static for the selected record type; inaccessible rows never enter counts or output. Direct exports are not retained as artifacts. |
 | P3 | Import mappings are allowlisted source-column-to-field maps, stored per workspace membership. Tenant, permission, membership, actor, and internal identifier values supplied in CSV are never authoritative. Existing service commands enforce destination permissions. |
 | P4 | Import provenance stores the bounded source values, source row key, resulting public identifier, and applied version. A digest plus per-row idempotency key makes retries deterministic; completed jobs replay their stored result. |
-| P5 | The configured recovery window is seven days. Rollback is permitted only for imported task/project/external-file-link rows that remain active at the exact applied version; a newer edit causes a conflict. Other record kinds cannot be rolled back by this endpoint. |
+| P5 | The configured recovery window defaults to seven days. Rollback requires the exact applied version and active state; newer edits cause a conflict. Canonical commands share one transaction for atomic import and rollback, so failures leave no partially changed records. Partial import mode checkpoints rows individually. |
 | P6 | CSV may create external file links only through the existing `addFileLink` command, which validates the URL and never fetches it. File bytes must use the existing upload, malware-scan, and storage-provider lifecycle. Without a configured scanner/storage provider, binary imports remain unavailable. |
 | P7 | Imports are sequential and bounded to 2,000 rows per operation; at most one import job per membership may be running. API callers require the existing `records:read` or `records:write` scope and existing rate limits. |
 | P8 | Import/export actions produce work audit entries and export/import security events. Error responses contain stable row codes and do not echo source values or inaccessible record facts. |
 | P9 | The accepted 6E chain retains migrations 0048 (MCP access) and 0049 (MCP provenance). The parallel 6D migration is deterministically numbered 0050 and rolls back to the exact 0049 catalog. Both phase migrations and their rollback evidence remain intact. |
 | P10 | OD-40 is resolved with `IMPORT_ROLLBACK_PERIOD`, default seven days and operator-configurable from one minute through 90 days. The configured value is milliseconds. Its deadline is stored per job and applies to completed and partial imports; it never changes workspace retention policy. |
+| P11 | Comments, activity, and time export delegate to their existing permission-aware readers. Export capability is checked before reading data, including empty exports. Import-created tasks have immutable import origin. Departure erasure removes mapping, preview, job and row source data. |
 
 ## Remaining implementation work
 

@@ -225,7 +225,7 @@ export class McpAccessService extends PortabilityService {
         .where(
           'c.public_id',
           'in',
-          rows.map((row) => row.id),
+          rows.length ? rows.map((row) => row.id) : ['ocl_00000000000000000000000000'],
         )
         .execute();
       return {

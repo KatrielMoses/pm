@@ -21,7 +21,9 @@ export function PortabilityPanel({ ws }: { ws: string }) {
   >([]);
   const [mappingVersion, setMappingVersion] = useState<number | null>(null);
   const [importJobId, setImportJobId] = useState<string | null>(null);
-  const supportsAtomic = entity === 'task' || entity === 'project';
+  const [rowResults, setRowResults] = useState<Array<{ row: number; id?: string; error?: string }>>(
+    [],
+  );
   const base = `/v1/workspaces/${ws}/portability`;
   useEffect(() => {
     let gone = false;
@@ -47,6 +49,8 @@ export function PortabilityPanel({ ws }: { ws: string }) {
   }, [base]);
   const chooseFile = async (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.currentTarget.files?.[0];
+    setCsv('');
+    setRowResults([]);
     setPreview(null);
     setMappingId('');
     setMappingVersion(null);
@@ -127,7 +131,7 @@ export function PortabilityPanel({ ws }: { ws: string }) {
       const mapping = JSON.parse(mappingText) as Record<string, string>;
       const current = mappings.find((item) => item.id === mappingId);
       const result = await api<{
-        data: { id: string; mapping_version: number };
+        data: { mapping: { id: string; mapping_version: number } };
       }>('POST', `${base}/imports/mappings`, {
         body: {
           name: mappingName,
@@ -137,15 +141,15 @@ export function PortabilityPanel({ ws }: { ws: string }) {
         },
         headers: { 'idempotency-key': newIdempotencyKey() },
       });
-      setMappingId(result.body.data.id);
-      setMappingVersion(result.body.data.mapping_version);
+      setMappingId(result.body.data.mapping.id);
+      setMappingVersion(result.body.data.mapping.mapping_version);
       setMappings((current) => [
-        ...current.filter((item) => item.id !== result.body.data.id),
+        ...current.filter((item) => item.id !== result.body.data.mapping.id),
         {
-          id: result.body.data.id,
+          id: result.body.data.mapping.id,
           name: mappingName,
           entity_kind: entity,
-          mapping_version: result.body.data.mapping_version,
+          mapping_version: result.body.data.mapping.mapping_version,
         },
       ]);
       setMessage('Mapping saved for your account.');
@@ -175,11 +179,17 @@ export function PortabilityPanel({ ws }: { ws: string }) {
             mapping: JSON.parse(mappingText) as Record<string, string>,
             preview_id: summary?.preview_id,
           };
-      const result = await api<{ data: { import_job_id?: string } }>('POST', `${base}/imports`, {
+      const result = await api<{
+        data: {
+          import_job_id?: string;
+          rows?: Array<{ row: number; id?: string; error?: string }>;
+        };
+      }>('POST', `${base}/imports`, {
         body,
         headers: { 'idempotency-key': newIdempotencyKey() },
       });
       setImportJobId(result.body.data.import_job_id ?? null);
+      setRowResults(result.body.data.rows ?? []);
       setMessage('Import finished. Review the row results below.');
     } catch {
       setMessage('The import could not be completed. No row details were disclosed.');
@@ -231,7 +241,9 @@ export function PortabilityPanel({ ws }: { ws: string }) {
           onChange={(event) => {
             const next = event.target.value as typeof entity;
             setEntity(next);
-            if (next !== 'task' && next !== 'project') setMode('partial');
+            setMappingId('');
+            setMappingVersion(null);
+            setRowResults([]);
             setPreview(null);
           }}
         >
@@ -278,6 +290,7 @@ export function PortabilityPanel({ ws }: { ws: string }) {
           onChange={(event) => {
             setMappingText(event.target.value);
             setMappingId('');
+            setPreview(null);
           }}
           aria-describedby="portability-mapping-help"
         />
@@ -300,9 +313,7 @@ export function PortabilityPanel({ ws }: { ws: string }) {
           value={mode}
           onChange={(event) => setMode(event.target.value as typeof mode)}
         >
-          <option value="all_or_nothing" disabled={!supportsAtomic}>
-            All rows or none
-          </option>
+          <option value="all_or_nothing">All rows or none</option>
           <option value="partial">Apply valid rows</option>
         </select>
         <button type="button" onClick={inspect} disabled={busy || !csv}>
@@ -319,6 +330,15 @@ export function PortabilityPanel({ ws }: { ws: string }) {
           </button>
         ) : null}
       </div>
+      {rowResults.length ? (
+        <ul aria-label="Import row results" aria-live="polite">
+          {rowResults.map((row) => (
+            <li key={row.row}>
+              Row {row.row}: {row.error ? `Not imported (${row.error})` : 'Imported'}
+            </li>
+          ))}
+        </ul>
+      ) : null}
       {summary ? (
         <div aria-live="polite">
           <h3>Preview results</h3>

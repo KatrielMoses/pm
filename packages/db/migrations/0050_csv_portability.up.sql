@@ -1,5 +1,7 @@
 -- migrate:phase expand
 -- Phase 6D: bounded, tenant-isolated import provenance and resumable row checkpoints.
+-- The 6B discovery function also filters claimed_until; its owner requires this column grant.
+GRANT SELECT (claimed_until) ON integrations.webhook_delivery TO pm_scheduler;
 CREATE SCHEMA transfer;
 REVOKE ALL ON SCHEMA transfer FROM PUBLIC;
 GRANT USAGE ON SCHEMA transfer TO app_rw;
@@ -35,7 +37,7 @@ CREATE TABLE transfer.import_job (
   CONSTRAINT import_job_schema CHECK (schema_version = '1'),
   CONSTRAINT import_job_state CHECK (state IN ('previewed', 'running', 'partial', 'completed', 'failed', 'rolled_back')),
   CONSTRAINT import_job_mode CHECK (apply_mode IN ('partial', 'all_or_nothing')),
-  CONSTRAINT import_job_counts CHECK (row_count BETWEEN 0 AND 2000 AND applied_count BETWEEN 0 AND row_count AND error_count BETWEEN 0 AND row_count AND checkpoint_row BETWEEN 0 AND row_count)
+  CONSTRAINT import_job_counts CHECK (row_count BETWEEN 0 AND 2000 AND applied_count BETWEEN 0 AND row_count AND error_count BETWEEN 0 AND row_count AND (checkpoint_row = 0 OR checkpoint_row BETWEEN 2 AND row_count + 1))
 );
 CREATE UNIQUE INDEX import_job_dedupe ON transfer.import_job (workspace_id, owner_membership_id, content_sha256, entity_kind, apply_mode)
   WHERE state IN ('previewed', 'running', 'partial', 'completed');
@@ -73,7 +75,7 @@ CREATE UNIQUE INDEX import_mapping_owner_name ON transfer.import_mapping
   (workspace_id, owner_membership_id, lower(name));
 
 CREATE TABLE transfer.import_row (
-  workspace_id uuid NOT NULL,
+  workspace_id uuid NOT NULL REFERENCES tenancy.workspace (id) ON DELETE RESTRICT,
   import_job_id uuid NOT NULL,
   row_number integer NOT NULL,
   source_row_key text,
@@ -140,3 +142,4 @@ CREATE POLICY tenant_isolation ON transfer.import_preview
 REVOKE ALL ON transfer.import_job, transfer.import_row, transfer.import_mapping, transfer.import_preview FROM PUBLIC;
 GRANT SELECT, INSERT, UPDATE, DELETE ON transfer.import_job, transfer.import_row, transfer.import_mapping, transfer.import_preview TO app_rw;
 GRANT SELECT, INSERT, UPDATE, DELETE ON transfer.import_job, transfer.import_row TO app_worker;
+GRANT SELECT, DELETE ON transfer.import_preview, transfer.import_mapping TO app_worker;

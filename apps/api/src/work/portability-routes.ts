@@ -26,13 +26,7 @@ export function registerPortability(app: FastifyInstance, work: PortabilityServi
       return reply
         .code(201)
         .header('cache-control', 'private, no-store')
-        .send(
-          nonResourceEnvelope(
-            'portability_import_mapping',
-            data as unknown as Record<string, unknown>,
-            m(request),
-          ),
-        );
+        .send(nonResourceEnvelope('portability_import_mapping', { mapping: data }, m(request)));
     }),
   );
   app.delete(
@@ -50,7 +44,9 @@ export function registerPortability(app: FastifyInstance, work: PortabilityServi
     `${base}/exports/:entity.csv`,
     wrap(async (request, reply) => {
       const entity = (request.params as { entity?: string }).entity ?? '';
-      const result = await work.exportPortabilityCsv(caller(request), p(request).ws, entity);
+      const result = ['comments', 'time', 'task_activity', 'project_activity'].includes(entity)
+        ? await work.exportPortabilityHistory(caller(request), p(request).ws, entity, request.query)
+        : await work.exportPortabilityCsv(caller(request), p(request).ws, entity);
       return reply
         .code(200)
         .header('content-type', 'text/csv; charset=utf-8')

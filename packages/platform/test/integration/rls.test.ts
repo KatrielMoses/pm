@@ -187,6 +187,10 @@ const PHASE_1C_TENANT_TABLES = [
   'integrations.oauth_consent',
   'integrations.oauth_access_token',
   'integrations.mcp_invocation',
+  'transfer.import_job',
+  'transfer.import_row',
+  'transfer.import_mapping',
+  'transfer.import_preview',
   // Phase 4E files, versions, upload sessions, deliverables, and storage usage.
   'files.file_object',
   'files.file',

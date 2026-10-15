@@ -43,7 +43,7 @@ def check_candidate():
         errors.append("6D candidate omits owned requirements: " + ", ".join(sorted(owned - set(requirements))))
     if any(requirements[item].get("disposition") != "in_progress" for item in owned):
         errors.append("open 6D requirements must not be marked implemented")
-    adr = read(P("docs/engineering/adr/0035-data-portability.md"))
+    adr = read(P("docs/engineering/adr/0036-data-portability.md"))
     for decision in ("P1", "P2", "P3", "P4", "P5", "P6", "P7", "P8", "P9"):
         if "| %s |" % decision not in adr:
             errors.append("ADR-0035 is missing decision %s" % decision)

@@ -172,6 +172,7 @@ export const PORTABLE_FIELDS = Object.freeze({
     'baseline',
     'target',
     'current',
+    'brand_id',
     'project_id',
     'source_actor',
     'created_at',
