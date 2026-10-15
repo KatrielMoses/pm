@@ -41,7 +41,7 @@ export function createWorkService(deps: {
   platform: PlatformDatabase;
   identity: CollaborationIdentityPort;
   config: Pick<ServerConfig, 'identity' | 'lifecycle' | 'audit' | 'tenancy' | 'views'> &
-    Partial<Pick<ServerConfig, 'files'>> & {
+    Partial<Pick<ServerConfig, 'files' | 'env'>> & {
       work?: WorkSettings;
     };
   logger: Logger;
@@ -81,6 +81,9 @@ export function createWorkService(deps: {
       : null;
   if (!vault) throw new Error('Secret vault is required for integrations');
   return new McpAccessService({
+    portabilityEntitlements: {
+      auditExportAllowed: async () => config.env === 'local' || config.env === 'test',
+    },
     vault,
     // 4E: object storage and malware scanning, each absent until configured (never claimed).
     files: {

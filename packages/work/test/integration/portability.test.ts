@@ -1,7 +1,7 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { createTestDatabase, type TestDatabase } from '@pm/test-support/vitest';
 import type { Caller } from '@pm/tenancy';
-import { parseCsv, previewCsv } from '../../src/portability/csv.ts';
+import { parseCsv, previewCsv, serializeCsv } from '../../src/portability/csv.ts';
 import { join, mutation, workEnv, workspaceWith, type WorkEnv } from './fixture.ts';
 
 describe('CSV portability operations (6D)', () => {
@@ -281,4 +281,104 @@ describe('CSV portability operations (6D)', () => {
       await env.svc.rollbackPortabilityImport(owner, ws, result.import_job_id, mutation()),
     ).toMatchObject({ rolled_back: [2] });
   });
+
+  it('gates audit export by authority, entitlement and fresh verification', async () => {
+    const reader = await join(env, db, owner, ws, { kind: 'member', role: 'read_only' });
+    await expect(env.svc.exportPortabilityAudit(reader, ws, mutation())).rejects.toMatchObject({
+      code: 'forbidden',
+    });
+    const disabled = workEnv(db, { auditExportAllowed: false });
+    await expect(disabled.svc.exportPortabilityAudit(owner, ws, mutation())).rejects.toMatchObject({
+      code: 'forbidden',
+    });
+    await expect(env.svc.exportPortabilityAudit(owner, ws, mutation())).rejects.toMatchObject({
+      code: 'step_up_required',
+    });
+    env.stepUp.allow = true;
+    try {
+      const result = await env.svc.exportPortabilityAudit(
+        owner,
+        ws,
+        mutation({ stepUpToken: 't' }),
+      );
+      expect(result.data.csv).toContain('occurred_at');
+      expect(result.data.csv).not.toContain('source_values');
+      expect(result.data.rows).toBeGreaterThan(0);
+    } finally {
+      env.stepUp.allow = false;
+    }
+  });
+
+  it('resolves an explicit source-row parent through canonical task authorization', async () => {
+    const csv = `schema_version,source_row_key,title,brand_id,parent_id\n1,tree-parent,Imported parent,${brand},\n1,tree-child,Imported child,,@tree-parent`;
+    const preview = await env.svc.previewPortabilityImportFor(owner, ws, { csv, entity: 'task' });
+    const result = await env.svc.applyPortabilityImport(
+      owner,
+      ws,
+      {
+        csv,
+        entity: 'task',
+        preview_id: preview.preview_id,
+        mode: 'all_or_nothing',
+      },
+      mutation(),
+    );
+    expect(result.applied).toBe(2);
+    const child = await env.svc.getTask(owner, ws, result.rows![1]!.id);
+    expect(child.parent).toMatchObject({ id: result.rows![0]!.id });
+    expect(
+      await env.svc.rollbackPortabilityImport(owner, ws, result.import_job_id, mutation()),
+    ).toMatchObject({ rolled_back: [3, 2] });
+  });
+
+  it.each([
+    ['project', { name: 'CSV project' }],
+    [
+      'workflow',
+      {
+        name: 'CSV workflow',
+        record_kind: 'task',
+        scope: 'workspace',
+        statuses: [
+          { name: 'Ready', category: 'planned' },
+          { name: 'Done', category: 'done' },
+        ],
+      },
+    ],
+    ['field', { name: 'CSV field', field_type: 'text', scope: 'workspace', applies_to: ['task'] }],
+    [
+      'goal',
+      { title: 'CSV goal', period: { kind: 'custom', start: '2026-01-01', end: '2026-12-31' } },
+    ],
+    ['document', { title: 'CSV document', document_type: 'page' }],
+    ['file', { name: 'CSV external reference', link_url: 'https://example.test/reference' }],
+  ] as const)(
+    'imports and rolls back supported %s rows through canonical commands',
+    async (entity, values) => {
+      const row = {
+        schema_version: '1',
+        ...values,
+        ...(entity === 'project' ? { brand_id: brand } : {}),
+      };
+      const csv = serializeCsv(Object.keys(row), [row]);
+      const preview = await env.svc.previewPortabilityImportFor(owner, ws, { csv, entity });
+      expect(preview.invalid, JSON.stringify(preview.rows)).toBe(0);
+      const result = await env.svc.applyPortabilityImport(
+        owner,
+        ws,
+        {
+          csv,
+          entity,
+          preview_id: preview.preview_id,
+          mode: 'all_or_nothing',
+        },
+        mutation(),
+      );
+      expect(result.applied).toBe(1);
+      expect(result.rows?.[0]?.id).toBeTruthy();
+      expect(
+        await env.svc.rollbackPortabilityImport(owner, ws, result.import_job_id, mutation()),
+      ).toMatchObject({ rolled_back: [2] });
+    },
+  );
 });

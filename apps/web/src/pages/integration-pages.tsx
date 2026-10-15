@@ -1,17 +1,23 @@
 import { IntegrationsPanel } from '../integrations/panel.tsx';
 import { useEffect, useState, type ChangeEvent } from 'react';
-import { api, newIdempotencyKey } from '../api.ts';
+import { api, newIdempotencyKey, protectedRequest } from '../api.ts';
+import { useStepUp } from '../stepup.tsx';
 import { Banner } from '../ui/feedback.tsx';
 import { Page } from '../ui/layout.tsx';
 
 const ENTITIES = ['task', 'project', 'workflow', 'field', 'goal', 'document', 'file'] as const;
 
 export function PortabilityPanel({ ws }: { ws: string }) {
+  const stepUp = useStepUp();
   const [entity, setEntity] = useState<(typeof ENTITIES)[number]>('task');
   const [csv, setCsv] = useState('');
   const [preview, setPreview] = useState<Record<string, unknown> | null>(null);
   const [message, setMessage] = useState('');
   const [busy, setBusy] = useState(false);
+  const [historyKind, setHistoryKind] = useState('comments');
+  const [historyRecord, setHistoryRecord] = useState('');
+  const [historyFrom, setHistoryFrom] = useState('');
+  const [historyTo, setHistoryTo] = useState('');
   const [mode, setMode] = useState<'all_or_nothing' | 'partial'>('all_or_nothing');
   const [mappingText, setMappingText] = useState('{}');
   const [mappingName, setMappingName] = useState('');
@@ -83,24 +89,59 @@ export function PortabilityPanel({ ws }: { ws: string }) {
       setMessage('The file must be valid UTF-8 CSV smaller than 5 MB.');
     }
   };
-  const download = async () => {
+  const download = async (history = false) => {
     setBusy(true);
     setMessage('');
     try {
-      const response = await fetch(`${base}/exports/${entity}.csv`, { credentials: 'same-origin' });
+      const params = new URLSearchParams(
+        history ? { record: historyRecord, from: historyFrom, to: historyTo } : {},
+      );
+      const kind = history ? historyKind : entity;
+      const response = await fetch(`${base}/exports/${kind}.csv?${params}`, {
+        credentials: 'same-origin',
+      });
       if (!response.ok) throw new Error();
       const blob = await response.blob();
       const href = URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = href;
-      link.download = `workspace-${entity}s.csv`;
+      link.download = history ? `workspace-${kind}.csv` : `workspace-${entity}s.csv`;
       document.body.append(link);
       link.click();
       link.remove();
       URL.revokeObjectURL(href);
-      setMessage('Export downloaded.');
+      setMessage(
+        response.headers.get('x-export-truncated') === 'true'
+          ? 'A partial export was downloaded. The record limit was reached.'
+          : 'Export downloaded.',
+      );
     } catch {
       setMessage('The export could not be created.');
+    } finally {
+      setBusy(false);
+    }
+  };
+  const downloadAudit = async () => {
+    setBusy(true);
+    setMessage('');
+    try {
+      const result = await protectedRequest<{ data: { csv: string; filename: string } }>(
+        'POST',
+        `${base}/exports/audit`,
+        {},
+        stepUp,
+      );
+      const href = URL.createObjectURL(new Blob([result.body.data.csv], { type: 'text/csv' }));
+      const link = document.createElement('a');
+      link.href = href;
+      link.download = result.body.data.filename;
+      document.body.append(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(href);
+      setMessage('Audit history exported.');
+    } catch {
+      setMessage('Audit export requires administrator access, an eligible plan, and verification.');
     } finally {
       setBusy(false);
     }
@@ -253,8 +294,57 @@ export function PortabilityPanel({ ws }: { ws: string }) {
             </option>
           ))}
         </select>
-        <button type="button" onClick={download} disabled={busy}>
+        <button type="button" onClick={() => download()} disabled={busy}>
           Export CSV
+        </button>
+      </div>
+      <div className="portability-controls">
+        <h3>Export history and relationships</h3>
+        <label htmlFor="portability-history">History type</label>
+        <select
+          id="portability-history"
+          value={historyKind}
+          onChange={(e) => setHistoryKind(e.target.value)}
+        >
+          <option value="comments">Comments</option>
+          <option value="task_detail">Task relationships and details</option>
+          <option value="task_activity">Task activity</option>
+          <option value="project_activity">Project activity</option>
+          <option value="time">Time records</option>
+        </select>
+        {historyKind === 'comments' || historyKind === 'task_detail' ? (
+          <>
+            <label htmlFor="portability-record">Record reference</label>
+            <input
+              id="portability-record"
+              value={historyRecord}
+              onChange={(e) => setHistoryRecord(e.target.value)}
+            />
+          </>
+        ) : null}
+        {historyKind === 'time' ? (
+          <>
+            <label htmlFor="portability-from">From date</label>
+            <input
+              id="portability-from"
+              type="date"
+              value={historyFrom}
+              onChange={(e) => setHistoryFrom(e.target.value)}
+            />
+            <label htmlFor="portability-to">To date</label>
+            <input
+              id="portability-to"
+              type="date"
+              value={historyTo}
+              onChange={(e) => setHistoryTo(e.target.value)}
+            />
+          </>
+        ) : null}
+        <button type="button" disabled={busy} onClick={() => download(true)}>
+          Export history CSV
+        </button>
+        <button type="button" disabled={busy} onClick={downloadAudit}>
+          Export audit history
         </button>
       </div>
       <div className="portability-controls">
@@ -323,6 +413,14 @@ export function PortabilityPanel({ ws }: { ws: string }) {
           <button type="button" onClick={apply} disabled={busy}>
             Apply import
           </button>
+        ) : null}
+        {importJobId ? (
+          <a
+            href={`${base}/imports/${encodeURIComponent(importJobId)}/errors.csv`}
+            download="import-errors.csv"
+          >
+            Download row errors
+          </a>
         ) : null}
         {importJobId ? (
           <button type="button" onClick={rollback} disabled={busy}>

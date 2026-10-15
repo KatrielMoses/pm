@@ -63,7 +63,8 @@ function quoteCell(value: unknown): string {
         ? value
         : (JSON.stringify(value) ?? String(value));
   // Spreadsheet formula injection; prefix dangerous leading characters even after whitespace.
-  if (/^\s*[=+@-]/.test(text)) text = `'${text}`;
+  if (!(typeof value === 'number' && Number.isFinite(value)) && /^\s*[=+@-]/.test(text))
+    text = `'${text}`;
   return /[",\r\n]/.test(text) ? `"${text.replaceAll('"', '""')}"` : text;
 }
 

@@ -363,7 +363,8 @@ describe('database-enforced workspace existence (1A review 01, correction 2)', (
     // and portfolio projects (4): +37;
     // 5C status spans (2) and reconciliation state (1): +3;
     // 5D dashboards (7), report definitions (7), recipients (4), shares (5), and runs (3): +26.
-    expect(res.rows.length).toBe(531);
+    // 6D adds the direct workspace-root constraint for import rows alongside their composite job key.
+    expect(res.rows.length).toBe(532);
     for (const r of res.rows)
       expect(r, `${r.tbl}.${r.conname}`).toMatchObject({
         referencing_indexed: true,

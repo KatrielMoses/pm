@@ -59,6 +59,8 @@ import {
 } from './validation.ts';
 
 export interface WorkDeps extends NavigationDeps {
+  /** Commercial entitlement boundary supplied by 10A; deny when no provider is configured. */
+  portabilityEntitlements?: { auditExportAllowed(workspaceId: string): Promise<boolean> };
   work?: WorkSettings;
   /** Whether an email provider is configured (4B readiness); absent means none. */
   notify?: { emailState: 'configured' | 'capture' | 'unconfigured' };
@@ -145,6 +147,7 @@ function pg(err: unknown): { code?: string; constraint?: string; message?: strin
  * is audited by the `work` module writer; authority rows are written only through tenancy.
  */
 export class ProjectService extends NavigationService {
+  protected readonly portabilityEntitlements: WorkDeps['portabilityEntitlements'];
   protected readonly ws: WorkSettings;
   protected readonly workWriter: AuditWriter;
 
@@ -155,6 +158,7 @@ export class ProjectService extends NavigationService {
 
   constructor(deps: WorkDeps) {
     super(deps);
+    this.portabilityEntitlements = deps.portabilityEntitlements;
     this.ws = deps.work ?? DEFAULT_WORK_SETTINGS;
     this.workWriter = new AuditWriter({
       module: 'work',

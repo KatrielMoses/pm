@@ -6,9 +6,35 @@ import { routeKit } from '../route-kit.ts';
 type Params = { ws?: string };
 
 export function registerPortability(app: FastifyInstance, work: PortabilityService): void {
-  const { m, caller, mutation, wrap } = routeKit();
+  const { m, caller, mutation, wrap, resource } = routeKit();
   const p = (request: FastifyRequest) => request.params as Params;
   const base = '/v1/workspaces/:ws/portability';
+  app.get(
+    `${base}/imports/:job/errors.csv`,
+    wrap(async (request, reply) => {
+      const result = await work.exportImportErrors(
+        caller(request),
+        p(request).ws,
+        (request.params as { job: string }).job,
+      );
+      return reply
+        .header('content-type', 'text/csv; charset=utf-8')
+        .header('cache-control', 'private, no-store')
+        .header('content-disposition', 'attachment; filename="import-errors.csv"')
+        .send(result.csv);
+    }),
+  );
+  app.post(
+    `${base}/exports/audit`,
+    wrap(async (request, reply) => {
+      const result = await work.exportPortabilityAudit(
+        caller(request),
+        p(request).ws,
+        mutation(request),
+      );
+      return resource(request, reply, result.data, result);
+    }),
+  );
   app.get(
     `${base}/imports/mappings`,
     wrap(async (request, reply) => {
@@ -44,13 +70,27 @@ export function registerPortability(app: FastifyInstance, work: PortabilityServi
     `${base}/exports/:entity.csv`,
     wrap(async (request, reply) => {
       const entity = (request.params as { entity?: string }).entity ?? '';
-      const result = ['comments', 'time', 'task_activity', 'project_activity'].includes(entity)
+      const result = [
+        'comments',
+        'time',
+        'task_detail',
+        'task_activity',
+        'project_activity',
+      ].includes(entity)
         ? await work.exportPortabilityHistory(caller(request), p(request).ws, entity, request.query)
-        : await work.exportPortabilityCsv(caller(request), p(request).ws, entity);
+        : await work.exportPortabilityCsv(
+            caller(request),
+            p(request).ws,
+            entity,
+            undefined,
+            (request.query as { host?: string }).host ?? 'workspace',
+          );
       return reply
         .code(200)
         .header('content-type', 'text/csv; charset=utf-8')
         .header('content-disposition', `attachment; filename="${result.filename}"`)
+        .header('x-export-rows', String(result.rows))
+        .header('x-export-truncated', String(result.truncated))
         .header('cache-control', 'private, no-store')
         .send(result.csv);
     }),

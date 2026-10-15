@@ -1,6 +1,6 @@
 # ADR-0036: CSV data portability
 
-Status: **candidate; implementation evidence is incomplete**
+Status: **proposed; implementation complete, acceptance pending full CI**
 
 Date: 2026-10-14
 
@@ -24,6 +24,6 @@ Phase 6D adds CSV portability to a system whose record readers, file handling, a
 | P10 | OD-40 is resolved with `IMPORT_ROLLBACK_PERIOD`, default seven days and operator-configurable from one minute through 90 days. The configured value is milliseconds. Its deadline is stored per job and applies to completed and partial imports; it never changes workspace retention policy. |
 | P11 | Comments, activity, and time export delegate to their existing permission-aware readers. Export capability is checked before reading data, including empty exports. Import-created tasks have immutable import origin. Departure erasure removes mapping, preview, job and row source data. |
 
-## Remaining implementation work
+## Scope and final verification
 
-The present code is a candidate. Workspace/brand/user/label/comment/time/activity/AI/agent/automation history imports and exports, portable goal round-tripping, uploaded-file import, full browser/accessibility regression coverage, and the no-skip acceptance pipeline remain unverified or incomplete. This ADR does not mark Phase 6D accepted.
+The seven supported metadata schemas, history exports, audit entitlement boundary and migration limitations are documented in [Data portability](../data-portability.md). Generic CSV is the launch import path. Named vendor adapters remain incremental post-launch work under OD-33; AI/agent/automation history is unavailable until 7A/8A/8B. Accounts, grants and workspace onboarding remain outside the CSV authority. Binary uploads use the existing 4E scanner/storage lifecycle. This ADR remains proposed until the architect reviews the complete CI evidence.

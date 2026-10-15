@@ -74,6 +74,7 @@ export function workEnv(
   db: TestDatabase,
   options: {
     arrayMax?: number;
+    auditExportAllowed?: boolean;
     work?: Partial<WorkSettings>;
     captureRate?: number;
     intakeRate?: number;
@@ -142,6 +143,7 @@ export function workEnv(
     tenant: h.app,
     platform: h.platform,
     writer,
+    portabilityEntitlements: { auditExportAllowed: async () => options.auditExportAllowed ?? true },
     security: new AuditSecurityEventSink(metrics),
     lifecycle,
     stepUp: port,

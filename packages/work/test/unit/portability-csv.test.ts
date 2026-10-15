@@ -11,6 +11,8 @@ describe('CSV portability boundaries', () => {
     const csv = serializeCsv(['title'], [{ title: '=HYPERLINK("x")' }, { title: 'normal' }]);
     expect(parseCsv(csv)[1]?.[0]).toBe('\'=HYPERLINK("x")');
     expect(parseCsv(csv)[2]?.[0]).toBe('normal');
+    expect(parseCsv(serializeCsv(['value'], [{ value: -42 }]))[1]?.[0]).toBe('-42');
+    expect(parseCsv(serializeCsv(['value'], [{ value: '-cmd' }]))[1]?.[0]).toBe("'-cmd");
   });
 
   it('applies explicit mappings deterministically and returns row scoped validation errors', () => {

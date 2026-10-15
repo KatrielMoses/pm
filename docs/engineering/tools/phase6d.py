@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Phase 6D candidate validator; open requirements remain visible until acceptance."""
+"""Phase 6D closure validator: evidence is required for every owned requirement."""
 import json
 import os
 import sys
@@ -41,8 +41,24 @@ def check_candidate():
         errors.append("6D closure must remain candidate until acceptance")
     if not owned.issubset(requirements):
         errors.append("6D candidate omits owned requirements: " + ", ".join(sorted(owned - set(requirements))))
-    if any(requirements[item].get("disposition") != "in_progress" for item in owned):
-        errors.append("open 6D requirements must not be marked implemented")
+    for item in sorted(owned):
+        row = requirements.get(item, {})
+        if row.get("disposition") not in ("implemented", "foundation"):
+            errors.append(item + " is not implemented or an explicitly recorded foundation")
+        if row.get("disposition") == "foundation" and not row.get("deferred_to"):
+            errors.append(item + " has no named deferral")
+        if not row.get("evidence"):
+            errors.append(item + " has no evidence")
+        for citation in row.get("evidence", []):
+            path, contains = citation.get("file", ""), citation.get("contains", "")
+            if not path or not contains or not os.path.isfile(P(path)):
+                errors.append(item + " has invalid evidence")
+            elif contains not in read(P(path)):
+                errors.append(item + " evidence is stale: " + path)
+    if requirements.get("DATA-010", {}).get("disposition") != "foundation":
+        errors.append("DATA-010 vendor adapters remain post-launch under OD-33")
+    if requirements.get("DATA-013", {}).get("disposition") != "foundation":
+        errors.append("DATA-013 later histories remain owned by 7A/8A/8B")
     adr = read(P("docs/engineering/adr/0036-data-portability.md"))
     for decision in ("P1", "P2", "P3", "P4", "P5", "P6", "P7", "P8", "P9"):
         if "| %s |" % decision not in adr:
@@ -66,6 +82,10 @@ def check_surfaces():
         ("configured rollback window", "IMPORT_ROLLBACK_WINDOW_MS" in service),
         ("transfer schema types", all("transfer." + t in schema for t in ("import_job", "import_row", "import_mapping"))),
         ("accessible import preview", 'aria-label="Row errors"' in web and "portability-file" in web),
+        ("atomic import transaction", "AsyncLocalStorage" in service and "atomicImport" in service),
+        ("history exports", "exportPortabilityHistory" in service and "listReplies" in service),
+        ("audit export gate", "auditExportAllowed" in service and "'audit.export'" in service),
+        ("portability browser regression", os.path.isfile(P("e2e/portability.spec.ts"))),
     ]
     errors.extend(label + " is missing" for label, passed in checks if not passed)
     errors.extend(phase1.check_migrations()[0])
@@ -86,7 +106,7 @@ def main():
         failed += bool(errors)
     closure = load(P("docs/engineering/phase6/closure-6d.json"))
     open_count = sum(r["disposition"] == "in_progress" for r in closure["requirements"] if r["role"] == "owned")
-    print("PHASE 6D CANDIDATE: %s (%d owned requirements remain open)" % ("PASS" if not failed else "FAIL", open_count))
+    print("PHASE 6D CLOSURE: %s (%d owned requirements remain open)" % ("PASS" if not failed else "FAIL", open_count))
     return 1 if failed else 0
 
 

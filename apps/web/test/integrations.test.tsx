@@ -2,6 +2,7 @@ import { cleanup, render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { ConnectionList, type ConnectionView } from '../src/integrations/panel.tsx';
 import { PortabilityPanel } from '../src/pages/integration-pages.tsx';
+import { StepUpProvider } from '../src/stepup.tsx';
 
 afterEach(() => {
   cleanup();
@@ -45,7 +46,11 @@ describe('CSV portability panel', () => {
         }),
       ),
     );
-    render(<PortabilityPanel ws="wsp_01ARZ3NDEKTSV4RRFFQ69G5FAV" />);
+    render(
+      <StepUpProvider>
+        <PortabilityPanel ws="wsp_01ARZ3NDEKTSV4RRFFQ69G5FAV" />
+      </StepUpProvider>,
+    );
     expect(screen.getByLabelText('Record type')).toBeTruthy();
     expect(screen.getByLabelText(/CSV file/)).toBeTruthy();
     expect(screen.getByLabelText('Import behavior')).toBeTruthy();
