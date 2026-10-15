@@ -336,8 +336,16 @@ test('reaches the search field and every filter with the keyboard alone @desktop
   // The select is reached by Tab; choosing in a native select is the browser's own keyboard
   // handling (it differs by platform), so the choice itself is made through the control.
   await tabTo(page, `el.matches('#main select')`);
+  const filtered = page.waitForResponse((response) => {
+    const url = new URL(response.url());
+    return url.pathname === `${s.base}/search` && url.searchParams.get('state') === 'any';
+  });
   await page.locator('#main select:focus').selectOption('any');
   await expect(page).toHaveURL(/state=any/);
+  expect((await filtered).ok()).toBe(true);
+  // The URL updates before its request settles. Old rows remain visible during refresh and may
+  // disappear when the filter arrives, taking their focus with them. Tab through current rows.
+  await expect(page.locator('.search-results-region')).toHaveAttribute('aria-busy', 'false');
   // Every result link is reachable in order and opens by Enter.
   await tabTo(page, `el.matches('.search-result .search-title a[href]')`);
   await expect(page.locator('.search-result .search-title a:focus')).toHaveCount(1);
