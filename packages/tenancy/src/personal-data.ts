@@ -59,6 +59,9 @@ const OWNED_PERSONAL_TABLES = [
   'work.bulk_operation',
   'work.undo_entry',
   'search.recent_search',
+  'transfer.import_job',
+  'transfer.import_preview',
+  'transfer.import_mapping',
 ] as const;
 
 /**

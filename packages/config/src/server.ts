@@ -350,6 +350,7 @@ export interface ServerConfig {
     oauthClientsMax: number;
     mcpToolCallTimeoutMs: number;
     mcpToolResultMaxBytes: number;
+    importRollbackPeriodMs: number;
     documentEmbedUrlMaxChars: number;
     signedUrlLifetimeSeconds: number;
     uploadSessionLifetimeSeconds: number;
@@ -776,6 +777,7 @@ const DEFAULTS = {
   OAUTH_CLIENTS_MAX: '20',
   MCP_TOOL_CALL_TIMEOUT_MS: '30000',
   MCP_TOOL_RESULT_MAX_BYTES: '65536',
+  IMPORT_ROLLBACK_PERIOD: '604800000',
   DOCUMENT_EMBED_URL_MAX_CHARS: '2048',
   SIGNED_URL_LIFETIME: '300',
   UPLOAD_SESSION_LIFETIME: '3600',
@@ -1115,6 +1117,7 @@ const schema = z.object({
   OAUTH_CLIENTS_MAX: int(1, 500),
   MCP_TOOL_CALL_TIMEOUT_MS: int(1000, 120_000),
   MCP_TOOL_RESULT_MAX_BYTES: int(1024, 1_048_576),
+  IMPORT_ROLLBACK_PERIOD: int(60_000, 7_776_000_000),
   DOCUMENT_EMBED_URL_MAX_CHARS: int(128, 8192),
   SIGNED_URL_LIFETIME: int(30, 3600),
   UPLOAD_SESSION_LIFETIME: int(300, 86400),
@@ -1787,6 +1790,7 @@ export function loadServerConfig(options: LoadOptions): ServerConfig {
       oauthClientsMax: c.OAUTH_CLIENTS_MAX,
       mcpToolCallTimeoutMs: c.MCP_TOOL_CALL_TIMEOUT_MS,
       mcpToolResultMaxBytes: c.MCP_TOOL_RESULT_MAX_BYTES,
+      importRollbackPeriodMs: c.IMPORT_ROLLBACK_PERIOD,
       documentEmbedUrlMaxChars: c.DOCUMENT_EMBED_URL_MAX_CHARS,
       signedUrlLifetimeSeconds: c.SIGNED_URL_LIFETIME,
       uploadSessionLifetimeSeconds: c.UPLOAD_SESSION_LIFETIME,

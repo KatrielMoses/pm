@@ -22,6 +22,7 @@ import { registerIntegrations } from './integration-routes.ts';
 import { registerMcp } from '../mcp/routes.ts';
 import { registerViews } from './view-routes.ts';
 import { registerWorkflows } from './workflow-routes.ts';
+import { registerPortability } from './portability-routes.ts';
 
 export interface WorkRouteDeps {
   work: McpAccessService;
@@ -76,6 +77,7 @@ export function registerWork(app: FastifyInstance, deps: WorkRouteDeps): void {
   registerInsights(app, work);
   registerPublicApi(app, work);
   registerIntegrations(app, work);
+  registerPortability(app, work);
   registerMcp(app, work);
 
   app.get(

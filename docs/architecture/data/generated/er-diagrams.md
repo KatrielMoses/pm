@@ -360,6 +360,8 @@ erDiagram
 erDiagram
   operation ||--|| import_job : "extends"
   import_job ||--o{ import_row : "contains"
+  import_preview }o..o{ import_mapping : "references"
+  import_preview }o..o{ membership : "references"
   operation ||--|| export_job : "extends"
   export_job ||--o{ export_file : "contains"
 ```

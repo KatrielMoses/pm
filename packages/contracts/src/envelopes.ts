@@ -257,6 +257,11 @@ export const NON_RESOURCE_TYPES = [
   'webhook_subscriptions',
   'webhook_deliveries',
   'api_reference',
+  // 6D: portable CSV preview and import summaries (never raw authority fields).
+  'portability_import_preview',
+  'portability_import',
+  'portability_import_mappings',
+  'portability_import_mapping',
 ] as const;
 export type NonResourceType = (typeof NON_RESOURCE_TYPES)[number];
 

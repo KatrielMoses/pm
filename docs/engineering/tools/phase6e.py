@@ -66,8 +66,11 @@ def check_chain():
     service = read(P("packages/work/src/integrations/mcp-access-service.ts"))
     calendar = read(P("packages/work/src/integrations/calendar-service.ts"))
     factory = read(P("packages/work/src/factory.ts"))
-    if "export class McpAccessService extends CalendarService" not in service:
-        errs.append("McpAccessService must extend CalendarService")
+    if "export class McpAccessService extends PortabilityService" not in service:
+        errs.append("McpAccessService must extend the 6D PortabilityService boundary")
+    portability = read(P("packages/work/src/portability/portability-service.ts"))
+    if "export class PortabilityService extends CalendarService" not in portability:
+        errs.append("PortabilityService must retain the 6C CalendarService foundation")
     if "return new McpAccessService(" not in factory:
         errs.append("factory must return the 6E service-chain head")
     if "export class CalendarService extends PublicApiService" not in calendar:

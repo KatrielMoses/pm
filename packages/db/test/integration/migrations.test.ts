@@ -94,7 +94,7 @@ describe('migrations from an empty database', () => {
     expect(await catalogFingerprint(second)).toEqual(await catalogFingerprint(first));
   });
 
-  it('upgrades through every accepted boundary (0009–0049) to the candidate and reverses each boundary step', async () => {
+  it('upgrades through every accepted boundary (0009–0050) to the candidate and reverses each boundary step', async () => {
     // Accepted subphase boundaries: 1A 0009, 1B 0012, 1F 0016, 1C 0018, 1D 0019, 1E 0020; 2A adds
     // 0021 (work) and 0022 (relations, templates, recurrence); 2B–2E add 0023–0030; 3A adds 0031
     // (saved views, defaults, and pin writes); 3D adds 0032 (time entries, timesheets, approvals,
@@ -109,10 +109,10 @@ describe('migrations from an empty database', () => {
     // recipients, and scheduled runs); 6A adds 0045 (connections, checkpoints, identities, sync
     // runs, deliveries, and conflicts); 6B adds 0046 (API tokens and webhooks); 6C adds 0047
     // (calendar_event and connection_mapping); 6E adds 0048 (MCP clients, consent, and tokens) and
-    // 0049 (MCP invocation provenance).
+    // 0049 (MCP invocation provenance); 6D adds 0050 (CSV portability).
     const boundaries = [
       9, 12, 16, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38,
-      39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49,
+      39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50,
     ];
     const full = async (db: TestDatabase) => {
       const objects = await db.admin(`
@@ -143,7 +143,7 @@ describe('migrations from an empty database', () => {
         at.set(to, await full(stepped));
       }
       // Stepping through the boundaries reaches exactly the one-shot candidate catalog.
-      expect(at.get(49)).toEqual(await full(reference));
+      expect(at.get(50)).toEqual(await full(reference));
       // Each subphase's step reverses to the prior boundary's exact catalog and re-applies to its
       // own, walking down from the candidate.
       for (let i = boundaries.length - 1; i > 0; i--) {

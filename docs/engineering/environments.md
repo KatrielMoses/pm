@@ -303,6 +303,7 @@ worker process is a startup error. All identities of one process must target the
 | `OAUTH_CLIENTS_MAX` | optional | — | default 20 (1–500); active OAuth clients per workspace |
 | `MCP_TOOL_CALL_TIMEOUT_MS` | optional | — | default 30000 ms (1000–120000); maximum synchronous MCP tool execution window |
 | `MCP_TOOL_RESULT_MAX_BYTES` | optional | — | default 65536 (1024–1048576); maximum serialized tool or resource result |
+| `IMPORT_ROLLBACK_PERIOD` | optional | — | default 604800000 ms (60000–7776000000); configured recovery window for completed CSV imports; not a retention or deletion period |
 | `DOCUMENT_EMBED_URL_MAX_CHARS` | optional | optional | default 2048 (128–8192); longest address of an embedded image, video, or link (0D `DOCUMENT_EMBED_URL_MAX_CHARS`) |
 | `SIGNED_URL_LIFETIME` | optional | optional | default 300 (30–3600); lifetime in seconds of signed upload and download URLs; never stored, logged, or sent in notifications or exports (0D `SIGNED_URL_LIFETIME`) |
 | `UPLOAD_SESSION_LIFETIME` | optional | optional | default 3600 (300–86400); lifetime in seconds of an upload session; an expired, unfinished session releases its reserved bytes and its quarantined object (0D `UPLOAD_SESSION_LIFETIME`) |

@@ -332,7 +332,7 @@ export function IntegrationsPanel({ ws }: { ws: string }) {
             </form>
           </section>
         ))}
-      <section aria-labelledby="mcp-heading">
+      <section className="mcp-access" aria-labelledby="mcp-heading">
         <h2 id="mcp-heading">MCP access</h2>
         <p>
           {mcp?.mcp_enabled

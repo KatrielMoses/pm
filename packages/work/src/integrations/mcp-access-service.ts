@@ -10,7 +10,7 @@ import {
   type Principal,
   type TokenDelegation,
 } from '@pm/tenancy';
-import { CalendarService } from './calendar-service.ts';
+import { PortabilityService } from '../portability/portability-service.ts';
 import {
   hashEqual,
   newOAuthAccessSecret,
@@ -62,7 +62,7 @@ export type McpRpcResponse =
  * MCP-compatible access (Phase 6E). JSON-RPC tools delegate to the same authorization paths as the
  * public API. OAuth access tokens act as `oauth_client` principals narrowed by consent.
  */
-export class McpAccessService extends CalendarService {
+export class McpAccessService extends PortabilityService {
   protected override async inWorkspace<T>(
     caller: Caller,
     workspacePublicId: unknown,
@@ -225,7 +225,7 @@ export class McpAccessService extends CalendarService {
         .where(
           'c.public_id',
           'in',
-          rows.map((row) => row.id),
+          rows.length ? rows.map((row) => row.id) : ['ocl_00000000000000000000000000'],
         )
         .execute();
       return {

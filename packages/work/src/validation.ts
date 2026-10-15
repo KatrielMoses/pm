@@ -466,6 +466,8 @@ export interface WorkSettings {
   mcpToolCallTimeoutMs: number;
   /** `MCP_TOOL_RESULT_MAX_BYTES` */
   mcpToolResultMaxBytes: number;
+  /** `IMPORT_ROLLBACK_PERIOD`; recovery period for completed CSV imports, in milliseconds. */
+  importRollbackPeriodMs: number;
   /** `DOCUMENT_EMBED_URL_MAX_CHARS` */
   documentEmbedUrlMaxChars: number;
   /** `SIGNED_URL_LIFETIME` (seconds) */
@@ -715,6 +717,7 @@ export const DEFAULT_WORK_SETTINGS: WorkSettings = Object.freeze({
   oauthClientsMax: 20,
   mcpToolCallTimeoutMs: 30_000,
   mcpToolResultMaxBytes: 65_536,
+  importRollbackPeriodMs: 7 * 24 * 60 * 60 * 1_000,
   documentEmbedUrlMaxChars: 2048,
   signedUrlLifetimeSeconds: 300,
   uploadSessionLifetimeSeconds: 3_600,

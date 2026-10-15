@@ -33,13 +33,19 @@ def check_chain():
     factory = read(P("packages/work/src/factory.ts"))
     if not any(
         "return new %s(" % service in factory
-        for service in ("CalendarService", "McpAccessService")
+        for service in ("CalendarService", "PortabilityService", "McpAccessService")
     ):
         errs.append("factory must return CalendarService or a later service-chain extension")
     if "export class CalendarService extends PublicApiService" not in read(
         P("packages/work/src/integrations/calendar-service.ts")
     ):
         errs.append("CalendarService must extend PublicApiService")
+    portability = read(P("packages/work/src/portability/portability-service.ts"))
+    if "export class PortabilityService extends CalendarService" not in portability:
+        errs.append("when present, PortabilityService must extend CalendarService")
+    mcp = read(P("packages/work/src/integrations/mcp-access-service.ts"))
+    if "export class McpAccessService extends PortabilityService" not in mcp:
+        errs.append("when present, McpAccessService must extend PortabilityService")
     return errs, "service chain"
 
 

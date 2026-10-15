@@ -7740,12 +7740,16 @@
       "uniqueness": [],
       "sensitive_fields": [],
       "key_columns": [
-        "source_file_id",
+        "preview_id",
         "mapping_id",
+        "mapping_version",
+        "schema_version",
+        "request_key_sha256",
         "state",
-        "rows_total/ok/failed",
+        "row_count/applied_count/error_count/checkpoint_row",
         "rollback_state",
-        "content_fingerprint"
+        "content_sha256",
+        "rollback_until"
       ],
       "requirements": [
         "DATA-001",
@@ -7754,7 +7758,7 @@
         "DATA-008",
         "DATA-009"
       ],
-      "notes": ""
+      "notes": "Bounded CSV operations store only a digest for idempotency; preview and mapping versions are immutable operation inputs. RLS is forced by workspace."
     },
     {
       "name": "import_mapping",
@@ -7814,6 +7818,45 @@
         "DATA-009"
       ],
       "notes": ""
+    },
+    {
+      "name": "import_preview",
+      "module": "transfer",
+      "purpose": "Short-lived preview binding the exact CSV digest, schema version, and saved mapping version before apply.",
+      "scope": "workspace",
+      "addressable": false,
+      "public_id_prefix": null,
+      "extends": null,
+      "containment_parents": [],
+      "associations": [
+        "import_mapping",
+        "membership"
+      ],
+      "lifecycle": "ephemeral",
+      "concurrency": "append-only",
+      "retention_class": "R-EPHEMERAL",
+      "confidentiality": "C2",
+      "volume": "low",
+      "export": "never",
+      "search_ai": "no",
+      "may_contain_secrets": "no",
+      "personal_data": "incidental",
+      "uniqueness": [],
+      "sensitive_fields": [],
+      "key_columns": [
+        "id",
+        "entity_kind",
+        "content_sha256",
+        "schema_version",
+        "mapping_id/mapping_version",
+        "expires_at"
+      ],
+      "requirements": [
+        "DATA-002",
+        "DATA-003",
+        "DATA-005"
+      ],
+      "notes": "Expires after 30 minutes; previews referenced by import jobs remain as provenance. Forced workspace RLS."
     },
     {
       "name": "export_job",

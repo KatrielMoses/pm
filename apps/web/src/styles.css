@@ -4796,3 +4796,40 @@ nav.tabs a[aria-current='page'] {
     animation: none;
   }
 }
+
+.mcp-access {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.mcp-access input {
+  box-sizing: border-box;
+  max-width: 100%;
+  min-width: 0;
+}
+.portability-controls {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  justify-items: start;
+  align-items: start;
+  gap: 0.75rem;
+  margin-block: 1rem;
+  max-width: 100%;
+}
+.portability-controls > label,
+.portability-controls > p {
+  overflow-wrap: anywhere;
+}
+.portability-controls input,
+.portability-controls select,
+.portability-controls textarea,
+.portability-controls button {
+  box-sizing: border-box;
+  max-width: 100%;
+  min-width: 0;
+  min-height: 2.75rem;
+}
+.portability-controls input,
+.portability-controls select,
+.portability-controls textarea {
+  width: min(34rem, 100%);
+}

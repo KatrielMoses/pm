@@ -3114,6 +3114,68 @@ export interface SearchRecentSearchTable {
   searched_at: DTs;
 }
 
+// Phase 6D: resumable CSV import operation and provenance rows.
+export interface ImportJobTable {
+  id: string;
+  workspace_id: string;
+  owner_membership_id: string;
+  preview_id: string | null;
+  mapping_id: string | null;
+  mapping_version: number | null;
+  schema_version: string;
+  content_sha256: Bytes;
+  request_key_sha256: Bytes;
+  entity_kind: 'task' | 'project' | 'workflow' | 'field' | 'goal' | 'document' | 'file';
+  state: 'previewed' | 'running' | 'partial' | 'completed' | 'failed' | 'rolled_back';
+  apply_mode: 'partial' | 'all_or_nothing';
+  row_count: number;
+  applied_count: number;
+  error_count: number;
+  checkpoint_row: number;
+  rollback_until: Timestamp | null;
+  created_at: DTs;
+  updated_at: DTs;
+}
+export interface ImportRowTable {
+  workspace_id: string;
+  import_job_id: string;
+  row_number: number;
+  source_row_key: string | null;
+  source_values: Json<Record<string, unknown>>;
+  state: 'pending' | 'applied' | 'error' | 'rolled_back' | 'conflict';
+  issues: Json<unknown[]>;
+  record_type: string | null;
+  record_id: string | null;
+  record_public_id: string | null;
+  applied_version: number | null;
+  created_at: DTs;
+  updated_at: DTs;
+}
+export interface ImportMappingTable {
+  id: string;
+  workspace_id: string;
+  owner_membership_id: string;
+  name: string;
+  entity_kind: 'task' | 'project' | 'workflow' | 'field' | 'goal' | 'document' | 'file';
+  schema_version: string;
+  mapping_version: number;
+  column_mapping: Json<Record<string, string>>;
+  created_at: DTs;
+  updated_at: DTs;
+}
+export interface ImportPreviewTable {
+  id: string;
+  workspace_id: string;
+  owner_membership_id: string;
+  entity_kind: 'task' | 'project' | 'workflow' | 'field' | 'goal' | 'document' | 'file';
+  content_sha256: Bytes;
+  schema_version: string;
+  mapping_id: string | null;
+  mapping_version: number | null;
+  expires_at: Timestamp;
+  created_at: DTs;
+}
+
 export type StatusSpanBasis = 'recorded' | 'assumed' | 'repaired';
 export interface MetricsTaskStatusSpanTable {
   workspace_id: string;
@@ -3324,6 +3386,10 @@ export interface Database {
   'planning.block_series': BlockSeriesTable;
   'planning.today_commitment': TodayCommitmentTable;
   'planning.daily_record': DailyRecordTable;
+  'transfer.import_job': ImportJobTable;
+  'transfer.import_row': ImportRowTable;
+  'transfer.import_mapping': ImportMappingTable;
+  'transfer.import_preview': ImportPreviewTable;
 }
 
 /** Column inventory per table, compared with the migrated catalog by the schema-drift test. */
@@ -6036,6 +6102,66 @@ export const TABLE_COLUMNS: Readonly<Record<keyof Database, readonly string[]>> 
     'focus_minutes',
     'actual_seconds',
     'items',
+    'created_at',
+  ],
+  'transfer.import_job': [
+    'id',
+    'workspace_id',
+    'owner_membership_id',
+    'preview_id',
+    'mapping_id',
+    'mapping_version',
+    'schema_version',
+    'content_sha256',
+    'request_key_sha256',
+    'entity_kind',
+    'state',
+    'apply_mode',
+    'row_count',
+    'applied_count',
+    'error_count',
+    'checkpoint_row',
+    'rollback_until',
+    'created_at',
+    'updated_at',
+  ],
+  'transfer.import_row': [
+    'workspace_id',
+    'import_job_id',
+    'row_number',
+    'source_row_key',
+    'source_values',
+    'state',
+    'issues',
+    'record_type',
+    'record_id',
+    'record_public_id',
+    'applied_version',
+    'created_at',
+    'updated_at',
+  ],
+  'transfer.import_mapping': [
+    'id',
+    'workspace_id',
+    'owner_membership_id',
+    'name',
+    'entity_kind',
+    'schema_version',
+    'mapping_version',
+    'column_mapping',
+    'created_at',
+    'updated_at',
+  ],
+  'transfer.import_preview': [
+    'id',
+    'workspace_id',
+    'owner_membership_id',
+    'entity_kind',
+    'content_sha256',
+    'schema_version',
+    'mapping_id',
+    'mapping_version',
+    'expires_at',
     'created_at',
   ],
 };

@@ -68,6 +68,7 @@ if gate_in core; then
   python3 docs/engineering/tools/phase6a.py
   python3 docs/engineering/tools/phase6b.py
   python3 docs/engineering/tools/phase6c.py
+  python3 docs/engineering/tools/phase6d.py
   python3 docs/engineering/tools/phase6e.py
   step "3. formatting and lint (incl. SQL safety and the complete workspace graph)"
   pnpm format:check

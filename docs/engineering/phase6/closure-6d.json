@@ -1,0 +1,514 @@
+{
+  "schema_version": 1,
+  "phase": "6D",
+  "status": "candidate",
+  "adr": "0036",
+  "requirements": [
+    {
+      "id": "PRJ-018",
+      "role": "owned",
+      "disposition": "implemented",
+      "note": "Implemented through canonical service commands with bounded, authorization-filtered behavior and regression evidence.",
+      "evidence": [
+        {
+          "file": "packages/work/test/integration/portability.test.ts",
+          "contains": "imports and rolls back supported %s rows through canonical commands"
+        }
+      ]
+    },
+    {
+      "id": "INT-030",
+      "role": "owned",
+      "disposition": "implemented",
+      "note": "Implemented through canonical service commands with bounded, authorization-filtered behavior and regression evidence.",
+      "evidence": [
+        {
+          "file": "e2e/portability.spec.ts",
+          "contains": "previews a mapped project import"
+        }
+      ]
+    },
+    {
+      "id": "PERM-010",
+      "role": "owned",
+      "disposition": "implemented",
+      "note": "Implemented through canonical service commands with bounded, authorization-filtered behavior and regression evidence.",
+      "evidence": [
+        {
+          "file": "packages/work/test/integration/portability.test.ts",
+          "contains": "denies exports to a read-only member"
+        }
+      ]
+    },
+    {
+      "id": "DATA-001",
+      "role": "owned",
+      "disposition": "implemented",
+      "note": "The seven supported import schemas are explicit in the authoritative 6D brief and portability documentation. Account creation and access grants remain canonical onboarding/invitation commands.",
+      "evidence": [
+        {
+          "file": "packages/work/test/integration/portability.test.ts",
+          "contains": "imports and rolls back supported %s rows through canonical commands"
+        }
+      ]
+    },
+    {
+      "id": "DATA-002",
+      "role": "owned",
+      "disposition": "implemented",
+      "note": "Implemented through canonical service commands with bounded, authorization-filtered behavior and regression evidence.",
+      "evidence": [
+        {
+          "file": "e2e/portability.spec.ts",
+          "contains": "Preview"
+        }
+      ]
+    },
+    {
+      "id": "DATA-003",
+      "role": "owned",
+      "disposition": "implemented",
+      "note": "Implemented through canonical service commands with bounded, authorization-filtered behavior and regression evidence.",
+      "evidence": [
+        {
+          "file": "packages/work/test/unit/portability-csv.test.ts",
+          "contains": "applies explicit mappings deterministically"
+        }
+      ]
+    },
+    {
+      "id": "DATA-004",
+      "role": "owned",
+      "disposition": "implemented",
+      "note": "Implemented through canonical service commands with bounded, authorization-filtered behavior and regression evidence.",
+      "evidence": [
+        {
+          "file": "packages/work/test/integration/portability.test.ts",
+          "contains": "binds a preview to mapping version"
+        }
+      ]
+    },
+    {
+      "id": "DATA-005",
+      "role": "owned",
+      "disposition": "implemented",
+      "note": "Implemented through canonical service commands with bounded, authorization-filtered behavior and regression evidence.",
+      "evidence": [
+        {
+          "file": "packages/work/test/unit/portability-csv.test.ts",
+          "contains": "validates every portable metadata schema"
+        }
+      ]
+    },
+    {
+      "id": "DATA-006",
+      "role": "owned",
+      "disposition": "implemented",
+      "note": "Implemented through canonical service commands with bounded, authorization-filtered behavior and regression evidence.",
+      "evidence": [
+        {
+          "file": "packages/work/test/integration/portability.test.ts",
+          "contains": "reports partial failures individually"
+        }
+      ]
+    },
+    {
+      "id": "DATA-007",
+      "role": "owned",
+      "disposition": "implemented",
+      "note": "Implemented through canonical service commands with bounded, authorization-filtered behavior and regression evidence.",
+      "evidence": [
+        {
+          "file": "packages/work/test/integration/portability.test.ts",
+          "contains": "resumed"
+        }
+      ]
+    },
+    {
+      "id": "DATA-008",
+      "role": "owned",
+      "disposition": "implemented",
+      "note": "Implemented through canonical service commands with bounded, authorization-filtered behavior and regression evidence.",
+      "evidence": [
+        {
+          "file": "packages/work/test/integration/portability.test.ts",
+          "contains": "keeps idempotency-key reuse"
+        }
+      ]
+    },
+    {
+      "id": "DATA-009",
+      "role": "owned",
+      "disposition": "implemented",
+      "note": "Implemented through canonical service commands with bounded, authorization-filtered behavior and regression evidence.",
+      "evidence": [
+        {
+          "file": "packages/work/test/integration/portability.test.ts",
+          "contains": "permits rollback of completed rows"
+        }
+      ]
+    },
+    {
+      "id": "DATA-010",
+      "role": "owned",
+      "disposition": "foundation",
+      "note": "Generic CSV column mapping is implemented; named vendor adapters are explicitly incremental after launch under OD-33.",
+      "deferred_to": [
+        "post-launch / OD-33"
+      ],
+      "evidence": [
+        {
+          "file": "docs/engineering/data-portability.md",
+          "contains": "Named vendor-specific import adapters"
+        }
+      ]
+    },
+    {
+      "id": "DATA-011",
+      "role": "owned",
+      "disposition": "implemented",
+      "note": "Implemented through canonical service commands with bounded, authorization-filtered behavior and regression evidence.",
+      "evidence": [
+        {
+          "file": "docs/engineering/data-portability.md",
+          "contains": "Supported records"
+        }
+      ]
+    },
+    {
+      "id": "DATA-012",
+      "role": "owned",
+      "disposition": "implemented",
+      "note": "Implemented through canonical service commands with bounded, authorization-filtered behavior and regression evidence.",
+      "evidence": [
+        {
+          "file": "packages/work/src/portability/portability-service.ts",
+          "contains": "taskDetail"
+        }
+      ]
+    },
+    {
+      "id": "DATA-013",
+      "role": "owned",
+      "disposition": "foundation",
+      "note": "Comments, activity and time exports are implemented. AI, agent and automation history sources do not exist until their owning phases.",
+      "deferred_to": [
+        "7A",
+        "8A",
+        "8B"
+      ],
+      "evidence": [
+        {
+          "file": "packages/work/src/portability/portability-service.ts",
+          "contains": "exportPortabilityHistory"
+        },
+        {
+          "file": "docs/engineering/data-portability.md",
+          "contains": "7A/8A/8B"
+        }
+      ]
+    },
+    {
+      "id": "DATA-014",
+      "role": "owned",
+      "disposition": "implemented",
+      "note": "Implemented through canonical service commands with bounded, authorization-filtered behavior and regression evidence.",
+      "evidence": [
+        {
+          "file": "packages/work/src/portability/portability-service.ts",
+          "contains": "listFiles"
+        }
+      ]
+    },
+    {
+      "id": "DATA-015",
+      "role": "owned",
+      "disposition": "implemented",
+      "note": "Implemented through canonical service commands with bounded, authorization-filtered behavior and regression evidence.",
+      "evidence": [
+        {
+          "file": "docs/engineering/data-portability.md",
+          "contains": "independently of billing state"
+        }
+      ]
+    },
+    {
+      "id": "DATA-016",
+      "role": "owned",
+      "disposition": "implemented",
+      "note": "Implemented through canonical service commands with bounded, authorization-filtered behavior and regression evidence.",
+      "evidence": [
+        {
+          "file": "docs/engineering/data-portability.md",
+          "contains": "Exact-migration limitations"
+        }
+      ]
+    },
+    {
+      "id": "AUD-009",
+      "role": "owned",
+      "disposition": "implemented",
+      "note": "Admin, step-up and entitlement boundary are implemented. Commercial entitlement provider remains owned by 10A; production defaults to denied.",
+      "evidence": [
+        {
+          "file": "packages/work/test/integration/portability.test.ts",
+          "contains": "gates audit export by authority"
+        }
+      ]
+    },
+    {
+      "id": "WFL-014",
+      "role": "contributing",
+      "disposition": "contributed",
+      "contribution": "6D",
+      "note": "Contribution supplied by the documented portability and history boundaries; later owning-phase integrations remain with their catalog owners.",
+      "evidence": [
+        {
+          "file": "docs/engineering/data-portability.md",
+          "contains": "CSV import/export"
+        }
+      ]
+    },
+    {
+      "id": "VIEW-022",
+      "role": "contributing",
+      "disposition": "contributed",
+      "contribution": "6D",
+      "note": "Contribution supplied by the documented portability and history boundaries; later owning-phase integrations remain with their catalog owners.",
+      "evidence": [
+        {
+          "file": "docs/engineering/data-portability.md",
+          "contains": "CSV import/export"
+        }
+      ]
+    },
+    {
+      "id": "DOC-020",
+      "role": "contributing",
+      "disposition": "contributed",
+      "contribution": "6D",
+      "note": "Contribution supplied by the documented portability and history boundaries; later owning-phase integrations remain with their catalog owners.",
+      "evidence": [
+        {
+          "file": "docs/engineering/data-portability.md",
+          "contains": "CSV import/export"
+        }
+      ]
+    },
+    {
+      "id": "TIME-014",
+      "role": "contributing",
+      "disposition": "contributed",
+      "contribution": "6D",
+      "note": "Contribution supplied by the documented portability and history boundaries; later owning-phase integrations remain with their catalog owners.",
+      "evidence": [
+        {
+          "file": "docs/engineering/data-portability.md",
+          "contains": "CSV import/export"
+        }
+      ]
+    },
+    {
+      "id": "SEC-014",
+      "role": "contributing",
+      "disposition": "contributed",
+      "contribution": "6D",
+      "note": "Contribution supplied by the documented portability and history boundaries; later owning-phase integrations remain with their catalog owners.",
+      "evidence": [
+        {
+          "file": "docs/engineering/data-portability.md",
+          "contains": "CSV import/export"
+        }
+      ]
+    },
+    {
+      "id": "BILL-016",
+      "role": "contributing",
+      "disposition": "contributed",
+      "contribution": "6D",
+      "note": "Contribution supplied by the documented portability and history boundaries; later owning-phase integrations remain with their catalog owners.",
+      "evidence": [
+        {
+          "file": "docs/engineering/data-portability.md",
+          "contains": "CSV import/export"
+        }
+      ]
+    },
+    {
+      "id": "SUP-013",
+      "role": "contributing",
+      "disposition": "contributed",
+      "contribution": "6D",
+      "note": "Contribution supplied by the documented portability and history boundaries; later owning-phase integrations remain with their catalog owners.",
+      "evidence": [
+        {
+          "file": "docs/engineering/data-portability.md",
+          "contains": "CSV import/export"
+        }
+      ]
+    },
+    {
+      "id": "LA-005",
+      "role": "contributing",
+      "disposition": "contributed",
+      "contribution": "6D",
+      "note": "Contribution supplied by the documented portability and history boundaries; later owning-phase integrations remain with their catalog owners.",
+      "evidence": [
+        {
+          "file": "docs/engineering/data-portability.md",
+          "contains": "CSV import/export"
+        }
+      ]
+    },
+    {
+      "id": "LA-019",
+      "role": "contributing",
+      "disposition": "contributed",
+      "contribution": "6D",
+      "note": "Contribution supplied by the documented portability and history boundaries; later owning-phase integrations remain with their catalog owners.",
+      "evidence": [
+        {
+          "file": "docs/engineering/data-portability.md",
+          "contains": "CSV import/export"
+        }
+      ]
+    }
+  ],
+  "decisions": [
+    {
+      "id": "P1",
+      "evidence": [
+        {
+          "file": "docs/engineering/adr/0036-data-portability.md",
+          "contains": "| P1 |"
+        }
+      ],
+      "sources": [
+        {
+          "file": "docs/engineering/adr/0036-data-portability.md",
+          "contains": "| P1 |"
+        }
+      ]
+    },
+    {
+      "id": "P2",
+      "evidence": [
+        {
+          "file": "docs/engineering/adr/0036-data-portability.md",
+          "contains": "| P2 |"
+        }
+      ],
+      "sources": [
+        {
+          "file": "docs/engineering/adr/0036-data-portability.md",
+          "contains": "| P2 |"
+        }
+      ]
+    },
+    {
+      "id": "P3",
+      "evidence": [
+        {
+          "file": "docs/engineering/adr/0036-data-portability.md",
+          "contains": "| P3 |"
+        }
+      ],
+      "sources": [
+        {
+          "file": "docs/engineering/adr/0036-data-portability.md",
+          "contains": "| P3 |"
+        }
+      ]
+    },
+    {
+      "id": "P4",
+      "evidence": [
+        {
+          "file": "docs/engineering/adr/0036-data-portability.md",
+          "contains": "| P4 |"
+        }
+      ],
+      "sources": [
+        {
+          "file": "docs/engineering/adr/0036-data-portability.md",
+          "contains": "| P4 |"
+        }
+      ]
+    },
+    {
+      "id": "P5",
+      "evidence": [
+        {
+          "file": "docs/engineering/adr/0036-data-portability.md",
+          "contains": "| P5 |"
+        }
+      ],
+      "sources": [
+        {
+          "file": "docs/engineering/adr/0036-data-portability.md",
+          "contains": "| P5 |"
+        }
+      ]
+    },
+    {
+      "id": "P6",
+      "evidence": [
+        {
+          "file": "docs/engineering/adr/0036-data-portability.md",
+          "contains": "| P6 |"
+        }
+      ],
+      "sources": [
+        {
+          "file": "docs/engineering/adr/0036-data-portability.md",
+          "contains": "| P6 |"
+        }
+      ]
+    },
+    {
+      "id": "P7",
+      "evidence": [
+        {
+          "file": "docs/engineering/adr/0036-data-portability.md",
+          "contains": "| P7 |"
+        }
+      ],
+      "sources": [
+        {
+          "file": "docs/engineering/adr/0036-data-portability.md",
+          "contains": "| P7 |"
+        }
+      ]
+    },
+    {
+      "id": "P8",
+      "evidence": [
+        {
+          "file": "docs/engineering/adr/0036-data-portability.md",
+          "contains": "| P8 |"
+        }
+      ],
+      "sources": [
+        {
+          "file": "docs/engineering/adr/0036-data-portability.md",
+          "contains": "| P8 |"
+        }
+      ]
+    },
+    {
+      "id": "P9",
+      "evidence": [
+        {
+          "file": "docs/engineering/adr/0036-data-portability.md",
+          "contains": "| P9 |"
+        }
+      ],
+      "sources": [
+        {
+          "file": "docs/engineering/adr/0036-data-portability.md",
+          "contains": "| P9 |"
+        }
+      ]
+    }
+  ]
+}

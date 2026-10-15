@@ -380,10 +380,10 @@ Requirements flagged with each decision are listed automatically in [requirement
 
 <a id="od-40"></a>
 ### OD-40 — Import rollback period
-- **Decision:** The value of `IMPORT_ROLLBACK_PERIOD` (DATA-009).
+- **Decision (Phase 6D, 2026-10-14):** `IMPORT_ROLLBACK_PERIOD` is operator-configurable in milliseconds, defaults to seven days, and accepts values from one minute through 90 days. The effective deadline is persisted with each import job and never changes workspace deletion or trash retention.
 - **Why it matters:** The rollback window is a promise and needs a defined end.
 - **Affects:** DATA-009 · phase 6D.
-- **Safe default:** Configurable and unpublished, with semantics as in [deletion §6](deletion-retention-history.md#6-integration-and-import-removal).
+- **Contract:** The configured value is not advertised as an unconditional customer promise; completed imports expose their stored deadline. Semantics follow [deletion §6](deletion-retention-history.md#6-integration-and-import-removal).
 - **If deferred:** DATA-009 cannot pass ("within a defined recovery period").
 
 <a id="od-41"></a>

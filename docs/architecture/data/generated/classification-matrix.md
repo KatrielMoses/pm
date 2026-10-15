@@ -32,7 +32,7 @@ Class definitions and rules: [../11-data-classification.md](../11-data-classific
 | Search | 3 | C2 | R-DERIVED, R-PERSONAL | never, self | no, yes | no | incidental | very-high |
 | Metrics, dashboards, and reports | 7 | C2 | R-DERIVED, R-EXEC, R-LIVE, R-PLATFORM | filtered, never, self | metadata, no, yes | no | incidental | high |
 | Integrations, API, and webhooks | 16 | C4 | R-AUDIT, R-EXEC, R-LIVE, R-PERSONAL | admin, filtered, never, self | metadata, no, yes | hash-only, possible, secret-ref | incidental, no, yes | very-high |
-| Import and export | 5 | C2 | R-EPHEMERAL, R-EXEC, R-LIVE | admin, filtered, never | no, yes | no | incidental | very-high |
+| Import and export | 6 | C2 | R-EPHEMERAL, R-EXEC, R-LIVE | admin, filtered, never | no, yes | no | incidental | very-high |
 | Test management and defects | 8 | C2 | R-DERIVED, R-EVIDENCE, R-LIVE | filtered | yes | no | incidental | very-high |
 | Development links and releases | 9 | C2 | R-EVIDENCE, R-EXEC, R-LIVE | filtered | yes | no | incidental | very-high |
 | Templates and onboarding | 4 | C1 | R-LIVE | filtered | no, yes | no | incidental | low |
@@ -224,6 +224,7 @@ Class definitions and rules: [../11-data-classification.md](../11-data-classific
 | [`import_job`](logical-model.md#entity-import-job) | transfer | workspace_or_brand | C2 | standard (per-record) | material changes | R-EXEC | filtered | low | yes | no | incidental |
 | [`import_mapping`](logical-model.md#entity-import-mapping) | transfer | workspace_or_brand | C1 | low | configuration changes | R-LIVE | filtered | low | yes | no | incidental |
 | [`import_row`](logical-model.md#entity-import-row) | transfer | inherited | C2 | standard (per-record) | is evidence / append-only | R-EXEC | admin | very-high | yes | no | incidental |
+| [`import_preview`](logical-model.md#entity-import-preview) | transfer | workspace | C2 | standard (per-record) | none (technical) | R-EPHEMERAL | never | low | no | no | incidental |
 | [`export_job`](logical-model.md#entity-export-job) | transfer | workspace_or_brand | C2 | standard (per-record) | material changes | R-EXEC | filtered | low | no | no | incidental |
 | [`export_file`](logical-model.md#entity-export-file) | transfer | inherited | C2 | standard (per-record) | none (technical) | R-EPHEMERAL | never | low | no | no | incidental |
 | [`test_case`](logical-model.md#entity-test-case) | quality | brand | C2 | standard (per-record) | material changes | R-LIVE | filtered | medium | yes | no | incidental |

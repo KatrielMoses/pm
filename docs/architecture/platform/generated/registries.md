@@ -668,7 +668,7 @@ Forbidden metric labels: `workspace_id`, `brand_id`, `record_id`, `public_id`, `
 | `GOAL_LINKS_MAX` | Most projects and tasks one goal (with its key results) links; default 200, range 10–1000. | 5B |
 | `GOAL_UPDATE_STALE_DAYS` | Days without a manual check-in after which an active goal's update is stale; default 14, range 1–90. | 5B |
 | `IDEMPOTENCY_RETENTION` | Minimum retention of idempotency records; must cover the offline replay window. | 1A/2D |
-| `IMPORT_ROLLBACK_PERIOD` | Import rollback window (0A parameter, OD-40). | PO |
+| `IMPORT_ROLLBACK_PERIOD` | Recovery window for completed CSV imports; default 604800000 ms, range 60000–7776000000. | 6D |
 | `INBOX_MERGE_MAX` | Most Inbox items one merge may combine; default 20, range 2–100. | 2E |
 | `INTAKE_FORMS_MAX` | Most intake forms per brand; default 50, range 1–500. | 2E |
 | `INTAKE_SUBMISSIONS_PER_HOUR` | Most submissions one person may make to one form per hour; default 20, range 1–1000. | 2E |

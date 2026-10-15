@@ -302,6 +302,11 @@ describe('database-enforced workspace existence (1A review 01, correction 2)', (
       // Phase 5C task status history and its reconciliation state.
       'metrics.task_status_span',
       'metrics.reconcile_state',
+      // Phase 6D transfer job, row, mapping, and expiring preview provenance.
+      'transfer.import_job',
+      'transfer.import_mapping',
+      'transfer.import_preview',
+      'transfer.import_row',
     ];
     expect(res.rows.map((r) => r.tbl).sort()).toEqual(
       [...TENANT_TABLES.map((t) => `exec.${t}`), ...phase1f, ...phase1c].sort(),
@@ -331,7 +336,7 @@ describe('database-enforced workspace existence (1A review 01, correction 2)', (
             AND i.indkey::int2[] @> c.confkey AND i.indkey::int2[] <@ c.confkey
         ) AS referenced_unique
       FROM pg_constraint c JOIN pg_namespace n ON n.oid = c.connamespace
-      WHERE c.contype = 'f' AND n.nspname IN ('exec', 'tenancy', 'access', 'ops', 'views', 'workflow', 'work', 'relations', 'templates', 'planning', 'capture', 'timetrack', 'collab', 'notify', 'knowledge', 'files', 'search', 'goals', 'metrics', 'insights')
+      WHERE c.contype = 'f' AND n.nspname IN ('exec', 'tenancy', 'access', 'ops', 'views', 'workflow', 'work', 'relations', 'templates', 'planning', 'capture', 'timetrack', 'collab', 'notify', 'knowledge', 'files', 'search', 'goals', 'metrics', 'insights', 'transfer')
       ORDER BY 1`);
     // exec: 7 workspace keys + 6 composite same-workspace keys; 1C tenancy/access: 20 keys;
     // 1D collaboration (teams, invitations, policy, shares, ownership transfer): 38 keys;
@@ -358,7 +363,8 @@ describe('database-enforced workspace existence (1A review 01, correction 2)', (
     // and portfolio projects (4): +37;
     // 5C status spans (2) and reconciliation state (1): +3;
     // 5D dashboards (7), report definitions (7), recipients (4), shares (5), and runs (3): +26.
-    expect(res.rows.length).toBe(523);
+    // 6D adds the direct workspace-root constraint for import rows alongside their composite job key.
+    expect(res.rows.length).toBe(532);
     for (const r of res.rows)
       expect(r, `${r.tbl}.${r.conname}`).toMatchObject({
         referencing_indexed: true,
