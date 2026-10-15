@@ -35,6 +35,10 @@ test('previews a mapped project import, applies it, exports it, and rolls it bac
   ).toBeVisible();
   await page.setViewportSize({ width: 320, height: 800 });
   await page.emulateMedia({ forcedColors: 'active', reducedMotion: 'reduce' });
+  for (const control of await page.locator('.portability-controls select').all()) {
+    const box = await control.boundingBox();
+    expect(box?.height).toBeGreaterThanOrEqual(44);
+  }
   await expectAccessible(page, 'portability-narrow');
   expect(await page.evaluate('document.documentElement.scrollWidth <= window.innerWidth')).toBe(
     true,

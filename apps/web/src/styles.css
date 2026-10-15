@@ -4826,6 +4826,7 @@ nav.tabs a[aria-current='page'] {
   box-sizing: border-box;
   max-width: 100%;
   min-width: 0;
+  min-height: 2.75rem;
 }
 .portability-controls input,
 .portability-controls select,
