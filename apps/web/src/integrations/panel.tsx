@@ -102,7 +102,7 @@ export function IntegrationsPanel({ ws }: { ws: string }) {
   const [busy, setBusy] = useState(false);
 
   const load = async () => {
-    const [prov, list, capabilities, clients] = await Promise.all([
+    const [prov, list] = await Promise.all([
       api<{ data: { providers: ProviderView[] } }>(
         'GET',
         `/v1/workspaces/${ws}/integrations/providers`,
@@ -111,17 +111,28 @@ export function IntegrationsPanel({ ws }: { ws: string }) {
         'GET',
         `/v1/workspaces/${ws}/integrations/connections`,
       ),
+    ]);
+    setProviders(prov.body.data.providers);
+    setConnections(list.body.data.connections);
+
+    // MCP may be disabled or inaccessible in an otherwise healthy integrations environment.
+    // Keep the established provider and connection UI usable when its optional discovery fails.
+    const [capabilities, clients] = await Promise.allSettled([
       api<{ data: McpCapabilitiesView }>('GET', `/v1/workspaces/${ws}/mcp/capabilities`),
       api<{ data: { clients: OAuthClientView[]; can_configure: boolean } }>(
         'GET',
         `/v1/workspaces/${ws}/oauth-clients`,
       ),
     ]);
-    setProviders(prov.body.data.providers);
-    setConnections(list.body.data.connections);
-    setMcp(capabilities.body.data);
-    setOauthClients(clients.body.data.clients);
-    setCanConfigureMcp(clients.body.data.can_configure);
+    if (capabilities.status === 'fulfilled') setMcp(capabilities.value.body.data);
+    else setMcp(null);
+    if (clients.status === 'fulfilled') {
+      setOauthClients(clients.value.body.data.clients);
+      setCanConfigureMcp(clients.value.body.data.can_configure);
+    } else {
+      setOauthClients([]);
+      setCanConfigureMcp(false);
+    }
   };
 
   useEffect(() => {

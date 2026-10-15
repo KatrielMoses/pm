@@ -222,7 +222,11 @@ test('comments, replies, mentions, reactions, edit, delete, follow, reviews, and
 
   // Following: follow, find it under My Work, unfollow.
   const following = card(page, 'Following');
+  const followSaved = page.waitForResponse(
+    (response) => response.url().endsWith('/follow') && response.request().method() === 'PUT',
+  );
   await following.getByRole('button', { name: 'Follow', exact: true }).click();
+  expect((await followSaved).ok()).toBe(true);
   await expect(following.getByRole('button', { name: 'Follow', exact: true })).toHaveAttribute(
     'aria-pressed',
     'true',

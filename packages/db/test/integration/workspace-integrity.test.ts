@@ -287,6 +287,11 @@ describe('database-enforced workspace existence (1A review 01, correction 2)', (
       // Phase 6C calendar mirror and brand calendar mappings.
       'integrations.connection_mapping',
       'integrations.calendar_event',
+      // Phase 6E MCP clients, consent, tokens, and provenance.
+      'integrations.oauth_client',
+      'integrations.oauth_consent',
+      'integrations.oauth_access_token',
+      'integrations.mcp_invocation',
       'files.deliverable',
       'files.deliverable_version',
       'files.storage_usage',
