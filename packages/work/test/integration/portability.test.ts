@@ -277,6 +277,20 @@ describe('CSV portability operations (6D)', () => {
       { row: 2, id: expect.any(String) },
       { row: 3, error: 'not_found' },
     ]);
+    const beforeExport = await db.admin(
+      "SELECT count(*)::int AS n FROM audit.audit_event WHERE action = 'portability.exported'",
+    );
+    const errors = await env.svc.exportImportErrors(owner, ws, result.import_job_id);
+    expect(errors.csv).toContain('not_found');
+    expect(errors.csv).not.toContain('Partial second');
+    const other = await join(env, db, owner, ws, { kind: 'member', role: 'read_only' });
+    await expect(env.svc.exportImportErrors(other, ws, result.import_job_id)).rejects.toMatchObject(
+      { code: 'not_found' },
+    );
+    const exported = await db.admin(
+      "SELECT count(*)::int AS n FROM audit.audit_event WHERE action = 'portability.exported'",
+    );
+    expect(exported.rows[0]?.n).toBe(beforeExport.rows[0]?.n + 1);
     expect(
       await env.svc.rollbackPortabilityImport(owner, ws, result.import_job_id, mutation()),
     ).toMatchObject({ rolled_back: [2] });

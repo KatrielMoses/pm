@@ -31,7 +31,7 @@ export const IMPORT_ROLLBACK_WINDOW_MS = 7 * 24 * 60 * 60 * 1_000;
 export class PortabilityService extends CalendarService {
   async exportImportErrors(caller: Caller, ws: unknown, job: unknown) {
     await this.requirePortabilityScope(caller, 'records:read');
-    return this.inWorkspace(caller, ws, { readOnly: true }, async (tx, p) => {
+    return this.inWorkspace(caller, ws, {}, async (tx, p) => {
       if (typeof job !== 'string' || !/^[0-9a-f-]{36}$/i.test(job))
         throw new TenancyError('not_found');
       const found = await tx.db
@@ -41,6 +41,9 @@ export class PortabilityService extends CalendarService {
         .where('owner_membership_id', '=', p.membershipId)
         .executeTakeFirst();
       if (!found) throw new TenancyError('not_found');
+      const rate = await this.d.limiter.consume('api.export', p.membershipId);
+      if (!rate.allowed)
+        throw new TenancyError('rate_limited', { retryAfterSeconds: rate.retryAfterSeconds });
       const rows = await tx.db
         .selectFrom('transfer.import_row')
         .select(['row_number', 'state', 'issues'])
@@ -50,6 +53,23 @@ export class PortabilityService extends CalendarService {
         .limit(MAX_IMPORT_ROWS)
         .execute();
       const errors = rows.map((r) => ({ row: r.row_number, state: r.state, issues: r.issues }));
+      await this.workAudit(
+        tx,
+        caller,
+        p,
+        'portability.exported',
+        { recordId: null, type: 'workspace', publicId: null },
+        [],
+        null,
+      );
+      await this.d.security.record(tx, {
+        category: 'export',
+        action: 'portability.errors_export',
+        outcome: 'success',
+        actor: { type: 'human', id: p.membershipId },
+        subject: { type: 'workspace', id: tx.workspaceId },
+        correlationId: caller.meta.correlationId,
+      });
       return {
         csv: serializeCsv(['row', 'state', 'issues'], errors),
         filename: 'import-errors.csv',
