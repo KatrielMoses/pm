@@ -7,7 +7,7 @@ test('connects with an API key, sees status, and disconnects', async ({ page }, 
   const ws = await createWorkspace(page, 'Integrations Co');
   await page.goto(`/workspaces/${ws}/settings/integrations`);
   await expect(page.getByRole('heading', { level: 1, name: 'Integrations' })).toBeVisible();
-  await page.getByLabel('Name').fill('Desk loopback');
+  await page.getByLabel('Name', { exact: true }).fill('Desk loopback');
   await page.getByLabel('API key').fill('loopback-token');
   await page.getByRole('button', { name: 'Connect' }).click();
   await expect(page.getByText('Status: Connected')).toBeVisible();
