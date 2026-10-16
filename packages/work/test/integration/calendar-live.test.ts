@@ -507,7 +507,7 @@ describe('Google Calendar live adapter (Phase 6 integration review)', () => {
     ).toEqual([]);
   });
 
-  it('AT-322b keeps the Lisbon local time across a DST change over a long horizon', async () => {
+  it('AT-327 keeps the Lisbon local time across a DST change over a long horizon', async () => {
     const conn = await connected();
     const start = addDays(localDay(new Date(), 'UTC'), -7);
     fx.control.putEvent('me@example.test', {

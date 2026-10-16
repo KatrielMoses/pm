@@ -70,6 +70,7 @@ Source: `contracts/registry.json`.
 | `req_` | request | — | execution | Per-request identifier; exists only in responses, logs, and traces (no persistence). |
 | `ext_` | external_identity | integrations.external_identity | integrations |  |
 | `cev_` | calendar_event | integrations.calendar_event | integrations |  |
+| `cal_` | calendar_source | integrations.calendar_source | integrations | A connected calendar listed by a calendar connection (Phase 6 integration review). |
 | `rd_` | release_decision | delivery.release_decision | delivery |  |
 | `sag_` | support_access_grant | access.support_access_grant | access |  |
 | `fpol_` | field_policy | access.field_policy | access |  |
@@ -786,6 +787,22 @@ Forbidden metric labels: `workspace_id`, `brand_id`, `record_id`, `public_id`, `
 | `SYNC_LEASE_SECONDS` | How long a claimed sync delivery stays leased; default 120, range 30–3600. | 6A |
 | `SYNC_MAX_ATTEMPTS` | Transient sync attempts before a delivery is dead-lettered; default 5, range 1–20. | 6A |
 | `SYNC_RATE_PER_MINUTE` | Most connection creates and syncs one member starts per minute; default 30, range 1–600. | 6A |
+| `WEBHOOK_ALLOW_LOOPBACK` | Allows loopback webhook destinations; auto enables it only in local and test. | 6B |
+| `GOOGLE_CALENDAR_LOOPBACK_ENABLED` | Local and test only: enables the in-process Google Calendar test double for api_key connections; never reported as live synchronization. | 6C |
+| `GOOGLE_CALENDAR_CLIENT_ID` | Google OAuth client ID for calendar connections; unset leaves Google Calendar truthfully unconfigured (with the secret and redirect URI, all or none). | 6C |
+| `GOOGLE_CALENDAR_CLIENT_SECRET` | Google OAuth client secret for calendar connections; held as a secret and never logged. | 6C |
+| `GOOGLE_CALENDAR_REDIRECT_URI` | The registered OAuth redirect URI (the application's calendar callback route). | 6C |
+| `GOOGLE_CALENDAR_AUTHORIZE_URL` | Google OAuth authorization endpoint; https outside local and test (a provider fixture may stand in for automated acceptance). | 6C |
+| `GOOGLE_CALENDAR_TOKEN_URL` | Google OAuth token endpoint; https outside local and test. | 6C |
+| `GOOGLE_CALENDAR_REVOKE_URL` | Google OAuth revocation endpoint; https outside local and test. | 6C |
+| `GOOGLE_CALENDAR_API_BASE` | Google Calendar v3 API base URL; https outside local and test. | 6C |
+| `GOOGLE_CALENDAR_TIMEOUT_MS` | Per-request timeout for calendar provider calls; default 10000, range 1000–60000. | 6C |
+| `CALENDAR_SYNC_PAGES_MAX` | Provider pages one calendar reads per sync run before resuming from its checkpoint; default 20, range 1–200. | 6C |
+| `CALENDAR_SYNC_PAST_DAYS` | How far back a full calendar listing reaches; default 30, range 1–366. | 6C |
+| `CALENDAR_SYNC_HORIZON_DAYS` | How far ahead recurring events are expanded; default 120, range 7–732. | 6C |
+| `CALENDARS_PER_CONNECTION_MAX` | Most calendars one connection lists and synchronizes; default 25, range 1–200. | 6C |
+| `CALENDAR_OCCURRENCES_MAX` | Most occurrences one recurring series expands per run; default 400, range 10–5000. | 6C |
+| `CALENDAR_EVENTS_LIST_MAX` | Most events one calendar read returns; default 500, range 10–5000. | 6C |
 | `TASK_ASSIGNEES_MAX` | Most active assignees on one task; default 20, range 1–100. | 2B |
 | `TASK_DEPTH_MAX` | Deepest subtask level a command accepts (root = 0) when creating, reparenting, moving, or duplicating tasks; default 20, range 1–64. The database separately enforces an invariant ceiling of 64 that is not a runtime parameter. | 2B |
 | `TASK_ESTIMATE_MINUTES_MAX` | Largest estimate or remaining estimate, in minutes; default 100000, range 60–1000000. | 2B |

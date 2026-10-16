@@ -65,14 +65,14 @@
       "evidence": [
         {
           "file": "packages/work/src/planning/today-service.ts",
-          "contains": "meetings: { available: false, owner: '6C' }"
+          "contains": "meetings: { available: false, reason: 'not_connected' } as MeetingsView"
         },
         {
-          "file": "apps/web/test/today.test.tsx",
-          "contains": "arrive with calendar sync \\(6C\\)"
+          "file": "packages/work/test/integration/today.test.ts",
+          "contains": "meetings: { available: false, reason: 'not_connected' }"
         }
       ],
-      "note": "Foundation: Today reserves the meetings area and says calendar events arrive with 6C.",
+      "note": "Foundation: Today reserves the meetings area until a calendar is connected; 6C fills it with the person's own events (completed in the Phase 6 integration review, see closure-6c and calendar-live AT-324).",
       "deferred_to": [
         "6C"
       ],

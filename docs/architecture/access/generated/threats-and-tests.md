@@ -81,18 +81,23 @@ Narrative: [../14-threat-model.md](../14-threat-model.md).
 | T-71 | rls_leak | Replay and race: a repeated or concurrent create, edit, share, schedule, or delivery that applies twice, loses an edit, sends the same occurrence twice, or lets a second writer overwrite the first without a version conflict. | I-01, I-09 | AT-294, AT-295 |
 | T-72 | staleness | Misleading or unavailable source: a figure from an unavailable or out-of-date source shown as current or complete, a provider that is not configured reported as a delivered email, or an estimated or incomplete figure shown without saying so. | I-08, I-12 | AT-296, AT-297 |
 | T-73 | field_leak | Credential disclosure: an OAuth token or API key returned, logged, audited, indexed, or left in a row after disconnect or departure. | I-08, I-11 | AT-299, AT-300, AT-307, AT-308 |
-| T-74 | cross_brand_traversal | Connection leak: a connection, sync, or conflict from another brand or workspace is listed or read. | I-01, I-07 | AT-298, AT-306 |
+| T-74 | cross_brand_traversal | Connection leak: a connection, sync, or conflict from another brand or workspace is listed or read. | I-01, I-07 | AT-298, AT-306, AT-318 |
 | T-75 | guest_escalation | Unauthorized configuration: a guest, read-only member, or member without manage connects, tests, syncs, or disconnects. | I-04, I-07 | AT-298, AT-307 |
-| T-76 | departure | Secret survives disconnect or departure: the vault reference remains usable after disconnect, retention removal, or the owner leaving. | I-10, I-11 | AT-301, AT-305 |
-| T-77 | rls_leak | Sync applied twice: a repeated idempotency key or delivery advances the checkpoint again or writes the same external identity twice. | I-09 | AT-302, AT-309 |
+| T-76 | departure | Secret survives disconnect or departure: the vault reference remains usable after disconnect, retention removal, or the owner leaving. | I-10, I-11 | AT-301, AT-305, AT-316, AT-325 |
+| T-77 | rls_leak | Sync applied twice: a repeated idempotency key or delivery advances the checkpoint again or writes the same external identity twice. | I-09 | AT-302, AT-309, AT-319, AT-321 |
 | T-78 | revocation | Conflict hidden or resolved twice: both sides changed and the conflict is missing, or a resolution applies again. | I-09, I-12 | AT-303 |
-| T-79 | staleness | Unconfigured or degraded provider reported as healthy: a provider that is not configured, or a degraded provider, is shown as connected and its writes are applied. | I-08, I-12 | AT-304 |
+| T-79 | staleness | Unconfigured or degraded provider reported as healthy: a provider that is not configured, or a degraded provider, is shown as connected and its writes are applied. | I-08, I-12 | AT-304, AT-320 |
 | T-80 | agent_scope | Scope wider than granted: a connection is stored with a scope the provider does not offer, or a sync writes without the write scope. | I-04, I-07 | AT-304, AT-309 |
 | T-81 | spoofing | A stolen, revoked, expired, or narrowed API token is accepted as the member, or the token secret is returned after it was shown. | I-01, I-08 | AT-310, AT-311 |
 | T-82 | cross_brand_traversal | A token limited to one brand reads or writes another brand. | I-01, I-08 | AT-312 |
 | T-83 | spoofing | An inbound webhook with a bad signature, stale timestamp, or unknown endpoint is treated as authentic or discloses whether the endpoint exists. | I-01, I-08 | AT-313 |
 | T-84 | rls_leak | An outbound webhook delivers a record the subscription owner can no longer read, or stores a response body. | I-01, I-08 | AT-314 |
 | T-85 | revocation | A replayed write applies twice, or a delivery is dropped instead of retried. | I-01, I-08 | AT-314 |
+| T-86 | field_leak | A person's connected calendars, event titles, schedule conflicts, or busy time reach anyone but that person, directly or through derived availability, counts, conflicts, or Today (anonymous free/busy). | I-07, I-08, I-18 | AT-316, AT-317, AT-318, AT-324, AT-328 |
+| T-87 | revocation | A calendar change silently overwrites the person's plan or the provider copy, loops between them, applies after the owner lost authority, or changes a due date or deadline. | I-12, I-14 | AT-323, AT-325, AT-328 |
+| T-88 | spoofing | A calendar authorization completes with a mismatched state or for someone other than its initiator, or a scope declined at the provider widens the connection. | I-01, I-11, I-16 | AT-317, AT-320, AT-328 |
+| T-89 | staleness | An unconfigured provider, a test double, an outage, or an invalidated checkpoint is reported as live, current synchronization. | I-01, I-08 | AT-315, AT-319, AT-321, AT-322, AT-326, AT-327, AT-328, AT-329 |
+| T-90 | cross_workspace | A Phase 6 surface (connection, API token, MCP access, webhook, or import) reaches a workspace, brand, or record its principal cannot read, discloses hidden identifiers through its refusals, or keeps acting after revocation, suspension, removal, or departure. | I-03, I-07, I-12, I-14 | AT-328 |
 
 ## Test matrix
 
@@ -412,6 +417,21 @@ Narrative: [../14-threat-model.md](../14-threat-model.md).
 | AT-312 | T-82 | api_token_personal | Brand-scoped token writes another brand — task in another brand | `record.create` | api | **deny** | not_found | error_message |
 | AT-313 | T-83 | inbound_webhook | Bad signature and unknown endpoint — inbound capture | `record.create` | api | **deny** | unauthenticated | error_message |
 | AT-314 | T-84, T-85 | member | Signed delivery retried after a server error — webhook | `webhook.test_send` | webhook_payload | **allow** | ok | error_message |
+| AT-315 | T-89 | member | Loopback test-double calendar connection synchronized — own calendar events | `integration.sync_now` | api | **allow** | ok | — |
+| AT-316 | T-86, T-76 | member | Calendar connection disconnected with remove — own calendar events | `integrations.configure` | api | **allow** | ok | — |
+| AT-317 | T-88, T-86 | administrator | Completes another person's calendar authorization, or lists their calendars — calendar connection | `integrations.configure` | api | **deny** | not_found | error_message, timing |
+| AT-318 | T-86, T-74 | member | Maps a calendar to a hidden brand or makes a read-only calendar two-way — calendar mapping | `integrations.configure` | api | **deny** | not_found | error_message |
+| AT-319 | T-89, T-77 | integration_connection | Paged incremental sync, then an invalidated checkpoint — selected calendars | `integration.sync_now` | api | **allow** | ok | — |
+| AT-320 | T-88, T-79 | integration_connection | Expired access refreshed; revoked grant — calendar connection | `integration.sync_now` | api | **deny** | suspended | error_message |
+| AT-321 | T-89, T-77 | integration_connection | Provider outage and rate limit — calendar connection | `integration.sync_now` | api | **allow** | ok | — |
+| AT-322 | T-89 | integration_connection | Recurring series with EXDATE, moved, cancelled, all-day, and provider-expanded occurrences — own calendar events | `integration.sync_now` | api | **allow** | ok | — |
+| AT-323 | T-87 | integration_connection | Linked block moved at the provider, locally, and on both sides — own work block | `personal.manage_own` | api | **allow** | conflict_filtered | — |
+| AT-324 | T-86 | administrator | Reads a member's capacity, Today, calendar events, and conflicts — another person's calendar | `personal.manage_own` | capacity | **deny** | omitted | count_facet, capacity, error_message |
+| AT-325 | T-87, T-76 | system_job | Queued sync after disconnect — calendar connection | `integration.sync_now` | api | **deny** | suspended | error_message |
+| AT-326 | T-89 | owner | Provider unconfigured, or only the test double enabled — calendar provider | `integrations.configure` | ui_record | **deny** | validation_generic | error_message |
+| AT-327 | T-89 | integration_connection | Weekly series across a DST change — own calendar events | `integration.sync_now` | api | **allow** | ok | — |
+| AT-328 | T-86, T-87, T-88, T-89, T-90 | owner | Browser exit journey: connect, select, sync, plan, move, resolve, tokens, webhooks, MCP consent, CSV, revoke — Phase 6 surfaces | `integrations.configure` | ui_record | **allow** | ok | — |
+| AT-329 | T-89 | member | Browser: provider outage shown as degraded, then recovery — calendar connection | `integration.sync_now` | ui_record | **allow** | ok | — |
 
 ## Response shapes
 

@@ -75,6 +75,12 @@ export interface FixtureControl {
 
 export interface GoogleCalendarFixture {
   baseUrl: string;
+  /**
+   * The control of one namespace. A namespace isolates calendars, events, consent, and injected
+   * failures; an authorization whose state begins `<namespace>.` (the workspace public ID in the
+   * application's state) belongs to it once the namespace is opened. The default namespace is ''.
+   */
+  space(namespace: string): FixtureControl;
   clientId: string;
   clientSecret: string;
   /** The env a server needs to use this fixture as its Google Calendar provider. */
@@ -107,28 +113,49 @@ export async function startGoogleCalendarFixture(
   const clientId = 'fixture-client.apps.example';
   const clientSecret = randomBytes(24).toString('base64url');
   const controlToken = randomBytes(24).toString('base64url');
-  let consent: 'grant' | 'deny' | 'read_only' = 'grant';
-  let calendars: FixtureCalendar[] = [];
-  let events = new Map<string, Map<string, Stored>>();
+  interface Space {
+    consent: 'grant' | 'deny' | 'read_only';
+    calendars: FixtureCalendar[];
+    events: Map<string, Map<string, Stored>>;
+    generation: number;
+    failures: Array<{ status: number; retryAfter?: number }>;
+    size: number;
+    log: Array<{ method: string; path: string; ifMatch: boolean }>;
+    revokedCount: number;
+  }
+  const fresh = (generation = 1): Space => ({
+    consent: 'grant',
+    calendars: [],
+    events: new Map(),
+    generation,
+    failures: [],
+    size: 250,
+    log: [],
+    revokedCount: 0,
+  });
+  const spaces = new Map<string, Space>([['', fresh()]]);
+  const spaceOf = (ns: string) => {
+    let sp = spaces.get(ns);
+    if (!sp) spaces.set(ns, (sp = fresh()));
+    return sp;
+  };
   let seq = 0;
-  let generation = 1;
-  let failures: Array<{ status: number; retryAfter?: number }> = [];
-  let size = 250;
-  let log: Array<{ method: string; path: string; ifMatch: boolean }> = [];
-  let revokedCount = 0;
-  const codes = new Map<string, { challenge: string; redirect: string; scope: string }>();
-  const access = new Map<string, { expired: boolean; scope: string }>();
-  const refresh = new Map<string, { revoked: boolean; scope: string }>();
+  const codes = new Map<
+    string,
+    { challenge: string; redirect: string; scope: string; ns: string }
+  >();
+  const access = new Map<string, { expired: boolean; scope: string; ns: string }>();
+  const refresh = new Map<string, { revoked: boolean; scope: string; ns: string }>();
 
   const READ = 'https://www.googleapis.com/auth/calendar.readonly';
   const EVENTS = 'https://www.googleapis.com/auth/calendar.events';
 
-  const store = (cal: string) => {
-    let m = events.get(cal);
-    if (!m) events.set(cal, (m = new Map()));
+  const storeIn = (sp: Space, cal: string) => {
+    let m = sp.events.get(cal);
+    if (!m) sp.events.set(cal, (m = new Map()));
     return m;
   };
-  const put = (cal: string, e: FixtureEvent): Stored => {
+  const putIn = (sp: Space, cal: string, e: FixtureEvent): Stored => {
     seq += 1;
     const s: Stored = {
       ...e,
@@ -136,7 +163,7 @@ export async function startGoogleCalendarFixture(
       etag: `"${seq}-${randomBytes(3).toString('hex')}"`,
       seq,
     };
-    store(cal).set(e.id, s);
+    storeIn(sp, cal).set(e.id, s);
     return s;
   };
   const view = (s: Stored) => {
@@ -144,52 +171,49 @@ export async function startGoogleCalendarFixture(
     return { kind: 'calendar#event', ...rest };
   };
 
-  const control: FixtureControl = {
-    consent: (mode) => {
-      consent = mode;
-    },
-    setCalendars: (c) => {
-      calendars = c.map((x) => ({ ...x }));
-    },
-    putEvent: (cal, e) => put(cal, e).etag,
-    cancelEvent: (cal, id) => {
-      const cur = store(cal).get(id);
-      put(cal, { ...(cur ?? { id }), id, status: 'cancelled' });
-    },
-    getEvent: (cal, id) => {
-      const s = store(cal).get(id);
-      return s ? { ...view(s), etag: s.etag } : null;
-    },
-    invalidateSyncTokens: () => {
-      generation += 1;
-    },
-    failNext: (count, status, retryAfter) => {
-      for (let i = 0; i < count; i++)
-        failures.push({ status, ...(retryAfter ? { retryAfter } : {}) });
-    },
-    expireAccessTokens: () => {
-      for (const v of access.values()) v.expired = true;
-    },
-    revokeGrants: () => {
-      for (const v of refresh.values()) v.revoked = true;
-      for (const v of access.values()) v.expired = true;
-    },
-    pageSize: (n) => {
-      size = n;
-    },
-    requests: () => [...log],
-    revoked: () => revokedCount,
-    reset: () => {
-      consent = 'grant';
-      calendars = [];
-      events = new Map();
-      failures = [];
-      size = 250;
-      log = [];
-      revokedCount = 0;
-      generation += 1;
-    },
+  const makeControl = (ns: string): FixtureControl => {
+    const sp = () => spaceOf(ns);
+    return {
+      consent: (mode) => {
+        sp().consent = mode;
+      },
+      setCalendars: (c) => {
+        sp().calendars = c.map((x) => ({ ...x }));
+      },
+      putEvent: (cal, e) => putIn(sp(), cal, e).etag,
+      cancelEvent: (cal, id) => {
+        const cur = storeIn(sp(), cal).get(id);
+        putIn(sp(), cal, { ...(cur ?? { id }), id, status: 'cancelled' });
+      },
+      getEvent: (cal, id) => {
+        const s = storeIn(sp(), cal).get(id);
+        return s ? { ...view(s), etag: s.etag } : null;
+      },
+      invalidateSyncTokens: () => {
+        sp().generation += 1;
+      },
+      failNext: (count, status, retryAfter) => {
+        for (let i = 0; i < count; i++)
+          sp().failures.push({ status, ...(retryAfter ? { retryAfter } : {}) });
+      },
+      expireAccessTokens: () => {
+        for (const v of access.values()) if (v.ns === ns) v.expired = true;
+      },
+      revokeGrants: () => {
+        for (const v of refresh.values()) if (v.ns === ns) v.revoked = true;
+        for (const v of access.values()) if (v.ns === ns) v.expired = true;
+      },
+      pageSize: (n) => {
+        sp().size = n;
+      },
+      requests: () => [...sp().log],
+      revoked: () => sp().revokedCount,
+      reset: () => {
+        spaces.set(ns, fresh(sp().generation + 1));
+      },
+    };
   };
+  const control = makeControl('');
 
   const bearer = (req: IncomingMessage) => {
     const h = req.headers.authorization ?? '';
@@ -207,7 +231,8 @@ export async function startGoogleCalendarFixture(
       const body = JSON.parse((await readBody(req)) || '{}') as Record<string, unknown>;
       const op = path.slice('/__control/'.length);
       const args = (body.args ?? []) as unknown[];
-      const fn = (control as unknown as Record<string, (...a: unknown[]) => unknown>)[op];
+      const ns = typeof body.ns === 'string' ? body.ns : '';
+      const fn = (makeControl(ns) as unknown as Record<string, (...a: unknown[]) => unknown>)[op];
       if (typeof fn !== 'function') return json(res, 404, {});
       return json(res, 200, { result: fn(...args) ?? null });
     }
@@ -223,14 +248,24 @@ export async function startGoogleCalendarFixture(
         !state
       )
         return json(res, 400, { error: 'invalid_request' });
+      const lead = state.split('.')[0] ?? '';
+      const ns = spaces.has(lead) ? lead : '';
+      const sp = spaceOf(ns);
       const back = new URL(redirect);
       back.searchParams.set('state', state);
-      if (consent === 'deny') back.searchParams.set('error', 'access_denied');
+      if (sp.consent === 'deny') back.searchParams.set('error', 'access_denied');
       else {
         const code = `4/${randomBytes(18).toString('base64url')}`;
         const asked = (url.searchParams.get('scope') ?? '').split(' ');
-        const scope = (consent === 'read_only' ? asked.filter((s) => s === READ) : asked).join(' ');
-        codes.set(code, { challenge: url.searchParams.get('code_challenge')!, redirect, scope });
+        const scope = (sp.consent === 'read_only' ? asked.filter((s) => s === READ) : asked).join(
+          ' ',
+        );
+        codes.set(code, {
+          challenge: url.searchParams.get('code_challenge')!,
+          redirect,
+          scope,
+          ns,
+        });
         back.searchParams.set('code', code);
       }
       res.writeHead(302, { location: back.toString() });
@@ -252,8 +287,8 @@ export async function startGoogleCalendarFixture(
           return json(res, 400, { error: 'invalid_grant' });
         const at = `ya29.${randomBytes(18).toString('base64url')}`;
         const rt = `1//${randomBytes(18).toString('base64url')}`;
-        access.set(at, { expired: false, scope: c.scope });
-        refresh.set(rt, { revoked: false, scope: c.scope });
+        access.set(at, { expired: false, scope: c.scope, ns: c.ns });
+        refresh.set(rt, { revoked: false, scope: c.scope, ns: c.ns });
         return json(res, 200, {
           access_token: at,
           refresh_token: rt,
@@ -265,6 +300,7 @@ export async function startGoogleCalendarFixture(
       if (form.get('grant_type') === 'refresh_token') {
         const r = refresh.get(form.get('refresh_token') ?? '');
         if (!r || r.revoked) return json(res, 400, { error: 'invalid_grant' });
+        const failures = spaceOf(r.ns).failures;
         if (failures.length) {
           const f = failures.shift()!;
           return json(
@@ -275,7 +311,7 @@ export async function startGoogleCalendarFixture(
           );
         }
         const at = `ya29.${randomBytes(18).toString('base64url')}`;
-        access.set(at, { expired: false, scope: r.scope });
+        access.set(at, { expired: false, scope: r.scope, ns: r.ns });
         return json(res, 200, {
           access_token: at,
           expires_in: 3599,
@@ -292,12 +328,16 @@ export async function startGoogleCalendarFixture(
       if (r) r.revoked = true;
       const a = access.get(t);
       if (a) a.expired = true;
-      revokedCount += 1;
+      spaceOf(r?.ns ?? a?.ns ?? '').revokedCount += 1;
       return json(res, 200, {});
     }
     // ---- Calendar v3 ----------------------------------------------------------------------
     if (!path.startsWith('/calendar/v3/')) return json(res, 404, {});
-    log.push({
+    const presented = (req.headers.authorization ?? '').replace(/^Bearer /, '');
+    const sp = spaceOf(access.get(presented)?.ns ?? '');
+    const { failures } = sp;
+    const size = sp.size;
+    sp.log.push({
       method: req.method ?? 'GET',
       path,
       ifMatch: typeof req.headers['if-match'] === 'string',
@@ -319,16 +359,18 @@ export async function startGoogleCalendarFixture(
     if (rest[0] === 'users' && rest[2] === 'calendarList') {
       if (!reads) return json(res, 403, { error: { code: 403 } });
       const off = Number(url.searchParams.get('pageToken') ?? '0');
-      const page = calendars.slice(off, off + size);
+      const page = sp.calendars.slice(off, off + size);
       return json(res, 200, {
         items: page,
-        ...(off + size < calendars.length ? { nextPageToken: String(off + size) } : {}),
+        ...(off + size < sp.calendars.length ? { nextPageToken: String(off + size) } : {}),
       });
     }
     if (rest[0] !== 'calendars' || !rest[1] || rest[2] !== 'events') return json(res, 404, {});
     const cal = rest[1];
-    if (!calendars.some((c) => c.id === cal)) return json(res, 404, { error: { code: 404 } });
-    const m = store(cal);
+    if (!sp.calendars.some((c) => c.id === cal)) return json(res, 404, { error: { code: 404 } });
+    const m = storeIn(sp, cal);
+    const put = (calendar: string, e: FixtureEvent) => putIn(sp, calendar, e);
+    const generation = sp.generation;
     if (req.method === 'GET' && rest.length === 3) {
       if (!reads) return json(res, 403, { error: { code: 403 } });
       const sync = url.searchParams.get('syncToken');
@@ -438,6 +480,10 @@ export async function startGoogleCalendarFixture(
     clientSecret,
     controlToken,
     control,
+    space: (namespace: string) => {
+      spaceOf(namespace);
+      return makeControl(namespace);
+    },
     env: (redirectUri: string) => ({
       GOOGLE_CALENDAR_CLIENT_ID: clientId,
       GOOGLE_CALENDAR_CLIENT_SECRET: clientSecret,
@@ -456,12 +502,12 @@ export async function startGoogleCalendarFixture(
 }
 
 /** Drives a fixture's control interface from another process (for example a browser test). */
-export function fixtureClient(baseUrl: string, token: string) {
+export function fixtureClient(baseUrl: string, token: string, namespace = '') {
   const call = async (op: keyof FixtureControl, ...args: unknown[]) => {
     const r = await fetch(`${baseUrl}/__control/${op}`, {
       method: 'POST',
       headers: { 'content-type': 'application/json', 'x-control-token': token },
-      body: JSON.stringify({ args }),
+      body: JSON.stringify({ ns: namespace, args }),
     });
     if (!r.ok) throw new Error(`fixture control ${op} failed (${r.status})`);
     return ((await r.json()) as { result: unknown }).result;

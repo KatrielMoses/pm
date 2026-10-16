@@ -438,3 +438,16 @@ Status of every ADR: **proposed (Phase 0B)**, pending solutions-architect accept
 - **Decision:** `integrations.api_token` stores a prefix and a SHA-256 hash, scopes, an optional brand list, expiry, and state (`active`, `revoked`, `suspended`). `integrations.webhook_subscription` is a `core.record` (`whk_`) with the destination, public event types, allow-list version, and vault references for the current and previous signing secrets. `integrations.webhook_delivery` records attempts without response bodies. `integrations.inbound_endpoint` stores only a hash of the path token. `integrations.inbound_message` dedupes on `(endpoint_id, provider_event_id)`. Provider connections are not created here.
 - **Alternatives:** Storing the token secret encrypted in the row (it would be recoverable by anyone who can read the table). Promising a single delivery.
 - **Consequences:** Migration `0046_public_api_webhooks` with an exact rollback to 0045. Every table forces workspace row-level security.
+
+<a id="adr-42"></a>
+## ADR-42: Google Calendar mirror, recurrence, and block links (Phase 6C, completed in the Phase 6 integration review)
+
+- **Decision:** `integrations.calendar_event` (`cev_`) mirrors a person's events from a calendar connection (0047). Migration 0051 completes it without editing 0047:
+  - `integrations.calendar_source` (`cal_`) lists the calendars a connection can see, with `selected`, `direction` (`read` or `two_way`, which requires a writable calendar), and an optional `brand_id` mapping for the person's own conflict and capacity reads.
+  - `integrations.calendar_series` holds a recurring provider event as a series anchored to its own IANA zone. `rrule` holds the shared engine subset when `supported`. Otherwise occurrences come from the provider's own instance list, never an approximation. `integrations.calendar_exception` records cancelled and moved occurrences by original occurrence key (0B §6.4).
+  - Events gain `source_id`, `series_id` + `occurrence_key` (unique per series), `detached` (a moved occurrence), and `status`. The 0047 `linked_work_block_id` gains the last agreed versions (`link_block_version`, `link_remote_version`) and `push_pending`. A change on one side moves the other; a change on both sides is a conflict.
+  - Checkpoints reuse `integrations.sync_checkpoint` per calendar (`calendar:<cal id>`), with compare-and-set.
+  - The 0047 and 0050 tenant policies move to the canonical fail-closed `exec.current_workspace_id()` with an explicit `WITH CHECK`.
+- **Alternatives:** Generating occurrences only from the provider (no anchor-zone evaluation, no exceptions contract). A JSON recurrence column (no exception identity). A second planning table for calendar time (a parallel authority to work blocks).
+- **Consequences:** Migration `0051_calendar_completion` with an exact rollback to 0050. Every new table forces workspace row-level security. All of it is personal data, read only by its owner.
+

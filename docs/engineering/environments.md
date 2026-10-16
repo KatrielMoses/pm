@@ -280,7 +280,21 @@ worker process is a startup error. All identities of one process must target the
 | `SYNC_HISTORY_RETENTION_DAYS` | optional | optional | default 90 (7–730); how long sync run history is kept (0D `SYNC_HISTORY_RETENTION_DAYS`) |
 | `SYNC_RATE_PER_MINUTE` | optional | optional | default 30 (1–600); most connection creates and syncs one member starts per minute (0D `SYNC_RATE_PER_MINUTE`) |
 | `INTEGRATION_LOOPBACK_ENABLED` | optional | optional | `auto` (also `0` or `1`); the in-process loopback provider is on for local and test when `auto`, and off for every other environment unless set to `1` |
-| `GOOGLE_CALENDAR_LOOPBACK_ENABLED` | optional | optional | `0` or `1`; default `0`. When `1`, the in-process Google Calendar double may be connected (local and test only) |
+| `GOOGLE_CALENDAR_LOOPBACK_ENABLED` | optional | optional | `0` or `1`; default `0`. When `1`, the in-process Google Calendar double may be connected with an API key (local and test only). Its connections report `provider_mode: test_double` and never claim live synchronization |
+| `GOOGLE_CALENDAR_CLIENT_ID` | optional | optional | Google OAuth client ID for calendar connections. Set together with `GOOGLE_CALENDAR_CLIENT_SECRET` and `GOOGLE_CALENDAR_REDIRECT_URI`, or leave all three unset: Google Calendar then reports itself as not configured (no provider is approved for deployments yet) |
+| `GOOGLE_CALENDAR_CLIENT_SECRET` | optional | optional | Google OAuth client secret (held as a secret, never logged; `secretref:` values need a secret-store provider, DQ-28) |
+| `GOOGLE_CALENDAR_REDIRECT_URI` | optional | optional | The registered redirect URI: `<PUBLIC_BASE_URL>/v1/integrations/oauth/google_calendar/callback` |
+| `GOOGLE_CALENDAR_AUTHORIZE_URL` | optional | optional | default `https://accounts.google.com/o/oauth2/v2/auth`; https outside local and test (automated acceptance points it at the provider contract fixture) |
+| `GOOGLE_CALENDAR_TOKEN_URL` | optional | optional | default `https://oauth2.googleapis.com/token`; https outside local and test |
+| `GOOGLE_CALENDAR_REVOKE_URL` | optional | optional | default `https://oauth2.googleapis.com/revoke`; https outside local and test |
+| `GOOGLE_CALENDAR_API_BASE` | optional | optional | default `https://www.googleapis.com/calendar/v3`; https outside local and test |
+| `GOOGLE_CALENDAR_TIMEOUT_MS` | optional | optional | default 10000 (1000–60000); per-request timeout for calendar provider calls |
+| `CALENDAR_SYNC_PAGES_MAX` | optional | optional | default 20 (1–200); provider pages one calendar reads per sync run before resuming from its checkpoint |
+| `CALENDAR_SYNC_PAST_DAYS` | optional | optional | default 30 (1–366); how far back a full calendar listing reaches |
+| `CALENDAR_SYNC_HORIZON_DAYS` | optional | optional | default 120 (7–732); how far ahead recurring events are expanded |
+| `CALENDARS_PER_CONNECTION_MAX` | optional | optional | default 25 (1–200); most calendars one connection lists and synchronizes |
+| `CALENDAR_OCCURRENCES_MAX` | optional | optional | default 400 (10–5000); most occurrences one recurring series expands per run |
+| `CALENDAR_EVENTS_LIST_MAX` | optional | optional | default 500 (10–5000); most events one calendar read returns |
 | `API_TOKENS_PERSONAL_MAX` | optional | optional | default 25 (1–500); active personal API tokens one member may hold |
 | `API_TOKENS_SERVICE_MAX` | optional | optional | default 50 (1–500); active service tokens one accountable owner may hold |
 | `API_READ_RATE_PER_MINUTE` | optional | optional | default 600 (1–10000); public API reads per principal |

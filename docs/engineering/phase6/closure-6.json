@@ -1,0 +1,102 @@
+{
+  "schema_version": 1,
+  "phase": "6",
+  "status": "candidate",
+  "adr": "0037",
+  "members": {
+    "6A": "docs/engineering/phase6/closure-6a.json",
+    "6B": "docs/engineering/phase6/closure-6b.json",
+    "6C": "docs/engineering/phase6/closure-6c.json",
+    "6D": "docs/engineering/phase6/closure-6d.json",
+    "6E": "docs/engineering/phase6/closure-6e.json"
+  },
+  "boundaries": [
+    {
+      "id": "DATA-010",
+      "owner": "6D",
+      "decision": "OD-33",
+      "statement": "Named vendor import adapters remain incremental after launch under OD-33; generic CSV is the launch import path."
+    },
+    {
+      "id": "DATA-013",
+      "owner": "6D",
+      "deferred_to": [
+        "7A",
+        "8A",
+        "8B"
+      ],
+      "statement": "AI, agent, and automation history exports belong to their owning modules."
+    },
+    {
+      "id": "AUD-009",
+      "owner": "6D",
+      "deferred_to": [
+        "10A"
+      ],
+      "statement": "Commercial audit-export entitlement supply remains 10A; production defaults to denied."
+    },
+    {
+      "id": "CAP-006",
+      "owner": "2E",
+      "decision": "OD-29",
+      "statement": "Email capture is unresolved under OD-29; 6A lists email_inbound as not configured and creates no address, inbound mail, or sender verification."
+    }
+  ],
+  "corrections": [
+    "6C: closure claims that rested on reserved fields, ADR prose, or placeholder text now cite running behavior and tests (closure-6c corrections).",
+    "6A: closure normalized to the standard schema with evidence and contributions; INT-010 (6B) and INT-026 (6C) closed once by their owners.",
+    "Identifiers: duplicate pl-42 (6B) renumbered to PL-43; ADR-42/AZ-42 written for 6C; AT-315/AT-316 registered.",
+    "Policies: 0047 and 0050 tenant policies moved to exec.current_workspace_id() with WITH CHECK in migration 0051.",
+    "Web: the API tokens page read the wrong envelope level and failed on load; fixed with webhook settings added."
+  ],
+  "evidence": [
+    {
+      "file": "packages/db/migrations/0051_calendar_completion.up.sql",
+      "contains": "CREATE TABLE integrations.calendar_source"
+    },
+    {
+      "file": "packages/db/migrations/0051_calendar_completion.down.sql",
+      "contains": "Restores the exact 0050 catalog"
+    },
+    {
+      "file": "packages/db/test/integration/migrations.test.ts",
+      "contains": "every accepted boundary (0009–0051)"
+    },
+    {
+      "file": "packages/work/src/integrations/calendar-provider.ts",
+      "contains": "export class GoogleCalendarProvider implements CalendarProvider"
+    },
+    {
+      "file": "packages/work/src/integrations/calendar-sync.ts",
+      "contains": "async function reconcileLink("
+    },
+    {
+      "file": "packages/work/src/planning/today-service.ts",
+      "contains": "protected async applyBlockMove("
+    },
+    {
+      "file": "packages/work/src/capacity/capacity-service.ts",
+      "contains": "protected async externalBusy("
+    },
+    {
+      "file": "packages/test-support/src/google-calendar-fixture.ts",
+      "contains": "export async function startGoogleCalendarFixture("
+    },
+    {
+      "file": "packages/work/test/integration/calendar-live.test.ts",
+      "contains": "AT-323 moves linked blocks both ways without loops or date changes"
+    },
+    {
+      "file": "packages/work/test/integration/calendar-live.test.ts",
+      "contains": "AT-324 feeds Today, calendar reads and capacity for the owner only"
+    },
+    {
+      "file": "apps/api/src/work/calendar-routes.ts",
+      "contains": "/v1/integrations/oauth/google_calendar/callback"
+    },
+    {
+      "file": "docs/engineering/adr/0037-phase-6-integration.md",
+      "contains": "## Identifier reconciliation"
+    }
+  ]
+}

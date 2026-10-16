@@ -7265,13 +7265,137 @@
         "title (encrypted at rest)",
         "busy boolean",
         "linked_work_block_id null",
-        "remote_version"
+        "remote_version",
+        "source_id null",
+        "series_id null + occurrence_key",
+        "detached boolean",
+        "status confirmed|tentative",
+        "link_block_version + link_remote_version (agreed versions)",
+        "push_pending boolean"
       ],
       "requirements": [
         "CAL-002",
+        "CAL-005",
         "CAL-006",
         "CAL-008",
+        "CAL-012",
         "PLAN-004"
+      ],
+      "notes": ""
+    },
+    {
+      "name": "calendar_source",
+      "module": "integrations",
+      "purpose": "A calendar listed by a person's calendar connection: whether it is synchronized, read-only or two-way, and an optional brand mapping for the person's own conflict and capacity reads (Phase 6 integration review).",
+      "scope": "personal",
+      "addressable": false,
+      "public_id_prefix": "cal",
+      "extends": null,
+      "containment_parents": [
+        "connection"
+      ],
+      "associations": [
+        "brand"
+      ],
+      "lifecycle": "mutable",
+      "concurrency": "row-version",
+      "retention_class": "R-PERSONAL",
+      "confidentiality": "C2",
+      "volume": "low",
+      "export": "self",
+      "search_ai": "no",
+      "may_contain_secrets": "no",
+      "personal_data": "yes",
+      "uniqueness": [
+        "(connection_id, external_calendar_id)"
+      ],
+      "sensitive_fields": [],
+      "key_columns": [
+        "external_calendar_id",
+        "label",
+        "calendar_tz",
+        "access_role",
+        "selected boolean",
+        "direction read|two_way",
+        "brand_id null"
+      ],
+      "requirements": [
+        "CAL-006",
+        "WSB-010"
+      ],
+      "notes": ""
+    },
+    {
+      "name": "calendar_series",
+      "module": "integrations",
+      "purpose": "A recurring provider event as a series anchored to its own IANA zone; occurrences are expanded with the shared recurrence engine, or from the provider's instance list when the rule is outside the engine subset.",
+      "scope": "personal",
+      "addressable": false,
+      "public_id_prefix": null,
+      "extends": null,
+      "containment_parents": [
+        "calendar_source"
+      ],
+      "associations": [],
+      "lifecycle": "mutable",
+      "concurrency": "cas",
+      "retention_class": "R-PERSONAL",
+      "confidentiality": "C3",
+      "volume": "medium",
+      "export": "self",
+      "search_ai": "no",
+      "may_contain_secrets": "no",
+      "personal_data": "yes",
+      "uniqueness": [
+        "(source_id, external_series_id)"
+      ],
+      "sensitive_fields": [],
+      "key_columns": [
+        "rrule null (engine subset)",
+        "supported boolean",
+        "until_at null",
+        "anchor_tz",
+        "dtstart_local timestamp",
+        "all_day boolean",
+        "duration_minutes",
+        "remote_version"
+      ],
+      "requirements": [
+        "CAL-005"
+      ],
+      "notes": ""
+    },
+    {
+      "name": "calendar_exception",
+      "module": "integrations",
+      "purpose": "A cancelled or moved occurrence of a provider series, keyed by its original local occurrence key; expansion never regenerates over it.",
+      "scope": "personal",
+      "addressable": false,
+      "public_id_prefix": null,
+      "extends": null,
+      "containment_parents": [
+        "calendar_series"
+      ],
+      "associations": [],
+      "lifecycle": "mutable",
+      "concurrency": "cas",
+      "retention_class": "R-PERSONAL",
+      "confidentiality": "C1",
+      "volume": "medium",
+      "export": "self",
+      "search_ai": "no",
+      "may_contain_secrets": "no",
+      "personal_data": "incidental",
+      "uniqueness": [
+        "(series_id, occurrence_key)"
+      ],
+      "sensitive_fields": [],
+      "key_columns": [
+        "occurrence_key",
+        "kind cancelled|moved"
+      ],
+      "requirements": [
+        "CAL-005"
       ],
       "notes": ""
     },

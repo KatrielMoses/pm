@@ -522,8 +522,26 @@ All decisions are **proposed (Phase 0D)**, pending solutions-architect acceptanc
 - **Alternatives:** A dedicated error code per workflow refusal (the 0D set is closed; issue codes carry the detail). Unbounded formula graphs.
 - **Consequences:** Event payloads carry identifiers, kinds, categories, and states only, never names, values, formulas, option labels, or emails. 80 ID prefixes, 86 events, 68 named parameters, 54 telemetry signals.
 
-<a id="pl-42"></a>
-### PL-42: Public API and webhook contracts (Phase 6B amendment)
+<a id="pl-43"></a>
+### PL-43: Public API and webhook contracts (Phase 6B amendment)
+Renumbered in the Phase 6 integration review: 6B was accepted with a second `pl-42` anchor beside 6A's. The header comment of the applied migration `0046_public_api_webhooks` keeps its original text; this record is authoritative.
+
 - **Decision:** Bearer tokens authenticate `Authorization: Bearer pm_…` on existing `/v1` record routes. Token and webhook management stays on the session. Inbound intake is `POST /v1/hooks/{token}` and answers 202 with an empty body after the message is stored. Outbound signatures are `v1,` HMAC-SHA256 over `id.timestamp.body`. Named bounds added for 6B include `API_TOKENS_PERSONAL_MAX` (25), `API_TOKENS_SERVICE_MAX` (50), `API_READ_RATE_PER_MINUTE` (600), `API_WRITE_RATE_PER_MINUTE` (120), `API_EXPORT_RATE_PER_MINUTE` (20), `WEBHOOK_SUBSCRIPTIONS_MAX` (50), `WEBHOOK_INBOUND_MAX` (20), `WEBHOOK_MAX_ATTEMPTS` (8), `WEBHOOK_CONCURRENCY_PER_DESTINATION` (4), `WEBHOOK_BODY_MAX_BYTES` (262144), `WEBHOOK_DELIVERY_RETENTION_DAYS` (30), `WEBHOOK_EVENT_TYPES_MAX` (20), and `WEBHOOK_SWEEP_BATCH_MAX` (25). `WEBHOOK_TIMESTAMP_TOLERANCE` defaults to 300 seconds, `WEBHOOK_DISABLE_THRESHOLD` to 10, and `WEBHOOK_RESPONSE_TIMEOUT` to 10000 milliseconds.
 - **Alternatives:** A second public resource tree that bypasses the session routes. Storing webhook response bodies for debugging.
 - **Consequences:** Events `integrations.api_token.created`, `integrations.api_token.rotated`, and `integrations.api_token.revoked`.
+
+<a id="pl-44"></a>
+### PL-44: Google Calendar contracts (Phase 6C, completed in the Phase 6 integration review)
+- **Decision:**
+  - Prefix `cal` (`calendar_source`, a connected calendar) is added. `cev` (`calendar_event`) was already registered.
+  - Routes under `/v1/workspaces/{ws}`: `calendar-events` (`GET`, a bounded window of at most 62 days), `calendar-conflicts` (`GET`), `integrations/connections/{conn}/calendars` (`GET`, `PUT`), `work-blocks/{blk}/calendar` (`POST` publish, `DELETE` unlink), and `calendar-events/{cev}/link` (`POST`). Unsafe requests take `Idempotency-Key`. Every response is `private, no-store` and describes only the caller's own calendars.
+  - The OAuth redirect lands on `GET /v1/integrations/oauth/google_calendar/callback`. It completes the pending authorization for the session's own connection after matching the state, then redirects to the integrations settings page with an outcome (`connected`, `denied`, `invalid`, `unavailable`, `scope_declined`, `not_found`). It never carries a token or provider text.
+  - A connection resource gains `provider_mode` (`live`, `test_double`, or null) so a test double is never presented as live synchronization. Creating or reauthorizing a live OAuth connection returns `authorization_url`.
+  - Today gains `meetings` (`available: false` with `reason: not_connected`, or the person's events and busy minutes) and each scheduled block gains `calendar` (the linked event, or null). Capacity conflicts gain `calendar_overlap` for the person themself.
+  - Non-resource envelopes: `calendar_events`, `calendar_sources`, `calendar_conflicts`.
+  - Refusals: `validation_failed` issues `read_only_calendar`, `insufficient_scope`, `provider_unavailable`, `all_day`, `invalid`; `conflict` issues `already_linked`, `locked`, `focus_protected`, `unavailable`, `too_many`; `not_found` for a connection, calendar, event, or conflict the caller does not own (the same refusal as an unknown identifier).
+  - Named bounds (owner 6C): `CALENDAR_SYNC_PAGES_MAX` (20), `CALENDAR_SYNC_PAST_DAYS` (30), `CALENDAR_SYNC_HORIZON_DAYS` (120), `CALENDARS_PER_CONNECTION_MAX` (25), `CALENDAR_OCCURRENCES_MAX` (400), `CALENDAR_EVENTS_LIST_MAX` (500). Provider configuration: `GOOGLE_CALENDAR_CLIENT_ID`, `GOOGLE_CALENDAR_CLIENT_SECRET`, `GOOGLE_CALENDAR_REDIRECT_URI` (all or none), `GOOGLE_CALENDAR_AUTHORIZE_URL`, `GOOGLE_CALENDAR_TOKEN_URL`, `GOOGLE_CALENDAR_REVOKE_URL`, `GOOGLE_CALENDAR_API_BASE` (https outside local and test), and `GOOGLE_CALENDAR_TIMEOUT_MS` (10000). `GOOGLE_CALENDAR_LOOPBACK_ENABLED` and `WEBHOOK_ALLOW_LOOPBACK` are now registered too.
+  - Signals reuse `integrations.requests` (op `calendar_revoke`, `calendar_block_move`) and `integrations.jobs` (kind `calendar_sync`, `calendar_list`). Events reuse `planning.work_block.moved` (actor `integration` on behalf of the owner) and the 6A sync and conflict events.
+- **Alternatives:** A separate calendar resource tree outside the connection framework (two authorities). An unbounded events read.
+- **Consequences:** 96 ID prefixes and 279 named parameters; no new event types or signals.
+

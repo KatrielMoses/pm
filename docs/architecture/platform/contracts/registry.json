@@ -550,7 +550,7 @@
       "entity": "integrations.calendar_source",
       "owner_module": "integrations",
       "platform_only": false,
-      "note": "A connected calendar listed by a calendar connection (Phase 6 integration review, ADR-0037)."
+      "note": "A connected calendar listed by a calendar connection (Phase 6 integration review)."
     },
     {
       "prefix": "rd",

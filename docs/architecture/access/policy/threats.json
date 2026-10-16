@@ -914,6 +914,55 @@
         "I-01",
         "I-08"
       ]
+    },
+    {
+      "id": "T-86",
+      "category": "field_leak",
+      "description": "A person's connected calendars, event titles, schedule conflicts, or busy time reach anyone but that person, directly or through derived availability, counts, conflicts, or Today (anonymous free/busy).",
+      "mitigated_by": [
+        "I-07",
+        "I-08",
+        "I-18"
+      ]
+    },
+    {
+      "id": "T-87",
+      "category": "revocation",
+      "description": "A calendar change silently overwrites the person's plan or the provider copy, loops between them, applies after the owner lost authority, or changes a due date or deadline.",
+      "mitigated_by": [
+        "I-12",
+        "I-14"
+      ]
+    },
+    {
+      "id": "T-88",
+      "category": "spoofing",
+      "description": "A calendar authorization completes with a mismatched state or for someone other than its initiator, or a scope declined at the provider widens the connection.",
+      "mitigated_by": [
+        "I-01",
+        "I-11",
+        "I-16"
+      ]
+    },
+    {
+      "id": "T-89",
+      "category": "staleness",
+      "description": "An unconfigured provider, a test double, an outage, or an invalidated checkpoint is reported as live, current synchronization.",
+      "mitigated_by": [
+        "I-01",
+        "I-08"
+      ]
+    },
+    {
+      "id": "T-90",
+      "category": "cross_workspace",
+      "description": "A Phase 6 surface (connection, API token, MCP access, webhook, or import) reaches a workspace, brand, or record its principal cannot read, discloses hidden identifiers through its refusals, or keeps acting after revocation, suspension, removal, or departure.",
+      "mitigated_by": [
+        "I-03",
+        "I-07",
+        "I-12",
+        "I-14"
+      ]
     }
   ],
   "tests": [
@@ -6575,6 +6624,242 @@
       "silent_surfaces": [
         "error_message"
       ]
+    },
+    {
+      "id": "AT-315",
+      "threats": [
+        "T-89"
+      ],
+      "principal": "member",
+      "setup": "Loopback test-double calendar connection synchronized",
+      "scope": "own calendar events",
+      "action": "integration.sync_now",
+      "surface": "api",
+      "expected": "allow",
+      "response_shape": "ok",
+      "silent_surfaces": []
+    },
+    {
+      "id": "AT-316",
+      "threats": [
+        "T-86",
+        "T-76"
+      ],
+      "principal": "member",
+      "setup": "Calendar connection disconnected with remove",
+      "scope": "own calendar events",
+      "action": "integrations.configure",
+      "surface": "api",
+      "expected": "allow",
+      "response_shape": "ok",
+      "silent_surfaces": []
+    },
+    {
+      "id": "AT-317",
+      "threats": [
+        "T-88",
+        "T-86"
+      ],
+      "principal": "administrator",
+      "setup": "Completes another person's calendar authorization, or lists their calendars",
+      "scope": "calendar connection",
+      "action": "integrations.configure",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "not_found",
+      "silent_surfaces": [
+        "error_message",
+        "timing"
+      ]
+    },
+    {
+      "id": "AT-318",
+      "threats": [
+        "T-86",
+        "T-74"
+      ],
+      "principal": "member",
+      "setup": "Maps a calendar to a hidden brand or makes a read-only calendar two-way",
+      "scope": "calendar mapping",
+      "action": "integrations.configure",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "not_found",
+      "silent_surfaces": [
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-319",
+      "threats": [
+        "T-89",
+        "T-77"
+      ],
+      "principal": "integration_connection",
+      "setup": "Paged incremental sync, then an invalidated checkpoint",
+      "scope": "selected calendars",
+      "action": "integration.sync_now",
+      "surface": "api",
+      "expected": "allow",
+      "response_shape": "ok",
+      "silent_surfaces": []
+    },
+    {
+      "id": "AT-320",
+      "threats": [
+        "T-88",
+        "T-79"
+      ],
+      "principal": "integration_connection",
+      "setup": "Expired access refreshed; revoked grant",
+      "scope": "calendar connection",
+      "action": "integration.sync_now",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "suspended",
+      "silent_surfaces": [
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-321",
+      "threats": [
+        "T-89",
+        "T-77"
+      ],
+      "principal": "integration_connection",
+      "setup": "Provider outage and rate limit",
+      "scope": "calendar connection",
+      "action": "integration.sync_now",
+      "surface": "api",
+      "expected": "allow",
+      "response_shape": "ok",
+      "silent_surfaces": []
+    },
+    {
+      "id": "AT-322",
+      "threats": [
+        "T-89"
+      ],
+      "principal": "integration_connection",
+      "setup": "Recurring series with EXDATE, moved, cancelled, all-day, and provider-expanded occurrences",
+      "scope": "own calendar events",
+      "action": "integration.sync_now",
+      "surface": "api",
+      "expected": "allow",
+      "response_shape": "ok",
+      "silent_surfaces": []
+    },
+    {
+      "id": "AT-323",
+      "threats": [
+        "T-87"
+      ],
+      "principal": "integration_connection",
+      "setup": "Linked block moved at the provider, locally, and on both sides",
+      "scope": "own work block",
+      "action": "personal.manage_own",
+      "surface": "api",
+      "expected": "allow",
+      "response_shape": "conflict_filtered",
+      "silent_surfaces": []
+    },
+    {
+      "id": "AT-324",
+      "threats": [
+        "T-86"
+      ],
+      "principal": "administrator",
+      "setup": "Reads a member's capacity, Today, calendar events, and conflicts",
+      "scope": "another person's calendar",
+      "action": "personal.manage_own",
+      "surface": "capacity",
+      "expected": "deny",
+      "response_shape": "omitted",
+      "silent_surfaces": [
+        "count_facet",
+        "capacity",
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-325",
+      "threats": [
+        "T-87",
+        "T-76"
+      ],
+      "principal": "system_job",
+      "setup": "Queued sync after disconnect",
+      "scope": "calendar connection",
+      "action": "integration.sync_now",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "suspended",
+      "silent_surfaces": [
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-326",
+      "threats": [
+        "T-89"
+      ],
+      "principal": "owner",
+      "setup": "Provider unconfigured, or only the test double enabled",
+      "scope": "calendar provider",
+      "action": "integrations.configure",
+      "surface": "ui_record",
+      "expected": "deny",
+      "response_shape": "validation_generic",
+      "silent_surfaces": [
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-327",
+      "threats": [
+        "T-89"
+      ],
+      "principal": "integration_connection",
+      "setup": "Weekly series across a DST change",
+      "scope": "own calendar events",
+      "action": "integration.sync_now",
+      "surface": "api",
+      "expected": "allow",
+      "response_shape": "ok",
+      "silent_surfaces": []
+    },
+    {
+      "id": "AT-328",
+      "threats": [
+        "T-86",
+        "T-87",
+        "T-88",
+        "T-89",
+        "T-90"
+      ],
+      "principal": "owner",
+      "setup": "Browser exit journey: connect, select, sync, plan, move, resolve, tokens, webhooks, MCP consent, CSV, revoke",
+      "scope": "Phase 6 surfaces",
+      "action": "integrations.configure",
+      "surface": "ui_record",
+      "expected": "allow",
+      "response_shape": "ok",
+      "silent_surfaces": []
+    },
+    {
+      "id": "AT-329",
+      "threats": [
+        "T-89"
+      ],
+      "principal": "member",
+      "setup": "Browser: provider outage shown as degraded, then recovery",
+      "scope": "calendar connection",
+      "action": "integration.sync_now",
+      "surface": "ui_record",
+      "expected": "allow",
+      "response_shape": "ok",
+      "silent_surfaces": []
     }
   ]
 }

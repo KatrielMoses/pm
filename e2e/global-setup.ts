@@ -3,7 +3,13 @@ import { randomBytes } from 'node:crypto';
 import { existsSync, mkdtempSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
-import { generatePasswords, provisionDatabase, startPostgres, testEnv } from '@pm/test-support';
+import {
+  generatePasswords,
+  provisionDatabase,
+  startGoogleCalendarFixture,
+  startPostgres,
+  testEnv,
+} from '@pm/test-support';
 
 const ROOT = resolve(import.meta.dirname, '..');
 
@@ -15,6 +21,10 @@ export default async function globalSetup(): Promise<() => Promise<void>> {
   const mailbox = join(scratch, 'mailbox');
   const server = await startPostgres();
   const urls = await provisionDatabase(server, 'pm_e2e', generatePasswords());
+  // 6C: the deterministic Google OAuth + Calendar v3 contract fixture (never Google itself). The
+  // real adapter in the API and worker talks to it over HTTP; browser tests drive it through its
+  // token-protected control endpoint, one namespace per test workspace.
+  const calendar = await startGoogleCalendarFixture();
   const env = {
     PATH: process.env.PATH ?? '',
     ...testEnv(urls),
@@ -39,6 +49,7 @@ export default async function globalSetup(): Promise<() => Promise<void>> {
     OBJECT_STORAGE_LOCAL_SECRET: randomBytes(32).toString('base64url'),
     OBJECT_STORAGE_PUBLIC_BASE_URL: `http://127.0.0.1:${port}`,
     MALWARE_SCANNER: 'test-signature',
+    ...calendar.env(`http://127.0.0.1:${port}/v1/integrations/oauth/google_calendar/callback`),
     RATE_LIMIT_POLICIES: JSON.stringify({
       'sign_in.source': { limit: 10000, windowMs: 60000 },
       'sign_in.email': { limit: 10000, windowMs: 60000 },
@@ -56,6 +67,8 @@ export default async function globalSetup(): Promise<() => Promise<void>> {
   process.env.PM_E2E_ADMIN_URL = server.adminUrl('pm_e2e');
   process.env.PM_E2E_APP_URL = urls.app;
   process.env.PM_E2E_WORKER_URL = urls.worker;
+  process.env.PM_E2E_GCAL_URL = calendar.baseUrl;
+  process.env.PM_E2E_GCAL_TOKEN = calendar.controlToken;
   const dist = process.env.PM_SMOKE_DIST === '1';
   const start = (app: string): ChildProcess =>
     spawn(
@@ -81,6 +94,7 @@ export default async function globalSetup(): Promise<() => Promise<void>> {
     await Promise.all(
       procs.map((p) => new Promise((r) => (p.exitCode !== null ? r(null) : p.on('exit', r)))),
     );
+    await calendar.close();
     await server.stop();
   };
 }
