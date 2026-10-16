@@ -87,12 +87,15 @@ export function parseConnect(body: unknown, scopeMax: number): ConnectInput {
   };
 }
 
-export function parseComplete(body: unknown): { code: string } {
+export function parseComplete(body: unknown): { code: string; state: string | null } {
   const o = object(body);
   const code = o.code;
   if (typeof code !== 'string' || !KEY.test(code))
     throw invalid(issue('/code', 'invalid', 'The authorization code is not usable.'));
-  return { code };
+  const state = o.state === undefined || o.state === null ? null : o.state;
+  if (state !== null && (typeof state !== 'string' || !KEY.test(state)))
+    throw invalid(issue('/state', 'invalid', 'This authorization is not for this connection.'));
+  return { code, state };
 }
 
 export function parseDisconnect(body: unknown): { retention: 'retain' | 'remove' } {

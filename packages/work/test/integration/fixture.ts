@@ -42,6 +42,7 @@ import {
   reviewDepartureHook,
   departureTimerHook,
   type WorkSettings,
+  type CalendarProvider,
 } from '@pm/work';
 import {
   mutation,
@@ -90,6 +91,8 @@ export function workEnv(
     /** 4E: defaults to local storage in a temp directory and the signature scanner. */
     files?: Partial<FileDeps>;
     deliver?: WebhookTransport;
+    /** 6C: the calendar provider adapter (the real Google adapter against the HTTP fixture). */
+    calendarProvider?: CalendarProvider | null;
   } = {},
 ): WorkEnv {
   const h = createHarness(db);
@@ -137,6 +140,7 @@ export function workEnv(
   const svc = new McpAccessService({
     vault: createVault(h.config.identity),
     deliver: options.deliver,
+    calendarProvider: options.calendarProvider ?? null,
     files,
     ...(options.searchSources ? { search: { sources: options.searchSources } } : {}),
     notify: { emailState: options.emailState ?? 'capture' },

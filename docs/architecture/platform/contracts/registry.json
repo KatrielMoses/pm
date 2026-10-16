@@ -545,6 +545,14 @@
       "note": ""
     },
     {
+      "prefix": "cal",
+      "resource": "calendar_source",
+      "entity": "integrations.calendar_source",
+      "owner_module": "integrations",
+      "platform_only": false,
+      "note": "A connected calendar listed by a calendar connection (Phase 6 integration review, ADR-0037)."
+    },
+    {
       "prefix": "rd",
       "resource": "release_decision",
       "entity": "delivery.release_decision",
@@ -7800,6 +7808,86 @@
       "name": "SYNC_RATE_PER_MINUTE",
       "meaning": "Most connection creates and syncs one member starts per minute; default 30, range 1\u2013600.",
       "owner": "6A"
+    },
+    {
+      "name": "WEBHOOK_ALLOW_LOOPBACK",
+      "meaning": "Allows loopback webhook destinations; auto enables it only in local and test.",
+      "owner": "6B"
+    },
+    {
+      "name": "GOOGLE_CALENDAR_LOOPBACK_ENABLED",
+      "meaning": "Local and test only: enables the in-process Google Calendar test double for api_key connections; never reported as live synchronization.",
+      "owner": "6C"
+    },
+    {
+      "name": "GOOGLE_CALENDAR_CLIENT_ID",
+      "meaning": "Google OAuth client ID for calendar connections; unset leaves Google Calendar truthfully unconfigured (with the secret and redirect URI, all or none).",
+      "owner": "6C"
+    },
+    {
+      "name": "GOOGLE_CALENDAR_CLIENT_SECRET",
+      "meaning": "Google OAuth client secret for calendar connections; held as a secret and never logged.",
+      "owner": "6C"
+    },
+    {
+      "name": "GOOGLE_CALENDAR_REDIRECT_URI",
+      "meaning": "The registered OAuth redirect URI (the application's calendar callback route).",
+      "owner": "6C"
+    },
+    {
+      "name": "GOOGLE_CALENDAR_AUTHORIZE_URL",
+      "meaning": "Google OAuth authorization endpoint; https outside local and test (a provider fixture may stand in for automated acceptance).",
+      "owner": "6C"
+    },
+    {
+      "name": "GOOGLE_CALENDAR_TOKEN_URL",
+      "meaning": "Google OAuth token endpoint; https outside local and test.",
+      "owner": "6C"
+    },
+    {
+      "name": "GOOGLE_CALENDAR_REVOKE_URL",
+      "meaning": "Google OAuth revocation endpoint; https outside local and test.",
+      "owner": "6C"
+    },
+    {
+      "name": "GOOGLE_CALENDAR_API_BASE",
+      "meaning": "Google Calendar v3 API base URL; https outside local and test.",
+      "owner": "6C"
+    },
+    {
+      "name": "GOOGLE_CALENDAR_TIMEOUT_MS",
+      "meaning": "Per-request timeout for calendar provider calls; default 10000, range 1000\u201360000.",
+      "owner": "6C"
+    },
+    {
+      "name": "CALENDAR_SYNC_PAGES_MAX",
+      "meaning": "Provider pages one calendar reads per sync run before resuming from its checkpoint; default 20, range 1\u2013200.",
+      "owner": "6C"
+    },
+    {
+      "name": "CALENDAR_SYNC_PAST_DAYS",
+      "meaning": "How far back a full calendar listing reaches; default 30, range 1\u2013366.",
+      "owner": "6C"
+    },
+    {
+      "name": "CALENDAR_SYNC_HORIZON_DAYS",
+      "meaning": "How far ahead recurring events are expanded; default 120, range 7\u2013732.",
+      "owner": "6C"
+    },
+    {
+      "name": "CALENDARS_PER_CONNECTION_MAX",
+      "meaning": "Most calendars one connection lists and synchronizes; default 25, range 1\u2013200.",
+      "owner": "6C"
+    },
+    {
+      "name": "CALENDAR_OCCURRENCES_MAX",
+      "meaning": "Most occurrences one recurring series expands per run; default 400, range 10\u20135000.",
+      "owner": "6C"
+    },
+    {
+      "name": "CALENDAR_EVENTS_LIST_MAX",
+      "meaning": "Most events one calendar read returns; default 500, range 10\u20135000.",
+      "owner": "6C"
     },
     {
       "name": "TASK_ASSIGNEES_MAX",

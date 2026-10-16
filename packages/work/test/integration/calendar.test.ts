@@ -3,6 +3,9 @@ import { createTestDatabase, type TestDatabase } from '@pm/test-support/vitest';
 import type { Caller } from '@pm/tenancy';
 import { mutation, workEnv, workspaceWith, type WorkEnv } from './fixture.ts';
 
+// Reads are bounded windows (ADR-0037); the loopback double's event is on 2030-01-15.
+const WINDOW = { from: '2030-01-10T00:00:00.000Z', to: '2030-01-20T00:00:00.000Z' };
+
 describe('Google Calendar (6C)', () => {
   let db: TestDatabase;
   let env: WorkEnv;
@@ -33,7 +36,7 @@ describe('Google Calendar (6C)', () => {
       mutation(),
     );
     await env.svc.syncNow(owner, ws, conn.data.id, mutation());
-    const listed = await env.svc.listCalendarEvents(owner, ws, {});
+    const listed = await env.svc.listCalendarEvents(owner, ws, WINDOW);
     expect(listed.events.length).toBeGreaterThan(0);
     expect(listed.events[0]?.title).toBe('Focus time');
   });
@@ -52,10 +55,10 @@ describe('Google Calendar (6C)', () => {
       mutation(),
     );
     await env.svc.syncNow(owner, ws, conn.data.id, mutation());
-    const before = (await env.svc.listCalendarEvents(owner, ws, {})).events.length;
+    const before = (await env.svc.listCalendarEvents(owner, ws, WINDOW)).events.length;
     expect(before).toBeGreaterThan(0);
     await env.svc.disconnect(owner, ws, conn.data.id, { retention: 'remove' }, mutation());
-    const after = (await env.svc.listCalendarEvents(owner, ws, {})).events.length;
+    const after = (await env.svc.listCalendarEvents(owner, ws, WINDOW)).events.length;
     expect(after).toBeLessThan(before);
   });
 });

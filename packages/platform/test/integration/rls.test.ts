@@ -182,6 +182,10 @@ const PHASE_1C_TENANT_TABLES = [
   // Phase 6C calendar mirror and brand calendar mappings.
   'integrations.connection_mapping',
   'integrations.calendar_event',
+  // Phase 6 integration review: connected calendars, provider series and exceptions.
+  'integrations.calendar_source',
+  'integrations.calendar_series',
+  'integrations.calendar_exception',
   // Phase 6E MCP clients, consent, tokens, and provenance.
   'integrations.oauth_client',
   'integrations.oauth_consent',

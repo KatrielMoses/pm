@@ -257,6 +257,11 @@ export const NON_RESOURCE_TYPES = [
   'webhook_subscriptions',
   'webhook_deliveries',
   'api_reference',
+  // 6C (Phase 6 integration review): the person's own mirrored events, their connection's
+  // calendars, and their open schedule conflicts; each is computed for that person only.
+  'calendar_events',
+  'calendar_sources',
+  'calendar_conflicts',
   // 6D: portable CSV preview and import summaries (never raw authority fields).
   'portability_import_preview',
   'portability_import',
