@@ -60,7 +60,7 @@ async function syncNow(page: Page) {
   await expect(c.getByRole('status')).toContainText(/Synchronized|did not finish/);
 }
 
-test('AT-328 Phase 6 exit journey', async ({ page, browser }, info) => {
+test('AT-328 Phase 6 exit journey', async ({ page, browser, request }, info) => {
   test.setTimeout(420_000);
   const s = await seed(page, info, 'p6exit');
   const gcal = fixtureClient(GCAL_URL, GCAL_TOKEN, s.ws);
@@ -114,6 +114,8 @@ test('AT-328 Phase 6 exit journey', async ({ page, browser }, info) => {
   await accessible(page, 'today with meetings');
   await page.goto(`/workspaces/${s.ws}/calendar`);
   await expect(page.getByLabel('External calendar events')).toBeChecked();
+  // Agenda lists every item at every width (compact month views collapse a day into a count).
+  await page.getByLabel('Show', { exact: true }).selectOption('Agenda');
   await expect(
     page.locator('.calendar-event.kind-external').filter({ hasText: 'Investor call' }).first(),
   ).toBeAttached();
@@ -240,8 +242,9 @@ test('AT-328 Phase 6 exit journey', async ({ page, browser }, info) => {
   const issued = mcp.getByRole('status').filter({ hasText: 'Access token · copy now' });
   await expect(issued).toBeVisible();
   const accessToken = (await issued.locator('output').textContent())!.trim();
+  // An MCP client presents only its bearer token (no browser session).
   const call = () =>
-    page.request.post(`${s.base}/mcp`, {
+    request.post(`${s.base}/mcp`, {
       headers: {
         authorization: `Bearer ${accessToken}`,
         accept: 'application/json, text/event-stream',
@@ -296,7 +299,7 @@ test('AT-328 Phase 6 exit journey', async ({ page, browser }, info) => {
   );
   expect(leeEvents).toMatchObject({ events: [], connected: false });
   await p.goto(`/workspaces/${s.ws}/today`);
-  await expect(p.getByText('No calendar connected.')).toBeVisible();
+  await expect(p.getByText('No calendar connected.').first()).toBeVisible();
   await expect(p.getByText('Investor call')).toHaveCount(0);
   await accessible(p, 'member today');
   await lee.ctx.close();
