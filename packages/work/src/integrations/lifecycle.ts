@@ -57,6 +57,15 @@ export const connectionAdapter: RecordTypeAdapter = {
         .deleteFrom('integrations.calendar_event')
         .where('connection_id', 'in', ids)
         .execute();
+      // Series reference sources (exceptions cascade from series); both reference the connection.
+      await tx.db
+        .deleteFrom('integrations.calendar_series')
+        .where('connection_id', 'in', ids)
+        .execute();
+      await tx.db
+        .deleteFrom('integrations.calendar_source')
+        .where('connection_id', 'in', ids)
+        .execute();
       await tx.db
         .deleteFrom('integrations.connection_mapping')
         .where('connection_id', 'in', ids)

@@ -20,6 +20,10 @@
         {
           "file": "packages/work/test/integration/calendar.test.ts",
           "contains": "AT-315 mirrors calendar events after sync"
+        },
+        {
+          "file": "e2e/phase6-exit-journey.spec.ts",
+          "contains": "AT-328 Phase 6 exit journey"
         }
       ]
     },
@@ -89,6 +93,10 @@
         {
           "file": "packages/work/test/integration/calendar-live.test.ts",
           "contains": "// Provider move → the linked block moves through the planning command (CAL-012)."
+        },
+        {
+          "file": "e2e/phase6-exit-journey.spec.ts",
+          "contains": "// The provider moves the event: the block follows; the task's dates do not (CAL-012/013)."
         }
       ]
     },
@@ -104,6 +112,14 @@
         {
           "file": "packages/work/test/integration/calendar-live.test.ts",
           "contains": "AT-321 an outage retries with bounded backoff, shows degraded"
+        },
+        {
+          "file": "apps/web/src/integrations/calendar-panel.tsx",
+          "contains": "Recent synchronization"
+        },
+        {
+          "file": "e2e/phase6-exit-journey.spec.ts",
+          "contains": "AT-329 provider outage is shown as degraded and recovers"
         }
       ]
     },
@@ -157,6 +173,10 @@
         {
           "file": "packages/work/src/integrations/calendar-service.ts",
           "contains": "async listCalendarEvents("
+        },
+        {
+          "file": "apps/web/src/views/layouts.tsx",
+          "contains": "External calendar events"
         }
       ],
       "note": "The 3B calendar view gains the person's external events layer (owner 3B)."
@@ -174,6 +194,10 @@
         {
           "file": "packages/work/test/integration/calendar-live.test.ts",
           "contains": "AT-324 feeds Today, calendar reads and capacity for the owner only"
+        },
+        {
+          "file": "apps/web/src/pages/today-pages.tsx",
+          "contains": "Meetings and events"
         }
       ],
       "note": "Today shows the person's own events and busy minutes (owner 3C)."
@@ -200,6 +224,10 @@
         {
           "file": "packages/work/src/integrations/calendar-service.ts",
           "contains": "async listCalendarEvents("
+        },
+        {
+          "file": "apps/web/src/views/layouts.tsx",
+          "contains": "External calendar events"
         }
       ],
       "note": "External calendar events beside tasks, milestones, and deadlines (owner 3B)."
@@ -277,6 +305,10 @@
         {
           "file": "packages/work/test/integration/calendar-live.test.ts",
           "contains": "AT-317 connects with OAuth, PKCE and a bound state"
+        },
+        {
+          "file": "e2e/phase6-exit-journey.spec.ts",
+          "contains": "await connectGoogle(page, s.ws, 'Founder calendar', true);"
         }
       ],
       "note": "Connect and sync are proven against the provider contract fixture; live-credential acceptance is manual (see the Phase 6 manual smoke guide); the launch gate is 12A."

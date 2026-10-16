@@ -5,6 +5,7 @@ import { Link, useRouter } from '../router.tsx';
 import { routeHref } from '../shell/registry.ts';
 import { useWidthClass } from '../shell/width.ts';
 import { useStepUp } from '../stepup.tsx';
+import { calendars, type CalendarEventView } from '../integrations/calendar-client.ts';
 import { localInstant, planning } from '../planning/client.ts';
 import { tasks } from '../tasks/client.ts';
 import { Dialog } from '../ui/dialog.tsx';
@@ -62,6 +63,11 @@ const fmtDay = (
   iso: string,
   opts: Intl.DateTimeFormatOptions = { weekday: 'short', day: 'numeric', month: 'short' },
 ) => new Date(`${iso}T00:00:00Z`).toLocaleDateString(undefined, { ...opts, timeZone: 'UTC' });
+/** The local calendar day of an instant (the viewer's zone). */
+const localDay = (d: Date) =>
+  `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+const clock = (iso: string) =>
+  new Date(iso).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
 const hours = (m: number) => (m % 60 ? `${Math.floor(m / 60)} h ${m % 60} min` : `${m / 60} h`);
 const owner = (r: QueryRow) => (r.owner as { name: string } | null | undefined)?.name ?? '';
 const dateOf = (r: QueryRow, f: string) => {
@@ -467,8 +473,31 @@ export function CalendarLayout(
     primary: true,
     deadline: entity === 'task',
     milestones: true,
+    external: true,
   });
   const win = calendarWindow(mode, anchor);
+  // 6C: the viewer's own connected-calendar events in the visible window (read-only here).
+  const [external, setExternal] = useState<{
+    connected: boolean;
+    events: CalendarEventView[];
+  } | null>(null);
+  useEffect(() => {
+    let live = true;
+    if (!layers.external) return;
+    calendars
+      .events(
+        ws,
+        new Date(`${win.from}T00:00:00`).toISOString(),
+        new Date(`${addDays(win.to, 1)}T00:00:00`).toISOString(),
+      )
+      .then(
+        (r) => live && setExternal({ connected: r.connected, events: r.events }),
+        () => live && setExternal(null),
+      );
+    return () => {
+      live = false;
+    };
+  }, [ws, win.from, win.to, layers.external]);
   const [ms, setMs] = useState<
     Array<{ id: string; project: string; name: string; due_date: string | null }>
   >([]);
@@ -510,6 +539,8 @@ export function CalendarLayout(
     id: string;
     brand: string;
     open: boolean;
+    /** An external calendar event: its time range and calendar, in the viewer's locale. */
+    ext?: { time: string; calendar: string };
   };
   const events: Ev[] = [];
   for (const r of rows) {
@@ -547,6 +578,24 @@ export function CalendarLayout(
         brand: '',
         open: false,
       });
+  for (const e of layers.external && external ? external.events : []) {
+    const start = e.all_day ? e.starts_at.slice(0, 10) : localDay(new Date(e.starts_at));
+    const d = start < win.from ? win.from : start;
+    if (d > win.to) continue;
+    events.push({
+      key: `${e.id}:x`,
+      day: d,
+      label: e.title,
+      kind: 'External',
+      id: e.id,
+      brand: '',
+      open: false,
+      ext: {
+        time: e.all_day ? 'all day' : `${clock(e.starts_at)}–${clock(e.ends_at)}`,
+        calendar: e.calendar.label,
+      },
+    });
+  }
   events.sort((a, b) => a.day.localeCompare(b.day) || a.label.localeCompare(b.label));
   const byDay = new Map<string, Ev[]>();
   for (const e of events) byDay.set(e.day, [...(byDay.get(e.day) ?? []), e]);
@@ -599,7 +648,13 @@ export function CalendarLayout(
           Schedule…<span className="visually-hidden"> {e.label}</span>
         </button>
       ) : null}
-      {e.open ? null : (
+      {e.open ? null : e.ext ? (
+        <span className="calendar-event kind-external" data-event={e.id}>
+          <span className="event-kind">Calendar event:</span> {e.label}
+          <span className="event-detail">, {e.ext.time}</span>
+          <span className="visually-hidden">, {e.ext.calendar}</span>
+        </span>
+      ) : (
         <span className={`calendar-event kind-${e.kind.toLowerCase()}`}>
           <span className="event-kind">{e.kind}</span> {e.label}
         </span>
@@ -658,6 +713,14 @@ export function CalendarLayout(
               onChange={(e) => setLayers({ ...layers, milestones: e.target.checked })}
             />{' '}
             Milestones
+          </label>
+          <label className="choice">
+            <input
+              type="checkbox"
+              checked={layers.external}
+              onChange={(e) => setLayers({ ...layers, external: e.target.checked })}
+            />{' '}
+            External calendar events
           </label>
         </fieldset>
       </div>
@@ -725,10 +788,17 @@ export function CalendarLayout(
           ) : null}
         </div>
       )}
+      {layers.external && external && !external.connected ? (
+        <p className="hint calendar-external-none">
+          No calendar connected.{' '}
+          <Link to={`/workspaces/${ws}/settings/integrations`}>Connect Google Calendar</Link> to
+          show your events here.
+        </p>
+      ) : null}
       <p className="hint">
         Schedule… adds a work block to your plan; see, move, and resize it on Today. External
-        calendars arrive when they can be connected (6C). Changing a date here never changes a
-        deadline.
+        calendar events are your own, shown read-only, and visible only to you. Changing a date here
+        never changes a deadline.
       </p>
       <Announce>{scheduled}</Announce>
       {scheduling ? (

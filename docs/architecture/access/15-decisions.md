@@ -473,5 +473,5 @@ All decisions are **proposed (Phase 0C)**, pending solutions-architect acceptanc
   - A provider move applies to a linked block only through the canonical planning move, with the owner's current authority re-checked when the queued sync runs (task still readable, block not locked, no focus clash). Otherwise it becomes a visible conflict. It never changes a due date or deadline (CAL-013, AT-323). Revoke, disconnect, and departure stop queued work immediately (AT-325).
   - The action count stays 122.
 - **Alternatives:** Showing other people's busy time as anonymous blocks by default (contradicts DQ-06). Letting the provider overwrite a plan the person changed.
-- **Consequences:** Threats T-86 to T-90 with tests AT-315 to AT-329 (calendar and the browser exit journey); the Phase 6 cross-boundary matrix follows.
+- **Consequences:** Threats T-86 to T-90 with tests AT-315 to AT-344 (calendar, the browser exit journey, and the Phase 6 cross-boundary matrix AT-330 to AT-344).
 

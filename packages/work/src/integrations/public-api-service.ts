@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import { change } from '@pm/audit';
 import type { SecretVault } from '@pm/config';
 import { API_VERSION, newPublicId, newUuidV7 } from '@pm/contracts';
@@ -13,6 +14,7 @@ import {
   issue,
   loadPrincipal,
   TenancyError,
+  type BrandFacts,
   type Caller,
   type Mutation,
   type Principal,
@@ -395,6 +397,7 @@ export class PublicApiService extends IntegrationService {
       const rows = await tx.db
         .selectFrom('integrations.webhook_subscription as s')
         .innerJoin('core.record as r', 'r.id', 's.id')
+        .leftJoin('tenancy.brand as b', 'b.id', 's.brand_id')
         .select([
           'r.public_id as public_id',
           's.destination_url',
@@ -403,22 +406,27 @@ export class PublicApiService extends IntegrationService {
           's.version',
           's.consecutive_failures',
           's.api_version',
+          's.brand_id',
+          'b.is_sensitive',
+          'b.lifecycle_state as brand_state',
         ])
         .where('s.lifecycle_state', '=', 'active')
         .orderBy('s.created_at', 'desc')
         .limit(this.ws.webhookSubscriptionsMax)
         .execute();
       return {
-        subscriptions: rows.map((r) => ({
-          id: r.public_id,
-          type: 'webhook_subscription' as const,
-          version: Number(r.version),
-          destination_url: r.destination_url,
-          event_types: r.event_types,
-          state: r.state,
-          api_version: r.api_version,
-          consecutive_failures: r.consecutive_failures,
-        })),
+        subscriptions: rows
+          .filter((r) => subscriptionVisible(p, r))
+          .map((r) => ({
+            id: r.public_id,
+            type: 'webhook_subscription' as const,
+            version: Number(r.version),
+            destination_url: r.destination_url,
+            event_types: r.event_types,
+            state: r.state,
+            api_version: r.api_version,
+            consecutive_failures: r.consecutive_failures,
+          })),
       };
     });
   }
@@ -510,11 +518,19 @@ export class PublicApiService extends IntegrationService {
       async (tx, p) => {
         this.#canList(caller, p);
         const row = await tx.db
-          .selectFrom('integrations.webhook_delivery')
-          .select(['id', 'public_id'])
-          .where('public_id', '=', id)
+          .selectFrom('integrations.webhook_delivery as d')
+          .innerJoin('integrations.webhook_subscription as s', 's.id', 'd.subscription_id')
+          .leftJoin('tenancy.brand as b', 'b.id', 's.brand_id')
+          .select([
+            'd.id',
+            'd.public_id',
+            's.brand_id',
+            'b.is_sensitive',
+            'b.lifecycle_state as brand_state',
+          ])
+          .where('d.public_id', '=', id)
           .executeTakeFirst();
-        if (!row) throw new TenancyError('not_found');
+        if (!row || !subscriptionVisible(p, row)) throw new TenancyError('not_found');
         await tx.db
           .updateTable('integrations.webhook_delivery')
           .set({
@@ -612,25 +628,32 @@ export class PublicApiService extends IntegrationService {
       .execute();
     const facts = publicFacts(event.data as Record<string, unknown>);
     let n = 0;
+    // A redelivered internal event maps to the same public event id, so the per-subscription
+    // uniqueness (webhook_delivery_event_once) keeps it to one delivery row.
+    const eventPublicId = publicEventId(event.event_id);
     for (const sub of subs) {
       if (!sub.event_types.includes(name)) continue;
       if (sub.brand_id && event.brand_id && sub.brand_id !== event.brand_id) continue;
-      await tx.db
+      const inserted = await tx.db
         .insertInto('integrations.webhook_delivery')
         .values({
           id: newUuidV7(),
           workspace_id: tx.workspaceId,
           subscription_id: sub.id,
           public_id: newPublicId('whd'),
-          event_public_id: newPublicId('evt'),
+          event_public_id: eventPublicId,
           event_type: name,
           aggregate_id: event.aggregate.id,
           facts: JSON.stringify(facts) as never,
           state: 'pending',
           next_attempt_at: new Date(),
         })
-        .execute();
-      n += 1;
+        .onConflict((oc) =>
+          oc.columns(['workspace_id', 'subscription_id', 'event_public_id']).doNothing(),
+        )
+        .returning('id')
+        .executeTakeFirst();
+      if (inserted) n += 1;
     }
     return n;
   }
@@ -653,6 +676,9 @@ export class PublicApiService extends IntegrationService {
         .where((eb) => eb.or([eb('claimed_until', 'is', null), eb('claimed_until', '<=', now)]))
         .orderBy('created_at')
         .limit(this.ws.webhookSweepBatchMax)
+        // Overlapping workers each claim different rows; a claimed delivery is never re-sent.
+        .forUpdate()
+        .skipLocked()
         .execute();
       for (const row of due) await this.#deliverOne(tx, row.id, now);
       const cutoff = new Date(now.getTime() - this.ws.webhookDeliveryRetentionDays * 86_400_000);
@@ -1192,10 +1218,11 @@ export class PublicApiService extends IntegrationService {
     return row;
   }
 
-  async #subscription(tx: WorkspaceTransaction, _p: Principal, publicId: string) {
+  async #subscription(tx: WorkspaceTransaction, p: Principal, publicId: string) {
     const row = await tx.db
       .selectFrom('integrations.webhook_subscription as s')
       .innerJoin('core.record as r', 'r.id', 's.id')
+      .leftJoin('tenancy.brand as b', 'b.id', 's.brand_id')
       .select([
         's.id',
         'r.public_id as publicId',
@@ -1203,10 +1230,13 @@ export class PublicApiService extends IntegrationService {
         's.event_types',
         's.version',
         's.signing_secret_ref',
+        's.brand_id',
+        'b.is_sensitive',
+        'b.lifecycle_state as brand_state',
       ])
       .where('r.public_id', '=', publicId)
       .executeTakeFirst();
-    if (!row) throw new TenancyError('not_found');
+    if (!row || !subscriptionVisible(p, row)) throw new TenancyError('not_found');
     return row;
   }
 
@@ -1460,6 +1490,36 @@ export class PublicApiService extends IntegrationService {
       .onConflict((oc) => oc.columns(['endpoint_id', 'provider_event_id']).doNothing())
       .execute();
   }
+}
+
+const CROCKFORD = '0123456789ABCDEFGHJKMNPQRSTVWXYZ';
+
+/** A stable `evt_` identifier derived from the internal event id (never the id itself). */
+function publicEventId(eventId: string): string {
+  let value = 0n;
+  for (const b of createHash('sha256').update(`webhook-event:${eventId}`).digest().subarray(0, 16))
+    value = (value << 8n) | BigInt(b);
+  let out = '';
+  for (let i = 0; i < 26; i++) {
+    out = CROCKFORD[Number(value & 31n)] + out;
+    value >>= 5n;
+  }
+  return `evt_${out}`;
+}
+
+/** A brand-scoped subscription is as unknown as its brand to someone who cannot read it. */
+function subscriptionVisible(
+  p: Principal,
+  row: { brand_id: string | null; is_sensitive: boolean | null; brand_state: string | null },
+): boolean {
+  if (!row.brand_id) return true;
+  return (
+    brandLevel(p, {
+      id: row.brand_id,
+      isSensitive: row.is_sensitive === true,
+      lifecycleState: (row.brand_state ?? 'active') as BrandFacts['lifecycleState'],
+    }) !== null
+  );
 }
 
 function isObj(v: unknown): v is Record<string, unknown> {

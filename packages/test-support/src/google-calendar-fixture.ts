@@ -57,6 +57,8 @@ export interface FixtureControl {
   /** Marks an event cancelled (as Google reports deletions). */
   cancelEvent(calendarId: string, eventId: string): void;
   getEvent(calendarId: string, eventId: string): (FixtureEvent & { etag: string }) | null;
+  /** Every event of a calendar, as the provider holds it now. */
+  listEvents(calendarId: string): Array<FixtureEvent & { etag: string }>;
   /** Every outstanding sync token becomes invalid (the next incremental list answers 410). */
   invalidateSyncTokens(): void;
   /** The next `count` API calls answer `status` (503 outage, 429 with Retry-After). */
@@ -189,6 +191,8 @@ export async function startGoogleCalendarFixture(
         const s = storeIn(sp(), cal).get(id);
         return s ? { ...view(s), etag: s.etag } : null;
       },
+      listEvents: (cal) =>
+        [...storeIn(sp(), cal).values()].map((s) => ({ ...view(s), etag: s.etag })),
       invalidateSyncTokens: () => {
         sp().generation += 1;
       },

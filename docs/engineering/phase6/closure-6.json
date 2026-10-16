@@ -47,7 +47,11 @@
     "6A: closure normalized to the standard schema with evidence and contributions; INT-010 (6B) and INT-026 (6C) closed once by their owners.",
     "Identifiers: duplicate pl-42 (6B) renumbered to PL-43; ADR-42/AZ-42 written for 6C; AT-315/AT-316 registered.",
     "Policies: 0047 and 0050 tenant policies moved to exec.current_workspace_id() with WITH CHECK in migration 0051.",
-    "Web: the API tokens page read the wrong envelope level and failed on load; fixed with webhook settings added."
+    "Web: the API tokens page read the wrong envelope level and failed on load; fixed with webhook settings added.",
+    "MCP provenance: 0049 widened audit and capture source kinds but not core.record, so every MCP-created record failed; 0051 adds `mcp` with a rollback that relabels to `api`.",
+    "6A HTTP: sync and conflict-resolve routes wrapped resource data in a non-resource envelope (500); fixed with an HTTP regression test.",
+    "6B: brand-scoped webhook subscriptions were visible to administrators without the brand; duplicate internal events created duplicate deliveries; overlapping sweeps re-sent deliveries. Fixed under AT-331/AT-336.",
+    "6E: listing clients failed for members (ambiguous column) and pm.tasks.complete always failed; 6D: a malformed job id raised a raw database error; connection purge failed for calendar connections."
   ],
   "evidence": [
     {
@@ -97,6 +101,30 @@
     {
       "file": "docs/engineering/adr/0037-phase-6-integration.md",
       "contains": "## Identifier reconciliation"
+    },
+    {
+      "file": "e2e/phase6-exit-journey.spec.ts",
+      "contains": "AT-328 Phase 6 exit journey"
+    },
+    {
+      "file": "e2e/phase6-exit-journey.spec.ts",
+      "contains": "AT-329 provider outage is shown as degraded and recovers"
+    },
+    {
+      "file": "packages/work/test/integration/phase6-matrix.test.ts",
+      "contains": "AT-331 hidden, foreign, and unknown identifiers fail identically on every Phase 6 surface"
+    },
+    {
+      "file": "packages/work/test/integration/phase6-matrix.test.ts",
+      "contains": "AT-335 departure and revocation stop every token, consent, webhook, connection, and queued sync"
+    },
+    {
+      "file": "apps/api/test/integration/integrations-api.test.ts",
+      "contains": "completes a live Google Calendar authorization through the callback"
+    },
+    {
+      "file": "apps/web/src/pages/api-pages.tsx",
+      "contains": "body.data"
     }
   ]
 }

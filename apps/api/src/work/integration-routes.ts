@@ -161,7 +161,9 @@ export function registerIntegrations(app: FastifyInstance, work: IntegrationServ
         p(request).conn,
         mutation(request),
       );
-      return flat(request, reply, 'sync_runs', r.data as Record<string, unknown>);
+      // A run summary is not a resource: it names its connection instead of carrying an id/type.
+      const { id, type: _type, ...run } = r.data;
+      return flat(request, reply, 'sync_runs', { connection: id, ...run });
     }),
   );
   app.get(
@@ -204,7 +206,8 @@ export function registerIntegrations(app: FastifyInstance, work: IntegrationServ
         request.body,
         mutation(request),
       );
-      return flat(request, reply, 'sync_conflicts', r.data as Record<string, unknown>);
+      // The resolved conflict is a resource (`cnf_`), so it is answered as one.
+      return done(request, reply, r);
     }),
   );
   app.post(
@@ -218,7 +221,8 @@ export function registerIntegrations(app: FastifyInstance, work: IntegrationServ
         request.body,
         mutation(request),
       );
-      return flat(request, reply, 'sync_conflicts', r.data as Record<string, unknown>);
+      // The resolved conflict is a resource (`cnf_`), so it is answered as one.
+      return done(request, reply, r);
     }),
   );
 }

@@ -191,6 +191,15 @@ DROP POLICY tenant_isolation ON transfer.import_preview;
 CREATE POLICY tenant_isolation ON transfer.import_preview
   USING (workspace_id = exec.current_workspace_id()) WITH CHECK (workspace_id = exec.current_workspace_id());
 
+-- ---------------------------------------------------------------------------------------------
+-- MCP provenance on records (corrects 0049, which widened audit and capture facts but not
+-- core.record): a record created through MCP keeps `mcp` as its source kind instead of failing.
+-- ---------------------------------------------------------------------------------------------
+ALTER TABLE core.record DROP CONSTRAINT record_source_kind_known;
+ALTER TABLE core.record ADD CONSTRAINT record_source_kind_known CHECK (source_kind IN
+  ('ui', 'api', 'paste', 'voice', 'email', 'form', 'webhook', 'mcp', 'import', 'integration', 'ai_proposal',
+   'automation', 'agent', 'template', 'system'));
+
 REVOKE ALL ON integrations.calendar_source, integrations.calendar_series, integrations.calendar_exception FROM PUBLIC;
 GRANT SELECT, INSERT, UPDATE, DELETE ON integrations.calendar_source, integrations.calendar_series,
   integrations.calendar_exception TO app_rw, app_worker;

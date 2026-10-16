@@ -194,27 +194,26 @@ export class McpAccessService extends PortabilityService {
       if (caller.delegation) throw new TenancyError('forbidden');
       const configure = decideWorkspace(p, 'integrations.configure');
       this.decision('integrations.configure', configure);
+      // Columns are qualified: the consent join below shares public_id, state, and created_at.
       let query = tx.db
         .selectFrom('integrations.oauth_client')
-        .select(['public_id as id', 'name', 'allowed_scopes', 'state', 'redirect_uris'])
-        .where('state', '=', 'active')
-        .orderBy('created_at', 'desc')
+        .select([
+          'integrations.oauth_client.public_id as id',
+          'integrations.oauth_client.name',
+          'integrations.oauth_client.allowed_scopes',
+          'integrations.oauth_client.state',
+          'integrations.oauth_client.redirect_uris',
+        ])
+        .where('integrations.oauth_client.state', '=', 'active')
+        .orderBy('integrations.oauth_client.created_at', 'desc')
         .limit(this.ws.oauthClientsMax);
       if (!configure.allowed) {
-        query = query
-          .innerJoin('integrations.oauth_consent', (join) =>
-            join
-              .onRef('integrations.oauth_consent.client_id', '=', 'integrations.oauth_client.id')
-              .on('integrations.oauth_consent.membership_id', '=', p.membershipId)
-              .on('integrations.oauth_consent.state', '=', 'active'),
-          )
-          .select([
-            'integrations.oauth_client.public_id as id',
-            'integrations.oauth_client.name',
-            'integrations.oauth_client.allowed_scopes',
-            'integrations.oauth_client.state',
-            'integrations.oauth_client.redirect_uris',
-          ]);
+        query = query.innerJoin('integrations.oauth_consent', (join) =>
+          join
+            .onRef('integrations.oauth_consent.client_id', '=', 'integrations.oauth_client.id')
+            .on('integrations.oauth_consent.membership_id', '=', p.membershipId)
+            .on('integrations.oauth_consent.state', '=', 'active'),
+        );
       }
       const rows = await query.execute();
       const grants = await tx.db
@@ -774,13 +773,8 @@ export class McpAccessService extends PortabilityService {
         break;
       }
       case 'pm.tasks.complete': {
-        const done = await this.completeTask(
-          caller,
-          ws,
-          p.arguments?.task_id,
-          { confirm: true },
-          mut,
-        );
+        // `confirm` is the tool's own gate (checked above); the domain command takes no such field.
+        const done = await this.completeTask(caller, ws, p.arguments?.task_id, {}, mut);
         result = { task: done.data };
         break;
       }

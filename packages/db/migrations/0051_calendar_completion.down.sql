@@ -1,6 +1,13 @@
 -- migrate:phase contract
 -- Restores the exact 0050 catalog: the 0047 and 0050 tenant policies return to their original
--- form, and the calendar list, series, exceptions and link columns are removed.
+-- form, and the calendar list, series, exceptions and link columns are removed. Records created
+-- through MCP keep their provenance as `api` (MCP is delivered over the public API), because the
+-- 0050 record constraint does not know `mcp`.
+UPDATE core.record SET source_kind = 'api' WHERE source_kind = 'mcp';
+ALTER TABLE core.record DROP CONSTRAINT record_source_kind_known;
+ALTER TABLE core.record ADD CONSTRAINT record_source_kind_known CHECK (source_kind IN
+  ('ui', 'api', 'paste', 'voice', 'email', 'form', 'webhook', 'import', 'integration', 'ai_proposal',
+   'automation', 'agent', 'template', 'system'));
 DROP POLICY tenant_isolation ON transfer.import_preview;
 CREATE POLICY tenant_isolation ON transfer.import_preview
   USING (workspace_id = current_setting('app.workspace_id', true)::uuid);

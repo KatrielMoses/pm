@@ -4833,3 +4833,129 @@ nav.tabs a[aria-current='page'] {
 .portability-controls textarea {
   width: min(34rem, 100%);
 }
+
+/* Connected calendars (6C): settings, Today, and the calendar layer. */
+.calendar-settings,
+.calendar-connection {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.calendar-connection {
+  border-top: 1px solid var(--color-border-subtle);
+  margin-top: var(--space-4);
+  padding-top: var(--space-4);
+}
+.calendar-facts {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(12rem, 100%), 1fr));
+  gap: var(--space-2) var(--space-4);
+  margin: 0 0 var(--space-3);
+}
+.calendar-facts dd {
+  margin: 0;
+}
+.calendar-actions,
+.today-block-calendar,
+.today-add-calendar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 0;
+  max-width: 100%;
+}
+.calendar-sources {
+  border: 0;
+  padding: 0;
+  margin: var(--space-3) 0;
+  min-width: 0;
+}
+.calendar-sources legend {
+  font-weight: 600;
+}
+.calendar-source-field {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 0;
+}
+.calendar-settings select,
+.calendar-settings input:not([type='checkbox']):not([type='radio']),
+.today-add-calendar select {
+  box-sizing: border-box;
+  max-width: 100%;
+  min-width: 0;
+  min-height: var(--size-target);
+}
+.calendar-settings .button,
+.today-block-calendar .button,
+.today-add-calendar .button {
+  max-width: 100%;
+  white-space: normal;
+}
+.calendar-event.kind-external {
+  border-style: dotted;
+  cursor: default;
+  background: var(--color-bg-sunken);
+}
+.event-detail {
+  color: var(--color-text-secondary);
+}
+@media (forced-colors: active) {
+  .calendar-event.kind-external {
+    border: 1px dotted CanvasText;
+  }
+  .calendar-connection {
+    border-top-color: CanvasText;
+  }
+}
+.webhook-settings {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.webhook-events {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(14rem, 100%), 1fr));
+  gap: 0 var(--space-3);
+  border: 0;
+  padding: 0;
+  margin: 0;
+  min-width: 0;
+  width: 100%;
+}
+.webhook-events legend {
+  font-weight: 600;
+}
+.webhook-endpoint {
+  padding: var(--space-3) 0;
+  border-bottom: 1px solid var(--color-border-subtle);
+}
+.webhook-endpoint p {
+  margin: 0 0 var(--space-1);
+}
+.webhook-deliveries-wrap {
+  max-width: 100%;
+  overflow-x: auto;
+}
+.webhook-deliveries {
+  border-collapse: collapse;
+  width: 100%;
+}
+.webhook-deliveries caption {
+  text-align: left;
+  font-weight: 600;
+}
+.webhook-deliveries th,
+.webhook-deliveries td {
+  text-align: left;
+  padding: var(--space-1) var(--space-2);
+  border-bottom: 1px solid var(--color-border-subtle);
+}
+@media (forced-colors: active) {
+  .webhook-endpoint,
+  .webhook-deliveries th,
+  .webhook-deliveries td {
+    border-color: CanvasText;
+  }
+}

@@ -54,6 +54,7 @@ Date: 2026-10-17. Brief P6-IR1. Base: accepted 6D head `6b4bb78`, which contains
 | Tests | AT-315, AT-316 | 6C | Registered now |
 | Tests | AT-317–AT-327 | Phase 6 review (calendar) | `calendar-live.test.ts` |
 | Tests | AT-328, AT-329 | Phase 6 review (browser) | `e2e/phase6-exit-journey.spec.ts` |
+| Tests | AT-330–AT-344 | Phase 6 review (matrix) | `packages/work/test/integration/phase6-matrix.test.ts` |
 
 6D and 6E recorded their decisions only in their engineering ADRs (0036, 0035) and added no 0B/0C/0D anchors. That stays as recorded.
 
@@ -64,7 +65,22 @@ The calendar tests are listed in ADR-0034.
 | Test | Test file | Test title |
 |---|---|---|
 | AT-328 | e2e/phase6-exit-journey.spec.ts | AT-328 Phase 6 exit journey |
-| AT-329 | e2e/phase6-exit-journey.spec.ts | AT-329 provider outage is shown as degraded and recovers |
+| AT-329 | e2e/phase6-exit-journey.spec.ts | AT-329 provider outage is shown as degraded and recovers (provider-transport failure, fixture-injected) |
+| AT-330 | packages/work/test/integration/phase6-matrix.test.ts | AT-330 connection ownership and provider scopes never widen record permissions |
+| AT-331 | packages/work/test/integration/phase6-matrix.test.ts | AT-331 hidden, foreign, and unknown identifiers fail identically on every Phase 6 surface |
+| AT-332 | packages/work/test/integration/phase6-matrix.test.ts | AT-332 API-token scopes never widen permissions and are re-checked on every request |
+| AT-333 | packages/work/test/integration/phase6-matrix.test.ts | AT-333 MCP consent never widens permissions and revocation stops the next call |
+| AT-334 | packages/work/test/integration/phase6-matrix.test.ts | AT-334 API and MCP run the same domain command with provenance, one idempotent effect, and confirmation |
+| AT-335 | packages/work/test/integration/phase6-matrix.test.ts | AT-335 departure and revocation stop every token, consent, webhook, connection, and queued sync |
+| AT-336 | packages/work/test/integration/phase6-matrix.test.ts | AT-336 webhooks deliver duplicate and out-of-order events once each under overlapping workers, retry, dead-letter, and replay |
+| AT-337 | packages/work/test/integration/phase6-matrix.test.ts | AT-337 inbound webhooks refuse bad signatures, stale timestamps, and replayed event ids |
+| AT-338 | packages/work/test/integration/phase6-matrix.test.ts | AT-338 exports never reveal Vault or restricted work and neutralize spreadsheet formulas |
+| AT-339 | packages/work/test/integration/phase6-matrix.test.ts | AT-339 imports bind to a preview, refuse stale rollback and cross-workspace references, and keep errors private |
+| AT-340 | packages/work/test/integration/phase6-matrix.test.ts | AT-340 audit export needs entitlement, fresh verification, and never rides a record export |
+| AT-341 | packages/work/test/integration/phase6-matrix.test.ts | AT-341 a member’s calendar never shows to an administrator, and departure ends its authority |
+| AT-342 | packages/work/test/integration/phase6-matrix.test.ts | AT-342 lifecycle: archive and restore never resurrect revoked authority; purge removes calendar rows and secrets |
+| AT-343 | packages/work/test/integration/phase6-matrix.test.ts | AT-343 one person in two workspaces keeps each workspace’s delegation apart |
+| AT-344 | packages/work/test/integration/phase6-matrix.test.ts | AT-344 operational logs and audit never carry a token, client, webhook, or provider secret |
 
 ## Migration and rollback evidence
 
