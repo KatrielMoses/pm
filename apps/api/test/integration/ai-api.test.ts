@@ -313,4 +313,104 @@ describe('AI gateway API (7A)', () => {
     await worker.runCycle({ wait: true });
     expect(fx.control.received().filter((r) => r.user.startsWith('Replay me')).length).toBe(1);
   });
+
+  it('AT-402 7B previews and grounded answers over HTTP: envelopes, no-store, bearer scopes and brand narrowing, completed-key replay', async () => {
+    const mk = async (b: string, title: string) => {
+      const r = await owner.post(`${base()}/tasks`, { brand: b, title }, { headers: key() });
+      expect(r.statusCode, r.body).toBe(201);
+      return r.json().data.id as string;
+    };
+    const other = (
+      await owner.post(`${base()}/brands`, { name: 'Other' }, { headers: key() })
+    ).json().data.id as string;
+    const mine = await mk(brand, 'HTTP falcon task');
+    const theirs = await mk(other, 'HTTP other task');
+    const preview = await owner.post(`${base()}/ai/context-previews`, {
+      include: [{ type: 'task', id: mine }],
+    });
+    expect(preview.statusCode, preview.body).toBe(200);
+    expect(preview.headers['cache-control']).toContain('no-store');
+    expect(preview.json().data).toMatchObject({
+      type: 'ai_context_manifest',
+      sources: [expect.objectContaining({ handle: 'S1', id: mine, included: true })],
+      semantic_search: false,
+    });
+    const digest = preview.json().data.digest as string;
+    expect(
+      (
+        await owner.post(`${base()}/ai/context-previews`, {
+          include: [{ type: 'task', id: mine, title: 'x' }],
+        })
+      ).statusCode,
+    ).toBe(422);
+    const est = await owner.post(`${base()}/ai/answer-estimates`, {
+      include: [{ type: 'task', id: mine }],
+      question: 'HTTP grounded?',
+      manifest_digest: digest,
+    });
+    expect(est.statusCode, est.body).toBe(200);
+    expect(est.json().data).toMatchObject({ type: 'ai_estimate', manifest: { digest } });
+    const body = {
+      include: [{ type: 'task', id: mine }],
+      question: 'HTTP grounded?',
+      manifest_digest: digest,
+      confirm_cost: true,
+    };
+    const headers = key();
+    const first = await owner.post(`${base()}/ai/answers`, body, { headers });
+    expect(first.statusCode, first.body).toBe(202);
+    const run = first.json().data.id as string;
+    expect(await drain(run)).toBe('succeeded');
+    const detail = await owner.get(`${base()}/ai/runs/${run}`);
+    expect(detail.json().data).toMatchObject({
+      purpose: 'grounded_answer',
+      content: { state: 'present', answer: { status: 'checked' } },
+    });
+    const sent = fx.control.received().filter((r) => r.user.startsWith('HTTP grounded?')).length;
+    const replay = await owner.post(`${base()}/ai/answers`, body, { headers });
+    expect(replay.headers['idempotent-replayed']).toBe('true');
+    expect(replay.json().data.id).toBe(run);
+    await worker.runCycle({ wait: true });
+    expect(fx.control.received().filter((r) => r.user.startsWith('HTTP grounded?')).length).toBe(
+      sent,
+    );
+    // Bearer callers: ai:execute previews and asks; without it nothing is previewed; a token
+    // narrowed to one brand cannot reach a record in another (the same opaque refusal).
+    const mint = async (extra: Record<string, unknown>) => {
+      const made = await protectedCall(owner, 'POST', `${base()}/api-tokens`, {
+        name: 'AI 7B',
+        kind: 'personal',
+        ...extra,
+      });
+      expect(made.statusCode, made.body).toBe(201);
+      return made.json().data.secret as string;
+    };
+    const ai = await mint({ scopes: ['ai:execute'] });
+    const reader = await mint({ scopes: ['records:read'] });
+    const narrowed = await mint({ scopes: ['ai:execute'], brands: [brand] });
+    expect(
+      (
+        await bearer(ai, 'POST', `${base()}/ai/context-previews`, {
+          include: [{ type: 'task', id: mine }],
+        })
+      ).statusCode,
+    ).toBe(200);
+    expect(
+      (
+        await bearer(reader, 'POST', `${base()}/ai/context-previews`, {
+          include: [{ type: 'task', id: mine }],
+        })
+      ).statusCode,
+    ).toBe(403);
+    const blocked = await bearer(narrowed, 'POST', `${base()}/ai/context-previews`, {
+      include: [{ type: 'task', id: theirs }],
+    });
+    const unknown = await bearer(narrowed, 'POST', `${base()}/ai/context-previews`, {
+      include: [{ type: 'task', id: `tsk_${'0'.repeat(26)}` }],
+    });
+    expect(blocked.statusCode).toBe(403);
+    expect(blocked.json().error.issues).toEqual(unknown.json().error.issues);
+    expect(blocked.json().error.issues[0].code).toBe('context_unavailable');
+    expect(blocked.body).not.toContain('HTTP other task');
+  });
 });

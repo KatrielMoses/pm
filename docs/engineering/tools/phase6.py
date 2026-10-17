@@ -107,10 +107,16 @@ def check_numbering():
             errs.append("%s down must restore the exact %s catalog" % (name, prior))
     # 0052 closes Phase 6. Later migrations belong to later phases, each held by its own validator.
     later = [k for k in sorted(by) if k > "0052"]
-    phase7a = {"0053": "0053_ai_gateway.up.sql", "0054": "0054_ai_gateway_corrections.up.sql"}
-    if later and (any(by[k] != phase7a.get(k) for k in later)
-                  or not os.path.isfile(P("docs/engineering/tools/phase7a.py"))):
-        errs.append("0052 must be the last Phase 6 migration; later ones must be the validated Phase 7A 0053 and 0054")
+    # Each later migration is held by the validator of the phase that added it.
+    later_owned = {
+        "0053": ("0053_ai_gateway.up.sql", "phase7a.py"),
+        "0054": ("0054_ai_gateway_corrections.up.sql", "phase7a.py"),
+        "0055": ("0055_ai_retrieval_citations.up.sql", "phase7b.py"),
+    }
+    for k in later:
+        name, validator = later_owned.get(k, (None, None))
+        if by[k] != name or not os.path.isfile(P("docs/engineering/tools/%s" % validator)):
+            errs.append("0052 must be the last Phase 6 migration; later ones must be held by a later-phase validator (%s)" % by[k])
     errs += phase1.check_migrations()[0]
     errs += phase1.check_boundaries([45, 46, 47, 48, 49, 50, 51, 52])
     adrs = os.listdir(P("docs/engineering/adr"))
@@ -125,10 +131,12 @@ def check_numbering():
             if text.count('<a id="%s"></a>' % a) != 1:
                 errs.append("%s must hold %s exactly once" % (path, a))
         last = max(int(x) for x in re.findall(r'<a id="[a-z]+-(\d+)"></a>', text))
-        # Phase 7A adds exactly two later anchors per record: its own (ADR-44, AZ-44, PL-46) and its
-        # corrective review 01 (ADR-45, AZ-45, PL-47), both held by the Phase 7A validator.
+        # Later phases add anchors held by their own validators: Phase 7A two per record (ADR-44/45,
+        # AZ-44/45, PL-46/47) and Phase 7B one (ADR-46, AZ-46, PL-48).
         own = int(anchors[-1].split("-")[1])
-        allowed = own + (2 if os.path.isfile(P("docs/engineering/tools/phase7a.py")) else 0)
+        later_anchors = {"phase7a.py": 2, "phase7b.py": 1}
+        allowed = own + sum(n for v, n in later_anchors.items()
+                            if os.path.isfile(P("docs/engineering/tools/%s" % v)))
         if last not in (own, allowed):
             errs.append("%s: %s must be the highest Phase 6 anchor (found %d)" % (path, anchors[-1], last))
     t = load(P("docs/architecture/access/policy/threats.json"))

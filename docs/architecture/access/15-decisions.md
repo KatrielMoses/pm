@@ -531,3 +531,30 @@ All decisions are **proposed (Phase 0C)**, pending solutions-architect acceptanc
   - Erasing checkpoint copies in each eraser while still writing them: every new eraser would have to remember the copy.
   - Letting approval imply a bound: approval concerns data use, not charging.
 - **Consequences:** Threats T-96 to T-98 with tests AT-382 to AT-389.
+
+<a id="az-46"></a>
+### AZ-46: Authorized retrieval and validated citations (Phase 7B)
+- **Decision:**
+  - **Effective scope.** The scope of an AI context is the intersection of:
+    - the initiator's current membership and token authority (a delegated token narrows brands and their projects);
+    - record and field permissions;
+    - the workspace AI data policy (data class C0–C2, restricted brands excluded, a brand's approved-source policy);
+    - the person's explicit choices (brands, project, task, words, includes, and excludes).
+    An include is never a grant. A contradictory scope refuses (`scope_conflict`); it never falls back to all brands or the workspace. `ai.execute` is required over the scope (every chosen brand, or the workspace). A guest's share is visibility, never AI-execute authority.
+  - **Candidates and re-checks.**
+    - 5A search proposes candidates within the 3A brand primitives. Every candidate, and every named source, is then resolved through its module's own loader and action decision: tasks, projects, documents (current saved version, approval and freshness), comments (through their host), and task activity (history, which needs ownership-derived access).
+    - A search pointer that fails the re-check is dropped silently. A named source that is hidden, foreign, or unknown refuses the whole request with one sentence (`context_unavailable`) that reveals no identifier, type, title, count, or availability.
+    - Derived figures count readable sources only.
+  - **Citations.** Citations are server-issued handles (S1..S20) bound to a manifest entry and the hash of exactly what was sent. A model can reference only those. Every handle, quotation, and figure is validated against that text. Titles and links are resolved through current authorization on every display, and a changed source is marked changed. Statements are typed as facts from the records (server fields), deterministic calculations, sourced statements (exact quotation or paraphrase), suggestions, unknowns, and unverified claims. Generated text is rendered as text only.
+  - **Re-checks at every stage.** Sources are re-checked at preview, at start (the confirmed manifest digest must match), before dispatch, before publication, and on history, export, and citation display. A change invalidates with an honest notice (`manifest_changed`); nothing is narrowed silently. History content is all-or-nothing: if any contributing source or the scope is no longer readable, or its brand has become restricted, the prompt, answer, and source list are all withheld, without counts.
+  - **Project budgets.** A paid run scoped to a project with an AI budget is refused (`ai_project_budget_unenforced`, PRJ-007). The preview stays available.
+  - The action count stays 122.
+- **Alternatives:**
+  - Trusting the index's permission-free rows.
+  - Showing withheld runs' source lists (types and counts leak).
+  - Letting an attached citation make a statement a fact.
+- **Corrective review 01:**
+  - **History re-checks policy.** History re-checks the current AI field and data-class policy, not only visibility. If a field a run used is no longer allowed, the whole content is withheld (one decision shared with the manifest, also covering 7A test runs). Authorized drift is marked changed.
+  - **Incomplete answers are never answers,** whatever their syntax.
+  - **Trust.** Only record facts and calculations are established. A generated statement is an exact excerpt only when verbatim (case-sensitive); every other claim is unverified, whatever it cites.
+- **Consequences:** Threats T-99 to T-102 with tests AT-019, AT-020, and AT-390 to AT-406.

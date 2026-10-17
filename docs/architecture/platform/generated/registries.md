@@ -583,6 +583,8 @@ Forbidden metric labels: `workspace_id`, `brand_id`, `record_id`, `public_id`, `
 | `ai.tokens` | counter | direction | ai |
 | `ai.cost_micros` | counter | funding | ai |
 | `ai.history.erased` | counter | reason | ai |
+| `ai.context_previews` | counter | index | ai |
+| `ai.answer_validations` | counter | status | ai |
 
 ## Named parameters (values are configuration, not promises)
 
@@ -882,4 +884,6 @@ Forbidden metric labels: `workspace_id`, `brand_id`, `record_id`, `public_id`, `
 | `AI_OUTPUT_MAX_CHARS` | Answer text retained per dispatch; text beyond it is clipped locally and the answer is labelled truncated, never complete; default 40000, range 256–40000. | 7A |
 | `AI_STREAM_EVENT_MAX_BYTES` | Largest single provider stream event, including one still waiting for its separator; a larger event aborts the stream as an overflow; default 65536, range 4096–1048576. | 7A |
 | `AI_STREAM_MAX_BYTES` | Total provider stream bytes per dispatch; beyond it the stream is aborted as an overflow with its reservation held; default 4194304, range 65536–33554432, at least the event bound. | 7A |
+| `AI_CONTEXT_SOURCES_MAX` | Sources sent with one grounded answer (each gets a citation handle); readable sources beyond it are listed as over the limit; default 8, range 1–20. | 7B |
+| `AI_CONTEXT_SOURCE_CHARS` | Characters of redacted source text sent per source; longer text is cut and flagged as shortened; default 1500, range 200–6000. | 7B |
 | `AI_HISTORY_RETENTION_DAYS` | Technical content retention for AI history; unset keeps content (OD-36 undecided). | 7A |

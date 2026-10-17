@@ -956,6 +956,20 @@ export const TELEMETRY_SIGNALS = [
     "labels": [
       "reason"
     ]
+  },
+  {
+    "name": "ai.context_previews",
+    "type": "counter",
+    "labels": [
+      "index"
+    ]
+  },
+  {
+    "name": "ai.answer_validations",
+    "type": "counter",
+    "labels": [
+      "status"
+    ]
   }
 ] as const;
 export type TelemetrySignalName = (typeof TELEMETRY_SIGNALS)[number]['name'];
@@ -4119,6 +4133,8 @@ export const PARAMETER_NAMES = [
   "AI_OUTPUT_MAX_CHARS",
   "AI_STREAM_EVENT_MAX_BYTES",
   "AI_STREAM_MAX_BYTES",
+  "AI_CONTEXT_SOURCES_MAX",
+  "AI_CONTEXT_SOURCE_CHARS",
   "AI_HISTORY_RETENTION_DAYS"
 ] as const;
 export type ParameterName = (typeof PARAMETER_NAMES)[number];

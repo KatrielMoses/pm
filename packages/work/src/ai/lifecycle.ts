@@ -1,4 +1,5 @@
 import { sql, type WorkspaceTransaction } from '@pm/db';
+import { contextFromRow, requestJobCancel, transitionOperation } from '@pm/platform';
 import {
   defaultPersonalDataRegistry,
   type OwnershipHook,
@@ -49,9 +50,33 @@ export async function eraseAiContentRows(
       .where('cancel_requested_at', 'is', null)
       .where('execution_state', 'in', ['queued', 'running', 'waiting', 'paused'])
       .execute();
+  // Work that has not started ends now. Departure's generic step may already have cancelled the
+  // queued job; the worker never claims a cancelled job, so its operation is closed here (a run is
+  // never left queued forever). Running work observes the cancel request at its next boundary.
+  if (filter.membershipId) {
+    const queued = await tx.db
+      .selectFrom('exec.job as j')
+      .innerJoin('exec.operation as o', 'o.id', 'j.operation_id')
+      .selectAll('j')
+      .where('j.operation_id', 'in', ids)
+      .where('o.execution_state', '=', 'queued')
+      .where('j.state', 'in', ['queued', 'retry_scheduled', 'cancelled'])
+      .execute();
+    for (const j of queued) {
+      const outcome = j.state === 'cancelled' ? 'cancelled' : await requestJobCancel(tx, j.id);
+      if (outcome === 'cancelled')
+        await transitionOperation(tx, {
+          operationId: j.operation_id!,
+          to: 'cancelled',
+          terminalReason: 'policy_rejected',
+          actor: { type: 'system' },
+          context: contextFromRow(j),
+        });
+    }
+  }
   await tx.db
     .updateTable('ai.ai_output')
-    .set({ content: null, completeness: 'erased' })
+    .set({ content: null, completeness: 'erased', grounding: null })
     .where('operation_id', 'in', ids)
     .where('completeness', '<>', 'erased')
     .execute();

@@ -419,36 +419,53 @@ export class SearchService extends FileService {
     return this.trackSearch('query', () =>
       this.inWorkspace(caller, ws, { readOnly: true }, async (tx, p) => {
         await this.searchLimit(p);
-        const { filters: f } = input;
-        const vis = await this.#visibility(tx, p, f);
-        const resolved = await this.#resolve(tx, p, f, vis);
-        const tsq = this.#tsquery(input.parsed.terms);
-        const base = this.#where(tx.workspaceId, p, f, resolved, vis, tsq);
-        const cap = this.ws.searchCountMax;
-        const fp = this.#fingerprint(input);
-        const after = input.cursor ? this.#openCursor(p, fp, input.cursor) : null;
-        const position = after ? after.n : 0;
-        const reach = Math.max(this.ws.searchResultsMax - position, 0);
-        const limit = Math.min(input.limit, reach);
-        const kindOk = f.kinds.length ? sql`e.source_kind = ANY(${f.kinds}::text[])` : sql`true`;
-        const brandOk = resolved.brandIds.length
-          ? sql`r.brand_id = ANY(${resolved.brandIds}::uuid[])`
-          : sql`true`;
-        const past = after
-          ? sql`AND (rank, u, i) < (${after.r}::float8, ${after.u}::timestamptz, ${after.i}::uuid)`
-          : sql``;
+        return this.#searchParsed(tx, p, input);
+      }),
+    );
+  }
 
-        // One pass over the authorized matches: the page, the total, and both facets are read from
-        // the same materialized set (a facet counts what choosing another value would give).
-        // Under row-level security the planner cannot use the full-text index (the match operator
-        // is not leakproof), so every extra pass would be another scan of the workspace's entries.
-        const one = (
-          await sql<{
-            keys: Array<{ k: string; i: string; r: number; u: string }>;
-            total: number;
-            kinds: Array<{ k: string; n: number }>;
-            brands: Array<{ b: string | null; n: number }>;
-          }>`
+  /**
+   * The same search inside a caller's own transaction and principal (7B retrieval candidates).
+   * It applies the same parsing, rate limit, visibility, live checks, ranking, and index status;
+   * there is no second search authority.
+   */
+  protected async searchIn(tx: WorkspaceTransaction, p: Principal, query: Record<string, unknown>) {
+    const input = this.#parse(query, true);
+    await this.searchLimit(p);
+    return this.#searchParsed(tx, p, input);
+  }
+
+  async #searchParsed(tx: WorkspaceTransaction, p: Principal, input: Parsed) {
+    const { filters: f } = input;
+    const vis = await this.#visibility(tx, p, f);
+    const resolved = await this.#resolve(tx, p, f, vis);
+    const tsq = this.#tsquery(input.parsed.terms);
+    const base = this.#where(tx.workspaceId, p, f, resolved, vis, tsq);
+    const cap = this.ws.searchCountMax;
+    const fp = this.#fingerprint(input);
+    const after = input.cursor ? this.#openCursor(p, fp, input.cursor) : null;
+    const position = after ? after.n : 0;
+    const reach = Math.max(this.ws.searchResultsMax - position, 0);
+    const limit = Math.min(input.limit, reach);
+    const kindOk = f.kinds.length ? sql`e.source_kind = ANY(${f.kinds}::text[])` : sql`true`;
+    const brandOk = resolved.brandIds.length
+      ? sql`r.brand_id = ANY(${resolved.brandIds}::uuid[])`
+      : sql`true`;
+    const past = after
+      ? sql`AND (rank, u, i) < (${after.r}::float8, ${after.u}::timestamptz, ${after.i}::uuid)`
+      : sql``;
+
+    // One pass over the authorized matches: the page, the total, and both facets are read from
+    // the same materialized set (a facet counts what choosing another value would give).
+    // Under row-level security the planner cannot use the full-text index (the match operator
+    // is not leakproof), so every extra pass would be another scan of the workspace's entries.
+    const one = (
+      await sql<{
+        keys: Array<{ k: string; i: string; r: number; u: string }>;
+        total: number;
+        kinds: Array<{ k: string; n: number }>;
+        brands: Array<{ b: string | null; n: number }>;
+      }>`
             WITH m AS MATERIALIZED (
               SELECT e.source_kind AS k, e.source_id AS i, e.source_updated_at AS u, r.brand_id AS b,
                      ts_rank_cd(e.tsv, ${tsq}, 32)::float8 AS rank,
@@ -468,18 +485,18 @@ export class SearchService extends FileService {
                  FROM (SELECT k, count(*)::int AS n FROM m WHERE brand_ok GROUP BY k) x) AS kinds,
               (SELECT coalesce(jsonb_agg(jsonb_build_object('b', x.b, 'n', x.n)), '[]'::jsonb)
                  FROM (SELECT b, count(*)::int AS n FROM m WHERE kind_ok GROUP BY b) x) AS brands`.execute(
-            tx.db,
-          )
-        ).rows[0]!;
-        const pageKeys = one.keys.slice(0, limit);
-        const more = one.keys.length > limit && position + limit < this.ws.searchResultsMax;
-        const lastKey = pageKeys[pageKeys.length - 1];
-        const n = one.total;
-        const byKind = one.kinds.map((x) => ({ k: x.k, n: Math.min(x.n, cap) }));
-        const byBrand = one.brands.map((x) => ({ b: x.b, n: Math.min(x.n, cap) }));
-        const hits = pageKeys.length
-          ? (
-              await sql<Hit>`
+        tx.db,
+      )
+    ).rows[0]!;
+    const pageKeys = one.keys.slice(0, limit);
+    const more = one.keys.length > limit && position + limit < this.ws.searchResultsMax;
+    const lastKey = pageKeys[pageKeys.length - 1];
+    const n = one.total;
+    const byKind = one.kinds.map((x) => ({ k: x.k, n: Math.min(x.n, cap) }));
+    const byBrand = one.brands.map((x) => ({ b: x.b, n: Math.min(x.n, cap) }));
+    const hits = pageKeys.length
+      ? (
+          await sql<Hit>`
                 SELECT e.source_kind, e.source_id, e.auth_record_id, e.context_record_id, e.title,
                        left(e.body, ${SNIPPET_SCAN_CHARS}) AS body, e.source_updated_at, r.brand_id,
                        r.lifecycle_state, 0::float8 AS rank, t.state AS task_state,
@@ -492,68 +509,66 @@ export class SearchService extends FileService {
                   LEFT JOIN search.index_status t ON t.workspace_id = e.workspace_id
                        AND t.source_kind = e.source_kind AND t.source_id = e.source_id
                  ORDER BY k.o`.execute(tx.db)
-            ).rows
-          : [];
+        ).rows
+      : [];
 
-        const results = await this.#present(tx, p, vis, hits, input);
-        const brandRows = await readableBrandsByIds(
-          tx,
-          p,
-          byBrand.flatMap((b) => (b.b ? [b.b] : [])),
-        );
-        const brandsById = new Map(brandRows.map((b) => [b.id, b]));
-        const index = await this.indexStatusFor(tx, vis);
-        const total = Math.min(n, cap);
-        return {
-          query: {
-            q: input.q,
-            kind: f.kinds,
-            brand: f.brands,
-            project: f.project ? { id: f.project, name: resolved.projectName } : null,
-            state: f.state,
-            updated: f.updated,
-            mine: f.mine,
-            mentioning_me: f.mentioningMe,
-          },
-          results,
-          total,
-          total_is_lower_bound: n > cap,
-          facets: {
-            capped: [...byKind.map((x) => x.n), ...byBrand.map((x) => x.n)].some((c) => c >= cap),
-            kinds: this.#sources.all().flatMap((s) => {
-              const c = byKind.find((k) => k.k === s.kind)?.n ?? 0;
-              return c > 0 || f.kinds.includes(s.kind)
-                ? [{ kind: s.kind, label: s.label, count: c }]
-                : [];
-            }),
-            brands: byBrand
-              .flatMap((b) => {
-                if (!b.b) return [{ brand: { kind: 'workspace' as const }, count: b.n }];
-                const row = brandsById.get(b.b);
-                return row ? [{ brand: brandMarker(row), count: b.n }] : [];
-              })
-              .sort((a, b) => b.count - a.count),
-          },
-          page: {
-            limit,
-            /** The 1-based place of the first result on this page in the whole ranked list. */
-            position: position + 1,
-            has_more: more,
-            next_cursor:
-              more && lastKey
-                ? this.#sealCursor(p, fp, {
-                    r: lastKey.r,
-                    u: lastKey.u,
-                    i: lastKey.i,
-                    n: position + pageKeys.length,
-                  })
-                : null,
-          },
-          limits: { results_max: this.ws.searchResultsMax, count_max: cap },
-          index,
-        };
-      }),
+    const results = await this.#present(tx, p, vis, hits, input);
+    const brandRows = await readableBrandsByIds(
+      tx,
+      p,
+      byBrand.flatMap((b) => (b.b ? [b.b] : [])),
     );
+    const brandsById = new Map(brandRows.map((b) => [b.id, b]));
+    const index = await this.indexStatusFor(tx, vis);
+    const total = Math.min(n, cap);
+    return {
+      query: {
+        q: input.q,
+        kind: f.kinds,
+        brand: f.brands,
+        project: f.project ? { id: f.project, name: resolved.projectName } : null,
+        state: f.state,
+        updated: f.updated,
+        mine: f.mine,
+        mentioning_me: f.mentioningMe,
+      },
+      results,
+      total,
+      total_is_lower_bound: n > cap,
+      facets: {
+        capped: [...byKind.map((x) => x.n), ...byBrand.map((x) => x.n)].some((c) => c >= cap),
+        kinds: this.#sources.all().flatMap((s) => {
+          const c = byKind.find((k) => k.k === s.kind)?.n ?? 0;
+          return c > 0 || f.kinds.includes(s.kind)
+            ? [{ kind: s.kind, label: s.label, count: c }]
+            : [];
+        }),
+        brands: byBrand
+          .flatMap((b) => {
+            if (!b.b) return [{ brand: { kind: 'workspace' as const }, count: b.n }];
+            const row = brandsById.get(b.b);
+            return row ? [{ brand: brandMarker(row), count: b.n }] : [];
+          })
+          .sort((a, b) => b.count - a.count),
+      },
+      page: {
+        limit,
+        /** The 1-based place of the first result on this page in the whole ranked list. */
+        position: position + 1,
+        has_more: more,
+        next_cursor:
+          more && lastKey
+            ? this.#sealCursor(p, fp, {
+                r: lastKey.r,
+                u: lastKey.u,
+                i: lastKey.i,
+                n: position + pageKeys.length,
+              })
+            : null,
+      },
+      limits: { results_max: this.ws.searchResultsMax, count_max: cap },
+      index,
+    };
   }
 
   /** Public identifiers, excerpts, brand markers, and (only where visible) the opening context. */

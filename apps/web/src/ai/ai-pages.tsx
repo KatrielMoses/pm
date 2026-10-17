@@ -305,6 +305,10 @@ export function AiPage({ ws }: { ws: string }) {
         A non-mutating test of the AI gateway: it can answer, but it cannot change records, complete
         work, or approve anything. <Link to={`/workspaces/${ws}/settings/ai`}>AI settings</Link>
       </p>
+      <p>
+        <Link to={`/workspaces/${ws}/ai/ask`}>Ask with sources</Link>: read-only answers that cite
+        records you can read, with the context shown first.
+      </p>
       {loadError ? (
         <Banner
           tone="danger"

@@ -3326,7 +3326,7 @@ export interface AiActionTable {
   workspace_id: string;
   initiating_membership_id: string;
   brand_id: string | null;
-  purpose: 'test_run';
+  purpose: 'test_run' | 'grounded_answer';
   synthetic: boolean;
   model_key: string;
   provider: string;
@@ -3347,6 +3347,8 @@ export interface AiActionTable {
   content_state: Defaulted<'present' | 'erased'>;
   content_erased_at: Timestamp | null;
   created_at: DTs;
+  retrieval_scope: Json<Record<string, unknown>> | null;
+  manifest_digest: string | null;
 }
 export interface AiContextRefTable {
   id: string;
@@ -3354,12 +3356,17 @@ export interface AiContextRefTable {
   operation_id: string;
   position: number;
   record_id: string;
-  record_type: 'task' | 'project';
+  record_type: 'task' | 'project' | 'document' | 'comment' | 'activity';
   record_public_id: string;
   fields: string[];
   record_version: number;
   included: boolean;
   exclusion_reason: string | null;
+  handle: string | null;
+  content_hash: string | null;
+  source_version: string | null;
+  source_flags: Defaulted<string[]>;
+  selection: Defaulted<'explicit' | 'scope' | 'search'>;
 }
 export type AiDispatchState =
   'dispatching' | 'succeeded' | 'partial' | 'refused' | 'failed' | 'unknown' | 'reconciled';
@@ -3409,6 +3416,7 @@ export interface AiOutputTable {
   completeness: 'complete' | 'truncated' | 'partial' | 'erased';
   content: string | null;
   created_at: DTs;
+  grounding: Json<Record<string, unknown>> | null;
 }
 export type AiMeter = 'ai.cost' | 'ai.input_tokens' | 'ai.output_tokens';
 export interface SpendLimitTable {
@@ -6569,6 +6577,8 @@ export const TABLE_COLUMNS: Readonly<Record<keyof Database, readonly string[]>> 
     'content_state',
     'content_erased_at',
     'created_at',
+    'retrieval_scope',
+    'manifest_digest',
   ],
   'ai.ai_context_ref': [
     'id',
@@ -6582,6 +6592,11 @@ export const TABLE_COLUMNS: Readonly<Record<keyof Database, readonly string[]>> 
     'record_version',
     'included',
     'exclusion_reason',
+    'handle',
+    'content_hash',
+    'source_version',
+    'source_flags',
+    'selection',
   ],
   'ai.ai_dispatch': [
     'id',
@@ -6620,6 +6635,7 @@ export const TABLE_COLUMNS: Readonly<Record<keyof Database, readonly string[]>> 
     'completeness',
     'content',
     'created_at',
+    'grounding',
   ],
   'metering.spend_limit': [
     'id',

@@ -500,7 +500,12 @@ Every AI action surface (assistant panel, "Draft with AI", summaries, briefings)
 
 - a **context bar** before running: brand marker(s), scope (workspace, brand, project or task), and the number of records included, with **Adjust**, which lets the user include or exclude records (*FEATURES › AI assistant*);
 - warnings when the context includes **stale or unapproved sources**;
-- output statements labelled by kind: **Sourced** (with citation links), **Calculated**, **Suggestion**, **Unknown/needs input**. Labels use text and icon, not colour alone;
+- output labelled by trust: **Facts from the records** (canonical fields, with citation links) and **Calculated** (server calculations) are the only established statements. Model output is labelled separately:
+  - **Exact excerpt**: the source's own matched text.
+  - **Unverified** (generated): any other claim, even one that cites a source or quotes it. The quotation is shown as provenance.
+  - **Suggestion**.
+  - **Unknown/needs input**.
+  An answer cut off before completion is shown as incomplete, never as an answer. Labels use text and icon, not colour alone (7B corrective review 01, ADR-0039 D7);
 - cost per [ST-62](#st-62) where applicable;
 - the result as a *draft* or *proposal*, never written to records without [ST-51](#st-51).
 

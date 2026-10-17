@@ -307,6 +307,7 @@ Requirements flagged with each decision are listed automatically in [requirement
 - **Safe default:** Keyword full-text search plus AI-assisted query interpretation at launch. Text is extracted from common text formats, and OCR comes later.
 - **If deferred:** 5A builds the safe default.
 - **Status (Phase 5A, 2026-10-09):** The safe default is built: keyword full-text search (the `simple` and `english` configurations together, DQ-24) over records, comments, saved document text, file names, and deliverables, with permission applied inside the query. Concept search and AI query interpretation (SRCH-004, 7B) and attachment text and OCR (DOC-019) are **not** built and remain open for later phases; search and documents say so rather than imply them (ADR-0028 S16).
+- **Status (Phase 7B, 2026-10-17):** Still open. AI retrieval (ADR-0039) finds candidates through the same keyword search and labels it lexical; it adds no semantic search, embeddings, vector store, or AI query interpretation, and no attachment text. Concept search remains for a later decision.
 
 <a id="od-32"></a>
 ### OD-32 — Document export formats

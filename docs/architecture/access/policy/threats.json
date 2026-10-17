@@ -1043,6 +1043,48 @@
         "I-09",
         "I-15"
       ]
+    },
+    {
+      "id": "T-99",
+      "category": "inference",
+      "description": "AI retrieval, a context manifest, citations, or derived figures disclose a record the person cannot read or did not choose: a search candidate used without a canonical re-check, an out-of-scope or restricted source sent, or a hidden source revealed through its identifier, type, title, snippet, count, grouping, exclusion detail, availability, timing, history, or error.",
+      "mitigated_by": [
+        "I-04",
+        "I-07",
+        "I-08",
+        "I-14",
+        "I-18"
+      ]
+    },
+    {
+      "id": "T-100",
+      "category": "spoofing",
+      "description": "Model output gains authority it has not earned: an invented or cross-workspace citation, record identifier, title, link, or approval state becomes a trusted reference; a fabricated quotation is shown as exact; a generated status, completion, cost, date, or result is presented as a fact; or generated markup executes or fetches.",
+      "mitigated_by": [
+        "I-09",
+        "I-15",
+        "I-18"
+      ]
+    },
+    {
+      "id": "T-101",
+      "category": "staleness",
+      "description": "A stale context outlives a change: a preview, queued run, retry, or late provider response uses or publishes sources after access revocation, departure, a version or field-policy or sensitivity change, trash, or erasure; or history, exports, or citations keep a copy of a now-revoked source.",
+      "mitigated_by": [
+        "I-12",
+        "I-14",
+        "I-18"
+      ]
+    },
+    {
+      "id": "T-102",
+      "category": "agent_scope",
+      "description": "Untrusted input widens AI retrieval: instructions inside a source or question, a client-supplied snippet, title, version, or manifest, or a conflicting scope cause additional retrieval, broader scope, more provider data, or a side effect beyond the person's authorized, explicit choice.",
+      "mitigated_by": [
+        "I-01",
+        "I-09",
+        "I-14"
+      ]
     }
   ],
   "tests": [
@@ -7948,6 +7990,296 @@
       "silent_surfaces": [
         "ui_record",
         "count_facet"
+      ]
+    },
+    {
+      "id": "AT-390",
+      "threats": [
+        "T-99"
+      ],
+      "principal": "member",
+      "setup": "Preview with brand scope, search words, and a named activity source: index catching up then complete, every implemented source kind re-checked, unsuitable documents listed but not used, AI off in another workspace",
+      "scope": "workspace",
+      "action": "ai.execute",
+      "surface": "ai_context",
+      "expected": "allow",
+      "response_shape": "ok_filtered",
+      "silent_surfaces": [
+        "count_facet",
+        "search_snippet"
+      ]
+    },
+    {
+      "id": "AT-391",
+      "threats": [
+        "T-99",
+        "T-102"
+      ],
+      "principal": "member",
+      "setup": "Hidden, foreign, and unknown named sources and scopes; a conflicting scope; a restricted brand; a guest with an explicit share; read-only and limited members; client-supplied titles",
+      "scope": "workspace",
+      "action": "ai.execute",
+      "surface": "ai_context",
+      "expected": "deny",
+      "response_shape": "forbidden",
+      "silent_surfaces": [
+        "error_message",
+        "timing",
+        "count_facet"
+      ]
+    },
+    {
+      "id": "AT-392",
+      "threats": [
+        "T-100",
+        "T-101"
+      ],
+      "principal": "member",
+      "setup": "A grounded answer: estimate and confirmation, server facts and calculations, validated exact quotation, citations resolved through current access, references-only storage",
+      "scope": "workspace",
+      "action": "ai.execute",
+      "surface": "ai_answer",
+      "expected": "allow",
+      "response_shape": "ok",
+      "silent_surfaces": [
+        "activity"
+      ]
+    },
+    {
+      "id": "AT-393",
+      "threats": [
+        "T-100"
+      ],
+      "principal": "member",
+      "setup": "Forged and cross-manifest citations, a misquotation, unsupported figures and a contradicted status, injected text with a javascript: link, malformed and truncated answers",
+      "scope": "workspace",
+      "action": "ai.execute",
+      "surface": "ai_answer",
+      "expected": "allow",
+      "response_shape": "ok_filtered",
+      "silent_surfaces": [
+        "ai_answer"
+      ]
+    },
+    {
+      "id": "AT-394",
+      "threats": [
+        "T-101"
+      ],
+      "principal": "member",
+      "setup": "A source changes after preview, after start, and during the provider call; access is revoked before dispatch; the data class narrows after preview",
+      "scope": "workspace",
+      "action": "ai.execute",
+      "surface": "ai_answer",
+      "expected": "deny",
+      "response_shape": "conflict_filtered",
+      "silent_surfaces": [
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-395",
+      "threats": [
+        "T-101",
+        "T-99"
+      ],
+      "principal": "member",
+      "setup": "Revocation after an answer: history, completed-key replay, and export withhold the whole answer and its sources; a changed source marks its citations changed",
+      "scope": "workspace",
+      "action": "ai.execute",
+      "surface": "export",
+      "expected": "deny",
+      "response_shape": "omitted",
+      "silent_surfaces": [
+        "export",
+        "ai_answer"
+      ]
+    },
+    {
+      "id": "AT-396",
+      "threats": [
+        "T-101"
+      ],
+      "principal": "member",
+      "setup": "Trash and restore, archive, departure with a pending run, a worker restart, and retention erasure of grounded content",
+      "scope": "workspace",
+      "action": "ai.execute",
+      "surface": "ai_answer",
+      "expected": "deny",
+      "response_shape": "omitted",
+      "silent_surfaces": [
+        "activity",
+        "export"
+      ]
+    },
+    {
+      "id": "AT-397",
+      "threats": [
+        "T-99",
+        "T-101"
+      ],
+      "principal": "member",
+      "setup": "A source both named and found, an empty result, a retry from the same choices, and a retry after the source changed",
+      "scope": "workspace",
+      "action": "ai.execute",
+      "surface": "ai_context",
+      "expected": "allow",
+      "response_shape": "ok_filtered",
+      "silent_surfaces": [
+        "count_facet"
+      ]
+    },
+    {
+      "id": "AT-398",
+      "threats": [
+        "T-101"
+      ],
+      "principal": "member",
+      "setup": "A worker lost mid-call is recovered; the content is erased before the late provider response arrives",
+      "scope": "workspace",
+      "action": "ai.execute",
+      "surface": "ai_answer",
+      "expected": "deny",
+      "response_shape": "omitted",
+      "silent_surfaces": [
+        "ai_answer"
+      ]
+    },
+    {
+      "id": "AT-399",
+      "threats": [
+        "T-94",
+        "T-102"
+      ],
+      "principal": "owner",
+      "setup": "A paid model scoped to a project with an AI budget the gateway cannot enforce (PRJ-007); preview and a synthetic run",
+      "scope": "workspace",
+      "action": "ai.execute",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "forbidden",
+      "silent_surfaces": [
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-400",
+      "threats": [
+        "T-102"
+      ],
+      "principal": "member",
+      "setup": "A source whose text asks for secrets, other brands, restricted records, and a remote fetch",
+      "scope": "workspace",
+      "action": "ai.execute",
+      "surface": "ai_context",
+      "expected": "allow",
+      "response_shape": "ok_filtered",
+      "silent_surfaces": [
+        "ai_answer",
+        "ai_context"
+      ]
+    },
+    {
+      "id": "AT-401",
+      "threats": [
+        "T-101"
+      ],
+      "principal": "member",
+      "setup": "The scope brand becomes restricted between start and dispatch",
+      "scope": "workspace",
+      "action": "ai.execute",
+      "surface": "ai_answer",
+      "expected": "deny",
+      "response_shape": "omitted",
+      "silent_surfaces": [
+        "ai_answer"
+      ]
+    },
+    {
+      "id": "AT-402",
+      "threats": [
+        "T-99",
+        "T-102"
+      ],
+      "principal": "owner",
+      "setup": "HTTP previews and grounded answers: envelopes, no-store, bearer ai:execute, a token without it, a token narrowed to one brand, completed-key replay",
+      "scope": "workspace",
+      "action": "ai.execute",
+      "surface": "api",
+      "expected": "allow",
+      "response_shape": "ok",
+      "silent_surfaces": [
+        "error_message",
+        "timing"
+      ]
+    },
+    {
+      "id": "AT-403",
+      "threats": [
+        "T-99",
+        "T-100"
+      ],
+      "principal": "owner",
+      "setup": "Browser journey on three devices: preview with AI off, include and exclude, confirmation, a validated answer with working citations, invalid output as unverified text, offline, keyboard, 320px, 200% zoom, forced colours, reduced motion",
+      "scope": "workspace",
+      "action": "ai.execute",
+      "surface": "ui_record",
+      "expected": "allow",
+      "response_shape": "ok",
+      "silent_surfaces": [
+        "ui_record",
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-404",
+      "threats": [
+        "T-101",
+        "T-99"
+      ],
+      "principal": "member",
+      "setup": "After completion, the AI data class narrows from C2 to C1 and C0 while membership and record access stay; history, export, completed-key replay, and citations; restored policy; a run created under C1; authorized drift; a policy change during execution; erasure",
+      "scope": "workspace",
+      "action": "ai.execute",
+      "surface": "ai_answer",
+      "expected": "deny",
+      "response_shape": "omitted",
+      "silent_surfaces": [
+        "export",
+        "ai_answer",
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-405",
+      "threats": [
+        "T-100"
+      ],
+      "principal": "member",
+      "setup": "A provider answer that is well-formed JSON but stopped at max_tokens, a malformed truncation, a complete answer, and a cancellation mid-stream",
+      "scope": "workspace",
+      "action": "ai.execute",
+      "surface": "ai_answer",
+      "expected": "allow",
+      "response_shape": "ok_filtered",
+      "silent_surfaces": [
+        "ai_answer"
+      ]
+    },
+    {
+      "id": "AT-406",
+      "threats": [
+        "T-100"
+      ],
+      "principal": "member",
+      "setup": "A generated claim carrying a real but unrelated quotation, a verbatim excerpt, and a status claim contradicting the record",
+      "scope": "workspace",
+      "action": "ai.execute",
+      "surface": "ai_answer",
+      "expected": "allow",
+      "response_shape": "ok_filtered",
+      "silent_surfaces": [
+        "ai_answer"
       ]
     }
   ]

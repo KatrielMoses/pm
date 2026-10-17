@@ -424,3 +424,19 @@ Migration `0054_ai_gateway_corrections` (expand; exact rollback to 0053; 0B ADR-
 - `ai_provider_config` gains `dispatch_suspended_reason` and `dispatch_suspended_at`. `app_worker` may update only those columns, `updated_at`, and `version`.
 - `ai.scrub_dispatch_checkpoints(uuid[])` (SECURITY DEFINER, `search_path` pinned, not executable by `PUBLIC`; `app_rw` and `app_worker` may call it) removes `system`, `user`, and `keyRef` from the `ai.prepare.<n>` steps of `ai.action.dispatch` jobs. It reaches the current workspace only, because `exec.job` row-level security still applies. Every other step and fact is kept.
 - The one-time cleanup of copies written before 0054 lifts forced row-level security on `exec.job` for one statement inside the migration transaction and restores it, as 0041 did. The migration test proves the catalog afterwards is the reference catalog. Rolling back does not restore removed content.
+
+## Phase 7B: authorized retrieval and citations
+
+Migration `0055_ai_retrieval_citations` (expand; exact rollback to 0054; 0B ADR-46, ADR-0039) is additive and adds no table, grant, or policy:
+
+- `ai_action.purpose` admits `grounded_answer`. Such an action carries `retrieval_scope` (public references only) and `manifest_digest`, which a CHECK keeps present exactly for grounded answers.
+- `ai_context_ref` is the manifest entry:
+  - source kinds `document`, `comment`, and `activity`;
+  - four new exclusion reasons;
+  - `handle` (S1..S20, unique per action, included entries only);
+  - `content_hash` (SHA-256 of the exact redacted payload);
+  - `source_version`, `source_flags`, and `selection`.
+  No source text is stored.
+- `ai_output.grounding` holds the validated answer. `ai.output_guard()` permits only erasure, which must also clear `grounding`.
+- The down migration restores the 0053 output guard and the 0054 constraints. It refuses while grounded-answer rows exist: it lifts forced row-level security on `ai_action` and `ai_context_ref` for that one check and restores it, as 0041 did. The migration test proves the catalog round-trip, and the 7B integration test proves the refusal.
+
