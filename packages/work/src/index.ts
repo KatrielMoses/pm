@@ -86,7 +86,12 @@ export * from './portability/portability-service.ts';
 export * from './integrations/mcp-access-service.ts';
 export * from './ai/ai-gateway-service.ts';
 export * from './ai/jobs.ts';
-export { aiHistoryOwnerHook, eraseAiContentRows } from './ai/lifecycle.ts';
+export {
+  aiHistoryOwnerHook,
+  aiPersonalDataEraser,
+  eraseAiContentRows,
+  productPersonalDataRegistry,
+} from './ai/lifecycle.ts';
 export * from './ai/provider.ts';
 export * from './ai/registry.ts';
 export * from './ai/money.ts';

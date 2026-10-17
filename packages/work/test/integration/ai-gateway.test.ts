@@ -3,6 +3,7 @@ import { createTestDatabase, type TestDatabase } from '@pm/test-support/vitest';
 import { startAiProviderFixture, type AiProviderFixture } from '@pm/test-support';
 import type { Caller } from '@pm/tenancy';
 import { richTextFromPlain } from '@pm/contracts';
+import { Secret } from '@pm/config';
 import type { WorkerRuntime } from '@pm/platform';
 import { syntheticCaller } from '../../src/integrations/public-api-service.ts';
 import { aiWorker, drain, enableAi, fixtureAi, ledger, stepped, stepUp } from './ai-support.ts';
@@ -399,15 +400,53 @@ describe('Phase 7A AI gateway', () => {
         stepUp(settings.version),
       ),
     );
-    expect(await refusal(real.svc.estimateAiRun(P.owner, ws, { prompt: 'Hi' }))).toEqual({
+    // Corrective review 01 §2: the price is verified, but no evidenced input bound exists, so a
+    // hard limit cannot be guaranteed. That refusal comes before, and independently of, approval.
+    expect(settings.models[0]!.gates).toMatchObject({
+      price: { state: 'verified', checked_on: '2026-10-17' },
+      input_bound: { state: 'unverified' },
+      error_responses_chargeable: 'unknown',
+      monetary_dispatch: 'bound_unverified',
+    });
+    const boundRefusal = {
       code: 'forbidden',
       issues: [
         expect.objectContaining({
-          code: 'ai_not_approved',
-          message: expect.stringMatching(/not been approved/),
+          code: 'ai_bound_unverified',
+          message: expect.stringMatching(/no evidenced upper bound/),
         }),
       ],
+    };
+    expect(await refusal(real.svc.estimateAiRun(P.owner, ws, { prompt: 'Hi' }))).toEqual(
+      boundRefusal,
+    );
+    // Even an approved real model (OD-41 recorded) with a configured key is refused.
+    const approved = workEnv(db, {
+      ai: {
+        ...fixtureAi(fx),
+        config: {
+          ...fixtureAi(fx).config,
+          provider: {
+            provider: 'anthropic',
+            baseUrl: fx.baseUrl,
+            apiKey: new Secret(fx.apiKey),
+            timeoutMs: 1000,
+          },
+          approvedModels: ['anthropic/claude-haiku-5-5@2026-10-06'],
+        },
+      },
     });
+    const sent = requests().length;
+    expect(await refusal(approved.svc.estimateAiRun(P.owner, ws, { prompt: 'Hi' }))).toEqual(
+      boundRefusal,
+    );
+    expect(
+      await refusal(
+        approved.svc.startAiTestRun(P.owner, ws, { prompt: 'Hi', confirm_cost: true }, mutation()),
+      ),
+    ).toEqual(boundRefusal);
+    expect(requests().length).toBe(sent);
+    await approved.h.close();
     // Back to the fixture model; workspace keys stay off (OD-46).
     const s2 = await env.svc.getAiSettings(P.owner, ws);
     await stepped(env, () =>

@@ -4,11 +4,15 @@ import { LogErrorReporter } from '@pm/observability';
 import { FIXTURE_MODEL_KEY, type AiProviderFixture } from '@pm/test-support';
 import type { TestDatabase } from '@pm/test-support/vitest';
 import type { Caller } from '@pm/tenancy';
-import { aiDispatchHandler, MessagesProvider, type AiGatewayDeps } from '@pm/work';
+import { aiDispatchHandler, MessagesProvider, type AiGatewayDeps, type ModelEntry } from '@pm/work';
 import { mutation, type WorkEnv } from './fixture.ts';
 
 /** The AI gateway against the deterministic protocol fixture (synthetic prices, no provider). */
-export function fixtureAi(fx: AiProviderFixture, overrides: Partial<AiConfig> = {}): AiGatewayDeps {
+export function fixtureAi(
+  fx: AiProviderFixture,
+  overrides: Partial<AiConfig> = {},
+  models?: readonly ModelEntry[],
+): AiGatewayDeps {
   const config: AiConfig = {
     provider: {
       provider: 'fixture',
@@ -28,6 +32,7 @@ export function fixtureAi(fx: AiProviderFixture, overrides: Partial<AiConfig> = 
     maxAttempts: 3,
     warningThresholdsBp: [8000, 10_000],
     historyRetentionDays: null,
+    stream: { outputMaxChars: 40_000, eventMaxBytes: 65_536, maxBytes: 4_194_304 },
     ...overrides,
   };
   return {
@@ -35,8 +40,11 @@ export function fixtureAi(fx: AiProviderFixture, overrides: Partial<AiConfig> = 
     provider: new MessagesProvider({
       baseUrl: fx.baseUrl,
       timeoutMs: config.provider.provider === 'none' ? 1000 : config.provider.timeoutMs,
-      maxTextChars: 40_000,
+      maxTextChars: config.stream.outputMaxChars,
+      maxEventBytes: config.stream.eventMaxBytes,
+      maxWireBytes: config.stream.maxBytes,
     }),
+    ...(models ? { models } : {}),
     entitlements: { aiAllowed: async () => true },
   };
 }

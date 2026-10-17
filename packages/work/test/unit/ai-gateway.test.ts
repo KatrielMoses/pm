@@ -14,7 +14,8 @@ import {
   modelByKey,
   MODELS,
   modelsForTransport,
-  usageCostPico,
+  priceSnapshot,
+  snapshotCostPico,
 } from '../../src/ai/registry.ts';
 
 const FIXTURE = 'fixture/synthetic-messages@2026-10-17';
@@ -40,7 +41,9 @@ describe('7A registry: explicit versioned models, bounded costs', () => {
       expect(m.key).toMatch(/^[a-z0-9_.-]+\/[a-z0-9_.-]+@[0-9a-z_.-]+$/);
       expect(m.key).not.toMatch(/latest/);
       expect(m.price.version).toBeTruthy();
-      expect(m.price.source).toBeTruthy();
+      expect(m.price.verification.state).toMatch(/^(verified|synthetic)$/);
+      if (m.price.verification.state === 'verified')
+        expect(m.price.verification.source).toMatch(/^https:\/\//);
       expect(m.privacy.zeroRetention).toBe(false);
       expect(m.capabilities.providerIdempotency).toBe(false);
     }
@@ -56,8 +59,17 @@ describe('7A registry: explicit versioned models, bounded costs', () => {
     const bound = inputTokenBound(m, ['system', 'héllo'], 1);
     expect(bound).toBe(6 + 6 + m.inputBound.overheadTokens + m.inputBound.perMessageTokens);
     expect(maxCostPico(m, 100, 50)).toBe(100n * 100_000n + 50n * 500_000n);
-    expect(usageCostPico(m, 10, 5)).toBe(10n * 100_000n + 5n * 500_000n);
-    expect(usageCostPico(m, 10, 5)).toBeLessThan(maxCostPico(m, 100, 50));
+    const snap = priceSnapshot(m);
+    expect(snapshotCostPico(snap, 10, 5)).toBe(10n * 100_000n + 5n * 500_000n);
+    expect(snapshotCostPico(snap, 10, 5)).toBeLessThan(maxCostPico(m, 100, 50));
+    // Invalid usage and malformed snapshots are never priced.
+    for (const bad of [-1, 2.5, Number.MAX_SAFE_INTEGER + 1, Number.NaN])
+      expect(() => snapshotCostPico(snap, bad, 0)).toThrow();
+    expect(() => snapshotCostPico({ input_pico_per_token: 1 }, 1, 1)).toThrow();
+    // The real model's evidence is recorded separately, with sources and dates.
+    expect(m.price.verification).toMatchObject({ state: 'verified', checkedOn: '2026-10-17' });
+    expect(m.inputBound.verification).toMatchObject({ state: 'unverified' });
+    expect(m.capabilities.errorResponsesChargeable).toBe('unknown');
   });
 });
 
@@ -116,6 +128,7 @@ describe('7A dispatch policy', () => {
     maxAttempts: 3,
     warningThresholdsBp: [8000, 10_000],
     historyRetentionDays: null,
+    stream: { outputMaxChars: 40_000, eventMaxBytes: 65_536, maxBytes: 4_194_304 },
   };
   const policy = {
     enabled: true,
@@ -145,13 +158,67 @@ describe('7A dispatch policy', () => {
         timeoutMs: 1000,
       },
     };
+    // The real model's price is verified, but no strict bound is evidenced: real money is refused
+    // whether or not it is approved (the gates are independent).
     expect(decideAvailability(real, { ...policy, modelKey: REAL }, true)).toMatchObject({
-      availability: 'not_approved',
+      availability: 'bound_unverified',
       model: { key: REAL },
     });
     expect(
-      decideAvailability({ ...real, approvedModels: [REAL] }, { ...policy, modelKey: REAL }, true),
+      decideAvailability({ ...real, approvedModels: [REAL] }, { ...policy, modelKey: REAL }, true)
+        .availability,
+    ).toBe('bound_unverified');
+    // A hypothetical model with every evidence gate verified still needs explicit approval.
+    const real0 = modelByKey(REAL)!;
+    const verified = {
+      ...real0,
+      key: 'anthropic/verified-test@1',
+      inputBound: {
+        ...real0.inputBound,
+        verification: {
+          state: 'verified' as const,
+          source: 'test',
+          checkedOn: '2026-10-17',
+          note: 'test',
+        },
+      },
+    };
+    const priceless = {
+      ...verified,
+      key: 'anthropic/priceless-test@1',
+      price: {
+        ...verified.price,
+        verification: {
+          state: 'unverified' as const,
+          source: 'test',
+          checkedOn: '2026-10-17',
+          reason: 'test',
+        },
+      },
+    };
+    const models = [verified, priceless];
+    expect(
+      decideAvailability(real, { ...policy, modelKey: verified.key }, true, models).availability,
+    ).toBe('not_approved');
+    expect(
+      decideAvailability(
+        { ...real, approvedModels: [verified.key] },
+        { ...policy, modelKey: verified.key },
+        true,
+        models,
+      ),
     ).toMatchObject({ availability: 'ready', funding: 'platform', approved: true });
+    expect(
+      decideAvailability(
+        { ...real, approvedModels: [priceless.key] },
+        { ...policy, modelKey: priceless.key },
+        true,
+        models,
+      ).availability,
+    ).toBe('price_unverified');
+    expect(
+      decideAvailability(base, { ...policy, suspendedReason: 'bound_breach' }, true).availability,
+    ).toBe('suspended');
     expect(
       decideAvailability(base, { ...policy, keySource: 'workspace', workspaceKeySet: true }, true)
         .availability,
@@ -190,7 +257,13 @@ describe('7A Messages provider contract (deterministic fixture)', () => {
   });
   beforeAll(async () => {
     fx = await startAiProviderFixture();
-    provider = new MessagesProvider({ baseUrl: fx.baseUrl, timeoutMs: 1500, maxTextChars: 40_000 });
+    provider = new MessagesProvider({
+      baseUrl: fx.baseUrl,
+      timeoutMs: 1500,
+      maxTextChars: 40_000,
+      maxEventBytes: 65_536,
+      maxWireBytes: 4_194_304,
+    });
   });
   afterAll(async () => {
     await fx.close();
@@ -271,6 +344,8 @@ describe('7A Messages provider contract (deterministic fixture)', () => {
       baseUrl: `http://127.0.0.1:${port}`,
       timeoutMs: 1000,
       maxTextChars: 10,
+      maxEventBytes: 65_536,
+      maxWireBytes: 4_194_304,
     });
     const ns = (await offline
       .complete(req('x'), false)
@@ -285,7 +360,13 @@ describe('7A Messages provider contract (deterministic fixture)', () => {
   });
 
   it('bounds retained output locally', async () => {
-    const tiny = new MessagesProvider({ baseUrl: fx.baseUrl, timeoutMs: 1500, maxTextChars: 10 });
+    const tiny = new MessagesProvider({
+      baseUrl: fx.baseUrl,
+      timeoutMs: 1500,
+      maxTextChars: 10,
+      maxEventBytes: 65_536,
+      maxWireBytes: 4_194_304,
+    });
     expect((await tiny.complete(req('bounded'), false)).text.length).toBeLessThanOrEqual(10);
   });
 });

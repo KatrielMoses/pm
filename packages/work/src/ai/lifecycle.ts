@@ -1,5 +1,10 @@
-import type { WorkspaceTransaction } from '@pm/db';
-import type { OwnershipHook } from '@pm/tenancy';
+import { sql, type WorkspaceTransaction } from '@pm/db';
+import {
+  defaultPersonalDataRegistry,
+  type OwnershipHook,
+  type PersonalDataEraser,
+  type PersonalDataRegistry,
+} from '@pm/tenancy';
 
 /**
  * AI history content lifecycle (ADR-0038 A10). AI content (the redacted prompt, generated output,
@@ -19,8 +24,22 @@ export async function eraseAiContentRows(
   if (filter.membershipId) q = q.where('initiating_membership_id', '=', filter.membershipId);
   if (filter.before) q = q.where('created_at', '<', filter.before);
   const rows = await q.limit(1000).execute();
-  if (!rows.length) return 0;
+  // Also the runs already erased whose execution checkpoints may still carry copies written before
+  // corrective review 01 (the old eraser did not reach them).
+  let stale = tx.db
+    .selectFrom('ai.ai_action')
+    .select('operation_id')
+    .where('content_state', '=', 'erased');
+  if (filter.membershipId)
+    stale = stale.where('initiating_membership_id', '=', filter.membershipId);
+  if (filter.before) stale = stale.where('created_at', '<', filter.before);
+  const erasedIds = (await stale.limit(1000).execute()).map((r) => r.operation_id);
   const ids = rows.map((r) => r.operation_id);
+  if (ids.length || erasedIds.length)
+    await sql`SELECT ai.scrub_dispatch_checkpoints(${[...ids, ...erasedIds]}::uuid[])`.execute(
+      tx.db,
+    );
+  if (!rows.length) return 0;
   // A departed member's queued or running work stops: no further attempt may start.
   if (filter.membershipId)
     await tx.db
@@ -66,3 +85,21 @@ export const aiHistoryOwnerHook: OwnershipHook = {
     }
   },
 };
+
+/** Personal-data erasure (account deletion and departure retention): the member's AI content. */
+export const aiPersonalDataEraser: PersonalDataEraser = {
+  module: 'ai',
+  async eraseMembership(tx, membershipId) {
+    let total = 0;
+    for (;;) {
+      const n = await eraseAiContentRows(tx, { membershipId });
+      total += n;
+      if (n < 1000) return total;
+    }
+  },
+};
+
+/** The personal-data registry with every product module's eraser registered. */
+export function productPersonalDataRegistry(): PersonalDataRegistry {
+  return defaultPersonalDataRegistry().register(aiPersonalDataEraser);
+}

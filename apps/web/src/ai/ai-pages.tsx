@@ -100,6 +100,7 @@ function RunDetail({ run }: { run: AiRun }) {
           <dd>{when(run.created_at)}</dd>
         </div>
       </dl>
+      {run.refusal ? <p role="status">{run.refusal.message}</p> : null}
       {run.cost.note ? <p className="hint">{run.cost.note}</p> : null}
       {run.content?.state === 'present' && run.content.output ? (
         <section aria-label={label} className="ai-output">
@@ -269,16 +270,21 @@ export function AiPage({ ws }: { ws: string }) {
     }
   };
 
-  const retry = async (run: AiRun) => {
+  // A retry is a new run at today's price: above the threshold it waits for explicit confirmation.
+  const [retryConfirm, setRetryConfirm] = useState<{ run: AiRun; message: string } | null>(null);
+  const retry = async (run: AiRun, confirm = false) => {
     setBusy(true);
     setError(null);
     try {
-      const r = await aiClient.retry(ws, run.id);
+      const r = await aiClient.retry(ws, run.id, confirm);
       setCurrent(r);
       setOpen(null);
+      setRetryConfirm(null);
       setSaid('Retry queued as a new run.');
     } catch (err) {
-      setError(aiProblem(err, 'The run could not be retried.'));
+      if (err instanceof ApiError && err.issues[0]?.code === 'confirmation_required')
+        setRetryConfirm({ run, message: err.issues[0].message });
+      else setError(aiProblem(err, 'The run could not be retried.'));
     } finally {
       setBusy(false);
     }
@@ -402,6 +408,24 @@ export function AiPage({ ws }: { ws: string }) {
             </div>
           ) : null}
         </section>
+      ) : null}
+      {retryConfirm ? (
+        <Banner
+          tone="warning"
+          title="Confirm the retry"
+          action={
+            <button
+              type="button"
+              className="button"
+              disabled={busy}
+              onClick={() => void retry(retryConfirm.run, true)}
+            >
+              Confirm retry
+            </button>
+          }
+        >
+          {retryConfirm.message}
+        </Banner>
       ) : null}
       {current ? (
         <section aria-labelledby="ai-current-heading" className="ai-panel" aria-live="polite">
@@ -619,6 +643,38 @@ export function AiSettingsPage({ ws }: { ws: string }) {
           >
             <p>{settings.reason}</p>
           </Banner>
+          {settings.suspended ? (
+            <Banner
+              tone="warning"
+              title="AI is paused for review"
+              action={
+                settings.can_manage_providers ? (
+                  <button
+                    type="button"
+                    className="button"
+                    disabled={busy}
+                    onClick={() =>
+                      void act(async () => {
+                        apply(
+                          await aiClient.saveSettings(
+                            ws,
+                            { resume_after_review: true },
+                            settings.version,
+                            stepUp,
+                          ),
+                        );
+                        return 'AI resumed after review.';
+                      })
+                    }
+                  >
+                    Resume AI after review
+                  </button>
+                ) : null
+              }
+            >
+              {settings.suspended.note}
+            </Banner>
+          ) : null}
           <section
             aria-labelledby="ai-provider-heading"
             aria-busy={busy ? 'true' : 'false'}
@@ -658,6 +714,22 @@ export function AiSettingsPage({ ws }: { ws: string }) {
                       {m.price.synthetic ? ' (synthetic)' : ''}: {m.price.input_per_million_tokens}{' '}
                       input and {m.price.output_per_million_tokens} output per million tokens.
                     </p>
+                    {m.gates && m.gates.monetary_dispatch !== 'synthetic' ? (
+                      <ul aria-label="Gates for real spending">
+                        <li>
+                          Price: {m.gates.price.state}
+                          {m.gates.price.checked_on ? ` (checked ${m.gates.price.checked_on})` : ''}
+                        </li>
+                        <li>
+                          Upper bound on what a request can cost: {m.gates.input_bound.state}
+                          {m.gates.input_bound.reason ? `. ${m.gates.input_bound.reason}` : ''}
+                        </li>
+                        <li>
+                          Error responses may be charged:{' '}
+                          {m.gates.error_responses_chargeable === false ? 'no' : 'unknown'}
+                        </li>
+                      </ul>
+                    ) : null}
                   </div>
                 ))}
               <SelectField

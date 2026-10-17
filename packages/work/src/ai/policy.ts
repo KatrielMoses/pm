@@ -1,5 +1,11 @@
 import type { AiConfig } from '@pm/config';
-import { modelByKey, modelsForTransport, type ModelEntry } from './registry.ts';
+import {
+  MODELS,
+  modelByKey,
+  modelsForTransport,
+  monetaryGate,
+  type ModelEntry,
+} from './registry.ts';
 
 /**
  * Dispatch policy (ADR-0038 A4): pure decisions over the workspace AI policy, the deployment
@@ -11,6 +17,9 @@ export type AiAvailability =
   | 'unconfigured' // no provider transport in this deployment
   | 'disabled' // the workspace has not turned AI on
   | 'model_unavailable' // the selected model is not reachable through this deployment
+  | 'suspended' // a provider reported usage above its reserved bound; an owner must review it
+  | 'price_unverified' // the model's price is not verified against the provider's official table
+  | 'bound_unverified' // no evidenced strict input bound for this model's request protocol
   | 'not_approved' // the model has no provider/data-use approval (OD-41)
   | 'key_unavailable' // the selected key source cannot be used (OD-46, missing key)
   | 'not_entitled' // the commercial entitlement port denies AI (10A)
@@ -23,6 +32,8 @@ export interface WorkspaceAiPolicy {
   workspaceKeySet: boolean;
   maxDataClass: 'C0' | 'C1' | 'C2';
   requireTrainingExclusion: boolean;
+  /** Set when a provider reported usage beyond a reserved bound (corrective review 01). */
+  suspendedReason?: string | null;
 }
 
 export interface AvailabilityDecision {
@@ -39,6 +50,12 @@ export const AVAILABILITY_REASONS: Record<AiAvailability, string> = {
   disabled: 'AI is turned off for this workspace. An owner or administrator can turn it on.',
   model_unavailable:
     'The selected model is not available in this deployment. Choose another model in AI settings.',
+  suspended:
+    'AI is paused for this workspace: a provider reported usage above the reserved bound. An owner must review the run and resume AI in settings. Nothing new was sent.',
+  price_unverified:
+    'This model has no verified price for this request type, so its cost cannot be bounded. Nothing was sent.',
+  bound_unverified:
+    'There is no evidenced upper bound on what this model can charge for a request, so a hard spending limit cannot be guaranteed. Nothing was sent.',
   not_approved:
     'This model has not been approved for workspace data (provider data-use review is open). Nothing was sent.',
   key_unavailable:
@@ -51,6 +68,7 @@ export function decideAvailability(
   config: AiConfig,
   policy: WorkspaceAiPolicy | null,
   entitled: boolean,
+  models: readonly ModelEntry[] = MODELS,
 ): AvailabilityDecision {
   const none = (availability: AiAvailability, model: ModelEntry | null = null) => ({
     availability,
@@ -62,8 +80,13 @@ export function decideAvailability(
   const transport = config.provider.provider;
   if (transport === 'none') return none('unconfigured');
   if (!policy?.enabled || !policy.modelKey) return none('disabled');
-  const model = modelByKey(policy.modelKey);
-  if (!model || !modelsForTransport(transport).includes(model)) return none('model_unavailable');
+  const model = modelByKey(policy.modelKey, models);
+  if (!model || !modelsForTransport(transport, models).includes(model))
+    return none('model_unavailable');
+  if (policy.suspendedReason) return none('suspended', model);
+  // Price verification and an evidenced bound are their own gates, independent of approval.
+  const gate = monetaryGate(model);
+  if (gate) return none(gate, model);
   const approved = model.synthetic || config.approvedModels.includes(model.key);
   if (!approved) return none('not_approved', model);
   // Training exclusion is required (OD-41 safe default): a real model qualifies only through the

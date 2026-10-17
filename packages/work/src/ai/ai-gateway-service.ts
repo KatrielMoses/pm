@@ -53,19 +53,29 @@ import {
   type ContextType,
   type WorkspaceAiPolicy,
 } from './policy.ts';
-import { AiProviderError, type AiCompletion, type AiProvider } from './provider.ts';
+import {
+  AiProviderError,
+  SUPPORTED_STOP_REASONS,
+  type AiCompletion,
+  type AiProvider,
+} from './provider.ts';
 import { redactCredentials } from './redaction.ts';
 import { eraseAiContentRows } from './lifecycle.ts';
 import {
   AI_REGISTRY_VERSION,
+  capabilitySnapshot,
   inputTokenBound,
   maxCostPico,
   modelByKey,
+  MODELS,
   modelsForTransport,
+  monetaryGate,
   priceSnapshot,
   privacySnapshot,
   PROMPT_TEMPLATE_VERSION,
-  usageCostPico,
+  sameSnapshot,
+  snapshotCostPico,
+  validTokens,
   type ModelEntry,
 } from './registry.ts';
 
@@ -79,6 +89,8 @@ export interface AiGatewayDeps {
   /** The provider transport for this deployment; null when AI is not configured. */
   provider: AiProvider | null;
   entitlements: AiEntitlementPort;
+  /** The model registry (default: the versioned registry; tests inject variants). */
+  models?: readonly ModelEntry[];
 }
 
 export const AI_DISPATCH_JOB = 'ai.action.dispatch';
@@ -105,6 +117,7 @@ export const AI_DISABLED_DEPS: AiGatewayDeps = {
     maxAttempts: 3,
     warningThresholdsBp: [8000, 10_000],
     historyRetentionDays: null,
+    stream: { outputMaxChars: 40_000, eventMaxBytes: 65_536, maxBytes: 4_194_304 },
   },
   provider: null,
   entitlements: { aiAllowed: async () => false },
@@ -187,10 +200,12 @@ function str(v: unknown): string | undefined {
  */
 export class AiGatewayService extends McpAccessService {
   readonly #ai: AiGatewayDeps;
+  readonly #models: readonly ModelEntry[];
 
   constructor(deps: ConstructorParameters<typeof McpAccessService>[0] & { ai?: AiGatewayDeps }) {
     super(deps);
     this.#ai = deps.ai ?? AI_DISABLED_DEPS;
+    this.#models = this.#ai.models ?? MODELS;
   }
 
   /** Truthful readiness: `not_configured` is a healthy core-product state (T-79). */
@@ -225,13 +240,17 @@ export class AiGatewayService extends McpAccessService {
       requireTrainingExclusion: row.require_training_exclusion,
       version: Number(row.version),
       confirmAbove: amountOf(row.confirm_above_micros),
+      suspendedReason: row.dispatch_suspended_reason,
     };
   }
 
   async #availability(tx: WorkspaceTransaction) {
     const policy = await this.#policy(tx);
     const entitled = await this.#ai.entitlements.aiAllowed(tx.workspaceId);
-    return { policy, decision: decideAvailability(this.#ai.config, policy, entitled) };
+    return {
+      policy,
+      decision: decideAvailability(this.#ai.config, policy, entitled, this.#models),
+    };
   }
 
   /** `ai.execute` in the run's explicit scope (brand, or the workspace). */
@@ -344,6 +363,15 @@ export class AiGatewayService extends McpAccessService {
         input_per_million_tokens: usdDisplay(m.price.inputPicoPerToken * 1_000_000n),
         output_per_million_tokens: usdDisplay(m.price.outputPicoPerToken * 1_000_000n),
       },
+      // Separate gates: price verification, an evidenced bound, approval (OD-41), and a secret
+      // store (DQ-28) are each required for real money; one does not imply another.
+      gates: {
+        price: verificationView(m.price.verification),
+        input_bound: verificationView(m.inputBound.verification),
+        error_responses_chargeable: m.capabilities.errorResponsesChargeable,
+        monetary_dispatch: m.synthetic ? 'synthetic' : (monetaryGate(m) ?? 'verified'),
+      },
+      price_restrictions: m.price.restrictions,
       capabilities: {
         streaming: m.capabilities.streaming,
         cancellation: m.capabilities.cancellation,
@@ -426,9 +454,15 @@ export class AiGatewayService extends McpAccessService {
           : 'Workspace-provided keys are off in this deployment until their commercial terms are approved (OD-46).',
       },
       max_data_class: policy?.maxDataClass ?? 'C2',
+      suspended: policy?.suspendedReason
+        ? {
+            reason: policy.suspendedReason,
+            note: 'A provider reported usage above a reserved bound. Review the run in Usage, then resume AI.',
+          }
+        : null,
       require_training_exclusion: true,
       confirm_above: this.#money(policy?.confirmAbove ?? 0n),
-      models: modelsForTransport(transport).map((m) =>
+      models: modelsForTransport(transport, this.#models).map((m) =>
         this.#modelView(m, m.synthetic || this.#ai.config.approvedModels.includes(m.key)),
       ),
       limits: AI_METERS.map((meter) => ({
@@ -461,8 +495,11 @@ export class AiGatewayService extends McpAccessService {
             conflict: { current_version: current?.version ?? 0 },
           });
         if (input.model_key !== undefined && input.model_key !== null) {
-          const m = modelByKey(input.model_key);
-          if (!m || !modelsForTransport(this.#ai.config.provider.provider).includes(m))
+          const m = modelByKey(input.model_key, this.#models);
+          if (
+            !m ||
+            !modelsForTransport(this.#ai.config.provider.provider, this.#models).includes(m)
+          )
             throw invalid(
               issue('/model_key', 'invalid_reference', 'Choose a model this deployment offers.'),
             );
@@ -488,11 +525,14 @@ export class AiGatewayService extends McpAccessService {
         };
         if (next.enabled && !next.model_key)
           throw invalid(issue('/model_key', 'required', 'Choose a model before turning AI on.'));
+        // A breach pause ends only by an explicit review decision of an owner or administrator.
+        const resume = input.resumeAfterReview && !!current?.suspendedReason;
         if (current) {
           await tx.db
             .updateTable('ai.ai_provider_config')
             .set({
               ...next,
+              ...(resume ? { dispatch_suspended_reason: null, dispatch_suspended_at: null } : {}),
               updated_by_membership_id: p.membershipId,
               updated_at: new Date(),
               version: sql`version + 1`,
@@ -522,6 +562,11 @@ export class AiGatewayService extends McpAccessService {
             change.plain('model_key', current?.modelKey ?? null, next.model_key),
             change.plain('key_source', current?.keySource ?? 'deployment', next.key_source),
             change.plain('max_data_class', current?.maxDataClass ?? 'C2', next.max_data_class),
+            change.plain(
+              'dispatch_suspended',
+              !!current?.suspendedReason,
+              !!current?.suspendedReason && !resume,
+            ),
           ],
           null,
         );
@@ -549,6 +594,7 @@ export class AiGatewayService extends McpAccessService {
       'key_source',
       'max_data_class',
       'confirm_above_micros',
+      'resume_after_review',
     ]);
     for (const k of Object.keys(b))
       if (!known.has(k))
@@ -569,6 +615,10 @@ export class AiGatewayService extends McpAccessService {
           'Choose C0, C1, or C2. Restricted (C3) and secret (C4) data never leave.',
         ),
       );
+    if (b.resume_after_review !== undefined && b.resume_after_review !== true)
+      issues.push(
+        issue('/resume_after_review', 'invalid_value', 'Send true to resume after review.'),
+      );
     if (b.confirm_above_micros !== undefined) {
       try {
         amountOf(String(b.confirm_above_micros));
@@ -588,6 +638,7 @@ export class AiGatewayService extends McpAccessService {
         b.confirm_above_micros !== undefined
           ? microsString(amountOf(String(b.confirm_above_micros)))
           : undefined,
+      resumeAfterReview: b.resume_after_review === true,
     };
   }
 
@@ -1793,7 +1844,7 @@ export class AiGatewayService extends McpAccessService {
       .where('operation_id', '=', op.id)
       .orderBy('dispatch_number')
       .execute();
-    const model = modelByKey(action.model_key);
+    const model = modelByKey(action.model_key, this.#models);
     let settled = 0n;
     let unknown = 0n;
     for (const d of dispatches) {
@@ -1838,6 +1889,7 @@ export class AiGatewayService extends McpAccessService {
       ),
       terminal_reason: op.terminal_reason,
       waiting_reason: op.waiting_reason,
+      refusal: op.terminal_reason === 'policy_rejected' ? await this.#refusalOf(tx, op.id) : null,
       cancelling,
       synthetic: action.synthetic,
       initiator: initiator?.public_id ?? null,
@@ -1864,8 +1916,9 @@ export class AiGatewayService extends McpAccessService {
       cost: {
         settled: this.#money(settled),
         unknown_reserved: this.#money(unknown),
-        note:
-          unknown > 0n
+        note: dispatches.some((d) => d.bound_breach)
+          ? 'The provider reported usage above the reserved bound. The full cost is recorded, and AI is paused in this workspace until an owner reviews it.'
+          : unknown > 0n
             ? 'Part of this cost is unknown: a request may have reached the provider without a final answer. Its full reservation stays counted until an owner reconciles it.'
             : null,
       },
@@ -1883,6 +1936,9 @@ export class AiGatewayService extends McpAccessService {
         usage_basis: d.usage_basis,
         provider_request_id: d.provider_request_id,
         cancel_observed: d.cancel_observed,
+        bound_breach: d.bound_breach,
+        clipped_locally: d.clipped_locally,
+        failure_detail: d.failure_detail,
         started_at: d.started_at.toISOString(),
         ended_at: d.ended_at?.toISOString() ?? null,
       })),
@@ -1892,6 +1948,20 @@ export class AiGatewayService extends McpAccessService {
       cancellation_note:
         'Cancelling stops further attempts and local publication. A request already sent to the provider cannot be recalled, and it may still be charged.',
     };
+  }
+
+  /** Why the worker refused a run at dispatch (a reason code, never content). */
+  async #refusalOf(tx: WorkspaceTransaction, opId: string) {
+    const job = await tx.db
+      .selectFrom('exec.job')
+      .select('last_error')
+      .where('operation_id', '=', opId)
+      .orderBy('created_at', 'desc')
+      .executeTakeFirst();
+    const raw = job?.last_error?.code;
+    if (!raw?.startsWith(REFUSAL_PREFIX)) return null;
+    const code = raw.slice(REFUSAL_PREFIX.length);
+    return { code, message: REFUSAL_MESSAGES[code] ?? REFUSAL_MESSAGES.default! };
   }
 
   #statusLabel(
@@ -2058,32 +2128,34 @@ export class AiGatewayService extends McpAccessService {
           .selectAll()
           .where('operation_id', '=', op.id)
           .executeTakeFirstOrThrow();
-        const model = modelByKey(full.model_key);
+        // Priced against the attempt's own snapshot (or, for attempts recorded before attempt
+        // snapshots existed, its action's): a later or retired registry price never applies.
+        const snapshot = d.price_snapshot ?? full.price_snapshot;
         let input = 0;
         let output = 0;
+        let breach = false;
         let amounts: MeterAmounts;
         let usageBasis: 'reported' | 'reserved_bound' | 'not_charged';
         if (basis === 'reported') {
-          input = Number(b.input_tokens);
-          output = Number(b.output_tokens);
-          if (
-            !Number.isInteger(input) ||
-            !Number.isInteger(output) ||
-            input < 0 ||
-            output < 0 ||
-            input > d.input_token_bound ||
-            output > d.output_token_bound ||
-            !model
-          )
+          input = b.input_tokens as number;
+          output = b.output_tokens as number;
+          if (!validTokens(input) || !validTokens(output))
             throw invalid(
               issue(
                 '/',
                 'invalid_value',
-                'Enter the provider-reported input and output tokens (within the attempt bounds).',
+                'Enter the provider-reported input and output tokens as whole, non-negative numbers.',
               ),
             );
+          const cost = snapshotCostPico(snapshot, input, output);
+          // Reported usage above the attempt's bounds is real liability: kept in full, recorded as
+          // a breach, and AI pauses for the workspace until it is reviewed.
+          breach =
+            input > d.input_token_bound ||
+            output > d.output_token_bound ||
+            cost > amountOf(d.reserved_micros);
           amounts = {
-            'ai.cost': usageCostPico(model, input, output),
+            'ai.cost': cost,
             'ai.input_tokens': tokens(input),
             'ai.output_tokens': tokens(output),
           };
@@ -2133,9 +2205,22 @@ export class AiGatewayService extends McpAccessService {
             usage_basis: usageBasis,
             reconciled_by_membership_id: p.membershipId,
             reconciled_at: now,
+            ...(breach ? { bound_breach: true, failure_detail: 'bound_breach' as const } : {}),
           })
           .where('id', '=', d.id)
           .execute();
+        if (breach)
+          await tx.db
+            .updateTable('ai.ai_provider_config')
+            .set({
+              dispatch_suspended_reason: 'bound_breach',
+              dispatch_suspended_at: now,
+              updated_at: now,
+              version: sql`version + 1`,
+            })
+            .where('workspace_id', '=', tx.workspaceId)
+            .where('dispatch_suspended_reason', 'is', null)
+            .execute();
         if (op.execution_state === 'waiting' && op.waiting_reason === 'reconciliation_required')
           await transitionOperation(tx, {
             operationId: op.id,
@@ -2226,6 +2311,9 @@ export class AiGatewayService extends McpAccessService {
     const started = performance.now();
     const n = job.job.attemptNumber;
 
+    // 1. Fenced, checkpointed preparation. Its stored result is references and bounded state
+    // only: never the prompt, rendered source content, output, or a key reference (corrective
+    // review 01 §1). A crash after it commits leaves a `dispatching` row that is never resent.
     const prepared = await job.step(`ai.prepare.${n}`, async (stx) => {
       const tx = stx as WorkspaceTransaction;
       const open = await tx.db
@@ -2264,7 +2352,7 @@ export class AiGatewayService extends McpAccessService {
       }
       const auth = await this.#reauthorize(tx, opId);
       if (auth.refused) return { outcome: 'refused' as const, code: auth.code };
-      const { prep, action } = auth;
+      const { prep } = auth;
       const now = new Date();
       const period = await workspacePeriod(tx, now);
       const limits = await effectiveLimits(tx, this.#ai.config.defaults);
@@ -2286,6 +2374,9 @@ export class AiGatewayService extends McpAccessService {
           input_token_bound: prep.inputBound,
           output_token_bound: prep.outputBound,
           reserved_micros: microsString(prep.maxCost),
+          // The attempt is settled against what it was authorized under, never the live table.
+          price_snapshot: JSON.stringify(priceSnapshot(prep.decision.model)),
+          capability_snapshot: JSON.stringify(capabilitySnapshot(prep.decision.model)),
         })
         .execute();
       const reserved = await reserve(tx, {
@@ -2321,28 +2412,95 @@ export class AiGatewayService extends McpAccessService {
         context: job.context,
       });
       this.d.metrics.count('ai.reservations', 1, { outcome: 'reserved' });
-      return {
-        outcome: 'dispatch' as const,
-        dispatchId,
-        modelKey: action.model_key,
-        system: prep.system,
-        user: prep.user,
-        outputBound: prep.outputBound,
-        funding: action.funding,
-        brandId: action.brand_id,
-        keyRef: auth.keyRef,
-      };
+      return { outcome: 'dispatch' as const, dispatchId };
     });
 
     if (prepared.outcome === 'reconcile') throw new AwaitReconciliationError();
     if (prepared.outcome === 'refused') {
       this.d.metrics.count('ai.policy_refusals', 1, { reason: prepared.code });
-      throw new JobError('policy', 'ai_policy_refused');
+      throw new JobError('policy', refusalJobCode(prepared.code));
     }
     if (prepared.outcome === 'limit') throw new JobError('policy', 'limit_exceeded');
 
-    const model = modelByKey(prepared.modelKey)!;
-    const providerClass = model.synthetic ? 'synthetic' : model.provider;
+    // 2. The request content is read through the protected boundary (current authority, the
+    // run's own snapshots) into memory only. If it no longer fits what was reserved, or the run
+    // can no longer be dispatched, nothing is sent and the reservation is released.
+    const request = await this.d.tenant.withWorkspace(ws, { module: 'work' }, async (tx) => {
+      const d = await tx.db
+        .selectFrom('ai.ai_dispatch')
+        .selectAll()
+        .where('id', '=', prepared.dispatchId)
+        .forUpdate()
+        .executeTakeFirstOrThrow();
+      // A stale worker whose dispatch another attempt already closed publishes nothing.
+      if (d.state !== 'dispatching') return { send: false as const, stale: true, code: d.state };
+      const auth = await this.#reauthorize(tx, opId);
+      const unfit =
+        !auth.refused &&
+        (auth.prep.inputBound > d.input_token_bound ||
+          auth.prep.outputBound !== d.output_token_bound ||
+          !sameSnapshot(priceSnapshot(auth.prep.decision.model), d.price_snapshot) ||
+          !sameSnapshot(capabilitySnapshot(auth.prep.decision.model), d.capability_snapshot));
+      if (auth.refused || unfit) {
+        const action = await tx.db
+          .selectFrom('ai.ai_action')
+          .select(['funding', 'brand_id'])
+          .where('operation_id', '=', opId)
+          .executeTakeFirstOrThrow();
+        const now = new Date();
+        await settle(tx, {
+          operationId: opId,
+          dispatchId: d.id,
+          settlement: {
+            kind: 'actual',
+            basis: 'measured',
+            amounts: { 'ai.cost': 0n, 'ai.input_tokens': 0n, 'ai.output_tokens': 0n },
+          },
+          funding: action.funding,
+          brandId: action.brand_id,
+          now,
+          currentPeriod: await workspacePeriod(tx, now),
+        });
+        await tx.db
+          .updateTable('ai.ai_dispatch')
+          .set({
+            state: 'refused',
+            error_kind: auth.refused ? 'refused' : 'config',
+            failure_detail: auth.refused ? 'content_unavailable' : 'configuration_changed',
+            settled_micros: '0',
+            usage_basis: 'not_charged',
+            input_tokens: 0,
+            output_tokens: 0,
+            ended_at: now,
+          })
+          .where('id', '=', d.id)
+          .execute();
+        return {
+          send: false as const,
+          stale: false,
+          code: auth.refused ? auth.code : 'configuration_changed',
+        };
+      }
+      return {
+        send: true as const,
+        modelId: auth.prep.decision.model.modelId,
+        providerClass: auth.prep.decision.model.synthetic
+          ? 'synthetic'
+          : auth.prep.decision.model.provider,
+        system: auth.prep.system,
+        user: auth.prep.user,
+        outputBound: d.output_token_bound,
+        keyRef: auth.keyRef,
+        errorCharging: chargeability(d.capability_snapshot),
+      };
+    });
+    if (!request.send) {
+      if (request.stale) throw new AwaitReconciliationError();
+      this.d.metrics.count('ai.policy_refusals', 1, { reason: request.code });
+      throw new JobError('policy', refusalJobCode(request.code));
+    }
+
+    const providerClass = request.providerClass;
     const provider = this.#ai.provider;
     const cancel = new AbortController();
     let cancelObserved = false;
@@ -2369,17 +2527,17 @@ export class AiGatewayService extends McpAccessService {
     let failure: AiProviderError | null = null;
     try {
       if (!provider) throw new AiProviderError('not_sent', 0, { charged: 'no' });
-      const apiKey = await this.#apiKey(ws, prepared.keyRef);
+      const apiKey = await this.#apiKey(ws, request.keyRef);
       result = await provider.complete(
         {
-          model: model.modelId,
-          system: prepared.system,
-          user: prepared.user,
-          maxOutputTokens: prepared.outputBound,
+          model: request.modelId,
+          system: request.system,
+          user: request.user,
+          maxOutputTokens: request.outputBound,
           apiKey: () => apiKey,
           signal: cancel.signal,
         },
-        model.capabilities.errorResponsesChargeable,
+        request.errorCharging,
       );
     } catch (err) {
       failure =
@@ -2397,96 +2555,86 @@ export class AiGatewayService extends McpAccessService {
     });
     this.d.metrics.count('ai.dispatches', 1, { provider_class: providerClass, outcome });
 
-    // Settlement in its own transaction (not a fenced step): it must happen even when the run was
-    // cancelled meanwhile, and the dispatch state machine makes a repeat a no-op.
-    const settledAs = await this.d.tenant.withWorkspace(ws, { module: 'work' }, async (tx) => {
+    // 3. Settlement in its own transaction (not a fenced step): it must happen even when the run
+    // was cancelled meanwhile, and the dispatch state machine makes a repeat a no-op.
+    const settled = await this.d.tenant.withWorkspace(ws, { module: 'work' }, async (tx) => {
       const d = await tx.db
         .selectFrom('ai.ai_dispatch')
         .selectAll()
         .where('id', '=', prepared.dispatchId)
         .forUpdate()
         .executeTakeFirstOrThrow();
-      if (d.state !== 'dispatching') return d.state;
+      if (d.state !== 'dispatching') return { state: d.state, detail: d.failure_detail };
+      const action = await tx.db
+        .selectFrom('ai.ai_action')
+        .select(['funding', 'brand_id', 'content_state', 'price_snapshot'])
+        .where('operation_id', '=', opId)
+        .executeTakeFirstOrThrow();
       const now = new Date();
       const period = await workspacePeriod(tx, now);
-      let settlement: Settlement;
-      let state: 'succeeded' | 'partial' | 'refused' | 'failed' | 'unknown';
-      let basis: 'measured' | 'not_charged' | null = null;
-      let text: string | null = null;
-      let completeness: 'complete' | 'truncated' | 'partial' = 'complete';
-      if (result) {
-        const cost = usageCostPico(model, result.usage.inputTokens, result.usage.outputTokens);
-        settlement = {
-          kind: 'actual',
-          basis: 'measured',
-          amounts: {
-            'ai.cost': cost,
-            'ai.input_tokens': tokens(result.usage.inputTokens),
-            'ai.output_tokens': tokens(result.usage.outputTokens),
-          },
-        };
-        state =
-          result.outcome === 'complete'
-            ? 'succeeded'
-            : result.outcome === 'truncated'
-              ? 'partial'
-              : 'refused';
-        basis = 'measured';
-        text = result.text;
-        completeness = result.outcome === 'truncated' ? 'truncated' : 'complete';
-      } else if (failure!.charged === 'no') {
-        settlement = {
-          kind: 'actual',
-          basis: 'measured',
-          amounts: { 'ai.cost': 0n, 'ai.input_tokens': 0n, 'ai.output_tokens': 0n },
-        };
-        state = 'failed';
-        basis = 'not_charged';
-      } else {
-        settlement = { kind: 'unknown' };
-        state = 'unknown';
-        if (failure!.partialText) {
-          text = failure!.partialText;
-          completeness = 'partial';
-        }
-      }
+      const decided = decideSettlement(
+        { ...d, price_snapshot: d.price_snapshot ?? action.price_snapshot },
+        result,
+        failure,
+      );
       await settle(tx, {
         operationId: opId,
         dispatchId: d.id,
-        settlement,
-        funding: prepared.funding,
-        brandId: prepared.brandId,
+        settlement: decided.settlement,
+        funding: action.funding,
+        brandId: action.brand_id,
         now,
         currentPeriod: period,
       });
       await tx.db
         .updateTable('ai.ai_dispatch')
         .set({
-          state,
+          state: decided.state,
           provider_request_id: result?.requestId ?? failure?.requestId ?? null,
-          stop_reason: result?.stopReason ?? null,
-          error_kind: result ? (result.outcome === 'refused' ? 'refused' : null) : failure!.kind,
-          input_tokens: result?.usage.inputTokens ?? (basis === 'not_charged' ? 0 : null),
-          output_tokens: result?.usage.outputTokens ?? (basis === 'not_charged' ? 0 : null),
+          stop_reason:
+            result?.stopReason ??
+            failure?.stopReason?.slice(0, 40).replace(/[^a-z_]/g, '_') ??
+            null,
+          error_kind: decided.errorKind,
+          failure_detail: decided.detail,
+          bound_breach: decided.breach,
+          clipped_locally: result?.clipped ?? false,
+          input_tokens: decided.inputTokens,
+          output_tokens: decided.outputTokens,
           settled_micros:
-            settlement.kind === 'actual' ? microsString(settlement.amounts['ai.cost']) : null,
-          usage_basis: basis,
+            decided.settlement.kind === 'actual'
+              ? microsString(decided.settlement.amounts['ai.cost'])
+              : null,
+          usage_basis: decided.basis,
           cancel_observed: cancelObserved,
           ended_at: now,
         })
         .where('id', '=', d.id)
         .execute();
+      if (decided.breach) {
+        // Usage beyond the reserved bound: the liability is kept in full, and no further dispatch
+        // happens in this workspace until an owner or administrator reviews it.
+        await tx.db
+          .updateTable('ai.ai_provider_config')
+          .set({
+            dispatch_suspended_reason: 'bound_breach',
+            dispatch_suspended_at: now,
+            updated_at: now,
+            version: sql`version + 1`,
+          })
+          .where('workspace_id', '=', tx.workspaceId)
+          .where('dispatch_suspended_reason', 'is', null)
+          .execute();
+        this.d.metrics.count('ai.policy_refusals', 1, { reason: 'bound_breach' });
+      }
       // Partial output is kept and labelled; after a cancel nothing new is published, and nothing
       // is published for content erased meanwhile (departure, retention).
-      const erasedMeanwhile =
-        (
-          await tx.db
-            .selectFrom('ai.ai_action')
-            .select('content_state')
-            .where('operation_id', '=', opId)
-            .executeTakeFirstOrThrow()
-        ).content_state === 'erased';
-      if (text !== null && !erasedMeanwhile && !(cancelObserved && completeness !== 'partial'))
+      const text = decided.text;
+      if (
+        text !== null &&
+        action.content_state !== 'erased' &&
+        !(cancelObserved && decided.completeness !== 'partial')
+      )
         await tx.db
           .insertInto('ai.ai_output')
           .values({
@@ -2494,30 +2642,26 @@ export class AiGatewayService extends McpAccessService {
             workspace_id: tx.workspaceId,
             operation_id: opId,
             dispatch_id: d.id,
-            completeness,
+            completeness: decided.completeness,
             content: text.slice(0, OUTPUT_MAX_CHARS),
           })
           .execute();
-      if (settlement.kind === 'actual') {
-        this.d.metrics.count(
-          'ai.tokens',
-          Number(settlement.amounts['ai.input_tokens'] / PICO_PER_MICRO),
-          { direction: 'input' },
-        );
-        this.d.metrics.count(
-          'ai.tokens',
-          Number(settlement.amounts['ai.output_tokens'] / PICO_PER_MICRO),
-          { direction: 'output' },
-        );
-        this.d.metrics.count(
-          'ai.cost_micros',
-          Number(settlement.amounts['ai.cost'] / PICO_PER_MICRO),
-          { funding: prepared.funding },
-        );
+      if (decided.settlement.kind === 'actual') {
+        const a = decided.settlement.amounts;
+        this.d.metrics.count('ai.tokens', Number(a['ai.input_tokens'] / PICO_PER_MICRO), {
+          direction: 'input',
+        });
+        this.d.metrics.count('ai.tokens', Number(a['ai.output_tokens'] / PICO_PER_MICRO), {
+          direction: 'output',
+        });
+        this.d.metrics.count('ai.cost_micros', Number(a['ai.cost'] / PICO_PER_MICRO), {
+          funding: action.funding,
+        });
         this.d.metrics.count('ai.reservations', 1, { outcome: 'settled' });
       } else this.d.metrics.count('ai.reservations', 1, { outcome: 'unknown' });
-      return state;
+      return { state: decided.state, detail: decided.detail };
     });
+    const settledAs = settled.state;
 
     if (cancelObserved || (failure?.kind === 'cancelled' && !job.signal.aborted)) {
       this.d.metrics.count('ai.cancellations', 1, { stage: 'running' });
@@ -2537,8 +2681,14 @@ export class AiGatewayService extends McpAccessService {
           return { state: 'partial', result: { reason: 'stream_interrupted', cost: 'unknown' } };
         throw new AwaitReconciliationError();
       default: {
+        // Protocol failures with known usage are settled and never retried as if free.
+        if (settled.detail && settled.detail !== 'bound_breach')
+          throw new JobError('deterministic', 'ai_provider_protocol');
         const kind = failure?.kind;
-        if (kind === 'rate' || kind === 'transient' || kind === 'not_sent') {
+        if (
+          failure?.charged === 'no' &&
+          (kind === 'rate' || kind === 'transient' || kind === 'not_sent')
+        ) {
           const last = n >= this.#ai.config.maxAttempts;
           throw new JobError(
             'transient',
@@ -2671,7 +2821,13 @@ export class AiGatewayService extends McpAccessService {
       throw err;
     }
     // The run executes exactly the configuration it was authorized and estimated against.
-    if (prep.decision.model.key !== action.model_key || prep.decision.funding !== action.funding)
+    // ...including the price it was confirmed at: a changed or retired price needs a new
+    // confirmation (a retry), never a silent re-pricing.
+    if (
+      prep.decision.model.key !== action.model_key ||
+      prep.decision.funding !== action.funding ||
+      !sameSnapshot(priceSnapshot(prep.decision.model), action.price_snapshot)
+    )
       return { refused: true, code: 'configuration_changed' };
     const policy = await this.#policy(tx);
     return {
@@ -2743,6 +2899,189 @@ export class AiGatewayService extends McpAccessService {
   aiHistoryRetentionDays(): number | null {
     return this.#ai.config.historyRetentionDays;
   }
+}
+
+/** A verification gate for display: its state, source, date, and reason. */
+function verificationView(v: ModelEntry['price']['verification']) {
+  return v.state === 'synthetic'
+    ? { state: v.state, note: v.note }
+    : v.state === 'verified'
+      ? { state: v.state, source: v.source, checked_on: v.checkedOn, note: v.note }
+      : { state: v.state, source: v.source, checked_on: v.checkedOn, reason: v.reason };
+}
+
+/** Whether an attempt's HTTP errors can have been charged, from its own capability snapshot. */
+function chargeability(snapshot: unknown): false | 'unknown' {
+  return (snapshot as { error_responses_chargeable?: unknown } | null)
+    ?.error_responses_chargeable === false
+    ? false
+    : 'unknown';
+}
+
+/** Dispatch-time refusals carry their reason in the job error (`ai_refused.<code>`). */
+const REFUSAL_PREFIX = 'ai_refused.';
+const refusalJobCode = (code: string) =>
+  /^[a-z0-9_]{1,50}$/.test(code) ? `${REFUSAL_PREFIX}${code}` : `${REFUSAL_PREFIX}policy`;
+const REFUSAL_MESSAGES: Record<string, string> = {
+  configuration_changed:
+    'The price or configuration changed after this run was confirmed. Nothing was sent. Retry to review and confirm the current estimate.',
+  content_erased: 'The prompt was erased before it could be sent. Nothing was sent.',
+  initiator_departed: 'The person who started this run left the workspace before it was sent.',
+  delegation_revoked: 'The delegation that started this run was revoked before it was sent.',
+  ai_suspended:
+    'AI is paused for this workspace after a provider reported usage beyond a reserved bound. Nothing was sent.',
+  default: 'The run no longer met the AI policy when it was due to be sent. Nothing was sent.',
+};
+
+const ZERO: MeterAmounts = { 'ai.cost': 0n, 'ai.input_tokens': 0n, 'ai.output_tokens': 0n };
+
+interface SettlementDecision {
+  settlement: Settlement;
+  state: 'succeeded' | 'partial' | 'refused' | 'failed' | 'unknown';
+  basis: 'measured' | 'not_charged' | null;
+  errorKind: string | null;
+  detail:
+    | 'protocol_invalid'
+    | 'stream_overflow'
+    | 'unsupported_stop'
+    | 'usage_invalid'
+    | 'bound_breach'
+    | null;
+  breach: boolean;
+  inputTokens: number | null;
+  outputTokens: number | null;
+  text: string | null;
+  completeness: 'complete' | 'truncated' | 'partial';
+}
+
+/** Database error kinds (0053): protocol and overflow failures are interrupted streams. */
+function dbErrorKind(kind: string): string {
+  return kind === 'protocol' || kind === 'stream_overflow' ? 'stream_interrupted' : kind;
+}
+
+/**
+ * How one attempt settles (corrective review 01 §2, §3). Known usage settles exactly against the
+ * attempt's immutable price snapshot; usage beyond the reserved bound keeps the full liability and
+ * is recorded as a breach; locally clipped text is never complete; uncertain charges stay
+ * reserved as unknown; invalid usage is never priced.
+ */
+function decideSettlement(
+  d: {
+    input_token_bound: number;
+    output_token_bound: number;
+    reserved_micros: string;
+    price_snapshot: unknown;
+  },
+  result: AiCompletion | null,
+  failure: AiProviderError | null,
+): SettlementDecision {
+  const measured = (input: number, output: number) => {
+    const cost = snapshotCostPico(d.price_snapshot, input, output);
+    const breach =
+      input > d.input_token_bound ||
+      output > d.output_token_bound ||
+      cost > amountOf(d.reserved_micros);
+    return {
+      settlement: {
+        kind: 'actual' as const,
+        basis: 'measured' as const,
+        amounts: {
+          'ai.cost': cost,
+          'ai.input_tokens': tokens(input),
+          'ai.output_tokens': tokens(output),
+        },
+      },
+      breach,
+    };
+  };
+  const unknown = (
+    detail: SettlementDecision['detail'],
+    kind: string,
+    input: number | null,
+  ): SettlementDecision => ({
+    settlement: { kind: 'unknown' },
+    state: 'unknown',
+    basis: null,
+    errorKind: dbErrorKind(kind),
+    detail,
+    breach: false,
+    inputTokens: input,
+    outputTokens: null,
+    text: failure?.partialText ? failure.partialText : null,
+    completeness: 'partial',
+  });
+  if (result) {
+    if (!validTokens(result.usage.inputTokens) || !validTokens(result.usage.outputTokens))
+      return unknown('usage_invalid', 'protocol', null);
+    const m = measured(result.usage.inputTokens, result.usage.outputTokens);
+    return {
+      settlement: m.settlement,
+      state:
+        result.outcome === 'refused'
+          ? 'refused'
+          : result.outcome === 'truncated'
+            ? 'partial'
+            : 'succeeded',
+      basis: 'measured',
+      errorKind: result.outcome === 'refused' ? 'refused' : null,
+      detail: m.breach ? 'bound_breach' : null,
+      breach: m.breach,
+      inputTokens: result.usage.inputTokens,
+      outputTokens: result.usage.outputTokens,
+      text: result.text,
+      completeness: result.outcome === 'truncated' ? 'truncated' : 'complete',
+    };
+  }
+  const f = failure!;
+  if (f.charged === 'no')
+    return {
+      settlement: { kind: 'actual', basis: 'measured', amounts: ZERO },
+      state: 'failed',
+      basis: 'not_charged',
+      errorKind: dbErrorKind(f.kind),
+      detail: null,
+      breach: false,
+      inputTokens: 0,
+      outputTokens: 0,
+      text: null,
+      completeness: 'partial',
+    };
+  const known = f.knownUsage;
+  const knownInput = validTokens(known.inputTokens) ? known.inputTokens : null;
+  // The provider finished and reported final usage, but the answer is not one we accept (an
+  // unsupported stop reason, or data after the end): the liability is known and settled.
+  if (
+    f.kind === 'protocol' &&
+    f.stopReason !== null &&
+    knownInput !== null &&
+    validTokens(known.outputTokens)
+  ) {
+    const m = measured(knownInput, known.outputTokens);
+    const supported = (SUPPORTED_STOP_REASONS as readonly string[]).includes(f.stopReason);
+    return {
+      settlement: m.settlement,
+      state: 'failed',
+      basis: 'measured',
+      errorKind: 'stream_interrupted',
+      detail: m.breach ? 'bound_breach' : supported ? 'protocol_invalid' : 'unsupported_stop',
+      breach: m.breach,
+      inputTokens: knownInput,
+      outputTokens: known.outputTokens,
+      text: f.partialText || null,
+      completeness: 'partial',
+    };
+  }
+  return unknown(
+    f.kind === 'protocol'
+      ? f.usageInvalid
+        ? 'usage_invalid'
+        : 'protocol_invalid'
+      : f.kind === 'stream_overflow'
+        ? 'stream_overflow'
+        : null,
+    f.kind,
+    knownInput,
+  );
 }
 
 export { AI_CONTEXT_FIELDS };

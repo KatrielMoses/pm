@@ -26,6 +26,12 @@ export interface AiModelView {
     input_per_million_tokens: string;
     output_per_million_tokens: string;
   };
+  gates?: {
+    price: { state: string; source?: string; checked_on?: string };
+    input_bound: { state: string; reason?: string };
+    error_responses_chargeable: false | 'unknown';
+    monetary_dispatch: string;
+  };
 }
 
 export interface AiUsage {
@@ -99,6 +105,9 @@ export interface AiAttempt {
   usage_basis: string | null;
   provider_request_id: string | null;
   cancel_observed: boolean;
+  bound_breach?: boolean;
+  clipped_locally?: boolean;
+  failure_detail?: string | null;
   started_at: string;
   ended_at: string | null;
 }
@@ -111,6 +120,7 @@ export interface AiRun {
   status: string;
   terminal_reason: string | null;
   waiting_reason: string | null;
+  refusal: { code: string; message: string } | null;
   cancelling: boolean;
   synthetic: boolean;
   initiator: string | null;
@@ -150,6 +160,7 @@ export interface AiSettings {
   key_source: 'deployment' | 'workspace';
   workspace_key: { set: boolean; available: boolean; note: string };
   max_data_class: 'C0' | 'C1' | 'C2';
+  suspended?: { reason: string; note: string } | null;
   confirm_above: Money;
   models: AiModelView[];
   limits: Array<{
@@ -218,10 +229,11 @@ export const aiClient = {
         headers: { 'idempotency-key': newIdempotencyKey() },
       })
     ).body.data,
-  retry: async (ws: string, id: string) =>
+  /** A retry is a new run: above the confirm threshold it needs `confirm` from the person. */
+  retry: async (ws: string, id: string, confirm: boolean) =>
     (
       await api<{ data: AiRun }>('POST', `${w(ws)}/ai/runs/${id}:retry`, {
-        body: { confirm_cost: true },
+        body: confirm ? { confirm_cost: true } : {},
         headers: { 'idempotency-key': newIdempotencyKey() },
       })
     ).body.data,

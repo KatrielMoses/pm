@@ -91,7 +91,13 @@ const run = (state: string, extra: Record<string, unknown> = {}) => ({
   ...extra,
 });
 
-function serve(opts: { availability?: string } = {}) {
+function serve(
+  opts: {
+    availability?: string;
+    history?: Record<string, unknown>;
+    settings?: Record<string, unknown>;
+  } = {},
+) {
   const calls: Array<{
     method: string;
     path: string;
@@ -135,15 +141,18 @@ function serve(opts: { availability?: string } = {}) {
           data: {
             type: 'ai_runs',
             items: [
-              run('succeeded', {
-                content: {
-                  state: 'withheld',
-                  note: 'A source used by this run is no longer available to you, so its prompt and output are withheld.',
-                  prompt: null,
-                  redactions: 0,
-                  output: null,
+              run(
+                'succeeded',
+                opts.history ?? {
+                  content: {
+                    state: 'withheld',
+                    note: 'A source used by this run is no longer available to you, so its prompt and output are withheld.',
+                    prompt: null,
+                    redactions: 0,
+                    output: null,
+                  },
                 },
-              }),
+              ),
             ],
             next_cursor: null,
           },
@@ -168,12 +177,32 @@ function serve(opts: { availability?: string } = {}) {
           },
         });
       if (path.endsWith('/ai/test-runs')) return json(202, { data: run('queued') });
+      if (path.endsWith(`/ai/runs/${RUN}:retry`)) {
+        const body = init?.body ? JSON.parse(String(init.body)) : {};
+        if (body.confirm_cost !== true)
+          return json(409, {
+            error: {
+              code: 'conflict',
+              status: 409,
+              message: 'Conflict',
+              issues: [
+                {
+                  pointer: '/confirm_cost',
+                  code: 'confirmation_required',
+                  message: 'This run could cost up to $0.000010. Confirm to start it.',
+                },
+              ],
+            },
+          });
+        return json(202, { data: run('queued') });
+      }
       if (path.endsWith(`/ai/runs/${RUN}:cancel`)) {
         state = 'cancelled';
         return json(202, { data: run('cancelled') });
       }
       if (path.endsWith(`/ai/runs/${RUN}`)) {
         state = state === 'queued' ? 'running' : state;
+        if (opts.history) return json(200, { data: run('failed', opts.history) });
         return json(200, {
           data: run(
             state,
@@ -222,6 +251,7 @@ function serve(opts: { availability?: string } = {}) {
             warning_thresholds_bp: [8000, 10000],
             can_manage_providers: true,
             can_configure_limits: true,
+            ...opts.settings,
           },
         });
       if (path.endsWith('/ai/usage'))
@@ -318,5 +348,86 @@ describe('AI settings page (7A)', () => {
     );
     expect(screen.getByRole('button', { name: 'Charge the reserved amount' })).toBeTruthy();
     expect(screen.getByText(/nobody's prompts or outputs appear here/)).toBeTruthy();
+  });
+});
+
+describe('AI corrective review 01 states (7A)', () => {
+  const refused = {
+    status: 'Refused by policy',
+    terminal_reason: 'policy_rejected',
+    can_retry: true,
+    refusal: {
+      code: 'configuration_changed',
+      message:
+        'The price or configuration changed after this run was confirmed. Nothing was sent. Retry to review and confirm the current estimate.',
+    },
+    content: { state: 'present', note: null, prompt: 'Hi', redactions: 0, output: null },
+  };
+
+  it('says why a run was refused at dispatch and asks for a new confirmation before retrying', async () => {
+    const calls = serve({ history: refused });
+    page(<AiPage ws={WS} />);
+    await screen.findByRole('list', { name: 'AI runs' });
+    await act(async () => fireEvent.click(screen.getByRole('button', { name: /View/ })));
+    expect(
+      await screen.findByText(/changed after this run was confirmed. Nothing was sent/),
+    ).toBeTruthy();
+    await act(async () => fireEvent.click(screen.getByRole('button', { name: /^Retry/ })));
+    expect(await screen.findByText('Confirm the retry')).toBeTruthy();
+    expect(screen.getByText(/could cost up to \$0.000010/)).toBeTruthy();
+    await act(async () => fireEvent.click(screen.getByRole('button', { name: 'Confirm retry' })));
+    const retries = calls.filter((c) => c.path.endsWith(`/ai/runs/${RUN}:retry`));
+    expect(
+      retries.map((c) => (c.body as { confirm_cost?: boolean } | null)?.confirm_cost ?? false),
+    ).toEqual([false, true]);
+    expect(await screen.findByText('Retry queued as a new run.')).toBeTruthy();
+  });
+
+  it('shows a paused workspace with its resume action and each spending gate of a real model separately', async () => {
+    const real = {
+      ...model,
+      key: 'anthropic/claude-haiku-5-5@2026-10-06',
+      label: 'Claude Haiku 5.5',
+      provider: 'anthropic',
+      synthetic: false,
+      approved_for_workspace_data: false,
+      price: { ...model.price, version: 'anthropic-first-party-2026-10-17', synthetic: false },
+      gates: {
+        price: {
+          state: 'verified',
+          source: 'https://platform.claude.com/docs/en/about-claude/pricing',
+          checked_on: '2026-10-17',
+          note: 'n',
+        },
+        input_bound: {
+          state: 'unverified',
+          source: 'https://platform.claude.com/docs/en/build-with-claude/token-counting',
+          checked_on: '2026-10-17',
+          reason: 'No published strict upper bound',
+        },
+        error_responses_chargeable: 'unknown',
+        monetary_dispatch: 'bound_unverified',
+      },
+      price_restrictions: [],
+    };
+    serve({
+      settings: {
+        model_key: real.key,
+        models: [real],
+        suspended: {
+          reason: 'bound_breach',
+          at: '2026-10-17T10:00:00Z',
+          note: 'A provider reported usage beyond a reserved bound, so AI is paused for this workspace.',
+        },
+      },
+    });
+    page(<AiSettingsPage ws={WS} />);
+    expect(await screen.findByText('AI is paused for review')).toBeTruthy();
+    expect(screen.getByText(/usage beyond a reserved bound/)).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Resume AI after review' })).toBeTruthy();
+    const gates = screen.getByRole('list', { name: 'Gates for real spending' });
+    expect(gates.textContent).toContain('Price: verified (checked 2026-10-17)');
+    expect(gates.textContent).toContain('Upper bound on what a request can cost: unverified');
+    expect(gates.textContent).toContain('Error responses may be charged: unknown');
   });
 });
