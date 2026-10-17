@@ -1297,6 +1297,127 @@ describe('Phase 7D change proposals', () => {
     ).toEqual([{ n: 1 }]);
   });
 
+  /**
+   * 7C review 01 R2: a second connection holds B's task row lock (the lock canonical writers take),
+   * Apply starts and is observed blocked in PostgreSQL, the second connection commits a change to
+   * B, and the outcome is checked. A barrier on real locks, never a sleep.
+   */
+  const race = async (v: View, b: string, title: string, key = mutation()) => {
+    const { Client } = (await import('pg')).default;
+    const other = new Client({ connectionString: db.app });
+    await other.connect();
+    try {
+      await other.query('BEGIN');
+      await other.query(`SELECT set_config('app.workspace_id', $1, true)`, [wsId]);
+      await other.query(
+        `SELECT t.id FROM work.task t JOIN core.record r ON r.id = t.id WHERE r.public_id = $1 FOR UPDATE OF t`,
+        [b],
+      );
+      const applying = applyIt(P.member, v, key);
+      let blocked = false;
+      for (let i = 0; i < 500 && !blocked; i++) {
+        blocked =
+          Number((await sql(`SELECT count(*)::int AS n FROM pg_locks WHERE NOT granted`))[0]!.n) >
+          0;
+        if (!blocked) await new Promise((res) => setTimeout(res, 10));
+      }
+      expect(blocked).toBe(true);
+      await other.query(
+        `UPDATE work.task SET title = $2, version = version + 1 WHERE id = (SELECT id FROM core.record WHERE public_id = $1)`,
+        [b, title],
+      );
+      await other.query('COMMIT');
+      return { out: (await applying).data as View, key };
+    } finally {
+      await other.end();
+    }
+  };
+  const pair = () => [
+    { type: 'task', id: R.task },
+    { type: 'task', id: R.shared },
+  ];
+  const appliedEvents = (prp: string) =>
+    sql(
+      `SELECT count(*)::int AS n FROM exec.outbox_event e JOIN ai.change_proposal p ON p.id = e.aggregate_id WHERE p.public_id = $1 AND e.event_type = 'ai.proposal.applied'`,
+      [prp],
+    );
+
+  it('AT-452 a related endpoint is not trusted as checked: a concurrent edit to it, raced under its real row lock, fails the whole Apply with a stale conflict', async () => {
+    const v = await proposal(P.member, 'proposal_relate_update', pair());
+    await approve(P.member, v);
+    const before = await env.svc.getTask(P.owner, ws, R.shared);
+    const links = () =>
+      sql(
+        `SELECT count(*)::int AS n FROM relations.record_relationship l JOIN core.record a ON a.id = l.from_record_id JOIN core.record b ON b.id = l.to_record_id WHERE a.public_id = $1 AND b.public_id = $2`,
+        [R.task, R.shared],
+      );
+    const linksBefore = await links();
+    const { out, key } = await race(v, R.shared, 'Edited concurrently (relate)');
+    expect(out).toMatchObject({
+      state: 'failed',
+      application: { outcome: 'failed', applied_count: 0 },
+    });
+    expect(Object.fromEntries(out.changes.map((c) => [c.key, c.applied_state]))).toEqual({
+      c1: 'rolled_back',
+      c2: 'failed',
+    });
+    expect(out.changes.find((c) => c.key === 'c2')!.failure).toMatchObject({
+      code: 'target_changed',
+    });
+    // The concurrent edit stands; nothing from the old approval was written over it.
+    expect(await env.svc.getTask(P.owner, ws, R.shared)).toMatchObject({
+      title: 'Edited concurrently (relate)',
+      priority: before.priority,
+    });
+    expect(await links()).toEqual(linksBefore);
+    expect(await appliedEvents(v.id)).toEqual([{ n: 0 }]);
+    // The same key replays the failed outcome and runs nothing again.
+    const replay = await applyIt(P.member, v, key);
+    expect(replay.replayed).toBe(true);
+    expect((replay.data as View).application).toEqual(out.application);
+    expect(await links()).toEqual(linksBefore);
+  });
+
+  it('AT-453 a container reference (a new subtask under B) is not trusted as checked either; the raced Apply fails whole', async () => {
+    const v = await proposal(P.member, 'proposal_child_update', pair());
+    await approve(P.member, v);
+    const count = await sql(
+      `SELECT count(*)::int AS n FROM work.task t JOIN core.record r ON r.id = t.parent_task_id WHERE r.public_id = $1`,
+      [R.shared],
+    );
+    const { out } = await race(v, R.shared, 'Edited concurrently (child)');
+    expect(out).toMatchObject({ state: 'failed', application: { outcome: 'failed' } });
+    expect(out.changes.find((c) => c.key === 'c2')!.failure).toMatchObject({
+      code: 'target_changed',
+    });
+    expect(
+      await sql(
+        `SELECT count(*)::int AS n FROM work.task t JOIN core.record r ON r.id = t.parent_task_id WHERE r.public_id = $1`,
+        [R.shared],
+      ),
+    ).toEqual(count);
+    expect(await appliedEvents(v.id)).toEqual([{ n: 0 }]);
+  });
+
+  it('AT-454 two valid changes to one record apply together in one Apply; a failed change rolled back to its savepoint leaves no trusted state for later ones', async () => {
+    const v = await proposal(P.member, 'proposal_same_record', pair());
+    await approve(P.member, v);
+    const done = (await applyIt(P.member, v)).data as View;
+    expect(done).toMatchObject({
+      state: 'applied',
+      application: { outcome: 'applied', applied_count: 2 },
+    });
+    expect(await env.svc.getTask(P.owner, ws, R.task)).toMatchObject({ priority: 'high' });
+    // Validation: the invalid change fails alone; the valid change to the same record still
+    // checks against the proposal's expected version (not a state left by the rolled-back one).
+    const w = await proposal(P.member, 'proposal_fail_then_valid', pair());
+    const check = await env.svc.validateAiProposal(P.member, ws, w.id, mutation());
+    expect(Object.fromEntries(check.changes.map((c) => [c.key, c.state]))).toEqual({
+      c1: 'invalid',
+      c2: 'valid',
+    });
+  });
+
   it('the 0056 rollback refuses while proposals exist, leaving the catalog, proposals, and applied records unchanged (ADR-47)', async () => {
     const before = await sql(`SELECT count(*)::int AS n FROM ai.change_proposal`);
     expect(before[0]!.n).toBeGreaterThan(0);

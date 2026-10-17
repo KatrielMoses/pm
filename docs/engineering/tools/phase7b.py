@@ -191,7 +191,10 @@ def check_migration():
     if by.get("0055") != "0055_ai_retrieval_citations.up.sql":
         errs.append("0055_ai_retrieval_citations must keep its number")
     # Later migrations belong to later phases, each held by its own validator.
-    later_owned = {"0056": ("0056_ai_change_proposals.up.sql", "phase7d.py")}
+    later_owned = {
+        "0056": ("0056_ai_change_proposals.up.sql", "phase7d.py"),
+        "0057": ("0057_ai_drafting_analysis.up.sql", "phase7c.py"),
+    }
     for k in sorted(k for k in by if k > "0055"):
         name, validator = later_owned.get(k, (None, None))
         if by[k] != name or not os.path.isfile(P("docs/engineering/tools/%s" % validator)):

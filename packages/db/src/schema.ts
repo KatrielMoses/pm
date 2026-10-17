@@ -3326,7 +3326,7 @@ export interface AiActionTable {
   workspace_id: string;
   initiating_membership_id: string;
   brand_id: string | null;
-  purpose: 'test_run' | 'grounded_answer' | 'change_proposal';
+  purpose: 'test_run' | 'grounded_answer' | 'change_proposal' | 'analysis';
   synthetic: boolean;
   model_key: string;
   provider: string;
@@ -3349,6 +3349,10 @@ export interface AiActionTable {
   created_at: DTs;
   retrieval_scope: Json<Record<string, unknown>> | null;
   manifest_digest: string | null;
+  /** 7C: the versioned action (analysis and drafting actions only). */
+  action_key: string | null;
+  /** 7C: sha256 of the exact action input, template, bounds, and manifest the person confirmed. */
+  input_digest: string | null;
 }
 export interface AiContextRefTable {
   id: string;
@@ -3356,7 +3360,16 @@ export interface AiContextRefTable {
   operation_id: string;
   position: number;
   record_id: string;
-  record_type: 'task' | 'project' | 'document' | 'comment' | 'activity';
+  record_type:
+    | 'task'
+    | 'project'
+    | 'document'
+    | 'comment'
+    | 'activity'
+    | 'goal'
+    | 'meeting'
+    | 'label'
+    | 'member';
   record_public_id: string;
   fields: string[];
   record_version: number;
@@ -3425,7 +3438,10 @@ export type ProposalOp =
   | 'project.update'
   | 'milestone.create'
   | 'relation.add'
-  | 'document.replace';
+  | 'document.replace'
+  | 'task.assign'
+  | 'label.add'
+  | 'criterion.add';
 export interface ChangeProposalTable {
   id: string;
   workspace_id: string;
@@ -3438,6 +3454,8 @@ export interface ChangeProposalTable {
   fingerprint: string;
   title: string | null;
   reject_reason: string | null;
+  /** 7C: visible assumptions the drafted proposal relies on (content; erased). */
+  assumptions: string[] | null;
   content_state: Defaulted<'present' | 'erased'>;
   content_erased_at: Timestamp | null;
   created_at: DTs;
@@ -6683,6 +6701,8 @@ export const TABLE_COLUMNS: Readonly<Record<keyof Database, readonly string[]>> 
     'created_at',
     'retrieval_scope',
     'manifest_digest',
+    'action_key',
+    'input_digest',
   ],
   'ai.ai_context_ref': [
     'id',
@@ -6753,6 +6773,7 @@ export const TABLE_COLUMNS: Readonly<Record<keyof Database, readonly string[]>> 
     'fingerprint',
     'title',
     'reject_reason',
+    'assumptions',
     'content_state',
     'content_erased_at',
     'created_at',

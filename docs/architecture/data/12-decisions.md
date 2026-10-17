@@ -545,3 +545,22 @@ Status of every ADR: **proposed (Phase 0B)**, pending solutions-architect accept
   - The down migration restores the exact 0055 catalog. It refuses while any proposal or change-proposal action exists: it lifts forced row-level security on `ai_action` and `change_proposal` for that one check and restores it.
   - Erasure (departure, retention, account deletion) clears the title, reason, and proposed values and revokes unused approvals; the reference-only history and application outcomes stay. Applied records are ordinary domain records and are never deleted by erasure.
   - Workspace purge deletes, before `ai.ai_action`: `ai.proposal_application`, `ai.proposal_approval`, `ai.proposal_event`, `ai.proposed_change`, then `ai.change_proposal`.
+
+<a id="adr-48"></a>
+## ADR-48: Typed AI actions, goal and meeting sources, and plan operations (Phase 7C amendment)
+
+- **Decision:** Migration 0057 (expand) extends the 7A–7D AI tables without a new table. It changes no earlier file.
+  - `ai.ai_action.purpose` admits `analysis`. Analysis and drafting actions record:
+    - `action_key`: the registered action, such as `summarize.v1`.
+    - `input_digest`: the SHA-256 of the exact action input the person confirmed (action, template, composed request, source payloads, offered choices, and output bound).
+    CHECKs keep the key on analysis and drafting actions only, require it for analysis, and pair it with the digest.
+  - `ai.ai_context_ref.record_type` admits `goal` (5B) and `meeting` (the caller's own 6C calendar event), by public reference (`goal_`, `cev_`).
+  - **Corrective review 01 (R1):** `ai.ai_context_ref.record_type` also admits `label` and `member` (`lbl_`, `mem_`), with their own handles (L1..L20, M1..M20; the handle CHECK ties each family to its kind). The choices a drafting action is offered are manifest entries, so they share redaction, the registered field classes (a label `name` and a member `display_name` are both C1), the digest, re-checks, current eligibility, and erasure. The earlier `choice_refs` column of the candidate was removed from 0057 before acceptance.
+  - `ai.proposed_change.op` admits `task.assign`, `label.add`, and `criterion.add`.
+  - `ai.change_proposal.assumptions` holds the visible assumptions of a drafted plan. It is content: erased with the proposal, and the erased-shape CHECK requires it to be null.
+  - An analysis result is stored in `ai.ai_output.grounding` as `analysis.v1`, erased with the content.
+- **Alternatives:**
+  - A table per action, which would mean several content boundaries and erasers.
+  - Storing choice names, which would copy personal names into the run.
+  - A separate plan-proposal table, which would be a second write protocol.
+- **Consequences:** The down migration restores the exact 0056 catalog. It refuses while analysis actions, action keys, goal or meeting sources, the added operations, or assumptions exist, lifting forced row-level security on the four tables for that one check. The new columns inherit the existing grants; `ai_action` stays update-limited to the erasure columns.

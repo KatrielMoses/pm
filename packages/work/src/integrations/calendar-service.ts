@@ -1144,6 +1144,21 @@ export class CalendarService extends PublicApiService {
       .execute() as Promise<EventRow[]>;
   }
 
+  /**
+   * 7C: the caller's own mirrored event, as AI context. Only the connection owner reads it (the
+   * same rule as the calendar view); anything else is not found. Only the title, times, busy flag,
+   * and status exist in the mirror: no attendees, location, or description are stored.
+   */
+  protected async ownCalendarEvent(tx: WorkspaceTransaction, p: Principal, publicId: string) {
+    const view = await this.#oneEvent(tx, p, publicId);
+    const row = await tx.db
+      .selectFrom('integrations.calendar_event')
+      .select('id')
+      .where('public_id', '=', publicId)
+      .executeTakeFirstOrThrow();
+    return { ...view, recordId: row.id };
+  }
+
   async #oneEvent(tx: WorkspaceTransaction, p: Principal, publicId: string) {
     const row = await tx.db
       .selectFrom('integrations.calendar_event')

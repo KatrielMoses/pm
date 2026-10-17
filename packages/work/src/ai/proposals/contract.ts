@@ -18,23 +18,41 @@ export const PROPOSAL_OPS: readonly ProposalOp[] = [
   'milestone.create',
   'relation.add',
   'document.replace',
+  // 7C: assignment, labels, and acceptance criteria, each through its canonical command.
+  'task.assign',
+  'label.add',
+  'criterion.add',
 ];
 
 /** Fields each operation may set (anything else is refused, never ignored). */
 export const OP_FIELDS: Record<ProposalOp, readonly string[]> = {
-  'task.create': ['title', 'description', 'priority', 'start_date', 'due_date'],
-  'task.update': ['title', 'description', 'priority', 'start_date', 'due_date', 'status'],
+  'task.create': ['title', 'description', 'priority', 'start_date', 'due_date', 'estimate_minutes'],
+  'task.update': [
+    'title',
+    'description',
+    'priority',
+    'start_date',
+    'due_date',
+    'status',
+    'estimate_minutes',
+  ],
   'project.create': ['name', 'description', 'priority', 'start_date', 'target_date'],
   'project.update': ['name', 'description', 'priority', 'start_date', 'target_date', 'status'],
   'milestone.create': ['name', 'due_date'],
   'relation.add': [],
   'document.replace': ['title', 'text'],
+  'task.assign': [],
+  'label.add': [],
+  'criterion.add': ['text', 'kind'],
 };
+/** Operations whose content is in references, not fields. */
+const NO_FIELDS: readonly ProposalOp[] = ['relation.add', 'task.assign', 'label.add'];
 const REQUIRED: Partial<Record<ProposalOp, string>> = {
   'task.create': 'title',
   'project.create': 'name',
   'milestone.create': 'name',
   'document.replace': 'text',
+  'criterion.add': 'text',
 };
 const PRIORITIES = ['none', 'low', 'medium', 'high', 'urgent'];
 const DATE_FIELDS = new Set(['start_date', 'due_date', 'target_date']);
@@ -48,7 +66,7 @@ const HANDLE = /^S([1-9]|1[0-9]|20)$/;
 /** A manifest source the model may name by handle (only included sources have handles). */
 export interface HandleTarget {
   handle: string;
-  kind: 'task' | 'project' | 'document' | 'comment' | 'activity';
+  kind: 'task' | 'project' | 'document' | 'comment' | 'activity' | 'goal' | 'meeting';
   publicId: string;
   recordId: string;
   version: number;
@@ -73,6 +91,12 @@ export interface ProposalChange {
     parent?: RefValue;
     brand?: 'scope';
     relation?: { kind: 'blocks' | 'related'; from: RefValue; to: RefValue };
+    /** 7C: the task a label, criterion, or assignment change applies to. */
+    task?: RefValue;
+    /** 7C: member public ids, resolved from server-issued choice handles (M1…). */
+    assignees?: string[];
+    /** 7C: a label public id, resolved from a server-issued choice handle (L1…). */
+    label?: string;
   };
   dependsOn: string[];
   sources: string[];
@@ -87,6 +111,62 @@ export interface ProposalIssue {
 export interface ParsedProposal {
   title: string | null;
   changes: ProposalChange[];
+  /** 7C: visible assumptions the draft relies on. */
+  assumptions: string[];
+}
+
+/** 7C: a question the model asks instead of inventing missing essentials. */
+export interface ClarifyingQuestion {
+  id: string;
+  text: string;
+}
+
+/**
+ * 7C: server-issued choices a drafting action may name, by handle only (L1…, M1…). The model never
+ * supplies an identifier or a name as authority; the server resolves handles it issued.
+ */
+export interface ProposalChoices {
+  labels: ReadonlyArray<{ handle: string; publicId: string }>;
+  members: ReadonlyArray<{ handle: string; publicId: string }>;
+}
+
+/** Parses bounded clarifying questions and assumptions (shared by proposals and analysis). */
+export function parseClarifications(
+  raw: Record<string, unknown>,
+  fail: (code: string, message: string) => void,
+): { questions: ClarifyingQuestion[]; assumptions: string[] } {
+  const questions: ClarifyingQuestion[] = [];
+  const assumptions: string[] = [];
+  if (raw.questions !== undefined) {
+    if (!Array.isArray(raw.questions) || raw.questions.length > 10)
+      fail('invalid_questions', 'questions must list at most 10 questions.');
+    else
+      raw.questions.forEach((q, i) => {
+        const o =
+          q && typeof q === 'object' && !Array.isArray(q) ? (q as Record<string, unknown>) : null;
+        const text = o && typeof o.text === 'string' ? o.text.trim() : '';
+        if (
+          !o ||
+          Object.keys(o).some((k) => k !== 'id' && k !== 'text') ||
+          !text ||
+          text.length > 300 ||
+          CONTROL.test(text)
+        )
+          fail('invalid_questions', `Question ${i + 1} must be text of 1 to 300 characters.`);
+        else questions.push({ id: `q${i + 1}`, text });
+      });
+  }
+  if (raw.assumptions !== undefined) {
+    if (!Array.isArray(raw.assumptions) || raw.assumptions.length > 20)
+      fail('invalid_assumptions', 'assumptions must list at most 20 items.');
+    else
+      for (const a of raw.assumptions) {
+        if (typeof a !== 'string' || !a.trim() || a.length > 500 || CONTROL.test(a))
+          fail('invalid_assumptions', 'Each assumption must be text of 1 to 500 characters.');
+        else assumptions.push(a.trim());
+      }
+  }
+  return { questions, assumptions };
 }
 
 const isObj = (v: unknown): v is Record<string, unknown> =>
@@ -113,6 +193,25 @@ export function checkField(
     const d = /^\d{4}-\d{2}-\d{2}$/.test(v) ? new Date(`${v}T00:00:00Z`) : null;
     if (!d || Number.isNaN(d.getTime()) || d.toISOString().slice(0, 10) !== v)
       return { ok: false, code: 'invalid_date', message: `${field} must be a date (YYYY-MM-DD).` };
+    return { ok: true, value: v };
+  }
+  if (field === 'estimate_minutes') {
+    // Minutes as digits: a suggestion the canonical estimate rule bounds again at Apply.
+    if (!/^[0-9]{1,7}$/.test(v))
+      return {
+        ok: false,
+        code: 'invalid_value',
+        message: 'estimate_minutes must be whole minutes.',
+      };
+    return { ok: true, value: String(Number(v)) };
+  }
+  if (field === 'kind') {
+    if (v !== 'acceptance' && v !== 'definition_of_done')
+      return {
+        ok: false,
+        code: 'invalid_option',
+        message: 'kind must be acceptance or definition_of_done.',
+      };
     return { ok: true, value: v };
   }
   if (field === 'priority') {
@@ -154,8 +253,17 @@ export function checkField(
 export function parseProposal(
   text: string,
   handles: readonly HandleTarget[],
-  opts: { changesMax: number; scopeBrands: number },
-): { ok: true; proposal: ParsedProposal } | { ok: false; issues: ProposalIssue[] } {
+  opts: {
+    changesMax: number;
+    scopeBrands: number;
+    /** 7C: the operations this action may propose (default: every operation). */
+    ops?: readonly ProposalOp[];
+    choices?: ProposalChoices;
+  },
+):
+  | { ok: true; proposal: ParsedProposal }
+  | { ok: false; issues: ProposalIssue[] }
+  | { ok: 'questions'; questions: ClarifyingQuestion[]; assumptions: string[] } {
   const issues: ProposalIssue[] = [];
   const fail = (change: string | null, code: string, message: string) => {
     issues.push({ change, code, message });
@@ -181,8 +289,16 @@ export function parseProposal(
       ],
     };
   for (const k of Object.keys(raw))
-    if (!['title', 'changes'].includes(k))
+    if (!['title', 'changes', 'assumptions', 'questions'].includes(k))
       fail(null, 'unknown_field', `Unknown proposal field "${k.slice(0, 40)}".`);
+  const clar = parseClarifications(raw, (code, message) => fail(null, code, message));
+  // Missing essentials: questions instead of changes (nothing is invented, nothing is proposed).
+  if (
+    !issues.length &&
+    clar.questions.length &&
+    (raw.changes === undefined || (Array.isArray(raw.changes) && raw.changes.length === 0))
+  )
+    return { ok: 'questions', questions: clar.questions, assumptions: clar.assumptions };
   let title: string | null = null;
   if (raw.title !== undefined && raw.title !== null) {
     if (
@@ -291,11 +407,16 @@ export function parseProposal(
     'milestone.create': ['id', 'op', 'project', 'fields', 'depends_on', 'sources'],
     'relation.add': ['id', 'op', 'kind', 'from', 'to', 'depends_on', 'sources'],
     'document.replace': ['id', 'op', 'target', 'fields', 'depends_on', 'sources'],
+    'task.assign': ['id', 'op', 'target', 'task', 'assignees', 'depends_on', 'sources'],
+    'label.add': ['id', 'op', 'task', 'label', 'depends_on', 'sources'],
+    'criterion.add': ['id', 'op', 'task', 'fields', 'depends_on', 'sources'],
   };
+  const choice = (list: ProposalChoices['labels'] | undefined, value: unknown) =>
+    typeof value === 'string' ? list?.find((x) => x.handle === value)?.publicId : undefined;
   for (const [position, c] of (raw.changes as Array<Record<string, unknown>>).entries()) {
     const key = c.id as string;
     const op = c.op as ProposalOp;
-    if (!PROPOSAL_OPS.includes(op)) {
+    if (!PROPOSAL_OPS.includes(op) || (opts.ops && !opts.ops.includes(op))) {
       fail(
         key,
         'unsupported_operation',
@@ -332,7 +453,7 @@ export function parseProposal(
         }
     }
     const fields: Record<string, string | null> = {};
-    if (op !== 'relation.add') {
+    if (!NO_FIELDS.includes(op)) {
       if (!isObj(c.fields)) fail(key, 'invalid_fields', 'fields must be an object.');
       else {
         for (const [f, v] of Object.entries(c.fields)) {
@@ -433,6 +554,49 @@ export function parseProposal(
       case 'document.replace':
         target(['document']);
         break;
+      case 'task.assign': {
+        // An existing task (version-bound: assignment replaces the list) or a task created here.
+        if ((c.target === undefined) === (c.task === undefined))
+          fail(key, 'invalid_reference', 'Name the task by target (S…) or task (new:…), not both.');
+        else if (c.target !== undefined) target(['task']);
+        else {
+          const r = resolve(key, c.task, ['task'], ['task.create'], 'task', deps);
+          if (r && 'new' in r) change.payload.task = r;
+          else if (r) fail(key, 'invalid_reference', 'An existing task is named by target.');
+        }
+        if (
+          !Array.isArray(c.assignees) ||
+          c.assignees.length < 1 ||
+          c.assignees.length > 20 ||
+          new Set(c.assignees).size !== c.assignees.length
+        )
+          fail(key, 'invalid_value', 'assignees must list 1 to 20 distinct member choices.');
+        else {
+          const ids = c.assignees.map((a) => choice(opts.choices?.members, a));
+          if (ids.some((x) => !x))
+            fail(
+              key,
+              'unknown_choice',
+              'assignees must name members from the offered choices (M1…).',
+            );
+          else change.payload.assignees = ids as string[];
+        }
+        break;
+      }
+      case 'label.add': {
+        const r = resolve(key, c.task, ['task'], ['task.create'], 'task', deps);
+        if (r) change.payload.task = r;
+        const id = choice(opts.choices?.labels, c.label);
+        if (!id)
+          fail(key, 'unknown_choice', 'label must name a label from the offered choices (L1…).');
+        else change.payload.label = id;
+        break;
+      }
+      case 'criterion.add': {
+        const r = resolve(key, c.task, ['task'], ['task.create'], 'task', deps);
+        if (r) change.payload.task = r;
+        break;
+      }
     }
     change.dependsOn = [...deps].sort();
     changes.push(change);
@@ -460,6 +624,23 @@ export function parseProposal(
         fail(c.key, 'duplicate_relation', `Change ${c.key} repeats change ${seen.get(k)}.`);
       else seen.set(k, c.key);
     }
+    const on = c.payload.task ? JSON.stringify(c.payload.task) : c.target?.publicId;
+    if (c.op === 'task.assign') {
+      const k = `assign:${on}`;
+      if (seen.has(k))
+        fail(
+          c.key,
+          'conflicting_update',
+          `Change ${c.key} and ${seen.get(k)} both assign the task.`,
+        );
+      else seen.set(k, c.key);
+    }
+    if (c.op === 'label.add') {
+      const k = `label:${on}:${c.payload.label}`;
+      if (seen.has(k))
+        fail(c.key, 'duplicate_label', `Change ${c.key} repeats change ${seen.get(k)}.`);
+      else seen.set(k, c.key);
+    }
   }
   const order = orderChanges(changes);
   if (!order.ok)
@@ -469,7 +650,7 @@ export function parseProposal(
       `Changes ${order.cycle.join(', ')} depend on each other.`,
     );
   if (issues.length) return { ok: false, issues };
-  return { ok: true, proposal: { title, changes } };
+  return { ok: true, proposal: { title, changes, assumptions: clar.assumptions } };
 }
 
 /** Deterministic dependency order (stable by position); a cycle is reported, never broken. */

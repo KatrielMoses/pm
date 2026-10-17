@@ -148,8 +148,15 @@ def check_migration():
     if "Restores the exact 0055 catalog" not in down or "0056 cannot be rolled back" not in down:
         errs.append("0056 down must restore the exact 0055 catalog and refuse while proposals exist")
     names = sorted(n for n in os.listdir(P("packages/db/migrations")) if n.endswith(".up.sql"))
-    if names[-1] != "0056_ai_change_proposals.up.sql":
-        errs.append("0056_ai_change_proposals must be the last migration")
+    by = {n.split("_", 1)[0]: n for n in names}
+    if by.get("0056") != "0056_ai_change_proposals.up.sql":
+        errs.append("0056_ai_change_proposals must keep its number")
+    # Later migrations belong to later phases, each held by its own validator.
+    later_owned = {"0057": ("0057_ai_drafting_analysis.up.sql", "phase7c.py")}
+    for k in sorted(k for k in by if k > "0056"):
+        name, validator = later_owned.get(k, (None, None))
+        if by[k] != name or not os.path.isfile(P("docs/engineering/tools/%s" % validator)):
+            errs.append("migration %s after 7D must be held by a later-phase validator" % by[k])
     errs += phase1.check_boundaries([56])
     lifecycle = read(P(LIFECYCLE))
     for term in (".set({ payload: null, updated_at: now })", ".set({ state: 'revoked' })", "kind: 'erased' as const"):

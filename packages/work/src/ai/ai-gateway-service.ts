@@ -5,6 +5,7 @@ import {
   richTextFromPlain,
   type ExecutionContext,
 } from '@pm/contracts';
+import { createHash } from 'node:crypto';
 import type { AiConfig } from '@pm/config';
 import { sql, type AiMeter, type ProposalOp, type WorkspaceTransaction } from '@pm/db';
 import {
@@ -55,6 +56,7 @@ import {
 } from './budget.ts';
 import { microsString, PICO_PER_MICRO, usdDisplay } from './money.ts';
 import {
+  AI_CHOICE_FIELDS,
   AI_CONTEXT_FIELDS,
   decideAvailability,
   fieldAllowed,
@@ -101,6 +103,7 @@ import {
   type SourceKind,
   type SourceRecord,
   type SourceRef,
+  isChoiceKind,
 } from './retrieval/types.ts';
 import { plainText, readContent } from '../docs/content.ts';
 import {
@@ -114,7 +117,21 @@ import {
   type ProposalChange,
   type RefValue,
 } from './proposals/contract.ts';
-import { parseTaskCreate, TASK_FIELDS, taskField } from '../task-validation.ts';
+import type { HandleTarget, ProposalChoices } from './proposals/contract.ts';
+import {
+  ACTION_BY_ID,
+  AI_ACTIONS,
+  actionId,
+  actionView,
+  type AiActionDef,
+} from './actions/catalog.ts';
+import {
+  analysisSystemTemplate,
+  validateAnalysis,
+  withheldAnalysis,
+  type AnalysisResult,
+} from './actions/analysis.ts';
+import { parseTaskCreate, parseTaskCriterion, TASK_FIELDS, taskField } from '../task-validation.ts';
 import { parseMilestone, parseProjectCreate, PROJECT_FIELDS } from '../validation.ts';
 import { parseRelationship } from '../task-validation.ts';
 import { parseContentSave } from '../docs/validation.ts';
@@ -163,12 +180,18 @@ const CONTEXT_MAX = 5;
 const RETRIEVAL_CANDIDATES = 20;
 const SCOPE_BRANDS_MAX = 5;
 const ACTIVITY_ENTRIES = 10;
+/** 7C review 01: at most this many labels and this many members are offered as choices. */
+const CHOICES_MAX = 20;
 const SOURCE_PREFIX: Record<SourceKind, string> = {
   task: 'tsk',
   project: 'prj',
   document: 'doc',
   comment: 'cmt',
   activity: 'tsk',
+  goal: 'goal',
+  meeting: 'cev',
+  label: 'lbl',
+  member: 'mem',
 };
 const OUTPUT_MAX_CHARS = 40_000;
 const HISTORY_PAGE_MAX = 50;
@@ -233,9 +256,12 @@ interface PreparedRun {
   inputBound: number;
   outputBound: number;
   maxCost: bigint;
-  purpose: 'test_run' | 'grounded_answer' | 'change_proposal';
+  purpose: 'test_run' | 'grounded_answer' | 'change_proposal' | 'analysis';
   /** The context manifest of a grounded answer (memory only; references are what is stored). */
   manifest: Manifest | null;
+  /** 7C: the action, the digest of its exact input, and the choice handles it was offered. */
+  action?: AiActionDef | null;
+  inputDigest?: string | null;
 }
 
 /** A grounded answer's input: the question and retrieval choices, or a recorded manifest. */
@@ -247,10 +273,45 @@ interface AnswerSpec {
   digest: string | null;
   /** The recorded manifest (worker re-check and publication). */
   pinned: { refs: PinnedRef[]; omitted: number; digest: string } | null;
+  /** 7C: a registered action (analysis or drafting) and its confirmed input digest. */
+  action?: AiActionDef | null;
+  inputDigest?: string | null;
 }
 
+/**
+ * Existing records a change's canonical command locks and changes (7C review 01 R2): the target of
+ * an update, a replacement, or an assignment; the task a label or criterion is added to; and the
+ * owned (from) task of a relationship. A record only referenced (a relationship's other end, a
+ * new task's parent or project) is not changed, so it is never treated as checked.
+ */
+const mutatedBy = (c: {
+  op: string;
+  target_public_id: string | null;
+  payload: unknown;
+}): Array<{ publicId: string; kind: 'task' | 'project' | 'document' }> => {
+  const p = c.payload as ProposalChange['payload'];
+  const ex = (x: RefValue | undefined) =>
+    x && 'existing' in x ? [{ publicId: x.existing.publicId, kind: x.existing.kind }] : [];
+  const out = c.target_public_id
+    ? [{ publicId: c.target_public_id, kind: targetKindOf(c.op) }]
+    : [];
+  if (c.op === 'label.add' || c.op === 'criterion.add' || c.op === 'task.assign')
+    out.push(...ex(p.task));
+  if (c.op === 'relation.add') out.push(...ex(p.relation?.from));
+  // A stable lock order (kind, then id) keeps concurrent Applies from deadlocking.
+  return out.sort((a, b) => a.kind.localeCompare(b.kind) || a.publicId.localeCompare(b.publicId));
+};
+
+/** The kind of record an operation with a target changes. */
+const targetKindOf = (op: string): 'task' | 'project' | 'document' =>
+  op === 'task.update' || op === 'task.assign'
+    ? 'task'
+    : op === 'project.update'
+      ? 'project'
+      : 'document';
+
 /** Purposes that run on a 7B context manifest. */
-const RETRIEVAL_PURPOSES: readonly string[] = ['grounded_answer', 'change_proposal'];
+const RETRIEVAL_PURPOSES: readonly string[] = ['grounded_answer', 'change_proposal', 'analysis'];
 
 type OpRow = {
   id: string;
@@ -1379,6 +1440,10 @@ export class AiGatewayService extends McpAccessService {
       project: /^prj_[0-9A-HJKMNP-TV-Z]{26}$/,
       document: /^doc_[0-9A-HJKMNP-TV-Z]{26}$/,
       comment: /^cmt_[0-9A-HJKMNP-TV-Z]{26}$/,
+      goal: /^goal_[0-9A-HJKMNP-TV-Z]{26}$/,
+      meeting: /^cev_[0-9A-HJKMNP-TV-Z]{26}$/,
+      label: /^lbl_[0-9A-HJKMNP-TV-Z]{26}$/,
+      member: /^mem_[0-9A-HJKMNP-TV-Z]{26}$/,
     };
     const archived = (state: string) => (state === 'archived' ? (['archived'] as const) : []);
     const source = async (kind: SourceKind, id: string): Promise<SourceRecord> => {
@@ -1418,6 +1483,7 @@ export class AiGatewayService extends McpAccessService {
             facts: {
               status: { name: status.name, category: status.category },
               dueDate: t.row.due_date ? String(t.row.due_date) : null,
+              startDate: t.row.start_date ? String(t.row.start_date) : null,
               completedAt: t.row.completed_at ? new Date(t.row.completed_at).toISOString() : null,
             },
             flags: [...archived(t.lifecycleState)],
@@ -1455,6 +1521,137 @@ export class AiGatewayService extends McpAccessService {
           ],
           facts: {},
           flags: [...archived(t.lifecycleState)],
+        };
+      }
+      if (kind === 'label') {
+        // 7C review 01: an active label of a brand the reader can see; its name is the one
+        // registered C1 field (AI_CHOICE_FIELDS), redacted like any source text.
+        const l = await tx.db
+          .selectFrom('work.label')
+          .select(['id', 'public_id', 'brand_id', 'name', 'state', 'version'])
+          .where('public_id', '=', id)
+          .executeTakeFirst();
+        if (!l || l.state !== 'active') throw new TenancyError('not_found');
+        const brandRec = await tx.db
+          .selectFrom('core.record')
+          .select('public_id')
+          .where('id', '=', l.brand_id)
+          .executeTakeFirstOrThrow();
+        // The label is readable through its brand (an unreadable brand reads as unknown).
+        const b = await findBrand(tx, p, brandRec.public_id, { states: 'active' });
+        return {
+          kind,
+          publicId: id,
+          recordId: l.id,
+          brandId: l.brand_id,
+          brandSensitive: b.is_sensitive,
+          projectId: null,
+          taskId: null,
+          title: l.name,
+          link: { type: 'label', id, anchor: null },
+          version: Number(l.version),
+          versionLabel: `v${l.version}`,
+          fields: [{ name: 'name', dataClass: AI_CHOICE_FIELDS.label.name, text: l.name }],
+          facts: {},
+          flags: [],
+        };
+      }
+      if (kind === 'member') {
+        // An active member of this workspace (the accepted directory); the display name is the
+        // one registered C1 field, redacted like any source text.
+        const m = await tx.db
+          .selectFrom('tenancy.membership as m')
+          .innerJoin('identity.account as a', 'a.id', 'm.account_id')
+          .select([
+            'm.id',
+            'm.public_id',
+            'm.kind',
+            'm.state',
+            'm.version',
+            'm.display_name_override',
+            'a.display_name',
+          ])
+          .where('m.public_id', '=', id)
+          .executeTakeFirst();
+        if (!m || m.kind !== 'member' || m.state !== 'active' || p.kind !== 'member')
+          throw new TenancyError('not_found');
+        const name = m.display_name_override ?? m.display_name;
+        return {
+          kind,
+          publicId: id,
+          recordId: m.id,
+          brandId: null,
+          brandSensitive: false,
+          projectId: null,
+          taskId: null,
+          title: name,
+          link: { type: 'member', id, anchor: null },
+          version: Number(m.version),
+          versionLabel: `v${m.version}`,
+          fields: [
+            { name: 'display_name', dataClass: AI_CHOICE_FIELDS.member.display_name, text: name },
+          ],
+          facts: {},
+          flags: [],
+        };
+      }
+      if (kind === 'goal') {
+        // 7C: a goal through its canonical loader and read decision (goals are never shared).
+        const g = await this.loadGoal(tx, p, id);
+        this.requireGoalAction(p, 'record.read', g);
+        const r = g.row;
+        return {
+          kind,
+          publicId: id,
+          recordId: g.id,
+          brandId: g.brand?.id ?? null,
+          brandSensitive: g.brand?.isSensitive ?? false,
+          projectId: g.projectId,
+          taskId: null,
+          title: r.title,
+          link: { type: 'goal', id, anchor: null },
+          version: Number(r.version),
+          versionLabel: `v${r.version}`,
+          fields: [
+            { name: 'title', dataClass: 'C2', text: r.title },
+            { name: 'description', dataClass: 'C2', text: r.description ?? '' },
+            { name: 'status', dataClass: 'C1', text: r.status },
+            {
+              name: 'period',
+              dataClass: 'C1',
+              text: `${String(r.period_start)} to ${String(r.period_end)}`,
+            },
+          ],
+          facts: { startDate: String(r.period_start), targetDate: String(r.period_end) },
+          flags: [...archived(g.lifecycleState)],
+        };
+      }
+      if (kind === 'meeting') {
+        // 7C: the caller's own mirrored calendar event only (owner-only, as in the calendar view).
+        // The mirror holds no attendees, location, or description, so none can be sent.
+        const e = await this.ownCalendarEvent(tx, p, id);
+        return {
+          kind,
+          publicId: id,
+          recordId: e.recordId,
+          brandId: null,
+          brandSensitive: false,
+          projectId: null,
+          taskId: null,
+          title: e.title,
+          link: { type: 'meeting', id, anchor: null },
+          version: 1,
+          versionLabel: `${e.starts_at}`,
+          fields: [
+            { name: 'title', dataClass: 'C2', text: e.title },
+            {
+              name: 'time',
+              dataClass: 'C1',
+              text: `${e.starts_at} to ${e.ends_at}${e.all_day ? ' (all day)' : ''}`,
+            },
+          ],
+          facts: {},
+          flags: [],
         };
       }
       if (kind === 'project') {
@@ -1572,8 +1769,36 @@ export class AiGatewayService extends McpAccessService {
         flags: [...archived(host.lifecycleState)],
       };
     };
+    const choices = async (brandId: string | null): Promise<SourceRecord[]> => {
+      const out: SourceRecord[] = [];
+      if (brandId) {
+        const labels = await tx.db
+          .selectFrom('work.label')
+          .select('public_id')
+          .where('brand_id', '=', brandId)
+          .where('state', '=', 'active')
+          .orderBy('rank')
+          .orderBy('name')
+          .limit(CHOICES_MAX)
+          .execute();
+        for (const l of labels) out.push(await source('label', l.public_id));
+      }
+      const members = await tx.db
+        .selectFrom('tenancy.membership as m')
+        .innerJoin('identity.account as a', 'a.id', 'm.account_id')
+        .select('m.public_id')
+        .where('m.kind', '=', 'member')
+        .where('m.state', '=', 'active')
+        .orderBy('a.display_name')
+        .orderBy('m.public_id')
+        .limit(CHOICES_MAX)
+        .execute();
+      for (const m of members) out.push(await source('member', m.public_id));
+      return out;
+    };
     return {
       source,
+      choices,
       search: async (q) => {
         const r = await this.searchIn(tx, p, {
           q: q.q,
@@ -1619,12 +1844,13 @@ export class AiGatewayService extends McpAccessService {
     const issues = [];
     const known = new Set(
       mode === 'preview'
-        ? ['scope', 'query', 'include', 'exclude']
+        ? ['scope', 'query', 'include', 'exclude', 'offer_choices']
         : [
             'scope',
             'query',
             'include',
             'exclude',
+            'offer_choices',
             'question',
             'manifest_digest',
             'max_output_tokens',
@@ -1689,10 +1915,10 @@ export class AiGatewayService extends McpAccessService {
         );
       else query = b.query.trim() || null;
     }
-    const refs = (raw: unknown, pointer: string): SourceRef[] => {
+    const refs = (raw: unknown, pointer: string, max = MANIFEST_LIST_MAX): SourceRef[] => {
       if (raw === undefined) return [];
-      if (!Array.isArray(raw) || raw.length > MANIFEST_LIST_MAX) {
-        issues.push(issue(pointer, 'invalid_value', `Name up to ${MANIFEST_LIST_MAX} sources.`));
+      if (!Array.isArray(raw) || raw.length > max) {
+        issues.push(issue(pointer, 'invalid_value', `Name up to ${max} sources.`));
         return [];
       }
       const out: SourceRef[] = [];
@@ -1710,7 +1936,7 @@ export class AiGatewayService extends McpAccessService {
             issue(
               `${pointer}/${i}`,
               'invalid_reference',
-              'Name a task, project, document, comment, or task activity by its identifier.',
+              'Name a task, project, document, comment, task activity, goal, or your own calendar event by its identifier.',
             ),
           );
         else out.push({ kind, id });
@@ -1718,7 +1944,14 @@ export class AiGatewayService extends McpAccessService {
       return out;
     };
     const include = refs(b.include, '/include');
-    const exclude = refs(b.exclude, '/exclude');
+    // 7C review 01: offered labels and members may be omitted (excluded), never named as sources.
+    const exclude = refs(b.exclude, '/exclude', MANIFEST_LIST_MAX * 3);
+    if (include.some((r) => isChoiceKind(r.kind)))
+      issues.push(
+        issue('/include', 'invalid_reference', 'Labels and members are offered, not included.'),
+      );
+    if (b.offer_choices !== undefined && typeof b.offer_choices !== 'boolean')
+      issues.push(issue('/offer_choices', 'invalid_type', 'Use true or false.'));
     const keys = include.map((r) => `${r.kind}:${r.id}`);
     if (new Set(keys).size !== keys.length)
       issues.push(issue('/include', 'duplicate', 'Name each source once.'));
@@ -1762,7 +1995,13 @@ export class AiGatewayService extends McpAccessService {
     }
     if (issues.length) throw invalid(...issues);
     return {
-      retrieval: { scope: { brands, project, task }, query, include, exclude } as RetrievalInput,
+      retrieval: {
+        scope: { brands, project, task },
+        query,
+        include,
+        exclude,
+        offerChoices: b.offer_choices === true,
+      } as RetrievalInput,
       question,
       digest,
       maxOutput,
@@ -1893,13 +2132,18 @@ export class AiGatewayService extends McpAccessService {
     maxOutput: number,
     spec: AnswerSpec,
   ): Promise<PreparedRun> {
-    const purpose = spec.purpose ?? 'grounded_answer';
+    const def = spec.action ?? null;
+    const purpose: PreparedRun['purpose'] = def
+      ? def.kind === 'analysis'
+        ? 'analysis'
+        : 'change_proposal'
+      : (spec.purpose ?? 'grounded_answer');
     const brandRows = await this.#retrievalAuthority(tx, p, spec.retrieval.scope);
     const { policy, decision } = await this.#availability(tx);
     this.#requireReady(decision);
-    // 7D demonstrates the proposal protocol with the labelled synthetic fixture only; generating
-    // proposals with a real model is 7C's (and stays behind every production-AI gate).
-    if (purpose === 'change_proposal' && !decision.model.synthetic)
+    // 7D's free-form proposal run stays fixture-only. 7C drafting actions are typed and pass
+    // every production-AI gate like any other run (which still refuses real dispatch).
+    if (purpose === 'change_proposal' && !def && !decision.model.synthetic)
       throw this.#refuse(
         'ai_proposal_generation_unavailable',
         'Generating change proposals with a real model is not available yet. Nothing was sent.',
@@ -1912,7 +2156,11 @@ export class AiGatewayService extends McpAccessService {
         'The context changed since you reviewed it. Nothing was sent. Preview the context again.',
         'conflict',
       );
-    if (!manifest.entries.some((e) => e.included))
+    // 7C: an action's own required context is checked first (it names what is missing); a
+    // project brief may stand in for sources when drafting a new project.
+    if (def) this.#requireActionContext(def, question, manifest);
+    const briefOnly = def?.needs === 'brief_or_goal' && /^Brief:\n\S/m.test(question);
+    if (!manifest.entries.some((e) => e.included) && !briefOnly)
       throw invalid(
         issue('/include', 'context_empty', 'Include at least one source to ask about.'),
       );
@@ -1933,9 +2181,15 @@ export class AiGatewayService extends McpAccessService {
     const brand = brandRows.length === 1 ? brandRows[0]! : null;
     const redacted = redactCredentials(question);
     const profile = await this.#brandProfileText(tx, brand?.id ?? null);
-    const template =
-      purpose === 'change_proposal' ? PROPOSAL_SYSTEM_TEMPLATE : GROUNDED_SYSTEM_TEMPLATE;
+    const template = def
+      ? def.kind === 'analysis'
+        ? analysisSystemTemplate(def)
+        : this.#proposalTemplateFor(def)
+      : purpose === 'change_proposal'
+        ? PROPOSAL_SYSTEM_TEMPLATE
+        : GROUNDED_SYSTEM_TEMPLATE;
     const system = profile ? `${template}\n\n${profile}` : template;
+    // Offered choices are manifest entries (L…, M…): already redacted, classified, and digested.
     const user = groundedUserMessage(redacted.text, manifest.entries);
     const model = decision.model;
     const inputBound = inputTokenBound(model, [system, user], 1);
@@ -1969,7 +2223,101 @@ export class AiGatewayService extends McpAccessService {
       maxCost: maxCostPico(model, inputBound, outputBound),
       purpose,
       manifest,
+      ...(def
+        ? {
+            action: def,
+            inputDigest: this.#inputDigest(
+              def,
+              system,
+              user,
+              outputBound,
+              spec.inputDigest ?? null,
+            ),
+          }
+        : {}),
     };
+  }
+
+  /**
+   * 7C: the digest of the exact action input the person confirms: the action and its template
+   * version, the composed request, every source payload sent, the offered choices, and the output
+   * bound. Estimate returns it; start must present the same digest, so any material change (input,
+   * answers, sources, choices, bounds) invalidates an earlier confirmation.
+   */
+  #inputDigest(
+    def: AiActionDef,
+    system: string,
+    user: string,
+    outputBound: number,
+    presented: string | null,
+  ): string {
+    const digest = createHash('sha256')
+      .update(JSON.stringify({ a: actionId(def), s: system, u: user, o: outputBound }))
+      .digest('hex');
+    if (presented !== null && presented !== digest)
+      throw this.#refuse(
+        'input_changed',
+        'The request, its sources, or its bounds changed since the estimate. Nothing was sent. Estimate again.',
+        'conflict',
+      );
+    return digest;
+  }
+
+  /** 7C: missing essential context refuses before anything is sent, with what to provide. */
+  #requireActionContext(def: AiActionDef, request: string, manifest: Manifest) {
+    const included = manifest.entries.filter((e) => e.included);
+    const unsupported = included.filter(
+      (e) => !isChoiceKind(e.kind) && !def.sourceKinds.includes(e.kind),
+    );
+    if (unsupported.length)
+      throw invalid(
+        issue(
+          '/include',
+          'source_kind_unsupported',
+          `${def.label} does not use ${[...new Set(unsupported.map((e) => e.kind))].join(', ')} sources. Exclude them.`,
+        ),
+      );
+    const brief = /^Brief:\n\S/m.test(request);
+    const missing =
+      def.needs === 'brief_or_goal'
+        ? !brief && !included.some((e) => e.kind === 'goal')
+        : def.needs === 'project_or_task'
+          ? !manifest.scope.project && !manifest.scope.task
+          : def.needs === 'task_or_document'
+            ? !included.some((e) => e.kind === 'task' || e.kind === 'document')
+            : def.needs === 'tasks'
+              ? !included.some((e) => e.kind === 'task')
+              : false;
+    if (missing)
+      throw invalid(
+        issue(
+          def.needs === 'brief_or_goal'
+            ? '/brief'
+            : def.needs === 'project_or_task'
+              ? '/scope'
+              : '/include',
+          'input_required',
+          def.needs === 'brief_or_goal'
+            ? 'What should the project achieve? Give a brief or include a goal.'
+            : def.needs === 'project_or_task'
+              ? 'Which project or task should the work go under? Choose it as the scope.'
+              : def.needs === 'task_or_document'
+                ? 'Which task or document should be rewritten? Include it.'
+                : 'Which tasks should be considered? Include at least one task.',
+        ),
+      );
+  }
+
+  /** 7C: the 7D proposal contract restricted to one drafting action's operations. */
+  #proposalTemplateFor(def: AiActionDef): string {
+    return [
+      PROPOSAL_SYSTEM_TEMPLATE,
+      `This request is action ${actionId(def)}. Allowed ops: ${(def.ops ?? []).join(', ')}.`,
+      'task.create and task.update may set estimate_minutes (whole minutes). criterion.add {"task":S…|new:…,"fields":{"text":string,"kind":"acceptance"}} adds an acceptance criterion; label.add {"task":…,"label":"L…"} adds an offered label; task.assign {"target":S… or "task":new:…,"assignees":["M…"]} assigns offered members.',
+      'Offered labels and members appear among the sources as type label (L…) and member (M…): name them only as choices, never cite them.',
+      'Optionally include "assumptions":[string]. If essential information is missing, return {"questions":[{"text":string}],"changes":[]} instead of guessing.',
+      ...def.instructions,
+    ].join(' ');
   }
 
   /**
@@ -2091,11 +2439,174 @@ export class AiGatewayService extends McpAccessService {
     );
   }
 
+  /** 7C: the registered action catalog (declared inputs, sources, outputs, and limitations). */
+  async listAiActions(caller: Caller, ws: unknown) {
+    return this.inWorkspace(caller, ws, { readOnly: true }, async () => ({
+      items: AI_ACTIONS.map(actionView),
+    }));
+  }
+
+  /**
+   * 7C: parses an action request. The action is chosen from the catalog; the instruction, brief,
+   * and clarification answers are bounded text composed by the server into the request (so free
+   * text cannot switch the action or add scope). Retrieval choices are the 7B ones.
+   */
+  #parseAssist(body: unknown, mode: 'estimate' | 'start') {
+    const b = (body && typeof body === 'object' ? body : {}) as Record<string, unknown>;
+    const issues = [];
+    const def = typeof b.action === 'string' ? ACTION_BY_ID.get(b.action) : undefined;
+    if (!def)
+      throw invalid(issue('/action', 'invalid_option', 'Choose an action from the catalog.'));
+    const text = (k: string, max: number) => {
+      const v = b[k];
+      if (v === undefined || v === null || v === '') return '';
+      if (typeof v !== 'string' || v.length > max || CONTROL_CHARS.test(v)) {
+        issues.push(issue(`/${k}`, 'invalid_value', `Use up to ${max} characters.`));
+        return '';
+      }
+      return v.trim();
+    };
+    const instruction = text('instruction', def.input.max);
+    const brief = text('brief', 4000);
+    const answers: Array<{ question: string; answer: string }> = [];
+    if (b.answers !== undefined) {
+      if (!Array.isArray(b.answers) || b.answers.length > 5)
+        issues.push(issue('/answers', 'invalid_value', 'Send at most 5 answers.'));
+      else
+        b.answers.forEach((a, i) => {
+          const o = (a && typeof a === 'object' ? a : {}) as Record<string, unknown>;
+          const q = typeof o.question === 'string' ? o.question.trim() : '';
+          const ans = typeof o.answer === 'string' ? o.answer.trim() : '';
+          if (
+            Object.keys(o).some((k) => k !== 'question' && k !== 'answer') ||
+            !q ||
+            !ans ||
+            q.length > 300 ||
+            ans.length > 500 ||
+            CONTROL_CHARS.test(q + ans)
+          )
+            issues.push(
+              issue(`/answers/${i}`, 'invalid_value', 'Each answer needs its question and text.'),
+            );
+          else answers.push({ question: q, answer: ans });
+        });
+    }
+    if (def.input.required && !instruction)
+      issues.push(issue('/instruction', 'input_required', `${def.input.label} is required.`));
+    if (
+      mode === 'start' &&
+      (typeof b.input_digest !== 'string' || !/^[0-9a-f]{64}$/.test(b.input_digest))
+    )
+      issues.push(issue('/input_digest', 'required', 'Estimate the request first, then start it.'));
+    const rest: Record<string, unknown> = {};
+    for (const [k, v] of Object.entries(b))
+      if (!['action', 'instruction', 'brief', 'answers', 'input_digest'].includes(k)) rest[k] = v;
+    const request = [
+      `Action: ${def.label}`,
+      ...(instruction ? [`Request: ${instruction}`] : []),
+      ...(brief ? ['Brief:', brief] : []),
+      ...(answers.length
+        ? ['Answers to earlier questions:', ...answers.map((a) => `- ${a.question}: ${a.answer}`)]
+        : []),
+    ].join('\n');
+    let retrieval;
+    try {
+      retrieval = this.#parseRetrieval({ ...rest, question: request }, 'answer');
+      // The action decides whether choices are offered; the preview must have offered the same.
+      retrieval.retrieval.offerChoices = !!def.choices;
+    } catch (err) {
+      if (err instanceof TenancyError) issues.push(...err.issues);
+      else throw err;
+    }
+    if (issues.length) throw invalid(...issues);
+    return {
+      def,
+      retrieval: retrieval!,
+      inputDigest: mode === 'start' ? (b.input_digest as string) : null,
+    };
+  }
+
+  /** 7C: an action's estimate: every gate, the manifest re-check, and the input digest to confirm. */
+  async estimateAiAssist(caller: Caller, ws: unknown, body: unknown) {
+    const input = this.#parseAssist(body, 'estimate');
+    return this.inWorkspace(caller, ws, { readOnly: true }, async (tx, p) => {
+      if (input.def.kind === 'proposal') this.#requireApplier(caller, p);
+      const prep = await this.#prepare(
+        tx,
+        p,
+        {
+          prompt: input.retrieval.question,
+          brand: null,
+          refs: [],
+          maxOutput: Math.min(input.retrieval.maxOutput, input.def.maxOutputTokens),
+          answer: {
+            retrieval: input.retrieval.retrieval,
+            digest: input.retrieval.digest,
+            pinned: null,
+            action: input.def,
+          },
+        },
+        !!caller.delegation,
+      );
+      const policy = await this.#policy(tx);
+      return {
+        ...(await this.#estimateView(tx, prep, policy?.confirmAbove ?? 0n)),
+        action: actionView(input.def),
+        input_digest: prep.inputDigest,
+        manifest: this.#manifestView(prep.manifest!),
+      };
+    });
+  }
+
+  /**
+   * 7C: starts an action through the one gateway. Analysis actions are read-only; drafting actions
+   * produce a 7D proposal and need a person (no delegated caller). The input digest must match the
+   * estimate the person confirmed.
+   */
+  async startAiAssist(caller: Caller, ws: unknown, body: unknown, req: Mutation) {
+    const input = this.#parseAssist(body, 'start');
+    return this.mutate(
+      caller,
+      'ai.assist.start',
+      ws,
+      req,
+      async (tx, p) => {
+        if (input.def.kind === 'proposal') this.#requireApplier(caller, p);
+        return this.#createRun(
+          tx,
+          caller,
+          p,
+          {
+            prompt: input.retrieval.question,
+            brand: null,
+            refs: [],
+            maxOutput: Math.min(input.retrieval.maxOutput, input.def.maxOutputTokens),
+            confirm: input.retrieval.confirm,
+            answer: {
+              retrieval: input.retrieval.retrieval,
+              digest: input.retrieval.digest,
+              pinned: null,
+              action: input.def,
+              inputDigest: input.inputDigest,
+            },
+          },
+          null,
+        );
+      },
+      async (tx, p, ref) => this.#renderRun(tx, caller, p, ref.id),
+    );
+  }
+
   /** A grounded run's recorded manifest, as the answer spec the worker and renderer re-check. */
   async #recordedAnswer(
     tx: WorkspaceTransaction,
     opId: string,
-    action: { retrieval_scope: unknown; manifest_digest: string | null; purpose?: string },
+    action: {
+      retrieval_scope: unknown;
+      manifest_digest: string | null;
+      purpose?: string;
+      action_key?: string | null;
+    },
   ): Promise<AnswerSpec> {
     const scope = (action.retrieval_scope ?? {}) as {
       brands?: string[];
@@ -2123,8 +2634,10 @@ export class AiGatewayService extends McpAccessService {
       versionLabel: r.source_version,
       fields: r.fields,
     }));
+    const def = action.action_key ? (ACTION_BY_ID.get(action.action_key) ?? null) : null;
     return {
       purpose: action.purpose === 'change_proposal' ? 'change_proposal' : 'grounded_answer',
+      action: def,
       retrieval: {
         scope: {
           brands: scope.brands ?? [],
@@ -2358,6 +2871,59 @@ export class AiGatewayService extends McpAccessService {
     };
   }
 
+  /** 7C: an analysis result with each cited handle resolved through current authorization. */
+  #analysisView(
+    eligible: ReadonlyArray<{ ref: UsedRef; record: SourceRecord; changed: boolean }>,
+    a: AnalysisResult,
+  ) {
+    const sources = new Map(
+      eligible
+        .filter((e) => e.ref.handle)
+        .map((e) => [
+          e.ref.handle!,
+          {
+            type: e.record.kind,
+            id: e.record.publicId,
+            title: e.record.title,
+            link: e.record.link,
+            changed: e.changed,
+          },
+        ]),
+    );
+    const cite = (handle: string) => {
+      const s = sources.get(handle);
+      return s ? { handle, ...s } : null;
+    };
+    const incomplete = a.reason === 'truncated_response' || a.reason === 'partial_response';
+    return {
+      action: a.action,
+      status: a.status,
+      reason: a.reason,
+      note: incomplete
+        ? 'The result stopped before it was complete, so it is not shown as an analysis. Rule findings, facts, and calculations below come from the records.'
+        : a.status === 'rejected'
+          ? 'The result did not follow the action contract, so it is not shown. Rule findings below come from the records.'
+          : a.status === 'withheld'
+            ? 'A source changed or became unavailable before the result was published, so it is not shown. Run the action again.'
+            : a.status === 'needs_input'
+              ? 'More information is needed. Answer the questions to run the action again.'
+              : a.status === 'downgraded'
+                ? 'Some items or citations did not match the sources and were removed.'
+                : null,
+      items: a.items.map((i) => ({ ...i, sources: i.sources.map(cite) })),
+      draft: a.draft,
+      questions: a.questions,
+      assumptions: a.assumptions,
+      facts: a.facts.map((f) => ({ ...f, source: cite(f.handle) })),
+      calculations: a.calculations,
+      dropped_citations: a.dropped_citations,
+      dropped_items: a.dropped_items,
+      limitations: a.limitations,
+      trust_note:
+        'Rule findings, facts, and calculations come from the records. Every generated item is a suggestion or candidate interpretation, not a fact, decision, or evidence of completion, even when it cites a source.',
+    };
+  }
+
   /** Everything that must hold before estimating or dispatching, for the given principal now. */
   async #prepare(
     tx: WorkspaceTransaction,
@@ -2551,12 +3117,15 @@ export class AiGatewayService extends McpAccessService {
         provider: model.provider,
         model_id: model.modelId,
         registry_version: AI_REGISTRY_VERSION,
-        prompt_template_version:
-          prep.purpose === 'grounded_answer'
+        prompt_template_version: prep.action
+          ? actionId(prep.action)
+          : prep.purpose === 'grounded_answer'
             ? GROUNDED_TEMPLATE_VERSION
             : prep.purpose === 'change_proposal'
               ? PROPOSAL_VERSION
               : PROMPT_TEMPLATE_VERSION,
+        action_key: prep.action ? actionId(prep.action) : null,
+        input_digest: prep.action ? (prep.inputDigest ?? null) : null,
         price_snapshot: JSON.stringify(priceSnapshot(model)),
         privacy_snapshot: JSON.stringify(
           privacySnapshot(model, prep.decision.approved, policy?.maxDataClass ?? 'C2'),
@@ -2587,7 +3156,8 @@ export class AiGatewayService extends McpAccessService {
         manifest_digest: prep.manifest ? prep.manifest.digest : null,
       })
       .execute();
-    if (prep.manifest)
+    // A brief-only drafting request (7C) may have no sources at all.
+    if (prep.manifest && prep.manifest.entries.length)
       await tx.db
         .insertInto('ai.ai_context_ref')
         .values(
@@ -2987,17 +3557,39 @@ export class AiGatewayService extends McpAccessService {
                   reason: string | null;
                   proposal: string | null;
                   issues: unknown[];
+                  questions?: unknown[];
+                  assumptions?: unknown[];
                 };
                 return {
                   status: g.status,
                   reason: g.reason,
                   id: g.proposal,
                   issues: g.issues ?? [],
+                  // 7C: missing essentials are asked for, never invented.
+                  questions: g.questions ?? [],
+                  assumptions: g.assumptions ?? [],
                 };
               })()
             : null,
+        // 7C: an analysis action's validated, typed result; citations resolve through current
+        // authorization like an answer's.
+        analysis:
+          present && action.purpose === 'analysis' && last && last.grounding
+            ? {
+                completeness: last.completeness,
+                ...this.#analysisView(
+                  eligibility.eligible ? eligibility.sources : [],
+                  last.grounding as unknown as AnalysisResult,
+                ),
+              }
+            : null,
         answer:
-          present && grounded && action.purpose !== 'change_proposal' && last && last.grounding
+          present &&
+          grounded &&
+          action.purpose !== 'change_proposal' &&
+          action.purpose !== 'analysis' &&
+          last &&
+          last.grounding
             ? {
                 completeness: last.completeness,
                 ...this.#answerView(
@@ -3143,6 +3735,7 @@ export class AiGatewayService extends McpAccessService {
       type: 'ai_run' as const,
       version: Number(op.version),
       purpose: action.purpose,
+      action: action.action_key,
       state,
       status: this.#statusLabel(
         state,
@@ -3852,6 +4445,7 @@ export class AiGatewayService extends McpAccessService {
           'purpose',
           'initiating_membership_id',
           'retrieval_scope',
+          'action_key',
         ])
         .where('operation_id', '=', opId)
         .executeTakeFirstOrThrow();
@@ -3961,6 +4555,29 @@ export class AiGatewayService extends McpAccessService {
                         : 'partial',
                     request.manifest,
                   );
+        } else if (request.manifest && action.purpose === 'analysis') {
+          // 7C: an analysis is validated against the manifest it was given, after the same
+          // re-check of every source; record facts and rule findings come from the server.
+          const def = ACTION_BY_ID.get(action.action_key ?? '');
+          if (!def) throw new JobError('deterministic', 'ai_action_unknown');
+          const check = await this.#publicationCheck(tx, opId);
+          grounding = (check === 'ok'
+            ? validateAnalysis({
+                def,
+                text,
+                completeness:
+                  decided.completeness === 'complete'
+                    ? 'complete'
+                    : decided.completeness === 'truncated'
+                      ? 'truncated'
+                      : 'partial',
+                entries: request.manifest.entries,
+                today: await this.workspaceToday(tx),
+              })
+            : withheldAnalysis(def, check)) as unknown as Record<string, unknown>;
+          this.d.metrics.count('ai.analyses', 1, {
+            status: (grounding as unknown as AnalysisResult).status,
+          });
         } else if (request.manifest) {
           const check = await this.#publicationCheck(tx, opId);
           grounding =
@@ -4353,7 +4970,11 @@ export class AiGatewayService extends McpAccessService {
   async #createProposal(
     tx: WorkspaceTransaction,
     opId: string,
-    action: { initiating_membership_id: string; retrieval_scope: unknown },
+    action: {
+      initiating_membership_id: string;
+      retrieval_scope: unknown;
+      action_key?: string | null;
+    },
     text: string,
     completeness: 'complete' | 'truncated' | 'partial',
     manifest: Manifest,
@@ -4369,19 +4990,45 @@ export class AiGatewayService extends McpAccessService {
         status: 'rejected',
         reason: completeness === 'truncated' ? 'truncated_response' : 'partial_response',
       };
+    // Choices (labels and members) are offered entries with their own handles, not sources.
+    const offered = manifest.entries.filter((e) => e.included && e.handle && isChoiceKind(e.kind));
+    const choices: ProposalChoices = {
+      labels: offered
+        .filter((e) => e.kind === 'label')
+        .map((e) => ({ handle: e.handle!, publicId: e.publicId })),
+      members: offered
+        .filter((e) => e.kind === 'member')
+        .map((e) => ({ handle: e.handle!, publicId: e.publicId })),
+    };
     const handles = manifest.entries
-      .filter((e) => e.included && e.handle)
+      .filter((e) => e.included && e.handle && !isChoiceKind(e.kind))
       .map((e) => ({
         handle: e.handle!,
-        kind: e.kind,
+        kind: e.kind as HandleTarget['kind'],
         publicId: e.publicId,
         recordId: e.recordId,
         version: e.version,
       }));
+    const def = action.action_key ? ACTION_BY_ID.get(action.action_key) : undefined;
     const parsed = parseProposal(text, handles, {
       changesMax: this.#ai.config.proposals.changesMax,
       scopeBrands: manifest.scope.brands.length,
+      // 7C: a drafting action proposes only its own operations and offered choices.
+      ...(def?.ops ? { ops: def.ops } : {}),
+      choices,
     });
+    if (parsed.ok === 'questions') {
+      // Missing essentials: questions (and assumptions) instead of a proposal; nothing is stored
+      // as a proposal and nothing is applied. New answers start a new, re-estimated request.
+      this.d.metrics.count('ai.proposals', 1, { outcome: 'needs_input' });
+      return {
+        ...base,
+        status: 'needs_input',
+        reason: null,
+        questions: parsed.questions,
+        assumptions: parsed.assumptions,
+      };
+    }
     if (!parsed.ok) {
       this.d.metrics.count('ai.proposals', 1, { outcome: 'rejected' });
       return {
@@ -4415,6 +5062,9 @@ export class AiGatewayService extends McpAccessService {
         fingerprint,
         title: parsed.proposal.title
           ? redactCredentials(parsed.proposal.title).text.slice(0, 300)
+          : null,
+        assumptions: parsed.proposal.assumptions.length
+          ? parsed.proposal.assumptions.map((a) => redactCredentials(a).text.slice(0, 500))
           : null,
       })
       .execute();
@@ -4633,20 +5283,10 @@ export class AiGatewayService extends McpAccessService {
       let target: Record<string, unknown> | null = null;
       let before: Record<string, string | null> = {};
       if (c.target_public_id) {
-        const cur = await this.#currentValues(
-          tx,
-          p,
-          c.op === 'task.update' ? 'task' : c.op === 'project.update' ? 'project' : 'document',
-          c.target_public_id,
-        );
+        const cur = await this.#currentValues(tx, p, targetKindOf(c.op), c.target_public_id);
         target = cur
           ? {
-              type:
-                c.op === 'task.update'
-                  ? 'task'
-                  : c.op === 'project.update'
-                    ? 'project'
-                    : 'document',
+              type: targetKindOf(c.op),
               id: c.target_public_id,
               title: cur.title,
               version: cur.version,
@@ -4677,6 +5317,13 @@ export class AiGatewayService extends McpAccessService {
               from: await refView(payload.relation.from),
               to: await refView(payload.relation.to),
             }
+          : null,
+        // 7C: the task a label, criterion, or assignment applies to, and the chosen label and
+        // members, resolved through current lookups (a removed choice shows as unavailable).
+        task: await refView(payload.task),
+        label: payload.label ? await this.#labelView(tx, payload.label) : null,
+        assignees: payload.assignees
+          ? await Promise.all(payload.assignees.map((m) => this.#memberView(tx, m)))
           : null,
         fields: Object.entries(payload.fields).map(([field, after]) => ({
           field,
@@ -4712,6 +5359,7 @@ export class AiGatewayService extends McpAccessService {
       ...base,
       content: { state: 'present' as const, note: null },
       title: proposal.title,
+      assumptions: proposal.assumptions ?? [],
       fingerprint,
       trust_note:
         'This proposal is AI-generated. Its changes are suggestions, not facts or evidence of completion; nothing changes until you apply it.',
@@ -4747,6 +5395,29 @@ export class AiGatewayService extends McpAccessService {
           rendered.some((c) => c.target && 'out_of_date' in c.target && c.target.out_of_date),
       },
     };
+  }
+
+  async #labelView(tx: WorkspaceTransaction, publicId: string) {
+    const l = await tx.db
+      .selectFrom('work.label')
+      .select(['public_id', 'name', 'state'])
+      .where('public_id', '=', publicId)
+      .executeTakeFirst();
+    return l && l.state === 'active'
+      ? { id: l.public_id, name: l.name }
+      : { available: false as const };
+  }
+
+  async #memberView(tx: WorkspaceTransaction, publicId: string) {
+    const m = await tx.db
+      .selectFrom('tenancy.membership as m')
+      .innerJoin('identity.account as a', 'a.id', 'm.account_id')
+      .select(['m.public_id', 'm.state', 'm.kind', 'm.display_name_override', 'a.display_name'])
+      .where('m.public_id', '=', publicId)
+      .executeTakeFirst();
+    return m && m.state === 'active' && m.kind === 'member'
+      ? { id: m.public_id, name: m.display_name_override ?? m.display_name }
+      : { available: false as const };
   }
 
   async #resultView(tx: WorkspaceTransaction, p: Principal, publicId: string) {
@@ -4849,6 +5520,70 @@ export class AiGatewayService extends McpAccessService {
   }
 
   /**
+   * Locks the domain row a canonical writer locks (`work.task`, `work.project`, or
+   * `knowledge.document`) and returns its version; the lock is held until the transaction or its
+   * savepoint ends.
+   */
+  async #lockedVersion(
+    tx: WorkspaceTransaction,
+    kind: 'task' | 'project' | 'document',
+    publicId: string,
+  ): Promise<number | null> {
+    const table =
+      kind === 'task' ? 'work.task' : kind === 'project' ? 'work.project' : 'knowledge.document';
+    const col = kind === 'document' ? 'current_version_number' : 'version';
+    const res = await sql<{ v: string | number }>`
+      SELECT x.${sql.ref(col)} AS v
+        FROM core.record r
+        JOIN ${sql.table(table)} x ON x.workspace_id = r.workspace_id AND x.id = r.id
+       WHERE r.public_id = ${publicId}
+         FOR UPDATE OF x`.execute(tx.db);
+    return res.rows[0] ? Number(res.rows[0].v) : null;
+  }
+
+  /**
+   * Before a change runs (7C review 01 R2): each existing record it will change is locked as its
+   * canonical writer locks it, then compared with the version this Apply produced (if an earlier
+   * change already changed it) or the version the proposal expects for it. Only records this Apply
+   * checked under that lock are trusted later; a merely referenced record never is.
+   */
+  async #guardBefore(
+    tx: WorkspaceTransaction,
+    c: { op: string; target_public_id: string | null; payload: unknown },
+    selected: ReadonlyArray<{
+      target_public_id: string | null;
+      expected_version: number | string | null;
+    }>,
+    guard: Map<string, number>,
+  ) {
+    for (const x of mutatedBy(c)) {
+      const now = await this.#lockedVersion(tx, x.kind, x.publicId);
+      if (now === null) throw new TenancyError('not_found');
+      const ours = guard.get(x.publicId);
+      const bound = selected.find(
+        (s) => s.target_public_id === x.publicId && s.expected_version !== null,
+      );
+      const want = ours ?? (bound ? Number(bound.expected_version) : null);
+      if (want !== null && now !== want)
+        throw new TenancyError('conflict', {
+          issues: [issue('/', 'target_changed', FAILURE_MESSAGES.target_changed!)],
+        });
+    }
+  }
+
+  /** After a change: records the versions this Apply produced for the records it changed. */
+  async #guardAfter(
+    tx: WorkspaceTransaction,
+    c: { op: string; target_public_id: string | null; payload: unknown },
+    guard: Map<string, number>,
+  ) {
+    for (const x of mutatedBy(c)) {
+      const now = await this.#lockedVersion(tx, x.kind, x.publicId);
+      if (now !== null) guard.set(x.publicId, now);
+    }
+  }
+
+  /**
    * Runs one change through its canonical domain command (a typed adapter per operation; no direct
    * domain writes, no second validator). Returns the record the change created or touched.
    */
@@ -4866,6 +5601,7 @@ export class AiGatewayService extends McpAccessService {
       payload: unknown;
     },
     ids: Map<string, { publicId: string; recordId: string }>,
+    guard: Map<string, number>,
     req: Mutation,
   ): Promise<{ publicId: string; recordId: string }> {
     const payload = c.payload as ProposalChange['payload'];
@@ -4880,6 +5616,9 @@ export class AiGatewayService extends McpAccessService {
     };
     const rich = (v: string | null | undefined) =>
       v === undefined ? undefined : v === null ? null : richTextFromPlain(v);
+    // A record an earlier change of this same Apply already changed carries a newer version;
+    // its version was checked by that first change under the same transaction lock.
+    const fresh = (publicId: string) => !guard.has(publicId);
     const changed = () =>
       new TenancyError('conflict', {
         issues: [issue('/', 'target_changed', FAILURE_MESSAGES.target_changed!)],
@@ -4898,6 +5637,10 @@ export class AiGatewayService extends McpAccessService {
             ...(f.priority !== undefined ? { priority: f.priority } : {}),
             ...(f.start_date !== undefined ? { start_date: f.start_date } : {}),
             ...(f.due_date !== undefined ? { due_date: f.due_date } : {}),
+            // 7C: a suggested estimate in whole minutes, bounded by the canonical estimate rule.
+            ...(f.estimate_minutes !== undefined && f.estimate_minutes !== null
+              ? { estimate_minutes: Number(f.estimate_minutes) }
+              : {}),
           },
           this.ws.taskEstimateMinutesMax,
         );
@@ -4923,7 +5666,8 @@ export class AiGatewayService extends McpAccessService {
       }
       case 'task.update': {
         const t = await this.editableTask(tx, p, c.target_public_id!);
-        if (expected !== null && Number(t.row.version) !== expected) throw changed();
+        if (expected !== null && fresh(t.publicId) && Number(t.row.version) !== expected)
+          throw changed();
         const current = this.currentFields(t.row, tx);
         const version = Number(t.row.version);
         const merge = parseMerge(
@@ -4932,7 +5676,15 @@ export class AiGatewayService extends McpAccessService {
             changes: Object.fromEntries(
               Object.entries(f).map(([k, v]) => [
                 k,
-                { base: current[k] ?? null, value: k === 'description' ? rich(v) : v },
+                {
+                  base: current[k] ?? null,
+                  value:
+                    k === 'description'
+                      ? rich(v)
+                      : k === 'estimate_minutes' && v !== null
+                        ? Number(v)
+                        : v,
+                },
               ]),
             ),
           },
@@ -4961,7 +5713,8 @@ export class AiGatewayService extends McpAccessService {
       }
       case 'project.update': {
         const pr = await this.loadProject(tx, p, c.target_public_id!, { lock: true });
-        if (expected !== null && Number(pr.row.version) !== expected) throw changed();
+        if (expected !== null && fresh(pr.publicId) && Number(pr.row.version) !== expected)
+          throw changed();
         const r = pr.row;
         const current: Record<string, unknown> = {
           name: r.name,
@@ -5005,7 +5758,8 @@ export class AiGatewayService extends McpAccessService {
       }
       case 'document.replace': {
         const d = await this.loadDocument(tx, p, c.target_public_id!);
-        if (expected !== null && d.row.current_version_number !== expected) throw changed();
+        if (expected !== null && fresh(d.publicId) && d.row.current_version_number !== expected)
+          throw changed();
         const blocks = (f.text ?? '')
           .split(/\n\s*\n/)
           .map((t) => t.trim())
@@ -5022,6 +5776,42 @@ export class AiGatewayService extends McpAccessService {
         const saved = await this.saveContentIn(tx, caller, p, d.publicId, input);
         return { publicId: saved.publicId, recordId: saved.id };
       }
+    }
+    // 7C adapters: each runs the canonical transaction-scoped command and its own rules.
+    if (c.op === 'task.assign') {
+      // Assignment needs ownership of the task (shares do not assign) and active members.
+      const tsk = c.target_public_id ?? ref(payload.task)!;
+      const t = await this.ownedTask(tx, p, tsk);
+      if (
+        c.target_public_id &&
+        expected !== null &&
+        fresh(t.publicId) &&
+        Number(t.row.version) !== expected
+      )
+        throw changed();
+      await this.setAssigneesIn(
+        tx,
+        caller,
+        p,
+        t,
+        { assignees: payload.assignees ?? [], primary: payload.assignees?.[0] ?? null },
+        Number(t.row.version),
+      );
+      return { publicId: t.publicId, recordId: t.id };
+    }
+    if (c.op === 'label.add') {
+      // An existing, active label of the task's brand; no label is ever created here.
+      const t = await this.loadTask(tx, p, ref(payload.task)!);
+      await this.toggleLabel(tx, caller, p, t, payload.label!, 'add');
+      return { publicId: t.publicId, recordId: t.id };
+    }
+    if (c.op === 'criterion.add') {
+      const input = parseTaskCriterion(
+        { text: f.text, ...(f.kind ? { kind: f.kind } : {}) },
+        false,
+      );
+      const { t } = await this.addCriterionIn(tx, caller, p, ref(payload.task)!, input);
+      return { publicId: t.publicId, recordId: t.id };
     }
     throw invalid(issue('/op', 'invalid_option', 'This change type is not supported.'));
   }
@@ -5062,6 +5852,7 @@ export class AiGatewayService extends McpAccessService {
     if (!order.ok) return results;
     const byKey = new Map(selected.map((c) => [c.change_key, c]));
     const ids = new Map<string, { publicId: string; recordId: string }>();
+    const guard = new Map<string, number>();
     await sql`SAVEPOINT proposal_dry_run`.execute(tx.db);
     try {
       for (const key of order.order) {
@@ -5075,13 +5866,19 @@ export class AiGatewayService extends McpAccessService {
           continue;
         }
         await sql`SAVEPOINT proposal_change`.execute(tx.db);
+        // A change rolled back to its savepoint leaves no trusted state behind.
+        const saved = new Map(guard);
         try {
-          const made = await this.#applyChange(tx, caller, p, proposal, action, c, ids, req);
+          await this.#guardBefore(tx, c, selected, guard);
+          const made = await this.#applyChange(tx, caller, p, proposal, action, c, ids, guard, req);
+          await this.#guardAfter(tx, c, guard);
           if (c.temp_ref) ids.set(c.temp_ref, made);
           await sql`RELEASE SAVEPOINT proposal_change`.execute(tx.db);
           results.set(key, { state: 'valid', code: null, message: null });
         } catch (err) {
           await sql`ROLLBACK TO SAVEPOINT proposal_change`.execute(tx.db);
+          guard.clear();
+          for (const [k, v] of saved) guard.set(k, v);
           const failure = this.#changeFailure(err);
           results.set(key, { state: 'invalid', ...failure });
         }
@@ -5594,8 +6391,7 @@ export class AiGatewayService extends McpAccessService {
             .execute();
         const stale: Array<{ id: string; key: string; version: number }> = [];
         for (const c of targeted) {
-          const kind =
-            c.op === 'task.update' ? 'task' : c.op === 'project.update' ? 'project' : 'document';
+          const kind = targetKindOf(c.op);
           const cur = await this.#currentValues(tx, p, kind, c.target_public_id!);
           if (!cur)
             throw refuse(
@@ -5824,6 +6620,7 @@ export class AiGatewayService extends McpAccessService {
         });
         const byKey = new Map(selected.map((c) => [c.change_key, c]));
         const ids = new Map<string, { publicId: string; recordId: string }>();
+        const guard = new Map<string, number>();
         const made = new Map<string, { publicId: string; recordId: string }>();
         const ran: string[] = [];
         let failed: { key: string; code: string; message: string } | null = null;
@@ -5831,7 +6628,19 @@ export class AiGatewayService extends McpAccessService {
         for (const key of order.order) {
           const c = byKey.get(key)!;
           try {
-            const r = await this.#applyChange(tx, applyCaller, p, proposal, action, c, ids, req);
+            await this.#guardBefore(tx, c, selected, guard);
+            const r = await this.#applyChange(
+              tx,
+              applyCaller,
+              p,
+              proposal,
+              action,
+              c,
+              ids,
+              guard,
+              req,
+            );
+            await this.#guardAfter(tx, c, guard);
             if (c.temp_ref) ids.set(c.temp_ref, r);
             made.set(key, r);
             ran.push(key);

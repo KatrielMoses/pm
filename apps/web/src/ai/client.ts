@@ -116,7 +116,9 @@ export interface AiRun {
   id: string;
   type: 'ai_run';
   version: number;
-  purpose?: 'test_run' | 'grounded_answer' | 'change_proposal';
+  purpose?: 'test_run' | 'grounded_answer' | 'change_proposal' | 'analysis';
+  /** 7C: the registered action a run performed. */
+  action?: string | null;
   state: string;
   status: string;
   terminal_reason: string | null;
@@ -144,11 +146,15 @@ export interface AiRun {
     answer?: AiAnswer | null;
     /** 7D: the outcome of a change-proposal run (the proposal is reviewed on its own page). */
     proposal?: {
-      status: 'proposed' | 'rejected' | 'withheld';
+      status: 'proposed' | 'rejected' | 'withheld' | 'needs_input';
       reason: string | null;
       id: string | null;
       issues: Array<{ change: string | null; code: string; message: string }>;
+      questions?: Array<{ id: string; text: string }>;
+      assumptions?: string[];
     } | null;
+    /** 7C: an analysis action's validated, typed result. */
+    analysis?: AiAnalysis | null;
   };
   context?: Array<{
     id: string | null;
@@ -157,6 +163,60 @@ export interface AiRun {
     exclusion_reason: string | null;
     available: boolean;
   }>;
+}
+
+/** 7C: one registered AI action, as declared by the server catalog. */
+export interface AiActionView {
+  id: string;
+  label: string;
+  kind: 'analysis' | 'proposal';
+  requirements: string[];
+  input: { label: string; required: boolean; max: number };
+  needs: 'brief_or_goal' | 'project_or_task' | 'task_or_document' | 'tasks' | null;
+  source_kinds: string[];
+  item_kinds: string[];
+  draft: boolean;
+  rules: string | null;
+  operations: string[];
+  choices: boolean;
+  max_output_tokens: number;
+  limitations: string[];
+}
+
+export interface AiAnalysisSource {
+  handle: string;
+  type: string;
+  id: string;
+  title: string;
+  link: { type: string; id: string; anchor: string | null };
+  changed: boolean;
+}
+
+export interface AiAnalysis {
+  completeness: string;
+  action: string;
+  status: 'checked' | 'downgraded' | 'rejected' | 'needs_input' | 'withheld';
+  reason: string | null;
+  note: string | null;
+  items: Array<{
+    kind: string;
+    basis: 'generated' | 'rule';
+    text: string;
+    reasoning: string | null;
+    rule: string | null;
+    sources: Array<AiAnalysisSource | null>;
+    excerpt: string | null;
+    issues: string[];
+  }>;
+  draft: string | null;
+  questions: Array<{ id: string; text: string }>;
+  assumptions: string[];
+  facts: Array<{ handle: string; label: string; value: string; source: AiAnalysisSource | null }>;
+  calculations: Array<{ key: string; label: string; value: string; basis: string }>;
+  dropped_citations: number;
+  dropped_items: number;
+  limitations: string[];
+  trust_note: string;
 }
 
 /** 7D: a reference in a proposed change (an existing record, or a record this proposal creates). */
@@ -302,7 +362,16 @@ export interface BrandAiProfile {
 /** 7B: one source in a context manifest (always resolved by the server through current access). */
 export interface AiManifestSource {
   handle: string | null;
-  type: 'task' | 'project' | 'document' | 'comment' | 'activity';
+  type:
+    | 'task'
+    | 'project'
+    | 'document'
+    | 'comment'
+    | 'activity'
+    | 'goal'
+    | 'meeting'
+    | 'label'
+    | 'member';
   id: string;
   title: string;
   link: { type: 'task' | 'project' | 'document'; id: string; anchor: string | null };
@@ -474,6 +543,24 @@ export const aiClient = {
   ask: async (ws: string, body: Record<string, unknown>, key: string) =>
     (
       await api<{ data: AiRun }>('POST', `${w(ws)}/ai/answers`, {
+        body,
+        headers: { 'idempotency-key': key },
+      })
+    ).body.data,
+  // 7C: the action catalog, an action estimate (with the input digest to confirm), and a run.
+  actions: async (ws: string) =>
+    (await api<{ data: { items: AiActionView[] } }>('GET', `${w(ws)}/ai/actions`)).body.data.items,
+  estimateAssist: async (ws: string, body: Record<string, unknown>) =>
+    (
+      await api<{ data: AiEstimate & { input_digest: string; manifest: AiManifest } }>(
+        'POST',
+        `${w(ws)}/ai/assist-estimates`,
+        { body },
+      )
+    ).body.data,
+  startAssist: async (ws: string, body: Record<string, unknown>, key: string) =>
+    (
+      await api<{ data: AiRun }>('POST', `${w(ws)}/ai/assist-runs`, {
         body,
         headers: { 'idempotency-key': key },
       })

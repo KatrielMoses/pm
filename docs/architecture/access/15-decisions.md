@@ -567,7 +567,7 @@ All decisions are **proposed (Phase 0C)**, pending solutions-architect acceptanc
   - **What a proposal may name.** Existing records only by the manifest's server-issued handles of the matching kind, so never anything outside the reviewed context. New records by proposal-local references to a create in the same proposal. Fields are allowlisted per operation. No delete, permission change, assignment, label, URL, or code.
   - **Approval binds exactly what applies.** The approver, revision, selection, content fingerprint, target versions, effective scope (scope references and the approver's permission epochs), and risk class are all bound. Approvals expire (24 hours by default, 1 to 168), are used once, are superseded by any edit, and are revoked by erasure. An approval is never an access grant and never replaces a workflow approval, lock, or step-up: a domain command that needs step-up still challenges at Apply.
   - **Re-checks at every stage.** Preview, edit, approve, apply, completed-key replay, history, export, and source display all use the 7B current-content decision (`currentEligibility` through `#contentEligibility`). If a source or the scope is no longer readable, or a used field is no longer allowed, the proposal is withheld whole and cannot be approved or applied. Each change is then authorized by its own command (destination creation rights, record edit rights, field rules).
-  - **Atomic Apply.** One transaction, dependency order, and a savepoint. Any failure rolls back every business change. The attempt is still recorded truthfully: failed, rolled back, and not attempted, with no domain or success event. The person stays the actor, the source is `ai_proposal`, and the generating AI action is the causation. New tasks keep origin `ai_draft`.
+  - **Atomic Apply.** One transaction, dependency order, and a savepoint. Since 7C corrective review 01, a record's expected version is compared only while its canonical domain row is locked, and only records this Apply changed under that lock are trusted for later changes (AZ-48). Any failure rolls back every business change. The attempt is still recorded truthfully: failed, rolled back, and not attempted, with no domain or success event. The person stays the actor, the source is `ai_proposal`, and the generating AI action is the causation. New tasks keep origin `ai_draft`.
 - **Alternatives:**
   - Best-effort per-change commits (partial database success presented as completion).
   - A client-supplied proposal endpoint (client JSON presented as model output).
@@ -577,3 +577,24 @@ All decisions are **proposed (Phase 0C)**, pending solutions-architect acceptanc
   - **Recovery after a changed target is an explicit review.** A target that changed after generation keeps failing validation and Apply until the person reviews its current value and asks to use it (rebase). The server compares the reviewed versions with the locked, re-read targets and binds them only when they are still current, as a new revision whose earlier approvals are superseded. Nothing advances a version implicitly. An unreadable or ineligible source stays withheld and cannot be rebased.
   - **New attempt, new key.** A deliberate new approval after a known result or expiry is a new request; only an attempt whose outcome is unknown is retried with its key.
 - **Consequences:** Threats T-103 to T-107 with tests AT-407 to AT-430. The action count stays 122.
+
+<a id="az-48"></a>
+### AZ-48: Typed AI actions, honest analysis, and drafts as proposals (Phase 7C)
+- **Decision:**
+  - **One action surface.** Ten registered, versioned actions. The person chooses the action; free text is composed by the server into the request, so it can never switch the action, widen the scope, or add a capability. Each action declares the source kinds it accepts. Analysis actions need `ai.execute` over the scope and may be run by delegated callers holding `ai:execute`. Drafting actions also need a session member who is not read-only, and end in a 7D proposal.
+  - **Sources.** These are the 7B adapters, plus two:
+    - Goals, through the goal loader and read decision (goals are never shared).
+    - The caller's own mirrored calendar events, readable only by the connection owner and limited to title and time; the mirror stores no attendees, location, or description.
+
+    Another member, an administrator, or an unknown id is refused identically. A meeting belongs to no brand, so a brand scope excludes it.
+  - **Honest analysis.** Every generated item must cite a readable handle; quotations count only when verbatim; links render as text; a completion claim about a task the records show open is flagged. Rule findings are computed by the server over the readable manifest only (overdue, identical titles, open without a due date, overdue first, due within 7 days) and name their rule. Hidden work is never counted or named.
+  - **Choices are server lookups.** Labels are the active labels of the context's one brand, and members are active workspace members, offered as handles. A model-supplied id or name is refused. Apply re-checks label brand and state, assignee state, and the task's update rights through the canonical commands.
+  - **Missing information.** Required context refuses before sending, with what to provide. The model may ask questions instead of answering; answers are a new input that needs a new estimate, and are never applied as edits.
+- **Alternatives:**
+  - Free-form instructions as the action selector.
+  - Letting a model name assignees by email.
+  - Scoring hidden work without naming it.
+- **Corrective review 01:**
+  - **Choices are typed outbound context (R1).** Labels and members offered to a drafting action are manifest entries with registered C1 fields, redacted like source text. They are listed in the preview, where the person can omit any of them, and covered by the manifest and input digests. They are re-resolved at dispatch and publication and re-checked on history, export, proposal rendering, and replay. A choice that becomes unavailable, or a policy that no longer allows C1, withholds the derived content whole. Under C0 none are sent. Readable is not AI-eligible; the accepted directory is unchanged.
+  - **Checked means locked (R2).** Apply and validation lock the domain row a canonical writer locks (`work.task`, `work.project`, `knowledge.document`) before comparing a record's expected version. They trust only records this transaction changed under that lock. A relationship's other end or a container that is only referenced is never treated as checked. A change rolled back to its savepoint restores the trusted state.
+- **Consequences:** Threats T-108 to T-113 with tests AT-431 to AT-454. The action count stays 122.

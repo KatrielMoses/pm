@@ -793,7 +793,11 @@ export function ProjectPage({
       }
       actions={
         loaded && loaded.lifecycle_state === 'active' ? (
-          <FavoriteToggle target={loaded.id} label={loaded.name} />
+          <>
+            <FavoriteToggle target={loaded.id} label={loaded.name} />{' '}
+            {/* 7C: AI assistance scoped to this project (preview works with AI off). */}
+            <Link to={`/workspaces/${ws}/ai/assist?project=${loaded.id}`}>AI assist</Link>
+          </>
         ) : null
       }
     >

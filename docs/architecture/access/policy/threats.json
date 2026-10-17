@@ -1137,6 +1137,67 @@
         "I-12",
         "I-18"
       ]
+    },
+    {
+      "id": "T-108",
+      "category": "agent_scope",
+      "description": "A typed AI action is steered beyond its declaration: free text switches the action, widens the scope, names unsupported sources, adds a capability or tool, or a model-supplied identifier, name, label, or member is treated as authority instead of a server-issued choice.",
+      "mitigated_by": [
+        "I-01",
+        "I-09",
+        "I-11",
+        "I-14"
+      ]
+    },
+    {
+      "id": "T-109",
+      "category": "inference",
+      "description": "Analysis output fabricates or leaks: an item cites a source outside the manifest, quotes text not in it, claims completion, results, or status the records contradict, or a rule finding counts or names hidden, foreign, or unknown work.",
+      "mitigated_by": [
+        "I-04",
+        "I-07",
+        "I-08",
+        "I-18"
+      ]
+    },
+    {
+      "id": "T-110",
+      "category": "spoofing",
+      "description": "A cost confirmation or clarification is reused for a different request: changed action, instruction, brief, answers, sources, choices, or bounds run on an earlier estimate, or an answered question is applied as a business edit.",
+      "mitigated_by": [
+        "I-09",
+        "I-15"
+      ]
+    },
+    {
+      "id": "T-111",
+      "category": "inference",
+      "description": "Personal calendar or goal context escapes its reader: another member, an administrator, or a broader connection reads a member's mirrored meeting, or a hidden goal's existence is revealed through refusals or drafts.",
+      "mitigated_by": [
+        "I-03",
+        "I-07",
+        "I-12"
+      ]
+    },
+    {
+      "id": "T-112",
+      "category": "field_leak",
+      "description": "Choices offered to a drafting action (label names, member display names) leave through a side path: unredacted, unclassified, unlisted for the person, outside the confirmed digest, or surviving in generated content after a choice becomes unavailable or the data-use policy narrows.",
+      "mitigated_by": [
+        "I-08",
+        "I-12",
+        "I-16",
+        "I-18"
+      ]
+    },
+    {
+      "id": "T-113",
+      "category": "staleness",
+      "description": "A proposal Apply trusts a record as version-checked without holding its row lock (a relationship's other end or a container it only referenced), so a concurrent change committed before the later update is overwritten under an old approval.",
+      "mitigated_by": [
+        "I-12",
+        "I-15"
+      ]
     }
   ],
   "tests": [
@@ -8738,6 +8799,399 @@
       "response_shape": "ok",
       "silent_surfaces": [
         "ui_record",
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-431",
+      "threats": [
+        "T-108"
+      ],
+      "principal": "member",
+      "setup": "The registered catalog with declared contracts; unknown actions and fields refused; an instruction asking for another action or more scope stays data",
+      "scope": "workspace",
+      "action": "ai.execute",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "validation_generic",
+      "silent_surfaces": [
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-432",
+      "threats": [
+        "T-109"
+      ],
+      "principal": "member",
+      "setup": "Summaries at workspace, brand, project, and task scope cite readable sources with verbatim excerpts; a sensitive-brand source refuses like an unknown one",
+      "scope": "workspace",
+      "action": "ai.execute",
+      "surface": "ai_answer",
+      "expected": "allow",
+      "response_shape": "ok_filtered",
+      "silent_surfaces": [
+        "ai_answer",
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-433",
+      "threats": [
+        "T-109"
+      ],
+      "principal": "member",
+      "setup": "Extraction returns candidate interpretations; fabricated citations, injected links, contradictory claims, malformed, unsupported, and truncated output are flagged or rejected with record facts kept",
+      "scope": "workspace",
+      "action": "ai.execute",
+      "surface": "ai_answer",
+      "expected": "allow",
+      "response_shape": "ok_filtered",
+      "silent_surfaces": [
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-434",
+      "threats": [
+        "T-109"
+      ],
+      "principal": "member",
+      "setup": "Work analysis and next-action rules name their rule and count only readable work; a hidden duplicate is never counted or named; generated findings carry reasoning",
+      "scope": "workspace",
+      "action": "ai.execute",
+      "surface": "ai_answer",
+      "expected": "allow",
+      "response_shape": "ok_filtered",
+      "silent_surfaces": [
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-435",
+      "threats": [
+        "T-109"
+      ],
+      "principal": "member",
+      "setup": "Status-update and release-note drafts are text only; contradictory claims are flagged; nothing is published",
+      "scope": "workspace",
+      "action": "ai.execute",
+      "surface": "ai_answer",
+      "expected": "allow",
+      "response_shape": "ok_filtered",
+      "silent_surfaces": [
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-436",
+      "threats": [
+        "T-110"
+      ],
+      "principal": "member",
+      "setup": "Missing context refuses before sending; model questions are shown as questions; answers are a new input whose digest differs; the old confirmation is refused",
+      "scope": "workspace",
+      "action": "ai.execute",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "conflict_filtered",
+      "silent_surfaces": [
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-437",
+      "threats": [
+        "T-110"
+      ],
+      "principal": "member",
+      "setup": "The input digest binds action, instruction, sources, and bounds; same-key replay never dispatches; cancellation and a restarted worker behave",
+      "scope": "workspace",
+      "action": "ai.execute",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "conflict_filtered",
+      "silent_surfaces": [
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-438",
+      "threats": [
+        "T-108"
+      ],
+      "principal": "member",
+      "setup": "PRJ-016: a brief becomes a typed plan with server-issued choices; a changed value and a dependency-complete subset are applied once into records with AI-draft provenance",
+      "scope": "workspace",
+      "action": "ai.apply_proposal",
+      "surface": "api",
+      "expected": "allow",
+      "response_shape": "ok",
+      "silent_surfaces": [
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-439",
+      "threats": [
+        "T-111"
+      ],
+      "principal": "member",
+      "setup": "A plan from a readable goal; a hidden goal refuses like an unknown one",
+      "scope": "workspace",
+      "action": "ai.execute",
+      "surface": "ai_context",
+      "expected": "deny",
+      "response_shape": "forbidden",
+      "silent_surfaces": [
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-440",
+      "threats": [
+        "T-108"
+      ],
+      "principal": "member",
+      "setup": "Task drafting, rewriting, and categorizing through the 7D adapters: canonical rules, choice resolution, an unavailable offered label withholds the proposal, live-edit block, stale-target rebase, unsupported operations refused",
+      "scope": "workspace",
+      "action": "ai.apply_proposal",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "validation_generic",
+      "silent_surfaces": [
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-441",
+      "threats": [
+        "T-111"
+      ],
+      "principal": "owner",
+      "setup": "Only the calendar owner reads a meeting, title and time only; other members are refused like an unknown event; a brand scope excludes it",
+      "scope": "workspace",
+      "action": "ai.execute",
+      "surface": "ai_context",
+      "expected": "deny",
+      "response_shape": "forbidden",
+      "silent_surfaces": [
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-442",
+      "threats": [
+        "T-108"
+      ],
+      "principal": "read_only",
+      "setup": "Read-only members and guests cannot run actions; delegated callers cannot draft; workspaces never mix; AI off still previews",
+      "scope": "workspace",
+      "action": "ai.execute",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "forbidden",
+      "silent_surfaces": [
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-443",
+      "threats": [
+        "T-109",
+        "T-111"
+      ],
+      "principal": "member",
+      "setup": "Revocation withholds an analysis; export carries it while eligible; logs, checkpoints, and metrics hold no content; erasure clears it and keeps applied records",
+      "scope": "workspace",
+      "action": "ai.execute",
+      "surface": "export",
+      "expected": "deny",
+      "response_shape": "omitted",
+      "silent_surfaces": [
+        "export",
+        "ai_answer",
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-444",
+      "threats": [
+        "T-110"
+      ],
+      "principal": "owner",
+      "setup": "A model without verified bounds and a paid run on a budgeted project are refused before anything is sent; preview stays usable",
+      "scope": "workspace",
+      "action": "ai.execute",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "forbidden",
+      "silent_surfaces": [
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-445",
+      "threats": [
+        "T-109"
+      ],
+      "principal": "member",
+      "setup": "0057 keeps forced RLS and its rollback refuses while 7C data exists",
+      "scope": "workspace",
+      "action": "ai.execute",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "omitted",
+      "silent_surfaces": [
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-446",
+      "threats": [
+        "T-108",
+        "T-110"
+      ],
+      "principal": "owner",
+      "setup": "HTTP: catalog, estimate with input digest, stale digest refused, analysis run; a bearer may analyze but never draft",
+      "scope": "workspace",
+      "action": "ai.execute",
+      "surface": "api",
+      "expected": "allow",
+      "response_shape": "ok",
+      "silent_surfaces": [
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-447",
+      "threats": [
+        "T-109"
+      ],
+      "principal": "owner",
+      "setup": "Browser journey on three devices: scoped entry from a task, extraction and summary with honest labels, offline recovery, keyboard, 320px, 200% zoom, forced colours, reduced motion",
+      "scope": "workspace",
+      "action": "ai.execute",
+      "surface": "ui_record",
+      "expected": "allow",
+      "response_shape": "ok",
+      "silent_surfaces": [
+        "ui_record",
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-448",
+      "threats": [
+        "T-108"
+      ],
+      "principal": "owner",
+      "setup": "Browser journey on three devices: a brief becomes a plan, a value is changed, and the plan is applied once into real records",
+      "scope": "workspace",
+      "action": "ai.apply_proposal",
+      "surface": "ui_record",
+      "expected": "allow",
+      "response_shape": "ok",
+      "silent_surfaces": [
+        "ui_record",
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-449",
+      "threats": [
+        "T-112"
+      ],
+      "principal": "member",
+      "setup": "Credential-shaped markers in a label name and a member display name reach the provider only redacted; the preview lists the offered choices; the confirmed digest is over exactly the redacted bytes; no raw copy in logs, checkpoints, or execution rows",
+      "scope": "workspace",
+      "action": "ai.execute",
+      "surface": "ai_context",
+      "expected": "allow",
+      "response_shape": "ok_filtered",
+      "silent_surfaces": [
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-450",
+      "threats": [
+        "T-112"
+      ],
+      "principal": "member",
+      "setup": "The person omits a member and a label; C0 offers none (registered class C1); a narrower policy after the run withholds the proposal, its history, export, and replay with no new dispatch",
+      "scope": "workspace",
+      "action": "ai.execute",
+      "surface": "ai_answer",
+      "expected": "deny",
+      "response_shape": "omitted",
+      "silent_surfaces": [
+        "ai_answer",
+        "export",
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-451",
+      "threats": [
+        "T-112"
+      ],
+      "principal": "member",
+      "setup": "A choice that becomes unavailable refuses the start (changed meaning), refuses at dispatch without sending, and withholds at publication",
+      "scope": "workspace",
+      "action": "ai.execute",
+      "surface": "ai_answer",
+      "expected": "deny",
+      "response_shape": "conflict_filtered",
+      "silent_surfaces": [
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-452",
+      "threats": [
+        "T-113"
+      ],
+      "principal": "member",
+      "setup": "Two connections: relate A to B then update B; a concurrent edit to B raced under its real row lock fails the whole Apply with a stale conflict, no success event, and a no-op replay",
+      "scope": "workspace",
+      "action": "ai.apply_proposal",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "conflict_filtered",
+      "silent_surfaces": [
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-453",
+      "threats": [
+        "T-113"
+      ],
+      "principal": "member",
+      "setup": "Two connections: a new subtask under B then update B; the raced Apply fails whole and creates nothing",
+      "scope": "workspace",
+      "action": "ai.apply_proposal",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "conflict_filtered",
+      "silent_surfaces": [
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-454",
+      "threats": [
+        "T-113"
+      ],
+      "principal": "member",
+      "setup": "Two valid changes to one record apply together; a change rolled back to its savepoint in validation leaves no trusted state",
+      "scope": "workspace",
+      "action": "ai.apply_proposal",
+      "surface": "api",
+      "expected": "allow",
+      "response_shape": "ok",
+      "silent_surfaces": [
         "error_message"
       ]
     }

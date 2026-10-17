@@ -119,6 +119,17 @@ export const AI_CONTEXT_FIELDS = {
 
 export type ContextType = keyof typeof AI_CONTEXT_FIELDS;
 
+/**
+ * 7C corrective review 01 R1: the registered classes of the display text a drafting action may be
+ * offered as choices. A label name is workspace taxonomy and a member's display name is personal
+ * data; both are C1, so neither is sent under a C0 policy. Readable is not the same as AI-eligible:
+ * these fields go through the manifest's redaction, data-class policy, and current eligibility.
+ */
+export const AI_CHOICE_FIELDS = {
+  label: { name: 'C1' },
+  member: { display_name: 'C1' },
+} as const satisfies Record<'label' | 'member', Record<string, 'C1' | 'C2'>>;
+
 const CLASS_RANK = { C0: 0, C1: 1, C2: 2 } as const;
 
 export function fieldAllowed(type: ContextType, field: string, maxDataClass: 'C0' | 'C1' | 'C2') {

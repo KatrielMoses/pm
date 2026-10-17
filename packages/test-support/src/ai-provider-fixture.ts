@@ -1,3 +1,4 @@
+import { actionFixtureReply } from './ai-action-fixture.ts';
 import { createHash, randomBytes } from 'node:crypto';
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http';
 import type { AddressInfo, Socket } from 'node:net';
@@ -49,7 +50,15 @@ export type FixtureScenario =
   | 'proposal_invalid' // an unknown operation, a handle outside the manifest, a forged record id
   | 'proposal_cycle' // two creates that depend on each other
   | 'proposal_unappliable' // well-formed, but one change names a status the workflow lacks
-  | 'proposal_updates'; // updates only: a project, a task, and a document (rebase coverage)
+  | 'proposal_updates' // updates only: a project, a task, and a document (rebase coverage)
+  // 7C review 01 R2: concurrency shapes over the first two task sources (A, B).
+  | 'proposal_relate_update' // relate A to B, then update B
+  | 'proposal_child_update' // a new subtask under B, then update B
+  | 'proposal_fail_then_valid' // an invalid change to A, then a valid one to A
+  | 'proposal_same_record' // update A, then relate A to B (two changes to A)
+  // Phase 7C typed actions (see ai-action-fixture.ts): boundary proofs, not live quality.
+  | 'ask' // asks clarifying questions instead of answering
+  | 'unsupported'; // an item kind or operation the action does not allow
 
 export interface ReceivedRequest {
   model: string;
@@ -116,6 +125,12 @@ const SCENARIOS: readonly FixtureScenario[] = [
   'proposal_cycle',
   'proposal_unappliable',
   'proposal_updates',
+  'proposal_relate_update',
+  'proposal_child_update',
+  'proposal_fail_then_valid',
+  'proposal_same_record',
+  'ask',
+  'unsupported',
 ];
 
 /**
@@ -154,6 +169,46 @@ export function proposalFixtureReply(user: string, scenario: FixtureScenario): s
       changes: [
         { id: 'c1', op: 'task.create', ref: 'a', parent: 'new:b', fields: { title: 'A' } },
         { id: 'c2', op: 'task.create', ref: 'b', parent: 'new:a', fields: { title: 'B' } },
+      ],
+    });
+  const tasks = sources.filter((s) => s.type === 'task');
+  const [ta, tb] = [tasks[0]?.source ?? 'S1', tasks[1]?.source ?? 'S2'];
+  if (scenario === 'proposal_relate_update')
+    return JSON.stringify({
+      title: 'Relate then update',
+      changes: [
+        { id: 'c1', op: 'relation.add', kind: 'related', from: ta, to: tb },
+        { id: 'c2', op: 'task.update', target: tb, fields: { priority: 'urgent' } },
+      ],
+    });
+  if (scenario === 'proposal_child_update')
+    return JSON.stringify({
+      title: 'Child then update',
+      changes: [
+        {
+          id: 'c1',
+          op: 'task.create',
+          ref: 'child',
+          parent: tb,
+          fields: { title: 'A new subtask' },
+        },
+        { id: 'c2', op: 'task.update', target: tb, fields: { priority: 'urgent' } },
+      ],
+    });
+  if (scenario === 'proposal_fail_then_valid')
+    return JSON.stringify({
+      title: 'Invalid then valid',
+      changes: [
+        { id: 'c1', op: 'task.update', target: ta, fields: { status: 'no_such_status' } },
+        { id: 'c2', op: 'task.update', target: ta, fields: { priority: 'low' } },
+      ],
+    });
+  if (scenario === 'proposal_same_record')
+    return JSON.stringify({
+      title: 'Two changes to one task',
+      changes: [
+        { id: 'c1', op: 'task.update', target: ta, fields: { priority: 'high' } },
+        { id: 'c2', op: 'relation.add', kind: 'related', from: ta, to: tb },
       ],
     });
   if (scenario === 'proposal_updates') {
@@ -522,13 +577,17 @@ export async function startAiProviderFixture(
     }
 
     const inputTokens = syntheticTokens(system) + syntheticTokens(user) + 8;
+    const action = actionFixtureReply(system, user, scenario);
     const proposal = system.includes('change_proposal.v1');
-    const grounded = proposal || system.includes('grounded_answer.v1');
-    const reply = proposal
-      ? proposalFixtureReply(user, scenario)
-      : grounded
-        ? groundedFixtureReply(user, scenario)
-        : `Synthetic fixture reply (no provider was called) to a ${user.length}-character prompt.`;
+    const grounded = action !== null || proposal || system.includes('grounded_answer.v1');
+    const reply =
+      action !== null
+        ? action
+        : proposal
+          ? proposalFixtureReply(user, scenario)
+          : grounded
+            ? groundedFixtureReply(user, scenario)
+            : `Synthetic fixture reply (no provider was called) to a ${user.length}-character prompt.`;
     const words = grounded
       ? (reply.match(/[\s\S]{1,24}/g) ?? [])
       : scenario === 'slow'

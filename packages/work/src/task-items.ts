@@ -488,39 +488,51 @@ export class TaskService extends TaskCoreService {
   async addTaskCriterion(caller: Caller, ws: unknown, tsk: unknown, body: unknown, req: Mutation) {
     const input = parseTaskCriterion(body, false);
     return this.taskItemCommand(caller, ws, tsk, req, 'criterion.add', async (tx, p) => {
-      const t = await this.editableTask(tx, p, tsk);
-      await this.itemCount(tx, 'criteria', t.id);
-      const publicId = newPublicId('cri');
-      const rank = await this.nextRank(
-        tx,
-        'work.criteria_item',
-        (q) => q.where('task_id', '=', t.id).where('kind', '=', input.kind!),
-        'last',
-      );
-      await tx.db
-        .insertInto('work.criteria_item')
-        .values({
-          id: newUuidV7(),
-          public_id: publicId,
-          workspace_id: tx.workspaceId,
-          brand_id: t.brand.id,
-          owner_kind: 'task',
-          project_id: null,
-          task_id: t.id,
-          kind: input.kind!,
-          text: input.text!,
-          rank,
-          required: input.required ?? true,
-        })
-        .execute();
-      await this.bumpTask(tx, t, p);
-      await this.taskAudit(tx, caller, p, 'criterion.added', t, [
-        change.plain('criterion', null, publicId),
-        change.plain('kind', null, input.kind!),
-        change.content('criterion_text', { hash: hashText(input.text!) }),
-      ]);
+      const { publicId, t } = await this.addCriterionIn(tx, caller, p, tsk, input);
       return { id: publicId, type: 'criteria_item', task: t.publicId };
     });
+  }
+
+  /** Adds a task criterion inside the caller's transaction (7C proposal adapters reuse it). */
+  protected async addCriterionIn(
+    tx: WorkspaceTransaction,
+    caller: Caller,
+    p: Principal,
+    tsk: unknown,
+    input: ReturnType<typeof parseTaskCriterion>,
+  ) {
+    const t = await this.editableTask(tx, p, tsk);
+    await this.itemCount(tx, 'criteria', t.id);
+    const publicId = newPublicId('cri');
+    const rank = await this.nextRank(
+      tx,
+      'work.criteria_item',
+      (q) => q.where('task_id', '=', t.id).where('kind', '=', input.kind!),
+      'last',
+    );
+    await tx.db
+      .insertInto('work.criteria_item')
+      .values({
+        id: newUuidV7(),
+        public_id: publicId,
+        workspace_id: tx.workspaceId,
+        brand_id: t.brand.id,
+        owner_kind: 'task',
+        project_id: null,
+        task_id: t.id,
+        kind: input.kind!,
+        text: input.text!,
+        rank,
+        required: input.required ?? true,
+      })
+      .execute();
+    await this.bumpTask(tx, t, p);
+    await this.taskAudit(tx, caller, p, 'criterion.added', t, [
+      change.plain('criterion', null, publicId),
+      change.plain('kind', null, input.kind!),
+      change.content('criterion_text', { hash: hashText(input.text!) }),
+    ]);
+    return { publicId, t };
   }
 
   async updateTaskCriterion(
