@@ -129,6 +129,7 @@ describe('7A dispatch policy', () => {
     warningThresholdsBp: [8000, 10_000],
     historyRetentionDays: null,
     stream: { outputMaxChars: 40_000, eventMaxBytes: 65_536, maxBytes: 4_194_304 },
+    retrieval: { sourcesMax: 8, sourceChars: 1500 },
   };
   const policy = {
     enabled: true,

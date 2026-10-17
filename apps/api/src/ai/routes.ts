@@ -144,6 +144,47 @@ export function registerAi(app: FastifyInstance, work: AiGatewayService): void {
       return resource(request, reply, result.data, result);
     }),
   );
+  // 7B: the context preview (no AI needed), a grounded answer's estimate, and starting it.
+  app.post(
+    `${base}/ai/context-previews`,
+    wrap(async (request, reply) =>
+      reply
+        .header('cache-control', 'private, no-store')
+        .send(
+          nonResourceEnvelope(
+            'ai_context_manifest',
+            await work.previewAiContext(caller(request), ws(request), request.body),
+            m(request),
+          ),
+        ),
+    ),
+  );
+  app.post(
+    `${base}/ai/answer-estimates`,
+    wrap(async (request, reply) =>
+      reply
+        .header('cache-control', 'private, no-store')
+        .send(
+          nonResourceEnvelope(
+            'ai_estimate',
+            await work.estimateAiAnswer(caller(request), ws(request), request.body),
+            m(request),
+          ),
+        ),
+    ),
+  );
+  app.post(
+    `${base}/ai/answers`,
+    wrap(async (request, reply) => {
+      const result = await work.startAiAnswer(
+        caller(request),
+        ws(request),
+        request.body,
+        mutation(request),
+      );
+      return resource(request, reply, result.data, result);
+    }),
+  );
   app.get(
     `${base}/ai/runs`,
     wrap(async (request, reply) =>

@@ -435,6 +435,8 @@ export interface AiConfig {
   historyRetentionDays: number | null;
   /** Provider stream bounds: retained output, one event, and the whole response. */
   stream: { outputMaxChars: number; eventMaxBytes: number; maxBytes: number };
+  /** 7B retrieval bounds: sources sent per answer and characters sent per source. */
+  retrieval: { sourcesMax: number; sourceChars: number };
 }
 
 /** Retention classes (0B vocabulary) that may carry a platform default period. */
@@ -860,6 +862,8 @@ const DEFAULTS = {
   AI_OUTPUT_MAX_CHARS: '40000',
   AI_STREAM_EVENT_MAX_BYTES: '65536',
   AI_STREAM_MAX_BYTES: '4194304',
+  AI_CONTEXT_SOURCES_MAX: '8',
+  AI_CONTEXT_SOURCE_CHARS: '1500',
   MCP_READ_RATE_PER_MINUTE: '120',
   MCP_WRITE_RATE_PER_MINUTE: '60',
   OAUTH_CLIENTS_MAX: '20',
@@ -1238,6 +1242,8 @@ const schema = z.object({
   AI_OUTPUT_MAX_CHARS: int(256, 40_000),
   AI_STREAM_EVENT_MAX_BYTES: int(4096, 1_048_576),
   AI_STREAM_MAX_BYTES: int(65_536, 33_554_432),
+  AI_CONTEXT_SOURCES_MAX: int(1, 20),
+  AI_CONTEXT_SOURCE_CHARS: int(200, 6000),
   MCP_READ_RATE_PER_MINUTE: int(1, 10_000),
   MCP_WRITE_RATE_PER_MINUTE: int(1, 10_000),
   OAUTH_CLIENTS_MAX: int(1, 500),
@@ -1672,6 +1678,10 @@ export function loadServerConfig(options: LoadOptions): ServerConfig {
       outputMaxChars: c.AI_OUTPUT_MAX_CHARS,
       eventMaxBytes: c.AI_STREAM_EVENT_MAX_BYTES,
       maxBytes: c.AI_STREAM_MAX_BYTES,
+    },
+    retrieval: {
+      sourcesMax: c.AI_CONTEXT_SOURCES_MAX,
+      sourceChars: c.AI_CONTEXT_SOURCE_CHARS,
     },
   };
   if (c.AI_STREAM_EVENT_MAX_BYTES > c.AI_STREAM_MAX_BYTES)

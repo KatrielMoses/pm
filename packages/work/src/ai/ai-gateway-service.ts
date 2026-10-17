@@ -62,6 +62,38 @@ import {
 import { redactCredentials } from './redaction.ts';
 import { eraseAiContentRows } from './lifecycle.ts';
 import {
+  GROUNDED_SYSTEM_TEMPLATE,
+  GROUNDED_TEMPLATE_VERSION,
+  groundedUserMessage,
+  validateAnswer,
+  withheldGrounding,
+  type Grounding,
+} from './retrieval/grounding.ts';
+import {
+  discoverManifest,
+  MANIFEST_LIST_MAX,
+  MANIFEST_TEMPLATE,
+  payloadOf,
+  pinnedManifest,
+  RetrievalRefusal,
+  type ManifestLimits,
+} from './retrieval/manifest.ts';
+import {
+  SEARCHABLE_KINDS,
+  SOURCE_KINDS,
+  UNSUITABLE_FLAGS,
+  type Manifest,
+  type PinnedRef,
+  type RetrievalInput,
+  type RetrievalReaders,
+  type ScopeInput,
+  type SourceKind,
+  type SourceRecord,
+  type SourceRef,
+} from './retrieval/types.ts';
+import { plainText, readContent } from '../docs/content.ts';
+import { effectiveState } from '../docs/semantics.ts';
+import {
   AI_REGISTRY_VERSION,
   capabilitySnapshot,
   inputTokenBound,
@@ -99,6 +131,17 @@ const AI_EXECUTE_ACTION = 'ai.execute' as const;
 const AI_QUEUE = 'default';
 const PROMPT_MAX_CHARS = 8000;
 const CONTEXT_MAX = 5;
+/** 7B retrieval bounds (ADR-0039 R5): search candidates considered, scope brands, activity lines. */
+const RETRIEVAL_CANDIDATES = 20;
+const SCOPE_BRANDS_MAX = 5;
+const ACTIVITY_ENTRIES = 10;
+const SOURCE_PREFIX: Record<SourceKind, string> = {
+  task: 'tsk',
+  project: 'prj',
+  document: 'doc',
+  comment: 'cmt',
+  activity: 'tsk',
+};
 const OUTPUT_MAX_CHARS = 40_000;
 const HISTORY_PAGE_MAX = 50;
 const CANCEL_POLL_MS = 400;
@@ -118,6 +161,7 @@ export const AI_DISABLED_DEPS: AiGatewayDeps = {
     warningThresholdsBp: [8000, 10_000],
     historyRetentionDays: null,
     stream: { outputMaxChars: 40_000, eventMaxBytes: 65_536, maxBytes: 4_194_304 },
+    retrieval: { sourcesMax: 8, sourceChars: 1500 },
   },
   provider: null,
   entitlements: { aiAllowed: async () => false },
@@ -138,9 +182,9 @@ interface ContextRefInput {
 interface ResolvedContext {
   position: number;
   recordId: string;
-  recordType: ContextType;
+  recordType: ContextType | SourceKind;
   publicId: string;
-  brandId: string;
+  brandId: string | null;
   fields: string[];
   version: number;
   included: boolean;
@@ -160,6 +204,18 @@ interface PreparedRun {
   inputBound: number;
   outputBound: number;
   maxCost: bigint;
+  purpose: 'test_run' | 'grounded_answer';
+  /** The context manifest of a grounded answer (memory only; references are what is stored). */
+  manifest: Manifest | null;
+}
+
+/** A grounded answer's input: the question and retrieval choices, or a recorded manifest. */
+interface AnswerSpec {
+  retrieval: RetrievalInput;
+  /** The manifest digest the person previewed and confirmed (start and estimate). */
+  digest: string | null;
+  /** The recorded manifest (worker re-check and publication). */
+  pinned: { refs: PinnedRef[]; omitted: number; digest: string } | null;
 }
 
 type OpRow = {
@@ -272,7 +328,7 @@ export class AiGatewayService extends McpAccessService {
   #refuse(
     code: string,
     message: string,
-    err: 'forbidden' | 'dependency_unavailable' = 'forbidden',
+    err: 'forbidden' | 'dependency_unavailable' | 'conflict' = 'forbidden',
   ) {
     this.d.metrics.count('ai.policy_refusals', 1, { reason: code });
     return new TenancyError(err, { issues: [issue('/', code, message)] });
@@ -1252,6 +1308,908 @@ export class AiGatewayService extends McpAccessService {
     return parts.length ? redactCredentials(parts.join('\n')).text : '';
   }
 
+  // ---------------------------------------------------------------------------------------------
+  // 7B retrieval (ADR-0039): canonical source readers, the context manifest, grounded answers
+  // ---------------------------------------------------------------------------------------------
+
+  #retrievalLimits(): ManifestLimits {
+    return {
+      sourcesMax: this.#ai.config.retrieval.sourcesMax,
+      sourceChars: this.#ai.config.retrieval.sourceChars,
+      candidates: Math.min(RETRIEVAL_CANDIDATES, this.ws.searchPageSizeMax),
+    };
+  }
+
+  /**
+   * Canonical reads for one principal: every source goes through its module's loader and action
+   * decision (the same paths the product's own pages use). Hidden and unknown are one not_found.
+   */
+  #readers(tx: WorkspaceTransaction, p: Principal): RetrievalReaders {
+    let today: string | null = null;
+    const day = async () => (today ??= await this.workspaceToday(tx));
+    const prefix: Record<SourceKind, RegExp> = {
+      task: /^tsk_[0-9A-HJKMNP-TV-Z]{26}$/,
+      activity: /^tsk_[0-9A-HJKMNP-TV-Z]{26}$/,
+      project: /^prj_[0-9A-HJKMNP-TV-Z]{26}$/,
+      document: /^doc_[0-9A-HJKMNP-TV-Z]{26}$/,
+      comment: /^cmt_[0-9A-HJKMNP-TV-Z]{26}$/,
+    };
+    const archived = (state: string) => (state === 'archived' ? (['archived'] as const) : []);
+    const source = async (kind: SourceKind, id: string): Promise<SourceRecord> => {
+      if (!prefix[kind].test(id)) throw new TenancyError('not_found');
+      if (kind === 'task' || kind === 'activity') {
+        const t = await this.loadTask(tx, p, id);
+        this.requireTaskAction(p, 'record.read', t);
+        const base = {
+          publicId: id,
+          recordId: t.id,
+          brandId: t.brand.id,
+          brandSensitive: t.brand.isSensitive,
+          projectId: t.row.project_id,
+          taskId: t.id,
+        };
+        if (kind === 'task') {
+          const status = this.statusView(t.row.status_id, tx);
+          return {
+            kind,
+            ...base,
+            title: t.row.title,
+            link: { type: 'task', id, anchor: null },
+            version: Number(t.row.version),
+            versionLabel: `v${t.row.version}`,
+            fields: [
+              { name: 'title', dataClass: 'C2', text: t.row.title },
+              {
+                name: 'description',
+                dataClass: 'C2',
+                text: plainFromRichText(t.row.description_rich as never),
+              },
+              { name: 'status', dataClass: 'C1', text: status.name },
+              ...(t.row.due_date
+                ? [{ name: 'due_date', dataClass: 'C1' as const, text: String(t.row.due_date) }]
+                : []),
+            ],
+            facts: {
+              status: { name: status.name, category: status.category },
+              dueDate: t.row.due_date ? String(t.row.due_date) : null,
+              completedAt: t.row.completed_at ? new Date(t.row.completed_at).toISOString() : null,
+            },
+            flags: [...archived(t.lifecycleState)],
+          };
+        }
+        // History is outside a share (AZ-22): through a share alone it is not readable.
+        if (t.ownLevel === null) throw new TenancyError('not_found');
+        const page = await this.taskHistoryPage(tx, p, t, ACTIVITY_ENTRIES, null);
+        const show = (v: unknown) => (v === null || v === undefined ? 'none' : String(v));
+        const lines = page.data.map(
+          (e) =>
+            `${e.at.slice(0, 10)} ${e.action}${
+              e.changes.length
+                ? `: ${e.changes
+                    .map((c) =>
+                      c.changed
+                        ? `${c.field} changed`
+                        : `${c.field} ${show(c.before)} -> ${show(c.after)}`,
+                    )
+                    .join('; ')}`
+                : ''
+            }`,
+        );
+        const title = `Activity of ${t.row.title}`;
+        return {
+          kind,
+          ...base,
+          title,
+          link: { type: 'task', id, anchor: 'history' },
+          version: page.data.length,
+          versionLabel: page.data[0]?.key ?? 'none',
+          fields: [
+            { name: 'title', dataClass: 'C2', text: title },
+            { name: 'entries', dataClass: 'C2', text: lines.join('\n') },
+          ],
+          facts: {},
+          flags: [...archived(t.lifecycleState)],
+        };
+      }
+      if (kind === 'project') {
+        const pr = await this.loadProject(tx, p, id);
+        this.requireProjectAction(p, 'record.read', pr);
+        const status = this.statusView(pr.row.status_id, tx);
+        return {
+          kind,
+          publicId: id,
+          recordId: pr.id,
+          brandId: pr.brand.id,
+          brandSensitive: pr.brand.isSensitive,
+          projectId: pr.id,
+          taskId: null,
+          title: pr.row.name,
+          link: { type: 'project', id, anchor: null },
+          version: Number(pr.row.version),
+          versionLabel: `v${pr.row.version}`,
+          fields: [
+            { name: 'title', dataClass: 'C2', text: pr.row.name },
+            {
+              name: 'description',
+              dataClass: 'C2',
+              text: plainFromRichText(pr.row.description_rich as never),
+            },
+            { name: 'status', dataClass: 'C1', text: status.name },
+            ...(pr.row.start_date
+              ? [{ name: 'start_date', dataClass: 'C1' as const, text: String(pr.row.start_date) }]
+              : []),
+            ...(pr.row.target_date
+              ? [
+                  {
+                    name: 'target_date',
+                    dataClass: 'C1' as const,
+                    text: String(pr.row.target_date),
+                  },
+                ]
+              : []),
+          ],
+          facts: {
+            status: { name: status.name, category: status.category },
+            startDate: pr.row.start_date ? String(pr.row.start_date) : null,
+            targetDate: pr.row.target_date ? String(pr.row.target_date) : null,
+          },
+          flags: [...archived(pr.lifecycleState)],
+        };
+      }
+      if (kind === 'document') {
+        const d = await this.loadDocument(tx, p, id);
+        this.requireDocAction(p, 'record.read', d);
+        const v = await this.versionRow(tx, d.id, d.row.current_version_number);
+        const status = await this.sourceStatus(tx, p, d);
+        const approved = await this.approvedVersions(tx, d.id);
+        const state = effectiveState(d.row.state, d.row.review_due_on, await day());
+        const flags: SourceRecord['flags'] = [];
+        if (!status.approved) flags.push(approved.size ? 'approved_version_differs' : 'unapproved');
+        if (state === 'draft') flags.push('draft');
+        if (state === 'stale') flags.push('stale');
+        flags.push(...archived(d.lifecycleState));
+        return {
+          kind,
+          publicId: id,
+          recordId: d.id,
+          brandId: d.brand?.id ?? null,
+          brandSensitive: d.brand?.isSensitive ?? false,
+          projectId: d.projectId,
+          taskId: d.row.attached_task_id,
+          title: d.row.title,
+          link: { type: 'document', id, anchor: v?.public_id ?? null },
+          version: d.row.current_version_number,
+          versionLabel: v?.public_id ?? 'v0',
+          fields: [
+            { name: 'title', dataClass: 'C2', text: d.row.title },
+            { name: 'text', dataClass: 'C2', text: v ? plainText(readContent(v.content)) : '' },
+          ],
+          facts: {
+            approvedVersion: status.approved ? status.version : null,
+            reviewDueOn: d.row.review_due_on,
+            documentState: state,
+          },
+          flags,
+        };
+      }
+      const { row, host } = await this.loadComment(tx, p, id);
+      // Comments on deliverables are not an AI source in 7B (no citation destination for them).
+      if (
+        row.deleted_at ||
+        (host.kind !== 'task' && host.kind !== 'project' && host.kind !== 'document')
+      )
+        throw new TenancyError('not_found');
+      host.decide('record.read');
+      const title = `Comment on ${host.title}`;
+      return {
+        kind,
+        publicId: id,
+        recordId: row.id,
+        brandId: host.brand?.id ?? null,
+        brandSensitive: host.brand?.isSensitive ?? false,
+        projectId:
+          host.kind === 'project'
+            ? host.id
+            : host.kind === 'task'
+              ? (host.task?.row.project_id ?? null)
+              : (host.chain[0]?.id ?? null),
+        taskId: host.kind === 'task' ? host.id : null,
+        title,
+        link: { type: host.kind as 'task' | 'project' | 'document', id: host.publicId, anchor: id },
+        version: Number(row.version),
+        versionLabel: `v${row.version}`,
+        fields: [
+          { name: 'title', dataClass: 'C2', text: title },
+          { name: 'text', dataClass: 'C2', text: row.body_text ?? '' },
+        ],
+        facts: {},
+        flags: [...archived(host.lifecycleState)],
+      };
+    };
+    return {
+      source,
+      search: async (q) => {
+        const r = await this.searchIn(tx, p, {
+          q: q.q,
+          kind: q.kinds.join(','),
+          ...(q.brands.length ? { brand: q.brands.join(',') } : {}),
+          ...(q.project ? { project: q.project } : {}),
+          limit: q.limit,
+        });
+        return {
+          hits: r.results
+            .filter((h) => (SEARCHABLE_KINDS as readonly string[]).includes(h.type))
+            .map((h) => ({ kind: h.type as SourceKind, id: h.id })),
+          index: { state: r.index.state, pending: r.index.pending, failed: r.index.failed },
+        };
+      },
+      brands: async (ids) => {
+        const out = [];
+        for (const id of ids) {
+          try {
+            const b = await findBrand(tx, p, id, { states: 'active' });
+            out.push({ id: b.id, publicId: b.public_id, name: b.name, sensitive: b.is_sensitive });
+          } catch (err) {
+            if (!(err instanceof TenancyError)) throw err;
+          }
+        }
+        return out;
+      },
+      brandOnly: async (brandId) =>
+        (
+          await tx.db
+            .selectFrom('ai.brand_ai_profile')
+            .select('approved_sources')
+            .where('brand_id', '=', brandId)
+            .executeTakeFirst()
+        )?.approved_sources === 'brand_only',
+    };
+  }
+
+  #parseRetrieval(body: unknown, mode: 'preview' | 'answer') {
+    const b = (body && typeof body === 'object' ? body : {}) as Record<string, unknown>;
+    const issues = [];
+    const known = new Set(
+      mode === 'preview'
+        ? ['scope', 'query', 'include', 'exclude']
+        : [
+            'scope',
+            'query',
+            'include',
+            'exclude',
+            'question',
+            'manifest_digest',
+            'max_output_tokens',
+            'confirm_cost',
+          ],
+    );
+    for (const k of Object.keys(b))
+      if (!known.has(k))
+        issues.push(issue(`/${k}`, 'unknown_field', 'This field is not accepted.'));
+    const sc = (b.scope && typeof b.scope === 'object' ? b.scope : {}) as Record<string, unknown>;
+    if (
+      b.scope !== undefined &&
+      (typeof b.scope !== 'object' || b.scope === null || Array.isArray(b.scope))
+    )
+      issues.push(
+        issue('/scope', 'invalid_value', 'Choose the workspace, brands, a project, or a task.'),
+      );
+    for (const k of Object.keys(sc))
+      if (!['brands', 'project', 'task'].includes(k))
+        issues.push(issue(`/scope/${k}`, 'unknown_field', 'This field is not accepted.'));
+    const brands: string[] = [];
+    if (sc.brands !== undefined) {
+      if (
+        !Array.isArray(sc.brands) ||
+        sc.brands.length > SCOPE_BRANDS_MAX ||
+        !sc.brands.every((x) => typeof x === 'string' && /^br_[0-9A-HJKMNP-TV-Z]{26}$/.test(x))
+      )
+        issues.push(
+          issue('/scope/brands', 'invalid_value', `Choose up to ${SCOPE_BRANDS_MAX} brands.`),
+        );
+      else brands.push(...new Set(sc.brands as string[]));
+    }
+    const ref = (v: unknown, re: RegExp, pointer: string, message: string) => {
+      if (v === undefined || v === null) return null;
+      if (typeof v !== 'string' || !re.test(v)) {
+        issues.push(issue(pointer, 'invalid_reference', message));
+        return null;
+      }
+      return v;
+    };
+    const project = ref(
+      sc.project,
+      /^prj_[0-9A-HJKMNP-TV-Z]{26}$/,
+      '/scope/project',
+      'Choose a project by its identifier.',
+    );
+    const task = ref(
+      sc.task,
+      /^tsk_[0-9A-HJKMNP-TV-Z]{26}$/,
+      '/scope/task',
+      'Choose a task by its identifier.',
+    );
+    let query: string | null = null;
+    if (b.query !== undefined && b.query !== null) {
+      if (typeof b.query !== 'string' || b.query.length > this.ws.searchQueryMaxChars)
+        issues.push(
+          issue(
+            '/query',
+            'invalid_value',
+            `Search with up to ${this.ws.searchQueryMaxChars} characters.`,
+          ),
+        );
+      else query = b.query.trim() || null;
+    }
+    const refs = (raw: unknown, pointer: string): SourceRef[] => {
+      if (raw === undefined) return [];
+      if (!Array.isArray(raw) || raw.length > MANIFEST_LIST_MAX) {
+        issues.push(issue(pointer, 'invalid_value', `Name up to ${MANIFEST_LIST_MAX} sources.`));
+        return [];
+      }
+      const out: SourceRef[] = [];
+      raw.forEach((x, i) => {
+        const o = (x && typeof x === 'object' ? x : {}) as Record<string, unknown>;
+        const kind = o.type as SourceKind;
+        const id = typeof o.id === 'string' ? o.id : '';
+        const ok =
+          (SOURCE_KINDS as readonly string[]).includes(String(o.type)) &&
+          (kind === 'activity'
+            ? /^tsk_[0-9A-HJKMNP-TV-Z]{26}$/.test(id)
+            : new RegExp(`^${SOURCE_PREFIX[kind]}_[0-9A-HJKMNP-TV-Z]{26}$`).test(id));
+        if (!ok || Object.keys(o).some((k) => k !== 'type' && k !== 'id'))
+          issues.push(
+            issue(
+              `${pointer}/${i}`,
+              'invalid_reference',
+              'Name a task, project, document, comment, or task activity by its identifier.',
+            ),
+          );
+        else out.push({ kind, id });
+      });
+      return out;
+    };
+    const include = refs(b.include, '/include');
+    const exclude = refs(b.exclude, '/exclude');
+    const keys = include.map((r) => `${r.kind}:${r.id}`);
+    if (new Set(keys).size !== keys.length)
+      issues.push(issue('/include', 'duplicate', 'Name each source once.'));
+    if (exclude.some((r) => keys.includes(`${r.kind}:${r.id}`)))
+      issues.push(issue('/exclude', 'conflict', 'A source cannot be both included and excluded.'));
+    let question = '';
+    let digest: string | null = null;
+    let maxOutput = this.#ai.config.maxOutputTokens;
+    if (mode === 'answer') {
+      question = typeof b.question === 'string' ? b.question.trim() : '';
+      if (!question || question.length > PROMPT_MAX_CHARS || CONTROL_CHARS.test(question))
+        issues.push(
+          issue(
+            '/question',
+            'invalid_value',
+            `Ask a question of 1 to ${PROMPT_MAX_CHARS} characters.`,
+          ),
+        );
+      if (typeof b.manifest_digest !== 'string' || !/^[0-9a-f]{64}$/.test(b.manifest_digest))
+        issues.push(
+          issue('/manifest_digest', 'required', 'Preview the context first, then ask about it.'),
+        );
+      else digest = b.manifest_digest;
+      if (b.max_output_tokens !== undefined) {
+        if (
+          !Number.isInteger(b.max_output_tokens) ||
+          (b.max_output_tokens as number) < 16 ||
+          (b.max_output_tokens as number) > this.#ai.config.maxOutputTokens
+        )
+          issues.push(
+            issue(
+              '/max_output_tokens',
+              'invalid_value',
+              `Use 16 to ${this.#ai.config.maxOutputTokens} output tokens.`,
+            ),
+          );
+        else maxOutput = b.max_output_tokens as number;
+      }
+      if (b.confirm_cost !== undefined && typeof b.confirm_cost !== 'boolean')
+        issues.push(issue('/confirm_cost', 'invalid_type', 'Use true or false.'));
+    }
+    if (issues.length) throw invalid(...issues);
+    return {
+      retrieval: { scope: { brands, project, task }, query, include, exclude } as RetrievalInput,
+      question,
+      digest,
+      maxOutput,
+      confirm: b.confirm_cost === true,
+    };
+  }
+
+  /**
+   * AI-execute authority over the chosen scope: every chosen brand, or the workspace. Visibility
+   * of a shared record never implies it (guests never execute). An unreadable brand is reported
+   * exactly like an unknown one.
+   */
+  async #retrievalAuthority(tx: WorkspaceTransaction, p: Principal, scope: ScopeInput) {
+    if (p.kind === 'guest') throw new TenancyError('forbidden');
+    const unavailable = () =>
+      this.#refuse(
+        'scope_unavailable',
+        'The chosen scope is not available to you. Choose another scope. Nothing was sent.',
+      );
+    const rows = [];
+    for (const id of scope.brands) {
+      try {
+        rows.push(await findBrand(tx, p, id, { states: 'active' }));
+      } catch (err) {
+        if (err instanceof TenancyError) throw unavailable();
+        throw err;
+      }
+    }
+    for (const row of rows.length ? rows : [null]) {
+      const o = this.#canExecute(p, row);
+      if (!o.allowed) throw new TenancyError(o.code ?? 'forbidden');
+    }
+    return rows;
+  }
+
+  async #manifestFor(
+    tx: WorkspaceTransaction,
+    p: Principal,
+    spec: AnswerSpec,
+    maxDataClass: 'C0' | 'C1' | 'C2',
+  ): Promise<Manifest> {
+    const policy = { maxDataClass, limits: this.#retrievalLimits() };
+    try {
+      return spec.pinned
+        ? await pinnedManifest(
+            this.#readers(tx, p),
+            spec.retrieval.scope,
+            spec.retrieval.query,
+            spec.pinned.refs,
+            policy,
+            { omitted: spec.pinned.omitted },
+          )
+        : await discoverManifest(this.#readers(tx, p), spec.retrieval, policy);
+    } catch (err) {
+      if (err instanceof RetrievalRefusal)
+        throw this.#refuse(
+          err.code,
+          err.reason,
+          err.code === 'manifest_changed' ? 'conflict' : 'forbidden',
+        );
+      throw err;
+    }
+  }
+
+  #manifestView(m: Manifest) {
+    const included = m.entries.filter((e) => e.included);
+    const incomplete = m.index !== null && m.index.state !== 'complete';
+    return {
+      template: MANIFEST_TEMPLATE,
+      digest: m.digest,
+      scope: {
+        kind: m.scope.task
+          ? 'task'
+          : m.scope.project
+            ? 'project'
+            : m.scope.brands.length
+              ? 'brands'
+              : 'workspace',
+        brands: m.scope.brands.map((b) => ({ id: b.publicId, name: b.name })),
+        project: m.scope.project
+          ? { id: m.scope.project.publicId, title: m.scope.project.title }
+          : null,
+        task: m.scope.task ? { id: m.scope.task.publicId, title: m.scope.task.title } : null,
+      },
+      query: m.query,
+      sources: m.entries.map((e) => ({
+        handle: e.handle,
+        type: e.kind,
+        id: e.publicId,
+        title: e.title,
+        link: e.link,
+        version: e.versionLabel,
+        selection: e.selection,
+        included: e.included,
+        exclusion_reason: e.exclusion,
+        flags: e.flags,
+        fields: e.fieldNames,
+      })),
+      counts: {
+        listed: m.entries.length,
+        included: included.length,
+        excluded: m.entries.length - included.length,
+        omitted: m.omitted,
+      },
+      limits: {
+        sources_max: this.#ai.config.retrieval.sourcesMax,
+        source_chars: this.#ai.config.retrieval.sourceChars,
+        listed_max: MANIFEST_LIST_MAX,
+      },
+      index: m.index,
+      notice: incomplete
+        ? 'The search index is catching up, so the list may be incomplete. It does not mean no other relevant records exist.'
+        : m.query === null
+          ? 'Only the sources you named and your scope are listed; search to find more.'
+          : null,
+      warnings: included
+        .filter((e) => e.flags.some((f) => (UNSUITABLE_FLAGS as readonly string[]).includes(f)))
+        .map((e) => ({ handle: e.handle, flags: e.flags.filter((f) => f !== 'truncated') })),
+      semantic_search: false,
+    };
+  }
+
+  /** Grounded-answer preparation: the same gates as 7A, with the manifest as the only context. */
+  async #prepareAnswer(
+    tx: WorkspaceTransaction,
+    p: Principal,
+    question: string,
+    maxOutput: number,
+    spec: AnswerSpec,
+  ): Promise<PreparedRun> {
+    const brandRows = await this.#retrievalAuthority(tx, p, spec.retrieval.scope);
+    const { policy, decision } = await this.#availability(tx);
+    this.#requireReady(decision);
+    const manifest = await this.#manifestFor(tx, p, spec, policy?.maxDataClass ?? 'C2');
+    const changed = spec.pinned ? spec.pinned.digest : spec.digest;
+    if (changed && manifest.digest !== changed)
+      throw this.#refuse(
+        'manifest_changed',
+        'The context changed since you reviewed it. Nothing was sent. Preview the context again.',
+        'conflict',
+      );
+    if (!manifest.entries.some((e) => e.included))
+      throw invalid(
+        issue('/include', 'context_empty', 'Include at least one source to ask about.'),
+      );
+    // PRJ-007: a project AI budget cannot be enforced yet, so paid runs scoped to such a project
+    // are refused rather than relabelled as workspace runs. Preview stays available.
+    if (manifest.scope.project && decision.funding !== 'synthetic') {
+      const pr = await tx.db
+        .selectFrom('work.project')
+        .select('ai_budget_micros')
+        .where('id', '=', manifest.scope.project.id)
+        .executeTakeFirst();
+      if (pr && pr.ai_budget_micros !== null)
+        throw this.#refuse(
+          'ai_project_budget_unenforced',
+          'This project has an AI budget that cannot be enforced yet, so paid AI runs scoped to it are refused. Nothing was sent. You can still preview its sources.',
+        );
+    }
+    const brand = brandRows.length === 1 ? brandRows[0]! : null;
+    const redacted = redactCredentials(question);
+    const profile = await this.#brandProfileText(tx, brand?.id ?? null);
+    const system = profile ? `${GROUNDED_SYSTEM_TEMPLATE}\n\n${profile}` : GROUNDED_SYSTEM_TEMPLATE;
+    const user = groundedUserMessage(redacted.text, manifest.entries);
+    const model = decision.model;
+    const inputBound = inputTokenBound(model, [system, user], 1);
+    if (inputBound > model.price.maxInputTokensAtPrice)
+      throw this.#refuse(
+        'ai_cost_unbounded',
+        'This request is larger than the configured price covers, so its cost cannot be bounded. Include fewer sources.',
+      );
+    const outputBound = Math.min(maxOutput, model.capabilities.maxOutputTokens);
+    return {
+      decision,
+      brand: brand ? { id: brand.id, publicId: brand.public_id, name: brand.name } : null,
+      prompt: redacted.text,
+      redactions: redacted.count,
+      context: manifest.entries.map((e, position) => ({
+        position,
+        recordId: e.recordId,
+        recordType: e.kind,
+        publicId: e.publicId,
+        brandId: e.brandId,
+        fields: e.fieldNames.length ? e.fieldNames : ['title'],
+        version: e.version,
+        included: e.included,
+        exclusionReason: e.exclusion,
+        values: {},
+      })),
+      system,
+      user,
+      inputBound,
+      outputBound,
+      maxCost: maxCostPico(model, inputBound, outputBound),
+      purpose: 'grounded_answer',
+      manifest,
+    };
+  }
+
+  /**
+   * The context preview (AI-005, AI-006, AI-007): the effective scope, every readable candidate
+   * with its policy outcome, suitability warnings, bounds, and index freshness. It sends nothing,
+   * reserves nothing, and stays usable while production AI is off.
+   */
+  async previewAiContext(caller: Caller, ws: unknown, body: unknown) {
+    const input = this.#parseRetrieval(body, 'preview');
+    return this.inWorkspace(caller, ws, { readOnly: true }, async (tx, p) => {
+      await this.#retrievalAuthority(tx, p, input.retrieval.scope);
+      const { policy, decision } = await this.#availability(tx);
+      const manifest = await this.#manifestFor(
+        tx,
+        p,
+        { retrieval: input.retrieval, digest: null, pinned: null },
+        policy?.maxDataClass ?? 'C2',
+      );
+      this.d.metrics.count('ai.context_previews', 1, {
+        index: manifest.index?.state ?? 'not_searched',
+      });
+      return {
+        ...this.#manifestView(manifest),
+        ai: {
+          availability: decision.availability,
+          reason: decision.reason,
+          can_answer: decision.availability === 'ready',
+        },
+      };
+    });
+  }
+
+  /** A grounded answer's estimate: every gate, the manifest re-check, no reservation, nothing sent. */
+  async estimateAiAnswer(caller: Caller, ws: unknown, body: unknown) {
+    const input = this.#parseRetrieval(body, 'answer');
+    return this.inWorkspace(caller, ws, { readOnly: true }, async (tx, p) => {
+      const prep = await this.#prepare(
+        tx,
+        p,
+        {
+          prompt: input.question,
+          brand: null,
+          refs: [],
+          maxOutput: input.maxOutput,
+          answer: { retrieval: input.retrieval, digest: input.digest, pinned: null },
+        },
+        !!caller.delegation,
+      );
+      const policy = await this.#policy(tx);
+      return {
+        ...(await this.#estimateView(tx, prep, policy?.confirmAbove ?? 0n)),
+        manifest: this.#manifestView(prep.manifest!),
+      };
+    });
+  }
+
+  /** Starts a grounded, read-only answer through the one 7A gateway (operation, job, budgets). */
+  async startAiAnswer(caller: Caller, ws: unknown, body: unknown, req: Mutation) {
+    const input = this.#parseRetrieval(body, 'answer');
+    return this.mutate(
+      caller,
+      'ai.answer.start',
+      ws,
+      req,
+      async (tx, p) =>
+        this.#createRun(
+          tx,
+          caller,
+          p,
+          {
+            prompt: input.question,
+            brand: null,
+            refs: [],
+            maxOutput: input.maxOutput,
+            confirm: input.confirm,
+            answer: { retrieval: input.retrieval, digest: input.digest, pinned: null },
+          },
+          null,
+        ),
+      async (tx, p, ref) => this.#renderRun(tx, caller, p, ref.id),
+    );
+  }
+
+  /** A grounded run's recorded manifest, as the answer spec the worker and renderer re-check. */
+  async #recordedAnswer(
+    tx: WorkspaceTransaction,
+    opId: string,
+    action: { retrieval_scope: unknown; manifest_digest: string | null },
+  ): Promise<AnswerSpec> {
+    const scope = (action.retrieval_scope ?? {}) as {
+      brands?: string[];
+      project?: string | null;
+      task?: string | null;
+      query?: string | null;
+      omitted?: number;
+    };
+    const refs = await tx.db
+      .selectFrom('ai.ai_context_ref')
+      .selectAll()
+      .where('operation_id', '=', opId)
+      .orderBy('position')
+      .execute();
+    const pinned: PinnedRef[] = refs.map((r) => ({
+      kind: r.record_type as SourceKind,
+      id: r.record_public_id,
+      selection: r.selection as PinnedRef['selection'],
+      included: r.included,
+      exclusion: r.exclusion_reason as PinnedRef['exclusion'],
+      handle: r.handle,
+      contentHash: r.content_hash,
+      flags: r.source_flags as PinnedRef['flags'],
+      version: Number(r.record_version),
+      versionLabel: r.source_version,
+      fields: r.fields,
+    }));
+    return {
+      retrieval: {
+        scope: {
+          brands: scope.brands ?? [],
+          project: scope.project ?? null,
+          task: scope.task ?? null,
+        },
+        query: scope.query ?? null,
+        include: pinned
+          .filter((r) => r.selection === 'explicit' && r.exclusion !== 'user_excluded')
+          .map((r) => ({ kind: r.kind, id: r.id })),
+        exclude: pinned
+          .filter((r) => r.exclusion === 'user_excluded')
+          .map((r) => ({ kind: r.kind, id: r.id })),
+      },
+      digest: null,
+      pinned: { refs: pinned, omitted: scope.omitted ?? 0, digest: action.manifest_digest ?? '' },
+    };
+  }
+
+  /**
+   * Re-checks a grounded run's sources immediately before publishing its answer, as its initiator
+   * now. A source that became unreadable, or whose content changed, withholds the answer.
+   */
+  async #publicationCheck(
+    tx: WorkspaceTransaction,
+    opId: string,
+  ): Promise<'ok' | 'sources_changed' | 'sources_unavailable'> {
+    const action = await tx.db
+      .selectFrom('ai.ai_action')
+      .selectAll()
+      .where('operation_id', '=', opId)
+      .executeTakeFirstOrThrow();
+    const who = await this.#actionPrincipal(tx, action);
+    if ('refused' in who) return 'sources_unavailable';
+    const spec = await this.#recordedAnswer(tx, opId, action);
+    try {
+      const m = await pinnedManifest(
+        this.#readers(tx, who.p),
+        spec.retrieval.scope,
+        spec.retrieval.query,
+        spec.pinned!.refs,
+        {
+          maxDataClass: (await this.#policy(tx))?.maxDataClass ?? 'C2',
+          limits: this.#retrievalLimits(),
+        },
+        { omitted: spec.pinned!.omitted },
+      );
+      return m.digest === action.manifest_digest ? 'ok' : 'sources_changed';
+    } catch (err) {
+      if (err instanceof RetrievalRefusal)
+        return err.code === 'manifest_changed' ? 'sources_changed' : 'sources_unavailable';
+      throw err;
+    }
+  }
+
+  /** The initiator's current principal for an action (narrowed to a live delegation's brands). */
+  async #actionPrincipal(
+    tx: WorkspaceTransaction,
+    action: {
+      initiating_membership_id: string;
+      delegation_token_id: string | null;
+      delegation_principal_type: string | null;
+    },
+  ): Promise<{ p: Principal } | { refused: string }> {
+    const member = await tx.db
+      .selectFrom('tenancy.membership')
+      .select(['id', 'account_id', 'state', 'kind'])
+      .where('id', '=', action.initiating_membership_id)
+      .executeTakeFirst();
+    if (!member || member.state !== 'active' || member.kind !== 'member')
+      return { refused: 'initiator_departed' };
+    let p: Principal & { workspaceState: string };
+    try {
+      p = await loadPrincipal(tx, member.account_id, member.id);
+    } catch {
+      return { refused: 'initiator_departed' };
+    }
+    if (p.workspaceState !== 'active') return { refused: 'workspace_inactive' };
+    if (action.delegation_token_id) {
+      const live = await this.#delegationLive(
+        tx,
+        action.delegation_principal_type!,
+        action.delegation_token_id,
+      );
+      if (!live) return { refused: 'delegation_revoked' };
+      if (live.brandIds) {
+        // The same narrowing as the API boundary: brands, and projects within them.
+        const allow = new Set(live.brandIds);
+        const projects = allow.size
+          ? await tx.db
+              .selectFrom('work.project')
+              .select('id')
+              .where('brand_id', 'in', [...allow])
+              .execute()
+          : [];
+        const projectIds = new Set(projects.map((r) => r.id));
+        p = {
+          ...p,
+          brandAllowlist: allow,
+          grants: new Map([...p.grants].filter(([id]) => allow.has(id))),
+          grantSources: p.grantSources.filter((s) => allow.has(s.brandId)),
+          projectGrants: new Map([...p.projectGrants].filter(([id]) => projectIds.has(id))),
+          projectGrantSources: p.projectGrantSources.filter((s) => projectIds.has(s.projectId)),
+        };
+      }
+    }
+    return { p };
+  }
+
+  /**
+   * A grounded answer as its initiator may see it now: statements by kind, server facts and
+   * calculations, and citations resolved through current authorization. A citation whose source
+   * changed since the answer is marked changed; nothing else about a source is disclosed.
+   */
+  async #answerView(
+    tx: WorkspaceTransaction,
+    p: Principal,
+    refs: ReadonlyArray<{
+      record_type: string;
+      record_public_id: string;
+      handle: string | null;
+      content_hash: string | null;
+      included: boolean;
+      source_flags: string[];
+    }>,
+    grounding: Grounding,
+  ) {
+    const readers = this.#readers(tx, p);
+    const maxDataClass = (await this.#policy(tx))?.maxDataClass ?? 'C2';
+    const { sourceChars } = this.#retrievalLimits();
+    const sources = new Map<
+      string,
+      {
+        type: string;
+        id: string;
+        title: string;
+        link: SourceRecord['link'];
+        changed: boolean;
+        flags: string[];
+      }
+    >();
+    for (const r of refs) {
+      if (!r.included || !r.handle) continue;
+      const s = await readers.source(r.record_type as SourceKind, r.record_public_id);
+      const now = payloadOf(s, maxDataClass, sourceChars);
+      sources.set(r.handle, {
+        type: s.kind,
+        id: s.publicId,
+        title: s.title,
+        link: s.link,
+        changed: now.hash !== r.content_hash,
+        flags: r.source_flags,
+      });
+    }
+    const cite = (handle: string) => {
+      const s = sources.get(handle);
+      return s ? { handle, ...s } : null;
+    };
+    return {
+      status: grounding.status,
+      reason: grounding.reason,
+      note:
+        grounding.status === 'rejected'
+          ? 'The answer did not follow the required format, so it is not shown as an answer. Nothing was changed.'
+          : grounding.status === 'withheld'
+            ? 'A source changed or became unavailable before the answer was published, so it is not shown. Ask again to use the current sources.'
+            : grounding.status === 'downgraded'
+              ? 'Some statements could not be established from the sources and are marked unverified.'
+              : null,
+      facts: grounding.facts.map((f) => ({ ...f, source: cite(f.handle) })),
+      calculations: grounding.calculations,
+      statements: grounding.statements.map((s) => ({
+        ...s,
+        citations: s.citations.map((c) => ({ ...c, source: cite(c.handle) })),
+      })),
+      dropped_citations: grounding.dropped_citations,
+      sources: [...sources.entries()].map(([handle, s]) => ({ handle, ...s })),
+      provenance_note:
+        'Citations show where a statement came from; they do not guarantee it is true. Facts and calculations come from the records themselves.',
+    };
+  }
+
   /** Everything that must hold before estimating or dispatching, for the given principal now. */
   async #prepare(
     tx: WorkspaceTransaction,
@@ -1261,9 +2219,12 @@ export class AiGatewayService extends McpAccessService {
       brand: string | null;
       refs: readonly ContextRefInput[];
       maxOutput: number;
+      answer?: AnswerSpec | null;
     },
     delegated: boolean,
   ): Promise<PreparedRun> {
+    if (input.answer)
+      return this.#prepareAnswer(tx, p, input.prompt, input.maxOutput, input.answer);
     if (p.kind === 'guest') throw new TenancyError('forbidden');
     const brandRow = input.brand ? await findBrand(tx, p, input.brand, { states: 'active' }) : null;
     const o = this.#canExecute(p, brandRow);
@@ -1311,6 +2272,8 @@ export class AiGatewayService extends McpAccessService {
       inputBound,
       outputBound,
       maxCost: maxCostPico(model, inputBound, outputBound),
+      purpose: 'test_run',
+      manifest: null,
     };
   }
 
@@ -1390,6 +2353,7 @@ export class AiGatewayService extends McpAccessService {
       refs: ContextRefInput[];
       maxOutput: number;
       confirm: boolean;
+      answer?: AnswerSpec | null;
     },
     rerunOf: string | null,
   ) {
@@ -1433,13 +2397,14 @@ export class AiGatewayService extends McpAccessService {
         workspace_id: tx.workspaceId,
         initiating_membership_id: p.membershipId,
         brand_id: prep.brand?.id ?? null,
-        purpose: 'test_run',
+        purpose: prep.purpose,
         synthetic: model.synthetic,
         model_key: model.key,
         provider: model.provider,
         model_id: model.modelId,
         registry_version: AI_REGISTRY_VERSION,
-        prompt_template_version: PROMPT_TEMPLATE_VERSION,
+        prompt_template_version:
+          prep.purpose === 'grounded_answer' ? GROUNDED_TEMPLATE_VERSION : PROMPT_TEMPLATE_VERSION,
         price_snapshot: JSON.stringify(priceSnapshot(model)),
         privacy_snapshot: JSON.stringify(
           privacySnapshot(model, prep.decision.approved, policy?.maxDataClass ?? 'C2'),
@@ -1457,9 +2422,44 @@ export class AiGatewayService extends McpAccessService {
         max_output_tokens: prep.outputBound,
         estimated_max_micros: microsString(prep.maxCost),
         rerun_of_operation_id: rerunOf,
+        // References only: the scope and the manifest digest the person confirmed.
+        retrieval_scope: prep.manifest
+          ? JSON.stringify({
+              brands: prep.manifest.scope.brands.map((b) => b.publicId),
+              project: prep.manifest.scope.project?.publicId ?? null,
+              task: prep.manifest.scope.task?.publicId ?? null,
+              query: prep.manifest.query,
+              omitted: prep.manifest.omitted,
+            })
+          : null,
+        manifest_digest: prep.manifest ? prep.manifest.digest : null,
       })
       .execute();
-    if (prep.context.length)
+    if (prep.manifest)
+      await tx.db
+        .insertInto('ai.ai_context_ref')
+        .values(
+          prep.manifest.entries.map((e, position) => ({
+            id: newUuidV7(),
+            workspace_id: tx.workspaceId,
+            operation_id: op.id,
+            position,
+            record_id: e.recordId,
+            record_type: e.kind,
+            record_public_id: e.publicId,
+            fields: e.fieldNames.length ? e.fieldNames : ['title'],
+            record_version: e.version,
+            included: e.included,
+            exclusion_reason: e.exclusion,
+            handle: e.handle,
+            content_hash: e.contentHash,
+            source_version: e.versionLabel.slice(0, 80),
+            source_flags: e.flags,
+            selection: e.selection,
+          })),
+        )
+        .execute();
+    else if (prep.context.length)
       await tx.db
         .insertInto('ai.ai_context_ref')
         .values(
@@ -1628,6 +2628,21 @@ export class AiGatewayService extends McpAccessService {
             )?.public_id ?? null)
           : null;
         const confirm = (body as { confirm_cost?: unknown } | null)?.confirm_cost === true;
+        const full = await tx.db
+          .selectFrom('ai.ai_action')
+          .select(['purpose', 'retrieval_scope', 'manifest_digest'])
+          .where('operation_id', '=', op.id)
+          .executeTakeFirstOrThrow();
+        // A grounded retry rediscovers the context from the same choices; if anything changed
+        // since the confirmed manifest, it needs a fresh preview (never a silent new context).
+        const answer =
+          full.purpose === 'grounded_answer'
+            ? {
+                ...(await this.#recordedAnswer(tx, op.id, full)),
+                pinned: null,
+                digest: full.manifest_digest,
+              }
+            : null;
         return this.#createRun(
           tx,
           caller,
@@ -1635,9 +2650,10 @@ export class AiGatewayService extends McpAccessService {
           {
             prompt: action.prompt_text,
             brand,
-            refs: refs.map((r) => ({ id: r.record_public_id, fields: r.fields })),
+            refs: answer ? [] : refs.map((r) => ({ id: r.record_public_id, fields: r.fields })),
             maxOutput: action.max_output_tokens,
             confirm,
+            answer,
           },
           op.id,
         );
@@ -1729,11 +2745,22 @@ export class AiGatewayService extends McpAccessService {
       .where('operation_id', '=', op.id)
       .orderBy('position')
       .execute();
+    const grounded = action.purpose === 'grounded_answer';
+    const scope = (action.retrieval_scope ?? null) as {
+      brands?: string[];
+      project?: string | null;
+      task?: string | null;
+      query?: string | null;
+    } | null;
+    // Every contributing source (all of a test run's references; a grounded answer's included
+    // sources and its scope) must still be readable by the initiator now.
+    const contributing = grounded ? refs.filter((r) => r.included) : refs;
     const available = await this.#sourcesReadable(
       tx,
       p,
       action.brand_id,
-      refs.map((r) => r.record_public_id),
+      contributing.map((r) => ({ kind: r.record_type as SourceKind, id: r.record_public_id })),
+      scope,
     );
     const content =
       action.content_state === 'erased' ? 'erased' : available.all ? 'present' : 'withheld';
@@ -1745,31 +2772,74 @@ export class AiGatewayService extends McpAccessService {
       .execute();
     const summary = await this.#runSummary(tx, runPublicId);
     const last = outputs[0];
+    const present = content === 'present';
+    // Readable non-contributing (excluded) entries are listed; others are omitted without a count.
+    const listed = present
+      ? grounded
+        ? (
+            await Promise.all(
+              refs.map(async (r) =>
+                r.included ||
+                (
+                  await this.#sourcesReadable(
+                    tx,
+                    p,
+                    null,
+                    [{ kind: r.record_type as SourceKind, id: r.record_public_id }],
+                    null,
+                  )
+                ).all
+                  ? r
+                  : null,
+              ),
+            )
+          ).filter((r): r is (typeof refs)[number] => r !== null)
+        : refs
+      : [];
     return {
       ...summary,
       content: {
         state: content,
         note:
           content === 'withheld'
-            ? 'A source used by this run is no longer available to you, so its prompt and output are withheld.'
+            ? 'A source used by this run is no longer available to you, so its prompt, output, and sources are withheld.'
             : content === 'erased'
               ? 'This content was erased under the retention or departure policy.'
               : null,
-        prompt: content === 'present' ? action.prompt_text : null,
+        prompt: present ? action.prompt_text : null,
         redactions: action.redaction_count,
         output:
-          content === 'present' && last && last.content !== null
+          present && last && last.content !== null && !grounded
             ? { text: last.content, completeness: last.completeness }
             : null,
+        answer:
+          present && grounded && last && last.grounding
+            ? {
+                completeness: last.completeness,
+                ...(await this.#answerView(tx, p, refs, last.grounding as unknown as Grounding)),
+              }
+            : null,
       },
-      context: refs.map((r) => ({
-        id: content === 'present' ? r.record_public_id : null,
+      scope:
+        present && grounded && scope
+          ? {
+              brands: scope.brands ?? [],
+              project: scope.project ?? null,
+              task: scope.task ?? null,
+              query: scope.query ?? null,
+            }
+          : null,
+      context: listed.map((r) => ({
+        id: r.record_public_id,
         type: r.record_type,
+        handle: r.handle,
         fields: r.fields,
         record_version: Number(r.record_version),
         included: r.included,
         exclusion_reason: r.exclusion_reason,
-        available: available.byId.get(r.record_public_id) ?? false,
+        flags: r.source_flags,
+        selection: r.selection,
+        available: true,
       })),
     };
   }
@@ -1778,41 +2848,47 @@ export class AiGatewayService extends McpAccessService {
     tx: WorkspaceTransaction,
     p: Principal,
     brandId: string | null,
-    ids: string[],
+    sources: Array<{ kind: SourceKind; id: string }>,
+    scope: { brands?: string[]; project?: string | null; task?: string | null } | null,
   ) {
     const byId = new Map<string, boolean>();
-    let brandOk = true;
+    let scopeOk = true;
+    const brandIds: string[] = [];
     if (brandId) {
-      // The run's brand must still be visible to the reader now.
       const row = await tx.db
         .selectFrom('core.record')
         .select('public_id')
         .where('id', '=', brandId)
         .executeTakeFirst();
+      brandIds.push(row?.public_id ?? '');
+    }
+    for (const b of scope?.brands ?? []) if (!brandIds.includes(b)) brandIds.push(b);
+    // The run's brands must still be visible to the reader now.
+    for (const b of brandIds) {
       try {
-        if (!row) throw new TenancyError('not_found');
-        await findBrand(tx, p, row.public_id, { states: 'active_or_archived' });
+        if (!b) throw new TenancyError('not_found');
+        const row = await findBrand(tx, p, b, { states: 'active_or_archived' });
+        // A brand restricted since the run is excluded from AI: its content is withheld too.
+        if (row.is_sensitive) scopeOk = false;
       } catch (err) {
         if (!(err instanceof TenancyError)) throw err;
-        brandOk = false;
+        scopeOk = false;
       }
     }
-    for (const id of ids) {
+    const readers = this.#readers(tx, p);
+    const readable = async (kind: SourceKind, id: string) => {
       try {
-        if (id.startsWith('tsk_')) {
-          const t = await this.loadTask(tx, p, id);
-          this.requireTaskAction(p, 'record.read', t);
-        } else {
-          const pr = await this.loadProject(tx, p, id);
-          this.requireProjectAction(p, 'record.read', pr);
-        }
-        byId.set(id, true);
+        // Readable now, and not in a brand restricted since (sensitive-policy changes converge).
+        return !(await readers.source(kind, id)).brandSensitive;
       } catch (err) {
         if (!(err instanceof TenancyError)) throw err;
-        byId.set(id, false);
+        return false;
       }
-    }
-    return { all: brandOk && [...byId.values()].every(Boolean), byId };
+    };
+    if (scope?.project && !(await readable('project', scope.project))) scopeOk = false;
+    if (scope?.task && !(await readable('task', scope.task))) scopeOk = false;
+    for (const s of sources) byId.set(`${s.kind}:${s.id}`, await readable(s.kind, s.id));
+    return { all: scopeOk && [...byId.values()].every(Boolean), byId };
   }
 
   /** Non-content metadata of a run: state, model, timing, cost, and attempt-level usage. */
@@ -2489,6 +3565,8 @@ export class AiGatewayService extends McpAccessService {
           : auth.prep.decision.model.provider,
         system: auth.prep.system,
         user: auth.prep.user,
+        // A grounded answer's manifest, kept in memory to validate the answer (never persisted).
+        manifest: auth.prep.manifest,
         outputBound: d.output_token_bound,
         keyRef: auth.keyRef,
         errorCharging: chargeability(d.capability_snapshot),
@@ -2634,7 +3712,28 @@ export class AiGatewayService extends McpAccessService {
         text !== null &&
         action.content_state !== 'erased' &&
         !(cancelObserved && decided.completeness !== 'partial')
-      )
+      ) {
+        // A grounded answer is validated against the manifest it was given, after re-checking
+        // every source as its initiator now; a changed or unreadable source withholds it.
+        let grounding: Grounding | null = null;
+        if (request.manifest) {
+          const check = await this.#publicationCheck(tx, opId);
+          grounding =
+            check === 'ok'
+              ? validateAnswer({
+                  text,
+                  completeness:
+                    decided.completeness === 'complete'
+                      ? 'complete'
+                      : decided.completeness === 'truncated'
+                        ? 'truncated'
+                        : 'partial',
+                  entries: request.manifest.entries,
+                  today: await this.workspaceToday(tx),
+                })
+              : withheldGrounding(check);
+          this.d.metrics.count('ai.answer_validations', 1, { status: grounding.status });
+        }
         await tx.db
           .insertInto('ai.ai_output')
           .values({
@@ -2644,8 +3743,10 @@ export class AiGatewayService extends McpAccessService {
             dispatch_id: d.id,
             completeness: decided.completeness,
             content: text.slice(0, OUTPUT_MAX_CHARS),
+            grounding: grounding ? JSON.stringify(grounding) : null,
           })
           .execute();
+      }
       if (decided.settlement.kind === 'actual') {
         const a = decided.settlement.amounts;
         this.d.metrics.count('ai.tokens', Number(a['ai.input_tokens'] / PICO_PER_MICRO), {
@@ -2756,37 +3857,9 @@ export class AiGatewayService extends McpAccessService {
       .executeTakeFirstOrThrow();
     if (action.content_state !== 'present' || action.prompt_text === null)
       return { refused: true, code: 'content_erased' };
-    const member = await tx.db
-      .selectFrom('tenancy.membership')
-      .select(['id', 'account_id', 'state', 'kind'])
-      .where('id', '=', action.initiating_membership_id)
-      .executeTakeFirst();
-    if (!member || member.state !== 'active' || member.kind !== 'member')
-      return { refused: true, code: 'initiator_departed' };
-    let p: Principal & { workspaceState: string };
-    try {
-      p = await loadPrincipal(tx, member.account_id, member.id);
-    } catch {
-      return { refused: true, code: 'initiator_departed' };
-    }
-    if (p.workspaceState !== 'active') return { refused: true, code: 'workspace_inactive' };
-    if (action.delegation_token_id) {
-      const live = await this.#delegationLive(
-        tx,
-        action.delegation_principal_type!,
-        action.delegation_token_id,
-      );
-      if (!live) return { refused: true, code: 'delegation_revoked' };
-      if (live.brandIds) {
-        const allow = new Set(live.brandIds);
-        p = {
-          ...p,
-          brandAllowlist: allow,
-          grants: new Map([...p.grants].filter(([id]) => allow.has(id))),
-          grantSources: p.grantSources.filter((s) => allow.has(s.brandId)),
-        };
-      }
-    }
+    const who = await this.#actionPrincipal(tx, action);
+    if ('refused' in who) return { refused: true, code: who.refused };
+    const p = who.p;
     const refs = await tx.db
       .selectFrom('ai.ai_context_ref')
       .select(['record_public_id', 'fields'])
@@ -2802,6 +3875,9 @@ export class AiGatewayService extends McpAccessService {
             .executeTakeFirst()
         )?.public_id ?? null)
       : null;
+    // A grounded answer is re-checked against exactly the manifest that was confirmed.
+    const answer =
+      action.purpose === 'grounded_answer' ? await this.#recordedAnswer(tx, opId, action) : null;
     let prep: PreparedRun;
     try {
       prep = await this.#prepare(
@@ -2810,8 +3886,9 @@ export class AiGatewayService extends McpAccessService {
         {
           prompt: action.prompt_text,
           brand,
-          refs: refs.map((r) => ({ id: r.record_public_id, fields: r.fields })),
+          refs: answer ? [] : refs.map((r) => ({ id: r.record_public_id, fields: r.fields })),
           maxOutput: action.max_output_tokens,
+          answer,
         },
         !!action.delegation_token_id,
       );

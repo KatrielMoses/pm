@@ -337,7 +337,8 @@ describe('Phase 7A AI gateway', () => {
     await revoke('member', harbor);
     const detail = await env.svc.getAiRun(P.member, ws, started.data.id);
     expect(detail.content).toMatchObject({ state: 'withheld', prompt: null, output: null });
-    expect(detail.context[0]).toMatchObject({ id: null, available: false });
+    // 7B (ADR-0039 R9): a withheld run lists no sources at all, so no type, version, or count leaks.
+    expect(detail.context).toEqual([]);
     // The same key re-renders through current authority and never dispatches again.
     const replay = await run(
       P.member,

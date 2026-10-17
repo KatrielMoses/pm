@@ -273,6 +273,8 @@ export const NON_RESOURCE_TYPES = [
   'ai_estimate',
   'ai_runs',
   'ai_usage',
+  // 7B: the context manifest a person reviews before a grounded answer.
+  'ai_context_manifest',
 ] as const;
 export type NonResourceType = (typeof NON_RESOURCE_TYPES)[number];
 
