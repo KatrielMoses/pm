@@ -1,6 +1,18 @@
-import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from 'react';
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useRef,
+  useState,
+  type ReactNode,
+} from 'react';
 import { api, ApiError, clearCsrf } from './api.ts';
-import { clearPersonalClientState } from './shell/drafts.ts';
+import {
+  clearPersonalClientState,
+  clearProposalDrafts,
+  purgeLegacyProposalDrafts,
+} from './shell/drafts.ts';
 
 export interface Me {
   id: string;
@@ -21,6 +33,18 @@ const AuthContext = createContext<AuthState | null>(null);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [me, setMe] = useState<Me | null | undefined>(undefined);
+  // The last account seen in this tab: an invalidated session or a different account removes the
+  // AI proposal drafts (7D corrective review 01 R1).
+  const seen = useRef<string | null>(null);
+  useEffect(() => {
+    purgeLegacyProposalDrafts();
+  }, []);
+  useEffect(() => {
+    if (me === undefined) return;
+    const id = me?.id ?? null;
+    if (seen.current !== null && seen.current !== id) clearProposalDrafts();
+    if (id) seen.current = id;
+  }, [me]);
 
   const refresh = useCallback(async () => {
     try {
@@ -30,6 +54,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } catch (err) {
       if (err instanceof ApiError && err.status === 401) {
         clearCsrf();
+        clearProposalDrafts();
         setMe(null);
         return null;
       }

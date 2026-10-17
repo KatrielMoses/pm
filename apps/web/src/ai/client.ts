@@ -239,7 +239,7 @@ export interface AiProposal {
   selection_issues?: AiProposalIssue[];
   approval: { revision: number; selected: string[]; expires_at: string; valid: boolean } | null;
   history: Array<{ kind: string; revision: number; changes: string[]; at: string }>;
-  can: { edit: boolean; approve: boolean; apply: boolean; reject: boolean };
+  can: { edit: boolean; approve: boolean; apply: boolean; reject: boolean; rebase?: boolean };
 }
 
 export interface AiProposalValidation {
@@ -528,7 +528,7 @@ export const aiClient = {
   decideProposal: async (
     ws: string,
     id: string,
-    verb: 'approve' | 'apply' | 'reject',
+    verb: 'approve' | 'apply' | 'reject' | 'rebase',
     body: Record<string, unknown>,
     key: string,
   ) =>

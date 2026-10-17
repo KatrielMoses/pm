@@ -7,7 +7,10 @@ afterEach(() => {
   cleanup();
   vi.unstubAllGlobals();
 });
-beforeEach(() => sessionStorage.clear());
+beforeEach(() => {
+  sessionStorage.clear();
+  localStorage.clear();
+});
 
 const WS = 'ws_01ARZ3NDEKTSV4RRFFQ69G5FAV';
 const PRP = 'prp_01ARZ3NDEKTSV4RRFFQ69G5FAV';

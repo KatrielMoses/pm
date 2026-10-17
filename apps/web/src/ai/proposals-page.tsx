@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { ApiError, newIdempotencyKey } from '../api.ts';
+import { useAuth } from '../auth.tsx';
 import { Link } from '../router.tsx';
 import { Announce, Banner } from '../ui/feedback.tsx';
 import { Page } from '../ui/layout.tsx';
@@ -10,6 +11,7 @@ import {
   type AiProposalChange,
   type AiProposalRef,
 } from './client.ts';
+import { readProposalDraft, writeProposalDraft, type ProposalDraft } from './proposal-drafts.ts';
 
 /**
  * Phase 7D: review, edit, select, approve, and explicitly apply an AI change proposal (ADR-0040;
@@ -56,29 +58,33 @@ const PRIORITIES = ['none', 'low', 'medium', 'high', 'urgent'];
 const LONG = new Set(['description', 'text']);
 const DATES = new Set(['start_date', 'due_date', 'target_date']);
 
-interface Draft {
-  revision: number;
-  fields: Record<string, Record<string, string | null>>;
-  selected: string[] | null;
-  decisions: Record<string, 'accepted' | 'rejected'>;
+type Draft = ProposalDraft;
+
+/** The signed-in account; null while it is unknown (drafts are then neither read nor written). */
+function useDraftAccount(): string | null {
+  try {
+    const me = useAuth().me;
+    return me ? me.id : null;
+  } catch {
+    // Rendered outside the auth provider (component tests): one device-local key.
+    return 'device';
+  }
 }
-const draftKey = (id: string) => `pm.ai.proposal.draft.${id}`;
-const readDraft = (id: string): Draft | null => {
-  try {
-    const raw = sessionStorage.getItem(draftKey(id));
-    return raw ? (JSON.parse(raw) as Draft) : null;
-  } catch {
-    return null;
-  }
-};
-const writeDraft = (id: string, d: Draft | null) => {
-  try {
-    if (d) sessionStorage.setItem(draftKey(id), JSON.stringify(d));
-    else sessionStorage.removeItem(draftKey(id));
-  } catch {
-    // Storage may be unavailable (private mode); edits then live only in this page.
-  }
-};
+/** A response from the server that ends this person's authority over the proposal content. */
+const AUTHORITY_ENDED = new Set([
+  'not_found',
+  'forbidden',
+  'unauthenticated',
+  'proposal_sources_unavailable',
+  'proposal_erased',
+]);
+/** A result that may not have reached the server: the same attempt is retried with its key. */
+const ambiguous = (err: unknown) =>
+  !(err instanceof ApiError) ||
+  err.offline ||
+  err.code === 'network' ||
+  err.status === 0 ||
+  err.status >= 500;
 const emptyDraft = (revision: number): Draft => ({
   revision,
   fields: {},
@@ -228,6 +234,7 @@ function FieldEditor({
 }
 
 export function ProposalPage({ ws, id }: { ws: string; id: string }) {
+  const account = useDraftAccount();
   const [p, setP] = useState<AiProposal | null>(null);
   const [draft, setDraft] = useState<Draft | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -237,48 +244,87 @@ export function ProposalPage({ ws, id }: { ws: string; id: string }) {
   const [said, setSaid] = useState('');
   const [reason, setReason] = useState('');
   const [notFound, setNotFound] = useState(false);
-  /** One key per attempt; reused when the person retries after a dropped connection. */
-  const keys = useRef<Record<string, string>>({});
+  /**
+   * One key per deliberate attempt. A key is kept only while its attempt's outcome is unknown (a
+   * dropped connection or server error), so a retry resolves that same attempt; after a known
+   * result the next click is a new attempt with a new key (corrective review 01 R2).
+   */
+  const pendingKeys = useRef<Record<string, string>>({});
+  const keyFor = (action: string) => (pendingKeys.current[action] ??= newIdempotencyKey());
+  const settle = (action: string, err?: unknown) => {
+    if (err === undefined || !ambiguous(err)) delete pendingKeys.current[action];
+  };
   /** Set synchronously, so a second click before the next render never sends a request. */
   const inFlight = useRef(false);
-  const keyFor = (action: string, revision: number) => {
-    const k = `${action}:${revision}`;
-    keys.current[k] ??= newIdempotencyKey();
-    return keys.current[k]!;
-  };
+  /** Only the latest response may change what is shown (no stale async rehydration). */
+  const latest = useRef(0);
+
+  const forget = useCallback(() => {
+    if (account) writeProposalDraft(account, ws, id, null);
+    setDraft(null);
+  }, [account, ws, id]);
 
   const show = useCallback(
     (v: AiProposal) => {
+      // Keeps any error already shown (a refresh after a refusal explains what happened).
       setP(v);
-      const saved = readDraft(id);
+      // Erased, withheld, applied, or rejected: nothing local is worth keeping.
+      if (v.content.state !== 'present' || v.state === 'applied' || v.state === 'rejected') {
+        if (account) writeProposalDraft(account, ws, id, null);
+        setDraft(emptyDraft(v.revision));
+        setConflict(false);
+        return;
+      }
+      const saved = account ? readProposalDraft(account, ws, id) : null;
       if (saved && saved.revision !== v.revision && dirty(saved)) setConflict(true);
       setDraft(saved ?? emptyDraft(v.revision));
-      setError(null);
     },
-    [id],
+    [account, ws, id],
   );
-  const loadFailed = useCallback((err: unknown) => {
-    if (err instanceof ApiError && err.code === 'not_found') setNotFound(true);
-    else setError(aiProblem(err, 'The proposal could not be loaded.'));
-  }, []);
-  useEffect(() => {
-    let gone = false;
-    aiClient.proposal(ws, id).then(
+  const loadFailed = useCallback(
+    (err: unknown) => {
+      if (err instanceof ApiError && AUTHORITY_ENDED.has(err.code)) {
+        forget();
+        setP(null);
+        setNotFound(true);
+      } else setError(aiProblem(err, 'The proposal could not be loaded.'));
+    },
+    [forget],
+  );
+  const refresh = useCallback(() => {
+    const n = ++latest.current;
+    return aiClient.proposal(ws, id).then(
       (v) => {
-        if (!gone) show(v);
+        if (n === latest.current) show(v);
+        return v;
       },
       (err) => {
-        if (!gone) loadFailed(err);
+        if (n === latest.current) loadFailed(err);
+        return null;
+      },
+    );
+  }, [ws, id, show, loadFailed]);
+  useEffect(() => {
+    // Wait for the account before reading any stored draft.
+    if (account === null) return;
+    let gone = false;
+    const n = ++latest.current;
+    aiClient.proposal(ws, id).then(
+      (v) => {
+        if (!gone && n === latest.current) show(v);
+      },
+      (err) => {
+        if (!gone && n === latest.current) loadFailed(err);
       },
     );
     return () => {
       gone = true;
     };
-  }, [ws, id, show, loadFailed]);
+  }, [account, ws, id, show, loadFailed]);
 
   const update = (d: Draft) => {
     setDraft(d);
-    writeDraft(id, dirty(d) ? d : null);
+    if (account) writeProposalDraft(account, ws, id, dirty(d) ? d : null);
   };
 
   const fail = (err: unknown, fallback: string) => {
@@ -290,6 +336,12 @@ export function ProposalPage({ ws, id }: { ws: string; id: string }) {
           .map((i) => ({ change: i.pointer!.split('/')[2] ?? null, message: i.message })),
       );
       if (err.issues.some((i) => i.code === 'revision_changed')) setConflict(true);
+      const code = err.issues[0]?.code ?? err.code;
+      if (AUTHORITY_ENDED.has(err.code) || AUTHORITY_ENDED.has(code)) {
+        // The server ended this person's authority: drop local content, then show its answer.
+        forget();
+        void refresh();
+      } else if (err.status === 409) void refresh(); // e.g. an expired approval: show the state.
     }
   };
 
@@ -387,13 +439,16 @@ export function ProposalPage({ ws, id }: { ws: string; id: string }) {
           ...(draft.selected ? { selected: draft.selected } : {}),
           ...(Object.keys(changes).length ? { changes } : {}),
         },
-        keyFor('edit', p.revision),
+        keyFor('edit'),
       );
+      settle('edit');
+      latest.current++;
       setP(v);
       update(emptyDraft(v.revision));
       setConflict(false);
       setSaid(`Saved as revision ${v.revision}. Approve it again before applying.`);
     } catch (err) {
+      settle('edit', err);
       fail(err, 'Your edits were not saved. They are kept on this device.');
     } finally {
       inFlight.current = false;
@@ -417,10 +472,11 @@ export function ProposalPage({ ws, id }: { ws: string; id: string }) {
             ? { reason: reason.trim() }
             : {}
           : { revision: p.revision, fingerprint: p.fingerprint },
-        keyFor(verb, p.revision),
+        keyFor(verb),
       );
-      setP(v);
-      if (verb === 'apply') writeDraft(id, null);
+      settle(verb);
+      latest.current++;
+      show(v);
       setSaid(
         verb === 'approve'
           ? `Approved ${v.approval?.selected.length ?? 0} change(s). Apply when ready.`
@@ -431,11 +487,53 @@ export function ProposalPage({ ws, id }: { ws: string; id: string }) {
               : 'Nothing was applied: one change failed and every change was rolled back.',
       );
     } catch (err) {
-      if (verb === 'apply' && err instanceof ApiError && (err.offline || err.code === 'network'))
+      settle(verb, err);
+      if (err instanceof ApiError && err.offline)
+        // Nothing left the device; the same attempt (and key) is sent when back online.
+        setError(aiProblem(err, 'You are offline.'));
+      else if (ambiguous(err))
         setError(
-          'Apply did not complete because the connection dropped. Try again when you are online: it is safe and never applies twice.',
+          verb === 'apply'
+            ? 'Apply did not complete because the connection dropped. Try again when you are online: it is safe and never applies twice.'
+            : 'That did not complete because the connection dropped. Try again: the same request is resent, never repeated.',
         );
       else fail(err, 'That did not complete.');
+    } finally {
+      inFlight.current = false;
+      setBusy(false);
+    }
+  };
+
+  /** Explicitly accept the current versions of the changed records shown here (rebase). */
+  const rebase = async () => {
+    if (inFlight.current) return;
+    inFlight.current = true;
+    setBusy(true);
+    setError(null);
+    setProblem([]);
+    const reviewed = Object.fromEntries(
+      p.changes
+        .filter((c) => c.target?.out_of_date && typeof c.target.version === 'number')
+        .map((c) => [c.key, c.target!.version!]),
+    );
+    try {
+      const v = await aiClient.decideProposal(
+        ws,
+        id,
+        'rebase',
+        { revision: p.revision, reviewed },
+        keyFor('rebase'),
+      );
+      settle('rebase');
+      latest.current++;
+      setP(v);
+      // The person reviewed the new base on this page: keep their unsaved edits on it.
+      if (draft) update({ ...draft, revision: v.revision });
+      setConflict(false);
+      setSaid(`Using the current versions as revision ${v.revision}. Approve it before applying.`);
+    } catch (err) {
+      settle('rebase', err);
+      fail(err, 'The current versions could not be used.');
     } finally {
       inFlight.current = false;
       setBusy(false);
@@ -475,12 +573,13 @@ export function ProposalPage({ ws, id }: { ws: string; id: string }) {
                 type="button"
                 className="button"
                 onClick={() =>
-                  void aiClient.proposal(ws, id).then((v) => {
-                    // Keep the edits and rebase them onto the current revision.
-                    setP(v);
-                    update({ ...(readDraft(id) ?? emptyDraft(v.revision)), revision: v.revision });
+                  void refresh().then((v) => {
+                    // Keep the edits and carry them to the current revision.
+                    if (!v || !account) return;
+                    const kept = readProposalDraft(account, ws, id);
+                    update({ ...(kept ?? emptyDraft(v.revision)), revision: v.revision });
                     setConflict(false);
-                  }, loadFailed)
+                  })
                 }
               >
                 Reload and keep my edits
@@ -517,6 +616,28 @@ export function ProposalPage({ ws, id }: { ws: string; id: string }) {
         </section>
       ) : null}
 
+      {p.can.rebase ? (
+        <section aria-labelledby="prp-rebase" className="ai-panel" role="region">
+          <h2 id="prp-rebase">Some records changed since this proposal was made</h2>
+          <p>
+            Review the current values shown as “Now” for{' '}
+            {p.changes
+              .filter((c) => c.target?.out_of_date)
+              .map((c) => c.key)
+              .join(', ')}
+            . To keep the proposal, use these current versions as its new base: you then approve it
+            again before applying. Nothing is overwritten without that review.
+          </p>
+          <button
+            type="button"
+            className="button button-primary"
+            disabled={busy}
+            onClick={() => void rebase()}
+          >
+            Use the current versions
+          </button>
+        </section>
+      ) : null}
       <section aria-labelledby="prp-changes" className="ai-panel">
         <h2 id="prp-changes">
           Changes ({selected.length} of {p.changes.length} selected)
