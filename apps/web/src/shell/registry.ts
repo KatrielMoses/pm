@@ -346,6 +346,14 @@ export const ROUTES: readonly RouteDef[] = [
     section: 'Ask with sources',
     visible: member,
   },
+  // 7C: typed AI actions (summaries, extraction, analysis, drafts) with scoped entry points.
+  {
+    id: 'ai_assist',
+    pattern: '/workspaces/:ws/ai/assist',
+    shell: 'workspace',
+    section: 'AI assist',
+    visible: member,
+  },
   // 7D: AI change proposals the person reviews, edits, approves, and explicitly applies.
   {
     id: 'ai_proposals',

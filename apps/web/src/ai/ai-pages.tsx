@@ -309,6 +309,10 @@ export function AiPage({ ws }: { ws: string }) {
         <Link to={`/workspaces/${ws}/ai/ask`}>Ask with sources</Link>: read-only answers that cite
         records you can read, with the context shown first.
       </p>
+      <p>
+        <Link to={`/workspaces/${ws}/ai/assist`}>AI assist</Link>: summaries, extraction, analysis,
+        and drafts for the workspace or a brand; drafts become proposals you review and apply.
+      </p>
       {loadError ? (
         <Banner
           tone="danger"

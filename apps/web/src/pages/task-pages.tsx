@@ -796,7 +796,11 @@ export function TaskPage({ ws, tsk }: { ws: string; tsk: string }) {
       }
       actions={
         t && t.lifecycle_state === 'active' ? (
-          <FavoriteToggle target={t.id} label={t.title} />
+          <>
+            <FavoriteToggle target={t.id} label={t.title} />{' '}
+            {/* 7C: AI assistance scoped to this task (preview works with AI off). */}
+            <Link to={`/workspaces/${ws}/ai/assist?task=${t.id}`}>AI assist</Link>
+          </>
         ) : null
       }
     >
