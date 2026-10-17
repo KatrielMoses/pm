@@ -528,8 +528,9 @@ describe('tenant RLS foundation (0C §12.7)', () => {
     // (workspace ids only); 2D discover_reminders_due; 3D discover_runaway_timers; 3C
     // discover_days_to_close and discover_block_series_due; 4B discover_notification_work; 4E
     // discover_file_work; 5A discover_search_work; 5B discover_goal_work; 5C discover_metrics_work;
-    // 5D discover_report_work; 6A discover_integration_work; 6B discover_webhook_work.
-    expect(fns.rows.length).toBe(23);
+    // 5D discover_report_work; 6A discover_integration_work; 6B discover_webhook_work; 7A
+    // discover_ai_retention_work.
+    expect(fns.rows.length).toBe(24);
     const allowed = new Set([
       'job_id',
       'workspace_id',
