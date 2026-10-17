@@ -55,6 +55,7 @@ import {
 } from './policy.ts';
 import { AiProviderError, type AiCompletion, type AiProvider } from './provider.ts';
 import { redactCredentials } from './redaction.ts';
+import { eraseAiContentRows } from './lifecycle.ts';
 import {
   AI_REGISTRY_VERSION,
   inputTokenBound,
@@ -81,6 +82,8 @@ export interface AiGatewayDeps {
 }
 
 export const AI_DISPATCH_JOB = 'ai.action.dispatch';
+/** The 0C action an AI run executes under (R1, not a step-up action). */
+const AI_EXECUTE_ACTION = 'ai.execute' as const;
 const AI_QUEUE = 'default';
 const PROMPT_MAX_CHARS = 8000;
 const CONTEXT_MAX = 5;
@@ -161,6 +164,13 @@ type OpRow = {
 /** C0 controls other than tab, newline, and carriage return (the database plain-text rule). */
 // eslint-disable-next-line no-control-regex
 const CONTROL_CHARS = /[\x01-\x08\x0b\x0c\x0e-\x1f\x7f]/;
+
+/** Audit field stems per meter (field names never look like credentials). */
+const AUDIT_METER: Record<AiMeter, string> = {
+  'ai.cost': 'cost',
+  'ai.input_tokens': 'input_units',
+  'ai.output_tokens': 'output_units',
+};
 
 const TERMINAL = new Set(['succeeded', 'partial', 'failed', 'cancelled', 'skipped']);
 
@@ -270,7 +280,24 @@ export class AiGatewayService extends McpAccessService {
     return this.inWorkspace(caller, ws, { readOnly: true }, async (tx, p) => {
       if (p.kind === 'guest') throw new TenancyError('not_found');
       const { policy, decision } = await this.#availability(tx);
-      const can = decideWorkspace(p, 'ai.execute').allowed;
+      // Members run AI in the brands they may read (ai.execute is brand-scoped for them).
+      let can = decideWorkspace(p, 'ai.execute').allowed;
+      if (!can) {
+        const brands = await tx.db
+          .selectFrom('tenancy.brand')
+          .select(['id', 'is_sensitive', 'lifecycle_state'])
+          .where('lifecycle_state', '=', 'active')
+          .limit(500)
+          .execute();
+        can = brands.some(
+          (b) =>
+            decideBrand(p, 'ai.execute', {
+              id: b.id,
+              isSensitive: b.is_sensitive,
+              lifecycleState: b.lifecycle_state,
+            }).allowed,
+        );
+      }
       const now = new Date();
       const period = await workspacePeriod(tx, now);
       const limits = await effectiveLimits(tx, this.#ai.config.defaults);
@@ -786,6 +813,17 @@ export class AiGatewayService extends McpAccessService {
             )
             .execute();
         }
+        // Thresholds are basis points of the hard limit: a new cost limit is announced afresh.
+        if (parsed.some((l) => l.meter === 'ai.cost')) {
+          const period = await workspacePeriod(tx, new Date());
+          await tx.db
+            .updateTable('metering.usage_balance')
+            .set({ last_threshold_bp: 0, updated_at: new Date(), version: sql`version + 1` })
+            .where('scope_key', '=', tx.workspaceId)
+            .where('meter', '=', 'ai.cost')
+            .where('period_start', '=', period.start)
+            .execute();
+        }
         await this.workAudit(
           tx,
           caller,
@@ -794,12 +832,12 @@ export class AiGatewayService extends McpAccessService {
           { recordId: null, type: 'ai_settings', publicId: null },
           parsed.flatMap((l) => [
             change.plain(
-              `${l.meter}.monthly_allowance`,
+              `${AUDIT_METER[l.meter]}_monthly_allowance`,
               amountString(before[l.meter].allowance),
               amountString(l.allowance),
             ),
             change.plain(
-              `${l.meter}.hard_limit`,
+              `${AUDIT_METER[l.meter]}_hard_limit`,
               amountString(before[l.meter].hard),
               amountString(l.hard),
             ),
@@ -984,11 +1022,7 @@ export class AiGatewayService extends McpAccessService {
       if (!known.has(k))
         issues.push(issue(`/${k}`, 'unknown_field', 'This field is not accepted.'));
     const prompt = typeof b.prompt === 'string' ? b.prompt.trim() : '';
-    if (
-      !prompt ||
-      prompt.length > PROMPT_MAX_CHARS ||
-      CONTROL_CHARS.test(prompt)
-    )
+    if (!prompt || prompt.length > PROMPT_MAX_CHARS || CONTROL_CHARS.test(prompt))
       issues.push(
         issue(
           '/prompt',
@@ -1331,7 +1365,7 @@ export class AiGatewayService extends McpAccessService {
       });
     const context: ExecutionContext = {
       ...this.exec(caller, p),
-      risk: { actionKey: 'ai.execute', riskClass: 'R1' },
+      risk: { actionKey: AI_EXECUTE_ACTION, riskClass: 'R1' },
       dataClassLimit: policy?.maxDataClass ?? 'C2',
     };
     const op = await createOperation(tx, {
@@ -2442,8 +2476,17 @@ export class AiGatewayService extends McpAccessService {
         })
         .where('id', '=', d.id)
         .execute();
-      // Partial output is kept and labelled; after a cancel nothing new is published.
-      if (text !== null && !(cancelObserved && completeness !== 'partial'))
+      // Partial output is kept and labelled; after a cancel nothing new is published, and nothing
+      // is published for content erased meanwhile (departure, retention).
+      const erasedMeanwhile =
+        (
+          await tx.db
+            .selectFrom('ai.ai_action')
+            .select('content_state')
+            .where('operation_id', '=', opId)
+            .executeTakeFirstOrThrow()
+        ).content_state === 'erased';
+      if (text !== null && !erasedMeanwhile && !(cancelObserved && completeness !== 'partial'))
         await tx.db
           .insertInto('ai.ai_output')
           .values({
@@ -2689,46 +2732,12 @@ export class AiGatewayService extends McpAccessService {
   // Retention and departure
   // ---------------------------------------------------------------------------------------------
 
-  /**
-   * Erases AI content (prompts, outputs, context references) for a departed member's runs, or for
-   * runs older than the technical retention setting. Usage, cost, and audit facts remain.
-   */
+  /** Erases AI content for a departed member or past the technical retention cut-off. */
   async eraseAiContent(
     tx: WorkspaceTransaction,
     filter: { membershipId?: string; before?: Date },
   ): Promise<number> {
-    let q = tx.db
-      .selectFrom('ai.ai_action as a')
-      .innerJoin('exec.operation as o', 'o.id', 'a.operation_id')
-      .select('a.operation_id')
-      .where('a.content_state', '=', 'present');
-    if (filter.membershipId) q = q.where('a.initiating_membership_id', '=', filter.membershipId);
-    if (filter.before) q = q.where('a.created_at', '<', filter.before);
-    // A run still in flight keeps its prompt until it finishes.
-    q = q.where('o.execution_state', 'in', [
-      'succeeded',
-      'partial',
-      'failed',
-      'cancelled',
-      'skipped',
-      'waiting',
-    ]);
-    const rows = await q.limit(500).execute();
-    if (!rows.length) return 0;
-    const ids = rows.map((r) => r.operation_id);
-    await tx.db
-      .updateTable('ai.ai_output')
-      .set({ content: null, completeness: 'erased' })
-      .where('operation_id', 'in', ids)
-      .where('completeness', '<>', 'erased')
-      .execute();
-    await tx.db.deleteFrom('ai.ai_context_ref').where('operation_id', 'in', ids).execute();
-    await tx.db
-      .updateTable('ai.ai_action')
-      .set({ prompt_text: null, content_state: 'erased', content_erased_at: new Date() })
-      .where('operation_id', 'in', ids)
-      .execute();
-    return ids.length;
+    return eraseAiContentRows(tx, filter);
   }
 
   aiHistoryRetentionDays(): number | null {

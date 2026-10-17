@@ -7,6 +7,7 @@ import type { WorkSettings } from '../validation.ts';
 import { addDays } from '../time/semantics.ts';
 import type { MetricService } from '../metrics/metric-service.ts';
 import { METRICS_5C } from './metrics-5c.ts';
+import { aiUsageMetric } from './metrics-7a.ts';
 import {
   freshness,
   resolveRange,
@@ -178,7 +179,8 @@ export interface MetricProvider {
   label: string;
   description: string;
   unit: MetricValue['unit'];
-  category: 'work' | 'projects' | 'time' | 'capacity' | 'planning' | 'deliverables' | 'goals';
+  category:
+    'work' | 'projects' | 'time' | 'capacity' | 'planning' | 'deliverables' | 'goals' | 'ai';
   source: { kind: string; label: string };
   /** Guests and share-only readers may place and read only record-level metrics (ADR-0031 D8). */
   guestSafe: boolean;
@@ -1162,6 +1164,8 @@ export const PROVIDERS: readonly MetricProvider[] = [
   // 5C: cycle time, time in status, created versus completed, aging, blocked, and stale work,
   // answered by the metric service through the same port.
   ...METRICS_5C,
+  // 7A: AI cost and tokens from the usage ledger, for people who may view usage.
+  aiUsageMetric,
 ];
 
 /** Requirements whose sources are defined by a later phase: listed, never placed (honest absence). */
@@ -1172,13 +1176,6 @@ export const DEFERRED_METRICS: ReadonlyArray<{
   owner: string;
   reason: string;
 }> = [
-  {
-    key: 'ai.usage',
-    label: 'AI usage and cost',
-    requirement: 'RPT-012',
-    owner: '7A',
-    reason: 'AI usage is not tracked yet.',
-  },
   {
     key: 'automation.rates',
     label: 'Automation and agent success rates',

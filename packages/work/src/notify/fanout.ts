@@ -1,5 +1,6 @@
 import { newPublicId, newUuidV7, type InternalEventType } from '@pm/contracts';
 import { sql, type WorkspaceTransaction } from '@pm/db';
+import { decideWorkspace } from '@pm/tenancy';
 import type { Metrics } from '@pm/observability';
 import { writeOutboxEvent, type InternalEvent, type OutboxConsumer } from '@pm/platform';
 import { validZone } from '../time/semantics.ts';
@@ -54,6 +55,8 @@ export const FANOUT_EVENTS = [
   'planning.task_reminder.fired',
   'relations.relationship.created',
   'integrations.webhook.delivery_failed',
+  'metering.usage.threshold_reached',
+  'metering.usage.limit_reached',
 ] as const satisfies readonly InternalEventType[];
 
 const NIL_UUID = '00000000-0000-7000-8000-000000000000';
@@ -103,6 +106,48 @@ export class NotificationFanOut implements OutboxConsumer {
     const actor = str(e.actor.id);
     const data = e.data;
     switch (e.type) {
+      case 'metering.usage.threshold_reached':
+      case 'metering.usage.limit_reached': {
+        // 7A (NTF-006 contribution): the people who can change AI limits now are told; the
+        // notice carries the meter and threshold only, never a prompt, a person, or a run.
+        const admins = await tx.db
+          .selectFrom('access.role_assignment as ra')
+          .innerJoin('access.role as r', 'r.id', 'ra.role_id')
+          .select('ra.membership_principal_id')
+          .where('ra.role_kind', '=', 'workspace_role')
+          .where('ra.scope_type', '=', 'workspace')
+          .where('r.key', 'in', ['owner', 'administrator'])
+          .where((eb) =>
+            eb.or([eb('ra.expires_at', 'is', null), eb('ra.expires_at', '>', new Date())]),
+          )
+          .execute();
+        const recipients: string[] = [];
+        for (const a of admins) {
+          const person = a.membership_principal_id
+            ? await activePerson(tx, a.membership_principal_id)
+            : null;
+          if (
+            person &&
+            decideWorkspace(await principalOf(tx, person), 'ai.limits.configure').allowed
+          )
+            recipients.push(person.id);
+        }
+        return [
+          {
+            type: 'spend_threshold' as const,
+            recordId: null,
+            actorId: null,
+            recipients,
+            facts: {
+              meter: str(data.meter),
+              threshold_bp:
+                e.type === 'metering.usage.limit_reached' ? 10_000 : Number(data.threshold_bp ?? 0),
+              limit_reached: e.type === 'metering.usage.limit_reached',
+            },
+            occasion: `${e.event_id}`,
+          },
+        ];
+      }
       case 'integrations.webhook.delivery_failed': {
         const owner = await tx.db
           .selectFrom('integrations.webhook_subscription')

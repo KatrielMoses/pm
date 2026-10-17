@@ -17,6 +17,7 @@ import { registerWorkLifecycle } from './lifecycle.ts';
 import { projectTargets, savedViewTargets, taskTargets } from './navigation.ts';
 import { projectOwnerHook, taskAssigneeHook } from './ownership.ts';
 import { AiGatewayService } from './ai/ai-gateway-service.ts';
+import { aiHistoryOwnerHook } from './ai/lifecycle.ts';
 import { MessagesProvider, type AiProvider } from './ai/provider.ts';
 import { connectionOwnerHook, webhookOwnerHook } from './integrations/ownership.ts';
 import { goalOwnerHook } from './goals/ownership.ts';
@@ -157,7 +158,8 @@ export function createWorkService(deps: {
       .register(connectionOwnerHook)
       .register(webhookOwnerHook)
       .register(reviewDepartureHook(writer))
-      .register(departureTimerHook(writer)),
+      .register(departureTimerHook(writer))
+      .register(aiHistoryOwnerHook),
     settings: {
       invitationLifetimeMs: config.tenancy.invitationLifetimeMs,
       ownershipTransferLifetimeMs: config.tenancy.ownershipTransferLifetimeMs,

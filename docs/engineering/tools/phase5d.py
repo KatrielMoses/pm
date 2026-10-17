@@ -234,10 +234,15 @@ def check_invariants():
             errs.append("semantics.ts lacks %s" % needle)
     # The metric port: owners' services, the viewer's own predicate, deferred metrics listed.
     for needle in ["export interface MetricProvider", "export const PROVIDERS", "export const DEFERRED_METRICS",
-                   "export async function evaluate(", "...METRICS_5C", "key: 'ai.usage'",
+                   "export async function evaluate(", "...METRICS_5C",
                    "key: 'automation.rates'", "key: 'quality.release'"]:
         if needle not in metrics:
             errs.append("metrics.ts lacks %s" % needle)
+    # AI usage is deferred to 7A until 7A registers its provider through this same port.
+    m7a = P("packages/work/src/insights/metrics-7a.ts")
+    if "key: 'ai.usage'" not in metrics and not (
+            "aiUsageMetric," in metrics and os.path.isfile(m7a) and "key: 'ai.usage'" in read(m7a)):
+        errs.append("metrics.ts lacks key: 'ai.usage' (deferred, or the 7A provider through the port)")
     for key in ["tasks.open", "tasks.due_soon", "tasks.overdue", "tasks.unassigned", "tasks.completed",
                 "tasks.created", "projects.active", "projects.deadlines", "milestones.upcoming",
                 "planning.planned_vs_completed", "time.planned_vs_actual", "time.by_brand", "time.by_project",

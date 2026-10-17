@@ -45,6 +45,7 @@ import {
   departureTimerHook,
   type WorkSettings,
   type CalendarProvider,
+  aiHistoryOwnerHook,
 } from '@pm/work';
 import {
   mutation,
@@ -166,7 +167,8 @@ export function workEnv(
       .register(connectionOwnerHook)
       .register(webhookOwnerHook)
       .register(reviewDepartureHook(writer))
-      .register(departureTimerHook(writer)),
+      .register(departureTimerHook(writer))
+      .register(aiHistoryOwnerHook),
     limiter: new PostgresRateLimiter(h.platform, randomBytes(32), {
       'workspace.create': { limit: 1000, windowMs: 3_600_000 },
       'invitation.accept': { limit: 1000, windowMs: 3_600_000 },

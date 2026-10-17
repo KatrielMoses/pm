@@ -88,7 +88,7 @@
         },
         {
           "file": "packages/work/src/insights/metrics.ts",
-          "contains": "key: 'ai.usage'"
+          "contains": "aiUsageMetric,"
         },
         {
           "file": "apps/api/test/integration/insights-api.test.ts",
@@ -98,7 +98,8 @@
           "file": "packages/work/test/integration/insights.test.ts",
           "contains": "differs by what each person may read, and hidden work changes no number or label"
         }
-      ]
+      ],
+      "note": "Reconciled by Phase 7A (ADR-0038): the AI usage slot this port reserved is now answered by the 7A provider registered in the same catalog (metrics-7a.ts)."
     },
     {
       "id": "PRJ-019",
@@ -400,13 +401,14 @@
       "evidence": [
         {
           "file": "packages/work/src/insights/metrics.ts",
-          "contains": "key: 'ai.usage'"
+          "contains": "aiUsageMetric,"
         },
         {
           "file": "apps/api/test/integration/insights-api.test.ts",
           "contains": "serves the metric catalog, with what is not yet available and why"
         }
-      ]
+      ],
+      "note": "Reconciled by Phase 7A (ADR-0038): the AI usage slot this port reserved is now answered by the 7A provider registered in the same catalog (metrics-7a.ts)."
     },
     {
       "id": "RPT-013",
