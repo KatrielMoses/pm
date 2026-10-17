@@ -256,6 +256,15 @@ export class PlatformDiscovery {
     return rows.map((r) => r.workspace_id);
   }
 
+  /** Workspaces holding AI content older than the technical retention cut-off (7A). */
+  async discoverAiRetentionWork(before: Date, limit: number): Promise<string[]> {
+    const { rows } = await this.#pool.query<{ workspace_id: string }>(
+      'SELECT workspace_id FROM exec_dispatch.discover_ai_retention_work($1, $2)',
+      [before, limit],
+    );
+    return rows.map((r) => r.workspace_id);
+  }
+
   async discoverReportWork(now: Date, retentionBefore: Date, limit: number): Promise<string[]> {
     const { rows } = await this.#pool.query<{ workspace_id: string }>(
       'SELECT workspace_id FROM exec_dispatch.discover_report_work($1, $2, $3)',

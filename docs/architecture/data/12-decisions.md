@@ -466,3 +466,41 @@ Status of every ADR: **proposed (Phase 0B)**, pending solutions-architect accept
 - **Alternatives:** Resetting the single attempt counter on replay (it erases the failure record). A hard delete (history is evidence). Storing a rendered payload (queued data is not authority).
 - **Consequences:** The down migration restores the exact 0051 catalog. Paused subscriptions return as `disabled_endpoint` and skipped deliveries as `failed`.
 
+
+<a id="adr-44"></a>
+## ADR-44: AI gateway, privacy, and hard spending reservations (Phase 7A amendment)
+
+- **Decision:** Migration 0053 creates the `ai` and `metering` schemas reserved in this model.
+  - `ai.ai_provider_config` holds one workspace's AI policy: on/off, a versioned registry model key (never an implicit "latest"), the key source, a workspace key as a vault reference only, the most sensitive data class allowed (C0–C2; C3/C4 never), the confirm-above amount, and `require_training_exclusion`, which a CHECK keeps true while OD-41 is open.
+  - `ai.brand_ai_profile` holds brand instructions, terminology, audience, voice, and the approved-source policy 7B enforces.
+  - `ai.ai_action` is the 1:1 detail of an `ai_action` operation. It holds the initiator, the explicit brand scope, the model, registry, price, privacy, and prompt-template versions it was authorized against, the funding, the caller kind and delegation, the redacted prompt, and the estimate. It is immutable except for content erasure. `ai.ai_context_ref` records which records and fields were requested, at which version, and whether policy included them. It holds no content and no foreign key to the record (a purge leaves a tombstone).
+  - `ai.ai_dispatch` (new entity) records each potentially chargeable provider call. It is committed as `dispatching` before the request leaves. A later attempt that finds it still `dispatching` marks it `unknown` and never resends it. `ai.ai_output` is immutable (trigger) except for erasure.
+  - `metering.spend_limit`, `metering.usage_balance` (one row per workspace, meter, and calendar month in the workspace timezone), `metering.usage_reservation`, and the append-only `metering.usage_event` carry exact `numeric(20, 6)` amounts. Money is micro-dollars with six fractional digits, so a sub-micro per-token price stays exact. Tokens use the same scale.
+- **Amendments to the reserved entities:**
+  - `usage_reservation` is unique per `(dispatch_id, meter)`, not `(operation_id, meter)`: each retry is separately chargeable and separately reserved.
+  - `usage_event.cost_micros` is exact numeric rather than `bigint`.
+  - `usage_event.billable` is always false in 7A (customer billing is 10A). Workspace-key usage is metered for visibility only (OD-46).
+- **Alternatives:**
+  - One reservation per operation (a retry would spend outside it).
+  - Integer micro-dollars (cheap models cost less than one micro-dollar per token).
+  - Copying context content into history (revocation could not withhold it).
+  - Trusting the platform effect ledger's `pending` state for provider calls (a worker lost mid-call would be retried).
+- **Consequences:** The down migration restores the exact 0052 catalog. Every new table forces workspace row-level security with explicit grants. Usage events are insert-only for both application roles. A payload-free discovery function serves the (disabled by default) content retention sweep.
+
+<a id="adr-45"></a>
+## ADR-45: Attempt-level spend evidence and reference-only AI checkpoints (Phase 7A corrective review 01)
+
+- **Decision:** Migration 0054 (expand) amends the 0053 AI entities. It changes no earlier file.
+  - `ai.ai_dispatch` gains `price_snapshot` and `capability_snapshot`: the price and the error-charging capability the attempt was dispatched under. Settlement and reconciliation use them, never the current registry, so a new price, a retired model, or a configuration deployment cannot reprice an old attempt or make it impossible to reconcile. Attempts written before 0054 have neither and use their action's immutable snapshot.
+  - `bound_breach` records provider-reported usage beyond the attempt's reserved bound. The full known usage is settled, never clamped to the bound. `clipped_locally` records answer text discarded by the local retention bound. `failure_detail` names the reason an attempt was refused, left unknown, or failed (a closed set enforced by a CHECK).
+  - `ai.ai_provider_config` gains `dispatch_suspended_reason` and `dispatch_suspended_at`. A bound breach pauses AI for the workspace until an owner or administrator resumes it after review. The worker role may update only these columns, `updated_at`, and `version`.
+  - Generic execution checkpoints hold references only. An AI dispatch job's `ai.prepare.<n>` step stores the dispatch id and bounded state, never the rendered prompt, source content, output, or key reference. The request content is re-read and re-authorized from the protected AI content tables at send time. `ai.scrub_dispatch_checkpoints(uuid[])` is a SECURITY DEFINER function, workspace-scoped through row-level security. It removes `system`, `user`, and `keyRef` from those steps and leaves every other step and fact intact. Departure, retention, and account erasure call it because the API role cannot update jobs.
+  - 0054 scrubs every copy written before it, in every workspace, including runs the old eraser had already marked erased.
+- **Alternatives:**
+  - Settling against the current registry (a later price would reprice history; a removed model could not be reconciled).
+  - Clamping over-bound usage to the reservation (hides real liability).
+  - Keeping content in checkpoints and erasing it there as well (a second copy that every eraser must remember, and that generic execution tooling can read).
+  - A permanent migrator policy on `exec.job` (would outlive its one statement).
+- **Consequences:**
+  - The one-time cleanup lifts forced row-level security on `exec.job` for one statement inside the migration transaction and restores it, as 0041 did. The migration test proves the catalog is unchanged afterwards.
+  - The down migration restores the exact 0053 catalog. It does not restore removed checkpoint content, which never belongs in generic execution storage.

@@ -755,6 +755,10 @@ export function WorkspaceSettingsPage({ ws }: { ws: string }) {
         <Link to={`/workspaces/${ws}/settings/access`}>Sharing, guests, and ownership</Link>
         {' · '}
         <Link to={`/workspaces/${ws}/settings/api`}>API and webhooks</Link>
+        {' · '}
+        <Link to={`/workspaces/${ws}/settings/ai`}>AI settings</Link>
+        {' · '}
+        <Link to={`/workspaces/${ws}/ai`}>AI test runs</Link>
       </p>
     </Page>
   );

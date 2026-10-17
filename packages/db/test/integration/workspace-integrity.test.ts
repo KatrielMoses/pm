@@ -311,6 +311,17 @@ describe('database-enforced workspace existence (1A review 01, correction 2)', (
       'transfer.import_mapping',
       'transfer.import_preview',
       'transfer.import_row',
+      // Phase 7A AI policy, brand profiles, actions, context references, dispatches, outputs, and metering.
+      'ai.ai_provider_config',
+      'ai.brand_ai_profile',
+      'ai.ai_action',
+      'ai.ai_context_ref',
+      'ai.ai_dispatch',
+      'ai.ai_output',
+      'metering.spend_limit',
+      'metering.usage_balance',
+      'metering.usage_reservation',
+      'metering.usage_event',
     ];
     expect(res.rows.map((r) => r.tbl).sort()).toEqual(
       [...TENANT_TABLES.map((t) => `exec.${t}`), ...phase1f, ...phase1c].sort(),

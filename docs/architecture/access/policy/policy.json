@@ -2700,7 +2700,7 @@
       "requirements": [
         "WSB-012"
       ],
-      "notes": ""
+      "notes": "Phase 7A (AZ-44): the brand AI profile (instructions, terminology, audience, voice, approved-source policy)."
     },
     {
       "key": "ai.providers.manage",
@@ -2729,7 +2729,7 @@
         "AI-032",
         "ADM-005"
       ],
-      "notes": ""
+      "notes": "Phase 7A (AZ-44): provider, model, data class, confirm-above amount, and workspace keys (vault references, off while OD-46 is open); session only, step-up."
     },
     {
       "key": "ai.limits.configure",
@@ -2758,7 +2758,7 @@
         "AI-033",
         "BILL-009"
       ],
-      "notes": ""
+      "notes": "Phase 7A (AZ-44): monthly allowances and hard limits per meter, and reconciliation of an unknown AI dispatch cost; session only, step-up."
     },
     {
       "key": "agents.configure",
@@ -3152,7 +3152,7 @@
         "AI-034",
         "RPT-012"
       ],
-      "notes": ""
+      "notes": "Phase 7A (AZ-44): AI usage and per-run metadata only; never another person's prompt, output, or context."
     },
     {
       "key": "billing.view",
@@ -3349,7 +3349,7 @@
         "AI-005",
         "AI-006"
       ],
-      "notes": ""
+      "notes": "Phase 7A (AZ-44): the AI gateway decides this in the run's explicit scope (brand, or the workspace) before estimating and again before every dispatch; every context source must be readable now. AI history content is personal to its initiator."
     },
     {
       "key": "ai.apply_proposal",

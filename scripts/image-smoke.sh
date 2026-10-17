@@ -66,7 +66,11 @@ for c in pm-smoke-web pm-smoke-worker; do
 done
 docker exec pm-smoke-web node /app/entrypoint.mjs healthcheck || fail "web healthcheck command failed"
 docker exec pm-smoke-worker node /app/entrypoint.mjs healthcheck || fail "worker healthcheck command failed"
-curl -fsS http://127.0.0.1:3999/readyz | tee /dev/stderr | grep -q '"status":"ready"' || fail "web not ready"
+readyz=$(curl -fsS http://127.0.0.1:3999/readyz) || fail "web not ready"
+echo "$readyz" >&2
+echo "$readyz" | grep -q '"status":"ready"' || fail "web not ready"
+# 7A: AI is unconfigured in the image smoke, and that is reported truthfully as a healthy state.
+echo "$readyz" | grep -q '"ai_provider":"not_configured"' || fail "AI readiness is not reported truthfully"
 shell=$(curl -fsS http://127.0.0.1:3999/) || fail "browser shell not served"
 echo "$shell" | grep -q '<div id="root">' || fail "browser shell not served"
 asset=$(echo "$shell" | grep -oE '/assets/[A-Za-z0-9_-]+\.js' | head -1)

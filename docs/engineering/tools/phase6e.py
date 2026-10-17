@@ -13,6 +13,13 @@ read = phase1.read
 load = phase1.load
 
 
+
+def _ai_head(factory):
+    """Phase 7A extends the 6E head: AiGatewayService extends McpAccessService."""
+    path = P("packages/work/src/ai/ai-gateway-service.ts")
+    return ("return new AiGatewayService(" in factory and os.path.isfile(path)
+            and "export class AiGatewayService extends McpAccessService" in read(path))
+
 def check_boundary():
     errs = []
     registry = read(P("packages/work/src/integrations/mcp/registry.ts"))
@@ -71,8 +78,8 @@ def check_chain():
     portability = read(P("packages/work/src/portability/portability-service.ts"))
     if "export class PortabilityService extends CalendarService" not in portability:
         errs.append("PortabilityService must retain the 6C CalendarService foundation")
-    if "return new McpAccessService(" not in factory:
-        errs.append("factory must return the 6E service-chain head")
+    if "return new McpAccessService(" not in factory and not _ai_head(factory):
+        errs.append("factory must return the 6E service-chain head (or the 7A extension of it)")
     if "export class CalendarService extends PublicApiService" not in calendar:
         errs.append("CalendarService must retain the public API foundation")
     return errs, "service chain"

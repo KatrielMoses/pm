@@ -3286,6 +3286,190 @@ export interface MetricsReconcileStateTable {
   >;
 }
 
+// Phase 7A: the AI gateway, its policy, actions, dispatches, outputs, and metering (ADR-0038).
+// Money columns are exact numeric micro-dollars read as decimal strings.
+export interface AiProviderConfigTable {
+  id: string;
+  workspace_id: string;
+  enabled: Defaulted<boolean>;
+  model_key: string | null;
+  key_source: Defaulted<'deployment' | 'workspace'>;
+  workspace_key_ref: string | null;
+  workspace_key_set_at: Timestamp | null;
+  max_data_class: Defaulted<'C0' | 'C1' | 'C2'>;
+  require_training_exclusion: Defaulted<boolean>;
+  confirm_above_micros: Defaulted<string>;
+  dispatch_suspended_reason: 'bound_breach' | null;
+  dispatch_suspended_at: Timestamp | null;
+  updated_by_membership_id: string;
+  created_at: DTs;
+  updated_at: DTs;
+  version: Defaulted<number>;
+}
+export interface BrandAiProfileTable {
+  id: string;
+  workspace_id: string;
+  brand_id: string;
+  instructions: Defaulted<string>;
+  terminology: Defaulted<string>;
+  audience: Defaulted<string>;
+  voice: Defaulted<string>;
+  approved_sources: Defaulted<'readable' | 'brand_only'>;
+  updated_by_membership_id: string;
+  created_at: DTs;
+  updated_at: DTs;
+  version: Defaulted<number>;
+}
+export type AiFunding = 'platform' | 'workspace_key' | 'synthetic';
+export interface AiActionTable {
+  operation_id: string;
+  workspace_id: string;
+  initiating_membership_id: string;
+  brand_id: string | null;
+  purpose: 'test_run';
+  synthetic: boolean;
+  model_key: string;
+  provider: string;
+  model_id: string;
+  registry_version: string;
+  prompt_template_version: string;
+  price_snapshot: Json<Record<string, unknown>>;
+  privacy_snapshot: Json<Record<string, unknown>>;
+  funding: AiFunding;
+  caller_kind: 'ui' | 'api' | 'mcp';
+  delegation_principal_type: string | null;
+  delegation_token_id: string | null;
+  prompt_text: string | null;
+  redaction_count: Defaulted<number>;
+  max_output_tokens: number;
+  estimated_max_micros: string;
+  rerun_of_operation_id: string | null;
+  content_state: Defaulted<'present' | 'erased'>;
+  content_erased_at: Timestamp | null;
+  created_at: DTs;
+}
+export interface AiContextRefTable {
+  id: string;
+  workspace_id: string;
+  operation_id: string;
+  position: number;
+  record_id: string;
+  record_type: 'task' | 'project';
+  record_public_id: string;
+  fields: string[];
+  record_version: number;
+  included: boolean;
+  exclusion_reason: string | null;
+}
+export type AiDispatchState =
+  'dispatching' | 'succeeded' | 'partial' | 'refused' | 'failed' | 'unknown' | 'reconciled';
+export interface AiDispatchTable {
+  id: string;
+  workspace_id: string;
+  operation_id: string;
+  attempt_id: string;
+  dispatch_number: number;
+  state: Defaulted<AiDispatchState>;
+  period_start: string;
+  input_token_bound: number;
+  output_token_bound: number;
+  reserved_micros: string;
+  provider_request_id: string | null;
+  stop_reason: string | null;
+  error_kind: string | null;
+  input_tokens: number | null;
+  output_tokens: number | null;
+  settled_micros: string | null;
+  usage_basis: 'measured' | 'not_charged' | 'reported' | 'reserved_bound' | null;
+  cancel_observed: Defaulted<boolean>;
+  started_at: DTs;
+  ended_at: Timestamp | null;
+  reconciled_by_membership_id: string | null;
+  reconciled_at: Timestamp | null;
+  price_snapshot: Json<Record<string, unknown>> | null;
+  capability_snapshot: Json<Record<string, unknown>> | null;
+  bound_breach: Defaulted<boolean>;
+  clipped_locally: Defaulted<boolean>;
+  failure_detail:
+    | 'protocol_invalid'
+    | 'stream_overflow'
+    | 'unsupported_stop'
+    | 'usage_invalid'
+    | 'configuration_changed'
+    | 'bound_unverified'
+    | 'bound_breach'
+    | 'content_unavailable'
+    | null;
+}
+export interface AiOutputTable {
+  id: string;
+  workspace_id: string;
+  operation_id: string;
+  dispatch_id: string;
+  completeness: 'complete' | 'truncated' | 'partial' | 'erased';
+  content: string | null;
+  created_at: DTs;
+}
+export type AiMeter = 'ai.cost' | 'ai.input_tokens' | 'ai.output_tokens';
+export interface SpendLimitTable {
+  id: string;
+  workspace_id: string;
+  scope_key: string;
+  meter: AiMeter;
+  monthly_allowance: string;
+  hard_limit: string;
+  updated_by_membership_id: string;
+  created_at: DTs;
+  updated_at: DTs;
+  version: Defaulted<number>;
+}
+export interface UsageBalanceTable {
+  id: string;
+  workspace_id: string;
+  scope_key: string;
+  meter: AiMeter;
+  period_start: string;
+  period_end: string;
+  consumed: Defaulted<string>;
+  allowance_consumed: Defaulted<string>;
+  reserved: Defaulted<string>;
+  last_threshold_bp: Defaulted<number>;
+  updated_at: DTs;
+  version: Defaulted<number>;
+}
+export interface UsageReservationTable {
+  id: string;
+  workspace_id: string;
+  operation_id: string;
+  dispatch_id: string;
+  meter: AiMeter;
+  period_start: string;
+  amount: string;
+  state: Defaulted<'held' | 'unknown' | 'settled' | 'released'>;
+  settled_amount: string | null;
+  created_at: DTs;
+  updated_at: DTs;
+}
+export interface UsageEventTable {
+  id: string;
+  workspace_id: string;
+  meter: AiMeter;
+  quantity: string;
+  unit: 'usd_micros' | 'tokens';
+  cost_micros: string | null;
+  cost_basis: 'measured' | 'estimated' | 'reported';
+  funding: AiFunding;
+  billable: Defaulted<boolean>;
+  brand_id: string | null;
+  actor_type: 'ai';
+  operation_id: string;
+  dispatch_id: string;
+  occurred_at: DTs;
+  period_start: string;
+  correction_of: string | null;
+  sequence: number;
+}
+
 export interface Database {
   'files.file_object': FileObjectTable;
   'files.file': FileTable;
@@ -3474,6 +3658,16 @@ export interface Database {
   'transfer.import_row': ImportRowTable;
   'transfer.import_mapping': ImportMappingTable;
   'transfer.import_preview': ImportPreviewTable;
+  'ai.ai_provider_config': AiProviderConfigTable;
+  'ai.brand_ai_profile': BrandAiProfileTable;
+  'ai.ai_action': AiActionTable;
+  'ai.ai_context_ref': AiContextRefTable;
+  'ai.ai_dispatch': AiDispatchTable;
+  'ai.ai_output': AiOutputTable;
+  'metering.spend_limit': SpendLimitTable;
+  'metering.usage_balance': UsageBalanceTable;
+  'metering.usage_reservation': UsageReservationTable;
+  'metering.usage_event': UsageEventTable;
 }
 
 /** Column inventory per table, compared with the migrated catalog by the schema-drift test. */
@@ -6316,5 +6510,173 @@ export const TABLE_COLUMNS: Readonly<Record<keyof Database, readonly string[]>> 
     'mapping_version',
     'expires_at',
     'created_at',
+  ],
+  'ai.ai_provider_config': [
+    'id',
+    'workspace_id',
+    'enabled',
+    'model_key',
+    'key_source',
+    'workspace_key_ref',
+    'workspace_key_set_at',
+    'max_data_class',
+    'require_training_exclusion',
+    'confirm_above_micros',
+    'updated_by_membership_id',
+    'created_at',
+    'updated_at',
+    'version',
+    'dispatch_suspended_reason',
+    'dispatch_suspended_at',
+  ],
+  'ai.brand_ai_profile': [
+    'id',
+    'workspace_id',
+    'brand_id',
+    'instructions',
+    'terminology',
+    'audience',
+    'voice',
+    'approved_sources',
+    'updated_by_membership_id',
+    'created_at',
+    'updated_at',
+    'version',
+  ],
+  'ai.ai_action': [
+    'operation_id',
+    'workspace_id',
+    'initiating_membership_id',
+    'brand_id',
+    'purpose',
+    'synthetic',
+    'model_key',
+    'provider',
+    'model_id',
+    'registry_version',
+    'prompt_template_version',
+    'price_snapshot',
+    'privacy_snapshot',
+    'funding',
+    'caller_kind',
+    'delegation_principal_type',
+    'delegation_token_id',
+    'prompt_text',
+    'redaction_count',
+    'max_output_tokens',
+    'estimated_max_micros',
+    'rerun_of_operation_id',
+    'content_state',
+    'content_erased_at',
+    'created_at',
+  ],
+  'ai.ai_context_ref': [
+    'id',
+    'workspace_id',
+    'operation_id',
+    'position',
+    'record_id',
+    'record_type',
+    'record_public_id',
+    'fields',
+    'record_version',
+    'included',
+    'exclusion_reason',
+  ],
+  'ai.ai_dispatch': [
+    'id',
+    'workspace_id',
+    'operation_id',
+    'attempt_id',
+    'dispatch_number',
+    'state',
+    'period_start',
+    'input_token_bound',
+    'output_token_bound',
+    'reserved_micros',
+    'provider_request_id',
+    'stop_reason',
+    'error_kind',
+    'input_tokens',
+    'output_tokens',
+    'settled_micros',
+    'usage_basis',
+    'cancel_observed',
+    'started_at',
+    'ended_at',
+    'reconciled_by_membership_id',
+    'reconciled_at',
+    'price_snapshot',
+    'capability_snapshot',
+    'bound_breach',
+    'clipped_locally',
+    'failure_detail',
+  ],
+  'ai.ai_output': [
+    'id',
+    'workspace_id',
+    'operation_id',
+    'dispatch_id',
+    'completeness',
+    'content',
+    'created_at',
+  ],
+  'metering.spend_limit': [
+    'id',
+    'workspace_id',
+    'scope_key',
+    'meter',
+    'monthly_allowance',
+    'hard_limit',
+    'updated_by_membership_id',
+    'created_at',
+    'updated_at',
+    'version',
+  ],
+  'metering.usage_balance': [
+    'id',
+    'workspace_id',
+    'scope_key',
+    'meter',
+    'period_start',
+    'period_end',
+    'consumed',
+    'allowance_consumed',
+    'reserved',
+    'last_threshold_bp',
+    'updated_at',
+    'version',
+  ],
+  'metering.usage_reservation': [
+    'id',
+    'workspace_id',
+    'operation_id',
+    'dispatch_id',
+    'meter',
+    'period_start',
+    'amount',
+    'state',
+    'settled_amount',
+    'created_at',
+    'updated_at',
+  ],
+  'metering.usage_event': [
+    'id',
+    'workspace_id',
+    'meter',
+    'quantity',
+    'unit',
+    'cost_micros',
+    'cost_basis',
+    'funding',
+    'billable',
+    'brand_id',
+    'actor_type',
+    'operation_id',
+    'dispatch_id',
+    'occurred_at',
+    'period_start',
+    'correction_of',
+    'sequence',
   ],
 };

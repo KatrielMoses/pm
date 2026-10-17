@@ -29,8 +29,9 @@ describe('non-resource envelope stays confined (ADR-0007 D6, ADR-0008 B3)', () =
     // project overview composite (closed non-resource list, ADR-0008 B3, ADR-0010, ADR-0013 P17),
     // the 2D task interaction views (ADR-0016), the 3A view catalog, field options, and default
     // resolution (ADR-0018), the 3D time views (ADR-0019), the 3B layout reads (ADR-0020), the 3C Today views
-    // (ADR-0021), the 3E capacity reads (ADR-0022), the 4A collaboration summary (ADR-0023), the 4B notification views (ADR-0024), the 4C document exports (ADR-0025), the 5A search reads (ADR-0028), the 5B portfolio overview, dependency, and orphan reads (ADR-0029), the 5C metric reads (ADR-0030), the 5D widget, record, catalog, run, recipient, and share reads (ADR-0031), and the 6B token and webhook lists (ADR-0032).
+    // (ADR-0021), the 3E capacity reads (ADR-0022), the 4A collaboration summary (ADR-0023), the 4B notification views (ADR-0024), the 4C document exports (ADR-0025), the 5A search reads (ADR-0028), the 5B portfolio overview, dependency, and orphan reads (ADR-0029), the 5C metric reads (ADR-0030), the 5D widget, record, catalog, run, recipient, and share reads (ADR-0031), the 6B token and webhook lists (ADR-0032), and the 7A AI overview, settings, estimate, history, and usage reads (ADR-0038).
     expect([...new Set(uses.filter((f) => !f.endsWith('envelopes.ts')))].sort()).toEqual([
+      'apps/api/src/ai/routes.ts',
       'apps/api/src/app.ts',
       'apps/api/src/auth/routes.ts',
       'apps/api/src/mcp/routes.ts',

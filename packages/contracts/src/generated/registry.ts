@@ -898,6 +898,64 @@ export const TELEMETRY_SIGNALS = [
       "metric",
       "outcome"
     ]
+  },
+  {
+    "name": "ai.runs",
+    "type": "counter",
+    "labels": [
+      "outcome",
+      "provider_class"
+    ]
+  },
+  {
+    "name": "ai.dispatches",
+    "type": "counter",
+    "labels": [
+      "provider_class",
+      "outcome"
+    ]
+  },
+  {
+    "name": "ai.policy_refusals",
+    "type": "counter",
+    "labels": [
+      "reason"
+    ]
+  },
+  {
+    "name": "ai.reservations",
+    "type": "counter",
+    "labels": [
+      "outcome"
+    ]
+  },
+  {
+    "name": "ai.cancellations",
+    "type": "counter",
+    "labels": [
+      "stage"
+    ]
+  },
+  {
+    "name": "ai.tokens",
+    "type": "counter",
+    "labels": [
+      "direction"
+    ]
+  },
+  {
+    "name": "ai.cost_micros",
+    "type": "counter",
+    "labels": [
+      "funding"
+    ]
+  },
+  {
+    "name": "ai.history.erased",
+    "type": "counter",
+    "labels": [
+      "reason"
+    ]
   }
 ] as const;
 export type TelemetrySignalName = (typeof TELEMETRY_SIGNALS)[number]['name'];
@@ -4045,7 +4103,23 @@ export const PARAMETER_NAMES = [
   "WORKSPACE_CONCURRENCY_CAP",
   "WORKSPACE_STORAGE_QUOTA_BYTES",
   "WORK_BLOCKS_PER_DAY_MAX",
-  "WORK_BLOCKS_RANGE_DAYS_MAX"
+  "WORK_BLOCKS_RANGE_DAYS_MAX",
+  "AI_PROVIDER",
+  "AI_PROVIDER_BASE_URL",
+  "AI_PROVIDER_API_KEY",
+  "AI_PROVIDER_TIMEOUT_MS",
+  "AI_APPROVED_MODELS",
+  "AI_BYOK_ENABLED",
+  "AI_DEFAULT_MONTHLY_ALLOWANCE_MICROS",
+  "AI_DEFAULT_HARD_LIMIT_MICROS",
+  "AI_DEFAULT_INPUT_TOKEN_LIMIT",
+  "AI_DEFAULT_OUTPUT_TOKEN_LIMIT",
+  "AI_MAX_OUTPUT_TOKENS",
+  "AI_MAX_ATTEMPTS",
+  "AI_OUTPUT_MAX_CHARS",
+  "AI_STREAM_EVENT_MAX_BYTES",
+  "AI_STREAM_MAX_BYTES",
+  "AI_HISTORY_RETENTION_DAYS"
 ] as const;
 export type ParameterName = (typeof PARAMETER_NAMES)[number];
 

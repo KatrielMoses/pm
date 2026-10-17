@@ -218,8 +218,8 @@ describe('Search, goals, metrics, dashboards, and reports as one permission-safe
         'work.time_in_status',
       ]),
     );
+    // 7A has since registered AI usage through the same port; the later sources remain listed.
     expect(cat.not_available.map((m: { key: string }) => m.key).sort()).toEqual([
-      'ai.usage',
       'automation.rates',
       'quality.release',
     ]);
@@ -268,7 +268,7 @@ describe('Search, goals, metrics, dashboards, and reports as one permission-safe
       env.svc.createDashboard(
         owner,
         ws,
-        { title: 'No', kind: 'owner', layout: { widgets: [widget('a', 'ai.usage')] } },
+        { title: 'No', kind: 'owner', layout: { widgets: [widget('a', 'automation.rates')] } },
         mutation(),
       ),
     ).rejects.toMatchObject({

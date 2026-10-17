@@ -29,7 +29,8 @@ import {
   taskAssigneeHook,
   taskTargets,
   savedViewTargets,
-  McpAccessService,
+  AiGatewayService,
+  type AiGatewayDeps,
   connectionOwnerHook,
   webhookOwnerHook,
   type WebhookTransport,
@@ -44,6 +45,7 @@ import {
   departureTimerHook,
   type WorkSettings,
   type CalendarProvider,
+  aiHistoryOwnerHook,
 } from '@pm/work';
 import {
   mutation,
@@ -63,7 +65,7 @@ export {
 
 export interface WorkEnv {
   h: Harness;
-  svc: McpAccessService;
+  svc: AiGatewayService;
   /** The test storage and scanner the service uses (null when a test disables them). */
   files: FileDeps;
   stepUp: StubStepUp;
@@ -94,6 +96,8 @@ export function workEnv(
     deliver?: WebhookTransport;
     /** 6C: the calendar provider adapter (the real Google adapter against the HTTP fixture). */
     calendarProvider?: CalendarProvider | null;
+    /** 7A: the AI gateway configuration and transport (default: AI not configured). */
+    ai?: AiGatewayDeps;
   } = {},
 ): WorkEnv {
   const h = createHarness(db);
@@ -138,7 +142,8 @@ export function workEnv(
     scanner:
       options.files?.scanner !== undefined ? options.files.scanner : new SignatureTestScanner(),
   };
-  const svc = new McpAccessService({
+  const svc = new AiGatewayService({
+    ...(options.ai ? { ai: options.ai } : {}),
     vault: createVault(h.config.identity),
     deliver: options.deliver,
     calendarProvider: options.calendarProvider ?? null,
@@ -162,7 +167,8 @@ export function workEnv(
       .register(connectionOwnerHook)
       .register(webhookOwnerHook)
       .register(reviewDepartureHook(writer))
-      .register(departureTimerHook(writer)),
+      .register(departureTimerHook(writer))
+      .register(aiHistoryOwnerHook),
     limiter: new PostgresRateLimiter(h.platform, randomBytes(32), {
       'workspace.create': { limit: 1000, windowMs: 3_600_000 },
       'invitation.accept': { limit: 1000, windowMs: 3_600_000 },

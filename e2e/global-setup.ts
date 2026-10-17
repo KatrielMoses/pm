@@ -6,6 +6,7 @@ import { join, resolve } from 'node:path';
 import {
   generatePasswords,
   provisionDatabase,
+  startAiProviderFixture,
   startGoogleCalendarFixture,
   startPostgres,
   testEnv,
@@ -25,6 +26,10 @@ export default async function globalSetup(): Promise<() => Promise<void>> {
   // real adapter in the API and worker talks to it over HTTP; browser tests drive it through its
   // token-protected control endpoint, one namespace per test workspace.
   const calendar = await startGoogleCalendarFixture();
+  // 7A: the deterministic Anthropic Messages protocol fixture (never a real provider, no money
+  // spent). The real Messages adapter in the API and worker talks to it; workspaces still start
+  // with AI off, so every other journey runs exactly as before.
+  const ai = await startAiProviderFixture();
   const env = {
     PATH: process.env.PATH ?? '',
     ...testEnv(urls),
@@ -50,6 +55,9 @@ export default async function globalSetup(): Promise<() => Promise<void>> {
     OBJECT_STORAGE_PUBLIC_BASE_URL: `http://127.0.0.1:${port}`,
     MALWARE_SCANNER: 'test-signature',
     ...calendar.env(`http://127.0.0.1:${port}/v1/integrations/oauth/google_calendar/callback`),
+    ...ai.env(),
+    // A call held open by the fixture outlives the browser's cancel click comfortably.
+    AI_PROVIDER_TIMEOUT_MS: '15000',
     RATE_LIMIT_POLICIES: JSON.stringify({
       'sign_in.source': { limit: 10000, windowMs: 60000 },
       'sign_in.email': { limit: 10000, windowMs: 60000 },
@@ -69,6 +77,8 @@ export default async function globalSetup(): Promise<() => Promise<void>> {
   process.env.PM_E2E_WORKER_URL = urls.worker;
   process.env.PM_E2E_GCAL_URL = calendar.baseUrl;
   process.env.PM_E2E_GCAL_TOKEN = calendar.controlToken;
+  process.env.PM_E2E_AI_URL = ai.baseUrl;
+  process.env.PM_E2E_AI_TOKEN = ai.controlToken;
   const dist = process.env.PM_SMOKE_DIST === '1';
   const start = (app: string): ChildProcess =>
     spawn(
@@ -95,6 +105,7 @@ export default async function globalSetup(): Promise<() => Promise<void>> {
       procs.map((p) => new Promise((r) => (p.exitCode !== null ? r(null) : p.on('exit', r)))),
     );
     await calendar.close();
+    await ai.close();
     await server.stop();
   };
 }

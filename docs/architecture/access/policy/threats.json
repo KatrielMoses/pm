@@ -963,6 +963,86 @@
         "I-12",
         "I-14"
       ]
+    },
+    {
+      "id": "T-91",
+      "category": "field_leak",
+      "description": "An AI request sends content outside the initiator's current read access or explicit scope: hidden or unknown records, fields that are not AI-eligible or exceed the workspace data class, restricted brands, brand instructions or free text carrying credentials, or provider keys.",
+      "mitigated_by": [
+        "I-08",
+        "I-14",
+        "I-16",
+        "I-18"
+      ]
+    },
+    {
+      "id": "T-92",
+      "category": "revocation",
+      "description": "A queued, retried, or replayed AI action keeps dispatching or rendering after the initiator loses access or departs, after the delegating token or consent is revoked, or after the configuration it was authorized against changes; or a repeated Idempotency-Key sends the request again.",
+      "mitigated_by": [
+        "I-12",
+        "I-14"
+      ]
+    },
+    {
+      "id": "T-93",
+      "category": "inference",
+      "description": "AI history, usage administration, exports, or dashboards reveal another person's prompt, output, or context, or reveal content whose sources the reader can no longer read (a generated paraphrase as a backdoor).",
+      "mitigated_by": [
+        "I-07",
+        "I-08",
+        "I-18"
+      ]
+    },
+    {
+      "id": "T-94",
+      "category": "agent_scope",
+      "description": "AI spending exceeds a configured hard limit through overlapping dispatches, retries, worker loss, unknown outcomes, limit changes, or period rollover; or an unknown cost is shown as zero, or a cancelled, partial, or failed run is shown as a success.",
+      "mitigated_by": [
+        "I-01",
+        "I-14"
+      ]
+    },
+    {
+      "id": "T-95",
+      "category": "spoofing",
+      "description": "Provider output, model capabilities, or configuration gain authority: output changes records or declares work complete; a real provider receives workspace data without explicit approval, a secret store, or an entitlement; a model is substituted silently; or unconfigured AI is reported as failing or as ready.",
+      "mitigated_by": [
+        "I-01",
+        "I-09",
+        "I-15",
+        "I-16"
+      ]
+    },
+    {
+      "id": "T-96",
+      "category": "departure",
+      "description": "AI user content (a rendered prompt, brand instructions, or source-record content) or a key reference survives departure, retention, or account erasure in generic execution storage: a job checkpoint, operation result, attempt detail, outbox payload, or effect ledger, including copies written before a fix, so erasure reports success while a durable copy remains.",
+      "mitigated_by": [
+        "I-07",
+        "I-12",
+        "I-14",
+        "I-16"
+      ]
+    },
+    {
+      "id": "T-97",
+      "category": "agent_scope",
+      "description": "A hard spending limit rests on an optimistic assumption: a provider error that may have been charged is settled at zero and retried, a real model's input bound is an unverified estimate, an attempt is priced from the current registry instead of what was confirmed, or invalid or over-bound usage is accepted, clamped, or priced as zero.",
+      "mitigated_by": [
+        "I-01",
+        "I-14"
+      ]
+    },
+    {
+      "id": "T-98",
+      "category": "spoofing",
+      "description": "Provider stream data gains trust it has not earned: locally clipped text is reported as a complete answer, negative, fractional, unsafe, contradictory, or missing usage or an unsupported stop reason is accepted as success, or an unbounded event or stream exhausts memory while waiting for a separator.",
+      "mitigated_by": [
+        "I-01",
+        "I-09",
+        "I-15"
+      ]
     }
   ],
   "tests": [
@@ -7264,6 +7344,610 @@
         "error_message",
         "count_facet",
         "timing"
+      ]
+    },
+    {
+      "id": "AT-354",
+      "threats": [
+        "T-95"
+      ],
+      "principal": "owner",
+      "setup": "Workspace with no AI policy; a deployment with no AI transport; create a task manually",
+      "scope": "workspace",
+      "action": "ai.execute",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "forbidden",
+      "silent_surfaces": [
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-355",
+      "threats": [
+        "T-95"
+      ],
+      "principal": "administrator",
+      "setup": "Members, limited, read-only, and guests open AI settings; an administrator saves without and with step-up",
+      "scope": "workspace",
+      "action": "ai.providers.manage",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "forbidden",
+      "silent_surfaces": [
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-356",
+      "threats": [
+        "T-91",
+        "T-94"
+      ],
+      "principal": "member",
+      "setup": "Member with brand edit runs a confirmed synthetic test run with one readable task as context",
+      "scope": "brand",
+      "action": "ai.execute",
+      "surface": "ai_context",
+      "expected": "allow",
+      "response_shape": "ok",
+      "silent_surfaces": [
+        "ai_answer"
+      ]
+    },
+    {
+      "id": "AT-357",
+      "threats": [
+        "T-91"
+      ],
+      "principal": "guest",
+      "setup": "Owner and administrator run; limited and read-only members with AI policy off and a guest try",
+      "scope": "workspace",
+      "action": "ai.execute",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "forbidden",
+      "silent_surfaces": [
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-358",
+      "threats": [
+        "T-91"
+      ],
+      "principal": "member",
+      "setup": "Attach a sensitive-brand task, an unknown identifier, and another workspace's task as context",
+      "scope": "record",
+      "action": "ai.execute",
+      "surface": "ai_context",
+      "expected": "deny",
+      "response_shape": "not_found",
+      "silent_surfaces": [
+        "error_message",
+        "timing"
+      ]
+    },
+    {
+      "id": "AT-359",
+      "threats": [
+        "T-91"
+      ],
+      "principal": "owner",
+      "setup": "Owner attaches a restricted-brand task and a non-AI-eligible field; brand scope on a restricted brand",
+      "scope": "record",
+      "action": "ai.execute",
+      "surface": "ai_context",
+      "expected": "allow",
+      "response_shape": "ok_filtered",
+      "silent_surfaces": [
+        "ai_answer"
+      ]
+    },
+    {
+      "id": "AT-360",
+      "threats": [
+        "T-92"
+      ],
+      "principal": "member",
+      "setup": "Revoke the member's brand access after the run is queued and before the worker dispatches it",
+      "scope": "brand",
+      "action": "ai.execute",
+      "surface": "ai_context",
+      "expected": "deny",
+      "response_shape": "not_found",
+      "silent_surfaces": [
+        "ai_answer"
+      ]
+    },
+    {
+      "id": "AT-361",
+      "threats": [
+        "T-92",
+        "T-93"
+      ],
+      "principal": "member",
+      "setup": "Complete a run, revoke the brand, then read history, repeat the completed key, and export AI history",
+      "scope": "record",
+      "action": "ai.execute",
+      "surface": "export",
+      "expected": "deny",
+      "response_shape": "redacted",
+      "silent_surfaces": [
+        "ui_record",
+        "export",
+        "api"
+      ]
+    },
+    {
+      "id": "AT-362",
+      "threats": [
+        "T-91"
+      ],
+      "principal": "owner",
+      "setup": "Prompt carries a provider key and a password; inspect stored rows, provider request, and logs",
+      "scope": "workspace",
+      "action": "ai.execute",
+      "surface": "ai_context",
+      "expected": "allow",
+      "response_shape": "redacted",
+      "silent_surfaces": [
+        "ai_context",
+        "audit_display",
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-363",
+      "threats": [
+        "T-95"
+      ],
+      "principal": "owner",
+      "setup": "Select an unapproved real model; request workspace keys while OD-46 keeps them off; request data class C3",
+      "scope": "workspace",
+      "action": "ai.providers.manage",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "forbidden",
+      "silent_surfaces": [
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-364",
+      "threats": [
+        "T-94"
+      ],
+      "principal": "owner",
+      "setup": "Provider overload on every attempt, a single rate limit with Retry-After, and an authentication refusal",
+      "scope": "workspace",
+      "action": "ai.execute",
+      "surface": "api",
+      "expected": "allow",
+      "response_shape": "error_generic",
+      "silent_surfaces": [
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-365",
+      "threats": [
+        "T-94"
+      ],
+      "principal": "owner",
+      "setup": "A truncated answer and a stream cut mid-way",
+      "scope": "workspace",
+      "action": "ai.execute",
+      "surface": "ui_record",
+      "expected": "allow",
+      "response_shape": "ok",
+      "silent_surfaces": [
+        "ai_answer"
+      ]
+    },
+    {
+      "id": "AT-366",
+      "threats": [
+        "T-94"
+      ],
+      "principal": "member",
+      "setup": "Cancel a run while the provider streams, then reconcile its late usage twice",
+      "scope": "brand",
+      "action": "ai.execute",
+      "surface": "ui_record",
+      "expected": "allow",
+      "response_shape": "ok",
+      "silent_surfaces": [
+        "ui_record"
+      ]
+    },
+    {
+      "id": "AT-367",
+      "threats": [
+        "T-94"
+      ],
+      "principal": "owner",
+      "setup": "Cancel a queued run before any worker claims it",
+      "scope": "workspace",
+      "action": "ai.execute",
+      "surface": "ui_record",
+      "expected": "allow",
+      "response_shape": "ok",
+      "silent_surfaces": [
+        "ui_record"
+      ]
+    },
+    {
+      "id": "AT-368",
+      "threats": [
+        "T-93"
+      ],
+      "principal": "owner",
+      "setup": "Owners of workspaces B and C read, cancel, and list workspace A's run and usage",
+      "scope": "workspace",
+      "action": "usage.view",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "not_found",
+      "silent_surfaces": [
+        "count_facet",
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-369",
+      "threats": [
+        "T-93"
+      ],
+      "principal": "administrator",
+      "setup": "Administrator opens a member's run and the usage view",
+      "scope": "workspace",
+      "action": "usage.view",
+      "surface": "report",
+      "expected": "allow",
+      "response_shape": "ok_filtered",
+      "silent_surfaces": [
+        "ui_record",
+        "report"
+      ]
+    },
+    {
+      "id": "AT-370",
+      "threats": [
+        "T-92"
+      ],
+      "principal": "api_token_personal",
+      "setup": "Start runs with an ai:execute token through the API and an MCP-sourced caller, then revoke the token before dispatch",
+      "scope": "workspace",
+      "action": "ai.execute",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "not_found",
+      "silent_surfaces": [
+        "ai_answer"
+      ]
+    },
+    {
+      "id": "AT-371",
+      "threats": [
+        "T-93"
+      ],
+      "principal": "member",
+      "setup": "Erase a departed member's AI content; erase content past the technical retention cut-off",
+      "scope": "workspace",
+      "action": "ai.execute",
+      "surface": "ui_record",
+      "expected": "deny",
+      "response_shape": "redacted",
+      "silent_surfaces": [
+        "ui_record",
+        "export"
+      ]
+    },
+    {
+      "id": "AT-372",
+      "threats": [
+        "T-94"
+      ],
+      "principal": "owner",
+      "setup": "Six overlapping runs against a hard limit of exactly three reservations, two dispatchers",
+      "scope": "workspace",
+      "action": "ai.execute",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "forbidden",
+      "silent_surfaces": [
+        "count_facet"
+      ]
+    },
+    {
+      "id": "AT-373",
+      "threats": [
+        "T-94"
+      ],
+      "principal": "owner",
+      "setup": "A rate-limited first attempt and a successful retry; repeat the settlement",
+      "scope": "workspace",
+      "action": "ai.execute",
+      "surface": "api",
+      "expected": "allow",
+      "response_shape": "ok",
+      "silent_surfaces": [
+        "count_facet"
+      ]
+    },
+    {
+      "id": "AT-374",
+      "threats": [
+        "T-92",
+        "T-94"
+      ],
+      "principal": "administrator",
+      "setup": "The worker is lost mid-call; another worker recovers the job; reconcile once and twice",
+      "scope": "workspace",
+      "action": "ai.limits.configure",
+      "surface": "api",
+      "expected": "allow",
+      "response_shape": "ok",
+      "silent_surfaces": [
+        "count_facet"
+      ]
+    },
+    {
+      "id": "AT-375",
+      "threats": [
+        "T-94"
+      ],
+      "principal": "member",
+      "setup": "Lower the limit before start and after queueing; set token limits; a member and an unconfirmed administrator change limits",
+      "scope": "workspace",
+      "action": "ai.limits.configure",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "forbidden",
+      "silent_surfaces": [
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-376",
+      "threats": [
+        "T-94"
+      ],
+      "principal": "owner",
+      "setup": "An unknown reservation from the previous month; a new estimate; late usage reconciled",
+      "scope": "workspace",
+      "action": "ai.execute",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "forbidden",
+      "silent_surfaces": [
+        "count_facet"
+      ]
+    },
+    {
+      "id": "AT-377",
+      "threats": [
+        "T-93",
+        "T-94"
+      ],
+      "principal": "member",
+      "setup": "Cross the 80 percent threshold; fan out the notification; cross again",
+      "scope": "workspace",
+      "action": "usage.view",
+      "surface": "notification_inapp",
+      "expected": "deny",
+      "response_shape": "omitted",
+      "silent_surfaces": [
+        "notification_inapp"
+      ]
+    },
+    {
+      "id": "AT-378",
+      "threats": [
+        "T-92",
+        "T-95"
+      ],
+      "principal": "api_token_personal",
+      "setup": "HTTP: owner settings with step-up; tokens with and without ai:execute or usage:read call runs, usage, settings, limits, reconciliation, and brand profiles",
+      "scope": "workspace",
+      "action": "ai.execute",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "forbidden",
+      "silent_surfaces": [
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-379",
+      "threats": [
+        "T-92",
+        "T-93"
+      ],
+      "principal": "member",
+      "setup": "HTTP: repeat a completed run key before and after brand revoke, and export AI history",
+      "scope": "record",
+      "action": "ai.execute",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "redacted",
+      "silent_surfaces": [
+        "api",
+        "export"
+      ]
+    },
+    {
+      "id": "AT-380",
+      "threats": [
+        "T-93"
+      ],
+      "principal": "owner",
+      "setup": "Place AI usage on workspace and brand dashboards",
+      "scope": "brand",
+      "action": "usage.view",
+      "surface": "report",
+      "expected": "allow",
+      "response_shape": "ok_filtered",
+      "silent_surfaces": [
+        "report"
+      ]
+    },
+    {
+      "id": "AT-381",
+      "threats": [
+        "T-91",
+        "T-94",
+        "T-95"
+      ],
+      "principal": "owner",
+      "setup": "Browser journey on three devices: AI off, settings with step-up, a synthetic run, honest cancel, history, offline recovery, and accessibility",
+      "scope": "workspace",
+      "action": "ai.execute",
+      "surface": "ui_record",
+      "expected": "allow",
+      "response_shape": "ok",
+      "silent_surfaces": [
+        "ui_record",
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-382",
+      "threats": [
+        "T-96"
+      ],
+      "principal": "member",
+      "setup": "Completed, queued, running, and recovered (lease lost, another worker) runs with unique prompt, brand-instruction, and context markers; scan every generic execution, usage, audit, and delivery table",
+      "scope": "workspace",
+      "action": "ai.execute",
+      "surface": "api",
+      "expected": "allow",
+      "response_shape": "ok",
+      "silent_surfaces": [
+        "activity",
+        "audit_display"
+      ]
+    },
+    {
+      "id": "AT-383",
+      "threats": [
+        "T-96",
+        "T-92"
+      ],
+      "principal": "owner",
+      "setup": "Departure through member removal, account erasure through the personal-data registry, and retention; then a worker restart",
+      "scope": "workspace",
+      "action": "ai.execute",
+      "surface": "api",
+      "expected": "allow",
+      "response_shape": "ok",
+      "silent_surfaces": [
+        "export",
+        "activity"
+      ]
+    },
+    {
+      "id": "AT-384",
+      "threats": [
+        "T-96"
+      ],
+      "principal": "owner",
+      "setup": "A seeded old-format checkpoint holding prompt, source content, and a key reference, including for a run the old eraser already marked erased",
+      "scope": "workspace",
+      "action": "ai.execute",
+      "surface": "api",
+      "expected": "allow",
+      "response_shape": "ok",
+      "silent_surfaces": [
+        "export"
+      ]
+    },
+    {
+      "id": "AT-385",
+      "threats": [
+        "T-97",
+        "T-94"
+      ],
+      "principal": "owner",
+      "setup": "A model whose error charging is unknown answers 529 and 504; then the synthetic model proves its own errors uncharged",
+      "scope": "workspace",
+      "action": "ai.execute",
+      "surface": "api",
+      "expected": "allow",
+      "response_shape": "ok",
+      "silent_surfaces": [
+        "count_facet"
+      ]
+    },
+    {
+      "id": "AT-386",
+      "threats": [
+        "T-97",
+        "T-92"
+      ],
+      "principal": "owner",
+      "setup": "The price changes after confirmation; the run is retried with a new confirmation; an unknown attempt is reconciled after its model is removed, twice",
+      "scope": "workspace",
+      "action": "ai.limits.configure",
+      "surface": "api",
+      "expected": "allow",
+      "response_shape": "ok",
+      "silent_surfaces": [
+        "count_facet",
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-387",
+      "threats": [
+        "T-97"
+      ],
+      "principal": "owner",
+      "setup": "The provider reports output usage beyond the reserved bound; then a reconciliation reports more than the bound; resume after review",
+      "scope": "workspace",
+      "action": "ai.providers.manage",
+      "surface": "api",
+      "expected": "allow",
+      "response_shape": "ok",
+      "silent_surfaces": [
+        "count_facet",
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-388",
+      "threats": [
+        "T-98"
+      ],
+      "principal": "owner",
+      "setup": "A valid long answer exceeds the local retention bound with a normal provider stop",
+      "scope": "workspace",
+      "action": "ai.execute",
+      "surface": "ui_record",
+      "expected": "allow",
+      "response_shape": "ok",
+      "silent_surfaces": [
+        "ui_record",
+        "export"
+      ]
+    },
+    {
+      "id": "AT-389",
+      "threats": [
+        "T-98",
+        "T-97"
+      ],
+      "principal": "owner",
+      "setup": "Negative, fractional, and missing usage, an oversized unterminated event, and an unsupported stop reason from the provider",
+      "scope": "workspace",
+      "action": "ai.execute",
+      "surface": "api",
+      "expected": "allow",
+      "response_shape": "ok",
+      "silent_surfaces": [
+        "ui_record",
+        "count_facet"
       ]
     }
   ]

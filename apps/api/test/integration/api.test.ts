@@ -85,6 +85,7 @@ describe('web/API process', () => {
         recovery_gate: 'ok',
         tenant_isolation: 'ok',
         mcp_access: 'not_configured',
+        ai_provider: 'not_configured',
       },
       build: 'abc1234',
     });

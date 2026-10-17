@@ -16,7 +16,9 @@ import {
 import { registerWorkLifecycle } from './lifecycle.ts';
 import { projectTargets, savedViewTargets, taskTargets } from './navigation.ts';
 import { projectOwnerHook, taskAssigneeHook } from './ownership.ts';
-import { McpAccessService } from './integrations/mcp-access-service.ts';
+import { AiGatewayService } from './ai/ai-gateway-service.ts';
+import { aiHistoryOwnerHook } from './ai/lifecycle.ts';
+import { MessagesProvider, type AiProvider } from './ai/provider.ts';
 import { connectionOwnerHook, webhookOwnerHook } from './integrations/ownership.ts';
 import { goalOwnerHook } from './goals/ownership.ts';
 import { insightsOwnerHook } from './insights/ownership.ts';
@@ -42,7 +44,7 @@ export function createWorkService(deps: {
   platform: PlatformDatabase;
   identity: CollaborationIdentityPort;
   config: Pick<ServerConfig, 'identity' | 'lifecycle' | 'audit' | 'tenancy' | 'views'> &
-    Partial<Pick<ServerConfig, 'files' | 'env' | 'calendar'>> & {
+    Partial<Pick<ServerConfig, 'files' | 'env' | 'calendar' | 'ai'>> & {
       work?: WorkSettings;
     };
   logger: Logger;
@@ -55,7 +57,9 @@ export function createWorkService(deps: {
   ephemeralSigningKey?: boolean;
   /** Overrides the configured calendar provider (tests point the real adapter at a fixture). */
   calendarProvider?: CalendarProvider | null;
-}): McpAccessService {
+  /** Overrides the configured AI transport (tests inject a fetch-wrapped adapter). */
+  aiProvider?: AiProvider | null;
+}): AiGatewayService {
   const { config } = deps;
   if (!config.identity.signingKey && !deps.ephemeralSigningKey)
     throw new Error('AUTH_SIGNING_KEY is required');
@@ -100,7 +104,33 @@ export function createWorkService(deps: {
             timeoutMs: calendar.timeoutMs,
           })
         : null;
-  return new McpAccessService({
+  // 7A: the AI transport exists only when a deployment configures it (production refuses it).
+  const ai = config.ai;
+  const aiProvider =
+    deps.aiProvider !== undefined
+      ? deps.aiProvider
+      : ai && ai.provider.provider !== 'none'
+        ? new MessagesProvider({
+            baseUrl: ai.provider.baseUrl,
+            timeoutMs: ai.provider.timeoutMs,
+            maxTextChars: ai.stream.outputMaxChars,
+            maxEventBytes: ai.stream.eventMaxBytes,
+            maxWireBytes: ai.stream.maxBytes,
+          })
+        : null;
+  return new AiGatewayService({
+    ...(ai
+      ? {
+          ai: {
+            config: ai,
+            provider: aiProvider,
+            // 10A owns commercial entitlements: deny in deployed modes until it supplies a provider.
+            entitlements: {
+              aiAllowed: async () => config.env === 'local' || config.env === 'test',
+            },
+          },
+        }
+      : {}),
     calendarProvider,
     portabilityEntitlements: {
       auditExportAllowed: async () => config.env === 'local' || config.env === 'test',
@@ -130,7 +160,8 @@ export function createWorkService(deps: {
       .register(connectionOwnerHook)
       .register(webhookOwnerHook)
       .register(reviewDepartureHook(writer))
-      .register(departureTimerHook(writer)),
+      .register(departureTimerHook(writer))
+      .register(aiHistoryOwnerHook),
     settings: {
       invitationLifetimeMs: config.tenancy.invitationLifetimeMs,
       ownershipTransferLifetimeMs: config.tenancy.ownershipTransferLifetimeMs,

@@ -94,7 +94,7 @@ describe('migrations from an empty database', () => {
     expect(await catalogFingerprint(second)).toEqual(await catalogFingerprint(first));
   });
 
-  it('upgrades through every accepted boundary (0009–0052) to the candidate and reverses each boundary step', async () => {
+  it('upgrades through every accepted boundary (0009–0052) and the 7A boundaries 0053–0054 to the candidate and reverses each boundary step', async () => {
     // Accepted subphase boundaries: 1A 0009, 1B 0012, 1F 0016, 1C 0018, 1D 0019, 1E 0020; 2A adds
     // 0021 (work) and 0022 (relations, templates, recurrence); 2B–2E add 0023–0030; 3A adds 0031
     // (saved views, defaults, and pin writes); 3D adds 0032 (time entries, timesheets, approvals,
@@ -111,10 +111,13 @@ describe('migrations from an empty database', () => {
     // (calendar_event and connection_mapping); 6E adds 0048 (MCP clients, consent, and tokens) and
     // 0049 (MCP invocation provenance); 6D adds 0050 (CSV portability); the Phase 6 integration
     // review adds 0051 (connected calendars, provider series, exceptions, and block links) and its
-    // corrective review 0052 (webhook pause, delivery sources, replay cycles, skipped deliveries).
+    // corrective review 0052 (webhook pause, delivery sources, replay cycles, skipped deliveries);
+    // 7A adds 0053 (AI policy, actions, dispatches, outputs, spend limits, balances, reservations,
+    // and usage events) and its corrective review 0054 (attempt snapshots, breach and clipping
+    // facts, workspace suspension, and checkpoint content removal).
     const boundaries = [
       9, 12, 16, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38,
-      39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52,
+      39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54,
     ];
     const full = async (db: TestDatabase) => {
       const objects = await db.admin(`
@@ -145,7 +148,7 @@ describe('migrations from an empty database', () => {
         at.set(to, await full(stepped));
       }
       // Stepping through the boundaries reaches exactly the one-shot candidate catalog.
-      expect(at.get(52)).toEqual(await full(reference));
+      expect(at.get(54)).toEqual(await full(reference));
       // Each subphase's step reverses to the prior boundary's exact catalog and re-applies to its
       // own, walking down from the candidate.
       for (let i = boundaries.length - 1; i > 0; i--) {
@@ -344,6 +347,167 @@ describe('applied-migration boundary: the 0041 backfill correction (Phase 5C rev
     const rebuilt = await migrator(db).up();
     expect(rebuilt.applied.length).toBe(loadMigrations().length);
     expect((await migrator(db).verify()).problems).toEqual([]);
+  });
+});
+
+describe('applied-migration boundary: 0054 removes AI content from execution checkpoints (7A corrective review 01)', () => {
+  let db: TestDatabase;
+  beforeAll(async () => {
+    db = await createEmptyTestDatabase();
+  });
+  afterAll(async () => {
+    await db.drop();
+  });
+
+  const CTX_COLS = `authenticated_principal_type, authenticated_principal_id, effective_principal_type, effective_principal_id, delegation_chain, workspace_epoch_at_enqueue, principal_epoch_at_enqueue, data_class_limit, correlation_id`;
+  const ctx = () =>
+    `'member', '${newUuidV7()}', 'member', '${newUuidV7()}', '[{"type":"member","id":"00000000-0000-7000-8000-000000000000"}]'::jsonb, 0, 0, 'C2', '${newUuidV7()}'`;
+  const workspace = async () => {
+    const id = newUuidV7();
+    await db.admin(
+      `INSERT INTO tenancy.workspace (id, public_id, name, timezone, locale, currency, week_start, created_by_actor_type, updated_by_actor_type)
+       VALUES ($1, $2, 'Synthetic Workspace', 'UTC', 'en', 'USD', 1, 'system', 'system')`,
+      [id, newPublicId('ws')],
+    );
+    return id;
+  };
+  const job = async (ws: string, kind: string, checkpoint: unknown) => {
+    const id = newUuidV7();
+    await db.admin(
+      `INSERT INTO exec.job (id, workspace_id, queue, kind, max_attempts, timeout_seconds, checkpoint, ${CTX_COLS})
+       VALUES ($1, $2, 'default', $3, 1, 5, $4::jsonb, ${ctx()})`,
+      [id, ws, kind, JSON.stringify(checkpoint)],
+    );
+    return id;
+  };
+  const scrubbed: string[] = [];
+  const operation = async (ws: string) => {
+    const id = newUuidV7();
+    await db.admin(
+      `INSERT INTO exec.operation (id, workspace_id, public_id, kind, initiated_by_actor_type, ${CTX_COLS})
+       VALUES ($1, $2, $3, 'ai_action', 'system', ${ctx()})`,
+      [id, ws, newPublicId('op')],
+    );
+    return id;
+  };
+  const checkpoint = async (id: string) =>
+    (await db.admin(`SELECT checkpoint FROM exec.job WHERE id = $1`, [id])).rows[0].checkpoint;
+  // The format 0053-era workers wrote: the rendered prompt, source content, and key reference.
+  const OLD = {
+    'ai.prepare.1': {
+      outcome: 'dispatch',
+      dispatchId: 'd1',
+      system: 'Brand instructions: MIGMARK-brand',
+      user: 'MIGMARK-prompt MIGMARK-context',
+      keyRef: 'platform:old',
+    },
+    'ai.prepare.2': { outcome: 'reconcile' },
+    'other.step': { user: 'not an AI preparation step', n: 1 },
+  };
+
+  it('scrubs every old-format AI checkpoint in every workspace on upgrade, keeps other steps and jobs, and restores forced row-level security', async () => {
+    await migrator(db).up({ to: 53 });
+    const [w1, w2] = [await workspace(), await workspace()];
+    const a = await job(w1, 'ai.action.dispatch', OLD);
+    const b = await job(w2, 'ai.action.dispatch', OLD);
+    const other = await job(w1, 'test.noop', OLD);
+    await migrator(db).up({ to: 54 });
+    expect((await migrator(db).status()).report.problems).toEqual([]);
+    for (const id of [a, b])
+      expect(await checkpoint(id)).toEqual({
+        'ai.prepare.1': { outcome: 'dispatch', dispatchId: 'd1' },
+        'ai.prepare.2': { outcome: 'reconcile' },
+        'other.step': { user: 'not an AI preparation step', n: 1 },
+      });
+    // Jobs of other kinds are not touched.
+    expect(await checkpoint(other)).toEqual(OLD);
+    expect(
+      (
+        await db.admin(
+          `SELECT count(*)::int AS n FROM exec.job WHERE checkpoint::text LIKE '%MIGMARK%' AND kind = 'ai.action.dispatch'`,
+        )
+      ).rows[0].n,
+    ).toBe(0);
+    // Row-level security on exec.job is forced again after the one-statement cleanup.
+    expect(
+      (
+        await db.admin(
+          `SELECT relrowsecurity, relforcerowsecurity FROM pg_class WHERE oid = 'exec.job'::regclass`,
+        )
+      ).rows,
+    ).toEqual([{ relrowsecurity: true, relforcerowsecurity: true }]);
+    scrubbed.push(a, b);
+  });
+
+  it('scrub_dispatch_checkpoints reaches only the current workspace, for API and worker roles, and is not public', async () => {
+    const [w1, w2] = [await workspace(), await workspace()];
+    const ops: string[] = [];
+    const ids: string[] = [];
+    for (const ws of [w1, w2]) {
+      const op = await operation(ws);
+      const id = await job(ws, 'ai.action.dispatch', OLD);
+      await db.admin(`UPDATE exec.job SET operation_id = $2 WHERE id = $1`, [id, op]);
+      ops.push(op);
+      ids.push(id);
+    }
+    const { Client } = (await import('pg')).default;
+    const app = new Client({ connectionString: db.app });
+    await app.connect();
+    try {
+      await app.query('BEGIN');
+      await app.query(`SELECT set_config('app.workspace_id', $1, true)`, [w1]);
+      const r = await app.query(`SELECT ai.scrub_dispatch_checkpoints($1::uuid[]) AS n`, [ops]);
+      await app.query('COMMIT');
+      expect(r.rows[0].n).toBe(1);
+      // Without a workspace context nothing is reachable (fail closed).
+      const none = await app.query(`SELECT ai.scrub_dispatch_checkpoints($1::uuid[]) AS n`, [ops]);
+      expect(none.rows[0].n).toBe(0);
+    } finally {
+      await app.end();
+    }
+    expect((await checkpoint(ids[0]!))['ai.prepare.1']).toEqual({
+      outcome: 'dispatch',
+      dispatchId: 'd1',
+    });
+    expect(await checkpoint(ids[1]!)).toEqual(OLD);
+    const grants = await db.admin(
+      `SELECT grantee FROM information_schema.routine_privileges
+        WHERE routine_schema = 'ai' AND routine_name = 'scrub_dispatch_checkpoints' AND privilege_type = 'EXECUTE'
+        ORDER BY 1`,
+    );
+    expect(grants.rows.map((g) => g.grantee).filter((g) => g !== 'pm_owner')).toEqual([
+      'app_rw',
+      'app_worker',
+    ]);
+  });
+
+  it('rolls back to the exact 0053 shape without restoring removed content', async () => {
+    const ws = await workspace();
+    await migrator(db).down(53);
+    const id = await job(ws, 'ai.action.dispatch', {
+      'ai.prepare.1': { outcome: 'dispatch', dispatchId: 'd2' },
+    });
+    const cols = await db.admin(
+      `SELECT column_name FROM information_schema.columns WHERE table_schema = 'ai' AND table_name = 'ai_dispatch'
+          AND column_name IN ('price_snapshot', 'capability_snapshot', 'bound_breach', 'clipped_locally', 'failure_detail')`,
+    );
+    expect(cols.rows).toEqual([]);
+    expect(
+      (
+        await db.admin(
+          `SELECT count(*)::int AS n FROM pg_proc WHERE proname = 'scrub_dispatch_checkpoints'`,
+        )
+      ).rows[0].n,
+    ).toBe(0);
+    // The checkpoints 0054 scrubbed stay scrubbed: rollback never restores removed content.
+    expect(scrubbed).toHaveLength(2);
+    for (const j of scrubbed) expect(JSON.stringify(await checkpoint(j))).not.toContain('MIGMARK');
+    await migrator(db).up();
+    for (const j of scrubbed) expect(JSON.stringify(await checkpoint(j))).not.toContain('MIGMARK');
+    expect((await migrator(db).verify()).problems).toEqual([]);
+    expect(await checkpoint(id)).toEqual({
+      'ai.prepare.1': { outcome: 'dispatch', dispatchId: 'd2' },
+    });
   });
 });
 

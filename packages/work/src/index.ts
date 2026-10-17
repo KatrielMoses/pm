@@ -84,6 +84,24 @@ export * from './integrations/calendar-provider.ts';
 export * from './portability/csv.ts';
 export * from './portability/portability-service.ts';
 export * from './integrations/mcp-access-service.ts';
+export * from './ai/ai-gateway-service.ts';
+export * from './ai/jobs.ts';
+export {
+  aiHistoryOwnerHook,
+  aiPersonalDataEraser,
+  eraseAiContentRows,
+  productPersonalDataRegistry,
+} from './ai/lifecycle.ts';
+export * from './ai/provider.ts';
+export * from './ai/registry.ts';
+export * from './ai/money.ts';
+export { redactCredentials, REDACTION_MARKER } from './ai/redaction.ts';
+export { periodFor, AI_METERS } from './ai/budget.ts';
+export {
+  decideAvailability,
+  AVAILABILITY_REASONS,
+  AI_CONTEXT_FIELDS as AI_ELIGIBLE_FIELDS,
+} from './ai/policy.ts';
 export * from './integrations/mcp/registry.ts';
 export * from './insights/jobs.ts';
 export * from './insights/ownership.ts';

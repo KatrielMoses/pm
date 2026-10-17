@@ -488,3 +488,46 @@ All decisions are **proposed (Phase 0C)**, pending solutions-architect acceptanc
 - **Alternatives:** Brand access as delivery authority (it would send records the owner can no longer read). Workspace-only management (it left brand managers unable to stop their own endpoints).
 - **Consequences:** Tests AT-345 to AT-353 and AT-314, AT-336.
 
+
+<a id="az-44"></a>
+### AZ-44: AI gateway authority, privacy, and spending (Phase 7A)
+- **Decision:**
+  - Every AI action goes through one gateway and one accountable execution context, whether started in the browser, the API (`ai:execute`), MCP, or a future worker. Execution is `ai.execute` in the run's explicit scope (brand, or the workspace). Guests never execute. Limited and read-only members execute only when their workspace policy allows it.
+  - The gateway decides before estimating and again before every dispatch, including after queueing and on retry. It checks:
+    - the initiator's current membership and principal;
+    - a delegating token or consent, which must still be live, still hold `ai:execute`, and only narrow brands;
+    - the entitlement port (deny by default, 10A);
+    - the workspace AI policy, and the model and funding the run was authorized against;
+    - that every context source is readable now.
+    Access never grows; a failed check stops the run with nothing sent.
+  - A context source that is hidden or unknown refuses the whole request with the same answer. A readable source outside the policy is recorded as excluded and never sent. Excluded sources include:
+    - a restricted brand;
+    - a field that is not AI-eligible, or that exceeds the workspace data class;
+    - a record outside the chosen brand.
+    Credentials in free text are redacted before storage and dispatch.
+  - AI history content (prompt, output, context references) is personal to its initiator. Reads, completed-key replays, and exports re-check every source and the run's brand. If any is no longer readable, the whole content is withheld. `usage.view` shows usage and per-run metadata only, never another person's content. Administrators reconcile unknown costs under `ai.limits.configure` with step-up.
+  - Provider output is data. It cannot change records, call tools, complete work, or approve anything (I-15).
+  - The action count stays 122.
+- **Alternatives:**
+  - Letting `usage.view` or an administrator role read prompts: a generic role would imply access to private content.
+  - Withholding only the revoked record's identifier: the output could still paraphrase it.
+  - Authorizing once at enqueue: queued work would outlive revocation.
+- **Consequences:** Threats T-91 to T-95 with tests AT-354 to AT-381 (the gateway matrix, budgets, HTTP, the metric port, and the three-device browser journey).
+
+<a id="az-45"></a>
+### AZ-45: AI content erasure, spend evidence, and provider data (Phase 7A corrective review 01)
+- **Decision:**
+  - AI user content lives only in the protected AI content tables, which history re-authorizes. Generic execution storage holds references only: job checkpoints, operation results, attempt details, outbox payloads, and the effect ledger. The prompt, brand instructions, and source content are re-read and re-authorized at send time. A stale worker whose run was erased or no longer authorized sends nothing and publishes nothing.
+  - Erasure is complete across stores. Departure (the AI ownership hook), retention (the sweep), and account erasure (the personal-data registry) each remove the content and every checkpoint copy, including copies written before this correction.
+  - A hard limit claims only what evidence supports:
+    - An error the provider may have charged stays reserved and is never retried automatically.
+    - A real model without an evidenced input bound is refused (`ai_bound_unverified`), whatever OD-41 approval says.
+    - A price without recorded verification is refused (`ai_price_unverified`).
+    - Price verification, privacy approval (OD-41), and a secret store (DQ-28) are separate gates.
+  - Usage beyond a reserved bound is settled in full and pauses AI for the workspace (`ai_suspended`). Only an owner or administrator can resume it, with step-up, under `ai.providers.manage`.
+  - Provider data is untrusted. Clipped, invalid, contradictory, or unbounded stream data is never a complete answer and never free.
+  - The action count stays 122.
+- **Alternatives:**
+  - Erasing checkpoint copies in each eraser while still writing them: every new eraser would have to remember the copy.
+  - Letting approval imply a bound: approval concerns data use, not charging.
+- **Consequences:** Threats T-96 to T-98 with tests AT-382 to AT-389.

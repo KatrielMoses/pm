@@ -195,6 +195,16 @@ async function main(): Promise<void> {
         logger,
         settings: config.work,
       },
+      ai: {
+        tenant: tenantDb,
+        discovery,
+        service: reportService,
+        metrics: telemetry.metrics,
+        logger,
+        maxAttempts: config.ai.maxAttempts,
+        timeoutMs:
+          (config.ai.provider.provider === 'none' ? 60_000 : config.ai.provider.timeoutMs) + 30_000,
+      },
       reports: {
         tenant: tenantDb,
         discovery,

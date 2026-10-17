@@ -2088,11 +2088,9 @@ export class IdentityService {
             ],
           });
         }
-      } else if (action.kind === 'personal') {
-        throw new IdentityError('validation_failed', {
-          issues: [issue('/action_key', 'unsupported_field', 'Unknown action.')],
-        });
       } else {
+        // Workspace actions and personal actions taken inside a workspace (a personal API token,
+        // 6B; first exercised over HTTP for AI tokens in 7A) are bound to that membership.
         if (!request.membershipId || !request.workspaceId) {
           throw new IdentityError('validation_failed', {
             issues: [

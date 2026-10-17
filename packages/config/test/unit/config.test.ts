@@ -761,3 +761,142 @@ describe('lifecycle configuration (1F)', () => {
     );
   });
 });
+
+describe('AI gateway configuration (7A)', () => {
+  it('is off by default with finite limits; the fixture and a provider key stay redacted', () => {
+    const c = loadServerConfig({ service: 'api', env: local });
+    expect(c.ai.provider).toEqual({ provider: 'none' });
+    expect(c.ai.approvedModels).toEqual([]);
+    expect(c.ai.byokEnabled).toBe(false);
+    expect(c.ai.defaults).toEqual({
+      monthlyAllowanceMicros: '1000000',
+      hardLimitMicros: '1000000',
+      inputTokenLimit: 2_000_000,
+      outputTokenLimit: 500_000,
+    });
+    expect(c.ai.warningThresholdsBp).toEqual([8000, 10_000]);
+    expect(c.ai.historyRetentionDays).toBeNull();
+    const key = 'fixture-key-not-a-real-provider-key-000000';
+    const f = loadServerConfig({
+      service: 'api',
+      env: {
+        ...local,
+        AI_PROVIDER: 'fixture',
+        AI_PROVIDER_BASE_URL: 'http://127.0.0.1:9',
+        AI_PROVIDER_API_KEY: key,
+      },
+    });
+    expect(f.ai.provider).toMatchObject({ provider: 'fixture', baseUrl: 'http://127.0.0.1:9' });
+    expect(JSON.stringify(describeConfig(f))).not.toContain(key);
+    expect(inspect(f.ai)).not.toContain(key);
+  });
+
+  it('refuses the fixture, a real provider, workspace keys, and secret references when deployed (DQ-28, OD-41, OD-46)', () => {
+    const refused = issues(() =>
+      loadServerConfig({
+        service: 'api',
+        env: deployed('production', {
+          AI_PROVIDER: 'anthropic',
+          AI_PROVIDER_API_KEY: 'secretref:ai-key',
+          AI_BYOK_ENABLED: '1',
+        }),
+      }),
+    );
+    expect(refused).toEqual(
+      expect.arrayContaining([
+        'AI_PROVIDER_API_KEY: secret references require a secret-store provider (not selected; DQ-28)',
+        'AI_PROVIDER: production AI needs an approved secret store (DQ-28) and provider data-use approval (OD-41)',
+        'AI_BYOK_ENABLED: workspace-provided AI keys stay off until OD-46 is approved',
+      ]),
+    );
+    expect(
+      issues(() =>
+        loadServerConfig({
+          service: 'api',
+          env: deployed('staging', {
+            AI_PROVIDER: 'fixture',
+            AI_PROVIDER_BASE_URL: 'http://127.0.0.1:9',
+          }),
+        }),
+      ),
+    ).toEqual(
+      expect.arrayContaining([
+        'AI_PROVIDER: the protocol fixture is refused in deployed environments',
+        'AI_PROVIDER_BASE_URL: must use https outside local and test',
+      ]),
+    );
+    // AI unconfigured is a valid production state (everything else still loads).
+    expect(
+      issues(() => loadServerConfig({ service: 'api', env: deployed('production') })),
+    ).not.toEqual(expect.arrayContaining([expect.stringMatching(/^AI_/)]));
+  });
+
+  it('validates limits and thresholds', () => {
+    expect(
+      issues(() =>
+        loadServerConfig({
+          service: 'api',
+          env: {
+            ...local,
+            AI_DEFAULT_MONTHLY_ALLOWANCE_MICROS: '5',
+            AI_DEFAULT_HARD_LIMIT_MICROS: '1',
+          },
+        }),
+      ),
+    ).toContain(
+      'AI_DEFAULT_MONTHLY_ALLOWANCE_MICROS: must not exceed AI_DEFAULT_HARD_LIMIT_MICROS',
+    );
+    expect(
+      issues(() =>
+        loadServerConfig({
+          service: 'api',
+          env: { ...local, USAGE_WARNING_THRESHOLDS: '9000,8000' },
+        }),
+      ),
+    ).toContain('USAGE_WARNING_THRESHOLDS: ascending basis points between 1 and 10000');
+    expect(
+      issues(() =>
+        loadServerConfig({ service: 'api', env: { ...local, AI_PROVIDER: 'anthropic' } }),
+      ),
+    ).toContain('AI_PROVIDER_API_KEY: required with the anthropic provider');
+  });
+
+  it('bounds the provider stream with named parameters (corrective review 01)', () => {
+    const c = loadServerConfig({ service: 'api', env: local });
+    expect(c.ai.stream).toEqual({
+      outputMaxChars: 40_000,
+      eventMaxBytes: 65_536,
+      maxBytes: 4_194_304,
+    });
+    const set = loadServerConfig({
+      service: 'api',
+      env: {
+        ...local,
+        AI_OUTPUT_MAX_CHARS: '256',
+        AI_STREAM_EVENT_MAX_BYTES: '4096',
+        AI_STREAM_MAX_BYTES: '65536',
+      },
+    });
+    expect(set.ai.stream).toEqual({ outputMaxChars: 256, eventMaxBytes: 4096, maxBytes: 65_536 });
+    expect(
+      issues(() =>
+        loadServerConfig({
+          service: 'api',
+          env: { ...local, AI_STREAM_EVENT_MAX_BYTES: '1048576', AI_STREAM_MAX_BYTES: '65536' },
+        }),
+      ),
+    ).toContain('AI_STREAM_EVENT_MAX_BYTES: must not exceed AI_STREAM_MAX_BYTES');
+    for (const [k, v] of [
+      ['AI_OUTPUT_MAX_CHARS', '255'],
+      ['AI_OUTPUT_MAX_CHARS', '40001'],
+      ['AI_STREAM_EVENT_MAX_BYTES', '4095'],
+      ['AI_STREAM_MAX_BYTES', '33554433'],
+    ] as const)
+      expect(
+        issues(() => loadServerConfig({ service: 'api', env: { ...local, [k]: v } })).some((i) =>
+          i.startsWith(`${k}:`),
+        ),
+        `${k}=${v}`,
+      ).toBe(true);
+  });
+});

@@ -202,6 +202,19 @@ export class PortabilityService extends CalendarService {
         throw new TenancyError('rate_limited', { retryAfterSeconds: rate.retryAfterSeconds });
     });
   }
+  /**
+   * A history a later module owns, exported through this boundary with the same gates. Returns
+   * null for a kind no module provides (answered as `not_found`).
+   */
+  protected async moduleHistoryRows(
+    _caller: Caller,
+    _ws: unknown,
+    _kind: string,
+    _max: number,
+  ): Promise<Record<string, unknown>[] | null> {
+    return null;
+  }
+
   /** Read-only history exports use the same live visibility as their application surfaces. */
   async exportPortabilityHistory(caller: Caller, ws: unknown, kind: string, input: unknown) {
     await this.requirePortabilityExport(caller, ws);
@@ -257,7 +270,12 @@ export class PortabilityService extends CalendarService {
           throw new TenancyError('limit_exceeded');
         cursor = result.page.next_cursor;
       } while (cursor);
-    } else throw new TenancyError('not_found');
+    } else {
+      // Later modules contribute their histories through this boundary (7A AI history).
+      const contributed = await this.moduleHistoryRows(caller, ws, kind, MAX_EXPORT_ROWS);
+      if (!contributed) throw new TenancyError('not_found');
+      rows.push(...contributed);
+    }
     let csv: string;
     try {
       csv = serializeCsv(['public_id', 'host_public_id', 'data'], rows);

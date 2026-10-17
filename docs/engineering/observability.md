@@ -45,7 +45,7 @@ rejected: thrown in local/test, dropped and counted (`telemetry.label_rejected`)
 | Endpoint | Returns | Never returns |
 |---|---|---|
 | `GET /healthz` | `{"status":"ok"}` | anything else |
-| `GET /readyz` | `200/503 {"status","checks":{database,migrations,dispatcher,object_storage,email_delivery,recovery_gate,tenant_isolation},"build"}` | hosts, ports, database names, versions beyond the build ID, errors |
+| `GET /readyz` | `200/503 {"status","checks":{database,migrations,dispatcher,object_storage,email_delivery,recovery_gate,tenant_isolation,mcp_access,ai_provider},"build"}` | hosts, ports, database names, versions beyond the build ID, errors |
 | `GET /v1/status` (public, cached 5 s) | `{"data":{"type":"platform_status","status":"available"|"degraded","build":{version,build}},"meta":{…}}` | check names or reasons |
 
 Failure reasons go to `readiness.check_failed` logs. `/readyz` fails immediately when shutdown starts.
@@ -167,3 +167,20 @@ Three signals. `metrics.requests` (op: `compute`, `records`, `catalog`, `export`
 ## Dashboards and reports (5D)
 
 Counters `insights.reads` (view: catalog, dashboards, dashboard, widget, drill, reports, report, runs, recipients, shares, trash, export, adhoc, or adhoc_drill; outcome: `ok` or an error code), `insights.changes` (kind: the command; outcome), `insights.jobs` (kind: `deliver`, `run`, or `sweep`; outcome: `ok`, `failed`, or the run state), and `insights.widgets` (metric: the registered metric key; outcome: `ok`, `no_access`, `not_for_guests`, `not_available`, or `error`). No dashboard or report title, figure, recipient, or address appears in a metric label, a log line, or an event: events carry enums and counts (kind, scope, frequency, recipient count, suspension reason). Audit stores content hashes for titles and descriptions. Exports are audited (`insights.exported`, with the row count, format, and widget count) and raise a security event of category export. A delivery run records only its state, a short reason code, a row count, whether data was incomplete, a content hash, and the failure class; a mail provider that is not configured is recorded `skipped` with `provider_unconfigured` and is never counted as delivered.
+
+## Phase 7A: AI gateway signals
+
+Counters, all with bounded labels and never a prompt, output, secret, model output, public or internal identifier, workspace, or person:
+
+- `ai.runs` (`outcome`, `provider_class`: `synthetic` or the provider name).
+- `ai.dispatches` (`provider_class`, `outcome`: `complete`, `truncated`, `refused`, or the error kind).
+- `ai.policy_refusals` (`reason`: a stable refusal code).
+- `ai.reservations` (`outcome`: `reserved`, `denied`, `settled`, `unknown`, or `reconciled`).
+- `ai.cancellations` (`stage`: `queued` or `running`).
+- `ai.tokens` (`direction`).
+- `ai.cost_micros` (`funding`).
+- `ai.history.erased` (`reason`).
+
+The existing histogram `ai.request.duration` (`provider_class`, `outcome`) and the usage counters `usage.reservations_denied` and `usage.cap_stops` (`meter`) are emitted too.
+
+The readiness check `ai_provider` is `not_configured` without an AI transport, which is a healthy state. With a configured transport it is `ok`; there is no billed probe, and provider failures are reported per run to the people affected.

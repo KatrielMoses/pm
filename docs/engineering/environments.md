@@ -331,6 +331,22 @@ worker process is a startup error. All identities of one process must target the
 | `FILE_DISCOVERY_MAX` | optional | optional | default 100 (1–1000); most workspaces one file sweep examines (0D `FILE_DISCOVERY_MAX`) |
 | `FILE_EXPIRY_BATCH_MAX` | optional | optional | default 200 (10–5000); most expired upload sessions one sweep closes per workspace (0D `FILE_EXPIRY_BATCH_MAX`) |
 | `VIEW_STATE_TTL_MS` | optional | optional | default 90 days; stored view state not written for this long is removed (0D `VIEW_STATE_TTL`) |
+| `AI_PROVIDER` | optional | optional | default `none` (AI not configured; readiness reports `ai_provider: not_configured`, a healthy state). `fixture` points the Messages adapter at the deterministic protocol fixture (local/test only); `anthropic` uses the Anthropic Messages API. Deployed environments refuse both until a secret store (DQ-28) and provider data-use approval (OD-41) exist (7A, ADR-0038) |
+| `AI_PROVIDER_BASE_URL` | optional | optional | default `https://api.anthropic.com`; https outside local and test |
+| `AI_PROVIDER_API_KEY` | optional | optional | the deployment provider key, held as a secret and never logged; required with `anthropic`; `secretref:` values need a secret-store provider (DQ-28) |
+| `AI_PROVIDER_TIMEOUT_MS` | optional | optional | default 60000 ms (1000–300000); a timeout after sending is an unknown outcome, never a retry |
+| `AI_APPROVED_MODELS` | optional | optional | comma-separated registry model keys approved for workspace data (OD-41); empty by default, so no real model can receive workspace data. The synthetic fixture model needs no approval |
+| `AI_BYOK_ENABLED` | optional | optional | default `0`; workspace-provided keys (OD-46). Refused when deployed until the commercial terms are approved; when on, usage is metered for visibility and never billed |
+| `AI_DEFAULT_MONTHLY_ALLOWANCE_MICROS` | optional | optional | default 1000000 (USD 1.00); monthly allowance for a workspace that has not configured one |
+| `AI_DEFAULT_HARD_LIMIT_MICROS` | optional | optional | default 1000000 (USD 1.00); hard monthly AI spend cap without a configured limit. Finite: unconfigured is never unlimited |
+| `AI_DEFAULT_INPUT_TOKEN_LIMIT`, `AI_DEFAULT_OUTPUT_TOKEN_LIMIT` | optional | optional | defaults 2000000 / 500000; hard monthly token caps without configured limits |
+| `AI_MAX_OUTPUT_TOKENS` | optional | optional | default 1024 (16–8192); output bound sent to the provider and reserved in full per attempt |
+| `AI_MAX_ATTEMPTS` | optional | optional | default 3 (1–5); attempts per AI operation; only failures the provider cannot have charged are retried |
+| `AI_OUTPUT_MAX_CHARS` | optional | optional | default 40000 (256–40000); answer text kept per attempt. Text beyond it is clipped locally and the answer is labelled truncated, never complete; usage is still the provider's full figure |
+| `AI_STREAM_EVENT_MAX_BYTES` | optional | optional | default 65536 (4096–1048576); largest single provider stream event, including one still waiting for its separator. A larger event aborts the stream as an overflow, its reservation held |
+| `AI_STREAM_MAX_BYTES` | optional | optional | default 4194304 (65536–33554432, at least the event bound); total provider stream bytes per attempt; beyond it the stream is aborted as an overflow, its reservation held |
+| `USAGE_WARNING_THRESHOLDS` | optional | optional | default `8000,10000`; ascending basis points of the hard AI spend limit at which owners and administrators are notified (0D `USAGE_WARNING_THRESHOLDS`, owner 7A) |
+| `AI_HISTORY_RETENTION_DAYS` | optional | — | unset by default: AI content is kept until the run's initiator departs or the workspace is deleted (OD-36 undecided). When set, the hourly sweep erases older prompts, outputs, and context references; usage and audit facts remain |
 
 Values are configuration, not customer promises (PQ-05). The 0D parameter values above are
 implementation defaults owned by 1A (`WORKSPACE_CONCURRENCY_CAP` is owned by 11C).

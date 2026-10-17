@@ -6735,6 +6735,72 @@
         "outcome"
       ],
       "area": "insights"
+    },
+    {
+      "name": "ai.runs",
+      "type": "counter",
+      "labels": [
+        "outcome",
+        "provider_class"
+      ],
+      "area": "ai"
+    },
+    {
+      "name": "ai.dispatches",
+      "type": "counter",
+      "labels": [
+        "provider_class",
+        "outcome"
+      ],
+      "area": "ai"
+    },
+    {
+      "name": "ai.policy_refusals",
+      "type": "counter",
+      "labels": [
+        "reason"
+      ],
+      "area": "ai"
+    },
+    {
+      "name": "ai.reservations",
+      "type": "counter",
+      "labels": [
+        "outcome"
+      ],
+      "area": "ai"
+    },
+    {
+      "name": "ai.cancellations",
+      "type": "counter",
+      "labels": [
+        "stage"
+      ],
+      "area": "ai"
+    },
+    {
+      "name": "ai.tokens",
+      "type": "counter",
+      "labels": [
+        "direction"
+      ],
+      "area": "ai"
+    },
+    {
+      "name": "ai.cost_micros",
+      "type": "counter",
+      "labels": [
+        "funding"
+      ],
+      "area": "ai"
+    },
+    {
+      "name": "ai.history.erased",
+      "type": "counter",
+      "labels": [
+        "reason"
+      ],
+      "area": "ai"
     }
   ],
   "forbidden_metric_labels": [
@@ -8056,7 +8122,7 @@
     },
     {
       "name": "USAGE_WARNING_THRESHOLDS",
-      "meaning": "Default warning thresholds as basis points of allowance.",
+      "meaning": "Warning thresholds as ascending basis points of the hard AI spend limit; default 8000,10000.",
       "owner": "7A"
     },
     {
@@ -8168,6 +8234,86 @@
       "name": "WORK_BLOCKS_RANGE_DAYS_MAX",
       "meaning": "Widest range of days one work-block listing may cover; default 42, range 1\u2013366.",
       "owner": "3C"
+    },
+    {
+      "name": "AI_PROVIDER",
+      "meaning": "AI transport: none (default), fixture (local/test protocol fixture), or anthropic. Deployed environments refuse fixture and anthropic until DQ-28 and OD-41 are decided.",
+      "owner": "7A"
+    },
+    {
+      "name": "AI_PROVIDER_BASE_URL",
+      "meaning": "Messages API base URL; https outside local and test.",
+      "owner": "7A"
+    },
+    {
+      "name": "AI_PROVIDER_API_KEY",
+      "meaning": "Deployment provider key (held as a secret; secretref values need an approved secret store, DQ-28).",
+      "owner": "7A"
+    },
+    {
+      "name": "AI_PROVIDER_TIMEOUT_MS",
+      "meaning": "Provider request window; default 60000 ms, range 1000\u2013300000.",
+      "owner": "7A"
+    },
+    {
+      "name": "AI_APPROVED_MODELS",
+      "meaning": "Model keys approved for workspace data (OD-41); empty by default, so no real model is approved.",
+      "owner": "7A"
+    },
+    {
+      "name": "AI_BYOK_ENABLED",
+      "meaning": "Workspace-provided keys (OD-46); default 0, refused when deployed.",
+      "owner": "7A"
+    },
+    {
+      "name": "AI_DEFAULT_MONTHLY_ALLOWANCE_MICROS",
+      "meaning": "Monthly AI allowance for a workspace with no configured limit; default 1000000 (USD 1).",
+      "owner": "7A"
+    },
+    {
+      "name": "AI_DEFAULT_HARD_LIMIT_MICROS",
+      "meaning": "Hard monthly AI spend cap for a workspace with no configured limit; default 1000000 (USD 1). Never unlimited.",
+      "owner": "7A"
+    },
+    {
+      "name": "AI_DEFAULT_INPUT_TOKEN_LIMIT",
+      "meaning": "Hard monthly input-token cap without a configured limit; default 2000000.",
+      "owner": "7A"
+    },
+    {
+      "name": "AI_DEFAULT_OUTPUT_TOKEN_LIMIT",
+      "meaning": "Hard monthly output-token cap without a configured limit; default 500000.",
+      "owner": "7A"
+    },
+    {
+      "name": "AI_MAX_OUTPUT_TOKENS",
+      "meaning": "Output bound per dispatch (reserved in full); default 1024, range 16\u20138192.",
+      "owner": "7A"
+    },
+    {
+      "name": "AI_MAX_ATTEMPTS",
+      "meaning": "Job attempts per AI operation (only zero-cost failures are retried); default 3, range 1\u20135.",
+      "owner": "7A"
+    },
+    {
+      "name": "AI_OUTPUT_MAX_CHARS",
+      "meaning": "Answer text retained per dispatch; text beyond it is clipped locally and the answer is labelled truncated, never complete; default 40000, range 256\u201340000.",
+      "owner": "7A"
+    },
+    {
+      "name": "AI_STREAM_EVENT_MAX_BYTES",
+      "meaning": "Largest single provider stream event, including one still waiting for its separator; a larger event aborts the stream as an overflow; default 65536, range 4096\u20131048576.",
+      "owner": "7A"
+    },
+    {
+      "name": "AI_STREAM_MAX_BYTES",
+      "meaning": "Total provider stream bytes per dispatch; beyond it the stream is aborted as an overflow with its reservation held; default 4194304, range 65536\u201333554432, at least the event bound.",
+      "owner": "7A"
+    },
+    {
+      "name": "AI_HISTORY_RETENTION_DAYS",
+      "meaning": "Technical content retention for AI history; unset keeps content (OD-36 undecided).",
+      "owner": "7A"
     }
   ],
   "sse_topics": [

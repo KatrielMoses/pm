@@ -1,4 +1,5 @@
 import type { FastifyInstance, LightMyRequestResponse } from 'fastify';
+import { syntheticCaller } from '@pm/work';
 import { LogErrorReporter } from '@pm/observability';
 import { WorkerRuntime } from '@pm/platform';
 import {
@@ -49,6 +50,8 @@ export interface IdentityEnv {
   localOAuth: LocalOAuthProvider;
   transport: CaptureTransport;
   worker: WorkerRuntime;
+  /** The work service the app serves (7A tests run its AI dispatch in an in-process worker). */
+  work: ReturnType<typeof createWorkService>;
   /** Runs the worker until queued mail is delivered; returns all captured messages. */
   deliverMail(): Promise<MailMessage[]>;
   close(): Promise<void>;
@@ -125,9 +128,30 @@ export async function identityEnv(overrides: Record<string, string> = {}): Promi
         recovery_gate: 'ok',
         tenant_isolation: 'ok',
         mcp_access: 'ok',
+        ai_provider: work.aiReadiness(),
       },
     }),
-    auth: { identity: service, localOAuth },
+    auth: {
+      identity: service,
+      localOAuth,
+      // The production bearer path (API tokens and OAuth access tokens), as main.ts wires it.
+      resolveBearer: async (secret: string) => {
+        const apiToken = await work.authenticateApiToken(secret);
+        const oauthToken = apiToken ? null : await work.authenticateOAuthAccessToken(secret);
+        const found = apiToken ?? oauthToken;
+        if (!found) return null;
+        const caller = syntheticCaller(found.accountId, found.delegation, {
+          correlationId: '0'.repeat(32),
+        });
+        return {
+          auth: caller.auth,
+          delegation: found.delegation,
+          ...(oauthToken ? { workspacePublicId: oauthToken.workspacePublicId } : {}),
+        };
+      },
+      limitBearer: (tokenId: string, write: boolean) => work.limitApi(tokenId, write),
+      limitMcp: (tokenId: string, write: boolean) => work.limitMcp(tokenId, write),
+    },
     tenancy: { tenancy: work },
     work: { work },
     // 4E: the dev/test object store's signed URLs, when a test configures OBJECT_STORAGE=local.
@@ -149,6 +173,7 @@ export async function identityEnv(overrides: Record<string, string> = {}): Promi
     localOAuth: localOAuth!,
     transport,
     worker,
+    work,
     async deliverMail() {
       for (let i = 0; i < 5; i++) {
         const r = await worker.runCycle({ wait: true });

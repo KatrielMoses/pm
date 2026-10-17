@@ -49,6 +49,10 @@ import {
   INTEGRATION_SCHEDULES,
   type IntegrationJobDeps,
   type PublicApiService,
+  AI_SCHEDULES,
+  aiDispatchHandler,
+  aiRetentionHandler,
+  type AiJobDeps,
 } from '@pm/work';
 
 /**
@@ -67,6 +71,8 @@ import {
  * 5B: the goal recalculation sweep (staleness, period state, and manual key-result rollups).
  * 5C: the metrics reconciliation step (the task status ledger checked against the tasks, bounded and resumable).
  * 5D: scheduled report delivery (rendered per recipient at send time) and run retention.
+ * 7A: AI dispatch attempts (re-authorized, reserved, settled once) and AI content retention (off
+ * while AI_HISTORY_RETENTION_DAYS is unset).
  */
 export interface WorkerModules {
   identity: IdentityJobDeps;
@@ -81,6 +87,7 @@ export interface WorkerModules {
   metrics: MetricsJobDeps;
   reports: ReportJobDeps;
   integrations: IntegrationJobDeps;
+  ai?: AiJobDeps;
 }
 
 export function registeredHandlers(m: WorkerModules): JobHandler[] {
@@ -105,6 +112,7 @@ export function registeredHandlers(m: WorkerModules): JobHandler[] {
     reportDeliveryHandler(m.reports),
     integrationSyncHandler(m.integrations),
     webhookDeliveryHandler(m.integrations),
+    ...(m.ai ? [aiDispatchHandler(m.ai), aiRetentionHandler(m.ai)] : []),
   ];
 }
 
@@ -150,5 +158,6 @@ export function registeredSchedules(): RecurringJob[] {
     ...METRICS_SCHEDULES,
     ...REPORT_SCHEDULES,
     ...INTEGRATION_SCHEDULES,
+    ...AI_SCHEDULES,
   ];
 }
