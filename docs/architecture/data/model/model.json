@@ -8807,7 +8807,8 @@
         "workspace_key_ref text null (secret reference only)",
         "max_data_class (C0|C1|C2)",
         "require_training_exclusion boolean (always true while OD-41 is open)",
-        "confirm_above_micros numeric"
+        "confirm_above_micros numeric",
+        "dispatch_suspended_reason (bound_breach) null, dispatch_suspended_at null (AI paused after a bound breach until an owner or administrator resumes it)"
       ],
       "requirements": [
         "AI-031",
@@ -8816,7 +8817,7 @@
         "SEC-027",
         "ADM-005"
       ],
-      "notes": "Phase 7A (ADR-44): one row per workspace. The key is a vault reference (DQ-28); production keys stay refused until a secret store is approved."
+      "notes": "Phase 7A (ADR-44): one row per workspace. The key is a vault reference (DQ-28); production keys stay refused until a secret store is approved. Corrective review 01 (ADR-45, migration 0054): a provider-reported bound breach suspends dispatch for the workspace until reviewed."
     },
     {
       "name": "brand_ai_profile",
@@ -8980,7 +8981,10 @@
         "stop_reason, error_kind",
         "input_tokens, output_tokens, settled_micros, usage_basis (measured|not_charged|reported|reserved_bound)",
         "cancel_observed",
-        "reconciled_by_membership_id, reconciled_at"
+        "reconciled_by_membership_id, reconciled_at",
+        "price_snapshot, capability_snapshot jsonb null (the price and error-charging capability the attempt was dispatched under; null only for attempts before 0054, which use the action's snapshot)",
+        "bound_breach boolean, clipped_locally boolean",
+        "failure_detail (protocol_invalid|stream_overflow|unsupported_stop|usage_invalid|configuration_changed|bound_unverified|bound_breach|content_unavailable) null"
       ],
       "requirements": [
         "AI-027",
@@ -8988,7 +8992,7 @@
         "AI-035",
         "LA-017"
       ],
-      "notes": "Phase 7A (ADR-44): committed as dispatching before the request leaves; a dispatching row found by a later attempt is an unknown outcome, never resent."
+      "notes": "Phase 7A (ADR-44): committed as dispatching before the request leaves; a dispatching row found by a later attempt is an unknown outcome, never resent. Corrective review 01 (ADR-45, migration 0054): each attempt settles and reconciles against its own immutable price and capability snapshot; usage beyond a reserved bound is settled in full and recorded as a breach; local clipping is recorded."
     },
     {
       "name": "ai_output",

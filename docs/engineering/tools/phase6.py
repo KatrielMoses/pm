@@ -107,9 +107,10 @@ def check_numbering():
             errs.append("%s down must restore the exact %s catalog" % (name, prior))
     # 0052 closes Phase 6. Later migrations belong to later phases, each held by its own validator.
     later = [k for k in sorted(by) if k > "0052"]
-    if later and (later != ["0053"] or by["0053"] != "0053_ai_gateway.up.sql"
+    phase7a = {"0053": "0053_ai_gateway.up.sql", "0054": "0054_ai_gateway_corrections.up.sql"}
+    if later and (any(by[k] != phase7a.get(k) for k in later)
                   or not os.path.isfile(P("docs/engineering/tools/phase7a.py"))):
-        errs.append("0052 must be the last Phase 6 migration; later ones must be the validated Phase 7A 0053")
+        errs.append("0052 must be the last Phase 6 migration; later ones must be the validated Phase 7A 0053 and 0054")
     errs += phase1.check_migrations()[0]
     errs += phase1.check_boundaries([45, 46, 47, 48, 49, 50, 51, 52])
     adrs = os.listdir(P("docs/engineering/adr"))
@@ -124,9 +125,11 @@ def check_numbering():
             if text.count('<a id="%s"></a>' % a) != 1:
                 errs.append("%s must hold %s exactly once" % (path, a))
         last = max(int(x) for x in re.findall(r'<a id="[a-z]+-(\d+)"></a>', text))
-        # Phase 7A adds exactly one later anchor per record (ADR-44, AZ-44, PL-46; ADR-0038).
-        allowed = int(anchors[-1].split("-")[1]) + (1 if os.path.isfile(P("docs/engineering/tools/phase7a.py")) else 0)
-        if last not in (int(anchors[-1].split("-")[1]), allowed):
+        # Phase 7A adds exactly two later anchors per record: its own (ADR-44, AZ-44, PL-46) and its
+        # corrective review 01 (ADR-45, AZ-45, PL-47), both held by the Phase 7A validator.
+        own = int(anchors[-1].split("-")[1])
+        allowed = own + (2 if os.path.isfile(P("docs/engineering/tools/phase7a.py")) else 0)
+        if last not in (own, allowed):
             errs.append("%s: %s must be the highest Phase 6 anchor (found %d)" % (path, anchors[-1], last))
     t = load(P("docs/architecture/access/policy/threats.json"))
     tids = [x["id"] for x in t["threats"]]

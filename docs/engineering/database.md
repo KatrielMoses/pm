@@ -417,3 +417,10 @@ Migration `0053_ai_gateway` (expand; exact rollback to 0052; 0B ADR-44, ADR-0038
 - `exec_dispatch.discover_ai_retention_work` (payload-free, `pm_scheduler`) serves the content retention sweep, which is off while `AI_HISTORY_RETENTION_DAYS` is unset.
 
 Purge order (dependents first, ahead of `exec.*`): `metering.usage_event`, `metering.usage_reservation`, `ai.ai_output`, `ai.ai_context_ref`, `ai.ai_dispatch`, `ai.ai_action`, `metering.usage_balance`, `metering.spend_limit`, `ai.brand_ai_profile`, `ai.ai_provider_config`.
+
+Migration `0054_ai_gateway_corrections` (expand; exact rollback to 0053; 0B ADR-45; corrective review 01) is additive:
+
+- `ai_dispatch` gains `price_snapshot` and `capability_snapshot` (null only for attempts before 0054, which settle against their action's snapshot), `bound_breach`, `clipped_locally`, and `failure_detail` (a closed set). A breach always carries `failure_detail = 'bound_breach'`.
+- `ai_provider_config` gains `dispatch_suspended_reason` and `dispatch_suspended_at`. `app_worker` may update only those columns, `updated_at`, and `version`.
+- `ai.scrub_dispatch_checkpoints(uuid[])` (SECURITY DEFINER, `search_path` pinned, not executable by `PUBLIC`; `app_rw` and `app_worker` may call it) removes `system`, `user`, and `keyRef` from the `ai.prepare.<n>` steps of `ai.action.dispatch` jobs. It reaches the current workspace only, because `exec.job` row-level security still applies. Every other step and fact is kept.
+- The one-time cleanup of copies written before 0054 lifts forced row-level security on `exec.job` for one statement inside the migration transaction and restores it, as 0041 did. The migration test proves the catalog afterwards is the reference catalog. Rolling back does not restore removed content.

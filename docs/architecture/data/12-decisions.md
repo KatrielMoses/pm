@@ -486,3 +486,21 @@ Status of every ADR: **proposed (Phase 0B)**, pending solutions-architect accept
   - Copying context content into history (revocation could not withhold it).
   - Trusting the platform effect ledger's `pending` state for provider calls (a worker lost mid-call would be retried).
 - **Consequences:** The down migration restores the exact 0052 catalog. Every new table forces workspace row-level security with explicit grants. Usage events are insert-only for both application roles. A payload-free discovery function serves the (disabled by default) content retention sweep.
+
+<a id="adr-45"></a>
+## ADR-45: Attempt-level spend evidence and reference-only AI checkpoints (Phase 7A corrective review 01)
+
+- **Decision:** Migration 0054 (expand) amends the 0053 AI entities. It changes no earlier file.
+  - `ai.ai_dispatch` gains `price_snapshot` and `capability_snapshot`: the price and the error-charging capability the attempt was dispatched under. Settlement and reconciliation use them, never the current registry, so a new price, a retired model, or a configuration deployment cannot reprice an old attempt or make it impossible to reconcile. Attempts written before 0054 have neither and use their action's immutable snapshot.
+  - `bound_breach` records provider-reported usage beyond the attempt's reserved bound. The full known usage is settled, never clamped to the bound. `clipped_locally` records answer text discarded by the local retention bound. `failure_detail` names the reason an attempt was refused, left unknown, or failed (a closed set enforced by a CHECK).
+  - `ai.ai_provider_config` gains `dispatch_suspended_reason` and `dispatch_suspended_at`. A bound breach pauses AI for the workspace until an owner or administrator resumes it after review. The worker role may update only these columns, `updated_at`, and `version`.
+  - Generic execution checkpoints hold references only. An AI dispatch job's `ai.prepare.<n>` step stores the dispatch id and bounded state, never the rendered prompt, source content, output, or key reference. The request content is re-read and re-authorized from the protected AI content tables at send time. `ai.scrub_dispatch_checkpoints(uuid[])` is a SECURITY DEFINER function, workspace-scoped through row-level security. It removes `system`, `user`, and `keyRef` from those steps and leaves every other step and fact intact. Departure, retention, and account erasure call it because the API role cannot update jobs.
+  - 0054 scrubs every copy written before it, in every workspace, including runs the old eraser had already marked erased.
+- **Alternatives:**
+  - Settling against the current registry (a later price would reprice history; a removed model could not be reconciled).
+  - Clamping over-bound usage to the reservation (hides real liability).
+  - Keeping content in checkpoints and erasing it there as well (a second copy that every eraser must remember, and that generic execution tooling can read).
+  - A permanent migrator policy on `exec.job` (would outlive its one statement).
+- **Consequences:**
+  - The one-time cleanup lifts forced row-level security on `exec.job` for one statement inside the migration transaction and restores it, as 0041 did. The migration test proves the catalog is unchanged afterwards.
+  - The down migration restores the exact 0053 catalog. It does not restore removed checkpoint content, which never belongs in generic execution storage.

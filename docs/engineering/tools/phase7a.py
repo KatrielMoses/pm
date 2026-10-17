@@ -19,6 +19,7 @@ DECISIONS = ["D%d" % i for i in range(1, 13)]
 ADR = "docs/engineering/adr/0038-ai-gateway-privacy-budgets.md"
 CLOSURE = "docs/engineering/phase7/closure-7a.json"
 MIGRATION = "packages/db/migrations/0053_ai_gateway"
+CORRECTION = "packages/db/migrations/0054_ai_gateway_corrections"
 SERVICE = "packages/work/src/ai/ai-gateway-service.ts"
 PROVIDER = "packages/work/src/ai/provider.ts"
 REGISTRY = "packages/work/src/ai/registry.ts"
@@ -30,11 +31,12 @@ TABLES = [
     "ai.ai_dispatch", "ai.ai_output", "metering.spend_limit", "metering.usage_balance",
     "metering.usage_reservation", "metering.usage_event",
 ]
-THREATS = ["T-%d" % i for i in range(91, 96)]
-TESTS = ["AT-%d" % i for i in range(354, 382)]
+THREATS = ["T-%d" % i for i in range(91, 99)]
+TESTS = ["AT-%d" % i for i in range(354, 390)]
 TEST_FILES = [
     "packages/work/test/integration/ai-gateway.test.ts",
     "packages/work/test/integration/ai-budget.test.ts",
+    "packages/work/test/integration/ai-corrections.test.ts",
     "apps/api/test/integration/ai-api.test.ts",
     "e2e/ai.spec.ts",
 ]
@@ -180,10 +182,84 @@ def check_migration():
     if "Restores the exact 0052 catalog" not in down:
         errs.append("0053 down must restore the exact 0052 catalog")
     names = sorted(n for n in os.listdir(P("packages/db/migrations")) if n.endswith(".up.sql"))
-    if names[-1] != "0053_ai_gateway.up.sql":
-        errs.append("0053_ai_gateway must be the last migration")
-    errs += phase1.check_boundaries([53])
+    if names[-2:] != ["0053_ai_gateway.up.sql", "0054_ai_gateway_corrections.up.sql"]:
+        errs.append("0053_ai_gateway and its correction 0054 must be the last migrations")
+    errs += phase1.check_boundaries([53, 54])
     return errs, "0053 tables, forced RLS, exact rollback, training CHECK, insert-only usage"
+
+
+def check_correction_migration():
+    """0054 (corrective review 01): additive, workspace-scoped scrub, forced RLS restored, exact rollback."""
+    errs = []
+    up = read(P(CORRECTION + ".up.sql"))
+    down = read(P(CORRECTION + ".down.sql"))
+    if "-- migrate:phase expand" not in up:
+        errs.append("0054 must be an expand migration")
+    if re.search(r"\b(DROP TABLE|DROP COLUMN|ALTER COLUMN|RENAME)\b", up):
+        errs.append("0054 must be additive")
+    for term in ("ADD COLUMN price_snapshot jsonb", "ADD COLUMN capability_snapshot jsonb",
+                 "ADD COLUMN bound_breach boolean NOT NULL DEFAULT false",
+                 "ADD COLUMN clipped_locally boolean NOT NULL DEFAULT false", "ADD COLUMN failure_detail text",
+                 "ADD COLUMN dispatch_suspended_reason text",
+                 "CREATE FUNCTION ai.scrub_dispatch_checkpoints(p_operation_ids uuid[])",
+                 "LANGUAGE plpgsql SECURITY DEFINER", "SET search_path = pg_catalog, pg_temp",
+                 "j.workspace_id = exec.current_workspace_id()",
+                 "REVOKE ALL ON FUNCTION ai.scrub_dispatch_checkpoints(uuid[]) FROM PUBLIC"):
+        if term not in up:
+            errs.append("0054 lacks %s" % term)
+    lift = up.find("ALTER TABLE exec.job NO FORCE ROW LEVEL SECURITY;")
+    restore = up.find("ALTER TABLE exec.job FORCE ROW LEVEL SECURITY;")
+    if lift < 0 or restore < lift:
+        errs.append("0054 must lift forced RLS on exec.job only around its one cleanup statement and restore it")
+    if "Restores the exact 0053 catalog" not in down or "DROP FUNCTION ai.scrub_dispatch_checkpoints" not in down:
+        errs.append("0054 down must restore the exact 0053 catalog")
+    return errs, "additive 0054, scoped definer scrub, RLS restored, exact rollback"
+
+
+def check_corrections(closure):
+    """Corrective review 01: each finding group maps to executable tests that exist and title once."""
+    errs = []
+    reviews = {r["id"]: r for r in closure.get("corrective_reviews", [])}
+    review = reviews.get("7A-CR-01")
+    if not review:
+        return ["closure must record corrective review 7A-CR-01"], ""
+    groups = {g["id"]: g for g in review.get("groups", [])}
+    if sorted(groups) != ["1", "2", "3"]:
+        errs.append("7A-CR-01 must record finding groups 1, 2, and 3")
+    cache = {}
+    threats = load(P("docs/architecture/access/policy/threats.json"))
+    registered = {x["id"]: x for x in threats["tests"]}
+    text = "\n".join(read(P(f)) for f in TEST_FILES)
+    for gid, g in sorted(groups.items()):
+        phase2.check_evidence("7A-CR-01 group %s" % gid, g.get("evidence"), cache, errs)
+        if not g.get("tests"):
+            errs.append("7A-CR-01 group %s names no acceptance test" % gid)
+        for at in g.get("tests", []):
+            if at not in registered:
+                errs.append("group %s test %s is not registered in 0C" % (gid, at))
+            if len(re.findall(r"(?:it|test)\(\s*['\"]%s " % at, text)) != 1:
+                errs.append("group %s test %s must title exactly one test" % (gid, at))
+    for at in ("AT-%d" % i for i in range(382, 390)):
+        if at in registered and not set(registered[at]["threats"]) & {"T-96", "T-97", "T-98"}:
+            errs.append("%s must cover a corrective threat (T-96..T-98)" % at)
+    unit = read(P("packages/work/test/unit/ai-provider-stream.test.ts"))
+    for case in ("reproduced defect 1", "reproduced defect 2", "oversized or unterminated", "CRLF",
+                 "fractional, unsafe, and negative", "unsupported stop reason", "missing final usage",
+                 "cancellation and timeout"):
+        if case not in unit:
+            errs.append("the provider stream contract lacks the %r case" % case)
+    follow = {f["id"]: f for f in closure.get("follow_ups", [])}
+    if "REL-FU-7A-01" not in follow:
+        errs.append("the effect-ledger reliability follow-up REL-FU-7A-01 must be tracked")
+    else:
+        phase2.check_evidence("REL-FU-7A-01", follow["REL-FU-7A-01"].get("evidence"), cache, errs)
+    prj = next((r for r in closure["requirements"] if r["id"] == "PRJ-007"), None)
+    if not prj or "enforced through" in prj.get("note", "") or "not enforced" not in prj.get("note", ""):
+        errs.append("PRJ-007 must state honestly that 7A does not enforce project AI budgets")
+    adr = read(P(ADR))
+    if "## Corrective review 01" not in adr or "The future contract a project-scoped AI caller must meet" not in adr:
+        errs.append("ADR-0038 must record corrective review 01 and the future project-scope contract")
+    return errs, "groups 1-3 mapped to AT-363, AT-382..AT-389, migration and stream contract tests; REL-FU-7A-01; PRJ-007"
 
 
 def check_identifiers():
@@ -191,8 +267,11 @@ def check_identifiers():
     if not os.path.isfile(P(ADR)):
         errs.append("ADR-0038 missing")
     for path, anchor in (("docs/architecture/data/12-decisions.md", "adr-44"),
+                         ("docs/architecture/data/12-decisions.md", "adr-45"),
                          ("docs/architecture/access/15-decisions.md", "az-44"),
-                         ("docs/architecture/platform/19-decisions.md", "pl-46")):
+                         ("docs/architecture/access/15-decisions.md", "az-45"),
+                         ("docs/architecture/platform/19-decisions.md", "pl-46"),
+                         ("docs/architecture/platform/19-decisions.md", "pl-47")):
         if read(P(path)).count('<a id="%s"></a>' % anchor) != 1:
             errs.append("%s must hold %s exactly once" % (path, anchor))
     t = load(P("docs/architecture/access/policy/threats.json"))
@@ -212,7 +291,7 @@ def check_identifiers():
     model = {e["name"] for e in load(P("docs/architecture/data/model/model.json"))["entities"]}
     if "ai_dispatch" not in model:
         errs.append("0B model lacks ai_dispatch")
-    return errs, "ADR-0038, ADR-44, AZ-44, PL-46, T-91..T-95, AT-354..AT-381"
+    return errs, "ADR-0038, ADR-44/45, AZ-44/45, PL-46/47, T-91..T-98, AT-354..AT-389"
 
 
 def check_wiring():
@@ -239,6 +318,8 @@ def main():
         ("phase 7A: production safety", check_production_safety()),
         ("phase 7A: gateway, budgets, and surfaces", check_gateway()),
         ("phase 7A: migration 0053", check_migration()),
+        ("phase 7A: correction migration 0054", check_correction_migration()),
+        ("phase 7A: corrective review 01 evidence", check_corrections(closure)),
         ("phase 7A: identifiers and tests", check_identifiers()),
         ("phase 7A: validator wiring", check_wiring()),
         ("phase 7A: migration sequence", phase1.check_migrations()),

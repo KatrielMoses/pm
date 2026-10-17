@@ -513,3 +513,21 @@ All decisions are **proposed (Phase 0C)**, pending solutions-architect acceptanc
   - Withholding only the revoked record's identifier: the output could still paraphrase it.
   - Authorizing once at enqueue: queued work would outlive revocation.
 - **Consequences:** Threats T-91 to T-95 with tests AT-354 to AT-381 (the gateway matrix, budgets, HTTP, the metric port, and the three-device browser journey).
+
+<a id="az-45"></a>
+### AZ-45: AI content erasure, spend evidence, and provider data (Phase 7A corrective review 01)
+- **Decision:**
+  - AI user content lives only in the protected AI content tables, which history re-authorizes. Generic execution storage holds references only: job checkpoints, operation results, attempt details, outbox payloads, and the effect ledger. The prompt, brand instructions, and source content are re-read and re-authorized at send time. A stale worker whose run was erased or no longer authorized sends nothing and publishes nothing.
+  - Erasure is complete across stores. Departure (the AI ownership hook), retention (the sweep), and account erasure (the personal-data registry) each remove the content and every checkpoint copy, including copies written before this correction.
+  - A hard limit claims only what evidence supports:
+    - An error the provider may have charged stays reserved and is never retried automatically.
+    - A real model without an evidenced input bound is refused (`ai_bound_unverified`), whatever OD-41 approval says.
+    - A price without recorded verification is refused (`ai_price_unverified`).
+    - Price verification, privacy approval (OD-41), and a secret store (DQ-28) are separate gates.
+  - Usage beyond a reserved bound is settled in full and pauses AI for the workspace (`ai_suspended`). Only an owner or administrator can resume it, with step-up, under `ai.providers.manage`.
+  - Provider data is untrusted. Clipped, invalid, contradictory, or unbounded stream data is never a complete answer and never free.
+  - The action count stays 122.
+- **Alternatives:**
+  - Erasing checkpoint copies in each eraser while still writing them: every new eraser would have to remember the copy.
+  - Letting approval imply a bound: approval concerns data use, not charging.
+- **Consequences:** Threats T-96 to T-98 with tests AT-382 to AT-389.

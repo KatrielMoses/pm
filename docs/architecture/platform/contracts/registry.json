@@ -8296,6 +8296,21 @@
       "owner": "7A"
     },
     {
+      "name": "AI_OUTPUT_MAX_CHARS",
+      "meaning": "Answer text retained per dispatch; text beyond it is clipped locally and the answer is labelled truncated, never complete; default 40000, range 256\u201340000.",
+      "owner": "7A"
+    },
+    {
+      "name": "AI_STREAM_EVENT_MAX_BYTES",
+      "meaning": "Largest single provider stream event, including one still waiting for its separator; a larger event aborts the stream as an overflow; default 65536, range 4096\u20131048576.",
+      "owner": "7A"
+    },
+    {
+      "name": "AI_STREAM_MAX_BYTES",
+      "meaning": "Total provider stream bytes per dispatch; beyond it the stream is aborted as an overflow with its reservation held; default 4194304, range 65536\u201333554432, at least the event bound.",
+      "owner": "7A"
+    },
+    {
       "name": "AI_HISTORY_RETENTION_DAYS",
       "meaning": "Technical content retention for AI history; unset keeps content (OD-36 undecided).",
       "owner": "7A"

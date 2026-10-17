@@ -580,3 +580,22 @@ Renumbered in the Phase 6 integration review: 6B was accepted with a second `pl-
   - **Parameters (owner 7A).** `AI_PROVIDER`, `AI_PROVIDER_BASE_URL`, `AI_PROVIDER_API_KEY`, `AI_PROVIDER_TIMEOUT_MS`, `AI_APPROVED_MODELS`, `AI_BYOK_ENABLED`, `AI_DEFAULT_MONTHLY_ALLOWANCE_MICROS`, `AI_DEFAULT_HARD_LIMIT_MICROS`, `AI_DEFAULT_INPUT_TOKEN_LIMIT`, `AI_DEFAULT_OUTPUT_TOKEN_LIMIT`, `AI_MAX_OUTPUT_TOKENS`, `AI_MAX_ATTEMPTS`, `AI_HISTORY_RETENTION_DAYS`, and `USAGE_WARNING_THRESHOLDS`, which is now basis points of the hard limit.
 - **Alternatives:** A second, AI-specific operation resource (the `op_` operation already carries state, cancel, and retry). A streaming response to the browser (7A publishes the settled answer; partial output is stored and labelled).
 - **Consequences:** No new events, actions, ID prefixes, or schemas.
+
+<a id="pl-47"></a>
+### PL-47: AI stream bounds, attempt evidence, and dispatch suspension (Phase 7A corrective review 01)
+- **Decision:**
+  - **Parameters (owner 7A).**
+    - `AI_OUTPUT_MAX_CHARS` (default 40000, 256–40000): answer text kept per attempt. Text beyond it is clipped locally, and the attempt is labelled truncated and partial, never complete.
+    - `AI_STREAM_EVENT_MAX_BYTES` (default 65536, 4096–1048576): the largest single stream event, including one still waiting for its separator.
+    - `AI_STREAM_MAX_BYTES` (default 4194304, 65536–33554432, at least the event bound): total stream bytes per attempt.
+    - Exceeding either byte bound aborts the stream and closes the reader. The reservation stays held as an unknown outcome.
+  - **Errors.** New `forbidden` issue codes: `ai_price_unverified`, `ai_bound_unverified`, and `ai_suspended`.
+  - **Settings and runs.**
+    - `PATCH /ai/settings` accepts `resume_after_review: true` (step-up, If-Match). The settings view reports `suspended` and, per model, `gates` (price and input-bound verification with source and date, error chargeability, and the monetary-dispatch state) and `price_restrictions`.
+    - A run's attempts report `bound_breach`, `clipped_locally`, and `failure_detail`.
+    - A run refused at dispatch reports `refusal` (a stable code and a sentence, never content). For example, `configuration_changed` when the price changed after confirmation; nothing was sent, and a retry needs a new confirmation.
+  - **Meters.** Each attempt settles and reconciles against its own price and capability snapshot. A breach settles the full measured usage, never clamped.
+- **Alternatives:** Unbounded buffering until a separator arrives, which lets one provider response exhaust memory.
+- **Consequences:**
+  - No new routes, events, actions, ID prefixes, schemas, or telemetry signals.
+  - Job error codes for dispatch refusals become `ai_refused.<code>`.

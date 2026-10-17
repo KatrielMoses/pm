@@ -285,7 +285,7 @@
       "role": "contributing",
       "disposition": "contributed",
       "contribution": "7A",
-      "note": "7A meters AI execution per attempt with brand and operation and provides the reservation port a project-scoped AI budget is enforced through; 7A test runs carry no project scope, so the 2A project AI budget is not enforced by a 7A run.",
+      "note": "7A meters AI execution per attempt with brand and operation, and budgets per workspace and test run. 7A test runs carry no project scope, and no project-budget enforcement port exists: the 2A project AI budget is not enforced. ADR-0038 records the contract a future project-scoped caller must meet.",
       "evidence": [
         {
           "file": "packages/work/src/ai/budget.ts",
@@ -293,7 +293,7 @@
         },
         {
           "file": "docs/engineering/adr/0038-ai-gateway-privacy-budgets.md",
-          "contains": "| D5 |"
+          "contains": "**PRJ-007 (project AI budget).**"
         }
       ]
     },
@@ -783,6 +783,126 @@
     {
       "id": "10A",
       "statement": "Commercial entitlements and customer billing; 7A usage is never billable and the entitlement port denies by default when deployed."
+    }
+  ],
+  "corrective_reviews": [
+    {
+      "id": "7A-CR-01",
+      "brief": "briefs/PHASE_7A_CORRECTIVE_REVIEW_01.md",
+      "migration": "0054_ai_gateway_corrections",
+      "groups": [
+        {
+          "id": "1",
+          "title": "User content removed from generic execution checkpoints; complete erasure",
+          "tests": [
+            "AT-382",
+            "AT-383",
+            "AT-384"
+          ],
+          "evidence": [
+            {
+              "file": "packages/work/test/integration/ai-corrections.test.ts",
+              "contains": "it('AT-382 "
+            },
+            {
+              "file": "packages/work/test/integration/ai-corrections.test.ts",
+              "contains": "it('AT-383 "
+            },
+            {
+              "file": "packages/work/test/integration/ai-corrections.test.ts",
+              "contains": "it('AT-384 "
+            },
+            {
+              "file": "packages/db/test/integration/migrations.test.ts",
+              "contains": "scrubs every old-format AI checkpoint in every workspace on upgrade"
+            },
+            {
+              "file": "packages/db/test/integration/migrations.test.ts",
+              "contains": "scrub_dispatch_checkpoints reaches only the current workspace"
+            },
+            {
+              "file": "packages/db/test/integration/migrations.test.ts",
+              "contains": "rolls back to the exact 0053 shape without restoring removed content"
+            }
+          ]
+        },
+        {
+          "id": "2",
+          "title": "Hard-spend claims independent of optimistic assumptions",
+          "tests": [
+            "AT-363",
+            "AT-385",
+            "AT-386",
+            "AT-387"
+          ],
+          "evidence": [
+            {
+              "file": "packages/work/test/integration/ai-gateway.test.ts",
+              "contains": "it('AT-363 "
+            },
+            {
+              "file": "packages/work/test/integration/ai-corrections.test.ts",
+              "contains": "it('AT-385 "
+            },
+            {
+              "file": "packages/work/test/integration/ai-corrections.test.ts",
+              "contains": "it('AT-386 "
+            },
+            {
+              "file": "packages/work/test/integration/ai-corrections.test.ts",
+              "contains": "it('AT-387 "
+            }
+          ]
+        },
+        {
+          "id": "3",
+          "title": "Bounded, validated provider stream including local clipping",
+          "tests": [
+            "AT-388",
+            "AT-389"
+          ],
+          "evidence": [
+            {
+              "file": "packages/work/test/unit/ai-provider-stream.test.ts",
+              "contains": "reproduced defect 1: locally clipped text"
+            },
+            {
+              "file": "packages/work/test/unit/ai-provider-stream.test.ts",
+              "contains": "reproduced defect 2: negative usage"
+            },
+            {
+              "file": "packages/work/test/unit/ai-provider-stream.test.ts",
+              "contains": "bounds an oversized or unterminated event"
+            },
+            {
+              "file": "packages/work/test/unit/ai-provider-stream.test.ts",
+              "contains": "cancellation and timeout close the reader"
+            },
+            {
+              "file": "packages/work/test/integration/ai-corrections.test.ts",
+              "contains": "it('AT-388 "
+            },
+            {
+              "file": "packages/work/test/integration/ai-corrections.test.ts",
+              "contains": "it('AT-389 "
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "follow_ups": [
+    {
+      "id": "REL-FU-7A-01",
+      "kind": "reliability",
+      "owner": "platform (execution engine)",
+      "statement": "The generic effect ledger treats a pending effect as retryable after a crash. Before another module relies on crash recovery for an unrepeatable effect, add an 'outcome unknown, never retried' state. 7A does not use the ledger for provider calls and did not repair it.",
+      "evidence": [
+        {
+          "file": "docs/engineering/adr/0038-ai-gateway-privacy-budgets.md",
+          "contains": "REL-FU-7A-01"
+        }
+      ]
     }
   ]
 }

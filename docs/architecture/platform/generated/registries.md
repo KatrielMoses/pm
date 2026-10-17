@@ -879,4 +879,7 @@ Forbidden metric labels: `workspace_id`, `brand_id`, `record_id`, `public_id`, `
 | `AI_DEFAULT_OUTPUT_TOKEN_LIMIT` | Hard monthly output-token cap without a configured limit; default 500000. | 7A |
 | `AI_MAX_OUTPUT_TOKENS` | Output bound per dispatch (reserved in full); default 1024, range 16–8192. | 7A |
 | `AI_MAX_ATTEMPTS` | Job attempts per AI operation (only zero-cost failures are retried); default 3, range 1–5. | 7A |
+| `AI_OUTPUT_MAX_CHARS` | Answer text retained per dispatch; text beyond it is clipped locally and the answer is labelled truncated, never complete; default 40000, range 256–40000. | 7A |
+| `AI_STREAM_EVENT_MAX_BYTES` | Largest single provider stream event, including one still waiting for its separator; a larger event aborts the stream as an overflow; default 65536, range 4096–1048576. | 7A |
+| `AI_STREAM_MAX_BYTES` | Total provider stream bytes per dispatch; beyond it the stream is aborted as an overflow with its reservation held; default 4194304, range 65536–33554432, at least the event bound. | 7A |
 | `AI_HISTORY_RETENTION_DAYS` | Technical content retention for AI history; unset keeps content (OD-36 undecided). | 7A |

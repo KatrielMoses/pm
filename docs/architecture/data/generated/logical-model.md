@@ -4564,10 +4564,10 @@ Provider/model configuration, data settings; workspace keys by secret reference 
 | Volume / export / search-AI | `low` / `never` / `no` |
 | Secrets / personal data | `secret-ref` / `incidental` |
 | Uniqueness | `(workspace_id)` |
-| Key typed columns | `enabled boolean (default false; no row = AI off)`; `model_key text null (versioned registry key, never an implicit latest)`; `key_source (deployment\|workspace)`; `workspace_key_ref text null (secret reference only)`; `max_data_class (C0\|C1\|C2)`; `require_training_exclusion boolean (always true while OD-41 is open)`; `confirm_above_micros numeric` |
+| Key typed columns | `enabled boolean (default false; no row = AI off)`; `model_key text null (versioned registry key, never an implicit latest)`; `key_source (deployment\|workspace)`; `workspace_key_ref text null (secret reference only)`; `max_data_class (C0\|C1\|C2)`; `require_training_exclusion boolean (always true while OD-41 is open)`; `confirm_above_micros numeric`; `dispatch_suspended_reason (bound_breach) null, dispatch_suspended_at null (AI paused after a bound breach until an owner or administrator resumes it)` |
 | Sensitive fields | — |
 | Requirements | AI-031, AI-032, AI-036, SEC-027, ADM-005 |
-| Notes | Phase 7A (ADR-44): one row per workspace. The key is a vault reference (DQ-28); production keys stay refused until a secret store is approved. |
+| Notes | Phase 7A (ADR-44): one row per workspace. The key is a vault reference (DQ-28); production keys stay refused until a secret store is approved. Corrective review 01 (ADR-45, migration 0054): a provider-reported bound breach suspends dispatch for the workspace until reviewed. |
 
 <a id="entity-brand-ai-profile"></a>
 ### `brand_ai_profile`
@@ -4648,10 +4648,10 @@ One potentially chargeable provider call of an AI action: bounds, reservation, p
 | Volume / export / search-AI | `high` / `filtered` / `no` |
 | Secrets / personal data | `no` / `incidental` |
 | Uniqueness | `(operation_id, dispatch_number)`; `(attempt_id)` |
-| Key typed columns | `attempt_id (execution.attempt)`; `dispatch_number`; `state (dispatching\|succeeded\|partial\|refused\|failed\|unknown\|reconciled)`; `period_start`; `input_token_bound, output_token_bound, reserved_micros`; `provider_request_id`; `stop_reason, error_kind`; `input_tokens, output_tokens, settled_micros, usage_basis (measured\|not_charged\|reported\|reserved_bound)`; `cancel_observed`; `reconciled_by_membership_id, reconciled_at` |
+| Key typed columns | `attempt_id (execution.attempt)`; `dispatch_number`; `state (dispatching\|succeeded\|partial\|refused\|failed\|unknown\|reconciled)`; `period_start`; `input_token_bound, output_token_bound, reserved_micros`; `provider_request_id`; `stop_reason, error_kind`; `input_tokens, output_tokens, settled_micros, usage_basis (measured\|not_charged\|reported\|reserved_bound)`; `cancel_observed`; `reconciled_by_membership_id, reconciled_at`; `price_snapshot, capability_snapshot jsonb null (the price and error-charging capability the attempt was dispatched under; null only for attempts before 0054, which use the action's snapshot)`; `bound_breach boolean, clipped_locally boolean`; `failure_detail (protocol_invalid\|stream_overflow\|unsupported_stop\|usage_invalid\|configuration_changed\|bound_unverified\|bound_breach\|content_unavailable) null` |
 | Sensitive fields | — |
 | Requirements | AI-027, AI-028, AI-035, LA-017 |
-| Notes | Phase 7A (ADR-44): committed as dispatching before the request leaves; a dispatching row found by a later attempt is an unknown outcome, never resent. |
+| Notes | Phase 7A (ADR-44): committed as dispatching before the request leaves; a dispatching row found by a later attempt is an unknown outcome, never resent. Corrective review 01 (ADR-45, migration 0054): each attempt settles and reconciles against its own immutable price and capability snapshot; usage beyond a reserved bound is settled in full and recorded as a breach; local clipping is recorded. |
 
 <a id="entity-ai-output"></a>
 ### `ai_output`

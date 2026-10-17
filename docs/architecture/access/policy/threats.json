@@ -1013,6 +1013,36 @@
         "I-15",
         "I-16"
       ]
+    },
+    {
+      "id": "T-96",
+      "category": "departure",
+      "description": "AI user content (a rendered prompt, brand instructions, or source-record content) or a key reference survives departure, retention, or account erasure in generic execution storage: a job checkpoint, operation result, attempt detail, outbox payload, or effect ledger, including copies written before a fix, so erasure reports success while a durable copy remains.",
+      "mitigated_by": [
+        "I-07",
+        "I-12",
+        "I-14",
+        "I-16"
+      ]
+    },
+    {
+      "id": "T-97",
+      "category": "agent_scope",
+      "description": "A hard spending limit rests on an optimistic assumption: a provider error that may have been charged is settled at zero and retried, a real model's input bound is an unverified estimate, an attempt is priced from the current registry instead of what was confirmed, or invalid or over-bound usage is accepted, clamped, or priced as zero.",
+      "mitigated_by": [
+        "I-01",
+        "I-14"
+      ]
+    },
+    {
+      "id": "T-98",
+      "category": "spoofing",
+      "description": "Provider stream data gains trust it has not earned: locally clipped text is reported as a complete answer, negative, fractional, unsafe, contradictory, or missing usage or an unsupported stop reason is accepted as success, or an unbounded event or stream exhausts memory while waiting for a separator.",
+      "mitigated_by": [
+        "I-01",
+        "I-09",
+        "I-15"
+      ]
     }
   ],
   "tests": [
@@ -7780,6 +7810,144 @@
       "silent_surfaces": [
         "ui_record",
         "error_message"
+      ]
+    },
+    {
+      "id": "AT-382",
+      "threats": [
+        "T-96"
+      ],
+      "principal": "member",
+      "setup": "Completed, queued, running, and recovered (lease lost, another worker) runs with unique prompt, brand-instruction, and context markers; scan every generic execution, usage, audit, and delivery table",
+      "scope": "workspace",
+      "action": "ai.execute",
+      "surface": "api",
+      "expected": "allow",
+      "response_shape": "ok",
+      "silent_surfaces": [
+        "activity",
+        "audit_display"
+      ]
+    },
+    {
+      "id": "AT-383",
+      "threats": [
+        "T-96",
+        "T-92"
+      ],
+      "principal": "owner",
+      "setup": "Departure through member removal, account erasure through the personal-data registry, and retention; then a worker restart",
+      "scope": "workspace",
+      "action": "ai.execute",
+      "surface": "api",
+      "expected": "allow",
+      "response_shape": "ok",
+      "silent_surfaces": [
+        "export",
+        "activity"
+      ]
+    },
+    {
+      "id": "AT-384",
+      "threats": [
+        "T-96"
+      ],
+      "principal": "owner",
+      "setup": "A seeded old-format checkpoint holding prompt, source content, and a key reference, including for a run the old eraser already marked erased",
+      "scope": "workspace",
+      "action": "ai.execute",
+      "surface": "api",
+      "expected": "allow",
+      "response_shape": "ok",
+      "silent_surfaces": [
+        "export"
+      ]
+    },
+    {
+      "id": "AT-385",
+      "threats": [
+        "T-97",
+        "T-94"
+      ],
+      "principal": "owner",
+      "setup": "A model whose error charging is unknown answers 529 and 504; then the synthetic model proves its own errors uncharged",
+      "scope": "workspace",
+      "action": "ai.execute",
+      "surface": "api",
+      "expected": "allow",
+      "response_shape": "ok",
+      "silent_surfaces": [
+        "count_facet"
+      ]
+    },
+    {
+      "id": "AT-386",
+      "threats": [
+        "T-97",
+        "T-92"
+      ],
+      "principal": "owner",
+      "setup": "The price changes after confirmation; the run is retried with a new confirmation; an unknown attempt is reconciled after its model is removed, twice",
+      "scope": "workspace",
+      "action": "ai.limits.configure",
+      "surface": "api",
+      "expected": "allow",
+      "response_shape": "ok",
+      "silent_surfaces": [
+        "count_facet",
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-387",
+      "threats": [
+        "T-97"
+      ],
+      "principal": "owner",
+      "setup": "The provider reports output usage beyond the reserved bound; then a reconciliation reports more than the bound; resume after review",
+      "scope": "workspace",
+      "action": "ai.providers.manage",
+      "surface": "api",
+      "expected": "allow",
+      "response_shape": "ok",
+      "silent_surfaces": [
+        "count_facet",
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-388",
+      "threats": [
+        "T-98"
+      ],
+      "principal": "owner",
+      "setup": "A valid long answer exceeds the local retention bound with a normal provider stop",
+      "scope": "workspace",
+      "action": "ai.execute",
+      "surface": "ui_record",
+      "expected": "allow",
+      "response_shape": "ok",
+      "silent_surfaces": [
+        "ui_record",
+        "export"
+      ]
+    },
+    {
+      "id": "AT-389",
+      "threats": [
+        "T-98",
+        "T-97"
+      ],
+      "principal": "owner",
+      "setup": "Negative, fractional, and missing usage, an oversized unterminated event, and an unsupported stop reason from the provider",
+      "scope": "workspace",
+      "action": "ai.execute",
+      "surface": "api",
+      "expected": "allow",
+      "response_shape": "ok",
+      "silent_surfaces": [
+        "ui_record",
+        "count_facet"
       ]
     }
   ]
