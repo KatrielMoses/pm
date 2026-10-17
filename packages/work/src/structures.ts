@@ -426,7 +426,8 @@ export class WorkService extends ProjectService {
         record_type: type,
         workspace_id: tx.workspaceId,
         brand_id: project.brand.id,
-        source_kind: 'ui',
+        // A 7D proposal application records its provenance; every other path keeps 'ui'.
+        source_kind: cmd.source.kind === 'ai_proposal' ? 'ai_proposal' : 'ui',
         source_ref: null,
         created_by_actor_type: cmd.actor.type,
         created_by_actor_id: cmd.actor.id,
@@ -711,55 +712,70 @@ export class WorkService extends ProjectService {
   async createMilestone(caller: Caller, ws: unknown, prj: unknown, body: unknown, req: Mutation) {
     const input = parseMilestone(body, false);
     return this.rendered(caller, ws, prj, req, 'milestone.create', async (tx, p) => {
-      const project = await this.editableProject(tx, p, prj);
-      const phase = input.phase ? await this.loadChild(tx, project, 'phase', input.phase) : null;
-      const env = await this.insertChildEnvelope(tx, caller, p, project, 'milestone');
-      const rank = await this.nextRank(
-        tx,
-        'work.milestone',
-        (q) => q.where('project_id', '=', project.id),
-        'last',
-      );
-      await tx.db
-        .insertInto('work.milestone')
-        .values({
-          id: env.id,
-          workspace_id: tx.workspaceId,
-          brand_id: project.brand.id,
-          scope_key: project.brand.id,
-          project_id: project.id,
-          phase_id: phase?.id ?? null,
-          name: input.name as string,
-          rank,
-          due_date: input.due_date ?? null,
-          status: input.status ?? 'planned',
-          reached_at: input.status === 'reached' ? new Date() : null,
-          owner_membership_id: (await this.ownerId(tx, input.owner, '/owner')) ?? null,
-        })
-        .execute();
-      await this.workAudit(
-        tx,
-        caller,
-        p,
-        'milestone.created',
-        { recordId: env.id, type: 'milestone', publicId: env.publicId },
-        [
-          change.content('name', { hash: contentHash(input.name) }),
-          change.plain('project', null, project.publicId),
-        ],
-        project.brand.id,
-      );
-      await this.workEvent(
-        tx,
-        caller,
-        p,
-        'work.milestone.created',
-        { type: 'work.milestone', id: env.id, sequence: 0 },
-        { project_id: project.id, phase_id: phase?.id ?? null },
-        project.brand.id,
-      );
+      const env = await this.createMilestoneIn(tx, caller, p, prj, input);
       return { id: env.publicId, type: 'milestone' };
     });
+  }
+
+  /**
+   * The canonical milestone creation inside a caller's transaction: edit on an active project,
+   * phase and owner checks, rank, audit, and the event. Shared by the API and 7D proposals.
+   */
+  protected async createMilestoneIn(
+    tx: WorkspaceTransaction,
+    caller: Caller,
+    p: Principal,
+    prj: unknown,
+    input: ReturnType<typeof parseMilestone>,
+  ): Promise<{ id: string; publicId: string }> {
+    const project = await this.editableProject(tx, p, prj);
+    const phase = input.phase ? await this.loadChild(tx, project, 'phase', input.phase) : null;
+    const env = await this.insertChildEnvelope(tx, caller, p, project, 'milestone');
+    const rank = await this.nextRank(
+      tx,
+      'work.milestone',
+      (q) => q.where('project_id', '=', project.id),
+      'last',
+    );
+    await tx.db
+      .insertInto('work.milestone')
+      .values({
+        id: env.id,
+        workspace_id: tx.workspaceId,
+        brand_id: project.brand.id,
+        scope_key: project.brand.id,
+        project_id: project.id,
+        phase_id: phase?.id ?? null,
+        name: input.name as string,
+        rank,
+        due_date: input.due_date ?? null,
+        status: input.status ?? 'planned',
+        reached_at: input.status === 'reached' ? new Date() : null,
+        owner_membership_id: (await this.ownerId(tx, input.owner, '/owner')) ?? null,
+      })
+      .execute();
+    await this.workAudit(
+      tx,
+      caller,
+      p,
+      'milestone.created',
+      { recordId: env.id, type: 'milestone', publicId: env.publicId },
+      [
+        change.content('name', { hash: contentHash(input.name) }),
+        change.plain('project', null, project.publicId),
+      ],
+      project.brand.id,
+    );
+    await this.workEvent(
+      tx,
+      caller,
+      p,
+      'work.milestone.created',
+      { type: 'work.milestone', id: env.id, sequence: 0 },
+      { project_id: project.id, phase_id: phase?.id ?? null },
+      project.brand.id,
+    );
+    return env;
   }
 
   async updateMilestone(
