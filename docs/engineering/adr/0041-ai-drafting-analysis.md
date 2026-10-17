@@ -9,7 +9,7 @@ Phase 7C adds AI drafting and analysis as one typed action surface on the accept
 
 Every feature is a registered action. Analysis actions return a validated typed result; drafting actions return a 7D proposal, so nothing reaches a record without the person's explicit Apply. 7C adds no scheduled briefings (7E), voice or capacity-based planning (7F), agents or automations (Phase 8), release management (9), or commercial entitlements (10A). Production AI stays disabled under the accepted gates: every run in this phase uses the labelled synthetic fixture.
 
-Records: 0B ADR-48, 0C AZ-48, 0D PL-50. Migration `0057_ai_drafting_analysis`. Threats T-108 to T-111, tests AT-431 to AT-448.
+Records: 0B ADR-48, 0C AZ-48, 0D PL-50. Migration `0057_ai_drafting_analysis`. Threats T-108 to T-113, tests AT-431 to AT-454.
 
 ## Decisions
 
@@ -20,7 +20,7 @@ Records: 0B ADR-48, 0C AZ-48, 0D PL-50. Migration `0057_ai_drafting_analysis`. T
 | D3 | Honest analysis (`analysis.v1`) | Completeness is checked first. Then the strict shape and item kinds are checked, every citation must be a readable manifest handle (an item with none is dropped and counted), quotations count only when verbatim, links render as text, and a completion claim about a task the records show open is flagged `contradicts_record`. Record facts and calculations come from the server. Deterministic rule findings are computed over the readable manifest only and name their rule: overdue, identical titles (the TSK-042 rule), open without a due date, overdue first, and due within 7 days. Generated items are labelled suggestions or candidate interpretations, never facts, decisions, or evidence of completion. |
 | D4 | Missing information | Each action declares the context it needs (a brief or goal, a project or task scope, a task or document, tasks). Missing context refuses before anything is sent, with the question to answer (`input_required`), and an unsupported source kind is refused by name. The model may return `questions` (and `assumptions`) instead of a result, which shows as `needs_input`. Answers join the request as a new input revision with a new digest and estimate. Nothing is invented or auto-applied. |
 | D5 | Sources | These are the 7B adapters, plus two typed adapters. Goals go through `loadGoal` and the goal read decision (never shared). Meetings are the caller's own mirrored 6C calendar events, through `ownCalendarEvent` (owner-only). The meeting mirror holds only title, time, busy, and status, so nothing else can be sent. A meeting belongs to no brand and is excluded from brand, project, and task scopes. Another member, an administrator, or an unknown id gets the same `context_unavailable`. Attachment text and external calendars are never fetched. |
-| D6 | Drafts become 7D proposals | Drafting actions (`draft_project`, `draft_tasks`, `rewrite`, `categorize`) may propose only their declared operations. The 7D registry gains three adapters over canonical transaction-scoped commands: `task.assign` (`setAssigneesIn`: ownership, active members, history), `label.add` (`toggleLabel`: same brand, active label, limit), and `criterion.add` (`addCriterionIn`). `task.create` and `task.update` gain `estimate_minutes`, bounded by the canonical rule. Labels and members are server-issued choices (L…, M…) from current lookups; a model-supplied id or name is refused (`unknown_choice`), and nothing new is created. In one Apply, the first change touching an existing record checks the version the proposal expects for it; later changes see the versions this Apply produced. Plans carry visible assumptions. |
+| D6 | Drafts become 7D proposals | Drafting actions (`draft_project`, `draft_tasks`, `rewrite`, `categorize`) may propose only their declared operations. Labels and members are offered as typed manifest entries (corrective review 01). The 7D registry gains three adapters over canonical transaction-scoped commands: `task.assign` (`setAssigneesIn`: ownership, active members, history), `label.add` (`toggleLabel`: same brand, active label, limit), and `criterion.add` (`addCriterionIn`). `task.create` and `task.update` gain `estimate_minutes`, bounded by the canonical rule. Labels and members are server-issued choices (L…, M…) from current lookups; a model-supplied id or name is refused (`unknown_choice`), and nothing new is created. In one Apply, each existing record a change will change is locked as its canonical writer locks it and compared with the version the proposal expects, or with the version this Apply already produced for it; a merely referenced record is never trusted (corrective review 01). Plans carry visible assumptions. |
 | D7 | PRJ-016 end to end | A brief, or a readable goal, becomes a proposal with a new project, tasks with estimates, a milestone, a `blocks` dependency, an acceptance criterion, an assignment, and a label. The person edits values, selects a dependency-complete subset, approves, and applies once. The records are the ordinary project, tasks (origin `ai_draft`, source `ai_proposal`), milestone, criterion, assignee, and link, and the audit shows the person as actor. |
 | D8 | Text drafts | Status updates and release notes are `analysis.v1` results with a `draft` text and cited key points. Nothing is posted as a project update, and nothing is published (DEV-012 publishing and release readiness stay in 9D). |
 | D9 | Privacy and lifecycle | Briefs, answers, results, and assumptions live only in the AI content tables and personal drafts. Revocation and policy changes withhold the whole result. Retention, departure, and account deletion erase it, and applied records stay. Checkpoints, logs, and metrics hold references and counts only. Unsaved assist input uses the personal-draft store (per account and workspace, bounded, expiring, removed on sign-out, session end, and account change), restored only after the catalog loads for the workspace. |
@@ -59,13 +59,14 @@ Records: 0B ADR-48, 0C AZ-48, 0D PL-50. Migration `0057_ai_drafting_analysis`. T
 | 0B decision | ADR-48 | ADR-48 |
 | 0C decision | AZ-48 | AZ-48 |
 | 0D decision | PL-50 | PL-50 |
-| Threats | T-108 to T-111 | T-108 |
-| Access tests | AT-431 to AT-448 | AT-431 |
+| Threats | T-108 to T-111; T-112, T-113 (corrective review 01) | T-108 |
+| Access tests | AT-431 to AT-448; AT-449 to AT-454 (corrective review 01) | AT-431 |
 | Non-resource type | `ai_actions` | — |
 | Telemetry | `ai.analyses` | — |
 
 Tests:
-- `packages/work/test/integration/ai-assist.test.ts`: AT-431 to AT-445.
+- `packages/work/test/integration/ai-assist.test.ts`: AT-431 to AT-445 and AT-449 to AT-451.
+- `packages/work/test/integration/ai-proposals.test.ts`: AT-452 to AT-454 (two-connection races).
 - `apps/api/test/integration/ai-api.test.ts`: AT-446.
 - `e2e/ai-assist.spec.ts`: AT-447 and AT-448.
 - `packages/work/test/unit/ai-actions.test.ts`: the catalog, contract, rules, choices, and fixture.
@@ -79,3 +80,20 @@ Tests:
   - lexical retrieval can miss relevant records;
   - meetings are limited to the caller's own title and time;
   - generated suggestions are unverified, and live-model usefulness is unproven.
+
+## Corrective review 01
+
+Review 01 (reviewed head `d60ae4d`) found two defects. Both are fixed, with runtime regressions. Each core regression was run against the reviewed head and failed there:
+- The outbound-redaction probe failed: the raw synthetic label marker reached the provider.
+- AT-452 and AT-453 failed: the raced Apply was reported `applied` over the concurrent edit.
+- AT-454 passed there when run alone. It is a non-regression guard for legitimate same-record changes.
+
+- **R1, offered choices bypassed the privacy boundary.**
+  - Before: label and member display names were appended as a separate "Choices" block. They were not redacted, not classified, not shown in the preview, and not re-checked after start.
+  - Now: choices are manifest entries of kind `label` and `member`, with handles L…/M… and registered C1 fields (`AI_CHOICE_FIELDS`). They go through the same redaction, data-class policy, digest, dispatch and publication re-check, current eligibility (history, export, proposal rendering, replay), and erasure as sources. The preview lists them, and the person can omit any. Under C0 none are sent. A choice that becomes unavailable refuses the start or dispatch, or withholds the result or proposal, whole. The separate `choice_refs` column and choices path were removed. Proposal choices are built from the offered entries.
+  - Evidence: AT-449 (redacted markers, digest over the exact bytes, no raw copies), AT-450 (omission, C0, a policy change after the run with history, export, and replay), AT-451 (unavailable at start, dispatch, and publication), and the page test for omission.
+- **R2, first-touch checks did not hold the record lock.**
+  - Before: `#firstTouch` read versions without the domain-row lock and marked every touched record, including a relationship's other end, as checked.
+  - Now: `#guardBefore` locks the row canonical writers lock (`work.task`, `work.project`, `knowledge.document`) in a stable order and compares it with the version this Apply produced or the proposal's expected version. `#guardAfter` records only the versions of records the change's canonical command actually changed: an update, replacement, or assignment target; the task of a label or criterion; the owned end of a relationship. Proposal-local creation ids live in a separate map. Validation restores the trusted state when a step rolls back to its savepoint.
+  - Evidence: AT-452 (relationship endpoint) and AT-453 (container) race a concurrent edit under the real row lock with a lock-observed barrier, and get a stale conflict, rollback, no success event, and a no-op replay. AT-454 covers two valid same-record changes and savepoint recovery.
+

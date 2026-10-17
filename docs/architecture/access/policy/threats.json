@@ -1178,6 +1178,26 @@
         "I-07",
         "I-12"
       ]
+    },
+    {
+      "id": "T-112",
+      "category": "field_leak",
+      "description": "Choices offered to a drafting action (label names, member display names) leave through a side path: unredacted, unclassified, unlisted for the person, outside the confirmed digest, or surviving in generated content after a choice becomes unavailable or the data-use policy narrows.",
+      "mitigated_by": [
+        "I-08",
+        "I-12",
+        "I-16",
+        "I-18"
+      ]
+    },
+    {
+      "id": "T-113",
+      "category": "staleness",
+      "description": "A proposal Apply trusts a record as version-checked without holding its row lock (a relationship's other end or a container it only referenced), so a concurrent change committed before the later update is overwritten under an old approval.",
+      "mitigated_by": [
+        "I-12",
+        "I-15"
+      ]
     }
   ],
   "tests": [
@@ -8933,7 +8953,7 @@
         "T-108"
       ],
       "principal": "member",
-      "setup": "Task drafting, rewriting, and categorizing through the 7D adapters: canonical rules, choice resolution, label recheck at validation, live-edit block, stale-target rebase, unsupported operations refused",
+      "setup": "Task drafting, rewriting, and categorizing through the 7D adapters: canonical rules, choice resolution, an unavailable offered label withholds the proposal, live-edit block, stale-target rebase, unsupported operations refused",
       "scope": "workspace",
       "action": "ai.apply_proposal",
       "surface": "api",
@@ -9074,6 +9094,104 @@
       "response_shape": "ok",
       "silent_surfaces": [
         "ui_record",
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-449",
+      "threats": [
+        "T-112"
+      ],
+      "principal": "member",
+      "setup": "Credential-shaped markers in a label name and a member display name reach the provider only redacted; the preview lists the offered choices; the confirmed digest is over exactly the redacted bytes; no raw copy in logs, checkpoints, or execution rows",
+      "scope": "workspace",
+      "action": "ai.execute",
+      "surface": "ai_context",
+      "expected": "allow",
+      "response_shape": "ok_filtered",
+      "silent_surfaces": [
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-450",
+      "threats": [
+        "T-112"
+      ],
+      "principal": "member",
+      "setup": "The person omits a member and a label; C0 offers none (registered class C1); a narrower policy after the run withholds the proposal, its history, export, and replay with no new dispatch",
+      "scope": "workspace",
+      "action": "ai.execute",
+      "surface": "ai_answer",
+      "expected": "deny",
+      "response_shape": "omitted",
+      "silent_surfaces": [
+        "ai_answer",
+        "export",
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-451",
+      "threats": [
+        "T-112"
+      ],
+      "principal": "member",
+      "setup": "A choice that becomes unavailable refuses the start (changed meaning), refuses at dispatch without sending, and withholds at publication",
+      "scope": "workspace",
+      "action": "ai.execute",
+      "surface": "ai_answer",
+      "expected": "deny",
+      "response_shape": "conflict_filtered",
+      "silent_surfaces": [
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-452",
+      "threats": [
+        "T-113"
+      ],
+      "principal": "member",
+      "setup": "Two connections: relate A to B then update B; a concurrent edit to B raced under its real row lock fails the whole Apply with a stale conflict, no success event, and a no-op replay",
+      "scope": "workspace",
+      "action": "ai.apply_proposal",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "conflict_filtered",
+      "silent_surfaces": [
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-453",
+      "threats": [
+        "T-113"
+      ],
+      "principal": "member",
+      "setup": "Two connections: a new subtask under B then update B; the raced Apply fails whole and creates nothing",
+      "scope": "workspace",
+      "action": "ai.apply_proposal",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "conflict_filtered",
+      "silent_surfaces": [
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-454",
+      "threats": [
+        "T-113"
+      ],
+      "principal": "member",
+      "setup": "Two valid changes to one record apply together; a change rolled back to its savepoint in validation leaves no trusted state",
+      "scope": "workspace",
+      "action": "ai.apply_proposal",
+      "surface": "api",
+      "expected": "allow",
+      "response_shape": "ok",
+      "silent_surfaces": [
         "error_message"
       ]
     }

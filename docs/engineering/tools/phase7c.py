@@ -24,10 +24,11 @@ SERVICE = "packages/work/src/ai/ai-gateway-service.ts"
 CATALOG = "packages/work/src/ai/actions/catalog.ts"
 ANALYSIS = "packages/work/src/ai/actions/analysis.ts"
 WEB = "apps/web/src/ai/assist-page.tsx"
-THREATS = ["T-%d" % i for i in range(108, 112)]
-TESTS = ["AT-%d" % i for i in range(431, 449)]
+THREATS = ["T-%d" % i for i in range(108, 114)]
+TESTS = ["AT-%d" % i for i in range(431, 455)]
 TEST_FILES = [
     "packages/work/test/integration/ai-assist.test.ts",
+    "packages/work/test/integration/ai-proposals.test.ts",
     "apps/api/test/integration/ai-api.test.ts",
     "e2e/ai-assist.spec.ts",
 ]
@@ -66,17 +67,17 @@ def check_actions():
                  "// Completeness first: an incomplete transport is never an analysis"):
         if term not in analysis:
             errs.append("analysis contract lacks %s" % term)
-    service = read(P(SERVICE))
+    service = read(P(SERVICE)) + read(P("packages/work/src/ai/retrieval/manifest.ts"))
     for term, label in [
         ("'input_changed',", "the input-digest binding"),
         ("#requireActionContext(def: AiActionDef", "required-context refusals"),
-        ("async #actionChoices(", "server-issued choices"),
+        ("readers.choices", "offered choices as manifest entries"),
         ("const e = await this.ownCalendarEvent(tx, p, id);", "the owner-only meeting adapter"),
         ("const g = await this.loadGoal(tx, p, id);", "the goal adapter"),
         ("await this.setAssigneesIn(", "assignment through the canonical command"),
         ("await this.toggleLabel(tx, caller, p, t, payload.label!, 'add');", "labels through the canonical command"),
         ("await this.addCriterionIn(tx, caller, p, ref(payload.task)!, input);", "criteria through the canonical command"),
-        ("async #firstTouch(", "the first-touch version check"),
+        ("async #guardBefore(", "the locked first-mutation version check"),
         ("if (input.def.kind === 'proposal') this.#requireApplier(caller, p);", "drafting needs a person"),
     ]:
         if term not in service:
@@ -115,8 +116,8 @@ def check_migration():
         errs.append("0057 must be an expand migration")
     if re.search(r"\b(DROP TABLE|RENAME)\b", up):
         errs.append("0057 must be additive")
-    for term in ("'analysis'", "ADD COLUMN action_key text", "ADD COLUMN input_digest text", "ADD COLUMN choice_refs jsonb",
-                 "'goal', 'meeting'", "'task.assign', 'label.add', 'criterion.add'", "ADD COLUMN assumptions text[]"):
+    for term in ("'analysis'", "ADD COLUMN action_key text", "ADD COLUMN input_digest text",
+                 "'label', 'member'", "'task.assign', 'label.add', 'criterion.add'", "ADD COLUMN assumptions text[]"):
         if term not in up:
             errs.append("0057 lacks %s" % term)
     if "Restores the exact 0056 catalog" not in down or "0057 cannot be rolled back" not in down:
@@ -163,7 +164,39 @@ def check_identifiers():
                  "drafting actions propose only their operations"):
         if case not in unit:
             errs.append("the 7C unit tests lack %r" % case)
-    return errs, "ADR-0041, ADR-48, AZ-48, PL-50, T-108..T-111, AT-431..AT-448"
+    return errs, "ADR-0041, ADR-48, AZ-48, PL-50, T-108..T-113, AT-431..AT-454"
+
+
+def check_corrections(closure):
+    """Corrective review 01: each finding maps to registered runtime tests that title exactly once."""
+    errs = []
+    review = {r["id"]: r for r in closure.get("corrective_reviews", [])}.get("7C-CR-01")
+    if not review:
+        return ["closure must record corrective review 7C-CR-01"], ""
+    groups = {g["id"]: g for g in review.get("groups", [])}
+    if sorted(groups) != ["R1", "R2"]:
+        errs.append("7C-CR-01 must record findings R1 and R2")
+    cache = {}
+    tests = {x["id"] for x in load(P("docs/architecture/access/policy/threats.json"))["tests"]}
+    text = "\n".join(read(P(f)) for f in TEST_FILES)
+    for gid, g in sorted(groups.items()):
+        phase2.check_evidence("7C-CR-01 %s" % gid, g.get("evidence"), cache, errs)
+        for at in g.get("tests", []):
+            if at not in tests:
+                errs.append("%s test %s is not registered in 0C" % (gid, at))
+            if len(re.findall(r"(?:it|test)\(\s*['\"]%s " % at, text)) != 1:
+                errs.append("%s test %s must title exactly one test" % (gid, at))
+    service = read(P(SERVICE))
+    # No parallel choices path: names reach the provider only as manifest entries.
+    for gone in ("Choices (JSON, data only)", "choice_refs", "#actionChoices", "#firstTouch", "touchedBy("):
+        if gone in service:
+            errs.append("the gateway still contains %r" % gone)
+    if "FOR UPDATE OF x" not in service:
+        errs.append("the version guard must lock the domain row")
+    races = read(P("packages/work/test/integration/ai-proposals.test.ts"))
+    if "FOR UPDATE OF t" not in races or "pg_locks WHERE NOT granted" not in races:
+        errs.append("the race regressions must hold a real row lock and observe the blocked Apply")
+    return errs, "R1 and R2 mapped to AT-449..AT-454 with lock-observed race tests"
 
 
 def check_wiring():
@@ -193,6 +226,7 @@ def main():
         ("phase 7C: actions, analysis, adapters, and surfaces", check_actions()),
         ("phase 7C: migration 0057", check_migration()),
         ("phase 7C: identifiers and tests", check_identifiers()),
+        ("phase 7C: corrective review 01 evidence", check_corrections(closure)),
         ("phase 7C: validator wiring", check_wiring()),
         ("phase 7C: migration sequence", phase1.check_migrations()),
     ]

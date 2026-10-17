@@ -211,8 +211,8 @@
       "note": "Priorities, labels, and assignees proposed from server-issued choices and re-checked at Apply.",
       "evidence": [
         {
-          "file": "packages/work/src/ai/ai-gateway-service.ts",
-          "contains": "async #actionChoices("
+          "file": "packages/work/src/ai/policy.ts",
+          "contains": "export const AI_CHOICE_FIELDS = {"
         },
         {
           "file": "packages/work/src/ai/ai-gateway-service.ts",
@@ -591,6 +591,73 @@
     {
       "id": "7E",
       "statement": "Scheduled briefings (7E), capacity-based planning (7F), automations and agents (8), release publishing (9), and commercial gates (10A) are later phases."
+    }
+  ],
+  "corrective_reviews": [
+    {
+      "id": "7C-CR-01",
+      "brief": "briefs/PHASE_7C_CORRECTIVE_REVIEW_01.md",
+      "reviewed_head": "d60ae4dc89f7b2dd11670366031f3dfdbc2d7d9c",
+      "groups": [
+        {
+          "id": "R1",
+          "title": "Offered choices are typed outbound context",
+          "tests": [
+            "AT-449",
+            "AT-450",
+            "AT-451"
+          ],
+          "evidence": [
+            {
+              "file": "packages/work/src/ai/policy.ts",
+              "contains": "export const AI_CHOICE_FIELDS = {"
+            },
+            {
+              "file": "packages/work/src/ai/retrieval/manifest.ts",
+              "contains": "if (input.offerChoices && readers.choices) {"
+            },
+            {
+              "file": "packages/work/src/ai/ai-gateway-service.ts",
+              "contains": "const choices = async (brandId: string | null): Promise<SourceRecord[]> => {"
+            },
+            {
+              "file": "apps/web/src/ai/assist-page.tsx",
+              "contains": "const toggleChoice = (s: { type: string; id: string }) => {"
+            },
+            {
+              "file": "packages/db/migrations/0057_ai_drafting_analysis.up.sql",
+              "contains": "(record_type = 'member' AND handle ~ '^M([1-9]|1[0-9]|20)$')"
+            }
+          ]
+        },
+        {
+          "id": "R2",
+          "title": "Checked means locked",
+          "tests": [
+            "AT-452",
+            "AT-453",
+            "AT-454"
+          ],
+          "evidence": [
+            {
+              "file": "packages/work/src/ai/ai-gateway-service.ts",
+              "contains": "async #lockedVersion("
+            },
+            {
+              "file": "packages/work/src/ai/ai-gateway-service.ts",
+              "contains": "async #guardBefore("
+            },
+            {
+              "file": "packages/work/src/ai/ai-gateway-service.ts",
+              "contains": "const mutatedBy = (c: {"
+            },
+            {
+              "file": "packages/work/src/ai/ai-gateway-service.ts",
+              "contains": "// A change rolled back to its savepoint leaves no trusted state behind."
+            }
+          ]
+        }
+      ]
     }
   ]
 }

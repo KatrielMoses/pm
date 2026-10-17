@@ -553,10 +553,9 @@ Status of every ADR: **proposed (Phase 0B)**, pending solutions-architect accept
   - `ai.ai_action.purpose` admits `analysis`. Analysis and drafting actions record:
     - `action_key`: the registered action, such as `summarize.v1`.
     - `input_digest`: the SHA-256 of the exact action input the person confirmed (action, template, composed request, source payloads, offered choices, and output bound).
-    - `choice_refs`: server-issued label and member handles; references only.
-
     CHECKs keep the key on analysis and drafting actions only, require it for analysis, and pair it with the digest.
   - `ai.ai_context_ref.record_type` admits `goal` (5B) and `meeting` (the caller's own 6C calendar event), by public reference (`goal_`, `cev_`).
+  - **Corrective review 01 (R1):** `ai.ai_context_ref.record_type` also admits `label` and `member` (`lbl_`, `mem_`), with their own handles (L1..L20, M1..M20; the handle CHECK ties each family to its kind). The choices a drafting action is offered are manifest entries, so they share redaction, the registered field classes (a label `name` and a member `display_name` are both C1), the digest, re-checks, current eligibility, and erasure. The earlier `choice_refs` column of the candidate was removed from 0057 before acceptance.
   - `ai.proposed_change.op` admits `task.assign`, `label.add`, and `criterion.add`.
   - `ai.change_proposal.assumptions` holds the visible assumptions of a drafted plan. It is content: erased with the proposal, and the erased-shape CHECK requires it to be null.
   - An analysis result is stored in `ai.ai_output.grounding` as `analysis.v1`, erased with the content.

@@ -663,6 +663,11 @@ Renumbered in the Phase 6 integration review: 6B was accepted with a second `pl-
 
     The body has the 7B retrieval fields plus `action`, `instruction`, `brief` (at most 4000 characters), and `answers` (at most 5). A run shows `purpose` (`analysis` or `change_proposal`), `action`, and `content.analysis`, or `content.proposal` with `questions` and `assumptions`.
   - **Bearer access.** The routes inherit the `/ai/` rule (bearer callers need `ai:execute`); drafting actions refuse delegated callers.
+  - **Choices (corrective review 01).**
+    - `POST /ai/context-previews` (and the action requests) accept `offer_choices`. With it, the manifest lists the context brand's active labels (at most 20) and active members (at most 20) as sources of type `label` or `member`, with handles L…/M…, exclusion reasons, and redacted text.
+    - Listing a choice in `exclude` omits it.
+    - Drafting actions with choices require the preview to have offered them; otherwise the digests differ (`manifest_changed`).
+    - Labels and members cannot be named in `include`.
   - **Errors.** New issue codes:
     - `input_changed` (409 `conflict`);
     - `input_required` and `source_kind_unsupported` (422);

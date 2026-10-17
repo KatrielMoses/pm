@@ -8893,7 +8893,7 @@
         "rerun_of_operation_id null",
         "content_state (present|erased), content_erased_at",
         "retrieval_scope jsonb null (public references only: brands, project, task, query, omitted count), manifest_digest text null (the confirmed context manifest)",
-        "action_key null (registered action, e.g. summarize.v1), input_digest null (sha256 of the confirmed action input), choice_refs jsonb null (server-issued label and member handles, references only)"
+        "action_key null (registered action, e.g. summarize.v1), input_digest null (sha256 of the confirmed action input)"
       ],
       "requirements": [
         "AI-005",
@@ -8936,13 +8936,13 @@
         "operation_id",
         "position",
         "record_id (no foreign key: a purged record leaves a tombstone)",
-        "record_type (task|project|document|comment|activity|goal|meeting)",
+        "record_type (task|project|document|comment|activity|goal|meeting|label|member)",
         "record_public_id",
         "fields text[]",
         "record_version",
         "included boolean",
         "exclusion_reason (field_not_ai_eligible|data_class|sensitive_brand|out_of_scope|user_excluded|needs_explicit_choice|brand_only_policy|over_limit)",
-        "handle text null (S1..S20, included sources only)",
+        "handle text null (S1..S20 for sources; L1..L20 offered labels and M1..M20 offered members; included entries only)",
         "content_hash text null (sha256 of the exact redacted payload sent)",
         "source_version text null",
         "source_flags text[] (stale|draft|unapproved|approved_version_differs|archived|truncated)",
@@ -8955,7 +8955,7 @@
         "DOC-018",
         "SEC-027"
       ],
-      "notes": "Phase 7A (ADR-44): references only; record content is never copied. Re-checked on every history read and export. Phase 7B (ADR-46): entries are references only; source text is re-read through current authority before dispatch, publication, and display."
+      "notes": "Phase 7A (ADR-44): references only; record content is never copied. Re-checked on every history read and export. Phase 7B (ADR-46): entries are references only; source text is re-read through current authority before dispatch, publication, and display. Phase 7C review 01 (ADR-48): offered labels (name, C1) and members (display_name, C1) are manifest entries, so they share redaction, data class, digest, re-checks, eligibility, and erasure."
     },
     {
       "name": "ai_dispatch",
