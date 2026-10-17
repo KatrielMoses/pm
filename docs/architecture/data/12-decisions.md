@@ -525,3 +525,23 @@ Status of every ADR: **proposed (Phase 0B)**, pending solutions-architect accept
 - **Consequences:**
   - The down migration restores the exact 0054 catalog, including the 0053 output guard. It refuses to run while grounded-answer actions exist, because 0054 cannot represent them.
   - No new table, grant, or row-level security policy: the columns inherit the 0053 forced tenant policies and grants. Checkpoints stay reference-only.
+
+<a id="adr-47"></a>
+## ADR-47: Change proposals, approvals, and applications (Phase 7D amendment)
+
+- **Decision:** Migration 0056 (expand) adds the change-proposal purpose and five tables in the `ai` module. It changes no earlier file. It reconciles the existing `change_proposal` and `proposed_change` entities instead of replacing them.
+  - `ai.ai_action.purpose` admits `change_proposal`. Such an action records `retrieval_scope` and `manifest_digest` exactly like a grounded answer (one widened CHECK).
+  - `ai.change_proposal` (public `prp_`; one per generating action): state (open, approved, applied, failed, rejected), revision, the content fingerprint, the title and reject reason (content), and `content_state`. A CHECK keeps erased proposals without title or reason.
+  - `ai.proposed_change`: one typed change per row. Columns: change key and position; operation (7 allowlisted); a proposal-local temporary reference; the target's record and public id (no foreign key, like `ai_context_ref`); the expected version; dependencies; the proposed values (`payload`, content, at most 32 KB, erased to null); manifest handles; selection; decision; applied state (not applied, applied, failed, rolled back, blocked); the created record (set only after a committed Apply); and a failure code. Base values are not copied: the before side of the diff is read through current authorization.
+  - `ai.proposal_event`: reference-only history (kind, revision, change keys, fingerprint, actor).
+  - `ai.proposal_approval`: approver, revision, selection, fingerprint, target versions, effective scope (scope references and permission epochs), risk class, step-up requirement, state, and expiry. A partial unique index allows one active approval per proposal.
+  - `ai.proposal_application`: one row per Apply attempt, with its `proposal_apply` operation, the approval it used (unique), the outcome, counts, and per-change results (references and codes only).
+  - Every table has a `RESTRICT` workspace foreign key, composite workspace keys to its parents, and forced `tenant_isolation`. Grants are select, insert, and update on proposals, changes, and approvals, and select and insert on events and applications, for `app_rw` and `app_worker`. No role may delete.
+- **Alternatives:**
+  - A copy of base values in each change (it would persist hidden content after revocation).
+  - Storing proposals in `ai_output.grounding` (no per-change state, approvals, or applications).
+  - Approvals as columns on the proposal (no history of superseded approvals, and no one-use rule).
+- **Consequences:**
+  - The down migration restores the exact 0055 catalog. It refuses while any proposal or change-proposal action exists: it lifts forced row-level security on `ai_action` and `change_proposal` for that one check and restores it.
+  - Erasure (departure, retention, account deletion) clears the title, reason, and proposed values and revokes unused approvals; the reference-only history and application outcomes stay. Applied records are ordinary domain records and are never deleted by erasure.
+  - Workspace purge deletes, before `ai.ai_action`: `ai.proposal_application`, `ai.proposal_approval`, `ai.proposal_event`, `ai.proposed_change`, then `ai.change_proposal`.

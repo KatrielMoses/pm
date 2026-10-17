@@ -79,7 +79,8 @@ def check_retrieval():
         ("if (t.ownLevel === null) throw new TenancyError('not_found');", "history outside a share"),
         ("const status = await this.sourceStatus(tx, p, d);", "4C approval state"),
         ("async #publicationCheck(", "the re-check before publication"),
-        ("const answer =\n      action.purpose === 'grounded_answer'", "the dispatch re-check of the recorded manifest"),
+        # 7D: a change-proposal run shares the grounded run's manifest re-check (RETRIEVAL_PURPOSES).
+        ("const answer = RETRIEVAL_PURPOSES.includes(action.purpose)\n      ? await this.#recordedAnswer(tx, opId, action)", "the dispatch re-check of the recorded manifest"),
         ("ai_project_budget_unenforced", "the PRJ-007 refusal"),
         ("projectGrants: new Map([...p.projectGrants].filter(([id]) => projectIds.has(id))),", "delegation narrowing of project grants"),
     ]:
@@ -186,8 +187,15 @@ def check_migration():
     if "0055 cannot be rolled back" not in down:
         errs.append("0055 down must refuse while grounded answers exist")
     names = sorted(n for n in os.listdir(P("packages/db/migrations")) if n.endswith(".up.sql"))
-    if names[-1] != "0055_ai_retrieval_citations.up.sql":
-        errs.append("0055_ai_retrieval_citations must be the last migration")
+    by = {n.split("_", 1)[0]: n for n in names}
+    if by.get("0055") != "0055_ai_retrieval_citations.up.sql":
+        errs.append("0055_ai_retrieval_citations must keep its number")
+    # Later migrations belong to later phases, each held by its own validator.
+    later_owned = {"0056": ("0056_ai_change_proposals.up.sql", "phase7d.py")}
+    for k in sorted(k for k in by if k > "0055"):
+        name, validator = later_owned.get(k, (None, None))
+        if by[k] != name or not os.path.isfile(P("docs/engineering/tools/%s" % validator)):
+            errs.append("migration %s after 7B must be held by a later-phase validator" % by[k])
     errs += phase1.check_boundaries([55])
     lifecycle = read(P("packages/work/src/ai/lifecycle.ts"))
     if "grounding: null" not in lifecycle:

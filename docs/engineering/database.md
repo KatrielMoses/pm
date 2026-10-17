@@ -440,3 +440,14 @@ Migration `0055_ai_retrieval_citations` (expand; exact rollback to 0054; 0B ADR-
 - `ai_output.grounding` holds the validated answer. `ai.output_guard()` permits only erasure, which must also clear `grounding`.
 - The down migration restores the 0053 output guard and the 0054 constraints. It refuses while grounded-answer rows exist: it lifts forced row-level security on `ai_action` and `ai_context_ref` for that one check and restores it, as 0041 did. The migration test proves the catalog round-trip, and the 7B integration test proves the refusal.
 
+## Phase 7D: change proposals
+
+Migration `0056_ai_change_proposals` (expand; exact rollback to 0055; 0B ADR-47, ADR-0040) widens `ai_action.purpose` to `change_proposal` and adds five forced-RLS tenant tables in `ai`:
+
+- `change_proposal` (`prp_`; one per generating action): state, revision, fingerprint, title and reject reason (content), `content_state`.
+- `proposed_change`: one typed change per row (operation, temporary reference, target reference without a foreign key, expected version, dependencies, proposed values in `payload`, manifest handles, selection, decision, applied state, created record, failure code). No base values are copied.
+- `proposal_event`: reference-only history.
+- `proposal_approval`: one active approval per proposal (partial unique index), bound to the revision, selection, fingerprint, target versions, effective scope, risk class, and expiry.
+- `proposal_application`: one row per Apply attempt, with its `proposal_apply` operation and per-change outcome.
+
+Grants: select, insert, and update on `change_proposal`, `proposed_change`, and `proposal_approval`; select and insert on `proposal_event` and `proposal_application`; no delete for any role. Erasure nulls the title, reason, and `payload` and revokes active approvals; it never deletes applied records. The down migration refuses while any proposal or change-proposal action exists, lifting forced row-level security on `ai_action` and `change_proposal` for that one check. Workspace purge deletes `ai.proposal_application`, `ai.proposal_approval`, `ai.proposal_event`, `ai.proposed_change`, and `ai.change_proposal` before `ai.ai_action`.

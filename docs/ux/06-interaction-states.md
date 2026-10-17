@@ -475,6 +475,7 @@ Rules:
 - A change whose target record changed since the proposal is marked **Out of date** and requires refresh or explicit re-confirmation.
 - The apply button counts the selected changes ("Apply 3 of 5 changes"). The confirmation tier is the highest tier among included changes ([ST-35](#st-35)).
 - Applied changes are attributed in history as "Applied by Ana · proposed by AI".
+- **Phase 7D (ADR-0040):** the review page lists changes in their dependency order, each with its target, before → after through current access, and the sources it is based on. Selection shows dependency feedback live ("Change c2 needs change c1") and never adds a change silently. Edits are saved as a new revision and need a new approval; unsaved edits are kept on the device across a refresh, a conflict, or going offline. Apply is atomic: the outcome is either "Applied n change(s)" or "Nothing was applied", with each change shown as applied, failed, rolled back, not attempted, or not selected. A withheld or erased proposal shows no content. A repeated click sends one request.
 
 <a id="st-52"></a>
 ### ST-52 — Agent outputs
