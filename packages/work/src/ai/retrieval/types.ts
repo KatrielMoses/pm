@@ -94,9 +94,13 @@ export interface RetrievalReaders {
     project: string | null;
     limit: number;
   }): Promise<{ hits: Array<{ kind: SourceKind; id: string }>; index: IndexState }>;
-  /** Readable, active brands by public id (unreadable or unknown ones are simply absent). */
+  /**
+   * Readable brands by public id (unreadable or unknown ones are simply absent): active only, or
+   * also archived when re-checking history (an archived brand's history stays readable).
+   */
   brands(
     publicIds: readonly string[],
+    opts?: { archived?: boolean },
   ): Promise<Array<{ id: string; publicId: string; name: string; sensitive: boolean }>>;
   /** Whether the brand's AI profile limits sources to the brand (approved_sources = brand_only). */
   brandOnly(brandId: string): Promise<boolean>;

@@ -72,11 +72,13 @@ import {
 import {
   discoverManifest,
   MANIFEST_LIST_MAX,
+  currentEligibility,
   MANIFEST_TEMPLATE,
-  payloadOf,
   pinnedManifest,
   RetrievalRefusal,
+  type Eligibility,
   type ManifestLimits,
+  type UsedRef,
 } from './retrieval/manifest.ts';
 import {
   SEARCHABLE_KINDS,
@@ -1543,11 +1545,13 @@ export class AiGatewayService extends McpAccessService {
           index: { state: r.index.state, pending: r.index.pending, failed: r.index.failed },
         };
       },
-      brands: async (ids) => {
+      brands: async (ids, opts = {}) => {
         const out = [];
         for (const id of ids) {
           try {
-            const b = await findBrand(tx, p, id, { states: 'active' });
+            const b = await findBrand(tx, p, id, {
+              states: opts.archived ? 'active_or_archived' : 'active',
+            });
             out.push({ id: b.id, publicId: b.public_id, name: b.name, sensitive: b.is_sensitive });
           } catch (err) {
             if (!(err instanceof TenancyError)) throw err;
@@ -2142,60 +2146,109 @@ export class AiGatewayService extends McpAccessService {
    * calculations, and citations resolved through current authorization. A citation whose source
    * changed since the answer is marked changed; nothing else about a source is disclosed.
    */
-  async #answerView(
+  /**
+   * The current-content decision shared by history, exports, completed-key replays, and citations
+   * (corrective review 01 R1; one policy evaluator: `currentEligibility` and `policyExclusion`).
+   */
+  async #contentEligibility(
     tx: WorkspaceTransaction,
     p: Principal,
+    action: { purpose: string; retrieval_scope: unknown; brand_id: string | null },
     refs: ReadonlyArray<{
       record_type: string;
       record_public_id: string;
+      fields: string[];
+      included: boolean;
       handle: string | null;
       content_hash: string | null;
-      included: boolean;
-      source_flags: string[];
     }>,
+  ): Promise<Eligibility> {
+    const grounded = action.purpose === 'grounded_answer';
+    const stored = (action.retrieval_scope ?? {}) as {
+      brands?: string[];
+      project?: string | null;
+      task?: string | null;
+    };
+    let scope: ScopeInput;
+    if (grounded)
+      scope = {
+        brands: stored.brands ?? [],
+        project: stored.project ?? null,
+        task: stored.task ?? null,
+      };
+    else {
+      const brand = action.brand_id
+        ? ((
+            await tx.db
+              .selectFrom('core.record')
+              .select('public_id')
+              .where('id', '=', action.brand_id)
+              .executeTakeFirst()
+          )?.public_id ?? `br_${'0'.repeat(26)}`)
+        : null;
+      scope = { brands: brand ? [brand] : [], project: null, task: null };
+    }
+    const used: UsedRef[] = refs
+      .filter((r) => r.included)
+      .map((r) => ({
+        kind: r.record_type as SourceKind,
+        id: r.record_public_id,
+        // A 7A project reference names its title field `name`; the adapter calls it `title`.
+        fields: grounded ? r.fields : r.fields.map((f) => (f === 'name' ? 'title' : f)),
+        handle: r.handle,
+        contentHash: r.content_hash,
+      }));
+    return currentEligibility(this.#readers(tx, p), scope, used, {
+      maxDataClass: (await this.#policy(tx))?.maxDataClass ?? 'C2',
+      sourceChars: this.#retrievalLimits().sourceChars,
+      applyBrandOnly: grounded,
+    });
+  }
+
+  /**
+   * A grounded answer as its initiator may see it now (only after `#contentEligibility` allowed
+   * it): server facts and calculations, exact excerpts, unverified claims, suggestions, unknowns,
+   * and citations resolved through current authorization. A source that drifted while staying
+   * authorized is marked changed.
+   */
+  #answerView(
+    eligible: ReadonlyArray<{ ref: UsedRef; record: SourceRecord; changed: boolean }>,
+    refs: ReadonlyArray<{ handle: string | null; source_flags: string[] }>,
     grounding: Grounding,
   ) {
-    const readers = this.#readers(tx, p);
-    const maxDataClass = (await this.#policy(tx))?.maxDataClass ?? 'C2';
-    const { sourceChars } = this.#retrievalLimits();
-    const sources = new Map<
-      string,
-      {
-        type: string;
-        id: string;
-        title: string;
-        link: SourceRecord['link'];
-        changed: boolean;
-        flags: string[];
-      }
-    >();
-    for (const r of refs) {
-      if (!r.included || !r.handle) continue;
-      const s = await readers.source(r.record_type as SourceKind, r.record_public_id);
-      const now = payloadOf(s, maxDataClass, sourceChars);
-      sources.set(r.handle, {
-        type: s.kind,
-        id: s.publicId,
-        title: s.title,
-        link: s.link,
-        changed: now.hash !== r.content_hash,
-        flags: r.source_flags,
-      });
-    }
+    const flags = new Map(refs.filter((r) => r.handle).map((r) => [r.handle!, r.source_flags]));
+    const sources = new Map(
+      eligible
+        .filter((e) => e.ref.handle)
+        .map((e) => [
+          e.ref.handle!,
+          {
+            type: e.record.kind,
+            id: e.record.publicId,
+            title: e.record.title,
+            link: e.record.link,
+            changed: e.changed,
+            flags: flags.get(e.ref.handle!) ?? [],
+          },
+        ]),
+    );
     const cite = (handle: string) => {
       const s = sources.get(handle);
       return s ? { handle, ...s } : null;
     };
+    const incomplete =
+      grounding.reason === 'truncated_response' || grounding.reason === 'partial_response';
     return {
       status: grounding.status,
       reason: grounding.reason,
-      note:
-        grounding.status === 'rejected'
+      note: incomplete
+        ? 'The answer stopped before it was complete, so it is not shown as an answer. Facts and calculations below come from the records and are unaffected.'
+        : grounding.status === 'rejected'
           ? 'The answer did not follow the required format, so it is not shown as an answer. Nothing was changed.'
           : grounding.status === 'withheld'
             ? 'A source changed or became unavailable before the answer was published, so it is not shown. Ask again to use the current sources.'
             : grounding.status === 'downgraded'
-              ? 'Some statements could not be established from the sources and are marked unverified.'
+              ? 'Some citations did not match the sources and were removed. Generated statements are unverified.'
               : null,
       facts: grounding.facts.map((f) => ({ ...f, source: cite(f.handle) })),
       calculations: grounding.calculations,
@@ -2205,8 +2258,10 @@ export class AiGatewayService extends McpAccessService {
       })),
       dropped_citations: grounding.dropped_citations,
       sources: [...sources.entries()].map(([handle, s]) => ({ handle, ...s })),
+      trust_note:
+        'Only facts and calculations from the records are established. Exact excerpts are copied from a source; every other generated statement is unverified, even when it cites a source.',
       provenance_note:
-        'Citations show where a statement came from; they do not guarantee it is true. Facts and calculations come from the records themselves.',
+        'Citations show where a statement came from; they do not guarantee it is true.',
     };
   }
 
@@ -2752,18 +2807,32 @@ export class AiGatewayService extends McpAccessService {
       task?: string | null;
       query?: string | null;
     } | null;
-    // Every contributing source (all of a test run's references; a grounded answer's included
-    // sources and its scope) must still be readable by the initiator now.
-    const contributing = grounded ? refs.filter((r) => r.included) : refs;
-    const available = await this.#sourcesReadable(
-      tx,
-      p,
-      action.brand_id,
-      contributing.map((r) => ({ kind: r.record_type as SourceKind, id: r.record_public_id })),
-      scope,
-    );
+    // One current-content decision (corrective review 01 R1): the scope and every source the run
+    // used must still be readable now, and the current AI policy must still allow every field it
+    // used. Otherwise the whole content is withheld. A 7A test run's other references must also
+    // still be readable, as before.
+    const eligibility =
+      action.content_state === 'erased'
+        ? ({ eligible: false } as const)
+        : await this.#contentEligibility(tx, p, action, refs);
+    const othersReadable =
+      grounded || !eligibility.eligible
+        ? true
+        : (
+            await this.#sourcesReadable(
+              tx,
+              p,
+              action.brand_id,
+              refs.map((r) => ({ kind: r.record_type as SourceKind, id: r.record_public_id })),
+              null,
+            )
+          ).all;
     const content =
-      action.content_state === 'erased' ? 'erased' : available.all ? 'present' : 'withheld';
+      action.content_state === 'erased'
+        ? 'erased'
+        : eligibility.eligible && othersReadable
+          ? 'present'
+          : 'withheld';
     const outputs = await tx.db
       .selectFrom('ai.ai_output')
       .selectAll()
@@ -2816,7 +2885,11 @@ export class AiGatewayService extends McpAccessService {
           present && grounded && last && last.grounding
             ? {
                 completeness: last.completeness,
-                ...(await this.#answerView(tx, p, refs, last.grounding as unknown as Grounding)),
+                ...this.#answerView(
+                  eligibility.eligible ? eligibility.sources : [],
+                  refs,
+                  last.grounding as unknown as Grounding,
+                ),
               }
             : null,
       },

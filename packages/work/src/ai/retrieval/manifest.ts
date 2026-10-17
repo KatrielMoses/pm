@@ -71,13 +71,14 @@ export const sha256 = (s: string) => createHash('sha256').update(s).digest('hex'
 export async function resolveScope(
   readers: RetrievalReaders,
   scope: ScopeInput,
+  opts: { archived?: boolean } = {},
 ): Promise<ResolvedScope> {
   const unavailable = () =>
     new RetrievalRefusal(
       'scope_unavailable',
       'The chosen scope is not available to you. Choose another scope. Nothing was sent.',
     );
-  const brands = scope.brands.length ? await readers.brands(scope.brands) : [];
+  const brands = scope.brands.length ? await readers.brands(scope.brands, opts) : [];
   if (brands.length !== scope.brands.length) throw unavailable();
   if (brands.some((b) => b.sensitive))
     throw new RetrievalRefusal(
@@ -140,6 +141,34 @@ function eligibleFields(s: SourceRecord, maxDataClass: DataClass) {
   return s.fields.filter((f) => CLASS_RANK[f.dataClass] <= CLASS_RANK[maxDataClass]);
 }
 
+/**
+ * The one current AI data-use decision for a readable source (ADR-0039 R9): the scope, restricted
+ * brands, a brand's approved-source policy, and the workspace data class. Manifests apply it at
+ * preview, start, dispatch, and publication; history applies it to the fields a run actually used.
+ * The person's own choices and suitability warnings are not part of it.
+ */
+export function policyExclusion(
+  s: SourceRecord,
+  scope: ResolvedScope,
+  brandOnly: string | null,
+  maxDataClass: DataClass,
+  usedFields?: readonly string[],
+): Exclusion | null {
+  if (!inScope(scope, s)) return 'out_of_scope';
+  if (s.brandSensitive) return 'sensitive_brand';
+  if (brandOnly && s.brandId !== brandOnly) return 'brand_only_policy';
+  const eligible = eligibleFields(s, maxDataClass);
+  if (!eligible.length) return 'data_class';
+  // Every field a run used, and that the source still has, must still be eligible now.
+  if (
+    usedFields?.some(
+      (f) => s.fields.some((x) => x.name === f) && !eligible.some((x) => x.name === f),
+    )
+  )
+    return 'data_class';
+  return null;
+}
+
 function exclusionFor(
   s: SourceRecord,
   selection: Selection,
@@ -148,10 +177,8 @@ function exclusionFor(
   policy: Policy,
 ): Exclusion | null {
   if (excluded) return 'user_excluded';
-  if (!inScope(scope, s)) return 'out_of_scope';
-  if (s.brandSensitive) return 'sensitive_brand';
-  if (policy.brandOnly && s.brandId !== policy.brandOnly) return 'brand_only_policy';
-  if (!eligibleFields(s, policy.maxDataClass).length) return 'data_class';
+  const blocked = policyExclusion(s, scope, policy.brandOnly, policy.maxDataClass);
+  if (blocked) return blocked;
   // A stale, draft, unapproved, superseded, or archived source is used only by explicit choice.
   if (
     selection !== 'explicit' &&
@@ -166,8 +193,11 @@ export function payloadOf(
   s: SourceRecord,
   maxDataClass: DataClass,
   sourceChars: number,
+  onlyFields?: readonly string[],
 ): { payload: Record<string, string>; truncated: boolean; hash: string; fieldNames: string[] } {
-  const fields = eligibleFields(s, maxDataClass);
+  const fields = eligibleFields(s, maxDataClass).filter(
+    (f) => !onlyFields || onlyFields.includes(f.name),
+  );
   const payload: Record<string, string> = {};
   let room = sourceChars;
   let truncated = false;
@@ -413,4 +443,64 @@ export async function pinnedManifest(
     index: null,
     digest: digestOf(scope, query, entries, options.omitted),
   };
+}
+
+/** A contributing reference recorded on a run (a manifest entry, or a 7A context reference). */
+export interface UsedRef {
+  kind: SourceKind;
+  id: string;
+  /** The fields that were sent (7A project `name` is the adapter's `title`). */
+  fields: readonly string[];
+  handle: string | null;
+  contentHash: string | null;
+}
+
+export type Eligibility =
+  | { eligible: false }
+  | {
+      eligible: true;
+      /** Each used source as it reads now, and whether its content drifted (still authorized). */
+      sources: Array<{ ref: UsedRef; record: SourceRecord; changed: boolean }>;
+    };
+
+/**
+ * Whether content derived from these sources may still be shown to this principal now (history,
+ * exports, completed-key replays, citations). Ineligible when the scope or any used source is no
+ * longer readable, or the current policy no longer allows a field it used; the caller then withholds
+ * the whole content. Ordinary drift that stays authorized is reported as `changed`, not withheld.
+ */
+export async function currentEligibility(
+  readers: RetrievalReaders,
+  scopeInput: ScopeInput,
+  used: readonly UsedRef[],
+  policy: { maxDataClass: DataClass; sourceChars: number; applyBrandOnly: boolean },
+): Promise<Eligibility> {
+  let scope: ResolvedScope;
+  try {
+    scope = await resolveScope(readers, scopeInput, { archived: true });
+  } catch (err) {
+    if (err instanceof RetrievalRefusal || hidden(err)) return { eligible: false };
+    throw err;
+  }
+  const only = scope.brands.length === 1 ? scope.brands[0]!.id : null;
+  const brandOnly = policy.applyBrandOnly && only && (await readers.brandOnly(only)) ? only : null;
+  const sources: Array<{ ref: UsedRef; record: SourceRecord; changed: boolean }> = [];
+  for (const ref of used) {
+    let record: SourceRecord;
+    try {
+      record = await readers.source(ref.kind, ref.id);
+    } catch (err) {
+      if (hidden(err)) return { eligible: false };
+      throw err;
+    }
+    if (policyExclusion(record, scope, brandOnly, policy.maxDataClass, ref.fields))
+      return { eligible: false };
+    const now = payloadOf(record, policy.maxDataClass, policy.sourceChars, ref.fields);
+    sources.push({
+      ref,
+      record,
+      changed: ref.contentHash !== null && now.hash !== ref.contentHash,
+    });
+  }
+  return { eligible: true, sources };
 }

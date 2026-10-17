@@ -364,7 +364,7 @@ describe('AI gateway API (7A)', () => {
     const detail = await owner.get(`${base()}/ai/runs/${run}`);
     expect(detail.json().data).toMatchObject({
       purpose: 'grounded_answer',
-      content: { state: 'present', answer: { status: 'validated' } },
+      content: { state: 'present', answer: { status: 'checked' } },
     });
     const sent = fx.control.received().filter((r) => r.user.startsWith('HTTP grounded?')).length;
     const replay = await owner.post(`${base()}/ai/answers`, body, { headers });

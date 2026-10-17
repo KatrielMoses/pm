@@ -496,7 +496,7 @@ describe('Phase 7B authorized retrieval and citations', () => {
     expect(req.user).not.toContain(R.summit);
     const view = await env.svc.getAiRun(P.member, ws, run.data.id);
     const a = view.content.answer!;
-    expect(a.status).toBe('validated');
+    expect(a.status).toBe('checked');
     expect(a.facts).toContainEqual(
       expect.objectContaining({
         label: 'Status',
@@ -509,11 +509,11 @@ describe('Phase 7B authorized retrieval and citations', () => {
       'tasks_overdue',
     ]);
     expect(a.statements[0]).toMatchObject({
-      kind: 'sourced',
-      quote_kind: 'exact',
+      kind: 'excerpt',
       citations: [
         expect.objectContaining({
           handle: 'S1',
+          excerpt: 'Finish the falcon checklist.',
           source: expect.objectContaining({
             type: 'task',
             id: R.task,
@@ -758,7 +758,7 @@ describe('Phase 7B authorized retrieval and citations', () => {
     );
     await drain(db, worker, run.data.id);
     expect((await env.svc.getAiRun(P.leaver, ws, run.data.id)).content.answer!.status).toBe(
-      'validated',
+      'checked',
     );
     const before = sent().length;
     await apply(env, P.owner, ws, {
@@ -1124,6 +1124,231 @@ describe('Phase 7B authorized retrieval and citations', () => {
     expect(await env.svc.getAiRun(P.member, ws, run.data.id)).toMatchObject({
       content: { state: 'withheld' },
     });
+  });
+
+  it('AT-404 history, export, replay, and citations re-check current field and data-class policy; ordinary drift keeps an honest changed mark', async () => {
+    const MARK = 'ZETA7731 confidential rollout margin';
+    const marked = (
+      await env.svc.createTask(
+        P.owner,
+        ws,
+        {
+          brand: B.Harbor,
+          title: 'Falcon margin note',
+          description: richTextFromPlain(`${MARK}. More notes follow.`),
+        },
+        mutation(),
+      )
+    ).data.id;
+    const setClass = async (c: 'C0' | 'C1' | 'C2') => {
+      const s = await env.svc.getAiSettings(P.owner, ws);
+      await stepped(env, () =>
+        env.svc.updateAiSettings(P.owner, ws, { max_data_class: c }, stepUp(s.version)),
+      );
+    };
+    const req = mutation();
+    const body = { include: [{ type: 'task', id: marked }], question: 'Margin? #fixture:ok' };
+    const run = await ask(P.member, body, req);
+    expect(await drain(db, worker, run.data.id)).toMatchObject({ execution_state: 'succeeded' });
+    expect(JSON.stringify(await env.svc.getAiRun(P.member, ws, run.data.id))).toContain('ZETA7731');
+    // A 7A test run whose context used the same C2 fields shares the decision.
+    const test7a = await env.svc.startAiTestRun(
+      P.member,
+      ws,
+      { prompt: 'Summarise ZETA7731', context: [{ id: marked }], confirm_cost: true },
+      mutation(),
+    );
+    await drain(db, worker, test7a.data.id);
+    const plain7a = await env.svc.startAiTestRun(
+      P.member,
+      ws,
+      { prompt: 'No context here', confirm_cost: true },
+      mutation(),
+    );
+    await drain(db, worker, plain7a.data.id);
+    const dispatched = sent().length;
+
+    // Membership and record access unchanged; only the AI data class narrows to C1.
+    await setClass('C1');
+    for (const id of [run.data.id, test7a.data.id]) {
+      const view = await env.svc.getAiRun(P.member, ws, id);
+      expect(view.content, id).toMatchObject({
+        state: 'withheld',
+        prompt: null,
+        output: null,
+        answer: null,
+      });
+      expect(view.context, id).toEqual([]);
+      expect(JSON.stringify(view), id).not.toContain('ZETA7731');
+      expect(JSON.stringify(view), id).not.toContain('Falcon margin note');
+    }
+    // A run that used no content keeps showing; usage accounting stays.
+    expect((await env.svc.getAiRun(P.member, ws, plain7a.data.id)).content.state).toBe('present');
+    const exported = JSON.stringify(
+      await env.svc.exportPortabilityHistory(P.member, ws, 'ai_history', {}),
+    );
+    expect(exported).not.toContain('ZETA7731');
+    expect(exported).toContain(run.data.id);
+    const replay = await env.svc.startAiAnswer(
+      P.member,
+      ws,
+      { ...body, confirm_cost: true, manifest_digest: 'f'.repeat(64) },
+      req,
+    );
+    expect(JSON.stringify(replay)).not.toContain('ZETA7731');
+    await worker.runCycle({ wait: true });
+    expect(sent().length).toBe(dispatched);
+    await setClass('C0');
+    expect((await env.svc.getAiRun(P.member, ws, run.data.id)).content.state).toBe('withheld');
+
+    // Restored policy: the content is eligible again (nothing was erased).
+    await setClass('C2');
+    expect(JSON.stringify((await env.svc.getAiRun(P.member, ws, run.data.id)).content)).toContain(
+      'ZETA7731',
+    );
+
+    // A run created under C1 used only C1 fields: it stays eligible under C1 and not under C0.
+    await setClass('C1');
+    const c1run = await ask(P.member, {
+      include: [{ type: 'task', id: marked }],
+      question: 'Status only? #fixture:ok',
+    });
+    await drain(db, worker, c1run.data.id);
+    expect((await env.svc.getAiRun(P.member, ws, c1run.data.id)).content.state).toBe('present');
+    expect(
+      JSON.stringify((await env.svc.getAiRun(P.member, ws, c1run.data.id)).content),
+    ).not.toContain('ZETA7731');
+    await setClass('C0');
+    expect((await env.svc.getAiRun(P.member, ws, c1run.data.id)).content.state).toBe('withheld');
+    await setClass('C2');
+
+    // Ordinary drift that stays authorized keeps the answer with an honest changed mark.
+    const t = await env.svc.getTask(P.owner, ws, marked);
+    await env.svc.updateTask(
+      P.owner,
+      ws,
+      marked,
+      { version: t.version, changes: { title: { base: t.title, value: 'Falcon margin note v2' } } },
+      ifMatch(t.version),
+    );
+    const drifted = await env.svc.getAiRun(P.member, ws, run.data.id);
+    expect(drifted.content.state).toBe('present');
+    expect(drifted.content.answer!.sources[0]).toMatchObject({ changed: true });
+
+    // A policy change during execution withholds the answer at publication.
+    const slow = await ask(P.member, {
+      include: [{ type: 'task', id: marked }],
+      question: 'Slow margin? #fixture:slow',
+    });
+    const cycle = worker.runCycle({ wait: true });
+    for (let i = 0; i < 100 && !sent().some((r) => r.user.includes('Slow margin?')); i++)
+      await new Promise((r) => setTimeout(r, 30));
+    await setClass('C1');
+    await cycle;
+    await drain(db, worker, slow.data.id);
+    await setClass('C2');
+    expect((await env.svc.getAiRun(P.member, ws, slow.data.id)).content.answer).toMatchObject({
+      status: 'withheld',
+      reason: 'sources_changed',
+    });
+
+    // Erased content is not resurrected by restoring the policy.
+    const memberM = (await membershipOf(db, wsId, P.member.auth.account.id))!;
+    await env.h.worker.withWorkspace(wsId, { module: 'test' }, (tx) =>
+      env.svc.eraseAiContent(tx, { membershipId: memberM.id }),
+    );
+    await setClass('C1');
+    await setClass('C2');
+    expect((await env.svc.getAiRun(P.member, ws, run.data.id)).content.state).toBe('erased');
+  });
+
+  it('AT-405 a truncated, partial, or cancelled transport is never a checked answer, even at a valid JSON boundary', async () => {
+    const outcome = async (question: string) => {
+      const run = await ask(P.member, { include: [{ type: 'task', id: R.task }], question });
+      const end = await drain(db, worker, run.data.id);
+      return { end, view: await env.svc.getAiRun(P.member, ws, run.data.id) };
+    };
+    const valid = await outcome('Complete JSON, cut stop #fixture:truncate_valid');
+    expect(valid.end).toMatchObject({ execution_state: 'partial' });
+    expect(valid.view.status).toBe('Partial: the answer is incomplete');
+    expect(valid.view.content.answer).toMatchObject({
+      status: 'rejected',
+      reason: 'truncated_response',
+      statements: [],
+      completeness: 'truncated',
+      note: expect.stringMatching(/stopped before it was complete/),
+    });
+    // Facts from the records keep their own validity.
+    expect(valid.view.content.answer!.facts.length).toBeGreaterThan(0);
+    const malformed = await outcome('Cut JSON #fixture:truncate');
+    expect(malformed.view.content.answer).toMatchObject({
+      status: 'rejected',
+      reason: 'truncated_response',
+    });
+    const ok = await outcome('Complete #fixture:ok');
+    expect(ok.view.content.answer).toMatchObject({
+      status: 'checked',
+      reason: null,
+      completeness: 'complete',
+    });
+    // Cancelled mid-stream: whatever was received is not published as an answer.
+    const slow = await ask(P.member, {
+      include: [{ type: 'task', id: R.task }],
+      question: 'Cancel me #fixture:slow',
+    });
+    const cycle = worker.runCycle({ wait: true });
+    for (let i = 0; i < 100 && !sent().some((r) => r.user.includes('Cancel me #fixture:slow')); i++)
+      await new Promise((r) => setTimeout(r, 30));
+    await new Promise((r) => setTimeout(r, 400));
+    await env.svc.cancelAiRun(P.member, ws, slow.data.id, mutation());
+    await cycle;
+    await drain(db, worker, slow.data.id);
+    const cancelled = await env.svc.getAiRun(P.member, ws, slow.data.id);
+    expect(cancelled.status).toMatch(/^Cancelled/);
+    const a = cancelled.content.answer;
+    if (a)
+      expect(a).toMatchObject({ status: 'rejected', reason: 'partial_response', statements: [] });
+    expect(JSON.stringify(cancelled)).not.toContain('"status":"checked"');
+  });
+
+  it('AT-406 a real quotation is provenance, never verification: unrelated claims stay unverified and record facts win', async () => {
+    const run = await ask(P.member, {
+      include: [{ type: 'task', id: R.task }],
+      question: 'Trust? #fixture:ok',
+    });
+    await drain(db, worker, run.data.id);
+    const a = (await env.svc.getAiRun(P.member, ws, run.data.id)).content.answer!;
+    const [excerpt, claim] = a.statements as Array<{
+      kind: string;
+      text: string;
+      citations: Array<{ excerpt: string | null; source: { id: string } | null }>;
+    }>;
+    // Only the statement whose own text is in the source is an excerpt, showing the source text.
+    expect(excerpt).toMatchObject({ kind: 'excerpt', text: 'Finish the falcon checklist.' });
+    expect(excerpt!.citations[0]).toMatchObject({
+      excerpt: 'Finish the falcon checklist.',
+      source: { id: R.task },
+    });
+    // The claim carries the same real quotation, which stays provenance for an unverified claim.
+    expect(claim).toMatchObject({
+      kind: 'unverified',
+      citations: [expect.objectContaining({ excerpt: 'Finish the falcon checklist.' })],
+    });
+    expect(a.statements.filter((s: { kind: string }) => s.kind === 'excerpt')).toHaveLength(1);
+    expect(a.trust_note).toMatch(/Only facts and calculations from the records are established/);
+    // A contradicting status claim is unverified; the record's status is the fact.
+    const st = await ask(P.member, {
+      include: [{ type: 'task', id: R.task }],
+      question: 'Done? #fixture:claim_status',
+    });
+    await drain(db, worker, st.data.id);
+    const b = (await env.svc.getAiRun(P.member, ws, st.data.id)).content.answer!;
+    expect(b.statements[0]).toMatchObject({
+      kind: 'unverified',
+      issues: expect.arrayContaining(['contradicts_record']),
+    });
+    expect(b.facts).toContainEqual(expect.objectContaining({ label: 'Status', handle: 'S1' }));
+    expect(JSON.stringify(b)).not.toContain('"kind":"sourced"');
   });
 
   it('the 0055 rollback refuses while grounded answers exist, leaving the catalog and data unchanged (ADR-46)', async () => {
