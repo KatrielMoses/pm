@@ -210,6 +210,17 @@ const PHASE_1C_TENANT_TABLES = [
   // Phase 5C task status history and its reconciliation state.
   'metrics.task_status_span',
   'metrics.reconcile_state',
+  // Phase 7A AI policy, brand profiles, actions, context references, dispatches, outputs, and metering.
+  'ai.ai_provider_config',
+  'ai.brand_ai_profile',
+  'ai.ai_action',
+  'ai.ai_context_ref',
+  'ai.ai_dispatch',
+  'ai.ai_output',
+  'metering.spend_limit',
+  'metering.usage_balance',
+  'metering.usage_reservation',
+  'metering.usage_event',
 ] as const;
 
 /** Seeds one row in every tenant execution table for a workspace. */
