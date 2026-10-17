@@ -79,11 +79,11 @@ describe('7A redaction', () => {
     const samples = [
       'sk-ant-api03-AAAAAAAAAAAAAAAAAAAAAAAA',
       'ghp_abcdefghijklmnopqrstuvwxyz0123',
-      'AKIAABCDEFGHIJKLMNOP',
+      'AKIAABCDEFGHIJKLMNOP', // gitleaks:allow (synthetic redaction sample)
       'Bearer abcdefghijklmnopqrstuvwxyz012345',
       'password=correcthorse99',
       'https://user:secretpass@example.com/x',
-      'eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0.dozjgNryP4J3jVmNHl0w5N_XgL0n3I9PlFUP0THsR8U',
+      'eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0.dozjgNryP4J3jVmNHl0w5N_XgL0n3I9PlFUP0THsR8U', // gitleaks:allow (synthetic redaction sample)
       '-----BEGIN PRIVATE KEY-----\nMIIabc\n-----END PRIVATE KEY-----',
     ];
     for (const s of samples) {
