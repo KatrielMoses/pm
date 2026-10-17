@@ -3299,6 +3299,8 @@ export interface AiProviderConfigTable {
   max_data_class: Defaulted<'C0' | 'C1' | 'C2'>;
   require_training_exclusion: Defaulted<boolean>;
   confirm_above_micros: Defaulted<string>;
+  dispatch_suspended_reason: 'bound_breach' | null;
+  dispatch_suspended_at: Timestamp | null;
   updated_by_membership_id: string;
   created_at: DTs;
   updated_at: DTs;
@@ -3384,6 +3386,20 @@ export interface AiDispatchTable {
   ended_at: Timestamp | null;
   reconciled_by_membership_id: string | null;
   reconciled_at: Timestamp | null;
+  price_snapshot: Json<Record<string, unknown>> | null;
+  capability_snapshot: Json<Record<string, unknown>> | null;
+  bound_breach: Defaulted<boolean>;
+  clipped_locally: Defaulted<boolean>;
+  failure_detail:
+    | 'protocol_invalid'
+    | 'stream_overflow'
+    | 'unsupported_stop'
+    | 'usage_invalid'
+    | 'configuration_changed'
+    | 'bound_unverified'
+    | 'bound_breach'
+    | 'content_unavailable'
+    | null;
 }
 export interface AiOutputTable {
   id: string;
@@ -6510,6 +6526,8 @@ export const TABLE_COLUMNS: Readonly<Record<keyof Database, readonly string[]>> 
     'created_at',
     'updated_at',
     'version',
+    'dispatch_suspended_reason',
+    'dispatch_suspended_at',
   ],
   'ai.brand_ai_profile': [
     'id',
@@ -6588,6 +6606,11 @@ export const TABLE_COLUMNS: Readonly<Record<keyof Database, readonly string[]>> 
     'ended_at',
     'reconciled_by_membership_id',
     'reconciled_at',
+    'price_snapshot',
+    'capability_snapshot',
+    'bound_breach',
+    'clipped_locally',
+    'failure_detail',
   ],
   'ai.ai_output': [
     'id',
