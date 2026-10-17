@@ -451,3 +451,14 @@ Migration `0056_ai_change_proposals` (expand; exact rollback to 0055; 0B ADR-47,
 - `proposal_application`: one row per Apply attempt, with its `proposal_apply` operation and per-change outcome.
 
 Grants: select, insert, and update on `change_proposal`, `proposed_change`, and `proposal_approval`; select and insert on `proposal_event` and `proposal_application`; no delete for any role. Erasure nulls the title, reason, and `payload` and revokes active approvals; it never deletes applied records. The down migration refuses while any proposal or change-proposal action exists, lifting forced row-level security on `ai_action` and `change_proposal` for that one check. Workspace purge deletes `ai.proposal_application`, `ai.proposal_approval`, `ai.proposal_event`, `ai.proposed_change`, and `ai.change_proposal` before `ai.ai_action`.
+
+## Phase 7C: AI drafting and analysis
+
+Migration `0057_ai_drafting_analysis` (expand; exact rollback to 0056; 0B ADR-48, ADR-0041) adds no table:
+
+- `ai_action.purpose` admits `analysis`. Analysis and drafting actions carry `action_key`, `input_digest` (the confirmed input), and `choice_refs` (label and member handles, references only).
+- `ai_context_ref.record_type` admits `goal` and `meeting` (`goal_`, `cev_`).
+- `proposed_change.op` admits `task.assign`, `label.add`, and `criterion.add`.
+- `change_proposal.assumptions` is content and is erased with the proposal.
+
+The down migration refuses while any 7C data exists, lifting forced row-level security on the four tables for that one check.

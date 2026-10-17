@@ -1,0 +1,596 @@
+{
+  "schema_version": 1,
+  "phase": "7C",
+  "status": "candidate",
+  "adr": "0041",
+  "requirements": [
+    {
+      "id": "PRJ-016",
+      "role": "owned",
+      "disposition": "implemented",
+      "note": "A brief or readable goal becomes a typed project-plan proposal that the person edits, selects, approves, and applies once into real records with AI-draft provenance.",
+      "evidence": [
+        {
+          "file": "packages/work/src/ai/actions/catalog.ts",
+          "contains": "key: 'draft_project',"
+        },
+        {
+          "file": "packages/work/test/integration/ai-assist.test.ts",
+          "contains": "it('AT-438 "
+        },
+        {
+          "file": "e2e/ai-assist.spec.ts",
+          "contains": "test('AT-448 "
+        }
+      ]
+    },
+    {
+      "id": "AI-001",
+      "role": "owned",
+      "disposition": "implemented",
+      "note": "Workspace-level assistance: actions run over a workspace scope through one retrieval system.",
+      "evidence": [
+        {
+          "file": "packages/work/test/integration/ai-assist.test.ts",
+          "contains": "for (const scope of [{}, { brands: [B.Harbor] }, { project: R.project }, { task: R.t1 }])"
+        },
+        {
+          "file": "apps/web/src/ai/assist-page.tsx",
+          "contains": "Brands (none chosen means the whole workspace)"
+        }
+      ]
+    },
+    {
+      "id": "AI-002",
+      "role": "owned",
+      "disposition": "implemented",
+      "note": "Brand-level assistance: actions run over chosen brands with the same intersection scope.",
+      "evidence": [
+        {
+          "file": "packages/work/test/integration/ai-assist.test.ts",
+          "contains": "it('AT-432 "
+        },
+        {
+          "file": "apps/web/src/ai/assist-page.tsx",
+          "contains": "brands: e.target.checked"
+        }
+      ]
+    },
+    {
+      "id": "AI-003",
+      "role": "owned",
+      "disposition": "implemented",
+      "note": "Project-level assistance: the project page opens AI assist with the project preselected.",
+      "evidence": [
+        {
+          "file": "apps/web/src/pages/project-pages.tsx",
+          "contains": "/ai/assist?project="
+        },
+        {
+          "file": "packages/work/test/integration/ai-assist.test.ts",
+          "contains": "it('AT-432 "
+        }
+      ]
+    },
+    {
+      "id": "AI-004",
+      "role": "owned",
+      "disposition": "implemented",
+      "note": "Task-level assistance: the task page opens AI assist with the task preselected.",
+      "evidence": [
+        {
+          "file": "apps/web/src/pages/task-pages.tsx",
+          "contains": "/ai/assist?task="
+        },
+        {
+          "file": "e2e/ai-assist.spec.ts",
+          "contains": "test('AT-447 "
+        }
+      ]
+    },
+    {
+      "id": "AI-011",
+      "role": "owned",
+      "disposition": "implemented",
+      "note": "Missing essentials refuse before sending with the question to answer, or come back as structured questions; answers form a new, re-estimated input.",
+      "evidence": [
+        {
+          "file": "packages/work/src/ai/ai-gateway-service.ts",
+          "contains": "#requireActionContext(def: AiActionDef"
+        },
+        {
+          "file": "packages/work/src/ai/actions/analysis.ts",
+          "contains": "status: 'needs_input',"
+        },
+        {
+          "file": "packages/work/test/integration/ai-assist.test.ts",
+          "contains": "it('AT-436 "
+        }
+      ]
+    },
+    {
+      "id": "AI-012",
+      "role": "owned",
+      "disposition": "implemented",
+      "note": "Summaries of tasks, projects, comments, documents, goals, activity, and the caller's own meetings, with verbatim excerpts.",
+      "evidence": [
+        {
+          "file": "packages/work/src/ai/actions/catalog.ts",
+          "contains": "key: 'summarize',"
+        },
+        {
+          "file": "packages/work/test/integration/ai-assist.test.ts",
+          "contains": "it('AT-441 "
+        }
+      ]
+    },
+    {
+      "id": "AI-013",
+      "role": "owned",
+      "disposition": "implemented",
+      "note": "Extraction of candidate decisions, action items, risks, blockers, assumptions, and open questions.",
+      "evidence": [
+        {
+          "file": "packages/work/src/ai/actions/catalog.ts",
+          "contains": "itemKinds: ['decision', 'action_item', 'risk', 'blocker', 'assumption', 'open_question'],"
+        },
+        {
+          "file": "packages/work/test/integration/ai-assist.test.ts",
+          "contains": "it('AT-433 "
+        }
+      ]
+    },
+    {
+      "id": "AI-014",
+      "role": "owned",
+      "disposition": "implemented",
+      "note": "Projects drafted from a brief or a readable goal as 7D proposals.",
+      "evidence": [
+        {
+          "file": "packages/work/test/integration/ai-assist.test.ts",
+          "contains": "it('AT-439 "
+        },
+        {
+          "file": "packages/work/src/ai/actions/catalog.ts",
+          "contains": "needs: 'brief_or_goal',"
+        }
+      ]
+    },
+    {
+      "id": "AI-015",
+      "role": "owned",
+      "disposition": "implemented",
+      "note": "Tasks, subtasks, milestones, dependencies, estimates, and acceptance criteria drafted as proposals through canonical adapters.",
+      "evidence": [
+        {
+          "file": "packages/work/src/ai/ai-gateway-service.ts",
+          "contains": "await this.addCriterionIn(tx, caller, p, ref(payload.task)!, input);"
+        },
+        {
+          "file": "packages/work/test/integration/ai-assist.test.ts",
+          "contains": "it('AT-440 "
+        }
+      ]
+    },
+    {
+      "id": "AI-016",
+      "role": "owned",
+      "disposition": "implemented",
+      "note": "Status-update and release-note text drafts with cited key points; nothing is posted or published.",
+      "evidence": [
+        {
+          "file": "packages/work/src/ai/actions/catalog.ts",
+          "contains": "key: 'draft_release_notes',"
+        },
+        {
+          "file": "packages/work/test/integration/ai-assist.test.ts",
+          "contains": "it('AT-435 "
+        }
+      ]
+    },
+    {
+      "id": "AI-017",
+      "role": "owned",
+      "disposition": "implemented",
+      "note": "Task descriptions and documents rewritten as proposals (a document as a new version, live editing still blocks).",
+      "evidence": [
+        {
+          "file": "packages/work/src/ai/actions/catalog.ts",
+          "contains": "key: 'rewrite',"
+        },
+        {
+          "file": "packages/work/test/integration/ai-assist.test.ts",
+          "contains": "it('AT-440 "
+        }
+      ]
+    },
+    {
+      "id": "AI-018",
+      "role": "owned",
+      "disposition": "implemented",
+      "note": "Priorities, labels, and assignees proposed from server-issued choices and re-checked at Apply.",
+      "evidence": [
+        {
+          "file": "packages/work/src/ai/ai-gateway-service.ts",
+          "contains": "async #actionChoices("
+        },
+        {
+          "file": "packages/work/src/ai/ai-gateway-service.ts",
+          "contains": "await this.toggleLabel(tx, caller, p, t, payload.label!, 'add');"
+        }
+      ]
+    },
+    {
+      "id": "AI-019",
+      "role": "owned",
+      "disposition": "implemented",
+      "note": "Duplicate, stale, ambiguous, and conflicting work: named rule findings over readable work plus generated suggestions.",
+      "evidence": [
+        {
+          "file": "packages/work/src/ai/actions/analysis.ts",
+          "contains": "export function ruleFindings("
+        },
+        {
+          "file": "packages/work/test/integration/ai-assist.test.ts",
+          "contains": "it('AT-434 "
+        }
+      ]
+    },
+    {
+      "id": "AI-020",
+      "role": "owned",
+      "disposition": "implemented",
+      "note": "Next-action recommendations with named rules and reasoning.",
+      "evidence": [
+        {
+          "file": "packages/work/src/ai/actions/catalog.ts",
+          "contains": "key: 'recommend_next',"
+        },
+        {
+          "file": "packages/work/test/integration/ai-assist.test.ts",
+          "contains": "it('AT-434 "
+        }
+      ]
+    },
+    {
+      "id": "AI-022",
+      "role": "owned",
+      "disposition": "implemented",
+      "note": "Recommendations explain themselves with the configured rule or reasoning and linked records.",
+      "evidence": [
+        {
+          "file": "packages/work/src/ai/actions/analysis.ts",
+          "contains": "rule: string | null;"
+        },
+        {
+          "file": "apps/web/src/ai/assist-page.tsx",
+          "contains": "RULE_TEXT"
+        }
+      ]
+    },
+    {
+      "id": "TSK-042",
+      "role": "contributing",
+      "disposition": "contributed",
+      "contribution": "7C",
+      "note": "7C reuses the identical-title duplicate rule as a labelled rule finding in work analysis; the 2D advisory stays the owner.",
+      "evidence": [
+        {
+          "file": "packages/work/src/ai/actions/analysis.ts",
+          "contains": "'duplicate_title'"
+        }
+      ]
+    },
+    {
+      "id": "AI-010",
+      "role": "contributing",
+      "disposition": "contributed",
+      "contribution": "7C",
+      "note": "7C keeps refusing invented status, completion, dates, and results: contradicting claims are flagged and record facts win.",
+      "evidence": [
+        {
+          "file": "packages/work/src/ai/actions/analysis.ts",
+          "contains": "'contradicts_record'"
+        }
+      ]
+    },
+    {
+      "id": "AI-021",
+      "role": "contributing",
+      "disposition": "contributed",
+      "contribution": "7C",
+      "note": "7C provides the recommendation surface and rule explanations that 7F's capacity-based postponement will extend.",
+      "evidence": [
+        {
+          "file": "packages/work/src/ai/actions/catalog.ts",
+          "contains": "Capacity-based postponement is not part of this action."
+        }
+      ]
+    },
+    {
+      "id": "DEV-012",
+      "role": "contributing",
+      "disposition": "contributed",
+      "contribution": "7C",
+      "note": "7C drafts release-note text from readable work; generating from accepted changes and publishing stay in 9D.",
+      "evidence": [
+        {
+          "file": "packages/work/src/ai/actions/catalog.ts",
+          "contains": "Draft text only: nothing is published and release readiness is not assessed."
+        }
+      ]
+    },
+    {
+      "id": "AUTO-006",
+      "role": "contributing",
+      "disposition": "contributed",
+      "contribution": "7C",
+      "note": "7C provides the typed action catalog and gateway path that 8A automations will invoke.",
+      "evidence": [
+        {
+          "file": "packages/work/src/ai/ai-gateway-service.ts",
+          "contains": "async listAiActions("
+        }
+      ]
+    },
+    {
+      "id": "LA-006",
+      "role": "contributing",
+      "disposition": "contributed",
+      "contribution": "7C",
+      "note": "7C supplies the editable project plan from a brief (with 7D's protocol) that the 12A launch gate exercises.",
+      "evidence": [
+        {
+          "file": "e2e/ai-assist.spec.ts",
+          "contains": "test('AT-448 "
+        }
+      ]
+    }
+  ],
+  "decisions": [
+    {
+      "id": "D1",
+      "adr_row": "D1",
+      "title": "One catalog, one gateway",
+      "evidence": [
+        {
+          "file": "docs/engineering/adr/0041-ai-drafting-analysis.md",
+          "contains": "| D1 |"
+        },
+        {
+          "file": "packages/work/test/integration/ai-assist.test.ts",
+          "contains": "it('AT-431 "
+        }
+      ],
+      "sources": [
+        {
+          "file": "docs/engineering/adr/0041-ai-drafting-analysis.md",
+          "contains": "| D1 |"
+        }
+      ]
+    },
+    {
+      "id": "D2",
+      "adr_row": "D2",
+      "title": "Confirmation binds the exact input",
+      "evidence": [
+        {
+          "file": "docs/engineering/adr/0041-ai-drafting-analysis.md",
+          "contains": "| D2 |"
+        },
+        {
+          "file": "packages/work/test/integration/ai-assist.test.ts",
+          "contains": "it('AT-437 "
+        }
+      ],
+      "sources": [
+        {
+          "file": "docs/engineering/adr/0041-ai-drafting-analysis.md",
+          "contains": "| D2 |"
+        }
+      ]
+    },
+    {
+      "id": "D3",
+      "adr_row": "D3",
+      "title": "Honest analysis",
+      "evidence": [
+        {
+          "file": "docs/engineering/adr/0041-ai-drafting-analysis.md",
+          "contains": "| D3 |"
+        },
+        {
+          "file": "packages/work/test/integration/ai-assist.test.ts",
+          "contains": "it('AT-433 "
+        }
+      ],
+      "sources": [
+        {
+          "file": "docs/engineering/adr/0041-ai-drafting-analysis.md",
+          "contains": "| D3 |"
+        }
+      ]
+    },
+    {
+      "id": "D4",
+      "adr_row": "D4",
+      "title": "Missing information",
+      "evidence": [
+        {
+          "file": "docs/engineering/adr/0041-ai-drafting-analysis.md",
+          "contains": "| D4 |"
+        },
+        {
+          "file": "packages/work/test/integration/ai-assist.test.ts",
+          "contains": "it('AT-436 "
+        }
+      ],
+      "sources": [
+        {
+          "file": "docs/engineering/adr/0041-ai-drafting-analysis.md",
+          "contains": "| D4 |"
+        }
+      ]
+    },
+    {
+      "id": "D5",
+      "adr_row": "D5",
+      "title": "Sources",
+      "evidence": [
+        {
+          "file": "docs/engineering/adr/0041-ai-drafting-analysis.md",
+          "contains": "| D5 |"
+        },
+        {
+          "file": "packages/work/test/integration/ai-assist.test.ts",
+          "contains": "it('AT-441 "
+        }
+      ],
+      "sources": [
+        {
+          "file": "docs/engineering/adr/0041-ai-drafting-analysis.md",
+          "contains": "| D5 |"
+        }
+      ]
+    },
+    {
+      "id": "D6",
+      "adr_row": "D6",
+      "title": "Drafts become 7D proposals",
+      "evidence": [
+        {
+          "file": "docs/engineering/adr/0041-ai-drafting-analysis.md",
+          "contains": "| D6 |"
+        },
+        {
+          "file": "packages/work/test/integration/ai-assist.test.ts",
+          "contains": "it('AT-440 "
+        }
+      ],
+      "sources": [
+        {
+          "file": "docs/engineering/adr/0041-ai-drafting-analysis.md",
+          "contains": "| D6 |"
+        }
+      ]
+    },
+    {
+      "id": "D7",
+      "adr_row": "D7",
+      "title": "PRJ-016 end to end",
+      "evidence": [
+        {
+          "file": "docs/engineering/adr/0041-ai-drafting-analysis.md",
+          "contains": "| D7 |"
+        },
+        {
+          "file": "packages/work/test/integration/ai-assist.test.ts",
+          "contains": "it('AT-438 "
+        }
+      ],
+      "sources": [
+        {
+          "file": "docs/engineering/adr/0041-ai-drafting-analysis.md",
+          "contains": "| D7 |"
+        }
+      ]
+    },
+    {
+      "id": "D8",
+      "adr_row": "D8",
+      "title": "Text drafts",
+      "evidence": [
+        {
+          "file": "docs/engineering/adr/0041-ai-drafting-analysis.md",
+          "contains": "| D8 |"
+        },
+        {
+          "file": "packages/work/test/integration/ai-assist.test.ts",
+          "contains": "it('AT-435 "
+        }
+      ],
+      "sources": [
+        {
+          "file": "docs/engineering/adr/0041-ai-drafting-analysis.md",
+          "contains": "| D8 |"
+        }
+      ]
+    },
+    {
+      "id": "D9",
+      "adr_row": "D9",
+      "title": "Privacy and lifecycle",
+      "evidence": [
+        {
+          "file": "docs/engineering/adr/0041-ai-drafting-analysis.md",
+          "contains": "| D9 |"
+        },
+        {
+          "file": "packages/work/test/integration/ai-assist.test.ts",
+          "contains": "it('AT-443 "
+        }
+      ],
+      "sources": [
+        {
+          "file": "docs/engineering/adr/0041-ai-drafting-analysis.md",
+          "contains": "| D9 |"
+        }
+      ]
+    },
+    {
+      "id": "D10",
+      "adr_row": "D10",
+      "title": "One UI",
+      "evidence": [
+        {
+          "file": "docs/engineering/adr/0041-ai-drafting-analysis.md",
+          "contains": "| D10 |"
+        },
+        {
+          "file": "e2e/ai-assist.spec.ts",
+          "contains": "test('AT-447 "
+        }
+      ],
+      "sources": [
+        {
+          "file": "docs/engineering/adr/0041-ai-drafting-analysis.md",
+          "contains": "| D10 |"
+        }
+      ]
+    }
+  ],
+  "boundaries": [
+    {
+      "id": "DQ-28",
+      "statement": "Real-model input bounds remain unverified; a model without verified bounds is refused and production AI stays disabled."
+    },
+    {
+      "id": "OD-31",
+      "statement": "Retrieval stays lexical; no embeddings or vector store."
+    },
+    {
+      "id": "OD-41",
+      "statement": "Unchanged: no live provider or paid request was used."
+    },
+    {
+      "id": "OD-46",
+      "statement": "Unchanged: provider data-handling terms remain undecided."
+    },
+    {
+      "id": "PRJ-007",
+      "statement": "Project AI budgets are still not enforced; paid runs scoped to such a project are refused."
+    },
+    {
+      "id": "DOC-019",
+      "statement": "Attachment text and file bytes are not sources."
+    },
+    {
+      "id": "REL-FU-7A-01",
+      "statement": "The effect-ledger follow-up stays tracked; nothing in 7C depends on it."
+    },
+    {
+      "id": "7E",
+      "statement": "Scheduled briefings (7E), capacity-based planning (7F), automations and agents (8), release publishing (9), and commercial gates (10A) are later phases."
+    }
+  ]
+}

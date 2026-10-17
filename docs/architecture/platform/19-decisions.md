@@ -652,3 +652,22 @@ Renumbered in the Phase 6 integration review: 6B was accepted with a second `pl-
   - **Response format.** `change_proposal.v1` (Phase 7D engineering decision record, docs/engineering/adr/0040): JSON `{title, changes}`; each change has an id, an op, handles or `new:` references, fields, dependencies, and sources.
 - **Alternatives:** A generic "apply JSON patch" endpoint (no typed adapters, and client JSON would be trusted).
 - **Consequences:** No new actions, scopes, or webhook types. Generated record ids are exposed only after a committed Apply.
+
+<a id="pl-50"></a>
+### PL-50: The AI action catalog, assist estimates, and assist runs (Phase 7C)
+- **Decision:**
+  - **Routes.** Under `/v1/workspaces/{ws}`:
+    - `GET /ai/actions` returns `ai_actions`, a new non-resource type: every action's id, kind, input, required context, source kinds, item kinds, operations, choices, bound, and limitations.
+    - `POST /ai/assist-estimates` returns `ai_estimate` with `action`, `input_digest`, and the manifest.
+    - `POST /ai/assist-runs` (202, an `ai_run`; Idempotency-Key) requires `input_digest` equal to the server's recomputation.
+
+    The body has the 7B retrieval fields plus `action`, `instruction`, `brief` (at most 4000 characters), and `answers` (at most 5). A run shows `purpose` (`analysis` or `change_proposal`), `action`, and `content.analysis`, or `content.proposal` with `questions` and `assumptions`.
+  - **Bearer access.** The routes inherit the `/ai/` rule (bearer callers need `ai:execute`); drafting actions refuse delegated callers.
+  - **Errors.** New issue codes:
+    - `input_changed` (409 `conflict`);
+    - `input_required` and `source_kind_unsupported` (422);
+    - in proposals, `unknown_choice`, `duplicate_label`, and `needs_input` outcomes.
+  - **Analysis contract.** `analysis.v1`: status `checked`, `downgraded`, `rejected`, `needs_input`, or `withheld`. Items carry `basis` (`generated` or `rule`), `rule`, `reasoning`, `sources`, `excerpt`, and `issues`. The result also has `draft`, `questions`, `assumptions`, `facts`, `calculations`, and `limitations`.
+  - **Telemetry.** `ai.analyses` (label `status`).
+- **Alternatives:** A route per action, which would be ten surfaces with duplicated gates.
+- **Consequences:** No new events, scopes, ID prefixes, or parameters.
