@@ -338,6 +338,14 @@ export const ROUTES: readonly RouteDef[] = [
     section: 'AI test runs',
     visible: member,
   },
+  // 7B: read-only answers grounded in previewed, authorized sources.
+  {
+    id: 'ai_ask',
+    pattern: '/workspaces/:ws/ai/ask',
+    shell: 'workspace',
+    section: 'Ask with sources',
+    visible: member,
+  },
   {
     id: 'ai_settings',
     pattern: '/workspaces/:ws/settings/ai',

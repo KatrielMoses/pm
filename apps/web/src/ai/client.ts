@@ -116,6 +116,7 @@ export interface AiRun {
   id: string;
   type: 'ai_run';
   version: number;
+  purpose?: 'test_run' | 'grounded_answer';
   state: string;
   status: string;
   terminal_reason: string | null;
@@ -140,6 +141,7 @@ export interface AiRun {
     prompt: string | null;
     redactions: number;
     output: { text: string; completeness: 'complete' | 'truncated' | 'partial' } | null;
+    answer?: AiAnswer | null;
   };
   context?: Array<{
     id: string | null;
@@ -197,6 +199,72 @@ export interface BrandAiProfile {
   voice: string;
   approved_sources: 'readable' | 'brand_only';
   can_configure: boolean;
+}
+
+/** 7B: one source in a context manifest (always resolved by the server through current access). */
+export interface AiManifestSource {
+  handle: string | null;
+  type: 'task' | 'project' | 'document' | 'comment' | 'activity';
+  id: string;
+  title: string;
+  link: { type: 'task' | 'project' | 'document'; id: string; anchor: string | null };
+  version: string;
+  selection: 'explicit' | 'scope' | 'search';
+  included: boolean;
+  exclusion_reason: string | null;
+  flags: string[];
+  fields: string[];
+}
+
+export interface AiManifest {
+  /** Set by the response envelope (absent when nested in an estimate). */
+  type?: 'ai_context_manifest';
+  digest: string;
+  scope: {
+    kind: 'workspace' | 'brands' | 'project' | 'task';
+    brands: Array<{ id: string; name: string }>;
+    project: { id: string; title: string } | null;
+    task: { id: string; title: string } | null;
+  };
+  query: string | null;
+  sources: AiManifestSource[];
+  counts: { listed: number; included: number; excluded: number; omitted: number };
+  limits: { sources_max: number; source_chars: number; listed_max: number };
+  index: { state: 'complete' | 'catching_up' | 'degraded'; pending: number; failed: number } | null;
+  notice: string | null;
+  warnings: Array<{ handle: string | null; flags: string[] }>;
+  semantic_search: false;
+  ai?: { availability: string; reason: string; can_answer: boolean };
+}
+
+export interface AiCitedSource {
+  handle: string;
+  type: string;
+  id: string;
+  title: string;
+  link: { type: 'task' | 'project' | 'document'; id: string; anchor: string | null };
+  changed: boolean;
+  flags: string[];
+}
+
+export interface AiAnswer {
+  completeness: string;
+  status: 'validated' | 'downgraded' | 'rejected' | 'withheld';
+  reason: string | null;
+  note: string | null;
+  facts: Array<{ handle: string; label: string; value: string; source: AiCitedSource | null }>;
+  calculations: Array<{ key: string; label: string; value: string; basis: string }>;
+  statements: Array<{
+    kind: 'sourced' | 'suggestion' | 'unknown' | 'unverified';
+    claimed: string;
+    text: string;
+    quote_kind: 'exact' | 'paraphrase' | null;
+    issues: string[];
+    citations: Array<{ handle: string; quote: string | null; source: AiCitedSource | null }>;
+  }>;
+  dropped_citations: number;
+  sources: AiCitedSource[];
+  provenance_note: string;
 }
 
 const w = (ws: string) => `/v1/workspaces/${encodeURIComponent(ws)}`;
@@ -285,6 +353,24 @@ export const aiClient = {
       })
     ).body.data,
   exportUrl: (ws: string) => `${w(ws)}/portability/exports/ai_history.csv`,
+  // 7B: preview the context (works with AI off), estimate a grounded answer, and ask.
+  preview: async (ws: string, body: Record<string, unknown>) =>
+    (await api<{ data: AiManifest }>('POST', `${w(ws)}/ai/context-previews`, { body })).body.data,
+  estimateAnswer: async (ws: string, body: Record<string, unknown>) =>
+    (
+      await api<{ data: AiEstimate & { manifest: AiManifest } }>(
+        'POST',
+        `${w(ws)}/ai/answer-estimates`,
+        { body },
+      )
+    ).body.data,
+  ask: async (ws: string, body: Record<string, unknown>, key: string) =>
+    (
+      await api<{ data: AiRun }>('POST', `${w(ws)}/ai/answers`, {
+        body,
+        headers: { 'idempotency-key': key },
+      })
+    ).body.data,
 };
 
 /** A person-facing sentence for a refusal (the API's own words when it gave some). */
