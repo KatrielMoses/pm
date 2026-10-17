@@ -48,7 +48,8 @@ export type FixtureScenario =
   // live-provider proposal quality.
   | 'proposal_invalid' // an unknown operation, a handle outside the manifest, a forged record id
   | 'proposal_cycle' // two creates that depend on each other
-  | 'proposal_unappliable'; // well-formed, but one change names a status the workflow lacks
+  | 'proposal_unappliable' // well-formed, but one change names a status the workflow lacks
+  | 'proposal_updates'; // updates only: a project, a task, and a document (rebase coverage)
 
 export interface ReceivedRequest {
   model: string;
@@ -114,6 +115,7 @@ const SCENARIOS: readonly FixtureScenario[] = [
   'proposal_invalid',
   'proposal_cycle',
   'proposal_unappliable',
+  'proposal_updates',
 ];
 
 /**
@@ -154,6 +156,31 @@ export function proposalFixtureReply(user: string, scenario: FixtureScenario): s
         { id: 'c2', op: 'task.create', ref: 'b', parent: 'new:a', fields: { title: 'B' } },
       ],
     });
+  if (scenario === 'proposal_updates') {
+    const updates: Array<Record<string, unknown>> = [];
+    if (project)
+      updates.push({
+        id: 'c1',
+        op: 'project.update',
+        target: project.source,
+        fields: { priority: 'high' },
+      });
+    if (task)
+      updates.push({
+        id: 'c2',
+        op: 'task.update',
+        target: task.source,
+        fields: { priority: 'urgent' },
+      });
+    if (doc)
+      updates.push({
+        id: 'c3',
+        op: 'document.replace',
+        target: doc.source,
+        fields: { text: 'Rebased summary of the plan.' },
+      });
+    return JSON.stringify({ title: 'Update the plan', changes: updates });
+  }
   const changes: Array<Record<string, unknown>> = [];
   const container = project ? { project: project.source } : task ? { parent: task.source } : null;
   if (container) {

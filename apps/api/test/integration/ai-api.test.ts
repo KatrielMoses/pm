@@ -515,4 +515,84 @@ describe('AI gateway API (7A)', () => {
     });
     expect(patch.statusCode).toBe(403);
   });
+  it('AT-429 7D review 01 over HTTP: a stale-target failure, an explicit rebase to the reviewed current version, a fresh approval, and one Apply', async () => {
+    const task = (
+      await owner.post(`${base()}/tasks`, { brand, title: 'HTTP rebase task' }, { headers: key() })
+    ).json().data.id as string;
+    const include = [{ type: 'task', id: task }];
+    const preview = await owner.post(`${base()}/ai/context-previews`, { include });
+    const started = await owner.post(
+      `${base()}/ai/proposal-runs`,
+      {
+        include,
+        question: 'HTTP rebase',
+        manifest_digest: preview.json().data.digest,
+        confirm_cost: true,
+      },
+      { headers: key() },
+    );
+    const run = started.json().data.id as string;
+    expect(await drain(run)).toBe('succeeded');
+    const prp = (await owner.get(`${base()}/ai/runs/${run}`)).json().data.content.proposal
+      .id as string;
+    let v = (await owner.get(`${base()}/ai/proposals/${prp}`)).json().data;
+    const bind = () => ({ revision: v.revision, fingerprint: v.fingerprint });
+    expect(
+      (await owner.post(`${base()}/ai/proposals/${prp}:approve`, bind(), { headers: key() }))
+        .statusCode,
+    ).toBe(200);
+    // The target is renamed after approval.
+    const t0 = (await owner.get(`${base()}/tasks/${task}`)).json().data;
+    const renamed = await owner.request('PATCH', `${base()}/tasks/${task}`, {
+      body: {
+        version: t0.version,
+        changes: { title: { base: t0.title, value: 'HTTP rebase task (renamed)' } },
+      },
+      headers: key(),
+    });
+    expect(renamed.statusCode, renamed.body).toBe(200);
+    const failed = await owner.post(`${base()}/ai/proposals/${prp}:apply`, bind(), {
+      headers: key(),
+    });
+    expect(failed.json().data).toMatchObject({
+      state: 'failed',
+      application: { applied_count: 0 },
+    });
+    v = failed.json().data;
+    const target = v.changes.find((c: { key: string }) => c.key === 'c3').target;
+    expect(target).toMatchObject({ out_of_date: true });
+    expect(v.can.rebase).toBe(true);
+    const stale = await owner.post(
+      `${base()}/ai/proposals/${prp}:rebase`,
+      { revision: v.revision, reviewed: { c3: target.version - 1 } },
+      { headers: key() },
+    );
+    expect(stale.statusCode).toBe(409);
+    expect(stale.json().error.issues[0].code).toBe('target_changed');
+    const headers = key();
+    const body = { revision: v.revision, reviewed: { c3: target.version } };
+    const rebased = await owner.post(`${base()}/ai/proposals/${prp}:rebase`, body, { headers });
+    expect(rebased.statusCode, rebased.body).toBe(200);
+    expect(
+      (await owner.post(`${base()}/ai/proposals/${prp}:rebase`, body, { headers })).headers[
+        'idempotent-replayed'
+      ],
+    ).toBe('true');
+    v = rebased.json().data;
+    expect(v).toMatchObject({ state: 'open', approval: null });
+    expect(
+      (await owner.post(`${base()}/ai/proposals/${prp}:approve`, bind(), { headers: key() }))
+        .statusCode,
+    ).toBe(200);
+    const done = await owner.post(`${base()}/ai/proposals/${prp}:apply`, bind(), {
+      headers: key(),
+    });
+    expect(done.json().data).toMatchObject({
+      state: 'applied',
+      application: { outcome: 'applied' },
+    });
+    expect((await owner.get(`${base()}/tasks/${task}`)).json().data.title).toBe(
+      'HTTP rebase task (renamed)',
+    );
+  });
 });

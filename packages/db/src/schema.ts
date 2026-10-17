@@ -3474,6 +3474,7 @@ export interface ProposalEventTable {
   kind:
     | 'generated'
     | 'edited'
+    | 'rebased'
     | 'approved'
     | 'approval_superseded'
     | 'rejected'

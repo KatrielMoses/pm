@@ -4458,6 +4458,7 @@ export class AiGatewayService extends McpAccessService {
     kind:
       | 'generated'
       | 'edited'
+      | 'rebased'
       | 'approved'
       | 'approval_superseded'
       | 'rejected'
@@ -4610,7 +4611,7 @@ export class AiGatewayService extends McpAccessService {
         order: [],
         approval: null,
         history: [],
-        can: { edit: false, approve: false, apply: false, reject: false },
+        can: { edit: false, approve: false, apply: false, reject: false, rebase: false },
       };
     const order = orderChanges(
       changes.map((c) => ({ key: c.change_key, position: c.position, dependsOn: c.depends_on })),
@@ -4739,6 +4740,11 @@ export class AiGatewayService extends McpAccessService {
         approve: open && applier,
         apply: proposal.state === 'approved' && applier && !!approvalLive,
         reject: open && applier,
+        // Changed targets need an explicit review of their current values (rebase) first.
+        rebase:
+          open &&
+          applier &&
+          rendered.some((c) => c.target && 'out_of_date' in c.target && c.target.out_of_date),
       },
     };
   }
@@ -5510,6 +5516,143 @@ export class AiGatewayService extends McpAccessService {
           'approved',
           p.membershipId,
           selectedKeys,
+          fingerprint,
+        );
+        return {
+          status: 200,
+          ref: { id: proposal.public_id, type: 'change_proposal' },
+          data: await this.#proposalView(tx, caller, p, proposal.public_id),
+        };
+      },
+      async (tx, p, ref) => this.#proposalView(tx, caller, p, ref.id),
+    );
+  }
+
+  /**
+   * Explicit review of the latest target versions (corrective review 01 R2). The person states the
+   * current version of every changed target they reviewed; the server locks and re-reads each
+   * target through its canonical loader, and only when every reviewed version is still current
+   * does it bind those versions as the new expected versions, as a new revision with a new
+   * fingerprint. Every earlier approval is superseded, so Apply needs a fresh approval. Nothing is
+   * advanced implicitly, client versions are only compared, and an unreadable or ineligible source
+   * keeps the proposal withheld.
+   */
+  async rebaseAiProposal(caller: Caller, ws: unknown, prp: unknown, body: unknown, req: Mutation) {
+    const b = (body && typeof body === 'object' ? body : {}) as Record<string, unknown>;
+    const issues = [];
+    for (const k of Object.keys(b))
+      if (!['revision', 'reviewed'].includes(k))
+        issues.push(issue(`/${k}`, 'unknown_field', 'This field is not accepted.'));
+    if (!Number.isInteger(b.revision))
+      issues.push(issue('/revision', 'required', 'Send the revision you reviewed.'));
+    const reviewed = (
+      b.reviewed && typeof b.reviewed === 'object' && !Array.isArray(b.reviewed) ? b.reviewed : null
+    ) as Record<string, unknown> | null;
+    if (
+      !reviewed ||
+      Object.keys(reviewed).length > 100 ||
+      Object.entries(reviewed).some(([k, v]) => !/^c[0-9]{1,3}$/.test(k) || !Number.isInteger(v))
+    )
+      issues.push(
+        issue(
+          '/reviewed',
+          'invalid_value',
+          'Send the current version of each changed target you reviewed.',
+        ),
+      );
+    if (issues.length) throw invalid(...issues);
+    return this.mutate(
+      caller,
+      'ai.proposal.rebase',
+      ws,
+      req,
+      async (tx, p) => {
+        this.#requireApplier(caller, p);
+        const { proposal, action, changes } = await this.#ownProposal(tx, p, prp, { lock: true });
+        const refuse = (code: string, message: string) =>
+          new TenancyError('conflict', { issues: [issue('/', code, message)] });
+        if (!['open', 'approved', 'failed'].includes(proposal.state))
+          throw refuse('proposal_closed', 'This proposal is closed.');
+        if (b.revision !== proposal.revision)
+          throw refuse(
+            'revision_changed',
+            'The proposal changed since you reviewed it. Reload it.',
+          );
+        if (!(await this.#proposalEligible(tx, p, proposal, action)))
+          throw this.#proposalUnavailable();
+        const targeted = changes.filter((c) => c.target_record_id && c.expected_version !== null);
+        if (targeted.length)
+          await tx.db
+            .selectFrom('core.record')
+            .select('id')
+            .where(
+              'id',
+              'in',
+              targeted.map((c) => c.target_record_id!),
+            )
+            .forUpdate()
+            .execute();
+        const stale: Array<{ id: string; key: string; version: number }> = [];
+        for (const c of targeted) {
+          const kind =
+            c.op === 'task.update' ? 'task' : c.op === 'project.update' ? 'project' : 'document';
+          const cur = await this.#currentValues(tx, p, kind, c.target_public_id!);
+          if (!cur)
+            throw refuse(
+              'target_unavailable',
+              `The record change ${c.change_key} targets is no longer available to you.`,
+            );
+          if (cur.version !== Number(c.expected_version))
+            stale.push({ id: c.id, key: c.change_key, version: cur.version });
+        }
+        if (!stale.length)
+          throw refuse('nothing_to_rebase', 'Every target is still at the reviewed version.');
+        const sent = Object.keys(reviewed!).sort();
+        if (
+          sent.join() !==
+            stale
+              .map((s) => s.key)
+              .sort()
+              .join() ||
+          stale.some((s) => reviewed![s.key] !== s.version)
+        )
+          throw refuse(
+            'target_changed',
+            'A record changed again since you reviewed it. Review its current value, then try again.',
+          );
+        for (const s of stale) {
+          await tx.db
+            .updateTable('ai.proposed_change')
+            .set({ expected_version: s.version, updated_at: new Date() })
+            .where('id', '=', s.id)
+            .execute();
+          const c = changes.find((x) => x.id === s.id)!;
+          c.expected_version = s.version;
+        }
+        const revision = proposal.revision + 1;
+        const fingerprint = this.#fingerprintOf(
+          { public_id: proposal.public_id, revision },
+          changes,
+        );
+        await this.#supersede(tx, proposal, fingerprint, p.membershipId);
+        await tx.db
+          .updateTable('ai.change_proposal')
+          .set({
+            revision,
+            fingerprint,
+            state: 'open',
+            updated_at: new Date(),
+            version: sql`version + 1`,
+          })
+          .where('id', '=', proposal.id)
+          .execute();
+        await this.#proposalEvent(
+          tx,
+          proposal.id,
+          revision,
+          'rebased',
+          p.membershipId,
+          stale.map((s) => s.key),
           fingerprint,
         );
         return {

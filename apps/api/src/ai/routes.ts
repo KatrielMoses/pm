@@ -259,7 +259,9 @@ export function registerAi(app: FastifyInstance, work: AiGatewayService): void {
             ? work.applyAiProposal.bind(work)
             : t.verb === 'reject'
               ? work.rejectAiProposal.bind(work)
-              : null;
+              : t.verb === 'rebase'
+                ? work.rebaseAiProposal.bind(work)
+                : null;
       if (!run) return fail(request, reply, 'not_found');
       const result = await run(caller(request), ws(request), t.id, request.body, mutation(request));
       return resource(request, reply, result.data, result);

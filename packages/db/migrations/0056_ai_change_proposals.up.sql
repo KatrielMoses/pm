@@ -127,8 +127,8 @@ CREATE TABLE ai.proposal_event (
   CONSTRAINT proposal_event_workspace_key UNIQUE (workspace_id, id),
   CONSTRAINT proposal_event_proposal_fkey FOREIGN KEY (workspace_id, proposal_id)
     REFERENCES ai.change_proposal (workspace_id, id) ON DELETE RESTRICT,
-  CONSTRAINT proposal_event_kind CHECK (kind IN ('generated', 'edited', 'approved', 'approval_superseded',
-    'rejected', 'applied', 'apply_failed', 'erased')),
+  CONSTRAINT proposal_event_kind CHECK (kind IN ('generated', 'edited', 'rebased', 'approved',
+    'approval_superseded', 'rejected', 'applied', 'apply_failed', 'erased')),
   CONSTRAINT proposal_event_keys CHECK (cardinality(change_keys) <= 100),
   CONSTRAINT proposal_event_fingerprint CHECK (fingerprint ~ '^[0-9a-f]{64}$')
 );

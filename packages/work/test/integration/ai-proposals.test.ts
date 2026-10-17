@@ -1047,6 +1047,256 @@ describe('Phase 7D change proposals', () => {
     expect((await applyIt(P.member, back)).data).toMatchObject({ state: 'applied' });
   });
 
+  it('AT-426 after a stale-target failure, an explicit review of the latest target rebases the proposal; the new revision applies exactly once without overwriting unrelated edits', async () => {
+    const rebase = (v: View, reviewed: Record<string, number>, req = mutation()) =>
+      env.svc.rebaseAiProposal(P.member, ws, v.id, { revision: v.revision, reviewed }, req);
+    const v = await proposal(P.member);
+    await approve(P.member, v);
+    // Someone renames the task after approval (a field the proposal does not change).
+    const cur = await env.svc.getTask(P.owner, ws, R.task);
+    await env.svc.updateTask(
+      P.owner,
+      ws,
+      R.task,
+      {
+        version: cur.version,
+        changes: { title: { base: cur.title, value: 'Checklist renamed meanwhile' } },
+      },
+      mutation(),
+    );
+    const before = await taskCount();
+    const failed = (await applyIt(P.member, v)).data as View;
+    expect(failed).toMatchObject({
+      state: 'failed',
+      application: { outcome: 'failed', applied_count: 0 },
+    });
+    expect(await taskCount()).toBe(before);
+    // Saving an edit does not advance the bound version: approval still refuses the stale target.
+    const edited = (
+      await env.svc.updateAiProposal(
+        P.member,
+        ws,
+        v.id,
+        { revision: failed.revision, changes: { c3: { fields: { priority: 'high' } } } },
+        mutation(),
+      )
+    ).data as View;
+    expect(codes(await refusal(approve(P.member, edited)))[0]).toBe('proposal_invalid');
+    // The review shows the out-of-date target and its current version; rebase needs exactly it.
+    const c3 = edited.changes.find((c) => c.key === 'c3')!;
+    expect(c3.target).toMatchObject({ out_of_date: true });
+    expect(edited.can.rebase).toBe(true);
+    const latest = (c3.target as { version: number }).version;
+    expect(codes(await refusal(rebase(edited, { c3: latest - 1 })))).toEqual(['target_changed']);
+    expect(codes(await refusal(rebase(edited, {})))).toEqual(['target_changed']);
+    const req = mutation();
+    const rebased = (await rebase(edited, { c3: latest }, req)).data as View;
+    expect(rebased).toMatchObject({ revision: edited.revision + 1, state: 'open', approval: null });
+    expect(rebased.fingerprint).not.toBe(edited.fingerprint);
+    expect(rebased.changes.find((c) => c.key === 'c3')!.target).toMatchObject({
+      out_of_date: false,
+    });
+    expect(rebased.history.at(-1)).toMatchObject({ kind: 'rebased', changes: ['c3'] });
+    // The same key replays; nothing is rebased twice.
+    const replay = await rebase(edited, { c3: latest }, req);
+    expect(replay.replayed).toBe(true);
+    // The old revision, fingerprint, and approval cannot apply.
+    expect(codes(await refusal(applyIt(P.member, v)))).toEqual(['approval_required']);
+    expect(codes(await refusal(applyIt(P.member, edited)))).toEqual(['approval_required']);
+    await approve(P.member, rebased);
+    expect(
+      codes(
+        await refusal(
+          env.svc.applyAiProposal(
+            P.member,
+            ws,
+            v.id,
+            { revision: rebased.revision, fingerprint: v.fingerprint! },
+            mutation(),
+          ),
+        ),
+      ),
+    ).toEqual(['approval_mismatch']);
+    const applyReq = mutation();
+    const done = (await applyIt(P.member, rebased, applyReq)).data as View;
+    expect(done).toMatchObject({
+      state: 'applied',
+      application: { outcome: 'applied', applied_count: 6 },
+    });
+    expect((await applyIt(P.member, rebased, applyReq)).replayed).toBe(true);
+    expect(await taskCount()).toBe(before + 2);
+    // The unrelated rename survives; only the proposed fields changed.
+    expect(await env.svc.getTask(P.owner, ws, R.task)).toMatchObject({
+      title: 'Checklist renamed meanwhile',
+      priority: 'high',
+    });
+    expect(
+      await sql(
+        `SELECT count(*)::int AS n FROM ai.proposal_application a JOIN ai.change_proposal p ON p.id = a.proposal_id WHERE p.public_id = $1 AND a.outcome = 'applied'`,
+        [v.id],
+      ),
+    ).toEqual([{ n: 1 }]);
+  });
+
+  it('AT-427 project and document targets: a live session still blocks, a second concurrent change is refused again, revocation keeps the proposal withheld', async () => {
+    const v = await proposal(P.member, 'proposal_updates');
+    expect(v.changes.map((c) => c.op)).toEqual([
+      'project.update',
+      'task.update',
+      'document.replace',
+    ]);
+    await approve(P.member, v);
+    // The project and the document change after approval.
+    const prj = await env.svc.getProject(P.owner, ws, R.project);
+    await env.svc.updateProject(
+      P.owner,
+      ws,
+      R.project,
+      {
+        version: prj.version,
+        changes: { name: { base: prj.name, value: 'Falcon launch (renamed)' } },
+      },
+      mutation(),
+    );
+    const d = await env.svc.getDocument(P.owner, ws, R.doc);
+    await env.svc.saveContent(
+      P.owner,
+      ws,
+      R.doc,
+      {
+        base_version: d.content_version,
+        content: { v: 2, blocks: [para('par_1', 'Another rewrite.')] },
+      },
+      mutation(),
+    );
+    const failed = (await applyIt(P.member, v)).data as View;
+    expect(failed.application).toMatchObject({ outcome: 'failed', applied_count: 0 });
+    const versions = () =>
+      Object.fromEntries(
+        failed.changes
+          .filter((c) => c.target && (c.target as { out_of_date?: boolean }).out_of_date)
+          .map((c) => [c.key, (c.target as { version: number }).version]),
+      );
+    expect(Object.keys(versions()).sort()).toEqual(['c1', 'c3']);
+    // A second concurrent change after the review: the rebase fails closed again.
+    const d2 = await env.svc.getDocument(P.owner, ws, R.doc);
+    await env.svc.saveContent(
+      P.owner,
+      ws,
+      R.doc,
+      {
+        base_version: d2.content_version,
+        content: { v: 2, blocks: [para('par_1', 'A third rewrite.')] },
+      },
+      mutation(),
+    );
+    expect(
+      codes(
+        await refusal(
+          env.svc.rebaseAiProposal(
+            P.member,
+            ws,
+            v.id,
+            { revision: failed.revision, reviewed: versions() },
+            mutation(),
+          ),
+        ),
+      ),
+    ).toEqual(['target_changed']);
+    const fresh = (await env.svc.getAiProposal(P.member, ws, v.id)) as View;
+    const reviewed = Object.fromEntries(
+      fresh.changes
+        .filter((c) => c.target && (c.target as { out_of_date?: boolean }).out_of_date)
+        .map((c) => [c.key, (c.target as { version: number }).version]),
+    );
+    const rebased = (
+      await env.svc.rebaseAiProposal(
+        P.member,
+        ws,
+        v.id,
+        { revision: fresh.revision, reviewed },
+        mutation(),
+      )
+    ).data as View;
+    // A live session still blocks the document replacement after the rebase.
+    const live = (await env.svc.liveJoin(P.owner, ws, R.doc, {})) as { session: string };
+    const blocked = await env.svc.validateAiProposal(P.member, ws, v.id, mutation());
+    expect(blocked.changes.find((c) => c.key === 'c3')).toMatchObject({
+      code: 'live_edit_in_progress',
+    });
+    await env.svc.liveLeave(P.owner, ws, R.doc, { session: live.session });
+    await approve(P.member, rebased);
+    const done = (await applyIt(P.member, rebased)).data as View;
+    expect(done.application).toMatchObject({ outcome: 'applied', applied_count: 3 });
+    expect(await env.svc.getProject(P.owner, ws, R.project)).toMatchObject({
+      name: 'Falcon launch (renamed)',
+      priority: 'high',
+    });
+    // Revocation: a rebase cannot recover a proposal whose sources are no longer readable.
+    const w = await proposal(P.leaver, 'proposal_updates');
+    await apply(env, P.owner, ws, {
+      kind: 'brand_revoke',
+      brand: B.Harbor,
+      principal: await mem(P.leaver),
+    });
+    expect(
+      codes(
+        await refusal(
+          env.svc.rebaseAiProposal(
+            P.leaver,
+            ws,
+            w.id,
+            { revision: w.revision, reviewed: { c1: 1 } },
+            mutation(),
+          ),
+        ),
+      ),
+    ).toEqual(['proposal_sources_unavailable']);
+    expect((await env.svc.getAiProposal(P.leaver, ws, w.id)).content.state).toBe('withheld');
+    await apply(env, P.owner, ws, {
+      kind: 'brand_grant',
+      brand: B.Harbor,
+      principal: await mem(P.leaver),
+      level: 'edit',
+    });
+  });
+
+  it('AT-428 an expired approval is replaced by a deliberate new approval; a retried approval request and Apply take effect once', async () => {
+    const v = await proposal(P.member);
+    await approve(P.member, v);
+    // Advance the approval clock (stored expiry), never a sleep.
+    await sql(
+      `UPDATE ai.proposal_approval SET created_at = now() - interval '2 days', expires_at = now() - interval '1 minute' WHERE proposal_id = (SELECT id FROM ai.change_proposal WHERE public_id = $1) AND state = 'active'`,
+      [v.id],
+    );
+    expect(codes(await refusal(applyIt(P.member, v)))).toEqual(['approval_expired']);
+    const shown = (await env.svc.getAiProposal(P.member, ws, v.id)) as View;
+    expect(shown).toMatchObject({
+      can: { apply: false, approve: true },
+      approval: { valid: false },
+    });
+    // A deliberate new approval attempt (fresh key), then a retry of that same attempt.
+    const again = mutation();
+    await approve(P.member, shown, again);
+    expect((await approve(P.member, shown, again)).replayed).toBe(true);
+    const approvals = await sql(
+      `SELECT a.state FROM ai.proposal_approval a JOIN ai.change_proposal p ON p.id = a.proposal_id WHERE p.public_id = $1 ORDER BY a.created_at`,
+      [v.id],
+    );
+    expect(approvals.map((a) => a.state)).toEqual(['superseded', 'active']);
+    const before = await taskCount();
+    const req = mutation();
+    await applyIt(P.member, shown, req);
+    expect((await applyIt(P.member, shown, req)).replayed).toBe(true);
+    expect(await taskCount()).toBe(before + 2);
+    expect(
+      await sql(
+        `SELECT count(*)::int AS n FROM ai.proposal_application a JOIN ai.change_proposal p ON p.id = a.proposal_id WHERE p.public_id = $1`,
+        [v.id],
+      ),
+    ).toEqual([{ n: 1 }]);
+  });
+
   it('the 0056 rollback refuses while proposals exist, leaving the catalog, proposals, and applied records unchanged (ADR-47)', async () => {
     const before = await sql(`SELECT count(*)::int AS n FROM ai.change_proposal`);
     expect(before[0]!.n).toBeGreaterThan(0);
