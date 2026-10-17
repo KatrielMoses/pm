@@ -1,3 +1,4 @@
+import { newUuidV7 } from '@pm/contracts';
 import { sql, type WorkspaceTransaction } from '@pm/db';
 import { contextFromRow, requestJobCancel, transitionOperation } from '@pm/platform';
 import {
@@ -81,6 +82,57 @@ export async function eraseAiContentRows(
     .where('completeness', '<>', 'erased')
     .execute();
   await tx.db.deleteFrom('ai.ai_context_ref').where('operation_id', 'in', ids).execute();
+  // 7D: a proposal's content (title, reason, proposed values) is erased with its run, and an
+  // approval that has not been used can no longer be. Applied records are ordinary domain records
+  // and stay; the reference-only history and application outcome stay as accountability facts.
+  const proposals = await tx.db
+    .selectFrom('ai.change_proposal')
+    .select(['id', 'revision', 'fingerprint'])
+    .where('operation_id', 'in', ids)
+    .where('content_state', '=', 'present')
+    .execute();
+  if (proposals.length) {
+    const pids = proposals.map((r) => r.id);
+    const now = new Date();
+    await tx.db
+      .updateTable('ai.proposed_change')
+      .set({ payload: null, updated_at: now })
+      .where('proposal_id', 'in', pids)
+      .execute();
+    await tx.db
+      .updateTable('ai.proposal_approval')
+      .set({ state: 'revoked' })
+      .where('proposal_id', 'in', pids)
+      .where('state', '=', 'active')
+      .execute();
+    await tx.db
+      .updateTable('ai.change_proposal')
+      .set({
+        title: null,
+        reject_reason: null,
+        content_state: 'erased',
+        content_erased_at: now,
+        updated_at: now,
+        version: sql`version + 1`,
+      })
+      .where('id', 'in', pids)
+      .execute();
+    await tx.db
+      .insertInto('ai.proposal_event')
+      .values(
+        proposals.map((r) => ({
+          id: newUuidV7(),
+          workspace_id: tx.workspaceId,
+          proposal_id: r.id,
+          revision: r.revision,
+          kind: 'erased' as const,
+          actor_membership_id: null,
+          change_keys: [],
+          fingerprint: r.fingerprint,
+        })),
+      )
+      .execute();
+  }
   await tx.db
     .updateTable('ai.ai_action')
     .set({ prompt_text: null, content_state: 'erased', content_erased_at: new Date() })

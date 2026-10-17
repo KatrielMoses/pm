@@ -632,3 +632,23 @@ Renumbered in the Phase 6 integration review: 6B was accepted with a second `pl-
   - **Response format.** `grounded_answer.v1` (recorded in the Phase 7B engineering decision record, docs/engineering/adr/0039): JSON statements of kind fact, suggestion, or unknown, with citations by handle and an optional exact quotation.
 - **Alternatives:** A separate retrieval API with its own operation type (the 7A `ai_action` operation already carries budgets, cancellation, and history).
 - **Consequences:** No new events, actions, ID prefixes, or schemas. Citation handles are manifest-local, not public identifiers.
+
+<a id="pl-49"></a>
+### PL-49: Change proposals, approvals, and Apply (Phase 7D)
+- **Decision:**
+  - **Routes.** Under `/v1/workspaces/{ws}`, all session only (bearer callers are refused at the edge, whatever their scopes):
+    - `POST /ai/proposal-runs` (202, an `ai_run` with `purpose: change_proposal`; Idempotency-Key) takes the same body as `POST /ai/answers`. The run's `content.proposal` reports `proposed` (with the proposal id), `rejected` (with reasons), or `withheld`.
+    - `GET /ai/proposals` returns `ai_proposals`, a new non-resource type, with the caller's own proposals.
+    - `GET /ai/proposals/{prp}` returns the `change_proposal` resource: state, revision, fingerprint, the trust note, every change with its current authorized before-values, dependencies, warnings, selection, decision, outcome, and history.
+    - `PATCH /ai/proposals/{prp}` (Idempotency-Key) edits values, decisions, or the selection, with `revision` as the precondition.
+    - `POST /ai/proposals/{prp}:validate` returns `ai_proposal_validation`, a new non-resource type: a dry run of the selected changes through the domain commands, always rolled back.
+    - `POST /ai/proposals/{prp}:approve`, `:apply`, and `:reject` (Idempotency-Key). Approve and apply take `revision` and `fingerprint`.
+    - `POST /ai/proposals/{prp}:rebase` (Idempotency-Key; corrective review 01) takes `revision` and `reviewed`, a map from each out-of-date change to the target version the person reviewed. It succeeds only when the reviewed versions equal the current versions of exactly the out-of-date targets, and returns the new revision with no approval. The detail view adds `can.rebase`.
+  - **Errors.** New issue codes: `proposal_closed`, `revision_changed`, `fingerprint_mismatch`, `proposal_invalid`, `approval_required`, `approval_expired`, `approval_mismatch`, `approval_stale`, `proposal_already_applied`, `proposal_erased`, and for rebase `target_changed`, `target_unavailable`, `nothing_to_rebase` (409 `conflict`); `dependency_not_selected`, `change_rejected`, `nothing_selected`, `unknown_change` (422); `proposal_sources_unavailable` and `ai_proposal_generation_unavailable` (403). Per-change failure codes: `target_unavailable`, `not_permitted`, `target_changed`, `step_up_required`, `dependency_failed`, `not_attempted`, or the domain command's own issue code.
+  - **Operation and event.** Apply uses the existing `proposal_apply` operation kind (R1) and the existing `ai.proposal.applied` event (`applied_count`, `failed_count`), which is written only for a successful Apply.
+  - **Identifier.** The `prp` prefix names `ai.change_proposal`.
+  - **Telemetry.** Two new counters: `ai.proposals` (label `outcome`: proposed, rejected) and `ai.proposal_applications` (label `outcome`: applied, failed). Neither carries content.
+  - **Parameters (owner 7D).** `AI_PROPOSAL_APPROVAL_HOURS` (default 24, 1 to 168) and `AI_PROPOSAL_CHANGES_MAX` (default 25, 1 to 100).
+  - **Response format.** `change_proposal.v1` (Phase 7D engineering decision record, docs/engineering/adr/0040): JSON `{title, changes}`; each change has an id, an op, handles or `new:` references, fields, dependencies, and sources.
+- **Alternatives:** A generic "apply JSON patch" endpoint (no typed adapters, and client JSON would be trusted).
+- **Consequences:** No new actions, scopes, or webhook types. Generated record ids are exposed only after a committed Apply.

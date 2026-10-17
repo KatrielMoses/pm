@@ -558,3 +558,22 @@ All decisions are **proposed (Phase 0C)**, pending solutions-architect acceptanc
   - **Incomplete answers are never answers,** whatever their syntax.
   - **Trust.** Only record facts and calculations are established. A generated statement is an exact excerpt only when verbatim (case-sensitive); every other claim is unverified, whatever it cites.
 - **Consequences:** Threats T-99 to T-102 with tests AT-019, AT-020, and AT-390 to AT-406.
+
+<a id="az-47"></a>
+### AZ-47: Change proposals: review, approval, and explicit application (Phase 7D)
+- **Decision:**
+  - **Generation is not change.** A proposal comes from a 7B-style run over a previewed manifest (`ai.execute`). Receiving, parsing, showing, editing, or approving a proposal never writes a business record. Only an explicit Apply does, and only through the canonical domain commands.
+  - **Who.** Proposals are personal to the person who started the run, like all AI content. Generation, editing, approval, Apply, and rejection need a session member who is not read-only (`ai.apply_proposal`, R1, edit). Guests and delegated (bearer or MCP) callers are refused at the edge. There is no second-person requirement for an ordinary R1 proposal.
+  - **What a proposal may name.** Existing records only by the manifest's server-issued handles of the matching kind, so never anything outside the reviewed context. New records by proposal-local references to a create in the same proposal. Fields are allowlisted per operation. No delete, permission change, assignment, label, URL, or code.
+  - **Approval binds exactly what applies.** The approver, revision, selection, content fingerprint, target versions, effective scope (scope references and the approver's permission epochs), and risk class are all bound. Approvals expire (24 hours by default, 1 to 168), are used once, are superseded by any edit, and are revoked by erasure. An approval is never an access grant and never replaces a workflow approval, lock, or step-up: a domain command that needs step-up still challenges at Apply.
+  - **Re-checks at every stage.** Preview, edit, approve, apply, completed-key replay, history, export, and source display all use the 7B current-content decision (`currentEligibility` through `#contentEligibility`). If a source or the scope is no longer readable, or a used field is no longer allowed, the proposal is withheld whole and cannot be approved or applied. Each change is then authorized by its own command (destination creation rights, record edit rights, field rules).
+  - **Atomic Apply.** One transaction, dependency order, and a savepoint. Any failure rolls back every business change. The attempt is still recorded truthfully: failed, rolled back, and not attempted, with no domain or success event. The person stays the actor, the source is `ai_proposal`, and the generating AI action is the causation. New tasks keep origin `ai_draft`.
+- **Alternatives:**
+  - Best-effort per-change commits (partial database success presented as completion).
+  - A client-supplied proposal endpoint (client JSON presented as model output).
+  - Requiring a second approver for every proposal.
+- **Corrective review 01:**
+  - **Device drafts follow identity and content.** Unsaved proposal edits on a device are personal drafts: scoped to the account, workspace, and proposal; bounded and expiring; validated before use; removed on sign-out, on an observed session invalidation or account change, and when the server reports the proposal erased, withheld, closed, or not available. They are never shown before the server has re-checked access. A device that is offline keeps them until its next authoritative answer; remote erasure cannot reach it sooner. The old unscoped per-tab namespace is purged.
+  - **Recovery after a changed target is an explicit review.** A target that changed after generation keeps failing validation and Apply until the person reviews its current value and asks to use it (rebase). The server compares the reviewed versions with the locked, re-read targets and binds them only when they are still current, as a new revision whose earlier approvals are superseded. Nothing advances a version implicitly. An unreadable or ineligible source stays withheld and cannot be rebased.
+  - **New attempt, new key.** A deliberate new approval after a known result or expiry is a new request; only an attempt whose outcome is unknown is retried with its key.
+- **Consequences:** Threats T-103 to T-107 with tests AT-407 to AT-430. The action count stays 122.

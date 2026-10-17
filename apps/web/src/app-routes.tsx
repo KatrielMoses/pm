@@ -6,6 +6,7 @@ import { AccountSecurityPage } from './pages/account-security.tsx';
 import { ApiAccessPage } from './pages/api-pages.tsx';
 import { AiPage, AiSettingsPage } from './ai/ai-pages.tsx';
 import { AskPage } from './ai/ask-page.tsx';
+import { ProposalPage, ProposalsPage } from './ai/proposals-page.tsx';
 import { IntegrationsPage } from './pages/integration-pages.tsx';
 import {
   ForgotPasswordPage,
@@ -199,6 +200,8 @@ export const ROUTE_COMPONENTS: Record<string, Render> = {
   ai: (p) => <AiPage ws={p.ws!} />,
   ai_settings: (p) => <AiSettingsPage ws={p.ws!} />,
   ai_ask: (p) => <AskPage ws={p.ws!} />,
+  ai_proposals: (p) => <ProposalsPage ws={p.ws!} />,
+  ai_proposal: (p) => <ProposalPage key={p.prp} ws={p.ws!} id={p.prp!} />,
   integrations: (p) => <IntegrationsPage ws={p.ws!} />,
   access_settings: (p) => <AccessSettingsPage ws={p.ws!} />,
   workspace_root: (p) => <WorkspaceRootPage key={p.ws} ws={p.ws!} />,

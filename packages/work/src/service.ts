@@ -837,7 +837,7 @@ export class ProjectService extends NavigationService {
       brandId: string;
       parent: LoadedProject | null;
       fields: Record<string, unknown>;
-      sourceKind?: 'ui' | 'template' | 'form';
+      sourceKind?: 'ui' | 'template' | 'form' | 'ai_proposal';
       intakeSourceId?: string | null;
       recurrence?: { seriesId: string; occurrenceKey: string } | null;
     },
@@ -960,59 +960,7 @@ export class ProjectService extends NavigationService {
       workspacePublicId,
       req,
       async (tx, p) => {
-        let parent: LoadedProject | null = null;
-        let brandId: string;
-        if (input.parent) {
-          parent = await this.loadProject(tx, p, input.parent, { lock: true });
-          this.requireProjectScope(p, 'record.create', parent);
-          this.requireActive(parent);
-          if (input.brand && input.brand !== parent.brand.publicId)
-            throw invalid(
-              issue(
-                '/brand',
-                'cross_brand_parent',
-                'A sub-project belongs to the same brand as its parent.',
-              ),
-            );
-          brandId = parent.brand.id;
-        } else {
-          const brand = await findBrand(tx, p, input.brand, { forUpdate: false });
-          const facts = {
-            id: brand.id,
-            isSensitive: brand.is_sensitive,
-            lifecycleState: brand.lifecycle_state,
-          };
-          const o = decideBrand(p, 'record.create', { ...facts, lifecycleState: 'active' });
-          this.decision('record.create', o);
-          if (!o.allowed) throw new TenancyError(o.code);
-          if (brand.lifecycle_state !== 'active')
-            throw new TenancyError('conflict', {
-              issues: [issue('/brand', 'brand_archived', 'This brand is archived.')],
-            });
-          brandId = brand.id;
-        }
-        const intakeSourceId = input.intake_source
-          ? await this.intakeSource(tx, p, input.intake_source)
-          : null;
-        const fields: Record<string, unknown> = { ...input.fields };
-        let created: { id: string; publicId: string };
-        if (input.template) {
-          created = await this.instantiateTemplate(tx, caller, p, {
-            templatePublicId: input.template,
-            brandId,
-            parent,
-            overrides: fields,
-          });
-        } else {
-          if (fields.status === 'completed') this.requireCompleteAllowed(p, brandId, parent);
-          created = await this.insertProject(tx, caller, p, {
-            brandId,
-            parent,
-            fields,
-            intakeSourceId,
-            sourceKind: intakeSourceId ? 'form' : 'ui',
-          });
-        }
+        const created = await this.createProjectIn(tx, caller, p, input);
         const project = await this.loadProject(tx, p, created.publicId);
         return {
           status: 201,
@@ -1022,6 +970,73 @@ export class ProjectService extends NavigationService {
       },
       async (tx, p, ref) => this.projectView(tx, p, await this.loadProject(tx, p, ref.id)),
     );
+  }
+
+  /**
+   * The canonical project creation inside a caller's transaction: scope and brand decisions,
+   * template or plain insert, audit, and events. Shared by the API and 7D proposal application.
+   */
+  protected async createProjectIn(
+    tx: WorkspaceTransaction,
+    caller: Caller,
+    p: Principal,
+    input: ReturnType<typeof parseProjectCreate>,
+    sourceKind?: 'ui' | 'form' | 'ai_proposal',
+  ): Promise<{ id: string; publicId: string }> {
+    let parent: LoadedProject | null = null;
+    let brandId: string;
+    if (input.parent) {
+      parent = await this.loadProject(tx, p, input.parent, { lock: true });
+      this.requireProjectScope(p, 'record.create', parent);
+      this.requireActive(parent);
+      if (input.brand && input.brand !== parent.brand.publicId)
+        throw invalid(
+          issue(
+            '/brand',
+            'cross_brand_parent',
+            'A sub-project belongs to the same brand as its parent.',
+          ),
+        );
+      brandId = parent.brand.id;
+    } else {
+      const brand = await findBrand(tx, p, input.brand, { forUpdate: false });
+      const facts = {
+        id: brand.id,
+        isSensitive: brand.is_sensitive,
+        lifecycleState: brand.lifecycle_state,
+      };
+      const o = decideBrand(p, 'record.create', { ...facts, lifecycleState: 'active' });
+      this.decision('record.create', o);
+      if (!o.allowed) throw new TenancyError(o.code);
+      if (brand.lifecycle_state !== 'active')
+        throw new TenancyError('conflict', {
+          issues: [issue('/brand', 'brand_archived', 'This brand is archived.')],
+        });
+      brandId = brand.id;
+    }
+    const intakeSourceId = input.intake_source
+      ? await this.intakeSource(tx, p, input.intake_source)
+      : null;
+    const fields: Record<string, unknown> = { ...input.fields };
+    let created: { id: string; publicId: string };
+    if (input.template) {
+      created = await this.instantiateTemplate(tx, caller, p, {
+        templatePublicId: input.template,
+        brandId,
+        parent,
+        overrides: fields,
+      });
+    } else {
+      if (fields.status === 'completed') this.requireCompleteAllowed(p, brandId, parent);
+      created = await this.insertProject(tx, caller, p, {
+        brandId,
+        parent,
+        fields,
+        intakeSourceId,
+        sourceKind: sourceKind ?? (intakeSourceId ? 'form' : 'ui'),
+      });
+    }
+    return created;
   }
 
   /** Completion is a human decision needing `project.complete` (0C) on the new project's scope. */
@@ -1083,170 +1098,190 @@ export class ProjectService extends NavigationService {
       workspacePublicId,
       req,
       async (tx, p) => {
-        const project = await this.loadProject(tx, p, projectPublicId, { lock: true });
-        this.requireProjectAction(p, 'record.update', project);
-        this.requireActive(project);
-        const version = project.row.version;
-        const expected = req.ifMatch !== undefined ? parseIfMatch(req.ifMatch) : merge.version;
-        if (expected === undefined) throw new TenancyError('precondition_required');
-        const r = project.row;
-        const current: Record<string, unknown> = {
-          name: r.name,
-          description: r.description_rich ?? null,
-          icon: r.icon,
-          color: r.color,
-          status: statusRef(tx, r.status_id).key,
-          priority: r.priority,
-          start_date: r.start_date,
-          target_date: r.target_date,
-          deadline_date: r.deadline_date,
-          health: r.health,
-          budget_amount: r.budget_amount,
-          budget_currency: r.budget_currency,
-          time_budget_minutes: r.time_budget_minutes,
-          ai_budget_micros: r.ai_budget_micros === null ? null : String(r.ai_budget_micros),
-        };
-        if (transition) requireVersion(expected, version);
-        const next = transition
-          ? { status: transition.to }
-          : applyFieldMerge(
-              { ...merge, version: expected === version ? version : merge.version },
-              current,
-              version,
-              (field, value, issues) => projectField(field, value, issues),
-            );
-        if (expected !== version && merge.version === undefined && !Object.keys(next).length)
-          requireVersion(expected, version);
-        if (!Object.keys(next).length)
-          return {
-            status: 200,
-            ref: { id: project.publicId, type: 'project' },
-            data: await this.projectView(tx, p, project),
-          };
-        const statusChanging = next.status !== undefined && next.status !== current.status;
-        const merged = { ...current, ...next };
-        let toStatus: StatusRef | null = null;
-        if (statusChanging) {
-          // One evaluator for every status change (ADR-0015 W5): edges, required fields, approvals.
-          const wf = await this.projectWorkflow(tx, project.brand.id, project.id);
-          const from = statusRef(tx, r.status_id);
-          toStatus = statusFromKey('project', wf, next.status, '/changes/status');
-          if (toStatus.category === 'done' || from.category === 'done')
-            this.requireProjectAction(p, 'project.complete', project, { shares: false });
-          await this.gateStatusChange(tx, p, {
-            kind: 'project',
-            record: {
-              id: project.id,
-              publicId: project.publicId,
-              version,
-              brandId: project.brand.id,
-              projectId: project.id,
-            },
-            facts: {
-              brand: project.brand,
-              lifecycleState: project.lifecycleState,
-              shareLevel: this.#shareFor(project),
-              projectChain: project.chain,
-            },
-            wf,
-            from,
-            to: toStatus,
-            intent: transition ? 'apply' : 'edit',
-            merged: { ...merged, owner: r.owner_membership_id },
-            apply: transition?.apply ?? null,
-            overrideReason: transition?.overrideReason ?? null,
-            stepUp: () =>
-              this.stepUp(tx, caller, p, req, 'workflow.transition', {
-                type: 'project',
-                id: project.publicId,
-              }),
-            caller,
-          });
-          next.status = toStatus.key;
-        }
-        if (
-          merged.start_date &&
-          merged.target_date &&
-          (merged.target_date as string) < (merged.start_date as string)
-        )
-          throw invalid(
-            issue(
-              '/changes/target_date',
-              'date_order',
-              'The target date is before the start date.',
-            ),
-          );
-        if ((merged.budget_amount === null) !== (merged.budget_currency === null))
-          throw invalid(
-            issue(
-              '/changes/budget_currency',
-              'budget_pair',
-              'Set both the budget amount and its currency.',
-            ),
-          );
-        const set: Record<string, unknown> = {
-          updated_at: new Date(),
-          updated_by_membership_id: p.membershipId,
-          version: version + 1,
-        };
-        for (const [k, v] of Object.entries(next)) {
-          if (k === 'status') {
-            set.status_id = toStatus!.id;
-            set.completed_at = toStatus!.category === 'done' ? new Date() : null;
-          } else if (k === 'health') {
-            set.health = v;
-            set.health_source = v === null ? null : 'manual';
-          } else if (k === 'ai_budget_micros') set.ai_budget_micros = v === null ? null : String(v);
-          else if (k === 'description')
-            set.description_rich = v === null ? null : JSON.stringify(v);
-          else set[k] = v;
-        }
-        await tx.db.updateTable('work.project').set(set).where('id', '=', project.id).execute();
-        await tx.db
-          .updateTable('core.record')
-          .set({ version: sql`version + 1` })
-          .where('id', '=', project.id)
-          .execute();
-        await this.workAudit(
+        const project = await this.updateProjectIn(
           tx,
           caller,
           p,
-          'project.updated',
-          { recordId: project.id, type: 'project', publicId: project.publicId },
-          auditDiff(current, next, PROJECT_CONTENT_FIELDS),
-          project.brand.id,
+          projectPublicId,
+          merge,
+          req,
+          transition,
         );
-        await this.workEvent(
-          tx,
-          caller,
-          p,
-          'work.project.updated',
-          { type: 'work.project', id: project.id, sequence: version + 1 },
-          { changed_fields: Object.keys(next).sort().join(',') },
-          project.brand.id,
-        );
-        if (statusChanging || next.health !== undefined)
-          await this.workEvent(
-            tx,
-            caller,
-            p,
-            'work.project.status_changed',
-            { type: 'work.project', id: project.id, sequence: version + 1 },
-            {
-              to_category: toStatus?.category ?? statusRef(tx, r.status_id).category,
-              health: (merged.health as string | null) ?? null,
-            },
-            project.brand.id,
-          );
-        const fresh = await this.loadProject(tx, p, project.publicId);
         return {
           status: 200,
           ref: { id: project.publicId, type: 'project' },
-          data: await this.projectView(tx, p, fresh),
+          data: await this.projectView(tx, p, project),
         };
       },
       async (tx, p, ref) => this.projectView(tx, p, await this.loadProject(tx, p, ref.id)),
     );
+  }
+
+  /**
+   * The canonical project edit inside a caller's transaction: lock, scope and lifecycle checks,
+   * version precondition, field validation, the one status evaluator, audit, and events. Shared
+   * by the API and 7D proposal application.
+   */
+  protected async updateProjectIn(
+    tx: WorkspaceTransaction,
+    caller: Caller,
+    p: Principal,
+    projectPublicId: unknown,
+    merge: ReturnType<typeof parseMerge>,
+    req: Mutation,
+    transition?: {
+      to: string;
+      version: number;
+      apply: StatusGate['apply'];
+      overrideReason: string | null;
+    },
+  ): Promise<LoadedProject> {
+    const project = await this.loadProject(tx, p, projectPublicId, { lock: true });
+    this.requireProjectAction(p, 'record.update', project);
+    this.requireActive(project);
+    const version = project.row.version;
+    const expected = req.ifMatch !== undefined ? parseIfMatch(req.ifMatch) : merge.version;
+    if (expected === undefined) throw new TenancyError('precondition_required');
+    const r = project.row;
+    const current: Record<string, unknown> = {
+      name: r.name,
+      description: r.description_rich ?? null,
+      icon: r.icon,
+      color: r.color,
+      status: statusRef(tx, r.status_id).key,
+      priority: r.priority,
+      start_date: r.start_date,
+      target_date: r.target_date,
+      deadline_date: r.deadline_date,
+      health: r.health,
+      budget_amount: r.budget_amount,
+      budget_currency: r.budget_currency,
+      time_budget_minutes: r.time_budget_minutes,
+      ai_budget_micros: r.ai_budget_micros === null ? null : String(r.ai_budget_micros),
+    };
+    if (transition) requireVersion(expected, version);
+    const next = transition
+      ? { status: transition.to }
+      : applyFieldMerge(
+          { ...merge, version: expected === version ? version : merge.version },
+          current,
+          version,
+          (field, value, issues) => projectField(field, value, issues),
+        );
+    if (expected !== version && merge.version === undefined && !Object.keys(next).length)
+      requireVersion(expected, version);
+    if (!Object.keys(next).length) return project;
+    const statusChanging = next.status !== undefined && next.status !== current.status;
+    const merged = { ...current, ...next };
+    let toStatus: StatusRef | null = null;
+    if (statusChanging) {
+      // One evaluator for every status change (ADR-0015 W5): edges, required fields, approvals.
+      const wf = await this.projectWorkflow(tx, project.brand.id, project.id);
+      const from = statusRef(tx, r.status_id);
+      toStatus = statusFromKey('project', wf, next.status, '/changes/status');
+      if (toStatus.category === 'done' || from.category === 'done')
+        this.requireProjectAction(p, 'project.complete', project, { shares: false });
+      await this.gateStatusChange(tx, p, {
+        kind: 'project',
+        record: {
+          id: project.id,
+          publicId: project.publicId,
+          version,
+          brandId: project.brand.id,
+          projectId: project.id,
+        },
+        facts: {
+          brand: project.brand,
+          lifecycleState: project.lifecycleState,
+          shareLevel: this.#shareFor(project),
+          projectChain: project.chain,
+        },
+        wf,
+        from,
+        to: toStatus,
+        intent: transition ? 'apply' : 'edit',
+        merged: { ...merged, owner: r.owner_membership_id },
+        apply: transition?.apply ?? null,
+        overrideReason: transition?.overrideReason ?? null,
+        stepUp: () =>
+          this.stepUp(tx, caller, p, req, 'workflow.transition', {
+            type: 'project',
+            id: project.publicId,
+          }),
+        caller,
+      });
+      next.status = toStatus.key;
+    }
+    if (
+      merged.start_date &&
+      merged.target_date &&
+      (merged.target_date as string) < (merged.start_date as string)
+    )
+      throw invalid(
+        issue('/changes/target_date', 'date_order', 'The target date is before the start date.'),
+      );
+    if ((merged.budget_amount === null) !== (merged.budget_currency === null))
+      throw invalid(
+        issue(
+          '/changes/budget_currency',
+          'budget_pair',
+          'Set both the budget amount and its currency.',
+        ),
+      );
+    const set: Record<string, unknown> = {
+      updated_at: new Date(),
+      updated_by_membership_id: p.membershipId,
+      version: version + 1,
+    };
+    for (const [k, v] of Object.entries(next)) {
+      if (k === 'status') {
+        set.status_id = toStatus!.id;
+        set.completed_at = toStatus!.category === 'done' ? new Date() : null;
+      } else if (k === 'health') {
+        set.health = v;
+        set.health_source = v === null ? null : 'manual';
+      } else if (k === 'ai_budget_micros') set.ai_budget_micros = v === null ? null : String(v);
+      else if (k === 'description') set.description_rich = v === null ? null : JSON.stringify(v);
+      else set[k] = v;
+    }
+    await tx.db.updateTable('work.project').set(set).where('id', '=', project.id).execute();
+    await tx.db
+      .updateTable('core.record')
+      .set({ version: sql`version + 1` })
+      .where('id', '=', project.id)
+      .execute();
+    await this.workAudit(
+      tx,
+      caller,
+      p,
+      'project.updated',
+      { recordId: project.id, type: 'project', publicId: project.publicId },
+      auditDiff(current, next, PROJECT_CONTENT_FIELDS),
+      project.brand.id,
+    );
+    await this.workEvent(
+      tx,
+      caller,
+      p,
+      'work.project.updated',
+      { type: 'work.project', id: project.id, sequence: version + 1 },
+      { changed_fields: Object.keys(next).sort().join(',') },
+      project.brand.id,
+    );
+    if (statusChanging || next.health !== undefined)
+      await this.workEvent(
+        tx,
+        caller,
+        p,
+        'work.project.status_changed',
+        { type: 'work.project', id: project.id, sequence: version + 1 },
+        {
+          to_category: toStatus?.category ?? statusRef(tx, r.status_id).category,
+          health: (merged.health as string | null) ?? null,
+        },
+        project.brand.id,
+      );
+    return this.loadProject(tx, p, project.publicId);
   }
 
   /**

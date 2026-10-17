@@ -1970,5 +1970,5 @@ export function parseWorkspaceCreate(body: unknown): WorkspaceCreateInput {
 
 // Shared with record-owning modules (Phase 2A work): one 0D field-merge, version check, and audit
 // diff implementation.
-export { applyMerge as applyFieldMerge, diff as auditDiff, requireVersion };
+export { applyMerge as applyFieldMerge, diff as auditDiff, requireVersion, StepUpNeeded };
 export type { MergeRequest };

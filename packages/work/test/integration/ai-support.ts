@@ -34,6 +34,7 @@ export function fixtureAi(
     historyRetentionDays: null,
     stream: { outputMaxChars: 40_000, eventMaxBytes: 65_536, maxBytes: 4_194_304 },
     retrieval: { sourcesMax: 8, sourceChars: 1500 },
+    proposals: { approvalHours: 24, changesMax: 25 },
     ...overrides,
   };
   return {

@@ -413,4 +413,186 @@ describe('AI gateway API (7A)', () => {
     expect(blocked.json().error.issues[0].code).toBe('context_unavailable');
     expect(blocked.body).not.toContain('HTTP other task');
   });
+  it('AT-422 7D change proposals over HTTP: envelopes, no-store, explicit Apply with completed-key replay, and session only', async () => {
+    const task = (
+      await owner.post(
+        `${base()}/tasks`,
+        { brand, title: 'HTTP proposal task' },
+        { headers: key() },
+      )
+    ).json().data.id as string;
+    const include = [{ type: 'task', id: task }];
+    const preview = await owner.post(`${base()}/ai/context-previews`, { include });
+    const digest = preview.json().data.digest as string;
+    const started = await owner.post(
+      `${base()}/ai/proposal-runs`,
+      { include, question: 'HTTP propose', manifest_digest: digest, confirm_cost: true },
+      { headers: key() },
+    );
+    expect(started.statusCode, started.body).toBe(202);
+    const run = started.json().data.id as string;
+    expect(await drain(run)).toBe('succeeded');
+    const detail = (await owner.get(`${base()}/ai/runs/${run}`)).json().data;
+    expect(detail).toMatchObject({
+      purpose: 'change_proposal',
+      content: { proposal: { status: 'proposed' } },
+    });
+    const prp = detail.content.proposal.id as string;
+    const list = await owner.get(`${base()}/ai/proposals`);
+    expect(list.headers['cache-control']).toContain('no-store');
+    expect(list.json().data).toMatchObject({
+      type: 'ai_proposals',
+      items: [expect.objectContaining({ id: prp })],
+    });
+    const got = await owner.get(`${base()}/ai/proposals/${prp}`);
+    expect(got.statusCode, got.body).toBe(200);
+    expect(got.headers['cache-control']).toContain('no-store');
+    let v = got.json().data;
+    expect(v).toMatchObject({ id: prp, type: 'change_proposal', state: 'open', revision: 1 });
+    const edited = await owner.request('PATCH', `${base()}/ai/proposals/${prp}`, {
+      body: { revision: 1, changes: { c3: { fields: { priority: 'high' } } } },
+      headers: key(),
+    });
+    expect(edited.statusCode, edited.body).toBe(200);
+    v = edited.json().data;
+    expect(v.revision).toBe(2);
+    const check = await owner.post(
+      `${base()}/ai/proposals/${prp}:validate`,
+      {},
+      { headers: key() },
+    );
+    expect(check.statusCode, check.body).toBe(200);
+    expect(check.json().data).toMatchObject({
+      type: 'ai_proposal_validation',
+      valid: true,
+      revision: 2,
+    });
+    const approved = await owner.post(
+      `${base()}/ai/proposals/${prp}:approve`,
+      { revision: v.revision, fingerprint: v.fingerprint },
+      { headers: key() },
+    );
+    expect(approved.statusCode, approved.body).toBe(200);
+    const headers = key();
+    const body = { revision: v.revision, fingerprint: v.fingerprint };
+    const applied = await owner.post(`${base()}/ai/proposals/${prp}:apply`, body, { headers });
+    expect(applied.statusCode, applied.body).toBe(200);
+    expect(applied.json().data).toMatchObject({
+      state: 'applied',
+      application: { outcome: 'applied' },
+    });
+    const replay = await owner.post(`${base()}/ai/proposals/${prp}:apply`, body, { headers });
+    expect(replay.headers['idempotent-replayed']).toBe('true');
+    expect(replay.json().data.application).toEqual(applied.json().data.application);
+    const again = await owner.post(`${base()}/ai/proposals/${prp}:apply`, body, { headers: key() });
+    expect(again.statusCode).toBe(409);
+    expect(again.json().error.issues[0].code).toBe('proposal_already_applied');
+    expect(
+      (await owner.post(`${base()}/ai/proposals/${prp}:explode`, {}, { headers: key() }))
+        .statusCode,
+    ).toBe(404);
+    expect((await owner.get(`${base()}/ai/proposals/prp_${'0'.repeat(26)}`)).statusCode).toBe(404);
+    // Bearer callers, even with ai:execute, never reach proposals (session only).
+    const made = await protectedCall(owner, 'POST', `${base()}/api-tokens`, {
+      name: 'AI 7D',
+      kind: 'personal',
+      scopes: ['ai:execute', 'records:write'],
+    });
+    const secret = made.json().data.secret as string;
+    for (const [method, url] of [
+      ['GET', `${base()}/ai/proposals`],
+      ['GET', `${base()}/ai/proposals/${prp}`],
+      ['POST', `${base()}/ai/proposal-runs`],
+      ['POST', `${base()}/ai/proposals/${prp}:approve`],
+      ['POST', `${base()}/ai/proposals/${prp}:apply`],
+    ] as const)
+      expect((await bearer(secret, method, url, body)).statusCode, url).toBe(403);
+    const patch = await env.app.inject({
+      method: 'PATCH',
+      url: `${base()}/ai/proposals/${prp}`,
+      headers: { authorization: `Bearer ${secret}`, ...key() },
+      payload: { revision: 3, selected: [] },
+    });
+    expect(patch.statusCode).toBe(403);
+  });
+  it('AT-429 7D review 01 over HTTP: a stale-target failure, an explicit rebase to the reviewed current version, a fresh approval, and one Apply', async () => {
+    const task = (
+      await owner.post(`${base()}/tasks`, { brand, title: 'HTTP rebase task' }, { headers: key() })
+    ).json().data.id as string;
+    const include = [{ type: 'task', id: task }];
+    const preview = await owner.post(`${base()}/ai/context-previews`, { include });
+    const started = await owner.post(
+      `${base()}/ai/proposal-runs`,
+      {
+        include,
+        question: 'HTTP rebase',
+        manifest_digest: preview.json().data.digest,
+        confirm_cost: true,
+      },
+      { headers: key() },
+    );
+    const run = started.json().data.id as string;
+    expect(await drain(run)).toBe('succeeded');
+    const prp = (await owner.get(`${base()}/ai/runs/${run}`)).json().data.content.proposal
+      .id as string;
+    let v = (await owner.get(`${base()}/ai/proposals/${prp}`)).json().data;
+    const bind = () => ({ revision: v.revision, fingerprint: v.fingerprint });
+    expect(
+      (await owner.post(`${base()}/ai/proposals/${prp}:approve`, bind(), { headers: key() }))
+        .statusCode,
+    ).toBe(200);
+    // The target is renamed after approval.
+    const t0 = (await owner.get(`${base()}/tasks/${task}`)).json().data;
+    const renamed = await owner.request('PATCH', `${base()}/tasks/${task}`, {
+      body: {
+        version: t0.version,
+        changes: { title: { base: t0.title, value: 'HTTP rebase task (renamed)' } },
+      },
+      headers: key(),
+    });
+    expect(renamed.statusCode, renamed.body).toBe(200);
+    const failed = await owner.post(`${base()}/ai/proposals/${prp}:apply`, bind(), {
+      headers: key(),
+    });
+    expect(failed.json().data).toMatchObject({
+      state: 'failed',
+      application: { applied_count: 0 },
+    });
+    v = failed.json().data;
+    const target = v.changes.find((c: { key: string }) => c.key === 'c3').target;
+    expect(target).toMatchObject({ out_of_date: true });
+    expect(v.can.rebase).toBe(true);
+    const stale = await owner.post(
+      `${base()}/ai/proposals/${prp}:rebase`,
+      { revision: v.revision, reviewed: { c3: target.version - 1 } },
+      { headers: key() },
+    );
+    expect(stale.statusCode).toBe(409);
+    expect(stale.json().error.issues[0].code).toBe('target_changed');
+    const headers = key();
+    const body = { revision: v.revision, reviewed: { c3: target.version } };
+    const rebased = await owner.post(`${base()}/ai/proposals/${prp}:rebase`, body, { headers });
+    expect(rebased.statusCode, rebased.body).toBe(200);
+    expect(
+      (await owner.post(`${base()}/ai/proposals/${prp}:rebase`, body, { headers })).headers[
+        'idempotent-replayed'
+      ],
+    ).toBe('true');
+    v = rebased.json().data;
+    expect(v).toMatchObject({ state: 'open', approval: null });
+    expect(
+      (await owner.post(`${base()}/ai/proposals/${prp}:approve`, bind(), { headers: key() }))
+        .statusCode,
+    ).toBe(200);
+    const done = await owner.post(`${base()}/ai/proposals/${prp}:apply`, bind(), {
+      headers: key(),
+    });
+    expect(done.json().data).toMatchObject({
+      state: 'applied',
+      application: { outcome: 'applied' },
+    });
+    expect((await owner.get(`${base()}/tasks/${task}`)).json().data.title).toBe(
+      'HTTP rebase task (renamed)',
+    );
+  });
 });

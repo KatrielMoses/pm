@@ -1,0 +1,513 @@
+{
+  "schema_version": 1,
+  "phase": "7D",
+  "status": "candidate",
+  "adr": "0040",
+  "requirements": [
+    {
+      "id": "AI-023",
+      "role": "owned",
+      "disposition": "implemented",
+      "note": "A proposal run over a previewed manifest produces a typed, versioned proposal that changes nothing; the review page shows every change with its current authorized before-value, the proposed value, targets, dependencies, warnings, and the validation result, with the 7B trust note.",
+      "evidence": [
+        {
+          "file": "packages/work/src/ai/proposals/contract.ts",
+          "contains": "export function parseProposal("
+        },
+        {
+          "file": "packages/work/src/ai/ai-gateway-service.ts",
+          "contains": "async #proposalView("
+        },
+        {
+          "file": "packages/work/src/ai/ai-gateway-service.ts",
+          "contains": "async validateAiProposal("
+        },
+        {
+          "file": "apps/web/src/ai/proposals-page.tsx",
+          "contains": "export function ProposalPage("
+        },
+        {
+          "file": "packages/work/test/integration/ai-proposals.test.ts",
+          "contains": "it('AT-407 "
+        },
+        {
+          "file": "packages/work/test/integration/ai-proposals.test.ts",
+          "contains": "it('AT-408 "
+        }
+      ]
+    },
+    {
+      "id": "AI-024",
+      "role": "owned",
+      "disposition": "implemented",
+      "note": "People edit allowed values, reject individual changes, or reject the proposal; every edit is a new revision that supersedes approval; approval binds the approver, revision, selection, fingerprint, target versions, scope, and risk, expires, and is used once.",
+      "evidence": [
+        {
+          "file": "packages/work/src/ai/ai-gateway-service.ts",
+          "contains": "async updateAiProposal("
+        },
+        {
+          "file": "packages/work/src/ai/ai-gateway-service.ts",
+          "contains": "async approveAiProposal("
+        },
+        {
+          "file": "packages/work/src/ai/ai-gateway-service.ts",
+          "contains": "async rejectAiProposal("
+        },
+        {
+          "file": "packages/work/src/ai/ai-gateway-service.ts",
+          "contains": "#approvalScope(action"
+        },
+        {
+          "file": "packages/work/test/integration/ai-proposals.test.ts",
+          "contains": "it('AT-409 "
+        },
+        {
+          "file": "packages/work/test/integration/ai-proposals.test.ts",
+          "contains": "it('AT-410 "
+        },
+        {
+          "file": "e2e/ai-proposals.spec.ts",
+          "contains": "test('AT-423 "
+        }
+      ]
+    },
+    {
+      "id": "AI-025",
+      "role": "owned",
+      "disposition": "implemented",
+      "note": "Only the selected, dependency-complete changes are applied, atomically, through the canonical domain commands; unselected changes are reported as not selected and are never added silently.",
+      "evidence": [
+        {
+          "file": "packages/work/src/ai/proposals/contract.ts",
+          "contains": "export function selectionIssues("
+        },
+        {
+          "file": "packages/work/src/ai/ai-gateway-service.ts",
+          "contains": "async applyAiProposal("
+        },
+        {
+          "file": "packages/work/src/ai/ai-gateway-service.ts",
+          "contains": "async #applyChange("
+        },
+        {
+          "file": "packages/work/test/integration/ai-proposals.test.ts",
+          "contains": "it('AT-411 "
+        },
+        {
+          "file": "packages/work/test/integration/ai-proposals.test.ts",
+          "contains": "it('AT-413 "
+        }
+      ]
+    },
+    {
+      "id": "AI-029",
+      "role": "owned",
+      "disposition": "implemented",
+      "note": "An Apply attempt reports each change as applied, failed, rolled back, not attempted, or not selected; a failed atomic attempt keeps no business change or success event and is never reported as applied.",
+      "evidence": [
+        {
+          "file": "packages/work/src/ai/ai-gateway-service.ts",
+          "contains": "const states = new Map<string, 'applied' | 'failed' | 'rolled_back' | 'blocked'>();"
+        },
+        {
+          "file": "apps/web/src/ai/proposals-page.tsx",
+          "contains": "Nothing was applied"
+        },
+        {
+          "file": "packages/work/test/integration/ai-proposals.test.ts",
+          "contains": "it('AT-412 "
+        },
+        {
+          "file": "packages/work/test/integration/ai-proposals.test.ts",
+          "contains": "it('AT-424 "
+        },
+        {
+          "file": "apps/web/test/ai-proposals.test.tsx",
+          "contains": "reports a failed Apply truthfully"
+        }
+      ]
+    },
+    {
+      "id": "PRJ-016",
+      "role": "contributing",
+      "disposition": "contributed",
+      "contribution": "7D",
+      "note": "7D provides the project.create adapter over the canonical project command (source ai_proposal) that 7C's AI project drafts will use; 7C owns the generation.",
+      "evidence": [
+        {
+          "file": "packages/work/src/ai/ai-gateway-service.ts",
+          "contains": "const made = await this.createProjectIn(tx, caller, p, input, 'ai_proposal');"
+        },
+        {
+          "file": "packages/work/src/service.ts",
+          "contains": "protected async createProjectIn("
+        }
+      ]
+    },
+    {
+      "id": "PLAN-013",
+      "role": "contributing",
+      "disposition": "contributed",
+      "contribution": "7D",
+      "note": "7D provides the accept, edit, and reject protocol (revisions, approval, atomic Apply) that 7F's proposed schedules will use; 7F owns schedule generation.",
+      "evidence": [
+        {
+          "file": "packages/work/src/ai/ai-gateway-service.ts",
+          "contains": "async updateAiProposal("
+        },
+        {
+          "file": "packages/work/test/integration/ai-proposals.test.ts",
+          "contains": "it('AT-409 "
+        }
+      ]
+    },
+    {
+      "id": "TEST-004",
+      "role": "contributing",
+      "disposition": "contributed",
+      "contribution": "7D",
+      "note": "7D provides the review-and-edit-before-execution boundary (typed changes, editable values, explicit Apply) that 9B's AI-interpreted test steps will reuse; 9B owns test steps.",
+      "evidence": [
+        {
+          "file": "packages/work/src/ai/proposals/contract.ts",
+          "contains": "export function checkField("
+        },
+        {
+          "file": "apps/web/src/ai/proposals-page.tsx",
+          "contains": "function FieldEditor("
+        }
+      ]
+    },
+    {
+      "id": "LA-006",
+      "role": "contributing",
+      "disposition": "contributed",
+      "contribution": "7D",
+      "note": "7D supplies the editable, reviewable plan-application path (create projects, tasks, milestones, and dependencies from one reviewed proposal) that 7C's plan generation and the 12A launch gate build on.",
+      "evidence": [
+        {
+          "file": "packages/work/src/ai/proposals/contract.ts",
+          "contains": "'milestone.create'"
+        },
+        {
+          "file": "e2e/ai-proposals.spec.ts",
+          "contains": "Apply 5 of 5 changes"
+        }
+      ]
+    }
+  ],
+  "decisions": [
+    {
+      "id": "D1",
+      "adr_row": "D1",
+      "title": "Generation is separate from change",
+      "evidence": [
+        {
+          "file": "docs/engineering/adr/0040-change-proposal-protocol.md",
+          "contains": "| D1 |"
+        },
+        {
+          "file": "packages/work/test/integration/ai-proposals.test.ts",
+          "contains": "it('AT-407 "
+        }
+      ],
+      "sources": [
+        {
+          "file": "docs/engineering/adr/0040-change-proposal-protocol.md",
+          "contains": "| D1 |"
+        }
+      ]
+    },
+    {
+      "id": "D2",
+      "adr_row": "D2",
+      "title": "The typed, versioned contract",
+      "evidence": [
+        {
+          "file": "docs/engineering/adr/0040-change-proposal-protocol.md",
+          "contains": "| D2 |"
+        },
+        {
+          "file": "packages/work/test/integration/ai-proposals.test.ts",
+          "contains": "it('AT-408 "
+        }
+      ],
+      "sources": [
+        {
+          "file": "docs/engineering/adr/0040-change-proposal-protocol.md",
+          "contains": "| D2 |"
+        }
+      ]
+    },
+    {
+      "id": "D3",
+      "adr_row": "D3",
+      "title": "Transaction-aware adapters over canonical commands",
+      "evidence": [
+        {
+          "file": "docs/engineering/adr/0040-change-proposal-protocol.md",
+          "contains": "| D3 |"
+        },
+        {
+          "file": "packages/work/test/integration/ai-proposals.test.ts",
+          "contains": "it('AT-411 "
+        }
+      ],
+      "sources": [
+        {
+          "file": "docs/engineering/adr/0040-change-proposal-protocol.md",
+          "contains": "| D3 |"
+        }
+      ]
+    },
+    {
+      "id": "D4",
+      "adr_row": "D4",
+      "title": "Ordering, temporary references, and selection",
+      "evidence": [
+        {
+          "file": "docs/engineering/adr/0040-change-proposal-protocol.md",
+          "contains": "| D4 |"
+        },
+        {
+          "file": "packages/work/test/integration/ai-proposals.test.ts",
+          "contains": "it('AT-409 "
+        }
+      ],
+      "sources": [
+        {
+          "file": "docs/engineering/adr/0040-change-proposal-protocol.md",
+          "contains": "| D4 |"
+        }
+      ]
+    },
+    {
+      "id": "D5",
+      "adr_row": "D5",
+      "title": "Review, edit, and revisions",
+      "evidence": [
+        {
+          "file": "docs/engineering/adr/0040-change-proposal-protocol.md",
+          "contains": "| D5 |"
+        },
+        {
+          "file": "packages/work/test/integration/ai-proposals.test.ts",
+          "contains": "it('AT-409 "
+        }
+      ],
+      "sources": [
+        {
+          "file": "docs/engineering/adr/0040-change-proposal-protocol.md",
+          "contains": "| D5 |"
+        }
+      ]
+    },
+    {
+      "id": "D6",
+      "adr_row": "D6",
+      "title": "Approval binds exactly what applies",
+      "evidence": [
+        {
+          "file": "docs/engineering/adr/0040-change-proposal-protocol.md",
+          "contains": "| D6 |"
+        },
+        {
+          "file": "packages/work/test/integration/ai-proposals.test.ts",
+          "contains": "it('AT-410 "
+        }
+      ],
+      "sources": [
+        {
+          "file": "docs/engineering/adr/0040-change-proposal-protocol.md",
+          "contains": "| D6 |"
+        }
+      ]
+    },
+    {
+      "id": "D7",
+      "adr_row": "D7",
+      "title": "Atomic Apply and truthful results",
+      "evidence": [
+        {
+          "file": "docs/engineering/adr/0040-change-proposal-protocol.md",
+          "contains": "| D7 |"
+        },
+        {
+          "file": "packages/work/test/integration/ai-proposals.test.ts",
+          "contains": "it('AT-412 "
+        }
+      ],
+      "sources": [
+        {
+          "file": "docs/engineering/adr/0040-change-proposal-protocol.md",
+          "contains": "| D7 |"
+        }
+      ]
+    },
+    {
+      "id": "D8",
+      "adr_row": "D8",
+      "title": "Idempotency and provenance",
+      "evidence": [
+        {
+          "file": "docs/engineering/adr/0040-change-proposal-protocol.md",
+          "contains": "| D8 |"
+        },
+        {
+          "file": "packages/work/test/integration/ai-proposals.test.ts",
+          "contains": "it('AT-417 "
+        }
+      ],
+      "sources": [
+        {
+          "file": "docs/engineering/adr/0040-change-proposal-protocol.md",
+          "contains": "| D8 |"
+        }
+      ]
+    },
+    {
+      "id": "D9",
+      "adr_row": "D9",
+      "title": "Privacy and lifecycle",
+      "evidence": [
+        {
+          "file": "docs/engineering/adr/0040-change-proposal-protocol.md",
+          "contains": "| D9 |"
+        },
+        {
+          "file": "packages/work/test/integration/ai-proposals.test.ts",
+          "contains": "it('AT-418 "
+        }
+      ],
+      "sources": [
+        {
+          "file": "docs/engineering/adr/0040-change-proposal-protocol.md",
+          "contains": "| D9 |"
+        }
+      ]
+    },
+    {
+      "id": "D10",
+      "adr_row": "D10",
+      "title": "Journey",
+      "evidence": [
+        {
+          "file": "docs/engineering/adr/0040-change-proposal-protocol.md",
+          "contains": "| D10 |"
+        },
+        {
+          "file": "e2e/ai-proposals.spec.ts",
+          "contains": "test('AT-423 "
+        }
+      ],
+      "sources": [
+        {
+          "file": "docs/engineering/adr/0040-change-proposal-protocol.md",
+          "contains": "| D10 |"
+        }
+      ]
+    }
+  ],
+  "boundaries": [
+    {
+      "id": "DQ-28",
+      "statement": "Real-model input bounds remain unverified; production AI stays disabled and 7D generates proposals only with the labelled synthetic fixture."
+    },
+    {
+      "id": "OD-31",
+      "statement": "Semantic search remains undecided; proposals use the 7B lexical manifest."
+    },
+    {
+      "id": "OD-41",
+      "statement": "Unchanged from 7A: no live provider or paid request was used."
+    },
+    {
+      "id": "OD-46",
+      "statement": "Unchanged from 7A: provider data-handling terms remain undecided."
+    },
+    {
+      "id": "PRJ-007",
+      "statement": "Project AI budgets are still not enforced; paid project-scoped runs are refused and every paid proposal run is refused in 7D."
+    },
+    {
+      "id": "DOC-019",
+      "statement": "Attachment text and file bytes are not sources or targets."
+    },
+    {
+      "id": "REL-FU-7A-01",
+      "statement": "The effect-ledger reliability follow-up stays tracked; Apply has no external effect or unsafe recovery path."
+    },
+    {
+      "id": "7C",
+      "statement": "Drafting and analysis (7C), briefings (7E), planning proposals (7F), and agents (Phase 8) are later subphases that consume this boundary; 7D adds no generation feature beyond the fixture journey."
+    }
+  ],
+  "corrective_reviews": [
+    {
+      "id": "7D-CR-01",
+      "brief": "briefs/PHASE_7D_CORRECTIVE_REVIEW_01.md",
+      "reviewed_head": "352552d83728265c8153810264f4835f3a9b821b",
+      "groups": [
+        {
+          "id": "R1",
+          "title": "Browser proposal drafts obey identity and content lifecycle",
+          "tests": [
+            "AT-430"
+          ],
+          "evidence": [
+            {
+              "file": "apps/web/src/ai/proposal-drafts.ts",
+              "contains": "export function readProposalDraft("
+            },
+            {
+              "file": "apps/web/src/shell/drafts.ts",
+              "contains": "export function clearProposalDrafts("
+            },
+            {
+              "file": "apps/web/src/auth.tsx",
+              "contains": "clearProposalDrafts();"
+            },
+            {
+              "file": "apps/web/src/ai/proposals-page.tsx",
+              "contains": "const AUTHORITY_ENDED = new Set(["
+            },
+            {
+              "file": "apps/web/test/ai-proposals-review01.test.tsx",
+              "contains": "sign-out removes the draft, and another account in the same tab never sees it"
+            }
+          ]
+        },
+        {
+          "id": "R2",
+          "title": "Safe conflict and expired-approval recovery",
+          "tests": [
+            "AT-426",
+            "AT-427",
+            "AT-428",
+            "AT-429",
+            "AT-430"
+          ],
+          "evidence": [
+            {
+              "file": "packages/work/src/ai/ai-gateway-service.ts",
+              "contains": "async rebaseAiProposal("
+            },
+            {
+              "file": "apps/api/src/ai/routes.ts",
+              "contains": "work.rebaseAiProposal.bind(work)"
+            },
+            {
+              "file": "apps/web/src/ai/proposals-page.tsx",
+              "contains": "const settle = (action: string, err?: unknown) => {"
+            },
+            {
+              "file": "apps/web/test/ai-proposals-review01.test.tsx",
+              "contains": "an expired approval is replaced by a deliberate new approval with a fresh key"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

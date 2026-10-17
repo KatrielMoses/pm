@@ -217,6 +217,12 @@ const PHASE_1C_TENANT_TABLES = [
   'ai.ai_context_ref',
   'ai.ai_dispatch',
   'ai.ai_output',
+  // Phase 7D change proposals, their changes, history, approvals, and applications.
+  'ai.change_proposal',
+  'ai.proposed_change',
+  'ai.proposal_event',
+  'ai.proposal_approval',
+  'ai.proposal_application',
   'metering.spend_limit',
   'metering.usage_balance',
   'metering.usage_reservation',

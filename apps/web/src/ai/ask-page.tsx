@@ -321,6 +321,27 @@ export function AskPage({ ws }: { ws: string }) {
     }
   };
 
+  /** 7D: the same previewed manifest, but the run proposes changes for review (nothing applies). */
+  const doPropose = async () => {
+    if (!manifest || !estimate) return;
+    setBusy(true);
+    setError(null);
+    try {
+      const run = await aiClient.propose(
+        ws,
+        { ...retrieval(), question, manifest_digest: manifest.digest, confirm_cost: confirmed },
+        askKey.current ?? newIdempotencyKey(),
+      );
+      setCurrent(run);
+      setEstimate(null);
+      setSaid('Proposal requested. Nothing changes until you review and apply it.');
+    } catch (err) {
+      setError(aiProblem(err, 'The proposal was not requested.'));
+    } finally {
+      setBusy(false);
+    }
+  };
+
   useEffect(() => {
     if (
       !current ||
@@ -347,7 +368,8 @@ export function AskPage({ ws }: { ws: string }) {
       lead="Answers use only sources you can read now. Review them before anything is sent; nothing here changes a record."
     >
       <p>
-        <Link to={`/workspaces/${ws}/ai`}>AI test runs and history</Link>
+        <Link to={`/workspaces/${ws}/ai`}>AI test runs and history</Link> ·{' '}
+        <Link to={`/workspaces/${ws}/ai/proposals`}>Change proposals</Link>
       </p>
       {error ? (
         <Banner tone="danger" title="Something went wrong">
@@ -526,7 +548,18 @@ export function AskPage({ ws }: { ws: string }) {
                 onClick={() => void doAsk()}
               >
                 Ask
-              </button>
+              </button>{' '}
+              {estimate.synthetic ? (
+                // 7D generates proposals only with the labelled synthetic fixture.
+                <button
+                  type="button"
+                  className="button"
+                  disabled={busy || (estimate.confirm_required && !confirmed)}
+                  onClick={() => void doPropose()}
+                >
+                  Propose changes (synthetic fixture)
+                </button>
+              ) : null}
             </div>
           ) : null}
         </section>
@@ -541,6 +574,29 @@ export function AskPage({ ws }: { ws: string }) {
           {current.refusal ? <p role="status">{current.refusal.message}</p> : null}
           {current.content?.note ? <p>{current.content.note}</p> : null}
           {answer ? <AnswerView ws={ws} answer={answer} /> : null}
+          {current.content?.proposal ? (
+            current.content.proposal.id ? (
+              <p>
+                <Link to={`/workspaces/${ws}/ai/proposals/${current.content.proposal.id}`}>
+                  Review the proposed changes
+                </Link>{' '}
+                <span className="hint">— nothing changes until you apply them.</span>
+              </p>
+            ) : (
+              <Banner tone="warning" title="No proposal could be made">
+                {current.content.proposal.status === 'withheld'
+                  ? 'A source changed or became unavailable before the proposal was ready.'
+                  : 'The suggested changes did not pass the proposal checks, so nothing is offered.'}
+                {current.content.proposal.issues.length ? (
+                  <ul>
+                    {current.content.proposal.issues.slice(0, 5).map((i, n) => (
+                      <li key={n}>{i.message}</li>
+                    ))}
+                  </ul>
+                ) : null}
+              </Banner>
+            )
+          ) : null}
           {current.can_cancel ? (
             <button
               type="button"

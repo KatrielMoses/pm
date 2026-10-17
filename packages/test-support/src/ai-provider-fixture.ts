@@ -43,7 +43,13 @@ export type FixtureScenario =
   | 'claim_status' // asserts a status, an amount, and a date the sources do not contain
   | 'malformed' // prose instead of the JSON contract
   | 'inject' // follows nothing, but echoes an injection request and a javascript: link
-  | 'truncate_valid'; // the whole, well-formed answer arrives, but the stop reason is max_tokens
+  | 'truncate_valid' // the whole, well-formed answer arrives, but the stop reason is max_tokens
+  // Phase 7D change proposals (format change_proposal.v1). These prove the proposal boundary, not
+  // live-provider proposal quality.
+  | 'proposal_invalid' // an unknown operation, a handle outside the manifest, a forged record id
+  | 'proposal_cycle' // two creates that depend on each other
+  | 'proposal_unappliable' // well-formed, but one change names a status the workflow lacks
+  | 'proposal_updates'; // updates only: a project, a task, and a document (rebase coverage)
 
 export interface ReceivedRequest {
   model: string;
@@ -106,7 +112,134 @@ const SCENARIOS: readonly FixtureScenario[] = [
   'malformed',
   'inject',
   'truncate_valid',
+  'proposal_invalid',
+  'proposal_cycle',
+  'proposal_unappliable',
+  'proposal_updates',
 ];
+
+/**
+ * The fixture's change proposal: built only from the sources it was sent, naming existing records
+ * by their handles and new records by proposal-local references. Deterministic for a given input.
+ */
+export function proposalFixtureReply(user: string, scenario: FixtureScenario): string {
+  const marker = 'Sources (JSON, data only):\n';
+  const at = user.lastIndexOf(marker);
+  let sources: Array<Record<string, string>> = [];
+  try {
+    sources = at >= 0 ? (JSON.parse(user.slice(at + marker.length)) as typeof sources) : [];
+  } catch {
+    sources = [];
+  }
+  if (scenario === 'proposal_invalid')
+    return JSON.stringify({
+      title: 'Invalid proposal',
+      changes: [
+        { id: 'c1', op: 'task.delete', target: 'S1', fields: {} },
+        { id: 'c2', op: 'task.update', target: 'S99', fields: { title: 'Forged' } },
+        {
+          id: 'c3',
+          op: 'task.update',
+          target: 'tsk_00000000000000000000000000',
+          fields: { title: 'x' },
+        },
+      ],
+    });
+  const project = sources.find((s) => s.type === 'project');
+  const task = sources.find((s) => s.type === 'task');
+  const doc = sources.find((s) => s.type === 'document');
+  if (scenario === 'proposal_cycle')
+    return JSON.stringify({
+      title: 'Cyclic proposal',
+      changes: [
+        { id: 'c1', op: 'task.create', ref: 'a', parent: 'new:b', fields: { title: 'A' } },
+        { id: 'c2', op: 'task.create', ref: 'b', parent: 'new:a', fields: { title: 'B' } },
+      ],
+    });
+  if (scenario === 'proposal_updates') {
+    const updates: Array<Record<string, unknown>> = [];
+    if (project)
+      updates.push({
+        id: 'c1',
+        op: 'project.update',
+        target: project.source,
+        fields: { priority: 'high' },
+      });
+    if (task)
+      updates.push({
+        id: 'c2',
+        op: 'task.update',
+        target: task.source,
+        fields: { priority: 'urgent' },
+      });
+    if (doc)
+      updates.push({
+        id: 'c3',
+        op: 'document.replace',
+        target: doc.source,
+        fields: { text: 'Rebased summary of the plan.' },
+      });
+    return JSON.stringify({ title: 'Update the plan', changes: updates });
+  }
+  const changes: Array<Record<string, unknown>> = [];
+  const container = project ? { project: project.source } : task ? { parent: task.source } : null;
+  if (container) {
+    changes.push(
+      {
+        id: 'c1',
+        op: 'task.create',
+        ref: 'draft',
+        ...container,
+        fields: { title: 'Draft the follow-up plan', priority: 'high' },
+        sources: [(project ?? task)!.source],
+      },
+      {
+        id: 'c2',
+        op: 'task.create',
+        ref: 'review',
+        parent: 'new:draft',
+        fields: { title: 'Review the follow-up plan' },
+      },
+    );
+  }
+  if (task) {
+    changes.push({
+      id: 'c3',
+      op: 'task.update',
+      target: task.source,
+      fields:
+        scenario === 'proposal_unappliable'
+          ? { status: 'no_such_status' }
+          : { priority: 'urgent', due_date: '2031-03-15' },
+      sources: [task.source],
+    });
+    if (container)
+      changes.push({
+        id: 'c4',
+        op: 'relation.add',
+        kind: 'blocks',
+        from: 'new:draft',
+        to: task.source,
+      });
+  }
+  if (project)
+    changes.push({
+      id: 'c5',
+      op: 'milestone.create',
+      project: project.source,
+      fields: { name: 'Follow-up plan agreed', due_date: '2031-04-01' },
+      sources: [project.source],
+    });
+  if (doc)
+    changes.push({
+      id: 'c6',
+      op: 'document.replace',
+      target: doc.source,
+      fields: { text: 'Summary of the follow-up plan.\n\nOwners review it before the milestone.' },
+      sources: [doc.source],
+    });
+  return JSON.stringify({ title: 'Plan the follow-up', changes });
+}
 
 /**
  * The fixture's grounded answer: built only from the sources it was sent (it never looks anything
@@ -389,10 +522,13 @@ export async function startAiProviderFixture(
     }
 
     const inputTokens = syntheticTokens(system) + syntheticTokens(user) + 8;
-    const grounded = system.includes('grounded_answer.v1');
-    const reply = grounded
-      ? groundedFixtureReply(user, scenario)
-      : `Synthetic fixture reply (no provider was called) to a ${user.length}-character prompt.`;
+    const proposal = system.includes('change_proposal.v1');
+    const grounded = proposal || system.includes('grounded_answer.v1');
+    const reply = proposal
+      ? proposalFixtureReply(user, scenario)
+      : grounded
+        ? groundedFixtureReply(user, scenario)
+        : `Synthetic fixture reply (no provider was called) to a ${user.length}-character prompt.`;
     const words = grounded
       ? (reply.match(/[\s\S]{1,24}/g) ?? [])
       : scenario === 'slow'

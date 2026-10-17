@@ -1085,6 +1085,58 @@
         "I-09",
         "I-14"
       ]
+    },
+    {
+      "id": "T-103",
+      "category": "spoofing",
+      "description": "A change the person did not review is applied: a forged, replayed, expired, or stale approval, fingerprint, revision, or selection; an approval by someone else; or client-supplied JSON presented as model output is accepted as authority to change records.",
+      "mitigated_by": [
+        "I-09",
+        "I-12",
+        "I-15"
+      ]
+    },
+    {
+      "id": "T-104",
+      "category": "agent_scope",
+      "description": "An AI proposal acts beyond the person's authority: it targets records outside its reviewed manifest or another workspace, resolves a foreign or another proposal's temporary reference, changes permissions or deletes, writes domain tables directly, or bypasses workflow approval, required-field, version, cycle, depth, live-edit, lock, or step-up rules.",
+      "mitigated_by": [
+        "I-01",
+        "I-11",
+        "I-14",
+        "I-15"
+      ]
+    },
+    {
+      "id": "T-105",
+      "category": "staleness",
+      "description": "Applying a proposal misstates or exceeds what happened: it overwrites a target that changed after review, applies after revocation, a policy change, or expiry, commits part of an atomic selection, applies twice under retries, races, or a restart, or reports success for changes that were rolled back or never ran.",
+      "mitigated_by": [
+        "I-12",
+        "I-14",
+        "I-17"
+      ]
+    },
+    {
+      "id": "T-106",
+      "category": "inference",
+      "description": "Proposal content (proposed values, current before-values, titles, reasons) outlives or escapes its authority: it stays readable after a source becomes unreadable or the data-use policy narrows, survives erasure or departure, or is copied into logs, checkpoints, metrics, events, audit, or exports.",
+      "mitigated_by": [
+        "I-07",
+        "I-08",
+        "I-12",
+        "I-18"
+      ]
+    },
+    {
+      "id": "T-107",
+      "category": "inference",
+      "description": "A device-stored copy of proposal content (unsaved edits) outlives the person's authority or session: it is readable to another account in the same browser, survives sign-out, session invalidation, erasure, withholding, or revocation, or is shown again before the server has re-checked access.",
+      "mitigated_by": [
+        "I-07",
+        "I-12",
+        "I-18"
+      ]
     }
   ],
   "tests": [
@@ -8280,6 +8332,413 @@
       "response_shape": "ok_filtered",
       "silent_surfaces": [
         "ai_answer"
+      ]
+    },
+    {
+      "id": "AT-407",
+      "threats": [
+        "T-104",
+        "T-106"
+      ],
+      "principal": "member",
+      "setup": "A proposal run over a previewed manifest produces a typed, ordered proposal with temporary references, authorized before-values, and reference-only history; nothing is applied; another member never sees it",
+      "scope": "workspace",
+      "action": "ai.execute",
+      "surface": "ai_answer",
+      "expected": "allow",
+      "response_shape": "ok_filtered",
+      "silent_surfaces": [
+        "ui_list",
+        "ui_record",
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-408",
+      "threats": [
+        "T-104"
+      ],
+      "principal": "member",
+      "setup": "Unknown operations, handles outside the manifest, raw record ids, dependency cycles, and a truncated response are refused whole with reasons; no proposal is stored",
+      "scope": "workspace",
+      "action": "ai.execute",
+      "surface": "ai_answer",
+      "expected": "deny",
+      "response_shape": "validation_generic",
+      "silent_surfaces": [
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-409",
+      "threats": [
+        "T-103"
+      ],
+      "principal": "member",
+      "setup": "An edit makes a new revision and fingerprint and supersedes the approval; a stale revision, invalid field values, a dependency-incomplete selection, and reselecting a rejected change are refused",
+      "scope": "workspace",
+      "action": "ai.apply_proposal",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "conflict_filtered",
+      "silent_surfaces": [
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-410",
+      "threats": [
+        "T-103"
+      ],
+      "principal": "member",
+      "setup": "Apply needs an approval; forged fingerprints at approval and apply, a tampered approval row, expiry, another member, a foreign workspace, and unknown ids are refused identically",
+      "scope": "workspace",
+      "action": "ai.apply_proposal",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "not_found",
+      "silent_surfaces": [
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-411",
+      "threats": [
+        "T-104",
+        "T-105"
+      ],
+      "principal": "member",
+      "setup": "Apply runs every selected change through the domain commands in one transaction: AI-draft tasks, the person as actor, source ai_proposal, the AI action as causation, one success event; a same-key replay renders without running anything",
+      "scope": "workspace",
+      "action": "ai.apply_proposal",
+      "surface": "api",
+      "expected": "allow",
+      "response_shape": "ok",
+      "silent_surfaces": [
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-412",
+      "threats": [
+        "T-105"
+      ],
+      "principal": "member",
+      "setup": "A target changed after approval: the whole Apply rolls back, the failed, rolled-back, and not-attempted changes are reported, and no domain or success event is recorded under the operation",
+      "scope": "workspace",
+      "action": "ai.apply_proposal",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "conflict_filtered",
+      "silent_surfaces": [
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-413",
+      "threats": [
+        "T-105"
+      ],
+      "principal": "member",
+      "setup": "Applying a selection applies exactly the selected changes and reports the others as not selected",
+      "scope": "workspace",
+      "action": "ai.apply_proposal",
+      "surface": "api",
+      "expected": "allow",
+      "response_shape": "ok",
+      "silent_surfaces": [
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-414",
+      "threats": [
+        "T-104"
+      ],
+      "principal": "member",
+      "setup": "A change the workflow refuses (an unknown status) fails validation; validation writes nothing and the approval is not granted",
+      "scope": "workspace",
+      "action": "ai.apply_proposal",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "validation_generic",
+      "silent_surfaces": [
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-415",
+      "threats": [
+        "T-105",
+        "T-106"
+      ],
+      "principal": "member",
+      "setup": "Revocation after approval withholds the proposal in detail and list and refuses Apply",
+      "scope": "workspace",
+      "action": "ai.apply_proposal",
+      "surface": "ui_record",
+      "expected": "deny",
+      "response_shape": "omitted",
+      "silent_surfaces": [
+        "ui_list",
+        "ui_record",
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-416",
+      "threats": [
+        "T-103",
+        "T-104"
+      ],
+      "principal": "read_only",
+      "setup": "Read-only members, guests, and delegated callers cannot start, edit, approve, apply, or reject; rejection closes a proposal with history",
+      "scope": "workspace",
+      "action": "ai.apply_proposal",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "forbidden",
+      "silent_surfaces": [
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-417",
+      "threats": [
+        "T-105"
+      ],
+      "principal": "member",
+      "setup": "Concurrent Apply requests with different or the same key apply once; a restarted process replays the same key from the durable record; one success event",
+      "scope": "workspace",
+      "action": "ai.apply_proposal",
+      "surface": "api",
+      "expected": "allow",
+      "response_shape": "ok",
+      "silent_surfaces": [
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-418",
+      "threats": [
+        "T-106"
+      ],
+      "principal": "member",
+      "setup": "Departure erases proposal content before and after Apply, revokes the unused approval, keeps applied records and the reference-only outcome",
+      "scope": "workspace",
+      "action": "ai.apply_proposal",
+      "surface": "ui_record",
+      "expected": "deny",
+      "response_shape": "omitted",
+      "silent_surfaces": [
+        "ui_record",
+        "export",
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-419",
+      "threats": [
+        "T-106"
+      ],
+      "principal": "member",
+      "setup": "Proposal tables are forced row-level secured and invisible across workspaces",
+      "scope": "workspace",
+      "action": "ai.apply_proposal",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "omitted",
+      "silent_surfaces": [
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-420",
+      "threats": [
+        "T-106"
+      ],
+      "principal": "member",
+      "setup": "Export carries the proposal through the review renderer; logs, checkpoints, history, and metrics hold no proposal content; retention erases it and the export then carries none",
+      "scope": "workspace",
+      "action": "ai.execute",
+      "surface": "export",
+      "expected": "allow",
+      "response_shape": "ok_filtered",
+      "silent_surfaces": [
+        "export",
+        "activity",
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-421",
+      "threats": [
+        "T-103",
+        "T-104"
+      ],
+      "principal": "owner",
+      "setup": "Only the labelled synthetic fixture may generate proposals in 7D; a non-synthetic model is refused before anything is sent",
+      "scope": "workspace",
+      "action": "ai.execute",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "forbidden",
+      "silent_surfaces": [
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-422",
+      "threats": [
+        "T-103",
+        "T-104"
+      ],
+      "principal": "owner",
+      "setup": "HTTP: proposal runs, list, detail, edit, validation, approval, explicit Apply with completed-key replay, and bearer callers refused on every proposal route",
+      "scope": "workspace",
+      "action": "ai.apply_proposal",
+      "surface": "api",
+      "expected": "allow",
+      "response_shape": "ok",
+      "silent_surfaces": [
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-423",
+      "threats": [
+        "T-103",
+        "T-105"
+      ],
+      "principal": "owner",
+      "setup": "Browser journey on three devices: review, dependency feedback, edits kept across a reload, approval, explicit Apply, outcome and provenance, offline, keyboard, 320px, 200% zoom, forced colours, reduced motion",
+      "scope": "workspace",
+      "action": "ai.apply_proposal",
+      "surface": "ui_record",
+      "expected": "allow",
+      "response_shape": "ok",
+      "silent_surfaces": [
+        "ui_record",
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-424",
+      "threats": [
+        "T-104",
+        "T-105"
+      ],
+      "principal": "member",
+      "setup": "Live editing refuses the document change at validation; a document changed after approval rolls the whole Apply back",
+      "scope": "workspace",
+      "action": "ai.apply_proposal",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "conflict_filtered",
+      "silent_surfaces": [
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-425",
+      "threats": [
+        "T-106"
+      ],
+      "principal": "member",
+      "setup": "A narrower AI data-use policy withholds the proposal and refuses Apply; restoring the policy makes it reviewable and appliable",
+      "scope": "workspace",
+      "action": "ai.apply_proposal",
+      "surface": "ui_record",
+      "expected": "deny",
+      "response_shape": "omitted",
+      "silent_surfaces": [
+        "ui_record",
+        "export",
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-426",
+      "threats": [
+        "T-105"
+      ],
+      "principal": "member",
+      "setup": "After an atomic stale-target failure, an explicit review binds the reviewed current version as a new revision; saving an edit does not; stale or partial reviewed versions are refused; the old fingerprint and approval cannot apply; the new revision applies once and keeps an unrelated concurrent edit",
+      "scope": "workspace",
+      "action": "ai.apply_proposal",
+      "surface": "api",
+      "expected": "allow",
+      "response_shape": "ok",
+      "silent_surfaces": [
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-427",
+      "threats": [
+        "T-105",
+        "T-106"
+      ],
+      "principal": "member",
+      "setup": "Project and document targets: a second concurrent change after review is refused again, a live session still blocks the document replacement after rebase, and a proposal whose sources are revoked stays withheld and cannot be rebased",
+      "scope": "workspace",
+      "action": "ai.apply_proposal",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "conflict_filtered",
+      "silent_surfaces": [
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-428",
+      "threats": [
+        "T-103",
+        "T-105"
+      ],
+      "principal": "member",
+      "setup": "An expired approval refuses Apply; a deliberate new approval replaces it; a retried approval request and a retried Apply each take effect once",
+      "scope": "workspace",
+      "action": "ai.apply_proposal",
+      "surface": "api",
+      "expected": "allow",
+      "response_shape": "ok",
+      "silent_surfaces": [
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-429",
+      "threats": [
+        "T-105"
+      ],
+      "principal": "owner",
+      "setup": "HTTP: stale-target failure, refused stale rebase, rebase with completed-key replay, fresh approval, one Apply that keeps the concurrent rename",
+      "scope": "workspace",
+      "action": "ai.apply_proposal",
+      "surface": "api",
+      "expected": "allow",
+      "response_shape": "ok",
+      "silent_surfaces": [
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-430",
+      "threats": [
+        "T-105",
+        "T-107"
+      ],
+      "principal": "owner",
+      "setup": "Browser journey on three devices: stale-target failure, explicit review of the current version with unsaved edits kept per account across a reload, approve and apply once; drafts are gone after sign-out and invisible to another account in the same tab",
+      "scope": "workspace",
+      "action": "ai.apply_proposal",
+      "surface": "ui_record",
+      "expected": "allow",
+      "response_shape": "ok",
+      "silent_surfaces": [
+        "ui_record",
+        "error_message"
       ]
     }
   ]

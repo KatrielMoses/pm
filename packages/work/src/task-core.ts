@@ -1000,10 +1000,10 @@ export class TaskCoreService extends WorkService {
     fields: Record<string, unknown>,
     opts: {
       after?: string | 'last';
-      source?: 'ui' | 'template' | 'paste' | 'form' | 'api' | 'webhook' | 'mcp';
+      source?: 'ui' | 'template' | 'paste' | 'form' | 'api' | 'webhook' | 'mcp' | 'ai_proposal';
       lenientStatus?: boolean;
       /** 2E: origin for tasks made from captured input (default manual). */
-      origin?: { kind: 'intake' | 'import'; ref: Record<string, string> };
+      origin?: { kind: 'intake' | 'import' | 'ai_draft'; ref: Record<string, string> };
     } = {},
   ): Promise<{ id: string; publicId: string }> {
     const depth = c.parent ? c.parent.row.depth + 1 : 0;

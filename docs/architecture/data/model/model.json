@@ -8882,7 +8882,7 @@
         "operation_id (1:1 with execution.operation, kind ai_action)",
         "initiating_membership_id",
         "brand_id null (explicit scope)",
-        "purpose (test_run in 7A; grounded_answer in 7B)",
+        "purpose (test_run in 7A; grounded_answer in 7B; change_proposal in 7D)",
         "synthetic boolean",
         "model_key, provider, model_id, registry_version, prompt_template_version",
         "price_snapshot jsonb, privacy_snapshot jsonb",
@@ -8904,7 +8904,7 @@
         "AI-034",
         "SEC-027"
       ],
-      "notes": "Phase 7A (ADR-44): immutable except content erasure. Personal to its initiator: no role or grant reads its content; administrators see metadata through usage.view. Phase 7B (ADR-46, migration 0055): a grounded answer records its explicit scope and the digest of the manifest the person confirmed."
+      "notes": "Phase 7A (ADR-44): immutable except content erasure. Personal to its initiator: no role or grant reads its content; administrators see metadata through usage.view. Phase 7B (ADR-46, migration 0055): a grounded answer records its explicit scope and the digest of the manifest the person confirmed. Phase 7D (ADR-47, migration 0056): a change-proposal run records its scope and manifest digest like a grounded answer."
     },
     {
       "name": "ai_context_ref",
@@ -9047,10 +9047,10 @@
     {
       "name": "change_proposal",
       "module": "ai",
-      "purpose": "Set of typed proposed changes from an AI action; application is a separate operation.",
+      "purpose": "Set of typed proposed changes from an AI action; review, edit, approval, and application are separate explicit human steps.",
       "scope": "inherited",
       "addressable": false,
-      "public_id_prefix": null,
+      "public_id_prefix": "prp",
       "extends": null,
       "containment_parents": [
         "ai_action"
@@ -9067,13 +9067,26 @@
       "personal_data": "incidental",
       "uniqueness": [],
       "sensitive_fields": [],
-      "key_columns": [],
+      "key_columns": [
+        "operation_id (the generating ai_action; one proposal per action)",
+        "initiating_membership_id",
+        "public_id (prp_)",
+        "schema_version (change_proposal.v1)",
+        "state (open|approved|applied|failed|rejected)",
+        "revision (every edit increments it)",
+        "fingerprint (sha256 of revision, selection, and every change)",
+        "title null (content)",
+        "reject_reason null (content)",
+        "content_state (present|erased), content_erased_at",
+        "version"
+      ],
       "requirements": [
         "AI-023",
+        "AI-024",
         "AI-025",
         "AI-029"
       ],
-      "notes": ""
+      "notes": "Phase 7D (ADR-47, migration 0056): personal to its initiator like all AI content; rendered only through the 7B current-content decision; erased with its run, never deleting applied records."
     },
     {
       "name": "proposed_change",
@@ -9101,19 +9114,141 @@
       "uniqueness": [],
       "sensitive_fields": [],
       "key_columns": [
-        "op",
-        "target_record_id null",
-        "field_changes jsonb (with base values)",
+        "proposal_id, change_key (c1..), position",
+        "op (task.create|task.update|project.create|project.update|milestone.create|relation.add|document.replace)",
+        "temp_ref null (proposal-local new-record reference)",
+        "target_record_id null (no foreign key), target_public_id, expected_version",
+        "depends_on text[]",
+        "payload jsonb null (proposed values and references; content; erased to null)",
+        "sources text[] (manifest handles)",
+        "selected boolean",
         "decision (pending|accepted|edited|rejected)",
-        "applied_state (not_applied|applied|failed)",
-        "failure_reason"
+        "applied_state (not_applied|applied|failed|rolled_back|blocked)",
+        "result_record_id, result_public_id null (set only after a committed Apply)",
+        "failure_code null"
       ],
       "requirements": [
         "AI-024",
         "AI-025",
         "AI-029"
       ],
-      "notes": ""
+      "notes": "Phase 7D (ADR-47): base values are not copied; the diff's before side is read from the record through current authorization."
+    },
+    {
+      "module": "ai",
+      "scope": "inherited",
+      "addressable": false,
+      "public_id_prefix": null,
+      "extends": null,
+      "associations": [],
+      "retention_class": "R-EXEC",
+      "volume": "medium",
+      "export": "filtered",
+      "search_ai": "no",
+      "may_contain_secrets": "no",
+      "personal_data": "incidental",
+      "uniqueness": [],
+      "sensitive_fields": [],
+      "name": "proposal_event",
+      "purpose": "Reference-only history of a proposal: generated, edited, approved, approval superseded, rejected, applied, apply failed, erased.",
+      "containment_parents": [
+        "change_proposal"
+      ],
+      "lifecycle": "append-only",
+      "concurrency": "append-only",
+      "confidentiality": "C1",
+      "key_columns": [
+        "proposal_id",
+        "revision",
+        "kind",
+        "actor_membership_id null",
+        "change_keys text[]",
+        "fingerprint"
+      ],
+      "requirements": [
+        "AI-024",
+        "AI-029"
+      ],
+      "notes": "Phase 7D (ADR-47): no proposed values, titles, or reasons; outlives erasure as accountability."
+    },
+    {
+      "module": "ai",
+      "scope": "inherited",
+      "addressable": false,
+      "public_id_prefix": null,
+      "extends": null,
+      "associations": [],
+      "retention_class": "R-EXEC",
+      "volume": "medium",
+      "export": "filtered",
+      "search_ai": "no",
+      "may_contain_secrets": "no",
+      "personal_data": "incidental",
+      "uniqueness": [],
+      "sensitive_fields": [],
+      "name": "proposal_approval",
+      "purpose": "A person's approval of one exact revision and selection: fingerprint, target versions, effective scope, risk class, expiry; used once by one Apply attempt.",
+      "containment_parents": [
+        "change_proposal"
+      ],
+      "lifecycle": "state-machine",
+      "concurrency": "locked",
+      "confidentiality": "C1",
+      "key_columns": [
+        "proposal_id",
+        "revision",
+        "approver_membership_id",
+        "selected text[]",
+        "fingerprint",
+        "target_versions jsonb",
+        "scope jsonb (scope references and permission epochs; no content)",
+        "risk_class, step_up_required",
+        "state (active|used|superseded|expired|revoked)",
+        "expires_at, used_at"
+      ],
+      "requirements": [
+        "AI-024",
+        "AI-025"
+      ],
+      "notes": "Phase 7D (ADR-47): never an access grant; one active approval per proposal; revoked on erasure."
+    },
+    {
+      "module": "ai",
+      "scope": "inherited",
+      "addressable": false,
+      "public_id_prefix": null,
+      "extends": null,
+      "associations": [],
+      "retention_class": "R-EXEC",
+      "volume": "medium",
+      "export": "filtered",
+      "search_ai": "no",
+      "may_contain_secrets": "no",
+      "personal_data": "incidental",
+      "uniqueness": [],
+      "sensitive_fields": [],
+      "name": "proposal_application",
+      "purpose": "One Apply attempt: its proposal_apply operation, the approval it used, and the per-change outcome.",
+      "containment_parents": [
+        "change_proposal"
+      ],
+      "lifecycle": "append-only",
+      "concurrency": "append-only",
+      "confidentiality": "C1",
+      "key_columns": [
+        "proposal_id",
+        "operation_id (execution.operation, kind proposal_apply)",
+        "approval_id (unique)",
+        "revision",
+        "outcome (applied|failed)",
+        "applied_count, failed_count",
+        "results jsonb (change keys, states, created public ids, failure codes; no content)"
+      ],
+      "requirements": [
+        "AI-025",
+        "AI-029"
+      ],
+      "notes": "Phase 7D (ADR-47): the truthful outcome of an atomic attempt; kept after content erasure."
     },
     {
       "name": "briefing_schedule",

@@ -681,6 +681,14 @@
       "note": "Phase 2C (PL-25)."
     },
     {
+      "prefix": "prp",
+      "resource": "change_proposal",
+      "entity": "ai.change_proposal",
+      "owner_module": "ai",
+      "platform_only": false,
+      "note": "Phase 7D (PL-49)."
+    },
+    {
       "prefix": "fld",
       "resource": "field_definition",
       "entity": "workflow.field_definition",
@@ -6817,6 +6825,22 @@
         "status"
       ],
       "area": "ai"
+    },
+    {
+      "name": "ai.proposals",
+      "type": "counter",
+      "labels": [
+        "outcome"
+      ],
+      "area": "ai"
+    },
+    {
+      "name": "ai.proposal_applications",
+      "type": "counter",
+      "labels": [
+        "outcome"
+      ],
+      "area": "ai"
     }
   ],
   "forbidden_metric_labels": [
@@ -8335,6 +8359,16 @@
       "name": "AI_CONTEXT_SOURCE_CHARS",
       "meaning": "Characters of redacted source text sent per source; longer text is cut and flagged as shortened; default 1500, range 200\u20136000.",
       "owner": "7B"
+    },
+    {
+      "name": "AI_PROPOSAL_APPROVAL_HOURS",
+      "meaning": "How long an approval of a change proposal stays valid before fresh validation and approval are needed; default 24, range 1\u2013168.",
+      "owner": "7D"
+    },
+    {
+      "name": "AI_PROPOSAL_CHANGES_MAX",
+      "meaning": "Changes one proposal may hold (larger proposals are refused whole); default 25, range 1\u2013100.",
+      "owner": "7D"
     },
     {
       "name": "AI_HISTORY_RETENTION_DAYS",

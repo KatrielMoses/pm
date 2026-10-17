@@ -31,4 +31,5 @@ recorded in [ADR-0007](adr/0007-deviations.md).
 | [phase6/](phase6/closure-6b.json) | Phase 6B requirement and decision closure (`closure-6b.json`, checked by `tools/phase6b.py`) |
 | [phase7/](phase7/closure-7a.json) | Phase 7A AI gateway, privacy, and budgets: requirement and decision closure (`closure-7a.json`, checked by `tools/phase7a.py`) and [ADR-0038](adr/0038-ai-gateway-privacy-budgets.md) |
 | [phase7/](phase7/closure-7b.json) | Phase 7B authorized retrieval and citations: requirement and decision closure (`closure-7b.json`, checked by `tools/phase7b.py`) and [ADR-0039](adr/0039-authorized-retrieval-citations.md); `pnpm preflight` runs every validator quickly before the full gates |
+| [phase7/](phase7/closure-7d.json) | Phase 7D change proposal protocol: requirement and decision closure (`closure-7d.json`, checked by `tools/phase7d.py`) and [ADR-0040](adr/0040-change-proposal-protocol.md) |
 | [adr/](adr/) | Implementation ADRs 0001–0028 |

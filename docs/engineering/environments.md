@@ -347,6 +347,8 @@ worker process is a startup error. All identities of one process must target the
 | `AI_STREAM_MAX_BYTES` | optional | optional | default 4194304 (65536–33554432, at least the event bound); total provider stream bytes per attempt; beyond it the stream is aborted as an overflow, its reservation held |
 | `AI_CONTEXT_SOURCES_MAX` | optional | optional | default 8 (1–20); sources sent with one grounded answer, each with a server-issued citation handle; readable sources beyond it are listed as over the limit (7B) |
 | `AI_CONTEXT_SOURCE_CHARS` | optional | optional | default 1500 (200–6000); characters of redacted source text sent per source; longer text is cut and the source is flagged as shortened (7B) |
+| `AI_PROPOSAL_APPROVAL_HOURS` | optional | optional | default 24 (1–168); how long an approval of a change proposal stays valid; after it, the proposal needs fresh validation and approval before Apply (7D) |
+| `AI_PROPOSAL_CHANGES_MAX` | optional | optional | default 25 (1–100); the most changes one proposal may hold; a larger proposal is refused whole, never truncated (7D) |
 | `USAGE_WARNING_THRESHOLDS` | optional | optional | default `8000,10000`; ascending basis points of the hard AI spend limit at which owners and administrators are notified (0D `USAGE_WARNING_THRESHOLDS`, owner 7A) |
 | `AI_HISTORY_RETENTION_DAYS` | optional | — | unset by default: AI content is kept until the run's initiator departs or the workspace is deleted (OD-36 undecided). When set, the hourly sweep erases older prompts, outputs, and context references; usage and audit facts remain |
 

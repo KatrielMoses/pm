@@ -1037,64 +1037,80 @@ export class TaskService extends TaskCoreService {
   async addRelationship(caller: Caller, ws: unknown, tsk: unknown, body: unknown, req: Mutation) {
     const input = parseRelationship(body);
     return this.taskItemCommand(caller, ws, tsk, req, 'relationship.add', async (tx, p) => {
-      await sql`SELECT pg_advisory_xact_lock(hashtextextended(${'deps:' + tx.workspaceId}, 0))`.execute(
-        tx.db,
-      );
-      const t = await this.ownedTask(tx, p, tsk, 'record.relate');
-      const target = await this.loadTask(tx, p, input.target);
-      if (target.id === t.id)
-        throw invalid(issue('/target', 'cycle', "A task can't relate to itself."));
-      let from = t;
-      let to = target;
-      if (input.kind === 'blocked_by') [from, to] = [target, t];
-      if (input.kind === 'related' && target.id < t.id) [from, to] = [target, t];
-      const kind = input.kind === 'related' ? 'related' : 'blocks';
-      if (kind === 'blocks') {
-        // `to` waits on `from`: refuse if `from` already (transitively) waits on `to`.
-        const cycle = await sql<{ found: boolean }>`
-          WITH RECURSIVE up(id, n) AS (
-            SELECT from_record_id, 1 FROM relations.record_relationship WHERE to_record_id = ${from.id} AND kind = 'blocks'
-            UNION
-            SELECT r.from_record_id, up.n + 1 FROM relations.record_relationship r JOIN up ON r.to_record_id = up.id
-             WHERE r.kind = 'blocks' AND up.n < 1000)
-          SELECT EXISTS (SELECT 1 FROM up WHERE id = ${to.id}) AS found`.execute(tx.db);
-        if (cycle.rows[0]?.found)
-          throw invalid(issue('/target', 'cycle', 'This would make the tasks wait on each other.'));
-      }
-      const id = newUuidV7();
-      try {
-        await tx.db
-          .insertInto('relations.record_relationship')
-          .values({
-            id,
-            workspace_id: tx.workspaceId,
-            kind,
-            from_record_id: from.id,
-            to_record_id: to.id,
-            from_brand_id: from.brand.id,
-            to_brand_id: to.brand.id,
-            created_by_membership_id: p.membershipId,
-          })
-          .execute();
-      } catch (err) {
-        if (pgCode(err) === '23505')
-          throw invalid(issue('/target', 'duplicate', 'These tasks are already related this way.'));
-        throw err;
-      }
-      await this.bumpTask(tx, t, p);
-      await this.taskAudit(tx, caller, p, 'relationship.added', t, [
-        change.plain(input.kind, null, target.publicId),
-      ]);
-      await writeOutboxEvent(tx, {
-        type: 'relations.relationship.created',
-        aggregate: { type: 'relations.record_relationship', id, sequence: 0 },
-        data: { kind, from_record_id: from.id, to_record_id: to.id },
-        actor: { type: 'human', id: p.membershipId },
-        context: this.exec(caller, p),
-        brandId: t.brand.id,
-      });
+      const { t, target } = await this.addRelationshipIn(tx, caller, p, tsk, input);
       return { id: target.publicId, type: 'task', task: t.publicId };
     });
+  }
+
+  /**
+   * The canonical task relationship inside a caller's transaction: the workspace dependency lock,
+   * relate permission, self and cycle refusals, uniqueness, audit, and the event. Shared by the
+   * API and 7D proposal application.
+   */
+  protected async addRelationshipIn(
+    tx: WorkspaceTransaction,
+    caller: Caller,
+    p: Principal,
+    tsk: unknown,
+    input: ReturnType<typeof parseRelationship>,
+  ) {
+    await sql`SELECT pg_advisory_xact_lock(hashtextextended(${'deps:' + tx.workspaceId}, 0))`.execute(
+      tx.db,
+    );
+    const t = await this.ownedTask(tx, p, tsk, 'record.relate');
+    const target = await this.loadTask(tx, p, input.target);
+    if (target.id === t.id)
+      throw invalid(issue('/target', 'cycle', "A task can't relate to itself."));
+    let from = t;
+    let to = target;
+    if (input.kind === 'blocked_by') [from, to] = [target, t];
+    if (input.kind === 'related' && target.id < t.id) [from, to] = [target, t];
+    const kind = input.kind === 'related' ? 'related' : 'blocks';
+    if (kind === 'blocks') {
+      // `to` waits on `from`: refuse if `from` already (transitively) waits on `to`.
+      const cycle = await sql<{ found: boolean }>`
+        WITH RECURSIVE up(id, n) AS (
+          SELECT from_record_id, 1 FROM relations.record_relationship WHERE to_record_id = ${from.id} AND kind = 'blocks'
+          UNION
+          SELECT r.from_record_id, up.n + 1 FROM relations.record_relationship r JOIN up ON r.to_record_id = up.id
+           WHERE r.kind = 'blocks' AND up.n < 1000)
+        SELECT EXISTS (SELECT 1 FROM up WHERE id = ${to.id}) AS found`.execute(tx.db);
+      if (cycle.rows[0]?.found)
+        throw invalid(issue('/target', 'cycle', 'This would make the tasks wait on each other.'));
+    }
+    const id = newUuidV7();
+    try {
+      await tx.db
+        .insertInto('relations.record_relationship')
+        .values({
+          id,
+          workspace_id: tx.workspaceId,
+          kind,
+          from_record_id: from.id,
+          to_record_id: to.id,
+          from_brand_id: from.brand.id,
+          to_brand_id: to.brand.id,
+          created_by_membership_id: p.membershipId,
+        })
+        .execute();
+    } catch (err) {
+      if (pgCode(err) === '23505')
+        throw invalid(issue('/target', 'duplicate', 'These tasks are already related this way.'));
+      throw err;
+    }
+    await this.bumpTask(tx, t, p);
+    await this.taskAudit(tx, caller, p, 'relationship.added', t, [
+      change.plain(input.kind, null, target.publicId),
+    ]);
+    await writeOutboxEvent(tx, {
+      type: 'relations.relationship.created',
+      aggregate: { type: 'relations.record_relationship', id, sequence: 0 },
+      data: { kind, from_record_id: from.id, to_record_id: to.id },
+      actor: { type: 'human', id: p.membershipId },
+      context: this.exec(caller, p),
+      brandId: t.brand.id,
+    });
+    return { t, target };
   }
 
   async removeRelationship(

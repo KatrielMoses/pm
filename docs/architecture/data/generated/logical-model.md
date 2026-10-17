@@ -4606,10 +4606,10 @@ Operation detail for one assistant action: person, context scope, model, estimat
 | Volume / export / search-AI | `high` / `filtered` / `no` |
 | Secrets / personal data | `no` / `incidental` |
 | Uniqueness | — |
-| Key typed columns | `operation_id (1:1 with execution.operation, kind ai_action)`; `initiating_membership_id`; `brand_id null (explicit scope)`; `purpose (test_run in 7A; grounded_answer in 7B)`; `synthetic boolean`; `model_key, provider, model_id, registry_version, prompt_template_version`; `price_snapshot jsonb, privacy_snapshot jsonb`; `funding (platform\|workspace_key\|synthetic)`; `caller_kind (ui\|api\|mcp), delegation_principal_type, delegation_token_id`; `prompt_text (redacted; the only stored user content)`; `max_output_tokens, estimated_max_micros`; `rerun_of_operation_id null`; `content_state (present\|erased), content_erased_at`; `retrieval_scope jsonb null (public references only: brands, project, task, query, omitted count), manifest_digest text null (the confirmed context manifest)` |
+| Key typed columns | `operation_id (1:1 with execution.operation, kind ai_action)`; `initiating_membership_id`; `brand_id null (explicit scope)`; `purpose (test_run in 7A; grounded_answer in 7B; change_proposal in 7D)`; `synthetic boolean`; `model_key, provider, model_id, registry_version, prompt_template_version`; `price_snapshot jsonb, privacy_snapshot jsonb`; `funding (platform\|workspace_key\|synthetic)`; `caller_kind (ui\|api\|mcp), delegation_principal_type, delegation_token_id`; `prompt_text (redacted; the only stored user content)`; `max_output_tokens, estimated_max_micros`; `rerun_of_operation_id null`; `content_state (present\|erased), content_erased_at`; `retrieval_scope jsonb null (public references only: brands, project, task, query, omitted count), manifest_digest text null (the confirmed context manifest)` |
 | Sensitive fields | — |
 | Requirements | AI-005, AI-006, AI-007, AI-026, AI-027, AI-028, AI-034, SEC-027 |
-| Notes | Phase 7A (ADR-44): immutable except content erasure. Personal to its initiator: no role or grant reads its content; administrators see metadata through usage.view. Phase 7B (ADR-46, migration 0055): a grounded answer records its explicit scope and the digest of the manifest the person confirmed. |
+| Notes | Phase 7A (ADR-44): immutable except content erasure. Personal to its initiator: no role or grant reads its content; administrators see metadata through usage.view. Phase 7B (ADR-46, migration 0055): a grounded answer records its explicit scope and the digest of the manifest the person confirmed. Phase 7D (ADR-47, migration 0056): a change-proposal run records its scope and manifest digest like a grounded answer. |
 
 <a id="entity-ai-context-ref"></a>
 ### `ai_context_ref`
@@ -4677,7 +4677,7 @@ Generated content (answer, draft, summary) with statement-level citations; immut
 <a id="entity-change-proposal"></a>
 ### `change_proposal`
 
-Set of typed proposed changes from an AI action; application is a separate operation.
+Set of typed proposed changes from an AI action; review, edit, approval, and application are separate explicit human steps.
 
 | Property | Value |
 |---|---|
@@ -4690,9 +4690,10 @@ Set of typed proposed changes from an AI action; application is a separate opera
 | Volume / export / search-AI | `medium` / `filtered` / `yes` |
 | Secrets / personal data | `no` / `incidental` |
 | Uniqueness | — |
-| Key typed columns | standard columns only |
+| Key typed columns | `operation_id (the generating ai_action; one proposal per action)`; `initiating_membership_id`; `public_id (prp_)`; `schema_version (change_proposal.v1)`; `state (open\|approved\|applied\|failed\|rejected)`; `revision (every edit increments it)`; `fingerprint (sha256 of revision, selection, and every change)`; `title null (content)`; `reject_reason null (content)`; `content_state (present\|erased), content_erased_at`; `version` |
 | Sensitive fields | — |
-| Requirements | AI-023, AI-025, AI-029 |
+| Requirements | AI-023, AI-024, AI-025, AI-029 |
+| Notes | Phase 7D (ADR-47, migration 0056): personal to its initiator like all AI content; rendered only through the 7B current-content decision; erased with its run, never deleting applied records. |
 
 <a id="entity-proposed-change"></a>
 ### `proposed_change`
@@ -4710,9 +4711,73 @@ One typed change (create/update/relate) with target, base values, per-change dec
 | Volume / export / search-AI | `high` / `filtered` / `yes` |
 | Secrets / personal data | `no` / `incidental` |
 | Uniqueness | — |
-| Key typed columns | `op`; `target_record_id null`; `field_changes jsonb (with base values)`; `decision (pending\|accepted\|edited\|rejected)`; `applied_state (not_applied\|applied\|failed)`; `failure_reason` |
+| Key typed columns | `proposal_id, change_key (c1..), position`; `op (task.create\|task.update\|project.create\|project.update\|milestone.create\|relation.add\|document.replace)`; `temp_ref null (proposal-local new-record reference)`; `target_record_id null (no foreign key), target_public_id, expected_version`; `depends_on text[]`; `payload jsonb null (proposed values and references; content; erased to null)`; `sources text[] (manifest handles)`; `selected boolean`; `decision (pending\|accepted\|edited\|rejected)`; `applied_state (not_applied\|applied\|failed\|rolled_back\|blocked)`; `result_record_id, result_public_id null (set only after a committed Apply)`; `failure_code null` |
 | Sensitive fields | — |
 | Requirements | AI-024, AI-025, AI-029 |
+| Notes | Phase 7D (ADR-47): base values are not copied; the diff's before side is read from the record through current authorization. |
+
+<a id="entity-proposal-event"></a>
+### `proposal_event`
+
+Reference-only history of a proposal: generated, edited, approved, approval superseded, rejected, applied, apply failed, erased.
+
+| Property | Value |
+|---|---|
+| Scope | `inherited` |
+| Contained by | [`change_proposal`](logical-model.md#entity-change-proposal) |
+| Extends (1:1) | — |
+| Associations | — |
+| Lifecycle / concurrency | `append-only` / `append-only` |
+| Retention / confidentiality | `R-EXEC` / `C1` |
+| Volume / export / search-AI | `medium` / `filtered` / `no` |
+| Secrets / personal data | `no` / `incidental` |
+| Uniqueness | — |
+| Key typed columns | `proposal_id`; `revision`; `kind`; `actor_membership_id null`; `change_keys text[]`; `fingerprint` |
+| Sensitive fields | — |
+| Requirements | AI-024, AI-029 |
+| Notes | Phase 7D (ADR-47): no proposed values, titles, or reasons; outlives erasure as accountability. |
+
+<a id="entity-proposal-approval"></a>
+### `proposal_approval`
+
+A person's approval of one exact revision and selection: fingerprint, target versions, effective scope, risk class, expiry; used once by one Apply attempt.
+
+| Property | Value |
+|---|---|
+| Scope | `inherited` |
+| Contained by | [`change_proposal`](logical-model.md#entity-change-proposal) |
+| Extends (1:1) | — |
+| Associations | — |
+| Lifecycle / concurrency | `state-machine` / `locked` |
+| Retention / confidentiality | `R-EXEC` / `C1` |
+| Volume / export / search-AI | `medium` / `filtered` / `no` |
+| Secrets / personal data | `no` / `incidental` |
+| Uniqueness | — |
+| Key typed columns | `proposal_id`; `revision`; `approver_membership_id`; `selected text[]`; `fingerprint`; `target_versions jsonb`; `scope jsonb (scope references and permission epochs; no content)`; `risk_class, step_up_required`; `state (active\|used\|superseded\|expired\|revoked)`; `expires_at, used_at` |
+| Sensitive fields | — |
+| Requirements | AI-024, AI-025 |
+| Notes | Phase 7D (ADR-47): never an access grant; one active approval per proposal; revoked on erasure. |
+
+<a id="entity-proposal-application"></a>
+### `proposal_application`
+
+One Apply attempt: its proposal_apply operation, the approval it used, and the per-change outcome.
+
+| Property | Value |
+|---|---|
+| Scope | `inherited` |
+| Contained by | [`change_proposal`](logical-model.md#entity-change-proposal) |
+| Extends (1:1) | — |
+| Associations | — |
+| Lifecycle / concurrency | `append-only` / `append-only` |
+| Retention / confidentiality | `R-EXEC` / `C1` |
+| Volume / export / search-AI | `medium` / `filtered` / `no` |
+| Secrets / personal data | `no` / `incidental` |
+| Uniqueness | — |
+| Key typed columns | `proposal_id`; `operation_id (execution.operation, kind proposal_apply)`; `approval_id (unique)`; `revision`; `outcome (applied\|failed)`; `applied_count, failed_count`; `results jsonb (change keys, states, created public ids, failure codes; no content)` |
+| Sensitive fields | — |
+| Requirements | AI-025, AI-029 |
+| Notes | Phase 7D (ADR-47): the truthful outcome of an atomic attempt; kept after content erasure. |
 
 <a id="entity-briefing-schedule"></a>
 ### `briefing_schedule`

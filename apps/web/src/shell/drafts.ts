@@ -48,17 +48,47 @@ export function discardDraft(account: string, id: string): void {
   }
 }
 
+/** The pre-correction 7D namespace (unscoped, per tab); only ever purged, never read. */
+const LEGACY_PROPOSAL_PREFIX = 'pm.ai.proposal.draft.';
+
+const sweep = (store: Storage, match: (k: string) => boolean) => {
+  for (let i = store.length - 1; i >= 0; i--) {
+    const k = store.key(i);
+    if (k && match(k)) store.removeItem(k);
+  }
+};
+
 /** Sign-out: drafts and per-tab view state go; appearance and the device key stay. */
 export function clearPersonalClientState(): void {
-  const sweep = (store: Storage, prefix: string) => {
-    for (let i = store.length - 1; i >= 0; i--) {
-      const k = store.key(i);
-      if (k?.startsWith(prefix)) store.removeItem(k);
-    }
-  };
   try {
-    sweep(localStorage, DRAFT_PREFIX);
-    sweep(sessionStorage, SESSION_PREFIX);
+    sweep(localStorage, (k) => k.startsWith(DRAFT_PREFIX));
+    sweep(
+      sessionStorage,
+      (k) => k.startsWith(SESSION_PREFIX) || k.startsWith(LEGACY_PROPOSAL_PREFIX),
+    );
+  } catch {
+    // storage unavailable
+  }
+}
+
+/**
+ * AI proposal drafts copy private proposal text (7D corrective review 01 R1). They go when the
+ * session is observed to be invalid or the account changes, as well as on sign-out; other
+ * personal drafts follow their own lifecycle.
+ */
+export function clearProposalDrafts(): void {
+  try {
+    sweep(localStorage, (k) => k.startsWith(DRAFT_PREFIX) && k.includes('.ai-proposal.'));
+    purgeLegacyProposalDrafts();
+  } catch {
+    // storage unavailable
+  }
+}
+
+/** Removes drafts stored before corrective review 01 (unscoped by account or workspace). */
+export function purgeLegacyProposalDrafts(): void {
+  try {
+    sweep(sessionStorage, (k) => k.startsWith(LEGACY_PROPOSAL_PREFIX));
   } catch {
     // storage unavailable
   }
