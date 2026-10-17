@@ -860,4 +860,43 @@ describe('AI gateway configuration (7A)', () => {
       ),
     ).toContain('AI_PROVIDER_API_KEY: required with the anthropic provider');
   });
+
+  it('bounds the provider stream with named parameters (corrective review 01)', () => {
+    const c = loadServerConfig({ service: 'api', env: local });
+    expect(c.ai.stream).toEqual({
+      outputMaxChars: 40_000,
+      eventMaxBytes: 65_536,
+      maxBytes: 4_194_304,
+    });
+    const set = loadServerConfig({
+      service: 'api',
+      env: {
+        ...local,
+        AI_OUTPUT_MAX_CHARS: '256',
+        AI_STREAM_EVENT_MAX_BYTES: '4096',
+        AI_STREAM_MAX_BYTES: '65536',
+      },
+    });
+    expect(set.ai.stream).toEqual({ outputMaxChars: 256, eventMaxBytes: 4096, maxBytes: 65_536 });
+    expect(
+      issues(() =>
+        loadServerConfig({
+          service: 'api',
+          env: { ...local, AI_STREAM_EVENT_MAX_BYTES: '1048576', AI_STREAM_MAX_BYTES: '65536' },
+        }),
+      ),
+    ).toContain('AI_STREAM_EVENT_MAX_BYTES: must not exceed AI_STREAM_MAX_BYTES');
+    for (const [k, v] of [
+      ['AI_OUTPUT_MAX_CHARS', '255'],
+      ['AI_OUTPUT_MAX_CHARS', '40001'],
+      ['AI_STREAM_EVENT_MAX_BYTES', '4095'],
+      ['AI_STREAM_MAX_BYTES', '33554433'],
+    ] as const)
+      expect(
+        issues(() => loadServerConfig({ service: 'api', env: { ...local, [k]: v } })).some((i) =>
+          i.startsWith(`${k}:`),
+        ),
+        `${k}=${v}`,
+      ).toBe(true);
+  });
 });

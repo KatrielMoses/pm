@@ -113,7 +113,9 @@ export function createWorkService(deps: {
         ? new MessagesProvider({
             baseUrl: ai.provider.baseUrl,
             timeoutMs: ai.provider.timeoutMs,
-            maxTextChars: 40_000,
+            maxTextChars: ai.stream.outputMaxChars,
+            maxEventBytes: ai.stream.eventMaxBytes,
+            maxWireBytes: ai.stream.maxBytes,
           })
         : null;
   return new AiGatewayService({

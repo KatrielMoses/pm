@@ -27,7 +27,15 @@ export type FixtureScenario =
   | 'truncate'
   | 'refuse'
   | 'hang'
-  | 'error_event';
+  | 'error_event'
+  // Corrective review 01: contract violations and over-bound usage the gateway must not trust.
+  | 'overbound' // reports output usage above the requested max_tokens
+  | 'negative_usage' // final output usage is negative
+  | 'fractional_usage' // final output usage is not an integer
+  | 'unsupported_stop' // a stop reason the gateway does not accept (tool_use)
+  | 'missing_usage' // message_delta without the final output usage
+  | 'huge_event' // one unterminated event larger than the event bound
+  | 'long_answer'; // a long, valid answer (for local clipping)
 
 export interface ReceivedRequest {
   model: string;
@@ -77,6 +85,13 @@ const SCENARIOS: readonly FixtureScenario[] = [
   'refuse',
   'hang',
   'error_event',
+  'overbound',
+  'negative_usage',
+  'fractional_usage',
+  'unsupported_stop',
+  'missing_usage',
+  'huge_event',
+  'long_answer',
 ];
 
 export function fingerprint(key: string): string {
@@ -275,7 +290,9 @@ export async function startAiProviderFixture(
     const words =
       scenario === 'slow'
         ? Array.from({ length: 12 }, (_, i) => `part ${i + 1}. `)
-        : reply.split(/(?<= )/);
+        : scenario === 'long_answer'
+          ? Array.from({ length: 40 }, (_, i) => `sentence ${i + 1} of a long answer. `)
+          : reply.split(/(?<= )/);
     const outputLimit = scenario === 'truncate' ? Math.min(maxTokens, 3) : maxTokens;
     res.writeHead(200, {
       'content-type': 'text/event-stream',
@@ -296,6 +313,13 @@ export async function startAiProviderFixture(
       },
     });
     send('content_block_start', { index: 0, content_block: { type: 'text', text: '' } });
+    if (scenario === 'huge_event') {
+      // An event that never reaches its separator: 200 KiB of one data line.
+      res.write(`event: content_block_delta\ndata: ${'x'.repeat(200 * 1024)}`);
+      await sleep(50);
+      res.end();
+      return;
+    }
     let out = 0;
     let closed = false;
     res.on('close', () => (closed = true));
@@ -320,10 +344,24 @@ export async function startAiProviderFixture(
     if (closed) return;
     send('content_block_stop', { index: 0 });
     const stop =
-      scenario === 'truncate' ? 'max_tokens' : scenario === 'refuse' ? 'refusal' : 'end_turn';
+      scenario === 'truncate'
+        ? 'max_tokens'
+        : scenario === 'refuse'
+          ? 'refusal'
+          : scenario === 'unsupported_stop'
+            ? 'tool_use'
+            : 'end_turn';
+    const finalUsage =
+      scenario === 'overbound'
+        ? maxTokens + 50
+        : scenario === 'negative_usage'
+          ? -2
+          : scenario === 'fractional_usage'
+            ? 2.5
+            : Math.min(out, maxTokens);
     send('message_delta', {
       delta: { stop_reason: stop, stop_sequence: null },
-      usage: { output_tokens: Math.min(out, maxTokens) },
+      ...(scenario === 'missing_usage' ? {} : { usage: { output_tokens: finalUsage } }),
     });
     send('message_stop', {});
     res.end();

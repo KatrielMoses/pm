@@ -433,6 +433,8 @@ export interface AiConfig {
   warningThresholdsBp: readonly number[];
   /** Technical content retention for AI history; null keeps it (OD-36 undecided). */
   historyRetentionDays: number | null;
+  /** Provider stream bounds: retained output, one event, and the whole response. */
+  stream: { outputMaxChars: number; eventMaxBytes: number; maxBytes: number };
 }
 
 /** Retention classes (0B vocabulary) that may carry a platform default period. */
@@ -855,6 +857,9 @@ const DEFAULTS = {
   AI_MAX_OUTPUT_TOKENS: '1024',
   AI_MAX_ATTEMPTS: '3',
   USAGE_WARNING_THRESHOLDS: '8000,10000',
+  AI_OUTPUT_MAX_CHARS: '40000',
+  AI_STREAM_EVENT_MAX_BYTES: '65536',
+  AI_STREAM_MAX_BYTES: '4194304',
   MCP_READ_RATE_PER_MINUTE: '120',
   MCP_WRITE_RATE_PER_MINUTE: '60',
   OAUTH_CLIENTS_MAX: '20',
@@ -1230,6 +1235,9 @@ const schema = z.object({
   AI_MAX_ATTEMPTS: int(1, 5),
   USAGE_WARNING_THRESHOLDS: z.string().regex(/^\d{1,5}(,\d{1,5}){0,4}$/),
   AI_HISTORY_RETENTION_DAYS: int(1, 36_500).optional(),
+  AI_OUTPUT_MAX_CHARS: int(256, 40_000),
+  AI_STREAM_EVENT_MAX_BYTES: int(4096, 1_048_576),
+  AI_STREAM_MAX_BYTES: int(65_536, 33_554_432),
   MCP_READ_RATE_PER_MINUTE: int(1, 10_000),
   MCP_WRITE_RATE_PER_MINUTE: int(1, 10_000),
   OAUTH_CLIENTS_MAX: int(1, 500),
@@ -1660,7 +1668,14 @@ export function loadServerConfig(options: LoadOptions): ServerConfig {
     maxAttempts: c.AI_MAX_ATTEMPTS,
     warningThresholdsBp,
     historyRetentionDays: c.AI_HISTORY_RETENTION_DAYS ?? null,
+    stream: {
+      outputMaxChars: c.AI_OUTPUT_MAX_CHARS,
+      eventMaxBytes: c.AI_STREAM_EVENT_MAX_BYTES,
+      maxBytes: c.AI_STREAM_MAX_BYTES,
+    },
   };
+  if (c.AI_STREAM_EVENT_MAX_BYTES > c.AI_STREAM_MAX_BYTES)
+    issues.push('AI_STREAM_EVENT_MAX_BYTES: must not exceed AI_STREAM_MAX_BYTES');
   let filesScanner: FilesScannerConfig = { provider: 'none' };
   if (c.MALWARE_SCANNER === 'clamav') {
     if (!c.CLAMAV_HOST) issues.push('CLAMAV_HOST: required with the clamav malware scanner');
