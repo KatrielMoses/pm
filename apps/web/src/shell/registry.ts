@@ -346,6 +346,21 @@ export const ROUTES: readonly RouteDef[] = [
     section: 'Ask with sources',
     visible: member,
   },
+  // 7D: AI change proposals the person reviews, edits, approves, and explicitly applies.
+  {
+    id: 'ai_proposals',
+    pattern: '/workspaces/:ws/ai/proposals',
+    shell: 'workspace',
+    section: 'Change proposals',
+    visible: member,
+  },
+  {
+    id: 'ai_proposal',
+    pattern: '/workspaces/:ws/ai/proposals/:prp',
+    shell: 'workspace',
+    section: 'Change proposal',
+    visible: member,
+  },
   {
     id: 'ai_settings',
     pattern: '/workspaces/:ws/settings/ai',

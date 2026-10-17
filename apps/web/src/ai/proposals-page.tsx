@@ -1,0 +1,741 @@
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { ApiError, newIdempotencyKey } from '../api.ts';
+import { Link } from '../router.tsx';
+import { Announce, Banner } from '../ui/feedback.tsx';
+import { Page } from '../ui/layout.tsx';
+import {
+  aiClient,
+  aiProblem,
+  type AiProposal,
+  type AiProposalChange,
+  type AiProposalRef,
+} from './client.ts';
+
+/**
+ * Phase 7D: review, edit, select, approve, and explicitly apply an AI change proposal (ADR-0040;
+ * AI-023–AI-025, AI-029; UXD-15). Nothing changes until the person presses Apply; Apply is atomic
+ * (all selected changes or none). Unsaved edits are kept on this device per proposal, so a
+ * refresh, a conflict, or going offline never silently discards them.
+ */
+
+const OP_TEXT: Record<AiProposalChange['op'], string> = {
+  'task.create': 'Create task',
+  'task.update': 'Update task',
+  'project.create': 'Create project',
+  'project.update': 'Update project',
+  'milestone.create': 'Create milestone',
+  'relation.add': 'Add relationship',
+  'document.replace': 'Replace document text (new version)',
+};
+const FIELD_TEXT: Record<string, string> = {
+  title: 'Title',
+  name: 'Name',
+  description: 'Description',
+  priority: 'Priority',
+  start_date: 'Start date',
+  due_date: 'Due date',
+  target_date: 'Target date',
+  status: 'Status',
+  text: 'Text',
+};
+const STATE_TEXT: Record<AiProposal['state'], string> = {
+  open: 'Open for review',
+  approved: 'Approved, not applied',
+  applied: 'Applied',
+  failed: 'Apply failed (nothing changed)',
+  rejected: 'Rejected',
+};
+const OUTCOME_TEXT: Record<AiProposalChange['applied_state'], string> = {
+  not_applied: '',
+  applied: 'Applied',
+  failed: 'Failed',
+  rolled_back: 'Rolled back (not kept)',
+  blocked: 'Not attempted',
+};
+const PRIORITIES = ['none', 'low', 'medium', 'high', 'urgent'];
+const LONG = new Set(['description', 'text']);
+const DATES = new Set(['start_date', 'due_date', 'target_date']);
+
+interface Draft {
+  revision: number;
+  fields: Record<string, Record<string, string | null>>;
+  selected: string[] | null;
+  decisions: Record<string, 'accepted' | 'rejected'>;
+}
+const draftKey = (id: string) => `pm.ai.proposal.draft.${id}`;
+const readDraft = (id: string): Draft | null => {
+  try {
+    const raw = sessionStorage.getItem(draftKey(id));
+    return raw ? (JSON.parse(raw) as Draft) : null;
+  } catch {
+    return null;
+  }
+};
+const writeDraft = (id: string, d: Draft | null) => {
+  try {
+    if (d) sessionStorage.setItem(draftKey(id), JSON.stringify(d));
+    else sessionStorage.removeItem(draftKey(id));
+  } catch {
+    // Storage may be unavailable (private mode); edits then live only in this page.
+  }
+};
+const emptyDraft = (revision: number): Draft => ({
+  revision,
+  fields: {},
+  selected: null,
+  decisions: {},
+});
+const dirty = (d: Draft | null) =>
+  !!d &&
+  (Object.keys(d.fields).length > 0 || d.selected !== null || Object.keys(d.decisions).length > 0);
+
+function RefText({ ws, r }: { ws: string; r: AiProposalRef | null }) {
+  if (!r) return null;
+  if (r.new) return <span>the new record from change {r.change ?? '?'}</span>;
+  if (r.available === false) return <span className="hint">a record you can no longer see</span>;
+  const href =
+    r.type === 'task'
+      ? `/workspaces/${ws}/tasks/${r.id}`
+      : r.type === 'project'
+        ? `/workspaces/${ws}/projects/${r.id}`
+        : `/workspaces/${ws}/documents/${r.id}`;
+  return <Link to={href}>{r.title}</Link>;
+}
+
+function ResultText({ ws, r }: { ws: string; r: AiProposalChange['result'] }) {
+  if (!r) return null;
+  if (r.available === false) return <span className="hint"> (no longer visible to you)</span>;
+  if (!r.title || !r.type || r.type === 'milestone' || r.type === 'record') return null;
+  return (
+    <>
+      {' — '}
+      <RefText ws={ws} r={r} />
+    </>
+  );
+}
+
+export function ProposalsPage({ ws }: { ws: string }) {
+  const [items, setItems] = useState<Awaited<ReturnType<typeof aiClient.proposals>> | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  useEffect(() => {
+    aiClient
+      .proposals(ws)
+      .then(setItems)
+      .catch((err) => setError(aiProblem(err, 'Proposals could not be loaded.')));
+  }, [ws]);
+  return (
+    <Page
+      title="Change proposals"
+      lead="AI-generated suggestions you review, edit, and apply yourself. Nothing changes until you apply a proposal."
+    >
+      <p>
+        <Link to={`/workspaces/${ws}/ai/ask`}>Ask with sources or propose changes</Link>
+      </p>
+      {error ? (
+        <Banner tone="danger" title="Something went wrong">
+          {error}
+        </Banner>
+      ) : null}
+      {!items && !error ? <p role="status">Loading proposals…</p> : null}
+      {items && !items.length ? (
+        <p>No proposals yet. Propose changes from a previewed context on the Ask page.</p>
+      ) : null}
+      {items?.length ? (
+        <ul aria-label="Your change proposals" className="ai-sources">
+          {items.map((p) => (
+            <li key={p.id}>
+              <Link to={`/workspaces/${ws}/ai/proposals/${p.id}`}>
+                {p.content.state === 'present'
+                  ? (p.title ?? 'Untitled proposal')
+                  : p.content.state === 'erased'
+                    ? 'Erased proposal'
+                    : 'Withheld proposal'}
+              </Link>{' '}
+              <span className="hint">
+                — {STATE_TEXT[p.state]} · {new Date(p.created_at).toLocaleString()}
+                {p.synthetic ? ' · Synthetic' : ''}
+              </span>
+            </li>
+          ))}
+        </ul>
+      ) : null}
+    </Page>
+  );
+}
+
+function FieldEditor({
+  change,
+  field,
+  value,
+  disabled,
+  onChange,
+}: {
+  change: AiProposalChange;
+  field: string;
+  value: string | null;
+  disabled: boolean;
+  onChange: (v: string | null) => void;
+}) {
+  const id = `prp-${change.key}-${field}`;
+  const label = `${FIELD_TEXT[field] ?? field} (proposed)`;
+  if (field === 'priority')
+    return (
+      <label htmlFor={id}>
+        <span className="visually-hidden">{label}</span>
+        <select
+          id={id}
+          value={value ?? 'none'}
+          disabled={disabled}
+          onChange={(e) => onChange(e.target.value)}
+        >
+          {PRIORITIES.map((p) => (
+            <option key={p} value={p}>
+              {p}
+            </option>
+          ))}
+        </select>
+      </label>
+    );
+  if (LONG.has(field))
+    return (
+      <label htmlFor={id}>
+        <span className="visually-hidden">{label}</span>
+        <textarea
+          id={id}
+          rows={field === 'text' ? 6 : 3}
+          value={value ?? ''}
+          disabled={disabled}
+          maxLength={field === 'text' ? 20000 : 4000}
+          onChange={(e) => onChange(e.target.value === '' ? null : e.target.value)}
+        />
+      </label>
+    );
+  return (
+    <label htmlFor={id}>
+      <span className="visually-hidden">{label}</span>
+      <input
+        id={id}
+        type={DATES.has(field) ? 'date' : 'text'}
+        value={value ?? ''}
+        disabled={disabled}
+        maxLength={500}
+        onChange={(e) =>
+          onChange(e.target.value === '' && DATES.has(field) ? null : e.target.value)
+        }
+      />
+    </label>
+  );
+}
+
+export function ProposalPage({ ws, id }: { ws: string; id: string }) {
+  const [p, setP] = useState<AiProposal | null>(null);
+  const [draft, setDraft] = useState<Draft | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [problem, setProblem] = useState<Array<{ change: string | null; message: string }>>([]);
+  const [conflict, setConflict] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [said, setSaid] = useState('');
+  const [reason, setReason] = useState('');
+  const [notFound, setNotFound] = useState(false);
+  /** One key per attempt; reused when the person retries after a dropped connection. */
+  const keys = useRef<Record<string, string>>({});
+  /** Set synchronously, so a second click before the next render never sends a request. */
+  const inFlight = useRef(false);
+  const keyFor = (action: string, revision: number) => {
+    const k = `${action}:${revision}`;
+    keys.current[k] ??= newIdempotencyKey();
+    return keys.current[k]!;
+  };
+
+  const show = useCallback(
+    (v: AiProposal) => {
+      setP(v);
+      const saved = readDraft(id);
+      if (saved && saved.revision !== v.revision && dirty(saved)) setConflict(true);
+      setDraft(saved ?? emptyDraft(v.revision));
+      setError(null);
+    },
+    [id],
+  );
+  const loadFailed = useCallback((err: unknown) => {
+    if (err instanceof ApiError && err.code === 'not_found') setNotFound(true);
+    else setError(aiProblem(err, 'The proposal could not be loaded.'));
+  }, []);
+  useEffect(() => {
+    let gone = false;
+    aiClient.proposal(ws, id).then(
+      (v) => {
+        if (!gone) show(v);
+      },
+      (err) => {
+        if (!gone) loadFailed(err);
+      },
+    );
+    return () => {
+      gone = true;
+    };
+  }, [ws, id, show, loadFailed]);
+
+  const update = (d: Draft) => {
+    setDraft(d);
+    writeDraft(id, dirty(d) ? d : null);
+  };
+
+  const fail = (err: unknown, fallback: string) => {
+    setError(aiProblem(err, fallback));
+    if (err instanceof ApiError) {
+      setProblem(
+        err.issues
+          .filter((i) => i.pointer && i.pointer.startsWith('/changes/'))
+          .map((i) => ({ change: i.pointer!.split('/')[2] ?? null, message: i.message })),
+      );
+      if (err.issues.some((i) => i.code === 'revision_changed')) setConflict(true);
+    }
+  };
+
+  if (notFound)
+    return (
+      <Page title="Proposal not found">
+        <p>This proposal does not exist or is not yours.</p>
+        <p>
+          <Link to={`/workspaces/${ws}/ai/proposals`}>All proposals</Link>
+        </p>
+      </Page>
+    );
+  if (!p || !draft)
+    return (
+      <Page title="Change proposal">
+        {error ? (
+          <Banner tone="danger" title="Something went wrong">
+            {error}
+          </Banner>
+        ) : (
+          <p role="status">Loading the proposal…</p>
+        )}
+      </Page>
+    );
+
+  if (p.content.state !== 'present')
+    return (
+      <Page title={p.content.state === 'erased' ? 'Erased proposal' : 'Withheld proposal'}>
+        <Banner
+          tone="info"
+          title={p.content.state === 'erased' ? 'Content erased' : 'Content withheld'}
+        >
+          {p.content.note}
+        </Banner>
+        {p.application ? (
+          <p>
+            Applied by you on {new Date(p.application.at).toLocaleString()} ·{' '}
+            {p.application.applied_count} change(s) · proposed by AI.
+          </p>
+        ) : null}
+        <p>
+          <Link to={`/workspaces/${ws}/ai/proposals`}>All proposals</Link>
+        </p>
+      </Page>
+    );
+
+  const isSelected = (c: AiProposalChange) =>
+    draft.selected ? draft.selected.includes(c.key) : c.selected;
+  const decisionOf = (c: AiProposalChange) => draft.decisions[c.key] ?? c.decision;
+  const valueOf = (c: AiProposalChange, field: string, original: string | null) =>
+    draft.fields[c.key] && field in draft.fields[c.key]! ? draft.fields[c.key]![field]! : original;
+  const selected = p.changes.filter(isSelected);
+  const pending = dirty(draft);
+  const editable = p.can.edit && !busy;
+  // Live dependency feedback for the current (unsaved) selection.
+  const missing = selected.flatMap((c) =>
+    c.depends_on.filter((d) => !selected.some((s) => s.key === d)).map((d) => ({ c: c.key, d })),
+  );
+
+  const toggle = (c: AiProposalChange) => {
+    const base = draft.selected ?? p.changes.filter((x) => x.selected).map((x) => x.key);
+    const next = base.includes(c.key) ? base.filter((k) => k !== c.key) : [...base, c.key];
+    update({ ...draft, selected: next });
+  };
+  const setField = (c: AiProposalChange, field: string, v: string | null) =>
+    update({
+      ...draft,
+      fields: { ...draft.fields, [c.key]: { ...draft.fields[c.key], [field]: v } },
+    });
+  const reject = (c: AiProposalChange) => {
+    const base = draft.selected ?? p.changes.filter((x) => x.selected).map((x) => x.key);
+    update({
+      ...draft,
+      decisions: { ...draft.decisions, [c.key]: 'rejected' },
+      selected: base.filter((k) => k !== c.key),
+    });
+  };
+
+  const save = async () => {
+    if (inFlight.current) return;
+    inFlight.current = true;
+    setBusy(true);
+    setError(null);
+    setProblem([]);
+    try {
+      const changes: Record<string, Record<string, unknown>> = {};
+      for (const [k, f] of Object.entries(draft.fields)) changes[k] = { ...changes[k], fields: f };
+      for (const [k, d] of Object.entries(draft.decisions))
+        changes[k] = { ...changes[k], decision: d };
+      const v = await aiClient.editProposal(
+        ws,
+        id,
+        {
+          revision: p.revision,
+          ...(draft.selected ? { selected: draft.selected } : {}),
+          ...(Object.keys(changes).length ? { changes } : {}),
+        },
+        keyFor('edit', p.revision),
+      );
+      setP(v);
+      update(emptyDraft(v.revision));
+      setConflict(false);
+      setSaid(`Saved as revision ${v.revision}. Approve it again before applying.`);
+    } catch (err) {
+      fail(err, 'Your edits were not saved. They are kept on this device.');
+    } finally {
+      inFlight.current = false;
+      setBusy(false);
+    }
+  };
+
+  const decide = async (verb: 'approve' | 'apply' | 'reject') => {
+    if (inFlight.current) return; // A repeated click never sends a second request.
+    inFlight.current = true;
+    setBusy(true);
+    setError(null);
+    setProblem([]);
+    try {
+      const v = await aiClient.decideProposal(
+        ws,
+        id,
+        verb,
+        verb === 'reject'
+          ? reason.trim()
+            ? { reason: reason.trim() }
+            : {}
+          : { revision: p.revision, fingerprint: p.fingerprint },
+        keyFor(verb, p.revision),
+      );
+      setP(v);
+      if (verb === 'apply') writeDraft(id, null);
+      setSaid(
+        verb === 'approve'
+          ? `Approved ${v.approval?.selected.length ?? 0} change(s). Apply when ready.`
+          : verb === 'reject'
+            ? 'Proposal rejected. Nothing was changed.'
+            : v.application?.outcome === 'applied'
+              ? `Applied ${v.application.applied_count} of ${p.changes.length} change(s).`
+              : 'Nothing was applied: one change failed and every change was rolled back.',
+      );
+    } catch (err) {
+      if (verb === 'apply' && err instanceof ApiError && (err.offline || err.code === 'network'))
+        setError(
+          'Apply did not complete because the connection dropped. Try again when you are online: it is safe and never applies twice.',
+        );
+      else fail(err, 'That did not complete.');
+    } finally {
+      inFlight.current = false;
+      setBusy(false);
+    }
+  };
+
+  const app = p.application;
+  return (
+    <Page title={p.title ?? 'Change proposal'} lead={p.trust_note}>
+      <p>
+        <Link to={`/workspaces/${ws}/ai/proposals`}>All proposals</Link> ·{' '}
+        <strong>{STATE_TEXT[p.state]}</strong> · revision {p.revision}
+        {p.synthetic ? <span className="ai-tag"> Synthetic fixture</span> : null}
+      </p>
+      {error ? (
+        <Banner tone="danger" title="Something went wrong">
+          {error}
+          {problem.length ? (
+            <ul>
+              {problem.map((x, i) => (
+                <li key={i}>
+                  {x.change ? `Change ${x.change}: ` : ''}
+                  {x.message}
+                </li>
+              ))}
+            </ul>
+          ) : null}
+        </Banner>
+      ) : null}
+      {conflict ? (
+        <Banner
+          tone="warning"
+          title="The proposal changed since you started editing"
+          action={
+            <>
+              <button
+                type="button"
+                className="button"
+                onClick={() =>
+                  void aiClient.proposal(ws, id).then((v) => {
+                    // Keep the edits and rebase them onto the current revision.
+                    setP(v);
+                    update({ ...(readDraft(id) ?? emptyDraft(v.revision)), revision: v.revision });
+                    setConflict(false);
+                  }, loadFailed)
+                }
+              >
+                Reload and keep my edits
+              </button>{' '}
+              <button
+                type="button"
+                className="button button-secondary"
+                onClick={() => {
+                  update(emptyDraft(p.revision));
+                  setConflict(false);
+                }}
+              >
+                Discard my edits
+              </button>
+            </>
+          }
+        >
+          Your unsaved edits are kept on this device. Review the current revision, then save again.
+        </Banner>
+      ) : null}
+      {app ? (
+        <section aria-labelledby="prp-outcome" className="ai-panel" role="region">
+          <h2 id="prp-outcome">Outcome</h2>
+          {app.outcome === 'applied' ? (
+            <Banner tone="success" title={`Applied ${app.applied_count} change(s)`}>
+              Applied by you · proposed by AI · {new Date(app.at).toLocaleString()}.
+            </Banner>
+          ) : (
+            <Banner tone="danger" title="Nothing was applied">
+              One change failed, so every change was rolled back. Review the details below, then
+              approve and apply again.
+            </Banner>
+          )}
+        </section>
+      ) : null}
+
+      <section aria-labelledby="prp-changes" className="ai-panel">
+        <h2 id="prp-changes">
+          Changes ({selected.length} of {p.changes.length} selected)
+        </h2>
+        {missing.length ? (
+          <Banner tone="warning" title="Some selected changes depend on unselected ones">
+            {missing.map((m) => `Change ${m.c} needs change ${m.d}`).join('; ')}. Select them too or
+            deselect the dependent change.
+          </Banner>
+        ) : null}
+        <ol className="ai-proposal-changes">
+          {p.changes.map((c) => {
+            const decision = decisionOf(c);
+            const rejected = decision === 'rejected';
+            const own = problem.find((x) => x.change === c.key);
+            return (
+              <li key={c.key} className="ai-proposal-change">
+                <h3 id={`prp-${c.key}-h`}>
+                  <label className="ai-confirm">
+                    <input
+                      type="checkbox"
+                      checked={isSelected(c)}
+                      disabled={!editable || rejected}
+                      onChange={() => toggle(c)}
+                    />{' '}
+                    {c.key} · {OP_TEXT[c.op]}
+                  </label>
+                </h3>
+                <p className="hint">
+                  {c.target ? (
+                    c.target.available === false ? (
+                      'Target: a record you can no longer see.'
+                    ) : (
+                      <>
+                        Target: <RefText ws={ws} r={c.target as AiProposalRef} />
+                        {c.target.out_of_date
+                          ? ' — changed since the proposal was made; review the current value.'
+                          : ''}
+                      </>
+                    )
+                  ) : null}
+                  {c.project ? (
+                    <>
+                      In project <RefText ws={ws} r={c.project} />.{' '}
+                    </>
+                  ) : null}
+                  {c.parent ? (
+                    <>
+                      Under <RefText ws={ws} r={c.parent} />.{' '}
+                    </>
+                  ) : null}
+                  {c.relation ? (
+                    <>
+                      <RefText ws={ws} r={c.relation.from} />{' '}
+                      {c.relation.kind === 'blocks' ? 'blocks' : 'is related to'}{' '}
+                      <RefText ws={ws} r={c.relation.to} />.{' '}
+                    </>
+                  ) : null}
+                  {c.depends_on.length ? `Needs ${c.depends_on.join(', ')}. ` : ''}
+                  {c.sources.length ? `Based on ${c.sources.join(', ')}.` : ''}
+                </p>
+                {c.fields.length ? (
+                  <table className="ai-diff">
+                    <caption className="visually-hidden">Proposed values for {c.key}</caption>
+                    <thead>
+                      <tr>
+                        <th scope="col">Field</th>
+                        <th scope="col">Now</th>
+                        <th scope="col">Proposed</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {c.fields.map((f) => (
+                        <tr key={f.field}>
+                          <th scope="row">{FIELD_TEXT[f.field] ?? f.field}</th>
+                          <td>{c.target ? (f.before ?? '—') : 'New'}</td>
+                          <td>
+                            {p.can.edit && !rejected ? (
+                              <FieldEditor
+                                change={c}
+                                field={f.field}
+                                value={valueOf(c, f.field, f.after)}
+                                disabled={!editable}
+                                onChange={(v) => setField(c, f.field, v)}
+                              />
+                            ) : (
+                              (f.after ?? '—')
+                            )}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                ) : null}
+                <p>
+                  {decision === 'edited' ? <span className="ai-tag">Edited by you</span> : null}
+                  {rejected ? <span className="ai-tag">Rejected</span> : null}
+                  {c.applied_state !== 'not_applied' ? (
+                    <strong>
+                      {' '}
+                      {OUTCOME_TEXT[c.applied_state]}
+                      <ResultText ws={ws} r={c.result} />
+                    </strong>
+                  ) : null}
+                  {c.failure ? <span className="field-error"> {c.failure.message}</span> : null}
+                  {own ? <span className="field-error"> {own.message}</span> : null}
+                </p>
+                {p.can.edit && !rejected ? (
+                  <button
+                    type="button"
+                    className="button button-secondary"
+                    disabled={!editable}
+                    onClick={() => reject(c)}
+                  >
+                    Reject change {c.key}
+                  </button>
+                ) : null}
+              </li>
+            );
+          })}
+        </ol>
+      </section>
+
+      {p.can.edit || p.can.approve || p.can.apply || p.can.reject ? (
+        <section
+          aria-labelledby="prp-actions"
+          className="ai-panel"
+          aria-busy={busy ? 'true' : 'false'}
+        >
+          <h2 id="prp-actions">Review and apply</h2>
+          {pending ? (
+            <>
+              <p>You have unsaved edits. Save them as a new revision before approving.</p>
+              <button
+                type="button"
+                className="button button-primary"
+                disabled={busy}
+                onClick={() => void save()}
+              >
+                Save edits
+              </button>{' '}
+              <button
+                type="button"
+                className="button button-secondary"
+                disabled={busy}
+                onClick={() => update(emptyDraft(p.revision))}
+              >
+                Discard edits
+              </button>
+            </>
+          ) : (
+            <>
+              {p.approval?.valid ? (
+                <p>
+                  Approved {p.approval.selected.length} change(s) of revision {p.approval.revision};
+                  the approval expires {new Date(p.approval.expires_at).toLocaleString()}.
+                </p>
+              ) : (
+                <p>Approve exactly what you reviewed; any later edit needs a new approval.</p>
+              )}
+              {p.can.approve && !p.approval?.valid ? (
+                <button
+                  type="button"
+                  className="button button-primary"
+                  disabled={busy || !selected.length || missing.length > 0}
+                  onClick={() => void decide('approve')}
+                >
+                  Approve {selected.length} change(s)
+                </button>
+              ) : null}{' '}
+              {p.can.apply ? (
+                <button
+                  type="button"
+                  className="button button-primary"
+                  disabled={busy}
+                  onClick={() => void decide('apply')}
+                >
+                  Apply {selected.length} of {p.changes.length} changes
+                </button>
+              ) : null}
+            </>
+          )}
+          {p.can.reject ? (
+            <div className="field">
+              <label htmlFor="prp-reason">Reason for rejecting (optional)</label>
+              <input
+                id="prp-reason"
+                value={reason}
+                maxLength={500}
+                onChange={(e) => setReason(e.target.value)}
+              />
+              <button
+                type="button"
+                className="button button-secondary"
+                disabled={busy}
+                onClick={() => void decide('reject')}
+              >
+                Reject the whole proposal
+              </button>
+            </div>
+          ) : null}
+        </section>
+      ) : null}
+
+      {p.history.length ? (
+        <section aria-labelledby="prp-history" className="ai-panel">
+          <h2 id="prp-history">History</h2>
+          <ol>
+            {p.history.map((h, i) => (
+              <li key={i}>
+                {h.kind.replace(/_/g, ' ')} · revision {h.revision}
+                {h.changes.length ? ` · ${h.changes.join(', ')}` : ''} ·{' '}
+                {new Date(h.at).toLocaleString()}
+              </li>
+            ))}
+          </ol>
+        </section>
+      ) : null}
+      <Announce>{said}</Announce>
+    </Page>
+  );
+}

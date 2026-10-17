@@ -116,7 +116,7 @@ export interface AiRun {
   id: string;
   type: 'ai_run';
   version: number;
-  purpose?: 'test_run' | 'grounded_answer';
+  purpose?: 'test_run' | 'grounded_answer' | 'change_proposal';
   state: string;
   status: string;
   terminal_reason: string | null;
@@ -142,6 +142,13 @@ export interface AiRun {
     redactions: number;
     output: { text: string; completeness: 'complete' | 'truncated' | 'partial' } | null;
     answer?: AiAnswer | null;
+    /** 7D: the outcome of a change-proposal run (the proposal is reviewed on its own page). */
+    proposal?: {
+      status: 'proposed' | 'rejected' | 'withheld';
+      reason: string | null;
+      id: string | null;
+      issues: Array<{ change: string | null; code: string; message: string }>;
+    } | null;
   };
   context?: Array<{
     id: string | null;
@@ -150,6 +157,97 @@ export interface AiRun {
     exclusion_reason: string | null;
     available: boolean;
   }>;
+}
+
+/** 7D: a reference in a proposed change (an existing record, or a record this proposal creates). */
+export interface AiProposalRef {
+  new?: string;
+  change?: string | null;
+  type?: string;
+  id?: string;
+  title?: string;
+  available?: false;
+}
+
+export interface AiProposalChange {
+  key: string;
+  op:
+    | 'task.create'
+    | 'task.update'
+    | 'project.create'
+    | 'project.update'
+    | 'milestone.create'
+    | 'relation.add'
+    | 'document.replace';
+  selected: boolean;
+  decision: 'pending' | 'accepted' | 'edited' | 'rejected';
+  depends_on: string[];
+  temp_ref: string | null;
+  target: {
+    type?: string;
+    id?: string;
+    title?: string;
+    version?: number;
+    out_of_date?: boolean;
+    available?: false;
+  } | null;
+  project: AiProposalRef | null;
+  parent: AiProposalRef | null;
+  brand: 'scope' | null;
+  relation: {
+    kind: 'blocks' | 'related';
+    from: AiProposalRef | null;
+    to: AiProposalRef | null;
+  } | null;
+  fields: Array<{ field: string; before: string | null; after: string | null }>;
+  sources: string[];
+  applied_state: 'not_applied' | 'applied' | 'failed' | 'rolled_back' | 'blocked';
+  result: { type?: string; id?: string; title?: string; available?: false } | null;
+  failure: { code: string; message: string } | null;
+}
+
+export interface AiProposalIssue {
+  change: string | null;
+  code: string;
+  message: string;
+}
+
+export interface AiProposal {
+  id: string;
+  type: 'change_proposal';
+  state: 'open' | 'approved' | 'applied' | 'failed' | 'rejected';
+  revision: number;
+  version: number;
+  created_at: string;
+  updated_at: string;
+  run: string;
+  synthetic: boolean;
+  application: {
+    outcome: 'applied' | 'failed';
+    applied_count: number;
+    failed_count: number;
+    revision: number;
+    operation: string;
+    at: string;
+  } | null;
+  content: { state: 'present' | 'withheld' | 'erased'; note: string | null };
+  title: string | null;
+  fingerprint: string | null;
+  trust_note?: string;
+  changes: AiProposalChange[];
+  order: string[];
+  selection_issues?: AiProposalIssue[];
+  approval: { revision: number; selected: string[]; expires_at: string; valid: boolean } | null;
+  history: Array<{ kind: string; revision: number; changes: string[]; at: string }>;
+  can: { edit: boolean; approve: boolean; apply: boolean; reject: boolean };
+}
+
+export interface AiProposalValidation {
+  revision: number;
+  fingerprint: string;
+  selection_issues: AiProposalIssue[];
+  valid: boolean;
+  changes: Array<{ key: string; state: string; code: string | null; message: string | null }>;
 }
 
 export interface AiSettings {
@@ -376,6 +474,66 @@ export const aiClient = {
   ask: async (ws: string, body: Record<string, unknown>, key: string) =>
     (
       await api<{ data: AiRun }>('POST', `${w(ws)}/ai/answers`, {
+        body,
+        headers: { 'idempotency-key': key },
+      })
+    ).body.data,
+  // 7D: change proposals. Generation goes through the same previewed manifest; review, edit,
+  // approval, and Apply are explicit steps. Each write carries its own Idempotency-Key, reused
+  // when the person retries the same attempt (a repeated click never applies twice).
+  propose: async (ws: string, body: Record<string, unknown>, key: string) =>
+    (
+      await api<{ data: AiRun }>('POST', `${w(ws)}/ai/proposal-runs`, {
+        body,
+        headers: { 'idempotency-key': key },
+      })
+    ).body.data,
+  proposals: async (ws: string) =>
+    (
+      await api<{
+        data: {
+          items: Array<
+            Pick<
+              AiProposal,
+              | 'id'
+              | 'state'
+              | 'revision'
+              | 'created_at'
+              | 'run'
+              | 'synthetic'
+              | 'content'
+              | 'title'
+              | 'application'
+            >
+          >;
+        };
+      }>('GET', `${w(ws)}/ai/proposals`)
+    ).body.data.items,
+  proposal: async (ws: string, id: string) =>
+    (await api<{ data: AiProposal }>('GET', `${w(ws)}/ai/proposals/${id}`)).body.data,
+  editProposal: async (ws: string, id: string, body: Record<string, unknown>, key: string) =>
+    (
+      await api<{ data: AiProposal }>('PATCH', `${w(ws)}/ai/proposals/${id}`, {
+        body,
+        headers: { 'idempotency-key': key },
+      })
+    ).body.data,
+  validateProposal: async (ws: string, id: string) =>
+    (
+      await api<{ data: AiProposalValidation }>('POST', `${w(ws)}/ai/proposals/${id}:validate`, {
+        body: {},
+        headers: { 'idempotency-key': newIdempotencyKey() },
+      })
+    ).body.data,
+  decideProposal: async (
+    ws: string,
+    id: string,
+    verb: 'approve' | 'apply' | 'reject',
+    body: Record<string, unknown>,
+    key: string,
+  ) =>
+    (
+      await api<{ data: AiProposal }>('POST', `${w(ws)}/ai/proposals/${id}:${verb}`, {
         body,
         headers: { 'idempotency-key': key },
       })

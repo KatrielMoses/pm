@@ -5030,9 +5030,51 @@ nav.tabs a[aria-current='page'] {
 .ai-panel .button-ghost {
   min-height: 2.75rem;
 }
+/* 7D: the change proposal review (editable diff, selection, outcome). */
+.ai-proposal-changes {
+  padding-inline-start: 0;
+  list-style: none;
+  display: grid;
+  gap: var(--space-4);
+}
+.ai-proposal-change {
+  min-width: 0;
+  padding: var(--space-3);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-2, 0.5rem);
+  overflow-wrap: anywhere;
+}
+.ai-proposal-change h3 {
+  margin: 0 0 var(--space-2);
+  font-size: inherit;
+}
+.ai-diff {
+  display: block;
+  max-width: 100%;
+  overflow-x: auto;
+  border-collapse: collapse;
+}
+.ai-diff th,
+.ai-diff td {
+  text-align: start;
+  vertical-align: top;
+  padding: var(--space-1) var(--space-2);
+  border-bottom: 1px solid var(--color-border-subtle);
+}
+.ai-diff textarea,
+.ai-diff input,
+.ai-diff select {
+  max-width: 100%;
+  min-height: 2.75rem;
+}
 @media (forced-colors: active) {
   .ai-attempts th,
-  .ai-attempts td {
+  .ai-attempts td,
+  .ai-diff th,
+  .ai-diff td {
     border-bottom: 1px solid CanvasText;
+  }
+  .ai-proposal-change {
+    border: 1px solid CanvasText;
   }
 }
