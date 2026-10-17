@@ -437,6 +437,8 @@ export interface AiConfig {
   stream: { outputMaxChars: number; eventMaxBytes: number; maxBytes: number };
   /** 7B retrieval bounds: sources sent per answer and characters sent per source. */
   retrieval: { sourcesMax: number; sourceChars: number };
+  /** 7D change proposals: approval validity and the size bound of one proposal. */
+  proposals: { approvalHours: number; changesMax: number };
 }
 
 /** Retention classes (0B vocabulary) that may carry a platform default period. */
@@ -864,6 +866,8 @@ const DEFAULTS = {
   AI_STREAM_MAX_BYTES: '4194304',
   AI_CONTEXT_SOURCES_MAX: '8',
   AI_CONTEXT_SOURCE_CHARS: '1500',
+  AI_PROPOSAL_APPROVAL_HOURS: '24',
+  AI_PROPOSAL_CHANGES_MAX: '25',
   MCP_READ_RATE_PER_MINUTE: '120',
   MCP_WRITE_RATE_PER_MINUTE: '60',
   OAUTH_CLIENTS_MAX: '20',
@@ -1244,6 +1248,8 @@ const schema = z.object({
   AI_STREAM_MAX_BYTES: int(65_536, 33_554_432),
   AI_CONTEXT_SOURCES_MAX: int(1, 20),
   AI_CONTEXT_SOURCE_CHARS: int(200, 6000),
+  AI_PROPOSAL_APPROVAL_HOURS: int(1, 168),
+  AI_PROPOSAL_CHANGES_MAX: int(1, 100),
   MCP_READ_RATE_PER_MINUTE: int(1, 10_000),
   MCP_WRITE_RATE_PER_MINUTE: int(1, 10_000),
   OAUTH_CLIENTS_MAX: int(1, 500),
@@ -1682,6 +1688,10 @@ export function loadServerConfig(options: LoadOptions): ServerConfig {
     retrieval: {
       sourcesMax: c.AI_CONTEXT_SOURCES_MAX,
       sourceChars: c.AI_CONTEXT_SOURCE_CHARS,
+    },
+    proposals: {
+      approvalHours: c.AI_PROPOSAL_APPROVAL_HOURS,
+      changesMax: c.AI_PROPOSAL_CHANGES_MAX,
     },
   };
   if (c.AI_STREAM_EVENT_MAX_BYTES > c.AI_STREAM_MAX_BYTES)

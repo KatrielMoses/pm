@@ -185,6 +185,86 @@ export function registerAi(app: FastifyInstance, work: AiGatewayService): void {
       return resource(request, reply, result.data, result);
     }),
   );
+  // 7D change proposals: session only (bearer callers are refused at the edge). Generation goes
+  // through the same gateway; review, edit, approval, and Apply are explicit human steps.
+  app.post(
+    `${base}/ai/proposal-runs`,
+    wrap(async (request, reply) => {
+      const result = await work.startAiProposalRun(
+        caller(request),
+        ws(request),
+        request.body,
+        mutation(request),
+      );
+      return resource(request, reply, result.data, result);
+    }),
+  );
+  app.get(
+    `${base}/ai/proposals`,
+    wrap(async (request, reply) =>
+      reply
+        .header('cache-control', 'private, no-store')
+        .send(
+          nonResourceEnvelope(
+            'ai_proposals',
+            await work.listAiProposals(caller(request), ws(request)),
+            m(request),
+          ),
+        ),
+    ),
+  );
+  app.get(
+    `${base}/ai/proposals/:prp`,
+    wrap(async (request, reply) => {
+      const prp = param(request, 'prp') ?? '';
+      if (prp.includes(':')) return fail(request, reply, 'not_found');
+      reply.header('cache-control', 'private, no-store');
+      return resource(request, reply, await work.getAiProposal(caller(request), ws(request), prp));
+    }),
+  );
+  app.patch(
+    `${base}/ai/proposals/:prp`,
+    wrap(async (request, reply) => {
+      const prp = param(request, 'prp') ?? '';
+      if (prp.includes(':')) return fail(request, reply, 'not_found');
+      reply.header('cache-control', 'private, no-store');
+      const result = await work.updateAiProposal(
+        caller(request),
+        ws(request),
+        prp,
+        request.body,
+        mutation(request),
+      );
+      return resource(request, reply, result.data, result);
+    }),
+  );
+  app.post(
+    `${base}/ai/proposals/:prp`,
+    wrap(async (request, reply) => {
+      const t = split(param(request, 'prp'));
+      if (!t) return fail(request, reply, 'not_found');
+      reply.header('cache-control', 'private, no-store');
+      if (t.verb === 'validate')
+        return reply.send(
+          nonResourceEnvelope(
+            'ai_proposal_validation',
+            await work.validateAiProposal(caller(request), ws(request), t.id, mutation(request)),
+            m(request),
+          ),
+        );
+      const run =
+        t.verb === 'approve'
+          ? work.approveAiProposal.bind(work)
+          : t.verb === 'apply'
+            ? work.applyAiProposal.bind(work)
+            : t.verb === 'reject'
+              ? work.rejectAiProposal.bind(work)
+              : null;
+      if (!run) return fail(request, reply, 'not_found');
+      const result = await run(caller(request), ws(request), t.id, request.body, mutation(request));
+      return resource(request, reply, result.data, result);
+    }),
+  );
   app.get(
     `${base}/ai/runs`,
     wrap(async (request, reply) =>

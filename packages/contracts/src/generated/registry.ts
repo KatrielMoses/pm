@@ -970,6 +970,20 @@ export const TELEMETRY_SIGNALS = [
     "labels": [
       "status"
     ]
+  },
+  {
+    "name": "ai.proposals",
+    "type": "counter",
+    "labels": [
+      "outcome"
+    ]
+  },
+  {
+    "name": "ai.proposal_applications",
+    "type": "counter",
+    "labels": [
+      "outcome"
+    ]
   }
 ] as const;
 export type TelemetrySignalName = (typeof TELEMETRY_SIGNALS)[number]['name'];
@@ -1931,6 +1945,13 @@ export const ID_PREFIXES = [
     "resource": "workflow_approval",
     "entity": "workflow.approval_request",
     "ownerModule": "workflow",
+    "platformOnly": false
+  },
+  {
+    "prefix": "prp",
+    "resource": "change_proposal",
+    "entity": "ai.change_proposal",
+    "ownerModule": "ai",
     "platformOnly": false
   },
   {
@@ -4135,6 +4156,8 @@ export const PARAMETER_NAMES = [
   "AI_STREAM_MAX_BYTES",
   "AI_CONTEXT_SOURCES_MAX",
   "AI_CONTEXT_SOURCE_CHARS",
+  "AI_PROPOSAL_APPROVAL_HOURS",
+  "AI_PROPOSAL_CHANGES_MAX",
   "AI_HISTORY_RETENTION_DAYS"
 ] as const;
 export type ParameterName = (typeof PARAMETER_NAMES)[number];

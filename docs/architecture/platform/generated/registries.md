@@ -87,6 +87,7 @@ Source: `contracts/registry.json`.
 | `sts_` | workflow_status | workflow.workflow_status | workflow | Phase 2C (PL-25). |
 | `trn_` | transition | workflow.transition | workflow | Phase 2C (PL-25). |
 | `wap_` | workflow_approval | workflow.approval_request | workflow | Phase 2C (PL-25). |
+| `prp_` | change_proposal | ai.change_proposal | ai | Phase 7D (PL-49). |
 | `fld_` | field_definition | workflow.field_definition | workflow | Phase 2C (PL-25). |
 | `fop_` | field_option | workflow.field_option | workflow | Phase 2C (PL-25). |
 | `fst_` | field_set | workflow.field_set | workflow | Phase 2C (PL-25). |
@@ -585,6 +586,8 @@ Forbidden metric labels: `workspace_id`, `brand_id`, `record_id`, `public_id`, `
 | `ai.history.erased` | counter | reason | ai |
 | `ai.context_previews` | counter | index | ai |
 | `ai.answer_validations` | counter | status | ai |
+| `ai.proposals` | counter | outcome | ai |
+| `ai.proposal_applications` | counter | outcome | ai |
 
 ## Named parameters (values are configuration, not promises)
 
@@ -886,4 +889,6 @@ Forbidden metric labels: `workspace_id`, `brand_id`, `record_id`, `public_id`, `
 | `AI_STREAM_MAX_BYTES` | Total provider stream bytes per dispatch; beyond it the stream is aborted as an overflow with its reservation held; default 4194304, range 65536–33554432, at least the event bound. | 7A |
 | `AI_CONTEXT_SOURCES_MAX` | Sources sent with one grounded answer (each gets a citation handle); readable sources beyond it are listed as over the limit; default 8, range 1–20. | 7B |
 | `AI_CONTEXT_SOURCE_CHARS` | Characters of redacted source text sent per source; longer text is cut and flagged as shortened; default 1500, range 200–6000. | 7B |
+| `AI_PROPOSAL_APPROVAL_HOURS` | How long an approval of a change proposal stays valid before fresh validation and approval are needed; default 24, range 1–168. | 7D |
+| `AI_PROPOSAL_CHANGES_MAX` | Changes one proposal may hold (larger proposals are refused whole); default 25, range 1–100. | 7D |
 | `AI_HISTORY_RETENTION_DAYS` | Technical content retention for AI history; unset keeps content (OD-36 undecided). | 7A |

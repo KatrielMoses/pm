@@ -1,6 +1,12 @@
-import { newUuidV7, plainFromRichText, type ExecutionContext } from '@pm/contracts';
+import {
+  newPublicId,
+  newUuidV7,
+  plainFromRichText,
+  richTextFromPlain,
+  type ExecutionContext,
+} from '@pm/contracts';
 import type { AiConfig } from '@pm/config';
-import { sql, type AiMeter, type WorkspaceTransaction } from '@pm/db';
+import { sql, type AiMeter, type ProposalOp, type WorkspaceTransaction } from '@pm/db';
 import {
   AwaitReconciliationError,
   CancelRequestedError,
@@ -22,12 +28,15 @@ import {
   issue,
   loadPrincipal,
   parseIfMatch,
+  applyFieldMerge,
+  parseMerge,
+  StepUpNeeded,
   TenancyError,
   type Caller,
   type Mutation,
   type Principal,
 } from '@pm/tenancy';
-import { change } from '@pm/audit';
+import { change, CommandContext } from '@pm/audit';
 import { McpAccessService } from '../integrations/mcp-access-service.ts';
 import {
   AI_METERS,
@@ -94,6 +103,21 @@ import {
   type SourceRef,
 } from './retrieval/types.ts';
 import { plainText, readContent } from '../docs/content.ts';
+import {
+  checkField,
+  orderChanges,
+  parseProposal,
+  proposalFingerprint,
+  PROPOSAL_SYSTEM_TEMPLATE,
+  PROPOSAL_VERSION,
+  selectionIssues,
+  type ProposalChange,
+  type RefValue,
+} from './proposals/contract.ts';
+import { parseTaskCreate, TASK_FIELDS, taskField } from '../task-validation.ts';
+import { parseMilestone, parseProjectCreate, PROJECT_FIELDS } from '../validation.ts';
+import { parseRelationship } from '../task-validation.ts';
+import { parseContentSave } from '../docs/validation.ts';
 import { effectiveState } from '../docs/semantics.ts';
 import {
   AI_REGISTRY_VERSION,
@@ -130,6 +154,8 @@ export interface AiGatewayDeps {
 export const AI_DISPATCH_JOB = 'ai.action.dispatch';
 /** The 0C action an AI run executes under (R1, not a step-up action). */
 const AI_EXECUTE_ACTION = 'ai.execute' as const;
+/** 0C `ai.apply_proposal` (R1, edit, no step-up): the risk the apply operation records. */
+const AI_APPLY_PROPOSAL_ACTION = 'ai.apply_proposal' as const;
 const AI_QUEUE = 'default';
 const PROMPT_MAX_CHARS = 8000;
 const CONTEXT_MAX = 5;
@@ -164,6 +190,7 @@ export const AI_DISABLED_DEPS: AiGatewayDeps = {
     historyRetentionDays: null,
     stream: { outputMaxChars: 40_000, eventMaxBytes: 65_536, maxBytes: 4_194_304 },
     retrieval: { sourcesMax: 8, sourceChars: 1500 },
+    proposals: { approvalHours: 24, changesMax: 25 },
   },
   provider: null,
   entitlements: { aiAllowed: async () => false },
@@ -206,19 +233,24 @@ interface PreparedRun {
   inputBound: number;
   outputBound: number;
   maxCost: bigint;
-  purpose: 'test_run' | 'grounded_answer';
+  purpose: 'test_run' | 'grounded_answer' | 'change_proposal';
   /** The context manifest of a grounded answer (memory only; references are what is stored). */
   manifest: Manifest | null;
 }
 
 /** A grounded answer's input: the question and retrieval choices, or a recorded manifest. */
 interface AnswerSpec {
+  /** What the run produces from the manifest: a grounded answer, or (7D) a change proposal. */
+  purpose?: 'grounded_answer' | 'change_proposal';
   retrieval: RetrievalInput;
   /** The manifest digest the person previewed and confirmed (start and estimate). */
   digest: string | null;
   /** The recorded manifest (worker re-check and publication). */
   pinned: { refs: PinnedRef[]; omitted: number; digest: string } | null;
 }
+
+/** Purposes that run on a 7B context manifest. */
+const RETRIEVAL_PURPOSES: readonly string[] = ['grounded_answer', 'change_proposal'];
 
 type OpRow = {
   id: string;
@@ -235,6 +267,18 @@ type OpRow = {
 /** C0 controls other than tab, newline, and carriage return (the database plain-text rule). */
 // eslint-disable-next-line no-control-regex
 const CONTROL_CHARS = /[\x01-\x08\x0b\x0c\x0e-\x1f\x7f]/;
+
+/** Per-change outcome messages (7D): safe text, never a hidden value or record detail. */
+const FAILURE_MESSAGES: Record<string, string> = {
+  default: 'This change cannot be applied.',
+  target_unavailable: 'The record this change targets is no longer available to you.',
+  not_permitted: 'You do not have permission to make this change.',
+  target_changed: 'The record changed since the proposal was made. Review the current value first.',
+  step_up_required: 'This change needs you to confirm your identity first.',
+  dependency_missing: 'A change this one depends on was not applied.',
+  dependency_failed: 'A change this one depends on cannot be applied.',
+  not_attempted: 'Not attempted because an earlier change failed.',
+};
 
 /** Audit field stems per meter (field names never look like credentials). */
 const AUDIT_METER: Record<AiMeter, string> = {
@@ -1849,9 +1893,17 @@ export class AiGatewayService extends McpAccessService {
     maxOutput: number,
     spec: AnswerSpec,
   ): Promise<PreparedRun> {
+    const purpose = spec.purpose ?? 'grounded_answer';
     const brandRows = await this.#retrievalAuthority(tx, p, spec.retrieval.scope);
     const { policy, decision } = await this.#availability(tx);
     this.#requireReady(decision);
+    // 7D demonstrates the proposal protocol with the labelled synthetic fixture only; generating
+    // proposals with a real model is 7C's (and stays behind every production-AI gate).
+    if (purpose === 'change_proposal' && !decision.model.synthetic)
+      throw this.#refuse(
+        'ai_proposal_generation_unavailable',
+        'Generating change proposals with a real model is not available yet. Nothing was sent.',
+      );
     const manifest = await this.#manifestFor(tx, p, spec, policy?.maxDataClass ?? 'C2');
     const changed = spec.pinned ? spec.pinned.digest : spec.digest;
     if (changed && manifest.digest !== changed)
@@ -1881,7 +1933,9 @@ export class AiGatewayService extends McpAccessService {
     const brand = brandRows.length === 1 ? brandRows[0]! : null;
     const redacted = redactCredentials(question);
     const profile = await this.#brandProfileText(tx, brand?.id ?? null);
-    const system = profile ? `${GROUNDED_SYSTEM_TEMPLATE}\n\n${profile}` : GROUNDED_SYSTEM_TEMPLATE;
+    const template =
+      purpose === 'change_proposal' ? PROPOSAL_SYSTEM_TEMPLATE : GROUNDED_SYSTEM_TEMPLATE;
+    const system = profile ? `${template}\n\n${profile}` : template;
     const user = groundedUserMessage(redacted.text, manifest.entries);
     const model = decision.model;
     const inputBound = inputTokenBound(model, [system, user], 1);
@@ -1913,7 +1967,7 @@ export class AiGatewayService extends McpAccessService {
       inputBound,
       outputBound,
       maxCost: maxCostPico(model, inputBound, outputBound),
-      purpose: 'grounded_answer',
+      purpose,
       manifest,
     };
   }
@@ -1999,11 +2053,49 @@ export class AiGatewayService extends McpAccessService {
     );
   }
 
+  /**
+   * Starts a change-proposal run (7D) over a previewed manifest, through the same gateway. The run
+   * only proposes: its output becomes a reviewable proposal and nothing is applied. Delegated
+   * callers cannot start one (proposals are reviewed and applied by the person).
+   */
+  async startAiProposalRun(caller: Caller, ws: unknown, body: unknown, req: Mutation) {
+    const input = this.#parseRetrieval(body, 'answer');
+    return this.mutate(
+      caller,
+      'ai.proposal.start',
+      ws,
+      req,
+      async (tx, p) => {
+        this.#requireApplier(caller, p);
+        return this.#createRun(
+          tx,
+          caller,
+          p,
+          {
+            prompt: input.question,
+            brand: null,
+            refs: [],
+            maxOutput: input.maxOutput,
+            confirm: input.confirm,
+            answer: {
+              retrieval: input.retrieval,
+              digest: input.digest,
+              pinned: null,
+              purpose: 'change_proposal',
+            },
+          },
+          null,
+        );
+      },
+      async (tx, p, ref) => this.#renderRun(tx, caller, p, ref.id),
+    );
+  }
+
   /** A grounded run's recorded manifest, as the answer spec the worker and renderer re-check. */
   async #recordedAnswer(
     tx: WorkspaceTransaction,
     opId: string,
-    action: { retrieval_scope: unknown; manifest_digest: string | null },
+    action: { retrieval_scope: unknown; manifest_digest: string | null; purpose?: string },
   ): Promise<AnswerSpec> {
     const scope = (action.retrieval_scope ?? {}) as {
       brands?: string[];
@@ -2032,6 +2124,7 @@ export class AiGatewayService extends McpAccessService {
       fields: r.fields,
     }));
     return {
+      purpose: action.purpose === 'change_proposal' ? 'change_proposal' : 'grounded_answer',
       retrieval: {
         scope: {
           brands: scope.brands ?? [],
@@ -2163,7 +2256,7 @@ export class AiGatewayService extends McpAccessService {
       content_hash: string | null;
     }>,
   ): Promise<Eligibility> {
-    const grounded = action.purpose === 'grounded_answer';
+    const grounded = RETRIEVAL_PURPOSES.includes(action.purpose);
     const stored = (action.retrieval_scope ?? {}) as {
       brands?: string[];
       project?: string | null;
@@ -2459,7 +2552,11 @@ export class AiGatewayService extends McpAccessService {
         model_id: model.modelId,
         registry_version: AI_REGISTRY_VERSION,
         prompt_template_version:
-          prep.purpose === 'grounded_answer' ? GROUNDED_TEMPLATE_VERSION : PROMPT_TEMPLATE_VERSION,
+          prep.purpose === 'grounded_answer'
+            ? GROUNDED_TEMPLATE_VERSION
+            : prep.purpose === 'change_proposal'
+              ? PROPOSAL_VERSION
+              : PROMPT_TEMPLATE_VERSION,
         price_snapshot: JSON.stringify(priceSnapshot(model)),
         privacy_snapshot: JSON.stringify(
           privacySnapshot(model, prep.decision.approved, policy?.maxDataClass ?? 'C2'),
@@ -2690,14 +2787,13 @@ export class AiGatewayService extends McpAccessService {
           .executeTakeFirstOrThrow();
         // A grounded retry rediscovers the context from the same choices; if anything changed
         // since the confirmed manifest, it needs a fresh preview (never a silent new context).
-        const answer =
-          full.purpose === 'grounded_answer'
-            ? {
-                ...(await this.#recordedAnswer(tx, op.id, full)),
-                pinned: null,
-                digest: full.manifest_digest,
-              }
-            : null;
+        const answer = RETRIEVAL_PURPOSES.includes(full.purpose)
+          ? {
+              ...(await this.#recordedAnswer(tx, op.id, full)),
+              pinned: null,
+              digest: full.manifest_digest,
+            }
+          : null;
         return this.#createRun(
           tx,
           caller,
@@ -2800,7 +2896,7 @@ export class AiGatewayService extends McpAccessService {
       .where('operation_id', '=', op.id)
       .orderBy('position')
       .execute();
-    const grounded = action.purpose === 'grounded_answer';
+    const grounded = RETRIEVAL_PURPOSES.includes(action.purpose);
     const scope = (action.retrieval_scope ?? null) as {
       brands?: string[];
       project?: string | null;
@@ -2881,8 +2977,27 @@ export class AiGatewayService extends McpAccessService {
           present && last && last.content !== null && !grounded
             ? { text: last.content, completeness: last.completeness }
             : null,
+        // A change-proposal run shows its proposal outcome; the proposal itself is reviewed on
+        // its own page through the same current-content check.
+        proposal:
+          present && action.purpose === 'change_proposal' && last && last.grounding
+            ? (() => {
+                const g = last.grounding as unknown as {
+                  status: string;
+                  reason: string | null;
+                  proposal: string | null;
+                  issues: unknown[];
+                };
+                return {
+                  status: g.status,
+                  reason: g.reason,
+                  id: g.proposal,
+                  issues: g.issues ?? [],
+                };
+              })()
+            : null,
         answer:
-          present && grounded && last && last.grounding
+          present && grounded && action.purpose !== 'change_proposal' && last && last.grounding
             ? {
                 completeness: last.completeness,
                 ...this.#answerView(
@@ -3412,7 +3527,7 @@ export class AiGatewayService extends McpAccessService {
   // ---------------------------------------------------------------------------------------------
 
   /**
-   * The caller's own AI history as export rows (DATA-013, 7A portion). Content follows the same
+   * The caller's own AI history as export rows (DATA-013, 7A portion; 7D proposals). Content follows the same
    * current-authority rule as the detail view; usage metadata is always included. Never a cached
    * raw provider response.
    */
@@ -3436,7 +3551,18 @@ export class AiGatewayService extends McpAccessService {
       const out: Record<string, unknown>[] = [];
       for (const r of rows) {
         const run = await this.#renderRun(tx, caller, p, r.public_id);
-        out.push({ public_id: r.public_id, host_public_id: run.brand?.id ?? '', data: run });
+        // 7D: a change-proposal run exports its proposal through the same review renderer (current
+        // authority; withheld or erased content is never exported).
+        const prp = await tx.db
+          .selectFrom('ai.change_proposal as c')
+          .innerJoin('exec.operation as o', 'o.id', 'c.operation_id')
+          .select('c.public_id')
+          .where('o.public_id', '=', r.public_id)
+          .executeTakeFirst();
+        const data = prp
+          ? { ...run, change_proposal: await this.#proposalView(tx, caller, p, prp.public_id) }
+          : run;
+        out.push({ public_id: r.public_id, host_public_id: run.brand?.id ?? '', data });
       }
       return out;
     });
@@ -3718,7 +3844,15 @@ export class AiGatewayService extends McpAccessService {
       if (d.state !== 'dispatching') return { state: d.state, detail: d.failure_detail };
       const action = await tx.db
         .selectFrom('ai.ai_action')
-        .select(['funding', 'brand_id', 'content_state', 'price_snapshot'])
+        .select([
+          'funding',
+          'brand_id',
+          'content_state',
+          'price_snapshot',
+          'purpose',
+          'initiating_membership_id',
+          'retrieval_scope',
+        ])
         .where('operation_id', '=', opId)
         .executeTakeFirstOrThrow();
       const now = new Date();
@@ -3788,8 +3922,46 @@ export class AiGatewayService extends McpAccessService {
       ) {
         // A grounded answer is validated against the manifest it was given, after re-checking
         // every source as its initiator now; a changed or unreadable source withholds it.
-        let grounding: Grounding | null = null;
-        if (request.manifest) {
+        let grounding: Grounding | Record<string, unknown> | null = null;
+        if (request.manifest && action.purpose === 'change_proposal') {
+          // A change proposal is parsed into typed changes over the same manifest; nothing is
+          // applied here. A changed or unreadable source withholds it like an answer.
+          const check = await this.#publicationCheck(tx, opId);
+          const exists = await tx.db
+            .selectFrom('ai.change_proposal')
+            .select('public_id')
+            .where('operation_id', '=', opId)
+            .executeTakeFirst();
+          grounding =
+            check !== 'ok'
+              ? {
+                  version: PROPOSAL_VERSION,
+                  status: 'withheld',
+                  reason: check,
+                  proposal: null,
+                  issues: [],
+                }
+              : exists
+                ? {
+                    version: PROPOSAL_VERSION,
+                    status: 'proposed',
+                    reason: null,
+                    proposal: exists.public_id,
+                    issues: [],
+                  }
+                : await this.#createProposal(
+                    tx,
+                    opId,
+                    action,
+                    text,
+                    decided.completeness === 'complete'
+                      ? 'complete'
+                      : decided.completeness === 'truncated'
+                        ? 'truncated'
+                        : 'partial',
+                    request.manifest,
+                  );
+        } else if (request.manifest) {
           const check = await this.#publicationCheck(tx, opId);
           grounding =
             check === 'ok'
@@ -3805,7 +3977,9 @@ export class AiGatewayService extends McpAccessService {
                   today: await this.workspaceToday(tx),
                 })
               : withheldGrounding(check);
-          this.d.metrics.count('ai.answer_validations', 1, { status: grounding.status });
+          this.d.metrics.count('ai.answer_validations', 1, {
+            status: (grounding as Grounding).status,
+          });
         }
         await tx.db
           .insertInto('ai.ai_output')
@@ -3949,8 +4123,9 @@ export class AiGatewayService extends McpAccessService {
         )?.public_id ?? null)
       : null;
     // A grounded answer is re-checked against exactly the manifest that was confirmed.
-    const answer =
-      action.purpose === 'grounded_answer' ? await this.#recordedAnswer(tx, opId, action) : null;
+    const answer = RETRIEVAL_PURPOSES.includes(action.purpose)
+      ? await this.#recordedAnswer(tx, opId, action)
+      : null;
     let prep: PreparedRun;
     try {
       prep = await this.#prepare(
@@ -4048,6 +4223,1603 @@ export class AiGatewayService extends McpAccessService {
 
   aiHistoryRetentionDays(): number | null {
     return this.#ai.config.historyRetentionDays;
+  }
+  // ---------------------------------------------------------------------------------------------
+  // 7D change proposals (ADR-0040): review, edit, select, approve, and explicitly apply
+  // ---------------------------------------------------------------------------------------------
+
+  /**
+   * Callers acting inside a proposal application. The derived caller object is unique to one
+   * request, so concurrent requests never share it; the ordinary domain commands then record the
+   * apply operation, the generating AI action as causation, and source `ai_proposal`, while the
+   * actor stays the applying person (no impersonation either way).
+   */
+  #proposalCallers = new WeakMap<
+    Caller,
+    { operationId: string; causationId: string; proposal: string }
+  >();
+
+  protected override exec(caller: Caller, p: Principal): ExecutionContext {
+    const base = super.exec(caller, p);
+    const a = this.#proposalCallers.get(caller);
+    return a ? { ...base, operationId: a.operationId, causationId: a.causationId } : base;
+  }
+
+  protected override cmd(
+    caller: Caller,
+    p: Principal,
+    brandId: string | null = null,
+  ): CommandContext {
+    const a = this.#proposalCallers.get(caller);
+    if (!a) return super.cmd(caller, p, brandId);
+    return CommandContext.fromExecution(
+      this.exec(caller, p),
+      { kind: 'ai_proposal', ref: a.proposal },
+      { brandId },
+    );
+  }
+
+  /** `ai.apply_proposal` (0C): read-only members and guests never apply (AZ-47). */
+  #requireApplier(caller: Caller, p: Principal) {
+    // No token scope carries ai.apply_proposal: proposals are reviewed and applied by the person.
+    if (caller.delegation || p.kind !== 'member' || p.role === 'read_only')
+      throw new TenancyError('forbidden');
+  }
+
+  async #ownProposal(
+    tx: WorkspaceTransaction,
+    p: Principal,
+    prp: unknown,
+    opts: { lock?: boolean } = {},
+  ) {
+    if (typeof prp !== 'string' || !/^prp_[0-9A-HJKMNP-TV-Z]{26}$/.test(prp))
+      throw new TenancyError('not_found');
+    let q = tx.db.selectFrom('ai.change_proposal').selectAll().where('public_id', '=', prp);
+    if (opts.lock) q = q.forUpdate();
+    const proposal = await q.executeTakeFirst();
+    // Proposal content is personal to the person who started the run (like all AI history).
+    if (!proposal || proposal.initiating_membership_id !== p.membershipId)
+      throw new TenancyError('not_found');
+    const action = await tx.db
+      .selectFrom('ai.ai_action')
+      .selectAll()
+      .where('operation_id', '=', proposal.operation_id)
+      .executeTakeFirstOrThrow();
+    const changes = await tx.db
+      .selectFrom('ai.proposed_change')
+      .selectAll()
+      .where('proposal_id', '=', proposal.id)
+      .orderBy('position')
+      .execute();
+    return { proposal, action, changes };
+  }
+
+  /**
+   * The 7B current-content decision for the run that generated the proposal: its scope and every
+   * source it used must still be readable, and every used field still allowed. One evaluator for
+   * history, review, approval, application, replay, and export.
+   */
+  async #proposalEligible(
+    tx: WorkspaceTransaction,
+    p: Principal,
+    proposal: { content_state: string },
+    action: {
+      operation_id: string;
+      purpose: string;
+      retrieval_scope: unknown;
+      brand_id: string | null;
+    },
+  ) {
+    if (proposal.content_state !== 'present') return false;
+    const refs = await tx.db
+      .selectFrom('ai.ai_context_ref')
+      .selectAll()
+      .where('operation_id', '=', action.operation_id)
+      .orderBy('position')
+      .execute();
+    return (await this.#contentEligibility(tx, p, action, refs)).eligible;
+  }
+
+  #fingerprintOf(
+    proposal: { public_id: string; revision: number },
+    changes: ReadonlyArray<{
+      change_key: string;
+      op: string;
+      target_public_id: string | null;
+      expected_version: number | string | null;
+      depends_on: string[];
+      decision: string;
+      payload: unknown;
+      selected: boolean;
+    }>,
+  ) {
+    return proposalFingerprint({
+      proposal: proposal.public_id,
+      revision: proposal.revision,
+      selected: changes.filter((c) => c.selected).map((c) => c.change_key),
+      changes: changes.map((c) => ({
+        key: c.change_key,
+        op: c.op,
+        targetPublicId: c.target_public_id,
+        expectedVersion: c.expected_version === null ? null : Number(c.expected_version),
+        dependsOn: c.depends_on,
+        decision: c.decision,
+        payload: c.payload,
+      })),
+    });
+  }
+
+  /** Creates a proposal from a completed change-proposal run (settlement transaction). */
+  async #createProposal(
+    tx: WorkspaceTransaction,
+    opId: string,
+    action: { initiating_membership_id: string; retrieval_scope: unknown },
+    text: string,
+    completeness: 'complete' | 'truncated' | 'partial',
+    manifest: Manifest,
+  ): Promise<Record<string, unknown>> {
+    const base = {
+      version: PROPOSAL_VERSION,
+      proposal: null as string | null,
+      issues: [] as unknown[],
+    };
+    if (completeness !== 'complete')
+      return {
+        ...base,
+        status: 'rejected',
+        reason: completeness === 'truncated' ? 'truncated_response' : 'partial_response',
+      };
+    const handles = manifest.entries
+      .filter((e) => e.included && e.handle)
+      .map((e) => ({
+        handle: e.handle!,
+        kind: e.kind,
+        publicId: e.publicId,
+        recordId: e.recordId,
+        version: e.version,
+      }));
+    const parsed = parseProposal(text, handles, {
+      changesMax: this.#ai.config.proposals.changesMax,
+      scopeBrands: manifest.scope.brands.length,
+    });
+    if (!parsed.ok) {
+      this.d.metrics.count('ai.proposals', 1, { outcome: 'rejected' });
+      return {
+        ...base,
+        status: 'rejected',
+        reason: 'invalid_proposal',
+        issues: parsed.issues.slice(0, 20),
+      };
+    }
+    const id = newUuidV7();
+    const publicId = newPublicId('prp');
+    const rows = parsed.proposal.changes.map((c) => ({
+      change_key: c.key,
+      op: c.op,
+      target_public_id: c.target?.publicId ?? null,
+      expected_version: c.expectedVersion,
+      depends_on: c.dependsOn,
+      decision: 'pending',
+      payload: c.payload,
+      selected: true,
+    }));
+    const fingerprint = this.#fingerprintOf({ public_id: publicId, revision: 1 }, rows);
+    await tx.db
+      .insertInto('ai.change_proposal')
+      .values({
+        id,
+        workspace_id: tx.workspaceId,
+        public_id: publicId,
+        operation_id: opId,
+        initiating_membership_id: action.initiating_membership_id,
+        fingerprint,
+        title: parsed.proposal.title
+          ? redactCredentials(parsed.proposal.title).text.slice(0, 300)
+          : null,
+      })
+      .execute();
+    await tx.db
+      .insertInto('ai.proposed_change')
+      .values(
+        parsed.proposal.changes.map((c) => ({
+          id: newUuidV7(),
+          workspace_id: tx.workspaceId,
+          proposal_id: id,
+          change_key: c.key,
+          position: c.position,
+          op: c.op,
+          temp_ref: c.tempRef,
+          target_record_id: c.target?.recordId ?? null,
+          target_public_id: c.target?.publicId ?? null,
+          expected_version: c.expectedVersion,
+          depends_on: c.dependsOn,
+          payload: JSON.stringify(c.payload),
+          sources: c.sources,
+        })),
+      )
+      .execute();
+    await this.#proposalEvent(
+      tx,
+      id,
+      1,
+      'generated',
+      null,
+      rows.map((r) => r.change_key),
+      fingerprint,
+    );
+    this.d.metrics.count('ai.proposals', 1, { outcome: 'proposed' });
+    return { ...base, status: 'proposed', reason: null, proposal: publicId };
+  }
+
+  async #proposalEvent(
+    tx: WorkspaceTransaction,
+    proposalId: string,
+    revision: number,
+    kind:
+      | 'generated'
+      | 'edited'
+      | 'approved'
+      | 'approval_superseded'
+      | 'rejected'
+      | 'applied'
+      | 'apply_failed'
+      | 'erased',
+    actor: string | null,
+    keys: string[],
+    fingerprint: string,
+  ) {
+    await tx.db
+      .insertInto('ai.proposal_event')
+      .values({
+        id: newUuidV7(),
+        workspace_id: tx.workspaceId,
+        proposal_id: proposalId,
+        revision,
+        kind,
+        actor_membership_id: actor,
+        change_keys: keys.slice(0, 100),
+        fingerprint,
+      })
+      .execute();
+  }
+
+  /** Current authorized values of a target, for the before side of the diff. */
+  async #currentValues(
+    tx: WorkspaceTransaction,
+    p: Principal,
+    kind: 'task' | 'project' | 'document',
+    publicId: string,
+  ): Promise<{ title: string; version: number; values: Record<string, string | null> } | null> {
+    try {
+      if (kind === 'task') {
+        const t = await this.loadTask(tx, p, publicId);
+        this.requireTaskAction(p, 'record.read', t);
+        return {
+          title: t.row.title,
+          version: Number(t.row.version),
+          values: {
+            title: t.row.title,
+            description: t.row.description_rich
+              ? plainFromRichText(t.row.description_rich as never)
+              : null,
+            priority: t.row.priority,
+            start_date: t.row.start_date ? String(t.row.start_date) : null,
+            due_date: t.row.due_date ? String(t.row.due_date) : null,
+            status: this.statusView(t.row.status_id, tx).key,
+          },
+        };
+      }
+      if (kind === 'project') {
+        const pr = await this.loadProject(tx, p, publicId);
+        this.requireProjectAction(p, 'record.read', pr);
+        return {
+          title: pr.row.name,
+          version: Number(pr.row.version),
+          values: {
+            name: pr.row.name,
+            description: pr.row.description_rich
+              ? plainFromRichText(pr.row.description_rich as never)
+              : null,
+            priority: pr.row.priority,
+            start_date: pr.row.start_date ? String(pr.row.start_date) : null,
+            target_date: pr.row.target_date ? String(pr.row.target_date) : null,
+            status: this.statusView(pr.row.status_id, tx).key,
+          },
+        };
+      }
+      const d = await this.loadDocument(tx, p, publicId);
+      this.requireDocAction(p, 'record.read', d);
+      const v = await this.versionRow(tx, d.id, d.row.current_version_number);
+      const text = v ? plainText(readContent(v.content)) : '';
+      return {
+        title: d.row.title,
+        version: d.row.current_version_number,
+        values: { title: d.row.title, text: text.length > 2000 ? `${text.slice(0, 2000)}…` : text },
+      };
+    } catch (err) {
+      if (err instanceof TenancyError) return null;
+      throw err;
+    }
+  }
+
+  async #proposalView(tx: WorkspaceTransaction, caller: Caller, p: Principal, prp: string) {
+    const { proposal, action, changes } = await this.#ownProposal(tx, p, prp);
+    const eligible = await this.#proposalEligible(tx, p, proposal, action);
+    const op = await tx.db
+      .selectFrom('exec.operation')
+      .select('public_id')
+      .where('id', '=', proposal.operation_id)
+      .executeTakeFirstOrThrow();
+    const content =
+      proposal.content_state === 'erased' ? 'erased' : eligible ? 'present' : 'withheld';
+    const approval = await tx.db
+      .selectFrom('ai.proposal_approval')
+      .selectAll()
+      .where('proposal_id', '=', proposal.id)
+      .where('state', '=', 'active')
+      .executeTakeFirst();
+    const application = await tx.db
+      .selectFrom('ai.proposal_application as a')
+      .innerJoin('exec.operation as o', 'o.id', 'a.operation_id')
+      .select([
+        'a.outcome',
+        'a.applied_count',
+        'a.failed_count',
+        'a.revision',
+        'a.created_at',
+        'o.public_id',
+      ])
+      .where('a.proposal_id', '=', proposal.id)
+      .orderBy('a.created_at', 'desc')
+      .executeTakeFirst();
+    const now = Date.now();
+    const base = {
+      id: proposal.public_id,
+      type: 'change_proposal' as const,
+      state: proposal.state,
+      revision: proposal.revision,
+      version: Number(proposal.version),
+      created_at: new Date(proposal.created_at).toISOString(),
+      updated_at: new Date(proposal.updated_at).toISOString(),
+      run: op.public_id,
+      synthetic: action.synthetic,
+      application: application
+        ? {
+            outcome: application.outcome,
+            applied_count: application.applied_count,
+            failed_count: application.failed_count,
+            revision: application.revision,
+            operation: application.public_id,
+            at: new Date(application.created_at).toISOString(),
+          }
+        : null,
+    };
+    if (content !== 'present')
+      return {
+        ...base,
+        content: {
+          state: content,
+          note:
+            content === 'erased'
+              ? 'This proposal was erased under the retention or departure policy. Applied changes remain.'
+              : 'A source used by this proposal is no longer available to you, so the proposal is withheld.',
+        },
+        title: null,
+        fingerprint: null,
+        changes: [],
+        order: [],
+        approval: null,
+        history: [],
+        can: { edit: false, approve: false, apply: false, reject: false },
+      };
+    const order = orderChanges(
+      changes.map((c) => ({ key: c.change_key, position: c.position, dependsOn: c.depends_on })),
+    );
+    const temps = new Map(
+      changes.filter((c) => c.temp_ref).map((c) => [c.temp_ref!, c.change_key]),
+    );
+    const refView = async (r: RefValue | undefined) => {
+      if (!r) return null;
+      if ('new' in r) return { new: r.new, change: temps.get(r.new) ?? null };
+      const cur = await this.#currentValues(tx, p, r.existing.kind, r.existing.publicId);
+      return cur
+        ? { type: r.existing.kind, id: r.existing.publicId, title: cur.title }
+        : { available: false as const };
+    };
+    const rendered = [];
+    for (const c of changes) {
+      const payload = (c.payload ?? { fields: {} }) as ProposalChange['payload'];
+      let target: Record<string, unknown> | null = null;
+      let before: Record<string, string | null> = {};
+      if (c.target_public_id) {
+        const cur = await this.#currentValues(
+          tx,
+          p,
+          c.op === 'task.update' ? 'task' : c.op === 'project.update' ? 'project' : 'document',
+          c.target_public_id,
+        );
+        target = cur
+          ? {
+              type:
+                c.op === 'task.update'
+                  ? 'task'
+                  : c.op === 'project.update'
+                    ? 'project'
+                    : 'document',
+              id: c.target_public_id,
+              title: cur.title,
+              version: cur.version,
+              out_of_date:
+                c.expected_version !== null && cur.version !== Number(c.expected_version),
+            }
+          : { available: false };
+        before = cur?.values ?? {};
+      }
+      const result =
+        c.result_public_id && c.applied_state === 'applied'
+          ? await this.#resultView(tx, p, c.result_public_id)
+          : null;
+      rendered.push({
+        key: c.change_key,
+        op: c.op,
+        selected: c.selected,
+        decision: c.decision,
+        depends_on: c.depends_on,
+        temp_ref: c.temp_ref,
+        target,
+        project: await refView(payload.project),
+        parent: await refView(payload.parent),
+        brand: payload.brand ?? null,
+        relation: payload.relation
+          ? {
+              kind: payload.relation.kind,
+              from: await refView(payload.relation.from),
+              to: await refView(payload.relation.to),
+            }
+          : null,
+        fields: Object.entries(payload.fields).map(([field, after]) => ({
+          field,
+          // Before values come from the record now, through current authorization.
+          before: target && 'available' in target ? null : (before[field] ?? null),
+          after,
+        })),
+        sources: c.sources,
+        applied_state: c.applied_state,
+        result,
+        failure: c.failure_code
+          ? {
+              code: c.failure_code,
+              message: FAILURE_MESSAGES[c.failure_code] ?? FAILURE_MESSAGES.default!,
+            }
+          : null,
+      });
+    }
+    const history = await tx.db
+      .selectFrom('ai.proposal_event')
+      .select(['kind', 'revision', 'change_keys', 'created_at'])
+      .where('proposal_id', '=', proposal.id)
+      .orderBy('created_at')
+      .execute();
+    const fingerprint = this.#fingerprintOf(proposal, changes);
+    const open = ['open', 'approved', 'failed'].includes(proposal.state);
+    const applier = !caller.delegation && p.kind === 'member' && p.role !== 'read_only';
+    const approvalLive =
+      approval &&
+      approval.revision === proposal.revision &&
+      new Date(approval.expires_at).getTime() > now;
+    return {
+      ...base,
+      content: { state: 'present' as const, note: null },
+      title: proposal.title,
+      fingerprint,
+      trust_note:
+        'This proposal is AI-generated. Its changes are suggestions, not facts or evidence of completion; nothing changes until you apply it.',
+      changes: rendered,
+      order: order.ok ? order.order : [],
+      selection_issues: selectionIssues(
+        changes.map((c) => ({ key: c.change_key, dependsOn: c.depends_on, decision: c.decision })),
+        changes.filter((c) => c.selected).map((c) => c.change_key),
+      ),
+      approval: approval
+        ? {
+            revision: approval.revision,
+            selected: approval.selected,
+            expires_at: new Date(approval.expires_at).toISOString(),
+            valid: !!approvalLive && approval.fingerprint === fingerprint,
+          }
+        : null,
+      history: history.map((h) => ({
+        kind: h.kind,
+        revision: h.revision,
+        changes: h.change_keys,
+        at: new Date(h.created_at).toISOString(),
+      })),
+      can: {
+        edit: open && applier,
+        approve: open && applier,
+        apply: proposal.state === 'approved' && applier && !!approvalLive,
+        reject: open && applier,
+      },
+    };
+  }
+
+  async #resultView(tx: WorkspaceTransaction, p: Principal, publicId: string) {
+    const kind = publicId.startsWith('tsk_')
+      ? 'task'
+      : publicId.startsWith('prj_')
+        ? 'project'
+        : publicId.startsWith('doc_')
+          ? 'document'
+          : publicId.startsWith('mil_') || publicId.startsWith('mst_')
+            ? 'milestone'
+            : 'record';
+    if (kind === 'task' || kind === 'project' || kind === 'document') {
+      const cur = await this.#currentValues(tx, p, kind, publicId);
+      return cur ? { type: kind, id: publicId, title: cur.title } : { available: false };
+    }
+    return { type: kind, id: publicId };
+  }
+
+  async listAiProposals(caller: Caller, ws: unknown) {
+    return this.inWorkspace(caller, ws, { readOnly: true }, async (tx, p) => {
+      const rows = await tx.db
+        .selectFrom('ai.change_proposal')
+        .select('public_id')
+        .where('initiating_membership_id', '=', p.membershipId)
+        .orderBy('created_at', 'desc')
+        .limit(HISTORY_PAGE_MAX)
+        .execute();
+      // A summary per proposal: the same eligibility decision as the detail view, without
+      // loading every target (bounded by HISTORY_PAGE_MAX).
+      const items = [];
+      for (const r of rows) {
+        const { proposal, action } = await this.#ownProposal(tx, p, r.public_id);
+        const eligible = await this.#proposalEligible(tx, p, proposal, action);
+        const op = await tx.db
+          .selectFrom('exec.operation')
+          .select('public_id')
+          .where('id', '=', proposal.operation_id)
+          .executeTakeFirstOrThrow();
+        const app = await tx.db
+          .selectFrom('ai.proposal_application as a')
+          .innerJoin('exec.operation as o', 'o.id', 'a.operation_id')
+          .select([
+            'a.outcome',
+            'a.applied_count',
+            'a.failed_count',
+            'a.revision',
+            'a.created_at',
+            'o.public_id',
+          ])
+          .where('a.proposal_id', '=', proposal.id)
+          .orderBy('a.created_at', 'desc')
+          .executeTakeFirst();
+        const content =
+          proposal.content_state === 'erased' ? 'erased' : eligible ? 'present' : 'withheld';
+        items.push({
+          id: proposal.public_id,
+          state: proposal.state,
+          revision: proposal.revision,
+          created_at: new Date(proposal.created_at).toISOString(),
+          run: op.public_id,
+          synthetic: action.synthetic,
+          content: { state: content },
+          title: content === 'present' ? proposal.title : null,
+          application: app
+            ? {
+                outcome: app.outcome,
+                applied_count: app.applied_count,
+                failed_count: app.failed_count,
+                revision: app.revision,
+                operation: app.public_id,
+                at: new Date(app.created_at).toISOString(),
+              }
+            : null,
+        });
+      }
+      return { items };
+    });
+  }
+
+  async getAiProposal(caller: Caller, ws: unknown, prp: unknown) {
+    return this.inWorkspace(caller, ws, { readOnly: true }, async (tx, p) => {
+      const { proposal } = await this.#ownProposal(tx, p, prp);
+      return this.#proposalView(tx, caller, p, proposal.public_id);
+    });
+  }
+
+  /** Maps a domain refusal to a safe per-change outcome (no hidden values or details). */
+  #changeFailure(err: unknown): { code: string; message: string } {
+    if (err instanceof StepUpNeeded)
+      return { code: 'step_up_required', message: FAILURE_MESSAGES.step_up_required! };
+    if (!(err instanceof TenancyError)) throw err;
+    if (err.code === 'not_found')
+      return { code: 'target_unavailable', message: FAILURE_MESSAGES.target_unavailable! };
+    if (err.code === 'forbidden')
+      return { code: 'not_permitted', message: FAILURE_MESSAGES.not_permitted! };
+    const first = err.issues[0];
+    const code = (first?.code ?? err.code).replace(/[^a-z_]/g, '_').slice(0, 64) || 'refused';
+    return { code, message: first?.message ?? FAILURE_MESSAGES[code] ?? FAILURE_MESSAGES.default! };
+  }
+
+  /**
+   * Runs one change through its canonical domain command (a typed adapter per operation; no direct
+   * domain writes, no second validator). Returns the record the change created or touched.
+   */
+  async #applyChange(
+    tx: WorkspaceTransaction,
+    caller: Caller,
+    p: Principal,
+    proposal: { public_id: string },
+    action: { retrieval_scope: unknown },
+    c: {
+      change_key: string;
+      op: ProposalOp;
+      target_public_id: string | null;
+      expected_version: number | string | null;
+      payload: unknown;
+    },
+    ids: Map<string, { publicId: string; recordId: string }>,
+    req: Mutation,
+  ): Promise<{ publicId: string; recordId: string }> {
+    const payload = c.payload as ProposalChange['payload'];
+    const f = payload.fields;
+    const ref = (r: RefValue | undefined) => {
+      if (!r) return undefined;
+      if ('existing' in r) return r.existing.publicId;
+      const made = ids.get(r.new);
+      if (!made)
+        throw invalid(issue('/', 'dependency_missing', FAILURE_MESSAGES.dependency_missing!));
+      return made.publicId;
+    };
+    const rich = (v: string | null | undefined) =>
+      v === undefined ? undefined : v === null ? null : richTextFromPlain(v);
+    const changed = () =>
+      new TenancyError('conflict', {
+        issues: [issue('/', 'target_changed', FAILURE_MESSAGES.target_changed!)],
+      });
+    const expected = c.expected_version === null ? null : Number(c.expected_version);
+    switch (c.op) {
+      case 'task.create': {
+        const project = ref(payload.project);
+        const parent = ref(payload.parent);
+        const input = parseTaskCreate(
+          {
+            ...(project ? { project } : {}),
+            ...(parent ? { parent } : {}),
+            title: f.title,
+            ...(f.description !== undefined ? { description: rich(f.description) } : {}),
+            ...(f.priority !== undefined ? { priority: f.priority } : {}),
+            ...(f.start_date !== undefined ? { start_date: f.start_date } : {}),
+            ...(f.due_date !== undefined ? { due_date: f.due_date } : {}),
+          },
+          this.ws.taskEstimateMinutesMax,
+        );
+        const container = await this.resolveContainer(
+          tx,
+          p,
+          {
+            brand: input.brand,
+            ...(input.project ? { project: input.project } : {}),
+            parent: input.parent,
+          },
+          null,
+        );
+        if (container.parent)
+          this.requireTaskAction(p, 'record.create', container.parent, { shares: false });
+        else this.requireCreateIn(p, container);
+        const made = await this.insertTask(tx, caller, p, container, input.fields, {
+          source: 'ai_proposal',
+          // The task is an AI draft the person chose to create (TSK origin; immutable).
+          origin: { kind: 'ai_draft', ref: { proposal: proposal.public_id, change: c.change_key } },
+        });
+        return { publicId: made.publicId, recordId: made.id };
+      }
+      case 'task.update': {
+        const t = await this.editableTask(tx, p, c.target_public_id!);
+        if (expected !== null && Number(t.row.version) !== expected) throw changed();
+        const current = this.currentFields(t.row, tx);
+        const version = Number(t.row.version);
+        const merge = parseMerge(
+          {
+            version,
+            changes: Object.fromEntries(
+              Object.entries(f).map(([k, v]) => [
+                k,
+                { base: current[k] ?? null, value: k === 'description' ? rich(v) : v },
+              ]),
+            ),
+          },
+          TASK_FIELDS,
+        );
+        const next = applyFieldMerge(merge, current, version, (field, value, issues) =>
+          taskField(field, value, issues, this.ws.taskEstimateMinutesMax),
+        );
+        if (Object.keys(next).length)
+          await this.applyTaskChanges(tx, caller, req, p, t, current, next);
+        return { publicId: t.publicId, recordId: t.id };
+      }
+      case 'project.create': {
+        const parent = ref(payload.parent);
+        const scopeBrands = ((action.retrieval_scope ?? {}) as { brands?: string[] }).brands ?? [];
+        const input = parseProjectCreate({
+          ...(parent ? { parent } : { brand: scopeBrands[0] }),
+          name: f.name,
+          ...(f.description !== undefined ? { description: rich(f.description) } : {}),
+          ...(f.priority !== undefined ? { priority: f.priority } : {}),
+          ...(f.start_date !== undefined ? { start_date: f.start_date } : {}),
+          ...(f.target_date !== undefined ? { target_date: f.target_date } : {}),
+        });
+        const made = await this.createProjectIn(tx, caller, p, input, 'ai_proposal');
+        return { publicId: made.publicId, recordId: made.id };
+      }
+      case 'project.update': {
+        const pr = await this.loadProject(tx, p, c.target_public_id!, { lock: true });
+        if (expected !== null && Number(pr.row.version) !== expected) throw changed();
+        const r = pr.row;
+        const current: Record<string, unknown> = {
+          name: r.name,
+          description: r.description_rich ?? null,
+          priority: r.priority,
+          start_date: r.start_date,
+          target_date: r.target_date,
+          status: this.statusView(r.status_id, tx).key,
+        };
+        const merge = parseMerge(
+          {
+            version: Number(r.version),
+            changes: Object.fromEntries(
+              Object.entries(f).map(([k, v]) => [
+                k,
+                { base: current[k] ?? null, value: k === 'description' ? rich(v) : v },
+              ]),
+            ),
+          },
+          PROJECT_FIELDS,
+        );
+        const updated = await this.updateProjectIn(tx, caller, p, pr.publicId, merge, req);
+        return { publicId: updated.publicId, recordId: updated.id };
+      }
+      case 'milestone.create': {
+        const project = ref(payload.project)!;
+        const input = parseMilestone(
+          { name: f.name, ...(f.due_date !== undefined ? { due_date: f.due_date } : {}) },
+          false,
+        );
+        const made = await this.createMilestoneIn(tx, caller, p, project, input);
+        return { publicId: made.publicId, recordId: made.id };
+      }
+      case 'relation.add': {
+        const rel = payload.relation!;
+        const from = ref(rel.from)!;
+        const to = ref(rel.to)!;
+        const input = parseRelationship({ kind: rel.kind, target: to });
+        const { t } = await this.addRelationshipIn(tx, caller, p, from, input);
+        return { publicId: t.publicId, recordId: t.id };
+      }
+      case 'document.replace': {
+        const d = await this.loadDocument(tx, p, c.target_public_id!);
+        if (expected !== null && d.row.current_version_number !== expected) throw changed();
+        const blocks = (f.text ?? '')
+          .split(/\n\s*\n/)
+          .map((t) => t.trim())
+          .filter(Boolean)
+          .map((t, i) => ({ id: `par_${i + 1}`, type: 'paragraph', runs: [{ text: t }] }));
+        const input = parseContentSave(
+          {
+            base_version: d.row.current_version_number,
+            content: { v: 2, blocks },
+            ...(f.title ? { title: f.title } : {}),
+          },
+          this.contentLimits(),
+        );
+        const saved = await this.saveContentIn(tx, caller, p, d.publicId, input);
+        return { publicId: saved.publicId, recordId: saved.id };
+      }
+    }
+    throw invalid(issue('/op', 'invalid_option', 'This change type is not supported.'));
+  }
+
+  /**
+   * Validation as a dry run of the real domain commands for the selected changes, in dependency
+   * order, inside a savepoint that is always rolled back: what would fail (permission, required
+   * field, workflow gate, version, cycle, live edit) is reported per change before approval.
+   */
+  async #dryRun(
+    tx: WorkspaceTransaction,
+    caller: Caller,
+    p: Principal,
+    proposal: { public_id: string },
+    action: { retrieval_scope: unknown },
+    changes: ReadonlyArray<{
+      change_key: string;
+      position: number;
+      op: ProposalOp;
+      target_public_id: string | null;
+      expected_version: number | string | null;
+      payload: unknown;
+      depends_on: string[];
+      temp_ref: string | null;
+      selected: boolean;
+      decision: string;
+    }>,
+    req: Mutation,
+  ) {
+    const results = new Map<
+      string,
+      { state: 'valid' | 'invalid' | 'blocked'; code: string | null; message: string | null }
+    >();
+    const selected = changes.filter((c) => c.selected && c.decision !== 'rejected');
+    const order = orderChanges(
+      selected.map((c) => ({ key: c.change_key, position: c.position, dependsOn: c.depends_on })),
+    );
+    if (!order.ok) return results;
+    const byKey = new Map(selected.map((c) => [c.change_key, c]));
+    const ids = new Map<string, { publicId: string; recordId: string }>();
+    await sql`SAVEPOINT proposal_dry_run`.execute(tx.db);
+    try {
+      for (const key of order.order) {
+        const c = byKey.get(key)!;
+        if (c.depends_on.some((d) => results.get(d)?.state !== 'valid')) {
+          results.set(key, {
+            state: 'blocked',
+            code: 'dependency_failed',
+            message: FAILURE_MESSAGES.dependency_failed!,
+          });
+          continue;
+        }
+        await sql`SAVEPOINT proposal_change`.execute(tx.db);
+        try {
+          const made = await this.#applyChange(tx, caller, p, proposal, action, c, ids, req);
+          if (c.temp_ref) ids.set(c.temp_ref, made);
+          await sql`RELEASE SAVEPOINT proposal_change`.execute(tx.db);
+          results.set(key, { state: 'valid', code: null, message: null });
+        } catch (err) {
+          await sql`ROLLBACK TO SAVEPOINT proposal_change`.execute(tx.db);
+          const failure = this.#changeFailure(err);
+          results.set(key, { state: 'invalid', ...failure });
+        }
+      }
+    } finally {
+      await sql`ROLLBACK TO SAVEPOINT proposal_dry_run`.execute(tx.db);
+      await sql`RELEASE SAVEPOINT proposal_dry_run`.execute(tx.db);
+    }
+    return results;
+  }
+
+  #validationView(
+    changes: ReadonlyArray<{ change_key: string; selected: boolean; decision: string }>,
+    results: Map<string, { state: string; code: string | null; message: string | null }>,
+  ) {
+    return changes.map((c) => {
+      const r = results.get(c.change_key);
+      return {
+        key: c.change_key,
+        state:
+          c.decision === 'rejected'
+            ? 'rejected'
+            : !c.selected
+              ? 'not_selected'
+              : (r?.state ?? 'blocked'),
+        code: r?.code ?? null,
+        message: r?.message ?? null,
+      };
+    });
+  }
+
+  /** The current validation result of the selected changes (nothing is written). */
+  async validateAiProposal(caller: Caller, ws: unknown, prp: unknown, req: Mutation) {
+    return this.inWorkspace(caller, ws, {}, async (tx, p) => {
+      this.#requireApplier(caller, p);
+      const { proposal, action, changes } = await this.#ownProposal(tx, p, prp);
+      if (!(await this.#proposalEligible(tx, p, proposal, action)))
+        throw this.#proposalUnavailable();
+      const selection = selectionIssues(
+        changes.map((c) => ({ key: c.change_key, dependsOn: c.depends_on, decision: c.decision })),
+        changes.filter((c) => c.selected).map((c) => c.change_key),
+      );
+      const results = await this.#dryRun(tx, caller, p, proposal, action, changes, req);
+      return {
+        revision: proposal.revision,
+        fingerprint: this.#fingerprintOf(proposal, changes),
+        selection_issues: selection,
+        valid:
+          !selection.length &&
+          [...results.values()].every((r) => r.state === 'valid') &&
+          results.size > 0,
+        changes: this.#validationView(changes, results),
+      };
+    });
+  }
+
+  /** The effective scope an approval binds: the run's scope references and the permission epochs. */
+  #approvalScope(action: { retrieval_scope: unknown }, p: Principal) {
+    const s = (action.retrieval_scope ?? {}) as {
+      brands?: string[];
+      project?: string | null;
+      task?: string | null;
+    };
+    return {
+      brands: s.brands ?? [],
+      project: s.project ?? null,
+      task: s.task ?? null,
+      workspace_epoch: p.epochs.workspace,
+      principal_epoch: p.epochs.principal,
+    };
+  }
+
+  #proposalUnavailable() {
+    return this.#refuse(
+      'proposal_sources_unavailable',
+      'A source used by this proposal is no longer available to you, so it cannot be reviewed or applied.',
+    );
+  }
+
+  #parseProposalEdit(body: unknown) {
+    const b = (body && typeof body === 'object' ? body : {}) as Record<string, unknown>;
+    const issues = [];
+    for (const k of Object.keys(b))
+      if (!['revision', 'selected', 'changes'].includes(k))
+        issues.push(issue(`/${k}`, 'unknown_field', 'This field is not accepted.'));
+    if (!Number.isInteger(b.revision))
+      issues.push(issue('/revision', 'required', 'Send the revision you edited.'));
+    let selected: string[] | null = null;
+    if (b.selected !== undefined) {
+      if (
+        !Array.isArray(b.selected) ||
+        b.selected.length > 100 ||
+        !b.selected.every((x) => typeof x === 'string' && /^c[0-9]{1,3}$/.test(x))
+      )
+        issues.push(issue('/selected', 'invalid_value', 'Select changes by their ids.'));
+      else selected = [...new Set(b.selected as string[])];
+    }
+    const edits: Record<
+      string,
+      { fields?: Record<string, unknown>; decision?: 'accepted' | 'rejected' }
+    > = {};
+    if (b.changes !== undefined) {
+      if (!b.changes || typeof b.changes !== 'object' || Array.isArray(b.changes))
+        issues.push(issue('/changes', 'invalid_value', 'Edit changes by their ids.'));
+      else
+        for (const [k, v] of Object.entries(b.changes as Record<string, unknown>)) {
+          const o = (v && typeof v === 'object' ? v : null) as Record<string, unknown> | null;
+          if (
+            !/^c[0-9]{1,3}$/.test(k) ||
+            !o ||
+            Object.keys(o).some((x) => x !== 'fields' && x !== 'decision')
+          )
+            issues.push(issue(`/changes/${k}`, 'invalid_value', 'Send fields or a decision.'));
+          else if (
+            o.decision !== undefined &&
+            o.decision !== 'accepted' &&
+            o.decision !== 'rejected'
+          )
+            issues.push(
+              issue(`/changes/${k}/decision`, 'invalid_option', 'Accept or reject the change.'),
+            );
+          else if (
+            o.fields !== undefined &&
+            (!o.fields || typeof o.fields !== 'object' || Array.isArray(o.fields))
+          )
+            issues.push(
+              issue(`/changes/${k}/fields`, 'invalid_value', 'fields must be an object.'),
+            );
+          else edits[k] = o as (typeof edits)[string];
+        }
+    }
+    if (issues.length) throw invalid(...issues);
+    return { revision: b.revision as number, selected, edits };
+  }
+
+  async #supersede(
+    tx: WorkspaceTransaction,
+    proposal: { id: string; revision: number },
+    fingerprint: string,
+    actor: string,
+  ) {
+    const r = await tx.db
+      .updateTable('ai.proposal_approval')
+      .set({ state: 'superseded' })
+      .where('proposal_id', '=', proposal.id)
+      .where('state', '=', 'active')
+      .executeTakeFirst();
+    if (Number(r.numUpdatedRows))
+      await this.#proposalEvent(
+        tx,
+        proposal.id,
+        proposal.revision,
+        'approval_superseded',
+        actor,
+        [],
+        fingerprint,
+      );
+  }
+
+  /**
+   * Edits values, decisions, or the selection. Every edit makes a new revision, recomputes the
+   * fingerprint, and supersedes any approval (a changed proposal is never applied on an old
+   * approval).
+   */
+  async updateAiProposal(caller: Caller, ws: unknown, prp: unknown, body: unknown, req: Mutation) {
+    const input = this.#parseProposalEdit(body);
+    return this.mutate(
+      caller,
+      'ai.proposal.edit',
+      ws,
+      req,
+      async (tx, p) => {
+        this.#requireApplier(caller, p);
+        const { proposal, action, changes } = await this.#ownProposal(tx, p, prp, { lock: true });
+        if (!['open', 'approved', 'failed'].includes(proposal.state))
+          throw new TenancyError('conflict', {
+            issues: [issue('/', 'proposal_closed', 'This proposal is closed.')],
+          });
+        if (input.revision !== proposal.revision)
+          throw new TenancyError('conflict', {
+            issues: [
+              issue(
+                '/revision',
+                'revision_changed',
+                'The proposal changed since you opened it. Reload it; your edits are kept on this device.',
+              ),
+            ],
+            conflict: { current_version: proposal.revision },
+          });
+        if (!(await this.#proposalEligible(tx, p, proposal, action)))
+          throw this.#proposalUnavailable();
+        const byKey = new Map(changes.map((c) => [c.change_key, c]));
+        const issues = [];
+        const touched = new Set<string>();
+        for (const [key, e] of Object.entries(input.edits)) {
+          const c = byKey.get(key);
+          if (!c) {
+            issues.push(
+              issue(`/changes/${key}`, 'unknown_change', 'That change is not in this proposal.'),
+            );
+            continue;
+          }
+          const payload = { ...(c.payload as ProposalChange['payload']) };
+          const fields = { ...payload.fields };
+          for (const [field, value] of Object.entries(e.fields ?? {})) {
+            const r = checkField(c.op, field, value);
+            if (!r.ok) issues.push(issue(`/changes/${key}/fields/${field}`, r.code, r.message));
+            else fields[field] = r.value;
+          }
+          if (e.fields && Object.keys(e.fields).length) {
+            payload.fields = fields;
+            c.payload = payload;
+            c.decision = 'edited';
+            touched.add(key);
+          }
+          if (e.decision === 'rejected') {
+            c.decision = 'rejected';
+            c.selected = false;
+            touched.add(key);
+          } else if (e.decision === 'accepted' && c.decision !== 'edited') {
+            c.decision = 'accepted';
+            touched.add(key);
+          }
+        }
+        if (input.selected) {
+          const sel = new Set(input.selected);
+          for (const k of sel)
+            if (!byKey.has(k))
+              issues.push(
+                issue(
+                  '/selected',
+                  'unknown_change',
+                  'The selection names a change that does not exist.',
+                ),
+              );
+          for (const c of changes) {
+            const next = sel.has(c.change_key);
+            if (next && c.decision === 'rejected')
+              issues.push(
+                issue(
+                  '/selected',
+                  'change_rejected',
+                  `Change ${c.change_key} was rejected; it cannot be selected.`,
+                ),
+              );
+            if (next !== c.selected) {
+              c.selected = next;
+              touched.add(c.change_key);
+            }
+          }
+        }
+        if (issues.length) throw invalid(...issues);
+        if (touched.size) {
+          const revision = proposal.revision + 1;
+          for (const k of touched) {
+            const c = byKey.get(k)!;
+            await tx.db
+              .updateTable('ai.proposed_change')
+              .set({
+                payload: JSON.stringify(c.payload),
+                decision: c.decision,
+                selected: c.selected,
+                updated_at: new Date(),
+              })
+              .where('id', '=', c.id)
+              .execute();
+          }
+          const fingerprint = this.#fingerprintOf(
+            { public_id: proposal.public_id, revision },
+            changes,
+          );
+          await this.#supersede(tx, proposal, fingerprint, p.membershipId);
+          await tx.db
+            .updateTable('ai.change_proposal')
+            .set({
+              revision,
+              fingerprint,
+              state: 'open',
+              updated_at: new Date(),
+              version: sql`version + 1`,
+            })
+            .where('id', '=', proposal.id)
+            .execute();
+          await this.#proposalEvent(
+            tx,
+            proposal.id,
+            revision,
+            'edited',
+            p.membershipId,
+            [...touched],
+            fingerprint,
+          );
+        }
+        return {
+          status: 200,
+          ref: { id: proposal.public_id, type: 'change_proposal' },
+          data: await this.#proposalView(tx, caller, p, proposal.public_id),
+        };
+      },
+      async (tx, p, ref) => this.#proposalView(tx, caller, p, ref.id),
+    );
+  }
+
+  #parseBinding(body: unknown) {
+    const b = (body && typeof body === 'object' ? body : {}) as Record<string, unknown>;
+    const issues = [];
+    for (const k of Object.keys(b))
+      if (!['revision', 'fingerprint'].includes(k))
+        issues.push(issue(`/${k}`, 'unknown_field', 'This field is not accepted.'));
+    if (!Number.isInteger(b.revision))
+      issues.push(issue('/revision', 'required', 'Send the revision you reviewed.'));
+    if (typeof b.fingerprint !== 'string' || !/^[0-9a-f]{64}$/.test(b.fingerprint))
+      issues.push(issue('/fingerprint', 'required', 'Send the fingerprint of what you reviewed.'));
+    if (issues.length) throw invalid(...issues);
+    return { revision: b.revision as number, fingerprint: b.fingerprint as string };
+  }
+
+  /**
+   * Approves exactly the reviewed revision and selection: the fingerprint must match, the
+   * selection must be dependency-complete, and every selected change must validate now. The
+   * approval belongs to the approver, expires, and is used by one apply attempt. It grants no
+   * access and never replaces a domain approval or step-up.
+   */
+  async approveAiProposal(caller: Caller, ws: unknown, prp: unknown, body: unknown, req: Mutation) {
+    const input = this.#parseBinding(body);
+    return this.mutate(
+      caller,
+      'ai.proposal.approve',
+      ws,
+      req,
+      async (tx, p) => {
+        this.#requireApplier(caller, p);
+        const { proposal, action, changes } = await this.#ownProposal(tx, p, prp, { lock: true });
+        if (!['open', 'approved', 'failed'].includes(proposal.state))
+          throw new TenancyError('conflict', {
+            issues: [issue('/', 'proposal_closed', 'This proposal is closed.')],
+          });
+        if (input.revision !== proposal.revision)
+          throw new TenancyError('conflict', {
+            issues: [
+              issue(
+                '/revision',
+                'revision_changed',
+                'The proposal changed since you reviewed it. Review it again.',
+              ),
+            ],
+          });
+        if (!(await this.#proposalEligible(tx, p, proposal, action)))
+          throw this.#proposalUnavailable();
+        const fingerprint = this.#fingerprintOf(proposal, changes);
+        if (fingerprint !== input.fingerprint)
+          throw new TenancyError('conflict', {
+            issues: [
+              issue(
+                '/fingerprint',
+                'fingerprint_mismatch',
+                'What you reviewed is not what would be applied. Review it again.',
+              ),
+            ],
+          });
+        const selectedKeys = changes.filter((c) => c.selected).map((c) => c.change_key);
+        const selection = selectionIssues(
+          changes.map((c) => ({
+            key: c.change_key,
+            dependsOn: c.depends_on,
+            decision: c.decision,
+          })),
+          selectedKeys,
+        );
+        if (selection.length)
+          throw invalid(
+            ...selection.map((s) =>
+              issue(s.change ? `/selected/${s.change}` : '/selected', s.code, s.message),
+            ),
+          );
+        const results = await this.#dryRun(tx, caller, p, proposal, action, changes, req);
+        if ([...results.values()].some((r) => r.state !== 'valid'))
+          throw new TenancyError('conflict', {
+            issues: [
+              issue(
+                '/',
+                'proposal_invalid',
+                'Some selected changes cannot be applied. Fix or deselect them, then approve again.',
+              ),
+              ...this.#validationView(changes, results)
+                .filter((v) => v.state === 'invalid' || v.state === 'blocked')
+                .map((v) =>
+                  issue(
+                    `/changes/${v.key}`,
+                    v.code ?? 'invalid',
+                    v.message ?? FAILURE_MESSAGES.default!,
+                  ),
+                ),
+            ],
+            conflict: { current_version: proposal.revision },
+          });
+        await this.#supersede(tx, proposal, fingerprint, p.membershipId);
+        await tx.db
+          .insertInto('ai.proposal_approval')
+          .values({
+            id: newUuidV7(),
+            workspace_id: tx.workspaceId,
+            proposal_id: proposal.id,
+            revision: proposal.revision,
+            approver_membership_id: p.membershipId,
+            selected: selectedKeys,
+            fingerprint,
+            target_versions: JSON.stringify(
+              Object.fromEntries(
+                changes
+                  .filter((c) => c.selected && c.target_public_id && c.expected_version !== null)
+                  .map((c) => [c.target_public_id!, Number(c.expected_version)]),
+              ),
+            ),
+            scope: JSON.stringify(this.#approvalScope(action, p)),
+            // 0C ai.apply_proposal is R1 without step-up; a domain command that needs step-up
+            // still challenges at Apply (this approval never replaces it).
+            risk_class: 'R1',
+            step_up_required: false,
+            expires_at: new Date(Date.now() + this.#ai.config.proposals.approvalHours * 3_600_000),
+          })
+          .execute();
+        await tx.db
+          .updateTable('ai.change_proposal')
+          .set({ state: 'approved', updated_at: new Date(), version: sql`version + 1` })
+          .where('id', '=', proposal.id)
+          .execute();
+        await this.#proposalEvent(
+          tx,
+          proposal.id,
+          proposal.revision,
+          'approved',
+          p.membershipId,
+          selectedKeys,
+          fingerprint,
+        );
+        return {
+          status: 200,
+          ref: { id: proposal.public_id, type: 'change_proposal' },
+          data: await this.#proposalView(tx, caller, p, proposal.public_id),
+        };
+      },
+      async (tx, p, ref) => this.#proposalView(tx, caller, p, ref.id),
+    );
+  }
+
+  /** Rejects the whole proposal (nothing is applied; the decision is kept in history). */
+  async rejectAiProposal(caller: Caller, ws: unknown, prp: unknown, body: unknown, req: Mutation) {
+    const b = (body && typeof body === 'object' ? body : {}) as Record<string, unknown>;
+    for (const k of Object.keys(b))
+      if (k !== 'reason')
+        throw invalid(issue(`/${k}`, 'unknown_field', 'This field is not accepted.'));
+    if (
+      b.reason !== undefined &&
+      (typeof b.reason !== 'string' || b.reason.length > 500 || CONTROL_CHARS.test(b.reason))
+    )
+      throw invalid(issue('/reason', 'invalid_value', 'Give a reason of up to 500 characters.'));
+    return this.mutate(
+      caller,
+      'ai.proposal.reject',
+      ws,
+      req,
+      async (tx, p) => {
+        this.#requireApplier(caller, p);
+        const { proposal, changes } = await this.#ownProposal(tx, p, prp, { lock: true });
+        if (!['open', 'approved', 'failed'].includes(proposal.state))
+          throw new TenancyError('conflict', {
+            issues: [issue('/', 'proposal_closed', 'This proposal is closed.')],
+          });
+        const fingerprint = this.#fingerprintOf(proposal, changes);
+        await this.#supersede(tx, proposal, fingerprint, p.membershipId);
+        await tx.db
+          .updateTable('ai.change_proposal')
+          .set({
+            state: 'rejected',
+            reject_reason:
+              typeof b.reason === 'string' && b.reason.trim()
+                ? redactCredentials(b.reason.trim()).text
+                : null,
+            updated_at: new Date(),
+            version: sql`version + 1`,
+          })
+          .where('id', '=', proposal.id)
+          .execute();
+        await this.#proposalEvent(
+          tx,
+          proposal.id,
+          proposal.revision,
+          'rejected',
+          p.membershipId,
+          [],
+          fingerprint,
+        );
+        return {
+          status: 200,
+          ref: { id: proposal.public_id, type: 'change_proposal' },
+          data: await this.#proposalView(tx, caller, p, proposal.public_id),
+        };
+      },
+      async (tx, p, ref) => this.#proposalView(tx, caller, p, ref.id),
+    );
+  }
+
+  /**
+   * Applies the approved selection atomically (UXD-15): one transaction runs every selected change
+   * through its canonical command in dependency order. Any failure rolls every business change
+   * back; the failed attempt is still recorded truthfully (which change failed, which were rolled
+   * back, which never ran) with no success event. The Idempotency-Key binds the revision and
+   * fingerprint; a replay re-renders through current authority and never runs a change again.
+   */
+  async applyAiProposal(caller: Caller, ws: unknown, prp: unknown, body: unknown, req: Mutation) {
+    const input = this.#parseBinding(body);
+    return this.mutate(
+      caller,
+      'ai.proposal.apply',
+      ws,
+      req,
+      async (tx, p) => {
+        this.#requireApplier(caller, p);
+        const { proposal, action, changes } = await this.#ownProposal(tx, p, prp, { lock: true });
+        const refuse = (code: string, message: string) =>
+          new TenancyError('conflict', { issues: [issue('/', code, message)] });
+        if (proposal.content_state !== 'present')
+          throw refuse('proposal_erased', 'This proposal was erased.');
+        if (proposal.state === 'applied')
+          throw refuse('proposal_already_applied', 'This proposal was already applied.');
+        if (proposal.state !== 'approved')
+          throw refuse(
+            'approval_required',
+            'Approve the proposal (after reviewing it) before applying it.',
+          );
+        if (input.revision !== proposal.revision)
+          throw refuse(
+            'revision_changed',
+            'The proposal changed after it was approved. Review and approve it again.',
+          );
+        const approval = await tx.db
+          .selectFrom('ai.proposal_approval')
+          .selectAll()
+          .where('proposal_id', '=', proposal.id)
+          .where('state', '=', 'active')
+          .forUpdate()
+          .executeTakeFirst();
+        if (!approval)
+          throw refuse('approval_required', 'Approve the proposal before applying it.');
+        if (approval.approver_membership_id !== p.membershipId) throw new TenancyError('forbidden');
+        if (new Date(approval.expires_at).getTime() <= Date.now())
+          throw refuse(
+            'approval_expired',
+            'The approval expired. Review and approve the proposal again.',
+          );
+        const fingerprint = this.#fingerprintOf(proposal, changes);
+        if (
+          approval.revision !== proposal.revision ||
+          approval.fingerprint !== fingerprint ||
+          input.fingerprint !== fingerprint
+        )
+          throw refuse(
+            'approval_mismatch',
+            'The approval does not match this revision and selection. Approve it again.',
+          );
+        // A source that became unavailable invalidates the source-derived approval, and so does
+        // any change to the approver's permissions or the workspace's since approval.
+        if (!(await this.#proposalEligible(tx, p, proposal, action)))
+          throw this.#proposalUnavailable();
+        const bound = approval.scope as Record<string, unknown>;
+        const now = this.#approvalScope(action, p) as Record<string, unknown>;
+        if (Object.keys(now).some((k) => JSON.stringify(bound[k]) !== JSON.stringify(now[k])))
+          throw refuse(
+            'approval_stale',
+            'Your access changed after you approved. Review and approve the proposal again.',
+          );
+        const selected = changes.filter((c) => c.selected && c.decision !== 'rejected');
+        const order = orderChanges(
+          selected.map((c) => ({
+            key: c.change_key,
+            position: c.position,
+            dependsOn: c.depends_on,
+          })),
+        );
+        if (!order.ok)
+          throw refuse('dependency_cycle', 'The selected changes depend on each other.');
+        const context: ExecutionContext = {
+          ...this.exec(caller, p),
+          risk: { actionKey: AI_APPLY_PROPOSAL_ACTION, riskClass: 'R1' },
+        };
+        const op = await createOperation(tx, {
+          kind: 'proposal_apply',
+          context,
+          initiatedBy: { type: 'human', id: p.membershipId },
+        });
+        await transitionOperation(tx, {
+          operationId: op.id,
+          to: 'running',
+          actor: { type: 'human', id: p.membershipId },
+          context,
+        });
+        const applyCaller: Caller = { ...caller };
+        this.#proposalCallers.set(applyCaller, {
+          operationId: op.id,
+          causationId: action.operation_id,
+          proposal: proposal.public_id,
+        });
+        const byKey = new Map(selected.map((c) => [c.change_key, c]));
+        const ids = new Map<string, { publicId: string; recordId: string }>();
+        const made = new Map<string, { publicId: string; recordId: string }>();
+        const ran: string[] = [];
+        let failed: { key: string; code: string; message: string } | null = null;
+        await sql`SAVEPOINT proposal_apply`.execute(tx.db);
+        for (const key of order.order) {
+          const c = byKey.get(key)!;
+          try {
+            const r = await this.#applyChange(tx, applyCaller, p, proposal, action, c, ids, req);
+            if (c.temp_ref) ids.set(c.temp_ref, r);
+            made.set(key, r);
+            ran.push(key);
+          } catch (err) {
+            // Step-up still controls: the whole request becomes a challenge and nothing is kept.
+            if (err instanceof StepUpNeeded) throw err;
+            failed = { key, ...this.#changeFailure(err) };
+            break;
+          }
+        }
+        if (failed) await sql`ROLLBACK TO SAVEPOINT proposal_apply`.execute(tx.db);
+        else await sql`RELEASE SAVEPOINT proposal_apply`.execute(tx.db);
+        const states = new Map<string, 'applied' | 'failed' | 'rolled_back' | 'blocked'>();
+        for (const key of order.order)
+          states.set(
+            key,
+            !failed
+              ? 'applied'
+              : key === failed.key
+                ? 'failed'
+                : ran.includes(key)
+                  ? 'rolled_back'
+                  : 'blocked',
+          );
+        for (const c of selected) {
+          const state = states.get(c.change_key)!;
+          const r = state === 'applied' ? made.get(c.change_key) : undefined;
+          await tx.db
+            .updateTable('ai.proposed_change')
+            .set({
+              applied_state: state,
+              result_record_id: r?.recordId ?? null,
+              result_public_id: r?.publicId ?? null,
+              failure_code:
+                state === 'failed' ? failed!.code : state === 'blocked' ? 'not_attempted' : null,
+              updated_at: new Date(),
+            })
+            .where('id', '=', c.id)
+            .execute();
+        }
+        const appliedCount = failed ? 0 : selected.length;
+        await tx.db
+          .insertInto('ai.proposal_application')
+          .values({
+            id: newUuidV7(),
+            workspace_id: tx.workspaceId,
+            proposal_id: proposal.id,
+            operation_id: op.id,
+            approval_id: approval.id,
+            revision: proposal.revision,
+            outcome: failed ? 'failed' : 'applied',
+            applied_count: appliedCount,
+            failed_count: failed ? 1 : 0,
+            results: JSON.stringify(
+              selected.map((c) => ({
+                change: c.change_key,
+                state: states.get(c.change_key),
+                record: made.get(c.change_key)?.publicId ?? null,
+                code: c.change_key === failed?.key ? failed.code : null,
+              })),
+            ),
+          })
+          .execute();
+        await tx.db
+          .updateTable('ai.proposal_approval')
+          .set({ state: 'used', used_at: new Date() })
+          .where('id', '=', approval.id)
+          .execute();
+        await tx.db
+          .updateTable('ai.change_proposal')
+          .set({
+            state: failed ? 'failed' : 'applied',
+            updated_at: new Date(),
+            version: sql`version + 1`,
+          })
+          .where('id', '=', proposal.id)
+          .execute();
+        await this.#proposalEvent(
+          tx,
+          proposal.id,
+          proposal.revision,
+          failed ? 'apply_failed' : 'applied',
+          p.membershipId,
+          selected.map((c) => c.change_key),
+          fingerprint,
+        );
+        await this.workAudit(
+          tx,
+          // The apply caller: the audit carries the Apply operation and the AI action as cause.
+          applyCaller,
+          p,
+          failed ? 'ai_proposal.apply_failed' : 'ai_proposal.applied',
+          { recordId: null, type: 'change_proposal', publicId: proposal.public_id },
+          [
+            change.plain('revision', null, proposal.revision),
+            change.plain('applied_count', null, appliedCount),
+            change.plain('failed_change', null, failed?.key ?? null),
+          ],
+          action.brand_id,
+        );
+        if (!failed)
+          await writeOutboxEvent(tx, {
+            type: 'ai.proposal.applied',
+            aggregate: {
+              type: 'ai.change_proposal',
+              id: proposal.id,
+              sequence: Number(proposal.version) + 1,
+            },
+            data: { applied_count: appliedCount, failed_count: 0 },
+            actor: { type: 'human', id: p.membershipId },
+            context: { ...context, operationId: op.id },
+            operationId: op.id,
+          });
+        await transitionOperation(tx, {
+          operationId: op.id,
+          to: failed ? 'failed' : 'succeeded',
+          ...(failed ? { terminalReason: 'error' as const } : {}),
+          actor: { type: 'human', id: p.membershipId },
+          context,
+        });
+        this.d.metrics.count('ai.proposal_applications', 1, {
+          outcome: failed ? 'failed' : 'applied',
+        });
+        return {
+          status: 200,
+          ref: { id: proposal.public_id, type: 'change_proposal' },
+          data: await this.#proposalView(tx, caller, p, proposal.public_id),
+        };
+      },
+      async (tx, p, ref) => this.#proposalView(tx, caller, p, ref.id),
+    );
   }
 }
 

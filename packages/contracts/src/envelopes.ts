@@ -275,6 +275,9 @@ export const NON_RESOURCE_TYPES = [
   'ai_usage',
   // 7B: the context manifest a person reviews before a grounded answer.
   'ai_context_manifest',
+  // 7D: change proposals (the list and a validation result).
+  'ai_proposals',
+  'ai_proposal_validation',
 ] as const;
 export type NonResourceType = (typeof NON_RESOURCE_TYPES)[number];
 
