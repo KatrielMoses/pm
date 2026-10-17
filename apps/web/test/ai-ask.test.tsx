@@ -102,7 +102,7 @@ const answerRun = {
       completeness: 'complete',
       status: 'downgraded',
       reason: null,
-      note: 'Some statements could not be established from the sources and are marked unverified.',
+      note: 'Some citations did not match the sources and were removed. Generated statements are unverified.',
       facts: [
         {
           handle: 'S1',
@@ -129,15 +129,38 @@ const answerRun = {
       ],
       statements: [
         {
-          kind: 'sourced',
+          kind: 'excerpt',
           claimed: 'fact',
           text: 'Ship by Friday.',
-          quote_kind: 'exact',
           issues: [],
           citations: [
             {
               handle: 'S1',
               quote: 'Ship by Friday.',
+              excerpt: 'Ship by Friday.',
+              source: {
+                handle: 'S1',
+                type: 'task',
+                id: TSK,
+                title: 'Launch checklist',
+                link: { type: 'task', id: TSK, anchor: null },
+                changed: true,
+                flags: [],
+              },
+            },
+          ],
+        },
+        {
+          // The reproduced review case: a real quotation attached to an unrelated claim.
+          kind: 'unverified',
+          claimed: 'fact',
+          text: 'The launch generated twelve million dollars in profit.',
+          issues: [],
+          citations: [
+            {
+              handle: 'S1',
+              quote: 'Ship by Friday.',
+              excerpt: 'Ship by Friday.',
               source: {
                 handle: 'S1',
                 type: 'task',
@@ -154,7 +177,6 @@ const answerRun = {
           kind: 'unverified',
           claimed: 'fact',
           text: 'See <b>https://evil.example</b>',
-          quote_kind: null,
           issues: ['no_valid_citation', 'untrusted_link'],
           citations: [],
         },
@@ -162,7 +184,6 @@ const answerRun = {
           kind: 'suggestion',
           claimed: 'suggestion',
           text: 'Confirm with the owner.',
-          quote_kind: null,
           issues: [],
           citations: [],
         },
@@ -170,13 +191,14 @@ const answerRun = {
           kind: 'unknown',
           claimed: 'unknown',
           text: 'The sources do not name a budget.',
-          quote_kind: null,
           issues: [],
           citations: [],
         },
       ],
       dropped_citations: 1,
       sources: [],
+      trust_note:
+        'Only facts and calculations from the records are established. Exact excerpts are copied from a source; every other generated statement is unverified, even when it cites a source.',
       provenance_note:
         'Citations show where a statement came from; they do not guarantee it is true.',
     },
@@ -184,7 +206,7 @@ const answerRun = {
   context: [],
 };
 
-function serve(m = manifest()) {
+function serve(m = manifest(), run: Record<string, unknown> = answerRun) {
   const calls: Array<{ path: string; body: any }> = [];
   vi.stubGlobal(
     'fetch',
@@ -204,8 +226,8 @@ function serve(m = manifest()) {
             manifest: m,
           },
         });
-      if (path.endsWith('/ai/answers')) return json(202, { data: answerRun });
-      if (path.endsWith(`/ai/runs/${RUN}`)) return json(200, { data: answerRun });
+      if (path.endsWith('/ai/answers')) return json(202, { data: run });
+      if (path.endsWith(`/ai/runs/${RUN}`)) return json(200, { data: run });
       return json(404, { error: { code: 'not_found', status: 404, message: 'Not found' } });
     }),
   );
@@ -246,6 +268,10 @@ describe('Ask with sources (7B)', () => {
     fireEvent.click(screen.getByLabelText(/I confirm this answer may cost up to/));
     await act(async () => fireEvent.click(ask));
     const sent = calls.find((c) => c.path.endsWith('/ai/answers'))!;
+    // A second question on the same page needs a fresh confirmation.
+    fireEvent.change(screen.getByLabelText('Question'), { target: { value: 'And then?' } });
+    await act(async () => fireEvent.click(screen.getByRole('button', { name: 'Estimate cost' })));
+    expect((screen.getByRole('button', { name: 'Ask' }) as HTMLButtonElement).disabled).toBe(true);
     expect(sent.body).toMatchObject({
       question: 'What is planned?',
       manifest_digest: 'a'.repeat(64),
@@ -265,16 +291,25 @@ describe('Ask with sources (7B)', () => {
     expect(screen.getByRole('region', { name: 'Calculations' }).textContent).toContain(
       'Tasks done: 0 of 1',
     );
+    const excerpts = screen.getByRole('region', { name: 'Exact excerpts from the sources' });
+    expect(excerpts.textContent).toContain('“Ship by Friday.”');
+    expect(screen.getAllByText(/changed since this answer/).length).toBeGreaterThan(0);
+    // The unrelated claim with a real quotation is unverified; the quote is shown as provenance.
+    const unverified = screen.getByRole('region', { name: 'Unverified statements (generated)' });
+    expect(unverified.textContent).toContain('twelve million dollars');
+    expect(unverified.textContent).toContain('quoting the source: “Ship by Friday.”');
+    expect(excerpts.textContent).not.toContain('twelve million');
+    const markup = [...unverified.querySelectorAll('li')].find((li) =>
+      li.textContent!.includes('evil.example'),
+    )!;
+    expect(markup.textContent).toContain('See <b>https://evil.example</b>');
+    expect(markup.querySelector('b')).toBeNull();
+    expect(markup.querySelector('a')).toBeNull();
+    expect(markup.textContent).toContain('shown as text and never opened');
     expect(
-      screen.getByRole('region', { name: 'Statements from the sources' }).textContent,
-    ).toContain('exact quotation');
-    expect(screen.getByText(/changed since this answer/)).toBeTruthy();
-    const unverified = screen.getByRole('region', { name: 'Unverified' });
-    expect(unverified.textContent).toContain('See <b>https://evil.example</b>');
-    expect(unverified.querySelector('b')).toBeNull();
-    expect(unverified.querySelector('a')).toBeNull();
-    expect(unverified.textContent).toContain('shown as text and never opened');
-    expect(screen.getByRole('region', { name: 'Suggestions' })).toBeTruthy();
+      screen.getByText(/Only facts and calculations from the records are established/),
+    ).toBeTruthy();
+    expect(screen.getByRole('region', { name: 'Suggestions (generated)' })).toBeTruthy();
     expect(screen.getByRole('region', { name: 'Unknown' })).toBeTruthy();
     const link = screen.getAllByRole('link', { name: /S1: Launch checklist/ })[0]!;
     expect(link.getAttribute('href')).toBe(`/workspaces/${WS}/tasks/${TSK}`);
@@ -303,5 +338,38 @@ describe('Ask with sources (7B)', () => {
     expect(screen.getByText(/work without AI/)).toBeTruthy();
     expect(screen.getByText(/may be incomplete/)).toBeTruthy();
     expect(screen.queryByLabelText('Question')).toBeNull();
+  });
+
+  it('an incomplete answer is labelled incomplete, shows no statements, and keeps record facts', async () => {
+    const truncated = {
+      ...answerRun,
+      state: 'partial',
+      status: 'Partial: the answer is incomplete',
+      content: {
+        ...answerRun.content,
+        answer: {
+          ...answerRun.content.answer,
+          completeness: 'truncated',
+          status: 'rejected',
+          reason: 'truncated_response',
+          note: 'The answer stopped before it was complete, so it is not shown as an answer. Facts and calculations below come from the records and are unaffected.',
+          statements: [],
+          dropped_citations: 0,
+        },
+      },
+    };
+    serve(manifest(), truncated);
+    page();
+    await act(async () => fireEvent.click(screen.getByRole('button', { name: 'Preview context' })));
+    fireEvent.change(screen.getByLabelText('Question'), { target: { value: 'Q' } });
+    await act(async () => fireEvent.click(screen.getByRole('button', { name: 'Estimate cost' })));
+    fireEvent.click(screen.getByLabelText(/I confirm/));
+    await act(async () => fireEvent.click(screen.getByRole('button', { name: 'Ask' })));
+    expect(await screen.findByText('The answer is incomplete')).toBeTruthy();
+    expect(screen.getByText(/stopped before it was complete/)).toBeTruthy();
+    expect(screen.getByText('Partial: the answer is incomplete')).toBeTruthy();
+    expect(screen.queryByRole('region', { name: 'Exact excerpts from the sources' })).toBeNull();
+    expect(screen.queryByRole('region', { name: 'Unverified statements (generated)' })).toBeNull();
+    expect(screen.getByRole('region', { name: 'Facts from the records' })).toBeTruthy();
   });
 });

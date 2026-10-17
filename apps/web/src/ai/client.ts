@@ -249,21 +249,30 @@ export interface AiCitedSource {
 
 export interface AiAnswer {
   completeness: string;
-  status: 'validated' | 'downgraded' | 'rejected' | 'withheld';
+  /** checked: format and citations were checked; generated statements stay unverified claims. */
+  status: 'checked' | 'downgraded' | 'rejected' | 'withheld';
   reason: string | null;
   note: string | null;
+  /** Established: canonical record fields and server calculations. */
   facts: Array<{ handle: string; label: string; value: string; source: AiCitedSource | null }>;
   calculations: Array<{ key: string; label: string; value: string; basis: string }>;
   statements: Array<{
-    kind: 'sourced' | 'suggestion' | 'unknown' | 'unverified';
+    /** excerpt: the statement is verbatim source text; every other generated claim is unverified. */
+    kind: 'excerpt' | 'unverified' | 'suggestion' | 'unknown';
     claimed: string;
     text: string;
-    quote_kind: 'exact' | 'paraphrase' | null;
     issues: string[];
-    citations: Array<{ handle: string; quote: string | null; source: AiCitedSource | null }>;
+    /** Provenance; `excerpt` is the source's own matched text, never the model's wording. */
+    citations: Array<{
+      handle: string;
+      quote: string | null;
+      excerpt: string | null;
+      source: AiCitedSource | null;
+    }>;
   }>;
   dropped_citations: number;
   sources: AiCitedSource[];
+  trust_note: string;
   provenance_note: string;
 }
 

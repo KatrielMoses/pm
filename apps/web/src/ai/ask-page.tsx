@@ -20,8 +20,9 @@ import {
 /**
  * Phase 7B: ask a read-only question grounded in sources you can read (ADR-0039). The context is
  * previewed first (scope, every source, warnings, bounds, index freshness) and works with AI off;
- * the answer separates facts from the records, calculations, sourced statements, suggestions, and
- * unknowns, and every citation opens the record through your current access.
+ * the answer separates facts from the records, calculations, exact excerpts, unverified generated
+ * statements, suggestions, and unknowns, and every citation opens the record through your current
+ * access. Only record facts and calculations are established; citations are provenance.
  */
 
 const POLL_MS = 1000;
@@ -90,28 +91,33 @@ function AnswerView({ ws, answer }: { ws: string; answer: AiAnswer }) {
         <ul>
           {by(k).map((s, i) => (
             <li key={i}>
-              {/* Generated text is rendered as text only: no HTML, links, or lookups. */}
-              <span>{s.text}</span>
-              {s.quote_kind ? (
-                <span className="hint">
-                  {' '}
-                  ({s.quote_kind === 'exact' ? 'exact quotation' : 'paraphrase'})
-                </span>
-              ) : null}
-              {s.citations.length ? (
+              {k === 'excerpt' ? (
+                // An excerpt shows the source's own matched text, never the model's wording.
                 <span>
-                  {' '}
-                  —{' '}
-                  {s.citations.map((c, j) => (
-                    <Citation key={j} ws={ws} c={c.source} />
-                  ))}
+                  “{s.citations[0]?.excerpt ?? s.text}” —{' '}
+                  <Citation ws={ws} c={s.citations[0]?.source ?? null} />
                 </span>
-              ) : null}
+              ) : (
+                <>
+                  {/* Generated text is rendered as text only: no HTML, links, or lookups. */}
+                  <span>{s.text}</span>
+                  {s.citations.length ? (
+                    <span className="hint">
+                      {' '}
+                      — cites{' '}
+                      {s.citations.map((c, j) => (
+                        <span key={j}>
+                          <Citation ws={ws} c={c.source} />
+                          {c.excerpt ? ` (quoting the source: “${c.excerpt}”)` : ''}
+                        </span>
+                      ))}
+                    </span>
+                  ) : null}
+                </>
+              )}
               {s.issues.length ? (
                 <p className="hint">
-                  {k === 'unverified'
-                    ? `Not verified: the model called this a ${s.claimed}, but `
-                    : 'Note: '}
+                  {k === 'unverified' ? 'Also: ' : 'Note: '}
                   {s.issues.map((x) => ISSUE_TEXT[x] ?? x).join('; ')}.
                 </p>
               ) : null}
@@ -120,28 +126,26 @@ function AnswerView({ ws, answer }: { ws: string; answer: AiAnswer }) {
         </ul>
       </section>
     ) : null;
+  const incomplete = answer.reason === 'truncated_response' || answer.reason === 'partial_response';
   return (
     <div className="ai-answer">
       {answer.note ? (
         <Banner
-          tone={
-            answer.status === 'downgraded'
-              ? 'warning'
-              : answer.status === 'validated'
-                ? 'info'
-                : 'danger'
-          }
+          tone={answer.status === 'downgraded' ? 'warning' : 'danger'}
           title={
-            answer.status === 'rejected'
-              ? 'The answer could not be validated'
-              : answer.status === 'withheld'
-                ? 'The answer was withheld'
-                : 'Some statements are unverified'
+            incomplete
+              ? 'The answer is incomplete'
+              : answer.status === 'rejected'
+                ? 'The answer could not be checked'
+                : answer.status === 'withheld'
+                  ? 'The answer was withheld'
+                  : 'Some citations were removed'
           }
         >
           {answer.note}
         </Banner>
       ) : null}
+      <p className="hint">{answer.trust_note}</p>
       {answer.facts.length ? (
         <section aria-label="Facts from the records">
           <h3>Facts from the records</h3>
@@ -166,10 +170,10 @@ function AnswerView({ ws, answer }: { ws: string; answer: AiAnswer }) {
           </ul>
         </section>
       ) : null}
-      {list('sourced', 'Statements from the sources')}
-      {list('suggestion', 'Suggestions')}
+      {list('excerpt', 'Exact excerpts from the sources')}
+      {list('unverified', 'Unverified statements (generated)')}
+      {list('suggestion', 'Suggestions (generated)')}
       {list('unknown', 'Unknown')}
-      {list('unverified', 'Unverified')}
       {answer.dropped_citations ? (
         <p className="hint">
           {answer.dropped_citations} citation(s) that did not match the context were removed.
@@ -279,6 +283,9 @@ export function AskPage({ ws }: { ws: string }) {
     if (!manifest) return;
     setBusy(true);
     setError(null);
+    // Every estimate needs its own confirmation; an earlier one never carries over.
+    setEstimate(null);
+    setConfirmed(false);
     try {
       const e = await aiClient.estimateAnswer(ws, {
         ...retrieval(),

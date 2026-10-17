@@ -29,7 +29,7 @@ async function askAbout(page: Page, question: string): Promise<void> {
   await ask.click();
 }
 
-test('AT-403 Phase 7B grounded journey: preview with AI off, include and exclude, a validated answer with citations, resilience', async ({
+test('AT-403 Phase 7B grounded journey: preview with AI off, include and exclude, an answer with honest trust labels and working citations, resilience', async ({
   page,
 }, info) => {
   test.setTimeout(180_000);
@@ -82,7 +82,17 @@ test('AT-403 Phase 7B grounded journey: preview with AI off, include and exclude
   await expect(answer.getByRole('region', { name: 'Facts from the records' })).toContainText(
     'Status',
   );
-  await expect(answer.getByRole('region', { name: 'Statements from the sources' })).toBeVisible();
+  // Only record facts and calculations are established; an excerpt is verbatim source text, and
+  // every other generated statement is labelled unverified even though it cites a source.
+  await expect(
+    answer.getByRole('region', { name: 'Exact excerpts from the sources' }),
+  ).toBeVisible();
+  await expect(
+    answer.getByRole('region', { name: 'Unverified statements (generated)' }),
+  ).toContainText('quoting the source');
+  await expect(answer).toContainText(
+    /Only facts and calculations from the records are established/,
+  );
   await expect(answer.getByRole('region', { name: 'Unknown' })).toBeVisible();
   await expect(answer).toContainText(/do not guarantee it is true/);
   await expect(answer).not.toContainText('Harbor partner brief');
@@ -102,10 +112,18 @@ test('AT-403 Phase 7B grounded journey: preview with AI off, include and exclude
   await expect(sources).toContainText('S1 · Task: Harbor launch checklist');
   await askAbout(page, 'Who approved the budget? #fixture:cite_forged');
   await expect(answer).toContainText('Completed', { timeout: 30_000 });
-  const unverified = answer.getByRole('region', { name: 'Unverified' });
+  const unverified = answer.getByRole('region', { name: 'Unverified statements (generated)' });
   await expect(unverified).toContainText('https://evil.example/collect');
   await expect(unverified.getByRole('link')).toHaveCount(0);
   await expect(answer).toContainText(/did not match the context were removed/);
+
+  // A provider answer that stopped at max_tokens is never shown as an answer, even as valid JSON.
+  await askAbout(page, 'Cut off? #fixture:truncate_valid');
+  await expect(answer).toContainText('Partial: the answer is incomplete', { timeout: 30_000 });
+  await expect(answer).toContainText('The answer is incomplete');
+  await expect(answer.getByRole('region', { name: 'Exact excerpts from the sources' })).toHaveCount(
+    0,
+  );
 
   // Offline: nothing is sent and the person is told; back online the same action works.
   await page.context().setOffline(true);
