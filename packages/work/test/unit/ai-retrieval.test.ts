@@ -389,13 +389,14 @@ describe('7B grounded answer validation', () => {
   ) => ({ kind, text, citations });
   const answer = (...s: unknown[]) => JSON.stringify({ statements: s });
 
-  it('accepts exact quotations and paraphrases, and separates facts, calculations, suggestions, unknowns', async () => {
+  it('separates server facts and calculations, exact excerpts, unverified claims, suggestions, and unknowns', async () => {
     const m = await manifestOf([
       task(1),
       task(2, { facts: { status: { name: 'Done', category: 'done' } } }),
     ]);
     const g = validateAnswer({
       text: answer(
+        statement('fact', 'Ship by Friday.', [{ source: 'S1' }]),
         statement('fact', 'The plan ships by Friday.', [
           { source: 'S1', quote: 'Ship by Friday.' },
         ]),
@@ -407,12 +408,20 @@ describe('7B grounded answer validation', () => {
       entries: m.entries,
       today: '2026-10-17',
     });
-    expect(g.status).toBe('validated');
-    expect(g.statements.map((s) => [s.kind, s.quote_kind])).toEqual([
-      ['sourced', 'exact'],
-      ['sourced', 'paraphrase'],
-      ['suggestion', null],
-      ['unknown', null],
+    expect(g.status).toBe('checked');
+    expect(g.statements.map((s) => s.kind)).toEqual([
+      'excerpt',
+      'unverified',
+      'unverified',
+      'suggestion',
+      'unknown',
+    ]);
+    // The excerpt shows the source's own text; a cited quotation is provenance for its claim.
+    expect(g.statements[0]!.citations).toEqual([
+      { handle: 'S1', quote: 'Ship by Friday.', excerpt: 'Ship by Friday.' },
+    ]);
+    expect(g.statements[1]!.citations).toEqual([
+      { handle: 'S1', quote: 'Ship by Friday.', excerpt: 'Ship by Friday.' },
     ]);
     // Facts and calculations come from the records, not from the model.
     expect(g.facts).toContainEqual({ handle: 'S1', label: 'Status', value: 'In progress' });
@@ -443,21 +452,21 @@ describe('7B grounded answer validation', () => {
       ['unverified', ['citation_invalid', 'no_valid_citation', 'untrusted_reference'].sort()],
       ['unverified', ['no_valid_citation', 'quote_mismatch'].sort()],
       ['unverified', ['contradicts_record', 'unsupported_figure'].sort()],
-      ['sourced', ['untrusted_link']],
+      ['unverified', ['untrusted_link']],
     ]);
     // No forged handle survives as a citation.
     expect(g.statements.flatMap((s) => s.citations.map((c) => c.handle))).toEqual(['S1', 'S1']);
   });
 
-  it('accepts a figure only when the cited source or its server facts contain it', async () => {
+  it('a figure that appears in a source is still not an established claim (notes are informational)', async () => {
     const m = await manifestOf([task(1)]);
-    const ok = validateAnswer({
+    const g = validateAnswer({
       text: answer(statement('fact', 'It was due 2026-10-01.', [{ source: 'S1' }])),
       completeness: 'complete',
       entries: m.entries,
       today: '2026-10-17',
     });
-    expect(ok.statements[0]!.kind).toBe('sourced');
+    expect(g.statements[0]).toMatchObject({ kind: 'unverified', issues: [] });
     expect(figuresOf('Costs $1,200 or 15% by March 3, 2026 (2026-03-03).')).toEqual([
       '$1,200',
       '15%',
@@ -473,6 +482,11 @@ describe('7B grounded answer validation', () => {
     expect(v('Sure, here you go!')).toMatchObject({
       status: 'rejected',
       reason: 'malformed_response',
+      statements: [],
+    });
+    expect(v('{"statements":[{"kind":"unknown","text":"n/a"}]}', 'truncated')).toMatchObject({
+      status: 'rejected',
+      reason: 'truncated_response',
       statements: [],
     });
     expect(v('{"statements":[{"kind":"fa', 'truncated')).toMatchObject({
@@ -501,9 +515,16 @@ describe('7B grounded answer validation', () => {
       entries: m.entries,
       today: '2026-10-17',
     });
-    expect(ok.status).toBe('validated');
-    expect(ok.statements[0]).toMatchObject({ kind: 'sourced', quote_kind: 'exact' });
-    for (const scenario of ['cite_forged', 'cite_misquote', 'claim_status', 'inject'] as const) {
+    expect(ok.status).toBe('checked');
+    expect(ok.statements.map((s) => s.kind)).toEqual([
+      'excerpt',
+      'unverified',
+      'unverified',
+      'unverified',
+      'suggestion',
+      'unknown',
+    ]);
+    for (const scenario of ['cite_forged', 'cite_misquote'] as const) {
       const g = validateAnswer({
         text: groundedFixtureReply(user, scenario),
         completeness: 'complete',
@@ -511,6 +532,15 @@ describe('7B grounded answer validation', () => {
         today: '2026-10-17',
       });
       expect(g.status, scenario).toBe('downgraded');
+    }
+    for (const scenario of ['claim_status', 'inject'] as const) {
+      const g = validateAnswer({
+        text: groundedFixtureReply(user, scenario),
+        completeness: 'complete',
+        entries: m.entries,
+        today: '2026-10-17',
+      });
+      expect(g.statements[0]!.kind, scenario).toBe('unverified');
     }
     expect(
       validateAnswer({

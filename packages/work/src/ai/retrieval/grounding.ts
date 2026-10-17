@@ -22,7 +22,12 @@ export const GROUNDED_SYSTEM_TEMPLATE = [
   'Use kind "unknown" when the sources do not establish something. Never state a status, date, amount, or result the sources do not contain.',
 ].join(' ');
 
-export type StatementKind = 'sourced' | 'suggestion' | 'unknown' | 'unverified';
+/**
+ * Trust labels (corrective review 01 R3). Only server facts and calculations establish product or
+ * business facts. A generated statement is an `excerpt` only when its own text appears verbatim in
+ * a cited source; every other generated claim stays `unverified`, whatever it cites.
+ */
+export type StatementKind = 'excerpt' | 'unverified' | 'suggestion' | 'unknown';
 export type StatementIssue =
   | 'no_valid_citation'
   | 'citation_invalid'
@@ -37,22 +42,27 @@ export interface GroundedStatement {
   /** The model's own label before validation (shown so a downgrade is visible). */
   claimed: 'fact' | 'suggestion' | 'unknown';
   text: string;
-  /** exact: a quotation matched the source; paraphrase: cited without a matching quotation. */
-  quote_kind: 'exact' | 'paraphrase' | null;
-  citations: Array<{ handle: string; quote: string | null }>;
+  /**
+   * Citations kept as provenance. `excerpt` is the exact text found in the cited source (with the
+   * source's own casing and spacing) when a quotation matched; it is never the model's wording.
+   */
+  citations: Array<{ handle: string; quote: string | null; excerpt: string | null }>;
   issues: StatementIssue[];
 }
 
 export interface Grounding {
   version: typeof GROUNDED_TEMPLATE_VERSION;
-  status: 'validated' | 'downgraded' | 'rejected' | 'withheld';
+  /** checked: format and citations checked (generated statements remain unverified claims). */
+  status: 'checked' | 'downgraded' | 'rejected' | 'withheld';
   reason:
     | null
     | 'malformed_response'
     | 'truncated_response'
+    | 'partial_response'
     | 'empty_answer'
     | 'sources_changed'
     | 'sources_unavailable';
+  /** From canonical record fields; valid on their own, whatever happened to the generated text. */
   facts: ServerFact[];
   calculations: Calculation[];
   statements: GroundedStatement[];
@@ -108,7 +118,42 @@ export function parseAnswer(text: string): RawStatement[] | null {
   return out;
 }
 
-const norm = (s: string) => s.normalize('NFC').replace(/\s+/g, ' ').trim().toLowerCase();
+/**
+ * Verbatim matching (documented in ADR-0039 D7): Unicode NFC, runs of whitespace treated as one
+ * space, leading and trailing space ignored. Case, punctuation, and characters are compared exactly;
+ * case folding never counts as a verbatim match.
+ */
+const norm = (s: string) => s.normalize('NFC').replace(/\s+/g, ' ').trim();
+/** Case-insensitive normalisation, used only for informational figure checks (never for trust). */
+const fold = (s: string) => norm(s).toLowerCase();
+
+/** The exact source text matching `needle` under verbatim normalisation, or null. */
+export function findExcerpt(source: string, needle: string): string | null {
+  const target = norm(needle);
+  if (!target) return null;
+  const text = source.normalize('NFC');
+  // Normalised source with a map from each normalised character back to its original index.
+  let out = '';
+  const at: number[] = [];
+  let space = false;
+  for (let i = 0; i < text.length; i++) {
+    const ch = text[i]!;
+    if (/\s/.test(ch)) {
+      space = out.length > 0;
+      continue;
+    }
+    if (space) {
+      out += ' ';
+      at.push(i);
+      space = false;
+    }
+    out += ch;
+    at.push(i);
+  }
+  const k = out.indexOf(target);
+  if (k < 0) return null;
+  return text.slice(at[k]!, at[k + target.length - 1]! + 1);
+}
 
 const URL_RE = /\b(?:https?|ftp|javascript|data|file):[^\s)>\]]+|\bwww\.[^\s)>\]]+/gi;
 const REF_RE = /\b[a-z]{2,5}_[0-9A-HJKMNP-TV-Z]{26}\b/g;
@@ -125,7 +170,7 @@ const FIGURE_RES = [
 /** Figures (amounts, percentages, dates) a statement asserts. */
 export function figuresOf(text: string): string[] {
   const out = new Set<string>();
-  for (const re of FIGURE_RES) for (const m of text.matchAll(re)) out.add(norm(m[0]));
+  for (const re of FIGURE_RES) for (const m of text.matchAll(re)) out.add(fold(m[0]));
   return [...out];
 }
 
@@ -142,8 +187,9 @@ const STATUS_WORDS: Array<{ re: RegExp; categories: readonly string[] }> = [
 
 /**
  * Validates a provider answer against the manifest it was given. Facts and calculations come
- * from the server; generated statements are classified, and any that cannot be established are
- * marked unverified rather than promoted to facts.
+ * from the server. Transport completeness is checked first and on its own: a truncated or partial
+ * answer is never presented as an answer, even when it happens to end at a valid JSON boundary.
+ * Generated statements are excerpts only when verbatim; everything else stays unverified.
  */
 export function validateAnswer(input: {
   text: string;
@@ -159,27 +205,27 @@ export function validateAnswer(input: {
     calculations: calcs,
     dropped_citations: 0,
   } as const;
-  const parsed = parseAnswer(input.text);
-  if (!parsed)
+  if (input.completeness !== 'complete')
     return {
       ...base,
       status: 'rejected',
-      reason: input.completeness === 'complete' ? 'malformed_response' : 'truncated_response',
+      reason: input.completeness === 'truncated' ? 'truncated_response' : 'partial_response',
       statements: [],
     };
+  const parsed = parseAnswer(input.text);
+  if (!parsed) return { ...base, status: 'rejected', reason: 'malformed_response', statements: [] };
   if (!parsed.length)
     return { ...base, status: 'rejected', reason: 'empty_answer', statements: [] };
   const byHandle = new Map(
     input.entries.filter((e) => e.included && e.handle).map((e) => [e.handle!, e]),
   );
+  const sourceText = (e: ManifestEntry) => Object.values(e.payload ?? {}).join('\n');
   const factText = new Map<string, string[]>();
   for (const f of facts) factText.set(f.handle, [...(factText.get(f.handle) ?? []), f.value]);
   let dropped = 0;
-  let downgraded = false;
   const statements: GroundedStatement[] = parsed.map((s) => {
     const issues = new Set<StatementIssue>();
-    const citations: Array<{ handle: string; quote: string | null }> = [];
-    let exact = false;
+    const citations: GroundedStatement['citations'] = [];
     for (const c of s.citations) {
       const entry = byHandle.get(c.source);
       if (!entry) {
@@ -187,62 +233,63 @@ export function validateAnswer(input: {
         issues.add('citation_invalid');
         continue;
       }
+      let excerpt: string | null = null;
       if (c.quote) {
-        const source = norm(Object.values(entry.payload ?? {}).join('\n'));
-        if (!source.includes(norm(c.quote))) {
+        excerpt = findExcerpt(sourceText(entry), c.quote);
+        if (excerpt === null) {
           dropped += 1;
           issues.add('quote_mismatch');
           continue;
         }
-        exact = true;
       }
       if (!citations.some((x) => x.handle === c.source && x.quote === c.quote))
-        citations.push({ handle: c.source, quote: c.quote });
+        citations.push({ handle: c.source, quote: c.quote, excerpt });
     }
     if ((s.text.match(URL_RE) ?? []).length) issues.add('untrusted_link');
-    const cited = citations.map((c) => byHandle.get(c.handle)!);
+    const cited = [...new Set(citations.map((c) => c.handle))].map((h) => byHandle.get(h)!);
     const citedRefs = new Set(cited.map((e) => e.publicId));
     if ((s.text.match(REF_RE) ?? []).some((r) => !citedRefs.has(r)))
       issues.add('untrusted_reference');
-    let kind: StatementKind =
-      s.kind === 'suggestion' ? 'suggestion' : s.kind === 'unknown' ? 'unknown' : 'sourced';
-    if (s.kind === 'fact') {
-      if (!citations.length) issues.add('no_valid_citation');
-      // Every figure must appear in a cited source's text or its server facts (AI-010).
-      const evidence = norm(
-        cited
-          .flatMap((e) => [...Object.values(e.payload ?? {}), ...(factText.get(e.handle!) ?? [])])
-          .join('\n'),
-      );
-      if (figuresOf(s.text).some((f) => !evidence.includes(f))) issues.add('unsupported_figure');
-      // A status claim about a cited task or project must match its current status.
-      for (const w of STATUS_WORDS)
-        if (w.re.test(s.text)) {
-          const statused = cited.filter((e) => e.facts.status);
-          if (statused.some((e) => !w.categories.includes(e.facts.status!.category)))
-            issues.add('contradicts_record');
-        }
-      if (
-        issues.has('no_valid_citation') ||
-        issues.has('unsupported_figure') ||
-        issues.has('contradicts_record')
-      )
-        kind = 'unverified';
+    if (s.kind !== 'fact')
+      return {
+        kind: s.kind,
+        claimed: s.kind,
+        text: s.text,
+        citations,
+        issues: [...issues],
+      };
+    // A claimed fact is an excerpt only when its own text is verbatim in a cited source.
+    for (const e of cited) {
+      const own = findExcerpt(sourceText(e), s.text);
+      if (own !== null)
+        return {
+          kind: 'excerpt',
+          claimed: 'fact',
+          text: s.text,
+          citations: [{ handle: e.handle!, quote: s.text, excerpt: own }],
+          issues: [...issues],
+        };
     }
-    if (kind === 'unverified' || issues.has('citation_invalid') || issues.has('quote_mismatch'))
-      downgraded = true;
-    return {
-      kind,
-      claimed: s.kind,
-      text: s.text,
-      quote_kind: citations.length ? (exact ? 'exact' : 'paraphrase') : null,
-      citations,
-      issues: [...issues],
-    };
+    // Otherwise the claim stays unverified. Informational notes explain why it is not established;
+    // their absence never makes a claim true.
+    if (!citations.length) issues.add('no_valid_citation');
+    const evidence = fold(
+      cited
+        .flatMap((e) => [...Object.values(e.payload ?? {}), ...(factText.get(e.handle!) ?? [])])
+        .join('\n'),
+    );
+    if (figuresOf(s.text).some((f) => !evidence.includes(f))) issues.add('unsupported_figure');
+    for (const w of STATUS_WORDS)
+      if (
+        w.re.test(s.text) &&
+        cited.some((e) => e.facts.status && !w.categories.includes(e.facts.status.category))
+      )
+        issues.add('contradicts_record');
+    return { kind: 'unverified', claimed: 'fact', text: s.text, citations, issues: [...issues] };
   });
   return {
     ...base,
-    status: downgraded ? 'downgraded' : 'validated',
+    status: dropped > 0 ? 'downgraded' : 'checked',
     reason: null,
     statements,
     dropped_citations: dropped,

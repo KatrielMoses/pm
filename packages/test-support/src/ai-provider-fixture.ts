@@ -42,7 +42,8 @@ export type FixtureScenario =
   | 'cite_misquote' // quotes text that is not in the cited source
   | 'claim_status' // asserts a status, an amount, and a date the sources do not contain
   | 'malformed' // prose instead of the JSON contract
-  | 'inject'; // follows nothing, but echoes an injection request and a javascript: link
+  | 'inject' // follows nothing, but echoes an injection request and a javascript: link
+  | 'truncate_valid'; // the whole, well-formed answer arrives, but the stop reason is max_tokens
 
 export interface ReceivedRequest {
   model: string;
@@ -104,6 +105,7 @@ const SCENARIOS: readonly FixtureScenario[] = [
   'claim_status',
   'malformed',
   'inject',
+  'truncate_valid',
 ];
 
 /**
@@ -162,11 +164,16 @@ export function groundedFixtureReply(user: string, scenario: FixtureScenario): s
     });
   else if (first) {
     if (quote)
-      statements.push({
-        kind: 'fact',
-        text: `The source says: ${quote}`,
-        citations: [{ source: first.source, quote }],
-      });
+      statements.push(
+        // A verbatim excerpt (its own text is in the source) and a generated claim that merely
+        // carries the same real quotation as provenance.
+        { kind: 'fact', text: quote, citations: [{ source: first.source, quote }] },
+        {
+          kind: 'fact',
+          text: `The source says the plan is on track: ${quote}`,
+          citations: [{ source: first.source, quote }],
+        },
+      );
     statements.push({
       kind: 'fact',
       text: `One source is titled "${first.title ?? ''}".`,
@@ -444,7 +451,7 @@ export async function startAiProviderFixture(
     if (closed) return;
     send('content_block_stop', { index: 0 });
     const stop =
-      scenario === 'truncate'
+      scenario === 'truncate' || scenario === 'truncate_valid'
         ? 'max_tokens'
         : scenario === 'refuse'
           ? 'refusal'
