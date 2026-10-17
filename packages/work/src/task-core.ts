@@ -2538,77 +2538,7 @@ export class TaskCoreService extends WorkService {
         const t = await this.ownedTask(tx, p, tsk);
         const expected = req.ifMatch !== undefined ? parseIfMatch(req.ifMatch) : input.version;
         if (expected === undefined) throw new TenancyError('precondition_required');
-        requireVersion(expected, t.row.version);
-        const members: Array<{ id: string; public_id: string }> = [];
-        for (const [i, ref] of input.assignees.entries()) {
-          const m = await tx.db
-            .selectFrom('tenancy.membership')
-            .select(['id', 'public_id', 'kind', 'state'])
-            .where('public_id', '=', ref)
-            .executeTakeFirst();
-          if (!m || m.kind !== 'member' || m.state !== 'active')
-            throw invalid(
-              issue(
-                `/assignees/${i}`,
-                'not_assignable',
-                'Only active members of this workspace can be assigned.',
-              ),
-            );
-          members.push(m);
-        }
-        const before = await tx.db
-          .selectFrom('work.task_assignee as a')
-          .innerJoin('tenancy.membership as m', 'm.id', 'a.membership_id')
-          .select(['m.id', 'm.public_id', 'a.is_primary'])
-          .where('a.task_id', '=', t.id)
-          .orderBy('a.is_primary', 'desc')
-          .orderBy('a.rank')
-          .execute();
-        await tx.db.deleteFrom('work.task_assignee').where('task_id', '=', t.id).execute();
-        const primary = input.primary ?? null;
-        const ranks = members.map((_, i) => String(i + 1).padStart(4, '0'));
-        for (const [i, m] of members.entries())
-          await tx.db
-            .insertInto('work.task_assignee')
-            .values({
-              workspace_id: tx.workspaceId,
-              brand_id: t.brand.id,
-              task_id: t.id,
-              membership_id: m.id,
-              is_primary: m.public_id === primary,
-              rank: ranks[i]!,
-              assigned_by_membership_id: p.membershipId,
-            })
-            .execute();
-        // Who handed responsibility to whom is an append-only fact (COL-015, 4A).
-        await recordAssignmentChange(tx, {
-          taskId: t.id,
-          actorMembershipId: p.membershipId,
-          via: 'assign',
-          before: before.map((b) => b.id),
-          after: members.map((m) => m.id),
-        });
-        await this.bumpTask(tx, t, p);
-        const fmt = (xs: Array<{ public_id: string; is_primary: boolean }>) =>
-          xs.map((x) => (x.is_primary ? `${x.public_id}*` : x.public_id)).join(',') || null;
-        await this.taskAudit(tx, caller, p, 'task.assigned', t, [
-          change.plain(
-            'assignees',
-            fmt(before),
-            fmt(
-              members.map((m) => ({ public_id: m.public_id, is_primary: m.public_id === primary })),
-            ),
-          ),
-        ]);
-        await this.workEvent(
-          tx,
-          caller,
-          p,
-          'work.task.assigned',
-          { type: 'work.task', id: t.id, sequence: t.row.version + 1 },
-          { assignee_membership_ids: members.map((m) => m.id).join(',') || null },
-          t.brand.id,
-        );
+        await this.setAssigneesIn(tx, caller, p, t, input, expected);
         return {
           status: 200,
           ref: { id: t.publicId, type: 'task' },
@@ -2616,6 +2546,90 @@ export class TaskCoreService extends WorkService {
         };
       },
       async (tx, p, ref) => this.taskView(tx, p, await this.loadTask(tx, p, ref.id)),
+    );
+  }
+
+  /**
+   * Replaces a task's assignees inside the caller's transaction (7C proposal adapters reuse it):
+   * the version check, active-member rule, assignment history, audit, and event are the same as
+   * the public command. The task must already be loaded through `ownedTask`.
+   */
+  protected async setAssigneesIn(
+    tx: WorkspaceTransaction,
+    caller: Caller,
+    p: Principal,
+    t: LoadedTask,
+    input: { assignees: string[]; primary?: string | null | undefined },
+    expected: number,
+  ): Promise<void> {
+    requireVersion(expected, t.row.version);
+    const members: Array<{ id: string; public_id: string }> = [];
+    for (const [i, ref] of input.assignees.entries()) {
+      const m = await tx.db
+        .selectFrom('tenancy.membership')
+        .select(['id', 'public_id', 'kind', 'state'])
+        .where('public_id', '=', ref)
+        .executeTakeFirst();
+      if (!m || m.kind !== 'member' || m.state !== 'active')
+        throw invalid(
+          issue(
+            `/assignees/${i}`,
+            'not_assignable',
+            'Only active members of this workspace can be assigned.',
+          ),
+        );
+      members.push(m);
+    }
+    const before = await tx.db
+      .selectFrom('work.task_assignee as a')
+      .innerJoin('tenancy.membership as m', 'm.id', 'a.membership_id')
+      .select(['m.id', 'm.public_id', 'a.is_primary'])
+      .where('a.task_id', '=', t.id)
+      .orderBy('a.is_primary', 'desc')
+      .orderBy('a.rank')
+      .execute();
+    await tx.db.deleteFrom('work.task_assignee').where('task_id', '=', t.id).execute();
+    const primary = input.primary ?? null;
+    const ranks = members.map((_, i) => String(i + 1).padStart(4, '0'));
+    for (const [i, m] of members.entries())
+      await tx.db
+        .insertInto('work.task_assignee')
+        .values({
+          workspace_id: tx.workspaceId,
+          brand_id: t.brand.id,
+          task_id: t.id,
+          membership_id: m.id,
+          is_primary: m.public_id === primary,
+          rank: ranks[i]!,
+          assigned_by_membership_id: p.membershipId,
+        })
+        .execute();
+    // Who handed responsibility to whom is an append-only fact (COL-015, 4A).
+    await recordAssignmentChange(tx, {
+      taskId: t.id,
+      actorMembershipId: p.membershipId,
+      via: 'assign',
+      before: before.map((b) => b.id),
+      after: members.map((m) => m.id),
+    });
+    await this.bumpTask(tx, t, p);
+    const fmt = (xs: Array<{ public_id: string; is_primary: boolean }>) =>
+      xs.map((x) => (x.is_primary ? `${x.public_id}*` : x.public_id)).join(',') || null;
+    await this.taskAudit(tx, caller, p, 'task.assigned', t, [
+      change.plain(
+        'assignees',
+        fmt(before),
+        fmt(members.map((m) => ({ public_id: m.public_id, is_primary: m.public_id === primary }))),
+      ),
+    ]);
+    await this.workEvent(
+      tx,
+      caller,
+      p,
+      'work.task.assigned',
+      { type: 'work.task', id: t.id, sequence: t.row.version + 1 },
+      { assignee_membership_ids: members.map((m) => m.id).join(',') || null },
+      t.brand.id,
     );
   }
 
