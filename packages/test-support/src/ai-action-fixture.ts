@@ -39,12 +39,21 @@ export function actionInputs(user: string): {
     }
     rest = rest.slice(0, c);
   }
-  let sources: Source[];
+  let all: Source[];
   try {
-    sources = rest ? (JSON.parse(rest) as Source[]) : [];
+    all = rest ? (JSON.parse(rest) as Source[]) : [];
   } catch {
-    sources = [];
+    all = [];
   }
+  // 7C review 01: offered labels and members arrive as typed entries (L…, M…) among the sources.
+  const sources = all.filter((s) => s.type !== 'label' && s.type !== 'member');
+  for (const s of all)
+    if (s.type === 'label' || s.type === 'member')
+      choices.push({
+        choice: s.source,
+        type: s.type,
+        name: (s.type === 'label' ? s.name : s.display_name) ?? '',
+      });
   return { request, sources, choices };
 }
 

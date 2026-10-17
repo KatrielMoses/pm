@@ -362,7 +362,16 @@ export interface BrandAiProfile {
 /** 7B: one source in a context manifest (always resolved by the server through current access). */
 export interface AiManifestSource {
   handle: string | null;
-  type: 'task' | 'project' | 'document' | 'comment' | 'activity';
+  type:
+    | 'task'
+    | 'project'
+    | 'document'
+    | 'comment'
+    | 'activity'
+    | 'goal'
+    | 'meeting'
+    | 'label'
+    | 'member';
   id: string;
   title: string;
   link: { type: 'task' | 'project' | 'document'; id: string; anchor: string | null };

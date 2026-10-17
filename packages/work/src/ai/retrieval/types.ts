@@ -13,7 +13,14 @@ export const SOURCE_KINDS = [
   // 7C: goals (5B) and the caller's own mirrored calendar events (6C), by explicit choice only.
   'goal',
   'meeting',
+  // 7C review 01: choices a drafting action may name (labels and members), offered as typed
+  // manifest entries with their own handles (L…, M…); never cited as sources.
+  'label',
+  'member',
 ] as const;
+export const CHOICE_KINDS = ['label', 'member'] as const;
+export const isChoiceKind = (k: string): k is (typeof CHOICE_KINDS)[number] =>
+  (CHOICE_KINDS as readonly string[]).includes(k);
 export type SourceKind = (typeof SOURCE_KINDS)[number];
 
 /** Kinds that 5A search can propose (activity is reached through its task, never searched). */
@@ -76,7 +83,7 @@ export interface SourceRecord {
   title: string;
   /** Where a citation of this source opens (the canonical record page). */
   link: {
-    type: 'task' | 'project' | 'document' | 'goal' | 'meeting';
+    type: 'task' | 'project' | 'document' | 'goal' | 'meeting' | 'label' | 'member';
     id: string;
     anchor: string | null;
   };
@@ -99,6 +106,11 @@ export interface IndexState {
 export interface RetrievalReaders {
   /** Resolves one source; throws a not_found/forbidden TenancyError when it is not readable. */
   source(kind: SourceKind, publicId: string): Promise<SourceRecord>;
+  /**
+   * 7C review 01: the bounded choices a drafting action may be offered (the active labels of the
+   * one context brand, then active members), each a typed record resolved like a source.
+   */
+  choices?(brandId: string | null): Promise<SourceRecord[]>;
   /** 5A search over readable records (candidates only). */
   search(q: {
     q: string;
@@ -135,6 +147,8 @@ export interface RetrievalInput {
   query: string | null;
   include: SourceRef[];
   exclude: SourceRef[];
+  /** 7C review 01: offer the context brand's labels and active members as choices. */
+  offerChoices?: boolean;
 }
 
 /** A manifest entry recorded on a run, re-resolved before dispatch and publication. */

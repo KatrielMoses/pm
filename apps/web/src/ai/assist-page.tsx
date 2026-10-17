@@ -203,6 +203,7 @@ const emptyDraft = (action = 'summarize.v1'): AssistDraft => ({
   project: '',
   task: '',
   named: '',
+  omit: [],
 });
 
 export function AssistPage({ ws }: { ws: string }) {
@@ -270,14 +271,25 @@ export function AssistPage({ ws }: { ws: string }) {
         type: TYPE_PREFIX[Object.keys(TYPE_PREFIX).find((k) => id.startsWith(k)) ?? 'tsk_']!,
         id,
       }));
-  const retrieval = () => ({
+  const retrieval = (omit = d.omit) => ({
     scope: {
       ...(d.brands.length ? { brands: d.brands } : {}),
       ...(d.project.trim() ? { project: d.project.trim() } : {}),
       ...(d.task.trim() ? { task: d.task.trim() } : {}),
     },
     include: include(),
+    // Labels and members are offered only to actions that may name them, and the person can omit
+    // any of them before anything is sent (7C review 01 R1).
+    ...(def?.choices ? { offer_choices: true, exclude: omit } : {}),
   });
+  /** Omit or offer one label or member again; the preview (and its digest) is refreshed. */
+  const toggleChoice = (s: { type: string; id: string }) => {
+    const omit = d.omit.some((x) => x.id === s.id)
+      ? d.omit.filter((x) => x.id !== s.id)
+      : [...d.omit, { type: s.type, id: s.id }];
+    change({ omit });
+    void doPreview(undefined, omit);
+  };
   const requestBody = (m: AiManifest) => ({
     action: d.action,
     ...retrieval(),
@@ -287,7 +299,7 @@ export function AssistPage({ ws }: { ws: string }) {
     manifest_digest: m.digest,
   });
 
-  const doPreview = async (event?: FormEvent) => {
+  const doPreview = async (event?: FormEvent, omit = d.omit) => {
     event?.preventDefault();
     setBusy(true);
     setError(null);
@@ -301,7 +313,7 @@ export function AssistPage({ ws }: { ws: string }) {
           .some((id) => !ID_RE.test(id))
       )
         throw new Error('ids');
-      const m = await aiClient.preview(ws, retrieval());
+      const m = await aiClient.preview(ws, retrieval(omit));
       setManifest(m);
       setSaid(`Context preview ready: ${m.counts.included} source(s).`);
     } catch (err) {
@@ -508,8 +520,23 @@ export function AssistPage({ ws }: { ws: string }) {
           <ul aria-label="Context sources" className="ai-sources">
             {manifest.sources.map((s) => (
               <li key={`${s.type}:${s.id}`}>
-                {s.handle ? `${s.handle} · ` : ''}
-                {s.type}: {s.title}
+                {s.type === 'label' || s.type === 'member' ? (
+                  <label className="ai-confirm">
+                    <input
+                      type="checkbox"
+                      checked={!d.omit.some((x) => x.id === s.id)}
+                      disabled={busy || (!s.included && s.exclusion_reason !== 'user_excluded')}
+                      onChange={() => toggleChoice(s)}
+                    />{' '}
+                    Offer {s.type === 'label' ? 'label' : 'member'}: {s.title}
+                    {s.handle ? ` (${s.handle})` : ''}
+                  </label>
+                ) : (
+                  <>
+                    {s.handle ? `${s.handle} · ` : ''}
+                    {s.type}: {s.title}
+                  </>
+                )}
                 {s.exclusion_reason ? (
                   <span className="hint">
                     {' '}

@@ -9,7 +9,7 @@ ALTER TABLE ai.change_proposal NO FORCE ROW LEVEL SECURITY;
 DO $$
 BEGIN
   IF EXISTS (SELECT 1 FROM ai.ai_action WHERE purpose = 'analysis' OR action_key IS NOT NULL)
-    OR EXISTS (SELECT 1 FROM ai.ai_context_ref WHERE record_type IN ('goal', 'meeting'))
+    OR EXISTS (SELECT 1 FROM ai.ai_context_ref WHERE record_type IN ('goal', 'meeting', 'label', 'member'))
     OR EXISTS (SELECT 1 FROM ai.proposed_change WHERE op IN ('task.assign', 'label.add', 'criterion.add'))
     OR EXISTS (SELECT 1 FROM ai.change_proposal WHERE assumptions IS NOT NULL) THEN
     RAISE EXCEPTION 'AI drafting or analysis data exists; 0057 cannot be rolled back' USING ERRCODE = 'P0001';
@@ -36,16 +36,16 @@ ALTER TABLE ai.proposed_change
 ALTER TABLE ai.ai_context_ref
   DROP CONSTRAINT ai_context_ref_type,
   DROP CONSTRAINT ai_context_ref_public_id,
+  DROP CONSTRAINT ai_context_ref_handle,
+  ADD CONSTRAINT ai_context_ref_handle CHECK (handle IS NULL OR (included AND handle ~ '^S([1-9]|1[0-9]|20)$')),
   ADD CONSTRAINT ai_context_ref_type CHECK (record_type IN ('task', 'project', 'document', 'comment', 'activity')),
   ADD CONSTRAINT ai_context_ref_public_id CHECK (record_public_id ~ '^(tsk|prj|doc|cmt)_[0-9A-HJKMNP-TV-Z]{26}$'
     AND (record_type <> 'activity' OR record_public_id ~ '^tsk_'));
 
 ALTER TABLE ai.ai_action
-  DROP CONSTRAINT ai_action_choice_refs,
   DROP CONSTRAINT ai_action_key,
   DROP CONSTRAINT ai_action_retrieval_shape,
   DROP CONSTRAINT ai_action_purpose,
-  DROP COLUMN choice_refs,
   DROP COLUMN input_digest,
   DROP COLUMN action_key,
   ADD CONSTRAINT ai_action_purpose CHECK (purpose IN ('test_run', 'grounded_answer', 'change_proposal')),

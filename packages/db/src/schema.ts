@@ -3353,8 +3353,6 @@ export interface AiActionTable {
   action_key: string | null;
   /** 7C: sha256 of the exact action input, template, bounds, and manifest the person confirmed. */
   input_digest: string | null;
-  /** 7C: server-issued choice handles (labels and members), references only. */
-  choice_refs: Json<Record<string, unknown>> | null;
 }
 export interface AiContextRefTable {
   id: string;
@@ -3362,7 +3360,16 @@ export interface AiContextRefTable {
   operation_id: string;
   position: number;
   record_id: string;
-  record_type: 'task' | 'project' | 'document' | 'comment' | 'activity' | 'goal' | 'meeting';
+  record_type:
+    | 'task'
+    | 'project'
+    | 'document'
+    | 'comment'
+    | 'activity'
+    | 'goal'
+    | 'meeting'
+    | 'label'
+    | 'member';
   record_public_id: string;
   fields: string[];
   record_version: number;
@@ -6696,7 +6703,6 @@ export const TABLE_COLUMNS: Readonly<Record<keyof Database, readonly string[]>> 
     'manifest_digest',
     'action_key',
     'input_digest',
-    'choice_refs',
   ],
   'ai.ai_context_ref': [
     'id',

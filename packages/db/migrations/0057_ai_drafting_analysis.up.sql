@@ -7,14 +7,12 @@
 -- Builds on 0053–0056; no earlier file changes.
 
 -- ---------------------------------------------------------------------------------------------
--- The action: purpose `analysis`, the versioned action key, the server-computed digest of the
--- exact action input the person confirmed, and the server-issued choice handles (labels and
--- members, references only) a drafting action could name.
+-- The action: purpose `analysis`, the versioned action key, and the server-computed digest of the
+-- exact action input the person confirmed.
 -- ---------------------------------------------------------------------------------------------
 ALTER TABLE ai.ai_action
   ADD COLUMN action_key text,
   ADD COLUMN input_digest text,
-  ADD COLUMN choice_refs jsonb,
   DROP CONSTRAINT ai_action_purpose,
   DROP CONSTRAINT ai_action_retrieval_shape,
   ADD CONSTRAINT ai_action_purpose CHECK (purpose IN ('test_run', 'grounded_answer', 'change_proposal', 'analysis')),
@@ -28,21 +26,28 @@ ALTER TABLE ai.ai_action
     (action_key IS NULL OR (action_key ~ '^[a-z_]{2,40}\.v[0-9]{1,3}$' AND purpose IN ('analysis', 'change_proposal')))
     AND (purpose <> 'analysis' OR action_key IS NOT NULL)
     AND (action_key IS NULL) = (input_digest IS NULL)
-    AND (input_digest IS NULL OR input_digest ~ '^[0-9a-f]{64}$')),
-  ADD CONSTRAINT ai_action_choice_refs CHECK (choice_refs IS NULL OR (action_key IS NOT NULL
-    AND jsonb_typeof(choice_refs) = 'object' AND pg_column_size(choice_refs) <= 8192));
+    AND (input_digest IS NULL OR input_digest ~ '^[0-9a-f]{64}$'));
 
 -- ---------------------------------------------------------------------------------------------
--- Manifest entries: goals (5B) and the caller's own calendar events (6C), by public reference.
+-- Manifest entries: goals (5B), the caller's own calendar events (6C), and offered choices
+-- (labels and members), by public reference. Choices carry their own handles (L…, M…).
 -- ---------------------------------------------------------------------------------------------
 ALTER TABLE ai.ai_context_ref
   DROP CONSTRAINT ai_context_ref_type,
   DROP CONSTRAINT ai_context_ref_public_id,
-  ADD CONSTRAINT ai_context_ref_type CHECK (record_type IN ('task', 'project', 'document', 'comment', 'activity', 'goal', 'meeting')),
-  ADD CONSTRAINT ai_context_ref_public_id CHECK (record_public_id ~ '^(tsk|prj|doc|cmt|goal|cev)_[0-9A-HJKMNP-TV-Z]{26}$'
+  DROP CONSTRAINT ai_context_ref_handle,
+  ADD CONSTRAINT ai_context_ref_type CHECK (record_type IN ('task', 'project', 'document', 'comment', 'activity',
+    'goal', 'meeting', 'label', 'member')),
+  ADD CONSTRAINT ai_context_ref_public_id CHECK (record_public_id ~ '^(tsk|prj|doc|cmt|goal|cev|lbl|mem)_[0-9A-HJKMNP-TV-Z]{26}$'
     AND (record_type <> 'activity' OR record_public_id ~ '^tsk_')
     AND (record_type <> 'goal' OR record_public_id ~ '^goal_')
-    AND (record_type <> 'meeting' OR record_public_id ~ '^cev_'));
+    AND (record_type <> 'meeting' OR record_public_id ~ '^cev_')
+    AND (record_type <> 'label' OR record_public_id ~ '^lbl_')
+    AND (record_type <> 'member' OR record_public_id ~ '^mem_')),
+  ADD CONSTRAINT ai_context_ref_handle CHECK (handle IS NULL OR (included AND (
+    (record_type NOT IN ('label', 'member') AND handle ~ '^S([1-9]|1[0-9]|20)$')
+    OR (record_type = 'label' AND handle ~ '^L([1-9]|1[0-9]|20)$')
+    OR (record_type = 'member' AND handle ~ '^M([1-9]|1[0-9]|20)$'))));
 
 -- ---------------------------------------------------------------------------------------------
 -- Proposal operations for assignment, labels, and acceptance criteria; visible assumptions.

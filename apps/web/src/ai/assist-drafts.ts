@@ -17,6 +17,8 @@ export interface AssistDraft {
   project: string;
   task: string;
   named: string;
+  /** Labels and members the person chose not to offer to the action. */
+  omit: Array<{ type: string; id: string }>;
 }
 
 const idFor = (ws: string) => `ai-assist.${ws.toLowerCase()}`;
@@ -42,6 +44,16 @@ export function readAssistDraft(account: string, ws: string): AssistDraft | null
       Array.isArray(o.brands) &&
       o.brands.length <= 5 &&
       o.brands.every((b) => str(b, 40)) &&
+      Array.isArray(o.omit) &&
+      o.omit.length <= 60 &&
+      o.omit.every(
+        (x) =>
+          !!x &&
+          typeof x === 'object' &&
+          ((x as Record<string, unknown>).type === 'label' ||
+            (x as Record<string, unknown>).type === 'member') &&
+          str((x as Record<string, unknown>).id, 40),
+      ) &&
       Array.isArray(o.answers) &&
       o.answers.length <= 5 &&
       o.answers.every(

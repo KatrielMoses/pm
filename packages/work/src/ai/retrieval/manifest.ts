@@ -19,6 +19,7 @@ import {
   type SourceFlag,
   type SourceKind,
   type SourceRecord,
+  isChoiceKind,
 } from './types.ts';
 
 /**
@@ -121,6 +122,8 @@ export async function resolveScope(
 }
 
 function inScope(scope: ResolvedScope, s: SourceRecord): boolean {
+  // A choice is offered for the context, not drawn from the scope (its brand is the context's).
+  if (isChoiceKind(s.kind)) return true;
   if (scope.brands.length && !(s.brandId && scope.brands.some((b) => b.id === s.brandId)))
     return false;
   if (scope.project && s.projectId !== scope.project.id && s.recordId !== scope.project.id)
@@ -329,6 +332,7 @@ export async function discoverManifest(
 
   const resolved: Array<{ s: SourceRecord; selection: Selection }> = [];
   for (const [i, c] of candidates.entries()) {
+    if (isChoiceKind(c.kind)) continue; // choices are offered below, never named as sources
     try {
       resolved.push({ s: await readers.source(c.kind, c.id), selection: c.selection });
     } catch (err) {
@@ -358,6 +362,30 @@ export async function discoverManifest(
       e.handle = `S${sent}`;
     }
     entries.push(e);
+  }
+  // 7C review 01: the choices offered to a drafting action are typed outbound context like any
+  // source: redacted, classified, bounded, listed for the person to omit, digested, and pinned.
+  if (input.offerChoices && readers.choices) {
+    const brands = new Set([
+      ...scope.brands.map((b) => b.id),
+      ...entries.filter((e) => e.included && e.brandId).map((e) => e.brandId!),
+    ]);
+    const counters: Record<string, number> = { label: 0, member: 0 };
+    for (const s of await readers.choices(brands.size === 1 ? [...brands][0]! : null)) {
+      const exclusion = exclusionFor(
+        s,
+        'scope',
+        scope,
+        excluded.has(key(s.kind, s.publicId)),
+        full,
+      );
+      const e = entryOf(s, 'scope', exclusion, full);
+      if (e.included) {
+        counters[s.kind] = (counters[s.kind] ?? 0) + 1;
+        e.handle = `${s.kind === 'label' ? 'L' : 'M'}${counters[s.kind]}`;
+      }
+      entries.push(e);
+    }
   }
   return {
     scope,

@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { richTextFromPlain } from '@pm/contracts';
 import { createTestDatabase, type TestDatabase } from '@pm/test-support/vitest';
@@ -56,6 +57,7 @@ const PAID: ModelEntry = {
   inputBound: { ...FIXTURE.inputBound, verification: VERIFIED },
 };
 
+const CHOICE_ACTIONS = new Set(['draft_project.v1', 'draft_tasks.v1', 'categorize.v1']);
 type Run = Awaited<ReturnType<WorkEnv['svc']['getAiRun']>>;
 type Analysis = NonNullable<NonNullable<Run['content']>['analysis']>;
 
@@ -117,6 +119,8 @@ describe('Phase 7C AI drafting and analysis', () => {
       scope: body.scope ?? { brands: [B.Harbor] },
       include: body.include ?? [],
       ...(body.exclude ? { exclude: body.exclude } : {}),
+      // Drafting actions with choices preview the labels and members they will be offered.
+      ...(CHOICE_ACTIONS.has(action) ? { offer_choices: true } : {}),
     };
     const m = await env.svc.previewAiContext(who, space, retrieval);
     return {
@@ -986,12 +990,14 @@ describe('Phase 7C AI drafting and analysis', () => {
       'task.assign',
     ]);
     expect((await env.svc.validateAiProposal(runner, ws, cv.id, mutation())).valid).toBe(true);
-    // The offered label is re-checked at validation: archived after generation, it refuses.
+    // An offered label that becomes unavailable invalidates what was sent (review 01 R1): the
+    // proposal is withheld whole and cannot be validated or applied.
     await sql(`UPDATE work.label SET state = 'archived' WHERE public_id = $1`, [R.label]);
     try {
-      const vc = await env.svc.validateAiProposal(runner, ws, cv.id, mutation());
-      expect(vc.changes.find((c) => c.key === 'c2')).toMatchObject({ state: 'invalid' });
-      expect(vc.valid).toBe(false);
+      expect(
+        codes(await refusal(env.svc.validateAiProposal(runner, ws, cv.id, mutation()))),
+      ).toEqual(['proposal_sources_unavailable']);
+      expect((await env.svc.getAiProposal(runner, ws, cv.id)).content.state).toBe('withheld');
     } finally {
       await sql(`UPDATE work.label SET state = 'active' WHERE public_id = $1`, [R.label]);
     }
@@ -1200,6 +1206,237 @@ describe('Phase 7C AI drafting and analysis', () => {
       `UPDATE work.project SET ai_budget_micros = NULL WHERE id = (SELECT id FROM core.record WHERE public_id = $1)`,
       [R.project],
     );
+  });
+
+  // Synthetic, test-only credential-shaped markers, assembled at runtime (no literal in source).
+  const LABEL_SECRET = ['s', 'k-', 'TESTONLYsyntheticLABEL0001'].join('');
+  const MEMBER_SECRET = ['g', 'hp_', 'TESTONLYsyntheticMEMBER000001'].join('');
+  const setClass = async (c: 'C0' | 'C1' | 'C2') => {
+    const s = await env.svc.getAiSettings(P.owner, ws);
+    await stepped(env, () =>
+      env.svc.updateAiSettings(P.owner, ws, { max_data_class: c }, stepUp(s.version)),
+    );
+  };
+
+  it('AT-449 offered labels and members are typed outbound context: redacted before the provider, listed in the preview, and covered by the confirmed digest', async () => {
+    const lbl = (
+      await env.svc.createLabel(P.owner, ws, B.Harbor, { name: `Ops ${LABEL_SECRET}` }, mutation())
+    ).data.id;
+    const otherMem = await mem(P.other);
+    await sql(
+      `UPDATE tenancy.membership SET display_name_override = $2, version = version + 1 WHERE public_id = $1`,
+      [otherMem, `Ana ${MEMBER_SECRET}`],
+    );
+    try {
+      env.h.sink.clear();
+      const { req, est } = await estimate(P.member, 'draft_project.v1', {
+        brief: 'Launch the falcon beta.',
+      });
+      // The preview and estimate list the choices that will be offered, with their handles.
+      const offered = est.manifest.sources.filter((s) => s.type === 'label' || s.type === 'member');
+      expect(offered.find((s) => s.id === lbl)).toMatchObject({
+        type: 'label',
+        included: true,
+        handle: expect.stringMatching(/^L\d+$/),
+      });
+      expect(offered.find((s) => s.id === otherMem)).toMatchObject({
+        type: 'member',
+        included: true,
+        handle: expect.stringMatching(/^M\d+$/),
+      });
+      const started = await env.svc.startAiAssist(
+        P.member,
+        ws,
+        { ...req, input_digest: est.input_digest },
+        mutation(),
+      );
+      await drain(db, worker, started.data.id);
+      const got = fx.control.received().at(-1)!;
+      // Only redacted values left the gateway.
+      expect(got.user).not.toContain('TESTONLYsyntheticLABEL0001');
+      expect(got.user).not.toContain('TESTONLYsyntheticMEMBER000001');
+      expect(got.user).toContain('Ops [redacted credential]');
+      expect(got.user).toContain('Ana [redacted credential]');
+      // The confirmed digest is over exactly those redacted bytes.
+      const recomputed = createHash('sha256')
+        .update(
+          JSON.stringify({ a: 'draft_project.v1', s: got.system, u: got.user, o: got.maxTokens }),
+        )
+        .digest('hex');
+      const row = await sql(
+        `SELECT a.input_digest FROM ai.ai_action a JOIN exec.operation o ON o.id = a.operation_id WHERE o.public_id = $1`,
+        [started.data.id],
+      );
+      expect(row).toEqual([{ input_digest: recomputed }]);
+      expect(est.input_digest).toBe(recomputed);
+      // No raw copy in logs, checkpoints, or generic execution state.
+      const dump = JSON.stringify([
+        env.h.sink.lines,
+        await sql(`SELECT checkpoint FROM exec.job WHERE workspace_id = $1`, [wsId]),
+        await sql(`SELECT * FROM ai.ai_action WHERE workspace_id = $1`, [wsId]),
+        await sql(`SELECT * FROM ai.ai_context_ref WHERE workspace_id = $1`, [wsId]),
+      ]);
+      expect(dump).not.toContain('TESTONLYsyntheticLABEL0001');
+      expect(dump).not.toContain('TESTONLYsyntheticMEMBER000001');
+    } finally {
+      await sql(`UPDATE work.label SET state = 'archived' WHERE public_id = $1`, [lbl]);
+      await sql(
+        `UPDATE tenancy.membership SET display_name_override = NULL, version = version + 1 WHERE public_id = $1`,
+        [otherMem],
+      );
+    }
+  });
+
+  it('AT-450 the person can omit choices; C0 sends none; a narrower policy after the run withholds the proposal, its history, export, and replay without a new dispatch', async () => {
+    const omitted = await mem(P.read_only);
+    const exclude = [
+      { type: 'member', id: omitted },
+      { type: 'label', id: R.label },
+    ];
+    const all = await estimate(P.member, 'draft_project.v1', { brief: 'Launch the falcon beta.' });
+    const offeredMembers = all.est.manifest.sources.filter(
+      (s) => s.type === 'member' && s.included,
+    ).length;
+    const { est: omittedEst } = await estimate(P.member, 'draft_project.v1', {
+      brief: 'Launch the falcon beta.',
+      exclude,
+    });
+    expect(omittedEst.manifest.sources.find((s) => s.id === omitted)).toMatchObject({
+      included: false,
+      exclusion_reason: 'user_excluded',
+    });
+    expect(omittedEst.input_digest).not.toBe(all.est.input_digest);
+    const r = await run(P.member, 'draft_project.v1', {
+      brief: 'Launch the falcon beta.',
+      exclude,
+    });
+    const got = fx.control.received().at(-1)!;
+    expect(got.user.match(/"type":"member"/g)!.length).toBe(offeredMembers - 1);
+    expect(got.user).not.toContain('"type":"label"');
+    const v = (await env.svc.getAiProposal(P.member, ws, r.content!.proposal!.id!)) as Record<
+      string,
+      any
+    >;
+    expect(v.changes.some((c: { op: string }) => c.op === 'label.add')).toBe(false);
+    // Under C0, choices are not sent at all (their registered class is C1).
+    await setClass('C0');
+    try {
+      const { est } = await estimate(P.member, 'draft_project.v1', {
+        brief: 'Launch the falcon beta.',
+      });
+      const choices = est.manifest.sources.filter((s) => s.type === 'member' || s.type === 'label');
+      expect(choices.length).toBeGreaterThan(0);
+      expect(choices.every((s) => !s.included && s.exclusion_reason === 'data_class')).toBe(true);
+    } finally {
+      await setClass('C2');
+    }
+    // A proposal made with C1 choices is withheld once the policy no longer allows C1.
+    const key = mutation();
+    const { req, est } = await estimate(P.member, 'draft_project.v1', {
+      brief: 'Launch the falcon beta.',
+    });
+    const started = await env.svc.startAiAssist(
+      P.member,
+      ws,
+      { ...req, input_digest: est.input_digest },
+      key,
+    );
+    await drain(db, worker, started.data.id);
+    const prp = (await env.svc.getAiRun(P.member, ws, started.data.id)).content!.proposal!.id!;
+    await setClass('C0');
+    try {
+      expect((await env.svc.getAiProposal(P.member, ws, prp)).content.state).toBe('withheld');
+      expect((await env.svc.getAiRun(P.member, ws, started.data.id)).content).toMatchObject({
+        state: 'withheld',
+        proposal: null,
+      });
+      const exported = JSON.stringify(
+        await env.svc.exportPortabilityHistory(P.member, ws, 'ai_history', {}),
+      );
+      expect(exported).not.toContain('Launch the falcon beta.');
+      const before = sent();
+      const replay = await env.svc.startAiAssist(
+        P.member,
+        ws,
+        { ...req, input_digest: est.input_digest },
+        key,
+      );
+      expect(replay.replayed).toBe(true);
+      expect(JSON.stringify(replay.data)).not.toContain('Launch the falcon beta.');
+      await worker.runCycle({ wait: true });
+      expect(sent()).toBe(before);
+    } finally {
+      await setClass('C2');
+    }
+  });
+
+  it('AT-451 a choice that becomes unavailable invalidates the confirmed meaning at start, refuses at dispatch, and withholds at publication', async () => {
+    const mk = async (name: string) =>
+      (await env.svc.createLabel(P.owner, ws, B.Harbor, { name }, mutation())).data.id;
+    const archive = (id: string) =>
+      sql(`UPDATE work.label SET state = 'archived' WHERE public_id = $1`, [id]);
+    // Between confirmation and start: the rediscovered context differs.
+    const a = await mk('Choice A');
+    const first = await estimate(P.member, 'draft_project.v1', {
+      brief: 'Launch the falcon beta.',
+    });
+    await archive(a);
+    expect(
+      codes(
+        await refusal(
+          env.svc.startAiAssist(
+            P.member,
+            ws,
+            { ...first.req, input_digest: first.est.input_digest },
+            mutation(),
+          ),
+        ),
+      ),
+    ).toEqual(['manifest_changed']);
+    // Between start and dispatch: nothing is sent.
+    const b = await mk('Choice B');
+    const second = await estimate(P.member, 'draft_project.v1', {
+      brief: 'Launch the falcon beta.',
+    });
+    const queued = await env.svc.startAiAssist(
+      P.member,
+      ws,
+      { ...second.req, input_digest: second.est.input_digest },
+      mutation(),
+    );
+    await archive(b);
+    const before = sent();
+    await drain(db, worker, queued.data.id);
+    expect(sent()).toBe(before);
+    expect((await env.svc.getAiRun(P.member, ws, queued.data.id)).state).toBe('failed');
+    // During the provider call: the proposal is withheld at publication, never created stale.
+    const c = await mk('Choice C');
+    const third = await estimate(
+      P.member,
+      'draft_project.v1',
+      { brief: 'Launch the falcon beta.' },
+      'slow',
+    );
+    const slow = await env.svc.startAiAssist(
+      P.member,
+      ws,
+      { ...third.req, input_digest: third.est.input_digest },
+      mutation(),
+    );
+    const cycle = worker.runCycle({ wait: true });
+    for (let i = 0; i < 200 && sent() === before; i++)
+      await new Promise((res) => setTimeout(res, 20));
+    await archive(c);
+    await cycle;
+    await drain(db, worker, slow.data.id);
+    const outcome = await sql(
+      `SELECT out.grounding->>'status' AS status, (SELECT count(*)::int FROM ai.change_proposal cp WHERE cp.operation_id = op.id) AS proposals
+         FROM ai.ai_output out JOIN exec.operation op ON op.id = out.operation_id WHERE op.public_id = $1`,
+      [slow.data.id],
+    );
+    expect(outcome).toEqual([{ status: 'withheld', proposals: 0 }]);
+    // Its run history is withheld whole, since a contributing choice is no longer available.
+    expect((await env.svc.getAiRun(P.member, ws, slow.data.id)).content!.state).toBe('withheld');
   });
 
   it('AT-445 0057 schema: forced RLS and the rollback refusal while 7C data exists', async () => {

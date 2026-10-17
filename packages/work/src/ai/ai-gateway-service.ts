@@ -56,6 +56,7 @@ import {
 } from './budget.ts';
 import { microsString, PICO_PER_MICRO, usdDisplay } from './money.ts';
 import {
+  AI_CHOICE_FIELDS,
   AI_CONTEXT_FIELDS,
   decideAvailability,
   fieldAllowed,
@@ -102,6 +103,7 @@ import {
   type SourceKind,
   type SourceRecord,
   type SourceRef,
+  isChoiceKind,
 } from './retrieval/types.ts';
 import { plainText, readContent } from '../docs/content.ts';
 import {
@@ -115,7 +117,7 @@ import {
   type ProposalChange,
   type RefValue,
 } from './proposals/contract.ts';
-import type { ProposalChoices } from './proposals/contract.ts';
+import type { HandleTarget, ProposalChoices } from './proposals/contract.ts';
 import {
   ACTION_BY_ID,
   AI_ACTIONS,
@@ -178,6 +180,8 @@ const CONTEXT_MAX = 5;
 const RETRIEVAL_CANDIDATES = 20;
 const SCOPE_BRANDS_MAX = 5;
 const ACTIVITY_ENTRIES = 10;
+/** 7C review 01: at most this many labels and this many members are offered as choices. */
+const CHOICES_MAX = 20;
 const SOURCE_PREFIX: Record<SourceKind, string> = {
   task: 'tsk',
   project: 'prj',
@@ -186,6 +190,8 @@ const SOURCE_PREFIX: Record<SourceKind, string> = {
   activity: 'tsk',
   goal: 'goal',
   meeting: 'cev',
+  label: 'lbl',
+  member: 'mem',
 };
 const OUTPUT_MAX_CHARS = 40_000;
 const HISTORY_PAGE_MAX = 50;
@@ -256,7 +262,6 @@ interface PreparedRun {
   /** 7C: the action, the digest of its exact input, and the choice handles it was offered. */
   action?: AiActionDef | null;
   inputDigest?: string | null;
-  choices?: ProposalChoices | null;
 }
 
 /** A grounded answer's input: the question and retrieval choices, or a recorded manifest. */
@@ -271,12 +276,15 @@ interface AnswerSpec {
   /** 7C: a registered action (analysis or drafting) and its confirmed input digest. */
   action?: AiActionDef | null;
   inputDigest?: string | null;
-  /** 7C: the choice handles recorded at start (dispatch re-resolves exactly these). */
-  choiceRefs?: ProposalChoices | null;
 }
 
-/** Existing records a change modifies (their versions move when it is applied). */
-const touchedBy = (c: {
+/**
+ * Existing records a change's canonical command locks and changes (7C review 01 R2): the target of
+ * an update, a replacement, or an assignment; the task a label or criterion is added to; and the
+ * owned (from) task of a relationship. A record only referenced (a relationship's other end, a
+ * new task's parent or project) is not changed, so it is never treated as checked.
+ */
+const mutatedBy = (c: {
   op: string;
   target_public_id: string | null;
   payload: unknown;
@@ -284,14 +292,14 @@ const touchedBy = (c: {
   const p = c.payload as ProposalChange['payload'];
   const ex = (x: RefValue | undefined) =>
     x && 'existing' in x ? [{ publicId: x.existing.publicId, kind: x.existing.kind }] : [];
-  return [
-    ...(c.target_public_id ? [{ publicId: c.target_public_id, kind: targetKindOf(c.op) }] : []),
-    ...ex(p.task),
-    ...ex(p.parent),
-    ...ex(p.project),
-    ...ex(p.relation?.from),
-    ...ex(p.relation?.to),
-  ];
+  const out = c.target_public_id
+    ? [{ publicId: c.target_public_id, kind: targetKindOf(c.op) }]
+    : [];
+  if (c.op === 'label.add' || c.op === 'criterion.add' || c.op === 'task.assign')
+    out.push(...ex(p.task));
+  if (c.op === 'relation.add') out.push(...ex(p.relation?.from));
+  // A stable lock order (kind, then id) keeps concurrent Applies from deadlocking.
+  return out.sort((a, b) => a.kind.localeCompare(b.kind) || a.publicId.localeCompare(b.publicId));
 };
 
 /** The kind of record an operation with a target changes. */
@@ -1434,6 +1442,8 @@ export class AiGatewayService extends McpAccessService {
       comment: /^cmt_[0-9A-HJKMNP-TV-Z]{26}$/,
       goal: /^goal_[0-9A-HJKMNP-TV-Z]{26}$/,
       meeting: /^cev_[0-9A-HJKMNP-TV-Z]{26}$/,
+      label: /^lbl_[0-9A-HJKMNP-TV-Z]{26}$/,
+      member: /^mem_[0-9A-HJKMNP-TV-Z]{26}$/,
     };
     const archived = (state: string) => (state === 'archived' ? (['archived'] as const) : []);
     const source = async (kind: SourceKind, id: string): Promise<SourceRecord> => {
@@ -1511,6 +1521,78 @@ export class AiGatewayService extends McpAccessService {
           ],
           facts: {},
           flags: [...archived(t.lifecycleState)],
+        };
+      }
+      if (kind === 'label') {
+        // 7C review 01: an active label of a brand the reader can see; its name is the one
+        // registered C1 field (AI_CHOICE_FIELDS), redacted like any source text.
+        const l = await tx.db
+          .selectFrom('work.label')
+          .select(['id', 'public_id', 'brand_id', 'name', 'state', 'version'])
+          .where('public_id', '=', id)
+          .executeTakeFirst();
+        if (!l || l.state !== 'active') throw new TenancyError('not_found');
+        const brandRec = await tx.db
+          .selectFrom('core.record')
+          .select('public_id')
+          .where('id', '=', l.brand_id)
+          .executeTakeFirstOrThrow();
+        // The label is readable through its brand (an unreadable brand reads as unknown).
+        const b = await findBrand(tx, p, brandRec.public_id, { states: 'active' });
+        return {
+          kind,
+          publicId: id,
+          recordId: l.id,
+          brandId: l.brand_id,
+          brandSensitive: b.is_sensitive,
+          projectId: null,
+          taskId: null,
+          title: l.name,
+          link: { type: 'label', id, anchor: null },
+          version: Number(l.version),
+          versionLabel: `v${l.version}`,
+          fields: [{ name: 'name', dataClass: AI_CHOICE_FIELDS.label.name, text: l.name }],
+          facts: {},
+          flags: [],
+        };
+      }
+      if (kind === 'member') {
+        // An active member of this workspace (the accepted directory); the display name is the
+        // one registered C1 field, redacted like any source text.
+        const m = await tx.db
+          .selectFrom('tenancy.membership as m')
+          .innerJoin('identity.account as a', 'a.id', 'm.account_id')
+          .select([
+            'm.id',
+            'm.public_id',
+            'm.kind',
+            'm.state',
+            'm.version',
+            'm.display_name_override',
+            'a.display_name',
+          ])
+          .where('m.public_id', '=', id)
+          .executeTakeFirst();
+        if (!m || m.kind !== 'member' || m.state !== 'active' || p.kind !== 'member')
+          throw new TenancyError('not_found');
+        const name = m.display_name_override ?? m.display_name;
+        return {
+          kind,
+          publicId: id,
+          recordId: m.id,
+          brandId: null,
+          brandSensitive: false,
+          projectId: null,
+          taskId: null,
+          title: name,
+          link: { type: 'member', id, anchor: null },
+          version: Number(m.version),
+          versionLabel: `v${m.version}`,
+          fields: [
+            { name: 'display_name', dataClass: AI_CHOICE_FIELDS.member.display_name, text: name },
+          ],
+          facts: {},
+          flags: [],
         };
       }
       if (kind === 'goal') {
@@ -1687,8 +1769,36 @@ export class AiGatewayService extends McpAccessService {
         flags: [...archived(host.lifecycleState)],
       };
     };
+    const choices = async (brandId: string | null): Promise<SourceRecord[]> => {
+      const out: SourceRecord[] = [];
+      if (brandId) {
+        const labels = await tx.db
+          .selectFrom('work.label')
+          .select('public_id')
+          .where('brand_id', '=', brandId)
+          .where('state', '=', 'active')
+          .orderBy('rank')
+          .orderBy('name')
+          .limit(CHOICES_MAX)
+          .execute();
+        for (const l of labels) out.push(await source('label', l.public_id));
+      }
+      const members = await tx.db
+        .selectFrom('tenancy.membership as m')
+        .innerJoin('identity.account as a', 'a.id', 'm.account_id')
+        .select('m.public_id')
+        .where('m.kind', '=', 'member')
+        .where('m.state', '=', 'active')
+        .orderBy('a.display_name')
+        .orderBy('m.public_id')
+        .limit(CHOICES_MAX)
+        .execute();
+      for (const m of members) out.push(await source('member', m.public_id));
+      return out;
+    };
     return {
       source,
+      choices,
       search: async (q) => {
         const r = await this.searchIn(tx, p, {
           q: q.q,
@@ -1734,12 +1844,13 @@ export class AiGatewayService extends McpAccessService {
     const issues = [];
     const known = new Set(
       mode === 'preview'
-        ? ['scope', 'query', 'include', 'exclude']
+        ? ['scope', 'query', 'include', 'exclude', 'offer_choices']
         : [
             'scope',
             'query',
             'include',
             'exclude',
+            'offer_choices',
             'question',
             'manifest_digest',
             'max_output_tokens',
@@ -1804,10 +1915,10 @@ export class AiGatewayService extends McpAccessService {
         );
       else query = b.query.trim() || null;
     }
-    const refs = (raw: unknown, pointer: string): SourceRef[] => {
+    const refs = (raw: unknown, pointer: string, max = MANIFEST_LIST_MAX): SourceRef[] => {
       if (raw === undefined) return [];
-      if (!Array.isArray(raw) || raw.length > MANIFEST_LIST_MAX) {
-        issues.push(issue(pointer, 'invalid_value', `Name up to ${MANIFEST_LIST_MAX} sources.`));
+      if (!Array.isArray(raw) || raw.length > max) {
+        issues.push(issue(pointer, 'invalid_value', `Name up to ${max} sources.`));
         return [];
       }
       const out: SourceRef[] = [];
@@ -1833,7 +1944,14 @@ export class AiGatewayService extends McpAccessService {
       return out;
     };
     const include = refs(b.include, '/include');
-    const exclude = refs(b.exclude, '/exclude');
+    // 7C review 01: offered labels and members may be omitted (excluded), never named as sources.
+    const exclude = refs(b.exclude, '/exclude', MANIFEST_LIST_MAX * 3);
+    if (include.some((r) => isChoiceKind(r.kind)))
+      issues.push(
+        issue('/include', 'invalid_reference', 'Labels and members are offered, not included.'),
+      );
+    if (b.offer_choices !== undefined && typeof b.offer_choices !== 'boolean')
+      issues.push(issue('/offer_choices', 'invalid_type', 'Use true or false.'));
     const keys = include.map((r) => `${r.kind}:${r.id}`);
     if (new Set(keys).size !== keys.length)
       issues.push(issue('/include', 'duplicate', 'Name each source once.'));
@@ -1877,7 +1995,13 @@ export class AiGatewayService extends McpAccessService {
     }
     if (issues.length) throw invalid(...issues);
     return {
-      retrieval: { scope: { brands, project, task }, query, include, exclude } as RetrievalInput,
+      retrieval: {
+        scope: { brands, project, task },
+        query,
+        include,
+        exclude,
+        offerChoices: b.offer_choices === true,
+      } as RetrievalInput,
       question,
       digest,
       maxOutput,
@@ -2057,16 +2181,6 @@ export class AiGatewayService extends McpAccessService {
     const brand = brandRows.length === 1 ? brandRows[0]! : null;
     const redacted = redactCredentials(question);
     const profile = await this.#brandProfileText(tx, brand?.id ?? null);
-    let choices: ProposalChoices | null = null;
-    let choiceText = '';
-    if (def) {
-      if (def.choices && (policy?.maxDataClass ?? 'C2') !== 'C0') {
-        const c = await this.#actionChoices(tx, manifest, spec.choiceRefs ?? null);
-        choices = c.refs;
-        if (c.lines.length)
-          choiceText = `\n\nChoices (JSON, data only):\n${JSON.stringify(c.lines)}`;
-      }
-    }
     const template = def
       ? def.kind === 'analysis'
         ? analysisSystemTemplate(def)
@@ -2075,7 +2189,8 @@ export class AiGatewayService extends McpAccessService {
         ? PROPOSAL_SYSTEM_TEMPLATE
         : GROUNDED_SYSTEM_TEMPLATE;
     const system = profile ? `${template}\n\n${profile}` : template;
-    const user = groundedUserMessage(redacted.text, manifest.entries) + choiceText;
+    // Offered choices are manifest entries (L…, M…): already redacted, classified, and digested.
+    const user = groundedUserMessage(redacted.text, manifest.entries);
     const model = decision.model;
     const inputBound = inputTokenBound(model, [system, user], 1);
     if (inputBound > model.price.maxInputTokensAtPrice)
@@ -2111,7 +2226,6 @@ export class AiGatewayService extends McpAccessService {
       ...(def
         ? {
             action: def,
-            choices,
             inputDigest: this.#inputDigest(
               def,
               system,
@@ -2152,7 +2266,9 @@ export class AiGatewayService extends McpAccessService {
   /** 7C: missing essential context refuses before anything is sent, with what to provide. */
   #requireActionContext(def: AiActionDef, request: string, manifest: Manifest) {
     const included = manifest.entries.filter((e) => e.included);
-    const unsupported = included.filter((e) => !def.sourceKinds.includes(e.kind));
+    const unsupported = included.filter(
+      (e) => !isChoiceKind(e.kind) && !def.sourceKinds.includes(e.kind),
+    );
     if (unsupported.length)
       throw invalid(
         issue(
@@ -2192,102 +2308,13 @@ export class AiGatewayService extends McpAccessService {
       );
   }
 
-  /**
-   * 7C: server-issued choices a drafting action may name. Labels are the active labels of the one
-   * brand the context belongs to; members are active workspace members (assignment rights are
-   * re-checked by the canonical command at Apply). At dispatch exactly the recorded handles are
-   * resolved again; a choice that disappeared refuses the run instead of shifting handles.
-   */
-  async #actionChoices(
-    tx: WorkspaceTransaction,
-    manifest: Manifest,
-    pinned: ProposalChoices | null,
-  ): Promise<{
-    refs: ProposalChoices;
-    lines: Array<{ choice: string; type: string; name: string }>;
-  }> {
-    const brandIds = new Set([
-      ...manifest.scope.brands.map((b) => b.id),
-      ...manifest.entries.filter((e) => e.included && e.brandId).map((e) => e.brandId!),
-    ]);
-    const brandId = brandIds.size === 1 ? [...brandIds][0]! : null;
-    let labels: Array<{ public_id: string; name: string }> = [];
-    if (brandId || pinned?.labels.length) {
-      let q = tx.db
-        .selectFrom('work.label')
-        .select(['public_id', 'name'])
-        .where('state', '=', 'active');
-      q = pinned
-        ? q.where(
-            'public_id',
-            'in',
-            pinned.labels.length ? pinned.labels.map((l) => l.publicId) : [''],
-          )
-        : q.where('brand_id', '=', brandId!).orderBy('rank').orderBy('name').limit(20);
-      labels = await q.execute();
-    }
-    let mq = tx.db
-      .selectFrom('tenancy.membership as m')
-      .innerJoin('identity.account as a', 'a.id', 'm.account_id')
-      .select(['m.public_id', 'm.display_name_override', 'a.display_name'])
-      .where('m.kind', '=', 'member')
-      .where('m.state', '=', 'active');
-    mq = pinned
-      ? mq.where(
-          'm.public_id',
-          'in',
-          pinned.members.length ? pinned.members.map((m) => m.publicId) : [''],
-        )
-      : mq.orderBy('a.display_name').orderBy('m.public_id').limit(20);
-    const members = await mq.execute();
-    const byId = <T extends { public_id: string }>(
-      rows: T[],
-      ids: ReadonlyArray<{ publicId: string }>,
-    ) => ids.map((x) => rows.find((r) => r.public_id === x.publicId));
-    if (pinned) {
-      const l = byId(labels, pinned.labels);
-      const m = byId(members, pinned.members);
-      if (l.some((x) => !x) || m.some((x) => !x))
-        throw this.#refuse(
-          'manifest_changed',
-          'A label or member offered to this request is no longer available. Nothing was sent. Start it again.',
-          'conflict',
-        );
-      return {
-        refs: pinned,
-        lines: [
-          ...pinned.labels.map((x, i) => ({ choice: x.handle, type: 'label', name: l[i]!.name })),
-          ...pinned.members.map((x, i) => ({
-            choice: x.handle,
-            type: 'member',
-            name: m[i]!.display_name_override ?? m[i]!.display_name,
-          })),
-        ],
-      };
-    }
-    const refs: ProposalChoices = {
-      labels: labels.map((l, i) => ({ handle: `L${i + 1}`, publicId: l.public_id })),
-      members: members.map((m, i) => ({ handle: `M${i + 1}`, publicId: m.public_id })),
-    };
-    return {
-      refs,
-      lines: [
-        ...labels.map((l, i) => ({ choice: `L${i + 1}`, type: 'label', name: l.name })),
-        ...members.map((m, i) => ({
-          choice: `M${i + 1}`,
-          type: 'member',
-          name: m.display_name_override ?? m.display_name,
-        })),
-      ],
-    };
-  }
-
   /** 7C: the 7D proposal contract restricted to one drafting action's operations. */
   #proposalTemplateFor(def: AiActionDef): string {
     return [
       PROPOSAL_SYSTEM_TEMPLATE,
       `This request is action ${actionId(def)}. Allowed ops: ${(def.ops ?? []).join(', ')}.`,
       'task.create and task.update may set estimate_minutes (whole minutes). criterion.add {"task":S…|new:…,"fields":{"text":string,"kind":"acceptance"}} adds an acceptance criterion; label.add {"task":…,"label":"L…"} adds an offered label; task.assign {"target":S… or "task":new:…,"assignees":["M…"]} assigns offered members.',
+      'Offered labels and members appear among the sources as type label (L…) and member (M…): name them only as choices, never cite them.',
       'Optionally include "assumptions":[string]. If essential information is missing, return {"questions":[{"text":string}],"changes":[]} instead of guessing.',
       ...def.instructions,
     ].join(' ');
@@ -2485,6 +2512,8 @@ export class AiGatewayService extends McpAccessService {
     let retrieval;
     try {
       retrieval = this.#parseRetrieval({ ...rest, question: request }, 'answer');
+      // The action decides whether choices are offered; the preview must have offered the same.
+      retrieval.retrieval.offerChoices = !!def.choices;
     } catch (err) {
       if (err instanceof TenancyError) issues.push(...err.issues);
       else throw err;
@@ -2577,7 +2606,6 @@ export class AiGatewayService extends McpAccessService {
       manifest_digest: string | null;
       purpose?: string;
       action_key?: string | null;
-      choice_refs?: unknown;
     },
   ): Promise<AnswerSpec> {
     const scope = (action.retrieval_scope ?? {}) as {
@@ -2610,7 +2638,6 @@ export class AiGatewayService extends McpAccessService {
     return {
       purpose: action.purpose === 'change_proposal' ? 'change_proposal' : 'grounded_answer',
       action: def,
-      choiceRefs: (action.choice_refs ?? null) as ProposalChoices | null,
       retrieval: {
         scope: {
           brands: scope.brands ?? [],
@@ -3099,7 +3126,6 @@ export class AiGatewayService extends McpAccessService {
               : PROMPT_TEMPLATE_VERSION,
         action_key: prep.action ? actionId(prep.action) : null,
         input_digest: prep.action ? (prep.inputDigest ?? null) : null,
-        choice_refs: prep.action && prep.choices ? JSON.stringify(prep.choices) : null,
         price_snapshot: JSON.stringify(priceSnapshot(model)),
         privacy_snapshot: JSON.stringify(
           privacySnapshot(model, prep.decision.approved, policy?.maxDataClass ?? 'C2'),
@@ -4420,7 +4446,6 @@ export class AiGatewayService extends McpAccessService {
           'initiating_membership_id',
           'retrieval_scope',
           'action_key',
-          'choice_refs',
         ])
         .where('operation_id', '=', opId)
         .executeTakeFirstOrThrow();
@@ -4949,7 +4974,6 @@ export class AiGatewayService extends McpAccessService {
       initiating_membership_id: string;
       retrieval_scope: unknown;
       action_key?: string | null;
-      choice_refs?: unknown;
     },
     text: string,
     completeness: 'complete' | 'truncated' | 'partial',
@@ -4966,11 +4990,21 @@ export class AiGatewayService extends McpAccessService {
         status: 'rejected',
         reason: completeness === 'truncated' ? 'truncated_response' : 'partial_response',
       };
+    // Choices (labels and members) are offered entries with their own handles, not sources.
+    const offered = manifest.entries.filter((e) => e.included && e.handle && isChoiceKind(e.kind));
+    const choices: ProposalChoices = {
+      labels: offered
+        .filter((e) => e.kind === 'label')
+        .map((e) => ({ handle: e.handle!, publicId: e.publicId })),
+      members: offered
+        .filter((e) => e.kind === 'member')
+        .map((e) => ({ handle: e.handle!, publicId: e.publicId })),
+    };
     const handles = manifest.entries
-      .filter((e) => e.included && e.handle)
+      .filter((e) => e.included && e.handle && !isChoiceKind(e.kind))
       .map((e) => ({
         handle: e.handle!,
-        kind: e.kind,
+        kind: e.kind as HandleTarget['kind'],
         publicId: e.publicId,
         recordId: e.recordId,
         version: e.version,
@@ -4981,7 +5015,7 @@ export class AiGatewayService extends McpAccessService {
       scopeBrands: manifest.scope.brands.length,
       // 7C: a drafting action proposes only its own operations and offered choices.
       ...(def?.ops ? { ops: def.ops } : {}),
-      ...(action.choice_refs ? { choices: action.choice_refs as ProposalChoices } : {}),
+      choices,
     });
     if (parsed.ok === 'questions') {
       // Missing essentials: questions (and assumptions) instead of a proposal; nothing is stored
@@ -5486,33 +5520,66 @@ export class AiGatewayService extends McpAccessService {
   }
 
   /**
-   * The first change of an Apply that touches an existing record checks it against the version
-   * the proposal expects for that record (from any selected change targeting it), even when this
-   * change itself carries no expected version (a label, criterion, or child added to it). Later
-   * changes in the same transaction see the versions this Apply produced.
+   * Locks the domain row a canonical writer locks (`work.task`, `work.project`, or
+   * `knowledge.document`) and returns its version; the lock is held until the transaction or its
+   * savepoint ends.
    */
-  async #firstTouch(
+  async #lockedVersion(
     tx: WorkspaceTransaction,
-    p: Principal,
+    kind: 'task' | 'project' | 'document',
+    publicId: string,
+  ): Promise<number | null> {
+    const table =
+      kind === 'task' ? 'work.task' : kind === 'project' ? 'work.project' : 'knowledge.document';
+    const col = kind === 'document' ? 'current_version_number' : 'version';
+    const res = await sql<{ v: string | number }>`
+      SELECT x.${sql.ref(col)} AS v
+        FROM core.record r
+        JOIN ${sql.table(table)} x ON x.workspace_id = r.workspace_id AND x.id = r.id
+       WHERE r.public_id = ${publicId}
+         FOR UPDATE OF x`.execute(tx.db);
+    return res.rows[0] ? Number(res.rows[0].v) : null;
+  }
+
+  /**
+   * Before a change runs (7C review 01 R2): each existing record it will change is locked as its
+   * canonical writer locks it, then compared with the version this Apply produced (if an earlier
+   * change already changed it) or the version the proposal expects for it. Only records this Apply
+   * checked under that lock are trusted later; a merely referenced record never is.
+   */
+  async #guardBefore(
+    tx: WorkspaceTransaction,
     c: { op: string; target_public_id: string | null; payload: unknown },
     selected: ReadonlyArray<{
       target_public_id: string | null;
       expected_version: number | string | null;
     }>,
-    ids: Map<string, { publicId: string; recordId: string }>,
+    guard: Map<string, number>,
   ) {
-    for (const x of touchedBy(c)) {
-      if (ids.has(`@${x.publicId}`)) continue;
+    for (const x of mutatedBy(c)) {
+      const now = await this.#lockedVersion(tx, x.kind, x.publicId);
+      if (now === null) throw new TenancyError('not_found');
+      const ours = guard.get(x.publicId);
       const bound = selected.find(
         (s) => s.target_public_id === x.publicId && s.expected_version !== null,
       );
-      if (!bound) continue;
-      const cur = await this.#currentValues(tx, p, x.kind, x.publicId);
-      if (!cur) throw new TenancyError('not_found');
-      if (cur.version !== Number(bound.expected_version))
+      const want = ours ?? (bound ? Number(bound.expected_version) : null);
+      if (want !== null && now !== want)
         throw new TenancyError('conflict', {
           issues: [issue('/', 'target_changed', FAILURE_MESSAGES.target_changed!)],
         });
+    }
+  }
+
+  /** After a change: records the versions this Apply produced for the records it changed. */
+  async #guardAfter(
+    tx: WorkspaceTransaction,
+    c: { op: string; target_public_id: string | null; payload: unknown },
+    guard: Map<string, number>,
+  ) {
+    for (const x of mutatedBy(c)) {
+      const now = await this.#lockedVersion(tx, x.kind, x.publicId);
+      if (now !== null) guard.set(x.publicId, now);
     }
   }
 
@@ -5534,6 +5601,7 @@ export class AiGatewayService extends McpAccessService {
       payload: unknown;
     },
     ids: Map<string, { publicId: string; recordId: string }>,
+    guard: Map<string, number>,
     req: Mutation,
   ): Promise<{ publicId: string; recordId: string }> {
     const payload = c.payload as ProposalChange['payload'];
@@ -5550,7 +5618,7 @@ export class AiGatewayService extends McpAccessService {
       v === undefined ? undefined : v === null ? null : richTextFromPlain(v);
     // A record an earlier change of this same Apply already changed carries a newer version;
     // its version was checked by that first change under the same transaction lock.
-    const fresh = (publicId: string) => !ids.has(`@${publicId}`);
+    const fresh = (publicId: string) => !guard.has(publicId);
     const changed = () =>
       new TenancyError('conflict', {
         issues: [issue('/', 'target_changed', FAILURE_MESSAGES.target_changed!)],
@@ -5784,6 +5852,7 @@ export class AiGatewayService extends McpAccessService {
     if (!order.ok) return results;
     const byKey = new Map(selected.map((c) => [c.change_key, c]));
     const ids = new Map<string, { publicId: string; recordId: string }>();
+    const guard = new Map<string, number>();
     await sql`SAVEPOINT proposal_dry_run`.execute(tx.db);
     try {
       for (const key of order.order) {
@@ -5797,15 +5866,19 @@ export class AiGatewayService extends McpAccessService {
           continue;
         }
         await sql`SAVEPOINT proposal_change`.execute(tx.db);
+        // A change rolled back to its savepoint leaves no trusted state behind.
+        const saved = new Map(guard);
         try {
-          await this.#firstTouch(tx, p, c, selected, ids);
-          const made = await this.#applyChange(tx, caller, p, proposal, action, c, ids, req);
+          await this.#guardBefore(tx, c, selected, guard);
+          const made = await this.#applyChange(tx, caller, p, proposal, action, c, ids, guard, req);
+          await this.#guardAfter(tx, c, guard);
           if (c.temp_ref) ids.set(c.temp_ref, made);
-          for (const x of touchedBy(c)) ids.set(`@${x.publicId}`, made);
           await sql`RELEASE SAVEPOINT proposal_change`.execute(tx.db);
           results.set(key, { state: 'valid', code: null, message: null });
         } catch (err) {
           await sql`ROLLBACK TO SAVEPOINT proposal_change`.execute(tx.db);
+          guard.clear();
+          for (const [k, v] of saved) guard.set(k, v);
           const failure = this.#changeFailure(err);
           results.set(key, { state: 'invalid', ...failure });
         }
@@ -6547,6 +6620,7 @@ export class AiGatewayService extends McpAccessService {
         });
         const byKey = new Map(selected.map((c) => [c.change_key, c]));
         const ids = new Map<string, { publicId: string; recordId: string }>();
+        const guard = new Map<string, number>();
         const made = new Map<string, { publicId: string; recordId: string }>();
         const ran: string[] = [];
         let failed: { key: string; code: string; message: string } | null = null;
@@ -6554,10 +6628,20 @@ export class AiGatewayService extends McpAccessService {
         for (const key of order.order) {
           const c = byKey.get(key)!;
           try {
-            await this.#firstTouch(tx, p, c, selected, ids);
-            const r = await this.#applyChange(tx, applyCaller, p, proposal, action, c, ids, req);
+            await this.#guardBefore(tx, c, selected, guard);
+            const r = await this.#applyChange(
+              tx,
+              applyCaller,
+              p,
+              proposal,
+              action,
+              c,
+              ids,
+              guard,
+              req,
+            );
+            await this.#guardAfter(tx, c, guard);
             if (c.temp_ref) ids.set(c.temp_ref, r);
-            for (const x of touchedBy(c)) ids.set(`@${x.publicId}`, r);
             made.set(key, r);
             ran.push(key);
           } catch (err) {

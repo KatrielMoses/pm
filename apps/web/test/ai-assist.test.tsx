@@ -299,4 +299,80 @@ describe('AI assist (7C)', () => {
     clearPersonalClientState();
     expect(keys()).toEqual([]);
   });
+  it('a drafting action previews the labels and members it will offer, and the person can omit one before anything is sent (review 01 R1)', async () => {
+    const MEM = 'mem_01ARZ3NDEKTSV4RRFFQ69G5FAV';
+    const calls = serve(runWith({ analysis: null }));
+    const withChoice = {
+      ...manifest,
+      sources: [
+        ...manifest.sources,
+        {
+          handle: 'M1',
+          type: 'member',
+          id: MEM,
+          title: 'Ana',
+          link: { type: 'member', id: MEM, anchor: null },
+          version: 'v1',
+          selection: 'scope',
+          included: true,
+          exclusion_reason: null,
+          flags: [],
+          fields: ['display_name'],
+        },
+      ],
+    };
+    vi.mocked(fetch).mockImplementation(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const path = String(input);
+      const body = init?.body ? JSON.parse(String(init.body)) : null;
+      calls.push({ method: init?.method ?? 'GET', path, body });
+      if (path.endsWith('/ai/actions'))
+        return json(200, {
+          data: {
+            type: 'ai_actions',
+            items: [
+              action('draft_project.v1', 'proposal', 'Draft a project plan', {
+                needs: 'brief_or_goal',
+                choices: true,
+                input: { label: 'Extra guidance (optional)', required: false, max: 2000 },
+              }),
+            ],
+          },
+        });
+      if (path.endsWith('/ai/context-previews'))
+        return json(200, {
+          data: body?.exclude?.length
+            ? {
+                ...withChoice,
+                sources: withChoice.sources.map((s) =>
+                  s.id === MEM
+                    ? { ...s, handle: null, included: false, exclusion_reason: 'user_excluded' }
+                    : s,
+                ),
+              }
+            : withChoice,
+        });
+      return json(404, { error: { code: 'not_found', status: 404, message: 'Not found' } });
+    });
+    window.history.pushState({}, '', `/workspaces/${WS}/ai/assist?action=draft_project.v1`);
+    page();
+    fireEvent.change(await screen.findByLabelText('Project brief'), {
+      target: { value: 'Launch.' },
+    });
+    await act(async () => fireEvent.click(screen.getByRole('button', { name: 'Preview context' })));
+    const offer = await screen.findByLabelText(/Offer member: Ana \(M1\)/);
+    expect((offer as HTMLInputElement).checked).toBe(true);
+    expect(calls.filter((c) => c.path.endsWith('/ai/context-previews')).at(-1)!.body).toMatchObject(
+      { offer_choices: true, exclude: [] },
+    );
+    await act(async () => fireEvent.click(offer));
+    expect(calls.filter((c) => c.path.endsWith('/ai/context-previews')).at(-1)!.body).toMatchObject(
+      {
+        offer_choices: true,
+        exclude: [{ type: 'member', id: MEM }],
+      },
+    );
+    expect(((await screen.findByLabelText(/Offer member: Ana/)) as HTMLInputElement).checked).toBe(
+      false,
+    );
+  });
 });
