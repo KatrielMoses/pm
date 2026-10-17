@@ -622,6 +622,13 @@ Renumbered in the Phase 6 integration review: 6B was accepted with a second `pl-
     - search candidates per preview (20, within the 5A page size);
     - scope brands (5);
     - activity entries (10).
+  - **Answer contract (corrective review 01).**
+    - `content.answer.status` is `checked` (format and citations checked; generated statements remain unverified), `downgraded`, `rejected`, or `withheld`.
+    - `reason` adds `partial_response`. A truncated or partial transport is always `rejected` with `truncated_response` or `partial_response`, and `facts` and `calculations` are kept.
+    - Statement kinds are `excerpt` (verbatim source text), `unverified`, `suggestion`, and `unknown`.
+    - Each citation carries `excerpt`, the source's own matched text or null.
+    - `trust_note` states that only record facts and calculations are established.
+    - A withheld run returns no prompt, answer, scope, or sources.
   - **Response format.** `grounded_answer.v1` (recorded in the Phase 7B engineering decision record, docs/engineering/adr/0039): JSON statements of kind fact, suggestion, or unknown, with citations by handle and an optional exact quotation.
 - **Alternatives:** A separate retrieval API with its own operation type (the 7A `ai_action` operation already carries budgets, cancellation, and history).
 - **Consequences:** No new events, actions, ID prefixes, or schemas. Citation handles are manifest-local, not public identifiers.

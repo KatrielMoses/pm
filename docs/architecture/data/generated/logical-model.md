@@ -4669,7 +4669,7 @@ Generated content (answer, draft, summary) with statement-level citations; immut
 | Volume / export / search-AI | `high` / `filtered` / `no` |
 | Secrets / personal data | `no` / `incidental` |
 | Uniqueness | — |
-| Key typed columns | `operation_id`; `dispatch_id (unique)`; `completeness (complete\|truncated\|partial\|erased)`; `content text null`; `grounding jsonb null (the validated typed answer: server facts, calculations, statements by kind, checked citations; erased with the content)` |
+| Key typed columns | `operation_id`; `dispatch_id (unique)`; `completeness (complete\|truncated\|partial\|erased)`; `content text null`; `grounding jsonb null (the checked typed answer: server facts and calculations, which alone are established; statements labelled excerpt, unverified, suggestion, or unknown; citations with the source's own matched excerpt; incomplete transport rejected; erased with the content)` |
 | Sensitive fields | — |
 | Requirements | AI-008, AI-009, AI-010, AI-026, AI-029 |
 | Notes | Phase 7A (ADR-44): immutable (trigger) except erasure. Partial and truncated output is labelled, never a success. Phase 7B (ADR-46): a grounded answer stores its validation result; it is immutable except erasure. |

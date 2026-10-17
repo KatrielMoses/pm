@@ -8230,6 +8230,57 @@
         "ui_record",
         "error_message"
       ]
+    },
+    {
+      "id": "AT-404",
+      "threats": [
+        "T-101",
+        "T-99"
+      ],
+      "principal": "member",
+      "setup": "After completion, the AI data class narrows from C2 to C1 and C0 while membership and record access stay; history, export, completed-key replay, and citations; restored policy; a run created under C1; authorized drift; a policy change during execution; erasure",
+      "scope": "workspace",
+      "action": "ai.execute",
+      "surface": "ai_answer",
+      "expected": "deny",
+      "response_shape": "omitted",
+      "silent_surfaces": [
+        "export",
+        "ai_answer",
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-405",
+      "threats": [
+        "T-100"
+      ],
+      "principal": "member",
+      "setup": "A provider answer that is well-formed JSON but stopped at max_tokens, a malformed truncation, a complete answer, and a cancellation mid-stream",
+      "scope": "workspace",
+      "action": "ai.execute",
+      "surface": "ai_answer",
+      "expected": "allow",
+      "response_shape": "ok_filtered",
+      "silent_surfaces": [
+        "ai_answer"
+      ]
+    },
+    {
+      "id": "AT-406",
+      "threats": [
+        "T-100"
+      ],
+      "principal": "member",
+      "setup": "A generated claim carrying a real but unrelated quotation, a verbatim excerpt, and a status claim contradicting the record",
+      "scope": "workspace",
+      "action": "ai.execute",
+      "surface": "ai_answer",
+      "expected": "allow",
+      "response_shape": "ok_filtered",
+      "silent_surfaces": [
+        "ai_answer"
+      ]
     }
   ]
 }

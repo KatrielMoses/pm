@@ -553,4 +553,8 @@ All decisions are **proposed (Phase 0C)**, pending solutions-architect acceptanc
   - Trusting the index's permission-free rows.
   - Showing withheld runs' source lists (types and counts leak).
   - Letting an attached citation make a statement a fact.
-- **Consequences:** Threats T-99 to T-102 with tests AT-019, AT-020, and AT-390 to AT-403.
+- **Corrective review 01:**
+  - **History re-checks policy.** History re-checks the current AI field and data-class policy, not only visibility. If a field a run used is no longer allowed, the whole content is withheld (one decision shared with the manifest, also covering 7A test runs). Authorized drift is marked changed.
+  - **Incomplete answers are never answers,** whatever their syntax.
+  - **Trust.** Only record facts and calculations are established. A generated statement is an exact excerpt only when verbatim (case-sensitive); every other claim is unverified, whatever it cites.
+- **Consequences:** Threats T-99 to T-102 with tests AT-019, AT-020, and AT-390 to AT-406.

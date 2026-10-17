@@ -26,7 +26,7 @@ GROUNDING = "packages/work/src/ai/retrieval/grounding.ts"
 FACTS = "packages/work/src/ai/retrieval/facts.ts"
 WEB = "apps/web/src/ai/ask-page.tsx"
 THREATS = ["T-%d" % i for i in range(99, 103)]
-TESTS = ["AT-%d" % i for i in range(390, 404)]
+TESTS = ["AT-%d" % i for i in range(390, 407)]
 PHASE0_TESTS = ["AT-019", "AT-020"]
 TEST_FILES = [
     "packages/work/test/integration/ai-retrieval.test.ts",
@@ -96,7 +96,8 @@ def check_retrieval():
         if term not in manifest:
             errs.append("manifest engine lacks %s" % label)
     for term in ("export function validateAnswer(", "quote_mismatch", "unsupported_figure", "contradicts_record",
-                 "untrusted_link", "malformed_response", "GROUNDED_TEMPLATE_VERSION = 'grounded_answer.v1'"):
+                 "untrusted_link", "malformed_response", "partial_response",
+                 "GROUNDED_TEMPLATE_VERSION = 'grounded_answer.v1'"):
         if term not in grounding:
             errs.append("answer validation lacks %s" % term)
     # The retrieval engine and the page never fetch, follow links, or render generated markup.
@@ -114,7 +115,8 @@ def check_retrieval():
             errs.append("API lacks %s" % r)
     web = read(P(WEB))
     for term in ("Semantic (meaning-based) search is not available", "aria-label=\"Context sources\"",
-                 "Facts from the records", "AI is not available", "I\n                  confirm this answer may cost up to"):
+                 "Facts from the records", "Exact excerpts from the sources", "Unverified statements (generated)",
+                 "AI is not available", "I\n                  confirm this answer may cost up to"):
         if term.replace("\n                  ", " ") not in web.replace("\n                  ", " ") and term not in web:
             errs.append("Ask page lacks %r" % term)
     registry = load(P("docs/architecture/platform/contracts/registry.json"))
@@ -127,6 +129,41 @@ def check_retrieval():
         if params.get(name, {}).get("owner") != "7B":
             errs.append("parameter %s must be registered with owner 7B" % name)
     return errs, "5A searchIn, canonical loaders, re-checks, validation, no fetch/markup/vector store"
+
+
+def check_corrections(closure):
+    """Corrective review 01: each finding maps to registered runtime tests that title exactly once."""
+    errs = []
+    review = {r["id"]: r for r in closure.get("corrective_reviews", [])}.get("7B-CR-01")
+    if not review:
+        return ["closure must record corrective review 7B-CR-01"], ""
+    groups = {g["id"]: g for g in review.get("groups", [])}
+    if sorted(groups) != ["R1", "R2", "R3"]:
+        errs.append("7B-CR-01 must record findings R1, R2, and R3")
+    cache = {}
+    tests = {x["id"] for x in load(P("docs/architecture/access/policy/threats.json"))["tests"]}
+    text = "\n".join(read(P(f)) for f in TEST_FILES)
+    for gid, g in sorted(groups.items()):
+        phase2.check_evidence("7B-CR-01 %s" % gid, g.get("evidence"), cache, errs)
+        for at in g.get("tests", []):
+            if at not in tests:
+                errs.append("%s test %s is not registered in 0C" % (gid, at))
+            if len(re.findall(r"(?:it|test)\(\s*['\"]%s " % at, text)) != 1:
+                errs.append("%s test %s must title exactly one test" % (gid, at))
+    unit = read(P("packages/work/test/unit/ai-grounding-review01.test.ts"))
+    for case in ("truncated or partial transport", "unrelated claim", "case folding is not verbatim",
+                 "unrelated real date or amount", "complete output is checked"):
+        if case not in unit:
+            errs.append("the review 01 unit regressions lack %r" % case)
+    grounding = read(P(GROUNDING))
+    if "toLowerCase()" in grounding.split("const fold")[0]:
+        errs.append("verbatim matching must not fold case")
+    if "'sourced'" in grounding or "'validated'" in grounding:
+        errs.append("the answer contract must not label generated claims sourced or answers validated")
+    ux = read(P("docs/ux/06-interaction-states.md"))
+    if "**Unverified** (generated)" not in ux:
+        errs.append("the UX source must state the 7B trust labels")
+    return errs, "R1-R3 mapped to AT-404..AT-406 and the review 01 unit regressions"
 
 
 def check_migration():
@@ -188,7 +225,7 @@ def check_identifiers():
         errs.append("0B model must record manifest entries on ai_context_ref")
     if "grounding jsonb" not in json.dumps(model.get("ai_output", {})):
         errs.append("0B model must record validated answers on ai_output")
-    return errs, "ADR-0039, ADR-46, AZ-46, PL-48, T-99..T-102, AT-019, AT-020, AT-390..AT-403"
+    return errs, "ADR-0039, ADR-46, AZ-46, PL-48, T-99..T-102, AT-019, AT-020, AT-390..AT-406"
 
 
 def check_tooling():
@@ -236,6 +273,7 @@ def main():
         ("phase 7B: open decisions and boundaries", check_boundaries_recorded(closure)),
         ("phase 7B: 7A production safety still holds", phase7a.check_production_safety()),
         ("phase 7B: retrieval authority, validation, and surfaces", check_retrieval()),
+        ("phase 7B: corrective review 01 evidence", check_corrections(closure)),
         ("phase 7B: migration 0055", check_migration()),
         ("phase 7B: identifiers and tests", check_identifiers()),
         ("phase 7B: local verification tooling", check_tooling()),

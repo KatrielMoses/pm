@@ -517,7 +517,7 @@ Status of every ADR: **proposed (Phase 0B)**, pending solutions-architect accept
     - `source_flags`: stale, draft, unapproved, approved_version_differs, archived, truncated.
     - `selection`: explicit, scope, or search.
     No source text is stored. Content is re-read through current authority before dispatch, before publication, and on every display.
-  - `ai.ai_output.grounding` holds the validated, typed answer: server facts, deterministic calculations, statements by kind, and citations checked against the manifest. It is content: `ai.output_guard()` now also requires `grounding` to be null after erasure, and a CHECK keeps erased outputs without it. Erasure (departure, retention, account deletion) clears it with the content.
+  - `ai.ai_output.grounding` holds the checked, typed answer: server facts, deterministic calculations, statements by trust label (`excerpt`, `unverified`, `suggestion`, `unknown`), and citations checked against the manifest, each with the source's own matched excerpt (corrective review 01: completeness is checked first; only facts and calculations are established). It is content: `ai.output_guard()` now also requires `grounding` to be null after erasure, and a CHECK keeps erased outputs without it. Erasure (departure, retention, account deletion) clears it with the content.
 - **Alternatives:**
   - Storing retrieved excerpts with the run, which would copy content that revocation must withhold.
   - Separate manifest and citation tables, a second content boundary that every eraser would have to know.
