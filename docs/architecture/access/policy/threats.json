@@ -1127,6 +1127,16 @@
         "I-12",
         "I-18"
       ]
+    },
+    {
+      "id": "T-107",
+      "category": "inference",
+      "description": "A device-stored copy of proposal content (unsaved edits) outlives the person's authority or session: it is readable to another account in the same browser, survives sign-out, session invalidation, erasure, withholding, or revocation, or is shown again before the server has re-checked access.",
+      "mitigated_by": [
+        "I-07",
+        "I-12",
+        "I-18"
+      ]
     }
   ],
   "tests": [
@@ -8644,6 +8654,90 @@
       "silent_surfaces": [
         "ui_record",
         "export",
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-426",
+      "threats": [
+        "T-105"
+      ],
+      "principal": "member",
+      "setup": "After an atomic stale-target failure, an explicit review binds the reviewed current version as a new revision; saving an edit does not; stale or partial reviewed versions are refused; the old fingerprint and approval cannot apply; the new revision applies once and keeps an unrelated concurrent edit",
+      "scope": "workspace",
+      "action": "ai.apply_proposal",
+      "surface": "api",
+      "expected": "allow",
+      "response_shape": "ok",
+      "silent_surfaces": [
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-427",
+      "threats": [
+        "T-105",
+        "T-106"
+      ],
+      "principal": "member",
+      "setup": "Project and document targets: a second concurrent change after review is refused again, a live session still blocks the document replacement after rebase, and a proposal whose sources are revoked stays withheld and cannot be rebased",
+      "scope": "workspace",
+      "action": "ai.apply_proposal",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "conflict_filtered",
+      "silent_surfaces": [
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-428",
+      "threats": [
+        "T-103",
+        "T-105"
+      ],
+      "principal": "member",
+      "setup": "An expired approval refuses Apply; a deliberate new approval replaces it; a retried approval request and a retried Apply each take effect once",
+      "scope": "workspace",
+      "action": "ai.apply_proposal",
+      "surface": "api",
+      "expected": "allow",
+      "response_shape": "ok",
+      "silent_surfaces": [
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-429",
+      "threats": [
+        "T-105"
+      ],
+      "principal": "owner",
+      "setup": "HTTP: stale-target failure, refused stale rebase, rebase with completed-key replay, fresh approval, one Apply that keeps the concurrent rename",
+      "scope": "workspace",
+      "action": "ai.apply_proposal",
+      "surface": "api",
+      "expected": "allow",
+      "response_shape": "ok",
+      "silent_surfaces": [
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-430",
+      "threats": [
+        "T-105",
+        "T-107"
+      ],
+      "principal": "owner",
+      "setup": "Browser journey on three devices: stale-target failure, explicit review of the current version with unsaved edits kept per account across a reload, approve and apply once; drafts are gone after sign-out and invisible to another account in the same tab",
+      "scope": "workspace",
+      "action": "ai.apply_proposal",
+      "surface": "ui_record",
+      "expected": "allow",
+      "response_shape": "ok",
+      "silent_surfaces": [
+        "ui_record",
         "error_message"
       ]
     }

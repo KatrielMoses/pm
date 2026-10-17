@@ -572,4 +572,8 @@ All decisions are **proposed (Phase 0C)**, pending solutions-architect acceptanc
   - Best-effort per-change commits (partial database success presented as completion).
   - A client-supplied proposal endpoint (client JSON presented as model output).
   - Requiring a second approver for every proposal.
-- **Consequences:** Threats T-103 to T-106 with tests AT-407 to AT-425. The action count stays 122.
+- **Corrective review 01:**
+  - **Device drafts follow identity and content.** Unsaved proposal edits on a device are personal drafts: scoped to the account, workspace, and proposal; bounded and expiring; validated before use; removed on sign-out, on an observed session invalidation or account change, and when the server reports the proposal erased, withheld, closed, or not available. They are never shown before the server has re-checked access. A device that is offline keeps them until its next authoritative answer; remote erasure cannot reach it sooner. The old unscoped per-tab namespace is purged.
+  - **Recovery after a changed target is an explicit review.** A target that changed after generation keeps failing validation and Apply until the person reviews its current value and asks to use it (rebase). The server compares the reviewed versions with the locked, re-read targets and binds them only when they are still current, as a new revision whose earlier approvals are superseded. Nothing advances a version implicitly. An unreadable or ineligible source stays withheld and cannot be rebased.
+  - **New attempt, new key.** A deliberate new approval after a known result or expiry is a new request; only an attempt whose outcome is unknown is retried with its key.
+- **Consequences:** Threats T-103 to T-107 with tests AT-407 to AT-430. The action count stays 122.

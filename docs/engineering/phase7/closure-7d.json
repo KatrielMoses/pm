@@ -442,5 +442,72 @@
       "id": "7C",
       "statement": "Drafting and analysis (7C), briefings (7E), planning proposals (7F), and agents (Phase 8) are later subphases that consume this boundary; 7D adds no generation feature beyond the fixture journey."
     }
+  ],
+  "corrective_reviews": [
+    {
+      "id": "7D-CR-01",
+      "brief": "briefs/PHASE_7D_CORRECTIVE_REVIEW_01.md",
+      "reviewed_head": "352552d83728265c8153810264f4835f3a9b821b",
+      "groups": [
+        {
+          "id": "R1",
+          "title": "Browser proposal drafts obey identity and content lifecycle",
+          "tests": [
+            "AT-430"
+          ],
+          "evidence": [
+            {
+              "file": "apps/web/src/ai/proposal-drafts.ts",
+              "contains": "export function readProposalDraft("
+            },
+            {
+              "file": "apps/web/src/shell/drafts.ts",
+              "contains": "export function clearProposalDrafts("
+            },
+            {
+              "file": "apps/web/src/auth.tsx",
+              "contains": "clearProposalDrafts();"
+            },
+            {
+              "file": "apps/web/src/ai/proposals-page.tsx",
+              "contains": "const AUTHORITY_ENDED = new Set(["
+            },
+            {
+              "file": "apps/web/test/ai-proposals-review01.test.tsx",
+              "contains": "sign-out removes the draft, and another account in the same tab never sees it"
+            }
+          ]
+        },
+        {
+          "id": "R2",
+          "title": "Safe conflict and expired-approval recovery",
+          "tests": [
+            "AT-426",
+            "AT-427",
+            "AT-428",
+            "AT-429",
+            "AT-430"
+          ],
+          "evidence": [
+            {
+              "file": "packages/work/src/ai/ai-gateway-service.ts",
+              "contains": "async rebaseAiProposal("
+            },
+            {
+              "file": "apps/api/src/ai/routes.ts",
+              "contains": "work.rebaseAiProposal.bind(work)"
+            },
+            {
+              "file": "apps/web/src/ai/proposals-page.tsx",
+              "contains": "const settle = (action: string, err?: unknown) => {"
+            },
+            {
+              "file": "apps/web/test/ai-proposals-review01.test.tsx",
+              "contains": "an expired approval is replaced by a deliberate new approval with a fresh key"
+            }
+          ]
+        }
+      ]
+    }
   ]
 }

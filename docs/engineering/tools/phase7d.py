@@ -24,8 +24,8 @@ SERVICE = "packages/work/src/ai/ai-gateway-service.ts"
 CONTRACT = "packages/work/src/ai/proposals/contract.ts"
 LIFECYCLE = "packages/work/src/ai/lifecycle.ts"
 WEB = "apps/web/src/ai/proposals-page.tsx"
-THREATS = ["T-%d" % i for i in range(103, 107)]
-TESTS = ["AT-%d" % i for i in range(407, 426)]
+THREATS = ["T-%d" % i for i in range(103, 108)]
+TESTS = ["AT-%d" % i for i in range(407, 431)]
 TEST_FILES = [
     "packages/work/test/integration/ai-proposals.test.ts",
     "apps/api/test/integration/ai-api.test.ts",
@@ -195,7 +195,42 @@ def check_identifiers():
     for case in ("temporary references resolve only", "fingerprint binds", "refuses cycles"):
         if case not in unit:
             errs.append("the contract unit tests lack %r" % case)
-    return errs, "ADR-0040, ADR-47, AZ-47, PL-49, T-103..T-106, AT-407..AT-425"
+    return errs, "ADR-0040, ADR-47, AZ-47, PL-49, T-103..T-107, AT-407..AT-430"
+
+
+def check_corrections(closure):
+    """Corrective review 01: each finding maps to registered runtime tests that title exactly once."""
+    errs = []
+    review = {r["id"]: r for r in closure.get("corrective_reviews", [])}.get("7D-CR-01")
+    if not review:
+        return ["closure must record corrective review 7D-CR-01"], ""
+    groups = {g["id"]: g for g in review.get("groups", [])}
+    if sorted(groups) != ["R1", "R2"]:
+        errs.append("7D-CR-01 must record findings R1 and R2")
+    cache = {}
+    tests = {x["id"] for x in load(P("docs/architecture/access/policy/threats.json"))["tests"]}
+    text = "\n".join(read(P(f)) for f in TEST_FILES)
+    for gid, g in sorted(groups.items()):
+        phase2.check_evidence("7D-CR-01 %s" % gid, g.get("evidence"), cache, errs)
+        for at in g.get("tests", []):
+            if at not in tests:
+                errs.append("%s test %s is not registered in 0C" % (gid, at))
+            if len(re.findall(r"(?:it|test)\(\s*['\"]%s " % at, text)) != 1:
+                errs.append("%s test %s must title exactly one test" % (gid, at))
+    page = read(P(WEB))
+    if "sessionStorage" in page or "pm.ai.proposal.draft" in page:
+        errs.append("the review page must not keep proposal drafts outside the personal-draft store")
+    unit = read(P("apps/web/test/ai-proposals-review01.test.tsx"))
+    for case in ("observed session invalidation or account change", "discards the stored draft",
+                 "deliberate new approval with a fresh key", "sends exactly the reviewed versions"):
+        if case not in unit:
+            errs.append("the review 01 page regressions lack %r" % case)
+    service = read(P(SERVICE))
+    block = service[service.index("async rebaseAiProposal("):service.index("async rejectAiProposal(")] if "async rebaseAiProposal(" in service else ""
+    for term in (".forUpdate()", "'target_changed'", "await this.#supersede(", "'rebased'", "this.#proposalUnavailable()"):
+        if term not in block:
+            errs.append("rebase lacks %s" % term)
+    return errs, "R1 and R2 mapped to AT-426..AT-430 and the review 01 page regressions"
 
 
 def check_wiring():
@@ -225,6 +260,7 @@ def main():
         ("phase 7D: proposal protocol, adapters, atomic Apply, surfaces", check_protocol()),
         ("phase 7D: migration 0056", check_migration()),
         ("phase 7D: identifiers and tests", check_identifiers()),
+        ("phase 7D: corrective review 01 evidence", check_corrections(closure)),
         ("phase 7D: validator wiring", check_wiring()),
         ("phase 7D: migration sequence", phase1.check_migrations()),
     ]

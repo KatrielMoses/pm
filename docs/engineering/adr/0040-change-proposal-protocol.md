@@ -4,7 +4,7 @@ Status: **proposed** (implementation candidate; acceptance evidence pending).
 
 Phase 7D adds the one way AI-suggested record changes reach the product. An AI run over a previewed, authorized context produces a typed proposal. A person reviews it, edits it, selects changes, approves exactly what they reviewed, and explicitly applies it. One transaction then runs the ordinary domain commands. 7D runs before 7C so that drafting can use this boundary instead of a second write path. It does not add 7C drafting or analysis, briefings (7E), AI planning (7F), or agents (Phase 8). Production AI stays disabled exactly as accepted in 7A and 7B: in 7D only the labelled synthetic fixture may generate proposals.
 
-Records: 0B ADR-47, 0C AZ-47, 0D PL-49. Migration `0056_ai_change_proposals`. Threats T-103 to T-106, tests AT-407 to AT-425.
+Records: 0B ADR-47, 0C AZ-47, 0D PL-49. Migration `0056_ai_change_proposals`. Threats T-103 to T-107, tests AT-407 to AT-430.
 
 ## Decisions
 
@@ -38,8 +38,8 @@ Records: 0B ADR-47, 0C AZ-47, 0D PL-49. Migration `0056_ai_change_proposals`. Th
 | 0B decision | ADR-47 | ADR-47 |
 | 0C decision | AZ-47 | AZ-47 |
 | 0D decision | PL-49 | PL-49 |
-| Threats | T-103 to T-106 | T-103 |
-| Access tests | AT-407 to AT-425 | AT-407 |
+| Threats | T-103 to T-106; T-107 (corrective review 01) | T-103 |
+| Access tests | AT-407 to AT-425; AT-426 to AT-430 (corrective review 01) | AT-407 |
 | ID prefix | `prp` (`ai.change_proposal`) | — |
 | Non-resource types | `ai_proposals`, `ai_proposal_validation` | — |
 | Parameters | `AI_PROPOSAL_APPROVAL_HOURS`, `AI_PROPOSAL_CHANGES_MAX` | — |
@@ -48,9 +48,10 @@ Records: 0B ADR-47, 0C AZ-47, 0D PL-49. Migration `0056_ai_change_proposals`. Th
 Reused, not replaced: the 0B entities `change_proposal` and `proposed_change` (reconciled and extended), the 0C action `ai.apply_proposal`, the 0D operation kind `proposal_apply`, and the event `ai.proposal.applied`.
 
 Tests:
-- `packages/work/test/integration/ai-proposals.test.ts`: AT-407 to AT-421, AT-424, AT-425, and the 0056 rollback refusal.
-- `apps/api/test/integration/ai-api.test.ts`: AT-422.
-- `e2e/ai-proposals.spec.ts`: AT-423.
+- `packages/work/test/integration/ai-proposals.test.ts`: AT-407 to AT-421, AT-424 to AT-428, and the 0056 rollback refusal.
+- `apps/api/test/integration/ai-api.test.ts`: AT-422 and AT-429.
+- `e2e/ai-proposals.spec.ts`: AT-423 and AT-430.
+- `apps/web/test/ai-proposals-review01.test.tsx`: the review 01 browser-state and key regressions.
 - `packages/work/test/unit/ai-proposals.test.ts`: the contract, ordering, selection, fingerprint, and fixture.
 - `apps/web/test/ai-proposals.test.tsx`: the review page.
 - `packages/db/test/integration/migrations.test.ts`: the 0056 boundary.
@@ -62,3 +63,20 @@ Tests:
   - an Apply that needs step-up for one change challenges the whole Apply;
   - an approval is invalidated by any permission-epoch change in the workspace, which can mean approving again;
   - live-provider proposal quality is unproven.
+
+## Corrective review 01
+
+Review 01 (reviewed head `352552d`) found two defects. Both are fixed, with runtime regressions. Each regression was run against the reviewed head and failed there:
+- The 8 page regressions in `apps/web/test/ai-proposals-review01.test.tsx`: 8 of 8 failed.
+- AT-426 and AT-427: both failed. AT-426 failed because no recovery was offered (`can.rebase` undefined).
+- AT-428, the server-side expiry case, passed on the reviewed head: the server already accepted a new approval after expiry, and the defect was the page's key reuse, which the mounted-page regression proves.
+
+- **R1, browser drafts outside the content lifecycle.**
+  - Before: unsaved proposal edits went to `sessionStorage` under an unscoped key (`pm.ai.proposal.draft.<prp>`). They were loaded even when the server reported the content withheld or erased, were never deleted on those states or on not found, and survived sign-out.
+  - Now: they use the personal-draft store as `pm.draft.<account>.ai-proposal.<workspace>.<proposal>`. That store is bounded at 64 KB and cleared on sign-out. On top of it, drafts expire after 72 hours and are validated before use. They are removed when the session is observed to be invalid or the account changes. The page reads them only after a successful authoritative answer, and discards them when that answer is erased, withheld, applied, rejected, not found, forbidden, or unauthenticated. Only the latest response may change what is shown. A network failure is not treated as revocation: an offline device keeps its draft until the next authoritative check, and never shows it before that check. The legacy namespace is purged on sign-out, on session change, and when the app starts.
+  - Evidence: the page regressions cover refresh, offline and recovery, sign-out, an account change and session invalidation in the same tab (unrelated drafts kept), withheld (source access revoked), erased, and not found. AT-430 covers the same in a real browser.
+- **R2, no recovery from a changed target, and approval key reuse.**
+  - Before: generation froze `expected_version`, and nothing refreshed it, so a changed target could never be applied again. The page reused one key per action and revision, so after an approval expired a deliberate new Approve replayed the old completed request.
+  - Now: `POST …:rebase` is the explicit review. The person sends the target versions they reviewed. The server locks and re-reads each target through its canonical loader and binds those versions only when exactly the out-of-date targets are still at the reviewed versions. The result is a new revision and fingerprint; every earlier approval is superseded, and a `rebased` history entry is written. Validation, approval, and Apply still never advance a version. A second concurrent change fails closed again. A live session still blocks a document replacement. An unreadable or ineligible source keeps the proposal withheld. The page offers **Use the current versions** next to the current values. A key is now kept only while an attempt's outcome is unknown, so a deliberate new attempt after a known result or expiry gets a new key, and Apply keeps its exactly-once recovery.
+  - Evidence: AT-426, AT-427, AT-428, AT-429, and AT-430, plus the mounted-page expiry and rebase regressions.
+
