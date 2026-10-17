@@ -118,6 +118,7 @@ async function main(): Promise<void> {
         isDraining: () => draining,
         emailTransport: config.identity.mailTransport,
         mcpEnabled: config.work.mcpEnabled,
+        aiProvider: tenancy.aiReadiness(),
         objectStorage: objectStorage ? () => objectStorage.check() : undefined,
       }),
   });

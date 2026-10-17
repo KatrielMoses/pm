@@ -13,7 +13,8 @@ export interface Readiness {
     | 'email_delivery'
     | 'recovery_gate'
     | 'tenant_isolation'
-    | 'mcp_access',
+    | 'mcp_access'
+    | 'ai_provider',
     CheckResult
   >;
 }
@@ -28,6 +29,12 @@ export interface ReadinessDeps {
   /** The configured mail transport: `none` means email is not delivered, and says so. */
   emailTransport: 'capture' | 'none';
   mcpEnabled?: boolean;
+  /**
+   * 7A: whether an AI transport is configured. Unconfigured AI is a healthy core-product state
+   * (`not_configured`, never `fail`); a configured transport is not probed, because any probe of a
+   * billed API is a cost, and per-run outcomes report provider failures to the people affected.
+   */
+  aiProvider?: 'ok' | 'not_configured';
   /** 4E: the configured object store's probe (absent: not configured, which is truthful). */
   objectStorage?: (() => Promise<'ok' | 'not_configured' | 'unavailable'>) | undefined;
 }
@@ -56,6 +63,7 @@ export async function checkReadiness(deps: ReadinessDeps): Promise<Readiness> {
     recovery_gate: 'fail',
     tenant_isolation: 'fail',
     mcp_access: deps.mcpEnabled === false ? 'not_configured' : 'ok',
+    ai_provider: deps.aiProvider ?? 'not_configured',
   };
   const fail = (check: string, reason: string, err?: unknown) =>
     deps.logger.warn('readiness.check_failed', { check, reason, ...(err ? errorFields(err) : {}) });

@@ -245,6 +245,24 @@ export function registerAuth(app: FastifyInstance, deps: AuthRouteDeps): void {
           retryAfterSeconds: limited.retryAfterSeconds,
         });
       const held = resolved.delegation.scopes;
+      // 7A: AI configuration, keys, limits, brand profiles changes, and cost reconciliation are
+      // session-only (step-up); runs and one's own history need `ai:execute`, usage `usage:read`.
+      const aiPath = /^\/v1\/workspaces\/[^/]+\/ai(\/|$)/.test(path);
+      if (
+        (aiPath &&
+          (path.includes('/ai/settings') ||
+            path.includes('/ai/limits') ||
+            path.includes('/attempts/'))) ||
+        (path.includes('/ai-profile') && write)
+      )
+        return fail(request, reply, 'forbidden');
+      if (aiPath) {
+        const aiNeed = path.endsWith('/ai/usage') ? 'usage:read' : 'ai:execute';
+        if (!held.includes(aiNeed)) return fail(request, reply, 'forbidden');
+        request.auth = resolved.auth;
+        request.delegation = resolved.delegation;
+        return;
+      }
       if (!mcpPath) {
         const need = path.includes('/capture')
           ? write

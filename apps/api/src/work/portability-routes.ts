@@ -76,6 +76,7 @@ export function registerPortability(app: FastifyInstance, work: PortabilityServi
         'task_detail',
         'task_activity',
         'project_activity',
+        'ai_history',
       ].includes(entity)
         ? await work.exportPortabilityHistory(caller(request), p(request).ws, entity, request.query)
         : await work.exportPortabilityCsv(

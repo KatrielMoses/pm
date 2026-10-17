@@ -179,6 +179,8 @@ describe('process smoke: web/API and worker entrypoints', () => {
       recovery_gate: 'ok',
       tenant_isolation: 'ok',
       mcp_access: 'ok',
+      // 7A: AI is not configured in the smoke environment, which is a healthy state.
+      ai_provider: 'not_configured',
     });
     const status = (await (await fetch(`${base}/v1/status`)).json()) as { data: unknown };
     expect(status.data).toMatchObject({
