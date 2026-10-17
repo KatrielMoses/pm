@@ -504,3 +504,24 @@ Status of every ADR: **proposed (Phase 0B)**, pending solutions-architect accept
 - **Consequences:**
   - The one-time cleanup lifts forced row-level security on `exec.job` for one statement inside the migration transaction and restores it, as 0041 did. The migration test proves the catalog is unchanged afterwards.
   - The down migration restores the exact 0053 catalog. It does not restore removed checkpoint content, which never belongs in generic execution storage.
+
+<a id="adr-46"></a>
+## ADR-46: Context manifests and validated answers (Phase 7B amendment)
+
+- **Decision:** Migration 0055 (expand) adds the grounded-answer purpose to the 7A AI action. It changes no earlier file.
+  - `ai.ai_action.purpose` admits `grounded_answer`. Such an action records `retrieval_scope`, which holds public references only (the chosen brands, an optional project and task, the search words, and the number of readable sources beyond the listing bound). It also records `manifest_digest`, the SHA-256 of the context manifest the person reviewed and confirmed. A CHECK keeps the two present exactly for grounded answers.
+  - `ai.ai_context_ref` becomes the manifest entry. `record_type` admits `document`, `comment`, and `activity` (a task's history, named by the task). Exclusion reasons add `user_excluded`, `needs_explicit_choice`, `brand_only_policy`, and `over_limit`. New columns:
+    - `handle`: S1..S20, unique per action, included entries only.
+    - `content_hash`: the hash of the exact redacted payload sent.
+    - `source_version`.
+    - `source_flags`: stale, draft, unapproved, approved_version_differs, archived, truncated.
+    - `selection`: explicit, scope, or search.
+    No source text is stored. Content is re-read through current authority before dispatch, before publication, and on every display.
+  - `ai.ai_output.grounding` holds the validated, typed answer: server facts, deterministic calculations, statements by kind, and citations checked against the manifest. It is content: `ai.output_guard()` now also requires `grounding` to be null after erasure, and a CHECK keeps erased outputs without it. Erasure (departure, retention, account deletion) clears it with the content.
+- **Alternatives:**
+  - Storing retrieved excerpts with the run, which would copy content that revocation must withhold.
+  - Separate manifest and citation tables, a second content boundary that every eraser would have to know.
+  - Trusting client-supplied manifests, titles, or versions.
+- **Consequences:**
+  - The down migration restores the exact 0054 catalog, including the 0053 output guard. It refuses to run while grounded-answer actions exist, because 0054 cannot represent them.
+  - No new table, grant, or row-level security policy: the columns inherit the 0053 forced tenant policies and grants. Checkpoints stay reference-only.

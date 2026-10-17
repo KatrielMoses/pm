@@ -1,0 +1,652 @@
+{
+  "schema_version": 1,
+  "phase": "7B",
+  "status": "candidate",
+  "adr": "0039",
+  "requirements": [
+    {
+      "id": "AI-005",
+      "role": "owned",
+      "disposition": "implemented",
+      "note": "Every source is resolved through its module's canonical loader and action decision for the current principal; 5A search only proposes candidates; hidden, foreign, and unknown named sources refuse identically.",
+      "evidence": [
+        {
+          "file": "packages/work/src/ai/retrieval/manifest.ts",
+          "contains": "export async function discoverManifest("
+        },
+        {
+          "file": "packages/work/src/ai/ai-gateway-service.ts",
+          "contains": "#readers(tx: WorkspaceTransaction, p: Principal): RetrievalReaders"
+        },
+        {
+          "file": "packages/work/test/integration/ai-retrieval.test.ts",
+          "contains": "it('AT-391 "
+        },
+        {
+          "file": "packages/work/test/integration/ai-retrieval.test.ts",
+          "contains": "it('AT-019 "
+        },
+        {
+          "file": "packages/work/test/unit/ai-retrieval.test.ts",
+          "contains": "refuses an unreadable explicit include identically"
+        }
+      ]
+    },
+    {
+      "id": "AI-006",
+      "role": "owned",
+      "disposition": "implemented",
+      "note": "The context preview shows the workspace, chosen brands, project, task, and every effective exclusion before any AI action, and works while AI is off.",
+      "evidence": [
+        {
+          "file": "packages/work/src/ai/ai-gateway-service.ts",
+          "contains": "async previewAiContext("
+        },
+        {
+          "file": "apps/web/src/ai/ask-page.tsx",
+          "contains": "1. Choose the scope"
+        },
+        {
+          "file": "packages/work/test/integration/ai-retrieval.test.ts",
+          "contains": "it('AT-390 "
+        },
+        {
+          "file": "e2e/ai-ask.spec.ts",
+          "contains": "test('AT-403 "
+        }
+      ]
+    },
+    {
+      "id": "AI-007",
+      "role": "owned",
+      "disposition": "implemented",
+      "note": "Include and exclude controls on a stable, versioned manifest: an include is never a grant, an exclusion keeps the source listed, and the confirmed digest must match before dispatch.",
+      "evidence": [
+        {
+          "file": "packages/work/src/ai/retrieval/manifest.ts",
+          "contains": "export const MANIFEST_TEMPLATE = 'context_manifest.v1';"
+        },
+        {
+          "file": "apps/web/src/ai/ask-page.tsx",
+          "contains": "aria-label=\"Context sources\""
+        },
+        {
+          "file": "packages/work/test/integration/ai-retrieval.test.ts",
+          "contains": "it('AT-020 "
+        },
+        {
+          "file": "packages/work/test/integration/ai-retrieval.test.ts",
+          "contains": "it('AT-394 "
+        },
+        {
+          "file": "packages/work/test/unit/ai-retrieval.test.ts",
+          "contains": "records why a readable source is not sent"
+        }
+      ]
+    },
+    {
+      "id": "AI-008",
+      "role": "owned",
+      "disposition": "implemented",
+      "note": "Server-issued citation handles bound to the manifest entry and the hash of what was sent; handles, quotations, and links are validated, and titles and links resolve through current authorization on display.",
+      "evidence": [
+        {
+          "file": "packages/work/src/ai/retrieval/grounding.ts",
+          "contains": "export function validateAnswer("
+        },
+        {
+          "file": "packages/work/src/ai/ai-gateway-service.ts",
+          "contains": "async #answerView("
+        },
+        {
+          "file": "packages/work/test/integration/ai-retrieval.test.ts",
+          "contains": "it('AT-392 "
+        },
+        {
+          "file": "packages/work/test/integration/ai-retrieval.test.ts",
+          "contains": "it('AT-393 "
+        },
+        {
+          "file": "packages/work/test/integration/ai-retrieval.test.ts",
+          "contains": "it('AT-395 "
+        }
+      ]
+    },
+    {
+      "id": "AI-009",
+      "role": "owned",
+      "disposition": "implemented",
+      "note": "The typed answer separates facts from the records, deterministic calculations, sourced statements (exact quotation or paraphrase), suggestions, unknowns, and unverified claims.",
+      "evidence": [
+        {
+          "file": "packages/work/src/ai/retrieval/grounding.ts",
+          "contains": "export type StatementKind = 'sourced' | 'suggestion' | 'unknown' | 'unverified';"
+        },
+        {
+          "file": "packages/work/src/ai/retrieval/facts.ts",
+          "contains": "export function calculations("
+        },
+        {
+          "file": "apps/web/src/ai/ask-page.tsx",
+          "contains": "Facts from the records"
+        },
+        {
+          "file": "packages/work/test/integration/ai-retrieval.test.ts",
+          "contains": "it('AT-392 "
+        }
+      ]
+    },
+    {
+      "id": "AI-010",
+      "role": "owned",
+      "disposition": "implemented",
+      "note": "Generated status, completion, cost, date, and result claims are never promoted to facts: figures must appear in a cited source or its server facts, status claims must match the record, and server fields win.",
+      "evidence": [
+        {
+          "file": "packages/work/src/ai/retrieval/grounding.ts",
+          "contains": "export function figuresOf("
+        },
+        {
+          "file": "packages/work/src/ai/retrieval/grounding.ts",
+          "contains": "contradicts_record"
+        },
+        {
+          "file": "packages/work/test/integration/ai-retrieval.test.ts",
+          "contains": "it('AT-393 "
+        },
+        {
+          "file": "packages/work/test/unit/ai-retrieval.test.ts",
+          "contains": "accepts a figure only when the cited source or its server facts contain it"
+        }
+      ]
+    },
+    {
+      "id": "DOC-018",
+      "role": "owned",
+      "disposition": "implemented",
+      "note": "Stale, draft, unapproved, changed-since-approval, and archived sources are flagged, used only by explicit choice, and warned about in the preview and the answer's sources.",
+      "evidence": [
+        {
+          "file": "packages/work/src/ai/retrieval/manifest.ts",
+          "contains": "needs_explicit_choice"
+        },
+        {
+          "file": "packages/work/src/ai/ai-gateway-service.ts",
+          "contains": "approved_version_differs"
+        },
+        {
+          "file": "apps/web/src/ai/ask-page.tsx",
+          "contains": "Some included sources need care"
+        },
+        {
+          "file": "packages/work/test/integration/ai-retrieval.test.ts",
+          "contains": "it('AT-390 "
+        }
+      ]
+    },
+    {
+      "id": "PERM-007",
+      "role": "owned",
+      "disposition": "implemented",
+      "note": "AI retrieval is restricted to authorized content at every stage: preview, start, dispatch, publication, history, export, and citation display; a restricted brand, revocation, trash, departure, or erasure converges.",
+      "evidence": [
+        {
+          "file": "packages/work/src/ai/ai-gateway-service.ts",
+          "contains": "async #publicationCheck("
+        },
+        {
+          "file": "packages/work/src/ai/retrieval/manifest.ts",
+          "contains": "export async function pinnedManifest("
+        },
+        {
+          "file": "packages/work/test/integration/ai-retrieval.test.ts",
+          "contains": "it('AT-396 "
+        },
+        {
+          "file": "packages/work/test/integration/ai-retrieval.test.ts",
+          "contains": "it('AT-401 "
+        },
+        {
+          "file": "apps/api/test/integration/ai-api.test.ts",
+          "contains": "it('AT-402 "
+        }
+      ]
+    },
+    {
+      "id": "WSB-012",
+      "role": "contributing",
+      "disposition": "contributed",
+      "contribution": "7B",
+      "note": "7B enforces the brand AI profile's approved-source policy: with brand_only, sources outside the brand are excluded from a single-brand scope.",
+      "evidence": [
+        {
+          "file": "packages/work/src/ai/retrieval/manifest.ts",
+          "contains": "'brand_only_policy'"
+        },
+        {
+          "file": "packages/work/test/unit/ai-retrieval.test.ts",
+          "contains": "Brand-only policy"
+        }
+      ]
+    },
+    {
+      "id": "WSB-015",
+      "role": "contributing",
+      "disposition": "contributed",
+      "contribution": "7B",
+      "note": "The active brand(s) of every AI action are shown in the context preview and the run's scope.",
+      "evidence": [
+        {
+          "file": "apps/web/src/ai/ask-page.tsx",
+          "contains": "brands ${manifest.scope.brands.map((b) => b.name).join(', ')}"
+        },
+        {
+          "file": "packages/work/test/integration/ai-retrieval.test.ts",
+          "contains": "it('AT-390 "
+        }
+      ]
+    },
+    {
+      "id": "DOC-017",
+      "role": "contributing",
+      "disposition": "contributed",
+      "contribution": "7B",
+      "note": "Documents approved as AI sources for their current version are preferred: they are included by default, while unapproved or changed-since-approval documents need an explicit choice.",
+      "evidence": [
+        {
+          "file": "packages/work/src/ai/ai-gateway-service.ts",
+          "contains": "const status = await this.sourceStatus(tx, p, d);"
+        },
+        {
+          "file": "packages/work/test/integration/ai-retrieval.test.ts",
+          "contains": "it('AT-390 "
+        }
+      ]
+    },
+    {
+      "id": "SRCH-004",
+      "role": "contributing",
+      "disposition": "contributed",
+      "contribution": "7B",
+      "note": "Retrieval uses 5A exact-term search for candidates and says that semantic (meaning-based) search is not available; natural-language concept search stays open under OD-31.",
+      "evidence": [
+        {
+          "file": "packages/work/src/ai/ai-gateway-service.ts",
+          "contains": "semantic_search: false"
+        },
+        {
+          "file": "apps/web/src/ai/ask-page.tsx",
+          "contains": "Semantic (meaning-based) search is not available"
+        }
+      ]
+    },
+    {
+      "id": "SRCH-007",
+      "role": "contributing",
+      "disposition": "contributed",
+      "contribution": "7B",
+      "note": "One enforcement layer: AI retrieval reuses the 5A search authority in-transaction and the modules' own read paths; no second policy evaluator.",
+      "evidence": [
+        {
+          "file": "packages/work/src/search/search-service.ts",
+          "contains": "protected async searchIn("
+        },
+        {
+          "file": "packages/work/test/integration/ai-retrieval.test.ts",
+          "contains": "it('AT-391 "
+        }
+      ]
+    },
+    {
+      "id": "AI-001",
+      "role": "contributing",
+      "disposition": "contributed",
+      "contribution": "7B",
+      "note": "Workspace-scoped grounded answers (no brand chosen) through the gateway.",
+      "evidence": [
+        {
+          "file": "packages/work/src/ai/ai-gateway-service.ts",
+          "contains": "kind: m.scope.task"
+        },
+        {
+          "file": "packages/work/test/integration/ai-retrieval.test.ts",
+          "contains": "it('AT-019 "
+        }
+      ]
+    },
+    {
+      "id": "AI-002",
+      "role": "contributing",
+      "disposition": "contributed",
+      "contribution": "7B",
+      "note": "Brand-scoped grounded answers: one or more chosen brands, each requiring ai.execute.",
+      "evidence": [
+        {
+          "file": "packages/work/src/ai/ai-gateway-service.ts",
+          "contains": "async #retrievalAuthority("
+        },
+        {
+          "file": "packages/work/test/integration/ai-retrieval.test.ts",
+          "contains": "it('AT-390 "
+        }
+      ]
+    },
+    {
+      "id": "AI-003",
+      "role": "contributing",
+      "disposition": "contributed",
+      "contribution": "7B",
+      "note": "Project-scoped grounded answers; paid project-scoped runs are refused while project AI budgets are unenforced (PRJ-007).",
+      "evidence": [
+        {
+          "file": "packages/work/src/ai/ai-gateway-service.ts",
+          "contains": "ai_project_budget_unenforced"
+        },
+        {
+          "file": "packages/work/test/integration/ai-retrieval.test.ts",
+          "contains": "it('AT-399 "
+        }
+      ]
+    },
+    {
+      "id": "AI-004",
+      "role": "contributing",
+      "disposition": "contributed",
+      "contribution": "7B",
+      "note": "Task-scoped grounded answers including the task's comments and activity.",
+      "evidence": [
+        {
+          "file": "packages/work/src/ai/retrieval/manifest.ts",
+          "contains": "add('activity', scope.task.publicId, 'scope');"
+        },
+        {
+          "file": "packages/work/test/unit/ai-retrieval.test.ts",
+          "contains": "never widens scope"
+        }
+      ]
+    },
+    {
+      "id": "LA-016",
+      "role": "contributing",
+      "disposition": "contributed",
+      "contribution": "7B",
+      "note": "Launch-acceptance contribution: AI retrieval never returns a record the current user cannot read, proven across three workspaces, principals, shares, and restricted brands.",
+      "evidence": [
+        {
+          "file": "packages/work/test/integration/ai-retrieval.test.ts",
+          "contains": "it('AT-391 "
+        },
+        {
+          "file": "packages/work/test/integration/ai-retrieval.test.ts",
+          "contains": "it('AT-019 "
+        },
+        {
+          "file": "apps/api/test/integration/ai-api.test.ts",
+          "contains": "it('AT-402 "
+        }
+      ]
+    }
+  ],
+  "decisions": [
+    {
+      "id": "D1",
+      "adr_row": "D1",
+      "title": "Effective scope",
+      "evidence": [
+        {
+          "file": "docs/engineering/adr/0039-authorized-retrieval-citations.md",
+          "contains": "| D1 |"
+        },
+        {
+          "file": "packages/work/test/integration/ai-retrieval.test.ts",
+          "contains": "it('AT-391 "
+        }
+      ],
+      "sources": [
+        {
+          "file": "docs/engineering/adr/0039-authorized-retrieval-citations.md",
+          "contains": "| D1 |"
+        }
+      ]
+    },
+    {
+      "id": "D2",
+      "adr_row": "D2",
+      "title": "Candidates are pointers",
+      "evidence": [
+        {
+          "file": "docs/engineering/adr/0039-authorized-retrieval-citations.md",
+          "contains": "| D2 |"
+        },
+        {
+          "file": "packages/work/test/integration/ai-retrieval.test.ts",
+          "contains": "it('AT-390 "
+        },
+        {
+          "file": "packages/work/src/search/search-service.ts",
+          "contains": "protected async searchIn("
+        }
+      ],
+      "sources": [
+        {
+          "file": "docs/engineering/adr/0039-authorized-retrieval-citations.md",
+          "contains": "| D2 |"
+        }
+      ]
+    },
+    {
+      "id": "D3",
+      "adr_row": "D3",
+      "title": "Typed source adapters",
+      "evidence": [
+        {
+          "file": "docs/engineering/adr/0039-authorized-retrieval-citations.md",
+          "contains": "| D3 |"
+        },
+        {
+          "file": "packages/work/src/ai/ai-gateway-service.ts",
+          "contains": "Comments on deliverables are not an AI source in 7B"
+        }
+      ],
+      "sources": [
+        {
+          "file": "docs/engineering/adr/0039-authorized-retrieval-citations.md",
+          "contains": "| D3 |"
+        }
+      ]
+    },
+    {
+      "id": "D4",
+      "adr_row": "D4",
+      "title": "The context manifest",
+      "evidence": [
+        {
+          "file": "docs/engineering/adr/0039-authorized-retrieval-citations.md",
+          "contains": "| D4 |"
+        },
+        {
+          "file": "packages/work/test/unit/ai-retrieval.test.ts",
+          "contains": "bounds each source, redacts credentials"
+        }
+      ],
+      "sources": [
+        {
+          "file": "docs/engineering/adr/0039-authorized-retrieval-citations.md",
+          "contains": "| D4 |"
+        }
+      ]
+    },
+    {
+      "id": "D5",
+      "adr_row": "D5",
+      "title": "Re-checks at every stage",
+      "evidence": [
+        {
+          "file": "docs/engineering/adr/0039-authorized-retrieval-citations.md",
+          "contains": "| D5 |"
+        },
+        {
+          "file": "packages/work/test/integration/ai-retrieval.test.ts",
+          "contains": "it('AT-394 "
+        }
+      ],
+      "sources": [
+        {
+          "file": "docs/engineering/adr/0039-authorized-retrieval-citations.md",
+          "contains": "| D5 |"
+        }
+      ]
+    },
+    {
+      "id": "D6",
+      "adr_row": "D6",
+      "title": "One gateway",
+      "evidence": [
+        {
+          "file": "docs/engineering/adr/0039-authorized-retrieval-citations.md",
+          "contains": "| D6 |"
+        },
+        {
+          "file": "packages/db/migrations/0055_ai_retrieval_citations.up.sql",
+          "contains": "ADD CONSTRAINT ai_action_purpose CHECK (purpose IN ('test_run', 'grounded_answer'))"
+        },
+        {
+          "file": "packages/work/test/integration/ai-retrieval.test.ts",
+          "contains": "it('AT-399 "
+        }
+      ],
+      "sources": [
+        {
+          "file": "docs/engineering/adr/0039-authorized-retrieval-citations.md",
+          "contains": "| D6 |"
+        }
+      ]
+    },
+    {
+      "id": "D7",
+      "adr_row": "D7",
+      "title": "Validated, typed answers",
+      "evidence": [
+        {
+          "file": "docs/engineering/adr/0039-authorized-retrieval-citations.md",
+          "contains": "| D7 |"
+        },
+        {
+          "file": "packages/work/test/integration/ai-retrieval.test.ts",
+          "contains": "it('AT-393 "
+        }
+      ],
+      "sources": [
+        {
+          "file": "docs/engineering/adr/0039-authorized-retrieval-citations.md",
+          "contains": "| D7 |"
+        }
+      ]
+    },
+    {
+      "id": "D8",
+      "adr_row": "D8",
+      "title": "Privacy and lifecycle",
+      "evidence": [
+        {
+          "file": "docs/engineering/adr/0039-authorized-retrieval-citations.md",
+          "contains": "| D8 |"
+        },
+        {
+          "file": "packages/work/test/integration/ai-retrieval.test.ts",
+          "contains": "it('AT-396 "
+        },
+        {
+          "file": "packages/work/test/integration/ai-retrieval.test.ts",
+          "contains": "it('AT-395 "
+        }
+      ],
+      "sources": [
+        {
+          "file": "docs/engineering/adr/0039-authorized-retrieval-citations.md",
+          "contains": "| D8 |"
+        }
+      ]
+    },
+    {
+      "id": "D9",
+      "adr_row": "D9",
+      "title": "Read-only journey and manual fallback",
+      "evidence": [
+        {
+          "file": "docs/engineering/adr/0039-authorized-retrieval-citations.md",
+          "contains": "| D9 |"
+        },
+        {
+          "file": "e2e/ai-ask.spec.ts",
+          "contains": "test('AT-403 "
+        },
+        {
+          "file": "apps/web/test/ai-ask.test.tsx",
+          "contains": "never renders generated markup or links"
+        }
+      ],
+      "sources": [
+        {
+          "file": "docs/engineering/adr/0039-authorized-retrieval-citations.md",
+          "contains": "| D9 |"
+        }
+      ]
+    },
+    {
+      "id": "D10",
+      "adr_row": "D10",
+      "title": "Verification tooling",
+      "evidence": [
+        {
+          "file": "docs/engineering/adr/0039-authorized-retrieval-citations.md",
+          "contains": "| D10 |"
+        },
+        {
+          "file": "scripts/test/verify-shards.test.mjs",
+          "contains": "a full local run names every configured project"
+        }
+      ],
+      "sources": [
+        {
+          "file": "docs/engineering/adr/0039-authorized-retrieval-citations.md",
+          "contains": "| D10 |"
+        }
+      ]
+    }
+  ],
+  "boundaries": [
+    {
+      "id": "OD-31",
+      "statement": "Semantic (meaning-based) search remains undecided: retrieval is lexical through 5A and says so; no embeddings, vector store, or provider were added."
+    },
+    {
+      "id": "DOC-019",
+      "statement": "Attachment text, OCR, and file bytes are not AI sources (4E quarantine and the attachment-search boundary hold)."
+    },
+    {
+      "id": "DQ-28",
+      "statement": "No production secret store: production AI stays disabled exactly as in 7A."
+    },
+    {
+      "id": "OD-41",
+      "statement": "Provider data-use terms are unreviewed: no real model receives workspace data."
+    },
+    {
+      "id": "OD-46",
+      "statement": "Workspace-provided keys stay off when deployed."
+    },
+    {
+      "id": "PRJ-007",
+      "statement": "Project AI budgets are not enforced; paid project-scoped runs are refused, never relabelled as workspace runs."
+    },
+    {
+      "id": "REL-FU-7A-01",
+      "statement": "The effect-ledger reliability follow-up stays tracked; 7B adds no unsafe-effect recovery path."
+    },
+    {
+      "id": "7C",
+      "statement": "Drafting, analysis, change proposals, briefings, planning, and agents are later subphases; 7B is read-only."
+    }
+  ]
+}

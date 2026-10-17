@@ -180,6 +180,8 @@ Counters, all with bounded labels and never a prompt, output, secret, model outp
 - `ai.tokens` (`direction`).
 - `ai.cost_micros` (`funding`).
 - `ai.history.erased` (`reason`).
+- `ai.context_previews` (`index`: complete, catching_up, degraded, not_searched) (7B).
+- `ai.answer_validations` (`status`: validated, downgraded, rejected, withheld) (7B). Neither carries a prompt, source text, answer, or record identifier.
 
 The existing histogram `ai.request.duration` (`provider_class`, `outcome`) and the usage counters `usage.reservations_denied` and `usage.cap_stops` (`meter`) are emitted too.
 

@@ -6801,6 +6801,22 @@
         "reason"
       ],
       "area": "ai"
+    },
+    {
+      "name": "ai.context_previews",
+      "type": "counter",
+      "labels": [
+        "index"
+      ],
+      "area": "ai"
+    },
+    {
+      "name": "ai.answer_validations",
+      "type": "counter",
+      "labels": [
+        "status"
+      ],
+      "area": "ai"
     }
   ],
   "forbidden_metric_labels": [
@@ -8309,6 +8325,16 @@
       "name": "AI_STREAM_MAX_BYTES",
       "meaning": "Total provider stream bytes per dispatch; beyond it the stream is aborted as an overflow with its reservation held; default 4194304, range 65536\u201333554432, at least the event bound.",
       "owner": "7A"
+    },
+    {
+      "name": "AI_CONTEXT_SOURCES_MAX",
+      "meaning": "Sources sent with one grounded answer (each gets a citation handle); readable sources beyond it are listed as over the limit; default 8, range 1\u201320.",
+      "owner": "7B"
+    },
+    {
+      "name": "AI_CONTEXT_SOURCE_CHARS",
+      "meaning": "Characters of redacted source text sent per source; longer text is cut and flagged as shortened; default 1500, range 200\u20136000.",
+      "owner": "7B"
     },
     {
       "name": "AI_HISTORY_RETENTION_DAYS",

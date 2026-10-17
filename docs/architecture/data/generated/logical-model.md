@@ -4606,15 +4606,15 @@ Operation detail for one assistant action: person, context scope, model, estimat
 | Volume / export / search-AI | `high` / `filtered` / `no` |
 | Secrets / personal data | `no` / `incidental` |
 | Uniqueness | — |
-| Key typed columns | `operation_id (1:1 with execution.operation, kind ai_action)`; `initiating_membership_id`; `brand_id null (explicit scope)`; `purpose (test_run in 7A)`; `synthetic boolean`; `model_key, provider, model_id, registry_version, prompt_template_version`; `price_snapshot jsonb, privacy_snapshot jsonb`; `funding (platform\|workspace_key\|synthetic)`; `caller_kind (ui\|api\|mcp), delegation_principal_type, delegation_token_id`; `prompt_text (redacted; the only stored user content)`; `max_output_tokens, estimated_max_micros`; `rerun_of_operation_id null`; `content_state (present\|erased), content_erased_at` |
+| Key typed columns | `operation_id (1:1 with execution.operation, kind ai_action)`; `initiating_membership_id`; `brand_id null (explicit scope)`; `purpose (test_run in 7A; grounded_answer in 7B)`; `synthetic boolean`; `model_key, provider, model_id, registry_version, prompt_template_version`; `price_snapshot jsonb, privacy_snapshot jsonb`; `funding (platform\|workspace_key\|synthetic)`; `caller_kind (ui\|api\|mcp), delegation_principal_type, delegation_token_id`; `prompt_text (redacted; the only stored user content)`; `max_output_tokens, estimated_max_micros`; `rerun_of_operation_id null`; `content_state (present\|erased), content_erased_at`; `retrieval_scope jsonb null (public references only: brands, project, task, query, omitted count), manifest_digest text null (the confirmed context manifest)` |
 | Sensitive fields | — |
-| Requirements | AI-026, AI-027, AI-028, AI-034, SEC-027 |
-| Notes | Phase 7A (ADR-44): immutable except content erasure. Personal to its initiator: no role or grant reads its content; administrators see metadata through usage.view. |
+| Requirements | AI-005, AI-006, AI-007, AI-026, AI-027, AI-028, AI-034, SEC-027 |
+| Notes | Phase 7A (ADR-44): immutable except content erasure. Personal to its initiator: no role or grant reads its content; administrators see metadata through usage.view. Phase 7B (ADR-46, migration 0055): a grounded answer records its explicit scope and the digest of the manifest the person confirmed. |
 
 <a id="entity-ai-context-ref"></a>
 ### `ai_context_ref`
 
-Record included or excluded from an AI action's context, with version and approval/staleness flags at use time.
+Source included or excluded from an AI action's context: kind, version, a hash of exactly what was sent, suitability flags, selection, and the server-issued citation handle.
 
 | Property | Value |
 |---|---|
@@ -4627,10 +4627,10 @@ Record included or excluded from an AI action's context, with version and approv
 | Volume / export / search-AI | `very-high` / `filtered` / `no` |
 | Secrets / personal data | `no` / `incidental` |
 | Uniqueness | — |
-| Key typed columns | `operation_id`; `position`; `record_id (no foreign key: a purged record leaves a tombstone)`; `record_type (task\|project)`; `record_public_id`; `fields text[]`; `record_version`; `included boolean`; `exclusion_reason (field_not_ai_eligible\|data_class\|sensitive_brand\|out_of_scope)` |
+| Key typed columns | `operation_id`; `position`; `record_id (no foreign key: a purged record leaves a tombstone)`; `record_type (task\|project\|document\|comment\|activity)`; `record_public_id`; `fields text[]`; `record_version`; `included boolean`; `exclusion_reason (field_not_ai_eligible\|data_class\|sensitive_brand\|out_of_scope\|user_excluded\|needs_explicit_choice\|brand_only_policy\|over_limit)`; `handle text null (S1..S20, included sources only)`; `content_hash text null (sha256 of the exact redacted payload sent)`; `source_version text null`; `source_flags text[] (stale\|draft\|unapproved\|approved_version_differs\|archived\|truncated)`; `selection (explicit\|scope\|search)` |
 | Sensitive fields | — |
-| Requirements | AI-026, SEC-027, AI-007 |
-| Notes | Phase 7A (ADR-44): references only; record content is never copied. Re-checked on every history read and export. |
+| Requirements | AI-007, AI-008, AI-026, DOC-018, SEC-027 |
+| Notes | Phase 7A (ADR-44): references only; record content is never copied. Re-checked on every history read and export. Phase 7B (ADR-46): entries are references only; source text is re-read through current authority before dispatch, publication, and display. |
 
 <a id="entity-ai-dispatch"></a>
 ### `ai_dispatch`
@@ -4669,10 +4669,10 @@ Generated content (answer, draft, summary) with statement-level citations; immut
 | Volume / export / search-AI | `high` / `filtered` / `no` |
 | Secrets / personal data | `no` / `incidental` |
 | Uniqueness | — |
-| Key typed columns | `operation_id`; `dispatch_id (unique)`; `completeness (complete\|truncated\|partial\|erased)`; `content text null` |
+| Key typed columns | `operation_id`; `dispatch_id (unique)`; `completeness (complete\|truncated\|partial\|erased)`; `content text null`; `grounding jsonb null (the validated typed answer: server facts, calculations, statements by kind, checked citations; erased with the content)` |
 | Sensitive fields | — |
-| Requirements | AI-026, AI-029 |
-| Notes | Phase 7A (ADR-44): immutable (trigger) except erasure. Partial and truncated output is labelled, never a success. |
+| Requirements | AI-008, AI-009, AI-010, AI-026, AI-029 |
+| Notes | Phase 7A (ADR-44): immutable (trigger) except erasure. Partial and truncated output is labelled, never a success. Phase 7B (ADR-46): a grounded answer stores its validation result; it is immutable except erasure. |
 
 <a id="entity-change-proposal"></a>
 ### `change_proposal`

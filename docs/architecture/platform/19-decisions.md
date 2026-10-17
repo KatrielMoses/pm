@@ -599,3 +599,29 @@ Renumbered in the Phase 6 integration review: 6B was accepted with a second `pl-
 - **Consequences:**
   - No new routes, events, actions, ID prefixes, schemas, or telemetry signals.
   - Job error codes for dispatch refusals become `ai_refused.<code>`.
+
+<a id="pl-48"></a>
+### PL-48: Context previews, grounded answers, and retrieval parameters (Phase 7B)
+- **Decision:**
+  - **Routes.** Under `/v1/workspaces/{ws}`:
+    - `POST /ai/context-previews` returns `ai_context_manifest`, a new non-resource type: the scope, sources with handles, selection, exclusion reasons, suitability flags, counts, limits, index state, a notice, warnings, and the digest. It sends nothing, reserves nothing, works while AI is off, and is `no-store`.
+    - `POST /ai/answer-estimates` returns `ai_estimate` with the manifest.
+    - `POST /ai/answers` (202, an `ai_run` on the `op_` operation; Idempotency-Key) requires `manifest_digest` and `confirm_cost` above the threshold.
+    Runs, cancellation, retry, history, reconciliation, and export are the 7A routes. A grounded run carries `purpose: grounded_answer`, `content.answer`, `scope`, and its manifest entries.
+  - **Bearer access.** The routes inherit the `/ai/` rule: bearer callers need `ai:execute`.
+  - **Errors.** New issue codes:
+    - `scope_unavailable` and `scope_conflict` (403);
+    - `context_unavailable` (403), reused for named sources;
+    - `manifest_changed` (409 `conflict`);
+    - `context_empty` (422);
+    - `ai_project_budget_unenforced` (403).
+    A run refused at dispatch for a changed manifest reports `refusal.code: manifest_changed`.
+  - **Telemetry.** Two new counters: `ai.context_previews` (label `index`) and `ai.answer_validations` (label `status`). Neither carries content.
+  - **Parameters (owner 7B).** `AI_CONTEXT_SOURCES_MAX` (default 8, 1–20) and `AI_CONTEXT_SOURCE_CHARS` (default 1500, 200–6000). Fixed bounds:
+    - the listing bound (20 sources);
+    - search candidates per preview (20, within the 5A page size);
+    - scope brands (5);
+    - activity entries (10).
+  - **Response format.** `grounded_answer.v1` (recorded in the Phase 7B engineering decision record, docs/engineering/adr/0039): JSON statements of kind fact, suggestion, or unknown, with citations by handle and an optional exact quotation.
+- **Alternatives:** A separate retrieval API with its own operation type (the 7A `ai_action` operation already carries budgets, cancellation, and history).
+- **Consequences:** No new events, actions, ID prefixes, or schemas. Citation handles are manifest-local, not public identifiers.
