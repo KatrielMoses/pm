@@ -3326,7 +3326,7 @@ export interface AiActionTable {
   workspace_id: string;
   initiating_membership_id: string;
   brand_id: string | null;
-  purpose: 'test_run' | 'grounded_answer';
+  purpose: 'test_run' | 'grounded_answer' | 'change_proposal';
   synthetic: boolean;
   model_key: string;
   provider: string;
@@ -3417,6 +3417,104 @@ export interface AiOutputTable {
   content: string | null;
   created_at: DTs;
   grounding: Json<Record<string, unknown>> | null;
+}
+export type ProposalOp =
+  | 'task.create'
+  | 'task.update'
+  | 'project.create'
+  | 'project.update'
+  | 'milestone.create'
+  | 'relation.add'
+  | 'document.replace';
+export interface ChangeProposalTable {
+  id: string;
+  workspace_id: string;
+  public_id: string;
+  operation_id: string;
+  initiating_membership_id: string;
+  schema_version: Defaulted<string>;
+  state: Defaulted<'open' | 'approved' | 'applied' | 'failed' | 'rejected'>;
+  revision: Defaulted<number>;
+  fingerprint: string;
+  title: string | null;
+  reject_reason: string | null;
+  content_state: Defaulted<'present' | 'erased'>;
+  content_erased_at: Timestamp | null;
+  created_at: DTs;
+  updated_at: DTs;
+  version: Defaulted<number>;
+}
+export interface ProposedChangeTable {
+  id: string;
+  workspace_id: string;
+  proposal_id: string;
+  change_key: string;
+  position: number;
+  op: ProposalOp;
+  temp_ref: string | null;
+  target_record_id: string | null;
+  target_public_id: string | null;
+  expected_version: number | null;
+  depends_on: Defaulted<string[]>;
+  payload: Json<Record<string, unknown>> | null;
+  sources: Defaulted<string[]>;
+  selected: Defaulted<boolean>;
+  decision: Defaulted<'pending' | 'accepted' | 'edited' | 'rejected'>;
+  applied_state: Defaulted<'not_applied' | 'applied' | 'failed' | 'rolled_back' | 'blocked'>;
+  result_record_id: string | null;
+  result_public_id: string | null;
+  failure_code: string | null;
+  updated_at: DTs;
+}
+export interface ProposalEventTable {
+  id: string;
+  workspace_id: string;
+  proposal_id: string;
+  revision: number;
+  kind:
+    | 'generated'
+    | 'edited'
+    | 'approved'
+    | 'approval_superseded'
+    | 'rejected'
+    | 'applied'
+    | 'apply_failed'
+    | 'erased';
+  actor_membership_id: string | null;
+  change_keys: Defaulted<string[]>;
+  fingerprint: string;
+  created_at: DTs;
+}
+export interface ProposalApprovalTable {
+  id: string;
+  workspace_id: string;
+  proposal_id: string;
+  revision: number;
+  approver_membership_id: string;
+  selected: string[];
+  fingerprint: string;
+  target_versions: Json<Record<string, number>>;
+  /** The run's scope references and the approver's permission epochs at approval (no content). */
+  scope: Json<Record<string, unknown>>;
+  risk_class: Defaulted<'R1' | 'R2' | 'R3' | 'R4'>;
+  step_up_required: Defaulted<boolean>;
+  state: Defaulted<'active' | 'used' | 'superseded' | 'expired' | 'revoked'>;
+  expires_at: Timestamp;
+  created_at: DTs;
+  used_at: Timestamp | null;
+}
+export interface ProposalApplicationTable {
+  id: string;
+  workspace_id: string;
+  proposal_id: string;
+  operation_id: string;
+  approval_id: string;
+  revision: number;
+  outcome: 'applied' | 'failed';
+  applied_count: number;
+  failed_count: number;
+  results: Json<Array<Record<string, unknown>>>;
+  created_at: DTs;
 }
 export type AiMeter = 'ai.cost' | 'ai.input_tokens' | 'ai.output_tokens';
 export interface SpendLimitTable {
@@ -3672,6 +3770,11 @@ export interface Database {
   'ai.ai_context_ref': AiContextRefTable;
   'ai.ai_dispatch': AiDispatchTable;
   'ai.ai_output': AiOutputTable;
+  'ai.change_proposal': ChangeProposalTable;
+  'ai.proposed_change': ProposedChangeTable;
+  'ai.proposal_event': ProposalEventTable;
+  'ai.proposal_approval': ProposalApprovalTable;
+  'ai.proposal_application': ProposalApplicationTable;
   'metering.spend_limit': SpendLimitTable;
   'metering.usage_balance': UsageBalanceTable;
   'metering.usage_reservation': UsageReservationTable;
@@ -6636,6 +6739,87 @@ export const TABLE_COLUMNS: Readonly<Record<keyof Database, readonly string[]>> 
     'content',
     'created_at',
     'grounding',
+  ],
+  'ai.change_proposal': [
+    'id',
+    'workspace_id',
+    'public_id',
+    'operation_id',
+    'initiating_membership_id',
+    'schema_version',
+    'state',
+    'revision',
+    'fingerprint',
+    'title',
+    'reject_reason',
+    'content_state',
+    'content_erased_at',
+    'created_at',
+    'updated_at',
+    'version',
+  ],
+  'ai.proposed_change': [
+    'id',
+    'workspace_id',
+    'proposal_id',
+    'change_key',
+    'position',
+    'op',
+    'temp_ref',
+    'target_record_id',
+    'target_public_id',
+    'expected_version',
+    'depends_on',
+    'payload',
+    'sources',
+    'selected',
+    'decision',
+    'applied_state',
+    'result_record_id',
+    'result_public_id',
+    'failure_code',
+    'updated_at',
+  ],
+  'ai.proposal_event': [
+    'id',
+    'workspace_id',
+    'proposal_id',
+    'revision',
+    'kind',
+    'actor_membership_id',
+    'change_keys',
+    'fingerprint',
+    'created_at',
+  ],
+  'ai.proposal_approval': [
+    'id',
+    'workspace_id',
+    'proposal_id',
+    'revision',
+    'approver_membership_id',
+    'selected',
+    'fingerprint',
+    'target_versions',
+    'scope',
+    'risk_class',
+    'step_up_required',
+    'state',
+    'expires_at',
+    'created_at',
+    'used_at',
+  ],
+  'ai.proposal_application': [
+    'id',
+    'workspace_id',
+    'proposal_id',
+    'operation_id',
+    'approval_id',
+    'revision',
+    'outcome',
+    'applied_count',
+    'failed_count',
+    'results',
+    'created_at',
   ],
   'metering.spend_limit': [
     'id',
