@@ -13,6 +13,9 @@ const argsFor = (shard) =>
     cwd: root,
     env: { ...process.env, PM_VERIFY_SHARD: shard, PM_VERIFY_PRINT_E2E: '1', CI: '' },
     encoding: 'utf8',
+    // Captured, not inherited: the refusal case must not print a VERIFY FAILED line into the
+    // surrounding verification log.
+    stdio: ['ignore', 'pipe', 'pipe'],
   })
     .split('\n')
     .filter(Boolean);
@@ -39,6 +42,6 @@ describe('verify.sh browser-gate selection', () => {
   });
 
   it('refuses an unknown shard instead of guessing', () => {
-    expect(() => argsFor('e2e-everything')).toThrow();
+    expect(() => argsFor('e2e-everything')).toThrow(/unknown PM_VERIFY_SHARD: e2e-everything/);
   });
 });
