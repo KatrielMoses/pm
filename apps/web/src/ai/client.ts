@@ -1,0 +1,287 @@
+import { api, ApiError, newIdempotencyKey, protectedRequest, type StepUpResolver } from '../api.ts';
+
+/** Exact money as the API reports it: decimal micro-dollars and a display string. */
+export interface Money {
+  micros: string;
+  display: string;
+  currency: 'USD';
+}
+
+export interface AiModelView {
+  key: string;
+  label: string;
+  provider: string;
+  model_id: string;
+  synthetic: boolean;
+  approved_for_workspace_data: boolean;
+  privacy: {
+    training_exclusion: string;
+    retention: string;
+    zero_retention: boolean;
+    statement: string;
+  };
+  price: {
+    version: string;
+    synthetic: boolean;
+    input_per_million_tokens: string;
+    output_per_million_tokens: string;
+  };
+}
+
+export interface AiUsage {
+  period: { start: string; end: string };
+  consumed: Money;
+  reserved: Money;
+  monthly_allowance: Money;
+  remaining_allowance: Money;
+  hard_limit: Money;
+  available_before_hard_limit: Money;
+  limits_configured: boolean;
+  tokens: {
+    input: { consumed: number; reserved: number; hard_limit: number };
+    output: { consumed: number; reserved: number; hard_limit: number };
+  };
+}
+
+export type AiAvailability =
+  | 'unconfigured'
+  | 'disabled'
+  | 'model_unavailable'
+  | 'not_approved'
+  | 'key_unavailable'
+  | 'not_entitled'
+  | 'ready';
+
+export interface AiOverview {
+  availability: AiAvailability;
+  reason: string;
+  can_execute: boolean;
+  model: AiModelView | null;
+  synthetic: boolean;
+  funding: string | null;
+  max_output_tokens: number;
+  confirm_above: Money;
+  usage: AiUsage | null;
+  manual_fallback: string;
+}
+
+export interface AiEstimate {
+  synthetic: boolean;
+  model: AiModelView;
+  input_token_bound: number;
+  output_token_bound: number;
+  max_cost: Money;
+  basis: string;
+  redactions: number;
+  context: Array<{
+    id: string;
+    type: string;
+    fields: string[];
+    included: boolean;
+    exclusion_reason: string | null;
+  }>;
+  usage: AiUsage;
+  confirm_required: boolean;
+  within_limits: boolean;
+  blocked_meter: string | null;
+  blocked_reason: string | null;
+}
+
+export interface AiAttempt {
+  number: number;
+  state: string;
+  error_kind: string | null;
+  stop_reason: string | null;
+  input_tokens: number | null;
+  output_tokens: number | null;
+  reserved: Money;
+  settled: Money | null;
+  usage_basis: string | null;
+  provider_request_id: string | null;
+  cancel_observed: boolean;
+  started_at: string;
+  ended_at: string | null;
+}
+
+export interface AiRun {
+  id: string;
+  type: 'ai_run';
+  version: number;
+  state: string;
+  status: string;
+  terminal_reason: string | null;
+  waiting_reason: string | null;
+  cancelling: boolean;
+  synthetic: boolean;
+  initiator: string | null;
+  brand: { id: string; name: string } | null;
+  model: { key: string; label: string; provider: string; model_id: string };
+  created_at: string;
+  ended_at: string | null;
+  estimate: { max_cost: Money; output_token_bound: number };
+  cost: { settled: Money; unknown_reserved: Money; note: string | null };
+  attempts: AiAttempt[];
+  can_cancel: boolean;
+  can_retry: boolean;
+  cancellation_note: string;
+  content?: {
+    state: 'present' | 'withheld' | 'erased';
+    note: string | null;
+    prompt: string | null;
+    redactions: number;
+    output: { text: string; completeness: 'complete' | 'truncated' | 'partial' } | null;
+  };
+  context?: Array<{
+    id: string | null;
+    type: string;
+    included: boolean;
+    exclusion_reason: string | null;
+    available: boolean;
+  }>;
+}
+
+export interface AiSettings {
+  version: number;
+  availability: AiAvailability;
+  reason: string;
+  transport: 'none' | 'fixture' | 'anthropic';
+  enabled: boolean;
+  model_key: string | null;
+  key_source: 'deployment' | 'workspace';
+  workspace_key: { set: boolean; available: boolean; note: string };
+  max_data_class: 'C0' | 'C1' | 'C2';
+  confirm_above: Money;
+  models: AiModelView[];
+  limits: Array<{
+    meter: string;
+    unit: string;
+    monthly_allowance: string;
+    hard_limit: string;
+    configured: boolean;
+  }>;
+  warning_thresholds_bp: number[];
+  can_manage_providers: boolean;
+  can_configure_limits: boolean;
+}
+
+export interface AiUsageAdmin {
+  usage: AiUsage;
+  runs: AiRun[];
+  awaiting_reconciliation: Array<{
+    run: string;
+    attempt: number;
+    reserved: Money;
+    provider_request_id: string | null;
+  }>;
+  can_reconcile: boolean;
+}
+
+export interface BrandAiProfile {
+  id: string;
+  version: number;
+  brand: { id: string; name: string };
+  instructions: string;
+  terminology: string;
+  audience: string;
+  voice: string;
+  approved_sources: 'readable' | 'brand_only';
+  can_configure: boolean;
+}
+
+const w = (ws: string) => `/v1/workspaces/${encodeURIComponent(ws)}`;
+
+export const aiClient = {
+  overview: async (ws: string) => (await api<{ data: AiOverview }>('GET', `${w(ws)}/ai`)).body.data,
+  estimate: async (ws: string, body: Record<string, unknown>) =>
+    (await api<{ data: AiEstimate }>('POST', `${w(ws)}/ai/estimates`, { body })).body.data,
+  /** One key per attempt, reused when the person retries after a dropped connection. */
+  start: async (ws: string, body: Record<string, unknown>, key: string) =>
+    (
+      await api<{ data: AiRun }>('POST', `${w(ws)}/ai/test-runs`, {
+        body,
+        headers: { 'idempotency-key': key },
+      })
+    ).body.data,
+  run: async (ws: string, id: string) =>
+    (await api<{ data: AiRun }>('GET', `${w(ws)}/ai/runs/${id}`)).body.data,
+  runs: async (ws: string) =>
+    (
+      await api<{ data: { items: AiRun[]; next_cursor: string | null } }>(
+        'GET',
+        `${w(ws)}/ai/runs?limit=20`,
+      )
+    ).body.data.items,
+  cancel: async (ws: string, id: string) =>
+    (
+      await api<{ data: AiRun }>('POST', `${w(ws)}/ai/runs/${id}:cancel`, {
+        body: {},
+        headers: { 'idempotency-key': newIdempotencyKey() },
+      })
+    ).body.data,
+  retry: async (ws: string, id: string) =>
+    (
+      await api<{ data: AiRun }>('POST', `${w(ws)}/ai/runs/${id}:retry`, {
+        body: { confirm_cost: true },
+        headers: { 'idempotency-key': newIdempotencyKey() },
+      })
+    ).body.data,
+  settings: async (ws: string) =>
+    (await api<{ data: AiSettings }>('GET', `${w(ws)}/ai/settings`)).body.data,
+  saveSettings: async (
+    ws: string,
+    body: Record<string, unknown>,
+    version: number,
+    stepUp: StepUpResolver,
+  ) =>
+    (
+      await protectedRequest<{ data: AiSettings }>('PATCH', `${w(ws)}/ai/settings`, body, stepUp, {
+        ifMatch: version,
+      })
+    ).body.data,
+  saveLimits: async (ws: string, limits: Array<Record<string, string>>, stepUp: StepUpResolver) =>
+    (await protectedRequest<{ data: AiSettings }>('PUT', `${w(ws)}/ai/limits`, { limits }, stepUp))
+      .body.data,
+  usage: async (ws: string) =>
+    (await api<{ data: AiUsageAdmin }>('GET', `${w(ws)}/ai/usage`)).body.data,
+  reconcile: async (
+    ws: string,
+    run: string,
+    attempt: number,
+    body: Record<string, unknown>,
+    stepUp: StepUpResolver,
+  ) =>
+    (
+      await protectedRequest<{ data: AiRun }>(
+        'POST',
+        `${w(ws)}/ai/runs/${run}/attempts/${attempt}:reconcile`,
+        body,
+        stepUp,
+      )
+    ).body.data,
+  brandProfile: async (ws: string, brand: string) =>
+    (await api<{ data: BrandAiProfile }>('GET', `${w(ws)}/brands/${brand}/ai-profile`)).body.data,
+  saveBrandProfile: async (
+    ws: string,
+    brand: string,
+    body: Record<string, unknown>,
+    version: number,
+  ) =>
+    (
+      await api<{ data: BrandAiProfile }>('PATCH', `${w(ws)}/brands/${brand}/ai-profile`, {
+        body,
+        headers: { 'idempotency-key': newIdempotencyKey(), 'if-match': `"${version}"` },
+      })
+    ).body.data,
+  exportUrl: (ws: string) => `${w(ws)}/portability/exports/ai_history.csv`,
+};
+
+/** A person-facing sentence for a refusal (the API's own words when it gave some). */
+export function aiProblem(err: unknown, fallback: string): string {
+  if (err instanceof ApiError) {
+    if (err.offline) return "You're offline. Nothing was sent; try again when you're back online.";
+    return err.issues[0]?.message ?? err.message ?? fallback;
+  }
+  return fallback;
+}
+
+export const TERMINAL = new Set(['succeeded', 'partial', 'failed', 'cancelled', 'skipped']);

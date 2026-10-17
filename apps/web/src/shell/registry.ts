@@ -329,6 +329,22 @@ export const ROUTES: readonly RouteDef[] = [
     section: 'API and webhooks',
     visible: member,
   },
+  // 7A: the AI gateway test runs and history (members), and AI settings (owners/administrators
+  // decide in the page). Linked from workspace settings; AI is optional and never a nav dependency.
+  {
+    id: 'ai',
+    pattern: '/workspaces/:ws/ai',
+    shell: 'workspace',
+    section: 'AI test runs',
+    visible: member,
+  },
+  {
+    id: 'ai_settings',
+    pattern: '/workspaces/:ws/settings/ai',
+    shell: 'workspace',
+    section: 'AI settings',
+    visible: member,
+  },
   {
     id: 'workflows',
     pattern: '/workspaces/:ws/settings/workflows',
