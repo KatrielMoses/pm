@@ -436,6 +436,7 @@ erDiagram
   operation ||--|| ai_action : "extends"
   ai_action ||--o{ ai_context_ref : "contains"
   ai_context_ref }o..o{ record : "references"
+  ai_action ||--o{ ai_dispatch : "contains"
   ai_action ||--o{ ai_output : "contains"
   ai_action ||--o{ change_proposal : "contains"
   change_proposal ||--o{ proposed_change : "contains"

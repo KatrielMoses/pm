@@ -246,9 +246,9 @@ Rules and algorithm: [../04-effective-permissions.md](../04-effective-permission
 | `views.configure` | Set default views per brand/project and pin shared views to navigation. | none | VIEW-018, VIEW-019 | Phase 3A (AZ-26): sets brand and project default views and pins views into workspace or brand navigation; only a view shared with that exact scope (or the workspace, for defaults) qualifies, so everyone it applies to can read it. |
 | `templates.manage` | Create and manage templates. | none | ONB-013 |  |
 | `notifications.configure_scope` | Configure brand/project notification rules and minimal-content mode. | none | WSB-014 | Phase 4B (AZ-32): sets a brand or project default mode per event type and channel; ranks below every personal choice; audited. |
-| `ai.configure_brand` | Configure brand AI profile and approved-source policy. | none | WSB-012 |  |
-| `ai.providers.manage` | Configure AI providers, models, workspace keys, data settings. | none | AI-031, AI-032, ADM-005 |  |
-| `ai.limits.configure` | Configure AI/agent/automation allowances and hard caps. | none | AI-033, BILL-009 |  |
+| `ai.configure_brand` | Configure brand AI profile and approved-source policy. | none | WSB-012 | Phase 7A (AZ-44): the brand AI profile (instructions, terminology, audience, voice, approved-source policy). |
+| `ai.providers.manage` | Configure AI providers, models, workspace keys, data settings. | none | AI-031, AI-032, ADM-005 | Phase 7A (AZ-44): provider, model, data class, confirm-above amount, and workspace keys (vault references, off while OD-46 is open); session only, step-up. |
+| `ai.limits.configure` | Configure AI/agent/automation allowances and hard caps. | none | AI-033, BILL-009 | Phase 7A (AZ-44): monthly allowances and hard limits per meter, and reconciliation of an unknown AI dispatch cost; session only, step-up. |
 | `agents.configure` | Create agent profiles; grant scopes and tool classes (within grantor authority). | none | AGT-001, AGT-002 |  |
 | `automations.configure` | Create/enable automations within the configurer's authority. | none | AUTO-001, AUTO-013 |  |
 | `integrations.configure` | Connect, map, reauthorize, disconnect integrations. | none | INT-001, INT-008, PERM-009 |  |
@@ -262,14 +262,14 @@ Rules and algorithm: [../04-effective-permissions.md](../04-effective-permission
 | `audit.view` | View audit history (field values redacted per viewer). | none | ADM-011 |  |
 | `audit.export` | Export audit history. | none | AUD-009 |  |
 | `workspace.export` | Full workspace export. | none | DATA-011, DATA-015 |  |
-| `usage.view` | View usage and cost (brand-level for brand managers). | none | AI-034, RPT-012 |  |
+| `usage.view` | View usage and cost (brand-level for brand managers). | none | AI-034, RPT-012 | Phase 7A (AZ-44): AI usage and per-run metadata only; never another person's prompt, output, or context. |
 | `billing.view` | View plan, entitlements, invoices. | none | ADM-012 |  |
 | `billing.manage` | Change plan, seats, payment method; approve extra usage purchases. | none | BILL-010, BILL-014 |  |
 | `secrets_metadata.view` | See that credentials exist, scopes, last rotation (never values). | none | SEC-013 |  |
 | `health.view` | View integration, automation, and agent health. | none | ADM-009, ADM-010 | Phase 4B (AZ-32): also reads failed and dead-lettered notification deliveries (recipient, channel, class, code; never content or addresses). |
 | `support_access.grant` | Grant platform support time-boxed, scoped access. | none | SUP-008 |  |
 | `emergency_stop.trigger` | Stop all agent execution in the workspace. | none | AGT-025 | Never blocked by approval; resuming requires owner/admin. |
-| `ai.execute` | Run an AI action over a selected readable context. | none | AI-005, AI-006 |  |
+| `ai.execute` | Run an AI action over a selected readable context. | none | AI-005, AI-006 | Phase 7A (AZ-44): the AI gateway decides this in the run's explicit scope (brand, or the workspace) before estimating and again before every dispatch; every context source must be readable now. AI history content is personal to its initiator. |
 | `ai.apply_proposal` | Apply selected AI-proposed changes (each change authorized as the applying human). | none | AI-024, AI-025 |  |
 | `agent.assign` | Assign a task to an agent and start runs. | none | AGT-003, LA-008 |  |
 | `agent.run_control` | Pause, resume, cancel, or retry a run (assigner or task manager). | none | AGT-009 |  |

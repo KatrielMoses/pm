@@ -958,10 +958,11 @@ Append-only metered usage (AI tokens/cost, agent run, automation run, storage de
 | Retention / confidentiality | `R-BILLING` / `C2` |
 | Volume / export / search-AI | `very-high` / `admin` / `no` |
 | Secrets / personal data | `no` / `incidental` |
-| Uniqueness | `(operation_id, attempt_id, meter, sequence)` |
-| Key typed columns | `meter text`; `quantity numeric`; `unit text`; `cost_micros bigint null`; `cost_basis (measured\|estimated\|reported)`; `brand_id`; `actor_type`; `operation_id`; `attempt_id`; `occurred_at`; `period_start date`; `correction_of uuid null`; `sequence int` |
+| Uniqueness | `(operation_id, dispatch_id, meter, sequence)` |
+| Key typed columns | `meter (ai.cost\|ai.input_tokens\|ai.output_tokens)`; `quantity numeric (exact)`; `unit (usd_micros\|tokens)`; `cost_micros numeric null`; `cost_basis (measured\|estimated\|reported)`; `funding (platform\|workspace_key\|synthetic)`; `billable boolean (always false in 7A)`; `brand_id`; `actor_type`; `operation_id`; `dispatch_id`; `occurred_at`; `period_start date (a closed period settles as a correction in the current one)`; `correction_of uuid null`; `sequence int` |
 | Sensitive fields | — |
 | Requirements | AI-026, AI-034, AUTO-018, RPT-012, BILL-008 |
+| Notes | Phase 7A (ADR-44): attempt-level usage; customer billing is 10A. |
 
 <a id="entity-usage-balance"></a>
 ### `usage_balance`
@@ -979,9 +980,10 @@ Per workspace (and optionally brand) per period per meter: allowance, consumed, 
 | Volume / export / search-AI | `medium` / `filtered` / `no` |
 | Secrets / personal data | `no` / `incidental` |
 | Uniqueness | `(workspace_id, scope_key, meter, period_start)` |
-| Key typed columns | standard columns only |
+| Key typed columns | `scope_key (workspace)`; `meter`; `period_start, period_end (calendar month, workspace timezone)`; `consumed, allowance_consumed, reserved numeric`; `last_threshold_bp` |
 | Sensitive fields | — |
 | Requirements | AI-033, AI-035, BILL-009 |
+| Notes | Phase 7A (ADR-44): locked FOR UPDATE to reserve; reserved equals open (held or unknown) reservations of the period. |
 
 <a id="entity-spend-limit"></a>
 ### `spend_limit`
@@ -998,10 +1000,11 @@ Configured monthly allowances, alert thresholds, and hard caps for AI, agents, a
 | Retention / confidentiality | `R-LIVE` / `C2` |
 | Volume / export / search-AI | `low` / `filtered` / `no` |
 | Secrets / personal data | `no` / `incidental` |
-| Uniqueness | — |
-| Key typed columns | standard columns only |
+| Uniqueness | `(workspace_id, scope_key, meter)` |
+| Key typed columns | `scope_key (workspace)`; `meter`; `monthly_allowance numeric`; `hard_limit numeric (allowance <= hard limit)` |
 | Sensitive fields | — |
 | Requirements | AI-033, BILL-009, NTF-006 |
+| Notes | Phase 7A (ADR-44): no row means the finite deployment default; never unlimited. |
 
 <a id="entity-usage-reservation"></a>
 ### `usage_reservation`
@@ -1018,10 +1021,11 @@ Hold against a balance for an estimated expensive run; settled or released on te
 | Retention / confidentiality | `R-EXEC` / `C1` |
 | Volume / export / search-AI | `high` / `filtered` / `no` |
 | Secrets / personal data | `no` / `incidental` |
-| Uniqueness | `(operation_id, meter)` |
-| Key typed columns | standard columns only |
+| Uniqueness | `(dispatch_id, meter)` |
+| Key typed columns | `operation_id`; `dispatch_id`; `meter`; `period_start`; `amount numeric`; `state (held\|unknown\|settled\|released)`; `settled_amount numeric null` |
 | Sensitive fields | — |
 | Requirements | AI-035, AGT-024, LA-014 |
+| Notes | Phase 7A (ADR-44): one per dispatch and meter (retries are separately chargeable), replacing the (operation_id, meter) key; settles exactly once. |
 
 ## Billing and entitlements (`billing`, schema `billing`)
 
@@ -4559,10 +4563,11 @@ Provider/model configuration, data settings; workspace keys by secret reference 
 | Retention / confidentiality | `R-LIVE` / `C4` |
 | Volume / export / search-AI | `low` / `never` / `no` |
 | Secrets / personal data | `secret-ref` / `incidental` |
-| Uniqueness | — |
-| Key typed columns | standard columns only |
+| Uniqueness | `(workspace_id)` |
+| Key typed columns | `enabled boolean (default false; no row = AI off)`; `model_key text null (versioned registry key, never an implicit latest)`; `key_source (deployment\|workspace)`; `workspace_key_ref text null (secret reference only)`; `max_data_class (C0\|C1\|C2)`; `require_training_exclusion boolean (always true while OD-41 is open)`; `confirm_above_micros numeric` |
 | Sensitive fields | — |
-| Requirements | AI-031, AI-032, SEC-027 |
+| Requirements | AI-031, AI-032, AI-036, SEC-027, ADM-005 |
+| Notes | Phase 7A (ADR-44): one row per workspace. The key is a vault reference (DQ-28); production keys stay refused until a secret store is approved. |
 
 <a id="entity-brand-ai-profile"></a>
 ### `brand_ai_profile`
@@ -4579,10 +4584,11 @@ Brand AI instructions, terminology, audience, voice, approved-source policy.
 | Retention / confidentiality | `R-LIVE` / `C2` |
 | Volume / export / search-AI | `low` / `filtered` / `yes` |
 | Secrets / personal data | `no` / `incidental` |
-| Uniqueness | — |
-| Key typed columns | standard columns only |
+| Uniqueness | `(workspace_id, brand_id)` |
+| Key typed columns | `brand_id (unique)`; `instructions text`; `terminology text`; `audience text`; `voice text`; `approved_sources (readable\|brand_only; enforced by 7B retrieval)` |
 | Sensitive fields | — |
 | Requirements | WSB-012 |
+| Notes | Phase 7A (ADR-44): included as instructions in AI requests scoped to the brand, after credential redaction. |
 
 <a id="entity-ai-action"></a>
 ### `ai_action`
@@ -4600,9 +4606,10 @@ Operation detail for one assistant action: person, context scope, model, estimat
 | Volume / export / search-AI | `high` / `filtered` / `no` |
 | Secrets / personal data | `no` / `incidental` |
 | Uniqueness | — |
-| Key typed columns | `initiating_membership_id`; `context_scope jsonb (brands, projects, tasks)`; `brand_ids uuid[]`; `model`; `prompt_ref`; `estimated_cost_micros`; `output_ref` |
+| Key typed columns | `operation_id (1:1 with execution.operation, kind ai_action)`; `initiating_membership_id`; `brand_id null (explicit scope)`; `purpose (test_run in 7A)`; `synthetic boolean`; `model_key, provider, model_id, registry_version, prompt_template_version`; `price_snapshot jsonb, privacy_snapshot jsonb`; `funding (platform\|workspace_key\|synthetic)`; `caller_kind (ui\|api\|mcp), delegation_principal_type, delegation_token_id`; `prompt_text (redacted; the only stored user content)`; `max_output_tokens, estimated_max_micros`; `rerun_of_operation_id null`; `content_state (present\|erased), content_erased_at` |
 | Sensitive fields | — |
-| Requirements | AI-026, AI-006, AI-034 |
+| Requirements | AI-026, AI-027, AI-028, AI-034, SEC-027 |
+| Notes | Phase 7A (ADR-44): immutable except content erasure. Personal to its initiator: no role or grant reads its content; administrators see metadata through usage.view. |
 
 <a id="entity-ai-context-ref"></a>
 ### `ai_context_ref`
@@ -4620,9 +4627,31 @@ Record included or excluded from an AI action's context, with version and approv
 | Volume / export / search-AI | `very-high` / `filtered` / `no` |
 | Secrets / personal data | `no` / `incidental` |
 | Uniqueness | — |
-| Key typed columns | standard columns only |
+| Key typed columns | `operation_id`; `position`; `record_id (no foreign key: a purged record leaves a tombstone)`; `record_type (task\|project)`; `record_public_id`; `fields text[]`; `record_version`; `included boolean`; `exclusion_reason (field_not_ai_eligible\|data_class\|sensitive_brand\|out_of_scope)` |
 | Sensitive fields | — |
-| Requirements | AI-007, AI-008, DOC-018 |
+| Requirements | AI-026, SEC-027, AI-007 |
+| Notes | Phase 7A (ADR-44): references only; record content is never copied. Re-checked on every history read and export. |
+
+<a id="entity-ai-dispatch"></a>
+### `ai_dispatch`
+
+One potentially chargeable provider call of an AI action: bounds, reservation, provider request id, outcome, and attempt-level usage.
+
+| Property | Value |
+|---|---|
+| Scope | `inherited` |
+| Contained by | [`ai_action`](logical-model.md#entity-ai-action) |
+| Extends (1:1) | — |
+| Associations | — |
+| Lifecycle / concurrency | `state-machine` / `locked` |
+| Retention / confidentiality | `R-EXEC` / `C1` |
+| Volume / export / search-AI | `high` / `filtered` / `no` |
+| Secrets / personal data | `no` / `incidental` |
+| Uniqueness | `(operation_id, dispatch_number)`; `(attempt_id)` |
+| Key typed columns | `attempt_id (execution.attempt)`; `dispatch_number`; `state (dispatching\|succeeded\|partial\|refused\|failed\|unknown\|reconciled)`; `period_start`; `input_token_bound, output_token_bound, reserved_micros`; `provider_request_id`; `stop_reason, error_kind`; `input_tokens, output_tokens, settled_micros, usage_basis (measured\|not_charged\|reported\|reserved_bound)`; `cancel_observed`; `reconciled_by_membership_id, reconciled_at` |
+| Sensitive fields | — |
+| Requirements | AI-027, AI-028, AI-035, LA-017 |
+| Notes | Phase 7A (ADR-44): committed as dispatching before the request leaves; a dispatching row found by a later attempt is an unknown outcome, never resent. |
 
 <a id="entity-ai-output"></a>
 ### `ai_output`
@@ -4640,9 +4669,10 @@ Generated content (answer, draft, summary) with statement-level citations; immut
 | Volume / export / search-AI | `high` / `filtered` / `no` |
 | Secrets / personal data | `no` / `incidental` |
 | Uniqueness | — |
-| Key typed columns | standard columns only |
+| Key typed columns | `operation_id`; `dispatch_id (unique)`; `completeness (complete\|truncated\|partial\|erased)`; `content text null` |
 | Sensitive fields | — |
-| Requirements | AI-008, AI-009 |
+| Requirements | AI-026, AI-029 |
+| Notes | Phase 7A (ADR-44): immutable (trigger) except erasure. Partial and truncated output is labelled, never a success. |
 
 <a id="entity-change-proposal"></a>
 ### `change_proposal`

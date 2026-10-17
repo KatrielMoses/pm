@@ -352,6 +352,7 @@ Requirements flagged with each decision are listed automatically in [requirement
 - **If deferred:** Unbounded growth, plus potential non-compliance with data minimization.
 - **Status (Phase 4B, 2026-10-08):** Notification retention stays open as a legal question and no value is published. The technical bound is `NOTIFY_RETENTION_DAYS` (default 365, configurable): notifications and their deliveries older than that age out unless the person saved them; digests age with their deliveries; a purged record's notifications and a departed person's notifications are removed with them (ADR-0024 D9).
 - **Status (Phase 4E, 2026-10-08):** File retention stays open as a legal question and no period is invented or published. Files and their versions live until their host or workspace is deleted: they trash, restore, and purge with their host through the 1F lifecycle, purge deletes the bytes through idempotent `object:{key}` effects, and evidence-locked versions (accepted deliverables, R-EVIDENCE) are skipped by purge. Expired upload sessions release their quarantined bytes after `UPLOAD_SESSION_LIFETIME`, a technical setting (ADR-0026 F9).
+- **Status (Phase 7A, 2026-10-17):** Still open for AI history (AI-026, AUD-008). No retention duration is published. AI content stays until its initiator departs or the workspace is deleted. `AI_HISTORY_RETENTION_DAYS` is an unset technical setting; when set, a sweep erases older prompts, outputs, and context references. Usage, cost, and audit facts remain.
 
 <a id="od-37"></a>
 ### OD-37 — Legal and retention holds
@@ -360,6 +361,7 @@ Requirements flagged with each decision are listed automatically in [requirement
 - **Affects:** SEC-020 · phases 0B, 1F.
 - **Safe default:** Not offered at launch. The model reserves a hold that blocks purge.
 - **If deferred:** The safe default applies.
+- **Status (Phase 7A, 2026-10-17):** Still open. No hold is offered, so AI content erasure (departure, the technical retention sweep) has no hold to consult. A future hold must be added to that path before holds are offered.
 
 <a id="od-38"></a>
 ### OD-38 — Content values in audit history after edit, delete, or purge (privacy)
@@ -377,6 +379,7 @@ Requirements flagged with each decision are listed automatically in [requirement
 - **Affects:** SEC-021, SEC-023, ADM-013, PERM-014 · phases 1B, 1D, 11B.
 - **Safe default:** Pseudonymize ("Former member #id") after account deletion. Block sole-owner deletion until ownership is transferred or the workspace is deleted.
 - **If deferred:** Account deletion cannot ship.
+- **Status (Phase 7A, 2026-10-17):** Still open. Under the safe default for personal-scope data, a departing member's AI prompts, outputs, and context references are erased and their queued AI work stops. Usage, cost, operation, and audit facts remain.
 
 <a id="od-40"></a>
 ### OD-40 — Import rollback period
@@ -393,6 +396,7 @@ Requirements flagged with each decision are listed automatically in [requirement
 - **Affects:** AI-036, SEC-027, SEC-028, SUP-005 · phases 7A, 10D, 11B.
 - **Safe default:** Use only provider configurations that contractually exclude training, and document providers as subprocessors. Publish nothing beyond what provider contracts guarantee.
 - **If deferred:** AI features cannot be launched to paying customers.
+- **Status (Phase 7A, 2026-10-17):** Still open. No real model is approved for workspace data: `AI_APPROVED_MODELS` is empty, and deployed environments refuse the real provider. Training exclusion is required and cannot be switched off. The Anthropic configuration is recorded as needing contract review, with standard provider retention and no zero-retention claim. Nothing beyond reviewed provider terms is published.
 
 <a id="od-42"></a>
 ### OD-42 — Backup RPO/RTO targets
@@ -435,3 +439,4 @@ Requirements flagged with each decision are listed automatically in [requirement
 - **Affects:** AI-032, AI-033, BILL-007 · phases 7A, 10A.
 - **Safe default:** Supported in the gateway design and switched off in production until approved. If enabled, usage is metered for visibility and is not billed.
 - **If deferred:** The safe default applies.
+- **Status (Phase 7A, 2026-10-17):** Still open. Workspace-provided keys are built and tested (vault references, metered with `workspace_key` funding, never billed) and are off in deployed environments (`AI_BYOK_ENABLED` is refused). The safe default applies.

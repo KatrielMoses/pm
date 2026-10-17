@@ -1,0 +1,788 @@
+{
+  "schema_version": 1,
+  "phase": "7A",
+  "status": "candidate",
+  "adr": "0038",
+  "requirements": [
+    {
+      "id": "WSB-012",
+      "role": "owned",
+      "disposition": "implemented",
+      "note": "Brand AI profiles are stored, edited under ai.configure_brand, and included as instructions in brand-scoped AI requests after redaction; the approved-source policy is recorded for 7B retrieval to enforce.",
+      "evidence": [
+        {
+          "file": "packages/db/migrations/0053_ai_gateway.up.sql",
+          "contains": "CREATE TABLE ai.brand_ai_profile"
+        },
+        {
+          "file": "packages/work/src/ai/ai-gateway-service.ts",
+          "contains": "async updateBrandAiProfile("
+        },
+        {
+          "file": "packages/work/src/ai/ai-gateway-service.ts",
+          "contains": "#brandProfileText"
+        },
+        {
+          "file": "apps/web/src/ai/ai-pages.tsx",
+          "contains": "Brand AI profiles"
+        }
+      ]
+    },
+    {
+      "id": "AI-026",
+      "role": "owned",
+      "disposition": "implemented",
+      "note": "Prompts (redacted), context references with versions, outputs, model, registry/price/privacy/template versions, operation and attempt identities, status, timing, and cost are preserved; content is re-authorized on every read and export.",
+      "evidence": [
+        {
+          "file": "packages/db/migrations/0053_ai_gateway.up.sql",
+          "contains": "CREATE TABLE ai.ai_action"
+        },
+        {
+          "file": "packages/work/src/ai/ai-gateway-service.ts",
+          "contains": "async #renderRun("
+        },
+        {
+          "file": "packages/work/test/integration/ai-gateway.test.ts",
+          "contains": "AT-356"
+        },
+        {
+          "file": "packages/work/test/integration/ai-gateway.test.ts",
+          "contains": "AT-361"
+        }
+      ]
+    },
+    {
+      "id": "AI-027",
+      "role": "owned",
+      "disposition": "implemented",
+      "note": "Only failures the provider cannot have charged are retried automatically within AI_MAX_ATTEMPTS; a person's retry is a new re-authorized operation; unknown outcomes are never resent and block retry until reconciled.",
+      "evidence": [
+        {
+          "file": "packages/work/src/ai/ai-gateway-service.ts",
+          "contains": "async retryAiRun("
+        },
+        {
+          "file": "packages/work/src/ai/ai-gateway-service.ts",
+          "contains": "It is never resent; its reservation stays until reconciled."
+        },
+        {
+          "file": "packages/work/test/integration/ai-gateway.test.ts",
+          "contains": "AT-364"
+        },
+        {
+          "file": "packages/work/test/integration/ai-budget.test.ts",
+          "contains": "AT-374"
+        }
+      ]
+    },
+    {
+      "id": "AI-028",
+      "role": "owned",
+      "disposition": "implemented",
+      "note": "Cancel stops queued runs at once and closes a running provider stream; the cost stays accountable and the interface says a sent request cannot be recalled.",
+      "evidence": [
+        {
+          "file": "packages/work/src/ai/ai-gateway-service.ts",
+          "contains": "async cancelAiRun("
+        },
+        {
+          "file": "packages/work/src/ai/ai-gateway-service.ts",
+          "contains": "cancellation_note"
+        },
+        {
+          "file": "packages/work/test/integration/ai-gateway.test.ts",
+          "contains": "AT-366"
+        },
+        {
+          "file": "packages/work/test/integration/ai-gateway.test.ts",
+          "contains": "AT-367"
+        },
+        {
+          "file": "e2e/ai.spec.ts",
+          "contains": "Cancel run"
+        }
+      ]
+    },
+    {
+      "id": "AI-030",
+      "role": "owned",
+      "disposition": "implemented",
+      "note": "When AI is disabled, unconfigured, or refused, the AI page states it and the manual path; no workflow depends on AI; readiness reports not_configured as healthy.",
+      "evidence": [
+        {
+          "file": "packages/work/src/ai/ai-gateway-service.ts",
+          "contains": "manual_fallback"
+        },
+        {
+          "file": "apps/api/src/readiness.ts",
+          "contains": "ai_provider"
+        },
+        {
+          "file": "packages/work/test/integration/ai-gateway.test.ts",
+          "contains": "AT-354"
+        },
+        {
+          "file": "e2e/ai.spec.ts",
+          "contains": "Manual launch checklist"
+        }
+      ]
+    },
+    {
+      "id": "AI-031",
+      "role": "owned",
+      "disposition": "implemented",
+      "note": "A versioned provider/model registry with explicit capabilities, prices, and privacy guarantees; workspace selection of an offered model; the Anthropic Messages adapter and the protocol fixture.",
+      "evidence": [
+        {
+          "file": "packages/work/src/ai/registry.ts",
+          "contains": "AI_REGISTRY_VERSION"
+        },
+        {
+          "file": "packages/work/src/ai/provider.ts",
+          "contains": "export class MessagesProvider"
+        },
+        {
+          "file": "packages/work/test/unit/ai-gateway.test.ts",
+          "contains": "Messages provider contract"
+        }
+      ]
+    },
+    {
+      "id": "AI-032",
+      "role": "owned",
+      "disposition": "implemented",
+      "note": "Workspace keys are supported by design (vault reference, workspace_key funding, metered and never billed) and tested; per the OD-46 safe default they are off in deployed environments and refused while AI_BYOK_ENABLED is 0.",
+      "evidence": [
+        {
+          "file": "packages/work/src/ai/ai-gateway-service.ts",
+          "contains": "async setAiWorkspaceKey("
+        },
+        {
+          "file": "packages/config/src/server.ts",
+          "contains": "AI_BYOK_ENABLED: workspace-provided AI keys stay off until OD-46 is approved"
+        },
+        {
+          "file": "packages/work/test/unit/ai-gateway.test.ts",
+          "contains": "key_unavailable"
+        }
+      ]
+    },
+    {
+      "id": "AI-033",
+      "role": "owned",
+      "disposition": "implemented",
+      "note": "Monthly allowances and hard limits per meter (cost and tokens) with finite defaults; owners and administrators configure them with step-up; customer billing remains 10A.",
+      "evidence": [
+        {
+          "file": "packages/db/migrations/0053_ai_gateway.up.sql",
+          "contains": "CREATE TABLE metering.spend_limit"
+        },
+        {
+          "file": "packages/work/src/ai/ai-gateway-service.ts",
+          "contains": "async updateAiLimits("
+        },
+        {
+          "file": "packages/work/test/integration/ai-budget.test.ts",
+          "contains": "AT-375"
+        }
+      ]
+    },
+    {
+      "id": "AI-034",
+      "role": "owned",
+      "disposition": "implemented",
+      "note": "Remaining allowance, reserved and consumed usage, and a pre-run upper-bound estimate (confirmation above the workspace threshold) before any run starts.",
+      "evidence": [
+        {
+          "file": "packages/work/src/ai/ai-gateway-service.ts",
+          "contains": "async estimateAiRun("
+        },
+        {
+          "file": "packages/work/src/ai/ai-gateway-service.ts",
+          "contains": "remaining_allowance"
+        },
+        {
+          "file": "apps/web/src/ai/ai-pages.tsx",
+          "contains": "Estimate cost"
+        },
+        {
+          "file": "packages/work/test/integration/ai-gateway.test.ts",
+          "contains": "confirmation_required"
+        }
+      ]
+    },
+    {
+      "id": "AI-035",
+      "role": "owned",
+      "disposition": "implemented",
+      "note": "Every chargeable attempt atomically reserves a conservative upper bound before it is sent; overlapping dispatches cannot spend the same allowance; unknown outcomes stay reserved.",
+      "evidence": [
+        {
+          "file": "packages/work/src/ai/budget.ts",
+          "contains": "export async function reserve("
+        },
+        {
+          "file": "packages/work/test/integration/ai-budget.test.ts",
+          "contains": "AT-372"
+        },
+        {
+          "file": "packages/work/test/integration/ai-budget.test.ts",
+          "contains": "AT-376"
+        }
+      ]
+    },
+    {
+      "id": "AI-036",
+      "role": "owned",
+      "disposition": "implemented",
+      "note": "Training exclusion is required and cannot be switched off while OD-41 is open (database CHECK); a real model receives data only when explicitly approved; nothing beyond reviewed provider terms is promised.",
+      "evidence": [
+        {
+          "file": "packages/db/migrations/0053_ai_gateway.up.sql",
+          "contains": "ai_provider_config_training_excluded CHECK (require_training_exclusion)"
+        },
+        {
+          "file": "packages/work/src/ai/policy.ts",
+          "contains": "not_approved"
+        },
+        {
+          "file": "packages/work/test/integration/ai-gateway.test.ts",
+          "contains": "AT-363"
+        }
+      ]
+    },
+    {
+      "id": "SEC-027",
+      "role": "owned",
+      "disposition": "implemented",
+      "note": "Workspace AI policy, current authority, explicit scope, AI-eligible fields, data class, sensitive brands, redaction, and model approval gate every estimate and dispatch, re-checked after queueing.",
+      "evidence": [
+        {
+          "file": "packages/work/src/ai/ai-gateway-service.ts",
+          "contains": "async #prepare("
+        },
+        {
+          "file": "packages/work/src/ai/ai-gateway-service.ts",
+          "contains": "async #reauthorize("
+        },
+        {
+          "file": "packages/work/test/integration/ai-gateway.test.ts",
+          "contains": "AT-358"
+        },
+        {
+          "file": "packages/work/test/integration/ai-gateway.test.ts",
+          "contains": "AT-359"
+        },
+        {
+          "file": "packages/work/test/integration/ai-gateway.test.ts",
+          "contains": "AT-360"
+        }
+      ]
+    },
+    {
+      "id": "PRJ-007",
+      "role": "contributing",
+      "disposition": "contributed",
+      "contribution": "7A",
+      "note": "7A meters AI execution per attempt with brand and operation and provides the reservation port a project-scoped AI budget is enforced through; 7A test runs carry no project scope, so the 2A project AI budget is not enforced by a 7A run.",
+      "evidence": [
+        {
+          "file": "packages/work/src/ai/budget.ts",
+          "contains": "export async function reserve("
+        },
+        {
+          "file": "docs/engineering/adr/0038-ai-gateway-privacy-budgets.md",
+          "contains": "| D5 |"
+        }
+      ]
+    },
+    {
+      "id": "GOAL-011",
+      "role": "contributing",
+      "disposition": "contributed",
+      "contribution": "7A",
+      "note": "Brand-level AI cost and tokens through the 5D metric port.",
+      "evidence": [
+        {
+          "file": "packages/work/src/insights/metrics-7a.ts",
+          "contains": "key: 'ai.usage'"
+        },
+        {
+          "file": "packages/work/test/integration/ai-gateway.test.ts",
+          "contains": "AT-380"
+        }
+      ]
+    },
+    {
+      "id": "AI-029",
+      "role": "contributing",
+      "disposition": "contributed",
+      "contribution": "7A",
+      "note": "Partial and truncated output is stored and labelled; a partial or interrupted run is never reported as complete.",
+      "evidence": [
+        {
+          "file": "packages/work/src/ai/ai-gateway-service.ts",
+          "contains": "Partial: the answer is incomplete"
+        },
+        {
+          "file": "packages/work/test/integration/ai-gateway.test.ts",
+          "contains": "AT-365"
+        }
+      ]
+    },
+    {
+      "id": "BRF-013",
+      "role": "contributing",
+      "disposition": "contributed",
+      "contribution": "7A",
+      "note": "Attempt-level AI usage and run cost are recorded and served for later briefings to report.",
+      "evidence": [
+        {
+          "file": "packages/db/migrations/0053_ai_gateway.up.sql",
+          "contains": "CREATE TABLE metering.usage_event"
+        },
+        {
+          "file": "packages/work/src/ai/ai-gateway-service.ts",
+          "contains": "async aiUsage("
+        }
+      ]
+    },
+    {
+      "id": "AGT-024",
+      "role": "contributing",
+      "disposition": "contributed",
+      "contribution": "7A",
+      "note": "Hard token and cost limits with per-attempt reservations that later agent runs use.",
+      "evidence": [
+        {
+          "file": "packages/work/src/ai/budget.ts",
+          "contains": "AI_METERS"
+        },
+        {
+          "file": "packages/work/test/integration/ai-budget.test.ts",
+          "contains": "Token limits are hard limits too"
+        }
+      ]
+    },
+    {
+      "id": "RPT-012",
+      "role": "contributing",
+      "disposition": "contributed",
+      "contribution": "7A",
+      "note": "AI usage and cost through the 5D metric port for usage viewers.",
+      "evidence": [
+        {
+          "file": "packages/work/src/insights/metrics.ts",
+          "contains": "aiUsageMetric,"
+        },
+        {
+          "file": "packages/work/test/integration/ai-gateway.test.ts",
+          "contains": "AT-380"
+        }
+      ]
+    },
+    {
+      "id": "NTF-006",
+      "role": "contributing",
+      "disposition": "contributed",
+      "contribution": "7A",
+      "note": "Spend thresholds and the hard limit emit registered events that notify owners and administrators who can change limits.",
+      "evidence": [
+        {
+          "file": "packages/work/src/notify/fanout.ts",
+          "contains": "metering.usage.threshold_reached"
+        },
+        {
+          "file": "packages/work/test/integration/ai-budget.test.ts",
+          "contains": "AT-377"
+        }
+      ]
+    },
+    {
+      "id": "AUD-008",
+      "role": "contributing",
+      "disposition": "contributed",
+      "contribution": "7A",
+      "note": "AI execution history (actions, dispatches, outputs, usage) is preserved under the existing lifecycle; content erasure follows departure and the technical retention setting (OD-36 undecided).",
+      "evidence": [
+        {
+          "file": "packages/work/src/ai/lifecycle.ts",
+          "contains": "export const aiHistoryOwnerHook"
+        },
+        {
+          "file": "packages/work/test/integration/ai-gateway.test.ts",
+          "contains": "AT-371"
+        }
+      ]
+    },
+    {
+      "id": "SEC-014",
+      "role": "contributing",
+      "disposition": "contributed",
+      "contribution": "7A",
+      "note": "Credentials are redacted from AI prompts, brand instructions, and context before storage and dispatch; keys never reach logs, errors, or history.",
+      "evidence": [
+        {
+          "file": "packages/work/src/ai/redaction.ts",
+          "contains": "export function redactCredentials("
+        },
+        {
+          "file": "packages/work/test/integration/ai-gateway.test.ts",
+          "contains": "AT-362"
+        }
+      ]
+    },
+    {
+      "id": "SEC-028",
+      "role": "contributing",
+      "disposition": "contributed",
+      "contribution": "7A",
+      "note": "Providers, retention behavior, and data use are recorded per model in the registry and shown in AI settings; publication for customers is 10D.",
+      "evidence": [
+        {
+          "file": "packages/work/src/ai/registry.ts",
+          "contains": "trainingExclusion"
+        },
+        {
+          "file": "apps/web/src/ai/ai-pages.tsx",
+          "contains": "privacy.statement"
+        }
+      ]
+    },
+    {
+      "id": "REL-006",
+      "role": "contributing",
+      "disposition": "contributed",
+      "contribution": "7A",
+      "note": "AI failures, refusals, partial results, and unknown costs are shown to the person who started the run.",
+      "evidence": [
+        {
+          "file": "packages/work/src/ai/ai-gateway-service.ts",
+          "contains": "#statusLabel("
+        },
+        {
+          "file": "e2e/ai.spec.ts",
+          "contains": "Cancelled (cost may still be charged)"
+        }
+      ]
+    },
+    {
+      "id": "REL-013",
+      "role": "contributing",
+      "disposition": "contributed",
+      "contribution": "7A",
+      "note": "Unconfigured or refused AI degrades to a truthful unavailable state with the manual path; readiness stays ready.",
+      "evidence": [
+        {
+          "file": "apps/api/src/readiness.ts",
+          "contains": "ai_provider: deps.aiProvider ?? 'not_configured'"
+        },
+        {
+          "file": "scripts/image-smoke.sh",
+          "contains": "ai_provider"
+        }
+      ]
+    },
+    {
+      "id": "REL-014",
+      "role": "contributing",
+      "disposition": "contributed",
+      "contribution": "7A",
+      "note": "Manual work-management functions do not depend on AI and are exercised with AI off.",
+      "evidence": [
+        {
+          "file": "packages/work/test/integration/ai-gateway.test.ts",
+          "contains": "Manual path"
+        },
+        {
+          "file": "e2e/ai.spec.ts",
+          "contains": "Manual launch checklist"
+        }
+      ]
+    },
+    {
+      "id": "ADM-005",
+      "role": "contributing",
+      "disposition": "contributed",
+      "contribution": "7A",
+      "note": "AI settings manage provider, model, allowances, limits, data class, and data settings under ai.providers.manage and ai.limits.configure with step-up.",
+      "evidence": [
+        {
+          "file": "apps/web/src/ai/ai-pages.tsx",
+          "contains": "export function AiSettingsPage("
+        },
+        {
+          "file": "packages/work/src/ai/ai-gateway-service.ts",
+          "contains": "async updateAiSettings("
+        }
+      ]
+    },
+    {
+      "id": "LA-014",
+      "role": "contributing",
+      "disposition": "contributed",
+      "contribution": "7A",
+      "note": "A founder sees AI usage, remaining allowance, and limits, and spending beyond the hard limit cannot start.",
+      "evidence": [
+        {
+          "file": "apps/web/src/ai/ai-pages.tsx",
+          "contains": "Remaining allowance"
+        },
+        {
+          "file": "packages/work/test/integration/ai-budget.test.ts",
+          "contains": "AT-372"
+        }
+      ]
+    },
+    {
+      "id": "LA-017",
+      "role": "contributing",
+      "disposition": "contributed",
+      "contribution": "7A",
+      "note": "Failed, cancelled, partial, and unknown AI runs are visible and never reported as successful.",
+      "evidence": [
+        {
+          "file": "packages/work/src/ai/ai-gateway-service.ts",
+          "contains": "Cancelled (cost may still be charged)"
+        },
+        {
+          "file": "packages/work/test/integration/ai-gateway.test.ts",
+          "contains": "AT-364"
+        }
+      ]
+    }
+  ],
+  "decisions": [
+    {
+      "id": "D1",
+      "adr_row": "D1",
+      "title": "Provider and model boundary",
+      "evidence": [
+        {
+          "file": "docs/engineering/adr/0038-ai-gateway-privacy-budgets.md",
+          "contains": "| D1 |"
+        }
+      ],
+      "sources": [
+        {
+          "file": "docs/engineering/adr/0038-ai-gateway-privacy-budgets.md",
+          "contains": "| D1 |"
+        }
+      ]
+    },
+    {
+      "id": "D2",
+      "adr_row": "D2",
+      "title": "Production disabled, explicit approval",
+      "evidence": [
+        {
+          "file": "docs/engineering/adr/0038-ai-gateway-privacy-budgets.md",
+          "contains": "| D2 |"
+        }
+      ],
+      "sources": [
+        {
+          "file": "docs/engineering/adr/0038-ai-gateway-privacy-budgets.md",
+          "contains": "| D2 |"
+        }
+      ]
+    },
+    {
+      "id": "D3",
+      "adr_row": "D3",
+      "title": "Dispatch prerequisites",
+      "evidence": [
+        {
+          "file": "docs/engineering/adr/0038-ai-gateway-privacy-budgets.md",
+          "contains": "| D3 |"
+        }
+      ],
+      "sources": [
+        {
+          "file": "docs/engineering/adr/0038-ai-gateway-privacy-budgets.md",
+          "contains": "| D3 |"
+        }
+      ]
+    },
+    {
+      "id": "D4",
+      "adr_row": "D4",
+      "title": "Workspace keys and entitlements",
+      "evidence": [
+        {
+          "file": "docs/engineering/adr/0038-ai-gateway-privacy-budgets.md",
+          "contains": "| D4 |"
+        }
+      ],
+      "sources": [
+        {
+          "file": "docs/engineering/adr/0038-ai-gateway-privacy-budgets.md",
+          "contains": "| D4 |"
+        }
+      ]
+    },
+    {
+      "id": "D5",
+      "adr_row": "D5",
+      "title": "Exact money and hard reservations",
+      "evidence": [
+        {
+          "file": "docs/engineering/adr/0038-ai-gateway-privacy-budgets.md",
+          "contains": "| D5 |"
+        }
+      ],
+      "sources": [
+        {
+          "file": "docs/engineering/adr/0038-ai-gateway-privacy-budgets.md",
+          "contains": "| D5 |"
+        }
+      ]
+    },
+    {
+      "id": "D6",
+      "adr_row": "D6",
+      "title": "Settlement and unknown outcomes",
+      "evidence": [
+        {
+          "file": "docs/engineering/adr/0038-ai-gateway-privacy-budgets.md",
+          "contains": "| D6 |"
+        }
+      ],
+      "sources": [
+        {
+          "file": "docs/engineering/adr/0038-ai-gateway-privacy-budgets.md",
+          "contains": "| D6 |"
+        }
+      ]
+    },
+    {
+      "id": "D7",
+      "adr_row": "D7",
+      "title": "Durable operations and safe retry",
+      "evidence": [
+        {
+          "file": "docs/engineering/adr/0038-ai-gateway-privacy-budgets.md",
+          "contains": "| D7 |"
+        }
+      ],
+      "sources": [
+        {
+          "file": "docs/engineering/adr/0038-ai-gateway-privacy-budgets.md",
+          "contains": "| D7 |"
+        }
+      ]
+    },
+    {
+      "id": "D8",
+      "adr_row": "D8",
+      "title": "Honest cancellation",
+      "evidence": [
+        {
+          "file": "docs/engineering/adr/0038-ai-gateway-privacy-budgets.md",
+          "contains": "| D8 |"
+        }
+      ],
+      "sources": [
+        {
+          "file": "docs/engineering/adr/0038-ai-gateway-privacy-budgets.md",
+          "contains": "| D8 |"
+        }
+      ]
+    },
+    {
+      "id": "D9",
+      "adr_row": "D9",
+      "title": "History, exports, and administration",
+      "evidence": [
+        {
+          "file": "docs/engineering/adr/0038-ai-gateway-privacy-budgets.md",
+          "contains": "| D9 |"
+        }
+      ],
+      "sources": [
+        {
+          "file": "docs/engineering/adr/0038-ai-gateway-privacy-budgets.md",
+          "contains": "| D9 |"
+        }
+      ]
+    },
+    {
+      "id": "D10",
+      "adr_row": "D10",
+      "title": "Retention, erasure, and departure",
+      "evidence": [
+        {
+          "file": "docs/engineering/adr/0038-ai-gateway-privacy-budgets.md",
+          "contains": "| D10 |"
+        }
+      ],
+      "sources": [
+        {
+          "file": "docs/engineering/adr/0038-ai-gateway-privacy-budgets.md",
+          "contains": "| D10 |"
+        }
+      ]
+    },
+    {
+      "id": "D11",
+      "adr_row": "D11",
+      "title": "Observability, readiness, and the metric port",
+      "evidence": [
+        {
+          "file": "docs/engineering/adr/0038-ai-gateway-privacy-budgets.md",
+          "contains": "| D11 |"
+        }
+      ],
+      "sources": [
+        {
+          "file": "docs/engineering/adr/0038-ai-gateway-privacy-budgets.md",
+          "contains": "| D11 |"
+        }
+      ]
+    },
+    {
+      "id": "D12",
+      "adr_row": "D12",
+      "title": "Interface and manual fallback",
+      "evidence": [
+        {
+          "file": "docs/engineering/adr/0038-ai-gateway-privacy-budgets.md",
+          "contains": "| D12 |"
+        }
+      ],
+      "sources": [
+        {
+          "file": "docs/engineering/adr/0038-ai-gateway-privacy-budgets.md",
+          "contains": "| D12 |"
+        }
+      ]
+    }
+  ],
+  "boundaries": [
+    {
+      "id": "OD-41",
+      "statement": "Provider training and retention guarantees need legal review; no real model is approved and deployed environments refuse the real provider."
+    },
+    {
+      "id": "OD-46",
+      "statement": "Workspace-provided keys are designed and tested but off when deployed."
+    },
+    {
+      "id": "DQ-28",
+      "statement": "No secret store is approved; production provider and workspace keys fail closed."
+    },
+    {
+      "id": "OD-36",
+      "statement": "No AI content retention duration is published; the technical sweep is off by default."
+    },
+    {
+      "id": "DATA-013",
+      "statement": "The AI-history portion (owner 6D) is exported through the 6D boundary; agent and automation histories remain 8A and 8B."
+    },
+    {
+      "id": "10A",
+      "statement": "Commercial entitlements and customer billing; 7A usage is never billable and the entitlement port denies by default when deployed."
+    }
+  ]
+}

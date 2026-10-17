@@ -466,3 +466,23 @@ Status of every ADR: **proposed (Phase 0B)**, pending solutions-architect accept
 - **Alternatives:** Resetting the single attempt counter on replay (it erases the failure record). A hard delete (history is evidence). Storing a rendered payload (queued data is not authority).
 - **Consequences:** The down migration restores the exact 0051 catalog. Paused subscriptions return as `disabled_endpoint` and skipped deliveries as `failed`.
 
+
+<a id="adr-44"></a>
+## ADR-44: AI gateway, privacy, and hard spending reservations (Phase 7A amendment)
+
+- **Decision:** Migration 0053 creates the `ai` and `metering` schemas reserved in this model.
+  - `ai.ai_provider_config` holds one workspace's AI policy: on/off, a versioned registry model key (never an implicit "latest"), the key source, a workspace key as a vault reference only, the most sensitive data class allowed (C0–C2; C3/C4 never), the confirm-above amount, and `require_training_exclusion`, which a CHECK keeps true while OD-41 is open.
+  - `ai.brand_ai_profile` holds brand instructions, terminology, audience, voice, and the approved-source policy 7B enforces.
+  - `ai.ai_action` is the 1:1 detail of an `ai_action` operation. It holds the initiator, the explicit brand scope, the model, registry, price, privacy, and prompt-template versions it was authorized against, the funding, the caller kind and delegation, the redacted prompt, and the estimate. It is immutable except for content erasure. `ai.ai_context_ref` records which records and fields were requested, at which version, and whether policy included them. It holds no content and no foreign key to the record (a purge leaves a tombstone).
+  - `ai.ai_dispatch` (new entity) records each potentially chargeable provider call. It is committed as `dispatching` before the request leaves. A later attempt that finds it still `dispatching` marks it `unknown` and never resends it. `ai.ai_output` is immutable (trigger) except for erasure.
+  - `metering.spend_limit`, `metering.usage_balance` (one row per workspace, meter, and calendar month in the workspace timezone), `metering.usage_reservation`, and the append-only `metering.usage_event` carry exact `numeric(20, 6)` amounts. Money is micro-dollars with six fractional digits, so a sub-micro per-token price stays exact. Tokens use the same scale.
+- **Amendments to the reserved entities:**
+  - `usage_reservation` is unique per `(dispatch_id, meter)`, not `(operation_id, meter)`: each retry is separately chargeable and separately reserved.
+  - `usage_event.cost_micros` is exact numeric rather than `bigint`.
+  - `usage_event.billable` is always false in 7A (customer billing is 10A). Workspace-key usage is metered for visibility only (OD-46).
+- **Alternatives:**
+  - One reservation per operation (a retry would spend outside it).
+  - Integer micro-dollars (cheap models cost less than one micro-dollar per token).
+  - Copying context content into history (revocation could not withhold it).
+  - Trusting the platform effect ledger's `pending` state for provider calls (a worker lost mid-call would be retried).
+- **Consequences:** The down migration restores the exact 0052 catalog. Every new table forces workspace row-level security with explicit grants. Usage events are insert-only for both application roles. A payload-free discovery function serves the (disabled by default) content retention sweep.

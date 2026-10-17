@@ -488,3 +488,28 @@ All decisions are **proposed (Phase 0C)**, pending solutions-architect acceptanc
 - **Alternatives:** Brand access as delivery authority (it would send records the owner can no longer read). Workspace-only management (it left brand managers unable to stop their own endpoints).
 - **Consequences:** Tests AT-345 to AT-353 and AT-314, AT-336.
 
+
+<a id="az-44"></a>
+### AZ-44: AI gateway authority, privacy, and spending (Phase 7A)
+- **Decision:**
+  - Every AI action goes through one gateway and one accountable execution context, whether started in the browser, the API (`ai:execute`), MCP, or a future worker. Execution is `ai.execute` in the run's explicit scope (brand, or the workspace). Guests never execute. Limited and read-only members execute only when their workspace policy allows it.
+  - The gateway decides before estimating and again before every dispatch, including after queueing and on retry. It checks:
+    - the initiator's current membership and principal;
+    - a delegating token or consent, which must still be live, still hold `ai:execute`, and only narrow brands;
+    - the entitlement port (deny by default, 10A);
+    - the workspace AI policy, and the model and funding the run was authorized against;
+    - that every context source is readable now.
+    Access never grows; a failed check stops the run with nothing sent.
+  - A context source that is hidden or unknown refuses the whole request with the same answer. A readable source outside the policy is recorded as excluded and never sent. Excluded sources include:
+    - a restricted brand;
+    - a field that is not AI-eligible, or that exceeds the workspace data class;
+    - a record outside the chosen brand.
+    Credentials in free text are redacted before storage and dispatch.
+  - AI history content (prompt, output, context references) is personal to its initiator. Reads, completed-key replays, and exports re-check every source and the run's brand. If any is no longer readable, the whole content is withheld. `usage.view` shows usage and per-run metadata only, never another person's content. Administrators reconcile unknown costs under `ai.limits.configure` with step-up.
+  - Provider output is data. It cannot change records, call tools, complete work, or approve anything (I-15).
+  - The action count stays 122.
+- **Alternatives:**
+  - Letting `usage.view` or an administrator role read prompts: a generic role would imply access to private content.
+  - Withholding only the revoked record's identifier: the output could still paraphrase it.
+  - Authorizing once at enqueue: queued work would outlive revocation.
+- **Consequences:** Threats T-91 to T-95 with tests AT-354 to AT-381 (the gateway matrix, budgets, HTTP, the metric port, and the three-device browser journey).

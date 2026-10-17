@@ -557,3 +557,26 @@ Renumbered in the Phase 6 integration review: 6B was accepted with a second `pl-
 - **Alternatives:** Hard delete as the stop control. Replaying the backlog on resume.
 - **Consequences:** No new events, actions, parameters, or prefixes. The `webhook-delivery` schema gains `skipped` and the new history fields.
 
+
+<a id="pl-46"></a>
+### PL-46: AI gateway routes, usage meters, telemetry, and parameters (Phase 7A)
+- **Decision:**
+  - **Routes.** Under `/v1/workspaces/{ws}`:
+    - `GET /ai` (`ai_overview`: availability, model and privacy status, usage);
+    - `GET` and `PATCH /ai/settings` (`ai_settings`, a non-resource singleton whose version travels in the ETag; If-Match and step-up on change);
+    - `PUT` and `DELETE /ai/settings/workspace-key`, which refuse while OD-46 keeps workspace keys off; the key is never returned;
+    - `PUT /ai/limits`;
+    - `GET` and `PATCH /brands/{id}/ai-profile`;
+    - `POST /ai/estimates` (`ai_estimate`, nothing reserved or sent);
+    - `POST /ai/test-runs` (202 and an `ai_run` resource on the `op_` operation id; Idempotency-Key required; `confirm_cost` above the workspace threshold);
+    - `GET /ai/runs` (`ai_runs`: the caller's own) and `GET /ai/runs/{op}`;
+    - `POST /ai/runs/{op}:cancel` and `…:retry`;
+    - `POST /ai/runs/{op}/attempts/{n}:reconcile`;
+    - `GET /ai/usage` (`ai_usage`).
+    Bearer callers need `ai:execute` (`usage:read` for usage) and are refused on settings, keys, limits, reconciliation, and brand-profile changes. A completed run key re-renders through current authority and never dispatches again. AI history exports go through 6D: `GET …/portability/exports/ai_history.csv`.
+  - **Meters.** `ai.cost` (`usd_micros`), `ai.input_tokens`, and `ai.output_tokens` are reserved before every chargeable attempt and settled once per attempt with a `cost_basis` (`measured`, `estimated` for a charged reservation bound, `reported` for provider-reported usage entered at reconciliation). A closed period's late usage settles in the current period. `metering.usage.threshold_reached` and `metering.usage.limit_reached` are emitted as registered and notify the people who can change limits (`spend_threshold`).
+  - **Errors.** Unconfigured AI is `dependency_unavailable` (issue `ai_unconfigured`). Policy refusals are `forbidden` with a stable issue code (`ai_disabled`, `ai_not_approved`, `ai_key_unavailable`, `ai_not_entitled`, `ai_byok_disabled`, `ai_sensitive_brand`, `ai_cost_unbounded`, `context_unavailable`). A run that could exceed a hard limit is `usage_limit_reached`. An unconfirmed estimate above the threshold is `conflict` with issue `confirmation_required`.
+  - **Telemetry.** `ai.runs`, `ai.dispatches`, `ai.policy_refusals`, `ai.reservations`, `ai.cancellations`, `ai.tokens`, `ai.cost_micros`, and `ai.history.erased` are counters with bounded labels; `ai.request.duration` already exists. Readiness adds `ai_provider` (`not_configured` is healthy).
+  - **Parameters (owner 7A).** `AI_PROVIDER`, `AI_PROVIDER_BASE_URL`, `AI_PROVIDER_API_KEY`, `AI_PROVIDER_TIMEOUT_MS`, `AI_APPROVED_MODELS`, `AI_BYOK_ENABLED`, `AI_DEFAULT_MONTHLY_ALLOWANCE_MICROS`, `AI_DEFAULT_HARD_LIMIT_MICROS`, `AI_DEFAULT_INPUT_TOKEN_LIMIT`, `AI_DEFAULT_OUTPUT_TOKEN_LIMIT`, `AI_MAX_OUTPUT_TOKENS`, `AI_MAX_ATTEMPTS`, `AI_HISTORY_RETENTION_DAYS`, and `USAGE_WARNING_THRESHOLDS`, which is now basis points of the hard limit.
+- **Alternatives:** A second, AI-specific operation resource (the `op_` operation already carries state, cancel, and retry). A streaming response to the browser (7A publishes the settled answer; partial output is stored and labelled).
+- **Consequences:** No new events, actions, ID prefixes, or schemas.

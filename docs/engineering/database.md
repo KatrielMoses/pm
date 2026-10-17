@@ -403,3 +403,17 @@ Migration `0044_dashboards_reports` (ADR-0031, 0B ADR-39) adds the `insights` sc
 All five tables have `tenant_isolation` RLS and indexes on every foreign key. A payload-free `SECURITY DEFINER` function `exec_dispatch.discover_report_work(now, retention_before, limit)` (owned by `pm_scheduler`, executable only by the dispatcher) returns workspace identifiers with a report due or runs past retention. The down migration restores the exact 0042 catalog.
 
 **Migration number.** This branch and Phase 5C were built in parallel and both first used `0043`; Phase 5C was accepted first, so the Phase 5 final integration renumbered this migration to `0044` (a number-only change).
+
+## Phase 7A: AI gateway and metering
+
+Migration `0053_ai_gateway` (expand; exact rollback to 0052; 0B ADR-44, ADR-0038) adds the `ai` schema (`ai_provider_config`, `brand_ai_profile`, `ai_action`, `ai_context_ref`, `ai_dispatch`, `ai_output`) and the `metering` schema (`spend_limit`, `usage_balance`, `usage_reservation`, `usage_event`). Every table has a `RESTRICT` workspace key, forced `tenant_isolation`, and explicit grants. Highlights:
+
+- Money and token amounts are `numeric(20, 6)` (exact micro-dollars; tokens on the same scale).
+- `ai_provider_config.require_training_exclusion` is held true by a CHECK while OD-41 is open. A workspace key is a vault reference only.
+- `ai_dispatch` is committed as `dispatching` before a provider request leaves. A later attempt that finds it still `dispatching` marks it `unknown` and never resends it.
+- Reservations are unique per `(dispatch_id, meter)`. Reserving locks the meter's balance rows up to the current period `FOR UPDATE`, in meter and period order. Settlement moves `held`/`unknown` to `settled` exactly once.
+- `usage_event` is insert-only for both application roles and never billable (10A owns billing).
+- `ai_output` is immutable (trigger `ai_output_immutable`) except for erasure. `ai_action` grants `UPDATE` only on its erasure columns.
+- `exec_dispatch.discover_ai_retention_work` (payload-free, `pm_scheduler`) serves the content retention sweep, which is off while `AI_HISTORY_RETENTION_DAYS` is unset.
+
+Purge order (dependents first, ahead of `exec.*`): `metering.usage_event`, `metering.usage_reservation`, `ai.ai_output`, `ai.ai_context_ref`, `ai.ai_dispatch`, `ai.ai_action`, `metering.usage_balance`, `metering.spend_limit`, `ai.brand_ai_profile`, `ai.ai_provider_config`.

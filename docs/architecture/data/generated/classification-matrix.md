@@ -36,7 +36,7 @@ Class definitions and rules: [../11-data-classification.md](../11-data-classific
 | Test management and defects | 8 | C2 | R-DERIVED, R-EVIDENCE, R-LIVE | filtered | yes | no | incidental | very-high |
 | Development links and releases | 9 | C2 | R-EVIDENCE, R-EXEC, R-LIVE | filtered | yes | no | incidental | very-high |
 | Templates and onboarding | 4 | C1 | R-LIVE | filtered | no, yes | no | incidental | low |
-| AI actions and briefings | 11 | C4 | R-EXEC, R-LIVE, R-PERSONAL | filtered, never, self | no, yes | secret-ref | incidental | very-high |
+| AI actions and briefings | 12 | C4 | R-EXEC, R-LIVE, R-PERSONAL | filtered, never, self | no, yes | secret-ref | incidental | very-high |
 | Automations | 4 | C2 | R-EXEC, R-LIVE | filtered | no, yes | no | incidental | very-high |
 | Agents and execution control | 10 | C4 | R-AUDIT, R-EVIDENCE, R-EXEC, R-LIVE | filtered, never | no, yes | secret-ref | incidental | very-high |
 | Support and feedback | 4 | C3 | R-EPHEMERAL, R-LIVE, R-PLATFORM | never, self | no, yes | possible | incidental, yes | medium |
@@ -255,6 +255,7 @@ Class definitions and rules: [../11-data-classification.md](../11-data-classific
 | [`brand_ai_profile`](logical-model.md#entity-brand-ai-profile) | ai | brand | C2 | standard (per-record) | material changes | R-LIVE | filtered | low | yes | no | incidental |
 | [`ai_action`](logical-model.md#entity-ai-action) | ai | workspace_or_brand | C2 | standard (per-record) | is evidence / append-only | R-EXEC | filtered | high | no | no | incidental |
 | [`ai_context_ref`](logical-model.md#entity-ai-context-ref) | ai | inherited | C1 | low | is evidence / append-only | R-EXEC | filtered | very-high | no | no | incidental |
+| [`ai_dispatch`](logical-model.md#entity-ai-dispatch) | ai | inherited | C1 | low | configuration changes | R-EXEC | filtered | high | no | no | incidental |
 | [`ai_output`](logical-model.md#entity-ai-output) | ai | inherited | C2 | standard (per-record) | is evidence / append-only | R-EXEC | filtered | high | no | no | incidental |
 | [`change_proposal`](logical-model.md#entity-change-proposal) | ai | inherited | C2 | standard (per-record) | material changes | R-EXEC | filtered | medium | yes | no | incidental |
 | [`proposed_change`](logical-model.md#entity-proposed-change) | ai | inherited | C2 | standard (per-record) | material changes | R-EXEC | filtered | high | yes | no | incidental |
