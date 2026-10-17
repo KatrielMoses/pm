@@ -1,5 +1,6 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { ApiError } from '../api.ts';
+import { calendars, durationText, type CalendarTarget } from '../integrations/calendar-client.ts';
 import {
   deviceZone,
   localInstant,
@@ -24,8 +25,9 @@ import { Page } from '../ui/layout.tsx';
  * commitments in manual order, scheduled work blocks, and separate overdue, due-today, and
  * upcoming-deadline sections; daily planning; blocks with focus, lock, preparation, and buffer;
  * recurring blocks; and shutdown with carry, pick a day, return, or leave. Nothing here changes a
- * due date or deadline. Available time and the over-capacity warning come from 3E working hours;
- * meetings (6C) are an honest absence.
+ * due date or deadline. Available time and the over-capacity warning come from 3E working hours.
+ * Meetings come from the person's own connected calendars (6C): the day's events, busy time, and
+ * which blocks are on a calendar; without a connection the page says so and links to settings.
  */
 
 const describe = (err: unknown, fallback = 'That did not work. Try again.') =>
@@ -60,6 +62,69 @@ const OUTCOME: Record<Commitment['outcome'], string> = {
   returned: 'Returned to backlog',
   dropped: 'Not finished',
 };
+
+const meetingSummary = (events: number, busy: number) =>
+  events
+    ? `${events} ${events === 1 ? 'event' : 'events'} · ${busy ? `${durationText(busy)} busy` : 'no busy time'}`
+    : 'No events';
+
+/** The person's selected two-way calendars, read only once a calendar is connected. */
+function useCalendarTargets(ws: string, connected: boolean): CalendarTarget[] {
+  const [targets, setTargets] = useState<CalendarTarget[]>([]);
+  useEffect(() => {
+    let live = true;
+    if (!connected) return;
+    calendars.targets(ws).then(
+      (t) => live && setTargets(t),
+      () => live && setTargets([]),
+    );
+    return () => {
+      live = false;
+    };
+  }, [ws, connected]);
+  return connected ? targets : [];
+}
+
+/** "Add to calendar" for a block that is not on one yet (a selected two-way calendar only). */
+function AddToCalendar({
+  block,
+  targets,
+  busy,
+  onAdd,
+}: {
+  block: Block;
+  targets: CalendarTarget[];
+  busy: boolean;
+  onAdd: (calendar: string) => void;
+}) {
+  const [calendar, setCalendar] = useState(targets[0]?.id ?? '');
+  const chosen = targets.some((t) => t.id === calendar) ? calendar : (targets[0]?.id ?? '');
+  return (
+    <form
+      className="today-add-calendar"
+      aria-label={`Add block at ${timeOf(block.starts_at)} to a calendar`}
+      onSubmit={(e) => {
+        e.preventDefault();
+        if (chosen) onAdd(chosen);
+      }}
+    >
+      <label htmlFor={`cal-${block.id}`}>
+        Calendar<span className="visually-hidden"> for block at {timeOf(block.starts_at)}</span>
+      </label>
+      <select id={`cal-${block.id}`} value={chosen} onChange={(e) => setCalendar(e.target.value)}>
+        {targets.map((t) => (
+          <option key={t.id} value={t.id}>
+            {t.label}
+          </option>
+        ))}
+      </select>
+      <button type="submit" className="button button-ghost" disabled={busy || !chosen}>
+        Add to calendar
+        <span className="visually-hidden"> block at {timeOf(block.starts_at)}</span>
+      </button>
+    </form>
+  );
+}
 
 function useRunner(reload: () => void) {
   const stepUp = useStepUp();
@@ -528,6 +593,7 @@ export function TodayPage({ ws }: { ws: string }) {
     return () => window.removeEventListener('online', back);
   }, [reload]);
   const v = data.state.status === 'ready' ? data.state.data : null;
+  const targets = useCalendarTargets(ws, v?.meetings.available === true);
   return (
     <Page title={v ? dayTitle(v.day, v.today) : 'Today'} wide section="Today">
       <ResourceView resource={data.state} onRetry={data.retry} what="your day">
@@ -614,7 +680,18 @@ export function TodayPage({ ws }: { ws: string }) {
                   </div>
                   <div>
                     <dt>Meetings</dt>
-                    <dd>Calendar events arrive with calendar sync (6C).</dd>
+                    <dd>
+                      {v.meetings.available ? (
+                        meetingSummary(v.meetings.events.length, v.meetings.busy_minutes)
+                      ) : (
+                        <>
+                          No calendar connected.{' '}
+                          <Link to={`/workspaces/${ws}/settings/integrations`}>
+                            Connect a calendar
+                          </Link>
+                        </>
+                      )}
+                    </dd>
                   </div>
                 </dl>
                 {v.capacity.available && v.capacity.warning ? (
@@ -750,7 +827,11 @@ export function TodayPage({ ws }: { ws: string }) {
                   <p className="empty">Nothing committed yet. Add tasks from the lists below.</p>
                 )}
               </section>
-              <section className="card" aria-labelledby="blk-h">
+              <section
+                className="card"
+                aria-labelledby="blk-h"
+                aria-busy={r.busy ? 'true' : 'false'}
+              >
                 <h2 id="blk-h">Scheduled</h2>
                 {v.scheduled.length ? (
                   <ul className="today-list">
@@ -787,6 +868,43 @@ export function TodayPage({ ws }: { ws: string }) {
                           {b.focus ? <span className="badge badge-info">Focus</span> : null}
                           {b.series ? <span className="badge">Repeats</span> : null}
                         </span>
+                        {b.calendar ? (
+                          <span className="today-block-calendar">
+                            <span>On {b.calendar.calendar}</span>
+                            {b.calendar.pending ? (
+                              <span className="badge">Waiting to update calendar</span>
+                            ) : null}
+                            <button
+                              type="button"
+                              className="button button-ghost"
+                              disabled={r.busy}
+                              onClick={() =>
+                                void r.run(
+                                  () => calendars.unlink(ws, b.id),
+                                  'Block unlinked from the calendar. The calendar event stays.',
+                                )
+                              }
+                            >
+                              Unlink from calendar
+                              <span className="visually-hidden">
+                                {' '}
+                                block at {timeOf(b.starts_at)}
+                              </span>
+                            </button>
+                          </span>
+                        ) : targets.length && !v.closed ? (
+                          <AddToCalendar
+                            block={b}
+                            targets={targets}
+                            busy={r.busy}
+                            onAdd={(cal) =>
+                              void r.run(
+                                () => calendars.publish(ws, b.id, cal),
+                                `Block at ${timeOf(b.starts_at)} added to ${targets.find((t) => t.id === cal)?.label ?? 'the calendar'}.`,
+                              )
+                            }
+                          />
+                        ) : null}
                         <span className="actions-compact">
                           <button
                             type="button"
@@ -900,6 +1018,47 @@ export function TodayPage({ ws }: { ws: string }) {
                     }}
                   />
                 ) : null}
+              </section>
+              <section className="card" aria-labelledby="mtg-h">
+                <h2 id="mtg-h">Meetings and events</h2>
+                {v.meetings.available ? (
+                  v.meetings.events.length ? (
+                    <ul className="today-list" aria-label="Calendar events this day">
+                      {v.meetings.events.map((e) => (
+                        <li key={e.id} className="today-item" data-event={e.id}>
+                          <span className="today-item-main">
+                            <strong>
+                              {e.all_day
+                                ? 'All day'
+                                : `${timeOf(e.starts_at)}–${timeOf(e.ends_at)}`}
+                            </strong>{' '}
+                            {e.title} <span className="hint">· {e.calendar.label}</span>
+                          </span>
+                          <span className="badges">
+                            {e.busy ? null : <span className="badge">Free</span>}
+                            {e.recurring ? <span className="badge">Recurring</span> : null}
+                            {e.moved_occurrence ? (
+                              <span className="badge">Moved occurrence</span>
+                            ) : null}
+                            {e.synchronized ? null : (
+                              <span className="badge badge-warning">Not synchronized</span>
+                            )}
+                          </span>
+                        </li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <p className="empty">No calendar events this day.</p>
+                  )
+                ) : (
+                  <p className="empty">
+                    No calendar connected.{' '}
+                    <Link to={`/workspaces/${ws}/settings/integrations`}>
+                      Connect Google Calendar in Integrations
+                    </Link>{' '}
+                    to see meetings here.
+                  </p>
+                )}
               </section>
               <TaskList
                 ws={ws}

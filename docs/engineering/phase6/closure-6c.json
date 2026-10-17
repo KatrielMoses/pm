@@ -10,12 +10,20 @@
       "disposition": "implemented",
       "evidence": [
         {
-          "file": "packages/work/src/integrations/calendar-service.ts",
-          "contains": "class CalendarService"
+          "file": "packages/work/src/integrations/calendar-provider.ts",
+          "contains": "export class GoogleCalendarProvider implements CalendarProvider"
+        },
+        {
+          "file": "packages/work/test/integration/calendar-live.test.ts",
+          "contains": "AT-317 connects with OAuth, PKCE and a bound state"
         },
         {
           "file": "packages/work/test/integration/calendar.test.ts",
           "contains": "AT-315 mirrors calendar events after sync"
+        },
+        {
+          "file": "e2e/phase6-exit-journey.spec.ts",
+          "contains": "AT-328 Phase 6 exit journey"
         }
       ]
     },
@@ -25,8 +33,12 @@
       "disposition": "implemented",
       "evidence": [
         {
-          "file": "packages/db/migrations/0047_google_calendar.up.sql",
-          "contains": "connection_mapping"
+          "file": "packages/db/migrations/0051_calendar_completion.up.sql",
+          "contains": "CREATE TABLE integrations.calendar_source"
+        },
+        {
+          "file": "packages/work/test/integration/calendar-live.test.ts",
+          "contains": "AT-318 selects multiple calendars, maps a brand"
         }
       ]
     },
@@ -37,7 +49,19 @@
       "evidence": [
         {
           "file": "packages/work/src/integrations/calendar-sync.ts",
-          "contains": "upsertCalendarEvents"
+          "contains": "export async function syncCalendarConnection"
+        },
+        {
+          "file": "packages/work/src/integrations/calendar-sync.ts",
+          "contains": "export async function pushPending"
+        },
+        {
+          "file": "packages/work/test/integration/calendar-live.test.ts",
+          "contains": "AT-319 pages, keeps incremental checkpoints"
+        },
+        {
+          "file": "packages/work/test/integration/calendar-live.test.ts",
+          "contains": "AT-323 moves linked blocks both ways"
         }
       ]
     },
@@ -45,23 +69,34 @@
       "id": "CAL-008",
       "role": "owned",
       "disposition": "implemented",
-      "note": "Busy calendar_event rows exist for capacity enrichment; overlap surfacing in UI is incremental.",
       "evidence": [
         {
-          "file": "packages/db/migrations/0047_google_calendar.up.sql",
-          "contains": "busy boolean"
+          "file": "packages/work/src/capacity/capacity-service.ts",
+          "contains": "function calendarOverlaps("
+        },
+        {
+          "file": "packages/work/test/integration/calendar-live.test.ts",
+          "contains": "expect.objectContaining({ kind: 'calendar_overlap', minutes: 30 })"
         }
-      ]
+      ],
+      "note": "Calendar conflicts: a busy event overlapping the person's own block, and cross-brand overlaps with brand-mapped events, for the person only."
     },
     {
       "id": "CAL-012",
       "role": "owned",
       "disposition": "implemented",
-      "note": "linked_work_block_id column reserved; two-way block moves follow in a later slice.",
       "evidence": [
         {
-          "file": "packages/db/migrations/0047_google_calendar.up.sql",
-          "contains": "linked_work_block_id"
+          "file": "packages/work/src/integrations/calendar-sync.ts",
+          "contains": "async function reconcileLink("
+        },
+        {
+          "file": "packages/work/test/integration/calendar-live.test.ts",
+          "contains": "// Provider move → the linked block moves through the planning command (CAL-012)."
+        },
+        {
+          "file": "e2e/phase6-exit-journey.spec.ts",
+          "contains": "// The provider moves the event: the block follows; the task's dates do not (CAL-012/013)."
         }
       ]
     },
@@ -72,7 +107,19 @@
       "evidence": [
         {
           "file": "packages/work/src/integrations/service.ts",
-          "contains": "integrations.sync.completed"
+          "contains": "async #providerFailed("
+        },
+        {
+          "file": "packages/work/test/integration/calendar-live.test.ts",
+          "contains": "AT-321 an outage retries with bounded backoff, shows degraded"
+        },
+        {
+          "file": "apps/web/src/integrations/calendar-panel.tsx",
+          "contains": "Recent synchronization"
+        },
+        {
+          "file": "e2e/phase6-exit-journey.spec.ts",
+          "contains": "AT-329 provider outage is shown as degraded and recovers"
         }
       ]
     },
@@ -82,108 +129,189 @@
       "disposition": "implemented",
       "evidence": [
         {
+          "file": "packages/work/test/integration/calendar-live.test.ts",
+          "contains": "AT-325 disconnecting while work is queued stops it, revokes at the provider"
+        },
+        {
           "file": "packages/work/test/integration/calendar.test.ts",
           "contains": "AT-316 removes imported events when disconnecting with remove"
         }
       ]
     },
     {
-      "id": "CAL-002",
-      "role": "contributing",
-      "disposition": "contributed",
-      "contribution": "6C",
-      "note": "Calendar view external layer enriches 3B once web reads listCalendarEvents.",
-      "evidence": [
-        {
-          "file": "packages/work/src/integrations/calendar-service.ts",
-          "contains": "listCalendarEvents"
-        }
-      ]
-    },
-    {
-      "id": "PLAN-004",
-      "role": "contributing",
-      "disposition": "contributed",
-      "contribution": "6C",
-      "note": "Today meetings slot remains honest until day view reads mirrored events.",
-      "evidence": [
-        {
-          "file": "docs/engineering/adr/0034-google-calendar.md",
-          "contains": "Today exposes meetings"
-        }
-      ]
-    },
-    {
-      "id": "CAL-005",
-      "role": "contributing",
-      "disposition": "contributed",
-      "contribution": "6C",
-      "evidence": [{ "file": "docs/engineering/phase6/closure-6c.json", "contains": "CAL-005" }],
-      "note": "Provider recurrence is mirrored per event version; RRULE round-trip deferred."
-    },
-    {
-      "id": "CAL-010",
-      "role": "contributing",
-      "disposition": "contributed",
-      "contribution": "6C",
-      "evidence": [{ "file": "packages/db/migrations/0047_google_calendar.up.sql", "contains": "event_tz" }],
-      "note": "Event time zones stored; working-hours intersection stays with 3E."
-    },
-    {
-      "id": "CAL-013",
-      "role": "contributing",
-      "disposition": "contributed",
-      "contribution": "6C",
-      "evidence": [{ "file": "docs/engineering/adr/0034-google-calendar.md", "contains": "deadline protection" }],
-      "note": "Explicit deadline protection on block moves ships in a follow-up slice."
-    },
-    {
-      "id": "VIEW-003",
-      "role": "contributing",
-      "disposition": "contributed",
-      "contribution": "6C",
-      "evidence": [{ "file": "apps/web/src/views/layouts.tsx", "contains": "calendars arrive when they can be connected (6C)" }],
-      "note": "3B calendar layout; external events layer wires to listCalendarEvents next."
-    },
-    {
-      "id": "PLAN-014",
-      "role": "contributing",
-      "disposition": "contributed",
-      "contribution": "6C",
-      "evidence": [{ "file": "docs/engineering/adr/0034-google-calendar.md", "contains": "busy" }],
-      "note": "Focus blocks and busy calendar events compose in capacity reads."
-    },
-    {
       "id": "WSB-010",
       "role": "contributing",
       "disposition": "contributed",
       "contribution": "6C",
-      "evidence": [{ "file": "packages/db/migrations/0047_google_calendar.up.sql", "contains": "connection_mapping" }],
-      "note": "Brand calendar mapping table; brand hours remain 1C/3E."
+      "evidence": [
+        {
+          "file": "packages/db/migrations/0051_calendar_completion.up.sql",
+          "contains": "brand_id uuid,"
+        }
+      ],
+      "note": "A connected calendar may be mapped to a brand for the person's own conflict and capacity reads; brand working hours stay 1C/3E."
     },
     {
       "id": "WSB-018",
       "role": "contributing",
       "disposition": "contributed",
       "contribution": "6C",
-      "evidence": [{ "file": "packages/db/migrations/0047_google_calendar.up.sql", "contains": "busy boolean" }],
-      "note": "Cross-brand conflicts include busy external events when present."
+      "evidence": [
+        {
+          "file": "packages/work/src/capacity/capacity-service.ts",
+          "contains": "// Connected-calendar events only ever count for the person themself"
+        }
+      ],
+      "note": "Brand-mapped busy events join the person's own cross-brand overlap check (3E owns the conflict model)."
+    },
+    {
+      "id": "VIEW-003",
+      "role": "contributing",
+      "disposition": "contributed",
+      "contribution": "6C",
+      "evidence": [
+        {
+          "file": "packages/work/src/integrations/calendar-service.ts",
+          "contains": "async listCalendarEvents("
+        },
+        {
+          "file": "apps/web/src/views/layouts.tsx",
+          "contains": "External calendar events"
+        }
+      ],
+      "note": "The 3B calendar view gains the person's external events layer (owner 3B)."
+    },
+    {
+      "id": "PLAN-004",
+      "role": "contributing",
+      "disposition": "contributed",
+      "contribution": "6C",
+      "evidence": [
+        {
+          "file": "packages/work/src/integrations/calendar-service.ts",
+          "contains": "meetings: connected"
+        },
+        {
+          "file": "packages/work/test/integration/calendar-live.test.ts",
+          "contains": "AT-324 feeds Today, calendar reads and capacity for the owner only"
+        },
+        {
+          "file": "apps/web/src/pages/today-pages.tsx",
+          "contains": "Meetings and events"
+        }
+      ],
+      "note": "Today shows the person's own events and busy minutes (owner 3C)."
+    },
+    {
+      "id": "PLAN-014",
+      "role": "contributing",
+      "disposition": "contributed",
+      "contribution": "6C",
+      "evidence": [
+        {
+          "file": "packages/work/src/planning/today-service.ts",
+          "contains": "protected async applyBlockMove("
+        }
+      ],
+      "note": "A provider move never overlaps a focus block: the canonical move refuses and the disagreement becomes a conflict (owner 3C)."
+    },
+    {
+      "id": "CAL-002",
+      "role": "contributing",
+      "disposition": "contributed",
+      "contribution": "6C",
+      "evidence": [
+        {
+          "file": "packages/work/src/integrations/calendar-service.ts",
+          "contains": "async listCalendarEvents("
+        },
+        {
+          "file": "apps/web/src/views/layouts.tsx",
+          "contains": "External calendar events"
+        }
+      ],
+      "note": "External calendar events beside tasks, milestones, and deadlines (owner 3B)."
+    },
+    {
+      "id": "CAL-005",
+      "role": "contributing",
+      "disposition": "contributed",
+      "contribution": "6C",
+      "evidence": [
+        {
+          "file": "packages/work/src/integrations/calendar-recurrence.ts",
+          "contains": "export function expand("
+        },
+        {
+          "file": "packages/work/test/integration/calendar-live.test.ts",
+          "contains": "AT-322 expands recurrence in its anchor zone across DST"
+        },
+        {
+          "file": "packages/work/test/integration/calendar-live.test.ts",
+          "contains": "AT-327 keeps the Lisbon local time across a DST change"
+        }
+      ],
+      "note": "Provider recurrence on the shared engine with exceptions; recurring work blocks and tasks stay with 3C and 2D."
+    },
+    {
+      "id": "CAL-010",
+      "role": "contributing",
+      "disposition": "contributed",
+      "contribution": "6C",
+      "evidence": [
+        {
+          "file": "packages/work/src/capacity/capacity-service.ts",
+          "contains": "Busy connected-calendar time is unavailable time"
+        }
+      ],
+      "note": "Busy events are unavailable time for the person; working hours and holidays stay 3E (OD-19 holiday sources unchanged)."
+    },
+    {
+      "id": "CAL-013",
+      "role": "contributing",
+      "disposition": "contributed",
+      "contribution": "6C",
+      "evidence": [
+        {
+          "file": "packages/work/src/planning/today-service.ts",
+          "contains": "It has no path to task dates (CAL-013)"
+        },
+        {
+          "file": "packages/work/test/integration/calendar-live.test.ts",
+          "contains": "// CAL-013: the task's due date and deadline did not move."
+        }
+      ],
+      "note": "Calendar moves never change due dates or deadlines; the explicit date change stays the 2D/3C command (owner 3C)."
     },
     {
       "id": "ONB-003",
       "role": "contributing",
       "disposition": "contributed",
       "contribution": "6C",
-      "evidence": [{ "file": "packages/work/src/integrations/semantics.ts", "contains": "google_calendar" }],
-      "note": "Onboarding connect journey uses the connection framework entry point."
+      "evidence": [
+        {
+          "file": "packages/work/src/integrations/semantics.ts",
+          "contains": "google_calendar"
+        }
+      ],
+      "note": "The onboarding connect step uses the same connection entry point; the onboarding journey is 10B."
     },
     {
       "id": "LA-004",
       "role": "contributing",
       "disposition": "contributed",
       "contribution": "6C",
-      "evidence": [{ "file": "packages/work/test/integration/calendar.test.ts", "contains": "google_calendar" }],
-      "note": "Launch gate: connect and sync path covered by integration tests."
+      "evidence": [
+        {
+          "file": "packages/work/test/integration/calendar-live.test.ts",
+          "contains": "AT-317 connects with OAuth, PKCE and a bound state"
+        },
+        {
+          "file": "e2e/phase6-exit-journey.spec.ts",
+          "contains": "await connectGoogle(page, s.ws, 'Founder calendar', true);"
+        }
+      ],
+      "note": "Connect and sync are proven against the provider contract fixture; live-credential acceptance is manual (see the Phase 6 manual smoke guide); the launch gate is 12A."
     }
   ],
   "decisions": [
@@ -191,43 +319,107 @@
       "id": "D1",
       "adr_row": "D1",
       "title": "Mirror",
-      "evidence": [{ "file": "docs/engineering/adr/0034-google-calendar.md", "contains": "| D1 |" }],
-      "sources": [{ "file": "docs/engineering/adr/0034-google-calendar.md", "contains": "| D1 |" }]
+      "evidence": [
+        {
+          "file": "docs/engineering/adr/0034-google-calendar.md",
+          "contains": "| D1 |"
+        }
+      ],
+      "sources": [
+        {
+          "file": "docs/engineering/adr/0034-google-calendar.md",
+          "contains": "| D1 |"
+        }
+      ]
     },
     {
       "id": "D2",
       "adr_row": "D2",
       "title": "Provider",
-      "evidence": [{ "file": "docs/engineering/adr/0034-google-calendar.md", "contains": "| D2 |" }],
-      "sources": [{ "file": "docs/engineering/adr/0034-google-calendar.md", "contains": "| D2 |" }]
+      "evidence": [
+        {
+          "file": "docs/engineering/adr/0034-google-calendar.md",
+          "contains": "| D2 |"
+        }
+      ],
+      "sources": [
+        {
+          "file": "docs/engineering/adr/0034-google-calendar.md",
+          "contains": "| D2 |"
+        }
+      ]
     },
     {
       "id": "D3",
       "adr_row": "D3",
       "title": "Sync",
-      "evidence": [{ "file": "docs/engineering/adr/0034-google-calendar.md", "contains": "| D3 |" }],
-      "sources": [{ "file": "docs/engineering/adr/0034-google-calendar.md", "contains": "| D3 |" }]
+      "evidence": [
+        {
+          "file": "docs/engineering/adr/0034-google-calendar.md",
+          "contains": "| D3 |"
+        }
+      ],
+      "sources": [
+        {
+          "file": "docs/engineering/adr/0034-google-calendar.md",
+          "contains": "| D3 |"
+        }
+      ]
     },
     {
       "id": "D4",
       "adr_row": "D4",
       "title": "Visibility",
-      "evidence": [{ "file": "docs/engineering/adr/0034-google-calendar.md", "contains": "| D4 |" }],
-      "sources": [{ "file": "docs/engineering/adr/0034-google-calendar.md", "contains": "| D4 |" }]
+      "evidence": [
+        {
+          "file": "docs/engineering/adr/0034-google-calendar.md",
+          "contains": "| D4 |"
+        }
+      ],
+      "sources": [
+        {
+          "file": "docs/engineering/adr/0034-google-calendar.md",
+          "contains": "| D4 |"
+        }
+      ]
     },
     {
       "id": "D5",
       "adr_row": "D5",
       "title": "Today",
-      "evidence": [{ "file": "docs/engineering/adr/0034-google-calendar.md", "contains": "| D5 |" }],
-      "sources": [{ "file": "docs/engineering/adr/0034-google-calendar.md", "contains": "| D5 |" }]
+      "evidence": [
+        {
+          "file": "docs/engineering/adr/0034-google-calendar.md",
+          "contains": "| D5 |"
+        }
+      ],
+      "sources": [
+        {
+          "file": "docs/engineering/adr/0034-google-calendar.md",
+          "contains": "| D5 |"
+        }
+      ]
     },
     {
       "id": "D6",
       "adr_row": "D6",
       "title": "Boundaries",
-      "evidence": [{ "file": "docs/engineering/adr/0034-google-calendar.md", "contains": "| D6 |" }],
-      "sources": [{ "file": "docs/engineering/adr/0034-google-calendar.md", "contains": "| D6 |" }]
+      "evidence": [
+        {
+          "file": "docs/engineering/adr/0034-google-calendar.md",
+          "contains": "| D6 |"
+        }
+      ],
+      "sources": [
+        {
+          "file": "docs/engineering/adr/0034-google-calendar.md",
+          "contains": "| D6 |"
+        }
+      ]
     }
+  ],
+  "corrections": [
+    "Phase 6 integration review: the first 6C closure marked CAL-012 implemented on a reserved linked_work_block_id column, CAL-008 on a busy column, CAL-005 on a stored event zone, CAL-013 on ADR prose, and PLAN-004/VIEW-003 on placeholder text. None was behavior. Each now cites running code and regression tests (ADR-0037).",
+    "The first closure cited AT-315 and AT-316 without registering them in 0C; they are registered now with the calendar tests that follow."
   ]
 }

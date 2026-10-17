@@ -94,11 +94,11 @@ describe('Today and manual planning (3C)', () => {
     expect(v.due_today.items.map((i) => i.title)).toEqual(['Due now']);
     expect(v.upcoming_deadlines.items.map((i) => i.title)).toEqual(['Ship it']);
     expect(v.committed).toEqual([]);
-    // Capacity needs working hours first (3E); meetings remain an honest absence (6C).
+    // Capacity needs working hours first (3E); meetings need a connected calendar (6C).
     expect(v).toMatchObject({
       available_minutes: null,
       capacity: { available: false, reason: 'no_working_hours' },
-      meetings: { available: false, owner: '6C' },
+      meetings: { available: false, reason: 'not_connected' },
     });
   });
 

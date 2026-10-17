@@ -18,6 +18,7 @@ import { registerGoals } from './goal-routes.ts';
 import { registerMetrics } from './metric-routes.ts';
 import { registerInsights } from './insight-routes.ts';
 import { registerPublicApi } from '../public/routes.ts';
+import { registerCalendar } from './calendar-routes.ts';
 import { registerIntegrations } from './integration-routes.ts';
 import { registerMcp } from '../mcp/routes.ts';
 import { registerViews } from './view-routes.ts';
@@ -77,6 +78,7 @@ export function registerWork(app: FastifyInstance, deps: WorkRouteDeps): void {
   registerInsights(app, work);
   registerPublicApi(app, work);
   registerIntegrations(app, work);
+  registerCalendar(app, work);
   registerPortability(app, work);
   registerMcp(app, work);
 

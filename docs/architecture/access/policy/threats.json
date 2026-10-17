@@ -914,6 +914,55 @@
         "I-01",
         "I-08"
       ]
+    },
+    {
+      "id": "T-86",
+      "category": "field_leak",
+      "description": "A person's connected calendars, event titles, schedule conflicts, or busy time reach anyone but that person, directly or through derived availability, counts, conflicts, or Today (anonymous free/busy).",
+      "mitigated_by": [
+        "I-07",
+        "I-08",
+        "I-18"
+      ]
+    },
+    {
+      "id": "T-87",
+      "category": "revocation",
+      "description": "A calendar change silently overwrites the person's plan or the provider copy, loops between them, applies after the owner lost authority, or changes a due date or deadline.",
+      "mitigated_by": [
+        "I-12",
+        "I-14"
+      ]
+    },
+    {
+      "id": "T-88",
+      "category": "spoofing",
+      "description": "A calendar authorization completes with a mismatched state or for someone other than its initiator, or a scope declined at the provider widens the connection.",
+      "mitigated_by": [
+        "I-01",
+        "I-11",
+        "I-16"
+      ]
+    },
+    {
+      "id": "T-89",
+      "category": "staleness",
+      "description": "An unconfigured provider, a test double, an outage, or an invalidated checkpoint is reported as live, current synchronization.",
+      "mitigated_by": [
+        "I-01",
+        "I-08"
+      ]
+    },
+    {
+      "id": "T-90",
+      "category": "cross_workspace",
+      "description": "A Phase 6 surface (connection, API token, MCP access, webhook, or import) reaches a workspace, brand, or record its principal cannot read, discloses hidden identifiers through its refusals, or keeps acting after revocation, suspension, removal, or departure.",
+      "mitigated_by": [
+        "I-03",
+        "I-07",
+        "I-12",
+        "I-14"
+      ]
     }
   ],
   "tests": [
@@ -6574,6 +6623,647 @@
       "response_shape": "ok",
       "silent_surfaces": [
         "error_message"
+      ]
+    },
+    {
+      "id": "AT-315",
+      "threats": [
+        "T-89"
+      ],
+      "principal": "member",
+      "setup": "Loopback test-double calendar connection synchronized",
+      "scope": "own calendar events",
+      "action": "integration.sync_now",
+      "surface": "api",
+      "expected": "allow",
+      "response_shape": "ok",
+      "silent_surfaces": []
+    },
+    {
+      "id": "AT-316",
+      "threats": [
+        "T-86",
+        "T-76"
+      ],
+      "principal": "member",
+      "setup": "Calendar connection disconnected with remove",
+      "scope": "own calendar events",
+      "action": "integrations.configure",
+      "surface": "api",
+      "expected": "allow",
+      "response_shape": "ok",
+      "silent_surfaces": []
+    },
+    {
+      "id": "AT-317",
+      "threats": [
+        "T-88",
+        "T-86"
+      ],
+      "principal": "administrator",
+      "setup": "Completes another person's calendar authorization, or lists their calendars",
+      "scope": "calendar connection",
+      "action": "integrations.configure",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "not_found",
+      "silent_surfaces": [
+        "error_message",
+        "timing"
+      ]
+    },
+    {
+      "id": "AT-318",
+      "threats": [
+        "T-86",
+        "T-74"
+      ],
+      "principal": "member",
+      "setup": "Maps a calendar to a hidden brand or makes a read-only calendar two-way",
+      "scope": "calendar mapping",
+      "action": "integrations.configure",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "not_found",
+      "silent_surfaces": [
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-319",
+      "threats": [
+        "T-89",
+        "T-77"
+      ],
+      "principal": "integration_connection",
+      "setup": "Paged incremental sync, then an invalidated checkpoint",
+      "scope": "selected calendars",
+      "action": "integration.sync_now",
+      "surface": "api",
+      "expected": "allow",
+      "response_shape": "ok",
+      "silent_surfaces": []
+    },
+    {
+      "id": "AT-320",
+      "threats": [
+        "T-88",
+        "T-79"
+      ],
+      "principal": "integration_connection",
+      "setup": "Expired access refreshed; revoked grant",
+      "scope": "calendar connection",
+      "action": "integration.sync_now",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "suspended",
+      "silent_surfaces": [
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-321",
+      "threats": [
+        "T-89",
+        "T-77"
+      ],
+      "principal": "integration_connection",
+      "setup": "Provider outage and rate limit",
+      "scope": "calendar connection",
+      "action": "integration.sync_now",
+      "surface": "api",
+      "expected": "allow",
+      "response_shape": "ok",
+      "silent_surfaces": []
+    },
+    {
+      "id": "AT-322",
+      "threats": [
+        "T-89"
+      ],
+      "principal": "integration_connection",
+      "setup": "Recurring series with EXDATE, moved, cancelled, all-day, and provider-expanded occurrences",
+      "scope": "own calendar events",
+      "action": "integration.sync_now",
+      "surface": "api",
+      "expected": "allow",
+      "response_shape": "ok",
+      "silent_surfaces": []
+    },
+    {
+      "id": "AT-323",
+      "threats": [
+        "T-87"
+      ],
+      "principal": "integration_connection",
+      "setup": "Linked block moved at the provider, locally, and on both sides",
+      "scope": "own work block",
+      "action": "personal.manage_own",
+      "surface": "api",
+      "expected": "allow",
+      "response_shape": "conflict_filtered",
+      "silent_surfaces": []
+    },
+    {
+      "id": "AT-324",
+      "threats": [
+        "T-86"
+      ],
+      "principal": "administrator",
+      "setup": "Reads a member's capacity, Today, calendar events, and conflicts",
+      "scope": "another person's calendar",
+      "action": "personal.manage_own",
+      "surface": "capacity",
+      "expected": "deny",
+      "response_shape": "omitted",
+      "silent_surfaces": [
+        "count_facet",
+        "capacity",
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-325",
+      "threats": [
+        "T-87",
+        "T-76"
+      ],
+      "principal": "system_job",
+      "setup": "Queued sync after disconnect",
+      "scope": "calendar connection",
+      "action": "integration.sync_now",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "suspended",
+      "silent_surfaces": [
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-326",
+      "threats": [
+        "T-89"
+      ],
+      "principal": "owner",
+      "setup": "Provider unconfigured, or only the test double enabled",
+      "scope": "calendar provider",
+      "action": "integrations.configure",
+      "surface": "ui_record",
+      "expected": "deny",
+      "response_shape": "validation_generic",
+      "silent_surfaces": [
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-327",
+      "threats": [
+        "T-89"
+      ],
+      "principal": "integration_connection",
+      "setup": "Weekly series across a DST change",
+      "scope": "own calendar events",
+      "action": "integration.sync_now",
+      "surface": "api",
+      "expected": "allow",
+      "response_shape": "ok",
+      "silent_surfaces": []
+    },
+    {
+      "id": "AT-328",
+      "threats": [
+        "T-86",
+        "T-87",
+        "T-88",
+        "T-89",
+        "T-90"
+      ],
+      "principal": "owner",
+      "setup": "Browser exit journey: connect, select, sync, plan, move, resolve, tokens, webhooks, MCP consent, CSV, revoke",
+      "scope": "Phase 6 surfaces",
+      "action": "integrations.configure",
+      "surface": "ui_record",
+      "expected": "allow",
+      "response_shape": "ok",
+      "silent_surfaces": []
+    },
+    {
+      "id": "AT-329",
+      "threats": [
+        "T-89"
+      ],
+      "principal": "member",
+      "setup": "Browser: provider outage shown as degraded, then recovery",
+      "scope": "calendar connection",
+      "action": "integration.sync_now",
+      "surface": "ui_record",
+      "expected": "allow",
+      "response_shape": "ok",
+      "silent_surfaces": []
+    },
+    {
+      "id": "AT-330",
+      "threats": [
+        "T-90",
+        "T-75"
+      ],
+      "principal": "read_only",
+      "setup": "Tests, syncs, or disconnects a brand connection; hidden connection vs unknown",
+      "scope": "connection",
+      "action": "integration.sync_now",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "not_found",
+      "silent_surfaces": [
+        "error_message",
+        "timing"
+      ]
+    },
+    {
+      "id": "AT-331",
+      "threats": [
+        "T-90"
+      ],
+      "principal": "member",
+      "setup": "Hidden, foreign, and unknown identifiers on every Phase 6 surface",
+      "scope": "Phase 6 records",
+      "action": "integrations.configure",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "not_found",
+      "silent_surfaces": [
+        "error_message",
+        "count_facet",
+        "timing"
+      ]
+    },
+    {
+      "id": "AT-332",
+      "threats": [
+        "T-90",
+        "T-82"
+      ],
+      "principal": "api_token_personal",
+      "setup": "Token reaches an unreadable brand, writes with a read scope, or outlives a revoked grant",
+      "scope": "task",
+      "action": "record.create",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "not_found",
+      "silent_surfaces": [
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-333",
+      "threats": [
+        "T-90"
+      ],
+      "principal": "tool_invocation",
+      "setup": "MCP call beyond consent, or after consent is revoked",
+      "scope": "task",
+      "action": "record.create",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "unauthenticated",
+      "silent_surfaces": [
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-334",
+      "threats": [
+        "T-90",
+        "T-85"
+      ],
+      "principal": "api_token_personal",
+      "setup": "API and MCP create through the same command with provenance; replay applies once; destructive tool needs confirmation",
+      "scope": "task",
+      "action": "record.create",
+      "surface": "api",
+      "expected": "allow",
+      "response_shape": "ok",
+      "silent_surfaces": []
+    },
+    {
+      "id": "AT-335",
+      "threats": [
+        "T-90",
+        "T-76"
+      ],
+      "principal": "system_job",
+      "setup": "Token, consent, webhook, connection, and queued sync after departure or revocation",
+      "scope": "Phase 6 execution",
+      "action": "integration.sync_now",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "suspended",
+      "silent_surfaces": [
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-336",
+      "threats": [
+        "T-85",
+        "T-84"
+      ],
+      "principal": "system_job",
+      "setup": "Duplicate and out-of-order events, overlapping sweeps, retry, dead-letter, replay",
+      "scope": "webhook",
+      "action": "webhook.test_send",
+      "surface": "webhook_payload",
+      "expected": "allow",
+      "response_shape": "ok",
+      "silent_surfaces": []
+    },
+    {
+      "id": "AT-337",
+      "threats": [
+        "T-83"
+      ],
+      "principal": "inbound_webhook",
+      "setup": "Bad signature, stale timestamp, or replayed event id",
+      "scope": "inbound endpoint",
+      "action": "webhooks.manage",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "not_found",
+      "silent_surfaces": [
+        "error_message",
+        "timing"
+      ]
+    },
+    {
+      "id": "AT-338",
+      "threats": [
+        "T-90"
+      ],
+      "principal": "member",
+      "setup": "Export without Vault access; spreadsheet formulas",
+      "scope": "export",
+      "action": "record.export",
+      "surface": "export",
+      "expected": "deny",
+      "response_shape": "omitted",
+      "silent_surfaces": [
+        "count_facet",
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-339",
+      "threats": [
+        "T-90"
+      ],
+      "principal": "member",
+      "setup": "Import stale rollback, cross-workspace reference, another person's error report",
+      "scope": "import",
+      "action": "import.execute",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "not_found",
+      "silent_surfaces": [
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-340",
+      "threats": [
+        "T-90"
+      ],
+      "principal": "administrator",
+      "setup": "Audit export without entitlement or fresh verification; via a record export",
+      "scope": "audit",
+      "action": "audit.export",
+      "surface": "export",
+      "expected": "deny",
+      "response_shape": "step_up_required",
+      "silent_surfaces": [
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-341",
+      "threats": [
+        "T-86",
+        "T-90"
+      ],
+      "principal": "administrator",
+      "setup": "A member's calendar after their departure",
+      "scope": "another person's calendar",
+      "action": "personal.manage_own",
+      "surface": "capacity",
+      "expected": "deny",
+      "response_shape": "omitted",
+      "silent_surfaces": [
+        "capacity",
+        "count_facet",
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-342",
+      "threats": [
+        "T-90",
+        "T-76"
+      ],
+      "principal": "owner",
+      "setup": "Archive, restore, and purge of connections and subscriptions",
+      "scope": "connection",
+      "action": "integrations.configure",
+      "surface": "api",
+      "expected": "allow",
+      "response_shape": "ok",
+      "silent_surfaces": []
+    },
+    {
+      "id": "AT-343",
+      "threats": [
+        "T-90"
+      ],
+      "principal": "member",
+      "setup": "One person in two workspaces with tokens and MCP in each",
+      "scope": "cross-workspace",
+      "action": "record.create",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "not_found",
+      "silent_surfaces": [
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-344",
+      "threats": [
+        "T-73",
+        "T-90"
+      ],
+      "principal": "system_job",
+      "setup": "Logs, traces, audit, and MCP provenance during token, OAuth, sync, and delivery",
+      "scope": "operational logs",
+      "action": "integrations.configure",
+      "surface": "audit_display",
+      "expected": "deny",
+      "response_shape": "omitted",
+      "silent_surfaces": [
+        "audit_display",
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-345",
+      "threats": [
+        "T-84",
+        "T-90"
+      ],
+      "principal": "system_job",
+      "setup": "Restricted record readable when queued, revoked before send while brand access remains; owner loses manage",
+      "scope": "webhook delivery",
+      "action": "webhook.test_send",
+      "surface": "webhook_payload",
+      "expected": "deny",
+      "response_shape": "omitted",
+      "silent_surfaces": [
+        "webhook_payload",
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-346",
+      "threats": [
+        "T-84",
+        "T-82"
+      ],
+      "principal": "system_job",
+      "setup": "Brand subscription versus workspace-level and other-brand events; workspace subscription",
+      "scope": "webhook delivery",
+      "action": "webhooks.manage",
+      "surface": "webhook_payload",
+      "expected": "deny",
+      "response_shape": "omitted",
+      "silent_surfaces": [
+        "webhook_payload"
+      ]
+    },
+    {
+      "id": "AT-347",
+      "threats": [
+        "T-84"
+      ],
+      "principal": "system_job",
+      "setup": "Trashed record, tombstone event, archived brand and subscription",
+      "scope": "webhook delivery",
+      "action": "webhooks.manage",
+      "surface": "webhook_payload",
+      "expected": "deny",
+      "response_shape": "omitted",
+      "silent_surfaces": [
+        "webhook_payload"
+      ]
+    },
+    {
+      "id": "AT-348",
+      "threats": [
+        "T-84",
+        "T-73"
+      ],
+      "principal": "system_job",
+      "setup": "Public envelope built at send; signature; retries keep event id and time; synthetic test",
+      "scope": "webhook delivery",
+      "action": "webhook.test_send",
+      "surface": "webhook_payload",
+      "expected": "allow",
+      "response_shape": "ok",
+      "silent_surfaces": []
+    },
+    {
+      "id": "AT-349",
+      "threats": [
+        "T-85",
+        "T-90"
+      ],
+      "principal": "administrator",
+      "setup": "Replay of non-terminal, concurrent, same-key, racing, and unauthorized requests",
+      "scope": "webhook delivery",
+      "action": "webhooks.manage",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "conflict_filtered",
+      "silent_surfaces": [
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-350",
+      "threats": [
+        "T-85",
+        "T-90"
+      ],
+      "principal": "member",
+      "setup": "Pause with queued, retrying, and in-flight deliveries; resume without and with a delivered test",
+      "scope": "webhook subscription",
+      "action": "webhooks.manage",
+      "surface": "api",
+      "expected": "allow",
+      "response_shape": "ok",
+      "silent_surfaces": []
+    },
+    {
+      "id": "AT-351",
+      "threats": [
+        "T-85",
+        "T-90"
+      ],
+      "principal": "member",
+      "setup": "Repeat completed Retry, Pause, and Resume keys after brand visibility is revoked (membership active), after management is removed (brand still visible), with management restored, and after retention or purge removed the resource",
+      "scope": "webhook subscription",
+      "action": "webhooks.manage",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "not_found",
+      "silent_surfaces": [
+        "error_message",
+        "count_facet",
+        "timing"
+      ]
+    },
+    {
+      "id": "AT-352",
+      "threats": [
+        "T-85",
+        "T-90"
+      ],
+      "principal": "member",
+      "setup": "Repeat completed create, rotate-secret, test-send, and inbound-endpoint keys through a token without webhooks:manage, after brand revoke, and after management is removed",
+      "scope": "webhook subscription",
+      "action": "webhooks.manage",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "forbidden",
+      "silent_surfaces": [
+        "error_message",
+        "count_facet",
+        "timing"
+      ]
+    },
+    {
+      "id": "AT-353",
+      "threats": [
+        "T-85",
+        "T-90"
+      ],
+      "principal": "member",
+      "setup": "Repeat a completed HTTP pause with the same Idempotency-Key and If-Match after brand revoke, after a downgrade to edit, and after manage is restored",
+      "scope": "webhook subscription",
+      "action": "webhooks.manage",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "not_found",
+      "silent_surfaces": [
+        "error_message",
+        "count_facet",
+        "timing"
       ]
     }
   ]

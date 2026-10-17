@@ -1,13 +1,519 @@
 {
+  "schema_version": 1,
   "phase": "6A",
+  "status": "candidate",
+  "adr": "0032",
   "title": "Integration framework",
-  "adr": "docs/engineering/adr/0032-integration-framework.md",
   "migration": "0045_integration_framework",
-  "owned": ["INT-001", "INT-002", "INT-003", "INT-004", "INT-005", "INT-006", "INT-007", "INT-008", "INT-009", "INT-023", "INT-024", "INT-025", "WSB-013", "PERM-009"],
-  "deferred": [
-    {"id": "CAP-006", "reason": "OD-29 email forwarding is still open; email_inbound is listed as not configured"},
-    {"id": "INT-010", "reason": "6B inbound webhooks"},
-    {"id": "INT-026", "reason": "6C Google Calendar"}
+  "requirements": [
+    {
+      "id": "INT-001",
+      "role": "owned",
+      "disposition": "implemented",
+      "evidence": [
+        {
+          "file": "packages/work/src/integrations/service.ts",
+          "contains": "async completeOauth"
+        },
+        {
+          "file": "packages/work/test/integration/calendar-live.test.ts",
+          "contains": "AT-317 connects with OAuth, PKCE and a bound state"
+        }
+      ]
+    },
+    {
+      "id": "INT-002",
+      "role": "owned",
+      "disposition": "implemented",
+      "evidence": [
+        {
+          "file": "packages/work/src/integrations/service.ts",
+          "contains": "async createConnection"
+        },
+        {
+          "file": "e2e/integrations.spec.ts",
+          "contains": "API key"
+        }
+      ]
+    },
+    {
+      "id": "INT-003",
+      "role": "owned",
+      "disposition": "implemented",
+      "evidence": [
+        {
+          "file": "packages/work/test/integration/integrations.test.ts",
+          "contains": "stores credentials only as a vault reference and never returns them"
+        },
+        {
+          "file": "packages/work/test/integration/integrations.test.ts",
+          "contains": "rotates a credential onto a new vault reference and destroys the old one"
+        }
+      ]
+    },
+    {
+      "id": "INT-004",
+      "role": "owned",
+      "disposition": "implemented",
+      "evidence": [
+        {
+          "file": "packages/work/src/integrations/service.ts",
+          "contains": "scope_key: place.scopeKey"
+        },
+        {
+          "file": "packages/work/test/integration/integrations.test.ts",
+          "contains": "refuses a guest and a member without authority, and hides another brand"
+        }
+      ]
+    },
+    {
+      "id": "INT-005",
+      "role": "owned",
+      "disposition": "implemented",
+      "evidence": [
+        {
+          "file": "apps/web/test/integrations.test.tsx",
+          "contains": "names the owner, scopes, and last success without showing a secret"
+        }
+      ]
+    },
+    {
+      "id": "INT-006",
+      "role": "owned",
+      "disposition": "implemented",
+      "evidence": [
+        {
+          "file": "packages/work/src/integrations/service.ts",
+          "contains": "async testConnection"
+        },
+        {
+          "file": "packages/work/test/integration/integrations.test.ts",
+          "contains": "tests, reauthorizes, and disconnects with a retention choice"
+        }
+      ]
+    },
+    {
+      "id": "INT-007",
+      "role": "owned",
+      "disposition": "implemented",
+      "evidence": [
+        {
+          "file": "packages/work/src/integrations/service.ts",
+          "contains": "async reauthorize"
+        },
+        {
+          "file": "packages/work/test/integration/calendar-live.test.ts",
+          "contains": "AT-320 refreshes expired access, and a revoked grant needs reauthorization"
+        }
+      ]
+    },
+    {
+      "id": "INT-008",
+      "role": "owned",
+      "disposition": "implemented",
+      "evidence": [
+        {
+          "file": "packages/work/src/integrations/service.ts",
+          "contains": "async disconnect"
+        },
+        {
+          "file": "packages/work/test/integration/integrations.test.ts",
+          "contains": "tests, reauthorizes, and disconnects with a retention choice"
+        }
+      ]
+    },
+    {
+      "id": "INT-009",
+      "role": "owned",
+      "disposition": "implemented",
+      "evidence": [
+        {
+          "file": "packages/work/src/integrations/service.ts",
+          "contains": "input.retention === 'remove'"
+        },
+        {
+          "file": "packages/work/test/integration/calendar-live.test.ts",
+          "contains": "AT-325 disconnecting while work is queued stops it"
+        }
+      ]
+    },
+    {
+      "id": "INT-023",
+      "role": "owned",
+      "disposition": "implemented",
+      "evidence": [
+        {
+          "file": "packages/work/src/integrations/service.ts",
+          "contains": "connection.record_synced"
+        },
+        {
+          "file": "docs/engineering/adr/0032-integration-framework.md",
+          "contains": "| D10 |"
+        }
+      ]
+    },
+    {
+      "id": "INT-024",
+      "role": "owned",
+      "disposition": "implemented",
+      "evidence": [
+        {
+          "file": "packages/work/test/integration/integrations.test.ts",
+          "contains": "opens a conflict when both sides changed and resolves it once"
+        }
+      ]
+    },
+    {
+      "id": "INT-025",
+      "role": "owned",
+      "disposition": "implemented",
+      "evidence": [
+        {
+          "file": "packages/work/src/integrations/service.ts",
+          "contains": "async resolveConflict"
+        },
+        {
+          "file": "packages/work/test/integration/integrations.test.ts",
+          "contains": "opens a conflict when both sides changed and resolves it once"
+        }
+      ]
+    },
+    {
+      "id": "WSB-013",
+      "role": "owned",
+      "disposition": "implemented",
+      "evidence": [
+        {
+          "file": "packages/work/test/integration/integrations.test.ts",
+          "contains": "refuses a guest and a member without authority, and hides another brand"
+        }
+      ]
+    },
+    {
+      "id": "PERM-009",
+      "role": "owned",
+      "disposition": "implemented",
+      "evidence": [
+        {
+          "file": "packages/work/test/integration/integrations.test.ts",
+          "contains": "answers unknown and hidden connections the same way"
+        },
+        {
+          "file": "packages/work/test/integration/integrations.test.ts",
+          "contains": "refuses a guest and a member without authority, and hides another brand"
+        }
+      ]
+    },
+    {
+      "id": "CAP-006",
+      "role": "contributing",
+      "disposition": "contributed",
+      "contribution": "6A",
+      "evidence": [
+        {
+          "file": "packages/work/src/integrations/semantics.ts",
+          "contains": "Email forwarding is not decided yet (OD-29)."
+        }
+      ],
+      "note": "OD-29 remains open (owner 2E). 6A contributes only the honest not-configured email_inbound catalog entry; no forwarding address, inbound mail, or sender verification exists."
+    },
+    {
+      "id": "TSK-017",
+      "role": "contributing",
+      "disposition": "contributed",
+      "contribution": "6A",
+      "evidence": [
+        {
+          "file": "packages/work/src/integrations/service.ts",
+          "contains": "external_identity"
+        }
+      ],
+      "note": "External records are linked through integrations.external_identity; task attachment surfaces stay with 2B."
+    },
+    {
+      "id": "CAL-015",
+      "role": "contributing",
+      "disposition": "contributed",
+      "contribution": "6A",
+      "evidence": [
+        {
+          "file": "packages/work/src/integrations/service.ts",
+          "contains": "async #removeSynced"
+        }
+      ],
+      "note": "The framework's retain/remove choice; 6C applies it to calendar data."
+    },
+    {
+      "id": "DEV-017",
+      "role": "contributing",
+      "disposition": "contributed",
+      "contribution": "6A",
+      "evidence": [
+        {
+          "file": "packages/work/src/integrations/service.ts",
+          "contains": "integrations.sync_run"
+        }
+      ],
+      "note": "Sync run history and error codes; the GitHub history is 9A."
+    },
+    {
+      "id": "REL-006",
+      "role": "contributing",
+      "disposition": "contributed",
+      "contribution": "6A",
+      "evidence": [
+        {
+          "file": "packages/work/src/integrations/service.ts",
+          "contains": "integrations.sync.failed"
+        }
+      ],
+      "note": "Failed syncs are recorded and evented; the cross-surface failure display is 11C."
+    },
+    {
+      "id": "REL-013",
+      "role": "contributing",
+      "disposition": "contributed",
+      "contribution": "6A",
+      "evidence": [
+        {
+          "file": "packages/work/src/integrations/service.ts",
+          "contains": "provider_unconfigured"
+        }
+      ],
+      "note": "Unconfigured and degraded providers are reported truthfully; graceful degradation across AI is 11C."
+    },
+    {
+      "id": "ADM-009",
+      "role": "contributing",
+      "disposition": "contributed",
+      "contribution": "6A",
+      "evidence": [
+        {
+          "file": "apps/web/src/integrations/panel.tsx",
+          "contains": "healthLabel"
+        }
+      ],
+      "note": "Connection health in settings; the administration console is 10C."
+    },
+    {
+      "id": "LA-017",
+      "role": "contributing",
+      "disposition": "contributed",
+      "contribution": "6A",
+      "evidence": [
+        {
+          "file": "packages/work/src/integrations/service.ts",
+          "contains": "#providerFailed"
+        }
+      ],
+      "note": "Failed integration runs are recorded as failed or dead, never as succeeded; the launch gate is 12A."
+    }
   ],
-  "decisions": ["D1", "D2", "D3", "D4", "D5", "D6", "D7", "D8", "D9", "D10", "D11", "D12"]
+  "decisions": [
+    {
+      "id": "D1",
+      "adr_row": "D1",
+      "title": "Connection authority",
+      "evidence": [
+        {
+          "file": "docs/engineering/adr/0032-integration-framework.md",
+          "contains": "| D1 |"
+        }
+      ],
+      "sources": [
+        {
+          "file": "docs/engineering/adr/0032-integration-framework.md",
+          "contains": "| D1 |"
+        }
+      ]
+    },
+    {
+      "id": "D2",
+      "adr_row": "D2",
+      "title": "Credentials",
+      "evidence": [
+        {
+          "file": "docs/engineering/adr/0032-integration-framework.md",
+          "contains": "| D2 |"
+        }
+      ],
+      "sources": [
+        {
+          "file": "docs/engineering/adr/0032-integration-framework.md",
+          "contains": "| D2 |"
+        }
+      ]
+    },
+    {
+      "id": "D3",
+      "adr_row": "D3",
+      "title": "Least privilege",
+      "evidence": [
+        {
+          "file": "docs/engineering/adr/0032-integration-framework.md",
+          "contains": "| D3 |"
+        }
+      ],
+      "sources": [
+        {
+          "file": "docs/engineering/adr/0032-integration-framework.md",
+          "contains": "| D3 |"
+        }
+      ]
+    },
+    {
+      "id": "D4",
+      "adr_row": "D4",
+      "title": "Authorization",
+      "evidence": [
+        {
+          "file": "docs/engineering/adr/0032-integration-framework.md",
+          "contains": "| D4 |"
+        }
+      ],
+      "sources": [
+        {
+          "file": "docs/engineering/adr/0032-integration-framework.md",
+          "contains": "| D4 |"
+        }
+      ]
+    },
+    {
+      "id": "D5",
+      "adr_row": "D5",
+      "title": "Disconnect and retention",
+      "evidence": [
+        {
+          "file": "docs/engineering/adr/0032-integration-framework.md",
+          "contains": "| D5 |"
+        }
+      ],
+      "sources": [
+        {
+          "file": "docs/engineering/adr/0032-integration-framework.md",
+          "contains": "| D5 |"
+        }
+      ]
+    },
+    {
+      "id": "D6",
+      "adr_row": "D6",
+      "title": "Departure",
+      "evidence": [
+        {
+          "file": "docs/engineering/adr/0032-integration-framework.md",
+          "contains": "| D6 |"
+        }
+      ],
+      "sources": [
+        {
+          "file": "docs/engineering/adr/0032-integration-framework.md",
+          "contains": "| D6 |"
+        }
+      ]
+    },
+    {
+      "id": "D7",
+      "adr_row": "D7",
+      "title": "Sync",
+      "evidence": [
+        {
+          "file": "docs/engineering/adr/0032-integration-framework.md",
+          "contains": "| D7 |"
+        }
+      ],
+      "sources": [
+        {
+          "file": "docs/engineering/adr/0032-integration-framework.md",
+          "contains": "| D7 |"
+        }
+      ]
+    },
+    {
+      "id": "D8",
+      "adr_row": "D8",
+      "title": "Conflicts",
+      "evidence": [
+        {
+          "file": "docs/engineering/adr/0032-integration-framework.md",
+          "contains": "| D8 |"
+        }
+      ],
+      "sources": [
+        {
+          "file": "docs/engineering/adr/0032-integration-framework.md",
+          "contains": "| D8 |"
+        }
+      ]
+    },
+    {
+      "id": "D9",
+      "adr_row": "D9",
+      "title": "Providers",
+      "evidence": [
+        {
+          "file": "docs/engineering/adr/0032-integration-framework.md",
+          "contains": "| D9 |"
+        }
+      ],
+      "sources": [
+        {
+          "file": "docs/engineering/adr/0032-integration-framework.md",
+          "contains": "| D9 |"
+        }
+      ]
+    },
+    {
+      "id": "D10",
+      "adr_row": "D10",
+      "title": "Provenance",
+      "evidence": [
+        {
+          "file": "docs/engineering/adr/0032-integration-framework.md",
+          "contains": "| D10 |"
+        }
+      ],
+      "sources": [
+        {
+          "file": "docs/engineering/adr/0032-integration-framework.md",
+          "contains": "| D10 |"
+        }
+      ]
+    },
+    {
+      "id": "D11",
+      "adr_row": "D11",
+      "title": "Reuse",
+      "evidence": [
+        {
+          "file": "docs/engineering/adr/0032-integration-framework.md",
+          "contains": "| D11 |"
+        }
+      ],
+      "sources": [
+        {
+          "file": "docs/engineering/adr/0032-integration-framework.md",
+          "contains": "| D11 |"
+        }
+      ]
+    },
+    {
+      "id": "D12",
+      "adr_row": "D12",
+      "title": "Boundaries",
+      "evidence": [
+        {
+          "file": "docs/engineering/adr/0032-integration-framework.md",
+          "contains": "| D12 |"
+        }
+      ],
+      "sources": [
+        {
+          "file": "docs/engineering/adr/0032-integration-framework.md",
+          "contains": "| D12 |"
+        }
+      ]
+    }
+  ],
+  "reconciliation": "Normalized in the Phase 6 integration review: 6A first recorded a bare owned list with no evidence or contributions, and listed INT-010 (owner 6B) and INT-026 (owner 6C) as its own deferrals. Each owner closes those once in its own closure."
 }

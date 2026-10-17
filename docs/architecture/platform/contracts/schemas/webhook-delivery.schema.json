@@ -26,7 +26,7 @@
     },
     "attempt": {
       "type": "integer",
-      "minimum": 1
+      "minimum": 0
     },
     "state": {
       "type": "string",
@@ -36,7 +36,8 @@
         "retry_scheduled",
         "failed",
         "unknown",
-        "disabled_endpoint"
+        "disabled_endpoint",
+        "skipped"
       ]
     },
     "response_status": {
@@ -53,6 +54,27 @@
     },
     "created_at": {
       "$ref": "urn:pm:schema:common#/$defs/timestamp"
+    },
+    "cycle": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "total_attempts": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "replayable": {
+      "type": "boolean"
+    },
+    "event_created_at": {
+      "$ref": "urn:pm:schema:common#/$defs/timestamp"
+    },
+    "replayed_at": {
+      "$ref": "urn:pm:schema:common#/$defs/timestamp"
+    },
+    "detail": {
+      "type": "string",
+      "maxLength": 80
     }
   }
 }

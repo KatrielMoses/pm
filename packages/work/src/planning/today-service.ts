@@ -49,7 +49,19 @@ interface TaskFacts {
   status_category: string;
 }
 
-interface BlockRow {
+/** A block's calendar link on Today (6C): the linked event and whether a push is pending. */
+export interface CalendarLinkView {
+  event: string;
+  pending: boolean;
+  calendar: string;
+}
+
+/** Today's meetings (PLAN-004): the person's own connected-calendar events for the day. */
+export type MeetingsView =
+  | { available: false; reason: 'not_connected' }
+  | { available: true; events: Array<Record<string, unknown>>; busy_minutes: number };
+
+export interface BlockRow {
   id: string;
   public_id: string;
   owner_membership_id: string;
@@ -459,7 +471,8 @@ export class PlanningService extends TimeService {
         blocks: blocks.filter((b) => b.task?.id === c.public_id).map((b) => b.id),
         version: Number(c.version),
       })),
-      scheduled: blocks,
+      // The calendar layer (6C) marks blocks that are on a connected calendar.
+      scheduled: blocks.map((b) => ({ ...b, calendar: null as CalendarLinkView | null })),
       overdue,
       due_today: dueToday,
       upcoming_deadlines: upcoming,
@@ -470,10 +483,11 @@ export class PlanningService extends TimeService {
         block_minutes: blockMinutes,
         focus_minutes: blocks.filter((b) => b.focus).reduce((s, b) => s + b.minutes, 0),
       },
-      // Honest absences: working hours and capacity are 3E; calendar events are 6C.
+      // Honest absences until a later layer fills them: capacity needs working hours (3E), and
+      // meetings need a connected calendar (6C).
       available_minutes: null as number | null,
       capacity: { available: false, owner: '3E' } as Record<string, unknown>,
-      meetings: { available: false, owner: '6C' },
+      meetings: { available: false, reason: 'not_connected' } as MeetingsView,
       record: record ? this.recordView(record) : null,
       can_shutdown: !record && day <= today,
     };
@@ -1549,6 +1563,7 @@ export class PlanningService extends TimeService {
             changes,
             row.brand_id,
           );
+          if (moved) await this.afterBlockMoved(tx, p, row.id);
           if (moved)
             await this.planEvent(
               tx,
@@ -1578,6 +1593,90 @@ export class PlanningService extends TimeService {
     );
   }
 
+  /** Runs inside a person's block move (a linked calendar event is marked for writing). */
+  protected async afterBlockMoved(
+    _tx: WorkspaceTransaction,
+    _p: Principal,
+    _blockId: string,
+  ): Promise<void> {}
+
+  /** Runs inside a block delete, before the row goes (a calendar link is released). */
+  protected async beforeBlockDeleted(
+    _tx: WorkspaceTransaction,
+    _p: Principal,
+    _blockId: string,
+  ): Promise<void> {}
+
+  /**
+   * The canonical move of a block on behalf of something other than a direct edit (a linked
+   * calendar event moved at the provider, CAL-012). It applies the same rules as a drag: whole
+   * minutes, 5 minutes to 24 hours, the per-day limit, focus protection under the owner's planning
+   * lock, a locked block never moves, and a block on a task stays movable only while the owner can
+   * still read and plan that task. It has no path to task dates (CAL-013). The caller writes the
+   * audit and event with its own provenance. Returns the new version.
+   */
+  protected async applyBlockMove(
+    tx: WorkspaceTransaction,
+    p: Principal,
+    blockId: string,
+    start: Date,
+    end: Date,
+  ): Promise<
+    | { ok: true; version: number; row: BlockRow; start: Date; end: Date }
+    | {
+        ok: false;
+        reason: 'locked' | 'focus_protected' | 'unavailable' | 'invalid' | 'too_many' | 'missing';
+      }
+  > {
+    const row = (await tx.db
+      .selectFrom('planning.work_block')
+      .selectAll()
+      .where('id', '=', blockId)
+      .where('owner_membership_id', '=', p.membershipId)
+      .forUpdate()
+      .executeTakeFirst()) as BlockRow | undefined;
+    if (!row) return { ok: false, reason: 'missing' };
+    if (row.locked) return { ok: false, reason: 'locked' };
+    const s = wholeMinute(start);
+    const e = wholeMinute(end);
+    const mins = minutesBetween(s, e);
+    if (mins < 5 || mins > 1440) return { ok: false, reason: 'invalid' };
+    try {
+      if (row.task_id) await this.plannableTask(tx, p, await this.publicOf(tx, row.task_id));
+    } catch {
+      return { ok: false, reason: 'unavailable' };
+    }
+    try {
+      if (localDay(s, row.source_tz) !== localDay(new Date(row.starts_at), row.source_tz))
+        await this.requireBlockRoom(tx, p, s, row.source_tz, row.id);
+    } catch {
+      return { ok: false, reason: 'too_many' };
+    }
+    try {
+      await this.requireNoFocusClash(
+        tx,
+        p,
+        {
+          start: s,
+          end: e,
+          prep: Number(row.prep_minutes),
+          buffer: Number(row.buffer_minutes),
+          focus: row.focus,
+        },
+        row.id,
+      );
+    } catch {
+      return { ok: false, reason: 'focus_protected' };
+    }
+    const version = Number(row.version) + 1;
+    await tx.db
+      .updateTable('planning.work_block')
+      .set({ starts_at: s, ends_at: e, updated_at: new Date(), version })
+      .where('id', '=', row.id)
+      .execute();
+    return { ok: true, version, row, start: s, end: e };
+  }
+
   async deleteBlock(caller: Caller, ws: unknown, blk: unknown, req: Mutation) {
     return this.mutate(
       caller,
@@ -1590,6 +1689,7 @@ export class PlanningService extends TimeService {
         const row = await this.blockRow(tx, p, blk);
         requireVersion(expected, Number(row.version));
         this.requireUnlocked(row.locked, 'This block');
+        await this.beforeBlockDeleted(tx, p, row.id);
         await tx.db.deleteFrom('planning.work_block').where('id', '=', row.id).execute();
         await this.planAudit(
           tx,

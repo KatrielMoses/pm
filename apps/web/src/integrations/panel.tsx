@@ -1,5 +1,7 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { api, ApiError, newIdempotencyKey } from '../api.ts';
+import { useWorkspaceShell } from '../shell/workspace.tsx';
+import { GoogleCalendarSection } from './calendar-panel.tsx';
 
 export interface ConnectionView {
   id: string;
@@ -15,6 +17,8 @@ export interface ConnectionView {
   last_error: string | null;
   retention_choice: string | null;
   version: number;
+  /** 'test_double' is the local stand-in, never a real provider account. */
+  provider_mode?: 'live' | 'test_double' | null;
 }
 
 export interface ProviderView {
@@ -85,6 +89,8 @@ export function ConnectionList({ connections }: { connections: ConnectionView[] 
 }
 
 export function IntegrationsPanel({ ws }: { ws: string }) {
+  // Brands come from the workspace shell when the panel is inside it; otherwise none are offered.
+  const brands = useWorkspaceShell()?.context?.brands ?? [];
   const [providers, setProviders] = useState<ProviderView[]>([]);
   const [connections, setConnections] = useState<ConnectionView[]>([]);
   const [mcp, setMcp] = useState<McpCapabilitiesView | null>(null);
@@ -244,6 +250,13 @@ export function IntegrationsPanel({ ws }: { ws: string }) {
         </ul>
       </section>
       <ConnectionList connections={connections} />
+      <GoogleCalendarSection
+        ws={ws}
+        provider={providers.find((p) => p.id === 'google_calendar')}
+        connections={connections}
+        brands={brands}
+        onChanged={load}
+      />
       <form
         onSubmit={(e) => {
           e.preventDefault();
@@ -281,7 +294,8 @@ export function IntegrationsPanel({ ws }: { ws: string }) {
         </button>
       </form>
       {connections
-        .filter((c) => c.health !== 'disconnected')
+        // Google Calendar connections carry their own actions in the section above.
+        .filter((c) => c.health !== 'disconnected' && c.provider !== 'google_calendar')
         .map((c) => (
           <section key={c.id} aria-labelledby={`act-${c.id}`}>
             <h2 id={`act-${c.id}`}>Actions for {c.display_name}</h2>

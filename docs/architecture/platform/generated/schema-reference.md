@@ -1440,11 +1440,17 @@ Webhook delivery · visibility **public** · max class **C2**
 | `event_id` | `common#public_id` | yes |  |
 | `subscription` | `common#public_id` | yes |  |
 | `attempt` | integer | yes |  |
-| `state` | string enum: `pending`, `delivered`, `retry_scheduled`, `failed`, `unknown`, `disabled_endpoint` | yes |  |
+| `state` | string enum: `pending`, `delivered`, `retry_scheduled`, `failed`, `unknown`, `disabled_endpoint`, `skipped` | yes |  |
 | `response_status` | integer |  |  |
 | `duration_ms` | integer |  |  |
 | `next_attempt_at` | `common#timestamp` |  |  |
 | `created_at` | `common#timestamp` | yes |  |
+| `cycle` | integer |  |  |
+| `total_attempts` | integer |  |  |
+| `replayable` | boolean |  |  |
+| `event_created_at` | `common#timestamp` |  |  |
+| `replayed_at` | `common#timestamp` |  |  |
+| `detail` | string |  |  |
 
 <details><summary>Example webhook-delivery.1.json</summary>
 

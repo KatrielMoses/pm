@@ -1,4 +1,5 @@
 import { api, protectedRequest, type StepUpResolver } from '../api.ts';
+import type { CalendarEventView } from '../integrations/calendar-client.ts';
 
 /** Typed client for the 3C planning API (ADR-0021). Every identifier is a public ID. */
 
@@ -43,6 +44,8 @@ export interface Block {
   series: string | null;
   warnings: Array<'after_due_date' | 'after_deadline'>;
   version: number;
+  /** 6C: the calendar copy of this block (Today only), or null when it is not on a calendar. */
+  calendar?: { event: string; pending: boolean; calendar: string } | null;
 }
 
 export interface DayRecord {
@@ -92,6 +95,10 @@ export interface TodayView {
         warning: boolean;
       }
     | { available: false; reason: 'no_working_hours' };
+  /** 6C: the person's own calendar events this day (not linked to a block), or why there are none. */
+  meetings:
+    | { available: true; events: CalendarEventView[]; busy_minutes: number }
+    | { available: false; reason: 'not_connected' };
   record: DayRecord | null;
   can_shutdown: boolean;
 }

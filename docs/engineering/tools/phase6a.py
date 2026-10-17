@@ -12,6 +12,7 @@ import sys
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
 import phase1  # noqa: E402
+import phase2  # noqa: E402
 
 P = phase1.P
 read = phase1.read
@@ -56,6 +57,13 @@ def check():
     closure = load(P("docs/engineering/phase6/closure-6a.json"))
     if closure.get("phase") != "6A":
         errs.append("closure phase")
+    # Normalized in the Phase 6 integration review: owned and contributing requirements closed
+    # once each, with evidence, against the catalog (INT-010 and INT-026 belong to 6B and 6C).
+    catalog = load(P("docs/product/requirements/catalog.json"))
+    closed, _ = phase2.check_closure(
+        catalog, closure, phase1.roadmap_subphases(), "6A", ["D%d" % i for i in range(1, 13)]
+    )
+    errs.extend(closed)
     params = {p["name"]: p for p in registry["parameters"]}
     server = read(P("packages/config/src/server.ts"))
     envdoc = read(P("docs/engineering/environments.md"))

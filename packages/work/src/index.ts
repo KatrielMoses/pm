@@ -80,6 +80,7 @@ export * from './goals/portfolio-service.ts';
 export * from './insights/report-service.ts';
 export * from './integrations/public-api-service.ts';
 export * from './integrations/calendar-service.ts';
+export * from './integrations/calendar-provider.ts';
 export * from './portability/csv.ts';
 export * from './portability/portability-service.ts';
 export * from './integrations/mcp-access-service.ts';

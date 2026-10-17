@@ -1,11 +1,18 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { newUuidV7 } from '@pm/contracts';
 import { createTestDatabase, type TestDatabase } from '@pm/test-support/vitest';
 import type { Caller } from '@pm/tenancy';
 import { signPayload, signatureHeader } from '../../src/integrations/semantics.ts';
 import { syntheticCaller } from '../../src/integrations/public-api-service.ts';
 import type { WebhookTransport } from '../../src/integrations/public-api-service.ts';
-import { mutation, workspaceIdOf, workspaceWith, workEnv, type WorkEnv } from './fixture.ts';
+import {
+  internalIdOf,
+  mutation,
+  outboxEvents,
+  workspaceIdOf,
+  workspaceWith,
+  workEnv,
+  type WorkEnv,
+} from './fixture.ts';
 
 /**
  * Phase 6B (ADR-0032): tokens are shown once and only narrow the caller's own access; inbound
@@ -156,37 +163,58 @@ describe('Public API and webhooks (6B)', () => {
       mutation(),
     );
     const wsId = await workspaceIdOf(db, ws);
-    const n = await env.svc.projectForWorkspace(wsId, {
-      event_id: newUuidV7(),
-      type: 'work.task.created',
-      schema_version: 1,
-      occurred_at: new Date().toISOString(),
-      recorded_at: new Date().toISOString(),
-      workspace_id: wsId,
-      aggregate: { type: 'work.task', id: newUuidV7(), sequence: 1 },
-      actor: { type: 'human' },
-      auth: { workspace_epoch: 1 },
-      correlation_id: 'f'.repeat(32),
-      data: { source_kind: 'api' },
-      max_class: 'C1',
-    });
-    expect(n).toBe(1);
+    // A real task in the subscription's brand, through its real outbox event.
+    const task = (
+      await env.svc.createTask(
+        owner,
+        ws,
+        { brand: brands.Harbor, title: 'Signed task' },
+        mutation(),
+      )
+    ).data;
+    const [event] = await outboxEvents(
+      db,
+      wsId,
+      'work.task.created',
+      await internalIdOf(db, task.id),
+    );
+    expect(await env.svc.projectForWorkspace(wsId, event!)).toBe(1);
     await env.svc.sweepWorkspace(wsId, new Date());
     expect(sent).toHaveLength(1);
-    expect(sent[0]?.headers['webhook-signature']).toContain('v1,');
+    const first = sent[0]!;
     expect(
       signatureHeader([
         signPayload(
           sub.data.secret!,
-          sent[0]!.headers['webhook-id']!,
-          sent[0]!.headers['webhook-timestamp']!,
-          sent[0]!.body,
+          first.headers['webhook-id']!,
+          first.headers['webhook-timestamp']!,
+          first.body,
         ),
-      ]).split(' ')[0],
-    ).toBe(sent[0]?.headers['webhook-signature']);
+      ]),
+    ).toBe(first.headers['webhook-signature']);
+    // The public webhook-outbound schema: the object is the task, the workspace and brand are
+    // public ids, and the event time is the event's.
+    expect(JSON.parse(first.body)).toEqual({
+      id: first.headers['webhook-id'],
+      type: 'task.created',
+      api_version: 'v1',
+      created_at: new Date(event!.occurred_at).toISOString(),
+      workspace: ws,
+      brand: brands.Harbor,
+      data: {
+        object: { id: task.id, type: 'task', version: expect.any(Number) },
+        fields: expect.any(Object),
+        changes: [],
+      },
+    });
     status = 200;
     await env.svc.sweepWorkspace(wsId, new Date(Date.now() + 120_000));
-    expect(sent.at(-1) && status).toBe(200);
-    expect(sent.length).toBeGreaterThan(1);
+    expect(sent).toHaveLength(2);
+    // Retries keep the event id and its original time; only the signature timestamp moves.
+    expect(sent[1]!.headers['webhook-id']).toBe(first.headers['webhook-id']);
+    expect(JSON.parse(sent[1]!.body).created_at).toBe(JSON.parse(first.body).created_at);
+    expect(Number(sent[1]!.headers['webhook-timestamp'])).toBeGreaterThanOrEqual(
+      Number(first.headers['webhook-timestamp']),
+    );
   });
 });

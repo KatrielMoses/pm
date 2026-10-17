@@ -327,6 +327,12 @@ export interface ServerConfig {
     syncRatePerMinute: number;
     integrationLoopbackEnabled: boolean;
     googleCalendarLoopbackEnabled: boolean;
+    calendarSyncPagesMax: number;
+    calendarSyncPastDays: number;
+    calendarSyncHorizonDays: number;
+    calendarsPerConnectionMax: number;
+    calendarOccurrencesMax: number;
+    calendarEventsListMax: number;
     apiTokensPersonalMax: number;
     apiTokensServiceMax: number;
     apiReadRatePerMinute: number;
@@ -369,11 +375,28 @@ export interface ServerConfig {
     storage: FilesStorageConfig;
     scanner: FilesScannerConfig;
   };
+  /** Calendar provider (6C, ADR-0037): truthfully `none` unless a deployment configures it. */
+  calendar: CalendarProviderConfig;
   features: {
     /** Local/test-only component harness route for reusable UI states (refused when deployed). */
     componentHarness: boolean;
   };
 }
+
+/** The Google Calendar OAuth client and endpoints; the secret never leaves `Secret`. */
+export type CalendarProviderConfig =
+  | { provider: 'none' }
+  | {
+      provider: 'google';
+      clientId: string;
+      clientSecret: Secret;
+      redirectUri: string;
+      authorizeUrl: string;
+      tokenUrl: string;
+      revokeUrl: string;
+      apiBase: string;
+      timeoutMs: number;
+    };
 
 /** Retention classes (0B vocabulary) that may carry a platform default period. */
 export const RETENTION_CLASSES = [
@@ -754,6 +777,17 @@ const DEFAULTS = {
   SYNC_RATE_PER_MINUTE: '30',
   INTEGRATION_LOOPBACK_ENABLED: 'auto',
   GOOGLE_CALENDAR_LOOPBACK_ENABLED: '0',
+  GOOGLE_CALENDAR_AUTHORIZE_URL: 'https://accounts.google.com/o/oauth2/v2/auth',
+  GOOGLE_CALENDAR_TOKEN_URL: 'https://oauth2.googleapis.com/token',
+  GOOGLE_CALENDAR_REVOKE_URL: 'https://oauth2.googleapis.com/revoke',
+  GOOGLE_CALENDAR_API_BASE: 'https://www.googleapis.com/calendar/v3',
+  GOOGLE_CALENDAR_TIMEOUT_MS: '10000',
+  CALENDAR_SYNC_PAGES_MAX: '20',
+  CALENDAR_SYNC_PAST_DAYS: '30',
+  CALENDAR_SYNC_HORIZON_DAYS: '120',
+  CALENDARS_PER_CONNECTION_MAX: '25',
+  CALENDAR_OCCURRENCES_MAX: '400',
+  CALENDAR_EVENTS_LIST_MAX: '500',
   API_TOKENS_PERSONAL_MAX: '25',
   API_TOKENS_SERVICE_MAX: '50',
   API_READ_RATE_PER_MINUTE: '600',
@@ -1094,6 +1128,23 @@ const schema = z.object({
   SYNC_RATE_PER_MINUTE: int(1, 600),
   INTEGRATION_LOOPBACK_ENABLED: z.enum(['auto', '0', '1']),
   GOOGLE_CALENDAR_LOOPBACK_ENABLED: z.enum(['0', '1']),
+  GOOGLE_CALENDAR_CLIENT_ID: z
+    .string()
+    .regex(/^[A-Za-z0-9._-]{8,200}$/)
+    .optional(),
+  GOOGLE_CALENDAR_CLIENT_SECRET: z.string().optional(),
+  GOOGLE_CALENDAR_REDIRECT_URI: z.url().optional(),
+  GOOGLE_CALENDAR_AUTHORIZE_URL: z.url(),
+  GOOGLE_CALENDAR_TOKEN_URL: z.url(),
+  GOOGLE_CALENDAR_REVOKE_URL: z.url(),
+  GOOGLE_CALENDAR_API_BASE: z.url(),
+  GOOGLE_CALENDAR_TIMEOUT_MS: int(1000, 60_000),
+  CALENDAR_SYNC_PAGES_MAX: int(1, 200),
+  CALENDAR_SYNC_PAST_DAYS: int(1, 366),
+  CALENDAR_SYNC_HORIZON_DAYS: int(7, 732),
+  CALENDARS_PER_CONNECTION_MAX: int(1, 200),
+  CALENDAR_OCCURRENCES_MAX: int(10, 5000),
+  CALENDAR_EVENTS_LIST_MAX: int(10, 5000),
   API_TOKENS_PERSONAL_MAX: int(1, 500),
   API_TOKENS_SERVICE_MAX: int(1, 500),
   API_READ_RATE_PER_MINUTE: int(1, 10000),
@@ -1447,6 +1498,47 @@ export function loadServerConfig(options: LoadOptions): ServerConfig {
       ).replace(/\/+$/, ''),
     };
   }
+  // Google Calendar (6C, ADR-0037 G1): configured only when the client is fully set. Deployed
+  // environments talk to HTTPS endpoints only; local and test may point at a provider fixture.
+  let calendar: CalendarProviderConfig = { provider: 'none' };
+  const calendarParts = [
+    c.GOOGLE_CALENDAR_CLIENT_ID,
+    c.GOOGLE_CALENDAR_CLIENT_SECRET,
+    c.GOOGLE_CALENDAR_REDIRECT_URI,
+  ];
+  if (calendarParts.some(Boolean)) {
+    if (!calendarParts.every(Boolean))
+      issues.push(
+        'GOOGLE_CALENDAR_CLIENT_ID: set the client ID, client secret, and redirect URI together',
+      );
+    else if (c.GOOGLE_CALENDAR_CLIENT_SECRET!.startsWith(SECRET_REFERENCE_PREFIX))
+      issues.push(
+        'GOOGLE_CALENDAR_CLIENT_SECRET: secret references require a secret-store provider (not selected; DQ-28)',
+      );
+    else {
+      const urls = {
+        GOOGLE_CALENDAR_REDIRECT_URI: c.GOOGLE_CALENDAR_REDIRECT_URI!,
+        GOOGLE_CALENDAR_AUTHORIZE_URL: c.GOOGLE_CALENDAR_AUTHORIZE_URL,
+        GOOGLE_CALENDAR_TOKEN_URL: c.GOOGLE_CALENDAR_TOKEN_URL,
+        GOOGLE_CALENDAR_REVOKE_URL: c.GOOGLE_CALENDAR_REVOKE_URL,
+        GOOGLE_CALENDAR_API_BASE: c.GOOGLE_CALENDAR_API_BASE,
+      };
+      for (const [name, url] of Object.entries(urls))
+        if (!devOnly && !url.startsWith('https://'))
+          issues.push(`${name}: must use https outside local and test`);
+      calendar = {
+        provider: 'google',
+        clientId: c.GOOGLE_CALENDAR_CLIENT_ID!,
+        clientSecret: new Secret(c.GOOGLE_CALENDAR_CLIENT_SECRET!),
+        redirectUri: urls.GOOGLE_CALENDAR_REDIRECT_URI,
+        authorizeUrl: urls.GOOGLE_CALENDAR_AUTHORIZE_URL,
+        tokenUrl: urls.GOOGLE_CALENDAR_TOKEN_URL,
+        revokeUrl: urls.GOOGLE_CALENDAR_REVOKE_URL,
+        apiBase: urls.GOOGLE_CALENDAR_API_BASE.replace(/\/+$/, ''),
+        timeoutMs: c.GOOGLE_CALENDAR_TIMEOUT_MS,
+      };
+    }
+  }
   let filesScanner: FilesScannerConfig = { provider: 'none' };
   if (c.MALWARE_SCANNER === 'clamav') {
     if (!c.CLAMAV_HOST) issues.push('CLAMAV_HOST: required with the clamav malware scanner');
@@ -1549,6 +1641,7 @@ export function loadServerConfig(options: LoadOptions): ServerConfig {
       purgeLedgerDir: c.PURGE_LEDGER_DIR,
     },
     files: { storage: filesStorage, scanner: filesScanner },
+    calendar,
     features: { componentHarness: c.COMPONENT_HARNESS },
     audit: { chainLockWaitWarnMs: c.AUDIT_CHAIN_LOCK_WAIT_WARN_MS },
     tenancy: {
@@ -1765,6 +1858,12 @@ export function loadServerConfig(options: LoadOptions): ServerConfig {
         c.INTEGRATION_LOOPBACK_ENABLED === '1' ||
         (c.INTEGRATION_LOOPBACK_ENABLED === 'auto' && (env === 'local' || env === 'test')),
       googleCalendarLoopbackEnabled: c.GOOGLE_CALENDAR_LOOPBACK_ENABLED === '1',
+      calendarSyncPagesMax: c.CALENDAR_SYNC_PAGES_MAX,
+      calendarSyncPastDays: c.CALENDAR_SYNC_PAST_DAYS,
+      calendarSyncHorizonDays: c.CALENDAR_SYNC_HORIZON_DAYS,
+      calendarsPerConnectionMax: c.CALENDARS_PER_CONNECTION_MAX,
+      calendarOccurrencesMax: c.CALENDAR_OCCURRENCES_MAX,
+      calendarEventsListMax: c.CALENDAR_EVENTS_LIST_MAX,
       apiTokensPersonalMax: c.API_TOKENS_PERSONAL_MAX,
       apiTokensServiceMax: c.API_TOKENS_SERVICE_MAX,
       apiReadRatePerMinute: c.API_READ_RATE_PER_MINUTE,

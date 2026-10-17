@@ -31,7 +31,7 @@ Class definitions and rules: [../11-data-classification.md](../11-data-classific
 | Views and navigation state | 6 | C1 | R-LIVE, R-PERSONAL | filtered, never, self | no, yes | no | incidental, no | high |
 | Search | 3 | C2 | R-DERIVED, R-PERSONAL | never, self | no, yes | no | incidental | very-high |
 | Metrics, dashboards, and reports | 7 | C2 | R-DERIVED, R-EXEC, R-LIVE, R-PLATFORM | filtered, never, self | metadata, no, yes | no | incidental | high |
-| Integrations, API, and webhooks | 16 | C4 | R-AUDIT, R-EXEC, R-LIVE, R-PERSONAL | admin, filtered, never, self | metadata, no, yes | hash-only, possible, secret-ref | incidental, no, yes | very-high |
+| Integrations, API, and webhooks | 19 | C4 | R-AUDIT, R-EXEC, R-LIVE, R-PERSONAL | admin, filtered, never, self | metadata, no, yes | hash-only, possible, secret-ref | incidental, no, yes | very-high |
 | Import and export | 6 | C2 | R-EPHEMERAL, R-EXEC, R-LIVE | admin, filtered, never | no, yes | no | incidental | very-high |
 | Test management and defects | 8 | C2 | R-DERIVED, R-EVIDENCE, R-LIVE | filtered | yes | no | incidental | very-high |
 | Development links and releases | 9 | C2 | R-EVIDENCE, R-EXEC, R-LIVE | filtered | yes | no | incidental | very-high |
@@ -208,6 +208,9 @@ Class definitions and rules: [../11-data-classification.md](../11-data-classific
 | [`report_run`](logical-model.md#entity-report-run) | insights | personal | C2 | standard (per-record) | material changes | R-EXEC | self | medium | yes | no | incidental |
 | [`connection`](logical-model.md#entity-connection) | integrations | workspace_or_brand | C2 | standard (per-record) | material changes | R-LIVE | filtered | low | yes | secret-ref | incidental |
 | [`calendar_event`](logical-model.md#entity-calendar-event) | integrations | personal | C3 | high | all changes + access | R-PERSONAL | self | high | metadata | no | yes |
+| [`calendar_source`](logical-model.md#entity-calendar-source) | integrations | personal | C2 | standard (per-record) | material changes | R-PERSONAL | self | low | no | no | yes |
+| [`calendar_series`](logical-model.md#entity-calendar-series) | integrations | personal | C3 | high | all changes + access | R-PERSONAL | self | medium | no | no | yes |
+| [`calendar_exception`](logical-model.md#entity-calendar-exception) | integrations | personal | C1 | low | configuration changes | R-PERSONAL | self | medium | no | no | incidental |
 | [`connection_mapping`](logical-model.md#entity-connection-mapping) | integrations | brand | C1 | low | configuration changes | R-LIVE | filtered | low | yes | no | incidental |
 | [`external_identity`](logical-model.md#entity-external-identity) | integrations | inherited | C1 | low | configuration changes | R-LIVE | filtered | high | yes | no | incidental |
 | [`sync_run`](logical-model.md#entity-sync-run) | integrations | workspace_or_brand | C1 | low | is evidence / append-only | R-EXEC | filtered | high | no | no | incidental |

@@ -1,3 +1,4 @@
+import { GoogleCalendarProvider, type CalendarProvider } from './integrations/calendar-provider.ts';
 import { randomBytes } from 'node:crypto';
 import { AuditSecurityEventSink, AuditWriter } from '@pm/audit';
 import type { ServerConfig } from '@pm/config';
@@ -41,7 +42,7 @@ export function createWorkService(deps: {
   platform: PlatformDatabase;
   identity: CollaborationIdentityPort;
   config: Pick<ServerConfig, 'identity' | 'lifecycle' | 'audit' | 'tenancy' | 'views'> &
-    Partial<Pick<ServerConfig, 'files' | 'env'>> & {
+    Partial<Pick<ServerConfig, 'files' | 'env' | 'calendar'>> & {
       work?: WorkSettings;
     };
   logger: Logger;
@@ -52,6 +53,8 @@ export function createWorkService(deps: {
    * closed when the key is missing.
    */
   ephemeralSigningKey?: boolean;
+  /** Overrides the configured calendar provider (tests point the real adapter at a fixture). */
+  calendarProvider?: CalendarProvider | null;
 }): McpAccessService {
   const { config } = deps;
   if (!config.identity.signingKey && !deps.ephemeralSigningKey)
@@ -80,7 +83,25 @@ export function createWorkService(deps: {
       ? createVault(config.identity)
       : null;
   if (!vault) throw new Error('Secret vault is required for integrations');
+  // 6C: the live Google Calendar adapter exists only when a deployment configures its client.
+  const calendar = config.calendar;
+  const calendarProvider =
+    deps.calendarProvider !== undefined
+      ? deps.calendarProvider
+      : calendar?.provider === 'google'
+        ? new GoogleCalendarProvider({
+            clientId: calendar.clientId,
+            clientSecret: () => calendar.clientSecret.reveal(),
+            redirectUri: calendar.redirectUri,
+            authorizeUrl: calendar.authorizeUrl,
+            tokenUrl: calendar.tokenUrl,
+            revokeUrl: calendar.revokeUrl,
+            apiBase: calendar.apiBase,
+            timeoutMs: calendar.timeoutMs,
+          })
+        : null;
   return new McpAccessService({
+    calendarProvider,
     portabilityEntitlements: {
       auditExportAllowed: async () => config.env === 'local' || config.env === 'test',
     },

@@ -420,6 +420,18 @@ export interface WorkSettings {
   integrationLoopbackEnabled: boolean;
   /** `GOOGLE_CALENDAR_LOOPBACK_ENABLED` (in-process Google Calendar double). */
   googleCalendarLoopbackEnabled: boolean;
+  /** `CALENDAR_SYNC_PAGES_MAX`: provider pages one calendar reads per sync run. */
+  calendarSyncPagesMax: number;
+  /** `CALENDAR_SYNC_PAST_DAYS`: how far back a full calendar listing reaches. */
+  calendarSyncPastDays: number;
+  /** `CALENDAR_SYNC_HORIZON_DAYS`: how far ahead recurring events are expanded. */
+  calendarSyncHorizonDays: number;
+  /** `CALENDARS_PER_CONNECTION_MAX` */
+  calendarsPerConnectionMax: number;
+  /** `CALENDAR_OCCURRENCES_MAX`: occurrences one series expands per run. */
+  calendarOccurrencesMax: number;
+  /** `CALENDAR_EVENTS_LIST_MAX`: events one calendar read returns. */
+  calendarEventsListMax: number;
   /** `API_TOKENS_PERSONAL_MAX` */
   apiTokensPersonalMax: number;
   /** `API_TOKENS_SERVICE_MAX` */
@@ -694,6 +706,12 @@ export const DEFAULT_WORK_SETTINGS: WorkSettings = Object.freeze({
   syncRatePerMinute: 30,
   integrationLoopbackEnabled: true,
   googleCalendarLoopbackEnabled: false,
+  calendarSyncPagesMax: 20,
+  calendarSyncPastDays: 30,
+  calendarSyncHorizonDays: 120,
+  calendarsPerConnectionMax: 25,
+  calendarOccurrencesMax: 400,
+  calendarEventsListMax: 500,
   apiTokensPersonalMax: 25,
   apiTokensServiceMax: 50,
   apiReadRatePerMinute: 600,

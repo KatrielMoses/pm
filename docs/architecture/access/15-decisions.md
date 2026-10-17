@@ -462,3 +462,29 @@ All decisions are **proposed (Phase 0C)**, pending solutions-architect acceptanc
 - **Decision:** A personal token's effective access is the creator's current access intersected with the token scopes and optional brand list (AT-310, AT-311). A service token is the same intersection for its accountable owner and is suspended when that owner leaves. An inbound webhook may perform only its configured capture into its configured brand, and a failed verification is indistinguishable from an unknown endpoint (AT-313). Outbound payloads are rebuilt at delivery for the subscription owner; a record they can no longer read is not sent (AT-314). No new actions. The action count stays 122.
 - **Alternatives:** A token that keeps the access it had when it was minted. A webhook that sends the owner's view of a record the owner has since lost.
 - **Consequences:** Threats T-81 to T-85 with tests AT-310 to AT-314.
+
+<a id="az-42"></a>
+### AZ-42: Google Calendar authority and privacy (Phase 6C, completed in the Phase 6 integration review)
+- **Decision:**
+  - A calendar connection follows `integrations.configure` at its placement (AZ-40); no new action is added.
+  - A connection's calendars, events, schedule conflicts, and busy time are its owner's personal data. Anyone else gets the same `not_found` as an unknown identifier (AT-317, AT-324), including administrators who can see the connection's health.
+  - Anonymous free/busy disclosure stays off (DQ-06): another viewer's capacity, Today, workload, and conflict figures never include connected-calendar time, counts, or titles (AT-324).
+  - Only the person who started a live authorization completes it, and only with a matching state. A scope declined at the provider narrows the connection and never widens it (AT-317).
+  - A provider move applies to a linked block only through the canonical planning move, with the owner's current authority re-checked when the queued sync runs (task still readable, block not locked, no focus clash). Otherwise it becomes a visible conflict. It never changes a due date or deadline (CAL-013, AT-323). Revoke, disconnect, and departure stop queued work immediately (AT-325).
+  - The action count stays 122.
+- **Alternatives:** Showing other people's busy time as anonymous blocks by default (contradicts DQ-06). Letting the provider overwrite a plan the person changed.
+- **Consequences:** Threats T-86 to T-90 with tests AT-315 to AT-344 (calendar, the browser exit journey, and the Phase 6 cross-boundary matrix AT-330 to AT-344).
+
+<a id="az-43"></a>
+### AZ-43: Webhook delivery authority (Phase 6 integration review, corrective review 01)
+- **Decision:**
+  - A delivery is authorized when it is sent, never when it is queued. The subscription's accountable owner must still hold `webhooks.manage` at the subscription's placement; if not, the subscription is suspended. The owner must also read the event's governing record through the canonical record predicate (workspace, brand and sensitive grants, restricted projects, project grants, record shares, and lifecycle), intersected with the subscription's brand.
+  - A brand subscription matches only its brand's events, and never a workspace-level event. Archive and trash events follow a tombstone contract: they are authorized against the record's placement as if it were active.
+  - Event types without a canonical source contract yet are skipped.
+  - Each management command is decided by `webhooks.manage` (test sends by `webhook.test_send`) at the subscription's own placement. That covers list, deliveries, test, rotate, pause, resume, and replay, so a brand manager manages their brand's endpoints. A hidden brand's subscription is `not_found`; a readable one without the action is `forbidden`.
+  - Replay is limited to dead-lettered deliveries and re-checks all of the above.
+  - A repeated idempotency key for a completed command never re-runs it, and its response is rendered only through the same checks, made again at the time of the repeat (corrective review 02): the token's `webhooks:manage` scope, then the subscription's visibility (`not_found` if hidden), then its management at the placement (`forbidden`). This covers create, rotate, test, pause, resume, replay, and inbound endpoints. Nothing about the resource is read before the checks pass. A delivery or subscription removed by retention or purge is `not_found`. An authorized repeat shows the current state, never a secret.
+  - The action count stays 122.
+- **Alternatives:** Brand access as delivery authority (it would send records the owner can no longer read). Workspace-only management (it left brand managers unable to stop their own endpoints).
+- **Consequences:** Tests AT-345 to AT-353 and AT-314, AT-336.
+

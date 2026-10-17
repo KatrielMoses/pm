@@ -1,6 +1,7 @@
 import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { DESTINATION_PHASE } from '@pm/contracts/shell';
+import { calendars } from '../src/integrations/calendar-client.ts';
 import { TodayPage } from '../src/pages/today-pages.tsx';
 import { planning, type TodayView } from '../src/planning/client.ts';
 import { Router } from '../src/router.tsx';
@@ -101,6 +102,7 @@ const view = (extra: Partial<TodayView> = {}): TodayView => ({
   },
   available_minutes: null,
   capacity: { available: false, reason: 'no_working_hours' },
+  meetings: { available: false, reason: 'not_connected' },
   record: null,
   can_shutdown: true,
   ...extra,
@@ -117,13 +119,26 @@ describe('Today (3C)', () => {
   it('shows the plan with honest absences, separate sections, and busy time without its task', async () => {
     vi.spyOn(planning, 'today').mockResolvedValue(view());
     vi.spyOn(planning, 'series').mockResolvedValue([]);
+    const targets = vi.spyOn(calendars, 'targets');
     wrap(<TodayPage ws="ws_A" />);
     await act(async () => undefined);
     expect(screen.getByRole('heading', { level: 1 }).textContent).toBe('Today');
     expect(screen.getByRole('link', { name: 'working hours' }).getAttribute('href')).toBe(
       '/workspaces/ws_A/capacity',
     );
-    expect(screen.getByText(/arrive with calendar sync \(6C\)/)).toBeTruthy();
+    // No calendar connected: said plainly, with the way to connect one; nothing else is fetched.
+    expect(screen.getAllByText(/No calendar connected/).length).toBeGreaterThan(0);
+    expect(screen.getByRole('link', { name: 'Connect a calendar' }).getAttribute('href')).toBe(
+      '/workspaces/ws_A/settings/integrations',
+    );
+    const meetings = screen.getByRole('region', { name: 'Meetings and events' });
+    expect(
+      within(meetings)
+        .getByRole('link', { name: 'Connect Google Calendar in Integrations' })
+        .getAttribute('href'),
+    ).toBe('/workspaces/ws_A/settings/integrations');
+    expect(targets).not.toHaveBeenCalled();
+    expect(screen.queryByRole('button', { name: /^Add to calendar/ })).toBeNull();
     const overdue = screen.getByRole('region', { name: 'Overdue' });
     expect(
       within(overdue).getByRole('button', { name: 'Add Late report to this day' }),
@@ -134,6 +149,67 @@ describe('Today (3C)', () => {
     expect(within(scheduled).getByText('Ends after the deadline')).toBeTruthy();
     expect(within(scheduled).getByText('Busy (unavailable item)')).toBeTruthy();
     expect(within(scheduled).getByText('Focus')).toBeTruthy();
+  });
+
+  it('shows meetings, busy time, and calendar links when a calendar is connected (6C)', async () => {
+    const base = view();
+    vi.spyOn(planning, 'today').mockResolvedValue(
+      view({
+        scheduled: [
+          { ...base.scheduled[0]!, calendar: { event: 'cev_1', pending: true, calendar: 'Work' } },
+          { ...base.scheduled[1]!, calendar: null },
+        ],
+        meetings: {
+          available: true,
+          busy_minutes: 90,
+          events: [
+            {
+              id: 'cev_2',
+              title: 'Standup',
+              starts_at: '2026-10-07T13:00:00Z',
+              ends_at: '2026-10-07T14:30:00Z',
+              event_tz: 'Europe/Lisbon',
+              all_day: false,
+              busy: true,
+              status: 'confirmed',
+              recurring: true,
+              moved_occurrence: true,
+              calendar: { id: 'cal_1', label: 'Work', direction: 'two_way' },
+              synchronized: false,
+              link: null,
+            },
+          ],
+        },
+      }),
+    );
+    vi.spyOn(planning, 'series').mockResolvedValue([]);
+    vi.spyOn(calendars, 'targets').mockResolvedValue([
+      { id: 'cal_1', label: 'Work', connection: 'conn_1' },
+    ]);
+    const publish = vi.spyOn(calendars, 'publish').mockResolvedValue();
+    const unlink = vi.spyOn(calendars, 'unlink').mockResolvedValue();
+    wrap(<TodayPage ws="ws_A" />);
+    await act(async () => undefined);
+    expect(screen.getByText('1 event · 1 h 30 min busy')).toBeTruthy();
+    const meetings = screen.getByRole('region', { name: 'Meetings and events' });
+    expect(within(meetings).getByText('Standup')).toBeTruthy();
+    expect(within(meetings).getByText('Recurring')).toBeTruthy();
+    expect(within(meetings).getByText('Moved occurrence')).toBeTruthy();
+    expect(within(meetings).getByText('Not synchronized')).toBeTruthy();
+    const scheduled = screen.getByRole('region', { name: 'Scheduled' });
+    expect(within(scheduled).getByText('On Work')).toBeTruthy();
+    expect(within(scheduled).getByText('Waiting to update calendar')).toBeTruthy();
+    await act(async () =>
+      fireEvent.click(within(scheduled).getByRole('button', { name: /^Unlink from calendar/ })),
+    );
+    expect(unlink).toHaveBeenCalledWith('ws_A', 'blk_1');
+    expect(scheduled.getAttribute('aria-busy')).toBe('false');
+    expect(within(scheduled).getByLabelText(/^Calendar/)).toBeTruthy();
+    await act(async () =>
+      fireEvent.click(within(scheduled).getByRole('button', { name: /^Add to calendar/ })),
+    );
+    expect(publish).toHaveBeenCalledWith('ws_A', 'blk_2', 'cal_1');
+    expect(screen.getByText(/added to Work/)).toBeTruthy();
   });
 
   it('resizes a block by keyboard in 15-minute steps without changing its start (CAL-004)', async () => {

@@ -3632,9 +3632,69 @@ Personal mirror of an external calendar event (busy time, title per privacy), re
 | Volume / export / search-AI | `high` / `self` / `metadata` |
 | Secrets / personal data | `no` / `yes` |
 | Uniqueness | `(connection_id, calendar_id, external_event_id)` |
-| Key typed columns | `starts_at/ends_at timestamptz`; `event_tz`; `all_day boolean`; `title (encrypted at rest)`; `busy boolean`; `linked_work_block_id null`; `remote_version` |
+| Key typed columns | `starts_at/ends_at timestamptz`; `event_tz`; `all_day boolean`; `title (encrypted at rest)`; `busy boolean`; `linked_work_block_id null`; `remote_version`; `source_id null`; `series_id null + occurrence_key`; `detached boolean`; `status confirmed\|tentative`; `link_block_version + link_remote_version (agreed versions)`; `push_pending boolean` |
 | Sensitive fields | — |
-| Requirements | CAL-002, CAL-006, CAL-008, PLAN-004 |
+| Requirements | CAL-002, CAL-005, CAL-006, CAL-008, CAL-012, PLAN-004 |
+
+<a id="entity-calendar-source"></a>
+### `calendar_source`
+
+A calendar listed by a person's calendar connection: whether it is synchronized, read-only or two-way, and an optional brand mapping for the person's own conflict and capacity reads (Phase 6 integration review).
+
+| Property | Value |
+|---|---|
+| Scope | `personal` |
+| Contained by | [`connection`](logical-model.md#entity-connection) |
+| Extends (1:1) | — |
+| Associations | [`brand`](logical-model.md#entity-brand) |
+| Lifecycle / concurrency | `mutable` / `row-version` |
+| Retention / confidentiality | `R-PERSONAL` / `C2` |
+| Volume / export / search-AI | `low` / `self` / `no` |
+| Secrets / personal data | `no` / `yes` |
+| Uniqueness | `(connection_id, external_calendar_id)` |
+| Key typed columns | `external_calendar_id`; `label`; `calendar_tz`; `access_role`; `selected boolean`; `direction read\|two_way`; `brand_id null` |
+| Sensitive fields | — |
+| Requirements | CAL-006, WSB-010 |
+
+<a id="entity-calendar-series"></a>
+### `calendar_series`
+
+A recurring provider event as a series anchored to its own IANA zone; occurrences are expanded with the shared recurrence engine, or from the provider's instance list when the rule is outside the engine subset.
+
+| Property | Value |
+|---|---|
+| Scope | `personal` |
+| Contained by | [`calendar_source`](logical-model.md#entity-calendar-source) |
+| Extends (1:1) | — |
+| Associations | — |
+| Lifecycle / concurrency | `mutable` / `cas` |
+| Retention / confidentiality | `R-PERSONAL` / `C3` |
+| Volume / export / search-AI | `medium` / `self` / `no` |
+| Secrets / personal data | `no` / `yes` |
+| Uniqueness | `(source_id, external_series_id)` |
+| Key typed columns | `rrule null (engine subset)`; `supported boolean`; `until_at null`; `anchor_tz`; `dtstart_local timestamp`; `all_day boolean`; `duration_minutes`; `remote_version` |
+| Sensitive fields | — |
+| Requirements | CAL-005 |
+
+<a id="entity-calendar-exception"></a>
+### `calendar_exception`
+
+A cancelled or moved occurrence of a provider series, keyed by its original local occurrence key; expansion never regenerates over it.
+
+| Property | Value |
+|---|---|
+| Scope | `personal` |
+| Contained by | [`calendar_series`](logical-model.md#entity-calendar-series) |
+| Extends (1:1) | — |
+| Associations | — |
+| Lifecycle / concurrency | `mutable` / `cas` |
+| Retention / confidentiality | `R-PERSONAL` / `C1` |
+| Volume / export / search-AI | `medium` / `self` / `no` |
+| Secrets / personal data | `no` / `incidental` |
+| Uniqueness | `(series_id, occurrence_key)` |
+| Key typed columns | `occurrence_key`; `kind cancelled\|moved` |
+| Sensitive fields | — |
+| Requirements | CAL-005 |
 
 <a id="entity-connection-mapping"></a>
 ### `connection_mapping`

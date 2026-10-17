@@ -66,13 +66,28 @@ export interface CalendarEventSecret {
   busy?: boolean;
 }
 
+/** Live provider tokens (ADR-0037 G2). Held only inside the vault. */
+export interface OAuthGrant {
+  access: string;
+  refresh: string | null;
+  /** Epoch milliseconds. */
+  expires_at: number;
+  /** Provider scope strings actually granted. */
+  scopes: string[];
+}
+
 export interface CredentialSecret {
   v: 1;
   kind: SecretKind;
+  /** API key, loopback authorization code, or the live OAuth state while pending. */
   token: string;
   mode: SecretMode;
   remote: Array<{ type: string; id: string; version: string; title: string }>;
   events?: CalendarEventSecret[];
+  /** PKCE verifier of a pending live authorization. */
+  pkce?: string;
+  /** Live provider tokens once authorized. */
+  oauth?: OAuthGrant;
 }
 
 const REMOTE_DEFAULT: CredentialSecret['remote'] = [
@@ -85,6 +100,8 @@ export function sealCredential(input: {
   mode?: SecretMode;
   remote?: CredentialSecret['remote'];
   events?: CalendarEventSecret[];
+  pkce?: string;
+  oauth?: OAuthGrant;
 }): string {
   const body: CredentialSecret = {
     v: 1,
@@ -93,6 +110,8 @@ export function sealCredential(input: {
     mode: input.mode ?? 'ok',
     remote: input.remote ?? REMOTE_DEFAULT,
     ...(input.events?.length ? { events: input.events } : {}),
+    ...(input.pkce ? { pkce: input.pkce } : {}),
+    ...(input.oauth ? { oauth: input.oauth } : {}),
   };
   return JSON.stringify(body);
 }
@@ -161,7 +180,31 @@ export function openCredential(raw: string | undefined): CredentialSecret | null
           ];
         })
       : undefined;
-    return { v: 1, kind: v.kind, token: v.token, mode, remote, events };
+    const pkce = typeof v.pkce === 'string' && v.pkce.length >= 43 ? v.pkce : undefined;
+    const o = v.oauth as Partial<OAuthGrant> | undefined;
+    const oauth =
+      o &&
+      typeof o.access === 'string' &&
+      o.access.length > 0 &&
+      typeof o.expires_at === 'number' &&
+      Array.isArray(o.scopes)
+        ? {
+            access: o.access,
+            refresh: typeof o.refresh === 'string' ? o.refresh : null,
+            expires_at: o.expires_at,
+            scopes: o.scopes.filter((x): x is string => typeof x === 'string'),
+          }
+        : undefined;
+    return {
+      v: 1,
+      kind: v.kind,
+      token: v.token,
+      mode,
+      remote,
+      events,
+      ...(pkce ? { pkce } : {}),
+      ...(oauth ? { oauth } : {}),
+    };
   } catch {
     return null;
   }
@@ -475,15 +518,16 @@ export function webhookDelayMs(attempt: number, baseMs: number, capMs: number): 
   return Math.floor(Math.random() * exp);
 }
 
+/** The public `webhook-outbound` schema (0D §9.1): workspace and brand are public ids. */
 export interface OutboundEnvelope {
   id: string;
   type: string;
   api_version: 'v1';
   created_at: string;
-  workspace: { id: string };
-  brand?: { id: string };
+  workspace: string;
+  brand?: string;
   data: {
-    object: { id: string; type: string; version: number };
+    object: { id: string; type: string; version?: number };
     fields: Record<string, string | number | boolean | null>;
     changes: string[];
   };

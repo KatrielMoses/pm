@@ -10,6 +10,7 @@ import {
   PostgresRateLimiter,
 } from '@pm/identity';
 import { LifecycleService, RetentionPolicy } from '@pm/lifecycle';
+import { toInternalEvent, type InternalEvent } from '@pm/platform';
 import {
   DEFAULT_VIEWS_SETTINGS,
   defaultNavigationTargets,
@@ -42,6 +43,7 @@ import {
   reviewDepartureHook,
   departureTimerHook,
   type WorkSettings,
+  type CalendarProvider,
 } from '@pm/work';
 import {
   mutation,
@@ -90,6 +92,8 @@ export function workEnv(
     /** 4E: defaults to local storage in a temp directory and the signature scanner. */
     files?: Partial<FileDeps>;
     deliver?: WebhookTransport;
+    /** 6C: the calendar provider adapter (the real Google adapter against the HTTP fixture). */
+    calendarProvider?: CalendarProvider | null;
   } = {},
 ): WorkEnv {
   const h = createHarness(db);
@@ -137,6 +141,7 @@ export function workEnv(
   const svc = new McpAccessService({
     vault: createVault(h.config.identity),
     deliver: options.deliver,
+    calendarProvider: options.calendarProvider ?? null,
     files,
     ...(options.searchSources ? { search: { sources: options.searchSources } } : {}),
     notify: { emailState: options.emailState ?? 'capture' },
@@ -273,4 +278,28 @@ export async function apply(env: WorkEnv, as: Caller, ws: string, change: Record
 /** A field-merge request with the version the client loaded. */
 export function merge(version: number, changes: Record<string, { base: unknown; value: unknown }>) {
   return { version, changes };
+}
+
+/** The internal id of a public id (any core record). */
+export async function internalIdOf(db: TestDatabase, publicId: string): Promise<string> {
+  const r = await db.admin(`SELECT id FROM core.record WHERE public_id = $1`, [publicId]);
+  return r.rows[0].id as string;
+}
+
+/**
+ * The internal events a real command wrote to the outbox (oldest first), optionally for one
+ * aggregate, exactly as the dispatcher hands them to consumers.
+ */
+export async function outboxEvents(
+  db: TestDatabase,
+  workspaceId: string,
+  type: string,
+  aggregateId?: string,
+): Promise<InternalEvent[]> {
+  const r = await db.admin(
+    `SELECT * FROM exec.outbox_event WHERE workspace_id = $1 AND event_type = $2
+       ${aggregateId ? 'AND aggregate_id = $3' : ''} ORDER BY recorded_at, id`,
+    aggregateId ? [workspaceId, type, aggregateId] : [workspaceId, type],
+  );
+  return r.rows.map((row) => toInternalEvent(row as never));
 }

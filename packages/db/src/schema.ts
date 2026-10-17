@@ -2794,14 +2794,84 @@ export interface CalendarEventTable {
   version: Defaulted<number>;
   created_at: DTs;
   updated_at: DTs;
+  source_id: string | null;
+  series_id: string | null;
+  occurrence_key: string | null;
+  detached: Defaulted<boolean>;
+  status: Defaulted<'confirmed' | 'tentative'>;
+  link_block_version: number | null;
+  link_remote_version: string | null;
+  push_pending: Defaulted<boolean>;
+}
+
+// Phase 6 integration review (ADR-0037): connected calendars, provider series and exceptions.
+export interface CalendarSourceTable {
+  id: string;
+  public_id: string;
+  workspace_id: string;
+  connection_id: string;
+  owner_membership_id: string;
+  external_calendar_id: string;
+  label: string;
+  calendar_tz: string;
+  access_role: 'owner' | 'writer' | 'reader' | 'free_busy';
+  is_primary: Defaulted<boolean>;
+  selected: Defaulted<boolean>;
+  direction: Defaulted<'read' | 'two_way'>;
+  brand_id: string | null;
+  state: Defaulted<'active' | 'removed'>;
+  last_synced_at: Ts | null;
+  version: Defaulted<number>;
+  created_at: DTs;
+  updated_at: DTs;
+}
+
+export interface CalendarSeriesTable {
+  id: string;
+  workspace_id: string;
+  connection_id: string;
+  source_id: string;
+  owner_membership_id: string;
+  external_series_id: string;
+  title: string;
+  rrule: string | null;
+  supported: boolean;
+  until_at: Ts | null;
+  anchor_tz: string;
+  dtstart_local: string;
+  all_day: Defaulted<boolean>;
+  duration_minutes: number;
+  busy: Defaulted<boolean>;
+  remote_version: string;
+  expanded_from: Ts | null;
+  expanded_through: Ts | null;
+  version: Defaulted<number>;
+  created_at: DTs;
+  updated_at: DTs;
+}
+
+export interface CalendarExceptionTable {
+  workspace_id: string;
+  series_id: string;
+  occurrence_key: string;
+  kind: 'cancelled' | 'moved';
+  created_at: DTs;
 }
 
 // Phase 6B: API tokens, outbound webhooks, and inbound endpoints (ADR-0032).
 export type ApiTokenKind = 'personal' | 'service';
 export type ApiTokenState = 'active' | 'revoked' | 'suspended';
-export type WebhookSubscriptionState = 'active' | 'disabled_endpoint' | 'suspended';
+export type WebhookSubscriptionState = 'active' | 'paused' | 'disabled_endpoint' | 'suspended';
 export type WebhookDeliveryState =
-  'pending' | 'delivered' | 'retry_scheduled' | 'failed' | 'unknown' | 'disabled_endpoint';
+  | 'pending'
+  | 'delivered'
+  | 'retry_scheduled'
+  | 'failed'
+  | 'unknown'
+  | 'disabled_endpoint'
+  | 'skipped';
+export type WebhookObjectKind =
+  'record' | 'comment' | 'review_request' | 'synthetic' | 'unsupported';
 export interface ApiTokenTable {
   id: string;
   workspace_id: string;
@@ -2847,6 +2917,9 @@ export interface WebhookSubscriptionTable {
   updated_at: DTs;
   updated_by_membership_id: string | null;
   version: Defaulted<number>;
+  paused_at: Timestamp | null;
+  paused_by_membership_id: string | null;
+  stopped_at: Timestamp | null;
 }
 export interface WebhookDeliveryTable {
   id: string;
@@ -2866,6 +2939,14 @@ export interface WebhookDeliveryTable {
   claimed_until: Timestamp | null;
   created_at: DTs;
   updated_at: DTs;
+  event_created_at: DTs;
+  object_kind: Defaulted<WebhookObjectKind>;
+  object_id: string | null;
+  source_record_id: string | null;
+  cycle: Defaulted<number>;
+  total_attempts: Defaulted<number>;
+  replayed_at: Timestamp | null;
+  replayed_by_membership_id: string | null;
 }
 export interface InboundEndpointTable {
   id: string;
@@ -3247,6 +3328,9 @@ export interface Database {
   'integrations.sync_conflict': SyncConflictTable;
   'integrations.connection_mapping': ConnectionMappingTable;
   'integrations.calendar_event': CalendarEventTable;
+  'integrations.calendar_source': CalendarSourceTable;
+  'integrations.calendar_series': CalendarSeriesTable;
+  'integrations.calendar_exception': CalendarExceptionTable;
   'integrations.api_token': ApiTokenTable;
   'integrations.webhook_subscription': WebhookSubscriptionTable;
   'integrations.webhook_delivery': WebhookDeliveryTable;
@@ -5018,6 +5102,64 @@ export const TABLE_COLUMNS: Readonly<Record<keyof Database, readonly string[]>> 
     'version',
     'created_at',
     'updated_at',
+    'source_id',
+    'series_id',
+    'occurrence_key',
+    'detached',
+    'status',
+    'link_block_version',
+    'link_remote_version',
+    'push_pending',
+  ],
+  'integrations.calendar_source': [
+    'id',
+    'public_id',
+    'workspace_id',
+    'connection_id',
+    'owner_membership_id',
+    'external_calendar_id',
+    'label',
+    'calendar_tz',
+    'access_role',
+    'is_primary',
+    'selected',
+    'direction',
+    'brand_id',
+    'state',
+    'last_synced_at',
+    'version',
+    'created_at',
+    'updated_at',
+  ],
+  'integrations.calendar_series': [
+    'id',
+    'workspace_id',
+    'connection_id',
+    'source_id',
+    'owner_membership_id',
+    'external_series_id',
+    'title',
+    'rrule',
+    'supported',
+    'until_at',
+    'anchor_tz',
+    'dtstart_local',
+    'all_day',
+    'duration_minutes',
+    'busy',
+    'remote_version',
+    'expanded_from',
+    'expanded_through',
+    'version',
+    'created_at',
+    'updated_at',
+  ],
+  'integrations.calendar_exception': [
+    'workspace_id',
+    'series_id',
+    'occurrence_key',
+    'kind',
+    'created_at',
   ],
   'integrations.api_token': [
     'id',
@@ -5064,6 +5206,9 @@ export const TABLE_COLUMNS: Readonly<Record<keyof Database, readonly string[]>> 
     'updated_at',
     'updated_by_membership_id',
     'version',
+    'paused_at',
+    'paused_by_membership_id',
+    'stopped_at',
   ],
   'integrations.webhook_delivery': [
     'id',
@@ -5083,6 +5228,14 @@ export const TABLE_COLUMNS: Readonly<Record<keyof Database, readonly string[]>> 
     'claimed_until',
     'created_at',
     'updated_at',
+    'event_created_at',
+    'object_kind',
+    'object_id',
+    'source_record_id',
+    'cycle',
+    'total_attempts',
+    'replayed_at',
+    'replayed_by_membership_id',
   ],
   'integrations.inbound_endpoint': [
     'id',

@@ -1364,6 +1364,8 @@ export class PortabilityService extends CalendarService {
       throw new TenancyError('validation_failed');
     const jobId = String(jobValue ?? '');
     const snapshot = await this.inWorkspace(caller, ws, {}, async (tx, p) => {
+      // A malformed identifier is as unknown as any other (never a database type error).
+      if (!/^[0-9a-f-]{36}$/i.test(jobId)) throw new TenancyError('not_found');
       const job = await tx.db
         .selectFrom('transfer.import_job')
         .selectAll()

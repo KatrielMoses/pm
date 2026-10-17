@@ -44,7 +44,7 @@ const toClock = (m: number) =>
 const iso = (d: Date | string | null) => (d ? new Date(d).toISOString() : null);
 
 /** Whose capacity a read is about, and what the viewer may see of it. */
-interface Subject {
+export interface Subject {
   membershipId: string;
   publicId: string;
   name: string;
@@ -1168,6 +1168,10 @@ export class CapacityService extends LayoutService {
         ? allDayInterval(o.starts_on!, o.ends_on!, o.source_tz)
         : { start: new Date(o.starts_at!), end: new Date(o.ends_at!) },
     );
+    // Busy connected-calendar time is unavailable time (CAL-010, TIME-010) for the person only.
+    if (who.self)
+      for (const e of await this.externalBusy(tx, who, start, end))
+        intervals.push({ start: e.start, end: e.end });
     // OD-19: a brand holiday removes the person's day only if they observe brand holidays and
     // hold a reservation in that brand during it — and only for brands this viewer can read.
     const holidays = new Set<string>();
@@ -1244,6 +1248,20 @@ export class CapacityService extends LayoutService {
         brand: b.readable ? b.brand_id : null,
         focus: b.focus,
       }));
+  }
+
+  /**
+   * Busy connected-calendar time of the person in [start, end) (6C: CAL-008, CAL-010). The base
+   * has none; the calendar layer supplies the person's own selected calendars. Never called for
+   * another viewer's subject.
+   */
+  protected async externalBusy(
+    _tx: WorkspaceTransaction,
+    _who: Subject,
+    _start: Date,
+    _end: Date,
+  ): Promise<Array<{ id: string; start: Date; end: Date; brand: string | null }>> {
+    return [];
   }
 
   /**
@@ -1363,6 +1381,14 @@ export class CapacityService extends LayoutService {
     const start = dayBounds(from, who.tz).start;
     const end = dayBounds(to, who.tz).end;
     const blocks = await this.blocksOf(tx, p, who, start, end, brands);
+    // Connected-calendar events only ever count for the person themself (DQ-06: anonymous
+    // free/busy disclosure is off by default); a brand mapping counts only where readable.
+    const events = who.self
+      ? (await this.externalBusy(tx, who, start, end)).map((e) => ({
+          ...e,
+          brand: e.brand && brands.includes(e.brand) ? e.brand : null,
+        }))
+      : [];
     const estimates = await this.estimatesOf(tx, p, who, from, to);
     const reservations = await this.reservationsOf(tx, who, from, to, brands);
     const brandNames = new Map(
@@ -1439,11 +1465,14 @@ export class CapacityService extends LayoutService {
       .sort((a, b) => a.brand.name.localeCompare(b.brand.name));
     // Conflicts (CAL-009, WSB-018): overlapping blocks of different brands; and a brand whose
     // reservation cannot fit because other brands already use the remaining available time.
-    const overlaps = crossBrandOverlaps(
-      blocks
+    const overlaps = crossBrandOverlaps([
+      ...blocks
         .filter((b) => b.brand)
         .map((b) => ({ id: b.id, brand: b.brand, start: b.core.start, end: b.core.end })),
-    ).map((o) => ({
+      ...events
+        .filter((e) => e.brand)
+        .map((e) => ({ id: e.id, brand: e.brand, start: e.start, end: e.end })),
+    ]).map((o) => ({
       kind: 'overlap' as const,
       at: o.b.start.toISOString(),
       minutes: o.minutes,
@@ -1485,7 +1514,7 @@ export class CapacityService extends LayoutService {
         ...allocation(totalAvailable, planned),
       },
       brands: brandsOut,
-      conflicts: [...overlaps, ...unmet],
+      conflicts: [...overlaps, ...unmet, ...calendarOverlaps(events, blocks)],
       // Only the person sees their own unbranded busy time as a separate figure.
       ...(who.self
         ? {
@@ -1677,4 +1706,35 @@ export class CapacityService extends LayoutService {
       return { ...grid, people, capacity: 'per_person' as const };
     });
   }
+}
+
+/**
+ * Calendar conflicts (CAL-008): a busy connected-calendar event overlapping one of the person's
+ * own work blocks. A warning only; nothing moves.
+ */
+function calendarOverlaps(
+  events: Array<{ id: string; start: Date; end: Date }>,
+  blocks: Array<{ id: string; core: { start: Date; end: Date } }>,
+) {
+  const out: Array<{
+    kind: 'calendar_overlap';
+    at: string;
+    minutes: number;
+    event: string;
+    block: string;
+  }> = [];
+  for (const e of events)
+    for (const b of blocks) {
+      const s = e.start > b.core.start ? e.start : b.core.start;
+      const t = e.end < b.core.end ? e.end : b.core.end;
+      if (t <= s) continue;
+      out.push({
+        kind: 'calendar_overlap',
+        at: s.toISOString(),
+        minutes: Math.round((t.getTime() - s.getTime()) / 60_000),
+        event: e.id,
+        block: b.id,
+      });
+    }
+  return out;
 }

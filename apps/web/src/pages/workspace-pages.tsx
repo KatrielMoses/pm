@@ -1287,8 +1287,9 @@ function CalendarSection({
     <section aria-labelledby="calendar-h" className="card">
       <h2 id="calendar-h">Calendar</h2>
       <p className="hint">
-        How this brand's calendar views start. Connected calendars, holidays, and time off arrive in
-        later releases.
+        How this brand's calendar views start. Holidays and time off are managed in{' '}
+        <Link to={`/workspaces/${ws}/capacity`}>Capacity</Link>; each person connects their own
+        calendar in <Link to={`/workspaces/${ws}/settings/integrations`}>Integrations</Link>.
       </p>
       <form onSubmit={submit} noValidate>
         <fieldset className="plain" disabled={!editable}>

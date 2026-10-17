@@ -1,0 +1,171 @@
+{
+  "schema_version": 1,
+  "phase": "6",
+  "status": "candidate",
+  "adr": "0037",
+  "members": {
+    "6A": "docs/engineering/phase6/closure-6a.json",
+    "6B": "docs/engineering/phase6/closure-6b.json",
+    "6C": "docs/engineering/phase6/closure-6c.json",
+    "6D": "docs/engineering/phase6/closure-6d.json",
+    "6E": "docs/engineering/phase6/closure-6e.json"
+  },
+  "boundaries": [
+    {
+      "id": "DATA-010",
+      "owner": "6D",
+      "decision": "OD-33",
+      "statement": "Named vendor import adapters remain incremental after launch under OD-33; generic CSV is the launch import path."
+    },
+    {
+      "id": "DATA-013",
+      "owner": "6D",
+      "deferred_to": [
+        "7A",
+        "8A",
+        "8B"
+      ],
+      "statement": "AI, agent, and automation history exports belong to their owning modules."
+    },
+    {
+      "id": "AUD-009",
+      "owner": "6D",
+      "deferred_to": [
+        "10A"
+      ],
+      "statement": "Commercial audit-export entitlement supply remains 10A; production defaults to denied."
+    },
+    {
+      "id": "CAP-006",
+      "owner": "2E",
+      "decision": "OD-29",
+      "statement": "Email capture is unresolved under OD-29; 6A lists email_inbound as not configured and creates no address, inbound mail, or sender verification."
+    }
+  ],
+  "corrections": [
+    "6C: closure claims that rested on reserved fields, ADR prose, or placeholder text now cite running behavior and tests (closure-6c corrections).",
+    "6A: closure normalized to the standard schema with evidence and contributions; INT-010 (6B) and INT-026 (6C) closed once by their owners.",
+    "Identifiers: duplicate pl-42 (6B) renumbered to PL-43; ADR-42/AZ-42 written for 6C; AT-315/AT-316 registered.",
+    "Policies: 0047 and 0050 tenant policies moved to exec.current_workspace_id() with WITH CHECK in migration 0051.",
+    "Web: the API tokens page read the wrong envelope level and failed on load; fixed with webhook settings added.",
+    "MCP provenance: 0049 widened audit and capture source kinds but not core.record, so every MCP-created record failed; 0051 adds `mcp` with a rollback that relabels to `api`.",
+    "6A HTTP: sync and conflict-resolve routes wrapped resource data in a non-resource envelope (500); fixed with an HTTP regression test.",
+    "6B: brand-scoped webhook subscriptions were visible to administrators without the brand; duplicate internal events created duplicate deliveries; overlapping sweeps re-sent deliveries. Fixed under AT-331/AT-336.",
+    "6E: listing clients failed for members (ambiguous column) and pm.tasks.complete always failed; 6D: a malformed job id raised a raw database error; connection purge failed for calendar connections.",
+    "Corrective review 01 (webhooks): delivery authorized at send through the canonical record predicate as the accountable owner (not brand access), exact brand matching, explicit tombstone contract, schema-correct envelope with the original event time, replay as a guarded transition for dead letters only, a user pause/resume with an honest in-flight boundary, per-placement management for brand managers, and subscription writes moved out of the send transaction (a deadlock under overlapping workers). Migration 0052."
+  ],
+  "evidence": [
+    {
+      "file": "packages/db/migrations/0051_calendar_completion.up.sql",
+      "contains": "CREATE TABLE integrations.calendar_source"
+    },
+    {
+      "file": "packages/db/migrations/0051_calendar_completion.down.sql",
+      "contains": "Restores the exact 0050 catalog"
+    },
+    {
+      "file": "packages/db/test/integration/migrations.test.ts",
+      "contains": "every accepted boundary (0009–0052)"
+    },
+    {
+      "file": "packages/work/src/integrations/calendar-provider.ts",
+      "contains": "export class GoogleCalendarProvider implements CalendarProvider"
+    },
+    {
+      "file": "packages/work/src/integrations/calendar-sync.ts",
+      "contains": "async function reconcileLink("
+    },
+    {
+      "file": "packages/work/src/planning/today-service.ts",
+      "contains": "protected async applyBlockMove("
+    },
+    {
+      "file": "packages/work/src/capacity/capacity-service.ts",
+      "contains": "protected async externalBusy("
+    },
+    {
+      "file": "packages/test-support/src/google-calendar-fixture.ts",
+      "contains": "export async function startGoogleCalendarFixture("
+    },
+    {
+      "file": "packages/work/test/integration/calendar-live.test.ts",
+      "contains": "AT-323 moves linked blocks both ways without loops or date changes"
+    },
+    {
+      "file": "packages/work/test/integration/calendar-live.test.ts",
+      "contains": "AT-324 feeds Today, calendar reads and capacity for the owner only"
+    },
+    {
+      "file": "apps/api/src/work/calendar-routes.ts",
+      "contains": "/v1/integrations/oauth/google_calendar/callback"
+    },
+    {
+      "file": "docs/engineering/adr/0037-phase-6-integration.md",
+      "contains": "## Identifier reconciliation"
+    },
+    {
+      "file": "e2e/phase6-exit-journey.spec.ts",
+      "contains": "AT-328 Phase 6 exit journey"
+    },
+    {
+      "file": "e2e/phase6-exit-journey.spec.ts",
+      "contains": "AT-329 provider outage is shown as degraded and recovers"
+    },
+    {
+      "file": "packages/work/test/integration/phase6-matrix.test.ts",
+      "contains": "AT-331 hidden, foreign, and unknown identifiers fail identically on every Phase 6 surface"
+    },
+    {
+      "file": "packages/work/test/integration/phase6-matrix.test.ts",
+      "contains": "AT-335 departure and revocation stop every token, consent, webhook, connection, and queued sync"
+    },
+    {
+      "file": "apps/api/test/integration/integrations-api.test.ts",
+      "contains": "completes a live Google Calendar authorization through the callback"
+    },
+    {
+      "file": "apps/web/src/pages/api-pages.tsx",
+      "contains": "body.data"
+    },
+    {
+      "file": "packages/db/migrations/0052_webhook_delivery_controls.down.sql",
+      "contains": "Restores the exact 0051 catalog"
+    },
+    {
+      "file": "packages/work/src/integrations/webhook-sources.ts",
+      "contains": "export const WEBHOOK_TOMBSTONES"
+    },
+    {
+      "file": "packages/work/test/integration/webhook-delivery.test.ts",
+      "contains": "AT-345 re-authorizes at send through the canonical record"
+    },
+    {
+      "file": "packages/work/test/integration/webhook-delivery.test.ts",
+      "contains": "AT-349 replays only dead-lettered deliveries"
+    },
+    {
+      "file": "packages/work/test/integration/webhook-delivery.test.ts",
+      "contains": "AT-350 pauses at once without recalling a send in flight"
+    },
+    {
+      "file": "packages/work/src/integrations/public-api-service.ts",
+      "contains": "async #renderDelivery("
+    },
+    {
+      "file": "packages/work/test/integration/webhook-delivery.test.ts",
+      "contains": "AT-351 re-renders completed Retry, Pause, and Resume keys"
+    },
+    {
+      "file": "packages/work/test/integration/webhook-delivery.test.ts",
+      "contains": "AT-352 re-renders completed create, rotate, test-send, and inbound keys"
+    },
+    {
+      "file": "apps/api/test/integration/integrations-api.test.ts",
+      "contains": "AT-353 refuses an HTTP idempotent replay of a completed pause"
+    },
+    {
+      "file": "e2e/phase6-exit-journey.spec.ts",
+      "contains": "cannot resume it until a test event is delivered"
+    }
+  ]
+}

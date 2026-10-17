@@ -38,7 +38,11 @@ import {
   type CredentialSecret,
   type ProviderId,
 } from './semantics.ts';
-import { deleteCalendarEventsForConnection, upsertCalendarEvents } from './calendar-sync.ts';
+import {
+  deleteCalendarEventsForConnection,
+  ProviderFailure,
+  upsertCalendarEvents,
+} from './calendar-sync.ts';
 import {
   parseComplete,
   parseConnect,
@@ -98,7 +102,8 @@ function integrationExec(
   };
 }
 
-interface Loaded {
+/** A connection as the service chain sees it (never the credential itself). */
+export interface Loaded {
   id: string;
   publicId: string;
   version: number;
@@ -214,12 +219,21 @@ export class IntegrationService extends ReportService {
         await this.#room(tx, place.scopeKey);
         const id = newUuidV7();
         const publicId = newPublicId('conn');
-        const code = input.authKind === 'oauth' ? randomBytes(24).toString('base64url') : null;
-        const token = input.apiKey ?? code;
+        const live =
+          input.authKind === 'oauth'
+            ? this.oauthStart(input.provider, input.scopes, {
+                workspace: String(ws),
+                connection: publicId,
+              })
+            : null;
+        const code =
+          input.authKind === 'oauth' && !live ? randomBytes(24).toString('base64url') : null;
+        const token = input.apiKey ?? live?.state ?? code;
         if (!token) throw invalid(issue('/api_key', 'required', 'An API key is required.'));
         const secret = sealCredential({
           kind: input.authKind === 'oauth' ? 'oauth_pending' : 'api_key',
           token,
+          ...(live ? { pkce: live.verifier, remote: [] } : {}),
           ...(input.mode ? { mode: input.mode } : {}),
           ...(input.remoteVersion
             ? {
@@ -233,7 +247,9 @@ export class IntegrationService extends ReportService {
                 ],
               }
             : {}),
-          ...(input.provider === 'google_calendar' ? { events: DEFAULT_CALENDAR_EVENTS } : {}),
+          ...(input.provider === 'google_calendar' && !live && input.authKind === 'api_key'
+            ? { events: DEFAULT_CALENDAR_EVENTS }
+            : {}),
         });
         const ref = await this.#vault.put('integration_credential', secret, { scope: tx });
         const health = this.#healthFor(
@@ -307,7 +323,11 @@ export class IntegrationService extends ReportService {
         return {
           status: 201,
           ref: { id: publicId, type: 'connection' },
-          data: code ? { ...data, authorization_code: code } : data,
+          data: live
+            ? { ...data, authorization_url: live.url }
+            : code
+              ? { ...data, authorization_code: code }
+              : data,
         };
       },
       async (tx, p, ref) => this.#view(await this.#visible(tx, p, ref.id)),
@@ -326,14 +346,37 @@ export class IntegrationService extends ReportService {
         const row = await this.#locked(tx, p, id);
         this.#require(p, 'integrations.configure', row.facts);
         const secret = await this.#readSecret(tx, row);
-        if (
-          !secret ||
-          secret.kind !== 'oauth_pending' ||
-          !connectionTokenMatches(secret.token, input.code)
-        )
+        if (!secret || secret.kind !== 'oauth_pending')
           throw invalid(issue('/code', 'invalid', 'The authorization code is not usable.'));
-        await this.#replaceSecret(tx, row, { ...secret, kind: 'oauth' });
+        if (secret.pkce) {
+          // A live provider: only the person who started the authorization completes it, and the
+          // state must match before the code is exchanged (CSRF, mix-up).
+          if (p.membershipId !== row.ownerId) throw new TenancyError('not_found');
+          if (!input.state || !connectionTokenMatches(secret.token, input.state))
+            throw invalid(
+              issue('/state', 'invalid', 'This authorization is not for this connection.'),
+            );
+          const granted = await this.oauthExchange(row, secret, input.code);
+          await this.#replaceSecret(tx, row, granted.secret);
+          // A scope the person declined at the provider narrows the connection; it never widens.
+          const scopes = row.scopes.filter((s) => granted.scopes.includes(s));
+          if (!scopes.length) {
+            await this.#setHealth(tx, row, 'needs_reauthorization', 'insufficient_scope');
+            throw invalid(
+              issue('/scopes', 'insufficient_scope', 'Calendar access was not granted.'),
+            );
+          }
+          await tx.db
+            .updateTable('integrations.connection')
+            .set({ granted_scopes: scopes })
+            .where('id', '=', row.id)
+            .execute();
+          row.scopes = scopes;
+        } else if (!connectionTokenMatches(secret.token, input.code))
+          throw invalid(issue('/code', 'invalid', 'The authorization code is not usable.'));
+        else await this.#replaceSecret(tx, row, { ...secret, kind: 'oauth' });
         await this.#setHealth(tx, row, 'connected', null);
+        await this.afterAuthorized(tx, row);
         await this.workAudit(
           tx,
           caller,
@@ -432,13 +475,23 @@ export class IntegrationService extends ReportService {
           throw invalid(
             issue('/scopes', 'insufficient_scope', 'Ask only for scopes this provider offers.'),
           );
-        const token = input.apiKey ?? randomBytes(24).toString('base64url');
+        const live =
+          input.authKind === 'oauth'
+            ? this.oauthStart(row.provider, input.scopes, {
+                workspace: String(ws),
+                connection: row.publicId,
+              })
+            : null;
+        const token = input.apiKey ?? live?.state ?? randomBytes(24).toString('base64url');
+        const prior = await this.#readSecret(tx, row);
+        await this.revokeAtProvider(row, prior);
         await this.#destroyRef(tx, row.secretRef);
         const ref = await this.#vault.put(
           'integration_credential',
           sealCredential({
             kind: input.authKind === 'oauth' ? 'oauth_pending' : 'api_key',
             token,
+            ...(live ? { pkce: live.verifier, remote: [] } : {}),
             ...(input.mode ? { mode: input.mode } : {}),
             ...(input.remoteVersion
               ? {
@@ -505,7 +558,11 @@ export class IntegrationService extends ReportService {
         return {
           status: 200,
           ref: { id: row.publicId, type: 'connection' },
-          data: input.authKind === 'oauth' ? { ...data, authorization_code: token } : data,
+          data: live
+            ? { ...data, authorization_url: live.url }
+            : input.authKind === 'oauth'
+              ? { ...data, authorization_code: token }
+              : data,
         };
       },
       async (tx, p, ref) => this.#view(await this.#visible(tx, p, ref.id)),
@@ -523,6 +580,7 @@ export class IntegrationService extends ReportService {
         this.#member(p);
         const row = await this.#locked(tx, p, id);
         this.#require(p, 'integrations.configure', row.facts);
+        await this.revokeAtProvider(row, await this.#readSecret(tx, row));
         await this.#destroyRef(tx, row.secretRef);
         await tx.db
           .updateTable('integrations.connection')
@@ -540,6 +598,7 @@ export class IntegrationService extends ReportService {
           .where('id', '=', row.id)
           .execute();
         if (input.retention === 'remove') await this.#removeSynced(tx, row.id);
+        else await this.afterDisconnectRetained(tx, row);
         await this.workAudit(
           tx,
           caller,
@@ -674,6 +733,7 @@ export class IntegrationService extends ReportService {
             'id',
             'public_id',
             'external_identity_id',
+            'field_key',
             'local_version',
             'remote_version',
             'state',
@@ -683,20 +743,22 @@ export class IntegrationService extends ReportService {
           .where('public_id', '=', String(conflict))
           .executeTakeFirst();
         if (!found || found.state !== 'open') throw new TenancyError('not_found');
+        const handled = await this.resolveFieldConflict(tx, p, row, found, input.resolution);
         const nextLocal =
           input.resolution === 'kept_remote' ? found.remote_version : found.local_version;
         const nextBase = input.resolution === 'dismissed' ? found.local_version : nextLocal;
-        await tx.db
-          .updateTable('integrations.external_identity')
-          .set({
-            local_version: nextLocal,
-            base_version: nextBase,
-            remote_version:
-              input.resolution === 'kept_local' ? found.local_version : found.remote_version,
-            updated_at: new Date(),
-          })
-          .where('id', '=', found.external_identity_id)
-          .execute();
+        if (!handled)
+          await tx.db
+            .updateTable('integrations.external_identity')
+            .set({
+              local_version: nextLocal,
+              base_version: nextBase,
+              remote_version:
+                input.resolution === 'kept_local' ? found.local_version : found.remote_version,
+              updated_at: new Date(),
+            })
+            .where('id', '=', found.external_identity_id)
+            .execute();
         await tx.db
           .updateTable('integrations.sync_conflict')
           .set({
@@ -874,6 +936,214 @@ export class IntegrationService extends ReportService {
 
   protected configured(id: ProviderId): boolean {
     return id === 'loopback' && this.ws.integrationLoopbackEnabled;
+  }
+
+  // Provider hooks (ADR-0037 G1). The framework owns authority, credentials, deliveries, retries,
+  // and history; a provider extension supplies only its protocol. Defaults are the 6A behavior.
+
+  /** Whether a connection talks to a live provider or to the in-process test double. */
+  protected connectionMode(
+    row: Pick<Loaded, 'provider' | 'authKind'>,
+  ): 'live' | 'test_double' | null {
+    return row.provider === 'loopback' ? 'test_double' : null;
+  }
+
+  /** Starts a live OAuth authorization; null keeps the 6A loopback code flow. */
+  protected oauthStart(
+    _provider: ProviderId,
+    _scopes: string[],
+    _ctx: { workspace: string; connection: string },
+  ): { state: string; verifier: string; url: string } | null {
+    return null;
+  }
+
+  /** Exchanges a live authorization code (state already verified). */
+  protected oauthExchange(
+    _row: Loaded,
+    _secret: CredentialSecret,
+    _code: string,
+  ): Promise<{ secret: CredentialSecret; scopes: string[] }> {
+    return Promise.reject(new TenancyError('conflict'));
+  }
+
+  /** Runs after a connection is (re)authorized, inside the same transaction. */
+  protected async afterAuthorized(_tx: WorkspaceTransaction, _row: Loaded): Promise<void> {}
+
+  /** Runs after a disconnect that keeps synchronized data. */
+  protected async afterDisconnectRetained(_tx: WorkspaceTransaction, _row: Loaded): Promise<void> {}
+
+  /** Best-effort provider-side revocation before the credential is destroyed. */
+  protected async revokeAtProvider(_row: Loaded, _secret: CredentialSecret | null): Promise<void> {}
+
+  /** Provider data for one inbound sync, after authority, scope, and health checks passed. */
+  protected async syncProviderData(
+    tx: WorkspaceTransaction,
+    row: Loaded,
+    secret: CredentialSecret,
+    canWrite: boolean,
+  ): Promise<{ reads: number; writes: number; conflicts: number; partial?: boolean }> {
+    if (row.provider === 'google_calendar' && secret.events?.length) {
+      const cal = await upsertCalendarEvents(tx, {
+        connectionId: row.id,
+        ownerMembershipId: row.ownerId,
+        events: secret.events,
+        canWrite,
+      });
+      return { ...cal, conflicts: 0 };
+    }
+    return { reads: 0, writes: 0, conflicts: 0 };
+  }
+
+  /** Resolves a provider-specific conflict field; false leaves the generic identity resolution. */
+  protected async resolveFieldConflict(
+    _tx: WorkspaceTransaction,
+    _p: Principal,
+    _row: Loaded,
+    _conflict: { id: string; field_key: string; external_identity_id: string },
+    _resolution: 'kept_local' | 'kept_remote' | 'dismissed',
+  ): Promise<boolean> {
+    return false;
+  }
+
+  protected readConnectionSecret(tx: WorkspaceTransaction, row: Loaded) {
+    return this.#readSecret(tx, row);
+  }
+
+  /** Replaces the credential (for example after a token refresh); `row.secretRef` follows. */
+  protected async storeConnectionSecret(
+    tx: WorkspaceTransaction,
+    row: Loaded,
+    secret: CredentialSecret,
+  ): Promise<void> {
+    await this.#replaceSecret(tx, row, secret);
+  }
+
+  /** Marks a connection as needing reauthorization (provider refused its grant). */
+  protected async markNeedsReauthorization(
+    tx: WorkspaceTransaction,
+    row: Loaded,
+    error: string,
+  ): Promise<void> {
+    await this.#setHealth(tx, row, 'needs_reauthorization', error);
+  }
+
+  /** Records a provider-specific conflict against an external identity (one open per field). */
+  protected async recordConflict(
+    tx: WorkspaceTransaction,
+    row: Loaded,
+    input: { type: string; externalId: string; field: string; local: string; remote: string },
+  ): Promise<'created' | 'open'> {
+    let ident = await tx.db
+      .selectFrom('integrations.external_identity')
+      .select(['id'])
+      .where('connection_id', '=', row.id)
+      .where('external_type', '=', input.type)
+      .where('external_id', '=', input.externalId)
+      .executeTakeFirst();
+    if (!ident) {
+      const id = newUuidV7();
+      await tx.db
+        .insertInto('integrations.external_identity')
+        .values({
+          id,
+          public_id: newPublicId('ext'),
+          workspace_id: tx.workspaceId,
+          connection_id: row.id,
+          external_type: input.type,
+          external_id: input.externalId,
+          label: input.type,
+          remote_version: input.remote.slice(0, 80),
+          local_version: input.local.slice(0, 80),
+          base_version: input.local.slice(0, 80),
+          last_synced_at: new Date(),
+        })
+        .execute();
+      ident = { id };
+    }
+    const open = await tx.db
+      .selectFrom('integrations.sync_conflict')
+      .select('id')
+      .where('external_identity_id', '=', ident.id)
+      .where('field_key', '=', input.field)
+      .where('state', '=', 'open')
+      .executeTakeFirst();
+    if (open) return 'open';
+    await tx.db
+      .insertInto('integrations.sync_conflict')
+      .values({
+        id: newUuidV7(),
+        public_id: newPublicId('cnf'),
+        workspace_id: tx.workspaceId,
+        connection_id: row.id,
+        external_identity_id: ident.id,
+        field_key: input.field,
+        local_version: input.local.slice(0, 80),
+        remote_version: input.remote.slice(0, 80),
+      })
+      .execute();
+    await this.#integrationEvent(tx, row, 'integrations.conflict.detected', { field: input.field });
+    return 'created';
+  }
+
+  /** An audit entry written as the connection (delegated from its owner), never as a person. */
+  protected async integrationAuditAs(
+    tx: WorkspaceTransaction,
+    row: Loaded,
+    action: string,
+    changes: ReturnType<typeof change.plain>[],
+    target?: { recordId: string; type: string; publicId: string | null },
+    brandId?: string | null,
+  ): Promise<void> {
+    const ctx = integrationExec(tx.workspaceId, row.id, row.ownerId);
+    await this.workWriter.write(
+      tx,
+      CommandContext.fromExecution(
+        ctx,
+        { kind: 'integration', ref: row.publicId },
+        { brandId: brandId === undefined ? row.brandId : brandId },
+      ),
+      { action, target: target ?? this.#target(row), changes },
+    );
+  }
+
+  /** The execution context of work done by a connection on its owner's behalf. */
+  protected integrationContext(tx: WorkspaceTransaction, row: Loaded): ExecutionContext {
+    return integrationExec(tx.workspaceId, row.id, row.ownerId);
+  }
+
+  /** Re-checks that the connection's owner still holds sync authority (queued work, AZ-40). */
+  protected ownerStillAuthorized(tx: WorkspaceTransaction, row: Loaded): Promise<boolean> {
+    return this.#ownerStillAuthorized(tx, row);
+  }
+
+  /** Loads a connection by its public identifier for a principal who can see it. */
+  protected visibleConnection(
+    tx: WorkspaceTransaction,
+    p: Principal,
+    id: unknown,
+  ): Promise<Loaded> {
+    return this.#visible(tx, p, id);
+  }
+
+  /** Same, locked for update. */
+  protected lockedConnection(tx: WorkspaceTransaction, p: Principal, id: unknown): Promise<Loaded> {
+    return this.#locked(tx, p, id);
+  }
+
+  /** Queues (or reuses) a sync delivery so the worker sweep picks it up. */
+  protected async queueSync(tx: WorkspaceTransaction, row: Loaded, dedupe: string): Promise<void> {
+    const key = dedupe.slice(0, 200);
+    await tx.db
+      .insertInto('integrations.sync_delivery')
+      .values({
+        id: newUuidV7(),
+        workspace_id: tx.workspaceId,
+        connection_id: row.id,
+        dedupe_key: key.length >= 8 ? key : `sync-${key}`,
+        payload_hash: payloadHash([row.id, key]),
+      })
+      .onConflict((oc) => oc.columns(['workspace_id', 'connection_id', 'dedupe_key']).doNothing())
+      .execute();
   }
 
   #healthFor(kind: string, mode: string): ConnectionHealth {
@@ -1089,6 +1359,7 @@ export class IntegrationService extends ReportService {
       outbound_paused: row.outboundPaused,
       retention_choice: row.retention,
       provider_configured: this.configured(row.provider),
+      provider_mode: this.connectionMode(row),
     };
   }
 
@@ -1150,6 +1421,9 @@ export class IntegrationService extends ReportService {
       })
       .where('id', '=', row.id)
       .execute();
+    // The loaded row follows, so a later read or replacement in this transaction uses the new one.
+    row.secretRef = ref;
+    row.keyVersion += 1;
   }
 
   async #setHealth(
@@ -1239,6 +1513,22 @@ export class IntegrationService extends ReportService {
         conflict_count: conflicts,
         finished_at: new Date(),
       })
+      // A retried delivery is one run whose attempt count grows; its latest outcome is current.
+      .onConflict((oc) =>
+        oc
+          .columns(['workspace_id', 'connection_id', 'idempotency_key'])
+          .where('idempotency_key', 'is not', null)
+          .doUpdateSet((eb) => ({
+            state: eb.ref('excluded.state'),
+            attempt: sql<number>`integrations.sync_run.attempt + 1`,
+            failure_class: eb.ref('excluded.failure_class'),
+            error_code: eb.ref('excluded.error_code'),
+            read_count: eb.ref('excluded.read_count'),
+            write_count: eb.ref('excluded.write_count'),
+            conflict_count: eb.ref('excluded.conflict_count'),
+            finished_at: eb.ref('excluded.finished_at'),
+          })),
+      )
       .execute();
   }
 
@@ -1443,15 +1733,16 @@ export class IntegrationService extends ReportService {
       if (outcome === 'write') writes += 1;
       if (outcome === 'conflict') conflicts += 1;
     }
-    if (row.provider === 'google_calendar' && secret.events?.length) {
-      const cal = await upsertCalendarEvents(tx, {
-        connectionId: row.id,
-        ownerMembershipId: row.ownerId,
-        events: secret.events,
-        canWrite,
-      });
-      reads += cal.reads;
-      writes += cal.writes;
+    let partial: boolean;
+    try {
+      const data = await this.syncProviderData(tx, row, secret, canWrite);
+      reads += data.reads;
+      writes += data.writes;
+      conflicts += data.conflicts;
+      partial = data.partial === true;
+    } catch (err) {
+      if (!(err instanceof ProviderFailure)) throw err;
+      return this.#providerFailed(tx, row, delivery, err);
     }
     await this.#advanceCheckpoint(
       tx,
@@ -1477,7 +1768,7 @@ export class IntegrationService extends ReportService {
       tx,
       row,
       'inbound',
-      conflicts ? 'partial' : 'succeeded',
+      conflicts || partial ? 'partial' : 'succeeded',
       degraded ? 'provider_degraded' : null,
       reads,
       writes,
@@ -1485,12 +1776,75 @@ export class IntegrationService extends ReportService {
       delivery.dedupe_key,
     );
     await this.#integrationEvent(tx, row, 'integrations.sync.completed', {
-      outcome: conflicts ? 'partial' : 'succeeded',
+      outcome: conflicts || partial ? 'partial' : 'succeeded',
       conflicts,
     });
     if (!fromJob && health !== row.health)
       await this.#integrationEvent(tx, row, 'integrations.connection.health_changed', { health });
     return 'applied';
+  }
+
+  /**
+   * A provider failure during sync: refused grants need reauthorization (dead, never retried);
+   * outages and rate limits retry with bounded backoff and show as degraded; permanent refusals
+   * dead-letter. Each attempt is recorded truthfully; nothing is reported as synchronized.
+   */
+  async #providerFailed(
+    tx: WorkspaceTransaction,
+    row: Loaded,
+    delivery: { id: string; dedupe_key: string; attempts: number },
+    err: ProviderFailure,
+  ): Promise<'dead' | 'retry'> {
+    const attempts = delivery.attempts + 1;
+    if (err.kind === 'reauthorize') {
+      await this.#setHealth(tx, row, 'needs_reauthorization', 'needs_reauthorization');
+      await this.#finishDelivery(
+        tx,
+        delivery,
+        'dead',
+        'permanent',
+        'needs_reauthorization',
+        attempts,
+      );
+      await this.#runRow(
+        tx,
+        row,
+        'inbound',
+        'failed',
+        'needs_reauthorization',
+        0,
+        0,
+        0,
+        delivery.dedupe_key,
+      );
+      await this.#failed(tx, row, 'needs_reauthorization');
+      return 'dead';
+    }
+    const retryable = err.kind === 'transient';
+    const dead = !retryable || attempts >= this.ws.syncMaxAttempts;
+    await this.#setHealth(tx, row, dead && !retryable ? 'error' : 'degraded', err.code);
+    await this.#finishDelivery(
+      tx,
+      delivery,
+      dead ? 'dead' : 'retry_scheduled',
+      retryable ? 'transient' : 'permanent',
+      err.code,
+      attempts,
+      err.retryAfterSeconds,
+    );
+    await this.#runRow(
+      tx,
+      row,
+      'inbound',
+      dead ? 'dead' : 'failed',
+      err.code,
+      0,
+      0,
+      0,
+      delivery.dedupe_key,
+    );
+    if (dead) await this.#failed(tx, row, err.code);
+    return dead ? 'dead' : 'retry';
   }
 
   async #upsertIdentity(
@@ -1630,10 +1984,17 @@ export class IntegrationService extends ReportService {
     failure: 'transient' | 'permanent' | 'unconfigured' | null,
     error: string | null,
     attempts = delivery.attempts,
+    retryAfterSeconds: number | null = null,
   ): Promise<void> {
     const next =
       state === 'retry_scheduled'
-        ? new Date(Date.now() + syncBackoffMs(attempts, this.ws.syncBackoffSeconds))
+        ? new Date(
+            Date.now() +
+              Math.max(
+                syncBackoffMs(attempts, this.ws.syncBackoffSeconds),
+                (retryAfterSeconds ?? 0) * 1000,
+              ),
+          )
         : new Date();
     await tx.db
       .updateTable('integrations.sync_delivery')
