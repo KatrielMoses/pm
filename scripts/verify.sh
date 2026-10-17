@@ -29,6 +29,19 @@ case "$SHARD" in
 esac
 # gate_in <shard>...: true when the running shard includes the gate ("all" includes everything).
 gate_in() { local s; [ "$SHARD" = "all" ] && return 0; for s in "$@"; do [ "$s" = "$SHARD" ] && return 0; done; return 1; }
+# The Playwright projects defined in playwright.config.ts (scripts/test/verify-shards.test.mjs keeps
+# this list equal to the config). An e2e shard runs its one project; a full local run names every
+# real project; there is no aggregate project.
+E2E_PROJECTS="desktop tablet mobile"
+e2e_args() {
+  local p
+  case "$1" in
+    e2e-*) printf -- '--project=%s\n' "${1#e2e-}" ;;
+    all) for p in $E2E_PROJECTS; do printf -- '--project=%s\n' "$p"; done ;;
+  esac
+}
+# PM_VERIFY_PRINT_E2E=1: print the browser-gate arguments for this shard and stop (tooling test).
+if [ "${PM_VERIFY_PRINT_E2E:-}" = "1" ]; then e2e_args "$SHARD"; exit 0; fi
 
 if [ "${PM_DEV_ALLOW_EMBEDDED_PG:-}" = "1" ]; then
   export PM_TEST_PG=embedded
@@ -46,7 +59,7 @@ install_log=$(mktemp)
 pnpm install --frozen-lockfile 2>&1 | tee "$install_log"
 if grep -qi "cyclic workspace dependencies" "$install_log"; then die "pnpm reported cyclic workspace dependencies"; fi
 if gate_in core; then
-  step "2. Phase 0 integration validator, Phase 1-5 closure checks with the Phase 5 aggregate, Phase 6A-6E closure checks with the Phase 6 aggregate, and the Phase 7A closure check"
+  step "2. Phase 0 integration validator, Phase 1-5 closure checks with the Phase 5 aggregate, Phase 6A-6E closure checks with the Phase 6 aggregate, and the Phase 7A and 7B closure checks"
   python3 docs/architecture/tools/phase0.py
   python3 docs/engineering/tools/phase1.py
   python3 docs/engineering/tools/phase2.py
@@ -72,6 +85,7 @@ if gate_in core; then
   python3 docs/engineering/tools/phase6e.py
   python3 docs/engineering/tools/phase6.py
   python3 docs/engineering/tools/phase7a.py
+  python3 docs/engineering/tools/phase7b.py
   step "3. formatting and lint (incl. SQL safety and the complete workspace graph)"
   pnpm format:check
   pnpm lint
@@ -92,12 +106,13 @@ if gate_in core; then
   step "8. API/worker process smoke against the built artifact"
   PM_SMOKE_DIST=1 pnpm vitest run --project integration apps/worker
 fi
-if gate_in e2e-desktop e2e-tablet e2e-mobile; then
-  step "9. browser smoke (Playwright, built artifact, project ${SHARD#e2e-})"
-  PM_SMOKE_DIST=1 pnpm test:e2e --project="${SHARD#e2e-}"
-elif [ "$SHARD" = "all" ]; then
-  step "9. browser smoke (Playwright, built artifact)"
-  PM_SMOKE_DIST=1 pnpm test:e2e
+E2E_ARGS="$(e2e_args "$SHARD")"
+if [ -n "$E2E_ARGS" ]; then
+  # Project names contain no spaces, so word splitting yields one argument per line.
+  # shellcheck disable=SC2086
+  step "9. browser smoke (Playwright, built artifact, $(echo $E2E_ARGS))"
+  # shellcheck disable=SC2086
+  PM_SMOKE_DIST=1 pnpm test:e2e $E2E_ARGS
 fi
 if gate_in core; then
   step "10. dependency, license, and secret scanning"
