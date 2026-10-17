@@ -1191,144 +1191,158 @@ export class TaskService extends TaskCoreService {
           throw new TenancyError('cursor_invalid');
         }
       }
-      let q = tx.db
-        .selectFrom('audit.audit_event')
-        .select(['id', 'occurred_at', 'action', 'actor_type', 'actor_id', 'changes', 'source_kind'])
-        .where('target_record_id', '=', t.id);
-      if (before)
-        q = q.where(
-          sql<boolean>`(occurred_at, id) < (${before.at}::timestamptz, ${before.id}::uuid)`,
-        );
-      const rows = await q
-        .orderBy('occurred_at', 'desc')
-        .orderBy('id', 'desc')
-        .limit(limit + 1)
-        .execute();
-      const page = rows.slice(0, limit);
-      // Re-authorize every referenced record and person before showing a value (no hidden clue).
-      const refs = new Set<string>();
-      const isRef = (v: unknown): v is string =>
-        typeof v === 'string' && /^[a-z]{2,5}_[0-9A-HJKMNP-TV-Z]{26}\*?$/.test(v);
-      for (const e of page)
-        for (const c of e.changes as StoredChange[])
-          for (const v of [c.old, c.new])
-            if (typeof v === 'string')
-              for (const part of v.split(',')) if (isRef(part)) refs.add(part.replace(/\*$/, ''));
-      const vis = await this.taskVisibility(tx, p, true);
-      const recordRefs = [...refs].filter((r) => !r.startsWith('mem_'));
-      const readable = recordRefs.length
-        ? new Set(
+      return this.taskHistoryPage(tx, p, t, limit, before);
+    });
+  }
+
+  /**
+   * One page of a task's permission-filtered history for a reader who holds ownership-derived
+   * access (callers check `ownLevel`). Shared by the history API and 7B activity sources.
+   */
+  protected async taskHistoryPage(
+    tx: WorkspaceTransaction,
+    p: Principal,
+    t: LoadedTask,
+    limit: number,
+    before: { at: string; id: string } | null,
+  ) {
+    let q = tx.db
+      .selectFrom('audit.audit_event')
+      .select(['id', 'occurred_at', 'action', 'actor_type', 'actor_id', 'changes', 'source_kind'])
+      .where('target_record_id', '=', t.id);
+    if (before)
+      q = q.where(
+        sql<boolean>`(occurred_at, id) < (${before.at}::timestamptz, ${before.id}::uuid)`,
+      );
+    const rows = await q
+      .orderBy('occurred_at', 'desc')
+      .orderBy('id', 'desc')
+      .limit(limit + 1)
+      .execute();
+    const page = rows.slice(0, limit);
+    // Re-authorize every referenced record and person before showing a value (no hidden clue).
+    const refs = new Set<string>();
+    const isRef = (v: unknown): v is string =>
+      typeof v === 'string' && /^[a-z]{2,5}_[0-9A-HJKMNP-TV-Z]{26}\*?$/.test(v);
+    for (const e of page)
+      for (const c of e.changes as StoredChange[])
+        for (const v of [c.old, c.new])
+          if (typeof v === 'string')
+            for (const part of v.split(',')) if (isRef(part)) refs.add(part.replace(/\*$/, ''));
+    const vis = await this.taskVisibility(tx, p, true);
+    const recordRefs = [...refs].filter((r) => !r.startsWith('mem_'));
+    const readable = recordRefs.length
+      ? new Set(
+          (
+            await tx.db
+              .selectFrom('core.record as r')
+              .select('r.public_id')
+              .where('r.public_id', 'in', recordRefs)
+              .where(vis.where('r'))
+              .execute()
+          ).map((r) => r.public_id),
+        )
+      : new Set<string>();
+    const memberRefs = [...refs].filter((r) => r.startsWith('mem_'));
+    const people =
+      memberRefs.length && p.kind === 'member'
+        ? new Map(
             (
-              await tx.db
-                .selectFrom('core.record as r')
-                .select('r.public_id')
-                .where('r.public_id', 'in', recordRefs)
-                .where(vis.where('r'))
-                .execute()
-            ).map((r) => r.public_id),
-          )
-        : new Set<string>();
-      const memberRefs = [...refs].filter((r) => r.startsWith('mem_'));
-      const people =
-        memberRefs.length && p.kind === 'member'
-          ? new Map(
-              (
-                await tx.db
-                  .selectFrom('tenancy.membership as m')
-                  .innerJoin('identity.account as a', 'a.id', 'm.account_id')
-                  .select(['m.public_id', 'm.display_name_override', 'a.display_name'])
-                  .where('m.public_id', 'in', memberRefs)
-                  .execute()
-              ).map((m) => [m.public_id, m.display_name_override ?? m.display_name]),
-            )
-          : new Map<string, string>();
-      const actors = new Map(
-        p.kind === 'member'
-          ? (
               await tx.db
                 .selectFrom('tenancy.membership as m')
                 .innerJoin('identity.account as a', 'a.id', 'm.account_id')
-                .select(['m.id', 'm.display_name_override', 'a.display_name'])
-                .where('m.id', 'in', [
-                  ...new Set(page.map((e) => e.actor_id).filter((x): x is string => !!x)),
-                  '00000000-0000-7000-8000-000000000000',
-                ])
+                .select(['m.public_id', 'm.display_name_override', 'a.display_name'])
+                .where('m.public_id', 'in', memberRefs)
                 .execute()
-            ).map((m) => [m.id, m.display_name_override ?? m.display_name])
-          : [],
-      );
-      const show = (v: unknown): { ok: boolean; value: unknown } => {
-        if (typeof v !== 'string') return { ok: true, value: v };
-        const parts = v.split(',');
-        if (!parts.some((x) => isRef(x))) return { ok: true, value: v };
-        const out: string[] = [];
-        for (const part of parts) {
-          const id = part.replace(/\*$/, '');
-          if (id.startsWith('mem_')) {
-            const name = people.get(id);
-            if (name) out.push(part.endsWith('*') ? `${name} (primary)` : name);
-          } else if (readable.has(id) || COLLAB_REF.test(id)) out.push(id);
-          else return { ok: false, value: null };
-        }
-        return { ok: true, value: out.join(', ') || null };
-      };
-      // Custom field changes are shown only for fields this reader can read now; the resolution
-      // always runs, and an entry with nothing left to show is omitted (W20, AZ-23).
-      const fieldAccess = await fieldsForRecord(
-        tx,
-        p,
-        { id: t.id, kind: 'task', brandId: t.brand.id, projectId: t.row.project_id },
-        t.level,
-      );
-      const readableFields = new Set(
-        fieldAccess.filter((f) => f.readable).map((f) => `fields.${f.def.public_id.toLowerCase()}`),
-      );
-      const visibleChange = (c: StoredChange) =>
-        !c.field.startsWith('fields.') || readableFields.has(c.field);
-      const shown = page.filter((e) => {
-        const cs = e.changes as StoredChange[];
-        return !cs.length || cs.some(visibleChange);
-      });
-      const last = page.at(-1);
-      return {
-        data: shown.map((e) => ({
-          // An opaque stable key (internal identifiers never leave the API).
-          key: createHash('sha256').update(e.id).digest('base64url').slice(0, 22),
-          at: new Date(e.occurred_at).toISOString(),
-          action: e.action,
-          actor: { type: e.actor_type, name: e.actor_id ? (actors.get(e.actor_id) ?? null) : null },
-          source: e.source_kind,
-          changes: (e.changes as StoredChange[])
-            .filter(visibleChange)
-            .flatMap(
-              (c): Array<{ field: string; changed?: true; before?: unknown; after?: unknown }> => {
-                // Content-class and personal values are never shown; redacted entries stay redacted.
-                if (c.class !== 'plain' || c.redacted)
-                  return [{ field: c.field, changed: true as const }];
-                const o = show(c.old);
-                const n = show(c.new);
-                // A change naming a record the reader cannot read is omitted entirely (OD-05).
-                if (!o.ok || !n.ok) return [];
-                return [{ field: c.field, before: o.value, after: n.value }];
-              },
-            ),
-        })),
-        page: {
-          has_more: rows.length > limit,
-          ...(rows.length > limit && last
-            ? {
-                next_cursor: Buffer.from(
-                  JSON.stringify({
-                    t: t.publicId,
-                    a: new Date(last.occurred_at).toISOString(),
-                    i: last.id,
-                  }),
-                ).toString('base64url'),
-              }
-            : {}),
-        },
-      };
+            ).map((m) => [m.public_id, m.display_name_override ?? m.display_name]),
+          )
+        : new Map<string, string>();
+    const actors = new Map(
+      p.kind === 'member'
+        ? (
+            await tx.db
+              .selectFrom('tenancy.membership as m')
+              .innerJoin('identity.account as a', 'a.id', 'm.account_id')
+              .select(['m.id', 'm.display_name_override', 'a.display_name'])
+              .where('m.id', 'in', [
+                ...new Set(page.map((e) => e.actor_id).filter((x): x is string => !!x)),
+                '00000000-0000-7000-8000-000000000000',
+              ])
+              .execute()
+          ).map((m) => [m.id, m.display_name_override ?? m.display_name])
+        : [],
+    );
+    const show = (v: unknown): { ok: boolean; value: unknown } => {
+      if (typeof v !== 'string') return { ok: true, value: v };
+      const parts = v.split(',');
+      if (!parts.some((x) => isRef(x))) return { ok: true, value: v };
+      const out: string[] = [];
+      for (const part of parts) {
+        const id = part.replace(/\*$/, '');
+        if (id.startsWith('mem_')) {
+          const name = people.get(id);
+          if (name) out.push(part.endsWith('*') ? `${name} (primary)` : name);
+        } else if (readable.has(id) || COLLAB_REF.test(id)) out.push(id);
+        else return { ok: false, value: null };
+      }
+      return { ok: true, value: out.join(', ') || null };
+    };
+    // Custom field changes are shown only for fields this reader can read now; the resolution
+    // always runs, and an entry with nothing left to show is omitted (W20, AZ-23).
+    const fieldAccess = await fieldsForRecord(
+      tx,
+      p,
+      { id: t.id, kind: 'task', brandId: t.brand.id, projectId: t.row.project_id },
+      t.level,
+    );
+    const readableFields = new Set(
+      fieldAccess.filter((f) => f.readable).map((f) => `fields.${f.def.public_id.toLowerCase()}`),
+    );
+    const visibleChange = (c: StoredChange) =>
+      !c.field.startsWith('fields.') || readableFields.has(c.field);
+    const shown = page.filter((e) => {
+      const cs = e.changes as StoredChange[];
+      return !cs.length || cs.some(visibleChange);
     });
+    const last = page.at(-1);
+    return {
+      data: shown.map((e) => ({
+        // An opaque stable key (internal identifiers never leave the API).
+        key: createHash('sha256').update(e.id).digest('base64url').slice(0, 22),
+        at: new Date(e.occurred_at).toISOString(),
+        action: e.action,
+        actor: { type: e.actor_type, name: e.actor_id ? (actors.get(e.actor_id) ?? null) : null },
+        source: e.source_kind,
+        changes: (e.changes as StoredChange[])
+          .filter(visibleChange)
+          .flatMap(
+            (c): Array<{ field: string; changed?: true; before?: unknown; after?: unknown }> => {
+              // Content-class and personal values are never shown; redacted entries stay redacted.
+              if (c.class !== 'plain' || c.redacted)
+                return [{ field: c.field, changed: true as const }];
+              const o = show(c.old);
+              const n = show(c.new);
+              // A change naming a record the reader cannot read is omitted entirely (OD-05).
+              if (!o.ok || !n.ok) return [];
+              return [{ field: c.field, before: o.value, after: n.value }];
+            },
+          ),
+      })),
+      page: {
+        has_more: rows.length > limit,
+        ...(rows.length > limit && last
+          ? {
+              next_cursor: Buffer.from(
+                JSON.stringify({
+                  t: t.publicId,
+                  a: new Date(last.occurred_at).toISOString(),
+                  i: last.id,
+                }),
+              ).toString('base64url'),
+            }
+          : {}),
+      },
+    };
   }
 
   // ---------------------------------------------------------------------------------------------
