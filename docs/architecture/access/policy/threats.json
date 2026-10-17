@@ -7110,6 +7110,104 @@
         "audit_display",
         "error_message"
       ]
+    },
+    {
+      "id": "AT-345",
+      "threats": [
+        "T-84",
+        "T-90"
+      ],
+      "principal": "system_job",
+      "setup": "Restricted record readable when queued, revoked before send while brand access remains; owner loses manage",
+      "scope": "webhook delivery",
+      "action": "webhook.test_send",
+      "surface": "webhook_payload",
+      "expected": "deny",
+      "response_shape": "omitted",
+      "silent_surfaces": [
+        "webhook_payload",
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-346",
+      "threats": [
+        "T-84",
+        "T-82"
+      ],
+      "principal": "system_job",
+      "setup": "Brand subscription versus workspace-level and other-brand events; workspace subscription",
+      "scope": "webhook delivery",
+      "action": "webhooks.manage",
+      "surface": "webhook_payload",
+      "expected": "deny",
+      "response_shape": "omitted",
+      "silent_surfaces": [
+        "webhook_payload"
+      ]
+    },
+    {
+      "id": "AT-347",
+      "threats": [
+        "T-84"
+      ],
+      "principal": "system_job",
+      "setup": "Trashed record, tombstone event, archived brand and subscription",
+      "scope": "webhook delivery",
+      "action": "webhooks.manage",
+      "surface": "webhook_payload",
+      "expected": "deny",
+      "response_shape": "omitted",
+      "silent_surfaces": [
+        "webhook_payload"
+      ]
+    },
+    {
+      "id": "AT-348",
+      "threats": [
+        "T-84",
+        "T-73"
+      ],
+      "principal": "system_job",
+      "setup": "Public envelope built at send; signature; retries keep event id and time; synthetic test",
+      "scope": "webhook delivery",
+      "action": "webhook.test_send",
+      "surface": "webhook_payload",
+      "expected": "allow",
+      "response_shape": "ok",
+      "silent_surfaces": []
+    },
+    {
+      "id": "AT-349",
+      "threats": [
+        "T-85",
+        "T-90"
+      ],
+      "principal": "administrator",
+      "setup": "Replay of non-terminal, concurrent, same-key, racing, and unauthorized requests",
+      "scope": "webhook delivery",
+      "action": "webhooks.manage",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "conflict_filtered",
+      "silent_surfaces": [
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-350",
+      "threats": [
+        "T-85",
+        "T-90"
+      ],
+      "principal": "member",
+      "setup": "Pause with queued, retrying, and in-flight deliveries; resume without and with a delivered test",
+      "scope": "webhook subscription",
+      "action": "webhooks.manage",
+      "surface": "api",
+      "expected": "allow",
+      "response_shape": "ok",
+      "silent_surfaces": []
     }
   ]
 }

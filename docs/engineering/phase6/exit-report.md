@@ -22,6 +22,21 @@ file would go stale with every corrective commit.
 | Migrations walked through every accepted boundary 0009–0051. Each step matches the one-shot catalog, reverses to the prior boundary's exact catalog, and re-applies. 0045–0050 are unchanged. | `packages/db/test/integration/migrations.test.ts` |
 | Requirement closure per subphase plus the Phase 6 aggregate. Each owned requirement is closed exactly once by its owner (derived from the catalog). Deferrals have valid owners. Recorded boundaries are kept. The 6C corrections hold. Identifiers have one owner each. All Phase 0–6E validators pass. Runs in verify gate 2. | `docs/engineering/phase6/closure-6*.json`, `docs/engineering/tools/phase6.py` |
 
+## Corrective review 01: the webhook delivery boundary
+
+The architect's code review found that outbound delivery checked brand access rather than the record. It also found that replay accepted any state and reset the only attempt counter, and that an owner had no way to stop an endpoint. All three are corrected (ADR-0037 W1–W6; 0B ADR-43, 0C AZ-43, 0D PL-45; migration 0052):
+
+- **Authorized at send.** The accountable owner must still manage webhooks at the subscription's placement. If not, the subscription is suspended. The owner must also read the governing record through the canonical predicate, intersected with the subscription's brand. Brand matching is exact; a workspace-level event never reaches a brand subscription. Archive and trash events use an explicit tombstone contract. Event types without a canonical source contract are recorded as skipped. Facts are allow-listed again at send.
+- **Envelope.** It follows the public `webhook-outbound` schema: public workspace and brand ids, the actual domain object, and the event's original time across retries. Test events are synthetic.
+- **Replay.** Only dead letters (`failed`, `disabled_endpoint`) can be replayed, serialized with the worker. Each replay is a new cycle; lifetime attempts and the last outcome are kept, and the replay is audited.
+- **Pause and resume.** Pause is an ordinary, version-checked command in the API and the settings page. It takes effect at commit and waits for at most one request already in flight, which cannot be recalled. Resume needs a test delivered after the stop and replays nothing.
+- **Found while fixing.**
+  - Overlapping workers deadlocked when both updated the subscription's failure counter under a shared lock. Counters now change after the send commits.
+  - Brand managers could create a brand endpoint but not test, rotate, list, or stop it. Management is now decided at the endpoint's own placement.
+  - The earlier AT-314 and AT-336 fixtures invented task ids that pointed at no record. They now use real tasks and their real outbox events.
+
+Evidence: `packages/work/test/integration/webhook-delivery.test.ts` (AT-345–AT-350), the rebuilt AT-314 and AT-336, the API page component test, and the pause step of the browser journey on all three widths.
+
 ## Requirement closure
 
 Totals are derived from `docs/product/requirements/catalog.json` by `phase6.py`, not hard-coded: 56 owned
@@ -95,9 +110,10 @@ belong to other owners; one person is a member of two workspaces.
 
 ## Residual risks and limitations
 
-- Calendar event titles are stored as plain text inside workspace RLS. The 0B model's "encrypted at rest" target needs a secret store or KMS, which is not approved (DQ-28).
+- **Unresolved production-security prerequisite (DQ-28):** connected-calendar event titles are stored as plain text, protected only by workspace row-level security. The 0B model's "encrypted at rest" target needs an approved secret store or KMS; none is approved, and this review does not authorize one. This is **not** delivered encryption. Phase 6 is not production-ready for live calendars until DQ-28 is decided and implemented. The same development vault holds integration credentials (`SECRET_VAULT=dev-database` is refused in deployed environments).
 - Sync runs call the provider inside the workspace transaction, bounded by `GOOGLE_CALENDAR_TIMEOUT_MS` and `CALENDAR_SYNC_PAGES_MAX`. A slow provider lengthens that transaction, up to those bounds.
 - Recurring rules outside the shared engine's subset (ordinal BYDAY, BYSETPOS, RDATE, and similar) depend on the provider's instance expansion inside the sync horizon.
 - All-day events use the calendar's own zone for day bounds.
-- Webhook subscriptions still have no delete or disable command (6B scope as accepted). Replay does not check a delivery's state.
+- Webhook subscriptions can be paused and resumed but not hard-deleted (a deliberate choice; history is evidence). Events that occur while an endpoint is paused are not queued and are never sent.
+- A webhook request already handed to the network when a pause commits cannot be recalled; the pause waits for it, and its outcome is recorded.
 - Live Google credential testing and screen-reader acceptance remain manual, as recorded above.

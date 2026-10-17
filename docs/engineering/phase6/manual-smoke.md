@@ -9,6 +9,11 @@ Google account, real devices, real assistive technology, and judgment.
 Use a local or preview build with synthetic data only. Never connect a calendar that holds real
 customer or personal events you are not willing to show in a test workspace.
 
+**Production readiness gate (not met):** DQ-28 is unresolved. Calendar event titles and
+integration credentials have no approved secret store or KMS. Do not connect a production Google
+client or real customer calendars until DQ-28 is decided and implemented. This checklist does not
+cover that gate, and passing it does not establish production readiness.
+
 ## 1. Live Google Calendar (needs credentials the automated gates never use)
 
 Configure a Google Cloud OAuth client (type "Web application") for a test Google account, with the
@@ -48,8 +53,16 @@ Keep the endpoint defaults. Leave `GOOGLE_CALENDAR_LOOPBACK_ENABLED` unset.
 
 - [ ] Create a personal API token. It is shown once. Revoke it; a request with it is refused.
 - [ ] Add a webhook endpoint you control (for example a request bin on HTTPS). Send a test event.
-      The signature header verifies with the shown secret. Rotate the secret; the next delivery
-      carries both signatures until the old one expires. Replay a failed delivery.
+      The signature header verifies with the shown secret, and the body names the real object
+      (`data.object`) with the event's own time. Rotate the secret; the next delivery carries both
+      signatures until the old one expires.
+- [ ] Make the endpoint fail until a delivery is marked Failed, then use Retry: it is sent again
+      once with the same Webhook-Id. Delivered and Not sent rows offer no Retry.
+- [ ] Pause the endpoint from the settings page. Create an event: nothing arrives. Resume is refused
+      until you send a test event that is delivered; then resume, and new events arrive (the paused
+      period is not replayed).
+- [ ] As the endpoint's owner, lose access to one restricted project but keep the brand. An event
+      about a task in that project is shown as Not sent, with the reason, and never arrives.
 - [ ] Register an MCP client, grant one scope, generate an access token, and call a read tool from
       an MCP-capable client. Revoke your consent; the next call is refused.
 - [ ] Export a CSV and open it in a spreadsheet. A cell starting with `=` stays text. Import a small

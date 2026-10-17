@@ -6,13 +6,16 @@ import { sql, type TenantDatabase, type WorkspaceTransaction } from '@pm/db';
 import type { AuthContext } from '@pm/identity';
 import { writeOutboxEvent, type InternalEvent } from '@pm/platform';
 import {
+  brandFacts,
   brandLevel,
+  compileVisibility,
   decideBrand,
   decideWorkspace,
   findBrand,
   invalid,
   issue,
   loadPrincipal,
+  parseIfMatch,
   TenancyError,
   type BrandFacts,
   type Caller,
@@ -21,6 +24,7 @@ import {
   type TokenDelegation,
 } from '@pm/tenancy';
 import { IntegrationService } from './service.ts';
+import { WEBHOOK_TOMBSTONES, webhookSource } from './webhook-sources.ts';
 import {
   assertPublicHttps,
   hashEqual,
@@ -393,7 +397,16 @@ export class PublicApiService extends IntegrationService {
 
   async listSubscriptions(caller: Caller, ws: unknown) {
     return this.inWorkspace(caller, ws, { readOnly: true }, async (tx, p) => {
-      this.#canList(caller, p);
+      this.#delegated(caller);
+      // Someone who manages webhooks nowhere is refused, as before; a brand manager lists only
+      // the subscriptions they manage.
+      if (
+        !decideWorkspace(p, 'webhooks.manage').allowed &&
+        !(await brandFacts(tx)).some(
+          (b) => b.lifecycleState === 'active' && decideBrand(p, 'webhooks.manage', b).allowed,
+        )
+      )
+        throw new TenancyError('forbidden');
       const rows = await tx.db
         .selectFrom('integrations.webhook_subscription as s')
         .innerJoin('core.record as r', 'r.id', 's.id')
@@ -407,6 +420,9 @@ export class PublicApiService extends IntegrationService {
           's.consecutive_failures',
           's.api_version',
           's.brand_id',
+          's.paused_at',
+          's.stopped_at',
+          's.suspended_reason',
           'b.is_sensitive',
           'b.lifecycle_state as brand_state',
         ])
@@ -416,7 +432,7 @@ export class PublicApiService extends IntegrationService {
         .execute();
       return {
         subscriptions: rows
-          .filter((r) => subscriptionVisible(p, r))
+          .filter((r) => subscriptionVisible(p, r) && managesSubscription(p, r))
           .map((r) => ({
             id: r.public_id,
             type: 'webhook_subscription' as const,
@@ -426,6 +442,9 @@ export class PublicApiService extends IntegrationService {
             state: r.state,
             api_version: r.api_version,
             consecutive_failures: r.consecutive_failures,
+            paused_at: r.paused_at ? new Date(r.paused_at).toISOString() : null,
+            stopped_at: r.stopped_at ? new Date(r.stopped_at).toISOString() : null,
+            suspended_reason: r.suspended_reason,
           })),
       };
     });
@@ -438,7 +457,7 @@ export class PublicApiService extends IntegrationService {
       ws,
       req,
       async (tx, p) => {
-        this.#canList(caller, p);
+        this.#delegated(caller);
         const row = await this.#subscription(tx, p, id);
         const secret = newApiSecret().secret;
         const ref = await this.#putSecret(tx, 'webhook_sign', secret);
@@ -471,7 +490,7 @@ export class PublicApiService extends IntegrationService {
 
   async listDeliveries(caller: Caller, ws: unknown, id: string) {
     return this.inWorkspace(caller, ws, { readOnly: true }, async (tx, p) => {
-      this.#canList(caller, p);
+      this.#delegated(caller);
       const sub = await this.#subscription(tx, p, id);
       const rows = await tx.db
         .selectFrom('integrations.webhook_delivery')
@@ -481,10 +500,14 @@ export class PublicApiService extends IntegrationService {
           'event_type',
           'state',
           'attempt',
+          'cycle',
+          'total_attempts',
           'response_status',
           'duration_ms',
           'next_attempt_at',
           'created_at',
+          'event_created_at',
+          'replayed_at',
           'detail',
         ])
         .where('subscription_id', '=', sub.id)
@@ -499,16 +522,27 @@ export class PublicApiService extends IntegrationService {
           event_type: r.event_type,
           state: r.state,
           attempt: r.attempt,
+          cycle: r.cycle,
+          total_attempts: r.total_attempts,
+          replayable: REPLAYABLE.has(r.state),
           response_status: r.response_status,
           duration_ms: r.duration_ms,
           next_attempt_at: r.next_attempt_at?.toISOString() ?? null,
           created_at: r.created_at.toISOString(),
+          event_created_at: new Date(r.event_created_at).toISOString(),
+          replayed_at: r.replayed_at ? new Date(r.replayed_at).toISOString() : null,
           detail: r.detail,
         })),
       };
     });
   }
 
+  /**
+   * Replays a dead-lettered delivery (ADR-0037 W3): only `failed` and `disabled_endpoint`
+   * deliveries are eligible. The subscription is locked before the delivery (the worker's order),
+   * so a replay waits for a send in progress and then re-checks the state it finds. A new cycle
+   * starts; lifetime attempts, the event id, its original time, and the last outcome are kept.
+   */
   async replayDelivery(caller: Caller, ws: unknown, id: string, req: Mutation) {
     return this.mutate(
       caller,
@@ -516,50 +550,247 @@ export class PublicApiService extends IntegrationService {
       ws,
       req,
       async (tx, p) => {
-        this.#canList(caller, p);
-        const row = await tx.db
-          .selectFrom('integrations.webhook_delivery as d')
-          .innerJoin('integrations.webhook_subscription as s', 's.id', 'd.subscription_id')
-          .leftJoin('tenancy.brand as b', 'b.id', 's.brand_id')
-          .select([
-            'd.id',
-            'd.public_id',
-            's.brand_id',
-            'b.is_sensitive',
-            'b.lifecycle_state as brand_state',
-          ])
-          .where('d.public_id', '=', id)
+        this.#delegated(caller);
+        const ref = await tx.db
+          .selectFrom('integrations.webhook_delivery')
+          .select(['id', 'subscription_id'])
+          .where('public_id', '=', id)
           .executeTakeFirst();
-        if (!row || !subscriptionVisible(p, row)) throw new TenancyError('not_found');
+        if (!ref) throw new TenancyError('not_found');
+        await this.#waitForSend(tx);
+        const sub = await this.#lockSubscription(tx, ref.subscription_id, 'share');
+        if (!sub || !subscriptionVisible(p, sub)) throw new TenancyError('not_found');
+        this.#requireManager(p, sub);
+        const row = await tx.db
+          .selectFrom('integrations.webhook_delivery')
+          .selectAll()
+          .where('id', '=', ref.id)
+          .forUpdate()
+          .executeTakeFirstOrThrow();
+        if (!REPLAYABLE.has(row.state) || row.object_kind === 'synthetic')
+          throw notReplayable('Only a delivery that failed or was dead-lettered can be retried.');
+        if (row.claimed_until && new Date(row.claimed_until) > new Date())
+          throw notReplayable('This delivery is being sent now.');
+        if (sub.state !== 'active' || sub.lifecycle_state !== 'active')
+          throw notReplayable('Resume this endpoint before retrying its deliveries.');
+        if (row.cycle >= 100) throw notReplayable('This delivery has been retried too many times.');
+        const gate = await this.#deliveryGate(tx, sub, row);
+        if (!gate.ok) throw notReplayable('This event can no longer be sent from this endpoint.');
+        const now = new Date();
         await tx.db
           .updateTable('integrations.webhook_delivery')
           .set({
             state: 'pending',
+            cycle: row.cycle + 1,
             attempt: 0,
-            next_attempt_at: new Date(),
-            claimed_until: null,
-            detail: 'replay',
-            updated_at: new Date(),
+            next_attempt_at: now,
+            replayed_at: now,
+            replayed_by_membership_id: p.membershipId,
+            updated_at: now,
           })
           .where('id', '=', row.id)
+          .where('state', '=', row.state)
           .execute();
+        await this.workAudit(
+          tx,
+          caller,
+          p,
+          'webhook_delivery.replayed',
+          { recordId: sub.id, type: 'webhook_subscription', publicId: sub.public_id },
+          [
+            change.plain('delivery_state', row.state, 'pending'),
+            change.plain('cycle', String(row.cycle), String(row.cycle + 1)),
+            change.plain('total_attempts', null, String(row.total_attempts)),
+          ],
+          sub.brand_id,
+        );
         return {
           status: 202,
           ref: { id: row.public_id, type: 'webhook_delivery' },
           data: {
             id: row.public_id,
             type: 'webhook_delivery' as const,
-            version: 1,
+            version: row.cycle + 1,
             state: 'pending',
+            cycle: row.cycle + 1,
+            total_attempts: row.total_attempts,
           },
         };
       },
-      async (_tx, _p, ref) => ({
-        id: ref.id,
-        type: 'webhook_delivery' as const,
-        version: 1,
-        state: 'pending',
-      }),
+      async (tx, _p, ref) => {
+        const row = await tx.db
+          .selectFrom('integrations.webhook_delivery')
+          .select(['public_id', 'state', 'cycle', 'total_attempts'])
+          .where('public_id', '=', ref.id)
+          .executeTakeFirstOrThrow();
+        return {
+          id: row.public_id,
+          type: 'webhook_delivery' as const,
+          version: row.cycle,
+          state: row.state,
+          cycle: row.cycle,
+          total_attempts: row.total_attempts,
+        };
+      },
+    );
+  }
+
+  /**
+   * Pauses a subscription (ADR-0037 W4): no event is projected and no queued delivery is sent
+   * after this commits. A send already handed to the network cannot be recalled; the pause waits
+   * for it (the worker holds the subscription while sending) and records it as it ends. Queued
+   * deliveries are recorded as skipped, not kept as a backlog. History stays.
+   */
+  async pauseSubscription(caller: Caller, ws: unknown, id: string, req: Mutation) {
+    return this.mutate(
+      caller,
+      'webhook_subscription.pause',
+      ws,
+      req,
+      async (tx, p) => {
+        this.#delegated(caller);
+        const expected = parseIfMatch(req.ifMatch);
+        const found = await this.#subscription(tx, p, id);
+        await this.#waitForSend(tx);
+        const sub = (await this.#lockSubscription(tx, found.id, 'update'))!;
+        this.#requireManager(p, sub);
+        if (Number(sub.version) !== expected)
+          throw new TenancyError('conflict', {
+            issues: [issue('/version', 'version_conflict', 'This endpoint changed. Reload it.')],
+          });
+        if (sub.state === 'suspended')
+          throw new TenancyError('conflict', {
+            issues: [
+              issue('/state', 'suspended', 'This endpoint is suspended; its owner lost access.'),
+            ],
+          });
+        if (sub.state !== 'paused') {
+          const now = new Date();
+          await tx.db
+            .updateTable('integrations.webhook_subscription')
+            .set({
+              state: 'paused',
+              paused_at: now,
+              paused_by_membership_id: p.membershipId,
+              stopped_at: sub.stopped_at ?? now,
+              version: Number(sub.version) + 1,
+              updated_at: now,
+              updated_by_membership_id: p.membershipId,
+            })
+            .where('id', '=', sub.id)
+            .execute();
+          const skipped = await tx.db
+            .updateTable('integrations.webhook_delivery')
+            .set({ state: 'skipped', detail: 'paused', next_attempt_at: null, updated_at: now })
+            .where('subscription_id', '=', sub.id)
+            .where('state', 'in', ['pending', 'retry_scheduled', 'unknown'])
+            .where('object_kind', '<>', 'synthetic')
+            .executeTakeFirst();
+          await this.workAudit(
+            tx,
+            caller,
+            p,
+            'webhook_subscription.paused',
+            { recordId: sub.id, type: 'webhook_subscription', publicId: sub.public_id },
+            [
+              change.plain('state', sub.state, 'paused'),
+              change.plain('skipped_deliveries', null, String(Number(skipped.numUpdatedRows))),
+            ],
+            sub.brand_id,
+          );
+        }
+        return {
+          status: 200,
+          ref: { id: sub.public_id, type: 'webhook_subscription' },
+          data: await this.#subState(tx, sub.id),
+        };
+      },
+      async (tx, _p, ref) => this.#subStateByPublic(tx, ref.id),
+    );
+  }
+
+  /**
+   * Resumes a paused or automatically disabled subscription (ADR-0037 W5) after a test event,
+   * sent after it stopped, was delivered (0D §9.1). Nothing queued before the stop is replayed.
+   */
+  async resumeSubscription(caller: Caller, ws: unknown, id: string, req: Mutation) {
+    return this.mutate(
+      caller,
+      'webhook_subscription.resume',
+      ws,
+      req,
+      async (tx, p) => {
+        this.#delegated(caller);
+        const expected = parseIfMatch(req.ifMatch);
+        const found = await this.#subscription(tx, p, id);
+        await this.#waitForSend(tx);
+        const sub = (await this.#lockSubscription(tx, found.id, 'update'))!;
+        this.#requireManager(p, sub);
+        if (Number(sub.version) !== expected)
+          throw new TenancyError('conflict', {
+            issues: [issue('/version', 'version_conflict', 'This endpoint changed. Reload it.')],
+          });
+        if (sub.state === 'active')
+          return {
+            status: 200,
+            ref: { id: sub.public_id, type: 'webhook_subscription' },
+            data: await this.#subState(tx, sub.id),
+          };
+        if (sub.state !== 'paused' && sub.state !== 'disabled_endpoint')
+          throw new TenancyError('conflict', {
+            issues: [
+              issue('/state', 'suspended', 'This endpoint is suspended; its owner lost access.'),
+            ],
+          });
+        const tested = await tx.db
+          .selectFrom('integrations.webhook_delivery')
+          .select('id')
+          .where('subscription_id', '=', sub.id)
+          .where('object_kind', '=', 'synthetic')
+          .where('state', '=', 'delivered')
+          .where('created_at', '>=', sub.stopped_at!)
+          .executeTakeFirst();
+        if (!tested)
+          throw new TenancyError('conflict', {
+            issues: [
+              issue(
+                '/state',
+                'test_required',
+                'Send a test event and wait until it is delivered, then resume.',
+              ),
+            ],
+          });
+        const now = new Date();
+        await tx.db
+          .updateTable('integrations.webhook_subscription')
+          .set({
+            state: 'active',
+            paused_at: null,
+            paused_by_membership_id: null,
+            stopped_at: null,
+            consecutive_failures: 0,
+            version: Number(sub.version) + 1,
+            updated_at: now,
+            updated_by_membership_id: p.membershipId,
+          })
+          .where('id', '=', sub.id)
+          .execute();
+        await this.workAudit(
+          tx,
+          caller,
+          p,
+          'webhook_subscription.resumed',
+          { recordId: sub.id, type: 'webhook_subscription', publicId: sub.public_id },
+          [change.plain('state', sub.state, 'active')],
+          sub.brand_id,
+        );
+        return {
+          status: 200,
+          ref: { id: sub.public_id, type: 'webhook_subscription' },
+          data: await this.#subState(tx, sub.id),
+        };
+      },
+      async (tx, _p, ref) => this.#subStateByPublic(tx, ref.id),
     );
   }
 
@@ -570,9 +801,13 @@ export class PublicApiService extends IntegrationService {
       ws,
       req,
       async (tx, p) => {
-        this.#canList(caller, p);
-        this.requireWorkspace(p, 'webhook.test_send');
-        const sub = await this.#subscription(tx, p, id);
+        this.#delegated(caller);
+        const sub = await this.#subscription(tx, p, id, 'webhook.test_send');
+        const state = await this.#lockSubscription(tx, sub.id, 'share');
+        if (!state || state.lifecycle_state !== 'active' || state.state === 'suspended')
+          throw new TenancyError('conflict', {
+            issues: [issue('/state', 'suspended', 'This endpoint cannot send test events now.')],
+          });
         const eventId = newPublicId('evt');
         const publicId = newPublicId('whd');
         await tx.db
@@ -587,6 +822,8 @@ export class PublicApiService extends IntegrationService {
             facts: JSON.stringify({}) as never,
             state: 'pending',
             next_attempt_at: new Date(),
+            event_created_at: new Date(),
+            object_kind: 'synthetic',
           })
           .execute();
         return {
@@ -626,14 +863,22 @@ export class PublicApiService extends IntegrationService {
       .where('state', '=', 'active')
       .where('lifecycle_state', '=', 'active')
       .execute();
+    const matching = subs.filter(
+      (sub) =>
+        sub.event_types.includes(name) &&
+        // A brand subscription matches exactly its brand; a workspace-level event (no brand)
+        // never matches a brand subscription. Workspace subscriptions see every event, each
+        // still authorized at send.
+        (sub.brand_id === null || sub.brand_id === (event.brand_id ?? null)),
+    );
+    if (!matching.length) return 0;
+    const source = await webhookSource(tx, name, event);
     const facts = publicFacts(event.data as Record<string, unknown>);
     let n = 0;
     // A redelivered internal event maps to the same public event id, so the per-subscription
     // uniqueness (webhook_delivery_event_once) keeps it to one delivery row.
     const eventPublicId = publicEventId(event.event_id);
-    for (const sub of subs) {
-      if (!sub.event_types.includes(name)) continue;
-      if (sub.brand_id && event.brand_id && sub.brand_id !== event.brand_id) continue;
+    for (const sub of matching) {
       const inserted = await tx.db
         .insertInto('integrations.webhook_delivery')
         .values({
@@ -647,6 +892,10 @@ export class PublicApiService extends IntegrationService {
           facts: JSON.stringify(facts) as never,
           state: 'pending',
           next_attempt_at: new Date(),
+          event_created_at: new Date(event.occurred_at),
+          object_kind: source.kind,
+          object_id: source.objectId,
+          source_record_id: source.sourceId,
         })
         .onConflict((oc) =>
           oc.columns(['workspace_id', 'subscription_id', 'event_public_id']).doNothing(),
@@ -662,31 +911,84 @@ export class PublicApiService extends IntegrationService {
     await this.runWebhookSweep(this.d.tenant, workspaceId, now);
   }
 
+  /**
+   * The delivery sweep (ADR-0037 W2). Due deliveries are listed in a short transaction; each is
+   * then sent in its own transaction that holds the subscription (shared) and the delivery (for
+   * update) while it sends. That bounds every wait on a send to one request, lets overlapping
+   * workers skip each other's deliveries, and makes a pause or replay wait for the send in progress
+   * and then see its outcome.
+   */
   async runWebhookSweep(
     tenant: TenantDatabase,
     workspaceId: string,
     now = new Date(),
   ): Promise<void> {
-    await tenant.withWorkspace(workspaceId, { module: 'integrations' }, async (tx) => {
-      const due = await tx.db
-        .selectFrom('integrations.webhook_delivery')
-        .select(['id'])
-        .where('state', 'in', ['pending', 'retry_scheduled', 'unknown'])
-        .where((eb) => eb.or([eb('next_attempt_at', 'is', null), eb('next_attempt_at', '<=', now)]))
-        .where((eb) => eb.or([eb('claimed_until', 'is', null), eb('claimed_until', '<=', now)]))
-        .orderBy('created_at')
-        .limit(this.ws.webhookSweepBatchMax)
-        // Overlapping workers each claim different rows; a claimed delivery is never re-sent.
-        .forUpdate()
-        .skipLocked()
-        .execute();
-      for (const row of due) await this.#deliverOne(tx, row.id, now);
+    const due = await tenant.withWorkspace(workspaceId, { module: 'integrations' }, async (tx) => {
       const cutoff = new Date(now.getTime() - this.ws.webhookDeliveryRetentionDays * 86_400_000);
       await tx.db
         .deleteFrom('integrations.webhook_delivery')
         .where('created_at', '<', cutoff)
         .execute();
+      return tx.db
+        .selectFrom('integrations.webhook_delivery')
+        .select(['id', 'subscription_id'])
+        .where('state', 'in', ['pending', 'retry_scheduled', 'unknown'])
+        .where((eb) => eb.or([eb('next_attempt_at', 'is', null), eb('next_attempt_at', '<=', now)]))
+        .where((eb) => eb.or([eb('claimed_until', 'is', null), eb('claimed_until', '<=', now)]))
+        .orderBy('created_at')
+        .orderBy('id')
+        .limit(this.ws.webhookSweepBatchMax)
+        .execute();
     });
+    for (const row of due) {
+      const after = await tenant.withWorkspace(workspaceId, { module: 'integrations' }, (tx) =>
+        this.#deliverOne(tx, row.id, row.subscription_id, now),
+      );
+      // The delivery transaction only shares the subscription; its counters and state change in
+      // a short transaction afterwards, so overlapping workers never upgrade the same lock.
+      if (after)
+        await tenant.withWorkspace(workspaceId, { module: 'integrations' }, (tx) =>
+          this.#afterDelivery(tx, row.subscription_id, after),
+        );
+    }
+  }
+
+  async #afterDelivery(tx: WorkspaceTransaction, subscriptionId: string, after: AfterDelivery) {
+    if (after.kind === 'suspend') {
+      await tx.db
+        .updateTable('integrations.webhook_subscription')
+        .set({
+          state: 'suspended',
+          suspended_reason:
+            after.reason === 'owner_departed' ? 'owner_departed' : 'owner_authority',
+          suspended_at: new Date(),
+          paused_at: null,
+          paused_by_membership_id: null,
+          stopped_at: null,
+          version: sql`version + 1` as never,
+          updated_at: new Date(),
+        })
+        .where('id', '=', subscriptionId)
+        .where('state', '<>', 'suspended')
+        .execute();
+      return;
+    }
+    if (after.kind === 'delivered') {
+      await tx.db
+        .updateTable('integrations.webhook_subscription')
+        .set({ consecutive_failures: 0 })
+        .where('id', '=', subscriptionId)
+        .execute();
+      return;
+    }
+    const bumped = await tx.db
+      .updateTable('integrations.webhook_subscription')
+      .set({ consecutive_failures: sql`least(consecutive_failures + 1, 1000)` as never })
+      .where('id', '=', subscriptionId)
+      .returning(['consecutive_failures'])
+      .executeTakeFirst();
+    if (after.counts && bumped)
+      await this.#maybeDisable(tx, subscriptionId, bumped.consecutive_failures);
   }
 
   async createInbound(caller: Caller, ws: unknown, body: unknown, req: Mutation) {
@@ -932,33 +1234,42 @@ export class PublicApiService extends IntegrationService {
     );
   }
 
-  async #deliverOne(tx: WorkspaceTransaction, id: string, now: Date): Promise<void> {
+  async #deliverOne(
+    tx: WorkspaceTransaction,
+    id: string,
+    subscriptionId: string,
+    now: Date,
+  ): Promise<AfterDelivery | null> {
+    // Lock order: the subscription (shared) and then the delivery. A pause, resume, or replay
+    // takes the same order, so they wait for this send instead of deadlocking with it.
+    const sub = await this.#lockSubscription(tx, subscriptionId, 'share');
+    if (!sub) return null;
     const row = await tx.db
-      .selectFrom('integrations.webhook_delivery as d')
-      .innerJoin('integrations.webhook_subscription as s', 's.id', 'd.subscription_id')
-      .innerJoin('core.record as r', 'r.id', 's.id')
-      .select([
-        'd.id',
-        'd.event_public_id',
-        'd.event_type',
-        'd.attempt',
-        'd.facts',
-        'd.aggregate_id',
-        's.id as subscription_id',
-        's.destination_url',
-        's.state as subscription_state',
-        's.signing_secret_ref',
-        's.previous_secret_ref',
-        's.previous_secret_until',
-        's.consecutive_failures',
-        's.accountable_owner_membership_id',
-        'r.public_id as subscription_public_id',
-        'r.version as record_version',
-      ])
-      .where('d.id', '=', id)
+      .selectFrom('integrations.webhook_delivery')
+      .selectAll()
+      .where('id', '=', id)
+      .forUpdate()
+      .skipLocked()
       .executeTakeFirst();
-    if (!row || row.subscription_state !== 'active') return;
-    const host = new URL(row.destination_url).host;
+    if (
+      !row ||
+      !['pending', 'retry_scheduled', 'unknown'].includes(row.state) ||
+      (row.next_attempt_at && new Date(row.next_attempt_at) > now) ||
+      (row.claimed_until && new Date(row.claimed_until) > now)
+    )
+      return null;
+    const synthetic = row.object_kind === 'synthetic';
+    if (sub.lifecycle_state !== 'active') return this.#skip(tx, row, 'subscription_inactive');
+    if (!synthetic && sub.state === 'paused') return this.#skip(tx, row, 'paused');
+    if (!synthetic && sub.state === 'disabled_endpoint')
+      return this.#skip(tx, row, 'endpoint_disabled', 'disabled_endpoint');
+    if (sub.state === 'suspended') return this.#skip(tx, row, 'suspended');
+    const gate = await this.#deliveryGate(tx, sub, row);
+    if (!gate.ok) {
+      await this.#skip(tx, row, gate.reason);
+      return gate.suspend ? { kind: 'suspend', reason: gate.reason } : null;
+    }
+    const host = new URL(sub.destination_url).host;
     const inflight = await tx.db
       .selectFrom('integrations.webhook_delivery as d')
       .innerJoin('integrations.webhook_subscription as s', 's.id', 'd.subscription_id')
@@ -972,87 +1283,23 @@ export class PublicApiService extends IntegrationService {
         .set({ state: 'retry_scheduled', next_attempt_at: new Date(now.getTime() + 1000) })
         .where('id', '=', id)
         .execute();
-      return;
-    }
-    await tx.db
-      .updateTable('integrations.webhook_delivery')
-      .set({ claimed_until: new Date(now.getTime() + this.ws.webhookResponseTimeoutMs) })
-      .where('id', '=', id)
-      .execute();
-    const owner = await tx.db
-      .selectFrom('tenancy.membership')
-      .select(['id', 'account_id', 'state'])
-      .where('id', '=', row.accountable_owner_membership_id)
-      .executeTakeFirst();
-    if (!owner || owner.state !== 'active') {
-      await this.#finish(tx, row, 'failed', null, null, 'owner_departed', false);
-      return;
-    }
-    if (row.aggregate_id) {
-      const principal = await loadPrincipal(tx, owner.account_id, owner.id);
-      const visible = await tx.db
-        .selectFrom('core.record')
-        .select(['brand_id', 'lifecycle_state'])
-        .where('id', '=', row.aggregate_id)
-        .executeTakeFirst();
-      if (visible?.brand_id && visible.lifecycle_state !== 'purged') {
-        const brand = await tx.db
-          .selectFrom('tenancy.brand')
-          .select(['id', 'is_sensitive', 'lifecycle_state'])
-          .where('id', '=', visible.brand_id)
-          .executeTakeFirst();
-        if (
-          brand &&
-          brandLevel(principal, {
-            id: brand.id,
-            isSensitive: brand.is_sensitive,
-            lifecycleState: brand.lifecycle_state,
-          }) === null
-        ) {
-          await this.#finish(tx, row, 'failed', null, null, 'owner_cannot_read', false);
-          return;
-        }
-      }
+      return null;
     }
     const secrets = await this.#secrets(
       tx,
-      row.signing_secret_ref,
-      row.previous_secret_ref,
-      row.previous_secret_until,
+      sub.signing_secret_ref,
+      sub.previous_secret_ref,
+      sub.previous_secret_until,
     );
-    const ws = await tx.db
-      .selectFrom('tenancy.workspace')
-      .select('public_id')
-      .where('id', '=', tx.workspaceId)
-      .executeTakeFirstOrThrow();
-    const envelope: OutboundEnvelope = {
-      id: row.event_public_id,
-      type: row.event_type,
-      api_version: 'v1',
-      created_at: now.toISOString(),
-      workspace: { id: ws.public_id },
-      data: {
-        object: {
-          id: row.subscription_public_id,
-          type: row.event_type,
-          version: Number(row.record_version),
-        },
-        fields: (typeof row.facts === 'string' ? JSON.parse(row.facts) : row.facts) as Record<
-          string,
-          string | number | boolean | null
-        >,
-        changes: [],
-      },
-    };
-    const body = JSON.stringify(envelope);
+    const body = JSON.stringify(gate.envelope);
     const timestamp = String(Math.floor(now.getTime() / 1000));
-    const signatures = secrets.map((s) => signPayload(s, row.event_public_id, timestamp, body));
+    const signatures = secrets.map((x) => signPayload(x, row.event_public_id, timestamp, body));
     const started = Date.now();
     let result: WebhookTransportResult;
     try {
-      await assertPublicHttps(row.destination_url, this.ws.webhookAllowLoopback);
+      await assertPublicHttps(sub.destination_url, this.ws.webhookAllowLoopback);
       result = await this.#deliver({
-        url: row.destination_url,
+        url: sub.destination_url,
         body,
         timeoutMs: this.ws.webhookResponseTimeoutMs,
         headers: {
@@ -1070,31 +1317,33 @@ export class PublicApiService extends IntegrationService {
     this.d.metrics.record('webhook.delivery.duration', duration, {
       outcome: result.kind === 'status' ? 'status' : result.kind,
     });
+    const attempt = row.attempt + 1;
+    const counted = { attempt, total_attempts: row.total_attempts + 1 };
+    const target = { id: row.id, subscription_id: sub.id };
     if (result.kind === 'status' && result.status >= 200 && result.status < 300) {
-      await this.#finish(tx, row, 'delivered', result.status, duration, null, true);
+      await this.#finish(tx, target, 'delivered', result.status, duration, null, counted);
       this.d.metrics.count('webhook.deliveries', 1, { outcome: 'delivered', status_class: '2xx' });
-      return;
+      return { kind: 'delivered' };
     }
     const retry = result.kind !== 'status' || retryableStatus(result.status);
-    const attempt = row.attempt + 1;
     if (!retry || attempt >= this.ws.webhookMaxAttempts) {
       await this.#finish(
         tx,
-        row,
+        target,
         'failed',
         result.kind === 'status' ? result.status : null,
         duration,
         result.kind,
-        false,
+        counted,
       );
-      await this.#maybeDisable(tx, row);
-      return;
+      // A failed test never disables an endpoint; a failed event counts towards disablement.
+      return { kind: 'failed', counts: !synthetic };
     }
     await tx.db
       .updateTable('integrations.webhook_delivery')
       .set({
         state: result.kind === 'network' ? 'unknown' : 'retry_scheduled',
-        attempt,
+        ...counted,
         response_status: result.kind === 'status' ? result.status : null,
         duration_ms: duration,
         next_attempt_at: new Date(Date.now() + webhookDelayMs(attempt, 1000, 60_000)),
@@ -1104,6 +1353,265 @@ export class PublicApiService extends IntegrationService {
       .where('id', '=', row.id)
       .execute();
     this.d.metrics.count('webhook.deliveries', 1, { outcome: 'retry', status_class: result.kind });
+    return null;
+  }
+
+  /**
+   * Whether a delivery may be sent now, and its payload (0D §9.1, ADR-0037 W1). Built at send as
+   * the subscription's accountable owner: the owner must still manage webhooks at the
+   * subscription's placement, and must still read the governing record through the canonical
+   * visibility predicate (restricted projects, sensitive brands, record shares, lifecycle),
+   * intersected with the subscription's brand. Anything unresolvable fails closed.
+   */
+  async #deliveryGate(
+    tx: WorkspaceTransaction,
+    sub: LockedSubscription,
+    row: {
+      event_public_id: string;
+      event_type: string;
+      object_kind: string;
+      object_id: string | null;
+      source_record_id: string | null;
+      facts: unknown;
+      event_created_at: Date | string;
+    },
+  ): Promise<
+    { ok: true; envelope: OutboundEnvelope } | { ok: false; reason: string; suspend?: boolean }
+  > {
+    const ws = await tx.db
+      .selectFrom('tenancy.workspace')
+      .select('public_id')
+      .where('id', '=', tx.workspaceId)
+      .executeTakeFirstOrThrow();
+    const created = new Date(row.event_created_at).toISOString();
+    if (row.object_kind === 'synthetic')
+      // A synthetic test event: a fresh id-shaped object and no tenant records or fields.
+      return {
+        ok: true,
+        envelope: {
+          id: row.event_public_id,
+          type: 'webhook.test',
+          api_version: 'v1',
+          created_at: created,
+          workspace: ws.public_id,
+          data: {
+            object: { id: row.event_public_id, type: 'webhook_test' },
+            fields: {},
+            changes: [],
+          },
+        },
+      };
+    if (sub.brand_id && sub.brand_state !== 'active')
+      return { ok: false, reason: 'brand_inactive' };
+    const owner = await tx.db
+      .selectFrom('tenancy.membership')
+      .select(['id', 'account_id', 'state', 'kind'])
+      .where('id', '=', sub.accountable_owner_membership_id)
+      .executeTakeFirst();
+    if (!owner || owner.state !== 'active' || owner.kind !== 'member')
+      return { ok: false, reason: 'owner_departed', suspend: true };
+    const principal = await loadPrincipal(tx, owner.account_id, owner.id);
+    const manages = sub.brand_id
+      ? decideBrand(principal, 'webhooks.manage', {
+          id: sub.brand_id,
+          isSensitive: sub.is_sensitive === true,
+          lifecycleState: 'active',
+        }).allowed
+      : decideWorkspace(principal, 'webhooks.manage').allowed;
+    if (!manages) return { ok: false, reason: 'owner_authority', suspend: true };
+    if (row.object_kind === 'unsupported' || !row.source_record_id || !row.object_id)
+      return { ok: false, reason: 'unsupported_source' };
+    const source = await tx.db
+      .selectFrom('core.record')
+      .select(['id', 'public_id', 'record_type', 'brand_id', 'lifecycle_state', 'version'])
+      .where('id', '=', row.source_record_id)
+      .executeTakeFirst();
+    if (!source || source.lifecycle_state === 'purged')
+      return { ok: false, reason: 'source_unavailable' };
+    if (sub.brand_id && source.brand_id !== sub.brand_id)
+      return { ok: false, reason: 'out_of_scope' };
+    const vis = await compileVisibility(tx, principal, {
+      need: 'view',
+      includeArchived: true,
+      arrayMax: this.c.settings.principalContextArrayMax,
+    });
+    const readable = WEBHOOK_TOMBSTONES.has(row.event_type)
+      ? // The tombstone contract: a lifecycle event is authorized against the record's placement
+        // as if it were active (the record itself has left active use).
+        await sql<{ ok: number }>`SELECT 1 AS ok FROM (
+            SELECT x.id, x.workspace_id, x.brand_id, x.record_type,
+                   'active'::core.lifecycle_state AS lifecycle_state
+              FROM core.record x WHERE x.id = ${source.id}) r
+           WHERE ${vis.where('r')}`.execute(tx.db)
+      : await sql<{ ok: number }>`SELECT 1 AS ok FROM core.record r
+           WHERE r.id = ${source.id} AND ${vis.where('r')}`.execute(tx.db);
+    if (!readable.rows.length) return { ok: false, reason: 'not_readable' };
+    let object: { id: string; type: string; version?: number };
+    if (row.object_kind === 'record') {
+      const rec =
+        row.object_id === source.id
+          ? source
+          : await tx.db
+              .selectFrom('core.record')
+              .select(['public_id', 'record_type', 'version'])
+              .where('id', '=', row.object_id)
+              .executeTakeFirst();
+      if (!rec) return { ok: false, reason: 'source_unavailable' };
+      object = { id: rec.public_id, type: rec.record_type, version: Number(rec.version) };
+    } else if (row.object_kind === 'comment') {
+      const c = await tx.db
+        .selectFrom('collab.comment')
+        .select(['public_id', 'host_record_id', 'deleted_at'])
+        .where('id', '=', row.object_id)
+        .executeTakeFirst();
+      if (!c || c.deleted_at || c.host_record_id !== source.id)
+        return { ok: false, reason: 'source_unavailable' };
+      object = { id: c.public_id, type: 'comment' };
+    } else {
+      const r = await tx.db
+        .selectFrom('collab.review_request')
+        .select(['public_id', 'subject_record_id'])
+        .where('id', '=', row.object_id)
+        .executeTakeFirst();
+      if (!r || r.subject_record_id !== source.id)
+        return { ok: false, reason: 'source_unavailable' };
+      object = { id: r.public_id, type: 'review_request' };
+    }
+    const brand = source.brand_id
+      ? await tx.db
+          .selectFrom('core.record')
+          .select('public_id')
+          .where('id', '=', source.brand_id)
+          .executeTakeFirst()
+      : undefined;
+    // Queued facts are not authority: the version 1 allow-list is applied again at send.
+    const facts = publicFacts(
+      (typeof row.facts === 'string' ? JSON.parse(row.facts) : (row.facts ?? {})) as Record<
+        string,
+        unknown
+      >,
+    );
+    const changes =
+      typeof facts.changed_fields === 'string'
+        ? facts.changed_fields.split(',').filter((f) => /^[a-z_]{1,40}$/.test(f))
+        : [];
+    return {
+      ok: true,
+      envelope: {
+        id: row.event_public_id,
+        type: row.event_type,
+        api_version: 'v1',
+        created_at: created,
+        workspace: ws.public_id,
+        ...(brand ? { brand: brand.public_id } : {}),
+        data: { object, fields: facts, changes },
+      },
+    };
+  }
+
+  async #skip(
+    tx: WorkspaceTransaction,
+    row: { id: string },
+    reason: string,
+    state: 'skipped' | 'disabled_endpoint' = 'skipped',
+  ): Promise<null> {
+    await tx.db
+      .updateTable('integrations.webhook_delivery')
+      .set({
+        state,
+        detail: reason,
+        next_attempt_at: null,
+        claimed_until: null,
+        updated_at: new Date(),
+      })
+      .where('id', '=', row.id)
+      .execute();
+    this.d.metrics.count('webhook.deliveries', 1, { outcome: 'skipped', status_class: 'none' });
+    return null;
+  }
+
+  async #lockSubscription(
+    tx: WorkspaceTransaction,
+    id: string,
+    mode: 'share' | 'update',
+  ): Promise<LockedSubscription | undefined> {
+    const base = tx.db
+      .selectFrom('integrations.webhook_subscription')
+      .select(['id', 'version'])
+      .where('id', '=', id);
+    const locked = await (mode === 'share' ? base.forShare() : base.forUpdate()).executeTakeFirst();
+    if (!locked) return undefined;
+    return tx.db
+      .selectFrom('integrations.webhook_subscription as s')
+      .innerJoin('core.record as r', 'r.id', 's.id')
+      .leftJoin('tenancy.brand as b', 'b.id', 's.brand_id')
+      .select([
+        's.id',
+        'r.public_id',
+        's.state',
+        's.lifecycle_state',
+        's.version',
+        's.brand_id',
+        'b.is_sensitive',
+        'b.lifecycle_state as brand_state',
+        's.destination_url',
+        's.signing_secret_ref',
+        's.previous_secret_ref',
+        's.previous_secret_until',
+        's.consecutive_failures',
+        's.accountable_owner_membership_id',
+        's.stopped_at',
+      ])
+      .where('s.id', '=', id)
+      .executeTakeFirst();
+  }
+
+  /** Commands that wait for a send in progress may wait up to one request (plus margin). */
+  async #waitForSend(tx: WorkspaceTransaction): Promise<void> {
+    const ms = Math.min(this.ws.webhookResponseTimeoutMs + 2000, 60_000);
+    await sql.raw(`SET LOCAL lock_timeout = '${Math.floor(ms)}ms'`).execute(tx.db);
+  }
+
+  /** `webhooks.manage` at the subscription's own placement (workspace or its brand). */
+  #requireManager(p: Principal, sub: LockedSubscription) {
+    if (!subscriptionVisible(p, sub)) throw new TenancyError('not_found');
+    if (!managesSubscription(p, sub)) throw new TenancyError('forbidden');
+  }
+
+  async #subState(tx: WorkspaceTransaction, id: string) {
+    const r = await tx.db
+      .selectFrom('integrations.webhook_subscription as s')
+      .innerJoin('core.record as c', 'c.id', 's.id')
+      .select(['c.public_id', 's.state', 's.version', 's.paused_at', 's.stopped_at'])
+      .where('s.id', '=', id)
+      .executeTakeFirstOrThrow();
+    return {
+      id: r.public_id,
+      type: 'webhook_subscription' as const,
+      version: Number(r.version),
+      state: r.state,
+      paused_at: r.paused_at ? new Date(r.paused_at).toISOString() : null,
+      stopped_at: r.stopped_at ? new Date(r.stopped_at).toISOString() : null,
+    };
+  }
+
+  async #subStateByPublic(tx: WorkspaceTransaction, publicId: string) {
+    const r = await tx.db
+      .selectFrom('core.record')
+      .select('id')
+      .where('public_id', '=', publicId)
+      .executeTakeFirstOrThrow();
+    return this.#subState(tx, r.id);
+  }
+
+  protected override mapFailure(command: string, err: unknown): unknown {
+    // A pause, resume, or replay that could not obtain its lock within one request's time.
+    const code = (err as { code?: unknown } | null)?.code;
+    if (command.startsWith('webhook') && code === '55P03')
+      return new TenancyError('conflict', {
+        issues: [issue('/state', 'in_progress', 'A delivery is being sent now. Try again.')],
+      });
+    return super.mapFailure(command, err);
   }
 
   async #finish(
@@ -1113,12 +1621,13 @@ export class PublicApiService extends IntegrationService {
     status: number | null,
     duration: number | null,
     detail: string | null,
-    resetFailures: boolean,
+    counted: { attempt: number; total_attempts: number },
   ) {
     await tx.db
       .updateTable('integrations.webhook_delivery')
       .set({
         state,
+        ...counted,
         response_status: status,
         duration_ms: duration,
         detail,
@@ -1128,38 +1637,34 @@ export class PublicApiService extends IntegrationService {
       })
       .where('id', '=', row.id)
       .execute();
-    await tx.db
-      .updateTable('integrations.webhook_subscription')
-      .set({ consecutive_failures: resetFailures ? 0 : (sql`consecutive_failures + 1` as never) })
-      .where('id', '=', row.subscription_id)
-      .execute();
   }
 
-  async #maybeDisable(
-    tx: WorkspaceTransaction,
-    row: { subscription_id: string; consecutive_failures: number; subscription_public_id: string },
-  ) {
-    if (row.consecutive_failures + 1 < this.ws.webhookDisableThreshold) return;
-    await tx.db
+  async #maybeDisable(tx: WorkspaceTransaction, subscriptionId: string, failures: number) {
+    if (failures < this.ws.webhookDisableThreshold) return;
+    const disabled = await tx.db
       .updateTable('integrations.webhook_subscription')
-      .set({ state: 'disabled_endpoint', updated_at: new Date() })
-      .where('id', '=', row.subscription_id)
-      .execute();
+      .set({ state: 'disabled_endpoint', stopped_at: new Date(), updated_at: new Date() })
+      .where('id', '=', subscriptionId)
+      // Only an active endpoint is disabled automatically; a deliberate pause stays a pause.
+      .where('state', '=', 'active')
+      .executeTakeFirst();
+    if (Number(disabled.numUpdatedRows) !== 1) return;
+    const pub = await tx.db
+      .selectFrom('core.record')
+      .select('public_id')
+      .where('id', '=', subscriptionId)
+      .executeTakeFirstOrThrow();
     await writeOutboxEvent(tx, {
       type: 'integrations.webhook.delivery_failed',
-      aggregate: {
-        type: 'integrations.webhook_delivery',
-        id: row.subscription_id,
-        sequence: row.consecutive_failures + 1,
-      },
-      data: { subscription_id: row.subscription_public_id, attempt: row.consecutive_failures + 1 },
+      aggregate: { type: 'integrations.webhook_delivery', id: subscriptionId, sequence: failures },
+      data: { subscription_id: pub.public_id, attempt: failures },
       actor: { type: 'system' },
       context: {
         workspaceId: tx.workspaceId,
         correlationId: '0'.repeat(32),
-        authenticatedPrincipal: { type: 'system_job', id: row.subscription_id },
-        effectivePrincipal: { type: 'system_job', id: row.subscription_id },
-        delegationChain: [{ type: 'system_job', id: row.subscription_id }],
+        authenticatedPrincipal: { type: 'system_job', id: subscriptionId },
+        effectivePrincipal: { type: 'system_job', id: subscriptionId },
+        delegationChain: [{ type: 'system_job', id: subscriptionId }],
         epochs: { workspace: 0, principal: 0 },
         dataClassLimit: 'C1',
       },
@@ -1188,10 +1693,10 @@ export class PublicApiService extends IntegrationService {
     return this.integrationVault().put(purpose, secret, { scope: tx });
   }
 
-  #canList(caller: Caller, p: Principal) {
+  /** A token must carry `webhooks:manage`; it only ever narrows the member's own authority. */
+  #delegated(caller: Caller) {
     if (caller.delegation && !scopeAllows(caller.delegation.scopes, 'webhooks:manage'))
       throw new TenancyError('forbidden');
-    if (!decideWorkspace(p, 'webhooks.manage').allowed) throw new TenancyError('forbidden');
   }
 
   async #webhookBrand(
@@ -1218,7 +1723,12 @@ export class PublicApiService extends IntegrationService {
     return row;
   }
 
-  async #subscription(tx: WorkspaceTransaction, p: Principal, publicId: string) {
+  async #subscription(
+    tx: WorkspaceTransaction,
+    p: Principal,
+    publicId: string,
+    action: 'webhooks.manage' | 'webhook.test_send' = 'webhooks.manage',
+  ) {
     const row = await tx.db
       .selectFrom('integrations.webhook_subscription as s')
       .innerJoin('core.record as r', 'r.id', 's.id')
@@ -1237,6 +1747,9 @@ export class PublicApiService extends IntegrationService {
       .where('r.public_id', '=', publicId)
       .executeTakeFirst();
     if (!row || !subscriptionVisible(p, row)) throw new TenancyError('not_found');
+    // Managing a subscription needs the action at its own placement (a brand manager manages
+    // the brand's subscriptions; workspace subscriptions need workspace authority).
+    if (!managesSubscription(p, row, action)) throw new TenancyError('forbidden');
     return row;
   }
 
@@ -1492,6 +2005,34 @@ export class PublicApiService extends IntegrationService {
   }
 }
 
+/** Terminal deliveries a manager may retry (dead-lettered); nothing else is replayable. */
+const REPLAYABLE: ReadonlySet<string> = new Set(['failed', 'disabled_endpoint']);
+
+function notReplayable(message: string) {
+  return new TenancyError('conflict', { issues: [issue('/state', 'not_replayable', message)] });
+}
+
+type AfterDelivery =
+  { kind: 'delivered' } | { kind: 'failed'; counts: boolean } | { kind: 'suspend'; reason: string };
+
+interface LockedSubscription {
+  id: string;
+  public_id: string;
+  state: string;
+  lifecycle_state: string;
+  version: number | string;
+  brand_id: string | null;
+  is_sensitive: boolean | null;
+  brand_state: string | null;
+  destination_url: string;
+  signing_secret_ref: string;
+  previous_secret_ref: string | null;
+  previous_secret_until: Date | null;
+  consecutive_failures: number;
+  accountable_owner_membership_id: string;
+  stopped_at: Date | null;
+}
+
 const CROCKFORD = '0123456789ABCDEFGHJKMNPQRSTVWXYZ';
 
 /** A stable `evt_` identifier derived from the internal event id (never the id itself). */
@@ -1520,6 +2061,20 @@ function subscriptionVisible(
       lifecycleState: (row.brand_state ?? 'active') as BrandFacts['lifecycleState'],
     }) !== null
   );
+}
+
+function managesSubscription(
+  p: Principal,
+  row: { brand_id: string | null; is_sensitive: boolean | null },
+  action: 'webhooks.manage' | 'webhook.test_send' = 'webhooks.manage',
+): boolean {
+  return row.brand_id
+    ? decideBrand(p, action, {
+        id: row.brand_id,
+        isSensitive: row.is_sensitive === true,
+        lifecycleState: 'active',
+      }).allowed
+    : decideWorkspace(p, action).allowed;
 }
 
 function isObj(v: unknown): v is Record<string, unknown> {

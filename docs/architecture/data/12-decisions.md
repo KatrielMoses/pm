@@ -451,3 +451,18 @@ Status of every ADR: **proposed (Phase 0B)**, pending solutions-architect accept
 - **Alternatives:** Generating occurrences only from the provider (no anchor-zone evaluation, no exceptions contract). A JSON recurrence column (no exception identity). A second planning table for calendar time (a parallel authority to work blocks).
 - **Consequences:** Migration `0051_calendar_completion` with an exact rollback to 0050. Every new table forces workspace row-level security. All of it is personal data, read only by its owner.
 
+<a id="adr-43"></a>
+## ADR-43: Webhook delivery controls (Phase 6 integration review, corrective review 01)
+
+- **Decision:** Migration 0052 (expand) completes the 0046 webhook tables without editing them.
+  - `integrations.webhook_subscription` gains the state `paused`. A deliberate pause is distinct from automatic `disabled_endpoint` and from `suspended` authority. It also gains `paused_at`, `paused_by_membership_id`, and `stopped_at`, the moment it stopped sending; resuming needs a test delivered after that moment.
+  - `integrations.webhook_delivery` gains:
+    - the event's original `event_created_at`;
+    - the governing `source_record_id` and the public object (`object_kind`, `object_id`) resolved per event type when the event is projected;
+    - a replay `cycle` beside the lifetime `total_attempts`;
+    - `replayed_at` and `replayed_by_membership_id`;
+    - the terminal state `skipped`, for a delivery withheld at send.
+  - Deliveries queued before 0052 are backfilled to authorize again at send, failing closed.
+- **Alternatives:** Resetting the single attempt counter on replay (it erases the failure record). A hard delete (history is evidence). Storing a rendered payload (queued data is not authority).
+- **Consequences:** The down migration restores the exact 0051 catalog. Paused subscriptions return as `disabled_endpoint` and skipped deliveries as `failed`.
+

@@ -10,6 +10,7 @@ import {
   PostgresRateLimiter,
 } from '@pm/identity';
 import { LifecycleService, RetentionPolicy } from '@pm/lifecycle';
+import { toInternalEvent, type InternalEvent } from '@pm/platform';
 import {
   DEFAULT_VIEWS_SETTINGS,
   defaultNavigationTargets,
@@ -277,4 +278,28 @@ export async function apply(env: WorkEnv, as: Caller, ws: string, change: Record
 /** A field-merge request with the version the client loaded. */
 export function merge(version: number, changes: Record<string, { base: unknown; value: unknown }>) {
   return { version, changes };
+}
+
+/** The internal id of a public id (any core record). */
+export async function internalIdOf(db: TestDatabase, publicId: string): Promise<string> {
+  const r = await db.admin(`SELECT id FROM core.record WHERE public_id = $1`, [publicId]);
+  return r.rows[0].id as string;
+}
+
+/**
+ * The internal events a real command wrote to the outbox (oldest first), optionally for one
+ * aggregate, exactly as the dispatcher hands them to consumers.
+ */
+export async function outboxEvents(
+  db: TestDatabase,
+  workspaceId: string,
+  type: string,
+  aggregateId?: string,
+): Promise<InternalEvent[]> {
+  const r = await db.admin(
+    `SELECT * FROM exec.outbox_event WHERE workspace_id = $1 AND event_type = $2
+       ${aggregateId ? 'AND aggregate_id = $3' : ''} ORDER BY recorded_at, id`,
+    aggregateId ? [workspaceId, type, aggregateId] : [workspaceId, type],
+  );
+  return r.rows.map((row) => toInternalEvent(row as never));
 }

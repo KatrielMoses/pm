@@ -93,17 +93,17 @@ export function registerPublicApi(app: FastifyInstance, work: PublicApiService):
     '/v1/workspaces/:ws/webhook-subscriptions/:sub',
     wrap(async (request, reply) => {
       const t = split(target(request, 'sub'));
-      if (!t || (t.verb !== 'rotate-secret' && t.verb !== 'test'))
+      if (!t || !['rotate-secret', 'test', 'pause', 'resume'].includes(t.verb))
         return fail(request, reply, 'not_found');
+      const args = [caller(request), ws(request), t.id, mutation(request)] as const;
       const result =
         t.verb === 'test'
-          ? await work.testSubscription(caller(request), ws(request), t.id, mutation(request))
-          : await work.rotateSubscriptionSecret(
-              caller(request),
-              ws(request),
-              t.id,
-              mutation(request),
-            );
+          ? await work.testSubscription(...args)
+          : t.verb === 'pause'
+            ? await work.pauseSubscription(...args)
+            : t.verb === 'resume'
+              ? await work.resumeSubscription(...args)
+              : await work.rotateSubscriptionSecret(...args);
       return resource(request, reply, result.data, result);
     }),
   );

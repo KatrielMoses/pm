@@ -475,3 +475,15 @@ All decisions are **proposed (Phase 0C)**, pending solutions-architect acceptanc
 - **Alternatives:** Showing other people's busy time as anonymous blocks by default (contradicts DQ-06). Letting the provider overwrite a plan the person changed.
 - **Consequences:** Threats T-86 to T-90 with tests AT-315 to AT-344 (calendar, the browser exit journey, and the Phase 6 cross-boundary matrix AT-330 to AT-344).
 
+<a id="az-43"></a>
+### AZ-43: Webhook delivery authority (Phase 6 integration review, corrective review 01)
+- **Decision:**
+  - A delivery is authorized when it is sent, never when it is queued. The subscription's accountable owner must still hold `webhooks.manage` at the subscription's placement; if not, the subscription is suspended. The owner must also read the event's governing record through the canonical record predicate (workspace, brand and sensitive grants, restricted projects, project grants, record shares, and lifecycle), intersected with the subscription's brand.
+  - A brand subscription matches only its brand's events, and never a workspace-level event. Archive and trash events follow a tombstone contract: they are authorized against the record's placement as if it were active.
+  - Event types without a canonical source contract yet are skipped.
+  - Each management command is decided by `webhooks.manage` (test sends by `webhook.test_send`) at the subscription's own placement. That covers list, deliveries, test, rotate, pause, resume, and replay, so a brand manager manages their brand's endpoints. A hidden brand's subscription is `not_found`; a readable one without the action is `forbidden`.
+  - Replay is limited to dead-lettered deliveries and re-checks all of the above.
+  - The action count stays 122.
+- **Alternatives:** Brand access as delivery authority (it would send records the owner can no longer read). Workspace-only management (it left brand managers unable to stop their own endpoints).
+- **Consequences:** Tests AT-345 to AT-350 and AT-314, AT-336.
+

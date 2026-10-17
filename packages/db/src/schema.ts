@@ -2861,9 +2861,17 @@ export interface CalendarExceptionTable {
 // Phase 6B: API tokens, outbound webhooks, and inbound endpoints (ADR-0032).
 export type ApiTokenKind = 'personal' | 'service';
 export type ApiTokenState = 'active' | 'revoked' | 'suspended';
-export type WebhookSubscriptionState = 'active' | 'disabled_endpoint' | 'suspended';
+export type WebhookSubscriptionState = 'active' | 'paused' | 'disabled_endpoint' | 'suspended';
 export type WebhookDeliveryState =
-  'pending' | 'delivered' | 'retry_scheduled' | 'failed' | 'unknown' | 'disabled_endpoint';
+  | 'pending'
+  | 'delivered'
+  | 'retry_scheduled'
+  | 'failed'
+  | 'unknown'
+  | 'disabled_endpoint'
+  | 'skipped';
+export type WebhookObjectKind =
+  'record' | 'comment' | 'review_request' | 'synthetic' | 'unsupported';
 export interface ApiTokenTable {
   id: string;
   workspace_id: string;
@@ -2909,6 +2917,9 @@ export interface WebhookSubscriptionTable {
   updated_at: DTs;
   updated_by_membership_id: string | null;
   version: Defaulted<number>;
+  paused_at: Timestamp | null;
+  paused_by_membership_id: string | null;
+  stopped_at: Timestamp | null;
 }
 export interface WebhookDeliveryTable {
   id: string;
@@ -2928,6 +2939,14 @@ export interface WebhookDeliveryTable {
   claimed_until: Timestamp | null;
   created_at: DTs;
   updated_at: DTs;
+  event_created_at: DTs;
+  object_kind: Defaulted<WebhookObjectKind>;
+  object_id: string | null;
+  source_record_id: string | null;
+  cycle: Defaulted<number>;
+  total_attempts: Defaulted<number>;
+  replayed_at: Timestamp | null;
+  replayed_by_membership_id: string | null;
 }
 export interface InboundEndpointTable {
   id: string;
@@ -5187,6 +5206,9 @@ export const TABLE_COLUMNS: Readonly<Record<keyof Database, readonly string[]>> 
     'updated_at',
     'updated_by_membership_id',
     'version',
+    'paused_at',
+    'paused_by_membership_id',
+    'stopped_at',
   ],
   'integrations.webhook_delivery': [
     'id',
@@ -5206,6 +5228,14 @@ export const TABLE_COLUMNS: Readonly<Record<keyof Database, readonly string[]>> 
     'claimed_until',
     'created_at',
     'updated_at',
+    'event_created_at',
+    'object_kind',
+    'object_id',
+    'source_record_id',
+    'cycle',
+    'total_attempts',
+    'replayed_at',
+    'replayed_by_membership_id',
   ],
   'integrations.inbound_endpoint': [
     'id',

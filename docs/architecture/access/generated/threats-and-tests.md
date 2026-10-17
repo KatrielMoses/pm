@@ -80,7 +80,7 @@ Narrative: [../14-threat-model.md](../14-threat-model.md).
 | T-70 | departure | Personal dashboard exposure: an administrator, owner, another member, or a departing member's successor reading, listing, restoring, or counting a personal dashboard that is not theirs; or a personal dashboard whose existence differs from an unknown identifier in status, body, headers, or timing. | I-01, I-07, I-10 | AT-292, AT-293 |
 | T-71 | rls_leak | Replay and race: a repeated or concurrent create, edit, share, schedule, or delivery that applies twice, loses an edit, sends the same occurrence twice, or lets a second writer overwrite the first without a version conflict. | I-01, I-09 | AT-294, AT-295 |
 | T-72 | staleness | Misleading or unavailable source: a figure from an unavailable or out-of-date source shown as current or complete, a provider that is not configured reported as a delivered email, or an estimated or incomplete figure shown without saying so. | I-08, I-12 | AT-296, AT-297 |
-| T-73 | field_leak | Credential disclosure: an OAuth token or API key returned, logged, audited, indexed, or left in a row after disconnect or departure. | I-08, I-11 | AT-299, AT-300, AT-307, AT-308, AT-344 |
+| T-73 | field_leak | Credential disclosure: an OAuth token or API key returned, logged, audited, indexed, or left in a row after disconnect or departure. | I-08, I-11 | AT-299, AT-300, AT-307, AT-308, AT-344, AT-348 |
 | T-74 | cross_brand_traversal | Connection leak: a connection, sync, or conflict from another brand or workspace is listed or read. | I-01, I-07 | AT-298, AT-306, AT-318 |
 | T-75 | guest_escalation | Unauthorized configuration: a guest, read-only member, or member without manage connects, tests, syncs, or disconnects. | I-04, I-07 | AT-298, AT-307, AT-330 |
 | T-76 | departure | Secret survives disconnect or departure: the vault reference remains usable after disconnect, retention removal, or the owner leaving. | I-10, I-11 | AT-301, AT-305, AT-316, AT-325, AT-335, AT-342 |
@@ -89,15 +89,15 @@ Narrative: [../14-threat-model.md](../14-threat-model.md).
 | T-79 | staleness | Unconfigured or degraded provider reported as healthy: a provider that is not configured, or a degraded provider, is shown as connected and its writes are applied. | I-08, I-12 | AT-304, AT-320 |
 | T-80 | agent_scope | Scope wider than granted: a connection is stored with a scope the provider does not offer, or a sync writes without the write scope. | I-04, I-07 | AT-304, AT-309 |
 | T-81 | spoofing | A stolen, revoked, expired, or narrowed API token is accepted as the member, or the token secret is returned after it was shown. | I-01, I-08 | AT-310, AT-311 |
-| T-82 | cross_brand_traversal | A token limited to one brand reads or writes another brand. | I-01, I-08 | AT-312, AT-332 |
+| T-82 | cross_brand_traversal | A token limited to one brand reads or writes another brand. | I-01, I-08 | AT-312, AT-332, AT-346 |
 | T-83 | spoofing | An inbound webhook with a bad signature, stale timestamp, or unknown endpoint is treated as authentic or discloses whether the endpoint exists. | I-01, I-08 | AT-313, AT-337 |
-| T-84 | rls_leak | An outbound webhook delivers a record the subscription owner can no longer read, or stores a response body. | I-01, I-08 | AT-314, AT-336 |
-| T-85 | revocation | A replayed write applies twice, or a delivery is dropped instead of retried. | I-01, I-08 | AT-314, AT-334, AT-336 |
+| T-84 | rls_leak | An outbound webhook delivers a record the subscription owner can no longer read, or stores a response body. | I-01, I-08 | AT-314, AT-336, AT-345, AT-346, AT-347, AT-348 |
+| T-85 | revocation | A replayed write applies twice, or a delivery is dropped instead of retried. | I-01, I-08 | AT-314, AT-334, AT-336, AT-349, AT-350 |
 | T-86 | field_leak | A person's connected calendars, event titles, schedule conflicts, or busy time reach anyone but that person, directly or through derived availability, counts, conflicts, or Today (anonymous free/busy). | I-07, I-08, I-18 | AT-316, AT-317, AT-318, AT-324, AT-328, AT-341 |
 | T-87 | revocation | A calendar change silently overwrites the person's plan or the provider copy, loops between them, applies after the owner lost authority, or changes a due date or deadline. | I-12, I-14 | AT-323, AT-325, AT-328 |
 | T-88 | spoofing | A calendar authorization completes with a mismatched state or for someone other than its initiator, or a scope declined at the provider widens the connection. | I-01, I-11, I-16 | AT-317, AT-320, AT-328 |
 | T-89 | staleness | An unconfigured provider, a test double, an outage, or an invalidated checkpoint is reported as live, current synchronization. | I-01, I-08 | AT-315, AT-319, AT-321, AT-322, AT-326, AT-327, AT-328, AT-329 |
-| T-90 | cross_workspace | A Phase 6 surface (connection, API token, MCP access, webhook, or import) reaches a workspace, brand, or record its principal cannot read, discloses hidden identifiers through its refusals, or keeps acting after revocation, suspension, removal, or departure. | I-03, I-07, I-12, I-14 | AT-328, AT-330, AT-331, AT-332, AT-333, AT-334, AT-335, AT-338, AT-339, AT-340, AT-341, AT-342, AT-343, AT-344 |
+| T-90 | cross_workspace | A Phase 6 surface (connection, API token, MCP access, webhook, or import) reaches a workspace, brand, or record its principal cannot read, discloses hidden identifiers through its refusals, or keeps acting after revocation, suspension, removal, or departure. | I-03, I-07, I-12, I-14 | AT-328, AT-330, AT-331, AT-332, AT-333, AT-334, AT-335, AT-338, AT-339, AT-340, AT-341, AT-342, AT-343, AT-344, AT-345, AT-349, AT-350 |
 
 ## Test matrix
 
@@ -447,6 +447,12 @@ Narrative: [../14-threat-model.md](../14-threat-model.md).
 | AT-342 | T-90, T-76 | owner | Archive, restore, and purge of connections and subscriptions — connection | `integrations.configure` | api | **allow** | ok | — |
 | AT-343 | T-90 | member | One person in two workspaces with tokens and MCP in each — cross-workspace | `record.create` | api | **deny** | not_found | error_message |
 | AT-344 | T-73, T-90 | system_job | Logs, traces, audit, and MCP provenance during token, OAuth, sync, and delivery — operational logs | `integrations.configure` | audit_display | **deny** | omitted | audit_display, error_message |
+| AT-345 | T-84, T-90 | system_job | Restricted record readable when queued, revoked before send while brand access remains; owner loses manage — webhook delivery | `webhook.test_send` | webhook_payload | **deny** | omitted | webhook_payload, error_message |
+| AT-346 | T-84, T-82 | system_job | Brand subscription versus workspace-level and other-brand events; workspace subscription — webhook delivery | `webhooks.manage` | webhook_payload | **deny** | omitted | webhook_payload |
+| AT-347 | T-84 | system_job | Trashed record, tombstone event, archived brand and subscription — webhook delivery | `webhooks.manage` | webhook_payload | **deny** | omitted | webhook_payload |
+| AT-348 | T-84, T-73 | system_job | Public envelope built at send; signature; retries keep event id and time; synthetic test — webhook delivery | `webhook.test_send` | webhook_payload | **allow** | ok | — |
+| AT-349 | T-85, T-90 | administrator | Replay of non-terminal, concurrent, same-key, racing, and unauthorized requests — webhook delivery | `webhooks.manage` | api | **deny** | conflict_filtered | error_message |
+| AT-350 | T-85, T-90 | member | Pause with queued, retrying, and in-flight deliveries; resume without and with a delivered test — webhook subscription | `webhooks.manage` | api | **allow** | ok | — |
 
 ## Response shapes
 

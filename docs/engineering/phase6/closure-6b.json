@@ -46,6 +46,18 @@
         {
           "file": "packages/work/test/integration/public-api.test.ts",
           "contains": "AT-310 shows a personal token once"
+        },
+        {
+          "file": "packages/work/test/integration/webhook-delivery.test.ts",
+          "contains": "AT-345 re-authorizes at send through the canonical record"
+        },
+        {
+          "file": "packages/work/test/integration/webhook-delivery.test.ts",
+          "contains": "AT-346 matches brand subscriptions exactly"
+        },
+        {
+          "file": "packages/work/test/integration/webhook-delivery.test.ts",
+          "contains": "AT-350 pauses at once without recalling a send in flight"
         }
       ]
     },
@@ -61,6 +73,10 @@
         {
           "file": "packages/work/test/integration/public-api.test.ts",
           "contains": "AT-310 shows a personal token once"
+        },
+        {
+          "file": "packages/work/test/integration/webhook-delivery.test.ts",
+          "contains": "AT-348 sends the public envelope built at send, with a verifiable signature"
         }
       ]
     },
@@ -91,6 +107,10 @@
         {
           "file": "packages/work/test/integration/public-api.test.ts",
           "contains": "AT-310 shows a personal token once"
+        },
+        {
+          "file": "packages/work/test/integration/webhook-delivery.test.ts",
+          "contains": "AT-349 replays only dead-lettered deliveries, once, serialized with the worker"
         }
       ]
     },
@@ -106,6 +126,14 @@
         {
           "file": "packages/work/test/integration/public-api.test.ts",
           "contains": "AT-310 shows a personal token once"
+        },
+        {
+          "file": "packages/work/test/integration/webhook-delivery.test.ts",
+          "contains": "AT-349 replays only dead-lettered deliveries"
+        },
+        {
+          "file": "apps/web/src/pages/api-pages.tsx",
+          "contains": "SKIP_REASON"
         }
       ]
     },
@@ -568,5 +596,8 @@
   "limitations": [
     "Provider connections and calendar sync remain 6A and 6C.",
     "Test-result ingestion beyond a quarantined generic envelope remains 9B."
+  ],
+  "corrections": [
+    "Phase 6 integration review, corrective review 01 (ADR-0037 W1–W6): delivery is authorized at send through the canonical record predicate as the accountable owner, brand subscriptions match exactly, the envelope follows the public webhook-outbound schema, replay is a guarded state transition, and owners can pause and resume (migration 0052)."
   ]
 }

@@ -28,13 +28,23 @@ const token = (state: string) => ({
 /** Routes the page's requests; the envelopes match the API (list and resource both under data). */
 function serve() {
   let revoked = false;
-  const calls: Array<{ method: string; path: string; body: unknown }> = [];
+  const calls: Array<{
+    method: string;
+    path: string;
+    body: unknown;
+    headers: Record<string, string>;
+  }> = [];
   vi.stubGlobal(
     'fetch',
     vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
       const path = String(input);
       const method = init?.method ?? 'GET';
-      calls.push({ method, path, body: init?.body ? JSON.parse(String(init.body)) : null });
+      calls.push({
+        method,
+        path,
+        body: init?.body ? JSON.parse(String(init.body)) : null,
+        headers: Object.fromEntries(new Headers(init?.headers).entries()),
+      });
       if (path.endsWith('/api-tokens') && method === 'GET')
         return json(200, {
           data: { type: 'api_tokens', tokens: [token(revoked ? 'revoked' : 'active')] },
@@ -77,17 +87,38 @@ function serve() {
                 event_type: 'task.created',
                 state: 'failed',
                 attempt: 5,
+                total_attempts: 5,
+                cycle: 1,
+                replayable: true,
                 response_status: 503,
                 duration_ms: 20,
                 next_attempt_at: null,
                 created_at: '2026-10-10T08:00:00.000Z',
                 detail: 'status',
               },
+              {
+                id: 'whd_2',
+                type: 'webhook_delivery',
+                event_id: 'evt_2',
+                event_type: 'task.updated',
+                state: 'skipped',
+                attempt: 0,
+                total_attempts: 0,
+                cycle: 1,
+                replayable: false,
+                response_status: null,
+                duration_ms: null,
+                next_attempt_at: null,
+                created_at: '2026-10-10T09:00:00.000Z',
+                detail: 'not_readable',
+              },
             ],
           },
         });
       if (path.endsWith('/webhook-deliveries/whd_1:replay'))
         return json(202, { data: { id: 'whd_1', state: 'pending' } });
+      if (path.endsWith('/webhook-subscriptions/whk_1:pause'))
+        return json(200, { data: { id: 'whk_1', type: 'webhook_subscription', state: 'paused' } });
       return json(404, { error: { code: 'not_found', message: 'Not found.' } });
     }),
   );
@@ -145,9 +176,18 @@ describe('API tokens and webhooks', () => {
     const table = within(hooks).getByRole('table');
     expect(within(table).getByText('Failed')).toBeTruthy();
     expect(within(table).getByText('5xx')).toBeTruthy();
-    await act(async () => fireEvent.click(within(table).getByRole('button', { name: /^Replay/ })));
+    // A withheld delivery says why in plain words, and only a dead letter offers Retry.
+    expect(
+      within(table).getByText('Not sent (its owner can no longer see that record)'),
+    ).toBeTruthy();
+    expect(within(table).getAllByRole('button', { name: /^Retry/ })).toHaveLength(1);
+    await act(async () => fireEvent.click(within(table).getByRole('button', { name: /^Retry/ })));
     expect(calls.some((c) => c.path.endsWith('/webhook-deliveries/whd_1:replay'))).toBe(true);
     expect(hooks.getAttribute('aria-busy')).toBe('false');
-    expect(within(hooks).getByText('Delivery queued again.')).toBeTruthy();
+    expect(within(hooks).getByText('Delivery queued to be sent again.')).toBeTruthy();
+    // Pause is an ordinary control, sent against the version the page loaded.
+    await act(async () => fireEvent.click(within(hooks).getByRole('button', { name: /^Pause/ })));
+    const pause = calls.find((c) => c.path.endsWith('/webhook-subscriptions/whk_1:pause'))!;
+    expect(pause.headers['if-match']).toBe('"0"');
   });
 });

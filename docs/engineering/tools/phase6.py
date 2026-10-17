@@ -46,13 +46,14 @@ MIGRATIONS = {
     "0049": ("0049_mcp_provenance", None),
     "0050": ("0050_csv_portability", "0049"),
     "0051": ("0051_calendar_completion", "0050"),
+    "0052": ("0052_webhook_delivery_controls", "0051"),
 }
 ADRS = {"0032": "integration-framework", "0033": "public-api-webhooks", "0034": "google-calendar",
         "0035": "mcp-access-foundation", "0036": "data-portability", "0037": "phase-6-integration"}
 ANCHORS = {
-    "docs/architecture/data/12-decisions.md": ["adr-%d" % n for n in (40, 41, 42)],
-    "docs/architecture/access/15-decisions.md": ["az-%d" % n for n in (40, 41, 42)],
-    "docs/architecture/platform/19-decisions.md": ["pl-%d" % n for n in (42, 43, 44)],
+    "docs/architecture/data/12-decisions.md": ["adr-%d" % n for n in (40, 41, 42, 43)],
+    "docs/architecture/access/15-decisions.md": ["az-%d" % n for n in (40, 41, 42, 43)],
+    "docs/architecture/platform/19-decisions.md": ["pl-%d" % n for n in (42, 43, 44, 45)],
 }
 FIRST_THREAT, FIRST_TEST = 73, 298
 TEST_DIRS = ["packages", "apps", "e2e"]
@@ -97,10 +98,10 @@ def check_numbering():
             continue
         if prior and "Restores the exact %s catalog" % prior not in read(P("packages/db/migrations/%s.down.sql" % name)):
             errs.append("%s down must restore the exact %s catalog" % (name, prior))
-    if sorted(by)[-1] != "0051":
-        errs.append("0051 must be the last migration in the integrated tree")
+    if sorted(by)[-1] != "0052":
+        errs.append("0052 must be the last migration in the integrated tree")
     errs += phase1.check_migrations()[0]
-    errs += phase1.check_boundaries([45, 46, 47, 48, 49, 50, 51])
+    errs += phase1.check_boundaries([45, 46, 47, 48, 49, 50, 51, 52])
     adrs = os.listdir(P("docs/engineering/adr"))
     for num, slug in ADRS.items():
         if "%s-%s.md" % (num, slug) not in adrs:
@@ -141,7 +142,7 @@ def check_numbering():
             errs.append("%s is used by %s but not registered in 0C" % (at, where[0]))
         if int(at[3:]) >= 315 and len(where) > 1:
             errs.append("%s titles more than one test (%s)" % (at, ", ".join(where)))
-    return errs, "migrations 0045-0051, ADR-0032..0037, ADR-40..42, AZ-40..42, PL-42..44, T-%d..T-%s, AT-%d..%s" % (
+    return errs, "migrations 0045-0052, ADR-0032..0037, ADR-40..43, AZ-40..43, PL-42..45, T-%d..T-%s, AT-%d..%s" % (
         FIRST_THREAT, tids[-1][2:], FIRST_TEST, aids[-1][3:])
 
 
@@ -177,6 +178,19 @@ def check_composition():
               "new WebhookProjector(", "...INTEGRATION_SCHEDULES"):
         if n not in reg:
             errs.append("the worker must register %s" % n)
+    # Corrective review 01: the webhook delivery boundary stays authorized at send, guarded, and
+    # stoppable (ADR-0037 W1-W6).
+    hooks = read(P("packages/work/src/integrations/public-api-service.ts"))
+    for needle in ("const vis = await compileVisibility(", "WEBHOOK_TOMBSTONES.has(", "async pauseSubscription(",
+                   "async resumeSubscription(", "const REPLAYABLE", "'test_required'", "#afterDelivery(",
+                   "(sub.brand_id === null || sub.brand_id === (event.brand_id ?? null))"):
+        if needle not in hooks:
+            errs.append("webhook boundary lacks %s" % needle)
+    if "if (row.aggregate_id) {" in hooks or "brandLevel(principal" in hooks:
+        errs.append("webhook delivery must not authorize on brand access alone")
+    public_routes = read(P("apps/api/src/public/routes.ts"))
+    if "'pause', 'resume'" not in public_routes:
+        errs.append("the API must route subscription pause and resume")
     server = read(P("packages/config/src/server.ts"))
     if "let calendar: CalendarProviderConfig = { provider: 'none' }" not in server:
         errs.append("calendar configuration must default to provider none")

@@ -226,6 +226,22 @@ test('AT-328 Phase 6 exit journey', async ({ page, browser, request }, info) => 
   await hooks.getByRole('button', { name: /^Show deliveries for/ }).click();
   await settled(hooks);
   await expect(hooks.locator('[data-delivery]').first()).toBeVisible();
+  // The owner stops the endpoint with an ordinary control (keyboard only), sees it paused, and
+  // cannot resume it until a test event is delivered (this endpoint is not listening).
+  await hooks.getByRole('button', { name: /^Pause/ }).focus();
+  await page.keyboard.press('Enter');
+  await settled(hooks);
+  await expect(
+    hooks.getByText(/paused\. Nothing more is sent until you resume it\.$/),
+  ).toBeVisible();
+  await expect(hooks.locator('[data-subscription]').first()).toContainText('Paused');
+  await expect(hooks.getByRole('button', { name: /^Pause/ })).toHaveCount(0);
+  await accessible(page, 'webhook paused');
+  await hooks.getByRole('button', { name: /^Resume/ }).click();
+  await settled(hooks);
+  await expect(hooks.getByRole('alert')).toContainText(
+    'Send a test event and wait until it is delivered, then resume.',
+  );
   await accessible(page, 'api and webhooks');
 
   // MCP: register a client, consent, use it, then revoke consent and lose access at once.

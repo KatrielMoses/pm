@@ -545,3 +545,15 @@ Renumbered in the Phase 6 integration review: 6B was accepted with a second `pl-
 - **Alternatives:** A separate calendar resource tree outside the connection framework (two authorities). An unbounded events read.
 - **Consequences:** 96 ID prefixes and 279 named parameters; no new event types or signals.
 
+<a id="pl-45"></a>
+### PL-45: Webhook delivery contract corrections (Phase 6 integration review, corrective review 01)
+- **Decision:**
+  - **Envelope.** The outbound envelope follows the public `webhook-outbound` schema. `workspace` and optional `brand` are public ids. `data.object` is the public domain object the event is about (`{id, type, version?}`: a task, project, deliverable, comment, review request, or the archived or trashed record). `created_at` is the event's original time on every attempt. The `Webhook-Timestamp` is the send time. A test delivery is `webhook.test` with a synthetic object (`type: "webhook_test"`) and no tenant fields.
+  - **Routes.** `POST /v1/workspaces/{ws}/webhook-subscriptions/{id}:pause` and `…:resume` require `If-Match` with the subscription version and an `Idempotency-Key`.
+    - Pause is idempotent and takes effect when it commits. It waits for at most one request already in flight, which cannot be recalled. Queued deliveries are recorded as `skipped` (`paused`), and nothing is projected while paused.
+    - Resume needs a test delivered after the stop (0D §9.1). It does not replay the backlog.
+  - **Replay.** `…/webhook-deliveries/{id}:replay` accepts only `failed` and `disabled_endpoint` deliveries; any other state is a `conflict` with issue `not_replayable`. A command that cannot obtain its lock within one request's time answers `conflict` with issue `in_progress`. Other refusals: `version_conflict`, `test_required`, `suspended`.
+  - **History.** Delivery history adds `cycle`, `total_attempts`, `replayable`, `event_created_at`, `replayed_at`, and the state `skipped` with a reason.
+- **Alternatives:** Hard delete as the stop control. Replaying the backlog on resume.
+- **Consequences:** No new events, actions, parameters, or prefixes. The `webhook-delivery` schema gains `skipped` and the new history fields.
+

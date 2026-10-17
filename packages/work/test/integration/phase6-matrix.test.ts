@@ -1,6 +1,5 @@
 import { randomUUID } from 'node:crypto';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { newUuidV7 } from '@pm/contracts';
 import { createTestDatabase, type TestDatabase } from '@pm/test-support/vitest';
 import { startGoogleCalendarFixture, type GoogleCalendarFixture } from '@pm/test-support';
 import type { Caller } from '@pm/tenancy';
@@ -21,8 +20,10 @@ import { oauthSyntheticCaller } from '../../src/integrations/mcp-access-service.
 import { parseCsv } from '../../src/portability/csv.ts';
 import {
   apply,
+  internalIdOf,
   join,
   membershipOf,
+  outboxEvents,
   mutation,
   seedAccount,
   workEnv,
@@ -766,24 +767,24 @@ describe('Phase 6 cross-boundary matrix', () => {
 
   it('AT-336 webhooks deliver duplicate and out-of-order events once each under overlapping workers, retry, dead-letter, and replay', async () => {
     const sub = await subscribe(P.owner, 'matrix', 'task.updated', harbor);
-    const event = (occurred: Date) => ({
-      event_id: newUuidV7(),
-      type: 'work.task.updated' as const,
-      schema_version: 1,
-      occurred_at: occurred.toISOString(),
-      recorded_at: new Date().toISOString(),
-      workspace_id: wsId,
-      aggregate: { type: 'work.task', id: newUuidV7(), sequence: 1 },
-      actor: { type: 'human' as const },
-      auth: { workspace_epoch: 1 },
-      correlation_id: 'f'.repeat(32),
-      data: { source_kind: 'api' },
-      max_class: 'C1' as const,
-    });
-    const later = event(new Date(Date.now() - 1_000));
-    const earlier = event(new Date(Date.now() - 60_000));
+    // Real Harbor tasks and the task.updated events their edits wrote to the outbox: an ordinary
+    // event must name a record the accountable owner can read when it is sent.
+    const updated = async (title: string) => {
+      const t = (await env.svc.createTask(P.owner, ws, { brand: harbor, title }, mutation())).data;
+      await env.svc.updateTask(
+        P.owner,
+        ws,
+        t.id,
+        { version: t.version, changes: { title: { base: title, value: `${title} (edited)` } } },
+        mutation({ ifMatch: `"${t.version}"` }),
+      );
+      const [e] = await outboxEvents(db, wsId, 'work.task.updated', await internalIdOf(db, t.id));
+      return e!;
+    };
+    const earlier = await updated('Matrix earlier');
+    const later = await updated('Matrix later');
     // Out of order, and the later event delivered twice by the outbox.
-    for (const e of [later, earlier, later]) await env.svc.projectForWorkspace(wsId, e as never);
+    for (const e of [later, earlier, later]) await env.svc.projectForWorkspace(wsId, e);
     const rows = async () =>
       (
         await db.admin(
@@ -810,7 +811,7 @@ describe('Phase 6 cross-boundary matrix', () => {
       expect(sent.filter((s) => s.id === r.event_public_id)).toHaveLength(1);
     // A server error retries with bounded backoff, then dead-letters at the attempt limit.
     status = 503;
-    await env.svc.projectForWorkspace(wsId, event(new Date()) as never);
+    await env.svc.projectForWorkspace(wsId, await updated('Matrix dead letter'));
     const target = (await rows())[2]!;
     await env.svc.sweepWorkspace(wsId);
     let row = (await rows())[2]!;
@@ -821,7 +822,7 @@ describe('Phase 6 cross-boundary matrix', () => {
     await env.svc.sweepWorkspace(wsId, new Date(Date.now() + 120_000));
     await env.svc.sweepWorkspace(wsId, new Date(Date.now() + 240_000));
     row = (await rows())[2]!;
-    expect(row).toMatchObject({ state: 'failed', attempt: 2, next_attempt_at: null });
+    expect(row).toMatchObject({ state: 'failed', attempt: 3, next_attempt_at: null });
     const attempts = sent.filter((s) => s.id === target.event_public_id).length;
     expect(attempts).toBe(3);
     await env.svc.sweepWorkspace(wsId, new Date(Date.now() + 3_600_000));

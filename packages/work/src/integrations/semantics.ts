@@ -518,15 +518,16 @@ export function webhookDelayMs(attempt: number, baseMs: number, capMs: number): 
   return Math.floor(Math.random() * exp);
 }
 
+/** The public `webhook-outbound` schema (0D §9.1): workspace and brand are public ids. */
 export interface OutboundEnvelope {
   id: string;
   type: string;
   api_version: 'v1';
   created_at: string;
-  workspace: { id: string };
-  brand?: { id: string };
+  workspace: string;
+  brand?: string;
   data: {
-    object: { id: string; type: string; version: number };
+    object: { id: string; type: string; version?: number };
     fields: Record<string, string | number | boolean | null>;
     changes: string[];
   };

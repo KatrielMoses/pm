@@ -26,6 +26,17 @@ Date: 2026-10-17. Brief P6-IR1. Base: accepted 6D head `6b4bb78`, which contains
 | G9 | Privacy and retention | Calendars, events, series, and conflicts are personal (`R-PERSONAL`). Disconnect `retain` keeps the mirror readable to its owner as not synchronized and excludes it from busy time; `remove` deletes every row. Purge of a connection deletes the same rows and the vault secret. Event titles are stored as plain text inside workspace RLS: the 0B model's "encrypted at rest" target needs a secret store or KMS that is not approved (DQ-28), and is recorded as a residual risk. |
 | G10 | Honest configuration | `provider_mode` is `live`, `test_double`, or null. The loopback double cannot publish to a calendar (nothing real would exist). Automated acceptance runs the real adapter against a deterministic HTTP contract fixture (`startGoogleCalendarFixture`), never against Google, and never presents fixture results as live synchronization. |
 
+## Decisions — webhook delivery boundary (W, corrective review 01)
+
+| # | Topic | Decision |
+|---|---|---|
+| W1 | Authorized at send | A delivery is authorized when it is sent, as the subscription's accountable owner. The owner must still hold `webhooks.manage` at the subscription's placement (otherwise the subscription is suspended). The owner must still read the governing record through `compileVisibility`, which covers restricted projects, sensitive grants, record shares, membership, and lifecycle, intersected with the subscription's brand. Brand access alone never suffices. A missing, purged, out-of-scope, or unsupported source is `skipped` and recorded with a reason. Source resolution per type is explicit (`webhook-sources.ts`): records, comments by host, reviews by subject, and deliverables. Archive and trash events follow a tombstone contract authorized against the record's placement. Queued facts pass the version 1 allow-list again at send. |
+| W2 | One send per transaction | The sweep lists due deliveries, then sends each in its own transaction. That transaction holds the subscription (shared) and then the delivery (for update, skipping locked rows). Subscription counters, automatic disablement, and suspension change in a short transaction after the send commits, so overlapping workers never upgrade the same lock. |
+| W3 | Replay | Only dead-lettered deliveries (`failed`, `disabled_endpoint`) are replayable; others get a `not_replayable` conflict. Replay takes the same lock order, so it waits for a send in progress and then re-checks the state. It never clears an active claim. It re-checks the manager, scope, subscription state, and source visibility. It starts a new `cycle` (bounded at 100) and keeps `total_attempts`, the event id, its time, and the last outcome. It is audited without payload. The same mutation key returns the stored answer and never resets twice. |
+| W4 | Pause | `…:pause` (If-Match, idempotent) is the owner's stop control. After it commits, nothing is projected and nothing queued starts; queued deliveries become `skipped` (`paused`). The worker holds the subscription while sending, so a pause waits for at most one request in flight, which cannot be recalled. History is kept. Commands that wait on a send raise `lock_timeout` locally to one response timeout plus a margin. |
+| W5 | Resume | `…:resume` needs a test delivered after `stopped_at`, for both a pause and an automatic disablement (0D §9.1). It never replays the backlog. Tests are allowed while stopped (not while suspended), and a failed test never counts towards disablement. |
+| W6 | Envelope | `workspace` and `brand` are public ids. `data.object` is the public domain object. `created_at` is the event's original time across retries, and the signature timestamp is the send time. Synthetic tests carry no tenant record or fields. Management is decided per subscription placement, so a brand manager can manage and stop their own brand endpoints. |
+
 ## Decisions — integration reconciliation (R)
 
 | # | Topic | Decision |
@@ -55,6 +66,9 @@ Date: 2026-10-17. Brief P6-IR1. Base: accepted 6D head `6b4bb78`, which contains
 | Tests | AT-317–AT-327 | Phase 6 review (calendar) | `calendar-live.test.ts` |
 | Tests | AT-328, AT-329 | Phase 6 review (browser) | `e2e/phase6-exit-journey.spec.ts` |
 | Tests | AT-330–AT-344 | Phase 6 review (matrix) | `packages/work/test/integration/phase6-matrix.test.ts` |
+| Migration | 0052 | Corrective review 01 | `0052_webhook_delivery_controls` |
+| 0B / 0C / 0D | ADR-43, AZ-43, PL-45 | Corrective review 01 | Webhook delivery controls, authority, and contract |
+| Tests | AT-345–AT-350 | Corrective review 01 (webhooks) | `packages/work/test/integration/webhook-delivery.test.ts` |
 
 6D and 6E recorded their decisions only in their engineering ADRs (0036, 0035) and added no 0B/0C/0D anchors. That stays as recorded.
 
@@ -81,7 +95,15 @@ The calendar tests are listed in ADR-0034.
 | AT-342 | packages/work/test/integration/phase6-matrix.test.ts | AT-342 lifecycle: archive and restore never resurrect revoked authority; purge removes calendar rows and secrets |
 | AT-343 | packages/work/test/integration/phase6-matrix.test.ts | AT-343 one person in two workspaces keeps each workspace’s delegation apart |
 | AT-344 | packages/work/test/integration/phase6-matrix.test.ts | AT-344 operational logs and audit never carry a token, client, webhook, or provider secret |
+| AT-345 | packages/work/test/integration/webhook-delivery.test.ts | AT-345 re-authorizes at send through the canonical record: a restricted record revoked before send is skipped while brand access remains |
+| AT-346 | packages/work/test/integration/webhook-delivery.test.ts | AT-346 matches brand subscriptions exactly and authorizes every workspace-subscription event at send |
+| AT-347 | packages/work/test/integration/webhook-delivery.test.ts | AT-347 follows record, brand, and subscription lifecycle, with an explicit tombstone contract |
+| AT-348 | packages/work/test/integration/webhook-delivery.test.ts | AT-348 sends the public envelope built at send, with a verifiable signature and no internal identifiers |
+| AT-349 | packages/work/test/integration/webhook-delivery.test.ts | AT-349 replays only dead-lettered deliveries, once, serialized with the worker, and audited |
+| AT-350 | packages/work/test/integration/webhook-delivery.test.ts | AT-350 pauses at once without recalling a send in flight, keeps history, and resumes only after a delivered test |
 
 ## Migration and rollback evidence
+
+`0052_webhook_delivery_controls` adds the `paused` subscription state with its pauser and stop time, the delivery source and object, the original event time, the replay cycle and lifetime attempts, the replayer, and the `skipped` state. It backfills queued deliveries so they authorize again at send. The down migration restores the exact 0051 catalog, and the boundary walk covers 0051 and 0052.
 
 `0051_calendar_completion` adds `integrations.calendar_source`, `integrations.calendar_series`, and `integrations.calendar_exception` with forced workspace RLS and grants to `app_rw` and `app_worker`. It also adds the event link and occurrence columns, constraints, and indexes, and replaces six tenant policies. The down migration drops exactly these and restores the 0050 policies. `packages/db/test/integration/migrations.test.ts` walks every boundary through 0051 up, down, and up again, comparing objects, RLS flags, constraints, grants, and policies.

@@ -16,10 +16,13 @@ interface TokenRow {
 
 interface SubscriptionRow {
   id: string;
+  version: number;
   destination_url: string;
   event_types: string[];
   state: string;
   consecutive_failures?: number;
+  paused_at?: string | null;
+  suspended_reason?: string | null;
 }
 
 interface DeliveryRow {
@@ -27,8 +30,11 @@ interface DeliveryRow {
   event_type: string;
   state: string;
   attempt: number;
+  total_attempts?: number;
+  replayable?: boolean;
   response_status: number | null;
   created_at: string;
+  detail: string | null;
 }
 
 /** Public webhook event names (v1), as the API accepts them. */
@@ -57,8 +63,9 @@ const WEBHOOK_EVENTS = [
 
 const SUB_STATE: Record<string, string> = {
   active: 'Active',
-  disabled_endpoint: 'Paused after repeated failures',
-  suspended: 'Suspended',
+  paused: 'Paused',
+  disabled_endpoint: 'Stopped after repeated failures',
+  suspended: 'Suspended: its owner can no longer manage it',
 };
 
 const DELIVERY_STATE: Record<string, string> = {
@@ -67,7 +74,22 @@ const DELIVERY_STATE: Record<string, string> = {
   unknown: 'Outcome unknown, retrying',
   delivered: 'Delivered',
   failed: 'Failed',
-  dead: 'Failed',
+  disabled_endpoint: 'Not sent: endpoint stopped',
+  skipped: 'Not sent',
+};
+
+/** Why a delivery was not sent, in plain words (never what the record contains). */
+const SKIP_REASON: Record<string, string> = {
+  paused: 'the endpoint was paused',
+  not_readable: 'its owner can no longer see that record',
+  owner_authority: 'its owner can no longer manage this endpoint',
+  owner_departed: 'its owner left the workspace',
+  brand_inactive: 'the brand is archived',
+  subscription_inactive: 'the endpoint is archived',
+  source_unavailable: 'the record no longer exists',
+  out_of_scope: 'the record left this endpoint’s brand',
+  unsupported_source: 'this event type cannot be sent yet',
+  suspended: 'the endpoint is suspended',
 };
 
 const statusClass = (status: number | null) =>
@@ -280,6 +302,12 @@ function WebhooksSection({ ws }: { ws: string }) {
   };
   const post = <T,>(path: string, body: unknown = {}) =>
     api<T>('POST', path, { body, headers: { 'idempotency-key': newIdempotencyKey() } });
+  /** Pause or resume, against the version this page loaded (a stale page gets a conflict). */
+  const stateChange = (s: SubscriptionRow, verb: 'pause' | 'resume') =>
+    api('POST', `${base}/webhook-subscriptions/${s.id}:${verb}`, {
+      body: {},
+      headers: { 'idempotency-key': newIdempotencyKey(), 'if-match': `"${s.version}"` },
+    });
   const loadDeliveries = async (sub: string) => {
     const r = await api<{ data: { deliveries: DeliveryRow[] } }>(
       'GET',
@@ -426,7 +454,46 @@ function WebhooksSection({ ws }: { ws: string }) {
               >
                 Show deliveries<span className="visually-hidden"> for {s.destination_url}</span>
               </button>
+              {s.state === 'active' ? (
+                <button
+                  type="button"
+                  className="button button-ghost"
+                  disabled={busy}
+                  onClick={() =>
+                    void run(async () => {
+                      await stateChange(s, 'pause');
+                      setSubs(await listSubs());
+                      return `${s.destination_url} paused. Nothing more is sent until you resume it.`;
+                    })
+                  }
+                >
+                  Pause<span className="visually-hidden"> {s.destination_url}</span>
+                </button>
+              ) : null}
+              {s.state === 'paused' || s.state === 'disabled_endpoint' ? (
+                <button
+                  type="button"
+                  className="button button-ghost"
+                  disabled={busy}
+                  onClick={() =>
+                    void run(async () => {
+                      await stateChange(s, 'resume');
+                      setSubs(await listSubs());
+                      return `${s.destination_url} resumed. New events are sent again.`;
+                    })
+                  }
+                >
+                  Resume<span className="visually-hidden"> {s.destination_url}</span>
+                </button>
+              ) : null}
             </div>
+            {s.state === 'paused' || s.state === 'disabled_endpoint' ? (
+              <p className="hint">
+                Not sending. Events while stopped are not queued. To resume, send a test event and
+                wait until it is delivered. A request already on its way when you paused could not
+                be recalled.
+              </p>
+            ) : null}
             {deliveries[s.id] ? (
               deliveries[s.id]!.length ? (
                 <div
@@ -452,11 +519,16 @@ function WebhooksSection({ ws }: { ws: string }) {
                       {deliveries[s.id]!.map((d) => (
                         <tr key={d.id} data-delivery={d.id}>
                           <td>{d.event_type}</td>
-                          <td>{DELIVERY_STATE[d.state] ?? d.state}</td>
-                          <td>{d.attempt}</td>
+                          <td>
+                            {DELIVERY_STATE[d.state] ?? d.state}
+                            {d.state === 'skipped' && d.detail && SKIP_REASON[d.detail]
+                              ? ` (${SKIP_REASON[d.detail]})`
+                              : ''}
+                          </td>
+                          <td>{d.total_attempts ?? d.attempt}</td>
                           <td>{statusClass(d.response_status)}</td>
                           <td>
-                            {d.state === 'failed' || d.state === 'dead' ? (
+                            {d.replayable && d.event_type !== 'webhook.test' ? (
                               <button
                                 type="button"
                                 className="button button-ghost"
@@ -465,11 +537,11 @@ function WebhooksSection({ ws }: { ws: string }) {
                                   void run(async () => {
                                     await post(`${base}/webhook-deliveries/${d.id}:replay`);
                                     await loadDeliveries(s.id);
-                                    return 'Delivery queued again.';
+                                    return 'Delivery queued to be sent again.';
                                   })
                                 }
                               >
-                                Replay<span className="visually-hidden"> {d.event_type}</span>
+                                Retry<span className="visually-hidden"> {d.event_type}</span>
                               </button>
                             ) : null}
                           </td>

@@ -51,7 +51,8 @@
     "MCP provenance: 0049 widened audit and capture source kinds but not core.record, so every MCP-created record failed; 0051 adds `mcp` with a rollback that relabels to `api`.",
     "6A HTTP: sync and conflict-resolve routes wrapped resource data in a non-resource envelope (500); fixed with an HTTP regression test.",
     "6B: brand-scoped webhook subscriptions were visible to administrators without the brand; duplicate internal events created duplicate deliveries; overlapping sweeps re-sent deliveries. Fixed under AT-331/AT-336.",
-    "6E: listing clients failed for members (ambiguous column) and pm.tasks.complete always failed; 6D: a malformed job id raised a raw database error; connection purge failed for calendar connections."
+    "6E: listing clients failed for members (ambiguous column) and pm.tasks.complete always failed; 6D: a malformed job id raised a raw database error; connection purge failed for calendar connections.",
+    "Corrective review 01 (webhooks): delivery authorized at send through the canonical record predicate as the accountable owner (not brand access), exact brand matching, explicit tombstone contract, schema-correct envelope with the original event time, replay as a guarded transition for dead letters only, a user pause/resume with an honest in-flight boundary, per-placement management for brand managers, and subscription writes moved out of the send transaction (a deadlock under overlapping workers). Migration 0052."
   ],
   "evidence": [
     {
@@ -64,7 +65,7 @@
     },
     {
       "file": "packages/db/test/integration/migrations.test.ts",
-      "contains": "every accepted boundary (0009–0051)"
+      "contains": "every accepted boundary (0009–0052)"
     },
     {
       "file": "packages/work/src/integrations/calendar-provider.ts",
@@ -125,6 +126,30 @@
     {
       "file": "apps/web/src/pages/api-pages.tsx",
       "contains": "body.data"
+    },
+    {
+      "file": "packages/db/migrations/0052_webhook_delivery_controls.down.sql",
+      "contains": "Restores the exact 0051 catalog"
+    },
+    {
+      "file": "packages/work/src/integrations/webhook-sources.ts",
+      "contains": "export const WEBHOOK_TOMBSTONES"
+    },
+    {
+      "file": "packages/work/test/integration/webhook-delivery.test.ts",
+      "contains": "AT-345 re-authorizes at send through the canonical record"
+    },
+    {
+      "file": "packages/work/test/integration/webhook-delivery.test.ts",
+      "contains": "AT-349 replays only dead-lettered deliveries"
+    },
+    {
+      "file": "packages/work/test/integration/webhook-delivery.test.ts",
+      "contains": "AT-350 pauses at once without recalling a send in flight"
+    },
+    {
+      "file": "e2e/phase6-exit-journey.spec.ts",
+      "contains": "cannot resume it until a test event is delivered"
     }
   ]
 }
