@@ -92,12 +92,12 @@ Narrative: [../14-threat-model.md](../14-threat-model.md).
 | T-82 | cross_brand_traversal | A token limited to one brand reads or writes another brand. | I-01, I-08 | AT-312, AT-332, AT-346 |
 | T-83 | spoofing | An inbound webhook with a bad signature, stale timestamp, or unknown endpoint is treated as authentic or discloses whether the endpoint exists. | I-01, I-08 | AT-313, AT-337 |
 | T-84 | rls_leak | An outbound webhook delivers a record the subscription owner can no longer read, or stores a response body. | I-01, I-08 | AT-314, AT-336, AT-345, AT-346, AT-347, AT-348 |
-| T-85 | revocation | A replayed write applies twice, or a delivery is dropped instead of retried. | I-01, I-08 | AT-314, AT-334, AT-336, AT-349, AT-350 |
+| T-85 | revocation | A replayed write applies twice, or a delivery is dropped instead of retried. | I-01, I-08 | AT-314, AT-334, AT-336, AT-349, AT-350, AT-351, AT-352, AT-353 |
 | T-86 | field_leak | A person's connected calendars, event titles, schedule conflicts, or busy time reach anyone but that person, directly or through derived availability, counts, conflicts, or Today (anonymous free/busy). | I-07, I-08, I-18 | AT-316, AT-317, AT-318, AT-324, AT-328, AT-341 |
 | T-87 | revocation | A calendar change silently overwrites the person's plan or the provider copy, loops between them, applies after the owner lost authority, or changes a due date or deadline. | I-12, I-14 | AT-323, AT-325, AT-328 |
 | T-88 | spoofing | A calendar authorization completes with a mismatched state or for someone other than its initiator, or a scope declined at the provider widens the connection. | I-01, I-11, I-16 | AT-317, AT-320, AT-328 |
 | T-89 | staleness | An unconfigured provider, a test double, an outage, or an invalidated checkpoint is reported as live, current synchronization. | I-01, I-08 | AT-315, AT-319, AT-321, AT-322, AT-326, AT-327, AT-328, AT-329 |
-| T-90 | cross_workspace | A Phase 6 surface (connection, API token, MCP access, webhook, or import) reaches a workspace, brand, or record its principal cannot read, discloses hidden identifiers through its refusals, or keeps acting after revocation, suspension, removal, or departure. | I-03, I-07, I-12, I-14 | AT-328, AT-330, AT-331, AT-332, AT-333, AT-334, AT-335, AT-338, AT-339, AT-340, AT-341, AT-342, AT-343, AT-344, AT-345, AT-349, AT-350 |
+| T-90 | cross_workspace | A Phase 6 surface (connection, API token, MCP access, webhook, or import) reaches a workspace, brand, or record its principal cannot read, discloses hidden identifiers through its refusals, or keeps acting after revocation, suspension, removal, or departure. | I-03, I-07, I-12, I-14 | AT-328, AT-330, AT-331, AT-332, AT-333, AT-334, AT-335, AT-338, AT-339, AT-340, AT-341, AT-342, AT-343, AT-344, AT-345, AT-349, AT-350, AT-351, AT-352, AT-353 |
 
 ## Test matrix
 
@@ -453,6 +453,9 @@ Narrative: [../14-threat-model.md](../14-threat-model.md).
 | AT-348 | T-84, T-73 | system_job | Public envelope built at send; signature; retries keep event id and time; synthetic test — webhook delivery | `webhook.test_send` | webhook_payload | **allow** | ok | — |
 | AT-349 | T-85, T-90 | administrator | Replay of non-terminal, concurrent, same-key, racing, and unauthorized requests — webhook delivery | `webhooks.manage` | api | **deny** | conflict_filtered | error_message |
 | AT-350 | T-85, T-90 | member | Pause with queued, retrying, and in-flight deliveries; resume without and with a delivered test — webhook subscription | `webhooks.manage` | api | **allow** | ok | — |
+| AT-351 | T-85, T-90 | member | Repeat completed Retry, Pause, and Resume keys after brand visibility is revoked (membership active), after management is removed (brand still visible), with management restored, and after retention or purge removed the resource — webhook subscription | `webhooks.manage` | api | **deny** | not_found | error_message, count_facet, timing |
+| AT-352 | T-85, T-90 | member | Repeat completed create, rotate-secret, test-send, and inbound-endpoint keys through a token without webhooks:manage, after brand revoke, and after management is removed — webhook subscription | `webhooks.manage` | api | **deny** | forbidden | error_message, count_facet, timing |
+| AT-353 | T-85, T-90 | member | Repeat a completed HTTP pause with the same Idempotency-Key and If-Match after brand revoke, after a downgrade to edit, and after manage is restored — webhook subscription | `webhooks.manage` | api | **deny** | not_found | error_message, count_facet, timing |
 
 ## Response shapes
 

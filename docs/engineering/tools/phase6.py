@@ -186,6 +186,12 @@ def check_composition():
                    "(sub.brand_id === null || sub.brand_id === (event.brand_id ?? null))"):
         if needle not in hooks:
             errs.append("webhook boundary lacks %s" % needle)
+    # A completed key is rendered only through the command's own checks (corrective review 02).
+    for needle in ("async #renderSubscription(", "async #renderDelivery("):
+        if needle not in hooks:
+            errs.append("webhook renderers lack %s" % needle)
+    if "#subStateByPublic(" in hooks:
+        errs.append("webhook renderers must not read state by public id without authority")
     if "if (row.aggregate_id) {" in hooks or "brandLevel(principal" in hooks:
         errs.append("webhook delivery must not authorize on brand access alone")
     public_routes = read(P("apps/api/src/public/routes.ts"))

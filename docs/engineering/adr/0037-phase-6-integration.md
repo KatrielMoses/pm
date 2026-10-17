@@ -69,6 +69,7 @@ Date: 2026-10-17. Brief P6-IR1. Base: accepted 6D head `6b4bb78`, which contains
 | Migration | 0052 | Corrective review 01 | `0052_webhook_delivery_controls` |
 | 0B / 0C / 0D | ADR-43, AZ-43, PL-45 | Corrective review 01 | Webhook delivery controls, authority, and contract |
 | Tests | AT-345–AT-350 | Corrective review 01 (webhooks) | `packages/work/test/integration/webhook-delivery.test.ts` |
+| Tests | AT-351–AT-353 | Corrective review 02 (completed-key rendering) | `webhook-delivery.test.ts`, `apps/api/test/integration/integrations-api.test.ts` |
 
 6D and 6E recorded their decisions only in their engineering ADRs (0036, 0035) and added no 0B/0C/0D anchors. That stays as recorded.
 
@@ -101,6 +102,9 @@ The calendar tests are listed in ADR-0034.
 | AT-348 | packages/work/test/integration/webhook-delivery.test.ts | AT-348 sends the public envelope built at send, with a verifiable signature and no internal identifiers |
 | AT-349 | packages/work/test/integration/webhook-delivery.test.ts | AT-349 replays only dead-lettered deliveries, once, serialized with the worker, and audited |
 | AT-350 | packages/work/test/integration/webhook-delivery.test.ts | AT-350 pauses at once without recalling a send in flight, keeps history, and resumes only after a delivered test |
+| AT-351 | packages/work/test/integration/webhook-delivery.test.ts | AT-351 re-renders completed Retry, Pause, and Resume keys through current authority only |
+| AT-352 | packages/work/test/integration/webhook-delivery.test.ts | AT-352 re-renders completed create, rotate, test-send, and inbound keys through current authority only |
+| AT-353 | apps/api/test/integration/integrations-api.test.ts | AT-353 refuses an HTTP idempotent replay of a completed pause once the caller loses the brand or its management |
 
 ## Migration and rollback evidence
 

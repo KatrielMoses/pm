@@ -4,8 +4,11 @@ import {
   Browser,
   idemKey,
   identityEnv,
+  mailTo,
+  PASSWORD,
   registerAndVerify,
   signIn,
+  tokenFrom,
   type IdentityEnv,
 } from './identity-helpers.ts';
 
@@ -23,6 +26,7 @@ describe('integrations and calendar API (6A, 6C)', () => {
   let owner: Browser;
   let stranger: Browser;
   let ws: string;
+  let brand: string;
   const key = () => ({ 'idempotency-key': idemKey() });
   const base = () => `/v1/workspaces/${ws}`;
 
@@ -52,6 +56,7 @@ describe('integrations and calendar API (6A, 6C)', () => {
       { headers: key() },
     );
     ws = created.json().data.id;
+    brand = created.json().data.first_brand.id;
     fx.control.setCalendars([
       { id: 'me@example.test', summary: 'Me', timeZone: 'UTC', accessRole: 'owner', primary: true },
     ]);
@@ -209,5 +214,98 @@ describe('integrations and calendar API (6A, 6C)', () => {
     expect((await owner.get(`${CALLBACK}?state=nonsense&code=x`)).headers.location).toBe(
       '/?calendar=invalid',
     );
+  });
+
+  it('AT-353 refuses an HTTP idempotent replay of a completed pause once the caller loses the brand or its management', async () => {
+    // A member who manages webhooks in the brand, through real invitation and access changes.
+    const inv = await owner.post(
+      `${base()}/invitations`,
+      { email: 'int-hooks@example.test', kind: 'member', role: 'member' },
+      { headers: key() },
+    );
+    expect(inv.statusCode, inv.body).toBe(201);
+    await env.deliverMail();
+    const member = await person('int-hooks@example.test', '203.0.113.152');
+    const accepted = await member.post(
+      '/v1/invitations:accept',
+      { token: tokenFrom(mailTo(env, 'int-hooks@example.test', 'invited').at(-1)) },
+      { headers: key() },
+    );
+    expect(accepted.statusCode, accepted.body).toBe(200);
+    const memberId = (await owner.get(`${base()}/people`))
+      .json()
+      .data.find((p: { role: string }) => p.role === 'member').id;
+    const change = async (c: Record<string, unknown>) => {
+      const preview = await owner.post(`${base()}/access:preview`, { change: c });
+      expect(preview.statusCode, preview.body).toBe(200);
+      const body = { change: c, preview_token: preview.json().data.preview_token };
+      const headers = key();
+      let res = await owner.post(`${base()}/access:apply`, body, { headers });
+      if (res.statusCode === 403 && res.json().error.code === 'step_up_required') {
+        const v = await owner.post(`/v1/auth/step-up/${res.json().error.step_up.id}:verify`, {
+          method: 'password',
+          proof: PASSWORD,
+        });
+        res = await owner.post(`${base()}/access:apply`, body, {
+          headers: { ...headers, 'step-up': v.json().data.token },
+        });
+      }
+      expect(res.statusCode, res.body).toBe(200);
+    };
+    const grant = (level: string) =>
+      change({ kind: 'brand_grant', brand, principal: memberId, level });
+    await grant('manage');
+    const sub = await member.post(
+      `${base()}/webhook-subscriptions`,
+      {
+        destination_url: 'https://127.0.0.1/hooks/http-replay',
+        event_types: ['task.created'],
+        brand,
+      },
+      { headers: key() },
+    );
+    expect(sub.statusCode, sub.body).toBe(201);
+    const subId: string = sub.json().data.id;
+    // The exact completed request: same key, same body, same precondition.
+    const headers = { ...key(), 'if-match': sub.headers.etag as string };
+    const pause = () =>
+      member.post(`${base()}/webhook-subscriptions/${subId}:pause`, undefined, { headers });
+    const first = await pause();
+    expect(first.statusCode, first.body).toBe(200);
+    expect(first.headers['idempotent-replayed']).toBeUndefined();
+    const state = async () =>
+      (
+        await env.db.admin(
+          `SELECT s.state, s.version, s.paused_at,
+                  (SELECT count(*)::int FROM audit.audit_event WHERE action = 'webhook_subscription.paused') AS audits
+             FROM integrations.webhook_subscription s JOIN core.record r ON r.id = s.id
+            WHERE r.public_id = $1`,
+          [subId],
+        )
+      ).rows[0];
+    const before = await state();
+    expect(before).toMatchObject({ state: 'paused', audits: 1 });
+    const denied = async (status: number, code: string) => {
+      const res = await pause();
+      expect(res.statusCode, res.body).toBe(status);
+      expect(res.json().error.code).toBe(code);
+      expect(res.headers['idempotent-replayed']).toBeUndefined();
+      expect(res.headers.etag).toBeUndefined();
+      for (const hidden of [subId, 'paused', 'http-replay']) expect(res.body).not.toContain(hidden);
+      expect(await state()).toEqual(before);
+    };
+    // Brand visibility removed, membership still active: opaque.
+    await change({ kind: 'brand_revoke', brand, principal: memberId });
+    await denied(404, 'not_found');
+    // Visible without managing webhooks: refused.
+    await grant('edit');
+    await denied(403, 'forbidden');
+    // Authority restored: the same request renders the current state and pauses nothing again.
+    await grant('manage');
+    const again = await pause();
+    expect(again.statusCode, again.body).toBe(200);
+    expect(again.headers['idempotent-replayed']).toBe('true');
+    expect(again.json().data).toMatchObject({ id: subId, state: 'paused' });
+    expect(await state()).toEqual(before);
   });
 });

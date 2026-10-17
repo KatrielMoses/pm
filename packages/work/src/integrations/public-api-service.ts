@@ -384,7 +384,7 @@ export class PublicApiService extends IntegrationService {
         };
       },
       async (tx, p, ref) => {
-        const row = await this.#subscription(tx, p, ref.id);
+        const row = await this.#renderSubscription(tx, caller, p, ref.id);
         return this.#subJson(
           row.publicId,
           { url: row.destination_url, events: row.event_types },
@@ -484,7 +484,15 @@ export class PublicApiService extends IntegrationService {
           },
         };
       },
-      async (_tx, _p, ref) => ({ id: ref.id, type: 'webhook_subscription' as const, version: 0 }),
+      async (tx, p, ref) => {
+        const row = await this.#renderSubscription(tx, caller, p, ref.id);
+        // The new secret was shown once; a repeated key never shows it again.
+        return {
+          id: row.publicId,
+          type: 'webhook_subscription' as const,
+          version: Number(row.version),
+        };
+      },
     );
   }
 
@@ -617,12 +625,8 @@ export class PublicApiService extends IntegrationService {
           },
         };
       },
-      async (tx, _p, ref) => {
-        const row = await tx.db
-          .selectFrom('integrations.webhook_delivery')
-          .select(['public_id', 'state', 'cycle', 'total_attempts'])
-          .where('public_id', '=', ref.id)
-          .executeTakeFirstOrThrow();
+      async (tx, p, ref) => {
+        const row = await this.#renderDelivery(tx, caller, p, ref.id);
         return {
           id: row.public_id,
           type: 'webhook_delivery' as const,
@@ -705,7 +709,8 @@ export class PublicApiService extends IntegrationService {
           data: await this.#subState(tx, sub.id),
         };
       },
-      async (tx, _p, ref) => this.#subStateByPublic(tx, ref.id),
+      async (tx, p, ref) =>
+        this.#subState(tx, (await this.#renderSubscription(tx, caller, p, ref.id)).id),
     );
   }
 
@@ -790,7 +795,8 @@ export class PublicApiService extends IntegrationService {
           data: await this.#subState(tx, sub.id),
         };
       },
-      async (tx, _p, ref) => this.#subStateByPublic(tx, ref.id),
+      async (tx, p, ref) =>
+        this.#subState(tx, (await this.#renderSubscription(tx, caller, p, ref.id)).id),
     );
   }
 
@@ -838,12 +844,16 @@ export class PublicApiService extends IntegrationService {
           },
         };
       },
-      async (_tx, _p, ref) => ({
-        id: ref.id,
-        type: 'webhook_delivery' as const,
-        version: 1,
-        state: 'pending',
-      }),
+      async (tx, p, ref) => {
+        const row = await this.#renderDelivery(tx, caller, p, ref.id, 'webhook.test_send');
+        return {
+          id: row.public_id,
+          type: 'webhook_delivery' as const,
+          version: 1,
+          state: row.state,
+          event_id: row.event_public_id,
+        };
+      },
     );
   }
 
@@ -1054,13 +1064,25 @@ export class PublicApiService extends IntegrationService {
           },
         };
       },
-      async (tx, _p, ref) => {
+      async (tx, p, ref) => {
+        this.#delegated(caller);
         const row = await tx.db
-          .selectFrom('integrations.inbound_endpoint')
-          .select(['public_id', 'version', 'action'])
-          .where('public_id', '=', ref.id)
+          .selectFrom('integrations.inbound_endpoint as e')
+          .leftJoin('tenancy.brand as b', 'b.id', 'e.brand_id')
+          .select([
+            'e.public_id',
+            'e.version',
+            'e.action',
+            'e.brand_id',
+            'b.is_sensitive',
+            'b.lifecycle_state as brand_state',
+          ])
+          .where('e.public_id', '=', ref.id)
           .executeTakeFirst();
-        if (!row) throw new TenancyError('not_found');
+        // The same current authority as creating it: hidden is unknown; visible without the
+        // action is forbidden. The path token and secret were shown once and never again.
+        if (!row || !subscriptionVisible(p, row)) throw new TenancyError('not_found');
+        if (!managesSubscription(p, row)) throw new TenancyError('forbidden');
         return {
           id: row.public_id,
           type: 'inbound_endpoint' as const,
@@ -1595,15 +1617,6 @@ export class PublicApiService extends IntegrationService {
     };
   }
 
-  async #subStateByPublic(tx: WorkspaceTransaction, publicId: string) {
-    const r = await tx.db
-      .selectFrom('core.record')
-      .select('id')
-      .where('public_id', '=', publicId)
-      .executeTakeFirstOrThrow();
-    return this.#subState(tx, r.id);
-  }
-
   protected override mapFailure(command: string, err: unknown): unknown {
     // A pause, resume, or replay that could not obtain its lock within one request's time.
     const code = (err as { code?: unknown } | null)?.code;
@@ -1745,12 +1758,56 @@ export class PublicApiService extends IntegrationService {
         'b.lifecycle_state as brand_state',
       ])
       .where('r.public_id', '=', publicId)
+      // Archived, trashed, and purged subscriptions are not managed (or rendered) at all.
+      .where('s.lifecycle_state', '=', 'active')
       .executeTakeFirst();
     if (!row || !subscriptionVisible(p, row)) throw new TenancyError('not_found');
     // Managing a subscription needs the action at its own placement (a brand manager manages
     // the brand's subscriptions; workspace subscriptions need workspace authority).
     if (!managesSubscription(p, row, action)) throw new TenancyError('forbidden');
     return row;
+  }
+
+  /**
+   * A completed idempotency key re-renders its response through the caller's current authority
+   * (0D §5.2), never the authority it had when the command ran: delegated scope, subscription
+   * visibility (opaque `not_found` when hidden), placement-level authority (`forbidden`), and
+   * lifecycle are checked before any state is read. Nothing is re-executed.
+   */
+  async #renderSubscription(
+    tx: WorkspaceTransaction,
+    caller: Caller,
+    p: Principal,
+    publicId: string,
+    action: 'webhooks.manage' | 'webhook.test_send' = 'webhooks.manage',
+  ) {
+    this.#delegated(caller);
+    return this.#subscription(tx, p, publicId, action);
+  }
+
+  /** A delivery's completed-key response, authorized through its subscription first. */
+  async #renderDelivery(
+    tx: WorkspaceTransaction,
+    caller: Caller,
+    p: Principal,
+    deliveryPublicId: string,
+    action: 'webhooks.manage' | 'webhook.test_send' = 'webhooks.manage',
+  ) {
+    this.#delegated(caller);
+    const ref = await tx.db
+      .selectFrom('integrations.webhook_delivery as d')
+      .innerJoin('core.record as r', 'r.id', 'd.subscription_id')
+      .select(['d.id', 'r.public_id as subscription_public_id'])
+      .where('d.public_id', '=', deliveryPublicId)
+      .executeTakeFirst();
+    // A delivery removed by retention, or one whose subscription was purged, is unknown.
+    if (!ref) throw new TenancyError('not_found');
+    await this.#subscription(tx, p, ref.subscription_public_id, action);
+    return tx.db
+      .selectFrom('integrations.webhook_delivery')
+      .select(['public_id', 'state', 'cycle', 'total_attempts', 'event_public_id'])
+      .where('id', '=', ref.id)
+      .executeTakeFirstOrThrow();
   }
 
   async #subscriptionRoom(tx: WorkspaceTransaction, brandId: string | null) {

@@ -58,6 +58,14 @@
         {
           "file": "packages/work/test/integration/webhook-delivery.test.ts",
           "contains": "AT-350 pauses at once without recalling a send in flight"
+        },
+        {
+          "file": "packages/work/test/integration/webhook-delivery.test.ts",
+          "contains": "AT-351 re-renders completed Retry, Pause, and Resume keys"
+        },
+        {
+          "file": "apps/api/test/integration/integrations-api.test.ts",
+          "contains": "AT-353 refuses an HTTP idempotent replay of a completed pause"
         }
       ]
     },

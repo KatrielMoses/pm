@@ -7208,6 +7208,63 @@
       "expected": "allow",
       "response_shape": "ok",
       "silent_surfaces": []
+    },
+    {
+      "id": "AT-351",
+      "threats": [
+        "T-85",
+        "T-90"
+      ],
+      "principal": "member",
+      "setup": "Repeat completed Retry, Pause, and Resume keys after brand visibility is revoked (membership active), after management is removed (brand still visible), with management restored, and after retention or purge removed the resource",
+      "scope": "webhook subscription",
+      "action": "webhooks.manage",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "not_found",
+      "silent_surfaces": [
+        "error_message",
+        "count_facet",
+        "timing"
+      ]
+    },
+    {
+      "id": "AT-352",
+      "threats": [
+        "T-85",
+        "T-90"
+      ],
+      "principal": "member",
+      "setup": "Repeat completed create, rotate-secret, test-send, and inbound-endpoint keys through a token without webhooks:manage, after brand revoke, and after management is removed",
+      "scope": "webhook subscription",
+      "action": "webhooks.manage",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "forbidden",
+      "silent_surfaces": [
+        "error_message",
+        "count_facet",
+        "timing"
+      ]
+    },
+    {
+      "id": "AT-353",
+      "threats": [
+        "T-85",
+        "T-90"
+      ],
+      "principal": "member",
+      "setup": "Repeat a completed HTTP pause with the same Idempotency-Key and If-Match after brand revoke, after a downgrade to edit, and after manage is restored",
+      "scope": "webhook subscription",
+      "action": "webhooks.manage",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "not_found",
+      "silent_surfaces": [
+        "error_message",
+        "count_facet",
+        "timing"
+      ]
     }
   ]
 }

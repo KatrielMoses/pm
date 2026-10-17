@@ -483,7 +483,8 @@ All decisions are **proposed (Phase 0C)**, pending solutions-architect acceptanc
   - Event types without a canonical source contract yet are skipped.
   - Each management command is decided by `webhooks.manage` (test sends by `webhook.test_send`) at the subscription's own placement. That covers list, deliveries, test, rotate, pause, resume, and replay, so a brand manager manages their brand's endpoints. A hidden brand's subscription is `not_found`; a readable one without the action is `forbidden`.
   - Replay is limited to dead-lettered deliveries and re-checks all of the above.
+  - A repeated idempotency key for a completed command never re-runs it, and its response is rendered only through the same checks, made again at the time of the repeat (corrective review 02): the token's `webhooks:manage` scope, then the subscription's visibility (`not_found` if hidden), then its management at the placement (`forbidden`). This covers create, rotate, test, pause, resume, replay, and inbound endpoints. Nothing about the resource is read before the checks pass. A delivery or subscription removed by retention or purge is `not_found`. An authorized repeat shows the current state, never a secret.
   - The action count stays 122.
 - **Alternatives:** Brand access as delivery authority (it would send records the owner can no longer read). Workspace-only management (it left brand managers unable to stop their own endpoints).
-- **Consequences:** Tests AT-345 to AT-350 and AT-314, AT-336.
+- **Consequences:** Tests AT-345 to AT-353 and AT-314, AT-336.
 

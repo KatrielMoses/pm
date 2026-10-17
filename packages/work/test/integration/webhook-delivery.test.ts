@@ -16,6 +16,7 @@ import {
   workspaceWith,
   type WorkEnv,
 } from './fixture.ts';
+import { webhookSubscriptionAdapter } from '@pm/work';
 
 const code = (c: string) => expect.objectContaining({ code: c });
 const issueOf = (c: string) =>
@@ -559,5 +560,241 @@ describe('Webhook delivery boundary (corrective review 01)', () => {
     await expect(
       env.svc.pauseSubscription(stranger, ws, sub.id, await ifMatch(sub.id)),
     ).rejects.toEqual(code('not_found'));
+  });
+
+  it('AT-351 re-renders completed Retry, Pause, and Resume keys through current authority only', async () => {
+    const sub = await subscribe(manager, 'render', ['task.created'], brands.Harbor);
+    statusBy.set('render', 404);
+    await project((await created({ project: openProject, title: 'Render subject' })).event);
+    await sweep();
+    const [failed] = await deliveries(sub.id);
+    expect(failed).toMatchObject({ state: 'failed', cycle: 1 });
+    // Three completed commands, each kept with its exact key and fingerprint.
+    const retryKey = mutation();
+    await env.svc.replayDelivery(manager, ws, failed!.public_id, retryKey);
+    const pauseKey = await ifMatch(sub.id);
+    await env.svc.pauseSubscription(manager, ws, sub.id, pauseKey);
+    statusBy.set('render', 200);
+    await env.svc.testSubscription(manager, ws, sub.id, mutation());
+    await sweep();
+    const resumeKey = await ifMatch(sub.id);
+    await env.svc.resumeSubscription(manager, ws, sub.id, resumeKey);
+    const repeat = {
+      retry: () => env.svc.replayDelivery(manager, ws, failed!.public_id, retryKey),
+      pause: () => env.svc.pauseSubscription(manager, ws, sub.id, pauseKey),
+      resume: () => env.svc.resumeSubscription(manager, ws, sub.id, resumeKey),
+    };
+    const snapshot = async () => ({
+      delivery: (await deliveries(sub.id)).find((r) => r.public_id === failed!.public_id),
+      subscription: (
+        await db.admin(
+          `SELECT s.state, s.version, s.paused_at, s.stopped_at FROM integrations.webhook_subscription s
+             JOIN core.record r ON r.id = s.id WHERE r.public_id = $1`,
+          [sub.id],
+        )
+      ).rows[0],
+      audit: (
+        await db.admin(
+          `SELECT action, count(*)::int AS n FROM audit.audit_event
+            WHERE action IN ('webhook_delivery.replayed', 'webhook_subscription.paused',
+                             'webhook_subscription.resumed') GROUP BY action ORDER BY action`,
+        )
+      ).rows,
+      sends: to('render').length,
+    });
+    const before = await snapshot();
+    const refused = async (c: string) => {
+      for (const run of Object.values(repeat)) {
+        const err = await run().then(
+          () => null,
+          (e: unknown) => e,
+        );
+        expect(err).toEqual(code(c));
+        // No resource metadata travels with the refusal.
+        const shown = JSON.stringify(err);
+        for (const hidden of [
+          sub.id,
+          failed!.public_id,
+          'cycle',
+          'paused_at',
+          'stopped_at',
+          'version',
+        ])
+          expect(shown).not.toContain(hidden);
+      }
+      await sweep();
+      expect(await snapshot()).toEqual(before);
+    };
+    // Brand visibility revoked while the membership stays active: the opaque refusal.
+    await apply(env, owner, ws, {
+      kind: 'brand_revoke',
+      brand: brands.Harbor,
+      principal: managerId,
+    });
+    await refused('not_found');
+    // Visible again, without managing webhooks there: the permission refusal.
+    await apply(env, owner, ws, {
+      kind: 'brand_grant',
+      brand: brands.Harbor,
+      principal: managerId,
+      level: 'edit',
+    });
+    await refused('forbidden');
+    // Authority restored: the same keys render what the caller may now read, and re-execute nothing.
+    await apply(env, owner, ws, {
+      kind: 'brand_grant',
+      brand: brands.Harbor,
+      principal: managerId,
+      level: 'manage',
+    });
+    const again = {
+      retry: await repeat.retry(),
+      pause: await repeat.pause(),
+      resume: await repeat.resume(),
+    };
+    for (const r of Object.values(again)) expect(r.replayed).toBe(true);
+    // The endpoint is active now (resumed after the pause): the pause key renders the current state.
+    expect(again.pause.data).toMatchObject({ id: sub.id, state: 'active' });
+    expect(again.resume.data).toMatchObject({ id: sub.id, state: 'active' });
+    expect(again.retry.data).toMatchObject({
+      id: failed!.public_id,
+      cycle: before.delivery!.cycle,
+    });
+    await sweep();
+    expect(await snapshot()).toEqual(before);
+    // A delivery removed by retention, and a purged subscription: typed refusals, never raw errors.
+    await db.admin(`DELETE FROM integrations.webhook_delivery WHERE public_id = $1`, [
+      failed!.public_id,
+    ]);
+    await expect(repeat.retry()).rejects.toEqual(code('not_found'));
+    await env.h.worker.withWorkspace(wsId, { module: 'test' }, async (tx) => {
+      await webhookSubscriptionAdapter.purge!.deleteContent(tx, [await internalIdOf(db, sub.id)]);
+    });
+    await expect(repeat.pause()).rejects.toEqual(code('not_found'));
+    await expect(repeat.resume()).rejects.toEqual(code('not_found'));
+    statusBy.delete('render');
+  });
+
+  it('AT-352 re-renders completed create, rotate, test-send, and inbound keys through current authority only', async () => {
+    const createKey = mutation();
+    const sub = (
+      await env.svc.createSubscription(
+        manager,
+        ws,
+        {
+          destination_url: 'https://127.0.0.1/hooks/sibling',
+          event_types: ['task.created'],
+          brand: brands.Harbor,
+        },
+        createKey,
+      )
+    ).data;
+    const rotateKey = mutation();
+    await env.svc.rotateSubscriptionSecret(manager, ws, sub.id, rotateKey);
+    const testKey = mutation();
+    const sent = (await env.svc.testSubscription(manager, ws, sub.id, testKey)).data;
+    await sweep();
+    const inboundKey = mutation();
+    const inbound = (await env.svc.createInbound(manager, ws, { brand: brands.Harbor }, inboundKey))
+      .data;
+    const repeat = {
+      create: (as: Caller) =>
+        env.svc.createSubscription(
+          as,
+          ws,
+          {
+            destination_url: 'https://127.0.0.1/hooks/sibling',
+            event_types: ['task.created'],
+            brand: brands.Harbor,
+          },
+          createKey,
+        ),
+      rotate: (as: Caller) => env.svc.rotateSubscriptionSecret(as, ws, sub.id, rotateKey),
+      test: (as: Caller) => env.svc.testSubscription(as, ws, sub.id, testKey),
+      inbound: (as: Caller) => env.svc.createInbound(as, ws, { brand: brands.Harbor }, inboundKey),
+    };
+    const snapshot = async () => ({
+      subscriptions: (
+        await db.admin(
+          `SELECT s.state, s.version, s.signing_secret_ref, s.previous_secret_ref
+             FROM integrations.webhook_subscription s ORDER BY s.id`,
+        )
+      ).rows,
+      deliveries: (await deliveries(sub.id)).map((d) => [d.public_id, d.state, d.cycle]),
+      inbound: (await db.admin(`SELECT count(*)::int AS n FROM integrations.inbound_endpoint`))
+        .rows[0],
+      audit: (
+        await db.admin(
+          `SELECT action, count(*)::int AS n FROM audit.audit_event
+            WHERE action LIKE 'webhook%' OR action LIKE 'inbound%' GROUP BY action ORDER BY action`,
+        )
+      ).rows,
+      sends: to('sibling').length,
+    });
+    const before = await snapshot();
+    const refused = async (as: Caller, c: string) => {
+      for (const run of Object.values(repeat)) {
+        const err = await run(as).then(
+          () => null,
+          (e: unknown) => e,
+        );
+        expect(err).toEqual(code(c));
+        const shown = JSON.stringify(err);
+        for (const hidden of [sub.id, sent.id, inbound.id, 'secret', 'version'])
+          expect(shown).not.toContain(hidden);
+      }
+      await sweep();
+      expect(await snapshot()).toEqual(before);
+    };
+    // A token that narrows the same member below webhooks:manage cannot read the completed results.
+    const narrowed: Caller = {
+      ...manager,
+      delegation: {
+        tokenId: '00000000-0000-7000-8000-000000000352',
+        tokenPublicId: 'tok_00000000000000000000000352',
+        kind: 'personal',
+        principalType: 'api_token_personal',
+        scopes: ['records:read'],
+        brandIds: null,
+        membershipId: (await membershipOf(db, wsId, manager.auth.account.id))!.id,
+        accountId: manager.auth.account.id,
+        sourceKind: 'api',
+      },
+    };
+    await refused(narrowed, 'forbidden');
+    await apply(env, owner, ws, {
+      kind: 'brand_revoke',
+      brand: brands.Harbor,
+      principal: managerId,
+    });
+    await refused(manager, 'not_found');
+    await apply(env, owner, ws, {
+      kind: 'brand_grant',
+      brand: brands.Harbor,
+      principal: managerId,
+      level: 'edit',
+    });
+    await refused(manager, 'forbidden');
+    await apply(env, owner, ws, {
+      kind: 'brand_grant',
+      brand: brands.Harbor,
+      principal: managerId,
+      level: 'manage',
+    });
+    const again = {
+      create: await repeat.create(manager),
+      rotate: await repeat.rotate(manager),
+      test: await repeat.test(manager),
+      inbound: await repeat.inbound(manager),
+    };
+    for (const r of Object.values(again)) expect(r.replayed).toBe(true);
+    expect(again.create.data.id).toBe(sub.id);
+    expect(again.test.data).toMatchObject({ id: sent.id, state: 'delivered' });
+    expect(again.inbound.data.id).toBe(inbound.id);
+    // Secrets are shown once: a replay never shows them again.
+    for (const r of [again.create, again.rotate, again.inbound])
+      expect(JSON.stringify(r.data)).not.toMatch(/"(secret|signing_secret|token)":"[^"]/);
+    await sweep();
+    expect(await snapshot()).toEqual(before);
   });
 });

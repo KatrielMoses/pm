@@ -37,6 +37,20 @@ The architect's code review found that outbound delivery checked brand access ra
 
 Evidence: `packages/work/test/integration/webhook-delivery.test.ts` (AT-345–AT-350), the rebuilt AT-314 and AT-336, the API page component test, and the pause step of the browser journey on all three widths.
 
+## Corrective review 02: rendering a completed key
+
+Review 01's pause, resume, and replay renderers looked a resource up by its public id and returned its state when an idempotency key was repeated. They did not ask whether the caller could still see or manage it. So a member who had lost the brand, or now held it only at edit, could repeat a completed key and read the endpoint's state, version, or delivery cycle. Nothing was re-executed.
+
+- **Corrected.** Every webhook renderer now makes the command's own checks again before reading anything: create, rotate secret, test, pause, resume, replay, and inbound endpoints. The checks are the token's `webhooks:manage` scope, then visibility (`not_found` when hidden), then management at the placement (`forbidden`), using the same helpers as the commands (0C AZ-43). A delivery or subscription removed by retention or purge is `not_found`, never a raw database error. The command never runs again, and the shared idempotency contract is unchanged.
+- **Regressions.**
+  - AT-351 repeats exact completed Retry, Pause, and Resume keys three times: after a brand revoke while the membership stays active, after a downgrade to edit, and with management restored. It then repeats them after retention and purge.
+  - AT-352 does the same for create, rotate, test, and inbound, adding a token without `webhooks:manage`.
+  - AT-353 repeats a real HTTP `:pause` with the same `Idempotency-Key` and `If-Match`, expecting 404, then 403, then 200 with `Idempotent-Replayed: true`.
+  - Every refusal carries no identifiers or state, adds no audit entry, starts no cycle, changes no endpoint, and makes no transport send.
+- **Mutation check.** Run against review 01's renderers, AT-351, AT-352, and AT-353 fail; they pass with the correction.
+
+Evidence: `packages/work/test/integration/webhook-delivery.test.ts` (AT-351, AT-352) and `apps/api/test/integration/integrations-api.test.ts` (AT-353). No migration was added; 0045–0052 are unchanged.
+
 ## Requirement closure
 
 Totals are derived from `docs/product/requirements/catalog.json` by `phase6.py`, not hard-coded: 56 owned

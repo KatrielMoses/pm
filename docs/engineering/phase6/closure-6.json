@@ -148,6 +148,22 @@
       "contains": "AT-350 pauses at once without recalling a send in flight"
     },
     {
+      "file": "packages/work/src/integrations/public-api-service.ts",
+      "contains": "async #renderDelivery("
+    },
+    {
+      "file": "packages/work/test/integration/webhook-delivery.test.ts",
+      "contains": "AT-351 re-renders completed Retry, Pause, and Resume keys"
+    },
+    {
+      "file": "packages/work/test/integration/webhook-delivery.test.ts",
+      "contains": "AT-352 re-renders completed create, rotate, test-send, and inbound keys"
+    },
+    {
+      "file": "apps/api/test/integration/integrations-api.test.ts",
+      "contains": "AT-353 refuses an HTTP idempotent replay of a completed pause"
+    },
+    {
       "file": "e2e/phase6-exit-journey.spec.ts",
       "contains": "cannot resume it until a test event is delivered"
     }
