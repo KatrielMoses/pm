@@ -274,7 +274,7 @@ export async function startAiProviderFixture(
     const reply = `Synthetic fixture reply (no provider was called) to a ${user.length}-character prompt.`;
     const words =
       scenario === 'slow'
-        ? Array.from({ length: 40 }, (_, i) => `part ${i + 1}. `)
+        ? Array.from({ length: 12 }, (_, i) => `part ${i + 1}. `)
         : reply.split(/(?<= )/);
     const outputLimit = scenario === 'truncate' ? Math.min(maxTokens, 3) : maxTokens;
     res.writeHead(200, {
@@ -315,7 +315,7 @@ export async function startAiProviderFixture(
       }
       send('content_block_delta', { index: 0, delta: { type: 'text_delta', text: w } });
       out += syntheticTokens(w);
-      if (scenario === 'slow') await sleep(250);
+      if (scenario === 'slow') await sleep(150);
     }
     if (closed) return;
     send('content_block_stop', { index: 0 });

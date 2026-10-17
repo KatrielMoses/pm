@@ -575,6 +575,14 @@ Forbidden metric labels: `workspace_id`, `brand_id`, `record_id`, `public_id`, `
 | `insights.changes` | counter | kind, outcome | insights |
 | `insights.jobs` | counter | kind, outcome | insights |
 | `insights.widgets` | counter | metric, outcome | insights |
+| `ai.runs` | counter | outcome, provider_class | ai |
+| `ai.dispatches` | counter | provider_class, outcome | ai |
+| `ai.policy_refusals` | counter | reason | ai |
+| `ai.reservations` | counter | outcome | ai |
+| `ai.cancellations` | counter | stage | ai |
+| `ai.tokens` | counter | direction | ai |
+| `ai.cost_micros` | counter | funding | ai |
+| `ai.history.erased` | counter | reason | ai |
 
 ## Named parameters (values are configuration, not promises)
 
@@ -836,7 +844,7 @@ Forbidden metric labels: `workspace_id`, `brand_id`, `record_id`, `public_id`, `
 | `UNDO_WINDOW_SECONDS` | How long a reversible mutation can be undone; default 30, range 5–300. | 2D |
 | `UPCOMING_DEADLINE_DAYS` | How many days ahead Today lists upcoming deadlines; default 14, range 1–90. | 3C |
 | `UPLOAD_SESSION_LIFETIME` | Lifetime of an upload session in seconds; an expired, unfinished session releases its reserved bytes and quarantined object; default 3600, range 300–86400. | 4E |
-| `USAGE_WARNING_THRESHOLDS` | Default warning thresholds as basis points of allowance. | 7A |
+| `USAGE_WARNING_THRESHOLDS` | Warning thresholds as ascending basis points of the hard AI spend limit; default 8000,10000. | 7A |
 | `VIEW_COLUMNS_MAX` | Most visible columns in one view; default 20, range 1–50. | 3A |
 | `VIEW_PINS_MAX` | Most views pinned into one workspace or brand navigation; default 20, range 1–100. | 3A |
 | `VIEW_STATE_MAX_BYTES` | Largest stored view-state document (serialized) accepted per view and device. | 1E |
@@ -859,3 +867,16 @@ Forbidden metric labels: `workspace_id`, `brand_id`, `record_id`, `public_id`, `
 | `WORKSPACE_STORAGE_QUOTA_BYTES` | Stored bytes one workspace may hold, counting bytes reserved by open upload sessions (a technical limit until plans set it, 10A); default 10737418240 (10 GiB), range 1048576–10995116277760. | 4E |
 | `WORK_BLOCKS_PER_DAY_MAX` | Most work blocks one person may have starting on one local day; default 50, range 1–200. | 3C |
 | `WORK_BLOCKS_RANGE_DAYS_MAX` | Widest range of days one work-block listing may cover; default 42, range 1–366. | 3C |
+| `AI_PROVIDER` | AI transport: none (default), fixture (local/test protocol fixture), or anthropic. Deployed environments refuse fixture and anthropic until DQ-28 and OD-41 are decided. | 7A |
+| `AI_PROVIDER_BASE_URL` | Messages API base URL; https outside local and test. | 7A |
+| `AI_PROVIDER_API_KEY` | Deployment provider key (held as a secret; secretref values need an approved secret store, DQ-28). | 7A |
+| `AI_PROVIDER_TIMEOUT_MS` | Provider request window; default 60000 ms, range 1000–300000. | 7A |
+| `AI_APPROVED_MODELS` | Model keys approved for workspace data (OD-41); empty by default, so no real model is approved. | 7A |
+| `AI_BYOK_ENABLED` | Workspace-provided keys (OD-46); default 0, refused when deployed. | 7A |
+| `AI_DEFAULT_MONTHLY_ALLOWANCE_MICROS` | Monthly AI allowance for a workspace with no configured limit; default 1000000 (USD 1). | 7A |
+| `AI_DEFAULT_HARD_LIMIT_MICROS` | Hard monthly AI spend cap for a workspace with no configured limit; default 1000000 (USD 1). Never unlimited. | 7A |
+| `AI_DEFAULT_INPUT_TOKEN_LIMIT` | Hard monthly input-token cap without a configured limit; default 2000000. | 7A |
+| `AI_DEFAULT_OUTPUT_TOKEN_LIMIT` | Hard monthly output-token cap without a configured limit; default 500000. | 7A |
+| `AI_MAX_OUTPUT_TOKENS` | Output bound per dispatch (reserved in full); default 1024, range 16–8192. | 7A |
+| `AI_MAX_ATTEMPTS` | Job attempts per AI operation (only zero-cost failures are retried); default 3, range 1–5. | 7A |
+| `AI_HISTORY_RETENTION_DAYS` | Technical content retention for AI history; unset keeps content (OD-36 undecided). | 7A |

@@ -63,6 +63,13 @@ HOLLOW = [("CAL-012", "linked_work_block_id"), ("CAL-008", "busy boolean"), ("CA
           ("VIEW-003", "calendars arrive when they can be connected (6C)")]
 
 
+
+def _ai_head(factory):
+    """Phase 7A extends the 6E head: AiGatewayService extends McpAccessService."""
+    path = P("packages/work/src/ai/ai-gateway-service.ts")
+    return ("return new AiGatewayService(" in factory and os.path.isfile(path)
+            and "export class AiGatewayService extends McpAccessService" in read(path))
+
 def check_validators():
     errs = []
     for v in VALIDATORS:
@@ -149,8 +156,8 @@ def check_numbering():
 def check_composition():
     errs = []
     factory = read(P("packages/work/src/factory.ts"))
-    if "return new McpAccessService(" not in factory:
-        errs.append("createWorkService must return the top of the chain (McpAccessService)")
+    if "return new McpAccessService(" not in factory and not _ai_head(factory):
+        errs.append("createWorkService must return the top of the chain (McpAccessService or its 7A extension)")
     if "calendarProvider," not in factory or "new GoogleCalendarProvider(" not in factory:
         errs.append("the factory must build the configured calendar provider")
     chain = (("packages/work/src/integrations/service.ts", "export class IntegrationService extends ReportService"),

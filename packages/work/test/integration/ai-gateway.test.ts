@@ -717,4 +717,51 @@ describe('Phase 7A AI gateway', () => {
     expect(aged).toBe(0);
     expect((await env.svc.getAiRun(P.owner, ws, kept.data.id)).content.state).toBe('present');
   });
+
+  it('AT-380 AI usage reaches dashboards through the 5D metric port for usage viewers only, without content', async () => {
+    const used = await run(P.owner, { prompt: 'Usage source', brand: harbor });
+    await drain(db, worker, used.data.id);
+    const dash = await env.svc.createDashboard(
+      P.owner,
+      ws,
+      { title: 'AI spend', kind: 'owner', layout: { widgets: [{ id: 'ai', metric: 'ai.usage' }] } },
+      mutation(),
+    );
+    const value = async (who: Caller) =>
+      (
+        (await env.svc.dashboardWidget(who, ws, dash.data.id, 'ai', {})) as {
+          outcome: Record<string, any>;
+        }
+      ).outcome;
+    const mine = await value(P.owner);
+    expect(mine.value).toBeGreaterThan(0);
+    expect(mine.rows.length).toBeGreaterThan(0);
+    expect(JSON.stringify(mine)).not.toContain('Summarize the brief');
+    expect(JSON.stringify(mine)).not.toContain('Synthetic fixture reply');
+    // A brand-scoped dashboard for a brand manager shows that brand's usage only.
+    const brandDash = await env.svc.createDashboard(
+      P.owner,
+      ws,
+      {
+        title: 'Harbor AI',
+        kind: 'brand',
+        brand: harbor,
+        layout: { widgets: [{ id: 'ai', metric: 'ai.usage' }] },
+      },
+      mutation(),
+    );
+    const b = (
+      (await env.svc.dashboardWidget(P.owner, ws, brandDash.data.id, 'ai', {})) as {
+        outcome: Record<string, any>;
+      }
+    ).outcome;
+    expect(b.value).toBeGreaterThan(0);
+    expect(b.rows.length).toBeGreaterThan(0);
+    expect(b.rows.every((r: { cells: { brand: string } }) => r.cells.brand === 'Harbor')).toBe(
+      true,
+    );
+    const catalog = await env.svc.insightMetrics(P.owner, ws);
+    expect(catalog.metrics.map((m: { key: string }) => m.key)).toContain('ai.usage');
+    expect(catalog.not_available.map((m: { key: string }) => m.key)).not.toContain('ai.usage');
+  });
 });
