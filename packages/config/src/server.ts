@@ -377,6 +377,8 @@ export interface ServerConfig {
   };
   /** Calendar provider (6C, ADR-0037): truthfully `none` unless a deployment configures it. */
   calendar: CalendarProviderConfig;
+  /** AI gateway (7A, ADR-0038): truthfully `none` unless configured; production stays disabled. */
+  ai: AiConfig;
   features: {
     /** Local/test-only component harness route for reusable UI states (refused when deployed). */
     componentHarness: boolean;
@@ -397,6 +399,41 @@ export type CalendarProviderConfig =
       apiBase: string;
       timeoutMs: number;
     };
+
+/**
+ * The AI provider transport (7A). `fixture` points the same Messages adapter at a deterministic
+ * protocol fixture and is refused when deployed; `anthropic` is refused when deployed until a
+ * secret store (DQ-28) and a provider/data-use approval (OD-41) exist.
+ */
+export type AiProviderTransportConfig =
+  | { provider: 'none' }
+  | {
+      provider: 'fixture' | 'anthropic';
+      baseUrl: string;
+      apiKey: Secret | null;
+      timeoutMs: number;
+    };
+
+export interface AiConfig {
+  provider: AiProviderTransportConfig;
+  /** Model keys explicitly approved for customer data (OD-41); empty means none is. */
+  approvedModels: readonly string[];
+  /** Workspace-provided keys (OD-46): designed and tested, switched off when deployed. */
+  byokEnabled: boolean;
+  /** Finite defaults for a workspace with no configured limits (never unlimited). */
+  defaults: {
+    monthlyAllowanceMicros: string;
+    hardLimitMicros: string;
+    inputTokenLimit: number;
+    outputTokenLimit: number;
+  };
+  maxOutputTokens: number;
+  maxAttempts: number;
+  /** USAGE_WARNING_THRESHOLDS: basis points of the hard limit at which owners are told. */
+  warningThresholdsBp: readonly number[];
+  /** Technical content retention for AI history; null keeps it (OD-36 undecided). */
+  historyRetentionDays: number | null;
+}
 
 /** Retention classes (0B vocabulary) that may carry a platform default period. */
 export const RETENTION_CLASSES = [
@@ -806,6 +843,18 @@ const DEFAULTS = {
   WEBHOOK_SWEEP_BATCH_MAX: '25',
   WEBHOOK_ALLOW_LOOPBACK: 'auto',
   MCP_ENABLED: '1',
+  AI_PROVIDER: 'none',
+  AI_PROVIDER_BASE_URL: 'https://api.anthropic.com',
+  AI_PROVIDER_TIMEOUT_MS: '60000',
+  AI_APPROVED_MODELS: '',
+  AI_BYOK_ENABLED: '0',
+  AI_DEFAULT_MONTHLY_ALLOWANCE_MICROS: '1000000',
+  AI_DEFAULT_HARD_LIMIT_MICROS: '1000000',
+  AI_DEFAULT_INPUT_TOKEN_LIMIT: '2000000',
+  AI_DEFAULT_OUTPUT_TOKEN_LIMIT: '500000',
+  AI_MAX_OUTPUT_TOKENS: '1024',
+  AI_MAX_ATTEMPTS: '3',
+  USAGE_WARNING_THRESHOLDS: '8000,10000',
   MCP_READ_RATE_PER_MINUTE: '120',
   MCP_WRITE_RATE_PER_MINUTE: '60',
   OAUTH_CLIENTS_MAX: '20',
@@ -1163,6 +1212,24 @@ const schema = z.object({
   WEBHOOK_SWEEP_BATCH_MAX: int(1, 200),
   WEBHOOK_ALLOW_LOOPBACK: z.enum(['auto', '0', '1']),
   MCP_ENABLED: z.enum(['0', '1']),
+  AI_PROVIDER: z.enum(['none', 'fixture', 'anthropic']),
+  AI_PROVIDER_BASE_URL: z.url(),
+  AI_PROVIDER_API_KEY: z.string().optional(),
+  AI_PROVIDER_TIMEOUT_MS: int(1000, 300_000),
+  AI_APPROVED_MODELS: z
+    .string()
+    .regex(
+      /^([a-z0-9_.-]{1,40}\/[a-z0-9_.-]{1,80}@[0-9a-z_.-]{1,40})?(,[a-z0-9_.-]{1,40}\/[a-z0-9_.-]{1,80}@[0-9a-z_.-]{1,40})*$/,
+    ),
+  AI_BYOK_ENABLED: z.enum(['0', '1']),
+  AI_DEFAULT_MONTHLY_ALLOWANCE_MICROS: int(0, 1_000_000_000_000),
+  AI_DEFAULT_HARD_LIMIT_MICROS: int(0, 1_000_000_000_000),
+  AI_DEFAULT_INPUT_TOKEN_LIMIT: int(0, 1_000_000_000_000),
+  AI_DEFAULT_OUTPUT_TOKEN_LIMIT: int(0, 1_000_000_000_000),
+  AI_MAX_OUTPUT_TOKENS: int(16, 8192),
+  AI_MAX_ATTEMPTS: int(1, 5),
+  USAGE_WARNING_THRESHOLDS: z.string().regex(/^\d{1,5}(,\d{1,5}){0,4}$/),
+  AI_HISTORY_RETENTION_DAYS: int(1, 36_500).optional(),
   MCP_READ_RATE_PER_MINUTE: int(1, 10_000),
   MCP_WRITE_RATE_PER_MINUTE: int(1, 10_000),
   OAUTH_CLIENTS_MAX: int(1, 500),
@@ -1539,6 +1606,61 @@ export function loadServerConfig(options: LoadOptions): ServerConfig {
       };
     }
   }
+  // AI gateway (7A, ADR-0038): disabled unless configured. Deployed environments refuse the
+  // fixture, refuse a real provider until DQ-28 and OD-41 are decided, and refuse workspace keys
+  // until OD-46 is decided.
+  let aiProvider: AiProviderTransportConfig = { provider: 'none' };
+  if (c.AI_PROVIDER !== 'none') {
+    const key = c.AI_PROVIDER_API_KEY;
+    if (key?.startsWith(SECRET_REFERENCE_PREFIX))
+      issues.push(
+        'AI_PROVIDER_API_KEY: secret references require a secret-store provider (not selected; DQ-28)',
+      );
+    if (deployed && c.AI_PROVIDER === 'fixture')
+      issues.push('AI_PROVIDER: the protocol fixture is refused in deployed environments');
+    if (deployed && c.AI_PROVIDER === 'anthropic')
+      issues.push(
+        'AI_PROVIDER: production AI needs an approved secret store (DQ-28) and provider data-use approval (OD-41)',
+      );
+    if (!devOnly && !c.AI_PROVIDER_BASE_URL.startsWith('https://'))
+      issues.push('AI_PROVIDER_BASE_URL: must use https outside local and test');
+    if (c.AI_PROVIDER === 'anthropic' && !key)
+      issues.push('AI_PROVIDER_API_KEY: required with the anthropic provider');
+    aiProvider = {
+      provider: c.AI_PROVIDER,
+      baseUrl: c.AI_PROVIDER_BASE_URL.replace(/\/+$/, ''),
+      apiKey: key && !key.startsWith(SECRET_REFERENCE_PREFIX) ? new Secret(key) : null,
+      timeoutMs: c.AI_PROVIDER_TIMEOUT_MS,
+    };
+  }
+  if (deployed && c.AI_BYOK_ENABLED === '1')
+    issues.push('AI_BYOK_ENABLED: workspace-provided AI keys stay off until OD-46 is approved');
+  if (c.AI_DEFAULT_MONTHLY_ALLOWANCE_MICROS > c.AI_DEFAULT_HARD_LIMIT_MICROS)
+    issues.push(
+      'AI_DEFAULT_MONTHLY_ALLOWANCE_MICROS: must not exceed AI_DEFAULT_HARD_LIMIT_MICROS',
+    );
+  const warningThresholdsBp = c.USAGE_WARNING_THRESHOLDS.split(',').map(Number);
+  if (
+    warningThresholdsBp.some(
+      (bp, i) => bp < 1 || bp > 10_000 || (i > 0 && bp <= warningThresholdsBp[i - 1]!),
+    )
+  )
+    issues.push('USAGE_WARNING_THRESHOLDS: ascending basis points between 1 and 10000');
+  const ai: AiConfig = {
+    provider: aiProvider,
+    approvedModels: c.AI_APPROVED_MODELS ? c.AI_APPROVED_MODELS.split(',') : [],
+    byokEnabled: c.AI_BYOK_ENABLED === '1',
+    defaults: {
+      monthlyAllowanceMicros: String(c.AI_DEFAULT_MONTHLY_ALLOWANCE_MICROS),
+      hardLimitMicros: String(c.AI_DEFAULT_HARD_LIMIT_MICROS),
+      inputTokenLimit: c.AI_DEFAULT_INPUT_TOKEN_LIMIT,
+      outputTokenLimit: c.AI_DEFAULT_OUTPUT_TOKEN_LIMIT,
+    },
+    maxOutputTokens: c.AI_MAX_OUTPUT_TOKENS,
+    maxAttempts: c.AI_MAX_ATTEMPTS,
+    warningThresholdsBp,
+    historyRetentionDays: c.AI_HISTORY_RETENTION_DAYS ?? null,
+  };
   let filesScanner: FilesScannerConfig = { provider: 'none' };
   if (c.MALWARE_SCANNER === 'clamav') {
     if (!c.CLAMAV_HOST) issues.push('CLAMAV_HOST: required with the clamav malware scanner');
@@ -1642,6 +1764,7 @@ export function loadServerConfig(options: LoadOptions): ServerConfig {
     },
     files: { storage: filesStorage, scanner: filesScanner },
     calendar,
+    ai,
     features: { componentHarness: c.COMPONENT_HARNESS },
     audit: { chainLockWaitWarnMs: c.AUDIT_CHAIN_LOCK_WAIT_WARN_MS },
     tenancy: {

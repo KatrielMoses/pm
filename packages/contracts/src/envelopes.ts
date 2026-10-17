@@ -267,6 +267,12 @@ export const NON_RESOURCE_TYPES = [
   'portability_import',
   'portability_import_mappings',
   'portability_import_mapping',
+  // 7A: AI availability, settings (a workspace singleton), estimates, own history, and usage.
+  'ai_overview',
+  'ai_settings',
+  'ai_estimate',
+  'ai_runs',
+  'ai_usage',
 ] as const;
 export type NonResourceType = (typeof NON_RESOURCE_TYPES)[number];
 
