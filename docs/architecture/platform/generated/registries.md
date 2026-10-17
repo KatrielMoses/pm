@@ -588,6 +588,7 @@ Forbidden metric labels: `workspace_id`, `brand_id`, `record_id`, `public_id`, `
 | `ai.answer_validations` | counter | status | ai |
 | `ai.proposals` | counter | outcome | ai |
 | `ai.proposal_applications` | counter | outcome | ai |
+| `ai.analyses` | counter | status | ai |
 
 ## Named parameters (values are configuration, not promises)
 

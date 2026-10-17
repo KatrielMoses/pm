@@ -185,6 +185,48 @@ export function registerAi(app: FastifyInstance, work: AiGatewayService): void {
       return resource(request, reply, result.data, result);
     }),
   );
+  // 7C typed actions (drafting and analysis) through the same gateway. Bearer callers with
+  // `ai:execute` may run analysis actions; drafting actions need a person (refused in the service).
+  app.get(
+    `${base}/ai/actions`,
+    wrap(async (request, reply) =>
+      reply
+        .header('cache-control', 'private, no-store')
+        .send(
+          nonResourceEnvelope(
+            'ai_actions',
+            await work.listAiActions(caller(request), ws(request)),
+            m(request),
+          ),
+        ),
+    ),
+  );
+  app.post(
+    `${base}/ai/assist-estimates`,
+    wrap(async (request, reply) =>
+      reply
+        .header('cache-control', 'private, no-store')
+        .send(
+          nonResourceEnvelope(
+            'ai_estimate',
+            await work.estimateAiAssist(caller(request), ws(request), request.body),
+            m(request),
+          ),
+        ),
+    ),
+  );
+  app.post(
+    `${base}/ai/assist-runs`,
+    wrap(async (request, reply) => {
+      const result = await work.startAiAssist(
+        caller(request),
+        ws(request),
+        request.body,
+        mutation(request),
+      );
+      return resource(request, reply, result.data, result);
+    }),
+  );
   // 7D change proposals: session only (bearer callers are refused at the edge). Generation goes
   // through the same gateway; review, edit, approval, and Apply are explicit human steps.
   app.post(

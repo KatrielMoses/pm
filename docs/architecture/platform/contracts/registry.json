@@ -6841,6 +6841,14 @@
         "outcome"
       ],
       "area": "ai"
+    },
+    {
+      "name": "ai.analyses",
+      "type": "counter",
+      "labels": [
+        "status"
+      ],
+      "area": "ai"
     }
   ],
   "forbidden_metric_labels": [

@@ -595,4 +595,69 @@ describe('AI gateway API (7A)', () => {
       'HTTP rebase task (renamed)',
     );
   });
+  it('AT-446 7C typed actions over HTTP: the catalog, an estimate bound to the input digest, an analysis run, and bearer callers analyze but never draft', async () => {
+    const task = (
+      await owner.post(`${base()}/tasks`, { brand, title: 'HTTP assist task' }, { headers: key() })
+    ).json().data.id as string;
+    const cat = await owner.get(`${base()}/ai/actions`);
+    expect(cat.statusCode).toBe(200);
+    expect(cat.headers['cache-control']).toContain('no-store');
+    expect(cat.json().data.type).toBe('ai_actions');
+    expect(cat.json().data.items.map((a: { id: string }) => a.id)).toContain('draft_project.v1');
+    const include = [{ type: 'task', id: task }];
+    const preview = await owner.post(`${base()}/ai/context-previews`, { include });
+    const body = {
+      action: 'summarize.v1',
+      include,
+      manifest_digest: preview.json().data.digest,
+      confirm_cost: true,
+    };
+    expect(
+      (await owner.post(`${base()}/ai/assist-estimates`, { ...body, action: 'nope.v1' }))
+        .statusCode,
+    ).toBe(422);
+    const est = await owner.post(`${base()}/ai/assist-estimates`, body);
+    expect(est.statusCode, est.body).toBe(200);
+    expect(est.json().data).toMatchObject({
+      type: 'ai_estimate',
+      input_digest: expect.stringMatching(/^[0-9a-f]{64}$/),
+    });
+    const stale = await owner.post(
+      `${base()}/ai/assist-runs`,
+      { ...body, input_digest: 'e'.repeat(64) },
+      { headers: key() },
+    );
+    expect(stale.statusCode).toBe(409);
+    expect(stale.json().error.issues[0].code).toBe('input_changed');
+    const started = await owner.post(
+      `${base()}/ai/assist-runs`,
+      { ...body, input_digest: est.json().data.input_digest },
+      { headers: key() },
+    );
+    expect(started.statusCode, started.body).toBe(202);
+    const run = started.json().data.id as string;
+    expect(await drain(run)).toBe('succeeded');
+    const detail = (await owner.get(`${base()}/ai/runs/${run}`)).json().data;
+    expect(detail).toMatchObject({
+      purpose: 'analysis',
+      action: 'summarize.v1',
+      content: { analysis: { status: 'checked' } },
+    });
+    // A token with ai:execute may run an analysis action but never a drafting action.
+    const made = await protectedCall(owner, 'POST', `${base()}/api-tokens`, {
+      name: 'AI 7C',
+      kind: 'personal',
+      scopes: ['ai:execute'],
+    });
+    const secret = made.json().data.secret as string;
+    expect((await bearer(secret, 'POST', `${base()}/ai/assist-estimates`, body)).statusCode).toBe(
+      200,
+    );
+    const draft = await bearer(secret, 'POST', `${base()}/ai/assist-estimates`, {
+      ...body,
+      action: 'draft_project.v1',
+      brief: 'A plan',
+    });
+    expect(draft.statusCode).toBe(403);
+  });
 });

@@ -110,6 +110,7 @@ export async function eraseAiContentRows(
       .set({
         title: null,
         reject_reason: null,
+        assumptions: null,
         content_state: 'erased',
         content_erased_at: now,
         updated_at: now,

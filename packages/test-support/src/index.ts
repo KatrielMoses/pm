@@ -7,3 +7,4 @@ export * from './timing.ts';
 export { contractErrors, startPostgres, POSTGRES_IMAGE, type PostgresServer } from '@pm/test-infra';
 export * from './google-calendar-fixture.ts';
 export * from './ai-provider-fixture.ts';
+export * from './ai-action-fixture.ts';

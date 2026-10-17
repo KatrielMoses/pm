@@ -4,7 +4,16 @@
  */
 
 /** Source kinds with a genuine, implemented canonical read path. */
-export const SOURCE_KINDS = ['task', 'project', 'document', 'comment', 'activity'] as const;
+export const SOURCE_KINDS = [
+  'task',
+  'project',
+  'document',
+  'comment',
+  'activity',
+  // 7C: goals (5B) and the caller's own mirrored calendar events (6C), by explicit choice only.
+  'goal',
+  'meeting',
+] as const;
 export type SourceKind = (typeof SOURCE_KINDS)[number];
 
 /** Kinds that 5A search can propose (activity is reached through its task, never searched). */
@@ -66,7 +75,11 @@ export interface SourceRecord {
   /** The display title, resolved through current authorization. */
   title: string;
   /** Where a citation of this source opens (the canonical record page). */
-  link: { type: 'task' | 'project' | 'document'; id: string; anchor: string | null };
+  link: {
+    type: 'task' | 'project' | 'document' | 'goal' | 'meeting';
+    id: string;
+    anchor: string | null;
+  };
   /** A numeric version (row or content version) and a readable label for it. */
   version: number;
   versionLabel: string;

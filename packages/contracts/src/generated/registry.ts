@@ -984,6 +984,13 @@ export const TELEMETRY_SIGNALS = [
     "labels": [
       "outcome"
     ]
+  },
+  {
+    "name": "ai.analyses",
+    "type": "counter",
+    "labels": [
+      "status"
+    ]
   }
 ] as const;
 export type TelemetrySignalName = (typeof TELEMETRY_SIGNALS)[number]['name'];

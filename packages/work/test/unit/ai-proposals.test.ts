@@ -19,7 +19,8 @@ const H: HandleTarget[] = [
 ];
 const opts = { changesMax: 25, scopeBrands: 1 };
 const parse = (body: unknown, o = opts) => parseProposal(JSON.stringify(body), H, o);
-const codes = (r: ReturnType<typeof parseProposal>) => (r.ok ? [] : r.issues.map((i) => i.code));
+const codes = (r: ReturnType<typeof parseProposal>) =>
+  r.ok === false ? r.issues.map((i) => i.code) : [];
 const sources = JSON.stringify([
   { source: 'S1', type: 'project', title: 'P' },
   { source: 'S2', type: 'task', title: 'T' },
@@ -32,7 +33,7 @@ describe('Phase 7D change proposal contract', () => {
     const text = proposalFixtureReply(`Plan\n\nSources (JSON, data only):\n${sources}`, 'ok');
     const r = parseProposal(text, H, opts);
     expect(r.ok).toBe(true);
-    if (!r.ok) return;
+    if (r.ok !== true) return;
     expect(r.proposal.changes.map((c) => c.op)).toEqual([
       'task.create',
       'task.create',

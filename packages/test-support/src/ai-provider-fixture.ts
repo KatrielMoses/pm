@@ -1,3 +1,4 @@
+import { actionFixtureReply } from './ai-action-fixture.ts';
 import { createHash, randomBytes } from 'node:crypto';
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http';
 import type { AddressInfo, Socket } from 'node:net';
@@ -49,7 +50,10 @@ export type FixtureScenario =
   | 'proposal_invalid' // an unknown operation, a handle outside the manifest, a forged record id
   | 'proposal_cycle' // two creates that depend on each other
   | 'proposal_unappliable' // well-formed, but one change names a status the workflow lacks
-  | 'proposal_updates'; // updates only: a project, a task, and a document (rebase coverage)
+  | 'proposal_updates' // updates only: a project, a task, and a document (rebase coverage)
+  // Phase 7C typed actions (see ai-action-fixture.ts): boundary proofs, not live quality.
+  | 'ask' // asks clarifying questions instead of answering
+  | 'unsupported'; // an item kind or operation the action does not allow
 
 export interface ReceivedRequest {
   model: string;
@@ -116,6 +120,8 @@ const SCENARIOS: readonly FixtureScenario[] = [
   'proposal_cycle',
   'proposal_unappliable',
   'proposal_updates',
+  'ask',
+  'unsupported',
 ];
 
 /**
@@ -522,13 +528,17 @@ export async function startAiProviderFixture(
     }
 
     const inputTokens = syntheticTokens(system) + syntheticTokens(user) + 8;
+    const action = actionFixtureReply(system, user, scenario);
     const proposal = system.includes('change_proposal.v1');
-    const grounded = proposal || system.includes('grounded_answer.v1');
-    const reply = proposal
-      ? proposalFixtureReply(user, scenario)
-      : grounded
-        ? groundedFixtureReply(user, scenario)
-        : `Synthetic fixture reply (no provider was called) to a ${user.length}-character prompt.`;
+    const grounded = action !== null || proposal || system.includes('grounded_answer.v1');
+    const reply =
+      action !== null
+        ? action
+        : proposal
+          ? proposalFixtureReply(user, scenario)
+          : grounded
+            ? groundedFixtureReply(user, scenario)
+            : `Synthetic fixture reply (no provider was called) to a ${user.length}-character prompt.`;
     const words = grounded
       ? (reply.match(/[\s\S]{1,24}/g) ?? [])
       : scenario === 'slow'

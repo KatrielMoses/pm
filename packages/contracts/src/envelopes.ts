@@ -278,6 +278,8 @@ export const NON_RESOURCE_TYPES = [
   // 7D: change proposals (the list and a validation result).
   'ai_proposals',
   'ai_proposal_validation',
+  // 7C: the registered AI action catalog.
+  'ai_actions',
 ] as const;
 export type NonResourceType = (typeof NON_RESOURCE_TYPES)[number];
 
