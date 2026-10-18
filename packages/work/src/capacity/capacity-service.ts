@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import { change } from '@pm/audit';
 import { newPublicId, newUuidV7 } from '@pm/contracts';
 import { sql, type WorkspaceTransaction } from '@pm/db';
@@ -17,6 +18,7 @@ import {
   type Principal,
 } from '@pm/tenancy';
 import { dayBounds } from '../planning/semantics.ts';
+import type { PlannerBlock, PlannerInput, PlannerTask, Priority } from '../planning/planner.ts';
 import { addDays, daysBetween, isoWeekday, localDay, validDay } from '../time/semantics.ts';
 import { LayoutService } from '../views/layout-service.ts';
 import {
@@ -50,6 +52,28 @@ export interface Subject {
   name: string;
   self: boolean;
   tz: string;
+}
+
+/** 7F: the planner inputs for one person and day, with their staleness snapshot and evidence. */
+export interface PlanInputs {
+  input: PlannerInput;
+  tz: string;
+  dayEnd: Date;
+  snapshot: string;
+  considered: number;
+  capped: boolean;
+  blocks: Array<PlannerBlock & { version: number }>;
+  meta: Map<
+    string,
+    {
+      id: string;
+      title: string;
+      brand: { id: string; name: string };
+      version: number;
+      commitmentVersion: number | null;
+    }
+  >;
+  evidence: string[];
 }
 
 /**
@@ -518,6 +542,10 @@ export class CapacityService extends LayoutService {
       ws,
       req,
       async (tx, p) => {
+        // 7F: time off is a capacity input; edits serialize with plan application.
+        await sql`SELECT pg_advisory_xact_lock(hashtextextended(${`capacity.profile:${p.membershipId}`}, 0))`.execute(
+          tx.db,
+        );
         this.requirePersonal(p, 'personal.manage_own');
         const tz = this.zoneInput(b.tz) ?? (await this.personZone(tx, p.membershipId));
         const span = this.spanOf(b, v.allDay!);
@@ -588,6 +616,10 @@ export class CapacityService extends LayoutService {
       ws,
       req,
       async (tx, p) => {
+        // 7F: time off is a capacity input; edits serialize with plan application.
+        await sql`SELECT pg_advisory_xact_lock(hashtextextended(${`capacity.profile:${p.membershipId}`}, 0))`.execute(
+          tx.db,
+        );
         this.requirePersonal(p, 'personal.manage_own');
         const cur = await this.loadTimeOff(tx, p, tof, true);
         const expected =
@@ -662,6 +694,10 @@ export class CapacityService extends LayoutService {
       ws,
       req,
       async (tx, p) => {
+        // 7F: time off is a capacity input; edits serialize with plan application.
+        await sql`SELECT pg_advisory_xact_lock(hashtextextended(${`capacity.profile:${p.membershipId}`}, 0))`.execute(
+          tx.db,
+        );
         this.requirePersonal(p, 'personal.manage_own');
         const cur = await this.loadTimeOff(tx, p, tof, true);
         if (req.ifMatch !== undefined)
@@ -761,6 +797,10 @@ export class CapacityService extends LayoutService {
       req,
       async (tx, p) => {
         const br = await this.configurableBrand(tx, p, brand, 'brand.configure');
+        // 7F: a brand holiday is a capacity input; edits serialize with plan application.
+        await sql`SELECT pg_advisory_xact_lock(hashtextextended(${`capacity.holidays:${br.id}`}, 0))`.execute(
+          tx.db,
+        );
         const n = await tx.db
           .selectFrom('planning.holiday')
           .select((eb) => eb.fn.countAll<string>().as('n'))
@@ -833,6 +873,10 @@ export class CapacityService extends LayoutService {
       req,
       async (tx, p) => {
         const br = await this.configurableBrand(tx, p, brand, 'brand.configure');
+        // 7F: a brand holiday is a capacity input; edits serialize with plan application.
+        await sql`SELECT pg_advisory_xact_lock(hashtextextended(${`capacity.holidays:${br.id}`}, 0))`.execute(
+          tx.db,
+        );
         const h =
           typeof hol === 'string'
             ? await tx.db
@@ -1523,6 +1567,208 @@ export class CapacityService extends LayoutService {
               .reduce((n, b) => n + Math.round((b.end.getTime() - b.start.getTime()) / 60_000), 0),
           }
         : {}),
+    };
+  }
+
+  /**
+   * 7F (ADR-0043 D4): everything the daily planner may use for the person's own day, read as the
+   * person through the canonical sources: availability (working hours, overrides, time off,
+   * observed holidays, and connected-calendar busy time) for the day, meetings, their own blocks
+   * and Today commitments, and their readable open work (assigned to them, or on that day's Today
+   * list) in the chosen brands and projects, with readable open blockers. Candidates are bounded by
+   * `cap`; the result says how many were considered and never claims anything about the rest. The
+   * snapshot digests every input that could make a plan stale; the evidence names every record the
+   * plan rests on.
+   */
+  protected async planInputsIn(
+    tx: WorkspaceTransaction,
+    p: Principal,
+    opts: {
+      day: string;
+      brandIds: string[];
+      projectIds: string[];
+      assumptions: ReadonlyMap<string, number>;
+      split: boolean;
+      now: Date;
+      cap: number;
+      minChunk: number;
+    },
+  ): Promise<PlanInputs> {
+    const who = await this.subject(tx, p, 'me');
+    const tz = who.tz;
+    const brands = await this.capacityBrands(tx, p);
+    const [avail] = await this.availabilityOf(tx, who, opts.day, opts.day, brands.readable);
+    const { start, end } = dayBounds(opts.day, tz);
+    const meetings = (await this.externalBusy(tx, who, start, end)).map((e) => ({
+      start: e.start < start ? start : e.start,
+      end: e.end > end ? end : e.end,
+    }));
+    const blockRows = (
+      await sql<{
+        id: string;
+        public_id: string;
+        starts_at: Date;
+        ends_at: Date;
+        prep_minutes: number;
+        buffer_minutes: number;
+        locked: boolean;
+        focus: boolean;
+        task_public: string | null;
+        version: string;
+      }>`SELECT w.id, w.public_id, w.starts_at, w.ends_at, w.prep_minutes, w.buffer_minutes, w.locked, w.focus,
+             r.public_id AS task_public, w.version
+          FROM planning.work_block w LEFT JOIN core.record r ON r.workspace_id = w.workspace_id AND r.id = w.task_id
+         WHERE w.owner_membership_id = ${p.membershipId}::uuid
+           AND w.starts_at < ${end}::timestamptz AND w.ends_at > ${start}::timestamptz
+         ORDER BY w.starts_at, w.id`.execute(tx.db)
+    ).rows;
+    const blocks: Array<PlannerBlock & { version: number }> = blockRows.map((b) => ({
+      id: b.public_id,
+      start: new Date(b.starts_at),
+      end: new Date(b.ends_at),
+      prep: Number(b.prep_minutes),
+      buffer: Number(b.buffer_minutes),
+      locked: b.locked,
+      focus: b.focus,
+      taskId: b.task_public,
+      version: Number(b.version),
+    }));
+    const vis = await this.taskVisibility(tx, p, false);
+    const scope = sql.join(
+      [
+        sql<boolean>`true`,
+        ...(opts.brandIds.length ? [sql<boolean>`t.brand_id = ANY(${opts.brandIds}::uuid[])`] : []),
+        ...(opts.projectIds.length
+          ? [sql<boolean>`t.project_id = ANY(${opts.projectIds}::uuid[])`]
+          : []),
+      ],
+      sql` AND `,
+    );
+    const candidates = (
+      await sql<{
+        id: string;
+        public_id: string;
+        title: string;
+        priority: string;
+        due_date: string | null;
+        deadline_date: string | null;
+        deadline_at: Date | null;
+        estimate_minutes: number | null;
+        remaining_estimate_minutes: number | null;
+        version: string;
+        brand_public: string;
+        brand_name: string;
+        committed: boolean;
+        commitment_locked: boolean | null;
+        commitment_version: string | null;
+      }>`SELECT t.id, r.public_id, t.title, t.priority, t.due_date::text AS due_date,
+             t.deadline_date::text AS deadline_date, t.deadline_at, t.estimate_minutes, t.remaining_estimate_minutes,
+             t.version, br.public_id AS brand_public, b.name AS brand_name,
+             (c.id IS NOT NULL) AS committed, c.locked AS commitment_locked, c.version AS commitment_version
+          FROM work.task t
+          JOIN core.record r ON r.workspace_id = t.workspace_id AND r.id = t.id
+          JOIN tenancy.brand b ON b.workspace_id = t.workspace_id AND b.id = t.brand_id
+          JOIN core.record br ON br.workspace_id = b.workspace_id AND br.id = b.id
+          LEFT JOIN planning.today_commitment c ON c.workspace_id = t.workspace_id AND c.task_id = t.id
+           AND c.owner_membership_id = ${p.membershipId}::uuid AND c.day = ${opts.day}::date AND c.outcome = 'open'
+         WHERE r.lifecycle_state = 'active' AND t.status_category NOT IN ('done', 'cancelled')
+           AND ${vis.where('r', { project: sql`t.project_id` })} AND ${scope}
+           AND (c.id IS NOT NULL OR EXISTS (SELECT 1 FROM work.task_assignee a
+                 WHERE a.workspace_id = t.workspace_id AND a.task_id = t.id AND a.membership_id = ${p.membershipId}::uuid))
+         ORDER BY (c.id IS NOT NULL) DESC, coalesce(c.locked, false) DESC,
+                  coalesce(t.deadline_at, t.deadline_date::timestamptz) NULLS LAST, t.due_date NULLS LAST,
+                  CASE t.priority WHEN 'urgent' THEN 0 WHEN 'high' THEN 1 WHEN 'medium' THEN 2 WHEN 'low' THEN 3 ELSE 4 END,
+                  t.id
+         LIMIT ${opts.cap}`.execute(tx.db)
+    ).rows;
+    const ids = candidates.length ? candidates.map((c) => c.id) : [NIL];
+    const blockers = (
+      await sql<{ task: string; public_id: string; version: string }>`
+        SELECT rel.to_record_id AS task, br.public_id, bt.version
+          FROM relations.record_relationship rel
+          JOIN work.task bt ON bt.workspace_id = rel.workspace_id AND bt.id = rel.from_record_id
+          JOIN core.record br ON br.workspace_id = bt.workspace_id AND br.id = bt.id
+         WHERE rel.kind = 'blocks' AND rel.to_record_id = ANY(${ids}::uuid[])
+           AND bt.status_category NOT IN ('done', 'cancelled') AND br.lifecycle_state = 'active'
+           AND ${vis.where('br', { project: sql`bt.project_id` })}
+         ORDER BY br.public_id`.execute(tx.db)
+    ).rows;
+    const blockedBy = new Map<string, string[]>();
+    for (const b of blockers) blockedBy.set(b.task, [...(blockedBy.get(b.task) ?? []), b.public_id]);
+    const minutesOf = (a: Date, b: Date) => Math.round((b.getTime() - a.getTime()) / 60_000);
+    const tasks: PlannerTask[] = candidates.map((c) => {
+      const estimate = c.remaining_estimate_minutes ?? c.estimate_minutes;
+      return {
+        id: c.public_id,
+        priority: (['urgent', 'high', 'medium', 'low'].includes(c.priority)
+          ? c.priority
+          : 'none') as Priority,
+        dueDate: c.due_date,
+        deadline: c.deadline_at
+          ? new Date(c.deadline_at)
+          : c.deadline_date
+            ? dayBounds(c.deadline_date, tz).end
+            : null,
+        estimate: estimate === null ? null : Number(estimate),
+        assumed: estimate === null ? (opts.assumptions.get(c.public_id) ?? null) : null,
+        blockedBy: blockedBy.get(c.id) ?? [],
+        committed: c.committed,
+        committedLocked: !!c.commitment_locked,
+        blockedMinutes: blocks
+          .filter((b) => b.taskId === c.public_id)
+          .reduce((n, b) => n + minutesOf(b.start, b.end), 0),
+        splittable: true,
+      };
+    });
+    const day = avail!;
+    const input: PlannerInput = {
+      day: opts.day,
+      tz,
+      windows: day.intervals,
+      capacityMinutes: day.available,
+      meetings,
+      blocks,
+      tasks,
+      notBefore: opts.now > start ? opts.now : null,
+      split: opts.split,
+      minChunk: opts.minChunk,
+    };
+    const snapshot = createHash('sha256')
+      .update(
+        JSON.stringify({
+          day: opts.day,
+          tz,
+          windows: day.intervals.map((i) => [i.start.toISOString(), i.end.toISOString()]),
+          available: day.available,
+          meetings: meetings.map((m) => [m.start.toISOString(), m.end.toISOString()]),
+          blocks: blocks.map((b) => [b.id, b.version, b.locked, b.focus]),
+          tasks: candidates.map((c) => [c.public_id, Number(c.version), c.committed, c.commitment_locked, c.commitment_version]),
+          blockers: blockers.map((b) => [b.task, b.public_id, Number(b.version)]),
+          scope: [opts.brandIds, opts.projectIds],
+        }),
+      )
+      .digest('hex');
+    return {
+      input,
+      tz,
+      dayEnd: end,
+      snapshot,
+      considered: candidates.length,
+      capped: candidates.length >= opts.cap,
+      blocks,
+      meta: new Map(
+        candidates.map((c) => [
+          c.public_id,
+          {
+            id: c.id,
+            title: c.title,
+            brand: { id: c.brand_public, name: c.brand_name },
+            version: Number(c.version),
+            commitmentVersion: c.commitment_version === null ? null : Number(c.commitment_version),
+          },
+        ]),
+      ),
+      evidence: [...new Set([...candidates.map((c) => c.public_id), ...blockers.map((b) => b.public_id)])],
     };
   }
 

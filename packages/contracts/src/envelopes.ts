@@ -285,6 +285,10 @@ export const NON_RESOURCE_TYPES = [
   'ai_briefing_preview',
   'ai_briefing_schedules',
   'ai_briefing_corrections',
+  // 7F: a daily-plan preview, a capture interpretation, and transcription limits.
+  'day_plan_preview',
+  'capture_interpretation',
+  'voice_settings',
 ] as const;
 export type NonResourceType = (typeof NON_RESOURCE_TYPES)[number];
 

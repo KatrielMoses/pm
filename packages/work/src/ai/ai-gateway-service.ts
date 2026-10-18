@@ -51,7 +51,9 @@ import { McpAccessService } from '../integrations/mcp-access-service.ts';
 import { activePerson, principalOf } from '../notify/access.ts';
 import { NotificationFanOut } from '../notify/fanout.ts';
 import { systemExec } from '../notify/system.ts';
-import { localDay, validZone } from '../time/semantics.ts';
+import { daysBetween, localDay, validDay, validZone } from '../time/semantics.ts';
+import { checkEdits, planDay, type EditIssue, type Reason } from '../planning/planner.ts';
+import type { PlanInputs } from '../capacity/capacity-service.ts';
 import {
   clock,
   dueOccurrence,
@@ -64,6 +66,7 @@ import {
   BRIEFING_TEMPLATE_VERSION,
   buildStatements,
   figuresDigest,
+  fmtInstant,
   KIND_LABEL,
   STATEMENT_KINDS,
   STATEMENTS_MAX,
@@ -116,7 +119,7 @@ import {
   type AiProvider,
 } from './provider.ts';
 import { redactCredentials } from './redaction.ts';
-import { eraseAiContentRows, eraseBriefingRows } from './lifecycle.ts';
+import { eraseAiContentRows, eraseBriefingRows, erasePlanProposals } from './lifecycle.ts';
 import {
   GROUNDED_SYSTEM_TEMPLATE,
   GROUNDED_TEMPLATE_VERSION,
@@ -333,7 +336,7 @@ const mutatedBy = (c: {
   op: string;
   target_public_id: string | null;
   payload: unknown;
-}): Array<{ publicId: string; kind: 'task' | 'project' | 'document' }> => {
+}): Array<{ publicId: string; kind: TargetKind }> => {
   const p = c.payload as ProposalChange['payload'];
   const ex = (x: RefValue | undefined) =>
     x && 'existing' in x ? [{ publicId: x.existing.publicId, kind: x.existing.kind }] : [];
@@ -347,13 +350,16 @@ const mutatedBy = (c: {
   return out.sort((a, b) => a.kind.localeCompare(b.kind) || a.publicId.localeCompare(b.publicId));
 };
 
-/** The kind of record an operation with a target changes. */
-const targetKindOf = (op: string): 'task' | 'project' | 'document' =>
+/** The kind of record an operation with a target changes (7F: a planner block). */
+type TargetKind = 'task' | 'project' | 'document' | 'block';
+const targetKindOf = (op: string): TargetKind =>
   op === 'task.update' || op === 'task.assign'
     ? 'task'
     : op === 'project.update'
       ? 'project'
-      : 'document';
+      : op === 'block.update' || op === 'block.delete'
+        ? 'block'
+        : 'document';
 
 /** Purposes that run on a 7B context manifest. */
 const RETRIEVAL_PURPOSES: readonly string[] = ['grounded_answer', 'change_proposal', 'analysis'];
@@ -403,6 +409,87 @@ const BRIEFING_SWEEP_BATCH = 50;
 const BRIEFING_MAX_ATTEMPTS = 3;
 /** Evidence references one briefing may store (statement bases are capped at BASIS_MAX each). */
 const BRIEFING_EVIDENCE_MAX = 40_000;
+
+/**
+ * 7F bounds (ADR-0043): candidate tasks one plan considers, brands or projects in its scope, days
+ * ahead it may plan, the shortest split chunk, and the changes one plan proposal holds.
+ */
+const PLAN_CANDIDATES_MAX = 60;
+const PLAN_SCOPE_MAX = 10;
+const PLAN_DAYS_AHEAD = 14;
+const PLAN_MIN_CHUNK = 30;
+const PLAN_CHANGES_MAX = 99;
+const PLAN_VERSION = 'plan.v1';
+const PLAN_OPS_SET: ReadonlySet<string> = new Set([
+  'block.create',
+  'block.update',
+  'block.delete',
+  'commitment.add',
+  'commitment.remove',
+]);
+
+/** A daily-plan request after validation. */
+interface PlanRequest {
+  day: string | null;
+  brands: string[];
+  projects: string[];
+  assumptions: Map<string, number>;
+  split: boolean;
+}
+
+/** The planner's view of one day, computed as the person from the canonical sources. */
+interface ComputedPlan {
+  day: string;
+  tz: string;
+  inputs: PlanInputs;
+  result: ReturnType<typeof planDay>;
+  scope: { brands: string[]; projects: string[] };
+  options: { split: boolean; assumptions: Record<string, number> };
+}
+
+/** A proposed change as the plan checks read it. */
+interface PlanChangeRow {
+  change_key: string;
+  op: string;
+  target_public_id: string | null;
+  payload: unknown;
+  selected: boolean;
+  decision: string;
+}
+
+/** A planner proposal's day now: whether it is unchanged, and the edit check of its blocks. */
+interface PlanCurrent {
+  fresh: boolean;
+  snapshot: string | null;
+  issues: EditIssue[];
+  current: ComputedPlan | null;
+}
+
+const PLAN_ISSUE_MESSAGES: Record<EditIssue['code'], string> = {
+  overlaps_block: 'This time overlaps one of your blocks.',
+  overlaps_meeting: 'This time overlaps a meeting.',
+  overlaps_plan: 'This time overlaps another block in this plan.',
+  outside_working_hours: 'This time is outside your working hours.',
+  after_deadline: 'This time ends after the task deadline.',
+};
+
+/** The stored plan of a planner proposal (`ai.change_proposal.plan`). */
+interface StoredPlan {
+  version: string;
+  day: string;
+  tz: string;
+  scope: { brands: string[]; projects: string[] };
+  options: { split: boolean; assumptions: Record<string, number> };
+  snapshot: string;
+  considered: number;
+  capped: boolean;
+  totals: Record<string, number>;
+  feasible: boolean;
+  unscheduled: Array<{ task: string; code: string; minutes: number | null; detail: string }>;
+  postpone: Array<{ task: string; minutes: number; reason: string; tradeoff: string }>;
+  conflicts: Array<{ code: string; task: string | null; detail: string }>;
+  reasons: Record<string, Reason[]>;
+}
 
 /** A statement's full basis: its recorded basis plus every record and brand its refs name. */
 function statementBasis(s: Statement): Basis {
@@ -4942,7 +5029,11 @@ export class AiGatewayService extends McpAccessService {
     tx: WorkspaceTransaction,
     filter: { membershipId?: string; before?: Date },
   ): Promise<number> {
-    return (await eraseAiContentRows(tx, filter)) + (await eraseBriefingRows(tx, filter));
+    return (
+      (await eraseAiContentRows(tx, filter)) +
+      (await eraseBriefingRows(tx, filter)) +
+      (await erasePlanProposals(tx, filter))
+    );
   }
 
   aiHistoryRetentionDays(): number | null {
@@ -6717,6 +6808,567 @@ export class AiGatewayService extends McpAccessService {
   // 7D change proposals (ADR-0040): review, edit, select, approve, and explicitly apply
   // ---------------------------------------------------------------------------------------------
 
+  // ---------------------------------------------------------------------------------------------
+  // 7F daily plans (ADR-0043): a deterministic planner, applied only through 7D proposals
+  // ---------------------------------------------------------------------------------------------
+
+  #parsePlanRequest(body: unknown): PlanRequest {
+    const b = (body && typeof body === 'object' && !Array.isArray(body) ? body : {}) as Record<
+      string,
+      unknown
+    >;
+    const issues = [];
+    for (const k of Object.keys(b))
+      if (!['day', 'brands', 'projects', 'assumptions', 'split'].includes(k))
+        issues.push(issue(`/${k}`, 'unknown_field', 'This field is not accepted.'));
+    const day = b.day === undefined ? null : validDay(b.day);
+    if (b.day !== undefined && !day)
+      issues.push(issue('/day', 'invalid', 'Choose a day (YYYY-MM-DD).'));
+    const list = (k: string, re: RegExp) => {
+      const v = b[k];
+      if (v === undefined) return [];
+      if (
+        !Array.isArray(v) ||
+        v.length > PLAN_SCOPE_MAX ||
+        !v.every((x) => typeof x === 'string' && re.test(x))
+      ) {
+        issues.push(issue(`/${k}`, 'invalid_value', `Choose up to ${PLAN_SCOPE_MAX}.`));
+        return [];
+      }
+      return [...new Set(v as string[])];
+    };
+    const brands = list('brands', /^br_[0-9A-HJKMNP-TV-Z]{26}$/);
+    const projects = list('projects', /^prj_[0-9A-HJKMNP-TV-Z]{26}$/);
+    const assumptions = new Map<string, number>();
+    if (b.assumptions !== undefined) {
+      const a = b.assumptions;
+      if (!a || typeof a !== 'object' || Array.isArray(a) || Object.keys(a).length > 50)
+        issues.push(issue('/assumptions', 'invalid_value', 'Enter minutes for up to 50 tasks.'));
+      else
+        for (const [k, v] of Object.entries(a as Record<string, unknown>)) {
+          if (!/^tsk_[0-9A-HJKMNP-TV-Z]{26}$/.test(k) || !Number.isInteger(v) || (v as number) < 5 || (v as number) > 1440)
+            issues.push(
+              issue(`/assumptions/${k}`, 'invalid_value', 'Enter 5 to 1440 whole minutes.'),
+            );
+          else assumptions.set(k, v as number);
+        }
+    }
+    if (b.split !== undefined && typeof b.split !== 'boolean')
+      issues.push(issue('/split', 'invalid_value', 'Choose yes or no.'));
+    if (issues.length) throw invalid(...issues);
+    return { day, brands, projects, assumptions, split: b.split === true };
+  }
+
+  /** The plan for one day as `p`, from the canonical sources (nothing is written). */
+  async #planFor(
+    tx: WorkspaceTransaction,
+    p: Principal,
+    req: PlanRequest,
+    now = new Date(),
+  ): Promise<ComputedPlan> {
+    const brandRows = [];
+    for (const b of req.brands) brandRows.push(await findBrand(tx, p, b));
+    const projectRows = [];
+    for (const pr of req.projects) projectRows.push(await this.loadProject(tx, p, pr));
+    const tz = await this.personZone(tx, p.membershipId);
+    const today = localDay(now, tz);
+    const day = req.day ?? today;
+    if (day < today) throw invalid(issue('/day', 'past_day', 'Plan today or a later day.'));
+    if (daysBetween(today, day) > PLAN_DAYS_AHEAD)
+      throw invalid(issue('/day', 'too_far', `Plan at most ${PLAN_DAYS_AHEAD} days ahead.`));
+    const inputs = await this.planInputsIn(tx, p, {
+      day,
+      brandIds: brandRows.map((b) => b.id),
+      projectIds: projectRows.map((x) => x.id),
+      assumptions: req.assumptions,
+      split: req.split,
+      now,
+      cap: PLAN_CANDIDATES_MAX,
+      minChunk: PLAN_MIN_CHUNK,
+    });
+    const result = planDay(inputs.input, inputs.dayEnd);
+    return {
+      day,
+      tz: inputs.tz,
+      inputs,
+      result,
+      scope: {
+        brands: brandRows.map((b) => b.public_id),
+        projects: projectRows.map((x) => x.publicId),
+      },
+      options: { split: req.split, assumptions: Object.fromEntries(req.assumptions) },
+    };
+  }
+
+  #planView(plan: ComputedPlan) {
+    const { inputs, result, tz } = plan;
+    const label = (id: string) => {
+      const m = inputs.meta.get(id);
+      return m ? { id, title: m.title, brand: m.brand } : { id, title: null, brand: null };
+    };
+    const local = (d: Date) => fmtInstant(d, tz).slice(11);
+    return {
+      day: plan.day,
+      timezone: tz,
+      scope: plan.scope,
+      mode: 'rule_based' as const,
+      generated: false,
+      considered: inputs.considered,
+      considered_max: PLAN_CANDIDATES_MAX,
+      coverage: inputs.capped
+        ? `Your ${inputs.considered} highest-ranked open tasks were considered (at most ${PLAN_CANDIDATES_MAX} are).`
+        : null,
+      totals: result.totals,
+      feasible: result.feasible,
+      scheduled: result.scheduled.map((s) => ({
+        task: label(s.task),
+        rank: s.rank,
+        minutes: s.minutes,
+        slots: s.slots.map((x) => ({
+          starts_at: x.start.toISOString(),
+          ends_at: x.end.toISOString(),
+          local: `${local(x.start)}–${local(x.end)}`,
+        })),
+        reasons: s.reasons,
+        warnings: s.warnings,
+      })),
+      unscheduled: result.unscheduled.map((u) => ({
+        task: label(u.task),
+        rank: u.rank,
+        code: u.code,
+        minutes: u.minutes,
+        detail: u.detail,
+        blocked_by: u.blockedBy ? u.blockedBy.map((b) => label(b)) : undefined,
+      })),
+      postpone: result.postpone.map((x) => ({ ...x, task: label(x.task) })),
+      conflicts: result.conflicts.map((c) => ({ ...c, task: c.task ? label(c.task) : null })),
+      blocks: inputs.blocks.map((b) => ({
+        id: b.id,
+        starts_at: b.start.toISOString(),
+        ends_at: b.end.toISOString(),
+        local: `${local(b.start)}–${local(b.end)}`,
+        locked: b.locked,
+        focus: b.focus,
+        task: b.taskId ? label(b.taskId) : null,
+      })),
+      snapshot: inputs.snapshot,
+    };
+  }
+
+  /** PLAN-010–PLAN-012, AI-021: the daily-plan preview (rule-based; nothing changes). */
+  async previewDayPlan(caller: Caller, ws: unknown, body: unknown) {
+    const req = this.#parsePlanRequest(body);
+    return this.inWorkspace(caller, ws, { readOnly: true }, async (tx, p) => {
+      if (caller.delegation) throw new TenancyError('forbidden');
+      this.requirePersonal(p, 'personal.manage_own');
+      const plan = await this.#planFor(tx, p, req);
+      this.d.metrics.count('planning.plans', 1, { outcome: 'previewed' });
+      return this.#planView(plan);
+    });
+  }
+
+  /**
+   * PLAN-013: turns the current plan into a 7D change proposal (origin `planner`) the person edits,
+   * selects, approves, and applies explicitly. Scheduled work becomes block creations and Today
+   * commitments; postponement recommendations become unselected removals of unlocked commitments
+   * and blocks, applied only if the person selects them. Locked items are never targeted.
+   */
+  async createDayPlanProposal(caller: Caller, ws: unknown, body: unknown, req: Mutation) {
+    const input = this.#parsePlanRequest(body);
+    return this.mutate(
+      caller,
+      'planning.plan_proposal',
+      ws,
+      req,
+      async (tx, p) => {
+        this.#requireApplier(caller, p);
+        this.requirePersonal(p, 'personal.manage_own');
+        const plan = await this.#planFor(tx, p, input);
+        const { inputs, result } = plan;
+        type Row = {
+          key: string;
+          op: ProposalOp;
+          target: { publicId: string; recordId: string } | null;
+          expected: number | null;
+          payload: ProposalChange['payload'];
+          selected: boolean;
+          reasons: Reason[];
+        };
+        const rows: Row[] = [];
+        const reasons: Record<string, unknown> = {};
+        const taskRef = (id: string): RefValue => ({
+          existing: { kind: 'task', publicId: id, recordId: inputs.meta.get(id)!.id },
+        });
+        const deferred: Array<{ task: string; code: string; minutes: number | null; detail: string }> = [];
+        for (const s of result.scheduled) {
+          const t = inputs.input.tasks.find((x) => x.id === s.task)!;
+          const needed = (t.committed ? 0 : 1) + s.slots.length;
+          if (rows.length + needed > PLAN_CHANGES_MAX) {
+            // Bounded: what does not fit in one proposal is listed, never silently dropped.
+            deferred.push({
+              task: s.task,
+              code: 'proposal_limit',
+              minutes: s.minutes,
+              detail: `A proposal holds at most ${PLAN_CHANGES_MAX} changes; plan this one again after applying.`,
+            });
+            continue;
+          }
+          if (!t.committed)
+            rows.push({
+              key: `c${rows.length + 1}`,
+              op: 'commitment.add',
+              target: null,
+              expected: null,
+              payload: { fields: { day: plan.day }, task: taskRef(s.task) },
+              selected: true,
+              reasons: s.reasons,
+            });
+          for (const slot of s.slots)
+            rows.push({
+              key: `c${rows.length + 1}`,
+              op: 'block.create',
+              target: null,
+              expected: null,
+              payload: {
+                fields: { starts_at: slot.start.toISOString(), ends_at: slot.end.toISOString() },
+                task: taskRef(s.task),
+              },
+              selected: true,
+              reasons: s.reasons,
+            });
+        }
+        for (const x of result.postpone) {
+          const t = inputs.input.tasks.find((y) => y.id === x.task)!;
+          const meta = inputs.meta.get(x.task)!;
+          if (t.committed && !t.committedLocked && rows.length < PLAN_CHANGES_MAX)
+            rows.push({
+              key: `c${rows.length + 1}`,
+              op: 'commitment.remove',
+              target: null,
+              expected: null,
+              payload: {
+                fields: { day: plan.day },
+                task: taskRef(x.task),
+                commitment_version: meta.commitmentVersion ?? undefined,
+              },
+              selected: false,
+              reasons: [{ code: 'priority', detail: x.tradeoff }],
+            });
+          for (const b of inputs.blocks.filter((y) => y.taskId === x.task && !y.locked))
+            if (rows.length < PLAN_CHANGES_MAX)
+              rows.push({
+                key: `c${rows.length + 1}`,
+                op: 'block.delete',
+                target: {
+                  publicId: b.id,
+                  recordId: (await tx.db
+                    .selectFrom('planning.work_block')
+                    .select('id')
+                    .where('public_id', '=', b.id)
+                    .executeTakeFirstOrThrow()).id,
+                },
+                expected: b.version,
+                payload: { fields: {}, task: taskRef(x.task) },
+                selected: false,
+                reasons: [{ code: 'priority', detail: x.tradeoff }],
+              });
+        }
+        if (!rows.length)
+          throw new TenancyError('conflict', {
+            issues: [
+              issue('/', 'nothing_to_plan', 'There is nothing this plan could schedule or postpone.'),
+            ],
+          });
+        for (const r of rows) reasons[r.key] = r.reasons;
+        const context = this.exec(caller, p);
+        const op = await createOperation(tx, {
+          kind: 'plan_proposal',
+          context,
+          initiatedBy: { type: 'human', id: p.membershipId },
+        });
+        await transitionOperation(tx, {
+          operationId: op.id,
+          to: 'succeeded',
+          actor: { type: 'human', id: p.membershipId },
+          context,
+        });
+        const id = newUuidV7();
+        const publicId = newPublicId('prp');
+        const changes = rows.map((r, position) => ({
+          change_key: r.key,
+          position,
+          op: r.op,
+          target_public_id: r.target?.publicId ?? null,
+          target_record_id: r.target?.recordId ?? null,
+          expected_version: r.expected,
+          depends_on: [] as string[],
+          decision: 'pending',
+          payload: r.payload,
+          selected: r.selected,
+        }));
+        const fingerprint = this.#fingerprintOf({ public_id: publicId, revision: 1 }, changes);
+        await tx.db
+          .insertInto('ai.change_proposal')
+          .values({
+            id,
+            workspace_id: tx.workspaceId,
+            public_id: publicId,
+            operation_id: op.id,
+            initiating_membership_id: p.membershipId,
+            fingerprint,
+            title: `Plan for ${plan.day}`,
+            origin: 'planner',
+            plan: JSON.stringify({
+              version: PLAN_VERSION,
+              day: plan.day,
+              tz: plan.tz,
+              scope: plan.scope,
+              options: plan.options,
+              snapshot: inputs.snapshot,
+              considered: inputs.considered,
+              capped: inputs.capped,
+              totals: result.totals,
+              feasible: result.feasible,
+              unscheduled: [
+                ...result.unscheduled.map((u) => ({
+                  task: u.task,
+                  code: u.code,
+                  minutes: u.minutes,
+                  detail: u.detail,
+                })),
+                ...deferred,
+              ],
+              postpone: result.postpone,
+              conflicts: result.conflicts,
+              reasons,
+            }),
+          })
+          .execute();
+        await tx.db
+          .insertInto('ai.proposed_change')
+          .values(
+            changes.map((c) => ({
+              id: newUuidV7(),
+              workspace_id: tx.workspaceId,
+              proposal_id: id,
+              change_key: c.change_key,
+              position: c.position,
+              op: c.op,
+              temp_ref: null,
+              target_record_id: c.target_record_id,
+              target_public_id: c.target_public_id,
+              expected_version: c.expected_version,
+              depends_on: [],
+              payload: JSON.stringify(c.payload),
+              sources: [],
+              selected: c.selected,
+            })),
+          )
+          .execute();
+        // The plan's complete authorization basis: every candidate and blocker it rests on.
+        const ev = await resolveBasis(tx, {
+          records: [...inputs.evidence, ...plan.scope.projects],
+          brands: plan.scope.brands,
+          perms: [],
+        });
+        if (ev.missing || ev.rows.length > BASIS_MAX)
+          throw new TenancyError('conflict', {
+            issues: [issue('/', 'plan_unverifiable', 'This plan cannot be kept verifiable. Narrow its scope.')],
+          });
+        await storeEvidence(tx, { proposalId: id }, ev.rows);
+        await this.#proposalEvent(
+          tx,
+          id,
+          1,
+          'generated',
+          p.membershipId,
+          changes.map((c) => c.change_key),
+          fingerprint,
+        );
+        this.d.metrics.count('planning.plans', 1, { outcome: 'proposed' });
+        return {
+          status: 201,
+          ref: { id: publicId, type: 'change_proposal' },
+          data: await this.#proposalView(tx, caller, p, publicId),
+        };
+      },
+      async (tx, p, ref) => this.#proposalView(tx, caller, p, ref.id),
+    );
+  }
+
+  /**
+   * Locks the planner inputs in one consistent order (capacity profile and time off, the day's
+   * commitments, the block-planning lock, brand holidays of the person's reservation brands, then
+   * the candidate tasks for share), so nothing they rest on changes until this transaction ends.
+   */
+  async #lockPlanInputs(tx: WorkspaceTransaction, p: Principal, day: string, taskIds: string[]) {
+    const lock = (key: string) =>
+      sql`SELECT pg_advisory_xact_lock(hashtextextended(${key}, 0))`.execute(tx.db);
+    await lock(`capacity.profile:${p.membershipId}`);
+    await this.lockDay(tx, p.membershipId, day);
+    await this.lockBlocks(tx, p.membershipId);
+    const brands = await tx.db
+      .selectFrom('planning.capacity_reservation')
+      .select('brand_id')
+      .distinct()
+      .where('membership_id', '=', p.membershipId)
+      .orderBy('brand_id')
+      .execute();
+    for (const b of brands) await lock(`capacity.holidays:${b.brand_id}`);
+    if (taskIds.length)
+      await sql`SELECT 1 FROM work.task WHERE id = ANY(${taskIds}::uuid[]) ORDER BY id FOR SHARE`.execute(
+        tx.db,
+      );
+  }
+
+  /**
+   * The current state of a planner proposal's day: its snapshot recomputed now from the canonical
+   * sources (after locking them, when `lock`), and the edit check of the selected block changes.
+   * `fresh` is false when anything the plan rests on changed, or the day can no longer be planned.
+   */
+  async #planCurrent(
+    tx: WorkspaceTransaction,
+    p: Principal,
+    proposal: { id: string; plan: unknown },
+    changes: readonly PlanChangeRow[],
+    lock: boolean,
+  ): Promise<PlanCurrent> {
+    const plan = proposal.plan as StoredPlan;
+    if (lock) {
+      // Every task the plan rests on (its candidates and blockers) is locked for share.
+      const ev = await evidenceOf(tx, { proposalId: proposal.id });
+      await this.#lockPlanInputs(
+        tx,
+        p,
+        plan.day,
+        ev.flatMap((r) => (r.kind === 'record' ? [r.record_id!] : [])),
+      );
+    }
+    let current: ComputedPlan;
+    try {
+      current = await this.#planFor(tx, p, {
+        day: plan.day,
+        brands: plan.scope.brands,
+        projects: plan.scope.projects,
+        assumptions: new Map(Object.entries(plan.options.assumptions ?? {})),
+        split: plan.options.split,
+      });
+    } catch (err) {
+      // A day now in the past, or a scope that is no longer readable, cannot be re-checked.
+      if (err instanceof TenancyError)
+        return { fresh: false, snapshot: null, issues: [], current: null };
+      throw err;
+    }
+    const live = changes.filter((c) => c.selected && c.decision !== 'rejected');
+    const released = new Set(
+      live
+        .filter((c) => c.op === 'block.update' || c.op === 'block.delete')
+        .map((c) => c.target_public_id!),
+    );
+    const proposed = live
+      .filter((c) => c.op === 'block.create' || c.op === 'block.update')
+      .map((c) => {
+        const pl = c.payload as ProposalChange['payload'];
+        return {
+          key: c.change_key,
+          start: new Date(pl.fields.starts_at!),
+          end: new Date(pl.fields.ends_at!),
+          task: pl.task && 'existing' in pl.task ? pl.task.existing.publicId : null,
+        };
+      });
+    const { input } = current.inputs;
+    const issues = checkEdits(proposed, {
+      windows: input.windows,
+      meetings: input.meetings,
+      blocks: input.blocks,
+      deadlines: new Map(input.tasks.flatMap((t) => (t.deadline ? [[t.id, t.deadline]] : []))),
+      released,
+    });
+    return {
+      fresh: current.inputs.snapshot === plan.snapshot,
+      snapshot: current.inputs.snapshot,
+      issues,
+      current,
+    };
+  }
+
+  /** Refuses a planner proposal whose day changed or whose selected blocks now conflict. */
+  #requirePlanCurrent(cur: PlanCurrent) {
+    if (!cur.fresh)
+      throw new TenancyError('conflict', {
+        issues: [
+          issue(
+            '/plan',
+            'plan_changed',
+            'Your day changed since this plan was made (time off, meetings, blocks, Today, or the tasks it uses). Review the current plan, then approve again.',
+          ),
+        ],
+      });
+    const errors = cur.issues.filter((i) => i.severity === 'error');
+    if (errors.length)
+      throw new TenancyError('conflict', {
+        issues: errors.map((e) =>
+          issue(`/changes/${e.block}`, e.code, PLAN_ISSUE_MESSAGES[e.code]),
+        ),
+      });
+  }
+
+  /** The stored plan of a planner proposal, labelled through current authorization. */
+  async #storedPlanView(
+    tx: WorkspaceTransaction,
+    p: Principal,
+    proposal: { id: string; plan: unknown },
+    changes: readonly PlanChangeRow[],
+    open: boolean,
+  ) {
+    const plan = proposal.plan as StoredPlan;
+    const titles = new Map<string, { id: string; title: string | null }>();
+    const label = async (id: string | null) => {
+      if (!id) return null;
+      if (!titles.has(id)) {
+        const cur = await this.#currentValues(tx, p, 'task', id);
+        titles.set(id, { id, title: cur?.title ?? null });
+      }
+      return titles.get(id)!;
+    };
+    const cur = open ? await this.#planCurrent(tx, p, proposal, changes, false) : null;
+    return {
+      day: plan.day,
+      timezone: plan.tz,
+      scope: plan.scope,
+      mode: 'rule_based' as const,
+      generated: false,
+      considered: plan.considered,
+      coverage: plan.capped
+        ? `Your ${plan.considered} highest-ranked open tasks were considered (at most ${PLAN_CANDIDATES_MAX} are).`
+        : null,
+      totals: plan.totals,
+      feasible: plan.feasible,
+      assumptions: plan.options.assumptions,
+      reasons: plan.reasons,
+      unscheduled: await Promise.all(
+        plan.unscheduled.map(async (u) => ({ ...u, task: await label(u.task) })),
+      ),
+      postpone: await Promise.all(
+        plan.postpone.map(async (x) => ({ ...x, task: await label(x.task) })),
+      ),
+      conflicts: await Promise.all(
+        plan.conflicts.map(async (c) => ({ ...c, task: await label(c.task) })),
+      ),
+      current: !cur
+        ? { state: 'closed' as const, snapshot: null, issues: [] as EditIssue[] }
+        : {
+            state: !cur.current
+              ? ('unavailable' as const)
+              : cur.fresh
+                ? ('current' as const)
+                : ('changed' as const),
+            snapshot: cur.snapshot,
+            issues: cur.issues,
+          },
+    };
+  }
+
   /**
    * Callers acting inside a proposal application. The derived caller object is unique to one
    * request, so concurrent requests never share it; the ordinary domain commands then record the
@@ -6725,7 +7377,7 @@ export class AiGatewayService extends McpAccessService {
    */
   #proposalCallers = new WeakMap<
     Caller,
-    { operationId: string; causationId: string; proposal: string }
+    { operationId: string; causationId: string; proposal: string; planner: boolean }
   >();
 
   protected override exec(caller: Caller, p: Principal): ExecutionContext {
@@ -6741,9 +7393,11 @@ export class AiGatewayService extends McpAccessService {
   ): CommandContext {
     const a = this.#proposalCallers.get(caller);
     if (!a) return super.cmd(caller, p, brandId);
+    // A planner proposal is rule-based, not AI: its changes are the person's own (source `ui`),
+    // referencing the proposal they applied.
     return CommandContext.fromExecution(
       this.exec(caller, p),
-      { kind: 'ai_proposal', ref: a.proposal },
+      { kind: a.planner ? 'ui' : 'ai_proposal', ref: a.proposal },
       { brandId },
     );
   }
@@ -6769,11 +7423,23 @@ export class AiGatewayService extends McpAccessService {
     // Proposal content is personal to the person who started the run (like all AI history).
     if (!proposal || proposal.initiating_membership_id !== p.membershipId)
       throw new TenancyError('not_found');
-    const action = await tx.db
-      .selectFrom('ai.ai_action')
-      .selectAll()
-      .where('operation_id', '=', proposal.operation_id)
-      .executeTakeFirstOrThrow();
+    // 7F: a planner proposal has no AI action; its operation stands in for one (no scope, no
+    // sources, never synthetic), so the shared review, approval, and apply paths stay one path.
+    const action =
+      proposal.origin === 'planner'
+        ? {
+            operation_id: proposal.operation_id,
+            purpose: 'plan',
+            retrieval_scope: null,
+            brand_id: null,
+            synthetic: false,
+            action_key: null,
+          }
+        : await tx.db
+            .selectFrom('ai.ai_action')
+            .selectAll()
+            .where('operation_id', '=', proposal.operation_id)
+            .executeTakeFirstOrThrow();
     const changes = await tx.db
       .selectFrom('ai.proposed_change')
       .selectAll()
@@ -6791,7 +7457,7 @@ export class AiGatewayService extends McpAccessService {
   async #proposalEligible(
     tx: WorkspaceTransaction,
     p: Principal,
-    proposal: { content_state: string },
+    proposal: { id: string; content_state: string; origin: string },
     action: {
       operation_id: string;
       purpose: string;
@@ -6800,6 +7466,11 @@ export class AiGatewayService extends McpAccessService {
     },
   ) {
     if (proposal.content_state !== 'present') return false;
+    // 7F: a plan rests on its candidates, blockers, and scope; all must still be readable.
+    if (proposal.origin === 'planner') {
+      const rows = await evidenceOf(tx, { proposalId: proposal.id });
+      return rows.length > 0 && evidenceReadable(tx, p, rows, this.c.settings.principalContextArrayMax);
+    }
     const refs = await tx.db
       .selectFrom('ai.ai_context_ref')
       .selectAll()
@@ -7010,10 +7681,30 @@ export class AiGatewayService extends McpAccessService {
   async #currentValues(
     tx: WorkspaceTransaction,
     p: Principal,
-    kind: 'task' | 'project' | 'document',
+    kind: TargetKind,
     publicId: string,
   ): Promise<{ title: string; version: number; values: Record<string, string | null> } | null> {
     try {
+      if (kind === 'block') {
+        // 7F: only the person's own blocks; the task title through current authorization.
+        const b = await tx.db
+          .selectFrom('planning.work_block as w')
+          .leftJoin('core.record as r', 'r.id', 'w.task_id')
+          .select(['w.starts_at', 'w.ends_at', 'w.version', 'w.title', 'r.public_id as task'])
+          .where('w.public_id', '=', publicId)
+          .where('w.owner_membership_id', '=', p.membershipId)
+          .executeTakeFirst();
+        if (!b) return null;
+        const task = b.task ? await this.#currentValues(tx, p, 'task', b.task) : null;
+        return {
+          title: task?.title ?? b.title ?? 'Work block',
+          version: Number(b.version),
+          values: {
+            starts_at: new Date(b.starts_at).toISOString(),
+            ends_at: new Date(b.ends_at).toISOString(),
+          },
+        };
+      }
       if (kind === 'task') {
         const t = await this.loadTask(tx, p, publicId);
         this.requireTaskAction(p, 'record.read', t);
@@ -7106,6 +7797,7 @@ export class AiGatewayService extends McpAccessService {
       updated_at: new Date(proposal.updated_at).toISOString(),
       run: op.public_id,
       synthetic: action.synthetic,
+      origin: proposal.origin,
       application: application
         ? {
             outcome: application.outcome,
@@ -7223,6 +7915,8 @@ export class AiGatewayService extends McpAccessService {
     const fingerprint = this.#fingerprintOf(proposal, changes);
     const open = ['open', 'approved', 'failed'].includes(proposal.state);
     const applier = !caller.delegation && p.kind === 'member' && p.role !== 'read_only';
+    const planner = proposal.origin === 'planner';
+    const plan = planner ? await this.#storedPlanView(tx, p, proposal, changes, open) : null;
     const approvalLive =
       approval &&
       approval.revision === proposal.revision &&
@@ -7233,8 +7927,10 @@ export class AiGatewayService extends McpAccessService {
       title: proposal.title,
       assumptions: proposal.assumptions ?? [],
       fingerprint,
-      trust_note:
-        'This proposal is AI-generated. Its changes are suggestions, not facts or evidence of completion; nothing changes until you apply it.',
+      trust_note: planner
+        ? 'This plan was made by the rule-based planner, not AI. Its changes are suggestions; nothing changes until you apply it, and task dates never change.'
+        : 'This proposal is AI-generated. Its changes are suggestions, not facts or evidence of completion; nothing changes until you apply it.',
+      plan,
       changes: rendered,
       order: order.ok ? order.order : [],
       selection_issues: selectionIssues(
@@ -7260,11 +7956,12 @@ export class AiGatewayService extends McpAccessService {
         approve: open && applier,
         apply: proposal.state === 'approved' && applier && !!approvalLive,
         reject: open && applier,
-        // Changed targets need an explicit review of their current values (rebase) first.
+        // Changed targets (or, for a plan, a changed day) need an explicit review first.
         rebase:
           open &&
           applier &&
-          rendered.some((c) => c.target && 'out_of_date' in c.target && c.target.out_of_date),
+          (rendered.some((c) => c.target && 'out_of_date' in c.target && c.target.out_of_date) ||
+            (plan !== null && plan.current.state === 'changed')),
       },
     };
   }
@@ -7301,8 +7998,10 @@ export class AiGatewayService extends McpAccessService {
           ? 'document'
           : publicId.startsWith('mil_') || publicId.startsWith('mst_')
             ? 'milestone'
-            : 'record';
-    if (kind === 'task' || kind === 'project' || kind === 'document') {
+            : publicId.startsWith('blk_')
+              ? 'block'
+              : 'record';
+    if (kind === 'task' || kind === 'project' || kind === 'document' || kind === 'block') {
       const cur = await this.#currentValues(tx, p, kind, publicId);
       return cur ? { type: kind, id: publicId, title: cur.title } : { available: false };
     }
@@ -7352,6 +8051,7 @@ export class AiGatewayService extends McpAccessService {
           created_at: new Date(proposal.created_at).toISOString(),
           run: op.public_id,
           synthetic: action.synthetic,
+          origin: proposal.origin,
           content: { state: content },
           title: content === 'present' ? proposal.title : null,
           application: app
@@ -7398,9 +8098,18 @@ export class AiGatewayService extends McpAccessService {
    */
   async #lockedVersion(
     tx: WorkspaceTransaction,
-    kind: 'task' | 'project' | 'document',
+    kind: TargetKind,
     publicId: string,
   ): Promise<number | null> {
+    if (kind === 'block') {
+      const r = await tx.db
+        .selectFrom('planning.work_block')
+        .select('version')
+        .where('public_id', '=', publicId)
+        .forUpdate()
+        .executeTakeFirst();
+      return r ? Number(r.version) : null;
+    }
     const table =
       kind === 'task' ? 'work.task' : kind === 'project' ? 'work.project' : 'knowledge.document';
     const col = kind === 'document' ? 'current_version_number' : 'version';
@@ -7463,7 +8172,7 @@ export class AiGatewayService extends McpAccessService {
     tx: WorkspaceTransaction,
     caller: Caller,
     p: Principal,
-    proposal: { public_id: string },
+    proposal: { public_id: string; origin: string },
     action: { retrieval_scope: unknown },
     c: {
       change_key: string;
@@ -7476,6 +8185,9 @@ export class AiGatewayService extends McpAccessService {
     guard: Map<string, number>,
     req: Mutation,
   ): Promise<{ publicId: string; recordId: string }> {
+    // 7F: planning operations exist only in planner proposals, and a plan proposes nothing else.
+    if (PLAN_OPS_SET.has(c.op) !== (proposal.origin === 'planner'))
+      throw invalid(issue('/op', 'invalid_option', 'This change type is not supported.'));
     const payload = c.payload as ProposalChange['payload'];
     const f = payload.fields;
     const ref = (r: RefValue | undefined) => {
@@ -7685,6 +8397,61 @@ export class AiGatewayService extends McpAccessService {
       const { t } = await this.addCriterionIn(tx, caller, p, ref(payload.task)!, input);
       return { publicId: t.publicId, recordId: t.id };
     }
+    // 7F planner adapters: the canonical 3C Today and block commands, as the applying person.
+    // Locked blocks and commitments refuse there; task dates are never written.
+    if (c.op === 'commitment.add') {
+      const { task } = await this.commitIn(tx, caller, p, f.day!, ref(payload.task), 'plan');
+      return { publicId: task.publicId, recordId: task.id };
+    }
+    if (c.op === 'commitment.remove') {
+      const task = await this.uncommitIn(
+        tx,
+        caller,
+        p,
+        f.day!,
+        ref(payload.task),
+        payload.commitment_version ?? null,
+      );
+      return { publicId: task.publicId, recordId: task.id };
+    }
+    if (c.op === 'block.create') {
+      const task = await this.plannableTask(tx, p, ref(payload.task));
+      const blk = await this.createBlockIn(tx, caller, p, {
+        task,
+        title: null,
+        start: new Date(f.starts_at!),
+        end: new Date(f.ends_at!),
+        tz: await this.personZone(tx, p.membershipId),
+        focus: false,
+        locked: false,
+        prep: 0,
+        buffer: 0,
+        source: 'plan',
+      });
+      return { publicId: blk.publicId, recordId: blk.id };
+    }
+    if (c.op === 'block.update') {
+      const { row } = await this.moveBlockIn(
+        tx,
+        caller,
+        p,
+        c.target_public_id!,
+        new Date(f.starts_at!),
+        new Date(f.ends_at!),
+        fresh(c.target_public_id!) ? expected : null,
+      );
+      return { publicId: row.public_id, recordId: row.id };
+    }
+    if (c.op === 'block.delete') {
+      const row = await this.deleteBlockIn(
+        tx,
+        caller,
+        p,
+        c.target_public_id!,
+        fresh(c.target_public_id!) ? expected : null,
+      );
+      return { publicId: row.public_id, recordId: row.id };
+    }
     throw invalid(issue('/op', 'invalid_option', 'This change type is not supported.'));
   }
 
@@ -7697,7 +8464,7 @@ export class AiGatewayService extends McpAccessService {
     tx: WorkspaceTransaction,
     caller: Caller,
     p: Principal,
-    proposal: { public_id: string },
+    proposal: { public_id: string; origin: string },
     action: { retrieval_scope: unknown },
     changes: ReadonlyArray<{
       change_key: string;
@@ -7789,6 +8556,11 @@ export class AiGatewayService extends McpAccessService {
       const { proposal, action, changes } = await this.#ownProposal(tx, p, prp);
       if (!(await this.#proposalEligible(tx, p, proposal, action)))
         throw this.#proposalUnavailable();
+      // 7F: a plan is checked against the day as it is now (inputs locked first, in order).
+      const plan =
+        proposal.origin === 'planner'
+          ? await this.#planCurrent(tx, p, proposal, changes, true)
+          : null;
       const selection = selectionIssues(
         changes.map((c) => ({ key: c.change_key, dependsOn: c.depends_on, decision: c.decision })),
         changes.filter((c) => c.selected).map((c) => c.change_key),
@@ -7801,8 +8573,18 @@ export class AiGatewayService extends McpAccessService {
         valid:
           !selection.length &&
           [...results.values()].every((r) => r.state === 'valid') &&
-          results.size > 0,
+          results.size > 0 &&
+          (!plan || (plan.fresh && !plan.issues.some((i) => i.severity === 'error'))),
         changes: this.#validationView(changes, results),
+        ...(plan
+          ? {
+              plan: {
+                state: !plan.current ? 'unavailable' : plan.fresh ? 'current' : 'changed',
+                snapshot: plan.snapshot,
+                issues: plan.issues,
+              },
+            }
+          : {}),
       };
     });
   }
@@ -8126,6 +8908,9 @@ export class AiGatewayService extends McpAccessService {
               issue(s.change ? `/selected/${s.change}` : '/selected', s.code, s.message),
             ),
           );
+        // 7F: a plan is approved only against an unchanged day with no conflicting blocks.
+        if (proposal.origin === 'planner')
+          this.#requirePlanCurrent(await this.#planCurrent(tx, p, proposal, changes, true));
         const results = await this.#dryRun(tx, caller, p, proposal, action, changes, req);
         if ([...results.values()].some((r) => r.state !== 'valid'))
           throw new TenancyError('conflict', {
@@ -8210,10 +8995,13 @@ export class AiGatewayService extends McpAccessService {
     const b = (body && typeof body === 'object' ? body : {}) as Record<string, unknown>;
     const issues = [];
     for (const k of Object.keys(b))
-      if (!['revision', 'reviewed'].includes(k))
+      if (!['revision', 'reviewed', 'snapshot'].includes(k))
         issues.push(issue(`/${k}`, 'unknown_field', 'This field is not accepted.'));
     if (!Number.isInteger(b.revision))
       issues.push(issue('/revision', 'required', 'Send the revision you reviewed.'));
+    // 7F: the snapshot of the current day a person reviewed, for a planner proposal.
+    if (b.snapshot !== undefined && (typeof b.snapshot !== 'string' || !/^[0-9a-f]{64}$/.test(b.snapshot)))
+      issues.push(issue('/snapshot', 'invalid_value', 'Send the snapshot of the day you reviewed.'));
     const reviewed = (
       b.reviewed && typeof b.reviewed === 'object' && !Array.isArray(b.reviewed) ? b.reviewed : null
     ) as Record<string, unknown> | null;
@@ -8249,6 +9037,17 @@ export class AiGatewayService extends McpAccessService {
           );
         if (!(await this.#proposalEligible(tx, p, proposal, action)))
           throw this.#proposalUnavailable();
+        // 7F: a plan's inputs are locked first (the same order as Apply) and recomputed.
+        const plan =
+          proposal.origin === 'planner'
+            ? await this.#planCurrent(tx, p, proposal, changes, true)
+            : null;
+        if (plan && !plan.current)
+          throw refuse(
+            'plan_unavailable',
+            'This plan can no longer be checked (its day passed or its scope is unavailable).',
+          );
+        const planStale = !!plan && !plan.fresh;
         const targeted = changes.filter((c) => c.target_record_id && c.expected_version !== null);
         if (targeted.length)
           await tx.db
@@ -8273,8 +9072,13 @@ export class AiGatewayService extends McpAccessService {
           if (cur.version !== Number(c.expected_version))
             stale.push({ id: c.id, key: c.change_key, version: cur.version });
         }
-        if (!stale.length)
+        if (!stale.length && !planStale)
           throw refuse('nothing_to_rebase', 'Every target is still at the reviewed version.');
+        if (planStale && b.snapshot !== plan!.snapshot)
+          throw refuse(
+            'plan_changed',
+            'Your day changed again since you reviewed it. Review the current plan, then try again.',
+          );
         const sent = Object.keys(reviewed!).sort();
         if (
           sent.join() !==
@@ -8296,6 +9100,47 @@ export class AiGatewayService extends McpAccessService {
             .execute();
           const c = changes.find((x) => x.id === s.id)!;
           c.expected_version = s.version;
+        }
+        if (planStale) {
+          // The reviewed day becomes the plan's basis: its snapshot and figures are replaced, the
+          // person's changes are kept, and removals expect the current commitment versions.
+          const cur = plan!.current!;
+          for (const c of changes.filter((x) => x.op === 'commitment.remove')) {
+            const pl = c.payload as ProposalChange['payload'];
+            const id = pl.task && 'existing' in pl.task ? pl.task.existing.publicId : null;
+            const v = id ? (cur.inputs.meta.get(id)?.commitmentVersion ?? null) : null;
+            if (v !== null && v !== pl.commitment_version) {
+              c.payload = { ...pl, commitment_version: v };
+              await tx.db
+                .updateTable('ai.proposed_change')
+                .set({ payload: JSON.stringify(c.payload), updated_at: new Date() })
+                .where('id', '=', c.id)
+                .execute();
+            }
+          }
+          const stored = proposal.plan as unknown as StoredPlan;
+          await tx.db
+            .updateTable('ai.change_proposal')
+            .set({
+              plan: JSON.stringify({
+                ...stored,
+                snapshot: cur.inputs.snapshot,
+                considered: cur.inputs.considered,
+                capped: cur.inputs.capped,
+                totals: cur.result.totals,
+                feasible: cur.result.feasible,
+                unscheduled: cur.result.unscheduled.map((u) => ({
+                  task: u.task,
+                  code: u.code,
+                  minutes: u.minutes,
+                  detail: u.detail,
+                })),
+                postpone: cur.result.postpone,
+                conflicts: cur.result.conflicts,
+              } satisfies StoredPlan),
+            })
+            .where('id', '=', proposal.id)
+            .execute();
         }
         const revision = proposal.revision + 1;
         const fingerprint = this.#fingerprintOf(
@@ -8459,6 +9304,10 @@ export class AiGatewayService extends McpAccessService {
             'approval_stale',
             'Your access changed after you approved. Review and approve the proposal again.',
           );
+        // 7F: the plan's inputs are locked in one order and recomputed; anything changed since
+        // approval (time off, holidays, meetings, blocks, Today, estimates) refuses as stale.
+        if (proposal.origin === 'planner')
+          this.#requirePlanCurrent(await this.#planCurrent(tx, p, proposal, changes, true));
         const selected = changes.filter((c) => c.selected && c.decision !== 'rejected');
         const order = orderChanges(
           selected.map((c) => ({
@@ -8489,6 +9338,7 @@ export class AiGatewayService extends McpAccessService {
           operationId: op.id,
           causationId: action.operation_id,
           proposal: proposal.public_id,
+          planner: proposal.origin === 'planner',
         });
         const byKey = new Map(selected.map((c) => [c.change_key, c]));
         const ids = new Map<string, { publicId: string; recordId: string }>();
@@ -8636,6 +9486,8 @@ export class AiGatewayService extends McpAccessService {
         this.d.metrics.count('ai.proposal_applications', 1, {
           outcome: failed ? 'failed' : 'applied',
         });
+        if (proposal.origin === 'planner')
+          this.d.metrics.count('planning.plans', 1, { outcome: failed ? 'failed' : 'applied' });
         return {
           status: 200,
           ref: { id: proposal.public_id, type: 'change_proposal' },

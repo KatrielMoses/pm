@@ -998,6 +998,27 @@ export const TELEMETRY_SIGNALS = [
     "labels": [
       "outcome"
     ]
+  },
+  {
+    "name": "planning.plans",
+    "type": "counter",
+    "labels": [
+      "outcome"
+    ]
+  },
+  {
+    "name": "capture.voice",
+    "type": "counter",
+    "labels": [
+      "outcome"
+    ]
+  },
+  {
+    "name": "capture.interpretations",
+    "type": "counter",
+    "labels": [
+      "status"
+    ]
   }
 ] as const;
 export type TelemetrySignalName = (typeof TELEMETRY_SIGNALS)[number]['name'];
@@ -1403,6 +1424,11 @@ export const OPERATION_KINDS = [
       "cancel"
     ],
     "riskClass": "R4"
+  },
+  {
+    "kind": "plan_proposal",
+    "supports": [],
+    "riskClass": "R0"
   }
 ] as const;
 export type OperationKind = (typeof OPERATION_KINDS)[number]['kind'];
@@ -2106,6 +2132,13 @@ export const ID_PREFIXES = [
     "resource": "oauth_consent",
     "entity": "integrations.oauth_consent",
     "ownerModule": "integrations",
+    "platformOnly": false
+  },
+  {
+    "prefix": "vcp",
+    "resource": "voice_capture",
+    "entity": "capture.voice_capture",
+    "ownerModule": "capture",
     "platformOnly": false
   }
 ] as const;

@@ -23,6 +23,17 @@ export const PROPOSAL_OPS: readonly ProposalOp[] = [
   'label.add',
   'criterion.add',
 ];
+/**
+ * 7F planning operations. Only the server's deterministic planner creates them; a model can never
+ * propose them (they are not in PROPOSAL_OPS). Each runs the canonical 3C command at Apply.
+ */
+export const PLAN_OPS: readonly ProposalOp[] = [
+  'block.create',
+  'block.update',
+  'block.delete',
+  'commitment.add',
+  'commitment.remove',
+];
 
 /** Fields each operation may set (anything else is refused, never ignored). */
 export const OP_FIELDS: Record<ProposalOp, readonly string[]> = {
@@ -44,6 +55,11 @@ export const OP_FIELDS: Record<ProposalOp, readonly string[]> = {
   'task.assign': [],
   'label.add': [],
   'criterion.add': ['text', 'kind'],
+  'block.create': ['starts_at', 'ends_at'],
+  'block.update': ['starts_at', 'ends_at'],
+  'block.delete': [],
+  'commitment.add': ['day'],
+  'commitment.remove': ['day'],
 };
 /** Operations whose content is in references, not fields. */
 const NO_FIELDS: readonly ProposalOp[] = ['relation.add', 'task.assign', 'label.add'];
@@ -97,6 +113,8 @@ export interface ProposalChange {
     assignees?: string[];
     /** 7C: a label public id, resolved from a server-issued choice handle (L1…). */
     label?: string;
+    /** 7F: the Today commitment version a planner removal expects. */
+    commitment_version?: number;
   };
   dependsOn: string[];
   sources: string[];
@@ -193,6 +211,20 @@ export function checkField(
     const d = /^\d{4}-\d{2}-\d{2}$/.test(v) ? new Date(`${v}T00:00:00Z`) : null;
     if (!d || Number.isNaN(d.getTime()) || d.toISOString().slice(0, 10) !== v)
       return { ok: false, code: 'invalid_date', message: `${field} must be a date (YYYY-MM-DD).` };
+    return { ok: true, value: v };
+  }
+  if (field === 'starts_at' || field === 'ends_at') {
+    // 7F: a real instant with an explicit offset, normalized to whole minutes (UTC ISO).
+    const ok = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(:\d{2}(\.\d{1,3})?)?(Z|[+-]\d{2}:\d{2})$/.test(v);
+    const d = ok ? new Date(v) : null;
+    if (!d || Number.isNaN(d.getTime()))
+      return { ok: false, code: 'invalid_instant', message: `${field} must be a date and time with an offset.` };
+    return { ok: true, value: new Date(Math.floor(d.getTime() / 60_000) * 60_000).toISOString() };
+  }
+  if (field === 'day') {
+    const d = /^\d{4}-\d{2}-\d{2}$/.test(v) ? new Date(`${v}T00:00:00Z`) : null;
+    if (!d || Number.isNaN(d.getTime()) || d.toISOString().slice(0, 10) !== v)
+      return { ok: false, code: 'invalid_date', message: 'day must be a date (YYYY-MM-DD).' };
     return { ok: true, value: v };
   }
   if (field === 'estimate_minutes') {
@@ -410,6 +442,12 @@ export function parseProposal(
     'task.assign': ['id', 'op', 'target', 'task', 'assignees', 'depends_on', 'sources'],
     'label.add': ['id', 'op', 'task', 'label', 'depends_on', 'sources'],
     'criterion.add': ['id', 'op', 'task', 'fields', 'depends_on', 'sources'],
+    // Planning operations are never parsed from model output.
+    'block.create': [],
+    'block.update': [],
+    'block.delete': [],
+    'commitment.add': [],
+    'commitment.remove': [],
   };
   const choice = (list: ProposalChoices['labels'] | undefined, value: unknown) =>
     typeof value === 'string' ? list?.find((x) => x.handle === value)?.publicId : undefined;

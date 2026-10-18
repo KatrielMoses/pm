@@ -85,7 +85,7 @@ export async function resolveBasis(
 /** Stores evidence rows for a statement (by position) or a correction. */
 export async function storeEvidence(
   tx: WorkspaceTransaction,
-  owner: { briefingId: string; position: number } | { correctionId: string },
+  owner: { briefingId: string; position: number } | { correctionId: string } | { proposalId: string },
   rows: readonly EvidenceRow[],
 ): Promise<void> {
   for (let i = 0; i < rows.length; i += 500)
@@ -97,6 +97,7 @@ export async function storeEvidence(
           workspace_id: tx.workspaceId,
           briefing_id: 'briefingId' in owner ? owner.briefingId : null,
           correction_id: 'correctionId' in owner ? owner.correctionId : null,
+          proposal_id: 'proposalId' in owner ? owner.proposalId : null,
           position: 'briefingId' in owner ? owner.position : null,
           kind: r.kind,
           record_id: r.record_id,
@@ -109,7 +110,10 @@ export async function storeEvidence(
 
 export async function evidenceOf(
   tx: WorkspaceTransaction,
-  owner: { briefingId: string; position?: number } | { correctionId: string },
+  owner:
+    | { briefingId: string; position?: number }
+    | { correctionId: string }
+    | { proposalId: string },
 ): Promise<EvidenceRow[]> {
   let q = tx.db
     .selectFrom('ai.briefing_evidence')
@@ -118,7 +122,9 @@ export async function evidenceOf(
   q =
     'correctionId' in owner
       ? q.where('correction_id', '=', owner.correctionId)
-      : q.where('briefing_id', '=', owner.briefingId);
+      : 'proposalId' in owner
+        ? q.where('proposal_id', '=', owner.proposalId)
+        : q.where('briefing_id', '=', owner.briefingId);
   if ('briefingId' in owner && owner.position !== undefined)
     q = q.where('position', '=', owner.position);
   return (await q.execute()) as EvidenceRow[];

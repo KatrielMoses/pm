@@ -380,6 +380,35 @@ export function registerAi(app: FastifyInstance, work: AiGatewayService): void {
       return resource(request, reply, result.data, result);
     }),
   );
+  // 7F daily plans (ADR-0043): session only (bearer callers are refused at the edge). A preview
+  // writes nothing; a plan becomes a change proposal reviewed and applied through the 7D routes.
+  app.post(
+    `${base}/planning/day-plan-previews`,
+    wrap(async (request, reply) =>
+      reply
+        .header('cache-control', 'private, no-store')
+        .send(
+          nonResourceEnvelope(
+            'day_plan_preview',
+            await work.previewDayPlan(caller(request), ws(request), request.body),
+            m(request),
+          ),
+        ),
+    ),
+  );
+  app.post(
+    `${base}/planning/day-plans`,
+    wrap(async (request, reply) => {
+      reply.header('cache-control', 'private, no-store');
+      const result = await work.createDayPlanProposal(
+        caller(request),
+        ws(request),
+        request.body,
+        mutation(request),
+      );
+      return resource(request, reply, result.data, result);
+    }),
+  );
   // 7E briefings and reviews (ADR-0042): session only (bearer callers are refused at the edge).
   // Briefings, schedules, and notes are their person's alone; every read re-checks the evidence.
   const listOf = (type: 'ai_briefings' | 'ai_briefing_schedules' | 'ai_briefing_corrections') =>

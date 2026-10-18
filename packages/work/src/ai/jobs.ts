@@ -72,9 +72,11 @@ export function aiRetentionHandler(d: AiJobDeps): JobHandler {
       // lists are interleaved so neither family starves the other within a sweep.
       const ai = await d.discovery.discoverAiRetentionWork(before, 100);
       const briefings = await d.discovery.discoverBriefingRetentionWork(before, 100);
+      // 7F: planner proposals have no AI action either; they are found on their own.
+      const plans = await d.discovery.discoverPlanRetentionWork(before, 100);
       const workspaces: string[] = [];
-      for (let i = 0; i < Math.max(ai.length, briefings.length); i++)
-        for (const w of [ai[i], briefings[i]]) if (w && !workspaces.includes(w)) workspaces.push(w);
+      for (let i = 0; i < Math.max(ai.length, briefings.length, plans.length); i++)
+        for (const w of [ai[i], briefings[i], plans[i]]) if (w && !workspaces.includes(w)) workspaces.push(w);
       for (const ws of workspaces) {
         try {
           const erased = await d.tenant.withWorkspace(ws, { module: 'work' }, (tx) =>

@@ -108,6 +108,7 @@ Source: `contracts/registry.json`.
 | `mci_` | mcp_invocation | integrations.mcp_invocation | integrations | Phase 6E (INT-022), bounded workspace audit record. |
 | `oat_` | oauth_access_token | integrations.oauth_access_token | integrations | Phase 6E; identifier is not a credential and the bearer secret is never returned on replay. |
 | `ocs_` | oauth_consent | integrations.oauth_consent | integrations | Phase 6E; opaque audit aggregate identifier, not an authorization token. |
+| `vcp_` | voice_capture | capture.voice_capture | capture | Phase 7F (PL-52). |
 
 ## Error codes
 
@@ -204,6 +205,7 @@ Source: `contracts/registry.json`.
 | `webhook_delivery` | integrations.webhook_delivery | retry | R3 |
 | `proposal_apply` | ai.change_proposal | — | R1 |
 | `workspace_deletion` | governance.deletion_request | cancel | R4 |
+| `plan_proposal` | ai.change_proposal | — | R0 |
 
 ## Internal events
 
@@ -593,6 +595,9 @@ Forbidden metric labels: `workspace_id`, `brand_id`, `record_id`, `public_id`, `
 | `ai.proposal_applications` | counter | outcome | ai |
 | `ai.analyses` | counter | status | ai |
 | `ai.briefings` | counter | outcome | ai |
+| `planning.plans` | counter | outcome | planning |
+| `capture.voice` | counter | outcome | capture |
+| `capture.interpretations` | counter | status | capture |
 
 ## Named parameters (values are configuration, not promises)
 
