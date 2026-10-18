@@ -130,6 +130,7 @@ Narrative: [../14-threat-model.md](../14-threat-model.md).
 | T-120 | revocation | A saved briefing total, comparison, or coverage figure is re-checked only through its displayed sample, so a contributor outside the sample, a previous-window-only contributor, an aggregate without listed rows, or a permission held on another brand keeps a hidden count visible after access is lost (including at notification send time). | I-07, I-08, I-12 | AT-468, AT-469, AT-470, AT-471, AT-475 |
 | T-121 | revocation | A correction note is listed, edited, decided, replayed, or reused after its source evidence became unreadable, so its text, scope, or statement identifier (which may quote protected content) survives the revocation, or it is newly approved without access. | I-07, I-12, I-14 | AT-472, AT-473 |
 | T-122 | staleness | Configured technical retention never discovers a workspace whose expired content is briefings only (no AI runs, or only erased ones), so briefing content outlives its retention period; notes on erased briefings remain a recovery path. | I-12 | AT-473, AT-474, AT-475 |
+| T-123 | inference | A briefing figure whose evidence basis exceeds the stored bound is kept as a threshold, lower bound, shown count, size flag, or coverage state with an empty basis, so it cannot be re-authorized and keeps describing work the recipient can no longer read. | I-07, I-08, I-12 | AT-476, AT-477, AT-478, AT-479, AT-480 |
 
 ## Test matrix
 
@@ -610,6 +611,11 @@ Narrative: [../14-threat-model.md](../14-threat-model.md).
 | AT-473 | T-121, T-122 | guest | Retention erasure removes notes that are not approved memory with their briefing; approved memory stays under its own evidence; a still-authorized evidence change makes it stale — personal | `personal.manage_own` | api | **allow** | ok_filtered | error_message |
 | AT-474 | T-122 | system_job | The registered retention handler discovers briefing-only, AI-erased, and mixed workspaces through the dispatcher and erases only expired briefing content, repeatably and per workspace; unset retention keeps content — job for workspace A | `personal.manage_own` | api | **allow** | ok | error_message |
 | AT-475 | T-120, T-122 | system_job | The evidence table has forced RLS and no update or delete grant; the briefing retention discovery function is security definer, owned by pm_scheduler, executable by the dispatcher only — worker role | `personal.manage_own` | api | **deny** | error_generic | error_message |
+| AT-476 | T-123 | member | An aggregate-only basis above 1000 records refuses publication; nothing is stored, shown, replayed, corrected, or notified, before or after an unlisted contributor is trashed — brand | `personal.manage_own` | ai_answer | **deny** | empty | count_facet, error_message |
+| AT-477 | T-123 | member | Above 1000 open tasks, blocked and stale figures state nothing beyond the examined tasks; trashing an unexamined contributor leaves nothing to disclose — brand | `personal.manage_own` | ai_answer | **allow** | ok_filtered | count_facet, error_message |
+| AT-478 | T-123 | member | Overflow only in the previous-window comparison refuses publication — brand | `personal.manage_own` | ai_answer | **deny** | empty | count_facet, error_message |
+| AT-479 | T-123 | member | Exactly at the limit publishes with the whole basis and is withheld when an unlisted contributor is trashed; a fully authorized owner is refused above it — brand | `personal.manage_own` | ai_answer | **allow** | ok | count_facet, error_message |
+| AT-480 | T-123 | member | Parts within the limit whose union exceeds it refuse publication — brand | `personal.manage_own` | ai_answer | **deny** | empty | count_facet, error_message |
 
 ## Response shapes
 

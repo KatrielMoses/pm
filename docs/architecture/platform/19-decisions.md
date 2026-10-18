@@ -694,5 +694,5 @@ Renumbered in the Phase 6 integration review: 6B was accepted with a second `pl-
 - **Consequences:** No new scopes, webhook types, or parameters. The notification type `briefing_ready` already existed; when a schedule opts into email, its email default is immediate.
 - **Corrective review 01:**
   - Correction responses carry `availability` (`available` or `withheld`); a withheld note has null text, scope, statement, briefing, and history. Ineligible notes are omitted from `ai_briefing_corrections`; their commands return `not_found`.
-  - New failure codes on a briefing: `evidence_unresolved`, `evidence_too_large`.
+  - New failure codes on a briefing: `evidence_unresolved`, `evidence_unverifiable` (corrective review 02: a basis that cannot be kept whole refuses publication).
   - The retention job (`ai.history.retention`) also discovers briefing content through `discover_briefing_retention_work` and interleaves the two lists.

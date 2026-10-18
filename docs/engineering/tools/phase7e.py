@@ -24,11 +24,12 @@ SERVICE = "packages/work/src/ai/ai-gateway-service.ts"
 FACTS = "packages/work/src/ai/briefing/facts.ts"
 SCHEDULE = "packages/work/src/ai/briefing/schedule.ts"
 WEB = "apps/web/src/ai/briefings-page.tsx"
-THREATS = ["T-%d" % i for i in range(114, 123)]
-TESTS = ["AT-%d" % i for i in range(455, 476)]
+THREATS = ["T-%d" % i for i in range(114, 124)]
+TESTS = ["AT-%d" % i for i in range(455, 481)]
 TEST_FILES = [
     "packages/work/test/integration/briefings.test.ts",
     "packages/work/test/integration/briefings-review01.test.ts",
+    "packages/work/test/integration/briefings-review02.test.ts",
     "apps/api/test/integration/ai-api.test.ts",
     "e2e/briefings.spec.ts",
 ]
@@ -80,7 +81,7 @@ def check_briefings():
         errs.append("the gateway lacks the 7E briefing block")
     for term, label in [
         ("await briefingAvailable(tx, p, row, this.c.settings.principalContextArrayMax)", "the display-time evidence re-check"),
-        ("await storeEvidence(tx, { briefingId: row.id, position: i }, r.rows);", "the stored evidence basis"),
+        ("await storeEvidence(tx, { briefingId: row.id, position: i }, rows);", "the stored evidence basis"),
         ("async #correctionEligible(", "one correction eligibility decision"),
         ("availability: 'withheld'", "wholesale withholding"),
         ("async #applyCorrections(", "corrections applied beside their statement"),
@@ -202,7 +203,7 @@ def check_identifiers():
                  "windows follow the local calendar"):
         if case not in unit:
             errs.append("the 7E unit tests lack %r" % case)
-    return errs, "ADR-0042, ADR-49, AZ-49, PL-51, T-114..T-122, AT-455..AT-475"
+    return errs, "ADR-0042, ADR-49, AZ-49, PL-51, T-114..T-123, AT-455..AT-480"
 
 
 def check_corrections(closure):
@@ -249,6 +250,40 @@ def check_corrections(closure):
     return errs, "R1, R2, and R3 mapped to AT-468..AT-475 with old-code results"
 
 
+def check_overflow(closure):
+    """Corrective review 02: overflow evidence fails closed; nothing is stored without its basis."""
+    errs = []
+    review = {r["id"]: r for r in closure.get("corrective_reviews", [])}.get("7E-CR-02")
+    if not review:
+        return ["closure must record corrective review 7E-CR-02"], ""
+    cache = {}
+    tests = {x["id"] for x in load(P("docs/architecture/access/policy/threats.json"))["tests"]}
+    text = "\n".join(read(P(f)) for f in TEST_FILES)
+    for g in review.get("groups", []):
+        phase2.check_evidence("7E-CR-02 %s" % g["id"], g.get("evidence"), cache, errs)
+        if "fail" not in g.get("old_code", ""):
+            errs.append("7E-CR-02 must record its old-code regression result")
+        for at in g.get("tests", []):
+            if at not in tests:
+                errs.append("7E-CR-02 test %s is not registered in 0C" % at)
+            if len(re.findall(r"(?:it|test)\(\s*['\"]%s " % at, text)) != 1:
+                errs.append("7E-CR-02 test %s must title exactly one test" % at)
+    facts = read(P(FACTS))
+    for gone in ("records contribute here", "basis_too_large", "others were not examined"):
+        if gone in facts:
+            errs.append("the fact engine still stores contributor-dependent overflow text (%r)" % gone)
+    service = read(P(SERVICE))
+    start = service.find("// A malformed statement is never published as part of a complete briefing.")
+    insert = service.find("insertInto('ai.briefing_statement')", start)
+    block = service[start:insert] if 0 <= start < insert else ""
+    for term in ("if (s.basis?.overflow) return fail('evidence_unverifiable');",
+                 "if (r.rows.length > BASIS_MAX) return fail('evidence_unverifiable');",
+                 "if (evidenceRows > BRIEFING_EVIDENCE_MAX) return fail('evidence_unverifiable');"):
+        if term not in block:
+            errs.append("evidence must be resolved and bounded before any statement is written (%s)" % term)
+    return errs, "overflow refuses publication before any statement is stored (AT-476..AT-480)"
+
+
 def check_wiring():
     errs = []
     verify = read(P("scripts/verify.sh"))
@@ -277,6 +312,7 @@ def main():
         ("phase 7E: migration 0058", check_migration()),
         ("phase 7E: identifiers and tests", check_identifiers()),
         ("phase 7E: corrective review 01 evidence", check_corrections(closure)),
+        ("phase 7E: corrective review 02 overflow evidence", check_overflow(closure)),
         ("phase 7E: validator wiring", check_wiring()),
         ("phase 7E: migration sequence", phase1.check_migrations()),
     ]

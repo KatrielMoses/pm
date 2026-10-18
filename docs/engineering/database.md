@@ -478,3 +478,4 @@ Grants: select, insert, and update on the first four for `app_rw` and `app_worke
 Corrective review 01 adds to 0058:
 - `briefing_evidence`: the complete authorization basis of statements (briefing and position) and notes (their own copy), as `record`, `brand`, or `permission` references; forced row-level security; select and insert for `app_rw` and `app_worker`; no update or delete.
 - `exec_dispatch.discover_briefing_retention_work(before, limit)`: workspace ids with expired briefing content (dispatcher only), so configured retention does not depend on AI runs.
+Corrective review 02 changes no schema: statements and their evidence are written together, and a briefing whose basis cannot be kept whole is left `failed` with neither.

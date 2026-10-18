@@ -1282,6 +1282,16 @@
       "mitigated_by": [
         "I-12"
       ]
+    },
+    {
+      "id": "T-123",
+      "category": "inference",
+      "description": "A briefing figure whose evidence basis exceeds the stored bound is kept as a threshold, lower bound, shown count, size flag, or coverage state with an empty basis, so it cannot be re-authorized and keeps describing work the recipient can no longer read.",
+      "mitigated_by": [
+        "I-07",
+        "I-08",
+        "I-12"
+      ]
     }
   ],
   "tests": [
@@ -9625,6 +9635,91 @@
       "expected": "deny",
       "response_shape": "error_generic",
       "silent_surfaces": [
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-476",
+      "threats": [
+        "T-123"
+      ],
+      "principal": "member",
+      "setup": "An aggregate-only basis above 1000 records refuses publication; nothing is stored, shown, replayed, corrected, or notified, before or after an unlisted contributor is trashed",
+      "scope": "brand",
+      "action": "personal.manage_own",
+      "surface": "ai_answer",
+      "expected": "deny",
+      "response_shape": "empty",
+      "silent_surfaces": [
+        "count_facet",
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-477",
+      "threats": [
+        "T-123"
+      ],
+      "principal": "member",
+      "setup": "Above 1000 open tasks, blocked and stale figures state nothing beyond the examined tasks; trashing an unexamined contributor leaves nothing to disclose",
+      "scope": "brand",
+      "action": "personal.manage_own",
+      "surface": "ai_answer",
+      "expected": "allow",
+      "response_shape": "ok_filtered",
+      "silent_surfaces": [
+        "count_facet",
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-478",
+      "threats": [
+        "T-123"
+      ],
+      "principal": "member",
+      "setup": "Overflow only in the previous-window comparison refuses publication",
+      "scope": "brand",
+      "action": "personal.manage_own",
+      "surface": "ai_answer",
+      "expected": "deny",
+      "response_shape": "empty",
+      "silent_surfaces": [
+        "count_facet",
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-479",
+      "threats": [
+        "T-123"
+      ],
+      "principal": "member",
+      "setup": "Exactly at the limit publishes with the whole basis and is withheld when an unlisted contributor is trashed; a fully authorized owner is refused above it",
+      "scope": "brand",
+      "action": "personal.manage_own",
+      "surface": "ai_answer",
+      "expected": "allow",
+      "response_shape": "ok",
+      "silent_surfaces": [
+        "count_facet",
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-480",
+      "threats": [
+        "T-123"
+      ],
+      "principal": "member",
+      "setup": "Parts within the limit whose union exceeds it refuse publication",
+      "scope": "brand",
+      "action": "personal.manage_own",
+      "surface": "ai_answer",
+      "expected": "deny",
+      "response_shape": "empty",
+      "silent_surfaces": [
+        "count_facet",
         "error_message"
       ]
     }

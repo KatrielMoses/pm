@@ -729,6 +729,42 @@
           "old_code": "AT-474 fails on b0d4d42 (no briefing discovery; the AI-run discovery misses briefing-only and AI-erased workspaces)."
         }
       ]
+    },
+    {
+      "id": "7E-CR-02",
+      "reviewed_head": "ea23a4f506f81c8601cad474015a1aa3ff673112",
+      "groups": [
+        {
+          "id": "R1",
+          "title": "Overflow evidence fails closed",
+          "tests": [
+            "AT-476",
+            "AT-477",
+            "AT-478",
+            "AT-479",
+            "AT-480"
+          ],
+          "evidence": [
+            {
+              "file": "packages/work/src/ai/ai-gateway-service.ts",
+              "contains": "if (s.basis?.overflow) return fail('evidence_unverifiable');"
+            },
+            {
+              "file": "packages/work/src/ai/ai-gateway-service.ts",
+              "contains": "if (r.rows.length > BASIS_MAX) return fail('evidence_unverifiable');"
+            },
+            {
+              "file": "packages/work/src/ai/briefing/facts.ts",
+              "contains": "const partial = openKnown ? openTotal > candidates.length : capped;"
+            },
+            {
+              "file": "packages/work/test/integration/briefings-review02.test.ts",
+              "contains": "'AT-476 "
+            }
+          ],
+          "old_code": "AT-476, AT-477, AT-478 and AT-480 fail on ea23a4f (overflow published as a threshold statement or lower bound); AT-479's above-limit part fails there."
+        }
+      ]
     }
   ]
 }

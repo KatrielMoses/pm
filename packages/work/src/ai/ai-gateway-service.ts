@@ -80,7 +80,9 @@ import {
   evidenceReadable,
   resolveBasis,
   storeEvidence,
+  BASIS_MAX,
   type Basis,
+  type EvidenceRow,
 } from './briefing/evidence.ts';
 import {
   AI_METERS,
@@ -5329,6 +5331,21 @@ export class AiGatewayService extends McpAccessService {
     ).slice(0, STATEMENTS_MAX);
     // A malformed statement is never published as part of a complete briefing.
     for (const s of statements) if (!validStatement(s)) return fail('statement_invalid');
+    // Corrective review 01 (R1) and 02: the complete authorization basis of every statement is
+    // resolved before anything is written. A basis that cannot be kept whole (one query above
+    // BASIS_MAX, or a union of parts above it, or a briefing above BRIEFING_EVIDENCE_MAX) refuses
+    // publication: nothing contributor-dependent is stored without the evidence to re-check it.
+    const evidence: EvidenceRow[][] = [];
+    let evidenceRows = 0;
+    for (const s of statements) {
+      if (s.basis?.overflow) return fail('evidence_unverifiable');
+      const r = await resolveBasis(tx, statementBasis(s));
+      if (r.missing) return fail('evidence_unresolved');
+      if (r.rows.length > BASIS_MAX) return fail('evidence_unverifiable');
+      evidenceRows += r.rows.length;
+      if (evidenceRows > BRIEFING_EVIDENCE_MAX) return fail('evidence_unverifiable');
+      evidence.push(r.rows);
+    }
     if (statements.length)
       await tx.db
         .insertInto('ai.briefing_statement')
@@ -5348,16 +5365,8 @@ export class AiGatewayService extends McpAccessService {
           })),
         )
         .execute();
-    // Corrective review 01 (R1): the complete authorization basis of each statement is stored as
-    // protected evidence (references only) in the same transaction.
-    let evidenceRows = 0;
-    for (const [i, s] of statements.entries()) {
-      const r = await resolveBasis(tx, statementBasis(s));
-      if (r.missing) return fail('evidence_unresolved');
-      evidenceRows += r.rows.length;
-      if (evidenceRows > BRIEFING_EVIDENCE_MAX) return fail('evidence_too_large');
-      await storeEvidence(tx, { briefingId: row.id, position: i }, r.rows);
-    }
+    for (const [i, rows] of evidence.entries())
+      await storeEvidence(tx, { briefingId: row.id, position: i }, rows);
     const now = new Date();
     await tx.db
       .updateTable('ai.briefing')

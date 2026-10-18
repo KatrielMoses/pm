@@ -267,29 +267,13 @@ export async function buildStatements(
     overflow: parts.some((x) => x.overflow),
   });
   /**
-   * A figure whose basis is larger than a briefing can keep verifiable keeps no total: it becomes
-   * an explicit unknown, so a sample is never presented as the basis of a full count.
+   * Corrective review 02: a statement whose basis exceeds BASIS_MAX keeps its overflow flag; the
+   * composer then refuses to publish the briefing (fail closed). Nothing contributor-dependent (a
+   * lower bound, a shown count, a size flag) is ever stored without its complete evidence.
    */
-  const push = (s: Statement) => {
-    if (!s.basis?.overflow) return out.push(s);
-    return out.push({
-      section: s.section,
-      kind: 'unknown',
-      key: s.key,
-      text: `More than ${BASIS_MAX} records contribute here, more than a briefing keeps re-verifiable evidence for, so no total is kept. Listed items below are still shown.`,
-      refs: [],
-      basis: { records: [], brands: [], perms: [] },
-    });
-  };
-  const coverOf = (section: string, shown: number, total: number, overflow?: boolean) =>
-    overflow
-      ? (coverage.sections[section] = {
-          state: 'partial',
-          shown,
-          total: null,
-          note: 'basis_too_large',
-        })
-      : cover(section, shown, total);
+  const push = (s: Statement) => out.push(s);
+  const coverOf = (section: string, shown: number, total: number, _overflow?: boolean) =>
+    cover(section, shown, total);
 
   // -- Header: window, scope, baseline -----------------------------------------------------------
   out.push({
@@ -548,19 +532,22 @@ export async function buildStatements(
     const openBasis =
       await basisOf(sql`FROM work.task t JOIN core.record r ON r.workspace_id = t.workspace_id AND r.id = t.id
          WHERE t.status_category NOT IN ('done', 'cancelled') AND ${readableTask}`);
-    // The open total is shown only while its whole basis is kept; otherwise it is not stated.
+    // The open total is stated only while its whole basis is kept. Otherwise nothing beyond the
+    // examined tasks is stated: no total, no "others", and a coverage state derived only from the
+    // examined set itself (which is the statement's basis).
     const openKnown = !openBasis.overflow;
+    const capped = candidates.length >= SIGNAL_CANDIDATES_MAX;
     const openTotal = Number(candidates[0]?.n ?? 0);
     const examined = { ids: candidates.map((c) => c.public_id), overflow: false };
     const signals = await readers.signals(candidates.map((c) => c.public_id));
     const blocked = candidates.filter((c) => signals.get(c.public_id)?.blocked === true);
     const stale = candidates.filter((c) => signals.get(c.public_id)?.stale === true);
-    const examinedNote =
-      openTotal > candidates.length
-        ? openKnown
-          ? ` Examined the ${candidates.length} least recently updated of ${openTotal} open tasks.`
-          : ` Examined the ${candidates.length} least recently updated open tasks; others were not examined.`
-        : '';
+    const examinedNote = openKnown
+      ? openTotal > candidates.length
+        ? ` Examined the ${candidates.length} least recently updated of ${openTotal} open tasks.`
+        : ''
+      : ` Examined the ${candidates.length} least recently updated open tasks (at most ${SIGNAL_CANDIDATES_MAX} are examined).`;
+    const partial = openKnown ? openTotal > candidates.length : capped;
     for (const [section, list, label] of [
       ['blocked', blocked, 'blocked by open work'],
       ['stale', stale, 'stale (no meaningful update within the freshness rule)'],
@@ -592,15 +579,10 @@ export async function buildStatements(
           refs: [{ type: 'task', id: t.public_id, rec: t.public_id, v: t.version }],
         });
       coverage.sections[section] = {
-        state:
-          openTotal > candidates.length
-            ? 'partial'
-            : list.length > SECTION_ITEMS_MAX
-              ? 'truncated'
-              : 'complete',
+        state: partial ? 'partial' : list.length > SECTION_ITEMS_MAX ? 'truncated' : 'complete',
         shown: Math.min(list.length, SECTION_ITEMS_MAX),
-        total: openTotal > candidates.length ? null : list.length,
-        ...(examinedNote ? { note: 'examined_subset' } : {}),
+        total: partial ? null : list.length,
+        ...(partial ? { note: 'examined_subset' } : {}),
       };
     }
 
