@@ -2,6 +2,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import pg from 'pg';
 import { createTestDatabase, type TestDatabase } from '@pm/test-support/vitest';
 import type { Caller } from '@pm/tenancy';
+import { Migrator } from '@pm/db';
 import { addDays, isoWeekday, localDay } from '@pm/work';
 import {
   apply,
@@ -530,5 +531,43 @@ describe('Phase 7F daily plans', () => {
         WHERE w.owner_membership_id <> p.initiating_membership_id`,
     );
     expect(foreign).toEqual([{ n: 0 }]);
+  });
+
+  it('AT-492 0059 schema: forced RLS, tenant-scoped keys, no deletes for applications, the origin guard, and the rollback refusal while 7F data exists', async () => {
+    expect(
+      await sql(
+        `SELECT relforcerowsecurity, relrowsecurity FROM pg_class WHERE oid = 'capture.voice_capture'::regclass`,
+      ),
+    ).toEqual([{ relforcerowsecurity: true, relrowsecurity: true }]);
+    const fks = await sql(
+      `SELECT conname, pg_get_constraintdef(oid) AS def FROM pg_constraint
+        WHERE contype = 'f' AND conrelid = ANY($1::regclass[]) AND confrelid <> 'tenancy.workspace'::regclass
+          AND conname IN ('voice_capture_member_fkey', 'voice_capture_operation_fkey', 'voice_capture_inbox_fkey',
+                          'change_proposal_operation_fkey', 'briefing_evidence_proposal_fkey')`,
+      [['capture.voice_capture', 'ai.change_proposal', 'ai.briefing_evidence']],
+    );
+    expect(fks.length).toBe(5);
+    for (const f of fks) expect(f.def, f.conname).toMatch(/^FOREIGN KEY \(workspace_id, /);
+    const grants = await sql(
+      `SELECT grantee, privilege_type FROM information_schema.role_table_grants
+        WHERE table_schema = 'capture' AND table_name = 'voice_capture' AND grantee IN ('app_rw', 'app_worker')
+        ORDER BY 1, 2`,
+    );
+    expect(grants.filter((g) => g.privilege_type === 'DELETE')).toEqual([]);
+    // A planner proposal needs a plan operation; an AI proposal needs its AI action.
+    const member = await memId(P.owner);
+    const insert = (origin: string, kind: string, suffix: string) =>
+      sql(
+        `INSERT INTO ai.change_proposal (id, workspace_id, public_id, operation_id, initiating_membership_id, fingerprint, origin, plan)
+         SELECT uuidv7(), $1, $3, o.id, $2, repeat('a', 64), $4, CASE WHEN $4 = 'planner' THEN '{"day":"x"}'::jsonb END
+           FROM exec.operation o WHERE o.workspace_id = $1 AND o.kind = $5 ORDER BY o.created_at LIMIT 1
+         RETURNING public_id`,
+        [wsId, member, `prp_0000000000000000000000000${suffix}`, origin, kind],
+      );
+    await expect(insert('ai_action', 'plan_proposal', '1')).rejects.toThrow(/AI action/i);
+    await expect(insert('planner', 'proposal_apply', '2')).rejects.toThrow(/plan/i);
+    const migrator = new Migrator({ connectionString: db.migrator, environment: 'test' });
+    await expect(migrator.down(58)).rejects.toThrow(/0059 cannot be rolled back/);
+    expect((await sql(`SELECT max(version)::int AS v FROM ops.schema_migration`))[0]!.v).toBe(59);
   });
 });

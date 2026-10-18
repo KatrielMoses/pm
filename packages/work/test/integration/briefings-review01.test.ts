@@ -616,6 +616,8 @@ describe('Phase 7E corrective review 01', () => {
       'record_id',
       'brand_id',
       'permission',
+      // 7F: plan evidence references its planner proposal (a reference, like the others).
+      'proposal_id',
     ]);
     expect(
       (

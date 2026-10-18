@@ -2706,8 +2706,10 @@ export class AiGatewayService extends McpAccessService {
 
   /** 7C: the registered action catalog (declared inputs, sources, outputs, and limitations). */
   async listAiActions(caller: Caller, ws: unknown) {
+    // The assist list: actions over sources. 7F capture interpretation is registered in the same
+    // catalog (and runs through the same estimate and start), but is offered by the capture dialog.
     return this.inWorkspace(caller, ws, { readOnly: true }, async () => ({
-      items: AI_ACTIONS.map(actionView),
+      items: AI_ACTIONS.filter((a) => a.kind !== 'interpretation').map(actionView),
     }));
   }
 

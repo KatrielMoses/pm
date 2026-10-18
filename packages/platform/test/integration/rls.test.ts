@@ -230,6 +230,8 @@ const PHASE_1C_TENANT_TABLES = [
   'ai.briefing_correction',
   'ai.briefing_correction_event',
   'ai.briefing_evidence',
+  // Phase 7F voice captures (ephemeral audio references and transcription state).
+  'capture.voice_capture',
   'metering.spend_limit',
   'metering.usage_balance',
   'metering.usage_reservation',
@@ -542,8 +544,9 @@ describe('tenant RLS foundation (0C §12.7)', () => {
     // discover_days_to_close and discover_block_series_due; 4B discover_notification_work; 4E
     // discover_file_work; 5A discover_search_work; 5B discover_goal_work; 5C discover_metrics_work;
     // 5D discover_report_work; 6A discover_integration_work; 6B discover_webhook_work; 7A
-    // discover_ai_retention_work; 7E discover_briefing_work and discover_briefing_retention_work.
-    expect(fns.rows.length).toBe(26);
+    // discover_ai_retention_work; 7E discover_briefing_work and discover_briefing_retention_work;
+    // 7F discover_voice_cleanup_work and discover_plan_retention_work.
+    expect(fns.rows.length).toBe(28);
     const allowed = new Set([
       'job_id',
       'workspace_id',

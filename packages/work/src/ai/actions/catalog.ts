@@ -59,25 +59,6 @@ const LEXICAL =
 
 export const AI_ACTIONS: readonly AiActionDef[] = [
   {
-    key: 'interpret_capture',
-    version: 1,
-    label: 'Interpret a capture',
-    kind: 'interpretation',
-    requirements: ['CAP-005', 'CAP-003', 'CAP-009'],
-    input: { label: 'Capture text', required: true, max: 2000 },
-    needs: null,
-    sourceKinds: [],
-    maxOutputTokens: 512,
-    instructions: [
-      'The title is the words that describe the work itself. Dates, priority, duration, recurrence, labels, project, brand, and owner are marked only when the note states them.',
-    ],
-    limitations: [
-      'Field spans are suggestions: the server checks each against your text and derives every value itself.',
-      'Names resolve only among what you can read now; dates use your time zone and today.',
-      'Nothing is saved until you save it to your Inbox.',
-    ],
-  },
-  {
     key: 'summarize',
     version: 1,
     label: 'Summarize',
@@ -289,6 +270,25 @@ export const AI_ACTIONS: readonly AiActionDef[] = [
     ],
     limitations: [
       'Only existing labels and members you may assign are offered; nothing new is created.',
+    ],
+  },
+  {
+    key: 'interpret_capture',
+    version: 1,
+    label: 'Interpret a capture',
+    kind: 'interpretation',
+    requirements: ['CAP-005', 'CAP-003', 'CAP-009'],
+    input: { label: 'Capture text', required: true, max: 2000 },
+    needs: null,
+    sourceKinds: [],
+    maxOutputTokens: 512,
+    instructions: [
+      'The title is the words that describe the work itself. Dates, priority, duration, recurrence, labels, project, brand, and owner are marked only when the note states them.',
+    ],
+    limitations: [
+      'Field spans are suggestions: the server checks each against your text and derives every value itself.',
+      'Names resolve only among what you can read now; dates use your time zone and today.',
+      'Nothing is saved until you save it to your Inbox.',
     ],
   },
 ];

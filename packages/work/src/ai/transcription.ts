@@ -89,6 +89,9 @@ export function transcriptionPriceSnapshot(): Record<string, unknown> {
   };
 }
 
+/** Connection failures where the request certainly never left (the same set as the AI transport). */
+const NOT_SENT_CODES = new Set(['ECONNREFUSED', 'ENOTFOUND', 'EAI_AGAIN', 'EHOSTUNREACH']);
+
 /** Whole billed seconds for a duration (rounded up; at least one). */
 export const billedSeconds = (ms: number) => Math.max(1, Math.ceil(ms / 1000));
 
@@ -120,7 +123,8 @@ export class HttpTranscriptionProvider implements TranscriptionProvider {
     } catch (err) {
       if (req.signal.aborted) throw new TranscriptionError('cancelled', 'unknown');
       // A connection that never opened was not charged; a timeout after sending may have been.
-      const refused = (err as { cause?: { code?: string } }).cause?.code === 'ECONNREFUSED';
+      const code = (err as { cause?: { code?: unknown } }).cause?.code;
+      const refused = typeof code === 'string' && NOT_SENT_CODES.has(code);
       throw new TranscriptionError(refused ? 'not_sent' : 'transient', refused ? 'no' : 'unknown');
     }
     if (res.status === 401 || res.status === 403) throw new TranscriptionError('auth', 'no');
