@@ -136,7 +136,11 @@ describe('Phase 7F daily plans', () => {
     const today = localDay(new Date(), 'UTC');
     // A Monday 7–13 days ahead (seeded accounts use UTC): inside the 14-day planning horizon.
     day = addDays(today, 7 + ((8 - isoWeekday(today)) % 7));
-    await task('A', { title: 'Write brief', priority: 'urgent', estimate_minutes: 120, due_date: day }, P.owner);
+    await task(
+      'A',
+      { title: 'Write brief', priority: 'urgent', estimate_minutes: 120, due_date: day },
+      P.owner,
+    );
     await task('B', { title: 'Review deck', priority: 'high', estimate_minutes: 60 }, P.owner);
     await task('C', { title: 'Unestimated' }, P.owner);
     await task('D', { title: 'Blocked work', estimate_minutes: 30 }, P.owner);
@@ -220,7 +224,7 @@ describe('Phase 7F daily plans', () => {
     expect(ev[0]!.n).toBeGreaterThanOrEqual(5);
     expect(await blocksOf(P.owner)).toEqual([]);
     // Edit the second block to overlap the first: approval refuses with the conflict.
-    const [b1, b2] = keysOf(v, 'block.create') as [string, string];
+    const [, b2] = keysOf(v, 'block.create') as [string, string];
     const edited = (
       await env.svc.updateAiProposal(
         P.owner,
@@ -228,7 +232,9 @@ describe('Phase 7F daily plans', () => {
         v.id,
         {
           revision: v.revision,
-          changes: { [b2]: { fields: { starts_at: `${day}T10:00:00Z`, ends_at: `${day}T11:00:00Z` } } },
+          changes: {
+            [b2]: { fields: { starts_at: `${day}T10:00:00Z`, ends_at: `${day}T11:00:00Z` } },
+          },
         },
         mutation(),
       )
@@ -258,15 +264,22 @@ describe('Phase 7F daily plans', () => {
         v.id,
         {
           revision: edited.revision,
-          changes: { [b2]: { fields: { starts_at: `${day}T13:00:00Z`, ends_at: `${day}T14:00:00Z` } } },
+          changes: {
+            [b2]: { fields: { starts_at: `${day}T13:00:00Z`, ends_at: `${day}T14:00:00Z` } },
+          },
         },
         mutation(),
       )
     ).data as View;
     const req = mutation();
     const out = await approveAndApply(P.owner, fixed, req);
-    expect(out).toMatchObject({ state: 'applied', application: { outcome: 'applied', applied_count: 4 } });
-    expect((await blocksOf(P.owner)).map((b) => [b.task, b.source, new Date(b.starts_at).toISOString()])).toEqual([
+    expect(out).toMatchObject({
+      state: 'applied',
+      application: { outcome: 'applied', applied_count: 4 },
+    });
+    expect(
+      (await blocksOf(P.owner)).map((b) => [b.task, b.source, new Date(b.starts_at).toISOString()]),
+    ).toEqual([
       [t.A, 'plan', `${day}T09:00:00.000Z`],
       [t.B, 'plan', `${day}T13:00:00.000Z`],
     ]);
@@ -304,7 +317,12 @@ describe('Phase 7F daily plans', () => {
       await env.svc.createTimeOff(
         P.owner,
         ws,
-        { kind: 'personal', all_day: false, starts_at: `${day}T15:00:00Z`, ends_at: `${day}T17:00:00Z` },
+        {
+          kind: 'personal',
+          all_day: false,
+          starts_at: `${day}T15:00:00Z`,
+          ends_at: `${day}T17:00:00Z`,
+        },
         mutation(),
       )
     ).data;
@@ -395,14 +413,19 @@ describe('Phase 7F daily plans', () => {
     // 2. Apply holds the profile lock first; time off created meanwhile waits and lands after.
     v = (await approve(P.owner, await propose(P.owner))).data as View;
     c = await hold(`planning.blocks:${wsId}:${ownerId}`);
-    let off: { id: string } | null = null;
+    let off: { id: string } | undefined;
     try {
       const applying = applyIt(P.owner, v);
       await waiting(1);
       const timeOff = env.svc.createTimeOff(
         P.owner,
         ws,
-        { kind: 'personal', all_day: false, starts_at: `${day}T16:00:00Z`, ends_at: `${day}T17:00:00Z` },
+        {
+          kind: 'personal',
+          all_day: false,
+          starts_at: `${day}T16:00:00Z`,
+          ends_at: `${day}T17:00:00Z`,
+        },
         mutation(),
       );
       await waiting(2);
@@ -435,12 +458,21 @@ describe('Phase 7F daily plans', () => {
     await env.svc.createBlock(
       P.owner,
       ws,
-      { tz: 'UTC', title: 'Focus', starts_at: `${day}T09:00:00Z`, ends_at: `${day}T15:00:00Z`, focus: true, locked: true },
+      {
+        tz: 'UTC',
+        title: 'Focus',
+        starts_at: `${day}T09:00:00Z`,
+        ends_at: `${day}T15:00:00Z`,
+        focus: true,
+        locked: true,
+      },
       mutation(),
     );
     await env.svc.commit(P.owner, ws, day, { task: t.B }, mutation());
     const v = await propose(P.owner);
-    expect(v.changes.every((c: Change) => !(c.target && 'id' in c.target && c.target.title === 'Focus'))).toBe(true);
+    expect(
+      v.changes.every((c: Change) => !(c.target && 'id' in c.target && c.target.title === 'Focus')),
+    ).toBe(true);
     const removal = v.changes.find((c: Change) => c.op === 'commitment.remove');
     if (removal) expect(removal.selected).toBe(false);
     expect(v.plan!.postpone.length + v.plan!.unscheduled.length).toBeGreaterThan(0);
@@ -471,12 +503,10 @@ describe('Phase 7F daily plans', () => {
     expect(await refusal(approve(P.owner, mine))).toMatchObject({ code: 'not_found' });
     const other = await workspaceWith(env, db, ['Elsewhere']);
     const third = await workspaceWith(env, db, ['Third']);
-    expect(
-      await refusal(env.svc.getAiProposal(other.owner, other.ws, mine.id)),
-    ).toMatchObject({ code: 'not_found' });
-    expect(
-      (await env.svc.listAiProposals(third.owner, third.ws)).items,
-    ).toEqual([]);
+    expect(await refusal(env.svc.getAiProposal(other.owner, other.ws, mine.id))).toMatchObject({
+      code: 'not_found',
+    });
+    expect((await env.svc.listAiProposals(third.owner, third.ws)).items).toEqual([]);
     // A scope brand the person cannot read is indistinguishable from an unknown one.
     expect(
       await refusal(env.svc.previewDayPlan(P.member, ws, { day, brands: [brands.Vault] })),

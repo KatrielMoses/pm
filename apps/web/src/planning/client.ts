@@ -1,4 +1,5 @@
 import { api, protectedRequest, type StepUpResolver } from '../api.ts';
+import type { AiProposal } from '../ai/client.ts';
 import type { CalendarEventView } from '../integrations/calendar-client.ts';
 
 /** Typed client for the 3C planning API (ADR-0021). Every identifier is a public ID. */
@@ -120,7 +121,92 @@ export interface Series {
 const w = (ws: string) => `/v1/workspaces/${ws}`;
 export const deviceZone = () => Intl.DateTimeFormat().resolvedOptions().timeZone;
 
+/** 7F: one task as the daily plan shows it (title through current authorization). */
+export interface PlanTask {
+  id: string;
+  title: string | null;
+  brand: { id: string; name: string } | null;
+}
+
+/** 7F: the rule-based daily plan preview (ADR-0043); nothing is written. */
+export interface DayPlanPreview {
+  day: string;
+  timezone: string;
+  scope: { brands: string[]; projects: string[] };
+  mode: 'rule_based';
+  generated: false;
+  considered: number;
+  considered_max: number;
+  coverage: string | null;
+  totals: {
+    capacity_minutes: number;
+    free_minutes: number;
+    existing_block_minutes: number;
+    candidate_minutes: number;
+    scheduled_minutes: number;
+    unscheduled_minutes: number;
+    unknown_estimates: number;
+  };
+  feasible: boolean;
+  scheduled: Array<{
+    task: PlanTask;
+    rank: number;
+    minutes: number;
+    slots: Array<{ starts_at: string; ends_at: string; local: string }>;
+    reasons: Array<{ code: string; detail: string }>;
+    warnings: string[];
+  }>;
+  unscheduled: Array<{
+    task: PlanTask;
+    rank: number;
+    code: string;
+    minutes: number | null;
+    detail: string;
+    blocked_by?: PlanTask[];
+  }>;
+  postpone: Array<{
+    task: PlanTask;
+    minutes: number;
+    reason: string;
+    tradeoff: string;
+    committed: boolean;
+  }>;
+  conflicts: Array<{ code: string; task: PlanTask | null; detail: string }>;
+  blocks: Array<{
+    id: string;
+    starts_at: string;
+    ends_at: string;
+    local: string;
+    locked: boolean;
+    focus: boolean;
+    task: PlanTask | null;
+  }>;
+  snapshot: string;
+}
+
+export interface DayPlanRequest {
+  day: string;
+  split?: boolean;
+  assumptions?: Record<string, number>;
+  brands?: string[];
+  projects?: string[];
+}
+
 export const planning = {
+  async previewDayPlan(ws: string, body: DayPlanRequest) {
+    return (
+      await api<{ data: DayPlanPreview }>('POST', `${w(ws)}/planning/day-plan-previews`, { body })
+    ).body.data;
+  },
+  /** One key per deliberate attempt (a retry after a dropped connection reuses it). */
+  async createDayPlan(ws: string, body: DayPlanRequest, key: string) {
+    return (
+      await api<{ data: AiProposal }>('POST', `${w(ws)}/planning/day-plans`, {
+        body,
+        headers: { 'idempotency-key': key },
+      })
+    ).body.data;
+  },
   async today(ws: string, day = 'today') {
     return (await api<{ data: TodayView }>('GET', `${w(ws)}/today/${day}`)).body.data;
   },

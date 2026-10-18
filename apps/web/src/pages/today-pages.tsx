@@ -636,6 +636,12 @@ export function TodayPage({ ws }: { ws: string }) {
               <p className="hint">
                 Times are in your zone ({v.tz}); this device shows {deviceZone()}.
               </p>
+              <p>
+                <Link to={`/workspaces/${ws}/today/plan?day=${v.day}`}>Plan this day</Link>{' '}
+                <span className="hint">
+                  — a rule-based plan from your capacity; you review it before anything changes.
+                </span>
+              </p>
               {r.error ? (
                 <Banner tone="danger" title="Not changed">
                   {r.error}

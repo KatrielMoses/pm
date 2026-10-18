@@ -144,6 +144,14 @@ export interface AiRun {
     redactions: number;
     output: { text: string; completeness: 'complete' | 'truncated' | 'partial' } | null;
     answer?: AiAnswer | null;
+    /** 7F: a capture interpretation's checked spans (values come from the capture preview). */
+    interpretation?: {
+      status: 'checked' | 'downgraded' | 'rejected' | 'needs_input' | 'withheld';
+      reason: string | null;
+      fields: Array<{ field: string; span: string; start: number; end: number }>;
+      dropped: number;
+      questions: Array<{ id?: string; text: string }>;
+    } | null;
     /** 7D: the outcome of a change-proposal run (the proposal is reviewed on its own page). */
     proposal?: {
       status: 'proposed' | 'rejected' | 'withheld' | 'needs_input';
@@ -238,7 +246,13 @@ export interface AiProposalChange {
     | 'project.update'
     | 'milestone.create'
     | 'relation.add'
-    | 'document.replace';
+    | 'document.replace'
+    // 7F planner operations (canonical Today and block commands).
+    | 'block.create'
+    | 'block.update'
+    | 'block.delete'
+    | 'commitment.add'
+    | 'commitment.remove';
   selected: boolean;
   decision: 'pending' | 'accepted' | 'edited' | 'rejected';
   depends_on: string[];
@@ -254,6 +268,8 @@ export interface AiProposalChange {
   project: AiProposalRef | null;
   parent: AiProposalRef | null;
   brand: 'scope' | null;
+  /** The task a change applies to (7C labels and criteria; 7F blocks and Today commitments). */
+  task?: AiProposalRef | null;
   relation: {
     kind: 'blocks' | 'related';
     from: AiProposalRef | null;
@@ -264,6 +280,39 @@ export interface AiProposalChange {
   applied_state: 'not_applied' | 'applied' | 'failed' | 'rolled_back' | 'blocked';
   result: { type?: string; id?: string; title?: string; available?: false } | null;
   failure: { code: string; message: string } | null;
+}
+
+/** 7F: the stored plan of a planner proposal, labelled through current authorization. */
+export interface AiPlanSummary {
+  day: string;
+  timezone: string;
+  scope: { brands: string[]; projects: string[] };
+  mode: 'rule_based';
+  generated: false;
+  considered: number;
+  coverage: string | null;
+  totals: Record<string, number>;
+  feasible: boolean;
+  assumptions: Record<string, number>;
+  reasons: Record<string, Array<{ code: string; detail: string }>>;
+  unscheduled: Array<{
+    task: PlanTaskRef | null;
+    code: string;
+    minutes: number | null;
+    detail: string;
+  }>;
+  postpone: Array<{ task: PlanTaskRef | null; minutes: number; reason: string; tradeoff: string }>;
+  conflicts: Array<{ code: string; task: PlanTaskRef | null; detail: string }>;
+  current: {
+    state: 'current' | 'changed' | 'unavailable' | 'closed';
+    snapshot: string | null;
+    issues: Array<{ block: string; code: string; severity: 'error' | 'warning' }>;
+  };
+}
+
+export interface PlanTaskRef {
+  id: string;
+  title: string | null;
 }
 
 export interface AiProposalIssue {
@@ -282,6 +331,8 @@ export interface AiProposal {
   updated_at: string;
   run: string;
   synthetic: boolean;
+  /** 7F: `planner` proposals come from the rule-based daily planner, not AI. */
+  origin?: 'ai_action' | 'planner';
   application: {
     outcome: 'applied' | 'failed';
     applied_count: number;
@@ -291,6 +342,7 @@ export interface AiProposal {
     at: string;
   } | null;
   content: { state: 'present' | 'withheld' | 'erased'; note: string | null };
+  plan?: AiPlanSummary | null;
   title: string | null;
   fingerprint: string | null;
   trust_note?: string;

@@ -79,12 +79,17 @@ export function clearPersonalClientState(): void {
 export function clearProposalDrafts(): void {
   try {
     // 7C: unsaved AI action inputs (briefs and answers) follow the same lifecycle; so do 7E
-    // unsaved briefing notes (they may quote briefing content).
+    // unsaved briefing notes (they may quote briefing content) and 7F capture and plan drafts.
     sweep(
       localStorage,
       (k) =>
         k.startsWith(DRAFT_PREFIX) &&
-        (k.includes('.ai-proposal.') || k.includes('.ai-assist.') || k.includes('.ai-briefing.')),
+        (k.includes('.ai-proposal.') ||
+          k.includes('.ai-assist.') ||
+          k.includes('.ai-briefing.') ||
+          // 7F: unsaved capture transcripts and interpretations, and daily-plan options.
+          k.includes('.ai-capture.') ||
+          k.includes('.ai-plan.')),
     );
     purgeLegacyProposalDrafts();
   } catch {

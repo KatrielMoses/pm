@@ -354,6 +354,15 @@ export const ROUTES: readonly RouteDef[] = [
     section: 'AI assist',
     visible: member,
   },
+  // 7F: the rule-based daily plan for one day (preview; a proposal is reviewed on its own page).
+  {
+    id: 'day_plan',
+    pattern: '/workspaces/:ws/today/plan',
+    shell: 'workspace',
+    section: 'Plan my day',
+    stateInQuery: true,
+    visible: member,
+  },
   // 7D: AI change proposals the person reviews, edits, approves, and explicitly applies.
   {
     id: 'ai_proposals',

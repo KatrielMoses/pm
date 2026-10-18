@@ -1,5 +1,7 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { ApiError } from '../api.ts';
+import { useAuth } from '../auth.tsx';
+import { CaptureAssist } from '../capture/capture-assist.tsx';
 import {
   capture,
   type Candidate,
@@ -93,6 +95,16 @@ const describeError = (err: unknown) =>
 // The Capture dialog
 // -----------------------------------------------------------------------------------------------
 
+/** The signed-in account for personal drafts; null while unknown (no draft is read or written). */
+function useCaptureAccount(): string | null {
+  try {
+    return useAuth().me?.id ?? null;
+  } catch {
+    // Rendered outside the auth provider (component tests): one device-local key.
+    return 'device';
+  }
+}
+
 export function CaptureDialog({ ws, onClose }: { ws: string; onClose: () => void }) {
   const stepUp = useStepUp();
   const latest = useLatest();
@@ -107,6 +119,10 @@ export function CaptureDialog({ ws, onClose }: { ws: string; onClose: () => void
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [result, setResult] = useState<CaptureResult | null>(null);
+  // 7F: an AI interpretation and a voice recording the person chose to save with (one item only).
+  const [interpretation, setInterpretation] = useState<string | null>(null);
+  const [voice, setVoice] = useState<string | null>(null);
+  const account = useCaptureAccount();
   const lines = several ? (edited ?? []) : [text];
   // Detected values update as the person types (superseded previews are aborted).
   useEffect(() => {
@@ -152,6 +168,8 @@ export function CaptureDialog({ ws, onClose }: { ws: string; onClose: () => void
         {
           intent,
           ...(several ? { items: items.map((x) => ({ text: x })) } : { text }),
+          ...(!several && interpretation ? { interpretation } : {}),
+          ...(!several && voice ? { voice } : {}),
           ...(links.length ? { links: links.map((url) => ({ url })) } : {}),
           ...(files.length
             ? { files: files.map((f) => ({ name: f.name, size: f.size, type: f.type })) }
@@ -163,7 +181,11 @@ export function CaptureDialog({ ws, onClose }: { ws: string; onClose: () => void
       // Keep only what did not save, so nothing is silently dropped.
       const failed = r.items.filter((i) => i.outcome === 'failed').map((i) => i.text);
       if (several) setEdited(failed);
-      else if (!failed.length) setText('');
+      else if (!failed.length) {
+        setText('');
+        setInterpretation(null);
+        setVoice(null);
+      }
     } catch (err) {
       if (!(err instanceof ApiError && err.code === 'cancelled')) setError(describeError(err));
     } finally {
@@ -255,7 +277,11 @@ export function CaptureDialog({ ws, onClose }: { ws: string; onClose: () => void
               label="What do you want to capture?"
               hint="Try: Renew domain tomorrow !high 30m #ops. Paste several lines to capture several items."
               value={text}
-              onChange={setText}
+              onChange={(t) => {
+                setText(t);
+                // An interpretation belongs to the exact text it read.
+                setInterpretation(null);
+              }}
               maxLength={10000}
               onPasteText={(pasted) => {
                 // Multi-line paste turns into candidates (CAP-004).
@@ -264,6 +290,28 @@ export function CaptureDialog({ ws, onClose }: { ws: string; onClose: () => void
                 return true;
               }}
             />
+            <CaptureAssist
+              ws={ws}
+              account={account}
+              text={text}
+              brand={null}
+              interpretation={interpretation}
+              onText={setText}
+              onInterpretation={setInterpretation}
+              onVoice={setVoice}
+            />
+            {voice ? (
+              <p className="hint">
+                Saved as a voice capture (the transcript, as you edited it).{' '}
+                <button
+                  type="button"
+                  className="button button-secondary"
+                  onClick={() => setVoice(null)}
+                >
+                  Save as typed instead
+                </button>
+              </p>
+            ) : null}
             {candidates?.[0] && text.trim() ? (
               <section aria-label="Detected values">
                 <p className="hint">Detected by simple rules — check before saving.</p>
