@@ -396,6 +396,21 @@ export function registerAi(app: FastifyInstance, work: AiGatewayService): void {
         ),
     ),
   );
+  // 7F capture interpretation: the reviewed candidate of an interpreted capture (nothing saved).
+  app.post(
+    `${base}/capture/interpretations`,
+    wrap(async (request, reply) =>
+      reply
+        .header('cache-control', 'private, no-store')
+        .send(
+          nonResourceEnvelope(
+            'capture_interpretation',
+            await work.previewCaptureInterpretation(caller(request), ws(request), request.body),
+            m(request),
+          ),
+        ),
+    ),
+  );
   app.post(
     `${base}/planning/day-plans`,
     wrap(async (request, reply) => {

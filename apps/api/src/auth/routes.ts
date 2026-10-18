@@ -251,7 +251,11 @@ export function registerAuth(app: FastifyInstance, deps: AuthRouteDeps): void {
       // 7E: briefings, schedules, and correction notes are session-only.
       // 7F: daily plans (preview and plan proposals) and voice capture are session-only.
       const aiPath = /^\/v1\/workspaces\/[^/]+\/ai(\/|$)/.test(path);
-      if (path.includes('/planning/day-plan') || path.includes('/capture/voice'))
+      if (
+        path.includes('/planning/day-plan') ||
+        path.includes('/capture/voice') ||
+        path.includes('/capture/interpretations')
+      )
         return fail(request, reply, 'forbidden');
       if (
         (aiPath &&

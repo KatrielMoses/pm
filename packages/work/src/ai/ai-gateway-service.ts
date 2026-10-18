@@ -54,6 +54,9 @@ import { systemExec } from '../notify/system.ts';
 import { daysBetween, localDay, validDay, validZone } from '../time/semantics.ts';
 import { checkEdits, planDay, type EditIssue, type Reason } from '../planning/planner.ts';
 import type { PlanInputs } from '../capacity/capacity-service.ts';
+import type { CaptureCandidate, Detected } from '../capture-service.ts';
+import { PARSER_VERSION, type ParseToken } from '../capture/parser.ts';
+import { deriveSpan, isNameField, nameOf } from '../capture/interpret.ts';
 import {
   clock,
   dueOccurrence,
@@ -179,6 +182,13 @@ import {
   withheldAnalysis,
   type AnalysisResult,
 } from './actions/analysis.ts';
+import {
+  captureTextOf,
+  interpretationSystemTemplate,
+  validateInterpretation,
+  withheldInterpretation,
+  type InterpretationResult,
+} from './actions/interpretation.ts';
 import { parseTaskCreate, parseTaskCriterion, TASK_FIELDS, taskField } from '../task-validation.ts';
 import { parseMilestone, parseProjectCreate, PROJECT_FIELDS } from '../validation.ts';
 import { parseRelationship } from '../task-validation.ts';
@@ -420,6 +430,8 @@ const PLAN_DAYS_AHEAD = 14;
 const PLAN_MIN_CHUNK = 30;
 const PLAN_CHANGES_MAX = 99;
 const PLAN_VERSION = 'plan.v1';
+/** 7F: the capture interpretation action (catalog key and version). */
+const INTERPRET_ACTION = 'interpret_capture.v1';
 const PLAN_OPS_SET: ReadonlySet<string> = new Set([
   'block.create',
   'block.update',
@@ -445,6 +457,19 @@ interface ComputedPlan {
   result: ReturnType<typeof planDay>;
   scope: { brands: string[]; projects: string[] };
   options: { split: boolean; assumptions: Record<string, number> };
+}
+
+/** A concrete, readable label for a derived value (dates name the weekday and the time zone). */
+function concreteLabel(field: string, value: unknown, tz: string): string {
+  if ((field === 'due_date' || field === 'deadline') && typeof value === 'string') {
+    const wd = new Date(`${value}T12:00:00Z`).toLocaleDateString('en-GB', {
+      weekday: 'short',
+      timeZone: 'UTC',
+    });
+    return `${wd} ${value} (${tz})`;
+  }
+  if (field === 'estimate_minutes' && typeof value === 'number') return `${value} minutes`;
+  return typeof value === 'string' ? value : JSON.stringify(value);
 }
 
 /** A proposed change as the plan checks read it. */
@@ -2327,8 +2352,9 @@ export class AiGatewayService extends McpAccessService {
     spec: AnswerSpec,
   ): Promise<PreparedRun> {
     const def = spec.action ?? null;
+    // 7F: capture interpretation is a typed analysis-purpose run over no sources.
     const purpose: PreparedRun['purpose'] = def
-      ? def.kind === 'analysis'
+      ? def.kind === 'analysis' || def.kind === 'interpretation'
         ? 'analysis'
         : 'change_proposal'
       : (spec.purpose ?? 'grounded_answer');
@@ -2354,7 +2380,8 @@ export class AiGatewayService extends McpAccessService {
     // project brief may stand in for sources when drafting a new project.
     if (def) this.#requireActionContext(def, question, manifest);
     const briefOnly = def?.needs === 'brief_or_goal' && /^Brief:\n\S/m.test(question);
-    if (!manifest.entries.some((e) => e.included) && !briefOnly)
+    // 7F: an interpretation's only input is the person's own capture text.
+    if (!manifest.entries.some((e) => e.included) && !briefOnly && def?.kind !== 'interpretation')
       throw invalid(
         issue('/include', 'context_empty', 'Include at least one source to ask about.'),
       );
@@ -2378,7 +2405,9 @@ export class AiGatewayService extends McpAccessService {
     const template = def
       ? def.kind === 'analysis'
         ? analysisSystemTemplate(def)
-        : this.#proposalTemplateFor(def)
+        : def.kind === 'interpretation'
+          ? interpretationSystemTemplate(def)
+          : this.#proposalTemplateFor(def)
       : purpose === 'change_proposal'
         ? PROPOSAL_SYSTEM_TEMPLATE
         : GROUNDED_SYSTEM_TEMPLATE;
@@ -3767,8 +3796,20 @@ export class AiGatewayService extends McpAccessService {
             : null,
         // 7C: an analysis action's validated, typed result; citations resolve through current
         // authorization like an answer's.
+        // 7F: a capture interpretation's checked field spans (values are derived on preview).
+        interpretation:
+          present &&
+          action.purpose === 'analysis' &&
+          last?.grounding &&
+          (last.grounding as { version?: string }).version === 'interpretation.v1'
+            ? { completeness: last.completeness, ...(last.grounding as unknown as InterpretationResult) }
+            : null,
         analysis:
-          present && action.purpose === 'analysis' && last && last.grounding
+          present &&
+          action.purpose === 'analysis' &&
+          last &&
+          last.grounding &&
+          (last.grounding as { version?: string }).version !== 'interpretation.v1'
             ? {
                 completeness: last.completeness,
                 ...this.#analysisView(
@@ -4551,6 +4592,8 @@ export class AiGatewayService extends McpAccessService {
           : auth.prep.decision.model.provider,
         system: auth.prep.system,
         user: auth.prep.user,
+        // 7F: the redacted request, to check interpretation spans against (memory only).
+        prompt: auth.prep.prompt,
         // A grounded answer's manifest, kept in memory to validate the answer (never persisted).
         manifest: auth.prep.manifest,
         outputBound: d.output_token_bound,
@@ -4755,23 +4798,39 @@ export class AiGatewayService extends McpAccessService {
           const def = ACTION_BY_ID.get(action.action_key ?? '');
           if (!def) throw new JobError('deterministic', 'ai_action_unknown');
           const check = await this.#publicationCheck(tx, opId);
-          grounding = (check === 'ok'
-            ? validateAnalysis({
-                def,
-                text,
-                completeness:
-                  decided.completeness === 'complete'
-                    ? 'complete'
-                    : decided.completeness === 'truncated'
-                      ? 'truncated'
-                      : 'partial',
-                entries: request.manifest.entries,
-                today: await this.workspaceToday(tx),
-              })
-            : withheldAnalysis(def, check)) as unknown as Record<string, unknown>;
-          this.d.metrics.count('ai.analyses', 1, {
-            status: (grounding as unknown as AnalysisResult).status,
-          });
+          const completeness =
+            decided.completeness === 'complete'
+              ? ('complete' as const)
+              : decided.completeness === 'truncated'
+                ? ('truncated' as const)
+                : ('partial' as const);
+          if (def.kind === 'interpretation') {
+            // 7F: spans are checked against the capture text the model was sent.
+            const result =
+              check === 'ok'
+                ? validateInterpretation({
+                    def,
+                    text,
+                    completeness,
+                    capture: captureTextOf(request.prompt),
+                  })
+                : withheldInterpretation(def, check);
+            grounding = result as unknown as Record<string, unknown>;
+            this.d.metrics.count('capture.interpretations', 1, { status: result.status });
+          } else {
+            grounding = (check === 'ok'
+              ? validateAnalysis({
+                  def,
+                  text,
+                  completeness,
+                  entries: request.manifest.entries,
+                  today: await this.workspaceToday(tx),
+                })
+              : withheldAnalysis(def, check)) as unknown as Record<string, unknown>;
+            this.d.metrics.count('ai.analyses', 1, {
+              status: (grounding as unknown as AnalysisResult).status,
+            });
+          }
         } else if (request.manifest) {
           const check = await this.#publicationCheck(tx, opId);
           grounding =
@@ -7367,6 +7426,162 @@ export class AiGatewayService extends McpAccessService {
             issues: cur.issues,
           },
     };
+  }
+
+  // ---------------------------------------------------------------------------------------------
+  // 7F capture interpretation (ADR-0043 D2): checked spans, values derived by the server
+  // ---------------------------------------------------------------------------------------------
+
+  /**
+   * The person's own interpretation run for `text`: its checked result, bound to the exact text it
+   * interpreted. Another person's run, an unknown one, and a run of another action are not found.
+   */
+  async #interpretation(tx: WorkspaceTransaction, caller: Caller, p: Principal, run: unknown, text: string) {
+    const { op } = await this.#ownRun(tx, caller, p, run);
+    const a = await tx.db
+      .selectFrom('ai.ai_action')
+      .select(['action_key', 'content_state', 'prompt_text'])
+      .where('operation_id', '=', op.id)
+      .executeTakeFirstOrThrow();
+    if (a.action_key !== INTERPRET_ACTION) throw new TenancyError('not_found');
+    const unusable = (code: string, message: string) =>
+      new TenancyError('conflict', { issues: [issue('/interpretation', code, message)] });
+    if (a.content_state !== 'present' || a.prompt_text === null)
+      throw unusable(
+        'interpretation_erased',
+        'This interpretation was erased. Interpret the text again, or save it as typed.',
+      );
+    const out = await tx.db
+      .selectFrom('ai.ai_output')
+      .select('grounding')
+      .where('operation_id', '=', op.id)
+      .orderBy('created_at', 'desc')
+      .executeTakeFirst();
+    const result = (out?.grounding ?? null) as InterpretationResult | null;
+    if (!result || result.version !== 'interpretation.v1')
+      throw unusable('interpretation_pending', 'The interpretation is not ready yet.');
+    if (result.status !== 'checked' && result.status !== 'downgraded')
+      throw unusable(
+        'interpretation_unusable',
+        'This interpretation cannot be used. Save the text as typed, or answer its questions and interpret it again.',
+      );
+    // An edited text needs a new interpretation: spans belong to the words they were found in.
+    if (captureTextOf(a.prompt_text) !== redactCredentials(text.trim()).text)
+      throw unusable(
+        'interpretation_stale',
+        'The text changed since it was interpreted. Interpret it again, or save it as typed.',
+      );
+    return { op, result };
+  }
+
+  /**
+   * CAP-005: the candidate for an interpreted capture. Explicit capture syntax (rule-based) wins;
+   * each interpreted span adds a value the server derives itself: dates, priority, duration, and
+   * recurrence with the capture rules in the person's zone and today, names among what the person
+   * can read now (hidden and unknown alike unresolved). Ambiguity stays a choice; nothing is saved.
+   */
+  protected override async interpretedCandidate(
+    tx: WorkspaceTransaction,
+    caller: Caller,
+    p: Principal,
+    text: string,
+    brandHint: string | null,
+    run: unknown,
+  ): Promise<CaptureCandidate> {
+    const { op, result } = await this.#interpretation(tx, caller, p, run, text);
+    const tz = await this.#personZone(tx, p.membershipId);
+    const today = localDay(new Date(), tz);
+    const base = await this.candidate(tx, p, text, today, brandHint);
+    const taken = base.detected.map((d) => [d.start, d.end] as const);
+    let title = base.title;
+    const extra: Detected[] = [];
+    const names: ParseToken[] = [];
+    for (const f of result.fields) {
+      if (f.field === 'title') {
+        title = f.span.replace(/\s+/g, ' ').trim().slice(0, 300);
+        continue;
+      }
+      if (taken.some(([s, e]) => f.start < e && f.end > s)) continue;
+      if (isNameField(f.field)) {
+        names.push({
+          field: f.field as ParseToken['field'],
+          start: f.start,
+          end: f.end,
+          text: f.span,
+          rule: `ai:${f.field}`,
+          value: nameOf(f.span),
+        });
+        continue;
+      }
+      const d = deriveSpan(f.field, f.span, today, this.ws.captureParseTokensMax);
+      const at = {
+        field: f.field as Detected['field'],
+        text: f.span,
+        start: f.start,
+        end: f.end,
+        rule: d.rule,
+      };
+      extra.push(
+        d.status === 'resolved'
+          ? { ...at, status: 'resolved', value: d.value, label: concreteLabel(f.field, d.value, tz) }
+          : d.status === 'ambiguous'
+            ? { ...at, status: 'ambiguous', value: null, options: d.options }
+            : { ...at, status: 'unresolved', value: null },
+      );
+    }
+    const resolved = names.length ? await this.resolve(tx, p, names, brandHint) : [];
+    // Every date is shown as a concrete day in the person's zone, whichever rule found it.
+    const concrete = base.detected.map((d) =>
+      d.status === 'resolved' && (d.field === 'due_date' || d.field === 'deadline')
+        ? { ...d, label: concreteLabel(d.field, d.value, tz) }
+        : d,
+    );
+    const detected = [...concrete, ...extra, ...resolved].sort((x, y) => x.start - y.start);
+    this.d.metrics.count('capture.interpretations', 1, { status: 'previewed' });
+    return {
+      text,
+      title: title || base.title,
+      detected,
+      needs_confirmation: detected.some((d) => d.status === 'ambiguous'),
+      truncated: base.truncated,
+      interpretation: { run: op.public_id, action: INTERPRET_ACTION },
+    };
+  }
+
+  /** CAP-005: the interpreted candidate to review and edit before saving (nothing is saved). */
+  async previewCaptureInterpretation(caller: Caller, ws: unknown, body: unknown) {
+    const b = (body && typeof body === 'object' && !Array.isArray(body) ? body : {}) as Record<
+      string,
+      unknown
+    >;
+    for (const k of Object.keys(b))
+      if (!['text', 'interpretation', 'brand'].includes(k))
+        throw invalid(issue(`/${k}`, 'unknown_field', 'This field is not accepted.'));
+    const text = typeof b.text === 'string' ? b.text : '';
+    if (!text.trim() || text.length > this.ws.captureTextMax)
+      throw invalid(issue('/text', 'invalid', 'Enter the capture text.'));
+    return this.inWorkspace(caller, ws, { readOnly: true }, async (tx, p) => {
+      if (caller.delegation) throw new TenancyError('forbidden');
+      const brand = typeof b.brand === 'string' ? (await findBrand(tx, p, b.brand)).id : null;
+      const candidate = await this.interpretedCandidate(tx, caller, p, text, brand, b.interpretation);
+      const { result } = await this.#interpretation(tx, caller, p, b.interpretation, text);
+      const tz = await this.#personZone(tx, p.membershipId);
+      return {
+        parser_version: PARSER_VERSION,
+        ai: true as const,
+        action: INTERPRET_ACTION,
+        status: result.status,
+        dropped: result.dropped,
+        questions: result.questions,
+        assumptions: result.assumptions,
+        limitations: result.limitations,
+        timezone: tz,
+        today: localDay(new Date(), tz),
+        candidate,
+        trust_note:
+          'AI marked which words name which field; every value shown was derived and checked by the server. Choose any ambiguous value, then save to your Inbox. Nothing is saved until you do.',
+      };
+    });
   }
 
   /**
