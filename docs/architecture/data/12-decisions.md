@@ -583,3 +583,7 @@ Status of every ADR: **proposed (Phase 0B)**, pending solutions-architect accept
   - Text, figures, references, coverage, and note text are content. Departure and account erasure clear them, mark notes `erased`, and turn schedules off. Technical retention clears briefing content only. Rows, operations, and audit stay; business records are never deleted.
   - The down migration restores the exact 0057 catalog. It refuses while any schedule or briefing exists, lifting forced row-level security on both tables for that one check.
   - Workspace purge deletes, before `exec.operation`: `ai.briefing_correction_event`, `ai.briefing_correction`, `ai.briefing_statement`, `ai.briefing`, then `ai.briefing_schedule`.
+- **Corrective review 01 (Phase 7E):**
+  - `ai.briefing_evidence` stores the complete authorization basis of each statement (by briefing and position) and of each correction note (its own copy): `record`, `brand`, or `permission` (`timesheet.approve` on an exact brand) references, no content and no foreign key to the referenced record. Forced row-level security; select and insert only.
+  - `exec_dispatch.discover_briefing_retention_work(before, limit)` returns workspace ids with expired present briefing content, independently of `discover_ai_retention_work` (0053, unchanged); `pm_scheduler` gains column select on `ai.briefing(content_state, created_at)`.
+  - Retention also erases notes that are not approved memory together with the briefing content they were made on. The down migration drops both additions and still restores the exact 0057 catalog.

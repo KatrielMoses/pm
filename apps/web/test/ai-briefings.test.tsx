@@ -150,6 +150,24 @@ describe('Briefings (7E)', () => {
     expect(Object.keys(localStorage).some((k) => k.includes('.ai-briefing.'))).toBe(false);
   });
 
+  it('an authoritative refusal while proposing a note removes the unsaved draft (corrective review 01 R2)', async () => {
+    serve({
+      [`GET /ai/briefings/${BRF}`]: () => json(200, { data: briefing() }),
+      [`POST /ai/briefings/${BRF}/corrections`]: () =>
+        json(404, { error: { code: 'not_found', status: 404, message: 'Not found' } }),
+    });
+    detail();
+    await screen.findByText(/31 tasks/);
+    fireEvent.click(screen.getAllByRole('button', { name: 'Add a note' })[1]!);
+    fireEvent.change(screen.getByLabelText(/Your note or correction/), {
+      target: { value: 'Quoting a source marker' },
+    });
+    expect(Object.keys(localStorage).some((k) => k.includes('.ai-briefing.'))).toBe(true);
+    await act(async () => fireEvent.click(screen.getByRole('button', { name: 'Propose note' })));
+    expect(await screen.findByText(/your unsaved note was removed/)).toBeTruthy();
+    expect(Object.keys(localStorage).some((k) => k.includes('.ai-briefing.'))).toBe(false);
+  });
+
   it('a note draft survives a reload until saved, and sign-out cleanup removes it', async () => {
     serve({ [`GET /ai/briefings/${BRF}`]: () => json(200, { data: briefing() }) });
     const first = detail();

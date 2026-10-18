@@ -183,7 +183,7 @@ Counters, all with bounded labels and never a prompt, output, secret, model outp
 - `ai.context_previews` (`index`: complete, catching_up, degraded, not_searched) (7B).
 - `ai.answer_validations` (`status`: validated, downgraded, rejected, withheld) (7B). Neither carries a prompt, source text, answer, or record identifier.
 - `ai.analyses` (`status`: checked, downgraded, rejected, needs_input, withheld) (7C). It carries no request, source text, or result.
-- `ai.briefings` (`outcome`: published, superseded, withheld, swept, a failure code such as recipient_unavailable, scope_unavailable, statement_invalid, or a correction outcome) (7E). It carries no briefing text, record identifier, or note.
+- `ai.briefings` (`outcome`: published, superseded, withheld, swept, a failure code such as recipient_unavailable, scope_unavailable, statement_invalid, evidence_unresolved, evidence_too_large, or a correction outcome) (7E). It carries no briefing text, record identifier, or note.
 - `ai.proposals` (`outcome`: proposed, rejected, needs_input) and `ai.proposal_applications` (`outcome`: applied, failed) (7D). Neither carries a proposal title, value, change, or record identifier.
 
 The existing histogram `ai.request.duration` (`provider_class`, `outcome`) and the usage counters `usage.reservations_denied` and `usage.cap_stops` (`meter`) are emitted too.

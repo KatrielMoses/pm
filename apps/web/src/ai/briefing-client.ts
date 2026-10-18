@@ -108,6 +108,8 @@ export interface BriefingSchedule {
 export interface BriefingCorrection {
   id: string;
   type: 'briefing_correction';
+  /** `withheld`: its evidence is no longer readable; nothing of its text or scope is returned. */
+  availability?: 'available' | 'withheld';
   briefing: string | null;
   kind: BriefingKind;
   scope: string;

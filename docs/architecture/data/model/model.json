@@ -9453,6 +9453,45 @@
       "notes": "Phase 7E (ADR-49): references only; kept after erasure."
     },
     {
+      "name": "briefing_evidence",
+      "module": "ai",
+      "purpose": "The complete authorization basis of a briefing statement or a correction note: record, brand, and exact-brand permission references (no content).",
+      "scope": "inherited",
+      "addressable": false,
+      "public_id_prefix": null,
+      "extends": null,
+      "containment_parents": [
+        "briefing",
+        "briefing_correction"
+      ],
+      "associations": [
+        "record"
+      ],
+      "lifecycle": "append-only",
+      "concurrency": "append-only",
+      "retention_class": "R-EXEC",
+      "confidentiality": "C1",
+      "volume": "high",
+      "export": "never",
+      "search_ai": "no",
+      "may_contain_secrets": "no",
+      "personal_data": "incidental",
+      "uniqueness": [],
+      "sensitive_fields": [],
+      "key_columns": [
+        "briefing_id + position, or correction_id",
+        "kind (record|brand|permission)",
+        "record_id (reference; no foreign key)",
+        "brand_id (reference)",
+        "permission (timesheet.approve)"
+      ],
+      "requirements": [
+        "BRF-014",
+        "BRF-016"
+      ],
+      "notes": "Phase 7E corrective review 01 (ADR-49): re-checked before any saved briefing or note content is shown, replayed, applied, or sent; references only."
+    },
+    {
       "name": "automation",
       "module": "automation",
       "purpose": "Trigger-condition-action automation at brand or workspace scope with declared target brands.",

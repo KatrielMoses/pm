@@ -23,7 +23,7 @@ Records: 0B ADR-49, 0C AZ-49, 0D PL-51. Migration `0058_ai_briefings`. Threats T
 | D6 | Schedules and the sweep | A schedule holds an IANA zone, local time, ISO weekdays, channels, enabled, and a revision. `packages/work/src/ai/briefing/schedule.ts` resolves occurrences: a time in a spring-forward gap runs at the first valid instant after it; a time repeated by a fold runs once, at the earlier instant; a late sweep owes only the latest missed occurrence. The occurrence key (`bsc:r<revision>:<local date>T<HH:MM>`) is unique, so overlapping sweeps, restarts, and timeouts after commit cannot duplicate a briefing. `ai.briefing.sweep` claims due schedules with `FOR UPDATE SKIP LOCKED`, queues occurrences, advances schedules, then composes queued briefings one per transaction; a crash leaves the occurrence queued and the next sweep resumes it (at most 3 attempts). A changed or disabled schedule supersedes queued occurrences (operation `cancelled`, `superseded`). A departed recipient's schedule is turned off. |
 | D7 | Publication and delivery | Statements, the published state, the succeeded operation, the `ai.briefing.generated` event, and the 4B notification for a scheduled briefing are one transaction. The notice carries only the briefing id; the schedule's channels limit email, and 4B preferences, mutes, quiet hours, dedupe, and limits decide within them. At send time the email line links to the briefing only while it is published, present, and the recipient's; otherwise the delivery is suppressed. Unconfigured email is `suppressed` (`provider_unconfigured`), never delivered. A person who generates a briefing is not notified about it. |
 | D8 | Corrections | A note is proposed on one statement (bound to its key and evidence version), edited while proposed (revision), and approved or rejected by its author for their own future briefings of the same type and scope (OD-25 safe default). An approved note is shown as an annotation beside the same statement while its evidence is unchanged and readable; changed evidence marks it stale; rejected, superseded, stale, and erased notes never return. Notes never edit records, never become workspace rules, and are never sent to a model. Text is redacted for credentials, at most 1000 characters, and at most 50 open notes per person. |
-| D9 | Privacy and lifecycle | Statement text, figures, references, coverage, and note text are content. Departure and account erasure erase them, mark notes erased, and turn schedules off; technical retention erases briefing content only. Rows, operations, audit, and business records stay. Unsaved notes use the personal-draft store (per account, bounded, expiring, removed on sign-out and session change, and dropped when the server reports the briefing withheld, erased, or not found). |
+| D9 | Privacy and lifecycle | Statement text, figures, references, coverage, and note text are content. Departure and account erasure erase them, mark notes erased, and turn schedules off; configured technical retention erases briefing content and the notes on it that are not approved memory, discovered independently of AI runs (corrective review 01). Rows, operations, audit, and business records stay. Unsaved notes use the personal-draft store (per account, bounded, expiring, removed on sign-out and session change, and dropped when the server reports the briefing withheld, erased, or not found). |
 | D10 | One UI | `/workspaces/{ws}/briefings` (list and Generate now with a scope and window preview), `/workspaces/{ws}/briefings/{brf}` (sections, trust kinds, evidence links, coverage notes, delivery state, notes, regenerate), and `/workspaces/{ws}/settings/briefings` (schedules with next runs in the schedule zone, email state, and note review). Notification links open the briefing. |
 
 ## Requirement and section matrix
@@ -70,14 +70,15 @@ Records: 0B ADR-49, 0C AZ-49, 0D PL-51. Migration `0058_ai_briefings`. Threats T
 | 0B decision | ADR-49 | ADR-49 |
 | 0C decision | AZ-49 | AZ-49 |
 | 0D decision | PL-51 | PL-51 |
-| Threats | T-114 to T-119 | T-114 |
-| Access tests | AT-455 to AT-467 | AT-455 |
+| Threats | T-114 to T-119; T-120 to T-122 (corrective review 01) | T-114 |
+| Access tests | AT-455 to AT-467; AT-468 to AT-475 (corrective review 01) | AT-455 |
 | ID prefixes | `bsc`, `brf`, `bco` | — |
 | Non-resource types | `ai_briefings`, `ai_briefing_preview`, `ai_briefing_schedules`, `ai_briefing_corrections` | — |
 | Telemetry | `ai.briefings` | — |
 
 Tests:
 - `packages/work/test/integration/briefings.test.ts`: AT-455 to AT-465.
+- `packages/work/test/integration/briefings-review01.test.ts`: AT-468 to AT-475 (corrective review 01).
 - `apps/api/test/integration/ai-api.test.ts`: AT-466.
 - `e2e/briefings.spec.ts`: AT-467 (desktop, tablet, mobile).
 - `packages/work/test/unit/briefing-schedule.test.ts`: gap, fold, weekdays, late sweeps, 23- and 25-hour windows.
@@ -92,3 +93,24 @@ Tests:
   - an email already handed to a provider cannot be recalled;
   - live-model wording is out of scope, so briefings read as lists of facts.
 - Also fixed: the 3C recurring-block test moved a fixture focus block to tomorrow 09:00 UTC, which collided with its fixed-date series when the suite ran on 2026-10-18; the fixture block now sits in the evening.
+
+## Corrective review 01
+
+Review 01 (reviewed head `b0d4d42`) found three defects. All are fixed with runtime regressions. Every regression in `briefings-review01.test.ts` was run against the reviewed head and failed there:
+- AT-468 (outside-sample contributor), AT-469 (previous-window-only contributor), AT-470 (aggregate without listed rows), and AT-471 (exact-brand timesheet approval) kept the saved briefing `available` after the loss.
+- AT-472 returned the note markers and statement identifiers on the corrections list after revocation.
+- AT-473 kept a proposed note on an erased briefing.
+- AT-474 found no briefing discovery (the AI-run discovery alone missed the briefing-only and AI-erased workspaces).
+- AT-475 found no evidence table or discovery function.
+
+- **R1, only the displayed sample was re-authorized.**
+  - Before: `completed.count` and similar figures stored their full total, but only the at most 20 listed items as references; previous-window contributors and aggregates without rows had no basis; a timesheet decision passed if the person could approve in any brand.
+  - Now: every statement records its complete basis (`Statement.basis`): every contributing record, including unlisted items and previous-window contributors; capacity and report brands; and `timesheet.approve` on the exact brands whose pending lines made the decision. The basis is stored in `ai.briefing_evidence` in the publishing transaction. One decision, `briefingAvailable` (`packages/work/src/ai/briefing/evidence.ts`), re-checks the whole basis through `readableRecords`, the visibility context's brands, and the canonical brand decision before display, completed-key replay, and notification rendering; any loss withholds the briefing whole. A statement basis above 1000 records is not kept: the figure becomes an explicit `unknown`, never a sample presented as a total, and an open-task total is omitted when its basis is too large. Claimed completion and at-risk projects gained count statements so their coverage totals have a basis too.
+  - Notes on calculations are bound to the statement's figures (an order-independent digest), so a changed total makes them stale.
+- **R2, correction notes bypassed source revocation.**
+  - Before: the list, detail, commands, and completed-key renderers checked only ownership.
+  - Now: each note keeps its own copy of its statement's basis plus the briefing scope. `#correctionEligible` decides before anything is returned: the list omits ineligible notes, detail and replay return an opaque withheld shape, edit, approve, and reject refuse as not found, and reuse skips them without marking them stale. A note whose origin briefing content is erased stays eligible only as approved memory. The web page drops the unsaved note on an authoritative refusal and keeps it when offline.
+- **R3, configured retention never discovered briefing-only workspaces.**
+  - Before: the retention job used `discover_ai_retention_work` alone, which reads `ai.ai_action`.
+  - Now: `discover_briefing_retention_work` finds expired briefing content independently (dispatcher only, ids only), and the job interleaves both lists so neither family starves the other. Retention erases notes that are not approved memory with their briefing. With retention unset nothing is erased (OD-36 unchanged).
+- **Also restored:** `docs/engineering/database.md`, which a scripted append in the reviewed head truncated to its Phase 7E section; the full document (purge order, every phase's migrations) is back, and the 7E validator now checks it.

@@ -1254,6 +1254,34 @@
       "mitigated_by": [
         "I-12"
       ]
+    },
+    {
+      "id": "T-120",
+      "category": "revocation",
+      "description": "A saved briefing total, comparison, or coverage figure is re-checked only through its displayed sample, so a contributor outside the sample, a previous-window-only contributor, an aggregate without listed rows, or a permission held on another brand keeps a hidden count visible after access is lost (including at notification send time).",
+      "mitigated_by": [
+        "I-07",
+        "I-08",
+        "I-12"
+      ]
+    },
+    {
+      "id": "T-121",
+      "category": "revocation",
+      "description": "A correction note is listed, edited, decided, replayed, or reused after its source evidence became unreadable, so its text, scope, or statement identifier (which may quote protected content) survives the revocation, or it is newly approved without access.",
+      "mitigated_by": [
+        "I-07",
+        "I-12",
+        "I-14"
+      ]
+    },
+    {
+      "id": "T-122",
+      "category": "staleness",
+      "description": "Configured technical retention never discovers a workspace whose expired content is briefings only (no AI runs, or only erased ones), so briefing content outlives its retention period; notes on erased briefings remain a recovery path.",
+      "mitigated_by": [
+        "I-12"
+      ]
     }
   ],
   "tests": [
@@ -9462,6 +9490,140 @@
       "surface": "ui_record",
       "expected": "allow",
       "response_shape": "ok",
+      "silent_surfaces": [
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-468",
+      "threats": [
+        "T-120"
+      ],
+      "principal": "guest",
+      "setup": "More than 20 completed records; a revoked contributor outside the listed sample withholds the saved total wholesale on detail and completed-key replay; a fully authorized recipient keeps the canonical total",
+      "scope": "share revoked",
+      "action": "personal.manage_own",
+      "surface": "ai_answer",
+      "expected": "deny",
+      "response_shape": "omitted",
+      "silent_surfaces": [
+        "count_facet",
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-469",
+      "threats": [
+        "T-120"
+      ],
+      "principal": "guest",
+      "setup": "A contributor present only in the previous-window comparison withholds the later briefing after revocation",
+      "scope": "share revoked",
+      "action": "personal.manage_own",
+      "surface": "ai_answer",
+      "expected": "deny",
+      "response_shape": "omitted",
+      "silent_surfaces": [
+        "count_facet"
+      ]
+    },
+    {
+      "id": "AT-470",
+      "threats": [
+        "T-120"
+      ],
+      "principal": "guest",
+      "setup": "An aggregate with no listed rows (the open-task basis) is re-authorized, and a scheduled briefing's email notice is suppressed at send time after the loss",
+      "scope": "share revoked",
+      "action": "personal.manage_own",
+      "surface": "notification_email",
+      "expected": "deny",
+      "response_shape": "omitted",
+      "silent_surfaces": [
+        "count_facet",
+        "notification_inapp"
+      ]
+    },
+    {
+      "id": "AT-471",
+      "threats": [
+        "T-120"
+      ],
+      "principal": "member",
+      "setup": "Losing timesheet approval in brand A withholds a decision bound to brand A while approval in brand B remains",
+      "scope": "brand",
+      "action": "timesheet.approve",
+      "surface": "ai_answer",
+      "expected": "deny",
+      "response_shape": "omitted",
+      "silent_surfaces": [
+        "count_facet",
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-472",
+      "threats": [
+        "T-121"
+      ],
+      "principal": "guest",
+      "setup": "Proposed and approved notes with source markers are omitted from the list, refused by commands, withheld on completed-key replay, and not reused after revocation; restored access restores them; another member never sees them",
+      "scope": "share revoked",
+      "action": "personal.manage_own",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "omitted",
+      "silent_surfaces": [
+        "error_message",
+        "count_facet"
+      ]
+    },
+    {
+      "id": "AT-473",
+      "threats": [
+        "T-121",
+        "T-122"
+      ],
+      "principal": "guest",
+      "setup": "Retention erasure removes notes that are not approved memory with their briefing; approved memory stays under its own evidence; a still-authorized evidence change makes it stale",
+      "scope": "personal",
+      "action": "personal.manage_own",
+      "surface": "api",
+      "expected": "allow",
+      "response_shape": "ok_filtered",
+      "silent_surfaces": [
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-474",
+      "threats": [
+        "T-122"
+      ],
+      "principal": "system_job",
+      "setup": "The registered retention handler discovers briefing-only, AI-erased, and mixed workspaces through the dispatcher and erases only expired briefing content, repeatably and per workspace; unset retention keeps content",
+      "scope": "job for workspace A",
+      "action": "personal.manage_own",
+      "surface": "api",
+      "expected": "allow",
+      "response_shape": "ok",
+      "silent_surfaces": [
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-475",
+      "threats": [
+        "T-120",
+        "T-122"
+      ],
+      "principal": "system_job",
+      "setup": "The evidence table has forced RLS and no update or delete grant; the briefing retention discovery function is security definer, owned by pm_scheduler, executable by the dispatcher only",
+      "scope": "worker role",
+      "action": "personal.manage_own",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "error_generic",
       "silent_surfaces": [
         "error_message"
       ]

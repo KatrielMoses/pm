@@ -448,6 +448,9 @@ erDiagram
   briefing ||--o{ briefing_statement : "contains"
   briefing_statement }o..o{ record : "references"
   briefing_correction ||--o{ briefing_correction_event : "contains"
+  briefing ||--o{ briefing_evidence : "contains"
+  briefing_correction ||--o{ briefing_evidence : "contains"
+  briefing_evidence }o..o{ record : "references"
 ```
 
 ## Automations

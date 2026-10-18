@@ -24,10 +24,11 @@ SERVICE = "packages/work/src/ai/ai-gateway-service.ts"
 FACTS = "packages/work/src/ai/briefing/facts.ts"
 SCHEDULE = "packages/work/src/ai/briefing/schedule.ts"
 WEB = "apps/web/src/ai/briefings-page.tsx"
-THREATS = ["T-%d" % i for i in range(114, 120)]
-TESTS = ["AT-%d" % i for i in range(455, 468)]
+THREATS = ["T-%d" % i for i in range(114, 123)]
+TESTS = ["AT-%d" % i for i in range(455, 476)]
 TEST_FILES = [
     "packages/work/test/integration/briefings.test.ts",
+    "packages/work/test/integration/briefings-review01.test.ts",
     "apps/api/test/integration/ai-api.test.ts",
     "e2e/briefings.spec.ts",
 ]
@@ -36,7 +37,8 @@ SECTIONS = ["overview.window", "completed.count", "accepted.count", "attention.o
             "deadlines.count", "capacity.week", "time.planned_actual", "ai_cost.window", "agent_runs.foundation",
             "release.test_evidence", "release.no_certification", "generated.unavailable"]
 BOUNDARIES = ["DQ-28", "OD-31", "OD-41", "OD-46", "OD-25", "OD-16", "PRJ-007", "DOC-019", "REL-FU-7A-01", "8C", "9D"]
-TABLES = ["briefing_schedule", "briefing", "briefing_statement", "briefing_correction", "briefing_correction_event"]
+TABLES = ["briefing_schedule", "briefing", "briefing_statement", "briefing_correction", "briefing_correction_event",
+          "briefing_evidence"]
 
 
 def check_boundaries_recorded(closure):
@@ -77,7 +79,9 @@ def check_briefings():
     if not block:
         errs.append("the gateway lacks the 7E briefing block")
     for term, label in [
-        ("async #briefingReadable(", "the display-time evidence re-check"),
+        ("await briefingAvailable(tx, p, row, this.c.settings.principalContextArrayMax)", "the display-time evidence re-check"),
+        ("await storeEvidence(tx, { briefingId: row.id, position: i }, r.rows);", "the stored evidence basis"),
+        ("async #correctionEligible(", "one correction eligibility decision"),
         ("availability: 'withheld'", "wholesale withholding"),
         ("async #applyCorrections(", "corrections applied beside their statement"),
         ("set({ state: 'stale',", "stale corrections"),
@@ -144,12 +148,15 @@ def check_migration():
         if "ALTER TABLE ai.%s FORCE ROW LEVEL SECURITY;" % t not in up:
             errs.append("ai.%s must force row-level security" % t)
     for term in ("CREATE UNIQUE INDEX briefing_one_per_occurrence", "exec_dispatch.discover_briefing_work",
+                 "CREATE FUNCTION exec_dispatch.discover_briefing_retention_work(",
                  "GRANT SELECT ON timetrack.timesheet_line TO app_worker;"):
         if term not in up:
             errs.append("0058 lacks %s" % term)
     if re.search(r"GRANT[^;]*DELETE[^;]*ai\.briefing", up):
         errs.append("no role may delete briefing rows")
     for term in ("Restores the exact 0057 catalog", "0058 cannot be rolled back",
+                 "DROP FUNCTION exec_dispatch.discover_briefing_retention_work(timestamptz, integer);",
+                 "DROP TABLE ai.briefing_evidence;",
                  "REVOKE SELECT ON timetrack.timesheet_line FROM app_worker;"):
         if term not in down:
             errs.append("0058 down lacks %s" % term)
@@ -157,7 +164,7 @@ def check_migration():
     if names[-1] != "0058_ai_briefings.up.sql":
         errs.append("0058_ai_briefings must be the last migration")
     errs += phase1.check_boundaries([58])
-    return errs, "additive 0058, five forced-RLS tables, exact rollback with guard, boundary 58"
+    return errs, "additive 0058, six forced-RLS tables, two discovery functions, exact rollback with guard, boundary 58"
 
 
 def check_identifiers():
@@ -184,7 +191,8 @@ def check_identifiers():
         if len(re.findall(r"(?:it|test)\(\s*['\"]%s " % at, text)) != 1:
             errs.append("%s must title exactly one test" % at)
     model = {e["name"]: e for e in load(P("docs/architecture/data/model/model.json"))["entities"]}
-    for name in ("briefing_schedule", "briefing", "briefing_statement", "briefing_correction", "briefing_correction_event"):
+    for name in ("briefing_schedule", "briefing", "briefing_statement", "briefing_correction", "briefing_correction_event",
+                 "briefing_evidence"):
         if name not in model:
             errs.append("0B lacks %s" % name)
         elif "Phase 7E" not in model[name].get("notes", ""):
@@ -194,7 +202,51 @@ def check_identifiers():
                  "windows follow the local calendar"):
         if case not in unit:
             errs.append("the 7E unit tests lack %r" % case)
-    return errs, "ADR-0042, ADR-49, AZ-49, PL-51, T-114..T-119, AT-455..AT-467"
+    return errs, "ADR-0042, ADR-49, AZ-49, PL-51, T-114..T-122, AT-455..AT-475"
+
+
+def check_corrections(closure):
+    """Corrective review 01: each group maps to registered runtime tests and real code paths."""
+    errs = []
+    review = {r["id"]: r for r in closure.get("corrective_reviews", [])}.get("7E-CR-01")
+    if not review:
+        return ["closure must record corrective review 7E-CR-01"], ""
+    groups = {g["id"]: g for g in review.get("groups", [])}
+    if sorted(groups) != ["R1", "R2", "R3"]:
+        errs.append("7E-CR-01 must record findings R1, R2, and R3")
+    cache = {}
+    tests = {x["id"] for x in load(P("docs/architecture/access/policy/threats.json"))["tests"]}
+    text = "\n".join(read(P(f)) for f in TEST_FILES)
+    for gid, g in sorted(groups.items()):
+        phase2.check_evidence("7E-CR-01 %s" % gid, g.get("evidence"), cache, errs)
+        if "fail" not in g.get("old_code", ""):
+            errs.append("7E-CR-01 %s must record its old-code regression result" % gid)
+        for at in g.get("tests", []):
+            if at not in tests:
+                errs.append("%s test %s is not registered in 0C" % (gid, at))
+            if len(re.findall(r"(?:it|test)\(\s*['\"]%s " % at, text)) != 1:
+                errs.append("%s test %s must title exactly one test" % (gid, at))
+    service = read(P(SERVICE))
+    if "async #briefingReadable(" in service:
+        errs.append("the sample-only #briefingReadable check must be gone")
+    for fn in ("listBriefingCorrections", "updateBriefingCorrection", "decideBriefingCorrection", "#correctionViewById"):
+        i = service.find(fn + "(")
+        body = service[i:i + 2500] if i >= 0 else ""
+        if "#correctionEligible(" not in body:
+            errs.append("%s must decide note eligibility before returning content" % fn)
+    facts = read(P(FACTS))
+    if "perms: (sheetBrands.get(s.id) ?? [])" not in facts or "export const BASIS_MAX" in facts:
+        errs.append("timesheet decisions must bind exact brands, and the basis cap lives with the evidence module")
+    db_doc = read(P("docs/engineering/database.md"))
+    for heading in ("## Workspace purge order", "## Phase 7C: AI drafting and analysis", "## Phase 7E: briefings and reviews",
+                    "Corrective review 01 adds to 0058:"):
+        if heading not in db_doc:
+            errs.append("docs/engineering/database.md lacks %r (it must stay complete)" % heading)
+    if "discoverBriefingRetentionWork" not in read(P("packages/work/src/ai/jobs.ts")):
+        errs.append("the retention job must discover briefing content independently")
+    if "if (!b || !(await briefingAvailable(" not in read(P("packages/work/src/notify/render.ts")):
+        errs.append("send-time rendering must use the briefing availability decision")
+    return errs, "R1, R2, and R3 mapped to AT-468..AT-475 with old-code results"
 
 
 def check_wiring():
@@ -224,6 +276,7 @@ def main():
         ("phase 7E: briefings, schedules, corrections, and delivery", check_briefings()),
         ("phase 7E: migration 0058", check_migration()),
         ("phase 7E: identifiers and tests", check_identifiers()),
+        ("phase 7E: corrective review 01 evidence", check_corrections(closure)),
         ("phase 7E: validator wiring", check_wiring()),
         ("phase 7E: migration sequence", phase1.check_migrations()),
     ]

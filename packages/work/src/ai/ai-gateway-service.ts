@@ -48,7 +48,7 @@ import {
 } from '@pm/tenancy';
 import { change, CommandContext } from '@pm/audit';
 import { McpAccessService } from '../integrations/mcp-access-service.ts';
-import { activePerson, principalOf, readableRecords } from '../notify/access.ts';
+import { activePerson, principalOf } from '../notify/access.ts';
 import { NotificationFanOut } from '../notify/fanout.ts';
 import { systemExec } from '../notify/system.ts';
 import { localDay, validZone } from '../time/semantics.ts';
@@ -73,6 +73,15 @@ import {
   type Ref,
   type Statement,
 } from './briefing/facts.ts';
+import {
+  briefingAvailable,
+  emptyBasis,
+  evidenceOf,
+  evidenceReadable,
+  resolveBasis,
+  storeEvidence,
+  type Basis,
+} from './briefing/evidence.ts';
 import {
   AI_METERS,
   amountOf,
@@ -390,15 +399,31 @@ const BRIEFING_CORRECTIONS_MAX = 50;
 const CORRECTION_MAX_CHARS = 1000;
 const BRIEFING_SWEEP_BATCH = 50;
 const BRIEFING_MAX_ATTEMPTS = 3;
+/** Evidence references one briefing may store (statement bases are capped at BASIS_MAX each). */
+const BRIEFING_EVIDENCE_MAX = 40_000;
+
+/** A statement's full basis: its recorded basis plus every record and brand its refs name. */
+function statementBasis(s: Statement): Basis {
+  const b = s.basis ?? emptyBasis();
+  return {
+    records: [...b.records, ...s.refs.flatMap((r) => (r.rec ? [r.rec] : []))],
+    brands: [...b.brands, ...s.refs.flatMap((r) => (r.brand ? [r.brand] : []))],
+    perms: b.perms,
+  };
+}
 
 /**
- * The evidence a statement rests on, for binding a correction to it: the first reference with a
- * version, or else a digest of the statement's figures. A change to either makes a note stale.
+ * The evidence a statement rests on, for binding a correction to it: a calculation's figures, or
+ * else the first reference with a version (or a digest of the figures). A change makes a note stale.
  */
-function subjectOf(s: Pick<Statement, 'key' | 'refs' | 'figures'>): {
+function subjectOf(s: Pick<Statement, 'key' | 'refs' | 'figures' | 'kind'>): {
   id: string;
   version: string;
 } {
+  // A calculation rests on its figures: any change to them (a new contributor, a lost one, a
+  // recount) makes a note on it stale, even when its first listed record is unchanged.
+  if (s.kind === 'calculation')
+    return { id: s.key.slice(0, 200), version: figuresDigest(s.figures) };
   const r = s.refs.find((x) => x.v !== undefined);
   if (r) return { id: r.id, version: String(r.v) };
   return { id: s.refs[0]?.id ?? s.key.slice(0, 200), version: figuresDigest(s.figures) };
@@ -5094,6 +5119,7 @@ export class AiGatewayService extends McpAccessService {
    */
   async #applyCorrections(
     tx: WorkspaceTransaction,
+    p: Principal,
     recipient: string,
     kind: string,
     scopeKey: string,
@@ -5124,6 +5150,9 @@ export class AiGatewayService extends McpAccessService {
     for (const c of approved) {
       const s = byKey.get(c.statement_key);
       if (!s) continue;
+      // A note whose own evidence is no longer readable is neither shown nor applied (R2); it
+      // stays stored for its personal-memory lifecycle and is not marked stale by access loss.
+      if (!(await this.#correctionEligible(tx, p, c.id))) continue;
       const subject = subjectOf(s);
       if (subject.id !== c.subject_public_id || subject.version !== c.subject_version) {
         await tx.db
@@ -5142,6 +5171,7 @@ export class AiGatewayService extends McpAccessService {
         text: `Your approved note: ${c.text}`,
         refs: [...s.refs.slice(0, 4), { type: 'correction', id: c.public_id, self: true }],
         correctionId: c.id,
+        basis: s.basis,
       });
       notes.set(s.key, list);
     }
@@ -5290,6 +5320,7 @@ export class AiGatewayService extends McpAccessService {
     const statements = (
       await this.#applyCorrections(
         tx,
+        p,
         row.recipient_membership_id,
         row.kind,
         row.scope_key,
@@ -5317,6 +5348,16 @@ export class AiGatewayService extends McpAccessService {
           })),
         )
         .execute();
+    // Corrective review 01 (R1): the complete authorization basis of each statement is stored as
+    // protected evidence (references only) in the same transaction.
+    let evidenceRows = 0;
+    for (const [i, s] of statements.entries()) {
+      const r = await resolveBasis(tx, statementBasis(s));
+      if (r.missing) return fail('evidence_unresolved');
+      evidenceRows += r.rows.length;
+      if (evidenceRows > BRIEFING_EVIDENCE_MAX) return fail('evidence_too_large');
+      await storeEvidence(tx, { briefingId: row.id, position: i }, r.rows);
+    }
     const now = new Date();
     await tx.db
       .updateTable('ai.briefing')
@@ -5607,56 +5648,6 @@ export class AiGatewayService extends McpAccessService {
     return row;
   }
 
-  /**
-   * Display-time re-check (BRF-014): every statement's evidence must still be readable by the
-   * recipient. When any is not, the whole briefing is withheld rather than redacted, so a hidden
-   * record's title, count, or delta never shows. Comparisons were computed from authorized data.
-   */
-  async #briefingReadable(tx: WorkspaceTransaction, p: Principal, refs: Ref[]): Promise<boolean> {
-    const recs = [...new Set(refs.flatMap((r) => (r.rec ? [r.rec] : [])))];
-    if (recs.length) {
-      const ids = await tx.db
-        .selectFrom('core.record')
-        .select(['id', 'public_id'])
-        .where('public_id', 'in', recs)
-        .execute();
-      if (ids.length !== recs.length) return false;
-      const ok = await readableRecords(
-        tx,
-        p,
-        ids.map((r) => r.id),
-        this.c.settings.principalContextArrayMax,
-      );
-      if (ok.size !== ids.length) return false;
-    }
-    for (const b of new Set(refs.flatMap((r) => (r.brand ? [r.brand] : [])))) {
-      try {
-        await findBrand(tx, p, b);
-      } catch (err) {
-        if (err instanceof TenancyError) return false;
-        throw err;
-      }
-    }
-    if (refs.some((r) => r.perm === 'timesheet.approve')) {
-      const brands = await tx.db
-        .selectFrom('tenancy.brand')
-        .select(['id', 'is_sensitive', 'lifecycle_state'])
-        .execute();
-      if (
-        !brands.some(
-          (b) =>
-            decideBrand(p, 'timesheet.approve', {
-              id: b.id,
-              isSensitive: b.is_sensitive,
-              lifecycleState: b.lifecycle_state as 'active',
-            }).allowed,
-        )
-      )
-        return false;
-    }
-    return true;
-  }
-
   #briefingSummary(row: {
     public_id: string;
     kind: BriefingKind;
@@ -5735,6 +5726,13 @@ export class AiGatewayService extends McpAccessService {
         statements: [],
         coverage: null,
       };
+    // Display-time re-check (BRF-014, corrective review 01 R1): the whole evidence basis of every
+    // statement (unlisted contributors, previous-window contributors, exact-brand permissions) must
+    // still be readable before anything saved is read back; otherwise the briefing is withheld whole.
+    if (!(await briefingAvailable(tx, p, row, this.c.settings.principalContextArrayMax))) {
+      this.d.metrics.count('ai.briefings', 1, { outcome: 'withheld' });
+      return { ...base, availability: 'withheld', statements: [], coverage: null };
+    }
     const st = await tx.db
       .selectFrom('ai.briefing_statement as s')
       .leftJoin('ai.briefing_correction as c', 'c.id', 's.correction_id')
@@ -5752,11 +5750,6 @@ export class AiGatewayService extends McpAccessService {
       .where('s.briefing_id', '=', row.id)
       .orderBy('s.position')
       .execute();
-    const refs = st.flatMap((s) => s.refs as unknown as Ref[]);
-    if (!(await this.#briefingReadable(tx, p, refs))) {
-      this.d.metrics.count('ai.briefings', 1, { outcome: 'withheld' });
-      return { ...base, availability: 'withheld', statements: [], coverage: null };
-    }
     const corrections = await tx.db
       .selectFrom('ai.briefing_correction')
       .select(['public_id', 'statement_key', 'state'])
@@ -6192,6 +6185,7 @@ export class AiGatewayService extends McpAccessService {
     return {
       id: row.public_id,
       type: 'briefing_correction' as const,
+      availability: 'available' as const,
       briefing: row.origin_public ?? null,
       kind: row.kind,
       scope: row.scope_key,
@@ -6206,8 +6200,53 @@ export class AiGatewayService extends McpAccessService {
     };
   }
 
+  /**
+   * The one current-evidence decision for a note (corrective review 01 R2): not erased, its origin
+   * briefing's content not erased unless the note is approved memory, and the note's own copied
+   * evidence (the statement's full basis and the briefing scope) readable now through the R1
+   * canonical checks. Used by the list, detail, commands, completed-key replay, and reuse.
+   */
+  async #correctionEligible(tx: WorkspaceTransaction, p: Principal, correctionId: string) {
+    const c = await tx.db
+      .selectFrom('ai.briefing_correction as c')
+      .innerJoin('ai.briefing as b', 'b.id', 'c.origin_briefing_id')
+      .select(['c.state', 'c.recipient_membership_id', 'b.content_state'])
+      .where('c.id', '=', correctionId)
+      .executeTakeFirst();
+    if (!c || c.recipient_membership_id !== p.membershipId || c.state === 'erased') return false;
+    if (c.content_state !== 'present' && c.state !== 'approved') return false;
+    return evidenceReadable(
+      tx,
+      p,
+      await evidenceOf(tx, { correctionId }),
+      this.c.settings.principalContextArrayMax,
+    );
+  }
+
+  /** What a withheld note shows: its opaque id and nothing of its text, scope, or statement. */
+  #withheldCorrection(row: { public_id: string; version: number }) {
+    return {
+      id: row.public_id,
+      type: 'briefing_correction' as const,
+      availability: 'withheld' as const,
+      briefing: null,
+      kind: null,
+      scope: null,
+      statement: null,
+      text: null,
+      state: 'unavailable' as const,
+      revision: null,
+      decided_at: null,
+      created_at: null,
+      applies_to: null,
+      version: Number(row.version),
+      history: [],
+    };
+  }
+
   async #correctionViewById(tx: WorkspaceTransaction, p: Principal, bco: string) {
     const r = await this.#ownCorrection(tx, p, bco);
+    if (!(await this.#correctionEligible(tx, p, r.id))) return this.#withheldCorrection(r);
     const origin = await tx.db
       .selectFrom('ai.briefing')
       .select('public_id')
@@ -6297,6 +6336,7 @@ export class AiGatewayService extends McpAccessService {
             ],
           });
         const subject = subjectOf({
+          kind: st.kind,
           key: st.statement_key,
           refs: st.refs as unknown as Ref[],
           figures: (st.figures ?? undefined) as Statement['figures'],
@@ -6319,6 +6359,17 @@ export class AiGatewayService extends McpAccessService {
             text: note.text,
           })
           .execute();
+        // The note keeps its own copy of the statement's full evidence basis and the scope, so
+        // it is re-checked even after its origin briefing ages out (R2).
+        const scoped = await resolveBasis(tx, {
+          records: row.scope_key.startsWith('project:') ? [row.scope_key.slice(8)] : [],
+          brands: row.scope_key.startsWith('brand:') ? [row.scope_key.slice(6)] : [],
+          perms: [],
+        });
+        await storeEvidence(tx, { correctionId: id }, [
+          ...(await evidenceOf(tx, { briefingId: row.id, position: st.position })),
+          ...scoped.rows,
+        ]);
         await this.#correctionEvent(tx, id, 'proposed', 1, p.membershipId);
         this.d.metrics.count('ai.briefings', 1, { outcome: 'correction_proposed' });
         return {
@@ -6343,7 +6394,12 @@ export class AiGatewayService extends McpAccessService {
         .orderBy('c.created_at', 'desc')
         .limit(BRIEFING_CORRECTIONS_MAX);
       if (typeof query.state === 'string') q = q.where('c.state', '=', query.state as 'proposed');
-      return { items: (await q.execute()).map((r) => this.#correctionView(r)) };
+      // Eligibility is decided before anything is returned: a note whose evidence is no longer
+      // readable is omitted entirely (no text, scope, statement, or count).
+      const items = [];
+      for (const r of await q.execute())
+        if (await this.#correctionEligible(tx, p, r.id)) items.push(this.#correctionView(r));
+      return { items };
     });
   }
 
@@ -6370,6 +6426,7 @@ export class AiGatewayService extends McpAccessService {
       async (tx, p) => {
         this.requirePersonal(p, 'personal.manage_own');
         const row = await this.#ownCorrection(tx, p, bco, true);
+        if (!(await this.#correctionEligible(tx, p, row.id))) throw new TenancyError('not_found');
         if (req.ifMatch !== undefined)
           requireVersion(parseIfMatch(req.ifMatch), Number(row.version));
         if (row.state !== 'proposed')
@@ -6417,6 +6474,8 @@ export class AiGatewayService extends McpAccessService {
       async (tx, p) => {
         this.requirePersonal(p, 'personal.manage_own');
         const row = await this.#ownCorrection(tx, p, bco, true);
+        // A note whose evidence is inaccessible cannot be decided (and so never newly approved).
+        if (!(await this.#correctionEligible(tx, p, row.id))) throw new TenancyError('not_found');
         if (req.ifMatch !== undefined)
           requireVersion(parseIfMatch(req.ifMatch), Number(row.version));
         if (row.state !== 'proposed')

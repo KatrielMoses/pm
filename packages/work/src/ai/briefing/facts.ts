@@ -3,6 +3,8 @@ import { sql, type RawBuilder, type WorkspaceTransaction } from '@pm/db';
 import type { Principal } from '@pm/tenancy';
 import { addDays, localDay } from '../../time/semantics.ts';
 import { parseMicros, usdDisplay } from '../money.ts';
+import { decideBrand } from '@pm/tenancy';
+import { BASIS_MAX, type Basis } from './evidence.ts';
 
 /**
  * Phase 7E (ADR-0042): the deterministic fact engine of a briefing. Every figure and item is read
@@ -62,7 +64,6 @@ export interface Ref {
   v?: number | string;
   rec?: string;
   brand?: string;
-  perm?: 'timesheet.approve';
   self?: true;
 }
 
@@ -74,6 +75,13 @@ export interface Statement {
   refs: Ref[];
   figures?: Record<string, string | number | boolean | null>;
   correctionId?: string | null;
+  /**
+   * Corrective review 01 (R1): the complete authorization basis of the statement, not only the
+   * listed sample: every contributing record (including unlisted items and previous-window
+   * contributors), brand, and exact-brand permission. Stored as protected evidence and re-checked
+   * before any saved content is shown.
+   */
+  basis?: Basis;
 }
 
 export interface SectionCoverage {
@@ -191,10 +199,9 @@ const plural = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? o
 
 /** A stable digest of figures, used as the version of a statement without a record version. */
 export function figuresDigest(f: Record<string, unknown> | undefined): string {
-  return createHash('sha256')
-    .update(JSON.stringify(f ?? {}))
-    .digest('hex')
-    .slice(0, 16);
+  // Key order is not significant (figures read back from jsonb come out sorted).
+  const sorted = Object.fromEntries(Object.entries(f ?? {}).sort(([a], [b]) => a.localeCompare(b)));
+  return createHash('sha256').update(JSON.stringify(sorted)).digest('hex').slice(0, 16);
 }
 
 interface TaskRowLite {
@@ -244,6 +251,46 @@ export async function buildStatements(
     };
   };
 
+  /** The complete record basis of a count: every authorized contributor, up to BASIS_MAX. */
+  const basisOf = async (body: RawBuilder<unknown>, id = sql`r.public_id`) => {
+    const rows = (
+      await sql<{ id: string }>`SELECT DISTINCT ${id} AS id ${body} LIMIT ${BASIS_MAX + 1}`.execute(
+        tx.db,
+      )
+    ).rows;
+    return { ids: rows.slice(0, BASIS_MAX).map((r) => r.id), overflow: rows.length > BASIS_MAX };
+  };
+  const records = (...parts: Array<{ ids: string[]; overflow: boolean }>): Basis => ({
+    records: [...new Set(parts.flatMap((x) => x.ids))],
+    brands: [],
+    perms: [],
+    overflow: parts.some((x) => x.overflow),
+  });
+  /**
+   * A figure whose basis is larger than a briefing can keep verifiable keeps no total: it becomes
+   * an explicit unknown, so a sample is never presented as the basis of a full count.
+   */
+  const push = (s: Statement) => {
+    if (!s.basis?.overflow) return out.push(s);
+    return out.push({
+      section: s.section,
+      kind: 'unknown',
+      key: s.key,
+      text: `More than ${BASIS_MAX} records contribute here, more than a briefing keeps re-verifiable evidence for, so no total is kept. Listed items below are still shown.`,
+      refs: [],
+      basis: { records: [], brands: [], perms: [] },
+    });
+  };
+  const coverOf = (section: string, shown: number, total: number, overflow?: boolean) =>
+    overflow
+      ? (coverage.sections[section] = {
+          state: 'partial',
+          shown,
+          total: null,
+          note: 'basis_too_large',
+        })
+      : cover(section, shown, total);
+
   // -- Header: window, scope, baseline -----------------------------------------------------------
   out.push({
     section: 'overview',
@@ -290,14 +337,22 @@ export async function buildStatements(
          AND ${readableTask}
        ORDER BY t.completed_at DESC, t.id DESC
        LIMIT ${SECTION_ITEMS_MAX}`.execute(tx.db);
+  const completedBasis = (from: Date, to: Date) =>
+    basisOf(sql`FROM work.task t JOIN core.record r ON r.workspace_id = t.workspace_id AND r.id = t.id
+       WHERE t.status_category = 'done' AND t.completed_at >= ${from} AND t.completed_at < ${to}
+         AND ${readableTask}`);
   const done = (await completedIn(input.windowStart, input.windowEnd)).rows;
   const doneTotal = Number(done[0]?.n ?? 0);
+  const doneBasis = await completedBasis(input.windowStart, input.windowEnd);
+  const prevBasis = input.baseline
+    ? await completedBasis(input.baseline.windowStart, input.baseline.windowEnd)
+    : { ids: [], overflow: false };
   const previous = input.baseline
     ? Number(
         (await completedIn(input.baseline.windowStart, input.baseline.windowEnd)).rows[0]?.n ?? 0,
       )
     : null;
-  out.push({
+  push({
     section: 'completed',
     kind: 'calculation',
     key: 'completed.count',
@@ -316,6 +371,8 @@ export async function buildStatements(
       v: t.version,
     })),
     figures: { total: doneTotal, shown: done.length, previous_window_total: previous },
+    // The full basis: every contributor in this window and in the previous one, not the sample.
+    basis: records(doneBasis, prevBasis),
   });
   for (const t of done)
     out.push({
@@ -325,7 +382,7 @@ export async function buildStatements(
       text: `${quote(t.title)} was marked done ${fmtInstant(t.completed_at!, tz)}.`,
       refs: [{ type: 'task', id: t.public_id, rec: t.public_id, v: t.version }],
     });
-  cover('completed', done.length, doneTotal);
+  coverOf('completed', done.length, doneTotal, doneBasis.overflow || prevBasis.overflow);
 
   // -- Accepted deliverables, separately from claimed completion (BRF-007, 4E) -------------------
   const accepted = (
@@ -353,7 +410,13 @@ export async function buildStatements(
        LIMIT ${SECTION_ITEMS_MAX}`.execute(tx.db)
   ).rows;
   const acceptedTotal = Number(accepted[0]?.n ?? 0);
-  out.push({
+  const acceptedBasis = await basisOf(sql`FROM files.deliverable_version v
+        JOIN files.deliverable d ON d.workspace_id = v.workspace_id AND d.id = v.deliverable_id
+        JOIN work.task t ON t.workspace_id = d.workspace_id AND t.id = d.task_id
+        JOIN core.record r ON r.workspace_id = t.workspace_id AND r.id = t.id
+       WHERE v.accepted_at IS NOT NULL AND v.accepted_at >= ${input.windowStart} AND v.accepted_at < ${input.windowEnd}
+         AND ${readableTask}`);
+  push({
     section: 'accepted',
     kind: 'calculation',
     key: 'accepted.count',
@@ -367,6 +430,7 @@ export async function buildStatements(
       rec: a.task_public,
     })),
     figures: { total: acceptedTotal, shown: accepted.length },
+    basis: records(acceptedBasis),
   });
   for (const a of accepted)
     out.push({
@@ -382,7 +446,7 @@ export async function buildStatements(
       ],
       figures: { current: a.current },
     });
-  cover('accepted', accepted.length, acceptedTotal);
+  coverOf('accepted', accepted.length, acceptedTotal, acceptedBasis.overflow);
   const claimed = (
     await sql<{ public_id: string; title: string; version: number; n: string }>`
       SELECT r.public_id, t.title, t.version, count(*) OVER () AS n
@@ -396,6 +460,29 @@ export async function buildStatements(
        LIMIT ${SECTION_ITEMS_MAX}`.execute(tx.db)
   ).rows;
   const claimedTotal = Number(claimed[0]?.n ?? 0);
+  const claimedBasis =
+    await basisOf(sql`FROM work.task t JOIN core.record r ON r.workspace_id = t.workspace_id AND r.id = t.id
+       WHERE t.status_category = 'done' AND t.completed_at >= ${input.windowStart} AND t.completed_at < ${input.windowEnd}
+         AND ${readableTask}
+         AND (t.requires_acceptance OR EXISTS (SELECT 1 FROM files.deliverable d WHERE d.workspace_id = t.workspace_id AND d.task_id = t.id))
+         AND NOT EXISTS (SELECT 1 FROM files.deliverable d WHERE d.workspace_id = t.workspace_id AND d.task_id = t.id
+                          AND d.state = 'accepted' AND d.accepted_version_id IS NOT NULL)`);
+  push({
+    section: 'accepted',
+    kind: 'calculation',
+    key: 'accepted.claimed_count',
+    text: claimedTotal
+      ? `${plural(claimedTotal, 'task')} marked done in this window ${claimedTotal === 1 ? 'needs' : 'need'} acceptance and ${claimedTotal === 1 ? 'has' : 'have'} no accepted deliverable.`
+      : 'Every task marked done in this window that needs acceptance has an accepted deliverable.',
+    refs: claimed.map((c) => ({
+      type: 'task' as const,
+      id: c.public_id,
+      rec: c.public_id,
+      v: c.version,
+    })),
+    figures: { total: claimedTotal, shown: claimed.length },
+    basis: records(claimedBasis),
+  });
   for (const c of claimed)
     out.push({
       section: 'accepted',
@@ -404,11 +491,7 @@ export async function buildStatements(
       text: `${quote(c.title)} is marked done but has no accepted deliverable yet: completion is claimed, not accepted.`,
       refs: [{ type: 'task', id: c.public_id, rec: c.public_id, v: c.version }],
     });
-  coverage.sections.claimed = {
-    state: claimed.length < claimedTotal ? 'truncated' : 'complete',
-    shown: claimed.length,
-    total: claimedTotal,
-  };
+  coverOf('claimed', claimed.length, claimedTotal, claimedBasis.overflow);
 
   // -- Attention: overdue, blocked, stale, at risk (BRF-008) -------------------------------------
   if (input.kind !== 'release_readiness') {
@@ -423,7 +506,11 @@ export async function buildStatements(
          LIMIT ${SECTION_ITEMS_MAX}`.execute(tx.db)
     ).rows;
     const overdueTotal = Number(overdue[0]?.n ?? 0);
-    out.push({
+    const overdueBasis =
+      await basisOf(sql`FROM work.task t JOIN core.record r ON r.workspace_id = t.workspace_id AND r.id = t.id
+         WHERE t.status_category NOT IN ('done', 'cancelled') AND ${readableTask}
+           AND (t.due_date < ${today}::date OR t.deadline_date < ${today}::date OR t.deadline_at < ${input.windowEnd})`);
+    push({
       section: 'attention',
       kind: 'calculation',
       key: 'attention.overdue_count',
@@ -437,6 +524,7 @@ export async function buildStatements(
         v: t.version,
       })),
       figures: { total: overdueTotal, shown: overdue.length },
+      basis: records(overdueBasis),
     });
     for (const t of overdue)
       out.push({
@@ -446,7 +534,7 @@ export async function buildStatements(
         text: `${quote(t.title)} was due ${t.due} and is still open.`,
         refs: [{ type: 'task', id: t.public_id, rec: t.public_id, v: t.version }],
       });
-    cover('overdue', overdue.length, overdueTotal);
+    coverOf('overdue', overdue.length, overdueTotal, overdueBasis.overflow);
 
     // Blocked and stale come from the task signals (2D, OD-17) over a bounded candidate set.
     const candidates = (
@@ -457,19 +545,27 @@ export async function buildStatements(
          ORDER BY t.last_meaningful_update_at, t.id
          LIMIT ${SIGNAL_CANDIDATES_MAX}`.execute(tx.db)
     ).rows;
+    const openBasis =
+      await basisOf(sql`FROM work.task t JOIN core.record r ON r.workspace_id = t.workspace_id AND r.id = t.id
+         WHERE t.status_category NOT IN ('done', 'cancelled') AND ${readableTask}`);
+    // The open total is shown only while its whole basis is kept; otherwise it is not stated.
+    const openKnown = !openBasis.overflow;
     const openTotal = Number(candidates[0]?.n ?? 0);
+    const examined = { ids: candidates.map((c) => c.public_id), overflow: false };
     const signals = await readers.signals(candidates.map((c) => c.public_id));
     const blocked = candidates.filter((c) => signals.get(c.public_id)?.blocked === true);
     const stale = candidates.filter((c) => signals.get(c.public_id)?.stale === true);
     const examinedNote =
       openTotal > candidates.length
-        ? ` Examined the ${candidates.length} least recently updated of ${openTotal} open tasks.`
+        ? openKnown
+          ? ` Examined the ${candidates.length} least recently updated of ${openTotal} open tasks.`
+          : ` Examined the ${candidates.length} least recently updated open tasks; others were not examined.`
         : '';
     for (const [section, list, label] of [
       ['blocked', blocked, 'blocked by open work'],
       ['stale', stale, 'stale (no meaningful update within the freshness rule)'],
     ] as const) {
-      out.push({
+      push({
         section: 'attention',
         kind: 'calculation',
         key: `attention.${section}_count`,
@@ -480,7 +576,12 @@ export async function buildStatements(
         refs: list
           .slice(0, SECTION_ITEMS_MAX)
           .map((t) => ({ type: 'task' as const, id: t.public_id, rec: t.public_id, v: t.version })),
-        figures: { total: list.length, examined: candidates.length, open_total: openTotal },
+        figures: {
+          total: list.length,
+          examined: candidates.length,
+          open_total: openKnown ? openTotal : null,
+        },
+        basis: openKnown ? records(examined, openBasis) : records(examined),
       });
       for (const t of list.slice(0, SECTION_ITEMS_MAX))
         out.push({
@@ -527,6 +628,30 @@ export async function buildStatements(
          ORDER BY u.created_at DESC, w.id
          LIMIT ${SECTION_ITEMS_MAX}`.execute(tx.db)
     ).rows;
+    const riskyTotal = Number(risky[0]?.n ?? 0);
+    const riskyBasis =
+      await basisOf(sql`FROM work.project w JOIN core.record r ON r.workspace_id = w.workspace_id AND r.id = w.id
+          JOIN LATERAL (SELECT * FROM work.project_update u WHERE u.workspace_id = w.workspace_id AND u.project_id = w.id
+                         ORDER BY u.created_at DESC, u.id DESC LIMIT 1) u ON true
+         WHERE r.lifecycle_state = 'active' AND u.health IN ('at_risk', 'off_track')
+           AND ${vis.where('r', { project: sql`w.id` })}
+           AND ${scope.projectId ? sql`w.id = ${scope.projectId}::uuid` : scope.brandId ? sql`w.brand_id = ${scope.brandId}::uuid` : sql`true`}`);
+    push({
+      section: 'attention',
+      kind: 'calculation',
+      key: 'attention.at_risk_count',
+      text: riskyTotal
+        ? `${plural(riskyTotal, 'project')} you can read ${riskyTotal === 1 ? 'reports' : 'report'} a risk in its latest update.`
+        : 'No project you can read reports a risk in its latest update.',
+      refs: risky.map((r) => ({
+        type: 'project' as const,
+        id: r.public_id,
+        rec: r.public_id,
+        v: r.version,
+      })),
+      figures: { total: riskyTotal, shown: risky.length },
+      basis: records(riskyBasis),
+    });
     for (const r of risky)
       out.push({
         section: 'attention',
@@ -539,7 +664,7 @@ export async function buildStatements(
         ],
         figures: { health: r.health, verified: r.verified },
       });
-    cover('at_risk', risky.length, Number(risky[0]?.n ?? 0));
+    coverOf('at_risk', risky.length, riskyTotal, riskyBasis.overflow);
   }
 
   // -- Decisions awaiting this person (BRF-009) --------------------------------------------------
@@ -586,6 +711,11 @@ export async function buildStatements(
     }
     if (!scope.projectId) {
       const sheets = await readers.timesheets();
+      const sheetBrands = await approvableSheetBrands(
+        tx,
+        p,
+        sheets.data.map((s) => s.id),
+      );
       for (const s of sheets.data) {
         const start =
           typeof s.period_start === 'string' ? s.period_start : (s.period?.start ?? null);
@@ -594,7 +724,16 @@ export async function buildStatements(
           kind: 'fact',
           key: `decisions.timesheet:${s.id}`,
           text: `A timesheet${start ? ` for the period starting ${start}` : ''} waits for your approval.`,
-          refs: [{ type: 'timesheet', id: s.id, perm: 'timesheet.approve' }],
+          refs: [{ type: 'timesheet', id: s.id }],
+          // Bound to the exact brands whose pending lines made it this person's decision.
+          basis: {
+            records: [],
+            brands: [],
+            perms: (sheetBrands.get(s.id) ?? []).map((brand) => ({
+              perm: 'timesheet.approve' as const,
+              brand,
+            })),
+          },
         });
       }
     }
@@ -607,6 +746,11 @@ export async function buildStatements(
         ? `${plural(decisions.length, 'decision')} ${decisions.length === 1 ? 'waits' : 'wait'} for you.`
         : 'Nothing waits for your decision.',
       refs: shown.flatMap((d) => d.refs.slice(0, 1)),
+      basis: {
+        records: decisions.flatMap((d) => d.refs.flatMap((r) => (r.rec ? [r.rec] : []))),
+        brands: [],
+        perms: decisions.flatMap((d) => d.basis?.perms ?? []),
+      },
       figures: {
         total: decisions.length,
         shown: shown.length,
@@ -643,7 +787,14 @@ export async function buildStatements(
     ).rows;
     const dueTotal = Number(due[0]?.n ?? 0);
     const mine = input.kind === 'owner_daily' || input.kind === 'weekly_review';
-    out.push({
+    const dueBasis =
+      await basisOf(sql`FROM work.task t JOIN core.record r ON r.workspace_id = t.workspace_id AND r.id = t.id
+         WHERE t.status_category NOT IN ('done', 'cancelled') AND ${readableTask}
+           AND ((t.due_date BETWEEN ${today}::date AND ${horizon}::date)
+             OR (t.deadline_date BETWEEN ${today}::date AND ${horizon}::date)
+             OR (t.deadline_at >= ${input.windowEnd} AND t.deadline_at < ${new Date(input.windowEnd.getTime() + 8 * DAY)}))
+           ${mine ? sql`AND EXISTS (SELECT 1 FROM work.task_assignee a WHERE a.task_id = t.id AND a.membership_id = ${p.membershipId}::uuid)` : sql``}`);
+    push({
       section: 'deadlines',
       kind: 'calculation',
       key: 'deadlines.count',
@@ -657,6 +808,7 @@ export async function buildStatements(
         v: t.version,
       })),
       figures: { total: dueTotal, shown: due.length, from: today, to: horizon },
+      basis: records(dueBasis),
     });
     for (const t of due)
       out.push({
@@ -666,7 +818,7 @@ export async function buildStatements(
         text: `${quote(t.title)} is due ${t.due}.`,
         refs: [{ type: 'task', id: t.public_id, rec: t.public_id, v: t.version }],
       });
-    cover('deadlines', due.length, dueTotal);
+    coverOf('deadlines', due.length, dueTotal, dueBasis.overflow);
     if (!scope.projectId && p.kind === 'guest') {
       out.push({
         section: 'capacity',
@@ -680,7 +832,18 @@ export async function buildStatements(
       const cap = await readers.capacity(today, addDays(today, 6));
       const t = cap.totals;
       const planned = Math.max(t.scheduled_minutes, t.estimated_minutes);
-      out.push({
+      // Basis: the brands whose reservations, blocks, and estimates count, and every readable open
+      // task assigned to the person and due in the window (a superset of the estimated tasks).
+      const capTasks =
+        await basisOf(sql`FROM work.task t JOIN core.record r ON r.workspace_id = t.workspace_id AND r.id = t.id
+           WHERE t.status_category NOT IN ('done', 'cancelled') AND ${readableTask}
+             AND t.due_date BETWEEN ${today}::date AND ${addDays(today, 6)}::date
+             AND EXISTS (SELECT 1 FROM work.task_assignee a WHERE a.task_id = t.id AND a.membership_id = ${p.membershipId}::uuid)`);
+      const capBasis: Basis = {
+        ...records(capTasks),
+        brands: cap.brands.map((b) => b.brand.id),
+      };
+      push({
         section: 'capacity',
         kind: 'calculation',
         key: 'capacity.week',
@@ -691,6 +854,7 @@ export async function buildStatements(
           scheduled_minutes: t.scheduled_minutes,
           estimated_minutes: t.estimated_minutes,
         },
+        basis: capBasis,
       });
       const conflicts = cap.conflicts.filter((c) =>
         scope.brandId
@@ -705,6 +869,7 @@ export async function buildStatements(
           text: conflictText(c, tz),
           refs: [{ type: 'capacity', id: 'me', self: true }],
           figures: { kind: c.kind },
+          basis: { records: [], brands: cap.brands.map((b) => b.brand.id), perms: [] },
         });
       cover('capacity', Math.min(conflicts.length, SECTION_ITEMS_MAX), conflicts.length);
     }
@@ -720,7 +885,21 @@ export async function buildStatements(
       member: 'me',
       ...(scope.brandPublicId ? { brand: scope.brandPublicId } : {}),
     });
-    out.push({
+    // Basis: the work records of the person's entries on those dates and every readable task
+    // assigned to them due on those dates (a superset of the planned estimates).
+    const timeEntries = await basisOf(sql`FROM timetrack.time_entry e
+        JOIN core.record r ON r.workspace_id = e.workspace_id AND r.id = coalesce(e.task_id, e.project_id)
+        LEFT JOIN work.task tk ON tk.workspace_id = e.workspace_id AND tk.id = e.task_id
+       WHERE e.membership_id = ${p.membershipId}::uuid AND e.state = 'stopped'
+         AND e.work_date BETWEEN ${report.range.from}::date AND ${report.range.to}::date
+         AND ${vis.where('r', { project: sql`coalesce(tk.project_id, e.project_id)` })}
+         ${scope.brandId ? sql`AND e.brand_id = ${scope.brandId}::uuid` : sql``}`);
+    const timePlanned =
+      await basisOf(sql`FROM work.task t JOIN core.record r ON r.workspace_id = t.workspace_id AND r.id = t.id
+       WHERE ${vis.where('r', { project: sql`t.project_id` })} AND ${taskScope('t')}
+         AND t.due_date BETWEEN ${report.range.from}::date AND ${report.range.to}::date
+         AND EXISTS (SELECT 1 FROM work.task_assignee a WHERE a.task_id = t.id AND a.membership_id = ${p.membershipId}::uuid)`);
+    push({
       section: 'time',
       kind: 'calculation',
       key: 'time.planned_actual',
@@ -733,6 +912,7 @@ export async function buildStatements(
         actual_seconds: report.totals.actual_seconds,
         entries: report.totals.entries,
       },
+      basis: records(timeEntries, timePlanned),
     });
     coverage.sections.time = {
       state: report.truncated ? 'truncated' : 'complete',
@@ -884,13 +1064,17 @@ export async function buildStatements(
       .filter((c) => c.cat !== 'done' && c.cat !== 'cancelled')
       .reduce((n, c) => n + Number(c.n), 0);
     const finished = Number(counts.find((c) => c.cat === 'done')?.n ?? 0);
-    out.push({
+    const projectTasks =
+      await basisOf(sql`FROM work.task t JOIN core.record r ON r.workspace_id = t.workspace_id AND r.id = t.id
+         WHERE ${readableTask}`);
+    push({
       section: 'project',
       kind: 'calculation',
       key: 'project.task_counts',
       text: `Tasks you can read in this project: ${open} open, ${finished} done.`,
       refs: [proj],
       figures: { open, done: finished },
+      basis: records(projectTasks),
     });
     if (input.kind === 'release_readiness') {
       const dl = (
@@ -921,7 +1105,11 @@ export async function buildStatements(
         ).rows[0]?.n ?? 0,
       );
       const notAccepted = Number(dl[0]?.n ?? 0);
-      out.push({
+      const deliverableTasks = await basisOf(sql`FROM files.deliverable d
+            JOIN work.task t ON t.workspace_id = d.workspace_id AND t.id = d.task_id
+            JOIN core.record r ON r.workspace_id = t.workspace_id AND r.id = t.id
+           WHERE ${readableTask}`);
+      push({
         section: 'release',
         kind: 'calculation',
         key: 'release.deliverables',
@@ -935,6 +1123,7 @@ export async function buildStatements(
           })),
         ],
         figures: { accepted: acceptedAll, not_accepted: notAccepted },
+        basis: records(deliverableTasks),
       });
       for (const d of dl)
         out.push({
@@ -947,7 +1136,7 @@ export async function buildStatements(
             { type: 'task', id: d.task_public, rec: d.task_public },
           ],
         });
-      cover('release', dl.length, notAccepted);
+      coverOf('release', dl.length, notAccepted, deliverableTasks.overflow);
       out.push(
         {
           section: 'release',
@@ -1008,6 +1197,44 @@ function conflictText(c: Record<string, unknown> & { kind: string }, tz: string)
   if (c.kind === 'reservation_unmet')
     return `The time reserved for ${String(c.brand)} (${String(c.reserved_minutes)} min) does not fit: ${String(c.room_minutes)} min remain after other brands.`;
   return 'A calendar event overlaps scheduled work.';
+}
+
+/**
+ * The brands whose pending lines make each timesheet this person's decision, decided per exact
+ * brand by the canonical `timesheet.approve` brand decision (R1: never a workspace-wide check).
+ */
+async function approvableSheetBrands(
+  tx: WorkspaceTransaction,
+  p: Principal,
+  sheets: string[],
+): Promise<Map<string, string[]>> {
+  const out = new Map<string, string[]>();
+  if (!sheets.length) return out;
+  const rows = (
+    await sql<{
+      sheet: string;
+      brand: string;
+      id: string;
+      is_sensitive: boolean;
+      lifecycle_state: string;
+    }>`
+      SELECT DISTINCT s.public_id AS sheet, br.public_id AS brand, b.id, b.is_sensitive, b.lifecycle_state
+        FROM timetrack.timesheet_line l
+        JOIN timetrack.timesheet s ON s.workspace_id = l.workspace_id AND s.id = l.timesheet_id
+        JOIN tenancy.brand b ON b.workspace_id = l.workspace_id AND b.id = l.brand_id
+        JOIN core.record br ON br.workspace_id = b.workspace_id AND br.id = b.id
+       WHERE s.public_id = ANY(${sheets}::text[]) AND l.state = 'pending'`.execute(tx.db)
+  ).rows;
+  for (const r of rows)
+    if (
+      decideBrand(p, 'timesheet.approve', {
+        id: r.id,
+        isSensitive: r.is_sensitive,
+        lifecycleState: r.lifecycle_state as 'active',
+      }).allowed
+    )
+      out.set(r.sheet, [...(out.get(r.sheet) ?? []), r.brand]);
+  return out;
 }
 
 async function deliverableTask(tx: WorkspaceTransaction, dlv: string): Promise<string | null> {

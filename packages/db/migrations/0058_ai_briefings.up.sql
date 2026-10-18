@@ -1,7 +1,8 @@
 -- migrate:phase expand
 -- Phase 7E briefings and reviews (0B ADR-49, ADR-0042). Reconciles the 0B briefing entities: a
 -- personal schedule, a recipient-specific briefing (detail of a `briefing` operation), its
--- source-linked statements, and recipient-scoped corrections with a reference-only history.
+-- source-linked statements, recipient-scoped corrections with a reference-only history, and (corrective
+-- review 01) the complete authorization basis of statements and corrections.
 -- Briefing text and correction text are content: erased on departure and retention. Builds on
 -- 0053–0057; no earlier file changes.
 
@@ -204,6 +205,37 @@ CREATE TABLE ai.briefing_correction_event (
 CREATE INDEX briefing_correction_event_by_correction ON ai.briefing_correction_event (workspace_id, correction_id, created_at);
 
 -- ---------------------------------------------------------------------------------------------
+-- Corrective review 01 (R1, R2): the complete authorization basis of every statement and of every
+-- correction (record, brand, and exact-brand permission references; no content). Display, replay,
+-- notification rendering, and every correction surface re-check it before showing saved content.
+-- Records and brands are references (a purge leaves a tombstone, so there is no foreign key).
+-- ---------------------------------------------------------------------------------------------
+CREATE TABLE ai.briefing_evidence (
+  id uuid PRIMARY KEY,
+  workspace_id uuid NOT NULL REFERENCES tenancy.workspace (id) ON DELETE RESTRICT,
+  briefing_id uuid,
+  correction_id uuid,
+  position integer,
+  kind text NOT NULL,
+  record_id uuid,
+  brand_id uuid,
+  permission text,
+  CONSTRAINT briefing_evidence_workspace_key UNIQUE (workspace_id, id),
+  CONSTRAINT briefing_evidence_briefing_fkey FOREIGN KEY (workspace_id, briefing_id)
+    REFERENCES ai.briefing (workspace_id, id) ON DELETE RESTRICT,
+  CONSTRAINT briefing_evidence_correction_fkey FOREIGN KEY (workspace_id, correction_id)
+    REFERENCES ai.briefing_correction (workspace_id, id) ON DELETE RESTRICT,
+  CONSTRAINT briefing_evidence_owner CHECK ((briefing_id IS NULL) <> (correction_id IS NULL)
+    AND (briefing_id IS NULL OR position BETWEEN 0 AND 999) AND (correction_id IS NULL OR position IS NULL)),
+  CONSTRAINT briefing_evidence_kind CHECK (
+    (kind = 'record' AND record_id IS NOT NULL AND brand_id IS NULL AND permission IS NULL)
+    OR (kind = 'brand' AND record_id IS NULL AND brand_id IS NOT NULL AND permission IS NULL)
+    OR (kind = 'permission' AND record_id IS NULL AND brand_id IS NOT NULL AND permission IN ('timesheet.approve')))
+);
+CREATE INDEX briefing_evidence_by_briefing ON ai.briefing_evidence (workspace_id, briefing_id, position);
+CREATE INDEX briefing_evidence_by_correction ON ai.briefing_evidence (workspace_id, correction_id);
+
+-- ---------------------------------------------------------------------------------------------
 -- Discovery for the briefing sweep (ids only): due schedules and queued briefings.
 -- ---------------------------------------------------------------------------------------------
 CREATE POLICY scheduler_discovery ON ai.briefing_schedule FOR SELECT TO pm_scheduler USING (true);
@@ -231,6 +263,24 @@ REVOKE ALL ON FUNCTION exec_dispatch.discover_briefing_work(timestamptz, integer
 GRANT EXECUTE ON FUNCTION exec_dispatch.discover_briefing_work(timestamptz, integer) TO dispatcher;
 ALTER FUNCTION exec_dispatch.discover_briefing_work(timestamptz, integer) OWNER TO pm_scheduler;
 
+-- Corrective review 01 (R3): configured technical retention finds briefing content on its own, so
+-- a workspace with briefings and no (or only erased) AI runs is still swept. Ids only.
+GRANT SELECT (content_state, created_at) ON ai.briefing TO pm_scheduler;
+CREATE FUNCTION exec_dispatch.discover_briefing_retention_work(p_before timestamptz, p_limit integer)
+  RETURNS TABLE (workspace_id uuid)
+  LANGUAGE sql STABLE SECURITY DEFINER
+  SET search_path = pg_catalog, pg_temp
+  AS $$
+  SELECT b.workspace_id FROM ai.briefing b
+   WHERE b.content_state = 'present' AND b.created_at < p_before
+   GROUP BY b.workspace_id
+   ORDER BY min(b.created_at), b.workspace_id
+   LIMIT least(greatest(p_limit, 1), 1000)
+$$;
+REVOKE ALL ON FUNCTION exec_dispatch.discover_briefing_retention_work(timestamptz, integer) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION exec_dispatch.discover_briefing_retention_work(timestamptz, integer) TO dispatcher;
+ALTER FUNCTION exec_dispatch.discover_briefing_retention_work(timestamptz, integer) OWNER TO pm_scheduler;
+
 -- ---------------------------------------------------------------------------------------------
 -- Row-level security and grants. Nothing is deleted by an application role; erasure clears text.
 -- ---------------------------------------------------------------------------------------------
@@ -250,6 +300,10 @@ ALTER TABLE ai.briefing_correction ENABLE ROW LEVEL SECURITY;
 ALTER TABLE ai.briefing_correction FORCE ROW LEVEL SECURITY;
 CREATE POLICY tenant_isolation ON ai.briefing_correction
   USING (workspace_id = exec.current_workspace_id()) WITH CHECK (workspace_id = exec.current_workspace_id());
+ALTER TABLE ai.briefing_evidence ENABLE ROW LEVEL SECURITY;
+ALTER TABLE ai.briefing_evidence FORCE ROW LEVEL SECURITY;
+CREATE POLICY tenant_isolation ON ai.briefing_evidence
+  USING (workspace_id = exec.current_workspace_id()) WITH CHECK (workspace_id = exec.current_workspace_id());
 ALTER TABLE ai.briefing_correction_event ENABLE ROW LEVEL SECURITY;
 ALTER TABLE ai.briefing_correction_event FORCE ROW LEVEL SECURITY;
 CREATE POLICY tenant_isolation ON ai.briefing_correction_event
@@ -257,7 +311,7 @@ CREATE POLICY tenant_isolation ON ai.briefing_correction_event
 
 GRANT SELECT, INSERT, UPDATE ON ai.briefing_schedule, ai.briefing, ai.briefing_statement, ai.briefing_correction
   TO app_rw, app_worker;
-GRANT SELECT, INSERT ON ai.briefing_correction_event TO app_rw, app_worker;
+GRANT SELECT, INSERT ON ai.briefing_correction_event, ai.briefing_evidence TO app_rw, app_worker;
 
 -- The briefing sweep composes as each recipient through the canonical readers; the timesheet
 -- approval reader needs read access for the worker role (read only; no write is granted).

@@ -692,3 +692,7 @@ Renumbered in the Phase 6 integration review: 6B was accepted with a second `pl-
   - **Telemetry.** `ai.briefings` (label `outcome`).
 - **Alternatives:** Briefings as a generic report type, which would lose the recipient, baseline, and occurrence semantics.
 - **Consequences:** No new scopes, webhook types, or parameters. The notification type `briefing_ready` already existed; when a schedule opts into email, its email default is immediate.
+- **Corrective review 01:**
+  - Correction responses carry `availability` (`available` or `withheld`); a withheld note has null text, scope, statement, briefing, and history. Ineligible notes are omitted from `ai_briefing_corrections`; their commands return `not_found`.
+  - New failure codes on a briefing: `evidence_unresolved`, `evidence_too_large`.
+  - The retention job (`ai.history.retention`) also discovers briefing content through `discover_briefing_retention_work` and interleaves the two lists.

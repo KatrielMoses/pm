@@ -13,7 +13,9 @@ ALTER TABLE ai.briefing FORCE ROW LEVEL SECURITY;
 ALTER TABLE ai.briefing_schedule FORCE ROW LEVEL SECURITY;
 
 REVOKE SELECT ON timetrack.timesheet_line FROM app_worker;
+DROP FUNCTION exec_dispatch.discover_briefing_retention_work(timestamptz, integer);
 DROP FUNCTION exec_dispatch.discover_briefing_work(timestamptz, integer);
+DROP TABLE ai.briefing_evidence;
 DROP TABLE ai.briefing_correction_event;
 DROP TABLE ai.briefing_correction;
 DROP TABLE ai.briefing_statement;

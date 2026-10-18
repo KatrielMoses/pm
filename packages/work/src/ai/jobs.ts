@@ -11,7 +11,7 @@ export const AI_JOB_KINDS = {
 } as const;
 
 /**
- * Hourly: AI content past the technical retention setting. The sweep does nothing while
+ * Hourly: AI content and (7E) briefing content past the technical retention setting. The sweep does nothing while
  * AI_HISTORY_RETENTION_DAYS is unset (OD-36 undecided: content is kept).
  */
 export const AI_SCHEDULES: readonly RecurringJob[] = [
@@ -67,7 +67,14 @@ export function aiRetentionHandler(d: AiJobDeps): JobHandler {
       const days = d.service.aiHistoryRetentionDays();
       if (days === null) return;
       const before = new Date(Date.now() - days * 86_400_000);
-      const workspaces = await d.discovery.discoverAiRetentionWork(before, 100);
+      // Corrective review 01 (R3): AI content and briefing content are discovered independently
+      // (a workspace with briefings and no, or only erased, AI runs is still found), and the two
+      // lists are interleaved so neither family starves the other within a sweep.
+      const ai = await d.discovery.discoverAiRetentionWork(before, 100);
+      const briefings = await d.discovery.discoverBriefingRetentionWork(before, 100);
+      const workspaces: string[] = [];
+      for (let i = 0; i < Math.max(ai.length, briefings.length); i++)
+        for (const w of [ai[i], briefings[i]]) if (w && !workspaces.includes(w)) workspaces.push(w);
       for (const ws of workspaces) {
         try {
           const erased = await d.tenant.withWorkspace(ws, { module: 'work' }, (tx) =>

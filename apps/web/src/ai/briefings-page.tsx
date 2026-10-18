@@ -393,12 +393,14 @@ function NoteForm({
   statement,
   account,
   onSaved,
+  onRefused,
 }: {
   ws: string;
   brf: string;
   statement: BriefingStatement;
   account: string | null;
   onSaved: () => void;
+  onRefused: () => void;
 }) {
   const id = noteDraftId(ws, brf, statement.key);
   const [text, setText] = useState(() => readNote(account, id) ?? '');
@@ -423,6 +425,18 @@ function NoteForm({
       setKey(newIdempotencyKey());
       onSaved();
     } catch (err) {
+      // An authoritative refusal (the briefing or its evidence is no longer yours) removes the
+      // unsaved note; an offline or ambiguous failure keeps it for a retry with the same key.
+      if (err instanceof ApiError && !err.offline && (err.status === 404 || err.status === 403)) {
+        if (account) discardBriefingDrafts(account, ws, brf);
+        setText('');
+        setKey(newIdempotencyKey());
+        setProblem(
+          'This briefing is no longer available to you, so your unsaved note was removed.',
+        );
+        onRefused();
+        return;
+      }
       if (err instanceof ApiError && !err.offline && err.status >= 400 && err.status < 500)
         setKey(newIdempotencyKey());
       setProblem(
@@ -609,6 +623,7 @@ export function BriefingPage({ ws, id }: { ws: string; id: string }) {
                         brf={b.id}
                         statement={s}
                         account={account}
+                        onRefused={load}
                         onSaved={() => {
                           setOpen(null);
                           setAnnounce('Note proposed. Review it under Schedules and delivery.');
@@ -725,6 +740,8 @@ export function BriefingSettingsPage({ ws }: { ws: string }) {
       load();
     } catch (err) {
       setAnnounce(aiProblem(err, 'The note could not be decided.'));
+      // A note that is no longer available disappears from the list on the authoritative reload.
+      if (err instanceof ApiError && err.status === 404) load();
     }
   };
   return (

@@ -4884,6 +4884,27 @@ Reference-only history of a briefing correction: proposed, edited, approved, rej
 | Requirements | BRF-015, BRF-016 |
 | Notes | Phase 7E (ADR-49): references only; kept after erasure. |
 
+<a id="entity-briefing-evidence"></a>
+### `briefing_evidence`
+
+The complete authorization basis of a briefing statement or a correction note: record, brand, and exact-brand permission references (no content).
+
+| Property | Value |
+|---|---|
+| Scope | `inherited` |
+| Contained by | [`briefing`](logical-model.md#entity-briefing), [`briefing_correction`](logical-model.md#entity-briefing-correction) |
+| Extends (1:1) | — |
+| Associations | [`record`](logical-model.md#entity-record) |
+| Lifecycle / concurrency | `append-only` / `append-only` |
+| Retention / confidentiality | `R-EXEC` / `C1` |
+| Volume / export / search-AI | `high` / `never` / `no` |
+| Secrets / personal data | `no` / `incidental` |
+| Uniqueness | — |
+| Key typed columns | `briefing_id + position, or correction_id`; `kind (record\|brand\|permission)`; `record_id (reference; no foreign key)`; `brand_id (reference)`; `permission (timesheet.approve)` |
+| Sensitive fields | — |
+| Requirements | BRF-014, BRF-016 |
+| Notes | Phase 7E corrective review 01 (ADR-49): re-checked before any saved briefing or note content is shown, replayed, applied, or sent; references only. |
+
 ## Automations (`automation`, schema `automation`)
 
 Automation definitions with immutable versions, runs and step runs.

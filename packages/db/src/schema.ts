@@ -3615,6 +3615,17 @@ export interface BriefingCorrectionEventTable {
   actor_membership_id: string | null;
   created_at: DTs;
 }
+export interface BriefingEvidenceTable {
+  id: string;
+  workspace_id: string;
+  briefing_id: string | null;
+  correction_id: string | null;
+  position: number | null;
+  kind: 'record' | 'brand' | 'permission';
+  record_id: string | null;
+  brand_id: string | null;
+  permission: 'timesheet.approve' | null;
+}
 export interface ProposalApplicationTable {
   id: string;
   workspace_id: string;
@@ -3892,6 +3903,7 @@ export interface Database {
   'ai.briefing_statement': BriefingStatementTable;
   'ai.briefing_correction': BriefingCorrectionTable;
   'ai.briefing_correction_event': BriefingCorrectionEventTable;
+  'ai.briefing_evidence': BriefingEvidenceTable;
   'metering.spend_limit': SpendLimitTable;
   'metering.usage_balance': UsageBalanceTable;
   'metering.usage_reservation': UsageReservationTable;
@@ -7017,6 +7029,17 @@ export const TABLE_COLUMNS: Readonly<Record<keyof Database, readonly string[]>> 
     'revision',
     'actor_membership_id',
     'created_at',
+  ],
+  'ai.briefing_evidence': [
+    'id',
+    'workspace_id',
+    'briefing_id',
+    'correction_id',
+    'position',
+    'kind',
+    'record_id',
+    'brand_id',
+    'permission',
   ],
   'ai.proposal_application': [
     'id',

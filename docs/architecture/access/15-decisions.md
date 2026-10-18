@@ -613,3 +613,8 @@ All decisions are **proposed (Phase 0C)**, pending solutions-architect acceptanc
   - Partial redaction of a briefing whose evidence changed.
   - Brand-scoped notes approved by an administrator (OD-25 open; the safe default is personal).
 - **Consequences:** Threats T-114 to T-119 with tests AT-455 to AT-467. The action count stays 122.
+- **Corrective review 01:**
+  - **The full basis, not the sample (R1).** Every saved count, comparison, total, and coverage figure records its complete authorization basis: every contributing record (unlisted items and previous-window contributors included), every brand, and every permission on its exact brand (timesheet approval per brand, decided by the canonical brand decision; never "can approve somewhere"). Display, completed-key replay, correction use, and notification rendering re-check the whole basis through the compiled visibility; any loss withholds the briefing whole. A basis larger than 1000 records per statement is not kept: the figure becomes an explicit unknown rather than a sample presented as a total.
+  - **Notes follow their evidence (R2).** A note keeps its own copy of its statement's basis and the briefing scope. The list omits ineligible notes; detail and completed-key replay return an opaque withheld shape (no text, scope, statement, or origin); edit, approve, and reject refuse as not found; reuse skips them without marking them stale. Restored access restores them; ordinary evidence changes still make them stale.
+  - **Retention reaches briefings (R3).** Configured technical retention discovers briefing content on its own; notes that are not approved memory are erased with their briefing.
+  - Threats T-120 to T-122 with tests AT-468 to AT-475.

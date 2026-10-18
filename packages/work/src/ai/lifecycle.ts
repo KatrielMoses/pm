@@ -145,8 +145,9 @@ export async function eraseAiContentRows(
 /**
  * 7E (ADR-0042 D10): briefing content lifecycle. Statement text, figures, references, and
  * coverage are content of the recipient; correction text too. A departure (or account erasure)
- * erases both and stops the person's schedules; technical retention erases briefing content only
- * (approved notes are the person's live settings). Briefing, schedule, and correction rows stay as
+ * erases both and stops the person's schedules; technical retention erases briefing content and
+ * the notes on it that are not approved memory (approved notes are re-checked against their own
+ * evidence on every use). Briefing, schedule, and correction rows stay as
  * reference-only facts with their operations and audit; business records are never touched.
  */
 export async function eraseBriefingRows(
@@ -175,6 +176,43 @@ export async function eraseBriefingRows(
       })
       .where('id', 'in', ids)
       .execute();
+  }
+  // Retention (corrective review 01 R3): notes that are not approved memory go with the briefing
+  // content they were made on, so its erased text cannot be recovered through them. Approved notes
+  // stay under their own evidence (R2) until departure or account erasure.
+  let notesErased = 0;
+  if (ids.length && !filter.membershipId) {
+    const dead = await tx.db
+      .selectFrom('ai.briefing_correction')
+      .select(['id', 'revision'])
+      .where('origin_briefing_id', 'in', ids)
+      .where('state', 'not in', ['approved', 'erased'])
+      .execute();
+    if (dead.length) {
+      await tx.db
+        .updateTable('ai.briefing_correction')
+        .set({ text: null, state: 'erased', updated_at: now, version: sql`version + 1` })
+        .where(
+          'id',
+          'in',
+          dead.map((n) => n.id),
+        )
+        .execute();
+      await tx.db
+        .insertInto('ai.briefing_correction_event')
+        .values(
+          dead.map((n) => ({
+            id: newUuidV7(),
+            workspace_id: tx.workspaceId,
+            correction_id: n.id,
+            kind: 'erased' as const,
+            revision: n.revision,
+            actor_membership_id: null,
+          })),
+        )
+        .execute();
+      notesErased = dead.length;
+    }
   }
   if (filter.membershipId) {
     await tx.db
@@ -216,7 +254,7 @@ export async function eraseBriefingRows(
     }
     return ids.length + notes.length;
   }
-  return ids.length;
+  return ids.length + notesErased;
 }
 
 /** Departure (PERM-014): the leaver's AI content is erased; nothing needs a new owner. */
