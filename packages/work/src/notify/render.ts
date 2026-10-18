@@ -315,6 +315,30 @@ export async function externalLine(
   const type = row.type as NotificationType;
   const security = SECURITY_TYPES.has(type);
   const home = `/workspaces/${workspacePublicId}/notifications`;
+  // 7E: a briefing notice carries no briefing content; it links to the briefing only while it is
+  // still the recipient's published briefing (send-time re-check; erased or withheld suppresses).
+  if (type === 'briefing_ready') {
+    const id = typeof row.facts.briefing === 'string' ? row.facts.briefing : null;
+    const b = id
+      ? await tx.db
+          .selectFrom('ai.briefing')
+          .select(['public_id', 'state', 'content_state', 'recipient_membership_id'])
+          .where('public_id', '=', id)
+          .executeTakeFirst()
+      : undefined;
+    if (
+      !b ||
+      b.state !== 'published' ||
+      b.content_state !== 'present' ||
+      b.recipient_membership_id !== viewer.membershipId
+    )
+      return null;
+    return {
+      line: sentence(type, {}, null, 1),
+      path: `/workspaces/${workspacePublicId}/briefings/${b.public_id}`,
+      minimal: true,
+    };
+  }
   if (!row.record_id)
     return { line: sentence(type, row.facts, null, row.occurrences), path: home, minimal: false };
   const recs = await readableRecordInfo(tx, viewer, [row.record_id], arrayMax);

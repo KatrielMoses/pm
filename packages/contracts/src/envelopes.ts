@@ -280,6 +280,11 @@ export const NON_RESOURCE_TYPES = [
   'ai_proposal_validation',
   // 7C: the registered AI action catalog.
   'ai_actions',
+  // 7E: briefing lists, a Generate-now preview, schedules, and correction notes.
+  'ai_briefings',
+  'ai_briefing_preview',
+  'ai_briefing_schedules',
+  'ai_briefing_corrections',
 ] as const;
 export type NonResourceType = (typeof NON_RESOURCE_TYPES)[number];
 

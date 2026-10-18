@@ -369,6 +369,25 @@ export const ROUTES: readonly RouteDef[] = [
     section: 'Change proposal',
     visible: member,
   },
+  // 7E: personal briefings (fact-only, source-linked) and their schedules, delivery, and notes.
+  {
+    id: 'ai_briefings',
+    pattern: '/workspaces/:ws/briefings',
+    shell: 'workspace',
+    section: 'Briefings',
+  },
+  {
+    id: 'ai_briefing',
+    pattern: '/workspaces/:ws/briefings/:brf',
+    shell: 'workspace',
+    section: 'Briefing',
+  },
+  {
+    id: 'ai_briefing_settings',
+    pattern: '/workspaces/:ws/settings/briefings',
+    shell: 'workspace',
+    section: 'Briefing schedules',
+  },
   {
     id: 'ai_settings',
     pattern: '/workspaces/:ws/settings/ai',

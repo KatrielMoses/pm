@@ -598,3 +598,18 @@ All decisions are **proposed (Phase 0C)**, pending solutions-architect acceptanc
   - **Choices are typed outbound context (R1).** Labels and members offered to a drafting action are manifest entries with registered C1 fields, redacted like source text. They are listed in the preview, where the person can omit any of them, and covered by the manifest and input digests. They are re-resolved at dispatch and publication and re-checked on history, export, proposal rendering, and replay. A choice that becomes unavailable, or a policy that no longer allows C1, withholds the derived content whole. Under C0 none are sent. Readable is not AI-eligible; the accepted directory is unchanged.
   - **Checked means locked (R2).** Apply and validation lock the domain row a canonical writer locks (`work.task`, `work.project`, `knowledge.document`) before comparing a record's expected version. They trust only records this transaction changed under that lock. A relationship's other end or a container that is only referenced is never treated as checked. A change rolled back to its savepoint restores the trusted state.
 - **Consequences:** Threats T-108 to T-113 with tests AT-431 to AT-454. The action count stays 122.
+
+<a id="az-49"></a>
+### AZ-49: Recipient-specific briefings, corrections, and scheduled delivery (Phase 7E)
+- **Decision:**
+  - **Personal, computed as the recipient.** Briefings, schedules, and notes are `personal.manage_own`. No owner, administrator, grant, or share reaches another person's. Every figure and item is read as the recipient through the canonical readers and visibility predicate; nothing is computed once and redistributed. A brand or project scope must be readable now (otherwise indistinguishable not found). Guests get only what they can read; capacity is unavailable to them.
+  - **Re-check at every stage.** Scope and recipient are re-authorized when a briefing is composed (execution and publication are one transaction), when it is shown or replayed, and when its notice is sent. If any statement's evidence is no longer readable, the whole briefing is withheld, with no titles, counts, or types. Comparisons are recomputed from current authorized data; no delta is stored.
+  - **Corrections are notes, not authority.** A note applies only to its author's future briefings of the same type and scope, beside the same statement key while its evidence version is unchanged; changed evidence marks it stale. It never edits a record, never becomes a workspace rule, and is never sent to a model. Text is redacted for credentials, bounded (1000 characters, 50 open notes), and rendered as text.
+  - **Schedules authorize a bounded fact-only workflow.** A schedule never queues an AI run. Its occurrence key makes a run unique. A changed or disabled schedule supersedes queued occurrences, and a departed recipient's schedules stop.
+  - **Delivery is a pointer.** The notice carries the briefing id only. In-app always applies; email only when the person's schedule allows it, through 4B preferences, quiet hours, dedupe, and the send-time re-check. The email subject and body carry no briefing content and link to the briefing only while it is published, present, and the recipient's own.
+  - **Bearer callers are refused** on every briefing route (session only).
+- **Alternatives:**
+  - An owner briefing cached and filtered per recipient.
+  - Partial redaction of a briefing whose evidence changed.
+  - Brand-scoped notes approved by an administrator (OD-25 open; the safe default is personal).
+- **Consequences:** Threats T-114 to T-119 with tests AT-455 to AT-467. The action count stays 122.

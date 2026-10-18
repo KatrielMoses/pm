@@ -4795,9 +4795,10 @@ Personal schedule for owner/brand briefings in a timezone.
 | Volume / export / search-AI | `low` / `self` / `yes` |
 | Secrets / personal data | `no` / `incidental` |
 | Uniqueness | — |
-| Key typed columns | standard columns only |
+| Key typed columns | `membership_id`; `kind (owner_daily\|brand_daily\|weekly_review\|project_status\|release_readiness)`; `scope jsonb, scope_key (workspace\|brand:br_…\|project:prj_…)`; `timezone (IANA), local_minute 0..1439, weekdays smallint[] (ISO)`; `channels text[] (in_app required; email optional)`; `enabled, revision, next_run_at` |
 | Sensitive fields | — |
-| Requirements | BRF-017 |
+| Requirements | BRF-017, BRF-018 |
+| Notes | Phase 7E (ADR-49): every change raises the revision; queued occurrences of an older revision are superseded. Turned off on departure. |
 
 <a id="entity-briefing"></a>
 ### `briefing`
@@ -4814,10 +4815,11 @@ Generated briefing for a recipient; every statement linked to sources.
 | Retention / confidentiality | `R-EXEC` / `C2` |
 | Volume / export / search-AI | `medium` / `self` / `yes` |
 | Secrets / personal data | `no` / `incidental` |
-| Uniqueness | `(recipient_id, kind, scope_key, period_key)` |
-| Key typed columns | standard columns only |
+| Uniqueness | `(schedule_id, occurrence_key) where trigger = schedule` |
+| Key typed columns | `operation_id (execution.operation, kind briefing)`; `recipient_membership_id`; `schedule_id, schedule_revision, occurrence_key (bsc:r<revision>:<local date>T<HH:MM>)`; `trigger (schedule\|manual\|regenerate), regenerates_id`; `kind, scope jsonb, scope_key, template_version, timezone`; `window_start, window_end (cutoff)`; `baseline_briefing_id (last published comparable)`; `state (queued\|published\|failed\|superseded), attempts, failure_code`; `coverage jsonb (bounded), content_state, published_at` |
 | Sensitive fields | — |
-| Requirements | BRF-001, BRF-014 |
+| Requirements | BRF-001, BRF-002, BRF-003, BRF-004, BRF-005, BRF-006, BRF-014, BRF-018 |
+| Notes | Phase 7E (ADR-49): recipient-specific; computed as the recipient; withheld whole at display when any evidence is unreadable. The 0B (recipient_id, kind, scope_key, period_key) uniqueness is realized as one briefing per schedule occurrence; manual and regenerated briefings are distinct rows. |
 
 <a id="entity-briefing-statement"></a>
 ### `briefing_statement`
@@ -4835,9 +4837,10 @@ One statement with kind (fact, calculation, suggestion, unknown) and source refe
 | Volume / export / search-AI | `high` / `filtered` / `yes` |
 | Secrets / personal data | `no` / `incidental` |
 | Uniqueness | — |
-| Key typed columns | standard columns only |
+| Key typed columns | `briefing_id, position`; `section`; `kind (fact\|calculation\|excerpt\|suggestion\|unknown\|annotation\|unavailable)`; `statement_key`; `text (content)`; `refs jsonb (public ids and versions only)`; `figures jsonb (bounded)`; `correction_id` |
 | Sensitive fields | — |
-| Requirements | BRF-014, BRF-007, AI-009 |
+| Requirements | BRF-006, BRF-007, BRF-008, BRF-009, BRF-010, BRF-011, BRF-012, BRF-013, BRF-014, AI-009 |
+| Notes | Phase 7E (ADR-49): text, refs, and figures are erased with briefing content. |
 
 <a id="entity-briefing-correction"></a>
 ### `briefing_correction`
@@ -4846,7 +4849,7 @@ User correction to a conclusion, scope personal or brand (OD-25).
 
 | Property | Value |
 |---|---|
-| Scope | `personal_brand_optional` |
+| Scope | `personal` |
 | Contained by | — |
 | Extends (1:1) | — |
 | Associations | — |
@@ -4855,9 +4858,31 @@ User correction to a conclusion, scope personal or brand (OD-25).
 | Volume / export / search-AI | `low` / `filtered` / `yes` |
 | Secrets / personal data | `no` / `incidental` |
 | Uniqueness | — |
-| Key typed columns | standard columns only |
+| Key typed columns | `recipient_membership_id`; `origin_briefing_id`; `kind, scope_key, statement_key`; `subject_public_id, subject_version (the evidence it was made on)`; `text (content, redacted, at most 1000)`; `state (proposed\|approved\|rejected\|superseded\|stale\|erased), revision, decided_at` |
 | Sensitive fields | — |
 | Requirements | BRF-015, BRF-016 |
+| Notes | Phase 7E (ADR-49): OD-25 safe default; personal to the recipient, never a record edit or a workspace rule; stale when its evidence changes. |
+
+<a id="entity-briefing-correction-event"></a>
+### `briefing_correction_event`
+
+Reference-only history of a briefing correction: proposed, edited, approved, rejected, superseded, stale, erased.
+
+| Property | Value |
+|---|---|
+| Scope | `inherited` |
+| Contained by | [`briefing_correction`](logical-model.md#entity-briefing-correction) |
+| Extends (1:1) | — |
+| Associations | — |
+| Lifecycle / concurrency | `append-only` / `append-only` |
+| Retention / confidentiality | `R-LIVE` / `C1` |
+| Volume / export / search-AI | `low` / `filtered` / `no` |
+| Secrets / personal data | `no` / `incidental` |
+| Uniqueness | — |
+| Key typed columns | `correction_id`; `kind`; `revision`; `actor_membership_id` |
+| Sensitive fields | — |
+| Requirements | BRF-015, BRF-016 |
+| Notes | Phase 7E (ADR-49): references only; kept after erasure. |
 
 ## Automations (`automation`, schema `automation`)
 

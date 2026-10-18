@@ -676,3 +676,19 @@ Renumbered in the Phase 6 integration review: 6B was accepted with a second `pl-
   - **Telemetry.** `ai.analyses` (label `status`).
 - **Alternatives:** A route per action, which would be ten surfaces with duplicated gates.
 - **Consequences:** No new events, scopes, ID prefixes, or parameters.
+
+<a id="pl-51"></a>
+### PL-51: Briefing routes, schedules, notes, and the briefing sweep (Phase 7E)
+- **Decision:**
+  - **Routes.** Under `/v1/workspaces/{ws}`, session only:
+    - `GET /ai/briefings` (`ai_briefings`), `POST /ai/briefings` (201, a `briefing`; Idempotency-Key), `GET /ai/briefings/{brf}`, `POST /ai/briefings/{brf}:regenerate`.
+    - `POST /ai/briefing-previews` (`ai_briefing_preview`): the scope, window, baseline, and mode a briefing would use now; nothing is written.
+    - `GET /ai/briefing-schedules` (`ai_briefing_schedules`), `POST /ai/briefing-schedules`, `PATCH /ai/briefing-schedules/{bsc}` (If-Match).
+    - `POST /ai/briefings/{brf}/corrections`, `GET /ai/briefing-corrections` (`ai_briefing_corrections`), `PATCH /ai/briefing-corrections/{bco}`, `POST /ai/briefing-corrections/{bco}:approve` and `:reject`.
+  - **ID prefixes.** `bsc` (briefing_schedule), `brf` (briefing), `bco` (briefing_correction).
+  - **Operation and event.** The registered `briefing` operation (R0) and `ai.briefing.generated` event (`kind`, `period_key`) are now emitted. `briefing_ready` notifications carry only `briefing`.
+  - **Job.** `ai.briefing.sweep` every minute: payload-free discovery, then per workspace a `FOR UPDATE SKIP LOCKED` claim of due schedules, one briefing per occurrence, and composition one briefing per transaction (at most 3 attempts).
+  - **Errors.** New issue codes: `invalid_zone`, `just_published` (409), `not_applicable`, `not_editable`, `decided`, `too_many`.
+  - **Telemetry.** `ai.briefings` (label `outcome`).
+- **Alternatives:** Briefings as a generic report type, which would lose the recipient, baseline, and occurrence semantics.
+- **Consequences:** No new scopes, webhook types, or parameters. The notification type `briefing_ready` already existed; when a schedule opts into email, its email default is immediate.

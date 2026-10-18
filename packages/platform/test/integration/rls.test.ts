@@ -223,6 +223,12 @@ const PHASE_1C_TENANT_TABLES = [
   'ai.proposal_event',
   'ai.proposal_approval',
   'ai.proposal_application',
+  // Phase 7E briefing schedules, briefings, statements, corrections, and their history.
+  'ai.briefing_schedule',
+  'ai.briefing',
+  'ai.briefing_statement',
+  'ai.briefing_correction',
+  'ai.briefing_correction_event',
   'metering.spend_limit',
   'metering.usage_balance',
   'metering.usage_reservation',
@@ -535,8 +541,8 @@ describe('tenant RLS foundation (0C §12.7)', () => {
     // discover_days_to_close and discover_block_series_due; 4B discover_notification_work; 4E
     // discover_file_work; 5A discover_search_work; 5B discover_goal_work; 5C discover_metrics_work;
     // 5D discover_report_work; 6A discover_integration_work; 6B discover_webhook_work; 7A
-    // discover_ai_retention_work.
-    expect(fns.rows.length).toBe(24);
+    // discover_ai_retention_work; 7E discover_briefing_work.
+    expect(fns.rows.length).toBe(25);
     const allowed = new Set([
       'job_id',
       'workspace_id',

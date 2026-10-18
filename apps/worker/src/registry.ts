@@ -52,6 +52,7 @@ import {
   AI_SCHEDULES,
   aiDispatchHandler,
   aiRetentionHandler,
+  aiBriefingSweepHandler,
   type AiJobDeps,
 } from '@pm/work';
 
@@ -73,6 +74,8 @@ import {
  * 5D: scheduled report delivery (rendered per recipient at send time) and run retention.
  * 7A: AI dispatch attempts (re-authorized, reserved, settled once) and AI content retention (off
  * while AI_HISTORY_RETENTION_DAYS is unset).
+ * 7E: the briefing sweep (due schedule occurrences once each, queued briefings composed as their
+ * recipient, delivery intent through 4B).
  */
 export interface WorkerModules {
   identity: IdentityJobDeps;
@@ -112,7 +115,9 @@ export function registeredHandlers(m: WorkerModules): JobHandler[] {
     reportDeliveryHandler(m.reports),
     integrationSyncHandler(m.integrations),
     webhookDeliveryHandler(m.integrations),
-    ...(m.ai ? [aiDispatchHandler(m.ai), aiRetentionHandler(m.ai)] : []),
+    ...(m.ai
+      ? [aiDispatchHandler(m.ai), aiRetentionHandler(m.ai), aiBriefingSweepHandler(m.ai)]
+      : []),
   ];
 }
 

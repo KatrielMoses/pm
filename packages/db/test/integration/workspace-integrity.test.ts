@@ -324,6 +324,12 @@ describe('database-enforced workspace existence (1A review 01, correction 2)', (
       'ai.proposal_event',
       'ai.proposal_approval',
       'ai.proposal_application',
+      // Phase 7E briefing schedules, briefings, statements, corrections, and their history.
+      'ai.briefing_schedule',
+      'ai.briefing',
+      'ai.briefing_statement',
+      'ai.briefing_correction',
+      'ai.briefing_correction_event',
       'metering.spend_limit',
       'metering.usage_balance',
       'metering.usage_reservation',

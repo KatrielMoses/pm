@@ -8,6 +8,7 @@ import { AiPage, AiSettingsPage } from './ai/ai-pages.tsx';
 import { AskPage } from './ai/ask-page.tsx';
 import { AssistPage } from './ai/assist-page.tsx';
 import { ProposalPage, ProposalsPage } from './ai/proposals-page.tsx';
+import { BriefingPage, BriefingSettingsPage, BriefingsPage } from './ai/briefings-page.tsx';
 import { IntegrationsPage } from './pages/integration-pages.tsx';
 import {
   ForgotPasswordPage,
@@ -204,6 +205,9 @@ export const ROUTE_COMPONENTS: Record<string, Render> = {
   ai_assist: (p) => <AssistPage key={p.ws} ws={p.ws!} />,
   ai_proposals: (p) => <ProposalsPage ws={p.ws!} />,
   ai_proposal: (p) => <ProposalPage key={p.prp} ws={p.ws!} id={p.prp!} />,
+  ai_briefings: (p) => <BriefingsPage key={p.ws} ws={p.ws!} />,
+  ai_briefing: (p) => <BriefingPage key={p.brf} ws={p.ws!} id={p.brf!} />,
+  ai_briefing_settings: (p) => <BriefingSettingsPage key={p.ws} ws={p.ws!} />,
   integrations: (p) => <IntegrationsPage ws={p.ws!} />,
   access_settings: (p) => <AccessSettingsPage ws={p.ws!} />,
   workspace_root: (p) => <WorkspaceRootPage key={p.ws} ws={p.ws!} />,

@@ -564,3 +564,22 @@ Status of every ADR: **proposed (Phase 0B)**, pending solutions-architect accept
   - Storing choice names, which would copy personal names into the run.
   - A separate plan-proposal table, which would be a second write protocol.
 - **Consequences:** The down migration restores the exact 0056 catalog. It refuses while analysis actions, action keys, goal or meeting sources, the added operations, or assumptions exist, lifting forced row-level security on the four tables for that one check. The new columns inherit the existing grants; `ai_action` stays update-limited to the erasure columns.
+
+<a id="adr-49"></a>
+## ADR-49: Briefings, schedules, statements, and corrections (Phase 7E)
+
+- **Decision:** Migration 0058 (expand) reconciles the 0B briefing entities into five tables. It changes no earlier file.
+  - `ai.briefing_schedule` (`bsc_`): a person's schedule. Type (`owner_daily`, `brand_daily`, `weekly_review`, `project_status`, `release_readiness`), scope (`workspace`, `brand:br_…`, or `project:prj_…`), IANA zone, local minute, ISO weekdays, channels (`in_app` always, `email` optional), enabled, a revision that rises on every change, and `next_run_at`.
+  - `ai.briefing` (`brf_`): the detail of a `briefing` operation for one recipient. It freezes type, scope, template version, zone, and the window `[window_start, window_end)` whose end is the cutoff, and records its baseline (the last published comparable briefing), its trigger (`schedule`, `manual`, `regenerate`), and for a schedule the revision and occurrence key (`bsc:r<revision>:<local date>T<HH:MM>`). A partial unique index allows one briefing per schedule occurrence. States: `queued`, `published`, `failed` (with a code), `superseded`. Coverage is bounded JSON (at most 4 KB).
+  - `ai.briefing_statement`: position, section, trust kind (`fact`, `calculation`, `excerpt`, `suggestion`, `unknown`, `annotation`, `unavailable`), a stable statement key, text (content, at most 2000 characters), evidence references (public ids and versions only, at most 8 KB), and bounded figures.
+  - `ai.briefing_correction` (`bco_`) and `ai.briefing_correction_event`: a recipient-scoped note on one statement key in one type and scope, bound to its evidence (subject id and version), with a revision and a reference-only history (`proposed`, `edited`, `approved`, `rejected`, `superseded`, `stale`, `erased`).
+  - `exec_dispatch.discover_briefing_work` returns workspace ids with due schedules or queued briefings (column grants to `pm_scheduler` only).
+  - `app_worker` gains read access to `timetrack.timesheet_line`, because the sweep composes through the canonical timesheet approval reader.
+- **Alternatives:**
+  - Stored deltas between briefings, which would keep revoked records alive in comparisons.
+  - A shared briefing per scope, which would redistribute a broader recipient's view.
+  - Workspace-global correction rules, which would leak across recipients (OD-25 safe default).
+- **Consequences:**
+  - Text, figures, references, coverage, and note text are content. Departure and account erasure clear them, mark notes `erased`, and turn schedules off. Technical retention clears briefing content only. Rows, operations, and audit stay; business records are never deleted.
+  - The down migration restores the exact 0057 catalog. It refuses while any schedule or briefing exists, lifting forced row-level security on both tables for that one check.
+  - Workspace purge deletes, before `exec.operation`: `ai.briefing_correction_event`, `ai.briefing_correction`, `ai.briefing_statement`, `ai.briefing`, then `ai.briefing_schedule`.

@@ -2569,39 +2569,48 @@ export class WorkflowService extends TaskService {
    * Pending approvals this person may decide or has requested. Requests whose record they cannot
    * read are omitted entirely, with no count (AT-124). Bounded by the page limit.
    */
-  async listApprovals(caller: Caller, ws: unknown, query: Record<string, unknown>) {
-    return this.inWorkspace(caller, ws, { readOnly: true }, async (tx, p) => {
-      if (p.kind !== 'member') return { data: [] };
-      const rows = (await tx.db
-        .selectFrom('workflow.approval_request')
-        .select(['public_id'])
-        .where('closed_at', 'is', null)
-        .where('expires_at', '>', new Date())
-        .where((eb) =>
-          query.mine === 'requested'
-            ? eb('requester_membership_id', '=', p.membershipId)
-            : eb.or([
-                eb('policy', '=', 'one_manager'),
-                eb(sql`${p.membershipId}::uuid`, '=', sql`ANY(approver_membership_ids)`),
-                eb('requester_membership_id', '=', p.membershipId),
-              ]),
-        )
-        .orderBy('created_at', 'desc')
-        .orderBy('id')
-        .limit(this.pageLimitMax)
-        .execute()) as Array<{ public_id: string }>;
-      const data = [];
-      for (const r of rows) {
-        try {
-          const v = await this.approvalView(tx, p, r.public_id);
-          if (query.mine === 'requested' ? v.self_requested : v.can_decide || v.self_requested)
-            data.push(v);
-        } catch (e) {
-          if (!(e instanceof TenancyError)) throw e;
-        }
+  /** In-transaction core of the public reader (7E briefings reuse it for a recipient). */
+  protected async listApprovalsIn(
+    tx: WorkspaceTransaction,
+    p: Principal,
+    query: Record<string, unknown>,
+  ) {
+    if (p.kind !== 'member') return { data: [] };
+    const rows = (await tx.db
+      .selectFrom('workflow.approval_request')
+      .select(['public_id'])
+      .where('closed_at', 'is', null)
+      .where('expires_at', '>', new Date())
+      .where((eb) =>
+        query.mine === 'requested'
+          ? eb('requester_membership_id', '=', p.membershipId)
+          : eb.or([
+              eb('policy', '=', 'one_manager'),
+              eb(sql`${p.membershipId}::uuid`, '=', sql`ANY(approver_membership_ids)`),
+              eb('requester_membership_id', '=', p.membershipId),
+            ]),
+      )
+      .orderBy('created_at', 'desc')
+      .orderBy('id')
+      .limit(this.pageLimitMax)
+      .execute()) as Array<{ public_id: string }>;
+    const data = [];
+    for (const r of rows) {
+      try {
+        const v = await this.approvalView(tx, p, r.public_id);
+        if (query.mine === 'requested' ? v.self_requested : v.can_decide || v.self_requested)
+          data.push(v);
+      } catch (e) {
+        if (!(e instanceof TenancyError)) throw e;
       }
-      return { data };
-    });
+    }
+    return { data };
+  }
+
+  async listApprovals(caller: Caller, ws: unknown, query: Record<string, unknown>) {
+    return this.inWorkspace(caller, ws, { readOnly: true }, async (tx, p) =>
+      this.listApprovalsIn(tx, p, query),
+    );
   }
 
   async decideApproval(caller: Caller, ws: unknown, wap: unknown, body: unknown, req: Mutation) {

@@ -3522,6 +3522,99 @@ export interface ProposalApprovalTable {
   created_at: DTs;
   used_at: Timestamp | null;
 }
+export type BriefingKind =
+  'owner_daily' | 'brand_daily' | 'weekly_review' | 'project_status' | 'release_readiness';
+export interface BriefingScheduleTable {
+  id: string;
+  workspace_id: string;
+  public_id: string;
+  membership_id: string;
+  kind: BriefingKind;
+  scope: Json<Record<string, unknown>>;
+  scope_key: string;
+  timezone: string;
+  local_minute: number;
+  weekdays: number[];
+  channels: Defaulted<string[]>;
+  enabled: Defaulted<boolean>;
+  revision: Defaulted<number>;
+  next_run_at: Timestamp | null;
+  created_at: DTs;
+  updated_at: DTs;
+  version: Defaulted<number>;
+}
+export interface BriefingTable {
+  id: string;
+  workspace_id: string;
+  public_id: string;
+  operation_id: string;
+  recipient_membership_id: string;
+  schedule_id: string | null;
+  schedule_revision: number | null;
+  occurrence_key: string | null;
+  trigger: 'schedule' | 'manual' | 'regenerate';
+  regenerates_id: string | null;
+  kind: BriefingKind;
+  scope: Json<Record<string, unknown>>;
+  scope_key: string;
+  template_version: string;
+  timezone: string;
+  window_start: Timestamp;
+  window_end: Timestamp;
+  baseline_briefing_id: string | null;
+  state: Defaulted<'queued' | 'published' | 'failed' | 'superseded'>;
+  attempts: Defaulted<number>;
+  failure_code: string | null;
+  coverage: Json<Record<string, unknown>> | null;
+  content_state: Defaulted<'present' | 'erased'>;
+  content_erased_at: Timestamp | null;
+  published_at: Timestamp | null;
+  created_at: DTs;
+  updated_at: DTs;
+  version: Defaulted<number>;
+}
+export interface BriefingStatementTable {
+  id: string;
+  workspace_id: string;
+  briefing_id: string;
+  position: number;
+  section: string;
+  kind:
+    'fact' | 'calculation' | 'excerpt' | 'suggestion' | 'unknown' | 'annotation' | 'unavailable';
+  statement_key: string;
+  text: string | null;
+  refs: ColumnType<unknown[], string | undefined, string>;
+  figures: Json<Record<string, unknown>> | null;
+  correction_id: string | null;
+}
+export interface BriefingCorrectionTable {
+  id: string;
+  workspace_id: string;
+  public_id: string;
+  recipient_membership_id: string;
+  origin_briefing_id: string;
+  kind: BriefingKind;
+  scope_key: string;
+  statement_key: string;
+  subject_public_id: string | null;
+  subject_version: string | null;
+  text: string | null;
+  state: Defaulted<'proposed' | 'approved' | 'rejected' | 'superseded' | 'stale' | 'erased'>;
+  revision: Defaulted<number>;
+  decided_at: Timestamp | null;
+  created_at: DTs;
+  updated_at: DTs;
+  version: Defaulted<number>;
+}
+export interface BriefingCorrectionEventTable {
+  id: string;
+  workspace_id: string;
+  correction_id: string;
+  kind: 'proposed' | 'edited' | 'approved' | 'rejected' | 'superseded' | 'stale' | 'erased';
+  revision: number;
+  actor_membership_id: string | null;
+  created_at: DTs;
+}
 export interface ProposalApplicationTable {
   id: string;
   workspace_id: string;
@@ -3794,6 +3887,11 @@ export interface Database {
   'ai.proposal_event': ProposalEventTable;
   'ai.proposal_approval': ProposalApprovalTable;
   'ai.proposal_application': ProposalApplicationTable;
+  'ai.briefing_schedule': BriefingScheduleTable;
+  'ai.briefing': BriefingTable;
+  'ai.briefing_statement': BriefingStatementTable;
+  'ai.briefing_correction': BriefingCorrectionTable;
+  'ai.briefing_correction_event': BriefingCorrectionEventTable;
   'metering.spend_limit': SpendLimitTable;
   'metering.usage_balance': UsageBalanceTable;
   'metering.usage_reservation': UsageReservationTable;
@@ -6829,6 +6927,96 @@ export const TABLE_COLUMNS: Readonly<Record<keyof Database, readonly string[]>> 
     'expires_at',
     'created_at',
     'used_at',
+  ],
+  'ai.briefing_schedule': [
+    'id',
+    'workspace_id',
+    'public_id',
+    'membership_id',
+    'kind',
+    'scope',
+    'scope_key',
+    'timezone',
+    'local_minute',
+    'weekdays',
+    'channels',
+    'enabled',
+    'revision',
+    'next_run_at',
+    'created_at',
+    'updated_at',
+    'version',
+  ],
+  'ai.briefing': [
+    'id',
+    'workspace_id',
+    'public_id',
+    'operation_id',
+    'recipient_membership_id',
+    'schedule_id',
+    'schedule_revision',
+    'occurrence_key',
+    'trigger',
+    'regenerates_id',
+    'kind',
+    'scope',
+    'scope_key',
+    'template_version',
+    'timezone',
+    'window_start',
+    'window_end',
+    'baseline_briefing_id',
+    'state',
+    'attempts',
+    'failure_code',
+    'coverage',
+    'content_state',
+    'content_erased_at',
+    'published_at',
+    'created_at',
+    'updated_at',
+    'version',
+  ],
+  'ai.briefing_statement': [
+    'id',
+    'workspace_id',
+    'briefing_id',
+    'position',
+    'section',
+    'kind',
+    'statement_key',
+    'text',
+    'refs',
+    'figures',
+    'correction_id',
+  ],
+  'ai.briefing_correction': [
+    'id',
+    'workspace_id',
+    'public_id',
+    'recipient_membership_id',
+    'origin_briefing_id',
+    'kind',
+    'scope_key',
+    'statement_key',
+    'subject_public_id',
+    'subject_version',
+    'text',
+    'state',
+    'revision',
+    'decided_at',
+    'created_at',
+    'updated_at',
+    'version',
+  ],
+  'ai.briefing_correction_event': [
+    'id',
+    'workspace_id',
+    'correction_id',
+    'kind',
+    'revision',
+    'actor_membership_id',
+    'created_at',
   ],
   'ai.proposal_application': [
     'id',

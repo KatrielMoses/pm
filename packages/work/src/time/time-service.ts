@@ -2289,33 +2289,42 @@ export class TimeService extends ViewService {
    * (`state=pending`, default), or recently decided ones (`state=decided`). Periods are listed
    * only for brands the caller may decide; everything else about them stays hidden.
    */
+  /** In-transaction core of the public reader (7E briefings reuse it for a recipient). */
+  protected async listTimesheetApprovalsIn(
+    tx: WorkspaceTransaction,
+    p: Principal,
+    query: Record<string, unknown>,
+  ) {
+    if (p.kind !== 'member') return { data: [] };
+    const brands = (await this.brandRows(tx)).filter(
+      (b) => decideBrand(p, 'timesheet.approve', this.brandFacts(b)).allowed,
+    );
+    if (!brands.length) return { data: [] };
+    const decided = query.state === 'decided';
+    const rows = await tx.db
+      .selectFrom('timetrack.timesheet_line as l')
+      .innerJoin('timetrack.timesheet as s', 's.id', 'l.timesheet_id')
+      .select(['s.public_id', 's.period_start'])
+      .distinct()
+      .where(
+        'l.brand_id',
+        'in',
+        brands.map((b) => b.id),
+      )
+      .where('l.state', 'in', decided ? ['approved', 'rejected'] : ['pending'])
+      .orderBy('s.period_start', decided ? 'desc' : 'asc')
+      .orderBy('s.public_id')
+      .limit(this.pageLimitMax)
+      .execute();
+    const data = [];
+    for (const r of rows) data.push(await this.sheetView(tx, p, r.public_id));
+    return { data };
+  }
+
   async listTimesheetApprovals(caller: Caller, ws: unknown, query: Record<string, unknown>) {
-    return this.inWorkspace(caller, ws, { readOnly: true }, async (tx, p) => {
-      if (p.kind !== 'member') return { data: [] };
-      const brands = (await this.brandRows(tx)).filter(
-        (b) => decideBrand(p, 'timesheet.approve', this.brandFacts(b)).allowed,
-      );
-      if (!brands.length) return { data: [] };
-      const decided = query.state === 'decided';
-      const rows = await tx.db
-        .selectFrom('timetrack.timesheet_line as l')
-        .innerJoin('timetrack.timesheet as s', 's.id', 'l.timesheet_id')
-        .select(['s.public_id', 's.period_start'])
-        .distinct()
-        .where(
-          'l.brand_id',
-          'in',
-          brands.map((b) => b.id),
-        )
-        .where('l.state', 'in', decided ? ['approved', 'rejected'] : ['pending'])
-        .orderBy('s.period_start', decided ? 'desc' : 'asc')
-        .orderBy('s.public_id')
-        .limit(this.pageLimitMax)
-        .execute();
-      const data = [];
-      for (const r of rows) data.push(await this.sheetView(tx, p, r.public_id));
-      return { data };
-    });
+    return this.inWorkspace(caller, ws, { readOnly: true }, async (tx, p) =>
+      this.listTimesheetApprovalsIn(tx, p, query),
+    );
   }
 
   // ---------------------------------------------------------------------------------------------

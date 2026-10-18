@@ -36,7 +36,7 @@ Class definitions and rules: [../11-data-classification.md](../11-data-classific
 | Test management and defects | 8 | C2 | R-DERIVED, R-EVIDENCE, R-LIVE | filtered | yes | no | incidental | very-high |
 | Development links and releases | 9 | C2 | R-EVIDENCE, R-EXEC, R-LIVE | filtered | yes | no | incidental | very-high |
 | Templates and onboarding | 4 | C1 | R-LIVE | filtered | no, yes | no | incidental | low |
-| AI actions and briefings | 15 | C4 | R-EXEC, R-LIVE, R-PERSONAL | filtered, never, self | no, yes | secret-ref | incidental | very-high |
+| AI actions and briefings | 16 | C4 | R-EXEC, R-LIVE, R-PERSONAL | filtered, never, self | no, yes | secret-ref | incidental | very-high |
 | Automations | 4 | C2 | R-EXEC, R-LIVE | filtered | no, yes | no | incidental | very-high |
 | Agents and execution control | 10 | C4 | R-AUDIT, R-EVIDENCE, R-EXEC, R-LIVE | filtered, never | no, yes | secret-ref | incidental | very-high |
 | Support and feedback | 4 | C3 | R-EPHEMERAL, R-LIVE, R-PLATFORM | never, self | no, yes | possible | incidental, yes | medium |
@@ -265,7 +265,8 @@ Class definitions and rules: [../11-data-classification.md](../11-data-classific
 | [`briefing_schedule`](logical-model.md#entity-briefing-schedule) | ai | personal | C1 | low | configuration changes | R-PERSONAL | self | low | yes | no | incidental |
 | [`briefing`](logical-model.md#entity-briefing) | ai | personal | C2 | standard (per-record) | is evidence / append-only | R-EXEC | self | medium | yes | no | incidental |
 | [`briefing_statement`](logical-model.md#entity-briefing-statement) | ai | inherited | C2 | standard (per-record) | is evidence / append-only | R-EXEC | filtered | high | yes | no | incidental |
-| [`briefing_correction`](logical-model.md#entity-briefing-correction) | ai | personal_brand_optional | C2 | standard (per-record) | material changes | R-LIVE | filtered | low | yes | no | incidental |
+| [`briefing_correction`](logical-model.md#entity-briefing-correction) | ai | personal | C2 | standard (per-record) | material changes | R-LIVE | filtered | low | yes | no | incidental |
+| [`briefing_correction_event`](logical-model.md#entity-briefing-correction-event) | ai | inherited | C1 | low | is evidence / append-only | R-LIVE | filtered | low | no | no | incidental |
 | [`automation`](logical-model.md#entity-automation) | automation | workspace_or_brand | C1 | low | configuration changes | R-LIVE | filtered | low | yes | no | incidental |
 | [`automation_version`](logical-model.md#entity-automation-version) | automation | inherited | C1 | low | is evidence / append-only | R-LIVE | filtered | low | yes | no | incidental |
 | [`automation_run`](logical-model.md#entity-automation-run) | automation | inherited | C2 | standard (per-record) | is evidence / append-only | R-EXEC | filtered | very-high | no | no | incidental |

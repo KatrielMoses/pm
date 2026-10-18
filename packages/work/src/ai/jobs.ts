@@ -7,6 +7,7 @@ import { AI_DISPATCH_JOB, type AiGatewayService } from './ai-gateway-service.ts'
 export const AI_JOB_KINDS = {
   dispatch: AI_DISPATCH_JOB,
   retention: 'ai.history.retention',
+  briefings: 'ai.briefing.sweep',
 } as const;
 
 /**
@@ -21,12 +22,23 @@ export const AI_SCHEDULES: readonly RecurringJob[] = [
     maxAttempts: 3,
     timeoutSeconds: 300,
   },
+  // 7E: every minute, due briefing occurrences and queued briefings (fact-only; no AI is queued).
+  {
+    kind: AI_JOB_KINDS.briefings,
+    queue: 'default',
+    intervalMs: 60_000,
+    maxAttempts: 3,
+    timeoutSeconds: 240,
+  },
 ];
 
 export interface AiJobDeps {
   tenant: TenantDatabase;
   discovery: PlatformDiscovery;
-  service: Pick<AiGatewayService, 'runAiDispatch' | 'eraseAiContent' | 'aiHistoryRetentionDays'>;
+  service: Pick<
+    AiGatewayService,
+    'runAiDispatch' | 'eraseAiContent' | 'aiHistoryRetentionDays' | 'runBriefingSweep'
+  >;
   metrics: Metrics;
   logger: Logger;
   /** Job attempt cap for a dispatch (AI_MAX_ATTEMPTS). */
@@ -64,6 +76,32 @@ export function aiRetentionHandler(d: AiJobDeps): JobHandler {
           d.metrics.count('ai.history.erased', erased, { reason: 'retention' });
         } catch (err) {
           d.logger.warn('ai.retention_failed', errorFields(err));
+        }
+      }
+    },
+  };
+}
+
+/**
+ * The briefing sweep (ADR-0042 D6). Discovery returns workspace identifiers only; each workspace
+ * is swept in its own transactions, a failing workspace never holds up the others, and a repeated
+ * or overlapping sweep changes nothing (one briefing per schedule occurrence is a unique key).
+ */
+export function aiBriefingSweepHandler(d: AiJobDeps): JobHandler {
+  return {
+    kind: AI_JOB_KINDS.briefings,
+    queue: 'default',
+    maxAttempts: 3,
+    timeoutMs: 240_000,
+    async handle() {
+      const now = new Date();
+      const workspaces = await d.discovery.discoverBriefingWork(now, 100);
+      for (const ws of workspaces) {
+        try {
+          const r = await d.service.runBriefingSweep(d.tenant, ws, now);
+          d.metrics.count('ai.briefings', r.published, { outcome: 'swept' });
+        } catch (err) {
+          d.logger.warn('ai.briefing_sweep_failed', errorFields(err));
         }
       }
     },

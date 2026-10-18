@@ -660,4 +660,114 @@ describe('AI gateway API (7A)', () => {
     });
     expect(draft.statusCode).toBe(403);
   });
+  it('AT-466 7E briefings over HTTP: preview, generate with completed-key replay, detail with evidence, schedules and notes, envelopes, no-store, and session only', async () => {
+    await owner.post(`${base()}/tasks`, { brand, title: 'HTTP briefing task' }, { headers: key() });
+    const preview = await owner.post(`${base()}/ai/briefing-previews`, { kind: 'owner_daily' });
+    expect(preview.statusCode).toBe(200);
+    expect(preview.headers['cache-control']).toBe('private, no-store');
+    expect(preview.json().data).toMatchObject({
+      type: 'ai_briefing_preview',
+      first: true,
+      mode: 'fact_only',
+    });
+    const headers = key();
+    const made = await owner.post(`${base()}/ai/briefings`, { kind: 'owner_daily' }, { headers });
+    expect(made.statusCode).toBe(201);
+    const brf = made.json().data;
+    expect(brf).toMatchObject({
+      type: 'briefing',
+      state: 'published',
+      availability: 'available',
+      first: true,
+    });
+    expect(made.headers.etag).toBe(`"${brf.version}"`);
+    const replay = await owner.post(`${base()}/ai/briefings`, { kind: 'owner_daily' }, { headers });
+    expect(replay.headers['idempotent-replayed']).toBe('true');
+    expect(replay.json().data.id).toBe(brf.id);
+    expect((await env.db.admin(`SELECT count(*)::int AS n FROM ai.briefing`)).rows[0].n).toBe(1);
+    const got = await owner.get(`${base()}/ai/briefings/${brf.id}`);
+    expect(got.headers['cache-control']).toBe('private, no-store');
+    expect(got.json().data.statements.length).toBeGreaterThan(3);
+    const list = await owner.get(`${base()}/ai/briefings`);
+    expect(list.json().data).toMatchObject({
+      type: 'ai_briefings',
+      items: [expect.objectContaining({ id: brf.id })],
+    });
+    const note = await owner.post(
+      `${base()}/ai/briefings/${brf.id}/corrections`,
+      { statement: 'completed.count', text: 'Counts look right.' },
+      { headers: key() },
+    );
+    expect(note.statusCode).toBe(201);
+    const bco = note.json().data;
+    const approved = await owner.post(
+      `${base()}/ai/briefing-corrections/${bco.id}:approve`,
+      {},
+      {
+        headers: { ...key(), 'if-match': `"${bco.version}"` },
+      },
+    );
+    expect(approved.json().data.state).toBe('approved');
+    expect(
+      (
+        await owner.post(
+          `${base()}/ai/briefing-corrections/${bco.id}:explode`,
+          {},
+          { headers: key() },
+        )
+      ).statusCode,
+    ).toBe(404);
+    const sch = await owner.post(
+      `${base()}/ai/briefing-schedules`,
+      {
+        kind: 'owner_daily',
+        scope: {},
+        timezone: 'Europe/Lisbon',
+        local_time: '07:30',
+        weekdays: [1, 2, 3, 4, 5],
+        channels: ['in_app', 'email'],
+      },
+      { headers: key() },
+    );
+    expect(sch.statusCode).toBe(201);
+    expect(sch.json().data).toMatchObject({
+      type: 'briefing_schedule',
+      local_time: '07:30',
+      revision: 1,
+    });
+    expect((await owner.get(`${base()}/ai/briefing-schedules`)).json().data.type).toBe(
+      'ai_briefing_schedules',
+    );
+    const bad = await owner.post(
+      `${base()}/ai/briefing-schedules`,
+      {
+        kind: 'owner_daily',
+        scope: {},
+        timezone: 'Nowhere/Land',
+        local_time: '25:00',
+        weekdays: [],
+      },
+      { headers: key() },
+    );
+    expect(bad.statusCode).toBe(422);
+    expect((await owner.get(`${base()}/ai/briefings/brf_${'0'.repeat(26)}`)).statusCode).toBe(404);
+    // Bearer callers, even with ai:execute, never reach briefings (session only).
+    const tok = await protectedCall(owner, 'POST', `${base()}/api-tokens`, {
+      name: 'AI 7E',
+      kind: 'personal',
+      scopes: ['ai:execute', 'records:read'],
+    });
+    const secret = tok.json().data.secret as string;
+    for (const [method, url] of [
+      ['GET', `${base()}/ai/briefings`],
+      ['GET', `${base()}/ai/briefings/${brf.id}`],
+      ['POST', `${base()}/ai/briefings`],
+      ['POST', `${base()}/ai/briefing-previews`],
+      ['GET', `${base()}/ai/briefing-schedules`],
+      ['GET', `${base()}/ai/briefing-corrections`],
+    ] as const)
+      expect((await bearer(secret, method, url, { kind: 'owner_daily' })).statusCode, url).toBe(
+        403,
+      );
+  });
 });

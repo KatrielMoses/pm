@@ -265,6 +265,15 @@ export class PlatformDiscovery {
     return rows.map((r) => r.workspace_id);
   }
 
+  /** Workspaces with a due briefing schedule or a queued briefing (7E); identifiers only. */
+  async discoverBriefingWork(now: Date, limit: number): Promise<string[]> {
+    const { rows } = await this.#pool.query<{ workspace_id: string }>(
+      'SELECT workspace_id FROM exec_dispatch.discover_briefing_work($1, $2)',
+      [now, limit],
+    );
+    return rows.map((r) => r.workspace_id);
+  }
+
   async discoverReportWork(now: Date, retentionBefore: Date, limit: number): Promise<string[]> {
     const { rows } = await this.#pool.query<{ workspace_id: string }>(
       'SELECT workspace_id FROM exec_dispatch.discover_report_work($1, $2, $3)',

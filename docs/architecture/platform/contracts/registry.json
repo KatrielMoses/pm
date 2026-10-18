@@ -689,6 +689,30 @@
       "note": "Phase 7D (PL-49)."
     },
     {
+      "prefix": "bsc",
+      "resource": "briefing_schedule",
+      "entity": "ai.briefing_schedule",
+      "owner_module": "ai",
+      "platform_only": false,
+      "note": "Phase 7E (PL-51)."
+    },
+    {
+      "prefix": "brf",
+      "resource": "briefing",
+      "entity": "ai.briefing",
+      "owner_module": "ai",
+      "platform_only": false,
+      "note": "Phase 7E (PL-51)."
+    },
+    {
+      "prefix": "bco",
+      "resource": "briefing_correction",
+      "entity": "ai.briefing_correction",
+      "owner_module": "ai",
+      "platform_only": false,
+      "note": "Phase 7E (PL-51)."
+    },
+    {
       "prefix": "fld",
       "resource": "field_definition",
       "entity": "workflow.field_definition",
@@ -6847,6 +6871,14 @@
       "type": "counter",
       "labels": [
         "status"
+      ],
+      "area": "ai"
+    },
+    {
+      "name": "ai.briefings",
+      "type": "counter",
+      "labels": [
+        "outcome"
       ],
       "area": "ai"
     }

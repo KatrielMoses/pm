@@ -7,10 +7,17 @@ import {
 } from '@pm/contracts';
 import { createHash } from 'node:crypto';
 import type { AiConfig } from '@pm/config';
-import { sql, type AiMeter, type ProposalOp, type WorkspaceTransaction } from '@pm/db';
+import {
+  sql,
+  type AiMeter,
+  type ProposalOp,
+  type TenantDatabase,
+  type WorkspaceTransaction,
+} from '@pm/db';
 import {
   AwaitReconciliationError,
   CancelRequestedError,
+  contextFromRow,
   createOperation,
   enqueueJob,
   JobError,
@@ -23,6 +30,7 @@ import {
 } from '@pm/platform';
 import {
   decideBrand,
+  decidePersonal,
   decideWorkspace,
   findBrand,
   invalid,
@@ -31,6 +39,7 @@ import {
   parseIfMatch,
   applyFieldMerge,
   parseMerge,
+  requireVersion,
   StepUpNeeded,
   TenancyError,
   type Caller,
@@ -39,6 +48,31 @@ import {
 } from '@pm/tenancy';
 import { change, CommandContext } from '@pm/audit';
 import { McpAccessService } from '../integrations/mcp-access-service.ts';
+import { activePerson, principalOf, readableRecords } from '../notify/access.ts';
+import { NotificationFanOut } from '../notify/fanout.ts';
+import { systemExec } from '../notify/system.ts';
+import { localDay, validZone } from '../time/semantics.ts';
+import {
+  clock,
+  dueOccurrence,
+  nextOccurrence,
+  occurrenceKey,
+  reportingWindow,
+} from './briefing/schedule.ts';
+import {
+  BRIEFING_KINDS,
+  BRIEFING_TEMPLATE_VERSION,
+  buildStatements,
+  figuresDigest,
+  KIND_LABEL,
+  STATEMENT_KINDS,
+  STATEMENTS_MAX,
+  type BriefingKind,
+  type BriefingReaders,
+  type BriefingScope,
+  type Ref,
+  type Statement,
+} from './briefing/facts.ts';
 import {
   AI_METERS,
   amountOf,
@@ -71,7 +105,7 @@ import {
   type AiProvider,
 } from './provider.ts';
 import { redactCredentials } from './redaction.ts';
-import { eraseAiContentRows } from './lifecycle.ts';
+import { eraseAiContentRows, eraseBriefingRows } from './lifecycle.ts';
 import {
   GROUNDED_SYSTEM_TEMPLATE,
   GROUNDED_TEMPLATE_VERSION,
@@ -350,6 +384,49 @@ const AUDIT_METER: Record<AiMeter, string> = {
 
 const TERMINAL = new Set(['succeeded', 'partial', 'failed', 'cancelled', 'skipped']);
 
+/** 7E bounds (ADR-0042 D9): schedules and open notes per person, sweep batch, attempts. */
+const BRIEFING_SCHEDULES_MAX = 10;
+const BRIEFING_CORRECTIONS_MAX = 50;
+const CORRECTION_MAX_CHARS = 1000;
+const BRIEFING_SWEEP_BATCH = 50;
+const BRIEFING_MAX_ATTEMPTS = 3;
+
+/**
+ * The evidence a statement rests on, for binding a correction to it: the first reference with a
+ * version, or else a digest of the statement's figures. A change to either makes a note stale.
+ */
+function subjectOf(s: Pick<Statement, 'key' | 'refs' | 'figures'>): {
+  id: string;
+  version: string;
+} {
+  const r = s.refs.find((x) => x.v !== undefined);
+  if (r) return { id: r.id, version: String(r.v) };
+  return { id: s.refs[0]?.id ?? s.key.slice(0, 200), version: figuresDigest(s.figures) };
+}
+
+/** A statement fit to publish: known kind and section, bounded text, well-formed references. */
+function validStatement(s: Statement): boolean {
+  return (
+    (STATEMENT_KINDS as readonly string[]).includes(s.kind) &&
+    /^[a-z_]{1,40}$/.test(s.section) &&
+    typeof s.text === 'string' &&
+    s.text.length > 0 &&
+    s.text.length <= 2000 &&
+    !CONTROL_CHARS.test(s.text) &&
+    Array.isArray(s.refs) &&
+    s.refs.length <= 40 &&
+    s.refs.every((r) => typeof r.id === 'string' && r.id.length <= 80) &&
+    JSON.stringify(s.refs).length <= 7000 &&
+    // A substantive statement carries evidence. Overview, unavailable, and unknown statements may
+    // not; a calculation over nothing (an empty count) carries its figures and scope instead.
+    (s.refs.length > 0 ||
+      s.kind === 'unavailable' ||
+      s.kind === 'unknown' ||
+      s.section === 'overview' ||
+      (s.kind === 'calculation' && !!s.figures))
+  );
+}
+
 function str(v: unknown): string | undefined {
   return typeof v === 'string' ? v : undefined;
 }
@@ -364,11 +441,14 @@ function str(v: unknown): string | undefined {
 export class AiGatewayService extends McpAccessService {
   readonly #ai: AiGatewayDeps;
   readonly #models: readonly ModelEntry[];
+  /** 4B readiness of the email channel (briefing settings show unconfigured email honestly). */
+  readonly #briefingEmail: 'configured' | 'capture' | 'unconfigured';
 
   constructor(deps: ConstructorParameters<typeof McpAccessService>[0] & { ai?: AiGatewayDeps }) {
     super(deps);
     this.#ai = deps.ai ?? AI_DISABLED_DEPS;
     this.#models = this.#ai.models ?? MODELS;
+    this.#briefingEmail = deps.notify?.emailState ?? 'unconfigured';
   }
 
   /** Truthful readiness: `not_configured` is a healthy core-product state (T-79). */
@@ -4835,12 +4915,1736 @@ export class AiGatewayService extends McpAccessService {
     tx: WorkspaceTransaction,
     filter: { membershipId?: string; before?: Date },
   ): Promise<number> {
-    return eraseAiContentRows(tx, filter);
+    return (await eraseAiContentRows(tx, filter)) + (await eraseBriefingRows(tx, filter));
   }
 
   aiHistoryRetentionDays(): number | null {
     return this.#ai.config.historyRetentionDays;
   }
+  // ---------------------------------------------------------------------------------------------
+  // 7E briefings and reviews (ADR-0042): recipient-specific, source-linked, fact-first
+  // ---------------------------------------------------------------------------------------------
+
+  /** The canonical readers a briefing reads through, bound to one recipient principal. */
+  #briefingReaders(tx: WorkspaceTransaction, p: Principal): BriefingReaders {
+    return {
+      visibility: async () => {
+        const v = await this.taskVisibility(tx, p, true);
+        return { where: v.where, brandIds: v.ctx.brandIds };
+      },
+      signals: async (ids) => {
+        const loaded = [];
+        for (const id of ids) {
+          try {
+            loaded.push(await this.loadTask(tx, p, id));
+          } catch (err) {
+            if (!(err instanceof TenancyError)) throw err;
+          }
+        }
+        const s = await this.signalsFor(tx, p, loaded);
+        return new Map(
+          loaded.map((t) => [
+            t.publicId,
+            { stale: s.get(t.id)!.stale, blocked: s.get(t.id)!.blocked },
+          ]),
+        );
+      },
+      reviews: async () =>
+        (await this.myReviewsIn(tx, p, { limit: 50 }, 'reviewer', 'open')) as never,
+      approvals: async () => (await this.listApprovalsIn(tx, p, {})) as never,
+      timesheets: async () => (await this.listTimesheetApprovalsIn(tx, p, {})) as never,
+      timeReport: async (q) => (await this.timeReportIn(tx, p, q, 'brand')) as never,
+      capacity: async (from, to) =>
+        (await this.capacityFor(tx, p, await this.subject(tx, p, 'me'), from, to)) as never,
+    };
+  }
+
+  /** A briefing type and its scope, authorized for `p` now (an unreadable scope is not found). */
+  async #briefingScope(
+    tx: WorkspaceTransaction,
+    p: Principal,
+    kind: unknown,
+    raw: unknown,
+  ): Promise<{ kind: BriefingKind; scope: BriefingScope; json: Record<string, string> }> {
+    if (!(BRIEFING_KINDS as readonly unknown[]).includes(kind))
+      throw invalid(issue('/kind', 'invalid_option', 'Choose a briefing type.'));
+    const k = kind as BriefingKind;
+    const s = (raw && typeof raw === 'object' && !Array.isArray(raw) ? raw : {}) as Record<
+      string,
+      unknown
+    >;
+    for (const key of Object.keys(s))
+      if (key !== 'brand' && key !== 'project')
+        throw invalid(issue(`/scope/${key}`, 'unknown_field', 'This field is not accepted.'));
+    const needsProject = k === 'project_status' || k === 'release_readiness';
+    if (needsProject) {
+      if (s.brand !== undefined || typeof s.project !== 'string')
+        throw invalid(issue('/scope/project', 'required', 'Choose a project.'));
+      const pr = await this.loadProject(tx, p, s.project);
+      return {
+        kind: k,
+        json: { project: pr.publicId },
+        scope: {
+          key: `project:${pr.publicId}`,
+          brandId: pr.brand.id,
+          projectId: pr.id,
+          brandPublicId: null,
+          projectPublicId: pr.publicId,
+          label: `project “${pr.row.name}”`,
+        },
+      };
+    }
+    if (s.project !== undefined)
+      throw invalid(
+        issue('/scope/project', 'not_applicable', 'This briefing type has no project.'),
+      );
+    if (k === 'brand_daily' && typeof s.brand !== 'string')
+      throw invalid(issue('/scope/brand', 'required', 'Choose a brand.'));
+    if (k === 'owner_daily' && s.brand !== undefined)
+      throw invalid(
+        issue(
+          '/scope/brand',
+          'not_applicable',
+          'The daily briefing covers every brand you can read.',
+        ),
+      );
+    if (typeof s.brand === 'string') {
+      const b = await findBrand(tx, p, s.brand);
+      return {
+        kind: k,
+        json: { brand: b.public_id },
+        scope: {
+          key: `brand:${b.public_id}`,
+          brandId: b.id,
+          projectId: null,
+          brandPublicId: b.public_id,
+          projectPublicId: null,
+          label: `brand “${b.name}”`,
+        },
+      };
+    }
+    if (s.brand !== undefined)
+      throw invalid(
+        issue('/scope/brand', 'invalid_reference', 'Choose a brand by its identifier.'),
+      );
+    return {
+      kind: k,
+      json: {},
+      scope: {
+        key: 'workspace',
+        brandId: null,
+        projectId: null,
+        brandPublicId: null,
+        projectPublicId: null,
+        label: 'every brand you can read',
+      },
+    };
+  }
+
+  /** The last published comparable briefing: same recipient, type, scope, and template. */
+  async #comparableBaseline(
+    tx: WorkspaceTransaction,
+    recipient: string,
+    kind: string,
+    scopeKey: string,
+  ) {
+    return tx.db
+      .selectFrom('ai.briefing')
+      .select(['id', 'public_id', 'window_start', 'window_end', 'published_at'])
+      .where('recipient_membership_id', '=', recipient)
+      .where('kind', '=', kind as BriefingKind)
+      .where('scope_key', '=', scopeKey)
+      .where('template_version', '=', BRIEFING_TEMPLATE_VERSION)
+      .where('state', '=', 'published')
+      .orderBy('window_end', 'desc')
+      .orderBy('published_at', 'desc')
+      .limit(1)
+      .executeTakeFirst();
+  }
+
+  async #personZone(tx: WorkspaceTransaction, membershipId: string): Promise<string> {
+    return this.personZone(tx, membershipId);
+  }
+
+  /** Whether generated wording could be offered (never required, never queued by a schedule). */
+  async #briefingGenerated(
+    tx: WorkspaceTransaction,
+    trigger: 'schedule' | 'manual' | 'regenerate',
+  ) {
+    const { decision } = await this.#availability(tx);
+    if (decision.availability !== 'ready')
+      return {
+        available: false as const,
+        reason: 'AI is not available in this workspace.',
+      };
+    return {
+      available: false as const,
+      reason:
+        trigger === 'schedule'
+          ? 'scheduled briefings never start AI runs.'
+          : 'briefings are fact-only; summarize their scope with AI assist as a separate, confirmed run.',
+    };
+  }
+
+  /**
+   * Applies the recipient's approved corrections to fresh statements (BRF-016): a correction is an
+   * annotation after the statement it was made on, shown only while that statement's evidence is
+   * unchanged and readable now. Changed evidence marks it stale (it is never silently reused);
+   * absent statements leave it waiting. Correction text is never sent to a model.
+   */
+  async #applyCorrections(
+    tx: WorkspaceTransaction,
+    recipient: string,
+    kind: string,
+    scopeKey: string,
+    statements: Statement[],
+  ): Promise<Statement[]> {
+    const approved = await tx.db
+      .selectFrom('ai.briefing_correction')
+      .select([
+        'id',
+        'public_id',
+        'statement_key',
+        'subject_public_id',
+        'subject_version',
+        'text',
+        'revision',
+        'decided_at',
+      ])
+      .where('recipient_membership_id', '=', recipient)
+      .where('kind', '=', kind as BriefingKind)
+      .where('scope_key', '=', scopeKey)
+      .where('state', '=', 'approved')
+      .orderBy('decided_at')
+      .limit(BRIEFING_CORRECTIONS_MAX)
+      .execute();
+    if (!approved.length) return statements;
+    const byKey = new Map(statements.map((s) => [s.key, s]));
+    const notes = new Map<string, Statement[]>();
+    for (const c of approved) {
+      const s = byKey.get(c.statement_key);
+      if (!s) continue;
+      const subject = subjectOf(s);
+      if (subject.id !== c.subject_public_id || subject.version !== c.subject_version) {
+        await tx.db
+          .updateTable('ai.briefing_correction')
+          .set({ state: 'stale', updated_at: new Date(), version: sql`version + 1` })
+          .where('id', '=', c.id)
+          .execute();
+        await this.#correctionEvent(tx, c.id, 'stale', c.revision, null);
+        continue;
+      }
+      const list = notes.get(s.key) ?? [];
+      list.push({
+        section: s.section,
+        kind: 'annotation',
+        key: `correction:${c.public_id}`,
+        text: `Your approved note: ${c.text}`,
+        refs: [...s.refs.slice(0, 4), { type: 'correction', id: c.public_id, self: true }],
+        correctionId: c.id,
+      });
+      notes.set(s.key, list);
+    }
+    return statements.flatMap((s) => [s, ...(notes.get(s.key) ?? [])]);
+  }
+
+  async #correctionEvent(
+    tx: WorkspaceTransaction,
+    correctionId: string,
+    kind: 'proposed' | 'edited' | 'approved' | 'rejected' | 'superseded' | 'stale' | 'erased',
+    revision: number,
+    actor: string | null,
+  ) {
+    await tx.db
+      .insertInto('ai.briefing_correction_event')
+      .values({
+        id: newUuidV7(),
+        workspace_id: tx.workspaceId,
+        correction_id: correctionId,
+        kind,
+        revision,
+        actor_membership_id: actor,
+      })
+      .execute();
+  }
+
+  /**
+   * Generates and publishes one queued briefing as its recipient, in the caller's transaction:
+   * freeze the cutoff (already on the row), read, apply corrections, write statements, publish,
+   * close the operation, and record the delivery intent (4B) in the same commit. Refuses (and
+   * fails the briefing) when the recipient or scope is no longer authorized.
+   */
+  async #composeBriefing(
+    tx: WorkspaceTransaction,
+    briefingId: string,
+    channels: ReadonlyArray<'email'> | null,
+    actorMembership: string | null,
+  ): Promise<'published' | 'failed' | 'superseded' | 'skipped'> {
+    const row = await tx.db
+      .selectFrom('ai.briefing')
+      .selectAll()
+      .where('id', '=', briefingId)
+      .forUpdate()
+      .executeTakeFirst();
+    if (!row || row.state !== 'queued') return 'skipped';
+    // One composition per comparable series at a time: a baseline is never read twice.
+    await sql`SELECT pg_advisory_xact_lock(hashtext(${`brf:${row.recipient_membership_id}:${row.kind}:${row.scope_key}`}))`.execute(
+      tx.db,
+    );
+    const op = await tx.db
+      .selectFrom('exec.operation')
+      .selectAll()
+      .where('id', '=', row.operation_id)
+      .executeTakeFirstOrThrow();
+    const ctx = contextFromRow(op as never);
+    const actor = actorMembership
+      ? ({ type: 'human', id: actorMembership } as const)
+      : ({ type: 'system' } as const);
+    const fail = async (code: string) => {
+      await tx.db
+        .updateTable('ai.briefing')
+        .set({
+          state: 'failed',
+          failure_code: code,
+          attempts: sql`attempts + 1`,
+          updated_at: new Date(),
+          version: sql`version + 1`,
+        })
+        .where('id', '=', row.id)
+        .execute();
+      if (!TERMINAL.has(op.execution_state))
+        await transitionOperation(tx, {
+          operationId: op.id,
+          to: 'failed',
+          terminalReason: 'policy_rejected',
+          outcomeDetail: { code },
+          actor,
+          context: ctx,
+        });
+      this.d.metrics.count('ai.briefings', 1, { outcome: code });
+      return 'failed' as const;
+    };
+    // Re-authorize as the recipient now (execution and publication are the same commit).
+    const person = await activePerson(tx, row.recipient_membership_id);
+    if (!person) return fail('recipient_unavailable');
+    const p = await principalOf(tx, person);
+    if (!decidePersonal(p, 'personal.manage_own').allowed) return fail('recipient_unavailable');
+    if (row.schedule_id) {
+      const sch = await tx.db
+        .selectFrom('ai.briefing_schedule')
+        .select(['enabled', 'revision'])
+        .where('id', '=', row.schedule_id)
+        .executeTakeFirst();
+      if (!sch || !sch.enabled || sch.revision !== row.schedule_revision) {
+        await tx.db
+          .updateTable('ai.briefing')
+          .set({ state: 'superseded', updated_at: new Date(), version: sql`version + 1` })
+          .where('id', '=', row.id)
+          .execute();
+        if (!TERMINAL.has(op.execution_state))
+          await transitionOperation(tx, {
+            operationId: op.id,
+            to: 'cancelled',
+            terminalReason: 'superseded',
+            actor,
+            context: ctx,
+          });
+        this.d.metrics.count('ai.briefings', 1, { outcome: 'superseded' });
+        return 'superseded';
+      }
+    }
+    let scope;
+    try {
+      scope = await this.#briefingScope(tx, p, row.kind, row.scope);
+    } catch (err) {
+      if (err instanceof TenancyError) return fail('scope_unavailable');
+      throw err;
+    }
+    if (op.execution_state === 'queued')
+      await transitionOperation(tx, { operationId: op.id, to: 'running', actor, context: ctx });
+    const baseline = row.baseline_briefing_id
+      ? await tx.db
+          .selectFrom('ai.briefing')
+          .select(['public_id', 'window_start', 'window_end', 'published_at'])
+          .where('id', '=', row.baseline_briefing_id)
+          .where('state', '=', 'published')
+          .executeTakeFirst()
+      : undefined;
+    const built = await buildStatements(tx, p, this.#briefingReaders(tx, p), {
+      kind: row.kind,
+      scope: scope.scope,
+      timezone: row.timezone,
+      windowStart: new Date(row.window_start),
+      windowEnd: new Date(row.window_end),
+      baseline: baseline
+        ? {
+            publicId: baseline.public_id,
+            windowStart: new Date(baseline.window_start),
+            windowEnd: new Date(baseline.window_end),
+            publishedAt: new Date(baseline.published_at!),
+          }
+        : null,
+      clamped: !!(row.coverage as { window_clamped?: boolean } | null)?.window_clamped,
+      generated: await this.#briefingGenerated(tx, row.trigger),
+    });
+    const statements = (
+      await this.#applyCorrections(
+        tx,
+        row.recipient_membership_id,
+        row.kind,
+        row.scope_key,
+        built.statements,
+      )
+    ).slice(0, STATEMENTS_MAX);
+    // A malformed statement is never published as part of a complete briefing.
+    for (const s of statements) if (!validStatement(s)) return fail('statement_invalid');
+    if (statements.length)
+      await tx.db
+        .insertInto('ai.briefing_statement')
+        .values(
+          statements.map((s, i) => ({
+            id: newUuidV7(),
+            workspace_id: tx.workspaceId,
+            briefing_id: row.id,
+            position: i,
+            section: s.section,
+            kind: s.kind,
+            statement_key: s.key.slice(0, 200),
+            text: s.text.slice(0, 2000),
+            refs: JSON.stringify(s.refs),
+            figures: s.figures ? JSON.stringify(s.figures) : null,
+            correction_id: s.correctionId ?? null,
+          })),
+        )
+        .execute();
+    const now = new Date();
+    await tx.db
+      .updateTable('ai.briefing')
+      .set({
+        state: 'published',
+        published_at: now,
+        attempts: sql`attempts + 1`,
+        coverage: JSON.stringify(built.coverage),
+        updated_at: now,
+        version: sql`version + 1`,
+      })
+      .where('id', '=', row.id)
+      .execute();
+    await transitionOperation(tx, {
+      operationId: op.id,
+      to: 'succeeded',
+      outcomeDetail: { statements: statements.length },
+      actor,
+      context: ctx,
+    });
+    await writeOutboxEvent(tx, {
+      type: 'ai.briefing.generated',
+      aggregate: { type: 'ai.briefing', id: row.id, sequence: 1 },
+      data: { kind: row.kind, period_key: localDay(new Date(row.window_end), row.timezone) },
+      actor: actorMembership
+        ? { type: 'human', id: actorMembership }
+        : { type: 'system', id: tx.workspaceId },
+      context: ctx,
+      operationId: op.id,
+      ...(scope.scope.brandId ? { brandId: scope.scope.brandId } : {}),
+    });
+    // Delivery intent (BRF-018): one in-app notice, plus email where the schedule allows it; 4B
+    // preferences, mutes, quiet hours, dedupe, and send-time re-checks decide the rest. A person
+    // who generated a briefing themselves is not notified about it.
+    if (row.trigger === 'schedule')
+      await this.#briefingFanOut().persist(tx, null, {
+        type: 'briefing_ready',
+        recordId: null,
+        actorId: null,
+        recipients: [row.recipient_membership_id],
+        facts: { briefing: row.public_id },
+        occasion: row.public_id,
+        channels: channels ?? [],
+      });
+    this.d.metrics.count('ai.briefings', 1, { outcome: 'published' });
+    return 'published';
+  }
+
+  #briefingFanOut() {
+    return new NotificationFanOut(
+      {
+        notifyFanoutRecipientsMax: this.ws.notifyFanoutRecipientsMax,
+        notifyDedupeWindowMinutes: this.ws.notifyDedupeWindowMinutes,
+        notifyEmailPerHourMax: this.ws.notifyEmailPerHourMax,
+        notifyFactsMaxBytes: this.ws.notifyFactsMaxBytes,
+        principalContextArrayMax: this.c.settings.principalContextArrayMax,
+      },
+      this.d.metrics,
+    );
+  }
+
+  /** Inserts a queued briefing and its operation (manual, regeneration, or one occurrence). */
+  async #queueBriefing(
+    tx: WorkspaceTransaction,
+    input: {
+      recipient: string;
+      kind: BriefingKind;
+      scope: Record<string, string>;
+      scopeKey: string;
+      timezone: string;
+      windowStart: Date;
+      windowEnd: Date;
+      baselineId: string | null;
+      clamped: boolean;
+      trigger: 'schedule' | 'manual' | 'regenerate';
+      schedule?: { id: string; revision: number; occurrenceKey: string };
+      regeneratesId?: string;
+      context: ExecutionContext;
+      initiatedBy: { type: 'human'; id: string } | { type: 'system' };
+    },
+  ): Promise<{ id: string; publicId: string; operationId: string } | null> {
+    const op = await createOperation(tx, {
+      kind: 'briefing',
+      context: input.context,
+      initiatedBy: input.initiatedBy,
+      ...(input.schedule ? { dedupeKey: input.schedule.occurrenceKey } : {}),
+    }).catch((err: unknown) => {
+      if (err instanceof Error && err.message.includes('duplicate')) return null;
+      throw err;
+    });
+    if (!op) return null;
+    const id = newUuidV7();
+    const publicId = newPublicId('brf');
+    const ins = await tx.db
+      .insertInto('ai.briefing')
+      .values({
+        id,
+        workspace_id: tx.workspaceId,
+        public_id: publicId,
+        operation_id: op.id,
+        recipient_membership_id: input.recipient,
+        schedule_id: input.schedule?.id ?? null,
+        schedule_revision: input.schedule?.revision ?? null,
+        occurrence_key: input.schedule?.occurrenceKey ?? null,
+        trigger: input.trigger,
+        regenerates_id: input.regeneratesId ?? null,
+        kind: input.kind,
+        scope: JSON.stringify(input.scope),
+        scope_key: input.scopeKey,
+        template_version: BRIEFING_TEMPLATE_VERSION,
+        timezone: input.timezone,
+        window_start: input.windowStart,
+        window_end: input.windowEnd,
+        baseline_briefing_id: input.baselineId,
+        coverage: input.clamped ? JSON.stringify({ sections: {}, window_clamped: true }) : null,
+      })
+      .onConflict((oc) =>
+        oc
+          .columns(['workspace_id', 'schedule_id', 'occurrence_key'])
+          .where('trigger', '=', 'schedule')
+          .doNothing(),
+      )
+      .returning('id')
+      .executeTakeFirst();
+    if (!ins) {
+      // The occurrence already exists (a concurrent sweep): this operation never ran.
+      await transitionOperation(tx, {
+        operationId: op.id,
+        to: 'skipped',
+        terminalReason: 'deduplicated',
+        actor: { type: 'system' },
+        context: input.context,
+      });
+      return null;
+    }
+    return { id, publicId, operationId: op.id };
+  }
+
+  #parseBriefingRequest(body: unknown) {
+    const b = (body && typeof body === 'object' && !Array.isArray(body) ? body : {}) as Record<
+      string,
+      unknown
+    >;
+    for (const k of Object.keys(b))
+      if (!['kind', 'scope', 'timezone'].includes(k))
+        throw invalid(issue(`/${k}`, 'unknown_field', 'This field is not accepted.'));
+    if (b.timezone !== undefined && !validZone(b.timezone))
+      throw invalid(issue('/timezone', 'invalid_zone', 'Choose a valid time zone.'));
+    return { kind: b.kind, scope: b.scope, timezone: b.timezone as string | undefined };
+  }
+
+  /** The window, baseline, and scope a manual briefing would use now (no writes). */
+  async #manualPlan(tx: WorkspaceTransaction, p: Principal, body: unknown, now: Date) {
+    const req = this.#parseBriefingRequest(body);
+    const s = await this.#briefingScope(tx, p, req.kind, req.scope);
+    const timezone = req.timezone ?? (await this.#personZone(tx, p.membershipId));
+    const cutoff = new Date(now.getTime());
+    const baseline = await this.#comparableBaseline(tx, p.membershipId, s.kind, s.scope.key);
+    if (baseline && new Date(baseline.window_end).getTime() >= cutoff.getTime())
+      throw new TenancyError('conflict', {
+        issues: [issue('/', 'just_published', 'A briefing for this scope was just published.')],
+      });
+    const w = reportingWindow(
+      s.kind,
+      timezone,
+      cutoff,
+      baseline ? new Date(baseline.window_end) : null,
+    );
+    return { ...s, timezone, cutoff, baseline: baseline ?? null, window: w };
+  }
+
+  /** Generate now, preview (BRF-001–005): the scope, window, baseline, and what will be included. */
+  async previewBriefing(caller: Caller, ws: unknown, body: unknown) {
+    return this.inWorkspace(caller, ws, { readOnly: true }, async (tx, p) => {
+      this.requirePersonal(p, 'personal.manage_own');
+      const plan = await this.#manualPlan(tx, p, body, new Date());
+      const gen = await this.#briefingGenerated(tx, 'manual');
+      return {
+        kind: plan.kind,
+        kind_label: KIND_LABEL[plan.kind],
+        scope: { ...plan.json, key: plan.scope.key, label: plan.scope.label },
+        timezone: plan.timezone,
+        window: {
+          start: plan.window.start.toISOString(),
+          end: plan.window.end.toISOString(),
+          clamped: plan.window.clamped,
+        },
+        baseline: plan.baseline
+          ? {
+              id: plan.baseline.public_id,
+              published_at: new Date(plan.baseline.published_at!).toISOString(),
+            }
+          : null,
+        first: !plan.baseline,
+        mode: 'fact_only',
+        generated: { available: false, reason: gen.reason },
+      };
+    });
+  }
+
+  async generateBriefing(caller: Caller, ws: unknown, body: unknown, req: Mutation) {
+    return this.mutate(
+      caller,
+      'ai.briefing.generate',
+      ws,
+      req,
+      async (tx, p) => {
+        this.requirePersonal(p, 'personal.manage_own');
+        const plan = await this.#manualPlan(tx, p, body, new Date());
+        const q = await this.#queueBriefing(tx, {
+          recipient: p.membershipId,
+          kind: plan.kind,
+          scope: plan.json,
+          scopeKey: plan.scope.key,
+          timezone: plan.timezone,
+          windowStart: plan.window.start,
+          windowEnd: plan.window.end,
+          baselineId: plan.baseline?.id ?? null,
+          clamped: plan.window.clamped,
+          trigger: 'manual',
+          context: this.exec(caller, p),
+          initiatedBy: { type: 'human', id: p.membershipId },
+        });
+        await this.#composeBriefing(tx, q!.id, null, p.membershipId);
+        return {
+          status: 201,
+          ref: { id: q!.publicId, type: 'briefing' },
+          data: await this.#briefingView(tx, p, q!.publicId),
+        };
+      },
+      async (tx, p, ref) => this.#briefingView(tx, p, ref.id),
+    );
+  }
+
+  /**
+   * A deliberate regeneration (visibly distinct): the same window, cutoff, and baseline as the
+   * briefing it regenerates, read again now. It never advances the baseline a second time.
+   */
+  async regenerateBriefing(caller: Caller, ws: unknown, brf: unknown, req: Mutation) {
+    return this.mutate(
+      caller,
+      'ai.briefing.regenerate',
+      ws,
+      req,
+      async (tx, p) => {
+        this.requirePersonal(p, 'personal.manage_own');
+        const orig = await this.#ownBriefing(tx, p, brf);
+        if (orig.state !== 'published' && orig.state !== 'failed')
+          throw new TenancyError('conflict', {
+            issues: [issue('/', 'not_finished', 'Only a finished briefing can be regenerated.')],
+          });
+        const q = await this.#queueBriefing(tx, {
+          recipient: p.membershipId,
+          kind: orig.kind,
+          scope: orig.scope as Record<string, string>,
+          scopeKey: orig.scope_key,
+          timezone: orig.timezone,
+          windowStart: new Date(orig.window_start),
+          windowEnd: new Date(orig.window_end),
+          baselineId: orig.baseline_briefing_id,
+          clamped: !!(orig.coverage as { window_clamped?: boolean } | null)?.window_clamped,
+          trigger: 'regenerate',
+          regeneratesId: orig.id,
+          context: this.exec(caller, p),
+          initiatedBy: { type: 'human', id: p.membershipId },
+        });
+        await this.#composeBriefing(tx, q!.id, null, p.membershipId);
+        return {
+          status: 201,
+          ref: { id: q!.publicId, type: 'briefing' },
+          data: await this.#briefingView(tx, p, q!.publicId),
+        };
+      },
+      async (tx, p, ref) => this.#briefingView(tx, p, ref.id),
+    );
+  }
+
+  async #ownBriefing(tx: WorkspaceTransaction, p: Principal, brf: unknown) {
+    if (typeof brf !== 'string' || !/^brf_[0-9A-HJKMNP-TV-Z]{26}$/.test(brf))
+      throw new TenancyError('not_found');
+    const row = await tx.db
+      .selectFrom('ai.briefing')
+      .selectAll()
+      .where('public_id', '=', brf)
+      .executeTakeFirst();
+    // Briefings are their recipient's alone: no role, grant, or administrator reaches another's.
+    if (!row || row.recipient_membership_id !== p.membershipId) throw new TenancyError('not_found');
+    return row;
+  }
+
+  /**
+   * Display-time re-check (BRF-014): every statement's evidence must still be readable by the
+   * recipient. When any is not, the whole briefing is withheld rather than redacted, so a hidden
+   * record's title, count, or delta never shows. Comparisons were computed from authorized data.
+   */
+  async #briefingReadable(tx: WorkspaceTransaction, p: Principal, refs: Ref[]): Promise<boolean> {
+    const recs = [...new Set(refs.flatMap((r) => (r.rec ? [r.rec] : [])))];
+    if (recs.length) {
+      const ids = await tx.db
+        .selectFrom('core.record')
+        .select(['id', 'public_id'])
+        .where('public_id', 'in', recs)
+        .execute();
+      if (ids.length !== recs.length) return false;
+      const ok = await readableRecords(
+        tx,
+        p,
+        ids.map((r) => r.id),
+        this.c.settings.principalContextArrayMax,
+      );
+      if (ok.size !== ids.length) return false;
+    }
+    for (const b of new Set(refs.flatMap((r) => (r.brand ? [r.brand] : [])))) {
+      try {
+        await findBrand(tx, p, b);
+      } catch (err) {
+        if (err instanceof TenancyError) return false;
+        throw err;
+      }
+    }
+    if (refs.some((r) => r.perm === 'timesheet.approve')) {
+      const brands = await tx.db
+        .selectFrom('tenancy.brand')
+        .select(['id', 'is_sensitive', 'lifecycle_state'])
+        .execute();
+      if (
+        !brands.some(
+          (b) =>
+            decideBrand(p, 'timesheet.approve', {
+              id: b.id,
+              isSensitive: b.is_sensitive,
+              lifecycleState: b.lifecycle_state as 'active',
+            }).allowed,
+        )
+      )
+        return false;
+    }
+    return true;
+  }
+
+  #briefingSummary(row: {
+    public_id: string;
+    kind: BriefingKind;
+    scope: unknown;
+    scope_key: string;
+    trigger: string;
+    state: string;
+    failure_code: string | null;
+    timezone: string;
+    window_start: Date | string;
+    window_end: Date | string;
+    published_at: Date | string | null;
+    created_at: Date | string;
+    content_state: string;
+    baseline_public?: string | null;
+    regenerates_public?: string | null;
+    version: number;
+  }) {
+    return {
+      id: row.public_id,
+      type: 'briefing' as const,
+      kind: row.kind,
+      kind_label: KIND_LABEL[row.kind],
+      scope: { ...(row.scope as Record<string, string>), key: row.scope_key },
+      trigger: row.trigger,
+      state: row.state,
+      failure_code: row.failure_code,
+      timezone: row.timezone,
+      window: {
+        start: new Date(row.window_start).toISOString(),
+        end: new Date(row.window_end).toISOString(),
+      },
+      baseline: row.baseline_public ?? null,
+      first: !row.baseline_public,
+      regenerates: row.regenerates_public ?? null,
+      mode: 'fact_only' as const,
+      content: row.content_state,
+      published_at: row.published_at ? new Date(row.published_at).toISOString() : null,
+      created_at: new Date(row.created_at).toISOString(),
+      version: Number(row.version),
+    };
+  }
+
+  async #briefingView(tx: WorkspaceTransaction, p: Principal, brf: string) {
+    const row = await this.#ownBriefing(tx, p, brf);
+    const pub = async (id: string | null) =>
+      id
+        ? ((
+            await tx.db
+              .selectFrom('ai.briefing')
+              .select('public_id')
+              .where('id', '=', id)
+              .executeTakeFirst()
+          )?.public_id ?? null)
+        : null;
+    const summary = this.#briefingSummary({
+      ...row,
+      baseline_public: await pub(row.baseline_briefing_id),
+      regenerates_public: await pub(row.regenerates_id),
+    });
+    const delivery = await this.#deliveryState(tx, row);
+    const scheduleId = row.schedule_id
+      ? ((
+          await tx.db
+            .selectFrom('ai.briefing_schedule')
+            .select('public_id')
+            .where('id', '=', row.schedule_id)
+            .executeTakeFirst()
+        )?.public_id ?? null)
+      : null;
+    const base = { ...summary, schedule: scheduleId, delivery };
+    if (row.state !== 'published' || row.content_state !== 'present')
+      return {
+        ...base,
+        availability: row.content_state === 'erased' ? 'erased' : 'none',
+        statements: [],
+        coverage: null,
+      };
+    const st = await tx.db
+      .selectFrom('ai.briefing_statement as s')
+      .leftJoin('ai.briefing_correction as c', 'c.id', 's.correction_id')
+      .select([
+        's.position',
+        's.section',
+        's.kind',
+        's.statement_key',
+        's.text',
+        's.refs',
+        's.figures',
+        'c.public_id as correction',
+        'c.state as correction_state',
+      ])
+      .where('s.briefing_id', '=', row.id)
+      .orderBy('s.position')
+      .execute();
+    const refs = st.flatMap((s) => s.refs as unknown as Ref[]);
+    if (!(await this.#briefingReadable(tx, p, refs))) {
+      this.d.metrics.count('ai.briefings', 1, { outcome: 'withheld' });
+      return { ...base, availability: 'withheld', statements: [], coverage: null };
+    }
+    const corrections = await tx.db
+      .selectFrom('ai.briefing_correction')
+      .select(['public_id', 'statement_key', 'state'])
+      .where('origin_briefing_id', '=', row.id)
+      .execute();
+    return {
+      ...base,
+      availability: 'available',
+      coverage: row.coverage,
+      statements: st.map((s) => ({
+        position: s.position,
+        section: s.section,
+        kind: s.kind,
+        key: s.statement_key,
+        text: s.text,
+        refs: (s.refs as unknown as Ref[]).map((r) => ({
+          type: r.type,
+          id: r.id,
+          ...(r.v !== undefined ? { version: r.v } : {}),
+        })),
+        figures: s.figures,
+        correction: s.correction ? { id: s.correction, state: s.correction_state } : null,
+        corrections: corrections
+          .filter((c) => c.statement_key === s.statement_key)
+          .map((c) => ({ id: c.public_id, state: c.state })),
+      })),
+    };
+  }
+
+  /** Truthful delivery state: in-app, and email (pending, delivered, failed, suppressed, none). */
+  async #deliveryState(
+    tx: WorkspaceTransaction,
+    row: { public_id: string; recipient_membership_id: string; trigger: string; state: string },
+  ) {
+    if (row.state !== 'published') return { in_app: 'none', email: 'none', email_reason: null };
+    const n = await tx.db
+      .selectFrom('notify.notification')
+      .select(['id'])
+      .where('recipient_membership_id', '=', row.recipient_membership_id)
+      .where('type', '=', 'briefing_ready')
+      .where(sql<boolean>`facts->>'briefing' = ${row.public_id}`)
+      .executeTakeFirst();
+    if (!n)
+      return {
+        in_app: row.trigger === 'schedule' ? 'muted' : 'not_notified',
+        email: 'none',
+        email_reason: row.trigger === 'schedule' ? 'muted_or_off' : 'generated_by_you',
+      };
+    const d = await tx.db
+      .selectFrom('notify.delivery')
+      .select(['state', 'suppress_reason', 'failure_class'])
+      .where('notification_id', '=', n.id)
+      .where('channel', '=', 'email')
+      .orderBy('created_at', 'desc')
+      .executeTakeFirst();
+    return {
+      in_app: 'delivered',
+      email: d ? d.state : 'none',
+      email_reason: d?.suppress_reason ?? d?.failure_class ?? null,
+    };
+  }
+
+  async listBriefings(caller: Caller, ws: unknown, query: { limit?: unknown; before?: unknown }) {
+    return this.inWorkspace(caller, ws, { readOnly: true }, async (tx, p) => {
+      this.requirePersonal(p, 'personal.manage_own');
+      const limit = Math.min(HISTORY_PAGE_MAX, Math.max(1, Number(query.limit ?? 20) || 20));
+      let q = tx.db
+        .selectFrom('ai.briefing as b')
+        .leftJoin('ai.briefing as base', 'base.id', 'b.baseline_briefing_id')
+        .leftJoin('ai.briefing as reg', 'reg.id', 'b.regenerates_id')
+        .selectAll('b')
+        .select(['base.public_id as baseline_public', 'reg.public_id as regenerates_public'])
+        .where('b.recipient_membership_id', '=', p.membershipId)
+        .orderBy('b.created_at', 'desc')
+        .orderBy('b.id', 'desc')
+        .limit(limit + 1);
+      if (typeof query.before === 'string' && query.before) {
+        const at = new Date(Buffer.from(query.before, 'base64url').toString('utf8'));
+        if (Number.isNaN(at.getTime())) throw new TenancyError('cursor_invalid');
+        q = q.where('b.created_at', '<', at);
+      }
+      const rows = await q.execute();
+      const page = rows.slice(0, limit);
+      return {
+        items: page.map((r) => this.#briefingSummary(r)),
+        next_cursor:
+          rows.length > limit
+            ? Buffer.from(new Date(page[page.length - 1]!.created_at).toISOString()).toString(
+                'base64url',
+              )
+            : null,
+      };
+    });
+  }
+
+  async getBriefing(caller: Caller, ws: unknown, brf: unknown) {
+    return this.inWorkspace(caller, ws, { readOnly: true }, async (tx, p) => {
+      this.requirePersonal(p, 'personal.manage_own');
+      return this.#briefingView(tx, p, typeof brf === 'string' ? brf : '');
+    });
+  }
+
+  // -- Schedules (BRF-017) -----------------------------------------------------------------------
+
+  #parseSchedule(body: unknown, partial: boolean) {
+    const b = (body && typeof body === 'object' && !Array.isArray(body) ? body : {}) as Record<
+      string,
+      unknown
+    >;
+    const issues = [];
+    for (const k of Object.keys(b))
+      if (
+        !['kind', 'scope', 'timezone', 'local_time', 'weekdays', 'channels', 'enabled'].includes(k)
+      )
+        issues.push(issue(`/${k}`, 'unknown_field', 'This field is not accepted.'));
+    const out: {
+      kind?: unknown;
+      scope?: unknown;
+      timezone?: string;
+      minute?: number;
+      weekdays?: number[];
+      channels?: Array<'in_app' | 'email'>;
+      enabled?: boolean;
+    } = {};
+    if (b.kind !== undefined || !partial) out.kind = b.kind;
+    if (b.scope !== undefined || !partial) out.scope = b.scope ?? {};
+    if (b.timezone !== undefined || !partial) {
+      const z = validZone(b.timezone);
+      if (!z) issues.push(issue('/timezone', 'invalid_zone', 'Choose a valid IANA time zone.'));
+      else out.timezone = z;
+    }
+    if (b.local_time !== undefined || !partial) {
+      const m =
+        typeof b.local_time === 'string' ? /^([01]\d|2[0-3]):([0-5]\d)$/.exec(b.local_time) : null;
+      if (!m) issues.push(issue('/local_time', 'invalid_value', 'Use a local time like 08:30.'));
+      else out.minute = Number(m[1]) * 60 + Number(m[2]);
+    }
+    if (b.weekdays !== undefined || !partial) {
+      const w = b.weekdays;
+      if (
+        !Array.isArray(w) ||
+        !w.length ||
+        w.length > 7 ||
+        !w.every((d) => Number.isInteger(d) && d >= 1 && d <= 7)
+      )
+        issues.push(
+          issue('/weekdays', 'invalid_value', 'Choose at least one weekday (1 is Monday).'),
+        );
+      else out.weekdays = [...new Set(w as number[])].sort();
+    }
+    if (b.channels !== undefined || !partial) {
+      const c = b.channels ?? ['in_app'];
+      if (
+        !Array.isArray(c) ||
+        !c.every((x) => x === 'in_app' || x === 'email') ||
+        !c.includes('in_app')
+      )
+        issues.push(issue('/channels', 'invalid_value', 'In-app is always on; email is optional.'));
+      else out.channels = [...new Set(c as Array<'in_app' | 'email'>)];
+    }
+    if (b.enabled !== undefined) {
+      if (typeof b.enabled !== 'boolean')
+        issues.push(issue('/enabled', 'invalid_value', 'Use true or false.'));
+      else out.enabled = b.enabled;
+    }
+    if (issues.length) throw invalid(...issues);
+    return out;
+  }
+
+  #scheduleView(
+    row: {
+      public_id: string;
+      kind: BriefingKind;
+      scope: unknown;
+      scope_key: string;
+      timezone: string;
+      local_minute: number;
+      weekdays: number[];
+      channels: string[];
+      enabled: boolean;
+      revision: number;
+      next_run_at: Date | string | null;
+      version: number;
+    },
+    emailState: string,
+  ) {
+    const upcoming: string[] = [];
+    let after = new Date();
+    for (let i = 0; i < 3 && row.enabled; i++) {
+      const o = nextOccurrence(row, after);
+      if (!o) break;
+      upcoming.push(o.at.toISOString());
+      after = o.at;
+    }
+    return {
+      id: row.public_id,
+      type: 'briefing_schedule' as const,
+      kind: row.kind,
+      kind_label: KIND_LABEL[row.kind],
+      scope: { ...(row.scope as Record<string, string>), key: row.scope_key },
+      timezone: row.timezone,
+      local_time: clock(row.local_minute),
+      weekdays: row.weekdays.map(Number),
+      channels: row.channels,
+      email: row.channels.includes('email')
+        ? emailState === 'unconfigured'
+          ? 'not_configured'
+          : 'requested'
+        : 'off',
+      enabled: row.enabled,
+      revision: row.revision,
+      next_run_at: row.next_run_at ? new Date(row.next_run_at).toISOString() : null,
+      upcoming,
+      mode: 'fact_only' as const,
+      version: Number(row.version),
+    };
+  }
+
+  #emailState(): string {
+    return this.#briefingEmail;
+  }
+
+  async listBriefingSchedules(caller: Caller, ws: unknown) {
+    return this.inWorkspace(caller, ws, { readOnly: true }, async (tx, p) => {
+      this.requirePersonal(p, 'personal.manage_own');
+      const rows = await tx.db
+        .selectFrom('ai.briefing_schedule')
+        .selectAll()
+        .where('membership_id', '=', p.membershipId)
+        .orderBy('created_at')
+        .limit(BRIEFING_SCHEDULES_MAX)
+        .execute();
+      return {
+        items: rows.map((r) => this.#scheduleView(r, this.#emailState())),
+        email: this.#emailState() === 'unconfigured' ? 'not_configured' : 'configured',
+        timezone: await this.#personZone(tx, p.membershipId),
+      };
+    });
+  }
+
+  async createBriefingSchedule(caller: Caller, ws: unknown, body: unknown, req: Mutation) {
+    const input = this.#parseSchedule(body, false);
+    return this.mutate(
+      caller,
+      'ai.briefing_schedule.create',
+      ws,
+      req,
+      async (tx, p) => {
+        this.requirePersonal(p, 'personal.manage_own');
+        const s = await this.#briefingScope(tx, p, input.kind, input.scope);
+        const n = await tx.db
+          .selectFrom('ai.briefing_schedule')
+          .select(sql<number>`count(*)::int`.as('n'))
+          .where('membership_id', '=', p.membershipId)
+          .executeTakeFirstOrThrow();
+        if (n.n >= BRIEFING_SCHEDULES_MAX)
+          throw new TenancyError('conflict', {
+            issues: [issue('/', 'too_many', `Keep at most ${BRIEFING_SCHEDULES_MAX} schedules.`)],
+          });
+        const enabled = input.enabled ?? true;
+        const shape = {
+          timezone: input.timezone!,
+          local_minute: input.minute!,
+          weekdays: input.weekdays!,
+        };
+        const next = enabled ? (nextOccurrence(shape, new Date())?.at ?? null) : null;
+        const publicId = newPublicId('bsc');
+        await tx.db
+          .insertInto('ai.briefing_schedule')
+          .values({
+            id: newUuidV7(),
+            workspace_id: tx.workspaceId,
+            public_id: publicId,
+            membership_id: p.membershipId,
+            kind: s.kind,
+            scope: JSON.stringify(s.json),
+            scope_key: s.scope.key,
+            timezone: shape.timezone,
+            local_minute: shape.local_minute,
+            weekdays: shape.weekdays,
+            channels: input.channels!,
+            enabled,
+            next_run_at: next,
+          })
+          .execute();
+        return {
+          status: 201,
+          ref: { id: publicId, type: 'briefing_schedule' },
+          data: await this.#scheduleViewById(tx, p, publicId),
+        };
+      },
+      async (tx, p, ref) => this.#scheduleViewById(tx, p, ref.id),
+    );
+  }
+
+  async #ownSchedule(tx: WorkspaceTransaction, p: Principal, bsc: unknown, lock = false) {
+    if (typeof bsc !== 'string' || !/^bsc_[0-9A-HJKMNP-TV-Z]{26}$/.test(bsc))
+      throw new TenancyError('not_found');
+    let q = tx.db.selectFrom('ai.briefing_schedule').selectAll().where('public_id', '=', bsc);
+    if (lock) q = q.forUpdate();
+    const row = await q.executeTakeFirst();
+    if (!row || row.membership_id !== p.membershipId) throw new TenancyError('not_found');
+    return row;
+  }
+
+  async #scheduleViewById(tx: WorkspaceTransaction, p: Principal, bsc: string) {
+    return this.#scheduleView(await this.#ownSchedule(tx, p, bsc), this.#emailState());
+  }
+
+  /**
+   * Edits a schedule. Every change raises its revision, so queued occurrences of the old revision
+   * are superseded (never generated under the old scope or time); the next run is recomputed.
+   */
+  async updateBriefingSchedule(
+    caller: Caller,
+    ws: unknown,
+    bsc: unknown,
+    body: unknown,
+    req: Mutation,
+  ) {
+    const input = this.#parseSchedule(body, true);
+    return this.mutate(
+      caller,
+      'ai.briefing_schedule.update',
+      ws,
+      req,
+      async (tx, p) => {
+        this.requirePersonal(p, 'personal.manage_own');
+        const row = await this.#ownSchedule(tx, p, bsc, true);
+        if (req.ifMatch !== undefined)
+          requireVersion(parseIfMatch(req.ifMatch), Number(row.version));
+        const kind = input.kind ?? row.kind;
+        const s = await this.#briefingScope(tx, p, kind, input.scope ?? row.scope);
+        const shape = {
+          timezone: input.timezone ?? row.timezone,
+          local_minute: input.minute ?? row.local_minute,
+          weekdays: input.weekdays ?? row.weekdays.map(Number),
+        };
+        const enabled = input.enabled ?? row.enabled;
+        const now = new Date();
+        await tx.db
+          .updateTable('ai.briefing_schedule')
+          .set({
+            kind: s.kind,
+            scope: JSON.stringify(s.json),
+            scope_key: s.scope.key,
+            timezone: shape.timezone,
+            local_minute: shape.local_minute,
+            weekdays: shape.weekdays,
+            channels: input.channels ?? row.channels,
+            enabled,
+            revision: row.revision + 1,
+            next_run_at: enabled ? (nextOccurrence(shape, now)?.at ?? null) : null,
+            updated_at: now,
+            version: Number(row.version) + 1,
+          })
+          .where('id', '=', row.id)
+          .execute();
+        // Queued occurrences of the previous revision will never run under it.
+        await this.#supersedeQueued(tx, row.id, row.revision + 1);
+        return {
+          status: 200,
+          ref: { id: row.public_id, type: 'briefing_schedule' },
+          data: await this.#scheduleViewById(tx, p, row.public_id),
+        };
+      },
+      async (tx, p, ref) => this.#scheduleViewById(tx, p, ref.id),
+    );
+  }
+
+  async #supersedeQueued(
+    tx: WorkspaceTransaction,
+    scheduleId: string,
+    currentRevision: number | null,
+  ) {
+    const stale = await tx.db
+      .selectFrom('ai.briefing as b')
+      .innerJoin('exec.operation as o', 'o.id', 'b.operation_id')
+      .selectAll('o')
+      .select(['b.id as briefing_id'])
+      .where('b.schedule_id', '=', scheduleId)
+      .where('b.state', '=', 'queued')
+      .where((eb) =>
+        currentRevision === null ? eb.val(true) : eb('b.schedule_revision', '<>', currentRevision),
+      )
+      .execute();
+    for (const s of stale) {
+      await tx.db
+        .updateTable('ai.briefing')
+        .set({ state: 'superseded', updated_at: new Date(), version: sql`version + 1` })
+        .where('id', '=', s.briefing_id)
+        .execute();
+      if (!TERMINAL.has(s.execution_state))
+        await transitionOperation(tx, {
+          operationId: s.id,
+          to: 'cancelled',
+          terminalReason: 'superseded',
+          actor: { type: 'system' },
+          context: contextFromRow(s as never),
+        });
+    }
+  }
+
+  // -- Corrections (BRF-015, BRF-016) ------------------------------------------------------------
+
+  #parseCorrectionText(v: unknown, pointer = '/text'): { text: string; redactions: number } {
+    if (
+      typeof v !== 'string' ||
+      !v.trim() ||
+      v.length > CORRECTION_MAX_CHARS ||
+      CONTROL_CHARS.test(v)
+    )
+      throw invalid(
+        issue(pointer, 'invalid_value', `Write a note of 1 to ${CORRECTION_MAX_CHARS} characters.`),
+      );
+    const r = redactCredentials(v.trim());
+    return { text: r.text, redactions: r.count };
+  }
+
+  #correctionView(row: {
+    public_id: string;
+    kind: BriefingKind;
+    scope_key: string;
+    statement_key: string;
+    text: string | null;
+    state: string;
+    revision: number;
+    decided_at: Date | string | null;
+    created_at: Date | string;
+    version: number;
+    origin_public?: string;
+  }) {
+    return {
+      id: row.public_id,
+      type: 'briefing_correction' as const,
+      briefing: row.origin_public ?? null,
+      kind: row.kind,
+      scope: row.scope_key,
+      statement: row.statement_key,
+      text: row.text,
+      state: row.state,
+      revision: row.revision,
+      decided_at: row.decided_at ? new Date(row.decided_at).toISOString() : null,
+      created_at: new Date(row.created_at).toISOString(),
+      applies_to: 'your future briefings of this type and scope',
+      version: Number(row.version),
+    };
+  }
+
+  async #correctionViewById(tx: WorkspaceTransaction, p: Principal, bco: string) {
+    const r = await this.#ownCorrection(tx, p, bco);
+    const origin = await tx.db
+      .selectFrom('ai.briefing')
+      .select('public_id')
+      .where('id', '=', r.origin_briefing_id)
+      .executeTakeFirstOrThrow();
+    const events = await tx.db
+      .selectFrom('ai.briefing_correction_event')
+      .select(['kind', 'revision', 'created_at'])
+      .where('correction_id', '=', r.id)
+      .orderBy('created_at')
+      .orderBy('id')
+      .limit(50)
+      .execute();
+    return {
+      ...this.#correctionView({ ...r, origin_public: origin.public_id }),
+      history: events.map((e) => ({
+        kind: e.kind,
+        revision: e.revision,
+        at: new Date(e.created_at).toISOString(),
+      })),
+    };
+  }
+
+  async #ownCorrection(tx: WorkspaceTransaction, p: Principal, bco: unknown, lock = false) {
+    if (typeof bco !== 'string' || !/^bco_[0-9A-HJKMNP-TV-Z]{26}$/.test(bco))
+      throw new TenancyError('not_found');
+    let q = tx.db.selectFrom('ai.briefing_correction').selectAll().where('public_id', '=', bco);
+    if (lock) q = q.forUpdate();
+    const row = await q.executeTakeFirst();
+    if (!row || row.recipient_membership_id !== p.membershipId) throw new TenancyError('not_found');
+    return row;
+  }
+
+  /**
+   * Flags a statement and proposes a note about it (BRF-015). Bound to the statement's key and
+   * its evidence version in this briefing; never an edit to the record. A note that asks for a
+   * business change is still only a note: changes go through 7D proposals.
+   */
+  async proposeBriefingCorrection(
+    caller: Caller,
+    ws: unknown,
+    brf: unknown,
+    body: unknown,
+    req: Mutation,
+  ) {
+    const b = (body && typeof body === 'object' && !Array.isArray(body) ? body : {}) as Record<
+      string,
+      unknown
+    >;
+    for (const k of Object.keys(b))
+      if (k !== 'statement' && k !== 'text')
+        throw invalid(issue(`/${k}`, 'unknown_field', 'This field is not accepted.'));
+    if (typeof b.statement !== 'string' || b.statement.length > 200)
+      throw invalid(issue('/statement', 'required', 'Choose the statement to correct.'));
+    const note = this.#parseCorrectionText(b.text);
+    return this.mutate(
+      caller,
+      'ai.briefing_correction.propose',
+      ws,
+      req,
+      async (tx, p) => {
+        this.requirePersonal(p, 'personal.manage_own');
+        const view = await this.#briefingView(tx, p, typeof brf === 'string' ? brf : '');
+        if (view.availability !== 'available') throw new TenancyError('not_found');
+        const row = await this.#ownBriefing(tx, p, brf);
+        const st = await tx.db
+          .selectFrom('ai.briefing_statement')
+          .selectAll()
+          .where('briefing_id', '=', row.id)
+          .where('statement_key', '=', b.statement as string)
+          .where('kind', '<>', 'annotation')
+          .executeTakeFirst();
+        if (!st)
+          throw invalid(
+            issue('/statement', 'invalid_reference', 'That statement is not in this briefing.'),
+          );
+        const open = await tx.db
+          .selectFrom('ai.briefing_correction')
+          .select(sql<number>`count(*)::int`.as('n'))
+          .where('recipient_membership_id', '=', p.membershipId)
+          .where('state', 'in', ['proposed', 'approved'])
+          .executeTakeFirstOrThrow();
+        if (open.n >= BRIEFING_CORRECTIONS_MAX)
+          throw new TenancyError('conflict', {
+            issues: [
+              issue('/', 'too_many', `Keep at most ${BRIEFING_CORRECTIONS_MAX} open notes.`),
+            ],
+          });
+        const subject = subjectOf({
+          key: st.statement_key,
+          refs: st.refs as unknown as Ref[],
+          figures: (st.figures ?? undefined) as Statement['figures'],
+        });
+        const id = newUuidV7();
+        const publicId = newPublicId('bco');
+        await tx.db
+          .insertInto('ai.briefing_correction')
+          .values({
+            id,
+            workspace_id: tx.workspaceId,
+            public_id: publicId,
+            recipient_membership_id: p.membershipId,
+            origin_briefing_id: row.id,
+            kind: row.kind,
+            scope_key: row.scope_key,
+            statement_key: st.statement_key,
+            subject_public_id: subject.id,
+            subject_version: subject.version,
+            text: note.text,
+          })
+          .execute();
+        await this.#correctionEvent(tx, id, 'proposed', 1, p.membershipId);
+        this.d.metrics.count('ai.briefings', 1, { outcome: 'correction_proposed' });
+        return {
+          status: 201,
+          ref: { id: publicId, type: 'briefing_correction' },
+          data: await this.#correctionViewById(tx, p, publicId),
+        };
+      },
+      async (tx, p, ref) => this.#correctionViewById(tx, p, ref.id),
+    );
+  }
+
+  async listBriefingCorrections(caller: Caller, ws: unknown, query: { state?: unknown }) {
+    return this.inWorkspace(caller, ws, { readOnly: true }, async (tx, p) => {
+      this.requirePersonal(p, 'personal.manage_own');
+      let q = tx.db
+        .selectFrom('ai.briefing_correction as c')
+        .innerJoin('ai.briefing as b', 'b.id', 'c.origin_briefing_id')
+        .selectAll('c')
+        .select(['b.public_id as origin_public'])
+        .where('c.recipient_membership_id', '=', p.membershipId)
+        .orderBy('c.created_at', 'desc')
+        .limit(BRIEFING_CORRECTIONS_MAX);
+      if (typeof query.state === 'string') q = q.where('c.state', '=', query.state as 'proposed');
+      return { items: (await q.execute()).map((r) => this.#correctionView(r)) };
+    });
+  }
+
+  async updateBriefingCorrection(
+    caller: Caller,
+    ws: unknown,
+    bco: unknown,
+    body: unknown,
+    req: Mutation,
+  ) {
+    const b = (body && typeof body === 'object' && !Array.isArray(body) ? body : {}) as Record<
+      string,
+      unknown
+    >;
+    for (const k of Object.keys(b))
+      if (k !== 'text')
+        throw invalid(issue(`/${k}`, 'unknown_field', 'This field is not accepted.'));
+    const note = this.#parseCorrectionText(b.text);
+    return this.mutate(
+      caller,
+      'ai.briefing_correction.update',
+      ws,
+      req,
+      async (tx, p) => {
+        this.requirePersonal(p, 'personal.manage_own');
+        const row = await this.#ownCorrection(tx, p, bco, true);
+        if (req.ifMatch !== undefined)
+          requireVersion(parseIfMatch(req.ifMatch), Number(row.version));
+        if (row.state !== 'proposed')
+          throw new TenancyError('conflict', {
+            issues: [issue('/', 'not_editable', 'Only a proposed note can be edited.')],
+          });
+        await tx.db
+          .updateTable('ai.briefing_correction')
+          .set({
+            text: note.text,
+            revision: row.revision + 1,
+            updated_at: new Date(),
+            version: Number(row.version) + 1,
+          })
+          .where('id', '=', row.id)
+          .execute();
+        await this.#correctionEvent(tx, row.id, 'edited', row.revision + 1, p.membershipId);
+        return {
+          status: 200,
+          ref: { id: row.public_id, type: 'briefing_correction' },
+          data: await this.#correctionViewById(tx, p, row.public_id),
+        };
+      },
+      async (tx, p, ref) => this.#correctionViewById(tx, p, ref.id),
+    );
+  }
+
+  /**
+   * Approves or rejects a proposed note for one's own future briefings (OD-25 safe default: the
+   * recipient decides, for themselves only). Approving supersedes an earlier approved note on the
+   * same statement; a rejected note never reappears.
+   */
+  async decideBriefingCorrection(
+    caller: Caller,
+    ws: unknown,
+    bco: unknown,
+    decision: 'approve' | 'reject',
+    req: Mutation,
+  ) {
+    return this.mutate(
+      caller,
+      `ai.briefing_correction.${decision}`,
+      ws,
+      req,
+      async (tx, p) => {
+        this.requirePersonal(p, 'personal.manage_own');
+        const row = await this.#ownCorrection(tx, p, bco, true);
+        if (req.ifMatch !== undefined)
+          requireVersion(parseIfMatch(req.ifMatch), Number(row.version));
+        if (row.state !== 'proposed')
+          throw new TenancyError('conflict', {
+            issues: [issue('/', 'decided', 'This note was already decided.')],
+          });
+        const now = new Date();
+        if (decision === 'approve') {
+          const earlier = await tx.db
+            .selectFrom('ai.briefing_correction')
+            .select(['id', 'revision'])
+            .where('recipient_membership_id', '=', p.membershipId)
+            .where('kind', '=', row.kind)
+            .where('scope_key', '=', row.scope_key)
+            .where('statement_key', '=', row.statement_key)
+            .where('state', '=', 'approved')
+            .where('id', '<>', row.id)
+            .execute();
+          for (const e of earlier) {
+            await tx.db
+              .updateTable('ai.briefing_correction')
+              .set({ state: 'superseded', updated_at: now, version: sql`version + 1` })
+              .where('id', '=', e.id)
+              .execute();
+            await this.#correctionEvent(tx, e.id, 'superseded', e.revision, p.membershipId);
+          }
+        }
+        await tx.db
+          .updateTable('ai.briefing_correction')
+          .set({
+            state: decision === 'approve' ? 'approved' : 'rejected',
+            decided_at: now,
+            updated_at: now,
+            version: Number(row.version) + 1,
+          })
+          .where('id', '=', row.id)
+          .execute();
+        await this.#correctionEvent(
+          tx,
+          row.id,
+          decision === 'approve' ? 'approved' : 'rejected',
+          row.revision,
+          p.membershipId,
+        );
+        this.d.metrics.count('ai.briefings', 1, { outcome: `correction_${decision}d` });
+        return {
+          status: 200,
+          ref: { id: row.public_id, type: 'briefing_correction' },
+          data: await this.#correctionViewById(tx, p, row.public_id),
+        };
+      },
+      async (tx, p, ref) => this.#correctionViewById(tx, p, ref.id),
+    );
+  }
+
+  // -- The scheduled sweep (BRF-017, BRF-018) ----------------------------------------------------
+
+  /**
+   * One workspace's briefing sweep (ADR-0042 D6). Claims due schedules (SKIP LOCKED), queues one
+   * briefing per intended local occurrence (a unique key: restarts and overlapping sweeps cannot
+   * duplicate it), advances each schedule, then composes queued briefings one per transaction. A
+   * queued briefing that fails to compose stays queued for the next sweep (the same occurrence is
+   * resumed, never re-queued) until its attempts are spent.
+   */
+  async runBriefingSweep(
+    tenant: TenantDatabase,
+    workspaceId: string,
+    now: Date,
+    /** `compose: false` stops after queuing (the state a crash between the phases leaves). */
+    options: { compose?: boolean } = {},
+  ): Promise<{ queued: number; published: number; failed: number; superseded: number }> {
+    const out = { queued: 0, published: 0, failed: 0, superseded: 0 };
+    await tenant.withWorkspace(workspaceId, { module: 'ai' }, async (tx) => {
+      const due = (
+        await sql<{ id: string }>`
+          SELECT id FROM ai.briefing_schedule
+           WHERE workspace_id = ${workspaceId} AND enabled AND next_run_at IS NOT NULL AND next_run_at <= ${now}
+           ORDER BY next_run_at, id LIMIT ${BRIEFING_SWEEP_BATCH} FOR UPDATE SKIP LOCKED`.execute(
+          tx.db,
+        )
+      ).rows;
+      for (const { id } of due) {
+        const s = await tx.db
+          .selectFrom('ai.briefing_schedule')
+          .selectAll()
+          .where('id', '=', id)
+          .executeTakeFirstOrThrow();
+        const shape = {
+          timezone: s.timezone,
+          local_minute: s.local_minute,
+          weekdays: s.weekdays.map(Number),
+        };
+        const occ = dueOccurrence(shape, new Date(s.next_run_at!), now);
+        const advance = async () =>
+          tx.db
+            .updateTable('ai.briefing_schedule')
+            .set({
+              next_run_at: nextOccurrence(shape, occ?.at ?? now)?.at ?? null,
+              updated_at: new Date(),
+            })
+            .where('id', '=', s.id)
+            .execute();
+        const person = await activePerson(tx, s.membership_id);
+        if (!person) {
+          // A departed recipient's schedule stops; it never generates content again.
+          await tx.db
+            .updateTable('ai.briefing_schedule')
+            .set({
+              enabled: false,
+              next_run_at: null,
+              updated_at: new Date(),
+              version: sql`version + 1`,
+            })
+            .where('id', '=', s.id)
+            .execute();
+          continue;
+        }
+        if (!occ) {
+          await advance();
+          continue;
+        }
+        const key = occurrenceKey(s.public_id, s.revision, occ);
+        const baseline = await this.#comparableBaseline(tx, s.membership_id, s.kind, s.scope_key);
+        const w = reportingWindow(
+          s.kind,
+          s.timezone,
+          occ.at,
+          baseline ? new Date(baseline.window_end) : null,
+        );
+        if (w.start.getTime() < w.end.getTime()) {
+          const q = await this.#queueBriefing(tx, {
+            recipient: s.membership_id,
+            kind: s.kind,
+            scope: s.scope as Record<string, string>,
+            scopeKey: s.scope_key,
+            timezone: s.timezone,
+            windowStart: w.start,
+            windowEnd: w.end,
+            baselineId: baseline?.id ?? null,
+            clamped: w.clamped,
+            trigger: 'schedule',
+            schedule: { id: s.id, revision: s.revision, occurrenceKey: key },
+            context: systemExec(workspaceId, s.membership_id),
+            initiatedBy: { type: 'system' },
+          });
+          if (q) out.queued++;
+        }
+        await advance();
+      }
+    });
+    if (options.compose === false) return out;
+    const queued = await tenant.withWorkspace(workspaceId, { module: 'ai', readOnly: true }, (tx) =>
+      tx.db
+        .selectFrom('ai.briefing')
+        .select(['id', 'schedule_id', 'attempts'])
+        .where('state', '=', 'queued')
+        .orderBy('created_at')
+        .orderBy('id')
+        .limit(BRIEFING_SWEEP_BATCH)
+        .execute(),
+    );
+    for (const q of queued) {
+      try {
+        const r = await tenant.withWorkspace(workspaceId, { module: 'ai' }, async (tx) => {
+          const sch = q.schedule_id
+            ? await tx.db
+                .selectFrom('ai.briefing_schedule')
+                .select(['channels'])
+                .where('id', '=', q.schedule_id)
+                .executeTakeFirst()
+            : undefined;
+          const email = sch?.channels.includes('email') ? (['email'] as const) : null;
+          return this.#composeBriefing(tx, q.id, email, null);
+        });
+        if (r === 'published') out.published++;
+        else if (r === 'failed') out.failed++;
+        else if (r === 'superseded') out.superseded++;
+      } catch (err) {
+        // A crash or error leaves the occurrence queued; the next sweep resumes it. Attempts are
+        // bounded: a briefing that keeps failing ends as failed (classified, never retried forever).
+        this.d.logger.warn('ai.briefing_compose_failed', {
+          component: 'ai',
+          error_class: err instanceof Error ? err.name : 'Error',
+        });
+        await tenant
+          .withWorkspace(workspaceId, { module: 'ai' }, async (tx) => {
+            const row = await tx.db
+              .selectFrom('ai.briefing')
+              .select(['attempts', 'operation_id', 'state'])
+              .where('id', '=', q.id)
+              .forUpdate()
+              .executeTakeFirst();
+            if (!row || row.state !== 'queued') return;
+            const attempts = row.attempts + 1;
+            const spent = attempts >= BRIEFING_MAX_ATTEMPTS;
+            await tx.db
+              .updateTable('ai.briefing')
+              .set({
+                attempts,
+                ...(spent ? { state: 'failed' as const, failure_code: 'generation_failed' } : {}),
+                updated_at: new Date(),
+                version: sql`version + 1`,
+              })
+              .where('id', '=', q.id)
+              .execute();
+            if (spent) {
+              const op = await tx.db
+                .selectFrom('exec.operation')
+                .selectAll()
+                .where('id', '=', row.operation_id)
+                .executeTakeFirstOrThrow();
+              if (!TERMINAL.has(op.execution_state))
+                await transitionOperation(tx, {
+                  operationId: op.id,
+                  to: 'failed',
+                  terminalReason: 'error',
+                  actor: { type: 'system' },
+                  context: contextFromRow(op as never),
+                });
+              out.failed++;
+            }
+          })
+          .catch(() => undefined);
+      }
+    }
+    return out;
+  }
+
   // ---------------------------------------------------------------------------------------------
   // 7D change proposals (ADR-0040): review, edit, select, approve, and explicitly apply
   // ---------------------------------------------------------------------------------------------

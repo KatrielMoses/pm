@@ -33,4 +33,5 @@ recorded in [ADR-0007](adr/0007-deviations.md).
 | [phase7/](phase7/closure-7b.json) | Phase 7B authorized retrieval and citations: requirement and decision closure (`closure-7b.json`, checked by `tools/phase7b.py`) and [ADR-0039](adr/0039-authorized-retrieval-citations.md); `pnpm preflight` runs every validator quickly before the full gates |
 | [phase7/](phase7/closure-7d.json) | Phase 7D change proposal protocol: requirement and decision closure (`closure-7d.json`, checked by `tools/phase7d.py`) and [ADR-0040](adr/0040-change-proposal-protocol.md) |
 | [phase7/](phase7/closure-7c.json) | Phase 7C AI drafting and analysis: requirement and decision closure (`closure-7c.json`, checked by `tools/phase7c.py`) and [ADR-0041](adr/0041-ai-drafting-analysis.md) |
+| [phase7/](phase7/closure-7e.json) | Phase 7E briefings and reviews: requirement and decision closure (`closure-7e.json`, checked by `tools/phase7e.py`) and [ADR-0042](adr/0042-briefings-reviews.md) |
 | [adr/](adr/) | Implementation ADRs 0001–0028 |

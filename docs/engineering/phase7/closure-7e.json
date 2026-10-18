@@ -1,0 +1,646 @@
+{
+  "schema_version": 1,
+  "phase": "7E",
+  "status": "candidate",
+  "adr": "docs/engineering/adr/0042-briefings-reviews.md",
+  "requirements": [
+    {
+      "id": "BRF-001",
+      "role": "owned",
+      "disposition": "implemented",
+      "note": "A daily briefing over every brand the recipient can read, computed as that recipient, with source-linked statements.",
+      "evidence": [
+        {
+          "file": "packages/work/src/ai/ai-gateway-service.ts",
+          "contains": "label: 'every brand you can read',"
+        },
+        {
+          "file": "packages/work/test/integration/briefings.test.ts",
+          "contains": "'AT-455 "
+        },
+        {
+          "file": "e2e/briefings.spec.ts",
+          "contains": "'AT-467 "
+        }
+      ]
+    },
+    {
+      "id": "BRF-002",
+      "role": "owned",
+      "disposition": "implemented",
+      "note": "A brand daily briefing for one readable brand; an unreadable brand scope is indistinguishable not found.",
+      "evidence": [
+        {
+          "file": "packages/work/src/ai/ai-gateway-service.ts",
+          "contains": "k === 'brand_daily' && typeof s.brand !== 'string'"
+        },
+        {
+          "file": "packages/work/test/integration/briefings.test.ts",
+          "contains": "'AT-456 "
+        },
+        {
+          "file": "packages/work/test/integration/briefings.test.ts",
+          "contains": "'AT-458 "
+        }
+      ]
+    },
+    {
+      "id": "BRF-003",
+      "role": "owned",
+      "disposition": "implemented",
+      "note": "A weekly review over seven local days or since the last published weekly review.",
+      "evidence": [
+        {
+          "file": "packages/work/src/ai/briefing/schedule.ts",
+          "contains": "export const WEEKLY_KINDS = new Set(['weekly_review']);"
+        },
+        {
+          "file": "packages/work/test/integration/briefings.test.ts",
+          "contains": "'AT-457 "
+        }
+      ]
+    },
+    {
+      "id": "BRF-004",
+      "role": "owned",
+      "disposition": "implemented",
+      "note": "A project status update: the latest verified update as an exact excerpt, unverified updates labelled, task counts.",
+      "evidence": [
+        {
+          "file": "packages/work/src/ai/briefing/facts.ts",
+          "contains": "key: `project.verified_update:${verified.public_id}`,"
+        },
+        {
+          "file": "packages/work/test/integration/briefings.test.ts",
+          "contains": "'AT-460 "
+        }
+      ]
+    },
+    {
+      "id": "BRF-005",
+      "role": "owned",
+      "disposition": "implemented",
+      "note": "A release-readiness summary from accepted records only: deliverables accepted and not, missing test and release evidence listed, and an explicit statement that it certifies and publishes nothing.",
+      "evidence": [
+        {
+          "file": "packages/work/src/ai/briefing/facts.ts",
+          "contains": "key: 'release.no_certification',"
+        },
+        {
+          "file": "packages/work/test/integration/briefings.test.ts",
+          "contains": "'AT-460 "
+        }
+      ]
+    },
+    {
+      "id": "BRF-006",
+      "role": "owned",
+      "disposition": "implemented",
+      "note": "Work marked done since the last published comparable briefing, with the previous window's count recomputed today.",
+      "evidence": [
+        {
+          "file": "packages/work/src/ai/briefing/facts.ts",
+          "contains": "key: 'completed.count',"
+        },
+        {
+          "file": "packages/work/test/integration/briefings.test.ts",
+          "contains": "'AT-455 "
+        },
+        {
+          "file": "packages/work/test/integration/briefings.test.ts",
+          "contains": "'AT-457 "
+        }
+      ]
+    },
+    {
+      "id": "BRF-007",
+      "role": "owned",
+      "disposition": "implemented",
+      "note": "Accepted deliverable versions (4E review evidence) separately from done tasks that need acceptance and have none.",
+      "evidence": [
+        {
+          "file": "packages/work/src/ai/briefing/facts.ts",
+          "contains": "key: `accepted.claimed:${c.public_id}`,"
+        },
+        {
+          "file": "packages/work/test/integration/briefings.test.ts",
+          "contains": "'AT-455 "
+        },
+        {
+          "file": "e2e/briefings.spec.ts",
+          "contains": "'AT-467 "
+        }
+      ]
+    },
+    {
+      "id": "BRF-008",
+      "role": "owned",
+      "disposition": "implemented",
+      "note": "Overdue (dates in the briefing zone), blocked and stale (2D signals over a bounded, reported subset), and at-risk projects.",
+      "evidence": [
+        {
+          "file": "packages/work/src/ai/briefing/facts.ts",
+          "contains": "key: `attention.overdue:${t.public_id}`,"
+        },
+        {
+          "file": "packages/work/test/integration/briefings.test.ts",
+          "contains": "'AT-455 "
+        }
+      ]
+    },
+    {
+      "id": "BRF-009",
+      "role": "owned",
+      "disposition": "implemented",
+      "note": "Reviews, workflow approvals, and timesheet approvals awaiting the recipient, through the canonical readers.",
+      "evidence": [
+        {
+          "file": "packages/work/src/ai/briefing/facts.ts",
+          "contains": "key: 'decisions.count',"
+        },
+        {
+          "file": "packages/work/test/integration/briefings.test.ts",
+          "contains": "'AT-455 "
+        }
+      ]
+    },
+    {
+      "id": "BRF-010",
+      "role": "owned",
+      "disposition": "foundation",
+      "note": "Agent-run review is an explicit unavailable statement until Phase 8C supplies real agent runs; no generic operation is presented as an agent.",
+      "evidence": [
+        {
+          "file": "packages/work/src/ai/briefing/facts.ts",
+          "contains": "key: 'agent_runs.foundation',"
+        },
+        {
+          "file": "packages/work/test/integration/briefings.test.ts",
+          "contains": "'AT-455 "
+        }
+      ],
+      "deferred_to": [
+        "8C"
+      ],
+      "accepted_by": [
+        "catalog:contributing"
+      ]
+    },
+    {
+      "id": "BRF-011",
+      "role": "owned",
+      "disposition": "implemented",
+      "note": "Deadlines in the next 7 local days and 3E capacity and conflicts (time off as unavailable minutes; unavailable to guests).",
+      "evidence": [
+        {
+          "file": "packages/work/src/ai/briefing/facts.ts",
+          "contains": "key: 'capacity.week',"
+        },
+        {
+          "file": "packages/work/test/integration/briefings.test.ts",
+          "contains": "'AT-455 "
+        },
+        {
+          "file": "packages/work/test/integration/briefings.test.ts",
+          "contains": "'AT-464 "
+        }
+      ]
+    },
+    {
+      "id": "BRF-012",
+      "role": "owned",
+      "disposition": "implemented",
+      "note": "Planned versus actual time over the window's local work dates through the 3D time report.",
+      "evidence": [
+        {
+          "file": "packages/work/src/ai/briefing/facts.ts",
+          "contains": "key: 'time.planned_actual',"
+        },
+        {
+          "file": "packages/work/test/integration/briefings.test.ts",
+          "contains": "'AT-455 "
+        },
+        {
+          "file": "packages/work/test/integration/briefings.test.ts",
+          "contains": "'AT-464 "
+        }
+      ]
+    },
+    {
+      "id": "BRF-013",
+      "role": "owned",
+      "disposition": "implemented",
+      "note": "The recipient's own AI usage from the 7A ledger: actual, synthetic, reserved, and unknown, with no real-model bound advertised.",
+      "evidence": [
+        {
+          "file": "packages/work/src/ai/briefing/facts.ts",
+          "contains": "key: 'ai_cost.window',"
+        },
+        {
+          "file": "packages/work/test/integration/briefings.test.ts",
+          "contains": "'AT-455 "
+        },
+        {
+          "file": "packages/work/test/integration/briefings.test.ts",
+          "contains": "'AT-464 "
+        }
+      ]
+    },
+    {
+      "id": "BRF-014",
+      "role": "owned",
+      "disposition": "implemented",
+      "note": "Every substantive statement carries evidence references; any lost evidence withholds the whole briefing at display.",
+      "evidence": [
+        {
+          "file": "packages/work/src/ai/ai-gateway-service.ts",
+          "contains": "async #briefingReadable("
+        },
+        {
+          "file": "packages/work/test/integration/briefings.test.ts",
+          "contains": "'AT-455 "
+        },
+        {
+          "file": "packages/work/test/integration/briefings.test.ts",
+          "contains": "'AT-458 "
+        }
+      ]
+    },
+    {
+      "id": "BRF-015",
+      "role": "owned",
+      "disposition": "implemented",
+      "note": "Notes are proposed on a statement, edited while proposed, and approved or rejected by their author.",
+      "evidence": [
+        {
+          "file": "packages/work/src/ai/ai-gateway-service.ts",
+          "contains": "async proposeBriefingCorrection("
+        },
+        {
+          "file": "packages/work/test/integration/briefings.test.ts",
+          "contains": "'AT-459 "
+        },
+        {
+          "file": "apps/api/test/integration/ai-api.test.ts",
+          "contains": "'AT-466 "
+        }
+      ]
+    },
+    {
+      "id": "BRF-016",
+      "role": "owned",
+      "disposition": "implemented",
+      "note": "Approved notes reappear beside the same statement while their evidence holds and go stale when it changes; rejected notes never return.",
+      "evidence": [
+        {
+          "file": "packages/work/src/ai/ai-gateway-service.ts",
+          "contains": "async #applyCorrections("
+        },
+        {
+          "file": "packages/work/test/integration/briefings.test.ts",
+          "contains": "'AT-459 "
+        },
+        {
+          "file": "e2e/briefings.spec.ts",
+          "contains": "'AT-467 "
+        }
+      ]
+    },
+    {
+      "id": "BRF-017",
+      "role": "owned",
+      "disposition": "implemented",
+      "note": "Schedules by person, IANA zone, local time, and weekdays, with gap and fold rules and a unique occurrence key.",
+      "evidence": [
+        {
+          "file": "packages/work/src/ai/briefing/schedule.ts",
+          "contains": "export function occurrenceInstant("
+        },
+        {
+          "file": "packages/work/test/integration/briefings.test.ts",
+          "contains": "'AT-461 "
+        },
+        {
+          "file": "packages/work/test/unit/briefing-schedule.test.ts",
+          "contains": "spring-forward gap runs at the first valid instant"
+        }
+      ]
+    },
+    {
+      "id": "BRF-018",
+      "role": "owned",
+      "disposition": "implemented",
+      "note": "In-app and email delivery through 4B in the publishing transaction, with send-time re-checks and unconfigured email suppressed.",
+      "evidence": [
+        {
+          "file": "packages/work/src/ai/ai-gateway-service.ts",
+          "contains": "type: 'briefing_ready',"
+        },
+        {
+          "file": "packages/work/test/integration/briefings.test.ts",
+          "contains": "'AT-461 "
+        },
+        {
+          "file": "packages/work/test/integration/briefings.test.ts",
+          "contains": "'AT-464 "
+        }
+      ]
+    },
+    {
+      "id": "PRJ-025",
+      "role": "contributing",
+      "disposition": "contributed",
+      "contribution": "7E",
+      "note": "Project status briefings display the latest verified project update (OD-16: an update with a verification fact) as an exact excerpt and label newer unverified or generated updates.",
+      "evidence": [
+        {
+          "file": "packages/work/src/ai/briefing/facts.ts",
+          "contains": "key: `project.verified_update:${verified.public_id}`,"
+        },
+        {
+          "file": "packages/work/test/integration/briefings.test.ts",
+          "contains": "'AT-460 "
+        }
+      ]
+    },
+    {
+      "id": "LA-007",
+      "role": "contributing",
+      "disposition": "contributed",
+      "contribution": "7E",
+      "note": "A founder can receive a source-linked daily briefing across brands, generated now or on a schedule; the launch gate itself is 12A.",
+      "evidence": [
+        {
+          "file": "packages/work/test/integration/briefings.test.ts",
+          "contains": "'AT-455 "
+        },
+        {
+          "file": "packages/work/test/integration/briefings.test.ts",
+          "contains": "'AT-464 "
+        },
+        {
+          "file": "e2e/briefings.spec.ts",
+          "contains": "'AT-467 "
+        }
+      ]
+    }
+  ],
+  "decisions": [
+    {
+      "id": "D1",
+      "adr_row": "D1",
+      "title": "One recipient-specific pipeline",
+      "evidence": [
+        {
+          "file": "docs/engineering/adr/0042-briefings-reviews.md",
+          "contains": "| D1 |"
+        },
+        {
+          "file": "packages/work/test/integration/briefings.test.ts",
+          "contains": "'AT-455 "
+        }
+      ],
+      "sources": [
+        {
+          "file": "docs/engineering/adr/0042-briefings-reviews.md",
+          "contains": "| D1 |"
+        }
+      ]
+    },
+    {
+      "id": "D2",
+      "adr_row": "D2",
+      "title": "Sections and evidence semantics",
+      "evidence": [
+        {
+          "file": "docs/engineering/adr/0042-briefings-reviews.md",
+          "contains": "| D2 |"
+        },
+        {
+          "file": "packages/work/test/integration/briefings.test.ts",
+          "contains": "'AT-455 "
+        }
+      ],
+      "sources": [
+        {
+          "file": "docs/engineering/adr/0042-briefings-reviews.md",
+          "contains": "| D2 |"
+        }
+      ]
+    },
+    {
+      "id": "D3",
+      "adr_row": "D3",
+      "title": "Honest coverage",
+      "evidence": [
+        {
+          "file": "docs/engineering/adr/0042-briefings-reviews.md",
+          "contains": "| D3 |"
+        },
+        {
+          "file": "packages/work/test/integration/briefings.test.ts",
+          "contains": "'AT-455 "
+        }
+      ],
+      "sources": [
+        {
+          "file": "docs/engineering/adr/0042-briefings-reviews.md",
+          "contains": "| D3 |"
+        }
+      ]
+    },
+    {
+      "id": "D4",
+      "adr_row": "D4",
+      "title": "Baselines and windows",
+      "evidence": [
+        {
+          "file": "docs/engineering/adr/0042-briefings-reviews.md",
+          "contains": "| D4 |"
+        },
+        {
+          "file": "packages/work/test/integration/briefings.test.ts",
+          "contains": "'AT-457 "
+        }
+      ],
+      "sources": [
+        {
+          "file": "docs/engineering/adr/0042-briefings-reviews.md",
+          "contains": "| D4 |"
+        }
+      ]
+    },
+    {
+      "id": "D5",
+      "adr_row": "D5",
+      "title": "Display-time authority",
+      "evidence": [
+        {
+          "file": "docs/engineering/adr/0042-briefings-reviews.md",
+          "contains": "| D5 |"
+        },
+        {
+          "file": "packages/work/test/integration/briefings.test.ts",
+          "contains": "'AT-458 "
+        }
+      ],
+      "sources": [
+        {
+          "file": "docs/engineering/adr/0042-briefings-reviews.md",
+          "contains": "| D5 |"
+        }
+      ]
+    },
+    {
+      "id": "D6",
+      "adr_row": "D6",
+      "title": "Schedules and the sweep",
+      "evidence": [
+        {
+          "file": "docs/engineering/adr/0042-briefings-reviews.md",
+          "contains": "| D6 |"
+        },
+        {
+          "file": "packages/work/test/integration/briefings.test.ts",
+          "contains": "'AT-461 "
+        }
+      ],
+      "sources": [
+        {
+          "file": "docs/engineering/adr/0042-briefings-reviews.md",
+          "contains": "| D6 |"
+        }
+      ]
+    },
+    {
+      "id": "D7",
+      "adr_row": "D7",
+      "title": "Publication and delivery",
+      "evidence": [
+        {
+          "file": "docs/engineering/adr/0042-briefings-reviews.md",
+          "contains": "| D7 |"
+        },
+        {
+          "file": "packages/work/test/integration/briefings.test.ts",
+          "contains": "'AT-464 "
+        }
+      ],
+      "sources": [
+        {
+          "file": "docs/engineering/adr/0042-briefings-reviews.md",
+          "contains": "| D7 |"
+        }
+      ]
+    },
+    {
+      "id": "D8",
+      "adr_row": "D8",
+      "title": "Corrections",
+      "evidence": [
+        {
+          "file": "docs/engineering/adr/0042-briefings-reviews.md",
+          "contains": "| D8 |"
+        },
+        {
+          "file": "packages/work/test/integration/briefings.test.ts",
+          "contains": "'AT-459 "
+        }
+      ],
+      "sources": [
+        {
+          "file": "docs/engineering/adr/0042-briefings-reviews.md",
+          "contains": "| D8 |"
+        }
+      ]
+    },
+    {
+      "id": "D9",
+      "adr_row": "D9",
+      "title": "Privacy and lifecycle",
+      "evidence": [
+        {
+          "file": "docs/engineering/adr/0042-briefings-reviews.md",
+          "contains": "| D9 |"
+        },
+        {
+          "file": "packages/work/test/integration/briefings.test.ts",
+          "contains": "\"AT-462 "
+        }
+      ],
+      "sources": [
+        {
+          "file": "docs/engineering/adr/0042-briefings-reviews.md",
+          "contains": "| D9 |"
+        }
+      ]
+    },
+    {
+      "id": "D10",
+      "adr_row": "D10",
+      "title": "One UI",
+      "evidence": [
+        {
+          "file": "docs/engineering/adr/0042-briefings-reviews.md",
+          "contains": "| D10 |"
+        },
+        {
+          "file": "e2e/briefings.spec.ts",
+          "contains": "'AT-467 "
+        }
+      ],
+      "sources": [
+        {
+          "file": "docs/engineering/adr/0042-briefings-reviews.md",
+          "contains": "| D10 |"
+        }
+      ]
+    }
+  ],
+  "boundaries": [
+    {
+      "id": "DQ-28",
+      "statement": "Real-model input bounds remain unverified; briefings call no provider and production AI stays disabled."
+    },
+    {
+      "id": "OD-31",
+      "statement": "Retrieval stays lexical; briefings use canonical readers, not search."
+    },
+    {
+      "id": "OD-41",
+      "statement": "Unchanged; no live provider is configured or called."
+    },
+    {
+      "id": "OD-46",
+      "statement": "Unchanged; no paid request is queued by a schedule."
+    },
+    {
+      "id": "OD-25",
+      "statement": "Notes are personal to their author (safe default); brand-scoped notes remain undecided."
+    },
+    {
+      "id": "OD-16",
+      "statement": "A verified update is one with a verification fact; generated and unverified updates are labelled."
+    },
+    {
+      "id": "PRJ-007",
+      "statement": "Project AI budgets are still not enforced; briefings spend nothing."
+    },
+    {
+      "id": "DOC-019",
+      "statement": "Attachment text is not read."
+    },
+    {
+      "id": "REL-FU-7A-01",
+      "statement": "Still tracked; nothing new depends on it."
+    },
+    {
+      "id": "8C",
+      "statement": "Agent-run review (BRF-010) stays a registered foundation until real agent runs exist."
+    },
+    {
+      "id": "9D",
+      "statement": "Release readiness lists missing test and release evidence and never certifies or publishes."
+    }
+  ]
+}
