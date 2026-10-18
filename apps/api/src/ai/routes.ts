@@ -380,6 +380,183 @@ export function registerAi(app: FastifyInstance, work: AiGatewayService): void {
       return resource(request, reply, result.data, result);
     }),
   );
+  // 7E briefings and reviews (ADR-0042): session only (bearer callers are refused at the edge).
+  // Briefings, schedules, and notes are their person's alone; every read re-checks the evidence.
+  const listOf = (type: 'ai_briefings' | 'ai_briefing_schedules' | 'ai_briefing_corrections') =>
+    async function send(
+      request: FastifyRequest,
+      reply: import('fastify').FastifyReply,
+      data: Record<string, unknown>,
+    ) {
+      return reply
+        .header('cache-control', 'private, no-store')
+        .send(nonResourceEnvelope(type, data, m(request)));
+    };
+  app.get(
+    `${base}/ai/briefings`,
+    wrap(async (request, reply) =>
+      listOf('ai_briefings')(
+        request,
+        reply,
+        await work.listBriefings(
+          caller(request),
+          ws(request),
+          request.query as Record<string, unknown>,
+        ),
+      ),
+    ),
+  );
+  app.post(
+    `${base}/ai/briefings`,
+    wrap(async (request, reply) => {
+      reply.header('cache-control', 'private, no-store');
+      const result = await work.generateBriefing(
+        caller(request),
+        ws(request),
+        request.body,
+        mutation(request),
+      );
+      return resource(request, reply, result.data, result);
+    }),
+  );
+  app.post(
+    `${base}/ai/briefing-previews`,
+    wrap(async (request, reply) =>
+      reply
+        .header('cache-control', 'private, no-store')
+        .send(
+          nonResourceEnvelope(
+            'ai_briefing_preview',
+            await work.previewBriefing(caller(request), ws(request), request.body),
+            m(request),
+          ),
+        ),
+    ),
+  );
+  app.get(
+    `${base}/ai/briefings/:brf`,
+    wrap(async (request, reply) => {
+      const brf = param(request, 'brf') ?? '';
+      if (brf.includes(':')) return fail(request, reply, 'not_found');
+      reply.header('cache-control', 'private, no-store');
+      return resource(request, reply, await work.getBriefing(caller(request), ws(request), brf));
+    }),
+  );
+  app.post(
+    `${base}/ai/briefings/:brf`,
+    wrap(async (request, reply) => {
+      const t = split(param(request, 'brf'));
+      if (!t || t.verb !== 'regenerate') return fail(request, reply, 'not_found');
+      reply.header('cache-control', 'private, no-store');
+      const result = await work.regenerateBriefing(
+        caller(request),
+        ws(request),
+        t.id,
+        mutation(request),
+      );
+      return resource(request, reply, result.data, result);
+    }),
+  );
+  app.post(
+    `${base}/ai/briefings/:brf/corrections`,
+    wrap(async (request, reply) => {
+      const brf = param(request, 'brf') ?? '';
+      if (brf.includes(':')) return fail(request, reply, 'not_found');
+      reply.header('cache-control', 'private, no-store');
+      const result = await work.proposeBriefingCorrection(
+        caller(request),
+        ws(request),
+        brf,
+        request.body,
+        mutation(request),
+      );
+      return resource(request, reply, result.data, result);
+    }),
+  );
+  app.get(
+    `${base}/ai/briefing-corrections`,
+    wrap(async (request, reply) =>
+      listOf('ai_briefing_corrections')(
+        request,
+        reply,
+        await work.listBriefingCorrections(
+          caller(request),
+          ws(request),
+          request.query as Record<string, unknown>,
+        ),
+      ),
+    ),
+  );
+  app.patch(
+    `${base}/ai/briefing-corrections/:bco`,
+    wrap(async (request, reply) => {
+      const bco = param(request, 'bco') ?? '';
+      if (bco.includes(':')) return fail(request, reply, 'not_found');
+      reply.header('cache-control', 'private, no-store');
+      const result = await work.updateBriefingCorrection(
+        caller(request),
+        ws(request),
+        bco,
+        request.body,
+        mutation(request),
+      );
+      return resource(request, reply, result.data, result);
+    }),
+  );
+  app.post(
+    `${base}/ai/briefing-corrections/:bco`,
+    wrap(async (request, reply) => {
+      const t = split(param(request, 'bco'));
+      if (!t || (t.verb !== 'approve' && t.verb !== 'reject'))
+        return fail(request, reply, 'not_found');
+      reply.header('cache-control', 'private, no-store');
+      const result = await work.decideBriefingCorrection(
+        caller(request),
+        ws(request),
+        t.id,
+        t.verb,
+        mutation(request),
+      );
+      return resource(request, reply, result.data, result);
+    }),
+  );
+  app.get(
+    `${base}/ai/briefing-schedules`,
+    wrap(async (request, reply) =>
+      listOf('ai_briefing_schedules')(
+        request,
+        reply,
+        await work.listBriefingSchedules(caller(request), ws(request)),
+      ),
+    ),
+  );
+  app.post(
+    `${base}/ai/briefing-schedules`,
+    wrap(async (request, reply) => {
+      const result = await work.createBriefingSchedule(
+        caller(request),
+        ws(request),
+        request.body,
+        mutation(request),
+      );
+      return resource(request, reply, result.data, result);
+    }),
+  );
+  app.patch(
+    `${base}/ai/briefing-schedules/:bsc`,
+    wrap(async (request, reply) => {
+      const bsc = param(request, 'bsc') ?? '';
+      if (bsc.includes(':')) return fail(request, reply, 'not_found');
+      const result = await work.updateBriefingSchedule(
+        caller(request),
+        ws(request),
+        bsc,
+        request.body,
+        mutation(request),
+      );
+      return resource(request, reply, result.data, result);
+    }),
+  );
   app.get(
     `${base}/ai/usage`,
     wrap(async (request, reply) =>

@@ -248,12 +248,14 @@ export function registerAuth(app: FastifyInstance, deps: AuthRouteDeps): void {
       // 7A: AI configuration, keys, limits, brand profiles changes, and cost reconciliation are
       // session-only (step-up); runs and one's own history need `ai:execute`, usage `usage:read`.
       // 7D: change proposals (generation, review, approval, Apply) are session-only.
+      // 7E: briefings, schedules, and correction notes are session-only.
       const aiPath = /^\/v1\/workspaces\/[^/]+\/ai(\/|$)/.test(path);
       if (
         (aiPath &&
           (path.includes('/ai/settings') ||
             path.includes('/ai/limits') ||
             path.includes('/ai/proposal') ||
+            path.includes('/ai/briefing') ||
             path.includes('/attempts/'))) ||
         (path.includes('/ai-profile') && write)
       )

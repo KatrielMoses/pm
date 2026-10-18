@@ -1,6 +1,7 @@
 import { recordJoins, recordProject, recordTitle } from '../collab/record-sql.ts';
 import { sql, type WorkspaceTransaction } from '@pm/db';
 import { compileVisibility, type Principal } from '@pm/tenancy';
+import { briefingAvailable } from '../ai/briefing/evidence.ts';
 import {
   isNotificationType,
   minimalLine,
@@ -315,6 +316,26 @@ export async function externalLine(
   const type = row.type as NotificationType;
   const security = SECURITY_TYPES.has(type);
   const home = `/workspaces/${workspacePublicId}/notifications`;
+  // 7E: a briefing notice carries no briefing content; it links to the briefing only while it is
+  // still available to the recipient under the same decision the briefing page uses (corrective
+  // review 01 R1: published, present, and its whole evidence basis readable now). Otherwise the
+  // delivery is suppressed, even if nobody opened the briefing first.
+  if (type === 'briefing_ready') {
+    const id = typeof row.facts.briefing === 'string' ? row.facts.briefing : null;
+    const b = id
+      ? await tx.db
+          .selectFrom('ai.briefing')
+          .select(['id', 'public_id', 'state', 'content_state', 'recipient_membership_id'])
+          .where('public_id', '=', id)
+          .executeTakeFirst()
+      : undefined;
+    if (!b || !(await briefingAvailable(tx, viewer, b, arrayMax))) return null;
+    return {
+      line: sentence(type, {}, null, 1),
+      path: `/workspaces/${workspacePublicId}/briefings/${b.public_id}`,
+      minimal: true,
+    };
+  }
   if (!row.record_id)
     return { line: sentence(type, row.facts, null, row.occurrences), path: home, minimal: false };
   const recs = await readableRecordInfo(tx, viewer, [row.record_id], arrayMax);

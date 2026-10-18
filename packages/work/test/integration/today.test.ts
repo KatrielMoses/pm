@@ -216,7 +216,9 @@ describe('Today and manual planning (3C)', () => {
         owner,
         ws,
         focus.id,
-        { starts_at: at(addDays(today, 1), '09:00'), duration_minutes: 60 },
+        // Evening, so it can never sit under the fixed-date recurring series below (a run on the
+        // day before that series starts made "tomorrow 09:00" collide with it).
+        { starts_at: at(addDays(today, 1), '19:00'), duration_minutes: 60 },
         ifMatch(focus.version),
       )
     ).data;

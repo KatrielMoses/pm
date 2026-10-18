@@ -36,6 +36,11 @@ export interface Candidate {
   facts: Record<string, string | number | boolean | null>;
   /** Pins the dedupe key to an occasion (a day, a reminder) instead of a time bucket. */
   occasion?: string | null;
+  /**
+   * 7E: the external channels the source allows (a briefing schedule's channels). Preferences,
+   * mutes, and quiet hours still decide within them; in-app always applies.
+   */
+  channels?: ReadonlyArray<'email' | 'browser'>;
 }
 
 /** Events that notify people: the 0D `notification` consumers whose sources exist today. */
@@ -522,7 +527,10 @@ export class NotificationFanOut implements OutboxConsumer {
     // Decide the external channels before writing, so the row carries its digest flag.
     const emailMode = mode('email');
     const browserMode = mode('browser');
-    const emailOn = (profile?.email_enabled ?? true) && emailMode !== 'muted';
+    const emailOn =
+      (profile?.email_enabled ?? true) &&
+      emailMode !== 'muted' &&
+      (!c.channels || c.channels.includes('email'));
     let digest = emailOn && emailMode === 'digest';
     let emailNow = emailOn && emailMode === 'immediate';
     if (
@@ -534,6 +542,7 @@ export class NotificationFanOut implements OutboxConsumer {
       digest = true;
     }
     const browserNow =
+      (!c.channels || c.channels.includes('browser')) &&
       browserMode === 'immediate' &&
       !!profile?.browser_enabled &&
       profile.browser_permission === 'granted';

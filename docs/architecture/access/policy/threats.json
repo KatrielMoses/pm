@@ -1198,6 +1198,100 @@
         "I-12",
         "I-15"
       ]
+    },
+    {
+      "id": "T-114",
+      "category": "inference",
+      "description": "A briefing computed for (or cached from) a broader recipient is redistributed to a narrower one, so counts, titles, deltas, or comparisons reveal work the narrower recipient cannot read.",
+      "mitigated_by": [
+        "I-06",
+        "I-07",
+        "I-08"
+      ]
+    },
+    {
+      "id": "T-115",
+      "category": "revocation",
+      "description": "A briefing published before a revocation, trash, or departure keeps showing a record (or a delta that implies it) at display, export, or comparison time.",
+      "mitigated_by": [
+        "I-07",
+        "I-12"
+      ]
+    },
+    {
+      "id": "T-116",
+      "category": "staleness",
+      "description": "A scheduled briefing runs twice for one intended local occurrence (DST fold, overlapping sweeps, restart, timeout after commit), runs under a superseded schedule revision, or advances the comparison baseline twice.",
+      "mitigated_by": [
+        "I-01",
+        "I-12"
+      ]
+    },
+    {
+      "id": "T-117",
+      "category": "field_leak",
+      "description": "A correction note crosses recipients or brands, overrides canonical facts, edits a record, or carries a credential or prompt injection into later briefings or a model.",
+      "mitigated_by": [
+        "I-07",
+        "I-14",
+        "I-15",
+        "I-16"
+      ]
+    },
+    {
+      "id": "T-118",
+      "category": "revocation",
+      "description": "A briefing notice in the notification centre or email exposes briefing content, or is delivered after the recipient lost access; an unconfigured email channel is reported as delivered.",
+      "mitigated_by": [
+        "I-07",
+        "I-12"
+      ]
+    },
+    {
+      "id": "T-119",
+      "category": "departure",
+      "description": "A departed recipient's schedules keep generating, or their briefing and note content survives erasure, while erasure deletes business records it should keep.",
+      "mitigated_by": [
+        "I-12"
+      ]
+    },
+    {
+      "id": "T-120",
+      "category": "revocation",
+      "description": "A saved briefing total, comparison, or coverage figure is re-checked only through its displayed sample, so a contributor outside the sample, a previous-window-only contributor, an aggregate without listed rows, or a permission held on another brand keeps a hidden count visible after access is lost (including at notification send time).",
+      "mitigated_by": [
+        "I-07",
+        "I-08",
+        "I-12"
+      ]
+    },
+    {
+      "id": "T-121",
+      "category": "revocation",
+      "description": "A correction note is listed, edited, decided, replayed, or reused after its source evidence became unreadable, so its text, scope, or statement identifier (which may quote protected content) survives the revocation, or it is newly approved without access.",
+      "mitigated_by": [
+        "I-07",
+        "I-12",
+        "I-14"
+      ]
+    },
+    {
+      "id": "T-122",
+      "category": "staleness",
+      "description": "Configured technical retention never discovers a workspace whose expired content is briefings only (no AI runs, or only erased ones), so briefing content outlives its retention period; notes on erased briefings remain a recovery path.",
+      "mitigated_by": [
+        "I-12"
+      ]
+    },
+    {
+      "id": "T-123",
+      "category": "inference",
+      "description": "A briefing figure whose evidence basis exceeds the stored bound is kept as a threshold, lower bound, shown count, size flag, or coverage state with an empty basis, so it cannot be re-authorized and keeps describing work the recipient can no longer read.",
+      "mitigated_by": [
+        "I-07",
+        "I-08",
+        "I-12"
+      ]
     }
   ],
   "tests": [
@@ -9192,6 +9286,440 @@
       "expected": "allow",
       "response_shape": "ok",
       "silent_surfaces": [
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-455",
+      "threats": [
+        "T-114"
+      ],
+      "principal": "owner",
+      "setup": "Cross-brand daily briefing: first-run label, accepted versus claimed completion, attention, decisions, deadlines, time, cost, and foundations, each statement with evidence",
+      "scope": "workspace",
+      "action": "personal.manage_own",
+      "surface": "ai_answer",
+      "expected": "allow",
+      "response_shape": "ok",
+      "silent_surfaces": [
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-456",
+      "threats": [
+        "T-114"
+      ],
+      "principal": "member",
+      "setup": "A narrower member and a guest generate their own briefings; hidden-brand titles, counts, and deltas are absent; another person's briefing and a hidden brand scope are not found",
+      "scope": "sensitive brand without grant",
+      "action": "personal.manage_own",
+      "surface": "ai_answer",
+      "expected": "deny",
+      "response_shape": "not_found",
+      "silent_surfaces": [
+        "count_facet",
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-457",
+      "threats": [
+        "T-116"
+      ],
+      "principal": "owner",
+      "setup": "Baselines: the next briefing continues from the last published one; a regeneration keeps its window and baseline and never advances it twice",
+      "scope": "personal",
+      "action": "personal.manage_own",
+      "surface": "api",
+      "expected": "allow",
+      "response_shape": "ok",
+      "silent_surfaces": [
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-458",
+      "threats": [
+        "T-115"
+      ],
+      "principal": "member",
+      "setup": "Revocation after publication withholds the earlier briefing wholesale; later briefings and comparisons carry nothing of the lost brand",
+      "scope": "revoked brand grant",
+      "action": "personal.manage_own",
+      "surface": "ai_answer",
+      "expected": "deny",
+      "response_shape": "omitted",
+      "silent_surfaces": [
+        "count_facet",
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-459",
+      "threats": [
+        "T-117"
+      ],
+      "principal": "owner",
+      "setup": "Corrections: a redacted, injection-bearing note approved for the recipient only, reused while its evidence holds, stale when it changes; rejected notes never return; no record changes",
+      "scope": "personal",
+      "action": "personal.manage_own",
+      "surface": "ai_answer",
+      "expected": "allow",
+      "response_shape": "ok_filtered",
+      "silent_surfaces": [
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-460",
+      "threats": [
+        "T-114"
+      ],
+      "principal": "owner",
+      "setup": "Project status and release readiness: verified versus unverified updates and missing evidence listed, never a certification",
+      "scope": "project",
+      "action": "personal.manage_own",
+      "surface": "ai_answer",
+      "expected": "allow",
+      "response_shape": "ok",
+      "silent_surfaces": [
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-461",
+      "threats": [
+        "T-116",
+        "T-118"
+      ],
+      "principal": "system_job",
+      "setup": "DST gap and fold, overlapping sweeps, crash between queue and compose, a schedule edit superseding a queued occurrence, and unconfigured email suppressed",
+      "scope": "personal",
+      "action": "personal.manage_own",
+      "surface": "notification_email",
+      "expected": "allow",
+      "response_shape": "ok",
+      "silent_surfaces": [
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-462",
+      "threats": [
+        "T-119"
+      ],
+      "principal": "system_job",
+      "setup": "Departure erases briefing statements and note text and stops schedules; business records stay",
+      "scope": "departure",
+      "action": "personal.manage_own",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "omitted",
+      "silent_surfaces": [
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-463",
+      "threats": [
+        "T-114"
+      ],
+      "principal": "owner",
+      "setup": "Three workspaces: briefing identifiers from another workspace and unknown identifiers are not found",
+      "scope": "cross-workspace",
+      "action": "personal.manage_own",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "not_found",
+      "silent_surfaces": [
+        "error_message",
+        "timing"
+      ]
+    },
+    {
+      "id": "AT-464",
+      "threats": [
+        "T-116",
+        "T-118"
+      ],
+      "principal": "system_job",
+      "setup": "A scheduled briefing over real data composes as the recipient under the worker role with every section, queues no AI run, and a repeated sweep notifies once",
+      "scope": "personal",
+      "action": "personal.manage_own",
+      "surface": "notification_inapp",
+      "expected": "allow",
+      "response_shape": "ok",
+      "silent_surfaces": [
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-465",
+      "threats": [
+        "T-115",
+        "T-119"
+      ],
+      "principal": "system_job",
+      "setup": "0058 schema: forced RLS on every briefing table, tenant-scoped keys, no delete grant, the worker read grant, and the rollback refusal while briefings exist",
+      "scope": "worker role",
+      "action": "personal.manage_own",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "error_generic",
+      "silent_surfaces": [
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-466",
+      "threats": [
+        "T-118"
+      ],
+      "principal": "api_token_personal",
+      "setup": "Briefings over HTTP: envelopes, no-store, completed-key replay, schedules and notes for the session; bearer callers with ai:execute are refused",
+      "scope": "personal",
+      "action": "personal.manage_own",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "forbidden",
+      "silent_surfaces": [
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-467",
+      "threats": [
+        "T-114",
+        "T-117"
+      ],
+      "principal": "owner",
+      "setup": "Browser journey on desktop, tablet, and mobile: cross-brand briefing with evidence, claimed versus accepted, a reused note, schedules with email, offline recovery, accessibility",
+      "scope": "workspace",
+      "action": "personal.manage_own",
+      "surface": "ui_record",
+      "expected": "allow",
+      "response_shape": "ok",
+      "silent_surfaces": [
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-468",
+      "threats": [
+        "T-120"
+      ],
+      "principal": "guest",
+      "setup": "More than 20 completed records; a revoked contributor outside the listed sample withholds the saved total wholesale on detail and completed-key replay; a fully authorized recipient keeps the canonical total",
+      "scope": "share revoked",
+      "action": "personal.manage_own",
+      "surface": "ai_answer",
+      "expected": "deny",
+      "response_shape": "omitted",
+      "silent_surfaces": [
+        "count_facet",
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-469",
+      "threats": [
+        "T-120"
+      ],
+      "principal": "guest",
+      "setup": "A contributor present only in the previous-window comparison withholds the later briefing after revocation",
+      "scope": "share revoked",
+      "action": "personal.manage_own",
+      "surface": "ai_answer",
+      "expected": "deny",
+      "response_shape": "omitted",
+      "silent_surfaces": [
+        "count_facet"
+      ]
+    },
+    {
+      "id": "AT-470",
+      "threats": [
+        "T-120"
+      ],
+      "principal": "guest",
+      "setup": "An aggregate with no listed rows (the open-task basis) is re-authorized, and a scheduled briefing's email notice is suppressed at send time after the loss",
+      "scope": "share revoked",
+      "action": "personal.manage_own",
+      "surface": "notification_email",
+      "expected": "deny",
+      "response_shape": "omitted",
+      "silent_surfaces": [
+        "count_facet",
+        "notification_inapp"
+      ]
+    },
+    {
+      "id": "AT-471",
+      "threats": [
+        "T-120"
+      ],
+      "principal": "member",
+      "setup": "Losing timesheet approval in brand A withholds a decision bound to brand A while approval in brand B remains",
+      "scope": "brand",
+      "action": "timesheet.approve",
+      "surface": "ai_answer",
+      "expected": "deny",
+      "response_shape": "omitted",
+      "silent_surfaces": [
+        "count_facet",
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-472",
+      "threats": [
+        "T-121"
+      ],
+      "principal": "guest",
+      "setup": "Proposed and approved notes with source markers are omitted from the list, refused by commands, withheld on completed-key replay, and not reused after revocation; restored access restores them; another member never sees them",
+      "scope": "share revoked",
+      "action": "personal.manage_own",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "omitted",
+      "silent_surfaces": [
+        "error_message",
+        "count_facet"
+      ]
+    },
+    {
+      "id": "AT-473",
+      "threats": [
+        "T-121",
+        "T-122"
+      ],
+      "principal": "guest",
+      "setup": "Retention erasure removes notes that are not approved memory with their briefing; approved memory stays under its own evidence; a still-authorized evidence change makes it stale",
+      "scope": "personal",
+      "action": "personal.manage_own",
+      "surface": "api",
+      "expected": "allow",
+      "response_shape": "ok_filtered",
+      "silent_surfaces": [
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-474",
+      "threats": [
+        "T-122"
+      ],
+      "principal": "system_job",
+      "setup": "The registered retention handler discovers briefing-only, AI-erased, and mixed workspaces through the dispatcher and erases only expired briefing content, repeatably and per workspace; unset retention keeps content",
+      "scope": "job for workspace A",
+      "action": "personal.manage_own",
+      "surface": "api",
+      "expected": "allow",
+      "response_shape": "ok",
+      "silent_surfaces": [
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-475",
+      "threats": [
+        "T-120",
+        "T-122"
+      ],
+      "principal": "system_job",
+      "setup": "The evidence table has forced RLS and no update or delete grant; the briefing retention discovery function is security definer, owned by pm_scheduler, executable by the dispatcher only",
+      "scope": "worker role",
+      "action": "personal.manage_own",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "error_generic",
+      "silent_surfaces": [
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-476",
+      "threats": [
+        "T-123"
+      ],
+      "principal": "member",
+      "setup": "An aggregate-only basis above 1000 records refuses publication; nothing is stored, shown, replayed, corrected, or notified, before or after an unlisted contributor is trashed",
+      "scope": "brand",
+      "action": "personal.manage_own",
+      "surface": "ai_answer",
+      "expected": "deny",
+      "response_shape": "empty",
+      "silent_surfaces": [
+        "count_facet",
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-477",
+      "threats": [
+        "T-123"
+      ],
+      "principal": "member",
+      "setup": "Above 1000 open tasks, blocked and stale figures state nothing beyond the examined tasks; trashing an unexamined contributor leaves nothing to disclose",
+      "scope": "brand",
+      "action": "personal.manage_own",
+      "surface": "ai_answer",
+      "expected": "allow",
+      "response_shape": "ok_filtered",
+      "silent_surfaces": [
+        "count_facet",
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-478",
+      "threats": [
+        "T-123"
+      ],
+      "principal": "member",
+      "setup": "Overflow only in the previous-window comparison refuses publication",
+      "scope": "brand",
+      "action": "personal.manage_own",
+      "surface": "ai_answer",
+      "expected": "deny",
+      "response_shape": "empty",
+      "silent_surfaces": [
+        "count_facet",
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-479",
+      "threats": [
+        "T-123"
+      ],
+      "principal": "member",
+      "setup": "Exactly at the limit publishes with the whole basis and is withheld when an unlisted contributor is trashed; a fully authorized owner is refused above it",
+      "scope": "brand",
+      "action": "personal.manage_own",
+      "surface": "ai_answer",
+      "expected": "allow",
+      "response_shape": "ok",
+      "silent_surfaces": [
+        "count_facet",
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-480",
+      "threats": [
+        "T-123"
+      ],
+      "principal": "member",
+      "setup": "Parts within the limit whose union exceeds it refuse publication",
+      "scope": "brand",
+      "action": "personal.manage_own",
+      "surface": "ai_answer",
+      "expected": "deny",
+      "response_shape": "empty",
+      "silent_surfaces": [
+        "count_facet",
         "error_message"
       ]
     }

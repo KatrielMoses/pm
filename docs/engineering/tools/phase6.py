@@ -114,6 +114,7 @@ def check_numbering():
         "0055": ("0055_ai_retrieval_citations.up.sql", "phase7b.py"),
         "0056": ("0056_ai_change_proposals.up.sql", "phase7d.py"),
         "0057": ("0057_ai_drafting_analysis.up.sql", "phase7c.py"),
+        "0058": ("0058_ai_briefings.up.sql", "phase7e.py"),
     }
     for k in later:
         name, validator = later_owned.get(k, (None, None))
@@ -135,9 +136,9 @@ def check_numbering():
         last = max(int(x) for x in re.findall(r'<a id="[a-z]+-(\d+)"></a>', text))
         # Later phases add anchors held by their own validators: Phase 7A two per record (ADR-44/45,
         # AZ-44/45, PL-46/47), Phase 7B one (ADR-46, AZ-46, PL-48), Phase 7D one (ADR-47, AZ-47,
-        # PL-49), and Phase 7C one (ADR-48, AZ-48, PL-50).
+        # PL-49), Phase 7C one (ADR-48, AZ-48, PL-50), and Phase 7E one (ADR-49, AZ-49, PL-51).
         own = int(anchors[-1].split("-")[1])
-        later_anchors = {"phase7a.py": 2, "phase7b.py": 1, "phase7d.py": 1, "phase7c.py": 1}
+        later_anchors = {"phase7a.py": 2, "phase7b.py": 1, "phase7d.py": 1, "phase7c.py": 1, "phase7e.py": 1}
         allowed = own + sum(n for v, n in later_anchors.items()
                             if os.path.isfile(P("docs/engineering/tools/%s" % v)))
         if last not in (own, allowed):

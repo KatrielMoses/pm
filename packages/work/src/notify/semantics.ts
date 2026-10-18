@@ -76,6 +76,8 @@ const EMAIL_IMMEDIATE: ReadonlySet<NotificationType> = new Set([
   'permission_changed',
   'share_changed',
   'export_ready',
+  // 7E: sent only when the person's own schedule opted into email (the schedule's channels).
+  'briefing_ready',
 ]);
 
 export function systemDefault(type: NotificationType, channel: Channel): Mode {

@@ -330,32 +330,28 @@ export class ReviewService extends CommentService {
    * made by them, whose subject the caller can read now. `state` is `open` (default), `settled`,
    * or `all`.
    */
-  async myReviews(caller: Caller, ws: unknown, query: Record<string, unknown>) {
-    const q = parseCursorQuery(query, ['role', 'state']);
-    const role = q.role === undefined ? 'reviewer' : q.role;
-    const state = q.state === undefined ? 'open' : q.state;
-    if (role !== 'reviewer' && role !== 'requester')
-      throw invalid(
-        issue('/role', 'invalid_option', 'Choose reviews to do or reviews you asked for.'),
-      );
-    if (state !== 'open' && state !== 'settled' && state !== 'all')
-      throw invalid(issue('/state', 'invalid_option', 'Choose open, settled, or all.'));
-    return this.tracked('collab.reviews', 'queue', () =>
-      this.inWorkspace(caller, ws, { readOnly: true }, async (tx, p) => {
-        const limit = this.pageLimit(q.limit);
-        const fp = this.cursorFp('my-reviews', role, state);
-        const after = q.cursor !== undefined ? this.openCursor(p, fp, q.cursor) : null;
-        const vis = await this.taskVisibility(tx, p, true);
-        const rows = (
-          await sql<
-            ReviewRow & {
-              title: string;
-              subject_record_type: string;
-              current_version: string;
-              brand_id: string | null;
-              my_outcome: string | null;
-            }
-          >`SELECT q.id, q.public_id, q.subject_record_id, q.subject_kind, q.subject_version, q.kind,
+  /** In-transaction core of the public reader (7E briefings reuse it for a recipient). */
+  protected async myReviewsIn(
+    tx: WorkspaceTransaction,
+    p: Principal,
+    q: { limit?: unknown; cursor?: unknown },
+    role: 'reviewer' | 'requester',
+    state: 'open' | 'settled' | 'all',
+  ) {
+    const limit = this.pageLimit(q.limit);
+    const fp = this.cursorFp('my-reviews', role, state);
+    const after = q.cursor !== undefined ? this.openCursor(p, fp, q.cursor) : null;
+    const vis = await this.taskVisibility(tx, p, true);
+    const rows = (
+      await sql<
+        ReviewRow & {
+          title: string;
+          subject_record_type: string;
+          current_version: string;
+          brand_id: string | null;
+          my_outcome: string | null;
+        }
+      >`SELECT q.id, q.public_id, q.subject_record_id, q.subject_kind, q.subject_version, q.kind,
                    q.rule, q.state, q.requested_by_membership_id, q.message_text, q.previous_request_id,
                    q.closed_reason, q.settled_at, q.created_at, q.version, r.public_id AS subject_public,
                    r.record_type AS subject_record_type, r.brand_id, ${cursorAt('q.created_at')} AS cursor_at,
@@ -386,54 +382,69 @@ export class ReviewService extends CommentService {
                  OR (dl.id IS NOT NULL AND ${vis.where('dr', { project: sql`dt.project_id` })}))
                ${after ? sql`AND (q.created_at, q.id) < (${after.at}::timestamptz, ${after.id}::uuid)` : sql``}
              ORDER BY q.created_at DESC, q.id DESC LIMIT ${limit + 1}`.execute(tx.db)
-        ).rows;
-        const page = rows.slice(0, limit);
-        const people = new Map(
-          p.kind === 'member' && page.length
-            ? (
-                await tx.db
-                  .selectFrom('tenancy.membership as m')
-                  .innerJoin('identity.account as a', 'a.id', 'm.account_id')
-                  .select(['m.id', 'm.public_id', 'm.display_name_override', 'a.display_name'])
-                  .where('m.id', 'in', [...new Set(page.map((r) => r.requested_by_membership_id))])
-                  .execute()
-              ).map((m) => [m.id, m])
-            : [],
-        );
-        const last = page.at(-1);
+    ).rows;
+    const page = rows.slice(0, limit);
+    const people = new Map(
+      p.kind === 'member' && page.length
+        ? (
+            await tx.db
+              .selectFrom('tenancy.membership as m')
+              .innerJoin('identity.account as a', 'a.id', 'm.account_id')
+              .select(['m.id', 'm.public_id', 'm.display_name_override', 'a.display_name'])
+              .where('m.id', 'in', [...new Set(page.map((r) => r.requested_by_membership_id))])
+              .execute()
+          ).map((m) => [m.id, m])
+        : [],
+    );
+    const last = page.at(-1);
+    return {
+      data: page.map((r) => {
+        const who = people.get(r.requested_by_membership_id);
         return {
-          data: page.map((r) => {
-            const who = people.get(r.requested_by_membership_id);
-            return {
-              id: r.public_id,
-              type: 'review_request' as const,
-              subject: { id: r.subject_public, type: r.subject_kind, title: r.title },
-              kind: r.kind,
-              rule: r.rule,
-              state: r.state,
-              stale: Number(r.current_version) !== Number(r.subject_version),
-              requested_by: who
-                ? { id: who.public_id, name: who.display_name_override ?? who.display_name }
-                : null,
-              mine_decision: r.my_outcome,
-              created_at: iso(r.created_at)!,
-              settled_at: iso(r.settled_at),
-            };
-          }),
-          page: {
-            limit,
-            has_more: rows.length > limit,
-            ...(rows.length > limit && last
-              ? {
-                  next_cursor: this.sealCursor(p, fp, {
-                    at: last.cursor_at!,
-                    id: last.id,
-                  }),
-                }
-              : {}),
-          },
+          id: r.public_id,
+          type: 'review_request' as const,
+          subject: { id: r.subject_public, type: r.subject_kind, title: r.title },
+          kind: r.kind,
+          rule: r.rule,
+          state: r.state,
+          stale: Number(r.current_version) !== Number(r.subject_version),
+          requested_by: who
+            ? { id: who.public_id, name: who.display_name_override ?? who.display_name }
+            : null,
+          mine_decision: r.my_outcome,
+          created_at: iso(r.created_at)!,
+          settled_at: iso(r.settled_at),
         };
       }),
+      page: {
+        limit,
+        has_more: rows.length > limit,
+        ...(rows.length > limit && last
+          ? {
+              next_cursor: this.sealCursor(p, fp, {
+                at: last.cursor_at!,
+                id: last.id,
+              }),
+            }
+          : {}),
+      },
+    };
+  }
+
+  async myReviews(caller: Caller, ws: unknown, query: Record<string, unknown>) {
+    const q = parseCursorQuery(query, ['role', 'state']);
+    const role = q.role === undefined ? 'reviewer' : q.role;
+    const state = q.state === undefined ? 'open' : q.state;
+    if (role !== 'reviewer' && role !== 'requester')
+      throw invalid(
+        issue('/role', 'invalid_option', 'Choose reviews to do or reviews you asked for.'),
+      );
+    if (state !== 'open' && state !== 'settled' && state !== 'all')
+      throw invalid(issue('/state', 'invalid_option', 'Choose open, settled, or all.'));
+    return this.tracked('collab.reviews', 'queue', () =>
+      this.inWorkspace(caller, ws, { readOnly: true }, async (tx, p) =>
+        this.myReviewsIn(tx, p, q, role, state),
+      ),
     );
   }
 

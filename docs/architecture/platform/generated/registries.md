@@ -88,6 +88,9 @@ Source: `contracts/registry.json`.
 | `trn_` | transition | workflow.transition | workflow | Phase 2C (PL-25). |
 | `wap_` | workflow_approval | workflow.approval_request | workflow | Phase 2C (PL-25). |
 | `prp_` | change_proposal | ai.change_proposal | ai | Phase 7D (PL-49). |
+| `bsc_` | briefing_schedule | ai.briefing_schedule | ai | Phase 7E (PL-51). |
+| `brf_` | briefing | ai.briefing | ai | Phase 7E (PL-51). |
+| `bco_` | briefing_correction | ai.briefing_correction | ai | Phase 7E (PL-51). |
 | `fld_` | field_definition | workflow.field_definition | workflow | Phase 2C (PL-25). |
 | `fop_` | field_option | workflow.field_option | workflow | Phase 2C (PL-25). |
 | `fst_` | field_set | workflow.field_set | workflow | Phase 2C (PL-25). |
@@ -589,6 +592,7 @@ Forbidden metric labels: `workspace_id`, `brand_id`, `record_id`, `public_id`, `
 | `ai.proposals` | counter | outcome | ai |
 | `ai.proposal_applications` | counter | outcome | ai |
 | `ai.analyses` | counter | status | ai |
+| `ai.briefings` | counter | outcome | ai |
 
 ## Named parameters (values are configuration, not promises)
 

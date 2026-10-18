@@ -462,3 +462,20 @@ Migration `0057_ai_drafting_analysis` (expand; exact rollback to 0056; 0B ADR-48
 - `change_proposal.assumptions` is content and is erased with the proposal.
 
 The down migration refuses while any 7C data exists, lifting forced row-level security on the four tables for that one check.
+
+## Phase 7E: briefings and reviews
+
+Migration `0058_ai_briefings` (expand; exact rollback to 0057; 0B ADR-49, ADR-0042) adds five tables, all with forced row-level security and workspace-scoped foreign keys:
+
+- `briefing_schedule` (`bsc_`): zone, local minute, ISO weekdays, channels, enabled, revision, `next_run_at`.
+- `briefing` (`brf_`): the detail of a `briefing` operation; one per schedule occurrence (partial unique index on `schedule_id, occurrence_key`).
+- `briefing_statement`: section, trust kind, statement key, text, evidence references, figures.
+- `briefing_correction` (`bco_`) and `briefing_correction_event` (references only).
+- `exec_dispatch.discover_briefing_work(now, limit)`: workspace ids with due schedules or queued briefings.
+
+Grants: select, insert, and update on the first four for `app_rw` and `app_worker`; select and insert on the event table; no delete for any role. `app_worker` also gains select on `timetrack.timesheet_line` (the sweep composes through the timesheet approval reader). Erasure clears text, references, figures, coverage, and note text and turns a departed person's schedules off. The down migration refuses while any schedule or briefing exists, lifting forced row-level security on both tables for that one check. Workspace purge deletes `ai.briefing_correction_event`, `ai.briefing_correction`, `ai.briefing_statement`, `ai.briefing`, and `ai.briefing_schedule` before `exec.operation`.
+
+Corrective review 01 adds to 0058:
+- `briefing_evidence`: the complete authorization basis of statements (briefing and position) and notes (their own copy), as `record`, `brand`, or `permission` references; forced row-level security; select and insert for `app_rw` and `app_worker`; no update or delete.
+- `exec_dispatch.discover_briefing_retention_work(before, limit)`: workspace ids with expired briefing content (dispatcher only), so configured retention does not depend on AI runs.
+Corrective review 02 changes no schema: statements and their evidence are written together, and a briefing whose basis cannot be kept whole is left `failed` with neither.

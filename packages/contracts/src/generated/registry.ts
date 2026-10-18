@@ -991,6 +991,13 @@ export const TELEMETRY_SIGNALS = [
     "labels": [
       "status"
     ]
+  },
+  {
+    "name": "ai.briefings",
+    "type": "counter",
+    "labels": [
+      "outcome"
+    ]
   }
 ] as const;
 export type TelemetrySignalName = (typeof TELEMETRY_SIGNALS)[number]['name'];
@@ -1958,6 +1965,27 @@ export const ID_PREFIXES = [
     "prefix": "prp",
     "resource": "change_proposal",
     "entity": "ai.change_proposal",
+    "ownerModule": "ai",
+    "platformOnly": false
+  },
+  {
+    "prefix": "bsc",
+    "resource": "briefing_schedule",
+    "entity": "ai.briefing_schedule",
+    "ownerModule": "ai",
+    "platformOnly": false
+  },
+  {
+    "prefix": "brf",
+    "resource": "briefing",
+    "entity": "ai.briefing",
+    "ownerModule": "ai",
+    "platformOnly": false
+  },
+  {
+    "prefix": "bco",
+    "resource": "briefing_correction",
+    "entity": "ai.briefing_correction",
     "ownerModule": "ai",
     "platformOnly": false
   },

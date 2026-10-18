@@ -1711,9 +1711,17 @@
         "TIME-015",
         "TIME-016",
         "VIEW-016",
-        "VIEW-018"
+        "VIEW-018",
+        "BRF-001",
+        "BRF-002",
+        "BRF-003",
+        "BRF-004",
+        "BRF-005",
+        "BRF-015",
+        "BRF-016",
+        "BRF-017"
       ],
-      "notes": "Phase 2E (AZ-25): capture, Inbox, notes, merge, and triage previews are personal; turning an item into operational work also needs record.create at the destination. Phase 3A (AZ-26): personal saved views, a person's own default view, and per-view state are personal; no owner or administrator bypass. Phase 3E (AZ-30): working hours, weekly capacity, time off, and one's own capacity and conflicts are personal."
+      "notes": "Phase 2E (AZ-25): capture, Inbox, notes, merge, and triage previews are personal; turning an item into operational work also needs record.create at the destination. Phase 3A (AZ-26): personal saved views, a person's own default view, and per-view state are personal; no owner or administrator bypass. Phase 3E (AZ-30): working hours, weekly capacity, time off, and one's own capacity and conflicts are personal. Phase 7E (AZ-49): briefings, briefing schedules, and briefing correction notes are personal; every figure is computed as the recipient, and no owner or administrator reaches another person's briefing."
     },
     {
       "key": "sessions.manage_own",

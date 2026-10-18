@@ -7,10 +7,11 @@ import { AI_DISPATCH_JOB, type AiGatewayService } from './ai-gateway-service.ts'
 export const AI_JOB_KINDS = {
   dispatch: AI_DISPATCH_JOB,
   retention: 'ai.history.retention',
+  briefings: 'ai.briefing.sweep',
 } as const;
 
 /**
- * Hourly: AI content past the technical retention setting. The sweep does nothing while
+ * Hourly: AI content and (7E) briefing content past the technical retention setting. The sweep does nothing while
  * AI_HISTORY_RETENTION_DAYS is unset (OD-36 undecided: content is kept).
  */
 export const AI_SCHEDULES: readonly RecurringJob[] = [
@@ -21,12 +22,23 @@ export const AI_SCHEDULES: readonly RecurringJob[] = [
     maxAttempts: 3,
     timeoutSeconds: 300,
   },
+  // 7E: every minute, due briefing occurrences and queued briefings (fact-only; no AI is queued).
+  {
+    kind: AI_JOB_KINDS.briefings,
+    queue: 'default',
+    intervalMs: 60_000,
+    maxAttempts: 3,
+    timeoutSeconds: 240,
+  },
 ];
 
 export interface AiJobDeps {
   tenant: TenantDatabase;
   discovery: PlatformDiscovery;
-  service: Pick<AiGatewayService, 'runAiDispatch' | 'eraseAiContent' | 'aiHistoryRetentionDays'>;
+  service: Pick<
+    AiGatewayService,
+    'runAiDispatch' | 'eraseAiContent' | 'aiHistoryRetentionDays' | 'runBriefingSweep'
+  >;
   metrics: Metrics;
   logger: Logger;
   /** Job attempt cap for a dispatch (AI_MAX_ATTEMPTS). */
@@ -55,7 +67,14 @@ export function aiRetentionHandler(d: AiJobDeps): JobHandler {
       const days = d.service.aiHistoryRetentionDays();
       if (days === null) return;
       const before = new Date(Date.now() - days * 86_400_000);
-      const workspaces = await d.discovery.discoverAiRetentionWork(before, 100);
+      // Corrective review 01 (R3): AI content and briefing content are discovered independently
+      // (a workspace with briefings and no, or only erased, AI runs is still found), and the two
+      // lists are interleaved so neither family starves the other within a sweep.
+      const ai = await d.discovery.discoverAiRetentionWork(before, 100);
+      const briefings = await d.discovery.discoverBriefingRetentionWork(before, 100);
+      const workspaces: string[] = [];
+      for (let i = 0; i < Math.max(ai.length, briefings.length); i++)
+        for (const w of [ai[i], briefings[i]]) if (w && !workspaces.includes(w)) workspaces.push(w);
       for (const ws of workspaces) {
         try {
           const erased = await d.tenant.withWorkspace(ws, { module: 'work' }, (tx) =>
@@ -64,6 +83,32 @@ export function aiRetentionHandler(d: AiJobDeps): JobHandler {
           d.metrics.count('ai.history.erased', erased, { reason: 'retention' });
         } catch (err) {
           d.logger.warn('ai.retention_failed', errorFields(err));
+        }
+      }
+    },
+  };
+}
+
+/**
+ * The briefing sweep (ADR-0042 D6). Discovery returns workspace identifiers only; each workspace
+ * is swept in its own transactions, a failing workspace never holds up the others, and a repeated
+ * or overlapping sweep changes nothing (one briefing per schedule occurrence is a unique key).
+ */
+export function aiBriefingSweepHandler(d: AiJobDeps): JobHandler {
+  return {
+    kind: AI_JOB_KINDS.briefings,
+    queue: 'default',
+    maxAttempts: 3,
+    timeoutMs: 240_000,
+    async handle() {
+      const now = new Date();
+      const workspaces = await d.discovery.discoverBriefingWork(now, 100);
+      for (const ws of workspaces) {
+        try {
+          const r = await d.service.runBriefingSweep(d.tenant, ws, now);
+          d.metrics.count('ai.briefings', r.published, { outcome: 'swept' });
+        } catch (err) {
+          d.logger.warn('ai.briefing_sweep_failed', errorFields(err));
         }
       }
     },
