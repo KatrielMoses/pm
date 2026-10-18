@@ -411,6 +411,61 @@ export function registerAi(app: FastifyInstance, work: AiGatewayService): void {
         ),
     ),
   );
+  // 7F voice capture: session only. Audio goes to object storage through a bound upload URL, is
+  // checked from its bytes, transcribed through the gateway, and discarded.
+  app.get(
+    `${base}/capture/voice-settings`,
+    wrap(async (request, reply) =>
+      reply
+        .header('cache-control', 'private, no-store')
+        .send(
+          nonResourceEnvelope(
+            'voice_settings',
+            await work.voiceSettings(caller(request), ws(request)),
+            m(request),
+          ),
+        ),
+    ),
+  );
+  app.post(
+    `${base}/capture/voice`,
+    wrap(async (request, reply) => {
+      reply.header('cache-control', 'private, no-store');
+      const result = await work.createVoiceCapture(
+        caller(request),
+        ws(request),
+        request.body,
+        mutation(request),
+      );
+      return resource(request, reply, result.data, result);
+    }),
+  );
+  app.get(
+    `${base}/capture/voice/:vcp`,
+    wrap(async (request, reply) => {
+      const vcp = param(request, 'vcp') ?? '';
+      if (vcp.includes(':')) return fail(request, reply, 'not_found');
+      reply.header('cache-control', 'private, no-store');
+      return resource(request, reply, await work.getVoiceCapture(caller(request), ws(request), vcp));
+    }),
+  );
+  app.post(
+    `${base}/capture/voice/:vcp`,
+    wrap(async (request, reply) => {
+      const t = split(param(request, 'vcp'));
+      if (!t) return fail(request, reply, 'not_found');
+      reply.header('cache-control', 'private, no-store');
+      const run =
+        t.verb === 'transcribe'
+          ? work.transcribeVoiceCapture.bind(work)
+          : t.verb === 'cancel'
+            ? work.cancelVoiceCapture.bind(work)
+            : null;
+      if (!run) return fail(request, reply, 'not_found');
+      const result = await run(caller(request), ws(request), t.id, mutation(request));
+      return resource(request, reply, result.data, result);
+    }),
+  );
   app.post(
     `${base}/planning/day-plans`,
     wrap(async (request, reply) => {

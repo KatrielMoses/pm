@@ -19,6 +19,7 @@ import { projectOwnerHook, taskAssigneeHook } from './ownership.ts';
 import { AiGatewayService } from './ai/ai-gateway-service.ts';
 import { aiHistoryOwnerHook } from './ai/lifecycle.ts';
 import { MessagesProvider, type AiProvider } from './ai/provider.ts';
+import { HttpTranscriptionProvider } from './ai/transcription.ts';
 import { connectionOwnerHook, webhookOwnerHook } from './integrations/ownership.ts';
 import { goalOwnerHook } from './goals/ownership.ts';
 import { insightsOwnerHook } from './insights/ownership.ts';
@@ -118,12 +119,21 @@ export function createWorkService(deps: {
             maxWireBytes: ai.stream.maxBytes,
           })
         : null;
+  // 7F: the transcription transport (the synthetic fixture only; production refuses it).
+  const transcriber =
+    ai?.transcription && ai.transcription.provider !== 'none'
+      ? new HttpTranscriptionProvider({
+          baseUrl: ai.transcription.baseUrl,
+          timeoutMs: ai.transcription.timeoutMs,
+        })
+      : null;
   return new AiGatewayService({
     ...(ai
       ? {
           ai: {
             config: ai,
             provider: aiProvider,
+            transcriber,
             // 10A owns commercial entitlements: deny in deployed modes until it supplies a provider.
             entitlements: {
               aiAllowed: async () => config.env === 'local' || config.env === 'test',

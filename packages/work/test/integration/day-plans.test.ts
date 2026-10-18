@@ -173,7 +173,7 @@ describe('Phase 7F daily plans', () => {
     const un = Object.fromEntries(v.unscheduled.map((u) => [u.task.title, u]));
     expect(un['Unestimated']).toMatchObject({ code: 'missing_estimate', minutes: null });
     expect(un['Blocked work']).toMatchObject({ code: 'blocked' });
-    expect(un['Blocked work']!.blocked_by!.map((b) => b.id)).toEqual([t.E]);
+    expect(un['Blocked work']!.blocked_by!.map((b: { id: string }) => b.id)).toEqual([t.E]);
     expect(v.totals.unknown_estimates).toBe(1);
     expect(v.feasible).toBe(false);
     // Another person's work is never a candidate.

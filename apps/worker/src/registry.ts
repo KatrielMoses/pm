@@ -51,9 +51,12 @@ import {
   type PublicApiService,
   AI_SCHEDULES,
   aiDispatchHandler,
+  aiTranscriptionHandler,
+  voiceCleanupHandler,
   aiRetentionHandler,
   aiBriefingSweepHandler,
   type AiJobDeps,
+  type VoiceJobDeps,
 } from '@pm/work';
 
 /**
@@ -90,7 +93,7 @@ export interface WorkerModules {
   metrics: MetricsJobDeps;
   reports: ReportJobDeps;
   integrations: IntegrationJobDeps;
-  ai?: AiJobDeps;
+  ai?: AiJobDeps & VoiceJobDeps;
 }
 
 export function registeredHandlers(m: WorkerModules): JobHandler[] {
@@ -116,7 +119,13 @@ export function registeredHandlers(m: WorkerModules): JobHandler[] {
     integrationSyncHandler(m.integrations),
     webhookDeliveryHandler(m.integrations),
     ...(m.ai
-      ? [aiDispatchHandler(m.ai), aiRetentionHandler(m.ai), aiBriefingSweepHandler(m.ai)]
+      ? [
+          aiDispatchHandler(m.ai),
+          aiRetentionHandler(m.ai),
+          aiBriefingSweepHandler(m.ai),
+          aiTranscriptionHandler(m.ai),
+          voiceCleanupHandler(m.ai),
+        ]
       : []),
   ];
 }

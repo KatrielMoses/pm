@@ -126,8 +126,9 @@ CREATE TABLE capture.voice_capture (
   CONSTRAINT voice_capture_duration CHECK (duration_ms BETWEEN 1 AND 3600000),
   CONSTRAINT voice_capture_sha CHECK (content_sha256 ~ '^[0-9a-f]{64}$'),
   CONSTRAINT voice_capture_storage CHECK (storage_key IS NULL OR storage_key ~ '^voice/[0-9a-f-]{36}/[0-9a-f-]{36}$'),
-  -- Audio is kept only before a terminal outcome; a terminal capture holds no object.
-  CONSTRAINT voice_capture_ephemeral CHECK (state IN ('uploaded', 'transcribing') OR storage_key IS NULL),
+  -- Audio is ephemeral: it is deleted at a terminal outcome. A terminal capture may still name its
+  -- object only until the deletion succeeds (the cleanup sweep retries); a discarded one never does.
+  CONSTRAINT voice_capture_ephemeral CHECK (discarded_at IS NULL OR storage_key IS NULL),
   CONSTRAINT voice_capture_saved CHECK ((state = 'saved') = (inbox_item_id IS NOT NULL)),
   CONSTRAINT voice_capture_failure CHECK ((state = 'failed') = (failure_code IS NOT NULL)
     AND (failure_code IS NULL OR failure_code ~ '^[a-z_]{1,64}$'))
@@ -144,15 +145,17 @@ CREATE POLICY tenant_isolation ON capture.voice_capture
 GRANT SELECT, INSERT, UPDATE ON capture.voice_capture TO app_rw, app_worker;
 
 -- Discovery for the voice cleanup sweep: workspaces holding audio past its expiry (ids only).
+GRANT USAGE ON SCHEMA capture TO pm_scheduler;
 CREATE POLICY scheduler_discovery ON capture.voice_capture FOR SELECT TO pm_scheduler USING (true);
-GRANT SELECT (workspace_id, storage_key, expires_at) ON capture.voice_capture TO pm_scheduler;
+GRANT SELECT (workspace_id, state, storage_key, expires_at) ON capture.voice_capture TO pm_scheduler;
 CREATE FUNCTION exec_dispatch.discover_voice_cleanup_work(p_now timestamptz, p_limit integer)
   RETURNS TABLE (workspace_id uuid)
   LANGUAGE sql STABLE SECURITY DEFINER
   SET search_path = pg_catalog, pg_temp
   AS $$
   SELECT v.workspace_id FROM capture.voice_capture v
-   WHERE v.storage_key IS NOT NULL AND v.expires_at <= p_now
+   WHERE v.storage_key IS NOT NULL
+     AND (v.expires_at <= p_now OR v.state NOT IN ('uploaded', 'transcribing'))
    GROUP BY v.workspace_id
    ORDER BY min(v.expires_at), v.workspace_id
    LIMIT least(greatest(p_limit, 1), 1000)

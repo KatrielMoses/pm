@@ -33,6 +33,7 @@ REVOKE SELECT (workspace_id, origin, content_state, created_at) ON ai.change_pro
 DROP POLICY scheduler_discovery ON ai.change_proposal;
 DROP FUNCTION exec_dispatch.discover_voice_cleanup_work(timestamptz, integer);
 DROP TABLE capture.voice_capture;
+REVOKE USAGE ON SCHEMA capture FROM pm_scheduler;
 
 DROP INDEX ai.briefing_evidence_by_proposal;
 ALTER TABLE ai.briefing_evidence

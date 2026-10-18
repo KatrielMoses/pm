@@ -439,6 +439,29 @@ export interface AiConfig {
   retrieval: { sourcesMax: number; sourceChars: number };
   /** 7D change proposals: approval validity and the size bound of one proposal. */
   proposals: { approvalHours: number; changesMax: number };
+  /** 7F: the transcription transport (absent or `none` means voice transcription is unavailable). */
+  transcription?: TranscriptionTransportConfig;
+  /** 7F: voice capture bounds (defaults apply when absent). */
+  voice?: VoiceConfig;
+}
+
+/**
+ * 7F transcription transport (ADR-0043 D3): only the deterministic fixture exists, and it is refused
+ * when deployed. No live speech provider is configured until privacy, secret, entitlement, and
+ * cost bounds are approved.
+ */
+export type TranscriptionTransportConfig =
+  | { provider: 'none' }
+  | { provider: 'fixture'; baseUrl: string; apiKey: Secret | null; timeoutMs: number };
+
+/** 7F voice capture bounds: duration, bytes, formats, open uploads per person, and transcript size. */
+export interface VoiceConfig {
+  maxSeconds: number;
+  maxBytes: number;
+  formats: readonly ('audio/wav' | 'audio/webm' | 'audio/ogg')[];
+  queueMax: number;
+  uploadTtlSeconds: number;
+  transcriptMaxChars: number;
 }
 
 /** Retention classes (0B vocabulary) that may carry a platform default period. */
@@ -868,6 +891,15 @@ const DEFAULTS = {
   AI_CONTEXT_SOURCE_CHARS: '1500',
   AI_PROPOSAL_APPROVAL_HOURS: '24',
   AI_PROPOSAL_CHANGES_MAX: '25',
+  TRANSCRIPTION_PROVIDER: 'none',
+  TRANSCRIPTION_BASE_URL: 'http://127.0.0.1:1',
+  TRANSCRIPTION_TIMEOUT_MS: '30000',
+  VOICE_MAX_SECONDS: '120',
+  VOICE_MAX_BYTES: '10485760',
+  VOICE_FORMATS: 'audio/wav,audio/webm,audio/ogg',
+  VOICE_QUEUE_MAX: '3',
+  VOICE_UPLOAD_TTL_SECONDS: '900',
+  VOICE_TRANSCRIPT_MAX_CHARS: '4000',
   MCP_READ_RATE_PER_MINUTE: '120',
   MCP_WRITE_RATE_PER_MINUTE: '60',
   OAUTH_CLIENTS_MAX: '20',
@@ -1250,6 +1282,16 @@ const schema = z.object({
   AI_CONTEXT_SOURCE_CHARS: int(200, 6000),
   AI_PROPOSAL_APPROVAL_HOURS: int(1, 168),
   AI_PROPOSAL_CHANGES_MAX: int(1, 100),
+  TRANSCRIPTION_PROVIDER: z.enum(['none', 'fixture']),
+  TRANSCRIPTION_BASE_URL: z.url(),
+  TRANSCRIPTION_API_KEY: z.string().optional(),
+  TRANSCRIPTION_TIMEOUT_MS: int(1000, 120_000),
+  VOICE_MAX_SECONDS: int(5, 600),
+  VOICE_MAX_BYTES: int(1024, 104_857_600),
+  VOICE_FORMATS: z.string().regex(/^audio\/(wav|webm|ogg)(,audio\/(wav|webm|ogg)){0,2}$/),
+  VOICE_QUEUE_MAX: int(1, 20),
+  VOICE_UPLOAD_TTL_SECONDS: int(60, 3600),
+  VOICE_TRANSCRIPT_MAX_CHARS: int(200, 20_000),
   MCP_READ_RATE_PER_MINUTE: int(1, 10_000),
   MCP_WRITE_RATE_PER_MINUTE: int(1, 10_000),
   OAUTH_CLIENTS_MAX: int(1, 500),
@@ -1693,7 +1735,31 @@ export function loadServerConfig(options: LoadOptions): ServerConfig {
       approvalHours: c.AI_PROPOSAL_APPROVAL_HOURS,
       changesMax: c.AI_PROPOSAL_CHANGES_MAX,
     },
+    transcription:
+      c.TRANSCRIPTION_PROVIDER === 'fixture'
+        ? {
+            provider: 'fixture',
+            baseUrl: c.TRANSCRIPTION_BASE_URL.replace(/\/+$/, ''),
+            apiKey: c.TRANSCRIPTION_API_KEY ? new Secret(c.TRANSCRIPTION_API_KEY) : null,
+            timeoutMs: c.TRANSCRIPTION_TIMEOUT_MS,
+          }
+        : { provider: 'none' },
+    voice: {
+      maxSeconds: c.VOICE_MAX_SECONDS,
+      maxBytes: c.VOICE_MAX_BYTES,
+      formats: [...new Set(c.VOICE_FORMATS.split(','))] as VoiceConfig['formats'][number][],
+      queueMax: c.VOICE_QUEUE_MAX,
+      uploadTtlSeconds: c.VOICE_UPLOAD_TTL_SECONDS,
+      transcriptMaxChars: c.VOICE_TRANSCRIPT_MAX_CHARS,
+    },
   };
+  // 7F: the transcription fixture is synthetic and refused when deployed; no live provider exists.
+  if (deployed && c.TRANSCRIPTION_PROVIDER === 'fixture')
+    issues.push('TRANSCRIPTION_PROVIDER: the transcription fixture is refused in deployed environments');
+  if (c.TRANSCRIPTION_API_KEY?.startsWith(SECRET_REFERENCE_PREFIX))
+    issues.push(
+      'TRANSCRIPTION_API_KEY: secret references require a secret-store provider (not selected; DQ-28)',
+    );
   if (c.AI_STREAM_EVENT_MAX_BYTES > c.AI_STREAM_MAX_BYTES)
     issues.push('AI_STREAM_EVENT_MAX_BYTES: must not exceed AI_STREAM_MAX_BYTES');
   let filesScanner: FilesScannerConfig = { provider: 'none' };
