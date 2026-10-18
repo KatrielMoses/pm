@@ -114,8 +114,9 @@ describe('Phase 7E corrective review 01', () => {
     const before = await generate(g, { kind: 'owner_daily' }, req);
     expect(stmt(before, 'completed.count')!.figures).toMatchObject({ total: 22, shown: 20 });
     expect(stmt(before, `completed.task:${ids[0]}`)).toBeUndefined();
-    expect(before.coverage!.sections.completed).toMatchObject({ state: 'truncated', total: 22 });
-    await revoke(shares[ids[1]]!);
+    const coverage = before.coverage as { sections: Record<string, unknown> };
+    expect(coverage.sections.completed).toMatchObject({ state: 'truncated', total: 22 });
+    await revoke(shares[ids[1]!]!);
     const after = await env.svc.getBriefing(g, ws, before.id);
     expect(after).toMatchObject({ availability: 'withheld', statements: [], coverage: null });
     expect(text(after)).not.toMatch(/Kestrel|"total"/);
