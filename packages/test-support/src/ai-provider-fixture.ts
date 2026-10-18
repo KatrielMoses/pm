@@ -479,7 +479,8 @@ export async function startAiProviderFixture(
       requestId: id,
     });
     if (!accepted.has(key)) return json(res, 401, { error: 'auth' });
-    if (req.headers['x-model'] !== 'synthetic-transcription') return json(res, 404, { error: 'model' });
+    if (req.headers['x-model'] !== 'synthetic-transcription')
+      return json(res, 404, { error: 'model' });
     if (!['audio/wav', 'audio/webm', 'audio/ogg'].includes(format))
       return json(res, 415, { error: 'format' });
     const fail = failQueue.shift();

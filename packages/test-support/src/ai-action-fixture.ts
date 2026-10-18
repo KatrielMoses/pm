@@ -463,7 +463,9 @@ function draftReply(
  */
 function interpretationReply(scenario: ActionScenario, request: string): string {
   const at = request.indexOf('\nRequest: ');
-  const text = (at >= 0 ? request.slice(at + 10) : request).split('\nAnswers to earlier questions:')[0]!;
+  const text = (at >= 0 ? request.slice(at + 10) : request).split(
+    '\nAnswers to earlier questions:',
+  )[0]!;
   if (scenario === 'malformed') return 'The note is about a meeting next week.';
   if (scenario === 'ask')
     return JSON.stringify({ fields: [], questions: [{ text: 'Which project is this for?' }] });
@@ -486,14 +488,27 @@ function interpretationReply(scenario: ActionScenario, request: string): string 
     fields.push({ field, span, at: pos });
   };
   const DAY = '(?:mon|tues|wednes|thurs|fri|satur|sun)day';
-  find('deadline', new RegExp(`\\bby (today|tomorrow|next ${DAY}|${DAY}|\\d{1,2}/\\d{1,2})\\b`, 'i'), 1);
+  find(
+    'deadline',
+    new RegExp(`\\bby (today|tomorrow|next ${DAY}|${DAY}|\\d{1,2}/\\d{1,2})\\b`, 'i'),
+    1,
+  );
   find(
     'due_date',
-    new RegExp(`\\b(today|tomorrow|next ${DAY}|${DAY}|\\d{1,2}/\\d{1,2}|\\d{4}-\\d{2}-\\d{2})\\b`, 'i'),
+    new RegExp(
+      `\\b(today|tomorrow|next ${DAY}|${DAY}|\\d{1,2}/\\d{1,2}|\\d{4}-\\d{2}-\\d{2})\\b`,
+      'i',
+    ),
   );
   find('priority', /\b(urgent|asap|high priority|low priority)\b/i);
-  find('estimate_minutes', /\b((?:about |around )?(?:half an hour|an hour|\d+ (?:minutes|hours)))\b/i);
-  find('recurrence', /\b(every (?:day|week|month|weekday|monday|tuesday|wednesday|thursday|friday)|daily|weekly)\b/i);
+  find(
+    'estimate_minutes',
+    /\b((?:about |around )?(?:half an hour|an hour|\d+ (?:minutes|hours)))\b/i,
+  );
+  find(
+    'recurrence',
+    /\b(every (?:day|week|month|weekday|monday|tuesday|wednesday|thursday|friday)|daily|weekly)\b/i,
+  );
   find('owner', /\b(?:with|ask|for) ([A-Z][a-z]+)\b/, 1);
   find('project', /\bproject ([A-Z][\w-]+)/, 1);
   find('brand', /\bbrand ([A-Z][\w-]+)/, 1);

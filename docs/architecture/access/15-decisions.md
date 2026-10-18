@@ -619,3 +619,17 @@ All decisions are **proposed (Phase 0C)**, pending solutions-architect acceptanc
   - **Retention reaches briefings (R3).** Configured technical retention discovers briefing content on its own; notes that are not approved memory are erased with their briefing.
   - Threats T-120 to T-122 with tests AT-468 to AT-475.
 - **Corrective review 02:** overflow fails closed. A briefing whose statement basis (one query, or the union of a statement's parts) exceeds 1000 records, or whose evidence exceeds 40 000 references, is refused as `evidence_unverifiable` before anything is stored, for every recipient including fully authorized ones. Above 1000 open tasks, blocked and stale figures state nothing beyond the examined tasks. Threat T-123 with tests AT-476 to AT-480.
+
+<a id="az-50"></a>
+### AZ-50: Assisted capture, voice, and daily plans (Phase 7F)
+- **Decision:**
+  - **Personal and session-only.** Plan previews, plan proposals, interpretations, and recordings are `personal.manage_own`; no owner, administrator, grant, or share reaches another person's. Bearer callers are refused at the edge on `/planning/day-plan*`, `/capture/interpretations`, and `/capture/voice*`, whatever their scopes; the services refuse delegated callers too. Read-only members may preview a plan but never create or apply one (`ai.apply_proposal`).
+  - **The model suggests spans, the server decides.** An interpretation span counts only if it is the person's own words; values come from deterministic rules and the 2E authorized lookup (hidden and unknown names alike unresolved). Instructions inside a capture, a transcript, or a plan are data: nothing is fetched, executed, widened, or applied. Interpretation and transcription are AI runs under `ai.execute` with the 7A policy, privacy snapshot, reservation, and history.
+  - **Plans rest on a complete, re-checked basis.** Every candidate, blocker, and scope reference is stored as evidence and re-checked at review, validation, approval, Apply, and replay; any loss withholds the plan whole. Apply re-locks and recomputes the day; a changed day refuses until the person rebases on the snapshot they reviewed.
+  - **Locked work and dates are hard limits.** The planner never targets a locked commitment or block, another person's block, or a task date; postponements are unselected until chosen; every change runs through the canonical 3C command as the person (source `ui`, referencing the proposal).
+  - **Audio is ephemeral.** It is uploaded through a bound URL, checked from its bytes, sent once, and deleted at every outcome (the sweep retries); no audio or transcript text reaches job state, logs, audit, or metrics.
+- **Alternatives:**
+  - Offering workspace names to the model as choices (a hidden name could leak through its behaviour).
+  - Applying a plan directly from the preview (no review, no atomic re-check).
+  - Browser speech recognition (an uncontrolled third-party service and a privacy bypass).
+- **Consequences:** Threats T-124 to T-133 with tests AT-481 to AT-514. The action count stays 122.

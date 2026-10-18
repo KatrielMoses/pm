@@ -186,7 +186,7 @@ describe('Capture assistance (7F)', () => {
       'GET /ai': () => json(200, overview(false)),
       'GET /capture/voice-settings': () => json(200, voiceSettings('available')),
     });
-    vi.stubGlobal('MediaRecorder', class {});
+    vi.stubGlobal('MediaRecorder', function MediaRecorder() {});
     Object.defineProperty(navigator, 'mediaDevices', {
       configurable: true,
       value: {

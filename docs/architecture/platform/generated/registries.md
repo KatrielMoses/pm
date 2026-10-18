@@ -901,4 +901,14 @@ Forbidden metric labels: `workspace_id`, `brand_id`, `record_id`, `public_id`, `
 | `AI_CONTEXT_SOURCE_CHARS` | Characters of redacted source text sent per source; longer text is cut and flagged as shortened; default 1500, range 200–6000. | 7B |
 | `AI_PROPOSAL_APPROVAL_HOURS` | How long an approval of a change proposal stays valid before fresh validation and approval are needed; default 24, range 1–168. | 7D |
 | `AI_PROPOSAL_CHANGES_MAX` | Changes one proposal may hold (larger proposals are refused whole); default 25, range 1–100. | 7D |
+| `TRANSCRIPTION_PROVIDER` | Voice transcription transport: none (default) or the deterministic fixture, refused when deployed; no live speech provider exists. | 7F |
+| `TRANSCRIPTION_BASE_URL` | Base URL of the transcription transport (fixture only). | 7F |
+| `TRANSCRIPTION_API_KEY` | Transcription transport key (fixture only; secret references refused until DQ-28). | 7F |
+| `TRANSCRIPTION_TIMEOUT_MS` | One transcription request; default 30000, range 1000–120000; a timeout after sending is never resent. | 7F |
+| `VOICE_MAX_SECONDS` | Longest recording; default 120, range 5–600. | 7F |
+| `VOICE_MAX_BYTES` | Largest recording upload; default 10485760 (10 MiB). | 7F |
+| `VOICE_FORMATS` | Accepted recording formats (subset of audio/wav, audio/webm, audio/ogg). | 7F |
+| `VOICE_QUEUE_MAX` | Recordings one person may have uploading or transcribing at once; default 3. | 7F |
+| `VOICE_UPLOAD_TTL_SECONDS` | Upload URL lifetime; expired uploads are swept; default 900. | 7F |
+| `VOICE_TRANSCRIPT_MAX_CHARS` | Longest transcript kept; default 4000. | 7F |
 | `AI_HISTORY_RETENTION_DAYS` | Technical content retention for AI history; unset keeps content (OD-36 undecided). | 7A |

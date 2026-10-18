@@ -1561,13 +1561,7 @@ export interface InboxItemTable {
   version: Defaulted<number>;
 }
 export type VoiceCaptureState =
-  | 'uploaded'
-  | 'transcribing'
-  | 'transcribed'
-  | 'failed'
-  | 'cancelled'
-  | 'expired'
-  | 'saved';
+  'uploaded' | 'transcribing' | 'transcribed' | 'failed' | 'cancelled' | 'expired' | 'saved';
 /** 7F: one ephemeral voice upload; the transcript is AI content of its transcription run. */
 export interface VoiceCaptureTable {
   id: string;

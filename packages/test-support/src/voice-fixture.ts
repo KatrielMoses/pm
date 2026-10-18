@@ -91,7 +91,10 @@ export function syntheticOgg(seconds: number, speech: SyntheticSpeech | null): U
 }
 
 /** A WebM header (EBML, `webm` doctype) with an optional segment duration and a marker. */
-export function syntheticWebm(durationMs: number | null, speech: SyntheticSpeech | null): Uint8Array {
+export function syntheticWebm(
+  durationMs: number | null,
+  speech: SyntheticSpeech | null,
+): Uint8Array {
   const ebml = Buffer.from([
     0x1a, 0x45, 0xdf, 0xa3, 0x9f, 0x42, 0x86, 0x81, 0x01, 0x42, 0xf7, 0x81, 0x01, 0x42, 0xf2, 0x81,
     0x04, 0x42, 0xf3, 0x81, 0x08, 0x42, 0x82, 0x84, 0x77, 0x65, 0x62, 0x6d, 0x42, 0x87, 0x81, 0x04,

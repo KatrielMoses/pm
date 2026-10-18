@@ -658,8 +658,10 @@ export function ProposalPage({ ws, id }: { ws: string; id: string }) {
           <h2 id="prp-outcome">Outcome</h2>
           {app.outcome === 'applied' ? (
             <Banner tone="success" title={`Applied ${app.applied_count} change(s)`}>
-              Applied by you · proposed by {planner ? 'the rule-based planner' : 'AI'} ·{' '}
-              {new Date(app.at).toLocaleString()}.
+              {planner
+                ? 'Applied by you · proposed by the rule-based planner'
+                : 'Applied by you · proposed by AI'}{' '}
+              · {new Date(app.at).toLocaleString()}.
             </Banner>
           ) : (
             <Banner tone="danger" title="Nothing was applied">

@@ -446,7 +446,11 @@ export function registerAi(app: FastifyInstance, work: AiGatewayService): void {
       const vcp = param(request, 'vcp') ?? '';
       if (vcp.includes(':')) return fail(request, reply, 'not_found');
       reply.header('cache-control', 'private, no-store');
-      return resource(request, reply, await work.getVoiceCapture(caller(request), ws(request), vcp));
+      return resource(
+        request,
+        reply,
+        await work.getVoiceCapture(caller(request), ws(request), vcp),
+      );
     }),
   );
   app.post(

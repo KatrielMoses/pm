@@ -17,8 +17,11 @@ import {
 } from '../../src/ai/transcription.ts';
 
 const def = ACTION_BY_ID.get('interpret_capture.v1')!;
-const validate = (text: string, capture: string, completeness: 'complete' | 'truncated' = 'complete') =>
-  validateInterpretation({ def, text, completeness, capture });
+const validate = (
+  text: string,
+  capture: string,
+  completeness: 'complete' | 'truncated' = 'complete',
+) => validateInterpretation({ def, text, completeness, capture });
 
 describe('Phase 7F interpretation contract (interpretation.v1)', () => {
   it('accepts only exact spans of the capture text; anything else is dropped, never guessed', () => {
@@ -57,7 +60,9 @@ describe('Phase 7F interpretation contract (interpretation.v1)', () => {
     expect(validate('{"fields":[],"apply":true}', 'x').reason).toBe('unsupported_output');
     expect(
       validate(
-        JSON.stringify({ fields: Array.from({ length: 21 }, () => ({ field: 'title', span: 'x' })) }),
+        JSON.stringify({
+          fields: Array.from({ length: 21 }, () => ({ field: 'title', span: 'x' })),
+        }),
         'x',
       ).reason,
     ).toBe('unsupported_output');
@@ -85,9 +90,11 @@ describe('Phase 7F interpretation contract (interpretation.v1)', () => {
   });
 
   it('reads the capture text from the composed request and keeps the contract in the template', () => {
-    expect(captureTextOf('Action: Interpret a capture\nRequest: Buy milk\nAnswers to earlier questions:\n- a: b')).toBe(
-      'Buy milk',
-    );
+    expect(
+      captureTextOf(
+        'Action: Interpret a capture\nRequest: Buy milk\nAnswers to earlier questions:\n- a: b',
+      ),
+    ).toBe('Buy milk');
     const t = interpretationSystemTemplate(def);
     expect(t).toContain('interpretation.v1');
     expect(t).toMatch(/copied exactly/);
@@ -114,7 +121,9 @@ describe('Phase 7F span derivation (server rules, person’s today)', () => {
     expect(deriveSpan('estimate_minutes', 'half an hour', today, 30)).toMatchObject({ value: 30 });
     expect(deriveSpan('estimate_minutes', '90m', today, 30)).toMatchObject({ value: 90 });
     // A missing duration is never zero.
-    expect(deriveSpan('estimate_minutes', 'a while', today, 30)).toMatchObject({ status: 'unknown' });
+    expect(deriveSpan('estimate_minutes', 'a while', today, 30)).toMatchObject({
+      status: 'unknown',
+    });
     expect(deriveSpan('recurrence', 'every monday', today, 30)).toMatchObject({
       value: { frequency: 'weekly', weekdays: ['MO'] },
     });
@@ -125,12 +134,30 @@ describe('Phase 7F span derivation (server rules, person’s today)', () => {
 
 describe('Phase 7F audio checks (from bytes, never a name)', () => {
   it('measures WAV, Ogg, and WebM durations and bounds them', () => {
-    expect(checkAudio(syntheticWav(3, null), 'audio/wav', 120)).toEqual({ ok: true, durationMs: 3000 });
-    expect(checkAudio(syntheticWav(121, null), 'audio/wav', 120)).toEqual({ ok: false, code: 'too_long' });
-    expect(checkAudio(syntheticWav(0, null), 'audio/wav', 120)).toEqual({ ok: false, code: 'empty_audio' });
-    expect(checkAudio(syntheticOgg(2.5, null), 'audio/ogg', 120)).toEqual({ ok: true, durationMs: 2500 });
-    expect(checkAudio(syntheticWebm(1500, null), 'audio/webm', 120)).toEqual({ ok: true, durationMs: 1500 });
-    expect(checkAudio(syntheticWebm(null, null), 'audio/webm', 120)).toEqual({ ok: true, durationMs: null });
+    expect(checkAudio(syntheticWav(3, null), 'audio/wav', 120)).toEqual({
+      ok: true,
+      durationMs: 3000,
+    });
+    expect(checkAudio(syntheticWav(121, null), 'audio/wav', 120)).toEqual({
+      ok: false,
+      code: 'too_long',
+    });
+    expect(checkAudio(syntheticWav(0, null), 'audio/wav', 120)).toEqual({
+      ok: false,
+      code: 'empty_audio',
+    });
+    expect(checkAudio(syntheticOgg(2.5, null), 'audio/ogg', 120)).toEqual({
+      ok: true,
+      durationMs: 2500,
+    });
+    expect(checkAudio(syntheticWebm(1500, null), 'audio/webm', 120)).toEqual({
+      ok: true,
+      durationMs: 1500,
+    });
+    expect(checkAudio(syntheticWebm(null, null), 'audio/webm', 120)).toEqual({
+      ok: true,
+      durationMs: null,
+    });
   });
 
   it('refuses a container that does not match its declared format, or is malformed', () => {
@@ -183,8 +210,17 @@ describe('Phase 7F transcription transport (provider contract)', () => {
       status: 200,
       body: JSON.stringify({ id: 'tr_1', text: 'hello world', duration_ms: 1000, confidence: 0.8 }),
     };
-    expect(await call()).toEqual({ text: 'hello world', durationMs: 1000, confidence: 0.8, requestId: 'tr_1' });
-    expect(seen!.headers).toMatchObject({ 'content-type': 'audio/wav', 'x-api-key': 'k', 'x-model': 'synthetic-transcription' });
+    expect(await call()).toEqual({
+      text: 'hello world',
+      durationMs: 1000,
+      confidence: 0.8,
+      requestId: 'tr_1',
+    });
+    expect(seen!.headers).toMatchObject({
+      'content-type': 'audio/wav',
+      'x-api-key': 'k',
+      'x-model': 'synthetic-transcription',
+    });
     expect(seen!.bytes).toBe(syntheticWav(1, null).byteLength);
     expect((await call(5)).text).toBe('hello');
   });
@@ -206,7 +242,10 @@ describe('Phase 7F transcription transport (provider contract)', () => {
     await new Promise<void>((r) => probe.listen(0, '127.0.0.1', r));
     const port = (probe.address() as AddressInfo).port;
     await new Promise<void>((r) => probe.close(() => r()));
-    const closed = new HttpTranscriptionProvider({ baseUrl: `http://127.0.0.1:${port}`, timeoutMs: 500 });
+    const closed = new HttpTranscriptionProvider({
+      baseUrl: `http://127.0.0.1:${port}`,
+      timeoutMs: 500,
+    });
     await expect(
       closed.transcribe({
         model: 'm',

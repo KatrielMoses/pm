@@ -72,7 +72,7 @@ export function captureTextOf(prompt: string): string {
 function locate(text: string, span: string, taken: Array<[number, number]>) {
   const hay = text.toLowerCase();
   const needle = span.toLowerCase();
-  for (let from = 0; ; ) {
+  for (let from = 0; ;) {
     const at = hay.indexOf(needle, from);
     if (at < 0) return null;
     const end = at + span.length;

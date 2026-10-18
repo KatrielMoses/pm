@@ -349,6 +349,16 @@ worker process is a startup error. All identities of one process must target the
 | `AI_CONTEXT_SOURCE_CHARS` | optional | optional | default 1500 (200–6000); characters of redacted source text sent per source; longer text is cut and the source is flagged as shortened (7B) |
 | `AI_PROPOSAL_APPROVAL_HOURS` | optional | optional | default 24 (1–168); how long an approval of a change proposal stays valid; after it, the proposal needs fresh validation and approval before Apply (7D) |
 | `AI_PROPOSAL_CHANGES_MAX` | optional | optional | default 25 (1–100); the most changes one proposal may hold; a larger proposal is refused whole, never truncated (7D) |
+| `TRANSCRIPTION_PROVIDER` | optional | optional | default `none`; `fixture` points voice transcription at the deterministic test fixture (synthetic transcripts, never speech recognition) and is refused when deployed. No live speech provider exists until privacy, secret, entitlement, and cost bounds are approved (7F, ADR-0043) |
+| `TRANSCRIPTION_BASE_URL` | optional | optional | default `http://127.0.0.1:1`; base URL of the transcription transport (the fixture's `/v1/audio/transcriptions`) (7F) |
+| `TRANSCRIPTION_API_KEY` | optional | optional | unset by default; the transport key (fixture only). Secret references are refused until a secret store is selected (DQ-28) (7F) |
+| `TRANSCRIPTION_TIMEOUT_MS` | optional | optional | default 30000 (1000–120000); one transcription request; a timeout after sending is an unknown, possibly charged outcome that is never resent (7F) |
+| `VOICE_MAX_SECONDS` | optional | optional | default 120 (5–600); the longest recording, checked from the container (WAV, Ogg) and again against the measured duration (7F) |
+| `VOICE_MAX_BYTES` | optional | optional | default 10485760 (10 MiB; 1024–104857600); the largest recording upload (7F) |
+| `VOICE_FORMATS` | optional | optional | default `audio/wav,audio/webm,audio/ogg`; the accepted recording formats (a subset of these three); containers are validated from their bytes (7F) |
+| `VOICE_QUEUE_MAX` | optional | optional | default 3 (1–20); recordings one person may have uploading or transcribing at once (7F) |
+| `VOICE_UPLOAD_TTL_SECONDS` | optional | optional | default 900 (60–3600); how long an upload URL lives; an upload not transcribed in time expires and its audio is swept (7F) |
+| `VOICE_TRANSCRIPT_MAX_CHARS` | optional | optional | default 4000 (200–20000); the longest transcript kept; longer provider text is cut (7F) |
 | `USAGE_WARNING_THRESHOLDS` | optional | optional | default `8000,10000`; ascending basis points of the hard AI spend limit at which owners and administrators are notified (0D `USAGE_WARNING_THRESHOLDS`, owner 7A) |
 | `AI_HISTORY_RETENTION_DAYS` | optional | — | unset by default: AI content is kept until the run's initiator departs or the workspace is deleted (OD-36 undecided). When set, the hourly sweep erases older prompts, outputs, and context references; usage and audit facts remain |
 

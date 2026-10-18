@@ -272,6 +272,14 @@ export const AI_ACTIONS: readonly AiActionDef[] = [
       'Only existing labels and members you may assign are offered; nothing new is created.',
     ],
   },
+];
+
+/**
+ * 7F capture interpretation (ADR-0043 D2): registered in the same catalog (the same estimate,
+ * confirmation, dispatch, and history), but offered by the capture dialog rather than the assist
+ * list, because it works on the person's own text instead of sources.
+ */
+export const CAPTURE_ACTIONS: readonly AiActionDef[] = [
   {
     key: 'interpret_capture',
     version: 1,
@@ -294,7 +302,7 @@ export const AI_ACTIONS: readonly AiActionDef[] = [
 ];
 
 export const ACTION_BY_ID: ReadonlyMap<string, AiActionDef> = new Map(
-  AI_ACTIONS.map((a) => [actionId(a), a]),
+  [...AI_ACTIONS, ...CAPTURE_ACTIONS].map((a) => [actionId(a), a]),
 );
 
 /** The catalog as shown to clients (no templates beyond the declared contract). */

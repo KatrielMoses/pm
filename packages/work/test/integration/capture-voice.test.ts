@@ -36,7 +36,7 @@ const codes = (r: { issues: Array<{ code: string }> }) => r.issues.map((i) => i.
 const sha = (b: Uint8Array) => createHash('sha256').update(b).digest('hex');
 
 /**
- * Phase 7F voice capture (ADR-0043 D3; CAP-005; AT-501–AT-510) through the real upload and
+ * Phase 7F voice capture (ADR-0043 D3; CAP-005; AT-500–AT-508) through the real upload and
  * transcription path: a bound upload to object storage, validation from the stored bytes, one
  * gateway transcription run against the deterministic fixture (synthetic transcripts embedded in
  * synthetic audio; never speech recognition), the transcript in the protected output boundary,
@@ -74,7 +74,7 @@ describe('Phase 7F voice capture', () => {
         mutation(),
       )
     ).data;
-    await storage().writeObject((await keyOf(created.id))!, bytes, format);
+    await storage().writeObject((await keyOf(created.id))!, bytes, { contentType: format });
     return created;
   };
   const transcribe = async (who: Caller, vcp: string) => {
@@ -114,7 +114,7 @@ describe('Phase 7F voice capture', () => {
     await db.drop();
   });
 
-  it('AT-501 unconfigured transcription is truthful and refuses before anything is stored', async () => {
+  it('AT-500 unconfigured transcription is truthful and refuses before anything is stored', async () => {
     expect(await off.svc.voiceSettings(P.member, ws)).toMatchObject({
       transcription: 'not_configured',
       synthetic: false,
@@ -126,7 +126,12 @@ describe('Phase 7F voice capture', () => {
           off.svc.createVoiceCapture(
             P.member,
             ws,
-            { format: 'audio/wav', byte_size: bytes.byteLength, sha256: sha(bytes), duration_ms: 2000 },
+            {
+              format: 'audio/wav',
+              byte_size: bytes.byteLength,
+              sha256: sha(bytes),
+              duration_ms: 2000,
+            },
             mutation(),
           ),
         ),
@@ -141,11 +146,11 @@ describe('Phase 7F voice capture', () => {
     });
   });
 
-  it('AT-502 record → transcribe → editable transcript → explicit save with voice provenance; the audio is discarded', async () => {
+  it('AT-501 record → transcribe → editable transcript → explicit save with voice provenance; the audio is discarded', async () => {
     const bytes = syntheticWav(4, { transcript: 'Call the venue about Friday', confidence: 0.91 });
     const created = await record(P.member, bytes);
     expect(created).toMatchObject({ state: 'uploaded', audio: 'held', transcript: null });
-    expect(created.upload).toMatchObject({ method: 'PUT' });
+    expect((created as { upload?: unknown }).upload).toMatchObject({ method: 'PUT' });
     const key = (await keyOf(created.id))!;
     const v = await transcribe(P.member, created.id);
     expect(v).toMatchObject({
@@ -192,7 +197,7 @@ describe('Phase 7F voice capture', () => {
       raw_text: 'Call the venue about Friday lunch',
       source: { kind: 'voice', ref: created.id },
     });
-    expect((await env.svc.getVoiceCapture(P.member, ws, created.id))).toMatchObject({
+    expect(await env.svc.getVoiceCapture(P.member, ws, created.id)).toMatchObject({
       state: 'saved',
       saved_to: saved.id,
     });
@@ -210,20 +215,34 @@ describe('Phase 7F voice capture', () => {
     ).toEqual([{ source_kind: 'voice' }]);
   });
 
-  it('AT-503 bounds and containers are checked from the bytes, never a name or claim', async () => {
+  it('AT-502 bounds and containers are checked from the bytes, never a name or claim', async () => {
     const c = (body: Record<string, unknown>) =>
       refusal(env.svc.createVoiceCapture(P.member, ws, body, mutation()));
-    const good = { format: 'audio/wav', byte_size: 1000, sha256: 'a'.repeat(64), duration_ms: 1000 };
+    const good = {
+      format: 'audio/wav',
+      byte_size: 1000,
+      sha256: 'a'.repeat(64),
+      duration_ms: 1000,
+    };
     expect(codes(await c({ ...good, format: 'audio/mpeg' }))).toContain('unsupported_format');
     expect(codes(await c({ ...good, byte_size: 11 * 1024 * 1024 }))).toContain('too_large');
     expect(codes(await c({ ...good, duration_ms: 121_000 }))).toContain('too_long');
-    expect(codes(await c({ ...good, url: 'https://example.invalid/a.wav' }))).toContain('unknown_field');
+    expect(codes(await c({ ...good, url: 'https://example.invalid/a.wav' }))).toContain(
+      'unknown_field',
+    );
     // Not audio, though declared as WAV.
     const fake = new TextEncoder().encode('RIFF....not really a wave file at all, sorry.....');
     let v = await transcribe(P.member, (await record(P.member, fake)).id);
-    expect(v).toMatchObject({ state: 'failed', failure: { code: 'unsupported_format' }, audio: 'discarded' });
+    expect(v).toMatchObject({
+      state: 'failed',
+      failure: { code: 'unsupported_format' },
+      audio: 'discarded',
+    });
     // Longer than allowed, measured from the container.
-    v = await transcribe(P.member, (await record(P.member, syntheticWav(125, { transcript: 'x' }))).id);
+    v = await transcribe(
+      P.member,
+      (await record(P.member, syntheticWav(125, { transcript: 'x' }))).id,
+    );
     expect(v).toMatchObject({ state: 'failed', failure: { code: 'too_long' } });
     // Bytes that do not match the declared checksum.
     const bytes = syntheticWav(1, { transcript: 'x' });
@@ -231,11 +250,16 @@ describe('Phase 7F voice capture', () => {
       await env.svc.createVoiceCapture(
         P.member,
         ws,
-        { format: 'audio/wav', byte_size: bytes.byteLength, sha256: 'b'.repeat(64), duration_ms: 1000 },
+        {
+          format: 'audio/wav',
+          byte_size: bytes.byteLength,
+          sha256: 'b'.repeat(64),
+          duration_ms: 1000,
+        },
         mutation(),
       )
     ).data;
-    await storage().writeObject((await keyOf(created.id))!, bytes, 'audio/wav');
+    await storage().writeObject((await keyOf(created.id))!, bytes, { contentType: 'audio/wav' });
     v = await transcribe(P.member, created.id);
     expect(v).toMatchObject({ state: 'failed', failure: { code: 'upload_mismatch' } });
     // Ogg Opus and WebM (with or without a container duration) are accepted.
@@ -249,25 +273,31 @@ describe('Phase 7F voice capture', () => {
     }
   });
 
-  it('AT-504 silence and low confidence are truthful; a transcript never fetches its links', async () => {
+  it('AT-503 silence and low confidence are truthful; a transcript never fetches its links', async () => {
     let v = await transcribe(P.member, (await record(P.member, syntheticWav(2, null))).id);
     expect(v).toMatchObject({ state: 'failed', failure: { code: 'empty_transcript' } });
     v = await transcribe(
       P.member,
-      (await record(P.member, syntheticWav(2, { transcript: 'maybe groceries', confidence: 0.3 }))).id,
+      (await record(P.member, syntheticWav(2, { transcript: 'maybe groceries', confidence: 0.3 })))
+        .id,
     );
     expect(v.transcript).toMatchObject({ low_confidence: true });
     const before = fx.control.received().length;
     v = await transcribe(
       P.member,
-      (await record(P.member, syntheticWav(2, { transcript: 'Read https://example.invalid/x now' }))).id,
+      (
+        await record(
+          P.member,
+          syntheticWav(2, { transcript: 'Read https://example.invalid/x now' }),
+        )
+      ).id,
     );
     expect(v.transcript).toMatchObject({ text: 'Read https://example.invalid/x now' });
     // Exactly one provider request (the transcription); nothing else was contacted.
     expect(fx.control.received().length).toBe(before + 1);
   });
 
-  it('AT-505 cancel discards the audio; a cancelled transcription publishes nothing', async () => {
+  it('AT-504 cancel discards the audio; a cancelled transcription publishes nothing', async () => {
     const a = await record(P.member, syntheticWav(1, { transcript: 'cancel me' }));
     const key = (await keyOf(a.id))!;
     const c = (await env.svc.cancelVoiceCapture(P.member, ws, a.id, mutation())).data;
@@ -284,15 +314,17 @@ describe('Phase 7F voice capture', () => {
     ).toContain('voice_closed');
   });
 
-  it('AT-506 open recordings per person are bounded', async () => {
-    await sql(`UPDATE capture.voice_capture SET state = 'cancelled', storage_key = NULL WHERE state IN ('uploaded', 'transcribing')`);
+  it('AT-505 open recordings per person are bounded', async () => {
+    await sql(
+      `UPDATE capture.voice_capture SET state = 'cancelled', storage_key = NULL WHERE state IN ('uploaded', 'transcribing')`,
+    );
     for (let i = 0; i < 3; i++) await record(P.owner, syntheticWav(1, { transcript: `n${i}` }));
     expect(codes(await refusal(record(P.owner, syntheticWav(1, { transcript: 'n4' }))))).toContain(
       'too_many',
     );
   });
 
-  it('AT-507 recordings are personal: another person and another workspace see nothing', async () => {
+  it('AT-506 recordings are personal: another person and another workspace see nothing', async () => {
     const mine = await record(P.member, syntheticWav(1, { transcript: 'private' }));
     expect(await refusal(env.svc.getVoiceCapture(P.owner, ws, mine.id))).toMatchObject({
       code: 'not_found',
@@ -306,7 +338,7 @@ describe('Phase 7F voice capture', () => {
     });
   });
 
-  it('AT-508 departure ends open recordings and erases transcripts; the sweep deletes leftover audio', async () => {
+  it('AT-507 departure ends open recordings and erases transcripts; the sweep deletes leftover audio', async () => {
     const done = await transcribe(
       P.leaver,
       (await record(P.leaver, syntheticWav(1, { transcript: 'leaver note' }))).id,
@@ -332,15 +364,22 @@ describe('Phase 7F voice capture', () => {
     expect(out.every((r) => r.content === null)).toBe(true);
   });
 
-  it('AT-509 an abandoned upload expires and its audio is swept', async () => {
-    await sql(`UPDATE capture.voice_capture SET state = 'cancelled', storage_key = NULL WHERE state IN ('uploaded', 'transcribing')`);
+  it('AT-508 an abandoned upload expires and its audio is swept', async () => {
+    await sql(
+      `UPDATE capture.voice_capture SET state = 'cancelled', storage_key = NULL WHERE state IN ('uploaded', 'transcribing')`,
+    );
     const v = await record(P.owner, syntheticWav(1, { transcript: 'abandoned' }));
     const key = (await keyOf(v.id))!;
-    await sql(`UPDATE capture.voice_capture SET expires_at = now() - interval '1 minute' WHERE public_id = $1`, [v.id]);
+    await sql(
+      `UPDATE capture.voice_capture SET expires_at = now() - interval '1 minute' WHERE public_id = $1`,
+      [v.id],
+    );
     await env.svc.runVoiceCleanup(env.h.worker, wsId, new Date());
-    expect(await sql(`SELECT state, storage_key FROM capture.voice_capture WHERE public_id = $1`, [v.id])).toEqual([
-      { state: 'expired', storage_key: null },
-    ]);
+    expect(
+      await sql(`SELECT state, storage_key FROM capture.voice_capture WHERE public_id = $1`, [
+        v.id,
+      ]),
+    ).toEqual([{ state: 'expired', storage_key: null }]);
     expect(await storage().head(key)).toBeNull();
   });
 });

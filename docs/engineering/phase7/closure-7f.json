@@ -1,0 +1,488 @@
+{
+  "schema_version": 1,
+  "phase": "7F",
+  "status": "candidate",
+  "adr": "docs/engineering/adr/0043-planning-capture.md",
+  "requirements": [
+    {
+      "id": "CAP-005",
+      "role": "owned",
+      "disposition": "implemented",
+      "note": "Record (deliberate gesture, visible state, Stop and Cancel) or upload audio; the stored bytes are checked; one gateway transcription run (synthetic fixture only; production unconfigured) gives an editable transcript in the protected output boundary; the audio is deleted at every outcome; saving to the Inbox is explicit with voice provenance.",
+      "evidence": [
+        {
+          "file": "packages/work/src/ai/ai-gateway-service.ts",
+          "contains": "async transcribeVoiceCapture("
+        },
+        {
+          "file": "packages/work/src/ai/ai-gateway-service.ts",
+          "contains": "protected override async claimVoice("
+        },
+        {
+          "file": "packages/work/src/ai/transcription.ts",
+          "contains": "export function checkAudio("
+        },
+        {
+          "file": "packages/work/test/integration/capture-voice.test.ts",
+          "contains": "'AT-501 "
+        },
+        {
+          "file": "e2e/planning-capture.spec.ts",
+          "contains": "'AT-513 "
+        }
+      ]
+    },
+    {
+      "id": "PLAN-010",
+      "role": "owned",
+      "disposition": "implemented",
+      "note": "A deterministic, capacity-aware plan for one day from working hours, time off, holidays, meetings, blocks, Today, estimates, and dependencies, in real instants; a preview writes nothing.",
+      "evidence": [
+        {
+          "file": "packages/work/src/planning/planner.ts",
+          "contains": "export function planDay("
+        },
+        {
+          "file": "packages/work/src/ai/ai-gateway-service.ts",
+          "contains": "async previewDayPlan("
+        },
+        {
+          "file": "packages/work/test/integration/day-plans.test.ts",
+          "contains": "'AT-482 "
+        },
+        {
+          "file": "e2e/planning-capture.spec.ts",
+          "contains": "'AT-514 "
+        }
+      ]
+    },
+    {
+      "id": "PLAN-011",
+      "role": "owned",
+      "disposition": "implemented",
+      "note": "Every placement carries its rank and the rules that placed it (locked, committed, deadline today, overdue, due today, priority, assumed estimate).",
+      "evidence": [
+        {
+          "file": "packages/work/src/planning/planner.ts",
+          "contains": "export function rankTasks("
+        },
+        {
+          "file": "packages/work/test/integration/day-plans.test.ts",
+          "contains": "'AT-482 "
+        },
+        {
+          "file": "apps/web/src/pages/plan-pages.tsx",
+          "contains": "Why here:"
+        }
+      ]
+    },
+    {
+      "id": "PLAN-012",
+      "role": "owned",
+      "disposition": "implemented",
+      "note": "What does not fit is listed with its reason; the plan's complete basis (candidates, blockers, scope) is stored as evidence and re-checked before review, approval, Apply, and replay.",
+      "evidence": [
+        {
+          "file": "packages/work/src/ai/ai-gateway-service.ts",
+          "contains": "await storeEvidence(tx, { proposalId: id }, ev.rows);"
+        },
+        {
+          "file": "packages/work/src/ai/ai-gateway-service.ts",
+          "contains": "const rows = await evidenceOf(tx, { proposalId: proposal.id });"
+        },
+        {
+          "file": "packages/work/test/integration/day-plans.test.ts",
+          "contains": "'AT-490 "
+        }
+      ]
+    },
+    {
+      "id": "PLAN-013",
+      "role": "owned",
+      "disposition": "implemented",
+      "note": "A plan becomes a 7D change proposal (origin planner) the person edits, selects, approves, and applies atomically against an unchanged day; stale days refuse until explicitly rebased.",
+      "evidence": [
+        {
+          "file": "packages/work/src/ai/ai-gateway-service.ts",
+          "contains": "async createDayPlanProposal("
+        },
+        {
+          "file": "packages/work/src/ai/ai-gateway-service.ts",
+          "contains": "this.#requirePlanCurrent(await this.#planCurrent(tx, p, proposal, changes, true));"
+        },
+        {
+          "file": "packages/work/test/integration/day-plans.test.ts",
+          "contains": "'AT-484 "
+        },
+        {
+          "file": "packages/work/test/integration/day-plans.test.ts",
+          "contains": "'AT-486 "
+        }
+      ]
+    },
+    {
+      "id": "AI-021",
+      "role": "owned",
+      "disposition": "implemented",
+      "note": "When capacity is exceeded the planner recommends postponements with their trade-off; in the proposal they are unselected removals of unlocked commitments and blocks, applied only if chosen. Task dates never change.",
+      "evidence": [
+        {
+          "file": "packages/work/src/planning/planner.ts",
+          "contains": "tradeoff"
+        },
+        {
+          "file": "packages/work/src/ai/ai-gateway-service.ts",
+          "contains": "op: 'commitment.remove',"
+        },
+        {
+          "file": "packages/work/test/integration/day-plans.test.ts",
+          "contains": "'AT-488 "
+        }
+      ]
+    },
+    {
+      "id": "CAP-003",
+      "role": "contributing",
+      "disposition": "contributed",
+      "contribution": "7F",
+      "note": "Natural-language capture through the registered interpret_capture.v1 action: spans of the person's words, values derived by the server, saved explicitly.",
+      "evidence": [
+        {
+          "file": "packages/work/src/ai/actions/catalog.ts",
+          "contains": "key: 'interpret_capture',"
+        },
+        {
+          "file": "packages/work/test/integration/capture-interpretation.test.ts",
+          "contains": "'AT-493 "
+        },
+        {
+          "file": "packages/work/test/integration/capture-interpretation.test.ts",
+          "contains": "'AT-497 "
+        }
+      ]
+    },
+    {
+      "id": "CAP-009",
+      "role": "contributing",
+      "disposition": "contributed",
+      "contribution": "7F",
+      "note": "Brand, project, owner, labels (authorized lookup; hidden and unknown alike), dates (person's zone; ambiguity as choices), priority, duration, and recurrence detected from interpreted spans.",
+      "evidence": [
+        {
+          "file": "packages/work/src/capture/interpret.ts",
+          "contains": "export function deriveSpan("
+        },
+        {
+          "file": "packages/work/test/integration/capture-interpretation.test.ts",
+          "contains": "'AT-494 "
+        }
+      ]
+    },
+    {
+      "id": "PLAN-017",
+      "role": "contributing",
+      "disposition": "contributed",
+      "contribution": "7F",
+      "note": "Locked commitments and blocks are hard constraints: never targeted by a plan, refused by the canonical commands, and conflicts are reported instead.",
+      "evidence": [
+        {
+          "file": "packages/work/src/planning/planner.ts",
+          "contains": "locked_does_not_fit"
+        },
+        {
+          "file": "packages/work/test/integration/day-plans.test.ts",
+          "contains": "'AT-488 "
+        }
+      ]
+    },
+    {
+      "id": "TEST-003",
+      "role": "contributing",
+      "disposition": "contributed",
+      "contribution": "7F",
+      "note": "Voice transcription exists as a gateway capability with an editable transcript; creating test cases from it remains Phase 9B.",
+      "evidence": [
+        {
+          "file": "packages/work/src/ai/transcription.ts",
+          "contains": "export interface TranscriptionProvider"
+        },
+        {
+          "file": "packages/work/test/integration/capture-voice.test.ts",
+          "contains": "'AT-501 "
+        }
+      ]
+    },
+    {
+      "id": "TIME-016",
+      "role": "contributing",
+      "disposition": "contributed",
+      "contribution": "7F",
+      "note": "Capacity-aware rescheduling suggestions: deferrals with reasons and postponement trade-offs from the person's capacity, applied only through a reviewed proposal.",
+      "evidence": [
+        {
+          "file": "packages/work/src/planning/planner.ts",
+          "contains": "over_capacity"
+        },
+        {
+          "file": "packages/work/test/integration/day-plans.test.ts",
+          "contains": "'AT-482 "
+        }
+      ]
+    }
+  ],
+  "decisions": [
+    {
+      "id": "D1",
+      "adr_row": "D1",
+      "title": "One intake store",
+      "evidence": [
+        {
+          "file": "docs/engineering/adr/0043-planning-capture.md",
+          "contains": "| D1 |"
+        },
+        {
+          "file": "packages/work/test/integration/capture-interpretation.test.ts",
+          "contains": "'AT-497 "
+        }
+      ],
+      "sources": [
+        {
+          "file": "docs/engineering/adr/0043-planning-capture.md",
+          "contains": "| D1 |"
+        }
+      ]
+    },
+    {
+      "id": "D2",
+      "adr_row": "D2",
+      "title": "Interpretation is spans; the server derives values",
+      "evidence": [
+        {
+          "file": "docs/engineering/adr/0043-planning-capture.md",
+          "contains": "| D2 |"
+        },
+        {
+          "file": "packages/work/test/integration/capture-interpretation.test.ts",
+          "contains": "'AT-495 "
+        }
+      ],
+      "sources": [
+        {
+          "file": "docs/engineering/adr/0043-planning-capture.md",
+          "contains": "| D2 |"
+        }
+      ]
+    },
+    {
+      "id": "D3",
+      "adr_row": "D3",
+      "title": "Voice through the gateway, ephemeral audio",
+      "evidence": [
+        {
+          "file": "docs/engineering/adr/0043-planning-capture.md",
+          "contains": "| D3 |"
+        },
+        {
+          "file": "packages/work/test/integration/capture-voice.test.ts",
+          "contains": "'AT-501 "
+        }
+      ],
+      "sources": [
+        {
+          "file": "docs/engineering/adr/0043-planning-capture.md",
+          "contains": "| D3 |"
+        }
+      ]
+    },
+    {
+      "id": "D4",
+      "adr_row": "D4",
+      "title": "A deterministic, capacity-aware plan",
+      "evidence": [
+        {
+          "file": "docs/engineering/adr/0043-planning-capture.md",
+          "contains": "| D4 |"
+        },
+        {
+          "file": "packages/work/test/integration/day-plans.test.ts",
+          "contains": "'AT-482 "
+        }
+      ],
+      "sources": [
+        {
+          "file": "docs/engineering/adr/0043-planning-capture.md",
+          "contains": "| D4 |"
+        }
+      ]
+    },
+    {
+      "id": "D5",
+      "adr_row": "D5",
+      "title": "Plans are change proposals",
+      "evidence": [
+        {
+          "file": "docs/engineering/adr/0043-planning-capture.md",
+          "contains": "| D5 |"
+        },
+        {
+          "file": "packages/work/test/integration/day-plans.test.ts",
+          "contains": "'AT-484 "
+        }
+      ],
+      "sources": [
+        {
+          "file": "docs/engineering/adr/0043-planning-capture.md",
+          "contains": "| D5 |"
+        }
+      ]
+    },
+    {
+      "id": "D6",
+      "adr_row": "D6",
+      "title": "Atomic Apply against an unchanged day",
+      "evidence": [
+        {
+          "file": "docs/engineering/adr/0043-planning-capture.md",
+          "contains": "| D6 |"
+        },
+        {
+          "file": "packages/work/test/integration/day-plans.test.ts",
+          "contains": "'AT-486 "
+        }
+      ],
+      "sources": [
+        {
+          "file": "docs/engineering/adr/0043-planning-capture.md",
+          "contains": "| D6 |"
+        }
+      ]
+    },
+    {
+      "id": "D7",
+      "adr_row": "D7",
+      "title": "Evidence and re-checks",
+      "evidence": [
+        {
+          "file": "docs/engineering/adr/0043-planning-capture.md",
+          "contains": "| D7 |"
+        },
+        {
+          "file": "packages/work/test/integration/day-plans.test.ts",
+          "contains": "'AT-490 "
+        }
+      ],
+      "sources": [
+        {
+          "file": "docs/engineering/adr/0043-planning-capture.md",
+          "contains": "| D7 |"
+        }
+      ]
+    },
+    {
+      "id": "D8",
+      "adr_row": "D8",
+      "title": "Privacy and lifecycle",
+      "evidence": [
+        {
+          "file": "docs/engineering/adr/0043-planning-capture.md",
+          "contains": "| D8 |"
+        },
+        {
+          "file": "packages/work/test/integration/capture-voice.test.ts",
+          "contains": "'AT-507 "
+        }
+      ],
+      "sources": [
+        {
+          "file": "docs/engineering/adr/0043-planning-capture.md",
+          "contains": "| D8 |"
+        }
+      ]
+    },
+    {
+      "id": "D9",
+      "adr_row": "D9",
+      "title": "Bounds",
+      "evidence": [
+        {
+          "file": "docs/engineering/adr/0043-planning-capture.md",
+          "contains": "| D9 |"
+        },
+        {
+          "file": "packages/work/test/integration/capture-voice.test.ts",
+          "contains": "'AT-502 "
+        }
+      ],
+      "sources": [
+        {
+          "file": "docs/engineering/adr/0043-planning-capture.md",
+          "contains": "| D9 |"
+        }
+      ]
+    },
+    {
+      "id": "D10",
+      "adr_row": "D10",
+      "title": "One UI per journey",
+      "evidence": [
+        {
+          "file": "docs/engineering/adr/0043-planning-capture.md",
+          "contains": "| D10 |"
+        },
+        {
+          "file": "e2e/planning-capture.spec.ts",
+          "contains": "'AT-513 "
+        }
+      ],
+      "sources": [
+        {
+          "file": "docs/engineering/adr/0043-planning-capture.md",
+          "contains": "| D10 |"
+        }
+      ]
+    }
+  ],
+  "boundaries": [
+    {
+      "id": "DQ-28",
+      "statement": "Real-model input bounds remain unverified; production AI and transcription stay disabled; only the synthetic fixture transport exists."
+    },
+    {
+      "id": "OD-31",
+      "statement": "Retrieval stays lexical; interpretation uses no sources and plans use canonical readers."
+    },
+    {
+      "id": "OD-41",
+      "statement": "Unchanged; no live AI or speech provider is configured or called."
+    },
+    {
+      "id": "OD-46",
+      "statement": "Unchanged; workspace-provided keys stay off; transcription reserves a synthetic price per audio second."
+    },
+    {
+      "id": "PRJ-007",
+      "statement": "Project AI budgets are still not enforced; interpretation runs without a project scope."
+    },
+    {
+      "id": "DOC-019",
+      "statement": "Attachment text is not read."
+    },
+    {
+      "id": "REL-FU-7A-01",
+      "statement": "Still tracked; nothing new depends on it."
+    },
+    {
+      "id": "9B",
+      "statement": "Voice-derived test cases (TEST-003) remain a contribution: no test case is created or run."
+    },
+    {
+      "id": "8A",
+      "statement": "Agents and automations never plan or capture on a person's behalf here."
+    },
+    {
+      "id": "MANUAL",
+      "statement": "Real-device recording and live-provider transcription quality are unproven; the fixture proves the path only."
+    }
+  ],
+  "corrective_reviews": []
+}

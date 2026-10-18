@@ -131,6 +131,16 @@ Narrative: [../14-threat-model.md](../14-threat-model.md).
 | T-121 | revocation | A correction note is listed, edited, decided, replayed, or reused after its source evidence became unreadable, so its text, scope, or statement identifier (which may quote protected content) survives the revocation, or it is newly approved without access. | I-07, I-12, I-14 | AT-472, AT-473 |
 | T-122 | staleness | Configured technical retention never discovers a workspace whose expired content is briefings only (no AI runs, or only erased ones), so briefing content outlives its retention period; notes on erased briefings remain a recovery path. | I-12 | AT-473, AT-474, AT-475 |
 | T-123 | inference | A briefing figure whose evidence basis exceeds the stored bound is kept as a threshold, lower bound, shown count, size flag, or coverage state with an empty basis, so it cannot be re-authorized and keeps describing work the recipient can no longer read. | I-07, I-08, I-12 | AT-476, AT-477, AT-478, AT-479, AT-480 |
+| T-124 | inference | A capture interpretation or transcript resolves a brand, project, owner, or label the person cannot read, or answers differently for a hidden name than for an unknown one, revealing that hidden work exists. | I-04, I-07 | AT-494, AT-513 |
+| T-125 | agent_scope | Model output or instructions inside a capture, transcript, or plan become saved values, records, links, or actions: invented names or dates, spans that are not the person's words, a fetched URL, or an executed instruction. | I-09, I-14, I-15 | AT-493, AT-495, AT-496, AT-497, AT-510, AT-513 |
+| T-126 | field_leak | Raw audio or transcript text escapes the protected content boundary into job arguments, checkpoints, logs, audit, or metrics, or the audio outlives transcription, cancellation, failure, or expiry. | I-12, I-16 | AT-498, AT-501, AT-504, AT-508, AT-511 |
+| T-127 | staleness | A daily plan approved against an earlier state of the day is applied after time off, holidays, meetings, blocks, Today, or estimates changed, so it overwrites concurrent work or double-books the person. | I-12 | AT-484, AT-485, AT-486, AT-487, AT-509, AT-514 |
+| T-128 | agent_scope | The planner moves or removes locked commitments or focus blocks, changes task dates, touches another person's blocks, or applies a postponement nobody selected. | I-10, I-15 | AT-482, AT-483, AT-484, AT-488, AT-491 |
+| T-129 | inference | Plan totals, coverage, or deferral lists rest on candidates or blockers that are not re-authorized (an empty or sampled basis), so a plan keeps describing work the person can no longer read. | I-07, I-08, I-12 | AT-481, AT-482, AT-490 |
+| T-130 | cross_workspace | Another person, another workspace, or a delegated bearer caller reaches a plan proposal, an interpretation, or a recording. | I-02, I-03, I-14 | AT-489, AT-492, AT-499, AT-506, AT-512 |
+| T-131 | spoofing | An upload claims a format, duration, size, or name it does not have, or a link is fetched, so unbounded or arbitrary content reaches the transcription provider or the queue grows without bound. | I-09 | AT-500, AT-502, AT-503, AT-505 |
+| T-132 | departure | Departure or technical retention leaves plan content, transcripts, interpretations, or audio behind, or erasing them deletes applied business work. | I-12 | AT-490, AT-496, AT-507 |
+| T-133 | staleness | A transcription whose outcome may have been charged is resent, or its charge is lost, so usage is double-counted or unbounded. | I-14 | AT-501 |
 
 ## Test matrix
 
@@ -616,6 +626,40 @@ Narrative: [../14-threat-model.md](../14-threat-model.md).
 | AT-478 | T-123 | member | Overflow only in the previous-window comparison refuses publication — brand | `personal.manage_own` | ai_answer | **deny** | empty | count_facet, error_message |
 | AT-479 | T-123 | member | Exactly at the limit publishes with the whole basis and is withheld when an unlisted contributor is trashed; a fully authorized owner is refused above it — brand | `personal.manage_own` | ai_answer | **allow** | ok | count_facet, error_message |
 | AT-480 | T-123 | member | Parts within the limit whose union exceeds it refuse publication — brand | `personal.manage_own` | ai_answer | **deny** | empty | count_facet, error_message |
+| AT-481 | T-129 | member | Daily plan preview without working hours: nothing is claimed to fit and nothing is written — day | `personal.manage_own` | capacity | **allow** | ok | error_message |
+| AT-482 | T-128, T-129 | member | Plan from capacity with explained ranks; unknown estimates are questions; blockers hold work back — day | `personal.manage_own` | capacity | **allow** | ok | error_message |
+| AT-483 | T-128 | member | Plan requests with unknown fields, past days, beyond the horizon, or out-of-range assumptions — day | `personal.manage_own` | api | **deny** | validation_generic | error_message |
+| AT-484 | T-127, T-128 | member | Planner proposal reviewed, edited, re-checked, approved, and applied atomically; task dates unchanged; replay never applies twice — day | `ai.apply_proposal` | ai_answer | **allow** | ok | error_message |
+| AT-485 | T-127 | member | A changed day (time off, estimates) refuses approval and Apply until explicitly rebased on the reviewed snapshot — day | `ai.apply_proposal` | ai_answer | **deny** | conflict_filtered | error_message |
+| AT-486 | T-127 | member | Two connections race capacity and estimate changes against Apply under the plan input locks — day | `ai.apply_proposal` | ai_answer | **deny** | conflict_filtered | error_message |
+| AT-487 | T-127 | member | Two approved plans for one day applied concurrently: exactly one applies — day | `ai.apply_proposal` | ai_answer | **deny** | conflict_filtered | error_message |
+| AT-488 | T-128 | member | Locked focus blocks and locked commitments are never targeted; postponements are unselected suggestions — day | `personal.manage_own` | capacity | **allow** | ok_filtered | error_message |
+| AT-489 | T-130 | read_only | Read-only previews only; another member's plan proposal and other workspaces are not found; a hidden scope brand equals an unknown one — workspace | `ai.apply_proposal` | api | **deny** | not_found | error_message |
+| AT-490 | T-129, T-132 | member | Lost access to a plan's candidate withholds the plan; departure erases plan content and keeps applied blocks — brand | `personal.manage_own` | ai_answer | **deny** | empty | error_message |
+| AT-491 | T-128 | system_job | No planner change targets another person's block or an operation outside the planning set — workspace | `ai.apply_proposal` | api | **deny** | empty | error_message |
+| AT-492 | T-130 | member | 0059 schema: forced RLS, tenant-scoped keys, no deletes, the proposal origin guard, and the guarded rollback — workspace | `ai.apply_proposal` | api | **deny** | not_found | error_message |
+| AT-493 | T-125 | member | Interpretation spans are the person's words; the server derives concrete values in the person's zone; nothing is saved — personal | `ai.execute` | ai_answer | **allow** | ok | error_message |
+| AT-494 | T-124 | member | A hidden project name and an unknown one interpret identically; ambiguous dates stay choices — brand without access | `ai.execute` | ai_answer | **deny** | omitted | error_message |
+| AT-495 | T-125 | member | Forged, unsupported, malformed, and injected interpretation output never becomes a value or an action — personal | `ai.execute` | ai_answer | **deny** | empty | error_message |
+| AT-496 | T-125, T-132 | member | An interpretation is bound to its exact text and person; an erased one cannot be used — personal | `ai.execute` | ai_answer | **deny** | not_found | error_message |
+| AT-497 | T-125 | member | Saving an interpreted capture is explicit; triage records an AI-draft origin naming the run — personal | `record.create` | ui_record | **allow** | ok | error_message |
+| AT-498 | T-126 | member | Credentials in capture text are redacted before sending; the binding still holds — personal | `ai.execute` | ai_context | **allow** | redacted | error_message |
+| AT-499 | T-130 | member | Interpretations are refused across workspaces and with unknown fields — cross-workspace | `ai.execute` | api | **deny** | not_found | error_message |
+| AT-500 | T-131 | member | Unconfigured transcription refuses before any upload is stored — personal | `personal.manage_own` | api | **deny** | error_generic | error_message |
+| AT-501 | T-126, T-133 | member | Recording to transcript to explicit save with voice provenance; audio deleted; no transcript in job state; settled by measured seconds — personal | `personal.manage_own` | ui_record | **allow** | ok | error_message |
+| AT-502 | T-131 | member | Format, size, duration, checksum, and container are checked from the stored bytes; no URL input — personal | `personal.manage_own` | api | **deny** | validation_generic | error_message |
+| AT-503 | T-131 | member | Silence and low confidence are truthful; a transcript's links are never fetched — personal | `personal.manage_own` | ui_record | **allow** | ok | error_message |
+| AT-504 | T-126 | member | Cancel deletes the audio; a cancelled transcription publishes nothing — personal | `personal.manage_own` | ui_record | **allow** | ok | error_message |
+| AT-505 | T-131 | member | Open recordings per person are bounded — personal | `personal.manage_own` | api | **deny** | validation_generic | error_message |
+| AT-506 | T-130 | owner | Another person's recording and another workspace's are not found — personal | `personal.manage_own` | api | **deny** | not_found | error_message |
+| AT-507 | T-132 | member | Departure ends open recordings, erases transcripts, and the sweep deletes leftover audio — personal | `personal.manage_own` | ui_record | **deny** | empty | error_message |
+| AT-508 | T-126 | system_job | An abandoned upload expires and its audio is swept — workspace | `personal.manage_own` | api | **allow** | empty | error_message |
+| AT-509 | T-127 | member | HTTP: plan preview and planner proposal applied through the 7D routes — day | `ai.apply_proposal` | api | **allow** | ok | error_message |
+| AT-510 | T-125 | member | HTTP: interpretation through the assist routes returns the checked candidate — personal | `ai.execute` | api | **allow** | ok | error_message |
+| AT-511 | T-126 | member | HTTP: voice settings, create, signed upload, transcribe, read, save, and cancel — personal | `personal.manage_own` | api | **allow** | ok | error_message |
+| AT-512 | T-130 | api_token_personal | Bearer callers are refused on plan, interpretation, and voice routes whatever their scopes — workspace | `personal.manage_own` | api | **deny** | forbidden | error_message |
+| AT-513 | T-124, T-125 | member | Browser: interpret typed text with confirmed cost and evidence spans, upload a synthetic recording, edit its transcript, save both — personal | `personal.manage_own` | ui_record | **allow** | ok | error_message |
+| AT-514 | T-127 | member | Browser: a rule-based plan from capacity reviewed and applied once through a change proposal — day | `ai.apply_proposal` | ui_record | **allow** | ok | error_message |
 
 ## Response shapes
 

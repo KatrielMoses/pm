@@ -181,7 +181,11 @@ export function checkAudio(bytes: Uint8Array, format: VoiceFormat, maxSeconds: n
         ? { ok: false, code: 'empty_audio' }
         : { ok: true, durationMs: ms };
   if (format === 'audio/wav') {
-    if (b.length < 44 || b.toString('ascii', 0, 4) !== 'RIFF' || b.toString('ascii', 8, 12) !== 'WAVE')
+    if (
+      b.length < 44 ||
+      b.toString('ascii', 0, 4) !== 'RIFF' ||
+      b.toString('ascii', 8, 12) !== 'WAVE'
+    )
       return { ok: false, code: 'unsupported_format' };
     let off = 12;
     let byteRate = 0;
@@ -213,13 +217,15 @@ export function checkAudio(bytes: Uint8Array, format: VoiceFormat, maxSeconds: n
     const rate = opus ? 48_000 : b.readUInt32LE(28 + 12);
     // The last page carries the final granule position (samples at the codec's rate).
     const last = b.lastIndexOf('OggS');
-    if (last < 0 || last + 14 > b.length || rate <= 0) return { ok: false, code: 'malformed_audio' };
+    if (last < 0 || last + 14 > b.length || rate <= 0)
+      return { ok: false, code: 'malformed_audio' };
     const granule = Number(b.readBigUInt64LE(last + 6));
     if (!Number.isFinite(granule) || granule < 0) return { ok: false, code: 'malformed_audio' };
     return tooLong(Math.round((granule / rate) * 1000));
   }
   // WebM: EBML header, `webm` doctype; Duration (0x4489, float, in TimecodeScale units) if present.
-  if (b.length < 32 || b.readUInt32BE(0) !== 0x1a45dfa3) return { ok: false, code: 'unsupported_format' };
+  if (b.length < 32 || b.readUInt32BE(0) !== 0x1a45dfa3)
+    return { ok: false, code: 'unsupported_format' };
   if (!b.subarray(0, 64).toString('latin1').includes('webm'))
     return { ok: false, code: 'unsupported_format' };
   const d = b.indexOf(Buffer.from([0x44, 0x89]));

@@ -85,7 +85,8 @@ export async function resolveBasis(
 /** Stores evidence rows for a statement (by position) or a correction. */
 export async function storeEvidence(
   tx: WorkspaceTransaction,
-  owner: { briefingId: string; position: number } | { correctionId: string } | { proposalId: string },
+  owner:
+    { briefingId: string; position: number } | { correctionId: string } | { proposalId: string },
   rows: readonly EvidenceRow[],
 ): Promise<void> {
   for (let i = 0; i < rows.length; i += 500)
@@ -111,9 +112,7 @@ export async function storeEvidence(
 export async function evidenceOf(
   tx: WorkspaceTransaction,
   owner:
-    | { briefingId: string; position?: number }
-    | { correctionId: string }
-    | { proposalId: string },
+    { briefingId: string; position?: number } | { correctionId: string } | { proposalId: string },
 ): Promise<EvidenceRow[]> {
   let q = tx.db
     .selectFrom('ai.briefing_evidence')

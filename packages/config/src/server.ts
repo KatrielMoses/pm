@@ -1755,7 +1755,9 @@ export function loadServerConfig(options: LoadOptions): ServerConfig {
   };
   // 7F: the transcription fixture is synthetic and refused when deployed; no live provider exists.
   if (deployed && c.TRANSCRIPTION_PROVIDER === 'fixture')
-    issues.push('TRANSCRIPTION_PROVIDER: the transcription fixture is refused in deployed environments');
+    issues.push(
+      'TRANSCRIPTION_PROVIDER: the transcription fixture is refused in deployed environments',
+    );
   if (c.TRANSCRIPTION_API_KEY?.startsWith(SECRET_REFERENCE_PREFIX))
     issues.push(
       'TRANSCRIPTION_API_KEY: secret references require a secret-store provider (not selected; DQ-28)',

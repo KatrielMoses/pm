@@ -2,7 +2,11 @@ import type { PlatformDiscovery, TenantDatabase } from '@pm/db';
 import type { JobHandler, RecurringJob } from '@pm/platform';
 import type { Logger, Metrics } from '@pm/observability';
 import { errorFields } from '@pm/observability';
-import { AI_DISPATCH_JOB, AI_TRANSCRIPTION_JOB, type AiGatewayService } from './ai-gateway-service.ts';
+import {
+  AI_DISPATCH_JOB,
+  AI_TRANSCRIPTION_JOB,
+  type AiGatewayService,
+} from './ai-gateway-service.ts';
 
 export const AI_JOB_KINDS = {
   dispatch: AI_DISPATCH_JOB,
@@ -86,7 +90,8 @@ export function aiRetentionHandler(d: AiJobDeps): JobHandler {
       const plans = await d.discovery.discoverPlanRetentionWork(before, 100);
       const workspaces: string[] = [];
       for (let i = 0; i < Math.max(ai.length, briefings.length, plans.length); i++)
-        for (const w of [ai[i], briefings[i], plans[i]]) if (w && !workspaces.includes(w)) workspaces.push(w);
+        for (const w of [ai[i], briefings[i], plans[i]])
+          if (w && !workspaces.includes(w)) workspaces.push(w);
       for (const ws of workspaces) {
         try {
           const erased = await d.tenant.withWorkspace(ws, { module: 'work' }, (tx) =>

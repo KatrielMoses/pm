@@ -9048,7 +9048,7 @@
     {
       "name": "change_proposal",
       "module": "ai",
-      "purpose": "Set of typed proposed changes from an AI action; review, edit, approval, and application are separate explicit human steps.",
+      "purpose": "Set of typed proposed changes from an AI action or (7F) the rule-based daily planner; review, edit, approval, and application are separate explicit human steps.",
       "scope": "inherited",
       "addressable": false,
       "public_id_prefix": "prp",
@@ -9069,7 +9069,8 @@
       "uniqueness": [],
       "sensitive_fields": [],
       "key_columns": [
-        "operation_id (the generating ai_action; one proposal per action)",
+        "origin (ai_action|planner; 7F)",
+        "operation_id (the generating ai_action, or a plan_proposal operation; one proposal per operation)",
         "initiating_membership_id",
         "public_id (prp_)",
         "schema_version (change_proposal.v1)",
@@ -9080,15 +9081,21 @@
         "reject_reason null (content)",
         "content_state (present|erased), content_erased_at",
         "version",
-        "assumptions text[] null (content; erased)"
+        "assumptions text[] null (content; erased)",
+        "plan jsonb null (planner only: day, zone, scope, options, constraint snapshot, totals, reasons, unscheduled, postponements, conflicts; content; erased)"
       ],
       "requirements": [
         "AI-023",
         "AI-024",
         "AI-025",
-        "AI-029"
+        "AI-029",
+        "PLAN-010",
+        "PLAN-011",
+        "PLAN-012",
+        "PLAN-013",
+        "AI-021"
       ],
-      "notes": "Phase 7D (ADR-47, migration 0056): personal to its initiator like all AI content; rendered only through the 7B current-content decision; erased with its run, never deleting applied records."
+      "notes": "Phase 7D (ADR-47, migration 0056): personal to its initiator like all AI content; rendered only through the 7B current-content decision; erased with its run, never deleting applied records. Phase 7F (ADR-50, migration 0059): planner proposals (origin planner) carry their plan and complete evidence basis, apply through canonical 3C block and Today commands after a recomputed constraint snapshot, and are erased by departure and technical retention like AI content."
     },
     {
       "name": "proposed_change",
@@ -9455,14 +9462,15 @@
     {
       "name": "briefing_evidence",
       "module": "ai",
-      "purpose": "The complete authorization basis of a briefing statement or a correction note: record, brand, and exact-brand permission references (no content).",
+      "purpose": "The complete authorization basis of a briefing statement, a correction note, or (7F) a planner proposal: record, brand, and exact-brand permission references (no content).",
       "scope": "inherited",
       "addressable": false,
       "public_id_prefix": null,
       "extends": null,
       "containment_parents": [
         "briefing",
-        "briefing_correction"
+        "briefing_correction",
+        "change_proposal"
       ],
       "associations": [
         "record"
@@ -9479,7 +9487,7 @@
       "uniqueness": [],
       "sensitive_fields": [],
       "key_columns": [
-        "briefing_id + position, or correction_id",
+        "briefing_id + position, or correction_id, or proposal_id (exactly one owner)",
         "kind (record|brand|permission)",
         "record_id (reference; no foreign key)",
         "brand_id (reference)",
@@ -9487,9 +9495,10 @@
       ],
       "requirements": [
         "BRF-014",
-        "BRF-016"
+        "BRF-016",
+        "PLAN-012"
       ],
-      "notes": "Phase 7E corrective review 01 (ADR-49): re-checked before any saved briefing or note content is shown, replayed, applied, or sent; references only."
+      "notes": "Phase 7E corrective review 01 (ADR-49): re-checked before any saved briefing or note content is shown, replayed, applied, or sent; references only. Phase 7F (ADR-50): a planner proposal's candidates, blockers, and scope; re-checked before review, approval, Apply, and replay (no empty basis)."
     },
     {
       "name": "automation",
@@ -10345,6 +10354,49 @@
         "PRJ-017"
       ],
       "notes": "Phase 2E (ADR-25)."
+    },
+    {
+      "name": "voice_capture",
+      "module": "capture",
+      "purpose": "One person's recording on its way to a transcript: an ephemeral audio object reference, its checked format and duration, the transcription run, and the Inbox item it was saved as. The transcript itself lives in the protected AI output boundary.",
+      "scope": "personal",
+      "addressable": false,
+      "public_id_prefix": "vcp",
+      "extends": null,
+      "containment_parents": [],
+      "associations": [
+        "inbox_item"
+      ],
+      "lifecycle": "state-machine",
+      "concurrency": "row-version",
+      "retention_class": "R-EPHEMERAL",
+      "confidentiality": "C2",
+      "volume": "medium",
+      "export": "never",
+      "search_ai": "no",
+      "may_contain_secrets": "no",
+      "personal_data": "yes",
+      "uniqueness": [
+        "public_id"
+      ],
+      "sensitive_fields": [],
+      "key_columns": [
+        "membership_id (owner; personal)",
+        "public_id (vcp_)",
+        "state (uploaded|transcribing|transcribed|failed|cancelled|expired|saved)",
+        "format (audio/wav|audio/webm|audio/ogg), byte_size, duration_ms (checked from the container)",
+        "content_sha256",
+        "storage_key null (voice/<workspace>/<id>; ephemeral: cleared once the object is deleted)",
+        "operation_id null (the transcription ai_action)",
+        "inbox_item_id null (saved)",
+        "failure_code null",
+        "expires_at, discarded_at null",
+        "version"
+      ],
+      "requirements": [
+        "CAP-005"
+      ],
+      "notes": "Phase 7F (ADR-50, migration 0059): personal to its owner; raw audio is never retained beyond its outcome (transcribed, failed, cancelled, expired) and the cleanup sweep deletes any leftover object; departure ends open recordings; no transcript or audio bytes in job state, logs, audit, or metrics."
     },
     {
       "name": "capacity_profile",

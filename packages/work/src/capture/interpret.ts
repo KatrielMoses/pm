@@ -33,9 +33,10 @@ const WORD_NUMBERS: Record<string, number> = {
 function plainDuration(span: string): number | null {
   const s = span.toLowerCase().replace(/^(about|around|roughly|~)\s+/, '');
   if (/^half an? hour$/.test(s)) return 30;
-  const m = /^(\d{1,3}(?:\.\d{1,2})?|an?|one|two|three|four|five|six)\s+(minutes?|mins?|hours?|hrs?|days?)$/.exec(
-    s,
-  );
+  const m =
+    /^(\d{1,3}(?:\.\d{1,2})?|an?|one|two|three|four|five|six)\s+(minutes?|mins?|hours?|hrs?|days?)$/.exec(
+      s,
+    );
   if (!m) return null;
   const n = /^\d/.test(m[1]!) ? Number(m[1]) : WORD_NUMBERS[m[1]!]!;
   const unit = m[2]!.charAt(0);

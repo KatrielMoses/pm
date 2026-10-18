@@ -544,7 +544,8 @@ export class CaptureService extends TaskInteractionService {
         issue('/text', 'invalid', 'An interpreted or spoken capture is saved as one item.'),
       );
     if (voice !== undefined && caller.delegation) throw new TenancyError('forbidden');
-    const source = voice !== undefined ? 'voice' : (caller.delegation?.sourceKind ?? parsedTexts.source);
+    const source =
+      voice !== undefined ? 'voice' : (caller.delegation?.sourceKind ?? parsedTexts.source);
     const lines = parsedTexts.lines;
     const links = Array.isArray(b.links) ? b.links : [];
     const files = Array.isArray(b.files) ? b.files : [];
@@ -588,7 +589,14 @@ export class CaptureService extends TaskInteractionService {
             const spoken = voice !== undefined ? await this.claimVoice(tx, p, voice) : null;
             const parsed =
               interpretation !== undefined
-                ? await this.interpretedCandidate(tx, caller, p, text, brand?.id ?? null, interpretation)
+                ? await this.interpretedCandidate(
+                    tx,
+                    caller,
+                    p,
+                    text,
+                    brand?.id ?? null,
+                    interpretation,
+                  )
                 : await this.candidate(tx, p, text, today, brand?.id ?? null);
             const item = await this.insertInboxItem(tx, caller, p, {
               owner: p.membershipId,
@@ -1078,6 +1086,7 @@ export class CaptureService extends TaskInteractionService {
       fields.estimate_minutes <= this.ws.taskEstimateMinutesMax
     )
       taskFields.estimate_minutes = fields.estimate_minutes;
+    const run = interpretedRun(item.parsed);
     const created = await this.insertTask(tx, caller, p, c, taskFields, {
       source:
         item.source_kind === 'paste'
@@ -1088,9 +1097,9 @@ export class CaptureService extends TaskInteractionService {
               ? 'voice'
               : 'ui',
       // 7F: work made from an AI-interpreted capture is an AI draft the person chose to create.
-      origin: interpretedRun(item.parsed)
-        ? { kind: 'ai_draft', ref: { inbox: item.public_id, run: interpretedRun(item.parsed)! } }
-        : { kind: 'intake', ref: { inbox: item.public_id } },
+      ...(run
+        ? { origin: { kind: 'ai_draft', ref: { inbox: item.public_id, run } } }
+        : { origin: { kind: 'intake', ref: { inbox: item.public_id } } }),
     });
     const omitted: string[] = [];
     const t = await this.loadTask(tx, p, created.publicId, { lock: true });

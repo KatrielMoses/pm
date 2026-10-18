@@ -1783,7 +1783,11 @@ export class PlanningService extends TimeService {
       p,
       'planning.work_block.moved',
       { type: 'planning.work_block', id: row.id, sequence: moved.version },
-      { starts_at: moved.start.toISOString(), ends_at: moved.end.toISOString(), source: row.source },
+      {
+        starts_at: moved.start.toISOString(),
+        ends_at: moved.end.toISOString(),
+        source: row.source,
+      },
       row.brand_id,
     );
     return { row, version: moved.version };

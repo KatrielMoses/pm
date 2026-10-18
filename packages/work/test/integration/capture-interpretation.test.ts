@@ -28,7 +28,7 @@ const refusal = async (p: Promise<unknown>) => {
 const codes = (r: { issues: Array<{ code: string }> }) => r.issues.map((i) => i.code);
 
 /**
- * Phase 7F natural-language capture (ADR-0043 D2; CAP-005, CAP-003, CAP-009; AT-493–AT-500): the
+ * Phase 7F natural-language capture (ADR-0043 D2; CAP-005, CAP-003, CAP-009; AT-493–AT-499): the
  * registered `interpret_capture.v1` action runs through the one gateway against the deterministic
  * provider fixture (synthetic; it proves the boundary, not language understanding). The model only
  * marks spans of the person's own text; the server checks every span and derives every value in
@@ -111,7 +111,8 @@ describe('Phase 7F capture interpretation', () => {
   });
 
   it('AT-493 interprets spans of the person’s own text; the server derives concrete values in their zone', async () => {
-    const text = 'Draft the plan for project Falcon tomorrow about an hour high priority #Backend #fixture:ok';
+    const text =
+      'Draft the plan for project Falcon tomorrow about an hour high priority #Backend #fixture:ok';
     const run = await interpret(P.member, text);
     const i = run.content!.interpretation!;
     expect(i).toMatchObject({ version: 'interpretation.v1', status: 'checked', dropped: 0 });
@@ -155,8 +156,9 @@ describe('Phase 7F capture interpretation', () => {
     expect(h).toMatchObject({ status: 'unresolved', value: null });
     // The owner can read the Vault project: the same words resolve for them.
     const own = await interpret(P.owner, 'Fix project Secretive tomorrow #fixture:ok');
-    const o = (await preview(P.owner, 'Fix project Secretive tomorrow #fixture:ok', own.id))
-      .candidate.detected.find((x) => x.field === 'project')!;
+    const o = (
+      await preview(P.owner, 'Fix project Secretive tomorrow #fixture:ok', own.id)
+    ).candidate.detected.find((x) => x.field === 'project')!;
     expect(o).toMatchObject({ status: 'resolved', value: R.secret });
     const amb = await interpret(P.member, 'Pay the invoice 3/4 #fixture:ok');
     const a = await preview(P.member, 'Pay the invoice 3/4 #fixture:ok', amb.id);
@@ -164,20 +166,33 @@ describe('Phase 7F capture interpretation', () => {
     expect(a.candidate.detected.find((x) => x.field === 'due_date')).toMatchObject({
       status: 'ambiguous',
       value: null,
-      options: [expect.objectContaining({ label: expect.stringMatching(/month\/day/) }), expect.anything()],
+      options: [
+        expect.objectContaining({ label: expect.stringMatching(/month\/day/) }),
+        expect.anything(),
+      ],
     });
   });
 
   it('AT-495 forged, unsupported, malformed, and injected output never becomes a value', async () => {
     const forged = await interpret(P.member, 'Call the bank #fixture:cite_forged');
-    expect(forged.content!.interpretation).toMatchObject({ status: 'rejected', reason: 'no_valid_fields', dropped: 2 });
-    expect(codes(await refusal(preview(P.member, 'Call the bank #fixture:cite_forged', forged.id)))).toContain(
-      'interpretation_unusable',
-    );
+    expect(forged.content!.interpretation).toMatchObject({
+      status: 'rejected',
+      reason: 'no_valid_fields',
+      dropped: 2,
+    });
+    expect(
+      codes(await refusal(preview(P.member, 'Call the bank #fixture:cite_forged', forged.id))),
+    ).toContain('interpretation_unusable');
     const unsupported = await interpret(P.member, 'Call the bank #fixture:unsupported');
-    expect(unsupported.content!.interpretation).toMatchObject({ status: 'rejected', reason: 'unsupported_output' });
+    expect(unsupported.content!.interpretation).toMatchObject({
+      status: 'rejected',
+      reason: 'unsupported_output',
+    });
     const malformed = await interpret(P.member, 'Call the bank #fixture:malformed');
-    expect(malformed.content!.interpretation).toMatchObject({ status: 'rejected', reason: 'malformed_response' });
+    expect(malformed.content!.interpretation).toMatchObject({
+      status: 'rejected',
+      reason: 'malformed_response',
+    });
     const ask = await interpret(P.member, 'Something #fixture:ask');
     expect(ask.content!.interpretation).toMatchObject({ status: 'needs_input' });
     // An instruction in the text is data: invented spans are dropped and nothing is changed.
@@ -197,15 +212,21 @@ describe('Phase 7F capture interpretation', () => {
       'interpretation_stale',
     );
     expect(await refusal(preview(P.owner, text, run.id))).toMatchObject({ code: 'not_found' });
-    expect(
-      await refusal(preview(P.member, text, 'op_00000000000000000000000000')),
-    ).toMatchObject({ code: 'not_found' });
+    expect(await refusal(preview(P.member, text, 'op_00000000000000000000000000'))).toMatchObject({
+      code: 'not_found',
+    });
     // Another action's run is not an interpretation.
-    expect(await refusal(preview(P.member, text, 'not-a-run'))).toMatchObject({ code: 'not_found' });
+    expect(await refusal(preview(P.member, text, 'not-a-run'))).toMatchObject({
+      code: 'not_found',
+    });
     await env.h.app.withWorkspace(wsId, { module: 'test' }, async (tx) =>
-      env.svc.eraseAiContent(tx, { membershipId: (await membershipOf(db, wsId, P.member.auth.account.id))!.id }),
+      env.svc.eraseAiContent(tx, {
+        membershipId: (await membershipOf(db, wsId, P.member.auth.account.id))!.id,
+      }),
     );
-    expect(codes(await refusal(preview(P.member, text, run.id)))).toContain('interpretation_erased');
+    expect(codes(await refusal(preview(P.member, text, run.id)))).toContain(
+      'interpretation_erased',
+    );
   });
 
   it('AT-497 saving is explicit; triage makes an AI-draft task with the interpretation as its origin', async () => {
@@ -225,7 +246,9 @@ describe('Phase 7F capture interpretation', () => {
       source: { kind: 'typed' },
       interpretation: { run: run.id, action: 'interpret_capture.v1' },
     });
-    expect(item.detected.map((d) => d.field)).toEqual(expect.arrayContaining(['due_date', 'priority']));
+    expect(item.detected.map((d) => d.field)).toEqual(
+      expect.arrayContaining(['due_date', 'priority']),
+    );
     const applied = (
       await env.svc.triage(P.member, ws, { items: [saved.id], to: 'task' }, mutation())
     ).data.items[0]!;
@@ -242,18 +265,26 @@ describe('Phase 7F capture interpretation', () => {
     });
     // A capture saved without interpretation keeps the rule-based candidate and intake origin.
     const plain = (
-      await env.svc.capture(P.member, ws, { text: 'Plain note tomorrow', brand: B.Harbor }, mutation())
+      await env.svc.capture(
+        P.member,
+        ws,
+        { text: 'Plain note tomorrow', brand: B.Harbor },
+        mutation(),
+      )
     ).data;
     expect((await env.svc.getInboxItem(P.member, ws, plain.id)).interpretation).toBeNull();
   });
 
   it('AT-498 credentials in the text are redacted before sending, and the binding still holds', async () => {
-    const text = 'Rotate key sk-ant-api03-AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA tomorrow #fixture:ok';
+    const text =
+      'Rotate key sk-ant-api03-AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA tomorrow #fixture:ok';
     const run = await interpret(P.member, text);
     const sent = fx.control.received().at(-1)!;
     expect(sent.user).not.toContain('sk-ant-api03-AAAA');
     const v = await preview(P.member, text, run.id);
-    expect(v.candidate.detected.find((d) => d.field === 'due_date')).toMatchObject({ status: 'resolved' });
+    expect(v.candidate.detected.find((d) => d.field === 'due_date')).toMatchObject({
+      status: 'resolved',
+    });
   });
 
   it('AT-499 interpretation is the person’s: delegated callers are refused and other workspaces see nothing', async () => {
@@ -270,7 +301,11 @@ describe('Phase 7F capture interpretation', () => {
     expect(
       codes(
         await refusal(
-          env.svc.previewCaptureInterpretation(P.member, ws, { text: 'x', interpretation: run.id, extra: 1 }),
+          env.svc.previewCaptureInterpretation(P.member, ws, {
+            text: 'x',
+            interpretation: run.id,
+            extra: 1,
+          }),
         ),
       ),
     ).toContain('unknown_field');

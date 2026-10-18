@@ -58,6 +58,10 @@ export default async function globalSetup(): Promise<() => Promise<void>> {
     ...ai.env(),
     // A call held open by the fixture outlives the browser's cancel click comfortably.
     AI_PROVIDER_TIMEOUT_MS: '15000',
+    // 7F: synthetic transcription through the same deterministic fixture (refused when deployed).
+    TRANSCRIPTION_PROVIDER: 'fixture',
+    TRANSCRIPTION_BASE_URL: ai.baseUrl,
+    TRANSCRIPTION_API_KEY: ai.apiKey,
     RATE_LIMIT_POLICIES: JSON.stringify({
       'sign_in.source': { limit: 10000, windowMs: 60000 },
       'sign_in.email': { limit: 10000, windowMs: 60000 },

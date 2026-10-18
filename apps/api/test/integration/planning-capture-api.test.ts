@@ -49,8 +49,12 @@ describe('Planning and capture API (7F)', () => {
   const drain = async (run: string) => {
     for (let i = 0; i < 10; i++) {
       await worker.runCycle({ wait: true });
-      const s = await env.db.admin(`SELECT execution_state FROM exec.operation WHERE public_id = $1`, [run]);
-      if (['succeeded', 'partial', 'failed', 'cancelled'].includes(s.rows[0].execution_state)) return;
+      const s = await env.db.admin(
+        `SELECT execution_state FROM exec.operation WHERE public_id = $1`,
+        [run],
+      );
+      if (['succeeded', 'partial', 'failed', 'cancelled'].includes(s.rows[0].execution_state))
+        return;
     }
     throw new Error('run did not finish');
   };
@@ -68,7 +72,10 @@ describe('Planning and capture API (7F)', () => {
         method: 'password',
         proof: PASSWORD,
       });
-      res = await who.request(method, url, { body, headers: { ...h, 'step-up': v.json().data.token } });
+      res = await who.request(method, url, {
+        body,
+        headers: { ...h, 'step-up': v.json().data.token },
+      });
     }
     return res;
   }
@@ -155,7 +162,7 @@ describe('Planning and capture API (7F)', () => {
     await fx?.close();
   });
 
-  it('previews a daily plan and turns it into a planner proposal applied through the 7D routes', async () => {
+  it('AT-509 previews a daily plan and turns it into a planner proposal applied through the 7D routes', async () => {
     const prof = await owner.get(`${base()}/me/capacity-profile`);
     const windows = [1, 2, 3, 4, 5].map((weekday) => ({ weekday, start: '09:00', end: '17:00' }));
     const put = await owner.request('PUT', `${base()}/me/capacity-profile`, {
@@ -171,7 +178,11 @@ describe('Planning and capture API (7F)', () => {
       }>
     ).find((x) => (x.email ?? x.account?.email) === 'plan-owner@example.test')!.id;
     const t = (
-      await owner.post(`${base()}/tasks`, { brand, title: 'Plan me', estimate_minutes: 60 }, { headers: key() })
+      await owner.post(
+        `${base()}/tasks`,
+        { brand, title: 'Plan me', estimate_minutes: 60 },
+        { headers: key() },
+      )
     ).json().data;
     const assigned = await owner.post(
       `${base()}/tasks/${t.id}:assign`,
@@ -180,12 +191,27 @@ describe('Planning and capture API (7F)', () => {
     );
     expect(assigned.statusCode, assigned.body).toBe(200);
     const today = new Date();
-    const day = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate() + ((8 - (today.getUTCDay() || 7)) % 7 || 7)))
+    const day = new Date(
+      Date.UTC(
+        today.getUTCFullYear(),
+        today.getUTCMonth(),
+        today.getUTCDate() + ((8 - (today.getUTCDay() || 7)) % 7 || 7),
+      ),
+    )
       .toISOString()
       .slice(0, 10);
-    const preview = await owner.post(`${base()}/planning/day-plan-previews`, { day }, { headers: key() });
+    const preview = await owner.post(
+      `${base()}/planning/day-plan-previews`,
+      { day },
+      { headers: key() },
+    );
     expect(preview.statusCode, JSON.stringify(preview.json())).toBe(200);
-    expect(preview.json().data).toMatchObject({ type: 'day_plan_preview', day, mode: 'rule_based', generated: false });
+    expect(preview.json().data).toMatchObject({
+      type: 'day_plan_preview',
+      day,
+      mode: 'rule_based',
+      generated: false,
+    });
     expect(preview.headers['cache-control']).toBe('private, no-store');
     const created = await owner.post(`${base()}/planning/day-plans`, { day }, { headers: key() });
     expect(created.statusCode, JSON.stringify(created.json())).toBe(201);
@@ -206,9 +232,13 @@ describe('Planning and capture API (7F)', () => {
     expect(applied.json().data).toMatchObject({ state: 'applied' });
   });
 
-  it('interprets a capture through the assist routes and returns the checked candidate', async () => {
+  it('AT-510 interprets a capture through the assist routes and returns the checked candidate', async () => {
     const text = 'Book the venue tomorrow high priority #fixture:ok';
-    const preview = await owner.post(`${base()}/ai/context-previews`, { scope: {}, include: [] }, { headers: key() });
+    const preview = await owner.post(
+      `${base()}/ai/context-previews`,
+      { scope: {}, include: [] },
+      { headers: key() },
+    );
     expect(preview.statusCode, JSON.stringify(preview.json())).toBe(200);
     const req = {
       action: 'interpret_capture.v1',
@@ -239,9 +269,13 @@ describe('Planning and capture API (7F)', () => {
     );
   });
 
-  it('voice: settings, create, signed upload, transcribe, read, and cancel', async () => {
+  it('AT-511 voice: settings, create, signed upload, transcribe, read, and cancel', async () => {
     const settings = await owner.get(`${base()}/capture/voice-settings`);
-    expect(settings.json().data).toMatchObject({ type: 'voice_settings', transcription: 'available', synthetic: true });
+    expect(settings.json().data).toMatchObject({
+      type: 'voice_settings',
+      transcription: 'available',
+      synthetic: true,
+    });
     const bytes = syntheticWav(2, { transcript: 'Spoken note' });
     const sha = createHash('sha256').update(bytes).digest('hex');
     const created = await owner.post(
@@ -260,7 +294,11 @@ describe('Planning and capture API (7F)', () => {
       payload: Buffer.from(bytes),
     });
     expect(put.statusCode).toBeLessThan(300);
-    const tr = await owner.post(`${base()}/capture/voice/${v.id}:transcribe`, {}, { headers: key() });
+    const tr = await owner.post(
+      `${base()}/capture/voice/${v.id}:transcribe`,
+      {},
+      { headers: key() },
+    );
     expect(tr.statusCode, JSON.stringify(tr.json())).toBe(200);
     await drain(tr.json().data.run);
     const got = await owner.get(`${base()}/capture/voice/${v.id}`);
@@ -280,12 +318,19 @@ describe('Planning and capture API (7F)', () => {
       { format: 'audio/wav', byte_size: bytes.byteLength, sha256: sha, duration_ms: 2000 },
       { headers: key() },
     );
-    const cancel = await owner.post(`${base()}/capture/voice/${other.json().data.id}:cancel`, {}, { headers: key() });
+    const cancel = await owner.post(
+      `${base()}/capture/voice/${other.json().data.id}:cancel`,
+      {},
+      { headers: key() },
+    );
     expect(cancel.json().data).toMatchObject({ state: 'cancelled', audio: 'discarded' });
-    expect((await owner.post(`${base()}/capture/voice/${v.id}:explode`, {}, { headers: key() })).statusCode).toBe(404);
+    expect(
+      (await owner.post(`${base()}/capture/voice/${v.id}:explode`, {}, { headers: key() }))
+        .statusCode,
+    ).toBe(404);
   });
 
-  it('bearer callers never reach plans, interpretation, or voice, whatever their scopes', async () => {
+  it('AT-512 bearer callers never reach plans, interpretation, or voice, whatever their scopes', async () => {
     const tok = await protectedCall(owner, 'POST', `${base()}/api-tokens`, {
       name: '7F',
       kind: 'personal',

@@ -1694,7 +1694,8 @@ export class CapacityService extends LayoutService {
          ORDER BY br.public_id`.execute(tx.db)
     ).rows;
     const blockedBy = new Map<string, string[]>();
-    for (const b of blockers) blockedBy.set(b.task, [...(blockedBy.get(b.task) ?? []), b.public_id]);
+    for (const b of blockers)
+      blockedBy.set(b.task, [...(blockedBy.get(b.task) ?? []), b.public_id]);
     const minutesOf = (a: Date, b: Date) => Math.round((b.getTime() - a.getTime()) / 60_000);
     const tasks: PlannerTask[] = candidates.map((c) => {
       const estimate = c.remaining_estimate_minutes ?? c.estimate_minutes;
@@ -1742,7 +1743,13 @@ export class CapacityService extends LayoutService {
           available: day.available,
           meetings: meetings.map((m) => [m.start.toISOString(), m.end.toISOString()]),
           blocks: blocks.map((b) => [b.id, b.version, b.locked, b.focus]),
-          tasks: candidates.map((c) => [c.public_id, Number(c.version), c.committed, c.commitment_locked, c.commitment_version]),
+          tasks: candidates.map((c) => [
+            c.public_id,
+            Number(c.version),
+            c.committed,
+            c.commitment_locked,
+            c.commitment_version,
+          ]),
           blockers: blockers.map((b) => [b.task, b.public_id, Number(b.version)]),
           scope: [opts.brandIds, opts.projectIds],
         }),
@@ -1768,7 +1775,9 @@ export class CapacityService extends LayoutService {
           },
         ]),
       ),
-      evidence: [...new Set([...candidates.map((c) => c.public_id), ...blockers.map((b) => b.public_id)])],
+      evidence: [
+        ...new Set([...candidates.map((c) => c.public_id), ...blockers.map((b) => b.public_id)]),
+      ],
     };
   }
 

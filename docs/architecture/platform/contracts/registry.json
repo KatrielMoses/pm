@@ -8449,6 +8449,56 @@
       "owner": "7D"
     },
     {
+      "name": "TRANSCRIPTION_PROVIDER",
+      "meaning": "Voice transcription transport: none (default) or the deterministic fixture, refused when deployed; no live speech provider exists.",
+      "owner": "7F"
+    },
+    {
+      "name": "TRANSCRIPTION_BASE_URL",
+      "meaning": "Base URL of the transcription transport (fixture only).",
+      "owner": "7F"
+    },
+    {
+      "name": "TRANSCRIPTION_API_KEY",
+      "meaning": "Transcription transport key (fixture only; secret references refused until DQ-28).",
+      "owner": "7F"
+    },
+    {
+      "name": "TRANSCRIPTION_TIMEOUT_MS",
+      "meaning": "One transcription request; default 30000, range 1000\u2013120000; a timeout after sending is never resent.",
+      "owner": "7F"
+    },
+    {
+      "name": "VOICE_MAX_SECONDS",
+      "meaning": "Longest recording; default 120, range 5\u2013600.",
+      "owner": "7F"
+    },
+    {
+      "name": "VOICE_MAX_BYTES",
+      "meaning": "Largest recording upload; default 10485760 (10 MiB).",
+      "owner": "7F"
+    },
+    {
+      "name": "VOICE_FORMATS",
+      "meaning": "Accepted recording formats (subset of audio/wav, audio/webm, audio/ogg).",
+      "owner": "7F"
+    },
+    {
+      "name": "VOICE_QUEUE_MAX",
+      "meaning": "Recordings one person may have uploading or transcribing at once; default 3.",
+      "owner": "7F"
+    },
+    {
+      "name": "VOICE_UPLOAD_TTL_SECONDS",
+      "meaning": "Upload URL lifetime; expired uploads are swept; default 900.",
+      "owner": "7F"
+    },
+    {
+      "name": "VOICE_TRANSCRIPT_MAX_CHARS",
+      "meaning": "Longest transcript kept; default 4000.",
+      "owner": "7F"
+    },
+    {
       "name": "AI_HISTORY_RETENTION_DAYS",
       "meaning": "Technical content retention for AI history; unset keeps content (OD-36 undecided).",
       "owner": "7A"
