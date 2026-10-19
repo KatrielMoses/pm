@@ -711,3 +711,4 @@ Renumbered in the Phase 6 integration review: 6B was accepted with a second `pl-
   - **Telemetry.** `planning.plans` (label `outcome`), `capture.voice` (label `outcome`), `capture.interpretations` (label `status`).
 - **Alternatives:** A raw audio upload through the API (unbounded request bodies on the web tier).
 - **Consequences:** No new scopes or webhook types. The worker registers the two jobs with the AI jobs.
+- **Corrective review 01:** new voice failure codes `transcript_too_long` (measured charge settled), `response_too_large` and `malformed_response` (charge unknown, held for reconciliation). Lock order for plan inputs: the person's `planning.constraints` lock, then the capacity profile, day, blocks, brand holidays, the shared workspace dependency lock, and task rows. The transcription response budget is `VOICE_TRANSCRIPT_MAX_CHARS × 4 + 2048` bytes.

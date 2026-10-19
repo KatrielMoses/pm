@@ -54,6 +54,7 @@ import { systemExec } from '../notify/system.ts';
 import { daysBetween, localDay, validDay, validZone } from '../time/semantics.ts';
 import { checkEdits, planDay, type EditIssue, type Reason } from '../planning/planner.ts';
 import type { PlanInputs } from '../capacity/capacity-service.ts';
+import { lockPlanConstraints } from '../planning/constraints.ts';
 import type { CaptureCandidate, Detected } from '../capture-service.ts';
 import { PARSER_VERSION, type ParseToken } from '../capture/parser.ts';
 import { deriveSpan, isNameField, nameOf } from '../capture/interpret.ts';
@@ -62,6 +63,7 @@ import {
   checkAudio,
   TRANSCRIPTION_MODEL,
   TranscriptionError,
+  TranscriptTooLongError,
   transcriptionPriceSnapshot,
   VOICE_DEFAULTS,
   type TranscriptionProvider,
@@ -510,6 +512,12 @@ const VOICE_FAILURES: Record<string, string> = {
   outcome_unknown:
     'The transcription did not finish and may have been charged; an owner can review the charge. Record again or type your note.',
   transcription_failed: 'The transcription failed. Record again, or type your note.',
+  transcript_too_long:
+    'The transcript was longer than allowed, so it was not kept. Record a shorter note, or type it.',
+  response_too_large:
+    'The transcription service sent more than allowed, so nothing was kept; an owner can review the charge. Record a shorter note, or type it.',
+  malformed_response:
+    'The transcription service sent an unreadable answer, so nothing was kept; an owner can review the charge. Record again, or type your note.',
 };
 
 /** A proposed change as the plan checks read it. */
@@ -5571,6 +5579,11 @@ export class AiGatewayService extends McpAccessService {
   async #lockPlanInputs(tx: WorkspaceTransaction, p: Principal, day: string, taskIds: string[]) {
     const lock = (key: string) =>
       sql`SELECT pg_advisory_xact_lock(hashtextextended(${key}, 0))`.execute(tx.db);
+    // Review 01 R1: the person's plan-constraint lock first. Every writer of a plan input
+    // (calendar mirrors, reservations, profile, time off, blocks, Today) takes it, by its
+    // canonical command or a database trigger, so nothing it covers can change, or appear,
+    // between the recomputed snapshot and this transaction's commit.
+    await lockPlanConstraints(tx, p.membershipId);
     await lock(`capacity.profile:${p.membershipId}`);
     await this.lockDay(tx, p.membershipId, day);
     await this.lockBlocks(tx, p.membershipId);
@@ -5582,6 +5595,11 @@ export class AiGatewayService extends McpAccessService {
       .orderBy('brand_id')
       .execute();
     for (const b of brands) await lock(`capacity.holidays:${b.brand_id}`);
+    // Dependency writers hold this workspace lock exclusively; a shared hold keeps blockers fixed
+    // without serializing plans with each other.
+    await sql`SELECT pg_advisory_xact_lock_shared(hashtextextended(${'deps:' + tx.workspaceId}, 0))`.execute(
+      tx.db,
+    );
     if (taskIds.length)
       await sql`SELECT 1 FROM work.task WHERE id = ANY(${taskIds}::uuid[]) ORDER BY id FOR SHARE`.execute(
         tx.db,
@@ -6621,6 +6639,20 @@ export class AiGatewayService extends McpAccessService {
           .where('id', '=', prepared.dispatchId)
           .execute();
       };
+      if (failure instanceof TranscriptTooLongError) {
+        // Review 01 R2: the provider measured the audio, so the liability is known and settled;
+        // the over-long transcript is refused, never clipped, stored, or offered as complete.
+        const seconds = billedSeconds(failure.durationMs);
+        await close(
+          'failed',
+          BigInt(seconds) * TRANSCRIPTION_MODEL.price.picoPerSecond,
+          seconds,
+          'invalid',
+        );
+        if (v.state === 'transcribing') await this.#failVoice(tx, v, 'transcript_too_long');
+        else await this.#discardAudio(tx, v);
+        return { state: 'failed' as const, kind: 'too_long' };
+      }
       if (failure) {
         if (failure.charged === 'no') {
           await close(
@@ -6659,7 +6691,17 @@ export class AiGatewayService extends McpAccessService {
           null,
           failure.kind === 'cancelled' ? 'cancelled' : 'outcome_unknown',
         );
-        if (v.state === 'transcribing') await this.#failVoice(tx, v, 'outcome_unknown');
+        // An oversized or malformed answer may still have been charged: the reservation stays for
+        // review, and the person is told why there is no transcript.
+        if (v.state === 'transcribing')
+          await this.#failVoice(
+            tx,
+            v,
+            failure.message === 'response_too_large' || failure.message === 'malformed_response'
+              ? failure.message
+              : 'outcome_unknown',
+          );
+        else await this.#discardAudio(tx, v);
         return { state: 'unknown' as const, kind: failure.kind };
       }
       const r = result!;

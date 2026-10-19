@@ -1,4 +1,5 @@
 import { createHash } from 'node:crypto';
+import { lockPlanConstraints } from './constraints.ts';
 import { change } from '@pm/audit';
 import { newPublicId, newUuidV7 } from '@pm/contracts';
 import { evenRanks, rankBetween } from '@pm/contracts/shell';
@@ -124,6 +125,8 @@ export class PlanningService extends TimeService {
 
   /** Serializes one person's planning for a day (commitments, ranks, shutdown). */
   protected async lockDay(tx: WorkspaceTransaction, membershipId: string, day: string) {
+    // 7F review 01 R1: the person's plan-constraint lock comes first (one lock order).
+    await lockPlanConstraints(tx, membershipId);
     await sql`SELECT pg_advisory_xact_lock(hashtextextended(${`planning.day:${tx.workspaceId}:${membershipId}:${day}`}, 0))`.execute(
       tx.db,
     );
@@ -1237,6 +1240,7 @@ export class PlanningService extends TimeService {
    * one consistent order with plan application, so concurrent writers never deadlock).
    */
   protected async lockBlocks(tx: WorkspaceTransaction, membershipId: string) {
+    await lockPlanConstraints(tx, membershipId);
     await sql`SELECT pg_advisory_xact_lock(hashtextextended(${`planning.blocks:${tx.workspaceId}:${membershipId}`}, 0))`.execute(
       tx.db,
     );

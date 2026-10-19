@@ -8,7 +8,7 @@ Phase 7F adds two assisted journeys on the accepted foundations:
 
 Both are explicit and reviewable. Interpretation suggests spans of the person's own words and the server derives every value; voice transcription goes through the gateway to a provider-neutral transport whose only implementation is a synthetic fixture (production stays unconfigured); the daily plan is computed by a deterministic, rule-based planner, never a model. Nothing is saved, scheduled, or changed until the person saves or applies it, and task dates never change. 7F adds no agents or automations (Phase 8), no new calendar adapter, and no test execution (voice-derived test cases remain a 9B contribution).
 
-Records: 0B ADR-50, 0C AZ-50, 0D PL-52, UXD-31. Migration `0059_planning_capture`. Threats T-124 to T-133, tests AT-481 to AT-514.
+Records: 0B ADR-50, 0C AZ-50, 0D PL-52, UXD-31. Migration `0059_planning_capture`. Threats T-124 to T-133, tests AT-481 to AT-514; corrective review 01 adds T-134, T-135 and AT-515 to AT-523.
 
 ## Decisions
 
@@ -60,8 +60,8 @@ Records: 0B ADR-50, 0C AZ-50, 0D PL-52, UXD-31. Migration `0059_planning_capture
 | 0C decision | AZ-50 | AZ-50 |
 | 0D decision | PL-52 | PL-52 |
 | UX decision | UXD-31 | UXD-31 |
-| Threats | T-124 to T-133 | T-124 |
-| Access tests | AT-481 to AT-514 | AT-481 |
+| Threats | T-124 to T-133; T-134, T-135 (corrective review 01) | T-124 |
+| Access tests | AT-481 to AT-514; AT-515 to AT-523 (corrective review 01) | AT-481 |
 | ID prefixes | `vcp` | — |
 | Operation kinds | `plan_proposal` | — |
 | Non-resource types | `day_plan_preview`, `capture_interpretation`, `voice_settings` | — |
@@ -73,6 +73,9 @@ Tests:
 - `packages/work/test/integration/capture-voice.test.ts`: AT-500 to AT-508.
 - `apps/api/test/integration/planning-capture-api.test.ts`: AT-509 to AT-512.
 - `e2e/planning-capture.spec.ts`: AT-513, AT-514 (desktop, tablet, mobile).
+- `packages/work/test/integration/day-plans-review01.test.ts`: AT-515 to AT-520 (corrective review 01 R1).
+- `packages/work/test/integration/capture-voice-review01.test.ts`: AT-521 to AT-523 (corrective review 01 R2).
+- `packages/work/test/unit/transcription-transport.test.ts`: the bounded transport contract (R2).
 - `packages/work/test/unit/planner.test.ts`: ranking, overload, missing estimates, constraints, splitting, DST, edit checks.
 - `packages/work/test/unit/capture-interpretation.test.ts`: the contract, span rules, audio containers, and the transcription transport.
 - `apps/web/test/planning-capture.test.tsx`: the capture assistance, plan page, and planner proposal review.
@@ -82,7 +85,32 @@ Tests:
 
 - Phase 8 agents may propose plans or captures only through the same proposal and action protocols.
 - Residual risks:
-  - connected-calendar sync and capacity reservations are not locked by Apply; a sync or reservation committed after the recompute is not reflected until the next plan (the plan was consistent when applied);
+  - a change to a plan input committed after a plan was applied is a later event: the applied plan was consistent with the day when it committed, and nothing keeps it valid afterwards (calendars keep changing at the provider);
   - WebM recordings without a container duration are bounded by size and checked against the measured duration;
   - the transcription fixture proves the path, not recognition quality; production transcription needs a provider, privacy, secret, entitlement, and cost decision;
   - the e2e machine time zone affects one accepted 7E briefing test that uses the database session zone; CI runs in UTC.
+
+## Corrective review 01
+
+- **R1: every controlling plan input serializes with Apply.**
+  - One transaction-scoped lock per person and workspace, `planning.constraints:<workspace>:<member>` (`planning.lock_plan_constraints`, `packages/work/src/planning/constraints.ts`), covers everything that controls a plan:
+    - calendar mirrors, their sources and connection health;
+    - capacity reservations (including one in a brand new to the person), the capacity profile, availability rules and time off;
+    - blocks and Today commitments.
+  - Who takes it:
+    - Approval, validation, rebase and Apply take it first, then the capacity profile, the day, the person's blocks, the holidays of their reservation brands, the workspace dependency lock (shared), and the plan's tasks for share. They recompute the constraint snapshot under those locks and hold them through the atomic Apply.
+    - The canonical writers take it before their own locks: calendar sync, the calendar list refresh and disconnect; reservation set and delete; profile and time-off commands; and the day and block locks.
+    - `plan_constraint_guard` triggers on every controlling table take it for any other writer, so a meeting or reservation that did not exist when the plan was checked cannot appear unserialized.
+    - Removing a blocker takes the workspace dependency lock, as adding one already did.
+  - Guarantee: a writer that commits first is reflected and makes Apply refuse (`plan_changed`, nothing applied) until an explicit rebase and fresh approval. A writer that starts while Apply runs waits for Apply to commit. A change committed after the plan is a later event (see Consequences).
+  - Lock order everywhere: constraints, capacity profile, day, blocks, brand holidays, dependencies, task rows. Other people's inputs and other workspaces are never serialized behind a plan.
+  - Also fixed: the planner subtracts meetings from free time itself instead of relying on the availability windows to exclude them, so a block is never proposed over a meeting.
+  - Tests AT-515 to AT-520 (two connections, real lock observation, the canonical Google sync and reservation commands, and a non-canonical writer). On the reviewed head `0e75e35` all six fail.
+- **R2: bounded transcription responses, never clipped.**
+  - `HttpTranscriptionProvider` refuses a declared length over the byte budget (`maxChars × 4 + 2048`) before reading. It reads the body chunk by chunk and cancels it as soon as the budget is exceeded; a missing or forged length changes nothing.
+  - It decodes strict UTF-8 only once the body is complete, and validates the shape and a safe integer duration (at most 24 hours) before any arithmetic.
+  - A transcript over the character bound is refused with its measured duration (`transcript_too_long`): the known liability is settled, and nothing is stored, shown, saved or interpreted.
+  - An oversized or malformed answer (`response_too_large`, `malformed_response`) keeps the possibly charged reservation unknown for review and is never resent.
+  - The audio is deleted in every case (the sweep retries a failed delete).
+  - Tests: the transport contract (`packages/work/test/unit/transcription-transport.test.ts`) and AT-521 to AT-523. On the reviewed head the contract cases and all three integration tests fail.
+- **Verification repair:** AT-476 now sets its schedule's due instant explicitly (00:00 UTC today) instead of the database session's local midnight. It passes under UTC, Asia/Kolkata, America/Sao_Paulo and America/Los_Angeles sessions. The reviewed test fails under a UTC−3 session at 04:54 UTC.

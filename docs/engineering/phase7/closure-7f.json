@@ -484,5 +484,98 @@
       "statement": "Real-device recording and live-provider transcription quality are unproven; the fixture proves the path only."
     }
   ],
-  "corrective_reviews": []
+  "corrective_reviews": [
+    {
+      "id": "7F-CR-01",
+      "head": "0e75e3553694a0c3666fce0d0def39ac6d9e5955",
+      "groups": [
+        {
+          "id": "R1",
+          "title": "Every controlling plan input serializes with Apply",
+          "note": "One per-person transaction-scoped constraint lock taken first by approval, rebase and Apply and by every canonical writer of calendar mirrors, reservations, profile, time off, blocks and Today; database triggers make any other writer participate, so new meetings and reservations cannot appear unserialized. A writer that commits first makes Apply refuse until rebase; one that starts during Apply waits for it.",
+          "evidence": [
+            {
+              "file": "packages/db/migrations/0059_planning_capture.up.sql",
+              "contains": "CREATE FUNCTION planning.plan_constraint_guard() RETURNS trigger"
+            },
+            {
+              "file": "packages/work/src/planning/constraints.ts",
+              "contains": "export async function lockPlanConstraints("
+            },
+            {
+              "file": "packages/work/src/ai/ai-gateway-service.ts",
+              "contains": "await lockPlanConstraints(tx, p.membershipId);"
+            },
+            {
+              "file": "packages/work/src/integrations/calendar-service.ts",
+              "contains": "if (row.ownerId) await lockPlanConstraints(tx, row.ownerId);"
+            },
+            {
+              "file": "packages/work/src/capacity/capacity-service.ts",
+              "contains": "await lockPlanConstraints(tx, m.id);"
+            },
+            {
+              "file": "packages/work/test/integration/day-plans-review01.test.ts",
+              "contains": "'AT-517 "
+            }
+          ],
+          "tests": [
+            "AT-515",
+            "AT-516",
+            "AT-517",
+            "AT-518",
+            "AT-519",
+            "AT-520"
+          ],
+          "old_code": "AT-515 to AT-520 fail on 0e75e35 (writers commit while Apply is past its recheck; an in-flight reservation is applied stale)."
+        },
+        {
+          "id": "R2",
+          "title": "Bounded transcription responses and honest completeness",
+          "note": "The transport reads under a strict byte budget with early cancellation, strict UTF-8, and safe-integer validation; an over-long transcript is refused with its measured liability settled; oversized or malformed answers keep the charge unknown; nothing incomplete is stored, shown, saved, or interpreted.",
+          "evidence": [
+            {
+              "file": "packages/work/src/ai/transcription.ts",
+              "contains": "async function readBounded("
+            },
+            {
+              "file": "packages/work/src/ai/transcription.ts",
+              "contains": "throw new TranscriptTooLongError(body.duration_ms, requestId);"
+            },
+            {
+              "file": "packages/work/src/ai/ai-gateway-service.ts",
+              "contains": "if (failure instanceof TranscriptTooLongError) {"
+            },
+            {
+              "file": "packages/work/test/unit/transcription-transport.test.ts",
+              "contains": "stops reading a chunked stream as soon as it exceeds the byte budget"
+            },
+            {
+              "file": "packages/work/test/integration/capture-voice-review01.test.ts",
+              "contains": "'AT-521 "
+            }
+          ],
+          "tests": [
+            "AT-521",
+            "AT-522",
+            "AT-523"
+          ],
+          "old_code": "AT-521 to AT-523 and six of seven transport contract cases fail on 0e75e35 (clipped text stored as complete; unbounded read)."
+        },
+        {
+          "id": "V1",
+          "title": "AT-476 timezone-independent fixture",
+          "note": "The schedule's due instant is set explicitly (00:00 UTC today) instead of the database session's local midnight; every assertion is unchanged.",
+          "evidence": [
+            {
+              "file": "packages/work/test/integration/briefings-review02.test.ts",
+              "contains": "SET next_run_at = $2::timestamptz WHERE public_id = $1"
+            }
+          ],
+          "tests": [],
+          "old_code": "The reviewed fixture fails under an America/Sao_Paulo session at 04:54 UTC; the repaired one passes under UTC, Asia/Kolkata, America/Sao_Paulo, and America/Los_Angeles sessions."
+        }
+      ]
+    }
+  ]
 }

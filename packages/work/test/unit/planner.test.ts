@@ -186,6 +186,19 @@ describe('Phase 7F deterministic daily planner', () => {
     expect(free[0]!.start.toISOString()).toBe(`${DAY}T10:05:00.000Z`);
   });
 
+  it('never places work over a meeting, even when the windows do not exclude it (review 01)', () => {
+    const r = planDay(
+      base({
+        meetings: [{ start: at(`${DAY}T09:30:00Z`), end: at(`${DAY}T10:30:00Z`) }],
+        tasks: [task('a', { estimate: 60 })],
+      }),
+      END,
+    );
+    expect(r.scheduled[0]!.slots).toEqual([
+      { start: at(`${DAY}T10:30:00Z`), end: at(`${DAY}T11:30:00Z`) },
+    ]);
+  });
+
   it('re-checks edited blocks: overlaps are errors, outside hours and late slots are warnings', () => {
     const issues = checkEdits(
       [

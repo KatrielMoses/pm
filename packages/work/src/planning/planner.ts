@@ -49,7 +49,7 @@ export interface PlannerBlock {
 export interface PlannerInput {
   day: string;
   tz: string;
-  /** Free working intervals before blocks (time off, holidays, and meetings already removed). */
+  /** Working intervals (time off and holidays removed); meetings and blocks are subtracted here. */
   windows: Interval[];
   /** Minutes the person can work this day (after a weekly-capacity override). */
   capacityMinutes: number;
@@ -207,14 +207,23 @@ function reasonsFor(t: PlannerTask, day: string, dayEnd: Date): Reason[] {
   return out;
 }
 
-/** Free intervals after existing blocks (with their padding) and before `notBefore`. */
+/**
+ * Free intervals: working windows minus meetings and existing blocks (with their padding), from
+ * `notBefore` on. Meetings are subtracted here whether or not the availability windows already
+ * exclude them, so a block is never placed over a meeting.
+ */
 export function freeTime(
-  input: Pick<PlannerInput, 'windows' | 'blocks' | 'notBefore'>,
+  input: Pick<PlannerInput, 'windows' | 'blocks' | 'notBefore'> & {
+    meetings?: PlannerInput['meetings'];
+  },
 ): Interval[] {
-  const busy = input.blocks.map((b) => ({
-    start: new Date(b.start.getTime() - b.prep * MINUTE),
-    end: new Date(b.end.getTime() + b.buffer * MINUTE),
-  }));
+  const busy = [
+    ...input.blocks.map((b) => ({
+      start: new Date(b.start.getTime() - b.prep * MINUTE),
+      end: new Date(b.end.getTime() + b.buffer * MINUTE),
+    })),
+    ...(input.meetings ?? []).map((m) => ({ start: m.start, end: m.end })),
+  ];
   let free = subtract(merge(input.windows), busy);
   if (input.notBefore) {
     const nb = input.notBefore;

@@ -491,4 +491,6 @@ Migration `0059_planning_capture` (expand; exact rollback to 0058; 0B ADR-50, AD
 - `ai.ai_action.purpose`: `transcription` (the transcript is `ai.ai_output` content).
 - `exec_dispatch.discover_voice_cleanup_work(now, limit)` and `exec_dispatch.discover_plan_retention_work(before, limit)`: workspace ids only (dispatcher), with `capture` schema usage and column grants for `pm_scheduler`.
 
+Corrective review 01 adds `planning.lock_plan_constraints(workspace, member)` and `plan_constraint_guard` triggers on calendar events, sources, and connections, capacity reservations, profiles, availability rules, time off, work blocks, and Today commitments: every write takes the owner's `planning.constraints` lock, so plan Apply serializes with all of them (lock order: constraints, capacity profile, day, blocks, brand holidays, dependencies, task rows).
+
 Erasure clears planner proposal content (title, plan, payloads) with their run's person or age, ends a leaver's open recordings, and leaves audio to the cleanup sweep. The down migration refuses while any voice capture, transcription action, planner proposal, planning operation, plan evidence, or plan block exists. Workspace purge deletes `capture.voice_capture` before `capture.inbox_item` and `exec.operation`.

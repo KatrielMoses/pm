@@ -141,6 +141,8 @@ Narrative: [../14-threat-model.md](../14-threat-model.md).
 | T-131 | spoofing | An upload claims a format, duration, size, or name it does not have, or a link is fetched, so unbounded or arbitrary content reaches the transcription provider or the queue grows without bound. | I-09 | AT-500, AT-502, AT-503, AT-505 |
 | T-132 | departure | Departure or technical retention leaves plan content, transcripts, interpretations, or audio behind, or erasing them deletes applied business work. | I-12 | AT-490, AT-496, AT-507 |
 | T-133 | staleness | A transcription whose outcome may have been charged is resent, or its charge is lost, so usage is double-counted or unbounded. | I-14 | AT-501 |
+| T-134 | staleness | A calendar mirror, capacity reservation, or other plan input committed after Apply rechecked the day but before it committed (including a new meeting or reservation the plan could not lock) leaves an applied plan resting on stale availability. | I-12 | AT-515, AT-516, AT-517, AT-518, AT-519, AT-520 |
+| T-135 | spoofing | A transcription response is buffered without bound, or a clipped transcript is stored and offered as complete, so different words are saved or interpreted as if they were what was said. | I-09, I-14 | AT-521, AT-522, AT-523 |
 
 ## Test matrix
 
@@ -660,6 +662,15 @@ Narrative: [../14-threat-model.md](../14-threat-model.md).
 | AT-512 | T-130 | api_token_personal | Bearer callers are refused on plan, interpretation, and voice routes whatever their scopes — workspace | `personal.manage_own` | api | **deny** | forbidden | error_message |
 | AT-513 | T-124, T-125 | member | Browser: interpret typed text with confirmed cost and evidence spans, upload a synthetic recording, edit its transcript, save both — personal | `personal.manage_own` | ui_record | **allow** | ok | error_message |
 | AT-514 | T-127 | member | Browser: a rule-based plan from capacity reviewed and applied once through a change proposal — day | `ai.apply_proposal` | ui_record | **allow** | ok | error_message |
+| AT-515 | T-134 | member | Two connections: a new meeting synced while Apply runs waits for it; synced first, it refuses the plan until rebased and freshly approved — day | `ai.apply_proposal` | capacity | **deny** | conflict_filtered | error_message |
+| AT-516 | T-134 | member | Two connections: a moved and a deleted meeting serialize with Apply — day | `ai.apply_proposal` | capacity | **deny** | conflict_filtered | error_message |
+| AT-517 | T-134 | member | Two connections: a reservation in a brand the person had none in (a phantom) waits for Apply, and one in flight makes Apply refuse — day | `ai.apply_proposal` | capacity | **deny** | conflict_filtered | error_message |
+| AT-518 | T-134 | member | Two connections: a reservation change serializes with Apply and invalidates a stale approval — day | `ai.apply_proposal` | capacity | **deny** | conflict_filtered | error_message |
+| AT-519 | T-134 | member | A non-canonical writer of a controlling table waits for Apply (the database trigger) — day | `ai.apply_proposal` | capacity | **deny** | conflict_filtered | error_message |
+| AT-520 | T-134 | member | The new lock order keeps locked work, dates, and selection, with no deadlock against block writers — day | `ai.apply_proposal` | capacity | **deny** | conflict_filtered | error_message |
+| AT-521 | T-135 | member | An over-long transcript is refused, never clipped: nothing stored, measured charge settled, audio deleted — personal | `personal.manage_own` | ui_record | **deny** | empty | error_message |
+| AT-522 | T-135 | member | An oversized streamed transcription answer is cut off, kept unknown for review, and leaves nothing behind — personal | `personal.manage_own` | ui_record | **deny** | empty | error_message |
+| AT-523 | T-135 | member | An unsafe reported duration is malformed: no arithmetic, charge kept unknown, nothing stored — personal | `personal.manage_own` | ui_record | **deny** | empty | error_message |
 
 ## Response shapes
 

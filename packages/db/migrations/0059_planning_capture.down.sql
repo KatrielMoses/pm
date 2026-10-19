@@ -28,6 +28,17 @@ ALTER TABLE ai.proposed_change FORCE ROW LEVEL SECURITY;
 ALTER TABLE ai.change_proposal FORCE ROW LEVEL SECURITY;
 ALTER TABLE ai.ai_action FORCE ROW LEVEL SECURITY;
 
+DROP TRIGGER plan_constraint_guard ON planning.today_commitment;
+DROP TRIGGER plan_constraint_guard ON planning.work_block;
+DROP TRIGGER plan_constraint_guard ON planning.time_off;
+DROP TRIGGER plan_constraint_guard ON planning.availability_rule;
+DROP TRIGGER plan_constraint_guard ON planning.capacity_profile;
+DROP TRIGGER plan_constraint_guard ON planning.capacity_reservation;
+DROP TRIGGER plan_constraint_guard ON integrations.connection;
+DROP TRIGGER plan_constraint_guard ON integrations.calendar_source;
+DROP TRIGGER plan_constraint_guard ON integrations.calendar_event;
+DROP FUNCTION planning.plan_constraint_guard();
+DROP FUNCTION planning.lock_plan_constraints(uuid, uuid);
 DROP FUNCTION exec_dispatch.discover_plan_retention_work(timestamptz, integer);
 REVOKE SELECT (workspace_id, origin, content_state, created_at) ON ai.change_proposal FROM pm_scheduler;
 DROP POLICY scheduler_discovery ON ai.change_proposal;

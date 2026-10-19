@@ -1,4 +1,5 @@
 import { randomBytes } from 'node:crypto';
+import { lockPlanConstraints } from '../planning/constraints.ts';
 import { change } from '@pm/audit';
 import { newPublicId, newUuidV7 } from '@pm/contracts';
 import type { WorkspaceTransaction } from '@pm/db';
@@ -159,6 +160,7 @@ export class CalendarService extends PublicApiService {
     const secret = await this.readConnectionSecret(tx, row);
     if (!secret?.oauth) return;
     // List the calendars now so the person can choose them; a failure leaves it to the next sync.
+    if (row.ownerId) await lockPlanConstraints(tx, row.ownerId);
     try {
       await refreshCalendarList(this.#context(tx, row, { secret }, false));
     } catch (err) {
@@ -202,6 +204,8 @@ export class CalendarService extends PublicApiService {
     canWrite: boolean,
   ) {
     if (!this.#live(row) || !secret.oauth) return super.syncProviderData(tx, row, secret, canWrite);
+    // 7F review 01 R1: calendar mirrors are plan inputs; their owner's plans serialize with sync.
+    if (row.ownerId) await lockPlanConstraints(tx, row.ownerId);
     const totals = await syncCalendarConnection(this.#context(tx, row, { secret }, canWrite));
     this.d.metrics.count('integrations.jobs', 1, {
       kind: 'calendar_sync',

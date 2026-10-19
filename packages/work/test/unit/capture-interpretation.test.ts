@@ -222,7 +222,11 @@ describe('Phase 7F transcription transport (provider contract)', () => {
       'x-model': 'synthetic-transcription',
     });
     expect(seen!.bytes).toBe(syntheticWav(1, null).byteLength);
-    expect((await call(5)).text).toBe('hello');
+    // Review 01 R2: an over-long transcript is refused (never clipped and called complete).
+    await expect(call(5)).rejects.toMatchObject({
+      message: 'transcript_too_long',
+      durationMs: 1000,
+    });
   });
 
   it('classifies failures by whether they can have been charged', async () => {

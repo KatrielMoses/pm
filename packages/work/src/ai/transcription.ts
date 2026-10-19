@@ -43,6 +43,27 @@ export class TranscriptionError extends Error {
   }
 }
 
+/**
+ * Review 01 R2: the provider answered, but its transcript is longer than the bound. It is never
+ * clipped and called complete; the measured duration is kept so the known liability is settled.
+ */
+export class TranscriptTooLongError extends TranscriptionError {
+  readonly durationMs: number;
+  readonly requestId: string | null;
+  constructor(durationMs: number, requestId: string | null) {
+    super('invalid', 'unknown', 'transcript_too_long');
+    this.name = 'TranscriptTooLongError';
+    this.durationMs = durationMs;
+    this.requestId = requestId;
+  }
+}
+
+/** The longest duration a provider may report (anything else is not a usable measurement). */
+export const REPORTED_DURATION_MAX_MS = 24 * 3_600_000;
+
+/** The response byte budget for a transcript of at most `maxChars` characters. */
+export const responseBudget = (maxChars: number) => maxChars * 4 + 2048;
+
 export interface TranscriptionProvider {
   transcribe(req: {
     model: string;
@@ -127,37 +148,105 @@ export class HttpTranscriptionProvider implements TranscriptionProvider {
       const refused = typeof code === 'string' && NOT_SENT_CODES.has(code);
       throw new TranscriptionError(refused ? 'not_sent' : 'transient', refused ? 'no' : 'unknown');
     }
-    if (res.status === 401 || res.status === 403) throw new TranscriptionError('auth', 'no');
-    if (res.status === 429) throw new TranscriptionError('rate', 'no');
-    if (res.status === 400 || res.status === 413 || res.status === 415)
+    // Status-only answers are decided without reading their bodies.
+    const drop = () => res.body?.cancel().catch(() => undefined);
+    if (res.status === 401 || res.status === 403) {
+      await drop();
+      throw new TranscriptionError('auth', 'no');
+    }
+    if (res.status === 429) {
+      await drop();
+      throw new TranscriptionError('rate', 'no');
+    }
+    if (res.status === 400 || res.status === 413 || res.status === 415) {
+      await drop();
       throw new TranscriptionError('invalid', 'no');
-    if (!res.ok) throw new TranscriptionError('transient', 'unknown');
-    const raw = await res.text();
-    if (raw.length > req.maxChars * 4 + 1024) throw new TranscriptionError('invalid', 'unknown');
+    }
+    if (!res.ok) {
+      await drop();
+      throw new TranscriptionError('transient', 'unknown');
+    }
+    const raw = await readBounded(res, responseBudget(req.maxChars), req.signal);
     let body: { text?: unknown; duration_ms?: unknown; confidence?: unknown; id?: unknown };
     try {
       body = JSON.parse(raw) as typeof body;
     } catch {
-      throw new TranscriptionError('invalid', 'unknown');
+      throw new TranscriptionError('invalid', 'unknown', 'malformed_response');
     }
+    if (!body || typeof body !== 'object' || Array.isArray(body) || typeof body.text !== 'string')
+      throw new TranscriptionError('invalid', 'unknown', 'malformed_response');
+    // A duration is a measurement only when it is a finite, safe, plausible whole number.
     if (
-      typeof body.text !== 'string' ||
       typeof body.duration_ms !== 'number' ||
-      !Number.isInteger(body.duration_ms) ||
-      body.duration_ms < 0
+      !Number.isSafeInteger(body.duration_ms) ||
+      body.duration_ms < 0 ||
+      body.duration_ms > REPORTED_DURATION_MAX_MS
     )
-      throw new TranscriptionError('invalid', 'unknown');
+      throw new TranscriptionError('invalid', 'unknown', 'malformed_response');
+    const requestId =
+      typeof body.id === 'string' && /^[A-Za-z0-9_.:-]{1,200}$/.test(body.id) ? body.id : null;
+    // Never clipped: an over-long transcript is refused, with the measured liability kept.
+    if ([...body.text].length > req.maxChars)
+      throw new TranscriptTooLongError(body.duration_ms, requestId);
     const confidence =
-      typeof body.confidence === 'number' && body.confidence >= 0 && body.confidence <= 1
+      typeof body.confidence === 'number' &&
+      Number.isFinite(body.confidence) &&
+      body.confidence >= 0 &&
+      body.confidence <= 1
         ? body.confidence
         : null;
-    return {
-      text: body.text.slice(0, req.maxChars),
-      durationMs: body.duration_ms,
-      confidence,
-      requestId:
-        typeof body.id === 'string' && /^[A-Za-z0-9_.:-]{1,200}$/.test(body.id) ? body.id : null,
-    };
+    return { text: body.text, durationMs: body.duration_ms, confidence, requestId };
+  }
+}
+
+/**
+ * Reads a response body under a strict byte budget: a declared length over the budget is refused
+ * before reading, the stream is read chunk by chunk and cancelled as soon as the budget is
+ * exceeded (a missing or forged length changes nothing), and the bytes are decoded as strict UTF-8
+ * only once complete (so a character split across chunks is never misread).
+ */
+async function readBounded(res: Response, budget: number, signal: AbortSignal): Promise<string> {
+  const declared = Number(res.headers.get('content-length'));
+  if (res.headers.has('content-length') && Number.isFinite(declared) && declared > budget) {
+    await res.body?.cancel().catch(() => undefined);
+    throw new TranscriptionError('invalid', 'unknown', 'response_too_large');
+  }
+  if (!res.body) return '';
+  const reader = res.body.getReader();
+  const chunks: Uint8Array[] = [];
+  let size = 0;
+  try {
+    for (;;) {
+      if (signal.aborted) throw new TranscriptionError('cancelled', 'unknown');
+      let next: Awaited<ReturnType<typeof reader.read>>;
+      try {
+        next = await reader.read();
+      } catch {
+        throw signal.aborted
+          ? new TranscriptionError('cancelled', 'unknown')
+          : new TranscriptionError('transient', 'unknown', 'response_interrupted');
+      }
+      if (next.done) break;
+      size += next.value.byteLength;
+      if (size > budget) throw new TranscriptionError('invalid', 'unknown', 'response_too_large');
+      chunks.push(next.value);
+    }
+  } catch (err) {
+    await reader.cancel().catch(() => undefined);
+    throw err;
+  } finally {
+    reader.releaseLock();
+  }
+  const all = new Uint8Array(size);
+  let at = 0;
+  for (const c of chunks) {
+    all.set(c, at);
+    at += c.byteLength;
+  }
+  try {
+    return new TextDecoder('utf-8', { fatal: true }).decode(all);
+  } catch {
+    throw new TranscriptionError('invalid', 'unknown', 'malformed_response');
   }
 }
 

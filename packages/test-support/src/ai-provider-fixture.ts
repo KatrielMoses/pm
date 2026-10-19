@@ -489,6 +489,28 @@ export async function startAiProviderFixture(
       hung.add(req.socket);
       return;
     }
+    // 7F review 01 R2: an answer far larger than any transcript budget, streamed without a length.
+    if ((marker?.s as string | undefined) === 'oversize') {
+      res.writeHead(200, { 'content-type': 'application/json' });
+      res.on('error', () => undefined);
+      req.socket.on('error', () => undefined);
+      let sent = 0;
+      const chunk = Buffer.alloc(16_384, 'a');
+      res.write('{"text":"');
+      const pump = (): void => {
+        if (res.destroyed || sent >= 8 * 1024 * 1024) {
+          res.end('","duration_ms":1000}');
+          return;
+        }
+        sent += chunk.length;
+        if (res.write(chunk)) setImmediate(pump);
+        else res.once('drain', pump);
+      };
+      pump();
+      return;
+    }
+    if ((marker?.s as string | undefined) === 'bad_duration')
+      return json(res, 200, { id, text: marker?.t ?? 'x', duration_ms: 1.5, synthetic: true });
     return json(res, 200, {
       id,
       text: marker?.t ?? '',

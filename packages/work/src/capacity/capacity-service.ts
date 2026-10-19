@@ -21,6 +21,7 @@ import { dayBounds } from '../planning/semantics.ts';
 import type { PlannerBlock, PlannerInput, PlannerTask, Priority } from '../planning/planner.ts';
 import { addDays, daysBetween, isoWeekday, localDay, validDay } from '../time/semantics.ts';
 import { LayoutService } from '../views/layout-service.ts';
+import { lockPlanConstraints } from '../planning/constraints.ts';
 import {
   allDayInterval,
   allocation,
@@ -297,6 +298,7 @@ export class CapacityService extends LayoutService {
       req,
       async (tx, p) => {
         this.requirePersonal(p, 'personal.manage_own');
+        await lockPlanConstraints(tx, p.membershipId);
         await sql`SELECT pg_advisory_xact_lock(hashtextextended(${`capacity.profile:${p.membershipId}`}, 0))`.execute(
           tx.db,
         );
@@ -543,6 +545,7 @@ export class CapacityService extends LayoutService {
       req,
       async (tx, p) => {
         // 7F: time off is a capacity input; edits serialize with plan application.
+        await lockPlanConstraints(tx, p.membershipId);
         await sql`SELECT pg_advisory_xact_lock(hashtextextended(${`capacity.profile:${p.membershipId}`}, 0))`.execute(
           tx.db,
         );
@@ -617,6 +620,7 @@ export class CapacityService extends LayoutService {
       req,
       async (tx, p) => {
         // 7F: time off is a capacity input; edits serialize with plan application.
+        await lockPlanConstraints(tx, p.membershipId);
         await sql`SELECT pg_advisory_xact_lock(hashtextextended(${`capacity.profile:${p.membershipId}`}, 0))`.execute(
           tx.db,
         );
@@ -695,6 +699,7 @@ export class CapacityService extends LayoutService {
       req,
       async (tx, p) => {
         // 7F: time off is a capacity input; edits serialize with plan application.
+        await lockPlanConstraints(tx, p.membershipId);
         await sql`SELECT pg_advisory_xact_lock(hashtextextended(${`capacity.profile:${p.membershipId}`}, 0))`.execute(
           tx.db,
         );
@@ -1032,6 +1037,8 @@ export class CapacityService extends LayoutService {
           .executeTakeFirst();
         if (!m || m.kind !== 'member' || m.state !== 'active')
           throw invalid(issue('/member', 'invalid', 'Choose an active member of this workspace.'));
+        // 7F review 01 R1: a reservation (even in a brand new to this person) is a plan input.
+        await lockPlanConstraints(tx, m.id);
         await sql`SELECT pg_advisory_xact_lock(hashtextextended(${`capacity.reservation:${br.id}:${m.id}`}, 0))`.execute(
           tx.db,
         );
@@ -1146,6 +1153,7 @@ export class CapacityService extends LayoutService {
         if (!r) throw new TenancyError('not_found');
         await this.configurableBrand(tx, p, r.brand_public_id, 'capacity.reserve');
         if (req.ifMatch !== undefined) requireVersion(parseIfMatch(req.ifMatch), Number(r.version));
+        await lockPlanConstraints(tx, r.membership_id);
         await tx.db.deleteFrom('planning.capacity_reservation').where('id', '=', r.id).execute();
         await this.capAudit(
           tx,

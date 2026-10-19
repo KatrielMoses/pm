@@ -27,14 +27,16 @@ CONTRACT = "packages/work/src/ai/actions/interpretation.ts"
 TRANSCRIPTION = "packages/work/src/ai/transcription.ts"
 ASSIST = "apps/web/src/capture/capture-assist.tsx"
 PLAN_PAGE = "apps/web/src/pages/plan-pages.tsx"
-THREATS = ["T-%d" % i for i in range(124, 134)]
-TESTS = ["AT-%d" % i for i in range(481, 515)]
+THREATS = ["T-%d" % i for i in range(124, 136)]
+TESTS = ["AT-%d" % i for i in range(481, 524)]
 TEST_FILES = [
     "packages/work/test/integration/day-plans.test.ts",
     "packages/work/test/integration/capture-interpretation.test.ts",
     "packages/work/test/integration/capture-voice.test.ts",
     "apps/api/test/integration/planning-capture-api.test.ts",
     "e2e/planning-capture.spec.ts",
+    "packages/work/test/integration/day-plans-review01.test.ts",
+    "packages/work/test/integration/capture-voice-review01.test.ts",
 ]
 MATRIX = ["CAP-005", "PLAN-010", "PLAN-011", "PLAN-012", "PLAN-013", "AI-021", "CAP-003", "CAP-009", "PLAN-017",
           "TEST-003", "TIME-016"]
@@ -267,7 +269,55 @@ def check_identifiers():
                  "classifies failures by whether they can have been charged"):
         if case not in unit:
             errs.append("the 7F unit tests lack %r" % case)
-    return errs, "ADR-0043, ADR-50, AZ-50, PL-52, UXD-31, T-124..T-133, AT-481..AT-514"
+    return errs, "ADR-0043, ADR-50, AZ-50, PL-52, UXD-31, T-124..T-135, AT-481..AT-523"
+
+
+def check_corrections(closure):
+    """Corrective review 01: R1 and R2 mapped to runtime tests, real code paths, and old-code results."""
+    errs = []
+    review = {r["id"]: r for r in closure.get("corrective_reviews", [])}.get("7F-CR-01")
+    if not review:
+        return ["closure must record corrective review 7F-CR-01"], ""
+    groups = {g["id"]: g for g in review.get("groups", [])}
+    if sorted(groups) != ["R1", "R2", "V1"]:
+        errs.append("7F-CR-01 must record R1, R2, and the V1 verification repair")
+    cache = {}
+    tests = {x["id"] for x in load(P("docs/architecture/access/policy/threats.json"))["tests"]}
+    text = "\n".join(read(P(f)) for f in TEST_FILES)
+    for gid, g in sorted(groups.items()):
+        phase2.check_evidence("7F-CR-01 %s" % gid, g.get("evidence"), cache, errs)
+        if "fail" not in g.get("old_code", ""):
+            errs.append("7F-CR-01 %s must record its old-code regression result" % gid)
+        for at in g.get("tests", []):
+            if at not in tests:
+                errs.append("%s test %s is not registered in 0C" % (gid, at))
+            if len(re.findall(r"(?:it|test)\(\s*['\"]%s " % at, text)) != 1:
+                errs.append("%s test %s must title exactly one test" % (gid, at))
+    up = read(P(MIGRATION + ".up.sql"))
+    for table in ("integrations.calendar_event", "integrations.calendar_source", "integrations.connection",
+                  "planning.capacity_reservation", "planning.capacity_profile", "planning.availability_rule",
+                  "planning.time_off", "planning.work_block", "planning.today_commitment"):
+        if not re.search(r"CREATE TRIGGER plan_constraint_guard[^;]*ON %s\b" % re.escape(table), up):
+            errs.append("0059 must guard %s with the plan-constraint trigger" % table)
+    service = read(P(SERVICE))
+    i = service.find("async #lockPlanInputs(")
+    body = service[i:i + 2500] if i >= 0 else ""
+    first = body.find("await lockPlanConstraints(tx, p.membershipId);")
+    if first < 0 or first > body.find("capacity.profile:"):
+        errs.append("plan Apply must take the constraint lock before every other plan input lock")
+    if "pg_advisory_xact_lock_shared" not in body:
+        errs.append("plan Apply must hold the dependency lock shared")
+    tr = read(P(TRANSCRIPTION))
+    if "await res.text()" in tr or ".slice(0, req.maxChars)" in tr:
+        errs.append("the transcription transport must not buffer unboundedly or clip transcripts")
+    for term in ("reader.cancel()", "new TextDecoder('utf-8', { fatal: true })", "Number.isSafeInteger(body.duration_ms)"):
+        if term not in tr:
+            errs.append("the transcription transport lacks %s" % term)
+    if "if (failure instanceof TranscriptTooLongError) {" not in service:
+        errs.append("an over-long transcript must settle its measured liability and store nothing")
+    if "date_trunc('day', now())" in read(P("packages/work/test/integration/briefings-review02.test.ts")):
+        errs.append("AT-476 must not depend on the database session's local midnight")
+    return errs, "R1, R2, and V1 mapped to AT-515..AT-523 and the transport contract, with old-code results"
 
 
 def check_wiring():
@@ -302,6 +352,7 @@ def main():
         ("phase 7F: interpretation and voice capture", check_capture()),
         ("phase 7F: migration 0059", check_migration()),
         ("phase 7F: identifiers and tests", check_identifiers()),
+        ("phase 7F: corrective review 01 evidence", check_corrections(closure)),
         ("phase 7F: validator wiring", check_wiring()),
         ("phase 7F: migration sequence", phase1.check_migrations()),
     ]

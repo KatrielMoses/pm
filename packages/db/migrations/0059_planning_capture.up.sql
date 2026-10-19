@@ -182,3 +182,56 @@ $$;
 REVOKE ALL ON FUNCTION exec_dispatch.discover_plan_retention_work(timestamptz, integer) FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION exec_dispatch.discover_plan_retention_work(timestamptz, integer) TO dispatcher;
 ALTER FUNCTION exec_dispatch.discover_plan_retention_work(timestamptz, integer) OWNER TO pm_scheduler;
+
+-- ---------------------------------------------------------------------------------------------
+-- Plan constraints (corrective review 01 R1). Everything that controls a person's daily plan
+-- (calendar mirrors and their sources and connection health, capacity reservations, the capacity
+-- profile, availability rules, time off, work blocks, and Today commitments) serializes on one
+-- transaction-scoped lock per person and workspace, `planning.constraints:<workspace>:<member>`.
+-- Plan approval and Apply take it first and hold it to commit; the canonical writers take it
+-- before their own locks, and these triggers make every other writer participate too, including
+-- an insert that adds a row (a new meeting or reservation) the plan could not have locked.
+-- ---------------------------------------------------------------------------------------------
+CREATE FUNCTION planning.lock_plan_constraints(p_workspace uuid, p_membership uuid)
+  RETURNS void LANGUAGE sql
+  SET search_path = pg_catalog, pg_temp
+  AS $$ SELECT pg_advisory_xact_lock(hashtextextended('planning.constraints:' || p_workspace::text || ':' || p_membership::text, 0)) $$;
+
+CREATE FUNCTION planning.plan_constraint_guard() RETURNS trigger
+  LANGUAGE plpgsql
+  SET search_path = pg_catalog, pg_temp
+  AS $$
+DECLARE
+  m uuid;
+BEGIN
+  IF TG_OP <> 'INSERT' THEN
+    m := (to_jsonb(OLD) ->> TG_ARGV[0])::uuid;
+    IF m IS NOT NULL THEN PERFORM planning.lock_plan_constraints(OLD.workspace_id, m); END IF;
+  END IF;
+  IF TG_OP <> 'DELETE' THEN
+    m := (to_jsonb(NEW) ->> TG_ARGV[0])::uuid;
+    IF m IS NOT NULL THEN PERFORM planning.lock_plan_constraints(NEW.workspace_id, m); END IF;
+  END IF;
+  RETURN COALESCE(NEW, OLD);
+END $$;
+
+CREATE TRIGGER plan_constraint_guard BEFORE INSERT OR UPDATE OR DELETE ON integrations.calendar_event
+  FOR EACH ROW EXECUTE FUNCTION planning.plan_constraint_guard('owner_membership_id');
+CREATE TRIGGER plan_constraint_guard BEFORE INSERT OR DELETE OR UPDATE OF selected, state, brand_id
+  ON integrations.calendar_source
+  FOR EACH ROW EXECUTE FUNCTION planning.plan_constraint_guard('owner_membership_id');
+CREATE TRIGGER plan_constraint_guard BEFORE INSERT OR DELETE OR UPDATE OF lifecycle_state, health
+  ON integrations.connection
+  FOR EACH ROW EXECUTE FUNCTION planning.plan_constraint_guard('owner_membership_id');
+CREATE TRIGGER plan_constraint_guard BEFORE INSERT OR UPDATE OR DELETE ON planning.capacity_reservation
+  FOR EACH ROW EXECUTE FUNCTION planning.plan_constraint_guard('membership_id');
+CREATE TRIGGER plan_constraint_guard BEFORE INSERT OR UPDATE OR DELETE ON planning.capacity_profile
+  FOR EACH ROW EXECUTE FUNCTION planning.plan_constraint_guard('membership_id');
+CREATE TRIGGER plan_constraint_guard BEFORE INSERT OR UPDATE OR DELETE ON planning.availability_rule
+  FOR EACH ROW EXECUTE FUNCTION planning.plan_constraint_guard('membership_id');
+CREATE TRIGGER plan_constraint_guard BEFORE INSERT OR UPDATE OR DELETE ON planning.time_off
+  FOR EACH ROW EXECUTE FUNCTION planning.plan_constraint_guard('membership_id');
+CREATE TRIGGER plan_constraint_guard BEFORE INSERT OR UPDATE OR DELETE ON planning.work_block
+  FOR EACH ROW EXECUTE FUNCTION planning.plan_constraint_guard('owner_membership_id');
+CREATE TRIGGER plan_constraint_guard BEFORE INSERT OR UPDATE OR DELETE ON planning.today_commitment
+  FOR EACH ROW EXECUTE FUNCTION planning.plan_constraint_guard('owner_membership_id');

@@ -633,3 +633,6 @@ All decisions are **proposed (Phase 0C)**, pending solutions-architect acceptanc
   - Applying a plan directly from the preview (no review, no atomic re-check).
   - Browser speech recognition (an uncontrolled third-party service and a privacy bypass).
 - **Consequences:** Threats T-124 to T-133 with tests AT-481 to AT-514. The action count stays 122.
+- **Corrective review 01:**
+  - **Plans rest on a serialized day (R1).** Every input that controls a person's plan serializes with approval and Apply on that person's constraint lock, by canonical command or database trigger, including rows that did not exist when the plan was checked. A plan never commits on availability that changed after its recheck. A stale approval refuses until an explicit rebase and fresh approval. Threat T-134 with tests AT-515 to AT-520.
+  - **Transcripts are complete or absent (R2).** A transcription response is read under a strict byte budget and validated before use. An over-long transcript is refused, never clipped, and nothing incomplete is shown, saved or interpreted as complete. Possibly charged outcomes stay unknown for review. Threat T-135 with tests AT-521 to AT-523.

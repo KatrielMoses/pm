@@ -202,6 +202,82 @@ describe('Capture assistance (7F)', () => {
   });
 });
 
+describe('Capture assistance: honest transcription failures (7F review 01)', () => {
+  it('an over-long transcript is shown as not kept, with no transcript to use or save', async () => {
+    const VCP = 'vcp_01ARZ3NDEKTSV4RRFFQ69G5FAV';
+    serve({
+      'GET /ai': () => json(200, overview(false)),
+      'GET /capture/voice-settings': () => json(200, voiceSettings('available')),
+      'POST /capture/voice': () =>
+        json(201, {
+          data: {
+            id: VCP,
+            type: 'voice_capture',
+            state: 'uploaded',
+            upload: {
+              url: 'http://127.0.0.1:1/upload',
+              method: 'PUT',
+              headers: {},
+              expires_at: '2026-10-19T09:00:00Z',
+            },
+          },
+        }),
+      [`POST /capture/voice/${VCP}:transcribe`]: () =>
+        json(200, {
+          data: {
+            id: VCP,
+            type: 'voice_capture',
+            state: 'failed',
+            transcript: null,
+            audio: 'discarded',
+            failure: {
+              code: 'transcript_too_long',
+              message:
+                'The transcript was longer than allowed, so it was not kept. Record a shorter note, or type it.',
+            },
+          },
+        }),
+    });
+    class FakeXhr {
+      status = 200;
+      upload = { onprogress: null as unknown };
+      onload: (() => void) | null = null;
+      onerror: (() => void) | null = null;
+      open() {}
+      setRequestHeader() {}
+      send() {
+        setTimeout(() => this.onload?.(), 0);
+      }
+    }
+    vi.stubGlobal('XMLHttpRequest', FakeXhr);
+    const onText = vi.fn();
+    const onVoice = vi.fn();
+    render(
+      <CaptureAssist
+        ws={WS}
+        account="device"
+        text=""
+        brand={null}
+        interpretation={null}
+        onText={onText}
+        onInterpretation={vi.fn()}
+        onVoice={onVoice}
+      />,
+    );
+    await screen.findByText(/synthetic test fixture/);
+    const input = document.querySelector('input[type=file]') as HTMLInputElement;
+    const file = new File([new Uint8Array(64)], 'note.wav', { type: 'audio/wav' });
+    fireEvent.change(input, { target: { files: [file] } });
+    expect(
+      await screen.findByText(/longer than allowed, so it was not kept/, {}, { timeout: 6000 }),
+    ).toBeTruthy();
+    expect(screen.queryByLabelText('Transcript (edit before using)')).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Use as capture text' })).toBeNull();
+    expect(onText).not.toHaveBeenCalled();
+    expect(onVoice).toHaveBeenLastCalledWith(null);
+  });
+});
+
 const preview = (assumed = false) => ({
   data: {
     type: 'day_plan_preview',

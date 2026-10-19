@@ -1381,6 +1381,23 @@
       "mitigated_by": [
         "I-14"
       ]
+    },
+    {
+      "id": "T-134",
+      "category": "staleness",
+      "description": "A calendar mirror, capacity reservation, or other plan input committed after Apply rechecked the day but before it committed (including a new meeting or reservation the plan could not lock) leaves an applied plan resting on stale availability.",
+      "mitigated_by": [
+        "I-12"
+      ]
+    },
+    {
+      "id": "T-135",
+      "category": "spoofing",
+      "description": "A transcription response is buffered without bound, or a clipped transcript is stored and offered as complete, so different words are saved or interpreted as if they were what was said.",
+      "mitigated_by": [
+        "I-09",
+        "I-14"
+      ]
     }
   ],
   "tests": [
@@ -10358,6 +10375,150 @@
       "surface": "ui_record",
       "expected": "allow",
       "response_shape": "ok",
+      "silent_surfaces": [
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-515",
+      "threats": [
+        "T-134"
+      ],
+      "principal": "member",
+      "setup": "Two connections: a new meeting synced while Apply runs waits for it; synced first, it refuses the plan until rebased and freshly approved",
+      "scope": "day",
+      "action": "ai.apply_proposal",
+      "surface": "capacity",
+      "expected": "deny",
+      "response_shape": "conflict_filtered",
+      "silent_surfaces": [
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-516",
+      "threats": [
+        "T-134"
+      ],
+      "principal": "member",
+      "setup": "Two connections: a moved and a deleted meeting serialize with Apply",
+      "scope": "day",
+      "action": "ai.apply_proposal",
+      "surface": "capacity",
+      "expected": "deny",
+      "response_shape": "conflict_filtered",
+      "silent_surfaces": [
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-517",
+      "threats": [
+        "T-134"
+      ],
+      "principal": "member",
+      "setup": "Two connections: a reservation in a brand the person had none in (a phantom) waits for Apply, and one in flight makes Apply refuse",
+      "scope": "day",
+      "action": "ai.apply_proposal",
+      "surface": "capacity",
+      "expected": "deny",
+      "response_shape": "conflict_filtered",
+      "silent_surfaces": [
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-518",
+      "threats": [
+        "T-134"
+      ],
+      "principal": "member",
+      "setup": "Two connections: a reservation change serializes with Apply and invalidates a stale approval",
+      "scope": "day",
+      "action": "ai.apply_proposal",
+      "surface": "capacity",
+      "expected": "deny",
+      "response_shape": "conflict_filtered",
+      "silent_surfaces": [
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-519",
+      "threats": [
+        "T-134"
+      ],
+      "principal": "member",
+      "setup": "A non-canonical writer of a controlling table waits for Apply (the database trigger)",
+      "scope": "day",
+      "action": "ai.apply_proposal",
+      "surface": "capacity",
+      "expected": "deny",
+      "response_shape": "conflict_filtered",
+      "silent_surfaces": [
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-520",
+      "threats": [
+        "T-134"
+      ],
+      "principal": "member",
+      "setup": "The new lock order keeps locked work, dates, and selection, with no deadlock against block writers",
+      "scope": "day",
+      "action": "ai.apply_proposal",
+      "surface": "capacity",
+      "expected": "deny",
+      "response_shape": "conflict_filtered",
+      "silent_surfaces": [
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-521",
+      "threats": [
+        "T-135"
+      ],
+      "principal": "member",
+      "setup": "An over-long transcript is refused, never clipped: nothing stored, measured charge settled, audio deleted",
+      "scope": "personal",
+      "action": "personal.manage_own",
+      "surface": "ui_record",
+      "expected": "deny",
+      "response_shape": "empty",
+      "silent_surfaces": [
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-522",
+      "threats": [
+        "T-135"
+      ],
+      "principal": "member",
+      "setup": "An oversized streamed transcription answer is cut off, kept unknown for review, and leaves nothing behind",
+      "scope": "personal",
+      "action": "personal.manage_own",
+      "surface": "ui_record",
+      "expected": "deny",
+      "response_shape": "empty",
+      "silent_surfaces": [
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-523",
+      "threats": [
+        "T-135"
+      ],
+      "principal": "member",
+      "setup": "An unsafe reported duration is malformed: no arithmetic, charge kept unknown, nothing stored",
+      "scope": "personal",
+      "action": "personal.manage_own",
+      "surface": "ui_record",
+      "expected": "deny",
+      "response_shape": "empty",
       "silent_surfaces": [
         "error_message"
       ]
