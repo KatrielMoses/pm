@@ -3,6 +3,7 @@ import { executionContextToContract, newUuidV7, type PrincipalRef } from '@pm/co
 import {
   completeIdempotencyKey,
   contextFromRow,
+  defineEffectDestination,
   EffectOutcomeUnknownError,
   failIdempotencyKeyDeterministic,
   fingerprintHex,
@@ -312,6 +313,8 @@ describe('outbox, inbox, idempotency, and external effects', () => {
   });
 
   describe('external effects (0D §5.4)', () => {
+    const NOTIFY = defineEffectDestination('test.notify_provider', 'idempotent_by_provider');
+    const EMAIL = defineEffectDestination('test.email_send', 'unsafe');
     it('safe destinations retry after an unknown outcome; sent effects are never repeated', async () => {
       const performed: string[] = [];
       let calls = 0;
@@ -321,7 +324,7 @@ describe('outbox, inbox, idempotency, and external effects', () => {
           queue: 'default',
           handle: async (ctx) => {
             calls++;
-            await ctx.effect('notify:1', 'idempotent_by_provider', async (providerKey) => {
+            await ctx.effect('notify:1', NOTIFY, async (providerKey) => {
               performed.push(providerKey);
               if (performed.length === 1) throw new EffectOutcomeUnknownError();
               return { externalRef: 'provider-ref-1' };
@@ -355,7 +358,7 @@ describe('outbox, inbox, idempotency, and external effects', () => {
         kind: 'test.unsafe_send',
         queue: 'default',
         handle: async (ctx: Parameters<import('@pm/platform').JobHandler['handle']>[0]) => {
-          await ctx.effect('email:1', 'unsafe', async () => {
+          await ctx.effect('email:1', EMAIL, async () => {
             sends++;
             throw new EffectOutcomeUnknownError();
           });

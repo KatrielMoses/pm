@@ -162,6 +162,48 @@ export function registerTenancy(app: FastifyInstance, deps: TenancyRouteDeps): v
     }),
   );
 
+  // ---- External effect reconciliation (ADR-0045) ---------------------------------------------
+  // Session-only (bearer tokens are refused at the gate and in the service); owners and
+  // administrators; the decision needs step-up and the version that was reviewed.
+  app.get(
+    '/v1/workspaces/:ws/operations/effects',
+    wrap(async (request, reply) =>
+      reply
+        .header('cache-control', 'private, no-store')
+        .send(
+          nonResourceEnvelope(
+            'external_effects',
+            await tenancy.listUncertainEffects(caller(request), params(request).ws),
+            m(request),
+          ),
+        ),
+    ),
+  );
+
+  // `…/operations/{op}/effects/{effect key}:reconcile` (the key may itself contain colons).
+  app.post(
+    '/v1/workspaces/:ws/operations/:op/effects/:effect',
+    wrap(async (request, reply) => {
+      const p = request.params as { ws: string; op: string; effect: string };
+      const t = split(p.effect);
+      if (!t || t.verb !== 'reconcile') return fail(request, reply, 'not_found');
+      const r = await tenancy.reconcileExternalEffect(
+        caller(request),
+        p.ws,
+        p.op,
+        t.id,
+        request.body,
+        mutation(request),
+      );
+      const { id: _id, type: _type, ...rest } = r.data;
+      if (r.replayed) reply.header('idempotent-replayed', 'true');
+      return reply
+        .code(r.status)
+        .header('cache-control', 'private, no-store')
+        .send(nonResourceEnvelope('external_effect_reconciliation', rest, m(request)));
+    }),
+  );
+
   // ---- Brand settings -------------------------------------------------------------------------
   app.get(
     '/v1/workspaces/:ws/brands/:brand/settings',

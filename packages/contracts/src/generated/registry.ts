@@ -5817,6 +5817,24 @@ export const ACTIONS = [
     }
   },
   {
+    "key": "operation.reconcile_effect",
+    "kind": "admin",
+    "scopes": [
+      "workspace"
+    ],
+    "stepUp": true,
+    "riskClass": "R3",
+    "requiredLevel": null,
+    "roles": {
+      "owner": "implicit",
+      "administrator": "implicit",
+      "member": "deny",
+      "limited_member": "deny",
+      "read_only": "deny",
+      "guest": "deny"
+    }
+  },
+  {
     "key": "agents.configure",
     "kind": "admin",
     "scopes": [

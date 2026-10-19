@@ -10,7 +10,13 @@ import {
   type TenantDatabase,
   type WorkspaceTransaction,
 } from '@pm/db';
-import { recordEffect, writeOutboxEvent, type JobHandler, type RecurringJob } from '@pm/platform';
+import {
+  defineEffectDestination,
+  recordEffect,
+  writeOutboxEvent,
+  type JobHandler,
+  type RecurringJob,
+} from '@pm/platform';
 import { PURGE_JOB_KIND, PURGE_QUEUE, type LifecycleService } from './commands.ts';
 import { systemDecision } from './decision.ts';
 import {
@@ -46,6 +52,20 @@ export type BeginResult =
   | { status: 'blocked'; reason: DeletionBlockResult | 'not_purgeable' };
 
 const OBJECT_KEY = /^[A-Za-z0-9_.:-]{1,180}$/;
+
+/**
+ * Object deletion in the workspace's object storage (performed by the files sweep): deleting an
+ * object twice leaves it deleted, so a retry with the same key is safe (ADR-0045).
+ */
+export const OBJECT_DELETE_DESTINATION = defineEffectDestination(
+  'storage.object_delete',
+  'naturally_idempotent',
+);
+/** The external purge ledger, which deduplicates by entry id (ADR-0010). */
+export const PURGE_LEDGER_DESTINATION = defineEffectDestination(
+  'lifecycle.purge_ledger',
+  'idempotent_by_provider',
+);
 
 export class PurgeExecutor {
   readonly #svc: LifecycleService;
@@ -400,7 +420,7 @@ export class PurgeExecutor {
         await recordEffect(tx, {
           operationId,
           effectKey: `object:${key}`,
-          destinationClass: 'naturally_idempotent',
+          destination: OBJECT_DELETE_DESTINATION,
         });
         n += 1;
       }
@@ -610,7 +630,7 @@ export function purgeJobHandler(executor: PurgeExecutor): JobHandler {
       }));
       const sent = await ctx.effect(
         `purge-ledger:${batchId}`,
-        'idempotent_by_provider',
+        PURGE_LEDGER_DESTINATION,
         async () => {
           const ack = await executor.appendLedger(entry);
           return { externalRef: ack.acknowledgedAt.toISOString() };

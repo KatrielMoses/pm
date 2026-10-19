@@ -289,6 +289,9 @@ export const NON_RESOURCE_TYPES = [
   'day_plan_preview',
   'capture_interpretation',
   'voice_settings',
+  // P8-W0: uncertain external effects and an authorized reconciliation decision (ADR-0045).
+  'external_effects',
+  'external_effect_reconciliation',
 ] as const;
 export type NonResourceType = (typeof NON_RESOURCE_TYPES)[number];
 

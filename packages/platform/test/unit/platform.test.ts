@@ -3,6 +3,8 @@ import {
   canonicalJson,
   classifyError,
   decideEffect,
+  defineEffectDestination,
+  destinationFingerprint,
   JobError,
   requestFingerprint,
   retryDelayMs,
@@ -82,5 +84,24 @@ describe('effect decisions (0D §5.4)', () => {
     );
     expect(decideEffect({ state: 'failed', destination_class: 'unsafe' })).toBe('attempt');
     expect(decideEffect({ state: 'cancelled', destination_class: 'unsafe' })).toBe('cancelled');
+    // P8-W0: a held claim is never a second dispatch, for any class (recovery decides first).
+    for (const c of ['unsafe', 'naturally_idempotent'] as const)
+      expect(decideEffect({ state: 'dispatching', destination_class: c })).toBe('in_flight');
+  });
+
+  it('registers destinations once with their class and contract (P8-W0)', () => {
+    const d = defineEffectDestination('unit.mail_send', 'unsafe', 'v2');
+    expect(defineEffectDestination('unit.mail_send', 'unsafe', 'v2')).toBe(d);
+    expect(() => defineEffectDestination('unit.mail_send', 'naturally_idempotent', 'v2')).toThrow(
+      /already registered/,
+    );
+    expect(() => defineEffectDestination('unit.mail_send', 'unsafe', 'v3')).toThrow(
+      /already registered/,
+    );
+    expect(() => defineEffectDestination('Bad Id', 'unsafe')).toThrow(/destination id/);
+    expect(destinationFingerprint(d)).toMatch(/^[0-9a-f]{64}$/);
+    expect(destinationFingerprint(d)).not.toBe(
+      destinationFingerprint({ ...d, class: 'naturally_idempotent' }),
+    );
   });
 });

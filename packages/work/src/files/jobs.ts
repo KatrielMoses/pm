@@ -7,8 +7,9 @@ import {
 } from '@pm/db';
 import { errorFields, type Logger, type Metrics } from '@pm/observability';
 import {
-  markEffectAttempt,
-  markEffectOutcome,
+  claimEffect,
+  confirmEffect,
+  recordEffectOutcome,
   writeOutboxEvent,
   type JobHandler,
   type JobHandlerContext,
@@ -19,6 +20,9 @@ import { DEFAULT_WORK_SETTINGS, type WorkSettings } from '../validation.ts';
 import { FILE_JOB_KINDS, FILE_QUEUE } from './file-service.ts';
 import type { MalwareScanner } from './scanner.ts';
 import { OBJECT_EFFECT_PREFIX, permanentKey, previewKind } from './semantics.ts';
+
+/** How long one sweep's claim on an object deletion lasts before another sweep may recover it. */
+const OBJECT_DELETE_CLAIM_MS = 5 * 60_000;
 import type { ObjectStorage } from './storage.ts';
 
 /** Every minute: expired upload sessions, and object deletions recorded by purge (4E). */
@@ -244,23 +248,29 @@ export function fileSweepHandler(d: FileJobDeps): JobHandler {
         if (expired.length)
           d.metrics.count('files.jobs', expired.length, { kind: 'expire', outcome: 'ok' });
         if (!d.storage) continue;
+        // Object deletions recorded by purge (naturally idempotent): never attempted, explicitly
+        // retried, unknown, or held by a claim that may have been abandoned (ADR-0045).
         const effects = await d.tenant.withWorkspace(ws, { module: 'files' }, (tx) =>
           sql<{
             id: string;
             effect_key: string;
-            state: string;
-          }>`SELECT id, effect_key, state FROM exec.external_effect
+          }>`SELECT id, effect_key FROM exec.external_effect
               WHERE workspace_id = ${ws} AND effect_key LIKE ${OBJECT_EFFECT_PREFIX + '%'}
-                AND state IN ('pending', 'failed')
+                AND state::text IN ('pending', 'failed', 'unknown', 'dispatching')
               ORDER BY created_at, id LIMIT ${s.fileExpiryBatchMax}`.execute(tx.db),
         );
         for (const e of effects.rows) {
           const key = e.effect_key.slice(OBJECT_EFFECT_PREFIX.length);
-          // A failed deletion is retried (failed → pending); a pending one is attempted as is.
-          if (e.state === 'failed')
-            await d.tenant.withWorkspace(ws, { module: 'files' }, (tx) =>
-              markEffectAttempt(tx, e.id, undefined),
-            );
+          // The claim is durable before the delete; a live claim elsewhere is left alone, and an
+          // abandoned one is recovered (as unknown, then retried with the same key).
+          const claimed = await d.tenant.withWorkspace(ws, { module: 'files' }, (tx) =>
+            claimEffect(tx, e.id, {
+              attemptId: null,
+              claimUntil: new Date(Date.now() + OBJECT_DELETE_CLAIM_MS),
+            }),
+          );
+          if (!claimed.claim) continue;
+          const claim = claimed.claim;
           let ok = true;
           try {
             await d.storage.delete(key);
@@ -270,17 +280,27 @@ export function fileSweepHandler(d: FileJobDeps): JobHandler {
             ok = false;
             d.logger.warn('files.object_delete_failed', errorFields(err));
           }
-          // The provider acknowledged the delete: sent, then confirmed (the ledger's only path).
-          await d.tenant.withWorkspace(ws, { module: 'files' }, async (tx) => {
-            if (!ok) return markEffectOutcome(tx, e.id, 'failed');
-            await markEffectOutcome(tx, e.id, 'sent');
-            await markEffectOutcome(tx, e.id, 'confirmed');
-            // The bytes are gone: the orphan row goes too (never one a version still uses).
-            await sql`DELETE FROM files.file_object o WHERE o.workspace_id = ${ws}
-                AND o.storage_key IN (${key}, ${`q.${key.slice(2)}`})
-                AND NOT EXISTS (SELECT 1 FROM files.file_version v WHERE v.workspace_id = o.workspace_id
-                                AND v.file_object_id = o.id)`.execute(tx.db);
-          });
+          {
+            await d.tenant.withWorkspace(ws, { module: 'files' }, async (tx) => {
+              // A storage error is no proof that nothing changed: unknown, retried next sweep.
+              if (!ok) {
+                await recordEffectOutcome(tx, claim, {
+                  state: 'unknown',
+                  reason: 'unproven_failure',
+                });
+                return;
+              }
+              // The provider acknowledged the delete: sent, then confirmed. Another sweep that
+              // recovered this claim meanwhile keeps this result as late evidence only.
+              if ((await recordEffectOutcome(tx, claim, { state: 'sent' })) === 'stale') return;
+              await confirmEffect(tx, e.id);
+              // The bytes are gone: the orphan row goes too (never one a version still uses).
+              await sql`DELETE FROM files.file_object o WHERE o.workspace_id = ${ws}
+                  AND o.storage_key IN (${key}, ${`q.${key.slice(2)}`})
+                  AND NOT EXISTS (SELECT 1 FROM files.file_version v WHERE v.workspace_id = o.workspace_id
+                                  AND v.file_object_id = o.id)`.execute(tx.db);
+            });
+          }
           d.metrics.count('files.jobs', 1, {
             kind: 'delete_object',
             outcome: ok ? 'ok' : 'failed',

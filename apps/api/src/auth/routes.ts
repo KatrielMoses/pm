@@ -250,8 +250,10 @@ export function registerAuth(app: FastifyInstance, deps: AuthRouteDeps): void {
       // 7D: change proposals (generation, review, approval, Apply) are session-only.
       // 7E: briefings, schedules, and correction notes are session-only.
       // 7F: daily plans (preview and plan proposals) and voice capture are session-only.
+      // P8-W0: external effect listing and reconciliation are session-only (step-up).
       const aiPath = /^\/v1\/workspaces\/[^/]+\/ai(\/|$)/.test(path);
       if (
+        /^\/v1\/workspaces\/[^/]+\/operations\//.test(path) ||
         path.includes('/planning/day-plan') ||
         path.includes('/capture/voice') ||
         path.includes('/capture/interpretations')
