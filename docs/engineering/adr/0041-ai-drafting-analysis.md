@@ -1,6 +1,6 @@
 # ADR-0041: AI drafting and analysis (Phase 7C)
 
-Status: **proposed** (implementation candidate; acceptance evidence pending).
+Status: **accepted** (engineering scope only: the architect accepted the 7C subphase within its recorded boundaries at head `730c6e4`, CI run 39057392016 attempt 1, draft PR #39; corrective reviews below are resolved history). Production use is not approved, and the Phase 7 exit gate is pending its integration review ([ADR-0044](0044-phase-7-integration.md)).
 
 Phase 7C adds AI drafting and analysis as one typed action surface on the accepted foundations:
 - the 7A gateway (budgets, transport, operation, cancellation, history, protected content);

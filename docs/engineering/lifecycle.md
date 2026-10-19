@@ -334,7 +334,7 @@ Task purge deletes the task's reminders and snoozes and detaches task series sou
 
 ## Phase 2E: capture records
 
-`inbox_item`, `note`, and `intake_form` have lifecycle adapters: branded ones purge with their brand, and all purge with the workspace. Purge detaches project intake sources and note sources, removes lineage, record links, and submissions, and deletes merged items before the item they merged into.
+`inbox_item`, `note`, and `intake_form` have lifecycle adapters: branded ones purge with their brand, and all purge with the workspace. Purge detaches project intake sources and note sources, removes lineage, record links, and submissions, and deletes merged items before the item they merged into. Since the Phase 7 integration review (ADR-0044 I2), purging an Inbox item also erases the AI copies made from it (its interpretation run and the transcription of the recording it was saved from) and unlinks that recording, which stays `saved` without audio.
 
 ## Phase 3A: saved views
 

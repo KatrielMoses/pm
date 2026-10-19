@@ -1,6 +1,6 @@
 # ADR-0043: AI-assisted planning and capture (Phase 7F)
 
-Status: **proposed** (implementation candidate; acceptance evidence pending).
+Status: **accepted** (engineering scope only: the architect accepted the 7F subphase within its recorded boundaries at head `245cf42`, CI run 39202442831 attempt 1, draft PR #41; corrective reviews below are resolved history). Production use is not approved, and the Phase 7 exit gate is pending its integration review ([ADR-0044](0044-phase-7-integration.md)).
 
 Phase 7F adds two assisted journeys on the accepted foundations:
 - **Capture:** natural-language and voice capture into the 2E Inbox, through the 7A gateway (privacy, budgets, history) and a registered 7C action;

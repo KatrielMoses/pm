@@ -1,0 +1,490 @@
+{
+  "schema_version": 1,
+  "phase": "7",
+  "status": "candidate",
+  "adr": "0044",
+  "base": "245cf4219bb3e72c19e05ad086ae9412ee89e370",
+  "order": [
+    "7A",
+    "7B",
+    "7D",
+    "7C",
+    "7E",
+    "7F"
+  ],
+  "members": {
+    "7A": "docs/engineering/phase7/closure-7a.json",
+    "7B": "docs/engineering/phase7/closure-7b.json",
+    "7D": "docs/engineering/phase7/closure-7d.json",
+    "7C": "docs/engineering/phase7/closure-7c.json",
+    "7E": "docs/engineering/phase7/closure-7e.json",
+    "7F": "docs/engineering/phase7/closure-7f.json"
+  },
+  "accepted": {
+    "7A": {
+      "head": "2f2b61e98afee06fcd6b30d23c49495c2e3b2fe1",
+      "ci_run": "39026967712",
+      "attempt": 1,
+      "pr": "#36",
+      "adr": "0038"
+    },
+    "7B": {
+      "head": "cdaa184e600f357495ad52d13f694374d07bd208",
+      "ci_run": "39039501794",
+      "attempt": 1,
+      "pr": "#37",
+      "adr": "0039"
+    },
+    "7D": {
+      "head": "954247319ac6cf88a00a9a99780b73c49319bafc",
+      "ci_run": "39047853519",
+      "attempt": 1,
+      "pr": "#38",
+      "adr": "0040"
+    },
+    "7C": {
+      "head": "730c6e473ba2c86e482af394ccb4c53be6c3a2fd",
+      "ci_run": "39057392016",
+      "attempt": 1,
+      "pr": "#39",
+      "adr": "0041"
+    },
+    "7E": {
+      "head": "c28a89a859181ac3b8d6b8d55c78892c53b3ecb7",
+      "ci_run": "39148906597",
+      "attempt": 1,
+      "pr": "#40",
+      "adr": "0042"
+    },
+    "7F": {
+      "head": "245cf4219bb3e72c19e05ad086ae9412ee89e370",
+      "ci_run": "39202442831",
+      "attempt": 1,
+      "pr": "#41",
+      "adr": "0043"
+    }
+  },
+  "totals": {
+    "owned": 64,
+    "implemented": 63,
+    "foundations": 1,
+    "contributions": 43,
+    "corrective_reviews": 7,
+    "corrective_groups": 17
+  },
+  "future_boundaries": [
+    {
+      "requirement": "AUTO-006",
+      "contributor": "7C",
+      "destination": "8A",
+      "kind": "contribution"
+    },
+    {
+      "requirement": "AGT-024",
+      "contributor": "7A",
+      "destination": "8C",
+      "kind": "contribution"
+    },
+    {
+      "requirement": "BRF-010",
+      "contributor": "7E",
+      "destination": "8C",
+      "kind": "foundation"
+    },
+    {
+      "requirement": "TEST-003",
+      "contributor": "7F",
+      "destination": "9B",
+      "kind": "contribution"
+    },
+    {
+      "requirement": "TEST-004",
+      "contributor": "7D",
+      "destination": "9B",
+      "kind": "contribution"
+    },
+    {
+      "requirement": "DEV-012",
+      "contributor": "7C",
+      "destination": "9D",
+      "kind": "contribution"
+    },
+    {
+      "requirement": "ADM-005",
+      "contributor": "7A",
+      "destination": "10C",
+      "kind": "contribution"
+    },
+    {
+      "requirement": "SEC-028",
+      "contributor": "7A",
+      "destination": "10D",
+      "kind": "contribution"
+    },
+    {
+      "requirement": "SEC-014",
+      "contributor": "7A",
+      "destination": "11B",
+      "kind": "contribution"
+    },
+    {
+      "requirement": "REL-006",
+      "contributor": "7A",
+      "destination": "11C",
+      "kind": "contribution"
+    },
+    {
+      "requirement": "REL-013",
+      "contributor": "7A",
+      "destination": "11C",
+      "kind": "contribution"
+    },
+    {
+      "requirement": "REL-014",
+      "contributor": "7A",
+      "destination": "11C",
+      "kind": "contribution"
+    },
+    {
+      "requirement": "LA-006",
+      "contributor": "7C",
+      "destination": "12A",
+      "kind": "contribution"
+    },
+    {
+      "requirement": "LA-006",
+      "contributor": "7D",
+      "destination": "12A",
+      "kind": "contribution"
+    },
+    {
+      "requirement": "LA-007",
+      "contributor": "7E",
+      "destination": "12A",
+      "kind": "contribution"
+    },
+    {
+      "requirement": "LA-014",
+      "contributor": "7A",
+      "destination": "12A",
+      "kind": "contribution"
+    },
+    {
+      "requirement": "LA-016",
+      "contributor": "7B",
+      "destination": "12A",
+      "kind": "contribution"
+    },
+    {
+      "requirement": "LA-017",
+      "contributor": "7A",
+      "destination": "12A",
+      "kind": "contribution"
+    }
+  ],
+  "boundaries": [
+    {
+      "id": "DQ-28",
+      "kind": "open_question",
+      "statement": "No secret store or KMS is approved: production AI and transcription stay disabled; only the labelled fixture transports exist."
+    },
+    {
+      "id": "OD-31",
+      "kind": "open_decision",
+      "statement": "Retrieval stays lexical; no embeddings, vector store, or semantic provider."
+    },
+    {
+      "id": "OD-41",
+      "kind": "open_decision",
+      "statement": "Provider data-use terms are unreviewed: no live provider receives workspace data and nothing is live-provider-tested."
+    },
+    {
+      "id": "OD-46",
+      "kind": "open_decision",
+      "statement": "Workspace-provided keys stay off when deployed; real-model input and cost bounds remain unverified."
+    },
+    {
+      "id": "OD-25",
+      "kind": "open_decision",
+      "statement": "Briefing notes stay personal to their author (safe default); brand-scoped notes remain undecided."
+    },
+    {
+      "id": "OD-16",
+      "kind": "recorded_decision",
+      "statement": "A verified project update is one with a verification fact; generated and unverified updates are labelled."
+    },
+    {
+      "id": "OD-36",
+      "kind": "open_decision",
+      "statement": "Technical AI content retention stays unset (off); no legal retention period is chosen."
+    },
+    {
+      "id": "PRJ-007",
+      "kind": "requirement_boundary",
+      "statement": "Project AI budgets are not enforced; paid project-scoped runs are refused, never relabelled as workspace runs."
+    },
+    {
+      "id": "10A",
+      "kind": "later_subphase",
+      "statement": "Commercial entitlements and billing; Phase 7 usage is never billable and the entitlement port denies by default when deployed."
+    },
+    {
+      "id": "DOC-019",
+      "kind": "requirement_boundary",
+      "statement": "Attachment text, OCR, and file bytes are not AI sources."
+    },
+    {
+      "id": "BRF-010",
+      "kind": "foundation",
+      "statement": "Agent-run review stays an explicit unavailable statement until Phase 8C supplies real agent runs."
+    },
+    {
+      "id": "9D",
+      "kind": "later_subphase",
+      "statement": "Release readiness lists missing evidence and never certifies or publishes."
+    },
+    {
+      "id": "REL-FU-7A-01",
+      "kind": "follow_up",
+      "statement": "The generic effect ledger still treats a pending effect as retryable after a crash; no Phase 7 path relies on it, and it is a prerequisite before Phase 8 reuses unsafe crash recovery."
+    },
+    {
+      "id": "ACCOUNT-DELETION",
+      "kind": "later_subphase",
+      "statement": "The account-deletion command belongs to a later phase; the AI personal-data eraser is registered and proven through productPersonalDataRegistry."
+    },
+    {
+      "id": "MANUAL",
+      "kind": "manual",
+      "statement": "Device microphones, real speech quality, live providers, and screen readers are manual checks; deterministic fixtures prove the paths only."
+    }
+  ],
+  "accepted_limits": [
+    "fact-only briefings",
+    "no briefing export",
+    "conservative evidence supersets",
+    "briefing size refusal",
+    "technical retention off by default"
+  ],
+  "corrections": [
+    {
+      "id": "I1",
+      "title": "Person-only surfaces are session-only in the service",
+      "tests": [
+        "AT-524"
+      ],
+      "evidence": [
+        {
+          "file": "packages/work/src/ai/ai-gateway-service.ts",
+          "contains": "#sessionOnly(caller: Caller) {"
+        },
+        {
+          "file": "packages/work/test/integration/phase7-matrix.test.ts",
+          "contains": "it('AT-524 "
+        }
+      ],
+      "old_code": "AT-524 fails on 245cf42 (a delegated token lists proposals, briefings, schedules, and notes through the service)."
+    },
+    {
+      "id": "I2",
+      "title": "A purged capture takes its AI copies with it",
+      "tests": [
+        "AT-527",
+        "AT-528",
+        "AT-533"
+      ],
+      "evidence": [
+        {
+          "file": "packages/work/src/lifecycle.ts",
+          "contains": "async function purgeCaptureAiCopies("
+        },
+        {
+          "file": "packages/db/migrations/0060_phase7_integration.up.sql",
+          "contains": "ADD CONSTRAINT voice_capture_saved CHECK (inbox_item_id IS NULL OR state = 'saved')"
+        },
+        {
+          "file": "packages/db/migrations/0060_phase7_integration.down.sql",
+          "contains": "Restores the exact 0059 catalog"
+        },
+        {
+          "file": "packages/work/test/integration/phase7-matrix.test.ts",
+          "contains": "it('AT-533 "
+        }
+      ],
+      "old_code": "AT-527 and AT-528 fail on 245cf42 (purging a voice-saved Inbox item violates voice_capture_inbox_fkey)."
+    },
+    {
+      "id": "I3",
+      "title": "Departure ends recordings through the registered hooks",
+      "tests": [
+        "AT-527"
+      ],
+      "evidence": [
+        {
+          "file": "packages/work/src/ai/lifecycle.ts",
+          "contains": "export async function endVoiceCaptures("
+        },
+        {
+          "file": "packages/work/src/ai/lifecycle.ts",
+          "contains": "let total = await endVoiceCaptures(tx, from);"
+        },
+        {
+          "file": "packages/work/src/ai/lifecycle.ts",
+          "contains": "let total = await endVoiceCaptures(tx, membershipId);"
+        },
+        {
+          "file": "packages/work/test/integration/phase7-matrix.test.ts",
+          "contains": "it('AT-527 "
+        }
+      ],
+      "old_code": "AT-527 fails on 245cf42 (a real removal leaves the leaver's uploaded recording open with its audio)."
+    },
+    {
+      "id": "I4",
+      "title": "Briefing baselines",
+      "tests": [
+        "AT-532"
+      ],
+      "evidence": [
+        {
+          "file": "packages/work/src/ai/ai-gateway-service.ts",
+          "contains": ".where('trigger', '<>', 'regenerate')"
+        },
+        {
+          "file": "packages/work/src/ai/ai-gateway-service.ts",
+          "contains": "baseline && new Date(baseline.window_end).getTime() < occ.at.getTime()"
+        },
+        {
+          "file": "packages/work/test/integration/phase7-matrix.test.ts",
+          "contains": "it('AT-532 "
+        }
+      ],
+      "old_code": "AT-532 fails on 245cf42 (the regeneration becomes the next occurrence's baseline; a later hand-made briefing is recorded as an earlier occurrence's baseline)."
+    },
+    {
+      "id": "I5",
+      "title": "Transcription job bound",
+      "tests": [],
+      "evidence": [
+        {
+          "file": "packages/work/src/ai/jobs.ts",
+          "contains": "timeoutMs: d.transcriptionTimeoutMs ?? d.timeoutMs,"
+        },
+        {
+          "file": "apps/worker/src/main.ts",
+          "contains": "transcriptionTimeoutMs:"
+        },
+        {
+          "file": "packages/work/test/unit/ai-jobs.test.ts",
+          "contains": "a transcription attempt is bounded by the transcription transport"
+        }
+      ],
+      "old_code": "The handler used the AI provider timeout plus 30 s for every transcription attempt."
+    },
+    {
+      "id": "I6",
+      "title": "The review page names every operation",
+      "tests": [
+        "AT-534"
+      ],
+      "evidence": [
+        {
+          "file": "apps/web/src/ai/proposals-page.tsx",
+          "contains": "'criterion.add': 'Add acceptance criterion',"
+        },
+        {
+          "file": "apps/web/test/ai-proposals.test.tsx",
+          "contains": "names every operation a plan can hold"
+        },
+        {
+          "file": "e2e/phase7-exit-journey.spec.ts",
+          "contains": "test('AT-534 "
+        }
+      ],
+      "old_code": "The change card heading for criterion.add, task.assign, and label.add was empty and the assignees and label were not shown."
+    },
+    {
+      "id": "I7",
+      "title": "One plan-operation list",
+      "tests": [],
+      "evidence": [
+        {
+          "file": "packages/work/src/ai/ai-gateway-service.ts",
+          "contains": "const PLAN_OPS_SET: ReadonlySet<string> = new Set(PLAN_OPS);"
+        }
+      ],
+      "old_code": "The gateway re-listed the five planning operations."
+    },
+    {
+      "id": "I8",
+      "title": "Boundary evidence covers functions and triggers",
+      "tests": [],
+      "evidence": [
+        {
+          "file": "packages/db/test/integration/migrations.test.ts",
+          "contains": "const DEEP_FROM = 52;"
+        },
+        {
+          "file": "packages/db/test/integration/migrations.test.ts",
+          "contains": "and the Phase 7 integration boundary 0060"
+        }
+      ],
+      "old_code": "Each boundary compared tables, constraints, grants, and policies only."
+    }
+  ],
+  "evidence": [
+    {
+      "file": "packages/work/test/integration/phase7-matrix.test.ts",
+      "contains": "describe('Phase 7 cross-surface matrix'"
+    },
+    {
+      "file": "e2e/phase7-exit-journey.spec.ts",
+      "contains": "test('AT-534 "
+    },
+    {
+      "file": "e2e/phase7-exit-journey.spec.ts",
+      "contains": "test('AT-535 "
+    },
+    {
+      "file": "e2e/phase7-exit-journey.spec.ts",
+      "contains": "test('AT-536 "
+    },
+    {
+      "file": "e2e/phase7-exit-journey.spec.ts",
+      "contains": "test('AT-537 "
+    },
+    {
+      "file": "e2e/phase7-exit-journey.spec.ts",
+      "contains": "test('AT-538 "
+    },
+    {
+      "file": "docs/engineering/phase7/exit-report.md",
+      "contains": "## Capability matrix"
+    },
+    {
+      "file": "docs/engineering/phase7/topology.md",
+      "contains": "## Verified stack"
+    },
+    {
+      "file": "docs/engineering/phase7/manual-smoke.md",
+      "contains": "## Manual checks"
+    },
+    {
+      "file": "docs/engineering/adr/0044-phase-7-integration.md",
+      "contains": "## Lock ordering"
+    }
+  ],
+  "follow_ups": [
+    {
+      "id": "REL-FU-7A-01",
+      "owner": "platform (execution engine)",
+      "statement": "An 'outcome unknown, never retried' effect-ledger state is a prerequisite before Phase 8 reuses unsafe crash recovery.",
+      "evidence": [
+        {
+          "file": "docs/engineering/adr/0038-ai-gateway-privacy-budgets.md",
+          "contains": "REL-FU-7A-01"
+        }
+      ]
+    }
+  ]
+}

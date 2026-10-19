@@ -1,6 +1,6 @@
 # ADR-0038: AI gateway, privacy, and budgets (Phase 7A)
 
-Status: **proposed** (implementation candidate; acceptance evidence pending).
+Status: **accepted** (engineering scope only: the architect accepted the 7A subphase within its recorded boundaries at head `2f2b61e`, CI run 39026967712 attempt 1, draft PR #36; corrective reviews below are resolved history). Production use is not approved, and the Phase 7 exit gate is pending its integration review ([ADR-0044](0044-phase-7-integration.md)).
 
 Phase 7A adds one AI gateway inside the modular monolith. Every later AI feature calls it: 7B retrieval and citations, 7C drafting, 7D proposals, 7E briefings, 7F voice and planning, and Phase 8 agents. None of them gets its own provider, spending, or history authority. 7A delivers the gateway, an authorized test-run, history, and settings path, and the privacy and spending controls. It is not a general assistant. Production AI stays disabled: deployed environments refuse every real provider until a secret store (DQ-28) and provider data-use approval (OD-41) exist.
 

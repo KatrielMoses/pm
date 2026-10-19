@@ -1398,6 +1398,30 @@
         "I-09",
         "I-14"
       ]
+    },
+    {
+      "id": "T-136",
+      "category": "agent_scope",
+      "description": "A delegated API-token or OAuth caller reaches person-only AI surfaces (proposals, briefings, notes, voice settings) through the service because only the HTTP path rule refuses it, so a later surface that reuses the service exposes them.",
+      "mitigated_by": [
+        "I-09"
+      ]
+    },
+    {
+      "id": "T-137",
+      "category": "departure",
+      "description": "Protected capture content outlives its owner or its record: a leaver's open recording keeps its audio because departure ends it only through an unregistered path, or purging an Inbox item saved from a recording fails or leaves the transcript and interpretation copies of its text behind.",
+      "mitigated_by": [
+        "I-14"
+      ]
+    },
+    {
+      "id": "T-138",
+      "category": "staleness",
+      "description": "A briefing claims a baseline it does not continue from: a regeneration becomes the series baseline, or a scheduled occurrence owed for an earlier cutoff records a later briefing as its baseline, so comparisons and coverage are attributed to the wrong window.",
+      "mitigated_by": [
+        "I-12"
+      ]
     }
   ],
   "tests": [
@@ -10519,6 +10543,259 @@
       "surface": "ui_record",
       "expected": "deny",
       "response_shape": "empty",
+      "silent_surfaces": [
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-524",
+      "threats": [
+        "T-136",
+        "T-99"
+      ],
+      "principal": "member",
+      "setup": "Every principal (owner, administrator, member, limited, read-only, share-only, guest) against canonical getTask: AI named sources, briefings, and delegated callers on person-only surfaces",
+      "scope": "workspace",
+      "action": "ai.execute",
+      "surface": "ai_context",
+      "expected": "deny",
+      "response_shape": "not_found",
+      "silent_surfaces": [
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-525",
+      "threats": [
+        "T-103"
+      ],
+      "principal": "member",
+      "setup": "Another workspace's, another person's, and unknown run, proposal, briefing, note, schedule, and recording ids",
+      "scope": "workspace",
+      "action": "personal.manage_own",
+      "surface": "ui_record",
+      "expected": "deny",
+      "response_shape": "not_found",
+      "silent_surfaces": [
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-526",
+      "threats": [
+        "T-104",
+        "T-118"
+      ],
+      "principal": "member",
+      "setup": "Brand access revoked and a brand made sensitive between preview, estimate, start, dispatch, approval, Apply, completed-key replay, and display; briefing and note lists",
+      "scope": "brand",
+      "action": "ai.apply_proposal",
+      "surface": "ai_answer",
+      "expected": "deny",
+      "response_shape": "forbidden",
+      "silent_surfaces": [
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-527",
+      "threats": [
+        "T-137",
+        "T-94"
+      ],
+      "principal": "member",
+      "setup": "Real departure in a mixed workspace (runs, a call in flight, plan proposal, briefing, note, schedule, open and saved recordings), the registered cleanup and retention handlers, restart, purge, AI-only and briefing-only workspaces",
+      "scope": "workspace",
+      "action": "personal.manage_own",
+      "surface": "trash",
+      "expected": "deny",
+      "response_shape": "empty",
+      "silent_surfaces": [
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-528",
+      "threats": [
+        "T-137",
+        "T-96"
+      ],
+      "principal": "member",
+      "setup": "Private markers in prompts, briefs, captures, transcripts, and notes; a failed audio delete retried by the registered sweep; purging captures erases their AI copies",
+      "scope": "personal",
+      "action": "personal.manage_own",
+      "surface": "audit_display",
+      "expected": "deny",
+      "response_shape": "empty",
+      "silent_surfaces": [
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-529",
+      "threats": [
+        "T-105",
+        "T-134"
+      ],
+      "principal": "member",
+      "setup": "Concurrent duplicate Apply, timeout-after-commit replay, a role change and its restoration between approval and Apply, a plan Apply racing a task estimate edit",
+      "scope": "brand",
+      "action": "ai.apply_proposal",
+      "surface": "ui_record",
+      "expected": "allow",
+      "response_shape": "ok",
+      "silent_surfaces": [
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-530",
+      "threats": [
+        "T-133",
+        "T-95"
+      ],
+      "principal": "owner",
+      "setup": "Assist, interpretation, and transcription on one hard limit: exactly-at-limit, a held call, an unknown outcome, explicit reconciliation",
+      "scope": "workspace",
+      "action": "ai.execute",
+      "surface": "ui_record",
+      "expected": "deny",
+      "response_shape": "validation_generic",
+      "silent_surfaces": [
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-531",
+      "threats": [
+        "T-91"
+      ],
+      "principal": "member",
+      "setup": "AI unconfigured, storage unavailable, email unconfigured: truthful states and the manual core (capture, triage, task edit, Today plan, briefing)",
+      "scope": "workspace",
+      "action": "personal.manage_own",
+      "surface": "ui_record",
+      "expected": "allow",
+      "response_shape": "ok",
+      "silent_surfaces": [
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-532",
+      "threats": [
+        "T-138",
+        "T-116"
+      ],
+      "principal": "member",
+      "setup": "The registered briefing sweep over three workspaces: overlap, restart, a queued occurrence edited, departure, a disabled schedule, a failing email channel, a regeneration, a hand-made briefing after the occurrence",
+      "scope": "personal",
+      "action": "personal.manage_own",
+      "surface": "notification_inapp",
+      "expected": "allow",
+      "response_shape": "ok",
+      "silent_surfaces": [
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-533",
+      "threats": [
+        "T-137"
+      ],
+      "principal": "member",
+      "setup": "Migration 0060 under forced RLS: an unsaved recording cannot name an item; rollback relabels and restores the 0059 check; re-apply",
+      "scope": "workspace",
+      "action": "personal.manage_own",
+      "surface": "ui_record",
+      "expected": "deny",
+      "response_shape": "validation_generic",
+      "silent_surfaces": [
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-534",
+      "threats": [
+        "T-103",
+        "T-106"
+      ],
+      "principal": "member",
+      "setup": "Browser: brief to a reviewed, partly selected plan applied once with AI-draft provenance; stale confirmation refused; member and other workspaces see none",
+      "scope": "brand",
+      "action": "ai.apply_proposal",
+      "surface": "ui_record",
+      "expected": "allow",
+      "response_shape": "ok",
+      "silent_surfaces": [
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-535",
+      "threats": [
+        "T-124",
+        "T-135",
+        "T-137"
+      ],
+      "principal": "member",
+      "setup": "Browser: typed and spoken capture interpreted or transcribed, edited, saved, and triaged with provenance; oversized answer never completes; no audio kept",
+      "scope": "personal",
+      "action": "personal.manage_own",
+      "surface": "ui_record",
+      "expected": "allow",
+      "response_shape": "ok",
+      "silent_surfaces": [
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-536",
+      "threats": [
+        "T-127",
+        "T-134"
+      ],
+      "principal": "member",
+      "setup": "Browser: Today plan with capacity, a meeting, locked work, a dependency, a missing estimate; a meeting synced after approval refused atomically, rebased, applied once",
+      "scope": "day",
+      "action": "ai.apply_proposal",
+      "surface": "ui_record",
+      "expected": "allow",
+      "response_shape": "ok",
+      "silent_surfaces": [
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-537",
+      "threats": [
+        "T-114",
+        "T-118",
+        "T-138"
+      ],
+      "principal": "member",
+      "setup": "Browser: cross-brand and narrower briefings, evidence links, claimed versus accepted, an approved note reused until its evidence changes, regeneration, a scheduled in-app occurrence",
+      "scope": "personal",
+      "action": "personal.manage_own",
+      "surface": "notification_inapp",
+      "expected": "allow",
+      "response_shape": "ok",
+      "silent_surfaces": [
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-538",
+      "threats": [
+        "T-91"
+      ],
+      "principal": "member",
+      "setup": "Browser: AI off; truthful unavailable states on assist and capture; manual capture, triage, editing, Today plan, and briefings work",
+      "scope": "workspace",
+      "action": "personal.manage_own",
+      "surface": "ui_record",
+      "expected": "allow",
+      "response_shape": "ok",
       "silent_surfaces": [
         "error_message"
       ]

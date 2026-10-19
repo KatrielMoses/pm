@@ -2514,10 +2514,10 @@ One person's recording on its way to a transcript: an ephemeral audio object ref
 | Volume / export / search-AI | `medium` / `never` / `no` |
 | Secrets / personal data | `no` / `yes` |
 | Uniqueness | `public_id` |
-| Key typed columns | `membership_id (owner; personal)`; `public_id (vcp_)`; `state (uploaded\|transcribing\|transcribed\|failed\|cancelled\|expired\|saved)`; `format (audio/wav\|audio/webm\|audio/ogg), byte_size, duration_ms (checked from the container)`; `content_sha256`; `storage_key null (voice/<workspace>/<id>; ephemeral: cleared once the object is deleted)`; `operation_id null (the transcription ai_action)`; `inbox_item_id null (saved)`; `failure_code null`; `expires_at, discarded_at null`; `version` |
+| Key typed columns | `membership_id (owner; personal)`; `public_id (vcp_)`; `state (uploaded\|transcribing\|transcribed\|failed\|cancelled\|expired\|saved)`; `format (audio/wav\|audio/webm\|audio/ogg), byte_size, duration_ms (checked from the container)`; `content_sha256`; `storage_key null (voice/<workspace>/<id>; ephemeral: cleared once the object is deleted)`; `operation_id null (the transcription ai_action)`; `inbox_item_id null (saved; cleared when that Inbox item is purged, the recording staying saved as a reference-only fact)`; `failure_code null`; `expires_at, discarded_at null`; `version` |
 | Sensitive fields | — |
 | Requirements | CAP-005 |
-| Notes | Phase 7F (ADR-50, migration 0059): personal to its owner; raw audio is never retained beyond its outcome (transcribed, failed, cancelled, expired) and the cleanup sweep deletes any leftover object; departure ends open recordings; no transcript or audio bytes in job state, logs, audit, or metrics. |
+| Notes | Phase 7F (ADR-50, migration 0059): personal to its owner; raw audio is never retained beyond its outcome (transcribed, failed, cancelled, expired) and the cleanup sweep deletes any leftover object; departure ends open recordings; no transcript or audio bytes in job state, logs, audit, or metrics. Phase 7 integration review (P7-IR1, migration 0060): a saved recording may outlive its purged Inbox item; the purge erases the transcription (and any interpretation) made from the capture, and departure ends open recordings through the registered ownership hook and personal-data eraser. |
 
 ## Today, scheduling, and capacity (`planning`, schema `planning`)
 
