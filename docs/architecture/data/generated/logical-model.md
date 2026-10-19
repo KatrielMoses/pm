@@ -114,7 +114,7 @@ Consumer-side dedupe: one row per (consumer, event).
 <a id="entity-external-effect"></a>
 ### `external_effect`
 
-Ledger of side effects outside the product (message, publish, charge, PR comment, calendar write) guaranteeing at-most-once execution per logical operation.
+Ledger of side effects outside the product (message, publish, charge, PR comment, calendar write): one row per logical effect, a durable claim before any attempt, and no automatic duplicate after an ambiguous outcome on an unsafe destination (never exactly-once delivery).
 
 | Property | Value |
 |---|---|
@@ -127,10 +127,10 @@ Ledger of side effects outside the product (message, publish, charge, PR comment
 | Volume / export / search-AI | `high` / `filtered` / `no` |
 | Secrets / personal data | `no` / `incidental` |
 | Uniqueness | `(operation_id, effect_key)` |
-| Key typed columns | `effect_key text`; `state effect_state (pending\|sent\|unknown\|confirmed\|failed\|cancelled)`; `external_ref text`; `destination_class (idempotent_by_provider\|naturally_idempotent\|deduplicated_by_receiver\|unsafe)`; `provider_idempotency_key text null`; `reconciled_by null`; `reconciled_at null` |
+| Key typed columns | `effect_key text`; `state effect_state (pending\|dispatching\|sent\|unknown\|confirmed\|failed\|cancelled)`; `external_ref text`; `destination_class (idempotent_by_provider\|naturally_idempotent\|deduplicated_by_receiver\|unsafe)`; `provider_idempotency_key text null`; `reconciled_by null`; `reconciled_at null`; `destination_fingerprint text null (registered destination and contract)`; `claim_token uuid null, claimed_at, claim_until (the in-flight claim)`; `not_sent_code null (typed proof for failed)`; `uncertainty_reason null (outcome_unknown\|unproven_failure\|abandoned_claim\|legacy_attempted)`; `late_outcome null, late_outcome_at (a stale claimant's evidence)` |
 | Sensitive fields | — |
 | Requirements | AGT-023, AGT-016 |
-| Notes | 'unknown' moves the operation to waiting for human confirmation; never auto-resent. |
+| Notes | 'unknown' (the default after any possible dispatch) moves the operation to waiting for an authorized reconciliation on unsafe destinations; never auto-resent. P8-W0 (migration 0061): durable claim before I/O, typed not-sent proof, fenced outcomes, legacy attempted rows reclassified unknown. |
 
 <a id="entity-job"></a>
 ### `job`

@@ -77,6 +77,10 @@ ROUTES = "apps/api/src/work/insight-routes.ts"
 INSIGHT_FILES = [SEM, VAL, METRICS, CORE, SVC, JOBS, LIFECYCLE, OWNERSHIP, ROUTES]
 
 
+# Actions added after this subphase, each held by the validator of the phase that added it
+# (P8-W0: operation.reconcile_effect, phase8w0.py).
+LATER_ACTIONS = {"operation.reconcile_effect"}
+
 def check_contracts(registry, policy):
     errs = []
     params = {p["name"]: p for p in registry["parameters"]}
@@ -124,8 +128,8 @@ def check_contracts(registry, policy):
     for e in ENVELOPES:
         if "'%s'" % e not in envelopes:
             errs.append("envelope %s not registered" % e)
-    if len(policy["actions"]) != 122:
-        errs.append("5D adds no actions: expected 122, found %d" % len(policy["actions"]))
+    if len([a for a in policy["actions"] if a["key"] not in LATER_ACTIONS]) != 122:
+        errs.append("5D adds no actions: expected 122, found %d" % len([a for a in policy["actions"] if a["key"] not in LATER_ACTIONS]))
     if "'report.export'" not in read(P("packages/work/src/factory.ts")):
         errs.append("the report.export rate policy must be registered")
     od = read(P("docs/product/open-decisions.md"))

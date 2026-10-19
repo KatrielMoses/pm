@@ -498,3 +498,22 @@ Erasure clears planner proposal content (title, plan, payloads) with their run's
 ## Phase 7 integration
 
 Migration `0060_phase7_integration` (expand; exact rollback to 0059; ADR-0044 I2) relaxes one check: `capture.voice_capture.voice_capture_saved` becomes `inbox_item_id IS NULL OR state = 'saved'`, so a saved recording may outlive the Inbox item it was saved to. The Inbox purge adapter erases the transcription and any interpretation run made from the capture (usage, operation, and audit facts stay) and clears the link; the recording stays `saved` as a reference-only fact with its audio already deleted. A recording that was never saved still cannot name an item. The down migration relabels saved recordings without an item as `expired` (their audio and item are gone) under lifted, then restored, forced row-level security, and restores the exact 0059 check. No table, grant, or policy changes.
+
+## Effect recovery safety (P8-W0)
+
+Migration `0061_effect_recovery_safety` (expand; ADR-0045) extends `exec.external_effect` without a new table. The `exec.effect_state` enum gains `dispatching`, an owned in-flight claim taken before any I/O. New columns:
+
+| Column | Holds |
+|---|---|
+| `destination_fingerprint` | The registered destination and contract |
+| `claim_token`, `claimed_at`, `claim_until` | The claim |
+| `not_sent_code` | The typed proof required for `failed` |
+| `uncertainty_reason` | Why an outcome is unknown |
+| `late_outcome`, `late_outcome_at` | A stale claimant's evidence |
+
+- **Transition guard:** the guard is replaced. It enforces claims, proof, and reasons. It refuses an unsafe `unknown` effect returning to work without a retry decision, and abandonment without a decision. Identity and attempt counts are immutable.
+- **Legacy rows:** existing rows that may have been dispatched (`pending` with attempts, and every `failed`) become `unknown` (`legacy_attempted`). Attempts, keys, and decisions are kept. The guard and forced row-level security are lifted for that one statement and restored.
+- **File discovery:** `exec_dispatch.discover_file_work` also finds object deletions that are `unknown` or claimed. It is replaced as its owner `pm_scheduler`.
+- **Rollback:** the down migration restores the exact 0060 catalog, including the enum. It refuses, with counts, while any row is `dispatching` or carries late evidence.
+
+No grants change.

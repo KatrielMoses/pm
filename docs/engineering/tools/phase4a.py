@@ -63,6 +63,10 @@ REVIEWS = "packages/work/src/collab/review-service.ts"
 MIGRATION = "packages/db/migrations/0036_collaboration_reviews"
 
 
+# Actions added after this subphase, each held by the validator of the phase that added it
+# (P8-W0: operation.reconcile_effect, phase8w0.py).
+LATER_ACTIONS = {"operation.reconcile_effect"}
+
 def check_contracts(registry, policy):
     errs = []
     params = {p["name"]: p for p in registry["parameters"]}
@@ -106,8 +110,8 @@ def check_contracts(registry, policy):
         errs.append("record.comment must stay denied to read-only members")
     if acts.get("comment.moderate", {}).get("roles", {}).get("guest") != "deny":
         errs.append("comment.moderate must stay denied to guests")
-    if len(policy["actions"]) != 122:
-        errs.append("4A adds no actions: expected 122, found %d" % len(policy["actions"]))
+    if len([a for a in policy["actions"] if a["key"] not in LATER_ACTIONS]) != 122:
+        errs.append("4A adds no actions: expected 122, found %d" % len([a for a in policy["actions"] if a["key"] not in LATER_ACTIONS]))
     # No event may carry content.
     forbidden = {"body", "text", "message", "note", "title", "name"}
     for e in registry["events"]:

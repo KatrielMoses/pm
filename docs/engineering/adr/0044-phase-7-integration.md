@@ -1,6 +1,6 @@
 # ADR-0044: Phase 7 integration review and engineering exit gate
 
-Status: **proposed** (implemented; awaiting one clean current-head no-skip CI run and the architect's review of the Phase 7 exit gate; production use is not approved).
+Status: **accepted** (engineering exit gate: the architect accepted the Phase 7 integration review at head `3df1b54` (`3df1b541a14d8c0776bfde511190d9457a16e287`), CI run 39223070408 attempt 1, draft PR #42; recorded here by the P8-W0 brief; not production approval: production AI and transcription stay disabled and every legal, commercial, and manual boundary below stays open).
 Date: 2026-10-19. Brief P7-IR1. Base: accepted 7F head `245cf42`, which contains, in dependency order, 7A (`2f2b61e`), 7B (`cdaa184`), 7D (`9542473`), 7C (`730c6e4`), and 7E (`c28a89a`).
 
 ## Context
@@ -59,6 +59,8 @@ Plan Apply takes, in order: the person's plan-constraint lock (`planning.lock_pl
 - **Account deletion:** the command belongs to a later phase (identity.md). The AI personal-data eraser is registered and proven through `productPersonalDataRegistry`; nothing claims account deletion ships.
 
 ## Findings outside Phase 7 authority
+
+Both findings now have durable owners in [ADR-0045](0045-effect-recovery-safety.md) (follow-ups REL-FU-P7-01 and TEST-FU-P7-02). REL-FU-7A-01 is closed there with runtime evidence.
 
 - The 0010–0012 rollback does not restore `exec_dispatch.claim_jobs` byte for byte (the stronger boundary comparison found it). Accepted migrations are not edited; the comparison of functions and triggers starts at 0052 and the finding is reported for the platform owner.
 - API readiness reports the AI provider but not transcription; transcription availability is reported truthfully per person by voice settings (`not_configured`, `ai_unavailable`, `storage_unavailable`).

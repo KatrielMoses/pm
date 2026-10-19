@@ -116,8 +116,12 @@ def check_numbering(closure):
     for num, name in MIGRATIONS.items():
         if by.get(num) != name + ".up.sql":
             errs.append("migration %s must be %s" % (num, name))
-    if max(by) != "0060":
-        errs.append("0060_phase7_integration must be the last migration")
+    # Later migrations are held by later validators (P8-W0 adds 0061, held by phase8w0.py).
+    later = {"0061": ("0061_effect_recovery_safety.up.sql", "phase8w0.py")}
+    for k in sorted(k for k in by if k > "0060"):
+        name, validator = later.get(k, (None, None))
+        if by[k] != name or not os.path.isfile(P("docs/engineering/tools/%s" % validator)):
+            errs.append("0060_phase7_integration must be the last Phase 7 migration (%s is not held)" % by[k])
     down = read(P("packages/db/migrations/0060_phase7_integration.down.sql"))
     up = read(P("packages/db/migrations/0060_phase7_integration.up.sql"))
     if "Restores the exact 0059 catalog" not in down or "FORCE ROW LEVEL SECURITY" not in down:
@@ -146,8 +150,12 @@ def check_numbering(closure):
         if "Production use is not approved" not in line or "ADR-0044" not in line:
             errs.append("ADR-%s status must keep production unapproved and the exit gate pending" % num)
     adr = read(P(ADR))
-    if not re.search(r"^Status: \*\*proposed\*\*", adr, re.M):
-        errs.append("ADR-0044 stays proposed until the architect reviews the exit gate")
+    # The architect accepted the Phase 7 engineering exit gate (recorded, never self-accepted).
+    status = re.search(r"^Status: .*$", adr, re.M)
+    line = status.group(0) if status else ""
+    if not (line.startswith("Status: **accepted** (engineering exit gate") and "3df1b54" in line
+            and "39223070408" in line and "not production" in line):
+        errs.append("ADR-0044 must record the architect's acceptance of the exit gate at 3df1b54, run 39223070408, without production approval")
     t = load(P("docs/architecture/access/policy/threats.json"))
     tids = [x["id"] for x in t["threats"]]
     aids = [x["id"] for x in t["tests"]]
@@ -246,8 +254,8 @@ def check_closure(closure):
     errs = []
     catalog = {r["id"]: r for r in load(P("docs/product/requirements/catalog.json"))["requirements"]}
     subphases = phase1.roadmap_subphases()
-    if closure.get("phase") != "7" or closure.get("status") != "candidate" or closure.get("adr") != "0044":
-        errs.append("closure-7.json must be the Phase 7 candidate under ADR-0044")
+    if closure.get("phase") != "7" or closure.get("status") != "accepted" or closure.get("adr") != "0044":
+        errs.append("closure-7.json must be the accepted Phase 7 exit gate under ADR-0044")
     if closure.get("order") != SUBPHASES:
         errs.append("closure-7.json must list the subphases in dependency order")
     owned_total = implemented = foundations = contributions = 0

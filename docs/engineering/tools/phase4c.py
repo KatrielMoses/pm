@@ -63,6 +63,10 @@ LIFECYCLE = "packages/work/src/docs/lifecycle.ts"
 MIGRATION = "packages/db/migrations/0038_documents"
 
 
+# Actions added after this subphase, each held by the validator of the phase that added it
+# (P8-W0: operation.reconcile_effect, phase8w0.py).
+LATER_ACTIONS = {"operation.reconcile_effect"}
+
 def check_contracts(registry, policy):
     errs = []
     params = {p["name"]: p for p in registry["parameters"]}
@@ -102,8 +106,8 @@ def check_contracts(registry, policy):
     for a in ACTIONS:
         if a not in acts:
             errs.append("action %s is not in the policy" % a)
-    if len(policy["actions"]) != 122:
-        errs.append("4C adds no actions: expected 122, found %d" % len(policy["actions"]))
+    if len([a for a in policy["actions"] if a["key"] not in LATER_ACTIONS]) != 122:
+        errs.append("4C adds no actions: expected 122, found %d" % len([a for a in policy["actions"] if a["key"] not in LATER_ACTIONS]))
     forbidden = {"body", "text", "message", "note", "title", "name", "email", "address", "subject", "content", "url"}
     for e in EVENTS:
         if e in events and forbidden & set(events[e]["fields"]):

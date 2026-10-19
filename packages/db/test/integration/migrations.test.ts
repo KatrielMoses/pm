@@ -94,7 +94,7 @@ describe('migrations from an empty database', () => {
     expect(await catalogFingerprint(second)).toEqual(await catalogFingerprint(first));
   });
 
-  it('upgrades through every accepted boundary (0009–0052) the 7A boundaries 0053–0054, the 7B boundary 0055, the 7D boundary 0056, the 7C boundary 0057, the 7E boundary 0058, the 7F boundary 0059, and the Phase 7 integration boundary 0060 to the candidate and reverses each boundary step', async () => {
+  it('upgrades through every accepted boundary (0009–0052) the 7A boundaries 0053–0054, the 7B boundary 0055, the 7D boundary 0056, the 7C boundary 0057, the 7E boundary 0058, the 7F boundary 0059, the Phase 7 integration boundary 0060, and the effect-recovery boundary 0061 to the candidate and reverses each boundary step', async () => {
     // Accepted subphase boundaries: 1A 0009, 1B 0012, 1F 0016, 1C 0018, 1D 0019, 1E 0020; 2A adds
     // 0021 (work) and 0022 (relations, templates, recurrence); 2B–2E add 0023–0030; 3A adds 0031
     // (saved views, defaults, and pin writes); 3D adds 0032 (time entries, timesheets, approvals,
@@ -122,10 +122,11 @@ describe('migrations from an empty database', () => {
     // statements, corrections and their history, and the briefing discovery function); 7F adds 0059
     // (planner proposals and planning operations, plan evidence, voice captures, the transcription
     // purpose, and the voice cleanup and plan retention discovery functions); the Phase 7
-    // integration review adds 0060 (a saved recording may outlive its purged Inbox item).
+    // integration review adds 0060 (a saved recording may outlive its purged Inbox item); P8-W0
+    // adds 0061 (effect claims, typed not-sent proof, unknown reasons, late evidence).
     const boundaries = [
       9, 12, 16, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38,
-      39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60,
+      39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61,
     ];
     // Functions and triggers are compared from the last Phase 6 boundary on (the Phase 7 steps).
     // Earlier accepted steps are compared on tables, constraints, grants, and policies only: the
@@ -178,7 +179,7 @@ describe('migrations from an empty database', () => {
         at.set(to, await full(stepped, to >= DEEP_FROM));
       }
       // Stepping through the boundaries reaches exactly the one-shot candidate catalog.
-      expect(at.get(60)).toEqual(await full(reference));
+      expect(at.get(61)).toEqual(await full(reference));
       // Each subphase's step reverses to the prior boundary's exact catalog and re-applies to its
       // own, walking down from the candidate.
       for (let i = boundaries.length - 1; i > 0; i--) {
@@ -538,6 +539,145 @@ describe('applied-migration boundary: 0054 removes AI content from execution che
     expect(await checkpoint(id)).toEqual({
       'ai.prepare.1': { outcome: 'dispatch', dispatchId: 'd2' },
     });
+  });
+});
+
+describe('applied-migration boundary: 0061 classifies attempted effects as unknown and refuses an unrepresentable rollback (P8-W0)', () => {
+  let db: TestDatabase;
+  beforeAll(async () => {
+    db = await createEmptyTestDatabase();
+  });
+  afterAll(async () => {
+    await db.drop();
+  });
+
+  const CTX_COLS = `authenticated_principal_type, authenticated_principal_id, effective_principal_type, effective_principal_id, delegation_chain, workspace_epoch_at_enqueue, principal_epoch_at_enqueue, data_class_limit, correlation_id`;
+  const ctx = () =>
+    `'member', '${newUuidV7()}', 'member', '${newUuidV7()}', '[{"type":"member","id":"00000000-0000-7000-8000-000000000000"}]'::jsonb, 0, 0, 'C2', '${newUuidV7()}'`;
+  const effects = async () =>
+    (
+      await db.admin(
+        `SELECT effect_key, state::text AS state, attempt_count, uncertainty_reason, version::int AS version
+           FROM exec.external_effect ORDER BY effect_key`,
+      )
+    ).rows;
+
+  it('reclassifies attempted pending and failed rows as unknown without resetting anything; leaves the rest; rollback refuses claims and late evidence, then restores 0060 exactly', async () => {
+    await migrator(db).up({ to: 60 });
+    const ws = newUuidV7();
+    await db.admin(
+      `INSERT INTO tenancy.workspace (id, public_id, name, timezone, locale, currency, week_start, created_by_actor_type, updated_by_actor_type)
+       VALUES ($1, $2, 'Synthetic Workspace', 'UTC', 'en', 'USD', 1, 'system', 'system')`,
+      [ws, newPublicId('ws')],
+    );
+    const op = newUuidV7();
+    await db.admin(
+      `INSERT INTO exec.operation (id, workspace_id, public_id, kind, initiated_by_actor_type, ${CTX_COLS})
+       VALUES ($1, $2, $3, 'report_run', 'system', ${ctx()})`,
+      [op, ws, newPublicId('op')],
+    );
+    const row = (key: string, cls: string, state: string, attempts: number) =>
+      db.admin(
+        `INSERT INTO exec.external_effect (id, workspace_id, operation_id, effect_key, destination_class, state, attempt_count, version)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, 3)`,
+        [newUuidV7(), ws, op, key, cls, state, attempts],
+      );
+    await row('a-never', 'unsafe', 'pending', 0);
+    await row('b-attempted', 'unsafe', 'pending', 2);
+    await row('c-failed-safe', 'naturally_idempotent', 'failed', 1);
+    await row('d-sent', 'unsafe', 'sent', 1);
+    await row('e-unknown', 'unsafe', 'unknown', 1);
+    await migrator(db).up({ to: 61 });
+    expect(await effects()).toEqual([
+      {
+        effect_key: 'a-never',
+        state: 'pending',
+        attempt_count: 0,
+        uncertainty_reason: null,
+        version: 3,
+      },
+      {
+        effect_key: 'b-attempted',
+        state: 'unknown',
+        attempt_count: 2,
+        uncertainty_reason: 'legacy_attempted',
+        version: 4,
+      },
+      {
+        effect_key: 'c-failed-safe',
+        state: 'unknown',
+        attempt_count: 1,
+        uncertainty_reason: 'legacy_attempted',
+        version: 4,
+      },
+      {
+        effect_key: 'd-sent',
+        state: 'sent',
+        attempt_count: 1,
+        uncertainty_reason: null,
+        version: 3,
+      },
+      {
+        effect_key: 'e-unknown',
+        state: 'unknown',
+        attempt_count: 1,
+        uncertainty_reason: null,
+        version: 3,
+      },
+    ]);
+    const forced = await db.admin(
+      `SELECT relforcerowsecurity AS f FROM pg_class WHERE oid = 'exec.external_effect'::regclass`,
+    );
+    expect(forced.rows[0].f).toBe(true);
+    // An owned claim cannot be represented in 0060: the rollback refuses with counts.
+    await db.admin(
+      `UPDATE exec.external_effect SET state = 'dispatching', attempt_count = 1, claim_token = $1, claimed_at = now(),
+              claim_until = now() + interval '1 minute' WHERE effect_key = 'a-never'`,
+      [newUuidV7()],
+    );
+    await expect(migrator(db).down(60)).rejects.toThrow(
+      /1 effect\(s\) are dispatching and 0 carry late evidence/,
+    );
+    expect((await migrator(db).status()).report.problems).toEqual([]);
+    await db.admin(
+      `UPDATE exec.external_effect SET state = 'unknown', uncertainty_reason = 'abandoned_claim', claim_token = NULL,
+              claim_until = NULL WHERE effect_key = 'a-never'`,
+    );
+    await db.admin(
+      `UPDATE exec.external_effect SET late_outcome = 'sent', late_outcome_at = now() WHERE effect_key = 'd-sent'`,
+    );
+    await expect(migrator(db).down(60)).rejects.toThrow(
+      /0 effect\(s\) are dispatching and 1 carry late evidence/,
+    );
+    await db.admin(
+      `UPDATE exec.external_effect SET late_outcome = NULL, late_outcome_at = NULL WHERE effect_key = 'd-sent'`,
+    );
+    // Representable rows roll back keeping their states (unknown stays unknown: it still waits).
+    await migrator(db).down(60);
+    const back = await db.admin(
+      `SELECT effect_key, state::text AS state, attempt_count FROM exec.external_effect ORDER BY effect_key`,
+    );
+    expect(back.rows).toEqual([
+      { effect_key: 'a-never', state: 'unknown', attempt_count: 1 },
+      { effect_key: 'b-attempted', state: 'unknown', attempt_count: 2 },
+      { effect_key: 'c-failed-safe', state: 'unknown', attempt_count: 1 },
+      { effect_key: 'd-sent', state: 'sent', attempt_count: 1 },
+      { effect_key: 'e-unknown', state: 'unknown', attempt_count: 1 },
+    ]);
+    const labels = await db.admin(
+      `SELECT array_agg(e.enumlabel::text ORDER BY e.enumsortorder) AS l FROM pg_enum e JOIN pg_type t ON t.oid = e.enumtypid
+        WHERE t.typname = 'effect_state'`,
+    );
+    expect(labels.rows[0].l).toEqual([
+      'pending',
+      'sent',
+      'unknown',
+      'confirmed',
+      'failed',
+      'cancelled',
+    ]);
+    await migrator(db).up();
+    expect((await migrator(db).status()).report.problems).toEqual([]);
   });
 });
 

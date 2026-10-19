@@ -36,4 +36,5 @@ recorded in [ADR-0007](adr/0007-deviations.md).
 | [phase7/](phase7/closure-7e.json) | Phase 7E briefings and reviews: requirement and decision closure (`closure-7e.json`, checked by `tools/phase7e.py`) and [ADR-0042](adr/0042-briefings-reviews.md) |
 | [phase7/](phase7/closure-7f.json) | Phase 7F AI-assisted planning and capture: requirement and decision closure (`closure-7f.json`, checked by `tools/phase7f.py`) and [ADR-0043](adr/0043-planning-capture.md) |
 | [phase7/](phase7/closure-7.json) | Phase 7 integration review and engineering exit gate: aggregate closure (`closure-7.json`, checked by `tools/phase7.py`), [ADR-0044](adr/0044-phase-7-integration.md), the [exit report](phase7/exit-report.md), [topology](phase7/topology.md), and [manual smoke](phase7/manual-smoke.md) |
+| [phase8/](phase8/closure-p8w0.json) | P8-W0 safe recovery of external effects (Phase 8 prerequisite; closes REL-FU-7A-01): closure (`closure-p8w0.json`, checked by `tools/phase8w0.py`) and [ADR-0045](adr/0045-effect-recovery-safety.md) |
 | [adr/](adr/) | Implementation ADRs 0001–0028 |

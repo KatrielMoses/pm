@@ -2769,6 +2769,33 @@
       "notes": "Phase 7A (AZ-44): monthly allowances and hard limits per meter, and reconciliation of an unknown AI dispatch cost; session only, step-up."
     },
     {
+      "key": "operation.reconcile_effect",
+      "kind": "admin",
+      "scopes": [
+        "workspace"
+      ],
+      "description": "Decide an external effect whose outcome is unknown: sent, send again, or abandon.",
+      "required_level": null,
+      "risk_class": "R3",
+      "approval_class": "none",
+      "step_up": true,
+      "second_approval": false,
+      "non_delegable": false,
+      "entitlement": null,
+      "roles": {
+        "owner": "implicit",
+        "administrator": "implicit",
+        "member": "deny",
+        "limited_member": "deny",
+        "read_only": "deny",
+        "guest": "deny"
+      },
+      "requirements": [
+        "REL-006"
+      ],
+      "notes": "P8-W0 (platform effect recovery): an authorized, version-bound, audited, idempotent decision on an unknown effect outcome; session only, step-up; never presented as proof from the destination."
+    },
+    {
       "key": "agents.configure",
       "kind": "admin",
       "scopes": [

@@ -71,7 +71,7 @@ Rules and algorithm: [../04-effective-permissions.md](../04-effective-permission
 | `import.execute` | workspace, brand | — | R2 |  | **all** | **all** | ≥edit | — | — | — |
 | `webhook.test_send` | workspace, brand | — | R2 |  | **all** | **all** | ≥manage | — | — | — |
 
-## Administrative capabilities (55)
+## Administrative capabilities (56)
 
 | Action | Scopes | Level | Risk | Flags | owner | administrator | member | limited_member | read_only | guest |
 |---|---|---|---|---|---|---|---|---|---|---|
@@ -107,6 +107,7 @@ Rules and algorithm: [../04-effective-permissions.md](../04-effective-permission
 | `ai.configure_brand` | brand | — | R2 |  | **all** | **all** | ≥manage | ≥manage | — | — |
 | `ai.providers.manage` | workspace | — | R3 | SU | **all** | **all** | — | — | — | — |
 | `ai.limits.configure` | workspace, brand | — | R3 | SU | **all** | **all** | — | — | — | — |
+| `operation.reconcile_effect` | workspace | — | R3 | SU | **all** | **all** | — | — | — | — |
 | `agents.configure` | workspace | — | R3 |  | **all** | **all** | if members_configure_agents | — | — | — |
 | `automations.configure` | workspace, brand | — | R2 |  | **all** | **all** | ≥manage | ≥manage | — | — |
 | `integrations.configure` | workspace, brand | — | R3 |  | **all** | **all** | ≥manage | — | — | — |
@@ -249,6 +250,7 @@ Rules and algorithm: [../04-effective-permissions.md](../04-effective-permission
 | `ai.configure_brand` | Configure brand AI profile and approved-source policy. | none | WSB-012 | Phase 7A (AZ-44): the brand AI profile (instructions, terminology, audience, voice, approved-source policy). |
 | `ai.providers.manage` | Configure AI providers, models, workspace keys, data settings. | none | AI-031, AI-032, ADM-005 | Phase 7A (AZ-44): provider, model, data class, confirm-above amount, and workspace keys (vault references, off while OD-46 is open); session only, step-up. |
 | `ai.limits.configure` | Configure AI/agent/automation allowances and hard caps. | none | AI-033, BILL-009 | Phase 7A (AZ-44): monthly allowances and hard limits per meter, and reconciliation of an unknown AI dispatch cost; session only, step-up. |
+| `operation.reconcile_effect` | Decide an external effect whose outcome is unknown: sent, send again, or abandon. | none | REL-006 | P8-W0 (platform effect recovery): an authorized, version-bound, audited, idempotent decision on an unknown effect outcome; session only, step-up; never presented as proof from the destination. |
 | `agents.configure` | Create agent profiles; grant scopes and tool classes (within grantor authority). | none | AGT-001, AGT-002 |  |
 | `automations.configure` | Create/enable automations within the configurer's authority. | none | AUTO-001, AUTO-013 |  |
 | `integrations.configure` | Connect, map, reauthorize, disconnect integrations. | none | INT-001, INT-008, PERM-009 |  |

@@ -1,5 +1,6 @@
 import { createHash } from 'node:crypto';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { OBJECT_DELETE_DESTINATION } from '@pm/lifecycle';
 import { createOperation, recordEffect } from '@pm/platform';
 import { createTestDatabase, type TestDatabase } from '@pm/test-support/vitest';
 import type { Caller } from '@pm/tenancy';
@@ -360,7 +361,7 @@ describe('Files access, concurrency, recovery, and deletion (4E)', () => {
         await recordEffect(tx, {
           operationId: op.id,
           effectKey: `object:${x}`,
-          destinationClass: 'naturally_idempotent',
+          destination: OBJECT_DELETE_DESTINATION,
         });
       return k;
     });

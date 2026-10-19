@@ -23,7 +23,7 @@ in the worker.
 | Timeout | `min(JOB_TIMEOUT, job.timeout_seconds)` | Abort with error class `timeout` |
 | Success | fenced finalize | job `succeeded`; attempt `succeeded`/`partial`; operation `succeeded`/`partial` (+ outbox fact) |
 | Failure | fenced finalize | Retryable classes (`transient`, `timeout`, `worker_lost`) below the cap → `retry_scheduled` with full-jitter backoff `random(0, min(cap, base·2^attempt))` (longer `Retry-After` wins); otherwise `dead` and operation `failed` with `error`/`timed_out`/`policy_rejected`/`limit_exceeded` (or `waiting` when the handler names a waiting reason) |
-| Cancel | `cancel_requested_at` on the operation (or job) | Observed before start and at every step/effect boundary → job/attempt/operation `cancelled` (`user_cancelled`); pending effects cancelled, sent/unknown effects reported |
+| Cancel | `cancel_requested_at` on the operation (or job) | Observed before start and at every step/effect boundary → job/attempt/operation `cancelled` (`user_cancelled`); undispatched and proven-not-sent effects cancelled; sent, unknown, and in-flight effects reported with their liability |
 | Worker loss | `discover_expired_leases` + per-workspace recovery | Open attempt closed `failed`, `error_class=worker_lost`, `worker_lost=true`; job back to `queued` (or `dead` at the cap) |
 | Shutdown | `SIGTERM` | Stop claiming; wait `WORKER_SHUTDOWN_GRACE_MS`; abort the rest → job `retry_scheduled` immediately, attempt closed `worker_lost` |
 
@@ -53,12 +53,19 @@ re-renders references through the caller's current authorization.
 
 ## External effects (0D §5.4)
 
-`ctx.effect(key, destinationClass, perform)` records the effect with its stable key before any
-attempt and passes a stable provider idempotency key. Sent/confirmed effects are never repeated.
-Unknown outcome: safe classes retry; `unsafe` moves the operation to
-`waiting(reconciliation_required)` and the job ends. `reconcileEffect` records the human decision
-(`sent`/`retry`/`abandon`). A database trigger enforces legal transitions and refuses to retry an
-unsafe unknown effect without a recorded `retry` decision. 1A performs no real third-party effects.
+`ctx.effect(key, destination, perform)` takes a registered destination (`defineEffectDestination`),
+records the effect with its stable key, and commits a **claim** (`dispatching`, one counted attempt)
+before `perform` runs, passing the stable provider idempotency key. Sent/confirmed effects are
+never repeated, and a live claim held elsewhere is never dispatched again (`effect_in_flight`).
+Only `EffectNotSentError` (typed proof) records `failed`; any other error, a timeout, or a lost
+outcome write is `unknown`. Outcomes are fenced to the claim, and a stale claimant only records
+late evidence. A lost attempt's claims (reaper, end of attempt) become `unknown`
+(`abandoned_claim`). Unknown outcome: safe classes retry with the same key; `unsafe` moves the
+operation to `waiting(reconciliation_required)` and the job ends, and an operation never succeeds
+while an effect is uncertain. `operation.reconcile_effect` (owners and administrators, step-up,
+version-bound, audited) records the decision (`sent`/`retry`/`abandon`) and resumes or ends the
+operation. Cancellation never relabels what may have left: it reports `sent`, `unknown`, and
+`in_flight` liability. A database trigger enforces every transition. See ADR-0045.
 
 ## Registering work
 

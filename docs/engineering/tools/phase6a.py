@@ -50,6 +50,10 @@ ADR = "docs/engineering/adr/0032-integration-framework.md"
 MIGRATION = "packages/db/migrations/0045_integration_framework"
 
 
+# Actions added after this subphase, each held by the validator of the phase that added it
+# (P8-W0: operation.reconcile_effect, phase8w0.py).
+LATER_ACTIONS = {"operation.reconcile_effect"}
+
 def check():
     errs = []
     registry = load(P("docs/architecture/platform/contracts/registry.json"))
@@ -87,7 +91,7 @@ def check():
             errs.append("event %s missing" % t)
         elif events[t].get("max_class") != "C1":
             errs.append("event %s must be C1" % t)
-    if len(policy["actions"]) != 122:
+    if len([a for a in policy["actions"] if a["key"] not in LATER_ACTIONS]) != 122:
         errs.append("6A adds no actions: found %d" % len(policy["actions"]))
     up = read(P(MIGRATION + ".up.sql"))
     down = read(P(MIGRATION + ".down.sql"))

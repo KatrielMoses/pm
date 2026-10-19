@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "phase": "7",
-  "status": "candidate",
+  "status": "accepted",
   "adr": "0044",
   "base": "245cf4219bb3e72c19e05ad086ae9412ee89e370",
   "order": [
@@ -426,7 +426,7 @@
         },
         {
           "file": "packages/db/test/integration/migrations.test.ts",
-          "contains": "and the Phase 7 integration boundary 0060"
+          "contains": "the Phase 7 integration boundary 0060"
         }
       ],
       "old_code": "Each boundary compared tables, constraints, grants, and policies only."

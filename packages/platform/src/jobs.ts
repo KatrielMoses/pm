@@ -187,13 +187,15 @@ export interface JobHandlerContext {
     fn: (tx: ScopedTransaction) => Promise<T>,
   ): Promise<T>;
   /**
-   * Performs an external effect through the effect ledger: the stable key is recorded before the
-   * attempt, sent effects are never repeated, and unknown outcomes on unsafe destinations wait for
-   * reconciliation instead of retrying.
+   * Performs an external effect through the effect ledger (ADR-0045): the stable key is recorded
+   * before the attempt and a durable claim is taken before any I/O; sent effects are never
+   * repeated; any error is an unknown outcome unless `perform` throws `EffectNotSentError` (typed
+   * proof); unknown outcomes on unsafe destinations wait for reconciliation and are never resent.
+   * The destination is a registered one (`defineEffectDestination`), never a bare class.
    */
   effect(
     effectKey: string,
-    destinationClass: import('@pm/contracts').EffectDestinationClass,
+    destination: import('./effects.ts').EffectDestination,
     perform: (providerIdempotencyKey: string) => Promise<{ externalRef?: string }>,
   ): Promise<{ state: 'sent' | 'confirmed'; externalRef: string | undefined }>;
 }

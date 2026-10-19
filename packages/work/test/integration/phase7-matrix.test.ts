@@ -1688,6 +1688,7 @@ describe('Phase 7 cross-surface matrix', () => {
           .execute(),
       ),
     ).rejects.toThrow(/voice_capture_saved/);
+    const head = (await sql(`SELECT max(version)::int AS v FROM ops.schema_migration`))[0]!.v;
     const migrator = new Migrator({ connectionString: db.migrator, environment: 'test' });
     await migrator.down(59);
     expect(await check()).toEqual({
@@ -1703,7 +1704,7 @@ describe('Phase 7 cross-surface matrix', () => {
       )[0]!.n,
     ).toBeGreaterThanOrEqual(kept);
     await migrator.up();
-    expect((await sql(`SELECT max(version)::int AS v FROM ops.schema_migration`))[0]!.v).toBe(60);
+    expect((await sql(`SELECT max(version)::int AS v FROM ops.schema_migration`))[0]!.v).toBe(head);
     expect((await check())!.def).toBe(
       "CHECK (((inbox_item_id IS NULL) OR (state = 'saved'::text)))",
     );

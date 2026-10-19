@@ -215,6 +215,22 @@ export interface ExternalEffectTable {
   created_at: DefaultTimestamp;
   updated_at: DefaultTimestamp;
   version: Defaulted<number>;
+  /** 0061: sha256 of the registered destination and its contract (null only before 0061). */
+  destination_fingerprint: string | null;
+  /** 0061: the current claim (set only while `dispatching`). */
+  claim_token: string | null;
+  /** 0061: when the last claim was taken (a claim means the effect may have left). */
+  claimed_at: Timestamp | null;
+  /** 0061: the claim lease; after it (or the claimant's attempt ending) the claim is abandoned. */
+  claim_until: Timestamp | null;
+  /** 0061: the typed proof code of a `failed` (not sent) outcome. */
+  not_sent_code: 'refused_before_send' | 'rejected_by_receiver' | 'precondition_failed' | null;
+  /** 0061: why an outcome is unknown. */
+  uncertainty_reason:
+    'outcome_unknown' | 'unproven_failure' | 'abandoned_claim' | 'legacy_attempted' | null;
+  /** 0061: an outcome a stale claimant reported after its claim ended (evidence only). */
+  late_outcome: 'sent' | 'unknown' | 'failed' | null;
+  late_outcome_at: Timestamp | null;
 }
 
 export interface SchemaMigrationTable {
@@ -4259,6 +4275,14 @@ export const TABLE_COLUMNS: Readonly<Record<keyof Database, readonly string[]>> 
     'created_at',
     'updated_at',
     'version',
+    'destination_fingerprint',
+    'claim_token',
+    'claimed_at',
+    'claim_until',
+    'not_sent_code',
+    'uncertainty_reason',
+    'late_outcome',
+    'late_outcome_at',
   ],
   'ops.schema_migration': [
     'version',

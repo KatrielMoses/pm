@@ -16,6 +16,8 @@ export type JobErrorClass = (typeof JOB_ERROR_CLASSES)[number];
 /** 0B execution.external_effect state. */
 export const EFFECT_STATES = [
   'pending',
+  // 0061 (ADR-0045): one claimant owns an in-flight attempt; the claim is durable before I/O.
+  'dispatching',
   'sent',
   'unknown',
   'confirmed',

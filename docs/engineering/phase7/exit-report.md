@@ -1,10 +1,12 @@
 # Phase 7 integration review and exit gate (P7-IR1)
 
-Status: candidate for architect review ([ADR-0044](../adr/0044-phase-7-integration.md),
-[closure-7.json](closure-7.json), checked by `docs/engineering/tools/phase7.py`). This is an
-engineering exit gate. Phase 7 is not production-ready and not live-provider-tested: production AI
-and transcription stay disabled, and every automated proof uses labelled deterministic fixtures.
-The acceptance CI run for the review head is recorded on the draft pull request.
+Status: engineering exit gate accepted by the architect at head `3df1b54` (CI run 39223070408,
+attempt 1, all four shards green; draft PR #42), recorded under the P8-W0 brief
+([ADR-0044](../adr/0044-phase-7-integration.md), [closure-7.json](closure-7.json), checked by
+`docs/engineering/tools/phase7.py`). This is engineering acceptance only.
+Phase 7 is not production-ready and not live-provider-tested: production AI and transcription stay disabled, and
+every automated proof uses labelled deterministic fixtures. REL-FU-7A-01 is closed by
+[ADR-0045](../adr/0045-effect-recovery-safety.md); it remains a candidate for architect review.
 
 ## Exit gate
 

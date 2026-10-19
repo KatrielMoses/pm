@@ -6,7 +6,6 @@ import {
   uuidToTraceId,
   type ActorRef,
   type ExecutionContext,
-  type EffectDestinationClass,
   type ExecState,
   type JobErrorClass,
   type TerminalReason,
@@ -33,12 +32,16 @@ import {
   type Tracer,
 } from '@pm/observability';
 import {
+  abandonAttemptClaims,
   cancelOpenEffects,
-  decideEffect,
+  claimEffect,
+  EffectNotSentError,
   EffectOutcomeUnknownError,
-  markEffectAttempt,
-  markEffectOutcome,
   recordEffect,
+  recordEffectOutcome,
+  StaleEffectClaimError,
+  uncertainEffects,
+  type EffectClaim,
 } from './effects.ts';
 import { contextFromRow } from './execution-context.ts';
 import {
@@ -135,6 +138,22 @@ export interface WorkerRuntimeOptions {
   pools?: readonly InstrumentedPool[];
   /** Injected randomness for deterministic backoff tests. */
   random?: () => number;
+  /**
+   * Deterministic failure injection at the effect boundaries (tests only; never configured by the
+   * applications). Each barrier may wait or throw; a barrier that never resolves models a process
+   * that stopped at that point.
+   */
+  effectBarriers?: EffectBarriers;
+}
+
+/** The effect boundaries a test can hold or fail (ADR-0045 §Evidence). */
+export interface EffectBarriers {
+  /** After the claim committed, before `perform` (no I/O has started). */
+  afterClaim?(effectKey: string): Promise<void>;
+  /** After `perform` returned or threw, before the outcome transaction. */
+  afterPerform?(effectKey: string): Promise<void>;
+  /** Inside the outcome transaction, before it commits (a throw rolls the outcome back). */
+  duringOutcome?(effectKey: string): Promise<void>;
 }
 
 const SYSTEM_ACTOR: ActorRef = { type: 'system' };
@@ -570,19 +589,19 @@ export class WorkerRuntime {
           return value;
         });
       },
-      effect: async (effectKey: string, destinationClass: EffectDestinationClass, perform) => {
+      effect: async (effectKey, destination, perform) => {
         const operationId = job.operation_id;
         if (!operationId) throw new JobContractError('external effects require an operation');
+        const barriers = this.#o.effectBarriers;
+        // Record, recover an abandoned claim, and claim under the row lock, before any I/O. The
+        // claim lasts as long as this attempt's lease.
         const prepared = await this.#tx(ws, async (tx) => {
-          await guard(tx);
-          const row = await recordEffect(tenantTx(tx), {
-            operationId,
-            effectKey,
-            destinationClass,
+          const fenced = await guard(tx);
+          const row = await recordEffect(tenantTx(tx), { operationId, effectKey, destination });
+          return claimEffect(tenantTx(tx), row.id, {
+            attemptId: attemptId ?? null,
+            claimUntil: fenced.lease_until ?? new Date(),
           });
-          const decision = decideEffect(row);
-          if (decision === 'attempt') await markEffectAttempt(tenantTx(tx), row.id, attemptId);
-          return { row, decision };
         });
         const { row, decision } = prepared;
         if (decision === 'already_sent') {
@@ -597,24 +616,63 @@ export class WorkerRuntime {
         }
         if (decision === 'cancelled') throw new CancelRequestedError();
         if (decision === 'await_reconciliation') throw new AwaitReconciliationError();
+        // Another live claimant owns the attempt: never a second dispatch; retry later.
+        if (decision === 'in_flight') throw new JobError('transient', 'effect_in_flight');
+        const claim = prepared.claim as EffectClaim;
+        await barriers?.afterClaim?.(effectKey);
+        let outcome:
+          | { state: 'sent'; externalRef?: string }
+          | { state: 'unknown'; reason: 'outcome_unknown' | 'unproven_failure' }
+          | { state: 'failed'; notSent: EffectNotSentError['code'] };
+        let failure: unknown;
         try {
-          const result = await perform(
-            row.provider_idempotency_key ?? `${operationId}:${effectKey}`,
-          );
-          await this.#tx(ws, (tx) =>
-            markEffectOutcome(tenantTx(tx), row.id, 'sent', result.externalRef),
-          );
-          return { state: 'sent', externalRef: result.externalRef };
+          const result = await perform(claim.providerKey);
+          outcome = {
+            state: 'sent',
+            ...(result.externalRef ? { externalRef: result.externalRef } : {}),
+          };
         } catch (err) {
-          if (err instanceof EffectOutcomeUnknownError) {
-            await this.#tx(ws, (tx) => markEffectOutcome(tenantTx(tx), row.id, 'unknown'));
-            log.warn('effect.outcome_unknown', { destination_class: destinationClass });
-            if (destinationClass === 'unsafe') throw new AwaitReconciliationError();
-            throw new JobError('transient', 'effect_outcome_unknown');
-          }
-          await this.#tx(ws, (tx) => markEffectOutcome(tenantTx(tx), row.id, 'failed'));
-          throw err;
+          failure = err;
+          // Only typed proof means not sent. Anything else (a timeout, a reset, a cancellation
+          // after send, an adapter bug) may have left: unknown.
+          outcome =
+            err instanceof EffectNotSentError
+              ? { state: 'failed', notSent: err.code }
+              : {
+                  state: 'unknown',
+                  reason:
+                    err instanceof EffectOutcomeUnknownError
+                      ? 'outcome_unknown'
+                      : 'unproven_failure',
+                };
         }
+        await barriers?.afterPerform?.(effectKey);
+        // A failed outcome write leaves the claim in place; recovery then records it unknown.
+        const recorded = await this.#tx(ws, async (tx) => {
+          const r = await recordEffectOutcome(tenantTx(tx), claim, outcome);
+          await barriers?.duringOutcome?.(effectKey);
+          return r;
+        });
+        // Recovered meanwhile: this late result is kept as evidence and changes nothing else.
+        if (recorded === 'stale') {
+          log.warn('effect.stale_claim', { destination_class: destination.class });
+          throw new StaleEffectClaimError();
+        }
+        if (outcome.state === 'sent') return { state: 'sent', externalRef: outcome.externalRef };
+        if (outcome.state === 'failed') {
+          log.warn('effect.not_sent', {
+            destination_class: destination.class,
+            error_code: outcome.notSent,
+          });
+          throw new JobError('transient', 'effect_not_sent');
+        }
+        log.warn('effect.outcome_unknown', {
+          destination_class: destination.class,
+          reason: outcome.reason,
+          ...(failure instanceof Error ? { error_class: failure.name.slice(0, 64) } : {}),
+        });
+        if (destination.class === 'unsafe') throw new AwaitReconciliationError();
+        throw new JobError('transient', 'effect_outcome_unknown');
       },
     };
   }
@@ -709,6 +767,33 @@ export class WorkerRuntime {
         log.warn('job.lease_lost');
         return 'lease_lost';
       }
+      // A claim this attempt still holds at its end may have dispatched: recorded unknown, never
+      // left as retryable pending work (ADR-0045).
+      if (op && attemptId) await abandonAttemptClaims(tenantTx(tx), [attemptId]);
+      // An operation never reports success (or a plain failure) while an effect may have left
+      // without a known outcome: it waits for reconciliation instead.
+      const uncertain = op ? await uncertainEffects(tenantTx(tx), op) : [];
+      if (
+        uncertain.length &&
+        !(outcome instanceof CancelRequestedError) &&
+        !(outcome instanceof WorkerShutdownError) &&
+        (!(outcome instanceof Error) ||
+          outcome instanceof AwaitReconciliationError ||
+          !RETRYABLE_CLASSES.has(classifyError(outcome).errorClass) ||
+          fenced.attempts >= fenced.max_attempts)
+      ) {
+        await this.#finishJob(tx, fenced, 'dead', {
+          class: 'deterministic',
+          code: 'reconciliation_required',
+        });
+        await this.#endAttempt(tx, attemptId, 'waiting');
+        await transition(tx, 'waiting', {
+          waitingReason: 'reconciliation_required',
+          outcomeDetail: { uncertain_effects: uncertain.length },
+        });
+        log.warn('job.effects_uncertain', { count: uncertain.length });
+        return 'waiting';
+      }
       if (!(outcome instanceof Error)) {
         await this.#finishJob(tx, fenced, 'succeeded');
         await this.#endAttempt(tx, attemptId, outcome.state);
@@ -722,12 +807,20 @@ export class WorkerRuntime {
       if (outcome instanceof CancelRequestedError) {
         await this.#finishJob(tx, fenced, 'cancelled', { class: 'policy', code: 'cancelled' });
         await this.#endAttempt(tx, attemptId, 'cancelled', { terminalReason: 'user_cancelled' });
-        if (op) {
-          const effects = await cancelOpenEffects(tenantTx(tx), op);
-          if (effects.reported.length)
-            log.warn('job.cancelled_with_sent_effects', { count: effects.reported.length });
-        }
-        await transition(tx, 'cancelled', { terminalReason: 'user_cancelled' });
+        // Undispatched work stops; anything that may have left is reported with its liability.
+        const effects = op ? await cancelOpenEffects(tenantTx(tx), op) : null;
+        if (effects?.reported.length)
+          log.warn('job.cancelled_with_sent_effects', { count: effects.reported.length });
+        const liability = effects?.reported.reduce<Record<string, number>>((acc, e) => {
+          acc[e.liability] = (acc[e.liability] ?? 0) + 1;
+          return acc;
+        }, {});
+        await transition(tx, 'cancelled', {
+          terminalReason: 'user_cancelled',
+          ...(liability && Object.keys(liability).length
+            ? { outcomeDetail: { effect_liability: liability } }
+            : {}),
+        });
         return 'cancelled';
       }
       if (outcome instanceof AwaitReconciliationError) {
@@ -836,7 +929,7 @@ export class WorkerRuntime {
           .skipLocked()
           .executeTakeFirst();
         if (!job) return false;
-        await tx.db
+        const lost = await tx.db
           .updateTable('exec.attempt')
           .set({
             execution_state: 'failed',
@@ -847,15 +940,28 @@ export class WorkerRuntime {
           })
           .where('job_id', '=', job.id)
           .where('ended_at', 'is', null)
+          .returning('id')
           .execute();
+        // A lost attempt may have dispatched what it claimed: its claims become unknown now.
+        if (job.operation_id)
+          await abandonAttemptClaims(
+            tenantTx(tx),
+            lost.map((a) => a.id),
+          );
         const context = contextFromRow(job);
         if (job.attempts >= job.max_attempts) {
           await this.#finishJob(tx, job, 'dead', { class: 'worker_lost', code: 'lease_expired' });
           if (job.operation_id) {
+            const uncertain = await uncertainEffects(tenantTx(tx), job.operation_id);
             await transitionOperation(tenantTx(tx), {
               operationId: job.operation_id,
-              to: 'failed',
-              terminalReason: 'error',
+              ...(uncertain.length
+                ? {
+                    to: 'waiting' as const,
+                    waitingReason: 'reconciliation_required' as const,
+                    outcomeDetail: { uncertain_effects: uncertain.length },
+                  }
+                : { to: 'failed' as const, terminalReason: 'error' as const }),
               actor: SYSTEM_ACTOR,
               context,
             });

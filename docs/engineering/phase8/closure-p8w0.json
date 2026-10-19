@@ -1,0 +1,262 @@
+{
+  "schema_version": 1,
+  "phase": "8-W0",
+  "status": "candidate",
+  "adr": "0045",
+  "base": "3df1b541a14d8c0776bfde511190d9457a16e287",
+  "phase7_acceptance": {
+    "head": "3df1b541a14d8c0776bfde511190d9457a16e287",
+    "ci_run": "39223070408",
+    "attempt": 1,
+    "pr": "#42"
+  },
+  "decisions": [
+    {
+      "id": "E1",
+      "title": "One ledger, explicit states",
+      "evidence": [
+        {
+          "file": "packages/db/migrations/0061_effect_recovery_safety.up.sql",
+          "contains": "ADD VALUE IF NOT EXISTS 'dispatching'"
+        },
+        {
+          "file": "packages/contracts/src/execution.ts",
+          "contains": "'dispatching',"
+        }
+      ]
+    },
+    {
+      "id": "E2",
+      "title": "Durable claim before I/O",
+      "evidence": [
+        {
+          "file": "packages/platform/src/effects.ts",
+          "contains": "export async function claimEffect("
+        },
+        {
+          "file": "packages/work/test/integration/effect-recovery.test.ts",
+          "contains": "it('AT-540 "
+        }
+      ]
+    },
+    {
+      "id": "E3",
+      "title": "At most one claimant",
+      "evidence": [
+        {
+          "file": "packages/platform/src/effects.ts",
+          "contains": "async function claimAlive("
+        },
+        {
+          "file": "packages/work/test/integration/effect-recovery.test.ts",
+          "contains": "it('AT-543 "
+        }
+      ]
+    },
+    {
+      "id": "E4",
+      "title": "Typed proof only",
+      "evidence": [
+        {
+          "file": "packages/platform/src/effects.ts",
+          "contains": "export class EffectNotSentError extends Error"
+        },
+        {
+          "file": "packages/work/test/integration/effect-recovery.test.ts",
+          "contains": "it('AT-545 "
+        }
+      ]
+    },
+    {
+      "id": "E5",
+      "title": "Fenced outcomes",
+      "evidence": [
+        {
+          "file": "packages/platform/src/effects.ts",
+          "contains": "export async function recordEffectOutcome("
+        },
+        {
+          "file": "packages/work/test/integration/effect-recovery.test.ts",
+          "contains": "it('AT-541 "
+        }
+      ]
+    },
+    {
+      "id": "E6",
+      "title": "Retry classes are registered",
+      "evidence": [
+        {
+          "file": "packages/platform/src/effects.ts",
+          "contains": "export function defineEffectDestination("
+        },
+        {
+          "file": "packages/work/test/integration/effect-recovery.test.ts",
+          "contains": "it('AT-546 "
+        }
+      ]
+    },
+    {
+      "id": "E7",
+      "title": "No false success",
+      "evidence": [
+        {
+          "file": "packages/platform/src/worker.ts",
+          "contains": "code: 'reconciliation_required',"
+        },
+        {
+          "file": "packages/platform/test/integration/effect-crash-after-send.test.ts",
+          "contains": "it('AT-550 "
+        },
+        {
+          "file": "packages/work/test/integration/effect-recovery.test.ts",
+          "contains": "it('AT-548 "
+        }
+      ]
+    },
+    {
+      "id": "E8",
+      "title": "Cancellation reports liability",
+      "evidence": [
+        {
+          "file": "packages/platform/src/effects.ts",
+          "contains": "export async function cancelOpenEffects("
+        },
+        {
+          "file": "packages/work/test/integration/effect-recovery.test.ts",
+          "contains": "it('AT-544 "
+        }
+      ]
+    },
+    {
+      "id": "E9",
+      "title": "Authorized reconciliation",
+      "evidence": [
+        {
+          "file": "packages/tenancy/src/service.ts",
+          "contains": "async reconcileExternalEffect("
+        },
+        {
+          "file": "packages/platform/src/effects.ts",
+          "contains": "export async function resumeAfterReconciliation("
+        },
+        {
+          "file": "packages/work/test/integration/effect-recovery.test.ts",
+          "contains": "it('AT-547 "
+        },
+        {
+          "file": "apps/api/test/integration/effects-api.test.ts",
+          "contains": "it('AT-549 "
+        }
+      ]
+    },
+    {
+      "id": "E10",
+      "title": "Content stays out",
+      "evidence": [
+        {
+          "file": "packages/work/test/integration/effect-recovery.test.ts",
+          "contains": "it('AT-548 "
+        }
+      ]
+    }
+  ],
+  "regression": {
+    "test": "AT-550",
+    "old_head": "3df1b541a14d8c0776bfde511190d9457a16e287",
+    "old_result": "fails: applied 2, effect sent with 2 attempts, operation succeeded",
+    "new_result": "passes: applied 1, effect unknown (abandoned_claim) with 1 attempt, operation waiting (reconciliation_required)"
+  },
+  "consumers": [
+    "platform worker ctx.effect",
+    "lifecycle purge object deletions",
+    "lifecycle purge ledger append",
+    "files object-deletion sweep",
+    "worker cancellation",
+    "worker reaper"
+  ],
+  "legacy_rows": [
+    {
+      "before": "pending, attempts = 0",
+      "after": "pending"
+    },
+    {
+      "before": "pending, attempts > 0",
+      "after": "unknown (legacy_attempted)"
+    },
+    {
+      "before": "failed",
+      "after": "unknown (legacy_attempted)"
+    },
+    {
+      "before": "sent, confirmed, cancelled, unknown",
+      "after": "unchanged"
+    }
+  ],
+  "closes": [
+    {
+      "id": "REL-FU-7A-01",
+      "record": "docs/engineering/phase7/closure-7a.json"
+    }
+  ],
+  "follow_ups": [
+    {
+      "id": "REL-FU-P7-01",
+      "owner": "platform (database migrations)",
+      "statement": "The 0012-to-0009 rollback restores exec_dispatch.claim_jobs with a different function body (signature, owner, security, and grants are restored); accepted migrations are not edited.",
+      "evidence": [
+        {
+          "file": "docs/engineering/adr/0045-effect-recovery-safety.md",
+          "contains": "REL-FU-P7-01"
+        },
+        {
+          "file": "packages/db/test/integration/migrations.test.ts",
+          "contains": "const DEEP_FROM = 52;"
+        }
+      ]
+    },
+    {
+      "id": "TEST-FU-P7-02",
+      "owner": "planning (7F tests)",
+      "statement": "One local AT-518 lock-wait failure under full parallel load remains unexplained; diagnostics name the writer's own outcome if it recurs. Not claimed resolved.",
+      "evidence": [
+        {
+          "file": "docs/engineering/adr/0045-effect-recovery-safety.md",
+          "contains": "TEST-FU-P7-02"
+        },
+        {
+          "file": "packages/work/test/integration/day-plans-review01.test.ts",
+          "contains": "the writer is held mid-transaction (writer"
+        }
+      ]
+    }
+  ],
+  "corrective_reviews": [
+    {
+      "id": "P8-W0-CR-01",
+      "brief": "briefs/PHASE_8_PLATFORM_EFFECT_SAFETY_CORRECTIVE_REVIEW_01.md",
+      "reviewed_head": "bea6eed490a956888408cad0deeac1953bf3cb11",
+      "groups": [
+        {
+          "id": "R1",
+          "title": "Session-only reconciliation before idempotency replay",
+          "tests": [
+            "AT-551",
+            "AT-547",
+            "AT-549"
+          ],
+          "evidence": [
+            {
+              "file": "packages/tenancy/src/service.ts",
+              "contains": "#requireSession(caller: Caller): void {"
+            },
+            {
+              "file": "packages/work/test/integration/effect-recovery.test.ts",
+              "contains": "it('AT-551 "
+            }
+          ],
+          "old_code": "AT-551 fails on bea6eed: the delegated first execution is refused, but the same owner's token replaying the completed key returns the effect (no refusal); it passes after the fix."
+        }
+      ]
+    }
+  ]
+}

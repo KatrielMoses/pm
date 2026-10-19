@@ -42,7 +42,13 @@ import {
 } from '@pm/lifecycle';
 import { issueLifecycleDecision } from '@pm/lifecycle/policy-issuer';
 import type { Logger, Metrics } from '@pm/observability';
-import { canonicalJson, completeIdempotencyKey, reserveIdempotencyKey } from '@pm/platform';
+import {
+  canonicalJson,
+  completeIdempotencyKey,
+  reconcileEffect,
+  reserveIdempotencyKey,
+  resumeAfterReconciliation,
+} from '@pm/platform';
 import {
   authorizedActiveBrands,
   brandSummary,
@@ -249,6 +255,73 @@ function pgError(err: unknown): { code?: string; constraint?: string } {
  * transaction: authorization, idempotency, the change, its audit and security events, and epoch
  * bumps commit together.
  */
+/** At most this many uncertain effects are listed at once (newest first). */
+const EFFECT_LIST_MAX = 200;
+const EFFECT_KEY = /^[A-Za-z0-9_.:-]{1,200}$/;
+
+const effectRows = (tx: WorkspaceTransaction) =>
+  tx.db
+    .selectFrom('exec.external_effect as e')
+    .innerJoin('exec.operation as o', 'o.id', 'e.operation_id')
+    .select([
+      'e.id',
+      'e.operation_id',
+      'o.public_id as operation_public_id',
+      'o.kind as operation_kind',
+      'o.execution_state as operation_state',
+      'e.effect_key',
+      'e.destination_class',
+      'e.state',
+      'e.attempt_count',
+      'e.uncertainty_reason',
+      'e.late_outcome',
+      'e.reconciliation_decision',
+      'e.reconciled_at',
+      'e.updated_at',
+      'e.version',
+    ]);
+
+type EffectListRow = Awaited<ReturnType<ReturnType<typeof effectRows>['executeTakeFirstOrThrow']>>;
+
+async function findEffect(
+  tx: WorkspaceTransaction,
+  operationPublicId: unknown,
+  effectKey: unknown,
+  lock: boolean,
+): Promise<EffectListRow | undefined> {
+  if (
+    typeof operationPublicId !== 'string' ||
+    !/^op_[0-9A-HJKMNP-TV-Z]{26}$/.test(operationPublicId) ||
+    typeof effectKey !== 'string' ||
+    !EFFECT_KEY.test(effectKey)
+  )
+    return undefined;
+  let q = effectRows(tx)
+    .where('o.public_id', '=', operationPublicId)
+    .where('e.effect_key', '=', effectKey);
+  if (lock) q = q.forUpdate('e');
+  return q.executeTakeFirst();
+}
+
+const effectView = (r: EffectListRow) => ({
+  id: `${r.operation_public_id}/${r.effect_key}`,
+  type: 'external_effect' as const,
+  operation: r.operation_public_id,
+  operation_kind: r.operation_kind,
+  operation_state: r.operation_state,
+  effect_key: r.effect_key,
+  destination_class: r.destination_class,
+  state: r.state,
+  attempts: r.attempt_count,
+  uncertainty_reason: r.uncertainty_reason,
+  late_outcome: r.late_outcome,
+  reconciliation: r.reconciliation_decision
+    ? { decision: r.reconciliation_decision, at: new Date(r.reconciled_at!).toISOString() }
+    : null,
+  updated_at: new Date(r.updated_at).toISOString(),
+  version: Number(r.version),
+});
+
 export class TenancyService {
   protected readonly d: TenancyDeps;
   readonly #cursorKey: Buffer;
@@ -1697,6 +1770,140 @@ export class TenancyService {
     } catch {
       return null;
     }
+  }
+
+  // ---------------------------------------------------------------------------------------------
+  // External effect reconciliation (0D §5.4, ADR-0045)
+  // ---------------------------------------------------------------------------------------------
+
+  /** External effect reconciliation is session-only: a delegated (token) caller never reaches it. */
+  #requireSession(caller: Caller): void {
+    if (caller.delegation) {
+      this.count('operation.reconcile_effect', 'forbidden');
+      throw new TenancyError('forbidden');
+    }
+  }
+
+  /**
+   * Effects whose outcome is unknown or whose claim is held, for owners and administrators. Only
+   * references and bounded state facts: no payload, provider reference, or secret.
+   */
+  async listUncertainEffects(caller: Caller, workspacePublicId: unknown) {
+    this.#requireSession(caller);
+    return this.inWorkspace(caller, workspacePublicId, { readOnly: true }, async (tx, p) => {
+      this.requireWorkspace(p, 'operation.reconcile_effect');
+      const rows = await effectRows(tx)
+        .where('e.state', 'in', ['unknown', 'dispatching'])
+        .orderBy('e.updated_at', 'desc')
+        .orderBy('e.id')
+        .limit(EFFECT_LIST_MAX)
+        .execute();
+      return { items: rows.map(effectView) };
+    });
+  }
+
+  /**
+   * An authorized decision on an unknown outcome: "sent", "retry" (send it once more with the same
+   * key), or "abandon". Session-only, owners and administrators with step-up, bound to the effect's
+   * version, audited, and idempotent; a replay renders through current authority only. The
+   * decision is recorded as a person's decision, never as proof from the destination.
+   */
+  async reconcileExternalEffect(
+    caller: Caller,
+    workspacePublicId: unknown,
+    operationPublicId: unknown,
+    effectKey: unknown,
+    body: unknown,
+    req: Mutation,
+  ) {
+    // Session-only before anything else: no idempotency key is reserved or replayed, and no effect
+    // is looked up, for a delegated (token) caller. A completed key never exempts a caller from it.
+    this.#requireSession(caller);
+    const b = isObject(body) ? body : {};
+    const extra = Object.keys(b).filter((k) => k !== 'decision' && k !== 'version');
+    const decision = b.decision;
+    const version = b.version;
+    if (
+      (decision !== 'sent' && decision !== 'retry' && decision !== 'abandon') ||
+      typeof version !== 'number' ||
+      !Number.isSafeInteger(version) ||
+      version < 0 ||
+      extra.length
+    )
+      throw invalid(
+        ...(decision !== 'sent' && decision !== 'retry' && decision !== 'abandon'
+          ? [issue('/decision', 'invalid_option', 'Choose sent, retry, or abandon.')]
+          : []),
+        ...(typeof version !== 'number' || !Number.isSafeInteger(version) || version < 0
+          ? [issue('/version', 'invalid_value', 'Send the version you reviewed.')]
+          : []),
+        ...extra.map((k) => issue(`/${k}`, 'unsupported_field', 'This field is not supported.')),
+      );
+    return this.mutate(
+      caller,
+      'operation.reconcile_effect',
+      workspacePublicId,
+      req,
+      async (tx, p) => {
+        this.requireWorkspace(p, 'operation.reconcile_effect');
+        const row = await findEffect(tx, operationPublicId, effectKey, true);
+        if (!row) throw new TenancyError('not_found');
+        if (row.state !== 'unknown')
+          throw new TenancyError('conflict', {
+            issues: [
+              issue(
+                '/',
+                'not_unknown',
+                'Only an effect whose outcome is unknown can be reconciled.',
+              ),
+            ],
+          });
+        if (Number(row.version) !== version)
+          throw new TenancyError('conflict', {
+            issues: [
+              issue(
+                '/version',
+                'version_mismatch',
+                'It changed since you reviewed it. Review it again.',
+              ),
+            ],
+          });
+        await this.stepUp(tx, caller, p, req, 'operation.reconcile_effect', {
+          type: 'operation',
+          id: row.operation_public_id,
+        });
+        const actor = { type: 'human' as const, id: p.membershipId };
+        const after = await reconcileEffect(tx, row.id, decision, actor, version);
+        const resumed = await resumeAfterReconciliation(tx, row.operation_id, actor);
+        await this.d.writer.write(tx, this.cmd(caller, p), {
+          action: 'operation.effect_reconciled',
+          target: { recordId: null, type: 'operation', publicId: row.operation_public_id },
+          changes: [
+            change.plain('state', row.state, after.state),
+            change.plain('decision', null, decision),
+            change.plain('operation', null, resumed),
+          ],
+        });
+        const data = effectView(
+          (await findEffect(tx, row.operation_public_id, row.effect_key, false))!,
+        );
+        return {
+          status: 200,
+          ref: { id: `${row.operation_public_id}/${row.effect_key}`, type: 'external_effect' },
+          data,
+        };
+      },
+      async (tx, p, ref) => {
+        // A completed key is not an access grant: the reader must still be a session caller allowed
+        // to see it now.
+        this.#requireSession(caller);
+        this.requireWorkspace(p, 'operation.reconcile_effect');
+        const [op, ...key] = ref.id.split('/');
+        const row = await findEffect(tx, op, key.join('/'), false);
+        if (!row) throw new TenancyError('not_found');
+        return effectView(row);
+      },
+    );
   }
 }
 

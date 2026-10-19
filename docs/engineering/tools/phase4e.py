@@ -60,6 +60,10 @@ LIFECYCLE = "packages/work/src/files/lifecycle.ts"
 MIGRATION = "packages/db/migrations/0039_files_deliverables"
 
 
+# Actions added after this subphase, each held by the validator of the phase that added it
+# (P8-W0: operation.reconcile_effect, phase8w0.py).
+LATER_ACTIONS = {"operation.reconcile_effect"}
+
 def check_contracts(registry, policy):
     errs = []
     params = {p["name"]: p for p in registry["parameters"]}
@@ -113,8 +117,8 @@ def check_contracts(registry, policy):
     for a in ACTIONS:
         if a not in acts:
             errs.append("action %s is not in the policy" % a)
-    if len(policy["actions"]) != 122:
-        errs.append("4E adds no actions: expected 122, found %d" % len(policy["actions"]))
+    if len([a for a in policy["actions"] if a["key"] not in LATER_ACTIONS]) != 122:
+        errs.append("4E adds no actions: expected 122, found %d" % len([a for a in policy["actions"] if a["key"] not in LATER_ACTIONS]))
     for a, req in [("record.upload", "FILE-001"), ("record.download", "FILE-012"), ("deliverable.submit", "FILE-007"),
                    ("record.read", "PRJ-023")]:
         if a in acts and req not in acts[a]["requirements"]:
