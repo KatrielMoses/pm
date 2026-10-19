@@ -28,6 +28,9 @@ const OP_TEXT: Record<AiProposalChange['op'], string> = {
   'milestone.create': 'Create milestone',
   'relation.add': 'Add relationship',
   'document.replace': 'Replace document text (new version)',
+  'task.assign': 'Assign task',
+  'label.add': 'Add label',
+  'criterion.add': 'Add acceptance criterion',
   'block.create': 'Schedule a work block',
   'block.update': 'Move a work block',
   'block.delete': 'Remove a work block (postpone)',
@@ -840,6 +843,22 @@ export function ProposalPage({ ws, id }: { ws: string; id: string }) {
                   {c.task ? (
                     <>
                       For <RefText ws={ws} r={c.task} />.{' '}
+                    </>
+                  ) : null}
+                  {c.label ? (
+                    <>
+                      Label:{' '}
+                      {c.label.available === false ? 'a label that was removed' : c.label.name}
+                      .{' '}
+                    </>
+                  ) : null}
+                  {c.assignees?.length ? (
+                    <>
+                      Assign to:{' '}
+                      {c.assignees
+                        .map((a) => (a.available === false ? 'a person who left' : a.name))
+                        .join(', ')}
+                      .{' '}
                     </>
                   ) : null}
                   {c.depends_on.length ? `Needs ${c.depends_on.join(', ')}. ` : ''}

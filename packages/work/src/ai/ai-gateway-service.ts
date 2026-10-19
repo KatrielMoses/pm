@@ -136,7 +136,12 @@ import {
   type AiProvider,
 } from './provider.ts';
 import { redactCredentials } from './redaction.ts';
-import { eraseAiContentRows, eraseBriefingRows, erasePlanProposals } from './lifecycle.ts';
+import {
+  endVoiceCaptures,
+  eraseAiContentRows,
+  eraseBriefingRows,
+  erasePlanProposals,
+} from './lifecycle.ts';
 import {
   GROUNDED_SYSTEM_TEMPLATE,
   GROUNDED_TEMPLATE_VERSION,
@@ -175,6 +180,7 @@ import {
   checkField,
   orderChanges,
   parseProposal,
+  PLAN_OPS,
   proposalFingerprint,
   PROPOSAL_SYSTEM_TEMPLATE,
   PROPOSAL_VERSION,
@@ -452,13 +458,7 @@ const PLAN_CHANGES_MAX = 99;
 const PLAN_VERSION = 'plan.v1';
 /** 7F: the capture interpretation action (catalog key and version). */
 const INTERPRET_ACTION = 'interpret_capture.v1';
-const PLAN_OPS_SET: ReadonlySet<string> = new Set([
-  'block.create',
-  'block.update',
-  'block.delete',
-  'commitment.add',
-  'commitment.remove',
-]);
+const PLAN_OPS_SET: ReadonlySet<string> = new Set(PLAN_OPS);
 
 /** A daily-plan request after validation. */
 interface PlanRequest {
@@ -622,8 +622,11 @@ function str(v: unknown): string | undefined {
  * The AI gateway (Phase 7A, ADR-0038). One provider and model boundary, privacy and current
  * authority as dispatch prerequisites, hard reservations before any chargeable attempt, durable
  * operations with safe retry and honest cancellation, and authorized history. Later modules (7B
- * retrieval, 7C drafting, 7D proposals, 7E briefings, 8 agents) call this gateway; none has its own
- * provider, spending, or history authority. The gateway never mutates business records.
+ * retrieval, 7C drafting, 7D proposals, 7E briefings, 7F planning and capture, 8 agents) call this
+ * gateway; none has its own provider, spending, or history authority. Generation never mutates
+ * business records: the only writes to them are the person's explicit 7D Apply (through the
+ * canonical domain commands), a 7F plan Apply (through the 3C commands), and an explicit save of a
+ * capture to the Inbox.
  */
 export class AiGatewayService extends McpAccessService {
   readonly #ai: AiGatewayDeps;
@@ -5140,17 +5143,7 @@ export class AiGatewayService extends McpAccessService {
     filter: { membershipId?: string; before?: Date },
   ): Promise<number> {
     // 7F: a leaver's open recordings end now; their audio is discarded by the cleanup sweep.
-    if (filter.membershipId)
-      await tx.db
-        .updateTable('capture.voice_capture')
-        .set({
-          state: sql`CASE WHEN state IN ('uploaded', 'transcribing') THEN 'cancelled' ELSE state END`,
-          expires_at: new Date(),
-          updated_at: new Date(),
-        })
-        .where('membership_id', '=', filter.membershipId)
-        .where('storage_key', 'is not', null)
-        .execute();
+    if (filter.membershipId) await endVoiceCaptures(tx, filter.membershipId);
     return (
       (await eraseAiContentRows(tx, filter)) +
       (await eraseBriefingRows(tx, filter)) +
@@ -6037,6 +6030,7 @@ export class AiGatewayService extends McpAccessService {
 
   /** What the capture dialog needs to offer recording honestly (configured, bounds, formats). */
   async voiceSettings(caller: Caller, ws: unknown) {
+    this.#sessionOnly(caller);
     return this.inWorkspace(caller, ws, { readOnly: true }, async (tx) => {
       const state = this.#transcriptionState();
       const { decision } = await this.#availability(tx);
@@ -6964,18 +6958,23 @@ export class AiGatewayService extends McpAccessService {
     kind: string,
     scopeKey: string,
   ) {
-    return tx.db
-      .selectFrom('ai.briefing')
-      .select(['id', 'public_id', 'window_start', 'window_end', 'published_at'])
-      .where('recipient_membership_id', '=', recipient)
-      .where('kind', '=', kind as BriefingKind)
-      .where('scope_key', '=', scopeKey)
-      .where('template_version', '=', BRIEFING_TEMPLATE_VERSION)
-      .where('state', '=', 'published')
-      .orderBy('window_end', 'desc')
-      .orderBy('published_at', 'desc')
-      .limit(1)
-      .executeTakeFirst();
+    return (
+      tx.db
+        .selectFrom('ai.briefing')
+        .select(['id', 'public_id', 'window_start', 'window_end', 'published_at'])
+        .where('recipient_membership_id', '=', recipient)
+        .where('kind', '=', kind as BriefingKind)
+        .where('scope_key', '=', scopeKey)
+        .where('template_version', '=', BRIEFING_TEMPLATE_VERSION)
+        .where('state', '=', 'published')
+        // A regeneration re-reads its original's window and never advances the series: the next
+        // briefing continues from the original, not from the later-published regeneration (D4).
+        .where('trigger', '<>', 'regenerate')
+        .orderBy('window_end', 'desc')
+        .orderBy('published_at', 'desc')
+        .limit(1)
+        .executeTakeFirst()
+    );
   }
 
   async #personZone(tx: WorkspaceTransaction, membershipId: string): Promise<string> {
@@ -7429,6 +7428,7 @@ export class AiGatewayService extends McpAccessService {
 
   /** Generate now, preview (BRF-001–005): the scope, window, baseline, and what will be included. */
   async previewBriefing(caller: Caller, ws: unknown, body: unknown) {
+    this.#sessionOnly(caller);
     return this.inWorkspace(caller, ws, { readOnly: true }, async (tx, p) => {
       this.requirePersonal(p, 'personal.manage_own');
       const plan = await this.#manualPlan(tx, p, body, new Date());
@@ -7457,6 +7457,7 @@ export class AiGatewayService extends McpAccessService {
   }
 
   async generateBriefing(caller: Caller, ws: unknown, body: unknown, req: Mutation) {
+    this.#sessionOnly(caller);
     return this.mutate(
       caller,
       'ai.briefing.generate',
@@ -7495,6 +7496,7 @@ export class AiGatewayService extends McpAccessService {
    * briefing it regenerates, read again now. It never advances the baseline a second time.
    */
   async regenerateBriefing(caller: Caller, ws: unknown, brf: unknown, req: Mutation) {
+    this.#sessionOnly(caller);
     return this.mutate(
       caller,
       'ai.briefing.regenerate',
@@ -7711,6 +7713,7 @@ export class AiGatewayService extends McpAccessService {
   }
 
   async listBriefings(caller: Caller, ws: unknown, query: { limit?: unknown; before?: unknown }) {
+    this.#sessionOnly(caller);
     return this.inWorkspace(caller, ws, { readOnly: true }, async (tx, p) => {
       this.requirePersonal(p, 'personal.manage_own');
       const limit = Math.min(HISTORY_PAGE_MAX, Math.max(1, Number(query.limit ?? 20) || 20));
@@ -7744,6 +7747,7 @@ export class AiGatewayService extends McpAccessService {
   }
 
   async getBriefing(caller: Caller, ws: unknown, brf: unknown) {
+    this.#sessionOnly(caller);
     return this.inWorkspace(caller, ws, { readOnly: true }, async (tx, p) => {
       this.requirePersonal(p, 'personal.manage_own');
       return this.#briefingView(tx, p, typeof brf === 'string' ? brf : '');
@@ -7871,6 +7875,7 @@ export class AiGatewayService extends McpAccessService {
   }
 
   async listBriefingSchedules(caller: Caller, ws: unknown) {
+    this.#sessionOnly(caller);
     return this.inWorkspace(caller, ws, { readOnly: true }, async (tx, p) => {
       this.requirePersonal(p, 'personal.manage_own');
       const rows = await tx.db
@@ -7889,6 +7894,7 @@ export class AiGatewayService extends McpAccessService {
   }
 
   async createBriefingSchedule(caller: Caller, ws: unknown, body: unknown, req: Mutation) {
+    this.#sessionOnly(caller);
     const input = this.#parseSchedule(body, false);
     return this.mutate(
       caller,
@@ -7968,6 +7974,7 @@ export class AiGatewayService extends McpAccessService {
     body: unknown,
     req: Mutation,
   ) {
+    this.#sessionOnly(caller);
     const input = this.#parseSchedule(body, true);
     return this.mutate(
       caller,
@@ -8190,6 +8197,7 @@ export class AiGatewayService extends McpAccessService {
     body: unknown,
     req: Mutation,
   ) {
+    this.#sessionOnly(caller);
     const b = (body && typeof body === 'object' && !Array.isArray(body) ? body : {}) as Record<
       string,
       unknown
@@ -8281,6 +8289,7 @@ export class AiGatewayService extends McpAccessService {
   }
 
   async listBriefingCorrections(caller: Caller, ws: unknown, query: { state?: unknown }) {
+    this.#sessionOnly(caller);
     return this.inWorkspace(caller, ws, { readOnly: true }, async (tx, p) => {
       this.requirePersonal(p, 'personal.manage_own');
       let q = tx.db
@@ -8308,6 +8317,7 @@ export class AiGatewayService extends McpAccessService {
     body: unknown,
     req: Mutation,
   ) {
+    this.#sessionOnly(caller);
     const b = (body && typeof body === 'object' && !Array.isArray(body) ? body : {}) as Record<
       string,
       unknown
@@ -8364,6 +8374,7 @@ export class AiGatewayService extends McpAccessService {
     decision: 'approve' | 'reject',
     req: Mutation,
   ) {
+    this.#sessionOnly(caller);
     return this.mutate(
       caller,
       `ai.briefing_correction.${decision}`,
@@ -8512,7 +8523,13 @@ export class AiGatewayService extends McpAccessService {
             timezone: s.timezone,
             windowStart: w.start,
             windowEnd: w.end,
-            baselineId: baseline?.id ?? null,
+            // A baseline is recorded only when the window continues from it. An occurrence owed
+            // for a cutoff before the latest briefing (one made by hand after it was due) reads
+            // its own day and says it has no baseline, never "compared with" a later briefing.
+            baselineId:
+              baseline && new Date(baseline.window_end).getTime() < occ.at.getTime()
+                ? baseline.id
+                : null,
             clamped: w.clamped,
             trigger: 'schedule',
             schedule: { id: s.id, revision: s.revision, occurrenceKey: key },
@@ -9247,7 +9264,17 @@ export class AiGatewayService extends McpAccessService {
     return { type: kind, id: publicId };
   }
 
+  /**
+   * Person-only surfaces (7D proposals, 7E briefings and notes, 7F voice) are session-only: a
+   * delegated (API token or OAuth) caller is refused in the service as well as at the HTTP gate,
+   * so no future surface reaches them through a token.
+   */
+  #sessionOnly(caller: Caller) {
+    if (caller.delegation) throw new TenancyError('forbidden');
+  }
+
   async listAiProposals(caller: Caller, ws: unknown) {
+    this.#sessionOnly(caller);
     return this.inWorkspace(caller, ws, { readOnly: true }, async (tx, p) => {
       const rows = await tx.db
         .selectFrom('ai.change_proposal')
@@ -9310,6 +9337,7 @@ export class AiGatewayService extends McpAccessService {
   }
 
   async getAiProposal(caller: Caller, ws: unknown, prp: unknown) {
+    this.#sessionOnly(caller);
     return this.inWorkspace(caller, ws, { readOnly: true }, async (tx, p) => {
       const { proposal } = await this.#ownProposal(tx, p, prp);
       return this.#proposalView(tx, caller, p, proposal.public_id);
@@ -9790,6 +9818,7 @@ export class AiGatewayService extends McpAccessService {
 
   /** The current validation result of the selected changes (nothing is written). */
   async validateAiProposal(caller: Caller, ws: unknown, prp: unknown, req: Mutation) {
+    this.#sessionOnly(caller);
     return this.inWorkspace(caller, ws, {}, async (tx, p) => {
       this.#requireApplier(caller, p);
       const { proposal, action, changes } = await this.#ownProposal(tx, p, prp);
@@ -9937,6 +9966,7 @@ export class AiGatewayService extends McpAccessService {
    * approval).
    */
   async updateAiProposal(caller: Caller, ws: unknown, prp: unknown, body: unknown, req: Mutation) {
+    this.#sessionOnly(caller);
     const input = this.#parseProposalEdit(body);
     return this.mutate(
       caller,
@@ -10096,6 +10126,7 @@ export class AiGatewayService extends McpAccessService {
    * access and never replaces a domain approval or step-up.
    */
   async approveAiProposal(caller: Caller, ws: unknown, prp: unknown, body: unknown, req: Mutation) {
+    this.#sessionOnly(caller);
     const input = this.#parseBinding(body);
     return this.mutate(
       caller,
@@ -10231,6 +10262,7 @@ export class AiGatewayService extends McpAccessService {
    * keeps the proposal withheld.
    */
   async rebaseAiProposal(caller: Caller, ws: unknown, prp: unknown, body: unknown, req: Mutation) {
+    this.#sessionOnly(caller);
     const b = (body && typeof body === 'object' ? body : {}) as Record<string, unknown>;
     const issues = [];
     for (const k of Object.keys(b))
@@ -10424,6 +10456,7 @@ export class AiGatewayService extends McpAccessService {
 
   /** Rejects the whole proposal (nothing is applied; the decision is kept in history). */
   async rejectAiProposal(caller: Caller, ws: unknown, prp: unknown, body: unknown, req: Mutation) {
+    this.#sessionOnly(caller);
     const b = (body && typeof body === 'object' ? body : {}) as Record<string, unknown>;
     for (const k of Object.keys(b))
       if (k !== 'reason')
@@ -10487,6 +10520,7 @@ export class AiGatewayService extends McpAccessService {
    * fingerprint; a replay re-renders through current authority and never runs a change again.
    */
   async applyAiProposal(caller: Caller, ws: unknown, prp: unknown, body: unknown, req: Mutation) {
+    this.#sessionOnly(caller);
     const input = this.#parseBinding(body);
     return this.mutate(
       caller,

@@ -204,6 +204,11 @@ async function main(): Promise<void> {
         maxAttempts: config.ai.maxAttempts,
         timeoutMs:
           (config.ai.provider.provider === 'none' ? 60_000 : config.ai.provider.timeoutMs) + 30_000,
+        // 7F: a transcription attempt is bounded by the transcription transport, not the AI one.
+        transcriptionTimeoutMs:
+          (config.ai.transcription && config.ai.transcription.provider !== 'none'
+            ? config.ai.transcription.timeoutMs
+            : 60_000) + 30_000,
       },
       reports: {
         tenant: tenantDb,
