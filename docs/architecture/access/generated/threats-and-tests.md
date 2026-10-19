@@ -146,6 +146,9 @@ Narrative: [../14-threat-model.md](../14-threat-model.md).
 | T-136 | agent_scope | A delegated API-token or OAuth caller reaches person-only AI surfaces (proposals, briefings, notes, voice settings) through the service because only the HTTP path rule refuses it, so a later surface that reuses the service exposes them. | I-09 | AT-524 |
 | T-137 | departure | Protected capture content outlives its owner or its record: a leaver's open recording keeps its audio because departure ends it only through an unregistered path, or purging an Inbox item saved from a recording fails or leaves the transcript and interpretation copies of its text behind. | I-14 | AT-527, AT-528, AT-533, AT-535 |
 | T-138 | staleness | A briefing claims a baseline it does not continue from: a regeneration becomes the series baseline, or a scheduled occurrence owed for an earlier cutoff records a later briefing as its baseline, so comparisons and coverage are attributed to the wrong window. | I-12 | AT-532, AT-537 |
+| T-139 | staleness | A worker that crashes or loses its lease after an external effect may have left (after the claim, after the receiver applied it, or while storing the outcome) lets a later attempt resend it to an unsafe destination, or records it as not sent, or reports the operation succeeded. | I-14 | AT-539, AT-540, AT-541, AT-542, AT-544, AT-545, AT-548, AT-550 |
+| T-140 | spoofing | A stale worker's late result, a caller relabelling an unsafe destination as safe, or an effect key reused for another destination overwrites the authoritative ledger state or bypasses recovery. | I-14 | AT-541, AT-543, AT-546 |
+| T-141 | agent_scope | An unknown effect is reconciled without authority: by a member, a token, a stale or forged version, another workspace, or a replayed completed request after the reconciler lost access; or a human decision is presented as proof from the destination. | I-09 | AT-547, AT-548, AT-549 |
 
 ## Test matrix
 
@@ -689,6 +692,18 @@ Narrative: [../14-threat-model.md](../14-threat-model.md).
 | AT-536 | T-127, T-134 | member | Browser: Today plan with capacity, a meeting, locked work, a dependency, a missing estimate; a meeting synced after approval refused atomically, rebased, applied once — day | `ai.apply_proposal` | ui_record | **allow** | ok | error_message |
 | AT-537 | T-114, T-118, T-138 | member | Browser: cross-brand and narrower briefings, evidence links, claimed versus accepted, an approved note reused until its evidence changes, regeneration, a scheduled in-app occurrence — personal | `personal.manage_own` | notification_inapp | **allow** | ok | error_message |
 | AT-538 | T-91 | member | Browser: AI off; truthful unavailable states on assist and capture; manual capture, triage, editing, Today plan, and briefings work — workspace | `personal.manage_own` | ui_record | **allow** | ok | error_message |
+| AT-539 | T-139 | system_job | Crash after the receiver applied and answered, before the outcome was stored; recovery and restarts — workspace | `operation.reconcile_effect` | api | **deny** | empty | error_message |
+| AT-540 | T-139 | system_job | Crash before the claim, and after the durable claim but before sending, for unsafe and safe destinations — workspace | `operation.reconcile_effect` | api | **deny** | empty | error_message |
+| AT-541 | T-139, T-140 | system_job | Receiver applied but the answer was held (stale live worker) or dropped — workspace | `operation.reconcile_effect` | api | **deny** | empty | error_message |
+| AT-542 | T-139 | system_job | The outcome transaction fails after the receiver applied — workspace | `operation.reconcile_effect` | api | **deny** | empty | error_message |
+| AT-543 | T-140 | system_job | Two claimants of one effect with a live claim — workspace | `operation.reconcile_effect` | api | **deny** | empty | error_message |
+| AT-544 | T-139 | member | Cancellation before the claim, while in flight, and after an unknown outcome — workspace | `operation.reconcile_effect` | api | **deny** | empty | error_message |
+| AT-545 | T-139 | system_job | Typed not-sent proof versus a generic error after sending; failed without proof refused — workspace | `operation.reconcile_effect` | api | **deny** | empty | error_message |
+| AT-546 | T-140 | system_job | Safe classes resend under their own contract with the same key; key reuse with another destination or class; direct claim of an unsafe unknown effect — workspace | `operation.reconcile_effect` | api | **deny** | empty | error_message |
+| AT-547 | T-141 | administrator | Reconciliation sent, retry, abandon; member, token, stale version, unknown and foreign effects, missing step-up, replay after demotion, concurrent decisions — workspace | `operation.reconcile_effect` | api | **allow** | ok | error_message |
+| AT-548 | T-139, T-141 | system_job | No payload in ledger, jobs, outbox, audit, or logs; no uncertain operation reports success — workspace | `operation.reconcile_effect` | audit_display | **deny** | empty | error_message |
+| AT-549 | T-141 | owner | HTTP listing and reconciliation with step-up and replay; bearer tokens refused — workspace | `operation.reconcile_effect` | api | **allow** | ok | error_message |
+| AT-550 | T-139 | system_job | The REL-FU-7A-01 regression: a worker dies after an unsafe send; the survivor never sends it again — workspace | `operation.reconcile_effect` | api | **deny** | empty | error_message |
 
 ## Response shapes
 

@@ -901,8 +901,23 @@
         {
           "file": "docs/engineering/adr/0038-ai-gateway-privacy-budgets.md",
           "contains": "REL-FU-7A-01"
+        },
+        {
+          "file": "packages/platform/src/effects.ts",
+          "contains": "export async function claimEffect("
+        },
+        {
+          "file": "packages/platform/test/integration/effect-crash-after-send.test.ts",
+          "contains": "it('AT-550 "
+        },
+        {
+          "file": "packages/work/test/integration/effect-recovery.test.ts",
+          "contains": "it('AT-539 "
         }
-      ]
+      ],
+      "status": "closed",
+      "closed_by": "P8-W0 (ADR-0045, migration 0061)",
+      "closure_note": "The generic ledger now claims durably before I/O, records unknown after any possible dispatch, treats only typed proof as not sent, fences outcomes to the claim, and recovers abandoned claims as unknown; unsafe destinations wait for an authorized reconciliation. Proven through the real worker recovery path, not only a new state."
     }
   ]
 }

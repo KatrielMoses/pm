@@ -117,6 +117,7 @@ def check_numbering():
         "0058": ("0058_ai_briefings.up.sql", "phase7e.py"),
         "0059": ("0059_planning_capture.up.sql", "phase7f.py"),
         "0060": ("0060_phase7_integration.up.sql", "phase7.py"),
+        "0061": ("0061_effect_recovery_safety.up.sql", "phase8w0.py"),
     }
     for k in later:
         name, validator = later_owned.get(k, (None, None))

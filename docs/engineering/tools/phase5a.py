@@ -62,6 +62,10 @@ MIGRATION = "packages/db/migrations/0041_permission_aware_search"
 ADR_ID = "0028"
 
 
+# Actions added after this subphase, each held by the validator of the phase that added it
+# (P8-W0: operation.reconcile_effect, phase8w0.py).
+LATER_ACTIONS = {"operation.reconcile_effect"}
+
 def check_contracts(registry, policy):
     errs = []
     params = {p["name"]: p for p in registry["parameters"]}
@@ -89,8 +93,8 @@ def check_contracts(registry, policy):
     for e in ENVELOPES:
         if "'%s'" % e not in envelopes:
             errs.append("envelope %s not registered" % e)
-    if len(policy["actions"]) != 122:
-        errs.append("5A adds no actions: expected 122, found %d" % len(policy["actions"]))
+    if len([a for a in policy["actions"] if a["key"] not in LATER_ACTIONS]) != 122:
+        errs.append("5A adds no actions: expected 122, found %d" % len([a for a in policy["actions"] if a["key"] not in LATER_ACTIONS]))
     if "'search.member'" not in read(P("packages/work/src/factory.ts")):
         errs.append("the search.member rate policy must be registered")
     events = {e["type"] for e in registry["events"]}

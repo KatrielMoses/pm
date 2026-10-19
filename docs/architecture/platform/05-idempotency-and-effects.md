@@ -44,12 +44,25 @@ Every external effect is recorded in the effect ledger (0B `execution.external_e
 | `deduplicated_by_receiver` | At least once; receivers deduplicate by event ID | Outbound webhooks (`Webhook-Id`) |
 | `unsafe` | **No automatic retry after an unknown outcome** | Email or chat send without idempotency; creating an external issue without a dedupe key |
 
-**Unknown outcome** (timeout after send, connection reset): the effect becomes `unknown`.
+**Destinations are registered** in code with their class and contract (`defineEffectDestination`). A handler names a destination, never a bare class, so no caller can relabel an unsafe destination as safe. The ledger stores a fingerprint of the destination and contract; reusing an effect key with another destination, class, or contract is refused.
 
-- For safe classes, retries continue.
-- For `unsafe`, the operation moves to `waiting` with `waiting_reason: reconciliation_required`. **Reconciliation** tries a provider lookup (search by our reference) where available. Otherwise a human confirms "sent", "not sent — retry", or "abandon". The decision is audited.
+**Ledger states** (P8-W0, platform effect recovery, migration 0061):
 
-The platform guarantees **at least one** delivery attempt per effect and **no automatic duplicate** for unsafe destinations. It **never claims exactly-once external delivery**. Cancellation reports list effects already `sent`/`unknown` (0E ST-63).
+| State | Meaning |
+|---|---|
+| `pending` | Not dispatched in the current cycle (never attempted, or an explicit retry decision) |
+| `dispatching` | One claimant owns an in-flight attempt. The claim (token, attempt, lease) is committed under the row lock **before any I/O** |
+| `sent` / `confirmed` | The destination acknowledged it (confirmed: also confirmed by the destination or by an authorized decision) |
+| `unknown` | It may have left and the outcome is not known. This is the default after any possible dispatch, with a reason: `outcome_unknown`, `unproven_failure`, `abandoned_claim`, or `legacy_attempted` |
+| `failed` | **Typed proof** that it was not sent (`refused_before_send`, `rejected_by_receiver`, `precondition_failed`). Timeouts, resets, cancellation after send, a generic error, and a failed outcome write are never proof |
+| `cancelled` | Stopped before dispatch, or abandoned by an authorized decision. An abandoned possibly-sent effect keeps its attempts and decision; it is never relabelled "not sent" |
+
+- Outcome writes are **fenced** to the claim token and `dispatching`. A stale claimant records only late evidence (`late_outcome`) and changes nothing else.
+- A claim is alive while its attempt runs under a current job lease. A lost attempt (reaper, end of attempt) has its claims recorded `unknown` (`abandoned_claim`). Without reliable external evidence, a crash after the claim, even just before the request, is unknown.
+- **Unknown outcome:** safe classes retry with the **same** provider key under their own contract. For `unsafe`, the operation moves to `waiting` with `waiting_reason: reconciliation_required` and is never resent automatically. An operation never reports success while an effect is unknown or claimed.
+- **Reconciliation** tries a provider lookup (search by our reference) where available. Otherwise an owner or administrator decides "sent", "retry" (send once more with the same key), or "abandon" (`operation.reconcile_effect`: session only, step-up, the reviewed version, audited, idempotent; a replay re-renders through current authority). A person's decision is recorded as a decision, not as proof from the destination. "sent" and "retry" resume the operation with one fresh job that keeps its original execution context; "abandon" ends it as cancelled with the abandoned count.
+
+The platform guarantees **at least one** delivery attempt per effect and **no automatic duplicate after ambiguity** for unsafe destinations. It **never claims exactly-once external delivery**. Cancellation stops undispatched work and future attempts and reports effects already `sent`, `unknown`, or in flight with their liability (0E ST-63); it never relabels them.
 
 ## 5.5 Offline replay
 

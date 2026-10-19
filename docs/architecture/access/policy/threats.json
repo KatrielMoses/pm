@@ -1422,6 +1422,30 @@
       "mitigated_by": [
         "I-12"
       ]
+    },
+    {
+      "id": "T-139",
+      "category": "staleness",
+      "description": "A worker that crashes or loses its lease after an external effect may have left (after the claim, after the receiver applied it, or while storing the outcome) lets a later attempt resend it to an unsafe destination, or records it as not sent, or reports the operation succeeded.",
+      "mitigated_by": [
+        "I-14"
+      ]
+    },
+    {
+      "id": "T-140",
+      "category": "spoofing",
+      "description": "A stale worker's late result, a caller relabelling an unsafe destination as safe, or an effect key reused for another destination overwrites the authoritative ledger state or bypasses recovery.",
+      "mitigated_by": [
+        "I-14"
+      ]
+    },
+    {
+      "id": "T-141",
+      "category": "agent_scope",
+      "description": "An unknown effect is reconciled without authority: by a member, a token, a stale or forged version, another workspace, or a replayed completed request after the reconciler lost access; or a human decision is presented as proof from the destination.",
+      "mitigated_by": [
+        "I-09"
+      ]
     }
   ],
   "tests": [
@@ -10796,6 +10820,200 @@
       "surface": "ui_record",
       "expected": "allow",
       "response_shape": "ok",
+      "silent_surfaces": [
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-539",
+      "threats": [
+        "T-139"
+      ],
+      "principal": "system_job",
+      "setup": "Crash after the receiver applied and answered, before the outcome was stored; recovery and restarts",
+      "scope": "workspace",
+      "action": "operation.reconcile_effect",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "empty",
+      "silent_surfaces": [
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-540",
+      "threats": [
+        "T-139"
+      ],
+      "principal": "system_job",
+      "setup": "Crash before the claim, and after the durable claim but before sending, for unsafe and safe destinations",
+      "scope": "workspace",
+      "action": "operation.reconcile_effect",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "empty",
+      "silent_surfaces": [
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-541",
+      "threats": [
+        "T-139",
+        "T-140"
+      ],
+      "principal": "system_job",
+      "setup": "Receiver applied but the answer was held (stale live worker) or dropped",
+      "scope": "workspace",
+      "action": "operation.reconcile_effect",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "empty",
+      "silent_surfaces": [
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-542",
+      "threats": [
+        "T-139"
+      ],
+      "principal": "system_job",
+      "setup": "The outcome transaction fails after the receiver applied",
+      "scope": "workspace",
+      "action": "operation.reconcile_effect",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "empty",
+      "silent_surfaces": [
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-543",
+      "threats": [
+        "T-140"
+      ],
+      "principal": "system_job",
+      "setup": "Two claimants of one effect with a live claim",
+      "scope": "workspace",
+      "action": "operation.reconcile_effect",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "empty",
+      "silent_surfaces": [
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-544",
+      "threats": [
+        "T-139"
+      ],
+      "principal": "member",
+      "setup": "Cancellation before the claim, while in flight, and after an unknown outcome",
+      "scope": "workspace",
+      "action": "operation.reconcile_effect",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "empty",
+      "silent_surfaces": [
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-545",
+      "threats": [
+        "T-139"
+      ],
+      "principal": "system_job",
+      "setup": "Typed not-sent proof versus a generic error after sending; failed without proof refused",
+      "scope": "workspace",
+      "action": "operation.reconcile_effect",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "empty",
+      "silent_surfaces": [
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-546",
+      "threats": [
+        "T-140"
+      ],
+      "principal": "system_job",
+      "setup": "Safe classes resend under their own contract with the same key; key reuse with another destination or class; direct claim of an unsafe unknown effect",
+      "scope": "workspace",
+      "action": "operation.reconcile_effect",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "empty",
+      "silent_surfaces": [
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-547",
+      "threats": [
+        "T-141"
+      ],
+      "principal": "administrator",
+      "setup": "Reconciliation sent, retry, abandon; member, token, stale version, unknown and foreign effects, missing step-up, replay after demotion, concurrent decisions",
+      "scope": "workspace",
+      "action": "operation.reconcile_effect",
+      "surface": "api",
+      "expected": "allow",
+      "response_shape": "ok",
+      "silent_surfaces": [
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-548",
+      "threats": [
+        "T-139",
+        "T-141"
+      ],
+      "principal": "system_job",
+      "setup": "No payload in ledger, jobs, outbox, audit, or logs; no uncertain operation reports success",
+      "scope": "workspace",
+      "action": "operation.reconcile_effect",
+      "surface": "audit_display",
+      "expected": "deny",
+      "response_shape": "empty",
+      "silent_surfaces": [
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-549",
+      "threats": [
+        "T-141"
+      ],
+      "principal": "owner",
+      "setup": "HTTP listing and reconciliation with step-up and replay; bearer tokens refused",
+      "scope": "workspace",
+      "action": "operation.reconcile_effect",
+      "surface": "api",
+      "expected": "allow",
+      "response_shape": "ok",
+      "silent_surfaces": [
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-550",
+      "threats": [
+        "T-139"
+      ],
+      "principal": "system_job",
+      "setup": "The REL-FU-7A-01 regression: a worker dies after an unsafe send; the survivor never sends it again",
+      "scope": "workspace",
+      "action": "operation.reconcile_effect",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "empty",
       "silent_surfaces": [
         "error_message"
       ]
