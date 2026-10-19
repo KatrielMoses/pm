@@ -135,10 +135,25 @@ describe('Phase 7F review 01: plan constraints serialize with Apply', () => {
       await c.query(`SELECT pg_advisory_xact_lock(hashtextextended($1, 0))`, [
         `audit.chain:${wsId}`,
       ]);
-      const writing = writer();
-      for (let i = 0; i < 1000 && (await lockWaiters()) < 1; i++)
+      // The writer's own outcome is tracked so that, if it settles before it is ever seen waiting
+      // (an error, or a write that skipped the audit chain), the assertion names what happened.
+      let early: string | null = null;
+      const writing = writer().then(
+        (r) => {
+          early ??= 'completed without waiting';
+          return r;
+        },
+        (e: unknown) => {
+          early ??= `failed: ${String((e as { code?: string }).code ?? e)} ${JSON.stringify((e as { issues?: unknown }).issues ?? null)}`;
+          throw e;
+        },
+      );
+      for (let i = 0; i < 1000 && early === null && (await lockWaiters()) < 1; i++)
         await new Promise((r) => setTimeout(r, 10));
-      expect(await lockWaiters(), 'the writer is held mid-transaction').toBeGreaterThanOrEqual(1);
+      expect(
+        await lockWaiters(),
+        `the writer is held mid-transaction (writer ${early ?? 'still running, not waiting on a lock'})`,
+      ).toBeGreaterThanOrEqual(1);
       const before = await planning();
       const applying = applyIt(v).then(
         () => 'ok',

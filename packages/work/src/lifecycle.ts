@@ -1,6 +1,7 @@
 import { sql, type WorkspaceTransaction } from '@pm/db';
 import type { LifecycleRegistry, RecordRef, RecordTypeAdapter } from '@pm/lifecycle';
 import { withPersonalReferenceCleanup } from '@pm/tenancy';
+import { eraseAiContentRows } from './ai/lifecycle.ts';
 import { purgeCollabFacts } from './collab/purge.ts';
 import { purgeNotifyFacts } from './notify/purge.ts';
 import { attachedDocuments, documentAdapter, purgeDocumentTargets } from './docs/lifecycle.ts';
@@ -385,6 +386,44 @@ async function detachCaptureSources(tx: WorkspaceTransaction, ids: string[]) {
   await tx.db.deleteFrom('relations.record_link').where('source_record_id', 'in', ids).execute();
 }
 
+/**
+ * 7F (Phase 7 integration, ADR-0044 I2): a purged capture takes its protected AI copies with it.
+ * The interpretation run that read its text and the transcription of the recording it was saved
+ * from are erased (usage, operation, and audit facts stay), and the recording stops naming the
+ * item; it stays `saved` as a reference-only fact (its audio was already deleted).
+ */
+async function purgeCaptureAiCopies(tx: WorkspaceTransaction, ids: string[]) {
+  const voice = await tx.db
+    .selectFrom('capture.voice_capture')
+    .select(['id', 'operation_id'])
+    .where('inbox_item_id', 'in', ids)
+    .execute();
+  const interpreted = await tx.db
+    .selectFrom('capture.inbox_item as i')
+    .innerJoin('exec.operation as o', (j) =>
+      j.on(sql<boolean>`o.public_id = i.parsed->'interpretation'->>'run'`),
+    )
+    .select('o.id')
+    .where('i.id', 'in', ids)
+    .execute();
+  const runs = [
+    ...voice.flatMap((v) => (v.operation_id ? [v.operation_id] : [])),
+    ...interpreted.map((r) => r.id),
+  ];
+  for (let i = 0; i < runs.length; i += 1000)
+    await eraseAiContentRows(tx, { operationIds: runs.slice(i, i + 1000) });
+  if (voice.length)
+    await tx.db
+      .updateTable('capture.voice_capture')
+      .set({ inbox_item_id: null, updated_at: new Date(), version: sql`version + 1` })
+      .where(
+        'id',
+        'in',
+        voice.map((v) => v.id),
+      )
+      .execute();
+}
+
 /** Personal Inbox items (2E, OD-03); merged items are removed before the item they merged into. */
 export const inboxItemAdapter: RecordTypeAdapter = {
   recordType: 'inbox_item',
@@ -395,6 +434,7 @@ export const inboxItemAdapter: RecordTypeAdapter = {
     async deleteContent(tx, recordIds) {
       const ids = [...recordIds];
       await detachCaptureSources(tx, ids);
+      await purgeCaptureAiCopies(tx, ids);
       await sql`UPDATE capture.note SET source_inbox_item_id = NULL WHERE source_inbox_item_id = ANY(${ids}::uuid[])`.execute(
         tx.db,
       );

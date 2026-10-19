@@ -124,7 +124,8 @@ def check_migration():
         errs.append("0057 down must restore the exact 0056 catalog and refuse while 7C data exists")
     names = sorted(n for n in os.listdir(P("packages/db/migrations")) if n.endswith(".up.sql"))
     # Later migrations belong to later phases, each held by its own validator.
-    later_owned = {"0058_ai_briefings.up.sql": "phase7e.py", "0059_planning_capture.up.sql": "phase7f.py"}
+    later_owned = {"0058_ai_briefings.up.sql": "phase7e.py", "0059_planning_capture.up.sql": "phase7f.py",
+                   "0060_phase7_integration.up.sql": "phase7.py"}
     after = names[names.index("0057_ai_drafting_analysis.up.sql") + 1:] if "0057_ai_drafting_analysis.up.sql" in names else ["?"]
     for n in after:
         if n not in later_owned or not os.path.isfile(P("docs/engineering/tools/%s" % later_owned[n])):

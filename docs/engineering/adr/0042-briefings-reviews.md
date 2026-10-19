@@ -1,6 +1,6 @@
 # ADR-0042: Daily and weekly briefings and reviews (Phase 7E)
 
-Status: **proposed** (implementation candidate; acceptance evidence pending).
+Status: **accepted** (engineering scope only: the architect accepted the 7E subphase within its recorded boundaries at head `c28a89a`, CI run 39148906597 attempt 1, draft PR #40; corrective reviews below are resolved history). Production use is not approved, and the Phase 7 exit gate is pending its integration review ([ADR-0044](0044-phase-7-integration.md)).
 
 Phase 7E adds recipient-specific briefings on the accepted foundations:
 - the canonical domain readers (task signals, reviews, workflow and timesheet approvals, the 3D time report, 3E capacity, 4E deliverable acceptance, 2A project updates);

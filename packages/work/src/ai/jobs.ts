@@ -135,6 +135,12 @@ export function aiBriefingSweepHandler(d: AiJobDeps): JobHandler {
 /** 7F: what the voice jobs need (the transcription attempt and the audio cleanup sweep). */
 export type VoiceJobDeps = Omit<AiJobDeps, 'service'> & {
   service: Pick<AiGatewayService, 'runTranscription' | 'runVoiceCleanup'>;
+  /**
+   * The transcription attempt's own bound (the transcription transport timeout plus headroom). It
+   * is independent of the AI provider timeout, so a valid TRANSCRIPTION_TIMEOUT_MS is never cut
+   * short by a shorter job lease (an attempt killed mid-call is a possible charge, never resent).
+   */
+  transcriptionTimeoutMs?: number;
 };
 
 /** 7F: one transcription attempt of a voice capture (never resent after a possible charge). */
@@ -143,7 +149,7 @@ export function aiTranscriptionHandler(d: VoiceJobDeps): JobHandler {
     kind: AI_JOB_KINDS.transcription,
     queue: 'default',
     maxAttempts: d.maxAttempts,
-    timeoutMs: d.timeoutMs,
+    timeoutMs: d.transcriptionTimeoutMs ?? d.timeoutMs,
     handle: (ctx) => d.service.runTranscription(ctx),
   };
 }

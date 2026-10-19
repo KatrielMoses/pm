@@ -247,6 +247,10 @@ export interface AiProposalChange {
     | 'milestone.create'
     | 'relation.add'
     | 'document.replace'
+    // 7C: assignment, labels, and acceptance criteria (each through its canonical command).
+    | 'task.assign'
+    | 'label.add'
+    | 'criterion.add'
     // 7F planner operations (canonical Today and block commands).
     | 'block.create'
     | 'block.update'
@@ -270,6 +274,10 @@ export interface AiProposalChange {
   brand: 'scope' | null;
   /** The task a change applies to (7C labels and criteria; 7F blocks and Today commitments). */
   task?: AiProposalRef | null;
+  /** 7C: the offered label a `label.add` attaches (unavailable once removed). */
+  label?: { id?: string; name?: string; available?: false } | null;
+  /** 7C: the offered members a `task.assign` assigns (each unavailable once they leave). */
+  assignees?: Array<{ id?: string; name?: string; available?: false }> | null;
   relation: {
     kind: 'blocks' | 'related';
     from: AiProposalRef | null;

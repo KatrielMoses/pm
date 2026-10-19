@@ -1,6 +1,6 @@
 # ADR-0040: Change proposal protocol (Phase 7D)
 
-Status: **proposed** (implementation candidate; acceptance evidence pending).
+Status: **accepted** (engineering scope only: the architect accepted the 7D subphase within its recorded boundaries at head `9542473`, CI run 39047853519 attempt 1, draft PR #38; corrective reviews below are resolved history). Production use is not approved, and the Phase 7 exit gate is pending its integration review ([ADR-0044](0044-phase-7-integration.md)).
 
 Phase 7D adds the one way AI-suggested record changes reach the product. An AI run over a previewed, authorized context produces a typed proposal. A person reviews it, edits it, selects changes, approves exactly what they reviewed, and explicitly applies it. One transaction then runs the ordinary domain commands. 7D runs before 7C so that drafting can use this boundary instead of a second write path. It does not add 7C drafting or analysis, briefings (7E), AI planning (7F), or agents (Phase 8). Production AI stays disabled exactly as accepted in 7A and 7B: in 7D only the labelled synthetic fixture may generate proposals.
 

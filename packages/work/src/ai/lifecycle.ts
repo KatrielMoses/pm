@@ -17,14 +17,17 @@ import {
  */
 export async function eraseAiContentRows(
   tx: WorkspaceTransaction,
-  filter: { membershipId?: string; before?: Date },
+  filter: { membershipId?: string; before?: Date; operationIds?: readonly string[] },
 ): Promise<number> {
+  // 7F (Phase 7 integration): named runs, when the capture they were made from is purged.
+  if (filter.operationIds && !filter.operationIds.length) return 0;
   let q = tx.db
     .selectFrom('ai.ai_action')
     .select('operation_id')
     .where('content_state', '=', 'present');
   if (filter.membershipId) q = q.where('initiating_membership_id', '=', filter.membershipId);
   if (filter.before) q = q.where('created_at', '<', filter.before);
+  if (filter.operationIds) q = q.where('operation_id', 'in', filter.operationIds);
   const rows = await q.limit(1000).execute();
   // Also the runs already erased whose execution checkpoints may still carry copies written before
   // corrective review 01 (the old eraser did not reach them).
@@ -35,6 +38,7 @@ export async function eraseAiContentRows(
   if (filter.membershipId)
     stale = stale.where('initiating_membership_id', '=', filter.membershipId);
   if (filter.before) stale = stale.where('created_at', '<', filter.before);
+  if (filter.operationIds) stale = stale.where('operation_id', 'in', filter.operationIds);
   const erasedIds = (await stale.limit(1000).execute()).map((r) => r.operation_id);
   const ids = rows.map((r) => r.operation_id);
   if (ids.length || erasedIds.length)
@@ -321,6 +325,26 @@ export async function erasePlanProposals(
   return rows.length;
 }
 
+/**
+ * 7F: a leaver's open recordings end now (uploaded or transcribing becomes cancelled) and every
+ * recording that still names its audio is due at once, so the registered cleanup sweep deletes the
+ * object. Departure, account erasure, and the service eraser all call this one function.
+ */
+export async function endVoiceCaptures(tx: WorkspaceTransaction, membershipId: string) {
+  const now = new Date();
+  const r = await tx.db
+    .updateTable('capture.voice_capture')
+    .set({
+      state: sql`CASE WHEN state IN ('uploaded', 'transcribing') THEN 'cancelled' ELSE state END`,
+      expires_at: now,
+      updated_at: now,
+    })
+    .where('membership_id', '=', membershipId)
+    .where('storage_key', 'is not', null)
+    .executeTakeFirst();
+  return Number(r.numUpdatedRows);
+}
+
 /** Departure (PERM-014): the leaver's AI content is erased; nothing needs a new owner. */
 export const aiHistoryOwnerHook: OwnershipHook = {
   key: 'ai_history',
@@ -334,7 +358,7 @@ export const aiHistoryOwnerHook: OwnershipHook = {
     return { hook: 'ai_history', owned: Number(r.n), requiresAssignee: false };
   },
   async apply(tx, from) {
-    let total = 0;
+    let total = await endVoiceCaptures(tx, from);
     for (;;) {
       const n = await eraseAiContentRows(tx, { membershipId: from });
       total += n;
@@ -357,7 +381,7 @@ export const aiHistoryOwnerHook: OwnershipHook = {
 export const aiPersonalDataEraser: PersonalDataEraser = {
   module: 'ai',
   async eraseMembership(tx, membershipId) {
-    let total = 0;
+    let total = await endVoiceCaptures(tx, membershipId);
     for (;;) {
       const n = await eraseAiContentRows(tx, { membershipId });
       total += n;

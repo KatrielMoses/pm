@@ -363,4 +363,48 @@ describe('Change proposal review (7D)', () => {
     );
     expect(await screen.findByRole('link', { name: 'Erased proposal' })).toBeTruthy();
   });
+
+  it('names every operation a plan can hold, with the label and the people an assignment names (Phase 7 integration)', async () => {
+    const forTask = { new: 'draft', change: 'c1' };
+    serve({
+      [`GET /ai/proposals/${PRP}`]: () =>
+        json(200, {
+          data: proposal({
+            changes: [
+              change('c1', { temp_ref: 'draft' }),
+              change('c2', {
+                op: 'criterion.add',
+                depends_on: ['c1'],
+                task: forTask,
+                fields: [
+                  { field: 'text', before: null, after: 'Beta invite sent' },
+                  { field: 'kind', before: null, after: 'checklist' },
+                ],
+              }),
+              change('c3', {
+                op: 'task.assign',
+                depends_on: ['c1'],
+                task: forTask,
+                assignees: [{ id: 'mem_1', name: 'Riley Member' }, { available: false }],
+                fields: [],
+              }),
+              change('c4', {
+                op: 'label.add',
+                depends_on: ['c1'],
+                task: forTask,
+                label: { id: 'lbl_1', name: 'Launch' },
+                fields: [],
+              }),
+            ],
+            order: ['c1', 'c2', 'c3', 'c4'],
+          }),
+        }),
+    });
+    page();
+    expect(await screen.findByLabelText(/c2 · Add acceptance criterion/)).toBeTruthy();
+    expect(screen.getByLabelText(/c3 · Assign task/)).toBeTruthy();
+    expect(screen.getByLabelText(/c4 · Add label/)).toBeTruthy();
+    expect(screen.getByText(/Assign to: Riley Member, a person who left\./)).toBeTruthy();
+    expect(screen.getByText(/Label: Launch\./)).toBeTruthy();
+  });
 });

@@ -217,8 +217,10 @@ def check_migration():
         if term not in down:
             errs.append("0059 down lacks %s" % term)
     names = sorted(n for n in os.listdir(P("packages/db/migrations")) if n.endswith(".up.sql"))
-    if names[-1] != "0059_planning_capture.up.sql":
-        errs.append("0059_planning_capture must be the last migration")
+    # The Phase 7 integration review adds 0060, held by the aggregate validator (phase7.py).
+    later = [n for n in names if n > "0059_planning_capture.up.sql"]
+    if later and (later != ["0060_phase7_integration.up.sql"] or not os.path.isfile(P("docs/engineering/tools/phase7.py"))):
+        errs.append("0059_planning_capture must be the last migration before the Phase 7 integration (0060)")
     errs += phase1.check_boundaries([59])
     return errs, "expand 0059, forced RLS, two discovery functions, origin guard, exact rollback with guard, boundary 59"
 

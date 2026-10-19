@@ -94,7 +94,7 @@ describe('migrations from an empty database', () => {
     expect(await catalogFingerprint(second)).toEqual(await catalogFingerprint(first));
   });
 
-  it('upgrades through every accepted boundary (0009–0052) the 7A boundaries 0053–0054, the 7B boundary 0055, the 7D boundary 0056, the 7C boundary 0057, the 7E boundary 0058, and the 7F boundary 0059 to the candidate and reverses each boundary step', async () => {
+  it('upgrades through every accepted boundary (0009–0052) the 7A boundaries 0053–0054, the 7B boundary 0055, the 7D boundary 0056, the 7C boundary 0057, the 7E boundary 0058, the 7F boundary 0059, and the Phase 7 integration boundary 0060 to the candidate and reverses each boundary step', async () => {
     // Accepted subphase boundaries: 1A 0009, 1B 0012, 1F 0016, 1C 0018, 1D 0019, 1E 0020; 2A adds
     // 0021 (work) and 0022 (relations, templates, recurrence); 2B–2E add 0023–0030; 3A adds 0031
     // (saved views, defaults, and pin writes); 3D adds 0032 (time entries, timesheets, approvals,
@@ -121,12 +121,18 @@ describe('migrations from an empty database', () => {
     // three proposal operations, and assumptions); 7E adds 0058 (briefing schedules, briefings,
     // statements, corrections and their history, and the briefing discovery function); 7F adds 0059
     // (planner proposals and planning operations, plan evidence, voice captures, the transcription
-    // purpose, and the voice cleanup and plan retention discovery functions).
+    // purpose, and the voice cleanup and plan retention discovery functions); the Phase 7
+    // integration review adds 0060 (a saved recording may outlive its purged Inbox item).
     const boundaries = [
       9, 12, 16, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38,
-      39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59,
+      39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60,
     ];
-    const full = async (db: TestDatabase) => {
+    // Functions and triggers are compared from the last Phase 6 boundary on (the Phase 7 steps).
+    // Earlier accepted steps are compared on tables, constraints, grants, and policies only: the
+    // 0010–0012 rollback does not restore exec_dispatch.claim_jobs byte for byte (recorded in the
+    // Phase 7 exit report; accepted migrations are not edited).
+    const DEEP_FROM = 52;
+    const full = async (db: TestDatabase, deep = true) => {
       const objects = await db.admin(`
         SELECT n.nspname, c.relname, c.relkind::text, c.relrowsecurity, c.relforcerowsecurity
           FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace
@@ -142,7 +148,24 @@ describe('migrations from an empty database', () => {
       const pol = await db.admin(
         `SELECT schemaname, tablename, policyname, roles::text, qual, with_check FROM pg_policies ORDER BY 1, 2, 3`,
       );
-      return JSON.stringify([objects.rows, cons.rows, grants.rows, pol.rows]);
+      // Phase 7 integration: functions (body, security, owner, and execute grants) and triggers are
+      // part of each boundary's exact catalog, not only tables, constraints, grants, and policies.
+      const fns = await db.admin(`
+        SELECT n.nspname, p.proname, pg_get_function_identity_arguments(p.oid) AS args,
+               md5(pg_get_functiondef(p.oid)) AS def, p.prosecdef, pg_get_userbyid(p.proowner) AS owner,
+               coalesce(p.proacl::text, '') AS acl
+          FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
+         WHERE n.nspname NOT IN ('pg_catalog', 'information_schema') AND p.prokind IN ('f', 'p')
+         ORDER BY 1, 2, 3`);
+      const trg = await db.admin(`
+        SELECT n.nspname, c.relname, t.tgname, pg_get_triggerdef(t.oid) AS def, t.tgenabled::text
+          FROM pg_trigger t JOIN pg_class c ON c.oid = t.tgrelid JOIN pg_namespace n ON n.oid = c.relnamespace
+         WHERE NOT t.tgisinternal ORDER BY 1, 2, 3`);
+      return JSON.stringify(
+        deep
+          ? [objects.rows, cons.rows, grants.rows, pol.rows, fns.rows, trg.rows]
+          : [objects.rows, cons.rows, grants.rows, pol.rows],
+      );
     };
     const stepped = await createEmptyTestDatabase();
     const reference = await createEmptyTestDatabase();
@@ -152,18 +175,18 @@ describe('migrations from an empty database', () => {
       for (const to of boundaries) {
         await migrator(stepped).up({ to });
         expect((await migrator(stepped).status()).report.problems, `at ${to}`).toEqual([]);
-        at.set(to, await full(stepped));
+        at.set(to, await full(stepped, to >= DEEP_FROM));
       }
       // Stepping through the boundaries reaches exactly the one-shot candidate catalog.
-      expect(at.get(59)).toEqual(await full(reference));
+      expect(at.get(60)).toEqual(await full(reference));
       // Each subphase's step reverses to the prior boundary's exact catalog and re-applies to its
       // own, walking down from the candidate.
       for (let i = boundaries.length - 1; i > 0; i--) {
         const [lower, upper] = [boundaries[i - 1]!, boundaries[i]!];
         await migrator(stepped).down(lower);
-        expect(await full(stepped), `down to ${lower}`).toEqual(at.get(lower));
+        expect(await full(stepped, lower >= DEEP_FROM), `down to ${lower}`).toEqual(at.get(lower));
         await migrator(stepped).up({ to: upper });
-        expect(await full(stepped), `up to ${upper}`).toEqual(at.get(upper));
+        expect(await full(stepped, upper >= DEEP_FROM), `up to ${upper}`).toEqual(at.get(upper));
         await migrator(stepped).down(lower);
       }
       await migrator(stepped).up();

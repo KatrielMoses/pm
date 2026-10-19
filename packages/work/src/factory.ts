@@ -36,9 +36,11 @@ export function productLifecycleRegistry(): LifecycleRegistry {
 }
 
 /**
- * Wires the full 1C–5D service (with 3B layouts, 3C planning, 4A collaboration, 4B notifications, 4E files, 5A search, 5B goals and portfolios, 5C metrics, and 5D reports) (tenancy, collaboration, navigation, projects, tasks) from validated
- * configuration. Work plugs into tenancy by injection only: its lifecycle adapters, its navigation
- * target, and its departure hook.
+ * Wires the full 1C–7F service from validated configuration: the 1C–5D work modules, the Phase 6
+ * integrations (connections, public API and webhooks, calendar, portability, MCP), and at the top
+ * the Phase 7 AI gateway (7A gateway, 7B retrieval, 7C actions, 7D proposals, 7E briefings, 7F
+ * planning and capture). Work plugs into tenancy by injection only: its lifecycle adapters, its
+ * navigation target, and its departure hooks.
  */
 export function createWorkService(deps: {
   tenant: TenantDatabase;

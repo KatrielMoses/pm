@@ -79,6 +79,8 @@ import {
  * while AI_HISTORY_RETENTION_DAYS is unset).
  * 7E: the briefing sweep (due schedule occurrences once each, queued briefings composed as their
  * recipient, delivery intent through 4B).
+ * 7F: voice transcription attempts (bounded by the transcription transport, never resent after a
+ * possible charge) and the voice cleanup sweep (audio of ended, expired, or departed recordings).
  */
 export interface WorkerModules {
   identity: IdentityJobDeps;

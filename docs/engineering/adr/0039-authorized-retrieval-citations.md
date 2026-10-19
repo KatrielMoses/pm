@@ -1,6 +1,6 @@
 # ADR-0039: Authorized retrieval and citations (Phase 7B)
 
-Status: **proposed** (implementation candidate; acceptance evidence pending).
+Status: **accepted** (engineering scope only: the architect accepted the 7B subphase within its recorded boundaries at head `cdaa184`, CI run 39039501794 attempt 1, draft PR #37; corrective reviews below are resolved history). Production use is not approved, and the Phase 7 exit gate is pending its integration review ([ADR-0044](0044-phase-7-integration.md)).
 
 Phase 7B adds authorized retrieval and validated citations to the one 7A AI gateway. A person chooses an explicit scope, reviews a bounded context manifest, and asks a read-only question. The answer separates facts from the records, deterministic calculations, sourced statements, suggestions, and unknowns, and every citation opens the record through the person's current access. 7B does not add drafting (7C), change proposals (7D), briefings (7E), voice or planning (7F), or agents (Phase 8). Production AI stays disabled exactly as accepted in 7A: real monetary dispatch is refused for an unverified input bound, and DQ-28, OD-41, and OD-46 remain open.
 

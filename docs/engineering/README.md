@@ -35,4 +35,5 @@ recorded in [ADR-0007](adr/0007-deviations.md).
 | [phase7/](phase7/closure-7c.json) | Phase 7C AI drafting and analysis: requirement and decision closure (`closure-7c.json`, checked by `tools/phase7c.py`) and [ADR-0041](adr/0041-ai-drafting-analysis.md) |
 | [phase7/](phase7/closure-7e.json) | Phase 7E briefings and reviews: requirement and decision closure (`closure-7e.json`, checked by `tools/phase7e.py`) and [ADR-0042](adr/0042-briefings-reviews.md) |
 | [phase7/](phase7/closure-7f.json) | Phase 7F AI-assisted planning and capture: requirement and decision closure (`closure-7f.json`, checked by `tools/phase7f.py`) and [ADR-0043](adr/0043-planning-capture.md) |
+| [phase7/](phase7/closure-7.json) | Phase 7 integration review and engineering exit gate: aggregate closure (`closure-7.json`, checked by `tools/phase7.py`), [ADR-0044](adr/0044-phase-7-integration.md), the [exit report](phase7/exit-report.md), [topology](phase7/topology.md), and [manual smoke](phase7/manual-smoke.md) |
 | [adr/](adr/) | Implementation ADRs 0001–0028 |
