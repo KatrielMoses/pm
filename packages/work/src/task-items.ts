@@ -1136,6 +1136,12 @@ export class TaskService extends TaskCoreService {
     if (kind !== 'blocks' && kind !== 'blocked_by' && kind !== 'related')
       throw new TenancyError('not_found');
     return this.taskItemCommand(caller, ws, tsk, req, 'relationship.remove', async (tx, p) => {
+      // 7F review 01 R1: removing a blocker changes a plan input; it serializes with plan Apply
+      // (which holds this lock shared) exactly as adding one does.
+      if (kind !== 'related')
+        await sql`SELECT pg_advisory_xact_lock(hashtextextended(${'deps:' + tx.workspaceId}, 0))`.execute(
+          tx.db,
+        );
       const t = await this.ownedTask(tx, p, tsk, 'record.relate');
       const other = await this.loadTask(tx, p, target);
       const pairs =

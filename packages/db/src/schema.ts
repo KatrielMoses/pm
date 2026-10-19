@@ -1560,6 +1560,29 @@ export interface InboxItemTable {
   updated_at: DTs;
   version: Defaulted<number>;
 }
+export type VoiceCaptureState =
+  'uploaded' | 'transcribing' | 'transcribed' | 'failed' | 'cancelled' | 'expired' | 'saved';
+/** 7F: one ephemeral voice upload; the transcript is AI content of its transcription run. */
+export interface VoiceCaptureTable {
+  id: string;
+  workspace_id: string;
+  public_id: string;
+  membership_id: string;
+  state: Defaulted<VoiceCaptureState>;
+  format: 'audio/wav' | 'audio/webm' | 'audio/ogg';
+  byte_size: number;
+  duration_ms: number;
+  content_sha256: string;
+  storage_key: string | null;
+  operation_id: string | null;
+  inbox_item_id: string | null;
+  failure_code: string | null;
+  expires_at: Timestamp;
+  discarded_at: Timestamp | null;
+  created_at: DTs;
+  updated_at: DTs;
+  version: Defaulted<number>;
+}
 export interface NoteTable {
   id: string;
   workspace_id: string;
@@ -1720,7 +1743,8 @@ export interface WorkBlockTable {
   locked: Defaulted<boolean>;
   prep_minutes: Defaulted<number>;
   buffer_minutes: Defaulted<number>;
-  source: Defaulted<'manual' | 'estimate' | 'recurrence'>;
+  /** 7F: `plan` for a block a person created by applying a daily-plan proposal. */
+  source: Defaulted<'manual' | 'estimate' | 'recurrence' | 'plan'>;
   series_id: string | null;
   occurrence_key: string | null;
   created_at: DTs;
@@ -3326,7 +3350,8 @@ export interface AiActionTable {
   workspace_id: string;
   initiating_membership_id: string;
   brand_id: string | null;
-  purpose: 'test_run' | 'grounded_answer' | 'change_proposal' | 'analysis';
+  /** 7F: `transcription` turns an uploaded voice capture into a transcript (its output). */
+  purpose: 'test_run' | 'grounded_answer' | 'change_proposal' | 'analysis' | 'transcription';
   synthetic: boolean;
   model_key: string;
   provider: string;
@@ -3441,7 +3466,13 @@ export type ProposalOp =
   | 'document.replace'
   | 'task.assign'
   | 'label.add'
-  | 'criterion.add';
+  | 'criterion.add'
+  // 7F planning operations: canonical 3C block and Today commitment commands.
+  | 'block.create'
+  | 'block.update'
+  | 'block.delete'
+  | 'commitment.add'
+  | 'commitment.remove';
 export interface ChangeProposalTable {
   id: string;
   workspace_id: string;
@@ -3461,6 +3492,10 @@ export interface ChangeProposalTable {
   created_at: DTs;
   updated_at: DTs;
   version: Defaulted<number>;
+  /** 7F: `planner` for a deterministic daily plan (no model); `ai_action` for an AI run. */
+  origin: Defaulted<'ai_action' | 'planner'>;
+  /** 7F: a planner proposal's day, zone, scope, constraint snapshot, and deferrals (content). */
+  plan: Json<Record<string, unknown>> | null;
 }
 export interface ProposedChangeTable {
   id: string;
@@ -3625,6 +3660,8 @@ export interface BriefingEvidenceTable {
   record_id: string | null;
   brand_id: string | null;
   permission: 'timesheet.approve' | null;
+  /** 7F: the planner proposal this evidence row belongs to. */
+  proposal_id: string | null;
 }
 export interface ProposalApplicationTable {
   id: string;
@@ -3869,6 +3906,7 @@ export interface Database {
   'work.bulk_operation': BulkOperationTable;
   'work.undo_entry': UndoEntryTable;
   'capture.inbox_item': InboxItemTable;
+  'capture.voice_capture': VoiceCaptureTable;
   'capture.note': NoteTable;
   'capture.capture_conversion': CaptureConversionTable;
   'capture.intake_form': IntakeFormTable;
@@ -6473,6 +6511,26 @@ export const TABLE_COLUMNS: Readonly<Record<keyof Database, readonly string[]>> 
     'updated_at',
     'version',
   ],
+  'capture.voice_capture': [
+    'id',
+    'workspace_id',
+    'public_id',
+    'membership_id',
+    'state',
+    'format',
+    'byte_size',
+    'duration_ms',
+    'content_sha256',
+    'storage_key',
+    'operation_id',
+    'inbox_item_id',
+    'failure_code',
+    'expires_at',
+    'discarded_at',
+    'created_at',
+    'updated_at',
+    'version',
+  ],
   'capture.note': [
     'id',
     'workspace_id',
@@ -6889,6 +6947,8 @@ export const TABLE_COLUMNS: Readonly<Record<keyof Database, readonly string[]>> 
     'created_at',
     'updated_at',
     'version',
+    'origin',
+    'plan',
   ],
   'ai.proposed_change': [
     'id',
@@ -7040,6 +7100,7 @@ export const TABLE_COLUMNS: Readonly<Record<keyof Database, readonly string[]>> 
     'record_id',
     'brand_id',
     'permission',
+    'proposal_id',
   ],
   'ai.proposal_application': [
     'id',

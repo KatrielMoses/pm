@@ -2498,6 +2498,27 @@ Lineage of one triage or note conversion: the source Inbox item or note and the 
 | Requirements | CAP-012, CAP-014, CAP-016, PRJ-017 |
 | Notes | Phase 2E (ADR-25). |
 
+<a id="entity-voice-capture"></a>
+### `voice_capture`
+
+One person's recording on its way to a transcript: an ephemeral audio object reference, its checked format and duration, the transcription run, and the Inbox item it was saved as. The transcript itself lives in the protected AI output boundary.
+
+| Property | Value |
+|---|---|
+| Scope | `personal` |
+| Contained by | — |
+| Extends (1:1) | — |
+| Associations | [`inbox_item`](logical-model.md#entity-inbox-item) |
+| Lifecycle / concurrency | `state-machine` / `row-version` |
+| Retention / confidentiality | `R-EPHEMERAL` / `C2` |
+| Volume / export / search-AI | `medium` / `never` / `no` |
+| Secrets / personal data | `no` / `yes` |
+| Uniqueness | `public_id` |
+| Key typed columns | `membership_id (owner; personal)`; `public_id (vcp_)`; `state (uploaded\|transcribing\|transcribed\|failed\|cancelled\|expired\|saved)`; `format (audio/wav\|audio/webm\|audio/ogg), byte_size, duration_ms (checked from the container)`; `content_sha256`; `storage_key null (voice/<workspace>/<id>; ephemeral: cleared once the object is deleted)`; `operation_id null (the transcription ai_action)`; `inbox_item_id null (saved)`; `failure_code null`; `expires_at, discarded_at null`; `version` |
+| Sensitive fields | — |
+| Requirements | CAP-005 |
+| Notes | Phase 7F (ADR-50, migration 0059): personal to its owner; raw audio is never retained beyond its outcome (transcribed, failed, cancelled, expired) and the cleanup sweep deletes any leftover object; departure ends open recordings; no transcript or audio bytes in job state, logs, audit, or metrics. |
+
 ## Today, scheduling, and capacity (`planning`, schema `planning`)
 
 Today commitments, daily records, work blocks, recurrence series, availability, holidays, time off, capacity reservations.
@@ -4677,7 +4698,7 @@ Generated content (answer, draft, summary) with statement-level citations; immut
 <a id="entity-change-proposal"></a>
 ### `change_proposal`
 
-Set of typed proposed changes from an AI action; review, edit, approval, and application are separate explicit human steps.
+Set of typed proposed changes from an AI action or (7F) the rule-based daily planner; review, edit, approval, and application are separate explicit human steps.
 
 | Property | Value |
 |---|---|
@@ -4690,10 +4711,10 @@ Set of typed proposed changes from an AI action; review, edit, approval, and app
 | Volume / export / search-AI | `medium` / `filtered` / `yes` |
 | Secrets / personal data | `no` / `incidental` |
 | Uniqueness | — |
-| Key typed columns | `operation_id (the generating ai_action; one proposal per action)`; `initiating_membership_id`; `public_id (prp_)`; `schema_version (change_proposal.v1)`; `state (open\|approved\|applied\|failed\|rejected)`; `revision (every edit increments it)`; `fingerprint (sha256 of revision, selection, and every change)`; `title null (content)`; `reject_reason null (content)`; `content_state (present\|erased), content_erased_at`; `version`; `assumptions text[] null (content; erased)` |
+| Key typed columns | `origin (ai_action\|planner; 7F)`; `operation_id (the generating ai_action, or a plan_proposal operation; one proposal per operation)`; `initiating_membership_id`; `public_id (prp_)`; `schema_version (change_proposal.v1)`; `state (open\|approved\|applied\|failed\|rejected)`; `revision (every edit increments it)`; `fingerprint (sha256 of revision, selection, and every change)`; `title null (content)`; `reject_reason null (content)`; `content_state (present\|erased), content_erased_at`; `version`; `assumptions text[] null (content; erased)`; `plan jsonb null (planner only: day, zone, scope, options, constraint snapshot, totals, reasons, unscheduled, postponements, conflicts; content; erased)` |
 | Sensitive fields | — |
-| Requirements | AI-023, AI-024, AI-025, AI-029 |
-| Notes | Phase 7D (ADR-47, migration 0056): personal to its initiator like all AI content; rendered only through the 7B current-content decision; erased with its run, never deleting applied records. |
+| Requirements | AI-023, AI-024, AI-025, AI-029, PLAN-010, PLAN-011, PLAN-012, PLAN-013, AI-021 |
+| Notes | Phase 7D (ADR-47, migration 0056): personal to its initiator like all AI content; rendered only through the 7B current-content decision; erased with its run, never deleting applied records. Phase 7F (ADR-50, migration 0059): planner proposals (origin planner) carry their plan and complete evidence basis, apply through canonical 3C block and Today commands after a recomputed constraint snapshot, and are erased by departure and technical retention like AI content. |
 
 <a id="entity-proposed-change"></a>
 ### `proposed_change`
@@ -4887,12 +4908,12 @@ Reference-only history of a briefing correction: proposed, edited, approved, rej
 <a id="entity-briefing-evidence"></a>
 ### `briefing_evidence`
 
-The complete authorization basis of a briefing statement or a correction note: record, brand, and exact-brand permission references (no content).
+The complete authorization basis of a briefing statement, a correction note, or (7F) a planner proposal: record, brand, and exact-brand permission references (no content).
 
 | Property | Value |
 |---|---|
 | Scope | `inherited` |
-| Contained by | [`briefing`](logical-model.md#entity-briefing), [`briefing_correction`](logical-model.md#entity-briefing-correction) |
+| Contained by | [`briefing`](logical-model.md#entity-briefing), [`briefing_correction`](logical-model.md#entity-briefing-correction), [`change_proposal`](logical-model.md#entity-change-proposal) |
 | Extends (1:1) | — |
 | Associations | [`record`](logical-model.md#entity-record) |
 | Lifecycle / concurrency | `append-only` / `append-only` |
@@ -4900,10 +4921,10 @@ The complete authorization basis of a briefing statement or a correction note: r
 | Volume / export / search-AI | `high` / `never` / `no` |
 | Secrets / personal data | `no` / `incidental` |
 | Uniqueness | — |
-| Key typed columns | `briefing_id + position, or correction_id`; `kind (record\|brand\|permission)`; `record_id (reference; no foreign key)`; `brand_id (reference)`; `permission (timesheet.approve)` |
+| Key typed columns | `briefing_id + position, or correction_id, or proposal_id (exactly one owner)`; `kind (record\|brand\|permission)`; `record_id (reference; no foreign key)`; `brand_id (reference)`; `permission (timesheet.approve)` |
 | Sensitive fields | — |
-| Requirements | BRF-014, BRF-016 |
-| Notes | Phase 7E corrective review 01 (ADR-49): re-checked before any saved briefing or note content is shown, replayed, applied, or sent; references only. |
+| Requirements | BRF-014, BRF-016, PLAN-012 |
+| Notes | Phase 7E corrective review 01 (ADR-49): re-checked before any saved briefing or note content is shown, replayed, applied, or sent; references only. Phase 7F (ADR-50): a planner proposal's candidates, blockers, and scope; re-checked before review, approval, Apply, and replay (no empty basis). |
 
 ## Automations (`automation`, schema `automation`)
 

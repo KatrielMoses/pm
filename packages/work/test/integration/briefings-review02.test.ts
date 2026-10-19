@@ -181,8 +181,10 @@ describe('Phase 7E corrective review 02', () => {
       )
     ).data;
     await sql(
-      `UPDATE ai.briefing_schedule SET next_run_at = date_trunc('day', now()) WHERE public_id = $1`,
-      [sch.id],
+      // The schedule's own occurrence (00:00 in its UTC zone, today), as an explicit instant: never
+      // the database session's or the host's local midnight (7F review 01 verification repair).
+      `UPDATE ai.briefing_schedule SET next_run_at = $2::timestamptz WHERE public_id = $1`,
+      [sch.id, `${new Date().toISOString().slice(0, 10)}T00:00:00Z`],
     );
     expect(await env.svc.runBriefingSweep(env.h.worker, s.wsId, new Date())).toMatchObject({
       queued: 1,

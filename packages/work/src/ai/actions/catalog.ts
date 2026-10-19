@@ -7,9 +7,10 @@ import type { SourceKind } from '../retrieval/types.ts';
  * contract, proposal operations, and visible limitations. The action key is chosen by the person
  * and fixed by the server; free text can never switch the action, widen scope, or add a capability.
  * Analysis actions return a validated typed result (`analysis.v1`); drafting actions return a 7D
- * change proposal (`change_proposal.v1`) restricted to the action's operations.
+ * change proposal (`change_proposal.v1`) restricted to the action's operations. 7F adds capture
+ * interpretation (`interpretation.v1`): field spans in the person's own text, checked by the server.
  */
-export type ActionKind = 'analysis' | 'proposal';
+export type ActionKind = 'analysis' | 'proposal' | 'interpretation';
 
 /** Context an action needs before anything is sent; missing context refuses with a question. */
 export type ActionNeed = 'brief_or_goal' | 'project_or_task' | 'task_or_document' | 'tasks';
@@ -273,8 +274,35 @@ export const AI_ACTIONS: readonly AiActionDef[] = [
   },
 ];
 
+/**
+ * 7F capture interpretation (ADR-0043 D2): registered in the same catalog (the same estimate,
+ * confirmation, dispatch, and history), but offered by the capture dialog rather than the assist
+ * list, because it works on the person's own text instead of sources.
+ */
+export const CAPTURE_ACTIONS: readonly AiActionDef[] = [
+  {
+    key: 'interpret_capture',
+    version: 1,
+    label: 'Interpret a capture',
+    kind: 'interpretation',
+    requirements: ['CAP-005', 'CAP-003', 'CAP-009'],
+    input: { label: 'Capture text', required: true, max: 2000 },
+    needs: null,
+    sourceKinds: [],
+    maxOutputTokens: 512,
+    instructions: [
+      'The title is the words that describe the work itself. Dates, priority, duration, recurrence, labels, project, brand, and owner are marked only when the note states them.',
+    ],
+    limitations: [
+      'Field spans are suggestions: the server checks each against your text and derives every value itself.',
+      'Names resolve only among what you can read now; dates use your time zone and today.',
+      'Nothing is saved until you save it to your Inbox.',
+    ],
+  },
+];
+
 export const ACTION_BY_ID: ReadonlyMap<string, AiActionDef> = new Map(
-  AI_ACTIONS.map((a) => [actionId(a), a]),
+  [...AI_ACTIONS, ...CAPTURE_ACTIONS].map((a) => [actionId(a), a]),
 );
 
 /** The catalog as shown to clients (no templates beyond the declared contract). */

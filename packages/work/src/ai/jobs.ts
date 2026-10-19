@@ -2,12 +2,18 @@ import type { PlatformDiscovery, TenantDatabase } from '@pm/db';
 import type { JobHandler, RecurringJob } from '@pm/platform';
 import type { Logger, Metrics } from '@pm/observability';
 import { errorFields } from '@pm/observability';
-import { AI_DISPATCH_JOB, type AiGatewayService } from './ai-gateway-service.ts';
+import {
+  AI_DISPATCH_JOB,
+  AI_TRANSCRIPTION_JOB,
+  type AiGatewayService,
+} from './ai-gateway-service.ts';
 
 export const AI_JOB_KINDS = {
   dispatch: AI_DISPATCH_JOB,
   retention: 'ai.history.retention',
   briefings: 'ai.briefing.sweep',
+  transcription: AI_TRANSCRIPTION_JOB,
+  voiceCleanup: 'capture.voice.cleanup',
 } as const;
 
 /**
@@ -29,6 +35,14 @@ export const AI_SCHEDULES: readonly RecurringJob[] = [
     intervalMs: 60_000,
     maxAttempts: 3,
     timeoutSeconds: 240,
+  },
+  // 7F: every five minutes, audio past its upload window or of an ended capture is deleted.
+  {
+    kind: AI_JOB_KINDS.voiceCleanup,
+    queue: 'default',
+    intervalMs: 5 * 60_000,
+    maxAttempts: 3,
+    timeoutSeconds: 120,
   },
 ];
 
@@ -72,9 +86,12 @@ export function aiRetentionHandler(d: AiJobDeps): JobHandler {
       // lists are interleaved so neither family starves the other within a sweep.
       const ai = await d.discovery.discoverAiRetentionWork(before, 100);
       const briefings = await d.discovery.discoverBriefingRetentionWork(before, 100);
+      // 7F: planner proposals have no AI action either; they are found on their own.
+      const plans = await d.discovery.discoverPlanRetentionWork(before, 100);
       const workspaces: string[] = [];
-      for (let i = 0; i < Math.max(ai.length, briefings.length); i++)
-        for (const w of [ai[i], briefings[i]]) if (w && !workspaces.includes(w)) workspaces.push(w);
+      for (let i = 0; i < Math.max(ai.length, briefings.length, plans.length); i++)
+        for (const w of [ai[i], briefings[i], plans[i]])
+          if (w && !workspaces.includes(w)) workspaces.push(w);
       for (const ws of workspaces) {
         try {
           const erased = await d.tenant.withWorkspace(ws, { module: 'work' }, (tx) =>
@@ -109,6 +126,45 @@ export function aiBriefingSweepHandler(d: AiJobDeps): JobHandler {
           d.metrics.count('ai.briefings', r.published, { outcome: 'swept' });
         } catch (err) {
           d.logger.warn('ai.briefing_sweep_failed', errorFields(err));
+        }
+      }
+    },
+  };
+}
+
+/** 7F: what the voice jobs need (the transcription attempt and the audio cleanup sweep). */
+export type VoiceJobDeps = Omit<AiJobDeps, 'service'> & {
+  service: Pick<AiGatewayService, 'runTranscription' | 'runVoiceCleanup'>;
+};
+
+/** 7F: one transcription attempt of a voice capture (never resent after a possible charge). */
+export function aiTranscriptionHandler(d: VoiceJobDeps): JobHandler {
+  return {
+    kind: AI_JOB_KINDS.transcription,
+    queue: 'default',
+    maxAttempts: d.maxAttempts,
+    timeoutMs: d.timeoutMs,
+    handle: (ctx) => d.service.runTranscription(ctx),
+  };
+}
+
+/**
+ * 7F: the voice cleanup sweep. Discovery returns workspace identifiers only; each workspace deletes
+ * a bounded batch of expired or ended audio, and a failing workspace never holds up the others.
+ */
+export function voiceCleanupHandler(d: VoiceJobDeps): JobHandler {
+  return {
+    kind: AI_JOB_KINDS.voiceCleanup,
+    queue: 'default',
+    maxAttempts: 3,
+    timeoutMs: 120_000,
+    async handle() {
+      const now = new Date();
+      for (const ws of await d.discovery.discoverVoiceCleanupWork(now, 100)) {
+        try {
+          await d.service.runVoiceCleanup(d.tenant, ws, now);
+        } catch (err) {
+          d.logger.warn('capture.voice_cleanup_failed', errorFields(err));
         }
       }
     },

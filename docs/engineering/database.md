@@ -479,3 +479,18 @@ Corrective review 01 adds to 0058:
 - `briefing_evidence`: the complete authorization basis of statements (briefing and position) and notes (their own copy), as `record`, `brand`, or `permission` references; forced row-level security; select and insert for `app_rw` and `app_worker`; no update or delete.
 - `exec_dispatch.discover_briefing_retention_work(before, limit)`: workspace ids with expired briefing content (dispatcher only), so configured retention does not depend on AI runs.
 Corrective review 02 changes no schema: statements and their evidence are written together, and a briefing whose basis cannot be kept whole is left `failed` with neither.
+
+## Phase 7F: planning and capture
+
+Migration `0059_planning_capture` (expand; exact rollback to 0058; 0B ADR-50, ADR-0043) extends the 7D proposal and 7E evidence tables and adds one capture table, all with forced row-level security and workspace-scoped foreign keys:
+
+- `ai.change_proposal`: `origin` (`ai_action`, `planner`) and `plan` (jsonb, at most 32 KB); its operation key now references `exec.operation`, and the `change_proposal_origin_guard` trigger requires an `ai_action` for AI proposals and a `plan_proposal` operation for planner proposals. An erased proposal holds no plan.
+- `ai.proposed_change`: the planning operations `block.create`, `block.update`, `block.delete`, `commitment.add`, `commitment.remove`, and `blk_` targets. `planning.work_block.source` accepts `plan`.
+- `ai.briefing_evidence`: `proposal_id` (exactly one owner per row), indexed.
+- `capture.voice_capture` (`vcp_`): state, format, size, duration, checksum, the ephemeral `storage_key` (cleared once the object is deleted; a discarded capture names no object), the transcription operation, the saved Inbox item, failure code, expiry. Select, insert, and update for `app_rw` and `app_worker`; no delete.
+- `ai.ai_action.purpose`: `transcription` (the transcript is `ai.ai_output` content).
+- `exec_dispatch.discover_voice_cleanup_work(now, limit)` and `exec_dispatch.discover_plan_retention_work(before, limit)`: workspace ids only (dispatcher), with `capture` schema usage and column grants for `pm_scheduler`.
+
+Corrective review 01 adds `planning.lock_plan_constraints(workspace, member)` and `plan_constraint_guard` triggers on calendar events, sources, and connections, capacity reservations, profiles, availability rules, time off, work blocks, and Today commitments: every write takes the owner's `planning.constraints` lock, so plan Apply serializes with all of them (lock order: constraints, capacity profile, day, blocks, brand holidays, dependencies, task rows).
+
+Erasure clears planner proposal content (title, plan, payloads) with their run's person or age, ends a leaver's open recordings, and leaves audio to the cleanup sweep. The down migration refuses while any voice capture, transcription action, planner proposal, planning operation, plan evidence, or plan block exists. Workspace purge deletes `capture.voice_capture` before `capture.inbox_item` and `exec.operation`.

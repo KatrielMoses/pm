@@ -380,6 +380,109 @@ export function registerAi(app: FastifyInstance, work: AiGatewayService): void {
       return resource(request, reply, result.data, result);
     }),
   );
+  // 7F daily plans (ADR-0043): session only (bearer callers are refused at the edge). A preview
+  // writes nothing; a plan becomes a change proposal reviewed and applied through the 7D routes.
+  app.post(
+    `${base}/planning/day-plan-previews`,
+    wrap(async (request, reply) =>
+      reply
+        .header('cache-control', 'private, no-store')
+        .send(
+          nonResourceEnvelope(
+            'day_plan_preview',
+            await work.previewDayPlan(caller(request), ws(request), request.body),
+            m(request),
+          ),
+        ),
+    ),
+  );
+  // 7F capture interpretation: the reviewed candidate of an interpreted capture (nothing saved).
+  app.post(
+    `${base}/capture/interpretations`,
+    wrap(async (request, reply) =>
+      reply
+        .header('cache-control', 'private, no-store')
+        .send(
+          nonResourceEnvelope(
+            'capture_interpretation',
+            await work.previewCaptureInterpretation(caller(request), ws(request), request.body),
+            m(request),
+          ),
+        ),
+    ),
+  );
+  // 7F voice capture: session only. Audio goes to object storage through a bound upload URL, is
+  // checked from its bytes, transcribed through the gateway, and discarded.
+  app.get(
+    `${base}/capture/voice-settings`,
+    wrap(async (request, reply) =>
+      reply
+        .header('cache-control', 'private, no-store')
+        .send(
+          nonResourceEnvelope(
+            'voice_settings',
+            await work.voiceSettings(caller(request), ws(request)),
+            m(request),
+          ),
+        ),
+    ),
+  );
+  app.post(
+    `${base}/capture/voice`,
+    wrap(async (request, reply) => {
+      reply.header('cache-control', 'private, no-store');
+      const result = await work.createVoiceCapture(
+        caller(request),
+        ws(request),
+        request.body,
+        mutation(request),
+      );
+      return resource(request, reply, result.data, result);
+    }),
+  );
+  app.get(
+    `${base}/capture/voice/:vcp`,
+    wrap(async (request, reply) => {
+      const vcp = param(request, 'vcp') ?? '';
+      if (vcp.includes(':')) return fail(request, reply, 'not_found');
+      reply.header('cache-control', 'private, no-store');
+      return resource(
+        request,
+        reply,
+        await work.getVoiceCapture(caller(request), ws(request), vcp),
+      );
+    }),
+  );
+  app.post(
+    `${base}/capture/voice/:vcp`,
+    wrap(async (request, reply) => {
+      const t = split(param(request, 'vcp'));
+      if (!t) return fail(request, reply, 'not_found');
+      reply.header('cache-control', 'private, no-store');
+      const run =
+        t.verb === 'transcribe'
+          ? work.transcribeVoiceCapture.bind(work)
+          : t.verb === 'cancel'
+            ? work.cancelVoiceCapture.bind(work)
+            : null;
+      if (!run) return fail(request, reply, 'not_found');
+      const result = await run(caller(request), ws(request), t.id, mutation(request));
+      return resource(request, reply, result.data, result);
+    }),
+  );
+  app.post(
+    `${base}/planning/day-plans`,
+    wrap(async (request, reply) => {
+      reply.header('cache-control', 'private, no-store');
+      const result = await work.createDayPlanProposal(
+        caller(request),
+        ws(request),
+        request.body,
+        mutation(request),
+      );
+      return resource(request, reply, result.data, result);
+    }),
+  );
   // 7E briefings and reviews (ADR-0042): session only (bearer callers are refused at the edge).
   // Briefings, schedules, and notes are their person's alone; every read re-checks the evidence.
   const listOf = (type: 'ai_briefings' | 'ai_briefing_schedules' | 'ai_briefing_corrections') =>

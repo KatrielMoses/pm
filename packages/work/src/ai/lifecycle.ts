@@ -257,6 +257,70 @@ export async function eraseBriefingRows(
   return ids.length + notesErased;
 }
 
+/**
+ * 7F (ADR-0043 D9): planner proposals are personal assistance content like AI proposals: their
+ * title, plan (day facts, deferrals, reasons), and proposed values are erased on departure,
+ * account erasure, and configured retention; unused approvals are revoked. Applied blocks and
+ * commitments are ordinary planning records and stay; references and outcomes stay.
+ */
+export async function erasePlanProposals(
+  tx: WorkspaceTransaction,
+  filter: { membershipId?: string; before?: Date },
+): Promise<number> {
+  let q = tx.db
+    .selectFrom('ai.change_proposal')
+    .select(['id', 'revision', 'fingerprint'])
+    .where('origin', '=', 'planner')
+    .where('content_state', '=', 'present');
+  if (filter.membershipId) q = q.where('initiating_membership_id', '=', filter.membershipId);
+  if (filter.before) q = q.where('created_at', '<', filter.before);
+  const rows = await q.limit(1000).execute();
+  if (!rows.length) return 0;
+  const ids = rows.map((r) => r.id);
+  const now = new Date();
+  await tx.db
+    .updateTable('ai.proposed_change')
+    .set({ payload: null, updated_at: now })
+    .where('proposal_id', 'in', ids)
+    .execute();
+  await tx.db
+    .updateTable('ai.proposal_approval')
+    .set({ state: 'revoked' })
+    .where('proposal_id', 'in', ids)
+    .where('state', '=', 'active')
+    .execute();
+  await tx.db
+    .updateTable('ai.change_proposal')
+    .set({
+      title: null,
+      reject_reason: null,
+      assumptions: null,
+      plan: null,
+      content_state: 'erased',
+      content_erased_at: now,
+      updated_at: now,
+      version: sql`version + 1`,
+    })
+    .where('id', 'in', ids)
+    .execute();
+  await tx.db
+    .insertInto('ai.proposal_event')
+    .values(
+      rows.map((r) => ({
+        id: newUuidV7(),
+        workspace_id: tx.workspaceId,
+        proposal_id: r.id,
+        revision: r.revision,
+        kind: 'erased' as const,
+        actor_membership_id: null,
+        change_keys: [],
+        fingerprint: r.fingerprint,
+      })),
+    )
+    .execute();
+  return rows.length;
+}
+
 /** Departure (PERM-014): the leaver's AI content is erased; nothing needs a new owner. */
 export const aiHistoryOwnerHook: OwnershipHook = {
   key: 'ai_history',
@@ -279,6 +343,11 @@ export const aiHistoryOwnerHook: OwnershipHook = {
     for (;;) {
       const n = await eraseBriefingRows(tx, { membershipId: from });
       total += n;
+      if (n < 1000) break;
+    }
+    for (;;) {
+      const n = await erasePlanProposals(tx, { membershipId: from });
+      total += n;
       if (n < 1000) return total;
     }
   },
@@ -296,6 +365,11 @@ export const aiPersonalDataEraser: PersonalDataEraser = {
     }
     for (;;) {
       const n = await eraseBriefingRows(tx, { membershipId });
+      total += n;
+      if (n < 1000) break;
+    }
+    for (;;) {
+      const n = await erasePlanProposals(tx, { membershipId });
       total += n;
       if (n < 1000) return total;
     }

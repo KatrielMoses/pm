@@ -1292,6 +1292,112 @@
         "I-08",
         "I-12"
       ]
+    },
+    {
+      "id": "T-124",
+      "category": "inference",
+      "description": "A capture interpretation or transcript resolves a brand, project, owner, or label the person cannot read, or answers differently for a hidden name than for an unknown one, revealing that hidden work exists.",
+      "mitigated_by": [
+        "I-04",
+        "I-07"
+      ]
+    },
+    {
+      "id": "T-125",
+      "category": "agent_scope",
+      "description": "Model output or instructions inside a capture, transcript, or plan become saved values, records, links, or actions: invented names or dates, spans that are not the person's words, a fetched URL, or an executed instruction.",
+      "mitigated_by": [
+        "I-09",
+        "I-14",
+        "I-15"
+      ]
+    },
+    {
+      "id": "T-126",
+      "category": "field_leak",
+      "description": "Raw audio or transcript text escapes the protected content boundary into job arguments, checkpoints, logs, audit, or metrics, or the audio outlives transcription, cancellation, failure, or expiry.",
+      "mitigated_by": [
+        "I-12",
+        "I-16"
+      ]
+    },
+    {
+      "id": "T-127",
+      "category": "staleness",
+      "description": "A daily plan approved against an earlier state of the day is applied after time off, holidays, meetings, blocks, Today, or estimates changed, so it overwrites concurrent work or double-books the person.",
+      "mitigated_by": [
+        "I-12"
+      ]
+    },
+    {
+      "id": "T-128",
+      "category": "agent_scope",
+      "description": "The planner moves or removes locked commitments or focus blocks, changes task dates, touches another person's blocks, or applies a postponement nobody selected.",
+      "mitigated_by": [
+        "I-10",
+        "I-15"
+      ]
+    },
+    {
+      "id": "T-129",
+      "category": "inference",
+      "description": "Plan totals, coverage, or deferral lists rest on candidates or blockers that are not re-authorized (an empty or sampled basis), so a plan keeps describing work the person can no longer read.",
+      "mitigated_by": [
+        "I-07",
+        "I-08",
+        "I-12"
+      ]
+    },
+    {
+      "id": "T-130",
+      "category": "cross_workspace",
+      "description": "Another person, another workspace, or a delegated bearer caller reaches a plan proposal, an interpretation, or a recording.",
+      "mitigated_by": [
+        "I-02",
+        "I-03",
+        "I-14"
+      ]
+    },
+    {
+      "id": "T-131",
+      "category": "spoofing",
+      "description": "An upload claims a format, duration, size, or name it does not have, or a link is fetched, so unbounded or arbitrary content reaches the transcription provider or the queue grows without bound.",
+      "mitigated_by": [
+        "I-09"
+      ]
+    },
+    {
+      "id": "T-132",
+      "category": "departure",
+      "description": "Departure or technical retention leaves plan content, transcripts, interpretations, or audio behind, or erasing them deletes applied business work.",
+      "mitigated_by": [
+        "I-12"
+      ]
+    },
+    {
+      "id": "T-133",
+      "category": "staleness",
+      "description": "A transcription whose outcome may have been charged is resent, or its charge is lost, so usage is double-counted or unbounded.",
+      "mitigated_by": [
+        "I-14"
+      ]
+    },
+    {
+      "id": "T-134",
+      "category": "staleness",
+      "description": "A calendar mirror, capacity reservation, or other plan input committed after Apply rechecked the day but before it committed (including a new meeting or reservation the plan could not lock) leaves an applied plan resting on stale availability.",
+      "mitigated_by": [
+        "I-12"
+      ]
+    },
+    {
+      "id": "T-135",
+      "category": "spoofing",
+      "description": "A transcription response is buffered without bound, or a clipped transcript is stored and offered as complete, so different words are saved or interpreted as if they were what was said.",
+      "mitigated_by": [
+        "I-09",
+        "I-14"
+      ]
     }
   ],
   "tests": [
@@ -9720,6 +9826,700 @@
       "response_shape": "empty",
       "silent_surfaces": [
         "count_facet",
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-481",
+      "threats": [
+        "T-129"
+      ],
+      "principal": "member",
+      "setup": "Daily plan preview without working hours: nothing is claimed to fit and nothing is written",
+      "scope": "day",
+      "action": "personal.manage_own",
+      "surface": "capacity",
+      "expected": "allow",
+      "response_shape": "ok",
+      "silent_surfaces": [
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-482",
+      "threats": [
+        "T-128",
+        "T-129"
+      ],
+      "principal": "member",
+      "setup": "Plan from capacity with explained ranks; unknown estimates are questions; blockers hold work back",
+      "scope": "day",
+      "action": "personal.manage_own",
+      "surface": "capacity",
+      "expected": "allow",
+      "response_shape": "ok",
+      "silent_surfaces": [
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-483",
+      "threats": [
+        "T-128"
+      ],
+      "principal": "member",
+      "setup": "Plan requests with unknown fields, past days, beyond the horizon, or out-of-range assumptions",
+      "scope": "day",
+      "action": "personal.manage_own",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "validation_generic",
+      "silent_surfaces": [
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-484",
+      "threats": [
+        "T-127",
+        "T-128"
+      ],
+      "principal": "member",
+      "setup": "Planner proposal reviewed, edited, re-checked, approved, and applied atomically; task dates unchanged; replay never applies twice",
+      "scope": "day",
+      "action": "ai.apply_proposal",
+      "surface": "ai_answer",
+      "expected": "allow",
+      "response_shape": "ok",
+      "silent_surfaces": [
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-485",
+      "threats": [
+        "T-127"
+      ],
+      "principal": "member",
+      "setup": "A changed day (time off, estimates) refuses approval and Apply until explicitly rebased on the reviewed snapshot",
+      "scope": "day",
+      "action": "ai.apply_proposal",
+      "surface": "ai_answer",
+      "expected": "deny",
+      "response_shape": "conflict_filtered",
+      "silent_surfaces": [
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-486",
+      "threats": [
+        "T-127"
+      ],
+      "principal": "member",
+      "setup": "Two connections race capacity and estimate changes against Apply under the plan input locks",
+      "scope": "day",
+      "action": "ai.apply_proposal",
+      "surface": "ai_answer",
+      "expected": "deny",
+      "response_shape": "conflict_filtered",
+      "silent_surfaces": [
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-487",
+      "threats": [
+        "T-127"
+      ],
+      "principal": "member",
+      "setup": "Two approved plans for one day applied concurrently: exactly one applies",
+      "scope": "day",
+      "action": "ai.apply_proposal",
+      "surface": "ai_answer",
+      "expected": "deny",
+      "response_shape": "conflict_filtered",
+      "silent_surfaces": [
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-488",
+      "threats": [
+        "T-128"
+      ],
+      "principal": "member",
+      "setup": "Locked focus blocks and locked commitments are never targeted; postponements are unselected suggestions",
+      "scope": "day",
+      "action": "personal.manage_own",
+      "surface": "capacity",
+      "expected": "allow",
+      "response_shape": "ok_filtered",
+      "silent_surfaces": [
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-489",
+      "threats": [
+        "T-130"
+      ],
+      "principal": "read_only",
+      "setup": "Read-only previews only; another member's plan proposal and other workspaces are not found; a hidden scope brand equals an unknown one",
+      "scope": "workspace",
+      "action": "ai.apply_proposal",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "not_found",
+      "silent_surfaces": [
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-490",
+      "threats": [
+        "T-129",
+        "T-132"
+      ],
+      "principal": "member",
+      "setup": "Lost access to a plan's candidate withholds the plan; departure erases plan content and keeps applied blocks",
+      "scope": "brand",
+      "action": "personal.manage_own",
+      "surface": "ai_answer",
+      "expected": "deny",
+      "response_shape": "empty",
+      "silent_surfaces": [
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-491",
+      "threats": [
+        "T-128"
+      ],
+      "principal": "system_job",
+      "setup": "No planner change targets another person's block or an operation outside the planning set",
+      "scope": "workspace",
+      "action": "ai.apply_proposal",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "empty",
+      "silent_surfaces": [
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-492",
+      "threats": [
+        "T-130"
+      ],
+      "principal": "member",
+      "setup": "0059 schema: forced RLS, tenant-scoped keys, no deletes, the proposal origin guard, and the guarded rollback",
+      "scope": "workspace",
+      "action": "ai.apply_proposal",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "not_found",
+      "silent_surfaces": [
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-493",
+      "threats": [
+        "T-125"
+      ],
+      "principal": "member",
+      "setup": "Interpretation spans are the person's words; the server derives concrete values in the person's zone; nothing is saved",
+      "scope": "personal",
+      "action": "ai.execute",
+      "surface": "ai_answer",
+      "expected": "allow",
+      "response_shape": "ok",
+      "silent_surfaces": [
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-494",
+      "threats": [
+        "T-124"
+      ],
+      "principal": "member",
+      "setup": "A hidden project name and an unknown one interpret identically; ambiguous dates stay choices",
+      "scope": "brand without access",
+      "action": "ai.execute",
+      "surface": "ai_answer",
+      "expected": "deny",
+      "response_shape": "omitted",
+      "silent_surfaces": [
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-495",
+      "threats": [
+        "T-125"
+      ],
+      "principal": "member",
+      "setup": "Forged, unsupported, malformed, and injected interpretation output never becomes a value or an action",
+      "scope": "personal",
+      "action": "ai.execute",
+      "surface": "ai_answer",
+      "expected": "deny",
+      "response_shape": "empty",
+      "silent_surfaces": [
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-496",
+      "threats": [
+        "T-125",
+        "T-132"
+      ],
+      "principal": "member",
+      "setup": "An interpretation is bound to its exact text and person; an erased one cannot be used",
+      "scope": "personal",
+      "action": "ai.execute",
+      "surface": "ai_answer",
+      "expected": "deny",
+      "response_shape": "not_found",
+      "silent_surfaces": [
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-497",
+      "threats": [
+        "T-125"
+      ],
+      "principal": "member",
+      "setup": "Saving an interpreted capture is explicit; triage records an AI-draft origin naming the run",
+      "scope": "personal",
+      "action": "record.create",
+      "surface": "ui_record",
+      "expected": "allow",
+      "response_shape": "ok",
+      "silent_surfaces": [
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-498",
+      "threats": [
+        "T-126"
+      ],
+      "principal": "member",
+      "setup": "Credentials in capture text are redacted before sending; the binding still holds",
+      "scope": "personal",
+      "action": "ai.execute",
+      "surface": "ai_context",
+      "expected": "allow",
+      "response_shape": "redacted",
+      "silent_surfaces": [
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-499",
+      "threats": [
+        "T-130"
+      ],
+      "principal": "member",
+      "setup": "Interpretations are refused across workspaces and with unknown fields",
+      "scope": "cross-workspace",
+      "action": "ai.execute",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "not_found",
+      "silent_surfaces": [
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-500",
+      "threats": [
+        "T-131"
+      ],
+      "principal": "member",
+      "setup": "Unconfigured transcription refuses before any upload is stored",
+      "scope": "personal",
+      "action": "personal.manage_own",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "error_generic",
+      "silent_surfaces": [
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-501",
+      "threats": [
+        "T-126",
+        "T-133"
+      ],
+      "principal": "member",
+      "setup": "Recording to transcript to explicit save with voice provenance; audio deleted; no transcript in job state; settled by measured seconds",
+      "scope": "personal",
+      "action": "personal.manage_own",
+      "surface": "ui_record",
+      "expected": "allow",
+      "response_shape": "ok",
+      "silent_surfaces": [
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-502",
+      "threats": [
+        "T-131"
+      ],
+      "principal": "member",
+      "setup": "Format, size, duration, checksum, and container are checked from the stored bytes; no URL input",
+      "scope": "personal",
+      "action": "personal.manage_own",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "validation_generic",
+      "silent_surfaces": [
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-503",
+      "threats": [
+        "T-131"
+      ],
+      "principal": "member",
+      "setup": "Silence and low confidence are truthful; a transcript's links are never fetched",
+      "scope": "personal",
+      "action": "personal.manage_own",
+      "surface": "ui_record",
+      "expected": "allow",
+      "response_shape": "ok",
+      "silent_surfaces": [
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-504",
+      "threats": [
+        "T-126"
+      ],
+      "principal": "member",
+      "setup": "Cancel deletes the audio; a cancelled transcription publishes nothing",
+      "scope": "personal",
+      "action": "personal.manage_own",
+      "surface": "ui_record",
+      "expected": "allow",
+      "response_shape": "ok",
+      "silent_surfaces": [
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-505",
+      "threats": [
+        "T-131"
+      ],
+      "principal": "member",
+      "setup": "Open recordings per person are bounded",
+      "scope": "personal",
+      "action": "personal.manage_own",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "validation_generic",
+      "silent_surfaces": [
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-506",
+      "threats": [
+        "T-130"
+      ],
+      "principal": "owner",
+      "setup": "Another person's recording and another workspace's are not found",
+      "scope": "personal",
+      "action": "personal.manage_own",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "not_found",
+      "silent_surfaces": [
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-507",
+      "threats": [
+        "T-132"
+      ],
+      "principal": "member",
+      "setup": "Departure ends open recordings, erases transcripts, and the sweep deletes leftover audio",
+      "scope": "personal",
+      "action": "personal.manage_own",
+      "surface": "ui_record",
+      "expected": "deny",
+      "response_shape": "empty",
+      "silent_surfaces": [
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-508",
+      "threats": [
+        "T-126"
+      ],
+      "principal": "system_job",
+      "setup": "An abandoned upload expires and its audio is swept",
+      "scope": "workspace",
+      "action": "personal.manage_own",
+      "surface": "api",
+      "expected": "allow",
+      "response_shape": "empty",
+      "silent_surfaces": [
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-509",
+      "threats": [
+        "T-127"
+      ],
+      "principal": "member",
+      "setup": "HTTP: plan preview and planner proposal applied through the 7D routes",
+      "scope": "day",
+      "action": "ai.apply_proposal",
+      "surface": "api",
+      "expected": "allow",
+      "response_shape": "ok",
+      "silent_surfaces": [
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-510",
+      "threats": [
+        "T-125"
+      ],
+      "principal": "member",
+      "setup": "HTTP: interpretation through the assist routes returns the checked candidate",
+      "scope": "personal",
+      "action": "ai.execute",
+      "surface": "api",
+      "expected": "allow",
+      "response_shape": "ok",
+      "silent_surfaces": [
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-511",
+      "threats": [
+        "T-126"
+      ],
+      "principal": "member",
+      "setup": "HTTP: voice settings, create, signed upload, transcribe, read, save, and cancel",
+      "scope": "personal",
+      "action": "personal.manage_own",
+      "surface": "api",
+      "expected": "allow",
+      "response_shape": "ok",
+      "silent_surfaces": [
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-512",
+      "threats": [
+        "T-130"
+      ],
+      "principal": "api_token_personal",
+      "setup": "Bearer callers are refused on plan, interpretation, and voice routes whatever their scopes",
+      "scope": "workspace",
+      "action": "personal.manage_own",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "forbidden",
+      "silent_surfaces": [
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-513",
+      "threats": [
+        "T-124",
+        "T-125"
+      ],
+      "principal": "member",
+      "setup": "Browser: interpret typed text with confirmed cost and evidence spans, upload a synthetic recording, edit its transcript, save both",
+      "scope": "personal",
+      "action": "personal.manage_own",
+      "surface": "ui_record",
+      "expected": "allow",
+      "response_shape": "ok",
+      "silent_surfaces": [
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-514",
+      "threats": [
+        "T-127"
+      ],
+      "principal": "member",
+      "setup": "Browser: a rule-based plan from capacity reviewed and applied once through a change proposal",
+      "scope": "day",
+      "action": "ai.apply_proposal",
+      "surface": "ui_record",
+      "expected": "allow",
+      "response_shape": "ok",
+      "silent_surfaces": [
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-515",
+      "threats": [
+        "T-134"
+      ],
+      "principal": "member",
+      "setup": "Two connections: a new meeting synced while Apply runs waits for it; synced first, it refuses the plan until rebased and freshly approved",
+      "scope": "day",
+      "action": "ai.apply_proposal",
+      "surface": "capacity",
+      "expected": "deny",
+      "response_shape": "conflict_filtered",
+      "silent_surfaces": [
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-516",
+      "threats": [
+        "T-134"
+      ],
+      "principal": "member",
+      "setup": "Two connections: a moved and a deleted meeting serialize with Apply",
+      "scope": "day",
+      "action": "ai.apply_proposal",
+      "surface": "capacity",
+      "expected": "deny",
+      "response_shape": "conflict_filtered",
+      "silent_surfaces": [
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-517",
+      "threats": [
+        "T-134"
+      ],
+      "principal": "member",
+      "setup": "Two connections: a reservation in a brand the person had none in (a phantom) waits for Apply, and one in flight makes Apply refuse",
+      "scope": "day",
+      "action": "ai.apply_proposal",
+      "surface": "capacity",
+      "expected": "deny",
+      "response_shape": "conflict_filtered",
+      "silent_surfaces": [
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-518",
+      "threats": [
+        "T-134"
+      ],
+      "principal": "member",
+      "setup": "Two connections: a reservation change serializes with Apply and invalidates a stale approval",
+      "scope": "day",
+      "action": "ai.apply_proposal",
+      "surface": "capacity",
+      "expected": "deny",
+      "response_shape": "conflict_filtered",
+      "silent_surfaces": [
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-519",
+      "threats": [
+        "T-134"
+      ],
+      "principal": "member",
+      "setup": "A non-canonical writer of a controlling table waits for Apply (the database trigger)",
+      "scope": "day",
+      "action": "ai.apply_proposal",
+      "surface": "capacity",
+      "expected": "deny",
+      "response_shape": "conflict_filtered",
+      "silent_surfaces": [
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-520",
+      "threats": [
+        "T-134"
+      ],
+      "principal": "member",
+      "setup": "The new lock order keeps locked work, dates, and selection, with no deadlock against block writers",
+      "scope": "day",
+      "action": "ai.apply_proposal",
+      "surface": "capacity",
+      "expected": "deny",
+      "response_shape": "conflict_filtered",
+      "silent_surfaces": [
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-521",
+      "threats": [
+        "T-135"
+      ],
+      "principal": "member",
+      "setup": "An over-long transcript is refused, never clipped: nothing stored, measured charge settled, audio deleted",
+      "scope": "personal",
+      "action": "personal.manage_own",
+      "surface": "ui_record",
+      "expected": "deny",
+      "response_shape": "empty",
+      "silent_surfaces": [
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-522",
+      "threats": [
+        "T-135"
+      ],
+      "principal": "member",
+      "setup": "An oversized streamed transcription answer is cut off, kept unknown for review, and leaves nothing behind",
+      "scope": "personal",
+      "action": "personal.manage_own",
+      "surface": "ui_record",
+      "expected": "deny",
+      "response_shape": "empty",
+      "silent_surfaces": [
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-523",
+      "threats": [
+        "T-135"
+      ],
+      "principal": "member",
+      "setup": "An unsafe reported duration is malformed: no arithmetic, charge kept unknown, nothing stored",
+      "scope": "personal",
+      "action": "personal.manage_own",
+      "surface": "ui_record",
+      "expected": "deny",
+      "response_shape": "empty",
+      "silent_surfaces": [
         "error_message"
       ]
     }

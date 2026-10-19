@@ -1,4 +1,4 @@
-import { api, protectedRequest, type StepUpResolver } from '../api.ts';
+import { api, newIdempotencyKey, protectedRequest, type StepUpResolver } from '../api.ts';
 
 /** Typed client for the 2E capture API. Every identifier is a public ID. */
 
@@ -29,6 +29,56 @@ export interface Candidate {
   detected: Detected[];
   needs_confirmation: boolean;
   truncated: boolean;
+}
+
+/** 7F: the interpreted candidate (AI marked the spans; the server derived every value). */
+export interface CaptureInterpretation {
+  ai: true;
+  action: string;
+  status: 'checked' | 'downgraded';
+  dropped: number;
+  questions: Array<{ id?: string; text: string }>;
+  assumptions: string[];
+  limitations: string[];
+  timezone: string;
+  today: string;
+  candidate: Candidate & { interpretation?: { run: string; action: string } };
+  trust_note: string;
+}
+
+/** 7F: whether recording can be offered here, and its bounds. */
+export interface VoiceSettings {
+  transcription: 'available' | 'ai_unavailable' | 'storage_unavailable' | 'not_configured';
+  synthetic: boolean;
+  max_seconds: number;
+  max_bytes: number;
+  formats: string[];
+  note: string;
+}
+
+/** 7F: one recording (ephemeral audio) and its transcript. */
+export interface VoiceCapture {
+  id: string;
+  type: 'voice_capture';
+  state: 'uploaded' | 'transcribing' | 'transcribed' | 'failed' | 'cancelled' | 'expired' | 'saved';
+  format: string;
+  byte_size: number;
+  duration_ms: number;
+  run: string | null;
+  transcript: {
+    state: 'present' | 'erased';
+    text: string | null;
+    confidence?: number | null;
+    low_confidence?: boolean;
+    synthetic?: boolean;
+    note?: string | null;
+  } | null;
+  failure: { code: string; message: string } | null;
+  audio: 'held' | 'discarded';
+  saved_to: string | null;
+  expires_at: string;
+  version: number;
+  upload?: { url: string; method: 'PUT'; headers: Record<string, string>; expires_at: string };
 }
 
 export interface CaptureResult {
@@ -195,6 +245,39 @@ export const capture = {
   async merge(ws: string, body: { items: string[]; keep: string }, stepUp: StepUpResolver) {
     return (
       await protectedRequest<{ data: InboxItem }>('POST', `${w(ws)}/inbox-merge`, body, stepUp)
+    ).body.data;
+  },
+  // 7F: interpretation preview and voice capture (session only; each write has its own key).
+  async interpret(ws: string, body: { text: string; interpretation: string; brand?: string }) {
+    return (
+      await api<{ data: CaptureInterpretation }>('POST', `${w(ws)}/capture/interpretations`, {
+        body,
+      })
+    ).body.data;
+  },
+  async voiceSettings(ws: string) {
+    return (await api<{ data: VoiceSettings }>('GET', `${w(ws)}/capture/voice-settings`)).body.data;
+  },
+  async createVoice(
+    ws: string,
+    body: { format: string; byte_size: number; sha256: string; duration_ms: number },
+  ) {
+    return (
+      await api<{ data: VoiceCapture }>('POST', `${w(ws)}/capture/voice`, {
+        body,
+        headers: { 'idempotency-key': newIdempotencyKey() },
+      })
+    ).body.data;
+  },
+  async voice(ws: string, id: string) {
+    return (await api<{ data: VoiceCapture }>('GET', `${w(ws)}/capture/voice/${id}`)).body.data;
+  },
+  async voiceAction(ws: string, id: string, verb: 'transcribe' | 'cancel', key: string) {
+    return (
+      await api<{ data: VoiceCapture }>('POST', `${w(ws)}/capture/voice/${id}:${verb}`, {
+        body: {},
+        headers: { 'idempotency-key': key },
+      })
     ).body.data;
   },
   async notes(ws: string) {

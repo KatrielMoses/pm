@@ -1,4 +1,5 @@
 import { createHash } from 'node:crypto';
+import { lockPlanConstraints } from './constraints.ts';
 import { change } from '@pm/audit';
 import { newPublicId, newUuidV7 } from '@pm/contracts';
 import { evenRanks, rankBetween } from '@pm/contracts/shell';
@@ -75,7 +76,7 @@ export interface BlockRow {
   locked: boolean;
   prep_minutes: number;
   buffer_minutes: number;
-  source: 'manual' | 'estimate' | 'recurrence';
+  source: 'manual' | 'estimate' | 'recurrence' | 'plan';
   series_id: string | null;
   occurrence_key: string | null;
   version: string | number;
@@ -124,6 +125,8 @@ export class PlanningService extends TimeService {
 
   /** Serializes one person's planning for a day (commitments, ranks, shutdown). */
   protected async lockDay(tx: WorkspaceTransaction, membershipId: string, day: string) {
+    // 7F review 01 R1: the person's plan-constraint lock comes first (one lock order).
+    await lockPlanConstraints(tx, membershipId);
     await sql`SELECT pg_advisory_xact_lock(hashtextextended(${`planning.day:${tx.workspaceId}:${membershipId}:${day}`}, 0))`.execute(
       tx.db,
     );
@@ -616,6 +619,47 @@ export class PlanningService extends TimeService {
    * Commits one task (`task`) or several (`tasks`, from the daily plan) to a day in the viewer's
    * zone. Today or later only; a closed day is final. The task's dates never change (PLAN-008).
    */
+  /**
+   * Commits one readable task to a day (today or later; not a closed day), with its audit and event,
+   * inside the caller's transaction (the canonical command; 7F plan proposals apply through it with
+   * source `plan`). The task's dates never change (PLAN-008).
+   */
+  protected async commitIn(
+    tx: WorkspaceTransaction,
+    caller: Caller,
+    p: Principal,
+    d: string,
+    ref: unknown,
+    source: 'manual' | 'plan',
+    path = '/task',
+  ) {
+    const { today } = await this.todayFor(tx, p);
+    if (d < today) throw invalid(issue('/day', 'past_day', 'Commit work to today or a later day.'));
+    await this.lockDay(tx, p.membershipId, d);
+    await this.requireOpenDay2(tx, p.membershipId, d);
+    const task = await this.plannableTask(tx, p, ref, path);
+    const id = await this.insertCommitment(tx, p, d, task, source);
+    await this.planAudit(
+      tx,
+      caller,
+      p,
+      'today.committed',
+      { id, type: 'today_commitment', publicId: null },
+      [change.plain('task', null, task.publicId), change.plain('day', null, d)],
+      task.brandId,
+    );
+    await this.planEvent(
+      tx,
+      caller,
+      p,
+      'planning.today.committed',
+      { type: 'planning.today_commitment', id, sequence: 0 },
+      { day: d, source },
+      task.brandId,
+    );
+    return { id, task };
+  }
+
   async commit(caller: Caller, ws: unknown, day: unknown, body: unknown, req: Mutation) {
     const b = isObj(body) ? body : {};
     const refs = Array.isArray(b.tasks) ? b.tasks : [b.task];
@@ -628,46 +672,19 @@ export class PlanningService extends TimeService {
       req,
       async (tx, p) => {
         this.requirePersonal(p, 'personal.manage_own');
-        const { today } = await this.todayFor(tx, p);
         const d = this.parseDay(day);
-        if (d < today)
-          throw invalid(issue('/day', 'past_day', 'Commit work to today or a later day.'));
-        await this.lockDay(tx, p.membershipId, d);
-        await this.requireOpenDay2(tx, p.membershipId, d);
         let first: string | null = null;
         for (const [i, ref] of refs.entries()) {
-          const task = await this.plannableTask(
+          const { task } = await this.commitIn(
             tx,
-            p,
-            ref,
-            Array.isArray(b.tasks) ? `/tasks/${i}` : '/task',
-          );
-          const id = await this.insertCommitment(
-            tx,
+            caller,
             p,
             d,
-            task,
+            ref,
             Array.isArray(b.tasks) ? 'plan' : 'manual',
+            Array.isArray(b.tasks) ? `/tasks/${i}` : '/task',
           );
           first ??= task.publicId;
-          await this.planAudit(
-            tx,
-            caller,
-            p,
-            'today.committed',
-            { id, type: 'today_commitment', publicId: null },
-            [change.plain('task', null, task.publicId), change.plain('day', null, d)],
-            task.brandId,
-          );
-          await this.planEvent(
-            tx,
-            caller,
-            p,
-            'planning.today.committed',
-            { type: 'planning.today_commitment', id, sequence: 0 },
-            { day: d, source: Array.isArray(b.tasks) ? 'plan' : 'manual' },
-            task.brandId,
-          );
         }
         this.d.metrics.count('planning.today', refs.length, { action: 'commit', outcome: 'ok' });
         return {
@@ -850,6 +867,48 @@ export class PlanningService extends TimeService {
   }
 
   /** Removes an open commitment from a day (it returns to the backlog). Locked: refused. */
+  /**
+   * Removes one open, unlocked commitment (the canonical command, inside the caller's transaction;
+   * 7F plan proposals apply through it). Locked or closed commitments refuse. Returns the task.
+   */
+  protected async uncommitIn(
+    tx: WorkspaceTransaction,
+    caller: Caller,
+    p: Principal,
+    d: string,
+    tsk: unknown,
+    expected: number | null,
+  ) {
+    await this.lockDay(tx, p.membershipId, d);
+    const { row, task } = await this.ownCommitment(tx, p, d, tsk);
+    if (expected !== null) requireVersion(expected, Number(row.version));
+    if (row.outcome !== 'open')
+      throw new TenancyError('conflict', {
+        issues: [issue('/', 'day_closed', 'This commitment is closed.')],
+      });
+    this.requireUnlocked(row.locked, 'This task');
+    await tx.db.deleteFrom('planning.today_commitment').where('id', '=', row.id).execute();
+    await this.planAudit(
+      tx,
+      caller,
+      p,
+      'today.uncommitted',
+      { id: row.id, type: 'today_commitment', publicId: null },
+      [change.plain('task', task.publicId, null), change.plain('day', d, null)],
+      task.brand.id,
+    );
+    await this.planEvent(
+      tx,
+      caller,
+      p,
+      'planning.today.changed',
+      { type: 'planning.today_commitment', id: row.id, sequence: Number(row.version) + 1 },
+      { day: d, change: 'removed' },
+      task.brand.id,
+    );
+    return task;
+  }
+
   async uncommit(caller: Caller, ws: unknown, day: unknown, tsk: unknown, req: Mutation) {
     return this.mutate(
       caller,
@@ -860,33 +919,7 @@ export class PlanningService extends TimeService {
         this.requirePersonal(p, 'personal.manage_own');
         const expected = parseIfMatch(req.ifMatch);
         const d = this.parseDay(day);
-        await this.lockDay(tx, p.membershipId, d);
-        const { row, task } = await this.ownCommitment(tx, p, d, tsk);
-        requireVersion(expected, Number(row.version));
-        if (row.outcome !== 'open')
-          throw new TenancyError('conflict', {
-            issues: [issue('/', 'day_closed', 'This commitment is closed.')],
-          });
-        this.requireUnlocked(row.locked, 'This task');
-        await tx.db.deleteFrom('planning.today_commitment').where('id', '=', row.id).execute();
-        await this.planAudit(
-          tx,
-          caller,
-          p,
-          'today.uncommitted',
-          { id: row.id, type: 'today_commitment', publicId: null },
-          [change.plain('task', task.publicId, null), change.plain('day', d, null)],
-          task.brand.id,
-        );
-        await this.planEvent(
-          tx,
-          caller,
-          p,
-          'planning.today.changed',
-          { type: 'planning.today_commitment', id: row.id, sequence: Number(row.version) + 1 },
-          { day: d, change: 'removed' },
-          task.brand.id,
-        );
+        const task = await this.uncommitIn(tx, caller, p, d, tsk, expected ?? null);
         return {
           status: 200,
           ref: { id: `${d}:${task.publicId}`, type: 'today_commitment' },
@@ -1202,7 +1235,19 @@ export class PlanningService extends TimeService {
     return { start: s, end: e };
   }
 
+  /**
+   * The person's block-planning lock. Every block writer takes it before any block row lock (7F:
+   * one consistent order with plan application, so concurrent writers never deadlock).
+   */
+  protected async lockBlocks(tx: WorkspaceTransaction, membershipId: string) {
+    await lockPlanConstraints(tx, membershipId);
+    await sql`SELECT pg_advisory_xact_lock(hashtextextended(${`planning.blocks:${tx.workspaceId}:${membershipId}`}, 0))`.execute(
+      tx.db,
+    );
+  }
+
   protected async blockRow(tx: WorkspaceTransaction, p: Principal, blk: unknown) {
+    await this.lockBlocks(tx, p.membershipId);
     const row = (await tx.db
       .selectFrom('planning.work_block')
       .selectAll()
@@ -1264,9 +1309,7 @@ export class PlanningService extends TimeService {
     v: { start: Date; end: Date; prep: number; buffer: number; focus: boolean },
     exclude: string | null,
   ) {
-    await sql`SELECT pg_advisory_xact_lock(hashtextextended(${`planning.blocks:${tx.workspaceId}:${p.membershipId}`}, 0))`.execute(
-      tx.db,
-    );
+    await this.lockBlocks(tx, p.membershipId);
     const clash = await sql<{ n: number }>`
       SELECT 1 AS n FROM planning.work_block b
        WHERE b.owner_membership_id = ${p.membershipId}::uuid AND b.id IS DISTINCT FROM ${exclude}::uuid
@@ -1293,7 +1336,7 @@ export class PlanningService extends TimeService {
       locked: boolean;
       prep: number;
       buffer: number;
-      source: 'manual' | 'estimate' | 'recurrence';
+      source: 'manual' | 'estimate' | 'recurrence' | 'plan';
       seriesId?: string;
       occurrenceKey?: string;
     },
@@ -1384,7 +1427,12 @@ export class PlanningService extends TimeService {
     );
   }
 
-  protected async finishBlockCreate(
+  /**
+   * Creates one block after the canonical checks (the per-day limit, focus protection under the
+   * owner's planning lock), with its audit and event, inside the caller's transaction. 7F plan
+   * proposals apply through it with source `plan`.
+   */
+  protected async createBlockIn(
     tx: WorkspaceTransaction,
     caller: Caller,
     p: Principal,
@@ -1423,6 +1471,16 @@ export class PlanningService extends TimeService {
       v.task?.brandId ?? null,
     );
     this.d.metrics.count('planning.blocks', 1, { action: 'create', outcome: v.source });
+    return blk;
+  }
+
+  protected async finishBlockCreate(
+    tx: WorkspaceTransaction,
+    caller: Caller,
+    p: Principal,
+    v: Parameters<PlanningService['insertBlock']>[2],
+  ) {
+    const blk = await this.createBlockIn(tx, caller, p, v);
     return {
       status: 201,
       ref: { id: blk.publicId, type: 'work_block' },
@@ -1628,6 +1686,7 @@ export class PlanningService extends TimeService {
         reason: 'locked' | 'focus_protected' | 'unavailable' | 'invalid' | 'too_many' | 'missing';
       }
   > {
+    await this.lockBlocks(tx, p.membershipId);
     const row = (await tx.db
       .selectFrom('planning.work_block')
       .selectAll()
@@ -1677,6 +1736,101 @@ export class PlanningService extends TimeService {
     return { ok: true, version, row, start: s, end: e };
   }
 
+  /**
+   * Moves one unlocked block of the person through the canonical move (applyBlockMove: whole
+   * minutes, 5 minutes to 24 hours, the per-day limit, focus protection, a readable task), with its
+   * audit and event, inside the caller's transaction. Refusals are typed conflicts.
+   */
+  protected async moveBlockIn(
+    tx: WorkspaceTransaction,
+    caller: Caller,
+    p: Principal,
+    blk: unknown,
+    start: Date,
+    end: Date,
+    expected: number | null,
+  ) {
+    const row = await this.blockRow(tx, p, blk);
+    if (expected !== null) requireVersion(expected, Number(row.version));
+    this.requireUnlocked(row.locked, 'This block');
+    const moved = await this.applyBlockMove(tx, p, row.id, start, end);
+    if (!moved.ok) {
+      const message: Record<typeof moved.reason, string> = {
+        locked: 'This block is locked. Unlock it to move it.',
+        focus_protected: 'This time overlaps a focus block.',
+        unavailable: 'The task of this block is no longer available to you.',
+        invalid: 'A block lasts 5 minutes to 24 hours.',
+        too_many: `A day can hold at most ${this.ws.workBlocksPerDayMax} blocks.`,
+        missing: 'This block is no longer available.',
+      };
+      if (moved.reason === 'missing') throw new TenancyError('not_found');
+      throw new TenancyError('conflict', {
+        issues: [issue('/starts_at', moved.reason, message[moved.reason])],
+      });
+    }
+    await this.planAudit(
+      tx,
+      caller,
+      p,
+      'work_block.moved',
+      { id: row.id, type: 'work_block', publicId: row.public_id },
+      [
+        change.plain('starts_at', iso(row.starts_at), moved.start.toISOString()),
+        change.plain('ends_at', iso(row.ends_at), moved.end.toISOString()),
+      ],
+      row.brand_id,
+    );
+    await this.afterBlockMoved(tx, p, row.id);
+    await this.planEvent(
+      tx,
+      caller,
+      p,
+      'planning.work_block.moved',
+      { type: 'planning.work_block', id: row.id, sequence: moved.version },
+      {
+        starts_at: moved.start.toISOString(),
+        ends_at: moved.end.toISOString(),
+        source: row.source,
+      },
+      row.brand_id,
+    );
+    return { row, version: moved.version };
+  }
+
+  /** Deletes one unlocked block of the person (the canonical command, in the caller's transaction). */
+  protected async deleteBlockIn(
+    tx: WorkspaceTransaction,
+    caller: Caller,
+    p: Principal,
+    blk: unknown,
+    expected: number | null,
+  ) {
+    const row = await this.blockRow(tx, p, blk);
+    if (expected !== null) requireVersion(expected, Number(row.version));
+    this.requireUnlocked(row.locked, 'This block');
+    await this.beforeBlockDeleted(tx, p, row.id);
+    await tx.db.deleteFrom('planning.work_block').where('id', '=', row.id).execute();
+    await this.planAudit(
+      tx,
+      caller,
+      p,
+      'work_block.deleted',
+      { id: row.id, type: 'work_block', publicId: row.public_id },
+      [change.plain('starts_at', iso(row.starts_at), null)],
+      row.brand_id,
+    );
+    await this.planEvent(
+      tx,
+      caller,
+      p,
+      'planning.work_block.deleted',
+      { type: 'planning.work_block', id: row.id, sequence: Number(row.version) + 1 },
+      { source: row.source },
+      row.brand_id,
+    );
+    return row;
+  }
+
   async deleteBlock(caller: Caller, ws: unknown, blk: unknown, req: Mutation) {
     return this.mutate(
       caller,
@@ -1686,29 +1840,7 @@ export class PlanningService extends TimeService {
       async (tx, p) => {
         this.requirePersonal(p, 'personal.manage_own');
         const expected = parseIfMatch(req.ifMatch);
-        const row = await this.blockRow(tx, p, blk);
-        requireVersion(expected, Number(row.version));
-        this.requireUnlocked(row.locked, 'This block');
-        await this.beforeBlockDeleted(tx, p, row.id);
-        await tx.db.deleteFrom('planning.work_block').where('id', '=', row.id).execute();
-        await this.planAudit(
-          tx,
-          caller,
-          p,
-          'work_block.deleted',
-          { id: row.id, type: 'work_block', publicId: row.public_id },
-          [change.plain('starts_at', iso(row.starts_at), null)],
-          row.brand_id,
-        );
-        await this.planEvent(
-          tx,
-          caller,
-          p,
-          'planning.work_block.deleted',
-          { type: 'planning.work_block', id: row.id, sequence: Number(row.version) + 1 },
-          { source: row.source },
-          row.brand_id,
-        );
+        const row = await this.deleteBlockIn(tx, caller, p, blk, expected ?? null);
         return {
           status: 200,
           ref: { id: row.public_id, type: 'work_block' },

@@ -93,6 +93,7 @@ export {
   productPersonalDataRegistry,
 } from './ai/lifecycle.ts';
 export * from './ai/provider.ts';
+export * from './ai/transcription.ts';
 export * from './ai/registry.ts';
 export * from './ai/money.ts';
 export { redactCredentials, REDACTION_MARKER } from './ai/redaction.ts';

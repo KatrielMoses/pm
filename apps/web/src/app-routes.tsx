@@ -38,6 +38,7 @@ import { ProjectPage, ProjectsPage } from './pages/project-pages.tsx';
 import { ProjectlessTasksPage, TaskPage } from './pages/task-pages.tsx';
 import { TimeApprovalsPage, TimePage, TimeReportPage } from './pages/time-pages.tsx';
 import { TodayPage } from './pages/today-pages.tsx';
+import { DayPlanPage } from './pages/plan-pages.tsx';
 import { CapacityPage } from './pages/capacity-pages.tsx';
 // 5B pages load on first use, so every other page keeps its startup cost.
 const GoalsPage = lazy(() =>
@@ -205,6 +206,7 @@ export const ROUTE_COMPONENTS: Record<string, Render> = {
   ai_assist: (p) => <AssistPage key={p.ws} ws={p.ws!} />,
   ai_proposals: (p) => <ProposalsPage ws={p.ws!} />,
   ai_proposal: (p) => <ProposalPage key={p.prp} ws={p.ws!} id={p.prp!} />,
+  day_plan: (p) => <DayPlanPage key={p.ws} ws={p.ws!} />,
   ai_briefings: (p) => <BriefingsPage key={p.ws} ws={p.ws!} />,
   ai_briefing: (p) => <BriefingPage key={p.brf} ws={p.ws!} id={p.brf!} />,
   ai_briefing_settings: (p) => <BriefingSettingsPage key={p.ws} ws={p.ws!} />,

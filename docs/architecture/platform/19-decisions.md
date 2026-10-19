@@ -696,3 +696,19 @@ Renumbered in the Phase 6 integration review: 6B was accepted with a second `pl-
   - Correction responses carry `availability` (`available` or `withheld`); a withheld note has null text, scope, statement, briefing, and history. Ineligible notes are omitted from `ai_briefing_corrections`; their commands return `not_found`.
   - New failure codes on a briefing: `evidence_unresolved`, `evidence_unverifiable` (corrective review 02: a basis that cannot be kept whole refuses publication).
   - The retention job (`ai.history.retention`) also discovers briefing content through `discover_briefing_retention_work` and interleaves the two lists.
+
+<a id="pl-52"></a>
+### PL-52: Plan, interpretation, and voice routes; transcription jobs (Phase 7F)
+- **Decision:**
+  - **Routes.** Under `/v1/workspaces/{ws}`, session only:
+    - `POST /planning/day-plan-previews` (`day_plan_preview`): the rule-based plan for a day; nothing is written. `POST /planning/day-plans` (201, a `change_proposal` of origin `planner`; Idempotency-Key), then the 7D proposal routes.
+    - `POST /capture/interpretations` (`capture_interpretation`): the checked candidate of an interpreted capture (the run comes from `POST /ai/assist-runs` with `interpret_capture.v1`).
+    - `GET /capture/voice-settings` (`voice_settings`), `POST /capture/voice` (201, a `voice_capture` with a bound upload), `GET /capture/voice/{vcp}`, `POST /capture/voice/{vcp}:transcribe` and `:cancel`. `POST /capture` accepts `interpretation` (a run id) and `voice` (a `vcp_` id) for one item.
+  - **ID prefix.** `vcp` (voice_capture). **Operation kind.** `plan_proposal` (R0).
+  - **Jobs.** `ai.transcription` (one attempt per transcription operation; a possibly charged outcome is never resent) and `capture.voice.cleanup` every five minutes (payload-free discovery; a bounded batch per workspace).
+  - **Errors.** New issue codes: `plan_changed`, `plan_unavailable`, `nothing_to_plan`, `plan_unverifiable`, `overlaps_block`, `overlaps_meeting`, `overlaps_plan`, `past_day`, `too_far`, `interpretation_stale`, `interpretation_pending`, `interpretation_unusable`, `interpretation_erased`, `transcription_unavailable`, `storage_unavailable`, `voice_not_uploaded`, `upload_missing`, `voice_closed`, `voice_not_transcribed`, `voice_already_saved`, `too_many`.
+  - **Parameters.** `TRANSCRIPTION_PROVIDER` (`none` or the fixture, refused when deployed), `TRANSCRIPTION_BASE_URL`, `TRANSCRIPTION_API_KEY`, `TRANSCRIPTION_TIMEOUT_MS`, `VOICE_MAX_SECONDS`, `VOICE_MAX_BYTES`, `VOICE_FORMATS`, `VOICE_QUEUE_MAX`, `VOICE_UPLOAD_TTL_SECONDS`, `VOICE_TRANSCRIPT_MAX_CHARS`.
+  - **Telemetry.** `planning.plans` (label `outcome`), `capture.voice` (label `outcome`), `capture.interpretations` (label `status`).
+- **Alternatives:** A raw audio upload through the API (unbounded request bodies on the web tier).
+- **Consequences:** No new scopes or webhook types. The worker registers the two jobs with the AI jobs.
+- **Corrective review 01:** new voice failure codes `transcript_too_long` (measured charge settled), `response_too_large` and `malformed_response` (charge unknown, held for reconciliation). Lock order for plan inputs: the person's `planning.constraints` lock, then the capacity profile, day, blocks, brand holidays, the shared workspace dependency lock, and task rows. The transcription response budget is `VOICE_TRANSCRIPT_MAX_CHARS × 4 + 2048` bytes.

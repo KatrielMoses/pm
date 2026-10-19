@@ -28,6 +28,11 @@ const OP_TEXT: Record<AiProposalChange['op'], string> = {
   'milestone.create': 'Create milestone',
   'relation.add': 'Add relationship',
   'document.replace': 'Replace document text (new version)',
+  'block.create': 'Schedule a work block',
+  'block.update': 'Move a work block',
+  'block.delete': 'Remove a work block (postpone)',
+  'commitment.add': 'Add to Today',
+  'commitment.remove': 'Remove from Today (postpone)',
 };
 const FIELD_TEXT: Record<string, string> = {
   title: 'Title',
@@ -39,6 +44,27 @@ const FIELD_TEXT: Record<string, string> = {
   target_date: 'Target date',
   status: 'Status',
   text: 'Text',
+  starts_at: 'Starts',
+  ends_at: 'Ends',
+  day: 'Day',
+};
+const INSTANTS = new Set(['starts_at', 'ends_at']);
+/** An ISO instant as a `datetime-local` value in this browser's time zone, and back. */
+const toLocalInput = (iso: string | null) => {
+  if (!iso) return '';
+  const d = new Date(iso);
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+};
+const fromLocalInput = (v: string) => (v ? new Date(v).toISOString() : null);
+const shownInstant = (iso: string | null) =>
+  iso ? new Date(iso).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' }) : '—';
+const ISSUE_TEXT: Record<string, string> = {
+  overlaps_block: 'overlaps one of your blocks',
+  overlaps_meeting: 'overlaps a meeting',
+  overlaps_plan: 'overlaps another block in this plan',
+  outside_working_hours: 'is outside your working hours',
+  after_deadline: 'ends after the task deadline',
 };
 const STATE_TEXT: Record<AiProposal['state'], string> = {
   open: 'Open for review',
@@ -184,6 +210,23 @@ function FieldEditor({
 }) {
   const id = `prp-${change.key}-${field}`;
   const label = `${FIELD_TEXT[field] ?? field} (proposed)`;
+  // 7F: block times are edited in this browser's time zone and sent as exact instants.
+  if (INSTANTS.has(field))
+    return (
+      <label htmlFor={id}>
+        <span className="visually-hidden">{label}, in your browser's time zone</span>
+        <input
+          id={id}
+          type="datetime-local"
+          step={300}
+          value={toLocalInput(value)}
+          disabled={disabled}
+          onChange={(e) => onChange(fromLocalInput(e.target.value))}
+        />
+      </label>
+    );
+  // A planner commitment's day is the plan's day: shown, never edited here.
+  if (field === 'day') return <span>{value ?? '—'}</span>;
   if (field === 'priority')
     return (
       <label htmlFor={id}>
@@ -521,7 +564,14 @@ export function ProposalPage({ ws, id }: { ws: string; id: string }) {
         ws,
         id,
         'rebase',
-        { revision: p.revision, reviewed },
+        {
+          revision: p.revision,
+          reviewed,
+          // 7F: the day snapshot the person reviewed on this page (a changed plan's new basis).
+          ...(p.plan?.current.state === 'changed' && p.plan.current.snapshot
+            ? { snapshot: p.plan.current.snapshot }
+            : {}),
+        },
         keyFor('rebase'),
       );
       settle('rebase');
@@ -541,6 +591,9 @@ export function ProposalPage({ ws, id }: { ws: string; id: string }) {
   };
 
   const app = p.application;
+  const planner = p.origin === 'planner';
+  const plan = p.plan ?? null;
+  const issuesOf = (key: string) => plan?.current.issues.filter((i) => i.block === key) ?? [];
   return (
     <Page title={p.title ?? 'Change proposal'} lead={p.trust_note}>
       <p>
@@ -605,7 +658,10 @@ export function ProposalPage({ ws, id }: { ws: string; id: string }) {
           <h2 id="prp-outcome">Outcome</h2>
           {app.outcome === 'applied' ? (
             <Banner tone="success" title={`Applied ${app.applied_count} change(s)`}>
-              Applied by you · proposed by AI · {new Date(app.at).toLocaleString()}.
+              {planner
+                ? 'Applied by you · proposed by the rule-based planner'
+                : 'Applied by you · proposed by AI'}{' '}
+              · {new Date(app.at).toLocaleString()}.
             </Banner>
           ) : (
             <Banner tone="danger" title="Nothing was applied">
@@ -616,7 +672,92 @@ export function ProposalPage({ ws, id }: { ws: string; id: string }) {
         </section>
       ) : null}
 
-      {p.can.rebase ? (
+      {plan ? (
+        <section aria-labelledby="prp-plan" className="ai-panel" role="region">
+          <h2 id="prp-plan">
+            Plan for {plan.day} ({plan.timezone})
+          </h2>
+          <p className="hint">
+            Rule-based plan: deterministic, not generated. Times below are shown in your browser's
+            time zone. Task dates never change.
+          </p>
+          <dl className="plan-totals">
+            <dt>Available</dt>
+            <dd>{plan.totals.capacity_minutes ?? 0} min</dd>
+            <dt>Scheduled</dt>
+            <dd>{plan.totals.scheduled_minutes ?? 0} min</dd>
+            <dt>Not scheduled</dt>
+            <dd>{plan.totals.unscheduled_minutes ?? 0} min</dd>
+            <dt>Missing estimates</dt>
+            <dd>{plan.totals.unknown_estimates ?? 0}</dd>
+          </dl>
+          {plan.coverage ? <p className="hint">{plan.coverage}</p> : null}
+          {plan.feasible ? null : (
+            <p>Not everything fits this day; see what was left out and why.</p>
+          )}
+          {plan.unscheduled.length ? (
+            <>
+              <h3>Not scheduled</h3>
+              <ul>
+                {plan.unscheduled.map((u, i) => (
+                  <li key={i}>
+                    <strong>{u.task?.title ?? 'A task you can no longer see'}</strong>: {u.detail}
+                  </li>
+                ))}
+              </ul>
+            </>
+          ) : null}
+          {plan.postpone.length ? (
+            <>
+              <h3>Postponement suggestions (only if you select them)</h3>
+              <ul>
+                {plan.postpone.map((x, i) => (
+                  <li key={i}>
+                    <strong>{x.task?.title ?? 'A task you can no longer see'}</strong>: {x.tradeoff}
+                  </li>
+                ))}
+              </ul>
+            </>
+          ) : null}
+          {plan.conflicts.length ? (
+            <Banner tone="warning" title="Locked work that does not fit">
+              <ul>
+                {plan.conflicts.map((c, i) => (
+                  <li key={i}>{c.detail}</li>
+                ))}
+              </ul>
+            </Banner>
+          ) : null}
+          {plan.current.state === 'changed' ? (
+            <Banner tone="warning" title="Your day changed since this plan was made">
+              Time off, meetings, blocks, Today, or the tasks it uses changed. Review the plan, then
+              use your current day as its basis below and approve again.
+            </Banner>
+          ) : plan.current.state === 'unavailable' ? (
+            <Banner tone="info" title="This plan can no longer be checked">
+              Its day has passed or its scope is no longer available to you.
+            </Banner>
+          ) : null}
+        </section>
+      ) : null}
+      {p.can.rebase && planner ? (
+        <section aria-labelledby="prp-rebase" className="ai-panel" role="region">
+          <h2 id="prp-rebase">Use your current day as this plan's basis</h2>
+          <p>
+            Keeps your selections and edits; conflicting times are shown on each block. You approve
+            again before applying.
+          </p>
+          <button
+            type="button"
+            className="button button-primary"
+            disabled={busy}
+            onClick={() => void rebase()}
+          >
+            Use my current day
+          </button>
+        </section>
+      ) : null}
+      {p.can.rebase && !planner ? (
         <section aria-labelledby="prp-rebase" className="ai-panel" role="region">
           <h2 id="prp-rebase">Some records changed since this proposal was made</h2>
           <p>
@@ -696,6 +837,11 @@ export function ProposalPage({ ws, id }: { ws: string; id: string }) {
                       <RefText ws={ws} r={c.relation.to} />.{' '}
                     </>
                   ) : null}
+                  {c.task ? (
+                    <>
+                      For <RefText ws={ws} r={c.task} />.{' '}
+                    </>
+                  ) : null}
                   {c.depends_on.length ? `Needs ${c.depends_on.join(', ')}. ` : ''}
                   {c.sources.length ? `Based on ${c.sources.join(', ')}.` : ''}
                 </p>
@@ -713,7 +859,13 @@ export function ProposalPage({ ws, id }: { ws: string; id: string }) {
                       {c.fields.map((f) => (
                         <tr key={f.field}>
                           <th scope="row">{FIELD_TEXT[f.field] ?? f.field}</th>
-                          <td>{c.target ? (f.before ?? '—') : 'New'}</td>
+                          <td>
+                            {c.target
+                              ? INSTANTS.has(f.field)
+                                ? shownInstant(f.before)
+                                : (f.before ?? '—')
+                              : 'New'}
+                          </td>
                           <td>
                             {p.can.edit && !rejected ? (
                               <FieldEditor
@@ -723,6 +875,8 @@ export function ProposalPage({ ws, id }: { ws: string; id: string }) {
                                 disabled={!editable}
                                 onChange={(v) => setField(c, f.field, v)}
                               />
+                            ) : INSTANTS.has(f.field) ? (
+                              shownInstant(f.after)
                             ) : (
                               (f.after ?? '—')
                             )}
@@ -743,6 +897,13 @@ export function ProposalPage({ ws, id }: { ws: string; id: string }) {
                     </strong>
                   ) : null}
                   {c.failure ? <span className="field-error"> {c.failure.message}</span> : null}
+                  {issuesOf(c.key).map((i) => (
+                    <span key={i.code} className={i.severity === 'error' ? 'field-error' : 'hint'}>
+                      {' '}
+                      This time {ISSUE_TEXT[i.code] ?? i.code}
+                      {i.severity === 'error' ? ': change it or deselect this block.' : '.'}
+                    </span>
+                  ))}
                   {own ? <span className="field-error"> {own.message}</span> : null}
                 </p>
                 {p.can.edit && !rejected ? (

@@ -162,8 +162,12 @@ def check_migration():
         if term not in down:
             errs.append("0058 down lacks %s" % term)
     names = sorted(n for n in os.listdir(P("packages/db/migrations")) if n.endswith(".up.sql"))
-    if names[-1] != "0058_ai_briefings.up.sql":
-        errs.append("0058_ai_briefings must be the last migration")
+    # Later migrations belong to later phases, each held by its own validator.
+    later_owned = {"0059_planning_capture.up.sql": "phase7f.py"}
+    after = names[names.index("0058_ai_briefings.up.sql") + 1:] if "0058_ai_briefings.up.sql" in names else ["?"]
+    for n in after:
+        if n not in later_owned or not os.path.isfile(P("docs/engineering/tools/%s" % later_owned[n])):
+            errs.append("migration %s after 7E must be held by a later-phase validator" % n)
     errs += phase1.check_boundaries([58])
     return errs, "additive 0058, six forced-RLS tables, two discovery functions, exact rollback with guard, boundary 58"
 

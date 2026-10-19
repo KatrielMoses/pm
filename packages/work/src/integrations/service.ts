@@ -1,4 +1,5 @@
 import { randomBytes } from 'node:crypto';
+import { lockPlanConstraints } from '../planning/constraints.ts';
 import { change, CommandContext } from '@pm/audit';
 import type { SecretVault } from '@pm/config';
 import { newPublicId, newUuidV7, type ActionKey, type ExecutionContext } from '@pm/contracts';
@@ -597,8 +598,10 @@ export class IntegrationService extends ReportService {
           } as never)
           .where('id', '=', row.id)
           .execute();
-        if (input.retention === 'remove') await this.#removeSynced(tx, row.id);
-        else await this.afterDisconnectRetained(tx, row);
+        if (input.retention === 'remove') {
+          if (row.ownerId) await lockPlanConstraints(tx, row.ownerId);
+          await this.#removeSynced(tx, row.id);
+        } else await this.afterDisconnectRetained(tx, row);
         await this.workAudit(
           tx,
           caller,
@@ -983,6 +986,8 @@ export class IntegrationService extends ReportService {
     canWrite: boolean,
   ): Promise<{ reads: number; writes: number; conflicts: number; partial?: boolean }> {
     if (row.provider === 'google_calendar' && secret.events?.length) {
+      // 7F review 01 R1: calendar mirrors are plan inputs (the owner's constraint lock first).
+      if (row.ownerId) await lockPlanConstraints(tx, row.ownerId);
       const cal = await upsertCalendarEvents(tx, {
         connectionId: row.id,
         ownerMembershipId: row.ownerId,

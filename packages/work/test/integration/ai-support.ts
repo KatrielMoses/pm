@@ -4,7 +4,14 @@ import { LogErrorReporter } from '@pm/observability';
 import { FIXTURE_MODEL_KEY, type AiProviderFixture } from '@pm/test-support';
 import type { TestDatabase } from '@pm/test-support/vitest';
 import type { Caller } from '@pm/tenancy';
-import { aiDispatchHandler, MessagesProvider, type AiGatewayDeps, type ModelEntry } from '@pm/work';
+import {
+  aiDispatchHandler,
+  aiTranscriptionHandler,
+  HttpTranscriptionProvider,
+  MessagesProvider,
+  type AiGatewayDeps,
+  type ModelEntry,
+} from '@pm/work';
 import { mutation, type WorkEnv } from './fixture.ts';
 
 /** The AI gateway against the deterministic protocol fixture (synthetic prices, no provider). */
@@ -35,6 +42,13 @@ export function fixtureAi(
     stream: { outputMaxChars: 40_000, eventMaxBytes: 65_536, maxBytes: 4_194_304 },
     retrieval: { sourcesMax: 8, sourceChars: 1500 },
     proposals: { approvalHours: 24, changesMax: 25 },
+    // 7F: transcription through the same deterministic fixture (synthetic).
+    transcription: {
+      provider: 'fixture',
+      baseUrl: fx.baseUrl,
+      apiKey: new Secret(fx.apiKey),
+      timeoutMs: 3000,
+    },
     ...overrides,
   };
   return {
@@ -47,6 +61,10 @@ export function fixtureAi(
       maxWireBytes: config.stream.maxBytes,
     }),
     ...(models ? { models } : {}),
+    transcriber:
+      config.transcription && config.transcription.provider !== 'none'
+        ? new HttpTranscriptionProvider({ baseUrl: fx.baseUrl, timeoutMs: 3000 })
+        : null,
     entitlements: { aiAllowed: async () => true },
   };
 }
@@ -90,6 +108,15 @@ export async function aiWorker(env: WorkEnv, maxAttempts = 3) {
     discovery: h.discovery,
     handlers: [
       aiDispatchHandler({
+        tenant: h.worker,
+        discovery: h.discovery,
+        service: env.svc,
+        metrics: h.telemetry.metrics,
+        logger: h.logger,
+        maxAttempts,
+        timeoutMs: 20_000,
+      }),
+      aiTranscriptionHandler({
         tenant: h.worker,
         discovery: h.discovery,
         service: env.svc,

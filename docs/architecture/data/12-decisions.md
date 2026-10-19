@@ -588,3 +588,23 @@ Status of every ADR: **proposed (Phase 0B)**, pending solutions-architect accept
   - `exec_dispatch.discover_briefing_retention_work(before, limit)` returns workspace ids with expired present briefing content, independently of `discover_ai_retention_work` (0053, unchanged); `pm_scheduler` gains column select on `ai.briefing(content_state, created_at)`.
   - Retention also erases notes that are not approved memory together with the briefing content they were made on. The down migration drops both additions and still restores the exact 0057 catalog.
 - **Corrective review 02 (Phase 7E):** no schema change. A statement is stored only together with its complete evidence; a basis that cannot be kept whole (above 1000 records per statement or 40 000 per briefing) leaves the briefing `failed` with no statements, coverage, or evidence rows.
+
+<a id="adr-50"></a>
+## ADR-50: Planner proposals, plan evidence, and voice captures (Phase 7F)
+
+- **Decision:** Migration 0059 (expand) extends the 7D proposal and 7E evidence entities and adds one capture table. It changes no earlier file.
+  - `ai.change_proposal` gains `origin` (`ai_action` default, `planner`) and `plan` (jsonb, at most 32 KB: day, zone, scope, options, constraint snapshot, totals, reasons, unscheduled work, postponements, conflicts). Its foreign key now references `exec.operation`; a trigger keeps the one-proposal-per-operation shape honest: an AI proposal needs its `ai_action`, a planner proposal needs an operation of kind `plan_proposal`. An erased proposal holds no plan.
+  - `ai.proposed_change` accepts five planning operations (`block.create`, `block.update`, `block.delete`, `commitment.add`, `commitment.remove`) and `blk_` targets; `planning.work_block.source` accepts `plan`.
+  - `ai.briefing_evidence` gains `proposal_id`: exactly one owner (briefing, correction, or proposal) per row.
+  - `capture.voice_capture` (`vcp_`): a person's recording (state, checked format, size, duration, checksum, the ephemeral `storage_key`, the transcription operation, the saved Inbox item, a failure code, expiry, and when the audio was discarded). A discarded capture names no object. Forced row-level security; select, insert, and update only.
+  - `ai.ai_action.purpose` accepts `transcription`; the transcript is `ai.ai_output` content.
+  - `exec_dispatch.discover_voice_cleanup_work` and `exec_dispatch.discover_plan_retention_work` return workspace ids only (owner `pm_scheduler`, execute for `dispatcher`), with `capture` schema usage and column grants to `pm_scheduler`.
+- **Alternatives:**
+  - A separate plan table and apply path, which would duplicate the 7D review, approval, and atomic Apply.
+  - Storing audio as a 4E file, which would make an ephemeral recording a long-lived attachment.
+  - Storing the transcript on the capture row, outside the protected AI content lifecycle.
+- **Consequences:**
+  - Plan content and transcripts are content: departure and technical retention erase them (planner proposals are discovered on their own); applied blocks, commitments, and saved Inbox items stay.
+  - The down migration restores the exact 0058 catalog and refuses while any voice capture, transcription action, planner proposal, planning operation, plan evidence, or plan block exists (forced row-level security lifted for that one check).
+  - Workspace purge deletes `capture.voice_capture` before `capture.inbox_item` and `exec.operation`.
+- **Corrective review 01 (Phase 7F):** 0059 adds `planning.lock_plan_constraints(workspace, member)` and the `planning.plan_constraint_guard` trigger function. The guard takes the person's plan-constraint lock on every insert, update or delete of `integrations.calendar_event`, `integrations.calendar_source` (selection, state, brand), `integrations.connection` (lifecycle, health), `planning.capacity_reservation`, `planning.capacity_profile`, `planning.availability_rule`, `planning.time_off`, `planning.work_block` and `planning.today_commitment`. No data changes; the down migration drops the triggers and functions and still restores the exact 0058 catalog.

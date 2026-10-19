@@ -214,6 +214,7 @@ erDiagram
   capture_conversion }o..o{ note : "references"
   capture_conversion }o..o{ task : "references"
   capture_conversion }o..o{ project : "references"
+  voice_capture }o..o{ inbox_item : "references"
 ```
 
 ## Today, scheduling, and capacity
@@ -450,6 +451,7 @@ erDiagram
   briefing_correction ||--o{ briefing_correction_event : "contains"
   briefing ||--o{ briefing_evidence : "contains"
   briefing_correction ||--o{ briefing_evidence : "contains"
+  change_proposal ||--o{ briefing_evidence : "contains"
   briefing_evidence }o..o{ record : "references"
 ```
 

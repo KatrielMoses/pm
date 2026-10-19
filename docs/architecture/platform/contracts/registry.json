@@ -847,6 +847,14 @@
       "owner_module": "integrations",
       "platform_only": false,
       "note": "Phase 6E; opaque audit aggregate identifier, not an authorization token."
+    },
+    {
+      "prefix": "vcp",
+      "resource": "voice_capture",
+      "entity": "capture.voice_capture",
+      "owner_module": "capture",
+      "platform_only": false,
+      "note": "Phase 7F (PL-52)."
     }
   ],
   "error_codes": [
@@ -1299,6 +1307,12 @@
         "cancel"
       ],
       "risk_class": "R4"
+    },
+    {
+      "kind": "plan_proposal",
+      "detail_entity": "ai.change_proposal",
+      "supports": [],
+      "risk_class": "R0"
     }
   ],
   "events": [
@@ -6881,6 +6895,30 @@
         "outcome"
       ],
       "area": "ai"
+    },
+    {
+      "name": "planning.plans",
+      "type": "counter",
+      "labels": [
+        "outcome"
+      ],
+      "area": "planning"
+    },
+    {
+      "name": "capture.voice",
+      "type": "counter",
+      "labels": [
+        "outcome"
+      ],
+      "area": "capture"
+    },
+    {
+      "name": "capture.interpretations",
+      "type": "counter",
+      "labels": [
+        "status"
+      ],
+      "area": "capture"
     }
   ],
   "forbidden_metric_labels": [
@@ -7367,7 +7405,7 @@
     },
     {
       "name": "IMPORT_ROLLBACK_PERIOD",
-      "meaning": "Recovery window for completed CSV imports; default 604800000 ms, range 60000–7776000000.",
+      "meaning": "Recovery window for completed CSV imports; default 604800000 ms, range 60000\u20137776000000.",
       "owner": "6D"
     },
     {
@@ -8409,6 +8447,56 @@
       "name": "AI_PROPOSAL_CHANGES_MAX",
       "meaning": "Changes one proposal may hold (larger proposals are refused whole); default 25, range 1\u2013100.",
       "owner": "7D"
+    },
+    {
+      "name": "TRANSCRIPTION_PROVIDER",
+      "meaning": "Voice transcription transport: none (default) or the deterministic fixture, refused when deployed; no live speech provider exists.",
+      "owner": "7F"
+    },
+    {
+      "name": "TRANSCRIPTION_BASE_URL",
+      "meaning": "Base URL of the transcription transport (fixture only).",
+      "owner": "7F"
+    },
+    {
+      "name": "TRANSCRIPTION_API_KEY",
+      "meaning": "Transcription transport key (fixture only; secret references refused until DQ-28).",
+      "owner": "7F"
+    },
+    {
+      "name": "TRANSCRIPTION_TIMEOUT_MS",
+      "meaning": "One transcription request; default 30000, range 1000\u2013120000; a timeout after sending is never resent.",
+      "owner": "7F"
+    },
+    {
+      "name": "VOICE_MAX_SECONDS",
+      "meaning": "Longest recording; default 120, range 5\u2013600.",
+      "owner": "7F"
+    },
+    {
+      "name": "VOICE_MAX_BYTES",
+      "meaning": "Largest recording upload; default 10485760 (10 MiB).",
+      "owner": "7F"
+    },
+    {
+      "name": "VOICE_FORMATS",
+      "meaning": "Accepted recording formats (subset of audio/wav, audio/webm, audio/ogg).",
+      "owner": "7F"
+    },
+    {
+      "name": "VOICE_QUEUE_MAX",
+      "meaning": "Recordings one person may have uploading or transcribing at once; default 3.",
+      "owner": "7F"
+    },
+    {
+      "name": "VOICE_UPLOAD_TTL_SECONDS",
+      "meaning": "Upload URL lifetime; expired uploads are swept; default 900.",
+      "owner": "7F"
+    },
+    {
+      "name": "VOICE_TRANSCRIPT_MAX_CHARS",
+      "meaning": "Longest transcript kept; default 4000.",
+      "owner": "7F"
     },
     {
       "name": "AI_HISTORY_RETENTION_DAYS",

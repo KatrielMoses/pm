@@ -8,3 +8,4 @@ export { contractErrors, startPostgres, POSTGRES_IMAGE, type PostgresServer } fr
 export * from './google-calendar-fixture.ts';
 export * from './ai-provider-fixture.ts';
 export * from './ai-action-fixture.ts';
+export * from './voice-fixture.ts';

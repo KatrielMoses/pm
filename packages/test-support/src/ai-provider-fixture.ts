@@ -448,6 +448,78 @@ export async function startAiProviderFixture(
     });
   const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
+  /**
+   * 7F synthetic transcription (`POST /v1/audio/transcriptions`): the transcript, duration, and
+   * confidence come from a marker the synthetic audio builders embed (`syntheticAudioMarker`); audio
+   * without one transcribes to nothing. It proves the upload and transcription path, never speech
+   * recognition.
+   */
+  const transcribe = async (req: IncomingMessage, res: ServerResponse) => {
+    seq += 1;
+    const id = `tr_fixture_${String(seq).padStart(8, '0')}`;
+    const chunks: Buffer[] = [];
+    let size = 0;
+    for await (const c of req as AsyncIterable<Buffer>) {
+      size += c.length;
+      if (size > 12 * 1024 * 1024) return json(res, 413, { error: 'too_large' });
+      chunks.push(c);
+    }
+    const audio = Buffer.concat(chunks);
+    const key = typeof req.headers['x-api-key'] === 'string' ? req.headers['x-api-key'] : '';
+    const format = String(req.headers['content-type'] ?? '');
+    const marker = readAudioMarker(audio);
+    const scenario = (marker?.s ?? 'ok') as FixtureScenario;
+    received.push({
+      model: String(req.headers['x-model'] ?? ''),
+      maxTokens: 0,
+      system: 'transcription',
+      user: `[audio ${audio.length} bytes ${format}]`,
+      keyFingerprint: fingerprint(key),
+      scenario,
+      requestId: id,
+    });
+    if (!accepted.has(key)) return json(res, 401, { error: 'auth' });
+    if (req.headers['x-model'] !== 'synthetic-transcription')
+      return json(res, 404, { error: 'model' });
+    if (!['audio/wav', 'audio/webm', 'audio/ogg'].includes(format))
+      return json(res, 415, { error: 'format' });
+    const fail = failQueue.shift();
+    if (fail) return json(res, fail.status, { error: 'injected' });
+    if (scenario === 'hang') {
+      hung.add(req.socket);
+      return;
+    }
+    // 7F review 01 R2: an answer far larger than any transcript budget, streamed without a length.
+    if ((marker?.s as string | undefined) === 'oversize') {
+      res.writeHead(200, { 'content-type': 'application/json' });
+      res.on('error', () => undefined);
+      req.socket.on('error', () => undefined);
+      let sent = 0;
+      const chunk = Buffer.alloc(16_384, 'a');
+      res.write('{"text":"');
+      const pump = (): void => {
+        if (res.destroyed || sent >= 8 * 1024 * 1024) {
+          res.end('","duration_ms":1000}');
+          return;
+        }
+        sent += chunk.length;
+        if (res.write(chunk)) setImmediate(pump);
+        else res.once('drain', pump);
+      };
+      pump();
+      return;
+    }
+    if ((marker?.s as string | undefined) === 'bad_duration')
+      return json(res, 200, { id, text: marker?.t ?? 'x', duration_ms: 1.5, synthetic: true });
+    return json(res, 200, {
+      id,
+      text: marker?.t ?? '',
+      duration_ms: marker?.d ?? 1000,
+      confidence: marker?.c ?? (marker ? 0.92 : null),
+      synthetic: true,
+    });
+  };
+
   const server = createServer(async (req, res) => {
     const url = new URL(req.url ?? '/', 'http://fixture');
     if (url.pathname.startsWith('/__control/')) {
@@ -470,6 +542,8 @@ export async function startAiProviderFixture(
       }
       return json(res, 404, {});
     }
+    if (req.method === 'POST' && url.pathname === '/v1/audio/transcriptions')
+      return transcribe(req, res);
     if (req.method !== 'POST' || url.pathname !== '/v1/messages')
       return json(res, 404, {
         type: 'error',
@@ -709,4 +783,24 @@ export function aiFixtureClient(baseUrl: string, token: string) {
     releaseHung: () => call('release_hung'),
     reset: () => call('reset'),
   };
+}
+
+/** The synthetic transcription marker inside fixture audio (`PMFX` + JSON + NUL). */
+export function readAudioMarker(
+  audio: Uint8Array,
+): { t?: string; d?: number; c?: number; s?: string } | null {
+  const b = Buffer.from(audio.buffer, audio.byteOffset, audio.byteLength);
+  const at = b.indexOf('PMFX');
+  if (at < 0) return null;
+  const end = b.indexOf(0, at + 4);
+  try {
+    return JSON.parse(b.toString('utf8', at + 4, end < 0 ? b.length : end)) as {
+      t?: string;
+      d?: number;
+      c?: number;
+      s?: string;
+    };
+  } catch {
+    return null;
+  }
 }

@@ -6,7 +6,7 @@ import {
   type ExecutionContext,
 } from '@pm/contracts';
 import { createHash } from 'node:crypto';
-import type { AiConfig } from '@pm/config';
+import type { AiConfig, VoiceConfig } from '@pm/config';
 import {
   sql,
   type AiMeter,
@@ -51,7 +51,26 @@ import { McpAccessService } from '../integrations/mcp-access-service.ts';
 import { activePerson, principalOf } from '../notify/access.ts';
 import { NotificationFanOut } from '../notify/fanout.ts';
 import { systemExec } from '../notify/system.ts';
-import { localDay, validZone } from '../time/semantics.ts';
+import { daysBetween, localDay, validDay, validZone } from '../time/semantics.ts';
+import { checkEdits, planDay, type EditIssue, type Reason } from '../planning/planner.ts';
+import type { PlanInputs } from '../capacity/capacity-service.ts';
+import { lockPlanConstraints } from '../planning/constraints.ts';
+import type { CaptureCandidate, Detected } from '../capture-service.ts';
+import { PARSER_VERSION, type ParseToken } from '../capture/parser.ts';
+import { deriveSpan, isNameField, nameOf } from '../capture/interpret.ts';
+import {
+  billedSeconds,
+  checkAudio,
+  TRANSCRIPTION_MODEL,
+  TranscriptionError,
+  TranscriptTooLongError,
+  transcriptionPriceSnapshot,
+  VOICE_DEFAULTS,
+  type TranscriptionProvider,
+  type TranscriptionResult,
+  type VoiceFormat,
+} from './transcription.ts';
+import { ObjectNotFoundError, sha256Hex, StorageUnavailableError } from '../files/storage.ts';
 import {
   clock,
   dueOccurrence,
@@ -64,6 +83,7 @@ import {
   BRIEFING_TEMPLATE_VERSION,
   buildStatements,
   figuresDigest,
+  fmtInstant,
   KIND_LABEL,
   STATEMENT_KINDS,
   STATEMENTS_MAX,
@@ -116,7 +136,7 @@ import {
   type AiProvider,
 } from './provider.ts';
 import { redactCredentials } from './redaction.ts';
-import { eraseAiContentRows, eraseBriefingRows } from './lifecycle.ts';
+import { eraseAiContentRows, eraseBriefingRows, erasePlanProposals } from './lifecycle.ts';
 import {
   GROUNDED_SYSTEM_TEMPLATE,
   GROUNDED_TEMPLATE_VERSION,
@@ -176,6 +196,13 @@ import {
   withheldAnalysis,
   type AnalysisResult,
 } from './actions/analysis.ts';
+import {
+  captureTextOf,
+  interpretationSystemTemplate,
+  validateInterpretation,
+  withheldInterpretation,
+  type InterpretationResult,
+} from './actions/interpretation.ts';
 import { parseTaskCreate, parseTaskCriterion, TASK_FIELDS, taskField } from '../task-validation.ts';
 import { parseMilestone, parseProjectCreate, PROJECT_FIELDS } from '../validation.ts';
 import { parseRelationship } from '../task-validation.ts';
@@ -211,9 +238,15 @@ export interface AiGatewayDeps {
   entitlements: AiEntitlementPort;
   /** The model registry (default: the versioned registry; tests inject variants). */
   models?: readonly ModelEntry[];
+  /** 7F: the transcription transport; null or absent when transcription is not configured. */
+  transcriber?: TranscriptionProvider | null;
 }
 
 export const AI_DISPATCH_JOB = 'ai.action.dispatch';
+/** 7F: one transcription attempt of a voice capture. */
+export const AI_TRANSCRIPTION_JOB = 'ai.transcription';
+/** 7F: the transcript output contract version. */
+const TRANSCRIPTION_VERSION = 'transcription.v1';
 /** The 0C action an AI run executes under (R1, not a step-up action). */
 const AI_EXECUTE_ACTION = 'ai.execute' as const;
 /** 0C `ai.apply_proposal` (R1, edit, no step-up): the risk the apply operation records. */
@@ -333,7 +366,7 @@ const mutatedBy = (c: {
   op: string;
   target_public_id: string | null;
   payload: unknown;
-}): Array<{ publicId: string; kind: 'task' | 'project' | 'document' }> => {
+}): Array<{ publicId: string; kind: TargetKind }> => {
   const p = c.payload as ProposalChange['payload'];
   const ex = (x: RefValue | undefined) =>
     x && 'existing' in x ? [{ publicId: x.existing.publicId, kind: x.existing.kind }] : [];
@@ -347,13 +380,16 @@ const mutatedBy = (c: {
   return out.sort((a, b) => a.kind.localeCompare(b.kind) || a.publicId.localeCompare(b.publicId));
 };
 
-/** The kind of record an operation with a target changes. */
-const targetKindOf = (op: string): 'task' | 'project' | 'document' =>
+/** The kind of record an operation with a target changes (7F: a planner block). */
+type TargetKind = 'task' | 'project' | 'document' | 'block';
+const targetKindOf = (op: string): TargetKind =>
   op === 'task.update' || op === 'task.assign'
     ? 'task'
     : op === 'project.update'
       ? 'project'
-      : 'document';
+      : op === 'block.update' || op === 'block.delete'
+        ? 'block'
+        : 'document';
 
 /** Purposes that run on a 7B context manifest. */
 const RETRIEVAL_PURPOSES: readonly string[] = ['grounded_answer', 'change_proposal', 'analysis'];
@@ -403,6 +439,130 @@ const BRIEFING_SWEEP_BATCH = 50;
 const BRIEFING_MAX_ATTEMPTS = 3;
 /** Evidence references one briefing may store (statement bases are capped at BASIS_MAX each). */
 const BRIEFING_EVIDENCE_MAX = 40_000;
+
+/**
+ * 7F bounds (ADR-0043): candidate tasks one plan considers, brands or projects in its scope, days
+ * ahead it may plan, the shortest split chunk, and the changes one plan proposal holds.
+ */
+const PLAN_CANDIDATES_MAX = 60;
+const PLAN_SCOPE_MAX = 10;
+const PLAN_DAYS_AHEAD = 14;
+const PLAN_MIN_CHUNK = 30;
+const PLAN_CHANGES_MAX = 99;
+const PLAN_VERSION = 'plan.v1';
+/** 7F: the capture interpretation action (catalog key and version). */
+const INTERPRET_ACTION = 'interpret_capture.v1';
+const PLAN_OPS_SET: ReadonlySet<string> = new Set([
+  'block.create',
+  'block.update',
+  'block.delete',
+  'commitment.add',
+  'commitment.remove',
+]);
+
+/** A daily-plan request after validation. */
+interface PlanRequest {
+  day: string | null;
+  brands: string[];
+  projects: string[];
+  assumptions: Map<string, number>;
+  split: boolean;
+}
+
+/** The planner's view of one day, computed as the person from the canonical sources. */
+interface ComputedPlan {
+  day: string;
+  tz: string;
+  inputs: PlanInputs;
+  result: ReturnType<typeof planDay>;
+  scope: { brands: string[]; projects: string[] };
+  options: { split: boolean; assumptions: Record<string, number> };
+}
+
+/** A concrete, readable label for a derived value (dates name the weekday and the time zone). */
+function concreteLabel(field: string, value: unknown, tz: string): string {
+  if ((field === 'due_date' || field === 'deadline') && typeof value === 'string') {
+    const wd = new Date(`${value}T12:00:00Z`).toLocaleDateString('en-GB', {
+      weekday: 'short',
+      timeZone: 'UTC',
+    });
+    return `${wd} ${value} (${tz})`;
+  }
+  if (field === 'estimate_minutes' && typeof value === 'number') return `${value} minutes`;
+  return typeof value === 'string' ? value : JSON.stringify(value);
+}
+
+/** 7F: safe reasons a voice capture ended without a transcript. */
+const VOICE_FAILURES: Record<string, string> = {
+  default: 'This recording could not be transcribed. Type or paste your note instead.',
+  unsupported_format:
+    'This audio format is not supported. Record again, or upload WAV, WebM, or Ogg audio.',
+  malformed_audio: 'This file is not readable audio. Record again, or type your note.',
+  too_long: 'This recording is longer than allowed. Record a shorter note.',
+  empty_audio: 'This recording is empty. Record again.',
+  empty_transcript: 'Nothing could be heard in this recording. Record again, or type your note.',
+  upload_mismatch: 'The upload did not match the recording. Record again.',
+  audio_unavailable: 'The recording is no longer available. Record again.',
+  limit_reached: 'The AI spending limit is reached, so this recording was not transcribed.',
+  transcription_unavailable:
+    'Voice transcription is not available. Type or paste your note instead.',
+  ai_unavailable: 'AI is turned off or unavailable here. Type or paste your note instead.',
+  initiator_departed: 'This recording was discarded.',
+  workspace_inactive: 'This workspace is not active.',
+  outcome_unknown:
+    'The transcription did not finish and may have been charged; an owner can review the charge. Record again or type your note.',
+  transcription_failed: 'The transcription failed. Record again, or type your note.',
+  transcript_too_long:
+    'The transcript was longer than allowed, so it was not kept. Record a shorter note, or type it.',
+  response_too_large:
+    'The transcription service sent more than allowed, so nothing was kept; an owner can review the charge. Record a shorter note, or type it.',
+  malformed_response:
+    'The transcription service sent an unreadable answer, so nothing was kept; an owner can review the charge. Record again, or type your note.',
+};
+
+/** A proposed change as the plan checks read it. */
+interface PlanChangeRow {
+  change_key: string;
+  op: string;
+  target_public_id: string | null;
+  payload: unknown;
+  selected: boolean;
+  decision: string;
+}
+
+/** A planner proposal's day now: whether it is unchanged, and the edit check of its blocks. */
+interface PlanCurrent {
+  fresh: boolean;
+  snapshot: string | null;
+  issues: EditIssue[];
+  current: ComputedPlan | null;
+}
+
+const PLAN_ISSUE_MESSAGES: Record<EditIssue['code'], string> = {
+  overlaps_block: 'This time overlaps one of your blocks.',
+  overlaps_meeting: 'This time overlaps a meeting.',
+  overlaps_plan: 'This time overlaps another block in this plan.',
+  outside_working_hours: 'This time is outside your working hours.',
+  after_deadline: 'This time ends after the task deadline.',
+};
+
+/** The stored plan of a planner proposal (`ai.change_proposal.plan`). */
+interface StoredPlan {
+  version: string;
+  day: string;
+  tz: string;
+  scope: { brands: string[]; projects: string[] };
+  options: { split: boolean; assumptions: Record<string, number> };
+  snapshot: string;
+  considered: number;
+  capped: boolean;
+  totals: Record<string, number>;
+  feasible: boolean;
+  unscheduled: Array<{ task: string; code: string; minutes: number | null; detail: string }>;
+  postpone: Array<{ task: string; minutes: number; reason: string; tradeoff: string }>;
+  conflicts: Array<{ code: string; task: string | null; detail: string }>;
+  reasons: Record<string, Reason[]>;
+}
 
 /** A statement's full basis: its recorded basis plus every record and brand its refs name. */
 function statementBasis(s: Statement): Basis {
@@ -2240,8 +2400,9 @@ export class AiGatewayService extends McpAccessService {
     spec: AnswerSpec,
   ): Promise<PreparedRun> {
     const def = spec.action ?? null;
+    // 7F: capture interpretation is a typed analysis-purpose run over no sources.
     const purpose: PreparedRun['purpose'] = def
-      ? def.kind === 'analysis'
+      ? def.kind === 'analysis' || def.kind === 'interpretation'
         ? 'analysis'
         : 'change_proposal'
       : (spec.purpose ?? 'grounded_answer');
@@ -2267,7 +2428,8 @@ export class AiGatewayService extends McpAccessService {
     // project brief may stand in for sources when drafting a new project.
     if (def) this.#requireActionContext(def, question, manifest);
     const briefOnly = def?.needs === 'brief_or_goal' && /^Brief:\n\S/m.test(question);
-    if (!manifest.entries.some((e) => e.included) && !briefOnly)
+    // 7F: an interpretation's only input is the person's own capture text.
+    if (!manifest.entries.some((e) => e.included) && !briefOnly && def?.kind !== 'interpretation')
       throw invalid(
         issue('/include', 'context_empty', 'Include at least one source to ask about.'),
       );
@@ -2291,7 +2453,9 @@ export class AiGatewayService extends McpAccessService {
     const template = def
       ? def.kind === 'analysis'
         ? analysisSystemTemplate(def)
-        : this.#proposalTemplateFor(def)
+        : def.kind === 'interpretation'
+          ? interpretationSystemTemplate(def)
+          : this.#proposalTemplateFor(def)
       : purpose === 'change_proposal'
         ? PROPOSAL_SYSTEM_TEMPLATE
         : GROUNDED_SYSTEM_TEMPLATE;
@@ -3680,8 +3844,23 @@ export class AiGatewayService extends McpAccessService {
             : null,
         // 7C: an analysis action's validated, typed result; citations resolve through current
         // authorization like an answer's.
+        // 7F: a capture interpretation's checked field spans (values are derived on preview).
+        interpretation:
+          present &&
+          action.purpose === 'analysis' &&
+          last?.grounding &&
+          (last.grounding as { version?: string }).version === 'interpretation.v1'
+            ? {
+                completeness: last.completeness,
+                ...(last.grounding as unknown as InterpretationResult),
+              }
+            : null,
         analysis:
-          present && action.purpose === 'analysis' && last && last.grounding
+          present &&
+          action.purpose === 'analysis' &&
+          last &&
+          last.grounding &&
+          (last.grounding as { version?: string }).version !== 'interpretation.v1'
             ? {
                 completeness: last.completeness,
                 ...this.#analysisView(
@@ -4464,6 +4643,8 @@ export class AiGatewayService extends McpAccessService {
           : auth.prep.decision.model.provider,
         system: auth.prep.system,
         user: auth.prep.user,
+        // 7F: the redacted request, to check interpretation spans against (memory only).
+        prompt: auth.prep.prompt,
         // A grounded answer's manifest, kept in memory to validate the answer (never persisted).
         manifest: auth.prep.manifest,
         outputBound: d.output_token_bound,
@@ -4668,23 +4849,39 @@ export class AiGatewayService extends McpAccessService {
           const def = ACTION_BY_ID.get(action.action_key ?? '');
           if (!def) throw new JobError('deterministic', 'ai_action_unknown');
           const check = await this.#publicationCheck(tx, opId);
-          grounding = (check === 'ok'
-            ? validateAnalysis({
-                def,
-                text,
-                completeness:
-                  decided.completeness === 'complete'
-                    ? 'complete'
-                    : decided.completeness === 'truncated'
-                      ? 'truncated'
-                      : 'partial',
-                entries: request.manifest.entries,
-                today: await this.workspaceToday(tx),
-              })
-            : withheldAnalysis(def, check)) as unknown as Record<string, unknown>;
-          this.d.metrics.count('ai.analyses', 1, {
-            status: (grounding as unknown as AnalysisResult).status,
-          });
+          const completeness =
+            decided.completeness === 'complete'
+              ? ('complete' as const)
+              : decided.completeness === 'truncated'
+                ? ('truncated' as const)
+                : ('partial' as const);
+          if (def.kind === 'interpretation') {
+            // 7F: spans are checked against the capture text the model was sent.
+            const result =
+              check === 'ok'
+                ? validateInterpretation({
+                    def,
+                    text,
+                    completeness,
+                    capture: captureTextOf(request.prompt),
+                  })
+                : withheldInterpretation(def, check);
+            grounding = result as unknown as Record<string, unknown>;
+            this.d.metrics.count('capture.interpretations', 1, { status: result.status });
+          } else {
+            grounding = (check === 'ok'
+              ? validateAnalysis({
+                  def,
+                  text,
+                  completeness,
+                  entries: request.manifest.entries,
+                  today: await this.workspaceToday(tx),
+                })
+              : withheldAnalysis(def, check)) as unknown as Record<string, unknown>;
+            this.d.metrics.count('ai.analyses', 1, {
+              status: (grounding as unknown as AnalysisResult).status,
+            });
+          }
         } else if (request.manifest) {
           const check = await this.#publicationCheck(tx, opId);
           grounding =
@@ -4942,12 +5139,1704 @@ export class AiGatewayService extends McpAccessService {
     tx: WorkspaceTransaction,
     filter: { membershipId?: string; before?: Date },
   ): Promise<number> {
-    return (await eraseAiContentRows(tx, filter)) + (await eraseBriefingRows(tx, filter));
+    // 7F: a leaver's open recordings end now; their audio is discarded by the cleanup sweep.
+    if (filter.membershipId)
+      await tx.db
+        .updateTable('capture.voice_capture')
+        .set({
+          state: sql`CASE WHEN state IN ('uploaded', 'transcribing') THEN 'cancelled' ELSE state END`,
+          expires_at: new Date(),
+          updated_at: new Date(),
+        })
+        .where('membership_id', '=', filter.membershipId)
+        .where('storage_key', 'is not', null)
+        .execute();
+    return (
+      (await eraseAiContentRows(tx, filter)) +
+      (await eraseBriefingRows(tx, filter)) +
+      (await erasePlanProposals(tx, filter))
+    );
   }
 
   aiHistoryRetentionDays(): number | null {
     return this.#ai.config.historyRetentionDays;
   }
+  // ---------------------------------------------------------------------------------------------
+  // 7F daily plans (ADR-0043): a deterministic planner, applied only through 7D proposals
+  // ---------------------------------------------------------------------------------------------
+
+  #parsePlanRequest(body: unknown): PlanRequest {
+    const b = (body && typeof body === 'object' && !Array.isArray(body) ? body : {}) as Record<
+      string,
+      unknown
+    >;
+    const issues = [];
+    for (const k of Object.keys(b))
+      if (!['day', 'brands', 'projects', 'assumptions', 'split'].includes(k))
+        issues.push(issue(`/${k}`, 'unknown_field', 'This field is not accepted.'));
+    const day = b.day === undefined ? null : validDay(b.day);
+    if (b.day !== undefined && !day)
+      issues.push(issue('/day', 'invalid', 'Choose a day (YYYY-MM-DD).'));
+    const list = (k: string, re: RegExp) => {
+      const v = b[k];
+      if (v === undefined) return [];
+      if (
+        !Array.isArray(v) ||
+        v.length > PLAN_SCOPE_MAX ||
+        !v.every((x) => typeof x === 'string' && re.test(x))
+      ) {
+        issues.push(issue(`/${k}`, 'invalid_value', `Choose up to ${PLAN_SCOPE_MAX}.`));
+        return [];
+      }
+      return [...new Set(v as string[])];
+    };
+    const brands = list('brands', /^br_[0-9A-HJKMNP-TV-Z]{26}$/);
+    const projects = list('projects', /^prj_[0-9A-HJKMNP-TV-Z]{26}$/);
+    const assumptions = new Map<string, number>();
+    if (b.assumptions !== undefined) {
+      const a = b.assumptions;
+      if (!a || typeof a !== 'object' || Array.isArray(a) || Object.keys(a).length > 50)
+        issues.push(issue('/assumptions', 'invalid_value', 'Enter minutes for up to 50 tasks.'));
+      else
+        for (const [k, v] of Object.entries(a as Record<string, unknown>)) {
+          if (
+            !/^tsk_[0-9A-HJKMNP-TV-Z]{26}$/.test(k) ||
+            !Number.isInteger(v) ||
+            (v as number) < 5 ||
+            (v as number) > 1440
+          )
+            issues.push(
+              issue(`/assumptions/${k}`, 'invalid_value', 'Enter 5 to 1440 whole minutes.'),
+            );
+          else assumptions.set(k, v as number);
+        }
+    }
+    if (b.split !== undefined && typeof b.split !== 'boolean')
+      issues.push(issue('/split', 'invalid_value', 'Choose yes or no.'));
+    if (issues.length) throw invalid(...issues);
+    return { day, brands, projects, assumptions, split: b.split === true };
+  }
+
+  /** The plan for one day as `p`, from the canonical sources (nothing is written). */
+  async #planFor(
+    tx: WorkspaceTransaction,
+    p: Principal,
+    req: PlanRequest,
+    now = new Date(),
+  ): Promise<ComputedPlan> {
+    const brandRows = [];
+    for (const b of req.brands) brandRows.push(await findBrand(tx, p, b));
+    const projectRows = [];
+    for (const pr of req.projects) projectRows.push(await this.loadProject(tx, p, pr));
+    const tz = await this.personZone(tx, p.membershipId);
+    const today = localDay(now, tz);
+    const day = req.day ?? today;
+    if (day < today) throw invalid(issue('/day', 'past_day', 'Plan today or a later day.'));
+    if (daysBetween(today, day) > PLAN_DAYS_AHEAD)
+      throw invalid(issue('/day', 'too_far', `Plan at most ${PLAN_DAYS_AHEAD} days ahead.`));
+    const inputs = await this.planInputsIn(tx, p, {
+      day,
+      brandIds: brandRows.map((b) => b.id),
+      projectIds: projectRows.map((x) => x.id),
+      assumptions: req.assumptions,
+      split: req.split,
+      now,
+      cap: PLAN_CANDIDATES_MAX,
+      minChunk: PLAN_MIN_CHUNK,
+    });
+    const result = planDay(inputs.input, inputs.dayEnd);
+    return {
+      day,
+      tz: inputs.tz,
+      inputs,
+      result,
+      scope: {
+        brands: brandRows.map((b) => b.public_id),
+        projects: projectRows.map((x) => x.publicId),
+      },
+      options: { split: req.split, assumptions: Object.fromEntries(req.assumptions) },
+    };
+  }
+
+  #planView(plan: ComputedPlan) {
+    const { inputs, result, tz } = plan;
+    const label = (id: string) => {
+      const m = inputs.meta.get(id);
+      return m ? { id, title: m.title, brand: m.brand } : { id, title: null, brand: null };
+    };
+    const local = (d: Date) => fmtInstant(d, tz).slice(11);
+    return {
+      day: plan.day,
+      timezone: tz,
+      scope: plan.scope,
+      mode: 'rule_based' as const,
+      generated: false,
+      considered: inputs.considered,
+      considered_max: PLAN_CANDIDATES_MAX,
+      coverage: inputs.capped
+        ? `Your ${inputs.considered} highest-ranked open tasks were considered (at most ${PLAN_CANDIDATES_MAX} are).`
+        : null,
+      totals: result.totals,
+      feasible: result.feasible,
+      scheduled: result.scheduled.map((s) => ({
+        task: label(s.task),
+        rank: s.rank,
+        minutes: s.minutes,
+        slots: s.slots.map((x) => ({
+          starts_at: x.start.toISOString(),
+          ends_at: x.end.toISOString(),
+          local: `${local(x.start)}–${local(x.end)}`,
+        })),
+        reasons: s.reasons,
+        warnings: s.warnings,
+      })),
+      unscheduled: result.unscheduled.map((u) => ({
+        task: label(u.task),
+        rank: u.rank,
+        code: u.code,
+        minutes: u.minutes,
+        detail: u.detail,
+        blocked_by: u.blockedBy ? u.blockedBy.map((b) => label(b)) : undefined,
+      })),
+      postpone: result.postpone.map((x) => ({ ...x, task: label(x.task) })),
+      conflicts: result.conflicts.map((c) => ({ ...c, task: c.task ? label(c.task) : null })),
+      blocks: inputs.blocks.map((b) => ({
+        id: b.id,
+        starts_at: b.start.toISOString(),
+        ends_at: b.end.toISOString(),
+        local: `${local(b.start)}–${local(b.end)}`,
+        locked: b.locked,
+        focus: b.focus,
+        task: b.taskId ? label(b.taskId) : null,
+      })),
+      snapshot: inputs.snapshot,
+    };
+  }
+
+  /** PLAN-010–PLAN-012, AI-021: the daily-plan preview (rule-based; nothing changes). */
+  async previewDayPlan(caller: Caller, ws: unknown, body: unknown) {
+    const req = this.#parsePlanRequest(body);
+    return this.inWorkspace(caller, ws, { readOnly: true }, async (tx, p) => {
+      if (caller.delegation) throw new TenancyError('forbidden');
+      this.requirePersonal(p, 'personal.manage_own');
+      const plan = await this.#planFor(tx, p, req);
+      this.d.metrics.count('planning.plans', 1, { outcome: 'previewed' });
+      return this.#planView(plan);
+    });
+  }
+
+  /**
+   * PLAN-013: turns the current plan into a 7D change proposal (origin `planner`) the person edits,
+   * selects, approves, and applies explicitly. Scheduled work becomes block creations and Today
+   * commitments; postponement recommendations become unselected removals of unlocked commitments
+   * and blocks, applied only if the person selects them. Locked items are never targeted.
+   */
+  async createDayPlanProposal(caller: Caller, ws: unknown, body: unknown, req: Mutation) {
+    const input = this.#parsePlanRequest(body);
+    return this.mutate(
+      caller,
+      'planning.plan_proposal',
+      ws,
+      req,
+      async (tx, p) => {
+        this.#requireApplier(caller, p);
+        this.requirePersonal(p, 'personal.manage_own');
+        const plan = await this.#planFor(tx, p, input);
+        const { inputs, result } = plan;
+        type Row = {
+          key: string;
+          op: ProposalOp;
+          target: { publicId: string; recordId: string } | null;
+          expected: number | null;
+          payload: ProposalChange['payload'];
+          selected: boolean;
+          reasons: Reason[];
+        };
+        const rows: Row[] = [];
+        const reasons: Record<string, unknown> = {};
+        const taskRef = (id: string): RefValue => ({
+          existing: { kind: 'task', publicId: id, recordId: inputs.meta.get(id)!.id },
+        });
+        const deferred: Array<{
+          task: string;
+          code: string;
+          minutes: number | null;
+          detail: string;
+        }> = [];
+        for (const s of result.scheduled) {
+          const t = inputs.input.tasks.find((x) => x.id === s.task)!;
+          const needed = (t.committed ? 0 : 1) + s.slots.length;
+          if (rows.length + needed > PLAN_CHANGES_MAX) {
+            // Bounded: what does not fit in one proposal is listed, never silently dropped.
+            deferred.push({
+              task: s.task,
+              code: 'proposal_limit',
+              minutes: s.minutes,
+              detail: `A proposal holds at most ${PLAN_CHANGES_MAX} changes; plan this one again after applying.`,
+            });
+            continue;
+          }
+          if (!t.committed)
+            rows.push({
+              key: `c${rows.length + 1}`,
+              op: 'commitment.add',
+              target: null,
+              expected: null,
+              payload: { fields: { day: plan.day }, task: taskRef(s.task) },
+              selected: true,
+              reasons: s.reasons,
+            });
+          for (const slot of s.slots)
+            rows.push({
+              key: `c${rows.length + 1}`,
+              op: 'block.create',
+              target: null,
+              expected: null,
+              payload: {
+                fields: { starts_at: slot.start.toISOString(), ends_at: slot.end.toISOString() },
+                task: taskRef(s.task),
+              },
+              selected: true,
+              reasons: s.reasons,
+            });
+        }
+        for (const x of result.postpone) {
+          const t = inputs.input.tasks.find((y) => y.id === x.task)!;
+          const meta = inputs.meta.get(x.task)!;
+          if (t.committed && !t.committedLocked && rows.length < PLAN_CHANGES_MAX)
+            rows.push({
+              key: `c${rows.length + 1}`,
+              op: 'commitment.remove',
+              target: null,
+              expected: null,
+              payload: {
+                fields: { day: plan.day },
+                task: taskRef(x.task),
+                commitment_version: meta.commitmentVersion ?? undefined,
+              },
+              selected: false,
+              reasons: [{ code: 'priority', detail: x.tradeoff }],
+            });
+          for (const b of inputs.blocks.filter((y) => y.taskId === x.task && !y.locked))
+            if (rows.length < PLAN_CHANGES_MAX)
+              rows.push({
+                key: `c${rows.length + 1}`,
+                op: 'block.delete',
+                target: {
+                  publicId: b.id,
+                  recordId: (
+                    await tx.db
+                      .selectFrom('planning.work_block')
+                      .select('id')
+                      .where('public_id', '=', b.id)
+                      .executeTakeFirstOrThrow()
+                  ).id,
+                },
+                expected: b.version,
+                payload: { fields: {}, task: taskRef(x.task) },
+                selected: false,
+                reasons: [{ code: 'priority', detail: x.tradeoff }],
+              });
+        }
+        if (!rows.length)
+          throw new TenancyError('conflict', {
+            issues: [
+              issue(
+                '/',
+                'nothing_to_plan',
+                'There is nothing this plan could schedule or postpone.',
+              ),
+            ],
+          });
+        for (const r of rows) reasons[r.key] = r.reasons;
+        const context = this.exec(caller, p);
+        const op = await createOperation(tx, {
+          kind: 'plan_proposal',
+          context,
+          initiatedBy: { type: 'human', id: p.membershipId },
+        });
+        await transitionOperation(tx, {
+          operationId: op.id,
+          to: 'succeeded',
+          actor: { type: 'human', id: p.membershipId },
+          context,
+        });
+        const id = newUuidV7();
+        const publicId = newPublicId('prp');
+        const changes = rows.map((r, position) => ({
+          change_key: r.key,
+          position,
+          op: r.op,
+          target_public_id: r.target?.publicId ?? null,
+          target_record_id: r.target?.recordId ?? null,
+          expected_version: r.expected,
+          depends_on: [] as string[],
+          decision: 'pending',
+          payload: r.payload,
+          selected: r.selected,
+        }));
+        const fingerprint = this.#fingerprintOf({ public_id: publicId, revision: 1 }, changes);
+        await tx.db
+          .insertInto('ai.change_proposal')
+          .values({
+            id,
+            workspace_id: tx.workspaceId,
+            public_id: publicId,
+            operation_id: op.id,
+            initiating_membership_id: p.membershipId,
+            fingerprint,
+            title: `Plan for ${plan.day}`,
+            origin: 'planner',
+            plan: JSON.stringify({
+              version: PLAN_VERSION,
+              day: plan.day,
+              tz: plan.tz,
+              scope: plan.scope,
+              options: plan.options,
+              snapshot: inputs.snapshot,
+              considered: inputs.considered,
+              capped: inputs.capped,
+              totals: result.totals,
+              feasible: result.feasible,
+              unscheduled: [
+                ...result.unscheduled.map((u) => ({
+                  task: u.task,
+                  code: u.code,
+                  minutes: u.minutes,
+                  detail: u.detail,
+                })),
+                ...deferred,
+              ],
+              postpone: result.postpone,
+              conflicts: result.conflicts,
+              reasons,
+            }),
+          })
+          .execute();
+        await tx.db
+          .insertInto('ai.proposed_change')
+          .values(
+            changes.map((c) => ({
+              id: newUuidV7(),
+              workspace_id: tx.workspaceId,
+              proposal_id: id,
+              change_key: c.change_key,
+              position: c.position,
+              op: c.op,
+              temp_ref: null,
+              target_record_id: c.target_record_id,
+              target_public_id: c.target_public_id,
+              expected_version: c.expected_version,
+              depends_on: [],
+              payload: JSON.stringify(c.payload),
+              sources: [],
+              selected: c.selected,
+            })),
+          )
+          .execute();
+        // The plan's complete authorization basis: every candidate and blocker it rests on.
+        const ev = await resolveBasis(tx, {
+          records: [...inputs.evidence, ...plan.scope.projects],
+          brands: plan.scope.brands,
+          perms: [],
+        });
+        if (ev.missing || ev.rows.length > BASIS_MAX)
+          throw new TenancyError('conflict', {
+            issues: [
+              issue(
+                '/',
+                'plan_unverifiable',
+                'This plan cannot be kept verifiable. Narrow its scope.',
+              ),
+            ],
+          });
+        await storeEvidence(tx, { proposalId: id }, ev.rows);
+        await this.#proposalEvent(
+          tx,
+          id,
+          1,
+          'generated',
+          p.membershipId,
+          changes.map((c) => c.change_key),
+          fingerprint,
+        );
+        this.d.metrics.count('planning.plans', 1, { outcome: 'proposed' });
+        return {
+          status: 201,
+          ref: { id: publicId, type: 'change_proposal' },
+          data: await this.#proposalView(tx, caller, p, publicId),
+        };
+      },
+      async (tx, p, ref) => this.#proposalView(tx, caller, p, ref.id),
+    );
+  }
+
+  /**
+   * Locks the planner inputs in one consistent order (capacity profile and time off, the day's
+   * commitments, the block-planning lock, brand holidays of the person's reservation brands, then
+   * the candidate tasks for share), so nothing they rest on changes until this transaction ends.
+   */
+  async #lockPlanInputs(tx: WorkspaceTransaction, p: Principal, day: string, taskIds: string[]) {
+    const lock = (key: string) =>
+      sql`SELECT pg_advisory_xact_lock(hashtextextended(${key}, 0))`.execute(tx.db);
+    // Review 01 R1: the person's plan-constraint lock first. Every writer of a plan input
+    // (calendar mirrors, reservations, profile, time off, blocks, Today) takes it, by its
+    // canonical command or a database trigger, so nothing it covers can change, or appear,
+    // between the recomputed snapshot and this transaction's commit.
+    await lockPlanConstraints(tx, p.membershipId);
+    await lock(`capacity.profile:${p.membershipId}`);
+    await this.lockDay(tx, p.membershipId, day);
+    await this.lockBlocks(tx, p.membershipId);
+    const brands = await tx.db
+      .selectFrom('planning.capacity_reservation')
+      .select('brand_id')
+      .distinct()
+      .where('membership_id', '=', p.membershipId)
+      .orderBy('brand_id')
+      .execute();
+    for (const b of brands) await lock(`capacity.holidays:${b.brand_id}`);
+    // Dependency writers hold this workspace lock exclusively; a shared hold keeps blockers fixed
+    // without serializing plans with each other.
+    await sql`SELECT pg_advisory_xact_lock_shared(hashtextextended(${'deps:' + tx.workspaceId}, 0))`.execute(
+      tx.db,
+    );
+    if (taskIds.length)
+      await sql`SELECT 1 FROM work.task WHERE id = ANY(${taskIds}::uuid[]) ORDER BY id FOR SHARE`.execute(
+        tx.db,
+      );
+  }
+
+  /**
+   * The current state of a planner proposal's day: its snapshot recomputed now from the canonical
+   * sources (after locking them, when `lock`), and the edit check of the selected block changes.
+   * `fresh` is false when anything the plan rests on changed, or the day can no longer be planned.
+   */
+  async #planCurrent(
+    tx: WorkspaceTransaction,
+    p: Principal,
+    proposal: { id: string; plan: unknown },
+    changes: readonly PlanChangeRow[],
+    lock: boolean,
+  ): Promise<PlanCurrent> {
+    const plan = proposal.plan as StoredPlan;
+    if (lock) {
+      // Every task the plan rests on (its candidates and blockers) is locked for share.
+      const ev = await evidenceOf(tx, { proposalId: proposal.id });
+      await this.#lockPlanInputs(
+        tx,
+        p,
+        plan.day,
+        ev.flatMap((r) => (r.kind === 'record' ? [r.record_id!] : [])),
+      );
+    }
+    let current: ComputedPlan;
+    try {
+      current = await this.#planFor(tx, p, {
+        day: plan.day,
+        brands: plan.scope.brands,
+        projects: plan.scope.projects,
+        assumptions: new Map(Object.entries(plan.options.assumptions ?? {})),
+        split: plan.options.split,
+      });
+    } catch (err) {
+      // A day now in the past, or a scope that is no longer readable, cannot be re-checked.
+      if (err instanceof TenancyError)
+        return { fresh: false, snapshot: null, issues: [], current: null };
+      throw err;
+    }
+    const live = changes.filter((c) => c.selected && c.decision !== 'rejected');
+    const released = new Set(
+      live
+        .filter((c) => c.op === 'block.update' || c.op === 'block.delete')
+        .map((c) => c.target_public_id!),
+    );
+    const proposed = live
+      .filter((c) => c.op === 'block.create' || c.op === 'block.update')
+      .map((c) => {
+        const pl = c.payload as ProposalChange['payload'];
+        return {
+          key: c.change_key,
+          start: new Date(pl.fields.starts_at!),
+          end: new Date(pl.fields.ends_at!),
+          task: pl.task && 'existing' in pl.task ? pl.task.existing.publicId : null,
+        };
+      });
+    const { input } = current.inputs;
+    const issues = checkEdits(proposed, {
+      windows: input.windows,
+      meetings: input.meetings,
+      blocks: input.blocks,
+      deadlines: new Map(input.tasks.flatMap((t) => (t.deadline ? [[t.id, t.deadline]] : []))),
+      released,
+    });
+    return {
+      fresh: current.inputs.snapshot === plan.snapshot,
+      snapshot: current.inputs.snapshot,
+      issues,
+      current,
+    };
+  }
+
+  /** Refuses a planner proposal whose day changed or whose selected blocks now conflict. */
+  #requirePlanCurrent(cur: PlanCurrent) {
+    if (!cur.fresh)
+      throw new TenancyError('conflict', {
+        issues: [
+          issue(
+            '/plan',
+            'plan_changed',
+            'Your day changed since this plan was made (time off, meetings, blocks, Today, or the tasks it uses). Review the current plan, then approve again.',
+          ),
+        ],
+      });
+    const errors = cur.issues.filter((i) => i.severity === 'error');
+    if (errors.length)
+      throw new TenancyError('conflict', {
+        issues: errors.map((e) =>
+          issue(`/changes/${e.block}`, e.code, PLAN_ISSUE_MESSAGES[e.code]),
+        ),
+      });
+  }
+
+  /** The stored plan of a planner proposal, labelled through current authorization. */
+  async #storedPlanView(
+    tx: WorkspaceTransaction,
+    p: Principal,
+    proposal: { id: string; plan: unknown },
+    changes: readonly PlanChangeRow[],
+    open: boolean,
+  ) {
+    const plan = proposal.plan as StoredPlan;
+    const titles = new Map<string, { id: string; title: string | null }>();
+    const label = async (id: string | null) => {
+      if (!id) return null;
+      if (!titles.has(id)) {
+        const cur = await this.#currentValues(tx, p, 'task', id);
+        titles.set(id, { id, title: cur?.title ?? null });
+      }
+      return titles.get(id)!;
+    };
+    const cur = open ? await this.#planCurrent(tx, p, proposal, changes, false) : null;
+    return {
+      day: plan.day,
+      timezone: plan.tz,
+      scope: plan.scope,
+      mode: 'rule_based' as const,
+      generated: false,
+      considered: plan.considered,
+      coverage: plan.capped
+        ? `Your ${plan.considered} highest-ranked open tasks were considered (at most ${PLAN_CANDIDATES_MAX} are).`
+        : null,
+      totals: plan.totals,
+      feasible: plan.feasible,
+      assumptions: plan.options.assumptions,
+      reasons: plan.reasons,
+      unscheduled: await Promise.all(
+        plan.unscheduled.map(async (u) => ({ ...u, task: await label(u.task) })),
+      ),
+      postpone: await Promise.all(
+        plan.postpone.map(async (x) => ({ ...x, task: await label(x.task) })),
+      ),
+      conflicts: await Promise.all(
+        plan.conflicts.map(async (c) => ({ ...c, task: await label(c.task) })),
+      ),
+      current: !cur
+        ? { state: 'closed' as const, snapshot: null, issues: [] as EditIssue[] }
+        : {
+            state: !cur.current
+              ? ('unavailable' as const)
+              : cur.fresh
+                ? ('current' as const)
+                : ('changed' as const),
+            snapshot: cur.snapshot,
+            issues: cur.issues,
+          },
+    };
+  }
+
+  // ---------------------------------------------------------------------------------------------
+  // 7F capture interpretation (ADR-0043 D2): checked spans, values derived by the server
+  // ---------------------------------------------------------------------------------------------
+
+  /**
+   * The person's own interpretation run for `text`: its checked result, bound to the exact text it
+   * interpreted. Another person's run, an unknown one, and a run of another action are not found.
+   */
+  async #interpretation(
+    tx: WorkspaceTransaction,
+    caller: Caller,
+    p: Principal,
+    run: unknown,
+    text: string,
+  ) {
+    const { op } = await this.#ownRun(tx, caller, p, run);
+    const a = await tx.db
+      .selectFrom('ai.ai_action')
+      .select(['action_key', 'content_state', 'prompt_text'])
+      .where('operation_id', '=', op.id)
+      .executeTakeFirstOrThrow();
+    if (a.action_key !== INTERPRET_ACTION) throw new TenancyError('not_found');
+    const unusable = (code: string, message: string) =>
+      new TenancyError('conflict', { issues: [issue('/interpretation', code, message)] });
+    if (a.content_state !== 'present' || a.prompt_text === null)
+      throw unusable(
+        'interpretation_erased',
+        'This interpretation was erased. Interpret the text again, or save it as typed.',
+      );
+    const out = await tx.db
+      .selectFrom('ai.ai_output')
+      .select('grounding')
+      .where('operation_id', '=', op.id)
+      .orderBy('created_at', 'desc')
+      .executeTakeFirst();
+    const result = (out?.grounding ?? null) as InterpretationResult | null;
+    if (!result || result.version !== 'interpretation.v1')
+      throw unusable('interpretation_pending', 'The interpretation is not ready yet.');
+    if (result.status !== 'checked' && result.status !== 'downgraded')
+      throw unusable(
+        'interpretation_unusable',
+        'This interpretation cannot be used. Save the text as typed, or answer its questions and interpret it again.',
+      );
+    // An edited text needs a new interpretation: spans belong to the words they were found in.
+    if (captureTextOf(a.prompt_text) !== redactCredentials(text.trim()).text)
+      throw unusable(
+        'interpretation_stale',
+        'The text changed since it was interpreted. Interpret it again, or save it as typed.',
+      );
+    return { op, result };
+  }
+
+  /**
+   * CAP-005: the candidate for an interpreted capture. Explicit capture syntax (rule-based) wins;
+   * each interpreted span adds a value the server derives itself: dates, priority, duration, and
+   * recurrence with the capture rules in the person's zone and today, names among what the person
+   * can read now (hidden and unknown alike unresolved). Ambiguity stays a choice; nothing is saved.
+   */
+  protected override async interpretedCandidate(
+    tx: WorkspaceTransaction,
+    caller: Caller,
+    p: Principal,
+    text: string,
+    brandHint: string | null,
+    run: unknown,
+  ): Promise<CaptureCandidate> {
+    const { op, result } = await this.#interpretation(tx, caller, p, run, text);
+    const tz = await this.#personZone(tx, p.membershipId);
+    const today = localDay(new Date(), tz);
+    const base = await this.candidate(tx, p, text, today, brandHint);
+    const taken = base.detected.map((d) => [d.start, d.end] as const);
+    let title = base.title;
+    const extra: Detected[] = [];
+    const names: ParseToken[] = [];
+    for (const f of result.fields) {
+      if (f.field === 'title') {
+        title = f.span.replace(/\s+/g, ' ').trim().slice(0, 300);
+        continue;
+      }
+      if (taken.some(([s, e]) => f.start < e && f.end > s)) continue;
+      if (isNameField(f.field)) {
+        names.push({
+          field: f.field as ParseToken['field'],
+          start: f.start,
+          end: f.end,
+          text: f.span,
+          rule: `ai:${f.field}`,
+          value: nameOf(f.span),
+        });
+        continue;
+      }
+      const d = deriveSpan(f.field, f.span, today, this.ws.captureParseTokensMax);
+      const at = {
+        field: f.field as Detected['field'],
+        text: f.span,
+        start: f.start,
+        end: f.end,
+        rule: d.rule,
+      };
+      extra.push(
+        d.status === 'resolved'
+          ? {
+              ...at,
+              status: 'resolved',
+              value: d.value,
+              label: concreteLabel(f.field, d.value, tz),
+            }
+          : d.status === 'ambiguous'
+            ? { ...at, status: 'ambiguous', value: null, options: d.options }
+            : { ...at, status: 'unresolved', value: null },
+      );
+    }
+    const resolved = names.length ? await this.resolve(tx, p, names, brandHint) : [];
+    // Every date is shown as a concrete day in the person's zone, whichever rule found it.
+    const concrete = base.detected.map((d) =>
+      d.status === 'resolved' && (d.field === 'due_date' || d.field === 'deadline')
+        ? { ...d, label: concreteLabel(d.field, d.value, tz) }
+        : d,
+    );
+    const detected = [...concrete, ...extra, ...resolved].sort((x, y) => x.start - y.start);
+    this.d.metrics.count('capture.interpretations', 1, { status: 'previewed' });
+    return {
+      text,
+      title: title || base.title,
+      detected,
+      needs_confirmation: detected.some((d) => d.status === 'ambiguous'),
+      truncated: base.truncated,
+      interpretation: { run: op.public_id, action: INTERPRET_ACTION },
+    };
+  }
+
+  /** CAP-005: the interpreted candidate to review and edit before saving (nothing is saved). */
+  async previewCaptureInterpretation(caller: Caller, ws: unknown, body: unknown) {
+    const b = (body && typeof body === 'object' && !Array.isArray(body) ? body : {}) as Record<
+      string,
+      unknown
+    >;
+    for (const k of Object.keys(b))
+      if (!['text', 'interpretation', 'brand'].includes(k))
+        throw invalid(issue(`/${k}`, 'unknown_field', 'This field is not accepted.'));
+    const text = typeof b.text === 'string' ? b.text : '';
+    if (!text.trim() || text.length > this.ws.captureTextMax)
+      throw invalid(issue('/text', 'invalid', 'Enter the capture text.'));
+    return this.inWorkspace(caller, ws, { readOnly: true }, async (tx, p) => {
+      if (caller.delegation) throw new TenancyError('forbidden');
+      const brand = typeof b.brand === 'string' ? (await findBrand(tx, p, b.brand)).id : null;
+      const candidate = await this.interpretedCandidate(
+        tx,
+        caller,
+        p,
+        text,
+        brand,
+        b.interpretation,
+      );
+      const { result } = await this.#interpretation(tx, caller, p, b.interpretation, text);
+      const tz = await this.#personZone(tx, p.membershipId);
+      return {
+        parser_version: PARSER_VERSION,
+        ai: true as const,
+        action: INTERPRET_ACTION,
+        status: result.status,
+        dropped: result.dropped,
+        questions: result.questions,
+        assumptions: result.assumptions,
+        limitations: result.limitations,
+        timezone: tz,
+        today: localDay(new Date(), tz),
+        candidate,
+        trust_note:
+          'AI marked which words name which field; every value shown was derived and checked by the server. Choose any ambiguous value, then save to your Inbox. Nothing is saved until you do.',
+      };
+    });
+  }
+
+  // ---------------------------------------------------------------------------------------------
+  // 7F voice capture (ADR-0043 D3): ephemeral audio → gateway transcription → editable transcript
+  // ---------------------------------------------------------------------------------------------
+
+  #voiceConfig(): VoiceConfig {
+    return this.#ai.config.voice ?? VOICE_DEFAULTS;
+  }
+
+  /** Whether transcription can run here: a configured transport (fixture only) and object storage. */
+  #transcriptionState(): 'ok' | 'not_configured' | 'storage_not_configured' {
+    const t = this.#ai.config.transcription;
+    if (!t || t.provider === 'none' || !this.#ai.transcriber) return 'not_configured';
+    if (!this.storage) return 'storage_not_configured';
+    return 'ok';
+  }
+
+  #requireTranscription() {
+    const s = this.#transcriptionState();
+    if (s === 'not_configured')
+      throw this.#refuse(
+        'transcription_unavailable',
+        'Voice transcription is not set up here. Type or paste your note instead.',
+        'dependency_unavailable',
+      );
+    if (s === 'storage_not_configured')
+      throw this.#refuse(
+        'storage_unavailable',
+        'Audio storage is not set up here, so recordings cannot be accepted. Type or paste your note instead.',
+        'dependency_unavailable',
+      );
+  }
+
+  #voiceFailure(code: string) {
+    return VOICE_FAILURES[code] ?? VOICE_FAILURES.default!;
+  }
+
+  async #ownVoice(tx: WorkspaceTransaction, p: Principal, vcp: unknown, lock = false) {
+    if (typeof vcp !== 'string' || !/^vcp_[0-9A-HJKMNP-TV-Z]{26}$/.test(vcp))
+      throw new TenancyError('not_found');
+    let q = tx.db.selectFrom('capture.voice_capture').selectAll().where('public_id', '=', vcp);
+    if (lock) q = q.forUpdate();
+    const row = await q.executeTakeFirst();
+    // Recordings and transcripts are personal: another person's is indistinguishable from none.
+    if (!row || row.membership_id !== p.membershipId) throw new TenancyError('not_found');
+    return row;
+  }
+
+  async #voiceView(tx: WorkspaceTransaction, p: Principal, vcp: string) {
+    const v = await this.#ownVoice(tx, p, vcp);
+    const op = v.operation_id
+      ? await tx.db
+          .selectFrom('exec.operation as o')
+          .innerJoin('ai.ai_action as a', 'a.operation_id', 'o.id')
+          .select(['o.public_id', 'a.content_state', 'a.synthetic'])
+          .where('o.id', '=', v.operation_id)
+          .executeTakeFirst()
+      : undefined;
+    let transcript: Record<string, unknown> | null = null;
+    if ((v.state === 'transcribed' || v.state === 'saved') && v.operation_id) {
+      const out = await tx.db
+        .selectFrom('ai.ai_output')
+        .select(['content', 'grounding', 'completeness'])
+        .where('operation_id', '=', v.operation_id)
+        .orderBy('created_at', 'desc')
+        .executeTakeFirst();
+      const g = (out?.grounding ?? {}) as { confidence?: number | null; duration_ms?: number };
+      transcript =
+        op?.content_state === 'present' && out?.content !== null && out?.content !== undefined
+          ? {
+              state: 'present',
+              text: out.content,
+              confidence: g.confidence ?? null,
+              low_confidence: typeof g.confidence === 'number' && g.confidence < 0.6,
+              synthetic: !!op.synthetic,
+              note: op.synthetic
+                ? 'Synthetic transcript from the test transcription fixture, not real speech recognition.'
+                : null,
+            }
+          : { state: 'erased', text: null };
+    }
+    const saved = v.inbox_item_id
+      ? await tx.db
+          .selectFrom('core.record')
+          .select('public_id')
+          .where('id', '=', v.inbox_item_id)
+          .executeTakeFirst()
+      : undefined;
+    return {
+      id: v.public_id,
+      type: 'voice_capture' as const,
+      state: v.state,
+      format: v.format,
+      byte_size: v.byte_size,
+      duration_ms: v.duration_ms,
+      run: op?.public_id ?? null,
+      transcript,
+      failure: v.failure_code
+        ? { code: v.failure_code, message: this.#voiceFailure(v.failure_code) }
+        : null,
+      audio: v.storage_key ? 'held' : 'discarded',
+      saved_to: saved?.public_id ?? null,
+      expires_at: new Date(v.expires_at).toISOString(),
+      created_at: new Date(v.created_at).toISOString(),
+      version: v.version,
+    };
+  }
+
+  /** What the capture dialog needs to offer recording honestly (configured, bounds, formats). */
+  async voiceSettings(caller: Caller, ws: unknown) {
+    return this.inWorkspace(caller, ws, { readOnly: true }, async (tx) => {
+      const state = this.#transcriptionState();
+      const { decision } = await this.#availability(tx);
+      const c = this.#voiceConfig();
+      const ready = state === 'ok' && decision.availability === 'ready';
+      return {
+        transcription: ready
+          ? 'available'
+          : state === 'ok'
+            ? 'ai_unavailable'
+            : state === 'storage_not_configured'
+              ? 'storage_unavailable'
+              : 'not_configured',
+        synthetic: ready && TRANSCRIPTION_MODEL.synthetic,
+        max_seconds: c.maxSeconds,
+        max_bytes: c.maxBytes,
+        formats: c.formats,
+        note: ready
+          ? 'Transcription here uses a synthetic test fixture: it is not real speech recognition.'
+          : 'Voice transcription is not available. You can type or paste your note.',
+      };
+    });
+  }
+
+  /**
+   * CAP-005: starts one recording upload. Refused before anything is stored when transcription,
+   * AI, or storage is unavailable (no orphan uploads). Returns an upload URL bound to the exact
+   * size, type, and checksum; the audio stays ephemeral.
+   */
+  async createVoiceCapture(caller: Caller, ws: unknown, body: unknown, req: Mutation) {
+    const b = (body && typeof body === 'object' && !Array.isArray(body) ? body : {}) as Record<
+      string,
+      unknown
+    >;
+    const c = this.#voiceConfig();
+    const issues = [];
+    for (const k of Object.keys(b))
+      if (!['format', 'byte_size', 'sha256', 'duration_ms'].includes(k))
+        issues.push(issue(`/${k}`, 'unknown_field', 'This field is not accepted.'));
+    const format = typeof b.format === 'string' ? b.format.split(';')[0]!.trim().toLowerCase() : '';
+    if (!(c.formats as readonly string[]).includes(format))
+      issues.push(
+        issue('/format', 'unsupported_format', `Record or upload ${c.formats.join(', ')} audio.`),
+      );
+    if (!Number.isInteger(b.byte_size) || (b.byte_size as number) < 44)
+      issues.push(issue('/byte_size', 'invalid_value', 'The recording is empty.'));
+    else if ((b.byte_size as number) > c.maxBytes)
+      issues.push(
+        issue(
+          '/byte_size',
+          'too_large',
+          `Recordings can be at most ${Math.floor(c.maxBytes / 1048576)} MiB.`,
+        ),
+      );
+    if (typeof b.sha256 !== 'string' || !/^[0-9a-f]{64}$/.test(b.sha256))
+      issues.push(issue('/sha256', 'required', 'Send the checksum of the recording.'));
+    if (!Number.isInteger(b.duration_ms) || (b.duration_ms as number) < 1)
+      issues.push(issue('/duration_ms', 'invalid_value', 'Send the recording length.'));
+    else if ((b.duration_ms as number) > c.maxSeconds * 1000)
+      issues.push(
+        issue('/duration_ms', 'too_long', `Recordings can be at most ${c.maxSeconds} seconds.`),
+      );
+    if (issues.length) throw invalid(...issues);
+    return this.mutate(
+      caller,
+      'capture.voice_create',
+      ws,
+      req,
+      async (tx, p) => {
+        if (caller.delegation || p.kind !== 'member') throw new TenancyError('forbidden');
+        this.#requireTranscription();
+        const { decision } = await this.#availability(tx);
+        this.#requireReady(decision);
+        const storage = this.storage!;
+        if ((await storage.check().catch(() => 'unavailable' as const)) !== 'ok')
+          throw this.#refuse(
+            'storage_unavailable',
+            'Audio storage is not responding, so the recording was not accepted. Try again, or type your note.',
+            'dependency_unavailable',
+          );
+        // Serialize this person's uploads, then bound how many are open at once.
+        await sql`SELECT pg_advisory_xact_lock(hashtextextended(${`capture.voice:${p.membershipId}`}, 0))`.execute(
+          tx.db,
+        );
+        const open = await tx.db
+          .selectFrom('capture.voice_capture')
+          .select(sql<number>`count(*)::int`.as('n'))
+          .where('membership_id', '=', p.membershipId)
+          .where('state', 'in', ['uploaded', 'transcribing'])
+          .executeTakeFirstOrThrow();
+        if (open.n >= c.queueMax)
+          throw new TenancyError('conflict', {
+            issues: [
+              issue(
+                '/',
+                'too_many',
+                `At most ${c.queueMax} recordings can be waiting at once. Wait for one to finish, or cancel one.`,
+              ),
+            ],
+          });
+        const id = newUuidV7();
+        const publicId = newPublicId('vcp');
+        const key = `voice/${tx.workspaceId}/${id}`;
+        const upload = await storage
+          .presignPut(key, {
+            contentType: format,
+            byteSize: b.byte_size as number,
+            sha256Hex: b.sha256 as string,
+            expiresInSeconds: c.uploadTtlSeconds,
+          })
+          .catch(() => {
+            throw this.#refuse(
+              'storage_unavailable',
+              'Audio storage is not responding, so the recording was not accepted. Try again, or type your note.',
+              'dependency_unavailable',
+            );
+          });
+        await tx.db
+          .insertInto('capture.voice_capture')
+          .values({
+            id,
+            workspace_id: tx.workspaceId,
+            public_id: publicId,
+            membership_id: p.membershipId,
+            format: format as VoiceFormat,
+            byte_size: b.byte_size as number,
+            duration_ms: b.duration_ms as number,
+            content_sha256: b.sha256 as string,
+            storage_key: key,
+            expires_at: new Date(Date.now() + c.uploadTtlSeconds * 1000),
+          })
+          .execute();
+        this.d.metrics.count('capture.voice', 1, { outcome: 'upload_started' });
+        return {
+          status: 201,
+          ref: { id: publicId, type: 'voice_capture' },
+          data: {
+            ...(await this.#voiceView(tx, p, publicId)),
+            upload: {
+              url: upload.url,
+              method: upload.method,
+              headers: upload.headers,
+              expires_at: upload.expiresAt.toISOString(),
+            },
+          },
+        };
+      },
+      async (tx, p, ref) => this.#voiceView(tx, p, ref.id),
+    );
+  }
+
+  /** Discards a capture's audio now (best effort; the cleanup sweep retries a failed deletion). */
+  async #discardAudio(tx: WorkspaceTransaction, v: { id: string; storage_key: string | null }) {
+    if (!v.storage_key || !this.storage) return false;
+    try {
+      await this.storage.delete(v.storage_key);
+    } catch {
+      this.d.metrics.count('capture.voice', 1, { outcome: 'discard_deferred' });
+      return false;
+    }
+    await tx.db
+      .updateTable('capture.voice_capture')
+      .set({ storage_key: null, discarded_at: new Date(), updated_at: new Date() })
+      .where('id', '=', v.id)
+      .execute();
+    return true;
+  }
+
+  /** Ends a capture as failed with a safe reason, discarding its audio. */
+  async #failVoice(
+    tx: WorkspaceTransaction,
+    v: { id: string; storage_key: string | null },
+    code: string,
+  ) {
+    await tx.db
+      .updateTable('capture.voice_capture')
+      .set({
+        state: 'failed',
+        failure_code: code,
+        updated_at: new Date(),
+        version: sql`version + 1`,
+      })
+      .where('id', '=', v.id)
+      .execute();
+    await this.#discardAudio(tx, v);
+    this.d.metrics.count('capture.voice', 1, { outcome: code });
+  }
+
+  /**
+   * After the upload: the stored object is checked from its bytes (size, checksum, container, and
+   * duration), then one transcription run starts through the gateway with its own reservation.
+   * Invalid audio ends the capture as failed and is discarded at once.
+   */
+  async transcribeVoiceCapture(caller: Caller, ws: unknown, vcp: unknown, req: Mutation) {
+    return this.mutate(
+      caller,
+      'capture.voice_transcribe',
+      ws,
+      req,
+      async (tx, p) => {
+        if (caller.delegation || p.kind !== 'member') throw new TenancyError('forbidden');
+        const v = await this.#ownVoice(tx, p, vcp, true);
+        if (v.state !== 'uploaded')
+          throw new TenancyError('conflict', {
+            issues: [
+              issue('/', 'voice_not_uploaded', 'This recording is not waiting to be transcribed.'),
+            ],
+          });
+        this.#requireTranscription();
+        const c = this.#voiceConfig();
+        const storage = this.storage!;
+        const done = async () => ({
+          status: 200,
+          ref: { id: v.public_id, type: 'voice_capture' },
+          data: await this.#voiceView(tx, p, v.public_id),
+        });
+        let head;
+        try {
+          head = await storage.head(v.storage_key!);
+        } catch {
+          throw this.#refuse(
+            'storage_unavailable',
+            'Audio storage is not responding. Try again in a moment.',
+            'dependency_unavailable',
+          );
+        }
+        if (!head)
+          throw new TenancyError('conflict', {
+            issues: [issue('/', 'upload_missing', 'The recording has not finished uploading yet.')],
+          });
+        if (head.byteSize !== v.byte_size) {
+          await this.#failVoice(tx, v, 'upload_mismatch');
+          return done();
+        }
+        const bytes = await storage.read(v.storage_key!, { maxBytes: c.maxBytes });
+        if (bytes.byteLength !== v.byte_size || sha256Hex(bytes) !== v.content_sha256) {
+          await this.#failVoice(tx, v, 'upload_mismatch');
+          return done();
+        }
+        const audio = checkAudio(bytes, v.format as VoiceFormat, c.maxSeconds);
+        if (!audio.ok) {
+          await this.#failVoice(tx, v, audio.code);
+          return done();
+        }
+        // The verified container duration when the format carries one; else the recorder's
+        // (bounded above), and the provider's measured duration is what is billed.
+        const durationMs = audio.durationMs ?? Math.min(v.duration_ms, c.maxSeconds * 1000);
+        const { policy, decision } = await this.#availability(tx);
+        this.#requireReady(decision);
+        const seconds = billedSeconds(c.maxSeconds * 1000);
+        const maxCost = BigInt(seconds) * TRANSCRIPTION_MODEL.price.picoPerSecond;
+        const period = await workspacePeriod(tx, new Date());
+        const limits = await effectiveLimits(tx, this.#ai.config.defaults);
+        const view = await balances(tx, period, limits, { lock: false });
+        if (maxCost > view['ai.cost'].available)
+          throw new TenancyError('usage_limit_reached', {
+            issues: [
+              issue(
+                '/',
+                'ai_limit_reached',
+                'The AI spending limit is reached, so this recording cannot be transcribed.',
+              ),
+            ],
+          });
+        const context: ExecutionContext = {
+          ...this.exec(caller, p),
+          risk: { actionKey: AI_EXECUTE_ACTION, riskClass: 'R1' },
+          dataClassLimit: policy?.maxDataClass ?? 'C2',
+        };
+        const op = await createOperation(tx, {
+          kind: 'ai_action',
+          context,
+          initiatedBy: { type: 'human', id: p.membershipId },
+        });
+        await tx.db
+          .insertInto('ai.ai_action')
+          .values({
+            operation_id: op.id,
+            workspace_id: tx.workspaceId,
+            initiating_membership_id: p.membershipId,
+            brand_id: null,
+            purpose: 'transcription',
+            synthetic: TRANSCRIPTION_MODEL.synthetic,
+            model_key: TRANSCRIPTION_MODEL.key,
+            provider: TRANSCRIPTION_MODEL.provider,
+            model_id: TRANSCRIPTION_MODEL.modelId,
+            registry_version: AI_REGISTRY_VERSION,
+            prompt_template_version: TRANSCRIPTION_VERSION,
+            action_key: null,
+            input_digest: null,
+            price_snapshot: JSON.stringify(transcriptionPriceSnapshot()),
+            privacy_snapshot: JSON.stringify({
+              training_exclusion: TRANSCRIPTION_MODEL.privacy.trainingExclusion,
+              retention: TRANSCRIPTION_MODEL.privacy.retention,
+              zero_retention: TRANSCRIPTION_MODEL.privacy.zeroRetention,
+              approved_for_customer_data: false,
+              max_data_class: policy?.maxDataClass ?? 'C2',
+            }),
+            funding: TRANSCRIPTION_MODEL.synthetic ? 'synthetic' : decision.funding,
+            caller_kind: 'ui',
+            delegation_principal_type: null,
+            delegation_token_id: null,
+            // A descriptor only: the audio is never stored as a prompt.
+            prompt_text: `Transcribe voice capture ${v.public_id} (${v.format}, ${Math.round(durationMs / 100) / 10} s)`,
+            redaction_count: 0,
+            max_output_tokens: 1024,
+            estimated_max_micros: microsString(maxCost),
+            rerun_of_operation_id: null,
+            retrieval_scope: null,
+            manifest_digest: null,
+          })
+          .execute();
+        await tx.db
+          .updateTable('capture.voice_capture')
+          .set({
+            state: 'transcribing',
+            operation_id: op.id,
+            duration_ms: Math.max(1, durationMs),
+            // A stuck transcription is swept after its attempts could all have run.
+            expires_at: new Date(Date.now() + 3_600_000),
+            updated_at: new Date(),
+            version: sql`version + 1`,
+          })
+          .where('id', '=', v.id)
+          .execute();
+        const t = this.#ai.config.transcription;
+        await enqueueJob(tx, {
+          queue: AI_QUEUE,
+          kind: AI_TRANSCRIPTION_JOB,
+          context,
+          operationId: op.id,
+          maxAttempts: this.#ai.config.maxAttempts,
+          timeoutSeconds:
+            Math.ceil((t && t.provider !== 'none' ? t.timeoutMs : 30_000) / 1000) + 30,
+        });
+        await this.workAudit(
+          tx,
+          caller,
+          p,
+          'ai_action.started',
+          { recordId: null, type: 'ai_action', publicId: op.publicId },
+          [
+            change.plain('model_key', null, TRANSCRIPTION_MODEL.key),
+            change.plain('estimated_max_micros', null, microsString(maxCost)),
+            change.plain('context_records', null, 0),
+          ],
+          null,
+        );
+        this.d.metrics.count('capture.voice', 1, { outcome: 'queued' });
+        return done();
+      },
+      async (tx, p, ref) => this.#voiceView(tx, p, ref.id),
+    );
+  }
+
+  async getVoiceCapture(caller: Caller, ws: unknown, vcp: unknown) {
+    return this.inWorkspace(caller, ws, { readOnly: true }, async (tx, p) => {
+      if (caller.delegation) throw new TenancyError('forbidden');
+      const v = await this.#ownVoice(tx, p, vcp);
+      return this.#voiceView(tx, p, v.public_id);
+    });
+  }
+
+  /** Cancels a recording that is uploading or transcribing; its audio is discarded. */
+  async cancelVoiceCapture(caller: Caller, ws: unknown, vcp: unknown, req: Mutation) {
+    return this.mutate(
+      caller,
+      'capture.voice_cancel',
+      ws,
+      req,
+      async (tx, p) => {
+        if (caller.delegation) throw new TenancyError('forbidden');
+        const v = await this.#ownVoice(tx, p, vcp, true);
+        if (v.state !== 'uploaded' && v.state !== 'transcribing')
+          throw new TenancyError('conflict', {
+            issues: [issue('/', 'voice_closed', 'This recording already finished.')],
+          });
+        await tx.db
+          .updateTable('capture.voice_capture')
+          .set({ state: 'cancelled', updated_at: new Date(), version: sql`version + 1` })
+          .where('id', '=', v.id)
+          .execute();
+        if (v.operation_id)
+          await tx.db
+            .updateTable('exec.operation')
+            .set({ cancel_requested_at: new Date() })
+            .where('id', '=', v.operation_id)
+            .where('cancel_requested_at', 'is', null)
+            .execute();
+        await this.#discardAudio(tx, v);
+        this.d.metrics.count('capture.voice', 1, { outcome: 'cancelled' });
+        return {
+          status: 200,
+          ref: { id: v.public_id, type: 'voice_capture' },
+          data: await this.#voiceView(tx, p, v.public_id),
+        };
+      },
+      async (tx, p, ref) => this.#voiceView(tx, p, ref.id),
+    );
+  }
+
+  /**
+   * One transcription attempt (job `ai.transcription`): re-authorize, reserve, send the audio
+   * through the transport, settle by the measured duration, store the transcript in the protected
+   * output boundary, and discard the audio. Nothing about the audio or transcript is placed in
+   * job checkpoints; an outcome that may have been charged is never resent.
+   */
+  async runTranscription(job: JobHandlerContext): Promise<JobResult> {
+    const opId = job.job.operationId;
+    const ws = job.job.workspaceId;
+    const attemptId = job.job.attemptId;
+    if (!opId || !ws || !attemptId) throw new JobError('deterministic', 'ai_job_shape');
+    const n = job.job.attemptNumber;
+    const c = this.#voiceConfig();
+    const prepared = await job.step(`voice.prepare.${n}`, async (stx) => {
+      const tx = stx as WorkspaceTransaction;
+      const v = await tx.db
+        .selectFrom('capture.voice_capture')
+        .selectAll()
+        .where('operation_id', '=', opId)
+        .forUpdate()
+        .executeTakeFirst();
+      if (!v || v.state !== 'transcribing') return { outcome: 'skip' as const };
+      const action = await tx.db
+        .selectFrom('ai.ai_action')
+        .selectAll()
+        .where('operation_id', '=', opId)
+        .executeTakeFirstOrThrow();
+      const period = await workspacePeriod(tx, new Date());
+      const open = await tx.db
+        .selectFrom('ai.ai_dispatch')
+        .select(['id', 'state'])
+        .where('operation_id', '=', opId)
+        .where('state', 'in', ['dispatching', 'unknown'])
+        .forUpdate()
+        .execute();
+      if (open.length) {
+        // A lost worker may have sent the audio: never resent; the charge waits for review.
+        for (const d of open.filter((x) => x.state === 'dispatching')) {
+          await tx.db
+            .updateTable('ai.ai_dispatch')
+            .set({ state: 'unknown', error_kind: 'worker_lost', ended_at: new Date() })
+            .where('id', '=', d.id)
+            .execute();
+          await settle(tx, {
+            operationId: opId,
+            dispatchId: d.id,
+            settlement: { kind: 'unknown' },
+            funding: action.funding,
+            brandId: null,
+            now: new Date(),
+            currentPeriod: period,
+          });
+        }
+        await this.#failVoice(tx, v, 'outcome_unknown');
+        return { outcome: 'reconcile' as const };
+      }
+      const who = await this.#actionPrincipal(tx, action);
+      const { decision } = await this.#availability(tx);
+      const refusal =
+        'refused' in who
+          ? who.refused
+          : this.#transcriptionState() !== 'ok'
+            ? 'transcription_unavailable'
+            : decision.availability !== 'ready'
+              ? 'ai_unavailable'
+              : null;
+      if (refusal) {
+        await this.#failVoice(tx, v, refusal);
+        return { outcome: 'refused' as const, code: refusal };
+      }
+      const seconds = billedSeconds(c.maxSeconds * 1000);
+      const reservedCost = BigInt(seconds) * TRANSCRIPTION_MODEL.price.picoPerSecond;
+      const count = await tx.db
+        .selectFrom('ai.ai_dispatch')
+        .select(sql<number>`count(*)::int`.as('n'))
+        .where('operation_id', '=', opId)
+        .executeTakeFirstOrThrow();
+      const dispatchId = newUuidV7();
+      await tx.db
+        .insertInto('ai.ai_dispatch')
+        .values({
+          id: dispatchId,
+          workspace_id: tx.workspaceId,
+          operation_id: opId,
+          attempt_id: attemptId,
+          dispatch_number: count.n + 1,
+          period_start: period.start,
+          input_token_bound: seconds,
+          output_token_bound: 1,
+          reserved_micros: microsString(reservedCost),
+          price_snapshot: JSON.stringify(transcriptionPriceSnapshot()),
+          capability_snapshot: JSON.stringify({
+            error_responses_chargeable: 'unknown',
+            max_output_tokens: 1,
+            input_bound_verification: 'synthetic',
+          }),
+        })
+        .execute();
+      const reserved = await reserve(tx, {
+        operationId: opId,
+        dispatchId,
+        period,
+        amounts: { 'ai.cost': reservedCost, 'ai.input_tokens': 0n, 'ai.output_tokens': 0n },
+        limits: await effectiveLimits(tx, this.#ai.config.defaults),
+      });
+      if (!reserved.reserved) {
+        await tx.db
+          .updateTable('ai.ai_dispatch')
+          .set({
+            state: 'refused',
+            error_kind: 'refused',
+            settled_micros: '0',
+            usage_basis: 'not_charged',
+            ended_at: new Date(),
+          })
+          .where('id', '=', dispatchId)
+          .execute();
+        await this.#failVoice(tx, v, 'limit_reached');
+        return { outcome: 'limit' as const };
+      }
+      return { outcome: 'send' as const, dispatchId, key: v.storage_key!, format: v.format };
+    });
+    if (prepared.outcome === 'skip') return { state: 'succeeded' };
+    if (prepared.outcome === 'reconcile') throw new AwaitReconciliationError();
+    if (prepared.outcome === 'refused') throw new JobError('policy', refusalJobCode(prepared.code));
+    if (prepared.outcome === 'limit') throw new JobError('policy', 'limit_exceeded');
+
+    // The audio is read and sent outside any transaction; only references were checkpointed.
+    let result: TranscriptionResult | null = null;
+    let failure: TranscriptionError | null = null;
+    try {
+      const audio = await this.storage!.read(prepared.key, { maxBytes: c.maxBytes });
+      const t = this.#ai.config.transcription;
+      result = await this.#ai.transcriber!.transcribe({
+        model: TRANSCRIPTION_MODEL.modelId,
+        audio,
+        format: prepared.format as VoiceFormat,
+        apiKey: t && t.provider !== 'none' ? (t.apiKey?.reveal() ?? '') : '',
+        maxChars: c.transcriptMaxChars,
+        signal: job.signal,
+      });
+    } catch (err) {
+      failure =
+        err instanceof TranscriptionError
+          ? err
+          : err instanceof ObjectNotFoundError || err instanceof StorageUnavailableError
+            ? new TranscriptionError('not_sent', 'no', 'audio_unavailable')
+            : new TranscriptionError('transient', 'unknown');
+    }
+    const outcome = await job.step(`voice.settle.${n}`, async (stx) => {
+      const tx = stx as WorkspaceTransaction;
+      const v = await tx.db
+        .selectFrom('capture.voice_capture')
+        .selectAll()
+        .where('operation_id', '=', opId)
+        .forUpdate()
+        .executeTakeFirstOrThrow();
+      const action = await tx.db
+        .selectFrom('ai.ai_action')
+        .select(['funding', 'content_state'])
+        .where('operation_id', '=', opId)
+        .executeTakeFirstOrThrow();
+      const now = new Date();
+      const period = await workspacePeriod(tx, now);
+      const close = async (
+        state: 'succeeded' | 'failed' | 'unknown' | 'refused',
+        cost: bigint | null,
+        seconds: number | null,
+        errorKind: string | null,
+      ) => {
+        await settle(tx, {
+          operationId: opId,
+          dispatchId: prepared.dispatchId,
+          settlement:
+            cost === null
+              ? { kind: 'unknown' }
+              : {
+                  kind: 'actual',
+                  basis: 'measured',
+                  amounts: { 'ai.cost': cost, 'ai.input_tokens': 0n, 'ai.output_tokens': 0n },
+                },
+          funding: action.funding,
+          brandId: null,
+          now,
+          currentPeriod: period,
+        });
+        await tx.db
+          .updateTable('ai.ai_dispatch')
+          .set({
+            state,
+            error_kind: errorKind,
+            input_tokens: seconds,
+            output_tokens: seconds === null ? null : 0,
+            settled_micros: cost === null ? null : microsString(cost),
+            usage_basis: cost === null ? null : cost === 0n ? 'not_charged' : 'measured',
+            provider_request_id: result?.requestId ?? null,
+            ended_at: now,
+          })
+          .where('id', '=', prepared.dispatchId)
+          .execute();
+      };
+      if (failure instanceof TranscriptTooLongError) {
+        // Review 01 R2: the provider measured the audio, so the liability is known and settled;
+        // the over-long transcript is refused, never clipped, stored, or offered as complete.
+        const seconds = billedSeconds(failure.durationMs);
+        await close(
+          'failed',
+          BigInt(seconds) * TRANSCRIPTION_MODEL.price.picoPerSecond,
+          seconds,
+          'invalid',
+        );
+        if (v.state === 'transcribing') await this.#failVoice(tx, v, 'transcript_too_long');
+        else await this.#discardAudio(tx, v);
+        return { state: 'failed' as const, kind: 'too_long' };
+      }
+      if (failure) {
+        if (failure.charged === 'no') {
+          await close(
+            failure.kind === 'invalid' ? 'refused' : 'failed',
+            0n,
+            0,
+            failure.kind === 'cancelled'
+              ? 'cancelled'
+              : failure.kind === 'not_sent'
+                ? 'not_sent'
+                : failure.kind,
+          );
+          const retry =
+            (failure.kind === 'rate' ||
+              failure.kind === 'transient' ||
+              failure.kind === 'not_sent') &&
+            failure.message !== 'audio_unavailable' &&
+            n < this.#ai.config.maxAttempts &&
+            v.state === 'transcribing';
+          if (retry) return { state: 'retry' as const, kind: failure.kind };
+          if (v.state === 'transcribing')
+            await this.#failVoice(
+              tx,
+              v,
+              failure.message === 'audio_unavailable'
+                ? 'audio_unavailable'
+                : failure.kind === 'invalid'
+                  ? 'malformed_audio'
+                  : 'transcription_failed',
+            );
+          return { state: 'failed' as const, kind: failure.kind };
+        }
+        await close(
+          'unknown',
+          null,
+          null,
+          failure.kind === 'cancelled' ? 'cancelled' : 'outcome_unknown',
+        );
+        // An oversized or malformed answer may still have been charged: the reservation stays for
+        // review, and the person is told why there is no transcript.
+        if (v.state === 'transcribing')
+          await this.#failVoice(
+            tx,
+            v,
+            failure.message === 'response_too_large' || failure.message === 'malformed_response'
+              ? failure.message
+              : 'outcome_unknown',
+          );
+        else await this.#discardAudio(tx, v);
+        return { state: 'unknown' as const, kind: failure.kind };
+      }
+      const r = result!;
+      const seconds = billedSeconds(r.durationMs);
+      const cost = BigInt(seconds) * TRANSCRIPTION_MODEL.price.picoPerSecond;
+      await close('succeeded', cost, seconds, null);
+      this.d.metrics.count('ai.cost_micros', Number(cost / PICO_PER_MICRO), {
+        funding: action.funding,
+      });
+      // Cancelled or erased meanwhile: the charge is kept, nothing is published.
+      if (v.state !== 'transcribing' || action.content_state !== 'present') {
+        await this.#discardAudio(tx, v);
+        return { state: 'discarded' as const, kind: null };
+      }
+      if (r.durationMs > c.maxSeconds * 1000 + 999) {
+        await this.#failVoice(tx, v, 'too_long');
+        return { state: 'failed' as const, kind: 'too_long' };
+      }
+      const text = redactCredentials(r.text.replace(CONTROL_CHARS, ' ').trim()).text;
+      if (!text) {
+        await this.#failVoice(tx, v, 'empty_transcript');
+        return { state: 'failed' as const, kind: 'empty' };
+      }
+      await tx.db
+        .insertInto('ai.ai_output')
+        .values({
+          id: newUuidV7(),
+          workspace_id: tx.workspaceId,
+          operation_id: opId,
+          dispatch_id: prepared.dispatchId,
+          completeness: 'complete',
+          content: text,
+          grounding: JSON.stringify({
+            version: TRANSCRIPTION_VERSION,
+            duration_ms: r.durationMs,
+            confidence: r.confidence,
+            synthetic: TRANSCRIPTION_MODEL.synthetic,
+          }),
+        })
+        .execute();
+      await tx.db
+        .updateTable('capture.voice_capture')
+        .set({ state: 'transcribed', updated_at: now, version: sql`version + 1` })
+        .where('id', '=', v.id)
+        .execute();
+      await this.#discardAudio(tx, v);
+      this.d.metrics.count('capture.voice', 1, { outcome: 'transcribed' });
+      return { state: 'succeeded' as const, kind: null };
+    });
+    switch (outcome.state) {
+      case 'succeeded':
+      case 'discarded':
+        return { state: 'succeeded' };
+      case 'retry':
+        throw new JobError(
+          'transient',
+          outcome.kind === 'rate' ? 'ai_provider_rate_limited' : 'ai_provider_unavailable',
+        );
+      case 'unknown':
+        throw new AwaitReconciliationError();
+      default:
+        throw new JobError('deterministic', 'transcription_failed');
+    }
+  }
+
+  /**
+   * The cleanup sweep for one workspace (`capture.voice.cleanup`): deletes audio that outlived its
+   * upload window or whose capture already ended, and expires abandoned uploads. Bounded; a
+   * failed deletion stays for the next sweep.
+   */
+  async runVoiceCleanup(tenant: TenantDatabase, ws: string, now: Date): Promise<number> {
+    return tenant.withWorkspace(ws, { module: 'work' }, async (tx) => {
+      const rows = await tx.db
+        .selectFrom('capture.voice_capture')
+        .select(['id', 'state', 'storage_key', 'expires_at'])
+        .where('storage_key', 'is not', null)
+        .where((eb) =>
+          eb.or([eb('expires_at', '<=', now), eb('state', 'not in', ['uploaded', 'transcribing'])]),
+        )
+        .orderBy('expires_at')
+        .limit(100)
+        .forUpdate()
+        .skipLocked()
+        .execute();
+      let n = 0;
+      for (const r of rows) {
+        if (r.state === 'uploaded' || r.state === 'transcribing')
+          await tx.db
+            .updateTable('capture.voice_capture')
+            .set({ state: 'expired', updated_at: now, version: sql`version + 1` })
+            .where('id', '=', r.id)
+            .execute();
+        if (await this.#discardAudio(tx as WorkspaceTransaction, r)) n++;
+      }
+      if (n) this.d.metrics.count('capture.voice', n, { outcome: 'swept' });
+      return n;
+    });
+  }
+
+  /** CAP-005: the person's own transcribed recording, locked for saving to the Inbox. */
+  protected override async claimVoice(tx: WorkspaceTransaction, p: Principal, ref: unknown) {
+    const v = await this.#ownVoice(tx, p, ref, true);
+    if (v.state !== 'transcribed')
+      throw new TenancyError('conflict', {
+        issues: [
+          issue(
+            '/voice',
+            v.state === 'saved' ? 'voice_already_saved' : 'voice_not_transcribed',
+            v.state === 'saved'
+              ? 'This recording was already saved to your Inbox.'
+              : 'This recording has no transcript to save.',
+          ),
+        ],
+      });
+    return { id: v.id, publicId: v.public_id };
+  }
+
+  protected override async voiceSaved(
+    tx: WorkspaceTransaction,
+    voice: { id: string },
+    inboxItemId: string,
+  ) {
+    await tx.db
+      .updateTable('capture.voice_capture')
+      .set({
+        state: 'saved',
+        inbox_item_id: inboxItemId,
+        updated_at: new Date(),
+        version: sql`version + 1`,
+      })
+      .where('id', '=', voice.id)
+      .execute();
+    this.d.metrics.count('capture.voice', 1, { outcome: 'saved' });
+  }
+
   // ---------------------------------------------------------------------------------------------
   // 7E briefings and reviews (ADR-0042): recipient-specific, source-linked, fact-first
   // ---------------------------------------------------------------------------------------------
@@ -6725,7 +8614,7 @@ export class AiGatewayService extends McpAccessService {
    */
   #proposalCallers = new WeakMap<
     Caller,
-    { operationId: string; causationId: string; proposal: string }
+    { operationId: string; causationId: string; proposal: string; planner: boolean }
   >();
 
   protected override exec(caller: Caller, p: Principal): ExecutionContext {
@@ -6741,9 +8630,11 @@ export class AiGatewayService extends McpAccessService {
   ): CommandContext {
     const a = this.#proposalCallers.get(caller);
     if (!a) return super.cmd(caller, p, brandId);
+    // A planner proposal is rule-based, not AI: its changes are the person's own (source `ui`),
+    // referencing the proposal they applied.
     return CommandContext.fromExecution(
       this.exec(caller, p),
-      { kind: 'ai_proposal', ref: a.proposal },
+      a.planner ? { kind: 'ui', ref: a.proposal } : { kind: 'ai_proposal', ref: a.proposal },
       { brandId },
     );
   }
@@ -6769,11 +8660,23 @@ export class AiGatewayService extends McpAccessService {
     // Proposal content is personal to the person who started the run (like all AI history).
     if (!proposal || proposal.initiating_membership_id !== p.membershipId)
       throw new TenancyError('not_found');
-    const action = await tx.db
-      .selectFrom('ai.ai_action')
-      .selectAll()
-      .where('operation_id', '=', proposal.operation_id)
-      .executeTakeFirstOrThrow();
+    // 7F: a planner proposal has no AI action; its operation stands in for one (no scope, no
+    // sources, never synthetic), so the shared review, approval, and apply paths stay one path.
+    const action =
+      proposal.origin === 'planner'
+        ? {
+            operation_id: proposal.operation_id,
+            purpose: 'plan',
+            retrieval_scope: null,
+            brand_id: null,
+            synthetic: false,
+            action_key: null,
+          }
+        : await tx.db
+            .selectFrom('ai.ai_action')
+            .selectAll()
+            .where('operation_id', '=', proposal.operation_id)
+            .executeTakeFirstOrThrow();
     const changes = await tx.db
       .selectFrom('ai.proposed_change')
       .selectAll()
@@ -6791,7 +8694,7 @@ export class AiGatewayService extends McpAccessService {
   async #proposalEligible(
     tx: WorkspaceTransaction,
     p: Principal,
-    proposal: { content_state: string },
+    proposal: { id: string; content_state: string; origin: string },
     action: {
       operation_id: string;
       purpose: string;
@@ -6800,6 +8703,13 @@ export class AiGatewayService extends McpAccessService {
     },
   ) {
     if (proposal.content_state !== 'present') return false;
+    // 7F: a plan rests on its candidates, blockers, and scope; all must still be readable.
+    if (proposal.origin === 'planner') {
+      const rows = await evidenceOf(tx, { proposalId: proposal.id });
+      return (
+        rows.length > 0 && evidenceReadable(tx, p, rows, this.c.settings.principalContextArrayMax)
+      );
+    }
     const refs = await tx.db
       .selectFrom('ai.ai_context_ref')
       .selectAll()
@@ -7010,10 +8920,30 @@ export class AiGatewayService extends McpAccessService {
   async #currentValues(
     tx: WorkspaceTransaction,
     p: Principal,
-    kind: 'task' | 'project' | 'document',
+    kind: TargetKind,
     publicId: string,
   ): Promise<{ title: string; version: number; values: Record<string, string | null> } | null> {
     try {
+      if (kind === 'block') {
+        // 7F: only the person's own blocks; the task title through current authorization.
+        const b = await tx.db
+          .selectFrom('planning.work_block as w')
+          .leftJoin('core.record as r', 'r.id', 'w.task_id')
+          .select(['w.starts_at', 'w.ends_at', 'w.version', 'w.title', 'r.public_id as task'])
+          .where('w.public_id', '=', publicId)
+          .where('w.owner_membership_id', '=', p.membershipId)
+          .executeTakeFirst();
+        if (!b) return null;
+        const task = b.task ? await this.#currentValues(tx, p, 'task', b.task) : null;
+        return {
+          title: task?.title ?? b.title ?? 'Work block',
+          version: Number(b.version),
+          values: {
+            starts_at: new Date(b.starts_at).toISOString(),
+            ends_at: new Date(b.ends_at).toISOString(),
+          },
+        };
+      }
       if (kind === 'task') {
         const t = await this.loadTask(tx, p, publicId);
         this.requireTaskAction(p, 'record.read', t);
@@ -7106,6 +9036,7 @@ export class AiGatewayService extends McpAccessService {
       updated_at: new Date(proposal.updated_at).toISOString(),
       run: op.public_id,
       synthetic: action.synthetic,
+      origin: proposal.origin,
       application: application
         ? {
             outcome: application.outcome,
@@ -7223,6 +9154,8 @@ export class AiGatewayService extends McpAccessService {
     const fingerprint = this.#fingerprintOf(proposal, changes);
     const open = ['open', 'approved', 'failed'].includes(proposal.state);
     const applier = !caller.delegation && p.kind === 'member' && p.role !== 'read_only';
+    const planner = proposal.origin === 'planner';
+    const plan = planner ? await this.#storedPlanView(tx, p, proposal, changes, open) : null;
     const approvalLive =
       approval &&
       approval.revision === proposal.revision &&
@@ -7233,8 +9166,10 @@ export class AiGatewayService extends McpAccessService {
       title: proposal.title,
       assumptions: proposal.assumptions ?? [],
       fingerprint,
-      trust_note:
-        'This proposal is AI-generated. Its changes are suggestions, not facts or evidence of completion; nothing changes until you apply it.',
+      trust_note: planner
+        ? 'This plan was made by the rule-based planner, not AI. Its changes are suggestions; nothing changes until you apply it, and task dates never change.'
+        : 'This proposal is AI-generated. Its changes are suggestions, not facts or evidence of completion; nothing changes until you apply it.',
+      plan,
       changes: rendered,
       order: order.ok ? order.order : [],
       selection_issues: selectionIssues(
@@ -7260,11 +9195,12 @@ export class AiGatewayService extends McpAccessService {
         approve: open && applier,
         apply: proposal.state === 'approved' && applier && !!approvalLive,
         reject: open && applier,
-        // Changed targets need an explicit review of their current values (rebase) first.
+        // Changed targets (or, for a plan, a changed day) need an explicit review first.
         rebase:
           open &&
           applier &&
-          rendered.some((c) => c.target && 'out_of_date' in c.target && c.target.out_of_date),
+          (rendered.some((c) => c.target && 'out_of_date' in c.target && c.target.out_of_date) ||
+            (plan !== null && plan.current.state === 'changed')),
       },
     };
   }
@@ -7301,8 +9237,10 @@ export class AiGatewayService extends McpAccessService {
           ? 'document'
           : publicId.startsWith('mil_') || publicId.startsWith('mst_')
             ? 'milestone'
-            : 'record';
-    if (kind === 'task' || kind === 'project' || kind === 'document') {
+            : publicId.startsWith('blk_')
+              ? 'block'
+              : 'record';
+    if (kind === 'task' || kind === 'project' || kind === 'document' || kind === 'block') {
       const cur = await this.#currentValues(tx, p, kind, publicId);
       return cur ? { type: kind, id: publicId, title: cur.title } : { available: false };
     }
@@ -7352,6 +9290,7 @@ export class AiGatewayService extends McpAccessService {
           created_at: new Date(proposal.created_at).toISOString(),
           run: op.public_id,
           synthetic: action.synthetic,
+          origin: proposal.origin,
           content: { state: content },
           title: content === 'present' ? proposal.title : null,
           application: app
@@ -7398,9 +9337,18 @@ export class AiGatewayService extends McpAccessService {
    */
   async #lockedVersion(
     tx: WorkspaceTransaction,
-    kind: 'task' | 'project' | 'document',
+    kind: TargetKind,
     publicId: string,
   ): Promise<number | null> {
+    if (kind === 'block') {
+      const r = await tx.db
+        .selectFrom('planning.work_block')
+        .select('version')
+        .where('public_id', '=', publicId)
+        .forUpdate()
+        .executeTakeFirst();
+      return r ? Number(r.version) : null;
+    }
     const table =
       kind === 'task' ? 'work.task' : kind === 'project' ? 'work.project' : 'knowledge.document';
     const col = kind === 'document' ? 'current_version_number' : 'version';
@@ -7463,7 +9411,7 @@ export class AiGatewayService extends McpAccessService {
     tx: WorkspaceTransaction,
     caller: Caller,
     p: Principal,
-    proposal: { public_id: string },
+    proposal: { public_id: string; origin: string },
     action: { retrieval_scope: unknown },
     c: {
       change_key: string;
@@ -7476,6 +9424,9 @@ export class AiGatewayService extends McpAccessService {
     guard: Map<string, number>,
     req: Mutation,
   ): Promise<{ publicId: string; recordId: string }> {
+    // 7F: planning operations exist only in planner proposals, and a plan proposes nothing else.
+    if (PLAN_OPS_SET.has(c.op) !== (proposal.origin === 'planner'))
+      throw invalid(issue('/op', 'invalid_option', 'This change type is not supported.'));
     const payload = c.payload as ProposalChange['payload'];
     const f = payload.fields;
     const ref = (r: RefValue | undefined) => {
@@ -7685,6 +9636,61 @@ export class AiGatewayService extends McpAccessService {
       const { t } = await this.addCriterionIn(tx, caller, p, ref(payload.task)!, input);
       return { publicId: t.publicId, recordId: t.id };
     }
+    // 7F planner adapters: the canonical 3C Today and block commands, as the applying person.
+    // Locked blocks and commitments refuse there; task dates are never written.
+    if (c.op === 'commitment.add') {
+      const { task } = await this.commitIn(tx, caller, p, f.day!, ref(payload.task), 'plan');
+      return { publicId: task.publicId, recordId: task.id };
+    }
+    if (c.op === 'commitment.remove') {
+      const task = await this.uncommitIn(
+        tx,
+        caller,
+        p,
+        f.day!,
+        ref(payload.task),
+        payload.commitment_version ?? null,
+      );
+      return { publicId: task.publicId, recordId: task.id };
+    }
+    if (c.op === 'block.create') {
+      const task = await this.plannableTask(tx, p, ref(payload.task));
+      const blk = await this.createBlockIn(tx, caller, p, {
+        task,
+        title: null,
+        start: new Date(f.starts_at!),
+        end: new Date(f.ends_at!),
+        tz: await this.personZone(tx, p.membershipId),
+        focus: false,
+        locked: false,
+        prep: 0,
+        buffer: 0,
+        source: 'plan',
+      });
+      return { publicId: blk.publicId, recordId: blk.id };
+    }
+    if (c.op === 'block.update') {
+      const { row } = await this.moveBlockIn(
+        tx,
+        caller,
+        p,
+        c.target_public_id!,
+        new Date(f.starts_at!),
+        new Date(f.ends_at!),
+        fresh(c.target_public_id!) ? expected : null,
+      );
+      return { publicId: row.public_id, recordId: row.id };
+    }
+    if (c.op === 'block.delete') {
+      const row = await this.deleteBlockIn(
+        tx,
+        caller,
+        p,
+        c.target_public_id!,
+        fresh(c.target_public_id!) ? expected : null,
+      );
+      return { publicId: row.public_id, recordId: row.id };
+    }
     throw invalid(issue('/op', 'invalid_option', 'This change type is not supported.'));
   }
 
@@ -7697,7 +9703,7 @@ export class AiGatewayService extends McpAccessService {
     tx: WorkspaceTransaction,
     caller: Caller,
     p: Principal,
-    proposal: { public_id: string },
+    proposal: { public_id: string; origin: string },
     action: { retrieval_scope: unknown },
     changes: ReadonlyArray<{
       change_key: string;
@@ -7789,6 +9795,11 @@ export class AiGatewayService extends McpAccessService {
       const { proposal, action, changes } = await this.#ownProposal(tx, p, prp);
       if (!(await this.#proposalEligible(tx, p, proposal, action)))
         throw this.#proposalUnavailable();
+      // 7F: a plan is checked against the day as it is now (inputs locked first, in order).
+      const plan =
+        proposal.origin === 'planner'
+          ? await this.#planCurrent(tx, p, proposal, changes, true)
+          : null;
       const selection = selectionIssues(
         changes.map((c) => ({ key: c.change_key, dependsOn: c.depends_on, decision: c.decision })),
         changes.filter((c) => c.selected).map((c) => c.change_key),
@@ -7801,8 +9812,18 @@ export class AiGatewayService extends McpAccessService {
         valid:
           !selection.length &&
           [...results.values()].every((r) => r.state === 'valid') &&
-          results.size > 0,
+          results.size > 0 &&
+          (!plan || (plan.fresh && !plan.issues.some((i) => i.severity === 'error'))),
         changes: this.#validationView(changes, results),
+        ...(plan
+          ? {
+              plan: {
+                state: !plan.current ? 'unavailable' : plan.fresh ? 'current' : 'changed',
+                snapshot: plan.snapshot,
+                issues: plan.issues,
+              },
+            }
+          : {}),
       };
     });
   }
@@ -8126,6 +10147,9 @@ export class AiGatewayService extends McpAccessService {
               issue(s.change ? `/selected/${s.change}` : '/selected', s.code, s.message),
             ),
           );
+        // 7F: a plan is approved only against an unchanged day with no conflicting blocks.
+        if (proposal.origin === 'planner')
+          this.#requirePlanCurrent(await this.#planCurrent(tx, p, proposal, changes, true));
         const results = await this.#dryRun(tx, caller, p, proposal, action, changes, req);
         if ([...results.values()].some((r) => r.state !== 'valid'))
           throw new TenancyError('conflict', {
@@ -8210,10 +10234,18 @@ export class AiGatewayService extends McpAccessService {
     const b = (body && typeof body === 'object' ? body : {}) as Record<string, unknown>;
     const issues = [];
     for (const k of Object.keys(b))
-      if (!['revision', 'reviewed'].includes(k))
+      if (!['revision', 'reviewed', 'snapshot'].includes(k))
         issues.push(issue(`/${k}`, 'unknown_field', 'This field is not accepted.'));
     if (!Number.isInteger(b.revision))
       issues.push(issue('/revision', 'required', 'Send the revision you reviewed.'));
+    // 7F: the snapshot of the current day a person reviewed, for a planner proposal.
+    if (
+      b.snapshot !== undefined &&
+      (typeof b.snapshot !== 'string' || !/^[0-9a-f]{64}$/.test(b.snapshot))
+    )
+      issues.push(
+        issue('/snapshot', 'invalid_value', 'Send the snapshot of the day you reviewed.'),
+      );
     const reviewed = (
       b.reviewed && typeof b.reviewed === 'object' && !Array.isArray(b.reviewed) ? b.reviewed : null
     ) as Record<string, unknown> | null;
@@ -8249,6 +10281,17 @@ export class AiGatewayService extends McpAccessService {
           );
         if (!(await this.#proposalEligible(tx, p, proposal, action)))
           throw this.#proposalUnavailable();
+        // 7F: a plan's inputs are locked first (the same order as Apply) and recomputed.
+        const plan =
+          proposal.origin === 'planner'
+            ? await this.#planCurrent(tx, p, proposal, changes, true)
+            : null;
+        if (plan && !plan.current)
+          throw refuse(
+            'plan_unavailable',
+            'This plan can no longer be checked (its day passed or its scope is unavailable).',
+          );
+        const planStale = !!plan && !plan.fresh;
         const targeted = changes.filter((c) => c.target_record_id && c.expected_version !== null);
         if (targeted.length)
           await tx.db
@@ -8273,8 +10316,13 @@ export class AiGatewayService extends McpAccessService {
           if (cur.version !== Number(c.expected_version))
             stale.push({ id: c.id, key: c.change_key, version: cur.version });
         }
-        if (!stale.length)
+        if (!stale.length && !planStale)
           throw refuse('nothing_to_rebase', 'Every target is still at the reviewed version.');
+        if (planStale && b.snapshot !== plan!.snapshot)
+          throw refuse(
+            'plan_changed',
+            'Your day changed again since you reviewed it. Review the current plan, then try again.',
+          );
         const sent = Object.keys(reviewed!).sort();
         if (
           sent.join() !==
@@ -8296,6 +10344,47 @@ export class AiGatewayService extends McpAccessService {
             .execute();
           const c = changes.find((x) => x.id === s.id)!;
           c.expected_version = s.version;
+        }
+        if (planStale) {
+          // The reviewed day becomes the plan's basis: its snapshot and figures are replaced, the
+          // person's changes are kept, and removals expect the current commitment versions.
+          const cur = plan!.current!;
+          for (const c of changes.filter((x) => x.op === 'commitment.remove')) {
+            const pl = c.payload as ProposalChange['payload'];
+            const id = pl.task && 'existing' in pl.task ? pl.task.existing.publicId : null;
+            const v = id ? (cur.inputs.meta.get(id)?.commitmentVersion ?? null) : null;
+            if (v !== null && v !== pl.commitment_version) {
+              c.payload = { ...pl, commitment_version: v };
+              await tx.db
+                .updateTable('ai.proposed_change')
+                .set({ payload: JSON.stringify(c.payload), updated_at: new Date() })
+                .where('id', '=', c.id)
+                .execute();
+            }
+          }
+          const stored = proposal.plan as unknown as StoredPlan;
+          await tx.db
+            .updateTable('ai.change_proposal')
+            .set({
+              plan: JSON.stringify({
+                ...stored,
+                snapshot: cur.inputs.snapshot,
+                considered: cur.inputs.considered,
+                capped: cur.inputs.capped,
+                totals: cur.result.totals,
+                feasible: cur.result.feasible,
+                unscheduled: cur.result.unscheduled.map((u) => ({
+                  task: u.task,
+                  code: u.code,
+                  minutes: u.minutes,
+                  detail: u.detail,
+                })),
+                postpone: cur.result.postpone,
+                conflicts: cur.result.conflicts,
+              } satisfies StoredPlan),
+            })
+            .where('id', '=', proposal.id)
+            .execute();
         }
         const revision = proposal.revision + 1;
         const fingerprint = this.#fingerprintOf(
@@ -8459,6 +10548,10 @@ export class AiGatewayService extends McpAccessService {
             'approval_stale',
             'Your access changed after you approved. Review and approve the proposal again.',
           );
+        // 7F: the plan's inputs are locked in one order and recomputed; anything changed since
+        // approval (time off, holidays, meetings, blocks, Today, estimates) refuses as stale.
+        if (proposal.origin === 'planner')
+          this.#requirePlanCurrent(await this.#planCurrent(tx, p, proposal, changes, true));
         const selected = changes.filter((c) => c.selected && c.decision !== 'rejected');
         const order = orderChanges(
           selected.map((c) => ({
@@ -8489,6 +10582,7 @@ export class AiGatewayService extends McpAccessService {
           operationId: op.id,
           causationId: action.operation_id,
           proposal: proposal.public_id,
+          planner: proposal.origin === 'planner',
         });
         const byKey = new Map(selected.map((c) => [c.change_key, c]));
         const ids = new Map<string, { publicId: string; recordId: string }>();
@@ -8636,6 +10730,8 @@ export class AiGatewayService extends McpAccessService {
         this.d.metrics.count('ai.proposal_applications', 1, {
           outcome: failed ? 'failed' : 'applied',
         });
+        if (proposal.origin === 'planner')
+          this.d.metrics.count('planning.plans', 1, { outcome: failed ? 'failed' : 'applied' });
         return {
           status: 200,
           ref: { id: proposal.public_id, type: 'change_proposal' },

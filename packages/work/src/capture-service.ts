@@ -42,6 +42,14 @@ const batchRef = (uuid: string) => {
 
 export type TriageTarget = 'task' | 'note' | 'project' | 'discard';
 
+/** 7F: the AI run an Inbox item's candidate was interpreted by, if any. */
+const interpretedRun = (parsed: unknown): string | null => {
+  const v = (typeof parsed === 'string' ? JSON.parse(parsed) : parsed) as {
+    interpretation?: { run?: unknown };
+  } | null;
+  return typeof v?.interpretation?.run === 'string' ? v.interpretation.run : null;
+};
+
 /** One resolved or unresolved detected value (names only among what the person can read). */
 export interface Detected {
   field: ParseToken['field'];
@@ -61,6 +69,8 @@ export interface CaptureCandidate {
   detected: Detected[];
   needs_confirmation: boolean;
   truncated: boolean;
+  /** 7F: the AI interpretation this candidate came from (a reference; its spans are server-checked). */
+  interpretation?: { run: string; action: string };
 }
 
 /**
@@ -293,6 +303,40 @@ export class CaptureService extends TaskInteractionService {
     };
   }
 
+  /**
+   * 7F (CAP-005): the candidate for a capture interpreted by an AI run. Interpretation needs the AI
+   * gateway, which overrides this; without it the reference is unknown.
+   */
+  protected async interpretedCandidate(
+    _tx: WorkspaceTransaction,
+    _caller: Caller,
+    _p: Principal,
+    _text: string,
+    _brandHint: string | null,
+    _run: unknown,
+  ): Promise<CaptureCandidate> {
+    throw new TenancyError('not_found');
+  }
+
+  /**
+   * 7F: claims the person's transcribed voice capture for saving to the Inbox (the voice layer
+   * overrides this; without it the reference is unknown). Returns it locked.
+   */
+  protected async claimVoice(
+    _tx: WorkspaceTransaction,
+    _p: Principal,
+    _ref: unknown,
+  ): Promise<{ id: string; publicId: string }> {
+    throw new TenancyError('not_found');
+  }
+
+  /** 7F: records that a claimed voice capture was saved as an Inbox item. */
+  protected async voiceSaved(
+    _tx: WorkspaceTransaction,
+    _voice: { id: string },
+    _inboxItemId: string,
+  ): Promise<void> {}
+
   /** The capture preview (CAP-004, CAP-010): candidates with detected values; nothing is saved. */
   async previewCapture(caller: Caller, ws: unknown, body: unknown) {
     const b = isObj(body) ? body : {};
@@ -343,7 +387,7 @@ export class CaptureService extends TaskInteractionService {
             ? 'ui'
             : input.source === 'paste'
               ? 'paste'
-              : input.source === 'api' || input.source === 'webhook'
+              : input.source === 'api' || input.source === 'webhook' || input.source === 'voice'
                 ? input.source
                 : 'form',
         source_ref: null,
@@ -368,7 +412,11 @@ export class CaptureService extends TaskInteractionService {
           '$1-$2-$3-$4-$5',
         ),
         parse_version: PARSER_VERSION,
-        parsed: JSON.stringify({ title: input.parsed.title, detected: input.parsed.detected }),
+        parsed: JSON.stringify({
+          title: input.parsed.title,
+          detected: input.parsed.detected,
+          ...(input.parsed.interpretation ? { interpretation: input.parsed.interpretation } : {}),
+        }),
         capture_batch_id: input.batch,
       })
       .execute();
@@ -488,7 +536,16 @@ export class CaptureService extends TaskInteractionService {
       b.intent === 'note' ? 'note' : b.intent === undefined || b.intent === 'task' ? 'task' : null;
     if (!intent) throw invalid(issue('/intent', 'invalid_option', 'Capture a task or a note.'));
     const parsedTexts = this.candidateTexts(b);
-    const source = caller.delegation?.sourceKind ?? parsedTexts.source;
+    // 7F: an AI interpretation or a voice capture applies to one typed item, saved by a person.
+    const interpretation = b.interpretation;
+    const voice = b.voice;
+    if ((interpretation !== undefined || voice !== undefined) && parsedTexts.lines.length !== 1)
+      throw invalid(
+        issue('/text', 'invalid', 'An interpreted or spoken capture is saved as one item.'),
+      );
+    if (voice !== undefined && caller.delegation) throw new TenancyError('forbidden');
+    const source =
+      voice !== undefined ? 'voice' : (caller.delegation?.sourceKind ?? parsedTexts.source);
     const lines = parsedTexts.lines;
     const links = Array.isArray(b.links) ? b.links : [];
     const files = Array.isArray(b.files) ? b.files : [];
@@ -529,17 +586,29 @@ export class CaptureService extends TaskInteractionService {
         for (const [i, text] of lines.entries()) {
           await sql`SAVEPOINT capture_item`.execute(tx.db);
           try {
-            const parsed = await this.candidate(tx, p, text, today, brand?.id ?? null);
+            const spoken = voice !== undefined ? await this.claimVoice(tx, p, voice) : null;
+            const parsed =
+              interpretation !== undefined
+                ? await this.interpretedCandidate(
+                    tx,
+                    caller,
+                    p,
+                    text,
+                    brand?.id ?? null,
+                    interpretation,
+                  )
+                : await this.candidate(tx, p, text, today, brand?.id ?? null);
             const item = await this.insertInboxItem(tx, caller, p, {
               owner: p.membershipId,
               brandId: brand?.id ?? null,
               intent,
               text,
               source,
-              sourceRef: batch ? batchRef(batch) : null,
+              sourceRef: spoken ? spoken.publicId : batch ? batchRef(batch) : null,
               batch,
               parsed,
             });
+            if (spoken) await this.voiceSaved(tx, spoken, item.id);
             for (const [k, l] of parsedLinks.entries())
               await tx.db
                 .insertInto('relations.record_link')
@@ -709,9 +778,12 @@ export class CaptureService extends TaskInteractionService {
     const parsed = (typeof row.parsed === 'string' ? JSON.parse(row.parsed) : row.parsed) as {
       title?: string;
       detected?: Detected[];
+      interpretation?: { run: string; action: string };
     };
     return {
       id: row.public_id,
+      // 7F: the AI interpretation the candidate came from (a reference, never content).
+      interpretation: parsed.interpretation ?? null,
       type: 'inbox_item' as const,
       intent: row.intent,
       raw_text: row.raw_text,
@@ -1014,9 +1086,20 @@ export class CaptureService extends TaskInteractionService {
       fields.estimate_minutes <= this.ws.taskEstimateMinutesMax
     )
       taskFields.estimate_minutes = fields.estimate_minutes;
+    const run = interpretedRun(item.parsed);
     const created = await this.insertTask(tx, caller, p, c, taskFields, {
-      source: item.source_kind === 'paste' ? 'paste' : item.source_kind === 'form' ? 'form' : 'ui',
-      origin: { kind: 'intake', ref: { inbox: item.public_id } },
+      source:
+        item.source_kind === 'paste'
+          ? 'paste'
+          : item.source_kind === 'form'
+            ? 'form'
+            : item.source_kind === 'voice'
+              ? 'voice'
+              : 'ui',
+      // 7F: work made from an AI-interpreted capture is an AI draft the person chose to create.
+      ...(run
+        ? { origin: { kind: 'ai_draft', ref: { inbox: item.public_id, run } } }
+        : { origin: { kind: 'intake', ref: { inbox: item.public_id } } }),
     });
     const omitted: string[] = [];
     const t = await this.loadTask(tx, p, created.publicId, { lock: true });

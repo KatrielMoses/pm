@@ -89,6 +89,7 @@
 | [UXD-28](#uxd-28) | Relationships to records the viewer cannot read | **Decided:** omit relationship metadata and derived conditions caused solely by hidden records; notify owner | **Resolved in Phase 0 review** | **Approved** |
 | [UXD-29](#uxd-29) | Search scope, results, and an honest index | Shell scope by default with "Search all my brands"; state in the address; marks as text; a banner whenever the index lags or has failed; nothing remembered while typing | 5A | SA |
 | [UXD-30](#uxd-30) | A figure with its rule, its state, and its records | One figure at a time; state in words; what is missing, how fresh, and how it is counted always shown; the records behind it one step away; unavailable is never zero | 5C | SA |
+| [UXD-31](#uxd-31) | Assisted capture and daily plans | Help is optional and explicit: estimate and confirm before interpreting, evidence beside every value, recording only on a gesture with visible state, a plan reviewed and applied as a proposal; every unavailable state says so and typing keeps working | 7F | SA |
 
 ### Detail
 
@@ -304,6 +305,17 @@
 - **Consequence.** A person never has to wonder whether a number is complete, how it was made, or whether work they cannot see is inside it: the first two are stated, the third is true by construction and tested.
 - **Not built.** Dashboard layout, widgets, saved and scheduled reports (5D); charts; comparing two scopes side by side; a per-person performance view.
 - **Affected.** Metrics, Projects (the portfolio keeps 5B's figures), Home.
+
+<a id="uxd-31"></a>
+#### UXD-31 — Assisted capture and daily plans
+
+- **Default.** Help is optional, labelled, and explicit. In the Capture dialog, "Interpret with AI" shows the estimate (and that a synthetic model spends nothing) and asks for confirmation; the result marks the person's own words it used, shows each value the server derived (dates as a weekday, date, and zone), and keeps ambiguous values as choices. Saving with the interpretation is a checkbox, released the moment the text changes. "Speak instead" records only after the person presses Record, shows elapsed time against the limit with Stop and Cancel, or accepts an uploaded file; the transcript is shown for editing (with a synthetic label and a low-confidence warning when relevant) and becomes the capture text only when the person chooses.
+- **States.** Unconfigured, AI off, storage unavailable, microphone denied, unsupported browser, offline, empty transcript, too long, and failed are each named, with typing and pasting always available. Busy states are announced and cancellable. A transcript that came back longer than allowed, oversized, or unreadable is said to be not kept; it is never shown as if complete, and there is nothing to use or save (review 01).
+- **Plans.** "Plan this day" on Today opens a plan with totals, what is planned and why, what is not and why, postponement suggestions (unselected), locked work, and missing estimates as questions with optional assumptions. "Create plan proposal" opens the proposal page, where block times are edited in the browser's zone, conflicts are shown on the block, and a changed day is rebased explicitly before approval.
+- **Layout.** Controls are labelled and 44 px tall; marks and state text survive forced colours; nothing animates; 320 px and 200% zoom do not scroll sideways.
+- **Consequence.** Nothing is saved, scheduled, or applied without a deliberate step, and the person can always see where a value came from.
+- **Not built.** Live speech providers; agents planning on a person's behalf (8A); multi-day planning.
+- **Affected.** Capture dialog, Today, Plan my day, Change proposals.
 
 ## 4. UX risk register
 
