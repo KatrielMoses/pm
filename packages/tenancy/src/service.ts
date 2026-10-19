@@ -1776,12 +1776,20 @@ export class TenancyService {
   // External effect reconciliation (0D §5.4, ADR-0045)
   // ---------------------------------------------------------------------------------------------
 
+  /** External effect reconciliation is session-only: a delegated (token) caller never reaches it. */
+  #requireSession(caller: Caller): void {
+    if (caller.delegation) {
+      this.count('operation.reconcile_effect', 'forbidden');
+      throw new TenancyError('forbidden');
+    }
+  }
+
   /**
    * Effects whose outcome is unknown or whose claim is held, for owners and administrators. Only
    * references and bounded state facts: no payload, provider reference, or secret.
    */
   async listUncertainEffects(caller: Caller, workspacePublicId: unknown) {
-    if (caller.delegation) throw new TenancyError('forbidden');
+    this.#requireSession(caller);
     return this.inWorkspace(caller, workspacePublicId, { readOnly: true }, async (tx, p) => {
       this.requireWorkspace(p, 'operation.reconcile_effect');
       const rows = await effectRows(tx)
@@ -1808,6 +1816,9 @@ export class TenancyService {
     body: unknown,
     req: Mutation,
   ) {
+    // Session-only before anything else: no idempotency key is reserved or replayed, and no effect
+    // is looked up, for a delegated (token) caller. A completed key never exempts a caller from it.
+    this.#requireSession(caller);
     const b = isObject(body) ? body : {};
     const extra = Object.keys(b).filter((k) => k !== 'decision' && k !== 'version');
     const decision = b.decision;
@@ -1834,7 +1845,6 @@ export class TenancyService {
       workspacePublicId,
       req,
       async (tx, p) => {
-        if (caller.delegation) throw new TenancyError('forbidden');
         this.requireWorkspace(p, 'operation.reconcile_effect');
         const row = await findEffect(tx, operationPublicId, effectKey, true);
         if (!row) throw new TenancyError('not_found');
@@ -1884,7 +1894,9 @@ export class TenancyService {
         };
       },
       async (tx, p, ref) => {
-        // A completed key is not an access grant: the reader must still be allowed to see it.
+        // A completed key is not an access grant: the reader must still be a session caller allowed
+        // to see it now.
+        this.#requireSession(caller);
         this.requireWorkspace(p, 'operation.reconcile_effect');
         const [op, ...key] = ref.id.split('/');
         const row = await findEffect(tx, op, key.join('/'), false);

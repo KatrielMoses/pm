@@ -148,7 +148,7 @@ Narrative: [../14-threat-model.md](../14-threat-model.md).
 | T-138 | staleness | A briefing claims a baseline it does not continue from: a regeneration becomes the series baseline, or a scheduled occurrence owed for an earlier cutoff records a later briefing as its baseline, so comparisons and coverage are attributed to the wrong window. | I-12 | AT-532, AT-537 |
 | T-139 | staleness | A worker that crashes or loses its lease after an external effect may have left (after the claim, after the receiver applied it, or while storing the outcome) lets a later attempt resend it to an unsafe destination, or records it as not sent, or reports the operation succeeded. | I-14 | AT-539, AT-540, AT-541, AT-542, AT-544, AT-545, AT-548, AT-550 |
 | T-140 | spoofing | A stale worker's late result, a caller relabelling an unsafe destination as safe, or an effect key reused for another destination overwrites the authoritative ledger state or bypasses recovery. | I-14 | AT-541, AT-543, AT-546 |
-| T-141 | agent_scope | An unknown effect is reconciled without authority: by a member, a token, a stale or forged version, another workspace, or a replayed completed request after the reconciler lost access; or a human decision is presented as proof from the destination. | I-09 | AT-547, AT-548, AT-549 |
+| T-141 | agent_scope | An unknown effect is reconciled without authority: by a member, a token, a stale or forged version, another workspace, or a replayed completed request after the reconciler lost access; or a human decision is presented as proof from the destination. | I-09 | AT-547, AT-548, AT-549, AT-551 |
 
 ## Test matrix
 
@@ -704,6 +704,7 @@ Narrative: [../14-threat-model.md](../14-threat-model.md).
 | AT-548 | T-139, T-141 | system_job | No payload in ledger, jobs, outbox, audit, or logs; no uncertain operation reports success — workspace | `operation.reconcile_effect` | audit_display | **deny** | empty | error_message |
 | AT-549 | T-141 | owner | HTTP listing and reconciliation with step-up and replay; bearer tokens refused — workspace | `operation.reconcile_effect` | api | **allow** | ok | error_message |
 | AT-550 | T-139 | system_job | The REL-FU-7A-01 regression: a worker dies after an unsafe send; the survivor never sends it again — workspace | `operation.reconcile_effect` | api | **deny** | empty | error_message |
+| AT-551 | T-141 | api_token_personal | A delegated token of the same owner membership on first execution and on the replay of a completed reconciliation key (same key, fingerprint, and request) — workspace | `operation.reconcile_effect` | api | **deny** | forbidden | error_message |
 
 ## Response shapes
 

@@ -11017,6 +11017,22 @@
       "silent_surfaces": [
         "error_message"
       ]
+    },
+    {
+      "id": "AT-551",
+      "threats": [
+        "T-141"
+      ],
+      "principal": "api_token_personal",
+      "setup": "A delegated token of the same owner membership on first execution and on the replay of a completed reconciliation key (same key, fingerprint, and request)",
+      "scope": "workspace",
+      "action": "operation.reconcile_effect",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "forbidden",
+      "silent_surfaces": [
+        "error_message"
+      ]
     }
   ]
 }

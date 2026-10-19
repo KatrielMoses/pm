@@ -229,5 +229,34 @@
         }
       ]
     }
+  ],
+  "corrective_reviews": [
+    {
+      "id": "P8-W0-CR-01",
+      "brief": "briefs/PHASE_8_PLATFORM_EFFECT_SAFETY_CORRECTIVE_REVIEW_01.md",
+      "reviewed_head": "bea6eed490a956888408cad0deeac1953bf3cb11",
+      "groups": [
+        {
+          "id": "R1",
+          "title": "Session-only reconciliation before idempotency replay",
+          "tests": [
+            "AT-551",
+            "AT-547",
+            "AT-549"
+          ],
+          "evidence": [
+            {
+              "file": "packages/tenancy/src/service.ts",
+              "contains": "#requireSession(caller: Caller): void {"
+            },
+            {
+              "file": "packages/work/test/integration/effect-recovery.test.ts",
+              "contains": "it('AT-551 "
+            }
+          ],
+          "old_code": "AT-551 fails on bea6eed: the delegated first execution is refused, but the same owner's token replaying the completed key returns the effect (no refusal); it passes after the fix."
+        }
+      ]
+    }
   ]
 }

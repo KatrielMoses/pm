@@ -70,6 +70,7 @@ Nothing is reset: attempts, keys, and decisions are kept. The rollback restores 
 |---|---|---|
 | AT-550 | `packages/platform/test/integration/effect-crash-after-send.test.ts` | The REL-FU-7A-01 regression through the real worker and reaper |
 | AT-539, AT-540, AT-541, AT-542, AT-543, AT-544, AT-545, AT-546, AT-547, AT-548 | `packages/work/test/integration/effect-recovery.test.ts` | Every boundary with barriers and a deterministic receiver (applied counts and attempts); overlap, stale completion, cancellation stages, proof versus generic errors, safe-class contracts, key reuse, authorized reconciliation, no leakage, no false success |
+| AT-551 | `packages/work/test/integration/effect-recovery.test.ts` | Corrective review 01: a delegated caller of the same owner is refused before any idempotency lookup, on first execution and on a completed-key replay, and changes nothing |
 | AT-549 | `apps/api/test/integration/effects-api.test.ts` | The HTTP routes: step-up, replay, envelopes, bearer refusal |
 | — | `packages/db/test/integration/migrations.test.ts` | Boundary 0061 (exact rollback and reapply, functions and triggers), legacy-row classification, rollback refusal, enum restoration |
 | — | `packages/platform/test/unit/platform.test.ts` | Decisions and destination registration |
@@ -100,5 +101,13 @@ Nothing is reset: attempts, keys, and decisions are kept. The rollback restores 
 | Engineering ADR | 0045 | This record |
 | 0C action | `operation.reconcile_effect` | Owner and administrator, R3, step-up |
 | Threats | T-139–T-141 | Crash recovery, ledger spoofing, reconciliation authority |
-| Tests | AT-539–AT-550 | Above |
+| Tests | AT-539–AT-551 | Above (AT-551: corrective review 01) |
 | Response types | `external_effects`, `external_effect_reconciliation` | Non-resource envelopes |
+
+## Corrective review 01 (P8-W0-CR-01)
+
+**R1 — The session boundary comes before idempotency replay.** At reviewed head `bea6eed`, `reconcileExternalEffect` refused a delegated caller only inside the new-command callback passed to `mutate`. A completed key skips that callback and goes to the replay renderer, which re-checked the workspace permission but not the caller class. Idempotency is keyed by membership, so a token of the same owner, holding the completed key and fingerprint, received the effect and operation metadata. The HTTP gate already refused tokens, so this was a service-layer contract gap, not a demonstrated public bypass or a duplicate dispatch.
+
+The fix is one explicit guard, `#requireSession`, that runs at service entry, before `mutate`, before any idempotency key is reserved or read, and before any effect lookup. The replay renderer runs it again, alongside the current workspace-role check, so a completed key is neither an access grant nor an exemption from the session boundary. First-execution step-up, the expected-version check, tenant isolation, shared idempotency semantics, and every worker safeguard are unchanged. Tokens gain no reconciliation authority.
+
+Evidence: AT-551 uses an actually issued and authenticated `records:read` token of the same owner membership. Both its first execution and its replay of the owner's completed key (same key, fingerprint, and request) are forbidden, with no effect or operation metadata in the refusal. The test checks that neither denied call changes the ledger state, version, or reconciliation evidence, the operation, the job and attempt counts, the audit entries, the idempotency keys, or the receiver's sends. The owner's session replay still works and repeats nothing. AT-547 now issues its token without a fallback. Old code: AT-551 fails on `bea6eed`, where the delegated replay returned the effect, and passes after the fix.

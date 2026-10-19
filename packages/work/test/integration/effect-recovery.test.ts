@@ -250,6 +250,31 @@ describe('Safe recovery of external effects', () => {
       .finally(() => (env.stepUp.allow = false));
   };
 
+  /** A delegated caller from an actually issued and authenticated personal token (no fallback). */
+  const issueBearer = async (who: Caller): Promise<Caller> => {
+    env.stepUp.allow = true;
+    let made;
+    try {
+      made = await env.svc.createToken(
+        who,
+        ws,
+        { name: 'Effects', kind: 'personal', scopes: ['records:read'] },
+        mutation({ stepUpToken: 't' }),
+      );
+    } finally {
+      env.stepUp.allow = false;
+    }
+    const auth = await env.svc.authenticateApiToken(made.data.secret!);
+    expect(auth).not.toBeNull();
+    const caller = syntheticCaller(auth!.accountId, auth!.delegation, {
+      correlationId: 'c'.repeat(32),
+    });
+    // The token is the same owner's membership as the session caller.
+    expect(caller.auth.account.id).toBe(who.auth.account.id);
+    expect(caller.delegation).toBeTruthy();
+    return caller;
+  };
+
   beforeAll(async () => {
     db = await createTestDatabase();
     env = workEnv(db);
@@ -566,21 +591,8 @@ describe('Safe recovery of external effects', () => {
         )
       ).code,
     ).toBe('forbidden');
-    const token = await env.svc
-      .createToken(
-        P.owner,
-        ws,
-        { name: 'Effects', kind: 'personal', scopes: ['records:read'] },
-        mutation({ stepUpToken: 't' }),
-      )
-      .catch(() => null);
-    if (token) {
-      const auth = await env.svc.authenticateApiToken(token.data.secret!);
-      const bearer = syntheticCaller(auth!.accountId, auth!.delegation, {
-        correlationId: 'c'.repeat(32),
-      });
-      expect((await refusal(env.svc.listUncertainEffects(bearer, ws))).code).toBe('forbidden');
-    }
+    const ownerBearer = await issueBearer(P.owner);
+    expect((await refusal(env.svc.listUncertainEffects(ownerBearer, ws))).code).toBe('forbidden');
     const stale = await refusal(
       decide(P.owner, await pub(sent), 'rec-sent', {
         decision: 'sent',
@@ -781,5 +793,91 @@ describe('Safe recovery of external effects', () => {
       [wsId],
     );
     expect(events[0]!.n).toBe(0);
+  });
+
+  it('AT-551 a delegated caller of the same owner is refused before any idempotency lookup, on first execution and on the replay of a completed key, and changes nothing', async () => {
+    const x = await crashAt('afterPerform', 'unsafe', 'deleg-replay');
+    const opPublic = (await op(x.started.id)).public_id as string;
+    const bearer = await issueBearer(P.owner);
+    /** Everything a denied call must leave untouched. */
+    const snapshot = async () => ({
+      effect: (
+        await sql(
+          `SELECT state::text AS state, version::int AS version, attempt_count, reconciliation_decision,
+                  reconciled_by, reconciled_at, late_outcome FROM exec.external_effect WHERE operation_id = $1`,
+          [x.started.id],
+        )
+      )[0],
+      operation: (
+        await sql(
+          `SELECT execution_state, waiting_reason, version FROM exec.operation WHERE id = $1`,
+          [x.started.id],
+        )
+      )[0],
+      jobs: (
+        await sql(`SELECT count(*)::int AS n FROM exec.job WHERE operation_id = $1`, [x.started.id])
+      )[0]!.n,
+      attempts: (
+        await sql(`SELECT count(*)::int AS n FROM exec.attempt WHERE operation_id = $1`, [
+          x.started.id,
+        ])
+      )[0]!.n,
+      audit: (
+        await sql(
+          `SELECT count(*)::int AS n FROM audit.audit_event WHERE workspace_id = $1 AND action = 'operation.effect_reconciled'`,
+          [wsId],
+        )
+      )[0]!.n,
+      keys: (
+        await sql(`SELECT count(*)::int AS n FROM exec.idempotency_key WHERE workspace_id = $1`, [
+          wsId,
+        ])
+      )[0]!.n,
+      sends: rx.received('deleg-replay'),
+    });
+    const leaks = (r: unknown) => {
+      const text = JSON.stringify(r);
+      for (const secret of [opPublic, 'send:deleg-replay', 'external_effect', 'unsafe'])
+        expect(text, secret).not.toContain(secret);
+    };
+    const body = { decision: 'sent', version: (await ledger(x.started.id))!.version };
+    // 1. First execution with the delegated caller: forbidden, nothing reserved or changed.
+    const before = await snapshot();
+    env.stepUp.allow = true;
+    const first = await refusal(
+      env.svc.reconcileExternalEffect(
+        bearer,
+        ws,
+        opPublic,
+        'send:deleg-replay',
+        body,
+        mutation({ stepUpToken: 't' }),
+      ),
+    );
+    env.stepUp.allow = false;
+    expect(first.code).toBe('forbidden');
+    leaks(first);
+    expect(await snapshot()).toEqual(before);
+    // 2. The owner's session completes the reconciliation with key K.
+    const key = mutation({ stepUpToken: 't' });
+    const done = await decide(P.owner, opPublic, 'deleg-replay', body, key);
+    expect(done.data).toMatchObject({ state: 'confirmed' });
+    await settle(x.survivor, x.started.id);
+    const completed = await snapshot();
+    // The same completed key, fingerprint, and request through the same owner's token: forbidden,
+    // with no effect or operation metadata, and nothing changes.
+    env.stepUp.allow = true;
+    const replayed = await refusal(
+      env.svc.reconcileExternalEffect(bearer, ws, opPublic, 'send:deleg-replay', body, key),
+    );
+    env.stepUp.allow = false;
+    expect(replayed.code).toBe('forbidden');
+    leaks(replayed);
+    expect(await snapshot()).toEqual(completed);
+    // The owner's session replay of the same key still works and repeats nothing.
+    const again = await decide(P.owner, opPublic, 'deleg-replay', body, key);
+    expect(again).toMatchObject({ replayed: true, data: { state: 'confirmed' } });
+    expect(await snapshot()).toEqual(completed);
+    expect(rx.received('deleg-replay')).toBe(1);
   });
 });

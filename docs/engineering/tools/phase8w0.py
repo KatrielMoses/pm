@@ -32,7 +32,7 @@ WORKER = "packages/platform/src/worker.ts"
 UP = "packages/db/migrations/0061_effect_recovery_safety.up.sql"
 DOWN = "packages/db/migrations/0061_effect_recovery_safety.down.sql"
 THREATS = ["T-139", "T-140", "T-141"]
-TESTS = ["AT-%d" % i for i in range(539, 551)]
+TESTS = ["AT-%d" % i for i in range(539, 552)]
 DECISIONS = ["E%d" % i for i in range(1, 11)]
 TEST_DIRS = ["packages", "apps", "e2e"]
 
@@ -211,18 +211,27 @@ def check_identifiers(closure):
         errs.append("operations routes must be session-only at the gate")
     svc = read(P("packages/tenancy/src/service.ts"))
     rec = block(svc, "  async reconcileExternalEffect(", "\n  }\n")
-    for term in ("if (caller.delegation) throw new TenancyError('forbidden');",
-                 "this.requireWorkspace(p, 'operation.reconcile_effect');",
+    for term in ("this.requireWorkspace(p, 'operation.reconcile_effect');",
                  "await this.stepUp(tx, caller, p, req, 'operation.reconcile_effect', {",
                  "action: 'operation.effect_reconciled',", "'version_mismatch'"):
         if term not in rec:
             errs.append("reconcileExternalEffect lacks %s" % term)
+    # Corrective review 01: the session boundary runs before any idempotency work and on replay.
+    entry = rec[: rec.find("return this.mutate(")] if "return this.mutate(" in rec else ""
+    if "this.#requireSession(caller);" not in entry:
+        errs.append("reconcileExternalEffect must refuse delegated callers before mutate (CR-01 R1)")
+    render = rec[rec.rfind("async (tx, p, ref) => {"):] if "async (tx, p, ref) => {" in rec else ""
+    if "this.#requireSession(caller);" not in render or "this.requireWorkspace(p, 'operation.reconcile_effect');" not in render:
+        errs.append("the completed-key renderer must re-check the session and the current role (CR-01 R1)")
+    tests = read(P("packages/work/test/integration/effect-recovery.test.ts"))
+    if ".catch(() => null)" in tests:
+        errs.append("the regression must not skip token setup through a fallback")
     if not re.search(r"^Status: \*\*proposed\*\*", adr, re.M):
         errs.append("ADR-0045 stays proposed until the architect reviews it")
     for d in DECISIONS:
         if "\n| %s |" % d not in adr:
             errs.append("ADR-0045 lacks decision %s" % d)
-    return errs, "T-139..T-141, AT-539..AT-550, 0C action, 0B/0D/contracts, session-only, ADR-0045"
+    return errs, "T-139..T-141, AT-539..AT-551, 0C action, 0B/0D/contracts, session-only, ADR-0045"
 
 
 def check_closure(closure):
@@ -237,6 +246,17 @@ def check_closure(closure):
         phase2.check_evidence("decision %s" % d["id"], d.get("evidence"), cache, errs)
         if not any(x["file"].endswith((".ts", ".sql")) for x in d.get("evidence", [])):
             errs.append("decision %s needs code or test evidence" % d["id"])
+    crs = {r["id"]: r for r in closure.get("corrective_reviews", [])}
+    cr = crs.get("P8-W0-CR-01")
+    if not cr:
+        errs.append("the closure must record corrective review P8-W0-CR-01")
+    else:
+        for g in cr.get("groups", []):
+            phase2.check_evidence("P8-W0-CR-01 %s" % g["id"], g.get("evidence"), cache, errs)
+            if "fails on bea6eed" not in g.get("old_code", ""):
+                errs.append("P8-W0-CR-01 %s must record its observed old-code result" % g["id"])
+    if "## Corrective review 01 (P8-W0-CR-01)" not in read(P(ADR)):
+        errs.append("ADR-0045 must record corrective review 01")
     reg = closure.get("regression", {})
     if reg.get("test") != "AT-550" or "applied 2" not in reg.get("old_result", "") or "applied 1" not in reg.get("new_result", ""):
         errs.append("the closure must record the old-code regression result")
