@@ -57,6 +57,12 @@ import {
   aiBriefingSweepHandler,
   type AiJobDeps,
   type VoiceJobDeps,
+  AUTOMATION_SCHEDULES,
+  automationRunHandler,
+  automationSweepHandler,
+  AutomationOutcomeConsumer,
+  AutomationTriggerConsumer,
+  type AutomationJobDeps,
 } from '@pm/work';
 
 /**
@@ -81,6 +87,9 @@ import {
  * recipient, delivery intent through 4B).
  * 7F: voice transcription attempts (bounded by the transcription transport, never resent after a
  * possible charge) and the voice cleanup sweep (audio of ended, expired, or departed recordings).
+ * 8A: automation runs (one fenced step at a time), the date and schedule trigger sweep, the trigger
+ * consumer (one run per automation and occurrence), and the outcome consumer (slots, usage, and
+ * persistent-failure alerts kept truthful from operation outcomes).
  */
 export interface WorkerModules {
   identity: IdentityJobDeps;
@@ -96,6 +105,7 @@ export interface WorkerModules {
   reports: ReportJobDeps;
   integrations: IntegrationJobDeps;
   ai?: AiJobDeps & VoiceJobDeps;
+  automations?: AutomationJobDeps;
 }
 
 export function registeredHandlers(m: WorkerModules): JobHandler[] {
@@ -129,6 +139,9 @@ export function registeredHandlers(m: WorkerModules): JobHandler[] {
           voiceCleanupHandler(m.ai),
         ]
       : []),
+    ...(m.automations
+      ? [automationRunHandler(m.automations), automationSweepHandler(m.automations)]
+      : []),
   ];
 }
 
@@ -138,6 +151,7 @@ export function registeredConsumers(
     arrayMax: number;
     metrics?: Metrics;
     webhooks?: Pick<PublicApiService, 'projectWebhook'>;
+    automations?: AutomationJobDeps['service'];
   } = {
     arrayMax: 10_000,
   },
@@ -145,6 +159,9 @@ export function registeredConsumers(
   return [
     new ActivityProjector(),
     ...(deps.webhooks ? [new WebhookProjector(deps.webhooks)] : []),
+    ...(deps.automations
+      ? [new AutomationTriggerConsumer(deps.automations), new AutomationOutcomeConsumer(deps.automations)]
+      : []),
     new NotificationFanOut(
       {
         notifyFanoutRecipientsMax: settings.notifyFanoutRecipientsMax,
@@ -175,5 +192,6 @@ export function registeredSchedules(): RecurringJob[] {
     ...REPORT_SCHEDULES,
     ...INTEGRATION_SCHEDULES,
     ...AI_SCHEDULES,
+    ...AUTOMATION_SCHEDULES,
   ];
 }

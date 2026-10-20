@@ -29,7 +29,8 @@ import {
   taskAssigneeHook,
   taskTargets,
   savedViewTargets,
-  AiGatewayService,
+  AutomationService,
+  automationOwnerHook,
   type AiGatewayDeps,
   connectionOwnerHook,
   webhookOwnerHook,
@@ -65,7 +66,12 @@ export {
 
 export interface WorkEnv {
   h: Harness;
-  svc: AiGatewayService;
+  svc: AutomationService;
+  /**
+   * 8A: the same service on the worker pool (`app_worker`), exactly as the worker process wires
+   * it; automation runs, sweeps, and consumers execute through it.
+   */
+  workerSvc(): AutomationService;
   /** The test storage and scanner the service uses (null when a test disables them). */
   files: FileDeps;
   stepUp: StubStepUp;
@@ -142,7 +148,7 @@ export function workEnv(
     scanner:
       options.files?.scanner !== undefined ? options.files.scanner : new SignatureTestScanner(),
   };
-  const svc = new AiGatewayService({
+  const build = (tenant: typeof h.app) => new AutomationService({
     ...(options.ai ? { ai: options.ai } : {}),
     vault: createVault(h.config.identity),
     deliver: options.deliver,
@@ -150,7 +156,7 @@ export function workEnv(
     files,
     ...(options.searchSources ? { search: { sources: options.searchSources } } : {}),
     notify: { emailState: options.emailState ?? 'capture' },
-    tenant: h.app,
+    tenant,
     platform: h.platform,
     writer,
     portabilityEntitlements: { auditExportAllowed: async () => options.auditExportAllowed ?? true },
@@ -168,7 +174,8 @@ export function workEnv(
       .register(webhookOwnerHook)
       .register(reviewDepartureHook(writer))
       .register(departureTimerHook(writer))
-      .register(aiHistoryOwnerHook),
+      .register(aiHistoryOwnerHook)
+      .register(automationOwnerHook),
     limiter: new PostgresRateLimiter(h.platform, randomBytes(32), {
       'workspace.create': { limit: 1000, windowMs: 3_600_000 },
       'invitation.accept': { limit: 1000, windowMs: 3_600_000 },
@@ -204,10 +211,13 @@ export function workEnv(
     metrics,
     logger: h.logger,
   });
+  const svc = build(h.app);
+  let worker: AutomationService | null = null;
   const vault = createVault(h.config.identity);
   return {
     h,
     svc,
+    workerSvc: () => (worker ??= build(h.worker)),
     files,
     stepUp,
     lifecycle,

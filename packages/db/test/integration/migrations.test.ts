@@ -94,7 +94,7 @@ describe('migrations from an empty database', () => {
     expect(await catalogFingerprint(second)).toEqual(await catalogFingerprint(first));
   });
 
-  it('upgrades through every accepted boundary (0009–0052) the 7A boundaries 0053–0054, the 7B boundary 0055, the 7D boundary 0056, the 7C boundary 0057, the 7E boundary 0058, the 7F boundary 0059, the Phase 7 integration boundary 0060, and the effect-recovery boundary 0061 to the candidate and reverses each boundary step', async () => {
+  it('upgrades through every accepted boundary (0009–0052) the 7A boundaries 0053–0054, the 7B boundary 0055, the 7D boundary 0056, the 7C boundary 0057, the 7E boundary 0058, the 7F boundary 0059, the Phase 7 integration boundary 0060, the effect-recovery boundary 0061, and the 8A automation boundary 0062 to the candidate and reverses each boundary step', async () => {
     // Accepted subphase boundaries: 1A 0009, 1B 0012, 1F 0016, 1C 0018, 1D 0019, 1E 0020; 2A adds
     // 0021 (work) and 0022 (relations, templates, recurrence); 2B–2E add 0023–0030; 3A adds 0031
     // (saved views, defaults, and pin writes); 3D adds 0032 (time entries, timesheets, approvals,
@@ -123,10 +123,13 @@ describe('migrations from an empty database', () => {
     // (planner proposals and planning operations, plan evidence, voice captures, the transcription
     // purpose, and the voice cleanup and plan retention discovery functions); the Phase 7
     // integration review adds 0060 (a saved recording may outlive its purged Inbox item); P8-W0
-    // adds 0061 (effect claims, typed not-sent proof, unknown reasons, late evidence).
+    // adds 0061 (effect claims, typed not-sent proof, unknown reasons, late evidence); 8A adds 0062
+    // (automations, immutable revisions, runs and step runs, standing approvals, trigger schedules,
+    // usage periods, the automation notice type, and the automation AI caller).
     const boundaries = [
       9, 12, 16, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38,
       39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61,
+      62,
     ];
     // Functions and triggers are compared from the last Phase 6 boundary on (the Phase 7 steps).
     // Earlier accepted steps are compared on tables, constraints, grants, and policies only: the
@@ -179,7 +182,7 @@ describe('migrations from an empty database', () => {
         at.set(to, await full(stepped, to >= DEEP_FROM));
       }
       // Stepping through the boundaries reaches exactly the one-shot candidate catalog.
-      expect(at.get(61)).toEqual(await full(reference));
+      expect(at.get(62)).toEqual(await full(reference));
       // Each subphase's step reverses to the prior boundary's exact catalog and re-applies to its
       // own, walking down from the candidate.
       for (let i = boundaries.length - 1; i > 0; i--) {

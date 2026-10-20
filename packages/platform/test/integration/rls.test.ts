@@ -236,6 +236,15 @@ const PHASE_1C_TENANT_TABLES = [
   'metering.usage_balance',
   'metering.usage_reservation',
   'metering.usage_event',
+  // Phase 8A automations, immutable revisions, runs and step runs, standing approvals, date and
+  // schedule trigger state, and usage periods.
+  'automation.automation',
+  'automation.automation_revision',
+  'automation.automation_run',
+  'automation.automation_step_run',
+  'automation.standing_approval',
+  'automation.trigger_schedule',
+  'automation.usage_period',
 ] as const;
 
 /** Seeds one row in every tenant execution table for a workspace. */
@@ -545,8 +554,8 @@ describe('tenant RLS foundation (0C §12.7)', () => {
     // discover_file_work; 5A discover_search_work; 5B discover_goal_work; 5C discover_metrics_work;
     // 5D discover_report_work; 6A discover_integration_work; 6B discover_webhook_work; 7A
     // discover_ai_retention_work; 7E discover_briefing_work and discover_briefing_retention_work;
-    // 7F discover_voice_cleanup_work and discover_plan_retention_work.
-    expect(fns.rows.length).toBe(28);
+    // 7F discover_voice_cleanup_work and discover_plan_retention_work; 8A discover_automation_due.
+    expect(fns.rows.length).toBe(29);
     const allowed = new Set([
       'job_id',
       'workspace_id',

@@ -2231,7 +2231,8 @@ export type NotificationType =
   | 'share_changed'
   | 'briefing_ready'
   | 'export_ready'
-  | 'hidden_dependency_affects_assignee';
+  | 'hidden_dependency_affects_assignee'
+  | 'automation_notice';
 export type NotificationState = 'unread' | 'read' | 'saved' | 'dismissed';
 export type DeliveryState =
   | 'pending'
@@ -3377,7 +3378,7 @@ export interface AiActionTable {
   price_snapshot: Json<Record<string, unknown>>;
   privacy_snapshot: Json<Record<string, unknown>>;
   funding: AiFunding;
-  caller_kind: 'ui' | 'api' | 'mcp';
+  caller_kind: 'ui' | 'api' | 'mcp' | 'automation';
   delegation_principal_type: string | null;
   delegation_token_id: string | null;
   prompt_text: string | null;
@@ -3752,6 +3753,162 @@ export interface UsageEventTable {
   sequence: number;
 }
 
+// ---------------------------------------------------------------------------------------------
+// Phase 8A automations (migration 0062)
+// ---------------------------------------------------------------------------------------------
+export type AutomationRunStatus =
+  | 'queued'
+  | 'running'
+  | 'waiting'
+  | 'succeeded'
+  | 'partial'
+  | 'failed'
+  | 'policy_rejected'
+  | 'cancelled'
+  | 'skipped';
+export type AutomationStepState =
+  | 'succeeded'
+  | 'failed'
+  | 'refused'
+  | 'skipped'
+  | 'waiting'
+  | 'dispatching'
+  | 'unknown'
+  | 'cancelled';
+export interface AutomationTable {
+  id: string;
+  workspace_id: string;
+  brand_id: string | null;
+  scope_key: string;
+  lifecycle_state: Defaulted<LifecycleState>;
+  name: string;
+  description: string | null;
+  owner_membership_id: string;
+  enabled: Defaulted<boolean>;
+  active_revision_id: string | null;
+  trigger_kind: string | null;
+  trigger_event: string | null;
+  draft: Json<Record<string, unknown>>;
+  draft_base_revision: number | null;
+  template_key: string | null;
+  duplicated_from_id: string | null;
+  suspended_reason: string | null;
+  suspended_at: Timestamp | null;
+  active_runs: Defaulted<number>;
+  consecutive_failures: Defaulted<number>;
+  alerted_at: Timestamp | null;
+  created_by_membership_id: string;
+  updated_by_membership_id: string | null;
+  created_at: DTs;
+  updated_at: DTs;
+  version: Defaulted<number>;
+}
+export interface AutomationRevisionTable {
+  id: string;
+  workspace_id: string;
+  automation_id: string;
+  revision_number: number;
+  schema_version: number;
+  definition: Json<Record<string, unknown>>;
+  definition_hash: string;
+  trigger_kind: string;
+  record_kind: 'task' | 'project' | null;
+  declared_brand_ids: string[];
+  declared_project_ids: Defaulted<string[]>;
+  action_keys: string[];
+  action_classes: string[];
+  created_by_membership_id: string;
+  created_at: DTs;
+}
+export interface AutomationRunTable {
+  id: string;
+  workspace_id: string;
+  automation_id: string;
+  revision_id: string;
+  operation_id: string;
+  current_operation_id: string;
+  owner_membership_id: string;
+  trigger_kind: string;
+  trigger_key: string;
+  trigger_event_id: string | null;
+  trigger_record_id: string | null;
+  root_causation_id: string | null;
+  lineage: Defaulted<string[]>;
+  chain_depth: Defaulted<number>;
+  scope_snapshot: Json<Record<string, unknown>>;
+  run_day: string;
+  timezone: string;
+  status: Defaulted<AutomationRunStatus>;
+  reason: string | null;
+  cursor: string | null;
+  wake_at: Timestamp | null;
+  steps_executed: Defaulted<number>;
+  retry_count: Defaulted<number>;
+  usage_state: Defaulted<'none' | 'reserved' | 'settled' | 'released'>;
+  slot_held: Defaulted<boolean>;
+  initiated_by_membership_id: string | null;
+  created_at: DTs;
+  started_at: Timestamp | null;
+  ended_at: Timestamp | null;
+  updated_at: DTs;
+  version: Defaulted<number>;
+}
+export interface AutomationStepRunTable {
+  id: string;
+  workspace_id: string;
+  run_id: string;
+  node_id: string;
+  attempt: number;
+  kind: 'admission' | 'conditions' | 'action' | 'branch' | 'delay';
+  action_key: string | null;
+  state: AutomationStepState;
+  failure_class: string | null;
+  code: string | null;
+  decision: Json<Record<string, unknown>> | null;
+  targets: Json<unknown[]> | null;
+  output: Json<Record<string, unknown>> | null;
+  logical_key: string | null;
+  operation_id: string;
+  started_at: DTs;
+  ended_at: Timestamp | null;
+}
+export interface StandingApprovalTable {
+  id: string;
+  workspace_id: string;
+  automation_id: string;
+  revision_id: string;
+  node_id: string;
+  subscription_id: string;
+  destination_fingerprint: string;
+  field_set: string[];
+  scope_hash: string;
+  action_class: 'outbound.webhook';
+  approved_by_membership_id: string;
+  step_up_id: string;
+  state: Defaulted<'active' | 'revoked' | 'superseded'>;
+  approved_at: DTs;
+  ended_at: Timestamp | null;
+}
+export interface TriggerScheduleTable {
+  automation_id: string;
+  workspace_id: string;
+  revision_id: string;
+  kind: 'schedule' | 'date';
+  next_due_at: Timestamp | null;
+  last_key: string | null;
+  updated_at: DTs;
+}
+export interface AutomationUsagePeriodTable {
+  workspace_id: string;
+  period_start: string;
+  runs_reserved: Defaulted<number>;
+  runs_settled: Defaulted<number>;
+  runs_released: Defaulted<number>;
+  steps_executed: Defaulted<number>;
+  alerted_bp: Defaulted<number>;
+  updated_at: DTs;
+}
+
 export interface Database {
   'files.file_object': FileObjectTable;
   'files.file': FileTable;
@@ -3962,6 +4119,13 @@ export interface Database {
   'metering.usage_balance': UsageBalanceTable;
   'metering.usage_reservation': UsageReservationTable;
   'metering.usage_event': UsageEventTable;
+  'automation.automation': AutomationTable;
+  'automation.automation_revision': AutomationRevisionTable;
+  'automation.automation_run': AutomationRunTable;
+  'automation.automation_step_run': AutomationStepRunTable;
+  'automation.standing_approval': StandingApprovalTable;
+  'automation.trigger_schedule': TriggerScheduleTable;
+  'automation.usage_period': AutomationUsagePeriodTable;
 }
 
 /** Column inventory per table, compared with the migrated catalog by the schema-drift test. */
@@ -7196,5 +7360,138 @@ export const TABLE_COLUMNS: Readonly<Record<keyof Database, readonly string[]>> 
     'period_start',
     'correction_of',
     'sequence',
+  ],
+  'automation.automation': [
+    'id',
+    'workspace_id',
+    'brand_id',
+    'scope_key',
+    'lifecycle_state',
+    'name',
+    'description',
+    'owner_membership_id',
+    'enabled',
+    'active_revision_id',
+    'trigger_kind',
+    'trigger_event',
+    'draft',
+    'draft_base_revision',
+    'template_key',
+    'duplicated_from_id',
+    'suspended_reason',
+    'suspended_at',
+    'active_runs',
+    'consecutive_failures',
+    'alerted_at',
+    'created_by_membership_id',
+    'updated_by_membership_id',
+    'created_at',
+    'updated_at',
+    'version',
+  ],
+  'automation.automation_revision': [
+    'id',
+    'workspace_id',
+    'automation_id',
+    'revision_number',
+    'schema_version',
+    'definition',
+    'definition_hash',
+    'trigger_kind',
+    'record_kind',
+    'declared_brand_ids',
+    'declared_project_ids',
+    'action_keys',
+    'action_classes',
+    'created_by_membership_id',
+    'created_at',
+  ],
+  'automation.automation_run': [
+    'id',
+    'workspace_id',
+    'automation_id',
+    'revision_id',
+    'operation_id',
+    'current_operation_id',
+    'owner_membership_id',
+    'trigger_kind',
+    'trigger_key',
+    'trigger_event_id',
+    'trigger_record_id',
+    'root_causation_id',
+    'lineage',
+    'chain_depth',
+    'scope_snapshot',
+    'run_day',
+    'timezone',
+    'status',
+    'reason',
+    'cursor',
+    'wake_at',
+    'steps_executed',
+    'retry_count',
+    'usage_state',
+    'slot_held',
+    'initiated_by_membership_id',
+    'created_at',
+    'started_at',
+    'ended_at',
+    'updated_at',
+    'version',
+  ],
+  'automation.automation_step_run': [
+    'id',
+    'workspace_id',
+    'run_id',
+    'node_id',
+    'attempt',
+    'kind',
+    'action_key',
+    'state',
+    'failure_class',
+    'code',
+    'decision',
+    'targets',
+    'output',
+    'logical_key',
+    'operation_id',
+    'started_at',
+    'ended_at',
+  ],
+  'automation.standing_approval': [
+    'id',
+    'workspace_id',
+    'automation_id',
+    'revision_id',
+    'node_id',
+    'subscription_id',
+    'destination_fingerprint',
+    'field_set',
+    'scope_hash',
+    'action_class',
+    'approved_by_membership_id',
+    'step_up_id',
+    'state',
+    'approved_at',
+    'ended_at',
+  ],
+  'automation.trigger_schedule': [
+    'automation_id',
+    'workspace_id',
+    'revision_id',
+    'kind',
+    'next_due_at',
+    'last_key',
+    'updated_at',
+  ],
+  'automation.usage_period': [
+    'workspace_id',
+    'period_start',
+    'runs_reserved',
+    'runs_settled',
+    'runs_released',
+    'steps_executed',
+    'alerted_bp',
+    'updated_at',
   ],
 };

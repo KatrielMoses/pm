@@ -27,6 +27,7 @@ export const NOTIFICATION_TYPES = [
   'briefing_ready',
   'export_ready',
   'hidden_dependency_affects_assignee',
+  'automation_notice',
 ] as const;
 export type NotificationType = (typeof NOTIFICATION_TYPES)[number];
 
@@ -50,6 +51,7 @@ export const TYPE_LABEL: Record<NotificationType, string> = {
   briefing_ready: 'Briefing',
   export_ready: 'Export',
   hidden_dependency_affects_assignee: 'Dependency',
+  automation_notice: 'Automation notice',
 };
 
 export const QUERY_MAX_CHARS = 100;
@@ -80,7 +82,7 @@ export interface NotificationItem {
   summary: string;
   record: {
     id: string;
-    type: 'task' | 'project' | 'document';
+    type: 'task' | 'project' | 'document' | 'automation';
     title: string;
     archived: boolean;
   } | null;

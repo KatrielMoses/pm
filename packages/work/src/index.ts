@@ -119,3 +119,20 @@ export * from './integrations/jobs.ts';
 export * from './integrations/semantics.ts';
 export { connectionOwnerHook, webhookOwnerHook } from './integrations/ownership.ts';
 export { connectionAdapter, webhookSubscriptionAdapter } from './integrations/lifecycle.ts';
+export {
+  ACTION_MATRIX as AUTOMATION_ACTION_MATRIX,
+  AUTOMATION_SCHEMA_VERSION,
+  compileDefinition,
+  DefinitionError,
+  TRIGGERS as AUTOMATION_TRIGGERS,
+  TRIGGER_EVENT_TYPES as AUTOMATION_TRIGGER_EVENT_TYPES,
+  type Compiled as CompiledAutomation,
+  type Definition as AutomationDefinition,
+  type DefinitionLimits as AutomationDefinitionLimits,
+} from './automation/definition.ts';
+export { evaluate as evaluateAutomationCondition, type RecordFacts } from './automation/evaluate.ts';
+export * from './automation/service.ts';
+export * from './automation/jobs.ts';
+export { automationOwnerHook } from './automation/ownership.ts';
+export { automationAdapter, purgeAutomations } from './automation/lifecycle.ts';
+export { STARTER_TEMPLATES } from './automation/templates.ts';

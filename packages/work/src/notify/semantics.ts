@@ -26,6 +26,7 @@ export const NOTIFICATION_TYPES = [
   'briefing_ready',
   'export_ready',
   'hidden_dependency_affects_assignee',
+  'automation_notice',
 ] as const;
 export type NotificationType = (typeof NOTIFICATION_TYPES)[number];
 
@@ -324,6 +325,7 @@ const PHRASES: Record<NotificationType, string> = {
   briefing_ready: 'Your briefing is ready',
   export_ready: 'Your export is ready',
   hidden_dependency_affects_assignee: 'Something outside your view affects this',
+  automation_notice: 'An automation sent a notice',
 };
 const LABEL: Record<NotificationType, string> = {
   assignment: 'Assignment',
@@ -344,6 +346,7 @@ const LABEL: Record<NotificationType, string> = {
   briefing_ready: 'Briefing',
   export_ready: 'Export',
   hidden_dependency_affects_assignee: 'Dependency',
+  automation_notice: 'Automation notice',
 };
 export const typeLabel = (t: NotificationType) => LABEL[t];
 

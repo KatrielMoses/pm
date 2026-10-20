@@ -1001,7 +1001,16 @@ export class TaskCoreService extends WorkService {
     opts: {
       after?: string | 'last';
       source?:
-        'ui' | 'template' | 'paste' | 'form' | 'voice' | 'api' | 'webhook' | 'mcp' | 'ai_proposal';
+        | 'ui'
+        | 'template'
+        | 'paste'
+        | 'form'
+        | 'voice'
+        | 'api'
+        | 'webhook'
+        | 'mcp'
+        | 'ai_proposal'
+        | 'automation';
       lenientStatus?: boolean;
       /** 2E: origin for tasks made from captured input (default manual). */
       origin?: { kind: 'intake' | 'import' | 'ai_draft'; ref: Record<string, string> };
@@ -1673,178 +1682,7 @@ export class TaskCoreService extends WorkService {
       ws,
       req,
       async (tx, p) => {
-        const before = await this.loadTask(tx, p, tsk);
-        const parentRow = input.parent
-          ? await tx.db
-              .selectFrom('work.task as t')
-              .innerJoin('core.record as r', 'r.id', 't.id')
-              .select(['t.id', 't.ancestor_ids'])
-              .where('r.public_id', '=', input.parent)
-              .executeTakeFirst()
-          : undefined;
-        await this.lockTaskRoots(tx, [
-          before.row.ancestor_ids[0] ?? before.id,
-          parentRow ? (parentRow.ancestor_ids[0] ?? parentRow.id) : null,
-        ]);
-        const t = await this.loadTask(tx, p, tsk, { lock: true });
-        this.requireTaskAction(p, 'record.move', t, { shares: false, excluded: 'forbidden' });
-        this.requireTaskActive(t);
-        if (req.ifMatch !== undefined) requireVersion(parseIfMatch(req.ifMatch), t.row.version);
-        try {
-          const projectChanging = input.project !== undefined;
-          const currentProject = t.row.project_id
-            ? await this.publicOf(tx, t.row.project_id)
-            : null;
-          const target = await this.resolveContainer(
-            tx,
-            p,
-            {
-              // Unchanged containers stay: the current project (or the brand when projectless).
-              project: projectChanging ? input.project : currentProject,
-              ...(projectChanging ? {} : { brand: t.brand.publicId }),
-              parent:
-                input.parent !== undefined
-                  ? input.parent
-                  : projectChanging
-                    ? null
-                    : t.row.parent_task_id
-                      ? await this.publicOf(tx, t.row.parent_task_id)
-                      : null,
-            },
-            t.id,
-          );
-          if (target.brand.id !== t.brand.id)
-            throw invalid(
-              issue(
-                '/project',
-                'cross_brand_move',
-                'Use "Move to another brand" to change the brand.',
-              ),
-            );
-          const newProject = target.parent
-            ? target.parent.row.project_id
-            : (target.project?.id ?? null);
-          if (
-            newProject !== t.row.project_id ||
-            target.parent?.id !== (t.row.parent_task_id ?? undefined)
-          )
-            this.requireCreateIn(p, {
-              brand: target.brand,
-              project: target.project,
-              chain: target.chain,
-            });
-          const subtree = await this.subtreeOf(tx, t.id);
-          const height = subtree.reduce((m, s) => Math.max(m, s.depth), t.row.depth) - t.row.depth;
-          const newDepth = target.parent ? target.parent.row.depth + 1 : 0;
-          if (newDepth + height > this.ws.taskDepthMax)
-            throw invalid(
-              issue(
-                '/parent',
-                'depth_exceeded',
-                `Subtasks can be nested at most ${this.ws.taskDepthMax} levels deep.`,
-              ),
-            );
-          let afterId: string | null = null;
-          if (input.after) {
-            const a = await this.loadTask(tx, p, input.after);
-            if (
-              a.row.parent_task_id !== (target.parent?.id ?? null) ||
-              a.row.project_id !== newProject
-            )
-              throw invalid(
-                issue('/after', 'invalid_reference', 'Choose a task at the destination.'),
-              );
-            afterId = a.id;
-          }
-          const rank = await this.nextRank(
-            tx,
-            'work.task',
-            (q) =>
-              this.siblingScope({
-                brand: t.brand,
-                project: newProject ? { id: newProject } : null,
-                parent: target.parent,
-              })(q).where('id', '<>', t.id),
-            afterId,
-          );
-          const prefix = target.parent ? [...target.parent.row.ancestor_ids, target.parent.id] : [];
-          const oldDepth = t.row.depth;
-          await sql`WITH RECURSIVE ${taskSubtree(t.id)}
-            UPDATE work.task w SET
-              ancestor_ids = ${prefix}::uuid[] || w.ancestor_ids[${oldDepth + 1}:cardinality(w.ancestor_ids)],
-              depth = w.depth - ${oldDepth} + ${newDepth},
-              project_id = ${newProject}::uuid,
-              version = w.version + 1
-            FROM sub WHERE w.id = sub.id`.execute(tx.db);
-          await tx.db
-            .updateTable('work.task')
-            .set({
-              parent_task_id: target.parent?.id ?? null,
-              ancestor_ids: prefix,
-              depth: newDepth,
-              project_id: newProject,
-              rank,
-              updated_at: new Date(),
-              updated_by_membership_id: p.membershipId,
-              version: t.row.version + 1,
-            })
-            .where('id', '=', t.id)
-            .execute();
-          await tx.db
-            .updateTable('core.record')
-            .set({ version: sql`version + 1` })
-            .where('id', '=', t.id)
-            .execute();
-          if (newProject !== t.row.project_id) {
-            // Inherited project items belong to the old project (evaluated, never copied).
-            await tx.db
-              .deleteFrom('work.task_inherited_criterion')
-              .where('task_id', 'in', [t.id, ...subtree.map((s) => s.id)])
-              .execute();
-          }
-          const projectPublic = newProject ? await this.publicOf(tx, newProject) : null;
-          const oldProjectPublic = t.row.project_id
-            ? await this.publicOf(tx, t.row.project_id)
-            : null;
-          await this.taskAudit(tx, caller, p, 'task.moved', t, [
-            change.plain('project', oldProjectPublic, projectPublic),
-            change.plain(
-              'parent',
-              t.row.parent_task_id ? await this.publicOf(tx, t.row.parent_task_id) : null,
-              target.parent?.publicId ?? null,
-            ),
-            change.plain('subtree_size', null, subtree.length + 1),
-          ]);
-          await this.workEvent(
-            tx,
-            caller,
-            p,
-            'work.task.moved',
-            { type: 'work.task', id: t.id, sequence: t.row.version + 1 },
-            { project_id: newProject, parent_task_id: target.parent?.id ?? null, depth: newDepth },
-            t.brand.id,
-          );
-          this.d.metrics.count('work.task.moves', 1, { outcome: 'ok' });
-        } catch (err) {
-          const outcome =
-            err instanceof TenancyError
-              ? err.code
-              : pgErr(err).code === '23514'
-                ? 'invariant'
-                : 'error';
-          this.d.metrics.count('work.task.moves', 1, { outcome });
-          if (pgErr(err).code === '23514')
-            throw new TenancyError('conflict', {
-              issues: [
-                issue(
-                  '/',
-                  'stale_ancestry',
-                  'The tree changed while you were moving this task. Try again.',
-                ),
-              ],
-            });
-          throw err;
-        }
+        const t = await this.moveTaskIn(tx, caller, p, tsk, input, req.ifMatch);
         return {
           status: 200,
           ref: { id: t.publicId, type: 'task' },
@@ -1853,6 +1691,226 @@ export class TaskCoreService extends WorkService {
       },
       async (tx, p, ref) => this.taskView(tx, p, await this.loadTask(tx, p, ref.id)),
     );
+  }
+
+  /**
+   * The canonical move inside one transaction (shared by the command and 8A automation steps):
+   * same container, depth, rank, and cross-brand rules; returns the moved task as loaded before.
+   */
+  protected async moveTaskIn(
+    tx: WorkspaceTransaction,
+    caller: Caller,
+    p: Principal,
+    tsk: unknown,
+    input: ReturnType<typeof parseTaskMove>,
+    ifMatch?: string,
+  ): Promise<LoadedTask> {
+    const before = await this.loadTask(tx, p, tsk);
+    const parentRow = input.parent
+      ? await tx.db
+          .selectFrom('work.task as t')
+          .innerJoin('core.record as r', 'r.id', 't.id')
+          .select(['t.id', 't.ancestor_ids'])
+          .where('r.public_id', '=', input.parent)
+          .executeTakeFirst()
+      : undefined;
+    await this.lockTaskRoots(tx, [
+      before.row.ancestor_ids[0] ?? before.id,
+      parentRow ? (parentRow.ancestor_ids[0] ?? parentRow.id) : null,
+    ]);
+    const t = await this.loadTask(tx, p, tsk, { lock: true });
+    this.requireTaskAction(p, 'record.move', t, { shares: false, excluded: 'forbidden' });
+    this.requireTaskActive(t);
+    if (ifMatch !== undefined) requireVersion(parseIfMatch(ifMatch), t.row.version);
+    try {
+      const projectChanging = input.project !== undefined;
+      const currentProject = t.row.project_id
+        ? await this.publicOf(tx, t.row.project_id)
+        : null;
+      const target = await this.resolveContainer(
+        tx,
+        p,
+        {
+          // Unchanged containers stay: the current project (or the brand when projectless).
+          project: projectChanging ? input.project : currentProject,
+          ...(projectChanging ? {} : { brand: t.brand.publicId }),
+          parent:
+            input.parent !== undefined
+              ? input.parent
+              : projectChanging
+                ? null
+                : t.row.parent_task_id
+                  ? await this.publicOf(tx, t.row.parent_task_id)
+                  : null,
+        },
+        t.id,
+      );
+      if (target.brand.id !== t.brand.id)
+        throw invalid(
+          issue(
+            '/project',
+            'cross_brand_move',
+            'Use "Move to another brand" to change the brand.',
+          ),
+        );
+      const newProject = target.parent
+        ? target.parent.row.project_id
+        : (target.project?.id ?? null);
+      if (
+        newProject !== t.row.project_id ||
+        target.parent?.id !== (t.row.parent_task_id ?? undefined)
+      )
+        this.requireCreateIn(p, {
+          brand: target.brand,
+          project: target.project,
+          chain: target.chain,
+        });
+      const subtree = await this.subtreeOf(tx, t.id);
+      const height = subtree.reduce((m, s) => Math.max(m, s.depth), t.row.depth) - t.row.depth;
+      const newDepth = target.parent ? target.parent.row.depth + 1 : 0;
+      if (newDepth + height > this.ws.taskDepthMax)
+        throw invalid(
+          issue(
+            '/parent',
+            'depth_exceeded',
+            `Subtasks can be nested at most ${this.ws.taskDepthMax} levels deep.`,
+          ),
+        );
+      let afterId: string | null = null;
+      if (input.after) {
+        const a = await this.loadTask(tx, p, input.after);
+        if (
+          a.row.parent_task_id !== (target.parent?.id ?? null) ||
+          a.row.project_id !== newProject
+        )
+          throw invalid(
+            issue('/after', 'invalid_reference', 'Choose a task at the destination.'),
+          );
+        afterId = a.id;
+      }
+      const rank = await this.nextRank(
+        tx,
+        'work.task',
+        (q) =>
+          this.siblingScope({
+            brand: t.brand,
+            project: newProject ? { id: newProject } : null,
+            parent: target.parent,
+          })(q).where('id', '<>', t.id),
+        afterId,
+      );
+      const prefix = target.parent ? [...target.parent.row.ancestor_ids, target.parent.id] : [];
+      const oldDepth = t.row.depth;
+      await sql`WITH RECURSIVE ${taskSubtree(t.id)}
+        UPDATE work.task w SET
+          ancestor_ids = ${prefix}::uuid[] || w.ancestor_ids[${oldDepth + 1}:cardinality(w.ancestor_ids)],
+          depth = w.depth - ${oldDepth} + ${newDepth},
+          project_id = ${newProject}::uuid,
+          version = w.version + 1
+        FROM sub WHERE w.id = sub.id`.execute(tx.db);
+      await tx.db
+        .updateTable('work.task')
+        .set({
+          parent_task_id: target.parent?.id ?? null,
+          ancestor_ids: prefix,
+          depth: newDepth,
+          project_id: newProject,
+          rank,
+          updated_at: new Date(),
+          updated_by_membership_id: p.membershipId,
+          version: t.row.version + 1,
+        })
+        .where('id', '=', t.id)
+        .execute();
+      await tx.db
+        .updateTable('core.record')
+        .set({ version: sql`version + 1` })
+        .where('id', '=', t.id)
+        .execute();
+      if (newProject !== t.row.project_id) {
+        // Inherited project items belong to the old project (evaluated, never copied).
+        await tx.db
+          .deleteFrom('work.task_inherited_criterion')
+          .where('task_id', 'in', [t.id, ...subtree.map((s) => s.id)])
+          .execute();
+      }
+      const projectPublic = newProject ? await this.publicOf(tx, newProject) : null;
+      const oldProjectPublic = t.row.project_id
+        ? await this.publicOf(tx, t.row.project_id)
+        : null;
+      await this.taskAudit(tx, caller, p, 'task.moved', t, [
+        change.plain('project', oldProjectPublic, projectPublic),
+        change.plain(
+          'parent',
+          t.row.parent_task_id ? await this.publicOf(tx, t.row.parent_task_id) : null,
+          target.parent?.publicId ?? null,
+        ),
+        change.plain('subtree_size', null, subtree.length + 1),
+      ]);
+      await this.workEvent(
+        tx,
+        caller,
+        p,
+        'work.task.moved',
+        { type: 'work.task', id: t.id, sequence: t.row.version + 1 },
+        { project_id: newProject, parent_task_id: target.parent?.id ?? null, depth: newDepth },
+        t.brand.id,
+      );
+      this.d.metrics.count('work.task.moves', 1, { outcome: 'ok' });
+    } catch (err) {
+      const outcome =
+        err instanceof TenancyError
+          ? err.code
+          : pgErr(err).code === '23514'
+            ? 'invariant'
+            : 'error';
+      this.d.metrics.count('work.task.moves', 1, { outcome });
+      if (pgErr(err).code === '23514')
+        throw new TenancyError('conflict', {
+          issues: [
+            issue(
+              '/',
+              'stale_ancestry',
+              'The tree changed while you were moving this task. Try again.',
+            ),
+          ],
+        });
+      throw err;
+    }
+    return t;
+  }
+
+  /**
+   * Archives one active task (never its subtree) inside the caller's transaction through the
+   * canonical lifecycle command: the same decision, batch, audit, and epoch bump as the archive
+   * verb. Used by 8A automation steps; a person's command keeps `taskLifecycle`.
+   */
+  protected async archiveTaskIn(
+    tx: WorkspaceTransaction,
+    caller: Caller,
+    p: Principal,
+    tsk: unknown,
+  ): Promise<LoadedTask> {
+    const t = await this.loadTask(tx, p, tsk, { lock: true });
+    if (t.ownLevel === null) throw new TenancyError('forbidden');
+    if (t.lifecycleState !== 'active')
+      throw new TenancyError('conflict', {
+        issues: [issue('/', 'invalid_state', "This task can't do that in its current state.")],
+      });
+    const decision = this.issueLifecycle(tx, p, 'record.archive', {
+      id: t.id,
+      brand: t.brand,
+      lifecycleState: t.lifecycleState,
+      chain: t.chain,
+    });
+    await this.d.lifecycle.archive(
+      tx,
+      decision,
+      { exec: this.exec(caller, p), source: this.cmd(caller, p, t.brand.id).source },
+      t.id,
+    );
+    await bumpEpoch(tx, 'workspace', null);
+    return t;
   }
 
   /**

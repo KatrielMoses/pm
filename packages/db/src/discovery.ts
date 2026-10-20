@@ -143,6 +143,15 @@ export class PlatformDiscovery {
     return rows.map((r) => r.workspace_id);
   }
 
+  /** Workspaces with a due automation date or schedule trigger (8A, ids only). */
+  async discoverAutomationDue(now: Date, limit: number): Promise<string[]> {
+    const { rows } = await this.#pool.query<{ workspace_id: string }>(
+      'SELECT workspace_id FROM exec_dispatch.discover_automation_due($1, $2)',
+      [now, limit],
+    );
+    return rows.map((r) => r.workspace_id);
+  }
+
   /** Workspaces with scheduled task reminders that are due (2D, ids only). */
   async discoverRemindersDue(now: Date, limit: number): Promise<string[]> {
     const { rows } = await this.#pool.query<{ workspace_id: string }>(

@@ -341,6 +341,22 @@ export interface ServerConfig {
     webhookSubscriptionsMax: number;
     webhookInboundMax: number;
     webhookMaxAttempts: number;
+    automationsPerWorkspaceMax: number;
+    automationDefinitionBytesMax: number;
+    automationNodesMax: number;
+    automationConditionDepthMax: number;
+    automationConditionsMax: number;
+    automationTargetFanoutMax: number;
+    automationChainDepthMax: number;
+    automationRunStepsMax: number;
+    automationActiveRunsMax: number;
+    automationDelayHorizonMinutes: number;
+    automationRetriesMax: number;
+    automationRunsPerMonth: number;
+    automationTriggerFanoutMax: number;
+    automationSweepBatchMax: number;
+    automationAlertFailureThreshold: number;
+    automationAlertIntervalMinutes: number;
     webhookConcurrencyPerDestination: number;
     webhookBodyMaxBytes: number;
     webhookDeliveryRetentionDays: number;
@@ -862,6 +878,22 @@ const DEFAULTS = {
   WEBHOOK_SUBSCRIPTIONS_MAX: '50',
   WEBHOOK_INBOUND_MAX: '20',
   WEBHOOK_MAX_ATTEMPTS: '8',
+  AUTOMATIONS_PER_WORKSPACE_MAX: '200',
+  AUTOMATION_DEFINITION_BYTES_MAX: '32768',
+  AUTOMATION_NODES_MAX: '25',
+  AUTOMATION_CONDITION_DEPTH_MAX: '4',
+  AUTOMATION_CONDITIONS_MAX: '20',
+  AUTOMATION_TARGET_FANOUT_MAX: '25',
+  AUTOMATION_CHAIN_DEPTH_MAX: '3',
+  AUTOMATION_RUN_STEPS_MAX: '50',
+  AUTOMATION_ACTIVE_RUNS_MAX: '20',
+  AUTOMATION_DELAY_HORIZON_MINUTES: '43200',
+  AUTOMATION_RETRIES_MAX: '3',
+  AUTOMATION_RUNS_PER_MONTH: '10000',
+  AUTOMATION_TRIGGER_FANOUT_MAX: '50',
+  AUTOMATION_SWEEP_BATCH_MAX: '100',
+  AUTOMATION_ALERT_FAILURE_THRESHOLD: '3',
+  AUTOMATION_ALERT_INTERVAL_MINUTES: '1440',
   WEBHOOK_CONCURRENCY_PER_DESTINATION: '4',
   WEBHOOK_BODY_MAX_BYTES: '262144',
   WEBHOOK_DELIVERY_RETENTION_DAYS: '30',
@@ -1247,6 +1279,22 @@ const schema = z.object({
   WEBHOOK_SUBSCRIPTIONS_MAX: int(1, 500),
   WEBHOOK_INBOUND_MAX: int(1, 200),
   WEBHOOK_MAX_ATTEMPTS: int(1, 20),
+  AUTOMATIONS_PER_WORKSPACE_MAX: int(1, 2000),
+  AUTOMATION_DEFINITION_BYTES_MAX: int(1024, 65_536),
+  AUTOMATION_NODES_MAX: int(1, 100),
+  AUTOMATION_CONDITION_DEPTH_MAX: int(1, 8),
+  AUTOMATION_CONDITIONS_MAX: int(1, 50),
+  AUTOMATION_TARGET_FANOUT_MAX: int(1, 200),
+  AUTOMATION_CHAIN_DEPTH_MAX: int(1, 10),
+  AUTOMATION_RUN_STEPS_MAX: int(1, 200),
+  AUTOMATION_ACTIVE_RUNS_MAX: int(1, 200),
+  AUTOMATION_DELAY_HORIZON_MINUTES: int(1, 129_600),
+  AUTOMATION_RETRIES_MAX: int(0, 10),
+  AUTOMATION_RUNS_PER_MONTH: int(1, 1_000_000),
+  AUTOMATION_TRIGGER_FANOUT_MAX: int(1, 200),
+  AUTOMATION_SWEEP_BATCH_MAX: int(1, 1000),
+  AUTOMATION_ALERT_FAILURE_THRESHOLD: int(1, 20),
+  AUTOMATION_ALERT_INTERVAL_MINUTES: int(60, 10_080),
   WEBHOOK_CONCURRENCY_PER_DESTINATION: int(1, 50),
   WEBHOOK_BODY_MAX_BYTES: int(1024, 1048576),
   WEBHOOK_DELIVERY_RETENTION_DAYS: int(1, 365),
@@ -2098,6 +2146,22 @@ export function loadServerConfig(options: LoadOptions): ServerConfig {
       webhookSubscriptionsMax: c.WEBHOOK_SUBSCRIPTIONS_MAX,
       webhookInboundMax: c.WEBHOOK_INBOUND_MAX,
       webhookMaxAttempts: c.WEBHOOK_MAX_ATTEMPTS,
+      automationsPerWorkspaceMax: c.AUTOMATIONS_PER_WORKSPACE_MAX,
+      automationDefinitionBytesMax: c.AUTOMATION_DEFINITION_BYTES_MAX,
+      automationNodesMax: c.AUTOMATION_NODES_MAX,
+      automationConditionDepthMax: c.AUTOMATION_CONDITION_DEPTH_MAX,
+      automationConditionsMax: c.AUTOMATION_CONDITIONS_MAX,
+      automationTargetFanoutMax: c.AUTOMATION_TARGET_FANOUT_MAX,
+      automationChainDepthMax: c.AUTOMATION_CHAIN_DEPTH_MAX,
+      automationRunStepsMax: c.AUTOMATION_RUN_STEPS_MAX,
+      automationActiveRunsMax: c.AUTOMATION_ACTIVE_RUNS_MAX,
+      automationDelayHorizonMinutes: c.AUTOMATION_DELAY_HORIZON_MINUTES,
+      automationRetriesMax: c.AUTOMATION_RETRIES_MAX,
+      automationRunsPerMonth: c.AUTOMATION_RUNS_PER_MONTH,
+      automationTriggerFanoutMax: c.AUTOMATION_TRIGGER_FANOUT_MAX,
+      automationSweepBatchMax: c.AUTOMATION_SWEEP_BATCH_MAX,
+      automationAlertFailureThreshold: c.AUTOMATION_ALERT_FAILURE_THRESHOLD,
+      automationAlertIntervalMinutes: c.AUTOMATION_ALERT_INTERVAL_MINUTES,
       webhookConcurrencyPerDestination: c.WEBHOOK_CONCURRENCY_PER_DESTINATION,
       webhookBodyMaxBytes: c.WEBHOOK_BODY_MAX_BYTES,
       webhookDeliveryRetentionDays: c.WEBHOOK_DELIVERY_RETENTION_DAYS,

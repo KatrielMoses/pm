@@ -210,6 +210,13 @@ async function main(): Promise<void> {
             ? config.ai.transcription.timeoutMs
             : 60_000) + 30_000,
       },
+      automations: {
+        discovery,
+        service: reportService,
+        metrics: telemetry.metrics,
+        logger,
+        sweepWorkspacesMax: config.work.automationSweepBatchMax,
+      },
       reports: {
         tenant: tenantDb,
         discovery,
@@ -225,6 +232,7 @@ async function main(): Promise<void> {
       arrayMax: config.tenancy.principalContextArrayMax,
       metrics: telemetry.metrics,
       webhooks: reportService,
+      automations: reportService,
     }),
     schedules: registeredSchedules(),
     params: { ...config.jobs, outboxReplayWindowMs: config.retention.outboxReplayWindowMs },

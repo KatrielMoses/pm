@@ -62,6 +62,7 @@ export const FANOUT_EVENTS = [
   'integrations.webhook.delivery_failed',
   'metering.usage.threshold_reached',
   'metering.usage.limit_reached',
+  'automation.automation_run.failed',
 ] as const satisfies readonly InternalEventType[];
 
 const NIL_UUID = '00000000-0000-7000-8000-000000000000';
@@ -152,6 +153,29 @@ export class NotificationFanOut implements OutboxConsumer {
             occasion: `${e.event_id}`,
           },
         ];
+      }
+      case 'automation.automation_run.failed': {
+        // 8A (AUTO-016): persistent failures reach the automation's accountable owner, who must
+        // still be able to see the automation; repeats are bounded by the engine's alert interval
+        // and collapse in the dedupe window.
+        const automationId = str(data.automation_id);
+        if (!automationId) return [];
+        const a = await tx.db
+          .selectFrom('automation.automation')
+          .select(['id', 'owner_membership_id'])
+          .where('id', '=', automationId)
+          .executeTakeFirst();
+        return a
+          ? [
+              {
+                type: 'automation_failure' as const,
+                recordId: a.id,
+                actorId: null,
+                recipients: [a.owner_membership_id],
+                facts: { terminal_reason: str(data.terminal_reason) },
+              },
+            ]
+          : [];
       }
       case 'integrations.webhook.delivery_failed': {
         const owner = await tx.db
