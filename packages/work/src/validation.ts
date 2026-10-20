@@ -504,6 +504,38 @@ export interface WorkSettings {
   fileDiscoveryMax: number;
   /** `FILE_EXPIRY_BATCH_MAX` */
   fileExpiryBatchMax: number;
+  /** `AUTOMATIONS_PER_WORKSPACE_MAX`: automations (not purged) per workspace (default 200, 1–2000). */
+  automationsPerWorkspaceMax: number;
+  /** `AUTOMATION_DEFINITION_BYTES_MAX`: canonical bytes of one definition (default 32768, 1024–65536). */
+  automationDefinitionBytesMax: number;
+  /** `AUTOMATION_NODES_MAX`: steps in one definition (default 25, 1–100). */
+  automationNodesMax: number;
+  /** `AUTOMATION_CONDITION_DEPTH_MAX`: nesting of AND/OR groups (default 4, 1–8). */
+  automationConditionDepthMax: number;
+  /** `AUTOMATION_CONDITIONS_MAX`: comparisons in one definition (default 20, 1–50). */
+  automationConditionsMax: number;
+  /** `AUTOMATION_TARGET_FANOUT_MAX`: records one action step may select (default 25, 1–200). */
+  automationTargetFanoutMax: number;
+  /** `AUTOMATION_CHAIN_DEPTH_MAX`: automations in one causal chain (default 3, 1–10). */
+  automationChainDepthMax: number;
+  /** `AUTOMATION_RUN_STEPS_MAX`: steps executed by one run (default 50, 1–200). */
+  automationRunStepsMax: number;
+  /** `AUTOMATION_ACTIVE_RUNS_MAX`: open runs of one automation (default 20, 1–200). */
+  automationActiveRunsMax: number;
+  /** `AUTOMATION_DELAY_HORIZON_MINUTES`: longest single delay (default 43200, 1–129600). */
+  automationDelayHorizonMinutes: number;
+  /** `AUTOMATION_RETRIES_MAX`: manual retries of one run (default 3, 0–10). */
+  automationRetriesMax: number;
+  /** `AUTOMATION_RUNS_PER_MONTH`: runs admitted per workspace per month (default 10000, 1–1000000). */
+  automationRunsPerMonth: number;
+  /** `AUTOMATION_TRIGGER_FANOUT_MAX`: automations one event may start (default 50, 1–200). */
+  automationTriggerFanoutMax: number;
+  /** `AUTOMATION_SWEEP_BATCH_MAX`: date and schedule occurrences taken per workspace per sweep (default 100, 1–1000). */
+  automationSweepBatchMax: number;
+  /** `AUTOMATION_ALERT_FAILURE_THRESHOLD`: consecutive failed runs before the owner is alerted (default 3, 1–20). */
+  automationAlertFailureThreshold: number;
+  /** `AUTOMATION_ALERT_INTERVAL_MINUTES`: least time between two failure alerts for one automation (default 1440, 60–10080). */
+  automationAlertIntervalMinutes: number;
 }
 
 export const DEFAULT_WORK_SETTINGS: WorkSettings = Object.freeze({
@@ -748,6 +780,22 @@ export const DEFAULT_WORK_SETTINGS: WorkSettings = Object.freeze({
   deliverablesPerTaskMax: 50,
   fileDiscoveryMax: 100,
   fileExpiryBatchMax: 200,
+  automationsPerWorkspaceMax: 200,
+  automationDefinitionBytesMax: 32_768,
+  automationNodesMax: 25,
+  automationConditionDepthMax: 4,
+  automationConditionsMax: 20,
+  automationTargetFanoutMax: 25,
+  automationChainDepthMax: 3,
+  automationRunStepsMax: 50,
+  automationActiveRunsMax: 20,
+  automationDelayHorizonMinutes: 43_200,
+  automationRetriesMax: 3,
+  automationRunsPerMonth: 10_000,
+  automationTriggerFanoutMax: 50,
+  automationSweepBatchMax: 100,
+  automationAlertFailureThreshold: 3,
+  automationAlertIntervalMinutes: 1440,
 });
 
 /** The database invariant behind `TASK_DEPTH_MAX` (migration 0023). */

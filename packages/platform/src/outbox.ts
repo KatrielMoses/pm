@@ -51,6 +51,21 @@ export async function writeOutboxEvent(
   if (input.context.workspaceId !== tx.workspaceId)
     throw new OutboxContractError('context workspace mismatch');
   const id = newUuidV7();
+  // 8A (ADR-0046 D5): a change made under an automation's execution context is the automation's,
+  // on behalf of its accountable owner, whatever actor the canonical command names; the operation
+  // and causation (the run's own operation) come from the same trusted context, never a payload.
+  const automation = input.context.effectivePrincipal.type === 'automation';
+  const actor: ActorRef = automation
+    ? {
+        type: 'automation',
+        id: input.context.effectivePrincipal.id,
+        ...(input.context.initiatingMembershipId
+          ? { onBehalfOfMembershipId: input.context.initiatingMembershipId }
+          : {}),
+      }
+    : input.actor;
+  const operationId = input.operationId ?? (automation ? input.context.operationId : undefined);
+  const attemptId = input.attemptId ?? (automation ? input.context.attemptId : undefined);
   await tx.db
     .insertInto('exec.outbox_event')
     .values({
@@ -64,11 +79,11 @@ export async function writeOutboxEvent(
       aggregate_sequence: input.aggregate.sequence,
       payload: JSON.stringify(input.data),
       max_class: def.maxClass,
-      operation_id: input.operationId ?? null,
-      attempt_id: input.attemptId ?? null,
-      actor_type: input.actor.type,
-      actor_id: input.actor.id ?? null,
-      on_behalf_of_membership_id: input.actor.onBehalfOfMembershipId ?? null,
+      operation_id: operationId ?? null,
+      attempt_id: attemptId ?? null,
+      actor_type: actor.type,
+      actor_id: actor.id ?? null,
+      on_behalf_of_membership_id: actor.onBehalfOfMembershipId ?? null,
       workspace_epoch: input.context.epochs.workspace,
       delegation_depth: Math.max(input.context.delegationChain.length - 1, 0),
       correlation_id: traceIdToUuid(input.context.correlationId),

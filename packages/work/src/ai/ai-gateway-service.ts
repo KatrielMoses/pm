@@ -2871,6 +2871,74 @@ export class AiGatewayService extends McpAccessService {
     );
   }
 
+  /**
+   * 8A (AUTO-006): one catalog action requested by an automation step for its accountable owner,
+   * through the same gateway as a person's request: availability is decided before anything is
+   * written (no provider or AI off refuses with no run, no reservation, nothing sent), retrieval
+   * is the owner's current authority over the trigger record, budgets reserve at dispatch, and a
+   * cost confirmation is never assumed. Drafting actions end as a 7D proposal that only the owner
+   * can review and apply; nothing is applied here.
+   */
+  protected async startAutomationAiRun(
+    tx: WorkspaceTransaction,
+    caller: Caller,
+    p: Principal,
+    input: {
+      action: string;
+      instruction: string | null;
+      scope: { task?: string; project?: string };
+    },
+  ): Promise<{ runPublicId: string; kind: 'analysis' | 'proposal' }> {
+    const def = ACTION_BY_ID.get(input.action);
+    if (!def || (def.kind !== 'analysis' && def.kind !== 'proposal'))
+      throw invalid(issue('/params/action', 'invalid_option', 'Choose an AI action.'));
+    if (def.kind === 'proposal') this.#requireApplier(caller, p);
+    const { decision } = await this.#availability(tx);
+    this.#requireReady(decision);
+    const request = [
+      `Action: ${def.label}`,
+      ...(input.instruction ? [`Request: ${input.instruction}`] : []),
+    ].join('\n');
+    // No person previews the context here: the manifest is discovered now through the owner's
+    // authority (as the preview would), and its digest pins that exact context for the run.
+    const scoped = this.#parseRetrieval({ scope: input.scope }, 'preview');
+    scoped.retrieval.offerChoices = !!def.choices;
+    await this.#retrievalAuthority(tx, p, scoped.retrieval.scope);
+    const { policy } = await this.#availability(tx);
+    const manifest = await this.#manifestFor(
+      tx,
+      p,
+      { retrieval: scoped.retrieval, digest: null, pinned: null },
+      policy?.maxDataClass ?? 'C2',
+    );
+    const retrieval = this.#parseRetrieval(
+      { scope: input.scope, question: request, manifest_digest: manifest.digest },
+      'answer',
+    );
+    retrieval.retrieval.offerChoices = !!def.choices;
+    const out = await this.#createRun(
+      tx,
+      caller,
+      p,
+      {
+        prompt: retrieval.question,
+        brand: null,
+        refs: [],
+        maxOutput: Math.min(retrieval.maxOutput, def.maxOutputTokens),
+        confirm: false,
+        answer: {
+          retrieval: retrieval.retrieval,
+          digest: retrieval.digest,
+          pinned: null,
+          action: def,
+          inputDigest: null,
+        },
+      },
+      null,
+    );
+    return { runPublicId: out.ref.id, kind: def.kind };
+  }
+
   /** A grounded run's recorded manifest, as the answer spec the worker and renderer re-check. */
   async #recordedAnswer(
     tx: WorkspaceTransaction,
@@ -3371,10 +3439,18 @@ export class AiGatewayService extends McpAccessService {
       risk: { actionKey: AI_EXECUTE_ACTION, riskClass: 'R1' },
       dataClassLimit: policy?.maxDataClass ?? 'C2',
     };
+    // 8A: a run an automation step requests is the automation's, on behalf of its owner.
+    const automated = context.effectivePrincipal.type === 'automation';
     const op = await createOperation(tx, {
       kind: 'ai_action',
       context,
-      initiatedBy: { type: 'human', id: p.membershipId },
+      initiatedBy: automated
+        ? {
+            type: 'automation',
+            id: context.effectivePrincipal.id,
+            onBehalfOfMembershipId: p.membershipId,
+          }
+        : { type: 'human', id: p.membershipId },
       ...(rerunOf ? { rerunOfOperationId: rerunOf } : {}),
     });
     const model = prep.decision.model;
@@ -3405,11 +3481,13 @@ export class AiGatewayService extends McpAccessService {
           privacySnapshot(model, prep.decision.approved, policy?.maxDataClass ?? 'C2'),
         ),
         funding: prep.decision.funding,
-        caller_kind: caller.delegation
-          ? caller.delegation.sourceKind === 'mcp'
-            ? 'mcp'
-            : 'api'
-          : 'ui',
+        caller_kind: automated
+          ? 'automation'
+          : caller.delegation
+            ? caller.delegation.sourceKind === 'mcp'
+              ? 'mcp'
+              : 'api'
+            : 'ui',
         delegation_principal_type: caller.delegation ? caller.delegation.principalType : null,
         delegation_token_id: caller.delegation ? caller.delegation.tokenId : null,
         prompt_text: prep.prompt,

@@ -89,7 +89,9 @@ export function clearProposalDrafts(): void {
           k.includes('.ai-briefing.') ||
           // 7F: unsaved capture transcripts and interpretations, and daily-plan options.
           k.includes('.ai-capture.') ||
-          k.includes('.ai-plan.')),
+          k.includes('.ai-plan.') ||
+          // 8A: unsaved automation definitions (messages and titles a person typed).
+          k.includes('.automation.')),
     );
     purgeLegacyProposalDrafts();
   } catch {

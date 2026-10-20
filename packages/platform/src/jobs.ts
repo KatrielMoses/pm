@@ -2,6 +2,7 @@ import {
   newUuidV7,
   type ExecutionContext,
   type JobErrorClass,
+  type TerminalReason,
   type WaitingReason,
 } from '@pm/contracts';
 import { sql, type ScopedTransaction } from '@pm/db';
@@ -201,7 +202,19 @@ export interface JobHandlerContext {
 }
 
 export type JobResult =
-  { state: 'succeeded' } | { state: 'partial'; result: Record<string, unknown> };
+  | { state: 'succeeded' }
+  | { state: 'partial'; result: Record<string, unknown> }
+  /**
+   * Nothing ran (8A: conditions not met, out of scope, loop guard); a terminal outcome with its
+   * registered terminal reason and the precise reason in the outcome detail.
+   */
+  | { state: 'skipped'; terminalReason: TerminalReason; result?: Record<string, unknown> }
+  /**
+   * The work continues later (8A delays): the job ends, the operation waits with the reason, and
+   * one continuation job is queued for `resumeAt` in the same fenced transaction. No worker sleeps
+   * and no transaction is held while it waits.
+   */
+  | { state: 'waiting'; reason: 'delay'; resumeAt: Date; result?: Record<string, unknown> };
 
 export interface JobHandler {
   readonly kind: string;

@@ -467,6 +467,7 @@ Source: `contracts/registry.json`.
 | `briefing_ready` | BRF-018 |
 | `export_ready` | DATA-011 |
 | `hidden_dependency_affects_assignee` | TSK-013 |
+| `automation_notice` | AUTO-005 |
 
 ## Telemetry signals
 
@@ -912,3 +913,19 @@ Forbidden metric labels: `workspace_id`, `brand_id`, `record_id`, `public_id`, `
 | `VOICE_UPLOAD_TTL_SECONDS` | Upload URL lifetime; expired uploads are swept; default 900. | 7F |
 | `VOICE_TRANSCRIPT_MAX_CHARS` | Longest transcript kept; default 4000. | 7F |
 | `AI_HISTORY_RETENTION_DAYS` | Technical content retention for AI history; unset keeps content (OD-36 undecided). | 7A |
+| `AUTOMATIONS_PER_WORKSPACE_MAX` | Technical automation limit: automations (not purged) per workspace; default 200, range 1–2000. | 8A |
+| `AUTOMATION_DEFINITION_BYTES_MAX` | Technical automation limit: canonical bytes of one definition; default 32768, range 1024–65536. | 8A |
+| `AUTOMATION_NODES_MAX` | Technical automation limit: steps in one definition; default 25, range 1–100. | 8A |
+| `AUTOMATION_CONDITION_DEPTH_MAX` | Technical automation limit: nesting of AND/OR groups; default 4, range 1–8. | 8A |
+| `AUTOMATION_CONDITIONS_MAX` | Technical automation limit: comparisons in one definition; default 20, range 1–50. | 8A |
+| `AUTOMATION_TARGET_FANOUT_MAX` | Technical automation limit: records one action step may select; default 25, range 1–200. | 8A |
+| `AUTOMATION_CHAIN_DEPTH_MAX` | Technical automation limit: automations in one causal chain; default 3, range 1–10. | 8A |
+| `AUTOMATION_RUN_STEPS_MAX` | Technical automation limit: steps executed by one run; default 50, range 1–200. | 8A |
+| `AUTOMATION_ACTIVE_RUNS_MAX` | Technical automation limit: open runs of one automation; default 20, range 1–200. | 8A |
+| `AUTOMATION_DELAY_HORIZON_MINUTES` | Technical automation limit: longest single delay; default 43200, range 1–129600. | 8A |
+| `AUTOMATION_RETRIES_MAX` | Technical automation limit: manual retries of one run; default 3, range 0–10. | 8A |
+| `AUTOMATION_RUNS_PER_MONTH` | Technical automation limit: runs admitted per workspace per month; default 10000, range 1–1000000. Reserved atomically at admission and counted once; not a plan entitlement (10A). | 8A |
+| `AUTOMATION_TRIGGER_FANOUT_MAX` | Technical automation limit: automations one event may start; default 50, range 1–200. | 8A |
+| `AUTOMATION_SWEEP_BATCH_MAX` | Technical automation limit: workspaces visited, and due date and schedule triggers taken per workspace, in one sweep; default 100, range 1–1000. | 8A |
+| `AUTOMATION_ALERT_FAILURE_THRESHOLD` | Technical automation limit: consecutive failed runs before the owner is alerted; default 3, range 1–20. | 8A |
+| `AUTOMATION_ALERT_INTERVAL_MINUTES` | Technical automation limit: least time between two failure alerts for one automation; default 1440, range 60–10080. | 8A |

@@ -1,4 +1,5 @@
 import { recordJoins, recordProject, recordTitle } from '../collab/record-sql.ts';
+import { readableAutomations } from './access.ts';
 import { sql, type WorkspaceTransaction } from '@pm/db';
 import { compileVisibility, type Principal } from '@pm/tenancy';
 import { briefingAvailable } from '../ai/briefing/evidence.ts';
@@ -32,7 +33,7 @@ export const GONE = 'You no longer have access to this item';
 interface RecordInfo {
   id: string;
   public_id: string;
-  record_type: 'task' | 'project' | 'document';
+  record_type: 'task' | 'project' | 'document' | 'automation';
   title: string;
   brand_id: string | null;
   project_id: string | null;
@@ -110,7 +111,7 @@ export async function readableRecordInfo(
   const rows = await sql<{
     id: string;
     public_id: string;
-    record_type: 'task' | 'project' | 'document';
+    record_type: 'task' | 'project' | 'document' | 'automation';
     title: string;
     brand_id: string | null;
     project_id: string | null;
@@ -133,8 +134,34 @@ export async function readableRecordInfo(
         ).rows.map((p) => [p.id, p])
       : [],
   );
-  return new Map(
-    rows.rows.map((r) => {
+  // 8A: automations are named by their configuration name, for people who may see them.
+  const autos = await readableAutomations(tx, principal, ids);
+  const autoRows = autos.size
+    ? await tx.db
+        .selectFrom('automation.automation as a')
+        .innerJoin('core.record as r', 'r.id', 'a.id')
+        .select(['a.id', 'r.public_id', 'a.name', 'a.brand_id', 'a.lifecycle_state'])
+        .where('a.id', 'in', [...autos])
+        .execute()
+    : [];
+  const automationInfo: Array<[string, RecordInfo]> = autoRows.map((a) => [
+    a.id,
+    {
+      id: a.id,
+      public_id: a.public_id,
+      record_type: 'automation',
+      title: a.name,
+      brand_id: a.brand_id,
+      project_id: null,
+      project_public: null,
+      project_name: null,
+      project_readable: false,
+      archived: a.lifecycle_state === 'archived',
+    },
+  ]);
+  return new Map([
+    ...automationInfo,
+    ...rows.rows.map((r): [string, RecordInfo] => {
       const p = r.project_id ? projects.get(r.project_id) : undefined;
       return [
         r.id,
@@ -152,7 +179,7 @@ export async function readableRecordInfo(
         },
       ];
     }),
-  );
+  ]);
 }
 
 /** Display names of the people among `ids`, for viewers who may see people (members). */
@@ -179,7 +206,7 @@ export interface NotificationView {
   summary: string;
   record: {
     id: string;
-    type: 'task' | 'project' | 'document';
+    type: 'task' | 'project' | 'document' | 'automation';
     title: string;
     archived: boolean;
   } | null;
@@ -347,7 +374,7 @@ export async function externalLine(
       : null;
   }
   const brand = rec.brand_id ? (await brandsOf(tx, [rec.brand_id])).get(rec.brand_id) : undefined;
-  const path = `/workspaces/${workspacePublicId}/${rec.record_type === 'task' ? 'tasks' : rec.record_type === 'document' ? 'documents' : 'projects'}/${rec.public_id}`;
+  const path = `/workspaces/${workspacePublicId}/${rec.record_type === 'task' ? 'tasks' : rec.record_type === 'document' ? 'documents' : rec.record_type === 'automation' ? 'automations' : 'projects'}/${rec.public_id}`;
   if (brand && (brand.is_sensitive || brand.content_mode === 'minimal'))
     return { line: minimalLine(type, brand.name), path, minimal: true };
   const actors = await namesOf(

@@ -94,7 +94,7 @@ describe('migrations from an empty database', () => {
     expect(await catalogFingerprint(second)).toEqual(await catalogFingerprint(first));
   });
 
-  it('upgrades through every accepted boundary (0009–0052) the 7A boundaries 0053–0054, the 7B boundary 0055, the 7D boundary 0056, the 7C boundary 0057, the 7E boundary 0058, the 7F boundary 0059, the Phase 7 integration boundary 0060, and the effect-recovery boundary 0061 to the candidate and reverses each boundary step', async () => {
+  it('upgrades through every accepted boundary (0009–0052) the 7A boundaries 0053–0054, the 7B boundary 0055, the 7D boundary 0056, the 7C boundary 0057, the 7E boundary 0058, the 7F boundary 0059, the Phase 7 integration boundary 0060, the effect-recovery boundary 0061, the 8A automation boundary 0062, and the 8A review 01 checkpoint boundary 0063 to the candidate and reverses each boundary step', async () => {
     // Accepted subphase boundaries: 1A 0009, 1B 0012, 1F 0016, 1C 0018, 1D 0019, 1E 0020; 2A adds
     // 0021 (work) and 0022 (relations, templates, recurrence); 2B–2E add 0023–0030; 3A adds 0031
     // (saved views, defaults, and pin writes); 3D adds 0032 (time entries, timesheets, approvals,
@@ -123,10 +123,14 @@ describe('migrations from an empty database', () => {
     // (planner proposals and planning operations, plan evidence, voice captures, the transcription
     // purpose, and the voice cleanup and plan retention discovery functions); the Phase 7
     // integration review adds 0060 (a saved recording may outlive its purged Inbox item); P8-W0
-    // adds 0061 (effect claims, typed not-sent proof, unknown reasons, late evidence).
+    // adds 0061 (effect claims, typed not-sent proof, unknown reasons, late evidence); 8A adds 0062
+    // (automations, immutable revisions, runs and step runs, standing approvals, trigger schedules,
+    // usage periods, the automation notice type, and the automation AI caller); 8A corrective
+    // review 01 adds 0063 (automation checkpoints keep references only; data, no catalog change).
     const boundaries = [
       9, 12, 16, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38,
       39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61,
+      62, 63,
     ];
     // Functions and triggers are compared from the last Phase 6 boundary on (the Phase 7 steps).
     // Earlier accepted steps are compared on tables, constraints, grants, and policies only: the
@@ -179,7 +183,7 @@ describe('migrations from an empty database', () => {
         at.set(to, await full(stepped, to >= DEEP_FROM));
       }
       // Stepping through the boundaries reaches exactly the one-shot candidate catalog.
-      expect(at.get(61)).toEqual(await full(reference));
+      expect(at.get(63)).toEqual(await full(reference));
       // Each subphase's step reverses to the prior boundary's exact catalog and re-applies to its
       // own, walking down from the candidate.
       for (let i = boundaries.length - 1; i > 0; i--) {
@@ -468,6 +472,60 @@ describe('applied-migration boundary: 0054 removes AI content from execution che
       ).rows,
     ).toEqual([{ relrowsecurity: true, relforcerowsecurity: true }]);
     scrubbed.push(a, b);
+  });
+
+  it('0063 removes payload copies from automation checkpoints in every workspace, keeps the step and its effect key, leaves effects and other jobs untouched, and restores forced row-level security (8A review 01 R2)', async () => {
+    await migrator(db).up({ to: 62 });
+    const [w1, w2] = [await workspace(), await workspace()];
+    // The format the 8A candidate wrote before review 01: the prepared payload in the checkpoint.
+    const OLD8A = {
+      u0: { advance: { kind: 'continue' } },
+      u1: {
+        advance: {
+          kind: 'effect',
+          node: 'send',
+          logicalKey: 'k'.repeat(64),
+          subscriptionId: newUuidV7(),
+          fingerprint: 'f'.repeat(64),
+          envelope: { data: { fields: { due_date: 'MIGMARK-2041-01-01' } } },
+        },
+      },
+      u2: { advance: { kind: 'done', result: { state: 'succeeded' } } },
+    };
+    const a = await job(w1, 'automation.run', OLD8A);
+    const b = await job(w2, 'automation.run', OLD8A);
+    const other = await job(w1, 'test.noop', OLD8A);
+    await migrator(db).up({ to: 63 });
+    expect((await migrator(db).status()).report.problems).toEqual([]);
+    for (const id of [a, b])
+      expect(await checkpoint(id)).toEqual({
+        u0: { advance: { kind: 'continue' } },
+        u1: { advance: { kind: 'effect', node: 'send', logicalKey: 'k'.repeat(64) } },
+        u2: { advance: { kind: 'done', result: { state: 'succeeded' } } },
+      });
+    expect(await checkpoint(other)).toEqual(OLD8A);
+    expect(
+      (
+        await db.admin(
+          `SELECT count(*)::int AS n FROM exec.job WHERE checkpoint::text LIKE '%MIGMARK%' AND kind = 'automation.run'`,
+        )
+      ).rows[0].n,
+    ).toBe(0);
+    expect(
+      (
+        await db.admin(
+          `SELECT relrowsecurity, relforcerowsecurity FROM pg_class WHERE oid = 'exec.job'::regclass`,
+        )
+      ).rows,
+    ).toEqual([{ relrowsecurity: true, relforcerowsecurity: true }]);
+    // Rolling back to 0062 changes no catalog object and puts no payload back.
+    await migrator(db).down(62);
+    expect(await checkpoint(a)).toEqual({
+      u0: { advance: { kind: 'continue' } },
+      u1: { advance: { kind: 'effect', node: 'send', logicalKey: 'k'.repeat(64) } },
+      u2: { advance: { kind: 'done', result: { state: 'succeeded' } } },
+    });
+    await migrator(db).up();
   });
 
   it('scrub_dispatch_checkpoints reaches only the current workspace, for API and worker roles, and is not public', async () => {

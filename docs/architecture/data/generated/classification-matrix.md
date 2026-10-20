@@ -37,7 +37,7 @@ Class definitions and rules: [../11-data-classification.md](../11-data-classific
 | Development links and releases | 9 | C2 | R-EVIDENCE, R-EXEC, R-LIVE | filtered | yes | no | incidental | very-high |
 | Templates and onboarding | 4 | C1 | R-LIVE | filtered | no, yes | no | incidental | low |
 | AI actions and briefings | 17 | C4 | R-EXEC, R-LIVE, R-PERSONAL | filtered, never, self | no, yes | secret-ref | incidental | very-high |
-| Automations | 4 | C2 | R-EXEC, R-LIVE | filtered | no, yes | no | incidental | very-high |
+| Automations | 7 | C2 | R-AUDIT, R-EXEC, R-LIVE | admin, filtered, never | no, yes | no | incidental, no | very-high |
 | Agents and execution control | 10 | C4 | R-AUDIT, R-EVIDENCE, R-EXEC, R-LIVE | filtered, never | no, yes | secret-ref | incidental | very-high |
 | Support and feedback | 4 | C3 | R-EPHEMERAL, R-LIVE, R-PLATFORM | never, self | no, yes | possible | incidental, yes | medium |
 | Metrics ledger | 2 | C1 | R-DERIVED | never | no | no | no | high |
@@ -269,9 +269,12 @@ Class definitions and rules: [../11-data-classification.md](../11-data-classific
 | [`briefing_correction_event`](logical-model.md#entity-briefing-correction-event) | ai | inherited | C1 | low | is evidence / append-only | R-LIVE | filtered | low | no | no | incidental |
 | [`briefing_evidence`](logical-model.md#entity-briefing-evidence) | ai | inherited | C1 | low | is evidence / append-only | R-EXEC | never | high | no | no | incidental |
 | [`automation`](logical-model.md#entity-automation) | automation | workspace_or_brand | C1 | low | configuration changes | R-LIVE | filtered | low | yes | no | incidental |
-| [`automation_version`](logical-model.md#entity-automation-version) | automation | inherited | C1 | low | is evidence / append-only | R-LIVE | filtered | low | yes | no | incidental |
+| [`automation_revision`](logical-model.md#entity-automation-revision) | automation | inherited | C1 | low | is evidence / append-only | R-LIVE | filtered | low | yes | no | incidental |
 | [`automation_run`](logical-model.md#entity-automation-run) | automation | inherited | C2 | standard (per-record) | is evidence / append-only | R-EXEC | filtered | very-high | no | no | incidental |
 | [`automation_step_run`](logical-model.md#entity-automation-step-run) | automation | inherited | C2 | standard (per-record) | is evidence / append-only | R-EXEC | filtered | very-high | no | no | incidental |
+| [`automation_standing_approval`](logical-model.md#entity-automation-standing-approval) | automation | inherited | C1 | low | configuration changes | R-AUDIT | filtered | low | no | no | incidental |
+| [`automation_trigger_schedule`](logical-model.md#entity-automation-trigger-schedule) | automation | inherited | C1 | low | configuration changes | R-LIVE | never | low | no | no | no |
+| [`automation_usage_period`](logical-model.md#entity-automation-usage-period) | automation | workspace | C1 | low | configuration changes | R-EXEC | admin | low | no | no | no |
 | [`agent_profile`](logical-model.md#entity-agent-profile) | agents | workspace | C2 | standard (per-record) | material changes | R-LIVE | filtered | low | yes | no | incidental |
 | [`agent_scope_grant`](logical-model.md#entity-agent-scope-grant) | agents | workspace | C1 | high | configuration changes | R-AUDIT | filtered | low | yes | no | incidental |
 | [`agent_tool_grant`](logical-model.md#entity-agent-tool-grant) | agents | workspace | C1 | high | configuration changes | R-AUDIT | filtered | low | yes | no | incidental |

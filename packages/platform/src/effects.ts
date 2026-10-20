@@ -510,6 +510,26 @@ const JOB_COPY_COLUMNS = [
 ] as const;
 
 /**
+ * A continuation of an operation's job (8A delays): a fresh queued job with the same kind, payload
+ * reference, limits, and original execution context, due at `runAt`. Completed steps are not
+ * carried (the continuation's own durable state decides what remains); the caller holds the fence.
+ */
+export async function continueJob(
+  tx: WorkspaceTransaction,
+  jobId: string,
+  runAt: Date,
+): Promise<string> {
+  const id = newUuidV7();
+  const cols = JOB_COPY_COLUMNS.filter((c) => c !== 'completed_steps' && c !== 'checkpoint').map(
+    (c) => sql.ref(c),
+  );
+  await sql`INSERT INTO exec.job (id, workspace_id, run_at, ${sql.join(cols)})
+    SELECT ${id}::uuid, workspace_id, ${runAt}, ${sql.join(cols)}
+      FROM exec.job WHERE id = ${jobId}`.execute(tx.db);
+  return id;
+}
+
+/**
  * After an authorized reconciliation decision, an operation that was waiting for it resumes only
  * when no effect of it is still uncertain: "abandon" ends it (cancelled, with the abandoned count;
  * nothing claims the effect was not sent), "sent" and "retry" queue one fresh job that continues

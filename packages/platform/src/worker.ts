@@ -35,6 +35,7 @@ import {
   abandonAttemptClaims,
   cancelOpenEffects,
   claimEffect,
+  continueJob,
   EffectNotSentError,
   EffectOutcomeUnknownError,
   recordEffect,
@@ -796,11 +797,33 @@ export class WorkerRuntime {
       }
       if (!(outcome instanceof Error)) {
         await this.#finishJob(tx, fenced, 'succeeded');
-        await this.#endAttempt(tx, attemptId, outcome.state);
+        if (outcome.state === 'waiting') {
+          if (!op) throw new JobContractError('waiting requires an operation');
+          await this.#endAttempt(tx, attemptId, 'waiting');
+          await transition(tx, 'waiting', {
+            waitingReason: outcome.reason,
+            ...(outcome.result ? { outcomeDetail: outcome.result } : {}),
+          });
+          await continueJob(tenantTx(tx), fenced.id, outcome.resumeAt);
+          return 'waiting';
+        }
+        // A skipped operation's attempt itself completed (attempts have no skipped state).
+        await this.#endAttempt(
+          tx,
+          attemptId,
+          outcome.state === 'skipped' ? 'succeeded' : outcome.state,
+        );
         await transition(
           tx,
           outcome.state,
-          outcome.state === 'partial' ? { outcomeDetail: outcome.result } : {},
+          outcome.state === 'partial'
+            ? { outcomeDetail: outcome.result }
+            : outcome.state === 'skipped'
+              ? {
+                  terminalReason: outcome.terminalReason,
+                  ...(outcome.result ? { outcomeDetail: outcome.result } : {}),
+                }
+              : {},
         );
         return outcome.state;
       }

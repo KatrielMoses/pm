@@ -125,8 +125,9 @@ describe('dashboards and reports API (5D)', () => {
     const d = r.json().data;
     expect(d.type).toBe('insight_metrics');
     expect(d.metrics.map((m: { key: string }) => m.key)).toContain('tasks.overdue');
-    expect(d.not_available.map((m: { key: string }) => m.key)).toContain('automation.rates');
+    expect(d.not_available.map((m: { key: string }) => m.key)).toContain('agent.rates');
     expect(d.metrics.map((m: { key: string }) => m.key)).toContain('ai.usage');
+    expect(d.metrics.map((m: { key: string }) => m.key)).toContain('automation.rates');
     expect(r.headers['cache-control']).toContain('no-store');
     const g = await get(guest, '/insights/metrics');
     expect(g.json().data.not_available).toEqual([]);
@@ -184,7 +185,7 @@ describe('dashboards and reports API (5D)', () => {
     const later = await post(owner, '/dashboards', {
       title: 'x',
       kind: 'owner',
-      layout: { widgets: [{ id: 'a', metric: 'automation.rates' }] },
+      layout: { widgets: [{ id: 'a', metric: 'agent.rates' }] },
     });
     expect(later.statusCode).toBe(422);
   });

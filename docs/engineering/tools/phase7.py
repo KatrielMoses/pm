@@ -116,8 +116,11 @@ def check_numbering(closure):
     for num, name in MIGRATIONS.items():
         if by.get(num) != name + ".up.sql":
             errs.append("migration %s must be %s" % (num, name))
-    # Later migrations are held by later validators (P8-W0 adds 0061, held by phase8w0.py).
-    later = {"0061": ("0061_effect_recovery_safety.up.sql", "phase8w0.py")}
+    # Later migrations are held by later validators (P8-W0 adds 0061, held by phase8w0.py; 8A adds
+    # 0062, held by phase8a.py).
+    later = {"0061": ("0061_effect_recovery_safety.up.sql", "phase8w0.py"),
+             "0062": ("0062_automation_engine.up.sql", "phase8a.py"),
+             "0063": ("0063_automation_checkpoint_refs.up.sql", "phase8a.py")}
     for k in sorted(k for k in by if k > "0060"):
         name, validator = later.get(k, (None, None))
         if by[k] != name or not os.path.isfile(P("docs/engineering/tools/%s" % validator)):
@@ -189,10 +192,15 @@ def check_composition():
     errs = []
     factory = read(P("packages/work/src/factory.ts"))
     service = read(P(SERVICE))
-    for needle, label in (("return new AiGatewayService(", "the factory returns the gateway"),
-                          (".register(aiHistoryOwnerHook)", "the AI departure hook is registered")):
-        if needle not in factory:
-            errs.append("%s (%s)" % (label, needle))
+    # 8A extends the gateway once with the automation engine (phase8a.py); it is the chain head,
+    # not a second gateway: it never constructs or calls a provider (checked below and in 8A).
+    automation = "packages/work/src/automation/service.ts"
+    extended = ("return new AutomationService(" in factory and os.path.isfile(P(automation))
+                and "export class AutomationService extends AiGatewayService" in read(P(automation)))
+    if "return new AiGatewayService(" not in factory and not extended:
+        errs.append("the factory returns the gateway (return new AiGatewayService( or its 8A extension)")
+    if ".register(aiHistoryOwnerHook)" not in factory:
+        errs.append("the AI departure hook is registered (.register(aiHistoryOwnerHook))")
     if "export class AiGatewayService extends McpAccessService" not in service:
         errs.append("the gateway must extend the Phase 6 head")
     # One gateway: no later class, no second provider or transcriber construction, one call each.
@@ -201,7 +209,9 @@ def check_composition():
             path = os.path.join(dirpath, f)
             text = read(path)
             rel = os.path.relpath(path, P("."))
-            if re.search(r"extends AiGatewayService\b", text):
+            if re.search(r"extends AiGatewayService\b", text) and not (
+                    extended and rel == automation
+                    and len(re.findall(r"extends AiGatewayService\b", text)) == 1):
                 errs.append("%s adds a parallel gateway class" % rel)
             if rel != "packages/work/src/factory.ts" and re.search(
                     r"new (MessagesProvider|HttpTranscriptionProvider)\(", text):

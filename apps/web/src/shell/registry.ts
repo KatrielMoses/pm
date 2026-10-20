@@ -404,6 +404,30 @@ export const ROUTES: readonly RouteDef[] = [
     section: 'AI settings',
     visible: member,
   },
+  // 8A: automations (list, versioned builder, and run history).
+  {
+    id: 'automations',
+    pattern: '/workspaces/:ws/automations',
+    shell: 'workspace',
+    section: 'Automations',
+    extraCommand: 'go.automations',
+    nav: { placement: 'workspace', label: 'Automations', short: 'Automate', icon: '⟳', order: 6 },
+    visible: member,
+  },
+  {
+    id: 'automation',
+    pattern: '/workspaces/:ws/automations/:aut',
+    shell: 'workspace',
+    section: 'Automation',
+    visible: member,
+  },
+  {
+    id: 'automation_run',
+    pattern: '/workspaces/:ws/automations/:aut/runs/:run',
+    shell: 'workspace',
+    section: 'Automation run',
+    visible: member,
+  },
   {
     id: 'workflows',
     pattern: '/workspaces/:ws/settings/workflows',

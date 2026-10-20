@@ -517,3 +517,26 @@ Migration `0061_effect_recovery_safety` (expand; ADR-0045) extends `exec.externa
 - **Rollback:** the down migration restores the exact 0060 catalog, including the enum. It refuses, with counts, while any row is `dispatching` or carries late evidence.
 
 No grants change.
+
+## Phase 8A: automation engine
+
+Migration `0062_automation_engine` (expand; exact rollback to 0061; 0B ADR-51, ADR-0046) adds the `automation` schema. Every table has forced row-level security on `exec.current_workspace_id()` and workspace-scoped foreign keys:
+
+| Table | Holds |
+|---|---|
+| `automation.automation` | The `auto_` record extension: accountable owner, brand (none for workspace scope), `enabled`, the selected `active_revision_id` (deferrable), `trigger_kind`/`trigger_event` (the consumer's index), `activated_at`, the editable `draft`, suspension, the `active_runs` slot reservation, and the failure streak |
+| `automation.automation_revision` | Immutable revisions (`automation_revision_immutable` trigger): canonical definition and hash, declared brands and projects, action keys and classes |
+| `automation.automation_run` | The detail of an `automation_run` operation: pinned revision, owner, scope snapshot; `(automation_id, trigger_key)` unique; lineage and chain depth; status, cursor, wake time; usage and slot reservations; first and current operation |
+| `automation.automation_step_run` | One row per step attempt; at most one succeeded row per step (`automation_step_run_once`) |
+| `automation.standing_approval` | Standing outbound approvals; one active per revision and step |
+| `automation.trigger_schedule` | Next due occurrence and last occurrence key of date and schedule triggers |
+| `automation.usage_period` | Per-workspace monthly runs reserved, settled, and released, steps, and threshold notices |
+
+- **Grants:** `app_rw` reads and inserts definitions and revisions and updates named automation columns; `app_rw` and `app_worker` read and write runs, step runs, schedules, and usage. `app_worker` updates only the automation's state columns and deletes rows for purge. Standing approvals are inserted by `app_rw` only (a human at activation).
+- **Canonical commands in the worker (ADR-0046 D8):** `app_worker` gains the columns the supported task and project commands write (`work.task` placement, title, status, priority, dates, rank, version; `work.task_assignee`; `relations.record_relationship`; `collab.assignment_event`; `workflow.workflow (updated_at)` for its share lock; `work.project` name, status, priority, dates, version) and insert on `ai.ai_action` and `ai.ai_context_ref` for automation AI drafts.
+- **Functions:** `access.bump_permission_epoch(kind, subject)` (definer, increment only; `app_rw`, `app_worker`); `exec_dispatch.discover_automation_due(now, limit)` returns workspace ids only (owner `pm_scheduler`, execute for `dispatcher`).
+- **Constraints widened:** notification, preference, and scope-default types accept `automation_notice`; `ai.ai_action.caller_kind` accepts `automation`.
+- **Rollback:** the down migration restores the exact 0061 catalog. It refuses, with counts, while any run is open, any automation notice exists, or any AI action has the automation caller.
+- **Purge:** record purge deletes step runs, runs, standing approvals, schedules, revisions, then automations. Workspace purge deletes these and `automation.usage_period` before `exec.*`.
+
+Migration `0063_automation_checkpoint_refs` (expand; 8A corrective review 01 R2) changes data only: it removes the prepared webhook payload, subscription, and fingerprint from `automation.run` job checkpoints (the step name and its logical effect key stay), in every workspace, lifting forced row-level security on `exec.job` for that one statement as 0041 and 0054 do. Effects, attempts, claims, and decisions are untouched. The down migration is a no-op that restores the exact 0062 catalog; removed content is not restored, so only the corrected worker may run over cleaned checkpoints.

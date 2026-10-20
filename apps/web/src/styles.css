@@ -5078,3 +5078,161 @@ nav.tabs a[aria-current='page'] {
     border: 1px solid CanvasText;
   }
 }
+
+/* ---- Phase 8A automations: list, builder, preview, and run history (UXD-32) ----------------
+   Every control is a labelled form field or button (no drag-only editing); rows wrap so the
+   builder reflows to 320px and 200% zoom; status is text plus shape, never colour alone. */
+.au-section {
+  min-width: 0;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  margin-block: var(--space-3);
+}
+.au-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+.au-list-item {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1) var(--space-2);
+  align-items: baseline;
+  padding-block: var(--space-2);
+  border-bottom: 1px solid var(--color-border-subtle);
+}
+.au-chip {
+  display: inline-block;
+  padding: 0 var(--space-2);
+  border: 1px solid var(--color-border-strong, currentColor);
+  border-radius: var(--radius);
+  font-size: 0.875em;
+}
+.au-chip-active::before,
+.au-chip-succeeded::before {
+  content: '✓ ';
+}
+.au-chip-failed::before,
+.au-chip-policy_rejected::before,
+.au-chip-suspended::before {
+  content: '! ';
+}
+.au-chip-waiting::before,
+.au-chip-running::before,
+.au-chip-queued::before {
+  content: '… ';
+}
+.au-chip-partial::before {
+  content: '◐ ';
+}
+.au-group {
+  min-width: 0;
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius);
+  padding: var(--space-2) var(--space-3);
+  margin-block: var(--space-2);
+}
+.au-group legend {
+  font-weight: 600;
+  padding-inline: var(--space-1);
+}
+.au-steps,
+.au-conditions {
+  padding-inline-start: var(--space-3);
+}
+.au-step {
+  min-width: 0;
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius);
+  padding: var(--space-2) var(--space-3);
+  margin-block: var(--space-2);
+}
+.au-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  align-items: flex-end;
+}
+.au-row .au-field {
+  flex: 1 1 10rem;
+  min-width: 0;
+}
+.au-field select,
+.au-field input {
+  max-width: 100%;
+  min-height: 2.75rem;
+}
+.au-facts {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(11rem, 100%), 1fr));
+  gap: var(--space-2);
+}
+.au-facts dt {
+  font-weight: 600;
+}
+.au-facts dd {
+  margin: 0;
+}
+.au-actions .button,
+.au-section .button {
+  min-height: 2.75rem;
+}
+.au-issues {
+  padding-inline-start: var(--space-3);
+}
+.au-preview ol {
+  padding-inline-start: var(--space-3);
+}
+.au-table-wrap {
+  max-width: 100%;
+  overflow-x: auto;
+}
+.au-table-wrap:focus-visible {
+  outline: 2px solid var(--color-focus, Highlight);
+  outline-offset: 2px;
+}
+.au-table {
+  border-collapse: collapse;
+  width: 100%;
+}
+.au-table th,
+.au-table td {
+  text-align: start;
+  vertical-align: top;
+  padding: var(--space-1) var(--space-2);
+  border-bottom: 1px solid var(--color-border-subtle);
+}
+@media (max-width: 599px) {
+  .au-table thead {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+  }
+  .au-table tr {
+    display: block;
+    border-bottom: 1px solid var(--color-border-subtle);
+    padding-block: var(--space-2);
+  }
+  .au-table td {
+    display: block;
+    border: 0;
+  }
+  .au-table td::before {
+    content: attr(data-label) ': ';
+    font-weight: 600;
+  }
+}
+@media (forced-colors: active) {
+  .au-chip,
+  .au-group,
+  .au-step {
+    border: 1px solid CanvasText;
+  }
+  .au-list-item,
+  .au-table th,
+  .au-table td {
+    border-bottom: 1px solid CanvasText;
+  }
+}

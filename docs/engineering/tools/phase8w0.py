@@ -158,8 +158,13 @@ def check_migration():
         if term not in down:
             errs.append("0061 down lacks %s" % term)
     names = sorted(n for n in os.listdir(P("packages/db/migrations")) if n.endswith(".up.sql"))
-    if names[-1] != "0061_effect_recovery_safety.up.sql":
-        errs.append("0061_effect_recovery_safety must be the last migration")
+    # Later migrations are held by later validators (8A adds 0062, held by phase8a.py).
+    later_owned = {"0062_automation_engine.up.sql": "phase8a.py",
+                   "0063_automation_checkpoint_refs.up.sql": "phase8a.py"}
+    after = names[names.index("0061_effect_recovery_safety.up.sql") + 1:] if "0061_effect_recovery_safety.up.sql" in names else ["?"]
+    for n in after:
+        if n not in later_owned or not os.path.isfile(P("docs/engineering/tools/%s" % later_owned[n])):
+            errs.append("0061_effect_recovery_safety must be the last migration (%s is not held)" % n)
     errs += phase1.check_migrations()[0]
     errs += phase1.check_boundaries([60, 61])
     mt = read(P("packages/db/test/integration/migrations.test.ts"))
@@ -226,8 +231,12 @@ def check_identifiers(closure):
     tests = read(P("packages/work/test/integration/effect-recovery.test.ts"))
     if ".catch(() => null)" in tests:
         errs.append("the regression must not skip token setup through a fallback")
-    if not re.search(r"^Status: \*\*proposed\*\*", adr, re.M):
-        errs.append("ADR-0045 stays proposed until the architect reviews it")
+    # The architect accepted P8-W0 (recorded by the 8A brief, never self-accepted): engineering scope
+    # only, keeping the no-exactly-once, production, and manual boundaries.
+    status = next((l for l in adr.split("\n") if l.startswith("Status: ")), "")
+    if not (status.startswith("Status: **accepted** (engineering scope") and "0c25983" in status
+            and "39234366133" in status and "not production" in status and "exactly-once" in status):
+        errs.append("ADR-0045 must record the architect's acceptance at 0c25983, run 39234366133, without production approval")
     for d in DECISIONS:
         if "\n| %s |" % d not in adr:
             errs.append("ADR-0045 lacks decision %s" % d)
@@ -237,8 +246,14 @@ def check_identifiers(closure):
 def check_closure(closure):
     errs = []
     cache = {}
-    if closure.get("phase") != "8-W0" or closure.get("adr") != "0045" or closure.get("status") != "candidate":
-        errs.append("closure-p8w0.json must be the 8-W0 candidate under ADR-0045")
+    if closure.get("phase") != "8-W0" or closure.get("adr") != "0045" or closure.get("status") != "accepted":
+        errs.append("closure-p8w0.json must be the accepted 8-W0 closure under ADR-0045")
+    acc8 = closure.get("accepted", {})
+    if (acc8.get("head") != "0c259833f0037e341f89c2221c6dee537ffd042b" or acc8.get("ci_run") != "39234366133"
+            or acc8.get("attempt") != 1 or acc8.get("totals") != {"unit_component": 952, "integration": 1075,
+                                                                  "process_smoke": 6, "browser": 282}
+            or "exactly-once" not in acc8.get("boundaries", "")):
+        errs.append("the closure must record the architect's acceptance (0c25983, run 39234366133, attempt 1, totals, boundaries)")
     got = [d["id"] for d in closure.get("decisions", [])]
     if got != DECISIONS:
         errs.append("the closure must record decisions E1-E10 in order")

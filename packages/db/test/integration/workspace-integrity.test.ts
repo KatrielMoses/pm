@@ -337,6 +337,14 @@ describe('database-enforced workspace existence (1A review 01, correction 2)', (
       'metering.usage_balance',
       'metering.usage_reservation',
       'metering.usage_event',
+      // Phase 8A automations and their runs, approvals, schedules, and usage.
+      'automation.automation',
+      'automation.automation_revision',
+      'automation.automation_run',
+      'automation.automation_step_run',
+      'automation.standing_approval',
+      'automation.trigger_schedule',
+      'automation.usage_period',
     ];
     expect(res.rows.map((r) => r.tbl).sort()).toEqual(
       [...TENANT_TABLES.map((t) => `exec.${t}`), ...phase1f, ...phase1c].sort(),

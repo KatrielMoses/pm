@@ -317,6 +317,18 @@
 - **Not built.** Live speech providers; agents planning on a person's behalf (8A); multi-day planning.
 - **Affected.** Capture dialog, Today, Plan my day, Change proposals.
 
+<a id="uxd-32"></a>
+#### UXD-32 — Automations
+
+- **Default.** Automations is a workspace navigation entry and a palette command (`go.automations`). The list shows each automation's state (Active, Off, Suspended, Archived), brand, last run, and failures in a row; a new automation starts as an inactive draft, blank or from a small starter template. The builder edits only the draft (When, Conditions with AND/OR groups, and ordered steps: Do something, Branch on a condition, Wait, each with "Afterwards", and "If it fails" naming the typed failures a fallback handles). Turning on, Turn off, Duplicate, and Archive are explicit; the version in use is named until a new draft is turned on.
+- **Unavailable is shown, never usable.** Future triggers and agent workflows appear where they would be chosen, disabled, with the phase that brings them. A draft that uses one cannot be turned on, and says so.
+- **Disclosure before activation.** A draft that sends a webhook opens "Approve what this automation sends": the fields, the destination, the scope of the approval, and that an unknown outcome is never sent again automatically and needs an owner or administrator to confirm what happened. Approval is a checkbox plus step-up.
+- **Preview and history.** Preview with a pasted task or project shows what would run, wait, or be refused, and changes nothing. Each run page explains its state in words (waiting for a delay, needs a send confirmed, refused, partial after a fallback), lists the steps with outcomes and durations, and offers Retry from the failed step (one idempotency key across a dropped connection) or Cancel run. Usage shows measured runs against technical limits and labels the plan limit "Not available yet".
+- **States.** Unsaved edits are kept on the device and restored after a reload; offline saves keep the edit and say so; a newer saved version offers "Reload and keep my edits" or "Discard my edits"; losing access shows the not-available page.
+- **Layout.** Labelled controls, keyboard order matching the form, 320 px and 200% zoom without sideways scrolling, state text that survives forced colours, and no animation.
+- **Not built.** A template catalog or marketplace (10B), agent workflows (8C), and plan entitlements (10A).
+- **Affected.** Automations list, builder, and run pages; notification bell.
+
 ## 4. UX risk register
 
 | ID | Risk | Likelihood / impact | Mitigation in this set | Early-warning evidence | Owner phase |

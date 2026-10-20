@@ -236,27 +236,19 @@ export async function compilePrincipal(
   };
 }
 
-/** Bumps a permission epoch (0C §13.5): cached decisions and queued work re-evaluate. */
+/**
+ * Bumps a permission epoch (0C §13.5): cached decisions and queued work re-evaluate. Runs through
+ * the increment-only definer function (0062) so the API and the worker (8A automation steps) bump
+ * the same way without the worker holding table writes on access.
+ */
 export async function bumpEpoch(
   tx: WorkspaceTransaction,
   kind: 'workspace' | 'principal',
   subjectId: string | null,
 ): Promise<void> {
-  await tx.db
-    .insertInto('access.permission_epoch')
-    .values({
-      workspace_id: tx.workspaceId,
-      epoch_kind: kind,
-      subject_id: kind === 'workspace' ? null : subjectId,
-      epoch: 1,
-    })
-    .onConflict((oc) =>
-      oc.columns(['workspace_id', 'epoch_kind', 'subject_id']).doUpdateSet({
-        epoch: sql`access.permission_epoch.epoch + 1`,
-        bumped_at: sql`now()`,
-      }),
-    )
-    .execute();
+  await sql`SELECT access.bump_permission_epoch(${kind}, ${kind === 'workspace' ? null : subjectId}::uuid)`.execute(
+    tx.db,
+  );
 }
 
 /**

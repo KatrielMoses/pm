@@ -524,10 +524,25 @@ describe('project contracts, concurrency, plans, and isolation (2A)', () => {
         [aSeries],
       ),
     ).resolves.toMatchObject({ rowCount: 0 });
-    // The worker never edits project content or authority directly.
-    await expect(direct(db.worker, W.a.id, `UPDATE work.project SET name = 'x'`)).rejects.toThrow(
-      /permission denied/,
-    );
+    // The worker never edits project authority, ownership, placement, or budgets directly; 8A
+    // automation steps may write only the canonical update columns, inside one workspace.
+    for (const column of [
+      'owner_membership_id',
+      'access_mode',
+      'parent_project_id',
+      'budget_amount',
+      'description_rich',
+    ])
+      await expect(
+        direct(db.worker, W.a.id, `UPDATE work.project SET ${column} = ${column}`),
+        column,
+      ).rejects.toThrow(/permission denied/);
+    const aProject = (
+      await db.admin(`SELECT id FROM work.project WHERE workspace_id = $1 LIMIT 1`, [W.a.id])
+    ).rows[0].id;
+    await expect(
+      direct(db.worker, W.b.id, `UPDATE work.project SET name = 'x' WHERE id = $1`, [aProject]),
+    ).resolves.toMatchObject({ rowCount: 0 });
     await expect(direct(db.worker, W.a.id, `DELETE FROM access.role_assignment`)).rejects.toThrow(
       /permission denied/,
     );

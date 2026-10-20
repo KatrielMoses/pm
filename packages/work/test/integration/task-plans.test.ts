@@ -182,23 +182,37 @@ describe('task isolation and query plans (2B)', () => {
     ).rejects.toThrow(/move the task rows/);
   });
 
-  it('direct app_worker reads tasks only within one workspace and never edits them', async () => {
+  it('direct app_worker reads tasks only within one workspace and writes only the 8A canonical columns', async () => {
     const aTask = (
       await db.admin(`SELECT id FROM work.task WHERE workspace_id = $1 LIMIT 1`, [W.a.id])
     ).rows[0].id;
     expect(
       (await direct(db.worker, W.b.id, `SELECT id FROM work.task WHERE id = $1`, [aTask])).rows,
     ).toEqual([]);
-    await expect(direct(db.worker, W.a.id, `UPDATE work.task SET title = 'x'`)).rejects.toThrow(
+    // 8A (ADR-0046 D8): automation steps run the canonical commands in the worker. The worker may
+    // write only the columns those commands write, and only inside the transaction's workspace.
+    await expect(
+      direct(db.worker, W.b.id, `UPDATE work.task SET title = 'x' WHERE id = $1`, [aTask]),
+    ).resolves.toMatchObject({ rowCount: 0 });
+    for (const column of [
+      'description_rich',
+      'brand_id',
+      'estimate_minutes',
+      'deadline_date',
+      'origin_kind',
+    ])
+      await expect(
+        direct(db.worker, W.a.id, `UPDATE work.task SET ${column} = ${column} WHERE id = $1`, [
+          aTask,
+        ]),
+        column,
+      ).rejects.toThrow(/permission denied/);
+    await expect(
+      direct(db.worker, W.a.id, `UPDATE work.task_assignee SET membership_id = membership_id`),
+    ).rejects.toThrow(/permission denied/);
+    await expect(direct(db.worker, W.a.id, `DELETE FROM access.record_grant`)).rejects.toThrow(
       /permission denied/,
     );
-    await expect(
-      direct(
-        db.worker,
-        W.a.id,
-        `INSERT INTO work.task_assignee SELECT * FROM work.task_assignee LIMIT 0`,
-      ),
-    ).rejects.toThrow(/permission denied/);
   });
 
   for (const volume of [5_000, 50_000] as const)

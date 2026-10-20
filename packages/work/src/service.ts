@@ -837,7 +837,7 @@ export class ProjectService extends NavigationService {
       brandId: string;
       parent: LoadedProject | null;
       fields: Record<string, unknown>;
-      sourceKind?: 'ui' | 'template' | 'form' | 'ai_proposal';
+      sourceKind?: 'ui' | 'template' | 'form' | 'ai_proposal' | 'automation';
       intakeSourceId?: string | null;
       recurrence?: { seriesId: string; occurrenceKey: string } | null;
     },
@@ -981,7 +981,7 @@ export class ProjectService extends NavigationService {
     caller: Caller,
     p: Principal,
     input: ReturnType<typeof parseProjectCreate>,
-    sourceKind?: 'ui' | 'form' | 'ai_proposal',
+    sourceKind?: 'ui' | 'form' | 'ai_proposal' | 'automation',
   ): Promise<{ id: string; publicId: string }> {
     let parent: LoadedProject | null = null;
     let brandId: string;
@@ -1700,6 +1700,37 @@ export class ProjectService extends NavigationService {
         return { id: r.public_id, type: 'project' as const, lifecycle_state: r.lifecycle_state };
       },
     );
+  }
+
+  /**
+   * Archives one active project inside the caller's transaction through the canonical lifecycle
+   * command (the archive verb's decision, batch, audit, and epoch bump). Used by 8A steps.
+   */
+  protected async archiveProjectIn(
+    tx: WorkspaceTransaction,
+    caller: Caller,
+    p: Principal,
+    projectPublicId: unknown,
+  ): Promise<LoadedProject> {
+    const project = await this.loadProject(tx, p, projectPublicId, { lock: true });
+    if (project.lifecycleState !== 'active')
+      throw new TenancyError('conflict', {
+        issues: [issue('/', 'invalid_state', "This project can't do that in its current state.")],
+      });
+    const d = this.issueLifecycle(tx, p, 'record.archive', {
+      id: project.id,
+      brand: project.brand,
+      lifecycleState: project.lifecycleState,
+      chain: project.chain,
+    });
+    await this.d.lifecycle.archive(
+      tx,
+      d,
+      { exec: this.exec(caller, p), source: this.cmd(caller, p, project.brand.id).source },
+      project.id,
+    );
+    await bumpEpoch(tx, 'workspace', null);
+    return project;
   }
 
   /** Trashed projects are readable for restore/purge only by people with live edit access. */

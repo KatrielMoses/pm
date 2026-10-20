@@ -16,7 +16,8 @@ import {
 import { registerWorkLifecycle } from './lifecycle.ts';
 import { projectTargets, savedViewTargets, taskTargets } from './navigation.ts';
 import { projectOwnerHook, taskAssigneeHook } from './ownership.ts';
-import { AiGatewayService } from './ai/ai-gateway-service.ts';
+import { AutomationService } from './automation/service.ts';
+import { automationOwnerHook } from './automation/ownership.ts';
 import { aiHistoryOwnerHook } from './ai/lifecycle.ts';
 import { MessagesProvider, type AiProvider } from './ai/provider.ts';
 import { HttpTranscriptionProvider } from './ai/transcription.ts';
@@ -62,7 +63,7 @@ export function createWorkService(deps: {
   calendarProvider?: CalendarProvider | null;
   /** Overrides the configured AI transport (tests inject a fetch-wrapped adapter). */
   aiProvider?: AiProvider | null;
-}): AiGatewayService {
+}): AutomationService {
   const { config } = deps;
   if (!config.identity.signingKey && !deps.ephemeralSigningKey)
     throw new Error('AUTH_SIGNING_KEY is required');
@@ -129,7 +130,7 @@ export function createWorkService(deps: {
           timeoutMs: ai.transcription.timeoutMs,
         })
       : null;
-  return new AiGatewayService({
+  return new AutomationService({
     ...(ai
       ? {
           ai: {
@@ -171,6 +172,7 @@ export function createWorkService(deps: {
       .register(insightsOwnerHook)
       .register(connectionOwnerHook)
       .register(webhookOwnerHook)
+      .register(automationOwnerHook)
       .register(reviewDepartureHook(writer))
       .register(departureTimerHook(writer))
       .register(aiHistoryOwnerHook),

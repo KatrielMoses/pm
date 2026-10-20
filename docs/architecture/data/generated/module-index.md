@@ -174,6 +174,7 @@ flowchart BT
   automation --> metering
   automation --> execution
   automation --> audit
+  automation --> integrations
   agents --> core
   agents --> tenancy
   agents --> access
@@ -226,7 +227,7 @@ flowchart BT
 | **Development links and releases** (`delivery`) | 4 | `delivery` | Development links, external code facts, environments, deployments, releases, scope, checklist, blocker waivers, immutable release decisions. | core, tenancy, work, integrations, execution, audit | `release.decided`, `deployment.recorded` | DEV, TEST | 9 |
 | **Templates and onboarding** (`templates`) | 4 | `templates` | Templates and immutable template versions, installations and provenance, sample data, onboarding progress. | core, tenancy, execution, audit, work | `template.installed` | ONB | 4 |
 | **AI actions and briefings** (`ai`) | 5 | `ai` | Provider configurations, brand AI profiles, AI actions, context references, outputs, change proposals, briefings and statements, corrections. | core, tenancy, metering, execution, audit | `ai_action.*`, `proposal.applied`, `briefing.generated` | AI, BRF | 17 |
-| **Automations** (`automation`) | 5 | `automation` | Automation definitions with immutable versions, runs and step runs. | core, tenancy, metering, execution, audit | `automation_run.*` | AUTO | 4 |
+| **Automations** (`automation`) | 5 | `automation` | Automation definitions with immutable revisions, runs and step runs, standing outbound approvals, date and schedule trigger state, and usage counters. | core, tenancy, metering, execution, audit, integrations | `automation_run.*` | AUTO | 7 |
 | **Agents and execution control** (`agents`) | 5 | `agents` | Agent profiles, scope and tool grants, connectors, assignments, runs, tool calls, artifacts, action approvals, emergency stop. | core, tenancy, access, work, collab, files, metering, integrations, execution, audit | `agent_run.*`, `action_approval.*` | AGT | 10 |
 | **Support and feedback** (`support`) | 4 | `support` | Support requests, consented diagnostics bundles, feedback, platform content (help, changelog, roadmap, status). | identity, tenancy, files, execution, audit | `support.request_created` | SUP | 4 |
 | **Metrics ledger** (`metrics`) | 4 | `metrics` | Append-only task status history and the reconciliation state that proves and repairs it; the figures themselves are computed from records at request time (ADR-38). | core, tenancy, work, execution |  | RPT | 2 |

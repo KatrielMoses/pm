@@ -1,4 +1,5 @@
 import { sql, type WorkspaceTransaction } from '@pm/db';
+import { automationAdapter } from './automation/lifecycle.ts';
 import type { LifecycleRegistry, RecordRef, RecordTypeAdapter } from '@pm/lifecycle';
 import { withPersonalReferenceCleanup } from '@pm/tenancy';
 import { eraseAiContentRows } from './ai/lifecycle.ts';
@@ -541,6 +542,7 @@ export function registerWorkLifecycle(registry: LifecycleRegistry): LifecycleReg
     webhookSubscriptionAdapter,
     fileAdapter,
     deliverableAdapter,
+    automationAdapter,
   ])
     registry.register(withPersonalReferenceCleanup(a));
   return registry;

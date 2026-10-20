@@ -4,7 +4,12 @@ import type { SecretVault } from '@pm/config';
 import { API_VERSION, newPublicId, newUuidV7 } from '@pm/contracts';
 import { sql, type TenantDatabase, type WorkspaceTransaction } from '@pm/db';
 import type { AuthContext } from '@pm/identity';
-import { writeOutboxEvent, type InternalEvent } from '@pm/platform';
+import {
+  EffectNotSentError,
+  EffectOutcomeUnknownError,
+  writeOutboxEvent,
+  type InternalEvent,
+} from '@pm/platform';
 import {
   brandFacts,
   brandLevel,
@@ -1683,6 +1688,121 @@ export class PublicApiService extends IntegrationService {
       },
     });
     this.d.metrics.count('webhook.endpoints_disabled', 1, {});
+  }
+
+  /**
+   * 8A (AUTO-008): a configured subscription as an automation step's destination. References and a
+   * fingerprint only: the URL, its scope, and the API version (a change to any of them invalidates
+   * a standing approval; rotating the signing secret does not).
+   */
+  protected async automationWebhookDestination(tx: WorkspaceTransaction, publicId: string) {
+    const row = await tx.db
+      .selectFrom('integrations.webhook_subscription as s')
+      .innerJoin('core.record as r', 'r.id', 's.id')
+      .select([
+        's.id',
+        'r.public_id',
+        's.brand_id',
+        's.state',
+        's.lifecycle_state',
+        's.destination_url',
+        's.api_version',
+        's.accountable_owner_membership_id',
+      ])
+      .where('r.public_id', '=', publicId)
+      .executeTakeFirst();
+    if (!row) return null;
+    return {
+      id: row.id,
+      publicId: row.public_id,
+      brandId: row.brand_id,
+      state: row.state,
+      lifecycleState: row.lifecycle_state,
+      ownerMembershipId: row.accountable_owner_membership_id,
+      fingerprint: createHash('sha256')
+        .update(`${row.destination_url}\n${row.brand_id ?? '-'}\n${row.api_version}`)
+        .digest('hex'),
+    };
+  }
+
+  /**
+   * 8A: sends one signed automation payload to one configured subscription through the same URL
+   * guard, signing secrets, and transport as event deliveries, and reports a typed outcome for the
+   * effect ledger. A 2xx acknowledges delivery (sent). Only a refusal before any request left
+   * (destination no longer matching or active, no signing secret, a URL the guard refuses) is
+   * proof of non-application. Once a request has been dispatched, any other answer (any 3xx,
+   * 4xx including 408, 425, and 429, any 5xx, a reset, a timeout) is unknown: a configured
+   * webhook makes no promise that it did not act before answering, and a stable event id is not
+   * receiver deduplication (review 01 R1). Never retried here; reconciliation decides.
+   */
+  protected async sendAutomationWebhook(input: {
+    workspaceId: string;
+    subscriptionId: string;
+    fingerprint: string;
+    effectKey: string;
+    envelope: Record<string, unknown>;
+  }): Promise<{ status: number }> {
+    const prepared = await this.d.tenant.withWorkspace(
+      input.workspaceId,
+      { module: 'integrations' },
+      async (tx) => {
+        const dest = await tx.db
+          .selectFrom('integrations.webhook_subscription as s')
+          .innerJoin('core.record as r', 'r.id', 's.id')
+          .select(['r.public_id', 's.state', 's.lifecycle_state'])
+          .where('s.id', '=', input.subscriptionId)
+          .executeTakeFirst();
+        const now = dest ? await this.automationWebhookDestination(tx, dest.public_id) : null;
+        if (
+          !dest ||
+          !now ||
+          now.fingerprint !== input.fingerprint ||
+          dest.state !== 'active' ||
+          dest.lifecycle_state !== 'active'
+        )
+          return null;
+        const sub = (await this.#lockSubscription(tx, input.subscriptionId, 'share'))!;
+        return {
+          url: sub.destination_url,
+          secrets: await this.#secrets(
+            tx,
+            sub.signing_secret_ref,
+            sub.previous_secret_ref,
+            sub.previous_secret_until,
+          ),
+        };
+      },
+    );
+    if (!prepared || !prepared.secrets.length) throw new EffectNotSentError('precondition_failed');
+    const id = publicEventId(`automation:${input.effectKey}`);
+    const body = JSON.stringify({ ...input.envelope, id });
+    const timestamp = String(Math.floor(Date.now() / 1000));
+    try {
+      await assertPublicHttps(prepared.url, this.ws.webhookAllowLoopback);
+    } catch (err) {
+      throw new EffectNotSentError('refused_before_send', { cause: err });
+    }
+    const result = await this.#deliver({
+      url: prepared.url,
+      body,
+      timeoutMs: this.ws.webhookResponseTimeoutMs,
+      headers: {
+        'content-type': 'application/json',
+        'user-agent': 'pm-webhooks/1',
+        'webhook-id': id,
+        'webhook-timestamp': timestamp,
+        'webhook-signature': signatureHeader(
+          prepared.secrets.map((x) => signPayload(x, id, timestamp, body)),
+        ),
+      },
+    });
+    this.d.metrics.count('webhook.deliveries', 1, {
+      outcome: result.kind === 'status' && result.status < 300 ? 'delivered' : 'automation',
+      status_class: result.kind === 'status' ? `${Math.floor(result.status / 100)}xx` : result.kind,
+    });
+    if (result.kind === 'status' && result.status >= 200 && result.status < 300)
+      return { status: result.status };
+    throw new EffectOutcomeUnknownError();
   }
 
   async #secrets(

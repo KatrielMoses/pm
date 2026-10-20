@@ -359,6 +359,22 @@ worker process is a startup error. All identities of one process must target the
 | `VOICE_QUEUE_MAX` | optional | optional | default 3 (1–20); recordings one person may have uploading or transcribing at once (7F) |
 | `VOICE_UPLOAD_TTL_SECONDS` | optional | optional | default 900 (60–3600); how long an upload URL lives; an upload not transcribed in time expires and its audio is swept (7F) |
 | `VOICE_TRANSCRIPT_MAX_CHARS` | optional | optional | default 4000 (200–20000); the longest transcript kept; longer provider text is cut (7F) |
+| `AUTOMATIONS_PER_WORKSPACE_MAX` | optional | optional | default 200 (1–2000); automations (not purged) per workspace (0D `AUTOMATIONS_PER_WORKSPACE_MAX`, 8A) |
+| `AUTOMATION_DEFINITION_BYTES_MAX` | optional | optional | default 32768 (1024–65536); canonical bytes of one definition (0D `AUTOMATION_DEFINITION_BYTES_MAX`, 8A) |
+| `AUTOMATION_NODES_MAX` | optional | optional | default 25 (1–100); steps in one definition (0D `AUTOMATION_NODES_MAX`, 8A) |
+| `AUTOMATION_CONDITION_DEPTH_MAX` | optional | optional | default 4 (1–8); nesting of AND/OR groups (0D `AUTOMATION_CONDITION_DEPTH_MAX`, 8A) |
+| `AUTOMATION_CONDITIONS_MAX` | optional | optional | default 20 (1–50); comparisons in one definition (0D `AUTOMATION_CONDITIONS_MAX`, 8A) |
+| `AUTOMATION_TARGET_FANOUT_MAX` | optional | optional | default 25 (1–200); records one action step may select (0D `AUTOMATION_TARGET_FANOUT_MAX`, 8A) |
+| `AUTOMATION_CHAIN_DEPTH_MAX` | optional | optional | default 3 (1–10); automations in one causal chain (0D `AUTOMATION_CHAIN_DEPTH_MAX`, 8A) |
+| `AUTOMATION_RUN_STEPS_MAX` | optional | optional | default 50 (1–200); steps executed by one run (0D `AUTOMATION_RUN_STEPS_MAX`, 8A) |
+| `AUTOMATION_ACTIVE_RUNS_MAX` | optional | optional | default 20 (1–200); open runs of one automation; a slot is reserved atomically and released once (0D `AUTOMATION_ACTIVE_RUNS_MAX`, 8A) |
+| `AUTOMATION_DELAY_HORIZON_MINUTES` | optional | optional | default 43200 (1–129600); longest single delay; a run waits with its wake time stored and holds no worker (0D `AUTOMATION_DELAY_HORIZON_MINUTES`, 8A) |
+| `AUTOMATION_RETRIES_MAX` | optional | optional | default 3 (0–10); manual retries of one run; a retry resumes the failed step only (0D `AUTOMATION_RETRIES_MAX`, 8A) |
+| `AUTOMATION_RUNS_PER_MONTH` | optional | optional | default 10000 (1–1000000); runs admitted per workspace per month; reserved atomically at admission and counted once at the end. A technical limit, not a plan entitlement (10A) (0D `AUTOMATION_RUNS_PER_MONTH`, 8A) |
+| `AUTOMATION_TRIGGER_FANOUT_MAX` | optional | optional | default 50 (1–200); automations one event may start (0D `AUTOMATION_TRIGGER_FANOUT_MAX`, 8A) |
+| `AUTOMATION_SWEEP_BATCH_MAX` | optional | optional | default 100 (1–1000); workspaces visited, and due date and schedule triggers taken per workspace, in one sweep (0D `AUTOMATION_SWEEP_BATCH_MAX`, 8A) |
+| `AUTOMATION_ALERT_FAILURE_THRESHOLD` | optional | optional | default 3 (1–20); consecutive failed runs before the owner is alerted; alerts go through 4B notifications (0D `AUTOMATION_ALERT_FAILURE_THRESHOLD`, 8A) |
+| `AUTOMATION_ALERT_INTERVAL_MINUTES` | optional | optional | default 1440 (60–10080); least time between two failure alerts for one automation (0D `AUTOMATION_ALERT_INTERVAL_MINUTES`, 8A) |
 | `USAGE_WARNING_THRESHOLDS` | optional | optional | default `8000,10000`; ascending basis points of the hard AI spend limit at which owners and administrators are notified (0D `USAGE_WARNING_THRESHOLDS`, owner 7A) |
 | `AI_HISTORY_RETENTION_DAYS` | optional | — | unset by default: AI content is kept until the run's initiator departs or the workspace is deleted (OD-36 undecided). When set, the hourly sweep erases older prompts, outputs, and context references; usage and audit facts remain |
 
