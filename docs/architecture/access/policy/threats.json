@@ -1511,6 +1511,34 @@
         "I-01",
         "I-09"
       ]
+    },
+    {
+      "id": "T-149",
+      "category": "agent_scope",
+      "description": "An automation treats a webhook's non-success answer (4xx, 408, 429, a redirect) as proof the receiver did not act, records it not sent, and dispatches again: a duplicate external effect from status-only evidence.",
+      "mitigated_by": [
+        "I-14",
+        "I-15"
+      ]
+    },
+    {
+      "id": "T-150",
+      "category": "staleness",
+      "description": "A prepared webhook payload outlives the decision that allowed it: a checkpoint, a restarted worker, or a resumption after reconciliation sends it after the owner, target, approval, or destination changed, or keeps its content in execution metadata.",
+      "mitigated_by": [
+        "I-12",
+        "I-14",
+        "I-16"
+      ]
+    },
+    {
+      "id": "T-151",
+      "category": "revocation",
+      "description": "A completed automation command key is replayed after the caller lost the brand, the record was purged, or by a delegated token, and the stored response is rendered without current authority: an existence and state oracle.",
+      "mitigated_by": [
+        "I-12",
+        "I-07"
+      ]
     }
   ],
   "tests": [
@@ -11641,6 +11669,98 @@
       "silent_surfaces": [
         "activity",
         "audit_display"
+      ]
+    },
+    {
+      "id": "AT-589",
+      "threats": [
+        "T-149"
+      ],
+      "principal": "system_job",
+      "setup": "A controlled receiver applies each request, then answers 400, 408, or 429; and a destination turned off after the claim, before any request",
+      "scope": "workspace",
+      "action": "operation.reconcile_effect",
+      "surface": "webhook_payload",
+      "expected": "deny",
+      "response_shape": "approval_required",
+      "silent_surfaces": []
+    },
+    {
+      "id": "AT-590",
+      "threats": [
+        "T-150"
+      ],
+      "principal": "automation",
+      "setup": "After preparation commits and the claim is taken, the owner loses the brand, the target is trashed, the approval is revoked, or the destination changes; and an unchanged case",
+      "scope": "brand",
+      "action": "record.read",
+      "surface": "webhook_payload",
+      "expected": "deny",
+      "response_shape": "suspended",
+      "silent_surfaces": []
+    },
+    {
+      "id": "AT-591",
+      "threats": [
+        "T-150"
+      ],
+      "principal": "automation",
+      "setup": "A worker dies after the claim; the target is trashed; a person chooses to send again and a new worker reuses the stored checkpoint",
+      "scope": "brand",
+      "action": "record.read",
+      "surface": "webhook_payload",
+      "expected": "deny",
+      "response_shape": "suspended",
+      "silent_surfaces": []
+    },
+    {
+      "id": "AT-592",
+      "threats": [
+        "T-150"
+      ],
+      "principal": "system_job",
+      "setup": "A sent webhook with a unique content sentinel, then the automation's purge",
+      "scope": "workspace",
+      "action": "record.read",
+      "surface": "audit_display",
+      "expected": "deny",
+      "response_shape": "omitted",
+      "silent_surfaces": [
+        "audit_display",
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-593",
+      "threats": [
+        "T-151"
+      ],
+      "principal": "member",
+      "setup": "A brand manager's completed archive key replayed before and after losing the brand; a purged automation's trash key; another workspace",
+      "scope": "brand",
+      "action": "automations.configure",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "not_found",
+      "silent_surfaces": [
+        "error_message",
+        "audit_display"
+      ]
+    },
+    {
+      "id": "AT-594",
+      "threats": [
+        "T-151"
+      ],
+      "principal": "api_token_personal",
+      "setup": "The same lifecycle replay over HTTP; a personal token replaying the owner's completed activation and attempting reassignment",
+      "scope": "brand",
+      "action": "automations.configure",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "forbidden",
+      "silent_surfaces": [
+        "error_message"
       ]
     }
   ]

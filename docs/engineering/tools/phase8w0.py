@@ -159,7 +159,8 @@ def check_migration():
             errs.append("0061 down lacks %s" % term)
     names = sorted(n for n in os.listdir(P("packages/db/migrations")) if n.endswith(".up.sql"))
     # Later migrations are held by later validators (8A adds 0062, held by phase8a.py).
-    later_owned = {"0062_automation_engine.up.sql": "phase8a.py"}
+    later_owned = {"0062_automation_engine.up.sql": "phase8a.py",
+                   "0063_automation_checkpoint_refs.up.sql": "phase8a.py"}
     after = names[names.index("0061_effect_recovery_safety.up.sql") + 1:] if "0061_effect_recovery_safety.up.sql" in names else ["?"]
     for n in after:
         if n not in later_owned or not os.path.isfile(P("docs/engineering/tools/%s" % later_owned[n])):

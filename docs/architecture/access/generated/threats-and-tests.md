@@ -156,6 +156,9 @@ Narrative: [../14-threat-model.md](../14-threat-model.md).
 | T-146 | agent_scope | An automation discloses or acts externally without a human's exact standing approval, resends after an ambiguous outcome, hides unknown liability behind a fallback, or approves or applies generated changes itself. | I-15, I-16, I-14 | AT-567, AT-568, AT-569, AT-571, AT-583, AT-585 |
 | T-147 | cross_workspace | Automation triggers, runs, identifiers, or worker writes cross a workspace boundary, or the worker writes columns the canonical commands never write. | I-03, I-02 | AT-557 |
 | T-148 | staleness | A run executes something other than what was activated: a draft edit changes the active revision, a redelivered event runs under a newer revision or twice, unsupported configuration is silently ignored, or limits are reserved or released twice. | I-01, I-09 | AT-552, AT-553, AT-563, AT-564, AT-565, AT-566, AT-570, AT-576, AT-582, AT-586 |
+| T-149 | agent_scope | An automation treats a webhook's non-success answer (4xx, 408, 429, a redirect) as proof the receiver did not act, records it not sent, and dispatches again: a duplicate external effect from status-only evidence. | I-14, I-15 | AT-589 |
+| T-150 | staleness | A prepared webhook payload outlives the decision that allowed it: a checkpoint, a restarted worker, or a resumption after reconciliation sends it after the owner, target, approval, or destination changed, or keeps its content in execution metadata. | I-12, I-14, I-16 | AT-590, AT-591, AT-592 |
+| T-151 | revocation | A completed automation command key is replayed after the caller lost the brand, the record was purged, or by a delegated token, and the stored response is rendered without current authority: an existence and state oracle. | I-12, I-07 | AT-593, AT-594 |
 
 ## Test matrix
 
@@ -749,6 +752,12 @@ Narrative: [../14-threat-model.md](../14-threat-model.md).
 | AT-586 | T-148 | member | Every starter template with its values supplied — brand | `automations.configure` | api | **allow** | ok | — |
 | AT-587 | T-144 | automation | Nested AND/OR conditions with short-circuit decisions and relative dates — record | `record.read` | activity | **allow** | ok | — |
 | AT-588 | T-144 | automation | A custom field the automation cannot read in a condition and a branch — record | `record.read` | activity | **deny** | omitted | activity, audit_display |
+| AT-589 | T-149 | system_job | A controlled receiver applies each request, then answers 400, 408, or 429; and a destination turned off after the claim, before any request — workspace | `operation.reconcile_effect` | webhook_payload | **deny** | approval_required | — |
+| AT-590 | T-150 | automation | After preparation commits and the claim is taken, the owner loses the brand, the target is trashed, the approval is revoked, or the destination changes; and an unchanged case — brand | `record.read` | webhook_payload | **deny** | suspended | — |
+| AT-591 | T-150 | automation | A worker dies after the claim; the target is trashed; a person chooses to send again and a new worker reuses the stored checkpoint — brand | `record.read` | webhook_payload | **deny** | suspended | — |
+| AT-592 | T-150 | system_job | A sent webhook with a unique content sentinel, then the automation's purge — workspace | `record.read` | audit_display | **deny** | omitted | audit_display, error_message |
+| AT-593 | T-151 | member | A brand manager's completed archive key replayed before and after losing the brand; a purged automation's trash key; another workspace — brand | `automations.configure` | api | **deny** | not_found | error_message, audit_display |
+| AT-594 | T-151 | api_token_personal | The same lifecycle replay over HTTP; a personal token replaying the owner's completed activation and attempting reassignment — brand | `automations.configure` | api | **deny** | forbidden | error_message |
 
 ## Response shapes
 

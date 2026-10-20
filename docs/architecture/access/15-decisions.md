@@ -650,3 +650,7 @@ All decisions are **proposed (Phase 0C)**, pending solutions-architect acceptanc
   - A service principal per automation with its own grants (a parallel authority that outlives its owner's access).
   - Running as the person whose change triggered the rule (authority borrowed from whoever edits a record).
 - **Consequences:** Threats T-142 to T-148 with tests AT-552 to AT-588. No new action; the action count stays 123.
+- **Corrective review 01:**
+  - **Authority at the moment of disclosure (R2).** Preparing a webhook step is not authority to send it. Immediately before the request leaves, on every path including a restarted worker and a resumption after reconciliation, the run's owner authority (narrowed to the snapshot), the target, the exact standing approval, and the destination are decided again; a refusal sends nothing and a lost owner suspends the automation. Threat T-150 with tests AT-590 to AT-592.
+  - **No status-only proof (R1).** A webhook's non-success answer is never evidence that it did not act; only a refusal before any request is. Threat T-149 with test AT-589.
+  - **Replays decide now (R3).** A completed command key renders only through the caller's current authority, with the same need as its command; activation and reassignment refuse delegated callers before any idempotency work. A former configurer, a purged record, and another workspace get the canonical opaque answer. Threat T-151 with tests AT-593 and AT-594.

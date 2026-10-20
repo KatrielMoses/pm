@@ -27,7 +27,7 @@ read = phase1.read
 load = phase1.load
 
 SUBPHASE = "8A"
-DECISIONS = ["D%d" % i for i in range(1, 19)]
+DECISIONS = ["D%d" % i for i in range(1, 22)]
 ADR = "docs/engineering/adr/0046-automation-engine.md"
 CLOSURE = "docs/engineering/phase8/closure-8a.json"
 SERVICE = "packages/work/src/automation/service.ts"
@@ -36,8 +36,8 @@ MODULE = "packages/work/src/automation"
 UP = "packages/db/migrations/0062_automation_engine.up.sql"
 DOWN = "packages/db/migrations/0062_automation_engine.down.sql"
 PROBE = "docs/engineering/tools/phase8a-probe.ts"
-THREATS = ["T-%d" % i for i in range(142, 149)]
-TESTS = ["AT-%d" % i for i in range(552, 589)]
+THREATS = ["T-%d" % i for i in range(142, 152)]
+TESTS = ["AT-%d" % i for i in range(552, 595)]
 TABLES = ["automation", "automation_revision", "automation_run", "automation_step_run", "standing_approval",
           "trigger_schedule", "usage_period"]
 UNSUPPORTED = {"project.create", "project.assign", "project.move", "project.label", "project.relate"}
@@ -204,18 +204,31 @@ def check_migration():
         if term not in down:
             errs.append("0062 down lacks %s" % term)
     names = sorted(n for n in os.listdir(P("packages/db/migrations")) if n.endswith(".up.sql"))
-    if names[-1] != "0062_automation_engine.up.sql":
-        errs.append("0062_automation_engine must be the last migration")
-    errs += phase1.check_boundaries([62])
+    if names[-2:] != ["0062_automation_engine.up.sql", "0063_automation_checkpoint_refs.up.sql"]:
+        errs.append("0062_automation_engine and 0063_automation_checkpoint_refs must be the last migrations")
+    up63 = read(P("packages/db/migrations/0063_automation_checkpoint_refs.up.sql"))
+    down63 = read(P("packages/db/migrations/0063_automation_checkpoint_refs.down.sql"))
+    for term in ("-- migrate:phase expand", "ALTER TABLE exec.job NO FORCE ROW LEVEL SECURITY;",
+                 "- 'envelope' - 'subscriptionId' - 'fingerprint'", "WHERE j.kind = 'automation.run'",
+                 "ALTER TABLE exec.job FORCE ROW LEVEL SECURITY;"):
+        if term not in up63:
+            errs.append("0063 up lacks %s" % term)
+    if re.search(r"external_effect|attempt_count|DROP |GRANT |REVOKE ", up63):
+        errs.append("0063 changes checkpoint content only (never effects, attempts, or the catalog)")
+    if "Restores the exact 0062 catalog" not in down63:
+        errs.append("0063 down must restore the exact 0062 catalog")
+    errs += phase1.check_boundaries([62, 63])
     platform = read(P("packages/work/test/integration/automations-platform.test.ts"))
     for idx in ("automation_listening", "automation_run_occurrence_unique", "automation_run_by_automation",
                 "automation_run_open", "trigger_schedule_due"):
         if idx not in platform or "EXPLAIN at 2,000 automations and 5,000 runs" not in platform:
             errs.append("the volume EXPLAIN test must prove %s is used" % idx)
     mt = read(P("packages/db/test/integration/migrations.test.ts"))
-    if "62" not in re.findall(r"\b62\b", mt):
-        errs.append("the migration tests must cover the 0062 boundary")
-    return errs, "seven forced-RLS tables, immutable revisions, guarded exact rollback, boundary 62, plans at volume"
+    if "62" not in re.findall(r"\b62\b", mt) or "63" not in re.findall(r"\b63\b", mt):
+        errs.append("the migration tests must cover the 0062 and 0063 boundaries")
+    if "0063 removes payload copies from automation checkpoints" not in mt:
+        errs.append("the migration tests must prove the 0063 checkpoint cleanup")
+    return errs, "seven forced-RLS tables, immutable revisions, guarded exact rollback, boundaries 62 and 63, plans at volume"
 
 
 def check_identifiers():
@@ -235,7 +248,7 @@ def check_identifiers():
             errs.append("%s must cover an 8A threat" % at)
         if len(seen.get(at, [])) != 1:
             errs.append("%s must title exactly one test (found %d)" % (at, len(seen.get(at, []))))
-    for term in ("T-142–T-148", "AT-552–AT-588", "ADR-51, AZ-51, PL-53, UXD-32"):
+    for term in ("T-142–T-151", "AT-552–AT-594", "ADR-51, AZ-51, PL-53, UXD-32"):
         if term not in adr:
             errs.append("ADR-0046 must cite %s" % term)
     for path, anchor in (("docs/architecture/data/12-decisions.md", "adr-51"), ("docs/architecture/access/15-decisions.md", "az-51"),
@@ -276,7 +289,7 @@ def check_identifiers():
                "automation_runs", "automation_usage", "automation_health"):
         if "'%s'," % ty not in envelopes:
             errs.append("non-resource type %s is not registered" % ty)
-    return errs, "T-142..T-148, AT-552..AT-588 titled once, ADR-51/AZ-51/PL-53/UXD-32, 0B entities, 16 limits, contracts"
+    return errs, "T-142..T-151, AT-552..AT-594 titled once, ADR-51/AZ-51/PL-53/UXD-32, 0B entities, 16 limits, contracts"
 
 
 def check_closure_and_boundaries(closure):
@@ -316,6 +329,64 @@ def check_closure_and_boundaries(closure):
     return errs, "candidate under a proposed ADR; boundaries 9B/8C/10A/10B, production AI, no exactly-once, manual, follow-ups"
 
 
+def check_review01(closure):
+    """Corrective review 01: no status-only proof, reference-only checkpoints with authority at
+    dispatch, and replays through current authority, each with its recorded old-code failure."""
+    errs = []
+    cache = {}
+    api = read(P("packages/work/src/integrations/public-api-service.ts"))
+    sender = block(api, "  protected async sendAutomationWebhook(", "\n  }\n")
+    if not sender or "rejected_by_receiver" in sender or "result.status < 500" in sender:
+        errs.append("R1: after dispatch, only a 2xx is sent; no status is proof of non-application")
+    if "throw new EffectOutcomeUnknownError();" not in sender:
+        errs.append("R1: any other answer must be an unknown outcome")
+    service = read(P(SERVICE))
+    advance = block(service, "type Advance =", "\n\n")
+    if "envelope" in advance or "| { kind: 'effect'; node: string; logicalKey: string };" not in advance:
+        errs.append("R2: the effect checkpoint must hold references only (step and logical key)")
+    job = block(service, "  async runAutomationJob(", "\n  async #effectSent(")
+    effect = block(job, "await ctx.effect(", "\n        });")
+    if "this.#dispatchPlan(ctx, runId, a.node, a.logicalKey)" not in effect or "a.envelope" in job:
+        errs.append("R2: the dispatch callback must re-decide authority and build the payload in memory")
+    plan = block(service, "  async #dispatchPlan(", "\n  async #refuseDispatch(")
+    for term, label in [("this.#runRow(tx, runId, true)", "the locked run"),
+                        ("return refuse('automation_disabled');", "the automation's state"),
+                        ("inflight.logical_key !== logicalKey", "the logical key binding"),
+                        ("this.#runPrincipal(tx, run, revision)", "the owner's current authority"),
+                        ("this.#targets(tx, authority.p, run, revision, node)", "the target through current authority"),
+                        ("this.#webhookPlan(tx, authority.p, run, revision, node, t)", "the approval and destination")]:
+        if term not in plan:
+            errs.append("R2: the dispatch decision lacks %s" % label)
+    life = block(service, "  async automationLifecycle(", "\n  async listAutomationRevisions(")
+    render = life[life.find("// A completed key renders"):]
+    if "this.#decideScope(tx, p, 'automations.configure', a.brand_id)" not in render or "executeTakeFirstOrThrow" in render:
+        errs.append("R3: the lifecycle replay must decide current authority and stay opaque")
+    for name in ("  async activateAutomation(", "  async reassignAutomation("):
+        body = block(service, name, "return this.mutate(")
+        if "this.#sessionOnly(caller);" not in body:
+            errs.append("R3: %s must refuse delegated callers before idempotency work" % name.strip())
+    if service.count("async (tx, p, ref) => this.#automationView(tx, p, await this.#visible(tx, p, ref.id))") or \
+            service.count("async (tx, p, ref) => this.#runView(tx, p, ref.id),"):
+        errs.append("R3: every renderer must decide the command's own authority")
+    crs = {r["id"]: r for r in closure.get("corrective_reviews", [])}
+    cr = crs.get("8A-CR-01")
+    if not cr or cr.get("reviewed_head") != "6eefaee461d02df8897c1817a9e735feab53f91b":
+        errs.append("the closure must record corrective review 8A-CR-01 on 6eefaee")
+    else:
+        groups = {g["id"]: g for g in cr.get("groups", [])}
+        for gid in ("R1", "R2", "R3"):
+            g = groups.get(gid)
+            if not g:
+                errs.append("8A-CR-01 lacks %s" % gid)
+                continue
+            phase2.check_evidence("8A-CR-01 %s" % gid, g.get("evidence"), cache, errs)
+            if "fails on 6eefaee" not in g.get("old_code", ""):
+                errs.append("8A-CR-01 %s must record its observed old-code result" % gid)
+    if "## Corrective review 01 (8A-CR-01)" not in read(P(ADR)):
+        errs.append("ADR-0046 must record corrective review 01")
+    return errs, "R1 2xx-only acknowledgment, R2 reference checkpoints and dispatch-time authority, R3 replay authority; old-code results"
+
+
 def check_wiring():
     errs = []
     verify = read(P("scripts/verify.sh"))
@@ -351,6 +422,7 @@ def main():
         ("phase 8A: one engine on the platform", check_engine()),
         ("phase 8A: migration 0062", check_migration()),
         ("phase 8A: identifiers, contracts, and limits", check_identifiers()),
+        ("phase 8A: corrective review 01", check_review01(closure)),
         ("phase 8A: wiring", check_wiring()),
         ("phase 8A: migration sequence", phase1.check_migrations()),
     ]

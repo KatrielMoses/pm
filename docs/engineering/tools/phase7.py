@@ -119,7 +119,8 @@ def check_numbering(closure):
     # Later migrations are held by later validators (P8-W0 adds 0061, held by phase8w0.py; 8A adds
     # 0062, held by phase8a.py).
     later = {"0061": ("0061_effect_recovery_safety.up.sql", "phase8w0.py"),
-             "0062": ("0062_automation_engine.up.sql", "phase8a.py")}
+             "0062": ("0062_automation_engine.up.sql", "phase8a.py"),
+             "0063": ("0063_automation_checkpoint_refs.up.sql", "phase8a.py")}
     for k in sorted(k for k in by if k > "0060"):
         name, validator = later.get(k, (None, None))
         if by[k] != name or not os.path.isfile(P("docs/engineering/tools/%s" % validator)):

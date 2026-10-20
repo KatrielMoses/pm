@@ -629,3 +629,4 @@ Status of every ADR: **proposed (Phase 0B)**, pending solutions-architect accept
 - **Consequences:**
   - The down migration restores the exact 0061 catalog and refuses while any run is open, any automation notice exists, or any AI action has the automation caller (forced row-level security lifted for that one check).
   - Workspace purge deletes step runs, runs, standing approvals, schedules, usage periods, revisions, and automations before `exec.operation` and `core.record`.
+- **Corrective review 01 (Phase 8A):** migration 0063 (expand, data only) removes the prepared webhook payload, subscription, and fingerprint that the 8A candidate stored in `automation.run` job checkpoints; the step and its logical effect key stay, and no effect, attempt, claim, or decision changes. Forced row-level security on `exec.job` is lifted for that one statement and restored. The down migration restores the exact 0062 catalog and does not put content back.

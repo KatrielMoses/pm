@@ -29,6 +29,9 @@ Phase 0 reserved automations in every contract: the `auto` prefix and `automatio
 | D16 | Truthful outcomes and health | Statuses distinguish skipped, policy rejected, failed, cancelled, waiting (delay or reconciliation), partial, and succeeded. A fallback after a failure is partial; a retried step that later succeeds is not. The 5D port answers `automation.rates` (RPT-013) for what the viewer may see; health lists only automations whose brand the viewer configures or holds `health.view` in. Run history exports through the 6D boundary (`automation_history`, the DATA-013 portion 6D deferred to 8A) with the same current-access rendering. Unknown effects never count as success; agent rates stay separate (8C). |
 | D17 | Lifecycle | Archive and trash stop open runs; restore leaves the automation off and replays nothing; purge removes history through the registered adapter. The ownership hook suspends on departure. |
 | D18 | Surfaces | Automations navigation and palette routes, list with starter templates and usage, builder (trigger, conditions, steps, branches, delays, fallbacks), preview, activation with the disclosure dialog, and run pages with explanations, retry, cancel, and reconciliation (UXD-32). |
+| D19 | Reference-only checkpoints, authority at dispatch | A step checkpoint holds references and bounded facts only: a webhook step's names the step and its logical effect key. Immediately before the request leaves, on every path (first execution, a restarted worker reusing the checkpoint, a resumption after reconciliation), one short transaction locks the run and decides again: the run is open and its automation on; the in-flight attempt carries this key and target (never rebound); the pinned owner's current authority, narrowed to the snapshot, reaches the target; and the exact standing approval and destination still match. The payload is built in memory; I/O happens after that transaction commits. A refusal there sends nothing and is typed proof of non-dispatch (`precondition_failed`); the step is refused (a lost owner suspends the automation) and the effect keeps its key, attempts, and history. Migration 0063 removes payload copies the candidate stored in checkpoints. |
+| D20 | Only 2xx acknowledges a webhook | After a request is dispatched, only a 2xx is an acknowledgment. Any other answer (3xx, 4xx including 408, 425, and 429, 5xx), a reset, or a timeout is an unknown outcome: a configured webhook makes no promise that it did not act before answering, and a stable event id is not receiver deduplication. Typed not-sent proof comes only from refusals before any request (destination no longer matching or active, no signing secret, a URL the guard refuses). Unknown waits for P8-W0 reconciliation; a run retry is refused meanwhile. |
+| D21 | Completed keys replay through current authority | Every automation command's completed-key renderer decides the caller's authority now, with the same need as its command (configure, run), before rendering anything. The lifecycle renderer decides `automations.configure` on the record's brand and keeps trashed replays for configurers; a purged, foreign, or no longer configurable automation is the canonical opaque answer. Activation and reassignment refuse delegated callers before any idempotency work, so a token never replays them. |
 
 ## Requirement and action matrix
 
@@ -81,6 +84,8 @@ Phase 0 reserved automations in every contract: the `auto` prefix and `automatio
 | AT-570–AT-577 | packages/work/test/integration/automations-platform.test.ts |
 | AT-578, AT-579 | apps/api/test/integration/automations-api.test.ts |
 | AT-580, AT-581 | e2e/automations.spec.ts |
+| AT-589–AT-593 | packages/work/test/integration/automations-review01.test.ts |
+| AT-594 | apps/api/test/integration/automations-api.test.ts |
 | Component | apps/web/test/automations.test.tsx |
 | Query plans at volume (2,000 automations, 5,000 runs) | packages/work/test/integration/automations-platform.test.ts (EXPLAIN) |
 
@@ -89,10 +94,24 @@ Phase 0 reserved automations in every contract: the `auto` prefix and `automatio
 | Kind | Identifier | Note |
 |---|---|---|
 | Migration | 0062 | `0062_automation_engine` |
+| Migration | 0063 | `0063_automation_checkpoint_refs` (review 01; data only) |
 | Engineering ADR | 0046 | This record |
 | 0B / 0C / 0D / UX | ADR-51, AZ-51, PL-53, UXD-32 | Data, access, platform, and UX decisions |
-| Threats | T-142–T-148 | Owner authority, revocation, inference, lineage, outbound effects, tenancy, staleness |
-| Tests | AT-552–AT-588 | Above |
+| Threats | T-142–T-151 | Owner authority, revocation, inference, lineage, outbound effects, tenancy, staleness; review 01: status-only proof, stale prepared payloads, replay oracles |
+| Tests | AT-552–AT-594 | Above (AT-589–AT-594: corrective review 01) |
 | Response types | `automations`, `automation_templates`, `automation_revisions`, `automation_preview`, `automation_run`, `automation_runs`, `automation_usage`, `automation_health` | Non-resource envelopes |
 | Notification type | `automation_notice` | 4B |
 | Effect destination | `automation.webhook` | `unsafe`, `automation-webhook.v1` |
+
+## Corrective review 01 (8A-CR-01)
+
+Reviewed head `6eefaee` (run 39390393310). Each regression was run against the reviewed source (only the two corrected source files reverted) and failed as recorded; all pass after the correction.
+
+| Group | Finding | Correction | Evidence | Observed on `6eefaee` |
+|---|---|---|---|---|
+| R1 | Any non-2xx status below 500 was recorded as proof the receiver did not act, so the request was sent again | D20: after dispatch, only 2xx is sent; everything else is unknown | AT-589 | Fails: the receiver applied the request 5 times after answering 400 (expected 1) |
+| R2 | The prepared payload (selected record values) was stored in the job checkpoint and sent from it on recovery without re-authorization; purge left it in execution metadata | D19, migration 0063 | AT-590, AT-591, AT-592, migration test (0063) | Fails: the stale payload left after the owner lost the brand (AT-590); a restarted worker sent the payload for a trashed target (AT-591); `exec.job.checkpoint` held the envelope with the sentinel (AT-592) |
+| R3 | The lifecycle replay renderer read the record without the caller's authority | D21 | AT-593, AT-594 | Fails: a manager who lost the brand replayed the completed archive and received its id and `archived` state, through the service (AT-593) and over HTTP (AT-594) |
+
+The R3 audit also aligned the other renderers: configuration commands render only for configurers, run-now for `automation.run_manual`, retry and cancel for configurers. Activation and reassignment refuse delegated callers before any idempotency work. AT-594's token replay was not reached on the reviewed head (that run stopped at the lifecycle failure); it passes after the correction.
+

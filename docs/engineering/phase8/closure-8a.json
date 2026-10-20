@@ -966,6 +966,105 @@
           "contains": "| D18 |"
         }
       ]
+    },
+    {
+      "id": "D19",
+      "adr_row": "D19",
+      "title": "Reference-only checkpoints, authority at dispatch",
+      "evidence": [
+        {
+          "file": "docs/engineering/adr/0046-automation-engine.md",
+          "contains": "| D19 |"
+        },
+        {
+          "file": "packages/work/src/automation/service.ts",
+          "contains": "async #dispatchPlan("
+        },
+        {
+          "file": "packages/work/src/automation/service.ts",
+          "contains": "| { kind: 'effect'; node: string; logicalKey: string };"
+        },
+        {
+          "file": "packages/db/migrations/0063_automation_checkpoint_refs.up.sql",
+          "contains": "- 'envelope' - 'subscriptionId' - 'fingerprint'"
+        },
+        {
+          "file": "packages/work/test/integration/automations-review01.test.ts",
+          "contains": "'AT-590 "
+        },
+        {
+          "file": "packages/work/test/integration/automations-review01.test.ts",
+          "contains": "'AT-591 "
+        },
+        {
+          "file": "packages/work/test/integration/automations-review01.test.ts",
+          "contains": "'AT-592 "
+        }
+      ],
+      "sources": [
+        {
+          "file": "docs/engineering/adr/0046-automation-engine.md",
+          "contains": "| D19 |"
+        }
+      ]
+    },
+    {
+      "id": "D20",
+      "adr_row": "D20",
+      "title": "Only 2xx acknowledges a webhook",
+      "evidence": [
+        {
+          "file": "docs/engineering/adr/0046-automation-engine.md",
+          "contains": "| D20 |"
+        },
+        {
+          "file": "packages/work/src/integrations/public-api-service.ts",
+          "contains": "receiver deduplication (review 01 R1)"
+        },
+        {
+          "file": "packages/work/test/integration/automations-review01.test.ts",
+          "contains": "'AT-589 "
+        }
+      ],
+      "sources": [
+        {
+          "file": "docs/engineering/adr/0046-automation-engine.md",
+          "contains": "| D20 |"
+        }
+      ]
+    },
+    {
+      "id": "D21",
+      "adr_row": "D21",
+      "title": "Completed keys replay through current authority",
+      "evidence": [
+        {
+          "file": "docs/engineering/adr/0046-automation-engine.md",
+          "contains": "| D21 |"
+        },
+        {
+          "file": "packages/work/src/automation/service.ts",
+          "contains": "#sessionOnly(caller: Caller)"
+        },
+        {
+          "file": "packages/work/src/automation/service.ts",
+          "contains": "const configure = await this.#decideScope(tx, p, 'automations.configure', a.brand_id);\n        if (!configure.allowed) throw new TenancyError('not_found');"
+        },
+        {
+          "file": "packages/work/test/integration/automations-review01.test.ts",
+          "contains": "'AT-593 "
+        },
+        {
+          "file": "apps/api/test/integration/automations-api.test.ts",
+          "contains": "'AT-594 "
+        }
+      ],
+      "sources": [
+        {
+          "file": "docs/engineering/adr/0046-automation-engine.md",
+          "contains": "| D21 |"
+        }
+      ]
     }
   ],
   "boundaries": [
@@ -1038,6 +1137,76 @@
         {
           "file": "apps/api/test/integration/automations-api.test.ts",
           "contains": "/portability/exports/automation_history.csv"
+        }
+      ]
+    }
+  ],
+  "corrective_reviews": [
+    {
+      "id": "8A-CR-01",
+      "reviewed_head": "6eefaee461d02df8897c1817a9e735feab53f91b",
+      "reviewed_run": "39390393310",
+      "groups": [
+        {
+          "id": "R1",
+          "statement": "A webhook's non-success answer after dispatch is unknown, never proof of non-application; only refusals before any request are typed not-sent evidence.",
+          "old_code": "fails on 6eefaee: the receiver applied the request 5 times after answering 400 (expected 1)",
+          "evidence": [
+            {
+              "file": "packages/work/test/integration/automations-review01.test.ts",
+              "contains": "'AT-589 "
+            },
+            {
+              "file": "packages/work/src/integrations/public-api-service.ts",
+              "contains": "receiver deduplication (review 01 R1)"
+            }
+          ]
+        },
+        {
+          "id": "R2",
+          "statement": "Checkpoints hold references only; owner authority, target, approval, and destination are decided again immediately before every dispatch, including restarts and resumptions; payload copies in old checkpoints are removed by 0063.",
+          "old_code": "fails on 6eefaee: the stale payload left after the owner lost the brand (AT-590), a restarted worker sent the payload for a trashed target (AT-591), and exec.job.checkpoint held the envelope with the sentinel (AT-592)",
+          "evidence": [
+            {
+              "file": "packages/work/test/integration/automations-review01.test.ts",
+              "contains": "'AT-590 "
+            },
+            {
+              "file": "packages/work/test/integration/automations-review01.test.ts",
+              "contains": "'AT-591 "
+            },
+            {
+              "file": "packages/work/test/integration/automations-review01.test.ts",
+              "contains": "'AT-592 "
+            },
+            {
+              "file": "packages/db/test/integration/migrations.test.ts",
+              "contains": "0063 removes payload copies from automation checkpoints"
+            },
+            {
+              "file": "packages/work/src/automation/service.ts",
+              "contains": "async #dispatchPlan("
+            }
+          ]
+        },
+        {
+          "id": "R3",
+          "statement": "Completed command keys render only through the caller's current authority with the command's own need; activation and reassignment refuse delegated callers before idempotency work.",
+          "old_code": "fails on 6eefaee: a manager who lost the brand replayed the completed archive and received its id and archived state, through the service (AT-593) and over HTTP (AT-594)",
+          "evidence": [
+            {
+              "file": "packages/work/test/integration/automations-review01.test.ts",
+              "contains": "'AT-593 "
+            },
+            {
+              "file": "apps/api/test/integration/automations-api.test.ts",
+              "contains": "'AT-594 "
+            },
+            {
+              "file": "packages/work/src/automation/service.ts",
+              "contains": "this.#sessionOnly(caller);"
+            }
+          ]
         }
       ]
     }
