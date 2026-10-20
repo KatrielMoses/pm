@@ -1984,7 +1984,9 @@ export class AutomationService extends AiGatewayService {
 
   /** Bounded target selection related to the trigger record, through current authority. */
   async #targets(tx: WorkspaceTransaction, p: Principal, run: RunRow, revision: RevisionRow, node: ActionNode) {
-    if (node.target === null || node.action === 'task.create') return [];
+    // A webhook step discloses facts about the trigger record (its only subject).
+    const target = node.target ?? (node.action === 'webhook.send' ? 'trigger' : null);
+    if (target === null || node.action === 'task.create') return [];
     if (!run.trigger_record_id) throw new StepRefused('validation_failed', 'no_trigger_record');
     const trig = await tx.db.selectFrom('core.record').select(['id', 'public_id', 'record_type']).where('id', '=', run.trigger_record_id).executeTakeFirst();
     if (!trig) throw new StepRefused('policy_rejected', 'not_permitted');
@@ -2000,17 +2002,17 @@ export class AutomationService extends AiGatewayService {
       if (!(await this.#inDeclaredProjects(tx, revision, pr.row.parent_project_id, pr.id))) throw new StepRefused('policy_rejected', 'not_permitted');
       out.push({ id: pr.id, publicId: pr.publicId, kind: 'project', projectId: pr.id });
     };
-    if (node.target === 'trigger') {
+    if (target === 'trigger') {
       if (trig.record_type === 'task') await addTask(trig.public_id);
       else await addProject(trig.public_id);
-    } else if (node.target === 'trigger.project') {
+    } else if (target === 'trigger.project') {
       if (trig.record_type === 'project') await addProject(trig.public_id);
       else {
         const t = await this.loadTask(tx, p, trig.public_id);
         if (!t.row.project_id) throw new StepRefused('validation_failed', 'no_project');
         await addProject((await this.publicOf(tx, t.row.project_id))!);
       }
-    } else if (node.target === 'trigger.parent') {
+    } else if (target === 'trigger.parent') {
       const t = await this.loadTask(tx, p, trig.public_id);
       if (!t.row.parent_task_id) throw new StepRefused('validation_failed', 'no_parent');
       await addTask((await this.publicOf(tx, t.row.parent_task_id))!);
