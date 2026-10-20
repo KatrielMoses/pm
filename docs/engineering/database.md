@@ -540,3 +540,23 @@ Migration `0062_automation_engine` (expand; exact rollback to 0061; 0B ADR-51, A
 - **Purge:** record purge deletes step runs, runs, standing approvals, schedules, revisions, then automations. Workspace purge deletes these and `automation.usage_period` before `exec.*`.
 
 Migration `0063_automation_checkpoint_refs` (expand; 8A corrective review 01 R2) changes data only: it removes the prepared webhook payload, subscription, and fingerprint from `automation.run` job checkpoints (the step name and its logical effect key stay), in every workspace, lifting forced row-level security on `exec.job` for that one statement as 0041 and 0054 do. Effects, attempts, claims, and decisions are untouched. The down migration is a no-op that restores the exact 0062 catalog; removed content is not restored, so only the corrected worker may run over cleaned checkpoints.
+
+## Phase 8B: agent profiles, connectors, and assignments
+
+Migration `0064_agent_profiles_connectors` (expand; exact rollback to 0063; 0B ADR-52, ADR-0047) adds the `agents` schema. Every table has forced row-level security on `exec.current_workspace_id()` and workspace-scoped foreign keys:
+
+| Table | Holds |
+|---|---|
+| `agents.agent_profile` | The `agt_` record extension: accountable owner, kind (`internal`, `external`), name and purpose, state (`draft`, `active`, `disabled`, `suspended`), the selected `active_revision_id` (deferrable), the editable typed `draft`, template and duplicate source, suspension |
+| `agents.agent_profile_revision` | Immutable revisions (`agent_profile_revision_immutable` trigger): canonical configuration and hash (one per hash), model reference |
+| `agents.agent_scope_grant` | Per revision, immutable: brand, project, record, or integration targets |
+| `agents.agent_tool_grant` | Per revision, immutable: registered tool and version, 0C class, approval class (R3/R4 `human_approval` by check) |
+| `agents.agent_connector` | One per external profile: kind, guarded endpoint, `secret_ref` (secret-store reference only), `config_version`, state, verified version and whether it was synthetic, intersected capabilities |
+| `agents.agent_connector_test` | Detail of an `agent_connector_test` operation: the settings version tested, the requester, the bounded outcome |
+| `agents.agent_assignment` | Task child (the task's brand), separate from assignees: profile, `assigned`/`withdrawn`, current revision; one active per task and profile (`agent_assignment_active`) |
+| `agents.agent_assignment_revision` | Immutable brief and ceiling: goal, constraints, deliverable, criteria, context references, pinned profile revision, assigner, scope id arrays |
+
+- **Grants:** `app_rw` reads and inserts every table and updates named profile, connector, and assignment columns. `app_worker` reads every table, updates only profile suspension, connector test results, and test rows, and deletes rows for purge. Revisions and grants are never updated (triggers refuse).
+- **Indexes:** the task panel (`agent_assignment_by_task`), a profile's active assignments (`agent_assignment_by_profile`), grants by target (`agent_scope_grant_by_target`), and a connector's latest test (`agent_connector_test_by_connector`); plans are checked at volume in `agents-volume.test.ts`.
+- **Rollback:** the down migration restores the exact 0063 catalog. It refuses, with counts, while any agent profile or assignment exists (forced row-level security lifted for that one check).
+- **Purge:** task purge deletes the task's assignment revisions and assignments; profile purge deletes assignments, connector tests, the connector, grants, revisions, then the profile, and refuses while a connector still holds a secret reference. Workspace purge deletes the `agents` tables in that order before `exec.*` and `core.record`.

@@ -159,6 +159,16 @@ Narrative: [../14-threat-model.md](../14-threat-model.md).
 | T-149 | agent_scope | An automation treats a webhook's non-success answer (4xx, 408, 429, a redirect) as proof the receiver did not act, records it not sent, and dispatches again: a duplicate external effect from status-only evidence. | I-14, I-15 | AT-589 |
 | T-150 | staleness | A prepared webhook payload outlives the decision that allowed it: a checkpoint, a restarted worker, or a resumption after reconciliation sends it after the owner, target, approval, or destination changed, or keeps its content in execution metadata. | I-12, I-14, I-16 | AT-590, AT-591, AT-592 |
 | T-151 | revocation | A completed automation command key is replayed after the caller lost the brand, the record was purged, or by a delegated token, and the stored response is rendered without current authority: an existence and state oracle. | I-12, I-07 | AT-593, AT-594 |
+| T-152 | agent_scope | A profile's configurer or accountable owner grants an agent brands, projects, records, integrations, or tool classes they cannot grant themselves (at create, edit, activation, or reassignment), so the agent holds more than any human behind it. | I-11, I-14 | AT-598, AT-611, AT-615 |
+| T-153 | agent_scope | A profile names an unregistered or model-supplied tool, an unavailable future tool, arbitrary HTTP or code, or an approval weaker than the 0C class minimum (R3/R4 without a human), and the configuration is accepted. | I-01, I-14, I-15 | AT-595, AT-596, AT-620, AT-621, AT-622, AT-625 |
+| T-154 | staleness | Editing or widening a profile, or widening a person's access later, silently enlarges what existing assignments may use, because the assignment reads the profile's current grants instead of its pinned revision and stored ceiling. | I-11, I-12, I-14 | AT-597, AT-612, AT-613 |
+| T-155 | agent_scope | A low-privilege assigner borrows a powerful agent profile (a confused deputy) and assigns it work or context beyond the assigner's own current access, or a share-only reader or guest assigns at all. | I-05, I-11, I-14 | AT-608, AT-611, AT-617 |
+| T-156 | spoofing | A delegated token configures, activates, reassigns, or tests an agent profile, or replays a completed session-only command key, or assigns without the agents:execute scope. | I-09, I-11, I-12 | AT-616, AT-617, AT-629 |
+| T-157 | inference | A task reader, a member, a guest, or an unknown identifier learns an agent's instructions, grants, connector, or hidden context titles and counts through the task Agent section, a preview, a selection list, an error, or history. | I-07, I-08, I-16 | AT-600, AT-608, AT-614, AT-615, AT-626, AT-633 |
+| T-158 | spoofing | An external connector endpoint targets private ranges, cloud metadata, or the product's own API or MCP endpoint, follows redirects, returns oversized, malformed, wrong-protocol, or wrong-nonce answers, or advertises tools that widen what the profile grants, and the product trusts it. | I-01, I-14, I-16 | AT-601, AT-602, AT-603, AT-604, AT-605, AT-623, AT-624, AT-627, AT-632 |
+| T-159 | revocation | A connector test is applied after its settings changed or its requester lost authority, sends task context or secrets to the peer, or a synthetic fixture result is presented as a live verification. | I-12, I-14, I-16 | AT-606, AT-607, AT-618, AT-627 |
+| T-160 | departure | An owner or assigner departs or loses authority, or a profile is archived, trashed, disconnected, or purged, and the agent stays ready, assignments stay active, or a secret reference survives. | I-10, I-12, I-16 | AT-599, AT-600, AT-612, AT-619 |
+| T-161 | staleness | Concurrent creations or assignments exceed the workspace profile limit, the per-task limit, or the one-active-assignment rule, or readiness claims a model or a connector that is not available now (an invented run). | I-01, I-13 | AT-609, AT-610, AT-625, AT-628, AT-630, AT-631, AT-632 |
 
 ## Test matrix
 
@@ -758,6 +768,45 @@ Narrative: [../14-threat-model.md](../14-threat-model.md).
 | AT-592 | T-150 | system_job | A sent webhook with a unique content sentinel, then the automation's purge — workspace | `record.read` | audit_display | **deny** | omitted | audit_display, error_message |
 | AT-593 | T-151 | member | A brand manager's completed archive key replayed before and after losing the brand; a purged automation's trash key; another workspace — brand | `automations.configure` | api | **deny** | not_found | error_message, audit_display |
 | AT-594 | T-151 | api_token_personal | The same lifecycle replay over HTTP; a personal token replaying the owner's completed activation and attempting reassignment — brand | `automations.configure` | api | **deny** | forbidden | error_message |
+| AT-595 | T-153 | owner | Each of the five starter templates instantiated — workspace | `agents.configure` | api | **allow** | ok | — |
+| AT-596 | T-153 | owner | Drafts with unregistered tools, weaker approval, unknown fields, out-of-range limits, and unavailable tools — workspace | `agents.configure` | api | **deny** | validation_generic | error_message |
+| AT-597 | T-154 | owner | Edit after activation; reactivate an identical configuration — workspace | `agents.configure` | api | **allow** | ok | — |
+| AT-598 | T-152 | administrator | Configurer or owner lacking the level a scope item's tools need, at activation — brand without access | `agents.configure` | api | **deny** | validation_generic | error_message |
+| AT-599 | T-160 | owner | Duplicate a connected, active profile — workspace | `agents.configure` | api | **allow** | ok_filtered | — |
+| AT-600 | T-157, T-160 | member | Archived and trashed profiles; a member reading a profile — workspace | `agents.configure` | ui_record | **deny** | ok_filtered | ui_list |
+| AT-601 | T-158 | owner | API connector against the synthetic fixture peer; advertised tools wider than the grants — workspace | `agents.configure` | api | **allow** | ok_filtered | — |
+| AT-602 | T-158 | owner | Webhook connector; the answer signed with a different secret — workspace | `agents.configure` | api | **deny** | validation_generic | error_message |
+| AT-603 | T-158 | owner | MCP connector at another protocol version — workspace | `agents.configure` | api | **deny** | validation_generic | error_message |
+| AT-604 | T-158 | owner | Malformed, oversized, redirecting, wrong-version, wrong-nonce, failing, and slow peers — workspace | `agents.configure` | api | **deny** | error_generic | error_message |
+| AT-605 | T-158 | owner | Private, metadata, own-product, credential-bearing, and plain-http endpoints; a product token as the secret — workspace | `agents.configure` | api | **deny** | validation_generic | error_message |
+| AT-606 | T-159 | owner | Settings changed before the queued test ran; rotation and disconnect — workspace | `agents.configure` | api | **deny** | conflict_filtered | error_message |
+| AT-607 | T-159 | owner | Unconfirmed test, the hourly limit, and no fixture transport — workspace | `agents.configure` | api | **deny** | error_generic | error_message |
+| AT-608 | T-155, T-157 | member | Preview naming hidden context and scope outside the profile — assign to agent whose profile scope exceeds assigner | `agent.assign` | api | **deny** | validation_generic | error_message, picker |
+| AT-609 | T-161 | owner | Assign: brief pinned, task state unchanged, run refused — task | `agent.assign` | api | **allow** | ok | — |
+| AT-610 | T-161 | owner | Duplicate active assignment, replayed key, per-task limit under concurrency — task | `agent.assign` | api | **deny** | conflict_filtered | error_message |
+| AT-611 | T-152, T-155 | guest | Guests, share-only readers, read-only members, and members without edit assigning — assign to agent whose profile scope exceeds assigner | `agent.assign` | api | **deny** | forbidden | error_message |
+| AT-612 | T-154, T-160 | member | Profile widened, then narrowed; assigner loses access; owner departs — assigner lost access mid-run | `agent.assign` | ui_record | **deny** | ok_filtered | error_message |
+| AT-613 | T-154 | member | Edit an assignment with a stale version; widen its scope — task | `agent.assign` | api | **deny** | conflict_filtered | error_message |
+| AT-614 | T-157 | read_only | A task reader listing the task's agents with hidden context — task | `record.read` | ui_record | **allow** | ok_filtered | error_message |
+| AT-615 | T-152, T-157 | limited_member | Every role and guest across three workspaces — cross-workspace | `agents.configure` | api | **deny** | not_found | error_message, ui_list |
+| AT-616 | T-156 | api_token_personal | Token configuring, activating, replaying a session key; assigning without agents:execute — token scope narrower than creator | `agents.configure` | api | **deny** | forbidden | error_message |
+| AT-617 | T-155, T-156 | member | Brand revoked between preview and save; completed key replayed after revocation — revoked brand grant | `agent.assign` | api | **deny** | not_found | error_message |
+| AT-618 | T-159 | owner | Profile trashed or requester lost authority after the test was requested — revocation, trash, and departure | `agents.configure` | api | **deny** | error_generic | error_message |
+| AT-619 | T-160 | system_job | Profile and task purge; historical rendering — departure | `agents.configure` | api | **allow** | ok_filtered | — |
+| AT-620 | T-153 | owner | Configuration compiler: canonical form and refusals — workspace | `agents.configure` | api | **deny** | validation_generic | error_message |
+| AT-621 | T-153 | owner | Policy floor per 0C tool class — workspace | `agents.configure` | api | **deny** | validation_generic | error_message |
+| AT-622 | T-153 | owner | Template drafts compile — workspace | `agents.configure` | api | **allow** | ok | — |
+| AT-623 | T-158 | owner | Manifest protocol, version, nonce, and shape — workspace | `agents.configure` | api | **deny** | error_generic | error_message |
+| AT-624 | T-158 | owner | Endpoint guard ranges and own origin — workspace | `agents.configure` | api | **deny** | validation_generic | error_message |
+| AT-625 | T-153, T-161 | owner | HTTP: templates, registry, create, edit with If-Match, activate, readiness — workspace | `agents.configure` | api | **allow** | ok | — |
+| AT-626 | T-157 | guest | HTTP: members without the policy, guests, unknown ids and verbs — nonexistent vs hidden ID | `agents.configure` | api | **deny** | not_found | error_message |
+| AT-627 | T-158, T-159 | owner | HTTP: guarded endpoints, the shown-once secret, no transport — workspace | `agents.configure` | api | **deny** | validation_generic | error_message |
+| AT-628 | T-161 | owner | HTTP: preview, assign, edit, withdraw, run refused — task | `agent.assign` | api | **allow** | ok | — |
+| AT-629 | T-156 | api_token_personal | HTTP: profile routes refuse every token; assignment needs agents:execute — token scope narrower than creator | `agent.assign` | api | **deny** | forbidden | error_message |
+| AT-630 | T-161 | owner | Internal readiness with workspace AI off, on (synthetic), and off again — workspace | `agents.configure` | ui_record | **allow** | ok | — |
+| AT-631 | T-161 | owner | Concurrent profile creations at the workspace limit — workspace | `agents.configure` | api | **deny** | conflict_filtered | error_message |
+| AT-632 | T-158, T-161 | owner | Browser journey: starter, scope, synthetic test, activation, assignment by preview, offline, accessibility — task | `agent.assign` | ui_record | **allow** | ok | — |
+| AT-633 | T-157 | member | Browser: a member without the agent policy; an unreadable task — task in another brand | `agents.configure` | ui_record | **deny** | not_found | error_message, ui_list |
 
 ## Response shapes
 

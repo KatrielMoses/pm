@@ -1,0 +1,789 @@
+{
+  "schema_version": 1,
+  "phase": "8B",
+  "status": "candidate",
+  "adr": "0047",
+  "base": {
+    "head": "802c0265ca2a40e50fc5fea35b866c895c00fe10",
+    "accepted_as": "Phase 8A with corrective review 01, CI run 39401581014 attempt 1"
+  },
+  "requirements": [
+    {
+      "id": "AGT-001",
+      "role": "owned",
+      "disposition": "implemented",
+      "note": "Agent profiles are core.record extensions (agt_) with an accountable human owner, kind, lifecycle, versions, and audit.",
+      "evidence": [
+        {
+          "file": "packages/work/src/agents/service.ts",
+          "contains": "async createAgentProfile("
+        },
+        {
+          "file": "packages/work/test/integration/agents.test.ts",
+          "contains": "'AT-595 "
+        },
+        {
+          "file": "apps/api/test/integration/agents-api.test.ts",
+          "contains": "'AT-625 "
+        },
+        {
+          "file": "e2e/agents.spec.ts",
+          "contains": "'AT-632 "
+        }
+      ]
+    },
+    {
+      "id": "AGT-002",
+      "role": "owned",
+      "disposition": "implemented",
+      "note": "Name, purpose, brand/project/record/integration scope, registered tools, model, instructions, limits, and approval policy as a typed draft and immutable revisions.",
+      "evidence": [
+        {
+          "file": "packages/work/src/agents/config.ts",
+          "contains": "export function compileConfig("
+        },
+        {
+          "file": "packages/work/src/agents/service.ts",
+          "contains": "async activateAgentProfile("
+        },
+        {
+          "file": "packages/work/test/integration/agents.test.ts",
+          "contains": "'AT-596 "
+        },
+        {
+          "file": "packages/work/test/integration/agents.test.ts",
+          "contains": "'AT-597 "
+        },
+        {
+          "file": "packages/work/test/unit/agent-config.test.ts",
+          "contains": "'AT-620 "
+        }
+      ]
+    },
+    {
+      "id": "AGT-003",
+      "role": "owned",
+      "disposition": "implemented",
+      "enriched_by": [
+        "8C"
+      ],
+      "accepted_by": [
+        "adr:0047#D18"
+      ],
+      "note": "Tasks are assigned to agent profiles through a separate relationship with preview, edit, and withdrawal; starting runs is 8C.",
+      "evidence": [
+        {
+          "file": "packages/work/src/agents/service.ts",
+          "contains": "async assignAgent("
+        },
+        {
+          "file": "packages/work/src/agents/service.ts",
+          "contains": "async withdrawAgentAssignment("
+        },
+        {
+          "file": "packages/work/test/integration/agents-assignments.test.ts",
+          "contains": "'AT-609 "
+        },
+        {
+          "file": "packages/work/test/integration/agents-assignments.test.ts",
+          "contains": "'AT-610 "
+        },
+        {
+          "file": "apps/api/test/integration/agents-api.test.ts",
+          "contains": "'AT-628 "
+        }
+      ]
+    },
+    {
+      "id": "AGT-004",
+      "role": "owned",
+      "disposition": "implemented",
+      "enriched_by": [
+        "8C"
+      ],
+      "accepted_by": [
+        "adr:0047#D18"
+      ],
+      "note": "The assignment captures goal, context references, constraints, deliverable, and criteria in an immutable revision; sending it to the agent is 8C dispatch.",
+      "evidence": [
+        {
+          "file": "packages/work/src/agents/service.ts",
+          "contains": "async previewAgentAssignment("
+        },
+        {
+          "file": "packages/work/test/integration/agents-assignments.test.ts",
+          "contains": "\"AT-608 "
+        },
+        {
+          "file": "packages/work/test/integration/agents-assignments.test.ts",
+          "contains": "'AT-613 "
+        },
+        {
+          "file": "packages/work/test/integration/agents-assignments.test.ts",
+          "contains": "'AT-614 "
+        }
+      ]
+    },
+    {
+      "id": "AGT-005",
+      "role": "owned",
+      "disposition": "implemented",
+      "note": "Explicit scope (empty means nothing), grantability for configurer and owner, and an only-narrowing assignment ceiling.",
+      "evidence": [
+        {
+          "file": "packages/work/src/agents/service.ts",
+          "contains": "async #grantable("
+        },
+        {
+          "file": "packages/work/test/integration/agents.test.ts",
+          "contains": "'AT-598 "
+        },
+        {
+          "file": "packages/work/test/integration/agents-assignments.test.ts",
+          "contains": "'AT-611 "
+        },
+        {
+          "file": "packages/work/test/integration/agents-assignments.test.ts",
+          "contains": "'AT-612 "
+        }
+      ]
+    },
+    {
+      "id": "AGT-006",
+      "role": "owned",
+      "disposition": "implemented",
+      "enriched_by": [
+        "8C"
+      ],
+      "accepted_by": [
+        "adr:0047#D18"
+      ],
+      "note": "Internal profiles use the gateway's current model availability; readiness is truthful and synthetic results are labelled. Running them is 8C.",
+      "evidence": [
+        {
+          "file": "packages/work/src/ai/ai-gateway-service.ts",
+          "contains": "agentModelAvailability("
+        },
+        {
+          "file": "packages/work/test/integration/agents.test.ts",
+          "contains": "'AT-630 "
+        },
+        {
+          "file": "apps/api/test/integration/agents-api.test.ts",
+          "contains": "'AT-625 "
+        }
+      ]
+    },
+    {
+      "id": "AGT-007",
+      "role": "owned",
+      "disposition": "implemented",
+      "enriched_by": [
+        "8C"
+      ],
+      "accepted_by": [
+        "adr:0047#D18"
+      ],
+      "note": "API, webhook, and MCP connectors with typed handshake adapters, guarded endpoints, confirmed tests bound to the settings version, and deterministic fixture peers. Live connectors are blocked (DQ-28); dispatch is 8C.",
+      "evidence": [
+        {
+          "file": "packages/work/src/agents/connectors.ts",
+          "contains": "export async function handshake("
+        },
+        {
+          "file": "packages/test-support/src/agent-connector-fixture.ts",
+          "contains": "export async function startAgentConnectorFixture("
+        },
+        {
+          "file": "packages/work/test/integration/agents-connectors.test.ts",
+          "contains": "'AT-601 "
+        },
+        {
+          "file": "packages/work/test/integration/agents-connectors.test.ts",
+          "contains": "'AT-602 "
+        },
+        {
+          "file": "packages/work/test/integration/agents-connectors.test.ts",
+          "contains": "'AT-603 "
+        },
+        {
+          "file": "packages/work/test/integration/agents-connectors.test.ts",
+          "contains": "'AT-604 "
+        },
+        {
+          "file": "packages/work/test/integration/agents-connectors.test.ts",
+          "contains": "\"AT-605 "
+        },
+        {
+          "file": "packages/work/test/integration/agents-connectors.test.ts",
+          "contains": "'AT-606 "
+        },
+        {
+          "file": "packages/work/test/integration/agents-connectors.test.ts",
+          "contains": "'AT-607 "
+        },
+        {
+          "file": "apps/api/test/integration/agents-api.test.ts",
+          "contains": "'AT-627 "
+        }
+      ]
+    },
+    {
+      "id": "AGT-008",
+      "role": "owned",
+      "disposition": "implemented",
+      "enriched_by": [
+        "10B"
+      ],
+      "accepted_by": [
+        "catalog:contributing"
+      ],
+      "note": "Five starter templates (development, research, growth, documentation, testing) that compile to turned-off drafts; 10B owns the catalog.",
+      "evidence": [
+        {
+          "file": "packages/work/src/agents/templates.ts",
+          "contains": "export const AGENT_TEMPLATES"
+        },
+        {
+          "file": "packages/work/test/integration/agents.test.ts",
+          "contains": "'AT-595 "
+        },
+        {
+          "file": "packages/work/test/unit/agent-config.test.ts",
+          "contains": "'AT-622 "
+        }
+      ]
+    },
+    {
+      "id": "TSK-008",
+      "role": "owned",
+      "disposition": "implemented",
+      "enriched_by": [
+        "8C"
+      ],
+      "accepted_by": [
+        "adr:0047#D18"
+      ],
+      "note": "A task can be assigned to an internal or external agent profile, separately from human assignees, without changing task status.",
+      "evidence": [
+        {
+          "file": "apps/web/src/agents/pages.tsx",
+          "contains": "export function TaskAgentSection("
+        },
+        {
+          "file": "packages/work/test/integration/agents-assignments.test.ts",
+          "contains": "'AT-609 "
+        },
+        {
+          "file": "apps/api/test/integration/agents-api.test.ts",
+          "contains": "'AT-628 "
+        },
+        {
+          "file": "e2e/agents.spec.ts",
+          "contains": "'AT-632 "
+        }
+      ]
+    },
+    {
+      "id": "PERM-008",
+      "role": "owned",
+      "disposition": "implemented",
+      "note": "Agent tools and action classes are granted separately from human permissions, from the registered versioned registry only, with approvals never weaker than the 0C floor.",
+      "evidence": [
+        {
+          "file": "packages/work/src/agents/tool-registry.ts",
+          "contains": "export const AGENT_TOOLS"
+        },
+        {
+          "file": "packages/work/test/integration/agents.test.ts",
+          "contains": "'AT-596 "
+        },
+        {
+          "file": "packages/work/test/unit/agent-config.test.ts",
+          "contains": "'AT-621 "
+        },
+        {
+          "file": "packages/work/test/integration/agents-access.test.ts",
+          "contains": "'AT-615 "
+        },
+        {
+          "file": "packages/work/test/integration/agents-access.test.ts",
+          "contains": "'AT-616 "
+        }
+      ]
+    },
+    {
+      "id": "ONB-013",
+      "role": "contributing",
+      "disposition": "contributed",
+      "contribution": "8B",
+      "note": "Agent starter templates (8B portion).",
+      "evidence": [
+        {
+          "file": "packages/work/src/agents/templates.ts",
+          "contains": "export const AGENT_TEMPLATES"
+        },
+        {
+          "file": "packages/work/test/integration/agents.test.ts",
+          "contains": "'AT-595 "
+        }
+      ]
+    },
+    {
+      "id": "LA-008",
+      "role": "contributing",
+      "disposition": "contributed",
+      "contribution": "8B",
+      "note": "Assignment of a task to one connected agent profile with a verified (synthetic) connector; running it is 8C.",
+      "evidence": [
+        {
+          "file": "e2e/agents.spec.ts",
+          "contains": "'AT-632 "
+        },
+        {
+          "file": "packages/work/test/integration/agents-assignments.test.ts",
+          "contains": "'AT-609 "
+        }
+      ]
+    }
+  ],
+  "decisions": [
+    {
+      "id": "D1",
+      "adr_row": "D1",
+      "title": "Profiles are records with a human owner",
+      "evidence": [
+        {
+          "file": "docs/engineering/adr/0047-agent-profiles-connectors.md",
+          "contains": "| D1 |"
+        },
+        {
+          "file": "packages/work/test/integration/agents.test.ts",
+          "contains": "'AT-595 "
+        }
+      ],
+      "sources": [
+        {
+          "file": "docs/engineering/adr/0047-agent-profiles-connectors.md",
+          "contains": "| D1 |"
+        }
+      ]
+    },
+    {
+      "id": "D2",
+      "adr_row": "D2",
+      "title": "Typed draft, immutable revisions",
+      "evidence": [
+        {
+          "file": "docs/engineering/adr/0047-agent-profiles-connectors.md",
+          "contains": "| D2 |"
+        },
+        {
+          "file": "packages/work/test/integration/agents.test.ts",
+          "contains": "'AT-597 "
+        }
+      ],
+      "sources": [
+        {
+          "file": "docs/engineering/adr/0047-agent-profiles-connectors.md",
+          "contains": "| D2 |"
+        }
+      ]
+    },
+    {
+      "id": "D3",
+      "adr_row": "D3",
+      "title": "Explicit scope; empty means nothing",
+      "evidence": [
+        {
+          "file": "docs/engineering/adr/0047-agent-profiles-connectors.md",
+          "contains": "| D3 |"
+        },
+        {
+          "file": "packages/work/test/unit/agent-config.test.ts",
+          "contains": "'AT-620 "
+        }
+      ],
+      "sources": [
+        {
+          "file": "docs/engineering/adr/0047-agent-profiles-connectors.md",
+          "contains": "| D3 |"
+        }
+      ]
+    },
+    {
+      "id": "D4",
+      "adr_row": "D4",
+      "title": "Registered, versioned tools only",
+      "evidence": [
+        {
+          "file": "docs/engineering/adr/0047-agent-profiles-connectors.md",
+          "contains": "| D4 |"
+        },
+        {
+          "file": "packages/work/test/unit/agent-config.test.ts",
+          "contains": "'AT-621 "
+        }
+      ],
+      "sources": [
+        {
+          "file": "docs/engineering/adr/0047-agent-profiles-connectors.md",
+          "contains": "| D4 |"
+        }
+      ]
+    },
+    {
+      "id": "D5",
+      "adr_row": "D5",
+      "title": "Approvals only stricter",
+      "evidence": [
+        {
+          "file": "docs/engineering/adr/0047-agent-profiles-connectors.md",
+          "contains": "| D5 |"
+        },
+        {
+          "file": "packages/work/test/unit/agent-config.test.ts",
+          "contains": "'AT-621 "
+        }
+      ],
+      "sources": [
+        {
+          "file": "docs/engineering/adr/0047-agent-profiles-connectors.md",
+          "contains": "| D5 |"
+        }
+      ]
+    },
+    {
+      "id": "D6",
+      "adr_row": "D6",
+      "title": "Grantability for configurer and owner",
+      "evidence": [
+        {
+          "file": "docs/engineering/adr/0047-agent-profiles-connectors.md",
+          "contains": "| D6 |"
+        },
+        {
+          "file": "packages/work/test/integration/agents.test.ts",
+          "contains": "'AT-598 "
+        }
+      ],
+      "sources": [
+        {
+          "file": "docs/engineering/adr/0047-agent-profiles-connectors.md",
+          "contains": "| D6 |"
+        }
+      ]
+    },
+    {
+      "id": "D7",
+      "adr_row": "D7",
+      "title": "Session-only configuration",
+      "evidence": [
+        {
+          "file": "docs/engineering/adr/0047-agent-profiles-connectors.md",
+          "contains": "| D7 |"
+        },
+        {
+          "file": "packages/work/test/integration/agents-access.test.ts",
+          "contains": "'AT-616 "
+        }
+      ],
+      "sources": [
+        {
+          "file": "docs/engineering/adr/0047-agent-profiles-connectors.md",
+          "contains": "| D7 |"
+        }
+      ]
+    },
+    {
+      "id": "D8",
+      "adr_row": "D8",
+      "title": "Five starter templates",
+      "evidence": [
+        {
+          "file": "docs/engineering/adr/0047-agent-profiles-connectors.md",
+          "contains": "| D8 |"
+        },
+        {
+          "file": "packages/work/test/integration/agents.test.ts",
+          "contains": "'AT-595 "
+        }
+      ],
+      "sources": [
+        {
+          "file": "docs/engineering/adr/0047-agent-profiles-connectors.md",
+          "contains": "| D8 |"
+        }
+      ]
+    },
+    {
+      "id": "D9",
+      "adr_row": "D9",
+      "title": "Departure, authority loss, lifecycle",
+      "evidence": [
+        {
+          "file": "docs/engineering/adr/0047-agent-profiles-connectors.md",
+          "contains": "| D9 |"
+        },
+        {
+          "file": "packages/work/test/integration/agents.test.ts",
+          "contains": "'AT-600 "
+        }
+      ],
+      "sources": [
+        {
+          "file": "docs/engineering/adr/0047-agent-profiles-connectors.md",
+          "contains": "| D9 |"
+        }
+      ]
+    },
+    {
+      "id": "D10",
+      "adr_row": "D10",
+      "title": "Connector kinds on existing foundations",
+      "evidence": [
+        {
+          "file": "docs/engineering/adr/0047-agent-profiles-connectors.md",
+          "contains": "| D10 |"
+        },
+        {
+          "file": "packages/work/test/integration/agents-connectors.test.ts",
+          "contains": "'AT-602 "
+        }
+      ],
+      "sources": [
+        {
+          "file": "docs/engineering/adr/0047-agent-profiles-connectors.md",
+          "contains": "| D10 |"
+        }
+      ]
+    },
+    {
+      "id": "D11",
+      "adr_row": "D11",
+      "title": "Guarded, bounded handshakes",
+      "evidence": [
+        {
+          "file": "docs/engineering/adr/0047-agent-profiles-connectors.md",
+          "contains": "| D11 |"
+        },
+        {
+          "file": "packages/work/test/integration/agents-connectors.test.ts",
+          "contains": "\"AT-605 "
+        }
+      ],
+      "sources": [
+        {
+          "file": "docs/engineering/adr/0047-agent-profiles-connectors.md",
+          "contains": "| D11 |"
+        }
+      ]
+    },
+    {
+      "id": "D12",
+      "adr_row": "D12",
+      "title": "A test is a separate confirmed operation",
+      "evidence": [
+        {
+          "file": "docs/engineering/adr/0047-agent-profiles-connectors.md",
+          "contains": "| D12 |"
+        },
+        {
+          "file": "packages/work/test/integration/agents-connectors.test.ts",
+          "contains": "'AT-606 "
+        }
+      ],
+      "sources": [
+        {
+          "file": "docs/engineering/adr/0047-agent-profiles-connectors.md",
+          "contains": "| D12 |"
+        }
+      ]
+    },
+    {
+      "id": "D13",
+      "adr_row": "D13",
+      "title": "Capabilities are metadata",
+      "evidence": [
+        {
+          "file": "docs/engineering/adr/0047-agent-profiles-connectors.md",
+          "contains": "| D13 |"
+        },
+        {
+          "file": "packages/work/test/integration/agents-connectors.test.ts",
+          "contains": "'AT-601 "
+        }
+      ],
+      "sources": [
+        {
+          "file": "docs/engineering/adr/0047-agent-profiles-connectors.md",
+          "contains": "| D13 |"
+        }
+      ]
+    },
+    {
+      "id": "D14",
+      "adr_row": "D14",
+      "title": "Truthful states; production blocked",
+      "evidence": [
+        {
+          "file": "docs/engineering/adr/0047-agent-profiles-connectors.md",
+          "contains": "| D14 |"
+        },
+        {
+          "file": "packages/work/test/integration/agents-connectors.test.ts",
+          "contains": "'AT-607 "
+        }
+      ],
+      "sources": [
+        {
+          "file": "docs/engineering/adr/0047-agent-profiles-connectors.md",
+          "contains": "| D14 |"
+        }
+      ]
+    },
+    {
+      "id": "D15",
+      "adr_row": "D15",
+      "title": "Assignment is a separate relationship",
+      "evidence": [
+        {
+          "file": "docs/engineering/adr/0047-agent-profiles-connectors.md",
+          "contains": "| D15 |"
+        },
+        {
+          "file": "packages/work/test/integration/agents-assignments.test.ts",
+          "contains": "'AT-610 "
+        }
+      ],
+      "sources": [
+        {
+          "file": "docs/engineering/adr/0047-agent-profiles-connectors.md",
+          "contains": "| D15 |"
+        }
+      ]
+    },
+    {
+      "id": "D16",
+      "adr_row": "D16",
+      "title": "Structured brief and an only-narrowing ceiling",
+      "evidence": [
+        {
+          "file": "docs/engineering/adr/0047-agent-profiles-connectors.md",
+          "contains": "| D16 |"
+        },
+        {
+          "file": "packages/work/test/integration/agents-assignments.test.ts",
+          "contains": "'AT-612 "
+        }
+      ],
+      "sources": [
+        {
+          "file": "docs/engineering/adr/0047-agent-profiles-connectors.md",
+          "contains": "| D16 |"
+        }
+      ]
+    },
+    {
+      "id": "D17",
+      "adr_row": "D17",
+      "title": "No leaks through the task panel",
+      "evidence": [
+        {
+          "file": "docs/engineering/adr/0047-agent-profiles-connectors.md",
+          "contains": "| D17 |"
+        },
+        {
+          "file": "packages/work/test/integration/agents-assignments.test.ts",
+          "contains": "'AT-614 "
+        }
+      ],
+      "sources": [
+        {
+          "file": "docs/engineering/adr/0047-agent-profiles-connectors.md",
+          "contains": "| D17 |"
+        }
+      ]
+    },
+    {
+      "id": "D18",
+      "adr_row": "D18",
+      "title": "Execution refused; the 8C contract published",
+      "evidence": [
+        {
+          "file": "docs/engineering/adr/0047-agent-profiles-connectors.md",
+          "contains": "| D18 |"
+        },
+        {
+          "file": "packages/work/test/integration/agents-assignments.test.ts",
+          "contains": "'AT-609 "
+        }
+      ],
+      "sources": [
+        {
+          "file": "docs/engineering/adr/0047-agent-profiles-connectors.md",
+          "contains": "| D18 |"
+        }
+      ]
+    },
+    {
+      "id": "D19",
+      "adr_row": "D19",
+      "title": "Finite limits under concurrency",
+      "evidence": [
+        {
+          "file": "docs/engineering/adr/0047-agent-profiles-connectors.md",
+          "contains": "| D19 |"
+        },
+        {
+          "file": "packages/work/test/integration/agents.test.ts",
+          "contains": "'AT-631 "
+        }
+      ],
+      "sources": [
+        {
+          "file": "docs/engineering/adr/0047-agent-profiles-connectors.md",
+          "contains": "| D19 |"
+        }
+      ]
+    }
+  ],
+  "boundaries": [
+    {
+      "id": "8C",
+      "statement": "Runs, run credentials, tool calls, progress, artifacts, emergency stop, and connector dispatch; the run endpoint refuses with dependency_unavailable."
+    },
+    {
+      "id": "8D",
+      "statement": "Per-instance approval, review, and acceptance; R3/R4 stay human-approved and execution unavailable."
+    },
+    {
+      "id": "10A",
+      "statement": "Technical limits only; no plan, price, or entitlement."
+    },
+    {
+      "id": "10B",
+      "statement": "Five starter templates only; no catalog or distribution."
+    },
+    {
+      "id": "PRODUCTION-CONNECTORS",
+      "statement": "Live connectors are blocked until an approved secret store and credentials exist (DQ-28); fixture results are labelled synthetic."
+    },
+    {
+      "id": "PRODUCTION-AI",
+      "statement": "Unconfigured; internal readiness is verified against the deterministic fixture. No live or paid call."
+    },
+    {
+      "id": "MANUAL",
+      "statement": "No screen-reader or live-agent validation is claimed."
+    },
+    {
+      "id": "REL-FU-P7-01",
+      "statement": "Kept open (ADR-0045)."
+    },
+    {
+      "id": "TEST-FU-P7-02",
+      "statement": "Kept open (ADR-0045)."
+    }
+  ]
+}

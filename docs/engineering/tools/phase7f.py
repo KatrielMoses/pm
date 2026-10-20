@@ -221,7 +221,8 @@ def check_migration():
     later = [n for n in names if n > "0059_planning_capture.up.sql"]
     held = {"0060_phase7_integration.up.sql": "phase7.py", "0061_effect_recovery_safety.up.sql": "phase8w0.py",
             "0062_automation_engine.up.sql": "phase8a.py",
-            "0063_automation_checkpoint_refs.up.sql": "phase8a.py"}
+            "0063_automation_checkpoint_refs.up.sql": "phase8a.py",
+            "0064_agent_profiles_connectors.up.sql": "phase8b.py"}
     if later and (any(n not in held or not os.path.isfile(P("docs/engineering/tools/%s" % held[n])) for n in later)):
         errs.append("0059_planning_capture must be the last migration before the Phase 7 integration (0060)")
     errs += phase1.check_boundaries([59])

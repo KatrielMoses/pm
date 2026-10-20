@@ -1539,6 +1539,104 @@
         "I-12",
         "I-07"
       ]
+    },
+    {
+      "id": "T-152",
+      "category": "agent_scope",
+      "description": "A profile's configurer or accountable owner grants an agent brands, projects, records, integrations, or tool classes they cannot grant themselves (at create, edit, activation, or reassignment), so the agent holds more than any human behind it.",
+      "mitigated_by": [
+        "I-11",
+        "I-14"
+      ]
+    },
+    {
+      "id": "T-153",
+      "category": "agent_scope",
+      "description": "A profile names an unregistered or model-supplied tool, an unavailable future tool, arbitrary HTTP or code, or an approval weaker than the 0C class minimum (R3/R4 without a human), and the configuration is accepted.",
+      "mitigated_by": [
+        "I-01",
+        "I-14",
+        "I-15"
+      ]
+    },
+    {
+      "id": "T-154",
+      "category": "staleness",
+      "description": "Editing or widening a profile, or widening a person's access later, silently enlarges what existing assignments may use, because the assignment reads the profile's current grants instead of its pinned revision and stored ceiling.",
+      "mitigated_by": [
+        "I-11",
+        "I-12",
+        "I-14"
+      ]
+    },
+    {
+      "id": "T-155",
+      "category": "agent_scope",
+      "description": "A low-privilege assigner borrows a powerful agent profile (a confused deputy) and assigns it work or context beyond the assigner's own current access, or a share-only reader or guest assigns at all.",
+      "mitigated_by": [
+        "I-05",
+        "I-11",
+        "I-14"
+      ]
+    },
+    {
+      "id": "T-156",
+      "category": "spoofing",
+      "description": "A delegated token configures, activates, reassigns, or tests an agent profile, or replays a completed session-only command key, or assigns without the agents:execute scope.",
+      "mitigated_by": [
+        "I-09",
+        "I-11",
+        "I-12"
+      ]
+    },
+    {
+      "id": "T-157",
+      "category": "inference",
+      "description": "A task reader, a member, a guest, or an unknown identifier learns an agent's instructions, grants, connector, or hidden context titles and counts through the task Agent section, a preview, a selection list, an error, or history.",
+      "mitigated_by": [
+        "I-07",
+        "I-08",
+        "I-16"
+      ]
+    },
+    {
+      "id": "T-158",
+      "category": "spoofing",
+      "description": "An external connector endpoint targets private ranges, cloud metadata, or the product's own API or MCP endpoint, follows redirects, returns oversized, malformed, wrong-protocol, or wrong-nonce answers, or advertises tools that widen what the profile grants, and the product trusts it.",
+      "mitigated_by": [
+        "I-01",
+        "I-14",
+        "I-16"
+      ]
+    },
+    {
+      "id": "T-159",
+      "category": "revocation",
+      "description": "A connector test is applied after its settings changed or its requester lost authority, sends task context or secrets to the peer, or a synthetic fixture result is presented as a live verification.",
+      "mitigated_by": [
+        "I-12",
+        "I-14",
+        "I-16"
+      ]
+    },
+    {
+      "id": "T-160",
+      "category": "departure",
+      "description": "An owner or assigner departs or loses authority, or a profile is archived, trashed, disconnected, or purged, and the agent stays ready, assignments stay active, or a secret reference survives.",
+      "mitigated_by": [
+        "I-10",
+        "I-12",
+        "I-16"
+      ]
+    },
+    {
+      "id": "T-161",
+      "category": "staleness",
+      "description": "Concurrent creations or assignments exceed the workspace profile limit, the per-task limit, or the one-active-assignment rule, or readiness claims a model or a connector that is not available now (an invented run).",
+      "mitigated_by": [
+        "I-01",
+        "I-13"
+      ]
     }
   ],
   "tests": [
@@ -11761,6 +11859,620 @@
       "response_shape": "forbidden",
       "silent_surfaces": [
         "error_message"
+      ]
+    },
+    {
+      "id": "AT-595",
+      "threats": [
+        "T-153"
+      ],
+      "principal": "owner",
+      "setup": "Each of the five starter templates instantiated",
+      "scope": "workspace",
+      "action": "agents.configure",
+      "surface": "api",
+      "expected": "allow",
+      "response_shape": "ok",
+      "silent_surfaces": []
+    },
+    {
+      "id": "AT-596",
+      "threats": [
+        "T-153"
+      ],
+      "principal": "owner",
+      "setup": "Drafts with unregistered tools, weaker approval, unknown fields, out-of-range limits, and unavailable tools",
+      "scope": "workspace",
+      "action": "agents.configure",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "validation_generic",
+      "silent_surfaces": [
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-597",
+      "threats": [
+        "T-154"
+      ],
+      "principal": "owner",
+      "setup": "Edit after activation; reactivate an identical configuration",
+      "scope": "workspace",
+      "action": "agents.configure",
+      "surface": "api",
+      "expected": "allow",
+      "response_shape": "ok",
+      "silent_surfaces": []
+    },
+    {
+      "id": "AT-598",
+      "threats": [
+        "T-152"
+      ],
+      "principal": "administrator",
+      "setup": "Configurer or owner lacking the level a scope item's tools need, at activation",
+      "scope": "brand without access",
+      "action": "agents.configure",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "validation_generic",
+      "silent_surfaces": [
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-599",
+      "threats": [
+        "T-160"
+      ],
+      "principal": "owner",
+      "setup": "Duplicate a connected, active profile",
+      "scope": "workspace",
+      "action": "agents.configure",
+      "surface": "api",
+      "expected": "allow",
+      "response_shape": "ok_filtered",
+      "silent_surfaces": []
+    },
+    {
+      "id": "AT-600",
+      "threats": [
+        "T-157",
+        "T-160"
+      ],
+      "principal": "member",
+      "setup": "Archived and trashed profiles; a member reading a profile",
+      "scope": "workspace",
+      "action": "agents.configure",
+      "surface": "ui_record",
+      "expected": "deny",
+      "response_shape": "ok_filtered",
+      "silent_surfaces": [
+        "ui_list"
+      ]
+    },
+    {
+      "id": "AT-601",
+      "threats": [
+        "T-158"
+      ],
+      "principal": "owner",
+      "setup": "API connector against the synthetic fixture peer; advertised tools wider than the grants",
+      "scope": "workspace",
+      "action": "agents.configure",
+      "surface": "api",
+      "expected": "allow",
+      "response_shape": "ok_filtered",
+      "silent_surfaces": []
+    },
+    {
+      "id": "AT-602",
+      "threats": [
+        "T-158"
+      ],
+      "principal": "owner",
+      "setup": "Webhook connector; the answer signed with a different secret",
+      "scope": "workspace",
+      "action": "agents.configure",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "validation_generic",
+      "silent_surfaces": [
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-603",
+      "threats": [
+        "T-158"
+      ],
+      "principal": "owner",
+      "setup": "MCP connector at another protocol version",
+      "scope": "workspace",
+      "action": "agents.configure",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "validation_generic",
+      "silent_surfaces": [
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-604",
+      "threats": [
+        "T-158"
+      ],
+      "principal": "owner",
+      "setup": "Malformed, oversized, redirecting, wrong-version, wrong-nonce, failing, and slow peers",
+      "scope": "workspace",
+      "action": "agents.configure",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "error_generic",
+      "silent_surfaces": [
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-605",
+      "threats": [
+        "T-158"
+      ],
+      "principal": "owner",
+      "setup": "Private, metadata, own-product, credential-bearing, and plain-http endpoints; a product token as the secret",
+      "scope": "workspace",
+      "action": "agents.configure",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "validation_generic",
+      "silent_surfaces": [
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-606",
+      "threats": [
+        "T-159"
+      ],
+      "principal": "owner",
+      "setup": "Settings changed before the queued test ran; rotation and disconnect",
+      "scope": "workspace",
+      "action": "agents.configure",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "conflict_filtered",
+      "silent_surfaces": [
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-607",
+      "threats": [
+        "T-159"
+      ],
+      "principal": "owner",
+      "setup": "Unconfirmed test, the hourly limit, and no fixture transport",
+      "scope": "workspace",
+      "action": "agents.configure",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "error_generic",
+      "silent_surfaces": [
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-608",
+      "threats": [
+        "T-155",
+        "T-157"
+      ],
+      "principal": "member",
+      "setup": "Preview naming hidden context and scope outside the profile",
+      "scope": "assign to agent whose profile scope exceeds assigner",
+      "action": "agent.assign",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "validation_generic",
+      "silent_surfaces": [
+        "error_message",
+        "picker"
+      ]
+    },
+    {
+      "id": "AT-609",
+      "threats": [
+        "T-161"
+      ],
+      "principal": "owner",
+      "setup": "Assign: brief pinned, task state unchanged, run refused",
+      "scope": "task",
+      "action": "agent.assign",
+      "surface": "api",
+      "expected": "allow",
+      "response_shape": "ok",
+      "silent_surfaces": []
+    },
+    {
+      "id": "AT-610",
+      "threats": [
+        "T-161"
+      ],
+      "principal": "owner",
+      "setup": "Duplicate active assignment, replayed key, per-task limit under concurrency",
+      "scope": "task",
+      "action": "agent.assign",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "conflict_filtered",
+      "silent_surfaces": [
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-611",
+      "threats": [
+        "T-152",
+        "T-155"
+      ],
+      "principal": "guest",
+      "setup": "Guests, share-only readers, read-only members, and members without edit assigning",
+      "scope": "assign to agent whose profile scope exceeds assigner",
+      "action": "agent.assign",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "forbidden",
+      "silent_surfaces": [
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-612",
+      "threats": [
+        "T-154",
+        "T-160"
+      ],
+      "principal": "member",
+      "setup": "Profile widened, then narrowed; assigner loses access; owner departs",
+      "scope": "assigner lost access mid-run",
+      "action": "agent.assign",
+      "surface": "ui_record",
+      "expected": "deny",
+      "response_shape": "ok_filtered",
+      "silent_surfaces": [
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-613",
+      "threats": [
+        "T-154"
+      ],
+      "principal": "member",
+      "setup": "Edit an assignment with a stale version; widen its scope",
+      "scope": "task",
+      "action": "agent.assign",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "conflict_filtered",
+      "silent_surfaces": [
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-614",
+      "threats": [
+        "T-157"
+      ],
+      "principal": "read_only",
+      "setup": "A task reader listing the task's agents with hidden context",
+      "scope": "task",
+      "action": "record.read",
+      "surface": "ui_record",
+      "expected": "allow",
+      "response_shape": "ok_filtered",
+      "silent_surfaces": [
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-615",
+      "threats": [
+        "T-152",
+        "T-157"
+      ],
+      "principal": "limited_member",
+      "setup": "Every role and guest across three workspaces",
+      "scope": "cross-workspace",
+      "action": "agents.configure",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "not_found",
+      "silent_surfaces": [
+        "error_message",
+        "ui_list"
+      ]
+    },
+    {
+      "id": "AT-616",
+      "threats": [
+        "T-156"
+      ],
+      "principal": "api_token_personal",
+      "setup": "Token configuring, activating, replaying a session key; assigning without agents:execute",
+      "scope": "token scope narrower than creator",
+      "action": "agents.configure",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "forbidden",
+      "silent_surfaces": [
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-617",
+      "threats": [
+        "T-155",
+        "T-156"
+      ],
+      "principal": "member",
+      "setup": "Brand revoked between preview and save; completed key replayed after revocation",
+      "scope": "revoked brand grant",
+      "action": "agent.assign",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "not_found",
+      "silent_surfaces": [
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-618",
+      "threats": [
+        "T-159"
+      ],
+      "principal": "owner",
+      "setup": "Profile trashed or requester lost authority after the test was requested",
+      "scope": "revocation, trash, and departure",
+      "action": "agents.configure",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "error_generic",
+      "silent_surfaces": [
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-619",
+      "threats": [
+        "T-160"
+      ],
+      "principal": "system_job",
+      "setup": "Profile and task purge; historical rendering",
+      "scope": "departure",
+      "action": "agents.configure",
+      "surface": "api",
+      "expected": "allow",
+      "response_shape": "ok_filtered",
+      "silent_surfaces": []
+    },
+    {
+      "id": "AT-620",
+      "threats": [
+        "T-153"
+      ],
+      "principal": "owner",
+      "setup": "Configuration compiler: canonical form and refusals",
+      "scope": "workspace",
+      "action": "agents.configure",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "validation_generic",
+      "silent_surfaces": [
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-621",
+      "threats": [
+        "T-153"
+      ],
+      "principal": "owner",
+      "setup": "Policy floor per 0C tool class",
+      "scope": "workspace",
+      "action": "agents.configure",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "validation_generic",
+      "silent_surfaces": [
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-622",
+      "threats": [
+        "T-153"
+      ],
+      "principal": "owner",
+      "setup": "Template drafts compile",
+      "scope": "workspace",
+      "action": "agents.configure",
+      "surface": "api",
+      "expected": "allow",
+      "response_shape": "ok",
+      "silent_surfaces": []
+    },
+    {
+      "id": "AT-623",
+      "threats": [
+        "T-158"
+      ],
+      "principal": "owner",
+      "setup": "Manifest protocol, version, nonce, and shape",
+      "scope": "workspace",
+      "action": "agents.configure",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "error_generic",
+      "silent_surfaces": [
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-624",
+      "threats": [
+        "T-158"
+      ],
+      "principal": "owner",
+      "setup": "Endpoint guard ranges and own origin",
+      "scope": "workspace",
+      "action": "agents.configure",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "validation_generic",
+      "silent_surfaces": [
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-625",
+      "threats": [
+        "T-153",
+        "T-161"
+      ],
+      "principal": "owner",
+      "setup": "HTTP: templates, registry, create, edit with If-Match, activate, readiness",
+      "scope": "workspace",
+      "action": "agents.configure",
+      "surface": "api",
+      "expected": "allow",
+      "response_shape": "ok",
+      "silent_surfaces": []
+    },
+    {
+      "id": "AT-626",
+      "threats": [
+        "T-157"
+      ],
+      "principal": "guest",
+      "setup": "HTTP: members without the policy, guests, unknown ids and verbs",
+      "scope": "nonexistent vs hidden ID",
+      "action": "agents.configure",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "not_found",
+      "silent_surfaces": [
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-627",
+      "threats": [
+        "T-158",
+        "T-159"
+      ],
+      "principal": "owner",
+      "setup": "HTTP: guarded endpoints, the shown-once secret, no transport",
+      "scope": "workspace",
+      "action": "agents.configure",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "validation_generic",
+      "silent_surfaces": [
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-628",
+      "threats": [
+        "T-161"
+      ],
+      "principal": "owner",
+      "setup": "HTTP: preview, assign, edit, withdraw, run refused",
+      "scope": "task",
+      "action": "agent.assign",
+      "surface": "api",
+      "expected": "allow",
+      "response_shape": "ok",
+      "silent_surfaces": []
+    },
+    {
+      "id": "AT-629",
+      "threats": [
+        "T-156"
+      ],
+      "principal": "api_token_personal",
+      "setup": "HTTP: profile routes refuse every token; assignment needs agents:execute",
+      "scope": "token scope narrower than creator",
+      "action": "agent.assign",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "forbidden",
+      "silent_surfaces": [
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-630",
+      "threats": [
+        "T-161"
+      ],
+      "principal": "owner",
+      "setup": "Internal readiness with workspace AI off, on (synthetic), and off again",
+      "scope": "workspace",
+      "action": "agents.configure",
+      "surface": "ui_record",
+      "expected": "allow",
+      "response_shape": "ok",
+      "silent_surfaces": []
+    },
+    {
+      "id": "AT-631",
+      "threats": [
+        "T-161"
+      ],
+      "principal": "owner",
+      "setup": "Concurrent profile creations at the workspace limit",
+      "scope": "workspace",
+      "action": "agents.configure",
+      "surface": "api",
+      "expected": "deny",
+      "response_shape": "conflict_filtered",
+      "silent_surfaces": [
+        "error_message"
+      ]
+    },
+    {
+      "id": "AT-632",
+      "threats": [
+        "T-158",
+        "T-161"
+      ],
+      "principal": "owner",
+      "setup": "Browser journey: starter, scope, synthetic test, activation, assignment by preview, offline, accessibility",
+      "scope": "task",
+      "action": "agent.assign",
+      "surface": "ui_record",
+      "expected": "allow",
+      "response_shape": "ok",
+      "silent_surfaces": []
+    },
+    {
+      "id": "AT-633",
+      "threats": [
+        "T-157"
+      ],
+      "principal": "member",
+      "setup": "Browser: a member without the agent policy; an unreadable task",
+      "scope": "task in another brand",
+      "action": "agents.configure",
+      "surface": "ui_record",
+      "expected": "deny",
+      "response_shape": "not_found",
+      "silent_surfaces": [
+        "error_message",
+        "ui_list"
       ]
     }
   ]

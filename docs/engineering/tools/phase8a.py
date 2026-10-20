@@ -138,7 +138,12 @@ def check_engine():
         if re.search(r"\bsql\.raw\(", text):
             errs.append("%s builds raw SQL" % rel)
     factory = read(P("packages/work/src/factory.ts"))
-    if "return new AutomationService(" not in factory or "export class AutomationService extends AiGatewayService" not in service:
+    # 8B extends the engine once (AgentService extends AutomationService, phase8b.py).
+    agents = P("packages/work/src/agents/service.ts")
+    head = "return new AutomationService(" in factory or (
+        "return new AgentService(" in factory and os.path.isfile(agents)
+        and "export class AgentService extends AutomationService" in read(agents))
+    if not head or "export class AutomationService extends AiGatewayService" not in service:
         errs.append("AutomationService must extend the gateway and be the chain head the factory returns")
     if ".register(automationOwnerHook)" not in factory:
         errs.append("the factory must register the automation ownership hook")
@@ -204,8 +209,12 @@ def check_migration():
         if term not in down:
             errs.append("0062 down lacks %s" % term)
     names = sorted(n for n in os.listdir(P("packages/db/migrations")) if n.endswith(".up.sql"))
-    if names[-2:] != ["0062_automation_engine.up.sql", "0063_automation_checkpoint_refs.up.sql"]:
-        errs.append("0062_automation_engine and 0063_automation_checkpoint_refs must be the last migrations")
+    # Later migrations are held by later validators (8B adds 0064, held by phase8b.py).
+    later_owned = {"0064_agent_profiles_connectors.up.sql": "phase8b.py"}
+    tail = [n for n in names if n > "0063_automation_checkpoint_refs.up.sql"]
+    if "0062_automation_engine.up.sql" not in names or "0063_automation_checkpoint_refs.up.sql" not in names or any(
+            n not in later_owned or not os.path.isfile(P("docs/engineering/tools/%s" % later_owned[n])) for n in tail):
+        errs.append("0062_automation_engine and 0063_automation_checkpoint_refs must be the last migrations (or held by a later validator)")
     up63 = read(P("packages/db/migrations/0063_automation_checkpoint_refs.up.sql"))
     down63 = read(P("packages/db/migrations/0063_automation_checkpoint_refs.down.sql"))
     for term in ("-- migrate:phase expand", "ALTER TABLE exec.job NO FORCE ROW LEVEL SECURITY;",
@@ -294,11 +303,24 @@ def check_identifiers():
 
 def check_closure_and_boundaries(closure):
     errs = []
-    if closure.get("adr") != "0046" or closure.get("status") != "candidate":
-        errs.append("closure-8a.json must be the 8A candidate under ADR-0046 (not self-accepted)")
+    # The architect accepted 8A with review 01 (recorded by the 8B brief, never self-accepted):
+    # engineering scope only, keeping the no-exactly-once, production, manual, and 0063 boundaries.
+    if closure.get("adr") != "0046" or closure.get("status") != "accepted":
+        errs.append("closure-8a.json must be the accepted 8A closure under ADR-0046")
+    acc = closure.get("accepted", {})
+    if (acc.get("head") != "802c0265ca2a40e50fc5fea35b866c895c00fe10" or acc.get("ci_run") != "39401581014"
+            or acc.get("attempt") != 1 or acc.get("totals") != {"unit_component": 967, "integration": 1108,
+                                                                 "process_smoke": 6, "browser": 286}
+            or acc.get("corrective_reviews_closed") != ["R1", "R2", "R3"]
+            or "exactly-once" not in acc.get("boundaries", "")
+            or "pre-correction" not in acc.get("deployment_restriction", "")):
+        errs.append("the closure must record the architect's acceptance (802c026, run 39401581014, attempt 1, totals, R1-R3, boundaries, the 0063 restriction)")
     adr = read(P(ADR))
-    if not re.search(r"^Status: \*\*proposed\*\*", adr, re.M):
-        errs.append("ADR-0046 stays proposed until the architect reviews it")
+    status = next((l for l in adr.split("\n") if l.startswith("Status: ")), "")
+    if not (status.startswith("Status: **accepted** (engineering scope") and "802c026" in status
+            and "39401581014" in status and "not production" in status and "exactly-once" in status
+            and "pre-correction" in status):
+        errs.append("ADR-0046 must record the architect's acceptance at 802c026, run 39401581014, without production approval, keeping the 0063 restriction")
     for d in DECISIONS:
         if "\n| %s |" % d not in adr:
             errs.append("ADR-0046 lacks decision %s" % d)
@@ -326,7 +348,7 @@ def check_closure_and_boundaries(closure):
     p8 = load(P("docs/engineering/phase8/closure-p8w0.json"))
     if p8.get("status") != "accepted" or p8.get("accepted", {}).get("ci_run") != "39234366133":
         errs.append("the P8-W0 acceptance (run 39234366133) must be recorded before 8A builds on it")
-    return errs, "candidate under a proposed ADR; boundaries 9B/8C/10A/10B, production AI, no exactly-once, manual, follow-ups"
+    return errs, "accepted at 802c026 (run 39401581014); boundaries 9B/8C/10A/10B, production AI, no exactly-once, manual, 0063 restriction, follow-ups"
 
 
 def check_review01(closure):
@@ -399,7 +421,7 @@ def check_wiring():
     for term in ("0046-automation-engine.md", "phase8a.py", "automations.md"):
         if term not in readme:
             errs.append("the engineering index must list %s" % term)
-    if "|automations)" not in read(P("playwright.config.ts")):
+    if not re.search(r"\|automations[|)]", read(P("playwright.config.ts"))):
         errs.append("the tablet project must run the 8A journeys")
     if "## Phase 8A: automation engine" not in read(P("docs/engineering/database.md")):
         errs.append("docs/engineering/database.md must record migration 0062")

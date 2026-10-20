@@ -66,14 +66,19 @@ HOLLOW = [("CAL-012", "linked_work_block_id"), ("CAL-008", "busy boolean"), ("CA
 
 def _ai_head(factory):
     """Phase 7A extends the 6E head: AiGatewayService extends McpAccessService (and 8A extends
-    the gateway: AutomationService extends AiGatewayService)."""
+    the gateway: AutomationService extends AiGatewayService; 8B extends that: AgentService extends
+    AutomationService)."""
     path = P("packages/work/src/ai/ai-gateway-service.ts")
     if not (os.path.isfile(path) and "export class AiGatewayService extends McpAccessService" in read(path)):
         return False
     auto = P("packages/work/src/automation/service.ts")
     return "return new AiGatewayService(" in factory or (
         "return new AutomationService(" in factory and os.path.isfile(auto)
-        and "export class AutomationService extends AiGatewayService" in read(auto))
+        and "export class AutomationService extends AiGatewayService" in read(auto)) or (
+        "return new AgentService(" in factory and os.path.isfile(auto)
+        and "export class AutomationService extends AiGatewayService" in read(auto)
+        and os.path.isfile(P("packages/work/src/agents/service.ts"))
+        and "export class AgentService extends AutomationService" in read(P("packages/work/src/agents/service.ts")))
 
 def check_validators():
     errs = []
@@ -125,6 +130,7 @@ def check_numbering():
         "0061": ("0061_effect_recovery_safety.up.sql", "phase8w0.py"),
         "0062": ("0062_automation_engine.up.sql", "phase8a.py"),
         "0063": ("0063_automation_checkpoint_refs.up.sql", "phase8a.py"),
+        "0064": ("0064_agent_profiles_connectors.up.sql", "phase8b.py"),
     }
     for k in later:
         name, validator = later_owned.get(k, (None, None))
@@ -146,11 +152,12 @@ def check_numbering():
         last = max(int(x) for x in re.findall(r'<a id="[a-z]+-(\d+)"></a>', text))
         # Later phases add anchors held by their own validators: Phase 7A two per record (ADR-44/45,
         # AZ-44/45, PL-46/47), Phase 7B one (ADR-46, AZ-46, PL-48), Phase 7D one (ADR-47, AZ-47,
-        # PL-49), Phase 7C one (ADR-48, AZ-48, PL-50), Phase 7E one (ADR-49, AZ-49, PL-51), and
-        # Phase 7F one (ADR-50, AZ-50, PL-52).
+        # PL-49), Phase 7C one (ADR-48, AZ-48, PL-50), Phase 7E one (ADR-49, AZ-49, PL-51),
+        # Phase 7F one (ADR-50, AZ-50, PL-52), Phase 8A one (ADR-51, AZ-51, PL-53), and Phase 8B one
+        # (ADR-52, AZ-52, PL-54).
         own = int(anchors[-1].split("-")[1])
         later_anchors = {"phase7a.py": 2, "phase7b.py": 1, "phase7d.py": 1, "phase7c.py": 1, "phase7e.py": 1,
-                         "phase7f.py": 1, "phase8a.py": 1}
+                         "phase7f.py": 1, "phase8a.py": 1, "phase8b.py": 1}
         allowed = own + sum(n for v, n in later_anchors.items()
                             if os.path.isfile(P("docs/engineering/tools/%s" % v)))
         if last not in (own, allowed):

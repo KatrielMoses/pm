@@ -329,6 +329,18 @@
 - **Not built.** A template catalog or marketplace (10B), agent workflows (8C), and plan entitlements (10A).
 - **Affected.** Automations list, builder, and run pages; notification bell.
 
+<a id="uxd-33"></a>
+#### UXD-33 — Agents
+
+- **Default.** Agents is a workspace navigation entry and a palette command (`go.agents`). The list shows each agent's state (Draft, On, Off, Suspended, Archived), kind (internal: workspace AI; external: a connected agent), owner, and whether it is ready. A new agent starts turned off with no scope, blank or from one of five starters (development, research, growth, documentation, testing) that names what is still missing.
+- **Configuration is explicit.** The editor edits a draft: instructions, model (internal), limits, registered tools (later-phase tools are listed, disabled, with their phase), approvals per class (weaker options than the floor are disabled), and the scope as checkboxes of brands, projects, and integrations, with "Nothing chosen means nothing". "Before it can be turned on" lists what is invalid, unavailable, or missing; Turn on stays disabled until it is empty. People who cannot configure see the state, owner, and readiness only.
+- **Connection.** External agents have a Connection section that says only test connections are possible until live credentials exist. Saving shows a webhook signing secret once; a test is confirmed in a dialog that says nothing about tasks or records is sent, its result names the settings version it tested and is labelled synthetic; Disconnect is confirmed and destroys the secret.
+- **Task Agent section.** On a task, Agents sits under people and labels and says it is separate from people. Each assignment shows the agent, Assigned or Blocked (with reasons in words), the brief, and the scope the reader can open (others are counted). Assign and Edit need a Preview first, which lists what the agent may use and what is not included; "Assigned; execution available in Phase 8C. Nothing runs yet, and nothing has been sent to an agent." Withdraw is confirmed.
+- **States.** Unsaved agent edits are kept on the device and restored after a reload; offline saves keep the edit and say so; a newer saved version keeps the edit with "Discard my edits"; an unknown or hidden agent shows the not-available page.
+- **Layout.** Labelled controls, keyboard order matching the form, 320 px and 200% zoom without sideways scrolling, state text that survives forced colours, and no animation.
+- **Not built.** Running agents, progress, artifacts, and emergency stop (8C), per-action approval and acceptance (8D), a template catalog (10B), and plan entitlements (10A).
+- **Affected.** Agents list and profile pages; task page.
+
 ## 4. UX risk register
 
 | ID | Risk | Likelihood / impact | Mitigation in this set | Early-warning evidence | Owner phase |

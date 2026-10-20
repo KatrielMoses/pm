@@ -9796,7 +9796,7 @@
     {
       "name": "agent_profile",
       "module": "agents",
-      "purpose": "Agent definition: purpose, kind (internal|external), model, instructions, limits, approval policy.",
+      "purpose": "Agent definition: accountable human owner, kind (internal|external), name and purpose, an editable typed draft, and the selected immutable revision (instructions, model reference, limits, approval policy).",
       "scope": "workspace",
       "addressable": true,
       "public_id_prefix": "agt",
@@ -9815,17 +9815,67 @@
       "uniqueness": [],
       "sensitive_fields": [],
       "key_columns": [
-        "accountable_owner_membership_id",
+        "accountable_owner_membership_id (stored as owner_membership_id; never a fabricated member for the agent)",
+        "kind (internal|external), immutable after creation",
+        "state (draft|active|disabled|suspended)",
+        "active_revision_id null (deferrable reference to the selected immutable revision)",
+        "draft jsonb (typed, bounded configuration; edits never touch the active revision)",
+        "template_key null, duplicated_from_id null (no credential, grant, or approval is copied)",
         "suspended_reason (owner_authority|owner_departed|admin) null",
-        "suspended_at null"
+        "suspended_at null",
+        "version bigint"
       ],
       "requirements": [
         "AGT-001",
         "AGT-002",
         "AGT-006",
-        "AGT-007"
+        "AGT-007",
+        "AGT-008",
+        "ONB-013"
       ],
-      "notes": ""
+      "notes": "Phase 8B (ADR-52): a core.record extension in the agents schema (workspace scope). Readiness (model, connector, owner) is derived on read, never stored."
+    },
+    {
+      "addressable": false,
+      "public_id_prefix": null,
+      "extends": null,
+      "associations": [],
+      "retention_class": "R-LIVE",
+      "volume": "low",
+      "export": "filtered",
+      "search_ai": "no",
+      "may_contain_secrets": "no",
+      "personal_data": "incidental",
+      "sensitive_fields": [],
+      "name": "agent_profile_revision",
+      "module": "agents",
+      "purpose": "Immutable validated profile configuration (instructions, model reference, limits, approval policy) with its relational scope and tool grants; assignments pin it.",
+      "scope": "inherited",
+      "containment_parents": [
+        "agent_profile"
+      ],
+      "lifecycle": "versioned-immutable",
+      "concurrency": "append-only",
+      "confidentiality": "C2",
+      "uniqueness": [
+        "(profile_id, revision_number)",
+        "(profile_id, config_hash)"
+      ],
+      "key_columns": [
+        "revision_number",
+        "schema_version",
+        "kind",
+        "config jsonb (canonical)",
+        "config_hash",
+        "model_key null",
+        "created_by_membership_id"
+      ],
+      "requirements": [
+        "AGT-002",
+        "AGT-005",
+        "PERM-008"
+      ],
+      "notes": "Phase 8B (ADR-52): a trigger refuses updates; editing a profile adds a revision and never broadens an assignment's pinned revision."
     },
     {
       "name": "agent_scope_grant",
@@ -9836,15 +9886,15 @@
       "public_id_prefix": null,
       "extends": null,
       "containment_parents": [
-        "agent_profile"
+        "agent_profile_revision"
       ],
       "associations": [
         "brand",
         "project",
         "connection"
       ],
-      "lifecycle": "mutable",
-      "concurrency": "row-version",
+      "lifecycle": "versioned-immutable",
+      "concurrency": "append-only",
       "retention_class": "R-AUDIT",
       "confidentiality": "C1",
       "volume": "low",
@@ -9852,14 +9902,20 @@
       "search_ai": "yes",
       "may_contain_secrets": "no",
       "personal_data": "incidental",
-      "uniqueness": [],
+      "uniqueness": [
+        "(revision_id, kind, target_id)"
+      ],
       "sensitive_fields": [],
-      "key_columns": [],
+      "key_columns": [
+        "revision_id (immutable, per profile revision)",
+        "kind (brand|project|record|integration)",
+        "target_id"
+      ],
       "requirements": [
         "AGT-005",
         "PERM-008"
       ],
-      "notes": ""
+      "notes": "Phase 8B (ADR-52): explicit scope; an empty grant set means nothing, never all. Selecting a project or an integration never grants the records behind it."
     },
     {
       "name": "agent_tool_grant",
@@ -9870,11 +9926,11 @@
       "public_id_prefix": null,
       "extends": null,
       "containment_parents": [
-        "agent_profile"
+        "agent_profile_revision"
       ],
       "associations": [],
-      "lifecycle": "mutable",
-      "concurrency": "row-version",
+      "lifecycle": "versioned-immutable",
+      "concurrency": "append-only",
       "retention_class": "R-AUDIT",
       "confidentiality": "C1",
       "volume": "low",
@@ -9882,15 +9938,23 @@
       "search_ai": "yes",
       "may_contain_secrets": "no",
       "personal_data": "incidental",
-      "uniqueness": [],
+      "uniqueness": [
+        "(revision_id, tool)"
+      ],
       "sensitive_fields": [],
-      "key_columns": [],
+      "key_columns": [
+        "revision_id (immutable, per profile revision)",
+        "tool, tool_version (registered in agent-tools.json)",
+        "tool_class (0C agent tool class)",
+        "approval_class (never weaker than the class minimum; R3/R4 human_approval)"
+      ],
       "requirements": [
+        "AGT-005",
         "AGT-014",
         "AGT-015",
         "AGT-016"
       ],
-      "notes": ""
+      "notes": "Phase 8B (ADR-52): only registered versioned tools; unavailable tools (later phases) cannot be granted."
     },
     {
       "name": "agent_connector",
@@ -9913,13 +9977,65 @@
       "search_ai": "no",
       "may_contain_secrets": "secret-ref",
       "personal_data": "incidental",
-      "uniqueness": [],
+      "uniqueness": [
+        "(profile_id)"
+      ],
       "sensitive_fields": [],
-      "key_columns": [],
+      "key_columns": [
+        "kind (api|webhook|mcp)",
+        "endpoint_url (guarded: https, no private ranges, never the product's own endpoints)",
+        "secret_ref null (vault reference only; no secret in configuration, checkpoints, logs, or exports)",
+        "config_version (each change makes earlier tests stale)",
+        "state (configured|verified|stale|revoked|unavailable)",
+        "verified_version, verified_at, verified_synthetic",
+        "capabilities jsonb (advertised \u2229 registry \u2229 grants; metadata, not authority)",
+        "last_code, last_tested_at, disconnected_at",
+        "version bigint"
+      ],
       "requirements": [
         "AGT-007"
       ],
-      "notes": ""
+      "notes": "Phase 8B (ADR-52): one connector per external profile; a synthetic fixture verification is labelled and never marks a live connector verified."
+    },
+    {
+      "addressable": false,
+      "public_id_prefix": null,
+      "extends": "operation",
+      "associations": [],
+      "retention_class": "R-EXEC",
+      "volume": "low",
+      "export": "never",
+      "search_ai": "no",
+      "may_contain_secrets": "no",
+      "personal_data": "incidental",
+      "sensitive_fields": [],
+      "name": "agent_connector_test",
+      "module": "agents",
+      "purpose": "Operation detail of one confirmed connector handshake: the settings version it tested and its bounded outcome.",
+      "scope": "workspace",
+      "containment_parents": [
+        "agent_connector"
+      ],
+      "lifecycle": "append-only",
+      "concurrency": "locked",
+      "confidentiality": "C1",
+      "uniqueness": [
+        "(operation_id)"
+      ],
+      "key_columns": [
+        "operation_id (agent_connector_test operation)",
+        "connector_id",
+        "config_version (bound at preparation; a changed version makes the result stale)",
+        "requested_by_membership_id",
+        "state (queued|running|passed|failed|stale|refused)",
+        "code null (typed handshake outcome)",
+        "synthetic",
+        "duration_ms null, ended_at null"
+      ],
+      "requirements": [
+        "AGT-007"
+      ],
+      "notes": "Phase 8B (ADR-52): only protocol metadata and a nonce are sent; never task context, instructions, scope, or assignments. A pass proves protocol compatibility only."
     },
     {
       "name": "agent_assignment",
@@ -9945,16 +10061,65 @@
       "may_contain_secrets": "no",
       "personal_data": "incidental",
       "uniqueness": [
-        "(task_id, agent_profile_id) where active"
+        "(task_id, profile_id) where state = 'assigned'"
       ],
       "sensitive_fields": [],
-      "key_columns": [],
+      "key_columns": [
+        "task_id, brand_id (the task's brand)",
+        "profile_id",
+        "state (assigned|withdrawn; blocked is derived on read)",
+        "current_revision_id (immutable assignment revision)",
+        "assigned_by_membership_id, withdrawn_by_membership_id null, withdrawn_at null",
+        "version bigint"
+      ],
+      "requirements": [
+        "AGT-003",
+        "AGT-004",
+        "TSK-008",
+        "LA-008"
+      ],
+      "notes": "Phase 8B (ADR-52): separate from human assignees; it never changes task status. Execution belongs to 8C."
+    },
+    {
+      "addressable": false,
+      "public_id_prefix": null,
+      "extends": null,
+      "associations": [],
+      "retention_class": "R-LIVE",
+      "volume": "medium",
+      "export": "filtered",
+      "search_ai": "yes",
+      "may_contain_secrets": "no",
+      "personal_data": "incidental",
+      "sensitive_fields": [],
+      "name": "agent_assignment_revision",
+      "module": "agents",
+      "purpose": "Immutable assignment brief and stored scope ceiling: goal, constraints, deliverable, criteria, context references, the pinned profile revision, and the assigner.",
+      "scope": "inherited",
+      "containment_parents": [
+        "agent_assignment"
+      ],
+      "lifecycle": "versioned-immutable",
+      "concurrency": "append-only",
+      "confidentiality": "C2",
+      "uniqueness": [
+        "(assignment_id, revision_number)"
+      ],
+      "key_columns": [
+        "revision_number",
+        "profile_revision_id (pinned)",
+        "assigner_membership_id",
+        "goal, constraints null, deliverable null (bounded text)",
+        "criteria jsonb (bounded list)",
+        "context_refs uuid[] (references only; values are read on authorized demand)",
+        "scope_brand_ids, scope_project_ids, scope_record_ids, scope_integration_ids uuid[] (the ceiling; current authority only narrows it)"
+      ],
       "requirements": [
         "AGT-003",
         "AGT-004",
         "TSK-008"
       ],
-      "notes": ""
+      "notes": "Phase 8B (ADR-52): a trigger refuses updates; widening needs a new explicit revision."
     },
     {
       "name": "agent_run",

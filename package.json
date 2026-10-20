@@ -54,6 +54,7 @@
     "validate:phase7": "python3 docs/engineering/tools/phase7.py",
     "validate:phase8w0": "python3 docs/engineering/tools/phase8w0.py",
     "validate:phase8a": "python3 docs/engineering/tools/phase8a.py",
+    "validate:phase8b": "python3 docs/engineering/tools/phase8b.py",
     "contracts:generate": "node packages/contracts/scripts/generate.mjs",
     "contracts:generate:check": "node packages/contracts/scripts/generate.mjs --check",
     "mcp:contracts:generate": "node packages/work/scripts/generate-mcp-registry.mjs",

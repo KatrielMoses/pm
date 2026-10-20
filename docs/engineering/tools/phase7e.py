@@ -166,7 +166,8 @@ def check_migration():
     later_owned = {"0059_planning_capture.up.sql": "phase7f.py", "0060_phase7_integration.up.sql": "phase7.py",
                    "0061_effect_recovery_safety.up.sql": "phase8w0.py",
                    "0062_automation_engine.up.sql": "phase8a.py",
-                   "0063_automation_checkpoint_refs.up.sql": "phase8a.py"}
+                   "0063_automation_checkpoint_refs.up.sql": "phase8a.py",
+                   "0064_agent_profiles_connectors.up.sql": "phase8b.py"}
     after = names[names.index("0058_ai_briefings.up.sql") + 1:] if "0058_ai_briefings.up.sql" in names else ["?"]
     for n in after:
         if n not in later_owned or not os.path.isfile(P("docs/engineering/tools/%s" % later_owned[n])):

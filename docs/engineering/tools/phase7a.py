@@ -108,10 +108,14 @@ def check_gateway():
     factory = read(P("packages/work/src/factory.ts"))
     if "export class AiGatewayService extends McpAccessService" not in service:
         errs.append("AiGatewayService must extend the 6E McpAccessService head")
-    # 8A extends the gateway once (AutomationService extends AiGatewayService, phase8a.py).
+    # 8A extends the gateway once (AutomationService extends AiGatewayService, phase8a.py); 8B
+    # extends that (AgentService extends AutomationService, phase8b.py).
+    extended = "export class AutomationService extends AiGatewayService" in read(P(AUTOMATION_SERVICE))
+    agents = P("packages/work/src/agents/service.ts")
     if "return new AiGatewayService(" not in factory and not (
-            "return new AutomationService(" in factory
-            and "export class AutomationService extends AiGatewayService" in read(P(AUTOMATION_SERVICE))):
+            extended and ("return new AutomationService(" in factory or (
+                "return new AgentService(" in factory and os.path.isfile(agents)
+                and "export class AgentService extends AutomationService" in read(agents)))):
         errs.append("createWorkService must return AiGatewayService (or its 8A extension)")
     # Provider output is data: the gateway never writes business records.
     for bad in ("insertInto('work.", "updateTable('work.", "deleteFrom('work.", "updateTable('collab.",
@@ -202,6 +206,7 @@ def check_migration():
         "0061": ("0061_effect_recovery_safety.up.sql", "phase8w0.py"),
         "0062": ("0062_automation_engine.up.sql", "phase8a.py"),
         "0063": ("0063_automation_checkpoint_refs.up.sql", "phase8a.py"),
+        "0064": ("0064_agent_profiles_connectors.up.sql", "phase8b.py"),
     }
     for k in sorted(k for k in by if k > "0054"):
         name, validator = later_owned.get(k, (None, None))

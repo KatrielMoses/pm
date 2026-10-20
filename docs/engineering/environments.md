@@ -375,6 +375,19 @@ worker process is a startup error. All identities of one process must target the
 | `AUTOMATION_SWEEP_BATCH_MAX` | optional | optional | default 100 (1–1000); workspaces visited, and due date and schedule triggers taken per workspace, in one sweep (0D `AUTOMATION_SWEEP_BATCH_MAX`, 8A) |
 | `AUTOMATION_ALERT_FAILURE_THRESHOLD` | optional | optional | default 3 (1–20); consecutive failed runs before the owner is alerted; alerts go through 4B notifications (0D `AUTOMATION_ALERT_FAILURE_THRESHOLD`, 8A) |
 | `AUTOMATION_ALERT_INTERVAL_MINUTES` | optional | optional | default 1440 (60–10080); least time between two failure alerts for one automation (0D `AUTOMATION_ALERT_INTERVAL_MINUTES`, 8A) |
+| `AGENT_PROFILES_PER_WORKSPACE_MAX` | optional | optional | default 100 (1–1000); agent profiles (not purged) per workspace, reserved under a workspace lock (0D `AGENT_PROFILES_PER_WORKSPACE_MAX`, 8B) |
+| `AGENT_INSTRUCTIONS_MAX_CHARS` | optional | optional | default 8000 (100–32000); characters of a profile's instructions (0D `AGENT_INSTRUCTIONS_MAX_CHARS`, 8B) |
+| `AGENT_SCOPE_GRANTS_MAX` | optional | optional | default 50 (1–500); scope grants (brands, projects, records, integrations) in one profile revision (0D `AGENT_SCOPE_GRANTS_MAX`, 8B) |
+| `AGENT_TOOL_GRANTS_MAX` | optional | optional | default 20 (1–50); tool grants in one profile revision (0D `AGENT_TOOL_GRANTS_MAX`, 8B) |
+| `AGENT_CONFIG_BYTES_MAX` | optional | optional | default 32768 (1024–65536); canonical bytes of one profile configuration (0D `AGENT_CONFIG_BYTES_MAX`, 8B) |
+| `AGENT_ASSIGNMENTS_PER_TASK_MAX` | optional | optional | default 5 (1–20); active agent assignments of one task, reserved under the task lock (0D `AGENT_ASSIGNMENTS_PER_TASK_MAX`, 8B) |
+| `AGENT_CONTEXT_REFS_MAX` | optional | optional | default 20 (0–100); context references chosen for one assignment (0D `AGENT_CONTEXT_REFS_MAX`, 8B) |
+| `AGENT_CRITERIA_MAX` | optional | optional | default 20 (1–50); acceptance criteria of one assignment (0D `AGENT_CRITERIA_MAX`, 8B) |
+| `AGENT_ASSIGNMENT_TEXT_MAX_CHARS` | optional | optional | default 4000 (100–4000); characters of an assignment's goal, constraints, deliverable, and each criterion (0D `AGENT_ASSIGNMENT_TEXT_MAX_CHARS`, 8B) |
+| `AGENT_CONNECTOR_TIMEOUT_MS` | optional | optional | default 10000 (1000–30000); one connector handshake (0D `AGENT_CONNECTOR_TIMEOUT_MS`, 8B) |
+| `AGENT_CONNECTOR_RESPONSE_MAX_BYTES` | optional | optional | default 65536 (1024–1048576); bytes of one handshake answer; more is refused, never truncated (0D `AGENT_CONNECTOR_RESPONSE_MAX_BYTES`, 8B) |
+| `AGENT_CONNECTOR_TESTS_PER_HOUR` | optional | optional | default 20 (1–200); connector tests of one profile per hour, reserved under the connector lock (0D `AGENT_CONNECTOR_TESTS_PER_HOUR`, 8B) |
+| `AGENT_CONNECTOR_TRANSPORT` | optional | optional | default `none`; `fixture` lets connector tests reach the synthetic local agent peers over loopback (tests and the browser suite). Refused in deployed environments; no live connector transport exists until an approved secret store and credentials do (DQ-28) (0D `AGENT_CONNECTOR_TRANSPORT`, 8B) |
 | `USAGE_WARNING_THRESHOLDS` | optional | optional | default `8000,10000`; ascending basis points of the hard AI spend limit at which owners and administrators are notified (0D `USAGE_WARNING_THRESHOLDS`, owner 7A) |
 | `AI_HISTORY_RETENTION_DAYS` | optional | — | unset by default: AI content is kept until the run's initiator departs or the workspace is deleted (OD-36 undecided). When set, the hourly sweep erases older prompts, outputs, and context references; usage and audit facts remain |
 

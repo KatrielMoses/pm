@@ -16,14 +16,19 @@ load = phase1.load
 
 def _ai_head(factory):
     """Phase 7A extends the 6E head: AiGatewayService extends McpAccessService (and 8A extends
-    the gateway: AutomationService extends AiGatewayService)."""
+    the gateway: AutomationService extends AiGatewayService; 8B extends that: AgentService extends
+    AutomationService)."""
     path = P("packages/work/src/ai/ai-gateway-service.ts")
     if not (os.path.isfile(path) and "export class AiGatewayService extends McpAccessService" in read(path)):
         return False
     auto = P("packages/work/src/automation/service.ts")
     return "return new AiGatewayService(" in factory or (
         "return new AutomationService(" in factory and os.path.isfile(auto)
-        and "export class AutomationService extends AiGatewayService" in read(auto))
+        and "export class AutomationService extends AiGatewayService" in read(auto)) or (
+        "return new AgentService(" in factory and os.path.isfile(auto)
+        and "export class AutomationService extends AiGatewayService" in read(auto)
+        and os.path.isfile(P("packages/work/src/agents/service.ts"))
+        and "export class AgentService extends AutomationService" in read(P("packages/work/src/agents/service.ts")))
 
 def check_boundary():
     errs = []
