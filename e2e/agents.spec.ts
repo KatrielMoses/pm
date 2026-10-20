@@ -1,7 +1,7 @@
 import { expect, test, type Page } from '@playwright/test';
 import { queryUrl } from '@pm/test-support';
-import { api, h1, person } from './goals-support.ts';
-import { expectNoOverflow, tabTo } from './live-support.ts';
+import { api, giveBrand, h1, person } from './goals-support.ts';
+import { expectNoOverflow, removeBrandAccess, tabTo } from './live-support.ts';
 import { createBrand, createWorkspace, expectAccessible, goTo, owner } from './support.ts';
 
 /**
@@ -236,5 +236,72 @@ test('AT-633 Phase 8B a member without the agent policy sees agents and readines
   // Mia has no access to the task's brand: the task is the one opaque answer.
   await mia.page.goto(`/workspaces/${ws}/tasks/${task}`);
   await expect(h1(mia.page)).toHaveText("This page isn't available");
+  await mia.ctx.close();
+});
+
+test('AT-642 Phase 8B review 01: an assigner downgraded to view leaves their assignment blocked on the task panel, with no hidden scope counted @desktop-only', async ({
+  page,
+  browser,
+}, info) => {
+  test.setTimeout(180_000);
+  const { ws, base, brand, task } = await setup(page, info, 'agt8b-r01');
+  const name = `r01-${info.retry}-${Date.now() % 100000}`;
+  const secret = `fixture-secret-${name}`;
+  const endpoint = await peer(name, secret);
+  // A ready external agent (synthetic fixture), configured by the owner through the API.
+  const made = await api(page, 'POST', `${base}/agents`, { template: 'development' });
+  await api(
+    page,
+    'PATCH',
+    `${base}/agents/${made.id}`,
+    { draft: { ...made.draft, scope: { brands: [brand] } } },
+    made.version,
+  );
+  await api(page, 'POST', `${base}/agents/${made.id}/connector`, {
+    kind: 'api',
+    endpoint_url: endpoint,
+    secret,
+  });
+  const current = (await (await page.request.get(`${base}/agents/${made.id}`)).json()).data;
+  await api(page, 'POST', `${base}/agents/${made.id}:activate`, {}, current.version);
+  const t = await api(page, 'POST', `${base}/agents/${made.id}/connector:test`, { confirm: true });
+  await expect
+    .poll(
+      async () =>
+        (
+          await (
+            await page.request.get(`${base}/agents/${made.id}/connector-tests/${t.test.id}`)
+          ).json()
+        ).data.test.state,
+      { timeout: 30_000 },
+    )
+    .toBe('passed');
+  const mia = await person(browser, page, ws, info, 'agt8b-r01-mia', 'Mia Member', 'Member');
+  await giveBrand(page, ws, 'Harbor', 'Mia Member', 'edit');
+  await mia.page.goto(`/workspaces/${ws}/tasks/${task}`);
+  await expect(h1(mia.page)).toHaveText('Write launch notes');
+  await api(mia.page, 'POST', `${base}/tasks/${task}/agents`, {
+    profile: made.id,
+    goal: 'Draft the notes.',
+  });
+  await page.goto(`/workspaces/${ws}/tasks/${task}`);
+  const section = page.locator('section.ag-task');
+  const items = section.getByRole('list', { name: 'Assigned agents' });
+  await expect(items.getByText('Assigned', { exact: true })).toBeVisible();
+  // Mia keeps view access (she still reads the task) but can no longer assign on it.
+  await removeBrandAccess(page, ws, 'Harbor', 'Mia Member');
+  await giveBrand(page, ws, 'Harbor', 'Mia Member', 'view');
+  await page.goto(`/workspaces/${ws}/tasks/${task}`);
+  await expect(items.getByText('Blocked', { exact: true })).toBeVisible();
+  await expect(items.getByText(/can no longer assign agents on this task/)).toBeVisible();
+  await expect(items).not.toContainText(/more items?|you cannot open\b/);
+  await expectAccessible(page, 'task-agent-blocked-assigner');
+  // Mia reads the task and sees it blocked too, with no assign form.
+  await mia.page.goto(`/workspaces/${ws}/tasks/${task}`);
+  const hers = mia.page.locator('section.ag-task');
+  await expect(
+    hers.getByRole('list', { name: 'Assigned agents' }).getByText('Blocked', { exact: true }),
+  ).toBeVisible();
+  await expect(hers.getByRole('form', { name: 'Assign an agent' })).toHaveCount(0);
   await mia.ctx.close();
 });

@@ -364,4 +364,117 @@ describe('agents API (8B)', () => {
     expect(read.statusCode, read.body).toBe(200);
     expect(read.json().data.items.some((x: { goal: string }) => x.goal === 'By token.')).toBe(true);
   });
+
+  const change = async (c: Record<string, unknown>) => {
+    const preview = await owner.post(`${base()}/access:preview`, { change: c });
+    expect(preview.statusCode, preview.body).toBe(200);
+    const body = { change: c, preview_token: preview.json().data.preview_token };
+    const headers = key();
+    let res = await owner.post(`${base()}/access:apply`, body, { headers });
+    if (res.statusCode === 403 && res.json().error.code === 'step_up_required') {
+      const sv = await owner.post(`/v1/auth/step-up/${res.json().error.step_up.id}:verify`, {
+        method: 'password',
+        proof: PASSWORD,
+      });
+      res = await owner.post(`${base()}/access:apply`, body, {
+        headers: { ...headers, 'step-up': sv.json().data.token },
+      });
+    }
+    expect(res.statusCode, res.body).toBe(200);
+  };
+  const activeInternal = async (name: string, scope: Record<string, string[]>) => {
+    const made = (await post(owner, '/agents', { template: 'research', name })).json().data;
+    const edited = await patch(
+      owner,
+      `/agents/${made.id}`,
+      { draft: { ...made.draft, model_key: SYNTHETIC_MODEL, scope } },
+      { 'if-match': `"${made.version}"` },
+    );
+    const on = await post(
+      owner,
+      `/agents/${made.id}:activate`,
+      {},
+      {
+        'if-match': `"${edited.json().data.version}"`,
+      },
+    );
+    expect(on.statusCode, on.body).toBe(200);
+    return made.id as string;
+  };
+
+  it('AT-640 R1 over HTTP: a share-only reader cannot tell assignments apart by hidden scope; no count or profile fact reaches them', async () => {
+    const other = (await post(owner, '/brands', { name: 'Other' })).json().data.id as string;
+    const hidden = (await post(owner, '/projects', { brand: other, name: 'Hidden project' })).json()
+      .data.id as string;
+    const a0 = await activeInternal('Equivalent zero', { brands: [brand, other] });
+    const a1 = await activeInternal('Equivalent one', { brands: [brand, other] });
+    for (const [agt, projects] of [
+      [a0, []],
+      [a1, [hidden]],
+    ] as const) {
+      const r = await post(owner, `/tasks/${task}/agents`, {
+        profile: agt,
+        goal: 'Same brief.',
+        scope: { records: [task], projects },
+      });
+      expect(r.statusCode, r.body).toBe(201);
+    }
+    const res = await get(guest, `/tasks/${task}/agents`);
+    expect(res.statusCode, res.body).toBe(200);
+    const pick = (agt: string) => {
+      const x = res
+        .json()
+        .data.items.find((i: { profile: { id: string } }) => i.profile.id === agt);
+      const { id: _i, profile: _p, version: _v, assigned_at: _a, ...rest } = x;
+      return JSON.stringify(rest);
+    };
+    expect(pick(a1)).toBe(pick(a0));
+    expect(res.body).not.toMatch(/not_shown/);
+    expect(res.body).not.toContain(hidden);
+    expect(res.body).not.toMatch(/model_|connector_|owner_/);
+    // The owner, who can open everything selected, sees the hidden project by name.
+    const all = await get(owner, `/tasks/${task}/agents`);
+    expect(all.body).toContain('Hidden project');
+  });
+
+  it('AT-641 R2 over HTTP: when the assigner is downgraded to view, every reader sees the assignment blocked and the assigner can no longer assign', async () => {
+    const memberId = (await owner.get(`${base()}/people`))
+      .json()
+      .data.find((x: { role: string }) => x.role === 'member').id as string;
+    await change({ kind: 'brand_grant', brand, principal: memberId, level: 'edit' });
+    const agt = await activeInternal('Downgrade', { brands: [brand] });
+    const spare = await activeInternal('Spare', { brands: [brand] });
+    const made = await post(member, `/tasks/${task}/agents`, {
+      profile: agt,
+      goal: 'By the member.',
+    });
+    expect(made.statusCode, made.body).toBe(201);
+    const reasons = async (who: Browser) =>
+      (await get(who, `/tasks/${task}/agents`))
+        .json()
+        .data.items.find((i: { profile: { id: string } }) => i.profile.id === agt) as {
+        state: string;
+        blocked_reasons: string[];
+      };
+    expect((await reasons(owner)).blocked_reasons).not.toContain('assigner_authority');
+    await change({ kind: 'brand_revoke', brand, principal: memberId });
+    await change({ kind: 'brand_grant', brand, principal: memberId, level: 'view' });
+    const byOwner = await reasons(owner);
+    expect(byOwner.state).toBe('blocked');
+    expect(byOwner.blocked_reasons).toContain('assigner_authority');
+    const byGuest = await reasons(guest);
+    expect(byGuest.state).toBe('blocked');
+    expect(byGuest.blocked_reasons).toContain('assigner_authority');
+    for (const r of byGuest.blocked_reasons)
+      expect([
+        'agent_not_ready',
+        'assigner_authority',
+        'assigner_unavailable',
+        'task_ineligible',
+        'scope_lost',
+      ]).toContain(r);
+    expect(
+      (await post(member, `/tasks/${task}/agents`, { profile: spare, goal: 'Again.' })).statusCode,
+    ).toBe(403);
+  });
 });

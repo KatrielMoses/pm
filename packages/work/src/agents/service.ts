@@ -28,6 +28,7 @@ import {
 import { AutomationService } from '../automation/service.ts';
 import { isPublic } from '../validation.ts';
 import {
+  APPROVAL_ORDER,
   compileConfig,
   ConfigError,
   missingConfiguration,
@@ -160,6 +161,13 @@ const EXECUTION = {
   note: 'Assigned agents run when durable agent runs arrive (Phase 8C). Nothing has been sent to an agent.',
 } as const;
 const PROFILE_FIELDS = ['name', 'purpose', 'kind', 'template', 'draft'];
+/** Assignment-level reasons every task reader may see; profile facts collapse to `agent_not_ready`. */
+const ASSIGNMENT_REASONS = new Set([
+  'assigner_unavailable',
+  'assigner_authority',
+  'task_ineligible',
+  'scope_lost',
+]);
 const LEVEL_ORDER: Level[] = ['view', 'comment', 'edit', 'manage'];
 const blankDraft = (kind: 'internal' | 'external') => ({
   schema_version: PROFILE_SCHEMA_VERSION,
@@ -648,10 +656,13 @@ export class AgentService extends AutomationService {
     };
   }
 
-  /** Grants as this viewer may see them: items they can open are named; others are counted only. */
+  /**
+   * Grants as this viewer may see them (review 01 R1): items they can open are named; every other
+   * item is omitted completely. No count, total, flag, or placeholder reveals whether or how many
+   * items are hidden.
+   */
   async #scopeView(tx: WorkspaceTransaction, p: Principal, g: Pick<Grants, ScopeKind>) {
     const out: Array<{ kind: ScopeKind; id: string; name: string }> = [];
-    let hidden = 0;
     for (const kind of ['brand', 'project', 'record', 'integration'] as const)
       for (const id of g[kind]) {
         const r =
@@ -659,9 +670,8 @@ export class AgentService extends AutomationService {
             ? await this.connectionVisibleTo(tx, p, id)
             : await this.#named(tx, p, kind, id);
         if (r) out.push({ kind, id: r.publicId, name: r.name });
-        else hidden += 1;
       }
-    return { items: out, not_shown: hidden };
+    return { items: out };
   }
 
   async #named(tx: WorkspaceTransaction, p: Principal, kind: ScopeKind, id: string) {
@@ -2323,13 +2333,74 @@ export class AgentService extends AutomationService {
     return { grants, ceiling, keep, context, refusals, taskInScope, owner };
   }
 
-  async #contextView(tx: WorkspaceTransaction, p: Principal, ids: readonly string[]) {
-    const out = [];
+  /**
+   * Context items the viewer can open (others omitted). With a live ceiling, each says whether it
+   * is still usable: a stored reference the assigner or owner can no longer reach is history, not
+   * execution scope, even when this viewer can read it (review 01 R2).
+   */
+  async #contextView(
+    tx: WorkspaceTransaction,
+    p: Principal,
+    ids: readonly string[],
+    live?: Pick<Grants, ScopeKind>,
+  ) {
+    const out: Array<{ id: string; name: string; usable?: boolean }> = [];
     for (const id of ids) {
       const r = await this.#named(tx, p, 'record', id);
-      if (r) out.push({ id: r.publicId, name: r.name });
+      if (!r) continue;
+      if (!live) {
+        out.push({ id: r.publicId, name: r.name });
+        continue;
+      }
+      const [item] = await this.#itemsOf(tx, {
+        brand: new Set(),
+        project: new Set(),
+        record: new Set([id]),
+        integration: new Set(),
+      });
+      out.push({
+        id: r.publicId,
+        name: r.name,
+        usable: !!item && (await this.#within(tx, item, live)),
+      });
     }
     return out;
+  }
+
+  /**
+   * The one assignment eligibility rule (review 01 R2), used by preview, save, edit, readiness,
+   * and the 8C handoff: the task is active, and the person assigning holds `agent.assign` on it
+   * now (task edit level; record shares never count). Throws the canonical refusal.
+   */
+  #requireAssignable(p: Principal, t: Awaited<ReturnType<AgentService['loadTask']>>) {
+    this.requireTaskAction(p, 'agent.assign', t, { shares: false, excluded: 'forbidden' });
+    this.requireTaskActive(t);
+  }
+
+  /**
+   * The same rule for a stored assignment: the task is loaded as its original assigner now.
+   * Readable is not assignable; an inactive (archived or trashed) task is ineligible.
+   */
+  async #assignerEligibility(
+    tx: WorkspaceTransaction,
+    assigner: Principal | null,
+    taskId: string,
+  ): Promise<Array<'task_ineligible' | 'assigner_unavailable' | 'assigner_authority'>> {
+    const rec = await tx.db
+      .selectFrom('core.record')
+      .select(['public_id', 'lifecycle_state'])
+      .where('id', '=', taskId)
+      .executeTakeFirst();
+    if (!rec || rec.lifecycle_state !== 'active') return ['task_ineligible'];
+    if (!assigner) return ['assigner_unavailable'];
+    try {
+      const t = await this.loadTask(tx, assigner, rec.public_id);
+      this.#requireAssignable(assigner, t);
+      return [];
+    } catch (err) {
+      if (err instanceof TenancyError) return ['assigner_authority'];
+      throw err;
+    }
   }
 
   /** The structured preview an assigner sees before saving: what is included and what is not. */
@@ -2338,7 +2409,7 @@ export class AgentService extends AutomationService {
     const input = this.#assignmentInput(body);
     return this.inWorkspace(caller, ws, { readOnly: true }, async (tx, p) => {
       const t = await this.loadTask(tx, p, tsk);
-      this.requireTaskAction(p, 'agent.assign', t, { shares: false, excluded: 'forbidden' });
+      this.#requireAssignable(p, t);
       const profile = await this.#visible(tx, p, input.profile);
       const r = await this.#resolveAssignment(
         tx,
@@ -2406,7 +2477,18 @@ export class AgentService extends AutomationService {
       .selectAll()
       .where('id', '=', a.current_revision_id!)
       .executeTakeFirstOrThrow();
-    const blocked = a.state === 'assigned' ? await this.#blockedReasons(tx, a, rev) : [];
+    const decision = a.state === 'assigned' ? await this.#decide(tx, a, rev) : null;
+    // People who cannot configure agents learn only that the agent itself is not ready, never
+    // which profile, model, connector, or owner fact made it so.
+    const blocked = decision
+      ? [
+          ...new Set(
+            this.#canConfigure(p)
+              ? decision.reasons
+              : decision.reasons.map((r) => (ASSIGNMENT_REASONS.has(r) ? r : 'agent_not_ready')),
+          ),
+        ]
+      : [];
     return {
       id: `${task}:${profile.public_id}`,
       type: 'agent_assignment' as const,
@@ -2418,7 +2500,10 @@ export class AgentService extends AutomationService {
       constraints: rev.constraints,
       deliverable: rev.deliverable,
       criteria: rev.criteria as unknown as string[],
-      context: await this.#contextView(tx, p, rev.context_refs),
+      context: await this.#contextView(tx, p, rev.context_refs, decision?.live),
+      // The stored ceiling (history, as confirmed) and the live ceiling an 8C run could use now;
+      // both show only the items this viewer can open.
+      effective_scope: decision ? await this.#scopeView(tx, p, decision.live) : { items: [] },
       scope: await this.#scopeView(tx, p, {
         brand: new Set(rev.scope_brand_ids),
         project: new Set(rev.scope_project_ids),
@@ -2434,13 +2519,16 @@ export class AgentService extends AutomationService {
   }
 
   /**
-   * Why an assignment cannot be worked now. The stored ceiling only narrows: each item must still
-   * be inside the profile's current grants and readable by the assigner and the owner; the task
-   * must still be inside that and still assignable by the assigner.
+   * The assignment decision (review 01 R2): profile readiness, the shared eligibility rule for the
+   * original assigner, and the live ceiling = the stored ceiling ∩ the pinned and current profile
+   * grants ∩ what the assigner and the owner can reach now. Tools are the pinned revision's tools
+   * that the current revision still grants, at the stricter approval. It only narrows; nothing a
+   * later grant adds is included. Blocked when anything fails or the task is no longer inside the
+   * live ceiling.
    */
-  async #blockedReasons(
+  async #decide(
     tx: WorkspaceTransaction,
-    a: { profile_id: string },
+    a: { profile_id: string; task_id: string },
     rev: {
       assigner_membership_id: string;
       scope_brand_ids: string[];
@@ -2456,7 +2544,7 @@ export class AgentService extends AutomationService {
     for (const r of ready.reasons) reasons.add(r);
     const assigner = await this.#memberPrincipal(tx, rev.assigner_membership_id);
     const owner = await this.#memberPrincipal(tx, profile.owner_membership_id);
-    if (!assigner) reasons.add('assigner_unavailable');
+    for (const r of await this.#assignerEligibility(tx, assigner, a.task_id)) reasons.add(r);
     const current = profile.active_revision_id
       ? await this.#grants(tx, profile.active_revision_id)
       : null;
@@ -2480,10 +2568,68 @@ export class AgentService extends AutomationService {
       if (!owner || (await this.#levelOn(tx, owner, item)) === null) continue;
       live[item.kind].add(item.id);
     }
-    if (items.length && !Object.values(live).some((s) => s.size)) reasons.add('scope_lost');
-    else if (items.length && Object.values(live).reduce((n, s) => n + s.size, 0) < items.length)
-      reasons.add('scope_narrowed');
-    return [...reasons];
+    const [taskItem] = await this.#itemsOf(tx, {
+      brand: new Set(),
+      project: new Set(),
+      record: new Set([a.task_id]),
+      integration: new Set(),
+    });
+    if (!taskItem || !(await this.#within(tx, taskItem, live))) reasons.add('scope_lost');
+    const rank = (x: string) => APPROVAL_ORDER.indexOf(x as (typeof APPROVAL_ORDER)[number]);
+    const tools = current
+      ? pinned.tools.flatMap((t) => {
+          const c = current.tools.find((x) => x.tool === t.tool && x.version === t.version);
+          if (!c) return [];
+          return [
+            {
+              ...t,
+              approval_class:
+                rank(c.approval_class) > rank(t.approval_class)
+                  ? c.approval_class
+                  : t.approval_class,
+            },
+          ];
+        })
+      : [];
+    return { eligible: reasons.size === 0, reasons: [...reasons], live, tools };
+  }
+
+  /**
+   * The 8C handoff (published, not executed here): the current decision for the active assignment
+   * of one task and profile, by public identifiers. 8C must call this immediately before issuing
+   * a run credential or dispatching and use only `ceiling` and `tools`; 8B never calls it to act.
+   */
+  protected async agentAssignmentEligibility(tx: WorkspaceTransaction, tsk: string, agt: string) {
+    const t = await tx.db
+      .selectFrom('core.record')
+      .select('id')
+      .where('public_id', '=', tsk)
+      .where('record_type', '=', 'task')
+      .executeTakeFirst();
+    const profile = await this.#rows(tx, { publicId: agt });
+    if (!t || !profile)
+      return { eligible: false, reasons: ['not_found'], ceiling: null, tools: [] };
+    const a = (await this.#assignmentRows(tx, t.id, { profileId: profile.id })).find(
+      (x) => x.state === 'assigned',
+    );
+    if (!a) return { eligible: false, reasons: ['not_assigned'], ceiling: null, tools: [] };
+    const rev = await tx.db
+      .selectFrom('agents.agent_assignment_revision')
+      .selectAll()
+      .where('id', '=', a.current_revision_id!)
+      .executeTakeFirstOrThrow();
+    const d = await this.#decide(tx, a, rev);
+    return {
+      eligible: d.eligible,
+      reasons: d.reasons,
+      ceiling: {
+        brand: [...d.live.brand],
+        project: [...d.live.project],
+        record: [...d.live.record],
+        integration: [...d.live.integration],
+      },
+      tools: d.tools,
+    };
   }
 
   async listTaskAgentAssignments(caller: Caller, ws: unknown, tsk: unknown) {
@@ -2520,8 +2666,7 @@ export class AgentService extends AutomationService {
       req,
       async (tx, p) => {
         const t = await this.loadTask(tx, p, tsk, { lock: true });
-        this.requireTaskAction(p, 'agent.assign', t, { shares: false, excluded: 'forbidden' });
-        this.requireTaskActive(t);
+        this.#requireAssignable(p, t);
         const profile = await this.#visible(tx, p, input.profile);
         const active = await this.#assignmentRows(tx, t.id);
         const open = active.filter((a) => a.state === 'assigned');
@@ -2664,8 +2809,7 @@ export class AgentService extends AutomationService {
       req,
       async (tx, p) => {
         const t = await this.loadTask(tx, p, tsk, { lock: true });
-        this.requireTaskAction(p, 'agent.assign', t, { shares: false, excluded: 'forbidden' });
-        this.requireTaskActive(t);
+        this.#requireAssignable(p, t);
         const profile = await this.#visible(tx, p, agt);
         const a = (
           await this.#assignmentRows(tx, t.id, { profileId: profile.id, lock: true })

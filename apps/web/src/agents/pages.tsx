@@ -322,6 +322,10 @@ function ReadinessView({ r, kind }: { r: Readiness; kind: string }) {
   );
 }
 
+/**
+ * Scope items the viewer can open. Items they cannot open are omitted by the server; nothing here
+ * counts, flags, or hints at them (review 01 R1).
+ */
 function ScopeList({ scope, label }: { scope: ScopeView; label: string }) {
   return (
     <div aria-label={label}>
@@ -334,13 +338,8 @@ function ScopeList({ scope, label }: { scope: ScopeView; label: string }) {
           ))}
         </ul>
       ) : (
-        <p className="empty-state">Nothing. An empty scope means it can use nothing.</p>
+        <p className="empty-state">No items you can open.</p>
       )}
-      {scope.not_shown ? (
-        <p className="hint">
-          {scope.not_shown} more {scope.not_shown === 1 ? 'item' : 'items'} you cannot open.
-        </p>
-      ) : null}
     </div>
   );
 }
@@ -1690,10 +1689,34 @@ export function TaskAgentSection({ ws, task }: { ws: string; task: string }) {
                     <dt>Assigned by</dt>
                     <dd>{x.assigned_by?.name ?? 'Someone no longer here'}</dd>
                   </div>
+                  {x.context.length ? (
+                    <div>
+                      <dt>Context</dt>
+                      <dd>
+                        <ul>
+                          {x.context.map((c) => (
+                            <li key={c.id}>
+                              {c.name}
+                              {c.usable === false ? ' (history only: no longer usable)' : ''}
+                            </li>
+                          ))}
+                        </ul>
+                      </dd>
+                    </div>
+                  ) : null}
                 </dl>
+                {x.state !== 'withdrawn' && x.effective_scope ? (
+                  <details>
+                    <summary>Scope it can use now</summary>
+                    <ScopeList
+                      scope={x.effective_scope}
+                      label={`Usable scope for ${x.profile.name}`}
+                    />
+                  </details>
+                ) : null}
                 <details>
-                  <summary>Scope it may use</summary>
-                  <ScopeList scope={x.scope} label={`Scope for ${x.profile.name}`} />
+                  <summary>Scope as assigned</summary>
+                  <ScopeList scope={x.scope} label={`Assigned scope for ${x.profile.name}`} />
                 </details>
                 {data.capabilities.assign ? (
                   <p className="ag-buttons">

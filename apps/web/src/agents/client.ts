@@ -21,8 +21,8 @@ export interface Execution {
 }
 
 export interface ScopeView {
+  /** Only items the viewer can open; hidden items are omitted, never counted. */
   items: Array<{ kind: 'brand' | 'project' | 'record' | 'integration'; id: string; name: string }>;
-  not_shown: number;
 }
 
 export interface Connector {
@@ -135,8 +135,12 @@ export interface Assignment {
   constraints: string | null;
   deliverable: string | null;
   criteria: string[];
-  context: Array<{ id: string; name: string }>;
+  /** Whether each readable context item is still inside the live ceiling. */
+  context: Array<{ id: string; name: string; usable?: boolean }>;
+  /** The stored ceiling as assigned (history). */
   scope: ScopeView;
+  /** What the assignment could use now: stored ceiling ∩ current assigner, owner, and profile. */
+  effective_scope?: ScopeView;
   assigned_by: { id: string; name: string } | null;
   assigned_at: string;
   withdrawn_at: string | null;
@@ -352,8 +356,10 @@ export const READINESS_TEXT: Record<string, string> = {
   model_key_unavailable: 'No provider key can be used.',
   model_suspended: 'AI is suspended for this workspace.',
   assigner_unavailable: 'The person who assigned it is no longer an active member.',
-  scope_lost: 'Nothing in its scope is available now.',
-  scope_narrowed: 'Part of its scope is no longer available.',
+  scope_lost: 'This task is no longer inside what the agent may use.',
+  agent_not_ready: 'The agent is not ready.',
+  assigner_authority: 'The person who assigned it can no longer assign agents on this task.',
+  task_ineligible: 'This task is archived or in the trash.',
 };
 
 export const reasonText = (r: string) => READINESS_TEXT[r] ?? r.replace(/_/g, ' ');

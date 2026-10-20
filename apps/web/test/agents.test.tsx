@@ -20,6 +20,7 @@ const WS = 'ws_01ARZ3NDEKTSV4RRFFQ69G5FAV';
 const AGT = 'agt_01ARZ3NDEKTSV4RRFFQ69G5FAV';
 const TSK = 'tsk_01ARZ3NDEKTSV4RRFFQ69G5FAV';
 const OP = 'op_01ARZ3NDEKTSV4RRFFQ69G5FAV';
+const TSK2 = 'tsk_01ARZ3NDEKTSV4RRFFQ69G5FAW';
 const BR = 'br_01ARZ3NDEKTSV4RRFFQ69G5FAV';
 const MEM = 'mem_01ARZ3NDEKTSV4RRFFQ69G5FAV';
 const json = (status: number, body: unknown) =>
@@ -382,14 +383,15 @@ describe('Task Agent section (8B)', () => {
     type: 'agent_assignment',
     profile: { id: AGT, name: 'Docs agent', kind: 'external' },
     state: 'blocked',
-    blocked_reasons: ['connector_not_verified'],
+    blocked_reasons: ['agent_not_ready', 'assigner_authority'],
     revision: 1,
     goal: 'Write the launch notes.',
     constraints: null,
     deliverable: 'A draft document',
     criteria: ['Mentions the date'],
-    context: [],
-    scope: { items: [{ kind: 'brand', id: BR, name: 'Harbor' }], not_shown: 1 },
+    context: [{ id: TSK2, name: 'Old context', usable: false }],
+    scope: { items: [{ kind: 'brand', id: BR, name: 'Harbor' }] },
+    effective_scope: { items: [] },
     assigned_by: { id: MEM, name: 'Ada' },
     assigned_at: '2026-10-20T00:00:00Z',
     withdrawn_at: null,
@@ -407,14 +409,19 @@ describe('Task Agent section (8B)', () => {
       },
     });
 
-  it('a reader sees agents separately from people, with blocked reasons and only the scope they can open; no form', async () => {
+  it('a reader sees agents separately from people, with blocked reasons and only the scope they can open; no form (review 01: no hidden count; stored versus usable scope)', async () => {
     serve({ [`GET /tasks/${TSK}/agents`]: () => list([assignment], false) });
     shell(<TaskAgentSection ws={WS} task={TSK} />);
     const items = await screen.findByRole('list', { name: 'Assigned agents' });
     expect(within(items).getByText('Blocked')).toBeTruthy();
-    expect(within(items).getByText(/has not passed a test for the current settings/)).toBeTruthy();
+    expect(within(items).getByText('The agent is not ready.')).toBeTruthy();
+    expect(within(items).getByText(/can no longer assign agents on this task/)).toBeTruthy();
     expect(within(items).getByText('Harbor')).toBeTruthy();
-    expect(within(items).getByText(/1 more item you cannot open/)).toBeTruthy();
+    expect(within(items).getByText(/Old context \(history only: no longer usable\)/)).toBeTruthy();
+    expect(within(items).getByLabelText('Usable scope for Docs agent').textContent).toBe(
+      'No items you can open.',
+    );
+    expect(items.textContent).not.toMatch(/more items?|cannot open\b|hidden/i);
     expect(screen.getByText(/separate from the people assigned/)).toBeTruthy();
     expect(screen.queryByRole('form', { name: 'Assign an agent' })).toBeNull();
     expect(screen.queryByRole('button', { name: 'Withdraw' })).toBeNull();
@@ -443,7 +450,6 @@ describe('Task Agent section (8B)', () => {
             context: [],
             scope: {
               items: [{ kind: 'record', id: TSK, name: 'Write launch notes' }],
-              not_shown: 0,
             },
             refusals: refused
               ? [
