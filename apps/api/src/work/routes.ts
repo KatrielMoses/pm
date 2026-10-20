@@ -1,6 +1,6 @@
 import type { FastifyInstance, FastifyRequest } from 'fastify';
 import { nonResourceEnvelope } from '@pm/contracts';
-import type { AutomationService } from '@pm/work';
+import type { AgentService } from '@pm/work';
 import { routeKit } from '../route-kit.ts';
 import { registerFiles } from './files-routes.ts';
 import { registerSearch } from './search-routes.ts';
@@ -23,12 +23,13 @@ import { registerIntegrations } from './integration-routes.ts';
 import { registerMcp } from '../mcp/routes.ts';
 import { registerAi } from '../ai/routes.ts';
 import { registerAutomations } from './automation-routes.ts';
+import { registerAgents } from './agent-routes.ts';
 import { registerViews } from './view-routes.ts';
 import { registerWorkflows } from './workflow-routes.ts';
 import { registerPortability } from './portability-routes.ts';
 
 export interface WorkRouteDeps {
-  work: AutomationService;
+  work: AgentService;
 }
 
 type Params = {
@@ -85,6 +86,7 @@ export function registerWork(app: FastifyInstance, deps: WorkRouteDeps): void {
   registerMcp(app, work);
   registerAi(app, work);
   registerAutomations(app, work);
+  registerAgents(app, work);
 
   app.get(
     base,

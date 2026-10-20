@@ -29,8 +29,10 @@ import {
   taskAssigneeHook,
   taskTargets,
   savedViewTargets,
-  AutomationService,
+  AgentService,
+  agentProfileOwnerHook,
   automationOwnerHook,
+  type AgentDeps,
   type AiGatewayDeps,
   connectionOwnerHook,
   webhookOwnerHook,
@@ -66,12 +68,12 @@ export {
 
 export interface WorkEnv {
   h: Harness;
-  svc: AutomationService;
+  svc: AgentService;
   /**
    * 8A: the same service on the worker pool (`app_worker`), exactly as the worker process wires
    * it; automation runs, sweeps, and consumers execute through it.
    */
-  workerSvc(): AutomationService;
+  workerSvc(): AgentService;
   /** The test storage and scanner the service uses (null when a test disables them). */
   files: FileDeps;
   stepUp: StubStepUp;
@@ -104,6 +106,8 @@ export function workEnv(
     calendarProvider?: CalendarProvider | null;
     /** 7A: the AI gateway configuration and transport (default: AI not configured). */
     ai?: AiGatewayDeps;
+    /** 8B: agent connectors (default: no transport; tests use the synthetic fixture). */
+    agents?: AgentDeps;
   } = {},
 ): WorkEnv {
   const h = createHarness(db);
@@ -149,8 +153,9 @@ export function workEnv(
       options.files?.scanner !== undefined ? options.files.scanner : new SignatureTestScanner(),
   };
   const build = (tenant: typeof h.app) =>
-    new AutomationService({
+    new AgentService({
       ...(options.ai ? { ai: options.ai } : {}),
+      ...(options.agents ? { agents: options.agents } : {}),
       vault: createVault(h.config.identity),
       deliver: options.deliver,
       calendarProvider: options.calendarProvider ?? null,
@@ -178,7 +183,8 @@ export function workEnv(
         .register(reviewDepartureHook(writer))
         .register(departureTimerHook(writer))
         .register(aiHistoryOwnerHook)
-        .register(automationOwnerHook),
+        .register(automationOwnerHook)
+        .register(agentProfileOwnerHook),
       limiter: new PostgresRateLimiter(h.platform, randomBytes(32), {
         'workspace.create': { limit: 1000, windowMs: 3_600_000 },
         'invitation.accept': { limit: 1000, windowMs: 3_600_000 },
@@ -215,7 +221,7 @@ export function workEnv(
       logger: h.logger,
     });
   const svc = build(h.app);
-  let worker: AutomationService | null = null;
+  let worker: AgentService | null = null;
   const vault = createVault(h.config.identity);
   return {
     h,

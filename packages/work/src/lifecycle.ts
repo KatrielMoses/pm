@@ -1,5 +1,6 @@
 import { sql, type WorkspaceTransaction } from '@pm/db';
 import { automationAdapter } from './automation/lifecycle.ts';
+import { agentProfileAdapter, purgeTaskAgentAssignments } from './agents/lifecycle.ts';
 import type { LifecycleRegistry, RecordRef, RecordTypeAdapter } from '@pm/lifecycle';
 import { withPersonalReferenceCleanup } from '@pm/tenancy';
 import { eraseAiContentRows } from './ai/lifecycle.ts';
@@ -293,6 +294,8 @@ export const taskAdapter: RecordTypeAdapter = {
       await purgeNotifyFacts(tx, ids);
       await purgeDocumentTargets(tx, ids);
       await purgeGoalTargets(tx, ids);
+      // Agent assignments and their revisions go with the task (8B).
+      await purgeTaskAgentAssignments(tx, ids);
       // Time logged on the task goes with it (3D); approvals keep their own totals and hash.
       await tx.db.deleteFrom('timetrack.time_entry').where('task_id', 'in', ids).execute();
       // Plans go with the task (3C): commitments, blocks, and recurring blocks for it.
@@ -543,6 +546,7 @@ export function registerWorkLifecycle(registry: LifecycleRegistry): LifecycleReg
     fileAdapter,
     deliverableAdapter,
     automationAdapter,
+    agentProfileAdapter,
   ])
     registry.register(withPersonalReferenceCleanup(a));
   return registry;

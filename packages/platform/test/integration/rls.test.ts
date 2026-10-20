@@ -245,6 +245,16 @@ const PHASE_1C_TENANT_TABLES = [
   'automation.standing_approval',
   'automation.trigger_schedule',
   'automation.usage_period',
+  // Phase 8B agent profiles, immutable revisions and their grants, connectors and their tests,
+  // and task agent assignments with their immutable revisions.
+  'agents.agent_profile',
+  'agents.agent_profile_revision',
+  'agents.agent_scope_grant',
+  'agents.agent_tool_grant',
+  'agents.agent_connector',
+  'agents.agent_connector_test',
+  'agents.agent_assignment',
+  'agents.agent_assignment_revision',
 ] as const;
 
 /** Seeds one row in every tenant execution table for a workspace. */

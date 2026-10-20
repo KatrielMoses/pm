@@ -252,6 +252,16 @@ export function registerAuth(app: FastifyInstance, deps: AuthRouteDeps): void {
       // 7F: daily plans (preview and plan proposals) and voice capture are session-only.
       // P8-W0: external effect listing and reconciliation are session-only (step-up).
       const aiPath = /^\/v1\/workspaces\/[^/]+\/ai(\/|$)/.test(path);
+      // 8B: agent profiles, templates, tools, and connectors are session-only (configuration and
+      // grant authority never come from a token); task assignments need `agents:execute`.
+      if (/^\/v1\/workspaces\/[^/]+\/agent(s|-templates|-tools)(\/|$)/.test(path))
+        return fail(request, reply, 'forbidden');
+      if (/^\/v1\/workspaces\/[^/]+\/tasks\/[^/]+\/agent/.test(path) && write) {
+        if (!held.includes('agents:execute')) return fail(request, reply, 'forbidden');
+        request.auth = resolved.auth;
+        request.delegation = resolved.delegation;
+        return;
+      }
       if (
         /^\/v1\/workspaces\/[^/]+\/operations\//.test(path) ||
         path.includes('/planning/day-plan') ||

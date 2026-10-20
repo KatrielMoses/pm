@@ -1429,6 +1429,11 @@ export const OPERATION_KINDS = [
     "kind": "plan_proposal",
     "supports": [],
     "riskClass": "R0"
+  },
+  {
+    "kind": "agent_connector_test",
+    "supports": [],
+    "riskClass": "R1"
   }
 ] as const;
 export type OperationKind = (typeof OPERATION_KINDS)[number]['kind'];
@@ -4252,7 +4257,20 @@ export const PARAMETER_NAMES = [
   "AUTOMATION_TRIGGER_FANOUT_MAX",
   "AUTOMATION_SWEEP_BATCH_MAX",
   "AUTOMATION_ALERT_FAILURE_THRESHOLD",
-  "AUTOMATION_ALERT_INTERVAL_MINUTES"
+  "AUTOMATION_ALERT_INTERVAL_MINUTES",
+  "AGENT_PROFILES_PER_WORKSPACE_MAX",
+  "AGENT_INSTRUCTIONS_MAX_CHARS",
+  "AGENT_SCOPE_GRANTS_MAX",
+  "AGENT_TOOL_GRANTS_MAX",
+  "AGENT_CONFIG_BYTES_MAX",
+  "AGENT_ASSIGNMENTS_PER_TASK_MAX",
+  "AGENT_CONTEXT_REFS_MAX",
+  "AGENT_CRITERIA_MAX",
+  "AGENT_ASSIGNMENT_TEXT_MAX_CHARS",
+  "AGENT_CONNECTOR_TIMEOUT_MS",
+  "AGENT_CONNECTOR_RESPONSE_MAX_BYTES",
+  "AGENT_CONNECTOR_TESTS_PER_HOUR",
+  "AGENT_CONNECTOR_TRANSPORT"
 ] as const;
 export type ParameterName = (typeof PARAMETER_NAMES)[number];
 

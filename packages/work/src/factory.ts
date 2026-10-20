@@ -16,8 +16,9 @@ import {
 import { registerWorkLifecycle } from './lifecycle.ts';
 import { projectTargets, savedViewTargets, taskTargets } from './navigation.ts';
 import { projectOwnerHook, taskAssigneeHook } from './ownership.ts';
-import { AutomationService } from './automation/service.ts';
 import { automationOwnerHook } from './automation/ownership.ts';
+import { AgentService } from './agents/service.ts';
+import { agentProfileOwnerHook } from './agents/lifecycle.ts';
 import { aiHistoryOwnerHook } from './ai/lifecycle.ts';
 import { MessagesProvider, type AiProvider } from './ai/provider.ts';
 import { HttpTranscriptionProvider } from './ai/transcription.ts';
@@ -48,7 +49,7 @@ export function createWorkService(deps: {
   platform: PlatformDatabase;
   identity: CollaborationIdentityPort;
   config: Pick<ServerConfig, 'identity' | 'lifecycle' | 'audit' | 'tenancy' | 'views'> &
-    Partial<Pick<ServerConfig, 'files' | 'env' | 'calendar' | 'ai'>> & {
+    Partial<Pick<ServerConfig, 'files' | 'env' | 'calendar' | 'ai' | 'http'>> & {
       work?: WorkSettings;
     };
   logger: Logger;
@@ -63,7 +64,7 @@ export function createWorkService(deps: {
   calendarProvider?: CalendarProvider | null;
   /** Overrides the configured AI transport (tests inject a fetch-wrapped adapter). */
   aiProvider?: AiProvider | null;
-}): AutomationService {
+}): AgentService {
   const { config } = deps;
   if (!config.identity.signingKey && !deps.ephemeralSigningKey)
     throw new Error('AUTH_SIGNING_KEY is required');
@@ -130,7 +131,17 @@ export function createWorkService(deps: {
           timeoutMs: ai.transcription.timeoutMs,
         })
       : null;
-  return new AutomationService({
+  // 8B: agent connectors are tested only against the synthetic local fixture (local and test);
+  // live connectors need an approved secret store and credentials (DQ-28).
+  const agentTransport = work.agentConnectorTransport ?? 'none';
+  return new AgentService({
+    agents: {
+      transport:
+        agentTransport === 'fixture' && (config.env === 'local' || config.env === 'test')
+          ? 'fixture'
+          : 'none',
+      productOrigin: config.http?.publicBaseUrl ?? null,
+    },
     ...(ai
       ? {
           ai: {
@@ -173,6 +184,7 @@ export function createWorkService(deps: {
       .register(connectionOwnerHook)
       .register(webhookOwnerHook)
       .register(automationOwnerHook)
+      .register(agentProfileOwnerHook)
       .register(reviewDepartureHook(writer))
       .register(departureTimerHook(writer))
       .register(aiHistoryOwnerHook),

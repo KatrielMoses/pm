@@ -217,6 +217,7 @@ async function main(): Promise<void> {
         logger,
         sweepWorkspacesMax: config.work.automationSweepBatchMax,
       },
+      agents: { service: reportService },
       reports: {
         tenant: tenantDb,
         discovery,

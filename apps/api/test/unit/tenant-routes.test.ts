@@ -85,6 +85,7 @@ describe('tenant lifecycle and audit endpoints are reachable only through policy
     expect(verbs.map((f) => f.slice(ROOT.length + 1)).sort()).toEqual([
       'apps/api/src/tenancy/routes.ts',
       // 8A (0C AZ-51): automation archive, unarchive, and trash, decided through the same issuer.
+      'apps/api/src/work/agent-routes.ts',
       'apps/api/src/work/automation-routes.ts',
       // 4C (0C AZ-33): document lifecycle verbs, decided through the same tenancy-exported issuer.
       'apps/api/src/work/document-routes.ts',

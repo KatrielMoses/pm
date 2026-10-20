@@ -139,3 +139,28 @@ export * from './automation/jobs.ts';
 export { automationOwnerHook } from './automation/ownership.ts';
 export { automationAdapter, purgeAutomations } from './automation/lifecycle.ts';
 export { STARTER_TEMPLATES } from './automation/templates.ts';
+export * from './agents/service.ts';
+export * from './agents/jobs.ts';
+export {
+  agentProfileAdapter,
+  agentProfileOwnerHook,
+  purgeAgentProfiles,
+  purgeTaskAgentAssignments,
+} from './agents/lifecycle.ts';
+export { AGENT_TEMPLATES } from './agents/templates.ts';
+export { AGENT_TOOLS, AGENT_PROTOCOL } from './agents/tool-registry.ts';
+export {
+  compileConfig,
+  ConfigError,
+  TOOL_CLASSES,
+  APPROVAL_ORDER,
+  type CompiledConfig,
+  type ConfigLimits,
+} from './agents/config.ts';
+export {
+  checkEndpoint,
+  handshake,
+  parseManifest,
+  isOwnCredential,
+  type HandshakeResult,
+} from './agents/connectors.ts';
