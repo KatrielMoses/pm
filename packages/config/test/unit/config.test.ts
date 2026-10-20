@@ -286,6 +286,22 @@ describe('server configuration', () => {
       webhookDisableThreshold: 10,
       webhookResponseTimeoutMs: 10000,
       webhookSweepBatchMax: 25,
+      automationsPerWorkspaceMax: 200,
+      automationDefinitionBytesMax: 32768,
+      automationNodesMax: 25,
+      automationConditionDepthMax: 4,
+      automationConditionsMax: 20,
+      automationTargetFanoutMax: 25,
+      automationChainDepthMax: 3,
+      automationRunStepsMax: 50,
+      automationActiveRunsMax: 20,
+      automationDelayHorizonMinutes: 43200,
+      automationRetriesMax: 3,
+      automationRunsPerMonth: 10000,
+      automationTriggerFanoutMax: 50,
+      automationSweepBatchMax: 100,
+      automationAlertFailureThreshold: 3,
+      automationAlertIntervalMinutes: 1440,
       webhookAllowLoopback: true,
       documentEmbedUrlMaxChars: 2048,
       signedUrlLifetimeSeconds: 300,
@@ -346,6 +362,30 @@ describe('server configuration', () => {
       expect(issues(() => set({ [key]: bad })).join(' '), `${key}=${bad}`).toMatch(
         new RegExp(`^${key}`),
       );
+  });
+
+  it('automation limits (8A, 0D PL-53): conservative defaults and hard maximums', () => {
+    for (const [name, max] of [
+      ['AUTOMATIONS_PER_WORKSPACE_MAX', 2000],
+      ['AUTOMATION_DEFINITION_BYTES_MAX', 65536],
+      ['AUTOMATION_NODES_MAX', 100],
+      ['AUTOMATION_CONDITION_DEPTH_MAX', 8],
+      ['AUTOMATION_CONDITIONS_MAX', 50],
+      ['AUTOMATION_TARGET_FANOUT_MAX', 200],
+      ['AUTOMATION_CHAIN_DEPTH_MAX', 10],
+      ['AUTOMATION_RUN_STEPS_MAX', 200],
+      ['AUTOMATION_ACTIVE_RUNS_MAX', 200],
+      ['AUTOMATION_DELAY_HORIZON_MINUTES', 129600],
+      ['AUTOMATION_RETRIES_MAX', 10],
+      ['AUTOMATION_RUNS_PER_MONTH', 1000000],
+      ['AUTOMATION_TRIGGER_FANOUT_MAX', 200],
+      ['AUTOMATION_SWEEP_BATCH_MAX', 1000],
+      ['AUTOMATION_ALERT_FAILURE_THRESHOLD', 20],
+      ['AUTOMATION_ALERT_INTERVAL_MINUTES', 10080],
+    ] as const) {
+      expect(issues(() => loadServerConfig({ service: 'worker', env: { ...local, [name]: String(max + 1) } }))[0], name).toMatch(new RegExp(`^${name}`));
+      expect(issues(() => loadServerConfig({ service: 'worker', env: { ...local, [name]: String(max) } })), name).toEqual([]);
+    }
   });
 
   it('rejects missing secrets and wrong identities', () => {
