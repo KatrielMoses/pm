@@ -45,7 +45,7 @@ Machine-readable report with every installed package: `reports/dependency-licens
 | `typescript` | 6.0.3 | Apache-2.0 | dev | (root tooling) |
 | `typescript-eslint` | 8.71.0 | MIT | dev | (root tooling) |
 | `uqr` | 0.1.3 | MIT | runtime | @pm/web |
-| `vite` | 8.3.2 | MIT | dev | @pm/web |
+| `vite` | 8.3.3 | MIT | dev | @pm/web |
 | `vitest` | 5.0.3 | MIT | runtime, dev | @pm/test-infra, @pm/test-support, (root tooling) |
 | `zod` | 4.6.5 | MIT | runtime | @pm/config |
 
