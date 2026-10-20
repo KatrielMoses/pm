@@ -192,6 +192,11 @@ describe('automations API (8A)', () => {
     const cancel = await post(owner, `/automation-runs/${runId}:cancel`, {});
     expect(cancel.statusCode, cancel.body).toBe(202);
     expect(cancel.json().data.run).toMatchObject({ status: 'cancelled' });
+    // Run history exports through the 6D boundary as CSV (DATA-013, 8A portion).
+    const csv = await get(owner, '/portability/exports/automation_history.csv');
+    expect(csv.statusCode, csv.body).toBe(200);
+    expect(csv.headers['content-type']).toContain('text/csv');
+    expect(csv.body).toContain(runId);
     const off = await post(owner, `/automations/${a.id}:disable`, {});
     expect(off.json().data).toMatchObject({ state: 'disabled', enabled: false });
     expect((await get(owner, '/automation-usage')).json().data).toMatchObject({

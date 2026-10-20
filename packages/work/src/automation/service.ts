@@ -4171,16 +4171,58 @@ export class AutomationService extends AiGatewayService {
     });
   }
 
+  /**
+   * Automation run history as export rows (DATA-013, 8A portion) through the 6D boundary: the runs
+   * of every automation the caller may configure or watch, each rendered exactly as its run page
+   * renders it now (current access; records the caller cannot read are omitted). Bounded; trashed
+   * and purged automations and raw event bodies are never exported.
+   */
+  protected override async moduleHistoryRows(
+    caller: Caller,
+    ws: unknown,
+    kind: string,
+    max: number,
+  ): Promise<Record<string, unknown>[] | null> {
+    if (kind !== 'automation_history') return super.moduleHistoryRows(caller, ws, kind, max);
+    return this.inWorkspace(caller, ws, { readOnly: true }, async (tx, p) => {
+      if (p.kind !== 'member') throw new TenancyError('not_found');
+      const automations = await tx.db
+        .selectFrom('automation.automation')
+        .select(['id', 'brand_id'])
+        .where('lifecycle_state', 'in', ['active', 'archived'])
+        .execute();
+      const visible: string[] = [];
+      for (const a of automations) {
+        const configure = await this.#decideScope(tx, p, 'automations.configure', a.brand_id);
+        const health = await this.#decideScope(tx, p, 'health.view', a.brand_id);
+        if (configure.allowed || health.allowed) visible.push(a.id);
+      }
+      if (!visible.length) return [];
+      const runs = await tx.db
+        .selectFrom('automation.automation_run as r')
+        .innerJoin('exec.operation as o', 'o.id', 'r.operation_id')
+        .select('o.public_id')
+        .where('r.automation_id', 'in', visible)
+        .orderBy('r.created_at')
+        .orderBy('r.id')
+        .limit(max + 1)
+        .execute();
+      if (runs.length > max) throw new TenancyError('limit_exceeded');
+      const out: Record<string, unknown>[] = [];
+      for (const r of runs) {
+        const run = await this.#runView(tx, p, r.public_id);
+        out.push({ public_id: run.id, host_public_id: run.automation.id, data: run });
+      }
+      return out;
+    });
+  }
+
   async getAutomationRun(caller: Caller, ws: unknown, op: unknown) {
     return this.inWorkspace(caller, ws, { readOnly: true }, async (tx, p) =>
       this.#runView(tx, p, op),
     );
   }
 
-  /**
-   * One run as a viewer may see it now: history is re-rendered through the viewer's current
-   * access (records they cannot read are omitted, never named), with bounded codes.
-   */
   /**
    * A run addressed by its first operation or its current one: a link taken before a retry (a
    * notification, the history) keeps opening the same run, which shows its current attempt.
@@ -4201,8 +4243,14 @@ export class AutomationService extends AiGatewayService {
       .executeTakeFirst();
   }
 
+  /**
+   * One run as a viewer may see it now: history is re-rendered through the viewer's current
+   * access (records they cannot read are omitted, never named), with bounded codes.
+   */
   async #runView(tx: WorkspaceTransaction, p: Principal, opPublic: unknown, steps = true) {
     if (!isPublic(opPublic, 'op')) throw new TenancyError('not_found');
+    const found = await this.#runByOp(tx, opPublic);
+    if (!found) throw new TenancyError('not_found');
     const row = await tx.db
       .selectFrom('automation.automation_run as r')
       .innerJoin('exec.operation as o', 'o.id', 'r.current_operation_id')
@@ -4215,7 +4263,7 @@ export class AutomationService extends AiGatewayService {
         'o.terminal_reason',
         'v.revision_number',
       ])
-      .where('r.id', '=', (await this.#runByOp(tx, opPublic))?.id ?? null)
+      .where('r.id', '=', found.id)
       .executeTakeFirst();
     if (!row) throw new TenancyError('not_found');
     const a = (await this.#rows(tx, { id: row.automation_id }))!;

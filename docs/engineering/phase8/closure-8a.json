@@ -1003,7 +1003,43 @@
     },
     {
       "id": "TEST-FU-P7-02",
-      "statement": "Still tracked (ADR-0045); not claimed resolved."
+      "statement": "Still tracked (ADR-0045); not claimed resolved. Observed once more during 8A: AT-519 and AT-520 failed in one fully parallel local embedded run and passed in three isolated runs and a second full run."
+    }
+  ],
+  "handoffs": [
+    {
+      "id": "NTF-005",
+      "owner": "4B",
+      "statement": "Automation failures now produce events: automation.automation_run.failed reaches the automation_failure notification (AT-573).",
+      "evidence": [
+        {
+          "file": "packages/work/src/notify/fanout.ts",
+          "contains": "automation.automation_run.failed"
+        },
+        {
+          "file": "packages/work/test/integration/automations-platform.test.ts",
+          "contains": "'AT-573 "
+        }
+      ]
+    },
+    {
+      "id": "DATA-013",
+      "owner": "6D",
+      "statement": "The automation history portion exports through the 6D boundary (automation_history), rendered through current access; agent history stays with 8B.",
+      "evidence": [
+        {
+          "file": "packages/work/src/automation/service.ts",
+          "contains": "if (kind !== 'automation_history') return super.moduleHistoryRows(caller, ws, kind, max);"
+        },
+        {
+          "file": "packages/work/test/integration/automations-access.test.ts",
+          "contains": "'automation_history'"
+        },
+        {
+          "file": "apps/api/test/integration/automations-api.test.ts",
+          "contains": "/portability/exports/automation_history.csv"
+        }
+      ]
     }
   ]
 }

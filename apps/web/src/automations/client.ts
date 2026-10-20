@@ -263,6 +263,8 @@ export const automationsClient = {
         },
       )
     ).body.data.run,
+  /** Run history as CSV through the 6D export boundary (current access; DATA-013). */
+  exportUrl: (ws: string) => `${w(ws)}/portability/exports/automation_history.csv`,
   /** P8-W0: an owner or administrator records what happened to a possibly-sent webhook. */
   reconcile: async (
     ws: string,

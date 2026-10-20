@@ -400,6 +400,20 @@ describe('automations (8A): authority, isolation, and revocation', () => {
     expect(later.steps.find((s) => s.node === 'up')!.targets).toEqual([]);
     // Decisions never carry values (bounded pointers and results only).
     expect(JSON.stringify(later)).not.toContain('Visible then restricted');
+    // The 6D export (DATA-013, 8A portion) is the same current view, and empty for a member who
+    // neither configures nor watches the brand.
+    const exported = await env.svc.exportPortabilityHistory(owner, ws, 'automation_history', {});
+    expect(exported.rows).toBe((await runsOf(db, a.id)).length);
+    expect(exported.csv).toContain(run!.op_public_id);
+    expect(exported.csv).not.toContain(t.id);
+    expect(exported.csv).not.toContain('Visible then restricted');
+    const none = await env.svc.exportPortabilityHistory(
+      people.member,
+      ws,
+      'automation_history',
+      {},
+    );
+    expect(none.rows).toBe(0);
     // The owner leaves: the automation is suspended (owner_departed) and stops listening.
     const leaving = (await membershipOf(db, id, m.auth.account.id))!;
     const ownerM = (await membershipOf(db, id, owner.auth.account.id))!;

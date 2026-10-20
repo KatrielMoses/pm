@@ -298,6 +298,13 @@ def check_closure_and_boundaries(closure):
     for rid in ("AUTO-003", "AUTO-018"):
         if not reqs.get(rid, {}).get("enriched_by"):
             errs.append("%s must name the later phase that completes it" % rid)
+    cache = {}
+    hand = {h["id"]: h for h in closure.get("handoffs", [])}
+    for hid in ("NTF-005", "DATA-013"):
+        if hid not in hand:
+            errs.append("the closure must record the %s hand-off from an earlier phase" % hid)
+        else:
+            phase2.check_evidence("hand-off %s" % hid, hand[hid].get("evidence"), cache, errs)
     p8 = load(P("docs/engineering/phase8/closure-p8w0.json"))
     if p8.get("status") != "accepted" or p8.get("accepted", {}).get("ci_run") != "39234366133":
         errs.append("the P8-W0 acceptance (run 39234366133) must be recorded before 8A builds on it")

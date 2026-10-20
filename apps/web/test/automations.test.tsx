@@ -169,6 +169,9 @@ describe('Automations (8A)', () => {
     expect(within(list).getByText('Active')).toBeTruthy();
     expect(within(list).getByText(/2 failures in a row/)).toBeTruthy();
     expect(
+      screen.getByRole('link', { name: 'Export run history (CSV)' }).getAttribute('href'),
+    ).toBe(`/v1/workspaces/${WS}/portability/exports/automation_history.csv`);
+    expect(
       await screen.findByRole('option', { name: 'Escalate tasks on their due date' }),
     ).toBeTruthy();
     expect(screen.getByText('12 of 10000')).toBeTruthy();

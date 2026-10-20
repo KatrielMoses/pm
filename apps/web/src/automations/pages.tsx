@@ -469,6 +469,12 @@ export function AutomationsPage({ ws }: { ws: string }) {
           ) : (
             <p className="empty-state">No automations yet.</p>
           )}
+          {list.data.length ? (
+            <p className="hint">
+              <a href={automationsClient.exportUrl(ws)}>Export run history (CSV)</a>: every run you
+              can see now, as its run page shows it.
+            </p>
+          ) : null}
         </section>
       ) : null}
       {list?.capabilities.create ? (
