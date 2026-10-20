@@ -109,7 +109,9 @@ export class NotificationFanOut implements OutboxConsumer {
   }
 
   protected async candidates(tx: WorkspaceTransaction, e: InternalEvent): Promise<Candidate[]> {
-    const actor = str(e.actor.id);
+    // Only a person is a notification's actor. An automation's change (8A) names no member: the
+    // automation acted, on its owner's behalf, and the owner is not "the person who did it".
+    const actor = e.actor.type === 'human' ? str(e.actor.id) : null;
     const data = e.data;
     switch (e.type) {
       case 'metering.usage.threshold_reached':

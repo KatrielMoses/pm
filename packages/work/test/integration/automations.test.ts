@@ -141,9 +141,15 @@ describe('automations (8A): engine end to end', () => {
     await settle(db, worker);
     const tId = (await db.admin(`SELECT id FROM core.record WHERE public_id = $1`, [t.id])).rows[0].id;
     const forTask = async () => (await runsOf(db, a.id)).filter((r) => r.trigger_record_id === tId);
-    // The link target's own creation matched the trigger but not the conditions: skipped.
+    // The link target was created before activation: its event never starts a run.
+    expect((await runsOf(db, a.id)).filter((r) => r.trigger_record_id !== tId)).toEqual([]);
+    // A task created now that misses the conditions is skipped (recorded, nothing ran).
+    await newTask('Unrelated');
+    await settle(db, worker);
     const others = (await runsOf(db, a.id)).filter((r) => r.trigger_record_id !== tId);
-    expect(others.map((r) => [r.status, r.reason, r.execution_state])).toEqual([['skipped', 'conditions_not_met', 'skipped']]);
+    expect(others.map((r) => [r.status, r.reason, r.execution_state, r.terminal_reason])).toEqual([
+      ['skipped', 'conditions_not_met', 'skipped', 'policy_rejected'],
+    ]);
     let [run] = await forTask();
     expect({ status: run!.status, reason: run!.reason, op: run!.execution_state, waiting: run!.waiting_reason }).toEqual({ status: 'waiting', reason: 'delay', op: 'waiting', waiting: 'delay' });
     await env.svc.taskLifecycle(owner, ws, other.id, 'trash', {}, mutation());

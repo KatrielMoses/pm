@@ -28,6 +28,8 @@ ALTER TABLE notify.notification FORCE ROW LEVEL SECURITY;
 REVOKE INSERT ON ai.ai_action, ai.ai_context_ref FROM app_worker;
 REVOKE UPDATE (name, status_id, status_category, priority, start_date, target_date, updated_at,
   updated_by_membership_id, version) ON work.project FROM app_worker;
+REVOKE INSERT ON collab.assignment_event FROM app_worker;
+REVOKE UPDATE (updated_at) ON workflow.workflow FROM app_worker;
 REVOKE INSERT ON relations.record_relationship FROM app_worker;
 REVOKE UPDATE (is_primary, rank) ON work.task_assignee FROM app_worker;
 REVOKE INSERT ON work.task_assignee FROM app_worker;

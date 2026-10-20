@@ -165,6 +165,7 @@ interface AutomationRow {
   active_revision_id: string | null;
   trigger_kind: string | null;
   trigger_event: string | null;
+  activated_at: Date | null;
   draft: Draft;
   draft_base_revision: number | null;
   template_key: string | null;
@@ -991,8 +992,13 @@ export class AutomationService extends AiGatewayService {
             active_revision_id: revisionId,
             trigger_kind: trigger.kind,
             trigger_event: triggerEvents(trigger)[0] ?? null,
+            activated_at: new Date(),
             draft_base_revision: revisionNumber,
             consecutive_failures: 0,
+            // A suspension ends only here: a person with authority activated it again, with the
+            // owner's grantability checked afresh.
+            suspended_reason: null,
+            suspended_at: null,
             updated_at: new Date(),
             updated_by_membership_id: p.membershipId,
             version: sql`version + 1`,
@@ -1320,6 +1326,8 @@ export class AutomationService extends AiGatewayService {
       .where('enabled', '=', true)
       .where('trigger_event', '=', e.type)
       .where('lifecycle_state', '=', 'active')
+      // Only what happened after this activation: enabling again never replays history.
+      .where('activated_at', '<=', new Date(e.occurred_at))
       .orderBy('id')
       .limit(this.ws.automationTriggerFanoutMax + 1)
       .execute();
@@ -2225,7 +2233,7 @@ export class AutomationService extends AiGatewayService {
       }
       void p;
       const before = await tx.db.selectFrom('notify.notification').select((eb) => eb.fn.countAll<string>().as('n')).where('record_id', '=', t.id).where('type', '=', 'automation_notice').executeTakeFirstOrThrow();
-      await fan.persist(tx, run.current_operation_id, {
+      await fan.persist(tx, null, {
         type: 'automation_notice' as never,
         recordId: t.id,
         actorId: null,

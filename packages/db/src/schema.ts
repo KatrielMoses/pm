@@ -3788,6 +3788,7 @@ export interface AutomationTable {
   active_revision_id: string | null;
   trigger_kind: string | null;
   trigger_event: string | null;
+  activated_at: Timestamp | null;
   draft: Json<Record<string, unknown>>;
   draft_base_revision: number | null;
   template_key: string | null;
@@ -7374,6 +7375,7 @@ export const TABLE_COLUMNS: Readonly<Record<keyof Database, readonly string[]>> 
     'active_revision_id',
     'trigger_kind',
     'trigger_event',
+    'activated_at',
     'draft',
     'draft_base_revision',
     'template_key',

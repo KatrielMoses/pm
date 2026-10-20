@@ -16,7 +16,8 @@ GRANT USAGE ON SCHEMA automation TO app_rw, app_worker, pm_scheduler;
 -- their brand; workspace automations carry none and list their brands explicitly in each revision
 -- (workspace scope is never all-brands authority). The draft is the editable form; revisions are
 -- immutable. `trigger_event` and `active_revision_id` are the activation's denormalized matching
--- keys; `active_runs` is the per-automation concurrency reservation (reserved and released once).
+-- keys and `activated_at` its instant (events that happened earlier never start a run, so enabling
+-- again never replays history); `active_runs` is the per-automation concurrency reservation (reserved and released once).
 -- ---------------------------------------------------------------------------------------------
 CREATE TABLE automation.automation (
   id uuid PRIMARY KEY,
@@ -31,6 +32,7 @@ CREATE TABLE automation.automation (
   active_revision_id uuid,
   trigger_kind text,
   trigger_event text,
+  activated_at timestamptz,
   draft jsonb NOT NULL,
   draft_base_revision integer,
   template_key text,
@@ -67,7 +69,7 @@ CREATE TABLE automation.automation (
   CONSTRAINT automation_trigger_kind CHECK (trigger_kind IS NULL OR trigger_kind ~ '^[a-z_.]{1,40}$'),
   CONSTRAINT automation_trigger_event CHECK (trigger_event IS NULL OR trigger_event ~ '^[a-z_.]{1,80}$'),
   CONSTRAINT automation_enabled_shape CHECK (NOT enabled OR (active_revision_id IS NOT NULL
-    AND trigger_kind IS NOT NULL AND suspended_reason IS NULL)),
+    AND trigger_kind IS NOT NULL AND activated_at IS NOT NULL AND suspended_reason IS NULL)),
   CONSTRAINT automation_template_key CHECK (template_key IS NULL OR template_key ~ '^[a-z_]{1,40}$'),
   CONSTRAINT automation_suspended_shape CHECK (
     (suspended_reason IS NULL) = (suspended_at IS NULL)
@@ -406,6 +408,11 @@ GRANT UPDATE (project_id, parent_task_id, ancestor_ids, depth, title, status_id,
 GRANT INSERT ON work.task_assignee TO app_worker;
 GRANT UPDATE (is_primary, rank) ON work.task_assignee TO app_worker;
 GRANT INSERT ON relations.record_relationship TO app_worker;
+-- A status change takes the applicable workflow row FOR SHARE (ADR-0015 lock order); a row lock
+-- needs an UPDATE privilege on some column, so the worker holds it on `updated_at` only.
+GRANT UPDATE (updated_at) ON workflow.workflow TO app_worker;
+-- An assignment change appends its 4B/4A history fact (append-only, like every other writer).
+GRANT INSERT ON collab.assignment_event TO app_worker;
 GRANT UPDATE (name, status_id, status_category, priority, start_date, target_date, updated_at,
   updated_by_membership_id, version) ON work.project TO app_worker;
 
@@ -496,7 +503,7 @@ REVOKE ALL ON FUNCTION automation.revision_immutable() FROM PUBLIC;
 
 GRANT SELECT, INSERT ON automation.automation, automation.automation_revision TO app_rw;
 GRANT UPDATE (name, description, owner_membership_id, enabled, active_revision_id, trigger_kind, trigger_event,
-  draft, draft_base_revision, suspended_reason, suspended_at, active_runs, consecutive_failures, alerted_at,
+  activated_at, draft, draft_base_revision, suspended_reason, suspended_at, active_runs, consecutive_failures, alerted_at,
   lifecycle_state, updated_by_membership_id, updated_at, version) ON automation.automation TO app_rw;
 GRANT SELECT ON automation.automation, automation.automation_revision TO app_worker;
 GRANT UPDATE (enabled, suspended_reason, suspended_at, active_runs, consecutive_failures, alerted_at,
