@@ -160,7 +160,10 @@ export function registeredConsumers(
     new ActivityProjector(),
     ...(deps.webhooks ? [new WebhookProjector(deps.webhooks)] : []),
     ...(deps.automations
-      ? [new AutomationTriggerConsumer(deps.automations), new AutomationOutcomeConsumer(deps.automations)]
+      ? [
+          new AutomationTriggerConsumer(deps.automations),
+          new AutomationOutcomeConsumer(deps.automations),
+        ]
       : []),
     new NotificationFanOut(
       {

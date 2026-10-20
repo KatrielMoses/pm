@@ -808,7 +808,11 @@ export class WorkerRuntime {
           return 'waiting';
         }
         // A skipped operation's attempt itself completed (attempts have no skipped state).
-        await this.#endAttempt(tx, attemptId, outcome.state === 'skipped' ? 'succeeded' : outcome.state);
+        await this.#endAttempt(
+          tx,
+          attemptId,
+          outcome.state === 'skipped' ? 'succeeded' : outcome.state,
+        );
         await transition(
           tx,
           outcome.state,

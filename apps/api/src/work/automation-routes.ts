@@ -51,7 +51,12 @@ export function registerAutomations(app: FastifyInstance, work: AutomationServic
       done(
         request,
         reply,
-        await work.createAutomation(caller(request), p(request).ws, request.body, mutation(request)),
+        await work.createAutomation(
+          caller(request),
+          p(request).ws,
+          request.body,
+          mutation(request),
+        ),
       ),
     ),
   );
@@ -66,19 +71,33 @@ export function registerAutomations(app: FastifyInstance, work: AutomationServic
   app.get(
     `${ws}/automation-usage`,
     wrap(async (request, reply) =>
-      flat(request, reply, 'automation_usage', await work.automationUsage(caller(request), p(request).ws)),
+      flat(
+        request,
+        reply,
+        'automation_usage',
+        await work.automationUsage(caller(request), p(request).ws),
+      ),
     ),
   );
   app.get(
     `${ws}/automation-health`,
     wrap(async (request, reply) =>
-      flat(request, reply, 'automation_health', await work.automationHealth(caller(request), p(request).ws)),
+      flat(
+        request,
+        reply,
+        'automation_health',
+        await work.automationHealth(caller(request), p(request).ws),
+      ),
     ),
   );
   app.get(
     `${ws}/automations/:aut`,
     wrap(async (request, reply) =>
-      resource(request, reply, await work.getAutomation(caller(request), p(request).ws, p(request).aut)),
+      resource(
+        request,
+        reply,
+        await work.getAutomation(caller(request), p(request).ws, p(request).aut),
+      ),
     ),
   );
   app.patch(
@@ -111,7 +130,12 @@ export function registerAutomations(app: FastifyInstance, work: AutomationServic
   app.get(
     `${ws}/automations/:aut/runs`,
     wrap(async (request) => {
-      const r = await work.listAutomationRuns(caller(request), p(request).ws, p(request).aut, q(request));
+      const r = await work.listAutomationRuns(
+        caller(request),
+        p(request).ws,
+        p(request).aut,
+        q(request),
+      );
       return { data: r.data, page: r.page, meta: m(request) };
     }),
   );
@@ -139,7 +163,12 @@ export function registerAutomations(app: FastifyInstance, work: AutomationServic
         case 'trash':
           return done(request, reply, await work.automationLifecycle(c, w, t.id, t.verb, req));
         case 'preview':
-          return flat(request, reply, 'automation_preview', await work.previewAutomation(c, w, t.id, request.body));
+          return flat(
+            request,
+            reply,
+            'automation_preview',
+            await work.previewAutomation(c, w, t.id, request.body),
+          );
         case 'run': {
           const r = await work.runAutomationNow(c, w, t.id, request.body, req);
           return flat(request, reply, 'automation_run', { run: r.data }, r.status, r.replayed);

@@ -12,13 +12,23 @@ export async function purgeAutomations(tx: WorkspaceTransaction, ids: readonly s
   if (runs.length)
     await tx.db
       .deleteFrom('automation.automation_step_run')
-      .where('run_id', 'in', runs.map((r) => r.id))
+      .where(
+        'run_id',
+        'in',
+        runs.map((r) => r.id),
+      )
       .execute();
   await tx.db.deleteFrom('automation.automation_run').where('automation_id', 'in', ids).execute();
-  await tx.db.deleteFrom('automation.standing_approval').where('automation_id', 'in', ids).execute();
+  await tx.db
+    .deleteFrom('automation.standing_approval')
+    .where('automation_id', 'in', ids)
+    .execute();
   await tx.db.deleteFrom('automation.trigger_schedule').where('automation_id', 'in', ids).execute();
   // The active-revision reference is deferred: revisions and their automation go in one commit.
-  await tx.db.deleteFrom('automation.automation_revision').where('automation_id', 'in', ids).execute();
+  await tx.db
+    .deleteFrom('automation.automation_revision')
+    .where('automation_id', 'in', ids)
+    .execute();
   await tx.db.deleteFrom('automation.automation').where('id', 'in', ids).execute();
 }
 

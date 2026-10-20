@@ -202,12 +202,7 @@ export const PRIORITIES = PROJECT_PRIORITIES;
 
 /** A value compared with: literal, list, or a date relative to the run's local day. */
 export type ConditionValue =
-  | string
-  | number
-  | boolean
-  | null
-  | string[]
-  | { relative_days: number };
+  string | number | boolean | null | string[] | { relative_days: number };
 
 export type Comparison = { field: string; op: Operator; value?: ConditionValue };
 export type Condition = { all: Condition[] } | { any: Condition[] } | Comparison;
@@ -235,27 +230,124 @@ export type ActionVerb = (typeof ACTION_VERBS)[number];
  * exist as typed boundaries whose owning phase has not shipped.
  */
 export const ACTION_MATRIX = {
-  'task.create': { status: 'supported', record: 'task', permission: 'record.create', command: 'insertTask' },
-  'task.update': { status: 'supported', record: 'task', permission: 'record.update', command: 'applyTaskChanges' },
-  'task.assign': { status: 'supported', record: 'task', permission: 'record.assign', command: 'setAssigneesIn' },
-  'task.move': { status: 'supported', record: 'task', permission: 'record.move', command: 'moveTaskIn' },
-  'task.label': { status: 'supported', record: 'task', permission: 'record.update', command: 'toggleLabel' },
-  'task.notify': { status: 'supported', record: 'task', permission: 'record.read', command: 'notification' },
-  'task.schedule': { status: 'supported', record: 'task', permission: 'record.update', command: 'applyTaskChanges' },
-  'task.archive': { status: 'supported', record: 'task', permission: 'record.archive', command: 'archiveTaskIn' },
-  'task.relate': { status: 'supported', record: 'task', permission: 'record.relate', command: 'addRelationshipIn' },
-  'project.create': { status: 'unsupported', record: 'project', reason: 'Creating a project grants its creator access to it; it stays a person’s decision.' },
-  'project.update': { status: 'supported', record: 'project', permission: 'record.update', command: 'updateProjectIn' },
-  'project.assign': { status: 'unsupported', record: 'project', reason: 'Changing a project’s owner grants access; it stays a person’s decision.' },
-  'project.move': { status: 'unsupported', record: 'project', reason: 'Moving projects changes access for everything inside them; it stays a person’s decision.' },
+  'task.create': {
+    status: 'supported',
+    record: 'task',
+    permission: 'record.create',
+    command: 'insertTask',
+  },
+  'task.update': {
+    status: 'supported',
+    record: 'task',
+    permission: 'record.update',
+    command: 'applyTaskChanges',
+  },
+  'task.assign': {
+    status: 'supported',
+    record: 'task',
+    permission: 'record.assign',
+    command: 'setAssigneesIn',
+  },
+  'task.move': {
+    status: 'supported',
+    record: 'task',
+    permission: 'record.move',
+    command: 'moveTaskIn',
+  },
+  'task.label': {
+    status: 'supported',
+    record: 'task',
+    permission: 'record.update',
+    command: 'toggleLabel',
+  },
+  'task.notify': {
+    status: 'supported',
+    record: 'task',
+    permission: 'record.read',
+    command: 'notification',
+  },
+  'task.schedule': {
+    status: 'supported',
+    record: 'task',
+    permission: 'record.update',
+    command: 'applyTaskChanges',
+  },
+  'task.archive': {
+    status: 'supported',
+    record: 'task',
+    permission: 'record.archive',
+    command: 'archiveTaskIn',
+  },
+  'task.relate': {
+    status: 'supported',
+    record: 'task',
+    permission: 'record.relate',
+    command: 'addRelationshipIn',
+  },
+  'project.create': {
+    status: 'unsupported',
+    record: 'project',
+    reason: 'Creating a project grants its creator access to it; it stays a person’s decision.',
+  },
+  'project.update': {
+    status: 'supported',
+    record: 'project',
+    permission: 'record.update',
+    command: 'updateProjectIn',
+  },
+  'project.assign': {
+    status: 'unsupported',
+    record: 'project',
+    reason: 'Changing a project’s owner grants access; it stays a person’s decision.',
+  },
+  'project.move': {
+    status: 'unsupported',
+    record: 'project',
+    reason:
+      'Moving projects changes access for everything inside them; it stays a person’s decision.',
+  },
   'project.label': { status: 'unsupported', record: 'project', reason: 'Projects have no labels.' },
-  'project.notify': { status: 'supported', record: 'project', permission: 'record.read', command: 'notification' },
-  'project.schedule': { status: 'supported', record: 'project', permission: 'record.update', command: 'updateProjectIn' },
-  'project.archive': { status: 'supported', record: 'project', permission: 'record.archive', command: 'archiveProjectIn' },
-  'project.relate': { status: 'unsupported', record: 'project', reason: 'Project dependencies are planned by people; use a task relationship instead.' },
-  'ai.draft': { status: 'supported', record: null, permission: 'ai.execute', command: 'startAutomationAiRun' },
-  'webhook.send': { status: 'supported', record: null, permission: 'webhooks.manage', command: 'automationWebhook' },
-  'agent.invoke': { status: 'unavailable', record: null, owner: '8C', reason: 'Agent workflows arrive with the agent runtime (8B/8C).' },
+  'project.notify': {
+    status: 'supported',
+    record: 'project',
+    permission: 'record.read',
+    command: 'notification',
+  },
+  'project.schedule': {
+    status: 'supported',
+    record: 'project',
+    permission: 'record.update',
+    command: 'updateProjectIn',
+  },
+  'project.archive': {
+    status: 'supported',
+    record: 'project',
+    permission: 'record.archive',
+    command: 'archiveProjectIn',
+  },
+  'project.relate': {
+    status: 'unsupported',
+    record: 'project',
+    reason: 'Project dependencies are planned by people; use a task relationship instead.',
+  },
+  'ai.draft': {
+    status: 'supported',
+    record: null,
+    permission: 'ai.execute',
+    command: 'startAutomationAiRun',
+  },
+  'webhook.send': {
+    status: 'supported',
+    record: null,
+    permission: 'webhooks.manage',
+    command: 'automationWebhook',
+  },
+  'agent.invoke': {
+    status: 'unavailable',
+    record: null,
+    owner: '8C',
+    reason: 'Agent workflows arrive with the agent runtime (8B/8C).',
+  },
 } as const satisfies Record<
   string,
   | { status: 'supported'; record: RecordKind | null; permission: string; command: string }
@@ -273,7 +365,12 @@ export function actionClass(a: ActionKey): 'internal' | 'ai' | 'outbound' | 'age
   return 'internal';
 }
 
-export const TARGETS = ['trigger', 'trigger.project', 'trigger.parent', 'trigger.subtasks'] as const;
+export const TARGETS = [
+  'trigger',
+  'trigger.project',
+  'trigger.parent',
+  'trigger.subtasks',
+] as const;
 export type Target = (typeof TARGETS)[number];
 
 /** The record kind a target selects, given the trigger's record kind (null = cannot select). */
@@ -478,17 +575,28 @@ export function compileDefinition(raw: unknown, limits: DefinitionLimits): Compi
   let comparisons = 0;
   let depth = 0;
 
-  if (!isObj(raw)) throw new DefinitionError([{ pointer: '/', code: 'invalid_type', message: 'Send a definition object.' }]);
+  if (!isObj(raw))
+    throw new DefinitionError([
+      { pointer: '/', code: 'invalid_type', message: 'Send a definition object.' },
+    ]);
   const size = Buffer.byteLength(canonical(raw), 'utf8');
   if (size > limits.definitionBytesMax)
     throw new DefinitionError([
-      { pointer: '/', code: 'too_large', message: 'This automation is too large. Split it into smaller automations.' },
+      {
+        pointer: '/',
+        code: 'too_large',
+        message: 'This automation is too large. Split it into smaller automations.',
+      },
     ]);
   for (const k of Object.keys(raw))
     if (!['schema_version', 'trigger', 'conditions', 'steps'].includes(k))
       bad(`/${k}`, 'unknown_field', 'This setting is not supported.');
   if (raw.schema_version !== AUTOMATION_SCHEMA_VERSION)
-    bad('/schema_version', 'unsupported_version', 'This automation format version is not supported.');
+    bad(
+      '/schema_version',
+      'unsupported_version',
+      'This automation format version is not supported.',
+    );
 
   // ---- trigger -------------------------------------------------------------------------------
   const trigger = compileTrigger(raw.trigger, bad, unavailable);
@@ -520,7 +628,8 @@ export function compileDefinition(raw: unknown, limits: DefinitionLimits): Compi
   };
   const comparison = (c: Record<string, unknown>, pointer: string): Comparison | null => {
     for (const k of Object.keys(c))
-      if (!['field', 'op', 'value'].includes(k)) bad(`${pointer}/${k}`, 'unknown_field', 'This setting is not supported.');
+      if (!['field', 'op', 'value'].includes(k))
+        bad(`${pointer}/${k}`, 'unknown_field', 'This setting is not supported.');
     const field = c.field;
     let type: string;
     if (typeof field === 'string' && field.startsWith('custom:')) {
@@ -534,7 +643,11 @@ export function compileDefinition(raw: unknown, limits: DefinitionLimits): Compi
     } else if (typeof field === 'string' && field in CONDITION_FIELDS) {
       const def = CONDITION_FIELDS[field as BuiltinField];
       if (recordKind === null || !(def.records as readonly string[]).includes(recordKind)) {
-        bad(`${pointer}/field`, 'field_not_applicable', 'This field does not apply to the trigger’s record.');
+        bad(
+          `${pointer}/field`,
+          'field_not_applicable',
+          'This field does not apply to the trigger’s record.',
+        );
         return null;
       }
       type = def.type;
@@ -543,7 +656,11 @@ export function compileDefinition(raw: unknown, limits: DefinitionLimits): Compi
       return null;
     }
     if (recordKind === null) {
-      bad(`${pointer}/field`, 'field_not_applicable', 'A scheduled automation has no trigger record to compare.');
+      bad(
+        `${pointer}/field`,
+        'field_not_applicable',
+        'A scheduled automation has no trigger record to compare.',
+      );
       return null;
     }
     const ops = OPERATORS[type as keyof typeof OPERATORS] as readonly string[];
@@ -555,7 +672,8 @@ export function compileDefinition(raw: unknown, limits: DefinitionLimits): Compi
     const v = c.value;
     const needsNone = op === 'is_set' || op === 'is_not_set';
     if (needsNone) {
-      if (v !== undefined && v !== null) bad(`${pointer}/value`, 'unexpected_value', 'This comparison takes no value.');
+      if (v !== undefined && v !== null)
+        bad(`${pointer}/value`, 'unexpected_value', 'This comparison takes no value.');
       return { field: field as string, op };
     }
     const value = comparisonValue(type, op, v, `${pointer}/value`, bad, refs);
@@ -581,8 +699,16 @@ export function compileDefinition(raw: unknown, limits: DefinitionLimits): Compi
         return bad(`${pointer}/id`, 'invalid_format', 'Step ids are short lowercase names.');
       if (ids.has(s.id)) return bad(`${pointer}/id`, 'duplicate', 'Step ids must be unique.');
       ids.add(s.id);
-      const node = compileNode(s, pointer, recordKind, limits, bad, refs, unavailable, outbound, (c, p) =>
-        condition(c, p, 0),
+      const node = compileNode(
+        s,
+        pointer,
+        recordKind,
+        limits,
+        bad,
+        refs,
+        unavailable,
+        outbound,
+        (c, p) => condition(c, p, 0),
       );
       if (node) steps.push(node);
     });
@@ -598,13 +724,26 @@ export function compileDefinition(raw: unknown, limits: DefinitionLimits): Compi
     // References and acyclicity (every edge points forward into the defined set).
     const edges = (n: StepNode): Array<[string, string | null]> =>
       n.type === 'branch'
-        ? [['then', n.then], ['else', n.else]]
+        ? [
+            ['then', n.then],
+            ['else', n.else],
+          ]
         : n.type === 'action'
-          ? [['next', n.next], ...(n.fallback ? ([['fallback/next', n.fallback.next]] as Array<[string, string | null]>) : [])]
+          ? [
+              ['next', n.next],
+              ...(n.fallback
+                ? ([['fallback/next', n.fallback.next]] as Array<[string, string | null]>)
+                : []),
+            ]
           : [['next', n.next]];
     steps.forEach((n, i) => {
       for (const [k, to] of edges(n))
-        if (to !== null && !ids.has(to)) bad(`/steps/${i}/${k}`, 'invalid_reference', 'This step points to a step that does not exist.');
+        if (to !== null && !ids.has(to))
+          bad(
+            `/steps/${i}/${k}`,
+            'invalid_reference',
+            'This step points to a step that does not exist.',
+          );
     });
     const byId = new Map(steps.map((n) => [n.id, n]));
     const state = new Map<string, 1 | 2>();
@@ -618,7 +757,8 @@ export function compileDefinition(raw: unknown, limits: DefinitionLimits): Compi
       state.set(id, 1);
       const n = byId.get(id);
       let best = 0;
-      if (n) for (const [, to] of edges(n)) if (to && byId.has(to)) best = Math.max(best, visit(to));
+      if (n)
+        for (const [, to] of edges(n)) if (to && byId.has(to)) best = Math.max(best, visit(to));
       state.set(id, 2);
       memo.set(id, best + 1);
       return best + 1;
@@ -635,14 +775,24 @@ export function compileDefinition(raw: unknown, limits: DefinitionLimits): Compi
     };
     if (steps.length && !cyclic) walk(steps[0]!.id);
     steps.forEach((n, i) => {
-      if (!cyclic && !reachable.has(n.id)) bad(`/steps/${i}`, 'unreachable', 'No path reaches this step.');
+      if (!cyclic && !reachable.has(n.id))
+        bad(`/steps/${i}`, 'unreachable', 'No path reaches this step.');
     });
     depth = steps.length ? (memo.get(steps[0]!.id) ?? 0) : 0;
   }
   if (comparisons > limits.conditionsMax)
-    bad('/', 'too_many_conditions', `An automation has at most ${limits.conditionsMax} comparisons.`);
+    bad(
+      '/',
+      'too_many_conditions',
+      `An automation has at most ${limits.conditionsMax} comparisons.`,
+    );
 
-  if (issues.length || !trigger) throw new DefinitionError(issues.length ? issues : [{ pointer: '/trigger', code: 'required', message: 'Choose a trigger.' }]);
+  if (issues.length || !trigger)
+    throw new DefinitionError(
+      issues.length
+        ? issues
+        : [{ pointer: '/trigger', code: 'required', message: 'Choose a trigger.' }],
+    );
   const definition: Definition = {
     schema_version: AUTOMATION_SCHEMA_VERSION,
     trigger,
@@ -650,7 +800,9 @@ export function compileDefinition(raw: unknown, limits: DefinitionLimits): Compi
     steps,
   };
   const text = canonical(definition);
-  const actions = [...new Set(steps.flatMap((n) => (n.type === 'action' ? [n.action] : [])))].sort() as ActionKey[];
+  const actions = [
+    ...new Set(steps.flatMap((n) => (n.type === 'action' ? [n.action] : []))),
+  ].sort() as ActionKey[];
   return {
     definition,
     canonical: text,
@@ -667,7 +819,11 @@ export function compileDefinition(raw: unknown, limits: DefinitionLimits): Compi
 }
 type Bad = (pointer: string, code: string, message: string) => void;
 
-function compileTrigger(t: unknown, bad: Bad, unavailable: Compiled['unavailable']): Trigger | null {
+function compileTrigger(
+  t: unknown,
+  bad: Bad,
+  unavailable: Compiled['unavailable'],
+): Trigger | null {
   if (!isObj(t)) {
     bad('/trigger', 'required', 'Choose a trigger.');
     return null;
@@ -692,9 +848,14 @@ function compileTrigger(t: unknown, bad: Bad, unavailable: Compiled['unavailable
     'agent.result': ['kind', 'record'],
   };
   for (const k of Object.keys(t))
-    if (!allowed[kind as TriggerKind].includes(k)) bad(`/trigger/${k}`, 'unknown_field', 'This trigger setting is not supported.');
+    if (!allowed[kind as TriggerKind].includes(k))
+      bad(`/trigger/${k}`, 'unknown_field', 'This trigger setting is not supported.');
   if (def.status === 'unavailable')
-    unavailable.push({ pointer: '/trigger/kind', code: 'trigger_unavailable', owner: (def as { owner: string }).owner });
+    unavailable.push({
+      pointer: '/trigger/kind',
+      code: 'trigger_unavailable',
+      owner: (def as { owner: string }).owner,
+    });
   let record: RecordKind | null = null;
   if (def.records.length) {
     if (typeof t.record !== 'string' || !(def.records as readonly string[]).includes(t.record)) {
@@ -707,7 +868,13 @@ function compileTrigger(t: unknown, bad: Bad, unavailable: Compiled['unavailable
     case 'record.field_changed': {
       const f = t.fields;
       const watch = WATCHABLE_FIELDS[record!];
-      if (!Array.isArray(f) || f.length < 1 || f.length > watch.length || new Set(f).size !== f.length || f.some((x) => typeof x !== 'string' || !watch.includes(x))) {
+      if (
+        !Array.isArray(f) ||
+        f.length < 1 ||
+        f.length > watch.length ||
+        new Set(f).size !== f.length ||
+        f.some((x) => typeof x !== 'string' || !watch.includes(x))
+      ) {
         bad('/trigger/fields', 'invalid_option', 'Choose one or more fields to watch.');
         return null;
       }
@@ -719,7 +886,11 @@ function compileTrigger(t: unknown, bad: Bad, unavailable: Compiled['unavailable
         bad('/trigger/to_category', 'invalid_option', 'Choose a status category.');
         return null;
       }
-      return { kind: 'record.status_changed', record: record!, to_category: c as (typeof STATUS_CATEGORIES)[number] | null };
+      return {
+        kind: 'record.status_changed',
+        record: record!,
+        to_category: c as (typeof STATUS_CATEGORIES)[number] | null,
+      };
     }
     case 'approval.decided': {
       const d = t.decision ?? null;
@@ -727,7 +898,11 @@ function compileTrigger(t: unknown, bad: Bad, unavailable: Compiled['unavailable
         bad('/trigger/decision', 'invalid_option', 'Choose a decision.');
         return null;
       }
-      return { kind: 'approval.decided', record: record!, decision: d as (typeof REVIEW_DECISIONS)[number] | null };
+      return {
+        kind: 'approval.decided',
+        record: record!,
+        decision: d as (typeof REVIEW_DECISIONS)[number] | null,
+      };
     }
     case 'schedule': {
       if (typeof t.rule !== 'string' || t.rule.length > 200 || !validRule(t.rule)) {
@@ -749,8 +924,16 @@ function compileTrigger(t: unknown, bad: Bad, unavailable: Compiled['unavailable
         bad('/trigger/field', 'invalid_option', 'Choose the due date or the start date.');
         return null;
       }
-      if (typeof t.offset_days !== 'number' || !Number.isInteger(t.offset_days) || Math.abs(t.offset_days) > 30) {
-        bad('/trigger/offset_days', 'out_of_range', 'Choose between 30 days before and 30 days after.');
+      if (
+        typeof t.offset_days !== 'number' ||
+        !Number.isInteger(t.offset_days) ||
+        Math.abs(t.offset_days) > 30
+      ) {
+        bad(
+          '/trigger/offset_days',
+          'out_of_range',
+          'Choose between 30 days before and 30 days after.',
+        );
         return null;
       }
       if (typeof t.at !== 'string' || !LOCAL_TIME.test(t.at)) {
@@ -761,7 +944,14 @@ function compileTrigger(t: unknown, bad: Bad, unavailable: Compiled['unavailable
         bad('/trigger/timezone', 'invalid_timezone', 'Choose a time zone.');
         return null;
       }
-      return { kind: 'date', record: 'task', field: t.field, offset_days: t.offset_days, at: t.at, timezone: t.timezone };
+      return {
+        kind: 'date',
+        record: 'task',
+        field: t.field,
+        offset_days: t.offset_days,
+        at: t.at,
+        timezone: t.timezone,
+      };
     }
     default:
       return { kind, record } as Trigger;
@@ -783,16 +973,42 @@ function comparisonValue(
   };
   switch (type) {
     case 'status':
-      if (list) return Array.isArray(v) && v.length >= 1 && v.length <= 20 && v.every((x) => typeof x === 'string' && STATUS_KEY.test(x)) ? (v as string[]) : fail('Choose one or more statuses.');
+      if (list)
+        return Array.isArray(v) &&
+          v.length >= 1 &&
+          v.length <= 20 &&
+          v.every((x) => typeof x === 'string' && STATUS_KEY.test(x))
+          ? (v as string[])
+          : fail('Choose one or more statuses.');
       return typeof v === 'string' && STATUS_KEY.test(v) ? v : fail('Choose a status.');
     case 'category':
-      if (list) return Array.isArray(v) && v.length >= 1 && v.every((x) => (STATUS_CATEGORIES as readonly unknown[]).includes(x)) ? (v as string[]) : fail('Choose one or more categories.');
-      return (STATUS_CATEGORIES as readonly unknown[]).includes(v) ? (v as string) : fail('Choose a category.');
+      if (list)
+        return Array.isArray(v) &&
+          v.length >= 1 &&
+          v.every((x) => (STATUS_CATEGORIES as readonly unknown[]).includes(x))
+          ? (v as string[])
+          : fail('Choose one or more categories.');
+      return (STATUS_CATEGORIES as readonly unknown[]).includes(v)
+        ? (v as string)
+        : fail('Choose a category.');
     case 'priority':
-      if (list) return Array.isArray(v) && v.length >= 1 && v.every((x) => (PRIORITIES as readonly unknown[]).includes(x)) ? (v as string[]) : fail('Choose one or more priorities.');
-      return (PRIORITIES as readonly unknown[]).includes(v) ? (v as string) : fail('Choose a priority.');
+      if (list)
+        return Array.isArray(v) &&
+          v.length >= 1 &&
+          v.every((x) => (PRIORITIES as readonly unknown[]).includes(x))
+          ? (v as string[])
+          : fail('Choose one or more priorities.');
+      return (PRIORITIES as readonly unknown[]).includes(v)
+        ? (v as string)
+        : fail('Choose a priority.');
     case 'date': {
-      if (isObj(v) && Object.keys(v).length === 1 && typeof v.relative_days === 'number' && Number.isInteger(v.relative_days) && Math.abs(v.relative_days) <= RELATIVE_DAYS_MAX)
+      if (
+        isObj(v) &&
+        Object.keys(v).length === 1 &&
+        typeof v.relative_days === 'number' &&
+        Number.isInteger(v.relative_days) &&
+        Math.abs(v.relative_days) <= RELATIVE_DAYS_MAX
+      )
         return { relative_days: v.relative_days };
       return fail('Choose a number of days from the run day.');
     }
@@ -815,7 +1031,9 @@ function comparisonValue(
       }
       return fail('Choose a project.');
     case 'text':
-      return typeof v === 'string' && v.length >= 1 && v.length <= TEXT_CONTAINS_MAX ? v : fail(`Enter 1 to ${TEXT_CONTAINS_MAX} characters.`);
+      return typeof v === 'string' && v.length >= 1 && v.length <= TEXT_CONTAINS_MAX
+        ? v
+        : fail(`Enter 1 to ${TEXT_CONTAINS_MAX} characters.`);
     case 'custom':
       if (typeof v === 'string' && v.length <= TEXT_CONTAINS_MAX) return v;
       if (typeof v === 'number' && Number.isFinite(v)) return v;
@@ -827,7 +1045,13 @@ function comparisonValue(
 
 function relativeDays(v: unknown, pointer: string, bad: Bad): RelativeDays | null | undefined {
   if (v === null) return null;
-  if (isObj(v) && Object.keys(v).length === 1 && typeof v.days === 'number' && Number.isInteger(v.days) && Math.abs(v.days) <= RELATIVE_DAYS_MAX)
+  if (
+    isObj(v) &&
+    Object.keys(v).length === 1 &&
+    typeof v.days === 'number' &&
+    Number.isInteger(v.days) &&
+    Math.abs(v.days) <= RELATIVE_DAYS_MAX
+  )
     return { days: v.days };
   bad(pointer, 'invalid_value', 'Choose a number of days from the run day, or clear it.');
   return undefined;
@@ -853,20 +1077,37 @@ function compileNode(
     return null;
   };
   const known = (keys: string[]) => {
-    for (const k of Object.keys(s)) if (!keys.includes(k)) bad(`${pointer}/${k}`, 'unknown_field', 'This step setting is not supported.');
+    for (const k of Object.keys(s))
+      if (!keys.includes(k))
+        bad(`${pointer}/${k}`, 'unknown_field', 'This step setting is not supported.');
   };
   if (s.type === 'branch') {
     known(['id', 'type', 'when', 'then', 'else']);
-    if (recordKind === null) bad(`${pointer}/when`, 'field_not_applicable', 'A scheduled automation has no trigger record to branch on.');
+    if (recordKind === null)
+      bad(
+        `${pointer}/when`,
+        'field_not_applicable',
+        'A scheduled automation has no trigger record to branch on.',
+      );
     const when = condition(s.when, `${pointer}/when`);
     if (!when) return null;
-    return { id, type: 'branch', when, then: edge(s.then, `${pointer}/then`) ?? null, else: edge(s.else, `${pointer}/else`) ?? null };
+    return {
+      id,
+      type: 'branch',
+      when,
+      then: edge(s.then, `${pointer}/then`) ?? null,
+      else: edge(s.else, `${pointer}/else`) ?? null,
+    };
   }
   if (s.type === 'delay') {
     known(['id', 'type', 'minutes', 'next']);
     const m = s.minutes;
     if (typeof m !== 'number' || !Number.isInteger(m) || m < 1 || m > limits.delayHorizonMinutes) {
-      bad(`${pointer}/minutes`, 'out_of_range', `Choose a delay from 1 minute to ${limits.delayHorizonMinutes} minutes.`);
+      bad(
+        `${pointer}/minutes`,
+        'out_of_range',
+        `Choose a delay from 1 minute to ${limits.delayHorizonMinutes} minutes.`,
+      );
       return null;
     }
     const next = edge(s.next, `${pointer}/next`);
@@ -889,7 +1130,11 @@ function compileNode(
     return null;
   }
   if (def.status === 'unavailable')
-    unavailable.push({ pointer: `${pointer}/action`, code: 'action_unavailable', owner: def.owner });
+    unavailable.push({
+      pointer: `${pointer}/action`,
+      code: 'action_unavailable',
+      owner: def.owner,
+    });
   // Target: record actions select a record related to the trigger record (bounded).
   let target: Target | null = null;
   if (def.record !== null) {
@@ -903,11 +1148,19 @@ function compileNode(
     if (!creating) {
       const kind = targetKind(target, recordKind);
       if (kind !== def.record) {
-        bad(`${pointer}/target`, 'target_not_applicable', 'This action cannot apply to that record for this trigger.');
+        bad(
+          `${pointer}/target`,
+          'target_not_applicable',
+          'This action cannot apply to that record for this trigger.',
+        );
         return null;
       }
     } else if (target !== 'trigger') {
-      bad(`${pointer}/target`, 'target_not_applicable', 'Created records are placed with their own settings.');
+      bad(
+        `${pointer}/target`,
+        'target_not_applicable',
+        'Created records are placed with their own settings.',
+      );
     }
   } else if (s.target !== undefined && s.target !== null) {
     bad(`${pointer}/target`, 'unexpected_value', 'This action has no target record.');
@@ -918,23 +1171,52 @@ function compileNode(
     return null;
   }
   for (const k of Object.keys(params))
-    if (!PARAM_KEYS[key].includes(k)) bad(`${pointer}/params/${k}`, 'unknown_field', 'This setting is not supported.');
+    if (!PARAM_KEYS[key].includes(k))
+      bad(`${pointer}/params/${k}`, 'unknown_field', 'This setting is not supported.');
   const out = compileParams(key, params, `${pointer}/params`, recordKind, bad, refs);
   if (out === null) return null;
-  if (key === 'webhook.send') outbound.push({ node: id, webhook: out.subscription as string, fields: out.fields as string[] });
+  if (key === 'webhook.send')
+    outbound.push({
+      node: id,
+      webhook: out.subscription as string,
+      fields: out.fields as string[],
+    });
   // Fallback: explicit typed failure classes only; it can never hide an unknown external outcome.
   let fallback: ActionNode['fallback'] = null;
   if (s.fallback !== undefined && s.fallback !== null) {
     const f = s.fallback;
-    if (!isObj(f) || !Array.isArray(f.on) || f.on.length < 1 || new Set(f.on).size !== f.on.length || f.on.some((x) => !(FAILURE_CLASSES as readonly unknown[]).includes(x))) {
-      bad(`${pointer}/fallback/on`, 'invalid_option', 'Choose which failures the fallback handles.');
+    if (
+      !isObj(f) ||
+      !Array.isArray(f.on) ||
+      f.on.length < 1 ||
+      new Set(f.on).size !== f.on.length ||
+      f.on.some((x) => !(FAILURE_CLASSES as readonly unknown[]).includes(x))
+    ) {
+      bad(
+        `${pointer}/fallback/on`,
+        'invalid_option',
+        'Choose which failures the fallback handles.',
+      );
     } else {
-      for (const k of Object.keys(f)) if (k !== 'on' && k !== 'next') bad(`${pointer}/fallback/${k}`, 'unknown_field', 'This setting is not supported.');
-      fallback = { on: [...(f.on as FailureClass[])].sort(), next: edge(f.next, `${pointer}/fallback/next`) ?? null };
+      for (const k of Object.keys(f))
+        if (k !== 'on' && k !== 'next')
+          bad(`${pointer}/fallback/${k}`, 'unknown_field', 'This setting is not supported.');
+      fallback = {
+        on: [...(f.on as FailureClass[])].sort(),
+        next: edge(f.next, `${pointer}/fallback/next`) ?? null,
+      };
     }
   }
   const next = edge(s.next, `${pointer}/next`);
-  return { id, type: 'action', action: key, target, params: out, next: next === undefined ? null : next, fallback };
+  return {
+    id,
+    type: 'action',
+    action: key,
+    target,
+    params: out,
+    next: next === undefined ? null : next,
+    fallback,
+  };
 }
 
 function compileParams(
@@ -955,7 +1237,8 @@ function compileParams(
   };
   const priority = (k: string) => {
     if (p[k] === undefined) return;
-    if (p[k] !== null && !(PRIORITIES as readonly unknown[]).includes(p[k])) return bad(`${pointer}/${k}`, 'invalid_option', 'Choose a priority.');
+    if (p[k] !== null && !(PRIORITIES as readonly unknown[]).includes(p[k]))
+      return bad(`${pointer}/${k}`, 'invalid_option', 'Choose a priority.');
     out[k] = p[k];
   };
   const days = (k: string) => {
@@ -968,7 +1251,8 @@ function compileParams(
     if (v === undefined) return;
     if (v === null && allowNull) return void (out[k] = null);
     if (allowTrigger && v === 'trigger.project') {
-      if (recordKind === null) return bad(`${pointer}/${k}`, 'target_not_applicable', 'There is no trigger record.');
+      if (recordKind === null)
+        return bad(`${pointer}/${k}`, 'target_not_applicable', 'There is no trigger record.');
       return void (out[k] = v);
     }
     if (typeof v === 'string' && PROJECT_ID.test(v)) {
@@ -984,24 +1268,44 @@ function compileParams(
     for (const r of v) {
       if (r === 'assignees' || r === 'owner') continue;
       if (typeof r === 'string' && MEMBER_ID.test(r)) refs.members.add(r);
-      else return bad(`${pointer}/recipients`, 'invalid_reference', 'Choose members, the assignees, or the owner.');
+      else
+        return bad(
+          `${pointer}/recipients`,
+          'invalid_reference',
+          'Choose members, the assignees, or the owner.',
+        );
     }
     if (key === 'project.notify' && v.includes('assignees'))
-      return bad(`${pointer}/recipients`, 'invalid_option', 'Projects have an owner, not assignees.');
+      return bad(
+        `${pointer}/recipients`,
+        'invalid_option',
+        'Projects have an owner, not assignees.',
+      );
     out.recipients = [...v].sort();
   };
   const fields = (allowed: readonly string[]) => {
     const f = p.fields;
-    if (!isObj(f) || Object.keys(f).length < 1) return bad(`${pointer}/fields`, 'required', 'Choose at least one change.');
+    if (!isObj(f) || Object.keys(f).length < 1)
+      return bad(`${pointer}/fields`, 'required', 'Choose at least one change.');
     const o: Record<string, unknown> = {};
     for (const [k, v] of Object.entries(f)) {
       if (!allowed.includes(k)) {
-        bad(`${pointer}/fields/${k}`, 'invalid_option', 'This field cannot be changed by an automation.');
+        bad(
+          `${pointer}/fields/${k}`,
+          'invalid_option',
+          'This field cannot be changed by an automation.',
+        );
         continue;
       }
-      if (k === 'priority' && v !== null && !(PRIORITIES as readonly unknown[]).includes(v)) bad(`${pointer}/fields/${k}`, 'invalid_option', 'Choose a priority.');
-      else if (k === 'status' && (typeof v !== 'string' || !STATUS_KEY.test(v))) bad(`${pointer}/fields/${k}`, 'invalid_option', 'Choose a status.');
-      else if ((k === 'title' || k === 'name') && (typeof v !== 'string' || v.trim().length < 1 || v.length > TITLE_MAX)) bad(`${pointer}/fields/${k}`, 'invalid_length', `Enter 1 to ${TITLE_MAX} characters.`);
+      if (k === 'priority' && v !== null && !(PRIORITIES as readonly unknown[]).includes(v))
+        bad(`${pointer}/fields/${k}`, 'invalid_option', 'Choose a priority.');
+      else if (k === 'status' && (typeof v !== 'string' || !STATUS_KEY.test(v)))
+        bad(`${pointer}/fields/${k}`, 'invalid_option', 'Choose a status.');
+      else if (
+        (k === 'title' || k === 'name') &&
+        (typeof v !== 'string' || v.trim().length < 1 || v.length > TITLE_MAX)
+      )
+        bad(`${pointer}/fields/${k}`, 'invalid_length', `Enter 1 to ${TITLE_MAX} characters.`);
       else o[k] = typeof v === 'string' ? v.trim() : v;
     }
     out.fields = o;
@@ -1011,12 +1315,24 @@ function compileParams(
       text('title', TITLE_MAX, true);
       project('project', true, true);
       if (p.parent !== undefined) {
-        if (p.parent !== null && p.parent !== 'trigger') bad(`${pointer}/parent`, 'invalid_option', 'A new task can only be placed under the trigger task.');
-        else if (p.parent === 'trigger' && recordKind !== 'task') bad(`${pointer}/parent`, 'target_not_applicable', 'The trigger record is not a task.');
+        if (p.parent !== null && p.parent !== 'trigger')
+          bad(
+            `${pointer}/parent`,
+            'invalid_option',
+            'A new task can only be placed under the trigger task.',
+          );
+        else if (p.parent === 'trigger' && recordKind !== 'task')
+          bad(`${pointer}/parent`, 'target_not_applicable', 'The trigger record is not a task.');
         else out.parent = p.parent;
-        if (p.parent === 'trigger' && p.project !== undefined) bad(`${pointer}/project`, 'conflicting_settings', 'A subtask stays in its parent’s project.');
+        if (p.parent === 'trigger' && p.project !== undefined)
+          bad(
+            `${pointer}/project`,
+            'conflicting_settings',
+            'A subtask stays in its parent’s project.',
+          );
       }
-      if (out.project === undefined && out.parent === undefined) bad(`${pointer}/project`, 'required', 'Choose where the new task goes.');
+      if (out.project === undefined && out.parent === undefined)
+        bad(`${pointer}/project`, 'required', 'Choose where the new task goes.');
       priority('priority');
       days('due');
       days('start');
@@ -1028,10 +1344,17 @@ function compileParams(
       fields(['priority', 'status', 'name']);
       break;
     case 'task.assign': {
-      if (p.mode !== 'add' && p.mode !== 'replace') bad(`${pointer}/mode`, 'invalid_option', 'Choose add or replace.');
+      if (p.mode !== 'add' && p.mode !== 'replace')
+        bad(`${pointer}/mode`, 'invalid_option', 'Choose add or replace.');
       else out.mode = p.mode;
       const a = p.assignees;
-      if (!Array.isArray(a) || a.length > 10 || new Set(a).size !== a.length || a.some((x) => typeof x !== 'string' || !MEMBER_ID.test(x)) || (p.mode === 'add' && a.length < 1))
+      if (
+        !Array.isArray(a) ||
+        a.length > 10 ||
+        new Set(a).size !== a.length ||
+        a.some((x) => typeof x !== 'string' || !MEMBER_ID.test(x)) ||
+        (p.mode === 'add' && a.length < 1)
+      )
         bad(`${pointer}/assignees`, 'invalid_reference', 'Choose up to 10 members.');
       else {
         for (const m of a as string[]) refs.members.add(m);
@@ -1041,12 +1364,15 @@ function compileParams(
     }
     case 'task.move':
       project('project', false, true);
-      if (out.project === undefined) bad(`${pointer}/project`, 'required', 'Choose a project, or no project.');
+      if (out.project === undefined)
+        bad(`${pointer}/project`, 'required', 'Choose a project, or no project.');
       break;
     case 'task.label':
-      if (p.mode !== 'add' && p.mode !== 'remove') bad(`${pointer}/mode`, 'invalid_option', 'Choose add or remove.');
+      if (p.mode !== 'add' && p.mode !== 'remove')
+        bad(`${pointer}/mode`, 'invalid_option', 'Choose add or remove.');
       else out.mode = p.mode;
-      if (typeof p.label !== 'string' || !LABEL_ID.test(p.label)) bad(`${pointer}/label`, 'invalid_reference', 'Choose a label.');
+      if (typeof p.label !== 'string' || !LABEL_ID.test(p.label))
+        bad(`${pointer}/label`, 'invalid_reference', 'Choose a label.');
       else {
         refs.labels.add(p.label);
         out.label = p.label;
@@ -1060,17 +1386,21 @@ function compileParams(
     case 'task.schedule':
       days('start');
       days('due');
-      if (out.start === undefined && out.due === undefined) bad(pointer, 'required', 'Choose a start or due date.');
+      if (out.start === undefined && out.due === undefined)
+        bad(pointer, 'required', 'Choose a start or due date.');
       break;
     case 'project.schedule':
       days('start');
       days('target');
-      if (out.start === undefined && out.target === undefined) bad(pointer, 'required', 'Choose a start or target date.');
+      if (out.start === undefined && out.target === undefined)
+        bad(pointer, 'required', 'Choose a start or target date.');
       break;
     case 'task.relate':
-      if (p.kind !== 'related' && p.kind !== 'blocks') bad(`${pointer}/kind`, 'invalid_option', 'Choose related or blocks.');
+      if (p.kind !== 'related' && p.kind !== 'blocks')
+        bad(`${pointer}/kind`, 'invalid_option', 'Choose related or blocks.');
       else out.kind = p.kind;
-      if (typeof p.to !== 'string' || !TASK_ID.test(p.to)) bad(`${pointer}/to`, 'invalid_reference', 'Choose a task.');
+      if (typeof p.to !== 'string' || !TASK_ID.test(p.to))
+        bad(`${pointer}/to`, 'invalid_reference', 'Choose a task.');
       else {
         refs.tasks.add(p.to);
         out.to = p.to;
@@ -1080,27 +1410,48 @@ function compileParams(
     case 'project.archive':
       break;
     case 'ai.draft':
-      if (typeof p.action !== 'string' || !(AI_DRAFT_ACTIONS as readonly string[]).includes(p.action)) bad(`${pointer}/action`, 'invalid_option', 'Choose an AI action.');
+      if (
+        typeof p.action !== 'string' ||
+        !(AI_DRAFT_ACTIONS as readonly string[]).includes(p.action)
+      )
+        bad(`${pointer}/action`, 'invalid_option', 'Choose an AI action.');
       else out.action = p.action;
-      if (recordKind === null) bad(`${pointer}/action`, 'target_not_applicable', 'An AI draft needs a trigger record as its context.');
+      if (recordKind === null)
+        bad(
+          `${pointer}/action`,
+          'target_not_applicable',
+          'An AI draft needs a trigger record as its context.',
+        );
       if (p.instruction !== undefined) text('instruction', 1000, true);
       break;
     case 'webhook.send': {
-      if (typeof p.subscription !== 'string' || !WEBHOOK_ID.test(p.subscription)) bad(`${pointer}/subscription`, 'invalid_reference', 'Choose a configured webhook.');
+      if (typeof p.subscription !== 'string' || !WEBHOOK_ID.test(p.subscription))
+        bad(`${pointer}/subscription`, 'invalid_reference', 'Choose a configured webhook.');
       else {
         refs.webhooks.add(p.subscription);
         out.subscription = p.subscription;
       }
       const allowed = recordKind ? WEBHOOK_FIELDS[recordKind] : [];
       const f = p.fields;
-      if (recordKind === null) bad(`${pointer}/fields`, 'target_not_applicable', 'A webhook sends facts about the trigger record.');
-      else if (!Array.isArray(f) || f.length < 1 || new Set(f).size !== f.length || f.some((x) => typeof x !== 'string' || !allowed.includes(x)))
+      if (recordKind === null)
+        bad(
+          `${pointer}/fields`,
+          'target_not_applicable',
+          'A webhook sends facts about the trigger record.',
+        );
+      else if (
+        !Array.isArray(f) ||
+        f.length < 1 ||
+        new Set(f).size !== f.length ||
+        f.some((x) => typeof x !== 'string' || !allowed.includes(x))
+      )
         bad(`${pointer}/fields`, 'invalid_option', 'Choose which fields the webhook may send.');
       else out.fields = [...(f as string[])].sort();
       break;
     }
     case 'agent.invoke':
-      if (typeof p.agent !== 'string' || p.agent.length < 1 || p.agent.length > 64) bad(`${pointer}/agent`, 'invalid_reference', 'Choose an agent.');
+      if (typeof p.agent !== 'string' || p.agent.length < 1 || p.agent.length > 64)
+        bad(`${pointer}/agent`, 'invalid_reference', 'Choose an agent.');
       else out.agent = p.agent;
       break;
     case 'project.create':

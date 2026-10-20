@@ -11,11 +11,20 @@ import {
   type AutomationService,
 } from './service.ts';
 
-export const AUTOMATION_JOB_KINDS = { run: AUTOMATION_RUN_JOB, sweep: AUTOMATION_SWEEP_JOB } as const;
+export const AUTOMATION_JOB_KINDS = {
+  run: AUTOMATION_RUN_JOB,
+  sweep: AUTOMATION_SWEEP_JOB,
+} as const;
 
 /** Every minute: due date and schedule triggers (the existing recurring-job scheduler). */
 export const AUTOMATION_SCHEDULES: readonly RecurringJob[] = [
-  { kind: AUTOMATION_SWEEP_JOB, queue: 'default', intervalMs: 60_000, maxAttempts: 3, timeoutSeconds: 120 },
+  {
+    kind: AUTOMATION_SWEEP_JOB,
+    queue: 'default',
+    intervalMs: 60_000,
+    maxAttempts: 3,
+    timeoutSeconds: 120,
+  },
 ];
 
 export interface AutomationJobDeps {
@@ -77,7 +86,9 @@ export class AutomationTriggerConsumer implements OutboxConsumer {
 /** Keeps runs, slots, usage, and failure alerts truthful from operation outcomes. */
 export class AutomationOutcomeConsumer implements OutboxConsumer {
   readonly name = 'automation.outcomes';
-  readonly eventTypes = ['execution.operation.state_changed'] as const satisfies readonly InternalEventType[];
+  readonly eventTypes = [
+    'execution.operation.state_changed',
+  ] as const satisfies readonly InternalEventType[];
   readonly #service: AutomationJobDeps['service'];
   constructor(service: AutomationJobDeps['service']) {
     this.#service = service;

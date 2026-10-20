@@ -75,7 +75,13 @@ export async function readableAutomations(
   const rows = await tx.db
     .selectFrom('automation.automation as a')
     .leftJoin('tenancy.brand as b', 'b.id', 'a.brand_id')
-    .select(['a.id', 'a.brand_id', 'a.lifecycle_state', 'b.is_sensitive', 'b.lifecycle_state as brand_state'])
+    .select([
+      'a.id',
+      'a.brand_id',
+      'a.lifecycle_state',
+      'b.is_sensitive',
+      'b.lifecycle_state as brand_state',
+    ])
     .where('a.id', 'in', [...ids])
     .execute();
   for (const r of rows) {

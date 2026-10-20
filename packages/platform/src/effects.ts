@@ -514,7 +514,11 @@ const JOB_COPY_COLUMNS = [
  * reference, limits, and original execution context, due at `runAt`. Completed steps are not
  * carried (the continuation's own durable state decides what remains); the caller holds the fence.
  */
-export async function continueJob(tx: WorkspaceTransaction, jobId: string, runAt: Date): Promise<string> {
+export async function continueJob(
+  tx: WorkspaceTransaction,
+  jobId: string,
+  runAt: Date,
+): Promise<string> {
   const id = newUuidV7();
   const cols = JOB_COPY_COLUMNS.filter((c) => c !== 'completed_steps' && c !== 'checkpoint').map(
     (c) => sql.ref(c),

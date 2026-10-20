@@ -1724,9 +1724,7 @@ export class TaskCoreService extends WorkService {
     if (ifMatch !== undefined) requireVersion(parseIfMatch(ifMatch), t.row.version);
     try {
       const projectChanging = input.project !== undefined;
-      const currentProject = t.row.project_id
-        ? await this.publicOf(tx, t.row.project_id)
-        : null;
+      const currentProject = t.row.project_id ? await this.publicOf(tx, t.row.project_id) : null;
       const target = await this.resolveContainer(
         tx,
         p,
@@ -1747,11 +1745,7 @@ export class TaskCoreService extends WorkService {
       );
       if (target.brand.id !== t.brand.id)
         throw invalid(
-          issue(
-            '/project',
-            'cross_brand_move',
-            'Use "Move to another brand" to change the brand.',
-          ),
+          issue('/project', 'cross_brand_move', 'Use "Move to another brand" to change the brand.'),
         );
       const newProject = target.parent
         ? target.parent.row.project_id
@@ -1779,13 +1773,8 @@ export class TaskCoreService extends WorkService {
       let afterId: string | null = null;
       if (input.after) {
         const a = await this.loadTask(tx, p, input.after);
-        if (
-          a.row.parent_task_id !== (target.parent?.id ?? null) ||
-          a.row.project_id !== newProject
-        )
-          throw invalid(
-            issue('/after', 'invalid_reference', 'Choose a task at the destination.'),
-          );
+        if (a.row.parent_task_id !== (target.parent?.id ?? null) || a.row.project_id !== newProject)
+          throw invalid(issue('/after', 'invalid_reference', 'Choose a task at the destination.'));
         afterId = a.id;
       }
       const rank = await this.nextRank(
@@ -1835,9 +1824,7 @@ export class TaskCoreService extends WorkService {
           .execute();
       }
       const projectPublic = newProject ? await this.publicOf(tx, newProject) : null;
-      const oldProjectPublic = t.row.project_id
-        ? await this.publicOf(tx, t.row.project_id)
-        : null;
+      const oldProjectPublic = t.row.project_id ? await this.publicOf(tx, t.row.project_id) : null;
       await this.taskAudit(tx, caller, p, 'task.moved', t, [
         change.plain('project', oldProjectPublic, projectPublic),
         change.plain(

@@ -16,7 +16,14 @@ const columns: MetricColumn[] = [
   { key: 'outcome', label: 'Outcome' },
   { key: 'runs', label: 'Runs' },
 ];
-const OUTCOMES = ['succeeded', 'partial', 'failed', 'policy_rejected', 'cancelled', 'skipped'] as const;
+const OUTCOMES = [
+  'succeeded',
+  'partial',
+  'failed',
+  'policy_rejected',
+  'cancelled',
+  'skipped',
+] as const;
 const LABEL: Record<(typeof OUTCOMES)[number], string> = {
   succeeded: 'Succeeded',
   partial: 'Partly done',
@@ -108,12 +115,18 @@ export const automationRunsMetric: MetricProvider = {
       .where('run.reason', '=', 'reconciliation_required');
     if (brand) w = w.where('a.brand_id', '=', brand.id);
     const uncertain = Number((await w.executeTakeFirstOrThrow()).n);
-    const counted = OUTCOMES.filter((o) => o !== 'skipped').reduce((s, o) => s + (counts.get(o) ?? 0), 0);
+    const counted = OUTCOMES.filter((o) => o !== 'skipped').reduce(
+      (s, o) => s + (counts.get(o) ?? 0),
+      0,
+    );
     const succeeded = counts.get('succeeded') ?? 0;
     return {
       ...base,
       value: counted ? Math.round((succeeded * 1000) / counted) / 10 : null,
-      rows: OUTCOMES.map((o) => ({ cells: { outcome: LABEL[o], runs: counts.get(o) ?? 0 }, link: null })),
+      rows: OUTCOMES.map((o) => ({
+        cells: { outcome: LABEL[o], runs: counts.get(o) ?? 0 },
+        link: null,
+      })),
       incomplete: uncertain > 0 ? ['no_measurement'] : [],
       notes: [
         'Success rate = succeeded / runs that ended (skipped runs excluded). Agent runs are not included.',
@@ -127,6 +140,10 @@ export const automationRunsMetric: MetricProvider = {
   },
   async drill(ctx, params, page) {
     const c = await this.compute(ctx, params);
-    return { columns: c.columns, rows: c.rows.slice(0, page.limit), page: { limit: page.limit, has_more: false } };
+    return {
+      columns: c.columns,
+      rows: c.rows.slice(0, page.limit),
+      page: { limit: page.limit, has_more: false },
+    };
   },
 };

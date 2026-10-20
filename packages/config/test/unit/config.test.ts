@@ -383,8 +383,18 @@ describe('server configuration', () => {
       ['AUTOMATION_ALERT_FAILURE_THRESHOLD', 20],
       ['AUTOMATION_ALERT_INTERVAL_MINUTES', 10080],
     ] as const) {
-      expect(issues(() => loadServerConfig({ service: 'worker', env: { ...local, [name]: String(max + 1) } }))[0], name).toMatch(new RegExp(`^${name}`));
-      expect(issues(() => loadServerConfig({ service: 'worker', env: { ...local, [name]: String(max) } })), name).toEqual([]);
+      expect(
+        issues(() =>
+          loadServerConfig({ service: 'worker', env: { ...local, [name]: String(max + 1) } }),
+        )[0],
+        name,
+      ).toMatch(new RegExp(`^${name}`));
+      expect(
+        issues(() =>
+          loadServerConfig({ service: 'worker', env: { ...local, [name]: String(max) } }),
+        ),
+        name,
+      ).toEqual([]);
     }
   });
 

@@ -1,11 +1,6 @@
 import { createHash, randomUUID } from 'node:crypto';
 import { change, CommandContext } from '@pm/audit';
-import {
-  newPublicId,
-  newTraceId,
-  newUuidV7,
-  type ExecutionContext,
-} from '@pm/contracts';
+import { newPublicId, newTraceId, newUuidV7, type ExecutionContext } from '@pm/contracts';
 import { sql, type AutomationRunStatus, type WorkspaceTransaction } from '@pm/db';
 import {
   AwaitReconciliationError,
@@ -207,7 +202,11 @@ interface RunRow {
   root_causation_id: string | null;
   lineage: string[];
   chain_depth: number;
-  scope_snapshot: { brands: string[]; projects: string[]; epochs: { workspace: number; principal: number } };
+  scope_snapshot: {
+    brands: string[];
+    projects: string[];
+    epochs: { workspace: number; principal: number };
+  };
   run_day: string;
   timezone: string;
   status: AutomationRunStatus;
@@ -395,7 +394,9 @@ export class AutomationService extends AiGatewayService {
       .where('public_id', 'in', [...new Set(publicIds)])
       .where('record_type', '=', type)
       .execute();
-    return new Map(rows.filter((r) => r.lifecycle_state !== 'purged').map((r) => [r.public_id, r.id]));
+    return new Map(
+      rows.filter((r) => r.lifecycle_state !== 'purged').map((r) => [r.public_id, r.id]),
+    );
   }
 
   // ---------------------------------------------------------------------------------------------
@@ -445,11 +446,20 @@ export class AutomationService extends AiGatewayService {
         unavailable: c.unavailable,
         actions: c.actions,
         outbound: c.outbound,
-        matches_active: !!revision && sha256(c.canonical + canonical(this.#scopeKey(a.draft))) === revision.definition_hash,
+        matches_active:
+          !!revision &&
+          sha256(c.canonical + canonical(this.#scopeKey(a.draft))) === revision.definition_hash,
       };
     } catch (err) {
       if (!(err instanceof DefinitionError)) throw err;
-      draftStatus = { valid: false, issues: err.issues, unavailable: [], actions: [], outbound: [], matches_active: false };
+      draftStatus = {
+        valid: false,
+        issues: err.issues,
+        unavailable: [],
+        actions: [],
+        outbound: [],
+        matches_active: false,
+      };
     }
     const last = await tx.db
       .selectFrom('automation.automation_run as r')
@@ -513,7 +523,10 @@ export class AutomationService extends AiGatewayService {
   }
 
   #scopeKey(d: Draft) {
-    return { brands: [...(d.scope?.brands ?? [])].sort(), projects: [...(d.scope?.projects ?? [])].sort() };
+    return {
+      brands: [...(d.scope?.brands ?? [])].sort(),
+      projects: [...(d.scope?.projects ?? [])].sort(),
+    };
   }
 
   // ---------------------------------------------------------------------------------------------
@@ -535,7 +548,11 @@ export class AutomationService extends AiGatewayService {
         .execute();
       const items = [];
       for (const r of rows) {
-        const row = { ...r, version: Number(r.version), draft: r.draft as unknown as Draft } as unknown as AutomationRow;
+        const row = {
+          ...r,
+          version: Number(r.version),
+          draft: r.draft as unknown as Draft,
+        } as unknown as AutomationRow;
         const c = await this.#decideScope(tx, p, 'automations.configure', row.brand_id);
         const h = await this.#decideScope(tx, p, 'health.view', row.brand_id);
         if (!c.allowed && !h.allowed) continue;
@@ -584,18 +601,30 @@ export class AutomationService extends AiGatewayService {
   }
 
   listAutomationTemplates() {
-    return { data: STARTER_TEMPLATES.map((t) => ({ key: t.key, name: t.name, description: t.description, needs: t.needs, trigger_kind: t.trigger })) };
+    return {
+      data: STARTER_TEMPLATES.map((t) => ({
+        key: t.key,
+        name: t.name,
+        description: t.description,
+        needs: t.needs,
+        trigger_kind: t.trigger,
+      })),
+    };
   }
 
   /** Creates a disabled automation with a draft (blank or from a starter template). */
   async createAutomation(caller: Caller, ws: unknown, body: unknown, req: Mutation) {
     const b = (body && typeof body === 'object' ? body : {}) as Record<string, unknown>;
     for (const k of Object.keys(b))
-      if (!['name', 'description', 'scope', 'template', 'template_values', 'definition'].includes(k))
+      if (
+        !['name', 'description', 'scope', 'template', 'template_values', 'definition'].includes(k)
+      )
         throw invalid(issue(`/${k}`, 'unknown_field', 'This field is not accepted.'));
     const name = typeof b.name === 'string' ? b.name.trim() : '';
-    if (!name || name.length > 120) throw invalid(issue('/name', 'invalid_length', 'Enter a name of 1 to 120 characters.'));
-    const description = b.description === undefined || b.description === null ? null : String(b.description);
+    if (!name || name.length > 120)
+      throw invalid(issue('/name', 'invalid_length', 'Enter a name of 1 to 120 characters.'));
+    const description =
+      b.description === undefined || b.description === null ? null : String(b.description);
     if (description !== null && description.length > 1000)
       throw invalid(issue('/description', 'invalid_length', 'Use up to 1000 characters.'));
     return this.mutate(
@@ -613,17 +642,27 @@ export class AutomationService extends AiGatewayService {
           .executeTakeFirstOrThrow();
         if (Number(count.n) >= this.ws.automationsPerWorkspaceMax)
           throw new TenancyError('conflict', {
-            issues: [issue('/', 'limit_reached', `A workspace has at most ${this.ws.automationsPerWorkspaceMax} automations.`)],
+            issues: [
+              issue(
+                '/',
+                'limit_reached',
+                `A workspace has at most ${this.ws.automationsPerWorkspaceMax} automations.`,
+              ),
+            ],
           });
         let definition: unknown = b.definition ?? null;
         let templateKey: string | null = null;
         if (b.template !== undefined) {
           const made = templateDraft(b.template, b.template_values, scope);
-          if (!made) throw invalid(issue('/template', 'invalid_option', 'Choose a starter template.'));
+          if (!made)
+            throw invalid(issue('/template', 'invalid_option', 'Choose a starter template.'));
           definition = made.definition;
           templateKey = made.key;
         }
-        const draft: Draft = { definition: definition ?? { schema_version: 1 }, scope: { brands: scope.brandPublicIds, projects: [] } };
+        const draft: Draft = {
+          definition: definition ?? { schema_version: 1 },
+          scope: { brands: scope.brandPublicIds, projects: [] },
+        };
         const id = newUuidV7();
         const publicId = newPublicId('auto');
         const cmd = this.cmd(caller, p, scope.brandId);
@@ -656,12 +695,21 @@ export class AutomationService extends AiGatewayService {
             created_by_membership_id: p.membershipId,
           })
           .execute();
-        await this.workAudit(tx, caller, p, 'automation.created', { recordId: id, type: 'automation', publicId }, [
-          change.plain('name', null, name),
-          change.plain('template', null, templateKey),
-        ], scope.brandId);
+        await this.workAudit(
+          tx,
+          caller,
+          p,
+          'automation.created',
+          { recordId: id, type: 'automation', publicId },
+          [change.plain('name', null, name), change.plain('template', null, templateKey)],
+          scope.brandId,
+        );
         const row = (await this.#rows(tx, { id }))!;
-        return { status: 201, ref: { id: publicId, type: 'automation' }, data: await this.#automationView(tx, p, row) };
+        return {
+          status: 201,
+          ref: { id: publicId, type: 'automation' },
+          data: await this.#automationView(tx, p, row),
+        };
       },
       async (tx, p, ref) => this.#automationView(tx, p, await this.#visible(tx, p, ref.id)),
     );
@@ -675,18 +723,28 @@ export class AutomationService extends AiGatewayService {
   async #parseScope(tx: WorkspaceTransaction, p: Principal, raw: unknown) {
     const s = (raw && typeof raw === 'object' ? raw : {}) as Record<string, unknown>;
     if (s.kind === 'brand') {
-      if (!isPublic(s.brand, 'br')) throw invalid(issue('/scope/brand', 'invalid_reference', 'Choose a brand.'));
+      if (!isPublic(s.brand, 'br'))
+        throw invalid(issue('/scope/brand', 'invalid_reference', 'Choose a brand.'));
       const brand = await this.#brandByPublic(tx, s.brand);
       if (!brand) throw invalid(issue('/scope/brand', 'invalid_reference', 'Choose a brand.'));
       const o = decideBrand(p, 'automations.configure', brand.facts);
-      if (!o.allowed) throw invalid(issue('/scope/brand', 'invalid_reference', 'Choose a brand you can configure.'));
+      if (!o.allowed)
+        throw invalid(
+          issue('/scope/brand', 'invalid_reference', 'Choose a brand you can configure.'),
+        );
       return { brandId: brand.facts.id, brandPublicIds: [s.brand] };
     }
     if (s.kind === 'workspace') {
       if (!decideWorkspace(p, 'automations.configure').allowed) throw new TenancyError('forbidden');
       const list = Array.isArray(s.brands) ? s.brands : [];
       if (list.length < 1 || list.length > 100 || list.some((x) => !isPublic(x, 'br')))
-        throw invalid(issue('/scope/brands', 'required', 'List the brands this workspace automation may act in.'));
+        throw invalid(
+          issue(
+            '/scope/brands',
+            'required',
+            'List the brands this workspace automation may act in.',
+          ),
+        );
       return { brandId: null, brandPublicIds: [...new Set(list as string[])].sort() };
     }
     throw invalid(issue('/scope', 'required', 'Choose a brand or the workspace.'));
@@ -700,7 +758,11 @@ export class AutomationService extends AiGatewayService {
       .where('r.public_id', '=', publicId)
       .executeTakeFirst();
     if (!b || b.lifecycle_state !== 'active') return null;
-    return { facts: { id: b.id, isSensitive: b.is_sensitive, lifecycleState: b.lifecycle_state }, publicId: b.public_id, name: b.name };
+    return {
+      facts: { id: b.id, isSensitive: b.is_sensitive, lifecycleState: b.lifecycle_state },
+      publicId: b.public_id,
+      name: b.name,
+    };
   }
 
   /** Edits the draft (never an active revision), name, or description, with If-Match. */
@@ -716,53 +778,107 @@ export class AutomationService extends AiGatewayService {
       req,
       async (tx, p) => {
         const a = await this.#visible(tx, p, aut, { lock: true, need: 'configure' });
-        if (a.lifecycle_state !== 'active') throw new TenancyError('conflict', { issues: [issue('/', 'automation_archived', 'Restore this automation to edit it.')] });
+        if (a.lifecycle_state !== 'active')
+          throw new TenancyError('conflict', {
+            issues: [issue('/', 'automation_archived', 'Restore this automation to edit it.')],
+          });
         if (req.ifMatch === undefined) throw new TenancyError('precondition_required');
         requireVersion(parseIfMatch(req.ifMatch), a.version);
         const set: Record<string, unknown> = {};
         const changes: ReturnType<typeof change.plain>[] = [];
         if (b.name !== undefined) {
           const n = typeof b.name === 'string' ? b.name.trim() : '';
-          if (!n || n.length > 120) throw invalid(issue('/name', 'invalid_length', 'Enter a name of 1 to 120 characters.'));
+          if (!n || n.length > 120)
+            throw invalid(issue('/name', 'invalid_length', 'Enter a name of 1 to 120 characters.'));
           set.name = n;
           changes.push(change.plain('name', a.name, n));
         }
         if (b.description !== undefined) {
           const d = b.description === null ? null : String(b.description);
-          if (d !== null && d.length > 1000) throw invalid(issue('/description', 'invalid_length', 'Use up to 1000 characters.'));
+          if (d !== null && d.length > 1000)
+            throw invalid(issue('/description', 'invalid_length', 'Use up to 1000 characters.'));
           set.description = d;
         }
         if (b.definition !== undefined || b.scope !== undefined) {
-          const draft: Draft = { definition: b.definition !== undefined ? b.definition : a.draft.definition, scope: a.draft.scope };
+          const draft: Draft = {
+            definition: b.definition !== undefined ? b.definition : a.draft.definition,
+            scope: a.draft.scope,
+          };
           if (b.scope !== undefined) {
-            const sc = (b.scope && typeof b.scope === 'object' ? b.scope : {}) as Record<string, unknown>;
+            const sc = (b.scope && typeof b.scope === 'object' ? b.scope : {}) as Record<
+              string,
+              unknown
+            >;
             const projects = Array.isArray(sc.projects) ? sc.projects : [];
             if (projects.length > 100 || projects.some((x) => !isPublic(x, 'prj')))
-              throw invalid(issue('/scope/projects', 'invalid_reference', 'Choose up to 100 projects.'));
+              throw invalid(
+                issue('/scope/projects', 'invalid_reference', 'Choose up to 100 projects.'),
+              );
             let brands = draft.scope.brands;
             if (a.brand_id === null) {
-              const parsed = await this.#parseScope(tx, p, { kind: 'workspace', brands: sc.brands });
+              const parsed = await this.#parseScope(tx, p, {
+                kind: 'workspace',
+                brands: sc.brands,
+              });
               brands = parsed.brandPublicIds;
             } else if (sc.brands !== undefined) {
-              throw invalid(issue('/scope/brands', 'not_applicable', 'A brand automation acts in its own brand.'));
+              throw invalid(
+                issue(
+                  '/scope/brands',
+                  'not_applicable',
+                  'A brand automation acts in its own brand.',
+                ),
+              );
             }
             draft.scope = { brands, projects: [...new Set(projects as string[])].sort() };
           }
           const size = Buffer.byteLength(JSON.stringify(draft), 'utf8');
           if (size > this.ws.automationDefinitionBytesMax * 2)
-            throw invalid(issue('/definition', 'too_large', 'This automation is too large. Split it into smaller automations.'));
+            throw invalid(
+              issue(
+                '/definition',
+                'too_large',
+                'This automation is too large. Split it into smaller automations.',
+              ),
+            );
           set.draft = JSON.stringify(draft);
           changes.push(change.plain('draft', null, sha256(canonical(draft)).slice(0, 16)));
         }
-        if (!Object.keys(set).length) return { status: 200, ref: { id: a.public_id, type: 'automation' }, data: await this.#automationView(tx, p, a) };
+        if (!Object.keys(set).length)
+          return {
+            status: 200,
+            ref: { id: a.public_id, type: 'automation' },
+            data: await this.#automationView(tx, p, a),
+          };
         await tx.db
           .updateTable('automation.automation')
-          .set({ ...set, updated_at: new Date(), updated_by_membership_id: p.membershipId, version: sql`version + 1` })
+          .set({
+            ...set,
+            updated_at: new Date(),
+            updated_by_membership_id: p.membershipId,
+            version: sql`version + 1`,
+          })
           .where('id', '=', a.id)
           .execute();
-        await tx.db.updateTable('core.record').set({ version: sql`version + 1` }).where('id', '=', a.id).execute();
-        await this.workAudit(tx, caller, p, 'automation.updated', { recordId: a.id, type: 'automation', publicId: a.public_id }, changes, a.brand_id);
-        return { status: 200, ref: { id: a.public_id, type: 'automation' }, data: await this.#automationView(tx, p, (await this.#rows(tx, { id: a.id }))!) };
+        await tx.db
+          .updateTable('core.record')
+          .set({ version: sql`version + 1` })
+          .where('id', '=', a.id)
+          .execute();
+        await this.workAudit(
+          tx,
+          caller,
+          p,
+          'automation.updated',
+          { recordId: a.id, type: 'automation', publicId: a.public_id },
+          changes,
+          a.brand_id,
+        );
+        return {
+          status: 200,
+          ref: { id: a.public_id, type: 'automation' },
+          data: await this.#automationView(tx, p, (await this.#rows(tx, { id: a.id }))!),
+        };
       },
       async (tx, p, ref) => this.#automationView(tx, p, await this.#visible(tx, p, ref.id)),
     );
@@ -787,28 +903,50 @@ export class AutomationService extends AiGatewayService {
       const id = brandIds.get(pub);
       const facts = id ? await this.#brandFacts(tx, id) : null;
       if (!facts || facts.lifecycleState !== 'active' || (a.brand_id && id !== a.brand_id)) {
-        issues.push(issue('/scope/brands', 'invalid_reference', 'Choose active brands in this automation’s scope.'));
+        issues.push(
+          issue(
+            '/scope/brands',
+            'invalid_reference',
+            'Choose active brands in this automation’s scope.',
+          ),
+        );
         continue;
       }
       brands.push(facts);
     }
-    if (!brands.length) issues.push(issue('/scope/brands', 'required', 'Choose at least one brand.'));
+    if (!brands.length)
+      issues.push(issue('/scope/brands', 'required', 'Choose at least one brand.'));
     for (const b of brands) {
       if (!decideBrand(who, 'automations.configure', b).allowed)
-        issues.push(issue('/scope/brands', 'not_grantable', 'You cannot configure automations in one of the declared brands.'));
+        issues.push(
+          issue(
+            '/scope/brands',
+            'not_grantable',
+            'You cannot configure automations in one of the declared brands.',
+          ),
+        );
       for (const action of c.actions) {
         const def = ACTION_MATRIX[action];
         if (def.status !== 'supported') continue;
         // Record-only actions (assign, relate) are granted through edit authority on the brand;
         // notifying needs only that the records are readable there.
         const perm = def.permission as PolicyActionKey;
-        const brandPerm: PolicyActionKey = (actionDef(perm).scopes as readonly string[]).includes('brand')
+        const brandPerm: PolicyActionKey = (actionDef(perm).scopes as readonly string[]).includes(
+          'brand',
+        )
           ? perm === 'record.read'
             ? 'record.read'
             : perm
           : 'record.update';
         const ok = decideBrand(who, brandPerm, b).allowed;
-        if (!ok) issues.push(issue('/steps', 'not_grantable', `You cannot grant “${action}” in one of the declared brands.`));
+        if (!ok)
+          issues.push(
+            issue(
+              '/steps',
+              'not_grantable',
+              `You cannot grant “${action}” in one of the declared brands.`,
+            ),
+          );
       }
     }
     const projects = await this.#internalIds(tx, a.draft.scope?.projects ?? [], 'project');
@@ -832,33 +970,63 @@ export class AutomationService extends AiGatewayService {
     const refCheck = async (pubs: Set<string>, kind: 'project' | 'task', pointer: string) => {
       for (const pub of pubs) {
         try {
-          const r = kind === 'project' ? await this.loadProject(tx, who, pub) : await this.loadTask(tx, who, pub);
+          const r =
+            kind === 'project'
+              ? await this.loadProject(tx, who, pub)
+              : await this.loadTask(tx, who, pub);
           if (!brands.some((b) => b.id === r.brand.id)) throw new TenancyError('not_found');
         } catch (err) {
           if (!(err instanceof TenancyError)) throw err;
-          issues.push(issue(pointer, 'invalid_reference', 'A referenced record is not available in this scope.'));
+          issues.push(
+            issue(
+              pointer,
+              'invalid_reference',
+              'A referenced record is not available in this scope.',
+            ),
+          );
         }
       }
     };
     await refCheck(c.refs.projects, 'project', '/steps');
     await refCheck(c.refs.tasks, 'task', '/steps');
     for (const m of c.refs.members) {
-      const row = await tx.db.selectFrom('tenancy.membership').select(['kind', 'state']).where('public_id', '=', m).executeTakeFirst();
-      if (!row || row.kind !== 'member' || row.state !== 'active') issues.push(issue('/steps', 'invalid_reference', 'Choose active members.'));
+      const row = await tx.db
+        .selectFrom('tenancy.membership')
+        .select(['kind', 'state'])
+        .where('public_id', '=', m)
+        .executeTakeFirst();
+      if (!row || row.kind !== 'member' || row.state !== 'active')
+        issues.push(issue('/steps', 'invalid_reference', 'Choose active members.'));
     }
     for (const l of c.refs.labels) {
-      const row = await tx.db.selectFrom('work.label').select(['brand_id', 'state']).where('public_id', '=', l).executeTakeFirst();
-      if (!row || row.state !== 'active' || !brands.some((b) => b.id === row.brand_id)) issues.push(issue('/steps', 'invalid_reference', 'Choose labels of the declared brands.'));
+      const row = await tx.db
+        .selectFrom('work.label')
+        .select(['brand_id', 'state'])
+        .where('public_id', '=', l)
+        .executeTakeFirst();
+      if (!row || row.state !== 'active' || !brands.some((b) => b.id === row.brand_id))
+        issues.push(issue('/steps', 'invalid_reference', 'Choose labels of the declared brands.'));
     }
     for (const f of c.refs.fields) {
-      const row = await tx.db.selectFrom('workflow.field_definition').select(['state']).where('public_id', '=', f).executeTakeFirst();
-      if (!row || row.state !== 'active') issues.push(issue('/conditions', 'invalid_reference', 'Choose an active custom field.'));
+      const row = await tx.db
+        .selectFrom('workflow.field_definition')
+        .select(['state'])
+        .where('public_id', '=', f)
+        .executeTakeFirst();
+      if (!row || row.state !== 'active')
+        issues.push(issue('/conditions', 'invalid_reference', 'Choose an active custom field.'));
     }
     const webhooks = new Map<string, { id: string; fingerprint: string }>();
     for (const w of c.refs.webhooks) {
       const d = await this.automationWebhookDestination(tx, w);
-      const brandOk = d && (d.brandId === null ? decideWorkspace(who, 'webhooks.manage').allowed : brands.some((b) => b.id === d.brandId) && decideBrand(who, 'webhooks.manage', (await this.#brandFacts(tx, d.brandId))!).allowed);
-      if (!d || d.state !== 'active' || d.lifecycleState !== 'active' || !brandOk) issues.push(issue('/steps', 'invalid_reference', 'Choose an active webhook you manage.'));
+      const brandOk =
+        d &&
+        (d.brandId === null
+          ? decideWorkspace(who, 'webhooks.manage').allowed
+          : brands.some((b) => b.id === d.brandId) &&
+            decideBrand(who, 'webhooks.manage', (await this.#brandFacts(tx, d.brandId))!).allowed);
+      if (!d || d.state !== 'active' || d.lifecycleState !== 'active' || !brandOk)
+        issues.push(issue('/steps', 'invalid_reference', 'Choose an active webhook you manage.'));
       else webhooks.set(w, { id: d.id, fingerprint: d.fingerprint });
     }
     if (mode === 'activation' && issues.length) throw invalid(...issues);
@@ -870,7 +1038,13 @@ export class AutomationService extends AiGatewayService {
    * permission, grantability (the activator's and the owner's), limits, and outbound standing
    * approval checks. Unavailable triggers and actions are refused with their owning phase.
    */
-  async activateAutomation(caller: Caller, ws: unknown, aut: unknown, body: unknown, req: Mutation) {
+  async activateAutomation(
+    caller: Caller,
+    ws: unknown,
+    aut: unknown,
+    body: unknown,
+    req: Mutation,
+  ) {
     const b = (body && typeof body === 'object' ? body : {}) as Record<string, unknown>;
     return this.mutate(
       caller,
@@ -880,48 +1054,102 @@ export class AutomationService extends AiGatewayService {
       async (tx, p) => {
         const a = await this.#visible(tx, p, aut, { lock: true, need: 'configure' });
         if (p.kind !== 'member' || caller.delegation) throw new TenancyError('forbidden');
-        if (a.lifecycle_state !== 'active') throw new TenancyError('conflict', { issues: [issue('/', 'automation_archived', 'Restore this automation first.')] });
+        if (a.lifecycle_state !== 'active')
+          throw new TenancyError('conflict', {
+            issues: [issue('/', 'automation_archived', 'Restore this automation first.')],
+          });
         if (req.ifMatch !== undefined) requireVersion(parseIfMatch(req.ifMatch), a.version);
         let c: Compiled;
         try {
           c = compileDefinition(a.draft.definition, this.automationLimits);
         } catch (err) {
-          if (err instanceof DefinitionError) throw invalid(...err.issues.map((i) => issue(`/definition${i.pointer === '/' ? '' : i.pointer}`, i.code, i.message)));
+          if (err instanceof DefinitionError)
+            throw invalid(
+              ...err.issues.map((i) =>
+                issue(`/definition${i.pointer === '/' ? '' : i.pointer}`, i.code, i.message),
+              ),
+            );
           throw err;
         }
         if (c.unavailable.length)
           throw new TenancyError('dependency_unavailable', {
-            issues: c.unavailable.map((u) => issue(`/definition${u.pointer}`, u.code, `This is not available yet; it arrives with phase ${u.owner}.`)),
+            issues: c.unavailable.map((u) =>
+              issue(
+                `/definition${u.pointer}`,
+                u.code,
+                `This is not available yet; it arrives with phase ${u.owner}.`,
+              ),
+            ),
           });
         const resolved = await this.#resolveDraft(tx, p, a, c, 'activation');
         // The accountable owner's own grantability (a configurer never lends authority).
         const owner = await this.#ownerPrincipal(tx, a.owner_membership_id);
-        if (!owner) throw new TenancyError('conflict', { issues: [issue('/owner', 'owner_unavailable', 'Assign an active owner first.')] });
+        if (!owner)
+          throw new TenancyError('conflict', {
+            issues: [issue('/owner', 'owner_unavailable', 'Assign an active owner first.')],
+          });
         if (owner.membershipId !== p.membershipId) {
           const ownerCheck = await this.#resolveDraft(tx, owner, a, c, 'preview');
           if (ownerCheck.issues.length)
-            throw new TenancyError('conflict', { issues: [issue('/owner', 'owner_not_grantable', 'The owner cannot grant this automation’s actions in its scope.')] });
+            throw new TenancyError('conflict', {
+              issues: [
+                issue(
+                  '/owner',
+                  'owner_not_grantable',
+                  'The owner cannot grant this automation’s actions in its scope.',
+                ),
+              ],
+            });
         }
         // R3 outbound: the exact destination and field set, approved now under step-up.
-        const approvals: Array<{ node: string; subscriptionId: string; fingerprint: string; fields: string[] }> = [];
+        const approvals: Array<{
+          node: string;
+          subscriptionId: string;
+          fingerprint: string;
+          fields: string[];
+        }> = [];
         if (c.outbound.length) {
-          const given = Array.isArray(b.approvals) ? (b.approvals as Array<Record<string, unknown>>) : [];
+          const given = Array.isArray(b.approvals)
+            ? (b.approvals as Array<Record<string, unknown>>)
+            : [];
           for (const o of c.outbound) {
             const g = given.find((x) => x.node === o.node);
             const fields = Array.isArray(g?.fields) ? [...(g!.fields as string[])].sort() : null;
-            if (!g || g.webhook !== o.webhook || !fields || canonical(fields) !== canonical(o.fields))
+            if (
+              !g ||
+              g.webhook !== o.webhook ||
+              !fields ||
+              canonical(fields) !== canonical(o.fields)
+            )
               throw new TenancyError('conflict', {
-                issues: [issue(`/approvals`, 'approval_required', 'Approve each webhook step’s destination and fields to activate.')],
+                issues: [
+                  issue(
+                    `/approvals`,
+                    'approval_required',
+                    'Approve each webhook step’s destination and fields to activate.',
+                  ),
+                ],
               });
             const dest = resolved.webhooks.get(o.webhook)!;
-            approvals.push({ node: o.node, subscriptionId: dest.id, fingerprint: dest.fingerprint, fields });
+            approvals.push({
+              node: o.node,
+              subscriptionId: dest.id,
+              fingerprint: dest.fingerprint,
+              fields,
+            });
           }
         }
         const stepUpId = approvals.length
-          ? await this.stepUp(tx, caller, p, req, 'webhooks.manage', { type: 'automation', id: a.public_id })
+          ? await this.stepUp(tx, caller, p, req, 'webhooks.manage', {
+              type: 'automation',
+              id: a.public_id,
+            })
           : null;
         // Immutable revision: reuse the latest when the draft and scope are unchanged.
-        const scopeKey = canonical({ brands: resolved.brands.map((x) => x.id).sort(), projects: [...resolved.declaredProjects].sort() });
+        const scopeKey = canonical({
+          brands: resolved.brands.map((x) => x.id).sort(),
+          projects: [...resolved.declaredProjects].sort(),
+        });
         const hash = sha256(c.canonical + canonical(this.#scopeKey(a.draft)));
         const latest = await tx.db
           .selectFrom('automation.automation_revision')
@@ -1004,32 +1232,68 @@ export class AutomationService extends AiGatewayService {
           })
           .where('id', '=', a.id)
           .execute();
-        await tx.db.updateTable('core.record').set({ version: sql`version + 1` }).where('id', '=', a.id).execute();
+        await tx.db
+          .updateTable('core.record')
+          .set({ version: sql`version + 1` })
+          .where('id', '=', a.id)
+          .execute();
         await this.#scheduleTrigger(tx, a.id, revisionId, trigger, new Date());
-        await this.workAudit(tx, caller, p, 'automation.activated', { recordId: a.id, type: 'automation', publicId: a.public_id }, [
-          change.plain('revision', null, revisionNumber),
-          change.plain('enabled', false, true),
-          change.plain('standing_approvals', null, approvals.length),
-        ], a.brand_id);
-        return { status: 200, ref: { id: a.public_id, type: 'automation' }, data: await this.#automationView(tx, p, (await this.#rows(tx, { id: a.id }))!) };
+        await this.workAudit(
+          tx,
+          caller,
+          p,
+          'automation.activated',
+          { recordId: a.id, type: 'automation', publicId: a.public_id },
+          [
+            change.plain('revision', null, revisionNumber),
+            change.plain('enabled', false, true),
+            change.plain('standing_approvals', null, approvals.length),
+          ],
+          a.brand_id,
+        );
+        return {
+          status: 200,
+          ref: { id: a.public_id, type: 'automation' },
+          data: await this.#automationView(tx, p, (await this.#rows(tx, { id: a.id }))!),
+        };
       },
       async (tx, p, ref) => this.#automationView(tx, p, await this.#visible(tx, p, ref.id)),
     );
   }
 
   /** The next due instant of a date or schedule trigger, from `now` (never a backfill). */
-  async #scheduleTrigger(tx: WorkspaceTransaction, automationId: string, revisionId: string, t: Trigger, now: Date) {
-    await tx.db.deleteFrom('automation.trigger_schedule').where('automation_id', '=', automationId).execute();
+  async #scheduleTrigger(
+    tx: WorkspaceTransaction,
+    automationId: string,
+    revisionId: string,
+    t: Trigger,
+    now: Date,
+  ) {
+    await tx.db
+      .deleteFrom('automation.trigger_schedule')
+      .where('automation_id', '=', automationId)
+      .execute();
     if (t.kind !== 'schedule' && t.kind !== 'date') return;
     const next = t.kind === 'schedule' ? this.#nextScheduled(t, now) : this.#nextDateSweep(t, now);
     await tx.db
       .insertInto('automation.trigger_schedule')
-      .values({ automation_id: automationId, workspace_id: tx.workspaceId, revision_id: revisionId, kind: t.kind, next_due_at: next?.at ?? null, last_key: null })
+      .values({
+        automation_id: automationId,
+        workspace_id: tx.workspaceId,
+        revision_id: revisionId,
+        kind: t.kind,
+        next_due_at: next?.at ?? null,
+        last_key: null,
+      })
       .execute();
   }
 
   /** The next schedule occurrence strictly after `after` (stable local key, explicit zone). */
-  #nextScheduled(t: Extract<Trigger, { kind: 'schedule' }>, after: Date, afterKey: string | null = null) {
+  #nextScheduled(
+    t: Extract<Trigger, { kind: 'schedule' }>,
+    after: Date,
+    afterKey: string | null = null,
+  ) {
     const localNow = utcToLocal(after, t.timezone);
     const from = afterKey && afterKey > localNow ? afterKey : localNow;
     const [key] = occurrences(parseRule(t.rule), t.start, from, 1);
@@ -1047,16 +1311,32 @@ export class AutomationService extends AiGatewayService {
 
   /** Disable: no new runs; undispatched steps of open runs stop; liability is kept (AUTO-013). */
   async disableAutomation(caller: Caller, ws: unknown, aut: unknown, req: Mutation) {
-    return this.mutate(caller, 'automation.disable', ws, req, async (tx, p) => {
-      const a = await this.#visible(tx, p, aut, { lock: true, need: 'configure' });
-      if (req.ifMatch !== undefined) requireVersion(parseIfMatch(req.ifMatch), a.version);
-      const stopped = await this.#stop(tx, a, 'disabled');
-      await this.workAudit(tx, caller, p, 'automation.disabled', { recordId: a.id, type: 'automation', publicId: a.public_id }, [
-        change.plain('enabled', a.enabled, false),
-        change.plain('runs_stopped', null, stopped),
-      ], a.brand_id);
-      return { status: 200, ref: { id: a.public_id, type: 'automation' }, data: await this.#automationView(tx, p, (await this.#rows(tx, { id: a.id }))!) };
-    }, async (tx, p, ref) => this.#automationView(tx, p, await this.#visible(tx, p, ref.id)));
+    return this.mutate(
+      caller,
+      'automation.disable',
+      ws,
+      req,
+      async (tx, p) => {
+        const a = await this.#visible(tx, p, aut, { lock: true, need: 'configure' });
+        if (req.ifMatch !== undefined) requireVersion(parseIfMatch(req.ifMatch), a.version);
+        const stopped = await this.#stop(tx, a, 'disabled');
+        await this.workAudit(
+          tx,
+          caller,
+          p,
+          'automation.disabled',
+          { recordId: a.id, type: 'automation', publicId: a.public_id },
+          [change.plain('enabled', a.enabled, false), change.plain('runs_stopped', null, stopped)],
+          a.brand_id,
+        );
+        return {
+          status: 200,
+          ref: { id: a.public_id, type: 'automation' },
+          data: await this.#automationView(tx, p, (await this.#rows(tx, { id: a.id }))!),
+        };
+      },
+      async (tx, p, ref) => this.#automationView(tx, p, await this.#visible(tx, p, ref.id)),
+    );
   }
 
   /**
@@ -1081,8 +1361,15 @@ export class AutomationService extends AiGatewayService {
       })
       .where('id', '=', a.id)
       .execute();
-    await tx.db.updateTable('core.record').set({ version: sql`version + 1` }).where('id', '=', a.id).execute();
-    await tx.db.deleteFrom('automation.trigger_schedule').where('automation_id', '=', a.id).execute();
+    await tx.db
+      .updateTable('core.record')
+      .set({ version: sql`version + 1` })
+      .where('id', '=', a.id)
+      .execute();
+    await tx.db
+      .deleteFrom('automation.trigger_schedule')
+      .where('automation_id', '=', a.id)
+      .execute();
     const open = await tx.db
       .selectFrom('automation.automation_run')
       .selectAll()
@@ -1094,10 +1381,20 @@ export class AutomationService extends AiGatewayService {
     for (const raw of open) {
       const run = raw as unknown as RunRow;
       if (run.status === 'waiting' && run.reason === 'reconciliation_required') continue;
-      const op = await tx.db.selectFrom('exec.operation').select(['execution_state']).where('id', '=', run.current_operation_id).forUpdate().executeTakeFirstOrThrow();
+      const op = await tx.db
+        .selectFrom('exec.operation')
+        .select(['execution_state'])
+        .where('id', '=', run.current_operation_id)
+        .forUpdate()
+        .executeTakeFirstOrThrow();
       if (op.execution_state === 'waiting' || op.execution_state === 'queued') {
         // Nothing is running: the queued (or continuation) job is withdrawn and the run ends now.
-        const jobs = await tx.db.selectFrom('exec.job').select('id').where('operation_id', '=', run.current_operation_id).where('state', 'in', ['queued', 'retry_scheduled']).execute();
+        const jobs = await tx.db
+          .selectFrom('exec.job')
+          .select('id')
+          .where('operation_id', '=', run.current_operation_id)
+          .where('state', 'in', ['queued', 'retry_scheduled'])
+          .execute();
         for (const j of jobs) await requestJobCancel(tx, j.id);
         if ((await uncertainEffects(tx, run.current_operation_id)).length) continue;
         await this.#terminalize(tx, run, 'cancelled', `automation_${why}`);
@@ -1117,7 +1414,11 @@ export class AutomationService extends AiGatewayService {
   }
 
   async #runContext(tx: WorkspaceTransaction, run: RunRow): Promise<ExecutionContext> {
-    const op = await tx.db.selectFrom('exec.operation').selectAll().where('id', '=', run.current_operation_id).executeTakeFirstOrThrow();
+    const op = await tx.db
+      .selectFrom('exec.operation')
+      .selectAll()
+      .where('id', '=', run.current_operation_id)
+      .executeTakeFirstOrThrow();
     return contextFromRow(op as never);
   }
 
@@ -1128,25 +1429,79 @@ export class AutomationService extends AiGatewayService {
 
   /** A disabled copy of the draft: no standing approvals, no credentials, the copier as owner. */
   async duplicateAutomation(caller: Caller, ws: unknown, aut: unknown, req: Mutation) {
-    return this.mutate(caller, 'automation.duplicate', ws, req, async (tx, p) => {
-      const a = await this.#visible(tx, p, aut, { need: 'configure' });
-      const count = await tx.db.selectFrom('automation.automation').select((eb) => eb.fn.countAll<string>().as('n')).where('lifecycle_state', '<>', 'purged').executeTakeFirstOrThrow();
-      if (Number(count.n) >= this.ws.automationsPerWorkspaceMax)
-        throw new TenancyError('conflict', { issues: [issue('/', 'limit_reached', `A workspace has at most ${this.ws.automationsPerWorkspaceMax} automations.`)] });
-      const id = newUuidV7();
-      const publicId = newPublicId('auto');
-      const cmd = this.cmd(caller, p, a.brand_id);
-      const name = `Copy of ${a.name}`.slice(0, 120);
-      await tx.db.insertInto('core.record').values({ id, public_id: publicId, record_type: 'automation', workspace_id: tx.workspaceId, brand_id: a.brand_id, source_kind: 'ui', source_ref: null, created_by_actor_type: cmd.actor.type, created_by_actor_id: cmd.actor.id }).execute();
-      await tx.db.insertInto('automation.automation').values({
-        id, workspace_id: tx.workspaceId, brand_id: a.brand_id, scope_key: a.brand_id ?? tx.workspaceId,
-        name, description: a.description, owner_membership_id: p.membershipId,
-        draft: JSON.stringify(a.draft), template_key: a.template_key, duplicated_from_id: a.id,
-        created_by_membership_id: p.membershipId,
-      }).execute();
-      await this.workAudit(tx, caller, p, 'automation.duplicated', { recordId: id, type: 'automation', publicId }, [change.plain('source', null, a.public_id)], a.brand_id);
-      return { status: 201, ref: { id: publicId, type: 'automation' }, data: await this.#automationView(tx, p, (await this.#rows(tx, { id }))!) };
-    }, async (tx, p, ref) => this.#automationView(tx, p, await this.#visible(tx, p, ref.id)));
+    return this.mutate(
+      caller,
+      'automation.duplicate',
+      ws,
+      req,
+      async (tx, p) => {
+        const a = await this.#visible(tx, p, aut, { need: 'configure' });
+        const count = await tx.db
+          .selectFrom('automation.automation')
+          .select((eb) => eb.fn.countAll<string>().as('n'))
+          .where('lifecycle_state', '<>', 'purged')
+          .executeTakeFirstOrThrow();
+        if (Number(count.n) >= this.ws.automationsPerWorkspaceMax)
+          throw new TenancyError('conflict', {
+            issues: [
+              issue(
+                '/',
+                'limit_reached',
+                `A workspace has at most ${this.ws.automationsPerWorkspaceMax} automations.`,
+              ),
+            ],
+          });
+        const id = newUuidV7();
+        const publicId = newPublicId('auto');
+        const cmd = this.cmd(caller, p, a.brand_id);
+        const name = `Copy of ${a.name}`.slice(0, 120);
+        await tx.db
+          .insertInto('core.record')
+          .values({
+            id,
+            public_id: publicId,
+            record_type: 'automation',
+            workspace_id: tx.workspaceId,
+            brand_id: a.brand_id,
+            source_kind: 'ui',
+            source_ref: null,
+            created_by_actor_type: cmd.actor.type,
+            created_by_actor_id: cmd.actor.id,
+          })
+          .execute();
+        await tx.db
+          .insertInto('automation.automation')
+          .values({
+            id,
+            workspace_id: tx.workspaceId,
+            brand_id: a.brand_id,
+            scope_key: a.brand_id ?? tx.workspaceId,
+            name,
+            description: a.description,
+            owner_membership_id: p.membershipId,
+            draft: JSON.stringify(a.draft),
+            template_key: a.template_key,
+            duplicated_from_id: a.id,
+            created_by_membership_id: p.membershipId,
+          })
+          .execute();
+        await this.workAudit(
+          tx,
+          caller,
+          p,
+          'automation.duplicated',
+          { recordId: id, type: 'automation', publicId },
+          [change.plain('source', null, a.public_id)],
+          a.brand_id,
+        );
+        return {
+          status: 201,
+          ref: { id: publicId, type: 'automation' },
+          data: await this.#automationView(tx, p, (await this.#rows(tx, { id }))!),
+        };
+      },
+      async (tx, p, ref) => this.#automationView(tx, p, await this.#visible(tx, p, ref.id)),
+    );
   }
 
   /**
@@ -1154,67 +1509,178 @@ export class AutomationService extends AiGatewayService {
    * automation stays disabled until someone activates it again; open runs keep the owner they
    * were pinned to, so a reassignment never broadens them.
    */
-  async reassignAutomation(caller: Caller, ws: unknown, aut: unknown, body: unknown, req: Mutation) {
-    const ownerRef = (body && typeof body === 'object' ? (body as Record<string, unknown>).owner : undefined);
-    if (!isPublic(ownerRef, 'mem')) throw invalid(issue('/owner', 'invalid_reference', 'Choose a person.'));
-    return this.mutate(caller, 'automation.reassign', ws, req, async (tx, p) => {
-      const a = await this.#visible(tx, p, aut, { lock: true, need: 'configure' });
-      if (caller.delegation) throw new TenancyError('forbidden');
-      if (req.ifMatch !== undefined) requireVersion(parseIfMatch(req.ifMatch), a.version);
-      const m = await tx.db.selectFrom('tenancy.membership').select(['id', 'kind', 'state', 'account_id']).where('public_id', '=', ownerRef).executeTakeFirst();
-      if (!m || m.kind !== 'member' || m.state !== 'active') throw invalid(issue('/owner', 'invalid_reference', 'Choose an active member of this workspace.'));
-      const next = await compilePrincipal(tx, m.id, m.account_id, 'member');
-      const scopeOk = (await this.#decideScope(tx, next, 'automations.configure', a.brand_id)).allowed;
-      let grantable = scopeOk;
-      if (grantable) {
-        try {
-          const c = compileDefinition(a.draft.definition, this.automationLimits);
-          grantable = (await this.#resolveDraft(tx, next, a, c, 'preview')).issues.length === 0;
-        } catch (err) {
-          if (!(err instanceof DefinitionError)) throw err;
+  async reassignAutomation(
+    caller: Caller,
+    ws: unknown,
+    aut: unknown,
+    body: unknown,
+    req: Mutation,
+  ) {
+    const ownerRef =
+      body && typeof body === 'object' ? (body as Record<string, unknown>).owner : undefined;
+    if (!isPublic(ownerRef, 'mem'))
+      throw invalid(issue('/owner', 'invalid_reference', 'Choose a person.'));
+    return this.mutate(
+      caller,
+      'automation.reassign',
+      ws,
+      req,
+      async (tx, p) => {
+        const a = await this.#visible(tx, p, aut, { lock: true, need: 'configure' });
+        if (caller.delegation) throw new TenancyError('forbidden');
+        if (req.ifMatch !== undefined) requireVersion(parseIfMatch(req.ifMatch), a.version);
+        const m = await tx.db
+          .selectFrom('tenancy.membership')
+          .select(['id', 'kind', 'state', 'account_id'])
+          .where('public_id', '=', ownerRef)
+          .executeTakeFirst();
+        if (!m || m.kind !== 'member' || m.state !== 'active')
+          throw invalid(
+            issue('/owner', 'invalid_reference', 'Choose an active member of this workspace.'),
+          );
+        const next = await compilePrincipal(tx, m.id, m.account_id, 'member');
+        const scopeOk = (await this.#decideScope(tx, next, 'automations.configure', a.brand_id))
+          .allowed;
+        let grantable = scopeOk;
+        if (grantable) {
+          try {
+            const c = compileDefinition(a.draft.definition, this.automationLimits);
+            grantable = (await this.#resolveDraft(tx, next, a, c, 'preview')).issues.length === 0;
+          } catch (err) {
+            if (!(err instanceof DefinitionError)) throw err;
+          }
         }
-      }
-      if (!grantable) throw invalid(issue('/owner', 'not_grantable', 'That person cannot own this automation in its scope.'));
-      await this.#stop(tx, a, 'disabled');
-      await tx.db.updateTable('automation.automation').set({ owner_membership_id: m.id, suspended_reason: null, suspended_at: null, updated_by_membership_id: p.membershipId }).where('id', '=', a.id).execute();
-      await this.workAudit(tx, caller, p, 'automation.owner_changed', { recordId: a.id, type: 'automation', publicId: a.public_id }, [change.plain('owner', null, ownerRef)], a.brand_id);
-      return { status: 200, ref: { id: a.public_id, type: 'automation' }, data: await this.#automationView(tx, p, (await this.#rows(tx, { id: a.id }))!) };
-    }, async (tx, p, ref) => this.#automationView(tx, p, await this.#visible(tx, p, ref.id)));
+        if (!grantable)
+          throw invalid(
+            issue(
+              '/owner',
+              'not_grantable',
+              'That person cannot own this automation in its scope.',
+            ),
+          );
+        await this.#stop(tx, a, 'disabled');
+        await tx.db
+          .updateTable('automation.automation')
+          .set({
+            owner_membership_id: m.id,
+            suspended_reason: null,
+            suspended_at: null,
+            updated_by_membership_id: p.membershipId,
+          })
+          .where('id', '=', a.id)
+          .execute();
+        await this.workAudit(
+          tx,
+          caller,
+          p,
+          'automation.owner_changed',
+          { recordId: a.id, type: 'automation', publicId: a.public_id },
+          [change.plain('owner', null, ownerRef)],
+          a.brand_id,
+        );
+        return {
+          status: 200,
+          ref: { id: a.public_id, type: 'automation' },
+          data: await this.#automationView(tx, p, (await this.#rows(tx, { id: a.id }))!),
+        };
+      },
+      async (tx, p, ref) => this.#automationView(tx, p, await this.#visible(tx, p, ref.id)),
+    );
   }
 
   /** Archive, restore, or trash through the canonical lifecycle (archived automations never run). */
-  async automationLifecycle(caller: Caller, ws: unknown, aut: unknown, verb: 'archive' | 'unarchive' | 'trash', req: Mutation) {
-    return this.mutate(caller, `automation.${verb}`, ws, req, async (tx, p) => {
-      const a = await this.#visible(tx, p, aut, { lock: true, need: 'configure' });
-      const brand = a.brand_id ? await this.#brandFacts(tx, a.brand_id) : null;
-      const facts = { id: a.id, brand, lifecycleState: a.lifecycle_state as 'active', chain: [] };
-      const input = { exec: this.exec(caller, p), source: { kind: 'ui' as const } };
-      if (verb === 'archive') {
-        if (a.lifecycle_state !== 'active') throw new TenancyError('conflict');
-        await this.#stop(tx, a, 'archived');
-        await this.d.lifecycle.archive(tx, this.issueLifecycle(tx, p, 'record.archive', facts), input, a.id);
-      } else if (verb === 'unarchive') {
-        if (a.lifecycle_state !== 'archived') throw new TenancyError('conflict');
-        await this.d.lifecycle.unarchive(tx, this.issueLifecycle(tx, p, 'record.restore', facts), input, a.id);
-      } else {
-        await this.#stop(tx, a, 'archived');
-        await this.d.lifecycle.trash(tx, this.issueLifecycle(tx, p, 'record.trash', facts), input, a.id);
-      }
-      const r = await tx.db.selectFrom('core.record').select(['lifecycle_state']).where('id', '=', a.id).executeTakeFirstOrThrow();
-      return { status: 200, ref: { id: a.public_id, type: 'automation' }, data: { id: a.public_id, type: 'automation' as const, lifecycle_state: r.lifecycle_state } };
-    }, async (tx, _p, ref) => {
-      const r = await tx.db.selectFrom('core.record').select(['public_id', 'lifecycle_state']).where('public_id', '=', ref.id).executeTakeFirstOrThrow();
-      return { id: r.public_id, type: 'automation' as const, lifecycle_state: r.lifecycle_state };
-    });
+  async automationLifecycle(
+    caller: Caller,
+    ws: unknown,
+    aut: unknown,
+    verb: 'archive' | 'unarchive' | 'trash',
+    req: Mutation,
+  ) {
+    return this.mutate(
+      caller,
+      `automation.${verb}`,
+      ws,
+      req,
+      async (tx, p) => {
+        const a = await this.#visible(tx, p, aut, { lock: true, need: 'configure' });
+        const brand = a.brand_id ? await this.#brandFacts(tx, a.brand_id) : null;
+        const facts = { id: a.id, brand, lifecycleState: a.lifecycle_state as 'active', chain: [] };
+        const input = { exec: this.exec(caller, p), source: { kind: 'ui' as const } };
+        if (verb === 'archive') {
+          if (a.lifecycle_state !== 'active') throw new TenancyError('conflict');
+          await this.#stop(tx, a, 'archived');
+          await this.d.lifecycle.archive(
+            tx,
+            this.issueLifecycle(tx, p, 'record.archive', facts),
+            input,
+            a.id,
+          );
+        } else if (verb === 'unarchive') {
+          if (a.lifecycle_state !== 'archived') throw new TenancyError('conflict');
+          await this.d.lifecycle.unarchive(
+            tx,
+            this.issueLifecycle(tx, p, 'record.restore', facts),
+            input,
+            a.id,
+          );
+        } else {
+          await this.#stop(tx, a, 'archived');
+          await this.d.lifecycle.trash(
+            tx,
+            this.issueLifecycle(tx, p, 'record.trash', facts),
+            input,
+            a.id,
+          );
+        }
+        const r = await tx.db
+          .selectFrom('core.record')
+          .select(['lifecycle_state'])
+          .where('id', '=', a.id)
+          .executeTakeFirstOrThrow();
+        return {
+          status: 200,
+          ref: { id: a.public_id, type: 'automation' },
+          data: {
+            id: a.public_id,
+            type: 'automation' as const,
+            lifecycle_state: r.lifecycle_state,
+          },
+        };
+      },
+      async (tx, _p, ref) => {
+        const r = await tx.db
+          .selectFrom('core.record')
+          .select(['public_id', 'lifecycle_state'])
+          .where('public_id', '=', ref.id)
+          .executeTakeFirstOrThrow();
+        return { id: r.public_id, type: 'automation' as const, lifecycle_state: r.lifecycle_state };
+      },
+    );
   }
 
   async listAutomationRevisions(caller: Caller, ws: unknown, aut: unknown) {
     return this.inWorkspace(caller, ws, { readOnly: true }, async (tx, p) => {
       const a = await this.#visible(tx, p, aut);
-      const rows = await tx.db.selectFrom('automation.automation_revision').selectAll().where('automation_id', '=', a.id).orderBy('revision_number', 'desc').limit(100).execute();
-      const approvals = await tx.db.selectFrom('automation.standing_approval').selectAll().where('automation_id', '=', a.id).execute();
-      const brands = await this.#publicIds(tx, rows.flatMap((r) => r.declared_brand_ids));
-      const subs = await this.#publicIds(tx, approvals.map((x) => x.subscription_id));
+      const rows = await tx.db
+        .selectFrom('automation.automation_revision')
+        .selectAll()
+        .where('automation_id', '=', a.id)
+        .orderBy('revision_number', 'desc')
+        .limit(100)
+        .execute();
+      const approvals = await tx.db
+        .selectFrom('automation.standing_approval')
+        .selectAll()
+        .where('automation_id', '=', a.id)
+        .execute();
+      const brands = await this.#publicIds(
+        tx,
+        rows.flatMap((r) => r.declared_brand_ids),
+      );
+      const subs = await this.#publicIds(
+        tx,
+        approvals.map((x) => x.subscription_id),
+      );
       return {
         data: rows.map((r) => ({
           revision: r.revision_number,
@@ -1223,7 +1689,14 @@ export class AutomationService extends AiGatewayService {
           actions: r.action_keys,
           brands: r.declared_brand_ids.map((id) => brands.get(id) ?? null).filter(Boolean),
           definition: r.definition,
-          approvals: approvals.filter((x) => x.revision_id === r.id).map((x) => ({ node: x.node_id, webhook: subs.get(x.subscription_id) ?? null, fields: x.field_set, state: x.state })),
+          approvals: approvals
+            .filter((x) => x.revision_id === r.id)
+            .map((x) => ({
+              node: x.node_id,
+              webhook: subs.get(x.subscription_id) ?? null,
+              fields: x.field_set,
+              state: x.state,
+            })),
           created_at: new Date(r.created_at).toISOString(),
         })),
       };
@@ -1235,7 +1708,11 @@ export class AutomationService extends AiGatewayService {
   // ---------------------------------------------------------------------------------------------
 
   async #ownerPrincipal(tx: WorkspaceTransaction, membershipId: string): Promise<Principal | null> {
-    const m = await tx.db.selectFrom('tenancy.membership').select(['id', 'account_id', 'kind', 'state']).where('id', '=', membershipId).executeTakeFirst();
+    const m = await tx.db
+      .selectFrom('tenancy.membership')
+      .select(['id', 'account_id', 'kind', 'state'])
+      .where('id', '=', membershipId)
+      .executeTakeFirst();
     if (!m || m.kind !== 'member' || m.state !== 'active') return null;
     const ws = await tx.db.selectFrom('tenancy.workspace').select('state').executeTakeFirst();
     if (!ws || ws.state !== 'active') return null;
@@ -1259,11 +1736,16 @@ export class AutomationService extends AiGatewayService {
       if (!run.scope_snapshot.brands.includes(id)) continue;
       const facts = await this.#brandFacts(tx, id);
       if (!facts || facts.lifecycleState !== 'active') continue;
-      if (!decideBrand(owner, 'automations.configure', facts).allowed) return { refused: 'owner_authority' };
+      if (!decideBrand(owner, 'automations.configure', facts).allowed)
+        return { refused: 'owner_authority' };
       allow.add(id);
     }
     if (!allow.size) return { refused: 'owner_authority' };
-    const projects = await tx.db.selectFrom('work.project').select(['id']).where('brand_id', 'in', [...allow]).execute();
+    const projects = await tx.db
+      .selectFrom('work.project')
+      .select(['id'])
+      .where('brand_id', 'in', [...allow])
+      .execute();
     const projectIds = new Set(projects.map((r) => r.id));
     return {
       p: {
@@ -1278,7 +1760,12 @@ export class AutomationService extends AiGatewayService {
   }
 
   /** A record is in the run's declared project scope (no declared projects: the whole brands). */
-  async #inDeclaredProjects(tx: WorkspaceTransaction, revision: RevisionRow, recordProjectId: string | null, recordId?: string) {
+  async #inDeclaredProjects(
+    tx: WorkspaceTransaction,
+    revision: RevisionRow,
+    recordProjectId: string | null,
+    recordId?: string,
+  ) {
     if (!revision.declared_project_ids.length) return true;
     const pid = recordProjectId ?? null;
     if (recordId && revision.declared_project_ids.includes(recordId)) return true;
@@ -1288,12 +1775,34 @@ export class AutomationService extends AiGatewayService {
   }
 
   /** The caller an automation step acts through (attribution only; authority is `p`). */
-  #automationCaller(run: RunRow, a: { id: string; public_id: string }, correlationId: string, attemptId?: string): AutomationCaller {
+  #automationCaller(
+    run: RunRow,
+    a: { id: string; public_id: string },
+    correlationId: string,
+    attemptId?: string,
+  ): AutomationCaller {
     return {
       auth: {
         principal: 'account',
-        account: { id: NIL, publicId: 'acc_00000000000000000000000000', email: 'automation@invalid', displayName: 'Automation', locale: 'en', timezone: 'UTC', emailVerified: true },
-        session: { id: run.id, publicId: 'ses_00000000000000000000000000', assurance: 'single_factor', authMethods: [], createdAt: new Date(), idleExpiresAt: new Date(), absoluteExpiresAt: new Date(), mfaVerifiedAt: null },
+        account: {
+          id: NIL,
+          publicId: 'acc_00000000000000000000000000',
+          email: 'automation@invalid',
+          displayName: 'Automation',
+          locale: 'en',
+          timezone: 'UTC',
+          emailVerified: true,
+        },
+        session: {
+          id: run.id,
+          publicId: 'ses_00000000000000000000000000',
+          assurance: 'single_factor',
+          authMethods: [],
+          createdAt: new Date(),
+          idleExpiresAt: new Date(),
+          absoluteExpiresAt: new Date(),
+          mfaVerifiedAt: null,
+        },
       },
       meta: { correlationId },
       automation: {
@@ -1339,7 +1848,12 @@ export class AutomationService extends AiGatewayService {
       ? await tx.db
           .selectFrom('automation.automation_run')
           .select(['automation_id', 'lineage', 'root_causation_id', 'trigger_event_id'])
-          .where((eb) => eb.or([eb('current_operation_id', '=', e.causation_id!), eb('operation_id', '=', e.causation_id!)]))
+          .where((eb) =>
+            eb.or([
+              eb('current_operation_id', '=', e.causation_id!),
+              eb('operation_id', '=', e.causation_id!),
+            ]),
+          )
           .executeTakeFirst()
       : undefined;
     for (const l of listening.slice(0, this.ws.automationTriggerFanoutMax)) {
@@ -1347,7 +1861,10 @@ export class AutomationService extends AiGatewayService {
       if (!this.#matches(revision.definition.trigger, e, record)) continue;
       if (!e.brand_id || !revision.declared_brand_ids.includes(e.brand_id)) continue;
       const lineage = parent ? [...parent.lineage, parent.automation_id] : [];
-      const loop = parent && (lineage.includes(l.id) || lineage.length >= this.ws.automationChainDepthMax) ? 'loop_guard' : null;
+      const loop =
+        parent && (lineage.includes(l.id) || lineage.length >= this.ws.automationChainDepthMax)
+          ? 'loop_guard'
+          : null;
       await this.#admit(tx, {
         automationId: l.id,
         revision,
@@ -1368,31 +1885,48 @@ export class AutomationService extends AiGatewayService {
   async #eventRecord(tx: WorkspaceTransaction, e: InternalEvent) {
     const data = e.data as Record<string, unknown>;
     let id: string | null = e.aggregate.id;
-    if (e.type === 'collab.comment.created') id = typeof data.host_record_id === 'string' ? data.host_record_id : null;
+    if (e.type === 'collab.comment.created')
+      id = typeof data.host_record_id === 'string' ? data.host_record_id : null;
     if (e.type === 'collab.review.decided') {
       const ref = typeof data.subject_ref === 'string' ? data.subject_ref : null;
       id = ref && /^[0-9a-f-]{36}$/.test(ref) ? ref : null;
       if (ref && !id) {
-        const r = await tx.db.selectFrom('core.record').select('id').where('public_id', '=', ref).executeTakeFirst();
+        const r = await tx.db
+          .selectFrom('core.record')
+          .select('id')
+          .where('public_id', '=', ref)
+          .executeTakeFirst();
         id = r?.id ?? null;
       }
     }
     if (!id) return null;
-    const r = await tx.db.selectFrom('core.record').select(['id', 'record_type', 'source_kind']).where('id', '=', id).executeTakeFirst();
+    const r = await tx.db
+      .selectFrom('core.record')
+      .select(['id', 'record_type', 'source_kind'])
+      .where('id', '=', id)
+      .executeTakeFirst();
     if (!r || (r.record_type !== 'task' && r.record_type !== 'project')) return null;
     return { id: r.id, kind: r.record_type as RecordKind, sourceKind: r.source_kind as string };
   }
 
-  #matches(t: Trigger, e: InternalEvent, record: { kind: RecordKind; sourceKind: string }): boolean {
+  #matches(
+    t: Trigger,
+    e: InternalEvent,
+    record: { kind: RecordKind; sourceKind: string },
+  ): boolean {
     const data = e.data as Record<string, unknown>;
     if (!('record' in t) || t.record !== record.kind) return false;
     switch (t.kind) {
       case 'record.created':
         return true;
       case 'integration.record_created':
-        return (INTEGRATION_SOURCE_KINDS as readonly string[]).includes(String(data.source_kind ?? record.sourceKind));
+        return (INTEGRATION_SOURCE_KINDS as readonly string[]).includes(
+          String(data.source_kind ?? record.sourceKind),
+        );
       case 'record.field_changed': {
-        const changed = String(data.changed_fields ?? '').split(',').filter(Boolean);
+        const changed = String(data.changed_fields ?? '')
+          .split(',')
+          .filter(Boolean);
         return t.fields.some((f) => changed.includes(f));
       }
       case 'record.status_changed':
@@ -1436,13 +1970,16 @@ export class AutomationService extends AiGatewayService {
       .executeTakeFirst();
     if (exists) return null;
     const a = (await this.#rows(tx, { id: input.automationId }, true))!;
-    if (!a.enabled || a.lifecycle_state !== 'active' || a.active_revision_id !== input.revision.id) return null;
+    if (!a.enabled || a.lifecycle_state !== 'active' || a.active_revision_id !== input.revision.id)
+      return null;
     const owner = await this.#ownerPrincipal(tx, a.owner_membership_id);
     const runId = newUuidV7();
     const auto = { type: 'automation' as const, id: a.id };
     const context: ExecutionContext = {
       workspaceId: tx.workspaceId,
-      correlationId: /^[0-9a-f]{32}$/.test(input.correlationId) ? input.correlationId : newTraceId(),
+      correlationId: /^[0-9a-f]{32}$/.test(input.correlationId)
+        ? input.correlationId
+        : newTraceId(),
       authenticatedPrincipal: auto,
       effectivePrincipal: auto,
       initiatingMembershipId: a.owner_membership_id,
@@ -1452,14 +1989,25 @@ export class AutomationService extends AiGatewayService {
       ],
       ...(input.triggerEventId ? { causationId: input.triggerEventId } : {}),
       epochs: { workspace: owner?.epochs.workspace ?? 0, principal: owner?.epochs.principal ?? 0 },
-      selectedScope: { brand_ids: input.revision.declared_brand_ids, project_ids: input.revision.declared_project_ids },
+      selectedScope: {
+        brand_ids: input.revision.declared_brand_ids,
+        project_ids: input.revision.declared_project_ids,
+      },
       risk: { actionKey: 'automation.run_manual', riskClass: 'R2' },
       dataClassLimit: 'C2',
     };
     await sql`SAVEPOINT automation_admit`.execute(tx.db);
     let op: { id: string; publicId: string };
     try {
-      op = await createOperation(tx, { kind: 'automation_run', context, initiatedBy: { type: 'automation', id: a.id, onBehalfOfMembershipId: a.owner_membership_id } });
+      op = await createOperation(tx, {
+        kind: 'automation_run',
+        context,
+        initiatedBy: {
+          type: 'automation',
+          id: a.id,
+          onBehalfOfMembershipId: a.owner_membership_id,
+        },
+      });
       const tz = input.runDay?.timezone ?? (await this.#workspaceZone(tx));
       await tx.db
         .insertInto('automation.automation_run')
@@ -1478,7 +2026,11 @@ export class AutomationService extends AiGatewayService {
           root_causation_id: input.rootCausation,
           lineage: input.lineage,
           chain_depth: input.lineage.length,
-          scope_snapshot: JSON.stringify({ brands: input.revision.declared_brand_ids, projects: input.revision.declared_project_ids, epochs: context.epochs }),
+          scope_snapshot: JSON.stringify({
+            brands: input.revision.declared_brand_ids,
+            projects: input.revision.declared_project_ids,
+            epochs: context.epochs,
+          }),
           run_day: input.runDay?.day ?? utcToLocal(new Date(), tz).slice(0, 10),
           timezone: tz,
           initiated_by_membership_id: input.initiatedBy,
@@ -1491,7 +2043,11 @@ export class AutomationService extends AiGatewayService {
       throw err;
     }
     const run = (await this.#runRow(tx, runId, true))!;
-    const end = async (status: AutomationRunStatus, reason: string, terminalReason: 'policy_rejected' | 'limit_exceeded' | null) => {
+    const end = async (
+      status: AutomationRunStatus,
+      reason: string,
+      terminalReason: 'policy_rejected' | 'limit_exceeded' | null,
+    ) => {
       await this.#terminalize(tx, run, status, reason);
       await transitionOperation(tx, {
         operationId: op.id,
@@ -1520,10 +2076,18 @@ export class AutomationService extends AiGatewayService {
       .returning('id')
       .executeTakeFirst();
     if (!slot) return end('failed', 'concurrency_limit', 'limit_exceeded');
-    await tx.db.updateTable('automation.automation_run').set({ slot_held: true }).where('id', '=', runId).execute();
+    await tx.db
+      .updateTable('automation.automation_run')
+      .set({ slot_held: true })
+      .where('id', '=', runId)
+      .execute();
     const reserved = await this.#reserveRun(tx);
     if (!reserved) return end('failed', 'monthly_limit', 'limit_exceeded');
-    await tx.db.updateTable('automation.automation_run').set({ usage_state: 'reserved' }).where('id', '=', runId).execute();
+    await tx.db
+      .updateTable('automation.automation_run')
+      .set({ usage_state: 'reserved' })
+      .where('id', '=', runId)
+      .execute();
     await enqueueJob(tx, {
       queue: AUTOMATION_QUEUE,
       kind: AUTOMATION_RUN_JOB,
@@ -1536,7 +2100,12 @@ export class AutomationService extends AiGatewayService {
     await writeOutboxEvent(tx, {
       type: 'execution.operation.state_changed',
       aggregate: { type: 'execution.operation', id: op.id, sequence: 0 },
-      data: { kind: 'automation_run', state: 'queued', terminal_reason: null, waiting_reason: null },
+      data: {
+        kind: 'automation_run',
+        state: 'queued',
+        terminal_reason: null,
+        waiting_reason: null,
+      },
       actor: { type: 'automation', id: a.id, onBehalfOfMembershipId: a.owner_membership_id },
       context,
       operationId: op.id,
@@ -1553,7 +2122,11 @@ export class AutomationService extends AiGatewayService {
   /** Reserves one run of this month's technical limit (atomic under concurrency). */
   async #reserveRun(tx: WorkspaceTransaction): Promise<boolean> {
     const period = monthStart(new Date());
-    await tx.db.insertInto('automation.usage_period').values({ workspace_id: tx.workspaceId, period_start: period }).onConflict((oc) => oc.columns(['workspace_id', 'period_start']).doNothing()).execute();
+    await tx.db
+      .insertInto('automation.usage_period')
+      .values({ workspace_id: tx.workspaceId, period_start: period })
+      .onConflict((oc) => oc.columns(['workspace_id', 'period_start']).doNothing())
+      .execute();
     const r = await tx.db
       .updateTable('automation.usage_period')
       .set({ runs_reserved: sql`runs_reserved + 1`, updated_at: new Date() })
@@ -1562,7 +2135,12 @@ export class AutomationService extends AiGatewayService {
       .returning(['runs_reserved', 'runs_released', 'alerted_bp'])
       .executeTakeFirst();
     if (!r) return false;
-    await this.#usageThreshold(tx, period, Number(r.runs_reserved) - Number(r.runs_released), Number(r.alerted_bp));
+    await this.#usageThreshold(
+      tx,
+      period,
+      Number(r.runs_reserved) - Number(r.runs_released),
+      Number(r.alerted_bp),
+    );
     return true;
   }
 
@@ -1572,7 +2150,11 @@ export class AutomationService extends AiGatewayService {
     const crossed = [8000, 10_000].filter((t) => t > alerted && bp >= t);
     if (!crossed.length) return;
     const top = crossed[crossed.length - 1]!;
-    await tx.db.updateTable('automation.usage_period').set({ alerted_bp: top }).where('period_start', '=', period).execute();
+    await tx.db
+      .updateTable('automation.usage_period')
+      .set({ alerted_bp: top })
+      .where('period_start', '=', period)
+      .execute();
     await writeOutboxEvent(tx, {
       type: 'metering.usage.threshold_reached',
       aggregate: { type: 'automation.usage_period', id: tx.workspaceId, sequence: top },
@@ -1595,7 +2177,14 @@ export class AutomationService extends AiGatewayService {
     if (lock) q = q.forUpdate();
     const r = await q.executeTakeFirst();
     if (!r) return null;
-    return { ...r, run_day: typeof r.run_day === 'string' ? r.run_day : new Date(r.run_day as unknown as Date).toISOString().slice(0, 10), version: Number(r.version) } as unknown as RunRow;
+    return {
+      ...r,
+      run_day:
+        typeof r.run_day === 'string'
+          ? r.run_day
+          : new Date(r.run_day as unknown as Date).toISOString().slice(0, 10),
+      version: Number(r.version),
+    } as unknown as RunRow;
   }
 
   /**
@@ -1603,7 +2192,12 @@ export class AutomationService extends AiGatewayService {
    * (guarded by `slot_held`), and the monthly reservation settled or released once (guarded by
    * `usage_state`). Replays and redelivery find nothing left to release.
    */
-  async #terminalize(tx: WorkspaceTransaction, run: Pick<RunRow, 'id' | 'automation_id' | 'created_at'>, status: AutomationRunStatus, reason: string | null) {
+  async #terminalize(
+    tx: WorkspaceTransaction,
+    run: Pick<RunRow, 'id' | 'automation_id' | 'created_at'>,
+    status: AutomationRunStatus,
+    reason: string | null,
+  ) {
     const released = await tx.db
       .updateTable('automation.automation_run')
       .set({ slot_held: false })
@@ -1612,7 +2206,11 @@ export class AutomationService extends AiGatewayService {
       .returning('id')
       .executeTakeFirst();
     if (released)
-      await tx.db.updateTable('automation.automation').set({ active_runs: sql`greatest(active_runs - 1, 0)` }).where('id', '=', run.automation_id).execute();
+      await tx.db
+        .updateTable('automation.automation')
+        .set({ active_runs: sql`greatest(active_runs - 1, 0)` })
+        .where('id', '=', run.automation_id)
+        .execute();
     const executed = status !== 'skipped';
     const usage = await tx.db
       .updateTable('automation.automation_run')
@@ -1634,7 +2232,14 @@ export class AutomationService extends AiGatewayService {
         .execute();
     await tx.db
       .updateTable('automation.automation_run')
-      .set({ status, reason, ended_at: TERMINAL_RUN.has(status) ? new Date() : null, wake_at: null, updated_at: new Date(), version: sql`version + 1` })
+      .set({
+        status,
+        reason,
+        ended_at: TERMINAL_RUN.has(status) ? new Date() : null,
+        wake_at: null,
+        updated_at: new Date(),
+        version: sql`version + 1`,
+      })
       .where('id', '=', run.id)
       .execute();
   }
@@ -1648,10 +2253,15 @@ export class AutomationService extends AiGatewayService {
     if (!runId) throw new JobError('deterministic', 'automation_run_missing');
     for (let i = 0; i < this.ws.automationRunStepsMax + 3; i++) {
       const name = `u${i}`;
-      const next = await ctx.step(name, async (tx) => ({ advance: await this.#advance(tx as WorkspaceTransaction, runId, ctx) })) as { advance: Advance };
+      const next = (await ctx.step(name, async (tx) => ({
+        advance: await this.#advance(tx as WorkspaceTransaction, runId, ctx),
+      }))) as { advance: Advance };
       const a = next.advance;
       if (a.kind === 'continue') continue;
-      if (a.kind === 'done') return a.result.state === 'waiting' ? { ...a.result, resumeAt: new Date(a.result.resumeAt) } : a.result;
+      if (a.kind === 'done')
+        return a.result.state === 'waiting'
+          ? { ...a.result, resumeAt: new Date(a.result.resumeAt) }
+          : a.result;
       if (a.kind === 'fail') throw new JobError(a.errorClass, a.code);
       if (a.kind === 'cancel') throw new CancelRequestedError();
       // External effect: claimed and performed outside any transaction, outcome recorded after.
@@ -1670,8 +2280,23 @@ export class AutomationService extends AiGatewayService {
         if (err instanceof AwaitReconciliationError) {
           await ctx.step(`w${i}`, async (tx) => {
             const t = tx as WorkspaceTransaction;
-            await t.db.updateTable('automation.automation_step_run').set({ state: 'unknown', failure_class: 'unknown_outcome', code: 'outcome_unknown', ended_at: new Date() }).where('run_id', '=', runId).where('node_id', '=', a.node).where('state', '=', 'dispatching').execute();
-            await t.db.updateTable('automation.automation_run').set({ status: 'waiting', reason: 'reconciliation_required', updated_at: new Date() }).where('id', '=', runId).execute();
+            await t.db
+              .updateTable('automation.automation_step_run')
+              .set({
+                state: 'unknown',
+                failure_class: 'unknown_outcome',
+                code: 'outcome_unknown',
+                ended_at: new Date(),
+              })
+              .where('run_id', '=', runId)
+              .where('node_id', '=', a.node)
+              .where('state', '=', 'dispatching')
+              .execute();
+            await t.db
+              .updateTable('automation.automation_run')
+              .set({ status: 'waiting', reason: 'reconciliation_required', updated_at: new Date() })
+              .where('id', '=', runId)
+              .execute();
           });
         }
         throw err;
@@ -1685,19 +2310,45 @@ export class AutomationService extends AiGatewayService {
 
   async #effectSent(tx: WorkspaceTransaction, runId: string, node: string) {
     const run = (await this.#runRow(tx, runId, true))!;
-    const step = await tx.db.selectFrom('automation.automation_step_run').selectAll().where('run_id', '=', runId).where('node_id', '=', node).where('state', '=', 'dispatching').executeTakeFirst();
+    const step = await tx.db
+      .selectFrom('automation.automation_step_run')
+      .selectAll()
+      .where('run_id', '=', runId)
+      .where('node_id', '=', node)
+      .where('state', '=', 'dispatching')
+      .executeTakeFirst();
     if (!step) return;
-    await tx.db.updateTable('automation.automation_step_run').set({ state: 'succeeded', ended_at: new Date() }).where('id', '=', step.id).execute();
+    await tx.db
+      .updateTable('automation.automation_step_run')
+      .set({ state: 'succeeded', ended_at: new Date() })
+      .where('id', '=', step.id)
+      .execute();
     const revision = await this.#revision(tx, run.revision_id);
     const n = revision.definition.steps.find((s) => s.id === node) as ActionNode;
     await this.#countStep(tx, run);
-    await tx.db.updateTable('automation.automation_run').set({ cursor: n.next, status: 'running', updated_at: new Date() }).where('id', '=', runId).execute();
+    await tx.db
+      .updateTable('automation.automation_run')
+      .set({ cursor: n.next, status: 'running', updated_at: new Date() })
+      .where('id', '=', runId)
+      .execute();
   }
 
   async #countStep(tx: WorkspaceTransaction, run: RunRow) {
-    await tx.db.updateTable('automation.automation_run').set({ steps_executed: sql`steps_executed + 1` }).where('id', '=', run.id).execute();
-    await tx.db.insertInto('automation.usage_period').values({ workspace_id: tx.workspaceId, period_start: monthStart(new Date()) }).onConflict((oc) => oc.columns(['workspace_id', 'period_start']).doNothing()).execute();
-    await tx.db.updateTable('automation.usage_period').set({ steps_executed: sql`steps_executed + 1` }).where('period_start', '=', monthStart(new Date())).execute();
+    await tx.db
+      .updateTable('automation.automation_run')
+      .set({ steps_executed: sql`steps_executed + 1` })
+      .where('id', '=', run.id)
+      .execute();
+    await tx.db
+      .insertInto('automation.usage_period')
+      .values({ workspace_id: tx.workspaceId, period_start: monthStart(new Date()) })
+      .onConflict((oc) => oc.columns(['workspace_id', 'period_start']).doNothing())
+      .execute();
+    await tx.db
+      .updateTable('automation.usage_period')
+      .set({ steps_executed: sql`steps_executed + 1` })
+      .where('period_start', '=', monthStart(new Date()))
+      .execute();
   }
 
   /** Records a step attempt (bounded decision, target references, output references). */
@@ -1708,7 +2359,8 @@ export class AutomationService extends AiGatewayService {
       node: string;
       kind: 'admission' | 'conditions' | 'action' | 'branch' | 'delay';
       action?: string;
-      state: 'succeeded' | 'failed' | 'refused' | 'skipped' | 'waiting' | 'dispatching' | 'cancelled';
+      state:
+        'succeeded' | 'failed' | 'refused' | 'skipped' | 'waiting' | 'dispatching' | 'cancelled';
       failure?: StepFailure | null;
       decision?: Record<string, unknown> | null;
       targets?: unknown[] | null;
@@ -1716,7 +2368,12 @@ export class AutomationService extends AiGatewayService {
       logicalKey?: string | null;
     },
   ) {
-    const prior = await tx.db.selectFrom('automation.automation_step_run').select((eb) => eb.fn.max('attempt').as('n')).where('run_id', '=', run.id).where('node_id', '=', s.node).executeTakeFirst();
+    const prior = await tx.db
+      .selectFrom('automation.automation_step_run')
+      .select((eb) => eb.fn.max('attempt').as('n'))
+      .where('run_id', '=', run.id)
+      .where('node_id', '=', s.node)
+      .executeTakeFirst();
     await tx.db
       .insertInto('automation.automation_step_run')
       .values({
@@ -1744,7 +2401,11 @@ export class AutomationService extends AiGatewayService {
    * One unit of progress for a run, in the step's fenced transaction. Everything is rechecked
    * here: the automation's state, the owner's authority, the scope, and the target.
    */
-  async #advance(tx: WorkspaceTransaction, runId: string, ctx: JobHandlerContext): Promise<Advance> {
+  async #advance(
+    tx: WorkspaceTransaction,
+    runId: string,
+    ctx: JobHandlerContext,
+  ): Promise<Advance> {
     const run = await this.#runRow(tx, runId, true);
     if (!run) return { kind: 'fail', errorClass: 'deterministic', code: 'automation_run_missing' };
     if (TERMINAL_RUN.has(run.status)) return { kind: 'done', result: this.#resultOf(run) };
@@ -1752,12 +2413,29 @@ export class AutomationService extends AiGatewayService {
     const revision = await this.#revision(tx, run.revision_id);
     // Disable, suspension, or archive stop undispatched steps (a sent effect keeps its liability).
     if (!a.enabled || a.lifecycle_state !== 'active' || a.suspended_reason) {
-      await this.#terminalize(tx, run, 'cancelled', a.suspended_reason ? 'automation_suspended' : a.lifecycle_state !== 'active' ? 'automation_archived' : 'automation_disabled');
+      await this.#terminalize(
+        tx,
+        run,
+        'cancelled',
+        a.suspended_reason
+          ? 'automation_suspended'
+          : a.lifecycle_state !== 'active'
+            ? 'automation_archived'
+            : 'automation_disabled',
+      );
       await requestOperationCancel(tx, run.current_operation_id);
       return { kind: 'cancel' };
     }
     if (run.status === 'queued') {
-      await tx.db.updateTable('automation.automation_run').set({ status: 'running', started_at: run.started_at ?? new Date(), updated_at: new Date() }).where('id', '=', run.id).execute();
+      await tx.db
+        .updateTable('automation.automation_run')
+        .set({
+          status: 'running',
+          started_at: run.started_at ?? new Date(),
+          updated_at: new Date(),
+        })
+        .where('id', '=', run.id)
+        .execute();
     }
     const authority = await this.#runPrincipal(tx, run, revision);
     if ('refused' in authority) {
@@ -1770,47 +2448,112 @@ export class AutomationService extends AiGatewayService {
     const def = revision.definition;
     // Admission: the trigger record must be readable now and in the declared scope.
     if (run.cursor === null && run.status !== 'waiting') {
-      const done = await tx.db.selectFrom('automation.automation_step_run').select('id').where('run_id', '=', run.id).where('node_id', '=', '_conditions').where('state', '=', 'succeeded').executeTakeFirst();
+      const done = await tx.db
+        .selectFrom('automation.automation_step_run')
+        .select('id')
+        .where('run_id', '=', run.id)
+        .where('node_id', '=', '_conditions')
+        .where('state', '=', 'succeeded')
+        .executeTakeFirst();
       if (!done) {
         let facts: RecordFacts | null = null;
         if (run.trigger_record_id) {
           facts = await this.#facts(tx, p, revision, run.trigger_record_id, def.conditions);
           if (!facts) {
-            await this.#recordStep(tx, run, { node: '_conditions', kind: 'admission', state: 'refused', failure: { cls: 'policy_rejected', code: 'trigger_unavailable' } });
+            await this.#recordStep(tx, run, {
+              node: '_conditions',
+              kind: 'admission',
+              state: 'refused',
+              failure: { cls: 'policy_rejected', code: 'trigger_unavailable' },
+            });
             await this.#terminalize(tx, run, 'skipped', 'out_of_scope');
-            return { kind: 'done', result: { state: 'skipped', terminalReason: 'policy_rejected', result: { reason: 'out_of_scope' } } };
+            return {
+              kind: 'done',
+              result: {
+                state: 'skipped',
+                terminalReason: 'policy_rejected',
+                result: { reason: 'out_of_scope' },
+              },
+            };
           }
         }
         if (def.conditions) {
-          if (!facts) return this.#refuseRun(tx, run, '_conditions', 'conditions', { cls: 'policy_rejected', code: 'input_unavailable' });
+          if (!facts)
+            return this.#refuseRun(tx, run, '_conditions', 'conditions', {
+              cls: 'policy_rejected',
+              code: 'input_unavailable',
+            });
           let outcome: ReturnType<typeof evaluate>;
           try {
             outcome = evaluate(def.conditions, facts, run.run_day);
           } catch (err) {
-            if (err instanceof InputUnavailable) return this.#refuseRun(tx, run, '_conditions', 'conditions', { cls: 'policy_rejected', code: 'input_unavailable' });
+            if (err instanceof InputUnavailable)
+              return this.#refuseRun(tx, run, '_conditions', 'conditions', {
+                cls: 'policy_rejected',
+                code: 'input_unavailable',
+              });
             throw err;
           }
-          await this.#recordStep(tx, run, { node: '_conditions', kind: 'conditions', state: outcome.result ? 'succeeded' : 'skipped', decision: { result: outcome.result, comparisons: outcome.decisions.slice(0, 50) } });
+          await this.#recordStep(tx, run, {
+            node: '_conditions',
+            kind: 'conditions',
+            state: outcome.result ? 'succeeded' : 'skipped',
+            decision: { result: outcome.result, comparisons: outcome.decisions.slice(0, 50) },
+          });
           if (!outcome.result) {
             await this.#terminalize(tx, run, 'skipped', 'conditions_not_met');
-            return { kind: 'done', result: { state: 'skipped', terminalReason: 'policy_rejected', result: { reason: 'conditions_not_met' } } };
+            return {
+              kind: 'done',
+              result: {
+                state: 'skipped',
+                terminalReason: 'policy_rejected',
+                result: { reason: 'conditions_not_met' },
+              },
+            };
           }
         } else {
-          await this.#recordStep(tx, run, { node: '_conditions', kind: 'conditions', state: 'succeeded', decision: { result: true, comparisons: [] } });
+          await this.#recordStep(tx, run, {
+            node: '_conditions',
+            kind: 'conditions',
+            state: 'succeeded',
+            decision: { result: true, comparisons: [] },
+          });
         }
-        await tx.db.updateTable('automation.automation_run').set({ cursor: def.steps[0]!.id, updated_at: new Date() }).where('id', '=', run.id).execute();
+        await tx.db
+          .updateTable('automation.automation_run')
+          .set({ cursor: def.steps[0]!.id, updated_at: new Date() })
+          .where('id', '=', run.id)
+          .execute();
         return { kind: 'continue' };
       }
     }
     if (run.cursor === null) return this.#finish(tx, run);
     if (run.steps_executed >= this.ws.automationRunStepsMax)
-      return this.#refuseRun(tx, run, run.cursor, 'action', { cls: 'limit_exceeded', code: 'run_steps_limit' }, 'failed');
+      return this.#refuseRun(
+        tx,
+        run,
+        run.cursor,
+        'action',
+        { cls: 'limit_exceeded', code: 'run_steps_limit' },
+        'failed',
+      );
     const node = def.steps.find((s) => s.id === run.cursor);
-    if (!node) return { kind: 'fail', errorClass: 'deterministic', code: 'automation_cursor_invalid' };
+    if (!node)
+      return { kind: 'fail', errorClass: 'deterministic', code: 'automation_cursor_invalid' };
     // A step that already succeeded (a crash after its commit) is never repeated.
-    const succeeded = await tx.db.selectFrom('automation.automation_step_run').select('id').where('run_id', '=', run.id).where('node_id', '=', node.id).where('state', '=', 'succeeded').executeTakeFirst();
+    const succeeded = await tx.db
+      .selectFrom('automation.automation_step_run')
+      .select('id')
+      .where('run_id', '=', run.id)
+      .where('node_id', '=', node.id)
+      .where('state', '=', 'succeeded')
+      .executeTakeFirst();
     if (succeeded) {
-      await tx.db.updateTable('automation.automation_run').set({ cursor: this.#nextOf(node, true), updated_at: new Date() }).where('id', '=', run.id).execute();
+      await tx.db
+        .updateTable('automation.automation_run')
+        .set({ cursor: this.#nextOf(node, true), updated_at: new Date() })
+        .where('id', '=', run.id)
+        .execute();
       return { kind: 'continue' };
     }
     switch (node.type) {
@@ -1829,17 +2572,47 @@ export class AutomationService extends AiGatewayService {
   }
 
   #resultOf(run: RunRow): JobResult {
-    if (run.status === 'skipped') return { state: 'skipped', terminalReason: 'policy_rejected', result: { reason: run.reason ?? 'skipped' } };
-    if (run.status === 'partial') return { state: 'partial', result: { reason: run.reason ?? 'fallback' } };
+    if (run.status === 'skipped')
+      return {
+        state: 'skipped',
+        terminalReason: 'policy_rejected',
+        result: { reason: run.reason ?? 'skipped' },
+      };
+    if (run.status === 'partial')
+      return { state: 'partial', result: { reason: run.reason ?? 'fallback' } };
     return { state: 'succeeded' };
   }
 
   async #finish(tx: WorkspaceTransaction, run: RunRow): Promise<Advance> {
-    // A run that took a fallback after a failed step is partial, never an unqualified success.
-    const failedSteps = await tx.db.selectFrom('automation.automation_step_run').select('id').where('run_id', '=', run.id).where('state', 'in', ['failed', 'refused']).where('kind', '=', 'action').executeTakeFirst();
+    // A run that took a fallback after a failed step is partial, never an unqualified success. A
+    // failed attempt that a retry later ran successfully is superseded, not a fallback.
+    const failedSteps = await tx.db
+      .selectFrom('automation.automation_step_run as f')
+      .select('f.id')
+      .where('f.run_id', '=', run.id)
+      .where('f.state', 'in', ['failed', 'refused'])
+      .where('f.kind', '=', 'action')
+      .where(({ not, exists, selectFrom }) =>
+        not(
+          exists(
+            selectFrom('automation.automation_step_run as s')
+              .select('s.id')
+              .whereRef('s.run_id', '=', 'f.run_id')
+              .whereRef('s.node_id', '=', 'f.node_id')
+              .where('s.state', '=', 'succeeded'),
+          ),
+        ),
+      )
+      .executeTakeFirst();
     const status: AutomationRunStatus = failedSteps ? 'partial' : 'succeeded';
     await this.#terminalize(tx, run, status, failedSteps ? 'fallback_taken' : null);
-    return { kind: 'done', result: status === 'partial' ? { state: 'partial', result: { reason: 'fallback_taken' } } : { state: 'succeeded' } };
+    return {
+      kind: 'done',
+      result:
+        status === 'partial'
+          ? { state: 'partial', result: { reason: 'fallback_taken' } }
+          : { state: 'succeeded' },
+    };
   }
 
   async #refuseRun(
@@ -1850,7 +2623,13 @@ export class AutomationService extends AiGatewayService {
     failure: StepFailure,
     status: AutomationRunStatus = 'policy_rejected',
   ): Promise<Advance> {
-    await this.#recordStep(tx, run, { node, kind: kind === 'conditions' ? 'conditions' : 'action', ...(kind === 'action' ? { action: 'run.limit' } : {}), state: 'refused', failure });
+    await this.#recordStep(tx, run, {
+      node,
+      kind: kind === 'conditions' ? 'conditions' : 'action',
+      ...(kind === 'action' ? { action: 'run.limit' } : {}),
+      state: 'refused',
+      failure,
+    });
     await this.#terminalize(tx, run, status, failure.code);
     return {
       kind: 'fail',
@@ -1859,24 +2638,63 @@ export class AutomationService extends AiGatewayService {
     };
   }
 
-  async #branch(tx: WorkspaceTransaction, p: Principal, run: RunRow, revision: RevisionRow, node: Extract<StepNode, { type: 'branch' }>): Promise<Advance> {
-    const facts = run.trigger_record_id ? await this.#facts(tx, p, revision, run.trigger_record_id, node.when) : null;
-    if (!facts) return this.#refuseRun(tx, run, node.id, 'conditions', { cls: 'policy_rejected', code: 'input_unavailable' });
+  async #branch(
+    tx: WorkspaceTransaction,
+    p: Principal,
+    run: RunRow,
+    revision: RevisionRow,
+    node: Extract<StepNode, { type: 'branch' }>,
+  ): Promise<Advance> {
+    const facts = run.trigger_record_id
+      ? await this.#facts(tx, p, revision, run.trigger_record_id, node.when)
+      : null;
+    if (!facts)
+      return this.#refuseRun(tx, run, node.id, 'conditions', {
+        cls: 'policy_rejected',
+        code: 'input_unavailable',
+      });
     let outcome: ReturnType<typeof evaluate>;
     try {
       outcome = evaluate(node.when, facts, run.run_day);
     } catch (err) {
-      if (err instanceof InputUnavailable) return this.#refuseRun(tx, run, node.id, 'conditions', { cls: 'policy_rejected', code: 'input_unavailable' });
+      if (err instanceof InputUnavailable)
+        return this.#refuseRun(tx, run, node.id, 'conditions', {
+          cls: 'policy_rejected',
+          code: 'input_unavailable',
+        });
       throw err;
     }
-    await this.#recordStep(tx, run, { node: node.id, kind: 'branch', state: 'succeeded', decision: { result: outcome.result, next: (outcome.result ? node.then : node.else) ?? null, comparisons: outcome.decisions.slice(0, 50) } });
-    await tx.db.updateTable('automation.automation_run').set({ cursor: outcome.result ? node.then : node.else, updated_at: new Date() }).where('id', '=', run.id).execute();
+    await this.#recordStep(tx, run, {
+      node: node.id,
+      kind: 'branch',
+      state: 'succeeded',
+      decision: {
+        result: outcome.result,
+        next: (outcome.result ? node.then : node.else) ?? null,
+        comparisons: outcome.decisions.slice(0, 50),
+      },
+    });
+    await tx.db
+      .updateTable('automation.automation_run')
+      .set({ cursor: outcome.result ? node.then : node.else, updated_at: new Date() })
+      .where('id', '=', run.id)
+      .execute();
     return { kind: 'continue' };
   }
 
   /** A delay persists its wake time and releases the worker; the wake rechecks everything. */
-  async #delay(tx: WorkspaceTransaction, run: RunRow, node: Extract<StepNode, { type: 'delay' }>): Promise<Advance> {
-    const waiting = await tx.db.selectFrom('automation.automation_step_run').selectAll().where('run_id', '=', run.id).where('node_id', '=', node.id).where('state', '=', 'waiting').executeTakeFirst();
+  async #delay(
+    tx: WorkspaceTransaction,
+    run: RunRow,
+    node: Extract<StepNode, { type: 'delay' }>,
+  ): Promise<Advance> {
+    const waiting = await tx.db
+      .selectFrom('automation.automation_step_run')
+      .selectAll()
+      .where('run_id', '=', run.id)
+      .where('node_id', '=', node.id)
+      .where('state', '=', 'waiting')
+      .executeTakeFirst();
     const now = new Date();
     if (waiting) {
       const wake = run.wake_at ? new Date(run.wake_at) : now;
@@ -1884,20 +2702,46 @@ export class AutomationService extends AiGatewayService {
         // Woken early (a retry or a duplicate job): wait again for the same instant.
         return { kind: 'done', result: { state: 'waiting', reason: 'delay', resumeAt: wake } };
       }
-      await tx.db.updateTable('automation.automation_step_run').set({ state: 'succeeded', ended_at: now }).where('id', '=', waiting.id).execute();
+      await tx.db
+        .updateTable('automation.automation_step_run')
+        .set({ state: 'succeeded', ended_at: now })
+        .where('id', '=', waiting.id)
+        .execute();
       await this.#countStep(tx, run);
-      await tx.db.updateTable('automation.automation_run').set({ cursor: node.next, status: 'running', reason: null, wake_at: null, updated_at: now }).where('id', '=', run.id).execute();
+      await tx.db
+        .updateTable('automation.automation_run')
+        .set({ cursor: node.next, status: 'running', reason: null, wake_at: null, updated_at: now })
+        .where('id', '=', run.id)
+        .execute();
       return { kind: 'continue' };
     }
     const wake = new Date(now.getTime() + node.minutes * 60_000);
-    await this.#recordStep(tx, run, { node: node.id, kind: 'delay', state: 'waiting', decision: { wake_at: wake.toISOString(), minutes: node.minutes } });
-    await tx.db.updateTable('automation.automation_run').set({ status: 'waiting', reason: 'delay', wake_at: wake, updated_at: now }).where('id', '=', run.id).execute();
+    await this.#recordStep(tx, run, {
+      node: node.id,
+      kind: 'delay',
+      state: 'waiting',
+      decision: { wake_at: wake.toISOString(), minutes: node.minutes },
+    });
+    await tx.db
+      .updateTable('automation.automation_run')
+      .set({ status: 'waiting', reason: 'delay', wake_at: wake, updated_at: now })
+      .where('id', '=', run.id)
+      .execute();
     return { kind: 'done', result: { state: 'waiting', reason: 'delay', resumeAt: wake } };
   }
 
   /** Stable logical key: revision, run, step, targets, and semantic parameters (never attempts). */
   #logicalKey(run: RunRow, node: ActionNode, targets: string[]) {
-    return sha256(canonical({ revision: run.revision_id, run: run.id, node: node.id, action: node.action, targets: [...targets].sort(), params: node.params }));
+    return sha256(
+      canonical({
+        revision: run.revision_id,
+        run: run.id,
+        node: node.id,
+        action: node.action,
+        targets: [...targets].sort(),
+        params: node.params,
+      }),
+    );
   }
 
   /**
@@ -1905,10 +2749,23 @@ export class AutomationService extends AiGatewayService {
    * commit together; a typed failure rolls the command back, is recorded, and either takes the
    * declared fallback or ends the run. Committed earlier steps are never rolled back or rerun.
    */
-  async #action(tx: WorkspaceTransaction, caller: AutomationCaller, p: Principal, run: RunRow, revision: RevisionRow, node: ActionNode): Promise<Advance> {
+  async #action(
+    tx: WorkspaceTransaction,
+    caller: AutomationCaller,
+    p: Principal,
+    run: RunRow,
+    revision: RevisionRow,
+    node: ActionNode,
+  ): Promise<Advance> {
     const def = ACTION_MATRIX[node.action];
-    if (def.status !== 'supported') return this.#failStep(tx, run, node, { cls: 'unavailable', code: 'action_unavailable' }, []);
-    let targets: Array<{ id: string; publicId: string; kind: RecordKind; projectId: string | null }>;
+    if (def.status !== 'supported')
+      return this.#failStep(tx, run, node, { cls: 'unavailable', code: 'action_unavailable' }, []);
+    let targets: Array<{
+      id: string;
+      publicId: string;
+      kind: RecordKind;
+      projectId: string | null;
+    }>;
     try {
       targets = await this.#targets(tx, p, run, revision, node);
     } catch (err) {
@@ -1916,8 +2773,13 @@ export class AutomationService extends AiGatewayService {
       if (!f) throw err;
       return this.#failStep(tx, run, node, f, []);
     }
-    const logicalKey = this.#logicalKey(run, node, targets.map((t) => t.id));
-    if (node.action === 'webhook.send') return this.#prepareWebhook(tx, p, run, revision, node, targets, logicalKey);
+    const logicalKey = this.#logicalKey(
+      run,
+      node,
+      targets.map((t) => t.id),
+    );
+    if (node.action === 'webhook.send')
+      return this.#prepareWebhook(tx, p, run, revision, node, targets, logicalKey);
     await sql`SAVEPOINT automation_action`.execute(tx.db);
     let output: Record<string, unknown>;
     try {
@@ -1927,19 +2789,59 @@ export class AutomationService extends AiGatewayService {
       await sql`ROLLBACK TO SAVEPOINT automation_action`.execute(tx.db);
       const f = this.#classify(err);
       if (!f) throw err;
-      return this.#failStep(tx, run, node, f, targets.map((t) => t.publicId));
+      return this.#failStep(
+        tx,
+        run,
+        node,
+        f,
+        targets.map((t) => t.publicId),
+      );
     }
-    await this.#recordStep(tx, run, { node: node.id, kind: 'action', action: node.action, state: 'succeeded', targets: targets.map((t) => ({ id: t.publicId, type: t.kind })), output, logicalKey });
+    await this.#recordStep(tx, run, {
+      node: node.id,
+      kind: 'action',
+      action: node.action,
+      state: 'succeeded',
+      targets: targets.map((t) => ({ id: t.publicId, type: t.kind })),
+      output,
+      logicalKey,
+    });
     await this.#countStep(tx, run);
-    await tx.db.updateTable('automation.automation_run').set({ cursor: node.next, updated_at: new Date() }).where('id', '=', run.id).execute();
+    await tx.db
+      .updateTable('automation.automation_run')
+      .set({ cursor: node.next, updated_at: new Date() })
+      .where('id', '=', run.id)
+      .execute();
     return { kind: 'continue' };
   }
 
-  async #failStep(tx: WorkspaceTransaction, run: RunRow, node: ActionNode, f: StepFailure, targets: string[]): Promise<Advance> {
-    await this.#recordStep(tx, run, { node: node.id, kind: 'action', action: node.action, state: f.cls === 'policy_rejected' ? 'refused' : 'failed', failure: f, targets: targets.map((id) => ({ id })) });
+  async #failStep(
+    tx: WorkspaceTransaction,
+    run: RunRow,
+    node: ActionNode,
+    f: StepFailure,
+    targets: string[],
+  ): Promise<Advance> {
+    await this.#recordStep(tx, run, {
+      node: node.id,
+      kind: 'action',
+      action: node.action,
+      state: f.cls === 'policy_rejected' ? 'refused' : 'failed',
+      failure: f,
+      targets: targets.map((id) => ({ id })),
+    });
     await this.#countStep(tx, run);
-    if (node.fallback && f.cls !== 'error' && f.cls !== 'limit_exceeded' && node.fallback.on.includes(f.cls)) {
-      await tx.db.updateTable('automation.automation_run').set({ cursor: node.fallback.next, updated_at: new Date() }).where('id', '=', run.id).execute();
+    if (
+      node.fallback &&
+      f.cls !== 'error' &&
+      f.cls !== 'limit_exceeded' &&
+      node.fallback.on.includes(f.cls)
+    ) {
+      await tx.db
+        .updateTable('automation.automation_run')
+        .set({ cursor: node.fallback.next, updated_at: new Date() })
+        .where('id', '=', run.id)
+        .execute();
       if (node.fallback.next === null) return this.#finish(tx, { ...run, cursor: null });
       return { kind: 'continue' };
     }
@@ -1947,8 +2849,18 @@ export class AutomationService extends AiGatewayService {
     await this.#terminalize(tx, run, status, f.code);
     return {
       kind: 'fail',
-      errorClass: status === 'policy_rejected' ? 'authorization' : f.cls === 'limit_exceeded' ? 'policy' : 'deterministic',
-      code: status === 'policy_rejected' ? 'policy_rejected' : f.cls === 'limit_exceeded' ? 'limit_exceeded' : f.code.slice(0, 64),
+      errorClass:
+        status === 'policy_rejected'
+          ? 'authorization'
+          : f.cls === 'limit_exceeded'
+            ? 'policy'
+            : 'deterministic',
+      code:
+        status === 'policy_rejected'
+          ? 'policy_rejected'
+          : f.cls === 'limit_exceeded'
+            ? 'limit_exceeded'
+            : f.code.slice(0, 64),
     };
   }
 
@@ -1981,28 +2893,42 @@ export class AutomationService extends AiGatewayService {
           return { cls: 'error', code: 'domain_refused' };
       }
     }
-    if ((err as { name?: string }).name === 'StepUpNeeded') return { cls: 'policy_rejected', code: 'human_only' };
+    if ((err as { name?: string }).name === 'StepUpNeeded')
+      return { cls: 'policy_rejected', code: 'human_only' };
     return null;
   }
 
   /** Bounded target selection related to the trigger record, through current authority. */
-  async #targets(tx: WorkspaceTransaction, p: Principal, run: RunRow, revision: RevisionRow, node: ActionNode) {
+  async #targets(
+    tx: WorkspaceTransaction,
+    p: Principal,
+    run: RunRow,
+    revision: RevisionRow,
+    node: ActionNode,
+  ) {
     // A webhook step discloses facts about the trigger record (its only subject).
     const target = node.target ?? (node.action === 'webhook.send' ? 'trigger' : null);
     if (target === null || node.action === 'task.create') return [];
     if (!run.trigger_record_id) throw new StepRefused('validation_failed', 'no_trigger_record');
-    const trig = await tx.db.selectFrom('core.record').select(['id', 'public_id', 'record_type']).where('id', '=', run.trigger_record_id).executeTakeFirst();
+    const trig = await tx.db
+      .selectFrom('core.record')
+      .select(['id', 'public_id', 'record_type'])
+      .where('id', '=', run.trigger_record_id)
+      .executeTakeFirst();
     if (!trig) throw new StepRefused('policy_rejected', 'not_permitted');
-    const out: Array<{ id: string; publicId: string; kind: RecordKind; projectId: string | null }> = [];
+    const out: Array<{ id: string; publicId: string; kind: RecordKind; projectId: string | null }> =
+      [];
     const addTask = async (publicId: string) => {
       const t = await this.loadTask(tx, p, publicId);
-      if (!(await this.#inDeclaredProjects(tx, revision, t.row.project_id))) throw new StepRefused('policy_rejected', 'not_permitted');
+      if (!(await this.#inDeclaredProjects(tx, revision, t.row.project_id)))
+        throw new StepRefused('policy_rejected', 'not_permitted');
       out.push({ id: t.id, publicId: t.publicId, kind: 'task', projectId: t.row.project_id });
       return t;
     };
     const addProject = async (publicId: string) => {
       const pr = await this.loadProject(tx, p, publicId);
-      if (!(await this.#inDeclaredProjects(tx, revision, pr.row.parent_project_id, pr.id))) throw new StepRefused('policy_rejected', 'not_permitted');
+      if (!(await this.#inDeclaredProjects(tx, revision, pr.row.parent_project_id, pr.id)))
+        throw new StepRefused('policy_rejected', 'not_permitted');
       out.push({ id: pr.id, publicId: pr.publicId, kind: 'project', projectId: pr.id });
     };
     if (target === 'trigger') {
@@ -2031,7 +2957,8 @@ export class AutomationService extends AiGatewayService {
         .orderBy('t.id')
         .limit(this.ws.automationTargetFanoutMax + 1)
         .execute();
-      if (children.length > this.ws.automationTargetFanoutMax) throw new StepRefused('validation_failed', 'fanout_limit');
+      if (children.length > this.ws.automationTargetFanoutMax)
+        throw new StepRefused('validation_failed', 'fanout_limit');
       for (const c of children) {
         try {
           await addTask(c.public_id);
@@ -2063,11 +2990,20 @@ export class AutomationService extends AiGatewayService {
     logicalKey: string,
   ): Promise<Record<string, unknown>> {
     const prm = node.params;
-    const req: Mutation = { idempotencyKey: `automation:${logicalKey.slice(0, 48)}`, fingerprint: Buffer.from(logicalKey, 'hex') };
+    const req: Mutation = {
+      idempotencyKey: `automation:${logicalKey.slice(0, 48)}`,
+      fingerprint: Buffer.from(logicalKey, 'hex'),
+    };
     const touched: string[] = [];
     switch (node.action) {
       case 'task.create': {
-        const trig = run.trigger_record_id ? await tx.db.selectFrom('core.record').select(['public_id', 'record_type']).where('id', '=', run.trigger_record_id).executeTakeFirst() : null;
+        const trig = run.trigger_record_id
+          ? await tx.db
+              .selectFrom('core.record')
+              .select(['public_id', 'record_type'])
+              .where('id', '=', run.trigger_record_id)
+              .executeTakeFirst()
+          : null;
         let project: string | null | undefined = prm.project as string | null | undefined;
         if (project === 'trigger.project') {
           if (!trig) throw new StepRefused('validation_failed', 'no_trigger_record');
@@ -2078,7 +3014,7 @@ export class AutomationService extends AiGatewayService {
             project = await this.publicOf(tx, t.row.project_id);
           }
         }
-        const parent = prm.parent === 'trigger' ? trig?.public_id ?? null : null;
+        const parent = prm.parent === 'trigger' ? (trig?.public_id ?? null) : null;
         const input = parseTaskCreate(
           {
             ...(project ? { project } : {}),
@@ -2090,12 +3026,31 @@ export class AutomationService extends AiGatewayService {
           },
           this.ws.taskEstimateMinutesMax,
         );
-        const container = await this.resolveContainer(tx, p, { brand: input.brand, ...(input.project ? { project: input.project } : {}), parent: input.parent }, null);
-        if (container.parent) this.requireTaskAction(p, 'record.create', container.parent, { shares: false });
+        const container = await this.resolveContainer(
+          tx,
+          p,
+          {
+            brand: input.brand,
+            ...(input.project ? { project: input.project } : {}),
+            parent: input.parent,
+          },
+          null,
+        );
+        if (container.parent)
+          this.requireTaskAction(p, 'record.create', container.parent, { shares: false });
         else this.requireCreateIn(p, container);
-        if (!(await this.#inDeclaredProjects(tx, revision, container.project?.id ?? container.parent?.row.project_id ?? null)) || !revision.declared_brand_ids.includes(container.brand.id))
+        if (
+          !(await this.#inDeclaredProjects(
+            tx,
+            revision,
+            container.project?.id ?? container.parent?.row.project_id ?? null,
+          )) ||
+          !revision.declared_brand_ids.includes(container.brand.id)
+        )
           throw new StepRefused('policy_rejected', 'not_permitted');
-        const made = await this.insertTask(tx, caller, p, container, input.fields, { source: 'automation' });
+        const made = await this.insertTask(tx, caller, p, container, input.fields, {
+          source: 'automation',
+        });
         return { created: [{ id: made.publicId, type: 'task' }] };
       }
       case 'task.update':
@@ -2107,35 +3062,87 @@ export class AutomationService extends AiGatewayService {
             node.action === 'task.update'
               ? { ...(prm.fields as Record<string, unknown>) }
               : {
-                  ...(prm.start !== undefined ? { start_date: this.#relativeDay(run, prm.start) } : {}),
+                  ...(prm.start !== undefined
+                    ? { start_date: this.#relativeDay(run, prm.start) }
+                    : {}),
                   ...(prm.due !== undefined ? { due_date: this.#relativeDay(run, prm.due) } : {}),
                 };
           const version = Number(task.row.version);
           const merge = parseMerge(
-            { version, changes: Object.fromEntries(Object.entries(changes).map(([k, v]) => [k, { base: current[k] ?? null, value: v }])) },
+            {
+              version,
+              changes: Object.fromEntries(
+                Object.entries(changes).map(([k, v]) => [
+                  k,
+                  { base: current[k] ?? null, value: v },
+                ]),
+              ),
+            },
             TASK_FIELDS,
           );
-          const next = applyFieldMerge(merge, current, version, (field, value, issues) => taskField(field, value, issues, this.ws.taskEstimateMinutesMax));
+          const next = applyFieldMerge(merge, current, version, (field, value, issues) =>
+            taskField(field, value, issues, this.ws.taskEstimateMinutesMax),
+          );
           if (Object.keys(next).length) {
             await this.applyTaskChanges(tx, caller, req, p, task, current, next);
             touched.push(t.publicId);
           }
         }
-        return { changed: touched.map((id) => ({ id, type: 'task' })), fields: Object.keys((prm.fields ?? {}) as object).concat(prm.start !== undefined ? ['start_date'] : [], prm.due !== undefined ? ['due_date'] : []) };
+        return {
+          changed: touched.map((id) => ({ id, type: 'task' })),
+          fields: Object.keys((prm.fields ?? {}) as object).concat(
+            prm.start !== undefined ? ['start_date'] : [],
+            prm.due !== undefined ? ['due_date'] : [],
+          ),
+        };
       case 'task.assign':
         for (const t of targets) {
           const task = await this.ownedTask(tx, p, t.publicId, 'record.assign');
-          const existing = await tx.db.selectFrom('work.task_assignee as a').innerJoin('tenancy.membership as m', 'm.id', 'a.membership_id').select(['m.public_id', 'a.is_primary']).where('a.task_id', '=', task.id).orderBy('a.is_primary', 'desc').orderBy('a.rank').execute();
-          const wanted = prm.mode === 'replace' ? (prm.assignees as string[]) : [...new Set([...existing.map((e) => e.public_id), ...(prm.assignees as string[])])];
-          if (canonical([...wanted].sort()) === canonical(existing.map((e) => e.public_id).sort())) continue;
-          await this.setAssigneesIn(tx, caller, p, task, { assignees: wanted, primary: existing.find((e) => e.is_primary && wanted.includes(e.public_id))?.public_id ?? wanted[0] ?? null }, Number(task.row.version));
+          const existing = await tx.db
+            .selectFrom('work.task_assignee as a')
+            .innerJoin('tenancy.membership as m', 'm.id', 'a.membership_id')
+            .select(['m.public_id', 'a.is_primary'])
+            .where('a.task_id', '=', task.id)
+            .orderBy('a.is_primary', 'desc')
+            .orderBy('a.rank')
+            .execute();
+          const wanted =
+            prm.mode === 'replace'
+              ? (prm.assignees as string[])
+              : [...new Set([...existing.map((e) => e.public_id), ...(prm.assignees as string[])])];
+          if (canonical([...wanted].sort()) === canonical(existing.map((e) => e.public_id).sort()))
+            continue;
+          await this.setAssigneesIn(
+            tx,
+            caller,
+            p,
+            task,
+            {
+              assignees: wanted,
+              primary:
+                existing.find((e) => e.is_primary && wanted.includes(e.public_id))?.public_id ??
+                wanted[0] ??
+                null,
+            },
+            Number(task.row.version),
+          );
           touched.push(t.publicId);
         }
         return { changed: touched.map((id) => ({ id, type: 'task' })) };
       case 'task.label':
         for (const t of targets) {
           const task = await this.loadTask(tx, p, t.publicId, { lock: true });
-          if (await this.toggleLabel(tx, caller, p, task, prm.label as string, prm.mode as 'add' | 'remove')) touched.push(t.publicId);
+          if (
+            await this.toggleLabel(
+              tx,
+              caller,
+              p,
+              task,
+              prm.label as string,
+              prm.mode as 'add' | 'remove',
+            )
+          )
+            touched.push(t.publicId);
         }
         return { changed: touched.map((id) => ({ id, type: 'task' })) };
       case 'task.move':
@@ -2152,7 +3159,13 @@ export class AutomationService extends AiGatewayService {
         return { changed: touched.map((id) => ({ id, type: 'task' })) };
       case 'task.relate':
         for (const t of targets) {
-          await this.addRelationshipIn(tx, caller, p, t.publicId, parseRelationship({ kind: prm.kind, target: prm.to }));
+          await this.addRelationshipIn(
+            tx,
+            caller,
+            p,
+            t.publicId,
+            parseRelationship({ kind: prm.kind, target: prm.to }),
+          );
           touched.push(t.publicId);
         }
         return { changed: touched.map((id) => ({ id, type: 'task' })) };
@@ -2161,15 +3174,36 @@ export class AutomationService extends AiGatewayService {
         for (const t of targets) {
           const pr = await this.loadProject(tx, p, t.publicId, { lock: true });
           const r = pr.row;
-          const current: Record<string, unknown> = { name: r.name, priority: r.priority, start_date: r.start_date, target_date: r.target_date, status: this.statusView(r.status_id, tx).key };
+          const current: Record<string, unknown> = {
+            name: r.name,
+            priority: r.priority,
+            start_date: r.start_date,
+            target_date: r.target_date,
+            status: this.statusView(r.status_id, tx).key,
+          };
           const changes: Record<string, unknown> =
             node.action === 'project.update'
               ? { ...(prm.fields as Record<string, unknown>) }
               : {
-                  ...(prm.start !== undefined ? { start_date: this.#relativeDay(run, prm.start) } : {}),
-                  ...(prm.target !== undefined ? { target_date: this.#relativeDay(run, prm.target) } : {}),
+                  ...(prm.start !== undefined
+                    ? { start_date: this.#relativeDay(run, prm.start) }
+                    : {}),
+                  ...(prm.target !== undefined
+                    ? { target_date: this.#relativeDay(run, prm.target) }
+                    : {}),
                 };
-          const merge = parseMerge({ version: Number(r.version), changes: Object.fromEntries(Object.entries(changes).map(([k, v]) => [k, { base: current[k] ?? null, value: v }])) }, PROJECT_FIELDS);
+          const merge = parseMerge(
+            {
+              version: Number(r.version),
+              changes: Object.fromEntries(
+                Object.entries(changes).map(([k, v]) => [
+                  k,
+                  { base: current[k] ?? null, value: v },
+                ]),
+              ),
+            },
+            PROJECT_FIELDS,
+          );
           await this.updateProjectIn(tx, caller, p, pr.publicId, merge, req);
           touched.push(t.publicId);
         }
@@ -2184,7 +3218,13 @@ export class AutomationService extends AiGatewayService {
       case 'project.notify':
         return this.#notify(tx, p, run, node, targets);
       case 'ai.draft': {
-        const trig = run.trigger_record_id ? await tx.db.selectFrom('core.record').select(['public_id', 'record_type']).where('id', '=', run.trigger_record_id).executeTakeFirst() : null;
+        const trig = run.trigger_record_id
+          ? await tx.db
+              .selectFrom('core.record')
+              .select(['public_id', 'record_type'])
+              .where('id', '=', run.trigger_record_id)
+              .executeTakeFirst()
+          : null;
         if (!trig) throw new StepRefused('validation_failed', 'no_trigger_record');
         // Readable now (the gateway re-checks the scope through its own retrieval authority).
         if (trig.record_type === 'task') await this.loadTask(tx, p, trig.public_id);
@@ -2192,10 +3232,15 @@ export class AutomationService extends AiGatewayService {
         const out = await this.startAutomationAiRun(tx, caller, p, {
           action: prm.action as string,
           instruction: (prm.instruction as string | undefined) ?? null,
-          scope: trig.record_type === 'task' ? { task: trig.public_id } : { project: trig.public_id },
+          scope:
+            trig.record_type === 'task' ? { task: trig.public_id } : { project: trig.public_id },
         });
         // A request, not a result: proposals wait for the owner's explicit 7D review and apply.
-        return { ai_run: out.runPublicId, kind: out.kind, review_required: out.kind === 'proposal' };
+        return {
+          ai_run: out.runPublicId,
+          kind: out.kind,
+          review_required: out.kind === 'proposal',
+        };
       }
       default:
         throw new StepRefused('unavailable', 'action_unavailable');
@@ -2207,37 +3252,67 @@ export class AutomationService extends AiGatewayService {
    * now (the fan-out re-checks authorization and applies preferences, quiet hours, and dedupe).
    * Recipients the record is hidden from are dropped without a trace.
    */
-  async #notify(tx: WorkspaceTransaction, p: Principal, run: RunRow, node: ActionNode, targets: Array<{ id: string; publicId: string; kind: RecordKind }>) {
-    const fan = new NotificationFanOut({
-      notifyFanoutRecipientsMax: this.ws.notifyFanoutRecipientsMax,
-      notifyDedupeWindowMinutes: this.ws.notifyDedupeWindowMinutes,
-      notifyEmailPerHourMax: this.ws.notifyEmailPerHourMax,
-      notifyFactsMaxBytes: this.ws.notifyFactsMaxBytes,
-      principalContextArrayMax: this.c.settings.principalContextArrayMax,
-    }, this.d.metrics);
+  async #notify(
+    tx: WorkspaceTransaction,
+    p: Principal,
+    run: RunRow,
+    node: ActionNode,
+    targets: Array<{ id: string; publicId: string; kind: RecordKind }>,
+  ) {
+    const fan = new NotificationFanOut(
+      {
+        notifyFanoutRecipientsMax: this.ws.notifyFanoutRecipientsMax,
+        notifyDedupeWindowMinutes: this.ws.notifyDedupeWindowMinutes,
+        notifyEmailPerHourMax: this.ws.notifyEmailPerHourMax,
+        notifyFactsMaxBytes: this.ws.notifyFactsMaxBytes,
+        principalContextArrayMax: this.c.settings.principalContextArrayMax,
+      },
+      this.d.metrics,
+    );
     let notified = 0;
     for (const t of targets) {
       const recipients = new Set<string>();
       for (const r of node.params.recipients as string[]) {
         if (r === 'owner') {
           if (t.kind === 'task') {
-            const task = await tx.db.selectFrom('work.task').select('created_by_membership_id').where('id', '=', t.id).executeTakeFirst();
+            const task = await tx.db
+              .selectFrom('work.task')
+              .select('created_by_membership_id')
+              .where('id', '=', t.id)
+              .executeTakeFirst();
             void task;
             recipients.add(run.owner_membership_id);
           } else {
-            const pr = await tx.db.selectFrom('work.project').select('owner_membership_id').where('id', '=', t.id).executeTakeFirst();
+            const pr = await tx.db
+              .selectFrom('work.project')
+              .select('owner_membership_id')
+              .where('id', '=', t.id)
+              .executeTakeFirst();
             if (pr?.owner_membership_id) recipients.add(pr.owner_membership_id);
           }
         } else if (r === 'assignees') {
-          const as = await tx.db.selectFrom('work.task_assignee').select('membership_id').where('task_id', '=', t.id).execute();
+          const as = await tx.db
+            .selectFrom('work.task_assignee')
+            .select('membership_id')
+            .where('task_id', '=', t.id)
+            .execute();
           for (const x of as) recipients.add(x.membership_id);
         } else {
-          const m = await tx.db.selectFrom('tenancy.membership').select('id').where('public_id', '=', r).executeTakeFirst();
+          const m = await tx.db
+            .selectFrom('tenancy.membership')
+            .select('id')
+            .where('public_id', '=', r)
+            .executeTakeFirst();
           if (m) recipients.add(m.id);
         }
       }
       void p;
-      const before = await tx.db.selectFrom('notify.notification').select((eb) => eb.fn.countAll<string>().as('n')).where('record_id', '=', t.id).where('type', '=', 'automation_notice').executeTakeFirstOrThrow();
+      const before = await tx.db
+        .selectFrom('notify.notification')
+        .select((eb) => eb.fn.countAll<string>().as('n'))
+        .where('record_id', '=', t.id)
+        .where('type', '=', 'automation_notice')
+        .executeTakeFirstOrThrow();
       await fan.persist(tx, null, {
         type: 'automation_notice' as never,
         recordId: t.id,
@@ -2246,10 +3321,18 @@ export class AutomationService extends AiGatewayService {
         facts: { message: String(node.params.message).slice(0, 280) },
         occasion: `${run.id}:${node.id}`,
       });
-      const after = await tx.db.selectFrom('notify.notification').select((eb) => eb.fn.countAll<string>().as('n')).where('record_id', '=', t.id).where('type', '=', 'automation_notice').executeTakeFirstOrThrow();
+      const after = await tx.db
+        .selectFrom('notify.notification')
+        .select((eb) => eb.fn.countAll<string>().as('n'))
+        .where('record_id', '=', t.id)
+        .where('type', '=', 'automation_notice')
+        .executeTakeFirstOrThrow();
       notified += Number(after.n) - Number(before.n);
     }
-    return { notified_records: targets.map((t) => ({ id: t.publicId, type: t.kind })), notifications: notified };
+    return {
+      notified_records: targets.map((t) => ({ id: t.publicId, type: t.kind })),
+      notifications: notified,
+    };
   }
 
   /**
@@ -2258,34 +3341,123 @@ export class AutomationService extends AiGatewayService {
    * the destination and read the record; the payload is the approved fields read now. The step is
    * recorded `dispatching` with its logical key, then the effect is claimed and sent.
    */
-  async #prepareWebhook(tx: WorkspaceTransaction, p: Principal, run: RunRow, revision: RevisionRow, node: ActionNode, targets: Array<{ id: string; publicId: string; kind: RecordKind }>, logicalKey: string): Promise<Advance> {
-    const existing = await tx.db.selectFrom('automation.automation_step_run').select(['id', 'logical_key']).where('run_id', '=', run.id).where('node_id', '=', node.id).where('state', '=', 'dispatching').executeTakeFirst();
-    const approval = await tx.db.selectFrom('automation.standing_approval').selectAll().where('revision_id', '=', revision.id).where('node_id', '=', node.id).where('state', '=', 'active').executeTakeFirst();
+  async #prepareWebhook(
+    tx: WorkspaceTransaction,
+    p: Principal,
+    run: RunRow,
+    revision: RevisionRow,
+    node: ActionNode,
+    targets: Array<{ id: string; publicId: string; kind: RecordKind }>,
+    logicalKey: string,
+  ): Promise<Advance> {
+    const existing = await tx.db
+      .selectFrom('automation.automation_step_run')
+      .select(['id', 'logical_key'])
+      .where('run_id', '=', run.id)
+      .where('node_id', '=', node.id)
+      .where('state', '=', 'dispatching')
+      .executeTakeFirst();
+    const approval = await tx.db
+      .selectFrom('automation.standing_approval')
+      .selectAll()
+      .where('revision_id', '=', revision.id)
+      .where('node_id', '=', node.id)
+      .where('state', '=', 'active')
+      .executeTakeFirst();
     const pub = node.params.subscription as string;
     const dest = await this.automationWebhookDestination(tx, pub);
-    const scopeHash = sha256(canonical({ brands: [...revision.declared_brand_ids].sort(), projects: [...revision.declared_project_ids].sort() }));
+    const scopeHash = sha256(
+      canonical({
+        brands: [...revision.declared_brand_ids].sort(),
+        projects: [...revision.declared_project_ids].sort(),
+      }),
+    );
     const fields = [...(node.params.fields as string[])].sort();
-    if (!approval || !dest || approval.subscription_id !== dest.id || approval.destination_fingerprint !== dest.fingerprint || canonical([...approval.field_set].sort()) !== canonical(fields) || approval.scope_hash !== scopeHash || dest.state !== 'active' || dest.lifecycleState !== 'active')
-      return this.#failStep(tx, run, node, { cls: 'policy_rejected', code: 'approval_invalid' }, targets.map((t) => t.publicId));
-    const manage = dest.brandId === null ? decideWorkspace(p, 'webhooks.manage') : decideBrand(p, 'webhooks.manage', (await this.#brandFacts(tx, dest.brandId)) ?? { id: NIL, isSensitive: true, lifecycleState: 'trashed' });
-    if (!manage.allowed) return this.#failStep(tx, run, node, { cls: 'policy_rejected', code: 'not_permitted' }, targets.map((t) => t.publicId));
+    if (
+      !approval ||
+      !dest ||
+      approval.subscription_id !== dest.id ||
+      approval.destination_fingerprint !== dest.fingerprint ||
+      canonical([...approval.field_set].sort()) !== canonical(fields) ||
+      approval.scope_hash !== scopeHash ||
+      dest.state !== 'active' ||
+      dest.lifecycleState !== 'active'
+    )
+      return this.#failStep(
+        tx,
+        run,
+        node,
+        { cls: 'policy_rejected', code: 'approval_invalid' },
+        targets.map((t) => t.publicId),
+      );
+    const manage =
+      dest.brandId === null
+        ? decideWorkspace(p, 'webhooks.manage')
+        : decideBrand(
+            p,
+            'webhooks.manage',
+            (await this.#brandFacts(tx, dest.brandId)) ?? {
+              id: NIL,
+              isSensitive: true,
+              lifecycleState: 'trashed',
+            },
+          );
+    if (!manage.allowed)
+      return this.#failStep(
+        tx,
+        run,
+        node,
+        { cls: 'policy_rejected', code: 'not_permitted' },
+        targets.map((t) => t.publicId),
+      );
     const t = targets[0];
-    if (!t) return this.#failStep(tx, run, node, { cls: 'validation_failed', code: 'no_trigger_record' }, []);
+    if (!t)
+      return this.#failStep(
+        tx,
+        run,
+        node,
+        { cls: 'validation_failed', code: 'no_trigger_record' },
+        [],
+      );
     const facts = await this.#facts(tx, p, revision, t.id, null);
-    if (!facts) return this.#failStep(tx, run, node, { cls: 'policy_rejected', code: 'not_permitted' }, []);
+    if (!facts)
+      return this.#failStep(tx, run, node, { cls: 'policy_rejected', code: 'not_permitted' }, []);
     const values: Record<string, string | null> = {};
-    for (const f of fields) values[f] = (facts as unknown as Record<string, unknown>)[f] as string | null ?? null;
-    const ws = await tx.db.selectFrom('tenancy.workspace').select('public_id').executeTakeFirstOrThrow();
+    for (const f of fields)
+      values[f] = ((facts as unknown as Record<string, unknown>)[f] as string | null) ?? null;
+    const ws = await tx.db
+      .selectFrom('tenancy.workspace')
+      .select('public_id')
+      .executeTakeFirstOrThrow();
     const envelope = {
       type: 'automation.action',
       api_version: 'v1',
       created_at: new Date().toISOString(),
       workspace: ws.public_id,
-      data: { object: { id: t.publicId, type: t.kind }, fields: values, automation: (await this.#rows(tx, { id: run.automation_id }))!.public_id },
+      data: {
+        object: { id: t.publicId, type: t.kind },
+        fields: values,
+        automation: (await this.#rows(tx, { id: run.automation_id }))!.public_id,
+      },
     };
     if (!existing)
-      await this.#recordStep(tx, run, { node: node.id, kind: 'action', action: node.action, state: 'dispatching', targets: [{ id: t.publicId, type: t.kind }], output: { webhook: pub, fields }, logicalKey });
-    return { kind: 'effect', node: node.id, logicalKey: existing?.logical_key ?? logicalKey, subscriptionId: dest.id, fingerprint: dest.fingerprint, envelope };
+      await this.#recordStep(tx, run, {
+        node: node.id,
+        kind: 'action',
+        action: node.action,
+        state: 'dispatching',
+        targets: [{ id: t.publicId, type: t.kind }],
+        output: { webhook: pub, fields },
+        logicalKey,
+      });
+    return {
+      kind: 'effect',
+      node: node.id,
+      logicalKey: existing?.logical_key ?? logicalKey,
+      subscriptionId: dest.id,
+      fingerprint: dest.fingerprint,
+      envelope,
+    };
   }
 
   /**
@@ -2293,18 +3465,42 @@ export class AutomationService extends AiGatewayService {
    * readable now or not in the declared scope (opaque). Custom fields are loaded through the
    * canonical field reader; an unreadable field is simply absent.
    */
-  async #facts(tx: WorkspaceTransaction, p: Principal, revision: RevisionRow, recordId: string, cond: Condition | null): Promise<RecordFacts | null> {
-    const r = await tx.db.selectFrom('core.record').select(['public_id', 'record_type']).where('id', '=', recordId).executeTakeFirst();
+  async #facts(
+    tx: WorkspaceTransaction,
+    p: Principal,
+    revision: RevisionRow,
+    recordId: string,
+    cond: Condition | null,
+  ): Promise<RecordFacts | null> {
+    const r = await tx.db
+      .selectFrom('core.record')
+      .select(['public_id', 'record_type'])
+      .where('id', '=', recordId)
+      .executeTakeFirst();
     if (!r) return null;
     try {
       const custom = new Map<string, unknown>();
       const needed = customFieldsOf(cond);
       if (r.record_type === 'task') {
         const t: LoadedTask = await this.loadTask(tx, p, r.public_id);
-        if (t.lifecycleState !== 'active' || !(await this.#inDeclaredProjects(tx, revision, t.row.project_id))) return null;
+        if (
+          t.lifecycleState !== 'active' ||
+          !(await this.#inDeclaredProjects(tx, revision, t.row.project_id))
+        )
+          return null;
         if (needed.size) await this.#customFacts(tx, p, r.public_id, needed, custom);
-        const assignees = await tx.db.selectFrom('work.task_assignee as a').innerJoin('tenancy.membership as m', 'm.id', 'a.membership_id').select('m.public_id').where('a.task_id', '=', t.id).execute();
-        const labels = await tx.db.selectFrom('work.task_label as tl').innerJoin('work.label as l', 'l.id', 'tl.label_id').select('l.public_id').where('tl.task_id', '=', t.id).execute();
+        const assignees = await tx.db
+          .selectFrom('work.task_assignee as a')
+          .innerJoin('tenancy.membership as m', 'm.id', 'a.membership_id')
+          .select('m.public_id')
+          .where('a.task_id', '=', t.id)
+          .execute();
+        const labels = await tx.db
+          .selectFrom('work.task_label as tl')
+          .innerJoin('work.label as l', 'l.id', 'tl.label_id')
+          .select('l.public_id')
+          .where('tl.task_id', '=', t.id)
+          .execute();
         return {
           status: this.currentFields(t.row, tx).status as string,
           status_category: t.row.status_category,
@@ -2320,9 +3516,14 @@ export class AutomationService extends AiGatewayService {
         };
       }
       const pr = await this.loadProject(tx, p, r.public_id);
-      if (pr.lifecycleState !== 'active' || !(await this.#inDeclaredProjects(tx, revision, pr.row.parent_project_id, pr.id))) return null;
+      if (
+        pr.lifecycleState !== 'active' ||
+        !(await this.#inDeclaredProjects(tx, revision, pr.row.parent_project_id, pr.id))
+      )
+        return null;
       if (needed.size) await this.#customFacts(tx, p, r.public_id, needed, custom);
-      const d = (v: unknown) => (v ? (v instanceof Date ? v.toISOString() : String(v)).slice(0, 10) : null);
+      const d = (v: unknown) =>
+        v ? (v instanceof Date ? v.toISOString() : String(v)).slice(0, 10) : null;
       return {
         status: this.statusView(pr.row.status_id, tx).key,
         status_category: pr.row.status_category,
@@ -2342,7 +3543,13 @@ export class AutomationService extends AiGatewayService {
     }
   }
 
-  async #customFacts(tx: WorkspaceTransaction, p: Principal, recordPublic: string, needed: Set<string>, out: Map<string, unknown>) {
+  async #customFacts(
+    tx: WorkspaceTransaction,
+    p: Principal,
+    recordPublic: string,
+    needed: Set<string>,
+    out: Map<string, unknown>,
+  ) {
     const r = await this.workRecord(tx, p, recordPublic);
     const o = decideRecord(p, 'field.value_read', r.facts);
     if (!o.allowed) return;
@@ -2350,7 +3557,14 @@ export class AutomationService extends AiGatewayService {
     for (const f of payload.fields) {
       if (!needed.has(f.id)) continue;
       const v = f.value as unknown;
-      out.set(f.id, v && typeof v === 'object' ? ((v as { id?: unknown; amount?: unknown }).id ?? (v as { amount?: unknown }).amount ?? null) : v);
+      out.set(
+        f.id,
+        v && typeof v === 'object'
+          ? ((v as { id?: unknown; amount?: unknown }).id ??
+              (v as { amount?: unknown }).amount ??
+              null)
+          : v,
+      );
     }
   }
 
@@ -2367,42 +3581,87 @@ export class AutomationService extends AiGatewayService {
   async consumeOperationState(tx: WorkspaceTransaction, e: InternalEvent): Promise<void> {
     const data = e.data as Record<string, unknown>;
     if (data.kind !== 'automation_run') return;
-    const run = await tx.db.selectFrom('automation.automation_run').selectAll().where('current_operation_id', '=', e.aggregate.id).forUpdate().executeTakeFirst();
+    const run = await tx.db
+      .selectFrom('automation.automation_run')
+      .selectAll()
+      .where('current_operation_id', '=', e.aggregate.id)
+      .forUpdate()
+      .executeTakeFirst();
     if (!run) return;
     const r = { ...run, version: Number(run.version) } as unknown as RunRow;
     const state = String(data.state);
     if (state === 'waiting' && data.waiting_reason === 'reconciliation_required') {
       if (!TERMINAL_RUN.has(r.status))
-        await tx.db.updateTable('automation.automation_run').set({ status: 'waiting', reason: 'reconciliation_required', wake_at: null, updated_at: new Date() }).where('id', '=', r.id).execute();
+        await tx.db
+          .updateTable('automation.automation_run')
+          .set({
+            status: 'waiting',
+            reason: 'reconciliation_required',
+            wake_at: null,
+            updated_at: new Date(),
+          })
+          .where('id', '=', r.id)
+          .execute();
       return;
     }
     if (!isTerminalState(state as never)) return;
     if (!TERMINAL_RUN.has(r.status)) {
       const status: AutomationRunStatus =
-        state === 'failed' ? (data.terminal_reason === 'policy_rejected' ? 'policy_rejected' : 'failed') : (state as AutomationRunStatus);
-      await this.#terminalize(tx, r, status, (data.terminal_reason as string | null) ?? (state === 'cancelled' ? 'user_cancelled' : null));
+        state === 'failed'
+          ? data.terminal_reason === 'policy_rejected'
+            ? 'policy_rejected'
+            : 'failed'
+          : (state as AutomationRunStatus);
+      await this.#terminalize(
+        tx,
+        r,
+        status,
+        (data.terminal_reason as string | null) ??
+          (state === 'cancelled' ? 'user_cancelled' : null),
+      );
     } else {
       // Already ended by the engine: release whatever is still held (idempotent).
       await this.#terminalize(tx, r, r.status, r.reason);
     }
     const final = (await this.#runRow(tx, r.id))!;
-    const a = await tx.db.selectFrom('automation.automation').select(['id', 'consecutive_failures', 'alerted_at', 'owner_membership_id']).where('id', '=', r.automation_id).forUpdate().executeTakeFirst();
+    const a = await tx.db
+      .selectFrom('automation.automation')
+      .select(['id', 'consecutive_failures', 'alerted_at', 'owner_membership_id'])
+      .where('id', '=', r.automation_id)
+      .forUpdate()
+      .executeTakeFirst();
     if (!a) return;
     if (final.status === 'failed' || final.status === 'policy_rejected') {
       const streak = a.consecutive_failures + 1;
-      const due = streak >= this.ws.automationAlertFailureThreshold && (!a.alerted_at || Date.now() - new Date(a.alerted_at).getTime() >= this.ws.automationAlertIntervalMinutes * 60_000);
-      await tx.db.updateTable('automation.automation').set({ consecutive_failures: streak, ...(due ? { alerted_at: new Date() } : {}) }).where('id', '=', a.id).execute();
+      const due =
+        streak >= this.ws.automationAlertFailureThreshold &&
+        (!a.alerted_at ||
+          Date.now() - new Date(a.alerted_at).getTime() >=
+            this.ws.automationAlertIntervalMinutes * 60_000);
+      await tx.db
+        .updateTable('automation.automation')
+        .set({ consecutive_failures: streak, ...(due ? { alerted_at: new Date() } : {}) })
+        .where('id', '=', a.id)
+        .execute();
       if (due)
         await writeOutboxEvent(tx, {
           type: 'automation.automation_run.failed',
           aggregate: { type: 'automation.automation_run', id: r.id, sequence: streak },
-          data: { automation_id: a.id, terminal_reason: (data.terminal_reason as string | null) ?? 'error' },
+          data: {
+            automation_id: a.id,
+            terminal_reason: (data.terminal_reason as string | null) ?? 'error',
+          },
           actor: { type: 'system' },
           context: await this.#runContext(tx, r),
         });
       this.d.metrics.count('automation.runs', 1, { outcome: final.status });
     } else if (final.status === 'succeeded' || final.status === 'partial') {
-      if (a.consecutive_failures) await tx.db.updateTable('automation.automation').set({ consecutive_failures: 0 }).where('id', '=', a.id).execute();
+      if (a.consecutive_failures)
+        await tx.db
+          .updateTable('automation.automation')
+          .set({ consecutive_failures: 0 })
+          .where('id', '=', a.id)
+          .execute();
       this.d.metrics.count('automation.runs', 1, { outcome: final.status });
     } else {
       this.d.metrics.count('automation.runs', 1, { outcome: final.status });
@@ -2432,18 +3691,43 @@ export class AutomationService extends AiGatewayService {
         .execute();
       for (const s of due) {
         const a = await this.#rows(tx, { id: s.automation_id });
-        if (!a || !a.enabled || a.lifecycle_state !== 'active' || a.active_revision_id !== s.revision_id) {
-          await tx.db.deleteFrom('automation.trigger_schedule').where('automation_id', '=', s.automation_id).execute();
+        if (
+          !a ||
+          !a.enabled ||
+          a.lifecycle_state !== 'active' ||
+          a.active_revision_id !== s.revision_id
+        ) {
+          await tx.db
+            .deleteFrom('automation.trigger_schedule')
+            .where('automation_id', '=', s.automation_id)
+            .execute();
           continue;
         }
         const revision = await this.#revision(tx, s.revision_id);
         const t = revision.definition.trigger;
         if (t.kind === 'schedule') {
           const key = utcToLocal(new Date(s.next_due_at!), t.timezone);
-          const made = await this.#admit(tx, { automationId: a.id, revision, triggerKey: `schedule:${key}`, triggerKind: 'schedule', triggerEventId: null, triggerRecordId: null, rootCausation: null, lineage: [], correlationId: newTraceId(), refuse: null, initiatedBy: null, runDay: { day: key.slice(0, 10), timezone: t.timezone } });
+          const made = await this.#admit(tx, {
+            automationId: a.id,
+            revision,
+            triggerKey: `schedule:${key}`,
+            triggerKind: 'schedule',
+            triggerEventId: null,
+            triggerRecordId: null,
+            rootCausation: null,
+            lineage: [],
+            correlationId: newTraceId(),
+            refuse: null,
+            initiatedBy: null,
+            runDay: { day: key.slice(0, 10), timezone: t.timezone },
+          });
           if (made) admitted++;
           const next = this.#nextScheduled(t, now, key);
-          await tx.db.updateTable('automation.trigger_schedule').set({ next_due_at: next?.at ?? null, last_key: key, updated_at: new Date() }).where('automation_id', '=', a.id).execute();
+          await tx.db
+            .updateTable('automation.trigger_schedule')
+            .set({ next_due_at: next?.at ?? null, last_key: key, updated_at: new Date() })
+            .where('automation_id', '=', a.id)
+            .execute();
         } else if (t.kind === 'date') {
           const key = utcToLocal(new Date(s.next_due_at!), t.timezone);
           const day = key.slice(0, 10);
@@ -2460,11 +3744,31 @@ export class AutomationService extends AiGatewayService {
             .limit(this.ws.automationSweepBatchMax)
             .execute();
           for (const task of tasks) {
-            const made = await this.#admit(tx, { automationId: a.id, revision, triggerKey: `date:${task.id}:${day}`, triggerKind: 'date', triggerEventId: null, triggerRecordId: task.id, rootCausation: null, lineage: [], correlationId: newTraceId(), refuse: null, initiatedBy: null, runDay: { day, timezone: t.timezone } });
+            const made = await this.#admit(tx, {
+              automationId: a.id,
+              revision,
+              triggerKey: `date:${task.id}:${day}`,
+              triggerKind: 'date',
+              triggerEventId: null,
+              triggerRecordId: task.id,
+              rootCausation: null,
+              lineage: [],
+              correlationId: newTraceId(),
+              refuse: null,
+              initiatedBy: null,
+              runDay: { day, timezone: t.timezone },
+            });
             if (made) admitted++;
           }
-          const next = this.#nextDateSweep(t, new Date(Math.max(now.getTime(), new Date(s.next_due_at!).getTime()) + 60_000));
-          await tx.db.updateTable('automation.trigger_schedule').set({ next_due_at: next.at, last_key: key, updated_at: new Date() }).where('automation_id', '=', a.id).execute();
+          const next = this.#nextDateSweep(
+            t,
+            new Date(Math.max(now.getTime(), new Date(s.next_due_at!).getTime()) + 60_000),
+          );
+          await tx.db
+            .updateTable('automation.trigger_schedule')
+            .set({ next_due_at: next.at, last_key: key, updated_at: new Date() })
+            .where('automation_id', '=', a.id)
+            .execute();
         }
       }
     });
@@ -2475,34 +3779,73 @@ export class AutomationService extends AiGatewayService {
   // Manual run, preview, history, retry, cancel (AUTO-012, AUTO-014, AUTO-015)
   // ---------------------------------------------------------------------------------------------
 
-  async #triggerRecord(tx: WorkspaceTransaction, p: Principal, revisionKind: RecordKind | null, ref: unknown) {
+  async #triggerRecord(
+    tx: WorkspaceTransaction,
+    p: Principal,
+    revisionKind: RecordKind | null,
+    ref: unknown,
+  ) {
     if (revisionKind === null) {
-      if (ref !== undefined && ref !== null) throw invalid(issue('/record', 'not_applicable', 'This automation has no trigger record.'));
+      if (ref !== undefined && ref !== null)
+        throw invalid(issue('/record', 'not_applicable', 'This automation has no trigger record.'));
       return null;
     }
     if (revisionKind === 'task' ? !isPublic(ref, 'tsk') : !isPublic(ref, 'prj'))
       throw invalid(issue('/record', 'required', `Choose a ${revisionKind} to run it on.`));
     // The person must read the record; they lend no authority to the run.
-    return revisionKind === 'task' ? (await this.loadTask(tx, p, ref)).id : (await this.loadProject(tx, p, ref)).id;
+    return revisionKind === 'task'
+      ? (await this.loadTask(tx, p, ref)).id
+      : (await this.loadProject(tx, p, ref)).id;
   }
 
   /** A manual run of the active revision on a chosen record, as the automation (never the caller). */
   async runAutomationNow(caller: Caller, ws: unknown, aut: unknown, body: unknown, req: Mutation) {
     const b = (body && typeof body === 'object' ? body : {}) as Record<string, unknown>;
-    return this.mutate(caller, 'automation.run_manual', ws, req, async (tx, p) => {
-      const a = await this.#visible(tx, p, aut, { need: 'run' });
-      if (p.kind !== 'member') throw new TenancyError('forbidden');
-      if (!a.enabled || !a.active_revision_id) throw new TenancyError('conflict', { issues: [issue('/', 'automation_disabled', 'Activate this automation to run it.')] });
-      const revision = await this.#revision(tx, a.active_revision_id);
-      const recordId = await this.#triggerRecord(tx, p, revision.record_kind, b.record);
-      const made = await this.#admit(tx, {
-        automationId: a.id, revision, triggerKey: `manual:${randomUUID()}`, triggerKind: 'manual', triggerEventId: null, triggerRecordId: recordId,
-        rootCausation: null, lineage: [], correlationId: caller.meta.correlationId, refuse: null, initiatedBy: p.membershipId,
-      });
-      if (!made) throw new TenancyError('conflict');
-      await this.workAudit(tx, caller, p, 'automation.run_requested', { recordId: a.id, type: 'automation', publicId: a.public_id }, [change.plain('run', null, made.operationPublicId)], a.brand_id);
-      return { status: 202, ref: { id: made.operationPublicId, type: 'automation_run' }, data: await this.#runView(tx, p, made.operationPublicId) };
-    }, async (tx, p, ref) => this.#runView(tx, p, ref.id));
+    return this.mutate(
+      caller,
+      'automation.run_manual',
+      ws,
+      req,
+      async (tx, p) => {
+        const a = await this.#visible(tx, p, aut, { need: 'run' });
+        if (p.kind !== 'member') throw new TenancyError('forbidden');
+        if (!a.enabled || !a.active_revision_id)
+          throw new TenancyError('conflict', {
+            issues: [issue('/', 'automation_disabled', 'Activate this automation to run it.')],
+          });
+        const revision = await this.#revision(tx, a.active_revision_id);
+        const recordId = await this.#triggerRecord(tx, p, revision.record_kind, b.record);
+        const made = await this.#admit(tx, {
+          automationId: a.id,
+          revision,
+          triggerKey: `manual:${randomUUID()}`,
+          triggerKind: 'manual',
+          triggerEventId: null,
+          triggerRecordId: recordId,
+          rootCausation: null,
+          lineage: [],
+          correlationId: caller.meta.correlationId,
+          refuse: null,
+          initiatedBy: p.membershipId,
+        });
+        if (!made) throw new TenancyError('conflict');
+        await this.workAudit(
+          tx,
+          caller,
+          p,
+          'automation.run_requested',
+          { recordId: a.id, type: 'automation', publicId: a.public_id },
+          [change.plain('run', null, made.operationPublicId)],
+          a.brand_id,
+        );
+        return {
+          status: 202,
+          ref: { id: made.operationPublicId, type: 'automation_run' },
+          data: await this.#runView(tx, p, made.operationPublicId),
+        };
+      },
+      async (tx, p, ref) => this.#runView(tx, p, ref.id),
+    );
   }
 
   /**
@@ -2520,38 +3863,131 @@ export class AutomationService extends AiGatewayService {
       try {
         c = compileDefinition(a.draft.definition, this.automationLimits);
       } catch (err) {
-        if (err instanceof DefinitionError) return { valid: false, issues: err.issues, unavailable: [], conditions: null, steps: [], bounds: this.#bounds() };
+        if (err instanceof DefinitionError)
+          return {
+            valid: false,
+            issues: err.issues,
+            unavailable: [],
+            conditions: null,
+            steps: [],
+            bounds: this.#bounds(),
+          };
         throw err;
       }
       const resolved = await this.#resolveDraft(tx, p, a, c, 'preview');
       const owner = await this.#ownerPrincipal(tx, a.owner_membership_id);
-      const ownerBrands = new Set((owner ? resolved.brands.filter((x) => decideBrand(owner, 'automations.configure', x).allowed) : []).map((x) => x.id));
+      const ownerBrands = new Set(
+        (owner
+          ? resolved.brands.filter((x) => decideBrand(owner, 'automations.configure', x).allowed)
+          : []
+        ).map((x) => x.id),
+      );
       const allowed = resolved.brands.filter((x) => ownerBrands.has(x.id));
-      const pv: Principal = { ...p, brandAllowlist: new Set(allowed.map((x) => x.id)), grants: new Map([...p.grants].filter(([id]) => ownerBrands.has(id))) };
-      const revision: RevisionRow = {
-        id: NIL, automation_id: a.id, revision_number: 0, definition: c.definition, definition_hash: '', trigger_kind: c.definition.trigger.kind,
-        record_kind: c.recordKind, declared_brand_ids: allowed.map((x) => x.id), declared_project_ids: resolved.declaredProjects, action_keys: c.actions, action_classes: c.classes, created_at: new Date(),
+      const pv: Principal = {
+        ...p,
+        brandAllowlist: new Set(allowed.map((x) => x.id)),
+        grants: new Map([...p.grants].filter(([id]) => ownerBrands.has(id))),
       };
-      const recordId = c.recordKind ? await this.#triggerRecord(tx, pv, c.recordKind, b.record).catch((err) => { if (err instanceof TenancyError && err.code === 'not_found') throw invalid(issue('/record', 'invalid_reference', 'Choose a record this automation can act on.')); throw err; }) : null;
+      const revision: RevisionRow = {
+        id: NIL,
+        automation_id: a.id,
+        revision_number: 0,
+        definition: c.definition,
+        definition_hash: '',
+        trigger_kind: c.definition.trigger.kind,
+        record_kind: c.recordKind,
+        declared_brand_ids: allowed.map((x) => x.id),
+        declared_project_ids: resolved.declaredProjects,
+        action_keys: c.actions,
+        action_classes: c.classes,
+        created_at: new Date(),
+      };
+      const recordId = c.recordKind
+        ? await this.#triggerRecord(tx, pv, c.recordKind, b.record).catch((err) => {
+            if (err instanceof TenancyError && err.code === 'not_found')
+              throw invalid(
+                issue(
+                  '/record',
+                  'invalid_reference',
+                  'Choose a record this automation can act on.',
+                ),
+              );
+            throw err;
+          })
+        : null;
       const zone = await this.#workspaceZone(tx);
       const fakeRun: RunRow = {
-        id: NIL, automation_id: a.id, revision_id: NIL, operation_id: NIL, current_operation_id: NIL, owner_membership_id: a.owner_membership_id, trigger_kind: c.definition.trigger.kind,
-        trigger_key: 'preview:0', trigger_event_id: null, trigger_record_id: recordId, root_causation_id: null, lineage: [], chain_depth: 0,
-        scope_snapshot: { brands: revision.declared_brand_ids, projects: revision.declared_project_ids, epochs: p.epochs }, run_day: utcToLocal(new Date(), zone).slice(0, 10), timezone: zone,
-        status: 'running', reason: null, cursor: null, wake_at: null, steps_executed: 0, retry_count: 0, usage_state: 'none', slot_held: false, initiated_by_membership_id: p.membershipId, created_at: new Date(), started_at: null, ended_at: null, version: 0,
+        id: NIL,
+        automation_id: a.id,
+        revision_id: NIL,
+        operation_id: NIL,
+        current_operation_id: NIL,
+        owner_membership_id: a.owner_membership_id,
+        trigger_kind: c.definition.trigger.kind,
+        trigger_key: 'preview:0',
+        trigger_event_id: null,
+        trigger_record_id: recordId,
+        root_causation_id: null,
+        lineage: [],
+        chain_depth: 0,
+        scope_snapshot: {
+          brands: revision.declared_brand_ids,
+          projects: revision.declared_project_ids,
+          epochs: p.epochs,
+        },
+        run_day: utcToLocal(new Date(), zone).slice(0, 10),
+        timezone: zone,
+        status: 'running',
+        reason: null,
+        cursor: null,
+        wake_at: null,
+        steps_executed: 0,
+        retry_count: 0,
+        usage_state: 'none',
+        slot_held: false,
+        initiated_by_membership_id: p.membershipId,
+        created_at: new Date(),
+        started_at: null,
+        ended_at: null,
+        version: 0,
       };
       const steps: Array<Record<string, unknown>> = [];
       let conditions: Record<string, unknown> | null = null;
-      const facts = recordId ? await this.#facts(tx, pv, revision, recordId, c.definition.conditions) : null;
-      if (recordId && !facts) return { valid: true, issues: resolved.issues, unavailable: c.unavailable, conditions: { result: null, refused: 'out_of_scope' }, steps, bounds: this.#bounds() };
+      const facts = recordId
+        ? await this.#facts(tx, pv, revision, recordId, c.definition.conditions)
+        : null;
+      if (recordId && !facts)
+        return {
+          valid: true,
+          issues: resolved.issues,
+          unavailable: c.unavailable,
+          conditions: { result: null, refused: 'out_of_scope' },
+          steps,
+          bounds: this.#bounds(),
+        };
       if (c.definition.conditions) {
         try {
           const o = evaluate(c.definition.conditions, facts!, fakeRun.run_day);
           conditions = { result: o.result, comparisons: o.decisions };
-          if (!o.result) return { valid: true, issues: resolved.issues, unavailable: c.unavailable, conditions, steps, bounds: this.#bounds() };
+          if (!o.result)
+            return {
+              valid: true,
+              issues: resolved.issues,
+              unavailable: c.unavailable,
+              conditions,
+              steps,
+              bounds: this.#bounds(),
+            };
         } catch (err) {
           if (!(err instanceof InputUnavailable)) throw err;
-          return { valid: true, issues: resolved.issues, unavailable: c.unavailable, conditions: { result: null, refused: 'input_unavailable' }, steps, bounds: this.#bounds() };
+          return {
+            valid: true,
+            issues: resolved.issues,
+            unavailable: c.unavailable,
+            conditions: { result: null, refused: 'input_unavailable' },
+            steps,
+            bounds: this.#bounds(),
+          };
         }
       }
       const caller2: AutomationCaller = { ...caller };
@@ -2564,29 +4000,59 @@ export class AutomationService extends AiGatewayService {
           if (node.type === 'branch') {
             try {
               const o = evaluate(node.when, facts!, fakeRun.run_day);
-              steps.push({ node: node.id, kind: 'branch', outcome: o.result ? 'then' : 'else', next: (o.result ? node.then : node.else) ?? null });
+              steps.push({
+                node: node.id,
+                kind: 'branch',
+                outcome: o.result ? 'then' : 'else',
+                next: (o.result ? node.then : node.else) ?? null,
+              });
               cursor = o.result ? node.then : node.else;
             } catch (err) {
               if (!(err instanceof InputUnavailable)) throw err;
-              steps.push({ node: node.id, kind: 'branch', outcome: 'would_refuse', code: 'input_unavailable' });
+              steps.push({
+                node: node.id,
+                kind: 'branch',
+                outcome: 'would_refuse',
+                code: 'input_unavailable',
+              });
               break;
             }
             continue;
           }
           if (node.type === 'delay') {
-            steps.push({ node: node.id, kind: 'delay', outcome: 'would_wait', minutes: node.minutes });
+            steps.push({
+              node: node.id,
+              kind: 'delay',
+              outcome: 'would_wait',
+              minutes: node.minutes,
+            });
             cursor = node.next;
             continue;
           }
-          const entry: Record<string, unknown> = { node: node.id, kind: 'action', action: node.action, class: actionClass(node.action) };
-          if (node.action === 'webhook.send' || node.action === 'ai.draft' || node.action === 'agent.invoke' || node.action === 'task.notify' || node.action === 'project.notify') {
+          const entry: Record<string, unknown> = {
+            node: node.id,
+            kind: 'action',
+            action: node.action,
+            class: actionClass(node.action),
+          };
+          if (
+            node.action === 'webhook.send' ||
+            node.action === 'ai.draft' ||
+            node.action === 'agent.invoke' ||
+            node.action === 'task.notify' ||
+            node.action === 'project.notify'
+          ) {
             // Reported, never performed: no notification, request, reservation, or delivery.
             try {
-              const targets = node.target ? await this.#targets(tx, pv, fakeRun, revision, node) : [];
+              const targets = node.target
+                ? await this.#targets(tx, pv, fakeRun, revision, node)
+                : [];
               entry.outcome = node.action === 'agent.invoke' ? 'unavailable' : 'would_run';
               entry.targets = targets.map((t) => ({ id: t.publicId, type: t.kind }));
-              if (node.action === 'webhook.send') entry.discloses = { webhook: node.params.subscription, fields: node.params.fields };
-              if (node.action === 'ai.draft') entry.note = 'Creates a draft for review; nothing is applied without a person.';
+              if (node.action === 'webhook.send')
+                entry.discloses = { webhook: node.params.subscription, fields: node.params.fields };
+              if (node.action === 'ai.draft')
+                entry.note = 'Creates a draft for review; nothing is applied without a person.';
             } catch (err) {
               const f = this.#classify(err);
               if (!f) throw err;
@@ -2601,7 +4067,20 @@ export class AutomationService extends AiGatewayService {
           await sql`SAVEPOINT automation_preview_step`.execute(tx.db);
           try {
             const targets = await this.#targets(tx, pv, fakeRun, revision, node);
-            const out = await this.#perform(tx, caller2, pv, fakeRun, revision, node, targets, this.#logicalKey(fakeRun, node, targets.map((t) => t.id)));
+            const out = await this.#perform(
+              tx,
+              caller2,
+              pv,
+              fakeRun,
+              revision,
+              node,
+              targets,
+              this.#logicalKey(
+                fakeRun,
+                node,
+                targets.map((t) => t.id),
+              ),
+            );
             entry.outcome = 'would_run';
             entry.targets = targets.map((t) => ({ id: t.publicId, type: t.kind }));
             entry.result = out;
@@ -2614,7 +4093,12 @@ export class AutomationService extends AiGatewayService {
             entry.outcome = 'would_refuse';
             entry.code = f.code;
             entry.failure_class = f.cls;
-            if (node.fallback && f.cls !== 'error' && f.cls !== 'limit_exceeded' && node.fallback.on.includes(f.cls)) {
+            if (
+              node.fallback &&
+              f.cls !== 'error' &&
+              f.cls !== 'limit_exceeded' &&
+              node.fallback.on.includes(f.cls)
+            ) {
               entry.fallback = node.fallback.next;
               cursor = node.fallback.next;
             } else cursor = null;
@@ -2625,7 +4109,14 @@ export class AutomationService extends AiGatewayService {
         await sql`ROLLBACK TO SAVEPOINT automation_preview`.execute(tx.db);
         await sql`RELEASE SAVEPOINT automation_preview`.execute(tx.db);
       }
-      return { valid: true, issues: resolved.issues, unavailable: c.unavailable, conditions, steps, bounds: this.#bounds() };
+      return {
+        valid: true,
+        issues: resolved.issues,
+        unavailable: c.unavailable,
+        conditions,
+        steps,
+        bounds: this.#bounds(),
+      };
     });
   }
 
@@ -2640,7 +4131,12 @@ export class AutomationService extends AiGatewayService {
   }
 
   /** Runs of one automation, newest first (configurers and health viewers of its scope). */
-  async listAutomationRuns(caller: Caller, ws: unknown, aut: unknown, query: Record<string, unknown> = {}) {
+  async listAutomationRuns(
+    caller: Caller,
+    ws: unknown,
+    aut: unknown,
+    query: Record<string, unknown> = {},
+  ) {
     return this.inWorkspace(caller, ws, { readOnly: true }, async (tx, p) => {
       const a = await this.#visible(tx, p, aut);
       const limit = Math.min(Number(query.limit ?? 25) || 25, RUNS_PAGE_MAX);
@@ -2652,22 +4148,53 @@ export class AutomationService extends AiGatewayService {
         .orderBy('r.created_at', 'desc')
         .orderBy('r.id', 'desc')
         .limit(limit);
-      if (typeof query.before === 'string' && /^\d{4}-/.test(query.before)) q = q.where('r.created_at', '<', new Date(query.before));
+      if (typeof query.before === 'string' && /^\d{4}-/.test(query.before))
+        q = q.where('r.created_at', '<', new Date(query.before));
       const rows = await q.execute();
       const data = [];
       for (const r of rows) data.push(await this.#runView(tx, p, r.public_id, false));
-      return { data, page: { next_cursor: rows.length === limit ? (data[data.length - 1] as { created_at: string }).created_at : null } };
+      return {
+        data,
+        page: {
+          next_cursor:
+            rows.length === limit
+              ? (data[data.length - 1] as { created_at: string }).created_at
+              : null,
+        },
+      };
     });
   }
 
   async getAutomationRun(caller: Caller, ws: unknown, op: unknown) {
-    return this.inWorkspace(caller, ws, { readOnly: true }, async (tx, p) => this.#runView(tx, p, op));
+    return this.inWorkspace(caller, ws, { readOnly: true }, async (tx, p) =>
+      this.#runView(tx, p, op),
+    );
   }
 
   /**
    * One run as a viewer may see it now: history is re-rendered through the viewer's current
    * access (records they cannot read are omitted, never named), with bounded codes.
    */
+  /**
+   * A run addressed by its first operation or its current one: a link taken before a retry (a
+   * notification, the history) keeps opening the same run, which shows its current attempt.
+   */
+  async #runByOp(tx: WorkspaceTransaction, op: string) {
+    return tx.db
+      .selectFrom('automation.automation_run as r')
+      .innerJoin('exec.operation as k', (j) =>
+        j.on((eb) =>
+          eb.or([
+            eb('k.id', '=', eb.ref('r.current_operation_id')),
+            eb('k.id', '=', eb.ref('r.operation_id')),
+          ]),
+        ),
+      )
+      .select(['r.id', 'r.automation_id'])
+      .where('k.public_id', '=', op)
+      .executeTakeFirst();
+  }
+
   async #runView(tx: WorkspaceTransaction, p: Principal, opPublic: unknown, steps = true) {
     if (!isPublic(opPublic, 'op')) throw new TenancyError('not_found');
     const row = await tx.db
@@ -2675,8 +4202,14 @@ export class AutomationService extends AiGatewayService {
       .innerJoin('exec.operation as o', 'o.id', 'r.current_operation_id')
       .innerJoin('automation.automation_revision as v', 'v.id', 'r.revision_id')
       .selectAll('r')
-      .select(['o.public_id as op_public_id', 'o.execution_state', 'o.waiting_reason', 'o.terminal_reason', 'v.revision_number'])
-      .where('o.public_id', '=', opPublic)
+      .select([
+        'o.public_id as op_public_id',
+        'o.execution_state',
+        'o.waiting_reason',
+        'o.terminal_reason',
+        'v.revision_number',
+      ])
+      .where('r.id', '=', (await this.#runByOp(tx, opPublic))?.id ?? null)
       .executeTakeFirst();
     if (!row) throw new TenancyError('not_found');
     const a = (await this.#rows(tx, { id: row.automation_id }))!;
@@ -2694,17 +4227,30 @@ export class AutomationService extends AiGatewayService {
     };
     let trigger: { id: string; type: string } | null = null;
     if (row.trigger_record_id) {
-      const t = await tx.db.selectFrom('core.record').select(['public_id', 'record_type']).where('id', '=', row.trigger_record_id).executeTakeFirst();
-      if (t && (await readable(t.public_id, t.record_type))) trigger = { id: t.public_id, type: t.record_type };
+      const t = await tx.db
+        .selectFrom('core.record')
+        .select(['public_id', 'record_type'])
+        .where('id', '=', row.trigger_record_id)
+        .executeTakeFirst();
+      if (t && (await readable(t.public_id, t.record_type)))
+        trigger = { id: t.public_id, type: t.record_type };
     }
     const filterRefs = async (list: unknown) => {
       if (!Array.isArray(list)) return [];
       const out = [];
-      for (const x of list as Array<{ id?: string; type?: string }>) if (x.id && x.type && (await readable(x.id, x.type))) out.push({ id: x.id, type: x.type });
+      for (const x of list as Array<{ id?: string; type?: string }>)
+        if (x.id && x.type && (await readable(x.id, x.type))) out.push({ id: x.id, type: x.type });
       return out;
     };
     const stepRows = steps
-      ? await tx.db.selectFrom('automation.automation_step_run').selectAll().where('run_id', '=', row.id).orderBy('started_at').orderBy('id').limit(500).execute()
+      ? await tx.db
+          .selectFrom('automation.automation_step_run')
+          .selectAll()
+          .where('run_id', '=', row.id)
+          .orderBy('started_at')
+          .orderBy('id')
+          .limit(500)
+          .execute()
       : [];
     const stepViews = [];
     for (const s of stepRows) {
@@ -2721,7 +4267,9 @@ export class AutomationService extends AiGatewayService {
         targets: await filterRefs(s.targets),
         started_at: new Date(s.started_at).toISOString(),
         ended_at: s.ended_at ? new Date(s.ended_at).toISOString() : null,
-        duration_ms: s.ended_at ? new Date(s.ended_at).getTime() - new Date(s.started_at).getTime() : null,
+        duration_ms: s.ended_at
+          ? new Date(s.ended_at).getTime() - new Date(s.started_at).getTime()
+          : null,
       };
       if (out.created) view.created = await filterRefs(out.created);
       if (out.changed) view.changed = await filterRefs(out.changed);
@@ -2768,14 +4316,20 @@ export class AutomationService extends AiGatewayService {
       created_at: new Date(row.created_at).toISOString(),
       started_at: row.started_at ? new Date(row.started_at).toISOString() : null,
       ended_at: row.ended_at ? new Date(row.ended_at).toISOString() : null,
-      duration_ms: row.ended_at && row.started_at ? new Date(row.ended_at).getTime() - new Date(row.started_at).getTime() : null,
+      duration_ms:
+        row.ended_at && row.started_at
+          ? new Date(row.ended_at).getTime() - new Date(row.started_at).getTime()
+          : null,
       explanation: this.#explain(status, row.reason),
       reconciliation_required: uncertain,
       effects,
       steps: stepViews,
       capabilities: {
         reconcile: uncertain && decideWorkspace(p, 'operation.reconcile_effect').allowed,
-        retry: configure && (row.status === 'failed' || row.status === 'policy_rejected') && row.retry_count < this.ws.automationRetriesMax,
+        retry:
+          configure &&
+          (row.status === 'failed' || row.status === 'policy_rejected') &&
+          row.retry_count < this.ws.automationRetriesMax,
         cancel: configure && OPEN.includes(row.status as AutomationRunStatus) && !uncertain,
       },
     };
@@ -2789,11 +4343,13 @@ export class AutomationService extends AiGatewayService {
       concurrency_limit: 'Too many runs of this automation were already in progress.',
       monthly_limit: 'This workspace reached its automation run limit for the month.',
       owner_departed: 'The owner left, so the automation was suspended.',
-      owner_authority: 'The owner no longer has access to this automation’s scope, so it was suspended.',
+      owner_authority:
+        'The owner no longer has access to this automation’s scope, so it was suspended.',
       not_permitted: 'A step was not permitted with the automation’s current access.',
       input_unavailable: 'A value the conditions need is not available to this automation.',
       approval_invalid: 'The webhook approval no longer matches its destination or fields.',
-      reconciliation_required: 'A webhook may have been sent; an owner or administrator must confirm what happened before it continues.',
+      reconciliation_required:
+        'A webhook may have been sent; an owner or administrator must confirm what happened before it continues.',
       delay: 'Waiting for a delay to end.',
       fallback_taken: 'A step failed and its fallback ran. Some work may not have happened.',
       automation_disabled: 'Stopped because the automation was disabled.',
@@ -2828,55 +4384,184 @@ export class AutomationService extends AiGatewayService {
    * step reauthorizes. Refused while any effect of the run is uncertain (reconcile first).
    */
   async retryAutomationRun(caller: Caller, ws: unknown, op: unknown, req: Mutation) {
-    return this.mutate(caller, 'automation.run_retry', ws, req, async (tx, p) => {
-      if (!isPublic(op, 'op')) throw new TenancyError('not_found');
-      const found = await tx.db.selectFrom('automation.automation_run as r').innerJoin('exec.operation as o', 'o.id', 'r.current_operation_id').select(['r.id', 'r.automation_id']).where('o.public_id', '=', op).executeTakeFirst();
-      if (!found) throw new TenancyError('not_found');
-      const a = (await this.#rows(tx, { id: found.automation_id }, true))!;
-      await this.#visible(tx, p, a.public_id, { need: 'configure' });
-      if (p.kind !== 'member') throw new TenancyError('forbidden');
-      const run = (await this.#runRow(tx, found.id, true))!;
-      if (run.status !== 'failed' && run.status !== 'policy_rejected') throw new TenancyError('conflict', { issues: [issue('/', 'not_retryable', 'Only failed runs can be retried.')] });
-      if (run.retry_count >= this.ws.automationRetriesMax) throw new TenancyError('conflict', { issues: [issue('/', 'retry_limit', 'This run was retried too many times.')] });
-      if (!a.enabled) throw new TenancyError('conflict', { issues: [issue('/', 'automation_disabled', 'Activate this automation to retry its runs.')] });
-      const opRow = await tx.db.selectFrom('exec.operation').selectAll().where('id', '=', run.current_operation_id).executeTakeFirstOrThrow();
-      if (!isTerminalState(opRow.execution_state)) throw new TenancyError('conflict', { issues: [issue('/', 'not_retryable', 'This run is still in progress.')] });
-      if ((await uncertainEffects(tx, run.current_operation_id)).length) throw new TenancyError('conflict', { issues: [issue('/', 'reconciliation_required', 'Confirm what happened to its webhook first.')] });
-      const slot = await tx.db.updateTable('automation.automation').set({ active_runs: sql`active_runs + 1` }).where('id', '=', a.id).where('active_runs', '<', this.ws.automationActiveRunsMax).returning('id').executeTakeFirst();
-      if (!slot) throw new TenancyError('conflict', { issues: [issue('/', 'concurrency_limit', 'Too many runs of this automation are in progress.')] });
-      const context = contextFromRow(opRow as never);
-      const next = await createOperation(tx, { kind: 'automation_run', context, initiatedBy: { type: 'human', id: p.membershipId }, rerunOfOperationId: run.current_operation_id });
-      // The failed step's cursor stays; a run refused at admission starts its admission again.
-      await tx.db.updateTable('automation.automation_run').set({ current_operation_id: next.id, status: 'queued', reason: null, ended_at: null, slot_held: true, retry_count: run.retry_count + 1, updated_at: new Date(), version: sql`version + 1` }).where('id', '=', run.id).execute();
-      await enqueueJob(tx, { queue: AUTOMATION_QUEUE, kind: AUTOMATION_RUN_JOB, context, operationId: next.id, payloadRef: run.id, maxAttempts: RUN_JOB_ATTEMPTS, timeoutSeconds: RUN_JOB_TIMEOUT_SECONDS });
-      await writeOutboxEvent(tx, { type: 'execution.operation.state_changed', aggregate: { type: 'execution.operation', id: next.id, sequence: 0 }, data: { kind: 'automation_run', state: 'queued', terminal_reason: null, waiting_reason: null }, actor: { type: 'human', id: p.membershipId }, context: { ...context, workspaceId: tx.workspaceId }, operationId: next.id });
-      await this.workAudit(tx, caller, p, 'automation.run_retried', { recordId: a.id, type: 'automation', publicId: a.public_id }, [change.plain('run', opRow.public_id, next.publicId)], a.brand_id);
-      return { status: 202, ref: { id: next.publicId, type: 'automation_run' }, data: await this.#runView(tx, p, next.publicId) };
-    }, async (tx, p, ref) => this.#runView(tx, p, ref.id));
+    return this.mutate(
+      caller,
+      'automation.run_retry',
+      ws,
+      req,
+      async (tx, p) => {
+        if (!isPublic(op, 'op')) throw new TenancyError('not_found');
+        const found = await this.#runByOp(tx, op);
+        if (!found) throw new TenancyError('not_found');
+        const a = (await this.#rows(tx, { id: found.automation_id }, true))!;
+        await this.#visible(tx, p, a.public_id, { need: 'configure' });
+        if (p.kind !== 'member') throw new TenancyError('forbidden');
+        const run = (await this.#runRow(tx, found.id, true))!;
+        if (run.status !== 'failed' && run.status !== 'policy_rejected')
+          throw new TenancyError('conflict', {
+            issues: [issue('/', 'not_retryable', 'Only failed runs can be retried.')],
+          });
+        if (run.retry_count >= this.ws.automationRetriesMax)
+          throw new TenancyError('conflict', {
+            issues: [issue('/', 'retry_limit', 'This run was retried too many times.')],
+          });
+        if (!a.enabled)
+          throw new TenancyError('conflict', {
+            issues: [
+              issue('/', 'automation_disabled', 'Activate this automation to retry its runs.'),
+            ],
+          });
+        const opRow = await tx.db
+          .selectFrom('exec.operation')
+          .selectAll()
+          .where('id', '=', run.current_operation_id)
+          .executeTakeFirstOrThrow();
+        if (!isTerminalState(opRow.execution_state))
+          throw new TenancyError('conflict', {
+            issues: [issue('/', 'not_retryable', 'This run is still in progress.')],
+          });
+        if ((await uncertainEffects(tx, run.current_operation_id)).length)
+          throw new TenancyError('conflict', {
+            issues: [
+              issue('/', 'reconciliation_required', 'Confirm what happened to its webhook first.'),
+            ],
+          });
+        const slot = await tx.db
+          .updateTable('automation.automation')
+          .set({ active_runs: sql`active_runs + 1` })
+          .where('id', '=', a.id)
+          .where('active_runs', '<', this.ws.automationActiveRunsMax)
+          .returning('id')
+          .executeTakeFirst();
+        if (!slot)
+          throw new TenancyError('conflict', {
+            issues: [
+              issue('/', 'concurrency_limit', 'Too many runs of this automation are in progress.'),
+            ],
+          });
+        const context = contextFromRow(opRow as never);
+        const next = await createOperation(tx, {
+          kind: 'automation_run',
+          context,
+          initiatedBy: { type: 'human', id: p.membershipId },
+          rerunOfOperationId: run.current_operation_id,
+        });
+        // The failed step's cursor stays; a run refused at admission starts its admission again.
+        await tx.db
+          .updateTable('automation.automation_run')
+          .set({
+            current_operation_id: next.id,
+            status: 'queued',
+            reason: null,
+            ended_at: null,
+            slot_held: true,
+            retry_count: run.retry_count + 1,
+            updated_at: new Date(),
+            version: sql`version + 1`,
+          })
+          .where('id', '=', run.id)
+          .execute();
+        await enqueueJob(tx, {
+          queue: AUTOMATION_QUEUE,
+          kind: AUTOMATION_RUN_JOB,
+          context,
+          operationId: next.id,
+          payloadRef: run.id,
+          maxAttempts: RUN_JOB_ATTEMPTS,
+          timeoutSeconds: RUN_JOB_TIMEOUT_SECONDS,
+        });
+        await writeOutboxEvent(tx, {
+          type: 'execution.operation.state_changed',
+          aggregate: { type: 'execution.operation', id: next.id, sequence: 0 },
+          data: {
+            kind: 'automation_run',
+            state: 'queued',
+            terminal_reason: null,
+            waiting_reason: null,
+          },
+          actor: { type: 'human', id: p.membershipId },
+          context: { ...context, workspaceId: tx.workspaceId },
+          operationId: next.id,
+        });
+        await this.workAudit(
+          tx,
+          caller,
+          p,
+          'automation.run_retried',
+          { recordId: a.id, type: 'automation', publicId: a.public_id },
+          [change.plain('run', opRow.public_id, next.publicId)],
+          a.brand_id,
+        );
+        return {
+          status: 202,
+          ref: { id: next.publicId, type: 'automation_run' },
+          data: await this.#runView(tx, p, next.publicId),
+        };
+      },
+      async (tx, p, ref) => this.#runView(tx, p, ref.id),
+    );
   }
 
   /** Cancels an open run: undispatched steps stop; what may have left keeps its liability. */
   async cancelAutomationRun(caller: Caller, ws: unknown, op: unknown, req: Mutation) {
-    return this.mutate(caller, 'automation.run_cancel', ws, req, async (tx, p) => {
-      if (!isPublic(op, 'op')) throw new TenancyError('not_found');
-      const found = await tx.db.selectFrom('automation.automation_run as r').innerJoin('exec.operation as o', 'o.id', 'r.current_operation_id').select(['r.id', 'r.automation_id']).where('o.public_id', '=', op).executeTakeFirst();
-      if (!found) throw new TenancyError('not_found');
-      const a = (await this.#rows(tx, { id: found.automation_id }))!;
-      await this.#visible(tx, p, a.public_id, { need: 'configure' });
-      const run = (await this.#runRow(tx, found.id, true))!;
-      if (!OPEN.includes(run.status) || run.reason === 'reconciliation_required') throw new TenancyError('conflict', { issues: [issue('/', 'not_cancellable', 'This run cannot be cancelled now.')] });
-      const opRow = await tx.db.selectFrom('exec.operation').select(['execution_state']).where('id', '=', run.current_operation_id).forUpdate().executeTakeFirstOrThrow();
-      if (opRow.execution_state === 'waiting' || opRow.execution_state === 'queued') {
-        const jobs = await tx.db.selectFrom('exec.job').select('id').where('operation_id', '=', run.current_operation_id).where('state', 'in', ['queued', 'retry_scheduled']).execute();
-        for (const j of jobs) await requestJobCancel(tx, j.id);
-        await this.#terminalize(tx, run, 'cancelled', 'user_cancelled');
-        await transitionOperation(tx, { operationId: run.current_operation_id, to: 'cancelled', terminalReason: 'user_cancelled', actor: { type: 'human', id: p.membershipId }, context: await this.#runContext(tx, run) });
-      } else {
-        await requestOperationCancel(tx, run.current_operation_id);
-      }
-      await this.workAudit(tx, caller, p, 'automation.run_cancelled', { recordId: a.id, type: 'automation', publicId: a.public_id }, [change.plain('run', null, op)], a.brand_id);
-      return { status: 202, ref: { id: op as string, type: 'automation_run' }, data: await this.#runView(tx, p, op) };
-    }, async (tx, p, ref) => this.#runView(tx, p, ref.id));
+    return this.mutate(
+      caller,
+      'automation.run_cancel',
+      ws,
+      req,
+      async (tx, p) => {
+        if (!isPublic(op, 'op')) throw new TenancyError('not_found');
+        const found = await this.#runByOp(tx, op);
+        if (!found) throw new TenancyError('not_found');
+        const a = (await this.#rows(tx, { id: found.automation_id }))!;
+        await this.#visible(tx, p, a.public_id, { need: 'configure' });
+        const run = (await this.#runRow(tx, found.id, true))!;
+        if (!OPEN.includes(run.status) || run.reason === 'reconciliation_required')
+          throw new TenancyError('conflict', {
+            issues: [issue('/', 'not_cancellable', 'This run cannot be cancelled now.')],
+          });
+        const opRow = await tx.db
+          .selectFrom('exec.operation')
+          .select(['execution_state'])
+          .where('id', '=', run.current_operation_id)
+          .forUpdate()
+          .executeTakeFirstOrThrow();
+        if (opRow.execution_state === 'waiting' || opRow.execution_state === 'queued') {
+          const jobs = await tx.db
+            .selectFrom('exec.job')
+            .select('id')
+            .where('operation_id', '=', run.current_operation_id)
+            .where('state', 'in', ['queued', 'retry_scheduled'])
+            .execute();
+          for (const j of jobs) await requestJobCancel(tx, j.id);
+          await this.#terminalize(tx, run, 'cancelled', 'user_cancelled');
+          await transitionOperation(tx, {
+            operationId: run.current_operation_id,
+            to: 'cancelled',
+            terminalReason: 'user_cancelled',
+            actor: { type: 'human', id: p.membershipId },
+            context: await this.#runContext(tx, run),
+          });
+        } else {
+          await requestOperationCancel(tx, run.current_operation_id);
+        }
+        await this.workAudit(
+          tx,
+          caller,
+          p,
+          'automation.run_cancelled',
+          { recordId: a.id, type: 'automation', publicId: a.public_id },
+          [change.plain('run', null, op)],
+          a.brand_id,
+        );
+        return {
+          status: 202,
+          ref: { id: op as string, type: 'automation_run' },
+          data: await this.#runView(tx, p, op),
+        };
+      },
+      async (tx, p, ref) => this.#runView(tx, p, ref.id),
+    );
   }
 
   // ---------------------------------------------------------------------------------------------
@@ -2888,13 +4573,22 @@ export class AutomationService extends AiGatewayService {
       if (p.kind !== 'member') throw new TenancyError('not_found');
       const scopes = await this.#configurableScopes(tx, p);
       const health = decideWorkspace(p, 'health.view').allowed;
-      if (!scopes.workspace && !scopes.brands.length && !health) throw new TenancyError('forbidden');
+      if (!scopes.workspace && !scopes.brands.length && !health)
+        throw new TenancyError('forbidden');
       const period = monthStart(new Date());
-      const u = await tx.db.selectFrom('automation.usage_period').selectAll().where('period_start', '=', period).executeTakeFirst();
+      const u = await tx.db
+        .selectFrom('automation.usage_period')
+        .selectAll()
+        .where('period_start', '=', period)
+        .executeTakeFirst();
       const runs = u ? Number(u.runs_reserved) - Number(u.runs_released) : 0;
       return {
         period_start: period,
-        measured: { runs, runs_finished: u ? Number(u.runs_settled) : 0, steps: u ? Number(u.steps_executed) : 0 },
+        measured: {
+          runs,
+          runs_finished: u ? Number(u.runs_settled) : 0,
+          steps: u ? Number(u.steps_executed) : 0,
+        },
         technical_limits: {
           runs_per_month: this.ws.automationRunsPerMonth,
           active_runs_per_automation: this.ws.automationActiveRunsMax,
@@ -2906,7 +4600,11 @@ export class AutomationService extends AiGatewayService {
           automations_per_workspace: this.ws.automationsPerWorkspaceMax,
         },
         // 10A owns plans: no plan allowance is invented here.
-        plan_entitlement: { status: 'unavailable', owner_phase: '10A', note: 'Plan limits arrive with billing. These are the deployment’s technical limits.' },
+        plan_entitlement: {
+          status: 'unavailable',
+          owner_phase: '10A',
+          note: 'Plan limits arrive with billing. These are the deployment’s technical limits.',
+        },
       };
     });
   }
@@ -2915,7 +4613,21 @@ export class AutomationService extends AiGatewayService {
   async automationHealth(caller: Caller, ws: unknown) {
     return this.inWorkspace(caller, ws, { readOnly: true }, async (tx, p) => {
       if (p.kind !== 'member') throw new TenancyError('not_found');
-      const rows = await tx.db.selectFrom('automation.automation as a').innerJoin('core.record as r', 'r.id', 'a.id').select(['a.id', 'r.public_id', 'a.name', 'a.brand_id', 'a.enabled', 'a.suspended_reason', 'a.consecutive_failures']).where('a.lifecycle_state', '=', 'active').limit(this.ws.automationsPerWorkspaceMax).execute();
+      const rows = await tx.db
+        .selectFrom('automation.automation as a')
+        .innerJoin('core.record as r', 'r.id', 'a.id')
+        .select([
+          'a.id',
+          'r.public_id',
+          'a.name',
+          'a.brand_id',
+          'a.enabled',
+          'a.suspended_reason',
+          'a.consecutive_failures',
+        ])
+        .where('a.lifecycle_state', '=', 'active')
+        .limit(this.ws.automationsPerWorkspaceMax)
+        .execute();
       const since = new Date(Date.now() - 30 * 86_400_000);
       const items = [];
       const totals: Record<string, number> = {};
@@ -2923,10 +4635,23 @@ export class AutomationService extends AiGatewayService {
         const c = await this.#decideScope(tx, p, 'automations.configure', a.brand_id);
         const h = await this.#decideScope(tx, p, 'health.view', a.brand_id);
         if (!c.allowed && !h.allowed) continue;
-        const counts = await tx.db.selectFrom('automation.automation_run').select(['status', (eb) => eb.fn.countAll<string>().as('n')]).where('automation_id', '=', a.id).where('created_at', '>=', since).groupBy('status').execute();
+        const counts = await tx.db
+          .selectFrom('automation.automation_run')
+          .select(['status', (eb) => eb.fn.countAll<string>().as('n')])
+          .where('automation_id', '=', a.id)
+          .where('created_at', '>=', since)
+          .groupBy('status')
+          .execute();
         const by = Object.fromEntries(counts.map((x) => [x.status, Number(x.n)]));
         for (const [k, v] of Object.entries(by)) totals[k] = (totals[k] ?? 0) + v;
-        items.push({ id: a.public_id, name: a.name, state: a.suspended_reason ? 'suspended' : a.enabled ? 'active' : 'disabled', suspended_reason: a.suspended_reason, failures_in_a_row: a.consecutive_failures, runs_30d: by });
+        items.push({
+          id: a.public_id,
+          name: a.name,
+          state: a.suspended_reason ? 'suspended' : a.enabled ? 'active' : 'disabled',
+          suspended_reason: a.suspended_reason,
+          failures_in_a_row: a.consecutive_failures,
+          runs_30d: by,
+        });
       }
       return { window_days: 30, totals, automations: items };
     });

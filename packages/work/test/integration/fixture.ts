@@ -148,69 +148,72 @@ export function workEnv(
     scanner:
       options.files?.scanner !== undefined ? options.files.scanner : new SignatureTestScanner(),
   };
-  const build = (tenant: typeof h.app) => new AutomationService({
-    ...(options.ai ? { ai: options.ai } : {}),
-    vault: createVault(h.config.identity),
-    deliver: options.deliver,
-    calendarProvider: options.calendarProvider ?? null,
-    files,
-    ...(options.searchSources ? { search: { sources: options.searchSources } } : {}),
-    notify: { emailState: options.emailState ?? 'capture' },
-    tenant,
-    platform: h.platform,
-    writer,
-    portabilityEntitlements: { auditExportAllowed: async () => options.auditExportAllowed ?? true },
-    security: new AuditSecurityEventSink(metrics),
-    lifecycle,
-    stepUp: port,
-    identity: port,
-    ownership: defaultOwnershipRegistry()
-      .register(projectOwnerHook)
-      .register(taskAssigneeHook)
-      .register(documentOwnerHook)
-      .register(goalOwnerHook)
-      .register(insightsOwnerHook)
-      .register(connectionOwnerHook)
-      .register(webhookOwnerHook)
-      .register(reviewDepartureHook(writer))
-      .register(departureTimerHook(writer))
-      .register(aiHistoryOwnerHook)
-      .register(automationOwnerHook),
-    limiter: new PostgresRateLimiter(h.platform, randomBytes(32), {
-      'workspace.create': { limit: 1000, windowMs: 3_600_000 },
-      'invitation.accept': { limit: 1000, windowMs: 3_600_000 },
-      'invitation.send': { limit: 1000, windowMs: 3_600_000 },
-      'capture.member': { limit: options.captureRate ?? 10_000, windowMs: 60_000 },
-      'intake.submit': { limit: options.intakeRate ?? 10_000, windowMs: 3_600_000 },
-      'comment.member': { limit: options.commentRate ?? 10_000, windowMs: 60_000 },
-      'document.save': { limit: options.documentRate ?? 10_000, windowMs: 60_000 },
-      'document.live': { limit: options.liveRate ?? 100_000, windowMs: 60_000 },
-      'search.member': { limit: options.searchRate ?? 100_000, windowMs: 60_000 },
-      'goal.checkin': { limit: options.goalRate ?? 100_000, windowMs: 60_000 },
-      'metrics.member': { limit: options.metricsRate ?? 100_000, windowMs: 60_000 },
-      'report.export': { limit: 100_000, windowMs: 60_000 },
-      'integration.member': { limit: 10_000, windowMs: 60_000 },
-      'api.read': { limit: 100_000, windowMs: 60_000 },
-      'api.write': { limit: 100_000, windowMs: 60_000 },
-      'mcp.read': { limit: 100_000, windowMs: 60_000 },
-      'mcp.write': { limit: 100_000, windowMs: 60_000 },
-    }),
-    signingKey: randomBytes(32),
-    settings: {
-      invitationLifetimeMs: 3_600_000,
-      ownershipTransferLifetimeMs: 3_600_000,
-      principalContextArrayMax: arrayMax,
-      previewTtlMs: 600_000,
-    },
-    views: DEFAULT_VIEWS_SETTINGS,
-    targets: defaultNavigationTargets()
-      .register(projectTargets(arrayMax))
-      .register(taskTargets(arrayMax))
-      .register(savedViewTargets(arrayMax)),
-    work: { ...DEFAULT_WORK_SETTINGS, webhookAllowLoopback: true, ...options.work },
-    metrics,
-    logger: h.logger,
-  });
+  const build = (tenant: typeof h.app) =>
+    new AutomationService({
+      ...(options.ai ? { ai: options.ai } : {}),
+      vault: createVault(h.config.identity),
+      deliver: options.deliver,
+      calendarProvider: options.calendarProvider ?? null,
+      files,
+      ...(options.searchSources ? { search: { sources: options.searchSources } } : {}),
+      notify: { emailState: options.emailState ?? 'capture' },
+      tenant,
+      platform: h.platform,
+      writer,
+      portabilityEntitlements: {
+        auditExportAllowed: async () => options.auditExportAllowed ?? true,
+      },
+      security: new AuditSecurityEventSink(metrics),
+      lifecycle,
+      stepUp: port,
+      identity: port,
+      ownership: defaultOwnershipRegistry()
+        .register(projectOwnerHook)
+        .register(taskAssigneeHook)
+        .register(documentOwnerHook)
+        .register(goalOwnerHook)
+        .register(insightsOwnerHook)
+        .register(connectionOwnerHook)
+        .register(webhookOwnerHook)
+        .register(reviewDepartureHook(writer))
+        .register(departureTimerHook(writer))
+        .register(aiHistoryOwnerHook)
+        .register(automationOwnerHook),
+      limiter: new PostgresRateLimiter(h.platform, randomBytes(32), {
+        'workspace.create': { limit: 1000, windowMs: 3_600_000 },
+        'invitation.accept': { limit: 1000, windowMs: 3_600_000 },
+        'invitation.send': { limit: 1000, windowMs: 3_600_000 },
+        'capture.member': { limit: options.captureRate ?? 10_000, windowMs: 60_000 },
+        'intake.submit': { limit: options.intakeRate ?? 10_000, windowMs: 3_600_000 },
+        'comment.member': { limit: options.commentRate ?? 10_000, windowMs: 60_000 },
+        'document.save': { limit: options.documentRate ?? 10_000, windowMs: 60_000 },
+        'document.live': { limit: options.liveRate ?? 100_000, windowMs: 60_000 },
+        'search.member': { limit: options.searchRate ?? 100_000, windowMs: 60_000 },
+        'goal.checkin': { limit: options.goalRate ?? 100_000, windowMs: 60_000 },
+        'metrics.member': { limit: options.metricsRate ?? 100_000, windowMs: 60_000 },
+        'report.export': { limit: 100_000, windowMs: 60_000 },
+        'integration.member': { limit: 10_000, windowMs: 60_000 },
+        'api.read': { limit: 100_000, windowMs: 60_000 },
+        'api.write': { limit: 100_000, windowMs: 60_000 },
+        'mcp.read': { limit: 100_000, windowMs: 60_000 },
+        'mcp.write': { limit: 100_000, windowMs: 60_000 },
+      }),
+      signingKey: randomBytes(32),
+      settings: {
+        invitationLifetimeMs: 3_600_000,
+        ownershipTransferLifetimeMs: 3_600_000,
+        principalContextArrayMax: arrayMax,
+        previewTtlMs: 600_000,
+      },
+      views: DEFAULT_VIEWS_SETTINGS,
+      targets: defaultNavigationTargets()
+        .register(projectTargets(arrayMax))
+        .register(taskTargets(arrayMax))
+        .register(savedViewTargets(arrayMax)),
+      work: { ...DEFAULT_WORK_SETTINGS, webhookAllowLoopback: true, ...options.work },
+      metrics,
+      logger: h.logger,
+    });
   const svc = build(h.app);
   let worker: AutomationService | null = null;
   const vault = createVault(h.config.identity);

@@ -20,12 +20,21 @@ export async function automationWorker(
 ) {
   const h = env.h;
   const svc = env.workerSvc();
-  const deps = { discovery: h.discovery, service: svc, metrics: h.telemetry.metrics, logger: h.logger };
+  const deps = {
+    discovery: h.discovery,
+    service: svc,
+    metrics: h.telemetry.metrics,
+    logger: h.logger,
+  };
   const j = h.config.jobs;
   const worker = new WorkerRuntime({
     db: h.worker,
     discovery: h.discovery,
-    handlers: [automationRunHandler(deps), automationSweepHandler(deps), ...(options.handlers ?? [])],
+    handlers: [
+      automationRunHandler(deps),
+      automationSweepHandler(deps),
+      ...(options.handlers ?? []),
+    ],
     consumers: [
       new AutomationTriggerConsumer(svc),
       new AutomationOutcomeConsumer(svc),
@@ -87,8 +96,12 @@ export async function settle(db: TestDatabase, worker: WorkerRuntime, max = 30) 
 
 /** Moves every automation delay (and its continuation job) to now. */
 export async function wakeDelays(db: TestDatabase) {
-  await db.admin(`UPDATE automation.automation_run SET wake_at = now() - interval '1 second' WHERE wake_at IS NOT NULL`);
-  await db.admin(`UPDATE exec.job SET run_at = now() WHERE kind = 'automation.run' AND state = 'queued'`);
+  await db.admin(
+    `UPDATE automation.automation_run SET wake_at = now() - interval '1 second' WHERE wake_at IS NOT NULL`,
+  );
+  await db.admin(
+    `UPDATE exec.job SET run_at = now() WHERE kind = 'automation.run' AND state = 'queued'`,
+  );
 }
 
 /** Runs of an automation with their steps, as stored (internal view for assertions). */
@@ -101,7 +114,14 @@ export async function runsOf(db: TestDatabase, automationPublicId: string) {
       WHERE c.public_id = $1 ORDER BY r.created_at, r.id`,
     [automationPublicId],
   );
-  return r.rows as Array<Record<string, unknown> & { status: string; reason: string | null; op_public_id: string; execution_state: string }>;
+  return r.rows as Array<
+    Record<string, unknown> & {
+      status: string;
+      reason: string | null;
+      op_public_id: string;
+      execution_state: string;
+    }
+  >;
 }
 
 export async function stepsOf(db: TestDatabase, runId: string) {

@@ -194,9 +194,17 @@ describe('task isolation and query plans (2B)', () => {
     await expect(
       direct(db.worker, W.b.id, `UPDATE work.task SET title = 'x' WHERE id = $1`, [aTask]),
     ).resolves.toMatchObject({ rowCount: 0 });
-    for (const column of ['description_rich', 'brand_id', 'estimate_minutes', 'deadline_date', 'origin_kind'])
+    for (const column of [
+      'description_rich',
+      'brand_id',
+      'estimate_minutes',
+      'deadline_date',
+      'origin_kind',
+    ])
       await expect(
-        direct(db.worker, W.a.id, `UPDATE work.task SET ${column} = ${column} WHERE id = $1`, [aTask]),
+        direct(db.worker, W.a.id, `UPDATE work.task SET ${column} = ${column} WHERE id = $1`, [
+          aTask,
+        ]),
         column,
       ).rejects.toThrow(/permission denied/);
     await expect(

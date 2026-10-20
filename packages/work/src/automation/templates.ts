@@ -32,7 +32,9 @@ export const STARTER_TEMPLATES: readonly StarterTemplate[] = [
         at: '09:00',
         timezone: v.timezone ?? 'UTC',
       },
-      conditions: { all: [{ field: 'status_category', op: 'not_in', value: ['done', 'cancelled'] }] },
+      conditions: {
+        all: [{ field: 'status_category', op: 'not_in', value: ['done', 'cancelled'] }],
+      },
       steps: [
         {
           id: 'urgent_check',
@@ -41,7 +43,13 @@ export const STARTER_TEMPLATES: readonly StarterTemplate[] = [
           then: 'tell',
           else: 'raise',
         },
-        { id: 'raise', type: 'action', action: 'task.update', params: { fields: { priority: 'high' } }, next: 'tell' },
+        {
+          id: 'raise',
+          type: 'action',
+          action: 'task.update',
+          params: { fields: { priority: 'high' } },
+          next: 'tell',
+        },
         {
           id: 'tell',
           type: 'action',
@@ -90,7 +98,11 @@ export const STARTER_TEMPLATES: readonly StarterTemplate[] = [
           id: 'follow_up',
           type: 'action',
           action: 'task.create',
-          params: { title: 'Follow up on completed work', project: 'trigger.project', due: { days: 7 } },
+          params: {
+            title: 'Follow up on completed work',
+            project: 'trigger.project',
+            due: { days: 7 },
+          },
           fallback: { on: ['policy_rejected', 'validation_failed'], next: null },
           next: null,
         },
@@ -100,7 +112,8 @@ export const STARTER_TEMPLATES: readonly StarterTemplate[] = [
   {
     key: 'assign_on_review_changes',
     name: 'Assign changes requested in review',
-    description: 'When a review asks for changes, assign the task to a chosen person and tell them.',
+    description:
+      'When a review asks for changes, assign the task to a chosen person and tell them.',
     trigger: 'approval.decided',
     needs: ['member'],
     build: (v) => ({

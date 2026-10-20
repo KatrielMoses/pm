@@ -2883,7 +2883,11 @@ export class AiGatewayService extends McpAccessService {
     tx: WorkspaceTransaction,
     caller: Caller,
     p: Principal,
-    input: { action: string; instruction: string | null; scope: { task?: string; project?: string } },
+    input: {
+      action: string;
+      instruction: string | null;
+      scope: { task?: string; project?: string };
+    },
   ): Promise<{ runPublicId: string; kind: 'analysis' | 'proposal' }> {
     const def = ACTION_BY_ID.get(input.action);
     if (!def || (def.kind !== 'analysis' && def.kind !== 'proposal'))

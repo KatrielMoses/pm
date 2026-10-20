@@ -130,7 +130,10 @@ export {
   type Definition as AutomationDefinition,
   type DefinitionLimits as AutomationDefinitionLimits,
 } from './automation/definition.ts';
-export { evaluate as evaluateAutomationCondition, type RecordFacts } from './automation/evaluate.ts';
+export {
+  evaluate as evaluateAutomationCondition,
+  type RecordFacts,
+} from './automation/evaluate.ts';
 export * from './automation/service.ts';
 export * from './automation/jobs.ts';
 export { automationOwnerHook } from './automation/ownership.ts';

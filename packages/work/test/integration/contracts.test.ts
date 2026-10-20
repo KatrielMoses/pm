@@ -526,7 +526,13 @@ describe('project contracts, concurrency, plans, and isolation (2A)', () => {
     ).resolves.toMatchObject({ rowCount: 0 });
     // The worker never edits project authority, ownership, placement, or budgets directly; 8A
     // automation steps may write only the canonical update columns, inside one workspace.
-    for (const column of ['owner_membership_id', 'access_mode', 'parent_project_id', 'budget_amount', 'description_rich'])
+    for (const column of [
+      'owner_membership_id',
+      'access_mode',
+      'parent_project_id',
+      'budget_amount',
+      'description_rich',
+    ])
       await expect(
         direct(db.worker, W.a.id, `UPDATE work.project SET ${column} = ${column}`),
         column,

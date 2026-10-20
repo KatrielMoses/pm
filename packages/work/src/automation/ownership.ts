@@ -35,7 +35,11 @@ export const automationOwnerHook: OwnershipHook = {
     if (r.length)
       await tx.db
         .deleteFrom('automation.trigger_schedule')
-        .where('automation_id', 'in', r.map((x) => x.id))
+        .where(
+          'automation_id',
+          'in',
+          r.map((x) => x.id),
+        )
         .execute();
     return r.length;
   },

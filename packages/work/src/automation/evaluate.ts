@@ -61,9 +61,13 @@ function compare(c: Comparison, facts: RecordFacts, today: string): boolean {
   const v = c.value;
   switch (c.op) {
     case 'is_set':
-      return Array.isArray(actual) ? actual.length > 0 : actual !== null && actual !== undefined && actual !== '';
+      return Array.isArray(actual)
+        ? actual.length > 0
+        : actual !== null && actual !== undefined && actual !== '';
     case 'is_not_set':
-      return Array.isArray(actual) ? actual.length === 0 : actual === null || actual === undefined || actual === '';
+      return Array.isArray(actual)
+        ? actual.length === 0
+        : actual === null || actual === undefined || actual === '';
     case 'eq':
       return actual !== null && actual !== undefined && String(actual) === String(v);
     case 'neq':
@@ -86,7 +90,8 @@ function compare(c: Comparison, facts: RecordFacts, today: string): boolean {
     case 'lt': {
       const a = typeof actual === 'number' ? actual : Number(actual);
       const b = typeof v === 'number' ? v : Number(v);
-      if (actual === null || actual === undefined || !Number.isFinite(a) || !Number.isFinite(b)) return false;
+      if (actual === null || actual === undefined || !Number.isFinite(a) || !Number.isFinite(b))
+        return false;
       return c.op === 'gt' ? a > b : a < b;
     }
     case 'before':

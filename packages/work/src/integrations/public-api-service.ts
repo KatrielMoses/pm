@@ -1749,10 +1749,14 @@ export class PublicApiService extends IntegrationService {
           .select(['r.public_id', 's.state', 's.lifecycle_state'])
           .where('s.id', '=', input.subscriptionId)
           .executeTakeFirst();
-        const now = dest
-          ? await this.automationWebhookDestination(tx, dest.public_id)
-          : null;
-        if (!dest || !now || now.fingerprint !== input.fingerprint || dest.state !== 'active' || dest.lifecycle_state !== 'active')
+        const now = dest ? await this.automationWebhookDestination(tx, dest.public_id) : null;
+        if (
+          !dest ||
+          !now ||
+          now.fingerprint !== input.fingerprint ||
+          dest.state !== 'active' ||
+          dest.lifecycle_state !== 'active'
+        )
           return null;
         const sub = (await this.#lockSubscription(tx, input.subscriptionId, 'share'))!;
         return {
@@ -1766,8 +1770,7 @@ export class PublicApiService extends IntegrationService {
         };
       },
     );
-    if (!prepared || !prepared.secrets.length)
-      throw new EffectNotSentError('precondition_failed');
+    if (!prepared || !prepared.secrets.length) throw new EffectNotSentError('precondition_failed');
     const id = publicEventId(`automation:${input.effectKey}`);
     const body = JSON.stringify({ ...input.envelope, id });
     const timestamp = String(Math.floor(Date.now() / 1000));
