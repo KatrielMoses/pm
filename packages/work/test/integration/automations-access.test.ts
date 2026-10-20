@@ -281,7 +281,10 @@ describe('automations (8A): authority, isolation, and revocation', () => {
       principal: await mem(1, 'manager'),
       level: 'manage',
     });
-    await activate(m, ws, a.id);
+    const activation = v((await env.svc.getAutomation(m, ws, a.id)).version);
+    await env.svc.activateAutomation(m, ws, a.id, {}, activation);
+    // While access holds, the same key is a replay of the completed activation (nothing new).
+    expect((await env.svc.activateAutomation(m, ws, a.id, {}, activation)).replayed).toBe(true);
     const t = (
       await env.svc.createTask(owner, ws, { brand: brands.main, title: 'Trigger' }, mutation())
     ).data;
@@ -295,6 +298,10 @@ describe('automations (8A): authority, isolation, and revocation', () => {
       brand: brands.main,
       principal: await mem(1, 'manager'),
     });
+    // A completed activation key replayed after the loss renders through current access: opaque.
+    await expect(env.svc.activateAutomation(m, ws, a.id, {}, activation)).rejects.toEqual(
+      code('not_found'),
+    );
     await wakeDelays(db);
     await settle(db, worker);
     const [run] = await runsOf(db, a.id);

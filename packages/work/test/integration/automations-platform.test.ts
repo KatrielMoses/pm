@@ -631,4 +631,118 @@ describe('automations (8A): AI drafts, future sources, alerts, lifecycle, previe
       ),
     ).toEqual(['date:*:2026-10-21']);
   });
+
+  it('EXPLAIN at 2,000 automations and 5,000 runs: trigger matching, admission, lineage, history, open runs, steps, and due schedules use their indexes', async () => {
+    // Volume by cloning this workspace's own rows (admin, past RLS): records and automations, then
+    // operations with their runs and step runs, and a schedule per automation.
+    const seed = (
+      await db.admin(
+        `SELECT r.id AS run, r.automation_id AS auto, r.current_operation_id AS op,
+                (SELECT id FROM automation.automation_step_run s WHERE s.run_id = r.id LIMIT 1) AS step
+           FROM automation.automation_run r WHERE r.workspace_id = $1 ORDER BY r.created_at LIMIT 1`,
+        [s.wsId],
+      )
+    ).rows[0];
+    const crock = (n: string) => `upper(substr(md5(${n}), 1, 26))`;
+    // Insertable columns only (generated columns such as core.record.scope_key are recomputed).
+    const cols = async (table: string) =>
+      (
+        await db.admin(
+          `SELECT string_agg(quote_ident(column_name), ', ' ORDER BY ordinal_position) AS c
+             FROM information_schema.columns
+            WHERE table_schema || '.' || table_name = $1 AND is_generated = 'NEVER'`,
+          [table],
+        )
+      ).rows[0].c as string;
+    const clone = async (table: string, param: string, overrides: string) => {
+      const c = await cols(table);
+      return `INSERT INTO ${table} (${c})
+              SELECT ${c} FROM (
+                SELECT (jsonb_populate_record(NULL::${table}, to_jsonb(src) || ${overrides})).*
+                  FROM ${table} src, g WHERE src.id = ${param}) x
+              RETURNING id`;
+    };
+    await db.admin(
+      `WITH g AS (SELECT uuidv7() AS id, n FROM generate_series(1, 2000) n),
+       rec AS (${await clone('core.record', '$1', `jsonb_build_object('id', g.id, 'public_id', 'auto_' || ${crock("'a' || g.n")})`)})
+       ${(await clone('automation.automation', '$1', `jsonb_build_object('id', g.id, 'trigger_event', 'seed.event.' || chr(97 + g.n % 26), 'enabled', g.n % 3 = 0 AND src.active_revision_id IS NOT NULL AND src.activated_at IS NOT NULL AND src.trigger_kind IS NOT NULL AND src.suspended_reason IS NULL)`)).replace(/\s*RETURNING id$/, '')}`,
+      [seed.auto],
+    );
+    await db.admin(
+      `INSERT INTO automation.trigger_schedule (automation_id, workspace_id, revision_id, kind, next_due_at)
+       SELECT a.id, a.workspace_id, a.active_revision_id, 'schedule', now() + (random() * interval '30 days')
+         FROM automation.automation a
+        WHERE a.workspace_id = $1 AND a.active_revision_id IS NOT NULL
+          AND NOT EXISTS (SELECT 1 FROM automation.trigger_schedule t WHERE t.automation_id = a.id)`,
+      [s.wsId],
+    );
+    await db.admin(
+      `WITH g AS (SELECT uuidv7() AS op, uuidv7() AS run, n FROM generate_series(1, 5000) n),
+       ops AS (${await clone('exec.operation', '$1', `jsonb_build_object('id', g.op, 'public_id', 'op_' || ${crock("'o' || g.n")})`)}),
+       runs AS (${await clone(
+         'automation.automation_run',
+         '$2',
+         `jsonb_build_object('id', g.run, 'operation_id', g.op, 'current_operation_id', g.op, 'trigger_key', 'seed:' || g.n,
+            'status', CASE WHEN g.n % 50 = 0 THEN 'running' ELSE 'succeeded' END, 'reason', NULL, 'wake_at', NULL,
+            'ended_at', CASE WHEN g.n % 50 = 0 THEN NULL ELSE now() END, 'slot_held', false,
+            'created_at', now() - (g.n * interval '1 minute'))`,
+       )})
+       ${(await clone('automation.automation_step_run', '$3', `jsonb_build_object('id', uuidv7(), 'run_id', g.run, 'operation_id', g.op)`)).replace(/\s*RETURNING id$/, '')}`,
+      [seed.op, seed.run, seed.step],
+    );
+    await db.admin(
+      `ANALYZE automation.automation, automation.automation_run, automation.automation_step_run, automation.trigger_schedule, exec.operation`,
+    );
+    const plan = async (query: string, params: unknown[]) =>
+      env.h.app.withWorkspace(s.wsId, { module: 'test' }, async (tx) => {
+        const r = await tx.db.executeQuery({
+          sql: `EXPLAIN (FORMAT JSON) ${query}`,
+          parameters: params,
+          query: { kind: 'RawNode' },
+        } as never);
+        return JSON.stringify((r as { rows: unknown[] }).rows);
+      });
+    const cases: Array<[string, unknown[], RegExp]> = [
+      [
+        `SELECT id FROM automation.automation WHERE workspace_id = $1 AND trigger_event = $2 AND enabled AND trigger_event IS NOT NULL`,
+        [s.wsId, 'seed.event.d'],
+        /automation_listening/,
+      ],
+      [
+        `SELECT id FROM automation.automation_run WHERE workspace_id = $1 AND automation_id = $2 AND trigger_key = $3`,
+        [s.wsId, seed.auto, 'seed:17'],
+        /automation_run_occurrence_unique/,
+      ],
+      [
+        `SELECT id FROM automation.automation_run WHERE workspace_id = $1 AND (current_operation_id = $2 OR operation_id = $2)`,
+        [s.wsId, seed.op],
+        /automation_run_by_current[\s\S]*automation_run_operation_unique|automation_run_operation_unique[\s\S]*automation_run_by_current/,
+      ],
+      [
+        `SELECT id FROM automation.automation_run WHERE workspace_id = $1 AND automation_id = $2 ORDER BY created_at DESC LIMIT 50`,
+        [s.wsId, seed.auto],
+        /automation_run_by_automation/,
+      ],
+      [
+        `SELECT count(*) FROM automation.automation_run WHERE workspace_id = $1 AND automation_id = $2 AND status IN ('queued', 'running', 'waiting')`,
+        [s.wsId, seed.auto],
+        /automation_run_open/,
+      ],
+      [
+        `SELECT id FROM automation.automation_step_run WHERE workspace_id = $1 AND run_id = $2 ORDER BY started_at`,
+        [s.wsId, seed.run],
+        /automation_step_run_by_run|automation_step_run_attempt_unique|automation_step_run_once/,
+      ],
+      [
+        `SELECT automation_id FROM automation.trigger_schedule WHERE workspace_id = $1 AND next_due_at <= now() + interval '1 day' AND next_due_at IS NOT NULL ORDER BY next_due_at LIMIT 100`,
+        [s.wsId],
+        /trigger_schedule_due/,
+      ],
+    ];
+    for (const [query, params, index] of cases) {
+      const p = await plan(query, params);
+      expect(p, query).not.toMatch(/"Seq Scan"/);
+      expect(p, query).toMatch(index);
+    }
+  });
 });

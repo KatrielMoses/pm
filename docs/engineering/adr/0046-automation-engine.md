@@ -82,6 +82,7 @@ Phase 0 reserved automations in every contract: the `auto` prefix and `automatio
 | AT-578, AT-579 | apps/api/test/integration/automations-api.test.ts |
 | AT-580, AT-581 | e2e/automations.spec.ts |
 | Component | apps/web/test/automations.test.tsx |
+| Query plans at volume (2,000 automations, 5,000 runs) | packages/work/test/integration/automations-platform.test.ts (EXPLAIN) |
 
 ## Identifier reconciliation
 

@@ -207,10 +207,15 @@ def check_migration():
     if names[-1] != "0062_automation_engine.up.sql":
         errs.append("0062_automation_engine must be the last migration")
     errs += phase1.check_boundaries([62])
+    platform = read(P("packages/work/test/integration/automations-platform.test.ts"))
+    for idx in ("automation_listening", "automation_run_occurrence_unique", "automation_run_by_automation",
+                "automation_run_open", "trigger_schedule_due"):
+        if idx not in platform or "EXPLAIN at 2,000 automations and 5,000 runs" not in platform:
+            errs.append("the volume EXPLAIN test must prove %s is used" % idx)
     mt = read(P("packages/db/test/integration/migrations.test.ts"))
     if "62" not in re.findall(r"\b62\b", mt):
         errs.append("the migration tests must cover the 0062 boundary")
-    return errs, "seven forced-RLS tables, immutable revisions, guarded exact rollback, boundary 62"
+    return errs, "seven forced-RLS tables, immutable revisions, guarded exact rollback, boundary 62, plans at volume"
 
 
 def check_identifiers():
